@@ -511,6 +511,52 @@ body {
 .empty-state__sub  { font-size: 13px; }
 
 /* ═══════════════════════════════════════════════
+   Notes de séance
+═══════════════════════════════════════════════ */
+.session-notes-block {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 16px; border: 1px solid var(--border);
+}
+.session-notes-label {
+  font-size: 12px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 8px;
+}
+.session-notes-input {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-size: 15px;
+  padding: 12px; font-family: inherit; resize: none; min-height: 80px;
+  line-height: 1.5;
+}
+.session-notes-input:focus { outline: none; border-color: #3b82f6; }
+.session-notes-input::placeholder { color: var(--muted); }
+
+/* Notes dans l'historique */
+.history-notes {
+  font-size: 13px; color: #94a3b8; font-style: italic;
+  margin-bottom: 8px; padding: 6px 10px;
+  background: var(--surface2); border-radius: 6px;
+  border-left: 2px solid #334155;
+}
+
+/* Objectif dans les stats */
+.target-block { margin-bottom: 8px; }
+.target-label {
+  font-size: 12px; color: var(--muted); margin-bottom: 5px;
+  display: flex; justify-content: space-between;
+}
+.target-bar {
+  height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden;
+}
+.target-bar__fill {
+  height: 100%; border-radius: 3px; transition: width .5s ease;
+}
+
+/* Volume moyen dans les stats */
+.stats-volume {
+  font-size: 11px; color: var(--muted); text-align: right; margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════
    Toast
 ═══════════════════════════════════════════════ */
 .toast {

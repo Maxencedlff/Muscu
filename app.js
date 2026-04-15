@@ -49,7 +49,25 @@ function showToast(msg) {
 const KEY = 'ppl_v1';
 
 function makeExercise(name, sets) {
-  return { id: uid(), name, sets, lastWeight: '', lastReps: '', pr: null };
+  return { id: uid(), name, sets, lastWeight: '', lastReps: '', pr: null, est1RM: null, target: null };
+}
+
+function calc1RM(weight, reps) {
+  const w = parseFloat(weight) || 0;
+  const r = parseInt(reps) || 0;
+  if (w <= 0 || r <= 0 || r > 12) return null;
+  return Math.round(w * (1 + r / 30) * 10) / 10;
+}
+
+function fmtVolume(v) {
+  if (!v) return '0 kg';
+  return Math.round(v).toLocaleString('fr-FR') + ' kg';
+}
+
+function sessionVolume(exercises) {
+  return exercises.reduce((total, ex) =>
+    total + ex.sets.reduce((a, s) =>
+      a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0), 0);
 }
 
 function makeDefaultData() {
@@ -116,6 +134,8 @@ let addCat        = 'push';
 let addDate       = new Date().toISOString().slice(0, 10);
 let addSets       = {}; // { exId: [{weight, reps}] }
 let editSessionId = null; // null = nouvelle séance, sinon id de la séance à modifier
+let sessionNotes  = '';   // notes de la séance en cours
+let addNotes      = '';   // notes du formulaire séance passée
 let audioCtx      = null;
 let wakeLock      = null;
 
@@ -275,6 +295,7 @@ function startTicker() {
 // ═══════════════════════════════════════════════════════════
 
 function startSession(cat) {
+  sessionNotes = '';
   const exList = data.exercises[cat] || [];
   activeSession = {
     category: cat,
@@ -393,7 +414,14 @@ function renderSession() {
       <div class="progress-bar">
         <div class="progress-bar__fill progress-bar__fill--${cat}" style="width:${pct}%"></div>
       </div>
-      <div class="session-content">${exHtml}</div>
+      <div class="session-content">
+        ${exHtml}
+        <div class="session-notes-block">
+          <div class="session-notes-label">Notes de séance</div>
+          <textarea class="session-notes-input" data-action="session-notes"
+                    placeholder="Comment s'est passée la séance ? (optionnel)">${sessionNotes}</textarea>
+        </div>
+      </div>
     </div>
     ${renderRestOverlay()}`;
 }
@@ -425,6 +453,10 @@ function validateSet(ei, si) {
     const pr = parseInt(exData.pr?.reps)     || 0;
     if (w > pw || (w === pw && r > pr)) {
       exData.pr = { weight: s.weight, reps: s.reps };
+    }
+    const new1RM = calc1RM(s.weight, s.reps);
+    if (new1RM && (!exData.est1RM || new1RM > exData.est1RM)) {
+      exData.est1RM = new1RM;
     }
     save();
   }
@@ -582,6 +614,9 @@ function renderModal() {
         <label class="form-label">Nombre de séries par défaut</label>
         <input type="number" inputmode="numeric" id="modalSets" class="form-input"
                value="${ex ? ex.sets : 3}" min="1" max="10">
+        <label class="form-label">Objectif poids (kg) — optionnel</label>
+        <input type="number" inputmode="decimal" id="modalTarget" class="form-input"
+               value="${ex?.target || ''}" placeholder="Ex : 40">
         <div class="modal__actions">
           <button class="btn btn--secondary" data-action="close-modal">Annuler</button>
           <button class="btn btn--primary"   data-action="save-ex">${isEdit ? 'Enregistrer' : 'Ajouter'}</button>
@@ -666,7 +701,14 @@ function renderAddSession() {
                  value="${addDate}" max="${today}" data-action="add-date">
         </div>
       </div>
-      <div class="add-session-content">${exHtml}</div>
+      <div class="add-session-content">
+        ${exHtml}
+        <div class="session-notes-block">
+          <div class="session-notes-label">Notes</div>
+          <textarea class="session-notes-input" data-action="add-notes-input"
+                    placeholder="Comment s'est passée la séance ? (optionnel)">${addNotes}</textarea>
+        </div>
+      </div>
     </div>`;
 }
 
@@ -737,7 +779,7 @@ function renderStats() {
       }).join('');
 
     const encoded = encodeURIComponent(JSON.stringify(
-      points.map(p => ({ date: p.date, avgW: p.avgW, avgR: p.avgR, minW: p.minW, maxW: p.maxW, bodyweight: p.bodyweight }))
+      points.map(p => ({ date: p.date, avgW: p.avgW, avgR: p.avgR, minW: p.minW, maxW: p.maxW, bodyweight: p.bodyweight, sets: p.sets }))
     ));
 
     return `
@@ -754,11 +796,29 @@ function renderStats() {
         </div>
         ${lastSets ? `<div class="last-sets">${lastSets}</div>` : ''}
         <canvas class="stats-canvas" data-points="${encoded}" data-color="${color}"></canvas>
-        <div class="stats-card__footer">
-          <span>PR : <strong>${prW}${isBodyweight ? ' reps' : ' kg'}</strong></span>
-          <span style="color:${progColor};font-weight:700">${progLabel}</span>
-          <span>${points.length} séance${points.length > 1 ? 's' : ''}</span>
-        </div>
+        ${(() => {
+          const exData = data.exercises[statsCat]?.find(e => e.name === ex.name);
+          const vol = Math.round(points.reduce((a, p) => a + p.sets.reduce((b, s) => b + (parseFloat(s.weight)||0)*(parseInt(s.reps)||0), 0), 0) / points.length);
+          const targetW = exData?.target;
+          const e1RM = exData?.est1RM;
+          const targetBar = (targetW && !isBodyweight) ? (() => {
+            const pct = Math.min(100, Math.round((last.maxW / targetW) * 100));
+            const color2 = pct >= 100 ? '#22c55e' : progColor;
+            return `<div class="target-block">
+              <div class="target-label">Objectif : ${targetW} kg <span style="color:${color2}">${pct >= 100 ? '✓ Atteint !' : pct + '%'}</span></div>
+              <div class="target-bar"><div class="target-bar__fill" style="width:${pct}%;background:${color2}"></div></div>
+            </div>`;
+          })() : '';
+          return `
+            ${targetBar}
+            <div class="stats-card__footer">
+              <span>PR : <strong>${prW}${isBodyweight ? ' reps' : ' kg'}</strong></span>
+              ${e1RM && !isBodyweight ? `<span>1RM ~<strong>${e1RM} kg</strong></span>` : ''}
+              <span style="color:${progColor};font-weight:700">${progLabel}</span>
+              <span>${points.length} séance${points.length > 1 ? 's' : ''}</span>
+            </div>
+            ${vol > 0 ? `<div class="stats-volume">Volume moy/séance : ${fmtVolume(vol)}</div>` : ''}`;
+        })()}
       </div>`;
   }).join('');
 
@@ -950,7 +1010,11 @@ function renderHistory() {
                     <button class="history-edit-btn history-edit-btn--del" data-action="delete-session" data-id="${s.id}" title="Supprimer">🗑️</button>
                   </div>
                 </div>
-                <div class="history-item__summary">${s.exercises.length} exercices · ${totalSets} séries</div>
+                <div class="history-item__summary">
+                  ${s.exercises.length} exercices · ${totalSets} séries
+                  ${sessionVolume(s.exercises) > 0 ? ` · <strong>${fmtVolume(sessionVolume(s.exercises))}</strong> volume` : ''}
+                </div>
+                ${s.notes ? `<div class="history-notes">"${s.notes}"</div>` : ''}
                 <div class="history-item__exercises">
                   ${s.exercises.map(ex => `
                     <div class="history-ex">
@@ -1023,6 +1087,7 @@ document.addEventListener('click', e => {
       addCat        = 'push';
       addDate       = new Date().toISOString().slice(0, 10);
       editSessionId = null;
+      addNotes      = '';
       initAddSets(addCat);
       view = 'add-session'; render(); break;
     }
@@ -1040,6 +1105,7 @@ document.addEventListener('click', e => {
           addSets[exData.id] = ex.sets.map(s => ({ weight: s.weight, reps: s.reps }));
         }
       });
+      addNotes = session.notes || '';
       view = 'add-session'; render(); break;
     }
     case 'delete-session': {
@@ -1081,8 +1147,10 @@ document.addEventListener('click', e => {
     }
     case 'save-past-session': {
       // Lire la date depuis le champ (au cas où l'input n'a pas déclenché l'event)
-      const dateEl = $('#addDate');
+      const dateEl  = $('#addDate');
       if (dateEl) addDate = dateEl.value;
+      const notesEl2 = $('.session-notes-input');
+      if (notesEl2) addNotes = notesEl2.value;
 
       const sessionExercises = (data.exercises[addCat] || [])
         .map(ex => {
@@ -1107,7 +1175,8 @@ document.addEventListener('click', e => {
         if (idx !== -1) data.history[idx] = { id: editSessionId, category: addCat, date: timestamp, exercises: sessionExercises };
       } else {
         // Nouvelle séance
-        data.history.push({ id: uid(), category: addCat, date: timestamp, exercises: sessionExercises });
+        data.history.push({ id: uid(), category: addCat, date: timestamp, notes: addNotes.trim(), exercises: sessionExercises });
+      addNotes = '';
       }
       data.history.sort((a, b) => b.date - a.date);
       editSessionId = null;
@@ -1166,15 +1235,19 @@ document.addEventListener('click', e => {
       data.timers[activeSession.category] = Date.now();
       // Sauvegarder dans l'historique
       if (!data.history) data.history = [];
+      const notesEl = $('.session-notes-input');
+      if (notesEl) sessionNotes = notesEl.value;
       data.history.unshift({
         id: uid(),
         category: activeSession.category,
         date: Date.now(),
+        notes: sessionNotes.trim(),
         exercises: activeSession.exercises.map(ex => ({
           name: ex.name,
           sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps })),
         })),
       });
+      sessionNotes = '';
       if (data.history.length > 200) data.history = data.history.slice(0, 200);
       save();
       finishSound();
@@ -1228,11 +1301,15 @@ document.addEventListener('click', e => {
       const name = $('#modalName')?.value.trim();
       const sets = parseInt($('#modalSets')?.value) || 3;
       if (!name) { showToast('Entre un nom !'); return; }
+      const target = parseFloat($('#modalTarget')?.value) || null;
       if (editExIdx !== null) {
-        data.exercises[editorCat][editExIdx].name = name;
-        data.exercises[editorCat][editExIdx].sets = sets;
+        data.exercises[editorCat][editExIdx].name   = name;
+        data.exercises[editorCat][editExIdx].sets   = sets;
+        data.exercises[editorCat][editExIdx].target = target;
       } else {
-        data.exercises[editorCat].push(makeExercise(name, sets));
+        const ex = makeExercise(name, sets);
+        ex.target = target;
+        data.exercises[editorCat].push(ex);
       }
       modalOpen = false; editExIdx = null; save(); render(); break;
     }
@@ -1292,8 +1369,10 @@ document.addEventListener('input', e => {
       if (action === 'add-weight') addSets[exid][si].weight = e.target.value;
       if (action === 'add-reps')   addSets[exid][si].reps   = e.target.value;
     }
-    if (action === 'add-date') addDate = e.target.value;
+    if (action === 'add-date')        addDate  = e.target.value;
+    if (action === 'add-notes-input') addNotes = e.target.value;
   }
+  if (action === 'session-notes') sessionNotes = e.target.value;
 });
 
 // ═══════════════════════════════════════════════════════════
