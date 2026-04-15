@@ -482,9 +482,14 @@ body {
 .history-item--legs { border-left-color: var(--legs); }
 
 .history-item__header {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
   margin-bottom: 4px;
 }
+.history-edit-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 14px; padding: 2px 4px; opacity: .5; flex-shrink: 0;
+}
+.history-edit-btn:active { opacity: 1; }
 .history-item__cat  { font-size: 15px; font-weight: 700; }
 .history-item__date { font-size: 12px; color: var(--muted); text-align: right; }
 .history-item__summary { font-size: 12px; color: var(--muted); margin-bottom: 10px; }

@@ -115,6 +115,7 @@ let statsCat      = 'push';
 let addCat        = 'push';
 let addDate       = new Date().toISOString().slice(0, 10);
 let addSets       = {}; // { exId: [{weight, reps}] }
+let editSessionId = null; // null = nouvelle séance, sinon id de la séance à modifier
 let audioCtx      = null;
 let wakeLock      = null;
 
@@ -238,8 +239,9 @@ function renderDashboard() {
       </header>
       <div class="cards">${cards}</div>
       <div class="dashboard__footer">
-        <button class="link-btn" data-action="export">Exporter mes données</button>
+        <button class="link-btn" data-action="export">Exporter</button>
         <button class="link-btn" data-action="import">Importer</button>
+        <button class="link-btn" data-action="force-update">↻ Mettre à jour</button>
       </div>
     </div>`;
 }
@@ -652,7 +654,7 @@ function renderAddSession() {
             <path d="M19 12H5M12 5l-7 7 7 7"/>
           </svg>
         </button>
-        <span class="header__title">Séance passée</span>
+        <span class="header__title">${editSessionId ? 'Modifier la séance' : 'Séance passée'}</span>
         <button class="btn--finish" data-action="save-past-session">Enregistrer</button>
       </header>
       <div class="add-session-meta">
@@ -927,7 +929,11 @@ function renderHistory() {
                   <span class="history-item__cat">
                     ${CAT_ICON[s.category]} ${CAT_LABEL[s.category]}
                   </span>
-                  <span class="history-item__date">${fmtDateTime(s.date)}</span>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span class="history-item__date">${fmtDateTime(s.date)}</span>
+                    <button class="history-edit-btn" data-action="edit-session" data-id="${s.id}" title="Modifier">✏️</button>
+                    <button class="history-edit-btn history-edit-btn--del" data-action="delete-session" data-id="${s.id}" title="Supprimer">🗑️</button>
+                  </div>
                 </div>
                 <div class="history-item__summary">${s.exercises.length} exercices · ${totalSets} séries</div>
                 <div class="history-item__exercises">
@@ -999,10 +1005,45 @@ document.addEventListener('click', e => {
       statsCat = el.dataset.cat; render(); break;
     }
     case 'go-add-session': {
-      addCat  = 'push';
-      addDate = new Date().toISOString().slice(0, 10);
+      addCat        = 'push';
+      addDate       = new Date().toISOString().slice(0, 10);
+      editSessionId = null;
       initAddSets(addCat);
       view = 'add-session'; render(); break;
+    }
+    case 'edit-session': {
+      const session = (data.history || []).find(h => h.id === el.dataset.id);
+      if (!session) break;
+      editSessionId = session.id;
+      addCat  = session.category;
+      addDate = new Date(session.date).toISOString().slice(0, 10);
+      // Pré-remplir addSets avec les données de la séance
+      initAddSets(addCat);
+      session.exercises.forEach(ex => {
+        const exData = data.exercises[addCat]?.find(e => e.name === ex.name);
+        if (exData) {
+          addSets[exData.id] = ex.sets.map(s => ({ weight: s.weight, reps: s.reps }));
+        }
+      });
+      view = 'add-session'; render(); break;
+    }
+    case 'delete-session': {
+      if (!confirm('Supprimer cette séance ?')) break;
+      data.history = (data.history || []).filter(h => h.id !== el.dataset.id);
+      syncTimersFromHistory();
+      save(); render(); break;
+    }
+    case 'force-update': {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          Promise.all(regs.map(r => r.unregister())).then(() => {
+            window.location.reload(true);
+          });
+        });
+      } else {
+        window.location.reload(true);
+      }
+      break;
     }
     case 'add-cat': {
       addCat = el.dataset.cat;
@@ -1045,8 +1086,16 @@ document.addEventListener('click', e => {
       const timestamp = new Date(y, m - 1, d, 12, 0, 0).getTime();
 
       if (!data.history) data.history = [];
-      data.history.push({ id: uid(), category: addCat, date: timestamp, exercises: sessionExercises });
+      if (editSessionId) {
+        // Modifier la séance existante
+        const idx = data.history.findIndex(h => h.id === editSessionId);
+        if (idx !== -1) data.history[idx] = { id: editSessionId, category: addCat, date: timestamp, exercises: sessionExercises };
+      } else {
+        // Nouvelle séance
+        data.history.push({ id: uid(), category: addCat, date: timestamp, exercises: sessionExercises });
+      }
       data.history.sort((a, b) => b.date - a.date);
+      editSessionId = null;
 
       // Mettre à jour le timer 72h avec la séance la plus récente pour cette catégorie
       const latestForCat = data.history
