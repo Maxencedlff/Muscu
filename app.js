@@ -102,7 +102,7 @@ function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
 // ═══════════════════════════════════════════════════════════
 
 let data          = loadData();
-let view          = 'dashboard';  // 'dashboard' | 'session' | 'editor' | 'history'
+let view          = 'dashboard';  // 'dashboard' | 'session' | 'editor' | 'history' | 'stats'
 let editorCat     = 'push';
 let activeSession = null;
 let ticker        = null;         // 72h dashboard ticker
@@ -111,6 +111,7 @@ let restTimeLeft  = 0;
 let restActive    = false;
 let modalOpen     = false;
 let editExIdx     = null;
+let statsCat      = 'push';
 let audioCtx      = null;
 let wakeLock      = null;
 
@@ -157,6 +158,9 @@ function render() {
   else if (view === 'session')   app.innerHTML = renderSession();
   else if (view === 'editor')    app.innerHTML = renderEditor();
   else if (view === 'history')   app.innerHTML = renderHistory();
+  else if (view === 'stats')     app.innerHTML = renderStats();
+
+  if (view === 'stats') setTimeout(drawCharts, 0);
 
   if (view === 'session') {
     const sc = $('.session-content');
@@ -210,6 +214,11 @@ function renderDashboard() {
       <header class="header">
         <span class="header__title">PPL Training</span>
         <div style="display:flex;gap:4px">
+          <button class="icon-btn" data-action="go-stats" title="Progression">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </button>
           <button class="icon-btn" data-action="go-history" title="Historique">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -575,6 +584,185 @@ function renderModal() {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  Stats / Progression
+// ═══════════════════════════════════════════════════════════
+
+const CAT_COLOR = { push: '#ef4444', pull: '#3b82f6', legs: '#22c55e' };
+
+function renderStats() {
+  const tabs = ['push', 'pull', 'legs'].map(c => `
+    <button class="tab ${statsCat === c ? `tab--active tab--${c}` : ''}"
+            data-action="stats-tab" data-cat="${c}">
+      ${CAT_ICON[c]} ${CAT_LABEL[c]}
+    </button>`).join('');
+
+  const exercises = data.exercises[statsCat] || [];
+  const history   = data.history || [];
+  const color     = CAT_COLOR[statsCat];
+
+  const cards = exercises.map(ex => {
+    // Collecter un point par séance : poids max utilisé
+    const points = history
+      .filter(s => s.category === statsCat)
+      .map(s => {
+        const found = s.exercises.find(e => e.name === ex.name);
+        if (!found || !found.sets.length) return null;
+        const maxW = Math.max(...found.sets.map(s => parseFloat(s.weight) || 0));
+        return { date: s.date, maxW };
+      })
+      .filter(Boolean)
+      .reverse(); // ordre chronologique
+
+    if (points.length === 0) return `
+      <div class="stats-card">
+        <div class="stats-card__name">${ex.name}</div>
+        <div class="stats-card__empty">Pas encore effectué</div>
+      </div>`;
+
+    const allWeights  = points.map(p => p.maxW);
+    const prWeight    = Math.max(...allWeights);
+    const currentW    = points[points.length - 1].maxW;
+    const firstW      = points[0].maxW;
+    const progPct     = firstW > 0 ? Math.round(((currentW - firstW) / firstW) * 100) : 0;
+    const progLabel   = progPct > 0 ? `+${progPct}%` : progPct < 0 ? `${progPct}%` : '—';
+    const progColor   = progPct > 0 ? '#22c55e' : progPct < 0 ? '#ef4444' : 'var(--muted)';
+
+    // Stocker les données dans l'attribut data pour drawCharts
+    const encoded = encodeURIComponent(JSON.stringify(allWeights));
+
+    return `
+      <div class="stats-card">
+        <div class="stats-card__header">
+          <span class="stats-card__name">${ex.name}</span>
+          <span class="stats-card__current">${currentW} kg</span>
+        </div>
+        <canvas class="stats-canvas"
+                data-weights="${encoded}"
+                data-color="${color}"></canvas>
+        <div class="stats-card__footer">
+          <span>PR : <strong>${prWeight} kg</strong></span>
+          <span style="color:${progColor};font-weight:700">${progLabel}</span>
+          <span>${points.length} séance${points.length > 1 ? 's' : ''}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  const hasData = exercises.some(ex =>
+    history.some(s => s.category === statsCat && s.exercises.find(e => e.name === ex.name))
+  );
+
+  return `
+    <div class="view stats">
+      <header class="header">
+        <button class="icon-btn" data-action="back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+        </button>
+        <span class="header__title">Progression</span>
+        <div style="width:40px"></div>
+      </header>
+      <div class="tabs">${tabs}</div>
+      <div class="stats-list">
+        ${hasData ? cards : `
+          <div class="empty-state">
+            <div class="empty-state__icon">📈</div>
+            <div>Pas encore de données</div>
+            <div class="empty-state__sub">Termine des séances pour voir ta progression ici</div>
+          </div>`}
+      </div>
+    </div>`;
+}
+
+function drawCharts() {
+  document.querySelectorAll('.stats-canvas').forEach(canvas => {
+    const weights = JSON.parse(decodeURIComponent(canvas.dataset.weights));
+    const color   = canvas.dataset.color;
+
+    const W   = canvas.parentElement.clientWidth - 32;
+    const H   = 90;
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width        = W * dpr;
+    canvas.height       = H * dpr;
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    if (weights.length === 0) return;
+
+    // Un seul point
+    if (weights.length === 1) {
+      ctx.beginPath();
+      ctx.arc(W / 2, H / 2, 5, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      return;
+    }
+
+    const minW   = Math.min(...weights) * 0.95;
+    const maxW   = Math.max(...weights) * 1.05;
+    const range  = (maxW - minW) || 1;
+    const pT = 14, pB = 14, pL = 6, pR = 6;
+    const cW = W - pL - pR;
+    const cH = H - pT - pB;
+
+    const x = i => pL + (i / (weights.length - 1)) * cW;
+    const y = w => pT + cH - ((w - minW) / range) * cH;
+
+    // Zone de remplissage dégradée
+    const grad = ctx.createLinearGradient(0, pT, 0, H);
+    grad.addColorStop(0, color + '40');
+    grad.addColorStop(1, color + '00');
+
+    ctx.beginPath();
+    ctx.moveTo(x(0), H);
+    ctx.lineTo(x(0), y(weights[0]));
+    for (let i = 1; i < weights.length; i++) {
+      const mx = (x(i - 1) + x(i)) / 2;
+      ctx.bezierCurveTo(mx, y(weights[i - 1]), mx, y(weights[i]), x(i), y(weights[i]));
+    }
+    ctx.lineTo(x(weights.length - 1), H);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Ligne
+    ctx.beginPath();
+    ctx.moveTo(x(0), y(weights[0]));
+    for (let i = 1; i < weights.length; i++) {
+      const mx = (x(i - 1) + x(i)) / 2;
+      ctx.bezierCurveTo(mx, y(weights[i - 1]), mx, y(weights[i]), x(i), y(weights[i]));
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = 2.5;
+    ctx.lineJoin    = 'round';
+    ctx.stroke();
+
+    // Points
+    weights.forEach((w, i) => {
+      const isLast = i === weights.length - 1;
+      ctx.beginPath();
+      ctx.arc(x(i), y(w), isLast ? 5 : 3, 0, Math.PI * 2);
+      ctx.fillStyle   = isLast ? color : '#0a0a0a';
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = 2;
+      ctx.fill();
+      ctx.stroke();
+    });
+
+    // Valeur sur le dernier point
+    const lastW = weights[weights.length - 1];
+    ctx.fillStyle  = color;
+    ctx.font       = `bold ${11 * dpr / dpr}px -apple-system, sans-serif`;
+    ctx.textAlign  = 'right';
+    ctx.fillText(`${lastW} kg`, x(weights.length - 1) - 2, y(lastW) - 8);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
 //  History
 // ═══════════════════════════════════════════════════════════
 
@@ -665,6 +853,12 @@ document.addEventListener('click', e => {
     }
     case 'go-history': {
       view = 'history'; render(); break;
+    }
+    case 'go-stats': {
+      view = 'stats'; render(); break;
+    }
+    case 'stats-tab': {
+      statsCat = el.dataset.cat; render(); break;
     }
 
     // ── Dashboard ──────────────────────────────────────────
