@@ -685,14 +685,23 @@ function renderStats() {
   const color     = CAT_COLOR[statsCat];
 
   const cards = exercises.map(ex => {
-    // Collecter un point par séance : poids max utilisé
     const points = history
       .filter(s => s.category === statsCat)
       .map(s => {
         const found = s.exercises.find(e => e.name === ex.name);
         if (!found || !found.sets.length) return null;
-        const maxW = Math.max(...found.sets.map(s => parseFloat(s.weight) || 0));
-        return { date: s.date, maxW };
+        const wts = found.sets.map(s => parseFloat(s.weight) || 0).filter(w => w > 0);
+        const rps = found.sets.map(s => parseInt(s.reps)    || 0).filter(r => r > 0);
+        if (!wts.length) return null;
+        const avgW = Math.round((wts.reduce((a, b) => a + b, 0) / wts.length) * 10) / 10;
+        const avgR = Math.round(rps.reduce((a, b) => a + b, 0) / (rps.length || 1));
+        return {
+          date: s.date,
+          sets: found.sets,
+          avgW, avgR,
+          minW: Math.min(...wts),
+          maxW: Math.max(...wts),
+        };
       })
       .filter(Boolean)
       .reverse(); // ordre chronologique
@@ -703,28 +712,35 @@ function renderStats() {
         <div class="stats-card__empty">Pas encore effectué</div>
       </div>`;
 
-    const allWeights  = points.map(p => p.maxW);
-    const prWeight    = Math.max(...allWeights);
-    const currentW    = points[points.length - 1].maxW;
-    const firstW      = points[0].maxW;
-    const progPct     = firstW > 0 ? Math.round(((currentW - firstW) / firstW) * 100) : 0;
-    const progLabel   = progPct > 0 ? `+${progPct}%` : progPct < 0 ? `${progPct}%` : '—';
-    const progColor   = progPct > 0 ? '#22c55e' : progPct < 0 ? '#ef4444' : 'var(--muted)';
+    const last     = points[points.length - 1];
+    const prW      = Math.max(...points.map(p => p.maxW));
+    const progPct  = points[0].avgW > 0 ? Math.round(((last.avgW - points[0].avgW) / points[0].avgW) * 100) : 0;
+    const progLabel = progPct > 0 ? `+${progPct}%` : progPct < 0 ? `${progPct}%` : '—';
+    const progColor = progPct > 0 ? '#22c55e' : progPct < 0 ? '#ef4444' : 'var(--muted)';
 
-    // Stocker les données dans l'attribut data pour drawCharts
-    const encoded = encodeURIComponent(JSON.stringify(allWeights));
+    // Affichage des séries de la dernière séance
+    const lastSets = last.sets
+      .filter(s => s.weight && s.reps)
+      .map((s, i) => `<span class="last-set">S${i+1} : ${s.weight} kg × ${s.reps}</span>`)
+      .join('');
+
+    const encoded = encodeURIComponent(JSON.stringify(
+      points.map(p => ({ date: p.date, avgW: p.avgW, avgR: p.avgR, minW: p.minW, maxW: p.maxW }))
+    ));
 
     return `
       <div class="stats-card">
         <div class="stats-card__header">
           <span class="stats-card__name">${ex.name}</span>
-          <span class="stats-card__current">${currentW} kg</span>
+          <div class="stats-card__current-block">
+            <span class="stats-card__current">${last.avgW} kg</span>
+            <span class="stats-card__avgreps">~${last.avgR} reps</span>
+          </div>
         </div>
-        <canvas class="stats-canvas"
-                data-weights="${encoded}"
-                data-color="${color}"></canvas>
+        ${lastSets ? `<div class="last-sets">${lastSets}</div>` : ''}
+        <canvas class="stats-canvas" data-points="${encoded}" data-color="${color}"></canvas>
         <div class="stats-card__footer">
-          <span>PR : <strong>${prWeight} kg</strong></span>
+          <span>PR : <strong>${prW} kg</strong></span>
           <span style="color:${progColor};font-weight:700">${progLabel}</span>
           <span>${points.length} séance${points.length > 1 ? 's' : ''}</span>
         </div>
@@ -760,11 +776,11 @@ function renderStats() {
 
 function drawCharts() {
   document.querySelectorAll('.stats-canvas').forEach(canvas => {
-    const weights = JSON.parse(decodeURIComponent(canvas.dataset.weights));
-    const color   = canvas.dataset.color;
+    const points = JSON.parse(decodeURIComponent(canvas.dataset.points));
+    const color  = canvas.dataset.color;
 
     const W   = canvas.parentElement.clientWidth - 32;
-    const H   = 90;
+    const H   = 110;
     const dpr = window.devicePixelRatio || 1;
 
     canvas.width        = W * dpr;
@@ -774,75 +790,109 @@ function drawCharts() {
 
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
+    if (!points.length) return;
 
-    if (weights.length === 0) return;
+    const avgs = points.map(p => p.avgW);
+    const mins = points.map(p => p.minW);
+    const maxs = points.map(p => p.maxW);
 
-    // Un seul point
-    if (weights.length === 1) {
-      ctx.beginPath();
-      ctx.arc(W / 2, H / 2, 5, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-      return;
-    }
+    const dataMin = Math.min(...mins) * 0.92;
+    const dataMax = Math.max(...maxs) * 1.08;
+    const range   = (dataMax - dataMin) || 1;
 
-    const minW   = Math.min(...weights) * 0.95;
-    const maxW   = Math.max(...weights) * 1.05;
-    const range  = (maxW - minW) || 1;
-    const pT = 14, pB = 14, pL = 6, pR = 6;
+    // Marges : plus de bas pour les dates
+    const pT = 12, pB = 24, pL = 6, pR = 6;
     const cW = W - pL - pR;
     const cH = H - pT - pB;
 
-    const x = i => pL + (i / (weights.length - 1)) * cW;
-    const y = w => pT + cH - ((w - minW) / range) * cH;
+    const xp = i => pL + (points.length === 1 ? cW / 2 : (i / (points.length - 1)) * cW);
+    const yp = w => pT + cH - ((w - dataMin) / range) * cH;
 
-    // Zone de remplissage dégradée
-    const grad = ctx.createLinearGradient(0, pT, 0, H);
-    grad.addColorStop(0, color + '40');
+    // ── Bande min/max ──────────────────────────────────────
+    ctx.beginPath();
+    ctx.moveTo(xp(0), yp(mins[0]));
+    for (let i = 1; i < points.length; i++) {
+      const mx = (xp(i-1) + xp(i)) / 2;
+      ctx.bezierCurveTo(mx, yp(mins[i-1]), mx, yp(mins[i]), xp(i), yp(mins[i]));
+    }
+    for (let i = points.length - 1; i >= 0; i--) {
+      const mx = i > 0 ? (xp(i-1) + xp(i)) / 2 : xp(i);
+      if (i === points.length - 1) ctx.lineTo(xp(i), yp(maxs[i]));
+      else ctx.bezierCurveTo(mx + (xp(i+1)-xp(i))/2, yp(maxs[i+1]), mx, yp(maxs[i]), xp(i), yp(maxs[i]));
+    }
+    ctx.closePath();
+    ctx.fillStyle = color + '18';
+    ctx.fill();
+
+    // ── Zone dégradée sous la moyenne ─────────────────────
+    const grad = ctx.createLinearGradient(0, pT, 0, pT + cH);
+    grad.addColorStop(0, color + '35');
     grad.addColorStop(1, color + '00');
 
     ctx.beginPath();
-    ctx.moveTo(x(0), H);
-    ctx.lineTo(x(0), y(weights[0]));
-    for (let i = 1; i < weights.length; i++) {
-      const mx = (x(i - 1) + x(i)) / 2;
-      ctx.bezierCurveTo(mx, y(weights[i - 1]), mx, y(weights[i]), x(i), y(weights[i]));
+    ctx.moveTo(xp(0), pT + cH);
+    ctx.lineTo(xp(0), yp(avgs[0]));
+    for (let i = 1; i < avgs.length; i++) {
+      const mx = (xp(i-1) + xp(i)) / 2;
+      ctx.bezierCurveTo(mx, yp(avgs[i-1]), mx, yp(avgs[i]), xp(i), yp(avgs[i]));
     }
-    ctx.lineTo(x(weights.length - 1), H);
+    ctx.lineTo(xp(avgs.length - 1), pT + cH);
     ctx.closePath();
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Ligne
+    // ── Ligne moyenne ──────────────────────────────────────
     ctx.beginPath();
-    ctx.moveTo(x(0), y(weights[0]));
-    for (let i = 1; i < weights.length; i++) {
-      const mx = (x(i - 1) + x(i)) / 2;
-      ctx.bezierCurveTo(mx, y(weights[i - 1]), mx, y(weights[i]), x(i), y(weights[i]));
+    ctx.moveTo(xp(0), yp(avgs[0]));
+    for (let i = 1; i < avgs.length; i++) {
+      const mx = (xp(i-1) + xp(i)) / 2;
+      ctx.bezierCurveTo(mx, yp(avgs[i-1]), mx, yp(avgs[i]), xp(i), yp(avgs[i]));
     }
     ctx.strokeStyle = color;
     ctx.lineWidth   = 2.5;
     ctx.lineJoin    = 'round';
     ctx.stroke();
 
-    // Points
-    weights.forEach((w, i) => {
-      const isLast = i === weights.length - 1;
+    // ── Points ─────────────────────────────────────────────
+    avgs.forEach((w, i) => {
+      const isLast = i === avgs.length - 1;
       ctx.beginPath();
-      ctx.arc(x(i), y(w), isLast ? 5 : 3, 0, Math.PI * 2);
-      ctx.fillStyle   = isLast ? color : '#0a0a0a';
+      ctx.arc(xp(i), yp(w), isLast ? 5 : 3, 0, Math.PI * 2);
+      ctx.fillStyle   = isLast ? color : '#141414';
       ctx.strokeStyle = color;
       ctx.lineWidth   = 2;
       ctx.fill();
       ctx.stroke();
     });
 
-    // Valeur sur le dernier point
-    const lastW = weights[weights.length - 1];
-    ctx.fillStyle  = color;
-    ctx.font       = `bold ${11 * dpr / dpr}px -apple-system, sans-serif`;
-    ctx.textAlign  = 'right';
-    ctx.fillText(`${lastW} kg`, x(weights.length - 1) - 2, y(lastW) - 8);
+    // ── Valeur du dernier point ────────────────────────────
+    const li = avgs.length - 1;
+    ctx.fillStyle = color;
+    ctx.font      = 'bold 11px -apple-system, sans-serif';
+    ctx.textAlign = xp(li) > W - 40 ? 'right' : 'left';
+    const labelX  = xp(li) + (xp(li) > W - 40 ? -8 : 8);
+    ctx.fillText(`${avgs[li]} kg`, labelX, yp(avgs[li]) - 6);
+
+    // ── Labels de dates sur l'axe X ───────────────────────
+    ctx.fillStyle = '#555';
+    ctx.font      = '10px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+
+    // Max 5 dates pour éviter les chevauchements
+    const n       = points.length;
+    const indices = new Set([0, n - 1]);
+    if (n > 2) {
+      const step = Math.ceil((n - 1) / 4);
+      for (let i = step; i < n - 1; i += step) indices.add(i);
+    }
+
+    indices.forEach(i => {
+      const d     = new Date(points[i].date);
+      const label = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
+      // Eviter que le premier et dernier se chevauchent sur les bords
+      const tx = Math.max(20, Math.min(W - 20, xp(i)));
+      ctx.fillText(label, tx, H - 5);
+    });
   });
 }
 
@@ -997,10 +1047,17 @@ document.addEventListener('click', e => {
       if (!data.history) data.history = [];
       data.history.push({ id: uid(), category: addCat, date: timestamp, exercises: sessionExercises });
       data.history.sort((a, b) => b.date - a.date);
+
+      // Mettre à jour le timer 72h avec la séance la plus récente pour cette catégorie
+      const latestForCat = data.history
+        .filter(h => h.category === addCat)
+        .reduce((best, h) => h.date > (best?.date || 0) ? h : best, null);
+      if (latestForCat) data.timers[addCat] = latestForCat.date;
+
       save();
 
       showToast('Séance ajoutée !');
-      view = 'history'; render(); break;
+      view = 'history'; render(); startTicker(); break;
     }
 
     // ── Dashboard ──────────────────────────────────────────
