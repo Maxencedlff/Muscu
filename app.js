@@ -22,6 +22,16 @@ function fmtRest(secs) {
   return `${pad(m)}:${pad(s)}`;
 }
 
+function fmtDate(ts) {
+  return new Date(ts).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function fmtDateTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
 function showToast(msg) {
   const existing = $('.toast');
   if (existing) existing.remove();
@@ -92,7 +102,7 @@ function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
 // ═══════════════════════════════════════════════════════════
 
 let data          = loadData();
-let view          = 'dashboard';  // 'dashboard' | 'session' | 'editor'
+let view          = 'dashboard';  // 'dashboard' | 'session' | 'editor' | 'history'
 let editorCat     = 'push';
 let activeSession = null;
 let ticker        = null;         // 72h dashboard ticker
@@ -146,6 +156,7 @@ function render() {
   if      (view === 'dashboard') app.innerHTML = renderDashboard();
   else if (view === 'session')   app.innerHTML = renderSession();
   else if (view === 'editor')    app.innerHTML = renderEditor();
+  else if (view === 'history')   app.innerHTML = renderHistory();
 
   if (view === 'session') {
     const sc = $('.session-content');
@@ -198,12 +209,19 @@ function renderDashboard() {
     <div class="view dashboard">
       <header class="header">
         <span class="header__title">PPL Training</span>
-        <button class="icon-btn" data-action="go-editor" title="Gérer les exercices">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-        </button>
+        <div style="display:flex;gap:4px">
+          <button class="icon-btn" data-action="go-history" title="Historique">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </button>
+          <button class="icon-btn" data-action="go-editor" title="Gérer les exercices">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+        </div>
       </header>
       <div class="cards">${cards}</div>
       <div class="dashboard__footer">
@@ -268,12 +286,18 @@ function renderSession() {
   const doneSets  = exercises.reduce((a, ex) => a + ex.sets.filter(s => s.done).length, 0);
   const pct       = totalSets ? Math.round(doneSets / totalSets * 100) : 0;
 
+  // Trouver la séance précédente pour cette catégorie
+  const prevSession = (data.history || []).find(h => h.category === cat);
+
   const exHtml = exercises.map((ex, ei) => {
     const ex_data   = data.exercises[cat]?.find(e => e.id === ex.exId);
-    const prText    = ex_data?.pr ? `PR: ${ex_data.pr.weight}kg × ${ex_data.pr.reps}` : '';
-    const lastText  = ex_data?.lastWeight ? `Dernière: ${ex_data.lastWeight}kg × ${ex_data.lastReps}` : '';
-    const hint      = [lastText, prText].filter(Boolean).join(' · ');
+    const prText    = ex_data?.pr ? `PR : ${ex_data.pr.weight} kg × ${ex_data.pr.reps}` : '';
+    const hint      = prText;
     const allDone   = ex.sets.every(s => s.done);
+
+    // Données séance précédente pour cet exercice
+    const prevEx    = prevSession?.exercises.find(e => e.name === ex.name);
+    const prevSets  = prevEx?.sets || [];
 
     const setsHtml = ex.sets.map((s, si) => {
       if (s.done) {
@@ -300,15 +324,29 @@ function renderSession() {
       return `
         <div class="set-row set-row--active">
           <span class="set-num">Série ${si + 1}</span>
-          <input type="number" inputmode="decimal" class="set-input" placeholder="kg"
-                 value="${s.weight}" data-action="set-weight" data-ei="${ei}" data-si="${si}">
-          <input type="number" inputmode="numeric" class="set-input" placeholder="reps"
-                 value="${s.reps}" data-action="set-reps" data-ei="${ei}" data-si="${si}">
+          <div class="input-group">
+            <input type="number" inputmode="decimal" class="set-input" placeholder="0"
+                   value="${s.weight}" data-action="set-weight" data-ei="${ei}" data-si="${si}">
+            <span class="input-unit">kg</span>
+          </div>
+          <div class="input-group">
+            <input type="number" inputmode="numeric" class="set-input" placeholder="0"
+                   value="${s.reps}" data-action="set-reps" data-ei="${ei}" data-si="${si}">
+            <span class="input-unit">reps</span>
+          </div>
           <button class="btn btn--success btn--sm" data-action="validate-set" data-ei="${ei}" data-si="${si}">
             ✓
           </button>
         </div>`;
     }).join('');
+
+    const prevHtml = prevSets.length ? `
+      <div class="prev-session">
+        <div class="prev-session__label">Séance du ${fmtDate(prevSession.date)}</div>
+        <div class="prev-session__sets">
+          ${prevSets.map((s, i) => `<span class="prev-set">S${i+1} : ${s.weight} kg × ${s.reps}</span>`).join('')}
+        </div>
+      </div>` : '';
 
     return `
       <div class="exercise-block ${allDone ? 'exercise-block--done' : ''}">
@@ -316,7 +354,8 @@ function renderSession() {
           <span class="exercise-name">${ex.name}</span>
           <span class="exercise-progress">${ex.sets.filter(s => s.done).length}/${ex.sets.length}</span>
         </div>
-        ${hint ? `<div class="exercise-hint">${hint.replace('PR:', '<span class="pr">PR:</span>')}</div>` : ''}
+        ${hint ? `<div class="exercise-hint"><span class="pr">${hint}</span></div>` : ''}
+        ${prevHtml}
         ${setsHtml}
       </div>`;
   }).join('');
@@ -350,6 +389,13 @@ function validateSet(ei, si) {
 
   s.done = true;
   validationSound();
+
+  // Pré-remplir la série suivante avec les mêmes valeurs
+  const nextSet = ex.sets[si + 1];
+  if (nextSet && !nextSet.done) {
+    nextSet.weight = s.weight;
+    nextSet.reps   = s.reps;
+  }
 
   // Persist last weight/reps + update PR
   const cat    = activeSession.category;
@@ -529,6 +575,68 @@ function renderModal() {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  History
+// ═══════════════════════════════════════════════════════════
+
+function renderHistory() {
+  const history = data.history || [];
+
+  const grouped = {};
+  history.forEach(s => {
+    const key = new Date(s.date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' });
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(s);
+  });
+
+  const content = Object.keys(grouped).length === 0
+    ? `<div class="empty-state">
+         <div class="empty-state__icon">📋</div>
+         <div>Aucune séance enregistrée</div>
+         <div class="empty-state__sub">Termine ta première séance pour la voir ici</div>
+       </div>`
+    : Object.entries(grouped).map(([month, sessions]) => `
+        <div class="history-month">
+          <div class="history-month__label">${month}</div>
+          ${sessions.map(s => {
+            const totalSets = s.exercises.reduce((a, ex) => a + ex.sets.length, 0);
+            return `
+              <div class="history-item history-item--${s.category}">
+                <div class="history-item__header">
+                  <span class="history-item__cat">
+                    ${CAT_ICON[s.category]} ${CAT_LABEL[s.category]}
+                  </span>
+                  <span class="history-item__date">${fmtDateTime(s.date)}</span>
+                </div>
+                <div class="history-item__summary">${s.exercises.length} exercices · ${totalSets} séries</div>
+                <div class="history-item__exercises">
+                  ${s.exercises.map(ex => `
+                    <div class="history-ex">
+                      <span class="history-ex__name">${ex.name}</span>
+                      <span class="history-ex__sets">
+                        ${ex.sets.map(set => `${set.weight}×${set.reps}`).join(' / ')}
+                      </span>
+                    </div>`).join('')}
+                </div>
+              </div>`;
+          }).join('')}
+        </div>`).join('');
+
+  return `
+    <div class="view history">
+      <header class="header">
+        <button class="icon-btn" data-action="back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+        </button>
+        <span class="header__title">Historique</span>
+        <div style="width:40px"></div>
+      </header>
+      <div class="history-list">${content}</div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
 //  Event handling
 // ═══════════════════════════════════════════════════════════
 
@@ -546,14 +654,17 @@ document.addEventListener('click', e => {
         activeSession = null;
         clearRest(); restActive = false;
         releaseWakeLock();
+        view = 'dashboard'; render(); startTicker();
+      } else {
+        view = 'dashboard'; render(); startTicker();
       }
-      view = 'dashboard';
-      render();
-      startTicker();
       break;
     }
     case 'go-editor': {
       view = 'editor'; render(); break;
+    }
+    case 'go-history': {
+      view = 'history'; render(); break;
     }
 
     // ── Dashboard ──────────────────────────────────────────
@@ -596,6 +707,18 @@ document.addEventListener('click', e => {
     case 'finish-session': {
       if (!confirm('Terminer et valider la séance ?')) return;
       data.timers[activeSession.category] = Date.now();
+      // Sauvegarder dans l'historique
+      if (!data.history) data.history = [];
+      data.history.unshift({
+        id: uid(),
+        category: activeSession.category,
+        date: Date.now(),
+        exercises: activeSession.exercises.map(ex => ({
+          name: ex.name,
+          sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps })),
+        })),
+      });
+      if (data.history.length > 200) data.history = data.history.slice(0, 200);
       save();
       finishSound();
       clearRest(); restActive = false;
