@@ -318,10 +318,11 @@ function renderSession() {
       if (s.done) {
         const isNewPR = ex_data?.pr &&
           s.weight == ex_data.pr.weight && s.reps == ex_data.pr.reps;
+        const weightLabel = s.weight ? `${s.weight} kg × ` : '';
         return `
           <div class="set-row set-row--done">
             <span class="set-num">Série ${si + 1}</span>
-            <span class="set-val">${s.weight} kg × ${s.reps}</span>
+            <span class="set-val">${weightLabel}${s.reps} reps</span>
             ${isNewPR ? '<span class="pr-badge">PR !</span>' : ''}
             <button class="rest-btn" data-action="start-rest">⏱ Repos</button>
           </div>`;
@@ -340,12 +341,12 @@ function renderSession() {
         <div class="set-row set-row--active">
           <span class="set-num">Série ${si + 1}</span>
           <div class="input-group">
-            <input type="number" inputmode="decimal" class="set-input" placeholder="0"
+            <input type="number" inputmode="decimal" class="set-input" placeholder="—"
                    value="${s.weight}" data-action="set-weight" data-ei="${ei}" data-si="${si}">
             <span class="input-unit">kg</span>
           </div>
           <div class="input-group">
-            <input type="number" inputmode="numeric" class="set-input" placeholder="0"
+            <input type="number" inputmode="numeric" class="set-input set-input--required" placeholder="0"
                    value="${s.reps}" data-action="set-reps" data-ei="${ei}" data-si="${si}">
             <span class="input-unit">reps</span>
           </div>
@@ -400,7 +401,7 @@ function renderSession() {
 function validateSet(ei, si) {
   const ex  = activeSession.exercises[ei];
   const s   = ex.sets[si];
-  if (!s.weight || !s.reps) { showToast('Entre le poids et les reps !'); return; }
+  if (!s.reps) { showToast('Entre le nombre de reps !'); return; }
 
   s.done = true;
   validationSound();
@@ -619,13 +620,13 @@ function renderAddSession() {
       <div class="set-row set-row--active">
         <span class="set-num">S${si + 1}</span>
         <div class="input-group">
-          <input type="number" inputmode="decimal" class="set-input" placeholder="0"
+          <input type="number" inputmode="decimal" class="set-input" placeholder="—"
                  value="${s.weight}"
                  data-action="add-weight" data-exid="${ex.id}" data-si="${si}">
           <span class="input-unit">kg</span>
         </div>
         <div class="input-group">
-          <input type="number" inputmode="numeric" class="set-input" placeholder="0"
+          <input type="number" inputmode="numeric" class="set-input set-input--required" placeholder="0"
                  value="${s.reps}"
                  data-action="add-reps" data-exid="${ex.id}" data-si="${si}">
           <span class="input-unit">reps</span>
@@ -692,17 +693,21 @@ function renderStats() {
       .map(s => {
         const found = s.exercises.find(e => e.name === ex.name);
         if (!found || !found.sets.length) return null;
-        const wts = found.sets.map(s => parseFloat(s.weight) || 0).filter(w => w > 0);
+        const wts = found.sets.map(s => parseFloat(s.weight) || 0);
         const rps = found.sets.map(s => parseInt(s.reps)    || 0).filter(r => r > 0);
-        if (!wts.length) return null;
-        const avgW = Math.round((wts.reduce((a, b) => a + b, 0) / wts.length) * 10) / 10;
-        const avgR = Math.round(rps.reduce((a, b) => a + b, 0) / (rps.length || 1));
+        if (!rps.length) return null;
+        const hasWeight = wts.some(w => w > 0);
+        const avgW = hasWeight
+          ? Math.round((wts.filter(w => w > 0).reduce((a, b) => a + b, 0) / wts.filter(w => w > 0).length) * 10) / 10
+          : 0;
+        const avgR = Math.round(rps.reduce((a, b) => a + b, 0) / rps.length);
         return {
           date: s.date,
           sets: found.sets,
           avgW, avgR,
-          minW: Math.min(...wts),
-          maxW: Math.max(...wts),
+          minW: hasWeight ? Math.min(...wts.filter(w => w > 0)) : 0,
+          maxW: hasWeight ? Math.max(...wts) : 0,
+          bodyweight: !hasWeight,
         };
       })
       .filter(Boolean)
@@ -714,20 +719,25 @@ function renderStats() {
         <div class="stats-card__empty">Pas encore effectué</div>
       </div>`;
 
-    const last     = points[points.length - 1];
-    const prW      = Math.max(...points.map(p => p.maxW));
-    const progPct  = points[0].avgW > 0 ? Math.round(((last.avgW - points[0].avgW) / points[0].avgW) * 100) : 0;
-    const progLabel = progPct > 0 ? `+${progPct}%` : progPct < 0 ? `${progPct}%` : '—';
-    const progColor = progPct > 0 ? '#22c55e' : progPct < 0 ? '#ef4444' : 'var(--muted)';
+    const last       = points[points.length - 1];
+    const isBodyweight = points.every(p => p.bodyweight);
+    const prW        = isBodyweight ? Math.max(...points.map(p => p.avgR)) : Math.max(...points.map(p => p.maxW));
+    const compareVal = isBodyweight ? (p => p.avgR) : (p => p.avgW);
+    const progPct    = compareVal(points[0]) > 0
+      ? Math.round(((compareVal(last) - compareVal(points[0])) / compareVal(points[0])) * 100) : 0;
+    const progLabel  = progPct > 0 ? `+${progPct}%` : progPct < 0 ? `${progPct}%` : '—';
+    const progColor  = progPct > 0 ? '#22c55e' : progPct < 0 ? '#ef4444' : 'var(--muted)';
 
     // Affichage des séries de la dernière séance
     const lastSets = last.sets
-      .filter(s => s.weight && s.reps)
-      .map((s, i) => `<span class="last-set">S${i+1} : ${s.weight} kg × ${s.reps}</span>`)
-      .join('');
+      .filter(s => s.reps)
+      .map((s, i) => {
+        const w = s.weight ? `${s.weight} kg × ` : '';
+        return `<span class="last-set">S${i+1} : ${w}${s.reps} reps</span>`;
+      }).join('');
 
     const encoded = encodeURIComponent(JSON.stringify(
-      points.map(p => ({ date: p.date, avgW: p.avgW, avgR: p.avgR, minW: p.minW, maxW: p.maxW }))
+      points.map(p => ({ date: p.date, avgW: p.avgW, avgR: p.avgR, minW: p.minW, maxW: p.maxW, bodyweight: p.bodyweight }))
     ));
 
     return `
@@ -735,14 +745,17 @@ function renderStats() {
         <div class="stats-card__header">
           <span class="stats-card__name">${ex.name}</span>
           <div class="stats-card__current-block">
-            <span class="stats-card__current">${last.avgW} kg</span>
-            <span class="stats-card__avgreps">~${last.avgR} reps</span>
+            ${isBodyweight
+              ? `<span class="stats-card__current">${last.avgR} reps</span>
+                 <span class="stats-card__avgreps">Poids du corps</span>`
+              : `<span class="stats-card__current">${last.avgW} kg</span>
+                 <span class="stats-card__avgreps">~${last.avgR} reps</span>`}
           </div>
         </div>
         ${lastSets ? `<div class="last-sets">${lastSets}</div>` : ''}
         <canvas class="stats-canvas" data-points="${encoded}" data-color="${color}"></canvas>
         <div class="stats-card__footer">
-          <span>PR : <strong>${prW} kg</strong></span>
+          <span>PR : <strong>${prW}${isBodyweight ? ' reps' : ' kg'}</strong></span>
           <span style="color:${progColor};font-weight:700">${progLabel}</span>
           <span>${points.length} séance${points.length > 1 ? 's' : ''}</span>
         </div>
@@ -794,9 +807,10 @@ function drawCharts() {
     ctx.scale(dpr, dpr);
     if (!points.length) return;
 
-    const avgs = points.map(p => p.avgW);
-    const mins = points.map(p => p.minW);
-    const maxs = points.map(p => p.maxW);
+    const isBodyweight = points.every(p => p.bodyweight);
+    const avgs = points.map(p => isBodyweight ? p.avgR : p.avgW);
+    const mins = points.map(p => isBodyweight ? p.avgR : p.minW);
+    const maxs = points.map(p => isBodyweight ? p.avgR : p.maxW);
 
     const dataMin = Math.min(...mins) * 0.92;
     const dataMax = Math.max(...maxs) * 1.08;
@@ -873,7 +887,8 @@ function drawCharts() {
     ctx.font      = 'bold 11px -apple-system, sans-serif';
     ctx.textAlign = xp(li) > W - 40 ? 'right' : 'left';
     const labelX  = xp(li) + (xp(li) > W - 40 ? -8 : 8);
-    ctx.fillText(`${avgs[li]} kg`, labelX, yp(avgs[li]) - 6);
+    const unit = isBodyweight ? ' reps' : ' kg';
+    ctx.fillText(`${avgs[li]}${unit}`, labelX, yp(avgs[li]) - 6);
 
     // ── Labels de dates sur l'axe X ───────────────────────
     ctx.fillStyle = '#555';
@@ -1071,7 +1086,7 @@ document.addEventListener('click', e => {
 
       const sessionExercises = (data.exercises[addCat] || [])
         .map(ex => {
-          const sets = (addSets[ex.id] || []).filter(s => s.weight && s.reps);
+          const sets = (addSets[ex.id] || []).filter(s => s.reps);
           if (!sets.length) return null;
           return { name: ex.name, sets };
         })
