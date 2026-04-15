@@ -1257,6 +1257,21 @@ document.addEventListener('visibilitychange', async () => {
 // ═══════════════════════════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Synchroniser les timers 72h avec la séance la plus récente dans l'historique
+  syncTimersFromHistory();
   render();
   startTicker();
 });
+
+function syncTimersFromHistory() {
+  const history = data.history || [];
+  ['push', 'pull', 'legs'].forEach(cat => {
+    const latest = history
+      .filter(h => h.category === cat)
+      .reduce((best, h) => h.date > (best?.date || 0) ? h : best, null);
+    if (latest && latest.date > (data.timers[cat] || 0)) {
+      data.timers[cat] = latest.date;
+    }
+  });
+  save();
+}
