@@ -378,6 +378,44 @@ body {
 .modal__actions .btn { flex: 1; }
 
 /* ═══════════════════════════════════════════════
+   Ajout séance passée
+═══════════════════════════════════════════════ */
+.add-session-meta {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 14px 16px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px;
+}
+
+.cat-selector { display: flex; gap: 8px; }
+.cat-sel-btn {
+  flex: 1; padding: 10px 4px; border-radius: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer;
+  font-family: inherit; transition: all .15s;
+}
+.cat-sel-btn--active          { color: var(--text); border-width: 2px; }
+.cat-sel-btn--push.cat-sel-btn--active { border-color: var(--push); color: var(--push); background: #ef444415; }
+.cat-sel-btn--pull.cat-sel-btn--active { border-color: var(--pull); color: var(--pull); background: #3b82f615; }
+.cat-sel-btn--legs.cat-sel-btn--active { border-color: var(--legs); color: var(--legs); background: #22c55e15; }
+.cat-sel-btn:active { opacity: .7; }
+
+.date-row   { display: flex; align-items: center; gap: 12px; }
+.date-label { font-size: 14px; color: var(--muted); flex-shrink: 0; }
+.date-input {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-size: 15px;
+  padding: 10px 12px; font-family: inherit;
+  color-scheme: dark;
+}
+.date-input:focus { outline: none; border-color: #3b82f6; }
+
+.add-session-content {
+  flex: 1; overflow-y: auto; padding: 14px;
+  display: flex; flex-direction: column; gap: 12px;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0));
+}
+
+/* ═══════════════════════════════════════════════
    Stats / Progression
 ═══════════════════════════════════════════════ */
 .stats-list {

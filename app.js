@@ -112,6 +112,9 @@ let restActive    = false;
 let modalOpen     = false;
 let editExIdx     = null;
 let statsCat      = 'push';
+let addCat        = 'push';
+let addDate       = new Date().toISOString().slice(0, 10);
+let addSets       = {}; // { exId: [{weight, reps}] }
 let audioCtx      = null;
 let wakeLock      = null;
 
@@ -158,7 +161,8 @@ function render() {
   else if (view === 'session')   app.innerHTML = renderSession();
   else if (view === 'editor')    app.innerHTML = renderEditor();
   else if (view === 'history')   app.innerHTML = renderHistory();
-  else if (view === 'stats')     app.innerHTML = renderStats();
+  else if (view === 'stats')       app.innerHTML = renderStats();
+  else if (view === 'add-session') app.innerHTML = renderAddSession();
 
   if (view === 'stats') setTimeout(drawCharts, 0);
 
@@ -584,6 +588,86 @@ function renderModal() {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  Ajout séance passée
+// ═══════════════════════════════════════════════════════════
+
+function initAddSets(cat) {
+  addSets = {};
+  (data.exercises[cat] || []).forEach(ex => {
+    addSets[ex.id] = Array.from({ length: ex.sets }, () => ({
+      weight: ex.lastWeight || '',
+      reps:   ex.lastReps   || '',
+    }));
+  });
+}
+
+function renderAddSession() {
+  const exercises = data.exercises[addCat] || [];
+  const today     = new Date().toISOString().slice(0, 10);
+
+  const catBtns = ['push', 'pull', 'legs'].map(c => `
+    <button class="cat-sel-btn ${addCat === c ? `cat-sel-btn--active cat-sel-btn--${c}` : ''}"
+            data-action="add-cat" data-cat="${c}">
+      ${CAT_ICON[c]} ${CAT_LABEL[c]}
+    </button>`).join('');
+
+  const exHtml = exercises.map(ex => {
+    const sets = addSets[ex.id] || [];
+    const setsHtml = sets.map((s, si) => `
+      <div class="set-row set-row--active">
+        <span class="set-num">S${si + 1}</span>
+        <div class="input-group">
+          <input type="number" inputmode="decimal" class="set-input" placeholder="0"
+                 value="${s.weight}"
+                 data-action="add-weight" data-exid="${ex.id}" data-si="${si}">
+          <span class="input-unit">kg</span>
+        </div>
+        <div class="input-group">
+          <input type="number" inputmode="numeric" class="set-input" placeholder="0"
+                 value="${s.reps}"
+                 data-action="add-reps" data-exid="${ex.id}" data-si="${si}">
+          <span class="input-unit">reps</span>
+        </div>
+      </div>`).join('');
+
+    return `
+      <div class="exercise-block">
+        <div class="exercise-header">
+          <span class="exercise-name">${ex.name}</span>
+          <div style="display:flex;gap:6px">
+            <button class="sets-adj" data-action="add-set-row" data-exid="${ex.id}">+</button>
+            <button class="sets-adj" data-action="rem-set-row" data-exid="${ex.id}"
+                    ${sets.length <= 1 ? 'disabled' : ''} style="opacity:${sets.length <= 1 ? .3 : 1}">−</button>
+          </div>
+        </div>
+        ${setsHtml}
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="view add-session">
+      <header class="header">
+        <button class="icon-btn" data-action="back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+        </button>
+        <span class="header__title">Séance passée</span>
+        <button class="btn--finish" data-action="save-past-session">Enregistrer</button>
+      </header>
+      <div class="add-session-meta">
+        <div class="cat-selector">${catBtns}</div>
+        <div class="date-row">
+          <label class="date-label">Date de la séance</label>
+          <input type="date" id="addDate" class="date-input"
+                 value="${addDate}" max="${today}" data-action="add-date">
+        </div>
+      </div>
+      <div class="add-session-content">${exHtml}</div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
 //  Stats / Progression
 // ═══════════════════════════════════════════════════════════
 
@@ -818,7 +902,11 @@ function renderHistory() {
           </svg>
         </button>
         <span class="header__title">Historique</span>
-        <div style="width:40px"></div>
+        <button class="icon-btn" data-action="go-add-session" title="Ajouter une séance passée">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+        </button>
       </header>
       <div class="history-list">${content}</div>
     </div>`;
@@ -859,6 +947,60 @@ document.addEventListener('click', e => {
     }
     case 'stats-tab': {
       statsCat = el.dataset.cat; render(); break;
+    }
+    case 'go-add-session': {
+      addCat  = 'push';
+      addDate = new Date().toISOString().slice(0, 10);
+      initAddSets(addCat);
+      view = 'add-session'; render(); break;
+    }
+    case 'add-cat': {
+      addCat = el.dataset.cat;
+      initAddSets(addCat);
+      render(); break;
+    }
+    case 'add-date': {
+      addDate = el.value; break;
+    }
+    case 'add-set-row': {
+      const exid = el.dataset.exid;
+      if (!addSets[exid]) addSets[exid] = [];
+      addSets[exid].push({ weight: '', reps: '' });
+      render(); break;
+    }
+    case 'rem-set-row': {
+      const exid = el.dataset.exid;
+      if (addSets[exid]?.length > 1) addSets[exid].pop();
+      render(); break;
+    }
+    case 'save-past-session': {
+      // Lire la date depuis le champ (au cas où l'input n'a pas déclenché l'event)
+      const dateEl = $('#addDate');
+      if (dateEl) addDate = dateEl.value;
+
+      const sessionExercises = (data.exercises[addCat] || [])
+        .map(ex => {
+          const sets = (addSets[ex.id] || []).filter(s => s.weight && s.reps);
+          if (!sets.length) return null;
+          return { name: ex.name, sets };
+        })
+        .filter(Boolean);
+
+      if (!sessionExercises.length) {
+        showToast('Entre au moins un exercice avec poids et reps !');
+        return;
+      }
+
+      const [y, m, d] = addDate.split('-').map(Number);
+      const timestamp = new Date(y, m - 1, d, 12, 0, 0).getTime();
+
+      if (!data.history) data.history = [];
+      data.history.push({ id: uid(), category: addCat, date: timestamp, exercises: sessionExercises });
+      data.history.sort((a, b) => b.date - a.date);
+      save();
+
+      showToast('Séance ajoutée !');
+      view = 'history'; render(); break;
     }
 
     // ── Dashboard ──────────────────────────────────────────
@@ -1007,15 +1149,30 @@ document.addEventListener('click', e => {
   }
 });
 
-// Live input capture for active set fields
+// Live input capture
 document.addEventListener('input', e => {
-  if (!activeSession) return;
   const action = e.target.dataset.action;
-  const ei = parseInt(e.target.dataset.ei);
-  const si = parseInt(e.target.dataset.si);
-  if (isNaN(ei) || isNaN(si)) return;
-  if (action === 'set-weight') activeSession.exercises[ei].sets[si].weight = e.target.value;
-  if (action === 'set-reps')   activeSession.exercises[ei].sets[si].reps   = e.target.value;
+
+  // Session en cours
+  if (activeSession) {
+    const ei = parseInt(e.target.dataset.ei);
+    const si = parseInt(e.target.dataset.si);
+    if (!isNaN(ei) && !isNaN(si)) {
+      if (action === 'set-weight') activeSession.exercises[ei].sets[si].weight = e.target.value;
+      if (action === 'set-reps')   activeSession.exercises[ei].sets[si].reps   = e.target.value;
+    }
+  }
+
+  // Formulaire séance passée
+  if (view === 'add-session') {
+    const exid = e.target.dataset.exid;
+    const si   = parseInt(e.target.dataset.si);
+    if (exid && !isNaN(si) && addSets[exid]) {
+      if (action === 'add-weight') addSets[exid][si].weight = e.target.value;
+      if (action === 'add-reps')   addSets[exid][si].reps   = e.target.value;
+    }
+    if (action === 'add-date') addDate = e.target.value;
+  }
 });
 
 // ═══════════════════════════════════════════════════════════
