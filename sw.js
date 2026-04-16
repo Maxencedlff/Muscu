@@ -1,4 +1,4 @@
-const CACHE = 'ppl-v10';
+const CACHE = 'ppl-v11';
 const ASSETS = ['/', '/index.html', '/style.css', '/app.js', '/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', e => {

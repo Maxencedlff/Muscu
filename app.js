@@ -128,6 +128,7 @@ let restInterval  = null;
 let restTimeLeft  = 0;
 let restEndTime   = 0;   // timestamp de fin (Date.now() + durée)
 let restActive    = false;
+let restMinimized = false;
 let modalOpen     = false;
 let editExIdx     = null;
 let statsCat      = 'push';
@@ -495,13 +496,29 @@ function validateSet(ei, si) {
 
 function renderRestOverlay() {
   if (!restActive) return '';
+
+  // Mini barre visible quand l'overlay est réduit
+  if (restMinimized) {
+    const ending = restTimeLeft <= 5;
+    return `
+      <div class="rest-mini" data-action="expand-rest">
+        <span class="rest-mini__icon">⏱</span>
+        <span class="rest-mini__timer ${ending ? 'ending' : ''}">${fmtRest(restTimeLeft)}</span>
+        <span class="rest-mini__label">Repos en cours — appuyer pour rouvrir</span>
+        <button class="rest-mini__skip" data-action="skip-rest">✕</button>
+      </div>`;
+  }
+
   const presets = [60, 90, 120, 180];
   const ending  = restTimeLeft <= 5;
 
   return `
     <div class="rest-overlay">
       <div class="rest-card">
-        <div class="rest-label">Repos</div>
+        <div class="rest-card__top">
+          <div class="rest-label">Repos</div>
+          <button class="rest-minimize-btn" data-action="minimize-rest">—</button>
+        </div>
         <div class="rest-timer ${ending ? 'ending' : ''}">${fmtRest(restTimeLeft)}</div>
         <div class="rest-presets">
           ${presets.map(p => `
@@ -527,14 +544,24 @@ function startRestCountdown() {
   restInterval = setInterval(() => {
     restTimeLeft = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
 
-    const el = $('.rest-timer');
-    if (el) {
-      el.textContent = fmtRest(restTimeLeft);
-      el.className   = `rest-timer ${restTimeLeft <= 5 ? 'ending' : ''}`;
+    if (restMinimized) {
+      // Mettre à jour la mini barre sans re-render complet
+      const mini = $('.rest-mini__timer');
+      if (mini) {
+        mini.textContent = fmtRest(restTimeLeft);
+        mini.className   = `rest-mini__timer ${restTimeLeft <= 5 ? 'ending' : ''}`;
+      }
+    } else {
+      const el = $('.rest-timer');
+      if (el) {
+        el.textContent = fmtRest(restTimeLeft);
+        el.className   = `rest-timer ${restTimeLeft <= 5 ? 'ending' : ''}`;
+      }
     }
 
     if (restTimeLeft <= 0) {
       clearInterval(restInterval);
+      restMinimized = false;
       timerDone();
       restActive = false;
       setTimeout(() => render(), 350);
@@ -545,8 +572,9 @@ function startRestCountdown() {
 function clearRest() { clearInterval(restInterval); restInterval = null; }
 
 function openRest(secs) {
-  restActive   = true;
-  restTimeLeft = secs ?? data.defaultRest;
+  restActive    = true;
+  restMinimized = false;
+  restTimeLeft  = secs ?? data.defaultRest;
   startRestCountdown();
   render();
 }
@@ -1275,7 +1303,14 @@ document.addEventListener('click', e => {
       break;
     }
     case 'skip-rest': {
-      clearRest(); restActive = false; render(); break;
+      clearRest(); restActive = false; restMinimized = false; render(); break;
+    }
+    case 'minimize-rest': {
+      restMinimized = true; render(); break;
+    }
+    case 'expand-rest': {
+      if (e.target.closest('[data-action="skip-rest"]')) break;
+      restMinimized = false; render(); break;
     }
     case 'set-rest': {
       const secs = parseInt(el.dataset.secs);
