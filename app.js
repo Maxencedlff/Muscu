@@ -126,6 +126,7 @@ let activeSession = null;
 let ticker        = null;         // 72h dashboard ticker
 let restInterval  = null;
 let restTimeLeft  = 0;
+let restEndTime   = 0;   // timestamp de fin (Date.now() + durée)
 let restActive    = false;
 let modalOpen     = false;
 let editExIdx     = null;
@@ -521,10 +522,11 @@ function renderRestOverlay() {
 
 function startRestCountdown() {
   clearInterval(restInterval);
-  restInterval = setInterval(() => {
-    restTimeLeft = Math.max(0, restTimeLeft - 1);
+  restEndTime = Date.now() + restTimeLeft * 1000;
 
-    // Update only the timer display (no full re-render)
+  restInterval = setInterval(() => {
+    restTimeLeft = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
+
     const el = $('.rest-timer');
     if (el) {
       el.textContent = fmtRest(restTimeLeft);
@@ -537,7 +539,7 @@ function startRestCountdown() {
       restActive = false;
       setTimeout(() => render(), 350);
     }
-  }, 1000);
+  }, 500); // 500ms pour rester précis même si le tick est légèrement décalé
 }
 
 function clearRest() { clearInterval(restInterval); restInterval = null; }
@@ -548,6 +550,25 @@ function openRest(secs) {
   startRestCountdown();
   render();
 }
+
+// Quand l'app revient au premier plan : recalculer depuis le timestamp réel
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && restActive) {
+    const remaining = Math.ceil((restEndTime - Date.now()) / 1000);
+    if (remaining <= 0) {
+      // Le chrono a expiré pendant qu'on était en arrière-plan
+      clearInterval(restInterval);
+      restTimeLeft = 0;
+      restActive   = false;
+      timerDone();
+      setTimeout(() => render(), 350);
+    } else {
+      restTimeLeft = remaining;
+      // Relancer l'interval (il peut avoir été throttlé)
+      startRestCountdown();
+    }
+  }
+});
 
 // ═══════════════════════════════════════════════════════════
 //  Editor
@@ -1258,7 +1279,7 @@ document.addEventListener('click', e => {
     }
     case 'set-rest': {
       const secs = parseInt(el.dataset.secs);
-      clearRest(); restTimeLeft = secs; startRestCountdown();
+      clearRest(); restTimeLeft = secs; restEndTime = Date.now() + secs * 1000; startRestCountdown();
       // just update the display
       const timerEl = $('.rest-timer');
       if (timerEl) timerEl.textContent = fmtRest(secs);
@@ -1268,7 +1289,7 @@ document.addEventListener('click', e => {
     case 'set-custom-rest': {
       const val = parseInt($('#customRest')?.value);
       if (val >= 10 && val <= 600) {
-        clearRest(); restTimeLeft = val; startRestCountdown(); render();
+        clearRest(); restTimeLeft = val; restEndTime = Date.now() + val * 1000; startRestCountdown(); render();
       } else {
         showToast('Entre une durée entre 10 et 600 secondes');
       }
