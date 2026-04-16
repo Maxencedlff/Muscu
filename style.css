@@ -162,8 +162,16 @@ body {
   display: flex; justify-content: space-between; align-items: baseline;
   margin-bottom: 4px;
 }
-.exercise-name     { font-weight: 700; font-size: 15px; }
+.exercise-name     { font-weight: 700; font-size: 15px; flex: 1; }
 .exercise-progress { font-size: 12px; color: var(--muted); }
+
+.rest-badge {
+  background: none; border: 1px solid var(--border);
+  color: var(--muted); font-size: 11px; padding: 2px 7px;
+  border-radius: 10px; cursor: pointer; white-space: nowrap;
+  transition: border-color .15s, color .15s;
+}
+.rest-badge:active { border-color: var(--accent); color: var(--accent); }
 
 .exercise-hint {
   font-size: 12px; color: var(--muted); margin-bottom: 12px;

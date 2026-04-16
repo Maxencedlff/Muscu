@@ -49,7 +49,7 @@ function showToast(msg) {
 const KEY = 'ppl_v1';
 
 function makeExercise(name, sets) {
-  return { id: uid(), name, sets, lastWeight: '', lastReps: '', pr: null, est1RM: null, target: null };
+  return { id: uid(), name, sets, lastWeight: '', lastReps: '', pr: null, est1RM: null, target: null, rest: null };
 }
 
 function calc1RM(weight, reps) {
@@ -385,10 +385,14 @@ function renderSession() {
         </div>
       </div>` : '';
 
+    const restSecs = ex_data?.rest ?? data.defaultRest;
+    const restLabel = restSecs >= 60 ? `${restSecs / 60}min` : `${restSecs}s`;
+
     return `
       <div class="exercise-block ${allDone ? 'exercise-block--done' : ''}">
         <div class="exercise-header">
           <span class="exercise-name">${ex.name}</span>
+          <button class="rest-badge" data-action="set-ex-rest" data-ei="${ei}" title="Modifier le repos">⏱ ${restLabel}</button>
           <span class="exercise-progress">${ex.sets.filter(s => s.done).length}/${ex.sets.length}</span>
         </div>
         ${hint ? `<div class="exercise-hint"><span class="pr">${hint}</span></div>` : ''}
@@ -461,7 +465,14 @@ function validateSet(ei, si) {
     save();
   }
 
-  render();
+  // Auto-démarrer le repos (sauf si c'est la toute dernière série de la séance)
+  const allDone = activeSession.exercises.every(e => e.sets.every(s => s.done));
+  if (!allDone) {
+    const restSecs = ex_data?.rest ?? data.defaultRest;
+    openRest(restSecs);
+  } else {
+    render();
+  }
 
   // Auto-scroll to the validated set
   setTimeout(() => {
@@ -524,9 +535,9 @@ function startRestCountdown() {
 
 function clearRest() { clearInterval(restInterval); restInterval = null; }
 
-function openRest() {
+function openRest(secs) {
   restActive   = true;
-  restTimeLeft = data.defaultRest;
+  restTimeLeft = secs ?? data.defaultRest;
   startRestCountdown();
   render();
 }
@@ -614,6 +625,9 @@ function renderModal() {
         <label class="form-label">Nombre de séries par défaut</label>
         <input type="number" inputmode="numeric" id="modalSets" class="form-input"
                value="${ex ? ex.sets : 3}" min="1" max="10">
+        <label class="form-label">Temps de repos (secondes) — optionnel</label>
+        <input type="number" inputmode="numeric" id="modalRest" class="form-input"
+               value="${ex?.rest || ''}" placeholder="Défaut : ${data.defaultRest}s">
         <label class="form-label">Objectif poids (kg) — optionnel</label>
         <input type="number" inputmode="decimal" id="modalTarget" class="form-input"
                value="${ex?.target || ''}" placeholder="Ex : 40">
@@ -1206,7 +1220,30 @@ document.addEventListener('click', e => {
       break;
     }
     case 'start-rest': {
-      openRest();
+      const eiRest = el.dataset.ei !== undefined ? parseInt(el.dataset.ei) : null;
+      if (eiRest !== null) {
+        const cat    = activeSession.category;
+        const exData = data.exercises[cat]?.find(e => e.id === activeSession.exercises[eiRest]?.exId);
+        openRest(exData?.rest ?? data.defaultRest);
+      } else {
+        openRest();
+      }
+      break;
+    }
+    case 'set-ex-rest': {
+      const ei = parseInt(el.dataset.ei);
+      const ex = activeSession.exercises[ei];
+      const cat = activeSession.category;
+      const exData = data.exercises[cat]?.find(e => e.id === ex?.exId);
+      const cur = exData?.rest ?? data.defaultRest;
+      const val = prompt(`Temps de repos pour "${ex?.name}" (secondes) :`, cur);
+      const secs = parseInt(val);
+      if (secs >= 10 && secs <= 600 && exData) {
+        exData.rest = secs;
+        save();
+        render();
+        showToast(`Repos ${secs}s enregistré`);
+      }
       break;
     }
     case 'skip-rest': {
@@ -1302,13 +1339,16 @@ document.addEventListener('click', e => {
       const sets = parseInt($('#modalSets')?.value) || 3;
       if (!name) { showToast('Entre un nom !'); return; }
       const target = parseFloat($('#modalTarget')?.value) || null;
+      const rest   = parseInt($('#modalRest')?.value)    || null;
       if (editExIdx !== null) {
         data.exercises[editorCat][editExIdx].name   = name;
         data.exercises[editorCat][editExIdx].sets   = sets;
         data.exercises[editorCat][editExIdx].target = target;
+        data.exercises[editorCat][editExIdx].rest   = rest;
       } else {
         const ex = makeExercise(name, sets);
         ex.target = target;
+        ex.rest   = rest;
         data.exercises[editorCat].push(ex);
       }
       modalOpen = false; editExIdx = null; save(); render(); break;
