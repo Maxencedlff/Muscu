@@ -130,6 +130,7 @@ let restEndTime   = 0;   // timestamp de fin (Date.now() + durée)
 let restActive    = false;
 let restMinimized = false;
 let modalOpen     = false;
+let restEditEi    = null;  // index exercice en cours d'édition du repos
 let editExIdx     = null;
 let statsCat      = 'push';
 let addCat        = 'push';
@@ -436,7 +437,8 @@ function renderSession() {
         </div>
       </div>
     </div>
-    ${renderRestOverlay()}`;
+    ${renderRestOverlay()}
+    ${renderRestEditModal()}`;
 }
 
 function validateSet(ei, si) {
@@ -567,6 +569,27 @@ function startRestCountdown() {
       setTimeout(() => render(), 350);
     }
   }, 500); // 500ms pour rester précis même si le tick est légèrement décalé
+}
+
+function renderRestEditModal() {
+  if (restEditEi === null) return '';
+  const ex  = activeSession?.exercises[restEditEi];
+  const cat = activeSession?.category;
+  const exData = data.exercises[cat]?.find(e => e.id === ex?.exId);
+  const cur = exData?.rest ?? data.defaultRest;
+  return `
+    <div class="modal-overlay" data-action="close-rest-edit">
+      <div class="modal" style="max-width:320px;">
+        <div class="modal__title">Repos — ${ex?.name}</div>
+        <label class="form-label">Durée (secondes)</label>
+        <input type="number" inputmode="numeric" id="restEditInput" class="form-input"
+               value="${cur}" min="10" max="600" placeholder="Ex : 90">
+        <div class="modal__actions">
+          <button class="btn btn--secondary" data-action="close-rest-edit">Annuler</button>
+          <button class="btn btn--primary"   data-action="save-rest-edit">OK</button>
+        </div>
+      </div>
+    </div>`;
 }
 
 function clearRest() { clearInterval(restInterval); restInterval = null; }
@@ -1287,19 +1310,26 @@ document.addEventListener('click', e => {
       break;
     }
     case 'set-ex-rest': {
-      const ei = parseInt(el.dataset.ei);
-      const ex = activeSession.exercises[ei];
-      const cat = activeSession.category;
-      const exData = data.exercises[cat]?.find(e => e.id === ex?.exId);
-      const cur = exData?.rest ?? data.defaultRest;
-      const val = prompt(`Temps de repos pour "${ex?.name}" (secondes) :`, cur);
-      const secs = parseInt(val);
-      if (secs >= 10 && secs <= 600 && exData) {
-        exData.rest = secs;
-        save();
-        render();
-        showToast(`Repos ${secs}s enregistré`);
+      restEditEi = parseInt(el.dataset.ei);
+      render();
+      setTimeout(() => { $('#restEditInput')?.focus(); $('#restEditInput')?.select(); }, 50);
+      break;
+    }
+    case 'close-rest-edit': {
+      if (e.target === el || el.dataset.action === 'close-rest-edit') {
+        restEditEi = null; render();
       }
+      break;
+    }
+    case 'save-rest-edit': {
+      const secs = parseInt($('#restEditInput')?.value);
+      if (secs >= 10 && secs <= 600) {
+        const ex     = activeSession.exercises[restEditEi];
+        const cat    = activeSession.category;
+        const exData = data.exercises[cat]?.find(e => e.id === ex?.exId);
+        if (exData) { exData.rest = secs; save(); showToast(`Repos ${secs}s enregistré`); }
+      }
+      restEditEi = null; render();
       break;
     }
     case 'skip-rest': {
