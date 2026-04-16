@@ -475,7 +475,7 @@ function validateSet(ei, si) {
   // Auto-démarrer le repos (sauf si c'est la toute dernière série de la séance)
   const allDone = activeSession.exercises.every(e => e.sets.every(s => s.done));
   if (!allDone) {
-    const restSecs = ex_data?.rest ?? data.defaultRest;
+    const restSecs = exData?.rest ?? data.defaultRest;
     openRest(restSecs);
   } else {
     render();
