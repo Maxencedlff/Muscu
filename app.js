@@ -578,7 +578,7 @@ function renderRestEditModal() {
   const exData = data.exercises[cat]?.find(e => e.id === ex?.exId);
   const cur = exData?.rest ?? data.defaultRest;
   return `
-    <div class="modal-overlay" data-action="close-rest-edit">
+    <div class="modal-overlay">
       <div class="modal" style="max-width:320px;">
         <div class="modal__title">Repos — ${ex?.name}</div>
         <label class="form-label">Durée (secondes)</label>
@@ -1316,9 +1316,7 @@ document.addEventListener('click', e => {
       break;
     }
     case 'close-rest-edit': {
-      if (e.target === el || el.dataset.action === 'close-rest-edit') {
-        restEditEi = null; render();
-      }
+      restEditEi = null; render();
       break;
     }
     case 'save-rest-edit': {
