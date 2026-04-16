@@ -43,10 +43,82 @@ function showToast(msg) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  Data
+//  Programme definitions
 // ═══════════════════════════════════════════════════════════
 
-const KEY = 'ppl_v1';
+const PROGRAMMES = {
+  ppl: {
+    name: 'PPL', desc: 'Push · Pull · Legs', icon: '🔄',
+    sessions: {
+      push: { label: 'Push', icon: '💪', desc: 'Pectoraux · Épaules · Triceps', color: '#ef4444' },
+      pull: { label: 'Pull', icon: '🔙', desc: 'Dos · Biceps · Trapèzes',       color: '#3b82f6' },
+      legs: { label: 'Legs', icon: '🦵', desc: 'Quadriceps · Ischio · Mollets', color: '#22c55e' },
+    },
+    defaults: {
+      push: [['Développé couché haltères',4],['Développé incliné haltères',3],['Écarté haltères plat',3],['Développé militaire haltères',4],['Élévations latérales',4],['Extension triceps poulie',3]],
+      pull: [['Rowing haltère unilatéral',4],['Tirage vertical prise large',4],['Tirage horizontal câble',3],['Curl biceps haltères',3],['Curl marteau',3]],
+      legs: [['Squat barre',4],['Presse à cuisses',4],['Fentes marchées haltères',3],['Leg curl machine',3],['Extension quadriceps',3],['Mollets debout',4]],
+    },
+  },
+  upper_lower: {
+    name: 'Upper / Lower', desc: 'Haut · Bas du corps', icon: '⬆️',
+    sessions: {
+      upper: { label: 'Upper', icon: '💪', desc: 'Pecs · Dos · Épaules · Bras',              color: '#f59e0b' },
+      lower: { label: 'Lower', icon: '🦵', desc: 'Quadriceps · Ischio · Mollets · Fessiers', color: '#8b5cf6' },
+    },
+    defaults: {
+      upper: [['Développé couché haltères',4],['Tirage vertical prise large',4],['Rowing haltère unilatéral',3],['Développé militaire haltères',3],['Curl biceps haltères',3],['Extension triceps poulie',3]],
+      lower: [['Squat barre',4],['Presse à cuisses',4],['Fentes marchées haltères',3],['Leg curl machine',3],['Extension quadriceps',3],['Mollets debout',4]],
+    },
+  },
+  fullbody: {
+    name: 'Full Body', desc: 'Corps entier · 3×/semaine', icon: '🏋️',
+    sessions: {
+      fullbody: { label: 'Full Body', icon: '🏋️', desc: 'Corps entier', color: '#06b6d4' },
+    },
+    defaults: {
+      fullbody: [['Squat barre',3],['Développé couché haltères',3],['Rowing haltère unilatéral',3],['Développé militaire haltères',3],['Curl biceps haltères',3],['Extension triceps poulie',3],['Mollets debout',3]],
+    },
+  },
+  bro: {
+    name: 'Bro Split', desc: 'Chest · Back · Shoulders · Arms · Legs', icon: '💪',
+    sessions: {
+      chest:     { label: 'Chest',     icon: '💪', desc: 'Pectoraux',           color: '#ef4444' },
+      back:      { label: 'Back',      icon: '🔙', desc: 'Dos · Trapèzes',       color: '#3b82f6' },
+      shoulders: { label: 'Shoulders', icon: '🏔️', desc: 'Épaules',             color: '#f59e0b' },
+      arms:      { label: 'Arms',      icon: '🦾', desc: 'Biceps · Triceps',    color: '#a855f7' },
+      legs:      { label: 'Legs',      icon: '🦵', desc: 'Quadriceps · Ischio', color: '#22c55e' },
+    },
+    defaults: {
+      chest:     [['Développé couché haltères',4],['Développé incliné haltères',4],['Écarté haltères plat',3],['Dips',3]],
+      back:      [['Pull-ups',4],['Tirage vertical prise large',4],['Rowing barre',4],['Rowing haltère unilatéral',3]],
+      shoulders: [['Développé militaire haltères',4],['Élévations latérales',4],['Élévations frontales',3],['Oiseau (élévations arrière)',3]],
+      arms:      [['Curl biceps haltères',4],['Curl marteau',3],['Extension triceps poulie',4],['Extension triceps unilatéral',3]],
+      legs:      [['Squat barre',4],['Presse à cuisses',4],['Fentes marchées haltères',3],['Leg curl machine',3],['Extension quadriceps',3],['Mollets debout',4]],
+    },
+  },
+  arnold: {
+    name: 'Arnold Split', desc: 'Pecs+Dos · Épaules+Bras · Jambes', icon: '🏆',
+    sessions: {
+      chest_back:     { label: 'Chest & Back',     icon: '💪', desc: 'Pectoraux · Dos',              color: '#ef4444' },
+      shoulders_arms: { label: 'Shoulders & Arms', icon: '🤙', desc: 'Épaules · Biceps · Triceps',   color: '#f97316' },
+      legs:           { label: 'Legs',             icon: '🦵', desc: 'Quadriceps · Ischio · Mollets', color: '#22c55e' },
+    },
+    defaults: {
+      chest_back:     [['Développé couché haltères',4],['Écarté haltères plat',3],['Tirage vertical prise large',4],['Rowing haltère unilatéral',4],['Pull-ups',3]],
+      shoulders_arms: [['Développé militaire haltères',4],['Élévations latérales',4],['Curl biceps haltères',3],['Curl marteau',3],['Extension triceps poulie',3]],
+      legs:           [['Squat barre',4],['Presse à cuisses',4],['Fentes marchées haltères',3],['Leg curl machine',3],['Mollets debout',4]],
+    },
+  },
+  custom: {
+    name: 'Perso', desc: 'Séances personnalisées', icon: '✏️',
+    sessions: {}, defaults: {},
+  },
+};
+
+// ═══════════════════════════════════════════════════════════
+//  Data helpers
+// ═══════════════════════════════════════════════════════════
 
 function makeExercise(name, sets) {
   return { id: uid(), name, sets, lastWeight: '', lastReps: '', pr: null, est1RM: null, target: null, rest: null };
@@ -70,77 +142,131 @@ function sessionVolume(exercises) {
       a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0), 0);
 }
 
+function makeProgData(progId) {
+  const pm = PROGRAMMES[progId];
+  if (!pm || progId === 'custom') return { exercises: {}, timers: {} };
+  const exercises = {}, timers = {};
+  Object.keys(pm.sessions).forEach(cat => {
+    timers[cat]    = null;
+    exercises[cat] = (pm.defaults[cat] || []).map(([name, sets]) => makeExercise(name, sets));
+  });
+  return { exercises, timers };
+}
+
+const KEY = 'ppl_v2';
+
 function makeDefaultData() {
   return {
-    exercises: {
-      push: [
-        makeExercise('Développé couché haltères', 4),
-        makeExercise('Développé incliné haltères', 3),
-        makeExercise('Écarté haltères plat', 3),
-        makeExercise('Développé militaire haltères', 4),
-        makeExercise('Élévations latérales', 4),
-        makeExercise('Extension triceps poulie', 3),
-      ],
-      pull: [
-        makeExercise('Rowing haltère unilatéral', 4),
-        makeExercise('Tirage vertical prise large', 4),
-        makeExercise('Tirage horizontal câble', 3),
-        makeExercise('Curl biceps haltères', 3),
-        makeExercise('Curl marteau', 3),
-      ],
-      legs: [
-        makeExercise('Squat barre', 4),
-        makeExercise('Presse à cuisses', 4),
-        makeExercise('Fentes marchées haltères', 3),
-        makeExercise('Leg curl machine', 3),
-        makeExercise('Extension quadriceps', 3),
-        makeExercise('Mollets debout', 4),
-      ],
-    },
-    timers: { push: null, pull: null, legs: null },
+    activeProgramme: 'ppl',
+    programmes: { ppl: makeProgData('ppl') },
+    customSessions: {},
     defaultRest: 90,
+    history: [],
   };
 }
 
 function loadData() {
+  // New key
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return makeDefaultData();
-    const d = JSON.parse(raw);
-    ['push', 'pull', 'legs'].forEach(c => { if (!d.exercises[c]) d.exercises[c] = []; });
-    if (!d.defaultRest) d.defaultRest = 90;
-    return d;
-  } catch { return makeDefaultData(); }
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (!d.activeProgramme) d.activeProgramme = 'ppl';
+      if (!d.programmes)      d.programmes = {};
+      if (!d.programmes.ppl)  d.programmes.ppl = makeProgData('ppl');
+      if (!d.customSessions)  d.customSessions = {};
+      if (!d.defaultRest)     d.defaultRest = 90;
+      if (!d.history)         d.history = [];
+      return d;
+    }
+  } catch {}
+
+  // Migrate from ppl_v1
+  try {
+    const raw = localStorage.getItem('ppl_v1');
+    if (raw) {
+      const old = JSON.parse(raw);
+      if (old.exercises) {
+        const d = makeDefaultData();
+        d.programmes.ppl.exercises = old.exercises;
+        d.programmes.ppl.timers   = old.timers || { push: null, pull: null, legs: null };
+        d.defaultRest = old.defaultRest || 90;
+        d.history     = (old.history || []).map(h => ({ ...h, programme: 'ppl' }));
+        return d;
+      }
+    }
+  } catch {}
+
+  return makeDefaultData();
 }
 
 function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
+
+// ═══════════════════════════════════════════════════════════
+//  Accessors
+// ═══════════════════════════════════════════════════════════
+
+function prog() {
+  if (!data.programmes[data.activeProgramme]) {
+    data.programmes[data.activeProgramme] = { exercises: {}, timers: {} };
+  }
+  return data.programmes[data.activeProgramme];
+}
+
+function progMeta(id) {
+  return PROGRAMMES[id || data.activeProgramme] || PROGRAMMES.ppl;
+}
+
+function sessionKeys(progId) {
+  progId = progId || data.activeProgramme;
+  if (progId === 'custom') return Object.keys(data.customSessions || {});
+  return Object.keys(PROGRAMMES[progId]?.sessions || {});
+}
+
+function sessionMeta(cat, progId) {
+  progId = progId || data.activeProgramme;
+  if (progId === 'custom') return data.customSessions[cat] || { label: cat, icon: '🏋️', desc: '', color: '#666666' };
+  return PROGRAMMES[progId]?.sessions[cat] || { label: cat, icon: '🏋️', desc: '', color: '#666666' };
+}
+
+function firstSession() {
+  return sessionKeys()[0] || '';
+}
+
+function historyColor(h) {
+  const progId = h.programme || 'ppl';
+  return sessionMeta(h.category, progId).color || '#666';
+}
 
 // ═══════════════════════════════════════════════════════════
 //  State
 // ═══════════════════════════════════════════════════════════
 
 let data          = loadData();
-let view          = 'dashboard';  // 'dashboard' | 'session' | 'editor' | 'history' | 'stats'
-let editorCat     = 'push';
+let view          = 'dashboard';
+let editorCat     = firstSession();
 let activeSession = null;
-let ticker        = null;         // 72h dashboard ticker
+let ticker        = null;
 let restInterval  = null;
 let restTimeLeft  = 0;
-let restEndTime   = 0;   // timestamp de fin (Date.now() + durée)
+let restEndTime   = 0;
 let restActive    = false;
 let restMinimized = false;
 let modalOpen     = false;
-let restEditEi    = null;  // index exercice en cours d'édition du repos
+let restEditEi    = null;
 let editExIdx     = null;
-let statsCat      = 'push';
-let addCat        = 'push';
+let statsCat      = firstSession();
+let addCat        = firstSession();
 let addDate       = new Date().toISOString().slice(0, 10);
-let addSets       = {}; // { exId: [{weight, reps}] }
-let editSessionId = null; // null = nouvelle séance, sinon id de la séance à modifier
-let sessionNotes  = '';   // notes de la séance en cours
-let addNotes      = '';   // notes du formulaire séance passée
+let addSets       = {};
+let editSessionId = null;
+let sessionNotes  = '';
+let addNotes      = '';
 let audioCtx      = null;
 let wakeLock      = null;
+let csModal       = false;  // custom session modal
+let csEditId      = null;   // id being edited, null = new
+let csColor       = '#3b82f6';
 
 // ═══════════════════════════════════════════════════════════
 //  Audio
@@ -163,11 +289,8 @@ function beep(freq, dur = .15, vol = .35) {
 }
 
 function timerDone() {
-  // Son (fonctionne hors silencieux sur Android, bloqué iOS silencieux)
   beep(880, .12); setTimeout(() => beep(1100, .12), 160); setTimeout(() => beep(1320, .35), 320);
-  // Vibration (Android uniquement — iOS ne supporte pas navigator.vibrate)
   if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
-  // Flash visuel — fonctionne sur tous les appareils quoi qu'il arrive
   const flash = document.createElement('div');
   flash.className = 'timer-flash';
   document.body.appendChild(flash);
@@ -183,15 +306,14 @@ function finishSound()     { beep(880, .1); setTimeout(() => beep(1320, .25), 16
 
 function render() {
   const app = $('#app');
-
-  // preserve scroll position on session re-renders
   const prev = $('.session-content');
   const scrollTop = prev ? prev.scrollTop : 0;
 
-  if      (view === 'dashboard') app.innerHTML = renderDashboard();
-  else if (view === 'session')   app.innerHTML = renderSession();
-  else if (view === 'editor')    app.innerHTML = renderEditor();
-  else if (view === 'history')   app.innerHTML = renderHistory();
+  if      (view === 'dashboard')   app.innerHTML = renderDashboard();
+  else if (view === 'programmes')  app.innerHTML = renderProgrammes();
+  else if (view === 'session')     app.innerHTML = renderSession();
+  else if (view === 'editor')      app.innerHTML = renderEditor();
+  else if (view === 'history')     app.innerHTML = renderHistory();
   else if (view === 'stats')       app.innerHTML = renderStats();
   else if (view === 'add-session') app.innerHTML = renderAddSession();
 
@@ -207,30 +329,26 @@ function render() {
 //  Dashboard
 // ═══════════════════════════════════════════════════════════
 
-const CAT_LABEL = { push: 'Push', pull: 'Pull', legs: 'Legs' };
-const CAT_ICON  = { push: '💪',   pull: '🔄',   legs: '🦵'  };
-const CAT_DESC  = {
-  push: 'Pectoraux · Épaules · Triceps',
-  pull: 'Dos · Biceps · Trapèzes',
-  legs: 'Quadriceps · Ischio · Mollets',
-};
-
 function renderDashboard() {
-  const cards = ['push', 'pull', 'legs'].map(cat => {
-    const last      = data.timers[cat];
+  const keys = sessionKeys();
+  const pm   = progMeta();
+
+  const cards = keys.map(cat => {
+    const meta      = sessionMeta(cat);
+    const last      = prog().timers[cat];
     const deadline  = last ? last + 72 * 3600_000 : 0;
     const remaining = deadline - Date.now();
     const ready     = !last || remaining <= 0;
-    const exCount   = data.exercises[cat].length;
-    const totalSets = data.exercises[cat].reduce((a, e) => a + e.sets, 0);
+    const exCount   = (prog().exercises[cat] || []).length;
+    const totalSets = (prog().exercises[cat] || []).reduce((a, e) => a + e.sets, 0);
 
     return `
-      <div class="card card--${cat} ${ready ? 'ready' : ''}">
+      <div class="card ${ready ? 'ready' : ''}" data-cat="${cat}" style="--cat-color:${meta.color}">
         <div class="card__header">
-          <span class="card__icon">${CAT_ICON[cat]}</span>
+          <span class="card__icon">${meta.icon}</span>
           <div>
-            <div class="card__title">${CAT_LABEL[cat]}</div>
-            <div class="card__desc">${CAT_DESC[cat]}</div>
+            <div class="card__title">${meta.label}</div>
+            <div class="card__desc">${meta.desc}</div>
           </div>
         </div>
         <div class="card__timer ${ready ? 'timer--ready' : 'timer--recovering'}" id="timer-${cat}">
@@ -244,10 +362,22 @@ function renderDashboard() {
       </div>`;
   }).join('');
 
+  const emptyCustom = data.activeProgramme === 'custom' && keys.length === 0
+    ? `<div class="empty-state">
+         <div class="empty-state__icon">✏️</div>
+         <div>Programme vide</div>
+         <div class="empty-state__sub">Appuie sur le programme en haut pour ajouter des séances</div>
+       </div>`
+    : '';
+
   return `
     <div class="view dashboard">
       <header class="header">
-        <span class="header__title">PPL Training</span>
+        <button class="prog-pill" data-action="go-programmes">
+          <span class="prog-pill__icon">${pm.icon}</span>
+          <span class="prog-pill__name">${pm.name}</span>
+          <span class="prog-pill__chevron">›</span>
+        </button>
         <div style="display:flex;gap:4px">
           <button class="icon-btn" data-action="go-stats" title="Progression">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -267,7 +397,7 @@ function renderDashboard() {
           </button>
         </div>
       </header>
-      <div class="cards">${cards}</div>
+      <div class="cards">${cards || emptyCustom}</div>
       <div class="dashboard__footer">
         <button class="link-btn" data-action="export">Exporter</button>
         <button class="link-btn" data-action="import">Importer</button>
@@ -280,12 +410,12 @@ function startTicker() {
   clearInterval(ticker);
   ticker = setInterval(() => {
     if (view !== 'dashboard') return;
-    ['push', 'pull', 'legs'].forEach(cat => {
+    sessionKeys().forEach(cat => {
       const el   = $(`#timer-${cat}`);
-      const btn  = $(`.card--${cat} .btn`);
-      const card = $(`.card--${cat}`);
+      const card = $(`[data-cat="${cat}"]`);
+      const btn  = card ? $('[data-action="start-session"]', card) : null;
       if (!el) return;
-      const last = data.timers[cat];
+      const last = prog().timers[cat];
       if (!last) return;
       const rem = (last + 72 * 3600_000) - Date.now();
       if (rem <= 0) {
@@ -301,14 +431,121 @@ function startTicker() {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  Programme selector
+// ═══════════════════════════════════════════════════════════
+
+function renderProgrammes() {
+  const cards = Object.entries(PROGRAMMES).map(([id, pm]) => {
+    const isActive = data.activeProgramme === id;
+    const keys     = sessionKeys(id);
+    const names    = id === 'custom'
+      ? Object.values(data.customSessions || {}).map(s => s.label).join(' · ')
+      : Object.values(pm.sessions).map(s => s.label).join(' · ');
+
+    return `
+      <div class="prog-card ${isActive ? 'prog-card--active' : ''}" data-action="select-prog" data-id="${id}">
+        <span class="prog-card__icon">${pm.icon}</span>
+        <div class="prog-card__body">
+          <div class="prog-card__name">${pm.name} ${isActive ? '<span class="prog-badge">Actif</span>' : ''}</div>
+          <div class="prog-card__desc">${pm.desc}</div>
+          ${names ? `<div class="prog-card__sessions">${names}</div>` : ''}
+        </div>
+        <span class="prog-card__arrow">›</span>
+      </div>`;
+  }).join('');
+
+  const customManager = data.activeProgramme === 'custom' ? renderCustomManager() : '';
+
+  return `
+    <div class="view programmes">
+      <header class="header">
+        <button class="icon-btn" data-action="back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+        </button>
+        <span class="header__title">Programme</span>
+        <div style="width:40px"></div>
+      </header>
+      <div class="prog-list">
+        ${cards}
+        ${customManager}
+      </div>
+    </div>
+    ${renderCsModal()}`;
+}
+
+function renderCustomManager() {
+  const sessions = Object.entries(data.customSessions || {});
+  return `
+    <div class="custom-manager">
+      <div class="custom-manager__title">Séances du programme Perso</div>
+      ${sessions.length === 0
+        ? `<div class="custom-manager__empty">Aucune séance — crée-en une ci-dessous</div>`
+        : sessions.map(([id, s]) => `
+          <div class="custom-session-row">
+            <span class="custom-session-icon" style="color:${s.color}">${s.icon}</span>
+            <div class="custom-session-info">
+              <div class="custom-session-name">${s.label}</div>
+              ${s.desc ? `<div class="custom-session-desc">${s.desc}</div>` : ''}
+            </div>
+            <button class="icon-btn" data-action="edit-custom-session" data-id="${id}" title="Modifier">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+            </button>
+          </div>`).join('')}
+      <button class="btn btn--secondary btn--full" data-action="add-custom-session" style="margin-top:10px">
+        + Ajouter une séance
+      </button>
+    </div>`;
+}
+
+function renderCsModal() {
+  if (!csModal) return '';
+  const isEdit   = csEditId !== null;
+  const existing = isEdit ? (data.customSessions[csEditId] || {}) : {};
+  const colors   = ['#ef4444','#f97316','#f59e0b','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#a855f7','#ec4899','#64748b'];
+  const selColor = csColor;
+
+  return `
+    <div class="modal-overlay">
+      <div class="modal">
+        <div class="modal__title">${isEdit ? 'Modifier la séance' : 'Nouvelle séance'}</div>
+        <label class="form-label">Nom</label>
+        <input type="text" id="csName" class="form-input" value="${existing.label || ''}"
+               placeholder="Ex : Séance A, Chest, Full Body…" autocomplete="off">
+        <label class="form-label">Icône</label>
+        <input type="text" id="csIcon" class="form-input" value="${existing.icon || '🏋️'}"
+               placeholder="🏋️" style="font-size:22px;text-align:center">
+        <label class="form-label">Description (optionnel)</label>
+        <input type="text" id="csDesc" class="form-input" value="${existing.desc || ''}"
+               placeholder="Ex : Pectoraux · Dos">
+        <label class="form-label">Couleur</label>
+        <div class="color-picker">
+          ${colors.map(c => `
+            <button class="color-swatch ${c === selColor ? 'color-swatch--active' : ''}"
+                    data-action="pick-cs-color" data-color="${c}" style="background:${c}"></button>`).join('')}
+        </div>
+        <div class="modal__actions" style="flex-wrap:wrap;gap:8px">
+          ${isEdit ? `<button class="btn btn--danger" data-action="delete-custom-session" style="flex:1 1 100%">Supprimer cette séance</button>` : ''}
+          <button class="btn btn--secondary" data-action="close-cs-modal" style="flex:1">Annuler</button>
+          <button class="btn btn--primary"   data-action="save-cs-modal"  style="flex:1">OK</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
 //  Session
 // ═══════════════════════════════════════════════════════════
 
 function startSession(cat) {
   sessionNotes = '';
-  const exList = data.exercises[cat] || [];
+  const exList = prog().exercises[cat] || [];
   activeSession = {
-    category: cat,
+    category:  cat,
+    programme: data.activeProgramme,
     startedAt: Date.now(),
     exercises: exList.map(ex => ({
       exId: ex.id,
@@ -326,36 +563,33 @@ function startSession(cat) {
 }
 
 function renderSession() {
-  const { category: cat, exercises } = activeSession;
+  const { category: cat } = activeSession;
+  const meta = sessionMeta(cat);
 
-  const totalSets = exercises.reduce((a, ex) => a + ex.sets.length, 0);
-  const doneSets  = exercises.reduce((a, ex) => a + ex.sets.filter(s => s.done).length, 0);
+  const totalSets = activeSession.exercises.reduce((a, ex) => a + ex.sets.length, 0);
+  const doneSets  = activeSession.exercises.reduce((a, ex) => a + ex.sets.filter(s => s.done).length, 0);
   const pct       = totalSets ? Math.round(doneSets / totalSets * 100) : 0;
 
-  // Trouver la séance précédente pour cette catégorie
-  const prevSession = (data.history || []).find(h => h.category === cat);
+  const prevSession = (data.history || []).find(h => h.category === cat && h.programme === activeSession.programme);
 
-  const exHtml = exercises.map((ex, ei) => {
-    const ex_data   = data.exercises[cat]?.find(e => e.id === ex.exId);
-    const prText    = ex_data?.pr ? `PR : ${ex_data.pr.weight} kg × ${ex_data.pr.reps}` : '';
-    const hint      = prText;
-    const allDone   = ex.sets.every(s => s.done);
+  const exHtml = activeSession.exercises.map((ex, ei) => {
+    const exData  = prog().exercises[cat]?.find(e => e.id === ex.exId);
+    const prText  = exData?.pr ? `PR : ${exData.pr.weight} kg × ${exData.pr.reps}` : '';
+    const allDone = ex.sets.every(s => s.done);
 
-    // Données séance précédente pour cet exercice
-    const prevEx    = prevSession?.exercises.find(e => e.name === ex.name);
-    const prevSets  = prevEx?.sets || [];
+    const prevEx   = prevSession?.exercises.find(e => e.name === ex.name);
+    const prevSets = prevEx?.sets || [];
 
     const setsHtml = ex.sets.map((s, si) => {
       if (s.done) {
-        const isNewPR = ex_data?.pr &&
-          s.weight == ex_data.pr.weight && s.reps == ex_data.pr.reps;
+        const isNewPR    = exData?.pr && s.weight == exData.pr.weight && s.reps == exData.pr.reps;
         const weightLabel = s.weight ? `${s.weight} kg × ` : '';
         return `
           <div class="set-row set-row--done">
             <span class="set-num">Série ${si + 1}</span>
             <span class="set-val">${weightLabel}${s.reps} reps</span>
             ${isNewPR ? '<span class="pr-badge">PR !</span>' : ''}
-            <button class="rest-btn" data-action="start-rest">⏱ Repos</button>
+            <button class="rest-btn" data-action="start-rest" data-ei="${ei}">⏱ Repos</button>
           </div>`;
       }
 
@@ -381,9 +615,7 @@ function renderSession() {
                    value="${s.reps}" data-action="set-reps" data-ei="${ei}" data-si="${si}">
             <span class="input-unit">reps</span>
           </div>
-          <button class="btn btn--success btn--sm" data-action="validate-set" data-ei="${ei}" data-si="${si}">
-            ✓
-          </button>
+          <button class="btn btn--success btn--sm" data-action="validate-set" data-ei="${ei}" data-si="${si}">✓</button>
         </div>`;
     }).join('');
 
@@ -395,7 +627,7 @@ function renderSession() {
         </div>
       </div>` : '';
 
-    const restSecs = ex_data?.rest ?? data.defaultRest;
+    const restSecs = exData?.rest ?? data.defaultRest;
     const restLabel = restSecs >= 60 ? `${restSecs / 60}min` : `${restSecs}s`;
 
     return `
@@ -405,28 +637,28 @@ function renderSession() {
           <button class="rest-badge" data-action="set-ex-rest" data-ei="${ei}" title="Modifier le repos">⏱ ${restLabel}</button>
           <span class="exercise-progress">${ex.sets.filter(s => s.done).length}/${ex.sets.length}</span>
         </div>
-        ${hint ? `<div class="exercise-hint"><span class="pr">${hint}</span></div>` : ''}
+        ${prText ? `<div class="exercise-hint"><span class="pr">${prText}</span></div>` : ''}
         ${prevHtml}
         ${setsHtml}
       </div>`;
   }).join('');
 
   return `
-    <div class="view session">
-      <header class="header header--${cat}">
+    <div class="view session" style="--cat-color:${meta.color}">
+      <header class="header header--session">
         <button class="icon-btn" data-action="back">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M19 12H5M12 5l-7 7 7 7"/>
           </svg>
         </button>
         <div class="header__center">
-          <div class="header__title">${CAT_ICON[cat]} ${CAT_LABEL[cat]}</div>
+          <div class="header__title">${meta.icon} ${meta.label}</div>
           <div class="header__sub">${doneSets} / ${totalSets} séries</div>
         </div>
         <button class="btn--finish" data-action="finish-session">Terminer</button>
       </header>
       <div class="progress-bar">
-        <div class="progress-bar__fill progress-bar__fill--${cat}" style="width:${pct}%"></div>
+        <div class="progress-bar__fill" style="width:${pct}%;background:${meta.color}"></div>
       </div>
       <div class="session-content">
         ${exHtml}
@@ -449,16 +681,14 @@ function validateSet(ei, si) {
   s.done = true;
   validationSound();
 
-  // Pré-remplir la série suivante avec les mêmes valeurs
   const nextSet = ex.sets[si + 1];
   if (nextSet && !nextSet.done) {
     nextSet.weight = s.weight;
     nextSet.reps   = s.reps;
   }
 
-  // Persist last weight/reps + update PR
   const cat    = activeSession.category;
-  const exData = data.exercises[cat]?.find(e => e.id === ex.exId);
+  const exData = prog().exercises[cat]?.find(e => e.id === ex.exId);
   if (exData) {
     exData.lastWeight = s.weight;
     exData.lastReps   = s.reps;
@@ -470,13 +700,10 @@ function validateSet(ei, si) {
       exData.pr = { weight: s.weight, reps: s.reps };
     }
     const new1RM = calc1RM(s.weight, s.reps);
-    if (new1RM && (!exData.est1RM || new1RM > exData.est1RM)) {
-      exData.est1RM = new1RM;
-    }
+    if (new1RM && (!exData.est1RM || new1RM > exData.est1RM)) exData.est1RM = new1RM;
     save();
   }
 
-  // Auto-démarrer le repos (sauf si c'est la toute dernière série de la séance)
   const allDone = activeSession.exercises.every(e => e.sets.every(s => s.done));
   if (!allDone) {
     const restSecs = exData?.rest ?? data.defaultRest;
@@ -485,7 +712,6 @@ function validateSet(ei, si) {
     render();
   }
 
-  // Auto-scroll to the validated set
   setTimeout(() => {
     const rows = document.querySelectorAll('.set-row--done');
     if (rows.length) rows[rows.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -499,7 +725,6 @@ function validateSet(ei, si) {
 function renderRestOverlay() {
   if (!restActive) return '';
 
-  // Mini barre visible quand l'overlay est réduit
   if (restMinimized) {
     const ending = restTimeLeft <= 5;
     return `
@@ -547,7 +772,6 @@ function startRestCountdown() {
     restTimeLeft = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
 
     if (restMinimized) {
-      // Mettre à jour la mini barre sans re-render complet
       const mini = $('.rest-mini__timer');
       if (mini) {
         mini.textContent = fmtRest(restTimeLeft);
@@ -568,15 +792,15 @@ function startRestCountdown() {
       restActive = false;
       setTimeout(() => render(), 350);
     }
-  }, 500); // 500ms pour rester précis même si le tick est légèrement décalé
+  }, 500);
 }
 
 function renderRestEditModal() {
   if (restEditEi === null) return '';
-  const ex  = activeSession?.exercises[restEditEi];
-  const cat = activeSession?.category;
-  const exData = data.exercises[cat]?.find(e => e.id === ex?.exId);
-  const cur = exData?.rest ?? data.defaultRest;
+  const ex     = activeSession?.exercises[restEditEi];
+  const cat    = activeSession?.category;
+  const exData = prog().exercises[cat]?.find(e => e.id === ex?.exId);
+  const cur    = exData?.rest ?? data.defaultRest;
   return `
     <div class="modal-overlay">
       <div class="modal" style="max-width:320px;">
@@ -602,12 +826,10 @@ function openRest(secs) {
   render();
 }
 
-// Quand l'app revient au premier plan : recalculer depuis le timestamp réel
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && restActive) {
     const remaining = Math.ceil((restEndTime - Date.now()) / 1000);
     if (remaining <= 0) {
-      // Le chrono a expiré pendant qu'on était en arrière-plan
       clearInterval(restInterval);
       restTimeLeft = 0;
       restActive   = false;
@@ -615,7 +837,6 @@ document.addEventListener('visibilitychange', () => {
       setTimeout(() => render(), 350);
     } else {
       restTimeLeft = remaining;
-      // Relancer l'interval (il peut avoir été throttlé)
       startRestCountdown();
     }
   }
@@ -626,19 +847,23 @@ document.addEventListener('visibilitychange', () => {
 // ═══════════════════════════════════════════════════════════
 
 function renderEditor() {
-  const cats = ['push', 'pull', 'legs'];
-  const tabs = cats.map(c => `
-    <button class="tab ${editorCat === c ? `tab--active tab--${c}` : ''}"
-            data-action="editor-tab" data-cat="${c}">
-      ${CAT_ICON[c]} ${CAT_LABEL[c]}
-    </button>`).join('');
+  const keys = sessionKeys();
 
-  const rows = (data.exercises[editorCat] || []).map((ex, i) => {
-    const last = ex.lastWeight
-      ? `${ex.lastWeight} kg × ${ex.lastReps}`
-      : 'Pas encore effectué';
+  const tabs = keys.map(c => {
+    const meta    = sessionMeta(c);
+    const isActive = editorCat === c;
+    return `
+      <button class="tab ${isActive ? 'tab--active' : ''}"
+              data-action="editor-tab" data-cat="${c}"
+              style="${isActive ? `--tab-color:${meta.color};border-bottom-color:${meta.color};color:${meta.color}` : ''}">
+        ${meta.icon} ${meta.label}
+      </button>`;
+  }).join('');
+
+  const rows = (prog().exercises[editorCat] || []).map((ex, i) => {
+    const last = ex.lastWeight ? `${ex.lastWeight} kg × ${ex.lastReps}` : 'Pas encore effectué';
     const pr   = ex.pr ? ` · PR: ${ex.pr.weight} kg × ${ex.pr.reps}` : '';
-    const max  = data.exercises[editorCat].length - 1;
+    const max  = (prog().exercises[editorCat] || []).length - 1;
 
     return `
       <div class="editor-row">
@@ -680,11 +905,17 @@ function renderEditor() {
         <span class="header__title">Exercices</span>
         <div style="width:40px"></div>
       </header>
-      <div class="tabs">${tabs}</div>
-      <div class="editor-list">${rows}</div>
-      <div class="editor-footer">
-        <button class="btn btn--primary btn--full" data-action="add-ex">+ Ajouter un exercice</button>
-      </div>
+      ${keys.length ? `<div class="tabs">${tabs}</div>` : ''}
+      ${keys.length === 0
+        ? `<div class="empty-state" style="padding:40px">
+             <div class="empty-state__icon">✏️</div>
+             <div>Programme vide</div>
+             <div class="empty-state__sub">Crée des séances dans "Programme"</div>
+           </div>`
+        : `<div class="editor-list">${rows}</div>
+           <div class="editor-footer">
+             <button class="btn btn--primary btn--full" data-action="add-ex">+ Ajouter un exercice</button>
+           </div>`}
     </div>
     ${renderModal()}`;
 }
@@ -692,7 +923,7 @@ function renderEditor() {
 function renderModal() {
   if (!modalOpen) return '';
   const isEdit = editExIdx !== null;
-  const ex     = isEdit ? data.exercises[editorCat][editExIdx] : null;
+  const ex     = isEdit ? (prog().exercises[editorCat] || [])[editExIdx] : null;
 
   return `
     <div class="modal-overlay">
@@ -724,7 +955,7 @@ function renderModal() {
 
 function initAddSets(cat) {
   addSets = {};
-  (data.exercises[cat] || []).forEach(ex => {
+  (prog().exercises[cat] || []).forEach(ex => {
     addSets[ex.id] = Array.from({ length: ex.sets }, () => ({
       weight: ex.lastWeight || '',
       reps:   ex.lastReps   || '',
@@ -733,14 +964,20 @@ function initAddSets(cat) {
 }
 
 function renderAddSession() {
-  const exercises = data.exercises[addCat] || [];
+  const exercises = prog().exercises[addCat] || [];
   const today     = new Date().toISOString().slice(0, 10);
+  const keys      = sessionKeys();
 
-  const catBtns = ['push', 'pull', 'legs'].map(c => `
-    <button class="cat-sel-btn ${addCat === c ? `cat-sel-btn--active cat-sel-btn--${c}` : ''}"
-            data-action="add-cat" data-cat="${c}">
-      ${CAT_ICON[c]} ${CAT_LABEL[c]}
-    </button>`).join('');
+  const catBtns = keys.map(c => {
+    const meta    = sessionMeta(c);
+    const isActive = addCat === c;
+    return `
+      <button class="cat-sel-btn ${isActive ? 'cat-sel-btn--active' : ''}"
+              data-action="add-cat" data-cat="${c}"
+              style="${isActive ? `border-color:${meta.color};color:${meta.color};background:${meta.color}18` : ''}">
+        ${meta.icon} ${meta.label}
+      </button>`;
+  }).join('');
 
   const exHtml = exercises.map(ex => {
     const sets = addSets[ex.id] || [];
@@ -749,14 +986,12 @@ function renderAddSession() {
         <span class="set-num">S${si + 1}</span>
         <div class="input-group">
           <input type="number" inputmode="decimal" class="set-input" placeholder="—"
-                 value="${s.weight}"
-                 data-action="add-weight" data-exid="${ex.id}" data-si="${si}">
+                 value="${s.weight}" data-action="add-weight" data-exid="${ex.id}" data-si="${si}">
           <span class="input-unit">kg</span>
         </div>
         <div class="input-group">
           <input type="number" inputmode="numeric" class="set-input set-input--required" placeholder="0"
-                 value="${s.reps}"
-                 data-action="add-reps" data-exid="${ex.id}" data-si="${si}">
+                 value="${s.reps}" data-action="add-reps" data-exid="${ex.id}" data-si="${si}">
           <span class="input-unit">reps</span>
         </div>
       </div>`).join('');
@@ -809,18 +1044,26 @@ function renderAddSession() {
 //  Stats / Progression
 // ═══════════════════════════════════════════════════════════
 
-const CAT_COLOR = { push: '#ef4444', pull: '#3b82f6', legs: '#22c55e' };
-
 function renderStats() {
-  const tabs = ['push', 'pull', 'legs'].map(c => `
-    <button class="tab ${statsCat === c ? `tab--active tab--${c}` : ''}"
-            data-action="stats-tab" data-cat="${c}">
-      ${CAT_ICON[c]} ${CAT_LABEL[c]}
-    </button>`).join('');
+  const keys = sessionKeys();
 
-  const exercises = data.exercises[statsCat] || [];
-  const history   = data.history || [];
-  const color     = CAT_COLOR[statsCat];
+  const tabs = keys.map(c => {
+    const meta    = sessionMeta(c);
+    const isActive = statsCat === c;
+    return `
+      <button class="tab ${isActive ? 'tab--active' : ''}"
+              data-action="stats-tab" data-cat="${c}"
+              style="${isActive ? `--tab-color:${meta.color};border-bottom-color:${meta.color};color:${meta.color}` : ''}">
+        ${meta.icon} ${meta.label}
+      </button>`;
+  }).join('');
+
+  const meta      = sessionMeta(statsCat);
+  const color     = meta.color;
+  const exercises = prog().exercises[statsCat] || [];
+  const history   = (data.history || []).filter(h =>
+    (h.programme === data.activeProgramme) || (!h.programme && data.activeProgramme === 'ppl')
+  );
 
   const cards = exercises.map(ex => {
     const points = history
@@ -837,16 +1080,14 @@ function renderStats() {
           : 0;
         const avgR = Math.round(rps.reduce((a, b) => a + b, 0) / rps.length);
         return {
-          date: s.date,
-          sets: found.sets,
-          avgW, avgR,
+          date: s.date, sets: found.sets, avgW, avgR,
           minW: hasWeight ? Math.min(...wts.filter(w => w > 0)) : 0,
           maxW: hasWeight ? Math.max(...wts) : 0,
           bodyweight: !hasWeight,
         };
       })
       .filter(Boolean)
-      .reverse(); // ordre chronologique
+      .reverse();
 
     if (points.length === 0) return `
       <div class="stats-card">
@@ -854,16 +1095,15 @@ function renderStats() {
         <div class="stats-card__empty">Pas encore effectué</div>
       </div>`;
 
-    const last       = points[points.length - 1];
-    const isBodyweight = points.every(p => p.bodyweight);
-    const prW        = isBodyweight ? Math.max(...points.map(p => p.avgR)) : Math.max(...points.map(p => p.maxW));
-    const compareVal = isBodyweight ? (p => p.avgR) : (p => p.avgW);
-    const progPct    = compareVal(points[0]) > 0
+    const last          = points[points.length - 1];
+    const isBodyweight  = points.every(p => p.bodyweight);
+    const prW           = isBodyweight ? Math.max(...points.map(p => p.avgR)) : Math.max(...points.map(p => p.maxW));
+    const compareVal    = isBodyweight ? (p => p.avgR) : (p => p.avgW);
+    const progPct       = compareVal(points[0]) > 0
       ? Math.round(((compareVal(last) - compareVal(points[0])) / compareVal(points[0])) * 100) : 0;
-    const progLabel  = progPct > 0 ? `+${progPct}%` : progPct < 0 ? `${progPct}%` : '—';
-    const progColor  = progPct > 0 ? '#22c55e' : progPct < 0 ? '#ef4444' : 'var(--muted)';
+    const progLabel     = progPct > 0 ? `+${progPct}%` : progPct < 0 ? `${progPct}%` : '—';
+    const progColor     = progPct > 0 ? '#22c55e' : progPct < 0 ? '#ef4444' : 'var(--muted)';
 
-    // Affichage des séries de la dernière séance
     const lastSets = last.sets
       .filter(s => s.reps)
       .map((s, i) => {
@@ -874,6 +1114,19 @@ function renderStats() {
     const encoded = encodeURIComponent(JSON.stringify(
       points.map(p => ({ date: p.date, avgW: p.avgW, avgR: p.avgR, minW: p.minW, maxW: p.maxW, bodyweight: p.bodyweight, sets: p.sets }))
     ));
+
+    const exData   = prog().exercises[statsCat]?.find(e => e.name === ex.name);
+    const vol      = Math.round(points.reduce((a, p) => a + p.sets.reduce((b, s) => b + (parseFloat(s.weight)||0)*(parseInt(s.reps)||0), 0), 0) / points.length);
+    const targetW  = exData?.target;
+    const e1RM     = exData?.est1RM;
+    const targetBar = (targetW && !isBodyweight) ? (() => {
+      const pct    = Math.min(100, Math.round((last.maxW / targetW) * 100));
+      const color2 = pct >= 100 ? '#22c55e' : progColor;
+      return `<div class="target-block">
+        <div class="target-label">Objectif : ${targetW} kg <span style="color:${color2}">${pct >= 100 ? '✓ Atteint !' : pct + '%'}</span></div>
+        <div class="target-bar"><div class="target-bar__fill" style="width:${pct}%;background:${color2}"></div></div>
+      </div>`;
+    })() : '';
 
     return `
       <div class="stats-card">
@@ -889,34 +1142,19 @@ function renderStats() {
         </div>
         ${lastSets ? `<div class="last-sets">${lastSets}</div>` : ''}
         <canvas class="stats-canvas" data-points="${encoded}" data-color="${color}"></canvas>
-        ${(() => {
-          const exData = data.exercises[statsCat]?.find(e => e.name === ex.name);
-          const vol = Math.round(points.reduce((a, p) => a + p.sets.reduce((b, s) => b + (parseFloat(s.weight)||0)*(parseInt(s.reps)||0), 0), 0) / points.length);
-          const targetW = exData?.target;
-          const e1RM = exData?.est1RM;
-          const targetBar = (targetW && !isBodyweight) ? (() => {
-            const pct = Math.min(100, Math.round((last.maxW / targetW) * 100));
-            const color2 = pct >= 100 ? '#22c55e' : progColor;
-            return `<div class="target-block">
-              <div class="target-label">Objectif : ${targetW} kg <span style="color:${color2}">${pct >= 100 ? '✓ Atteint !' : pct + '%'}</span></div>
-              <div class="target-bar"><div class="target-bar__fill" style="width:${pct}%;background:${color2}"></div></div>
-            </div>`;
-          })() : '';
-          return `
-            ${targetBar}
-            <div class="stats-card__footer">
-              <span>PR : <strong>${prW}${isBodyweight ? ' reps' : ' kg'}</strong></span>
-              ${e1RM && !isBodyweight ? `<span>1RM ~<strong>${e1RM} kg</strong></span>` : ''}
-              <span style="color:${progColor};font-weight:700">${progLabel}</span>
-              <span>${points.length} séance${points.length > 1 ? 's' : ''}</span>
-            </div>
-            ${vol > 0 ? `<div class="stats-volume">Volume moy/séance : ${fmtVolume(vol)}</div>` : ''}`;
-        })()}
+        ${targetBar}
+        <div class="stats-card__footer">
+          <span>PR : <strong>${prW}${isBodyweight ? ' reps' : ' kg'}</strong></span>
+          ${e1RM && !isBodyweight ? `<span>1RM ~<strong>${e1RM} kg</strong></span>` : ''}
+          <span style="color:${progColor};font-weight:700">${progLabel}</span>
+          <span>${points.length} séance${points.length > 1 ? 's' : ''}</span>
+        </div>
+        ${vol > 0 ? `<div class="stats-volume">Volume moy/séance : ${fmtVolume(vol)}</div>` : ''}
       </div>`;
   }).join('');
 
   const hasData = exercises.some(ex =>
-    history.some(s => s.category === statsCat && s.exercises.find(e => e.name === ex.name))
+    history.some(s => s.category === statsCat && s.exercises?.find(e => e.name === ex.name))
   );
 
   return `
@@ -930,7 +1168,7 @@ function renderStats() {
         <span class="header__title">Progression</span>
         <div style="width:40px"></div>
       </header>
-      <div class="tabs">${tabs}</div>
+      ${keys.length ? `<div class="tabs">${tabs}</div>` : ''}
       <div class="stats-list">
         ${hasData ? cards : `
           <div class="empty-state">
@@ -969,7 +1207,6 @@ function drawCharts() {
     const dataMax = Math.max(...maxs) * 1.08;
     const range   = (dataMax - dataMin) || 1;
 
-    // Marges : plus de bas pour les dates
     const pT = 12, pB = 24, pL = 6, pR = 6;
     const cW = W - pL - pR;
     const cH = H - pT - pB;
@@ -977,7 +1214,6 @@ function drawCharts() {
     const xp = i => pL + (points.length === 1 ? cW / 2 : (i / (points.length - 1)) * cW);
     const yp = w => pT + cH - ((w - dataMin) / range) * cH;
 
-    // ── Bande min/max ──────────────────────────────────────
     ctx.beginPath();
     ctx.moveTo(xp(0), yp(mins[0]));
     for (let i = 1; i < points.length; i++) {
@@ -993,7 +1229,6 @@ function drawCharts() {
     ctx.fillStyle = color + '18';
     ctx.fill();
 
-    // ── Zone dégradée sous la moyenne ─────────────────────
     const grad = ctx.createLinearGradient(0, pT, 0, pT + cH);
     grad.addColorStop(0, color + '35');
     grad.addColorStop(1, color + '00');
@@ -1010,7 +1245,6 @@ function drawCharts() {
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // ── Ligne moyenne ──────────────────────────────────────
     ctx.beginPath();
     ctx.moveTo(xp(0), yp(avgs[0]));
     for (let i = 1; i < avgs.length; i++) {
@@ -1022,7 +1256,6 @@ function drawCharts() {
     ctx.lineJoin    = 'round';
     ctx.stroke();
 
-    // ── Points ─────────────────────────────────────────────
     avgs.forEach((w, i) => {
       const isLast = i === avgs.length - 1;
       ctx.beginPath();
@@ -1034,21 +1267,18 @@ function drawCharts() {
       ctx.stroke();
     });
 
-    // ── Valeur du dernier point ────────────────────────────
     const li = avgs.length - 1;
     ctx.fillStyle = color;
     ctx.font      = 'bold 11px -apple-system, sans-serif';
     ctx.textAlign = xp(li) > W - 40 ? 'right' : 'left';
     const labelX  = xp(li) + (xp(li) > W - 40 ? -8 : 8);
-    const unit = isBodyweight ? ' reps' : ' kg';
+    const unit    = isBodyweight ? ' reps' : ' kg';
     ctx.fillText(`${avgs[li]}${unit}`, labelX, yp(avgs[li]) - 6);
 
-    // ── Labels de dates sur l'axe X ───────────────────────
     ctx.fillStyle = '#555';
     ctx.font      = '10px -apple-system, sans-serif';
     ctx.textAlign = 'center';
 
-    // Max 5 dates pour éviter les chevauchements
     const n       = points.length;
     const indices = new Set([0, n - 1]);
     if (n > 2) {
@@ -1059,8 +1289,7 @@ function drawCharts() {
     indices.forEach(i => {
       const d     = new Date(points[i].date);
       const label = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
-      // Eviter que le premier et dernier se chevauchent sur les bords
-      const tx = Math.max(20, Math.min(W - 20, xp(i)));
+      const tx    = Math.max(20, Math.min(W - 20, xp(i)));
       ctx.fillText(label, tx, H - 5);
     });
   });
@@ -1091,15 +1320,17 @@ function renderHistory() {
           <div class="history-month__label">${month}</div>
           ${sessions.map(s => {
             const totalSets = s.exercises.reduce((a, ex) => a + ex.sets.length, 0);
+            const itemColor = historyColor(s);
+            const catMeta   = sessionMeta(s.category, s.programme || 'ppl');
             return `
-              <div class="history-item history-item--${s.category}">
+              <div class="history-item" style="border-left-color:${itemColor}">
                 <div class="history-item__header">
                   <span class="history-item__cat">
-                    ${CAT_ICON[s.category]} ${CAT_LABEL[s.category]}
+                    ${catMeta.icon} ${catMeta.label}
                   </span>
                   <div style="display:flex;align-items:center;gap:8px">
                     <span class="history-item__date">${fmtDateTime(s.date)}</span>
-                    <button class="history-edit-btn" data-action="edit-session" data-id="${s.id}" title="Modifier">✏️</button>
+                    <button class="history-edit-btn" data-action="edit-session"   data-id="${s.id}" title="Modifier">✏️</button>
                     <button class="history-edit-btn history-edit-btn--del" data-action="delete-session" data-id="${s.id}" title="Supprimer">🗑️</button>
                   </div>
                 </div>
@@ -1112,9 +1343,7 @@ function renderHistory() {
                   ${s.exercises.map(ex => `
                     <div class="history-ex">
                       <span class="history-ex__name">${ex.name}</span>
-                      <span class="history-ex__sets">
-                        ${ex.sets.map(set => `${set.weight}×${set.reps}`).join(' / ')}
-                      </span>
+                      <span class="history-ex__sets">${ex.sets.map(set => `${set.weight}×${set.reps}`).join(' / ')}</span>
                     </div>`).join('')}
                 </div>
               </div>`;
@@ -1158,6 +1387,8 @@ document.addEventListener('click', e => {
         activeSession = null;
         clearRest(); restActive = false;
         releaseWakeLock();
+      }
+      if (view === 'programmes') {
         view = 'dashboard'; render(); startTicker();
       } else {
         view = 'dashboard'; render(); startTicker();
@@ -1165,19 +1396,24 @@ document.addEventListener('click', e => {
       break;
     }
     case 'go-editor': {
+      editorCat = sessionKeys().includes(editorCat) ? editorCat : firstSession();
       view = 'editor'; render(); break;
     }
     case 'go-history': {
       view = 'history'; render(); break;
     }
     case 'go-stats': {
+      statsCat = sessionKeys().includes(statsCat) ? statsCat : firstSession();
       view = 'stats'; render(); break;
+    }
+    case 'go-programmes': {
+      view = 'programmes'; render(); break;
     }
     case 'stats-tab': {
       statsCat = el.dataset.cat; render(); break;
     }
     case 'go-add-session': {
-      addCat        = 'push';
+      addCat        = firstSession();
       addDate       = new Date().toISOString().slice(0, 10);
       editSessionId = null;
       addNotes      = '';
@@ -1187,16 +1423,18 @@ document.addEventListener('click', e => {
     case 'edit-session': {
       const session = (data.history || []).find(h => h.id === el.dataset.id);
       if (!session) break;
+      // Only edit if it's the same programme
+      if (session.programme && session.programme !== data.activeProgramme) {
+        showToast('Changezie de programme pour modifier cette séance');
+        break;
+      }
       editSessionId = session.id;
       addCat  = session.category;
       addDate = new Date(session.date).toISOString().slice(0, 10);
-      // Pré-remplir addSets avec les données de la séance
       initAddSets(addCat);
       session.exercises.forEach(ex => {
-        const exData = data.exercises[addCat]?.find(e => e.name === ex.name);
-        if (exData) {
-          addSets[exData.id] = ex.sets.map(s => ({ weight: s.weight, reps: s.reps }));
-        }
+        const exData = (prog().exercises[addCat] || []).find(e => e.name === ex.name);
+        if (exData) addSets[exData.id] = ex.sets.map(s => ({ weight: s.weight, reps: s.reps }));
       });
       addNotes = session.notes || '';
       view = 'add-session'; render(); break;
@@ -1210,9 +1448,7 @@ document.addEventListener('click', e => {
     case 'force-update': {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(regs => {
-          Promise.all(regs.map(r => r.unregister())).then(() => {
-            window.location.reload(true);
-          });
+          Promise.all(regs.map(r => r.unregister())).then(() => window.location.reload(true));
         });
       } else {
         window.location.reload(true);
@@ -1224,9 +1460,7 @@ document.addEventListener('click', e => {
       initAddSets(addCat);
       render(); break;
     }
-    case 'add-date': {
-      addDate = el.value; break;
-    }
+    case 'add-date': { addDate = el.value; break; }
     case 'add-set-row': {
       const exid = el.dataset.exid;
       if (!addSets[exid]) addSets[exid] = [];
@@ -1239,13 +1473,12 @@ document.addEventListener('click', e => {
       render(); break;
     }
     case 'save-past-session': {
-      // Lire la date depuis le champ (au cas où l'input n'a pas déclenché l'event)
-      const dateEl  = $('#addDate');
+      const dateEl = $('#addDate');
       if (dateEl) addDate = dateEl.value;
       const notesEl2 = $('.session-notes-input');
       if (notesEl2) addNotes = notesEl2.value;
 
-      const sessionExercises = (data.exercises[addCat] || [])
+      const sessionExercises = (prog().exercises[addCat] || [])
         .map(ex => {
           const sets = (addSets[ex.id] || []).filter(s => s.reps);
           if (!sets.length) return null;
@@ -1253,37 +1486,134 @@ document.addEventListener('click', e => {
         })
         .filter(Boolean);
 
-      if (!sessionExercises.length) {
-        showToast('Entre au moins un exercice avec poids et reps !');
-        return;
-      }
+      if (!sessionExercises.length) { showToast('Entre au moins un exercice avec poids et reps !'); return; }
 
       const [y, m, d] = addDate.split('-').map(Number);
       const timestamp = new Date(y, m - 1, d, 12, 0, 0).getTime();
 
       if (!data.history) data.history = [];
       if (editSessionId) {
-        // Modifier la séance existante
         const idx = data.history.findIndex(h => h.id === editSessionId);
-        if (idx !== -1) data.history[idx] = { id: editSessionId, category: addCat, date: timestamp, exercises: sessionExercises };
+        if (idx !== -1) data.history[idx] = { id: editSessionId, programme: data.activeProgramme, category: addCat, date: timestamp, exercises: sessionExercises };
       } else {
-        // Nouvelle séance
-        data.history.push({ id: uid(), category: addCat, date: timestamp, notes: addNotes.trim(), exercises: sessionExercises });
-      addNotes = '';
+        data.history.push({ id: uid(), programme: data.activeProgramme, category: addCat, date: timestamp, notes: addNotes.trim(), exercises: sessionExercises });
+        addNotes = '';
       }
       data.history.sort((a, b) => b.date - a.date);
       editSessionId = null;
 
-      // Mettre à jour le timer 72h avec la séance la plus récente pour cette catégorie
       const latestForCat = data.history
-        .filter(h => h.category === addCat)
+        .filter(h => h.category === addCat && (h.programme === data.activeProgramme || (!h.programme && data.activeProgramme === 'ppl')))
         .reduce((best, h) => h.date > (best?.date || 0) ? h : best, null);
-      if (latestForCat) data.timers[addCat] = latestForCat.date;
+      if (latestForCat) prog().timers[addCat] = latestForCat.date;
 
       save();
-
       showToast('Séance ajoutée !');
       view = 'history'; render(); startTicker(); break;
+    }
+
+    // ── Programme selector ─────────────────────────────────
+    case 'select-prog': {
+      const id = el.dataset.id;
+      if (id === data.activeProgramme) {
+        // already active — just go back to dashboard (unless custom, stay to manage)
+        if (id !== 'custom') { view = 'dashboard'; render(); startTicker(); }
+        break;
+      }
+      data.activeProgramme = id;
+      // Initialise programme data if first time
+      if (!data.programmes[id]) {
+        data.programmes[id] = makeProgData(id);
+        if (id === 'custom') {
+          Object.keys(data.customSessions || {}).forEach(cat => {
+            data.programmes.custom.timers[cat]    = null;
+            data.programmes.custom.exercises[cat] = [];
+          });
+        }
+      }
+      // Reset per-view cats
+      editorCat = firstSession();
+      statsCat  = firstSession();
+      addCat    = firstSession();
+      syncTimersFromHistory();
+      save();
+      showToast(`Programme : ${progMeta().name}`);
+      if (id === 'custom') {
+        render(); // stay in programmes view
+      } else {
+        view = 'dashboard'; render(); startTicker();
+      }
+      break;
+    }
+
+    // ── Custom session modal ────────────────────────────────
+    case 'add-custom-session': {
+      csModal   = true;
+      csEditId  = null;
+      csColor   = '#3b82f6';
+      render(); break;
+    }
+    case 'edit-custom-session': {
+      const id = el.dataset.id;
+      csModal  = true;
+      csEditId = id;
+      csColor  = (data.customSessions[id] || {}).color || '#3b82f6';
+      render();
+      setTimeout(() => { $('#csName')?.focus(); }, 50);
+      break;
+    }
+    case 'close-cs-modal': {
+      csModal = false; csEditId = null; render(); break;
+    }
+    case 'pick-cs-color': {
+      csColor = el.dataset.color;
+      // Update swatches without full re-render
+      document.querySelectorAll('.color-swatch').forEach(s => {
+        s.classList.toggle('color-swatch--active', s.dataset.color === csColor);
+      });
+      break;
+    }
+    case 'save-cs-modal': {
+      const name = $('#csName')?.value.trim();
+      const icon = $('#csIcon')?.value.trim() || '🏋️';
+      const desc = $('#csDesc')?.value.trim() || '';
+      if (!name) { showToast('Entre un nom !'); return; }
+
+      const id = csEditId || uid();
+      if (!data.customSessions) data.customSessions = {};
+      data.customSessions[id] = { label: name, icon, desc, color: csColor };
+
+      // Ensure exercise/timer slot exists
+      if (!data.programmes.custom) data.programmes.custom = { exercises: {}, timers: {} };
+      if (!data.programmes.custom.exercises[id]) data.programmes.custom.exercises[id] = [];
+      if (!data.programmes.custom.timers[id])    data.programmes.custom.timers[id]    = null;
+
+      csModal = false; csEditId = null;
+      // Update nav state
+      if (!editorCat || !sessionKeys().includes(editorCat)) editorCat = firstSession();
+      if (!statsCat  || !sessionKeys().includes(statsCat))  statsCat  = firstSession();
+      if (!addCat    || !sessionKeys().includes(addCat))    addCat    = firstSession();
+
+      save();
+      showToast(csEditId ? 'Séance modifiée !' : 'Séance créée !');
+      render(); break;
+    }
+    case 'delete-custom-session': {
+      if (!confirm('Supprimer cette séance et tous ses exercices ?')) return;
+      const id = csEditId;
+      if (id && data.customSessions) {
+        delete data.customSessions[id];
+        if (data.programmes.custom) {
+          delete data.programmes.custom.exercises[id];
+          delete data.programmes.custom.timers[id];
+        }
+        data.history = (data.history || []).filter(h => !(h.category === id && h.programme === 'custom'));
+      }
+      csModal = false; csEditId = null;
+      editorCat = firstSession();
+      statsCat  = firstSession();
+      addCat    = firstSession();
+      save(); render(); break;
     }
 
     // ── Dashboard ──────────────────────────────────────────
@@ -1302,7 +1632,7 @@ document.addEventListener('click', e => {
       const eiRest = el.dataset.ei !== undefined ? parseInt(el.dataset.ei) : null;
       if (eiRest !== null) {
         const cat    = activeSession.category;
-        const exData = data.exercises[cat]?.find(e => e.id === activeSession.exercises[eiRest]?.exId);
+        const exData = prog().exercises[cat]?.find(e => e.id === activeSession.exercises[eiRest]?.exId);
         openRest(exData?.rest ?? data.defaultRest);
       } else {
         openRest();
@@ -1316,19 +1646,17 @@ document.addEventListener('click', e => {
       break;
     }
     case 'close-rest-edit': {
-      restEditEi = null; render();
-      break;
+      restEditEi = null; render(); break;
     }
     case 'save-rest-edit': {
       const secs = parseInt($('#restEditInput')?.value);
       if (secs >= 10 && secs <= 600) {
         const ex     = activeSession.exercises[restEditEi];
         const cat    = activeSession.category;
-        const exData = data.exercises[cat]?.find(e => e.id === ex?.exId);
+        const exData = prog().exercises[cat]?.find(e => e.id === ex?.exId);
         if (exData) { exData.rest = secs; save(); showToast(`Repos ${secs}s enregistré`); }
       }
-      restEditEi = null; render();
-      break;
+      restEditEi = null; render(); break;
     }
     case 'skip-rest': {
       clearRest(); restActive = false; restMinimized = false; render(); break;
@@ -1343,10 +1671,8 @@ document.addEventListener('click', e => {
     case 'set-rest': {
       const secs = parseInt(el.dataset.secs);
       clearRest(); restTimeLeft = secs; restEndTime = Date.now() + secs * 1000; startRestCountdown();
-      // just update the display
       const timerEl = $('.rest-timer');
       if (timerEl) timerEl.textContent = fmtRest(secs);
-      // re-render to update active preset highlight
       render(); break;
     }
     case 'set-custom-rest': {
@@ -1360,17 +1686,17 @@ document.addEventListener('click', e => {
     }
     case 'finish-session': {
       if (!confirm('Terminer et valider la séance ?')) return;
-      data.timers[activeSession.category] = Date.now();
-      // Sauvegarder dans l'historique
+      prog().timers[activeSession.category] = Date.now();
       if (!data.history) data.history = [];
       const notesEl = $('.session-notes-input');
       if (notesEl) sessionNotes = notesEl.value;
       data.history.unshift({
-        id: uid(),
-        category: activeSession.category,
-        date: Date.now(),
-        notes: sessionNotes.trim(),
-        exercises: activeSession.exercises.map(ex => ({
+        id:         uid(),
+        programme:  activeSession.programme,
+        category:   activeSession.category,
+        date:       Date.now(),
+        notes:      sessionNotes.trim(),
+        exercises:  activeSession.exercises.map(ex => ({
           name: ex.name,
           sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps })),
         })),
@@ -1392,21 +1718,21 @@ document.addEventListener('click', e => {
       editorCat = el.dataset.cat; render(); break;
     }
     case 'move-up': {
-      const i = parseInt(el.dataset.i), arr = data.exercises[editorCat];
+      const i = parseInt(el.dataset.i), arr = prog().exercises[editorCat];
       if (i > 0) { [arr[i-1], arr[i]] = [arr[i], arr[i-1]]; save(); render(); }
       break;
     }
     case 'move-down': {
-      const i = parseInt(el.dataset.i), arr = data.exercises[editorCat];
+      const i = parseInt(el.dataset.i), arr = prog().exercises[editorCat];
       if (i < arr.length - 1) { [arr[i], arr[i+1]] = [arr[i+1], arr[i]]; save(); render(); }
       break;
     }
     case 'inc-sets': {
-      const i = parseInt(el.dataset.i), ex = data.exercises[editorCat][i];
+      const i = parseInt(el.dataset.i), ex = prog().exercises[editorCat][i];
       ex.sets = Math.min(10, ex.sets + 1); save(); render(); break;
     }
     case 'dec-sets': {
-      const i = parseInt(el.dataset.i), ex = data.exercises[editorCat][i];
+      const i = parseInt(el.dataset.i), ex = prog().exercises[editorCat][i];
       ex.sets = Math.max(1, ex.sets - 1); save(); render(); break;
     }
     case 'edit-ex': {
@@ -1415,10 +1741,10 @@ document.addEventListener('click', e => {
       break;
     }
     case 'del-ex': {
-      const i = parseInt(el.dataset.i);
-      const name = data.exercises[editorCat][i].name;
+      const i    = parseInt(el.dataset.i);
+      const name = prog().exercises[editorCat][i].name;
       if (!confirm(`Supprimer "${name}" ?`)) return;
-      data.exercises[editorCat].splice(i, 1); save(); render(); break;
+      prog().exercises[editorCat].splice(i, 1); save(); render(); break;
     }
     case 'add-ex': {
       editExIdx = null; modalOpen = true; render();
@@ -1426,21 +1752,22 @@ document.addEventListener('click', e => {
       break;
     }
     case 'save-ex': {
-      const name = $('#modalName')?.value.trim();
-      const sets = parseInt($('#modalSets')?.value) || 3;
+      const name   = $('#modalName')?.value.trim();
+      const sets   = parseInt($('#modalSets')?.value) || 3;
       if (!name) { showToast('Entre un nom !'); return; }
       const target = parseFloat($('#modalTarget')?.value) || null;
       const rest   = parseInt($('#modalRest')?.value)    || null;
+      if (!prog().exercises[editorCat]) prog().exercises[editorCat] = [];
       if (editExIdx !== null) {
-        data.exercises[editorCat][editExIdx].name   = name;
-        data.exercises[editorCat][editExIdx].sets   = sets;
-        data.exercises[editorCat][editExIdx].target = target;
-        data.exercises[editorCat][editExIdx].rest   = rest;
+        prog().exercises[editorCat][editExIdx].name   = name;
+        prog().exercises[editorCat][editExIdx].sets   = sets;
+        prog().exercises[editorCat][editExIdx].target = target;
+        prog().exercises[editorCat][editExIdx].rest   = rest;
       } else {
         const ex = makeExercise(name, sets);
         ex.target = target;
         ex.rest   = rest;
-        data.exercises[editorCat].push(ex);
+        prog().exercises[editorCat].push(ex);
       }
       modalOpen = false; editExIdx = null; save(); render(); break;
     }
@@ -1454,21 +1781,36 @@ document.addEventListener('click', e => {
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href     = url;
-      a.download = `ppl-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `muscu-backup-${new Date().toISOString().slice(0, 10)}.json`;
       a.click(); URL.revokeObjectURL(url);
       break;
     }
     case 'import': {
       const inp = document.createElement('input');
-      inp.type = 'file'; inp.accept = '.json';
+      inp.type  = 'file'; inp.accept = '.json';
       inp.onchange = ev => {
         const file = ev.target.files[0]; if (!file) return;
         const reader = new FileReader();
         reader.onload = re => {
           try {
             const d = JSON.parse(re.target.result);
-            if (d.exercises && d.timers) { data = d; save(); render(); showToast('Import réussi !'); }
-            else showToast('Fichier invalide');
+            // Accept both old format and new format
+            if (d.exercises && !d.programmes) {
+              // old format
+              const nd = makeDefaultData();
+              nd.programmes.ppl.exercises = d.exercises;
+              nd.programmes.ppl.timers   = d.timers || {};
+              nd.defaultRest = d.defaultRest || 90;
+              nd.history     = (d.history || []).map(h => ({ ...h, programme: 'ppl' }));
+              data = nd;
+            } else if (d.programmes && d.activeProgramme) {
+              data = d;
+              if (!data.customSessions) data.customSessions = {};
+            } else {
+              showToast('Fichier invalide');
+              return;
+            }
+            save(); render(); showToast('Import réussi !');
           } catch { showToast('Erreur import'); }
         };
         reader.readAsText(file);
@@ -1482,7 +1824,6 @@ document.addEventListener('click', e => {
 document.addEventListener('input', e => {
   const action = e.target.dataset.action;
 
-  // Session en cours
   if (activeSession) {
     const ei = parseInt(e.target.dataset.ei);
     const si = parseInt(e.target.dataset.si);
@@ -1492,7 +1833,6 @@ document.addEventListener('input', e => {
     }
   }
 
-  // Formulaire séance passée
   if (view === 'add-session') {
     const exid = e.target.dataset.exid;
     const si   = parseInt(e.target.dataset.si);
@@ -1530,22 +1870,21 @@ document.addEventListener('visibilitychange', async () => {
 //  Init
 // ═══════════════════════════════════════════════════════════
 
-document.addEventListener('DOMContentLoaded', () => {
-  // Synchroniser les timers 72h avec la séance la plus récente dans l'historique
-  syncTimersFromHistory();
-  render();
-  startTicker();
-});
-
 function syncTimersFromHistory() {
   const history = data.history || [];
-  ['push', 'pull', 'legs'].forEach(cat => {
+  sessionKeys().forEach(cat => {
     const latest = history
-      .filter(h => h.category === cat)
+      .filter(h => h.category === cat && (h.programme === data.activeProgramme || (!h.programme && data.activeProgramme === 'ppl')))
       .reduce((best, h) => h.date > (best?.date || 0) ? h : best, null);
-    if (latest && latest.date > (data.timers[cat] || 0)) {
-      data.timers[cat] = latest.date;
+    if (latest && latest.date > (prog().timers[cat] || 0)) {
+      prog().timers[cat] = latest.date;
     }
   });
   save();
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  syncTimersFromHistory();
+  render();
+  startTicker();
+});
