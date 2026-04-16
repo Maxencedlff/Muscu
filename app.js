@@ -160,8 +160,15 @@ function beep(freq, dur = .15, vol = .35) {
 }
 
 function timerDone() {
+  // Son (fonctionne hors silencieux sur Android, bloqué iOS silencieux)
   beep(880, .12); setTimeout(() => beep(1100, .12), 160); setTimeout(() => beep(1320, .35), 320);
-  if (navigator.vibrate) navigator.vibrate([150, 80, 150, 80, 300]);
+  // Vibration (Android uniquement — iOS ne supporte pas navigator.vibrate)
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+  // Flash visuel — fonctionne sur tous les appareils quoi qu'il arrive
+  const flash = document.createElement('div');
+  flash.className = 'timer-flash';
+  document.body.appendChild(flash);
+  flash.addEventListener('animationend', () => flash.remove());
 }
 
 function validationSound() { beep(660, .1); }

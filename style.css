@@ -275,6 +275,21 @@ body {
 
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
 
+/* Flash plein écran quand le chrono se termine */
+.timer-flash {
+  position: fixed; inset: 0; z-index: 999;
+  background: #ffffff;
+  animation: screenFlash .7s ease forwards;
+  pointer-events: none;
+}
+@keyframes screenFlash {
+  0%   { opacity: .85; }
+  30%  { opacity: .6; }
+  55%  { opacity: .85; }
+  80%  { opacity: .4; }
+  100% { opacity: 0; }
+}
+
 .rest-presets { display: flex; gap: 8px; margin-bottom: 14px; }
 .preset-btn {
   flex: 1; padding: 11px 4px; background: var(--surface2);
