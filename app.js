@@ -256,7 +256,9 @@ function isoWeek(ts) {
 function computeStreak() {
   const history = data.history || [];
   if (!history.length) return 0;
-  const activeWeeks = new Set(history.map(h => isoWeek(h.date)));
+  const weekCounts = {};
+  history.forEach(h => { const k = isoWeek(h.date); weekCounts[k] = (weekCounts[k] || 0) + 1; });
+  const activeWeeks = new Set(Object.keys(weekCounts).filter(k => weekCounts[k] >= 2));
   let streak = 0;
   const now = new Date();
   for (let i = 0; i < 104; i++) {
