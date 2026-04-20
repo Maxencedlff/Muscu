@@ -16,14 +16,14 @@
 }
 
 body.light {
-  --bg:       #f2f2f7;
+  --bg:       #ffffff;
   --surface:  #ffffff;
-  --surface2: #e8e8ed;
-  --border:   #d1d1d6;
+  --surface2: #f2f2f7;
+  --border:   #e0e0e5;
   --text:     #1c1c1e;
   --muted:    #8e8e93;
-  --shadow:   0 2px 12px rgba(0,0,0,.08);
-  --shadow-lg:0 4px 24px rgba(0,0,0,.14);
+  --shadow:   0 2px 12px rgba(0,0,0,.1);
+  --shadow-lg:0 4px 24px rgba(0,0,0,.16);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
