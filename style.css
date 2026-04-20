@@ -16,9 +16,9 @@
 }
 
 body.light {
-  --bg:       #ffffff;
+  --bg:       #f2f2f7;
   --surface:  #ffffff;
-  --surface2: #f2f2f7;
+  --surface2: #e8e8ed;
   --border:   #d1d1d6;
   --text:     #1c1c1e;
   --muted:    #8e8e93;
