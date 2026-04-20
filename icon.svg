@@ -1,59 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1e1b4b"/>
-      <stop offset="100%" stop-color="#0a0a14"/>
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
     </linearGradient>
-    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#cbd5e1"/>
-      <stop offset="100%" stop-color="#94a3b8"/>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.18)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
     </linearGradient>
-    <linearGradient id="plateL1" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#60a5fa"/>
-      <stop offset="100%" stop-color="#1d4ed8"/>
-    </linearGradient>
-    <linearGradient id="plateR1" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#f87171"/>
-      <stop offset="100%" stop-color="#b91c1c"/>
-    </linearGradient>
-    <filter id="glowB" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="glowR" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
   </defs>
 
   <!-- Background -->
   <rect width="192" height="192" rx="42" fill="url(#bg)"/>
+  <!-- Top shine -->
+  <rect width="192" height="96" rx="42" fill="url(#shine)"/>
 
-  <!-- Subtle center glow -->
-  <ellipse cx="96" cy="96" rx="70" ry="50" fill="#3b82f6" opacity="0.06"/>
-
-  <!-- Bar -->
-  <rect x="52" y="91" width="88" height="10" rx="5" fill="url(#bar)"/>
-
+  <!-- Left weight -->
+  <rect x="18" y="66" width="26" height="60" rx="7" fill="white" opacity="0.95"/>
   <!-- Left collar -->
-  <rect x="44" y="85" width="10" height="22" rx="3" fill="#94a3b8"/>
-
+  <rect x="44" y="79" width="12" height="34" rx="4" fill="white" opacity="0.6"/>
+  <!-- Bar -->
+  <rect x="56" y="87" width="80" height="18" rx="9" fill="white"/>
   <!-- Right collar -->
-  <rect x="138" y="85" width="10" height="22" rx="3" fill="#94a3b8"/>
-
-  <!-- Left plate big -->
-  <rect x="26" y="70" width="20" height="52" rx="5" fill="url(#plateL1)" filter="url(#glowB)"/>
-
-  <!-- Left plate small -->
-  <rect x="14" y="80" width="14" height="32" rx="4" fill="#3b82f6" opacity="0.55"/>
-
-  <!-- Right plate big -->
-  <rect x="146" y="70" width="20" height="52" rx="5" fill="url(#plateR1)" filter="url(#glowR)"/>
-
-  <!-- Right plate small -->
-  <rect x="164" y="80" width="14" height="32" rx="4" fill="#ef4444" opacity="0.55"/>
-
-  <!-- Green accent dot (Legs) -->
-  <circle cx="96" cy="96" r="6" fill="#22c55e" opacity="0.9"/>
-  <circle cx="96" cy="96" r="10" fill="#22c55e" opacity="0.15"/>
+  <rect x="136" y="79" width="12" height="34" rx="4" fill="white" opacity="0.6"/>
+  <!-- Right weight -->
+  <rect x="148" y="66" width="26" height="60" rx="7" fill="white" opacity="0.95"/>
 </svg>
