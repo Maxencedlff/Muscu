@@ -497,7 +497,7 @@ function renderDashboard() {
           <span class="prog-pill__chevron">›</span>
         </button>
         ${computeStreak() > 0 ? `<div class="streak-badge" title="Semaines consécutives actives">🔥 ${computeStreak()} sem.</div>` : ''}
-        <div style="display:flex;gap:4px">
+        <div class="header-actions">
           <button class="icon-btn" data-action="go-settings" title="Réglages">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="3"/>

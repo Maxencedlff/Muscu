@@ -717,11 +717,14 @@ body {
   color: var(--text); font-size: 14px; font-weight: 700;
   cursor: pointer; font-family: inherit;
   transition: opacity .15s;
+  flex-shrink: 1; min-width: 0;
 }
 .prog-pill:active { opacity: .7; }
-.prog-pill__icon  { font-size: 15px; }
-.prog-pill__name  { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prog-pill__chevron { color: #3b82f6; font-size: 16px; line-height: 1; font-weight: 900; }
+.prog-pill__icon  { font-size: 15px; flex-shrink: 0; }
+.prog-pill__name  { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prog-pill__chevron { color: #3b82f6; font-size: 16px; line-height: 1; font-weight: 900; flex-shrink: 0; }
+
+.header-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
 /* ═══════════════════════════════════════════════
    Programme selector view
