@@ -324,7 +324,6 @@ function historyColor(h) {
 // ── Theme ────────────────────────────────────────────────────
 function applyTheme(theme) {
   document.body.classList.toggle('light', theme === 'light');
-  document.documentElement.style.background = theme === 'light' ? '#ffffff' : '#080808';
   localStorage.setItem('ppl_theme', theme);
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = theme === 'light' ? '#ffffff' : '#0a0a0a';
