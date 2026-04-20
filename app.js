@@ -1426,7 +1426,7 @@ function renderStats() {
   }
   function cvtW(kg) { return data.unit === 'lbs' ? Math.round(kg * KG_TO_LBS * 10) / 10 : kg; }
   function fmtMetric(v, isBodyweight) {
-    const vd = cvtW(v);
+    const vd = isBodyweight ? v : cvtW(v); // ne pas convertir les reps
     if (statsMode === 'volume' && !isBodyweight) {
       if (data.unit === 'lbs') return vd >= 1000 ? (vd / 1000).toFixed(1) + ' k lbs' : Math.round(vd) + ' lbs';
       return v >= 1000 ? (v / 1000).toFixed(1).replace('.', ',') + ' t' : Math.round(v) + ' kg';
