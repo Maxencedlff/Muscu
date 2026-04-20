@@ -56,7 +56,7 @@ function showToast(msg) {
 
 const PROGRAMMES = {
   ppl: {
-    name: 'PPL', desc: 'Push · Pull · Legs', icon: '🔄',
+    name: 'PPL', desc: 'Push · Pull · Legs', icon: '🏋️',
     sessions: {
       push: { label: 'Push', icon: '💪', desc: 'Pectoraux · Épaules · Triceps', color: '#ef4444' },
       pull: { label: 'Pull', icon: '🦾', desc: 'Dos · Biceps · Trapèzes',       color: '#3b82f6' },
