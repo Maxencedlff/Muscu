@@ -145,8 +145,8 @@ body {
 .card__meta { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
 
 .dashboard__footer {
-  display: flex; justify-content: center; gap: 12px;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0));
+  display: flex; justify-content: center;
+  padding: 4px 16px calc(4px + env(safe-area-inset-bottom, 0));
   background: var(--surface); border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
