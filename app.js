@@ -339,6 +339,10 @@ function renderDashboard() {
   const keys = sessionKeys();
   const pm   = progMeta();
 
+  // Compute session order: rank sessions by last completion timestamp (most recent = rank 1)
+  const doneKeys = keys.filter(k => prog().timers[k]).sort((a, b) => prog().timers[b] - prog().timers[a]);
+  const orderLabels = ['Dernière', '2e', '3e', '4e', '5e', '6e'];
+
   const cards = keys.map(cat => {
     const meta      = sessionMeta(cat);
     const last      = prog().timers[cat];
@@ -348,12 +352,17 @@ function renderDashboard() {
     const exCount   = (prog().exercises[cat] || []).length;
     const totalSets = (prog().exercises[cat] || []).reduce((a, e) => a + e.sets, 0);
 
+    const orderIdx   = doneKeys.indexOf(cat);
+    const orderBadge = orderIdx >= 0
+      ? `<span class="order-badge ${orderIdx === 0 ? 'order-badge--last' : 'order-badge--prev'}">${orderLabels[orderIdx] || `${orderIdx + 1}e`}</span>`
+      : '';
+
     return `
       <div class="card ${ready ? 'ready' : ''}" data-cat="${cat}" style="--cat-color:${meta.color}">
         <div class="card__header">
           <span class="card__icon">${meta.icon}</span>
           <div>
-            <div class="card__title">${meta.label}</div>
+            <div class="card__title">${meta.label}${orderBadge}</div>
             <div class="card__desc">${meta.desc}</div>
           </div>
         </div>
@@ -412,11 +421,7 @@ function renderDashboard() {
       </div>
       <div class="cooldown-setting">
         <span class="cooldown-setting__label">Délai entre séances</span>
-        <div class="cooldown-setting__controls">
-          <button class="cooldown-btn" data-action="cooldown-dec" title="Diminuer">−</button>
-          <span class="cooldown-setting__value" id="cooldown-display">${data.cooldownHours}h</span>
-          <button class="cooldown-btn" data-action="cooldown-inc" title="Augmenter">+</button>
-        </div>
+        <button class="cooldown-setting__value-btn" data-action="cooldown-edit" title="Modifier le délai">${data.cooldownHours}h ✎</button>
       </div>
     </div>`;
 }
@@ -1561,30 +1566,23 @@ document.addEventListener('click', e => {
       }
       break;
     }
-    case 'cooldown-dec': {
-      if (data.cooldownHours > 1) {
-        data.cooldownHours = Math.max(1, data.cooldownHours - 1);
-        save();
-        const disp = document.getElementById('cooldown-display');
-        if (disp) disp.textContent = `${data.cooldownHours}h`;
-        render();
-      }
-      break;
-    }
-    case 'cooldown-inc': {
-      data.cooldownHours = Math.min(168, data.cooldownHours + 1);
-      save();
-      const disp = document.getElementById('cooldown-display');
-      if (disp) disp.textContent = `${data.cooldownHours}h`;
-      render();
+    case 'cooldown-edit': {
+      const cur = data.cooldownHours;
+      const input = window.prompt(`Délai de récupération entre séances (heures) :\nActuellement : ${cur}h\n\nEntrer un nombre entre 1 et 168 :`, String(cur));
+      if (input === null) break;
+      const val = parseInt(input, 10);
+      if (isNaN(val) || val < 1 || val > 168) { alert('Valeur invalide (1–168h).'); break; }
+      data.cooldownHours = val;
+      save(); render();
       break;
     }
     case 'skip-cooldown': {
       const cat = el.dataset.cat;
-      if (cat && prog().timers[cat]) {
-        prog().timers[cat] = null;
-        save(); render();
-      }
+      if (!cat || !prog().timers[cat]) break;
+      const meta = sessionMeta(cat);
+      if (!confirm(`Passer le délai de récupération pour "${meta.label}" ?\n\nLa séance sera immédiatement disponible.`)) break;
+      prog().timers[cat] = null;
+      save(); render();
       break;
     }
     case 'add-cat': {

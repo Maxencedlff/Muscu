@@ -135,15 +135,21 @@ body {
   flex-shrink: 0;
 }
 .cooldown-setting__label { font-size: 13px; color: var(--muted); }
-.cooldown-setting__controls { display: flex; align-items: center; gap: 10px; }
-.cooldown-setting__value { font-size: 14px; font-weight: 600; min-width: 36px; text-align: center; }
-.cooldown-btn {
-  width: 30px; height: 30px; border-radius: 50%;
-  border: 1px solid var(--border); background: var(--surface2);
-  color: var(--text); font-size: 18px; line-height: 1;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
+.cooldown-setting__value-btn {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); font-size: 13px; font-weight: 600;
+  padding: 5px 10px; border-radius: 8px; cursor: pointer;
+  font-family: inherit;
 }
-.cooldown-btn:active { opacity: .6; }
+.cooldown-setting__value-btn:active { opacity: .6; }
+
+.order-badge {
+  display: inline-block; font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 20px; margin-left: 6px;
+  vertical-align: middle; letter-spacing: .3px;
+}
+.order-badge--last { background: #fef3c7; color: #92400e; }
+.order-badge--prev { background: var(--surface2); color: var(--muted); }
 
 /* ═══════════════════════════════════════════════
    Progress bar
