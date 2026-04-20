@@ -2311,7 +2311,8 @@ document.addEventListener('click', e => {
 
     // ── Data ────────────────────────────────────────────────
     case 'export': {
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const exportData = { ...data, _theme: localStorage.getItem('ppl_theme') || 'dark' };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href     = url;
@@ -2344,6 +2345,7 @@ document.addEventListener('click', e => {
               showToast('Fichier invalide');
               return;
             }
+            if (d._theme) applyTheme(d._theme);
             save(); render(); showToast('Import réussi !');
           } catch { showToast('Erreur import'); }
         };
