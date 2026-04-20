@@ -109,9 +109,19 @@ body {
 .view { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 
 .cards {
-  flex: 1; overflow-y: auto; padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0));
+  flex: 1; overflow-y: auto; padding: 14px 14px 0;
   display: flex; flex-direction: column; gap: 12px;
   -webkit-overflow-scrolling: touch;
+}
+
+.dashboard__footer {
+  display: flex; justify-content: center;
+  padding: 4px 16px calc(4px + env(safe-area-inset-bottom, 0));
+  flex-shrink: 0;
+}
+.dashboard__brand {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--border);
 }
 
 .card {

@@ -513,6 +513,7 @@ function renderDashboard() {
         </div>
       </header>
       <div class="cards">${cards || emptyCustom}</div>
+      <div class="dashboard__footer"><span class="dashboard__brand">MDLF Training</span></div>
     </div>`;
 }
 
