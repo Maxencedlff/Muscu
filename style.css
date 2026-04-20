@@ -113,6 +113,7 @@ body {
   flex: 1; overflow-y: auto; padding: 14px 14px env(safe-area-inset-bottom, 14px);
   display: flex; flex-direction: column; gap: 12px;
   overscroll-behavior: none;
+  position: relative; z-index: 1;
 }
 
 .dashboard__brand {
@@ -189,6 +190,7 @@ body {
   flex: 1; overflow-y: auto; padding: 14px 14px calc(24px + env(safe-area-inset-bottom, 0));
   display: flex; flex-direction: column; gap: 12px;
   overscroll-behavior: none;
+  position: relative; z-index: 1;
 }
 
 .exercise-block {
