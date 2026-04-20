@@ -131,10 +131,6 @@ function calc1RM(weight, reps) {
   return Math.round(w * (1 + r / 30) * 10) / 10;
 }
 
-function fmtVolume(v) {
-  if (!v) return '0 kg';
-  return Math.round(v).toLocaleString('fr-FR') + ' kg';
-}
 
 function sessionVolume(exercises) {
   return exercises.reduce((total, ex) =>
@@ -162,6 +158,9 @@ function makeDefaultData() {
     programmes: { ppl: makeProgData('ppl') },
     customSessions: {},
     defaultRest: 90,
+    unit: 'kg',
+    soundOn: true,
+    vibrateOn: true,
     history: [],
   };
 }
@@ -177,6 +176,9 @@ function loadData() {
       if (!d.programmes.ppl)  d.programmes.ppl = makeProgData('ppl');
       if (!d.customSessions)  d.customSessions = {};
       if (!d.defaultRest)     d.defaultRest = 90;
+      if (!d.unit)            d.unit = 'kg';
+      if (d.soundOn   == null) d.soundOn   = true;
+      if (d.vibrateOn == null) d.vibrateOn = true;
       if (!d.history)         d.history = [];
       // Ensure per-programme cooldowns exist (migration)
       Object.values(d.programmes || {}).forEach(p => { if (!p.cooldowns) p.cooldowns = {}; });
@@ -280,8 +282,33 @@ function setsVolume(sets) {
   return (sets || []).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0);
 }
 
+const KG_TO_LBS = 2.20462;
+function unitLbl() { return data.unit === 'lbs' ? 'lbs' : 'kg'; }
+
+// kg stored → display string (no unit suffix)
+function dispW(kg) {
+  if (kg === '' || kg == null) return '';
+  const v = parseFloat(kg);
+  if (isNaN(v)) return '';
+  if (data.unit === 'lbs') return String(Math.round(v * KG_TO_LBS * 10) / 10);
+  return String(kg);
+}
+
+// display input → kg stored string
+function storeW(val) {
+  if (val === '' || val == null) return '';
+  const v = parseFloat(val);
+  if (isNaN(v)) return '';
+  if (data.unit === 'lbs') return String(Math.round(v / KG_TO_LBS * 10) / 10);
+  return String(val);
+}
+
 function fmtVolume(kg) {
-  if (kg === 0) return '0 kg';
+  if (kg === 0) return `0 ${unitLbl()}`;
+  if (data.unit === 'lbs') {
+    const lbs = kg * KG_TO_LBS;
+    return lbs >= 1000 ? (lbs / 1000).toFixed(1) + ' k lbs' : Math.round(lbs) + ' lbs';
+  }
   return kg >= 1000 ? (kg / 1000).toFixed(1).replace('.', ',') + ' t' : Math.round(kg) + ' kg';
 }
 
@@ -355,16 +382,16 @@ function beep(freq, dur = .15, vol = .35) {
 }
 
 function timerDone() {
-  beep(880, .12); setTimeout(() => beep(1100, .12), 160); setTimeout(() => beep(1320, .35), 320);
-  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+  if (data.soundOn !== false) { beep(880, .12); setTimeout(() => beep(1100, .12), 160); setTimeout(() => beep(1320, .35), 320); }
+  if (data.vibrateOn !== false && navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
   const flash = document.createElement('div');
   flash.className = 'timer-flash';
   document.body.appendChild(flash);
   flash.addEventListener('animationend', () => flash.remove());
 }
 
-function validationSound() { beep(660, .1); }
-function finishSound()     { beep(880, .1); setTimeout(() => beep(1320, .25), 160); }
+function validationSound() { if (data.soundOn !== false) beep(660, .1); }
+function finishSound()     { if (data.soundOn !== false) { beep(880, .1); setTimeout(() => beep(1320, .25), 160); } }
 
 // ═══════════════════════════════════════════════════════════
 //  Render dispatcher
@@ -381,6 +408,7 @@ function render() {
   else if (view === 'editor')      app.innerHTML = renderEditor();
   else if (view === 'history')     app.innerHTML = renderHistory();
   else if (view === 'stats')       app.innerHTML = renderStats();
+  else if (view === 'settings')    app.innerHTML = renderSettings();
   else if (view === 'add-session') app.innerHTML = renderAddSession();
 
   if (view === 'stats') setTimeout(drawCharts, 0);
@@ -460,8 +488,11 @@ function renderDashboard() {
         </button>
         ${computeStreak() > 0 ? `<div class="streak-badge" title="Semaines consécutives actives">🔥 ${computeStreak()} sem.</div>` : ''}
         <div style="display:flex;gap:4px">
-          <button class="icon-btn" data-action="toggle-theme" title="Changer le thème">
-            ${document.body.classList.contains('light') ? '🌙' : '☀️'}
+          <button class="icon-btn" data-action="go-settings" title="Réglages">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
           </button>
           <button class="icon-btn" data-action="go-stats" title="Progression">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -483,9 +514,7 @@ function renderDashboard() {
       </header>
       <div class="cards">${cards || emptyCustom}</div>
       <div class="dashboard__footer">
-        <button class="link-btn" data-action="export">Exporter</button>
-        <button class="link-btn" data-action="import">Importer</button>
-        <button class="link-btn" data-action="force-update">↻ Mettre à jour</button>
+        <span style="font-size:12px;color:var(--muted)">PPL Training</span>
       </div>
     </div>`;
 }
@@ -667,7 +696,7 @@ function renderSession() {
 
   const exHtml = activeSession.exercises.map((ex, ei) => {
     const exData  = prog().exercises[cat]?.find(e => e.id === ex.exId);
-    const prText  = exData?.pr ? `PR : ${exData.pr.weight} kg × ${exData.pr.reps}` : '';
+    const prText  = exData?.pr ? `PR : ${dispW(exData.pr.weight)} ${unitLbl()} × ${exData.pr.reps}` : '';
     const allDone = ex.sets.every(s => s.done);
 
     const prevEx      = prevSession?.exercises.find(e => e.name === ex.name);
@@ -684,7 +713,7 @@ function renderSession() {
     const setsHtml = ex.sets.map((s, si) => {
       if (s.done) {
         const isNewPR    = exData?.pr && s.weight == exData.pr.weight && s.reps == exData.pr.reps;
-        const weightLabel = s.weight ? `${s.weight} kg × ` : '';
+        const weightLabel = s.weight ? `${dispW(s.weight)} ${unitLbl()} × ` : '';
         return `
           <div class="set-row set-row--done">
             <span class="set-num">Série ${si + 1}</span>
@@ -708,8 +737,8 @@ function renderSession() {
           <span class="set-num">Série ${si + 1}</span>
           <div class="input-group">
             <input type="number" inputmode="decimal" class="set-input" placeholder="—"
-                   value="${s.weight}" data-action="set-weight" data-ei="${ei}" data-si="${si}">
-            <span class="input-unit">kg</span>
+                   value="${dispW(s.weight)}" data-action="set-weight" data-ei="${ei}" data-si="${si}">
+            <span class="input-unit">${unitLbl()}</span>
           </div>
           <div class="input-group">
             <input type="number" inputmode="numeric" class="set-input set-input--required" placeholder="0"
@@ -724,7 +753,7 @@ function renderSession() {
       <div class="prev-session">
         <div class="prev-session__label">Séance du ${fmtDate(prevSession.date)}</div>
         <div class="prev-session__sets">
-          ${prevSets.map((s, i) => `<span class="prev-set">S${i+1} : ${s.weight} kg × ${s.reps}</span>`).join('')}
+          ${prevSets.map((s, i) => `<span class="prev-set">S${i+1} : ${dispW(s.weight)} ${unitLbl()} × ${s.reps}</span>`).join('')}
         </div>
       </div>` : '';
 
@@ -989,8 +1018,8 @@ function renderEditor() {
   }).join('');
 
   const rows = (prog().exercises[editorCat] || []).map((ex, i) => {
-    const last = ex.lastWeight ? `${ex.lastWeight} kg × ${ex.lastReps}` : 'Pas encore effectué';
-    const pr   = ex.pr ? ` · PR: ${ex.pr.weight} kg × ${ex.pr.reps}` : '';
+    const last = ex.lastWeight ? `${dispW(ex.lastWeight)} ${unitLbl()} × ${ex.lastReps}` : 'Pas encore effectué';
+    const pr   = ex.pr ? ` · PR: ${dispW(ex.pr.weight)} ${unitLbl()} × ${ex.pr.reps}` : '';
     const max  = (prog().exercises[editorCat] || []).length - 1;
 
     return `
@@ -1066,9 +1095,9 @@ function renderModal() {
         <label class="form-label">Temps de repos (secondes) — optionnel</label>
         <input type="number" inputmode="numeric" id="modalRest" class="form-input"
                value="${ex?.rest || ''}" placeholder="Défaut : ${data.defaultRest}s">
-        <label class="form-label">Objectif poids (kg) — optionnel</label>
+        <label class="form-label">Objectif poids (${unitLbl()}) — optionnel</label>
         <input type="number" inputmode="decimal" id="modalTarget" class="form-input"
-               value="${ex?.target || ''}" placeholder="Ex : 40">
+               value="${ex?.target ? dispW(ex.target) : ''}" placeholder="Ex : ${data.unit === 'lbs' ? '88' : '40'}">
         <div class="modal__actions">
           <button class="btn btn--secondary" data-action="close-modal">Annuler</button>
           <button class="btn btn--primary"   data-action="save-ex">${isEdit ? 'Enregistrer' : 'Ajouter'}</button>
@@ -1114,8 +1143,8 @@ function renderAddSession() {
         <span class="set-num">S${si + 1}</span>
         <div class="input-group">
           <input type="number" inputmode="decimal" class="set-input" placeholder="—"
-                 value="${s.weight}" data-action="add-weight" data-exid="${ex.id}" data-si="${si}">
-          <span class="input-unit">kg</span>
+                 value="${dispW(s.weight)}" data-action="add-weight" data-exid="${ex.id}" data-si="${si}">
+          <span class="input-unit">${unitLbl()}</span>
         </div>
         <div class="input-group">
           <input type="number" inputmode="numeric" class="set-input set-input--required" placeholder="0"
@@ -1171,6 +1200,78 @@ function renderAddSession() {
 // ═══════════════════════════════════════════════════════════
 //  Stats / Progression
 // ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+//  Settings
+// ═══════════════════════════════════════════════════════════
+
+function renderSettings() {
+  const isLight = document.body.classList.contains('light');
+  const tog = (on) => `<div class="setting-toggle ${on ? 'setting-toggle--on' : ''}"><div class="setting-toggle__thumb"></div></div>`;
+
+  return `
+    <div class="view settings-view">
+      <header class="header">
+        <button class="icon-btn" data-action="back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+        </button>
+        <span class="header__title">Réglages</span>
+        <div style="width:40px"></div>
+      </header>
+      <div class="settings-list">
+
+        <div class="settings-section-title">Apparence</div>
+        <div class="settings-group">
+          <button class="setting-row" data-action="toggle-theme">
+            <span class="setting-label">Thème</span>
+            <span class="setting-value">${isLight ? 'Clair ☀️' : 'Sombre 🌙'}</span>
+          </button>
+        </div>
+
+        <div class="settings-section-title">Séance</div>
+        <div class="settings-group">
+          <div class="setting-row setting-row--segmented">
+            <span class="setting-label">Unité de poids</span>
+            <div class="segmented">
+              <button class="segmented__btn ${data.unit === 'kg' ? 'segmented__btn--active' : ''}" data-action="setting-unit" data-val="kg">kg</button>
+              <button class="segmented__btn ${data.unit === 'lbs' ? 'segmented__btn--active' : ''}" data-action="setting-unit" data-val="lbs">lbs</button>
+            </div>
+          </div>
+          <button class="setting-row" data-action="setting-rest">
+            <span class="setting-label">Repos entre séries</span>
+            <span class="setting-value">${data.defaultRest}s</span>
+          </button>
+          <button class="setting-row" data-action="setting-sound">
+            <span class="setting-label">Sons</span>
+            ${tog(data.soundOn !== false)}
+          </button>
+          <button class="setting-row" data-action="setting-vibrate">
+            <span class="setting-label">Vibrations</span>
+            ${tog(data.vibrateOn !== false)}
+          </button>
+        </div>
+
+        <div class="settings-section-title">Données</div>
+        <div class="settings-group">
+          <button class="setting-row" data-action="export">
+            <span class="setting-label">Exporter les données</span>
+            <span class="setting-value">›</span>
+          </button>
+          <button class="setting-row" data-action="import">
+            <span class="setting-label">Importer les données</span>
+            <span class="setting-value">›</span>
+          </button>
+          <button class="setting-row" data-action="force-update">
+            <span class="setting-label">Mettre à jour l'app</span>
+            <span class="setting-value">↻</span>
+          </button>
+        </div>
+
+      </div>
+    </div>`;
+}
 
 function renderStatsOverview(viewTabs) {
   const keys    = sessionKeys();
@@ -1323,17 +1424,18 @@ function renderStats() {
     return p.volume;
   }
   function metricUnit(isBodyweight) {
-    if (statsMode === 'volume') return isBodyweight ? ' reps' : ' kg';
-    return ' kg';
+    if (statsMode === 'volume') return isBodyweight ? ' reps' : ` ${unitLbl()}`;
+    return ` ${unitLbl()}`;
   }
+  function cvtW(kg) { return data.unit === 'lbs' ? Math.round(kg * KG_TO_LBS * 10) / 10 : kg; }
   function fmtMetric(v, isBodyweight) {
+    const vd = cvtW(v);
     if (statsMode === 'volume' && !isBodyweight) {
-      return v >= 1000
-        ? (v / 1000).toFixed(1).replace('.', ',') + ' t'
-        : Math.round(v) + ' kg';
+      if (data.unit === 'lbs') return vd >= 1000 ? (vd / 1000).toFixed(1) + ' k lbs' : Math.round(vd) + ' lbs';
+      return v >= 1000 ? (v / 1000).toFixed(1).replace('.', ',') + ' t' : Math.round(v) + ' kg';
     }
-    if (statsMode === '1rm') return v > 0 ? `~${v} kg` : '—';
-    return Math.round(v) + (isBodyweight ? ' reps' : ' kg');
+    if (statsMode === '1rm') return v > 0 ? `~${Math.round(vd)} ${unitLbl()}` : '—';
+    return Math.round(vd) + (isBodyweight ? ' reps' : ` ${unitLbl()}`);
   }
   function modeLabel() {
     if (statsMode === 'charge') return 'Charge max';
@@ -1391,12 +1493,17 @@ function renderStats() {
     const lastSets = last.sets
       .filter(s => s.reps)
       .map((s, i) => {
-        const w = s.weight ? `${s.weight} kg × ` : '';
+        const w = s.weight ? `${dispW(s.weight)} ${unitLbl()} × ` : '';
         return `<span class="last-set">S${i+1} : ${w}${s.reps} reps</span>`;
       }).join('');
 
+    const displayVals = (!isBodyweight && statsMode !== 'volume')
+      ? vals.map(v => cvtW(v))
+      : (statsMode === 'volume' && !isBodyweight && data.unit === 'lbs')
+        ? vals.map(v => Math.round(v * KG_TO_LBS))
+        : vals;
     const encoded = encodeURIComponent(JSON.stringify({
-      vals,
+      vals: displayVals,
       dates: points.map(p => p.date),
       unit: metricUnit(isBodyweight),
       isVolumeMode: statsMode === 'volume' && !isBodyweight,
@@ -1409,7 +1516,7 @@ function renderStats() {
       const pct    = Math.min(100, Math.round((last.maxLoad / targetW) * 100));
       const c2     = pct >= 100 ? '#22c55e' : progColor;
       return `<div class="target-block">
-        <div class="target-label">Objectif : ${targetW} kg <span style="color:${c2}">${pct >= 100 ? '✓ Atteint !' : pct + '%'}</span></div>
+        <div class="target-label">Objectif : ${cvtW(targetW)} ${unitLbl()} <span style="color:${c2}">${pct >= 100 ? '✓ Atteint !' : pct + '%'}</span></div>
         <div class="target-bar"><div class="target-bar__fill" style="width:${pct}%;background:${c2}"></div></div>
       </div>`;
     })() : '';
@@ -1419,11 +1526,11 @@ function renderStats() {
     if (statsMode === 'volume') {
       secondaryLine = isBodyweight
         ? `<span>${last.sets.filter(s=>s.reps).length} séries · ${last.avgR} reps/série</span>`
-        : `<span>${last.sets.filter(s=>s.reps).length} séries · ${last.avgW} kg moy · ${last.avgR} reps/série</span>`;
+        : `<span>${last.sets.filter(s=>s.reps).length} séries · ${cvtW(last.avgW)} ${unitLbl()} moy · ${last.avgR} reps/série</span>`;
     } else if (statsMode === 'charge') {
       secondaryLine = `<span>${last.sets.filter(s=>s.reps).length} séries · ${last.avgR} reps/série</span>`;
     } else {
-      secondaryLine = last.avgW ? `<span>${last.avgW} kg × ${last.avgR} reps (meilleures séries)</span>` : '';
+      secondaryLine = last.avgW ? `<span>${cvtW(last.avgW)} ${unitLbl()} × ${last.avgR} reps (meilleures séries)</span>` : '';
     }
 
     return `
@@ -1440,8 +1547,8 @@ function renderStats() {
         <canvas class="stats-canvas" data-points="${encoded}" data-color="${color}"></canvas>
         ${targetBar}
         <div class="stats-card__footer">
-          <span>PR : <strong>${prW}${isBodyweight ? ' reps' : ' kg'}</strong></span>
-          ${e1RM && !isBodyweight ? `<span>1RM ~<strong>${e1RM} kg</strong></span>` : ''}
+          <span>PR : <strong>${isBodyweight ? prW + ' reps' : cvtW(prW) + ' ' + unitLbl()}</strong></span>
+          ${e1RM && !isBodyweight ? `<span>1RM ~<strong>${cvtW(e1RM)} ${unitLbl()}</strong></span>` : ''}
           <span style="color:${progColor};font-weight:700">${progLabel}</span>
           <span>${points.length} séance${points.length > 1 ? 's' : ''}</span>
         </div>
@@ -1776,9 +1883,26 @@ document.addEventListener('click', e => {
       syncTimersFromHistory();
       save(); render(); break;
     }
+    case 'go-settings': {
+      view = 'settings'; render(); break;
+    }
     case 'toggle-theme': {
       const next = document.body.classList.contains('light') ? 'dark' : 'light';
       applyTheme(next); render(); break;
+    }
+    case 'setting-unit': {
+      data.unit = el.dataset.val; save(); render(); break;
+    }
+    case 'setting-sound': {
+      data.soundOn = !data.soundOn; save(); render(); break;
+    }
+    case 'setting-vibrate': {
+      data.vibrateOn = !data.vibrateOn; save(); render(); break;
+    }
+    case 'setting-rest': {
+      const v = parseInt(window.prompt('Temps de repos par défaut (secondes) :', String(data.defaultRest)));
+      if (!isNaN(v) && v > 0) { data.defaultRest = v; save(); render(); }
+      break;
     }
     case 'force-update': {
       if ('serviceWorker' in navigator) {
@@ -1976,7 +2100,7 @@ document.addEventListener('click', e => {
 
     // ── Dashboard ──────────────────────────────────────────
     case 'start-session': {
-      beep(440, .08);
+      if (data.soundOn !== false) beep(440, .08);
       startSession(el.dataset.cat);
       break;
     }
@@ -2152,7 +2276,7 @@ document.addEventListener('click', e => {
       const name   = $('#modalName')?.value.trim();
       const sets   = parseInt($('#modalSets')?.value) || 3;
       if (!name) { showToast('Entre un nom !'); return; }
-      const target = parseFloat($('#modalTarget')?.value) || null;
+      const target = $('#modalTarget')?.value ? (parseFloat(storeW($('#modalTarget').value)) || null) : null;
       const rest   = parseInt($('#modalRest')?.value)    || null;
       if (!prog().exercises[editorCat]) prog().exercises[editorCat] = [];
       if (editExIdx !== null) {
@@ -2225,7 +2349,7 @@ document.addEventListener('input', e => {
     const ei = parseInt(e.target.dataset.ei);
     const si = parseInt(e.target.dataset.si);
     if (!isNaN(ei) && !isNaN(si)) {
-      if (action === 'set-weight') activeSession.exercises[ei].sets[si].weight = e.target.value;
+      if (action === 'set-weight') activeSession.exercises[ei].sets[si].weight = storeW(e.target.value);
       if (action === 'set-reps')   activeSession.exercises[ei].sets[si].reps   = e.target.value;
     }
   }
@@ -2234,7 +2358,7 @@ document.addEventListener('input', e => {
     const exid = e.target.dataset.exid;
     const si   = parseInt(e.target.dataset.si);
     if (exid && !isNaN(si) && addSets[exid]) {
-      if (action === 'add-weight') addSets[exid][si].weight = e.target.value;
+      if (action === 'add-weight') addSets[exid][si].weight = storeW(e.target.value);
       if (action === 'add-reps')   addSets[exid][si].reps   = e.target.value;
     }
     if (action === 'add-date')        addDate  = e.target.value;

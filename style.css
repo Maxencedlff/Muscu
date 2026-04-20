@@ -810,6 +810,68 @@ body {
 @keyframes toastOut { to   { opacity: 0; transform: translateX(-50%) translateY(-8px); } }
 
 /* ═══════════════════════════════════════════════
+   Settings
+═══════════════════════════════════════════════ */
+.settings-view .settings-list {
+  flex: 1; overflow-y: auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 6px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0));
+}
+.settings-section-title {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  padding: 12px 4px 4px;
+}
+.settings-section-title:first-child { padding-top: 0; }
+.settings-group {
+  background: var(--surface); border-radius: var(--radius);
+  border: 1px solid var(--border); overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.setting-row {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 14px 16px; background: none; border: none;
+  color: var(--text); font-size: 15px; font-family: inherit;
+  cursor: pointer; border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.setting-row:last-child { border-bottom: none; }
+.setting-row:active { background: var(--surface2); }
+.setting-row--segmented { cursor: default; }
+.setting-row--segmented:active { background: none; }
+.setting-label { font-weight: 500; }
+.setting-value { color: var(--muted); font-size: 14px; }
+
+.segmented {
+  display: flex; border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--border);
+}
+.segmented__btn {
+  padding: 5px 16px; background: none; border: none;
+  color: var(--muted); font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.segmented__btn--active {
+  background: linear-gradient(160deg, #3b82f6, #1d4ed8);
+  color: #fff;
+}
+
+.setting-toggle {
+  width: 46px; height: 26px; border-radius: 13px;
+  background: var(--surface2); border: 1px solid var(--border);
+  position: relative; transition: background .2s;
+  flex-shrink: 0;
+}
+.setting-toggle--on { background: #22c55e; border-color: #22c55e; }
+.setting-toggle__thumb {
+  position: absolute; top: 2px; left: 2px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  transition: transform .2s;
+}
+.setting-toggle--on .setting-toggle__thumb { transform: translateX(20px); }
+
+/* ═══════════════════════════════════════════════
    Streak badge
 ═══════════════════════════════════════════════ */
 .streak-badge {
