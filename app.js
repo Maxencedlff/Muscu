@@ -80,9 +80,9 @@ const PROGRAMMES = {
     },
   },
   fullbody: {
-    name: 'Full Body', desc: 'Corps entier · 3×/semaine', icon: '🏋️',
+    name: 'Full Body', desc: 'Corps entier · 3×/semaine', icon: '⚡',
     sessions: {
-      fullbody: { label: 'Full Body', icon: '🏋️', desc: 'Corps entier', color: '#06b6d4' },
+      fullbody: { label: 'Full Body', icon: '⚡', desc: 'Corps entier', color: '#06b6d4' },
     },
     defaults: {
       fullbody: [['Squat barre',3],['Développé couché haltères',3],['Rowing haltère unilatéral',3],['Développé militaire haltères',3],['Curl biceps haltères',3],['Extension triceps poulie',3],['Mollets debout',3]],
