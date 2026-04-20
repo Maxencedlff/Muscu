@@ -26,6 +26,14 @@ function fmtDate(ts) {
   return new Date(ts).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+function fmtDuration(ms) {
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0) return `${h}h${pad(m)}`;
+  return `${m}min`;
+}
+
 function fmtDateTime(ts) {
   const d = new Date(ts);
   return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -521,6 +529,10 @@ function renderDashboard() {
 function startTicker() {
   clearInterval(ticker);
   ticker = setInterval(() => {
+    if (view === 'session' && activeSession) {
+      const el = $('#session-elapsed');
+      if (el) el.textContent = fmtDuration(Date.now() - activeSession.startedAt);
+    }
     if (view !== 'dashboard') return;
     sessionKeys().forEach(cat => {
       const el   = $(`#timer-${cat}`);
@@ -783,7 +795,7 @@ function renderSession() {
         </button>
         <div class="header__center">
           <div class="header__title">${meta.icon} ${meta.label}</div>
-          <div class="header__sub">${doneSets} / ${totalSets} séries${curVolTotal > 0 ? ` · ${fmtVolume(curVolTotal)}${volDeltaStr ? ` <span style="color:${volDeltaColor};font-size:11px">${volDeltaStr}</span>` : ''}` : ''}</div>
+          <div class="header__sub">${doneSets} / ${totalSets} séries${curVolTotal > 0 ? ` · ${fmtVolume(curVolTotal)}${volDeltaStr ? ` <span style="color:${volDeltaColor};font-size:11px">${volDeltaStr}</span>` : ''}` : ''} · <span id="session-elapsed">${fmtDuration(Date.now() - activeSession.startedAt)}</span></div>
         </div>
         <button class="btn--finish" data-action="finish-session">Terminer</button>
       </header>
@@ -1756,6 +1768,7 @@ function renderHistory() {
                 <div class="history-item__summary">
                   ${s.exercises.length} exercices · ${totalSets} séries
                   ${sessionVolume(s.exercises) > 0 ? ` · <strong>${fmtVolume(sessionVolume(s.exercises))}</strong> volume` : ''}
+                  ${s.duration ? ` · ⏱ ${fmtDuration(s.duration)}` : ''}
                 </div>
                 ${s.notes ? `<div class="history-notes">"${s.notes}"</div>` : ''}
                 <div class="history-item__exercises">
@@ -2215,6 +2228,7 @@ document.addEventListener('click', e => {
         programme:  activeSession.programme,
         category:   activeSession.category,
         date:       Date.now(),
+        duration:   Date.now() - activeSession.startedAt,
         notes:      sessionNotes.trim(),
         exercises:  activeSession.exercises.map(ex => ({
           name: ex.name,
