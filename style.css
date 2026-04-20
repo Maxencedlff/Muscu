@@ -114,14 +114,10 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-.dashboard__footer {
-  display: flex; justify-content: center;
-  padding: 4px 16px calc(4px + env(safe-area-inset-bottom, 0));
-  flex-shrink: 0;
-}
 .dashboard__brand {
   font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
   text-transform: uppercase; color: var(--border);
+  text-align: center; padding: 4px 0 2px;
 }
 
 .card {
