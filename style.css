@@ -710,17 +710,18 @@ body {
    Programme pill (dashboard header)
 ═══════════════════════════════════════════════ */
 .prog-pill {
-  display: flex; align-items: center; gap: 6px;
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 20px; padding: 7px 13px;
+  display: flex; align-items: center; gap: 5px;
+  background: linear-gradient(135deg, #3b82f620, #7c3aed18);
+  border: 1px solid #3b82f630;
+  border-radius: 20px; padding: 6px 12px;
   color: var(--text); font-size: 14px; font-weight: 700;
   cursor: pointer; font-family: inherit;
-  transition: background .15s;
+  transition: opacity .15s;
 }
-.prog-pill:active { background: var(--border); }
-.prog-pill__icon  { font-size: 16px; }
-.prog-pill__name  { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prog-pill__chevron { color: var(--muted); font-size: 18px; line-height: 1; }
+.prog-pill:active { opacity: .7; }
+.prog-pill__icon  { font-size: 15px; }
+.prog-pill__name  { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prog-pill__chevron { color: #3b82f6; font-size: 16px; line-height: 1; font-weight: 900; }
 
 /* ═══════════════════════════════════════════════
    Programme selector view
