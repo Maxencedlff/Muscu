@@ -512,7 +512,7 @@ function renderDashboard() {
           </button>
         </div>
       </header>
-      <div class="cards">${cards || emptyCustom}</div>
+      <div class="cards">${cards || emptyCustom}<div class="dashboard__brand">MDLF Training</div></div>
     </div>`;
 }
 
