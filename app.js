@@ -242,6 +242,47 @@ function firstSession() {
   return sessionKeys()[0] || '';
 }
 
+// ISO week key "YYYY-Www" for a timestamp
+function isoWeek(ts) {
+  const d = new Date(ts);
+  const day = d.getDay() || 7; // Mon=1 … Sun=7
+  d.setDate(d.getDate() + 4 - day); // nearest Thursday
+  const year = d.getFullYear();
+  const startOfYear = new Date(year, 0, 1);
+  const week = Math.ceil(((d - startOfYear) / 86400000 + 1) / 7);
+  return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
+function computeStreak() {
+  const history = data.history || [];
+  if (!history.length) return 0;
+  const activeWeeks = new Set(history.map(h => isoWeek(h.date)));
+  let streak = 0;
+  const now = new Date();
+  for (let i = 0; i < 104; i++) {
+    const ts = now.getTime() - i * 7 * 86400000;
+    const key = isoWeek(ts);
+    if (activeWeeks.has(key)) {
+      streak++;
+    } else if (i === 0) {
+      // current week not yet active — don't break streak, just skip
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+// Volume = Σ (weight × reps) for a list of sets [{weight, reps}]
+function setsVolume(sets) {
+  return (sets || []).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0);
+}
+
+function fmtVolume(kg) {
+  if (kg === 0) return '0 kg';
+  return kg >= 1000 ? (kg / 1000).toFixed(1).replace('.', ',') + ' t' : Math.round(kg) + ' kg';
+}
+
 function historyColor(h) {
   const progId = h.programme || 'ppl';
   return sessionMeta(h.category, progId).color || '#666';
@@ -266,6 +307,9 @@ let restEditEi    = null;
 let editExIdx     = null;
 let statsCat      = firstSession();
 let statsMode     = 'volume';   // 'volume' | 'charge' | '1rm'
+let statsView     = 'progress'; // 'progress' | 'overview'
+let statsYear     = new Date().getFullYear();
+let statsMonth    = null;       // null = vue annuelle
 let addCat        = firstSession();
 let addDate       = new Date().toISOString().slice(0, 10);
 let addSets       = {};
@@ -405,6 +449,7 @@ function renderDashboard() {
           <span class="prog-pill__name">${pm.name}</span>
           <span class="prog-pill__chevron">›</span>
         </button>
+        ${computeStreak() > 0 ? `<div class="streak-badge" title="Semaines consécutives actives">🔥 ${computeStreak()} sem.</div>` : ''}
         <div style="display:flex;gap:4px">
           <button class="icon-btn" data-action="go-stats" title="Progression">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -599,13 +644,30 @@ function renderSession() {
 
   const prevSession = (data.history || []).find(h => h.category === cat && h.programme === activeSession.programme);
 
+  // Volume global : session actuelle vs précédente
+  const curVolTotal  = activeSession.exercises.reduce((a, ex) => a + setsVolume(ex.sets.filter(s => s.done)), 0);
+  const prevVolTotal = prevSession ? prevSession.exercises.reduce((a, ex) => a + setsVolume(ex.sets), 0) : 0;
+  const volDelta     = curVolTotal - prevVolTotal;
+  const volDeltaStr  = prevVolTotal > 0
+    ? (volDelta >= 0 ? `+${fmtVolume(volDelta)}` : `-${fmtVolume(Math.abs(volDelta))}`)
+    : '';
+  const volDeltaColor = volDelta >= 0 ? '#22c55e' : '#ef4444';
+
   const exHtml = activeSession.exercises.map((ex, ei) => {
     const exData  = prog().exercises[cat]?.find(e => e.id === ex.exId);
     const prText  = exData?.pr ? `PR : ${exData.pr.weight} kg × ${exData.pr.reps}` : '';
     const allDone = ex.sets.every(s => s.done);
 
-    const prevEx   = prevSession?.exercises.find(e => e.name === ex.name);
-    const prevSets = prevEx?.sets || [];
+    const prevEx      = prevSession?.exercises.find(e => e.name === ex.name);
+    const prevSets    = prevEx?.sets || [];
+
+    // Volume par exercice
+    const exCurVol  = setsVolume(ex.sets.filter(s => s.done));
+    const exPrevVol = setsVolume(prevSets);
+    const exDelta   = exCurVol - exPrevVol;
+    const exVolHtml = exCurVol > 0
+      ? `<span class="ex-vol">${fmtVolume(exCurVol)}${exPrevVol > 0 ? ` <span style="color:${exDelta >= 0 ? '#22c55e' : '#ef4444'}">(${exDelta >= 0 ? '+' : ''}${fmtVolume(exDelta)})</span>` : ''}</span>`
+      : '';
 
     const setsHtml = ex.sets.map((s, si) => {
       if (s.done) {
@@ -664,6 +726,7 @@ function renderSession() {
           <button class="rest-badge" data-action="set-ex-rest" data-ei="${ei}" title="Modifier le repos">⏱ ${restLabel}</button>
           <span class="exercise-progress">${ex.sets.filter(s => s.done).length}/${ex.sets.length}</span>
         </div>
+        ${exVolHtml ? `<div class="ex-vol-line">${exVolHtml}</div>` : ''}
         ${prText ? `<div class="exercise-hint"><span class="pr">${prText}</span></div>` : ''}
         ${prevHtml}
         ${setsHtml}
@@ -680,7 +743,7 @@ function renderSession() {
         </button>
         <div class="header__center">
           <div class="header__title">${meta.icon} ${meta.label}</div>
-          <div class="header__sub">${doneSets} / ${totalSets} séries</div>
+          <div class="header__sub">${doneSets} / ${totalSets} séries${curVolTotal > 0 ? ` · ${fmtVolume(curVolTotal)}${volDeltaStr ? ` <span style="color:${volDeltaColor};font-size:11px">${volDeltaStr}</span>` : ''}` : ''}</div>
         </div>
         <button class="btn--finish" data-action="finish-session">Terminer</button>
       </header>
@@ -1097,8 +1160,130 @@ function renderAddSession() {
 //  Stats / Progression
 // ═══════════════════════════════════════════════════════════
 
+function renderStatsOverview(viewTabs) {
+  const keys    = sessionKeys();
+  const history = (data.history || []).filter(h =>
+    (h.programme === data.activeProgramme) || (!h.programme && data.activeProgramme === 'ppl')
+  );
+
+  // ── Totaux all-time par catégorie ─────────────────────
+  const totalsByCat = {};
+  keys.forEach(k => { totalsByCat[k] = 0; });
+  history.forEach(h => { if (totalsByCat[h.category] !== undefined) totalsByCat[h.category]++; });
+
+  // ── Années disponibles ────────────────────────────────
+  const years = [...new Set(history.map(h => new Date(h.date).getFullYear()))].sort((a,b) => b - a);
+  if (!years.includes(statsYear) && years.length) statsYear = years[0];
+
+  // ── Sessions pour la période sélectionnée ─────────────
+  const inPeriod = history.filter(h => {
+    const d = new Date(h.date);
+    if (d.getFullYear() !== statsYear) return false;
+    if (statsMonth !== null && d.getMonth() !== statsMonth) return false;
+    return true;
+  });
+
+  const periodByCat = {};
+  keys.forEach(k => { periodByCat[k] = 0; });
+  inPeriod.forEach(h => { if (periodByCat[h.category] !== undefined) periodByCat[h.category]++; });
+  const periodTotal = inPeriod.length;
+
+  // ── Mois de l'année sélectionnée ──────────────────────
+  const monthNames = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  const monthsWithData = [...new Set(
+    history.filter(h => new Date(h.date).getFullYear() === statsYear)
+           .map(h => new Date(h.date).getMonth())
+  )].sort((a,b) => a - b);
+
+  const yearNav = `
+    <div class="overview-year-nav">
+      <button class="cooldown-btn" data-action="overview-year-prev">‹</button>
+      <span class="overview-year">${statsYear}</span>
+      <button class="cooldown-btn" data-action="overview-year-next" ${statsYear >= new Date().getFullYear() ? 'disabled' : ''}>›</button>
+    </div>`;
+
+  const monthPills = `
+    <div class="overview-months">
+      <button class="month-pill ${statsMonth === null ? 'month-pill--active' : ''}" data-action="overview-month" data-month="-1">Année</button>
+      ${monthsWithData.map(m => `
+        <button class="month-pill ${statsMonth === m ? 'month-pill--active' : ''}" data-action="overview-month" data-month="${m}">${monthNames[m]}</button>
+      `).join('')}
+    </div>`;
+
+  const catCards = keys.map(k => {
+    const meta  = sessionMeta(k);
+    const total = totalsByCat[k];
+    const prd   = periodByCat[k];
+    return `
+      <div class="overview-cat-card" style="--cat-color:${meta.color}">
+        <div class="overview-cat-icon">${meta.icon}</div>
+        <div class="overview-cat-label">${meta.label}</div>
+        <div class="overview-cat-count">${prd}</div>
+        <div class="overview-cat-sub">séances</div>
+        <div class="overview-cat-total">${total} au total</div>
+      </div>`;
+  }).join('');
+
+  // ── Détail par mois (vue annuelle) ───────────────────
+  let monthGrid = '';
+  if (statsMonth === null) {
+    const rows = monthNames.map((name, mi) => {
+      const count = history.filter(h => {
+        const d = new Date(h.date);
+        return d.getFullYear() === statsYear && d.getMonth() === mi;
+      }).length;
+      if (count === 0) return '';
+      const byCat = keys.map(k => {
+        const c = history.filter(h => {
+          const d = new Date(h.date);
+          return d.getFullYear() === statsYear && d.getMonth() === mi && h.category === k;
+        }).length;
+        const meta = sessionMeta(k);
+        return c > 0 ? `<span style="color:${meta.color}">${meta.icon} ×${c}</span>` : '';
+      }).filter(Boolean).join(' ');
+      return `
+        <div class="month-row">
+          <span class="month-row__name">${name}</span>
+          <span class="month-row__cats">${byCat}</span>
+          <span class="month-row__total">${count}</span>
+        </div>`;
+    }).join('');
+    monthGrid = rows ? `<div class="month-grid">${rows}</div>` : '';
+  }
+
+  return `
+    <div class="view stats">
+      <header class="header">
+        <button class="icon-btn" data-action="back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+        </button>
+        <span class="header__title">Statistiques</span>
+        <div style="width:40px"></div>
+      </header>
+      ${viewTabs}
+      <div class="stats-list">
+        ${yearNav}
+        ${monthPills}
+        <div class="overview-period-label">${statsMonth !== null ? monthNames[statsMonth] + ' ' + statsYear : 'Année ' + statsYear} — <strong>${periodTotal} séance${periodTotal !== 1 ? 's' : ''}</strong></div>
+        <div class="overview-cats">${catCards}</div>
+        ${monthGrid}
+        ${!history.length ? `<div class="empty-state"><div class="empty-state__icon">📊</div><div>Pas encore de données</div></div>` : ''}
+      </div>
+    </div>`;
+}
+
 function renderStats() {
   const keys = sessionKeys();
+
+  const viewTabs = `
+    <div class="stats-view-tabs">
+      <button class="stats-view-tab ${statsView === 'progress' ? 'stats-view-tab--active' : ''}" data-action="stats-view" data-view="progress">Progression</button>
+      <button class="stats-view-tab ${statsView === 'overview' ? 'stats-view-tab--active' : ''}" data-action="stats-view" data-view="overview">Vue d'ensemble</button>
+    </div>`;
+
+  if (statsView === 'overview') return renderStatsOverview(viewTabs);
 
   const tabs = keys.map(c => {
     const meta    = sessionMeta(c);
@@ -1280,9 +1465,10 @@ function renderStats() {
             <path d="M19 12H5M12 5l-7 7 7 7"/>
           </svg>
         </button>
-        <span class="header__title">Progression</span>
+        <span class="header__title">Statistiques</span>
         <div style="width:40px"></div>
       </header>
+      ${viewTabs}
       ${keys.length ? `<div class="tabs">${tabs}</div>` : ''}
       ${modeBar}
       <div class="stats-list">
@@ -1529,6 +1715,21 @@ document.addEventListener('click', e => {
     }
     case 'stats-mode': {
       statsMode = el.dataset.mode; render(); break;
+    }
+    case 'stats-view': {
+      statsView = el.dataset.view; render(); break;
+    }
+    case 'overview-year-prev': {
+      statsYear--; statsMonth = null; render(); break;
+    }
+    case 'overview-year-next': {
+      if (statsYear < new Date().getFullYear()) { statsYear++; statsMonth = null; render(); }
+      break;
+    }
+    case 'overview-month': {
+      const m = parseInt(el.dataset.month);
+      statsMonth = m === -1 ? null : m;
+      render(); break;
     }
     case 'go-add-session': {
       addCat        = firstSession();

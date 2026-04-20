@@ -766,3 +766,89 @@ body {
 }
 @keyframes toastIn  { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 @keyframes toastOut { to   { opacity: 0; transform: translateX(-50%) translateY(-8px); } }
+
+/* ═══════════════════════════════════════════════
+   Streak badge
+═══════════════════════════════════════════════ */
+.streak-badge {
+  font-size: 13px; font-weight: 700; color: #f97316;
+  background: #f9731620; border: 1px solid #f9731640;
+  padding: 3px 8px; border-radius: 20px;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════
+   Volume pendant la séance
+═══════════════════════════════════════════════ */
+.ex-vol-line {
+  font-size: 12px; color: var(--muted);
+  margin-bottom: 8px; margin-top: -2px;
+}
+.ex-vol { font-weight: 600; color: var(--muted); }
+
+/* ═══════════════════════════════════════════════
+   Stats — onglets vue d'ensemble / progression
+═══════════════════════════════════════════════ */
+.stats-view-tabs {
+  display: flex; gap: 6px; padding: 10px 16px 4px;
+  flex-shrink: 0;
+}
+.stats-view-tab {
+  flex: 1; padding: 7px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--muted); font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.stats-view-tab--active {
+  background: var(--text); color: var(--bg); border-color: var(--text);
+}
+
+/* ═══════════════════════════════════════════════
+   Vue d'ensemble
+═══════════════════════════════════════════════ */
+.overview-year-nav {
+  display: flex; align-items: center; justify-content: center;
+  gap: 16px; padding: 12px 0 4px;
+}
+.overview-year { font-size: 18px; font-weight: 700; min-width: 60px; text-align: center; }
+
+.overview-months {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px 16px;
+}
+.month-pill {
+  padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--muted); cursor: pointer; font-family: inherit;
+}
+.month-pill--active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+.overview-period-label {
+  font-size: 13px; color: var(--muted);
+  padding: 0 16px 10px;
+}
+
+.overview-cats {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 10px; padding: 0 16px 16px;
+}
+.overview-cat-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 8px;
+  text-align: center; border-top: 3px solid var(--cat-color);
+}
+.overview-cat-icon  { font-size: 22px; margin-bottom: 4px; }
+.overview-cat-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+.overview-cat-count { font-size: 28px; font-weight: 800; color: var(--cat-color); line-height: 1; }
+.overview-cat-sub   { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+.overview-cat-total { font-size: 10px; color: var(--muted); }
+
+.month-grid { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 2px; }
+.month-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; background: var(--surface2);
+  border-radius: 8px;
+}
+.month-row__name  { font-size: 13px; font-weight: 700; min-width: 32px; color: var(--muted); }
+.month-row__cats  { flex: 1; font-size: 13px; display: flex; gap: 10px; }
+.month-row__total { font-size: 13px; font-weight: 700; color: var(--text); }
