@@ -123,25 +123,23 @@ body {
 
 .dashboard__footer {
   display: flex; justify-content: center; gap: 12px;
-  padding: 10px 16px 6px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0));
   background: var(--surface); border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-.cooldown-setting {
+.card__cooldown {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0));
-  background: var(--surface);
-  flex-shrink: 0;
+  margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border);
 }
-.cooldown-setting__label { font-size: 13px; color: var(--muted); }
-.cooldown-setting__value-btn {
+.card__cooldown-label { font-size: 12px; color: var(--muted); }
+.card__cooldown-btn {
   background: var(--surface2); border: 1px solid var(--border);
-  color: var(--text); font-size: 13px; font-weight: 600;
-  padding: 5px 10px; border-radius: 8px; cursor: pointer;
+  color: var(--muted); font-size: 12px; font-weight: 600;
+  padding: 3px 8px; border-radius: 6px; cursor: pointer;
   font-family: inherit;
 }
-.cooldown-setting__value-btn:active { opacity: .6; }
+.card__cooldown-btn:active { opacity: .6; }
 
 .order-badge {
   display: inline-block; font-size: 10px; font-weight: 700;

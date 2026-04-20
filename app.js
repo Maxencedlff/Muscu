@@ -144,13 +144,14 @@ function sessionVolume(exercises) {
 
 function makeProgData(progId) {
   const pm = PROGRAMMES[progId];
-  if (!pm || progId === 'custom') return { exercises: {}, timers: {} };
-  const exercises = {}, timers = {};
+  if (!pm || progId === 'custom') return { exercises: {}, timers: {}, cooldowns: {} };
+  const exercises = {}, timers = {}, cooldowns = {};
   Object.keys(pm.sessions).forEach(cat => {
     timers[cat]    = null;
+    cooldowns[cat] = 72;
     exercises[cat] = (pm.defaults[cat] || []).map(([name, sets]) => makeExercise(name, sets));
   });
-  return { exercises, timers };
+  return { exercises, timers, cooldowns };
 }
 
 const KEY = 'ppl_v2';
@@ -161,7 +162,6 @@ function makeDefaultData() {
     programmes: { ppl: makeProgData('ppl') },
     customSessions: {},
     defaultRest: 90,
-    cooldownHours: 72,
     history: [],
   };
 }
@@ -177,8 +177,9 @@ function loadData() {
       if (!d.programmes.ppl)  d.programmes.ppl = makeProgData('ppl');
       if (!d.customSessions)  d.customSessions = {};
       if (!d.defaultRest)     d.defaultRest = 90;
-      if (!d.cooldownHours)   d.cooldownHours = 72;
       if (!d.history)         d.history = [];
+      // Ensure per-programme cooldowns exist (migration)
+      Object.values(d.programmes || {}).forEach(p => { if (!p.cooldowns) p.cooldowns = {}; });
       return d;
     }
   } catch {}
@@ -210,9 +211,15 @@ function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
 
 function prog() {
   if (!data.programmes[data.activeProgramme]) {
-    data.programmes[data.activeProgramme] = { exercises: {}, timers: {} };
+    data.programmes[data.activeProgramme] = { exercises: {}, timers: {}, cooldowns: {} };
   }
-  return data.programmes[data.activeProgramme];
+  const p = data.programmes[data.activeProgramme];
+  if (!p.cooldowns) p.cooldowns = {};
+  return p;
+}
+
+function getCooldown(cat) {
+  return prog().cooldowns[cat] ?? 72;
 }
 
 function progMeta(id) {
@@ -346,7 +353,7 @@ function renderDashboard() {
   const cards = keys.map(cat => {
     const meta      = sessionMeta(cat);
     const last      = prog().timers[cat];
-    const deadline  = last ? last + data.cooldownHours * 3600_000 : 0;
+    const deadline  = last ? last + getCooldown(cat) * 3600_000 : 0;
     const remaining = deadline - Date.now();
     const ready     = !last || remaining <= 0;
     const exCount   = (prog().exercises[cat] || []).length;
@@ -375,6 +382,10 @@ function renderDashboard() {
           ${ready ? 'Démarrer la séance' : 'En récupération'}
         </button>
         ${!ready ? `<button class="btn btn--ghost btn--full btn--skip" data-action="skip-cooldown" data-cat="${cat}">Passer le délai</button>` : ''}
+        <div class="card__cooldown">
+          <span class="card__cooldown-label">Délai récup.</span>
+          <button class="card__cooldown-btn" data-action="cooldown-edit" data-cat="${cat}">${getCooldown(cat)}h ✎</button>
+        </div>
       </div>`;
   }).join('');
 
@@ -419,10 +430,6 @@ function renderDashboard() {
         <button class="link-btn" data-action="import">Importer</button>
         <button class="link-btn" data-action="force-update">↻ Mettre à jour</button>
       </div>
-      <div class="cooldown-setting">
-        <span class="cooldown-setting__label">Délai entre séances</span>
-        <button class="cooldown-setting__value-btn" data-action="cooldown-edit" title="Modifier le délai">${data.cooldownHours}h ✎</button>
-      </div>
     </div>`;
 }
 
@@ -437,7 +444,7 @@ function startTicker() {
       if (!el) return;
       const last = prog().timers[cat];
       if (!last) return;
-      const rem = (last + data.cooldownHours * 3600_000) - Date.now();
+      const rem = (last + getCooldown(cat) * 3600_000) - Date.now();
       if (rem <= 0) {
         el.textContent = 'Prête !';
         el.className = 'card__timer timer--ready';
@@ -1567,12 +1574,15 @@ document.addEventListener('click', e => {
       break;
     }
     case 'cooldown-edit': {
-      const cur = data.cooldownHours;
-      const input = window.prompt(`Délai de récupération entre séances (heures) :\nActuellement : ${cur}h\n\nEntrer un nombre entre 1 et 168 :`, String(cur));
+      const cat = el.dataset.cat;
+      if (!cat) break;
+      const meta = sessionMeta(cat);
+      const cur  = getCooldown(cat);
+      const input = window.prompt(`Délai de récupération — ${meta.label} (heures) :\nActuellement : ${cur}h\n\nEntrer un nombre entre 1 et 168 :`, String(cur));
       if (input === null) break;
       const val = parseInt(input, 10);
       if (isNaN(val) || val < 1 || val > 168) { alert('Valeur invalide (1–168h).'); break; }
-      data.cooldownHours = val;
+      prog().cooldowns[cat] = val;
       save(); render();
       break;
     }
@@ -1713,10 +1723,11 @@ document.addEventListener('click', e => {
       if (!data.customSessions) data.customSessions = {};
       data.customSessions[id] = { label: name, icon, desc, color: csColor };
 
-      // Ensure exercise/timer slot exists
-      if (!data.programmes.custom) data.programmes.custom = { exercises: {}, timers: {} };
-      if (!data.programmes.custom.exercises[id]) data.programmes.custom.exercises[id] = [];
-      if (!data.programmes.custom.timers[id])    data.programmes.custom.timers[id]    = null;
+      // Ensure exercise/timer/cooldown slot exists
+      if (!data.programmes.custom) data.programmes.custom = { exercises: {}, timers: {}, cooldowns: {} };
+      if (!data.programmes.custom.exercises[id])  data.programmes.custom.exercises[id]  = [];
+      if (!data.programmes.custom.timers[id])     data.programmes.custom.timers[id]     = null;
+      if (data.programmes.custom.cooldowns[id] == null) data.programmes.custom.cooldowns[id] = 72;
 
       csModal = false; csEditId = null;
       // Update nav state
