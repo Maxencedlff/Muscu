@@ -51,7 +51,7 @@ const PROGRAMMES = {
     name: 'PPL', desc: 'Push · Pull · Legs', icon: '🔄',
     sessions: {
       push: { label: 'Push', icon: '💪', desc: 'Pectoraux · Épaules · Triceps', color: '#ef4444' },
-      pull: { label: 'Pull', icon: '🔙', desc: 'Dos · Biceps · Trapèzes',       color: '#3b82f6' },
+      pull: { label: 'Pull', icon: '🦾', desc: 'Dos · Biceps · Trapèzes',       color: '#3b82f6' },
       legs: { label: 'Legs', icon: '🦵', desc: 'Quadriceps · Ischio · Mollets', color: '#22c55e' },
     },
     defaults: {
@@ -84,7 +84,7 @@ const PROGRAMMES = {
     name: 'Bro Split', desc: 'Chest · Back · Shoulders · Arms · Legs', icon: '💪',
     sessions: {
       chest:     { label: 'Chest',     icon: '💪', desc: 'Pectoraux',           color: '#ef4444' },
-      back:      { label: 'Back',      icon: '🔙', desc: 'Dos · Trapèzes',       color: '#3b82f6' },
+      back:      { label: 'Back',      icon: '🦾', desc: 'Dos · Trapèzes',       color: '#3b82f6' },
       shoulders: { label: 'Shoulders', icon: '🏔️', desc: 'Épaules',             color: '#f59e0b' },
       arms:      { label: 'Arms',      icon: '🦾', desc: 'Biceps · Triceps',    color: '#a855f7' },
       legs:      { label: 'Legs',      icon: '🦵', desc: 'Quadriceps · Ischio', color: '#22c55e' },
@@ -161,6 +161,7 @@ function makeDefaultData() {
     programmes: { ppl: makeProgData('ppl') },
     customSessions: {},
     defaultRest: 90,
+    cooldownHours: 72,
     history: [],
   };
 }
@@ -176,6 +177,7 @@ function loadData() {
       if (!d.programmes.ppl)  d.programmes.ppl = makeProgData('ppl');
       if (!d.customSessions)  d.customSessions = {};
       if (!d.defaultRest)     d.defaultRest = 90;
+      if (!d.cooldownHours)   d.cooldownHours = 72;
       if (!d.history)         d.history = [];
       return d;
     }
@@ -256,12 +258,16 @@ let modalOpen     = false;
 let restEditEi    = null;
 let editExIdx     = null;
 let statsCat      = firstSession();
+let statsMode     = 'volume';   // 'volume' | 'charge' | '1rm'
 let addCat        = firstSession();
 let addDate       = new Date().toISOString().slice(0, 10);
 let addSets       = {};
 let editSessionId = null;
 let sessionNotes  = '';
 let addNotes      = '';
+let addExModal    = false;
+let addExName     = '';
+let addExSets     = 3;
 let audioCtx      = null;
 let wakeLock      = null;
 let csModal       = false;  // custom session modal
@@ -336,7 +342,7 @@ function renderDashboard() {
   const cards = keys.map(cat => {
     const meta      = sessionMeta(cat);
     const last      = prog().timers[cat];
-    const deadline  = last ? last + 72 * 3600_000 : 0;
+    const deadline  = last ? last + data.cooldownHours * 3600_000 : 0;
     const remaining = deadline - Date.now();
     const ready     = !last || remaining <= 0;
     const exCount   = (prog().exercises[cat] || []).length;
@@ -359,6 +365,7 @@ function renderDashboard() {
                 ${ready ? '' : 'disabled'}>
           ${ready ? 'Démarrer la séance' : 'En récupération'}
         </button>
+        ${!ready ? `<button class="btn btn--ghost btn--full btn--skip" data-action="skip-cooldown" data-cat="${cat}">Passer le délai</button>` : ''}
       </div>`;
   }).join('');
 
@@ -403,6 +410,14 @@ function renderDashboard() {
         <button class="link-btn" data-action="import">Importer</button>
         <button class="link-btn" data-action="force-update">↻ Mettre à jour</button>
       </div>
+      <div class="cooldown-setting">
+        <span class="cooldown-setting__label">Délai entre séances</span>
+        <div class="cooldown-setting__controls">
+          <button class="cooldown-btn" data-action="cooldown-dec" title="Diminuer">−</button>
+          <span class="cooldown-setting__value" id="cooldown-display">${data.cooldownHours}h</span>
+          <button class="cooldown-btn" data-action="cooldown-inc" title="Augmenter">+</button>
+        </div>
+      </div>
     </div>`;
 }
 
@@ -417,7 +432,7 @@ function startTicker() {
       if (!el) return;
       const last = prog().timers[cat];
       if (!last) return;
-      const rem = (last + 72 * 3600_000) - Date.now();
+      const rem = (last + data.cooldownHours * 3600_000) - Date.now();
       if (rem <= 0) {
         el.textContent = 'Prête !';
         el.className = 'card__timer timer--ready';
@@ -662,6 +677,9 @@ function renderSession() {
       </div>
       <div class="session-content">
         ${exHtml}
+        <button class="session-add-ex-btn" data-action="add-session-ex">
+          + Ajouter un exercice
+        </button>
         <div class="session-notes-block">
           <div class="session-notes-label">Notes de séance</div>
           <textarea class="session-notes-input" data-action="session-notes"
@@ -670,7 +688,8 @@ function renderSession() {
       </div>
     </div>
     ${renderRestOverlay()}
-    ${renderRestEditModal()}`;
+    ${renderRestEditModal()}
+    ${addExModal ? renderAddExModal() : ''}`;
 }
 
 function validateSet(ei, si) {
@@ -811,6 +830,28 @@ function renderRestEditModal() {
         <div class="modal__actions">
           <button class="btn btn--secondary" data-action="close-rest-edit">Annuler</button>
           <button class="btn btn--primary"   data-action="save-rest-edit">OK</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderAddExModal() {
+  return `
+    <div class="modal-overlay" data-action="close-add-ex-modal">
+      <div class="modal" style="max-width:320px;" onclick="event.stopPropagation()">
+        <div class="modal__title">Ajouter un exercice</div>
+        <label class="form-label">Nom de l'exercice</label>
+        <input type="text" id="addExNameInput" class="form-input"
+               value="${addExName}" placeholder="Ex : Curl concentré" autocomplete="off">
+        <label class="form-label" style="margin-top:14px">Nombre de séries</label>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+          <button class="sets-adj" data-action="add-ex-dec-sets">−</button>
+          <span style="font-size:20px;font-weight:700;min-width:28px;text-align:center">${addExSets}</span>
+          <button class="sets-adj" data-action="add-ex-inc-sets">+</button>
+        </div>
+        <div class="modal__actions" style="margin-top:20px">
+          <button class="btn btn--secondary" data-action="close-add-ex-modal">Annuler</button>
+          <button class="btn btn--primary"   data-action="save-add-ex-modal">Ajouter</button>
         </div>
       </div>
     </div>`;
@@ -1065,26 +1106,55 @@ function renderStats() {
     (h.programme === data.activeProgramme) || (!h.programme && data.activeProgramme === 'ppl')
   );
 
+  // ── Mode helpers ──────────────────────────────────────
+  function pointMetric(p) {
+    if (statsMode === 'charge') return p.hasWeight ? p.maxLoad : p.totalReps;
+    if (statsMode === '1rm')    return p.best1RM   || (p.hasWeight ? p.maxLoad : p.totalReps);
+    // volume (default)
+    return p.volume;
+  }
+  function metricUnit(isBodyweight) {
+    if (statsMode === 'volume') return isBodyweight ? ' reps' : ' kg';
+    return ' kg';
+  }
+  function fmtMetric(v, isBodyweight) {
+    if (statsMode === 'volume' && !isBodyweight) {
+      return v >= 1000
+        ? (v / 1000).toFixed(1).replace('.', ',') + ' t'
+        : Math.round(v) + ' kg';
+    }
+    if (statsMode === '1rm') return v > 0 ? `~${v} kg` : '—';
+    return Math.round(v) + (isBodyweight ? ' reps' : ' kg');
+  }
+  function modeLabel() {
+    if (statsMode === 'charge') return 'Charge max';
+    if (statsMode === '1rm')    return '1RM estimé';
+    return 'Volume';
+  }
+
   const cards = exercises.map(ex => {
     const points = history
       .filter(s => s.category === statsCat)
       .map(s => {
         const found = s.exercises.find(e => e.name === ex.name);
         if (!found || !found.sets.length) return null;
-        const wts = found.sets.map(s => parseFloat(s.weight) || 0);
-        const rps = found.sets.map(s => parseInt(s.reps)    || 0).filter(r => r > 0);
+        const sets     = found.sets;
+        const wts      = sets.map(s => parseFloat(s.weight) || 0);
+        const rps      = sets.map(s => parseInt(s.reps)     || 0).filter(r => r > 0);
         if (!rps.length) return null;
-        const hasWeight = wts.some(w => w > 0);
-        const avgW = hasWeight
-          ? Math.round((wts.filter(w => w > 0).reduce((a, b) => a + b, 0) / wts.filter(w => w > 0).length) * 10) / 10
+        const hasWeight  = wts.some(w => w > 0);
+        const posWts     = wts.filter(w => w > 0);
+        const avgW       = hasWeight ? Math.round((posWts.reduce((a,b)=>a+b,0)/posWts.length)*10)/10 : 0;
+        const avgR       = Math.round(rps.reduce((a,b)=>a+b,0)/rps.length);
+        const totalReps  = sets.reduce((a,s2)=>a+(parseInt(s2.reps)||0), 0);
+        const volume     = hasWeight
+          ? sets.reduce((a,s2)=>(a+(parseFloat(s2.weight)||0)*(parseInt(s2.reps)||0)), 0)
+          : totalReps;
+        const maxLoad    = hasWeight ? Math.max(...posWts) : 0;
+        const best1RM    = hasWeight
+          ? Math.max(0, ...sets.map(s2 => calc1RM(s2.weight, s2.reps)).filter(v => v !== null))
           : 0;
-        const avgR = Math.round(rps.reduce((a, b) => a + b, 0) / rps.length);
-        return {
-          date: s.date, sets: found.sets, avgW, avgR,
-          minW: hasWeight ? Math.min(...wts.filter(w => w > 0)) : 0,
-          maxW: hasWeight ? Math.max(...wts) : 0,
-          bodyweight: !hasWeight,
-        };
+        return { date: s.date, sets, avgW, avgR, totalReps, volume, maxLoad, best1RM, hasWeight };
       })
       .filter(Boolean)
       .reverse();
@@ -1095,14 +1165,19 @@ function renderStats() {
         <div class="stats-card__empty">Pas encore effectué</div>
       </div>`;
 
+    const isBodyweight  = points.every(p => !p.hasWeight);
     const last          = points[points.length - 1];
-    const isBodyweight  = points.every(p => p.bodyweight);
-    const prW           = isBodyweight ? Math.max(...points.map(p => p.avgR)) : Math.max(...points.map(p => p.maxW));
-    const compareVal    = isBodyweight ? (p => p.avgR) : (p => p.avgW);
-    const progPct       = compareVal(points[0]) > 0
-      ? Math.round(((compareVal(last) - compareVal(points[0])) / compareVal(points[0])) * 100) : 0;
+    const vals          = points.map(pointMetric);
+    const lastVal       = vals[vals.length - 1];
+    const firstVal      = vals[0];
+    const progPct       = firstVal > 0 ? Math.round(((lastVal - firstVal) / firstVal) * 100) : 0;
     const progLabel     = progPct > 0 ? `+${progPct}%` : progPct < 0 ? `${progPct}%` : '—';
     const progColor     = progPct > 0 ? '#22c55e' : progPct < 0 ? '#ef4444' : 'var(--muted)';
+
+    // Best-ever for PR display
+    const prW = isBodyweight
+      ? Math.max(...points.map(p => p.avgR))
+      : Math.max(...points.map(p => p.maxLoad));
 
     const lastSets = last.sets
       .filter(s => s.reps)
@@ -1111,35 +1186,47 @@ function renderStats() {
         return `<span class="last-set">S${i+1} : ${w}${s.reps} reps</span>`;
       }).join('');
 
-    const encoded = encodeURIComponent(JSON.stringify(
-      points.map(p => ({ date: p.date, avgW: p.avgW, avgR: p.avgR, minW: p.minW, maxW: p.maxW, bodyweight: p.bodyweight, sets: p.sets }))
-    ));
+    const encoded = encodeURIComponent(JSON.stringify({
+      vals,
+      dates: points.map(p => p.date),
+      unit: metricUnit(isBodyweight),
+      isVolumeMode: statsMode === 'volume' && !isBodyweight,
+    }));
 
-    const exData   = prog().exercises[statsCat]?.find(e => e.name === ex.name);
-    const vol      = Math.round(points.reduce((a, p) => a + p.sets.reduce((b, s) => b + (parseFloat(s.weight)||0)*(parseInt(s.reps)||0), 0), 0) / points.length);
-    const targetW  = exData?.target;
-    const e1RM     = exData?.est1RM;
+    const exData    = prog().exercises[statsCat]?.find(e => e.name === ex.name);
+    const targetW   = exData?.target;
+    const e1RM      = exData?.est1RM;
     const targetBar = (targetW && !isBodyweight) ? (() => {
-      const pct    = Math.min(100, Math.round((last.maxW / targetW) * 100));
-      const color2 = pct >= 100 ? '#22c55e' : progColor;
+      const pct    = Math.min(100, Math.round((last.maxLoad / targetW) * 100));
+      const c2     = pct >= 100 ? '#22c55e' : progColor;
       return `<div class="target-block">
-        <div class="target-label">Objectif : ${targetW} kg <span style="color:${color2}">${pct >= 100 ? '✓ Atteint !' : pct + '%'}</span></div>
-        <div class="target-bar"><div class="target-bar__fill" style="width:${pct}%;background:${color2}"></div></div>
+        <div class="target-label">Objectif : ${targetW} kg <span style="color:${c2}">${pct >= 100 ? '✓ Atteint !' : pct + '%'}</span></div>
+        <div class="target-bar"><div class="target-bar__fill" style="width:${pct}%;background:${c2}"></div></div>
       </div>`;
     })() : '';
+
+    // Secondary line under main metric
+    let secondaryLine = '';
+    if (statsMode === 'volume') {
+      secondaryLine = isBodyweight
+        ? `<span>${last.sets.filter(s=>s.reps).length} séries · ${last.avgR} reps/série</span>`
+        : `<span>${last.sets.filter(s=>s.reps).length} séries · ${last.avgW} kg moy · ${last.avgR} reps/série</span>`;
+    } else if (statsMode === 'charge') {
+      secondaryLine = `<span>${last.sets.filter(s=>s.reps).length} séries · ${last.avgR} reps/série</span>`;
+    } else {
+      secondaryLine = last.avgW ? `<span>${last.avgW} kg × ${last.avgR} reps (meilleures séries)</span>` : '';
+    }
 
     return `
       <div class="stats-card">
         <div class="stats-card__header">
           <span class="stats-card__name">${ex.name}</span>
           <div class="stats-card__current-block">
-            ${isBodyweight
-              ? `<span class="stats-card__current">${last.avgR} reps</span>
-                 <span class="stats-card__avgreps">Poids du corps</span>`
-              : `<span class="stats-card__current">${last.avgW} kg</span>
-                 <span class="stats-card__avgreps">~${last.avgR} reps</span>`}
+            <span class="stats-card__current">${fmtMetric(lastVal, isBodyweight)}</span>
+            <span class="stats-card__mode-label">${modeLabel()}</span>
           </div>
         </div>
+        ${secondaryLine ? `<div class="stats-secondary">${secondaryLine}</div>` : ''}
         ${lastSets ? `<div class="last-sets">${lastSets}</div>` : ''}
         <canvas class="stats-canvas" data-points="${encoded}" data-color="${color}"></canvas>
         ${targetBar}
@@ -1149,13 +1236,29 @@ function renderStats() {
           <span style="color:${progColor};font-weight:700">${progLabel}</span>
           <span>${points.length} séance${points.length > 1 ? 's' : ''}</span>
         </div>
-        ${vol > 0 ? `<div class="stats-volume">Volume moy/séance : ${fmtVolume(vol)}</div>` : ''}
       </div>`;
   }).join('');
 
   const hasData = exercises.some(ex =>
     history.some(s => s.category === statsCat && s.exercises?.find(e => e.name === ex.name))
   );
+
+  const modeDescs = {
+    volume: 'Total soulevé par séance (séries × reps × kg)',
+    charge: 'Poids le plus lourd soulevé dans la séance',
+    '1rm':  'Force max estimée depuis la meilleure série',
+  };
+  const modeBar = `
+    <div class="stats-mode-bar">
+      <div class="stats-mode-btns">
+        ${['volume','charge','1rm'].map(m => `
+          <button class="stats-mode-btn ${statsMode===m?'stats-mode-btn--active':''}"
+                  data-action="stats-mode" data-mode="${m}">
+            ${m==='volume'?'Volume':m==='charge'?'Charge max':'1RM ~'}
+          </button>`).join('')}
+      </div>
+      <div class="stats-mode-desc">${modeDescs[statsMode]}</div>
+    </div>`;
 
   return `
     <div class="view stats">
@@ -1169,6 +1272,7 @@ function renderStats() {
         <div style="width:40px"></div>
       </header>
       ${keys.length ? `<div class="tabs">${tabs}</div>` : ''}
+      ${modeBar}
       <div class="stats-list">
         ${hasData ? cards : `
           <div class="empty-state">
@@ -1182,11 +1286,12 @@ function renderStats() {
 
 function drawCharts() {
   document.querySelectorAll('.stats-canvas').forEach(canvas => {
-    const points = JSON.parse(decodeURIComponent(canvas.dataset.points));
-    const color  = canvas.dataset.color;
+    const { vals, dates, unit, isVolumeMode } = JSON.parse(decodeURIComponent(canvas.dataset.points));
+    const color = canvas.dataset.color;
+    if (!vals || !vals.length) return;
 
     const W   = canvas.parentElement.clientWidth - 32;
-    const H   = 110;
+    const H   = 120;
     const dpr = window.devicePixelRatio || 1;
 
     canvas.width        = W * dpr;
@@ -1196,101 +1301,99 @@ function drawCharts() {
 
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
-    if (!points.length) return;
 
-    const isBodyweight = points.every(p => p.bodyweight);
-    const avgs = points.map(p => isBodyweight ? p.avgR : p.avgW);
-    const mins = points.map(p => isBodyweight ? p.avgR : p.minW);
-    const maxs = points.map(p => isBodyweight ? p.avgR : p.maxW);
-
-    const dataMin = Math.min(...mins) * 0.92;
-    const dataMax = Math.max(...maxs) * 1.08;
+    const n       = vals.length;
+    const dataMin = Math.min(...vals) * 0.88;
+    const dataMax = Math.max(...vals) * 1.10;
     const range   = (dataMax - dataMin) || 1;
 
-    const pT = 12, pB = 24, pL = 6, pR = 6;
+    const pT = 14, pB = 26, pL = 6, pR = 6;
     const cW = W - pL - pR;
     const cH = H - pT - pB;
 
-    const xp = i => pL + (points.length === 1 ? cW / 2 : (i / (points.length - 1)) * cW);
-    const yp = w => pT + cH - ((w - dataMin) / range) * cH;
+    const xp = i => pL + (n === 1 ? cW / 2 : (i / (n - 1)) * cW);
+    const yp = v => pT + cH - ((v - dataMin) / range) * cH;
 
-    ctx.beginPath();
-    ctx.moveTo(xp(0), yp(mins[0]));
-    for (let i = 1; i < points.length; i++) {
-      const mx = (xp(i-1) + xp(i)) / 2;
-      ctx.bezierCurveTo(mx, yp(mins[i-1]), mx, yp(mins[i]), xp(i), yp(mins[i]));
-    }
-    for (let i = points.length - 1; i >= 0; i--) {
-      const mx = i > 0 ? (xp(i-1) + xp(i)) / 2 : xp(i);
-      if (i === points.length - 1) ctx.lineTo(xp(i), yp(maxs[i]));
-      else ctx.bezierCurveTo(mx + (xp(i+1)-xp(i))/2, yp(maxs[i+1]), mx, yp(maxs[i]), xp(i), yp(maxs[i]));
-    }
-    ctx.closePath();
-    ctx.fillStyle = color + '18';
-    ctx.fill();
-
+    // Gradient fill under line
     const grad = ctx.createLinearGradient(0, pT, 0, pT + cH);
-    grad.addColorStop(0, color + '35');
+    grad.addColorStop(0, color + '40');
     grad.addColorStop(1, color + '00');
 
     ctx.beginPath();
     ctx.moveTo(xp(0), pT + cH);
-    ctx.lineTo(xp(0), yp(avgs[0]));
-    for (let i = 1; i < avgs.length; i++) {
+    ctx.lineTo(xp(0), yp(vals[0]));
+    for (let i = 1; i < n; i++) {
       const mx = (xp(i-1) + xp(i)) / 2;
-      ctx.bezierCurveTo(mx, yp(avgs[i-1]), mx, yp(avgs[i]), xp(i), yp(avgs[i]));
+      ctx.bezierCurveTo(mx, yp(vals[i-1]), mx, yp(vals[i]), xp(i), yp(vals[i]));
     }
-    ctx.lineTo(xp(avgs.length - 1), pT + cH);
+    ctx.lineTo(xp(n-1), pT + cH);
     ctx.closePath();
     ctx.fillStyle = grad;
     ctx.fill();
 
+    // Main line
     ctx.beginPath();
-    ctx.moveTo(xp(0), yp(avgs[0]));
-    for (let i = 1; i < avgs.length; i++) {
+    ctx.moveTo(xp(0), yp(vals[0]));
+    for (let i = 1; i < n; i++) {
       const mx = (xp(i-1) + xp(i)) / 2;
-      ctx.bezierCurveTo(mx, yp(avgs[i-1]), mx, yp(avgs[i]), xp(i), yp(avgs[i]));
+      ctx.bezierCurveTo(mx, yp(vals[i-1]), mx, yp(vals[i]), xp(i), yp(vals[i]));
     }
     ctx.strokeStyle = color;
     ctx.lineWidth   = 2.5;
     ctx.lineJoin    = 'round';
     ctx.stroke();
 
-    avgs.forEach((w, i) => {
-      const isLast = i === avgs.length - 1;
+    // Dots
+    vals.forEach((v, i) => {
+      const isLast = i === n - 1;
+      const isPeak = v === Math.max(...vals) && i > 0;
       ctx.beginPath();
-      ctx.arc(xp(i), yp(w), isLast ? 5 : 3, 0, Math.PI * 2);
-      ctx.fillStyle   = isLast ? color : '#141414';
+      ctx.arc(xp(i), yp(v), isLast ? 5 : isPeak ? 4 : 3, 0, Math.PI * 2);
+      ctx.fillStyle   = (isLast || isPeak) ? color : '#181818';
       ctx.strokeStyle = color;
-      ctx.lineWidth   = 2;
+      ctx.lineWidth   = 1.8;
       ctx.fill();
       ctx.stroke();
     });
 
-    const li = avgs.length - 1;
-    ctx.fillStyle = color;
-    ctx.font      = 'bold 11px -apple-system, sans-serif';
-    ctx.textAlign = xp(li) > W - 40 ? 'right' : 'left';
-    const labelX  = xp(li) + (xp(li) > W - 40 ? -8 : 8);
-    const unit    = isBodyweight ? ' reps' : ' kg';
-    ctx.fillText(`${avgs[li]}${unit}`, labelX, yp(avgs[li]) - 6);
+    // Value label on last point
+    const li    = n - 1;
+    const lv    = vals[li];
+    const trend = n > 1 && vals[li] >= vals[li - 1] ? '▲' : n > 1 ? '▼' : '';
+    const trendColor = n > 1 ? (vals[li] >= vals[li-1] ? '#22c55e' : '#ef4444') : color;
 
+    let labelTxt;
+    if (isVolumeMode) {
+      labelTxt = lv >= 1000
+        ? (lv / 1000).toFixed(1).replace('.', ',') + 't'
+        : Math.round(lv) + unit;
+    } else {
+      labelTxt = Math.round(lv * 10) / 10 + unit;
+    }
+
+    ctx.font      = 'bold 11px -apple-system, sans-serif';
+    ctx.textAlign = xp(li) > W - 50 ? 'right' : 'left';
+    const lx      = xp(li) + (xp(li) > W - 50 ? -8 : 8);
+    const ly      = yp(lv) - 7;
+
+    ctx.fillStyle = trendColor;
+    ctx.fillText(trend, xp(li) + (xp(li) > W - 50 ? -8 - ctx.measureText(labelTxt).width - 4 : 8 + ctx.measureText(labelTxt).width + 4), ly);
+    ctx.fillStyle = color;
+    ctx.fillText(labelTxt, lx, ly);
+
+    // Date labels on X axis
     ctx.fillStyle = '#555';
     ctx.font      = '10px -apple-system, sans-serif';
     ctx.textAlign = 'center';
 
-    const n       = points.length;
-    const indices = new Set([0, n - 1]);
+    const shown   = new Set([0, n - 1]);
     if (n > 2) {
       const step = Math.ceil((n - 1) / 4);
-      for (let i = step; i < n - 1; i += step) indices.add(i);
+      for (let i = step; i < n - 1; i += step) shown.add(i);
     }
-
-    indices.forEach(i => {
-      const d     = new Date(points[i].date);
-      const label = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
-      const tx    = Math.max(20, Math.min(W - 20, xp(i)));
-      ctx.fillText(label, tx, H - 5);
+    shown.forEach(i => {
+      const label = new Date(dates[i]).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
+      ctx.fillText(label, Math.max(20, Math.min(W - 20, xp(i))), H - 5);
     });
   });
 }
@@ -1412,6 +1515,9 @@ document.addEventListener('click', e => {
     case 'stats-tab': {
       statsCat = el.dataset.cat; render(); break;
     }
+    case 'stats-mode': {
+      statsMode = el.dataset.mode; render(); break;
+    }
     case 'go-add-session': {
       addCat        = firstSession();
       addDate       = new Date().toISOString().slice(0, 10);
@@ -1452,6 +1558,32 @@ document.addEventListener('click', e => {
         });
       } else {
         window.location.reload(true);
+      }
+      break;
+    }
+    case 'cooldown-dec': {
+      if (data.cooldownHours > 1) {
+        data.cooldownHours = Math.max(1, data.cooldownHours - 1);
+        save();
+        const disp = document.getElementById('cooldown-display');
+        if (disp) disp.textContent = `${data.cooldownHours}h`;
+        render();
+      }
+      break;
+    }
+    case 'cooldown-inc': {
+      data.cooldownHours = Math.min(168, data.cooldownHours + 1);
+      save();
+      const disp = document.getElementById('cooldown-display');
+      if (disp) disp.textContent = `${data.cooldownHours}h`;
+      render();
+      break;
+    }
+    case 'skip-cooldown': {
+      const cat = el.dataset.cat;
+      if (cat && prog().timers[cat]) {
+        prog().timers[cat] = null;
+        save(); render();
       }
       break;
     }
@@ -1682,6 +1814,45 @@ document.addEventListener('click', e => {
       } else {
         showToast('Entre une durée entre 10 et 600 secondes');
       }
+      break;
+    }
+    case 'add-session-ex': {
+      addExModal = true; addExName = ''; addExSets = 3; render();
+      setTimeout(() => document.getElementById('addExNameInput')?.focus(), 80);
+      break;
+    }
+    case 'close-add-ex-modal': {
+      addExModal = false; render(); break;
+    }
+    case 'add-ex-dec-sets': {
+      const inp = document.getElementById('addExNameInput');
+      if (inp) addExName = inp.value;
+      addExSets = Math.max(1, addExSets - 1); render();
+      setTimeout(() => document.getElementById('addExNameInput')?.focus(), 80);
+      break;
+    }
+    case 'add-ex-inc-sets': {
+      const inp = document.getElementById('addExNameInput');
+      if (inp) addExName = inp.value;
+      addExSets = Math.min(10, addExSets + 1); render();
+      setTimeout(() => document.getElementById('addExNameInput')?.focus(), 80);
+      break;
+    }
+    case 'save-add-ex-modal': {
+      const inp = document.getElementById('addExNameInput');
+      const name = (inp?.value || addExName).trim();
+      if (!name) { showToast('Entre un nom pour l\'exercice'); break; }
+      activeSession.exercises.push({
+        exId: null,
+        name,
+        sets: Array.from({ length: addExSets }, () => ({ weight: '', reps: '', done: false })),
+      });
+      addExModal = false; addExName = ''; render();
+      // Scroll to the new exercise
+      setTimeout(() => {
+        const blocks = document.querySelectorAll('.exercise-block');
+        blocks[blocks.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
       break;
     }
     case 'finish-session': {
