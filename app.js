@@ -294,6 +294,13 @@ function historyColor(h) {
 //  State
 // ═══════════════════════════════════════════════════════════
 
+// ── Theme ────────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.body.classList.toggle('light', theme === 'light');
+  localStorage.setItem('ppl_theme', theme);
+}
+applyTheme(localStorage.getItem('ppl_theme') || 'dark');
+
 let data          = loadData();
 let view          = 'dashboard';
 let editorCat     = firstSession();
@@ -453,6 +460,9 @@ function renderDashboard() {
         </button>
         ${computeStreak() > 0 ? `<div class="streak-badge" title="Semaines consécutives actives">🔥 ${computeStreak()} sem.</div>` : ''}
         <div style="display:flex;gap:4px">
+          <button class="icon-btn" data-action="toggle-theme" title="Changer le thème">
+            ${document.body.classList.contains('light') ? '🌙' : '☀️'}
+          </button>
           <button class="icon-btn" data-action="go-stats" title="Progression">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -1765,6 +1775,10 @@ document.addEventListener('click', e => {
       data.history = (data.history || []).filter(h => h.id !== el.dataset.id);
       syncTimersFromHistory();
       save(); render(); break;
+    }
+    case 'toggle-theme': {
+      const next = document.body.classList.contains('light') ? 'dark' : 'light';
+      applyTheme(next); render(); break;
     }
     case 'force-update': {
       if ('serviceWorker' in navigator) {
