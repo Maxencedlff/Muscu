@@ -303,6 +303,12 @@ body {
   white-space: nowrap;
 }
 .rest-btn:active { background: var(--border); color: var(--text); }
+.edit-set-btn {
+  background: none; border: none; color: var(--muted); font-size: 14px;
+  padding: 6px 8px; cursor: pointer; flex-shrink: 0; opacity: .6;
+  border-radius: 6px;
+}
+.edit-set-btn:active { opacity: 1; background: var(--surface2); }
 
 /* ═══════════════════════════════════════════════
    Rest overlay

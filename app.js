@@ -350,6 +350,7 @@ let restActive    = false;
 let restMinimized = false;
 let modalOpen     = false;
 let restEditEi    = null;
+let editSetModal  = null; // { ei, si } — édition d'une série validée
 let editExIdx     = null;
 let statsCat      = firstSession();
 let statsMode     = 'volume';   // 'volume' | 'charge' | '1rm'
@@ -731,6 +732,7 @@ function renderSession() {
             <span class="set-val">${weightLabel}${s.reps} reps</span>
             ${isNewPR ? '<span class="pr-badge">PR !</span>' : ''}
             <button class="rest-btn" data-action="start-rest" data-ei="${ei}">⏱ Repos</button>
+            <button class="edit-set-btn" data-action="edit-set" data-ei="${ei}" data-si="${si}" title="Modifier">✏</button>
           </div>`;
       }
 
@@ -816,6 +818,7 @@ function renderSession() {
     </div>
     ${renderRestOverlay()}
     ${renderRestEditModal()}
+    ${renderEditSetModal()}
     ${addExModal ? renderAddExModal() : ''}`;
 }
 
@@ -957,6 +960,30 @@ function renderRestEditModal() {
         <div class="modal__actions">
           <button class="btn btn--secondary" data-action="close-rest-edit">Annuler</button>
           <button class="btn btn--primary"   data-action="save-rest-edit">OK</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderEditSetModal() {
+  if (!editSetModal) return '';
+  const { ei, si } = editSetModal;
+  const ex = activeSession?.exercises[ei];
+  const s  = ex?.sets[si];
+  if (!s) return '';
+  return `
+    <div class="modal-overlay">
+      <div class="modal" style="max-width:320px;">
+        <div class="modal__title">Modifier — ${ex.name} S${si + 1}</div>
+        <label class="form-label">Charge (${unitLbl()})</label>
+        <input type="number" inputmode="decimal" id="editSetWeight" class="form-input"
+               value="${dispW(s.weight)}" placeholder="—">
+        <label class="form-label">Répétitions</label>
+        <input type="number" inputmode="numeric" id="editSetReps" class="form-input"
+               value="${s.reps}" min="1" placeholder="0">
+        <div class="modal__actions">
+          <button class="btn btn--secondary" data-action="close-edit-set">Annuler</button>
+          <button class="btn btn--primary"   data-action="save-edit-set">Enregistrer</button>
         </div>
       </div>
     </div>`;
@@ -2120,6 +2147,44 @@ document.addEventListener('click', e => {
     // ── Session ─────────────────────────────────────────────
     case 'validate-set': {
       validateSet(parseInt(el.dataset.ei), parseInt(el.dataset.si));
+      break;
+    }
+    case 'edit-set': {
+      editSetModal = { ei: parseInt(el.dataset.ei), si: parseInt(el.dataset.si) };
+      render();
+      setTimeout(() => { $('#editSetReps')?.focus(); $('#editSetReps')?.select(); }, 50);
+      break;
+    }
+    case 'close-edit-set': {
+      editSetModal = null; render(); break;
+    }
+    case 'save-edit-set': {
+      if (!editSetModal) break;
+      const { ei: eei, si: esi } = editSetModal;
+      const ex  = activeSession.exercises[eei];
+      const s   = ex.sets[esi];
+      const rawW = $('#editSetWeight')?.value ?? '';
+      const rawR = $('#editSetReps')?.value   ?? '';
+      if (!rawR) { showToast('Entre le nombre de reps !'); break; }
+      s.weight = storeW(rawW);
+      s.reps   = parseInt(rawR) || s.reps;
+      const cat    = activeSession.category;
+      const exData = prog().exercises[cat]?.find(e => e.id === ex.exId);
+      if (exData) {
+        const lastDone = ex.sets.filter(s => s.done).at(-1);
+        if (lastDone) { exData.lastWeight = lastDone.weight; exData.lastReps = lastDone.reps; }
+        const w  = parseFloat(s.weight) || 0;
+        const r  = parseInt(s.reps)     || 0;
+        const pw = parseFloat(exData.pr?.weight) || 0;
+        const pr = parseInt(exData.pr?.reps)     || 0;
+        if (w > pw || (w === pw && r > pr)) exData.pr = { weight: s.weight, reps: s.reps };
+        const new1RM = calc1RM(s.weight, s.reps);
+        if (new1RM && (!exData.est1RM || new1RM > exData.est1RM)) exData.est1RM = new1RM;
+      }
+      save();
+      editSetModal = null;
+      render();
+      showToast('Série modifiée');
       break;
     }
     case 'start-rest': {
