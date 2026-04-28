@@ -139,6 +139,34 @@ function calc1RM(weight, reps) {
   return Math.round(w * (1 + r / 30) * 10) / 10;
 }
 
+function recomputePRFromHistory() {
+  Object.entries(data.programmes).forEach(([progKey, prog]) => {
+    Object.entries(prog.exercises).forEach(([cat, exercises]) => {
+      exercises.forEach(ex => { ex.pr = null; ex.est1RM = null; ex.lastWeight = ''; ex.lastReps = ''; });
+      const sessions = (data.history || [])
+        .filter(h => (h.programme === progKey || (!h.programme && progKey === 'ppl')) && h.category === cat)
+        .sort((a, b) => a.date - b.date);
+      sessions.forEach(session => {
+        session.exercises.forEach(histEx => {
+          const exData = exercises.find(e => e.name === histEx.name);
+          if (!exData) return;
+          (histEx.sets || []).forEach(s => {
+            const w  = parseFloat(s.weight) || 0;
+            const r  = parseInt(s.reps)     || 0;
+            exData.lastWeight = s.weight;
+            exData.lastReps   = s.reps;
+            const pw = parseFloat(exData.pr?.weight) || 0;
+            const pr = parseInt(exData.pr?.reps)     || 0;
+            if (w > pw || (w === pw && r > pr)) exData.pr = { weight: s.weight, reps: s.reps };
+            const new1RM = calc1RM(s.weight, s.reps);
+            if (new1RM && (!exData.est1RM || new1RM > exData.est1RM)) exData.est1RM = new1RM;
+          });
+        });
+      });
+    });
+  });
+}
+
 
 function sessionVolume(exercises) {
   return exercises.reduce((total, ex) =>
@@ -339,6 +367,7 @@ function applyTheme(theme) {
 applyTheme(localStorage.getItem('ppl_theme') || 'dark');
 
 let data          = loadData();
+if (!data._prRecomputed) { recomputePRFromHistory(); data._prRecomputed = true; save(); }
 let view          = 'dashboard';
 let editorCat     = firstSession();
 let activeSession = null;
@@ -1920,6 +1949,7 @@ document.addEventListener('click', e => {
       if (!confirm('Supprimer cette séance ?')) break;
       data.history = (data.history || []).filter(h => h.id !== el.dataset.id);
       syncTimersFromHistory();
+      recomputePRFromHistory();
       save(); render(); break;
     }
     case 'go-settings': {
@@ -2410,6 +2440,7 @@ document.addEventListener('click', e => {
               showToast('Fichier invalide');
               return;
             }
+            recomputePRFromHistory();
             if (d._theme) applyTheme(d._theme);
             save(); render(); showToast('Import réussi !');
           } catch { showToast('Erreur import'); }
