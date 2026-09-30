@@ -389,6 +389,7 @@ let statsMonth    = null;       // null = vue annuelle
 let addCat        = firstSession();
 let addDate       = new Date().toISOString().slice(0, 10);
 let addSets       = {};
+let addExtras     = [];  // exercices hors programme dans une séance passée : { key, name }
 let editSessionId = null;
 let sessionNotes  = '';
 let addNotes      = '';
@@ -1018,14 +1019,24 @@ function renderEditSetModal() {
     </div>`;
 }
 
+function knownExerciseNames() {
+  const names = new Set();
+  Object.values(prog().exercises).forEach(list => list.forEach(ex => names.add(ex.name)));
+  (data.history || []).forEach(h => (h.exercises || []).forEach(ex => names.add(ex.name)));
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
+
 function renderAddExModal() {
   return `
-    <div class="modal-overlay" data-action="close-add-ex-modal">
-      <div class="modal" style="max-width:320px;" onclick="event.stopPropagation()">
+    <div class="modal-overlay" data-action="add-ex-overlay">
+      <div class="modal" style="max-width:320px;">
         <div class="modal__title">Ajouter un exercice</div>
         <label class="form-label">Nom de l'exercice</label>
-        <input type="text" id="addExNameInput" class="form-input"
+        <input type="text" id="addExNameInput" class="form-input" list="knownExList"
                value="${addExName}" placeholder="Ex : Curl concentré" autocomplete="off">
+        <datalist id="knownExList">
+          ${knownExerciseNames().map(n => `<option value="${n.replace(/"/g, '&quot;')}">`).join('')}
+        </datalist>
         <label class="form-label" style="margin-top:14px">Nombre de séries</label>
         <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
           <button class="sets-adj" data-action="add-ex-dec-sets">−</button>
@@ -1178,7 +1189,8 @@ function renderModal() {
 // ═══════════════════════════════════════════════════════════
 
 function initAddSets(cat) {
-  addSets = {};
+  addSets   = {};
+  addExtras = [];
   (prog().exercises[cat] || []).forEach(ex => {
     addSets[ex.id] = Array.from({ length: ex.sets }, () => ({
       weight: ex.lastWeight || '',
@@ -1234,6 +1246,38 @@ function renderAddSession() {
       </div>`;
   }).join('');
 
+  const extrasHtml = addExtras.map(({ key, name }) => {
+    const sets = addSets[key] || [];
+    const setsHtml = sets.map((s, si) => `
+      <div class="set-row set-row--active">
+        <span class="set-num">S${si + 1}</span>
+        <div class="input-group">
+          <input type="number" inputmode="decimal" class="set-input" placeholder="—"
+                 value="${dispW(s.weight)}" data-action="add-weight" data-exid="${key}" data-si="${si}">
+          <span class="input-unit">${unitLbl()}</span>
+        </div>
+        <div class="input-group">
+          <input type="number" inputmode="numeric" class="set-input set-input--required" placeholder="0"
+                 value="${s.reps}" data-action="add-reps" data-exid="${key}" data-si="${si}">
+          <span class="input-unit">reps</span>
+        </div>
+      </div>`).join('');
+
+    return `
+      <div class="exercise-block">
+        <div class="exercise-header">
+          <span class="exercise-name">${name}</span>
+          <div style="display:flex;gap:6px">
+            <button class="sets-adj" data-action="add-set-row" data-exid="${key}">+</button>
+            <button class="sets-adj" data-action="rem-set-row" data-exid="${key}"
+                    ${sets.length <= 1 ? 'disabled' : ''} style="opacity:${sets.length <= 1 ? .3 : 1}">−</button>
+            <button class="sets-adj" data-action="rem-extra-ex" data-exid="${key}" title="Retirer">✕</button>
+          </div>
+        </div>
+        ${setsHtml}
+      </div>`;
+  }).join('');
+
   return `
     <div class="view add-session">
       <header class="header">
@@ -1255,13 +1299,18 @@ function renderAddSession() {
       </div>
       <div class="add-session-content">
         ${exHtml}
+        ${extrasHtml}
+        <button class="session-add-ex-btn" data-action="add-session-ex">
+          + Ajouter un exercice
+        </button>
         <div class="session-notes-block">
           <div class="session-notes-label">Notes</div>
           <textarea class="session-notes-input" data-action="add-notes-input"
                     placeholder="Comment s'est passée la séance ? (optionnel)">${addNotes}</textarea>
         </div>
       </div>
-    </div>`;
+    </div>
+    ${addExModal ? renderAddExModal() : ''}`;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1940,7 +1989,11 @@ document.addEventListener('click', e => {
       initAddSets(addCat);
       session.exercises.forEach(ex => {
         const exData = (prog().exercises[addCat] || []).find(e => e.name === ex.name);
-        if (exData) addSets[exData.id] = ex.sets.map(s => ({ weight: s.weight, reps: s.reps }));
+        const sets   = ex.sets.map(s => ({ weight: s.weight, reps: s.reps }));
+        if (exData) { addSets[exData.id] = sets; return; }
+        const key = 'x_' + uid();
+        addExtras.push({ key, name: ex.name });
+        addSets[key] = sets.length ? sets : [{ weight: '', reps: '' }];
       });
       addNotes = session.notes || '';
       view = 'add-session'; render(); break;
@@ -2007,7 +2060,9 @@ document.addEventListener('click', e => {
     }
     case 'add-cat': {
       addCat = el.dataset.cat;
+      const extras = addExtras.map(x => ({ ...x, sets: addSets[x.key] }));
       initAddSets(addCat);
+      extras.forEach(({ key, name, sets }) => { addExtras.push({ key, name }); addSets[key] = sets; });
       render(); break;
     }
     case 'add-date': { addDate = el.value; break; }
@@ -2015,6 +2070,12 @@ document.addEventListener('click', e => {
       const exid = el.dataset.exid;
       if (!addSets[exid]) addSets[exid] = [];
       addSets[exid].push({ weight: '', reps: '' });
+      render(); break;
+    }
+    case 'rem-extra-ex': {
+      const exid = el.dataset.exid;
+      addExtras = addExtras.filter(x => x.key !== exid);
+      delete addSets[exid];
       render(); break;
     }
     case 'rem-set-row': {
@@ -2035,6 +2096,10 @@ document.addEventListener('click', e => {
           return { name: ex.name, sets };
         })
         .filter(Boolean);
+      addExtras.forEach(({ key, name }) => {
+        const sets = (addSets[key] || []).filter(s => s.reps);
+        if (sets.length) sessionExercises.push({ name, sets });
+      });
 
       if (!sessionExercises.length) { showToast('Entre au moins un exercice avec poids et reps !'); return; }
 
@@ -2044,7 +2109,12 @@ document.addEventListener('click', e => {
       if (!data.history) data.history = [];
       if (editSessionId) {
         const idx = data.history.findIndex(h => h.id === editSessionId);
-        if (idx !== -1) data.history[idx] = { id: editSessionId, programme: data.activeProgramme, category: addCat, date: timestamp, exercises: sessionExercises };
+        if (idx !== -1) {
+          const old = data.history[idx];
+          // Même jour : on garde l'heure d'origine
+          const sameDay = new Date(old.date).toISOString().slice(0, 10) === addDate;
+          data.history[idx] = { ...old, programme: data.activeProgramme, category: addCat, date: sameDay ? old.date : timestamp, notes: addNotes.trim(), exercises: sessionExercises };
+        }
       } else {
         data.history.push({ id: uid(), programme: data.activeProgramme, category: addCat, date: timestamp, notes: addNotes.trim(), exercises: sessionExercises });
         addNotes = '';
@@ -2057,6 +2127,7 @@ document.addEventListener('click', e => {
         .reduce((best, h) => h.date > (best?.date || 0) ? h : best, null);
       if (latestForCat) prog().timers[addCat] = latestForCat.date;
 
+      recomputePRFromHistory();
       save();
       showToast('Séance ajoutée !');
       view = 'history'; render(); startTicker(); break;
@@ -2278,6 +2349,10 @@ document.addEventListener('click', e => {
       setTimeout(() => document.getElementById('addExNameInput')?.focus(), 80);
       break;
     }
+    case 'add-ex-overlay': {
+      if (e.target !== el) break; // clic dans la modale, pas sur le fond
+      addExModal = false; render(); break;
+    }
     case 'close-add-ex-modal': {
       addExModal = false; render(); break;
     }
@@ -2299,6 +2374,17 @@ document.addEventListener('click', e => {
       const inp = document.getElementById('addExNameInput');
       const name = (inp?.value || addExName).trim();
       if (!name) { showToast('Entre un nom pour l\'exercice'); break; }
+      if (view === 'add-session') {
+        const key = 'x_' + uid();
+        addExtras.push({ key, name });
+        addSets[key] = Array.from({ length: addExSets }, () => ({ weight: '', reps: '' }));
+        addExModal = false; addExName = ''; render();
+        setTimeout(() => {
+          const blocks = document.querySelectorAll('.exercise-block');
+          blocks[blocks.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+        break;
+      }
       activeSession.exercises.push({
         exId: null,
         name,
