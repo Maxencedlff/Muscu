@@ -10,12 +10,17 @@
   },
   "plugins": {
     "SplashScreen": {
-      "launchAutoHide": false,
+      "launchAutoHide": true,
+      "launchShowDuration": 2000,
+      "launchFadeOutDuration": 200,
       "backgroundColor": "#000000",
       "showSpinner": false
     },
     "LocalNotifications": {
-      "presentationOptions": ["alert", "sound"]
+      "presentationOptions": [
+        "alert",
+        "sound"
+      ]
     }
   }
 }

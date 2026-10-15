@@ -9,7 +9,8 @@
 
 const Native = (() => {
   const cap      = window.Capacitor;
-  const isNative = !!cap?.isNativePlatform?.();
+  // Sans le runtime JS de Capacitor (registerPlugin), l'app se comporte comme la version web
+  const isNative = !!cap?.isNativePlatform?.() && typeof cap.registerPlugin === 'function';
   const plugin   = name => (isNative ? cap.registerPlugin(name) : null);
 
   const Haptics            = plugin('Haptics');

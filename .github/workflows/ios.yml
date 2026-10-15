@@ -69,6 +69,10 @@ jobs:
           xcrun simctl ui "$DEVICE" appearance light
           sleep 4
           xcrun simctl io "$DEVICE" screenshot shots/2-theme-clair.png
+          # Journal de l'app (console JavaScript relayée par Capacitor en Debug) : erreurs au démarrage
+          xcrun simctl spawn "$DEVICE" log show --last 3m --style compact \
+            --predicate 'process == "App"' > shots/journal-app.txt 2>&1 || true
+          grep -iE 'error|exception|⚡' shots/journal-app.txt | head -40 || true
           # L'app doit encore tourner (pas de plantage au démarrage)
           xcrun simctl spawn "$DEVICE" launchctl list | grep -q "$BUNDLE" && echo "L'app tourne"
 

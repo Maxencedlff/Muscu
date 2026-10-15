@@ -17,6 +17,18 @@ for (const entry of ENTRIES) {
   fs.cpSync(src, path.join(OUT, entry), { recursive: true });
 }
 
+// Runtime JavaScript de Capacitor (registerPlugin…) : la coquille iOS n'injecte que le canal natif.
+// Embarqué seulement dans l'app, chargé avant le pont natif (js/platform/native.js).
+const CORE = path.join(ROOT, 'node_modules', '@capacitor', 'core', 'dist', 'capacitor.js');
+if (!fs.existsSync(CORE)) throw new Error('@capacitor/core absent : lancer npm ci');
+fs.mkdirSync(path.join(OUT, 'js', 'vendor'), { recursive: true });
+fs.copyFileSync(CORE, path.join(OUT, 'js', 'vendor', 'capacitor.js'));
+const NATIVE_TAG = '<script src="js/platform/native.js"></script>';
+let index = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
+if (!index.includes(NATIVE_TAG)) throw new Error('index.html ne charge plus js/platform/native.js');
+index = index.replace(NATIVE_TAG, '<script src="js/vendor/capacitor.js"></script>\n  ' + NATIVE_TAG);
+fs.writeFileSync(path.join(OUT, 'index.html'), index);
+
 // Chaque script chargé par index.html doit être présent dans dist/
 const html = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
 const refs = [...html.matchAll(/(?:src|href)="([^"#:]+\.(?:js|css))"/g)].map(m => m[1]);

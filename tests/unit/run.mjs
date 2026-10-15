@@ -567,6 +567,16 @@ test('native : dans le navigateur, tout est sans effet', () => {
   assert.equal(calls.length, 0);
 });
 
+test('native : coquille iOS sans runtime JS Capacitor → comportement web (jamais bloqué)', () => {
+  const box = { console, localStorage: new MemoryStorage(), setTimeout() {}, clearTimeout() {},
+                Capacitor: { isNativePlatform: () => true } };   // pas de registerPlugin
+  box.window = box;
+  const c = vm.createContext(box);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8') + '\nthis.Native = Native;', c);
+  assert.equal(c.Native.isNative, false);
+  assert.equal(c.Native.haptic(), false);
+});
+
 test('native : copie de sécurité écrite quand des données existaient au démarrage', () => {
   const n = nativeContext({ localData: '{"history":[1]}' });
   n.Native.backup('{"history":[1,2]}');
