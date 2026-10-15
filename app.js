@@ -178,7 +178,7 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
         ${title   ? `<div class="ios-dialog__title" id="${dlgId}-t" tabindex="-1">${esc(title)}</div>` : ''}
         ${message ? `<div class="ios-dialog__msg" id="${dlgId}-m">${esc(message)}</div>` : ''}
         ${input   ? `<div class="ios-dialog__field">
-            <input class="ios-dialog__input" type="number" inputmode="${input.decimal ? 'decimal' : 'numeric'}"
+            <input class="ios-dialog__input" ${input.text ? 'type="text" autocomplete="off" autocapitalize="sentences" maxlength="40"' : `type="number" inputmode="${input.decimal ? 'decimal' : 'numeric'}"`}
                    value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}">
             ${input.unit ? `<span class="ios-dialog__unit">${esc(input.unit)}</span>` : ''}
           </div>` : ''}
@@ -272,6 +272,15 @@ async function askNumber({ title, message, value, unit, min, max, decimal = fals
   const v = decimal ? parseFloat(raw) : parseInt(raw, 10);
   if (isNaN(v) || v < min || v > max) { showToast(`Valeur entre ${min} et ${max}`, { error: true }); return null; }
   return v;
+}
+
+async function askText({ title, message, value = '', placeholder = '', confirm = 'OK' }) {
+  const raw = await dialog({ title, message, input: { value, placeholder, text: true }, actions: [
+    { label: 'Annuler', style: 'cancel' },
+    { label: confirm, style: 'preferred' },
+  ] });
+  const v = (raw ?? '').trim();
+  return v || null;
 }
 
 // Retour haptique : vibrate() sur Android ; sur iOS 18+, basculer un <input switch> déclenche le Taptic Engine
@@ -458,6 +467,7 @@ function makeDefaultData() {
     activeProgramme: 'ppl',
     programmes: { ppl: makeProgData('ppl') },
     customSessions: {},
+    userProgrammes: {},   // { id: { name, sessions: { cat: { label, icon, desc, color } }, archived } }
     defaultRest: 90,
     unit: 'kg',
     soundOn: true,
@@ -473,7 +483,6 @@ const SCHEMA     = 3;
 // sans toucher aux champs valides (idempotent).
 function sanitizeData(d) {
   const isObj = o => o && typeof o === 'object' && !Array.isArray(o);
-  if (!PROGRAMMES[d.activeProgramme]) d.activeProgramme = 'ppl';
   if (!isObj(d.programmes)) d.programmes = {};
   Object.keys(d.programmes).forEach(k => {
     const p = d.programmes[k];
@@ -492,15 +501,29 @@ function sanitizeData(d) {
     });
     Object.keys(p.timers).forEach(cat => { if (p.timers[cat] != null && !Number.isFinite(p.timers[cat])) p.timers[cat] = null; });
   });
+  const cleanSessions = sessions => {
+    Object.keys(sessions).forEach(k => {
+      const cs = sessions[k];
+      if (!isObj(cs)) { delete sessions[k]; return; }
+      if (typeof cs.label !== 'string' || !cs.label.trim()) cs.label = 'Séance';
+      if (typeof cs.icon !== 'string') cs.icon = '🏋️';
+      if (typeof cs.desc !== 'string') cs.desc = '';
+      if (!/^(#[0-9a-f]{6}|var\(--[a-z]+\))$/i.test(cs.color || '')) cs.color = '#8E8E93';
+    });
+  };
   if (!isObj(d.customSessions)) d.customSessions = {};
-  Object.keys(d.customSessions).forEach(k => {
-    const cs = d.customSessions[k];
-    if (!isObj(cs)) { delete d.customSessions[k]; return; }
-    if (typeof cs.label !== 'string' || !cs.label.trim()) cs.label = 'Séance';
-    if (typeof cs.icon !== 'string') cs.icon = '🏋️';
-    if (typeof cs.desc !== 'string') cs.desc = '';
-    if (!/^#[0-9a-f]{6}$/i.test(cs.color || '')) cs.color = '#8E8E93';
+  cleanSessions(d.customSessions);
+  if (!isObj(d.userProgrammes)) d.userProgrammes = {};
+  Object.keys(d.userProgrammes).forEach(k => {
+    const up = d.userProgrammes[k];
+    if (!isObj(up) || !k.startsWith('u_')) { delete d.userProgrammes[k]; return; }
+    if (typeof up.name !== 'string' || !up.name.trim()) up.name = 'Programme';
+    if (!isObj(up.sessions)) up.sessions = {};
+    cleanSessions(up.sessions);
+    up.archived = !!up.archived;
   });
+  const okProg = id => PROGRAMMES[id] || (d.userProgrammes[id] && !d.userProgrammes[id].archived);
+  if (!okProg(d.activeProgramme)) d.activeProgramme = 'ppl';
   const rest = parseInt(d.defaultRest);
   d.defaultRest = rest >= 10 && rest <= 600 ? rest : 90;
   if (d.unit !== 'kg' && d.unit !== 'lbs') d.unit = 'kg';
@@ -530,6 +553,7 @@ function normalizeData(d, rawJson = null) {
   if (!d.programmes)      d.programmes = {};
   if (!d.programmes.ppl)  d.programmes.ppl = makeProgData('ppl');
   if (!d.customSessions)  d.customSessions = {};
+  if (!d.userProgrammes)  d.userProgrammes = {};
   if (!d.defaultRest)     d.defaultRest = 90;
   if (!d.unit)            d.unit = 'kg';
   if (d.soundOn   == null) d.soundOn   = true;
@@ -685,13 +709,28 @@ function getCooldown(cat) {
   return prog().cooldowns[cat] ?? 72;
 }
 
+// Programme modifiable par l'utilisateur : « Perso » (historique) ou un programme créé (id u_…)
+function isUserProg(id) { return id === 'custom' || !!data.userProgrammes?.[id]; }
+
+// Séances d'un programme modifiable (objet modifiable en place), null pour un programme intégré
+function userSessions(id) {
+  if (id === 'custom') return (data.customSessions ||= {});
+  return data.userProgrammes?.[id]?.sessions || null;
+}
+
 function progMeta(id) {
-  return PROGRAMMES[id || data.activeProgramme] || PROGRAMMES.ppl;
+  id = id || data.activeProgramme;
+  const up = data.userProgrammes?.[id];
+  if (up) {
+    const names = Object.values(up.sessions).map(x => x.label).join(' · ');
+    return { name: up.name, desc: names || 'Aucune séance', icon: '', sessions: up.sessions, user: true, archived: up.archived };
+  }
+  return PROGRAMMES[id] || PROGRAMMES.ppl;
 }
 
 function sessionKeys(progId) {
   progId = progId || data.activeProgramme;
-  if (progId === 'custom') return Object.keys(data.customSessions || {});
+  if (isUserProg(progId)) return Object.keys(userSessions(progId) || {});
   return Object.keys(PROGRAMMES[progId]?.sessions || {});
 }
 
@@ -706,8 +745,8 @@ function catBadge(label, color, emoji, size = 28) {
 
 function sessionMeta(cat, progId) {
   progId = progId || data.activeProgramme;
-  if (progId === 'custom') {
-    const cs = data.customSessions[cat];
+  if (isUserProg(progId)) {
+    const cs = userSessions(progId)?.[cat];
     if (!cs) return { label: esc(cat), icon: catBadge(cat, 'var(--label2)'), emoji: '', desc: '', color: '#8E8E93' };
     return { ...cs, label: esc(cs.label), icon: catBadge(cs.label, cs.color, esc(cs.icon)), emoji: esc(cs.icon), desc: esc(cs.desc) };
   }
@@ -719,7 +758,7 @@ function sessionMeta(cat, progId) {
 // Libellé brut (non échappé) pour les textes affichés via textContent
 function rawLabel(cat, progId) {
   progId = progId || data.activeProgramme;
-  if (progId === 'custom') return data.customSessions[cat]?.label || cat;
+  if (isUserProg(progId)) return userSessions(progId)?.[cat]?.label || cat;
   return PROGRAMMES[progId]?.sessions[cat]?.label || cat;
 }
 
@@ -1493,7 +1532,7 @@ function isStandalone() {
 function catDot(cat, progId, size = 28) {
   progId = progId || data.activeProgramme;
   const meta = sessionMeta(cat, progId);
-  return catBadge(rawLabel(cat, progId), meta.color, progId === 'custom' ? meta.emoji : '', size);
+  return catBadge(rawLabel(cat, progId), meta.color, isUserProg(progId) ? meta.emoji : '', size);
 }
 
 // « dans 1 j 18 h », « dans 14 h », « dans 35 min » (jamais de secondes)
@@ -1605,7 +1644,7 @@ function renderDashboard() {
       </button>
     </div>` : '';
 
-  const emptyCustom = data.activeProgramme === 'custom' && keys.length === 0
+  const emptyCustom = isUserProg(data.activeProgramme) && keys.length === 0
     ? `<div class="empty-state">
          <div>Programme vide</div>
          <div class="empty-state__sub">Ajoute des séances dans l'onglet Programme</div>
@@ -1723,18 +1762,22 @@ function renderProgrammes() {
         ${icon('chevron.right', 16)}
       </button>`;
   };
-  const builtin = pid !== 'custom' ? `
+  const user = isUserProg(pid);
+  const sessions = `
       <div class="group-title">Séances</div>
-      <div class="group">${sessionKeys(pid).map(c => cell(c, pid, 'open-prog-session')).join('')}</div>` : '';
-  const customKeys = Object.keys(data.customSessions || {});
-  const customAction = pid === 'custom' ? 'open-prog-session' : 'edit-custom-session';
-  const custom = `
-      <div class="group-title">Séances perso</div>
       <div class="group">
-        ${customKeys.map(c => cell(c, 'custom', customAction)).join('')}
-        <button class="cell cell--action" data-action="add-custom-session">${icon('plus', 20)}<span>Ajouter une séance</span></button>
+        ${sessionKeys(pid).map(c => cell(c, pid, 'open-prog-session')).join('')}
+        ${user ? `<button class="cell cell--action" data-action="add-custom-session">${icon('plus', 20)}<span>Ajouter une séance</span></button>` : ''}
       </div>
-      ${pid !== 'custom' && customKeys.length ? `<div class="group-foot">Choisis le programme Perso pour t'entraîner avec ces séances.</div>` : ''}`;
+      ${user ? '' : `<div class="group-foot">Les séances d'un programme intégré sont fixes, mais tu peux modifier leurs exercices. Pour composer tes propres séances, crée un programme.</div>`}`;
+  const manage = pid.startsWith('u_') ? `
+      <div class="group group--gap">
+        <button class="cell cell--nav" data-action="rename-programme">
+          <span class="cell__body"><span class="cell__title">Renommer le programme</span></span>
+          ${icon('chevron.right', 16)}
+        </button>
+        <button class="cell cell--destructive" data-action="delete-programme">Supprimer le programme</button>
+      </div>` : '';
 
   return `
     <div class="view programmes lot5">
@@ -1743,40 +1786,52 @@ function renderProgrammes() {
         <div class="group">
           <button class="cell cell--nav" data-action="go-prog-picker">
             <span class="cell__body"><span class="cell__title">Programme actif</span></span>
-            <span class="cell__value">${pm.name}</span>
+            <span class="cell__value">${esc(pm.name)}</span>
             ${icon('chevron.right', 16)}
           </button>
+          <button class="cell cell--action" data-action="new-programme">${icon('plus', 20)}<span>Créer un programme</span></button>
         </div>
-        ${builtin}
-        ${custom}
+        ${sessions}
+        ${manage}
       </div>
     </div>`;
 }
 
 // Sélecteur de programme façon iOS : liste groupée, coche sur le programme actif
 function renderProgPicker() {
-  const rows = Object.entries(PROGRAMMES).map(([id, pm]) => {
+  const row = id => {
+    const pm    = progMeta(id);
     const keys  = sessionKeys(id);
-    const color = id === 'custom' ? 'var(--label3)' : sessionMeta(keys[0], id).color;
-    const names = id === 'custom'
-      ? (Object.values(data.customSessions || {}).map(s => esc(s.label)).join(' · ') || pm.desc)
+    const color = keys.length ? sessionMeta(keys[0], id).color : 'var(--label3)';
+    const names = isUserProg(id)
+      ? (keys.map(k => esc(rawLabel(k, id))).join(' · ') || 'Aucune séance')
       : Object.values(pm.sessions).map(s => s.label).join(' · ');
     const on = data.activeProgramme === id;
     return `
-      <button class="cell cell--pick" data-action="select-prog" data-id="${id}" aria-pressed="${on}">
-        <span class="psq" style="--c:${color}">${esc(pm.name.charAt(0))}</span>
+      <button class="cell cell--pick" data-action="select-prog" data-id="${esc(id)}" aria-pressed="${on}">
+        <span class="psq" style="--c:${color}">${esc(pm.name.charAt(0).toUpperCase())}</span>
         <span class="cell__body">
-          <span class="cell__title">${pm.name}</span>
+          <span class="cell__title">${esc(pm.name)}</span>
           <span class="cell__sub cell__sub--1">${names}</span>
         </span>
         <span class="cell__check">${on ? icon('checkmark', 20) : ''}</span>
       </button>`;
-  }).join('');
+  };
+  // « Perso » (ancien programme unique) n'apparaît que s'il est utilisé
+  const builtinIds = Object.keys(PROGRAMMES).filter(id => id !== 'custom' || sessionKeys('custom').length || data.activeProgramme === 'custom');
+  const mine = Object.entries(data.userProgrammes || {}).filter(([, p]) => !p.archived).map(([id]) => id);
+  const rows = builtinIds.map(row).join('');
+  const mineRows = mine.map(row).join('');
   return `
     <div class="view prog-picker lot5">
       ${navBar({ title: 'Programme actif' })}
       <div class="scr">
-        <div class="group-title">Programmes</div>
+        <div class="group-title">Mes programmes</div>
+        <div class="group">
+          ${mineRows}
+          <button class="cell cell--action" data-action="new-programme">${icon('plus', 20)}<span>Créer un programme</span></button>
+        </div>
+        <div class="group-title">Programmes intégrés</div>
         <div class="group">${rows}</div>
         <div class="group-foot">Ton historique reste disponible quand tu changes de programme.</div>
       </div>
@@ -1786,6 +1841,25 @@ function renderProgPicker() {
 let editorEditing = false;   // mode Modifier de la liste d'exercices
 let exDraft       = null;    // brouillon de l'écran Programme › Exercice
 let csReturn      = 'programmes';
+let csProg        = 'custom';   // programme modifiable visé par l'écran Séance perso
+
+// Active un programme (intégré ou créé) et prépare ses données à la première utilisation
+function activateProgramme(id) {
+  data.activeProgramme = id;
+  const pd = data.programmes[id] ||= makeProgData(id);
+  pd.exercises ||= {}; pd.timers ||= {}; pd.cooldowns ||= {};
+  if (isUserProg(id)) {
+    Object.keys(userSessions(id) || {}).forEach(cat => {
+      if (!(cat in pd.timers)) pd.timers[cat] = null;
+      if (!pd.exercises[cat])  pd.exercises[cat] = [];
+    });
+  }
+  editorCat = firstSession();
+  statsCat  = firstSession();
+  addCat    = firstSession();
+  histFilter = 'all';
+  syncTimersFromHistory();
+}
 let csIcon        = '🏋️';
 const CS_ICONS  = ['🏋️','💪','🦾','🦵','🔥','⚡','🏃','🧘','🥊','🚴','🤸','🎯'];
 const CS_COLORS = [['#FF9500','Orange'],['#FF3B30','Rouge'],['#FFCC00','Jaune'],['#34C759','Vert'],['#30B0C7','Turquoise'],
@@ -1851,13 +1925,17 @@ function renderEditor() {
             <span class="cell__value num">${fmtRest(data.defaultRest)}</span>
             ${icon('chevron.right', 16)}
           </button>
-          ${data.activeProgramme === 'custom' ? `
+          ${isUserProg(data.activeProgramme) ? `
           <button class="cell cell--nav" data-action="edit-custom-session" data-id="${esc(cat)}">
             <span class="cell__body"><span class="cell__title">Nom, icône et couleur</span></span>
             ${icon('chevron.right', 16)}
           </button>` : ''}
         </div>
         <div class="group-foot">La récupération règle le délai avant que la séance soit de nouveau prête.</div>
+        ${isUserProg(data.activeProgramme) ? `
+        <div class="group group--gap">
+          <button class="cell cell--destructive" data-action="delete-custom-session" data-id="${esc(cat)}">Supprimer la séance</button>
+        </div>` : ''}
       </div>
     </div>`;
 }
@@ -1952,7 +2030,7 @@ function renderExEdit() {
 // Séance Perso : nom, description, icône (grille), couleur
 function renderCsEdit() {
   const isEdit   = csEditId !== null;
-  const existing = isEdit ? (data.customSessions[csEditId] || {}) : {};
+  const existing = isEdit ? (userSessions(csProg)?.[csEditId] || {}) : {};
   const icons    = CS_ICONS.includes(csIcon) ? CS_ICONS : [csIcon, ...CS_ICONS.slice(0, 11)];
   return `
     <div class="view cs-edit lot5">
@@ -3327,7 +3405,7 @@ function exSection(it) {
   for (const [p, pd] of Object.entries(data.programmes)) {
     if (p === pid) continue;
     for (const cat of Object.keys(pd.exercises || {})) {
-      if (match(pd.exercises[cat]) && (p !== 'custom' || data.customSessions?.[cat])) return { key: p + ':' + cat, cat, prog: p };
+      if (match(pd.exercises[cat]) && (!isUserProg(p) || userSessions(p)?.[cat])) return { key: p + ':' + cat, cat, prog: p };
     }
   }
   return { key: 'other', cat: null, prog: null };
@@ -4340,37 +4418,79 @@ async function handleAction(e, el, action) {
     case 'select-prog': {
       const id = el.dataset.id;
       if (id === data.activeProgramme) { view = 'programmes'; render(); break; }
-      if (!(await confirmSheet(`Passer à ${PROGRAMMES[id].name} ?`, 'Ton historique reste disponible.', 'Changer de programme', false))) break;
-      data.activeProgramme = id;
-      // Données du programme créées à la première utilisation
-      if (!data.programmes[id]) {
-        data.programmes[id] = makeProgData(id);
-        if (id === 'custom') {
-          Object.keys(data.customSessions || {}).forEach(cat => {
-            data.programmes.custom.timers[cat]    = null;
-            data.programmes.custom.exercises[cat] = [];
-          });
-        }
-      }
-      editorCat = firstSession();
-      statsCat  = firstSession();
-      addCat    = firstSession();
-      histFilter = 'all';
-      syncTimersFromHistory();
+      if (!(await confirmSheet(`Passer à ${progMeta(id).name} ?`, 'Ton historique reste disponible.', 'Changer de programme', false))) break;
+      activateProgramme(id);
       save();
       view = 'programmes'; render();
       showToast(`Programme : ${progMeta().name}`);
       break;
     }
+    case 'new-programme': {
+      const name = await askText({ title: 'Nouveau programme', message: 'Donne-lui un nom.', placeholder: 'Ex : Force 5×5', confirm: 'Suivant' });
+      if (!name) break;
+      const start = await dialog({ type: 'sheet', title: `Partir de quoi pour « ${name} » ?`,
+        message: 'Tu pourras ensuite ajouter, renommer ou supprimer des séances et des exercices.',
+        actions: [
+          { label: 'Programme vide', value: 'empty', style: 'preferred' },
+          ...Object.entries(PROGRAMMES).filter(([k]) => k !== 'custom').map(([k, pm]) => ({ label: `Copie de ${pm.name}`, value: k })),
+          { label: 'Annuler', style: 'cancel' },
+        ] });
+      if (!start) break;
+      const id = 'u_' + uid();
+      const sessions = {};
+      let pdata = { exercises: {}, timers: {}, cooldowns: {} };
+      if (start !== 'empty') {
+        Object.entries(PROGRAMMES[start].sessions).forEach(([cat, m]) => {
+          sessions[cat] = { label: m.label, icon: '', desc: m.desc, color: m.color };
+        });
+        pdata = makeProgData(start);
+      }
+      data.userProgrammes[id] = { name, sessions, archived: false };
+      data.programmes[id] = pdata;
+      activateProgramme(id);
+      save();
+      view = 'programmes'; render();
+      showToast(`Programme « ${name} » créé`);
+      if (start === 'empty') setTimeout(() => showToast('Ajoute ta première séance'), 2300);
+      break;
+    }
+    case 'rename-programme': {
+      const id = data.activeProgramme, up = data.userProgrammes[id];
+      if (!up) break;
+      const name = await askText({ title: 'Renommer le programme', value: up.name });
+      if (!name) break;
+      up.name = name; save(); render(); break;
+    }
+    case 'delete-programme': {
+      const id = data.activeProgramme, up = data.userProgrammes[id];
+      if (!up) break;
+      if (activeSession?.programme === id) {
+        await dialog({ title: 'Séance en cours', message: 'Termine ou abandonne la séance de ce programme avant de le supprimer.', actions: [{ label: 'OK', style: 'preferred' }] });
+        break;
+      }
+      const n = (data.history || []).filter(h => h.programme === id).length;
+      if (!(await confirmSheet(`Supprimer « ${up.name} » ?`,
+        n ? `Ses ${n} séance${n > 1 ? 's' : ''} déjà faite${n > 1 ? 's' : ''} restent dans l'historique et les progrès.` : 'Ses séances et exercices seront supprimés.',
+        'Supprimer le programme'))) break;
+      // Archivé et non effacé : l'historique garde les noms et couleurs des séances
+      up.archived = true;
+      activateProgramme('ppl');
+      save();
+      view = 'programmes'; render();
+      showToast('Programme supprimé');
+      break;
+    }
 
     // ── Séance Perso ────────────────────────────────────────
     case 'add-custom-session': {
+      csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom';
       csEditId = null; csColor = '#FF9500'; csIcon = '🏋️';
       csReturn = view; view = 'cs-edit'; render(); break;
     }
     case 'edit-custom-session': {
       const id = el.dataset.id;
-      const cs = data.customSessions[id] || {};
+      csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom';
+      const cs = userSessions(csProg)?.[id] || {};
       csEditId = id; csColor = cs.color || '#FF9500'; csIcon = cs.icon || '🏋️';
       csReturn = view; view = 'cs-edit'; render(); break;
     }
@@ -4399,15 +4519,18 @@ async function handleAction(e, el, action) {
       if (!name) { flagInvalid($('#csName'), 'Entre un nom'); break; }
 
       const id = csEditId || uid();
-      if (!data.customSessions) data.customSessions = {};
-      data.customSessions[id] = { label: name, icon: csIcon || '🏋️', desc, color: csColor };
+      const store = userSessions(csProg);
+      if (!store) break;
+      const prev = store[id];
+      // Une séance copiée d'un programme intégré garde sa pastille à initiale tant qu'on ne choisit pas d'emoji
+      store[id] = { label: name, icon: prev && !prev.icon && csIcon === '🏋️' ? '' : (csIcon || '🏋️'), desc, color: csColor };
 
       // Emplacements exercices / chrono / récupération
-      if (!data.programmes.custom) data.programmes.custom = { exercises: {}, timers: {}, cooldowns: {} };
-      if (!data.programmes.custom.cooldowns) data.programmes.custom.cooldowns = {};
-      if (!data.programmes.custom.exercises[id])  data.programmes.custom.exercises[id]  = [];
-      if (!data.programmes.custom.timers[id])     data.programmes.custom.timers[id]     = null;
-      if (data.programmes.custom.cooldowns[id] == null) data.programmes.custom.cooldowns[id] = 72;
+      const pd = data.programmes[csProg] ||= { exercises: {}, timers: {}, cooldowns: {} };
+      pd.exercises ||= {}; pd.timers ||= {}; pd.cooldowns ||= {};
+      if (!pd.exercises[id])  pd.exercises[id]  = [];
+      if (!pd.timers[id])     pd.timers[id]     = null;
+      if (pd.cooldowns[id] == null) pd.cooldowns[id] = 72;
 
       const wasEdit = csEditId !== null;
       csEditId = null;
@@ -4420,22 +4543,26 @@ async function handleAction(e, el, action) {
       view = csReturn; render(); break;
     }
     case 'delete-custom-session': {
-      const id = csEditId;
-      const running = activeSession && activeSession.programme === 'custom' && activeSession.category === id;
+      // Depuis l'écran de la séance (data-id) ou depuis « Nom, icône et couleur » (csEditId)
+      if (el.dataset.id) { csEditId = el.dataset.id; csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom'; }
+      const id = csEditId, pid = csProg;
+      const running = activeSession && activeSession.programme === pid && activeSession.category === id;
       if (running && !(await confirmSheet('Cette séance est en cours', 'Elle sera abandonnée.', 'Supprimer'))) break;
-      const n = (data.history || []).filter(h => h.category === id && h.programme === 'custom').length;
+      const n = (data.history || []).filter(h => h.category === id && h.programme === pid).length;
       const msg = n ? `Ses exercices seront supprimés et ${n} séance${n > 1 ? 's' : ''} de l'historique ser${n > 1 ? 'ont effacées' : 'a effacée'}.`
                     : 'Ses exercices seront supprimés.';
       if (!(await confirmSheet('Supprimer cette séance ?', msg, 'Supprimer'))) break;
       if (running) endSession();
-      if (id && data.customSessions) {
-        delete data.customSessions[id];
-        if (data.programmes.custom) {
-          delete data.programmes.custom.exercises[id];
-          delete data.programmes.custom.timers[id];
-          delete data.programmes.custom.cooldowns?.[id];
+      const store = userSessions(pid);
+      if (id && store) {
+        delete store[id];
+        const pd = data.programmes[pid];
+        if (pd) {
+          delete pd.exercises?.[id];
+          delete pd.timers?.[id];
+          delete pd.cooldowns?.[id];
         }
-        data.history = (data.history || []).filter(h => !(h.category === id && h.programme === 'custom'));
+        data.history = (data.history || []).filter(h => !(h.category === id && h.programme === pid));
       }
       csEditId = null; view = 'programmes';
       editorCat = firstSession();
@@ -4697,7 +4824,7 @@ async function handleAction(e, el, action) {
 
       // La séance Perso a pu être supprimée entre-temps
       const sp = activeSession.programme, sc = activeSession.category;
-      if (sp === 'custom' ? !data.customSessions[sc] : !PROGRAMMES[sp]?.sessions[sc]) {
+      if (isUserProg(sp) ? !userSessions(sp)?.[sc] : !PROGRAMMES[sp]?.sessions[sc]) {
         endSession();
         view = 'dashboard'; render(); startTicker();
         showToast('Cette séance n\'existe plus');

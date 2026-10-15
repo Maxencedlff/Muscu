@@ -170,7 +170,9 @@ def t_programme(bench, eng, dev, theme):
         seed(page, theme, ppl_v2_today_json())
         go(page, 'programmes')
         R.check(page.locator('[data-action="open-prog-session"]').count() == 3, f'{t} programme : 3 séances')
-        R.check(page.locator('.cell--action', has_text='Ajouter une séance').count() == 1, f'{t} programme : Ajouter une séance visible hors Perso')
+        # Programme intégré : séances fixes ; on compose les siennes en créant un programme (lot 8)
+        R.check(page.locator('.cell--action', has_text='Ajouter une séance').count() == 0
+                and page.locator('[data-action="new-programme"]').count() >= 1, f'{t} programme intégré : « Créer un programme » proposé')
         R.check(page.locator('[data-action="go-settings"]').count() == 1, f'{t} programme : bouton Réglages')
         shot(page, LOT, f'programme_{dev}_{theme}')
         page.click('[data-action="open-prog-session"][data-cat="push"]')
@@ -238,7 +240,8 @@ def t_programme(bench, eng, dev, theme):
         R.check(min(hs) >= 44, f'{t} réglages : cellules >= 44 ({min(hs):.0f})')
         R.check(page.locator('#lastExportTxt.txt-warn').count() == 1, f'{t} réglages : jamais sauvegardé en orange')
         shot(page, LOT, f'settings_{dev}_{theme}')
-        # Séance Perso
+        # Séance Perso (dans un programme modifiable)
+        page.evaluate("activateProgramme('custom')")
         go(page, 'programmes')
         page.click('[data-action="add-custom-session"]')
         R.check(page.locator('.emoji-btn').count() == 12 and page.locator('.color-swatch2[aria-label="Orange"]').count() == 1, f'{t} séance perso : grille et couleurs')
