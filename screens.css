@@ -48,6 +48,11 @@
 .cell--ctl { cursor: default; }
 .cell--wrap { flex-wrap: wrap; }
 .cell--wrap .seg-full { flex-basis: 100%; }
+/* Libellé et contrôle : sur une ligne si la place suffit, sinon le contrôle passe dessous à droite */
+.cell--flow { flex-wrap: wrap; row-gap: 8px; }
+.cell--flow > .cell__body { flex: 1 0 auto; }
+.cell--flow > .segmented { margin-left: auto; }
+.group-foot + .group { margin-top: 28px; }
 .cell--field { padding-top: 0; padding-bottom: 0; }
 .cell__check { width: 22px; color: var(--tint); display: flex; }
 .txt-warn { color: var(--orange-text); }
@@ -71,6 +76,9 @@
   -webkit-appearance: none; appearance: none; outline: none;
 }
 .search::placeholder { color: var(--label2); }
+/* Séance passée : le champ date peut rétrécir (sinon il élargit la page à 320 px) */
+.add-session .date-row { flex-wrap: wrap; row-gap: 6px; }
+.add-session .date-input { min-width: 0; width: 100%; flex: 1 0 170px; } /* passe sous le libellé s'il manque de place */
 
 /* Contrôles */
 .seg-full { width: 100%; }
@@ -100,7 +108,7 @@
   background: var(--cell); border-radius: var(--r-md); padding: 12px; min-width: 0;
   display: flex; flex-direction: column; gap: 2px;
 }
-.tile__val { font-size: min(22px, 5.6vw); line-height: 1.647rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile__val { font-size: min(22px, 5vw); line-height: 1.647rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile__lbl { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); }
 
 /* ── Historique ── */
@@ -128,7 +136,7 @@
 .hcell__top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .hcell__title { font-size: 1rem; line-height: 1.294rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
 .hcell__date { font-size: 0.882rem; color: var(--label2); white-space: nowrap; flex-shrink: 0; }
-.hcell__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hcell__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; } /* sur 2 lignes si besoin plutôt que tronqué */
 .hcell__prog { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); flex: 0 1000 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: auto; }
 .hcell__title + .hcell__date { margin-left: auto; }
 .hrow__del {
@@ -158,7 +166,7 @@
 }
 .info-btn::before { content: ''; position: absolute; inset: 11px; border: 1.5px solid currentColor; border-radius: 50%; }
 .chart { position: relative; background: var(--cell); border-radius: var(--r-md); padding: 0; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
-.chart canvas { display: block; }
+.chart canvas { display: block; background: none; margin: 0; border-radius: 0; } /* la carte (--cell) sert de fond, dans les deux thèmes */
 .chart-bubble {
   position: absolute; top: 6px; z-index: 3; pointer-events: none;
   background: var(--cell2); color: var(--label); border-radius: 8px; padding: 6px 10px;
@@ -184,7 +192,7 @@ html.type-xl .chart-bubble { white-space: normal; }
 .cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 4px; text-align: center; }
 .cal__wd { font-size: 0.765rem; color: var(--label2); padding-bottom: 4px; }
 .cal__d { display: flex; flex-direction: column; align-items: center; min-height: 40px; font-size: 0.882rem; padding-top: 4px; }
-.cal__d--today > .num { color: var(--white); background: color-mix(in srgb, var(--red) 80%, black); /* blanc lisible à 4,5:1 */ border-radius: 50%; width: 26px; height: 26px; line-height: 1.529rem; margin-top: -3px; }
+.cal__d--today > .num { color: var(--bg); background: var(--label); font-weight: 600; /* neutre : rouge réservé au destructif, bleu à l'interactif */ border-radius: 50%; width: 26px; height: 26px; line-height: 1.529rem; margin-top: -3px; }
 .cal__dots { display: flex; gap: 2px; margin-top: 3px; height: 6px; }
 .cal__dots i { width: 6px; height: 6px; border-radius: 50%; display: block; }
 .wks { position: relative; display: flex; align-items: flex-end; gap: 6px; height: 120px; }
@@ -197,7 +205,7 @@ html.type-xl .chart-bubble { white-space: normal; }
 
 /* ── Programme ── */
 .cell--pick { gap: 12px; }
-.ed-row .cell__sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ed-row .cell__sub { overflow-wrap: anywhere; }
 .ed-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .ed-row--edit { gap: 10px; background: var(--cell); transition: transform .2s; }
 .ed-row.is-dragging { z-index: 5; transition: none; box-shadow: var(--shadow-float); background: var(--cell2); }
@@ -220,7 +228,7 @@ html.type-xl .chart-bubble { white-space: normal; }
 }
 
 /* Séance Perso */
-.emoji-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
 .emoji-btn {
   aspect-ratio: 1; min-height: 44px; border: none; border-radius: var(--r-sm); background: none; font-size: 1.412rem; cursor: pointer;
 }

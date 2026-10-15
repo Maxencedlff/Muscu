@@ -51,13 +51,14 @@
   padding: 13px 2px; margin: -13px -2px;
 }
 .ex-rest-link:active { opacity: .5; }
-.ex-vol__delta { color: var(--label2); }
+.ex-vol__delta { color: var(--label2); font-weight: 400; }
 .ex-vol__delta--up { color: var(--green-text); }
 
 /* ── Tableau des séries ──────────────────────────── */
-.sets { --set-cols: 32px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 56px; --set-gap: 8px; }
+/* « Préc. » plus large que Reps (2 chiffres) pour tenir « 32,5 × 10 » sur une ligne */
+.sets { --set-cols: 34px minmax(0,1.3fr) minmax(0,1fr) minmax(44px,.8fr) 52px; --set-gap: 6px; }
 @media (max-width: 374px) { /* Android de 360 px compris */
-  .sets { --set-cols: 30px minmax(0,.9fr) minmax(0,1.25fr) minmax(0,1fr) 52px; --set-gap: 5px; }
+  .sets { --set-cols: 30px minmax(0,1.2fr) minmax(0,1.1fr) minmax(44px,.8fr) 48px; --set-gap: 3px; }
 }
 .sets__head, .set-row2 { display: grid; grid-template-columns: var(--set-cols); column-gap: var(--set-gap); align-items: center; }
 .sets__head {
@@ -84,7 +85,7 @@
 .set-row2--editing { background: color-mix(in srgb, var(--tint) 8%, var(--cell)); }
 
 .set-n { font-size: 0.882rem; font-weight: 600; color: var(--label2); text-align: center; }
-.set-prev { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); text-align: center; }
+.set-prev { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .set-val { font-size: 1.176rem; font-weight: 600; text-align: center; color: var(--label); }
 
 .set-row2 .set-input {
@@ -198,8 +199,10 @@ body.kb-open .rest-mini { transform: translateY(140%); opacity: 0; pointer-event
 @media (max-width: 374px) { .set-row2 .set-input { font-size: 1.059rem; } }
 
 /* Pendant la séance, les toasts passent en bas (au-dessus de la barre de repos) pour ne pas masquer l'exercice */
-body:has(.view.session) .toast { top: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
-body:has(.view.summary) .toast { top: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+/* fond opaque : le texte des cartes ne se lit pas à travers */
+body:has(.view.session) .toast { top: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); background: var(--dlg-solid); }
+/* Bilan : en haut, le bouton « Terminé » reste lisible */
+body:has(.view.summary) .toast { bottom: auto; top: calc(12px + env(safe-area-inset-top, 0px)); background: var(--dlg-solid); }
 body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-area-inset-bottom, 0px)); }
 
 /* ── Feuilles de la séance (variante non bloquante de .sheet, voir openSessSheet) ── */

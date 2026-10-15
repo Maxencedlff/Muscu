@@ -42,12 +42,13 @@ function fmtRest(secs) {
   return `${Math.floor(secs / 60)}:${pad(secs % 60)}`;
 }
 
-// Chrono de séance : « 42:07 », puis « 1:02:07 » au-delà d'une heure
+// Chrono de séance : « 0:12 », « 42:07 », puis « 1:02:07 » au-delà d'une heure
+// (pas de zéro devant les minutes, comme le repos)
 function fmtClock(ms) {
   const s = Math.max(0, Math.floor((ms || 0) / 1000));
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
-  return h > 0 ? `${h}:${pad(m)}:${pad(s % 60)}` : `${pad(m)}:${pad(s % 60)}`;
+  return h > 0 ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
 }
 
 // « Aujourd'hui », « Hier », sinon « jeu. 9 oct. » (l'année seulement si ce n'est pas l'année en cours)
@@ -197,6 +198,8 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
 
     const field = root.querySelector('.ios-dialog__input');
     const close = value => {
+      if (root._closed) return;
+      root._closed = true;
       root.classList.add('ios-dialog--out');
       setTimeout(() => root.remove(), 200);
       document.removeEventListener('keydown', onKey);
@@ -216,6 +219,7 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
       if (b) { haptic(); return pick(actions[+b.dataset.i]); }
       if (ev.target.classList.contains('ios-dialog__backdrop') && type === 'sheet') close(null);
     });
+    root._close = () => close(null); // retour système : vaut « Annuler »
     document.addEventListener('keydown', onKey);
     document.body.appendChild(root);
     if (field) setTimeout(() => { field.focus(); field.select(); }, 60);
@@ -941,6 +945,7 @@ const TAB_OF_ROOT = Object.fromEntries(Object.entries(TABS).map(([t, v]) => [v.r
 let nav = { tab: 'train', stacks: { train: ['dashboard'], history: ['history'], progress: ['stats'], program: ['programmes'] } };
 let navIndex   = 0;     // position dans l'historique du navigateur
 let navHist    = [];    // copie des états poussés, pour savoir si history.back() mène au bon écran
+let navDup     = [];    // entrées poussées à l'ouverture d'une feuille (même écran que la précédente)
 let ignorePop  = 0;     // popstate provoqués par l'app elle-même
 let firstPaint = true;
 let skipTransition = false;
@@ -964,7 +969,8 @@ function navSanitize(n) {
   if (!TABS[out.tab]) out.tab = 'train';
   for (const t of Object.keys(TABS)) {
     let s = Array.isArray(out.stacks[t]) ? out.stacks[t] : [];
-    s = s.filter((r, i) => i === 0 || (r !== TABS[t].root && (r !== 'session' || activeSession)));
+    s = s.filter((r, i) => i === 0 || (r !== TABS[t].root && (r !== 'session' || activeSession)
+      && (r !== 'summary' || (t === 'train' && lastSummary))));
     if (s[0] !== TABS[t].root) s.unshift(TABS[t].root);
     out.stacks[t] = s;
   }
@@ -978,18 +984,45 @@ function navWrite(mode) {
     else history.replaceState(st, '', navHash(nav));
   } catch {}
   navHist[navIndex] = navClone(nav);
+  navDup[navIndex] = false;
+  if (mode === 'push') navDup.length = navIndex + 1;
+}
+
+// Feuille ou dialogue ouvert : une entrée d'historique en plus, que le retour système consomme
+// pour fermer la feuille au lieu de quitter l'écran (ou l'app, à la racine d'un onglet)
+const OPEN_MODAL_SEL = '.ios-dialog:not(.ios-dialog--out), .sheet-root:not(.sheet-root--out), .sess-sheet:not(.sess-sheet--out)';
+new MutationObserver(() => {
+  if (navDup[navIndex] || !document.querySelector(OPEN_MODAL_SEL)) return;
+  navIndex++;
+  navHist.length = navIndex;
+  navHist[navIndex] = navClone(nav);
+  try { history.pushState({ idx: navIndex, nav: navClone(nav), modal: true }, '', navHash(nav)); } catch {}
+  navDup.length = navIndex;
+  navDup[navIndex] = true;
+}).observe(document.body, { childList: true });
+
+// Bilan d'une séance terminée : toujours dans l'onglet Entraînement (#train/summary), à la place de la séance
+function openSummary() {
+  const next = navClone(nav);
+  next.tab = 'train';
+  next.stacks.train = ['dashboard', 'summary'];
+  navCommit(next, 'push', 'replace');
 }
 
 // Change d'état de navigation. mode : 'push' (nouvelle entrée), 'replace', 'back' (retour d'un cran)
 function navCommit(next, dir, mode = 'push') {
   saveScroll();
   next = navSanitize(next);
-  if (mode === 'back' && navIndex > 0 && navSame(navHist[navIndex - 1], next)) {
+  // Entrée d'une feuille fermée : le nouvel écran la remplace, et le retour la saute
+  if (mode === 'push' && navDup[navIndex]) mode = 'replace';
+  const k = navIndex - (navDup[navIndex] ? 2 : 1);
+  if (mode === 'back' && k >= 0 && navSame(navHist[k], next)) {
     // Le retour système et le bouton retour restent synchronisés : on recule vraiment dans l'historique
     ignorePop++;
-    navIndex--;
+    const d = k - navIndex;
+    navIndex = k;
     nav = next;
-    history.back();
+    history.go(d);
   } else if (mode === 'push') {
     navIndex++;
     navHist.length = navIndex;
@@ -1053,13 +1086,23 @@ window.addEventListener('popstate', e => {
   if (ignorePop > 0) { ignorePop--; return; }
   const st = e.state;
   if (!st || !st.nav) return;
+  const fromDup  = !!navDup[navIndex];
+  const hadModal = !!document.querySelector(OPEN_MODAL_SEL);
+  const backward = (st.idx || 0) < navIndex;
   saveScroll();
   const prev = nav;
   nav = navSanitize(st.nav);
   navIndex = st.idx || 0;
   navHist[navIndex] = navClone(nav);
+  navDup[navIndex] = !!st.modal;
   // Écran devenu invalide (séance terminée) : on corrige l'entrée courante
   if (!navSame(nav, st.nav)) navWrite('replace');
+  if (navSame(prev, nav)) {
+    // Même écran : ce retour ferme la feuille ouverte ; si elle était déjà fermée, on recule encore
+    closeTransientUI();
+    if (backward && fromDup && !hadModal) history.back();
+    return;
+  }
   const dir = prev.tab !== nav.tab ? 'fade'
     : nav.stacks[nav.tab].length < prev.stacks[prev.tab].length ? (currentRoute(prev) === 'session' ? 'down' : 'pop')
     : nav.stacks[nav.tab].length > prev.stacks[prev.tab].length ? (currentRoute() === 'session' ? 'up' : 'push') : 'none';
@@ -1071,6 +1114,7 @@ window.addEventListener('popstate', e => {
 function closeTransientUI() {
   document.querySelectorAll('.sheet-root').forEach(el => el._close?.(null));
   document.querySelectorAll('.sess-sheet').forEach(el => el._close?.());
+  document.querySelectorAll('.ios-dialog').forEach(el => el._close?.());
 }
 
 function saveScroll() { scrollMem[navKey()] = window.scrollY; }
@@ -1351,7 +1395,7 @@ function restoreAddDraft() {
 
 // Démarrage : #train, ou #train/session (avec l'accueil dessous) si une séance est restaurée
 function navBoot(sessionRestored) {
-  navIndex = 0; navHist = [];
+  navIndex = 0; navHist = []; navDup = [];
   navWrite('replace');
   let draft = false;
   if (sessionRestored) {
@@ -1796,7 +1840,7 @@ function renderEditor() {
         </div>
         <div class="group-title">Réglages de la séance</div>
         <div class="group">
-          <div class="cell cell--ctl">
+          <div class="cell cell--ctl cell--flow">
             <span class="cell__body"><span class="cell__title">Récupération</span></span>
             <div class="segmented seg-sm" role="group" aria-label="Récupération">
               ${[24, 48, 72, 96].map(h => `<button class="segmented__btn ${cd === h ? 'segmented__btn--active' : ''}" aria-pressed="${cd === h}" data-action="set-cooldown" data-h="${h}">${h} h</button>`).join('')}
@@ -1872,7 +1916,7 @@ function renderExEdit() {
               <button data-action="ex-rest-step" data-d="15" aria-label="Plus 15 secondes">${icon('plus', 18)}</button>
             </div>
             <div class="segmented seg-full" role="group" aria-label="Préréglages de repos">
-              ${[60, 90, 120, 180].map(s => `<button class="segmented__btn ${d.rest === s ? 'segmented__btn--active' : ''}" aria-pressed="${d.rest === s}" data-action="ex-rest" data-s="${s}">${fmtRest(s)}</button>`).join('')}
+              ${[60, 90, 120, 180].map(s => `<button class="segmented__btn ${restVal === s ? 'segmented__btn--active' : ''}" aria-pressed="${restVal === s}" data-action="ex-rest" data-s="${s}">${fmtRest(s)}</button>`).join('')}
             </div>
           </div>
         </div>
@@ -2162,8 +2206,9 @@ function renderExerciseCard(ex, ei, cur) {
   const exCurVol  = setsVolume(doneSets);
   const exPrevVol = setsVolume(prevSets.slice(0, doneSets.length));
   const exDelta   = exCurVol - exPrevVol;
-  const volHtml   = exCurVol > 0 && exPrevVol > 0 && exDelta !== 0
-    ? ` · <span class="ex-vol__delta ${exDelta > 0 ? 'ex-vol__delta--up' : ''}">${exDelta > 0 ? '+' : '−'}${fmtVolume(Math.abs(exDelta))}</span>` : '';
+  // Seule une hausse s'affiche, en gris tant que l'exercice n'est pas fini, en vert ensuite
+  const volHtml   = exCurVol > 0 && exPrevVol > 0 && Math.round(exDelta) > 0
+    ? ` · <span class="ex-vol__delta ${allDone ? 'ex-vol__delta--up' : ''}">+${fmtVolume(exDelta)}</span>` : '';
 
   const pr   = exData?.pr;
   const sub  = `${pr ? `<span class="num">Record ${wTxt(pr.weight)} × ${esc(pr.reps)}</span> · ` : ''}<button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${ei}" aria-label="Repos ${fmtSecs(exRest(ex))}, modifier">Repos ${fmtSecs(exRest(ex))}</button>${volHtml}`;
@@ -2218,7 +2263,7 @@ function renderSetRow(ex, ei, s, si, cur) {
   }
 
   const isCur = !editing && cur && cur.ei === ei && cur.si === si;
-  const prevW = s.prev?.weight !== '' && s.prev?.weight != null ? dispW(s.prev.weight) : '';
+  const prevW = s.prev?.weight !== '' && s.prev?.weight != null ? wTxt(s.prev.weight) : '';
   // Série validée rouverte : mêmes champs, enregistrés par le ✓
   const wAttr = editing ? 'id="editSetWeight"' : `data-action="set-weight" data-ei="${ei}" data-si="${si}"`;
   const rAttr = editing ? 'id="editSetReps"'   : `data-action="set-reps" data-ei="${ei}" data-si="${si}"`;
@@ -2232,7 +2277,7 @@ function renderSetRow(ex, ei, s, si, cur) {
         <span class="set-n num">${si + 1}</span>
         <span class="set-prev num">${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
-               value="${editing ? dispW(s.weight) : dispW(s.weight)}" placeholder="${prevW || '—'}" aria-label="Charge série ${si + 1}, ${esc(ex.name)}, en ${unitLbl()}">
+               value="${wTxt(s.weight)}" placeholder="${prevW || '—'}" aria-label="Charge série ${si + 1}, ${esc(ex.name)}, en ${unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
                value="${esc(s.reps)}" placeholder="${esc(s.prev?.reps ?? '0')}" aria-label="Répétitions série ${si + 1}, ${esc(ex.name)}">
         ${check}
@@ -2915,7 +2960,7 @@ function renderSummary() {
   const when = new Date(sm.date);
   const date = when.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) + ' · ' + when.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   const delta = sm.delta === null || Math.round(sm.delta) === 0 ? ''
-    : `<span class="sum-tile__delta ${sm.delta > 0 ? 'sum-tile__delta--up' : ''}">${sm.delta > 0 ? '↑ +' : '↓ −'}${fmtVolume(Math.abs(sm.delta))}</span>`;
+    : `<span class="sum-tile__delta ${sm.delta > 0 ? 'sum-tile__delta--up' : ''}">${sm.delta > 0 ? '↑ ' : '↓ '}${fmtVolume(Math.abs(sm.delta))}</span>`;
   const trend = t => t === 'up' ? '<span class="sum-trend sum-trend--up" aria-label="en progrès">↑</span>'
                    : t === 'down' ? '<span class="sum-trend sum-trend--down" aria-label="en baisse">↓</span>'
                    : t === 'same' ? '<span class="sum-trend" aria-label="identique">=</span>' : '<span class="sum-trend" aria-hidden="true"></span>';
@@ -3056,8 +3101,8 @@ function renderAddSession() {
       <div class="set-row set-row--active">
         <span class="set-num">S${si + 1}</span>
         <div class="input-group">
-          <input type="text" inputmode="decimal" autocomplete="off" class="set-input" placeholder="${prev[si]?.weight ? dispW(prev[si].weight) : '—'}" aria-label="Charge série ${si + 1}"
-                 value="${dispW(s.weight)}" data-action="add-weight" data-exid="${ex.id}" data-si="${si}">
+          <input type="text" inputmode="decimal" autocomplete="off" class="set-input" placeholder="${prev[si]?.weight ? wTxt(prev[si].weight) : '—'}" aria-label="Charge série ${si + 1}"
+                 value="${wTxt(s.weight)}" data-action="add-weight" data-exid="${ex.id}" data-si="${si}">
           <span class="input-unit">${unitLbl()}</span>
         </div>
         <div class="input-group">
@@ -3088,7 +3133,7 @@ function renderAddSession() {
         <span class="set-num">S${si + 1}</span>
         <div class="input-group">
           <input type="text" inputmode="decimal" autocomplete="off" class="set-input" placeholder="—" aria-label="Charge série ${si + 1}"
-                 value="${dispW(s.weight)}" data-action="add-weight" data-exid="${key}" data-si="${si}">
+                 value="${wTxt(s.weight)}" data-action="add-weight" data-exid="${key}" data-si="${si}">
           <span class="input-unit">${unitLbl()}</span>
         </div>
         <div class="input-group">
@@ -3221,7 +3266,6 @@ function renderSettings() {
           </div>
           <button class="cell cell--action setting-row" data-action="force-update"><span class="cell__title">Rechercher une mise à jour</span></button>
         </div>
-        <div class="settings-footer">MDLF Training</div>
 
       </div>
     </div>`;
@@ -3500,7 +3544,11 @@ function resolveColor(el, c) {
 
 function axisFmt(v) {
   if (chartState.bw) return String(Math.round(v));
-  if (chartState.mode === 'volume') return v >= 1000 ? fmtNum(Math.round(v / 100) / 10) + ' t' : fmtNum(Math.round(v));
+  // Volume : une seule unité pour toutes les graduations (t ou kg selon le maximum)
+  if (chartState.mode === 'volume') {
+    if (chartState.axisK) return fmtNum(Math.round(v / 100) / 10) + (data.unit === 'lbs' ? ' k lbs' : ' t');
+    return fmtNum(Math.round(v)) + ' ' + unitLbl();
+  }
   return fmtNum(Math.round(v * 10) / 10);
 }
 
@@ -3532,6 +3580,7 @@ function drawCharts() {
   if (lo < 0) lo = 0;
   let hi = vMax + (vMax - lo) * 0.08 || 1;
   const ticks = [lo, (lo + hi) / 2, hi];
+  st.axisK = hi >= 1000;
   ctx.font = `11px ${font}`;
   const tickW = Math.max(...ticks.map(t => ctx.measureText(axisFmt(t)).width));
   const pL = 4, pR = tickW + 10, pT = 44, pB = 22; // bande du haut réservée à la bulle
@@ -3582,7 +3631,7 @@ function drawCharts() {
   };
   const placed = [];
   const lastR = rect(n - 1);
-  const free = r => placed.every(p => r.x >= p.x + p.w + 6 || r.x + r.w + 6 <= p.x);
+  const free = r => placed.every(p => r.x >= p.x + p.w + 16 || r.x + r.w + 16 <= p.x);
   placed.push(lastR);
   for (let i = 0; i < n - 1; i++) { const r = rect(i); if (free(r)) placed.push(r); }
   ctx.textAlign = 'left';
@@ -3835,7 +3884,7 @@ function renderHistory() {
       ${navBar({ title: 'Historique', right: `<button class="navbar__icon" data-action="go-add-session" aria-label="Ajouter une séance passée">${icon('plus', 24)}</button>`  })}
       <div class="scr" id="histScroll">
         <div class="hist-tools">
-          <input type="search" id="histSearch" class="search" placeholder="Rechercher un exercice ou une note" value="${esc(histQuery)}"
+          <input type="search" id="histSearch" class="search" placeholder="Rechercher" value="${esc(histQuery)}"
                  autocomplete="off" enterkeyhint="search" aria-label="Rechercher dans l'historique">
           <div class="segmented seg-full seg-scroll" role="group" aria-label="Filtrer par séance">
             ${[['all', 'Toutes'], ...keys.map(k => [k, sessionMeta(k).label])].map(([k, l]) =>
@@ -3858,7 +3907,7 @@ function setsLine(sets) {
   if (!ok.length) return '—';
   const ws = ok.map(s => parseFloat(s.weight) || 0);
   if (ws.every(w => w === 0)) return `${ok.map(s => esc(s.reps)).join(' · ')} reps`;
-  if (ws.every(w => w === ws[0])) return `${wFr(ok[0].weight)} ${unitLbl()} · ${ok.map(s => esc(s.reps)).join(' · ')}`;
+  if (ws.every(w => w === ws[0])) return `${wFr(ok[0].weight)} ${unitLbl()} × ${ok.map(s => esc(s.reps)).join(' · ')}`;
   return ok.map(s => `${parseFloat(s.weight) > 0 ? wFr(s.weight) + ' × ' : ''}${esc(s.reps)}`).join(' · ');
 }
 
@@ -4693,7 +4742,8 @@ async function handleAction(e, el, action) {
       if (lastSummary.records.length) recordSound(); else finishSound();
       haptic();
       endSession();
-      view = 'summary'; render(); window.scrollTo(0, 0);
+      openSummary(); window.scrollTo(0, 0);
+      // Remplace l'« Annuler » de la dernière série ; affiché en haut du bilan, loin du bouton « Terminé »
       showToast('Séance enregistrée !');
       break;
     }
