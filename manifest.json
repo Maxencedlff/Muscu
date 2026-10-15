@@ -1,13 +1,13 @@
 {
-  "name": "PPL Training",
-  "short_name": "PPL",
+  "name": "MDLF Training",
+  "short_name": "MDLF Training",
   "description": "Suivi d'entraînement Push Pull Legs — cycles de 72h",
   "lang": "fr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "orientation": "portrait-primary",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
