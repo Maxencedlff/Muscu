@@ -61,14 +61,43 @@
   <div id="sr-polite" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
   <div id="sr-assert" class="visually-hidden" aria-live="assertive" aria-atomic="true"></div>
   <!-- Scripts classiques chargés dans l'ordre, portée globale partagée (voir ARCHITECTURE.md) -->
+  <!-- Briques sans écran -->
   <script src="js/core/util.js"></script>
   <script src="js/core/dialogs.js"></script>
   <script src="js/core/haptics-audio.js"></script>
+  <!-- Donnée -->
   <script src="js/data/programmes.js"></script>
   <script src="js/data/store.js"></script>
   <script src="js/data/accessors.js"></script>
   <script src="js/data/active-session.js"></script>
   <script src="js/data/backup.js"></script>
-  <script src="app.js"></script>
+  <!-- Thème (appliqué au chargement) puis registre des actions, avant les écrans qui s'y inscrivent -->
+  <script src="js/ui/theme.js"></script>
+  <script src="js/app/actions.js"></script>
+  <!-- Infrastructure d'écran -->
+  <script src="js/ui/router.js"></script>
+  <script src="js/ui/navbar.js"></script>
+  <script src="js/ui/sheet.js"></script>
+  <script src="js/ui/forms.js"></script>
+  <script src="js/ui/edge-swipe.js"></script>
+  <!-- Écrans et fonctionnalités -->
+  <script src="js/features/dashboard.js"></script>
+  <script src="js/features/programme.js"></script>
+  <script src="js/features/programme-editor.js"></script>
+  <script src="js/features/custom-session.js"></script>
+  <script src="js/features/session.js"></script>
+  <script src="js/features/rest.js"></script>
+  <script src="js/features/session-sheets.js"></script>
+  <script src="js/features/session-gestures.js"></script>
+  <script src="js/features/summary.js"></script>
+  <script src="js/features/add-session.js"></script>
+  <script src="js/features/settings.js"></script>
+  <script src="js/features/progress.js"></script>
+  <script src="js/features/progress-chart.js"></script>
+  <script src="js/features/progress-overview.js"></script>
+  <script src="js/features/history.js"></script>
+  <!-- Mises à jour et démarrage (en dernier) -->
+  <script src="js/app/updates.js"></script>
+  <script src="js/app/init.js"></script>
 </body>
 </html>

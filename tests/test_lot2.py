@@ -199,12 +199,22 @@ def once_static(bench):
     R.check(not hexes and not rgb, f'css : couleurs en dur hors tokens {hexes[:5]} {rgb[:5]}')
     sizes = re.findall(r'font-size:\s*(\d+)px', css.replace('html { height: 100%; font-size: 17px; }', ''))
     R.check(not sizes, f'css : tailles de police en px {sizes[:5]}')
-    js = open(os.path.join(APP_DIR, 'app.js'), encoding='utf-8').read()
+    # Anciennement app.js, découpé dans js/ : scripts lus dans l'ordre de chargement d'index.html
+    html = open(os.path.join(APP_DIR, 'index.html'), encoding='utf-8').read()
+    scripts = re.findall(r'<script src="([^"]+)"', html)
+    js = ''.join(open(os.path.join(APP_DIR, f), encoding='utf-8').read() for f in scripts)
+    on_disk = sorted(os.path.relpath(os.path.join(d, f), APP_DIR) for d, _, fs in os.walk(os.path.join(APP_DIR, 'js')) for f in fs if f.endswith('.js'))
+    R.check(sorted(scripts) == on_disk, f'index.html charge tous les scripts de js/ {set(scripts) ^ set(on_disk)}')
+    # Le service worker met en cache tout ce que la page charge
+    sw = open(os.path.join(APP_DIR, 'sw.js'), encoding='utf-8').read()
+    assets = set(re.findall(r"'(/[^']*)'", sw[sw.index('const ASSETS'):sw.index('];', sw.index('const ASSETS'))]))
+    refs = ['/' + r for r in scripts + re.findall(r'<link rel="(?:stylesheet|manifest|icon|apple-touch-icon)" href="([^"]+)"', html)]
+    R.check(all(r in assets for r in refs), f'sw.js : fichiers absents de ASSETS {[r for r in refs if r not in assets]}')
+    R.check(all(os.path.exists(os.path.join(APP_DIR, a.lstrip('/'))) for a in assets if a != '/'), 'sw.js : ASSETS existants')
     prog = js[js.index('const PROGRAMMES'):js.index('custom: {', js.index('const PROGRAMMES'))]
     R.check(not re.search(r"color: '#", prog), 'PROGRAMMES : couleurs en tokens')
     styl = [m for m in re.findall(r'style="[^"]*#[0-9a-fA-F]{3,6}[^"]*"', js)]
-    R.check(not styl, f'app.js : couleur hex injectée en style= {styl[:3]}')
-    html = open(os.path.join(APP_DIR, 'index.html'), encoding='utf-8').read()
+    R.check(not styl, f'js : couleur hex injectée en style= {styl[:3]}')
     missing = [n for n in SPRITE if f'id="i-{n}"' not in html]
     R.check(not missing, f'sprite : icônes manquantes {missing}')
     R.check('<title>MDLF Training</title>' in html and 'content="MDLF Training"' in html, 'nom « MDLF Training » dans index.html')

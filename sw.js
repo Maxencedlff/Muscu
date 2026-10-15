@@ -4,8 +4,15 @@ const ASSETS = [
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
   '/css/navigation.css', '/css/session.css', '/css/screens.css',
   '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
-  '/js/data/programmes.js', '/js/data/store.js', '/js/data/accessors.js', '/js/data/active-session.js', '/js/data/backup.js',
-  '/app.js',
+  '/js/data/programmes.js', '/js/data/store.js', '/js/data/accessors.js', '/js/data/active-session.js',
+  '/js/data/backup.js',
+  '/js/ui/theme.js', '/js/ui/router.js', '/js/ui/navbar.js', '/js/ui/sheet.js',
+  '/js/ui/forms.js', '/js/ui/edge-swipe.js',
+  '/js/app/actions.js', '/js/app/updates.js', '/js/app/init.js',
+  '/js/features/dashboard.js', '/js/features/programme.js', '/js/features/programme-editor.js', '/js/features/custom-session.js',
+  '/js/features/session.js', '/js/features/rest.js', '/js/features/session-sheets.js', '/js/features/session-gestures.js',
+  '/js/features/summary.js', '/js/features/add-session.js', '/js/features/settings.js', '/js/features/progress.js',
+  '/js/features/progress-chart.js', '/js/features/progress-overview.js', '/js/features/history.js',
 ];
 
 // Une version = un cache complet, téléchargé d'un bloc (cache HTTP contourné) :
