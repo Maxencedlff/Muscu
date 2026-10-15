@@ -96,7 +96,9 @@ body.light {
 button { touch-action: manipulation; -webkit-user-select: none; user-select: none; font-family: inherit; color: inherit; }
 img, svg { -webkit-touch-callout: none; }
 
-html { height: 100%; font-size: 17px; }
+/* Dynamic Type : 1rem = taille « Corps » d'iOS (17 px par défaut), toutes les tailles en rem */
+html { height: 100%; font-size: 106.25%; }
+@supports (font: -apple-system-body) { html { font: -apple-system-body; } }
 body {
   min-height: 100vh; overflow-x: hidden;
   font-family: var(--font);

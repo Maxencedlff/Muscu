@@ -118,14 +118,24 @@ function sameEx(a, b) {
   return (ia && ib) ? ia === ib : normName(a?.name) === normName(b?.name);
 }
 
+// Annonce VoiceOver / TalkBack via les régions aria-live (#sr-polite, #sr-assert, posées dans index.html)
+function announce(msg, assertive = false) {
+  const el = document.getElementById(assertive ? 'sr-assert' : 'sr-polite');
+  if (!el) return;
+  el.textContent = '';
+  // vidée puis remplie : un même message répété est annoncé à nouveau
+  setTimeout(() => { el.textContent = msg; }, 30);
+}
+
 // toast simple, ou avec action : showToast('Import réussi', { action: 'Annuler', onAction, duration: 6000 })
+// { error: true } : annoncé en assertif et affiché au moins 4 s
 function showToast(msg, opts = {}) {
   const existing = $('.toast');
   if (existing) existing.remove();
   const el = document.createElement('div');
   el.className = 'toast';
-  el.setAttribute('role', 'status');
-  const duration = opts.duration || 2200;
+  const duration = Math.max(opts.duration || 2200, opts.error ? 4000 : 0);
+  announce(opts.action ? `${msg}. ${opts.action} disponible` : msg, !!opts.error);
   el.style.setProperty('--toast-duration', duration + 'ms');
   const text = document.createElement('span');
   text.textContent = msg;
@@ -155,14 +165,17 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
     root.className = `ios-dialog ios-dialog--${type}`;
     root.setAttribute('role', type === 'sheet' ? 'dialog' : 'alertdialog');
     root.setAttribute('aria-modal', 'true');
+    const dlgId = 'dlg-' + uid();
+    if (title) root.setAttribute('aria-labelledby', dlgId + '-t');
+    if (message) root.setAttribute('aria-describedby', dlgId + '-m');
 
     const main   = actions.filter(a => a.style !== 'cancel');
     const cancel = actions.find(a => a.style === 'cancel');
     const btn = a => `<button class="ios-dialog__btn ios-dialog__btn--${a.style || 'default'}" data-i="${actions.indexOf(a)}">${esc(a.label)}</button>`;
     const head = (title || message) ? `
       <div class="ios-dialog__head">
-        ${title   ? `<div class="ios-dialog__title">${esc(title)}</div>` : ''}
-        ${message ? `<div class="ios-dialog__msg">${esc(message)}</div>` : ''}
+        ${title   ? `<div class="ios-dialog__title" id="${dlgId}-t" tabindex="-1">${esc(title)}</div>` : ''}
+        ${message ? `<div class="ios-dialog__msg" id="${dlgId}-m">${esc(message)}</div>` : ''}
         ${input   ? `<div class="ios-dialog__field">
             <input class="ios-dialog__input" type="number" inputmode="${input.decimal ? 'decimal' : 'numeric'}"
                    value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}">
@@ -209,6 +222,36 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
   });
 }
 
+// Dialogues, feuilles et feuilles de séance : tant qu'une est ouverte, le reste de l'app est inerte
+// (VoiceOver et clavier restent dans la fenêtre). À la fermeture, le focus revient au déclencheur.
+const MODAL_SEL = '.ios-dialog, .sheet-root, .sess-sheet';
+let modalOpener = null;
+let modalOpen   = false;
+function syncModal() {
+  const top = [...document.querySelectorAll(MODAL_SEL)].pop();
+  const outside = [$('#app'), $('.tabbar'), $('.livebar')].filter(Boolean);
+  if (top) {
+    if (!modalOpen) { modalOpen = true; modalOpener = document.activeElement; }
+    outside.forEach(el => { el.inert = true; });
+    if (!top.contains(document.activeElement)) {
+      const tgt = top.querySelector('.ios-dialog__title, .sheet__title, .rs__title, .sess-sheet__body [tabindex="-1"]') || top.querySelector('.sess-sheet__panel, .ios-dialog__panel, .sheet');
+      if (tgt) { if (!tgt.hasAttribute('tabindex')) tgt.setAttribute('tabindex', '-1'); tgt.focus({ preventScroll: true }); }
+    }
+  } else if (modalOpen) {
+    modalOpen = false;
+    outside.forEach(el => { el.inert = false; });
+    let o = modalOpener;
+    modalOpener = null;
+    // Déclencheur redessiné entre-temps : on retrouve son équivalent par son action
+    if (o && !o.isConnected && o.dataset?.action) {
+      const d = o.dataset;
+      o = document.querySelector(`[data-action="${d.action}"]${d.ei ? `[data-ei="${d.ei}"]` : ''}${d.si ? `[data-si="${d.si}"]` : ''}`);
+    }
+    if (o && o.isConnected && o !== document.body && !document.activeElement?.matches?.('input, textarea')) o.focus?.({ preventScroll: true });
+  }
+}
+new MutationObserver(syncModal).observe(document.body, { childList: true });
+
 function confirmSheet(title, message, label, destructive = true) {
   return dialog({ type: 'sheet', title, message, actions: [
     { label, value: true, style: destructive ? 'destructive' : 'preferred' },
@@ -223,7 +266,7 @@ async function askNumber({ title, message, value, unit, min, max, decimal = fals
   ] });
   if (raw === null || raw === '') return null;
   const v = decimal ? parseFloat(raw) : parseInt(raw, 10);
-  if (isNaN(v) || v < min || v > max) { showToast(`Valeur entre ${min} et ${max}`); return null; }
+  if (isNaN(v) || v < min || v > max) { showToast(`Valeur entre ${min} et ${max}`, { error: true }); return null; }
   return v;
 }
 
@@ -542,7 +585,7 @@ function save(quiet = false) {
   if (dataBroken) return false;
   try { localStorage.setItem(KEY, JSON.stringify(data)); return true; }
   catch {
-    if (!quiet) showToast('Stockage plein : exporte tes données', { duration: 4000 });
+    if (!quiet) showToast('Stockage plein : exporte tes données', { error: true });
     return false;
   }
 }
@@ -561,7 +604,7 @@ function persistSession() {
   } catch {
     if (activeSession && !persistWarned) {
       persistWarned = true;
-      showToast('Stockage plein : la séance n\'est plus sauvegardée', { duration: 4000 });
+      showToast('Stockage plein : la séance n\'est plus sauvegardée', { error: true });
     }
   }
 }
@@ -780,7 +823,37 @@ function applyTheme(theme) {
   if (bar) bar.content = light ? 'default' : 'black-translucent';
 }
 applyTheme(themePref());
-darkMQ.addEventListener?.('change', () => { if (themePref() === 'auto') { applyTheme('auto'); if (view === 'stats') render(); } });
+
+// Dynamic Type : au-delà de 1,3 × la taille par défaut (17 px), les séries passent sur 2 lignes
+function checkTypeSize() {
+  const html = document.documentElement;
+  html.classList.toggle('type-xl', parseFloat(getComputedStyle(html).fontSize) > 17 * 1.3);
+}
+checkTypeSize();
+window.addEventListener('resize', checkTypeSize);
+document.addEventListener('visibilitychange', checkTypeSize);
+
+// Mode Auto : pas de bascule de thème en pleine séance, on attend la fin de la séance
+let themePending = false;
+darkMQ.addEventListener?.('change', () => {
+  if (themePref() !== 'auto') return;
+  if (activeSession) { themePending = true; return; }
+  applyTheme('auto'); if (view === 'stats') render();
+});
+function applyPendingTheme() { if (themePending) { themePending = false; applyTheme(themePref()); } }
+
+// Choix du thème dans les Réglages : iOS ne relit la couleur de la barre d'état qu'au lancement
+function setThemePref(theme) {
+  const bar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+  const before = bar?.content;
+  applyTheme(theme);
+  let told = false;
+  try { told = localStorage.getItem('ppl_statusbar_hint') === '1'; } catch {}
+  if (bar && bar.content !== before && !told) {
+    try { localStorage.setItem('ppl_statusbar_hint', '1'); } catch {}
+    showToast('La barre d\'état s\'adaptera au prochain lancement', { duration: 3500 });
+  }
+}
 
 // Donnée illisible : l'app démarre sur une donnée vide sans rien écrire, puis affiche l'écran de secours
 let loadError = null;
@@ -1963,6 +2036,7 @@ function endSession() {
   persistWarned = false;
   persistSession();
   releaseWakeLock();
+  applyPendingTheme();
   maybeShowUpdateBanner();
 }
 
@@ -2132,7 +2206,7 @@ function renderSetRow(ex, ei, s, si, cur) {
       <div class="set-swipe" role="row">
         ${del}
         <div class="set-row2 set-row2--done" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"
-             aria-label="${nm} : ${s.weight !== '' ? wTxt(s.weight) + ' ' + unitLbl() + ' × ' : ''}${esc(s.reps)}, validée. Modifier">
+             aria-label="Série ${si + 1} validée, ${s.weight !== '' ? wTxt(s.weight) + (data.unit === 'lbs' ? ' livres' : ' kilos') + ', ' : ''}${esc(s.reps)} répétitions, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
           <span class="set-n num">${si + 1}</span>
           <span class="set-prev num">${prev}</span>
           <span class="set-val num">${s.weight !== '' ? wTxt(s.weight) : '—'}</span>
@@ -2149,8 +2223,8 @@ function renderSetRow(ex, ei, s, si, cur) {
   const wAttr = editing ? 'id="editSetWeight"' : `data-action="set-weight" data-ei="${ei}" data-si="${si}"`;
   const rAttr = editing ? 'id="editSetReps"'   : `data-action="set-reps" data-ei="${ei}" data-si="${si}"`;
   const check = editing
-    ? `<button class="set-check-zone" data-action="save-edit-set" aria-label="Enregistrer ${nm}"><span class="set-check set-check--edit">${icon('checkmark', 18)}</span></button>`
-    : `<button class="set-check-zone" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-label="Valider ${nm}"><span class="set-check"></span></button>`;
+    ? `<button class="set-check-zone" data-action="save-edit-set" aria-label="Enregistrer la série ${si + 1}, ${esc(ex.name)}"><span class="set-check set-check--edit">${icon('checkmark', 18)}</span></button>`
+    : `<button class="set-check-zone" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-label="Valider la série ${si + 1}, ${esc(ex.name)}"><span class="set-check"></span></button>`;
   return `
     <div class="set-swipe" role="row">
       ${editing ? '' : del}
@@ -2158,9 +2232,9 @@ function renderSetRow(ex, ei, s, si, cur) {
         <span class="set-n num">${si + 1}</span>
         <span class="set-prev num">${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
-               value="${editing ? dispW(s.weight) : dispW(s.weight)}" placeholder="${prevW || '—'}" aria-label="Charge en ${unitLbl()}, ${nm}">
+               value="${editing ? dispW(s.weight) : dispW(s.weight)}" placeholder="${prevW || '—'}" aria-label="Charge série ${si + 1}, ${esc(ex.name)}, en ${unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
-               value="${esc(s.reps)}" placeholder="${esc(s.prev?.reps ?? '0')}" aria-label="Répétitions, ${nm}">
+               value="${esc(s.reps)}" placeholder="${esc(s.prev?.reps ?? '0')}" aria-label="Répétitions série ${si + 1}, ${esc(ex.name)}">
         ${check}
       </div>
     </div>`;
@@ -2285,11 +2359,11 @@ function renderRestOverlay() {
           <circle cx="20" cy="20" r="17" class="rest-ring__track"/>
           <circle cx="20" cy="20" r="17" class="rest-ring__bar" stroke-dasharray="${RING_SMALL}" stroke-dashoffset="${off}"/>
         </svg>
-        <span class="rest-mini__timer num" role="timer">${fmtSecs(restTimeLeft)}</span>
+        <span class="rest-mini__timer num" role="timer" aria-live="off">${fmtSecs(restTimeLeft)}</span>
       </button>
-      <button class="rest-mini__btn num" data-action="rest-adjust" data-d="-15" aria-label="Retirer 15 secondes">−15<span class="rest-mini__u">&nbsp;s</span></button>
-      <button class="rest-mini__btn num" data-action="rest-adjust" data-d="15" aria-label="Ajouter 15 secondes">+15<span class="rest-mini__u">&nbsp;s</span></button>
-      <button class="rest-mini__skip" data-action="skip-rest">Passer</button>
+      <button class="rest-mini__btn num" data-action="rest-adjust" data-d="-15" aria-label="Moins 15 secondes">−15<span class="rest-mini__u">&nbsp;s</span></button>
+      <button class="rest-mini__btn num" data-action="rest-adjust" data-d="15" aria-label="Plus 15 secondes">+15<span class="rest-mini__u">&nbsp;s</span></button>
+      <button class="rest-mini__skip" data-action="skip-rest" aria-label="Passer le repos">Passer</button>
       ${nxt ? `<div class="rest-mini__next">Ensuite : ${esc(nxt)}</div>` : ''}
     </div>`;
 }
@@ -2299,14 +2373,17 @@ function restSheetHtml() {
   const nxt = nextSetText();
   return `
     <div class="rs">
-      <div class="rs__title">Repos</div>
+      <div class="rs__top">
+        <h2 class="rs__title" tabindex="-1">Repos</h2>
+        <button class="rs__collapse" data-action="collapse-rest">Réduire</button>
+      </div>
       <div class="rs__ring">
         <svg class="rest-ring rest-ring--big" viewBox="0 0 220 220" aria-hidden="true">
           <circle cx="110" cy="110" r="100" class="rest-ring__track"/>
           <circle cx="110" cy="110" r="100" class="rest-ring__bar" stroke-dasharray="${RING_BIG}" stroke-dashoffset="${RING_BIG * (1 - restFraction())}"/>
         </svg>
         <div class="rs__center">
-          <div class="rs__time num" role="timer">${fmtSecs(restTimeLeft)}</div>
+          <div class="rs__time num" role="timer" aria-live="off">${fmtSecs(restTimeLeft)}</div>
           <div class="rs__resume num">Reprise à ${restResumeAt()}</div>
         </div>
       </div>
@@ -2314,9 +2391,9 @@ function restSheetHtml() {
         ${presets.map(p => `<button class="rs-seg__btn num" data-action="set-rest" data-secs="${p}" aria-pressed="${restTotal === p}">${fmtSecs(p)}</button>`).join('')}
       </div>
       <div class="rs__adj">
-        <button class="rs__round num" data-action="rest-adjust" data-d="-15" aria-label="Retirer 15 secondes">−15</button>
-        <button class="rs__skip" data-action="skip-rest">Passer</button>
-        <button class="rs__round num" data-action="rest-adjust" data-d="15" aria-label="Ajouter 15 secondes">+15</button>
+        <button class="rs__round num" data-action="rest-adjust" data-d="-15" aria-label="Moins 15 secondes">−15</button>
+        <button class="rs__skip" data-action="skip-rest" aria-label="Passer le repos">Passer</button>
+        <button class="rs__round num" data-action="rest-adjust" data-d="15" aria-label="Plus 15 secondes">+15</button>
       </div>
       ${nxt ? `<div class="rs__next">Ensuite : ${esc(nxt)}</div>` : ''}
     </div>`;
@@ -2359,8 +2436,13 @@ function startRestCountdown() {
 // Relance l'affichage du chrono sans toucher à l'heure de fin (retour au premier plan, restauration)
 function resumeRestCountdown() {
   clearInterval(restInterval);
+  let before = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
   restInterval = setInterval(() => {
     restTimeLeft = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
+    // Seuls les jalons sont annoncés (le chrono lui-même est en aria-live="off")
+    if (before > 30 && restTimeLeft <= 30 && restTimeLeft > 10) announce('30 secondes');
+    else if (before > 10 && restTimeLeft <= 10 && restTimeLeft > 0) announce('10 secondes');
+    before = restTimeLeft;
     updateRestUI();
     if (restTimeLeft <= 0) restFinished();
   }, 250);
@@ -2374,10 +2456,11 @@ function restFinished() {
   persistSession();
   timerDone();
   closeRestSheet();
+  const nx = currentSet();
+  announce(nx ? `Repos terminé, série ${nx.si + 1} de ${activeSession.exercises[nx.ei].name}` : 'Repos terminé');
   const bar = $('.rest-mini');
   if (bar) {
     bar.classList.add('rest-mini--done');
-    bar.setAttribute('aria-live', 'assertive');
     bar.innerHTML = `<div class="rest-mini__go">C'est reparti</div>`;
     setTimeout(() => {
       if (restActive) return; // un nouveau repos a commencé entre-temps
@@ -2512,9 +2595,9 @@ function exRestSheetHtml(ei) {
         ${[60, 90, 120, 180].map(p => `<button class="rs-seg__btn num" data-action="ex-rest-set" data-secs="${p}" aria-pressed="${v === p}">${fmtSecs(p)}</button>`).join('')}
       </div>
       <div class="rs__adj">
-        <button class="rs__round num" data-action="ex-rest-adj" data-d="-15" aria-label="Retirer 15 secondes">−15</button>
+        <button class="rs__round num" data-action="ex-rest-adj" data-d="-15" aria-label="Moins 15 secondes">−15</button>
         <button class="rs__done" data-action="sheet-done">OK</button>
-        <button class="rs__round num" data-action="ex-rest-adj" data-d="15" aria-label="Ajouter 15 secondes">+15</button>
+        <button class="rs__round num" data-action="ex-rest-adj" data-d="15" aria-label="Plus 15 secondes">+15</button>
       </div>
     </div>`;
 }
@@ -4050,7 +4133,7 @@ async function handleAction(e, el, action) {
       navigate('settings'); break;
     }
     case 'set-theme': {
-      applyTheme(el.dataset.val); render(); break;
+      setThemePref(el.dataset.val); render(); break;
     }
     case 'setting-unit': {
       data.unit = el.dataset.val; save(); render(); break;
@@ -4449,6 +4532,9 @@ async function handleAction(e, el, action) {
       persistSession();
       break;
     }
+    case 'collapse-rest': {
+      closeRestSheet(); break;
+    }
     case 'expand-rest': {
       if (restActive) openRestSheet();
       break;
@@ -4770,7 +4856,7 @@ function importText(text) {
     if (given > 0 && next.history.length === 0) throw new Error('history');
     next._skipped = given - next.history.length;
   } catch {
-    showToast('Fichier invalide : rien n\'a été modifié', { duration: 4000 });
+    showToast('Fichier invalide : rien n\'a été modifié', { error: true });
     return false;
   }
   const skipped = next._skipped; delete next._skipped;
@@ -5000,7 +5086,7 @@ function applyUpdate() {
 async function checkForUpdate() {
   if (!('serviceWorker' in navigator) || !swReg) { location.reload(); return; }
   try { await swReg.update(); }
-  catch { showToast('Impossible de vérifier : pas de connexion ?', { duration: 4000 }); return; }
+  catch { showToast('Impossible de vérifier : pas de connexion ?', { error: true }); return; }
   const pending = swReg.waiting || swReg.installing;
   if (!pending) { showToast('Tu as la dernière version'); return; }
   showToast('Mise à jour…');
