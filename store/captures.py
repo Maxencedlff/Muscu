@@ -47,7 +47,19 @@ def main():
 
         snap(page, '1-accueil')
 
-        # Séance : deux séries validées, repos en cours
+        # Écrans sans séance en cours (pas de mini-barre)
+        tab(page, 2)
+        snap(page, '3-progres')
+        page.locator('[data-action="open-stats-ex"]').first.click()
+        page.wait_for_selector('canvas')
+        snap(page, '4-progression-exercice')
+        tab(page, 1)
+        snap(page, '5-historique')
+        tab(page, 3)
+        snap(page, '6-programme')
+
+        # Séance en dernier : deux séries validées, repos en cours
+        tab(page, 0)
         page.locator('[data-action="start-session"]').first.click()
         page.wait_for_selector('.view.session')
         for si in range(2):
@@ -55,21 +67,6 @@ def main():
             page.wait_for_timeout(400)
         page.evaluate("document.querySelectorAll('.toast').forEach(t => t.remove())")
         snap(page, '2-seance')
-
-        # Progrès › Développé couché : courbe de charge
-        page.evaluate("handleAction(null, document.body, 'back')")
-        page.wait_for_timeout(400)
-        tab(page, 2)
-        snap(page, '3-progres')
-        page.locator('[data-action="open-stats-ex"]').first.click()
-        page.wait_for_selector('.stats-canvas, canvas')
-        snap(page, '4-progression-exercice')
-
-        tab(page, 1)
-        snap(page, '5-historique')
-
-        tab(page, 3)
-        snap(page, '6-programme')
         browser.close()
 
 
