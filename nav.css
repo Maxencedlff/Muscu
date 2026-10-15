@@ -1,0 +1,273 @@
+/* ═══════════════════════════════════════════════
+   Navigation : barre de navigation, tab bar, mini-barre
+   de séance, accueil, feuilles modales, transitions (lot 3)
+═══════════════════════════════════════════════ */
+
+
+:root {
+  --tabbar-h: 49px;
+  --nav-ease: cubic-bezier(.2,.8,.2,1);
+}
+
+/* ── Défilement du document (plus de conteneurs internes) ── */
+#app { height: auto; min-height: 100vh; min-height: 100dvh; display: block; overflow: visible; }
+.view { display: block; min-height: 100vh; min-height: 100dvh; }
+.cards, .session-content, .editor-list, .add-session-content, .stats-list,
+.history-list, .prog-list, .settings-view .settings-list {
+  flex: none; overflow: visible; min-height: 0;
+}
+body.has-tabbar .view {
+  padding-bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom, 0px));
+}
+body.has-tabbar.has-livebar .view {
+  padding-bottom: calc(var(--tabbar-h) + 16px + 64px + env(safe-area-inset-bottom, 0px));
+}
+
+/* La bannière de mise à jour passe au-dessus de la tab bar et de la mini-barre */
+body.has-tabbar .update-banner { bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom, 0px)); }
+body.has-tabbar.has-livebar .update-banner { bottom: calc(var(--tabbar-h) + 72px + env(safe-area-inset-bottom, 0px)); }
+
+/* Le toast s'affiche en bas, au-dessus de la tab bar : jamais sur la barre de navigation */
+.toast { top: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom, 0px)); }
+body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(safe-area-inset-bottom, 0px)); }
+
+/* ── Barre de navigation ── */
+.navbar {
+  position: sticky; top: 0; z-index: 50;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: inset 0 -0.5px 0 var(--sep);
+  transition: box-shadow .2s, background-color .2s;
+}
+.navbar--large:not(.navbar--collapsed) {
+  background: var(--bg); box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.navbar__bar {
+  height: 44px; display: grid; grid-template-columns: 1fr minmax(0, auto) 1fr; align-items: center;
+  padding: 0 8px;
+}
+.navbar__side { display: flex; align-items: center; min-width: 0; }
+/* « Annuler » / « OK » gardent leur largeur : c'est le titre qui se tronque (écrans étroits) */
+.navbar__side:has(> .navbar__text) { min-width: max-content; }
+.navbar__side--right { justify-content: flex-end; }
+.navbar__title {
+  font-size: 1rem; line-height: 1.294rem; font-weight: 600; color: var(--label);
+  text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 56vw; display: flex; flex-direction: column; align-items: center;
+}
+.navbar--large .navbar__title { opacity: 0; transition: opacity .15s; }
+.navbar--large.navbar--collapsed .navbar__title { opacity: 1; }
+.navbar__title-main { line-height: 1.176rem; }
+.navbar__title-sub { font-size: 0.706rem; line-height: 0.882rem; font-weight: 400; color: var(--label2); }
+
+.navbar__back, .navbar__text, .navbar__icon {
+  background: none; border: none; color: var(--tint); font: inherit; cursor: pointer;
+  min-height: 44px; min-width: 44px; display: inline-flex; align-items: center;
+}
+.navbar__back { gap: 2px; padding: 0 8px 0 0; font-size: 1rem; max-width: 100%; }
+.navbar__back .icon { flex-shrink: 0; }
+.navbar__back-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.navbar__text { font-size: 1rem; padding: 0 8px; white-space: nowrap; }
+.navbar__text--bold { font-weight: 600; }
+.navbar__text:disabled { color: var(--label3); cursor: default; }
+.navbar__icon { justify-content: center; }
+.navbar__back:active, .navbar__text:active:not(:disabled), .navbar__icon:active { opacity: .5; }
+
+.navbar__largewrap { padding: 2px 16px 8px; }
+.navbar__large { color: var(--label); letter-spacing: .3px; }
+.navbar__sub {
+  background: none; border: none; font: inherit; cursor: pointer; padding: 0;
+  font-size: 0.882rem; line-height: 1.176rem; color: var(--label2); min-height: 32px;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.navbar__sub .icon { color: var(--label3); }
+.navbar__sub:active { opacity: .5; }
+
+.navbar .progress-bar { height: 3px; background: var(--fill); }
+
+/* ── Tab bar ── */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  display: flex;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: inset 0 0.5px 0 var(--sep);
+  view-transition-name: tabbar;
+}
+.tabbar[hidden] { display: none; }
+.tabbar__btn {
+  flex: 1; min-height: var(--tabbar-h); background: none; border: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  color: var(--label2); font-family: inherit; padding-top: 2px;
+}
+.tabbar__btn--active { color: var(--tint); }
+.tabbar__label { font-size: 10px; line-height: 12px; font-weight: 500; } /* comme iOS : la tab bar ne suit pas Dynamic Type */
+
+/* ── Mini-barre de la séance en cours ── */
+.livebar {
+  position: fixed; z-index: 59; left: 8px; right: 8px;
+  bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom, 0px));
+  height: 56px; border-radius: 14px; border: none; cursor: pointer;
+  background: var(--cell2); color: var(--label); font-family: inherit;
+  display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px;
+  box-shadow: var(--shadow-float);
+  view-transition-name: livebar;
+}
+.livebar[hidden] { display: none; }
+body.light .livebar { background: var(--cell); box-shadow: var(--shadow-float); }
+.livebar:active { opacity: .7; }
+.livebar__dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--cat-color); flex-shrink: 0;
+  animation: livePulse 1.6s ease-in-out infinite;
+}
+@keyframes livePulse { 50% { opacity: .35; } }
+.livebar__title { font-size: 0.882rem; font-weight: 600; flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.livebar__time { font-size: 0.882rem; color: var(--label2); }
+.livebar__rest {
+  font-size: 0.765rem; font-weight: 600; color: var(--tint);
+  background: color-mix(in srgb, var(--tint) 15%, transparent);
+  padding: 3px 8px; border-radius: var(--r-pill);
+}
+.livebar__rest[hidden] { display: none; }
+.livebar__chev { color: var(--label3); display: flex; }
+
+/* ── Accueil ── */
+.home { padding: 8px 16px 0; }
+
+.hero {
+  background: var(--cell); border-radius: var(--r-lg); padding: 16px 16px 4px;
+  display: flex; flex-direction: column;
+}
+.hero__eyebrow { font-size: 0.765rem; line-height: 1.059rem; font-weight: 600; color: var(--label2); text-transform: uppercase; }
+.hero__head { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.hero__name { font-size: 1.647rem; line-height: 2rem; font-weight: 700; color: var(--label); }
+.hero__desc { font-size: 0.882rem; line-height: 1.176rem; color: var(--label2); margin-top: 2px; }
+.hero__info { font-size: 0.882rem; line-height: 1.176rem; color: var(--label2); margin-top: 12px; }
+.hero__info--live { color: var(--label); font-weight: 600; }
+.hero__wait { font-size: 0.882rem; line-height: 1.176rem; color: var(--label); margin-top: 4px; }
+.hero__btn {
+  margin-top: 16px; height: 50px; border: none; border-radius: var(--r-md);
+  background: var(--tint-fill); color: var(--on-tint); font: inherit; font-size: 1rem; font-weight: 600; cursor: pointer;
+}
+.hero__btn--gray { background: var(--fill); color: var(--tint); }
+.hero__btn:active { opacity: .6; }
+.hero__link {
+  margin-top: 4px; min-height: 44px; border: none; background: none; cursor: pointer;
+  color: var(--tint); font: inherit; font-size: 0.882rem;
+}
+.hero__link:active { opacity: .5; }
+
+.list-title {
+  font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); text-transform: uppercase;
+  padding: 24px 16px 6px;
+}
+.list-group { background: var(--cell); border-radius: var(--r-md); overflow: hidden; }
+.list-group + .list-group, .hero + .list-group { margin-top: 24px; }
+.home-cell {
+  position: relative; width: 100%; min-height: 60px; border: none; background: none; cursor: pointer;
+  display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+  color: var(--label); font: inherit; text-align: left;
+}
+.home-cell + .home-cell::before {
+  content: ''; position: absolute; top: 0; right: 0; left: 56px;
+  height: 0.5px; background: var(--sep);
+}
+.home-cell--streak { min-height: 44px; }
+.home-cell:active { background: var(--fill); }
+.home-cell__name { flex: 1; font-size: 1rem; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-cell--streak .home-cell__name { font-weight: 400; flex: 0 0 auto; }
+.home-cell__right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.home-cell__status { font-size: 0.882rem; color: var(--label2); }
+.home-cell__status--ready { color: var(--green-text); font-weight: 600; }
+.home-cell__status--live { color: var(--tint); font-weight: 600; }
+.home-cell__value { flex: 1; text-align: right; font-size: 0.882rem; color: var(--label2); }
+.home-cell__icon { color: var(--orange); display: flex; width: 28px; justify-content: center; }
+.home-cell__chev { color: var(--label3); display: flex; }
+.ring { transform: rotate(-90deg); flex-shrink: 0; }
+.ring__track { fill: none; stroke: var(--fill); stroke-width: 3; }
+.ring__fill { fill: none; stroke: var(--tint); stroke-width: 3; stroke-linecap: round; }
+
+/* L'animation d'apparition des cartes n'est jouée qu'au premier affichage */
+body:not(.first-paint) .card { animation: none; }
+
+/* ── Feuille modale ── */
+.sheet-root { position: fixed; inset: 0; z-index: 900; display: flex; align-items: flex-end; justify-content: center; }
+.sheet__backdrop { position: absolute; inset: 0; background: var(--dimmer); animation: sheetFade .25s ease; }
+.sheet {
+  position: relative; width: 100%; max-width: 600px; max-height: 92vh; max-height: 92dvh;
+  background: var(--cell); border-radius: 16px 16px 0 0;
+  display: flex; flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: sheetUp .35s var(--nav-ease);
+  transition: transform .25s var(--nav-ease);
+}
+.sheet__grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--label3); margin: 6px auto 0; flex-shrink: 0; }
+.sheet__bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 44px; padding: 0 8px; flex-shrink: 0; }
+.sheet__title { font-size: 1rem; font-weight: 600; color: var(--label); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sheet__btn {
+  background: none; border: none; font: inherit; font-size: 1rem; color: var(--tint);
+  min-height: 44px; padding: 0 8px; cursor: pointer; justify-self: start;
+}
+.sheet__btn--confirm { font-weight: 600; justify-self: end; }
+.sheet__btn:active { opacity: .5; }
+.sheet__body { overflow-y: auto; padding: 8px 16px 24px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.sheet-root--out .sheet { animation: sheetDown .22s ease forwards; }
+.sheet-root--out .sheet__backdrop { animation: sheetFade .22s ease reverse forwards; }
+@keyframes sheetUp   { from { transform: translateY(100%); } }
+@keyframes sheetDown { to   { transform: translateY(100%); } }
+@keyframes sheetFade { from { opacity: 0; } }
+.sheet-list { list-style: none; background: var(--cell2); border-radius: var(--r-md); }
+/* En clair, la feuille prend le fond groupé et ses listes le blanc des cellules */
+body.light .sheet { background: var(--bg); }
+body.light .sheet-list { background: var(--cell); }
+.sheet-list__row {
+  position: relative; display: flex; justify-content: space-between; gap: 12px;
+  min-height: 44px; align-items: center; padding: 11px 16px; font-size: 1rem; color: var(--label);
+}
+.sheet-list__row + .sheet-list__row::before {
+  content: ''; position: absolute; top: 0; left: 16px; right: 0; height: 0.5px; background: var(--sep);
+}
+.sheet-list__meta { color: var(--label2); font-size: 0.882rem; flex-shrink: 0; }
+.sheet-empty { color: var(--label2); text-align: center; padding: 24px 0; }
+
+/* ── Transitions entre écrans (View Transitions) ── */
+::view-transition-old(root), ::view-transition-new(root) {
+  animation-duration: .35s; animation-timing-function: var(--nav-ease);
+}
+html[data-nav-dir="push"]::view-transition-old(root) { animation-name: navOutLeft; }
+html[data-nav-dir="push"]::view-transition-new(root) { animation-name: navInRight; }
+html[data-nav-dir="pop"]::view-transition-old(root)  { animation-name: navOutRight; z-index: 2; }
+html[data-nav-dir="pop"]::view-transition-new(root)  { animation-name: navInLeft; }
+html[data-nav-dir="up"]::view-transition-old(root)   { animation: none; }
+html[data-nav-dir="up"]::view-transition-new(root)   { animation-name: navInUp; }
+html[data-nav-dir="down"]::view-transition-old(root) { animation-name: navOutDown; z-index: 2; }
+html[data-nav-dir="down"]::view-transition-new(root) { animation: none; }
+html[data-nav-dir="fade"]::view-transition-old(root),
+html[data-nav-dir="fade"]::view-transition-new(root) { animation-duration: .15s; animation-timing-function: ease; }
+::view-transition-group(tabbar), ::view-transition-group(livebar) { animation: none; }
+@keyframes navInRight  { from { transform: translateX(100%); } }
+@keyframes navOutLeft  { to   { transform: translateX(-30%); } }
+@keyframes navInLeft   { from { transform: translateX(-30%); } }
+@keyframes navOutRight { to   { transform: translateX(100%); } }
+@keyframes navInUp     { from { transform: translateY(100%); } }
+@keyframes navOutDown  { to   { transform: translateY(100%); } }
+
+/* ── Geste de retour depuis le bord ── */
+.edge-layer {
+  position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+  background: var(--bg); transform: translateX(-30%);
+}
+.edge-current { position: relative; z-index: 1; background: var(--bg); box-shadow: var(--shadow-float); }
+
+@media (prefers-reduced-motion: reduce) {
+  .livebar__dot { animation: none; }
+  .sheet, .sheet__backdrop, .sheet-root--out .sheet, .sheet-root--out .sheet__backdrop { animation: none; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+}
