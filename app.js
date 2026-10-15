@@ -853,170 +853,703 @@ function validationSound() { if (data.soundOn !== false) beep(660, .1); }
 function finishSound()     { if (data.soundOn !== false) { beep(880, .1); setTimeout(() => beep(1320, .25), 160); } }
 
 // ═══════════════════════════════════════════════════════════
-//  Render dispatcher
+//  Navigation : onglets, piles, historique du navigateur
 // ═══════════════════════════════════════════════════════════
 
-function render() {
-  const app = $('#app');
-  const prev = $('.session-content');
-  const scrollTop = prev ? prev.scrollTop : 0;
 
+// Racine de chaque onglet : les fonctions renderXxx gardent leur nom de vue historique
+const TABS = {
+  train:    { root: 'dashboard', label: 'Entraînement', icon: 'dumbbell',      action: 'go-home' },
+  history:  { root: 'history',   label: 'Historique',   icon: 'clock.history', action: 'go-history' },
+  progress: { root: 'stats',     label: 'Progrès',      icon: 'chart',         action: 'go-stats' },
+  program:  { root: 'editor',    label: 'Programme',    icon: 'list.bullet',   action: 'go-program' },
+};
+const TAB_OF_ROOT = Object.fromEntries(Object.entries(TABS).map(([t, v]) => [v.root, t]));
+
+let nav = { tab: 'train', stacks: { train: ['dashboard'], history: ['history'], progress: ['stats'], program: ['editor'] } };
+let navIndex   = 0;     // position dans l'historique du navigateur
+let navHist    = [];    // copie des états poussés, pour savoir si history.back() mène au bon écran
+let ignorePop  = 0;     // popstate provoqués par l'app elle-même
+let firstPaint = true;
+let skipTransition = false;
+const scrollMem = {};   // défilement par écran (clé = onglet + pile)
+const snapMem   = {};   // dernier rendu de chaque écran, montré sous le geste de retour
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+// Le défilement de chaque écran est géré par l'app, pas par le navigateur
+try { history.scrollRestoration = 'manual'; } catch {}
+// Navigateur piloté par les tests : pas de transitions, sauf demande explicite (window.__pplTransitions)
+const transitionsOff = () => navigator.webdriver && !window.__pplTransitions;
+
+function currentRoute(n = nav) { const s = n.stacks[n.tab]; return s[s.length - 1]; }
+function navKey(n = nav) { return n.tab + '/' + n.stacks[n.tab].join('/'); }
+function navClone(n) { return { tab: n.tab, stacks: Object.fromEntries(Object.entries(n.stacks).map(([k, v]) => [k, v.slice()])) }; }
+function navSame(a, b) { return !!a && !!b && JSON.stringify(a) === JSON.stringify(b); }
+function navHash(n) { const s = n.stacks[n.tab]; return '#' + n.tab + (s.length > 1 ? '/' + s.slice(1).join('/') : ''); }
+
+// Retire les écrans qui n'ont plus de sens (séance terminée entre-temps)
+function navSanitize(n) {
+  const out = navClone(n);
+  if (!TABS[out.tab]) out.tab = 'train';
+  for (const t of Object.keys(TABS)) {
+    let s = Array.isArray(out.stacks[t]) ? out.stacks[t] : [];
+    s = s.filter((r, i) => i === 0 || (r !== TABS[t].root && (r !== 'session' || activeSession)));
+    if (s[0] !== TABS[t].root) s.unshift(TABS[t].root);
+    out.stacks[t] = s;
+  }
+  return out;
+}
+
+function navWrite(mode) {
+  const st = { idx: navIndex, nav: navClone(nav) };
+  try {
+    if (mode === 'push') history.pushState(st, '', navHash(nav));
+    else history.replaceState(st, '', navHash(nav));
+  } catch {}
+  navHist[navIndex] = navClone(nav);
+}
+
+// Change d'état de navigation. mode : 'push' (nouvelle entrée), 'replace', 'back' (retour d'un cran)
+function navCommit(next, dir, mode = 'push') {
+  saveScroll();
+  next = navSanitize(next);
+  if (mode === 'back' && navIndex > 0 && navSame(navHist[navIndex - 1], next)) {
+    // Le retour système et le bouton retour restent synchronisés : on recule vraiment dans l'historique
+    ignorePop++;
+    navIndex--;
+    nav = next;
+    history.back();
+  } else if (mode === 'push') {
+    navIndex++;
+    navHist.length = navIndex;
+    nav = next;
+    navWrite('push');
+  } else {
+    nav = next;
+    navWrite('replace');
+  }
+  show(dir);
+}
+
+function navigate(route, { replace = false } = {}) {
+  const next = navClone(nav);
+  const s = next.stacks[next.tab];
+  if (replace) s[s.length - 1] = route; else s.push(route);
+  navCommit(next, route === 'session' ? 'up' : 'push', replace ? 'replace' : 'push');
+}
+
+function goBack() {
+  const s = nav.stacks[nav.tab];
+  if (s.length < 2) return;
+  const next = navClone(nav);
+  next.stacks[next.tab].pop();
+  navCommit(next, currentRoute() === 'session' ? 'down' : 'pop', 'back');
+}
+
+// Revient à un écran déjà dans la pile, sinon à la racine d'un onglet, sinon empile
+function routeTo(route) {
+  const s = nav.stacks[nav.tab];
+  const i = s.lastIndexOf(route);
+  if (i >= 0) {
+    if (i === s.length - 1) { show('none'); return; }
+    const next = navClone(nav);
+    next.stacks[next.tab] = s.slice(0, i + 1);
+    navCommit(next, currentRoute() === 'session' ? 'down' : 'pop', i === s.length - 2 ? 'back' : 'replace');
+    return;
+  }
+  const tab = TAB_OF_ROOT[route];
+  if (tab) { switchTab(tab, { reset: true, mode: nav.stacks[nav.tab].includes('session') ? 'replace' : 'push' }); return; }
+  navigate(route);
+}
+
+function switchTab(tab, { reset = false, mode = 'push' } = {}) {
+  const next = navClone(nav);
+  if (tab === nav.tab) {
+    // Toucher l'onglet actif : retour à la racine, puis en haut de page
+    if (next.stacks[tab].length > 1) {
+      next.stacks[tab] = [TABS[tab].root];
+      navCommit(next, 'pop', 'replace');
+    }
+    window.scrollTo({ top: 0, behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+    return;
+  }
+  next.tab = tab;
+  if (reset) next.stacks[tab] = [TABS[tab].root];
+  navCommit(next, 'fade', mode);
+}
+
+window.addEventListener('popstate', e => {
+  if (ignorePop > 0) { ignorePop--; return; }
+  const st = e.state;
+  if (!st || !st.nav) return;
+  saveScroll();
+  const prev = nav;
+  nav = navSanitize(st.nav);
+  navIndex = st.idx || 0;
+  navHist[navIndex] = navClone(nav);
+  // Écran devenu invalide (séance terminée) : on corrige l'entrée courante
+  if (!navSame(nav, st.nav)) navWrite('replace');
+  const dir = prev.tab !== nav.tab ? 'fade'
+    : nav.stacks[nav.tab].length < prev.stacks[prev.tab].length ? (currentRoute(prev) === 'session' ? 'down' : 'pop')
+    : nav.stacks[nav.tab].length > prev.stacks[prev.tab].length ? (currentRoute() === 'session' ? 'up' : 'push') : 'none';
+  closeTransientUI();
+  show(dir);
+});
+
+// Une feuille ou un dialogue ouvert ne doit pas survivre à un changement d'écran
+function closeTransientUI() {
+  document.querySelectorAll('.sheet-root').forEach(el => el._close?.(null));
+}
+
+function saveScroll() { scrollMem[navKey()] = window.scrollY; }
+
+// ═══════════════════════════════════════════════════════════
+//  Rendu
+// ═══════════════════════════════════════════════════════════
+
+// render() garde son rôle historique : réafficher l'écran courant en gardant le défilement.
+// Si du code a changé `view` directement, on traduit ce changement en navigation.
+function render() {
+  if (view !== currentRoute()) { routeTo(view); return; }
+  paint();
+}
+
+function paint(scrollY = window.scrollY) {
+  const app = $('#app');
+  view = currentRoute();
   if      (view === 'dashboard')   app.innerHTML = renderDashboard();
   else if (view === 'programmes')  app.innerHTML = renderProgrammes();
-  else if (view === 'session')     app.innerHTML = renderSession();
+  else if (view === 'session')     app.innerHTML = activeSession ? renderSession() : renderDashboard();
   else if (view === 'editor')      app.innerHTML = renderEditor();
   else if (view === 'history')     app.innerHTML = renderHistory();
   else if (view === 'stats')       app.innerHTML = renderStats();
   else if (view === 'settings')    app.innerHTML = renderSettings();
   else if (view === 'add-session') app.innerHTML = renderAddSession();
+  else app.innerHTML = renderDashboard();
 
   if (view === 'stats') setTimeout(drawCharts, 0);
+  document.body.classList.toggle('first-paint', firstPaint);
+  if (firstPaint) setTimeout(() => document.body.classList.remove('first-paint'), 600);
+  firstPaint = false;
+  updateChrome();
+  observeLargeTitle();
+  window.scrollTo(0, scrollY);
+}
 
-  if (view === 'session') {
-    const sc = $('.session-content');
-    if (sc) sc.scrollTop = scrollTop;
+// Affiche l'écran courant après un changement de navigation, avec la transition qui va avec
+function show(dir = 'none') {
+  const prevKey = show.lastKey;
+  if (prevKey && dir === 'push') snapMem[prevKey] = $('#app').innerHTML;
+  const key = navKey();
+  show.lastKey = key;
+  const target = (dir === 'pop' || dir === 'down' || dir === 'fade') ? (scrollMem[key] || 0) : 0;
+  const route = currentRoute();
+
+  if (route === 'add-session' && (dir === 'push' || dir === 'up')) addSnapshot = addState();
+  if (route !== 'add-session') { addSnapshot = null; try { sessionStorage.removeItem(ADD_DRAFT_KEY); } catch {} }
+  if (route === 'session') requestWakeLock(); else releaseWakeLock();
+
+  const update = () => { paint(target); startTicker(); };
+  const animate = dir !== 'none' && !skipTransition && !transitionsOff() && !reduceMotion.matches && typeof document.startViewTransition === 'function' && !document.hidden;
+  if (!animate) { update(); return; }
+  document.documentElement.dataset.navDir = dir;
+  try {
+    const vt = document.startViewTransition(update);
+    vt.finished.finally(() => { delete document.documentElement.dataset.navDir; });
+  } catch { update(); }
+}
+
+// ── Tab bar et mini-barre de séance (hors de #app, posées une fois) ──
+function ensureChrome() {
+  if ($('.tabbar')) return;
+  const bar = document.createElement('nav');
+  bar.className = 'tabbar';
+  bar.setAttribute('role', 'tablist');
+  bar.setAttribute('aria-label', 'Sections');
+  bar.innerHTML = Object.entries(TABS).map(([t, v]) => `
+    <button class="tabbar__btn" role="tab" data-action="${v.action}" data-tab="${t}" aria-selected="false">
+      ${icon(v.icon, 25)}<span class="tabbar__label">${v.label}</span>
+    </button>`).join('');
+  const live = document.createElement('button');
+  live.className = 'livebar';
+  live.dataset.action = 'resume-session';
+  live.hidden = true;
+  document.body.append(live, bar);
+}
+
+function sessionCounts(sess = activeSession) {
+  const total = sess.exercises.reduce((a, ex) => a + ex.sets.length, 0);
+  const done  = sess.exercises.reduce((a, ex) => a + ex.sets.filter(st => st.done).length, 0);
+  return { total, done };
+}
+
+function updateChrome() {
+  ensureChrome();
+  const route = currentRoute();
+  const inSession = route === 'session' && !!activeSession;
+  const bar = $('.tabbar');
+  bar.hidden = inSession;
+  bar.querySelectorAll('.tabbar__btn').forEach(b => {
+    const on = b.dataset.tab === nav.tab;
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    b.classList.toggle('tabbar__btn--active', on);
+  });
+  const live = $('.livebar');
+  const showLive = !!activeSession && !inSession;
+  live.hidden = !showLive;
+  document.body.classList.toggle('has-tabbar', !inSession);
+  document.body.classList.toggle('has-livebar', showLive);
+  if (showLive) {
+    const lm = sessionMeta(activeSession.category, activeSession.programme);
+    const { total, done } = sessionCounts();
+    live.style.setProperty('--cat-color', lm.color);
+    live.setAttribute('aria-label', `Séance ${rawLabel(activeSession.category, activeSession.programme)} en cours, ${done} séries sur ${total}. Ouvrir la séance`);
+    live.innerHTML = `
+      <span class="livebar__dot" aria-hidden="true"></span>
+      <span class="livebar__title">${lm.label} · <span class="num">${done}/${total}</span></span>
+      <span class="livebar__time num" id="livebar-elapsed">${fmtClock(Date.now() - activeSession.startedAt)}</span>
+      <span class="livebar__rest num" id="livebar-rest" ${restActive ? '' : 'hidden'}>${fmtRest(restTimeLeft)}</span>
+      <span class="livebar__chev" aria-hidden="true">${icon('chevron.right', 16)}</span>`;
   }
 }
+
+// ── Barre de navigation ──
+// title : titre ; large : grand titre (racine d'onglet) ; back : libellé du retour (auto) ;
+// left / right : HTML des actions ; sub : ligne sous le grand titre
+function navBar({ title = '', large, back, left = '', right = '', sub = '', extra = '' } = {}) {
+  const s = nav.stacks[nav.tab];
+  const isRoot = s.length < 2;
+  if (large === undefined) large = isRoot;
+  if (back === undefined && !isRoot && !left) back = routeTitle(s[s.length - 2], s.length - 2 === 0);
+  const backBtn = back ? `
+    <button class="navbar__back" data-action="back" aria-label="Retour : ${esc(back)}">
+      ${icon('chevron.left', 22)}<span class="navbar__back-label">${esc(back)}</span>
+    </button>` : left;
+  return `
+    <header class="navbar ${large ? 'navbar--large' : 'navbar--compact'}">
+      <div class="navbar__bar">
+        <div class="navbar__side navbar__side--left">${backBtn}</div>
+        <div class="navbar__title header__title" ${large ? 'aria-hidden="true"' : ''}>${title}</div>
+        <div class="navbar__side navbar__side--right">${right}</div>
+      </div>
+      ${extra}
+    </header>
+    ${large ? `<div class="navbar__largewrap"><h1 class="t-large navbar__large">${title}</h1>${sub}</div>` : ''}`;
+}
+
+function routeTitle(route, isRoot) {
+  if (isRoot && TAB_OF_ROOT[route]) return TABS[TAB_OF_ROOT[route]].label;
+  return {
+    dashboard: 'Entraînement', history: 'Historique', stats: 'Progrès', editor: 'Exercices',
+    programmes: 'Programmes', settings: 'Réglages', session: 'Séance',
+    'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
+  }[route] || 'Retour';
+}
+
+// Grand titre : quand il sort de l'écran, le titre compact et le filet apparaissent
+let largeObserver = null;
+function observeLargeTitle() {
+  largeObserver?.disconnect();
+  const h1 = $('.navbar__large');
+  const bar = $('.navbar');
+  if (!h1 || !bar || !('IntersectionObserver' in window)) return;
+  const top = bar.getBoundingClientRect().height;
+  largeObserver = new IntersectionObserver(([en]) => {
+    bar.classList.toggle('navbar--collapsed', !en.isIntersecting);
+  }, { rootMargin: `-${Math.round(top)}px 0px 0px 0px`, threshold: 0 });
+  largeObserver.observe(h1);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Feuille modale
+// ═══════════════════════════════════════════════════════════
+
+// sheet({ title, cancel, confirm, body, onConfirm }) → Promise (valeur de onConfirm, ou null si annulée)
+// onConfirm(panel) peut renvoyer false pour garder la feuille ouverte.
+function sheet({ title = '', cancel = 'Annuler', confirm = 'OK', body = '', onConfirm = null, onCancel = null } = {}) {
+  return new Promise(resolve => {
+    const root = document.createElement('div');
+    const id = 'sheet-' + uid();
+    root.className = 'sheet-root';
+    root.innerHTML = `
+      <div class="sheet__backdrop"></div>
+      <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="${id}">
+        <div class="sheet__grabber" aria-hidden="true"></div>
+        <div class="sheet__bar">
+          <button class="sheet__btn sheet__btn--cancel">${cancel ? esc(cancel) : ''}</button>
+          <div class="sheet__title" id="${id}">${esc(title)}</div>
+          <button class="sheet__btn sheet__btn--confirm">${confirm ? esc(confirm) : ''}</button>
+        </div>
+        <div class="sheet__body">${body}</div>
+      </div>`;
+    const panel = $('.sheet', root);
+    if (!cancel) $('.sheet__btn--cancel', root).style.visibility = 'hidden';
+    if (!confirm) $('.sheet__btn--confirm', root).style.visibility = 'hidden';
+    const prevFocus = document.activeElement;
+    let done = false;
+    const close = (val) => {
+      if (done) return;
+      done = true;
+      root.classList.add('sheet-root--out');
+      setTimeout(() => { root.remove(); prevFocus?.focus?.(); }, reduceMotion.matches ? 0 : 220);
+      resolve(val);
+    };
+    const tryCancel = async () => {
+      if (onCancel && (await onCancel(panel)) === false) return;
+      close(null);
+    };
+    root._close = close;
+    $('.sheet__backdrop', root).addEventListener('click', tryCancel);
+    $('.sheet__btn--cancel', root).addEventListener('click', tryCancel);
+    $('.sheet__btn--confirm', root).addEventListener('click', async () => {
+      const v = onConfirm ? await onConfirm(panel) : true;
+      if (v !== false) close(v);
+    });
+    root.addEventListener('keydown', ev => { if (ev.key === 'Escape') tryCancel(); });
+
+    // Glisser vers le bas pour fermer (au-delà de 120 px ou à plus de 0,5 px/ms)
+    let y0 = null, t0 = 0, dy = 0;
+    const grab = $('.sheet__grabber', root), barEl = $('.sheet__bar', root);
+    const startDrag = ev => { if (ev.target.closest('button')) return; y0 = ev.touches[0].clientY; t0 = Date.now(); dy = 0; panel.style.transition = 'none'; };
+    [grab, barEl].forEach(h => h.addEventListener('touchstart', startDrag, { passive: true }));
+    root.addEventListener('touchmove', ev => {
+      if (y0 === null) return;
+      dy = Math.max(0, ev.touches[0].clientY - y0);
+      panel.style.transform = `translateY(${dy}px)`;
+    }, { passive: true });
+    root.addEventListener('touchend', () => {
+      if (y0 === null) return;
+      const v = dy / Math.max(1, Date.now() - t0);
+      y0 = null;
+      panel.style.transition = '';
+      panel.style.transform = '';
+      if (dy > 120 || v > 0.5) tryCancel();
+    });
+
+    document.body.appendChild(root);
+    setTimeout(() => $('.sheet__btn--confirm', root)?.focus({ preventScroll: true }), 50);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Séance passée : brouillon et modifications non enregistrées
+// ═══════════════════════════════════════════════════════════
+
+const ADD_DRAFT_KEY = 'ppl_add_draft';
+let addSnapshot = null;
+function addState() {
+  return JSON.stringify({ addCat, addDate, addSets, addExtras, addNotes, addProg, editSessionId });
+}
+function addDirty() { return addSnapshot !== null && addState() !== addSnapshot; }
+
+// Les saisies sont gardées dans sessionStorage tant que l'écran est ouvert
+document.addEventListener('input', () => {
+  if (view !== 'add-session') return;
+  try { sessionStorage.setItem(ADD_DRAFT_KEY, addState()); } catch {}
+});
+
+function restoreAddDraft() {
+  try {
+    const raw = sessionStorage.getItem(ADD_DRAFT_KEY);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    if (!d || typeof d.addSets !== 'object') return false;
+    ({ addCat, addDate, addSets, addExtras, addNotes, addProg } = d);
+    editSessionId = d.editSessionId || null;
+    addExtras = Array.isArray(addExtras) ? addExtras : [];
+    return true;
+  } catch { return false; }
+}
+
+// Démarrage : #train, ou #train/session (avec l'accueil dessous) si une séance est restaurée
+function navBoot(sessionRestored) {
+  navIndex = 0; navHist = [];
+  navWrite('replace');
+  let draft = false;
+  if (sessionRestored) {
+    nav.stacks.train.push('session');
+  } else if (restoreAddDraft()) {
+    draft = true;
+    nav.tab = 'history';
+    navWrite('replace');
+    nav.stacks.history.push('add-session');
+  }
+  if (nav.stacks[nav.tab].length > 1) { navIndex = 1; navWrite('push'); }
+  show('none');
+  if (draft) addSnapshot = '';  // brouillon repris : toute sortie demande confirmation
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Geste de retour depuis le bord (app installée sur iOS)
+// ═══════════════════════════════════════════════════════════
+
+function isStandalone() {
+  return navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+}
+
+(function edgeSwipe() {
+  let x0 = null, t0 = 0, dx = 0, layer = null, cur = null, tracking = false;
+  const W = () => window.innerWidth;
+  const reset = () => { x0 = null; tracking = false; dx = 0; };
+
+  document.addEventListener('touchstart', ev => {
+    if (!isStandalone() || ev.touches.length !== 1) return;
+    const x = ev.touches[0].clientX;
+    if (x >= 24 || nav.stacks[nav.tab].length < 2) return;
+    if (currentRoute() === 'session' || document.querySelector('.sheet-root, .ios-dialog, .modal-overlay, .rest-overlay')) return;
+    const fe = document.activeElement;
+    if (fe && /^(INPUT|TEXTAREA|SELECT)$/.test(fe.tagName)) return;
+    x0 = x; t0 = Date.now(); dx = 0; tracking = true;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', ev => {
+    if (!tracking) return;
+    dx = Math.max(0, ev.touches[0].clientX - x0);
+    if (!layer && dx > 6) {
+      // Écran précédent, figé, glissé dessous
+      const s = nav.stacks[nav.tab];
+      const prevKey = nav.tab + '/' + s.slice(0, -1).join('/');
+      layer = document.createElement('div');
+      layer.className = 'edge-layer';
+      layer.setAttribute('aria-hidden', 'true');
+      layer.inert = true;
+      layer.innerHTML = `<div style="transform:translateY(${-(scrollMem[prevKey] || 0)}px)">${snapMem[prevKey] || ''}</div>`;
+      document.body.appendChild(layer);
+      cur = $('#app');
+      cur.classList.add('edge-current');
+    }
+    if (!layer) return;
+    const p = Math.min(1, dx / W());
+    cur.style.transform = `translateX(${dx}px)`;
+    layer.style.transform = `translateX(${-30 * (1 - p)}%)`;
+  }, { passive: true });
+
+  const end = () => {
+    if (!tracking) return;
+    const v = dx / Math.max(1, Date.now() - t0);
+    const ok = layer && (dx > W() * 0.35 || v > 0.5);
+    const l = layer, c = cur;
+    layer = null; cur = null;
+    reset();
+    if (!l) return;
+    c.style.transition = l.style.transition = 'transform .25s cubic-bezier(.2,.8,.2,1)';
+    if (ok) {
+      c.style.transform = `translateX(${W()}px)`;
+      l.style.transform = 'translateX(0)';
+      setTimeout(() => {
+        c.style.transition = c.style.transform = '';
+        c.classList.remove('edge-current');
+        skipTransition = true; // le geste a déjà animé
+        try { goBack(); } finally { skipTransition = false; }
+        l.remove();
+      }, 250);
+    } else {
+      c.style.transform = 'translateX(0)';
+      l.style.transform = 'translateX(-30%)';
+      setTimeout(() => { c.style.transition = c.style.transform = ''; c.classList.remove('edge-current'); l.remove(); }, 250);
+    }
+  };
+  document.addEventListener('touchend', end);
+  document.addEventListener('touchcancel', end);
+})();
 
 // ═══════════════════════════════════════════════════════════
 //  Dashboard
 // ═══════════════════════════════════════════════════════════
 
+// Pastille de séance : initiale sur la couleur de la séance, ou l'emoji choisi pour une séance Perso
+function catDot(cat, progId, size = 28) {
+  progId = progId || data.activeProgramme;
+  const meta = sessionMeta(cat, progId);
+  const label = rawLabel(cat, progId);
+  const inner = progId === 'custom' ? meta.icon : esc(label.trim().charAt(0).toUpperCase());
+  return `<span class="cat-dot ${progId === 'custom' ? 'cat-dot--emoji' : ''}" style="--cat-color:${meta.color};--dot:${size}px" aria-hidden="true">${inner}</span>`;
+}
+
+// « dans 1 j 18 h », « dans 14 h », « dans 35 min » (jamais de secondes)
+function fmtWait(ms) {
+  const min = Math.max(1, Math.ceil(ms / 60000));
+  const d = Math.floor(min / 1440), h = Math.floor((min % 1440) / 60), m = min % 60;
+  if (d) return `${d} j${h ? ` ${h} h` : ''}`;
+  if (h) return `${h} h${h < 3 && m ? ` ${pad(m)}` : ''}`;
+  return `${m} min`;
+}
+
+// État de récupération d'une séance du programme affiché
+function catStatus(cat) {
+  const last = prog().timers[cat];
+  const cd = getCooldown(cat) * 3600_000;
+  const remaining = last ? last + cd - Date.now() : 0;
+  return { last, remaining, ready: remaining <= 0, progress: last ? Math.min(1, 1 - remaining / cd) : 1 };
+}
+
+// Anneau de récupération (28 px)
+function recoveryRing(p) {
+  const c = 2 * Math.PI * 11;
+  return `<svg class="ring" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
+    <circle cx="14" cy="14" r="11" class="ring__track"/>
+    <circle cx="14" cy="14" r="11" class="ring__fill" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - p)).toFixed(2)}"/>
+  </svg>`;
+}
+
+// Prochaine séance : la séance prête faite il y a le plus longtemps (ou jamais faite),
+// sinon celle qui sera prête la première
+function nextSessionCat(keys) {
+  if (!keys.length) return null;
+  const ready = keys.filter(k => catStatus(k).ready);
+  if (ready.length) return ready.sort((a, b) => (prog().timers[a] || 0) - (prog().timers[b] || 0))[0];
+  return keys.slice().sort((a, b) => catStatus(a).remaining - catStatus(b).remaining)[0];
+}
+
+function lastEntryOf(cat) {
+  const p = data.activeProgramme;
+  return (data.history || []).find(h => h.category === cat && (h.programme || 'ppl') === p) || null;
+}
+
+function cellStatusHtml(cat) {
+  const st = catStatus(cat);
+  if (activeSession && activeSession.category === cat && activeSession.programme === data.activeProgramme) {
+    return `<span class="home-cell__status home-cell__status--live">En cours</span>`;
+  }
+  return st.ready
+    ? `<span class="home-cell__status home-cell__status--ready">Prête</span>`
+    : `<span class="home-cell__status">dans ${fmtWait(st.remaining)}</span>${recoveryRing(st.progress)}`;
+}
+
 function renderDashboard() {
   const keys = sessionKeys();
   const pm   = progMeta();
+  const liveHere = activeSession && activeSession.programme === data.activeProgramme && keys.includes(activeSession.category);
+  const next = liveHere ? activeSession.category : nextSessionCat(keys);
 
-  // Compute session order: rank sessions by last completion timestamp (most recent = rank 1)
-  const doneKeys = keys.filter(k => prog().timers[k]).sort((a, b) => prog().timers[b] - prog().timers[a]);
-  const orderLabels = ['Dernière', '2e', '3e', '4e', '5e', '6e'];
+  let hero = '';
+  if (next) {
+    const meta = sessionMeta(next);
+    const st   = catStatus(next);
+    const last = lastEntryOf(next);
+    let info, btn;
+    if (liveHere) {
+      info = `<div class="hero__info hero__info--live">En cours · <span class="num" id="hero-elapsed">${fmtClock(Date.now() - activeSession.startedAt)}</span></div>`;
+      btn  = `<button class="hero__btn" data-action="resume-session">Reprendre</button>`;
+    } else {
+      info = last
+        ? `<div class="hero__info">Dernière fois : ${fmtDate(last.date)} · ${fmtVolume(sessionVolume(last.exercises))}</div>`
+        : `<div class="hero__info">Jamais faite</div>`;
+      if (!st.ready) info += `<div class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</div>`;
+      btn = st.ready
+        ? `<button class="hero__btn" data-action="start-session" data-cat="${next}">Démarrer ${meta.label}</button>`
+        : `<button class="hero__btn hero__btn--gray" data-action="start-session" data-cat="${next}">Démarrer quand même</button>`;
+    }
+    hero = `
+      <section class="hero" aria-label="Prochaine séance" style="--cat-color:${meta.color}">
+        <div class="hero__eyebrow">${liveHere ? 'Séance en cours' : 'Prochaine séance'}</div>
+        <div class="hero__head">
+          ${catDot(next)}
+          <div class="hero__name">${meta.label}</div>
+        </div>
+        ${meta.desc ? `<div class="hero__desc">${meta.desc}</div>` : ''}
+        ${info}
+        ${btn}
+        <button class="hero__link" data-action="go-editor" data-cat="${next}">Modifier les exercices</button>
+      </section>`;
+  }
 
-  const cards = keys.map(cat => {
-    const meta      = sessionMeta(cat);
-    const last      = prog().timers[cat];
-    const deadline  = last ? last + getCooldown(cat) * 3600_000 : 0;
-    const remaining = deadline - Date.now();
-    const ready     = !last || remaining <= 0;
-    const exCount   = (prog().exercises[cat] || []).length;
-    const totalSets = (prog().exercises[cat] || []).reduce((a, e) => a + e.sets, 0);
-
-    const orderIdx   = doneKeys.indexOf(cat);
-    const orderBadge = orderIdx >= 0
-      ? `<span class="order-badge ${orderIdx === 0 ? 'order-badge--last' : 'order-badge--prev'}">${orderLabels[orderIdx] || `${orderIdx + 1}e`}</span>`
-      : '';
-
+  const others = keys.filter(k => k !== next).map(cat => {
+    const meta = sessionMeta(cat);
     return `
-      <div class="card ${ready ? 'ready' : ''}" data-cat="${cat}" style="--cat-color:${meta.color}">
-        <div class="card__header">
-          <span class="card__icon">${meta.icon}</span>
-          <div>
-            <div class="card__title">${meta.label}${orderBadge}</div>
-            <div class="card__desc">${meta.desc}</div>
-          </div>
-        </div>
-        <div class="card__timer ${ready ? 'timer--ready' : 'timer--recovering'}" id="timer-${cat}">
-          ${ready ? 'Prête !' : fmt72(remaining)}
-        </div>
-        <div class="card__meta">${exCount} exercices · ${totalSets} séries planifiées</div>
-        <button class="btn btn--primary btn--full" data-action="start-session" data-cat="${cat}"
-                ${ready ? '' : 'disabled'}>
-          ${ready ? 'Démarrer la séance' : 'En récupération'}
-        </button>
-        ${!ready ? `<button class="btn btn--ghost btn--full btn--skip" data-action="skip-cooldown" data-cat="${cat}">Passer le délai</button>` : ''}
-        <div class="card__cooldown">
-          <span class="card__cooldown-label">Délai récup.</span>
-          <button class="card__cooldown-btn" data-action="cooldown-edit" data-cat="${cat}" aria-label="Délai de récupération : ${getCooldown(cat)} h, modifier">${getCooldown(cat)} h ${icon('pencil', 15)}</button>
-        </div>
-      </div>`;
+      <button class="home-cell" data-action="session-actions" data-cat="${cat}" id="cell-${cat}">
+        ${catDot(cat)}
+        <span class="home-cell__name">${meta.label}</span>
+        <span class="home-cell__right" id="status-${cat}">${cellStatusHtml(cat)}</span>
+      </button>`;
   }).join('');
 
-  let liveBanner = '';
-  if (activeSession) {
-    const lm    = sessionMeta(activeSession.category, activeSession.programme);
-    const total = activeSession.exercises.reduce((a, ex) => a + ex.sets.length, 0);
-    const done  = activeSession.exercises.reduce((a, ex) => a + ex.sets.filter(st => st.done).length, 0);
-    liveBanner = `
-      <button class="live-banner" data-action="resume-session" style="--cat-color:${lm.color}">
-        <span class="live-banner__dot"></span>
-        <span class="live-banner__body">
-          <span class="live-banner__title">${lm.icon} ${lm.label} en cours</span>
-          <span class="live-banner__sub">${done}/${total} séries · <span id="banner-elapsed">${fmtDuration(Date.now() - activeSession.startedAt)}</span></span>
-        </span>
-        <span class="live-banner__cta">Reprendre</span>
-      </button>`;
-  }
+  const streak = computeStreak();
+  const streakCell = streak > 0 ? `
+    <div class="list-group">
+      <button class="home-cell home-cell--streak" data-action="go-stats">
+        <span class="home-cell__icon" aria-hidden="true">${icon('flame', 22)}</span>
+        <span class="home-cell__name">Régularité</span>
+        <span class="home-cell__value">${streak} semaine${streak > 1 ? 's' : ''} d'affilée</span>
+        <span class="home-cell__chev" aria-hidden="true">${icon('chevron.right', 14)}</span>
+      </button>
+    </div>` : '';
 
   const emptyCustom = data.activeProgramme === 'custom' && keys.length === 0
     ? `<div class="empty-state">
-         <div class="empty-state__icon">✏️</div>
          <div>Programme vide</div>
-         <div class="empty-state__sub">Appuie sur le programme en haut pour ajouter des séances</div>
+         <div class="empty-state__sub">Ajoute des séances dans l'onglet Programme</div>
        </div>`
     : '';
 
+  const right = `<button class="navbar__icon" data-action="go-settings" aria-label="Réglages">${icon('gear', 24)}</button>`;
+  const sub = `<button class="navbar__sub" data-action="go-programmes" aria-label="Programme ${esc(pm.name)}, changer de programme">Programme ${esc(pm.name)} ${icon('chevron.right', 12)}</button>`;
+
   return `
     <div class="view dashboard">
-      <header class="header">
-        <button class="prog-pill" data-action="go-programmes">
-          <span class="prog-pill__icon">${pm.icon}</span>
-          <span class="prog-pill__name">${pm.name}</span>
-          <span class="prog-pill__chevron">${icon('chevron.down', 15)}</span>
-        </button>
-        ${computeStreak() > 0 ? `<div class="streak-badge" title="${computeStreak()} semaines consécutives actives" aria-label="${computeStreak()} semaines consécutives actives">${icon('flame', 15)}${computeStreak()}</div>` : ''}
-        <div class="header-actions">
-          <button class="icon-btn" data-action="go-settings" title="Réglages">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-            </svg>
-          </button>
-          <button class="icon-btn" data-action="go-stats" title="Progression">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-          </button>
-          <button class="icon-btn" data-action="go-history" title="Historique">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-          </button>
-          <button class="icon-btn" data-action="go-editor" title="Gérer les exercices">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </button>
-        </div>
-      </header>
-      <div class="cards">${liveBanner}${cards || emptyCustom}<div class="dashboard__brand">MDLF Training</div></div>
+      ${navBar({ title: 'Entraînement', right, sub })}
+      <div class="home">
+        ${hero || emptyCustom}
+        ${others ? `<div class="list-title">Autres séances</div><div class="list-group">${others}</div>` : ''}
+        ${streakCell}
+      </div>
     </div>`;
 }
 
+// Feuille d'actions d'une séance de l'accueil
+async function sessionActions(cat) {
+  const st = catStatus(cat);
+  const choice = await dialog({ type: 'sheet', title: rawLabel(cat), actions: [
+    { label: 'Démarrer', value: 'start', style: 'preferred' },
+    ...(!st.ready ? [{ label: 'Passer le délai de récupération', value: 'skip' }] : []),
+    { label: 'Voir les exercices', value: 'see' },
+    { label: 'Annuler', style: 'cancel' },
+  ] });
+  if (choice === 'start') return handleAction(null, { dataset: { cat } }, 'start-session');
+  if (choice === 'skip') {
+    prog().timers[cat] = null;
+    save(); render();
+    showToast(`${rawLabel(cat)} est disponible`);
+    return;
+  }
+  if (choice === 'see') {
+    const list = (prog().exercises[cat] || []).map(ex => `
+      <li class="sheet-list__row"><span>${esc(ex.name)}</span><span class="sheet-list__meta num">${ex.sets} série${ex.sets > 1 ? 's' : ''}</span></li>`).join('');
+    await sheet({ title: rawLabel(cat), cancel: '', confirm: 'OK',
+      body: list ? `<ul class="sheet-list">${list}</ul>` : '<p class="sheet-empty">Aucun exercice</p>' });
+  }
+}
+
+// Mise à jour légère : chronos chaque seconde, délais de récupération à la minute
+let tickerMinute = -1;
 function startTicker() {
   clearInterval(ticker);
-  ticker = setInterval(() => {
+  tickerMinute = -1;
+  const tick = () => {
     if (activeSession) {
-      const el = $('#session-elapsed') || $('#banner-elapsed');
+      const el = $('#session-elapsed');
       if (el) el.textContent = fmtDuration(Date.now() - activeSession.startedAt);
+      const clock = fmtClock(Date.now() - activeSession.startedAt);
+      const le = $('#livebar-elapsed'); if (le) le.textContent = clock;
+      const he = $('#hero-elapsed');    if (he) he.textContent = clock;
+      const lr = $('#livebar-rest');
+      if (lr) { lr.hidden = !restActive; if (restActive) lr.textContent = fmtRest(restTimeLeft); }
     }
     if (view !== 'dashboard') return;
-    sessionKeys().forEach(cat => {
-      const el   = $(`#timer-${cat}`);
-      const card = $(`[data-cat="${cat}"]`);
-      const btn  = card ? $('[data-action="start-session"]', card) : null;
-      if (!el) return;
-      const last = prog().timers[cat];
-      if (!last) return;
-      const rem = (last + getCooldown(cat) * 3600_000) - Date.now();
-      if (rem <= 0) {
-        el.textContent = 'Prête !';
-        el.className = 'card__timer timer--ready';
-        if (btn)  { btn.disabled = false; btn.textContent = 'Démarrer la séance'; }
-        if (card) card.classList.add('ready');
-      } else {
-        el.textContent = fmt72(rem);
-      }
-    });
-  }, 1000);
+    const minute = Math.floor(Date.now() / 60000);
+    if (minute === tickerMinute) return;
+    const first = tickerMinute === -1;
+    tickerMinute = minute;
+    if (first) return;
+    // Une séance devient prête : on redessine l'accueil (la carte « Prochaine séance » peut changer)
+    const keys = sessionKeys();
+    if (keys.some(k => { const s = $(`#status-${k}`); return s && catStatus(k).ready && !s.querySelector('.home-cell__status--ready'); })
+        || ($('#hero-wait') && catStatus(nextSessionCat(keys)).ready)) { render(); return; }
+    keys.forEach(k => { const s = $(`#status-${k}`); if (s) s.innerHTML = cellStatusHtml(k); });
+    const hw = $('#hero-wait');
+    if (hw) hw.textContent = `Prochaine séance prête dans ${fmtWait(catStatus(nextSessionCat(keys)).remaining)}`;
+  };
+  tick();
+  ticker = setInterval(tick, 1000);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1047,15 +1580,7 @@ function renderProgrammes() {
 
   return `
     <div class="view programmes">
-      <header class="header">
-        <button class="icon-btn" data-action="back">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M19 12H5M12 5l-7 7 7 7"/>
-          </svg>
-        </button>
-        <span class="header__title">Programme</span>
-        <div style="width:40px"></div>
-      </header>
+      ${navBar({ title: 'Programmes' })}
       <div class="prog-list">
         ${cards}
         ${customManager}
@@ -1272,21 +1797,14 @@ function renderSession() {
 
   return `
     <div class="view session" style="--cat-color:${meta.color}">
-      <header class="header header--session">
-        <button class="icon-btn" data-action="back">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M19 12H5M12 5l-7 7 7 7"/>
-          </svg>
-        </button>
-        <div class="header__center">
-          <div class="header__title">${meta.icon} ${meta.label}</div>
-          <div class="header__sub">${doneSets} / ${totalSets} séries${curVolTotal > 0 ? ` · ${fmtVolume(curVolTotal)}` : ''} · <span id="session-elapsed">${fmtDuration(Date.now() - activeSession.startedAt)}</span></div>
-        </div>
-        <button class="btn--finish" data-action="finish-session">Terminer</button>
-      </header>
-      <div class="progress-bar">
-        <div class="progress-bar__fill" style="width:${pct}%;background:${meta.color}"></div>
-      </div>
+      ${navBar({ large: false,
+        title: `<span class="navbar__title-main">${meta.label}</span>
+                <span class="header__sub navbar__title-sub"><span class="num">${doneSets}/${totalSets}</span> séries${curVolTotal > 0 ? ` · ${fmtVolume(curVolTotal)}` : ''} · <span id="session-elapsed" class="num">${fmtDuration(Date.now() - activeSession.startedAt)}</span></span>`,
+        left: `<button class="navbar__icon" data-action="back" aria-label="Réduire la séance">${icon('chevron.down', 24)}</button>`,
+        right: `<button class="navbar__text navbar__text--bold" data-action="finish-session">Terminer</button>`,
+        extra: `<div class="progress-bar" role="progressbar" aria-label="Séries validées" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-bar__fill" style="width:${pct}%;background:${meta.color}"></div>
+        </div>` })}
       <div class="session-content">
         ${exHtml}
         <button class="session-add-ex-btn" data-action="add-session-ex">
@@ -1568,6 +2086,15 @@ document.addEventListener('visibilitychange', () => {
 //  Editor
 // ═══════════════════════════════════════════════════════════
 
+// En-tête de l'éditeur : racine de l'onglet Programme, ou écran empilé depuis l'accueil
+function editorNavBar() {
+  if (nav.stacks[nav.tab].length > 1) return navBar({ title: 'Exercices' });
+  const pm = progMeta();
+  return navBar({ title: 'Programme',
+    right: `<button class="navbar__text" data-action="go-settings">Réglages</button>`,
+    sub: `<button class="navbar__sub" data-action="go-programmes" aria-label="Programme ${esc(pm.name)}, changer de programme">Programme ${esc(pm.name)} ${icon('chevron.right', 12)}</button>` });
+}
+
 function renderEditor() {
   const keys = sessionKeys();
 
@@ -1618,15 +2145,7 @@ function renderEditor() {
 
   return `
     <div class="view editor">
-      <header class="header">
-        <button class="icon-btn" data-action="back">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M19 12H5M12 5l-7 7 7 7"/>
-          </svg>
-        </button>
-        <span class="header__title">Exercices</span>
-        <div style="width:40px"></div>
-      </header>
+      ${editorNavBar()}
       ${keys.length ? `<div class="tabs">${tabs}</div>` : ''}
       ${keys.length === 0
         ? `<div class="empty-state" style="padding:40px">
@@ -1779,15 +2298,9 @@ function renderAddSession() {
 
   return `
     <div class="view add-session">
-      <header class="header">
-        <button class="icon-btn" data-action="back">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M19 12H5M12 5l-7 7 7 7"/>
-          </svg>
-        </button>
-        <span class="header__title">${editSessionId ? 'Modifier la séance' : 'Séance passée'}</span>
-        <button class="btn--finish" data-action="save-past-session" ${addHasReps() ? '' : 'disabled'}>Enregistrer</button>
-      </header>
+      ${navBar({ title: editSessionId ? 'Modifier la séance' : 'Séance passée', large: false,
+        left: `<button class="navbar__text" data-action="cancel-add-session">Annuler</button>`,
+        right: `<button class="navbar__text navbar__text--bold" data-action="save-past-session" ${addHasReps() ? '' : 'disabled'}>Enregistrer</button>` })}
       <div class="add-session-meta">
         <div class="cat-selector">${catBtns}</div>
         <div class="date-row">
@@ -1832,11 +2345,7 @@ function renderSettings() {
 
   return `
     <div class="view settings-view">
-      <header class="header">
-        <button class="icon-btn" data-action="back" aria-label="Retour">${icon('chevron.left')}</button>
-        <span class="header__title">Réglages</span>
-        <div style="width:44px"></div>
-      </header>
+      ${navBar({ title: 'Réglages' })}
       <div class="settings-list">
 
         <div class="settings-section-title">Apparence</div>
@@ -1978,15 +2487,7 @@ function renderStatsOverview(viewTabs) {
 
   return `
     <div class="view stats">
-      <header class="header">
-        <button class="icon-btn" data-action="back">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M19 12H5M12 5l-7 7 7 7"/>
-          </svg>
-        </button>
-        <span class="header__title">Statistiques</span>
-        <div style="width:40px"></div>
-      </header>
+      ${navBar({ title: 'Progrès' })}
       ${viewTabs}
       <div class="stats-list">
         ${yearNav}
@@ -2190,15 +2691,7 @@ function renderStats() {
 
   return `
     <div class="view stats">
-      <header class="header">
-        <button class="icon-btn" data-action="back">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M19 12H5M12 5l-7 7 7 7"/>
-          </svg>
-        </button>
-        <span class="header__title">Statistiques</span>
-        <div style="width:40px"></div>
-      </header>
+      ${navBar({ title: 'Progrès' })}
       ${viewTabs}
       ${keys.length ? `<div class="tabs">${tabs}</div>` : ''}
       ${modeBar}
@@ -2386,19 +2879,8 @@ function renderHistory() {
 
   return `
     <div class="view history">
-      <header class="header">
-        <button class="icon-btn" data-action="back">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M19 12H5M12 5l-7 7 7 7"/>
-          </svg>
-        </button>
-        <span class="header__title">Historique</span>
-        <button class="icon-btn" data-action="go-add-session" title="Ajouter une séance passée">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
-          </svg>
-        </button>
-      </header>
+      ${navBar({ title: 'Historique',
+        right: `<button class="navbar__icon" data-action="go-add-session" aria-label="Ajouter une séance passée">${icon('plus', 24)}</button>` })}
       <div class="history-list">${content}</div>
     </div>`;
 }
@@ -2420,29 +2902,53 @@ async function handleAction(e, el, action) {
   switch (action) {
 
     // ── Navigation ─────────────────────────────────────────
+    // Retour : la séance reste en cours, joignable par la mini-barre
     case 'back': {
-      if (view === 'session') releaseWakeLock(); // la séance reste en cours, reprise depuis l'accueil
-      view = 'dashboard'; render(); startTicker();
-      break;
+      goBack(); break;
     }
     case 'resume-session': {
       if (!activeSession) break;
-      view = 'session'; render(); requestWakeLock();
+      if (currentRoute() !== 'session') navigate('session');
       break;
     }
-    case 'go-editor': {
+    case 'session-actions': {
+      await sessionActions(el.dataset.cat); break;
+    }
+    // Onglets (tab bar) et écrans empilés dans l'onglet courant
+    case 'go-home': {
+      switchTab('train'); break;
+    }
+    case 'go-program': {
       editorCat = sessionKeys().includes(editorCat) ? editorCat : firstSession();
-      view = 'editor'; render(); break;
+      switchTab('program'); break;
+    }
+    case 'go-editor': {
+      const c = el.dataset.cat;
+      editorCat = c && sessionKeys().includes(c) ? c : sessionKeys().includes(editorCat) ? editorCat : firstSession();
+      navigate('editor'); break;
     }
     case 'go-history': {
-      view = 'history'; render(); break;
+      if (el.closest('.tabbar')) switchTab('history'); else navigate('history');
+      break;
     }
     case 'go-stats': {
       statsCat = sessionKeys().includes(statsCat) ? statsCat : firstSession();
-      view = 'stats'; render(); break;
+      if (el.closest('.tabbar')) switchTab('progress'); else navigate('stats');
+      break;
     }
     case 'go-programmes': {
-      view = 'programmes'; render(); break;
+      navigate('programmes'); break;
+    }
+    case 'cancel-add-session': {
+      if (addDirty()) {
+        const choice = await dialog({ type: 'sheet', actions: [
+          { label: 'Ignorer les modifications', value: 'discard', style: 'destructive' },
+          { label: 'Continuer la modification', style: 'cancel' },
+        ] });
+        if (choice !== 'discard') break;
+      }
+      addSnapshot = null;
+      goBack(); break;
     }
     case 'stats-tab': {
       statsCat = el.dataset.cat; render(); break;
@@ -2472,7 +2978,7 @@ async function handleAction(e, el, action) {
       editSessionId = null;
       addNotes      = '';
       initAddSets(addCat);
-      view = 'add-session'; render(); break;
+      navigate('add-session'); break;
     }
     case 'edit-session': {
       const session = (data.history || []).find(h => h.id === el.dataset.id);
@@ -2501,7 +3007,7 @@ async function handleAction(e, el, action) {
       save(); render(); break;
     }
     case 'go-settings': {
-      view = 'settings'; render(); break;
+      navigate('settings'); break;
     }
     case 'set-theme': {
       applyTheme(el.dataset.val); render(); break;
@@ -2637,7 +3143,7 @@ async function handleAction(e, el, action) {
       recomputePRFromHistory();
       save();
       showToast(wasEdit ? 'Séance modifiée' : 'Séance ajoutée');
-      view = 'history'; render(); startTicker(); break;
+      view = 'history'; render(); break;
     }
 
     // ── Programme selector ─────────────────────────────────
@@ -2768,7 +3274,7 @@ async function handleAction(e, el, action) {
             { label: `Abandonner et démarrer ${rawLabel(cat)}`, value: 'replace', style: 'destructive' },
             { label: 'Annuler', style: 'cancel' },
           ] });
-        if (choice === 'resume') { view = 'session'; render(); requestWakeLock(); break; }
+        if (choice === 'resume') { navigate('session'); break; }
         if (choice !== 'replace') break;
         endSession();
       }
@@ -3294,9 +3800,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loadError) { renderRescue(); return; }
   try {
     syncTimersFromHistory();
-    if (restoreSession()) { view = 'session'; requestWakeLock(); }
-    render();
-    startTicker();
+    navBoot(restoreSession());
   } catch (err) {
     console.error(err);
     renderRescue();
