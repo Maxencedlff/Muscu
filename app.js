@@ -51,14 +51,55 @@ function fmtDateTime(ts) {
     + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
-function showToast(msg) {
+// Copie profonde (structuredClone absent avant iOS 15.4)
+function clone(o) {
+  return typeof structuredClone === 'function' ? structuredClone(o) : JSON.parse(JSON.stringify(o));
+}
+
+// Nombre saisi borné : accepte la virgule décimale, renvoie null si vide, invalide ou hors bornes
+function num(v, min, max, int = false) {
+  const s = String(v ?? '').trim().replace(',', '.');
+  if (s === '') return null;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < min || n > max || (int && !Number.isInteger(n))) return null;
+  return n;
+}
+
+// Nom d'exercice comparable : minuscules, sans accents, espaces réduits
+function normName(name) {
+  return String(name ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+// Même exercice ? Par identifiant stable si les deux en ont un, sinon par nom normalisé.
+// Les exercices du programme portent `id`, ceux de l'historique et de la séance `exId`.
+function exIdOf(o) { return o?.exId || o?.id || null; }
+function sameEx(a, b) {
+  const ia = exIdOf(a), ib = exIdOf(b);
+  return (ia && ib) ? ia === ib : normName(a?.name) === normName(b?.name);
+}
+
+// toast simple, ou avec action : showToast('Import réussi', { action: 'Annuler', onAction, duration: 6000 })
+function showToast(msg, opts = {}) {
   const existing = $('.toast');
   if (existing) existing.remove();
   const el = document.createElement('div');
   el.className = 'toast';
-  el.textContent = msg;
+  el.setAttribute('role', 'status');
+  const duration = opts.duration || 2200;
+  el.style.setProperty('--toast-duration', duration + 'ms');
+  const text = document.createElement('span');
+  text.textContent = msg;
+  el.appendChild(text);
+  if (opts.action) {
+    el.classList.add('toast--action');
+    const b = document.createElement('button');
+    b.className = 'toast__action';
+    b.textContent = opts.action;
+    b.addEventListener('click', ev => { ev.stopPropagation(); el.remove(); opts.onAction?.(); });
+    el.appendChild(b);
+  }
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2200);
+  setTimeout(() => el.remove(), duration);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -251,16 +292,18 @@ function calc1RM(weight, reps) {
   return Math.round(w * (1 + r / 30) * 10) / 10;
 }
 
-function recomputePRFromHistory() {
-  Object.entries(data.programmes).forEach(([progKey, prog]) => {
-    Object.entries(prog.exercises).forEach(([cat, exercises]) => {
+// Recalcule PR, 1RM estimé et dernière série de chaque exercice à partir de l'historique
+function recomputePRFromHistory(d = data) {
+  Object.entries(d.programmes).forEach(([progKey, prog]) => {
+    Object.entries(prog.exercises || {}).forEach(([cat, exercises]) => {
+      if (!Array.isArray(exercises)) return;
       exercises.forEach(ex => { ex.pr = null; ex.est1RM = null; ex.lastWeight = ''; ex.lastReps = ''; });
-      const sessions = (data.history || [])
-        .filter(h => (h.programme === progKey || (!h.programme && progKey === 'ppl')) && h.category === cat)
+      const sessions = (d.history || [])
+        .filter(h => (h.programme || 'ppl') === progKey && h.category === cat)
         .sort((a, b) => a.date - b.date);
       sessions.forEach(session => {
-        session.exercises.forEach(histEx => {
-          const exData = exercises.find(e => e.name === histEx.name);
+        (session.exercises || []).forEach(histEx => {
+          const exData = exercises.find(e => sameEx(e, histEx));
           if (!exData) return;
           (histEx.sets || []).forEach(s => {
             const w  = parseFloat(s.weight) || 0;
@@ -279,6 +322,28 @@ function recomputePRFromHistory() {
   });
 }
 
+// Dernière séance (programme + catégorie) qui contient cet exercice : { h, ex } ou null
+function lastPerf(progKey, cat, exLike, d = data) {
+  for (const h of d.history || []) {
+    if ((h.programme || 'ppl') !== progKey || h.category !== cat) continue;
+    const ex = (h.exercises || []).find(e => sameEx(e, exLike));
+    if (ex && ex.sets?.length) return { h, ex };
+  }
+  return null;
+}
+
+// Identifiant stable pour un exercice connu par son seul nom (exercice ajouté en cours de route)
+function resolveExId(progKey, cat, name, d = data) {
+  const byName = { name };
+  const inProg = (d.programmes[progKey]?.exercises?.[cat] || []).find(e => normName(e.name) === normName(name));
+  if (inProg) return inProg.id;
+  for (const h of d.history || []) {
+    if ((h.programme || 'ppl') !== progKey || h.category !== cat) continue;
+    const ex = (h.exercises || []).find(e => e.exId && sameEx({ name: e.name }, byName));
+    if (ex) return ex.exId;
+  }
+  return 'n:' + normName(name);
+}
 
 function sessionVolume(exercises) {
   return exercises.reduce((total, ex) =>
@@ -313,7 +378,66 @@ function makeDefaultData() {
   };
 }
 
-function normalizeData(d) {
+const BACKUP_KEY = 'ppl_v2_backup';
+const SCHEMA     = 3;
+
+// Nettoie une donnée venue du stockage ou d'un import : retire ce qui ferait planter l'app,
+// sans toucher aux champs valides (idempotent).
+function sanitizeData(d) {
+  const isObj = o => o && typeof o === 'object' && !Array.isArray(o);
+  if (!PROGRAMMES[d.activeProgramme]) d.activeProgramme = 'ppl';
+  if (!isObj(d.programmes)) d.programmes = {};
+  Object.keys(d.programmes).forEach(k => {
+    const p = d.programmes[k];
+    if (!isObj(p)) { delete d.programmes[k]; return; }
+    if (!isObj(p.exercises)) p.exercises = {};
+    if (!isObj(p.timers))    p.timers    = {};
+    if (!isObj(p.cooldowns)) p.cooldowns = {};
+    Object.keys(p.exercises).forEach(cat => {
+      if (!Array.isArray(p.exercises[cat])) { p.exercises[cat] = []; return; }
+      p.exercises[cat] = p.exercises[cat].filter(ex => isObj(ex) && typeof ex.name === 'string' && ex.name.trim());
+      p.exercises[cat].forEach(ex => {
+        if (!ex.id) ex.id = uid();
+        const sets = parseInt(ex.sets);
+        ex.sets = sets >= 1 && sets <= 10 ? sets : 3;
+      });
+    });
+    Object.keys(p.timers).forEach(cat => { if (p.timers[cat] != null && !Number.isFinite(p.timers[cat])) p.timers[cat] = null; });
+  });
+  if (!isObj(d.customSessions)) d.customSessions = {};
+  Object.keys(d.customSessions).forEach(k => {
+    const cs = d.customSessions[k];
+    if (!isObj(cs)) { delete d.customSessions[k]; return; }
+    if (typeof cs.label !== 'string' || !cs.label.trim()) cs.label = 'Séance';
+    if (typeof cs.icon !== 'string') cs.icon = '🏋️';
+    if (typeof cs.desc !== 'string') cs.desc = '';
+    if (!/^#[0-9a-f]{6}$/i.test(cs.color || '')) cs.color = '#8E8E93';
+  });
+  const rest = parseInt(d.defaultRest);
+  d.defaultRest = rest >= 10 && rest <= 600 ? rest : 90;
+  if (d.unit !== 'kg' && d.unit !== 'lbs') d.unit = 'kg';
+  if (!Array.isArray(d.history)) d.history = [];
+  d.history = d.history.filter(h => {
+    if (!isObj(h)) return false;
+    if (typeof h.date === 'string') { const t = Number(h.date) || Date.parse(h.date); if (Number.isFinite(t)) h.date = t; }
+    if (!Number.isFinite(h.date) || !Array.isArray(h.exercises) || typeof h.category !== 'string') return false;
+    if (!h.id) h.id = uid();
+    h.exercises = h.exercises.filter(ex => isObj(ex) && typeof ex.name === 'string');
+    h.exercises.forEach(ex => {
+      if (!Array.isArray(ex.sets)) ex.sets = [];
+      ex.sets = ex.sets.filter(st => isObj(st) && Number.isInteger(parseInt(st.reps)) && parseInt(st.reps) >= 0);
+      ex.sets.forEach(st => {
+        st.reps = String(parseInt(st.reps));
+        if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';
+      });
+    });
+    return true;
+  });
+  return d;
+}
+
+// rawJson : texte stocké avant migration, sauvegardé tel quel dans ppl_v2_backup
+function normalizeData(d, rawJson = null) {
   if (!d.activeProgramme) d.activeProgramme = 'ppl';
   if (!d.programmes)      d.programmes = {};
   if (!d.programmes.ppl)  d.programmes.ppl = makeProgData('ppl');
@@ -323,50 +447,69 @@ function normalizeData(d) {
   if (d.soundOn   == null) d.soundOn   = true;
   if (d.vibrateOn == null) d.vibrateOn = true;
   if (!Array.isArray(d.history)) d.history = [];
-  // Ensure per-programme structures exist (migration)
-  Object.values(d.programmes).forEach(p => {
-    if (!p.exercises) p.exercises = {};
-    if (!p.timers)    p.timers    = {};
-    if (!p.cooldowns) p.cooldowns = {};
-  });
+  sanitizeData(d);
+
+  // Schéma 3 : identifiant stable (exId) sur chaque exercice de l'historique
+  if ((d.schema || 2) < 3) {
+    if (rawJson) { try { localStorage.setItem(BACKUP_KEY, rawJson); } catch {} }
+    d.history.forEach(h => {
+      const list = d.programmes[h.programme || 'ppl']?.exercises?.[h.category] || [];
+      h.exercises.forEach(ex => {
+        if (ex.exId) return;
+        const found = list.find(e => normName(e.name) === normName(ex.name));
+        ex.exId = found ? found.id : 'n:' + normName(ex.name);
+      });
+    });
+    // Les PR ont pu être écrits par une séance non terminée (versions précédentes)
+    try { recomputePRFromHistory(d); } catch {}
+    delete d._prRecomputed;
+    d.schema = SCHEMA;
+  }
   d.history.sort((a, b) => b.date - a.date);
   return d;
 }
 
+// Lève une exception si la donnée stockée est illisible (écran de secours)
 function loadData() {
-  // New key
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) return normalizeData(JSON.parse(raw));
-  } catch {}
+  const raw = localStorage.getItem(KEY);
+  if (raw) return sanitizeData(normalizeData(JSON.parse(raw), raw));
 
-  // Migrate from ppl_v1
+  // Migration depuis ppl_v1
   try {
-    const raw = localStorage.getItem('ppl_v1');
-    if (raw) {
-      const old = JSON.parse(raw);
+    const rawV1 = localStorage.getItem('ppl_v1');
+    if (rawV1) {
+      const old = JSON.parse(rawV1);
       if (old.exercises) {
         const d = makeDefaultData();
         d.programmes.ppl.exercises = old.exercises;
         d.programmes.ppl.timers   = old.timers || { push: null, pull: null, legs: null };
         d.defaultRest = old.defaultRest || 90;
         d.history     = (old.history || []).map(h => ({ ...h, programme: 'ppl' }));
-        return d;
+        return normalizeData(d);
       }
     }
   } catch {}
 
-  return makeDefaultData();
+  const d = makeDefaultData();
+  d.schema = SCHEMA;
+  return d;
 }
 
-function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(data)); }
-  catch { showToast('Stockage plein : exporte tes données'); }
+// Renvoie false si l'écriture échoue (stockage plein) ; quiet = pas de toast
+let dataBroken = false;
+function save(quiet = false) {
+  if (dataBroken) return false;
+  try { localStorage.setItem(KEY, JSON.stringify(data)); return true; }
+  catch {
+    if (!quiet) showToast('Stockage plein : exporte tes données', { duration: 4000 });
+    return false;
+  }
 }
 
 // ── Séance en cours : persistée pour survivre à la fermeture de l'app ──
 const SESSION_KEY = 'ppl_active_session';
 
+let persistWarned = false; // un seul avertissement « stockage plein » par séance
 function persistSession() {
   try {
     if (!activeSession) { localStorage.removeItem(SESSION_KEY); return; }
@@ -374,7 +517,28 @@ function persistSession() {
       activeSession, sessionNotes,
       rest: restActive ? { endTime: restEndTime, minimized: restMinimized } : null,
     }));
-  } catch {}
+  } catch {
+    if (activeSession && !persistWarned) {
+      persistWarned = true;
+      showToast('Stockage plein : la séance n\'est plus sauvegardée', { duration: 4000 });
+    }
+  }
+}
+
+// Records de chaque exercice au démarrage de la séance : les badges s'y comparent
+function computeBaseline(sess) {
+  const baseline = {};
+  const list = data.programmes[sess.programme]?.exercises?.[sess.category] || [];
+  sess.exercises.forEach(ex => {
+    const exData = ex.exId && list.find(e => e.id === ex.exId);
+    if (!exData) return;
+    baseline[ex.exId] = {
+      prW:  parseFloat(exData.pr?.weight) || 0,
+      prR:  parseInt(exData.pr?.reps)     || 0,
+      e1rm: exData.est1RM || 0,
+    };
+  });
+  return baseline;
 }
 
 function restoreSession() {
@@ -382,18 +546,32 @@ function restoreSession() {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return false;
     const saved = JSON.parse(raw);
-    if (!saved?.activeSession?.exercises) return false;
+    if (!Array.isArray(saved?.activeSession?.exercises)) return false;
     activeSession = saved.activeSession;
     sessionNotes  = saved.sessionNotes || '';
-    const rem = saved.rest ? Math.ceil((saved.rest.endTime - Date.now()) / 1000) : 0;
-    if (rem > 0) {
+    // Séance commencée avec une version précédente : on complète ce qui manque
+    if (!activeSession.programme) activeSession.programme = 'ppl';
+    if (!activeSession.startedAt) activeSession.startedAt = Date.now();
+    activeSession.exercises.forEach(ex => {
+      if (!Array.isArray(ex.sets)) ex.sets = [];
+      if (ex.sets.some(st => !('prev' in st))) {
+        const last = lastPerf(activeSession.programme, activeSession.category, ex);
+        ex.sets.forEach((st, i) => {
+          if (!('prev' in st)) st.prev = last?.ex.sets[i] ? { weight: last.ex.sets[i].weight, reps: last.ex.sets[i].reps } : null;
+        });
+      }
+    });
+    if (!activeSession.baseline) activeSession.baseline = computeBaseline(activeSession);
+    const endTime = saved.rest ? Number(saved.rest.endTime) : 0;
+    if (endTime > Date.now()) {
       restActive    = true;
       restMinimized = !!saved.rest.minimized;
-      restTimeLeft  = rem;
-      startRestCountdown();
+      restEndTime   = endTime;
+      restTimeLeft  = Math.ceil((endTime - Date.now()) / 1000);
+      resumeRestCountdown();
     }
     return true;
-  } catch { return false; }
+  } catch { activeSession = null; return false; }
 }
 
 // Programme auquel appartient la séance en cours (peut différer du programme affiché)
@@ -502,10 +680,10 @@ function dispW(kg) {
 // display input → kg stored string
 function storeW(val) {
   if (val === '' || val == null) return '';
-  const v = parseFloat(val);
+  const v = parseFloat(String(val).replace(',', '.'));
   if (isNaN(v)) return '';
   if (data.unit === 'lbs') return String(Math.round(v / KG_TO_LBS * 1000) / 1000); // précision pour retomber sur la valeur saisie
-  return String(val);
+  return String(v);
 }
 
 function fmtVolume(kg) {
@@ -543,8 +721,11 @@ function applyTheme(theme) {
 applyTheme(themePref());
 darkMQ.addEventListener?.('change', () => { if (themePref() === 'auto') { applyTheme('auto'); if (view === 'stats') render(); } });
 
-let data          = loadData();
-if (!data._prRecomputed) { recomputePRFromHistory(); data._prRecomputed = true; save(); }
+// Donnée illisible : l'app démarre sur une donnée vide sans rien écrire, puis affiche l'écran de secours
+let loadError = null;
+let data;
+try { data = loadData(); }
+catch (err) { loadError = err; dataBroken = true; data = makeDefaultData(); }
 let view          = 'dashboard';
 let editorCat     = firstSession();
 let activeSession = null;
@@ -566,7 +747,9 @@ let statsMonth    = null;       // null = vue annuelle
 let addCat        = firstSession();
 let addDate       = localISO();
 let addSets       = {};
-let addExtras     = [];  // exercices hors programme dans une séance passée : { key, name }
+let addExtras     = [];  // exercices hors programme dans une séance passée : { key, name, exId }
+let addProg       = 'ppl'; // programme de la séance passée (celui de la séance modifiée)
+let addPrev       = {};  // valeurs de la dernière séance, affichées en placeholder
 let editSessionId = null;
 let sessionNotes  = '';
 let addNotes      = '';
@@ -832,7 +1015,7 @@ function renderCustomManager() {
         ? `<div class="custom-manager__empty">Aucune séance — crée-en une ci-dessous</div>`
         : sessions.map(([id, s]) => `
           <div class="custom-session-row">
-            <span class="custom-session-icon" style="color:${s.color}">${esc(s.icon)}</span>
+            <span class="custom-session-icon" style="color:${esc(s.color)}">${esc(s.icon)}</span>
             <div class="custom-session-info">
               <div class="custom-session-name">${esc(s.label)}</div>
               ${s.desc ? `<div class="custom-session-desc">${esc(s.desc)}</div>` : ''}
@@ -889,22 +1072,35 @@ function renderCsModal() {
 // ═══════════════════════════════════════════════════════════
 
 function startSession(cat) {
-  sessionNotes = '';
-  const exList = prog().exercises[cat] || [];
+  sessionNotes  = '';
+  persistWarned = false;
+  const progKey = data.activeProgramme;
+  const exList  = prog().exercises[cat] || [];
   activeSession = {
     category:  cat,
-    programme: data.activeProgramme,
+    programme: progKey,
     startedAt: Date.now(),
-    exercises: exList.map(ex => ({
-      exId: ex.id,
-      name: ex.name,
-      sets: Array.from({ length: ex.sets }, () => ({
-        weight: ex.lastWeight || '',
-        reps:   ex.lastReps   || '',
-        done:   false,
-      })),
-    })),
+    // Chaque série reprend la série correspondante de la dernière fois (sinon la dernière série faite)
+    exercises: exList.map(ex => {
+      const prevEx = lastPerf(progKey, cat, ex)?.ex;
+      return {
+        exId: ex.id,
+        name: ex.name,
+        sets: Array.from({ length: ex.sets }, (_, i) => {
+          const src  = prevEx?.sets[i] ?? prevEx?.sets.at(-1) ?? { weight: ex.lastWeight || '', reps: ex.lastReps || '' };
+          const prev = prevEx?.sets[i];
+          return {
+            weight: src.weight ?? '',
+            reps:   src.reps   ?? '',
+            plannedWeight: src.weight ?? '',
+            prev:   prev ? { weight: prev.weight, reps: prev.reps } : null,
+            done:   false,
+          };
+        }),
+      };
+    }),
   };
+  activeSession.baseline = computeBaseline(activeSession);
   view = 'session';
   persistSession();
   render();
@@ -915,8 +1111,10 @@ function endSession() {
   clearRest(); restActive = false; restMinimized = false;
   activeSession = null;
   sessionNotes  = '';
+  persistWarned = false;
   persistSession();
   releaseWakeLock();
+  maybeShowUpdateBanner();
 }
 
 function renderSession() {
@@ -927,42 +1125,37 @@ function renderSession() {
   const doneSets  = activeSession.exercises.reduce((a, ex) => a + ex.sets.filter(s => s.done).length, 0);
   const pct       = totalSets ? Math.round(doneSets / totalSets * 100) : 0;
 
-  const prevSession = (data.history || []).find(h => h.category === cat && (h.programme || 'ppl') === activeSession.programme);
-
-  // Volume global : session actuelle vs précédente
-  const curVolTotal  = activeSession.exercises.reduce((a, ex) => a + setsVolume(ex.sets.filter(s => s.done)), 0);
-  const prevVolTotal = prevSession ? prevSession.exercises.reduce((a, ex) => a + setsVolume(ex.sets), 0) : 0;
-  const volDelta     = curVolTotal - prevVolTotal;
-  const volDeltaStr  = prevVolTotal > 0
-    ? (volDelta >= 0 ? `+${fmtVolume(volDelta)}` : `-${fmtVolume(Math.abs(volDelta))}`)
-    : '';
-  const volDeltaColor = volDelta >= 0 ? '#22c55e' : '#ef4444';
+  const curVolTotal = activeSession.exercises.reduce((a, ex) => a + setsVolume(ex.sets.filter(s => s.done)), 0);
+  const baseline    = activeSession.baseline || {};
 
   const exHtml = activeSession.exercises.map((ex, ei) => {
     const exData  = sessProg().exercises[cat]?.find(e => e.id === ex.exId);
     const prText  = exData?.pr ? `PR : ${dispW(exData.pr.weight)} ${unitLbl()} × ${esc(exData.pr.reps)}` : '';
     const allDone = ex.sets.every(s => s.done);
 
-    const prevEx      = prevSession?.exercises.find(e => e.name === ex.name);
-    const prevSets    = prevEx?.sets || [];
+    const last        = lastPerf(activeSession.programme, cat, ex);
+    const prevSession = last?.h;
+    const prevSets    = last?.ex.sets || [];
 
-    // Volume par exercice
-    const exCurVol  = setsVolume(ex.sets.filter(s => s.done));
-    const exPrevVol = setsVolume(prevSets);
+    // Volume par exercice, comparé au même nombre de séries que la dernière fois :
+    // gris tant que l'exercice n'est pas fini, vert s'il progresse, jamais rouge en cours de séance
+    const doneSets  = ex.sets.filter(s => s.done);
+    const exCurVol  = setsVolume(doneSets);
+    const exPrevVol = setsVolume(prevSets.slice(0, doneSets.length));
     const exDelta   = exCurVol - exPrevVol;
+    const deltaCls  = allDone && exDelta > 0 ? 'ex-vol__delta--up' : '';
     const exVolHtml = exCurVol > 0
-      ? `<span class="ex-vol">${fmtVolume(exCurVol)}${exPrevVol > 0 ? ` <span style="color:${exDelta >= 0 ? '#22c55e' : '#ef4444'}">(${exDelta >= 0 ? '+' : ''}${fmtVolume(exDelta)})</span>` : ''}</span>`
+      ? `<span class="ex-vol">${fmtVolume(exCurVol)}${exPrevVol > 0 ? ` <span class="ex-vol__delta ${deltaCls}">(${exDelta >= 0 ? '+' : '−'}${fmtVolume(Math.abs(exDelta))})</span>` : ''}</span>`
       : '';
 
     const setsHtml = ex.sets.map((s, si) => {
       if (s.done) {
-        const isNewPR    = exData?.pr && s.weight == exData.pr.weight && s.reps == exData.pr.reps;
+        const record      = recordLabel(s, baseline[ex.exId]);
         const weightLabel = s.weight ? `${dispW(s.weight)} ${unitLbl()} × ` : '';
         return `
           <div class="set-row set-row--done">
             <span class="set-num">Série ${si + 1}</span>
-            <span class="set-val">${weightLabel}${s.reps} reps</span>
-            ${isNewPR ? '<span class="pr-badge">PR !</span>' : ''}
+            <span class="set-val">${weightLabel}${esc(s.reps)} reps${record ? `<span class="pr-badge">${record}</span>` : ''}</span>
             <button class="rest-btn" data-action="start-rest" data-ei="${ei}">⏱ Repos</button>
             <button class="edit-set-btn" data-action="edit-set" data-ei="${ei}" data-si="${si}" title="Modifier">✏</button>
           </div>`;
@@ -981,13 +1174,13 @@ function renderSession() {
         <div class="set-row set-row--active">
           <span class="set-num">Série ${si + 1}</span>
           <div class="input-group">
-            <input type="number" inputmode="decimal" class="set-input" placeholder="—"
+            <input type="text" inputmode="decimal" autocomplete="off" class="set-input" placeholder="—" aria-label="Charge série ${si + 1}"
                    value="${dispW(s.weight)}" data-action="set-weight" data-ei="${ei}" data-si="${si}">
             <span class="input-unit">${unitLbl()}</span>
           </div>
           <div class="input-group">
-            <input type="number" inputmode="numeric" class="set-input set-input--required" placeholder="0"
-                   value="${s.reps}" data-action="set-reps" data-ei="${ei}" data-si="${si}">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="set-input set-input--required" placeholder="0" aria-label="Répétitions série ${si + 1}"
+                   value="${esc(s.reps)}" data-action="set-reps" data-ei="${ei}" data-si="${si}">
             <span class="input-unit">reps</span>
           </div>
           <button class="btn btn--success btn--sm" data-action="validate-set" data-ei="${ei}" data-si="${si}">✓</button>
@@ -998,7 +1191,7 @@ function renderSession() {
       <div class="prev-session">
         <div class="prev-session__label">Séance du ${fmtDate(prevSession.date)}</div>
         <div class="prev-session__sets">
-          ${prevSets.map((s, i) => `<span class="prev-set">S${i+1} : ${dispW(s.weight)} ${unitLbl()} × ${s.reps}</span>`).join('')}
+          ${prevSets.map((s, i) => `<span class="prev-set">S${i+1} : ${dispW(s.weight)} ${unitLbl()} × ${esc(s.reps)}</span>`).join('')}
         </div>
       </div>` : '';
 
@@ -1029,7 +1222,7 @@ function renderSession() {
         </button>
         <div class="header__center">
           <div class="header__title">${meta.icon} ${meta.label}</div>
-          <div class="header__sub">${doneSets} / ${totalSets} séries${curVolTotal > 0 ? ` · ${fmtVolume(curVolTotal)}${volDeltaStr ? ` <span style="color:${volDeltaColor};font-size:11px">${volDeltaStr}</span>` : ''}` : ''} · <span id="session-elapsed">${fmtDuration(Date.now() - activeSession.startedAt)}</span></div>
+          <div class="header__sub">${doneSets} / ${totalSets} séries${curVolTotal > 0 ? ` · ${fmtVolume(curVolTotal)}` : ''} · <span id="session-elapsed">${fmtDuration(Date.now() - activeSession.startedAt)}</span></div>
         </div>
         <button class="btn--finish" data-action="finish-session">Terminer</button>
       </header>
@@ -1054,37 +1247,60 @@ function renderSession() {
     ${addExModal ? renderAddExModal() : ''}`;
 }
 
+// Badge de record d'une série validée, comparée aux records d'avant la séance (jamais en cas d'égalité)
+function recordLabel(s, base) {
+  if (!base || !base.prR) return '';
+  const w = parseFloat(s.weight) || 0;
+  const r = parseInt(s.reps)     || 0;
+  if (w > base.prW) return 'Record charge';
+  if (w === base.prW && r > base.prR) return 'Record reps';
+  const e1 = calc1RM(s.weight, s.reps);
+  if (e1 && e1 > base.e1rm) return 'Record 1RM est.';
+  return '';
+}
+
+// Signale un champ invalide (contour rouge, aria-invalid) et affiche le message
+function flagInvalid(input, msg) {
+  if (input) {
+    input.classList.add('set-input--error');
+    input.setAttribute('aria-invalid', 'true');
+    input.focus();
+  }
+  showToast(msg);
+}
+
+function weightMsg() {
+  return `Poids entre 0 et ${data.unit === 'lbs' ? '2205' : '1000'} ${unitLbl()}`;
+}
+
+// Charge saisie (unité affichée) valide ? '' (poids du corps) est accepté
+function weightOk(raw) {
+  if (String(raw ?? '').trim() === '') return true;
+  const v = num(raw, 0, data.unit === 'lbs' ? 1000 * KG_TO_LBS + 0.5 : 1000);
+  return v !== null;
+}
+
 function validateSet(ei, si) {
   const ex  = activeSession.exercises[ei];
   const s   = ex.sets[si];
-  if (!s.reps) { showToast('Entre le nombre de reps !'); return; }
+  const row = document.querySelector(`[data-action="set-reps"][data-ei="${ei}"][data-si="${si}"]`);
+  const wIn = document.querySelector(`[data-action="set-weight"][data-ei="${ei}"][data-si="${si}"]`);
+  if (wIn && !weightOk(wIn.value)) { flagInvalid(wIn, weightMsg()); return; }
+  if (num(s.reps, 1, 100, true) === null) { flagInvalid(row, 'Reps entre 1 et 100'); return; }
+  s.reps = String(parseInt(s.reps));
 
   s.done = true;
   validationSound();
   haptic();
 
+  // La série suivante garde sa valeur prévue, sauf si la charge vient d'être modifiée
   const nextSet = ex.sets[si + 1];
-  if (nextSet && !nextSet.done) {
+  if (nextSet && !nextSet.done && (parseFloat(s.weight) || 0) !== (parseFloat(s.plannedWeight) || 0)) {
     nextSet.weight = s.weight;
-    nextSet.reps   = s.reps;
   }
 
   const cat    = activeSession.category;
   const exData = sessProg().exercises[cat]?.find(e => e.id === ex.exId);
-  if (exData) {
-    exData.lastWeight = s.weight;
-    exData.lastReps   = s.reps;
-    const w  = parseFloat(s.weight) || 0;
-    const r  = parseInt(s.reps)     || 0;
-    const pw = parseFloat(exData.pr?.weight) || 0;
-    const pr = parseInt(exData.pr?.reps)     || 0;
-    if (w > pw || (w === pw && r > pr)) {
-      exData.pr = { weight: s.weight, reps: s.reps };
-    }
-    const new1RM = calc1RM(s.weight, s.reps);
-    if (new1RM && (!exData.est1RM || new1RM > exData.est1RM)) exData.est1RM = new1RM;
-    save();
-  }
 
   const allDone = activeSession.exercises.every(e => e.sets.every(s => s.done));
   if (!allDone) {
@@ -1147,9 +1363,13 @@ function renderRestOverlay() {
 }
 
 function startRestCountdown() {
-  clearInterval(restInterval);
   restEndTime = Date.now() + restTimeLeft * 1000;
+  resumeRestCountdown();
+}
 
+// Relance l'affichage du chrono sans toucher à l'heure de fin (retour au premier plan, restauration)
+function resumeRestCountdown() {
+  clearInterval(restInterval);
   restInterval = setInterval(() => {
     restTimeLeft = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
 
@@ -1210,11 +1430,11 @@ function renderEditSetModal() {
       <div class="modal" style="max-width:320px;">
         <div class="modal__title">Modifier — ${esc(ex.name)} S${si + 1}</div>
         <label class="form-label">Charge (${unitLbl()})</label>
-        <input type="number" inputmode="decimal" id="editSetWeight" class="form-input"
+        <input type="text" inputmode="decimal" autocomplete="off" id="editSetWeight" class="form-input"
                value="${dispW(s.weight)}" placeholder="—">
         <label class="form-label">Répétitions</label>
-        <input type="number" inputmode="numeric" id="editSetReps" class="form-input"
-               value="${s.reps}" min="1" placeholder="0">
+        <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="editSetReps" class="form-input"
+               value="${esc(s.reps)}" placeholder="0">
         <div class="modal__actions">
           <button class="btn btn--secondary" data-action="close-edit-set">Annuler</button>
           <button class="btn btn--primary"   data-action="save-edit-set">Enregistrer</button>
@@ -1281,7 +1501,7 @@ document.addEventListener('visibilitychange', () => {
       setTimeout(removeRestUI, 350);
     } else {
       restTimeLeft = remaining;
-      startRestCountdown();
+      resumeRestCountdown();
     }
   }
 });
@@ -1305,8 +1525,8 @@ function renderEditor() {
   }).join('');
 
   const rows = (prog().exercises[editorCat] || []).map((ex, i) => {
-    const last = ex.lastWeight ? `${dispW(ex.lastWeight)} ${unitLbl()} × ${ex.lastReps}` : 'Pas encore effectué';
-    const pr   = ex.pr ? ` · PR: ${dispW(ex.pr.weight)} ${unitLbl()} × ${ex.pr.reps}` : '';
+    const last = ex.lastWeight ? `${dispW(ex.lastWeight)} ${unitLbl()} × ${esc(ex.lastReps)}` : 'Pas encore effectué';
+    const pr   = ex.pr ? ` · PR: ${dispW(ex.pr.weight)} ${unitLbl()} × ${esc(ex.pr.reps)}` : '';
     const max  = (prog().exercises[editorCat] || []).length - 1;
 
     return `
@@ -1377,13 +1597,13 @@ function renderModal() {
         <input type="text" id="modalName" class="form-input"
                value="${ex ? esc(ex.name) : ''}" placeholder="Ex : Curl biceps haltères" autocomplete="off">
         <label class="form-label">Nombre de séries par défaut</label>
-        <input type="number" inputmode="numeric" id="modalSets" class="form-input"
-               value="${ex ? ex.sets : 3}" min="1" max="10">
+        <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="modalSets" class="form-input"
+               value="${ex ? ex.sets : 3}">
         <label class="form-label">Temps de repos (secondes) — optionnel</label>
-        <input type="number" inputmode="numeric" id="modalRest" class="form-input"
+        <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="modalRest" class="form-input"
                value="${ex?.rest || ''}" placeholder="Défaut : ${data.defaultRest}s">
         <label class="form-label">Objectif poids (${unitLbl()}) — optionnel</label>
-        <input type="number" inputmode="decimal" id="modalTarget" class="form-input"
+        <input type="text" inputmode="decimal" autocomplete="off" id="modalTarget" class="form-input"
                value="${ex?.target ? dispW(ex.target) : ''}" placeholder="Ex : ${data.unit === 'lbs' ? '88' : '40'}">
         <div class="modal__actions">
           <button class="btn btn--secondary" data-action="close-modal">Annuler</button>
@@ -1397,24 +1617,35 @@ function renderModal() {
 //  Ajout séance passée
 // ═══════════════════════════════════════════════════════════
 
+// Données du programme de la séance passée (une séance d'un autre programme reste modifiable)
+function addProgData() {
+  return data.programmes[addProg] || { exercises: {}, timers: {}, cooldowns: {} };
+}
+
+// Valeurs vides : la dernière séance sert de placeholder (bouton « Reprendre la dernière séance »)
 function initAddSets(cat) {
   addSets   = {};
+  addPrev   = {};
   addExtras = [];
-  (prog().exercises[cat] || []).forEach(ex => {
-    addSets[ex.id] = Array.from({ length: ex.sets }, () => ({
-      weight: ex.lastWeight || '',
-      reps:   ex.lastReps   || '',
-    }));
+  (addProgData().exercises[cat] || []).forEach(ex => {
+    const prevSets = lastPerf(addProg, cat, ex)?.ex.sets || [];
+    addPrev[ex.id] = prevSets;
+    addSets[ex.id] = Array.from({ length: ex.sets }, () => ({ weight: '', reps: '' }));
   });
 }
 
+function addHasReps() {
+  return Object.values(addSets).some(sets => (sets || []).some(s => String(s.reps ?? '').trim() !== ''));
+}
+
 function renderAddSession() {
-  const exercises = prog().exercises[addCat] || [];
+  const exercises = addProgData().exercises[addCat] || [];
   const today     = localISO();
-  const keys      = sessionKeys();
+  const keys      = sessionKeys(addProg);
+  const hasPrev   = !editSessionId && exercises.some(ex => addPrev[ex.id]?.length);
 
   const catBtns = keys.map(c => {
-    const meta    = sessionMeta(c);
+    const meta    = sessionMeta(c, addProg);
     const isActive = addCat === c;
     return `
       <button class="cat-sel-btn ${isActive ? 'cat-sel-btn--active' : ''}"
@@ -1426,17 +1657,18 @@ function renderAddSession() {
 
   const exHtml = exercises.map(ex => {
     const sets = addSets[ex.id] || [];
+    const prev = addPrev[ex.id] || [];
     const setsHtml = sets.map((s, si) => `
       <div class="set-row set-row--active">
         <span class="set-num">S${si + 1}</span>
         <div class="input-group">
-          <input type="number" inputmode="decimal" class="set-input" placeholder="—"
+          <input type="text" inputmode="decimal" autocomplete="off" class="set-input" placeholder="${prev[si]?.weight ? dispW(prev[si].weight) : '—'}" aria-label="Charge série ${si + 1}"
                  value="${dispW(s.weight)}" data-action="add-weight" data-exid="${ex.id}" data-si="${si}">
           <span class="input-unit">${unitLbl()}</span>
         </div>
         <div class="input-group">
-          <input type="number" inputmode="numeric" class="set-input set-input--required" placeholder="0"
-                 value="${s.reps}" data-action="add-reps" data-exid="${ex.id}" data-si="${si}">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="set-input set-input--required" placeholder="${prev[si] ? esc(prev[si].reps) : '0'}" aria-label="Répétitions série ${si + 1}"
+                 value="${esc(s.reps)}" data-action="add-reps" data-exid="${ex.id}" data-si="${si}">
           <span class="input-unit">reps</span>
         </div>
       </div>`).join('');
@@ -1461,13 +1693,13 @@ function renderAddSession() {
       <div class="set-row set-row--active">
         <span class="set-num">S${si + 1}</span>
         <div class="input-group">
-          <input type="number" inputmode="decimal" class="set-input" placeholder="—"
+          <input type="text" inputmode="decimal" autocomplete="off" class="set-input" placeholder="—" aria-label="Charge série ${si + 1}"
                  value="${dispW(s.weight)}" data-action="add-weight" data-exid="${key}" data-si="${si}">
           <span class="input-unit">${unitLbl()}</span>
         </div>
         <div class="input-group">
-          <input type="number" inputmode="numeric" class="set-input set-input--required" placeholder="0"
-                 value="${s.reps}" data-action="add-reps" data-exid="${key}" data-si="${si}">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="set-input set-input--required" placeholder="0" aria-label="Répétitions série ${si + 1}"
+                 value="${esc(s.reps)}" data-action="add-reps" data-exid="${key}" data-si="${si}">
           <span class="input-unit">reps</span>
         </div>
       </div>`).join('');
@@ -1496,7 +1728,7 @@ function renderAddSession() {
           </svg>
         </button>
         <span class="header__title">${editSessionId ? 'Modifier la séance' : 'Séance passée'}</span>
-        <button class="btn--finish" data-action="save-past-session">Enregistrer</button>
+        <button class="btn--finish" data-action="save-past-session" ${addHasReps() ? '' : 'disabled'}>Enregistrer</button>
       </header>
       <div class="add-session-meta">
         <div class="cat-selector">${catBtns}</div>
@@ -1507,6 +1739,7 @@ function renderAddSession() {
         </div>
       </div>
       <div class="add-session-content">
+        ${hasPrev ? `<button class="btn btn--secondary btn--full add-copy-prev" data-action="add-copy-prev">Reprendre la dernière séance</button>` : ''}
         ${exHtml}
         ${extrasHtml}
         <button class="session-add-ex-btn" data-action="add-session-ex">
@@ -1591,7 +1824,7 @@ function renderSettings() {
             <span class="setting-value">›</span>
           </button>
           <button class="setting-row" data-action="force-update">
-            <span class="setting-label">Mettre à jour l'app</span>
+            <span class="setting-label">Rechercher une mise à jour</span>
             <span class="setting-value">↻</span>
           </button>
         </div>
@@ -1774,7 +2007,7 @@ function renderStats() {
     const points = history
       .filter(s => s.category === statsCat)
       .map(s => {
-        const found = s.exercises.find(e => e.name === ex.name);
+        const found = s.exercises.find(e => sameEx(e, ex));
         if (!found || !found.sets.length) return null;
         const sets     = found.sets;
         const wts      = sets.map(s => parseFloat(s.weight) || 0);
@@ -1821,7 +2054,7 @@ function renderStats() {
       .filter(s => s.reps)
       .map((s, i) => {
         const w = s.weight ? `${dispW(s.weight)} ${unitLbl()} × ` : '';
-        return `<span class="last-set">S${i+1} : ${w}${s.reps} reps</span>`;
+        return `<span class="last-set">S${i+1} : ${w}${esc(s.reps)} reps</span>`;
       }).join('');
 
     const displayVals = (!isBodyweight && statsMode !== 'volume')
@@ -1836,7 +2069,7 @@ function renderStats() {
       isVolumeMode: statsMode === 'volume' && !isBodyweight,
     }));
 
-    const exData    = prog().exercises[statsCat]?.find(e => e.name === ex.name);
+    const exData    = ex;
     const targetW   = exData?.target;
     const e1RM      = exData?.est1RM;
     const targetBar = (targetW && !isBodyweight) ? (() => {
@@ -1883,11 +2116,11 @@ function renderStats() {
   }).join('');
 
   const hasData = exercises.some(ex =>
-    history.some(s => s.category === statsCat && s.exercises?.find(e => e.name === ex.name))
+    history.some(s => s.category === statsCat && s.exercises?.find(e => sameEx(e, ex)))
   );
 
   const modeDescs = {
-    volume: 'Total soulevé par séance (séries × reps × kg)',
+    volume: 'Somme poids × reps de toutes les séries',
     charge: 'Poids le plus lourd soulevé dans la séance',
     '1rm':  'Force max estimée depuis la meilleure série',
   };
@@ -2180,6 +2413,7 @@ async function handleAction(e, el, action) {
       render(); break;
     }
     case 'go-add-session': {
+      addProg       = data.activeProgramme;
       addCat        = firstSession();
       addDate       = localISO();
       editSessionId = null;
@@ -2190,21 +2424,17 @@ async function handleAction(e, el, action) {
     case 'edit-session': {
       const session = (data.history || []).find(h => h.id === el.dataset.id);
       if (!session) break;
-      // Only edit if it's the same programme
-      if (session.programme && session.programme !== data.activeProgramme) {
-        showToast('Change de programme pour modifier cette séance');
-        break;
-      }
       editSessionId = session.id;
+      addProg = session.programme || 'ppl';
       addCat  = session.category;
       addDate = localISO(session.date);
       initAddSets(addCat);
       session.exercises.forEach(ex => {
-        const exData = (prog().exercises[addCat] || []).find(e => e.name === ex.name);
+        const exData = (addProgData().exercises[addCat] || []).find(e => sameEx(e, ex));
         const sets   = ex.sets.map(s => ({ weight: s.weight, reps: s.reps }));
         if (exData) { addSets[exData.id] = sets; return; }
         const key = 'x_' + uid();
-        addExtras.push({ key, name: ex.name });
+        addExtras.push({ key, name: ex.name, exId: ex.exId || null });
         addSets[key] = sets.length ? sets : [{ weight: '', reps: '' }];
       });
       addNotes = session.notes || '';
@@ -2238,13 +2468,7 @@ async function handleAction(e, el, action) {
       break;
     }
     case 'force-update': {
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(regs => {
-          Promise.all(regs.map(r => r.unregister())).then(() => window.location.reload(true));
-        });
-      } else {
-        window.location.reload(true);
-      }
+      await checkForUpdate();
       break;
     }
     case 'cooldown-edit': {
@@ -2268,7 +2492,14 @@ async function handleAction(e, el, action) {
       addCat = el.dataset.cat;
       const extras = addExtras.map(x => ({ ...x, sets: addSets[x.key] }));
       initAddSets(addCat);
-      extras.forEach(({ key, name, sets }) => { addExtras.push({ key, name }); addSets[key] = sets; });
+      extras.forEach(({ key, name, exId, sets }) => { addExtras.push({ key, name, exId }); addSets[key] = sets; });
+      render(); break;
+    }
+    case 'add-copy-prev': {
+      Object.entries(addPrev).forEach(([id, prev]) => {
+        if (!prev.length) return;
+        addSets[id] = prev.map(s => ({ weight: s.weight, reps: s.reps }));
+      });
       render(); break;
     }
     case 'add-date': { addDate = el.value; break; }
@@ -2295,47 +2526,64 @@ async function handleAction(e, el, action) {
       const notesEl2 = $('.session-notes-input');
       if (notesEl2) addNotes = notesEl2.value;
 
-      const sessionExercises = (prog().exercises[addCat] || [])
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(addDate || '') || addDate > localISO()) {
+        flagInvalid(dateEl, 'Choisis une date');
+        break;
+      }
+      // Séries saisies : reps entre 1 et 100, charge vide ou entre 0 et 1000
+      const bad = [...document.querySelectorAll('[data-action="add-reps"], [data-action="add-weight"]')].find(inp => {
+        const v = inp.value.trim();
+        if (inp.dataset.action === 'add-weight') return !weightOk(v);
+        return v !== '' && num(v, 1, 100, true) === null;
+      });
+      if (bad) { flagInvalid(bad, bad.dataset.action === 'add-reps' ? 'Reps entre 1 et 100' : weightMsg()); break; }
+
+      const pData = addProgData();
+      const clean = sets => (sets || []).filter(s => String(s.reps ?? '').trim() !== '')
+        .map(s => ({ weight: s.weight, reps: String(parseInt(s.reps)) }));
+      const sessionExercises = (pData.exercises[addCat] || [])
         .map(ex => {
-          const sets = (addSets[ex.id] || []).filter(s => s.reps);
-          if (!sets.length) return null;
-          return { name: ex.name, sets };
+          const sets = clean(addSets[ex.id]);
+          return sets.length ? { exId: ex.id, name: ex.name, sets } : null;
         })
         .filter(Boolean);
-      addExtras.forEach(({ key, name }) => {
-        const sets = (addSets[key] || []).filter(s => s.reps);
-        if (sets.length) sessionExercises.push({ name, sets });
+      addExtras.forEach(({ key, name, exId }) => {
+        const sets = clean(addSets[key]);
+        if (sets.length) sessionExercises.push({ exId: exId || resolveExId(addProg, addCat, name), name, sets });
       });
 
       if (!sessionExercises.length) { showToast('Entre au moins un exercice avec poids et reps !'); return; }
 
       const [y, m, d] = addDate.split('-').map(Number);
       const timestamp = new Date(y, m - 1, d, 12, 0, 0).getTime();
+      const wasEdit   = !!editSessionId;
+      let   savedDate = timestamp;
 
       if (!data.history) data.history = [];
-      if (editSessionId) {
+      if (wasEdit) {
         const idx = data.history.findIndex(h => h.id === editSessionId);
         if (idx !== -1) {
           const old = data.history[idx];
           // Même jour : on garde l'heure d'origine
           const sameDay = localISO(old.date) === addDate;
-          data.history[idx] = { ...old, programme: data.activeProgramme, category: addCat, date: sameDay ? old.date : timestamp, notes: addNotes.trim(), exercises: sessionExercises };
+          savedDate = sameDay ? old.date : timestamp;
+          data.history[idx] = { ...old, programme: addProg, category: addCat, date: savedDate, notes: addNotes.trim(), exercises: sessionExercises };
         }
       } else {
-        data.history.push({ id: uid(), programme: data.activeProgramme, category: addCat, date: timestamp, notes: addNotes.trim(), exercises: sessionExercises });
+        data.history.push({ id: uid(), programme: addProg, category: addCat, date: timestamp, notes: addNotes.trim(), exercises: sessionExercises });
         addNotes = '';
       }
       data.history.sort((a, b) => b.date - a.date);
       editSessionId = null;
 
-      const latestForCat = data.history
-        .filter(h => h.category === addCat && (h.programme === data.activeProgramme || (!h.programme && data.activeProgramme === 'ppl')))
-        .reduce((best, h) => h.date > (best?.date || 0) ? h : best, null);
-      if (latestForCat) prog().timers[addCat] = latestForCat.date;
+      // Le délai de récupération ne bouge que si cette séance est plus récente
+      if (!data.programmes[addProg]) data.programmes[addProg] = pData;
+      const timers = data.programmes[addProg].timers;
+      if (savedDate > (timers[addCat] || 0)) timers[addCat] = savedDate;
 
       recomputePRFromHistory();
       save();
-      showToast('Séance ajoutée !');
+      showToast(wasEdit ? 'Séance modifiée' : 'Séance ajoutée');
       view = 'history'; render(); startTicker(); break;
     }
 
@@ -2428,8 +2676,14 @@ async function handleAction(e, el, action) {
       render(); break;
     }
     case 'delete-custom-session': {
-      if (!(await confirmSheet('Supprimer cette séance ?', 'Ses exercices et son historique seront supprimés.', 'Supprimer'))) break;
       const id = csEditId;
+      const running = activeSession && activeSession.programme === 'custom' && activeSession.category === id;
+      if (running && !(await confirmSheet('Cette séance est en cours', 'Elle sera abandonnée.', 'Supprimer'))) break;
+      const n = (data.history || []).filter(h => h.category === id && h.programme === 'custom').length;
+      const msg = n ? `Ses exercices seront supprimés et ${n} séance${n > 1 ? 's' : ''} de l'historique ser${n > 1 ? 'ont effacées' : 'a effacée'}.`
+                    : 'Ses exercices seront supprimés.';
+      if (!(await confirmSheet('Supprimer cette séance ?', msg, 'Supprimer'))) break;
+      if (running) endSession();
       if (id && data.customSessions) {
         delete data.customSessions[id];
         if (data.programmes.custom) {
@@ -2490,25 +2744,13 @@ async function handleAction(e, el, action) {
       const { ei: eei, si: esi } = editSetModal;
       const ex  = activeSession.exercises[eei];
       const s   = ex.sets[esi];
-      const rawW = $('#editSetWeight')?.value ?? '';
-      const rawR = $('#editSetReps')?.value   ?? '';
-      if (!rawR) { showToast('Entre le nombre de reps !'); break; }
-      s.weight = storeW(rawW);
-      s.reps   = parseInt(rawR) || s.reps;
-      const cat    = activeSession.category;
-      const exData = sessProg().exercises[cat]?.find(e => e.id === ex.exId);
-      if (exData) {
-        const lastDone = ex.sets.filter(s => s.done).at(-1);
-        if (lastDone) { exData.lastWeight = lastDone.weight; exData.lastReps = lastDone.reps; }
-        const w  = parseFloat(s.weight) || 0;
-        const r  = parseInt(s.reps)     || 0;
-        const pw = parseFloat(exData.pr?.weight) || 0;
-        const pr = parseInt(exData.pr?.reps)     || 0;
-        if (w > pw || (w === pw && r > pr)) exData.pr = { weight: s.weight, reps: s.reps };
-        const new1RM = calc1RM(s.weight, s.reps);
-        if (new1RM && (!exData.est1RM || new1RM > exData.est1RM)) exData.est1RM = new1RM;
-      }
-      save();
+      const wIn = $('#editSetWeight'), rIn = $('#editSetReps');
+      if (!weightOk(wIn?.value)) { flagInvalid(wIn, weightMsg()); break; }
+      const reps = num(rIn?.value, 1, 100, true);
+      if (reps === null) { flagInvalid(rIn, 'Reps entre 1 et 100'); break; }
+      // Les records ne sont recalculés qu'à l'enregistrement de la séance
+      s.weight = storeW(wIn?.value ?? '');
+      s.reps   = String(reps);
       editSetModal = null;
       render();
       showToast('Série modifiée');
@@ -2535,8 +2777,9 @@ async function handleAction(e, el, action) {
       restEditEi = null; render(); break;
     }
     case 'save-rest-edit': {
-      const secs = parseInt($('#restEditInput')?.value);
-      if (secs >= 10 && secs <= 600) {
+      const secs = num($('#restEditInput')?.value, 10, 600, true);
+      if (secs === null) { flagInvalid($('#restEditInput'), 'Repos entre 10 et 600 s'); break; }
+      {
         const ex     = activeSession.exercises[restEditEi];
         const cat    = activeSession.category;
         const exData = sessProg().exercises[cat]?.find(e => e.id === ex?.exId);
@@ -2562,8 +2805,8 @@ async function handleAction(e, el, action) {
       render(); break;
     }
     case 'set-custom-rest': {
-      const val = parseInt($('#customRest')?.value);
-      if (val >= 10 && val <= 600) {
+      const val = num($('#customRest')?.value, 10, 600, true);
+      if (val !== null) {
         clearRest(); restTimeLeft = val; restEndTime = Date.now() + val * 1000; startRestCountdown(); render();
       } else {
         showToast('Entre une durée entre 10 et 600 secondes');
@@ -2602,7 +2845,7 @@ async function handleAction(e, el, action) {
       if (!name) { showToast('Entre un nom pour l\'exercice'); break; }
       if (view === 'add-session') {
         const key = 'x_' + uid();
-        addExtras.push({ key, name });
+        addExtras.push({ key, name, exId: null });
         addSets[key] = Array.from({ length: addExSets }, () => ({ weight: '', reps: '' }));
         addExModal = false; addExName = ''; render();
         setTimeout(() => {
@@ -2614,7 +2857,7 @@ async function handleAction(e, el, action) {
       activeSession.exercises.push({
         exId: null,
         name,
-        sets: Array.from({ length: addExSets }, () => ({ weight: '', reps: '', done: false })),
+          sets: Array.from({ length: addExSets }, () => ({ weight: '', reps: '', plannedWeight: '', prev: null, done: false })),
       });
       addExModal = false; addExName = ''; render();
       // Scroll to the new exercise
@@ -2646,23 +2889,50 @@ async function handleAction(e, el, action) {
         break;
       }
       if (choice !== 'save') break;
-      sessProg().timers[activeSession.category] = Date.now();
-      if (!data.history) data.history = [];
-      data.history.unshift({
+
+      // La séance Perso a pu être supprimée entre-temps
+      const sp = activeSession.programme, sc = activeSession.category;
+      if (sp === 'custom' ? !data.customSessions[sc] : !PROGRAMMES[sp]?.sessions[sc]) {
+        endSession();
+        view = 'dashboard'; render(); startTicker();
+        showToast('Cette séance n\'existe plus');
+        break;
+      }
+      if (!data.programmes[sp]) data.programmes[sp] = { exercises: {}, timers: {}, cooldowns: {} };
+      const timers    = data.programmes[sp].timers;
+      const prevTimer = timers[sc] ?? null;
+      const entry = {
         id:         uid(),
-        programme:  activeSession.programme,
-        category:   activeSession.category,
+        programme:  sp,
+        category:   sc,
         date:       Date.now(),
         duration:   Date.now() - activeSession.startedAt,
         notes:      sessionNotes.trim(),
         exercises:  activeSession.exercises
           .map(ex => ({
+            exId: ex.exId || resolveExId(sp, sc, ex.name),
             name: ex.name,
             sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps })),
           }))
           .filter(ex => ex.sets.length),
-      });
-      save();
+      };
+      timers[sc] = entry.date;
+      data.history.unshift(entry);
+      recomputePRFromHistory();
+      if (!save(true)) {
+        // Rien n'est perdu : la séance reste active, on propose d'exporter (séance comprise)
+        const act = await dialog({ title: 'Espace de stockage plein',
+          message: 'Exporte tes données pour ne pas perdre cette séance.',
+          actions: [
+            { label: 'Plus tard', style: 'cancel' },
+            { label: 'Exporter', value: 'export', style: 'preferred' },
+          ] });
+        if (act === 'export') await exportData();
+        data.history = data.history.filter(h => h !== entry);
+        timers[sc] = prevTimer;
+        recomputePRFromHistory();
+        break;
+      }
       finishSound();
       haptic();
       endSession();
@@ -2710,22 +2980,46 @@ async function handleAction(e, el, action) {
       break;
     }
     case 'save-ex': {
-      const name   = $('#modalName')?.value.trim();
-      const sets   = parseInt($('#modalSets')?.value) || 3;
+      const name = $('#modalName')?.value.trim();
       if (!name) { showToast('Entre un nom !'); return; }
-      const target = $('#modalTarget')?.value ? (parseFloat(storeW($('#modalTarget').value)) || null) : null;
-      const rest   = parseInt($('#modalRest')?.value)    || null;
-      if (!prog().exercises[editorCat]) prog().exercises[editorCat] = [];
+      const setsIn = $('#modalSets'), restIn = $('#modalRest'), targetIn = $('#modalTarget');
+      const sets = num(setsIn?.value, 1, 10, true);
+      if (sets === null) { flagInvalid(setsIn, 'Séries entre 1 et 10'); break; }
+      const restRaw = restIn?.value.trim() || '';
+      const rest    = restRaw ? num(restRaw, 10, 600, true) : null;
+      if (restRaw && rest === null) { flagInvalid(restIn, 'Repos entre 10 et 600 s'); break; }
+      const targetRaw = targetIn?.value.trim() || '';
+      if (targetRaw && (!weightOk(targetRaw) || !(parseFloat(storeW(targetRaw)) > 0))) { flagInvalid(targetIn, weightMsg()); break; }
+      const target = targetRaw ? parseFloat(storeW(targetRaw)) : null;
+      const list = prog().exercises[editorCat] || (prog().exercises[editorCat] = []);
       if (editExIdx !== null) {
-        prog().exercises[editorCat][editExIdx].name   = name;
-        prog().exercises[editorCat][editExIdx].sets   = sets;
-        prog().exercises[editorCat][editExIdx].target = target;
-        prog().exercises[editorCat][editExIdx].rest   = rest;
-      } else {
-        const ex = makeExercise(name, sets);
+        const ex = list[editExIdx];
+        if (ex.name !== name) {
+          // L'exId garde le lien avec l'historique ; on propose aussi d'y reprendre le nouveau nom
+          const progKey = data.activeProgramme;
+          const touched = (data.history || []).filter(h => (h.programme || 'ppl') === progKey && h.category === editorCat
+            && (h.exercises || []).some(e => sameEx(e, ex)));
+          if (touched.length) {
+            const n = touched.length;
+            const all = await confirmSheet('Renommer aussi dans l\'historique ?',
+              `${n} séance${n > 1 ? 's contiennent' : ' contient'} cet exercice.`, 'Renommer partout', false);
+            if (all) touched.forEach(h => h.exercises.forEach(e => { if (sameEx(e, ex)) e.name = name; }));
+          }
+          if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) e.name = name; });
+          ex.name = name;
+        }
+        ex.sets   = sets;
         ex.target = target;
         ex.rest   = rest;
-        prog().exercises[editorCat].push(ex);
+      } else {
+        const ex = makeExercise(name, sets);
+        // Un exercice déjà présent dans l'historique (supprimé puis recréé) retrouve son identifiant
+        const known = resolveExId(data.activeProgramme, editorCat, name);
+        if (!list.some(e => e.id === known)) ex.id = known;
+        ex.target = target;
+        ex.rest   = rest;
+        list.push(ex);
+        recomputePRFromHistory();
       }
       modalOpen = false; editExIdx = null; save(); render(); break;
     }
@@ -2735,55 +3029,17 @@ async function handleAction(e, el, action) {
 
     // ── Data ────────────────────────────────────────────────
     case 'export': {
-      const exportData = { ...data, _theme: themePref() };
-      const json  = JSON.stringify(exportData, null, 2);
-      const fname = `muscu-backup-${localISO()}.json`;
-      const file  = typeof File === 'function' ? new File([json], fname, { type: 'application/json' }) : null;
-      if (file && navigator.canShare?.({ files: [file] })) {
-        try { await navigator.share({ files: [file], title: 'Sauvegarde PPL Training' }); break; }
-        catch (err) { if (err?.name === 'AbortError') break; }
-      }
-      const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-      const a   = document.createElement('a');
-      a.href = url; a.download = fname;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      await exportData();
       break;
     }
     case 'import': {
       if (!(await confirmSheet('Importer une sauvegarde ?', 'Les données actuelles seront remplacées par celles du fichier.', 'Choisir un fichier', false))) break;
       const inp = document.createElement('input');
-      inp.type  = 'file'; inp.accept = '.json';
+      inp.type  = 'file'; inp.accept = '.json,application/json';
       inp.onchange = ev => {
         const file = ev.target.files[0]; if (!file) return;
         const reader = new FileReader();
-        reader.onload = re => {
-          try {
-            const d = JSON.parse(re.target.result);
-            // Accept both old format and new format
-            if (d.exercises && !d.programmes) {
-              // old format
-              const nd = makeDefaultData();
-              nd.programmes.ppl.exercises = d.exercises;
-              nd.programmes.ppl.timers   = d.timers || {};
-              nd.defaultRest = d.defaultRest || 90;
-              nd.history     = (d.history || []).map(h => ({ ...h, programme: 'ppl' }));
-              data = nd;
-            } else if (d.programmes && d.activeProgramme) {
-              const theme = d._theme;
-              delete d._theme;
-              data = normalizeData(d);
-              d._theme = theme;
-            } else {
-              showToast('Fichier invalide');
-              return;
-            }
-            recomputePRFromHistory();
-            if (d._theme) applyTheme(d._theme);
-            editorCat = statsCat = addCat = firstSession();
-            save(); render(); showToast(`Import réussi : ${data.history.length} séances`);
-          } catch { showToast('Erreur import'); }
-        };
+        reader.onload = re => importText(String(re.target.result));
         reader.readAsText(file);
       };
       inp.click(); break;
@@ -2791,9 +3047,86 @@ async function handleAction(e, el, action) {
   }
 }
 
+// Importe une sauvegarde : tout est vérifié sur une copie, `data` n'est remplacé qu'à la fin
+function importText(text) {
+  let next, theme;
+  try {
+    const d = JSON.parse(text);
+    if (!d || typeof d !== 'object') throw new Error('format');
+    theme = d._theme;
+    let candidate;
+    if (d.exercises && !d.programmes) {
+      // Ancien format (ppl_v1)
+      candidate = makeDefaultData();
+      candidate.programmes.ppl.exercises = clone(d.exercises);
+      candidate.programmes.ppl.timers    = clone(d.timers || {});
+      candidate.defaultRest = d.defaultRest || 90;
+      candidate.history     = (Array.isArray(d.history) ? clone(d.history) : []).map(h => ({ ...h, programme: 'ppl' }));
+    } else if (d.programmes && typeof d.programmes === 'object' && d.activeProgramme) {
+      candidate = clone(d);
+      delete candidate._theme;
+    } else throw new Error('format');
+    const given = Array.isArray(candidate.history) ? candidate.history.length : 0;
+    next = sanitizeData(normalizeData(candidate));
+    recomputePRFromHistory(next);
+    // Un fichier dont aucune séance n'est lisible est refusé
+    if (given > 0 && next.history.length === 0) throw new Error('history');
+    next._skipped = given - next.history.length;
+  } catch {
+    showToast('Fichier invalide : rien n\'a été modifié', { duration: 4000 });
+    return false;
+  }
+  const skipped = next._skipped; delete next._skipped;
+  const previous = JSON.stringify(data);
+  try { localStorage.setItem(BACKUP_KEY, previous); } catch {}
+  data = next;
+  if (!save()) { data = JSON.parse(previous); return false; }
+  if (theme) applyTheme(theme);
+  editorCat = statsCat = addCat = firstSession();
+  syncTimersFromHistory();
+  render();
+  const n = data.history.length;
+  showToast(`Import réussi : ${n} séance${n > 1 ? 's' : ''}${skipped ? ` (${skipped} ignorée${skipped > 1 ? 's' : ''})` : ''}`, {
+    action: 'Annuler', duration: 6000,
+    onAction: () => {
+      data = normalizeData(JSON.parse(previous));
+      save();
+      editorCat = statsCat = addCat = firstSession();
+      render(); showToast('Import annulé');
+    },
+  });
+  return true;
+}
+
+// Exporte la donnée en JSON (feuille de partage si disponible, sinon téléchargement)
+async function exportData() {
+  const payload = { ...data, _theme: themePref() };
+  const json  = JSON.stringify(payload, null, 2);
+  const fname = `muscu-backup-${localISO()}.json`;
+  const file  = typeof File === 'function' ? new File([json], fname, { type: 'application/json' }) : null;
+  if (file && navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: 'Sauvegarde PPL Training' }); return; }
+    catch (err) { if (err?.name === 'AbortError') return; }
+  }
+  downloadText(json, fname);
+}
+
+function downloadText(text, fname) {
+  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  const a   = document.createElement('a');
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
 // Live input capture
 document.addEventListener('input', e => {
   const action = e.target.dataset.action;
+  // Une saisie corrige l'erreur signalée
+  if (e.target.getAttribute?.('aria-invalid') === 'true') {
+    e.target.removeAttribute('aria-invalid');
+    e.target.classList.remove('set-input--error');
+  }
 
   if (activeSession) {
     const ei = parseInt(e.target.dataset.ei);
@@ -2810,6 +3143,8 @@ document.addEventListener('input', e => {
     if (exid && !isNaN(si) && addSets[exid]) {
       if (action === 'add-weight') addSets[exid][si].weight = storeW(e.target.value);
       if (action === 'add-reps')   addSets[exid][si].reps   = e.target.value;
+      const saveBtn = $('[data-action="save-past-session"]');
+      if (saveBtn) saveBtn.disabled = !addHasReps();
     }
     if (action === 'add-date')        addDate  = e.target.value;
     if (action === 'add-notes-input') addNotes = e.target.value;
@@ -2859,9 +3194,120 @@ function syncTimersFromHistory() {
   save();
 }
 
+// ═══════════════════════════════════════════════════════════
+//  Écran de secours (donnée illisible)
+// ═══════════════════════════════════════════════════════════
+
+function renderRescue() {
+  dataBroken = true;
+  clearInterval(ticker);
+  let hasBackup = false;
+  try { hasBackup = !!localStorage.getItem(BACKUP_KEY); } catch {}
+  $('#app').innerHTML = `
+    <div class="rescue" role="alert">
+      <div class="rescue__title">Données illisibles</div>
+      <p class="rescue__msg">L'app n'arrive pas à lire tes données. Rien n'a été effacé : choisis quoi faire.</p>
+      ${hasBackup ? '<button class="btn btn--primary btn--full" id="rescueRestore">Restaurer la sauvegarde précédente</button>' : ''}
+      <button class="btn btn--secondary btn--full" id="rescueExport">Exporter les données brutes</button>
+      <button class="btn btn--danger btn--full" id="rescueReset">Réinitialiser</button>
+    </div>`;
+  $('#rescueRestore')?.addEventListener('click', () => {
+    try {
+      const raw = localStorage.getItem(BACKUP_KEY);
+      normalizeData(JSON.parse(raw)); // vérifie qu'elle se lit avant de l'écrire
+      localStorage.setItem(KEY, raw);
+      location.reload();
+    } catch { showToast('La sauvegarde est illisible elle aussi', { duration: 4000 }); }
+  });
+  $('#rescueExport').addEventListener('click', () => {
+    let raw = '';
+    try { raw = localStorage.getItem(KEY) || ''; } catch {}
+    downloadText(raw, `muscu-donnees-brutes-${localISO()}.json`);
+  });
+  $('#rescueReset').addEventListener('click', async () => {
+    if (!(await confirmSheet('Tout réinitialiser ?', 'Ton historique et tes exercices seront effacés. Exporte d\'abord les données brutes si tu veux les garder.', 'Réinitialiser'))) return;
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) localStorage.setItem(BACKUP_KEY, raw);
+      const d = makeDefaultData(); d.schema = SCHEMA;
+      localStorage.setItem(KEY, JSON.stringify(d));
+      localStorage.removeItem(SESSION_KEY);
+    } catch {}
+    location.reload();
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  syncTimersFromHistory();
-  if (restoreSession()) { view = 'session'; requestWakeLock(); }
-  render();
-  startTicker();
+  if (loadError) { renderRescue(); return; }
+  try {
+    syncTimersFromHistory();
+    if (restoreSession()) { view = 'session'; requestWakeLock(); }
+    render();
+    startTicker();
+  } catch (err) {
+    console.error(err);
+    renderRescue();
+    return;
+  }
+  // Demande au navigateur de ne pas effacer les données en cas de manque d'espace
+  try { navigator.storage?.persisted?.().then(p => { if (!p) navigator.storage.persist?.(); }).catch(() => {}); } catch {}
+  registerServiceWorker();
 });
+
+// ═══════════════════════════════════════════════════════════
+//  Mises à jour (service worker)
+// ═══════════════════════════════════════════════════════════
+
+let swReg = null;
+let swReloading = false;
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    swReg = reg;
+    maybeShowUpdateBanner();
+    reg.addEventListener('updatefound', () => {
+      const sw = reg.installing;
+      sw?.addEventListener('statechange', () => { if (sw.state === 'installed') maybeShowUpdateBanner(); });
+    });
+  }).catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (swReloading) location.reload();
+  });
+  // Vérifie au retour au premier plan
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') swReg?.update().catch(() => {});
+  });
+}
+
+// Bannière « Nouvelle version disponible », jamais pendant une séance
+function maybeShowUpdateBanner() {
+  if (!swReg?.waiting || !navigator.serviceWorker.controller || activeSession || $('.update-banner')) return;
+  const el = document.createElement('div');
+  el.className = 'update-banner';
+  el.setAttribute('role', 'status');
+  el.innerHTML = `<span>Nouvelle version disponible</span><button class="update-banner__btn" type="button">Mettre à jour</button>`;
+  el.querySelector('button').addEventListener('click', () => applyUpdate());
+  document.body.appendChild(el);
+}
+
+function applyUpdate() {
+  const waiting = swReg?.waiting;
+  if (!waiting) { location.reload(); return; }
+  swReloading = true;
+  waiting.postMessage('skipWaiting');
+  setTimeout(() => location.reload(), 3000); // filet si controllerchange n'arrive pas
+}
+
+async function checkForUpdate() {
+  if (!('serviceWorker' in navigator) || !swReg) { location.reload(); return; }
+  try { await swReg.update(); }
+  catch { showToast('Impossible de vérifier : pas de connexion ?', { duration: 4000 }); return; }
+  const pending = swReg.waiting || swReg.installing;
+  if (!pending) { showToast('Tu as la dernière version'); return; }
+  showToast('Mise à jour…');
+  // Repart de zéro : caches vidés, service worker désinscrit, puis rechargement
+  try { await Promise.all((await caches.keys()).map(k => caches.delete(k))); } catch {}
+  try { await Promise.all((await navigator.serviceWorker.getRegistrations()).map(r => r.unregister())); } catch {}
+  location.reload();
+}
