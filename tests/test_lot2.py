@@ -186,15 +186,19 @@ def t_custom_colors(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} perso : aucune erreur JS {page.errors}')
 
 
+STYLE_FILES = ['base.css', 'training.css', 'views.css', 'components.css']
+
+
 def once_static(bench):
-    css = open(os.path.join(APP_DIR, 'style.css'), encoding='utf-8').read()
+    # Anciennement style.css, découpé dans css/ (même ordre)
+    css = ''.join(open(os.path.join(APP_DIR, 'css', f), encoding='utf-8').read() for f in STYLE_FILES)
     # Couleurs en dur seulement dans les blocs de tokens (:root et body.light du début du fichier)
     body = css[css.index('/* Matériaux translucides'):]
     hexes = re.findall(r'#[0-9a-fA-F]{3,8}\b', body)
     rgb = re.findall(r'rgba?\([^)]*\)', body)
-    R.check(not hexes and not rgb, f'style.css : couleurs en dur hors tokens {hexes[:5]} {rgb[:5]}')
+    R.check(not hexes and not rgb, f'css : couleurs en dur hors tokens {hexes[:5]} {rgb[:5]}')
     sizes = re.findall(r'font-size:\s*(\d+)px', css.replace('html { height: 100%; font-size: 17px; }', ''))
-    R.check(not sizes, f'style.css : tailles de police en px {sizes[:5]}')
+    R.check(not sizes, f'css : tailles de police en px {sizes[:5]}')
     js = open(os.path.join(APP_DIR, 'app.js'), encoding='utf-8').read()
     prog = js[js.index('const PROGRAMMES'):js.index('custom: {', js.index('const PROGRAMMES'))]
     R.check(not re.search(r"color: '#", prog), 'PROGRAMMES : couleurs en tokens')

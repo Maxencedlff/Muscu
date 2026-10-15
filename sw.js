@@ -1,5 +1,10 @@
-const CACHE = 'ppl-v25';
-const ASSETS = ['/', '/index.html', '/style.css', '/nav.css', '/session.css', '/screens.css', '/app.js', '/manifest.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png'];
+const CACHE = 'ppl-v26';
+const ASSETS = [
+  '/', '/index.html', '/manifest.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
+  '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
+  '/css/navigation.css', '/css/session.css', '/css/screens.css',
+  '/app.js',
+];
 
 // Une version = un cache complet, téléchargé d'un bloc (cache HTTP contourné) :
 // l'app ne mélange jamais des fichiers de deux versions.
