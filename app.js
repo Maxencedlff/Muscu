@@ -27,22 +27,62 @@ function fmt72(ms) {
   return `${pad(h)}:${pad(m)}:${pad(s % 60)}`;
 }
 
+// Nombres à la française : « 32,5 » (virgule, espace fine pour les milliers)
+const nf = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
+function fmtNum(v, digits) {
+  const n = typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(',', '.'));
+  if (!isFinite(n)) return '';
+  if (digits != null) return n.toLocaleString('fr-FR', { maximumFractionDigits: digits });
+  return nf.format(n);
+}
+
+// Repos : « 1:30 », « 0:45 » (pas de zéro devant les minutes)
 function fmtRest(secs) {
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return `${pad(m)}:${pad(s)}`;
+  secs = Math.max(0, Math.round(secs || 0));
+  return `${Math.floor(secs / 60)}:${pad(secs % 60)}`;
 }
 
+// Chrono de séance : « 42:07 », puis « 1:02:07 » au-delà d'une heure
+function fmtClock(ms) {
+  const s = Math.max(0, Math.floor((ms || 0) / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}:${pad(m)}:${pad(s % 60)}` : `${pad(m)}:${pad(s % 60)}`;
+}
+
+// « Aujourd'hui », « Hier », sinon « jeu. 9 oct. » (l'année seulement si ce n'est pas l'année en cours)
 function fmtDate(ts) {
-  return new Date(ts).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  const d = new Date(ts);
+  const today = new Date();
+  const day0 = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff = Math.round((day0 - dd) / 86400000);
+  if (diff === 0) return 'Aujourd\'hui';
+  if (diff === 1) return 'Hier';
+  const opts = { weekday: 'short', day: 'numeric', month: 'short' };
+  if (d.getFullYear() !== today.getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString('fr-FR', opts);
 }
 
+// Durées : « 42 min », « 1 h 09 »
 function fmtDuration(ms) {
-  const totalMin = Math.floor(ms / 60000);
+  const totalMin = Math.floor(Math.max(0, ms || 0) / 60000);
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
-  if (h > 0) return `${h}h${pad(m)}`;
-  return `${m}min`;
+  if (h > 0) return `${h}\u00a0h\u00a0${pad(m)}`;
+  return `${m}\u00a0min`;
+}
+
+// Icône du sprite de index.html (style SF Symbols), décorative : le libellé vient du bouton
+function icon(name, size = 22) {
+  return `<svg class="icon icon--${name.replace(/\./g, '-')}" width="${size}" height="${size}" aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`;
+}
+
+// Valeur d'un token CSS (« var(--orange) » → « #FF9F0A ») : le canvas ne comprend pas var()
+function cssColor(c) {
+  const m = /^var\((--[\w-]+)\)$/.exec(String(c || '').trim());
+  if (!m) return c;
+  return getComputedStyle(document.body).getPropertyValue(m[1]).trim() || c;
 }
 
 function fmtDateTime(ts) {
@@ -209,11 +249,11 @@ function haptic() {
 
 const PROGRAMMES = {
   ppl: {
-    name: 'PPL', desc: 'Push · Pull · Legs', icon: '🏋️',
+    name: 'PPL', desc: 'Push · Pull · Legs', icon: icon('dumbbell'),
     sessions: {
-      push: { label: 'Push', icon: '💪', desc: 'Pectoraux · Épaules · Triceps', color: '#ef4444' },
-      pull: { label: 'Pull', icon: '🦾', desc: 'Dos · Biceps · Trapèzes',       color: '#3b82f6' },
-      legs: { label: 'Legs', icon: '🦵', desc: 'Quadriceps · Ischio · Mollets', color: '#22c55e' },
+      push: { label: 'Push', icon: '💪', desc: 'Pectoraux · Épaules · Triceps', color: 'var(--orange)' },
+      pull: { label: 'Pull', icon: '🦾', desc: 'Dos · Biceps · Trapèzes',       color: 'var(--indigo)' },
+      legs: { label: 'Legs', icon: '🦵', desc: 'Quadriceps · Ischio · Mollets', color: 'var(--teal)' },
     },
     defaults: {
       push: [['Développé couché haltères',4],['Développé incliné haltères',3],['Écarté haltères plat',3],['Développé militaire haltères',4],['Élévations latérales',4],['Extension triceps poulie',3]],
@@ -222,10 +262,10 @@ const PROGRAMMES = {
     },
   },
   upper_lower: {
-    name: 'Upper / Lower', desc: 'Haut · Bas du corps', icon: '⬆️',
+    name: 'Upper / Lower', desc: 'Haut · Bas du corps', icon: icon('dumbbell'),
     sessions: {
-      upper: { label: 'Upper', icon: '💪', desc: 'Pecs · Dos · Épaules · Bras',              color: '#f59e0b' },
-      lower: { label: 'Lower', icon: '🦵', desc: 'Quadriceps · Ischio · Mollets · Fessiers', color: '#8b5cf6' },
+      upper: { label: 'Upper', icon: '💪', desc: 'Pecs · Dos · Épaules · Bras',              color: 'var(--orange)' },
+      lower: { label: 'Lower', icon: '🦵', desc: 'Quadriceps · Ischio · Mollets · Fessiers', color: 'var(--indigo)' },
     },
     defaults: {
       upper: [['Développé couché haltères',4],['Tirage vertical prise large',4],['Rowing haltère unilatéral',3],['Développé militaire haltères',3],['Curl biceps haltères',3],['Extension triceps poulie',3]],
@@ -233,22 +273,22 @@ const PROGRAMMES = {
     },
   },
   fullbody: {
-    name: 'Full Body', desc: 'Corps entier · 3×/semaine', icon: '⚡',
+    name: 'Full Body', desc: 'Corps entier · 3×/semaine', icon: icon('dumbbell'),
     sessions: {
-      fullbody: { label: 'Full Body', icon: '⚡', desc: 'Corps entier', color: '#06b6d4' },
+      fullbody: { label: 'Full Body', icon: '⚡', desc: 'Corps entier', color: 'var(--teal)' },
     },
     defaults: {
       fullbody: [['Squat barre',3],['Développé couché haltères',3],['Rowing haltère unilatéral',3],['Développé militaire haltères',3],['Curl biceps haltères',3],['Extension triceps poulie',3],['Mollets debout',3]],
     },
   },
   bro: {
-    name: 'Bro Split', desc: 'Chest · Back · Shoulders · Arms · Legs', icon: '💪',
+    name: 'Bro Split', desc: 'Chest · Back · Shoulders · Arms · Legs', icon: icon('dumbbell'),
     sessions: {
-      chest:     { label: 'Chest',     icon: '💪', desc: 'Pectoraux',           color: '#ef4444' },
-      back:      { label: 'Back',      icon: '🦾', desc: 'Dos · Trapèzes',       color: '#3b82f6' },
-      shoulders: { label: 'Shoulders', icon: '🏔️', desc: 'Épaules',             color: '#f59e0b' },
-      arms:      { label: 'Arms',      icon: '🦾', desc: 'Biceps · Triceps',    color: '#a855f7' },
-      legs:      { label: 'Legs',      icon: '🦵', desc: 'Quadriceps · Ischio', color: '#22c55e' },
+      chest:     { label: 'Chest',     icon: '💪', desc: 'Pectoraux',           color: 'var(--orange)' },
+      back:      { label: 'Back',      icon: '🦾', desc: 'Dos · Trapèzes',       color: 'var(--indigo)' },
+      shoulders: { label: 'Shoulders', icon: '🏔️', desc: 'Épaules',             color: 'var(--yellow)' },
+      arms:      { label: 'Arms',      icon: '🦾', desc: 'Biceps · Triceps',    color: 'var(--purple)' },
+      legs:      { label: 'Legs',      icon: '🦵', desc: 'Quadriceps · Ischio', color: 'var(--teal)' },
     },
     defaults: {
       chest:     [['Développé couché haltères',4],['Développé incliné haltères',4],['Écarté haltères plat',3],['Dips',3]],
@@ -259,11 +299,11 @@ const PROGRAMMES = {
     },
   },
   arnold: {
-    name: 'Arnold Split', desc: 'Pecs+Dos · Épaules+Bras · Jambes', icon: '🏆',
+    name: 'Arnold Split', desc: 'Pecs+Dos · Épaules+Bras · Jambes', icon: icon('dumbbell'),
     sessions: {
-      chest_back:     { label: 'Chest & Back',     icon: '💪', desc: 'Pectoraux · Dos',              color: '#ef4444' },
-      shoulders_arms: { label: 'Shoulders & Arms', icon: '🤙', desc: 'Épaules · Biceps · Triceps',   color: '#f97316' },
-      legs:           { label: 'Legs',             icon: '🦵', desc: 'Quadriceps · Ischio · Mollets', color: '#22c55e' },
+      chest_back:     { label: 'Chest & Back',     icon: '💪', desc: 'Pectoraux · Dos',              color: 'var(--orange)' },
+      shoulders_arms: { label: 'Shoulders & Arms', icon: '🤙', desc: 'Épaules · Biceps · Triceps',   color: 'var(--yellow)' },
+      legs:           { label: 'Legs',             icon: '🦵', desc: 'Quadriceps · Ischio · Mollets', color: 'var(--teal)' },
     },
     defaults: {
       chest_back:     [['Développé couché haltères',4],['Écarté haltères plat',3],['Tirage vertical prise large',4],['Rowing haltère unilatéral',4],['Pull-ups',3]],
@@ -272,7 +312,7 @@ const PROGRAMMES = {
     },
   },
   custom: {
-    name: 'Perso', desc: 'Séances personnalisées', icon: '✏️',
+    name: 'Perso', desc: 'Séances personnalisées', icon: icon('pencil'),
     sessions: {}, defaults: {},
   },
 };
@@ -606,14 +646,24 @@ function sessionKeys(progId) {
   return Object.keys(PROGRAMMES[progId]?.sessions || {});
 }
 
+// Pastille ronde de 28 px : initiale blanche sur la couleur de la séance,
+// ou l'emoji choisi par l'utilisateur (séances Perso) dans un carré fixe
+function catBadge(label, color, emoji) {
+  if (emoji) return `<span class="cat-badge cat-badge--emoji" aria-hidden="true">${emoji}</span>`;
+  const initial = String(label || '?').trim().charAt(0).toUpperCase();
+  return `<span class="cat-badge" style="--cat-color:${color}" aria-hidden="true">${esc(initial)}</span>`;
+}
+
 function sessionMeta(cat, progId) {
   progId = progId || data.activeProgramme;
   if (progId === 'custom') {
     const cs = data.customSessions[cat];
-    if (!cs) return { label: esc(cat), icon: '🏋️', desc: '', color: '#666666' };
-    return { ...cs, label: esc(cs.label), icon: esc(cs.icon), desc: esc(cs.desc) };
+    if (!cs) return { label: esc(cat), icon: catBadge(cat, 'var(--label2)'), emoji: '', desc: '', color: '#8E8E93' };
+    return { ...cs, label: esc(cs.label), icon: catBadge(cs.label, cs.color, esc(cs.icon)), emoji: esc(cs.icon), desc: esc(cs.desc) };
   }
-  return PROGRAMMES[progId]?.sessions[cat] || { label: cat, icon: '🏋️', desc: '', color: '#666666' };
+  const m = PROGRAMMES[progId]?.sessions[cat];
+  if (!m) return { label: esc(cat), icon: catBadge(cat, 'var(--label2)'), emoji: '', desc: '', color: '#8E8E93' };
+  return { ...m, emoji: m.icon, icon: catBadge(m.label, m.color) };
 }
 
 // Libellé brut (non échappé) pour les textes affichés via textContent
@@ -690,14 +740,20 @@ function fmtVolume(kg) {
   if (kg === 0) return `0 ${unitLbl()}`;
   if (data.unit === 'lbs') {
     const lbs = kg * KG_TO_LBS;
-    return lbs >= 1000 ? (lbs / 1000).toFixed(1) + ' k lbs' : Math.round(lbs) + ' lbs';
+    return lbs >= 1000 ? fmtNum(lbs / 1000, 1) + ' k lbs' : fmtNum(Math.round(lbs)) + ' lbs';
   }
-  return kg >= 1000 ? (kg / 1000).toFixed(1).replace('.', ',') + ' t' : Math.round(kg) + ' kg';
+  return kg >= 1000 ? fmtNum(kg / 1000, 1) + ' t' : fmtNum(Math.round(kg)) + ' kg';
+}
+
+// Charge affichée en texte : « 32,5 » (dispW reste au point pour les champs de saisie)
+function fmtW(kg) {
+  const v = dispW(kg);
+  return v === '' ? '' : fmtNum(v);
 }
 
 function historyColor(h) {
   const progId = h.programme || 'ppl';
-  return sessionMeta(h.category, progId).color || '#666';
+  return sessionMeta(h.category, progId).color || 'var(--label2)';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -716,7 +772,9 @@ function applyTheme(theme) {
   const light = theme === 'light' || (theme === 'auto' && !darkMQ.matches);
   document.body.classList.toggle('light', light);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = light ? '#ffffff' : '#0a0a0a';
+  if (meta) meta.content = light ? '#F2F2F7' : '#000000';
+  const bar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+  if (bar) bar.content = light ? 'default' : 'black-translucent';
 }
 applyTheme(themePref());
 darkMQ.addEventListener?.('change', () => { if (themePref() === 'auto') { applyTheme('auto'); if (view === 'stats') render(); } });
@@ -866,7 +924,7 @@ function renderDashboard() {
         ${!ready ? `<button class="btn btn--ghost btn--full btn--skip" data-action="skip-cooldown" data-cat="${cat}">Passer le délai</button>` : ''}
         <div class="card__cooldown">
           <span class="card__cooldown-label">Délai récup.</span>
-          <button class="card__cooldown-btn" data-action="cooldown-edit" data-cat="${cat}">${getCooldown(cat)}h ✎</button>
+          <button class="card__cooldown-btn" data-action="cooldown-edit" data-cat="${cat}" aria-label="Délai de récupération : ${getCooldown(cat)} h, modifier">${getCooldown(cat)} h ${icon('pencil', 15)}</button>
         </div>
       </div>`;
   }).join('');
@@ -901,9 +959,9 @@ function renderDashboard() {
         <button class="prog-pill" data-action="go-programmes">
           <span class="prog-pill__icon">${pm.icon}</span>
           <span class="prog-pill__name">${pm.name}</span>
-          <span class="prog-pill__chevron">›</span>
+          <span class="prog-pill__chevron">${icon('chevron.down', 15)}</span>
         </button>
-        ${computeStreak() > 0 ? `<div class="streak-badge" title="${computeStreak()} semaines consécutives actives" aria-label="${computeStreak()} semaines consécutives actives">🔥 ${computeStreak()}</div>` : ''}
+        ${computeStreak() > 0 ? `<div class="streak-badge" title="${computeStreak()} semaines consécutives actives" aria-label="${computeStreak()} semaines consécutives actives">${icon('flame', 15)}${computeStreak()}</div>` : ''}
         <div class="header-actions">
           <button class="icon-btn" data-action="go-settings" title="Réglages">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -981,7 +1039,7 @@ function renderProgrammes() {
           <div class="prog-card__desc">${pm.desc}</div>
           ${names ? `<div class="prog-card__sessions">${names}</div>` : ''}
         </div>
-        <span class="prog-card__arrow">›</span>
+        <span class="prog-card__arrow">${icon('chevron.right', 17)}</span>
       </div>`;
   }).join('');
 
@@ -1130,7 +1188,7 @@ function renderSession() {
 
   const exHtml = activeSession.exercises.map((ex, ei) => {
     const exData  = sessProg().exercises[cat]?.find(e => e.id === ex.exId);
-    const prText  = exData?.pr ? `PR : ${dispW(exData.pr.weight)} ${unitLbl()} × ${esc(exData.pr.reps)}` : '';
+    const prText  = exData?.pr ? `PR : ${fmtW(exData.pr.weight)} ${unitLbl()} × ${esc(exData.pr.reps)}` : '';
     const allDone = ex.sets.every(s => s.done);
 
     const last        = lastPerf(activeSession.programme, cat, ex);
@@ -1151,13 +1209,13 @@ function renderSession() {
     const setsHtml = ex.sets.map((s, si) => {
       if (s.done) {
         const record      = recordLabel(s, baseline[ex.exId]);
-        const weightLabel = s.weight ? `${dispW(s.weight)} ${unitLbl()} × ` : '';
+        const weightLabel = s.weight ? `${fmtW(s.weight)} ${unitLbl()} × ` : '';
         return `
           <div class="set-row set-row--done">
             <span class="set-num">Série ${si + 1}</span>
             <span class="set-val">${weightLabel}${esc(s.reps)} reps${record ? `<span class="pr-badge">${record}</span>` : ''}</span>
-            <button class="rest-btn" data-action="start-rest" data-ei="${ei}">⏱ Repos</button>
-            <button class="edit-set-btn" data-action="edit-set" data-ei="${ei}" data-si="${si}" title="Modifier">✏</button>
+            <button class="rest-btn" data-action="start-rest" data-ei="${ei}">${icon('timer', 15)}Repos</button>
+            <button class="edit-set-btn" data-action="edit-set" data-ei="${ei}" data-si="${si}" title="Modifier" aria-label="Modifier la série ${si + 1}">${icon('pencil', 18)}</button>
           </div>`;
       }
 
@@ -1183,7 +1241,7 @@ function renderSession() {
                    value="${esc(s.reps)}" data-action="set-reps" data-ei="${ei}" data-si="${si}">
             <span class="input-unit">reps</span>
           </div>
-          <button class="btn btn--success btn--sm" data-action="validate-set" data-ei="${ei}" data-si="${si}">✓</button>
+          <button class="btn btn--success btn--sm" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-label="Valider la série ${si + 1}">${icon('checkmark', 20)}</button>
         </div>`;
     }).join('');
 
@@ -1191,18 +1249,18 @@ function renderSession() {
       <div class="prev-session">
         <div class="prev-session__label">Séance du ${fmtDate(prevSession.date)}</div>
         <div class="prev-session__sets">
-          ${prevSets.map((s, i) => `<span class="prev-set">S${i+1} : ${dispW(s.weight)} ${unitLbl()} × ${esc(s.reps)}</span>`).join('')}
+          ${prevSets.map((s, i) => `<span class="prev-set">S${i+1} : ${fmtW(s.weight)} ${unitLbl()} × ${esc(s.reps)}</span>`).join('')}
         </div>
       </div>` : '';
 
     const restSecs = exData?.rest ?? data.defaultRest;
-    const restLabel = restSecs >= 60 ? `${restSecs / 60}min` : `${restSecs}s`;
+    const restLabel = fmtRest(restSecs);
 
     return `
       <div class="exercise-block ${allDone ? 'exercise-block--done' : ''}">
         <div class="exercise-header">
           <span class="exercise-name">${esc(ex.name)}</span>
-          <button class="rest-badge" data-action="set-ex-rest" data-ei="${ei}" title="Modifier le repos">⏱ ${restLabel}</button>
+          <button class="rest-badge" data-action="set-ex-rest" data-ei="${ei}" title="Modifier le repos" aria-label="Repos : ${restLabel}, modifier">${icon('timer', 14)}${restLabel}</button>
           <span class="exercise-progress">${ex.sets.filter(s => s.done).length}/${ex.sets.length}</span>
         </div>
         ${exVolHtml ? `<div class="ex-vol-line">${exVolHtml}</div>` : ''}
@@ -1327,10 +1385,10 @@ function renderRestOverlay() {
     const ending = restTimeLeft <= 5;
     return `
       <div class="rest-mini" data-action="expand-rest">
-        <span class="rest-mini__icon">⏱</span>
+        <span class="rest-mini__icon">${icon('timer', 20)}</span>
         <span class="rest-mini__timer ${ending ? 'ending' : ''}">${fmtRest(restTimeLeft)}</span>
         <span class="rest-mini__label">Repos en cours — appuyer pour rouvrir</span>
-        <button class="rest-mini__skip" data-action="skip-rest">✕</button>
+        <button class="rest-mini__skip" data-action="skip-rest" aria-label="Passer le repos">${icon('xmark', 18)}</button>
       </div>`;
   }
 
@@ -1525,15 +1583,15 @@ function renderEditor() {
   }).join('');
 
   const rows = (prog().exercises[editorCat] || []).map((ex, i) => {
-    const last = ex.lastWeight ? `${dispW(ex.lastWeight)} ${unitLbl()} × ${esc(ex.lastReps)}` : 'Pas encore effectué';
-    const pr   = ex.pr ? ` · PR: ${dispW(ex.pr.weight)} ${unitLbl()} × ${esc(ex.pr.reps)}` : '';
+    const last = ex.lastWeight ? `${fmtW(ex.lastWeight)} ${unitLbl()} × ${esc(ex.lastReps)}` : 'Pas encore effectué';
+    const pr   = ex.pr ? ` · PR: ${fmtW(ex.pr.weight)} ${unitLbl()} × ${esc(ex.pr.reps)}` : '';
     const max  = (prog().exercises[editorCat] || []).length - 1;
 
     return `
       <div class="editor-row">
         <div class="editor-row__reorder">
-          <button class="reorder-btn" data-action="move-up"   data-i="${i}" ${i === 0   ? 'disabled' : ''}>▲</button>
-          <button class="reorder-btn" data-action="move-down" data-i="${i}" ${i === max ? 'disabled' : ''}>▼</button>
+          <button class="reorder-btn" data-action="move-up"   data-i="${i}" ${i === 0   ? 'disabled' : ''} aria-label="Monter">${icon('chevron.up', 16)}</button>
+          <button class="reorder-btn" data-action="move-down" data-i="${i}" ${i === max ? 'disabled' : ''} aria-label="Descendre">${icon('chevron.down', 16)}</button>
         </div>
         <div class="editor-row__info">
           <div class="editor-row__name">${esc(ex.name)}</div>
@@ -1650,7 +1708,7 @@ function renderAddSession() {
     return `
       <button class="cat-sel-btn ${isActive ? 'cat-sel-btn--active' : ''}"
               data-action="add-cat" data-cat="${c}"
-              style="${isActive ? `border-color:${meta.color};color:${meta.color};background:${meta.color}18` : ''}">
+              style="${isActive ? `border-color:${meta.color};color:${meta.color};background:color-mix(in srgb, ${meta.color} 10%, transparent)` : ''}">
         ${meta.icon} ${meta.label}
       </button>`;
   }).join('');
@@ -1712,7 +1770,7 @@ function renderAddSession() {
             <button class="sets-adj" data-action="add-set-row" data-exid="${key}">+</button>
             <button class="sets-adj" data-action="rem-set-row" data-exid="${key}"
                     ${sets.length <= 1 ? 'disabled' : ''} style="opacity:${sets.length <= 1 ? .3 : 1}">−</button>
-            <button class="sets-adj" data-action="rem-extra-ex" data-exid="${key}" title="Retirer">✕</button>
+            <button class="sets-adj" data-action="rem-extra-ex" data-exid="${key}" title="Retirer" aria-label="Retirer l'exercice">${icon('xmark', 16)}</button>
           </div>
         </div>
         ${setsHtml}
@@ -1764,18 +1822,20 @@ function renderAddSession() {
 // ═══════════════════════════════════════════════════════════
 
 function renderSettings() {
-  const tog = (on) => `<div class="setting-toggle ${on ? 'setting-toggle--on' : ''}"><div class="setting-toggle__thumb"></div></div>`;
+  // Interrupteur iOS (le bouton de la rangée porte l'état pour VoiceOver)
+  const tog = (on) => `<span class="switch ${on ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>`;
+  const seg = (action, items, cur) => `<div class="segmented" role="group">
+              ${items.map(([v, l]) =>
+                `<button class="segmented__btn ${cur === v ? 'segmented__btn--active' : ''}" aria-pressed="${cur === v}" data-action="${action}" data-val="${v}">${l}</button>`).join('')}
+            </div>`;
+  const chevron = `<span class="chevron">${icon('chevron.right', 14)}</span>`;
 
   return `
     <div class="view settings-view">
       <header class="header">
-        <button class="icon-btn" data-action="back">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M19 12H5M12 5l-7 7 7 7"/>
-          </svg>
-        </button>
+        <button class="icon-btn" data-action="back" aria-label="Retour">${icon('chevron.left')}</button>
         <span class="header__title">Réglages</span>
-        <div style="width:40px"></div>
+        <div style="width:44px"></div>
       </header>
       <div class="settings-list">
 
@@ -1783,10 +1843,7 @@ function renderSettings() {
         <div class="settings-group">
           <div class="setting-row setting-row--segmented">
             <span class="setting-label">Thème</span>
-            <div class="segmented">
-              ${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([v, l]) =>
-                `<button class="segmented__btn ${themePref() === v ? 'segmented__btn--active' : ''}" data-action="set-theme" data-val="${v}">${l}</button>`).join('')}
-            </div>
+            ${seg('set-theme', [['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']], themePref())}
           </div>
         </div>
 
@@ -1794,20 +1851,17 @@ function renderSettings() {
         <div class="settings-group">
           <div class="setting-row setting-row--segmented">
             <span class="setting-label">Unité de poids</span>
-            <div class="segmented">
-              <button class="segmented__btn ${data.unit === 'kg' ? 'segmented__btn--active' : ''}" data-action="setting-unit" data-val="kg">kg</button>
-              <button class="segmented__btn ${data.unit === 'lbs' ? 'segmented__btn--active' : ''}" data-action="setting-unit" data-val="lbs">lbs</button>
-            </div>
+            ${seg('setting-unit', [['kg', 'kg'], ['lbs', 'lbs']], data.unit)}
           </div>
           <button class="setting-row" data-action="setting-rest">
             <span class="setting-label">Repos entre séries</span>
-            <span class="setting-value">${data.defaultRest}s</span>
+            <span class="setting-value">${fmtRest(data.defaultRest)}${chevron}</span>
           </button>
-          <button class="setting-row" data-action="setting-sound">
+          <button class="setting-row" data-action="setting-sound" role="switch" aria-checked="${data.soundOn !== false}">
             <span class="setting-label">Sons</span>
             ${tog(data.soundOn !== false)}
           </button>
-          <button class="setting-row" data-action="setting-vibrate">
+          <button class="setting-row" data-action="setting-vibrate" role="switch" aria-checked="${data.vibrateOn !== false}">
             <span class="setting-label">Vibrations</span>
             ${tog(data.vibrateOn !== false)}
           </button>
@@ -1816,18 +1870,16 @@ function renderSettings() {
         <div class="settings-section-title">Données</div>
         <div class="settings-group">
           <button class="setting-row" data-action="export">
-            <span class="setting-label">Exporter les données</span>
-            <span class="setting-value">›</span>
+            <span class="setting-label setting-label--tint">Exporter les données</span>
           </button>
           <button class="setting-row" data-action="import">
-            <span class="setting-label">Importer les données</span>
-            <span class="setting-value">›</span>
+            <span class="setting-label setting-label--tint">Importer les données</span>
           </button>
           <button class="setting-row" data-action="force-update">
-            <span class="setting-label">Rechercher une mise à jour</span>
-            <span class="setting-value">↻</span>
+            <span class="setting-label setting-label--tint">Rechercher une mise à jour</span>
           </button>
         </div>
+        <div class="settings-footer">MDLF Training</div>
 
       </div>
     </div>`;
@@ -1870,9 +1922,9 @@ function renderStatsOverview(viewTabs) {
 
   const yearNav = `
     <div class="overview-year-nav">
-      <button class="cooldown-btn" data-action="overview-year-prev">‹</button>
+      <button class="cooldown-btn" data-action="overview-year-prev" aria-label="Année précédente">${icon('chevron.left')}</button>
       <span class="overview-year">${statsYear}</span>
-      <button class="cooldown-btn" data-action="overview-year-next" ${statsYear >= new Date().getFullYear() ? 'disabled' : ''}>›</button>
+      <button class="cooldown-btn" data-action="overview-year-next" aria-label="Année suivante" ${statsYear >= new Date().getFullYear() ? 'disabled' : ''}>${icon('chevron.right')}</button>
     </div>`;
 
   const monthPills = `
@@ -1912,7 +1964,7 @@ function renderStatsOverview(viewTabs) {
           return d.getFullYear() === statsYear && d.getMonth() === mi && h.category === k;
         }).length;
         const meta = sessionMeta(k);
-        return c > 0 ? `<span style="color:${meta.color}">${meta.icon} ×${c}</span>` : '';
+        return c > 0 ? `<span class="cat-text" style="--cat-color:${meta.color}">${meta.icon} ×${c}</span>` : '';
       }).filter(Boolean).join(' ');
       return `
         <div class="month-row">
@@ -1991,8 +2043,8 @@ function renderStats() {
   function fmtMetric(v, isBodyweight) {
     const vd = isBodyweight ? v : cvtW(v); // ne pas convertir les reps
     if (statsMode === 'volume' && !isBodyweight) {
-      if (data.unit === 'lbs') return vd >= 1000 ? (vd / 1000).toFixed(1) + ' k lbs' : Math.round(vd) + ' lbs';
-      return v >= 1000 ? (v / 1000).toFixed(1).replace('.', ',') + ' t' : Math.round(v) + ' kg';
+      if (data.unit === 'lbs') return vd >= 1000 ? fmtNum(vd / 1000, 1) + ' k lbs' : fmtNum(Math.round(vd)) + ' lbs';
+      return v >= 1000 ? fmtNum(v / 1000, 1) + ' t' : fmtNum(Math.round(v)) + ' kg';
     }
     if (statsMode === '1rm') return v > 0 ? `~${Math.round(vd)} ${unitLbl()}` : '—';
     return Math.round(vd) + (isBodyweight ? ' reps' : ` ${unitLbl()}`);
@@ -2043,7 +2095,7 @@ function renderStats() {
     const firstVal      = vals[0];
     const progPct       = firstVal > 0 ? Math.round(((lastVal - firstVal) / firstVal) * 100) : 0;
     const progLabel     = progPct > 0 ? `+${progPct}%` : progPct < 0 ? `${progPct}%` : '—';
-    const progColor     = progPct > 0 ? '#22c55e' : progPct < 0 ? '#ef4444' : 'var(--muted)';
+    const progColor     = progPct > 0 ? 'var(--green-text)' : progPct < 0 ? 'var(--red-text)' : 'var(--label2)';
 
     // Best-ever for PR display
     const prW = isBodyweight
@@ -2053,7 +2105,7 @@ function renderStats() {
     const lastSets = last.sets
       .filter(s => s.reps)
       .map((s, i) => {
-        const w = s.weight ? `${dispW(s.weight)} ${unitLbl()} × ` : '';
+        const w = s.weight ? `${fmtW(s.weight)} ${unitLbl()} × ` : '';
         return `<span class="last-set">S${i+1} : ${w}${esc(s.reps)} reps</span>`;
       }).join('');
 
@@ -2074,9 +2126,9 @@ function renderStats() {
     const e1RM      = exData?.est1RM;
     const targetBar = (targetW && !isBodyweight) ? (() => {
       const pct    = Math.min(100, Math.round((last.maxLoad / targetW) * 100));
-      const c2     = pct >= 100 ? '#22c55e' : progColor;
+      const c2     = pct >= 100 ? 'var(--green-text)' : progColor;
       return `<div class="target-block">
-        <div class="target-label">Objectif : ${cvtW(targetW)} ${unitLbl()} <span style="color:${c2}">${pct >= 100 ? '✓ Atteint !' : pct + '%'}</span></div>
+        <div class="target-label">Objectif : ${fmtNum(cvtW(targetW))} ${unitLbl()} <span style="color:${c2}">${pct >= 100 ? '✓ Atteint !' : pct + '%'}</span></div>
         <div class="target-bar"><div class="target-bar__fill" style="width:${pct}%;background:${c2}"></div></div>
       </div>`;
     })() : '';
@@ -2086,11 +2138,11 @@ function renderStats() {
     if (statsMode === 'volume') {
       secondaryLine = isBodyweight
         ? `<span>${last.sets.filter(s=>s.reps).length} séries · ${last.avgR} reps/série</span>`
-        : `<span>${last.sets.filter(s=>s.reps).length} séries · ${cvtW(last.avgW)} ${unitLbl()} moy · ${last.avgR} reps/série</span>`;
+        : `<span>${last.sets.filter(s=>s.reps).length} séries · ${fmtNum(cvtW(last.avgW))} ${unitLbl()} moy · ${last.avgR} reps/série</span>`;
     } else if (statsMode === 'charge') {
       secondaryLine = `<span>${last.sets.filter(s=>s.reps).length} séries · ${last.avgR} reps/série</span>`;
     } else {
-      secondaryLine = last.avgW ? `<span>${cvtW(last.avgW)} ${unitLbl()} × ${last.avgR} reps (meilleures séries)</span>` : '';
+      secondaryLine = last.avgW ? `<span>${fmtNum(cvtW(last.avgW))} ${unitLbl()} × ${last.avgR} reps (meilleures séries)</span>` : '';
     }
 
     return `
@@ -2107,8 +2159,8 @@ function renderStats() {
         <canvas class="stats-canvas" data-points="${encoded}" data-color="${color}"></canvas>
         ${targetBar}
         <div class="stats-card__footer">
-          <span>PR : <strong>${isBodyweight ? prW + ' reps' : cvtW(prW) + ' ' + unitLbl()}</strong></span>
-          ${e1RM && !isBodyweight ? `<span>1RM ~<strong>${cvtW(e1RM)} ${unitLbl()}</strong></span>` : ''}
+          <span>PR : <strong>${isBodyweight ? prW + ' reps' : fmtNum(cvtW(prW)) + ' ' + unitLbl()}</strong></span>
+          ${e1RM && !isBodyweight ? `<span>1RM ~<strong>${fmtNum(cvtW(e1RM))} ${unitLbl()}</strong></span>` : ''}
           <span style="color:${progColor};font-weight:700">${progLabel}</span>
           <span>${points.length} séance${points.length > 1 ? 's' : ''}</span>
         </div>
@@ -2164,7 +2216,8 @@ function renderStats() {
 function drawCharts() {
   document.querySelectorAll('.stats-canvas').forEach(canvas => {
     const { vals, dates, unit, isVolumeMode } = JSON.parse(decodeURIComponent(canvas.dataset.points));
-    const color = canvas.dataset.color;
+    const color = cssColor(canvas.dataset.color);
+    const tok   = name => cssColor(`var(--${name})`);
     if (!vals || !vals.length) return;
 
     const W   = canvas.parentElement.clientWidth - 32;
@@ -2226,7 +2279,7 @@ function drawCharts() {
       const isPeak = v === Math.max(...vals) && i > 0;
       ctx.beginPath();
       ctx.arc(xp(i), yp(v), isLast ? 5 : isPeak ? 4 : 3, 0, Math.PI * 2);
-      ctx.fillStyle   = (isLast || isPeak) ? color : '#181818';
+      ctx.fillStyle   = (isLast || isPeak) ? color : tok('cell2');
       ctx.strokeStyle = color;
       ctx.lineWidth   = 1.8;
       ctx.fill();
@@ -2237,15 +2290,15 @@ function drawCharts() {
     const li    = n - 1;
     const lv    = vals[li];
     const trend = n > 1 && vals[li] >= vals[li - 1] ? '▲' : n > 1 ? '▼' : '';
-    const trendColor = n > 1 ? (vals[li] >= vals[li-1] ? '#22c55e' : '#ef4444') : color;
+    const trendColor = n > 1 ? (vals[li] >= vals[li-1] ? tok('green-text') : tok('red-text')) : color;
 
     let labelTxt;
     if (isVolumeMode) {
       labelTxt = lv >= 1000
-        ? (lv / 1000).toFixed(1).replace('.', ',') + 't'
-        : Math.round(lv) + unit;
+        ? fmtNum(lv / 1000, 1) + ' t'
+        : fmtNum(Math.round(lv)) + unit;
     } else {
-      labelTxt = Math.round(lv * 10) / 10 + unit;
+      labelTxt = fmtNum(Math.round(lv * 10) / 10) + unit;
     }
 
     ctx.font      = 'bold 11px -apple-system, sans-serif';
@@ -2259,7 +2312,7 @@ function drawCharts() {
     ctx.fillText(labelTxt, lx, ly);
 
     // Date labels on X axis
-    ctx.fillStyle = '#555';
+    ctx.fillStyle = tok('label2');
     ctx.font      = '10px -apple-system, sans-serif';
     ctx.textAlign = 'center';
 
@@ -2310,21 +2363,21 @@ function renderHistory() {
                   </span>
                   <div style="display:flex;align-items:center;gap:8px">
                     <span class="history-item__date">${fmtDateTime(s.date)}</span>
-                    <button class="history-edit-btn" data-action="edit-session"   data-id="${s.id}" title="Modifier">✏️</button>
-                    <button class="history-edit-btn history-edit-btn--del" data-action="delete-session" data-id="${s.id}" title="Supprimer">🗑️</button>
+                    <button class="history-edit-btn" data-action="edit-session"   data-id="${s.id}" title="Modifier" aria-label="Modifier la séance">${icon('pencil', 20)}</button>
+                    <button class="history-edit-btn history-edit-btn--del" data-action="delete-session" data-id="${s.id}" title="Supprimer" aria-label="Supprimer la séance">${icon('trash', 20)}</button>
                   </div>
                 </div>
                 <div class="history-item__summary">
                   ${s.exercises.length} exercices · ${totalSets} séries
                   ${sessionVolume(s.exercises) > 0 ? ` · <strong>${fmtVolume(sessionVolume(s.exercises))}</strong> volume` : ''}
-                  ${s.duration ? ` · ⏱ ${fmtDuration(s.duration)}` : ''}
+                  ${s.duration ? ` · ${fmtDuration(s.duration)}` : ''}
                 </div>
                 ${s.notes ? `<div class="history-notes">« ${esc(s.notes)} »</div>` : ''}
                 <div class="history-item__exercises">
                   ${s.exercises.map(ex => `
                     <div class="history-ex">
                       <span class="history-ex__name">${esc(ex.name)}</span>
-                      <span class="history-ex__sets">${ex.sets.map(set => `${set.weight ? dispW(set.weight) + '×' : ''}${esc(set.reps)}`).join(' / ')}</span>
+                      <span class="history-ex__sets">${ex.sets.map(set => `${set.weight ? fmtW(set.weight) + '×' : ''}${esc(set.reps)}`).join(' / ')}</span>
                     </div>`).join('')}
                 </div>
               </div>`;
@@ -3105,7 +3158,7 @@ async function exportData() {
   const fname = `muscu-backup-${localISO()}.json`;
   const file  = typeof File === 'function' ? new File([json], fname, { type: 'application/json' }) : null;
   if (file && navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: 'Sauvegarde PPL Training' }); return; }
+    try { await navigator.share({ files: [file], title: 'Sauvegarde MDLF Training' }); return; }
     catch (err) { if (err?.name === 'AbortError') return; }
   }
   downloadText(json, fname);
