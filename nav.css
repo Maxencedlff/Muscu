@@ -133,6 +133,7 @@ body.has-tabbar.has-livebar .update-banner { bottom: calc(var(--tabbar-h) + 72px
   view-transition-name: livebar;
 }
 .livebar[hidden] { display: none; }
+body.light .livebar { background: var(--cell); box-shadow: 0 4px 16px rgba(0,0,0,.12); }
 .livebar:active { opacity: .7; }
 .livebar__dot {
   width: 10px; height: 10px; border-radius: 50%; background: var(--cat-color); flex-shrink: 0;
