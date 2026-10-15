@@ -1,25 +1,5 @@
 /* session : styles du lot 4 (séance active, repos, bilan) */
 
-/* TEMP-LOT2 début : tokens du lot 2 en attendant la fusion */
-:root {
-  --cell: #1c1c1e; --cell2: #2c2c2e;
-  --label: #fff; --label2: rgba(235,235,245,.6); --label3: rgba(235,235,245,.3);
-  --sep: rgba(84,84,88,.6); --fill: rgba(120,120,128,.36);
-  --tint: #0a84ff; --green: #30d158; --red: #ff453a; --orange: #ff9f0a; --yellow: #ffd60a;
-  --green-text: var(--green); --gold-text: var(--yellow);
-  --r-xs: 6px; --r-sm: 10px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
-  --font-rounded: ui-rounded, -apple-system, 'SF Pro Rounded', system-ui, sans-serif;
-  --segment-on: #636366;
-}
-body.light {
-  --cell: #fff; --cell2: #f2f2f7;
-  --label: #000; --label2: rgba(60,60,67,.6); --label3: rgba(60,60,67,.3);
-  --sep: rgba(60,60,67,.29); --fill: rgba(120,120,128,.2);
-  --tint: #007aff; --green: #34c759; --red: #ff3b30; --orange: #ff9500; --yellow: #ffcc00;
-  --green-text: #248a3d; --gold-text: #a05a00;
-  --segment-on: #fff;
-}
-/* TEMP-LOT2 fin */
 
 .num { font-variant-numeric: tabular-nums; }
 
@@ -119,12 +99,12 @@ body.light {
 
 .set-check-zone {
   width: 100%; height: 48px; display: flex; align-items: center; justify-content: center;
-  background: none; border: 0; padding: 0; cursor: pointer; color: #fff;
+  background: none; border: 0; padding: 0; cursor: pointer; color: var(--white);
 }
 .set-check {
   width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: inset 0 0 0 2px var(--label3); color: #fff;
+  box-shadow: inset 0 0 0 2px var(--label3); color: var(--white);
   transition: background .15s, transform .15s;
 }
 .set-check-zone:active .set-check { transform: scale(.9); }
@@ -140,7 +120,7 @@ body.light {
 .set-del {
   visibility: hidden;
   position: absolute; top: 0; right: 0; bottom: 0; width: 74px; z-index: 0;
-  background: var(--red); color: #fff; border: 0; padding: 0; font-size: 14px; font-weight: 600; letter-spacing: -.2px; cursor: pointer;
+  background: var(--red); color: var(--white); border: 0; padding: 0; font-size: 14px; font-weight: 600; letter-spacing: -.2px; cursor: pointer;
 }
 
 .set-swipe--open .set-del, .set-swipe--swiping .set-del { visibility: visible; }
@@ -175,7 +155,7 @@ body.light {
   display: grid; grid-template-columns: minmax(0,1fr) auto auto auto; align-items: center;
   column-gap: 6px; row-gap: 2px; min-height: 96px; padding: 8px 10px 10px 12px;
   background: var(--cell2);
-  border: .5px solid var(--sep); border-radius: 22px; box-shadow: 0 10px 30px rgba(0,0,0,.28);
+  border: .5px solid var(--sep); border-radius: 22px; box-shadow: var(--shadow-float);
   cursor: default; animation: restIn .3s cubic-bezier(.2,.8,.2,1);
   transition: transform .25s, opacity .2s;
 }
@@ -224,8 +204,7 @@ body:has(.rest-mini) .toast { bottom: calc(116px + env(safe-area-inset-bottom, 0
 
 /* ── Feuilles de la séance (A-UNIFIER-AVEC-SHEET-LOT3) ── */
 .sess-sheet { position: fixed; inset: 0; z-index: 400; }
-.sess-sheet__backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.45); animation: iosFade .25s ease; }
-body.light .sess-sheet__backdrop { background: rgba(0,0,0,.25); }
+.sess-sheet__backdrop { position: absolute; inset: 0; background: var(--dimmer); animation: iosFade .25s ease; }
 .sess-sheet__panel {
   position: absolute; left: 0; right: 0; bottom: 0;
   max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 16px);
@@ -258,7 +237,7 @@ body.light .sess-sheet__backdrop { background: rgba(0,0,0,.25); }
   font-size: 13px; font-weight: 600; cursor: pointer; position: relative;
 }
 .rs-seg__btn::after { content: ''; position: absolute; inset: -6px 0; }
-.rs-seg__btn[aria-pressed="true"] { background: var(--segment-on); box-shadow: 0 3px 8px rgba(0,0,0,.12); }
+.rs-seg__btn[aria-pressed="true"] { background: var(--segment-on); box-shadow: var(--shadow-seg); }
 .rs__adj { display: flex; align-items: center; justify-content: center; gap: 20px; }
 .rs__round {
   width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--fill); color: var(--label);
@@ -298,7 +277,7 @@ body.light .sess-sheet__backdrop { background: rgba(0,0,0,.25); }
 }
 .ax-switch::before {
   content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%;
-  background: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.15); transition: transform .2s;
+  background: var(--white); box-shadow: var(--shadow-thumb); transition: transform .2s;
 }
 .ax-switch:checked { background: var(--green); }
 .ax-switch:checked::before { transform: translateX(20px); }
@@ -346,7 +325,7 @@ body.light .sess-sheet__backdrop { background: rgba(0,0,0,.25); }
 .sum-notes::placeholder { color: var(--label2); }
 .sum-done {
   display: block; width: 100%; height: 50px; margin-top: 24px; border: 0; border-radius: var(--r-md);
-  background: var(--tint); color: #fff; font-size: 17px; font-weight: 600; cursor: pointer; font-family: inherit;
+  background: var(--tint-fill); color: var(--on-tint); font-size: 17px; font-weight: 600; cursor: pointer; font-family: inherit;
 }
 .sum-done:active { opacity: .6; }
 

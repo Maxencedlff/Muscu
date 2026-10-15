@@ -650,10 +650,11 @@ function sessionKeys(progId) {
 
 // Pastille ronde de 28 px : initiale blanche sur la couleur de la séance,
 // ou l'emoji choisi par l'utilisateur (séances Perso) dans un carré fixe
-function catBadge(label, color, emoji) {
-  if (emoji) return `<span class="cat-badge cat-badge--emoji" aria-hidden="true">${emoji}</span>`;
+function catBadge(label, color, emoji, size = 28) {
+  const sz = size !== 28 ? `--badge:${size}px;` : '';
+  if (emoji) return `<span class="cat-badge cat-badge--emoji" ${sz ? `style="${sz}"` : ''} aria-hidden="true">${emoji}</span>`;
   const initial = String(label || '?').trim().charAt(0).toUpperCase();
-  return `<span class="cat-badge" style="--cat-color:${color}" aria-hidden="true">${esc(initial)}</span>`;
+  return `<span class="cat-badge" style="${sz}--cat-color:${color}" aria-hidden="true">${esc(initial)}</span>`;
 }
 
 function sessionMeta(cat, progId) {
@@ -805,9 +806,6 @@ const openDone    = new WeakSet(); // exercices terminés dépliés
 let editExIdx     = null;
 let statsCat      = firstSession();
 let statsMode     = 'volume';   // 'volume' | 'charge' | '1rm'
-let statsView     = 'progress'; // 'progress' | 'overview'
-let statsYear     = new Date().getFullYear();
-let statsMonth    = null;       // null = vue annuelle
 let addCat        = firstSession();
 let addDate       = localISO();
 let addSets       = {};
@@ -822,7 +820,6 @@ let addExName     = '';
 let addExSets     = 3;
 let audioCtx      = null;
 let wakeLock      = null;
-let csModal       = false;  // custom session modal
 let csEditId      = null;   // id being edited, null = new
 let csColor       = '#3b82f6';
 
@@ -865,11 +862,11 @@ const TABS = {
   train:    { root: 'dashboard', label: 'Entraînement', icon: 'dumbbell',      action: 'go-home' },
   history:  { root: 'history',   label: 'Historique',   icon: 'clock.history', action: 'go-history' },
   progress: { root: 'stats',     label: 'Progrès',      icon: 'chart',         action: 'go-stats' },
-  program:  { root: 'editor',    label: 'Programme',    icon: 'list.bullet',   action: 'go-program' },
+  program:  { root: 'programmes', label: 'Programme',    icon: 'list.bullet',   action: 'go-program' },
 };
 const TAB_OF_ROOT = Object.fromEntries(Object.entries(TABS).map(([t, v]) => [v.root, t]));
 
-let nav = { tab: 'train', stacks: { train: ['dashboard'], history: ['history'], progress: ['stats'], program: ['editor'] } };
+let nav = { tab: 'train', stacks: { train: ['dashboard'], history: ['history'], progress: ['stats'], program: ['programmes'] } };
 let navIndex   = 0;     // position dans l'historique du navigateur
 let navHist    = [];    // copie des états poussés, pour savoir si history.back() mène au bon écran
 let ignorePop  = 0;     // popstate provoqués par l'app elle-même
@@ -1001,6 +998,7 @@ window.addEventListener('popstate', e => {
 // Une feuille ou un dialogue ouvert ne doit pas survivre à un changement d'écran
 function closeTransientUI() {
   document.querySelectorAll('.sheet-root').forEach(el => el._close?.(null));
+  document.querySelectorAll('.sess-sheet').forEach(el => el._close?.());
 }
 
 function saveScroll() { scrollMem[navKey()] = window.scrollY; }
@@ -1028,9 +1026,16 @@ function paint(scrollY = window.scrollY) {
   else if (view === 'settings')    app.innerHTML = renderSettings();
   else if (view === 'add-session') app.innerHTML = renderAddSession();
   else if (view === 'summary')     app.innerHTML = renderSummary(); // ROUTE-LOT3 : bilan de fin (#train/summary)
+  else if (view === 'history-detail') app.innerHTML = renderHistoryDetail(); // ROUTE-LOT3
+  else if (view === 'stats-ex')       app.innerHTML = renderStatsExercise(); // ROUTE-LOT3
+  else if (view === 'stats-overview') app.innerHTML = renderStatsOverview(); // ROUTE-LOT3
+  else if (view === 'prog-picker')    app.innerHTML = renderProgPicker();    // ROUTE-LOT3
+  else if (view === 'ex-edit')        app.innerHTML = renderExEdit();        // ROUTE-LOT3
+  else if (view === 'cs-edit')        app.innerHTML = renderCsEdit();        // ROUTE-LOT3
   else app.innerHTML = renderDashboard();
 
-  if (view === 'stats') setTimeout(drawCharts, 0);
+  if (view === 'stats-ex') drawCharts();
+  if (view === 'settings') fillAppVersion();
   document.body.classList.toggle('first-paint', firstPaint);
   if (firstPaint) setTimeout(() => document.body.classList.remove('first-paint'), 600);
   firstPaint = false;
@@ -1093,8 +1098,10 @@ function updateChrome() {
   ensureChrome();
   const route = currentRoute();
   const inSession = route === 'session' && !!activeSession;
+  // Séance et bilan en plein écran, sans tab bar
+  const full = inSession || route === 'summary';
   const bar = $('.tabbar');
-  bar.hidden = inSession;
+  bar.hidden = full;
   bar.querySelectorAll('.tabbar__btn').forEach(b => {
     const on = b.dataset.tab === nav.tab;
     b.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -1103,7 +1110,7 @@ function updateChrome() {
   const live = $('.livebar');
   const showLive = !!activeSession && !inSession;
   live.hidden = !showLive;
-  document.body.classList.toggle('has-tabbar', !inSession);
+  document.body.classList.toggle('has-tabbar', !full);
   document.body.classList.toggle('has-livebar', showLive);
   if (showLive) {
     const lm = sessionMeta(activeSession.category, activeSession.programme);
@@ -1146,8 +1153,11 @@ function navBar({ title = '', large, back, left = '', right = '', sub = '', extr
 function routeTitle(route, isRoot) {
   if (isRoot && TAB_OF_ROOT[route]) return TABS[TAB_OF_ROOT[route]].label;
   return {
-    dashboard: 'Entraînement', history: 'Historique', stats: 'Progrès', editor: 'Exercices',
-    programmes: 'Programmes', settings: 'Réglages', session: 'Séance',
+    dashboard: 'Entraînement', history: 'Historique', stats: 'Progrès',
+    editor: sessionKeys().includes(editorCat) ? rawLabel(editorCat) : 'Séance',
+    programmes: 'Programme', settings: 'Réglages', session: 'Séance', summary: 'Bilan',
+    'history-detail': 'Séance', 'stats-ex': 'Exercice', 'stats-overview': 'Vue d\'ensemble',
+    'prog-picker': 'Programme actif', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
   }[route] || 'Retour';
 }
@@ -1367,9 +1377,7 @@ function isStandalone() {
 function catDot(cat, progId, size = 28) {
   progId = progId || data.activeProgramme;
   const meta = sessionMeta(cat, progId);
-  const label = rawLabel(cat, progId);
-  const inner = progId === 'custom' ? meta.icon : esc(label.trim().charAt(0).toUpperCase());
-  return `<span class="cat-dot ${progId === 'custom' ? 'cat-dot--emoji' : ''}" style="--cat-color:${meta.color};--dot:${size}px" aria-hidden="true">${inner}</span>`;
+  return catBadge(rawLabel(cat, progId), meta.color, progId === 'custom' ? meta.emoji : '', size);
 }
 
 // « dans 1 j 18 h », « dans 14 h », « dans 35 min » (jamais de secondes)
@@ -1561,103 +1569,352 @@ function startTicker() {
   ticker = setInterval(tick, 1000);
 }
 
+
 // ═══════════════════════════════════════════════════════════
-//  Programme selector
+//  Onglet Programme (lot 5)
 // ═══════════════════════════════════════════════════════════
+
+// Pastille de séance : rond coloré avec l'initiale (intégrées) ou emoji choisi (Perso)
+function sessionBadge(cat, progId, size = 28) { return catDot(cat, progId, size); }
+
+// Poids affiché à la française (« 32,5 »), quel que soit le format renvoyé par dispW
+function wFr(kg) {
+  const s = dispW(kg);
+  if (s === '') return '';
+  const v = parseFloat(String(s).replace(/\s/g, '').replace(',', '.'));
+  return isNaN(v) ? s : fmtNum(v);
+}
+
+function exSetsCount(cat, progId) {
+  const list = data.programmes[progId]?.exercises?.[cat] || [];
+  return { n: list.length, sets: list.reduce((a, e) => a + (parseInt(e.sets) || 0), 0) };
+}
+
+function plural(n, one, many) { return `${n} ${n > 1 ? many : one}`; }
 
 function renderProgrammes() {
-  const cards = Object.entries(PROGRAMMES).map(([id, pm]) => {
-    const isActive = data.activeProgramme === id;
-    const keys     = sessionKeys(id);
-    const names    = id === 'custom'
-      ? Object.values(data.customSessions || {}).map(s => esc(s.label)).join(' · ')
-      : Object.values(pm.sessions).map(s => s.label).join(' · ');
-
+  const pid  = data.activeProgramme;
+  const pm   = progMeta(pid);
+  const cell = (cat, progId, action) => {
+    const c = exSetsCount(cat, progId);
     return `
-      <div class="prog-card ${isActive ? 'prog-card--active' : ''}" data-action="select-prog" data-id="${id}">
-        <span class="prog-card__icon">${pm.icon}</span>
-        <div class="prog-card__body">
-          <div class="prog-card__name">${pm.name} ${isActive ? '<span class="prog-badge">Actif</span>' : ''}</div>
-          <div class="prog-card__desc">${pm.desc}</div>
-          ${names ? `<div class="prog-card__sessions">${names}</div>` : ''}
-        </div>
-        <span class="prog-card__arrow">${icon('chevron.right', 17)}</span>
-      </div>`;
-  }).join('');
-
-  const customManager = data.activeProgramme === 'custom' ? renderCustomManager() : '';
-
-  return `
-    <div class="view programmes">
-      ${navBar({ title: 'Programmes' })}
-      <div class="prog-list">
-        ${cards}
-        ${customManager}
+      <button class="cell cell--nav" data-action="${action}" data-cat="${esc(cat)}" data-id="${esc(cat)}">
+        ${sessionBadge(cat, progId)}
+        <span class="cell__body">
+          <span class="cell__title">${sessionMeta(cat, progId).label}</span>
+          <span class="cell__sub">${plural(c.n, 'exercice', 'exercices')} · ${plural(c.sets, 'série', 'séries')}</span>
+        </span>
+        ${icon('chevron.right', 16)}
+      </button>`;
+  };
+  const builtin = pid !== 'custom' ? `
+      <div class="group-title">Séances</div>
+      <div class="group">${sessionKeys(pid).map(c => cell(c, pid, 'open-prog-session')).join('')}</div>` : '';
+  const customKeys = Object.keys(data.customSessions || {});
+  const customAction = pid === 'custom' ? 'open-prog-session' : 'edit-custom-session';
+  const custom = `
+      <div class="group-title">Séances perso</div>
+      <div class="group">
+        ${customKeys.map(c => cell(c, 'custom', customAction)).join('')}
+        <button class="cell cell--action" data-action="add-custom-session">${icon('plus', 20)}<span>Ajouter une séance</span></button>
       </div>
-    </div>
-    ${renderCsModal()}`;
-}
+      ${pid !== 'custom' && customKeys.length ? `<div class="group-foot">Choisis le programme Perso pour t'entraîner avec ces séances.</div>` : ''}`;
 
-function renderCustomManager() {
-  const sessions = Object.entries(data.customSessions || {});
   return `
-    <div class="custom-manager">
-      <div class="custom-manager__title">Séances du programme Perso</div>
-      ${sessions.length === 0
-        ? `<div class="custom-manager__empty">Aucune séance — crée-en une ci-dessous</div>`
-        : sessions.map(([id, s]) => `
-          <div class="custom-session-row">
-            <span class="custom-session-icon" style="color:${esc(s.color)}">${esc(s.icon)}</span>
-            <div class="custom-session-info">
-              <div class="custom-session-name">${esc(s.label)}</div>
-              ${s.desc ? `<div class="custom-session-desc">${esc(s.desc)}</div>` : ''}
-            </div>
-            <button class="icon-btn" data-action="edit-custom-session" data-id="${id}" title="Modifier">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
-              </svg>
-            </button>
-          </div>`).join('')}
-      <button class="btn btn--secondary btn--full" data-action="add-custom-session" style="margin-top:10px">
-        + Ajouter une séance
-      </button>
+    <div class="view programmes lot5">
+      ${navBar({ title: 'Programme', right: `<button class="navbar__text" data-action="go-settings">Réglages</button>`  })}
+      <div class="scr">
+        <div class="group">
+          <button class="cell cell--nav" data-action="go-prog-picker">
+            <span class="cell__body"><span class="cell__title">Programme actif</span></span>
+            <span class="cell__value">${pm.name}</span>
+            ${icon('chevron.right', 16)}
+          </button>
+        </div>
+        ${builtin}
+        ${custom}
+      </div>
     </div>`;
 }
 
-function renderCsModal() {
-  if (!csModal) return '';
+// Sélecteur de programme façon iOS : liste groupée, coche sur le programme actif
+function renderProgPicker() {
+  const rows = Object.entries(PROGRAMMES).map(([id, pm]) => {
+    const keys  = sessionKeys(id);
+    const color = id === 'custom' ? 'var(--label3)' : sessionMeta(keys[0], id).color;
+    const names = id === 'custom'
+      ? (Object.values(data.customSessions || {}).map(s => esc(s.label)).join(' · ') || pm.desc)
+      : Object.values(pm.sessions).map(s => s.label).join(' · ');
+    const on = data.activeProgramme === id;
+    return `
+      <button class="cell cell--pick" data-action="select-prog" data-id="${id}" aria-pressed="${on}">
+        <span class="psq" style="--c:${color}">${esc(pm.name.charAt(0))}</span>
+        <span class="cell__body">
+          <span class="cell__title">${pm.name}</span>
+          <span class="cell__sub cell__sub--1">${names}</span>
+        </span>
+        <span class="cell__check">${on ? icon('checkmark', 20) : ''}</span>
+      </button>`;
+  }).join('');
+  return `
+    <div class="view prog-picker lot5">
+      ${navBar({ title: 'Programme actif' })}
+      <div class="scr">
+        <div class="group-title">Programmes</div>
+        <div class="group">${rows}</div>
+        <div class="group-foot">Ton historique reste disponible quand tu changes de programme.</div>
+      </div>
+    </div>`;
+}
+
+let editorEditing = false;   // mode Modifier de la liste d'exercices
+let exDraft       = null;    // brouillon de l'écran Programme › Exercice
+let csReturn      = 'programmes';
+let csIcon        = '🏋️';
+const CS_ICONS  = ['🏋️','💪','🦾','🦵','🔥','⚡','🏃','🧘','🥊','🚴','🤸','🎯'];
+const CS_COLORS = [['#FF9500','Orange'],['#FF3B30','Rouge'],['#FFCC00','Jaune'],['#34C759','Vert'],['#30B0C7','Turquoise'],
+                   ['#007AFF','Bleu'],['#5856D6','Indigo'],['#AF52DE','Violet'],['#FF2D55','Rose'],['#8E8E93','Gris']];
+
+// Programme › Séance : exercices, récupération, repos, mode Modifier (glisser pour réordonner)
+function renderEditor() {
+  const cat  = editorCat;
+  const list = prog().exercises[cat] || [];
+  const meta = sessionMeta(cat);
+  if (!cat || !sessionKeys().includes(cat)) {
+    return `
+      <div class="view editor lot5">
+        ${navBar({ title: 'Séance' })}
+        <div class="scr"><div class="empty-note">Programme vide. Crée des séances dans Programme.</div></div>
+      </div>`;
+  }
+  const rows = list.map((ex, i) => {
+    const last = lastPerf(data.activeProgramme, cat, ex);
+    const best = last ? bestSet(last.ex.sets) : null;
+    const sub  = `${plural(ex.sets, 'série', 'séries')}${best ? ` · dernier ${setTxt(best)}` : ''}`;
+    if (editorEditing) {
+      return `
+        <div class="cell ed-row ed-row--edit" data-i="${i}">
+          <button class="ed-minus" data-action="ed-reveal" data-i="${i}" aria-label="Supprimer ${esc(ex.name)}">${icon('minus', 14)}</button>
+          <span class="cell__body">
+            <span class="cell__title ed-name">${esc(ex.name)}</span>
+            <span class="cell__sub">${sub}</span>
+          </span>
+          <button class="ed-del" data-action="del-ex" data-i="${i}">Supprimer</button>
+          <span class="ed-handle" data-i="${i}" role="button" aria-label="Déplacer ${esc(ex.name)}">${icon('line.3.horizontal', 22)}</span>
+        </div>`;
+    }
+    return `
+      <button class="cell cell--nav ed-row" data-action="edit-ex" data-i="${i}">
+        <span class="cell__body">
+          <span class="cell__title ed-name">${esc(ex.name)}</span>
+          <span class="cell__sub">${sub}</span>
+        </span>
+        ${icon('chevron.right', 16)}
+      </button>`;
+  }).join('');
+  const cd = getCooldown(cat);
+  return `
+    <div class="view editor lot5">
+      ${navBar({ title: meta.label, right: list.length ? `<button class="navbar__text ${editorEditing ? 'navbar__text--bold' : ''}" data-action="toggle-edit-mode">${editorEditing ? 'OK' : 'Modifier'}</button>` : '' })}
+      <div class="scr">
+        <div class="group-title">Exercices</div>
+        <div class="group ed-list">
+          ${rows || '<div class="cell"><span class="cell__sub">Aucun exercice pour l\'instant</span></div>'}
+          ${editorEditing ? '' : `<button class="cell cell--action" data-action="add-ex">${icon('plus', 20)}<span>Ajouter un exercice</span></button>`}
+        </div>
+        <div class="group-title">Réglages de la séance</div>
+        <div class="group">
+          <div class="cell cell--ctl">
+            <span class="cell__body"><span class="cell__title">Récupération</span></span>
+            <div class="segmented seg-sm" role="group" aria-label="Récupération">
+              ${[24, 48, 72, 96].map(h => `<button class="segmented__btn ${cd === h ? 'segmented__btn--active' : ''}" aria-pressed="${cd === h}" data-action="set-cooldown" data-h="${h}">${h} h</button>`).join('')}
+            </div>
+          </div>
+          <button class="cell cell--nav" data-action="setting-rest">
+            <span class="cell__body"><span class="cell__title">Repos par défaut</span></span>
+            <span class="cell__value num">${fmtRest(data.defaultRest)}</span>
+            ${icon('chevron.right', 16)}
+          </button>
+          ${data.activeProgramme === 'custom' ? `
+          <button class="cell cell--nav" data-action="edit-custom-session" data-id="${esc(cat)}">
+            <span class="cell__body"><span class="cell__title">Nom, icône et couleur</span></span>
+            ${icon('chevron.right', 16)}
+          </button>` : ''}
+        </div>
+        <div class="group-foot">La récupération règle le délai avant que la séance soit de nouveau prête.</div>
+      </div>
+    </div>`;
+}
+
+// Meilleure série d'une liste : la plus lourde, puis le plus de reps
+function bestSet(sets) {
+  let best = null;
+  (sets || []).forEach(s => {
+    const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
+    if (r <= 0) return;
+    if (!best || w > best.w || (w === best.w && r > best.r)) best = { w, r, weight: s.weight, reps: s.reps };
+  });
+  return best;
+}
+function setTxt(b) {
+  if (!b) return '';
+  return b.w > 0 ? `${wFr(b.weight)} ${unitLbl()} × ${b.r}` : `${b.r} reps`;
+}
+
+// Programme › Exercice : nom, séries, repos, objectif, haut de fourchette
+function renderExEdit() {
+  const isEdit = editExIdx !== null;
+  const d = exDraft || { name: '', sets: 3, rest: null, target: null, repMax: 12 };
+  const restVal = d.rest ?? data.defaultRest;
+  return `
+    <div class="view ex-edit lot5">
+      ${navBar({ title: isEdit ? 'Exercice' : 'Nouvel exercice',
+          left: `<button class="navbar__text" data-action="back">Annuler</button>`,
+          right: `<button class="navbar__text navbar__text--bold" data-action="save-ex">OK</button>` })}
+      <div class="scr">
+        <div class="group-title">Nom</div>
+        <div class="group">
+          <div class="cell cell--field">
+            <input type="text" id="exName" class="field" value="${esc(d.name)}" placeholder="Ex : Curl biceps haltères"
+                   autocomplete="off" enterkeyhint="done" aria-label="Nom de l'exercice">
+          </div>
+        </div>
+        <div class="group-title">Séance</div>
+        <div class="group">
+          <div class="cell cell--ctl">
+            <span class="cell__body"><span class="cell__title">Séries</span></span>
+            <span class="cell__value num" id="exSetsVal">${d.sets}</span>
+            <div class="stepper" role="group" aria-label="Séries">
+              <button data-action="ex-sets" data-d="-1" aria-label="Une série de moins">${icon('minus', 18)}</button>
+              <button data-action="ex-sets" data-d="1" aria-label="Une série de plus">${icon('plus', 18)}</button>
+            </div>
+          </div>
+          <div class="cell cell--ctl cell--wrap">
+            <span class="cell__body">
+              <span class="cell__title">Repos</span>
+              <span class="cell__sub" id="exRestSub">${d.rest == null ? `Par défaut (${fmtRest(data.defaultRest)})` : 'Propre à cet exercice'}</span>
+            </span>
+            <span class="cell__value num" id="exRestVal">${fmtRest(restVal)}</span>
+            <div class="stepper" role="group" aria-label="Ajuster le repos">
+              <button data-action="ex-rest-step" data-d="-15" aria-label="Moins 15 secondes">${icon('minus', 18)}</button>
+              <button data-action="ex-rest-step" data-d="15" aria-label="Plus 15 secondes">${icon('plus', 18)}</button>
+            </div>
+            <div class="segmented seg-full" role="group" aria-label="Préréglages de repos">
+              ${[60, 90, 120, 180].map(s => `<button class="segmented__btn ${d.rest === s ? 'segmented__btn--active' : ''}" aria-pressed="${d.rest === s}" data-action="ex-rest" data-s="${s}">${fmtRest(s)}</button>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="group-title">Progression</div>
+        <div class="group">
+          <label class="cell cell--ctl">
+            <span class="cell__body"><span class="cell__title">Objectif</span></span>
+            <span class="field-suffix">
+              <input type="text" inputmode="decimal" id="exTarget" class="field field--num" autocomplete="off"
+                     value="${d.target ? wFr(d.target) : ''}" placeholder="—" aria-label="Objectif en ${unitLbl()}">
+              <span>${unitLbl()}</span>
+            </span>
+          </label>
+          <label class="cell cell--ctl">
+            <span class="cell__body"><span class="cell__title">Haut de fourchette de reps</span></span>
+            <span class="field-suffix">
+              <input type="text" inputmode="numeric" id="exRepMax" class="field field--num" autocomplete="off"
+                     value="${d.repMax ?? 12}" aria-label="Haut de fourchette de reps">
+              <span>reps</span>
+            </span>
+          </label>
+        </div>
+        <div class="group-foot">Quand toutes tes séries atteignent ce nombre de reps, l'app te propose d'augmenter la charge.</div>
+        ${isEdit ? `
+        <div class="group">
+          <button class="cell cell--destructive" data-action="del-ex" data-i="${editExIdx}">Supprimer l'exercice</button>
+        </div>
+        <div class="group-foot">L'historique de cet exercice est conservé.</div>` : ''}
+      </div>
+    </div>`;
+}
+
+// Séance Perso : nom, description, icône (grille), couleur
+function renderCsEdit() {
   const isEdit   = csEditId !== null;
   const existing = isEdit ? (data.customSessions[csEditId] || {}) : {};
-  const colors   = ['#ef4444','#f97316','#f59e0b','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#a855f7','#ec4899','#64748b'];
-  const selColor = csColor;
-
+  const icons    = CS_ICONS.includes(csIcon) ? CS_ICONS : [csIcon, ...CS_ICONS.slice(0, 11)];
   return `
-    <div class="modal-overlay">
-      <div class="modal">
-        <div class="modal__title">${isEdit ? 'Modifier la séance' : 'Nouvelle séance'}</div>
-        <label class="form-label">Nom</label>
-        <input type="text" id="csName" class="form-input" value="${esc(existing.label)}"
-               placeholder="Ex : Séance A, Chest, Full Body…" autocomplete="off">
-        <label class="form-label">Icône</label>
-        <input type="text" id="csIcon" class="form-input" value="${esc(existing.icon || '🏋️')}"
-               placeholder="🏋️" style="font-size:22px;text-align:center">
-        <label class="form-label">Description (optionnel)</label>
-        <input type="text" id="csDesc" class="form-input" value="${esc(existing.desc)}"
-               placeholder="Ex : Pectoraux · Dos">
-        <label class="form-label">Couleur</label>
-        <div class="color-picker">
-          ${colors.map(c => `
-            <button class="color-swatch ${c === selColor ? 'color-swatch--active' : ''}"
-                    data-action="pick-cs-color" data-color="${c}" style="background:${c}"></button>`).join('')}
+    <div class="view cs-edit lot5">
+      ${navBar({ title: isEdit ? 'Modifier la séance' : 'Nouvelle séance',
+          left: `<button class="navbar__text" data-action="close-cs-modal">Annuler</button>`,
+          right: `<button class="navbar__text navbar__text--bold" data-action="save-cs-modal">OK</button>` })}
+      <div class="scr">
+        <div class="group-title">Nom</div>
+        <div class="group">
+          <div class="cell cell--field"><input type="text" id="csName" class="field" value="${esc(existing.label)}"
+               placeholder="Ex : Séance A" autocomplete="off" aria-label="Nom de la séance"></div>
+          <div class="cell cell--field"><input type="text" id="csDesc" class="field" value="${esc(existing.desc)}"
+               placeholder="Description (optionnel)" autocomplete="off" aria-label="Description"></div>
         </div>
-        <div class="modal__actions" style="flex-wrap:wrap;gap:8px">
-          ${isEdit ? `<button class="btn btn--danger" data-action="delete-custom-session" style="flex:1 1 100%">Supprimer cette séance</button>` : ''}
-          <button class="btn btn--secondary" data-action="close-cs-modal" style="flex:1">Annuler</button>
-          <button class="btn btn--primary"   data-action="save-cs-modal"  style="flex:1">OK</button>
+        <div class="group-title">Icône</div>
+        <div class="group group--pad">
+          <div class="emoji-grid" role="radiogroup" aria-label="Icône">
+            ${icons.map(ic => `<button class="emoji-btn ${ic === csIcon ? 'is-on' : ''}" role="radio" aria-checked="${ic === csIcon}" data-action="pick-cs-icon" data-icon="${esc(ic)}">${esc(ic)}</button>`).join('')}
+          </div>
         </div>
+        <div class="group-title">Couleur</div>
+        <div class="group group--pad">
+          <div class="color-grid" role="radiogroup" aria-label="Couleur">
+            ${CS_COLORS.map(([c, n]) => `<button class="color-swatch2 ${c.toLowerCase() === String(csColor).toLowerCase() ? 'is-on' : ''}" role="radio" aria-checked="${c.toLowerCase() === String(csColor).toLowerCase()}" aria-label="${n}" data-action="pick-cs-color" data-color="${c}" style="--c:${c}"></button>`).join('')}
+          </div>
+        </div>
+        ${isEdit ? `
+        <div class="group group--gap">
+          <button class="cell cell--destructive" data-action="delete-custom-session">Supprimer la séance</button>
+        </div>` : ''}
       </div>
     </div>`;
 }
+
+// Glisser pour réordonner (poignée ≡ du mode Modifier)
+let edDrag = null;
+document.addEventListener('pointerdown', e => {
+  const h = e.target.closest?.('.ed-handle');
+  if (!h || view !== 'editor') return;
+  e.preventDefault();
+  const row = h.closest('.ed-row');
+  const rows = [...document.querySelectorAll('.ed-list .ed-row')];
+  edDrag = { row, rows, from: rows.indexOf(row), idx: rows.indexOf(row), y0: e.clientY, h: row.offsetHeight, id: e.pointerId };
+  row.classList.add('is-dragging');
+  try { h.setPointerCapture(e.pointerId); } catch {}
+});
+document.addEventListener('pointermove', e => {
+  if (!edDrag || e.pointerId !== edDrag.id) return;
+  e.preventDefault();
+  const dy = e.clientY - edDrag.y0;
+  const n  = edDrag.rows.length;
+  const idx = Math.max(0, Math.min(n - 1, edDrag.from + Math.round(dy / edDrag.h)));
+  if (idx !== edDrag.idx) { edDrag.idx = idx; haptic(); }
+  edDrag.row.style.transform = `translateY(${dy}px)`;
+  edDrag.rows.forEach((r, i) => {
+    if (r === edDrag.row) return;
+    let shift = 0;
+    if (edDrag.from < idx && i > edDrag.from && i <= idx) shift = -edDrag.h;
+    if (edDrag.from > idx && i < edDrag.from && i >= idx) shift = edDrag.h;
+    r.style.transform = shift ? `translateY(${shift}px)` : '';
+  });
+});
+function endEdDrag(e) {
+  if (!edDrag || e.pointerId !== edDrag.id) return;
+  const { from, idx } = edDrag;
+  edDrag = null;
+  const arr = prog().exercises[editorCat];
+  if (arr && from !== idx) {
+    const [moved] = arr.splice(from, 1);
+    arr.splice(idx, 0, moved);
+    save();
+  }
+  render();
+}
+document.addEventListener('pointerup', endEdDrag);
+document.addEventListener('pointercancel', endEdDrag);
+// iOS : sans ce preventDefault, le glisser de la poignée ferait défiler la liste
+document.addEventListener('touchmove', e => { if (edDrag) e.preventDefault(); }, { passive: false });
 
 // ═══════════════════════════════════════════════════════════
 //  Session
@@ -2520,7 +2777,7 @@ document.addEventListener('keydown', e => {
 
 const RECORD_RANK = { 'Record charge': 3, 'Record reps': 2, 'Record 1RM est.': 1 };
 
-function bestSet(sets) {
+function summaryBestSet(sets) {
   return (sets || []).reduce((b, s) => {
     const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
     if (!b || w > b.w || (w === b.w && r > b.r)) return { w, r, s };
@@ -2542,7 +2799,7 @@ function buildSummary(entry, baseline) {
       if (l && (!rec || RECORD_RANK[l] > RECORD_RANK[rec.label] || (RECORD_RANK[l] === RECORD_RANK[rec.label] && (parseFloat(s.weight) || 0) * 100 + (+s.reps) > (parseFloat(rec.s.weight) || 0) * 100 + (+rec.s.reps)))) rec = { label: l, s };
     });
     if (rec) records.push({ name: ex.name, label: rec.label, weight: rec.s.weight, reps: rec.s.reps });
-    const b = bestSet(ex.sets), pb = bestSet(pex?.sets);
+    const b = summaryBestSet(ex.sets), pb = summaryBestSet(pex?.sets);
     const trend = !pb ? null : (b.w > pb.w || (b.w === pb.w && b.r > pb.r)) ? 'up' : (b.w === pb.w && b.r === pb.r) ? 'same' : 'down';
     rows.push({ name: ex.name, weight: b.s.weight, reps: b.s.reps, trend });
   });
@@ -2648,114 +2905,6 @@ function renderAddExModal() {
         <div class="modal__actions" style="margin-top:20px">
           <button class="btn btn--secondary" data-action="close-add-ex-modal">Annuler</button>
           <button class="btn btn--primary"   data-action="save-add-ex-modal">Ajouter</button>
-        </div>
-      </div>
-    </div>`;
-}
-
-// ═══════════════════════════════════════════════════════════
-//  Editor
-// ═══════════════════════════════════════════════════════════
-
-// En-tête de l'éditeur : racine de l'onglet Programme, ou écran empilé depuis l'accueil
-function editorNavBar() {
-  if (nav.stacks[nav.tab].length > 1) return navBar({ title: 'Exercices' });
-  const pm = progMeta();
-  return navBar({ title: 'Programme',
-    right: `<button class="navbar__text" data-action="go-settings">Réglages</button>`,
-    sub: `<button class="navbar__sub" data-action="go-programmes" aria-label="Programme ${esc(pm.name)}, changer de programme">Programme ${esc(pm.name)} ${icon('chevron.right', 12)}</button>` });
-}
-
-function renderEditor() {
-  const keys = sessionKeys();
-
-  const tabs = keys.map(c => {
-    const meta    = sessionMeta(c);
-    const isActive = editorCat === c;
-    return `
-      <button class="tab ${isActive ? 'tab--active' : ''}"
-              data-action="editor-tab" data-cat="${c}"
-              style="${isActive ? `--tab-color:${meta.color};border-bottom-color:${meta.color};color:${meta.color}` : ''}">
-        ${meta.icon} ${meta.label}
-      </button>`;
-  }).join('');
-
-  const rows = (prog().exercises[editorCat] || []).map((ex, i) => {
-    const last = ex.lastWeight ? `${fmtW(ex.lastWeight)} ${unitLbl()} × ${esc(ex.lastReps)}` : 'Pas encore effectué';
-    const pr   = ex.pr ? ` · PR: ${fmtW(ex.pr.weight)} ${unitLbl()} × ${esc(ex.pr.reps)}` : '';
-    const max  = (prog().exercises[editorCat] || []).length - 1;
-
-    return `
-      <div class="editor-row">
-        <div class="editor-row__reorder">
-          <button class="reorder-btn" data-action="move-up"   data-i="${i}" ${i === 0   ? 'disabled' : ''} aria-label="Monter">${icon('chevron.up', 16)}</button>
-          <button class="reorder-btn" data-action="move-down" data-i="${i}" ${i === max ? 'disabled' : ''} aria-label="Descendre">${icon('chevron.down', 16)}</button>
-        </div>
-        <div class="editor-row__info">
-          <div class="editor-row__name">${esc(ex.name)}</div>
-          <div class="editor-row__meta">${last}${pr}</div>
-        </div>
-        <div class="editor-row__sets">
-          <button class="sets-adj" data-action="dec-sets" data-i="${i}">−</button>
-          <span class="sets-count">${ex.sets}</span>
-          <button class="sets-adj" data-action="inc-sets" data-i="${i}">+</button>
-        </div>
-        <button class="icon-btn" data-action="edit-ex" data-i="${i}" title="Renommer">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
-          </svg>
-        </button>
-        <button class="icon-btn" data-action="del-ex" data-i="${i}" title="Supprimer">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-            <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
-          </svg>
-        </button>
-      </div>`;
-  }).join('');
-
-  return `
-    <div class="view editor">
-      ${editorNavBar()}
-      ${keys.length ? `<div class="tabs">${tabs}</div>` : ''}
-      ${keys.length === 0
-        ? `<div class="empty-state" style="padding:40px">
-             <div class="empty-state__icon">✏️</div>
-             <div>Programme vide</div>
-             <div class="empty-state__sub">Crée des séances dans "Programme"</div>
-           </div>`
-        : `<div class="editor-list">${rows}</div>
-           <div class="editor-footer">
-             <button class="btn btn--primary btn--full" data-action="add-ex">+ Ajouter un exercice</button>
-           </div>`}
-    </div>
-    ${renderModal()}`;
-}
-
-function renderModal() {
-  if (!modalOpen) return '';
-  const isEdit = editExIdx !== null;
-  const ex     = isEdit ? (prog().exercises[editorCat] || [])[editExIdx] : null;
-
-  return `
-    <div class="modal-overlay">
-      <div class="modal">
-        <div class="modal__title">${isEdit ? 'Modifier' : 'Ajouter'} un exercice</div>
-        <label class="form-label">Nom de l'exercice</label>
-        <input type="text" id="modalName" class="form-input"
-               value="${ex ? esc(ex.name) : ''}" placeholder="Ex : Curl biceps haltères" autocomplete="off">
-        <label class="form-label">Nombre de séries par défaut</label>
-        <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="modalSets" class="form-input"
-               value="${ex ? ex.sets : 3}">
-        <label class="form-label">Temps de repos (secondes) — optionnel</label>
-        <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="modalRest" class="form-input"
-               value="${ex?.rest || ''}" placeholder="Défaut : ${data.defaultRest}s">
-        <label class="form-label">Objectif poids (${unitLbl()}) — optionnel</label>
-        <input type="text" inputmode="decimal" autocomplete="off" id="modalTarget" class="form-input"
-               value="${ex?.target ? dispW(ex.target) : ''}" placeholder="Ex : ${data.unit === 'lbs' ? '88' : '40'}">
-        <div class="modal__actions">
-          <button class="btn btn--secondary" data-action="close-modal">Annuler</button>
-          <button class="btn btn--primary"   data-action="save-ex">${isEdit ? 'Enregistrer' : 'Ajouter'}</button>
         </div>
       </div>
     </div>`;
@@ -2902,62 +3051,78 @@ function renderAddSession() {
 // ═══════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════
-//  Settings
+//  Réglages (organisation : lot 5 ; visuel : lot 2)
 // ═══════════════════════════════════════════════════════════
+
+function agoText(ts) {
+  const days = Math.floor((Date.now() - ts) / 86400000);
+  if (days <= 0) return 'aujourd\'hui';
+  if (days === 1) return 'hier';
+  return `il y a ${days} jours`;
+}
 
 function renderSettings() {
   // Interrupteur iOS (le bouton de la rangée porte l'état pour VoiceOver)
   const tog = (on) => `<span class="switch ${on ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>`;
-  const seg = (action, items, cur) => `<div class="segmented" role="group">
-              ${items.map(([v, l]) =>
-                `<button class="segmented__btn ${cur === v ? 'segmented__btn--active' : ''}" aria-pressed="${cur === v}" data-action="${action}" data-val="${v}">${l}</button>`).join('')}
-            </div>`;
-  const chevron = `<span class="chevron">${icon('chevron.right', 14)}</span>`;
-
+  const last  = data.lastExport;
+  const stale = !last || Date.now() - last > 14 * 86400000;
+  const nSess = (data.history || []).length;
   return `
-    <div class="view settings-view">
+    <div class="view settings-view lot5">
       ${navBar({ title: 'Réglages' })}
-      <div class="settings-list">
+      <div class="scr">
 
-        <div class="settings-section-title">Apparence</div>
-        <div class="settings-group">
-          <div class="setting-row setting-row--segmented">
-            <span class="setting-label">Thème</span>
-            ${seg('set-theme', [['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']], themePref())}
-          </div>
-        </div>
-
-        <div class="settings-section-title">Séance</div>
-        <div class="settings-group">
-          <div class="setting-row setting-row--segmented">
-            <span class="setting-label">Unité de poids</span>
-            ${seg('setting-unit', [['kg', 'kg'], ['lbs', 'lbs']], data.unit)}
-          </div>
-          <button class="setting-row" data-action="setting-rest">
-            <span class="setting-label">Repos entre séries</span>
-            <span class="setting-value">${fmtRest(data.defaultRest)}${chevron}</span>
+        <div class="group-title">Séance</div>
+        <div class="group">
+          <button class="cell cell--nav setting-row" data-action="setting-rest">
+            <span class="cell__body"><span class="cell__title">Repos par défaut</span></span>
+            <span class="cell__value num">${fmtRest(data.defaultRest)}</span>
+            ${icon('chevron.right', 16)}
           </button>
-          <button class="setting-row" data-action="setting-sound" role="switch" aria-checked="${data.soundOn !== false}">
-            <span class="setting-label">Sons</span>
+          <button class="cell setting-row" data-action="setting-sound" role="switch" aria-checked="${data.soundOn !== false}">
+            <span class="cell__body"><span class="cell__title">Sons</span></span>
             ${tog(data.soundOn !== false)}
           </button>
-          <button class="setting-row" data-action="setting-vibrate" role="switch" aria-checked="${data.vibrateOn !== false}">
-            <span class="setting-label">Vibrations</span>
+          <button class="cell setting-row" data-action="setting-vibrate" role="switch" aria-checked="${data.vibrateOn !== false}">
+            <span class="cell__body"><span class="cell__title">Vibrations</span></span>
             ${tog(data.vibrateOn !== false)}
           </button>
         </div>
 
-        <div class="settings-section-title">Données</div>
-        <div class="settings-group">
-          <button class="setting-row" data-action="export">
-            <span class="setting-label setting-label--tint">Exporter les données</span>
-          </button>
-          <button class="setting-row" data-action="import">
-            <span class="setting-label setting-label--tint">Importer les données</span>
-          </button>
-          <button class="setting-row" data-action="force-update">
-            <span class="setting-label setting-label--tint">Rechercher une mise à jour</span>
-          </button>
+        <div class="group-title">Affichage</div>
+        <div class="group">
+          <div class="cell cell--ctl setting-row">
+            <span class="cell__body"><span class="cell__title">Thème</span></span>
+            <div class="segmented seg-sm" role="group" aria-label="Thème">
+              ${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([v, l]) =>
+                `<button class="segmented__btn ${themePref() === v ? 'segmented__btn--active' : ''}" aria-pressed="${themePref() === v}" data-action="set-theme" data-val="${v}">${l}</button>`).join('')}
+            </div>
+          </div>
+          <div class="cell cell--ctl setting-row">
+            <span class="cell__body"><span class="cell__title">Unité</span></span>
+            <div class="segmented seg-sm" role="group" aria-label="Unité de poids">
+              ${['kg', 'lbs'].map(u => `<button class="segmented__btn ${data.unit === u ? 'segmented__btn--active' : ''}" aria-pressed="${data.unit === u}" data-action="setting-unit" data-val="${u}">${u}</button>`).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="group-title">Données</div>
+        <div class="group">
+          <div class="cell setting-row">
+            <span class="cell__body"><span class="cell__title ${stale ? 'txt-warn' : ''}" id="lastExportTxt">Dernière sauvegarde : ${last ? agoText(last) : 'jamais'}</span></span>
+          </div>
+          <button class="cell cell--action setting-row" data-action="export"><span class="cell__title">Exporter les données</span></button>
+          <button class="cell cell--action setting-row" data-action="import"><span class="cell__title">Importer une sauvegarde</span></button>
+          <button class="cell cell--destructive cell--left setting-row" data-action="wipe-data"><span class="cell__title">Supprimer toutes les données</span></button>
+        </div>
+        <div class="group-foot">Exporte régulièrement : les données ne sont stockées que sur cet appareil.</div>
+
+        <div class="group-title">À propos</div>
+        <div class="group">
+          <div class="cell setting-row">
+            <span class="cell__body"><span class="cell__title">MDLF Training<span id="appVersion"></span> · ${plural(nSess, 'séance', 'séances')}</span></span>
+          </div>
+          <button class="cell cell--action setting-row" data-action="force-update"><span class="cell__title">Rechercher une mise à jour</span></button>
         </div>
         <div class="settings-footer">MDLF Training</div>
 
@@ -2965,496 +3130,768 @@ function renderSettings() {
     </div>`;
 }
 
-function renderStatsOverview(viewTabs) {
-  const keys    = sessionKeys();
-  const history = (data.history || []).filter(h =>
-    (h.programme === data.activeProgramme) || (!h.programme && data.activeProgramme === 'ppl')
-  );
+// Version affichée dans À propos : lue dans le nom du cache du service worker (ppl-vNN)
+function fillAppVersion() {
+  const el = $('#appVersion');
+  if (!el || !window.caches) return;
+  caches.keys().then(keys => {
+    const v = keys.map(k => (k.match(/v(\d+)$/) || [])[1]).filter(Boolean).map(Number).sort((a, b) => b - a)[0];
+    if (v && $('#appVersion')) $('#appVersion').textContent = ` · v${v}`;
+  }).catch(() => {});
+}
 
-  // ── Totaux all-time par catégorie ─────────────────────
-  const totalsByCat = {};
-  keys.forEach(k => { totalsByCat[k] = 0; });
-  history.forEach(h => { if (totalsByCat[h.category] !== undefined) totalsByCat[h.category]++; });
+// ═══════════════════════════════════════════════════════════
+//  Progrès (lot 5) : index des exercices tiré de l'historique
+// ═══════════════════════════════════════════════════════════
 
-  // ── Années disponibles ────────────────────────────────
-  const years = [...new Set(history.map(h => new Date(h.date).getFullYear()))].sort((a,b) => b - a);
-  if (!years.includes(statsYear) && years.length) statsYear = years[0];
+let statsExId   = null;
+let ovMonth     = null; // { y, m } du calendrier de la vue d'ensemble
 
-  // ── Sessions pour la période sélectionnée ─────────────
-  const inPeriod = history.filter(h => {
-    const d = new Date(h.date);
-    if (d.getFullYear() !== statsYear) return false;
-    if (statsMonth !== null && d.getMonth() !== statsMonth) return false;
-    return true;
-  });
+// Mesures d'un exercice dans une séance
+function exPoint(h, e) {
+  const sets = (e.sets || []).filter(s => (parseInt(s.reps) || 0) > 0);
+  if (!sets.length) return null;
+  const wts = sets.map(s => parseFloat(s.weight) || 0);
+  const hasWeight = wts.some(w => w > 0);
+  const totalReps = sets.reduce((a, s) => a + (parseInt(s.reps) || 0), 0);
+  const volume    = hasWeight ? setsVolume(sets) : totalReps;
+  const maxLoad   = hasWeight ? Math.max(...wts) : 0;
+  const best1RM   = hasWeight ? Math.max(0, ...sets.map(s => calc1RM(s.weight, s.reps)).filter(v => v !== null)) : 0;
+  const maxReps   = Math.max(...sets.map(s => parseInt(s.reps) || 0));
+  return { date: h.date, hid: h.id, sets, hasWeight, totalReps, volume, maxLoad, best1RM, maxReps, best: bestSet(sets) };
+}
 
-  const periodByCat = {};
-  keys.forEach(k => { periodByCat[k] = 0; });
-  inPeriod.forEach(h => { if (periodByCat[h.category] !== undefined) periodByCat[h.category]++; });
-  const periodTotal = inPeriod.length;
+// Tous les exercices de l'historique, tous programmes confondus, regroupés par exId
+function exerciseIndex() {
+  const map = new Map();
+  const hist = (data.history || []).slice().sort((a, b) => a.date - b.date);
+  hist.forEach(h => (h.exercises || []).forEach(e => {
+    const key = exIdOf(e) || 'n:' + normName(e.name);
+    const p = exPoint(h, e);
+    if (!p) return;
+    let it = map.get(key);
+    if (!it) { it = { exId: key, name: e.name, points: [], cat: h.category, prog: h.programme || 'ppl' }; map.set(key, it); }
+    it.name = e.name; it.cat = h.category; it.prog = h.programme || 'ppl';
+    it.points.push(p);
+  }));
+  return map;
+}
 
-  // ── Mois de l'année sélectionnée ──────────────────────
-  const monthNames = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
-  const monthsWithData = [...new Set(
-    history.filter(h => new Date(h.date).getFullYear() === statsYear)
-           .map(h => new Date(h.date).getMonth())
-  )].sort((a,b) => a - b);
-
-  const yearNav = `
-    <div class="overview-year-nav">
-      <button class="cooldown-btn" data-action="overview-year-prev" aria-label="Année précédente">${icon('chevron.left')}</button>
-      <span class="overview-year">${statsYear}</span>
-      <button class="cooldown-btn" data-action="overview-year-next" aria-label="Année suivante" ${statsYear >= new Date().getFullYear() ? 'disabled' : ''}>${icon('chevron.right')}</button>
-    </div>`;
-
-  const monthPills = `
-    <div class="overview-months">
-      <button class="month-pill ${statsMonth === null ? 'month-pill--active' : ''}" data-action="overview-month" data-month="-1">Année</button>
-      ${monthsWithData.map(m => `
-        <button class="month-pill ${statsMonth === m ? 'month-pill--active' : ''}" data-action="overview-month" data-month="${m}">${monthNames[m]}</button>
-      `).join('')}
-    </div>`;
-
-  const catCards = keys.map(k => {
-    const meta  = sessionMeta(k);
-    const total = totalsByCat[k];
-    const prd   = periodByCat[k];
-    return `
-      <div class="overview-cat-card" style="--cat-color:${meta.color}">
-        <div class="overview-cat-icon">${meta.icon}</div>
-        <div class="overview-cat-label">${meta.label}</div>
-        <div class="overview-cat-count">${prd}</div>
-        <div class="overview-cat-sub">séances</div>
-        <div class="overview-cat-total">${total} au total</div>
-      </div>`;
-  }).join('');
-
-  // ── Détail par mois (vue annuelle) ───────────────────
-  let monthGrid = '';
-  if (statsMonth === null) {
-    const rows = monthNames.map((name, mi) => {
-      const count = history.filter(h => {
-        const d = new Date(h.date);
-        return d.getFullYear() === statsYear && d.getMonth() === mi;
-      }).length;
-      if (count === 0) return '';
-      const byCat = keys.map(k => {
-        const c = history.filter(h => {
-          const d = new Date(h.date);
-          return d.getFullYear() === statsYear && d.getMonth() === mi && h.category === k;
-        }).length;
-        const meta = sessionMeta(k);
-        return c > 0 ? `<span class="cat-text" style="--cat-color:${meta.color}">${meta.icon} ×${c}</span>` : '';
-      }).filter(Boolean).join(' ');
-      return `
-        <div class="month-row">
-          <span class="month-row__name">${name}</span>
-          <span class="month-row__cats">${byCat}</span>
-          <span class="month-row__total">${count}</span>
-        </div>`;
-    }).join('');
-    monthGrid = rows ? `<div class="month-grid">${rows}</div>` : '';
+// Section d'un exercice : séance du programme actif, d'un autre programme, ou « Autres »
+function exSection(it) {
+  const match = (list) => (list || []).some(x => x.id === it.exId || (String(it.exId).startsWith('n:') && normName(x.name) === normName(it.name)));
+  const pid = data.activeProgramme;
+  for (const cat of sessionKeys(pid)) if (match(data.programmes[pid]?.exercises?.[cat])) return { key: pid + ':' + cat, cat, prog: pid };
+  for (const [p, pd] of Object.entries(data.programmes)) {
+    if (p === pid) continue;
+    for (const cat of Object.keys(pd.exercises || {})) {
+      if (match(pd.exercises[cat]) && (p !== 'custom' || data.customSessions?.[cat])) return { key: p + ':' + cat, cat, prog: p };
+    }
   }
+  return { key: 'other', cat: null, prog: null };
+}
 
-  return `
-    <div class="view stats">
-      ${navBar({ title: 'Progrès' })}
-      ${viewTabs}
-      <div class="stats-list">
-        ${yearNav}
-        ${monthPills}
-        <div class="overview-period-label">${statsMonth !== null ? monthNames[statsMonth] + ' ' + statsYear : 'Année ' + statsYear} — <strong>${periodTotal} séance${periodTotal !== 1 ? 's' : ''}</strong></div>
-        <div class="overview-cats">${catCards}</div>
-        ${monthGrid}
-        ${!history.length ? `<div class="empty-state"><div class="empty-state__icon">📊</div><div>Pas encore de données</div></div>` : ''}
-      </div>
-    </div>`;
+function isBodyweight(it) { return it.points.every(p => !p.hasWeight); }
+function mainMetric(it, p) { return isBodyweight(it) ? p.maxReps : p.maxLoad; }
+
+// Tendance : moyenne des 3 dernières séances contre les 3 premières
+function trendPct(vals) {
+  const n = vals.length;
+  if (n < 2) return null;
+  const k = Math.min(3, Math.floor(n / 2));
+  const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const a = avg(vals.slice(0, k)), b = avg(vals.slice(-k));
+  if (!(a > 0)) return null;
+  return Math.round((b - a) / a * 100);
+}
+function pctTxt(p) { return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)} %`; }
+
+function sparkline(vals) {
+  const W = 60, H = 24;
+  if (vals.length < 2) return `<svg class="spark" width="${W}" height="${H}" aria-hidden="true"></svg>`;
+  const min = Math.min(...vals), max = Math.max(...vals), r = (max - min) || 1;
+  const pts = vals.map((v, i) => `${(i / (vals.length - 1) * (W - 4) + 2).toFixed(1)},${(H - 3 - (v - min) / r * (H - 6)).toFixed(1)}`);
+  const last = pts[pts.length - 1].split(',');
+  return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">
+    <polyline points="${pts.join(' ')}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="2.2" fill="currentColor"/></svg>`;
+}
+
+function weekStart(ts = Date.now()) {
+  const d = new Date(ts); d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d.getTime();
 }
 
 function renderStats() {
-  const keys = sessionKeys();
+  const idx  = exerciseIndex();
+  const now  = new Date();
+  const monthCount = (data.history || []).filter(h => { const d = new Date(h.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length;
+  const streak = computeStreak();
+  const ws = weekStart();
+  let records = 0;
+  idx.forEach(it => {
+    if (isBodyweight(it)) return;
+    const before = it.points.filter(p => p.date < ws).map(p => p.maxLoad);
+    const week   = it.points.filter(p => p.date >= ws).map(p => p.maxLoad);
+    if (before.length && week.length && Math.max(...week) > Math.max(...before)) records++;
+  });
 
-  const viewTabs = `
-    <div class="stats-view-tabs">
-      <button class="stats-view-tab ${statsView === 'progress' ? 'stats-view-tab--active' : ''}" data-action="stats-view" data-view="progress">Progression</button>
-      <button class="stats-view-tab ${statsView === 'overview' ? 'stats-view-tab--active' : ''}" data-action="stats-view" data-view="overview">Vue d'ensemble</button>
-    </div>`;
+  // Sections : programme actif d'abord, puis autres programmes, puis Autres
+  const sections = new Map();
+  sessionKeys().forEach(c => sections.set(data.activeProgramme + ':' + c, { cat: c, prog: data.activeProgramme, items: [] }));
+  idx.forEach(it => {
+    const s = exSection(it);
+    if (!sections.has(s.key)) sections.set(s.key, { cat: s.cat, prog: s.prog, items: [] });
+    sections.get(s.key).items.push(it);
+  });
+  if (sections.has('other')) { const o = sections.get('other'); sections.delete('other'); sections.set('other', o); }
+  // Ordre du programme à l'intérieur de chaque section
+  sections.forEach(sec => {
+    if (!sec.cat) return;
+    const order = (data.programmes[sec.prog]?.exercises?.[sec.cat] || []).map(x => x.id);
+    sec.items.sort((a, b) => (order.indexOf(a.exId) + 1 || 999) - (order.indexOf(b.exId) + 1 || 999));
+  });
 
-  if (statsView === 'overview') return renderStatsOverview(viewTabs);
-
-  const tabs = keys.map(c => {
-    const meta    = sessionMeta(c);
-    const isActive = statsCat === c;
+  const row = it => {
+    const bw   = isBodyweight(it);
+    const vals = it.points.map(p => mainMetric(it, p));
+    const last = it.points[it.points.length - 1];
+    const tp   = trendPct(vals);
+    const cls  = tp > 0 ? 'txt-up' : tp < 0 ? 'txt-down' : 'txt-flat';
     return `
-      <button class="tab ${isActive ? 'tab--active' : ''}"
-              data-action="stats-tab" data-cat="${c}"
-              style="${isActive ? `--tab-color:${meta.color};border-bottom-color:${meta.color};color:${meta.color}` : ''}">
-        ${meta.icon} ${meta.label}
+      <button class="cell cell--nav prow" data-action="open-stats-ex" data-ex="${esc(it.exId)}">
+        <span class="cell__body">
+          <span class="cell__title prow__name">${esc(it.name)}</span>
+          <span class="cell__sub num">${bw ? `${last.maxReps} reps` : setTxt(last.best)}</span>
+        </span>
+        <span class="prow__spark ${cls}">${sparkline(vals.slice(-12))}</span>
+        <span class="prow__trend num ${cls}">${tp === null ? '' : pctTxt(tp)}</span>
+        ${icon('chevron.right', 16)}
       </button>`;
-  }).join('');
-
-  const meta      = sessionMeta(statsCat);
-  const color     = meta.color;
-  const exercises = prog().exercises[statsCat] || [];
-  const history   = (data.history || []).filter(h =>
-    (h.programme === data.activeProgramme) || (!h.programme && data.activeProgramme === 'ppl')
-  );
-
-  // ── Mode helpers ──────────────────────────────────────
-  function pointMetric(p) {
-    if (statsMode === 'charge') return p.hasWeight ? p.maxLoad : p.totalReps;
-    if (statsMode === '1rm')    return p.best1RM   || (p.hasWeight ? p.maxLoad : p.totalReps);
-    // volume (default)
-    return p.volume;
-  }
-  function metricUnit(isBodyweight) {
-    if (statsMode === 'volume') return isBodyweight ? ' reps' : ` ${unitLbl()}`;
-    return ` ${unitLbl()}`;
-  }
-  function cvtW(kg) { return data.unit === 'lbs' ? Math.round(kg * KG_TO_LBS * 10) / 10 : kg; }
-  function fmtMetric(v, isBodyweight) {
-    const vd = isBodyweight ? v : cvtW(v); // ne pas convertir les reps
-    if (statsMode === 'volume' && !isBodyweight) {
-      if (data.unit === 'lbs') return vd >= 1000 ? fmtNum(vd / 1000, 1) + ' k lbs' : fmtNum(Math.round(vd)) + ' lbs';
-      return v >= 1000 ? fmtNum(v / 1000, 1) + ' t' : fmtNum(Math.round(v)) + ' kg';
-    }
-    if (statsMode === '1rm') return v > 0 ? `~${Math.round(vd)} ${unitLbl()}` : '—';
-    return Math.round(vd) + (isBodyweight ? ' reps' : ` ${unitLbl()}`);
-  }
-  function modeLabel() {
-    if (statsMode === 'charge') return 'Charge max';
-    if (statsMode === '1rm')    return '1RM estimé';
-    return 'Volume';
-  }
-
-  const cards = exercises.map(ex => {
-    const points = history
-      .filter(s => s.category === statsCat)
-      .map(s => {
-        const found = s.exercises.find(e => sameEx(e, ex));
-        if (!found || !found.sets.length) return null;
-        const sets     = found.sets;
-        const wts      = sets.map(s => parseFloat(s.weight) || 0);
-        const rps      = sets.map(s => parseInt(s.reps)     || 0).filter(r => r > 0);
-        if (!rps.length) return null;
-        const hasWeight  = wts.some(w => w > 0);
-        const posWts     = wts.filter(w => w > 0);
-        const avgW       = hasWeight ? Math.round((posWts.reduce((a,b)=>a+b,0)/posWts.length)*10)/10 : 0;
-        const avgR       = Math.round(rps.reduce((a,b)=>a+b,0)/rps.length);
-        const totalReps  = sets.reduce((a,s2)=>a+(parseInt(s2.reps)||0), 0);
-        const volume     = hasWeight
-          ? sets.reduce((a,s2)=>(a+(parseFloat(s2.weight)||0)*(parseInt(s2.reps)||0)), 0)
-          : totalReps;
-        const maxLoad    = hasWeight ? Math.max(...posWts) : 0;
-        const best1RM    = hasWeight
-          ? Math.max(0, ...sets.map(s2 => calc1RM(s2.weight, s2.reps)).filter(v => v !== null))
-          : 0;
-        return { date: s.date, sets, avgW, avgR, totalReps, volume, maxLoad, best1RM, hasWeight };
-      })
-      .filter(Boolean)
-      .reverse();
-
-    if (points.length === 0) return `
-      <div class="stats-card">
-        <div class="stats-card__name">${esc(ex.name)}</div>
-        <div class="stats-card__empty">Pas encore effectué</div>
-      </div>`;
-
-    const isBodyweight  = points.every(p => !p.hasWeight);
-    const last          = points[points.length - 1];
-    const vals          = points.map(pointMetric);
-    const lastVal       = vals[vals.length - 1];
-    const firstVal      = vals[0];
-    const progPct       = firstVal > 0 ? Math.round(((lastVal - firstVal) / firstVal) * 100) : 0;
-    const progLabel     = progPct > 0 ? `+${progPct}%` : progPct < 0 ? `${progPct}%` : '—';
-    const progColor     = progPct > 0 ? 'var(--green-text)' : progPct < 0 ? 'var(--red-text)' : 'var(--label2)';
-
-    // Best-ever for PR display
-    const prW = isBodyweight
-      ? Math.max(...points.map(p => p.avgR))
-      : Math.max(...points.map(p => p.maxLoad));
-
-    const lastSets = last.sets
-      .filter(s => s.reps)
-      .map((s, i) => {
-        const w = s.weight ? `${fmtW(s.weight)} ${unitLbl()} × ` : '';
-        return `<span class="last-set">S${i+1} : ${w}${esc(s.reps)} reps</span>`;
-      }).join('');
-
-    const displayVals = (!isBodyweight && statsMode !== 'volume')
-      ? vals.map(v => cvtW(v))
-      : (statsMode === 'volume' && !isBodyweight && data.unit === 'lbs')
-        ? vals.map(v => Math.round(v * KG_TO_LBS))
-        : vals;
-    const encoded = encodeURIComponent(JSON.stringify({
-      vals: displayVals,
-      dates: points.map(p => p.date),
-      unit: metricUnit(isBodyweight),
-      isVolumeMode: statsMode === 'volume' && !isBodyweight,
-    }));
-
-    const exData    = ex;
-    const targetW   = exData?.target;
-    const e1RM      = exData?.est1RM;
-    const targetBar = (targetW && !isBodyweight) ? (() => {
-      const pct    = Math.min(100, Math.round((last.maxLoad / targetW) * 100));
-      const c2     = pct >= 100 ? 'var(--green-text)' : progColor;
-      return `<div class="target-block">
-        <div class="target-label">Objectif : ${fmtNum(cvtW(targetW))} ${unitLbl()} <span style="color:${c2}">${pct >= 100 ? '✓ Atteint !' : pct + '%'}</span></div>
-        <div class="target-bar"><div class="target-bar__fill" style="width:${pct}%;background:${c2}"></div></div>
-      </div>`;
-    })() : '';
-
-    // Secondary line under main metric
-    let secondaryLine = '';
-    if (statsMode === 'volume') {
-      secondaryLine = isBodyweight
-        ? `<span>${last.sets.filter(s=>s.reps).length} séries · ${last.avgR} reps/série</span>`
-        : `<span>${last.sets.filter(s=>s.reps).length} séries · ${fmtNum(cvtW(last.avgW))} ${unitLbl()} moy · ${last.avgR} reps/série</span>`;
-    } else if (statsMode === 'charge') {
-      secondaryLine = `<span>${last.sets.filter(s=>s.reps).length} séries · ${last.avgR} reps/série</span>`;
-    } else {
-      secondaryLine = last.avgW ? `<span>${fmtNum(cvtW(last.avgW))} ${unitLbl()} × ${last.avgR} reps (meilleures séries)</span>` : '';
-    }
-
-    return `
-      <div class="stats-card">
-        <div class="stats-card__header">
-          <span class="stats-card__name">${esc(ex.name)}</span>
-          <div class="stats-card__current-block">
-            <span class="stats-card__current">${fmtMetric(lastVal, isBodyweight)}</span>
-            <span class="stats-card__mode-label">${modeLabel()}</span>
-          </div>
-        </div>
-        ${secondaryLine ? `<div class="stats-secondary">${secondaryLine}</div>` : ''}
-        ${lastSets ? `<div class="last-sets">${lastSets}</div>` : ''}
-        <canvas class="stats-canvas" data-points="${encoded}" data-color="${color}"></canvas>
-        ${targetBar}
-        <div class="stats-card__footer">
-          <span>PR : <strong>${isBodyweight ? prW + ' reps' : fmtNum(cvtW(prW)) + ' ' + unitLbl()}</strong></span>
-          ${e1RM && !isBodyweight ? `<span>1RM ~<strong>${fmtNum(cvtW(e1RM))} ${unitLbl()}</strong></span>` : ''}
-          <span style="color:${progColor};font-weight:700">${progLabel}</span>
-          <span>${points.length} séance${points.length > 1 ? 's' : ''}</span>
-        </div>
-      </div>`;
-  }).join('');
-
-  const hasData = exercises.some(ex =>
-    history.some(s => s.category === statsCat && s.exercises?.find(e => sameEx(e, ex)))
-  );
-
-  const modeDescs = {
-    volume: 'Somme poids × reps de toutes les séries',
-    charge: 'Poids le plus lourd soulevé dans la séance',
-    '1rm':  'Force max estimée depuis la meilleure série',
   };
-  const modeBar = `
-    <div class="stats-mode-bar">
-      <div class="stats-mode-btns">
-        ${['volume','charge','1rm'].map(m => `
-          <button class="stats-mode-btn ${statsMode===m?'stats-mode-btn--active':''}"
-                  data-action="stats-mode" data-mode="${m}">
-            ${m==='volume'?'Volume':m==='charge'?'Charge max':'1RM ~'}
-          </button>`).join('')}
-      </div>
-      <div class="stats-mode-desc">${modeDescs[statsMode]}</div>
-    </div>`;
+
+  let list = '';
+  sections.forEach((sec, key) => {
+    if (!sec.items.length) return;
+    const title = key === 'other' ? 'Autres'
+      : sec.prog === data.activeProgramme ? sessionMeta(sec.cat, sec.prog).label
+      : `${sessionMeta(sec.cat, sec.prog).label} · ${progMeta(sec.prog).name}`;
+    list += `<div class="group-title">${title}</div><div class="group">${sec.items.map(row).join('')}</div>`;
+  });
+  const empty = !idx.size;
 
   return `
-    <div class="view stats">
+    <div class="view stats lot5">
       ${navBar({ title: 'Progrès' })}
-      ${viewTabs}
-      ${keys.length ? `<div class="tabs">${tabs}</div>` : ''}
-      ${modeBar}
-      <div class="stats-list">
-        ${hasData ? cards : `
-          <div class="empty-state">
-            <div class="empty-state__icon">📈</div>
-            <div>Pas encore de données</div>
-            <div class="empty-state__sub">Termine des séances pour voir ta progression ici</div>
-          </div>`}
+      <div class="scr">
+        <div class="tiles">
+          <div class="tile"><span class="tile__val num">${monthCount}</span><span class="tile__lbl">${monthCount > 1 ? 'séances' : 'séance'} ce mois-ci</span></div>
+          <div class="tile"><span class="tile__val num">${streak}</span><span class="tile__lbl">${streak > 1 ? 'semaines' : 'semaine'} d'affilée</span></div>
+          <div class="tile"><span class="tile__val num">${records}</span><span class="tile__lbl">${records > 1 ? 'records' : 'record'} cette semaine</span></div>
+        </div>
+        <div class="group">
+          <button class="cell cell--nav" data-action="go-stats-overview">
+            ${icon('chart', 22)}
+            <span class="cell__body"><span class="cell__title">Vue d'ensemble</span></span>
+            ${icon('chevron.right', 16)}
+          </button>
+        </div>
+        ${empty ? `<div class="empty-note">Termine des séances pour voir ta progression ici.</div>` : list}
       </div>
     </div>`;
+}
+
+// ── Progrès › Exercice ──────────────────────────────────────
+
+let chartState = null; // { vals, dates, points, mode, unit, color, xLabels, sel }
+
+function cvtW(kg) { return data.unit === 'lbs' ? Math.round(kg * KG_TO_LBS * 10) / 10 : kg; }
+
+function metricOf(p, bw) {
+  if (statsMode === 'charge') return bw ? p.maxReps : cvtW(p.maxLoad);
+  if (statsMode === '1rm')    return bw ? p.maxReps : cvtW(p.best1RM || p.maxLoad);
+  return bw ? p.totalReps : cvtW(p.volume);
+}
+function fmtMetricVal(v, bw) {
+  if (bw) return `${Math.round(v)} reps`;
+  if (statsMode === 'volume') return fmtVolume(data.unit === 'lbs' ? v / KG_TO_LBS : v);
+  return `${statsMode === '1rm' ? '~' : ''}${fmtNum(Math.round(v * 10) / 10)} ${unitLbl()}`;
+}
+
+function renderStatsExercise() {
+  const it = exerciseIndex().get(statsExId);
+  if (!it) {
+    return `<div class="view stats-ex lot5">${navBar({ title: 'Exercice' })}
+      <div class="scr"><div class="empty-note">Aucune donnée pour cet exercice.</div></div></div>`;
+  }
+  const bw     = isBodyweight(it);
+  const pts    = it.points;
+  const sec    = exSection(it);
+  const color  = sec.cat ? sessionMeta(sec.cat, sec.prog).color : sessionMeta(it.cat, it.prog).color;
+  const vals   = pts.map(p => metricOf(p, bw));
+  chartState   = { vals, dates: pts.map(p => p.date), points: pts, bw, mode: statsMode, color, xLabels: [], sel: null };
+
+  // Record charge (poids puis reps) et 1RM estimé : record et dernière séance
+  const prBest = bestSet(pts.flatMap(p => p.sets));
+  const rec1RM = Math.max(0, ...pts.map(p => p.best1RM));
+  const last   = pts[pts.length - 1];
+  const progEx = Object.values(data.programmes).flatMap(p => Object.values(p.exercises || {}).flat()).find(x => x.id === it.exId);
+  const target = progEx?.target;
+  const tp     = trendPct(vals);
+
+  const targetBar = (statsMode === 'charge' && target && !bw) ? (() => {
+    const pct = Math.min(100, Math.round(last.maxLoad / target * 100));
+    return `
+      <div class="group-title">Objectif</div>
+      <div class="group group--pad">
+        <div class="target-row"><span>${fmtNum(cvtW(target))} ${unitLbl()}</span><span class="${pct >= 100 ? 'txt-up' : ''}">${pct >= 100 ? 'Atteint' : pct + ' %'}</span></div>
+        <div class="tbar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div class="tbar__fill" style="width:${pct}%"></div></div>
+      </div>`;
+  })() : '';
+
+  const sessions = pts.slice().reverse().map(p => `
+      <button class="cell cell--nav" data-action="open-history" data-id="${esc(p.hid)}">
+        <span class="cell__body"><span class="cell__title cell__title--reg">${fmtDate(p.date)}</span></span>
+        <span class="cell__value num">${bw ? `${p.sets.map(s => parseInt(s.reps)).join(' · ')} reps` : setTxt(p.best)}</span>
+        ${icon('chevron.right', 16)}
+      </button>`).join('');
+
+  const modes = [['volume', 'Volume'], ['charge', 'Charge max'], ['1rm', '1RM est.']];
+  return `
+    <div class="view stats-ex lot5">
+      ${navBar({ title: '' })}
+      <div class="scr">
+        <h1 class="scr-title">${esc(it.name)}</h1>
+        <div class="segmented seg-full" role="group" aria-label="Mesure affichée">
+          ${modes.map(([m, l]) => `<button class="segmented__btn ${statsMode === m ? 'segmented__btn--active' : ''}" aria-pressed="${statsMode === m}" data-action="stats-mode" data-mode="${m}">${l}</button>`).join('')}
+        </div>
+        <div class="chart-head">
+          <span class="chart-head__val num">${fmtMetricVal(vals[vals.length - 1], bw)}</span>
+          ${tp === null ? '' : `<span class="chart-head__trend num ${tp > 0 ? 'txt-up' : tp < 0 ? 'txt-down' : 'txt-flat'}">${pctTxt(tp)}</span>`}
+          ${statsMode === '1rm' ? `<button class="info-btn" data-action="info-1rm" aria-label="Comment est calculé le 1RM estimé ?">i</button>` : ''}
+        </div>
+        <div class="chart" id="exChart">
+          <canvas class="stats-canvas" role="img" aria-label=""></canvas>
+          <div class="chart-bubble num" hidden></div>
+        </div>
+        <div class="group">
+          <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Record</span></span>
+            <span class="cell__value num">${prBest ? setTxt(prBest) : '—'}</span></div>
+          ${!bw && rec1RM ? `
+          <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Record 1RM est.</span></span>
+            <span class="cell__value num">~${fmtNum(cvtW(rec1RM))} ${unitLbl()}</span></div>
+          <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">1RM est. dernière séance</span></span>
+            <span class="cell__value num">${last.best1RM ? `~${fmtNum(cvtW(last.best1RM))} ${unitLbl()}` : '—'}</span></div>` : ''}
+          <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Séances</span></span>
+            <span class="cell__value num">${pts.length}</span></div>
+        </div>
+        ${targetBar}
+        <div class="group-title">Séances</div>
+        <div class="group">${sessions}</div>
+      </div>
+    </div>`;
+}
+
+// Couleur CSS résolue (accepte un hex comme une var(--x))
+function resolveColor(el, c) {
+  el.style.color = c;
+  const v = getComputedStyle(el).color;
+  el.style.color = '';
+  return v;
+}
+
+function axisFmt(v) {
+  if (chartState.bw) return String(Math.round(v));
+  if (chartState.mode === 'volume') return v >= 1000 ? fmtNum(Math.round(v / 100) / 10) + ' t' : fmtNum(Math.round(v));
+  return fmtNum(Math.round(v * 10) / 10);
 }
 
 function drawCharts() {
-  document.querySelectorAll('.stats-canvas').forEach(canvas => {
-    const { vals, dates, unit, isVolumeMode } = JSON.parse(decodeURIComponent(canvas.dataset.points));
-    const color = cssColor(canvas.dataset.color);
-    const tok   = name => cssColor(`var(--${name})`);
-    if (!vals || !vals.length) return;
+  const box = $('#exChart');
+  if (!box || !chartState) return;
+  const canvas = box.querySelector('canvas');
+  const st = chartState;
+  const { vals, dates } = st;
+  const n = vals.length;
+  const W = box.clientWidth, H = 200;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
 
-    const W   = canvas.parentElement.clientWidth - 32;
-    const H   = 120;
-    const dpr = window.devicePixelRatio || 1;
+  const color = resolveColor(canvas, st.color);
+  const cs    = getComputedStyle(box);
+  const sepC  = cs.getPropertyValue('--sep').trim() || 'rgba(128,128,128,.4)';
+  const lblC  = cs.getPropertyValue('--label2').trim() || '#8e8e93';
+  const bgC   = cs.getPropertyValue('--cell').trim() || '#1c1c1e';
+  const font  = '-apple-system, system-ui, sans-serif';
 
-    canvas.width        = W * dpr;
-    canvas.height       = H * dpr;
-    canvas.style.width  = W + 'px';
-    canvas.style.height = H + 'px';
+  // Axe Y : depuis 0 pour le volume, tronqué (mais gradué) pour la charge et le 1RM
+  const vMax = Math.max(...vals), vMin = Math.min(...vals);
+  let lo = (st.mode === 'volume' || st.bw) ? 0 : vMin - (vMax - vMin) * 0.15 - (vMax === vMin ? vMax * 0.1 : 0);
+  if (lo < 0) lo = 0;
+  let hi = vMax + (vMax - lo) * 0.08 || 1;
+  const ticks = [lo, (lo + hi) / 2, hi];
+  ctx.font = `11px ${font}`;
+  const tickW = Math.max(...ticks.map(t => ctx.measureText(axisFmt(t)).width));
+  const pL = 4, pR = tickW + 10, pT = 44, pB = 22; // bande du haut réservée à la bulle
+  const cW = W - pL - pR, cH = H - pT - pB;
+  const xp = i => pL + (n === 1 ? cW / 2 : i / (n - 1) * cW);
+  const yp = v => pT + cH - (v - lo) / ((hi - lo) || 1) * cH;
+  st.geom = { xp, yp, pL, pR, cW, W, H };
 
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-
-    const n       = vals.length;
-    const dataMin = Math.min(...vals) * 0.88;
-    const dataMax = Math.max(...vals) * 1.10;
-    const range   = (dataMax - dataMin) || 1;
-
-    const pT = 14, pB = 26, pL = 6, pR = 6;
-    const cW = W - pL - pR;
-    const cH = H - pT - pB;
-
-    const xp = i => pL + (n === 1 ? cW / 2 : (i / (n - 1)) * cW);
-    const yp = v => pT + cH - ((v - dataMin) / range) * cH;
-
-    // Gradient fill under line
-    const grad = ctx.createLinearGradient(0, pT, 0, pT + cH);
-    grad.addColorStop(0, color + '40');
-    grad.addColorStop(1, color + '00');
-
-    ctx.beginPath();
-    ctx.moveTo(xp(0), pT + cH);
-    ctx.lineTo(xp(0), yp(vals[0]));
-    for (let i = 1; i < n; i++) {
-      const mx = (xp(i-1) + xp(i)) / 2;
-      ctx.bezierCurveTo(mx, yp(vals[i-1]), mx, yp(vals[i]), xp(i), yp(vals[i]));
-    }
-    ctx.lineTo(xp(n-1), pT + cH);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    // Main line
-    ctx.beginPath();
-    ctx.moveTo(xp(0), yp(vals[0]));
-    for (let i = 1; i < n; i++) {
-      const mx = (xp(i-1) + xp(i)) / 2;
-      ctx.bezierCurveTo(mx, yp(vals[i-1]), mx, yp(vals[i]), xp(i), yp(vals[i]));
-    }
-    ctx.strokeStyle = color;
-    ctx.lineWidth   = 2.5;
-    ctx.lineJoin    = 'round';
-    ctx.stroke();
-
-    // Dots
-    vals.forEach((v, i) => {
-      const isLast = i === n - 1;
-      const isPeak = v === Math.max(...vals) && i > 0;
-      ctx.beginPath();
-      ctx.arc(xp(i), yp(v), isLast ? 5 : isPeak ? 4 : 3, 0, Math.PI * 2);
-      ctx.fillStyle   = (isLast || isPeak) ? color : tok('cell2');
-      ctx.strokeStyle = color;
-      ctx.lineWidth   = 1.8;
-      ctx.fill();
-      ctx.stroke();
-    });
-
-    // Value label on last point
-    const li    = n - 1;
-    const lv    = vals[li];
-    const trend = n > 1 && vals[li] >= vals[li - 1] ? '▲' : n > 1 ? '▼' : '';
-    const trendColor = n > 1 ? (vals[li] >= vals[li-1] ? tok('green-text') : tok('red-text')) : color;
-
-    let labelTxt;
-    if (isVolumeMode) {
-      labelTxt = lv >= 1000
-        ? fmtNum(lv / 1000, 1) + ' t'
-        : fmtNum(Math.round(lv)) + unit;
-    } else {
-      labelTxt = fmtNum(Math.round(lv * 10) / 10) + unit;
-    }
-
-    ctx.font      = 'bold 11px -apple-system, sans-serif';
-    ctx.textAlign = xp(li) > W - 50 ? 'right' : 'left';
-    const lx      = xp(li) + (xp(li) > W - 50 ? -8 : 8);
-    const ly      = yp(lv) - 7;
-
-    ctx.fillStyle = trendColor;
-    ctx.fillText(trend, xp(li) + (xp(li) > W - 50 ? -8 - ctx.measureText(labelTxt).width - 4 : 8 + ctx.measureText(labelTxt).width + 4), ly);
-    ctx.fillStyle = color;
-    ctx.fillText(labelTxt, lx, ly);
-
-    // Date labels on X axis
-    ctx.fillStyle = tok('label2');
-    ctx.font      = '10px -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-
-    const shown   = new Set([0, n - 1]);
-    if (n > 2) {
-      const step = Math.ceil((n - 1) / 4);
-      for (let i = step; i < n - 1; i += step) shown.add(i);
-    }
-    shown.forEach(i => {
-      const label = new Date(dates[i]).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
-      ctx.fillText(label, Math.max(20, Math.min(W - 20, xp(i))), H - 5);
-    });
+  // Grille et graduations à droite
+  ctx.lineWidth = 0.5; ctx.strokeStyle = sepC; ctx.fillStyle = lblC;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ticks.forEach(t => {
+    const y = Math.round(yp(t)) + 0.25;
+    ctx.beginPath(); ctx.moveTo(pL, y); ctx.lineTo(pL + cW, y); ctx.stroke();
+    ctx.fillText(axisFmt(t), pL + cW + 6, y);
   });
+
+  // Courbe : segments droits
+  ctx.beginPath();
+  vals.forEach((v, i) => i ? ctx.lineTo(xp(i), yp(v)) : ctx.moveTo(xp(i), yp(v)));
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Points : dernier et maximum seulement
+  const iMax = vals.lastIndexOf(vMax);
+  [...new Set([iMax, n - 1])].forEach(i => {
+    ctx.beginPath(); ctx.arc(xp(i), yp(vals[i]), 4, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = bgC; ctx.stroke();
+  });
+
+  // Sélection au doigt : ligne verticale
+  if (st.sel !== null && st.sel < n) {
+    const x = Math.round(xp(st.sel)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(x, pT); ctx.lineTo(x, pT + cH);
+    ctx.strokeStyle = lblC; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.arc(xp(st.sel), yp(vals[st.sel]), 5, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = bgC; ctx.stroke();
+  }
+
+  // Étiquettes X sans chevauchement (espacées d'au moins leur largeur + 6)
+  ctx.fillStyle = lblC; ctx.textBaseline = 'alphabetic';
+  const lbl = i => new Date(dates[i]).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
+  const rect = i => {
+    const w = ctx.measureText(lbl(i)).width;
+    const x = Math.max(pL, Math.min(pL + cW - w, xp(i) - w / 2));
+    return { i, x, w };
+  };
+  const placed = [];
+  const lastR = rect(n - 1);
+  const free = r => placed.every(p => r.x >= p.x + p.w + 6 || r.x + r.w + 6 <= p.x);
+  placed.push(lastR);
+  for (let i = 0; i < n - 1; i++) { const r = rect(i); if (free(r)) placed.push(r); }
+  ctx.textAlign = 'left';
+  placed.forEach(r => ctx.fillText(lbl(r.i), r.x, H - 6));
+  st.xLabels = placed.map(r => ({ x: r.x, w: r.w }));
+
+  // Description pour VoiceOver
+  const mName = st.mode === 'volume' ? 'Volume' : st.mode === 'charge' ? 'Charge max' : '1RM estimé';
+  const tp = trendPct(vals);
+  const d = i => new Date(dates[i]).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  canvas.setAttribute('aria-label', n > 1
+    ? `${mName} : de ${fmtMetricVal(vals[0], st.bw)} le ${d(0)} à ${fmtMetricVal(vals[n - 1], st.bw)} le ${d(n - 1)}${tp === null ? '' : ', ' + pctTxt(tp)}`
+    : `${mName} : ${fmtMetricVal(vals[0], st.bw)} le ${d(0)}`);
 }
 
-// ═══════════════════════════════════════════════════════════
-//  History
-// ═══════════════════════════════════════════════════════════
+function chartSelect(clientX) {
+  const st = chartState, box = $('#exChart');
+  if (!st || !box || !st.geom) return;
+  const r = box.getBoundingClientRect();
+  const x = clientX - r.left;
+  let best = 0, bd = Infinity;
+  st.vals.forEach((_, i) => { const dd = Math.abs(st.geom.xp(i) - x); if (dd < bd) { bd = dd; best = i; } });
+  if (best !== st.sel) { st.sel = best; haptic(); }
+  drawCharts();
+  const p = st.points[best];
+  const b = box.querySelector('.chart-bubble');
+  const date = new Date(p.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  const set  = st.bw ? `${p.maxReps} reps` : `${wFr(p.best.weight)} ${unitLbl()} × ${p.best.r}`;
+  b.textContent = `${date} · ${set} · ${st.bw ? p.totalReps + ' reps' : fmtVolume(p.volume)}`;
+  b.dataset.i = best;
+  b.hidden = false;
+  const bx = st.geom.xp(best);
+  const bw = b.offsetWidth;
+  b.style.left = Math.max(0, Math.min(r.width - bw, bx - bw / 2)) + 'px';
+}
+function chartRelease() {
+  const st = chartState;
+  if (!st) return;
+  clearTimeout(st.hideT);
+  st.hideT = setTimeout(() => {
+    if (!chartState || chartState !== st) return;
+    st.sel = null;
+    const b = $('#exChart .chart-bubble');
+    if (b) b.hidden = true;
+    drawCharts();
+  }, 2500);
+}
+let chartDown = false;
+document.addEventListener('pointerdown', e => {
+  if (!e.target.closest?.('#exChart')) return;
+  chartDown = true; clearTimeout(chartState?.hideT); chartSelect(e.clientX);
+});
+document.addEventListener('pointermove', e => {
+  if (!e.target.closest?.('#exChart') && !chartDown) return;
+  if (e.pointerType !== 'mouse' && !chartDown) return;
+  if (!$('#exChart')) return;
+  chartSelect(e.clientX);
+});
+document.addEventListener('pointerup', () => { if (chartDown) { chartDown = false; chartRelease(); } });
+document.addEventListener('pointercancel', () => { if (chartDown) { chartDown = false; chartRelease(); } });
 
-function renderHistory() {
-  const history = data.history || [];
+// Nouveau dessin au redimensionnement, à la rotation et au changement de thème
+let chartRaf = null;
+function redrawChartSoon() {
+  clearTimeout(chartRaf);
+  chartRaf = setTimeout(() => { if ($('#exChart')) drawCharts(); }, 120);
+}
+window.addEventListener('resize', redrawChartSoon);
+window.addEventListener('orientationchange', redrawChartSoon);
+new MutationObserver(redrawChartSoon).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
-  const grouped = {};
-  history.forEach(s => {
-    const key = new Date(s.date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' });
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(s);
+// ── Progrès › Vue d'ensemble ────────────────────────────────
+
+function renderStatsOverview() {
+  const now  = new Date();
+  if (!ovMonth) ovMonth = { y: now.getFullYear(), m: now.getMonth() };
+  const { y, m } = ovMonth;
+  const hist = data.history || [];
+
+  // Calendrier du mois : lundi en premier
+  const first = new Date(y, m, 1);
+  const days  = new Date(y, m + 1, 0).getDate();
+  const lead  = (first.getDay() + 6) % 7;
+  const byDay = {};
+  hist.forEach(h => {
+    const d = new Date(h.date);
+    if (d.getFullYear() === y && d.getMonth() === m) (byDay[d.getDate()] ||= []).push(h);
   });
+  const today = (now.getFullYear() === y && now.getMonth() === m) ? now.getDate() : 0;
+  let cells = '';
+  for (let i = 0; i < lead; i++) cells += '<span class="cal__d cal__d--empty"></span>';
+  for (let d = 1; d <= days; d++) {
+    const hs = byDay[d] || [];
+    const lbl = hs.length ? `, ${hs.map(h => sessionMeta(h.category, h.programme || 'ppl').label).join(', ')}` : '';
+    cells += `<span class="cal__d ${d === today ? 'cal__d--today' : ''}" aria-label="${d}${lbl}"><span class="num">${d}</span>
+      <span class="cal__dots">${hs.slice(0, 3).map(h => `<i style="background:${historyColor(h)}"></i>`).join('')}</span></span>`;
+  }
+  const monthName = first.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const monthCount = Object.values(byDay).reduce((a, l) => a + l.length, 0);
+  const isCur = y === now.getFullYear() && m === now.getMonth();
 
-  const content = Object.keys(grouped).length === 0
-    ? `<div class="empty-state">
-         <div class="empty-state__icon">📋</div>
-         <div>Aucune séance enregistrée</div>
-         <div class="empty-state__sub">Termine ta première séance pour la voir ici</div>
-       </div>`
-    : Object.entries(grouped).map(([month, sessions]) => `
-        <div class="history-month">
-          <div class="history-month__label">${month}</div>
-          ${sessions.map(s => {
-            const totalSets = s.exercises.reduce((a, ex) => a + ex.sets.length, 0);
-            const itemColor = historyColor(s);
-            const catMeta   = sessionMeta(s.category, s.programme || 'ppl');
-            return `
-              <div class="history-item" style="border-left-color:${itemColor}">
-                <div class="history-item__header">
-                  <span class="history-item__cat">
-                    ${catMeta.icon} ${catMeta.label}
-                  </span>
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <span class="history-item__date">${fmtDateTime(s.date)}</span>
-                    <button class="history-edit-btn" data-action="edit-session"   data-id="${s.id}" title="Modifier" aria-label="Modifier la séance">${icon('pencil', 20)}</button>
-                    <button class="history-edit-btn history-edit-btn--del" data-action="delete-session" data-id="${s.id}" title="Supprimer" aria-label="Supprimer la séance">${icon('trash', 20)}</button>
-                  </div>
-                </div>
-                <div class="history-item__summary">
-                  ${s.exercises.length} exercices · ${totalSets} séries
-                  ${sessionVolume(s.exercises) > 0 ? ` · <strong>${fmtVolume(sessionVolume(s.exercises))}</strong> volume` : ''}
-                  ${s.duration ? ` · ${fmtDuration(s.duration)}` : ''}
-                </div>
-                ${s.notes ? `<div class="history-notes">« ${esc(s.notes)} »</div>` : ''}
-                <div class="history-item__exercises">
-                  ${s.exercises.map(ex => `
-                    <div class="history-ex">
-                      <span class="history-ex__name">${esc(ex.name)}</span>
-                      <span class="history-ex__sets">${ex.sets.map(set => `${set.weight ? fmtW(set.weight) + '×' : ''}${esc(set.reps)}`).join(' / ')}</span>
-                    </div>`).join('')}
-                </div>
-              </div>`;
-          }).join('')}
-        </div>`).join('');
+  // Séances par semaine sur 12 semaines (objectif : 3)
+  const ws = weekStart();
+  const weeks = Array.from({ length: 12 }, (_, i) => {
+    const start = ws - (11 - i) * 7 * 86400000;
+    return { start, n: hist.filter(h => h.date >= start && h.date < start + 7 * 86400000).length };
+  });
+  const top = Math.max(4, ...weeks.map(w => w.n));
+  const bars = weeks.map(w => `
+      <span class="wk" aria-label="Semaine du ${new Date(w.start).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} : ${plural(w.n, 'séance', 'séances')}">
+        <span class="wk__bar ${w.n >= 3 ? 'wk__bar--ok' : ''}" style="height:${w.n / top * 100}%"></span>
+      </span>`).join('');
+
+  // Tuiles
+  const vol  = hist.reduce((a, h) => a + sessionVolume(h.exercises || []), 0);
+  const durs = hist.filter(h => h.duration > 0).map(h => h.duration);
+  const avgD = durs.length ? durs.reduce((a, b) => a + b, 0) / durs.length : 0;
+  const streak = computeStreak();
 
   return `
-    <div class="view history">
-      ${navBar({ title: 'Historique',
-        right: `<button class="navbar__icon" data-action="go-add-session" aria-label="Ajouter une séance passée">${icon('plus', 24)}</button>` })}
-      <div class="history-list">${content}</div>
+    <div class="view stats-overview lot5">
+      ${navBar({ title: 'Vue d\'ensemble' })}
+      <div class="scr">
+        <div class="tiles">
+          <div class="tile"><span class="tile__val num">${fmtVolume(vol)}</span><span class="tile__lbl">volume total</span></div>
+          <div class="tile"><span class="tile__val num">${avgD ? fmtDuration(avgD) : '—'}</span><span class="tile__lbl">durée moyenne</span></div>
+          <div class="tile"><span class="tile__val num">${streak}</span><span class="tile__lbl">${streak > 1 ? 'semaines' : 'semaine'} d'affilée</span></div>
+        </div>
+        <div class="group group--pad cal" id="ovCal">
+          <div class="cal__head">
+            <button class="cal__nav" data-action="ov-month" data-d="-1" aria-label="Mois précédent">${icon('chevron.left', 20)}</button>
+            <span class="cal__title">${monthName.charAt(0).toUpperCase() + monthName.slice(1)}<span class="cal__count num">${plural(monthCount, 'séance', 'séances')}</span></span>
+            <button class="cal__nav" data-action="ov-month" data-d="1" ${isCur ? 'disabled' : ''} aria-label="Mois suivant">${icon('chevron.right', 20)}</button>
+          </div>
+          <div class="cal__grid">
+            ${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => `<span class="cal__wd" aria-hidden="true">${d}</span>`).join('')}
+            ${cells}
+          </div>
+        </div>
+        <div class="group-title">Séances par semaine</div>
+        <div class="group group--pad">
+          <div class="wks" role="img" aria-label="Séances par semaine sur 12 semaines, objectif 3">
+            <span class="wks__goal" style="bottom:${3 / top * 100}%"><span>3</span></span>
+            ${bars}
+          </div>
+          <div class="wks__axis"><span>il y a 12 sem.</span><span>cette semaine</span></div>
+        </div>
+      </div>
     </div>`;
 }
+
+// Balayage horizontal du calendrier : mois précédent / suivant
+let calSwipe = null;
+document.addEventListener('pointerdown', e => {
+  if (!e.target.closest?.('#ovCal .cal__grid')) return;
+  calSwipe = { x: e.clientX, y: e.clientY };
+});
+document.addEventListener('pointerup', e => {
+  if (!calSwipe) return;
+  const dx = e.clientX - calSwipe.x, dy = e.clientY - calSwipe.y;
+  calSwipe = null;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) changeOvMonth(dx < 0 ? 1 : -1);
+});
+function changeOvMonth(d) {
+  const now = new Date();
+  let { y, m } = ovMonth;
+  m += d;
+  if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; }
+  if (y > now.getFullYear() || (y === now.getFullYear() && m > now.getMonth())) return;
+  ovMonth = { y, m };
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Historique (lot 5)
+// ═══════════════════════════════════════════════════════════
+
+let historyId  = null;
+let histFilter = 'all';
+let histQuery  = '';
+let histMonths = 3;
+
+function historySorted() {
+  return (data.history || []).slice().sort((a, b) => b.date - a.date);
+}
+
+function historyMatches(h, q) {
+  if (histFilter !== 'all' && !(h.category === histFilter && (h.programme || 'ppl') === data.activeProgramme)) return false;
+  if (!q) return true;
+  if (normName(h.notes).includes(q)) return true;
+  return (h.exercises || []).some(e => normName(e.name).includes(q));
+}
+
+function historyCell(h) {
+  const progId = h.programme || 'ppl';
+  const meta   = sessionMeta(h.category, progId);
+  const vol    = sessionVolume(h.exercises || []);
+  // Séance d'un autre programme : la mention remplace le nombre d'exercices (cellule sur 2 lignes)
+  const other  = progId !== data.activeProgramme;
+  const parts  = [other ? `Programme ${progMeta(progId).name}` : plural((h.exercises || []).length, 'exercice', 'exercices')];
+  if (vol > 0) parts.push(fmtVolume(vol));
+  if (h.duration) parts.push(fmtDuration(h.duration));
+  return `
+    <div class="hrow" data-id="${esc(h.id)}">
+      <button class="hrow__del" data-action="swipe-delete-session" data-id="${esc(h.id)}" tabindex="-1">Supprimer</button>
+      <button class="hcell" data-action="open-history" data-id="${esc(h.id)}">
+        <span class="hcell__dot" style="background:${meta.color}"></span>
+        <span class="hcell__body">
+          <span class="hcell__top"><span class="hcell__title">${meta.label}</span><span class="hcell__date">${fmtDate(h.date)}</span></span>
+          <span class="hcell__sub num">${parts.join(' · ')}</span>
+        </span>
+        ${icon('chevron.right', 16)}
+      </button>
+    </div>`;
+}
+
+function historyListHTML() {
+  const q   = normName(histQuery);
+  const all = historySorted().filter(h => historyMatches(h, q));
+  if (!all.length) {
+    return (data.history || []).length
+      ? `<div class="empty-note">Aucune séance ne correspond.</div>`
+      : `<div class="empty-note">Aucune séance enregistrée.<br>Termine ta première séance pour la voir ici.</div>`;
+  }
+  let out = '', months = 0, curKey = null, buf = '', i = 0;
+  const flush = () => { if (curKey) out += `<section class="hmonth" data-month="${curKey}"><h2 class="hmonth__title">${buf.title}</h2><div class="group">${buf.rows}</div></section>`; };
+  for (; i < all.length; i++) {
+    const h = all[i], d = new Date(h.date);
+    const key = d.getFullYear() + '-' + d.getMonth();
+    if (key !== curKey) {
+      flush();
+      months++;
+      if (months > histMonths) break;
+      curKey = key;
+      const t = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      buf = { title: t.charAt(0).toUpperCase() + t.slice(1), rows: '' };
+    }
+    buf.rows += historyCell(h);
+  }
+  if (i >= all.length) flush();
+  if (i < all.length) out += `<button class="btn-more" data-action="hist-more">Afficher plus</button>`;
+  return out;
+}
+
+function renderHistory() {
+  const keys = sessionKeys();
+  if (histFilter !== 'all' && !keys.includes(histFilter)) histFilter = 'all';
+  return `
+    <div class="view history lot5">
+      ${navBar({ title: 'Historique', right: `<button class="navbar__icon" data-action="go-add-session" aria-label="Ajouter une séance passée">${icon('plus', 24)}</button>`  })}
+      <div class="scr" id="histScroll">
+        <div class="hist-tools">
+          <input type="search" id="histSearch" class="search" placeholder="Rechercher un exercice ou une note" value="${esc(histQuery)}"
+                 autocomplete="off" enterkeyhint="search" aria-label="Rechercher dans l'historique">
+          <div class="segmented seg-full seg-scroll" role="group" aria-label="Filtrer par séance">
+            ${[['all', 'Toutes'], ...keys.map(k => [k, sessionMeta(k).label])].map(([k, l]) =>
+              `<button class="segmented__btn ${histFilter === k ? 'segmented__btn--active' : ''}" aria-pressed="${histFilter === k}" data-action="hist-filter" data-cat="${esc(k)}">${l}</button>`).join('')}
+          </div>
+        </div>
+        <div id="histList">${historyListHTML()}</div>
+      </div>
+    </div>`;
+}
+
+function refreshHistoryList() {
+  const el = $('#histList');
+  if (el) el.innerHTML = historyListHTML();
+}
+
+// Séries d'un exercice : poids mis en facteur s'il ne change pas
+function setsLine(sets) {
+  const ok = (sets || []).filter(s => String(s.reps ?? '') !== '');
+  if (!ok.length) return '—';
+  const ws = ok.map(s => parseFloat(s.weight) || 0);
+  if (ws.every(w => w === 0)) return `${ok.map(s => esc(s.reps)).join(' · ')} reps`;
+  if (ws.every(w => w === ws[0])) return `${wFr(ok[0].weight)} ${unitLbl()} · ${ok.map(s => esc(s.reps)).join(' · ')}`;
+  return ok.map(s => `${parseFloat(s.weight) > 0 ? wFr(s.weight) + ' × ' : ''}${esc(s.reps)}`).join(' · ');
+}
+
+function renderHistoryDetail() {
+  const h = (data.history || []).find(x => x.id === historyId);
+  if (!h) {
+    return `<div class="view history-detail lot5">${navBar({ title: 'Séance' })}
+      <div class="scr"><div class="empty-note">Cette séance n'existe plus.</div></div></div>`;
+  }
+  const progId = h.programme || 'ppl';
+  const meta   = sessionMeta(h.category, progId);
+  const d      = new Date(h.date);
+  let when = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  when = when.charAt(0).toUpperCase() + when.slice(1);
+  // L'heure n'a de sens que pour une séance chronométrée (une séance passée n'a pas d'heure)
+  if (h.duration) when += ` · ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  const vol  = sessionVolume(h.exercises || []);
+  const nSets = (h.exercises || []).reduce((a, e) => a + (e.sets || []).length, 0);
+  return `
+    <div class="view history-detail lot5">
+      ${navBar({ title: '', right: `<button class="navbar__text" data-action="edit-session" data-id="${esc(h.id)}">Modifier</button>`  })}
+      <div class="scr">
+        <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${meta.color}"></span>${meta.label}</h1>
+        <p class="scr-sub">${when}${progId !== data.activeProgramme ? ` · Programme ${progMeta(progId).name}` : ''}</p>
+        <div class="tiles">
+          <div class="tile"><span class="tile__val num">${h.duration ? fmtDuration(h.duration) : '—'}</span><span class="tile__lbl">durée</span></div>
+          <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">volume</span></div>
+          <div class="tile"><span class="tile__val num">${nSets}</span><span class="tile__lbl">${nSets > 1 ? 'séries' : 'série'}</span></div>
+        </div>
+        <div class="group-title">Exercices</div>
+        <div class="group">
+          ${(h.exercises || []).map(e => `
+            <div class="cell hex">
+              <span class="cell__body">
+                <span class="hex__name">${esc(e.name)}</span>
+                <span class="hex__sets num">${setsLine(e.sets)}</span>
+              </span>
+            </div>`).join('')}
+        </div>
+        ${h.notes ? `<div class="group-title">Notes</div><div class="group group--pad"><p class="hnotes">${esc(h.notes)}</p></div>` : ''}
+        <div class="group group--gap">
+          <button class="cell cell--destructive" data-action="delete-session" data-id="${esc(h.id)}">Supprimer la séance</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Supprime une séance de la liste sans re-rendu complet, avec « Annuler » pendant 5 s
+function deleteSessionWithUndo(id) {
+  const list = data.history || [];
+  const idx  = list.findIndex(h => h.id === id);
+  if (idx < 0) return;
+  const [removed] = list.splice(idx, 1);
+  syncTimersFromHistory();
+  recomputePRFromHistory();
+  save();
+  const row = document.querySelector(`.hrow[data-id="${CSS.escape(id)}"]`);
+  if (row) {
+    const sec = row.closest('.hmonth');
+    row.remove();
+    if (sec && !sec.querySelector('.hrow')) sec.remove();
+  }
+  showToast('Séance supprimée', {
+    action: 'Annuler', duration: 5000,
+    onAction: () => {
+      data.history.splice(Math.min(idx, data.history.length), 0, removed);
+      syncTimersFromHistory();
+      recomputePRFromHistory();
+      save();
+      if (view === 'history') refreshHistoryList();
+    },
+  });
+}
+
+// Balayage vers la gauche sur une cellule de l'historique : révèle « Supprimer »
+let hSwipe = null;
+let suppressClick = false;
+const SWIPE_W = 88;
+function closeOpenRows(except) {
+  document.querySelectorAll('.hrow.is-open').forEach(r => { if (r !== except) { r.classList.remove('is-open'); r.querySelector('.hcell').style.transform = ''; } });
+}
+document.addEventListener('pointerdown', e => {
+  const cell = e.target.closest?.('.hcell');
+  if (!cell || view !== 'history') { if (!e.target.closest?.('.hrow__del')) closeOpenRows(); return; }
+  const row = cell.parentElement;
+  closeOpenRows(row);
+  hSwipe = { row, cell, x: e.clientX, y: e.clientY, base: row.classList.contains('is-open') ? -SWIPE_W : 0, axis: null, dx: 0, id: e.pointerId };
+});
+document.addEventListener('pointermove', e => {
+  if (!hSwipe || e.pointerId !== hSwipe.id) return;
+  const dx = e.clientX - hSwipe.x, dy = e.clientY - hSwipe.y;
+  if (!hSwipe.axis) {
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+    hSwipe.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    if (hSwipe.axis === 'x') { hSwipe.cell.classList.add('is-swiping'); hSwipe.row.classList.add('is-swipe'); try { hSwipe.cell.setPointerCapture(e.pointerId); } catch {} }
+  }
+  if (hSwipe.axis !== 'x') return;
+  hSwipe.dx = dx;
+  const t = Math.max(-SWIPE_W * 1.3, Math.min(0, hSwipe.base + dx));
+  hSwipe.cell.style.transform = `translateX(${t}px)`;
+});
+function endHSwipe(e) {
+  if (!hSwipe || e.pointerId !== hSwipe.id) return;
+  const s = hSwipe; hSwipe = null;
+  s.cell.classList.remove('is-swiping');
+  s.row.classList.remove('is-swipe');
+  if (s.axis !== 'x') return;
+  suppressClick = true;
+  setTimeout(() => { suppressClick = false; }, 50);
+  const open = s.base + s.dx < -SWIPE_W / 2;
+  s.row.classList.toggle('is-open', open);
+  s.cell.style.transform = open ? `translateX(${-SWIPE_W}px)` : '';
+}
+document.addEventListener('pointerup', endHSwipe);
+document.addEventListener('pointercancel', endHSwipe);
+// Le clic qui suit un balayage n'ouvre pas la séance ; une cellule ouverte se referme au tap
+document.addEventListener('click', e => {
+  const cell = e.target.closest?.('.hcell');
+  if (!cell) return;
+  if (suppressClick || cell.parentElement.classList.contains('is-open')) {
+    e.stopImmediatePropagation(); e.preventDefault();
+    if (!suppressClick) { cell.parentElement.classList.remove('is-open'); cell.style.transform = ''; }
+  }
+}, true);
+
+// Recherche dans l'historique : seule la liste est redessinée (le champ garde le focus)
+document.addEventListener('input', e => {
+  if (e.target.id === 'histSearch') { histQuery = e.target.value; histMonths = 3; refreshHistoryList(); }
+  if (e.target.id === 'exName' && exDraft) exDraft.name = e.target.value;
+});
 
 // ═══════════════════════════════════════════════════════════
 //  Event handling
@@ -3475,6 +3912,7 @@ async function handleAction(e, el, action) {
     // ── Navigation ─────────────────────────────────────────
     // Retour : la séance reste en cours, joignable par la mini-barre
     case 'back': {
+      exDraft = null; // brouillon de Programme › Exercice abandonné
       goBack(); break;
     }
     case 'resume-session': {
@@ -3527,20 +3965,36 @@ async function handleAction(e, el, action) {
     case 'stats-mode': {
       statsMode = el.dataset.mode; render(); break;
     }
-    case 'stats-view': {
-      statsView = el.dataset.view; render(); break;
+    case 'open-stats-ex': {
+      statsExId = el.dataset.ex; view = 'stats-ex'; render(); break; // ROUTE-LOT3
     }
-    case 'overview-year-prev': {
-      statsYear--; statsMonth = null; render(); break;
+    case 'go-stats-overview': {
+      ovMonth = null; view = 'stats-overview'; render(); break; // ROUTE-LOT3
     }
-    case 'overview-year-next': {
-      if (statsYear < new Date().getFullYear()) { statsYear++; statsMonth = null; render(); }
+    case 'ov-month': {
+      changeOvMonth(parseInt(el.dataset.d)); break;
+    }
+    case 'info-1rm': {
+      await dialog({ title: '1RM estimé', message: 'Charge maximale estimée pour une seule répétition, calculée avec la formule d\'Epley : poids × (1 + reps / 30). Elle n\'est fiable que jusqu\'à 12 reps : au-delà, la courbe reprend la charge max de la séance.',
+        actions: [{ label: 'OK', value: true, style: 'preferred' }] });
       break;
     }
-    case 'overview-month': {
-      const m = parseInt(el.dataset.month);
-      statsMonth = m === -1 ? null : m;
-      render(); break;
+    case 'open-history': {
+      historyId = el.dataset.id; view = 'history-detail'; render(); break; // ROUTE-LOT3
+    }
+    case 'hist-filter': {
+      histFilter = el.dataset.cat; histMonths = 3;
+      document.querySelectorAll('[data-action="hist-filter"]').forEach(b => {
+        const on = b.dataset.cat === histFilter;
+        b.classList.toggle('segmented__btn--active', on); b.setAttribute('aria-pressed', on);
+      });
+      refreshHistoryList(); break;
+    }
+    case 'hist-more': {
+      histMonths += 3; refreshHistoryList(); break;
+    }
+    case 'swipe-delete-session': {
+      deleteSessionWithUndo(el.dataset.id); break;
     }
     case 'go-add-session': {
       addProg       = data.activeProgramme;
@@ -3575,6 +4029,7 @@ async function handleAction(e, el, action) {
       data.history = (data.history || []).filter(h => h.id !== el.dataset.id);
       syncTimersFromHistory();
       recomputePRFromHistory();
+      if (view === 'history-detail') view = 'history';
       save(); render(); break;
     }
     case 'go-settings': {
@@ -3596,6 +4051,17 @@ async function handleAction(e, el, action) {
       const v = await askNumber({ title: 'Repos par défaut', message: 'Durée entre deux séries, en secondes.', value: data.defaultRest, unit: 's', min: 10, max: 600 });
       if (v !== null) { data.defaultRest = v; save(); render(); }
       break;
+    }
+    case 'wipe-data': {
+      if (!(await confirmSheet('Supprimer toutes les données ?', 'Séances, programmes et réglages seront effacés de cet appareil.', 'Tout supprimer'))) break;
+      const n = (data.history || []).length;
+      if (!(await dialog({ title: 'Es-tu sûr ?', message: `${n} séance${n > 1 ? 's' : ''} seront perdue${n > 1 ? 's' : ''} définitivement. Pense à exporter avant.`,
+        actions: [{ label: 'Annuler', value: false, style: 'cancel' }, { label: 'Supprimer', value: true, style: 'destructive' }] }))) break;
+      try { localStorage.setItem(BACKUP_KEY, JSON.stringify(data)); } catch {}
+      if (activeSession) endSession();
+      data = makeDefaultData();
+      editorCat = statsCat = addCat = firstSession();
+      save(); render(); showToast('Données supprimées'); break;
     }
     case 'force-update': {
       await checkForUpdate();
@@ -3717,16 +4183,19 @@ async function handleAction(e, el, action) {
       view = 'history'; render(); break;
     }
 
-    // ── Programme selector ─────────────────────────────────
+    // ── Onglet Programme ───────────────────────────────────
+    case 'go-prog-picker': {
+      view = 'prog-picker'; render(); break; // ROUTE-LOT3
+    }
+    case 'open-prog-session': {
+      editorCat = el.dataset.cat; editorEditing = false; view = 'editor'; render(); break; // ROUTE-LOT3
+    }
     case 'select-prog': {
       const id = el.dataset.id;
-      if (id === data.activeProgramme) {
-        // already active — just go back to dashboard (unless custom, stay to manage)
-        if (id !== 'custom') { view = 'dashboard'; render(); startTicker(); }
-        break;
-      }
+      if (id === data.activeProgramme) { view = 'programmes'; render(); break; }
+      if (!(await confirmSheet(`Passer à ${PROGRAMMES[id].name} ?`, 'Ton historique reste disponible.', 'Changer de programme', false))) break;
       data.activeProgramme = id;
-      // Initialise programme data if first time
+      // Données du programme créées à la première utilisation
       if (!data.programmes[id]) {
         data.programmes[id] = makeProgData(id);
         if (id === 'custom') {
@@ -3736,74 +4205,72 @@ async function handleAction(e, el, action) {
           });
         }
       }
-      // Reset per-view cats
       editorCat = firstSession();
       statsCat  = firstSession();
       addCat    = firstSession();
+      histFilter = 'all';
       syncTimersFromHistory();
       save();
+      view = 'programmes'; render();
       showToast(`Programme : ${progMeta().name}`);
-      if (id === 'custom') {
-        render(); // stay in programmes view
-      } else {
-        view = 'dashboard'; render(); startTicker();
-      }
       break;
     }
 
-    // ── Custom session modal ────────────────────────────────
+    // ── Séance Perso ────────────────────────────────────────
     case 'add-custom-session': {
-      csModal   = true;
-      csEditId  = null;
-      csColor   = '#3b82f6';
-      render(); break;
+      csEditId = null; csColor = '#FF9500'; csIcon = '🏋️';
+      csReturn = view; view = 'cs-edit'; render(); break; // ROUTE-LOT3
     }
     case 'edit-custom-session': {
       const id = el.dataset.id;
-      csModal  = true;
-      csEditId = id;
-      csColor  = (data.customSessions[id] || {}).color || '#3b82f6';
-      render();
-      setTimeout(() => { $('#csName')?.focus(); }, 50);
-      break;
+      const cs = data.customSessions[id] || {};
+      csEditId = id; csColor = cs.color || '#FF9500'; csIcon = cs.icon || '🏋️';
+      csReturn = view; view = 'cs-edit'; render(); break; // ROUTE-LOT3
     }
     case 'close-cs-modal': {
-      csModal = false; csEditId = null; render(); break;
+      csEditId = null; view = csReturn; render(); break;
     }
     case 'pick-cs-color': {
       csColor = el.dataset.color;
-      // Update swatches without full re-render
-      document.querySelectorAll('.color-swatch').forEach(s => {
-        s.classList.toggle('color-swatch--active', s.dataset.color === csColor);
+      document.querySelectorAll('.color-swatch2').forEach(b => {
+        const on = b.dataset.color === csColor;
+        b.classList.toggle('is-on', on); b.setAttribute('aria-checked', on);
+      });
+      break;
+    }
+    case 'pick-cs-icon': {
+      csIcon = el.dataset.icon;
+      document.querySelectorAll('.emoji-btn').forEach(b => {
+        const on = b.dataset.icon === csIcon;
+        b.classList.toggle('is-on', on); b.setAttribute('aria-checked', on);
       });
       break;
     }
     case 'save-cs-modal': {
       const name = $('#csName')?.value.trim();
-      const icon = $('#csIcon')?.value.trim() || '🏋️';
       const desc = $('#csDesc')?.value.trim() || '';
-      if (!name) { showToast('Entre un nom !'); return; }
+      if (!name) { flagInvalid($('#csName'), 'Entre un nom'); break; }
 
       const id = csEditId || uid();
       if (!data.customSessions) data.customSessions = {};
-      data.customSessions[id] = { label: name, icon, desc, color: csColor };
+      data.customSessions[id] = { label: name, icon: csIcon || '🏋️', desc, color: csColor };
 
-      // Ensure exercise/timer/cooldown slot exists
+      // Emplacements exercices / chrono / récupération
       if (!data.programmes.custom) data.programmes.custom = { exercises: {}, timers: {}, cooldowns: {} };
+      if (!data.programmes.custom.cooldowns) data.programmes.custom.cooldowns = {};
       if (!data.programmes.custom.exercises[id])  data.programmes.custom.exercises[id]  = [];
       if (!data.programmes.custom.timers[id])     data.programmes.custom.timers[id]     = null;
       if (data.programmes.custom.cooldowns[id] == null) data.programmes.custom.cooldowns[id] = 72;
 
       const wasEdit = csEditId !== null;
-      csModal = false; csEditId = null;
-      // Update nav state
+      csEditId = null;
       if (!editorCat || !sessionKeys().includes(editorCat)) editorCat = firstSession();
       if (!statsCat  || !sessionKeys().includes(statsCat))  statsCat  = firstSession();
       if (!addCat    || !sessionKeys().includes(addCat))    addCat    = firstSession();
 
       save();
-      showToast(wasEdit ? 'Séance modifiée !' : 'Séance créée !');
-      render(); break;
+      showToast(wasEdit ? 'Séance modifiée' : 'Séance créée');
+      view = csReturn; render(); break;
     }
     case 'delete-custom-session': {
       const id = csEditId;
@@ -3823,7 +4290,7 @@ async function handleAction(e, el, action) {
         }
         data.history = (data.history || []).filter(h => !(h.category === id && h.programme === 'custom'));
       }
-      csModal = false; csEditId = null;
+      csEditId = null; view = 'programmes';
       editorCat = firstSession();
       statsCat  = firstSession();
       addCat    = firstSession();
@@ -4135,52 +4602,80 @@ async function handleAction(e, el, action) {
     case 'editor-tab': {
       editorCat = el.dataset.cat; render(); break;
     }
-    case 'move-up': {
-      const i = parseInt(el.dataset.i), arr = prog().exercises[editorCat];
-      if (i > 0) { [arr[i-1], arr[i]] = [arr[i], arr[i-1]]; save(); render(); }
+    case 'toggle-edit-mode': {
+      editorEditing = !editorEditing; render(); break;
+    }
+    case 'ed-reveal': {
+      const row = el.closest('.ed-row');
+      const open = !row.classList.contains('is-del');
+      document.querySelectorAll('.ed-row.is-del').forEach(r => r.classList.remove('is-del'));
+      row.classList.toggle('is-del', open);
       break;
     }
-    case 'move-down': {
-      const i = parseInt(el.dataset.i), arr = prog().exercises[editorCat];
-      if (i < arr.length - 1) { [arr[i], arr[i+1]] = [arr[i+1], arr[i]]; save(); render(); }
+    case 'set-cooldown': {
+      prog().cooldowns[editorCat] = parseInt(el.dataset.h);
+      save();
+      document.querySelectorAll('[data-action="set-cooldown"]').forEach(b => {
+        const on = b === el;
+        b.classList.toggle('segmented__btn--active', on); b.setAttribute('aria-pressed', on);
+      });
       break;
-    }
-    case 'inc-sets': {
-      const i = parseInt(el.dataset.i), ex = prog().exercises[editorCat][i];
-      ex.sets = Math.min(10, ex.sets + 1); save(); render(); break;
-    }
-    case 'dec-sets': {
-      const i = parseInt(el.dataset.i), ex = prog().exercises[editorCat][i];
-      ex.sets = Math.max(1, ex.sets - 1); save(); render(); break;
     }
     case 'edit-ex': {
-      editExIdx = parseInt(el.dataset.i); modalOpen = true; render();
-      setTimeout(() => { const inp = $('#modalName'); if (inp) { inp.focus(); inp.select(); } }, 50);
+      editExIdx = parseInt(el.dataset.i);
+      const ex = (prog().exercises[editorCat] || [])[editExIdx];
+      if (!ex) break;
+      exDraft = { name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12 };
+      view = 'ex-edit'; render(); break; // ROUTE-LOT3
+    }
+    case 'add-ex': {
+      editExIdx = null;
+      exDraft = { name: '', sets: 3, rest: null, target: null, repMax: 12 };
+      view = 'ex-edit'; render(); // ROUTE-LOT3
+      setTimeout(() => $('#exName')?.focus(), 50);
+      break;
+    }
+    case 'ex-sets': {
+      if (!exDraft) break;
+      exDraft.sets = Math.max(1, Math.min(10, exDraft.sets + parseInt(el.dataset.d)));
+      $('#exSetsVal').textContent = exDraft.sets;
+      haptic(); break;
+    }
+    case 'ex-rest':
+    case 'ex-rest-step': {
+      if (!exDraft) break;
+      const v = action === 'ex-rest' ? parseInt(el.dataset.s)
+        : Math.max(10, Math.min(600, (exDraft.rest ?? data.defaultRest) + parseInt(el.dataset.d)));
+      exDraft.rest = v;
+      $('#exRestVal').textContent = fmtRest(v);
+      $('#exRestSub').textContent = 'Propre à cet exercice';
+      document.querySelectorAll('[data-action="ex-rest"]').forEach(b => {
+        const on = parseInt(b.dataset.s) === v;
+        b.classList.toggle('segmented__btn--active', on); b.setAttribute('aria-pressed', on);
+      });
       break;
     }
     case 'del-ex': {
       const i    = parseInt(el.dataset.i);
       const name = prog().exercises[editorCat][i].name;
       if (!(await confirmSheet(`Supprimer « ${name} » ?`, 'L\'historique de cet exercice est conservé.', 'Supprimer l\'exercice'))) break;
-      prog().exercises[editorCat].splice(i, 1); save(); render(); break;
-    }
-    case 'add-ex': {
-      editExIdx = null; modalOpen = true; render();
-      setTimeout(() => $('#modalName')?.focus(), 50);
-      break;
+      prog().exercises[editorCat].splice(i, 1);
+      save();
+      if (view === 'ex-edit') { view = 'editor'; exDraft = null; editExIdx = null; }
+      render(); break;
     }
     case 'save-ex': {
-      const name = $('#modalName')?.value.trim();
-      if (!name) { showToast('Entre un nom !'); return; }
-      const setsIn = $('#modalSets'), restIn = $('#modalRest'), targetIn = $('#modalTarget');
-      const sets = num(setsIn?.value, 1, 10, true);
-      if (sets === null) { flagInvalid(setsIn, 'Séries entre 1 et 10'); break; }
-      const restRaw = restIn?.value.trim() || '';
-      const rest    = restRaw ? num(restRaw, 10, 600, true) : null;
-      if (restRaw && rest === null) { flagInvalid(restIn, 'Repos entre 10 et 600 s'); break; }
+      const nameIn = $('#exName'), targetIn = $('#exTarget'), repIn = $('#exRepMax');
+      const name = nameIn?.value.trim();
+      if (!name) { flagInvalid(nameIn, 'Entre un nom'); break; }
+      const sets = exDraft?.sets ?? 3;
+      const rest = exDraft?.rest ?? null;
       const targetRaw = targetIn?.value.trim() || '';
       if (targetRaw && (!weightOk(targetRaw) || !(parseFloat(storeW(targetRaw)) > 0))) { flagInvalid(targetIn, weightMsg()); break; }
       const target = targetRaw ? parseFloat(storeW(targetRaw)) : null;
+      const repRaw = repIn?.value.trim() || '';
+      const repMax = repRaw ? num(repRaw, 1, 100, true) : 12;
+      if (repMax === null) { flagInvalid(repIn, 'Reps entre 1 et 100'); break; }
       const list = prog().exercises[editorCat] || (prog().exercises[editorCat] = []);
       if (editExIdx !== null) {
         const ex = list[editExIdx];
@@ -4201,6 +4696,7 @@ async function handleAction(e, el, action) {
         ex.sets   = sets;
         ex.target = target;
         ex.rest   = rest;
+        ex.repMax = repMax;
       } else {
         const ex = makeExercise(name, sets);
         // Un exercice déjà présent dans l'historique (supprimé puis recréé) retrouve son identifiant
@@ -4208,13 +4704,12 @@ async function handleAction(e, el, action) {
         if (!list.some(e => e.id === known)) ex.id = known;
         ex.target = target;
         ex.rest   = rest;
+        ex.repMax = repMax;
         list.push(ex);
         recomputePRFromHistory();
       }
-      modalOpen = false; editExIdx = null; save(); render(); break;
-    }
-    case 'close-modal': {
-      modalOpen = false; editExIdx = null; render(); break;
+      exDraft = null; editExIdx = null; save();
+      view = 'editor'; render(); break;
     }
 
     // ── Data ────────────────────────────────────────────────
@@ -4294,11 +4789,14 @@ async function exportData() {
   const json  = JSON.stringify(payload, null, 2);
   const fname = `muscu-backup-${localISO()}.json`;
   const file  = typeof File === 'function' ? new File([json], fname, { type: 'application/json' }) : null;
+  // Date de la dernière sauvegarde, affichée dans Réglages › Données
+  const done = () => { data.lastExport = Date.now(); save(true); const t = $('#lastExportTxt'); if (t) { t.textContent = 'Dernière sauvegarde : aujourd\'hui'; t.classList.remove('txt-warn'); } };
   if (file && navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: 'Sauvegarde MDLF Training' }); return; }
+    try { await navigator.share({ files: [file], title: 'Sauvegarde MDLF Training' }); done(); return; }
     catch (err) { if (err?.name === 'AbortError') return; }
   }
   downloadText(json, fname);
+  done();
 }
 
 function downloadText(text, fname) {

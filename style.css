@@ -294,12 +294,14 @@ button.list-inset__row:active { background: var(--cell3); }
 /* Pastille de catégorie (initiale blanche sur la couleur de la séance) */
 .cat-badge {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
-  width: 28px; height: 28px; border-radius: 50%;
+  width: var(--badge, 28px); height: var(--badge, 28px); border-radius: 50%;
   background: var(--cat-color); color: var(--white);
   font-size: var(--fs-footnote); font-weight: 700; line-height: 1;
   vertical-align: middle;
 }
-.cat-badge--emoji { background: none; font-size: var(--fs-title3); width: 28px; height: 28px; overflow: hidden; }
+.cat-badge--emoji { background: none; font-size: var(--fs-title3); width: var(--badge, 28px); height: var(--badge, 28px); overflow: hidden; }
+.cat-badge[style*="--badge"] { font-size: calc(var(--badge) * .46); }
+.cat-badge--emoji[style*="--badge"] { font-size: calc(var(--badge) * .7); }
 .cat-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--cat-color); flex-shrink: 0; }
 
 /* ═══════════════════════════════════════════════
