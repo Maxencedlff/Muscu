@@ -5,7 +5,6 @@
 
 let csEditId    = null;   // séance modifiée, null pour une nouvelle séance
 let csColor     = '#3b82f6';
-let csReturn    = 'programmes';
 let csProg      = 'custom';   // programme modifiable visé par l'écran Séance perso
 let csIcon      = '🏋️';
 const CS_ICONS  = ['🏋️','💪','🦾','🦵','🔥','⚡','🏃','🧘','🥊','🚴','🤸','🎯'];
@@ -55,17 +54,17 @@ registerActions({
   'add-custom-session': () => {
     csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom';
     csEditId = null; csColor = '#FF9500'; csIcon = '🏋️';
-    csReturn = view; view = 'cs-edit'; render();
+    navigate('cs-edit');
   },
   'edit-custom-session': (e, el) => {
     const id = el.dataset.id;
     csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom';
     const cs = userSessions(csProg)?.[id] || {};
     csEditId = id; csColor = cs.color || '#FF9500'; csIcon = cs.icon || '🏋️';
-    csReturn = view; view = 'cs-edit'; render();
+    navigate('cs-edit');
   },
   'close-cs-modal': () => {
-    csEditId = null; view = csReturn; render();
+    csEditId = null; goBack();
   },
   'pick-cs-color': (e, el) => {
     csColor = el.dataset.color;
@@ -102,12 +101,11 @@ registerActions({
 
     const wasEdit = csEditId !== null;
     csEditId = null;
-    if (!editorCat || !sessionKeys().includes(editorCat)) editorCat = firstSession();
-    if (!addCat    || !sessionKeys().includes(addCat))    addCat    = firstSession();
+    if (!addCat || !sessionKeys().includes(addCat)) addCat = firstSession();
 
     save();
     showToast(wasEdit ? 'Séance modifiée' : 'Séance créée');
-    view = csReturn; render();
+    goBack();
   },
   'delete-custom-session': async (e, el) => {
     // Depuis l'écran de la séance (data-id) ou depuis « Nom, icône et couleur » (csEditId)
@@ -131,9 +129,9 @@ registerActions({
       }
       data.history = (data.history || []).filter(h => !(h.category === id && h.programme === pid));
     }
-    csEditId = null; view = 'programmes';
-    editorCat = firstSession();
-    addCat    = firstSession();
-    save(); render();
+    csEditId = null;
+    addCat   = firstSession();
+    save();
+    routeTo('programmes');
   },
 });

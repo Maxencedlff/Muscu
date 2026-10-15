@@ -35,7 +35,7 @@ let themePending = false;
 darkMQ.addEventListener?.('change', () => {
   if (themePref() !== 'auto') return;
   if (activeSession) { themePending = true; return; }
-  applyTheme('auto'); if (view === 'stats') render();
+  applyTheme('auto'); if (currentView() === 'stats') render();
 });
 function applyPendingTheme() { if (themePending) { themePending = false; applyTheme(themePref()); } }
 

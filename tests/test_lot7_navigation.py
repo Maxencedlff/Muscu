@@ -89,7 +89,8 @@ def t_back_dialogs(bench, eng, dev, theme):
         R.check(route(page) == '#history' and page.evaluate('data.history.length') == n0 - 1, f'{t} suppression → liste ({route(page)})')
         # En séance : menu ⋯ puis retour → menu fermé, séance toujours affichée
         page.click('.tabbar [data-tab="train"]'); settle(page)
-        page.click('[data-action="start-session"][data-cat="push"]'); settle(page)
+        # La séance supprimée fixait le délai de Legs : il a reculé, Legs passe en « Prochaine séance »
+        page.click('[data-action="start-session"][data-cat="legs"]'); settle(page)
         page.locator('[data-action="ex-menu"]').first.click(); page.wait_for_timeout(350)
         R.check(page.locator('.ios-dialog').count() == 1, f'{t} menu ⋯ ouvert')
         page.go_back(); settle(page)

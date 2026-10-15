@@ -11,9 +11,6 @@ let addProg       = 'ppl'; // programme de la séance passée (celui de la séan
 let addPrev       = {};  // valeurs de la dernière séance, affichées en placeholder
 let editSessionId = null;
 let addNotes      = '';
-let addExModal    = false;
-let addExName     = '';
-let addExSets     = 3;
 
 const ADD_DRAFT_KEY = 'ppl_add_draft';
 let addSnapshot = null;
@@ -22,9 +19,19 @@ function addState() {
 }
 function addDirty() { return addSnapshot !== null && addState() !== addSnapshot; }
 
+// Crochets de l'écran (routeur) : ouvert par la navigation, on mémorise l'état de départ
+// pour savoir s'il a été modifié ; quitté, le brouillon n'a plus lieu d'être
+function addSessionEnter(dir) {
+  if (dir === 'push' || dir === 'up') addSnapshot = addState();
+}
+function addSessionLeave() {
+  addSnapshot = null;
+  try { sessionStorage.removeItem(ADD_DRAFT_KEY); } catch {}
+}
+
 // Les saisies sont gardées dans sessionStorage tant que l'écran est ouvert
 document.addEventListener('input', () => {
-  if (view !== 'add-session') return;
+  if (currentView() !== 'add-session') return;
   try { sessionStorage.setItem(ADD_DRAFT_KEY, addState()); } catch {}
 });
 
@@ -69,12 +76,12 @@ function addSetRow(key, si, s, prev) {
         <span class="set-num">S${si + 1}</span>
         <div class="input-group">
           <input type="text" inputmode="decimal" autocomplete="off" class="set-input" placeholder="${prev?.weight ? fmtW(prev.weight, { plain: true }) : '—'}" aria-label="Charge série ${si + 1}"
-                 value="${fmtW(s.weight, { plain: true })}" data-action="add-weight" data-exid="${key}" data-si="${si}">
+                 value="${fmtW(s.weight, { plain: true })}" data-action="add-weight" data-exid="${esc(key)}" data-si="${si}">
           <span class="input-unit">${unitLbl()}</span>
         </div>
         <div class="input-group">
           <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="set-input set-input--required" placeholder="${prev ? esc(prev.reps) : '0'}" aria-label="Répétitions série ${si + 1}"
-                 value="${esc(s.reps)}" data-action="add-reps" data-exid="${key}" data-si="${si}">
+                 value="${esc(s.reps)}" data-action="add-reps" data-exid="${esc(key)}" data-si="${si}">
           <span class="input-unit">reps</span>
         </div>
       </div>`;
@@ -88,10 +95,10 @@ function addExerciseBlock(key, name, prev, removable) {
         <div class="exercise-header">
           <span class="exercise-name">${esc(name)}</span>
           <div style="display:flex;gap:6px">
-            <button class="sets-adj" data-action="add-set-row" data-exid="${key}">+</button>
-            <button class="sets-adj" data-action="rem-set-row" data-exid="${key}"
+            <button class="sets-adj" data-action="add-set-row" data-exid="${esc(key)}">+</button>
+            <button class="sets-adj" data-action="rem-set-row" data-exid="${esc(key)}"
                     ${sets.length <= 1 ? 'disabled' : ''} style="opacity:${sets.length <= 1 ? .3 : 1}">−</button>
-            ${removable ? `<button class="sets-adj" data-action="rem-extra-ex" data-exid="${key}" title="Retirer" aria-label="Retirer l'exercice">${icon('xmark', 16)}</button>` : ''}
+            ${removable ? `<button class="sets-adj" data-action="rem-extra-ex" data-exid="${esc(key)}" title="Retirer" aria-label="Retirer l'exercice">${icon('xmark', 16)}</button>` : ''}
           </div>
         </div>
         ${sets.map((s, si) => addSetRow(key, si, s, prev[si])).join('')}
@@ -107,7 +114,7 @@ function renderAddSession() {
     const isActive = addCat === c;
     return `
       <button class="cat-sel-btn ${isActive ? 'cat-sel-btn--active' : ''}"
-              data-action="add-cat" data-cat="${c}"
+              data-action="add-cat" data-cat="${esc(c)}"
               style="${isActive ? `border-color:${meta.color};color:${meta.color};background:color-mix(in srgb, ${meta.color} 10%, transparent)` : ''}">
         ${meta.icon} ${meta.label}
       </button>`;
@@ -130,47 +137,13 @@ function renderAddSession() {
         ${hasPrev ? `<button class="btn btn--secondary btn--full add-copy-prev" data-action="add-copy-prev">Reprendre la dernière séance</button>` : ''}
         ${exercises.map(ex => addExerciseBlock(ex.id, ex.name, addPrev[ex.id] || [], false)).join('')}
         ${addExtras.map(({ key, name }) => addExerciseBlock(key, name, [], true)).join('')}
-        <button class="session-add-ex-btn" data-action="add-session-ex">
+        <button class="session-add-ex-btn" data-action="add-past-ex">
           + Ajouter un exercice
         </button>
         <div class="session-notes-block">
           <div class="session-notes-label">Notes</div>
           <textarea class="session-notes-input" data-action="add-notes-input"
                     placeholder="Comment s'est passée la séance ? (optionnel)">${esc(addNotes)}</textarea>
-        </div>
-      </div>
-    </div>
-    ${addExModal ? renderAddExModal() : ''}`;
-}
-
-// Fenêtre « Ajouter un exercice » de la séance passée
-function knownExerciseNames() {
-  const names = new Set();
-  Object.values(prog().exercises).forEach(list => list.forEach(ex => names.add(ex.name)));
-  (data.history || []).forEach(h => (h.exercises || []).forEach(ex => names.add(ex.name)));
-  return [...names].sort((a, b) => a.localeCompare(b));
-}
-
-function renderAddExModal() {
-  return `
-    <div class="modal-overlay" data-action="add-ex-overlay">
-      <div class="modal" style="max-width:320px;">
-        <div class="modal__title">Ajouter un exercice</div>
-        <label class="form-label">Nom de l'exercice</label>
-        <input type="text" id="addExNameInput" class="form-input" list="knownExList"
-               value="${esc(addExName)}" placeholder="Ex : Curl concentré" autocomplete="off">
-        <datalist id="knownExList">
-          ${knownExerciseNames().map(n => `<option value="${esc(n)}">`).join('')}
-        </datalist>
-        <label class="form-label" style="margin-top:14px">Nombre de séries</label>
-        <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
-          <button class="sets-adj" data-action="add-ex-dec-sets">−</button>
-          <span style="font-size:20px;font-weight:700;min-width:28px;text-align:center">${addExSets}</span>
-          <button class="sets-adj" data-action="add-ex-inc-sets">+</button>
-        </div>
-        <div class="modal__actions" style="margin-top:20px">
-          <button class="btn btn--secondary" data-action="close-add-ex-modal">Annuler</button>
-          <button class="btn btn--primary"   data-action="save-add-ex-modal">Ajouter</button>
         </div>
       </div>
     </div>`;
@@ -237,12 +210,18 @@ function storePastSession(exercises) {
   if (savedDate > (timers[addCat] || 0)) timers[addCat] = savedDate;
 }
 
-// Fenêtre d'ajout : le nom tapé est gardé avant de redessiner, le champ reprend le focus
-function stepAddExSets(delta) {
-  const inp = document.getElementById('addExNameInput');
-  if (inp) addExName = inp.value;
-  addExSets = Math.min(10, Math.max(1, addExSets + delta)); render();
-  setTimeout(() => document.getElementById('addExNameInput')?.focus(), 80);
+// Exercice choisi dans la feuille d'ajout : il rejoint les ajouts de la séance passée
+function addPastExercise(name, sets) {
+  const key = 'x_' + uid();
+  addExtras.push({ key, name, exId: null });
+  addSets[key] = Array.from({ length: sets }, () => ({ weight: '', reps: '' }));
+  closeSessSheets();
+  haptic();
+  render();
+  setTimeout(() => {
+    const blocks = document.querySelectorAll('.exercise-block');
+    blocks[blocks.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
 }
 
 // ── Actions ─────────────────────────────────────────────────
@@ -273,7 +252,7 @@ registerActions({
       addSets[key] = sets.length ? sets : [{ weight: '', reps: '' }];
     });
     addNotes = session.notes || '';
-    view = 'add-session'; render();
+    navigate('add-session');
   },
   'cancel-add-session': async () => {
     if (addDirty()) {
@@ -333,29 +312,11 @@ registerActions({
     recomputePRFromHistory();
     save();
     showToast(wasEdit ? 'Séance modifiée' : 'Séance ajoutée');
-    view = 'history'; render();
+    routeTo('history');
   },
-  'add-ex-overlay': (e, el) => {
-    if (e.target !== el) return; // clic dans la modale, pas sur le fond
-    addExModal = false; render();
-  },
-  'close-add-ex-modal': () => {
-    addExModal = false; render();
-  },
-  'add-ex-dec-sets': () => { stepAddExSets(-1); },
-  'add-ex-inc-sets': () => { stepAddExSets(1); },
-  // La fenêtre n'existe que sur l'écran Séance passée (la séance en cours a sa feuille d'ajout)
-  'save-add-ex-modal': () => {
-    const inp = document.getElementById('addExNameInput');
-    const name = (inp?.value || addExName).trim();
-    if (!name) { showToast('Entre un nom pour l\'exercice'); return; }
-    const key = 'x_' + uid();
-    addExtras.push({ key, name, exId: null });
-    addSets[key] = Array.from({ length: addExSets }, () => ({ weight: '', reps: '' }));
-    addExModal = false; addExName = ''; render();
-    setTimeout(() => {
-      const blocks = document.querySelectorAll('.exercise-block');
-      blocks[blocks.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+  // Même feuille de recherche que la séance en cours ; les exercices déjà saisis n'y figurent pas
+  'add-past-ex': () => {
+    const names = [...(addProgData().exercises[addCat] || []).map(ex => ex.name), ...addExtras.map(x => x.name)];
+    openAddExSheet({ target: 'past', exclude: names, onPick: addPastExercise });
   },
 });

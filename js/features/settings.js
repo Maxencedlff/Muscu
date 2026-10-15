@@ -88,6 +88,36 @@ function fillAppVersion() {
   }).catch(() => {});
 }
 
+function refreshLastExport() {
+  const t = $('#lastExportTxt');
+  if (t) { t.textContent = 'Dernière sauvegarde : aujourd\'hui'; t.classList.remove('txt-warn'); }
+}
+
+// Sélections des écrans rattachées à la donnée remplacée : reprises sur le programme actif
+function resetSelections() {
+  addCat = firstSession();
+}
+
+// Fichier choisi dans « Importer une sauvegarde » : résultat affiché, « Annuler » pendant 6 s
+function importFile(text) {
+  const r = importText(text);
+  if (!r.ok) {
+    if (r.reason === 'invalid') showToast('Fichier invalide : rien n\'a été modifié', { error: true });
+    return;
+  }
+  if (r.theme) applyTheme(r.theme);
+  resetSelections();
+  render();
+  showToast(`Import réussi : ${r.count} séance${r.count > 1 ? 's' : ''}${r.skipped ? ` (${r.skipped} ignorée${r.skipped > 1 ? 's' : ''})` : ''}`, {
+    action: 'Annuler', duration: 6000,
+    onAction: () => {
+      undoImport(r.previous);
+      resetSelections();
+      render(); showToast('Import annulé');
+    },
+  });
+}
+
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
   'go-settings': () => {
@@ -117,14 +147,14 @@ registerActions({
     try { localStorage.setItem(BACKUP_KEY, JSON.stringify(data)); } catch {}
     if (activeSession) endSession();
     data = makeDefaultData();
-    editorCat = addCat = firstSession();
+    resetSelections();
     save(); render(); showToast('Données supprimées');
   },
   'force-update': async () => {
     await checkForUpdate();
   },
   'export': async () => {
-    await exportData();
+    if (await exportData(themePref())) refreshLastExport();
   },
   'import': async () => {
     if (!(await confirmSheet('Importer une sauvegarde ?', 'Les données actuelles seront remplacées par celles du fichier.', 'Choisir un fichier', false))) return;
@@ -133,7 +163,7 @@ registerActions({
     inp.onchange = ev => {
       const file = ev.target.files[0]; if (!file) return;
       const reader = new FileReader();
-      reader.onload = re => importText(String(re.target.result));
+      reader.onload = re => importFile(String(re.target.result));
       reader.readAsText(file);
     };
     inp.click();

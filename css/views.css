@@ -1,4 +1,4 @@
-/* Séance passée (saisie, fenêtre d'ajout), état vide, ajout d'exercice et notes, toast */
+/* Séance passée (saisie), état vide, ajout d'exercice et notes, toast */
 
 /* ═══════════════════════════════════════════════
    Boutons + / − carrés (séance passée)
@@ -12,32 +12,6 @@
 }
 .sets-adj::after { content: ''; position: absolute; inset: -6px; }
 .sets-adj:active { opacity: .5; }
-
-/* ═══════════════════════════════════════════════
-   Fenêtre « Ajouter un exercice » (séance passée)
-═══════════════════════════════════════════════ */
-.modal-overlay {
-  position: fixed; inset: 0; background: var(--dimmer);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 200; padding: var(--sp-5);
-}
-.modal {
-  background: var(--cell); border-radius: var(--r-lg);
-  padding: var(--sp-6) var(--sp-5) var(--sp-5); width: 100%; max-width: 360px;
-}
-.modal__title  { font-size: var(--fs-body); font-weight: 600; margin-bottom: var(--sp-3); text-align: center; }
-.form-label    { font-size: var(--fs-footnote); color: var(--label2); margin-bottom: 6px; display: block; margin-top: var(--sp-4); }
-.form-input {
-  width: 100%; background: var(--fill2); border: 1px solid transparent;
-  border-radius: var(--r-sm); color: var(--label); font-size: var(--fs-input);
-  padding: 11px 14px; font-family: inherit; -moz-appearance: textfield;
-}
-.form-input::-webkit-outer-spin-button,
-.form-input::-webkit-inner-spin-button { -webkit-appearance: none; }
-.form-input::placeholder { color: var(--label3); }
-.form-input:focus { outline: none; border-color: var(--tint); }
-.modal__actions { display: flex; gap: var(--sp-3); margin-top: var(--sp-6); }
-.modal__actions .btn { flex: 1; }
 
 /* ═══════════════════════════════════════════════
    Ajout d'une séance passée

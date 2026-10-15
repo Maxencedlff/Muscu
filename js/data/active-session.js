@@ -8,20 +8,14 @@ let sessionNotes  = '';
 
 const SESSION_KEY = 'ppl_active_session';
 
-let persistWarned = false; // un seul avertissement « stockage plein » par séance
-function persistSession() {
+// Écrit la séance en cours (ou l'efface s'il n'y en a pas). rest : état du repos à reprendre
+// ({ endTime, minimized, total }) ou null. Renvoie false si le stockage est plein.
+function writeSession(rest = null) {
   try {
-    if (!activeSession) { localStorage.removeItem(SESSION_KEY); return; }
-    localStorage.setItem(SESSION_KEY, JSON.stringify({
-      activeSession, sessionNotes,
-      rest: restActive ? { endTime: restEndTime, minimized: restMinimized, total: restTotal } : null,
-    }));
-  } catch {
-    if (activeSession && !persistWarned) {
-      persistWarned = true;
-      showToast('Stockage plein : la séance n\'est plus sauvegardée', { error: true });
-    }
-  }
+    if (!activeSession) { localStorage.removeItem(SESSION_KEY); return true; }
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ activeSession, sessionNotes, rest }));
+    return true;
+  } catch { return false; }
 }
 
 // Records de chaque exercice au démarrage de la séance : les badges s'y comparent
@@ -40,12 +34,13 @@ function computeBaseline(sess) {
   return baseline;
 }
 
+// Reprend la séance enregistrée : null s'il n'y en a pas, sinon { rest } (repos à relancer, ou null)
 function restoreSession() {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return false;
+    if (!raw) return null;
     const saved = JSON.parse(raw);
-    if (!Array.isArray(saved?.activeSession?.exercises)) return false;
+    if (!Array.isArray(saved?.activeSession?.exercises)) return null;
     activeSession = saved.activeSession;
     sessionNotes  = saved.sessionNotes || '';
     // Séance commencée avec une version précédente : on complète ce qui manque
@@ -61,17 +56,8 @@ function restoreSession() {
       }
     });
     if (!activeSession.baseline) activeSession.baseline = computeBaseline(activeSession);
-    const endTime = saved.rest ? Number(saved.rest.endTime) : 0;
-    if (endTime > Date.now()) {
-      restActive    = true;
-      restMinimized = !!saved.rest.minimized;
-      restEndTime   = endTime;
-      restTimeLeft  = Math.ceil((endTime - Date.now()) / 1000);
-      restTotal     = Number(saved.rest.total) || Math.max(restTimeLeft, data.defaultRest);
-      resumeRestCountdown();
-    }
-    return true;
-  } catch { activeSession = null; return false; }
+    return { rest: saved.rest || null };
+  } catch { activeSession = null; return null; }
 }
 
 // Programme auquel appartient la séance en cours (peut différer du programme affiché)

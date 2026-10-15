@@ -21,9 +21,12 @@ function fmtWait(ms) {
   return `${m} min`;
 }
 
-// État de récupération d'une séance du programme affiché
+// État de récupération d'une séance du programme affiché. Un délai passé à la main (skipped)
+// compte comme une séance jamais faite, jusqu'à la séance suivante.
 function catStatus(cat) {
-  const last = prog().timers[cat];
+  const p = prog();
+  const t = p.timers[cat] || null;
+  const last = t && !(p.skipped?.[cat] >= t) ? t : null;
   const cd = getCooldown(cat) * 3600_000;
   const remaining = last ? last + cd - Date.now() : 0;
   return { last, remaining, ready: remaining <= 0, progress: last ? Math.min(1, 1 - remaining / cd) : 1 };
@@ -43,7 +46,7 @@ function recoveryRing(p) {
 function nextSessionCat(keys) {
   if (!keys.length) return null;
   const ready = keys.filter(k => catStatus(k).ready);
-  if (ready.length) return ready.sort((a, b) => (prog().timers[a] || 0) - (prog().timers[b] || 0))[0];
+  if (ready.length) return ready.sort((a, b) => (catStatus(a).last || 0) - (catStatus(b).last || 0))[0];
   return keys.slice().sort((a, b) => catStatus(a).remaining - catStatus(b).remaining)[0];
 }
 
@@ -83,8 +86,8 @@ function renderDashboard() {
         : `<div class="hero__info">Jamais faite</div>`;
       if (!st.ready) info += `<div class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</div>`;
       btn = st.ready
-        ? `<button class="hero__btn" data-action="start-session" data-cat="${next}">Démarrer ${meta.label}</button>`
-        : `<button class="hero__btn hero__btn--gray" data-action="start-session" data-cat="${next}">Démarrer quand même</button>`;
+        ? `<button class="hero__btn" data-action="start-session" data-cat="${esc(next)}">Démarrer ${meta.label}</button>`
+        : `<button class="hero__btn hero__btn--gray" data-action="start-session" data-cat="${esc(next)}">Démarrer quand même</button>`;
     }
     hero = `
       <section class="hero" aria-label="Prochaine séance" style="--cat-color:${meta.color}">
@@ -96,17 +99,17 @@ function renderDashboard() {
         ${meta.desc ? `<div class="hero__desc">${meta.desc}</div>` : ''}
         ${info}
         ${btn}
-        <button class="hero__link" data-action="go-editor" data-cat="${next}">Modifier les exercices</button>
+        <button class="hero__link" data-action="go-editor" data-cat="${esc(next)}">Modifier les exercices</button>
       </section>`;
   }
 
   const others = keys.filter(k => k !== next).map(cat => {
     const meta = sessionMeta(cat);
     return `
-      <button class="home-cell" data-action="session-actions" data-cat="${cat}" id="cell-${cat}">
+      <button class="home-cell" data-action="session-actions" data-cat="${esc(cat)}">
         ${catDot(cat)}
         <span class="home-cell__name">${meta.label}</span>
-        <span class="home-cell__right" id="status-${cat}">${cellStatusHtml(cat)}</span>
+        <span class="home-cell__right" data-status-cat="${esc(cat)}">${cellStatusHtml(cat)}</span>
       </button>`;
   }).join('');
 
@@ -153,7 +156,8 @@ async function sessionActions(cat) {
   ] });
   if (choice === 'start') return startSessionFlow(cat);
   if (choice === 'skip') {
-    prog().timers[cat] = null;
+    const p = prog();
+    (p.skipped ||= {})[cat] = Date.now();
     save(); render();
     showToast(`${rawLabel(cat)} est disponible`);
     return;
@@ -179,7 +183,7 @@ function startTicker() {
       const lr = $('#livebar-rest');
       if (lr) { lr.hidden = !restActive; if (restActive) lr.textContent = fmtRest(restTimeLeft); }
     }
-    if (view !== 'dashboard') return;
+    if (currentView() !== 'dashboard') return;
     const minute = Math.floor(Date.now() / 60000);
     if (minute === tickerMinute) return;
     const first = tickerMinute === -1;
@@ -187,9 +191,10 @@ function startTicker() {
     if (first) return;
     // Une séance devient prête : on redessine l'accueil (la carte « Prochaine séance » peut changer)
     const keys = sessionKeys();
-    if (keys.some(k => { const s = $(`#status-${k}`); return s && catStatus(k).ready && !s.querySelector('.home-cell__status--ready'); })
+    const statusEl = k => $(`[data-status-cat="${CSS.escape(k)}"]`);
+    if (keys.some(k => { const s = statusEl(k); return s && catStatus(k).ready && !s.querySelector('.home-cell__status--ready'); })
         || ($('#hero-wait') && catStatus(nextSessionCat(keys)).ready)) { render(); return; }
-    keys.forEach(k => { const s = $(`#status-${k}`); if (s) s.innerHTML = cellStatusHtml(k); });
+    keys.forEach(k => { const s = statusEl(k); if (s) s.innerHTML = cellStatusHtml(k); });
     const hw = $('#hero-wait');
     if (hw) hw.textContent = `Prochaine séance prête dans ${fmtWait(catStatus(nextSessionCat(keys)).remaining)}`;
   };

@@ -106,6 +106,9 @@ function makeDefaultData() {
 const BACKUP_KEY = 'ppl_v2_backup';
 const SCHEMA     = 3;
 
+// Clés des séances perso : celles que crée l'app (uid, push, legs…) passent toutes
+const SESSION_CAT_RE = /^[A-Za-z0-9_-]{1,40}$/;
+
 // Nettoie une donnée venue du stockage ou d'un import : retire ce qui ferait planter l'app,
 // sans toucher aux champs valides (idempotent).
 function sanitizeData(d) {
@@ -127,11 +130,22 @@ function sanitizeData(d) {
       });
     });
     Object.keys(p.timers).forEach(cat => { if (p.timers[cat] != null && !Number.isFinite(p.timers[cat])) p.timers[cat] = null; });
+    // Délai passé à la main : n'a de sens que tant qu'aucune séance plus récente n'a été faite
+    if (p.skipped !== undefined) {
+      if (isObj(p.skipped)) {
+        Object.keys(p.skipped).forEach(cat => {
+          const t = p.skipped[cat];
+          if (!Number.isFinite(t) || t < (p.timers[cat] || 0)) delete p.skipped[cat];
+        });
+      }
+      if (!isObj(p.skipped) || !Object.keys(p.skipped).length) delete p.skipped;
+    }
   });
+  // Clé de séance : écrite telle quelle dans les attributs et les sélecteurs, d'où un alphabet restreint
   const cleanSessions = sessions => {
     Object.keys(sessions).forEach(k => {
       const cs = sessions[k];
-      if (!isObj(cs)) { delete sessions[k]; return; }
+      if (!isObj(cs) || !SESSION_CAT_RE.test(k)) { delete sessions[k]; return; }
       if (typeof cs.label !== 'string' || !cs.label.trim()) cs.label = 'Séance';
       if (typeof cs.icon !== 'string') cs.icon = '🏋️';
       if (typeof cs.desc !== 'string') cs.desc = '';
@@ -245,18 +259,29 @@ function save(quiet = false) {
   }
 }
 
-// Dernière séance de chaque catégorie du programme actif : recale les délais de récupération
+// Date de la dernière séance d'une catégorie d'un programme, null s'il n'y en a aucune
+function latestSessionDate(progKey, cat, d = data) {
+  return (d.history || [])
+    .filter(h => h.category === cat && (h.programme || 'ppl') === progKey)
+    .reduce((best, h) => (best === null || h.date > best ? h.date : best), null);
+}
+
+// Délais de récupération du programme actif : avancés jusqu'à la dernière séance de l'historique.
+// Une séance plus ancienne ne recule jamais un délai ; « Passer le délai » est gardé à part (skipped).
 function syncTimersFromHistory() {
-  const history = data.history || [];
+  const p = prog();
   sessionKeys().forEach(cat => {
-    const latest = history
-      .filter(h => h.category === cat && (h.programme === data.activeProgramme || (!h.programme && data.activeProgramme === 'ppl')))
-      .reduce((best, h) => h.date > (best?.date || 0) ? h : best, null);
-    if (latest && latest.date > (prog().timers[cat] || 0)) {
-      prog().timers[cat] = latest.date;
-    }
+    const latest = latestSessionDate(data.activeProgramme, cat);
+    if (latest !== null && latest > (p.timers[cat] || 0)) p.timers[cat] = latest;
   });
   save();
+}
+
+// Séance retirée de l'historique : si c'est elle qui fixait le délai, il recule à la précédente
+function releaseTimer(entry) {
+  const p = data.programmes[entry.programme || 'ppl'];
+  if (!p?.timers || p.timers[entry.category] !== entry.date) return;
+  p.timers[entry.category] = latestSessionDate(entry.programme || 'ppl', entry.category);
 }
 
 // Donnée illisible : l'app démarre sur une donnée vide sans rien écrire, puis affiche l'écran de secours

@@ -4,7 +4,6 @@
 'use strict';
 
 let statsMode = 'volume';   // 'volume' | 'charge' | '1rm'
-let statsExId = null;
 let ovMonth   = null; // { y, m } du calendrier de la vue d'ensemble
 
 // Mesures d'un exercice dans une séance
@@ -182,10 +181,10 @@ registerActions({
     statsMode = el.dataset.mode; render();
   },
   'open-stats-ex': (e, el) => {
-    statsExId = el.dataset.ex; view = 'stats-ex'; render();
+    navigate(makeRoute('stats-ex', el.dataset.ex));
   },
   'go-stats-overview': () => {
-    ovMonth = null; view = 'stats-overview'; render();
+    ovMonth = null; navigate('stats-overview');
   },
   'info-1rm': async () => {
     await dialog({ title: '1RM estimé', message: 'Charge maximale estimée pour une seule répétition, calculée avec la formule d\'Epley : poids × (1 + reps / 30). Elle n\'est fiable que jusqu\'à 12 reps : au-delà, la courbe reprend la charge max de la séance.',

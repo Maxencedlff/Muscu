@@ -3,8 +3,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-let view = 'dashboard';
-let renderedView = null;   // dernier écran dessiné par paint()
+let renderedView = null;   // nom du dernier écran dessiné par paint()
 
 // Racine de chaque onglet : les fonctions renderXxx gardent leur nom de vue historique
 const TABS = {
@@ -30,7 +29,16 @@ try { history.scrollRestoration = 'manual'; } catch {}
 // Navigateur piloté par les tests : pas de transitions, sauf demande explicite (window.__pplTransitions)
 const transitionsOff = () => navigator.webdriver && !window.__pplTransitions;
 
+// Une route est le nom d'un écran suivi de ses paramètres encodés : « history-detail:ab12cd »,
+// « ex-edit:push:2 ». Chaque entrée des piles porte ainsi l'écran et ce qu'il affiche.
+function makeRoute(name, ...params) { return [name, ...params.map(p => encodeURIComponent(String(p)))].join(':'); }
+function routeName(route) { return String(route).split(':')[0]; }
+function routeParams(route) { return String(route).split(':').slice(1).map(decodeURIComponent); }
+
 function currentRoute(n = nav) { const s = n.stacks[n.tab]; return s[s.length - 1]; }
+// Nom de l'écran affiché ; `view` en est la lecture seule (console, tests)
+function currentView() { return routeName(currentRoute()); }
+Object.defineProperty(window, 'view', { get: currentView, configurable: true });
 function navKey(n = nav) { return n.tab + '/' + n.stacks[n.tab].join('/'); }
 function navClone(n) { return { tab: n.tab, stacks: Object.fromEntries(Object.entries(n.stacks).map(([k, v]) => [k, v.slice()])) }; }
 function navSame(a, b) { return !!a && !!b && JSON.stringify(a) === JSON.stringify(b); }
@@ -197,57 +205,61 @@ function saveScroll() { scrollMem[navKey()] = window.scrollY; }
 
 // ── Rendu ───────────────────────────────────────────────────
 
-// render() garde son rôle historique : réafficher l'écran courant en gardant le défilement.
-// Si du code a changé `view` directement, on traduit ce changement en navigation.
-function render() {
-  if (view !== currentRoute()) { routeTo(view); return; }
-  paint();
-}
+// Réaffiche l'écran courant en gardant le défilement (après une modification de la donnée).
+// Pour changer d'écran : navigate(route), goBack(), routeTo(route) ou switchTab(tab).
+function render() { paint(); }
 
-// Gabarit de chaque écran (route inconnue : l'accueil). Les fonctions de rendu sont définies
-// par les fichiers chargés après celui-ci : elles ne sont résolues qu'à l'appel.
+// Écrans, par nom de route (route inconnue : l'accueil). Les fonctions sont définies par les
+// fichiers chargés après celui-ci : elles ne sont résolues qu'à l'appel.
+//   render(...params) : gabarit HTML, reçoit les paramètres de la route (editor et ex-edit les
+//                       lisent eux-mêmes : editorCatOf, editExIdxOf)
+//   mount({ first })  : après chaque dessin (first : l'écran vient d'être ouvert)
+//   enter({ dir })    : à chaque affichage par la navigation ; leave() : quand on le quitte
 const SCREENS = new Map([
-  ['dashboard',      () => renderDashboard()],
-  ['programmes',     () => renderProgrammes()],
-  ['session',        () => activeSession ? renderSession() : renderDashboard()],
-  ['editor',         () => renderEditor()],
-  ['history',        () => renderHistory()],
-  ['stats',          () => renderStats()],
-  ['settings',       () => renderSettings()],
-  ['add-session',    () => renderAddSession()],
-  ['summary',        () => renderSummary()],          // Entraînement › Bilan
-  ['history-detail', () => renderHistoryDetail()],
-  ['stats-ex',       () => renderStatsExercise()],
-  ['stats-overview', () => renderStatsOverview()],
-  ['prog-picker',    () => renderProgPicker()],
-  ['ex-edit',        () => renderExEdit()],
-  ['cs-edit',        () => renderCsEdit()],
+  ['dashboard',      { render: () => renderDashboard() }],
+  ['programmes',     { render: () => renderProgrammes() }],
+  ['session',        { render: () => activeSession ? renderSession() : renderDashboard(),
+                       mount: ({ first }) => { if (activeSession) afterSessionRender(first); }, // centre la série courante
+                       enter: () => requestWakeLock(), leave: () => releaseWakeLock() }],
+  ['editor',         { render: () => renderEditor() }],
+  ['history',        { render: () => renderHistory() }],
+  ['stats',          { render: () => renderStats() }],
+  ['settings',       { render: () => renderSettings(), mount: () => fillAppVersion() }],
+  ['add-session',    { render: () => renderAddSession(), enter: ({ dir }) => addSessionEnter(dir), leave: () => addSessionLeave() }],
+  ['summary',        { render: () => renderSummary() }],          // Entraînement › Bilan
+  ['history-detail', { render: id => renderHistoryDetail(id) }],
+  ['stats-ex',       { render: exId => renderStatsExercise(exId), mount: () => drawCharts() }],
+  ['stats-overview', { render: () => renderStatsOverview() }],
+  ['prog-picker',    { render: () => renderProgPicker() }],
+  ['ex-edit',        { render: () => renderExEdit() }],
+  ['cs-edit',        { render: () => renderCsEdit() }],
 ]);
+function screenOf(name) { return SCREENS.get(name) || SCREENS.get('dashboard'); }
 
 function paint(scrollY = window.scrollY) {
-  view = currentRoute();
-  $('#app').innerHTML = (SCREENS.get(view) || SCREENS.get('dashboard'))();
-  if (view === 'stats-ex') drawCharts();
-  if (view === 'settings') fillAppVersion();
+  const route = currentRoute();
+  const name  = routeName(route);
+  const screen = screenOf(name);
+  $('#app').innerHTML = screen.render(...routeParams(route));
   updateChrome();
   observeLargeTitle();
   window.scrollTo(0, scrollY);
-  // Entrée dans la séance : centre la série courante
-  if (view === 'session' && activeSession) afterSessionRender(renderedView !== 'session');
-  renderedView = view;
+  screen.mount?.({ first: renderedView !== name });
+  renderedView = name;
 }
 
 // Affiche l'écran courant après un changement de navigation, avec la transition qui va avec
+let shownName = null;   // nom du dernier écran affiché par show(), pour son crochet leave()
 function show(dir = 'none') {
   if (shownKey && dir === 'push') snapMem[shownKey] = $('#app').innerHTML;
   const key = navKey();
   shownKey = key;
   const target = (dir === 'pop' || dir === 'down' || dir === 'fade') ? (scrollMem[key] || 0) : 0;
-  const route = currentRoute();
+  const name = currentView();
 
-  if (route === 'add-session' && (dir === 'push' || dir === 'up')) addSnapshot = addState();
-  if (route !== 'add-session') { addSnapshot = null; try { sessionStorage.removeItem(ADD_DRAFT_KEY); } catch {} }
-  if (route === 'session') requestWakeLock(); else releaseWakeLock();
+  if (shownName && shownName !== name) screenOf(shownName).leave?.();
+  shownName = name;
+  screenOf(name).enter?.({ dir });
 
   const update = () => { paint(target); startTicker(); };
   const animate = dir !== 'none' && !skipTransition && !transitionsOff() && !reduceMotion.matches && typeof document.startViewTransition === 'function' && !document.hidden;
@@ -259,22 +271,17 @@ function show(dir = 'none') {
   } catch { update(); }
 }
 
-// Démarrage : #train, ou #train/session (avec l'accueil dessous) si une séance est restaurée
-function navBoot(sessionRestored) {
+// Démarrage : #train, ou un écran repris au-dessus de la racine de son onglet
+// (start = { tab, route } : séance restaurée, séance passée en cours de saisie)
+function navBoot(start = null) {
   navIndex = 0; navHist = []; navDup = [];
   navWrite('replace');
-  let draft = false;
-  if (sessionRestored) {
-    nav.stacks.train.push('session');
-  } else if (restoreAddDraft()) {
-    draft = true;
-    nav.tab = 'history';
-    navWrite('replace');
-    nav.stacks.history.push('add-session');
+  if (start) {
+    if (start.tab !== nav.tab) { nav.tab = start.tab; navWrite('replace'); }
+    nav.stacks[start.tab].push(start.route);
+    navIndex = 1; navWrite('push');
   }
-  if (nav.stacks[nav.tab].length > 1) { navIndex = 1; navWrite('push'); }
   show('none');
-  if (draft) addSnapshot = '';  // brouillon repris : toute sortie demande confirmation
 }
 
 // ── Actions ─────────────────────────────────────────────────

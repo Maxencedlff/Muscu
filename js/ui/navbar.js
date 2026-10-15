@@ -82,16 +82,18 @@ function navBar({ title = '', large, back, left = '', right = '', sub = '', extr
     ${large ? `<div class="navbar__largewrap"><h1 class="t-large navbar__large">${title}</h1>${sub}</div>` : ''}`;
 }
 
+// Libellé du bouton retour vers une route de la pile
 function routeTitle(route, isRoot) {
   if (isRoot && TAB_OF_ROOT[route]) return TABS[TAB_OF_ROOT[route]].label;
+  const name = routeName(route);
+  if (name === 'editor') { const cat = editorCatOf(route); return cat ? rawLabel(cat) : 'Séance'; }
   return {
     dashboard: 'Entraînement', history: 'Historique', stats: 'Progrès',
-    editor: sessionKeys().includes(editorCat) ? rawLabel(editorCat) : 'Séance',
     programmes: 'Programme', settings: 'Réglages', session: 'Séance', summary: 'Bilan',
     'history-detail': 'Séance', 'stats-ex': 'Exercice', 'stats-overview': 'Vue d\'ensemble',
     'prog-picker': 'Programme actif', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
-  }[route] || 'Retour';
+  }[name] || 'Retour';
 }
 
 // Grand titre : quand il sort de l'écran, le titre compact et le filet apparaissent

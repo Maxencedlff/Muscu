@@ -30,7 +30,7 @@ document.addEventListener('input', e => {
     }
   }
 
-  if (view === 'add-session') {
+  if (currentView() === 'add-session') {
     const exid = e.target.dataset.exid;
     const si   = parseInt(e.target.dataset.si);
     if (exid && !isNaN(si) && addSets[exid]) {
@@ -65,7 +65,7 @@ async function releaseWakeLock() {
 }
 
 document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible' && view === 'session') {
+  if (document.visibilityState === 'visible' && currentView() === 'session') {
     await requestWakeLock();
   }
 });
@@ -117,7 +117,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loadError) { renderRescue(); return; }
   try {
     syncTimersFromHistory();
-    navBoot(restoreSession());
+    // Séance restaurée (avec son repos), sinon séance passée en cours de saisie
+    const restored = restoreSession();
+    if (restored) resumeRest(restored.rest);
+    const draft = !restored && restoreAddDraft();
+    navBoot(restored ? { tab: 'train', route: 'session' } : draft ? { tab: 'history', route: 'add-session' } : null);
+    if (draft) addSnapshot = '';  // brouillon repris : toute sortie demande confirmation
   } catch (err) {
     console.error(err);
     renderRescue();

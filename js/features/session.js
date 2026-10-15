@@ -4,6 +4,7 @@
 'use strict';
 
 let editingSet = null;  // { ei, si } — série validée rouverte en édition sur place
+let persistWarned = false; // un seul avertissement « stockage plein » par séance
 const openDone = new WeakSet(); // exercices terminés dépliés
 
 // Série à faire : charge et reps reprises de src, « Préc. » de la même série la dernière fois
@@ -39,10 +40,16 @@ function startSession(cat) {
     exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
   };
   activeSession.baseline = computeBaseline(activeSession);
-  view = 'session';
   persistSession();
-  render();
+  routeTo('session');
   requestWakeLock();
+}
+
+// Séance en cours enregistrée avec son repos, pour survivre à la fermeture de l'app
+function persistSession() {
+  if (writeSession(restSnapshot()) || !activeSession || persistWarned) return;
+  persistWarned = true;
+  showToast('Stockage plein : la séance n\'est plus sauvegardée', { error: true });
 }
 
 function endSession() {

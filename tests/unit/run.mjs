@@ -42,12 +42,8 @@ const sandbox = {
   localStorage: new MemoryStorage(),
   navigator: {},
   document: { querySelector: () => null, getElementById: () => null },
-  // Dépendances d'écran appelées par importText : réduites à des témoins
+  // Seule dépendance hors donnée : le toast « Stockage plein » de save() (js/core/dialogs.js)
   showToast: (msg, opts = {}) => { toasts.push({ msg, ...opts }); },
-  applyTheme: () => {},
-  themePref: () => 'auto',
-  render: () => {},
-  editorCat: '', addCat: '',
 };
 sandbox.window = sandbox;
 const ctx = vm.createContext(sandbox);
@@ -366,29 +362,91 @@ test('importText : fichier invalide refusé sans rien modifier', () => {
   run('data.history.push({ id: "h1", date: 1, category: "push", exercises: [] }); save();');
   const before = ctx.localStorage.getItem('ppl_v2');
   for (const text of ['pas du json', 'null', '42', '{"foo":1}', JSON.stringify({ programmes: {}, activeProgramme: 'ppl', history: [{ date: 'x' }] })]) {
-    toasts.length = 0;
-    assert.equal(app.importText(text), false, text);
-    assert.equal(toasts[0]?.msg, 'Fichier invalide : rien n\'a été modifié');
-    assert.equal(toasts[0]?.error, true);
+    sameJSON(app.importText(text), { ok: false, reason: 'invalid' }, text);
   }
+  assert.equal(toasts.length, 0, 'aucun effet d\'écran');
   assert.equal(ctx.localStorage.getItem('ppl_v2'), before);
   assert.equal(run('data.history.length'), 1);
 });
 
 test('importText : ancien format ppl_v1 accepté, séances illisibles ignorées', () => {
   reset();
-  const ok = app.importText(JSON.stringify({
+  const before = JSON.stringify(run('data'));
+  const r = app.importText(JSON.stringify({
     exercises: { push: [{ id: 'e1', name: 'Dips', sets: 3 }] },
     history: [
       { date: 1700000000000, category: 'push', exercises: [{ name: 'Dips', sets: [{ weight: '20', reps: '8' }] }] },
       { date: 'x', category: 'push', exercises: [] },
     ],
+    _theme: 'dark',
   }));
-  assert.equal(ok, true);
+  assert.equal(r.ok, true);
+  assert.equal(r.count, 1);
+  assert.equal(r.skipped, 1);
+  assert.equal(r.theme, 'dark');
+  assert.equal(r.previous, before, 'donnée remplacée rendue pour « Annuler »');
   assert.equal(run('data.history.length'), 1);
   assert.equal(run('data.programmes.ppl.exercises.push[0].pr.weight'), '20');
-  assert.equal(toasts.at(-1).msg, 'Import réussi : 1 séance (1 ignorée)');
+  assert.equal(run('data.programmes.ppl.timers.push'), 1700000000000, 'délais recalés sur l\'historique importé');
   assert.equal(JSON.parse(ctx.localStorage.getItem('ppl_v2')).history.length, 1, 'écrit dans ppl_v2');
+  assert.equal(toasts.length, 0, 'aucun effet d\'écran');
+  app.undoImport(r.previous);
+  assert.equal(JSON.stringify(run('data')), before, 'undoImport remet la donnée d\'avant');
+});
+
+test('importText : stockage plein → donnée d\'avant gardée', () => {
+  reset();
+  const before = JSON.stringify(run('data'));
+  const setItem = ctx.localStorage.setItem;
+  ctx.localStorage.setItem = () => { throw new Error('QuotaExceededError'); };
+  try {
+    sameJSON(app.importText(JSON.stringify({ activeProgramme: 'ppl', programmes: {}, history: [] })), { ok: false, reason: 'storage' });
+  } finally { ctx.localStorage.setItem = setItem; }
+  assert.equal(JSON.stringify(run('data')), before);
+  assert.equal(toasts.at(-1)?.msg, 'Stockage plein : exporte tes données');
+});
+
+// ── Délais de récupération ──────────────────────────────────
+
+function pushEntry(id, date) {
+  return { id, date, programme: 'ppl', category: 'push', exercises: [] };
+}
+
+test('syncTimersFromHistory : avance jusqu\'à la dernière séance, ne recule jamais', () => {
+  reset();
+  run('data.history = [' + JSON.stringify(pushEntry('h2', 2000)) + ',' + JSON.stringify(pushEntry('h1', 1000)) + ']');
+  app.syncTimersFromHistory();
+  assert.equal(run('data.programmes.ppl.timers.push'), 2000);
+  run('data.programmes.ppl.timers.push = 5000');
+  app.syncTimersFromHistory();
+  assert.equal(run('data.programmes.ppl.timers.push'), 5000, 'délai plus récent que l\'historique gardé');
+});
+
+test('« Passer le délai » survit à loadData + syncTimersFromHistory', () => {
+  reset();
+  run('data.history = [' + JSON.stringify(pushEntry('h1', 1000)) + ']; data.programmes.ppl.timers.push = 1000;');
+  run('data.programmes.ppl.skipped = { push: 1500 }; save();');
+  run('data = loadData();');
+  app.syncTimersFromHistory();
+  assert.equal(run('data.programmes.ppl.timers.push'), 1000, 'le délai garde la date de la dernière séance');
+  assert.equal(run('data.programmes.ppl.skipped.push'), 1500, 'le passage est conservé');
+  // Une séance faite après le passage le rend caduc : il est retiré au chargement suivant
+  run('data.history.unshift(' + JSON.stringify(pushEntry('h2', 2000)) + '); data.programmes.ppl.timers.push = 2000; save();');
+  run('data = loadData();');
+  assert.equal(run('data.programmes.ppl.skipped'), undefined);
+});
+
+test('releaseTimer : retirer la séance la plus récente recule le délai', () => {
+  reset();
+  const h1 = pushEntry('h1', 1000), h2 = pushEntry('h2', 2000);
+  run('data.history = [' + JSON.stringify(h1) + ']; data.programmes.ppl.timers.push = 2000;');
+  app.releaseTimer({ ...h1, date: 1500 });
+  assert.equal(run('data.programmes.ppl.timers.push'), 2000, 'une séance plus ancienne ne touche pas au délai');
+  app.releaseTimer(h2);
+  assert.equal(run('data.programmes.ppl.timers.push'), 1000, 'recul à la séance précédente');
+  run('data.history = [];');
+  app.releaseTimer(h1);
+  assert.equal(run('data.programmes.ppl.timers.push'), null, 'plus aucune séance : prête');
 });
 
 // ── Programmes perso (userProgrammes) ───────────────────────
@@ -402,9 +460,14 @@ test('userProgrammes : nettoyage des programmes et séances perso', () => {
       u_arch: { name: '', sessions: null, archived: 1 },
       pirate: { name: 'Sans préfixe u_', sessions: {} },
       u_bad:  'x',
+      u_keys: { name: 'Clés', sessions: { 'a" onfocus="alert(1)" autofocus x="': { label: 'XSS' }, 'avec espace': { label: 'E' },
+                'point.': { label: 'P' }, [`${'k'.repeat(41)}`]: { label: 'Long' }, 'ok_-9': { label: 'OK' } } },
     },
+    customSessions: { 'x"y': { label: 'X' }, abc123: { label: 'Bras' } },
   });
-  sameJSON(Object.keys(d.userProgrammes), ['u_ok', 'u_arch']);
+  sameJSON(Object.keys(d.userProgrammes.u_keys.sessions), ['ok_-9'], 'clé de séance invalide retirée');
+  sameJSON(Object.keys(d.customSessions), ['abc123'], 'clé de séance perso invalide retirée');
+  sameJSON(Object.keys(d.userProgrammes), ['u_ok', 'u_arch', 'u_keys']);
   const s = d.userProgrammes.u_ok.sessions;
   sameJSON(Object.keys(s), ['a', 'b']);
   sameJSON(s.a, { label: 'A', icon: '🔥', desc: 'Haut', color: '#FF9F0A' });

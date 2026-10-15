@@ -99,6 +99,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'axSearch') {
     e.preventDefault();
     const q = e.target.value.trim();
-    if (q) pickExercise(q);
+    if (q) axPick(q);
   }
 });

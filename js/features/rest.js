@@ -138,10 +138,27 @@ function restFinished() {
       $('.view.session')?.classList.remove('session--resting');
     }, 2000);
   }
-  if (view === 'session') {
+  if (currentView() === 'session') {
     $('.session-set--current')?.classList.add('session-set--go');
     scrollToCurrent();
   }
+}
+
+// État du repos gardé avec la séance (writeSession), null hors repos
+function restSnapshot() {
+  return restActive ? { endTime: restEndTime, minimized: restMinimized, total: restTotal } : null;
+}
+
+// Repos repris d'une séance restaurée : relancé s'il n'est pas déjà fini
+function resumeRest(saved) {
+  const endTime = saved ? Number(saved.endTime) : 0;
+  if (!(endTime > Date.now())) return;
+  restActive    = true;
+  restMinimized = !!saved.minimized;
+  restEndTime   = endTime;
+  restTimeLeft  = Math.ceil((endTime - Date.now()) / 1000);
+  restTotal     = Number(saved.total) || Math.max(restTimeLeft, data.defaultRest);
+  resumeRestCountdown();
 }
 
 function clearRest() { clearInterval(restInterval); restInterval = null; }

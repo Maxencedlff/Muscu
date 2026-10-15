@@ -3,14 +3,35 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-let editorCat     = firstSession();
-let editExIdx     = null;
 let editorEditing = false;   // mode Modifier de la liste d'exercices
-let exDraft       = null;    // brouillon de l'écran Programme › Exercice
+let exDraft       = null;    // brouillon de l'écran Programme › Exercice (exDraft.route : son écran)
+
+// Séance éditée par Programme › Séance (« editor:CAT ») ou Programme › Exercice (« ex-edit:CAT:I ») :
+// celle de la route, ou la première séance du programme actif si elle n'en fait plus partie
+function editorCatOf(route = currentRoute()) {
+  const cat = routeParams(route)[0];
+  return cat && sessionKeys().includes(cat) ? cat : firstSession();
+}
+// Rang de l'exercice modifié par Programme › Exercice, null pour un nouvel exercice
+function editExIdxOf(route = currentRoute()) {
+  const i = parseInt(routeParams(route)[1]);
+  return Number.isInteger(i) && i >= 0 ? i : null;
+}
+
+// Brouillon de l'écran Programme › Exercice affiché : repris de l'exercice s'il vise un autre écran
+function exDraftFor(route) {
+  if (exDraft?.route === route) return exDraft;
+  const i  = editExIdxOf(route);
+  const ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
+  exDraft = ex
+    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12 }
+    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12 };
+  return exDraft;
+}
 
 // Programme › Séance : exercices, récupération, repos, mode Modifier (glisser pour réordonner)
 function renderEditor() {
-  const cat  = editorCat;
+  const cat  = editorCatOf();
   const list = prog().exercises[cat] || [];
   const meta = sessionMeta(cat);
   if (!cat || !sessionKeys().includes(cat)) {
@@ -85,8 +106,9 @@ function renderEditor() {
 
 // Programme › Exercice : nom, séries, repos, objectif, haut de fourchette
 function renderExEdit() {
+  const editExIdx = editExIdxOf();
   const isEdit = editExIdx !== null;
-  const d = exDraft || { name: '', sets: 3, rest: null, target: null, repMax: 12 };
+  const d = exDraftFor(currentRoute());
   const restVal = d.rest ?? data.defaultRest;
   return `
     <div class="view ex-edit view--grouped">
@@ -159,7 +181,7 @@ function renderExEdit() {
 let edDrag = null;
 document.addEventListener('pointerdown', e => {
   const h = e.target.closest?.('.ed-handle');
-  if (!h || view !== 'editor') return;
+  if (!h || currentView() !== 'editor') return;
   e.preventDefault();
   const row = h.closest('.ed-row');
   const rows = [...document.querySelectorAll('.ed-list .ed-row')];
@@ -187,7 +209,7 @@ function endEdDrag(e) {
   if (!edDrag || e.pointerId !== edDrag.id) return;
   const { from, idx } = edDrag;
   edDrag = null;
-  const arr = prog().exercises[editorCat];
+  const arr = prog().exercises[editorCatOf()];
   if (arr && from !== idx) {
     const [moved] = arr.splice(from, 1);
     arr.splice(idx, 0, moved);
@@ -223,11 +245,7 @@ function setDraftRest(e, el, action) {
 registerActions({
   'go-editor': (e, el) => {
     const c = el.dataset.cat;
-    editorCat = c && sessionKeys().includes(c) ? c : sessionKeys().includes(editorCat) ? editorCat : firstSession();
-    navigate('editor');
-  },
-  'editor-tab': (e, el) => {
-    editorCat = el.dataset.cat; render();
+    navigate(makeRoute('editor', c && sessionKeys().includes(c) ? c : firstSession()));
   },
   'toggle-edit-mode': () => {
     editorEditing = !editorEditing; render();
@@ -239,7 +257,7 @@ registerActions({
     row.classList.toggle('is-del', open);
   },
   'set-cooldown': (e, el) => {
-    prog().cooldowns[editorCat] = parseInt(el.dataset.h);
+    prog().cooldowns[editorCatOf()] = parseInt(el.dataset.h);
     save();
     document.querySelectorAll('[data-action="set-cooldown"]').forEach(b => {
       const on = b === el;
@@ -247,15 +265,14 @@ registerActions({
     });
   },
   'edit-ex': (e, el) => {
-    editExIdx = parseInt(el.dataset.i);
-    const ex = (prog().exercises[editorCat] || [])[editExIdx];
-    if (!ex) return;
-    exDraft = { name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12 };
-    view = 'ex-edit'; render();
+    const cat = editorCatOf(), i = parseInt(el.dataset.i);
+    if (!(prog().exercises[cat] || [])[i]) return;
+    exDraft = null;
+    navigate(makeRoute('ex-edit', cat, i));
   },
   'add-ex': () => {
     // Même feuille de recherche que pendant la séance (bibliothèque + création)
-    openAddExSheet(null, true);
+    openAddExSheet({ target: 'programme' });
   },
   'ex-sets': (e, el) => {
     if (!exDraft) return;
@@ -267,14 +284,16 @@ registerActions({
   'ex-rest-step': setDraftRest,
   'del-ex': async (e, el) => {
     const i    = parseInt(el.dataset.i);
-    const name = prog().exercises[editorCat][i].name;
+    const list = prog().exercises[editorCatOf()];
+    const name = list[i].name;
     if (!(await confirmSheet(`Supprimer « ${name} » ?`, 'L\'historique de cet exercice est conservé.', 'Supprimer l\'exercice'))) return;
-    prog().exercises[editorCat].splice(i, 1);
+    list.splice(i, 1);
     save();
-    if (view === 'ex-edit') { view = 'editor'; exDraft = null; editExIdx = null; }
-    render();
+    if (currentView() === 'ex-edit') { exDraft = null; goBack(); } else render();
   },
   'save-ex': async () => {
+    const route = currentRoute(), editorCat = editorCatOf(route), editExIdx = editExIdxOf(route);
+    exDraftFor(route);
     const nameIn = $('#exName'), targetIn = $('#exTarget'), repIn = $('#exRepMax');
     const name = nameIn?.value.trim();
     if (!name) { flagInvalid(nameIn, 'Entre un nom'); return; }
@@ -287,7 +306,7 @@ registerActions({
     const repMax = repRaw ? num(repRaw, 1, 100, true) : 12;
     if (repMax === null) { flagInvalid(repIn, 'Reps entre 1 et 100'); return; }
     const list = prog().exercises[editorCat] || (prog().exercises[editorCat] = []);
-    if (editExIdx !== null) {
+    if (editExIdx !== null && list[editExIdx]) {
       const ex = list[editExIdx];
       if (ex.name !== name) {
         // L'exId garde le lien avec l'historique ; on propose aussi d'y reprendre le nouveau nom
@@ -318,7 +337,7 @@ registerActions({
       list.push(ex);
       recomputePRFromHistory();
     }
-    exDraft = null; editExIdx = null; save();
-    view = 'editor'; render();
+    exDraft = null; save();
+    goBack();
   },
 });

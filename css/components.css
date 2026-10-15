@@ -129,7 +129,6 @@
 ═══════════════════════════════════════════════ */
 .set-input--error,
 .input-group:has(.set-input--error),
-.form-input.set-input--error,
 .date-input.set-input--error { border-color: var(--red) !important; box-shadow: 0 0 0 1px var(--red); }
 .input-group .set-input--error { box-shadow: none; }
 

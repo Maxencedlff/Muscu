@@ -102,24 +102,25 @@ function setExRest(ei, secs) {
 }
 
 // ── Ajouter (ou remplacer) un exercice : recherche dans la bibliothèque ──
-let axReplaceEi = null;
-let axForProg   = false; // feuille ouverte depuis Programme › Séance (ajout au programme, hors séance)
-let axSets      = 3;
+// Une seule feuille pour trois cibles : la séance en cours ('session'), Programme › Séance
+// ('programme') et la séance passée ('past', qui reçoit le choix par onPick(name, sets)).
+let ax = { target: 'session', replaceEi: null, exclude: new Set(), onPick: null };
+let axSets = 3;
 
 function axListHtml(q) {
-  const inSession = new Set((activeSession?.exercises || []).map(e => normName(e.name)));
   const nq    = normName(q);
-  const items = exerciseLibrary().filter(n => !inSession.has(normName(n)) && (!nq || normName(n).includes(nq))).slice(0, 60);
+  const items = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && (!nq || normName(n).includes(nq))).slice(0, 60);
   const exact = items.some(n => normName(n) === nq);
   return items.map(n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}">${esc(n)}</button>`).join('')
     + (q.trim() && !exact ? `<button class="ax__item ax__item--create" data-action="ax-pick" data-name="${esc(q.trim())}">${icon('plus', 18)} Créer « ${esc(q.trim())} »</button>` : '')
     + (!items.length && !q.trim() ? '<div class="ax__empty">Aucun exercice</div>' : '');
 }
 
-function openAddExSheet(replaceEi = null, forProg = false) {
-  axForProg   = forProg;
-  axReplaceEi = forProg ? null : replaceEi;
-  const rep   = axReplaceEi !== null ? activeSession.exercises[axReplaceEi] : null;
+// exclude : noms à ne pas proposer (par défaut, les exercices de la séance en cours)
+function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick = null } = {}) {
+  const names = exclude ?? (activeSession?.exercises || []).map(e => e.name);
+  ax = { target, replaceEi: target === 'session' ? replaceEi : null, exclude: new Set(names.map(normName)), onPick };
+  const rep   = ax.replaceEi !== null ? activeSession.exercises[ax.replaceEi] : null;
   axSets      = rep ? rep.sets.length : 3;
   const html = `
     <div class="ax">
@@ -140,7 +141,7 @@ function openAddExSheet(replaceEi = null, forProg = false) {
             <button data-action="ax-sets" data-d="1" aria-label="Une série de plus">${icon('plus', 18)}</button>
           </div>
         </div>
-        ${rep || forProg ? '' : `
+        ${rep || target !== 'session' ? '' : `
         <label class="ax__opt">
           <span>Ajouter au programme</span>
           <input type="checkbox" id="axToProg" class="ax-switch" role="switch">
@@ -151,9 +152,19 @@ function openAddExSheet(replaceEi = null, forProg = false) {
   openSessSheet({ cls: 'sess-sheet--addex', label: rep ? 'Remplacer l\'exercice' : 'Ajouter un exercice', html, full: true });
 }
 
+// Exercice choisi dans la feuille (liste, « Créer » ou touche Entrée), remis à sa cible
+function axPick(name) {
+  name = String(name || '').trim();
+  if (!name) return;
+  if (ax.target === 'programme') addExerciseToEditedSession(name);
+  else if (ax.target === 'past') ax.onPick?.(name, axSets);
+  else pickExercise(name);
+}
+
 // Programme › Séance : l'exercice rejoint le programme ; ses réglages se font ensuite dans Programme › Exercice
 function addExerciseToEditedSession(name) {
-  const list = prog().exercises[editorCat] || (prog().exercises[editorCat] = []);
+  const cat  = editorCatOf();
+  const list = prog().exercises[cat] || (prog().exercises[cat] = []);
   if (list.some(e => normName(e.name) === normName(name))) { showToast('Déjà dans cette séance'); return; }
   list.push(makeExercise(name, axSets));
   save();
@@ -165,14 +176,12 @@ function addExerciseToEditedSession(name) {
 
 // Exercice ajouté (ou remplaçant) dans la séance en cours, éventuellement ajouté aussi au programme
 function pickExercise(name) {
-  name = String(name || '').trim();
-  if (name && axForProg) { addExerciseToEditedSession(name); return; }
-  if (!name || !activeSession) return;
+  if (!activeSession) return;
   const { programme: sp, category: sc } = activeSession;
   const list    = sessProg().exercises[sc] || (sessProg().exercises[sc] = []);
   let inProg    = list.find(e => normName(e.name) === normName(name));
   const toProg  = $('#axToProg')?.checked;
-  if (toProg && !inProg && axReplaceEi === null) {
+  if (toProg && !inProg && ax.replaceEi === null) {
     inProg = makeExercise(name, axSets);
     list.push(inProg);
     save();
@@ -184,9 +193,9 @@ function pickExercise(name) {
     activeSession.baseline = { ...(activeSession.baseline || {}), ...computeBaseline({ ...activeSession, exercises: [exObj] }) };
   }
   let target;
-  if (axReplaceEi !== null) {
-    activeSession.exercises.splice(axReplaceEi, 1, exObj);
-    target = axReplaceEi;
+  if (ax.replaceEi !== null) {
+    activeSession.exercises.splice(ax.replaceEi, 1, exObj);
+    target = ax.replaceEi;
     showToast('Exercice remplacé');
   } else {
     activeSession.exercises.push(exObj);
@@ -223,7 +232,7 @@ async function exerciseMenu(ei) {
     activeSession.lastEi = null;
     render();
   } else if (choice === 'replace') {
-    openAddExSheet(ei);
+    openAddExSheet({ replaceEi: ei });
   } else if (choice === 'rest') {
     openExRestSheet(ei);
   } else if (choice === 'restart') {
@@ -265,11 +274,9 @@ registerActions({
     if (n) n.textContent = axSets;
   },
   'ax-pick': (e, el) => {
-    pickExercise(el.dataset.name);
+    axPick(el.dataset.name);
   },
   'add-session-ex': () => {
-    if (view === 'session') { openAddExSheet(); return; }
-    addExModal = true; addExName = ''; addExSets = 3; render();
-    setTimeout(() => document.getElementById('addExNameInput')?.focus(), 80);
+    openAddExSheet();
   },
 });

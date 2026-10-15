@@ -3,7 +3,6 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-let historyId  = null;
 let histFilter = 'all';
 let histQuery  = '';
 let histMonths = 3;
@@ -111,8 +110,9 @@ function setsLine(sets) {
   return ok.map(s => `${parseFloat(s.weight) > 0 ? fmtW(s.weight) + ' × ' : ''}${esc(s.reps)}`).join(' · ');
 }
 
-function renderHistoryDetail() {
-  const h = (data.history || []).find(x => x.id === historyId);
+// Historique › Séance : la séance vient de la route (« history-detail:ID »)
+function renderHistoryDetail(id) {
+  const h = (data.history || []).find(x => x.id === id);
   if (!h) {
     return `<div class="view history-detail view--grouped">${navBar({ title: 'Séance' })}
       <div class="scr"><div class="empty-note">Cette séance n'existe plus.</div></div></div>`;
@@ -153,8 +153,10 @@ function renderHistoryDetail() {
     </div>`;
 }
 
-// L'historique fait foi : délais de récupération et records en sont recalculés
-function historyChanged() {
+// L'historique fait foi : délais de récupération et records en sont recalculés.
+// removed : séance retirée ; si elle fixait le délai de sa catégorie, il recule à la précédente.
+function historyChanged(removed = null) {
+  if (removed) releaseTimer(removed);
   syncTimersFromHistory();
   recomputePRFromHistory();
   save();
@@ -166,7 +168,7 @@ function deleteSessionWithUndo(id) {
   const idx  = list.findIndex(h => h.id === id);
   if (idx < 0) return;
   const [removed] = list.splice(idx, 1);
-  historyChanged();
+  historyChanged(removed);
   const row = document.querySelector(`.hrow[data-id="${CSS.escape(id)}"]`);
   if (row) {
     const sec = row.closest('.hmonth');
@@ -177,8 +179,11 @@ function deleteSessionWithUndo(id) {
     action: 'Annuler', duration: 5000,
     onAction: () => {
       data.history.splice(Math.min(idx, data.history.length), 0, removed);
+      // Le délai reprend la date de la séance rétablie (quel que soit son programme)
+      const timers = data.programmes[removed.programme || 'ppl']?.timers;
+      if (timers && removed.date > (timers[removed.category] || 0)) timers[removed.category] = removed.date;
       historyChanged();
-      if (view === 'history') refreshHistoryList();
+      if (currentView() === 'history') refreshHistoryList();
     },
   });
 }
@@ -192,7 +197,7 @@ function closeOpenRows(except) {
 }
 document.addEventListener('pointerdown', e => {
   const cell = e.target.closest?.('.hcell');
-  if (!cell || view !== 'history') { if (!e.target.closest?.('.hrow__del')) closeOpenRows(); return; }
+  if (!cell || currentView() !== 'history') { if (!e.target.closest?.('.hrow__del')) closeOpenRows(); return; }
   const row = cell.parentElement;
   closeOpenRows(row);
   hSwipe = { row, cell, x: e.clientX, y: e.clientY, base: row.classList.contains('is-open') ? -SWIPE_W : 0, axis: null, dx: 0, id: e.pointerId };
@@ -245,7 +250,7 @@ registerActions({
     if (el.closest('.tabbar')) switchTab('history'); else navigate('history');
   },
   'open-history': (e, el) => {
-    historyId = el.dataset.id; view = 'history-detail'; render();
+    navigate(makeRoute('history-detail', el.dataset.id));
   },
   'hist-filter': (e, el) => {
     histFilter = el.dataset.cat; histMonths = 3;
@@ -263,9 +268,9 @@ registerActions({
   },
   'delete-session': async (e, el) => {
     if (!(await confirmSheet('Supprimer cette séance ?', 'Elle sera retirée de l\'historique et des statistiques.', 'Supprimer la séance'))) return;
+    const removed = (data.history || []).find(h => h.id === el.dataset.id);
     data.history = (data.history || []).filter(h => h.id !== el.dataset.id);
-    historyChanged();
-    if (view === 'history-detail') view = 'history';
-    render();
+    historyChanged(removed);
+    if (currentView() === 'history-detail') routeTo('history'); else render();
   },
 });

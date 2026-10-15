@@ -3,9 +3,13 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Importe une sauvegarde : tout est vérifié sur une copie, `data` n'est remplacé qu'à la fin
+// Importe une sauvegarde : tout est vérifié sur une copie, `data` n'est remplacé qu'à la fin.
+// Aucun effet d'écran : l'appelant affiche le résultat.
+//   { ok: false, reason: 'invalid' }  fichier illisible, rien n'a été modifié
+//   { ok: false, reason: 'storage' }  stockage plein (save() l'a signalé), donnée d'avant remise
+//   { ok: true, count, skipped, theme, previous }  previous : texte de la donnée remplacée (undoImport)
 function importText(text) {
-  let next, theme;
+  let next, theme, skipped;
   try {
     const d = JSON.parse(text);
     if (!d || typeof d !== 'object') throw new Error('format');
@@ -27,47 +31,39 @@ function importText(text) {
     recomputePRFromHistory(next);
     // Un fichier dont aucune séance n'est lisible est refusé
     if (given > 0 && next.history.length === 0) throw new Error('history');
-    next._skipped = given - next.history.length;
+    skipped = given - next.history.length;
   } catch {
-    showToast('Fichier invalide : rien n\'a été modifié', { error: true });
-    return false;
+    return { ok: false, reason: 'invalid' };
   }
-  const skipped = next._skipped; delete next._skipped;
   const previous = JSON.stringify(data);
   try { localStorage.setItem(BACKUP_KEY, previous); } catch {}
   data = next;
-  if (!save()) { data = JSON.parse(previous); return false; }
-  if (theme) applyTheme(theme);
-  editorCat = addCat = firstSession();
+  if (!save()) { data = JSON.parse(previous); return { ok: false, reason: 'storage' }; }
   syncTimersFromHistory();
-  render();
-  const n = data.history.length;
-  showToast(`Import réussi : ${n} séance${n > 1 ? 's' : ''}${skipped ? ` (${skipped} ignorée${skipped > 1 ? 's' : ''})` : ''}`, {
-    action: 'Annuler', duration: 6000,
-    onAction: () => {
-      data = normalizeData(JSON.parse(previous));
-      save();
-      editorCat = addCat = firstSession();
-      render(); showToast('Import annulé');
-    },
-  });
-  return true;
+  return { ok: true, count: data.history.length, skipped, theme: theme || null, previous };
 }
 
-// Exporte la donnée en JSON (feuille de partage si disponible, sinon téléchargement)
-async function exportData() {
-  const payload = { ...data, _theme: themePref() };
+// Annule un import : la donnée d'avant (previous) est remise et enregistrée
+function undoImport(previous) {
+  data = normalizeData(JSON.parse(previous));
+  save();
+}
+
+// Exporte la donnée en JSON (feuille de partage si disponible, sinon téléchargement).
+// theme : préférence de thème jointe au fichier (_theme). Renvoie true une fois le fichier remis
+// (date gardée dans data.lastExport), false si le partage a été annulé.
+async function exportData(theme) {
+  const payload = { ...data, _theme: theme };
   const json  = JSON.stringify(payload, null, 2);
   const fname = `muscu-backup-${localISO()}.json`;
   const file  = typeof File === 'function' ? new File([json], fname, { type: 'application/json' }) : null;
-  // Date de la dernière sauvegarde, affichée dans Réglages › Données
-  const done = () => { data.lastExport = Date.now(); save(true); const t = $('#lastExportTxt'); if (t) { t.textContent = 'Dernière sauvegarde : aujourd\'hui'; t.classList.remove('txt-warn'); } };
+  const done = () => { data.lastExport = Date.now(); save(true); return true; };
   if (file && navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: 'Sauvegarde MDLF Training' }); done(); return; }
-    catch (err) { if (err?.name === 'AbortError') return; }
+    try { await navigator.share({ files: [file], title: 'Sauvegarde MDLF Training' }); return done(); }
+    catch (err) { if (err?.name === 'AbortError') return false; }
   }
   downloadText(json, fname);
-  done();
+  return done();
 }
 
 function downloadText(text, fname) {

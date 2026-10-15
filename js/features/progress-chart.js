@@ -16,8 +16,9 @@ function fmtMetricVal(v, bw) {
   return `${statsMode === '1rm' ? '~' : ''}${fmtNum(Math.round(v * 10) / 10)} ${unitLbl()}`;
 }
 
-function renderStatsExercise() {
-  const it = exerciseIndex().get(statsExId);
+// Progrès › Exercice : l'exercice vient de la route (« stats-ex:EXID »)
+function renderStatsExercise(exId) {
+  const it = exerciseIndex().get(exId);
   if (!it) {
     return `<div class="view stats-ex view--grouped">${navBar({ title: 'Exercice' })}
       <div class="scr"><div class="empty-note">Aucune donnée pour cet exercice.</div></div></div>`;

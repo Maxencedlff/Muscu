@@ -108,8 +108,7 @@ function activateProgramme(id) {
       if (!pd.exercises[cat])  pd.exercises[cat] = [];
     });
   }
-  editorCat = firstSession();
-  addCat    = firstSession();
+  addCat     = firstSession();
   histFilter = 'all';
   syncTimersFromHistory();
 }
@@ -118,27 +117,27 @@ function activateProgramme(id) {
 function openProgramme(id) {
   activateProgramme(id);
   save();
-  view = 'programmes'; render();
+  routeTo('programmes');
 }
 
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
   'go-program': () => {
-    editorCat = sessionKeys().includes(editorCat) ? editorCat : firstSession();
     switchTab('program');
   },
   'go-programmes': () => {
     navigate('programmes');
   },
   'go-prog-picker': () => {
-    view = 'prog-picker'; render();
+    navigate('prog-picker');
   },
   'open-prog-session': (e, el) => {
-    editorCat = el.dataset.cat; editorEditing = false; view = 'editor'; render();
+    editorEditing = false;
+    navigate(makeRoute('editor', el.dataset.cat));
   },
   'select-prog': async (e, el) => {
     const id = el.dataset.id;
-    if (id === data.activeProgramme) { view = 'programmes'; render(); return; }
+    if (id === data.activeProgramme) { routeTo('programmes'); return; }
     if (!(await confirmSheet(`Passer à ${progMeta(id).name} ?`, 'Ton historique reste disponible.', 'Changer de programme', false))) return;
     openProgramme(id);
     showToast(`Programme : ${progMeta().name}`);

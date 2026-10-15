@@ -10,9 +10,11 @@ LOT = '7_ecrans'
 R = Results(LOT)
 
 
-def go(page, v, **state):
+def go(page, v, *params, **state):
+    """Ouvre un écran par sa route : nom et paramètres (« history-detail », id), état préalable en mots-clés."""
     sets = ''.join(f'{k} = {json.dumps(val)};' for k, val in state.items())
-    page.evaluate(f'() => {{ {sets} view = {json.dumps(v)}; render(); }}')
+    route = f'makeRoute({", ".join(json.dumps(x) for x in (v, *params))})'
+    page.evaluate(f'() => {{ {sets} const r = {route}; if (currentRoute() === r) render(); else routeTo(r); }}')
     page.wait_for_timeout(150)
 
 
@@ -37,7 +39,7 @@ def t_screens(bench, eng, dev, theme):
         shot(page, LOT, f'{tag}-historique')
 
         # 7. Détail d'une séance : séries au format « 34 kg × 10 · 10 »
-        go(page, 'history-detail', historyId=page.evaluate('historySorted()[0].id'))
+        go(page, 'history-detail', page.evaluate('historySorted()[0].id'))
         sets = page.evaluate("[...document.querySelectorAll('.hex__sets')].map(e => e.textContent)")
         R.check(sets and all(('×' in s) or s.endswith('reps') for s in sets), f'{tag} détail séance : format « kg × reps » {sets[:2]}')
 
@@ -53,7 +55,7 @@ def t_screens(bench, eng, dev, theme):
         shot(page, LOT, f'{tag}-modifier-seance')
 
         # 3. Programme › Push : « Récupération » non recouvert par le contrôle segmenté
-        go(page, 'editor', editorCat='push', editorEditing=False)
+        go(page, 'editor', 'push', editorEditing=False)
         ov = page.evaluate("""() => { const c = [...document.querySelectorAll('.cell--ctl')].find(e => e.textContent.includes('Récupération'));
             const t = c.querySelector('.cell__title'), s = c.querySelector('.segmented');
             const a = t.getBoundingClientRect(), b = s.getBoundingClientRect();
@@ -63,20 +65,20 @@ def t_screens(bench, eng, dev, theme):
         page.evaluate("document.querySelector('[data-action=\"set-cooldown\"]').scrollIntoView({block:'center'})")
         shot(page, LOT, f'{tag}-programme-push')
         # 9. Mode Modifier : sous-titres non tronqués
-        go(page, 'editor', editorCat='push', editorEditing=True)
+        go(page, 'editor', 'push', editorEditing=True)
         clipped = page.evaluate(CLIPPED_JS, '.ed-row .cell__sub')
         R.check(not clipped, f'{tag} éditeur modifier : sous-titres entiers {clipped[:2]}')
-        go(page, 'editor', editorEditing=False)
+        go(page, 'editor', 'push', editorEditing=False)
 
         # 10. Fiche exercice : espacement avant « Supprimer » et segment actif
-        go(page, 'ex-edit', editExIdx=0, exDraft={'name': 'Développé couché haltères', 'sets': 4, 'rest': None, 'target': None, 'repMax': 12})
+        go(page, 'ex-edit', 'push', 0, exDraft={'route': 'ex-edit:push:0', 'name': 'Développé couché haltères', 'sets': 4, 'rest': None, 'target': None, 'repMax': 12})
         gap = page.evaluate("""() => { const f = [...document.querySelectorAll('.group-foot')].find(e => e.textContent.includes('Quand toutes'));
             return f.nextElementSibling.getBoundingClientRect().top - f.getBoundingClientRect().bottom; }""")
         R.check(gap >= 24, f'{tag} fiche exercice : espace avant « Supprimer » ({gap:.0f} px)')
         act = page.evaluate("[...document.querySelectorAll('[data-action=\"ex-rest\"].segmented__btn--active')].map(b => b.textContent)")
         shown = page.evaluate("document.querySelector('#exRestVal').textContent")
         R.check(act == [shown], f'{tag} fiche exercice : segment actif = valeur affichée ({act} / {shown})')
-        go(page, 'editor', exDraft=None, editExIdx=None)
+        go(page, 'editor', 'push', exDraft=None)
 
         # 4 et 8. Vue d'ensemble : tuiles entières, aujourd'hui sans rouge
         go(page, 'stats-overview')
@@ -88,7 +90,7 @@ def t_screens(bench, eng, dev, theme):
         shot(page, LOT, f'{tag}-vue-ensemble')
 
         # 5 et 6. Détail exercice : carte du graphique, axe Y homogène, dates espacées
-        go(page, 'stats-ex', statsExId='p1dcouch', statsMode='volume')
+        go(page, 'stats-ex', 'p1dcouch', statsMode='volume')
         page.wait_for_timeout(250)
         card = page.evaluate("""() => { const c = getComputedStyle(document.querySelector('#exChart')).backgroundColor;
             const cv = getComputedStyle(document.querySelector('#exChart canvas')).backgroundColor;

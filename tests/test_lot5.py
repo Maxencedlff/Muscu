@@ -16,9 +16,9 @@ def tag(dev, theme):
 
 
 def go(page, v, **state):
-    """Ouvre une vue directement (le routeur du lot 3 n'existe pas encore dans cette copie)."""
+    """Ouvre un écran directement par sa route."""
     sets = ''.join(f'{k} = {json.dumps(val)};' for k, val in state.items())
-    page.evaluate(f'() => {{ {sets} view = {json.dumps(v)}; render(); }}')
+    page.evaluate(f'() => {{ {sets} const r = {json.dumps(v)}; if (currentRoute() === r) render(); else routeTo(r); }}')
     page.wait_for_timeout(120)
 
 
@@ -257,8 +257,8 @@ def t_perf(bench):
         n = page.evaluate('data.history.length')
         best = 1e9
         for _ in range(3):
-            ms = page.evaluate("""() => { view = 'dashboard'; render();
-                const t0 = performance.now(); view = 'history'; render(); document.body.offsetHeight; return performance.now() - t0; }""")
+            ms = page.evaluate("""() => { routeTo('dashboard');
+                const t0 = performance.now(); routeTo('history'); document.body.offsetHeight; return performance.now() - t0; }""")
             best = min(best, ms)
         R.check(n >= 1200 and best < 100, f'perf : historique de {n} séances rendu en {best:.0f} ms')
         print(f'  perf historique {n} séances : {best:.1f} ms')

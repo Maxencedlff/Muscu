@@ -98,7 +98,7 @@ function summaryRowsHtml(rows) {
 
 function renderSummary() {
   const sm = lastSummary;
-  if (!sm) { view = 'dashboard'; return renderDashboard(); }
+  if (!sm) return renderDashboard();
   const meta = sessionMeta(sm.category, sm.programme);
   const h    = data.history.find(x => x.id === sm.id);
   const date = fmtDate(sm.date, 'day') + ' · ' + fmtTime(sm.date);
@@ -155,7 +155,7 @@ function askFinishSession(done, total) {
 // Séance close sans bilan : retour à l'accueil avec un message
 function leaveSession(message) {
   endSession();
-  view = 'dashboard'; render(); startTicker();
+  routeTo('dashboard'); startTicker();
   showToast(message);
 }
 
@@ -197,7 +197,7 @@ async function saveSessionEntry() {
       { label: 'Plus tard', style: 'cancel' },
       { label: 'Exporter', value: 'export', style: 'preferred' },
     ] });
-  if (act === 'export') await exportData();
+  if (act === 'export') await exportData(themePref());
   data.history = data.history.filter(h => h !== entry);
   timers[sc] = prevTimer;
   recomputePRFromHistory();
@@ -217,12 +217,8 @@ registerActions({
     }
     if (choice !== 'save') return;
 
-    // La séance Perso a pu être supprimée entre-temps
-    const sp = activeSession.programme, sc = activeSession.category;
-    if (isUserProg(sp) ? !userSessions(sp)?.[sc] : !PROGRAMMES[sp]?.sessions[sc]) {
-      leaveSession('Cette séance n\'existe plus');
-      return;
-    }
+    // La séance a pu disparaître entre-temps (séance perso supprimée, import) : elle est
+    // enregistrée quand même : l'historique sait afficher une catégorie inconnue (sessionMeta)
     const entry = await saveSessionEntry();
     if (!entry) return;
     // Bilan : records comparés à ceux d'avant la séance
@@ -240,6 +236,6 @@ registerActions({
     clearTimeout(summaryNotesTimer);
     save();
     lastSummary = null;
-    view = 'dashboard'; render(); startTicker();
+    routeTo('dashboard'); startTicker();
   },
 });
