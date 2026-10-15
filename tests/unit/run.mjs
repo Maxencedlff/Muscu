@@ -18,6 +18,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 
 // Scripts nécessaires, dans l'ordre de chargement de index.html
 const SCRIPTS = [
+  'js/platform/native.js',
   'js/core/util.js',
   'js/data/programmes.js',
   'js/data/store.js',
@@ -522,12 +523,98 @@ test('esc, normName, sameEx, plural, setsVolume', () => {
   assert.equal(app.sessionVolume([{ sets: [{ weight: '20', reps: '10' }] }, { sets: [{ weight: '2.5', reps: '4' }] }]), 210);
 });
 
+// ── Pont natif (app iOS) ────────────────────────────────────
+// native.js est chargé seul dans un contexte neuf, avec une coquille Capacitor simulée qui
+// enregistre chaque appel de module natif.
+
+function nativeContext({ native = true, localData = null, fileData = null } = {}) {
+  const calls = [];
+  const storage = new MemoryStorage();
+  if (localData !== null) storage.setItem('ppl_v2', localData);
+  let reloaded = false;
+  const plugins = {
+    Filesystem: {
+      writeFile: async (o) => { calls.push(['writeFile', o.path]); fileData = o.data; },
+      readFile:  async () => { if (fileData === null) throw new Error('absent'); return { data: fileData }; },
+    },
+    LocalNotifications: {
+      checkPermissions:   async () => ({ display: 'prompt' }),
+      requestPermissions: async () => { calls.push(['requestPermissions']); return { display: 'granted' }; },
+      schedule: async (o) => { calls.push(['schedule', o.notifications[0].body]); },
+      cancel:   async () => { calls.push(['cancel']); },
+    },
+  };
+  const box = {
+    console, localStorage: storage, setTimeout: (f) => f(), clearTimeout() {},
+    location: { reload() { reloaded = true; } },
+    Capacitor: native ? {
+      isNativePlatform: () => true,
+      registerPlugin: (name) => plugins[name] || new Proxy({}, { get: (_, m) => async () => calls.push([name, m]) }),
+    } : undefined,
+  };
+  box.window = box;
+  const c = vm.createContext(box);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8') + '\nthis.Native = Native;', c);
+  return { Native: c.Native, calls, storage, isReloaded: () => reloaded, file: () => fileData };
+}
+
+test('native : dans le navigateur, tout est sans effet', () => {
+  const { Native, calls } = nativeContext({ native: false });
+  assert.equal(Native.isNative, false);
+  assert.equal(Native.haptic(), false);
+  assert.equal(Native.keepAwake(true), false);
+  Native.backup('{}');
+  assert.equal(calls.length, 0);
+});
+
+test('native : coquille iOS sans runtime JS Capacitor → comportement web (jamais bloqué)', () => {
+  const box = { console, localStorage: new MemoryStorage(), setTimeout() {}, clearTimeout() {},
+                Capacitor: { isNativePlatform: () => true } };   // pas de registerPlugin
+  box.window = box;
+  const c = vm.createContext(box);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8') + '\nthis.Native = Native;', c);
+  assert.equal(c.Native.isNative, false);
+  assert.equal(c.Native.haptic(), false);
+});
+
+test('native : copie de sécurité écrite quand des données existaient au démarrage', () => {
+  const n = nativeContext({ localData: '{"history":[1]}' });
+  n.Native.backup('{"history":[1,2]}');
+  assert.equal(n.file(), '{"history":[1,2]}');
+});
+
+test('native : premier lancement sans données → la copie n\'est pas écrasée avant boot()', async () => {
+  const n = nativeContext({ fileData: '{"history":[42]}' });
+  n.Native.backup('{"history":[]}');                 // donnée par défaut créée au chargement
+  assert.equal(n.file(), '{"history":[42]}', 'copie intacte');
+  assert.equal(await n.Native.boot(), true, 'rechargement demandé');
+  assert.equal(n.storage.getItem('ppl_v2'), '{"history":[42]}', 'copie remise dans le stockage web');
+  assert.equal(n.isReloaded(), true);
+});
+
+test('native : premier lancement sans copie → les sauvegardes reprennent après boot()', async () => {
+  const n = nativeContext();
+  assert.equal(await n.Native.boot(), false);
+  n.Native.backup('{"history":[7]}');
+  assert.equal(n.file(), '{"history":[7]}');
+});
+
+test('native : notification de fin de repos (autorisation demandée une fois, puis programmée)', async () => {
+  const n = nativeContext({ localData: '{}' });
+  await n.Native.scheduleRestEnd(Date.now() + 90_000, 'Série 2 · Squat');
+  await n.Native.scheduleRestEnd(Date.now() + 60_000, 'Série 3 · Squat');
+  assert.equal(n.calls.filter(c => c[0] === 'requestPermissions').length, 1);
+  sameJSON(n.calls.filter(c => c[0] === 'schedule').map(c => c[1]), ['Série 2 · Squat', 'Série 3 · Squat']);
+  await n.Native.scheduleRestEnd(Date.now() - 1000, 'passé');   // heure passée : rien
+  assert.equal(n.calls.filter(c => c[0] === 'schedule').length, 2);
+});
+
 // ── Exécution ───────────────────────────────────────────────
 
 let failed = 0;
 for (const { name, fn } of tests) {
   try {
-    fn();
+    await fn();
     console.log(`  ok    ${name}`);
   } catch (err) {
     failed++;

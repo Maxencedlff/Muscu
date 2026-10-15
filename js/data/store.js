@@ -252,7 +252,12 @@ function loadData() {
 let dataBroken = false;
 function save(quiet = false) {
   if (dataBroken) return false;
-  try { localStorage.setItem(KEY, JSON.stringify(data)); return true; }
+  try {
+    const json = JSON.stringify(data);
+    localStorage.setItem(KEY, json);
+    Native.backup(json);   // app iOS : copie de sécurité dans les fichiers de l'app
+    return true;
+  }
   catch {
     if (!quiet) showToast('Stockage plein : exporte tes données', { error: true });
     return false;

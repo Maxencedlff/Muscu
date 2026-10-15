@@ -84,3 +84,8 @@ tests/         tests Playwright (Python) et tests unitaires (tests/unit/)
 
 Le rôle de chaque fichier, l'ordre de chargement, le flux d'une action et le modèle de données
 sont décrits dans [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## App iPhone
+
+L'app de l'App Store est la même base de code dans une coquille Capacitor : organisation,
+fonctions natives, compilation sur GitHub et publication sont décrites dans [IOS.md](IOS.md).

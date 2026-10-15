@@ -7,7 +7,8 @@ let swReg = null;
 let swReloading = false;
 
 function registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
+  // App iOS : les mises à jour passent par l'App Store, pas par le service worker
+  if (Native.isNative || !('serviceWorker' in navigator)) return;
   navigator.serviceWorker.register('/sw.js').then(reg => {
     swReg = reg;
     maybeShowUpdateBanner();

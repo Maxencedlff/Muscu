@@ -18,6 +18,7 @@ function applyTheme(theme) {
   if (meta) meta.content = getComputedStyle(document.body).getPropertyValue('--bg').trim() || meta.content;
   const bar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
   if (bar) bar.content = light ? 'default' : 'black-translucent';
+  Native.statusBar(!light);
 }
 applyTheme(themePref());
 
