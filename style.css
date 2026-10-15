@@ -7,7 +7,9 @@
   --surface2: #1a1a1a;
   --border:   #252525;
   --text:     #f0f0f0;
-  --muted:    #5a5a5a;
+  --muted:    #8e8e93;
+  --push:     #ef4444;
+  --accent:   #3b82f6;
   --cat-color:#22c55e;
   --radius:   16px;
   --hh:       56px;
@@ -21,12 +23,14 @@ body.light {
   --surface2: #f2f2f7;
   --border:   #e0e0e5;
   --text:     #1c1c1e;
-  --muted:    #8e8e93;
+  --muted:    #6e6e73;
   --shadow:   0 2px 12px rgba(0,0,0,.1);
   --shadow-lg:0 4px 24px rgba(0,0,0,.16);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+button { touch-action: manipulation; -webkit-user-select: none; user-select: none; font-family: inherit; }
+img, svg { -webkit-touch-callout: none; }
 
 html { height: 100%; }
 body { min-height: 100vh; overflow-x: hidden; background: var(--bg); }
@@ -404,7 +408,7 @@ body {
 .rest-custom { display: flex; gap: 8px; margin-bottom: 16px; }
 .rest-custom-input {
   flex: 1; background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 10px; color: var(--text); font-size: 15px;
+  border-radius: 10px; color: var(--text); font-size: 16px;
   padding: 11px 14px; font-family: inherit; -moz-appearance: textfield;
 }
 .rest-custom-input::-webkit-outer-spin-button,
@@ -520,7 +524,7 @@ body {
 .date-label { font-size: 14px; color: var(--muted); flex-shrink: 0; }
 .date-input {
   flex: 1; background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 10px; color: var(--text); font-size: 15px;
+  border-radius: 10px; color: var(--text); font-size: 16px;
   padding: 10px 12px; font-family: inherit;
   color-scheme: dark;
 }
@@ -679,7 +683,7 @@ body {
 }
 .session-notes-input {
   width: 100%; background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 10px; color: var(--text); font-size: 15px;
+  border-radius: 10px; color: var(--text); font-size: 16px;
   padding: 12px; font-family: inherit; resize: none; min-height: 80px;
   line-height: 1.5;
 }
@@ -968,3 +972,117 @@ body {
 .month-row__name  { font-size: 13px; font-weight: 700; min-width: 32px; color: var(--muted); }
 .month-row__cats  { flex: 1; font-size: 13px; display: flex; gap: 10px; }
 .month-row__total { font-size: 13px; font-weight: 700; color: var(--text); }
+
+/* ═══════════════════════════════════════════════
+   Séance en cours (bandeau d'accueil)
+═══════════════════════════════════════════════ */
+.live-banner {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 14px 16px; margin-bottom: 14px; text-align: left;
+  background: color-mix(in srgb, var(--cat-color) 14%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--cat-color) 45%, transparent);
+  border-radius: var(--radius); color: var(--text); cursor: pointer;
+  transition: transform .15s;
+}
+.live-banner:active { transform: scale(.98); }
+.live-banner__dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  background: var(--cat-color); animation: pulse 1.6s ease infinite;
+}
+.live-banner__body  { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.live-banner__title { font-weight: 700; font-size: 15px; }
+.live-banner__sub   { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.live-banner__cta {
+  font-size: 14px; font-weight: 700; color: #fff; background: var(--cat-color);
+  padding: 8px 14px; border-radius: 999px; flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════
+   Dialogues iOS (alerte + feuille d'actions)
+═══════════════════════════════════════════════ */
+:root {
+  --ios-blue: #0a84ff; --ios-red: #ff453a;
+  --dlg-bg: rgba(44,44,46,.82); --dlg-sep: rgba(84,84,88,.65); --dlg-press: rgba(255,255,255,.08);
+}
+body.light {
+  --ios-blue: #007aff; --ios-red: #ff3b30;
+  --dlg-bg: rgba(242,242,247,.86); --dlg-sep: rgba(60,60,67,.29); --dlg-press: rgba(0,0,0,.06);
+}
+.ios-dialog { position: fixed; inset: 0; z-index: 1000; display: flex; justify-content: center; }
+.ios-dialog--alert { align-items: center; padding: 24px; }
+.ios-dialog--sheet {
+  align-items: flex-end;
+  padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0px));
+}
+.ios-dialog__backdrop {
+  position: absolute; inset: 0; background: rgba(0,0,0,.4);
+  animation: iosFade .2s ease;
+}
+body.light .ios-dialog__backdrop { background: rgba(0,0,0,.2); }
+.ios-dialog__panel { position: relative; width: 100%; }
+.ios-dialog--alert .ios-dialog__panel {
+  max-width: 270px; border-radius: 14px; overflow: hidden;
+  background: var(--dlg-bg); backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  animation: iosPop .22s cubic-bezier(.2,.9,.3,1.2);
+}
+.ios-dialog--sheet .ios-dialog__panel {
+  max-width: 440px; display: flex; flex-direction: column; gap: 8px;
+  animation: iosUp .3s cubic-bezier(.2,.9,.3,1);
+}
+.ios-dialog__group {
+  border-radius: 14px; overflow: hidden; background: var(--dlg-bg);
+  backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%);
+}
+.ios-dialog__head { padding: 16px 16px 14px; text-align: center; }
+.ios-dialog--sheet .ios-dialog__head { border-bottom: .5px solid var(--dlg-sep); padding: 14px 16px; }
+.ios-dialog__title { font-size: 17px; font-weight: 600; }
+.ios-dialog--sheet .ios-dialog__title { font-size: 13px; color: var(--muted); }
+.ios-dialog__msg { font-size: 13px; margin-top: 4px; line-height: 1.35; }
+.ios-dialog--sheet .ios-dialog__msg { color: var(--muted); }
+.ios-dialog__field {
+  display: flex; align-items: center; margin-top: 14px;
+  background: var(--surface); border: .5px solid var(--dlg-sep); border-radius: 8px;
+}
+.ios-dialog__input {
+  flex: 1; min-width: 0; border: none; background: none; color: var(--text);
+  font: inherit; font-size: 16px; padding: 8px 10px; outline: none; -moz-appearance: textfield;
+}
+.ios-dialog__input::-webkit-outer-spin-button,
+.ios-dialog__input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.ios-dialog__unit { padding-right: 10px; color: var(--muted); font-size: 15px; }
+.ios-dialog__row { display: flex; border-top: .5px solid var(--dlg-sep); }
+.ios-dialog__row .ios-dialog__btn + .ios-dialog__btn { border-left: .5px solid var(--dlg-sep); }
+.ios-dialog__row--stack { flex-direction: column; }
+.ios-dialog__row--stack .ios-dialog__btn + .ios-dialog__btn { border-left: none; border-top: .5px solid var(--dlg-sep); }
+.ios-dialog__btn {
+  flex: 1; display: block; width: 100%; min-height: 44px; padding: 11px 12px;
+  background: none; border: none; color: var(--ios-blue); font-size: 17px; cursor: pointer;
+}
+.ios-dialog--sheet .ios-dialog__btn { min-height: 57px; font-size: 20px; }
+.ios-dialog--sheet .ios-dialog__group > .ios-dialog__btn + .ios-dialog__btn { border-top: .5px solid var(--dlg-sep); }
+.ios-dialog__btn:active { background: var(--dlg-press); }
+.ios-dialog__btn--preferred, .ios-dialog__btn--cancel { font-weight: 600; }
+.ios-dialog__btn--destructive { color: var(--ios-red); }
+.ios-dialog--out .ios-dialog__backdrop,
+.ios-dialog--out .ios-dialog__panel { animation: iosFadeOut .2s ease forwards; }
+.ios-dialog--sheet.ios-dialog--out .ios-dialog__panel { animation: iosDown .2s ease forwards; }
+
+@keyframes iosFade    { from { opacity: 0; } }
+@keyframes iosFadeOut { to   { opacity: 0; } }
+@keyframes iosPop     { from { opacity: 0; transform: scale(1.12); } }
+@keyframes iosUp      { from { transform: translateY(110%); } }
+@keyframes iosDown    { to   { transform: translateY(110%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* Petits écrans (iPhone SE, Galaxy S8) */
+@media (max-width: 374px) {
+  .header-actions { gap: 0; }
+  .header .icon-btn { width: 36px; }
+  .segmented__btn { padding: 5px 10px; }
+  .prog-pill { padding: 6px 10px; }
+  .live-banner__cta { padding: 8px 12px; }
+}

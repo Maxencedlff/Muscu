@@ -8,6 +8,17 @@ function uid() { return Math.random().toString(36).slice(2, 10); }
 function $(sel, ctx = document) { return ctx.querySelector(sel); }
 function pad(n) { return String(n).padStart(2, '0'); }
 
+// Échappe le texte saisi par l'utilisateur avant de l'injecter dans le HTML
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Date du jour au format YYYY-MM-DD en heure locale (toISOString est en UTC)
+function localISO(ts = Date.now()) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function fmt72(ms) {
   if (ms <= 0) return 'Prête !';
   const s = Math.floor(ms / 1000);
@@ -48,6 +59,107 @@ function showToast(msg) {
   el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2200);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Dialogues natifs façon iOS (remplacent confirm/prompt/alert)
+// ═══════════════════════════════════════════════════════════
+
+// actions : [{ label, value, style: 'default' | 'destructive' | 'cancel' | 'preferred' }]
+// type 'sheet' = feuille d'actions en bas, 'alert' = alerte centrée
+function dialog({ type = 'alert', title = '', message = '', actions, input = null }) {
+  return new Promise(resolve => {
+    document.querySelector('.ios-dialog')?.remove();
+    const root = document.createElement('div');
+    root.className = `ios-dialog ios-dialog--${type}`;
+    root.setAttribute('role', type === 'sheet' ? 'dialog' : 'alertdialog');
+    root.setAttribute('aria-modal', 'true');
+
+    const main   = actions.filter(a => a.style !== 'cancel');
+    const cancel = actions.find(a => a.style === 'cancel');
+    const btn = a => `<button class="ios-dialog__btn ios-dialog__btn--${a.style || 'default'}" data-i="${actions.indexOf(a)}">${esc(a.label)}</button>`;
+    const head = (title || message) ? `
+      <div class="ios-dialog__head">
+        ${title   ? `<div class="ios-dialog__title">${esc(title)}</div>` : ''}
+        ${message ? `<div class="ios-dialog__msg">${esc(message)}</div>` : ''}
+        ${input   ? `<div class="ios-dialog__field">
+            <input class="ios-dialog__input" type="number" inputmode="${input.decimal ? 'decimal' : 'numeric'}"
+                   value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}">
+            ${input.unit ? `<span class="ios-dialog__unit">${esc(input.unit)}</span>` : ''}
+          </div>` : ''}
+      </div>` : '';
+
+    root.innerHTML = type === 'sheet'
+      ? `<div class="ios-dialog__backdrop"></div>
+         <div class="ios-dialog__panel">
+           <div class="ios-dialog__group">${head}${main.map(btn).join('')}</div>
+           ${cancel ? `<div class="ios-dialog__group">${btn(cancel)}</div>` : ''}
+         </div>`
+      : `<div class="ios-dialog__backdrop"></div>
+         <div class="ios-dialog__panel">
+           ${head}
+           <div class="ios-dialog__row ${actions.length > 2 ? 'ios-dialog__row--stack' : ''}">${actions.map(btn).join('')}</div>
+         </div>`;
+
+    const field = root.querySelector('.ios-dialog__input');
+    const close = value => {
+      root.classList.add('ios-dialog--out');
+      setTimeout(() => root.remove(), 200);
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const pick = a => {
+      if (!a || a.style === 'cancel') return close(null);
+      close(field ? field.value : a.value);
+    };
+    const onKey = ev => {
+      if (ev.key === 'Escape') close(null);
+      if (ev.key === 'Enter' && field) { ev.preventDefault(); pick(main[main.length - 1]); }
+    };
+    root.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const b = ev.target.closest('.ios-dialog__btn');
+      if (b) { haptic(); return pick(actions[+b.dataset.i]); }
+      if (ev.target.classList.contains('ios-dialog__backdrop') && type === 'sheet') close(null);
+    });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(root);
+    if (field) setTimeout(() => { field.focus(); field.select(); }, 60);
+  });
+}
+
+function confirmSheet(title, message, label, destructive = true) {
+  return dialog({ type: 'sheet', title, message, actions: [
+    { label, value: true, style: destructive ? 'destructive' : 'preferred' },
+    { label: 'Annuler', style: 'cancel' },
+  ] }).then(v => v === true);
+}
+
+async function askNumber({ title, message, value, unit, min, max, decimal = false }) {
+  const raw = await dialog({ title, message, input: { value, unit, decimal }, actions: [
+    { label: 'Annuler', style: 'cancel' },
+    { label: 'OK', style: 'preferred' },
+  ] });
+  if (raw === null || raw === '') return null;
+  const v = decimal ? parseFloat(raw) : parseInt(raw, 10);
+  if (isNaN(v) || v < min || v > max) { showToast(`Valeur entre ${min} et ${max}`); return null; }
+  return v;
+}
+
+// Retour haptique : vibrate() sur Android ; sur iOS 18+, basculer un <input switch> déclenche le Taptic Engine
+function haptic() {
+  if (data.vibrateOn === false) return;
+  if (navigator.vibrate) { navigator.vibrate(8); return; }
+  try {
+    const label = document.createElement('label');
+    const sw    = document.createElement('input');
+    sw.type = 'checkbox'; sw.setAttribute('switch', '');
+    label.appendChild(sw);
+    label.style.cssText = 'position:fixed;opacity:0;pointer-events:none;';
+    document.body.appendChild(label);
+    label.click();
+    label.remove();
+  } catch {}
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -201,25 +313,31 @@ function makeDefaultData() {
   };
 }
 
+function normalizeData(d) {
+  if (!d.activeProgramme) d.activeProgramme = 'ppl';
+  if (!d.programmes)      d.programmes = {};
+  if (!d.programmes.ppl)  d.programmes.ppl = makeProgData('ppl');
+  if (!d.customSessions)  d.customSessions = {};
+  if (!d.defaultRest)     d.defaultRest = 90;
+  if (!d.unit)            d.unit = 'kg';
+  if (d.soundOn   == null) d.soundOn   = true;
+  if (d.vibrateOn == null) d.vibrateOn = true;
+  if (!Array.isArray(d.history)) d.history = [];
+  // Ensure per-programme structures exist (migration)
+  Object.values(d.programmes).forEach(p => {
+    if (!p.exercises) p.exercises = {};
+    if (!p.timers)    p.timers    = {};
+    if (!p.cooldowns) p.cooldowns = {};
+  });
+  d.history.sort((a, b) => b.date - a.date);
+  return d;
+}
+
 function loadData() {
   // New key
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const d = JSON.parse(raw);
-      if (!d.activeProgramme) d.activeProgramme = 'ppl';
-      if (!d.programmes)      d.programmes = {};
-      if (!d.programmes.ppl)  d.programmes.ppl = makeProgData('ppl');
-      if (!d.customSessions)  d.customSessions = {};
-      if (!d.defaultRest)     d.defaultRest = 90;
-      if (!d.unit)            d.unit = 'kg';
-      if (d.soundOn   == null) d.soundOn   = true;
-      if (d.vibrateOn == null) d.vibrateOn = true;
-      if (!d.history)         d.history = [];
-      // Ensure per-programme cooldowns exist (migration)
-      Object.values(d.programmes || {}).forEach(p => { if (!p.cooldowns) p.cooldowns = {}; });
-      return d;
-    }
+    if (raw) return normalizeData(JSON.parse(raw));
   } catch {}
 
   // Migrate from ppl_v1
@@ -241,7 +359,47 @@ function loadData() {
   return makeDefaultData();
 }
 
-function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(data)); }
+  catch { showToast('Stockage plein : exporte tes données'); }
+}
+
+// ── Séance en cours : persistée pour survivre à la fermeture de l'app ──
+const SESSION_KEY = 'ppl_active_session';
+
+function persistSession() {
+  try {
+    if (!activeSession) { localStorage.removeItem(SESSION_KEY); return; }
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      activeSession, sessionNotes,
+      rest: restActive ? { endTime: restEndTime, minimized: restMinimized } : null,
+    }));
+  } catch {}
+}
+
+function restoreSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    if (!saved?.activeSession?.exercises) return false;
+    activeSession = saved.activeSession;
+    sessionNotes  = saved.sessionNotes || '';
+    const rem = saved.rest ? Math.ceil((saved.rest.endTime - Date.now()) / 1000) : 0;
+    if (rem > 0) {
+      restActive    = true;
+      restMinimized = !!saved.rest.minimized;
+      restTimeLeft  = rem;
+      startRestCountdown();
+    }
+    return true;
+  } catch { return false; }
+}
+
+// Programme auquel appartient la séance en cours (peut différer du programme affiché)
+function sessProg() {
+  return (activeSession && data.programmes[activeSession.programme]) || prog();
+}
 
 // ═══════════════════════════════════════════════════════════
 //  Accessors
@@ -272,8 +430,19 @@ function sessionKeys(progId) {
 
 function sessionMeta(cat, progId) {
   progId = progId || data.activeProgramme;
-  if (progId === 'custom') return data.customSessions[cat] || { label: cat, icon: '🏋️', desc: '', color: '#666666' };
+  if (progId === 'custom') {
+    const cs = data.customSessions[cat];
+    if (!cs) return { label: esc(cat), icon: '🏋️', desc: '', color: '#666666' };
+    return { ...cs, label: esc(cs.label), icon: esc(cs.icon), desc: esc(cs.desc) };
+  }
   return PROGRAMMES[progId]?.sessions[cat] || { label: cat, icon: '🏋️', desc: '', color: '#666666' };
+}
+
+// Libellé brut (non échappé) pour les textes affichés via textContent
+function rawLabel(cat, progId) {
+  progId = progId || data.activeProgramme;
+  if (progId === 'custom') return data.customSessions[cat]?.label || cat;
+  return PROGRAMMES[progId]?.sessions[cat]?.label || cat;
 }
 
 function firstSession() {
@@ -327,7 +496,7 @@ function dispW(kg) {
   const v = parseFloat(kg);
   if (isNaN(v)) return '';
   if (data.unit === 'lbs') return String(Math.round(v * KG_TO_LBS * 10) / 10);
-  return String(kg);
+  return String(Math.round(v * 100) / 100);
 }
 
 // display input → kg stored string
@@ -335,7 +504,7 @@ function storeW(val) {
   if (val === '' || val == null) return '';
   const v = parseFloat(val);
   if (isNaN(v)) return '';
-  if (data.unit === 'lbs') return String(Math.round(v / KG_TO_LBS * 10) / 10);
+  if (data.unit === 'lbs') return String(Math.round(v / KG_TO_LBS * 1000) / 1000); // précision pour retomber sur la valeur saisie
   return String(val);
 }
 
@@ -358,13 +527,21 @@ function historyColor(h) {
 // ═══════════════════════════════════════════════════════════
 
 // ── Theme ────────────────────────────────────────────────────
-function applyTheme(theme) {
-  document.body.classList.toggle('light', theme === 'light');
-  localStorage.setItem('ppl_theme', theme);
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = theme === 'light' ? '#ffffff' : '#0a0a0a';
+const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
+
+function themePref() {
+  try { return localStorage.getItem('ppl_theme') || 'auto'; } catch { return 'auto'; }
 }
-applyTheme(localStorage.getItem('ppl_theme') || 'dark');
+
+function applyTheme(theme) {
+  try { localStorage.setItem('ppl_theme', theme); } catch {}
+  const light = theme === 'light' || (theme === 'auto' && !darkMQ.matches);
+  document.body.classList.toggle('light', light);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = light ? '#ffffff' : '#0a0a0a';
+}
+applyTheme(themePref());
+darkMQ.addEventListener?.('change', () => { if (themePref() === 'auto') { applyTheme('auto'); if (view === 'stats') render(); } });
 
 let data          = loadData();
 if (!data._prRecomputed) { recomputePRFromHistory(); data._prRecomputed = true; save(); }
@@ -387,7 +564,7 @@ let statsView     = 'progress'; // 'progress' | 'overview'
 let statsYear     = new Date().getFullYear();
 let statsMonth    = null;       // null = vue annuelle
 let addCat        = firstSession();
-let addDate       = new Date().toISOString().slice(0, 10);
+let addDate       = localISO();
 let addSets       = {};
 let addExtras     = [];  // exercices hors programme dans une séance passée : { key, name }
 let editSessionId = null;
@@ -511,6 +688,22 @@ function renderDashboard() {
       </div>`;
   }).join('');
 
+  let liveBanner = '';
+  if (activeSession) {
+    const lm    = sessionMeta(activeSession.category, activeSession.programme);
+    const total = activeSession.exercises.reduce((a, ex) => a + ex.sets.length, 0);
+    const done  = activeSession.exercises.reduce((a, ex) => a + ex.sets.filter(st => st.done).length, 0);
+    liveBanner = `
+      <button class="live-banner" data-action="resume-session" style="--cat-color:${lm.color}">
+        <span class="live-banner__dot"></span>
+        <span class="live-banner__body">
+          <span class="live-banner__title">${lm.icon} ${lm.label} en cours</span>
+          <span class="live-banner__sub">${done}/${total} séries · <span id="banner-elapsed">${fmtDuration(Date.now() - activeSession.startedAt)}</span></span>
+        </span>
+        <span class="live-banner__cta">Reprendre</span>
+      </button>`;
+  }
+
   const emptyCustom = data.activeProgramme === 'custom' && keys.length === 0
     ? `<div class="empty-state">
          <div class="empty-state__icon">✏️</div>
@@ -527,7 +720,7 @@ function renderDashboard() {
           <span class="prog-pill__name">${pm.name}</span>
           <span class="prog-pill__chevron">›</span>
         </button>
-        ${computeStreak() > 0 ? `<div class="streak-badge" title="Semaines consécutives actives">🔥 ${computeStreak()} sem.</div>` : ''}
+        ${computeStreak() > 0 ? `<div class="streak-badge" title="${computeStreak()} semaines consécutives actives" aria-label="${computeStreak()} semaines consécutives actives">🔥 ${computeStreak()}</div>` : ''}
         <div class="header-actions">
           <button class="icon-btn" data-action="go-settings" title="Réglages">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -553,15 +746,15 @@ function renderDashboard() {
           </button>
         </div>
       </header>
-      <div class="cards">${cards || emptyCustom}<div class="dashboard__brand">MDLF Training</div></div>
+      <div class="cards">${liveBanner}${cards || emptyCustom}<div class="dashboard__brand">MDLF Training</div></div>
     </div>`;
 }
 
 function startTicker() {
   clearInterval(ticker);
   ticker = setInterval(() => {
-    if (view === 'session' && activeSession) {
-      const el = $('#session-elapsed');
+    if (activeSession) {
+      const el = $('#session-elapsed') || $('#banner-elapsed');
       if (el) el.textContent = fmtDuration(Date.now() - activeSession.startedAt);
     }
     if (view !== 'dashboard') return;
@@ -594,7 +787,7 @@ function renderProgrammes() {
     const isActive = data.activeProgramme === id;
     const keys     = sessionKeys(id);
     const names    = id === 'custom'
-      ? Object.values(data.customSessions || {}).map(s => s.label).join(' · ')
+      ? Object.values(data.customSessions || {}).map(s => esc(s.label)).join(' · ')
       : Object.values(pm.sessions).map(s => s.label).join(' · ');
 
     return `
@@ -639,10 +832,10 @@ function renderCustomManager() {
         ? `<div class="custom-manager__empty">Aucune séance — crée-en une ci-dessous</div>`
         : sessions.map(([id, s]) => `
           <div class="custom-session-row">
-            <span class="custom-session-icon" style="color:${s.color}">${s.icon}</span>
+            <span class="custom-session-icon" style="color:${s.color}">${esc(s.icon)}</span>
             <div class="custom-session-info">
-              <div class="custom-session-name">${s.label}</div>
-              ${s.desc ? `<div class="custom-session-desc">${s.desc}</div>` : ''}
+              <div class="custom-session-name">${esc(s.label)}</div>
+              ${s.desc ? `<div class="custom-session-desc">${esc(s.desc)}</div>` : ''}
             </div>
             <button class="icon-btn" data-action="edit-custom-session" data-id="${id}" title="Modifier">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -668,13 +861,13 @@ function renderCsModal() {
       <div class="modal">
         <div class="modal__title">${isEdit ? 'Modifier la séance' : 'Nouvelle séance'}</div>
         <label class="form-label">Nom</label>
-        <input type="text" id="csName" class="form-input" value="${existing.label || ''}"
+        <input type="text" id="csName" class="form-input" value="${esc(existing.label)}"
                placeholder="Ex : Séance A, Chest, Full Body…" autocomplete="off">
         <label class="form-label">Icône</label>
-        <input type="text" id="csIcon" class="form-input" value="${existing.icon || '🏋️'}"
+        <input type="text" id="csIcon" class="form-input" value="${esc(existing.icon || '🏋️')}"
                placeholder="🏋️" style="font-size:22px;text-align:center">
         <label class="form-label">Description (optionnel)</label>
-        <input type="text" id="csDesc" class="form-input" value="${existing.desc || ''}"
+        <input type="text" id="csDesc" class="form-input" value="${esc(existing.desc)}"
                placeholder="Ex : Pectoraux · Dos">
         <label class="form-label">Couleur</label>
         <div class="color-picker">
@@ -713,19 +906,28 @@ function startSession(cat) {
     })),
   };
   view = 'session';
+  persistSession();
   render();
   requestWakeLock();
 }
 
+function endSession() {
+  clearRest(); restActive = false; restMinimized = false;
+  activeSession = null;
+  sessionNotes  = '';
+  persistSession();
+  releaseWakeLock();
+}
+
 function renderSession() {
   const { category: cat } = activeSession;
-  const meta = sessionMeta(cat);
+  const meta = sessionMeta(cat, activeSession.programme);
 
   const totalSets = activeSession.exercises.reduce((a, ex) => a + ex.sets.length, 0);
   const doneSets  = activeSession.exercises.reduce((a, ex) => a + ex.sets.filter(s => s.done).length, 0);
   const pct       = totalSets ? Math.round(doneSets / totalSets * 100) : 0;
 
-  const prevSession = (data.history || []).find(h => h.category === cat && h.programme === activeSession.programme);
+  const prevSession = (data.history || []).find(h => h.category === cat && (h.programme || 'ppl') === activeSession.programme);
 
   // Volume global : session actuelle vs précédente
   const curVolTotal  = activeSession.exercises.reduce((a, ex) => a + setsVolume(ex.sets.filter(s => s.done)), 0);
@@ -737,8 +939,8 @@ function renderSession() {
   const volDeltaColor = volDelta >= 0 ? '#22c55e' : '#ef4444';
 
   const exHtml = activeSession.exercises.map((ex, ei) => {
-    const exData  = prog().exercises[cat]?.find(e => e.id === ex.exId);
-    const prText  = exData?.pr ? `PR : ${dispW(exData.pr.weight)} ${unitLbl()} × ${exData.pr.reps}` : '';
+    const exData  = sessProg().exercises[cat]?.find(e => e.id === ex.exId);
+    const prText  = exData?.pr ? `PR : ${dispW(exData.pr.weight)} ${unitLbl()} × ${esc(exData.pr.reps)}` : '';
     const allDone = ex.sets.every(s => s.done);
 
     const prevEx      = prevSession?.exercises.find(e => e.name === ex.name);
@@ -806,7 +1008,7 @@ function renderSession() {
     return `
       <div class="exercise-block ${allDone ? 'exercise-block--done' : ''}">
         <div class="exercise-header">
-          <span class="exercise-name">${ex.name}</span>
+          <span class="exercise-name">${esc(ex.name)}</span>
           <button class="rest-badge" data-action="set-ex-rest" data-ei="${ei}" title="Modifier le repos">⏱ ${restLabel}</button>
           <span class="exercise-progress">${ex.sets.filter(s => s.done).length}/${ex.sets.length}</span>
         </div>
@@ -842,7 +1044,7 @@ function renderSession() {
         <div class="session-notes-block">
           <div class="session-notes-label">Notes de séance</div>
           <textarea class="session-notes-input" data-action="session-notes"
-                    placeholder="Comment s'est passée la séance ? (optionnel)">${sessionNotes}</textarea>
+                    placeholder="Comment s'est passée la séance ? (optionnel)">${esc(sessionNotes)}</textarea>
         </div>
       </div>
     </div>
@@ -859,6 +1061,7 @@ function validateSet(ei, si) {
 
   s.done = true;
   validationSound();
+  haptic();
 
   const nextSet = ex.sets[si + 1];
   if (nextSet && !nextSet.done) {
@@ -867,7 +1070,7 @@ function validateSet(ei, si) {
   }
 
   const cat    = activeSession.category;
-  const exData = prog().exercises[cat]?.find(e => e.id === ex.exId);
+  const exData = sessProg().exercises[cat]?.find(e => e.id === ex.exId);
   if (exData) {
     exData.lastWeight = s.weight;
     exData.lastReps   = s.reps;
@@ -969,7 +1172,8 @@ function startRestCountdown() {
       restMinimized = false;
       timerDone();
       restActive = false;
-      setTimeout(() => render(), 350);
+      persistSession();
+      setTimeout(removeRestUI, 350);
     }
   }, 500);
 }
@@ -978,12 +1182,12 @@ function renderRestEditModal() {
   if (restEditEi === null) return '';
   const ex     = activeSession?.exercises[restEditEi];
   const cat    = activeSession?.category;
-  const exData = prog().exercises[cat]?.find(e => e.id === ex?.exId);
+  const exData = sessProg().exercises[cat]?.find(e => e.id === ex?.exId);
   const cur    = exData?.rest ?? data.defaultRest;
   return `
     <div class="modal-overlay">
       <div class="modal" style="max-width:320px;">
-        <div class="modal__title">Repos — ${ex?.name}</div>
+        <div class="modal__title">Repos — ${esc(ex?.name)}</div>
         <label class="form-label">Durée (secondes)</label>
         <input type="number" inputmode="numeric" id="restEditInput" class="form-input"
                value="${cur}" min="10" max="600" placeholder="Ex : 90">
@@ -1004,7 +1208,7 @@ function renderEditSetModal() {
   return `
     <div class="modal-overlay">
       <div class="modal" style="max-width:320px;">
-        <div class="modal__title">Modifier — ${ex.name} S${si + 1}</div>
+        <div class="modal__title">Modifier — ${esc(ex.name)} S${si + 1}</div>
         <label class="form-label">Charge (${unitLbl()})</label>
         <input type="number" inputmode="decimal" id="editSetWeight" class="form-input"
                value="${dispW(s.weight)}" placeholder="—">
@@ -1033,9 +1237,9 @@ function renderAddExModal() {
         <div class="modal__title">Ajouter un exercice</div>
         <label class="form-label">Nom de l'exercice</label>
         <input type="text" id="addExNameInput" class="form-input" list="knownExList"
-               value="${addExName}" placeholder="Ex : Curl concentré" autocomplete="off">
+               value="${esc(addExName)}" placeholder="Ex : Curl concentré" autocomplete="off">
         <datalist id="knownExList">
-          ${knownExerciseNames().map(n => `<option value="${n.replace(/"/g, '&quot;')}">`).join('')}
+          ${knownExerciseNames().map(n => `<option value="${esc(n)}">`).join('')}
         </datalist>
         <label class="form-label" style="margin-top:14px">Nombre de séries</label>
         <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
@@ -1053,6 +1257,10 @@ function renderAddExModal() {
 
 function clearRest() { clearInterval(restInterval); restInterval = null; }
 
+function removeRestUI() {
+  document.querySelectorAll('.rest-overlay, .rest-mini').forEach(el => el.remove());
+}
+
 function openRest(secs) {
   restActive    = true;
   restMinimized = false;
@@ -1068,8 +1276,9 @@ document.addEventListener('visibilitychange', () => {
       clearInterval(restInterval);
       restTimeLeft = 0;
       restActive   = false;
+      persistSession();
       timerDone();
-      setTimeout(() => render(), 350);
+      setTimeout(removeRestUI, 350);
     } else {
       restTimeLeft = remaining;
       startRestCountdown();
@@ -1107,7 +1316,7 @@ function renderEditor() {
           <button class="reorder-btn" data-action="move-down" data-i="${i}" ${i === max ? 'disabled' : ''}>▼</button>
         </div>
         <div class="editor-row__info">
-          <div class="editor-row__name">${ex.name}</div>
+          <div class="editor-row__name">${esc(ex.name)}</div>
           <div class="editor-row__meta">${last}${pr}</div>
         </div>
         <div class="editor-row__sets">
@@ -1166,7 +1375,7 @@ function renderModal() {
         <div class="modal__title">${isEdit ? 'Modifier' : 'Ajouter'} un exercice</div>
         <label class="form-label">Nom de l'exercice</label>
         <input type="text" id="modalName" class="form-input"
-               value="${ex ? ex.name : ''}" placeholder="Ex : Curl biceps haltères" autocomplete="off">
+               value="${ex ? esc(ex.name) : ''}" placeholder="Ex : Curl biceps haltères" autocomplete="off">
         <label class="form-label">Nombre de séries par défaut</label>
         <input type="number" inputmode="numeric" id="modalSets" class="form-input"
                value="${ex ? ex.sets : 3}" min="1" max="10">
@@ -1201,7 +1410,7 @@ function initAddSets(cat) {
 
 function renderAddSession() {
   const exercises = prog().exercises[addCat] || [];
-  const today     = new Date().toISOString().slice(0, 10);
+  const today     = localISO();
   const keys      = sessionKeys();
 
   const catBtns = keys.map(c => {
@@ -1235,7 +1444,7 @@ function renderAddSession() {
     return `
       <div class="exercise-block">
         <div class="exercise-header">
-          <span class="exercise-name">${ex.name}</span>
+          <span class="exercise-name">${esc(ex.name)}</span>
           <div style="display:flex;gap:6px">
             <button class="sets-adj" data-action="add-set-row" data-exid="${ex.id}">+</button>
             <button class="sets-adj" data-action="rem-set-row" data-exid="${ex.id}"
@@ -1266,7 +1475,7 @@ function renderAddSession() {
     return `
       <div class="exercise-block">
         <div class="exercise-header">
-          <span class="exercise-name">${name}</span>
+          <span class="exercise-name">${esc(name)}</span>
           <div style="display:flex;gap:6px">
             <button class="sets-adj" data-action="add-set-row" data-exid="${key}">+</button>
             <button class="sets-adj" data-action="rem-set-row" data-exid="${key}"
@@ -1306,7 +1515,7 @@ function renderAddSession() {
         <div class="session-notes-block">
           <div class="session-notes-label">Notes</div>
           <textarea class="session-notes-input" data-action="add-notes-input"
-                    placeholder="Comment s'est passée la séance ? (optionnel)">${addNotes}</textarea>
+                    placeholder="Comment s'est passée la séance ? (optionnel)">${esc(addNotes)}</textarea>
         </div>
       </div>
     </div>
@@ -1322,7 +1531,6 @@ function renderAddSession() {
 // ═══════════════════════════════════════════════════════════
 
 function renderSettings() {
-  const isLight = document.body.classList.contains('light');
   const tog = (on) => `<div class="setting-toggle ${on ? 'setting-toggle--on' : ''}"><div class="setting-toggle__thumb"></div></div>`;
 
   return `
@@ -1340,10 +1548,13 @@ function renderSettings() {
 
         <div class="settings-section-title">Apparence</div>
         <div class="settings-group">
-          <button class="setting-row" data-action="toggle-theme">
+          <div class="setting-row setting-row--segmented">
             <span class="setting-label">Thème</span>
-            <span class="setting-value">${isLight ? 'Clair ☀️' : 'Sombre 🌙'}</span>
-          </button>
+            <div class="segmented">
+              ${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([v, l]) =>
+                `<button class="segmented__btn ${themePref() === v ? 'segmented__btn--active' : ''}" data-action="set-theme" data-val="${v}">${l}</button>`).join('')}
+            </div>
+          </div>
         </div>
 
         <div class="settings-section-title">Séance</div>
@@ -1588,7 +1799,7 @@ function renderStats() {
 
     if (points.length === 0) return `
       <div class="stats-card">
-        <div class="stats-card__name">${ex.name}</div>
+        <div class="stats-card__name">${esc(ex.name)}</div>
         <div class="stats-card__empty">Pas encore effectué</div>
       </div>`;
 
@@ -1652,7 +1863,7 @@ function renderStats() {
     return `
       <div class="stats-card">
         <div class="stats-card__header">
-          <span class="stats-card__name">${ex.name}</span>
+          <span class="stats-card__name">${esc(ex.name)}</span>
           <div class="stats-card__current-block">
             <span class="stats-card__current">${fmtMetric(lastVal, isBodyweight)}</span>
             <span class="stats-card__mode-label">${modeLabel()}</span>
@@ -1875,12 +2086,12 @@ function renderHistory() {
                   ${sessionVolume(s.exercises) > 0 ? ` · <strong>${fmtVolume(sessionVolume(s.exercises))}</strong> volume` : ''}
                   ${s.duration ? ` · ⏱ ${fmtDuration(s.duration)}` : ''}
                 </div>
-                ${s.notes ? `<div class="history-notes">"${s.notes}"</div>` : ''}
+                ${s.notes ? `<div class="history-notes">« ${esc(s.notes)} »</div>` : ''}
                 <div class="history-item__exercises">
                   ${s.exercises.map(ex => `
                     <div class="history-ex">
-                      <span class="history-ex__name">${ex.name}</span>
-                      <span class="history-ex__sets">${ex.sets.map(set => `${set.weight}×${set.reps}`).join(' / ')}</span>
+                      <span class="history-ex__name">${esc(ex.name)}</span>
+                      <span class="history-ex__sets">${ex.sets.map(set => `${set.weight ? dispW(set.weight) + '×' : ''}${esc(set.reps)}`).join(' / ')}</span>
                     </div>`).join('')}
                 </div>
               </div>`;
@@ -1910,26 +2121,27 @@ function renderHistory() {
 //  Event handling
 // ═══════════════════════════════════════════════════════════
 
-document.addEventListener('click', e => {
+document.addEventListener('click', async e => {
   const el     = e.target.closest('[data-action]');
   if (!el) return;
   const action = el.dataset.action;
+  try { await handleAction(e, el, action); }
+  finally { persistSession(); }
+});
+
+async function handleAction(e, el, action) {
 
   switch (action) {
 
     // ── Navigation ─────────────────────────────────────────
     case 'back': {
-      if (view === 'session') {
-        if (!confirm('Abandonner la séance en cours ?')) return;
-        activeSession = null;
-        clearRest(); restActive = false;
-        releaseWakeLock();
-      }
-      if (view === 'programmes') {
-        view = 'dashboard'; render(); startTicker();
-      } else {
-        view = 'dashboard'; render(); startTicker();
-      }
+      if (view === 'session') releaseWakeLock(); // la séance reste en cours, reprise depuis l'accueil
+      view = 'dashboard'; render(); startTicker();
+      break;
+    }
+    case 'resume-session': {
+      if (!activeSession) break;
+      view = 'session'; render(); requestWakeLock();
       break;
     }
     case 'go-editor': {
@@ -1969,7 +2181,7 @@ document.addEventListener('click', e => {
     }
     case 'go-add-session': {
       addCat        = firstSession();
-      addDate       = new Date().toISOString().slice(0, 10);
+      addDate       = localISO();
       editSessionId = null;
       addNotes      = '';
       initAddSets(addCat);
@@ -1980,12 +2192,12 @@ document.addEventListener('click', e => {
       if (!session) break;
       // Only edit if it's the same programme
       if (session.programme && session.programme !== data.activeProgramme) {
-        showToast('Changezie de programme pour modifier cette séance');
+        showToast('Change de programme pour modifier cette séance');
         break;
       }
       editSessionId = session.id;
       addCat  = session.category;
-      addDate = new Date(session.date).toISOString().slice(0, 10);
+      addDate = localISO(session.date);
       initAddSets(addCat);
       session.exercises.forEach(ex => {
         const exData = (prog().exercises[addCat] || []).find(e => e.name === ex.name);
@@ -1999,7 +2211,7 @@ document.addEventListener('click', e => {
       view = 'add-session'; render(); break;
     }
     case 'delete-session': {
-      if (!confirm('Supprimer cette séance ?')) break;
+      if (!(await confirmSheet('Supprimer cette séance ?', 'Elle sera retirée de l\'historique et des statistiques.', 'Supprimer la séance'))) break;
       data.history = (data.history || []).filter(h => h.id !== el.dataset.id);
       syncTimersFromHistory();
       recomputePRFromHistory();
@@ -2008,9 +2220,8 @@ document.addEventListener('click', e => {
     case 'go-settings': {
       view = 'settings'; render(); break;
     }
-    case 'toggle-theme': {
-      const next = document.body.classList.contains('light') ? 'dark' : 'light';
-      applyTheme(next); render(); break;
+    case 'set-theme': {
+      applyTheme(el.dataset.val); render(); break;
     }
     case 'setting-unit': {
       data.unit = el.dataset.val; save(); render(); break;
@@ -2022,8 +2233,8 @@ document.addEventListener('click', e => {
       data.vibrateOn = !data.vibrateOn; save(); render(); break;
     }
     case 'setting-rest': {
-      const v = parseInt(window.prompt('Temps de repos par défaut (secondes) :', String(data.defaultRest)));
-      if (!isNaN(v) && v > 0) { data.defaultRest = v; save(); render(); }
+      const v = await askNumber({ title: 'Repos par défaut', message: 'Durée entre deux séries, en secondes.', value: data.defaultRest, unit: 's', min: 10, max: 600 });
+      if (v !== null) { data.defaultRest = v; save(); render(); }
       break;
     }
     case 'force-update': {
@@ -2039,12 +2250,8 @@ document.addEventListener('click', e => {
     case 'cooldown-edit': {
       const cat = el.dataset.cat;
       if (!cat) break;
-      const meta = sessionMeta(cat);
-      const cur  = getCooldown(cat);
-      const input = window.prompt(`Délai de récupération — ${meta.label} (heures) :\nActuellement : ${cur}h\n\nEntrer un nombre entre 1 et 168 :`, String(cur));
-      if (input === null) break;
-      const val = parseInt(input, 10);
-      if (isNaN(val) || val < 1 || val > 168) { alert('Valeur invalide (1–168h).'); break; }
+      const val = await askNumber({ title: `Récupération ${rawLabel(cat)}`, message: 'Délai avant de pouvoir refaire cette séance (1 à 168 h).', value: getCooldown(cat), unit: 'h', min: 1, max: 168 });
+      if (val === null) break;
       prog().cooldowns[cat] = val;
       save(); render();
       break;
@@ -2052,8 +2259,7 @@ document.addEventListener('click', e => {
     case 'skip-cooldown': {
       const cat = el.dataset.cat;
       if (!cat || !prog().timers[cat]) break;
-      const meta = sessionMeta(cat);
-      if (!confirm(`Passer le délai de récupération pour "${meta.label}" ?\n\nLa séance sera immédiatement disponible.`)) break;
+      if (!(await confirmSheet(`Passer la récupération de ${rawLabel(cat)} ?`, 'La séance sera disponible tout de suite.', 'Passer le délai', false))) break;
       prog().timers[cat] = null;
       save(); render();
       break;
@@ -2112,7 +2318,7 @@ document.addEventListener('click', e => {
         if (idx !== -1) {
           const old = data.history[idx];
           // Même jour : on garde l'heure d'origine
-          const sameDay = new Date(old.date).toISOString().slice(0, 10) === addDate;
+          const sameDay = localISO(old.date) === addDate;
           data.history[idx] = { ...old, programme: data.activeProgramme, category: addCat, date: sameDay ? old.date : timestamp, notes: addNotes.trim(), exercises: sessionExercises };
         }
       } else {
@@ -2210,6 +2416,7 @@ document.addEventListener('click', e => {
       if (!data.programmes.custom.timers[id])     data.programmes.custom.timers[id]     = null;
       if (data.programmes.custom.cooldowns[id] == null) data.programmes.custom.cooldowns[id] = 72;
 
+      const wasEdit = csEditId !== null;
       csModal = false; csEditId = null;
       // Update nav state
       if (!editorCat || !sessionKeys().includes(editorCat)) editorCat = firstSession();
@@ -2217,17 +2424,18 @@ document.addEventListener('click', e => {
       if (!addCat    || !sessionKeys().includes(addCat))    addCat    = firstSession();
 
       save();
-      showToast(csEditId ? 'Séance modifiée !' : 'Séance créée !');
+      showToast(wasEdit ? 'Séance modifiée !' : 'Séance créée !');
       render(); break;
     }
     case 'delete-custom-session': {
-      if (!confirm('Supprimer cette séance et tous ses exercices ?')) return;
+      if (!(await confirmSheet('Supprimer cette séance ?', 'Ses exercices et son historique seront supprimés.', 'Supprimer'))) break;
       const id = csEditId;
       if (id && data.customSessions) {
         delete data.customSessions[id];
         if (data.programmes.custom) {
           delete data.programmes.custom.exercises[id];
           delete data.programmes.custom.timers[id];
+          delete data.programmes.custom.cooldowns?.[id];
         }
         data.history = (data.history || []).filter(h => !(h.category === id && h.programme === 'custom'));
       }
@@ -2240,8 +2448,26 @@ document.addEventListener('click', e => {
 
     // ── Dashboard ──────────────────────────────────────────
     case 'start-session': {
+      const cat = el.dataset.cat;
+      if (!(prog().exercises[cat] || []).length) {
+        await dialog({ title: 'Aucun exercice', message: 'Ajoute des exercices à cette séance avant de la démarrer.', actions: [{ label: 'OK', style: 'preferred' }] });
+        break;
+      }
+      if (activeSession) {
+        const choice = await dialog({ type: 'sheet', title: 'Une séance est déjà en cours',
+          message: `${rawLabel(activeSession.category, activeSession.programme)} a commencé il y a ${fmtDuration(Date.now() - activeSession.startedAt)}.`,
+          actions: [
+            { label: 'Reprendre la séance en cours', value: 'resume', style: 'preferred' },
+            { label: `Abandonner et démarrer ${rawLabel(cat)}`, value: 'replace', style: 'destructive' },
+            { label: 'Annuler', style: 'cancel' },
+          ] });
+        if (choice === 'resume') { view = 'session'; render(); requestWakeLock(); break; }
+        if (choice !== 'replace') break;
+        endSession();
+      }
       if (data.soundOn !== false) beep(440, .08);
-      startSession(el.dataset.cat);
+      haptic();
+      startSession(cat);
       break;
     }
 
@@ -2270,7 +2496,7 @@ document.addEventListener('click', e => {
       s.weight = storeW(rawW);
       s.reps   = parseInt(rawR) || s.reps;
       const cat    = activeSession.category;
-      const exData = prog().exercises[cat]?.find(e => e.id === ex.exId);
+      const exData = sessProg().exercises[cat]?.find(e => e.id === ex.exId);
       if (exData) {
         const lastDone = ex.sets.filter(s => s.done).at(-1);
         if (lastDone) { exData.lastWeight = lastDone.weight; exData.lastReps = lastDone.reps; }
@@ -2292,7 +2518,7 @@ document.addEventListener('click', e => {
       const eiRest = el.dataset.ei !== undefined ? parseInt(el.dataset.ei) : null;
       if (eiRest !== null) {
         const cat    = activeSession.category;
-        const exData = prog().exercises[cat]?.find(e => e.id === activeSession.exercises[eiRest]?.exId);
+        const exData = sessProg().exercises[cat]?.find(e => e.id === activeSession.exercises[eiRest]?.exId);
         openRest(exData?.rest ?? data.defaultRest);
       } else {
         openRest();
@@ -2313,7 +2539,7 @@ document.addEventListener('click', e => {
       if (secs >= 10 && secs <= 600) {
         const ex     = activeSession.exercises[restEditEi];
         const cat    = activeSession.category;
-        const exData = prog().exercises[cat]?.find(e => e.id === ex?.exId);
+        const exData = sessProg().exercises[cat]?.find(e => e.id === ex?.exId);
         if (exData) { exData.rest = secs; save(); showToast(`Repos ${secs}s enregistré`); }
       }
       restEditEi = null; render(); break;
@@ -2399,11 +2625,29 @@ document.addEventListener('click', e => {
       break;
     }
     case 'finish-session': {
-      if (!confirm('Terminer et valider la séance ?')) return;
-      prog().timers[activeSession.category] = Date.now();
-      if (!data.history) data.history = [];
       const notesEl = $('.session-notes-input');
       if (notesEl) sessionNotes = notesEl.value;
+      const total = activeSession.exercises.reduce((a, ex) => a + ex.sets.length, 0);
+      const done  = activeSession.exercises.reduce((a, ex) => a + ex.sets.filter(st => st.done).length, 0);
+      const dur   = fmtDuration(Date.now() - activeSession.startedAt);
+      const choice = await dialog({ type: 'sheet',
+        title: done ? 'Terminer la séance ?' : 'Aucune série validée',
+        message: done ? `${done} / ${total} séries · ${dur}` : 'Valide au moins une série pour enregistrer la séance.',
+        actions: [
+          ...(done ? [{ label: 'Enregistrer la séance', value: 'save', style: 'preferred' }] : []),
+          { label: 'Abandonner la séance', value: 'discard', style: 'destructive' },
+          { label: done ? 'Continuer' : 'Continuer la séance', style: 'cancel' },
+        ] });
+      if (choice === 'discard') {
+        if (done && !(await confirmSheet('Abandonner la séance ?', `Les ${done} séries validées seront perdues.`, 'Abandonner'))) break;
+        endSession();
+        view = 'dashboard'; render(); startTicker();
+        showToast('Séance abandonnée');
+        break;
+      }
+      if (choice !== 'save') break;
+      sessProg().timers[activeSession.category] = Date.now();
+      if (!data.history) data.history = [];
       data.history.unshift({
         id:         uid(),
         programme:  activeSession.programme,
@@ -2411,18 +2655,17 @@ document.addEventListener('click', e => {
         date:       Date.now(),
         duration:   Date.now() - activeSession.startedAt,
         notes:      sessionNotes.trim(),
-        exercises:  activeSession.exercises.map(ex => ({
-          name: ex.name,
-          sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps })),
-        })),
+        exercises:  activeSession.exercises
+          .map(ex => ({
+            name: ex.name,
+            sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps })),
+          }))
+          .filter(ex => ex.sets.length),
       });
-      sessionNotes = '';
-      if (data.history.length > 200) data.history = data.history.slice(0, 200);
       save();
       finishSound();
-      clearRest(); restActive = false;
-      activeSession = null;
-      releaseWakeLock();
+      haptic();
+      endSession();
       view = 'dashboard'; render(); startTicker();
       showToast('Séance enregistrée !');
       break;
@@ -2458,7 +2701,7 @@ document.addEventListener('click', e => {
     case 'del-ex': {
       const i    = parseInt(el.dataset.i);
       const name = prog().exercises[editorCat][i].name;
-      if (!confirm(`Supprimer "${name}" ?`)) return;
+      if (!(await confirmSheet(`Supprimer « ${name} » ?`, 'L\'historique de cet exercice est conservé.', 'Supprimer l\'exercice'))) break;
       prog().exercises[editorCat].splice(i, 1); save(); render(); break;
     }
     case 'add-ex': {
@@ -2492,16 +2735,23 @@ document.addEventListener('click', e => {
 
     // ── Data ────────────────────────────────────────────────
     case 'export': {
-      const exportData = { ...data, _theme: localStorage.getItem('ppl_theme') || 'dark' };
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = `muscu-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click(); URL.revokeObjectURL(url);
+      const exportData = { ...data, _theme: themePref() };
+      const json  = JSON.stringify(exportData, null, 2);
+      const fname = `muscu-backup-${localISO()}.json`;
+      const file  = typeof File === 'function' ? new File([json], fname, { type: 'application/json' }) : null;
+      if (file && navigator.canShare?.({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'Sauvegarde PPL Training' }); break; }
+        catch (err) { if (err?.name === 'AbortError') break; }
+      }
+      const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+      const a   = document.createElement('a');
+      a.href = url; a.download = fname;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
       break;
     }
     case 'import': {
+      if (!(await confirmSheet('Importer une sauvegarde ?', 'Les données actuelles seront remplacées par celles du fichier.', 'Choisir un fichier', false))) break;
       const inp = document.createElement('input');
       inp.type  = 'file'; inp.accept = '.json';
       inp.onchange = ev => {
@@ -2520,15 +2770,18 @@ document.addEventListener('click', e => {
               nd.history     = (d.history || []).map(h => ({ ...h, programme: 'ppl' }));
               data = nd;
             } else if (d.programmes && d.activeProgramme) {
-              data = d;
-              if (!data.customSessions) data.customSessions = {};
+              const theme = d._theme;
+              delete d._theme;
+              data = normalizeData(d);
+              d._theme = theme;
             } else {
               showToast('Fichier invalide');
               return;
             }
             recomputePRFromHistory();
             if (d._theme) applyTheme(d._theme);
-            save(); render(); showToast('Import réussi !');
+            editorCat = statsCat = addCat = firstSession();
+            save(); render(); showToast(`Import réussi : ${data.history.length} séances`);
           } catch { showToast('Erreur import'); }
         };
         reader.readAsText(file);
@@ -2536,7 +2789,7 @@ document.addEventListener('click', e => {
       inp.click(); break;
     }
   }
-});
+}
 
 // Live input capture
 document.addEventListener('input', e => {
@@ -2562,7 +2815,12 @@ document.addEventListener('input', e => {
     if (action === 'add-notes-input') addNotes = e.target.value;
   }
   if (action === 'session-notes') sessionNotes = e.target.value;
+  if (activeSession) persistSession();
 });
+
+// iOS peut tuer l'app en arrière-plan : on sauvegarde au moment où elle disparaît
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') persistSession(); });
+window.addEventListener('pagehide', persistSession);
 
 // ═══════════════════════════════════════════════════════════
 //  Wake Lock
@@ -2579,7 +2837,7 @@ async function releaseWakeLock() {
 }
 
 document.addEventListener('visibilitychange', async () => {
-  if (wakeLock && document.visibilityState === 'visible' && view === 'session') {
+  if (document.visibilityState === 'visible' && view === 'session') {
     await requestWakeLock();
   }
 });
@@ -2603,6 +2861,7 @@ function syncTimersFromHistory() {
 
 document.addEventListener('DOMContentLoaded', () => {
   syncTimersFromHistory();
+  if (restoreSession()) { view = 'session'; requestWakeLock(); }
   render();
   startTicker();
 });
