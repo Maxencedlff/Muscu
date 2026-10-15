@@ -1,4 +1,4 @@
-const CACHE = 'ppl-v23';
+const CACHE = 'ppl-v24';
 const ASSETS = ['/', '/index.html', '/style.css', '/nav.css', '/session.css', '/screens.css', '/app.js', '/manifest.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png'];
 
 // Une version = un cache complet, téléchargé d'un bloc (cache HTTP contourné) :

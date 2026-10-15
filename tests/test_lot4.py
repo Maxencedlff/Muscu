@@ -286,7 +286,13 @@ def t_keyboard(bench):
         w, r, v = row_inputs(page, 0, 0)
         w.focus(); page.wait_for_timeout(80)
         sel = page.evaluate('[document.activeElement.selectionStart, document.activeElement.selectionEnd, document.activeElement.value.length]')
-        R.check(sel[0] == 0 and sel[1] == sel[2], f'clavier : contenu sélectionné au focus {sel}')
+        # Demande de Maxence (15/10) : toucher un champ ne sélectionne plus tout son contenu
+        R.check(not (sel[2] > 0 and sel[0] == 0 and sel[1] == sel[2]), f'clavier : contenu non sélectionné au focus {sel}')
+        # iOS avale le tap si du contenu apparaît au toucher : le bouton Supprimer ne doit pas se révéler au pointerdown
+        v.dispatch_event('pointerdown', {'clientX': 10, 'clientY': 10, 'bubbles': True})
+        revealed = page.evaluate("() => !!document.querySelector('.set-swipe--swiping, .set-swipe--open')")
+        v.dispatch_event('pointerup', {'bubbles': True})
+        R.check(not revealed, 'toucher une série ne révèle pas « Supprimer » (sinon double tap sur iPhone)')
         page.keyboard.press('Enter')
         R.check(page.evaluate("document.activeElement.dataset.action") == 'set-reps', 'clavier : Entrée passe aux reps')
         page.keyboard.press('Enter'); page.wait_for_timeout(300)

@@ -2829,7 +2829,6 @@ document.addEventListener('pointerdown', e => {
   if (!row || row.classList.contains('set-row2--editing')) { if (!e.target.closest?.('.set-del')) closeSwipes(); return; }
   const wrap = row.parentElement;
   closeSwipes(wrap);
-  wrap.classList.add('set-swipe--swiping');
   swipe = { row, wrap, x0: e.clientX, y0: e.clientY, dx: 0, axis: null, base: wrap.classList.contains('set-swipe--open') ? -SWIPE_OPEN : 0 };
 });
 document.addEventListener('pointermove', e => {
@@ -2838,6 +2837,9 @@ document.addEventListener('pointermove', e => {
   // Axe verrouillé après 10 px : le défilement vertical reste prioritaire
   if (!swipe.axis && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) swipe.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
   if (swipe.axis !== 'x') return;
+  // Bouton « Supprimer » révélé seulement maintenant : le faire apparaître dès le toucher
+  // ferait avaler le tap par iOS (il faudrait toucher deux fois le ✓ ou les champs)
+  swipe.wrap.classList.add('set-swipe--swiping');
   swipe.dx = dx;
   const t = Math.min(0, Math.max(-140, swipe.base + dx));
   swipe.row.style.transition = 'none';
@@ -2872,12 +2874,11 @@ document.addEventListener('click', e => {
 //  Saisie au clavier
 // ═══════════════════════════════════════════════════════════
 
-// Toucher un champ sélectionne son contenu : on retape directement la valeur
+// Champ de série touché : clavier ouvert (la barre de repos s'efface), curseur laissé où iOS le place
 document.addEventListener('focusin', e => {
   const t = e.target;
   if (!t.matches?.('.set-input')) return;
   document.body.classList.add('kb-open');
-  setTimeout(() => { try { if (document.activeElement === t) t.select(); } catch {} }, 0);
 });
 document.addEventListener('focusout', () => {
   setTimeout(() => {
