@@ -62,73 +62,28 @@ function addHasReps() {
   return Object.values(addSets).some(sets => (sets || []).some(s => String(s.reps ?? '').trim() !== ''));
 }
 
-function renderAddSession() {
-  const exercises = addProgData().exercises[addCat] || [];
-  const today     = localISO();
-  const keys      = sessionKeys(addProg);
-  const hasPrev   = !editSessionId && exercises.some(ex => addPrev[ex.id]?.length);
-
-  const catBtns = keys.map(c => {
-    const meta    = sessionMeta(c, addProg);
-    const isActive = addCat === c;
-    return `
-      <button class="cat-sel-btn ${isActive ? 'cat-sel-btn--active' : ''}"
-              data-action="add-cat" data-cat="${c}"
-              style="${isActive ? `border-color:${meta.color};color:${meta.color};background:color-mix(in srgb, ${meta.color} 10%, transparent)` : ''}">
-        ${meta.icon} ${meta.label}
-      </button>`;
-  }).join('');
-
-  const exHtml = exercises.map(ex => {
-    const sets = addSets[ex.id] || [];
-    const prev = addPrev[ex.id] || [];
-    const setsHtml = sets.map((s, si) => `
+// Rangée d'une série : la dernière séance (prev) sert de placeholder
+function addSetRow(key, si, s, prev) {
+  return `
       <div class="set-row set-row--active">
         <span class="set-num">S${si + 1}</span>
         <div class="input-group">
-          <input type="text" inputmode="decimal" autocomplete="off" class="set-input" placeholder="${prev[si]?.weight ? wTxt(prev[si].weight) : '—'}" aria-label="Charge série ${si + 1}"
-                 value="${wTxt(s.weight)}" data-action="add-weight" data-exid="${ex.id}" data-si="${si}">
+          <input type="text" inputmode="decimal" autocomplete="off" class="set-input" placeholder="${prev?.weight ? fmtW(prev.weight, { plain: true }) : '—'}" aria-label="Charge série ${si + 1}"
+                 value="${fmtW(s.weight, { plain: true })}" data-action="add-weight" data-exid="${key}" data-si="${si}">
           <span class="input-unit">${unitLbl()}</span>
         </div>
         <div class="input-group">
-          <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="set-input set-input--required" placeholder="${prev[si] ? esc(prev[si].reps) : '0'}" aria-label="Répétitions série ${si + 1}"
-                 value="${esc(s.reps)}" data-action="add-reps" data-exid="${ex.id}" data-si="${si}">
-          <span class="input-unit">reps</span>
-        </div>
-      </div>`).join('');
-
-    return `
-      <div class="exercise-block">
-        <div class="exercise-header">
-          <span class="exercise-name">${esc(ex.name)}</span>
-          <div style="display:flex;gap:6px">
-            <button class="sets-adj" data-action="add-set-row" data-exid="${ex.id}">+</button>
-            <button class="sets-adj" data-action="rem-set-row" data-exid="${ex.id}"
-                    ${sets.length <= 1 ? 'disabled' : ''} style="opacity:${sets.length <= 1 ? .3 : 1}">−</button>
-          </div>
-        </div>
-        ${setsHtml}
-      </div>`;
-  }).join('');
-
-  const extrasHtml = addExtras.map(({ key, name }) => {
-    const sets = addSets[key] || [];
-    const setsHtml = sets.map((s, si) => `
-      <div class="set-row set-row--active">
-        <span class="set-num">S${si + 1}</span>
-        <div class="input-group">
-          <input type="text" inputmode="decimal" autocomplete="off" class="set-input" placeholder="—" aria-label="Charge série ${si + 1}"
-                 value="${wTxt(s.weight)}" data-action="add-weight" data-exid="${key}" data-si="${si}">
-          <span class="input-unit">${unitLbl()}</span>
-        </div>
-        <div class="input-group">
-          <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="set-input set-input--required" placeholder="0" aria-label="Répétitions série ${si + 1}"
+          <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="set-input set-input--required" placeholder="${prev ? esc(prev.reps) : '0'}" aria-label="Répétitions série ${si + 1}"
                  value="${esc(s.reps)}" data-action="add-reps" data-exid="${key}" data-si="${si}">
           <span class="input-unit">reps</span>
         </div>
-      </div>`).join('');
+      </div>`;
+}
 
-    return `
+// Bloc d'un exercice : séries, boutons + / − et, pour un exercice ajouté, « Retirer »
+function addExerciseBlock(key, name, prev, removable) {
+  const sets = addSets[key] || [];
+  return `
       <div class="exercise-block">
         <div class="exercise-header">
           <span class="exercise-name">${esc(name)}</span>
@@ -136,11 +91,26 @@ function renderAddSession() {
             <button class="sets-adj" data-action="add-set-row" data-exid="${key}">+</button>
             <button class="sets-adj" data-action="rem-set-row" data-exid="${key}"
                     ${sets.length <= 1 ? 'disabled' : ''} style="opacity:${sets.length <= 1 ? .3 : 1}">−</button>
-            <button class="sets-adj" data-action="rem-extra-ex" data-exid="${key}" title="Retirer" aria-label="Retirer l'exercice">${icon('xmark', 16)}</button>
+            ${removable ? `<button class="sets-adj" data-action="rem-extra-ex" data-exid="${key}" title="Retirer" aria-label="Retirer l'exercice">${icon('xmark', 16)}</button>` : ''}
           </div>
         </div>
-        ${setsHtml}
+        ${sets.map((s, si) => addSetRow(key, si, s, prev[si])).join('')}
       </div>`;
+}
+
+function renderAddSession() {
+  const exercises = addProgData().exercises[addCat] || [];
+  const hasPrev   = !editSessionId && exercises.some(ex => addPrev[ex.id]?.length);
+
+  const catBtns = sessionKeys(addProg).map(c => {
+    const meta     = sessionMeta(c, addProg);
+    const isActive = addCat === c;
+    return `
+      <button class="cat-sel-btn ${isActive ? 'cat-sel-btn--active' : ''}"
+              data-action="add-cat" data-cat="${c}"
+              style="${isActive ? `border-color:${meta.color};color:${meta.color};background:color-mix(in srgb, ${meta.color} 10%, transparent)` : ''}">
+        ${meta.icon} ${meta.label}
+      </button>`;
   }).join('');
 
   return `
@@ -153,13 +123,13 @@ function renderAddSession() {
         <div class="date-row">
           <label class="date-label">Date de la séance</label>
           <input type="date" id="addDate" class="date-input"
-                 value="${addDate}" max="${today}" data-action="add-date">
+                 value="${addDate}" max="${localISO()}" data-action="add-date">
         </div>
       </div>
       <div class="add-session-content">
         ${hasPrev ? `<button class="btn btn--secondary btn--full add-copy-prev" data-action="add-copy-prev">Reprendre la dernière séance</button>` : ''}
-        ${exHtml}
-        ${extrasHtml}
+        ${exercises.map(ex => addExerciseBlock(ex.id, ex.name, addPrev[ex.id] || [], false)).join('')}
+        ${addExtras.map(({ key, name }) => addExerciseBlock(key, name, [], true)).join('')}
         <button class="session-add-ex-btn" data-action="add-session-ex">
           + Ajouter un exercice
         </button>
@@ -204,6 +174,75 @@ function renderAddExModal() {
         </div>
       </div>
     </div>`;
+}
+
+// Date valide et passée, reps entre 1 et 100, charge vide ou entre 0 et 1000 ; sinon le champ fautif est signalé
+function addSessionInputsValid(dateEl) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(addDate || '') || addDate > localISO()) {
+    flagInvalid(dateEl, 'Choisis une date');
+    return false;
+  }
+  const bad = [...document.querySelectorAll('[data-action="add-reps"], [data-action="add-weight"]')].find(inp => {
+    const v = inp.value.trim();
+    if (inp.dataset.action === 'add-weight') return !weightOk(v);
+    return v !== '' && num(v, 1, 100, true) === null;
+  });
+  if (bad) { flagInvalid(bad, bad.dataset.action === 'add-reps' ? 'Reps entre 1 et 100' : weightMsg()); return false; }
+  return true;
+}
+
+// Exercices saisis (séries avec des reps) : ceux du programme dans leur ordre, puis les ajouts
+function pastSessionExercises() {
+  const clean = sets => (sets || []).filter(s => String(s.reps ?? '').trim() !== '')
+    .map(s => ({ weight: s.weight, reps: String(parseInt(s.reps)) }));
+  const exercises = (addProgData().exercises[addCat] || [])
+    .map(ex => {
+      const sets = clean(addSets[ex.id]);
+      return sets.length ? { exId: ex.id, name: ex.name, sets } : null;
+    })
+    .filter(Boolean);
+  addExtras.forEach(({ key, name, exId }) => {
+    const sets = clean(addSets[key]);
+    if (sets.length) exercises.push({ exId: exId || resolveExId(addProg, addCat, name), name, sets });
+  });
+  return exercises;
+}
+
+// Ajoute la séance passée à l'historique, ou remplace la séance modifiée
+function storePastSession(exercises) {
+  const pData = addProgData();
+  const [y, m, d] = addDate.split('-').map(Number);
+  const timestamp = new Date(y, m - 1, d, 12, 0, 0).getTime();
+  let savedDate = timestamp;
+
+  if (!data.history) data.history = [];
+  if (editSessionId) {
+    const idx = data.history.findIndex(h => h.id === editSessionId);
+    if (idx !== -1) {
+      const old = data.history[idx];
+      // Même jour : on garde l'heure d'origine
+      savedDate = localISO(old.date) === addDate ? old.date : timestamp;
+      data.history[idx] = { ...old, programme: addProg, category: addCat, date: savedDate, notes: addNotes.trim(), exercises };
+    }
+  } else {
+    data.history.push({ id: uid(), programme: addProg, category: addCat, date: timestamp, notes: addNotes.trim(), exercises });
+    addNotes = '';
+  }
+  data.history.sort((a, b) => b.date - a.date);
+  editSessionId = null;
+
+  // Le délai de récupération ne bouge que si cette séance est plus récente
+  if (!data.programmes[addProg]) data.programmes[addProg] = pData;
+  const timers = data.programmes[addProg].timers;
+  if (savedDate > (timers[addCat] || 0)) timers[addCat] = savedDate;
+}
+
+// Fenêtre d'ajout : le nom tapé est gardé avant de redessiner, le champ reprend le focus
+function stepAddExSets(delta) {
+  const inp = document.getElementById('addExNameInput');
+  if (inp) addExName = inp.value;
+  addExSets = Math.min(10, Math.max(1, addExSets + delta)); render();
+  setTimeout(() => document.getElementById('addExNameInput')?.focus(), 80);
 }
 
 // ── Actions ─────────────────────────────────────────────────
@@ -282,64 +321,15 @@ registerActions({
   'save-past-session': () => {
     const dateEl = $('#addDate');
     if (dateEl) addDate = dateEl.value;
-    const notesEl2 = $('.session-notes-input');
-    if (notesEl2) addNotes = notesEl2.value;
+    const notesEl = $('.session-notes-input');
+    if (notesEl) addNotes = notesEl.value;
+    if (!addSessionInputsValid(dateEl)) return;
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(addDate || '') || addDate > localISO()) {
-      flagInvalid(dateEl, 'Choisis une date');
-      return;
-    }
-    // Séries saisies : reps entre 1 et 100, charge vide ou entre 0 et 1000
-    const bad = [...document.querySelectorAll('[data-action="add-reps"], [data-action="add-weight"]')].find(inp => {
-      const v = inp.value.trim();
-      if (inp.dataset.action === 'add-weight') return !weightOk(v);
-      return v !== '' && num(v, 1, 100, true) === null;
-    });
-    if (bad) { flagInvalid(bad, bad.dataset.action === 'add-reps' ? 'Reps entre 1 et 100' : weightMsg()); return; }
+    const exercises = pastSessionExercises();
+    if (!exercises.length) { showToast('Entre au moins un exercice avec poids et reps !'); return; }
 
-    const pData = addProgData();
-    const clean = sets => (sets || []).filter(s => String(s.reps ?? '').trim() !== '')
-      .map(s => ({ weight: s.weight, reps: String(parseInt(s.reps)) }));
-    const sessionExercises = (pData.exercises[addCat] || [])
-      .map(ex => {
-        const sets = clean(addSets[ex.id]);
-        return sets.length ? { exId: ex.id, name: ex.name, sets } : null;
-      })
-      .filter(Boolean);
-    addExtras.forEach(({ key, name, exId }) => {
-      const sets = clean(addSets[key]);
-      if (sets.length) sessionExercises.push({ exId: exId || resolveExId(addProg, addCat, name), name, sets });
-    });
-
-    if (!sessionExercises.length) { showToast('Entre au moins un exercice avec poids et reps !'); return; }
-
-    const [y, m, d] = addDate.split('-').map(Number);
-    const timestamp = new Date(y, m - 1, d, 12, 0, 0).getTime();
-    const wasEdit   = !!editSessionId;
-    let   savedDate = timestamp;
-
-    if (!data.history) data.history = [];
-    if (wasEdit) {
-      const idx = data.history.findIndex(h => h.id === editSessionId);
-      if (idx !== -1) {
-        const old = data.history[idx];
-        // Même jour : on garde l'heure d'origine
-        const sameDay = localISO(old.date) === addDate;
-        savedDate = sameDay ? old.date : timestamp;
-        data.history[idx] = { ...old, programme: addProg, category: addCat, date: savedDate, notes: addNotes.trim(), exercises: sessionExercises };
-      }
-    } else {
-      data.history.push({ id: uid(), programme: addProg, category: addCat, date: timestamp, notes: addNotes.trim(), exercises: sessionExercises });
-      addNotes = '';
-    }
-    data.history.sort((a, b) => b.date - a.date);
-    editSessionId = null;
-
-    // Le délai de récupération ne bouge que si cette séance est plus récente
-    if (!data.programmes[addProg]) data.programmes[addProg] = pData;
-    const timers = data.programmes[addProg].timers;
-    if (savedDate > (timers[addCat] || 0)) timers[addCat] = savedDate;
-
+    const wasEdit = !!editSessionId;
+    storePastSession(exercises);
     recomputePRFromHistory();
     save();
     showToast(wasEdit ? 'Séance modifiée' : 'Séance ajoutée');
@@ -352,40 +342,17 @@ registerActions({
   'close-add-ex-modal': () => {
     addExModal = false; render();
   },
-  'add-ex-dec-sets': () => {
-    const inp = document.getElementById('addExNameInput');
-    if (inp) addExName = inp.value;
-    addExSets = Math.max(1, addExSets - 1); render();
-    setTimeout(() => document.getElementById('addExNameInput')?.focus(), 80);
-  },
-  'add-ex-inc-sets': () => {
-    const inp = document.getElementById('addExNameInput');
-    if (inp) addExName = inp.value;
-    addExSets = Math.min(10, addExSets + 1); render();
-    setTimeout(() => document.getElementById('addExNameInput')?.focus(), 80);
-  },
+  'add-ex-dec-sets': () => { stepAddExSets(-1); },
+  'add-ex-inc-sets': () => { stepAddExSets(1); },
+  // La fenêtre n'existe que sur l'écran Séance passée (la séance en cours a sa feuille d'ajout)
   'save-add-ex-modal': () => {
     const inp = document.getElementById('addExNameInput');
     const name = (inp?.value || addExName).trim();
     if (!name) { showToast('Entre un nom pour l\'exercice'); return; }
-    if (view === 'add-session') {
-      const key = 'x_' + uid();
-      addExtras.push({ key, name, exId: null });
-      addSets[key] = Array.from({ length: addExSets }, () => ({ weight: '', reps: '' }));
-      addExModal = false; addExName = ''; render();
-      setTimeout(() => {
-        const blocks = document.querySelectorAll('.exercise-block');
-        blocks[blocks.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
-      return;
-    }
-    activeSession.exercises.push({
-      exId: null,
-      name,
-        sets: Array.from({ length: addExSets }, () => ({ weight: '', reps: '', plannedWeight: '', prev: null, done: false })),
-    });
+    const key = 'x_' + uid();
+    addExtras.push({ key, name, exId: null });
+    addSets[key] = Array.from({ length: addExSets }, () => ({ weight: '', reps: '' }));
     addExModal = false; addExName = ''; render();
-    // Scroll to the new exercise
     setTimeout(() => {
       const blocks = document.querySelectorAll('.exercise-block');
       blocks[blocks.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' });

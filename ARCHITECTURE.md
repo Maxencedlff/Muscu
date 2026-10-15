@@ -38,29 +38,28 @@ js/app/actions.js     registre des actions (chargé avant les écrans qui s'y in
 js/ui/                infrastructure d'écran : thème, navigation, barres, feuilles, gestes
 js/features/          un fichier (ou plusieurs) par écran ou fonctionnalité
 js/app/               mises à jour du service worker, démarrage et écouteurs globaux
-tests/                tests de non-régression Playwright (Python)
+tests/                tests de non-régression Playwright (Python) et tests unitaires (tests/unit/)
 ```
 
 ### css/
 
 | Fichier | Rôle |
 |---|---|
-| `base.css` | Tokens (seul endroit avec des couleurs en dur), reset, typographie, boutons, contrôles iOS réutilisables (segmenté, interrupteur, stepper, listes groupées, pastilles) |
-| `training.css` | Accueil, barre de progression, styles de base de la séance et du repos |
-| `views.css` | Éditeur de programme, modale, séance passée, progrès, historique, notes, choix du programme, séances perso, toast, réglages |
-| `components.css` | Badges, vue d'ensemble, bandeau de séance, dialogues iOS, saisie invalide, bannière de mise à jour, écran de secours |
-| `navigation.css` | Barre de navigation, tab bar, mini-barre de séance, feuilles modales, transitions |
+| `base.css` | Tous les tokens (seul endroit avec des couleurs en dur, y compris ceux de la navigation), reset, typographie, boutons, contrôles iOS réutilisables (segmenté, interrupteur, stepper, pastilles), chacun défini une seule fois |
+| `training.css` | Barre de progression, styles de base de la séance et du repos |
+| `views.css` | Séance passée (saisie, fenêtre « Ajouter un exercice »), état vide de l'accueil, bouton d'ajout d'exercice et notes, toast |
+| `components.css` | Badges, bandeau de séance, dialogues iOS, saisie invalide, bannière de mise à jour, écran de secours |
+| `navigation.css` | Barre de navigation (avec ses plafonds Dynamic Type), tab bar, mini-barre de séance, accueil, feuilles modales, transitions, geste de retour |
 | `session.css` | Séance active, repos, bilan |
-| `screens.css` | Écrans à fond groupé (Programme, Progrès, Historique, Réglages), accessibilité, paysage, Dynamic Type |
+| `screens.css` | Écrans à fond groupé (`.view--grouped` : Programme, Progrès, Historique, Réglages) et leur composant de liste groupée (`.group` / `.cell`, seul composant de liste), accessibilité, paysage, Dynamic Type |
 
-Les noms de classes n'ont pas encore été revus (`lot5`, `set-row2`…) : un renommage demandera de
-toucher CSS et gabarits HTML ensemble.
+Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 
 ### js/core/
 
 | Fichier | Rôle |
 |---|---|
-| `util.js` | `uid`, `$`, `esc` (échappement HTML), `localISO`, formats français (`fmtNum`, `fmtRest`, `fmtClock`, `fmtDate`, `fmtDuration`…), `icon`, `clone`, `num` (saisie bornée), `normName`, `sameEx`, `plural` |
+| `util.js` | `uid`, `$`, `esc` (échappement HTML), `localISO`, formats français : nombres (`fmtNum`), durées (`fmtClock`, `fmtRest`, `fmtDuration`), dates (`fmtDate(ts, style)`, `fmtTime`), `icon`, `clone`, `num` (saisie bornée), `normName`, `sameEx`, `plural` |
 | `dialogs.js` | Annonces VoiceOver (`announce`), `showToast`, `dialog` (alerte et feuille d'actions iOS), gestion du modal (inert + retour du focus), `confirmSheet`, `askNumber`, `askText` |
 | `haptics-audio.js` | `haptic`, bips et sons (`beep`, `timerDone`, `validationSound`, `finishSound`, `recordSound`), déverrouillage de l'audio au premier geste |
 
@@ -69,8 +68,8 @@ toucher CSS et gabarits HTML ensemble.
 | Fichier | Rôle |
 |---|---|
 | `programmes.js` | `PROGRAMMES` (programmes intégrés et exercices par défaut), `exerciseLibrary()` |
-| `store.js` | `makeExercise`, `calc1RM`, `recomputePRFromHistory`, `lastPerf`, `resolveExId`, `makeDefaultData`, `sanitizeData`, `normalizeData` (migrations), `loadData`, `save`, `syncTimersFromHistory` ; **charge `data` au chargement** (ou passe en mode secours) |
-| `accessors.js` | `prog`, `getCooldown`, `isUserProg`, `userSessions`, `progMeta`, `sessionKeys`, `sessionMeta`, `rawLabel`, `catBadge`, `firstSession`, régularité, unités (`dispW`, `storeW`, `fmtVolume`, `fmtW`, `wFr`), `bestSet`, `setTxt` |
+| `store.js` | `makeExercise`, `calc1RM`, `setsVolume`, `sessionVolume`, `recomputePRFromHistory`, `lastPerf`, `resolveExId`, `makeDefaultData`, `sanitizeData`, `normalizeData` (migrations), `loadData`, `save`, `syncTimersFromHistory` ; **charge `data` au chargement** (ou passe en mode secours) |
+| `accessors.js` | `prog`, `getCooldown`, `isUserProg`, `userSessions`, `progMeta`, `sessionKeys`, `sessionMeta`, `rawLabel`, `catBadge`, `firstSession`, régularité, unités (`toUnitW`, `fmtW`, `storeW`, `fmtVolume`), `bestSet`, `setTxt` |
 | `active-session.js` | `activeSession`, `sessionNotes`, `persistSession`, `restoreSession`, `computeBaseline`, `sessProg` |
 | `backup.js` | `importText` (tout vérifié sur une copie, « Annuler » possible), `exportData`, `downloadText` |
 
@@ -94,7 +93,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | Fichier | Rôle |
 |---|---|
 | `theme.js` | Thème clair / sombre / auto (appliqué au chargement), Dynamic Type, bascule différée pendant une séance |
-| `router.js` | `view`, onglets (`TABS`) et piles d'écrans (`nav`), synchronisation avec l'historique du navigateur (`popstate`, entrées des feuilles), mémoire de défilement, `render()` / `paint()` / `show()` avec transitions, `navBoot()` ; actions `back`, `go-home` |
+| `router.js` | `view`, onglets (`TABS`) et piles d'écrans (`nav`), synchronisation avec l'historique du navigateur (`popstate`, entrées des feuilles), mémoire de défilement, table des écrans (`SCREENS`), `render()` / `paint()` / `show()` avec transitions, `navBoot()` ; actions `back`, `go-home` |
 | `navbar.js` | Tab bar et mini-barre de séance (posées une fois hors de `#app`), `navBar()`, titres de retour, grand titre qui se replie |
 | `sheet.js` | `sheet()` : feuille modale générique (Annuler / OK, glisser pour fermer) |
 | `forms.js` | `flagInvalid`, `weightOk`, `weightMsg` |
@@ -104,7 +103,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 
 | Fichier | Rôle |
 |---|---|
-| `dashboard.js` | Accueil : prochaine séance, autres séances, régularité, chronos (`startTicker`) |
+| `dashboard.js` | Accueil : prochaine séance, autres séances, régularité, démarrage d'une séance (`startSessionFlow`), chronos (`startTicker`) |
 | `programme.js` | Onglet Programme, sélecteur de programme, création / renommage / suppression d'un programme perso, `activateProgramme()` |
 | `programme-editor.js` | Programme › Séance (liste, mode Modifier, glisser pour réordonner) et Programme › Exercice (brouillon `exDraft`) |
 | `custom-session.js` | Séance perso : nom, description, icône, couleur, suppression |
@@ -150,7 +149,13 @@ La saisie dans les champs (`input`) ne passe pas par le registre : `init.js` rec
 ## Modèle de données
 
 Les charges sont toujours stockées **en kg**, en chaîne (`'32.5'`, `''` pour le poids du corps) ;
-l'affichage convertit en lbs si besoin (`dispW` / `storeW`). Les reps sont stockées en chaîne.
+l'affichage convertit en lbs si besoin (`toUnitW` / `fmtW` à l'affichage, `storeW` à la saisie).
+Les reps sont stockées en chaîne.
+
+Une seule fonction par format, dans `util.js` et `accessors.js` : `fmtW(kg)` pour une charge en
+texte (« 1 032,5 »), `fmtW(kg, { plain: true })` pour la valeur d'un champ de saisie (« 1032,5 »,
+relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fmtDate(ts, style)` et
+`fmtTime` pour les dates. Ne pas réécrire de `toLocaleDateString` ou d'arrondi de charge ailleurs.
 
 ### localStorage `ppl_v2` (schéma 3)
 
@@ -229,6 +234,10 @@ l'affichage convertit en lbs si besoin (`dispW` / `storeW`). Les reps sont stock
 Chromium Pixel 7 / Galaxy S8 / S9+) en thèmes clair et sombre, plus des tests uniques
 (service worker, contrôles statiques). Voir l'en-tête de `run_all.py` pour les options.
 
+`node tests/unit/run.mjs` lance les tests unitaires de la logique pure (formats, 1RM, nettoyage et
+migrations, import, saisie, programmes perso) : les scripts de `js/core/` et `js/data/` sont chargés
+dans un contexte `vm` de Node, sans navigateur, en moins d'une seconde.
+
 ## Suite prévue : modules ES
 
 1. Passer chaque fichier en `type="module"` avec des `import` / `export` explicites ; `index.html`
@@ -237,4 +246,4 @@ Chromium Pixel 7 / Galaxy S8 / S9+) en thèmes clair et sombre, plus des tests u
    variables de repos…) dans des objets d'état par domaine, modifiés par des fonctions dédiées.
 3. Exposer explicitement sur `window` ce que les tests lisent (`data`, `view`, `render`…), ou faire
    évoluer les tests.
-4. Ensuite seulement : renommer les classes CSS héritées (`lot5`, `set-row2`…) écran par écran.
+4. Ensuite seulement : renommer les dernières classes CSS héritées écran par écran (`.set-row2` est devenu `.session-set`, `.color-swatch2` est devenu `.color-swatch`).

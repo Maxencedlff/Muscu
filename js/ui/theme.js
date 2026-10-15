@@ -14,7 +14,8 @@ function applyTheme(theme) {
   const light = theme === 'light' || (theme === 'auto' && !darkMQ.matches);
   document.body.classList.toggle('light', light);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = light ? '#F2F2F7' : '#000000';
+  // Couleur de la barre du navigateur = fond de l'app (token --bg du thème appliqué)
+  if (meta) meta.content = getComputedStyle(document.body).getPropertyValue('--bg').trim() || meta.content;
   const bar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
   if (bar) bar.content = light ? 'default' : 'black-translucent';
 }

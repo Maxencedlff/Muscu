@@ -4,8 +4,7 @@
 'use strict';
 
 let view = 'dashboard';
-
-let renderedView = null;
+let renderedView = null;   // dernier écran dessiné par paint()
 
 // Racine de chaque onglet : les fonctions renderXxx gardent leur nom de vue historique
 const TABS = {
@@ -21,7 +20,7 @@ let navIndex   = 0;     // position dans l'historique du navigateur
 let navHist    = [];    // copie des états poussés, pour savoir si history.back() mène au bon écran
 let navDup     = [];    // entrées poussées à l'ouverture d'une feuille (même écran que la précédente)
 let ignorePop  = 0;     // popstate provoqués par l'app elle-même
-let firstPaint = true;
+let shownKey   = null;  // clé du dernier écran affiché par show()
 let skipTransition = false;
 const scrollMem = {};   // défilement par écran (clé = onglet + pile)
 const snapMem   = {};   // dernier rendu de chaque écran, montré sous le geste de retour
@@ -35,6 +34,9 @@ function currentRoute(n = nav) { const s = n.stacks[n.tab]; return s[s.length - 
 function navKey(n = nav) { return n.tab + '/' + n.stacks[n.tab].join('/'); }
 function navClone(n) { return { tab: n.tab, stacks: Object.fromEntries(Object.entries(n.stacks).map(([k, v]) => [k, v.slice()])) }; }
 function navSame(a, b) { return !!a && !!b && JSON.stringify(a) === JSON.stringify(b); }
+// Transitions : la séance monte depuis le bas et redescend, les autres écrans glissent
+function pushDir(route) { return route === 'session' ? 'up' : 'push'; }
+function popDir(n = nav) { return currentRoute(n) === 'session' ? 'down' : 'pop'; }
 function navHash(n) { const s = n.stacks[n.tab]; return '#' + n.tab + (s.length > 1 ? '/' + s.slice(1).join('/') : ''); }
 
 // Retire les écrans qui n'ont plus de sens (séance terminée entre-temps)
@@ -113,7 +115,7 @@ function navigate(route, { replace = false } = {}) {
   const next = navClone(nav);
   const s = next.stacks[next.tab];
   if (replace) s[s.length - 1] = route; else s.push(route);
-  navCommit(next, route === 'session' ? 'up' : 'push', replace ? 'replace' : 'push');
+  navCommit(next, pushDir(route), replace ? 'replace' : 'push');
 }
 
 function goBack() {
@@ -121,7 +123,7 @@ function goBack() {
   if (s.length < 2) return;
   const next = navClone(nav);
   next.stacks[next.tab].pop();
-  navCommit(next, currentRoute() === 'session' ? 'down' : 'pop', 'back');
+  navCommit(next, popDir(), 'back');
 }
 
 // Revient à un écran déjà dans la pile, sinon à la racine d'un onglet, sinon empile
@@ -132,7 +134,7 @@ function routeTo(route) {
     if (i === s.length - 1) { show('none'); return; }
     const next = navClone(nav);
     next.stacks[next.tab] = s.slice(0, i + 1);
-    navCommit(next, currentRoute() === 'session' ? 'down' : 'pop', i === s.length - 2 ? 'back' : 'replace');
+    navCommit(next, popDir(), i === s.length - 2 ? 'back' : 'replace');
     return;
   }
   const tab = TAB_OF_ROOT[route];
@@ -178,8 +180,8 @@ window.addEventListener('popstate', e => {
     return;
   }
   const dir = prev.tab !== nav.tab ? 'fade'
-    : nav.stacks[nav.tab].length < prev.stacks[prev.tab].length ? (currentRoute(prev) === 'session' ? 'down' : 'pop')
-    : nav.stacks[nav.tab].length > prev.stacks[prev.tab].length ? (currentRoute() === 'session' ? 'up' : 'push') : 'none';
+    : nav.stacks[nav.tab].length < prev.stacks[prev.tab].length ? popDir(prev)
+    : nav.stacks[nav.tab].length > prev.stacks[prev.tab].length ? pushDir(currentRoute()) : 'none';
   closeTransientUI();
   show(dir);
 });
@@ -202,45 +204,44 @@ function render() {
   paint();
 }
 
-function paint(scrollY = window.scrollY) {
-  const app = $('#app');
-  view = currentRoute();
-  if      (view === 'dashboard')   app.innerHTML = renderDashboard();
-  else if (view === 'programmes')  app.innerHTML = renderProgrammes();
-  else if (view === 'session')     app.innerHTML = activeSession ? renderSession() : renderDashboard();
-  else if (view === 'editor')      app.innerHTML = renderEditor();
-  else if (view === 'history')     app.innerHTML = renderHistory();
-  else if (view === 'stats')       app.innerHTML = renderStats();
-  else if (view === 'settings')    app.innerHTML = renderSettings();
-  else if (view === 'add-session') app.innerHTML = renderAddSession();
-  else if (view === 'summary')     app.innerHTML = renderSummary(); // Entraînement › Bilan
-  else if (view === 'history-detail') app.innerHTML = renderHistoryDetail();
-  else if (view === 'stats-ex')       app.innerHTML = renderStatsExercise();
-  else if (view === 'stats-overview') app.innerHTML = renderStatsOverview();
-  else if (view === 'prog-picker')    app.innerHTML = renderProgPicker();
-  else if (view === 'ex-edit')        app.innerHTML = renderExEdit();
-  else if (view === 'cs-edit')        app.innerHTML = renderCsEdit();
-  else app.innerHTML = renderDashboard();
+// Gabarit de chaque écran (route inconnue : l'accueil). Les fonctions de rendu sont définies
+// par les fichiers chargés après celui-ci : elles ne sont résolues qu'à l'appel.
+const SCREENS = new Map([
+  ['dashboard',      () => renderDashboard()],
+  ['programmes',     () => renderProgrammes()],
+  ['session',        () => activeSession ? renderSession() : renderDashboard()],
+  ['editor',         () => renderEditor()],
+  ['history',        () => renderHistory()],
+  ['stats',          () => renderStats()],
+  ['settings',       () => renderSettings()],
+  ['add-session',    () => renderAddSession()],
+  ['summary',        () => renderSummary()],          // Entraînement › Bilan
+  ['history-detail', () => renderHistoryDetail()],
+  ['stats-ex',       () => renderStatsExercise()],
+  ['stats-overview', () => renderStatsOverview()],
+  ['prog-picker',    () => renderProgPicker()],
+  ['ex-edit',        () => renderExEdit()],
+  ['cs-edit',        () => renderCsEdit()],
+]);
 
+function paint(scrollY = window.scrollY) {
+  view = currentRoute();
+  $('#app').innerHTML = (SCREENS.get(view) || SCREENS.get('dashboard'))();
   if (view === 'stats-ex') drawCharts();
   if (view === 'settings') fillAppVersion();
-  document.body.classList.toggle('first-paint', firstPaint);
-  if (firstPaint) setTimeout(() => document.body.classList.remove('first-paint'), 600);
-  firstPaint = false;
   updateChrome();
   observeLargeTitle();
   window.scrollTo(0, scrollY);
-  // Entrée dans la séance : centre la série courante (lot 4)
+  // Entrée dans la séance : centre la série courante
   if (view === 'session' && activeSession) afterSessionRender(renderedView !== 'session');
   renderedView = view;
 }
 
 // Affiche l'écran courant après un changement de navigation, avec la transition qui va avec
 function show(dir = 'none') {
-  const prevKey = show.lastKey;
-  if (prevKey && dir === 'push') snapMem[prevKey] = $('#app').innerHTML;
+  if (shownKey && dir === 'push') snapMem[shownKey] = $('#app').innerHTML;
   const key = navKey();
-  show.lastKey = key;
+  shownKey = key;
   const target = (dir === 'pop' || dir === 'down' || dir === 'fade') ? (scrollMem[key] || 0) : 0;
   const route = currentRoute();
 

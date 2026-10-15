@@ -74,7 +74,7 @@ function navBar({ title = '', large, back, left = '', right = '', sub = '', extr
     <header class="navbar ${large ? 'navbar--large' : 'navbar--compact'}">
       <div class="navbar__bar">
         <div class="navbar__side navbar__side--left">${backBtn}</div>
-        <div class="navbar__title header__title" ${large ? 'aria-hidden="true"' : ''}>${title}</div>
+        <div class="navbar__title" ${large ? 'aria-hidden="true"' : ''}>${title}</div>
         <div class="navbar__side navbar__side--right">${right}</div>
       </div>
       ${extra}

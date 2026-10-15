@@ -18,7 +18,7 @@ function renderCsEdit() {
   const existing = isEdit ? (userSessions(csProg)?.[csEditId] || {}) : {};
   const icons    = CS_ICONS.includes(csIcon) ? CS_ICONS : [csIcon, ...CS_ICONS.slice(0, 11)];
   return `
-    <div class="view cs-edit lot5">
+    <div class="view cs-edit view--grouped">
       ${navBar({ title: isEdit ? 'Modifier la séance' : 'Nouvelle séance',
           left: `<button class="navbar__text" data-action="close-cs-modal">Annuler</button>`,
           right: `<button class="navbar__text navbar__text--bold" data-action="save-cs-modal">OK</button>` })}
@@ -39,7 +39,7 @@ function renderCsEdit() {
         <div class="group-title">Couleur</div>
         <div class="group group--pad">
           <div class="color-grid" role="radiogroup" aria-label="Couleur">
-            ${CS_COLORS.map(([c, n]) => `<button class="color-swatch2 ${c.toLowerCase() === String(csColor).toLowerCase() ? 'is-on' : ''}" role="radio" aria-checked="${c.toLowerCase() === String(csColor).toLowerCase()}" aria-label="${n}" data-action="pick-cs-color" data-color="${c}" style="--c:${c}"></button>`).join('')}
+            ${CS_COLORS.map(([c, n]) => `<button class="color-swatch ${c.toLowerCase() === String(csColor).toLowerCase() ? 'is-on' : ''}" role="radio" aria-checked="${c.toLowerCase() === String(csColor).toLowerCase()}" aria-label="${n}" data-action="pick-cs-color" data-color="${c}" style="--c:${c}"></button>`).join('')}
           </div>
         </div>
         ${isEdit ? `
@@ -69,7 +69,7 @@ registerActions({
   },
   'pick-cs-color': (e, el) => {
     csColor = el.dataset.color;
-    document.querySelectorAll('.color-swatch2').forEach(b => {
+    document.querySelectorAll('.color-swatch').forEach(b => {
       const on = b.dataset.color === csColor;
       b.classList.toggle('is-on', on); b.setAttribute('aria-checked', on);
     });
@@ -103,7 +103,6 @@ registerActions({
     const wasEdit = csEditId !== null;
     csEditId = null;
     if (!editorCat || !sessionKeys().includes(editorCat)) editorCat = firstSession();
-    if (!statsCat  || !sessionKeys().includes(statsCat))  statsCat  = firstSession();
     if (!addCat    || !sessionKeys().includes(addCat))    addCat    = firstSession();
 
     save();
@@ -134,7 +133,6 @@ registerActions({
     }
     csEditId = null; view = 'programmes';
     editorCat = firstSession();
-    statsCat  = firstSession();
     addCat    = firstSession();
     save(); render();
   },

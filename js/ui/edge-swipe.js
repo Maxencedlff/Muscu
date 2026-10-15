@@ -16,7 +16,7 @@ function isStandalone() {
     if (!isStandalone() || ev.touches.length !== 1) return;
     const x = ev.touches[0].clientX;
     if (x >= 24 || nav.stacks[nav.tab].length < 2) return;
-    if (currentRoute() === 'session' || document.querySelector('.sheet-root, .ios-dialog, .modal-overlay, .rest-overlay')) return;
+    if (currentRoute() === 'session' || document.querySelector('.sheet-root, .ios-dialog, .modal-overlay')) return;
     const fe = document.activeElement;
     if (fe && /^(INPUT|TEXTAREA|SELECT)$/.test(fe.tagName)) return;
     x0 = x; t0 = Date.now(); dx = 0; tracking = true;
@@ -27,8 +27,7 @@ function isStandalone() {
     dx = Math.max(0, ev.touches[0].clientX - x0);
     if (!layer && dx > 6) {
       // Écran précédent, figé, glissé dessous
-      const s = nav.stacks[nav.tab];
-      const prevKey = nav.tab + '/' + s.slice(0, -1).join('/');
+      const prevKey = navKey({ tab: nav.tab, stacks: { [nav.tab]: nav.stacks[nav.tab].slice(0, -1) } });
       layer = document.createElement('div');
       layer.className = 'edge-layer';
       layer.setAttribute('aria-hidden', 'true');
@@ -52,7 +51,7 @@ function isStandalone() {
     layer = null; cur = null;
     reset();
     if (!l) return;
-    c.style.transition = l.style.transition = 'transform .25s cubic-bezier(.2,.8,.2,1)';
+    c.style.transition = l.style.transition = 'transform .25s var(--nav-ease)';
     if (ok) {
       c.style.transform = `translateX(${W()}px)`;
       l.style.transform = 'translateX(0)';

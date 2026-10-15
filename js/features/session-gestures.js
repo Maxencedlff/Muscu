@@ -10,14 +10,14 @@ function closeSwipes(except) {
   document.querySelectorAll('.set-swipe--open').forEach(w => {
     if (w === except) return;
     w.classList.remove('set-swipe--open');
-    const r = w.querySelector('.set-row2');
+    const r = w.querySelector('.session-set');
     if (r) r.style.transform = '';
   });
 }
 
 document.addEventListener('pointerdown', e => {
-  const row = e.target.closest?.('.set-swipe .set-row2');
-  if (!row || row.classList.contains('set-row2--editing')) { if (!e.target.closest?.('.set-del')) closeSwipes(); return; }
+  const row = e.target.closest?.('.set-swipe .session-set');
+  if (!row || row.classList.contains('session-set--editing')) { if (!e.target.closest?.('.set-del')) closeSwipes(); return; }
   const wrap = row.parentElement;
   closeSwipes(wrap);
   swipe = { row, wrap, x0: e.clientX, y0: e.clientY, dx: 0, axis: null, base: wrap.classList.contains('set-swipe--open') ? -SWIPE_OPEN : 0 };
@@ -58,7 +58,7 @@ document.addEventListener('pointercancel', () => {
 });
 // Le relâchement d'un balayage ne doit pas ouvrir la série en édition
 document.addEventListener('click', e => {
-  if (swipeBlockClick && e.target.closest?.('.set-row2')) { e.stopPropagation(); e.preventDefault(); }
+  if (swipeBlockClick && e.target.closest?.('.session-set')) { e.stopPropagation(); e.preventDefault(); }
 }, true);
 
 // ── Saisie au clavier ───────────────────────────────────────
@@ -79,9 +79,9 @@ document.addEventListener('focusout', () => {
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   const t = e.target;
-  if (!t.matches?.('.set-input') || !t.closest('.set-row2')) return;
+  if (!t.matches?.('.set-input') || !t.closest('.session-set')) return;
   e.preventDefault();
-  const row = t.closest('.set-row2');
+  const row = t.closest('.session-set');
   const isW = t.dataset.action === 'set-weight' || t.id === 'editSetWeight';
   if (isW) { row.querySelector('[data-action="set-reps"], #editSetReps')?.focus(); return; }
   row.querySelector('.set-check-zone')?.click();

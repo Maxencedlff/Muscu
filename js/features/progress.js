@@ -3,7 +3,6 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-let statsCat  = firstSession();
 let statsMode = 'volume';   // 'volume' | 'charge' | '1rm'
 let statsExId = null;
 let ovMonth   = null; // { y, m } du calendrier de la vue d'ensemble
@@ -84,11 +83,8 @@ function weekStart(ts = Date.now()) {
   return d.getTime();
 }
 
-function renderStats() {
-  const idx  = exerciseIndex();
-  const now  = new Date();
-  const monthCount = (data.history || []).filter(h => { const d = new Date(h.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length;
-  const streak = computeStreak();
+// Exercices dont la charge max de la semaine dépasse le record d'avant la semaine
+function weekRecordCount(idx) {
   const ws = weekStart();
   let records = 0;
   idx.forEach(it => {
@@ -97,8 +93,12 @@ function renderStats() {
     const week   = it.points.filter(p => p.date >= ws).map(p => p.maxLoad);
     if (before.length && week.length && Math.max(...week) > Math.max(...before)) records++;
   });
+  return records;
+}
 
-  // Sections : programme actif d'abord, puis autres programmes, puis Autres
+// Sections : séances du programme actif d'abord, puis autres programmes, puis Autres ;
+// exercices dans l'ordre du programme à l'intérieur de chaque section
+function statsSections(idx) {
   const sections = new Map();
   sessionKeys().forEach(c => sections.set(data.activeProgramme + ':' + c, { cat: c, prog: data.activeProgramme, items: [] }));
   idx.forEach(it => {
@@ -107,20 +107,22 @@ function renderStats() {
     sections.get(s.key).items.push(it);
   });
   if (sections.has('other')) { const o = sections.get('other'); sections.delete('other'); sections.set('other', o); }
-  // Ordre du programme à l'intérieur de chaque section
   sections.forEach(sec => {
     if (!sec.cat) return;
     const order = (data.programmes[sec.prog]?.exercises?.[sec.cat] || []).map(x => x.id);
     sec.items.sort((a, b) => (order.indexOf(a.exId) + 1 || 999) - (order.indexOf(b.exId) + 1 || 999));
   });
+  return sections;
+}
 
-  const row = it => {
-    const bw   = isBodyweight(it);
-    const vals = it.points.map(p => mainMetric(it, p));
-    const last = it.points[it.points.length - 1];
-    const tp   = trendPct(vals);
-    const cls  = tp > 0 ? 'txt-up' : tp < 0 ? 'txt-down' : 'txt-flat';
-    return `
+// Cellule d'un exercice : dernière performance, courbe et tendance
+function statsRow(it) {
+  const bw   = isBodyweight(it);
+  const vals = it.points.map(p => mainMetric(it, p));
+  const last = it.points[it.points.length - 1];
+  const tp   = trendPct(vals);
+  const cls  = tp > 0 ? 'txt-up' : tp < 0 ? 'txt-down' : 'txt-flat';
+  return `
       <button class="cell cell--nav prow" data-action="open-stats-ex" data-ex="${esc(it.exId)}">
         <span class="cell__body">
           <span class="cell__title prow__name">${esc(it.name)}</span>
@@ -130,20 +132,28 @@ function renderStats() {
         <span class="prow__trend num ${cls}">${tp === null ? '' : pctTxt(tp)}</span>
         ${icon('chevron.right', 16)}
       </button>`;
-  };
+}
+
+function statsSectionTitle(sec, key) {
+  if (key === 'other') return 'Autres';
+  const label = sessionMeta(sec.cat, sec.prog).label;
+  return sec.prog === data.activeProgramme ? label : `${label} · ${progMeta(sec.prog).name}`;
+}
+
+function renderStats() {
+  const idx  = exerciseIndex();
+  const now  = new Date();
+  const monthCount = (data.history || []).filter(h => { const d = new Date(h.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length;
+  const streak  = computeStreak();
+  const records = weekRecordCount(idx);
 
   let list = '';
-  sections.forEach((sec, key) => {
-    if (!sec.items.length) return;
-    const title = key === 'other' ? 'Autres'
-      : sec.prog === data.activeProgramme ? sessionMeta(sec.cat, sec.prog).label
-      : `${sessionMeta(sec.cat, sec.prog).label} · ${progMeta(sec.prog).name}`;
-    list += `<div class="group-title">${title}</div><div class="group">${sec.items.map(row).join('')}</div>`;
+  statsSections(idx).forEach((sec, key) => {
+    if (sec.items.length) list += `<div class="group-title">${statsSectionTitle(sec, key)}</div><div class="group">${sec.items.map(statsRow).join('')}</div>`;
   });
-  const empty = !idx.size;
 
   return `
-    <div class="view stats lot5">
+    <div class="view stats view--grouped">
       ${navBar({ title: 'Progrès' })}
       <div class="scr">
         <div class="tiles">
@@ -158,7 +168,7 @@ function renderStats() {
             ${icon('chevron.right', 16)}
           </button>
         </div>
-        ${empty ? `<div class="empty-note">Termine des séances pour voir ta progression ici.</div>` : list}
+        ${idx.size ? list : `<div class="empty-note">Termine des séances pour voir ta progression ici.</div>`}
       </div>
     </div>`;
 }
@@ -166,11 +176,7 @@ function renderStats() {
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
   'go-stats': (e, el) => {
-    statsCat = sessionKeys().includes(statsCat) ? statsCat : firstSession();
     if (el.closest('.tabbar')) switchTab('progress'); else navigate('stats');
-  },
-  'stats-tab': (e, el) => {
-    statsCat = el.dataset.cat; render();
   },
   'stats-mode': (e, el) => {
     statsMode = el.dataset.mode; render();

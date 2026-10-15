@@ -151,7 +151,7 @@ async function sessionActions(cat) {
     { label: 'Voir les exercices', value: 'see' },
     { label: 'Annuler', style: 'cancel' },
   ] });
-  if (choice === 'start') return handleAction(null, { dataset: { cat } }, 'start-session');
+  if (choice === 'start') return startSessionFlow(cat);
   if (choice === 'skip') {
     prog().timers[cat] = null;
     save(); render();
@@ -173,15 +173,11 @@ function startTicker() {
   tickerMinute = -1;
   const tick = () => {
     if (activeSession) {
-      const el = $('#session-elapsed');
-      if (el) el.textContent = fmtDuration(Date.now() - activeSession.startedAt);
+      // Chrono de la séance (m:ss) : barre de la séance, mini-barre et accueil
       const clock = fmtClock(Date.now() - activeSession.startedAt);
-      const le = $('#livebar-elapsed'); if (le) le.textContent = clock;
-      const he = $('#hero-elapsed');    if (he) he.textContent = clock;
+      ['#session-clock', '#livebar-elapsed', '#hero-elapsed'].forEach(sel => { const el = $(sel); if (el) el.textContent = clock; });
       const lr = $('#livebar-rest');
       if (lr) { lr.hidden = !restActive; if (restActive) lr.textContent = fmtRest(restTimeLeft); }
-      const ck = $('#session-clock'); // lot 4 : chrono de la séance en m:ss
-      if (ck) ck.textContent = fmtClock(Date.now() - activeSession.startedAt);
     }
     if (view !== 'dashboard') return;
     const minute = Math.floor(Date.now() / 60000);
@@ -201,46 +197,36 @@ function startTicker() {
   ticker = setInterval(tick, 1000);
 }
 
+// Démarrer une séance : refusée si elle est vide ; si une autre séance est en cours,
+// on propose de la reprendre ou de l'abandonner
+async function startSessionFlow(cat) {
+  if (!(prog().exercises[cat] || []).length) {
+    await dialog({ title: 'Aucun exercice', message: 'Ajoute des exercices à cette séance avant de la démarrer.', actions: [{ label: 'OK', style: 'preferred' }] });
+    return;
+  }
+  if (activeSession) {
+    const choice = await dialog({ type: 'sheet', title: 'Une séance est déjà en cours',
+      message: `${rawLabel(activeSession.category, activeSession.programme)} a commencé il y a ${fmtDuration(Date.now() - activeSession.startedAt)}.`,
+      actions: [
+        { label: 'Reprendre la séance en cours', value: 'resume', style: 'preferred' },
+        { label: `Abandonner et démarrer ${rawLabel(cat)}`, value: 'replace', style: 'destructive' },
+        { label: 'Annuler', style: 'cancel' },
+      ] });
+    if (choice === 'resume') { navigate('session'); return; }
+    if (choice !== 'replace') return;
+    endSession();
+  }
+  if (data.soundOn !== false) beep(440, .08);
+  haptic();
+  startSession(cat);
+}
+
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
   'session-actions': async (e, el) => {
     await sessionActions(el.dataset.cat);
   },
   'start-session': async (e, el) => {
-    const cat = el.dataset.cat;
-    if (!(prog().exercises[cat] || []).length) {
-      await dialog({ title: 'Aucun exercice', message: 'Ajoute des exercices à cette séance avant de la démarrer.', actions: [{ label: 'OK', style: 'preferred' }] });
-      return;
-    }
-    if (activeSession) {
-      const choice = await dialog({ type: 'sheet', title: 'Une séance est déjà en cours',
-        message: `${rawLabel(activeSession.category, activeSession.programme)} a commencé il y a ${fmtDuration(Date.now() - activeSession.startedAt)}.`,
-        actions: [
-          { label: 'Reprendre la séance en cours', value: 'resume', style: 'preferred' },
-          { label: `Abandonner et démarrer ${rawLabel(cat)}`, value: 'replace', style: 'destructive' },
-          { label: 'Annuler', style: 'cancel' },
-        ] });
-      if (choice === 'resume') { navigate('session'); return; }
-      if (choice !== 'replace') return;
-      endSession();
-    }
-    if (data.soundOn !== false) beep(440, .08);
-    haptic();
-    startSession(cat);
-  },
-  'cooldown-edit': async (e, el) => {
-    const cat = el.dataset.cat;
-    if (!cat) return;
-    const val = await askNumber({ title: `Récupération ${rawLabel(cat)}`, message: 'Délai avant de pouvoir refaire cette séance (1 à 168 h).', value: getCooldown(cat), unit: 'h', min: 1, max: 168 });
-    if (val === null) return;
-    prog().cooldowns[cat] = val;
-    save(); render();
-  },
-  'skip-cooldown': async (e, el) => {
-    const cat = el.dataset.cat;
-    if (!cat || !prog().timers[cat]) return;
-    if (!(await confirmSheet(`Passer la récupération de ${rawLabel(cat)} ?`, 'La séance sera disponible tout de suite.', 'Passer le délai', false))) return;
-    prog().timers[cat] = null;
-    save(); render();
+    await startSessionFlow(el.dataset.cat);
   },
 });

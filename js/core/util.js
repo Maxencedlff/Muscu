@@ -18,14 +18,7 @@ function localISO(ts = Date.now()) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function fmt72(ms) {
-  if (ms <= 0) return 'Prête !';
-  const s = Math.floor(ms / 1000);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  return `${pad(h)}:${pad(m)}:${pad(s % 60)}`;
-}
-
+// ── Nombres ─────────────────────────────────────────────────
 // Nombres à la française : « 32,5 » (virgule, espace fine pour les milliers)
 const nf = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
 function fmtNum(v, digits) {
@@ -35,24 +28,43 @@ function fmtNum(v, digits) {
   return nf.format(n);
 }
 
-// Repos : « 1:30 », « 0:45 » (pas de zéro devant les minutes)
-function fmtRest(secs) {
-  secs = Math.max(0, Math.round(secs || 0));
-  return `${Math.floor(secs / 60)}:${pad(secs % 60)}`;
-}
-
-// Chrono de séance : « 0:12 », « 42:07 », puis « 1:02:07 » au-delà d'une heure
-// (pas de zéro devant les minutes, comme le repos)
-function fmtClock(ms) {
+// ── Durées ──────────────────────────────────────────────────
+// Format chrono, sans zéro devant le premier nombre : « 0:45 », « 42:07 », « 1:02:07 ».
+// hours: false garde les minutes au-delà d'une heure (« 75:00 ») : c'est le format du repos.
+function fmtClock(ms, { hours = true } = {}) {
   const s = Math.max(0, Math.floor((ms || 0) / 1000));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
+  const h = hours ? Math.floor(s / 3600) : 0;
+  const m = Math.floor((s - h * 3600) / 60);
   return h > 0 ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
 }
 
-// « Aujourd'hui », « Hier », sinon « jeu. 9 oct. » (l'année seulement si ce n'est pas l'année en cours)
-function fmtDate(ts) {
+// Repos, en secondes : « 1:30 », « 0:45 »
+function fmtRest(secs) {
+  return fmtClock(Math.round(secs || 0) * 1000, { hours: false });
+}
+
+// Durée en toutes lettres : « 42 min », « 1 h 09 »
+function fmtDuration(ms) {
+  const totalMin = Math.floor(Math.max(0, ms || 0) / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0) return `${h}\u00a0h\u00a0${pad(m)}`;
+  return `${m}\u00a0min`;
+}
+
+// ── Dates ───────────────────────────────────────────────────
+const DATE_FORMATS = {
+  long:  { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }, // « jeudi 9 octobre 2026 »
+  day:   { weekday: 'long', day: 'numeric', month: 'long' },                  // « jeudi 9 octobre »
+  short: { day: 'numeric', month: 'short' },                                  // « 9 oct. »
+  month: { month: 'long', year: 'numeric' },                                  // « octobre 2026 »
+};
+
+// Date d'un horodatage ou d'un objet Date. Sans style : « Aujourd'hui », « Hier », sinon
+// « jeu. 9 oct. » (l'année seulement si ce n'est pas l'année en cours). Styles : DATE_FORMATS.
+function fmtDate(ts, style) {
   const d = new Date(ts);
+  if (style) return d.toLocaleDateString('fr-FR', DATE_FORMATS[style]);
   const today = new Date();
   const day0 = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -64,31 +76,14 @@ function fmtDate(ts) {
   return d.toLocaleDateString('fr-FR', opts);
 }
 
-// Durées : « 42 min », « 1 h 09 »
-function fmtDuration(ms) {
-  const totalMin = Math.floor(Math.max(0, ms || 0) / 60000);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  if (h > 0) return `${h}\u00a0h\u00a0${pad(m)}`;
-  return `${m}\u00a0min`;
+// Heure : « 14:05 »
+function fmtTime(ts) {
+  return new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
 // Icône du sprite de index.html (style SF Symbols), décorative : le libellé vient du bouton
 function icon(name, size = 22) {
   return `<svg class="icon icon--${name.replace(/\./g, '-')}" width="${size}" height="${size}" aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`;
-}
-
-// Valeur d'un token CSS (« var(--orange) » → « #FF9F0A ») : le canvas ne comprend pas var()
-function cssColor(c) {
-  const m = /^var\((--[\w-]+)\)$/.exec(String(c || '').trim());
-  if (!m) return c;
-  return getComputedStyle(document.body).getPropertyValue(m[1]).trim() || c;
-}
-
-function fmtDateTime(ts) {
-  const d = new Date(ts);
-  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-    + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
 // Copie profonde (structuredClone absent avant iOS 15.4)

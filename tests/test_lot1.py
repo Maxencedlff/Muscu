@@ -213,7 +213,7 @@ def t_bounds(bench, eng, dev, theme):
         page.wait_for_selector('.view.history-detail')
         page.locator('[data-action="edit-session"][data-id="hcs02"]').click()
         page.wait_for_selector('.view.add-session')
-        R.check('Modifier la séance' in page.locator('.header__title').inner_text(), f'{t} séance Perso modifiable depuis PPL')
+        R.check('Modifier la séance' in page.locator('.navbar__title').inner_text(), f'{t} séance Perso modifiable depuis PPL')
         shot(page, LOT, f'modifier-perso-{t}')
         page.click('[data-action="save-past-session"]')
         txt = toast_text(page)

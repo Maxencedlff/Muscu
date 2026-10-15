@@ -15,7 +15,7 @@ function renderEditor() {
   const meta = sessionMeta(cat);
   if (!cat || !sessionKeys().includes(cat)) {
     return `
-      <div class="view editor lot5">
+      <div class="view editor view--grouped">
         ${navBar({ title: 'Séance' })}
         <div class="scr"><div class="empty-note">Programme vide. Crée des séances dans Programme.</div></div>
       </div>`;
@@ -47,7 +47,7 @@ function renderEditor() {
   }).join('');
   const cd = getCooldown(cat);
   return `
-    <div class="view editor lot5">
+    <div class="view editor view--grouped">
       ${navBar({ title: meta.label, right: list.length ? `<button class="navbar__text ${editorEditing ? 'navbar__text--bold' : ''}" data-action="toggle-edit-mode">${editorEditing ? 'OK' : 'Modifier'}</button>` : '' })}
       <div class="scr">
         <div class="group-title">Exercices</div>
@@ -89,7 +89,7 @@ function renderExEdit() {
   const d = exDraft || { name: '', sets: 3, rest: null, target: null, repMax: 12 };
   const restVal = d.rest ?? data.defaultRest;
   return `
-    <div class="view ex-edit lot5">
+    <div class="view ex-edit view--grouped">
       ${navBar({ title: isEdit ? 'Exercice' : 'Nouvel exercice',
           left: `<button class="navbar__text" data-action="back">Annuler</button>`,
           right: `<button class="navbar__text navbar__text--bold" data-action="save-ex">OK</button>` })}
@@ -132,7 +132,7 @@ function renderExEdit() {
             <span class="cell__body"><span class="cell__title">Objectif</span></span>
             <span class="field-suffix">
               <input type="text" inputmode="decimal" id="exTarget" class="field field--num" autocomplete="off"
-                     value="${d.target ? wFr(d.target) : ''}" placeholder="—" aria-label="Objectif en ${unitLbl()}">
+                     value="${d.target ? fmtW(d.target) : ''}" placeholder="—" aria-label="Objectif en ${unitLbl()}">
               <span>${unitLbl()}</span>
             </span>
           </label>

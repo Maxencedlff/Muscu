@@ -42,6 +42,26 @@ function historyCell(h) {
     </div>`;
 }
 
+// Première lettre en capitale (« octobre 2026 » → « Octobre 2026 »)
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// Séances regroupées par mois, dans l'ordre de la liste
+function historyByMonth(list) {
+  const months = [];
+  list.forEach(h => {
+    const d   = new Date(h.date);
+    const key = d.getFullYear() + '-' + d.getMonth();
+    let m = months[months.length - 1];
+    if (!m || m.key !== key) {
+      m = { key, title: capitalize(fmtDate(d, 'month')), sessions: [] };
+      months.push(m);
+    }
+    m.sessions.push(h);
+  });
+  return months;
+}
+
+// Liste chargée par paquets de mois (« Afficher plus » ajoute les 3 suivants)
 function historyListHTML() {
   const q   = normName(histQuery);
   const all = historySorted().filter(h => historyMatches(h, q));
@@ -50,32 +70,18 @@ function historyListHTML() {
       ? `<div class="empty-note">Aucune séance ne correspond.</div>`
       : `<div class="empty-note">Aucune séance enregistrée.<br>Termine ta première séance pour la voir ici.</div>`;
   }
-  let out = '', months = 0, curKey = null, buf = '', i = 0;
-  const flush = () => { if (curKey) out += `<section class="hmonth" data-month="${curKey}"><h2 class="hmonth__title">${buf.title}</h2><div class="group">${buf.rows}</div></section>`; };
-  for (; i < all.length; i++) {
-    const h = all[i], d = new Date(h.date);
-    const key = d.getFullYear() + '-' + d.getMonth();
-    if (key !== curKey) {
-      flush();
-      months++;
-      if (months > histMonths) break;
-      curKey = key;
-      const t = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-      buf = { title: t.charAt(0).toUpperCase() + t.slice(1), rows: '' };
-    }
-    buf.rows += historyCell(h);
-  }
-  if (i >= all.length) flush();
-  if (i < all.length) out += `<button class="btn-more" data-action="hist-more">Afficher plus</button>`;
-  return out;
+  const months = historyByMonth(all);
+  const out = months.slice(0, histMonths).map(m =>
+    `<section class="hmonth" data-month="${m.key}"><h2 class="hmonth__title">${m.title}</h2><div class="group">${m.sessions.map(historyCell).join('')}</div></section>`).join('');
+  return months.length > histMonths ? out + `<button class="btn-more" data-action="hist-more">Afficher plus</button>` : out;
 }
 
 function renderHistory() {
   const keys = sessionKeys();
   if (histFilter !== 'all' && !keys.includes(histFilter)) histFilter = 'all';
   return `
-    <div class="view history lot5">
-      ${navBar({ title: 'Historique', right: `<button class="navbar__icon" data-action="go-add-session" aria-label="Ajouter une séance passée">${icon('plus', 24)}</button>`  })}
+    <div class="view history view--grouped">
+      ${navBar({ title: 'Historique', right: `<button class="navbar__icon" data-action="go-add-session" aria-label="Ajouter une séance passée">${icon('plus', 24)}</button>` })}
       <div class="scr" id="histScroll">
         <div class="hist-tools">
           <input type="search" id="histSearch" class="search" placeholder="Rechercher" value="${esc(histQuery)}"
@@ -101,28 +107,26 @@ function setsLine(sets) {
   if (!ok.length) return '—';
   const ws = ok.map(s => parseFloat(s.weight) || 0);
   if (ws.every(w => w === 0)) return `${ok.map(s => esc(s.reps)).join(' · ')} reps`;
-  if (ws.every(w => w === ws[0])) return `${wFr(ok[0].weight)} ${unitLbl()} × ${ok.map(s => esc(s.reps)).join(' · ')}`;
-  return ok.map(s => `${parseFloat(s.weight) > 0 ? wFr(s.weight) + ' × ' : ''}${esc(s.reps)}`).join(' · ');
+  if (ws.every(w => w === ws[0])) return `${fmtW(ok[0].weight)} ${unitLbl()} × ${ok.map(s => esc(s.reps)).join(' · ')}`;
+  return ok.map(s => `${parseFloat(s.weight) > 0 ? fmtW(s.weight) + ' × ' : ''}${esc(s.reps)}`).join(' · ');
 }
 
 function renderHistoryDetail() {
   const h = (data.history || []).find(x => x.id === historyId);
   if (!h) {
-    return `<div class="view history-detail lot5">${navBar({ title: 'Séance' })}
+    return `<div class="view history-detail view--grouped">${navBar({ title: 'Séance' })}
       <div class="scr"><div class="empty-note">Cette séance n'existe plus.</div></div></div>`;
   }
   const progId = h.programme || 'ppl';
   const meta   = sessionMeta(h.category, progId);
-  const d      = new Date(h.date);
-  let when = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  when = when.charAt(0).toUpperCase() + when.slice(1);
+  let when = capitalize(fmtDate(h.date, 'long'));
   // L'heure n'a de sens que pour une séance chronométrée (une séance passée n'a pas d'heure)
-  if (h.duration) when += ` · ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
-  const vol  = sessionVolume(h.exercises || []);
+  if (h.duration) when += ` · ${fmtTime(h.date)}`;
+  const vol   = sessionVolume(h.exercises || []);
   const nSets = (h.exercises || []).reduce((a, e) => a + (e.sets || []).length, 0);
   return `
-    <div class="view history-detail lot5">
-      ${navBar({ title: '', right: `<button class="navbar__text" data-action="edit-session" data-id="${esc(h.id)}">Modifier</button>`  })}
+    <div class="view history-detail view--grouped">
+      ${navBar({ title: '', right: `<button class="navbar__text" data-action="edit-session" data-id="${esc(h.id)}">Modifier</button>` })}
       <div class="scr">
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${meta.color}"></span>${meta.label}</h1>
         <p class="scr-sub">${when}${progId !== data.activeProgramme ? ` · Programme ${progMeta(progId).name}` : ''}</p>
@@ -149,15 +153,20 @@ function renderHistoryDetail() {
     </div>`;
 }
 
+// L'historique fait foi : délais de récupération et records en sont recalculés
+function historyChanged() {
+  syncTimersFromHistory();
+  recomputePRFromHistory();
+  save();
+}
+
 // Supprime une séance de la liste sans re-rendu complet, avec « Annuler » pendant 5 s
 function deleteSessionWithUndo(id) {
   const list = data.history || [];
   const idx  = list.findIndex(h => h.id === id);
   if (idx < 0) return;
   const [removed] = list.splice(idx, 1);
-  syncTimersFromHistory();
-  recomputePRFromHistory();
-  save();
+  historyChanged();
   const row = document.querySelector(`.hrow[data-id="${CSS.escape(id)}"]`);
   if (row) {
     const sec = row.closest('.hmonth');
@@ -168,9 +177,7 @@ function deleteSessionWithUndo(id) {
     action: 'Annuler', duration: 5000,
     onAction: () => {
       data.history.splice(Math.min(idx, data.history.length), 0, removed);
-      syncTimersFromHistory();
-      recomputePRFromHistory();
-      save();
+      historyChanged();
       if (view === 'history') refreshHistoryList();
     },
   });
@@ -257,9 +264,8 @@ registerActions({
   'delete-session': async (e, el) => {
     if (!(await confirmSheet('Supprimer cette séance ?', 'Elle sera retirée de l\'historique et des statistiques.', 'Supprimer la séance'))) return;
     data.history = (data.history || []).filter(h => h.id !== el.dataset.id);
-    syncTimersFromHistory();
-    recomputePRFromHistory();
+    historyChanged();
     if (view === 'history-detail') view = 'history';
-    save(); render();
+    render();
   },
 });

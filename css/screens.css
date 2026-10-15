@@ -1,13 +1,11 @@
-/* screens : styles du lot 5 (fichier dédié pour limiter les conflits de fusion) */
+/* Écrans à fond groupé (Programme, Progrès, Historique, Réglages) : listes groupées, tuiles, champs */
 
-
-/* ── Écrans du lot 5 : fond groupé ── */
-.lot5 { background: var(--bg); color: var(--label); }
-.lot5 .scr {
-  /* Le document défile (lot 3) : pas de défilement interne */
+/* ── Écran à fond groupé (.view--grouped) ── */
+.view--grouped { background: var(--bg); color: var(--label); }
+.view--grouped .scr {
+  /* Le document défile : pas de défilement interne */
   padding: 0 16px; /* l'espace du bas vient de .view (tab bar, mini-barre) */
 }
-.lot5 .icon { flex-shrink: 0; }
 
 .scr-title { font-size: 1.647rem; line-height: 2rem; font-weight: 700; margin: 12px 0 4px; display: flex; align-items: center; gap: 10px; overflow-wrap: anywhere; }
 .scr-sub { font-size: 0.882rem; color: var(--label2); margin-bottom: 4px; }
@@ -23,20 +21,20 @@
 .tiles + .group { margin-top: 20px; }
 .group--pad { padding: 12px 16px; }
 .group--gap { margin-top: 32px; }
-.lot5 .cell, .lot5 .cell.setting-row {
+.view--grouped .cell {
   position: relative; display: flex; align-items: center; gap: 12px; width: 100%;
   min-height: 44px; padding: 11px 16px; background: none; border: none; border-radius: 0;
   color: var(--label); font: 400 1rem/1.294rem -apple-system, system-ui, sans-serif; text-align: left;
   justify-content: flex-start;
 }
-.lot5 .cell + .cell::before, .lot5 .hrow + .hrow .hcell::before {
+/* Séparateur iOS : part de 16 px, ne touche pas le bord gauche */
+.view--grouped .cell + .cell::before, .view--grouped .hrow + .hrow .hcell::before {
   content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); z-index: 1;
 }
-.lot5 button.cell { cursor: pointer; }
-.lot5 button.cell:active { background: var(--cell2); }
+.view--grouped button.cell { cursor: pointer; }
+.view--grouped button.cell:active { background: var(--cell2); }
 .cell__body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .cell__title { font-size: 1rem; line-height: 1.294rem; font-weight: 400; }
-.cell--nav .cell__title, .cell--pick .cell__title { font-weight: 400; }
 .cell__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); }
 .cell__sub--1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cell__value { color: var(--label2); font-size: 1rem; white-space: nowrap; }
@@ -85,17 +83,7 @@
 .seg-sm .segmented__btn { flex: 1 1 auto; padding: 0 10px; } /* largeur selon le libellé (« Sombre ») */
 .seg-scroll { overflow-x: auto; scrollbar-width: none; }
 .seg-scroll::-webkit-scrollbar { display: none; }
-.lot5 .segmented__btn { min-height: 28px; }
-.stepper {
-  display: flex; height: 32px; width: 94px; background: var(--fill); border-radius: 8px; flex-shrink: 0;
-}
-.stepper button {
-  flex: 1; background: none; border: none; color: var(--label); display: flex; align-items: center; justify-content: center;
-  position: relative; cursor: pointer;
-}
-.stepper button::after { content: ''; position: absolute; inset: -6px 0; } /* zone de tap de 44 px */
-.stepper button + button { border-left: .5px solid var(--sep); }
-.stepper button:active { opacity: .5; }
+.view--grouped .segmented__btn { min-height: 28px; }
 
 .psq {
   width: 28px; height: 28px; border-radius: 7px; background: var(--c); color: var(--white); flex-shrink: 0;
@@ -137,7 +125,6 @@
 .hcell__title { font-size: 1rem; line-height: 1.294rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
 .hcell__date { font-size: 0.882rem; color: var(--label2); white-space: nowrap; flex-shrink: 0; }
 .hcell__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; } /* sur 2 lignes si besoin plutôt que tronqué */
-.hcell__prog { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); flex: 0 1000 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: auto; }
 .hcell__title + .hcell__date { margin-left: auto; }
 .hrow__del {
   position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: none; background: var(--red); color: var(--white);
@@ -204,7 +191,6 @@ html.type-xl .chart-bubble { white-space: normal; }
 .wks__axis { display: flex; justify-content: space-between; font-size: 0.647rem; color: var(--label2); margin-top: 6px; }
 
 /* ── Programme ── */
-.cell--pick { gap: 12px; }
 .ed-row .cell__sub { overflow-wrap: anywhere; }
 .ed-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .ed-row--edit { gap: 10px; background: var(--cell); transition: transform .2s; }
@@ -234,10 +220,10 @@ html.type-xl .chart-bubble { white-space: normal; }
 }
 .emoji-btn.is-on { background: var(--fill); box-shadow: inset 0 0 0 2px var(--tint); }
 .color-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; justify-items: center; }
-.color-swatch2 {
+.color-swatch {
   width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--c); cursor: pointer;
 }
-.color-swatch2.is-on { box-shadow: 0 0 0 3px var(--cell), 0 0 0 5px var(--c); }
+.color-swatch.is-on { box-shadow: 0 0 0 3px var(--cell), 0 0 0 5px var(--c); }
 
 /* ═════════ Accessibilité et finitions de bord ═════════ */
 
@@ -248,9 +234,6 @@ html.type-xl .chart-bubble { white-space: normal; }
 }
 
 /* Cibles tactiles : 44 pt au moins, zone de tap agrandie sans changer le visuel */
-.segmented__btn::after { top: -8px; bottom: -8px; }
-.navbar__sub { position: relative; }
-.navbar__sub::after { content: ''; position: absolute; inset: -6px 0; }
 .search { height: 44px; }
 
 /* Paysage et encoche : rien ne passe sous les bords arrondis ou la Dynamic Island */
@@ -290,35 +273,24 @@ html.type-xl .chart-bubble { white-space: normal; }
 
 /* Dynamic Type très grand (classe posée par l'app au-delà de 1,3 rem) : chaque série sur 2 lignes */
 html.type-xl .sets__head { display: none; }
-html.type-xl .set-row2 {
+html.type-xl .session-set {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "n prev check" "w r check";
   row-gap: 6px; padding: 8px 6px;
 }
-html.type-xl .set-row2 .set-n { grid-area: n; text-align: left; }
-html.type-xl .set-row2 .set-prev { grid-area: prev; text-align: left; }
-html.type-xl .set-row2 > :nth-child(3) { grid-area: w; }
-html.type-xl .set-row2 > :nth-child(4) { grid-area: r; }
-html.type-xl .set-row2 .set-check-zone { grid-area: check; }
-html.type-xl .set-row2 .set-badge { grid-column: 1 / -1; }
+html.type-xl .session-set .set-n { grid-area: n; text-align: left; }
+html.type-xl .session-set .set-prev { grid-area: prev; text-align: left; }
+html.type-xl .session-set > :nth-child(3) { grid-area: w; }
+html.type-xl .session-set > :nth-child(4) { grid-area: r; }
+html.type-xl .session-set .set-check-zone { grid-area: check; }
+html.type-xl .session-set .set-badge { grid-column: 1 / -1; }
 
 /* Réduction des animations : couleur fixe en fin de repos, pas de point pulsé ni de transition */
 @media (prefers-reduced-motion: reduce) {
   .rest-mini--done { animation: none; background: color-mix(in srgb, var(--green) 20%, var(--cell)); }
-  .set-row2--go { animation: none; background: color-mix(in srgb, var(--cat-color) 16%, var(--cell)); }
+  .session-set--go { animation: none; background: color-mix(in srgb, var(--cat-color) 16%, var(--cell)); }
   .livebar__dot, .toast { animation: none; }
 }
-.setting-row .segmented__btn { min-width: 44px; }
-
-/* Barre de navigation compacte : comme iOS, elle grandit avec le texte mais reste plafonnée */
-.navbar__bar { height: auto; min-height: 44px; }
-.navbar__title, .navbar__back, .navbar__text { font-size: min(1rem, 22px); }
-.navbar__title-main { line-height: min(1.176rem, 26px); }
-.navbar__title-sub { font-size: min(0.706rem, 15px); line-height: min(0.882rem, 18px); }
-.navbar__large { overflow-wrap: anywhere; }
-html.type-xl .navbar__large { font-size: min(2rem, 36px); }
-html.type-xl .home-cell { flex-wrap: wrap; }
-html.type-xl .home-cell__value { white-space: normal; min-width: 0; }
-.header--session .session-finish { font-size: min(1rem, 22px); }
+.settings-view .segmented__btn { min-width: 44px; }
 .navbar__text { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .set-del { font-size: min(0.824rem, 14px); }
 html.type-xl .segmented { height: auto; min-height: 32px; }

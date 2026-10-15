@@ -1,68 +1,4 @@
-/* Entraînement : accueil, barre de progression, séance (base), repos */
-
-/* ═══════════════════════════════════════════════
-   Accueil
-═══════════════════════════════════════════════ */
-.view { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-
-.cards {
-  flex: 1; overflow-y: auto; padding: var(--sp-4) var(--gutter) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
-  display: flex; flex-direction: column; gap: var(--sp-3);
-  overscroll-behavior: none;
-  position: relative; z-index: 1;
-}
-
-.dashboard__brand {
-  font-size: var(--fs-caption); font-weight: 400;
-  color: var(--label2);
-  text-align: center; padding: var(--sp-1) 0 var(--sp-2);
-}
-
-.card {
-  background: var(--cell); border-radius: var(--r-md); padding: var(--sp-4);
-  animation: cardIn .25s ease both;
-}
-@keyframes cardIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.card__header { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
-.card__icon   { line-height: 1; display: inline-flex; }
-.card__title  { font-size: var(--fs-title2); font-weight: 700; }
-.card__desc   { font-size: var(--fs-footnote); color: var(--label2); margin-top: 2px; }
-
-.card__timer {
-  font-family: var(--font-rounded);
-  font-size: var(--fs-large); font-weight: 300; margin-bottom: var(--sp-1);
-  font-variant-numeric: tabular-nums;
-}
-.timer--ready      { color: var(--green-text); font-weight: 700; font-size: var(--fs-title1); }
-.timer--recovering { color: var(--label2); }
-
-.card__meta { font-size: var(--fs-footnote); color: var(--label2); margin-bottom: var(--sp-4); }
-
-.card__cooldown {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-top: var(--sp-3); padding-top: var(--sp-1); border-top: .5px solid var(--sep);
-}
-.card__cooldown-label { font-size: var(--fs-footnote); color: var(--label2); }
-.card__cooldown-btn {
-  display: inline-flex; align-items: center; gap: var(--sp-1);
-  background: none; border: none;
-  color: var(--tint); font-size: var(--fs-subhead); font-weight: 400;
-  min-height: 44px; padding: 0 0 0 var(--sp-2); cursor: pointer;
-  font-family: inherit; font-variant-numeric: tabular-nums;
-}
-.card__cooldown-btn:active { opacity: .6; }
-
-.order-badge {
-  display: inline-block; font-size: var(--fs-caption2); font-weight: 600;
-  padding: 2px 6px; border-radius: var(--r-pill); margin-left: 6px;
-  vertical-align: middle;
-}
-.order-badge--last { background: color-mix(in srgb, var(--orange) 10%, transparent); color: var(--orange-text); }
-.order-badge--prev { background: var(--fill2); color: var(--label2); }
+/* Entraînement : barre de progression, séance (base) (l'accueil est dans navigation.css, la séance en cours dans session.css) */
 
 /* ═══════════════════════════════════════════════
    Barre de progression
@@ -71,7 +7,7 @@
 .progress-bar__fill { height: 100%; border-radius: 0 2px 2px 0; transition: width .5s cubic-bezier(.4,0,.2,1); }
 
 /* ═══════════════════════════════════════════════
-   Séance (le lot 4 la redessine dans session.css)
+   Séance : bases communes (la séance en cours est précisée dans session.css)
 ═══════════════════════════════════════════════ */
 .session-content {
   flex: 1; overflow-y: auto; padding: var(--sp-4) var(--gutter) calc(var(--sp-6) + env(safe-area-inset-bottom, 0px));
@@ -84,25 +20,12 @@
   background: var(--cell); border-radius: var(--r-md);
   padding: var(--sp-4);
 }
-.exercise-block--done { background: color-mix(in srgb, var(--green) 6%, var(--cell)); }
 
 .exercise-header {
   display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-2);
   margin-bottom: var(--sp-1);
 }
 .exercise-name     { font-weight: 600; font-size: var(--fs-body); flex: 1; }
-.exercise-progress { font-size: var(--fs-footnote); color: var(--label2); font-variant-numeric: tabular-nums; }
-
-.rest-badge {
-  display: inline-flex; align-items: center; gap: var(--sp-1);
-  background: none; border: none;
-  color: var(--tint); font-size: var(--fs-footnote); padding: 4px 0 4px 8px; min-height: 28px;
-  border-radius: var(--r-pill); cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums;
-}
-.rest-badge:active { opacity: .6; }
-
-.exercise-hint { font-size: var(--fs-footnote); color: var(--label2); margin-bottom: var(--sp-3); }
-.exercise-hint .pr { color: var(--gold-text); font-weight: 600; }
 
 .set-row {
   display: flex; align-items: center; gap: var(--sp-2);
@@ -111,18 +34,7 @@
 }
 .set-num { font-size: var(--fs-footnote); color: var(--label2); width: 52px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
 
-.set-row--done {
-  border-radius: var(--r-sm); padding: var(--sp-2); margin: 0 calc(var(--sp-2) * -1);
-  background: color-mix(in srgb, var(--green) 10%, transparent);
-  border-top-color: transparent;
-  animation: setDone .3s ease both;
-}
-.set-row--done .set-num { color: var(--green-text); font-weight: 600; }
-@keyframes setDone { from { opacity: .5; } to { opacity: 1; } }
-.set-row--pending { opacity: .45; }
-
 .set-val { font-size: var(--fs-body); font-weight: 600; flex: 1; font-variant-numeric: tabular-nums; }
-.set-pending-dash { color: var(--label2); font-size: var(--fs-title3); }
 
 .set-input {
   width: 62px; background: var(--fill2); border: 1px solid transparent;
@@ -148,127 +60,10 @@
   padding: 0 var(--sp-2) 0 2px; white-space: nowrap; flex-shrink: 0;
 }
 
-.prev-session {
-  margin-bottom: var(--sp-3); padding: var(--sp-2) var(--sp-3);
-  background: var(--cell2); border-radius: var(--r-sm);
-}
-.prev-session__label { font-size: var(--fs-footnote); color: var(--label2); margin-bottom: 6px; }
-.prev-session__sets { display: flex; flex-wrap: wrap; gap: 6px; }
-.prev-set {
-  font-size: var(--fs-footnote); color: var(--label); background: var(--fill2);
-  padding: 3px 8px; border-radius: var(--r-xs); font-variant-numeric: tabular-nums;
-}
-
 .pr-badge {
   background: color-mix(in srgb, var(--yellow) 18%, transparent); color: var(--gold-text);
   font-size: var(--fs-caption); font-weight: 600; padding: 2px 8px; border-radius: var(--r-xs); flex-shrink: 0;
 }
 
-.rest-btn {
-  display: inline-flex; align-items: center; gap: var(--sp-1);
-  background: none; border: none;
-  border-radius: var(--r-sm); color: var(--tint); font-size: var(--fs-footnote);
-  min-height: 32px; padding: 0 var(--sp-3); cursor: pointer; font-family: inherit; flex-shrink: 0;
-  white-space: nowrap;
-}
-.rest-btn:active { opacity: .6; }
-.edit-set-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  background: none; border: none; color: var(--tint);
-  min-width: 44px; min-height: 44px; cursor: pointer; flex-shrink: 0;
-  border-radius: var(--r-sm);
-}
-.edit-set-btn:active { opacity: .5; }
-
-/* ═══════════════════════════════════════════════
-   Repos (surcouche et mini-barre ; lot 4)
-═══════════════════════════════════════════════ */
-.rest-overlay {
-  position: fixed; inset: 0; z-index: 100;
-  background: var(--dimmer);
-  display: flex; align-items: flex-end; justify-content: center;
-}
-.rest-card {
-  background: var(--cell); border-radius: var(--r-lg) var(--r-lg) 0 0;
-  padding: var(--sp-5) var(--sp-6) calc(var(--sp-8) + env(safe-area-inset-bottom, 0px)); width: 100%; max-width: 440px;
-}
-.rest-card__top {
-  display: flex; align-items: center; justify-content: center;
-  position: relative; margin-bottom: var(--sp-1); min-height: 44px;
-}
-.rest-label { font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
-.rest-minimize-btn {
-  position: absolute; right: -6px; top: 50%; transform: translateY(-50%);
-  background: var(--fill); border: none;
-  color: var(--label2); width: 30px; height: 30px; border-radius: 50%;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-}
-.rest-minimize-btn::after { content: ''; position: absolute; inset: -7px; }
-.rest-minimize-btn:active { opacity: .6; }
-
-.rest-mini {
-  position: fixed; bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
-  left: var(--sp-3); right: var(--sp-3); z-index: 100;
-  background: var(--dlg-bg); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
-  border-radius: var(--r-md); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4); min-height: 56px;
-  display: flex; align-items: center; gap: var(--sp-3);
-  cursor: pointer; box-shadow: var(--shadow-float);
-}
-.rest-mini__icon { color: var(--tint); flex-shrink: 0; display: inline-flex; }
-.rest-mini__timer {
-  font-family: var(--font-rounded);
-  font-size: var(--fs-title3); font-weight: 600; font-variant-numeric: tabular-nums;
-  flex-shrink: 0; min-width: 54px;
-}
-.rest-mini__timer.ending { color: var(--orange-text); }
-.rest-mini__label { font-size: var(--fs-footnote); color: var(--label2); flex: 1; }
-.rest-mini__skip {
-  background: none; border: none; color: var(--label2);
-  min-width: 44px; min-height: 44px; cursor: pointer; flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-}
-.rest-mini__skip:active { opacity: .5; }
-.rest-timer {
-  font-family: var(--font-rounded);
-  font-size: 4.6rem; font-weight: 300; text-align: center;
-  margin-bottom: var(--sp-6);
-  font-variant-numeric: tabular-nums;
-}
-.rest-timer.ending { color: var(--orange-text); }
-
+/* Point pulsé (pastille « en cours » des composants) */
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-
-.timer-flash {
-  position: fixed; inset: 0; z-index: 999;
-  background: var(--flash);
-  animation: screenFlash .7s ease forwards;
-  pointer-events: none;
-}
-@keyframes screenFlash {
-  0%   { opacity: .85; }
-  30%  { opacity: .6; }
-  55%  { opacity: .85; }
-  80%  { opacity: .4; }
-  100% { opacity: 0; }
-}
-
-.rest-presets { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-3); }
-.preset-btn {
-  flex: 1; min-height: 44px; padding: 0 4px; background: var(--fill);
-  border: none; border-radius: var(--r-sm);
-  color: var(--label); font-size: var(--fs-subhead); font-weight: 600; font-variant-numeric: tabular-nums;
-  cursor: pointer; font-family: inherit; transition: background .15s;
-}
-.preset-btn--active { background: var(--tint-fill); color: var(--on-tint); }
-.preset-btn:active { opacity: .6; }
-
-.rest-custom { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-4); }
-.rest-custom-input {
-  flex: 1; background: var(--fill2); border: 1px solid transparent;
-  border-radius: var(--r-sm); color: var(--label); font-size: var(--fs-input);
-  padding: 11px 14px; font-family: inherit; -moz-appearance: textfield;
-}
-.rest-custom-input::-webkit-outer-spin-button,
-.rest-custom-input::-webkit-inner-spin-button { -webkit-appearance: none; }
-.rest-custom-input:focus { outline: none; border-color: var(--tint); }
-.rest-custom-input::placeholder { color: var(--label3); }

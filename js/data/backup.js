@@ -38,7 +38,7 @@ function importText(text) {
   data = next;
   if (!save()) { data = JSON.parse(previous); return false; }
   if (theme) applyTheme(theme);
-  editorCat = statsCat = addCat = firstSession();
+  editorCat = addCat = firstSession();
   syncTimersFromHistory();
   render();
   const n = data.history.length;
@@ -47,7 +47,7 @@ function importText(text) {
     onAction: () => {
       data = normalizeData(JSON.parse(previous));
       save();
-      editorCat = statsCat = addCat = firstSession();
+      editorCat = addCat = firstSession();
       render(); showToast('Import annulé');
     },
   });

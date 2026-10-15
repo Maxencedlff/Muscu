@@ -67,10 +67,12 @@ function resolveExId(progKey, cat, name, d = data) {
   return 'n:' + normName(name);
 }
 
+// Volume (kg) : Σ charge × reps d'une liste de séries, puis d'une liste d'exercices
+function setsVolume(sets) {
+  return (sets || []).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0);
+}
 function sessionVolume(exercises) {
-  return exercises.reduce((total, ex) =>
-    total + ex.sets.reduce((a, s) =>
-      a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0), 0);
+  return exercises.reduce((total, ex) => total + setsVolume(ex.sets), 0);
 }
 
 function makeProgData(progId) {

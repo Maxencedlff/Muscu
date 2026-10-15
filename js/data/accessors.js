@@ -73,17 +73,18 @@ function firstSession() {
   return sessionKeys()[0] || '';
 }
 
-// ISO week key "YYYY-Www" for a timestamp
+// Clé de la semaine ISO d'un horodatage : « 2026-W41 »
 function isoWeek(ts) {
   const d = new Date(ts);
-  const day = d.getDay() || 7; // Mon=1 … Sun=7
-  d.setDate(d.getDate() + 4 - day); // nearest Thursday
+  const day = d.getDay() || 7; // lundi = 1 … dimanche = 7
+  d.setDate(d.getDate() + 4 - day); // jeudi de la même semaine
   const year = d.getFullYear();
   const startOfYear = new Date(year, 0, 1);
   const week = Math.ceil(((d - startOfYear) / 86400000 + 1) / 7);
   return `${year}-W${String(week).padStart(2, '0')}`;
 }
 
+// Régularité : semaines consécutives avec au moins deux séances
 function computeStreak() {
   const history = data.history || [];
   if (!history.length) return 0;
@@ -98,7 +99,7 @@ function computeStreak() {
     if (activeWeeks.has(key)) {
       streak++;
     } else if (i === 0) {
-      // current week not yet active — don't break streak, just skip
+      // semaine en cours pas encore validée : elle ne casse pas la série
     } else {
       break;
     }
@@ -106,24 +107,30 @@ function computeStreak() {
   return streak;
 }
 
-// Volume = Σ (weight × reps) for a list of sets [{weight, reps}]
-function setsVolume(sets) {
-  return (sets || []).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0);
-}
-
+// ── Unités ──────────────────────────────────────────────────
+// Les charges sont toujours stockées en kg (chaîne) ; l'affichage suit data.unit.
 const KG_TO_LBS = 2.20462;
 function unitLbl() { return data.unit === 'lbs' ? 'lbs' : 'kg'; }
 
-// kg stored → display string (no unit suffix)
-function dispW(kg) {
-  if (kg === '' || kg == null) return '';
+// Charge stockée (kg) → nombre dans l'unité affichée, arrondi au 0,1 lb ou au 0,01 kg.
+// null si vide ou invalide.
+function toUnitW(kg) {
+  if (kg === '' || kg == null) return null;
   const v = parseFloat(kg);
-  if (isNaN(v)) return '';
-  if (data.unit === 'lbs') return String(Math.round(v * KG_TO_LBS * 10) / 10);
-  return String(Math.round(v * 100) / 100);
+  if (isNaN(v)) return null;
+  return data.unit === 'lbs' ? Math.round(v * KG_TO_LBS * 10) / 10 : Math.round(v * 100) / 100;
 }
 
-// display input → kg stored string
+// Charge affichée, sans unité, à la française : « 1 032,5 ».
+// plain: true donne « 1032,5 » sans séparateur de milliers : valeur des champs de saisie
+// (relue par num()) et cellules étroites de la séance.
+function fmtW(kg, { plain = false } = {}) {
+  const v = toUnitW(kg);
+  if (v === null) return '';
+  return plain ? String(v).replace('.', ',') : fmtNum(v);
+}
+
+// Saisie dans l'unité affichée → kg stocké (chaîne)
 function storeW(val) {
   if (val === '' || val == null) return '';
   const v = parseFloat(String(val).replace(',', '.'));
@@ -132,6 +139,7 @@ function storeW(val) {
   return String(v);
 }
 
+// Volume (kg) : « 850 kg », « 12,4 t », « 1 874 lbs », « 27,3 k lbs »
 function fmtVolume(kg) {
   if (kg === 0) return `0 ${unitLbl()}`;
   if (data.unit === 'lbs') {
@@ -141,23 +149,9 @@ function fmtVolume(kg) {
   return kg >= 1000 ? fmtNum(kg / 1000, 1) + ' t' : fmtNum(Math.round(kg)) + ' kg';
 }
 
-// Charge affichée en texte : « 32,5 » (dispW reste au point pour les champs de saisie)
-function fmtW(kg) {
-  const v = dispW(kg);
-  return v === '' ? '' : fmtNum(v);
-}
-
 function historyColor(h) {
   const progId = h.programme || 'ppl';
   return sessionMeta(h.category, progId).color || 'var(--label2)';
-}
-
-// Poids affiché à la française (« 32,5 »), quel que soit le format renvoyé par dispW
-function wFr(kg) {
-  const s = dispW(kg);
-  if (s === '') return '';
-  const v = parseFloat(String(s).replace(/\s/g, '').replace(',', '.'));
-  return isNaN(v) ? s : fmtNum(v);
 }
 
 // Meilleure série d'une liste : la plus lourde, puis le plus de reps
@@ -170,7 +164,8 @@ function bestSet(sets) {
   });
   return best;
 }
+// « 32,5 kg × 8 », ou « 8 reps » au poids du corps
 function setTxt(b) {
   if (!b) return '';
-  return b.w > 0 ? `${wFr(b.weight)} ${unitLbl()} × ${b.r}` : `${b.r} reps`;
+  return b.w > 0 ? `${fmtW(b.weight)} ${unitLbl()} × ${b.r}` : `${b.r} reps`;
 }

@@ -132,7 +132,7 @@ def t_views(bench, eng, dev, theme):
         R.check(page.locator('[data-action="validate-set"][data-ei="0"][data-si="1"]').get_attribute('aria-label') == 'Valider la série 2, Développé couché haltères', f'{t} libellé ✓')
         page.locator('[data-action="validate-set"][data-ei="0"][data-si="0"]').click()
         page.wait_for_timeout(500)
-        lbl = page.locator('.set-row2--done').first.get_attribute('aria-label') or ''
+        lbl = page.locator('.session-set--done').first.get_attribute('aria-label') or ''
         R.check(lbl.startswith('Série 1 validée, 32,5 kilos, 10 répétitions'), f'{t} libellé série validée ({lbl})')
         R.check(page.locator('[role="timer"][aria-live="off"]').count() >= 1, f'{t} chrono role=timer aria-live=off')
         R.check(page.locator('.rest-mini [aria-label="Moins 15 secondes"]').count() == 1 and page.locator('.rest-mini [aria-label="Passer le repos"]').count() == 1, f'{t} libellés du repos')
@@ -204,7 +204,7 @@ def t_dynamic_type(bench):
             if name in ('accueil', 'seance', 'historique-detail', 'progres'):
                 shot(page, LOT, f'ax28-{name}-iPhone_SE')
         R.check(page.evaluate("document.documentElement.classList.contains('type-xl')"), 'AX : classe type-xl posée')
-        two = page.evaluate("""() => { const r = document.querySelector('.set-row2--current');
+        two = page.evaluate("""() => { const r = document.querySelector('.session-set--current');
             const n = r.querySelector('.set-n').getBoundingClientRect(), i = r.querySelector('.set-input').getBoundingClientRect();
             return i.top >= n.bottom - 1; }""")
         R.check(two, 'AX : la série passe sur 2 lignes')
@@ -250,7 +250,7 @@ def t_reduced_motion(bench):
         page.wait_for_timeout(300)
         page.evaluate("restEndTime = Date.now() + 300")
         page.wait_for_timeout(700)
-        an = page.evaluate("[...document.querySelectorAll('.rest-mini, .set-row2--go, .livebar__dot')].map(e => getComputedStyle(e).animationName)")
+        an = page.evaluate("[...document.querySelectorAll('.rest-mini, .session-set--go, .livebar__dot')].map(e => getComputedStyle(e).animationName)")
         R.check(all(a == 'none' for a in an), f'mouvements réduits : aucune animation {an}')
 
 

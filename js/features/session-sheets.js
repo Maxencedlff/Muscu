@@ -71,9 +71,9 @@ function exRestSheetHtml(ei) {
   return `
     <div class="rs rs--ex">
       <div class="rs__title">Repos · ${esc(ex.name)}</div>
-      <div class="rs__value num" id="exRestValue">${fmtSecs(v)}</div>
+      <div class="rs__value num" id="exRestValue">${fmtRest(v)}</div>
       <div class="rs-seg" role="group" aria-label="Durée du repos">
-        ${[60, 90, 120, 180].map(p => `<button class="rs-seg__btn num" data-action="ex-rest-set" data-secs="${p}" aria-pressed="${v === p}">${fmtSecs(p)}</button>`).join('')}
+        ${REST_PRESETS.map(p => `<button class="rs-seg__btn num" data-action="ex-rest-set" data-secs="${p}" aria-pressed="${v === p}">${fmtRest(p)}</button>`).join('')}
       </div>
       <div class="rs__adj">
         <button class="rs__round num" data-action="ex-rest-adj" data-d="-15" aria-label="Moins 15 secondes">−15</button>
@@ -83,6 +83,12 @@ function exRestSheetHtml(ei) {
     </div>`;
 }
 
+// onClose : rafraîchir la carte (lien « Repos ») ou non, selon d'où la feuille est ouverte
+function openExRestSheet(ei, onClose) {
+  restEditEi = ei;
+  openSessSheet({ cls: 'sess-sheet--exrest', label: 'Repos', html: exRestSheetHtml(ei), onClose: () => { restEditEi = null; onClose?.(); } });
+}
+
 function setExRest(ei, secs) {
   const ex = activeSession?.exercises[ei];
   if (!ex) return;
@@ -90,7 +96,7 @@ function setExRest(ei, secs) {
   const exData = sessExData(ex);
   if (exData) { exData.rest = secs; save(); } else ex.rest = secs;
   const val = $('#exRestValue');
-  if (val) val.textContent = fmtSecs(secs);
+  if (val) val.textContent = fmtRest(secs);
   document.querySelectorAll('.sess-sheet--exrest .rs-seg__btn').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.secs === secs)));
   haptic();
 }
@@ -145,20 +151,22 @@ function openAddExSheet(replaceEi = null, forProg = false) {
   openSessSheet({ cls: 'sess-sheet--addex', label: rep ? 'Remplacer l\'exercice' : 'Ajouter un exercice', html, full: true });
 }
 
+// Programme › Séance : l'exercice rejoint le programme ; ses réglages se font ensuite dans Programme › Exercice
+function addExerciseToEditedSession(name) {
+  const list = prog().exercises[editorCat] || (prog().exercises[editorCat] = []);
+  if (list.some(e => normName(e.name) === normName(name))) { showToast('Déjà dans cette séance'); return; }
+  list.push(makeExercise(name, axSets));
+  save();
+  closeSessSheets();
+  haptic();
+  showToast('Exercice ajouté');
+  render();
+}
+
+// Exercice ajouté (ou remplaçant) dans la séance en cours, éventuellement ajouté aussi au programme
 function pickExercise(name) {
   name = String(name || '').trim();
-  if (name && axForProg) {
-    // Programme › Séance : l'exercice rejoint le programme ; ses réglages se font ensuite dans Programme › Exercice
-    const list = prog().exercises[editorCat] || (prog().exercises[editorCat] = []);
-    if (list.some(e => normName(e.name) === normName(name))) { showToast('Déjà dans cette séance'); return; }
-    list.push(makeExercise(name, axSets));
-    save();
-    closeSessSheets();
-    haptic();
-    showToast('Exercice ajouté');
-    render();
-    return;
-  }
+  if (name && axForProg) { addExerciseToEditedSession(name); return; }
   if (!name || !activeSession) return;
   const { programme: sp, category: sc } = activeSession;
   const list    = sessProg().exercises[sc] || (sessProg().exercises[sc] = []);
@@ -217,8 +225,7 @@ async function exerciseMenu(ei) {
   } else if (choice === 'replace') {
     openAddExSheet(ei);
   } else if (choice === 'rest') {
-    restEditEi = ei;
-    openSessSheet({ cls: 'sess-sheet--exrest', label: 'Repos', html: exRestSheetHtml(ei), onClose: () => { restEditEi = null; } });
+    openExRestSheet(ei);
   } else if (choice === 'restart') {
     openRest(exRest(ex));
   } else if (choice === 'remove') {
@@ -241,8 +248,7 @@ registerActions({
   'set-ex-rest': (e, el) => {
     const ei = parseInt(el.dataset.ei);
     if (!activeSession?.exercises[ei]) return;
-    restEditEi = ei;
-    openSessSheet({ cls: 'sess-sheet--exrest', label: 'Repos', html: exRestSheetHtml(ei), onClose: () => { restEditEi = null; render(); } });
+    openExRestSheet(ei, render);
   },
   'ex-rest-set': (e, el) => {
     if (restEditEi !== null) setExRest(restEditEi, parseInt(el.dataset.secs));

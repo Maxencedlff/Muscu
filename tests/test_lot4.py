@@ -36,7 +36,7 @@ def blur(page):
 FIT_JS = """() => {
   const bad = [];
   const cv = document.createElement('canvas').getContext('2d');
-  document.querySelectorAll('.set-row2 .set-input').forEach(i => {
+  document.querySelectorAll('.session-set .set-input').forEach(i => {
     const cs = getComputedStyle(i);
     cv.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
     const w = cv.measureText(i.value || i.placeholder).width;
@@ -49,7 +49,7 @@ FIT_JS = """() => {
 }"""
 
 OVERLAP_JS = """() => {
-  const row = document.querySelector('.set-row2--current'), bar = document.querySelector('.rest-mini');
+  const row = document.querySelector('.session-set--current'), bar = document.querySelector('.rest-mini');
   if (!row || !bar) return { ok: false, why: !row ? 'pas de série courante' : 'pas de barre' };
   const a = row.getBoundingClientRect(), b = bar.getBoundingClientRect();
   const inter = !(a.bottom <= b.top || a.top >= b.bottom);
@@ -143,7 +143,7 @@ def t_flow(bench, eng, dev, theme):
         R.check(not page.evaluate('restActive') and page.locator('.rest-mini').count() == 0, f'{t} Passer')
         # Toucher une série validée la rouvre sur place
         page.click('[data-action="edit-set"][data-ei="0"][data-si="0"]')
-        R.check(page.locator('.modal-overlay').count() == 0 and page.locator('.set-row2--editing #editSetWeight').count() == 1, f'{t} édition sur place (pas de modale)')
+        R.check(page.locator('.modal-overlay').count() == 0 and page.locator('.session-set--editing #editSetWeight').count() == 1, f'{t} édition sur place (pas de modale)')
         page.fill('#editSetReps', '9')
         page.click('[data-action="save-edit-set"]'); page.wait_for_timeout(150)
         R.check(page.evaluate("activeSession.exercises[0].sets[0].reps") == '9', f'{t} série corrigée sur place')
@@ -238,7 +238,7 @@ def t_restore(bench, eng, dev, theme):
         t = tag(dev, theme)
         page.wait_for_timeout(500)
         R.check(page.evaluate('restEndTime') == end and page.locator('.rest-mini').count() == 1, f'{t} restauration : repos restant exact')
-        cur = page.evaluate("(() => { const r = document.querySelector('.set-row2--current'); return r && [r.dataset.ei, r.dataset.si]; })()")
+        cur = page.evaluate("(() => { const r = document.querySelector('.session-set--current'); return r && [r.dataset.ei, r.dataset.si]; })()")
         R.check(cur == ['3', '2'], f'{t} restauration : série courante = exercice 4, série 3 ({cur})')
         ov = page.evaluate(OVERLAP_JS)
         R.check(ov['ok'], f'{t} restauration : série courante visible, non recouverte {ov}')
@@ -249,7 +249,7 @@ def t_restore(bench, eng, dev, theme):
         R.check(line.startswith('4 × 10 · 32,5'), f'{t} résumé replié « {line} »')
         shot(page, LOT, f'restauration-{t}')
         page.locator('.ex-card--collapsed .ex-summary').first.click(no_wait_after=True); page.wait_for_timeout(300)
-        R.check(page.locator('.ex-card[data-ei="0"] .set-row2--done').count() == 4, f'{t} exercice replié : se déplie au tap')
+        R.check(page.locator('.ex-card[data-ei="0"] .session-set--done').count() == 4, f'{t} exercice replié : se déplie au tap')
         # Fin du repos : « C'est reparti »
         page.evaluate('restEndTime = Date.now() + 300')
         page.wait_for_timeout(700)

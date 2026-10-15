@@ -1,21 +1,11 @@
 /* ═══════════════════════════════════════════════
    Navigation : barre de navigation, tab bar, mini-barre
-   de séance, accueil, feuilles modales, transitions (lot 3)
+   de séance, accueil, feuilles modales, transitions
 ═══════════════════════════════════════════════ */
 
-
-:root {
-  --tabbar-h: 49px;
-  --nav-ease: cubic-bezier(.2,.8,.2,1);
-}
-
-/* ── Défilement du document (plus de conteneurs internes) ── */
-#app { height: auto; min-height: 100vh; min-height: 100dvh; display: block; overflow: visible; }
+/* ── Défilement du document (pas de conteneur de défilement interne) ── */
 .view { display: block; min-height: 100vh; min-height: 100dvh; }
-.cards, .session-content, .editor-list, .add-session-content, .stats-list,
-.history-list, .prog-list, .settings-view .settings-list {
-  flex: none; overflow: visible; min-height: 0;
-}
+.session-content, .add-session-content { flex: none; overflow: visible; min-height: 0; }
 body.has-tabbar .view {
   padding-bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom, 0px));
 }
@@ -46,8 +36,9 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
   background: var(--bg); box-shadow: none;
   -webkit-backdrop-filter: none; backdrop-filter: none;
 }
+/* Comme iOS, la barre grandit avec le texte mais ses tailles de police restent plafonnées */
 .navbar__bar {
-  height: 44px; display: grid; grid-template-columns: 1fr minmax(0, auto) 1fr; align-items: center;
+  min-height: 44px; display: grid; grid-template-columns: 1fr minmax(0, auto) 1fr; align-items: center;
   padding: 0 8px;
 }
 .navbar__side { display: flex; align-items: center; min-width: 0; }
@@ -55,35 +46,40 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 .navbar__side:has(> .navbar__text) { min-width: max-content; }
 .navbar__side--right { justify-content: flex-end; }
 .navbar__title {
-  font-size: 1rem; line-height: 1.294rem; font-weight: 600; color: var(--label);
+  font-size: min(1rem, 22px); line-height: 1.294rem; font-weight: 600; color: var(--label);
   text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 56vw; display: flex; flex-direction: column; align-items: center;
 }
 .navbar--large .navbar__title { opacity: 0; transition: opacity .15s; }
 .navbar--large.navbar--collapsed .navbar__title { opacity: 1; }
-.navbar__title-main { line-height: 1.176rem; }
-.navbar__title-sub { font-size: 0.706rem; line-height: 0.882rem; font-weight: 400; color: var(--label2); }
+.navbar__title-main { line-height: min(1.176rem, 26px); }
+.navbar__title-sub { font-size: min(0.706rem, 15px); line-height: min(0.882rem, 18px); font-weight: 400; color: var(--label2); }
 
 .navbar__back, .navbar__text, .navbar__icon {
   background: none; border: none; color: var(--tint); font: inherit; cursor: pointer;
   min-height: 44px; min-width: 44px; display: inline-flex; align-items: center;
 }
-.navbar__back { gap: 2px; padding: 0 8px 0 0; font-size: 1rem; max-width: 100%; }
+.navbar__back { gap: 2px; padding: 0 8px 0 0; font-size: min(1rem, 22px); max-width: 100%; }
 .navbar__back .icon { flex-shrink: 0; }
 .navbar__back-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.navbar__text { font-size: 1rem; padding: 0 8px; white-space: nowrap; }
+.navbar__text {
+  font-size: min(1rem, 22px); padding: 0 8px; white-space: nowrap;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+}
 .navbar__text--bold { font-weight: 600; }
 .navbar__text:disabled { color: var(--label3); cursor: default; }
 .navbar__icon { justify-content: center; }
 .navbar__back:active, .navbar__text:active:not(:disabled), .navbar__icon:active { opacity: .5; }
 
 .navbar__largewrap { padding: 2px 16px 8px; }
-.navbar__large { color: var(--label); letter-spacing: .3px; }
+.navbar__large { color: var(--label); letter-spacing: .3px; overflow-wrap: anywhere; }
+html.type-xl .navbar__large { font-size: min(2rem, 36px); }
 .navbar__sub {
   background: none; border: none; font: inherit; cursor: pointer; padding: 0;
   font-size: 0.882rem; line-height: 1.176rem; color: var(--label2); min-height: 32px;
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: 4px; position: relative;
 }
+.navbar__sub::after { content: ''; position: absolute; inset: -6px 0; } /* zone de tap de 44 px */
 .navbar__sub .icon { color: var(--label3); }
 .navbar__sub:active { opacity: .5; }
 
@@ -121,7 +117,7 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
   view-transition-name: livebar;
 }
 .livebar[hidden] { display: none; }
-body.light .livebar { background: var(--cell); box-shadow: var(--shadow-float); }
+body.light .livebar { background: var(--cell); }
 .livebar:active { opacity: .7; }
 .livebar__dot {
   width: 10px; height: 10px; border-radius: 50%; background: var(--cat-color); flex-shrink: 0;
@@ -188,14 +184,13 @@ body.light .livebar { background: var(--cell); box-shadow: var(--shadow-float); 
 .home-cell__status--ready { color: var(--green-text); font-weight: 600; }
 .home-cell__status--live { color: var(--tint); font-weight: 600; }
 .home-cell__value { flex: 1; text-align: right; font-size: 0.882rem; color: var(--label2); }
+html.type-xl .home-cell { flex-wrap: wrap; }
+html.type-xl .home-cell__value { white-space: normal; min-width: 0; }
 .home-cell__icon { color: var(--orange); display: flex; width: 28px; justify-content: center; }
 .home-cell__chev { color: var(--label3); display: flex; }
 .ring { transform: rotate(-90deg); flex-shrink: 0; }
 .ring__track { fill: none; stroke: var(--fill); stroke-width: 3; }
 .ring__fill { fill: none; stroke: var(--tint); stroke-width: 3; stroke-linecap: round; }
-
-/* L'animation d'apparition des cartes n'est jouée qu'au premier affichage */
-body:not(.first-paint) .card { animation: none; }
 
 /* ── Feuille modale ── */
 .sheet-root { position: fixed; inset: 0; z-index: 900; display: flex; align-items: flex-end; justify-content: center; }

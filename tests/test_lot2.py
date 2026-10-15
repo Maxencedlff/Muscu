@@ -110,9 +110,8 @@ def t_screens(bench, eng, dev, theme):
 
         go(page, 'settings')
         audit(page, t, 'reglages')
-        rows = page.evaluate("""() => [...document.querySelectorAll('.setting-row')].map(r => {
-            // Fusion : Réglages réorganisés en cellules par le lot 5 (.cell__title)
-            const lab = r.querySelector('.setting-label, .cell__title') || r; const lh = parseFloat(getComputedStyle(lab).lineHeight) || 22;
+        rows = page.evaluate("""() => [...document.querySelectorAll('.settings-view .cell')].map(r => {
+            const lab = r.querySelector('.cell__title') || r; const lh = parseFloat(getComputedStyle(lab).lineHeight) || 22;
             return { h: r.getBoundingClientRect().height, lines: Math.round(lab.getBoundingClientRect().height / lh),
                      over: r.scrollWidth > r.clientWidth + 1, txt: lab.textContent.trim() }; })""")
         R.check(rows and all(r['h'] >= 44 for r in rows), f'{t} réglages : rangées >= 44 px {[(r["txt"], r["h"]) for r in rows if r["h"] < 44]}')
@@ -121,7 +120,7 @@ def t_screens(bench, eng, dev, theme):
         R.check(seg and all((a == 'true') == act for a, act in seg), f'{t} segmenté : aria-pressed cohérent {seg}')
         sw = page.evaluate("""() => [...document.querySelectorAll('[role=switch]')].map(b => { const r = b.querySelector('.switch').getBoundingClientRect(); return [b.getAttribute('aria-checked'), r.width, r.height]; })""")
         R.check(len(sw) == 2 and all(w == 51 and h == 31 and a in ('true', 'false') for a, w, h in sw), f'{t} interrupteurs 51×31 role=switch {sw}')
-        rest = page.locator('[data-action="setting-rest"] .setting-value, [data-action="setting-rest"] .cell__value').inner_text().strip()
+        rest = page.locator('[data-action="setting-rest"] .cell__value').inner_text().strip()
         R.check(rest == '1:30', f'{t} repos affiché « 1:30 » ({rest})')
         # Basculer le thème depuis les réglages
         other = 'light' if theme == 'dark' else 'dark'

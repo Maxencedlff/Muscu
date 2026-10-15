@@ -17,22 +17,22 @@ function renderSettings() {
   const stale = !last || Date.now() - last > 14 * 86400000;
   const nSess = (data.history || []).length;
   return `
-    <div class="view settings-view lot5">
+    <div class="view settings-view view--grouped">
       ${navBar({ title: 'Réglages' })}
       <div class="scr">
 
         <div class="group-title">Séance</div>
         <div class="group">
-          <button class="cell cell--nav setting-row" data-action="setting-rest">
+          <button class="cell cell--nav" data-action="setting-rest">
             <span class="cell__body"><span class="cell__title">Repos par défaut</span></span>
             <span class="cell__value num">${fmtRest(data.defaultRest)}</span>
             ${icon('chevron.right', 16)}
           </button>
-          <button class="cell setting-row" data-action="setting-sound" role="switch" aria-checked="${data.soundOn !== false}">
+          <button class="cell" data-action="setting-sound" role="switch" aria-checked="${data.soundOn !== false}">
             <span class="cell__body"><span class="cell__title">Sons</span></span>
             ${tog(data.soundOn !== false)}
           </button>
-          <button class="cell setting-row" data-action="setting-vibrate" role="switch" aria-checked="${data.vibrateOn !== false}">
+          <button class="cell" data-action="setting-vibrate" role="switch" aria-checked="${data.vibrateOn !== false}">
             <span class="cell__body"><span class="cell__title">Vibrations</span></span>
             ${tog(data.vibrateOn !== false)}
           </button>
@@ -40,14 +40,14 @@ function renderSettings() {
 
         <div class="group-title">Affichage</div>
         <div class="group">
-          <div class="cell cell--ctl setting-row">
+          <div class="cell cell--ctl">
             <span class="cell__body"><span class="cell__title">Thème</span></span>
             <div class="segmented seg-sm" role="group" aria-label="Thème">
               ${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([v, l]) =>
                 `<button class="segmented__btn ${themePref() === v ? 'segmented__btn--active' : ''}" aria-pressed="${themePref() === v}" data-action="set-theme" data-val="${v}">${l}</button>`).join('')}
             </div>
           </div>
-          <div class="cell cell--ctl setting-row">
+          <div class="cell cell--ctl">
             <span class="cell__body"><span class="cell__title">Unité</span></span>
             <div class="segmented seg-sm" role="group" aria-label="Unité de poids">
               ${['kg', 'lbs'].map(u => `<button class="segmented__btn ${data.unit === u ? 'segmented__btn--active' : ''}" aria-pressed="${data.unit === u}" data-action="setting-unit" data-val="${u}">${u}</button>`).join('')}
@@ -57,21 +57,21 @@ function renderSettings() {
 
         <div class="group-title">Données</div>
         <div class="group">
-          <div class="cell setting-row">
+          <div class="cell">
             <span class="cell__body"><span class="cell__title ${stale ? 'txt-warn' : ''}" id="lastExportTxt">Dernière sauvegarde : ${last ? agoText(last) : 'jamais'}</span></span>
           </div>
-          <button class="cell cell--action setting-row" data-action="export"><span class="cell__title">Exporter les données</span></button>
-          <button class="cell cell--action setting-row" data-action="import"><span class="cell__title">Importer une sauvegarde</span></button>
-          <button class="cell cell--destructive cell--left setting-row" data-action="wipe-data"><span class="cell__title">Supprimer toutes les données</span></button>
+          <button class="cell cell--action" data-action="export"><span class="cell__title">Exporter les données</span></button>
+          <button class="cell cell--action" data-action="import"><span class="cell__title">Importer une sauvegarde</span></button>
+          <button class="cell cell--destructive cell--left" data-action="wipe-data"><span class="cell__title">Supprimer toutes les données</span></button>
         </div>
         <div class="group-foot">Exporte régulièrement : les données ne sont stockées que sur cet appareil.</div>
 
         <div class="group-title">À propos</div>
         <div class="group">
-          <div class="cell setting-row">
+          <div class="cell">
             <span class="cell__body"><span class="cell__title">MDLF Training<span id="appVersion"></span> · ${plural(nSess, 'séance', 'séances')}</span></span>
           </div>
-          <button class="cell cell--action setting-row" data-action="force-update"><span class="cell__title">Rechercher une mise à jour</span></button>
+          <button class="cell cell--action" data-action="force-update"><span class="cell__title">Rechercher une mise à jour</span></button>
         </div>
 
       </div>
@@ -117,7 +117,7 @@ registerActions({
     try { localStorage.setItem(BACKUP_KEY, JSON.stringify(data)); } catch {}
     if (activeSession) endSession();
     data = makeDefaultData();
-    editorCat = statsCat = addCat = firstSession();
+    editorCat = addCat = firstSession();
     save(); render(); showToast('Données supprimées');
   },
   'force-update': async () => {

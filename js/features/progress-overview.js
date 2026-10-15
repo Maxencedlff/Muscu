@@ -27,7 +27,7 @@ function renderStatsOverview() {
     cells += `<span class="cal__d ${d === today ? 'cal__d--today' : ''}" aria-label="${d}${lbl}"><span class="num">${d}</span>
       <span class="cal__dots">${hs.slice(0, 3).map(h => `<i style="background:${historyColor(h)}"></i>`).join('')}</span></span>`;
   }
-  const monthName = first.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const monthName = fmtDate(first, 'month');
   const monthCount = Object.values(byDay).reduce((a, l) => a + l.length, 0);
   const isCur = y === now.getFullYear() && m === now.getMonth();
 
@@ -39,7 +39,7 @@ function renderStatsOverview() {
   });
   const top = Math.max(4, ...weeks.map(w => w.n));
   const bars = weeks.map(w => `
-      <span class="wk" aria-label="Semaine du ${new Date(w.start).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} : ${plural(w.n, 'séance', 'séances')}">
+      <span class="wk" aria-label="Semaine du ${fmtDate(w.start, 'short')} : ${plural(w.n, 'séance', 'séances')}">
         <span class="wk__bar ${w.n >= 3 ? 'wk__bar--ok' : ''}" style="height:${w.n / top * 100}%"></span>
       </span>`).join('');
 
@@ -50,7 +50,7 @@ function renderStatsOverview() {
   const streak = computeStreak();
 
   return `
-    <div class="view stats-overview lot5">
+    <div class="view stats-overview view--grouped">
       ${navBar({ title: 'Vue d\'ensemble' })}
       <div class="scr">
         <div class="tiles">

@@ -13,6 +13,7 @@ let restTotal     = 0;     // durée totale du repos en cours (anneau de progres
 
 const RING_SMALL = 2 * Math.PI * 17;
 const RING_BIG   = 2 * Math.PI * 100;
+const REST_PRESETS = [60, 90, 120, 180]; // préréglages proposés dans les feuilles de repos
 
 function restFraction() {
   return restTotal > 0 ? Math.min(1, Math.max(0, restTimeLeft / restTotal)) : 0;
@@ -30,7 +31,7 @@ function renderRestOverlay() {
           <circle cx="20" cy="20" r="17" class="rest-ring__track"/>
           <circle cx="20" cy="20" r="17" class="rest-ring__bar" stroke-dasharray="${RING_SMALL}" stroke-dashoffset="${off}"/>
         </svg>
-        <span class="rest-mini__timer num" role="timer" aria-live="off">${fmtSecs(restTimeLeft)}</span>
+        <span class="rest-mini__timer num" role="timer" aria-live="off">${fmtRest(restTimeLeft)}</span>
       </button>
       <button class="rest-mini__btn num" data-action="rest-adjust" data-d="-15" aria-label="Moins 15 secondes">−15<span class="rest-mini__u">&nbsp;s</span></button>
       <button class="rest-mini__btn num" data-action="rest-adjust" data-d="15" aria-label="Plus 15 secondes">+15<span class="rest-mini__u">&nbsp;s</span></button>
@@ -40,7 +41,6 @@ function renderRestOverlay() {
 }
 
 function restSheetHtml() {
-  const presets = [60, 90, 120, 180];
   const nxt = nextSetText();
   return `
     <div class="rs">
@@ -54,12 +54,12 @@ function restSheetHtml() {
           <circle cx="110" cy="110" r="100" class="rest-ring__bar" stroke-dasharray="${RING_BIG}" stroke-dashoffset="${RING_BIG * (1 - restFraction())}"/>
         </svg>
         <div class="rs__center">
-          <div class="rs__time num" role="timer" aria-live="off">${fmtSecs(restTimeLeft)}</div>
+          <div class="rs__time num" role="timer" aria-live="off">${fmtRest(restTimeLeft)}</div>
           <div class="rs__resume num">Reprise à ${restResumeAt()}</div>
         </div>
       </div>
       <div class="rs-seg" role="group" aria-label="Durée du repos">
-        ${presets.map(p => `<button class="rs-seg__btn num" data-action="set-rest" data-secs="${p}" aria-pressed="${restTotal === p}">${fmtSecs(p)}</button>`).join('')}
+        ${REST_PRESETS.map(p => `<button class="rs-seg__btn num" data-action="set-rest" data-secs="${p}" aria-pressed="${restTotal === p}">${fmtRest(p)}</button>`).join('')}
       </div>
       <div class="rs__adj">
         <button class="rs__round num" data-action="rest-adjust" data-d="-15" aria-label="Moins 15 secondes">−15</button>
@@ -71,7 +71,7 @@ function restSheetHtml() {
 }
 
 function restResumeAt() {
-  return new Date(restEndTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return fmtTime(restEndTime);
 }
 
 function openRestSheet() {
@@ -83,7 +83,7 @@ function closeRestSheet() { document.querySelector('.sess-sheet--rest')?._close?
 
 // Met à jour chiffres et anneaux sans relancer render()
 function updateRestUI() {
-  const t = fmtSecs(restTimeLeft), f = restFraction();
+  const t = fmtRest(restTimeLeft), f = restFraction();
   const mini = $('.rest-mini__timer');
   if (mini) mini.textContent = t;
   const small = $('.rest-mini .rest-ring__bar');
@@ -121,9 +121,8 @@ function resumeRestCountdown() {
 
 // Fin du repos : la barre pulse, affiche « C'est reparti » 2 s, puis la série suivante est centrée
 function restFinished() {
-  clearRest();
+  stopRest();
   restTimeLeft = 0;
-  restActive   = false;
   persistSession();
   timerDone();
   closeRestSheet();
@@ -140,12 +139,15 @@ function restFinished() {
     }, 2000);
   }
   if (view === 'session') {
-    $('.set-row2--current')?.classList.add('set-row2--go');
+    $('.session-set--current')?.classList.add('session-set--go');
     scrollToCurrent();
   }
 }
 
 function clearRest() { clearInterval(restInterval); restInterval = null; }
+
+// Arrête le repos en cours (chrono et état) sans toucher à l'affichage
+function stopRest() { clearRest(); restActive = false; }
 
 function removeRestUI() {
   document.querySelectorAll('.rest-mini').forEach(el => el.remove());
@@ -185,7 +187,7 @@ document.addEventListener('visibilitychange', () => {
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
   'skip-rest': () => {
-    clearRest(); restActive = false;
+    stopRest();
     closeRestSheet();
     removeRestUI();
     persistSession();

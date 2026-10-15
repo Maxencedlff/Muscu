@@ -3,9 +3,6 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Pastille de séance : rond coloré avec l'initiale (intégrées) ou emoji choisi (Perso)
-function sessionBadge(cat, progId, size = 28) { return catDot(cat, progId, size); }
-
 function exSetsCount(cat, progId) {
   const list = data.programmes[progId]?.exercises?.[cat] || [];
   return { n: list.length, sets: list.reduce((a, e) => a + (parseInt(e.sets) || 0), 0) };
@@ -18,7 +15,7 @@ function renderProgrammes() {
     const c = exSetsCount(cat, progId);
     return `
       <button class="cell cell--nav" data-action="${action}" data-cat="${esc(cat)}" data-id="${esc(cat)}">
-        ${sessionBadge(cat, progId)}
+        ${catDot(cat, progId)}
         <span class="cell__body">
           <span class="cell__title">${sessionMeta(cat, progId).label}</span>
           <span class="cell__sub">${plural(c.n, 'exercice', 'exercices')} · ${plural(c.sets, 'série', 'séries')}</span>
@@ -44,8 +41,8 @@ function renderProgrammes() {
       </div>` : '';
 
   return `
-    <div class="view programmes lot5">
-      ${navBar({ title: 'Programme', right: `<button class="navbar__text" data-action="go-settings">Réglages</button>`  })}
+    <div class="view programmes view--grouped">
+      ${navBar({ title: 'Programme', right: `<button class="navbar__text" data-action="go-settings">Réglages</button>` })}
       <div class="scr">
         <div class="group">
           <button class="cell cell--nav" data-action="go-prog-picker">
@@ -84,19 +81,17 @@ function renderProgPicker() {
   // « Perso » (ancien programme unique) n'apparaît que s'il est utilisé
   const builtinIds = Object.keys(PROGRAMMES).filter(id => id !== 'custom' || sessionKeys('custom').length || data.activeProgramme === 'custom');
   const mine = Object.entries(data.userProgrammes || {}).filter(([, p]) => !p.archived).map(([id]) => id);
-  const rows = builtinIds.map(row).join('');
-  const mineRows = mine.map(row).join('');
   return `
-    <div class="view prog-picker lot5">
+    <div class="view prog-picker view--grouped">
       ${navBar({ title: 'Programme actif' })}
       <div class="scr">
         <div class="group-title">Mes programmes</div>
         <div class="group">
-          ${mineRows}
+          ${mine.map(row).join('')}
           <button class="cell cell--action" data-action="new-programme">${icon('plus', 20)}<span>Créer un programme</span></button>
         </div>
         <div class="group-title">Programmes intégrés</div>
-        <div class="group">${rows}</div>
+        <div class="group">${builtinIds.map(row).join('')}</div>
         <div class="group-foot">Ton historique reste disponible quand tu changes de programme.</div>
       </div>
     </div>`;
@@ -114,10 +109,16 @@ function activateProgramme(id) {
     });
   }
   editorCat = firstSession();
-  statsCat  = firstSession();
   addCat    = firstSession();
   histFilter = 'all';
   syncTimersFromHistory();
+}
+
+// Programme activé depuis l'onglet : enregistré, retour à la liste des séances
+function openProgramme(id) {
+  activateProgramme(id);
+  save();
+  view = 'programmes'; render();
 }
 
 // ── Actions ─────────────────────────────────────────────────
@@ -139,9 +140,7 @@ registerActions({
     const id = el.dataset.id;
     if (id === data.activeProgramme) { view = 'programmes'; render(); return; }
     if (!(await confirmSheet(`Passer à ${progMeta(id).name} ?`, 'Ton historique reste disponible.', 'Changer de programme', false))) return;
-    activateProgramme(id);
-    save();
-    view = 'programmes'; render();
+    openProgramme(id);
     showToast(`Programme : ${progMeta().name}`);
   },
   'new-programme': async () => {
@@ -166,9 +165,7 @@ registerActions({
     }
     data.userProgrammes[id] = { name, sessions, archived: false };
     data.programmes[id] = pdata;
-    activateProgramme(id);
-    save();
-    view = 'programmes'; render();
+    openProgramme(id);
     showToast(`Programme « ${name} » créé`);
     if (start === 'empty') setTimeout(() => showToast('Ajoute ta première séance'), 2300);
   },
@@ -192,9 +189,7 @@ registerActions({
       'Supprimer le programme'))) return;
     // Archivé et non effacé : l'historique garde les noms et couleurs des séances
     up.archived = true;
-    activateProgramme('ppl');
-    save();
-    view = 'programmes'; render();
+    openProgramme('ppl');
     showToast('Programme supprimé');
   },
 });

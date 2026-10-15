@@ -1,4 +1,4 @@
-/* Composants transverses : badges, vue d'ensemble, bandeau de séance, dialogues iOS, saisie invalide, bannière, écran de secours */
+/* Composants transverses : badges, bandeau de séance, dialogues iOS, saisie invalide, bannière, écran de secours */
 
 /* ═══════════════════════════════════════════════
    Série d'entraînement (badge)
@@ -18,71 +18,6 @@
 .ex-vol { font-weight: 600; color: var(--label2); font-variant-numeric: tabular-nums; }
 .ex-vol__delta { color: var(--label2); font-weight: 600; }
 .ex-vol__delta--up { color: var(--green-text); }
-
-/* ═══════════════════════════════════════════════
-   Progrès : vue d'ensemble / progression
-═══════════════════════════════════════════════ */
-.stats-view-tabs {
-  display: flex; gap: 0; margin: var(--sp-3) var(--gutter) var(--sp-1);
-  background: var(--fill); border-radius: 9px; padding: 2px;
-  flex-shrink: 0;
-}
-.stats-view-tab {
-  flex: 1; min-height: 32px; padding: 0 4px; border-radius: 7px;
-  border: none; background: none;
-  color: var(--label); font-size: var(--fs-footnote); font-weight: 600;
-  cursor: pointer; font-family: inherit;
-}
-.stats-view-tab--active { background: var(--segment-on); box-shadow: var(--shadow-seg); }
-
-.overview-year-nav {
-  display: flex; align-items: center; justify-content: center;
-  gap: var(--sp-4); padding: var(--sp-2) 0 var(--sp-1);
-}
-.overview-year-nav .cooldown-btn { width: 44px; height: 44px; }
-.overview-year { font-size: var(--fs-title3); font-weight: 600; min-width: 60px; text-align: center; font-variant-numeric: tabular-nums; }
-
-.overview-months { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding: var(--sp-2) var(--gutter); }
-.month-pill {
-  min-height: 32px; padding: 0 var(--sp-3); border-radius: var(--r-pill); font-size: var(--fs-footnote); font-weight: 600;
-  border: none; background: var(--fill);
-  color: var(--label); cursor: pointer; font-family: inherit;
-}
-.month-pill--active { background: var(--tint-fill); color: var(--on-tint); }
-
-.overview-period-label { font-size: var(--fs-footnote); color: var(--label2); padding: 0 var(--gutter) var(--sp-3); }
-
-.overview-cats {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-2); padding: 0 var(--gutter) var(--sp-4);
-}
-.overview-cat-card {
-  background: var(--cell); border: none;
-  border-radius: var(--r-md); padding: var(--sp-3) var(--sp-2);
-  text-align: center;
-}
-.overview-cat-icon  { margin-bottom: var(--sp-1); display: flex; justify-content: center; }
-.overview-cat-label { font-size: var(--fs-caption); color: var(--label2); margin-bottom: 6px; font-weight: 600; }
-.overview-cat-count {
-  font-family: var(--font-rounded); font-size: var(--fs-title1); font-weight: 700; line-height: 1;
-  color: color-mix(in srgb, var(--cat-color) var(--cat-text-mix), var(--cat-text-base));
-  font-variant-numeric: tabular-nums;
-}
-.overview-cat-sub   { font-size: var(--fs-caption); color: var(--label2); margin-bottom: var(--sp-1); }
-.overview-cat-total { font-size: var(--fs-caption); color: var(--label2); }
-
-.month-grid { margin: 0 var(--gutter) var(--sp-4); display: flex; flex-direction: column; gap: 0; background: var(--cell); border-radius: var(--r-sm); overflow: hidden; }
-.month-row {
-  position: relative; display: flex; align-items: center; gap: var(--sp-2);
-  min-height: 44px; padding: var(--sp-2) var(--gutter);
-}
-.month-row + .month-row::before { content: ''; position: absolute; top: 0; right: 0; left: var(--gutter); height: .5px; background: var(--sep); }
-.month-row__name  { font-size: var(--fs-subhead); font-weight: 600; min-width: 36px; color: var(--label2); }
-.month-row__cats  { flex: 1; font-size: var(--fs-subhead); display: flex; flex-wrap: wrap; gap: var(--sp-3); font-variant-numeric: tabular-nums; }
-.month-row__cats > span { display: inline-flex; align-items: center; gap: 4px; filter: none; }
-.month-row__cats .cat-badge { width: 18px; height: 18px; font-size: var(--fs-caption2); }
-.month-row__cats .cat-badge--emoji { font-size: var(--fs-footnote); }
-.month-row__total { font-size: var(--fs-subhead); font-weight: 600; color: var(--label); font-variant-numeric: tabular-nums; }
 
 /* ═══════════════════════════════════════════════
    Séance en cours (bandeau d'accueil)

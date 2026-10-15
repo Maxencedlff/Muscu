@@ -5,12 +5,10 @@
 
 let chartState = null; // { vals, dates, points, mode, unit, color, xLabels, sel }
 
-function cvtW(kg) { return data.unit === 'lbs' ? Math.round(kg * KG_TO_LBS * 10) / 10 : kg; }
-
 function metricOf(p, bw) {
-  if (statsMode === 'charge') return bw ? p.maxReps : cvtW(p.maxLoad);
-  if (statsMode === '1rm')    return bw ? p.maxReps : cvtW(p.best1RM || p.maxLoad);
-  return bw ? p.totalReps : cvtW(p.volume);
+  if (statsMode === 'charge') return bw ? p.maxReps : toUnitW(p.maxLoad);
+  if (statsMode === '1rm')    return bw ? p.maxReps : toUnitW(p.best1RM || p.maxLoad);
+  return bw ? p.totalReps : toUnitW(p.volume);
 }
 function fmtMetricVal(v, bw) {
   if (bw) return `${Math.round(v)} reps`;
@@ -21,7 +19,7 @@ function fmtMetricVal(v, bw) {
 function renderStatsExercise() {
   const it = exerciseIndex().get(statsExId);
   if (!it) {
-    return `<div class="view stats-ex lot5">${navBar({ title: 'Exercice' })}
+    return `<div class="view stats-ex view--grouped">${navBar({ title: 'Exercice' })}
       <div class="scr"><div class="empty-note">Aucune donnée pour cet exercice.</div></div></div>`;
   }
   const bw     = isBodyweight(it);
@@ -44,7 +42,7 @@ function renderStatsExercise() {
     return `
       <div class="group-title">Objectif</div>
       <div class="group group--pad">
-        <div class="target-row"><span>${fmtNum(cvtW(target))} ${unitLbl()}</span><span class="${pct >= 100 ? 'txt-up' : ''}">${pct >= 100 ? 'Atteint' : pct + ' %'}</span></div>
+        <div class="target-row"><span>${fmtW(target)} ${unitLbl()}</span><span class="${pct >= 100 ? 'txt-up' : ''}">${pct >= 100 ? 'Atteint' : pct + ' %'}</span></div>
         <div class="tbar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div class="tbar__fill" style="width:${pct}%"></div></div>
       </div>`;
   })() : '';
@@ -58,7 +56,7 @@ function renderStatsExercise() {
 
   const modes = [['volume', 'Volume'], ['charge', 'Charge max'], ['1rm', '1RM est.']];
   return `
-    <div class="view stats-ex lot5">
+    <div class="view stats-ex view--grouped">
       ${navBar({ title: '' })}
       <div class="scr">
         <h1 class="scr-title">${esc(it.name)}</h1>
@@ -79,9 +77,9 @@ function renderStatsExercise() {
             <span class="cell__value num">${prBest ? setTxt(prBest) : '—'}</span></div>
           ${!bw && rec1RM ? `
           <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Record 1RM est.</span></span>
-            <span class="cell__value num">~${fmtNum(cvtW(rec1RM))} ${unitLbl()}</span></div>
+            <span class="cell__value num">~${fmtW(rec1RM)} ${unitLbl()}</span></div>
           <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">1RM est. dernière séance</span></span>
-            <span class="cell__value num">${last.best1RM ? `~${fmtNum(cvtW(last.best1RM))} ${unitLbl()}` : '—'}</span></div>` : ''}
+            <span class="cell__value num">${last.best1RM ? `~${fmtW(last.best1RM)} ${unitLbl()}` : '—'}</span></div>` : ''}
           <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Séances</span></span>
             <span class="cell__value num">${pts.length}</span></div>
         </div>
@@ -181,7 +179,7 @@ function drawCharts() {
 
   // Étiquettes X sans chevauchement (espacées d'au moins leur largeur + 6)
   ctx.fillStyle = lblC; ctx.textBaseline = 'alphabetic';
-  const lbl = i => new Date(dates[i]).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
+  const lbl = i => fmtDate(dates[i], 'short').replace('.', '');
   const rect = i => {
     const w = ctx.measureText(lbl(i)).width;
     const x = Math.max(pL, Math.min(pL + cW - w, xp(i) - w / 2));
@@ -199,7 +197,7 @@ function drawCharts() {
   // Description pour VoiceOver
   const mName = st.mode === 'volume' ? 'Volume' : st.mode === 'charge' ? 'Charge max' : '1RM estimé';
   const tp = trendPct(vals);
-  const d = i => new Date(dates[i]).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  const d = i => fmtDate(dates[i], 'short');
   canvas.setAttribute('aria-label', n > 1
     ? `${mName} : de ${fmtMetricVal(vals[0], st.bw)} le ${d(0)} à ${fmtMetricVal(vals[n - 1], st.bw)} le ${d(n - 1)}${tp === null ? '' : ', ' + pctTxt(tp)}`
     : `${mName} : ${fmtMetricVal(vals[0], st.bw)} le ${d(0)}`);
@@ -216,8 +214,8 @@ function chartSelect(clientX) {
   drawCharts();
   const p = st.points[best];
   const b = box.querySelector('.chart-bubble');
-  const date = new Date(p.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-  const set  = st.bw ? `${p.maxReps} reps` : `${wFr(p.best.weight)} ${unitLbl()} × ${p.best.r}`;
+  const date = fmtDate(p.date, 'short');
+  const set  = st.bw ? `${p.maxReps} reps` : `${fmtW(p.best.weight)} ${unitLbl()} × ${p.best.r}`;
   b.textContent = `${date} · ${set} · ${st.bw ? p.totalReps + ' reps' : fmtVolume(p.volume)}`;
   b.dataset.i = best;
   b.hidden = false;
