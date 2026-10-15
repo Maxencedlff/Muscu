@@ -796,7 +796,6 @@ let restTimeLeft  = 0;
 let restEndTime   = 0;
 let restActive    = false;
 let restMinimized = false;
-let modalOpen     = false;
 let restEditEi    = null;  // exercice dont on règle le repos (feuille)
 let editingSet    = null;  // { ei, si } — série validée rouverte en édition sur place
 let restSheetOpen = false; // feuille détaillée du repos ouverte
@@ -1025,13 +1024,13 @@ function paint(scrollY = window.scrollY) {
   else if (view === 'stats')       app.innerHTML = renderStats();
   else if (view === 'settings')    app.innerHTML = renderSettings();
   else if (view === 'add-session') app.innerHTML = renderAddSession();
-  else if (view === 'summary')     app.innerHTML = renderSummary(); // ROUTE-LOT3 : bilan de fin (#train/summary)
-  else if (view === 'history-detail') app.innerHTML = renderHistoryDetail(); // ROUTE-LOT3
-  else if (view === 'stats-ex')       app.innerHTML = renderStatsExercise(); // ROUTE-LOT3
-  else if (view === 'stats-overview') app.innerHTML = renderStatsOverview(); // ROUTE-LOT3
-  else if (view === 'prog-picker')    app.innerHTML = renderProgPicker();    // ROUTE-LOT3
-  else if (view === 'ex-edit')        app.innerHTML = renderExEdit();        // ROUTE-LOT3
-  else if (view === 'cs-edit')        app.innerHTML = renderCsEdit();        // ROUTE-LOT3
+  else if (view === 'summary')     app.innerHTML = renderSummary(); // Entraînement › Bilan
+  else if (view === 'history-detail') app.innerHTML = renderHistoryDetail();
+  else if (view === 'stats-ex')       app.innerHTML = renderStatsExercise();
+  else if (view === 'stats-overview') app.innerHTML = renderStatsOverview();
+  else if (view === 'prog-picker')    app.innerHTML = renderProgPicker();
+  else if (view === 'ex-edit')        app.innerHTML = renderExEdit();
+  else if (view === 'cs-edit')        app.innerHTML = renderCsEdit();
   else app.innerHTML = renderDashboard();
 
   if (view === 'stats-ex') drawCharts();
@@ -2442,7 +2441,8 @@ document.addEventListener('visibilitychange', () => {
 // ═══════════════════════════════════════════════════════════
 
 // Feuille modale simple (fond, poignée, glisser vers le bas pour fermer)
-// A-UNIFIER-AVEC-SHEET-LOT3
+// Feuille de la séance : comme sheet(), mais sans barre Annuler/OK, non bloquante et mise à jour
+// en direct (repos, ajout d'exercice). Fermée aussi par closeTransientUI() lors d'un changement d'écran.
 function openSessSheet({ cls = '', label = '', html, full = false, onClose }) {
   document.querySelector(`.sess-sheet${cls ? '.' + cls : ''}`)?.remove();
   const root = document.createElement('div');
@@ -2533,6 +2533,7 @@ function setExRest(ei, secs) {
 
 // ── Ajouter (ou remplacer) un exercice : recherche dans la bibliothèque ──
 let axReplaceEi = null;
+let axForProg   = false; // feuille ouverte depuis Programme › Séance (ajout au programme, hors séance)
 let axSets      = 3;
 
 function exerciseLibrary() {
@@ -2556,9 +2557,10 @@ function axListHtml(q) {
     + (!items.length && !q.trim() ? '<div class="ax__empty">Aucun exercice</div>' : '');
 }
 
-function openAddExSheet(replaceEi = null) {
-  axReplaceEi = replaceEi;
-  const rep   = replaceEi !== null ? activeSession.exercises[replaceEi] : null;
+function openAddExSheet(replaceEi = null, forProg = false) {
+  axForProg   = forProg;
+  axReplaceEi = forProg ? null : replaceEi;
+  const rep   = axReplaceEi !== null ? activeSession.exercises[axReplaceEi] : null;
   axSets      = rep ? rep.sets.length : 3;
   const html = `
     <div class="ax">
@@ -2579,7 +2581,7 @@ function openAddExSheet(replaceEi = null) {
             <button data-action="ax-sets" data-d="1" aria-label="Une série de plus">${icon('plus', 18)}</button>
           </div>
         </div>
-        ${rep ? '' : `
+        ${rep || forProg ? '' : `
         <label class="ax__opt">
           <span>Ajouter au programme</span>
           <input type="checkbox" id="axToProg" class="ax-switch" role="switch">
@@ -2592,6 +2594,18 @@ function openAddExSheet(replaceEi = null) {
 
 function pickExercise(name) {
   name = String(name || '').trim();
+  if (name && axForProg) {
+    // Programme › Séance : l'exercice rejoint le programme ; ses réglages se font ensuite dans Programme › Exercice
+    const list = prog().exercises[editorCat] || (prog().exercises[editorCat] = []);
+    if (list.some(e => normName(e.name) === normName(name))) { showToast('Déjà dans cette séance'); return; }
+    list.push(makeExercise(name, axSets));
+    save();
+    closeSessSheets();
+    haptic();
+    showToast('Exercice ajouté');
+    render();
+    return;
+  }
   if (!name || !activeSession) return;
   const { programme: sp, category: sc } = activeSession;
   const list    = sessProg().exercises[sc] || (sessProg().exercises[sc] = []);
@@ -3020,7 +3034,7 @@ function renderAddSession() {
     <div class="view add-session">
       ${navBar({ title: editSessionId ? 'Modifier la séance' : 'Séance passée', large: false,
         left: `<button class="navbar__text" data-action="cancel-add-session">Annuler</button>`,
-        right: `<button class="navbar__text navbar__text--bold" data-action="save-past-session" ${addHasReps() ? '' : 'disabled'}>Enregistrer</button>` })}
+        right: `<button class="navbar__text navbar__text--bold" data-action="save-past-session" ${addHasReps() ? '' : 'disabled'}>${editSessionId ? 'OK' : 'Ajouter'}</button>` })}
       <div class="add-session-meta">
         <div class="cat-selector">${catBtns}</div>
         <div class="date-row">
@@ -3966,10 +3980,10 @@ async function handleAction(e, el, action) {
       statsMode = el.dataset.mode; render(); break;
     }
     case 'open-stats-ex': {
-      statsExId = el.dataset.ex; view = 'stats-ex'; render(); break; // ROUTE-LOT3
+      statsExId = el.dataset.ex; view = 'stats-ex'; render(); break;
     }
     case 'go-stats-overview': {
-      ovMonth = null; view = 'stats-overview'; render(); break; // ROUTE-LOT3
+      ovMonth = null; view = 'stats-overview'; render(); break;
     }
     case 'ov-month': {
       changeOvMonth(parseInt(el.dataset.d)); break;
@@ -3980,7 +3994,7 @@ async function handleAction(e, el, action) {
       break;
     }
     case 'open-history': {
-      historyId = el.dataset.id; view = 'history-detail'; render(); break; // ROUTE-LOT3
+      historyId = el.dataset.id; view = 'history-detail'; render(); break;
     }
     case 'hist-filter': {
       histFilter = el.dataset.cat; histMonths = 3;
@@ -4185,10 +4199,10 @@ async function handleAction(e, el, action) {
 
     // ── Onglet Programme ───────────────────────────────────
     case 'go-prog-picker': {
-      view = 'prog-picker'; render(); break; // ROUTE-LOT3
+      view = 'prog-picker'; render(); break;
     }
     case 'open-prog-session': {
-      editorCat = el.dataset.cat; editorEditing = false; view = 'editor'; render(); break; // ROUTE-LOT3
+      editorCat = el.dataset.cat; editorEditing = false; view = 'editor'; render(); break;
     }
     case 'select-prog': {
       const id = el.dataset.id;
@@ -4219,13 +4233,13 @@ async function handleAction(e, el, action) {
     // ── Séance Perso ────────────────────────────────────────
     case 'add-custom-session': {
       csEditId = null; csColor = '#FF9500'; csIcon = '🏋️';
-      csReturn = view; view = 'cs-edit'; render(); break; // ROUTE-LOT3
+      csReturn = view; view = 'cs-edit'; render(); break;
     }
     case 'edit-custom-session': {
       const id = el.dataset.id;
       const cs = data.customSessions[id] || {};
       csEditId = id; csColor = cs.color || '#FF9500'; csIcon = cs.icon || '🏋️';
-      csReturn = view; view = 'cs-edit'; render(); break; // ROUTE-LOT3
+      csReturn = view; view = 'cs-edit'; render(); break;
     }
     case 'close-cs-modal': {
       csEditId = null; view = csReturn; render(); break;
@@ -4626,13 +4640,11 @@ async function handleAction(e, el, action) {
       const ex = (prog().exercises[editorCat] || [])[editExIdx];
       if (!ex) break;
       exDraft = { name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12 };
-      view = 'ex-edit'; render(); break; // ROUTE-LOT3
+      view = 'ex-edit'; render(); break;
     }
     case 'add-ex': {
-      editExIdx = null;
-      exDraft = { name: '', sets: 3, rest: null, target: null, repMax: 12 };
-      view = 'ex-edit'; render(); // ROUTE-LOT3
-      setTimeout(() => $('#exName')?.focus(), 50);
+      // Même feuille de recherche que pendant la séance (bibliothèque + création)
+      openAddExSheet(null, true);
       break;
     }
     case 'ex-sets': {

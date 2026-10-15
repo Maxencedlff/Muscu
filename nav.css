@@ -31,7 +31,7 @@ body.has-tabbar.has-livebar .update-banner { bottom: calc(var(--tabbar-h) + 72px
 .navbar {
   position: sticky; top: 0; z-index: 50;
   padding-top: env(safe-area-inset-top, 0px);
-  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
   box-shadow: inset 0 -0.5px 0 var(--sep);
@@ -88,7 +88,7 @@ body.has-tabbar.has-livebar .update-banner { bottom: calc(var(--tabbar-h) + 72px
   height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
   display: flex;
-  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
   box-shadow: inset 0 0.5px 0 var(--sep);

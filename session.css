@@ -56,7 +56,7 @@
 
 /* ── Tableau des séries ──────────────────────────── */
 .sets { --set-cols: 32px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 56px; --set-gap: 8px; }
-@media (max-width: 359px) {
+@media (max-width: 374px) { /* Android de 360 px compris */
   .sets { --set-cols: 30px minmax(0,.9fr) minmax(0,1.25fr) minmax(0,1fr) 52px; --set-gap: 5px; }
 }
 .sets__head, .set-row2 { display: grid; grid-template-columns: var(--set-cols); column-gap: var(--set-gap); align-items: center; }
@@ -64,7 +64,7 @@
   padding: 0 6px 4px; font-size: 12px; font-weight: 600; color: var(--label2);
   text-align: center; white-space: nowrap;
 }
-@media (max-width: 359px) { .sets__head { font-size: 11px; } }
+@media (max-width: 374px) { .sets__head { font-size: 11px; } }
 .sets__head > span { display: flex; justify-content: center; }
 .set-swipe { position: relative; overflow: hidden; border-radius: var(--r-sm); margin: 0 -6px 2px; }
 .set-row2 {
@@ -194,15 +194,15 @@ body.kb-open .rest-mini { transform: translateY(140%); opacity: 0; pointer-event
 @media (max-width: 359px) {
   .rest-mini { column-gap: 4px; padding-left: 12px; padding-right: 8px; }
   .rest-mini__btn, .rest-mini .rest-mini__skip { min-width: 44px; padding: 0 6px; }
-  .set-row2 .set-input { font-size: 18px; }
 }
+@media (max-width: 374px) { .set-row2 .set-input { font-size: 18px; } }
 
 /* Pendant la séance, les toasts passent en bas (au-dessus de la barre de repos) pour ne pas masquer l'exercice */
 body:has(.view.session) .toast { top: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 body:has(.view.summary) .toast { top: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
-body:has(.rest-mini) .toast { bottom: calc(116px + env(safe-area-inset-bottom, 0px)); }
+body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-area-inset-bottom, 0px)); }
 
-/* ── Feuilles de la séance (A-UNIFIER-AVEC-SHEET-LOT3) ── */
+/* ── Feuilles de la séance (variante non bloquante de .sheet, voir openSessSheet) ── */
 .sess-sheet { position: fixed; inset: 0; z-index: 400; }
 .sess-sheet__backdrop { position: absolute; inset: 0; background: var(--dimmer); animation: iosFade .25s ease; }
 .sess-sheet__panel {
