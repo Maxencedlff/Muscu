@@ -60,6 +60,15 @@
   <!-- Annonces pour VoiceOver / TalkBack (toasts, jalons du repos) -->
   <div id="sr-polite" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
   <div id="sr-assert" class="visually-hidden" aria-live="assertive" aria-atomic="true"></div>
+  <!-- Scripts classiques chargés dans l'ordre, portée globale partagée (voir ARCHITECTURE.md) -->
+  <script src="js/core/util.js"></script>
+  <script src="js/core/dialogs.js"></script>
+  <script src="js/core/haptics-audio.js"></script>
+  <script src="js/data/programmes.js"></script>
+  <script src="js/data/store.js"></script>
+  <script src="js/data/accessors.js"></script>
+  <script src="js/data/active-session.js"></script>
+  <script src="js/data/backup.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

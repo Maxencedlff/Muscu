@@ -3,6 +3,8 @@ const ASSETS = [
   '/', '/index.html', '/manifest.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
   '/css/navigation.css', '/css/session.css', '/css/screens.css',
+  '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
+  '/js/data/programmes.js', '/js/data/store.js', '/js/data/accessors.js', '/js/data/active-session.js', '/js/data/backup.js',
   '/app.js',
 ];
 
