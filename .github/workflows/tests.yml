@@ -1,0 +1,24 @@
+name: Tests
+
+# À chaque envoi : syntaxe de tous les scripts, tests unitaires (dont le pont natif) et
+# préparation du contenu de l'app iOS. Rapide et sur Linux (quelques secondes de quota).
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Syntaxe des scripts
+        run: for f in $(find js -name '*.js') sw.js; do node --check "$f"; done
+      - name: Tests unitaires
+        run: node tests/unit/run.mjs
+      - name: Contenu web de l'app iOS
+        run: npm ci && npm run web:build
