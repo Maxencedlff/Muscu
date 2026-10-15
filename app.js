@@ -243,6 +243,7 @@ function haptic() {
   } catch {}
 }
 
+
 // ═══════════════════════════════════════════════════════════
 //  Programme definitions
 // ═══════════════════════════════════════════════════════════
@@ -555,7 +556,7 @@ function persistSession() {
     if (!activeSession) { localStorage.removeItem(SESSION_KEY); return; }
     localStorage.setItem(SESSION_KEY, JSON.stringify({
       activeSession, sessionNotes,
-      rest: restActive ? { endTime: restEndTime, minimized: restMinimized } : null,
+      rest: restActive ? { endTime: restEndTime, minimized: restMinimized, total: restTotal } : null,
     }));
   } catch {
     if (activeSession && !persistWarned) {
@@ -608,6 +609,7 @@ function restoreSession() {
       restMinimized = !!saved.rest.minimized;
       restEndTime   = endTime;
       restTimeLeft  = Math.ceil((endTime - Date.now()) / 1000);
+      restTotal     = Number(saved.rest.total) || Math.max(restTimeLeft, data.defaultRest);
       resumeRestCountdown();
     }
     return true;
@@ -794,8 +796,12 @@ let restEndTime   = 0;
 let restActive    = false;
 let restMinimized = false;
 let modalOpen     = false;
-let restEditEi    = null;
-let editSetModal  = null; // { ei, si } — édition d'une série validée
+let restEditEi    = null;  // exercice dont on règle le repos (feuille)
+let editingSet    = null;  // { ei, si } — série validée rouverte en édition sur place
+let restSheetOpen = false; // feuille détaillée du repos ouverte
+let restTotal     = 0;     // durée totale du repos en cours (anneau de progression)
+let lastSummary   = null;  // bilan de la séance qui vient d'être enregistrée
+const openDone    = new WeakSet(); // exercices terminés dépliés
 let editExIdx     = null;
 let statsCat      = firstSession();
 let statsMode     = 'volume';   // 'volume' | 'charge' | '1rm'
@@ -843,10 +849,6 @@ function beep(freq, dur = .15, vol = .35) {
 function timerDone() {
   if (data.soundOn !== false) { beep(880, .12); setTimeout(() => beep(1100, .12), 160); setTimeout(() => beep(1320, .35), 320); }
   if (data.vibrateOn !== false && navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
-  const flash = document.createElement('div');
-  flash.className = 'timer-flash';
-  document.body.appendChild(flash);
-  flash.addEventListener('animationend', () => flash.remove());
 }
 
 function validationSound() { if (data.soundOn !== false) beep(660, .1); }
@@ -856,6 +858,7 @@ function finishSound()     { if (data.soundOn !== false) { beep(880, .1); setTim
 //  Navigation : onglets, piles, historique du navigateur
 // ═══════════════════════════════════════════════════════════
 
+let renderedView = null;
 
 // Racine de chaque onglet : les fonctions renderXxx gardent leur nom de vue historique
 const TABS = {
@@ -1024,6 +1027,7 @@ function paint(scrollY = window.scrollY) {
   else if (view === 'stats')       app.innerHTML = renderStats();
   else if (view === 'settings')    app.innerHTML = renderSettings();
   else if (view === 'add-session') app.innerHTML = renderAddSession();
+  else if (view === 'summary')     app.innerHTML = renderSummary(); // ROUTE-LOT3 : bilan de fin (#train/summary)
   else app.innerHTML = renderDashboard();
 
   if (view === 'stats') setTimeout(drawCharts, 0);
@@ -1033,6 +1037,9 @@ function paint(scrollY = window.scrollY) {
   updateChrome();
   observeLargeTitle();
   window.scrollTo(0, scrollY);
+  // Entrée dans la séance : centre la série courante (lot 4)
+  if (view === 'session' && activeSession) afterSessionRender(renderedView !== 'session');
+  renderedView = view;
 }
 
 // Affiche l'écran courant après un changement de navigation, avec la transition qui va avec
@@ -1533,6 +1540,8 @@ function startTicker() {
       const he = $('#hero-elapsed');    if (he) he.textContent = clock;
       const lr = $('#livebar-rest');
       if (lr) { lr.hidden = !restActive; if (restActive) lr.textContent = fmtRest(restTimeLeft); }
+      const ck = $('#session-clock'); // lot 4 : chrono de la séance en m:ss
+      if (ck) ck.textContent = fmtClock(Date.now() - activeSession.startedAt);
     }
     if (view !== 'dashboard') return;
     const minute = Math.floor(Date.now() / 60000);
@@ -1654,34 +1663,33 @@ function renderCsModal() {
 //  Session
 // ═══════════════════════════════════════════════════════════
 
+// Séries d'un exercice pré-remplies série par série avec la dernière séance (sinon la dernière série faite)
+function buildSets(progKey, cat, exLike, n, fallback = {}) {
+  const prevEx = lastPerf(progKey, cat, exLike)?.ex;
+  return Array.from({ length: n }, (_, i) => {
+    const src  = prevEx?.sets[i] ?? prevEx?.sets.at(-1) ?? { weight: fallback.lastWeight || '', reps: fallback.lastReps || '' };
+    const prev = prevEx?.sets[i];
+    return {
+      weight: src.weight ?? '',
+      reps:   src.reps   ?? '',
+      plannedWeight: src.weight ?? '',
+      prev:   prev ? { weight: prev.weight, reps: prev.reps } : null,
+      done:   false,
+    };
+  });
+}
+
 function startSession(cat) {
   sessionNotes  = '';
   persistWarned = false;
+  editingSet    = null;
   const progKey = data.activeProgramme;
   const exList  = prog().exercises[cat] || [];
   activeSession = {
     category:  cat,
     programme: progKey,
     startedAt: Date.now(),
-    // Chaque série reprend la série correspondante de la dernière fois (sinon la dernière série faite)
-    exercises: exList.map(ex => {
-      const prevEx = lastPerf(progKey, cat, ex)?.ex;
-      return {
-        exId: ex.id,
-        name: ex.name,
-        sets: Array.from({ length: ex.sets }, (_, i) => {
-          const src  = prevEx?.sets[i] ?? prevEx?.sets.at(-1) ?? { weight: ex.lastWeight || '', reps: ex.lastReps || '' };
-          const prev = prevEx?.sets[i];
-          return {
-            weight: src.weight ?? '',
-            reps:   src.reps   ?? '',
-            plannedWeight: src.weight ?? '',
-            prev:   prev ? { weight: prev.weight, reps: prev.reps } : null,
-            done:   false,
-          };
-        }),
-      };
-    }),
+    exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
   };
   activeSession.baseline = computeBaseline(activeSession);
   view = 'session';
@@ -1692,13 +1700,81 @@ function startSession(cat) {
 
 function endSession() {
   clearRest(); restActive = false; restMinimized = false;
+  closeSessSheets();
   activeSession = null;
   sessionNotes  = '';
+  editingSet    = null;
   persistWarned = false;
   persistSession();
   releaseWakeLock();
   maybeShowUpdateBanner();
 }
+
+// ── Petites aides de la séance ───────────────────────────────
+
+// Charge affichée en texte (virgule décimale), sans unité
+function wTxt(kg) { return dispW(kg).replace('.', ','); }
+
+// Durée de repos : « 1:30 »
+function fmtSecs(secs) { return fmtRest(secs); }
+
+// Exercice du programme correspondant à un exercice de la séance (null s'il a été ajouté en cours de route)
+function sessExData(ex) {
+  return ex?.exId ? (sessProg().exercises[activeSession.category] || []).find(e => e.id === ex.exId) || null : null;
+}
+
+function exRest(ex) {
+  return sessExData(ex)?.rest ?? ex?.rest ?? data.defaultRest;
+}
+
+// Série courante : la première non faite de l'exercice en cours, sinon la première non faite de la séance
+function currentSet() {
+  if (!activeSession) return null;
+  const xs   = activeSession.exercises;
+  const pick = ei => { const si = xs[ei]?.sets.findIndex(s => !s.done) ?? -1; return si >= 0 ? { ei, si } : null; };
+  const last = activeSession.lastEi;
+  if (Number.isInteger(last) && pick(last)) return pick(last);
+  for (let ei = 0; ei < xs.length; ei++) { const c = pick(ei); if (c) return c; }
+  return null;
+}
+
+// « Développé incliné · S1 · 30 kg × 10 »
+function nextSetText() {
+  const cur = currentSet();
+  if (!cur) return '';
+  const ex = activeSession.exercises[cur.ei], s = ex.sets[cur.si];
+  const w  = s.weight !== '' && s.weight != null ? `${wTxt(s.weight)} ${unitLbl()} × ` : '';
+  return `${ex.name} · S${cur.si + 1}${s.reps !== '' ? ` · ${w}${s.reps}` : ''}`;
+}
+
+// Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette
+function bumpReady(ex) {
+  if (ex.bumped || ex.sets.every(s => s.done)) return false;
+  const prevs = ex.sets.map(s => s.prev).filter(Boolean);
+  if (!prevs.length || prevs.length < Math.min(ex.sets.length, 2)) return false;
+  const repMax = sessExData(ex)?.repMax ?? 12;
+  return prevs.every(p => (parseInt(p.reps) || 0) >= repMax && (parseFloat(p.weight) || 0) > 0);
+}
+function bumpLabel() { return data.unit === 'lbs' ? '+5 lb' : '+2,5 kg'; }
+
+// Ligne repliée d'un exercice terminé : « 4 × 8 · 32,5 kg » (reps différentes : « 10/10/9/8 »)
+function doneSummary(ex) {
+  const reps = ex.sets.map(s => String(s.reps));
+  const same = reps.every(r => r === reps[0]);
+  const maxW = Math.max(0, ...ex.sets.map(s => parseFloat(s.weight) || 0));
+  return `${ex.sets.length} × ${same ? reps[0] : reps.join('/')}${maxW ? ` · ${wTxt(maxW)} ${unitLbl()}` : ''}`;
+}
+
+// Icône de médaille (records)
+function medalSvg(size = 20) {
+  return `<svg class="medal" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M7.5 2h3l1.5 4.5L13.5 2h3l-2.6 7.2A6 6 0 1 1 10.1 9.2z" fill="currentColor" opacity=".55"/>
+    <circle cx="12" cy="15" r="6" fill="currentColor"/>
+    <path d="M12 11.8l1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5 2.2-.3z" fill="var(--cell, #1c1c1e)"/>
+  </svg>`;
+}
+
+// ── Rendu de la séance ───────────────────────────────────────
 
 function renderSession() {
   const { category: cat } = activeSession;
@@ -1707,120 +1783,131 @@ function renderSession() {
   const totalSets = activeSession.exercises.reduce((a, ex) => a + ex.sets.length, 0);
   const doneSets  = activeSession.exercises.reduce((a, ex) => a + ex.sets.filter(s => s.done).length, 0);
   const pct       = totalSets ? Math.round(doneSets / totalSets * 100) : 0;
+  const cur       = currentSet();
 
-  const curVolTotal = activeSession.exercises.reduce((a, ex) => a + setsVolume(ex.sets.filter(s => s.done)), 0);
-  const baseline    = activeSession.baseline || {};
-
-  const exHtml = activeSession.exercises.map((ex, ei) => {
-    const exData  = sessProg().exercises[cat]?.find(e => e.id === ex.exId);
-    const prText  = exData?.pr ? `PR : ${fmtW(exData.pr.weight)} ${unitLbl()} × ${esc(exData.pr.reps)}` : '';
-    const allDone = ex.sets.every(s => s.done);
-
-    const last        = lastPerf(activeSession.programme, cat, ex);
-    const prevSession = last?.h;
-    const prevSets    = last?.ex.sets || [];
-
-    // Volume par exercice, comparé au même nombre de séries que la dernière fois :
-    // gris tant que l'exercice n'est pas fini, vert s'il progresse, jamais rouge en cours de séance
-    const doneSets  = ex.sets.filter(s => s.done);
-    const exCurVol  = setsVolume(doneSets);
-    const exPrevVol = setsVolume(prevSets.slice(0, doneSets.length));
-    const exDelta   = exCurVol - exPrevVol;
-    const deltaCls  = allDone && exDelta > 0 ? 'ex-vol__delta--up' : '';
-    const exVolHtml = exCurVol > 0
-      ? `<span class="ex-vol">${fmtVolume(exCurVol)}${exPrevVol > 0 ? ` <span class="ex-vol__delta ${deltaCls}">(${exDelta >= 0 ? '+' : '−'}${fmtVolume(Math.abs(exDelta))})</span>` : ''}</span>`
-      : '';
-
-    const setsHtml = ex.sets.map((s, si) => {
-      if (s.done) {
-        const record      = recordLabel(s, baseline[ex.exId]);
-        const weightLabel = s.weight ? `${fmtW(s.weight)} ${unitLbl()} × ` : '';
-        return `
-          <div class="set-row set-row--done">
-            <span class="set-num">Série ${si + 1}</span>
-            <span class="set-val">${weightLabel}${esc(s.reps)} reps${record ? `<span class="pr-badge">${record}</span>` : ''}</span>
-            <button class="rest-btn" data-action="start-rest" data-ei="${ei}">${icon('timer', 15)}Repos</button>
-            <button class="edit-set-btn" data-action="edit-set" data-ei="${ei}" data-si="${si}" title="Modifier" aria-label="Modifier la série ${si + 1}">${icon('pencil', 18)}</button>
-          </div>`;
-      }
-
-      const isActive = ex.sets.slice(0, si).every(s => s.done);
-      if (!isActive) {
-        return `
-          <div class="set-row set-row--pending">
-            <span class="set-num">Série ${si + 1}</span>
-            <span class="set-pending-dash">·  ·  ·</span>
-          </div>`;
-      }
-
-      return `
-        <div class="set-row set-row--active">
-          <span class="set-num">Série ${si + 1}</span>
-          <div class="input-group">
-            <input type="text" inputmode="decimal" autocomplete="off" class="set-input" placeholder="—" aria-label="Charge série ${si + 1}"
-                   value="${dispW(s.weight)}" data-action="set-weight" data-ei="${ei}" data-si="${si}">
-            <span class="input-unit">${unitLbl()}</span>
-          </div>
-          <div class="input-group">
-            <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="set-input set-input--required" placeholder="0" aria-label="Répétitions série ${si + 1}"
-                   value="${esc(s.reps)}" data-action="set-reps" data-ei="${ei}" data-si="${si}">
-            <span class="input-unit">reps</span>
-          </div>
-          <button class="btn btn--success btn--sm" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-label="Valider la série ${si + 1}">${icon('checkmark', 20)}</button>
-        </div>`;
-    }).join('');
-
-    const prevHtml = prevSets.length ? `
-      <div class="prev-session">
-        <div class="prev-session__label">Séance du ${fmtDate(prevSession.date)}</div>
-        <div class="prev-session__sets">
-          ${prevSets.map((s, i) => `<span class="prev-set">S${i+1} : ${fmtW(s.weight)} ${unitLbl()} × ${esc(s.reps)}</span>`).join('')}
-        </div>
-      </div>` : '';
-
-    const restSecs = exData?.rest ?? data.defaultRest;
-    const restLabel = fmtRest(restSecs);
-
-    return `
-      <div class="exercise-block ${allDone ? 'exercise-block--done' : ''}">
-        <div class="exercise-header">
-          <span class="exercise-name">${esc(ex.name)}</span>
-          <button class="rest-badge" data-action="set-ex-rest" data-ei="${ei}" title="Modifier le repos" aria-label="Repos : ${restLabel}, modifier">${icon('timer', 14)}${restLabel}</button>
-          <span class="exercise-progress">${ex.sets.filter(s => s.done).length}/${ex.sets.length}</span>
-        </div>
-        ${exVolHtml ? `<div class="ex-vol-line">${exVolHtml}</div>` : ''}
-        ${prText ? `<div class="exercise-hint"><span class="pr">${prText}</span></div>` : ''}
-        ${prevHtml}
-        ${setsHtml}
-      </div>`;
-  }).join('');
+  const exHtml = activeSession.exercises.map((ex, ei) => renderExerciseCard(ex, ei, cur)).join('');
 
   return `
-    <div class="view session" style="--cat-color:${meta.color}">
+    <div class="view session ${restActive ? 'session--resting' : ''}" style="--cat-color:${meta.color}">
       ${navBar({ large: false,
         title: `<span class="navbar__title-main">${meta.label}</span>
-                <span class="header__sub navbar__title-sub"><span class="num">${doneSets}/${totalSets}</span> séries${curVolTotal > 0 ? ` · ${fmtVolume(curVolTotal)}` : ''} · <span id="session-elapsed" class="num">${fmtDuration(Date.now() - activeSession.startedAt)}</span></span>`,
+                <span class="header__sub navbar__title-sub session-sub num"><span id="session-count">${doneSets}/${totalSets}</span> · <span id="session-clock">${fmtClock(Date.now() - activeSession.startedAt)}</span></span>`,
         left: `<button class="navbar__icon" data-action="back" aria-label="Réduire la séance">${icon('chevron.down', 24)}</button>`,
-        right: `<button class="navbar__text navbar__text--bold" data-action="finish-session">Terminer</button>`,
-        extra: `<div class="progress-bar" role="progressbar" aria-label="Séries validées" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
-          <div class="progress-bar__fill" style="width:${pct}%;background:${meta.color}"></div>
+        right: `<button class="navbar__text navbar__text--bold session-finish" data-action="finish-session">Terminer</button>`,
+        extra: `<div class="progress-bar session-progress" role="progressbar" aria-label="Séries validées" aria-valuemin="0" aria-valuemax="${totalSets}" aria-valuenow="${doneSets}">
+          <div class="progress-bar__fill" style="width:${pct}%"></div>
         </div>` })}
       <div class="session-content">
         ${exHtml}
-        <button class="session-add-ex-btn" data-action="add-session-ex">
-          + Ajouter un exercice
-        </button>
-        <div class="session-notes-block">
-          <div class="session-notes-label">Notes de séance</div>
-          <textarea class="session-notes-input" data-action="session-notes"
-                    placeholder="Comment s'est passée la séance ? (optionnel)">${esc(sessionNotes)}</textarea>
-        </div>
+        <button class="session-add-ex-btn" data-action="add-session-ex">${icon('plus', 20)} Ajouter un exercice</button>
       </div>
     </div>
-    ${renderRestOverlay()}
-    ${renderRestEditModal()}
-    ${renderEditSetModal()}
-    ${addExModal ? renderAddExModal() : ''}`;
+    ${renderRestOverlay()}`;
+}
+
+function renderExerciseCard(ex, ei, cur) {
+  const baseline = activeSession.baseline || {};
+  const exData   = sessExData(ex);
+  const doneN    = ex.sets.filter(s => s.done).length;
+  const allDone  = ex.sets.length > 0 && doneN === ex.sets.length;
+  const records  = ex.sets.filter(s => s.done && recordLabel(s, baseline[ex.exId])).length;
+
+  // Exercice terminé : une ligne de résumé qui se déplie au tap
+  if (allDone && !openDone.has(ex)) {
+    return `
+      <div class="exercise-block ex-card ex-card--collapsed" data-ei="${ei}">
+        <button class="ex-summary" data-action="toggle-ex" data-ei="${ei}" aria-expanded="false">
+          <span class="ex-summary__text">
+            <span class="ex-summary__name">${esc(ex.name)}</span>
+            <span class="ex-summary__line num">${doneSummary(ex)}${records ? ` · ${medalSvg(14)}` : ''}</span>
+          </span>
+          <span class="set-check set-check--done ex-summary__check">${icon('checkmark', 18)}</span>
+        </button>
+      </div>`;
+  }
+
+  // Volume comparé au même nombre de séries que la dernière fois : jamais rouge en cours de séance
+  const prevSets  = lastPerf(activeSession.programme, activeSession.category, ex)?.ex.sets || [];
+  const doneSets  = ex.sets.filter(s => s.done);
+  const exCurVol  = setsVolume(doneSets);
+  const exPrevVol = setsVolume(prevSets.slice(0, doneSets.length));
+  const exDelta   = exCurVol - exPrevVol;
+  const volHtml   = exCurVol > 0 && exPrevVol > 0 && exDelta !== 0
+    ? ` · <span class="ex-vol__delta ${exDelta > 0 ? 'ex-vol__delta--up' : ''}">${exDelta > 0 ? '+' : '−'}${fmtVolume(Math.abs(exDelta))}</span>` : '';
+
+  const pr   = exData?.pr;
+  const sub  = `${pr ? `<span class="num">Record ${wTxt(pr.weight)} × ${esc(pr.reps)}</span> · ` : ''}<button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${ei}" aria-label="Repos ${fmtSecs(exRest(ex))}, modifier">Repos ${fmtSecs(exRest(ex))}</button>${volHtml}`;
+  const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${bumpLabel()}">↑ ${bumpLabel()}</button>` : '';
+
+  const rows = ex.sets.map((s, si) => renderSetRow(ex, ei, s, si, cur)).join('');
+
+  return `
+    <div class="exercise-block ex-card ${allDone ? 'ex-card--done' : ''}" data-ei="${ei}">
+      <div class="ex-card__head">
+        ${allDone
+          ? `<button class="ex-card__name ex-card__name--btn" data-action="toggle-ex" data-ei="${ei}" aria-expanded="true">${esc(ex.name)}</button>`
+          : `<h2 class="ex-card__name">${esc(ex.name)}</h2>`}
+        ${chip}
+        <span class="ex-card__count num" aria-label="${doneN} séries sur ${ex.sets.length}">${doneN}/${ex.sets.length}</span>
+        <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
+      </div>
+      <div class="ex-card__sub">${sub}</div>
+      <div class="sets" role="table" aria-label="Séries de ${esc(ex.name)}">
+        <div class="sets__head" role="row">
+          <span role="columnheader">Série</span><span role="columnheader">Préc.</span>
+          <span role="columnheader">${unitLbl()}</span><span role="columnheader">Reps</span>
+          <span role="columnheader" aria-label="Validée">${icon('checkmark', 14)}</span>
+        </div>
+        ${rows}
+      </div>
+      <button class="add-set-link" data-action="add-set" data-ei="${ei}">${icon('plus', 16)} Série</button>
+    </div>`;
+}
+
+function renderSetRow(ex, ei, s, si, cur) {
+  const prev    = s.prev ? `${s.prev.weight !== '' && s.prev.weight != null ? wTxt(s.prev.weight) + '&nbsp;× ' : ''}${esc(s.prev.reps)}` : '—';
+  const editing = editingSet && editingSet.ei === ei && editingSet.si === si;
+  const del     = `<button class="set-del" data-action="delete-set" data-ei="${ei}" data-si="${si}" tabindex="-1" aria-label="Supprimer la série ${si + 1}">Supprimer</button>`;
+  const nm      = `${esc(ex.name)}, série ${si + 1}`;
+
+  if (s.done && !editing) {
+    const record = recordLabel(s, (activeSession.baseline || {})[ex.exId]);
+    return `
+      <div class="set-swipe" role="row">
+        ${del}
+        <div class="set-row2 set-row2--done" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"
+             aria-label="${nm} : ${s.weight !== '' ? wTxt(s.weight) + ' ' + unitLbl() + ' × ' : ''}${esc(s.reps)}, validée. Modifier">
+          <span class="set-n num">${si + 1}</span>
+          <span class="set-prev num">${prev}</span>
+          <span class="set-val num">${s.weight !== '' ? wTxt(s.weight) : '—'}</span>
+          <span class="set-val num">${esc(s.reps)}</span>
+          <span class="set-check-zone"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
+          ${record ? `<span class="set-badge"><span class="pr-badge">${record}</span></span>` : ''}
+        </div>
+      </div>`;
+  }
+
+  const isCur = !editing && cur && cur.ei === ei && cur.si === si;
+  const prevW = s.prev?.weight !== '' && s.prev?.weight != null ? dispW(s.prev.weight) : '';
+  // Série validée rouverte : mêmes champs, enregistrés par le ✓
+  const wAttr = editing ? 'id="editSetWeight"' : `data-action="set-weight" data-ei="${ei}" data-si="${si}"`;
+  const rAttr = editing ? 'id="editSetReps"'   : `data-action="set-reps" data-ei="${ei}" data-si="${si}"`;
+  const check = editing
+    ? `<button class="set-check-zone" data-action="save-edit-set" aria-label="Enregistrer ${nm}"><span class="set-check set-check--edit">${icon('checkmark', 18)}</span></button>`
+    : `<button class="set-check-zone" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-label="Valider ${nm}"><span class="set-check"></span></button>`;
+  return `
+    <div class="set-swipe" role="row">
+      ${editing ? '' : del}
+      <div class="set-row2 ${isCur ? 'set-row2--current' : ''} ${editing ? 'set-row2--editing' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
+        <span class="set-n num">${si + 1}</span>
+        <span class="set-prev num">${prev}</span>
+        <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
+               value="${editing ? dispW(s.weight) : dispW(s.weight)}" placeholder="${prevW || '—'}" aria-label="Charge en ${unitLbl()}, ${nm}">
+        <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
+               value="${esc(s.reps)}" placeholder="${esc(s.prev?.reps ?? '0')}" aria-label="Répétitions, ${nm}">
+        ${check}
+      </div>
+    </div>`;
 }
 
 // Badge de record d'une série validée, comparée aux records d'avant la séance (jamais en cas d'égalité)
@@ -1858,84 +1945,154 @@ function weightOk(raw) {
 
 function validateSet(ei, si) {
   const ex  = activeSession.exercises[ei];
-  const s   = ex.sets[si];
-  const row = document.querySelector(`[data-action="set-reps"][data-ei="${ei}"][data-si="${si}"]`);
+  const s   = ex?.sets[si];
+  if (!s || s.done) return;
+  const rIn = document.querySelector(`[data-action="set-reps"][data-ei="${ei}"][data-si="${si}"]`);
   const wIn = document.querySelector(`[data-action="set-weight"][data-ei="${ei}"][data-si="${si}"]`);
   if (wIn && !weightOk(wIn.value)) { flagInvalid(wIn, weightMsg()); return; }
-  if (num(s.reps, 1, 100, true) === null) { flagInvalid(row, 'Reps entre 1 et 100'); return; }
+  if (num(s.reps, 1, 100, true) === null) { flagInvalid(rIn, 'Reps entre 1 et 100'); return; }
   s.reps = String(parseInt(s.reps));
 
   s.done = true;
+  activeSession.lastEi = ei;
+  editingSet = null;
   validationSound();
   haptic();
 
   // La série suivante garde sa valeur prévue, sauf si la charge vient d'être modifiée
   const nextSet = ex.sets[si + 1];
+  const undo    = { s, next: null, nextW: null };
   if (nextSet && !nextSet.done && (parseFloat(s.weight) || 0) !== (parseFloat(s.plannedWeight) || 0)) {
+    undo.next = nextSet; undo.nextW = nextSet.weight;
     nextSet.weight = s.weight;
   }
 
-  const cat    = activeSession.category;
-  const exData = sessProg().exercises[cat]?.find(e => e.id === ex.exId);
+  const allDone = activeSession.exercises.every(e => e.sets.every(st => st.done));
+  if (!allDone) openRest(exRest(ex), false);
+  else { clearRest(); restActive = false; closeSessSheets(); }
 
-  const allDone = activeSession.exercises.every(e => e.sets.every(s => s.done));
-  if (!allDone) {
-    const restSecs = exData?.rest ?? data.defaultRest;
-    openRest(restSecs);
-  } else {
-    render();
-  }
+  document.activeElement?.blur?.();
+  render();
+  scrollToCurrent();
+  showToast(`Série ${si + 1} validée`, { action: 'Annuler', duration: 4000, onAction: () => undoValidate(undo) });
+}
 
-  setTimeout(() => {
-    const rows = document.querySelectorAll('.set-row--done');
-    if (rows.length) rows[rows.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, 50);
+// « Annuler » du toast : la série redevient à faire et le repos s'arrête
+function undoValidate(u) {
+  if (!activeSession || !u.s.done) return;
+  u.s.done = false;
+  if (u.next && !u.next.done) u.next.weight = u.nextW;
+  clearRest(); restActive = false;
+  closeSessSheets();
+  persistSession();
+  render();
+  scrollToCurrent();
+}
+
+// Centre la série courante à l'écran (après validation, reprise ou restauration)
+function scrollToCurrent(smooth = true) {
+  requestAnimationFrame(() => {
+    const row = $('.set-row2--current');
+    if (!row) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    row.scrollIntoView({ block: 'center', behavior: smooth && !reduce ? 'smooth' : 'auto' });
+  });
+}
+
+// Appelé par render() après l'affichage de la séance
+function afterSessionRender(entering) {
+  if (entering) scrollToCurrent(false);
+  const a = document.activeElement;
+  if (!(a && a.matches?.('.set-input'))) document.body.classList.remove('kb-open');
 }
 
 // ═══════════════════════════════════════════════════════════
-//  Rest timer overlay
+//  Repos : barre non bloquante + feuille détaillée
 // ═══════════════════════════════════════════════════════════
 
+const RING_SMALL = 2 * Math.PI * 17;
+const RING_BIG   = 2 * Math.PI * 100;
+
+function restFraction() {
+  return restTotal > 0 ? Math.min(1, Math.max(0, restTimeLeft / restTotal)) : 0;
+}
+
 function renderRestOverlay() {
-  if (!restActive) return '';
-
-  if (restMinimized) {
-    const ending = restTimeLeft <= 5;
-    return `
-      <div class="rest-mini" data-action="expand-rest">
-        <span class="rest-mini__icon">${icon('timer', 20)}</span>
-        <span class="rest-mini__timer ${ending ? 'ending' : ''}">${fmtRest(restTimeLeft)}</span>
-        <span class="rest-mini__label">Repos en cours — appuyer pour rouvrir</span>
-        <button class="rest-mini__skip" data-action="skip-rest" aria-label="Passer le repos">${icon('xmark', 18)}</button>
-      </div>`;
-  }
-
-  const presets = [60, 90, 120, 180];
-  const ending  = restTimeLeft <= 5;
-
+  if (!restActive || !activeSession) return '';
+  const nxt = nextSetText();
+  const off  = RING_SMALL * (1 - restFraction());
+  const meta = sessionMeta(activeSession.category, activeSession.programme);
   return `
-    <div class="rest-overlay">
-      <div class="rest-card">
-        <div class="rest-card__top">
-          <div class="rest-label">Repos</div>
-          <button class="rest-minimize-btn" data-action="minimize-rest">—</button>
-        </div>
-        <div class="rest-timer ${ending ? 'ending' : ''}">${fmtRest(restTimeLeft)}</div>
-        <div class="rest-presets">
-          ${presets.map(p => `
-            <button class="preset-btn ${restTimeLeft === p ? 'preset-btn--active' : ''}"
-                    data-action="set-rest" data-secs="${p}">
-              ${p < 60 ? p + 's' : p / 60 + 'min'}
-            </button>`).join('')}
-        </div>
-        <div class="rest-custom">
-          <input type="number" inputmode="numeric" id="customRest" class="rest-custom-input"
-                 placeholder="Durée en secondes" min="10" max="600">
-          <button class="btn btn--secondary btn--sm" data-action="set-custom-rest">OK</button>
-        </div>
-        <button class="btn btn--primary btn--full" data-action="skip-rest">Passer le repos</button>
-      </div>
+    <div class="rest-mini" role="region" aria-label="Repos" style="--cat-color:${meta.color}">
+      <button class="rest-mini__main" data-action="expand-rest" aria-label="Repos en cours, ouvrir le détail">
+        <svg class="rest-ring rest-ring--small" viewBox="0 0 40 40" aria-hidden="true">
+          <circle cx="20" cy="20" r="17" class="rest-ring__track"/>
+          <circle cx="20" cy="20" r="17" class="rest-ring__bar" stroke-dasharray="${RING_SMALL}" stroke-dashoffset="${off}"/>
+        </svg>
+        <span class="rest-mini__timer num" role="timer">${fmtSecs(restTimeLeft)}</span>
+      </button>
+      <button class="rest-mini__btn num" data-action="rest-adjust" data-d="-15" aria-label="Retirer 15 secondes">−15<span class="rest-mini__u">&nbsp;s</span></button>
+      <button class="rest-mini__btn num" data-action="rest-adjust" data-d="15" aria-label="Ajouter 15 secondes">+15<span class="rest-mini__u">&nbsp;s</span></button>
+      <button class="rest-mini__skip" data-action="skip-rest">Passer</button>
+      ${nxt ? `<div class="rest-mini__next">Ensuite : ${esc(nxt)}</div>` : ''}
     </div>`;
+}
+
+function restSheetHtml() {
+  const presets = [60, 90, 120, 180];
+  const nxt = nextSetText();
+  return `
+    <div class="rs">
+      <div class="rs__title">Repos</div>
+      <div class="rs__ring">
+        <svg class="rest-ring rest-ring--big" viewBox="0 0 220 220" aria-hidden="true">
+          <circle cx="110" cy="110" r="100" class="rest-ring__track"/>
+          <circle cx="110" cy="110" r="100" class="rest-ring__bar" stroke-dasharray="${RING_BIG}" stroke-dashoffset="${RING_BIG * (1 - restFraction())}"/>
+        </svg>
+        <div class="rs__center">
+          <div class="rs__time num" role="timer">${fmtSecs(restTimeLeft)}</div>
+          <div class="rs__resume num">Reprise à ${restResumeAt()}</div>
+        </div>
+      </div>
+      <div class="rs-seg" role="group" aria-label="Durée du repos">
+        ${presets.map(p => `<button class="rs-seg__btn num" data-action="set-rest" data-secs="${p}" aria-pressed="${restTotal === p}">${fmtSecs(p)}</button>`).join('')}
+      </div>
+      <div class="rs__adj">
+        <button class="rs__round num" data-action="rest-adjust" data-d="-15" aria-label="Retirer 15 secondes">−15</button>
+        <button class="rs__skip" data-action="skip-rest">Passer</button>
+        <button class="rs__round num" data-action="rest-adjust" data-d="15" aria-label="Ajouter 15 secondes">+15</button>
+      </div>
+      ${nxt ? `<div class="rs__next">Ensuite : ${esc(nxt)}</div>` : ''}
+    </div>`;
+}
+
+function restResumeAt() {
+  return new Date(restEndTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function openRestSheet() {
+  restSheetOpen = true;
+  const root = openSessSheet({ cls: 'sess-sheet--rest', label: 'Repos', html: restSheetHtml(), onClose: () => { restSheetOpen = false; } });
+  root.style.setProperty('--cat-color', sessionMeta(activeSession.category, activeSession.programme).color);
+}
+function closeRestSheet() { document.querySelector('.sess-sheet--rest')?._close?.(); restSheetOpen = false; }
+
+// Met à jour chiffres et anneaux sans relancer render()
+function updateRestUI() {
+  const t = fmtSecs(restTimeLeft), f = restFraction();
+  const mini = $('.rest-mini__timer');
+  if (mini) mini.textContent = t;
+  const small = $('.rest-mini .rest-ring__bar');
+  if (small) small.setAttribute('stroke-dashoffset', RING_SMALL * (1 - f));
+  const sheet = $('.sess-sheet--rest');
+  if (sheet) {
+    const el = sheet.querySelector('.rs__time');
+    if (el) el.textContent = t;
+    sheet.querySelector('.rest-ring__bar')?.setAttribute('stroke-dashoffset', RING_BIG * (1 - f));
+    const ra = sheet.querySelector('.rs__resume');
+    if (ra) ra.textContent = `Reprise à ${restResumeAt()}`;
+    sheet.querySelectorAll('.rs-seg__btn').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.secs === restTotal)));
+  }
 }
 
 function startRestCountdown() {
@@ -1948,77 +2105,522 @@ function resumeRestCountdown() {
   clearInterval(restInterval);
   restInterval = setInterval(() => {
     restTimeLeft = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
-
-    if (restMinimized) {
-      const mini = $('.rest-mini__timer');
-      if (mini) {
-        mini.textContent = fmtRest(restTimeLeft);
-        mini.className   = `rest-mini__timer ${restTimeLeft <= 5 ? 'ending' : ''}`;
-      }
-    } else {
-      const el = $('.rest-timer');
-      if (el) {
-        el.textContent = fmtRest(restTimeLeft);
-        el.className   = `rest-timer ${restTimeLeft <= 5 ? 'ending' : ''}`;
-      }
-    }
-
-    if (restTimeLeft <= 0) {
-      clearInterval(restInterval);
-      restMinimized = false;
-      timerDone();
-      restActive = false;
-      persistSession();
-      setTimeout(removeRestUI, 350);
-    }
-  }, 500);
+    updateRestUI();
+    if (restTimeLeft <= 0) restFinished();
+  }, 250);
 }
 
-function renderRestEditModal() {
-  if (restEditEi === null) return '';
-  const ex     = activeSession?.exercises[restEditEi];
-  const cat    = activeSession?.category;
-  const exData = sessProg().exercises[cat]?.find(e => e.id === ex?.exId);
-  const cur    = exData?.rest ?? data.defaultRest;
+// Fin du repos : la barre pulse, affiche « C'est reparti » 2 s, puis la série suivante est centrée
+function restFinished() {
+  clearRest();
+  restTimeLeft = 0;
+  restActive   = false;
+  persistSession();
+  timerDone();
+  closeRestSheet();
+  const bar = $('.rest-mini');
+  if (bar) {
+    bar.classList.add('rest-mini--done');
+    bar.setAttribute('aria-live', 'assertive');
+    bar.innerHTML = `<div class="rest-mini__go">C'est reparti</div>`;
+    setTimeout(() => {
+      if (restActive) return; // un nouveau repos a commencé entre-temps
+      bar.remove();
+      $('.view.session')?.classList.remove('session--resting');
+    }, 2000);
+  }
+  if (view === 'session') {
+    $('.set-row2--current')?.classList.add('set-row2--go');
+    scrollToCurrent();
+  }
+}
+
+function clearRest() { clearInterval(restInterval); restInterval = null; }
+
+function removeRestUI() {
+  document.querySelectorAll('.rest-mini').forEach(el => el.remove());
+  $('.view.session')?.classList.remove('session--resting');
+}
+
+function openRest(secs, doRender = true) {
+  restActive    = true;
+  restMinimized = true;
+  restTimeLeft  = secs ?? data.defaultRest;
+  restTotal     = restTimeLeft;
+  startRestCountdown();
+  if (doRender) render();
+}
+
+function adjustRest(d) {
+  if (!restActive) return;
+  restEndTime += d * 1000;
+  restTotal    = Math.max(15, restTotal + d);
+  restTimeLeft = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
+  haptic();
+  if (restTimeLeft <= 0) { restFinished(); return; }
+  updateRestUI();
+  persistSession();
+}
+
+// Son : le contexte audio est créé (ou réveillé) au premier geste, iOS refuse de le démarrer depuis un minuteur
+function unlockAudio() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch {}
+}
+document.addEventListener('pointerdown', unlockAudio, { passive: true });
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  try { if (audioCtx?.state === 'suspended') audioCtx.resume(); } catch {}
+  if (!restActive) return;
+  const remaining = Math.ceil((restEndTime - Date.now()) / 1000);
+  if (remaining <= 0) restFinished();
+  else { restTimeLeft = remaining; resumeRestCountdown(); updateRestUI(); }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  Feuilles de la séance
+// ═══════════════════════════════════════════════════════════
+
+// Feuille modale simple (fond, poignée, glisser vers le bas pour fermer)
+// A-UNIFIER-AVEC-SHEET-LOT3
+function openSessSheet({ cls = '', label = '', html, full = false, onClose }) {
+  document.querySelector(`.sess-sheet${cls ? '.' + cls : ''}`)?.remove();
+  const root = document.createElement('div');
+  root.className = `sess-sheet ${full ? 'sess-sheet--full' : ''} ${cls}`;
+  root.setAttribute('role', 'dialog');
+  root.setAttribute('aria-modal', 'true');
+  root.setAttribute('aria-label', label);
+  root.innerHTML = `
+    <div class="sess-sheet__backdrop"></div>
+    <div class="sess-sheet__panel">
+      <div class="sess-sheet__grabber" aria-hidden="true"></div>
+      <div class="sess-sheet__body">${html}</div>
+    </div>`;
+  const panel = root.querySelector('.sess-sheet__panel');
+  const body  = root.querySelector('.sess-sheet__body');
+  let closed = false;
+  root._close = () => {
+    if (closed) return;
+    closed = true;
+    root.classList.add('sess-sheet--out');
+    document.removeEventListener('keydown', onKey);
+    setTimeout(() => root.remove(), 220);
+    onClose?.();
+  };
+  const onKey = ev => { if (ev.key === 'Escape') root._close(); };
+  document.addEventListener('keydown', onKey);
+  root.querySelector('.sess-sheet__backdrop').addEventListener('click', () => root._close());
+
+  // Glisser vers le bas depuis le haut de la feuille (contenu en haut de son défilement)
+  let drag = null;
+  panel.addEventListener('pointerdown', ev => {
+    if (ev.target.closest('input, textarea') || body.scrollTop > 0) return;
+    drag = { y0: ev.clientY, dy: 0 };
+  });
+  panel.addEventListener('pointermove', ev => {
+    if (!drag) return;
+    drag.dy = Math.max(0, ev.clientY - drag.y0);
+    if (drag.dy > 6) { panel.style.transition = 'none'; panel.style.transform = `translateY(${drag.dy}px)`; }
+  });
+  const end = () => {
+    if (!drag) return;
+    const dy = drag.dy; drag = null;
+    panel.style.transition = ''; panel.style.transform = '';
+    if (dy > 110) root._close();
+  };
+  panel.addEventListener('pointerup', end);
+  panel.addEventListener('pointercancel', end);
+
+  document.body.appendChild(root);
+  return root;
+}
+
+function closeSessSheets() {
+  document.querySelectorAll('.sess-sheet').forEach(s => s._close?.());
+  restSheetOpen = false;
+}
+
+// ── Repos d'un exercice : préréglages et ±15 s, sans clavier ──
+function exRestSheetHtml(ei) {
+  const ex = activeSession.exercises[ei];
+  const v  = exRest(ex);
   return `
-    <div class="modal-overlay">
-      <div class="modal" style="max-width:320px;">
-        <div class="modal__title">Repos — ${esc(ex?.name)}</div>
-        <label class="form-label">Durée (secondes)</label>
-        <input type="number" inputmode="numeric" id="restEditInput" class="form-input"
-               value="${cur}" min="10" max="600" placeholder="Ex : 90">
-        <div class="modal__actions">
-          <button class="btn btn--secondary" data-action="close-rest-edit">Annuler</button>
-          <button class="btn btn--primary"   data-action="save-rest-edit">OK</button>
-        </div>
+    <div class="rs rs--ex">
+      <div class="rs__title">Repos · ${esc(ex.name)}</div>
+      <div class="rs__value num" id="exRestValue">${fmtSecs(v)}</div>
+      <div class="rs-seg" role="group" aria-label="Durée du repos">
+        ${[60, 90, 120, 180].map(p => `<button class="rs-seg__btn num" data-action="ex-rest-set" data-secs="${p}" aria-pressed="${v === p}">${fmtSecs(p)}</button>`).join('')}
+      </div>
+      <div class="rs__adj">
+        <button class="rs__round num" data-action="ex-rest-adj" data-d="-15" aria-label="Retirer 15 secondes">−15</button>
+        <button class="rs__done" data-action="sheet-done">OK</button>
+        <button class="rs__round num" data-action="ex-rest-adj" data-d="15" aria-label="Ajouter 15 secondes">+15</button>
       </div>
     </div>`;
 }
 
-function renderEditSetModal() {
-  if (!editSetModal) return '';
-  const { ei, si } = editSetModal;
+function setExRest(ei, secs) {
   const ex = activeSession?.exercises[ei];
-  const s  = ex?.sets[si];
-  if (!s) return '';
-  return `
-    <div class="modal-overlay">
-      <div class="modal" style="max-width:320px;">
-        <div class="modal__title">Modifier — ${esc(ex.name)} S${si + 1}</div>
-        <label class="form-label">Charge (${unitLbl()})</label>
-        <input type="text" inputmode="decimal" autocomplete="off" id="editSetWeight" class="form-input"
-               value="${dispW(s.weight)}" placeholder="—">
-        <label class="form-label">Répétitions</label>
-        <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="editSetReps" class="form-input"
-               value="${esc(s.reps)}" placeholder="0">
-        <div class="modal__actions">
-          <button class="btn btn--secondary" data-action="close-edit-set">Annuler</button>
-          <button class="btn btn--primary"   data-action="save-edit-set">Enregistrer</button>
+  if (!ex) return;
+  secs = Math.min(600, Math.max(15, secs));
+  const exData = sessExData(ex);
+  if (exData) { exData.rest = secs; save(); } else ex.rest = secs;
+  const val = $('#exRestValue');
+  if (val) val.textContent = fmtSecs(secs);
+  document.querySelectorAll('.sess-sheet--exrest .rs-seg__btn').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.secs === secs)));
+  haptic();
+}
+
+// ── Ajouter (ou remplacer) un exercice : recherche dans la bibliothèque ──
+let axReplaceEi = null;
+let axSets      = 3;
+
+function exerciseLibrary() {
+  const seen = new Map();
+  const add  = n => { const k = normName(n); if (n && !seen.has(k)) seen.set(k, n); };
+  (data.history || []).slice().sort((a, b) => b.date - a.date).forEach(h => (h.exercises || []).forEach(e => add(e.name)));
+  const rest = [];
+  Object.values(PROGRAMMES).forEach(p => Object.values(p.defaults || {}).forEach(list => list.forEach(([n]) => rest.push(n))));
+  Object.values(data.programmes || {}).forEach(p => Object.values(p.exercises || {}).forEach(list => (list || []).forEach(e => rest.push(e.name))));
+  rest.sort((a, b) => a.localeCompare(b, 'fr')).forEach(add);
+  return [...seen.values()];
+}
+
+function axListHtml(q) {
+  const inSession = new Set((activeSession?.exercises || []).map(e => normName(e.name)));
+  const nq    = normName(q);
+  const items = exerciseLibrary().filter(n => !inSession.has(normName(n)) && (!nq || normName(n).includes(nq))).slice(0, 60);
+  const exact = items.some(n => normName(n) === nq);
+  return items.map(n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}">${esc(n)}</button>`).join('')
+    + (q.trim() && !exact ? `<button class="ax__item ax__item--create" data-action="ax-pick" data-name="${esc(q.trim())}">${icon('plus', 18)} Créer « ${esc(q.trim())} »</button>` : '')
+    + (!items.length && !q.trim() ? '<div class="ax__empty">Aucun exercice</div>' : '');
+}
+
+function openAddExSheet(replaceEi = null) {
+  axReplaceEi = replaceEi;
+  const rep   = replaceEi !== null ? activeSession.exercises[replaceEi] : null;
+  axSets      = rep ? rep.sets.length : 3;
+  const html = `
+    <div class="ax">
+      <div class="ax__bar">
+        <button class="ax__cancel" data-action="sheet-done">Annuler</button>
+        <div class="ax__title">${rep ? 'Remplacer l\'exercice' : 'Ajouter un exercice'}</div>
+        <span class="ax__spacer"></span>
+      </div>
+      ${rep ? `<div class="ax__replacing">À la place de ${esc(rep.name)}</div>` : ''}
+      <input type="search" id="axSearch" class="ax__search" placeholder="Rechercher ou créer" autocomplete="off"
+             autocapitalize="sentences" enterkeyhint="done" aria-label="Rechercher un exercice">
+      <div class="ax__opts">
+        <div class="ax__opt">
+          <span>Séries</span>
+          <div class="ax-stepper">
+            <button data-action="ax-sets" data-d="-1" aria-label="Une série de moins">${icon('minus', 18)}</button>
+            <span id="axSets" class="num" aria-live="polite">${axSets}</span>
+            <button data-action="ax-sets" data-d="1" aria-label="Une série de plus">${icon('plus', 18)}</button>
+          </div>
         </div>
+        ${rep ? '' : `
+        <label class="ax__opt">
+          <span>Ajouter au programme</span>
+          <input type="checkbox" id="axToProg" class="ax-switch" role="switch">
+        </label>`}
+      </div>
+      <div class="ax__list" id="axList" role="list">${axListHtml('')}</div>
+    </div>`;
+  openSessSheet({ cls: 'sess-sheet--addex', label: rep ? 'Remplacer l\'exercice' : 'Ajouter un exercice', html, full: true });
+}
+
+function pickExercise(name) {
+  name = String(name || '').trim();
+  if (!name || !activeSession) return;
+  const { programme: sp, category: sc } = activeSession;
+  const list    = sessProg().exercises[sc] || (sessProg().exercises[sc] = []);
+  let inProg    = list.find(e => normName(e.name) === normName(name));
+  const toProg  = $('#axToProg')?.checked;
+  if (toProg && !inProg && axReplaceEi === null) {
+    inProg = makeExercise(name, axSets);
+    list.push(inProg);
+    save();
+  }
+  let exId = inProg ? inProg.id : resolveExId(sp, sc, name);
+  if (exId?.startsWith('n:')) exId = null; // résolu à l'enregistrement, comme avant
+  const exObj = { exId, name: inProg ? inProg.name : name, sets: buildSets(sp, sc, { exId, name }, axSets, inProg || {}) };
+  if (exObj.exId && !activeSession.baseline?.[exObj.exId]) {
+    activeSession.baseline = { ...(activeSession.baseline || {}), ...computeBaseline({ ...activeSession, exercises: [exObj] }) };
+  }
+  let target;
+  if (axReplaceEi !== null) {
+    activeSession.exercises.splice(axReplaceEi, 1, exObj);
+    target = axReplaceEi;
+    showToast('Exercice remplacé');
+  } else {
+    activeSession.exercises.push(exObj);
+    target = activeSession.exercises.length - 1;
+    showToast(toProg ? 'Ajouté à la séance et au programme' : 'Ajouté à la séance');
+  }
+  activeSession.lastEi = null;
+  closeSessSheets();
+  haptic();
+  persistSession();
+  render();
+  setTimeout(() => document.querySelector(`.ex-card[data-ei="${target}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+}
+
+// ── Menu ⋯ d'un exercice ──
+async function exerciseMenu(ei) {
+  const ex = activeSession.exercises[ei];
+  if (!ex) return;
+  const last = activeSession.exercises.length - 1;
+  const choice = await dialog({ type: 'sheet', title: ex.name, actions: [
+    ...(ei > 0    ? [{ label: 'Monter', value: 'up' }] : []),
+    ...(ei < last ? [{ label: 'Descendre', value: 'down' }] : []),
+    { label: 'Remplacer l\'exercice', value: 'replace' },
+    { label: 'Régler le repos', value: 'rest' },
+    { label: 'Relancer le repos', value: 'restart' },
+    { label: 'Retirer l\'exercice', value: 'remove', style: 'destructive' },
+    { label: 'Annuler', style: 'cancel' },
+  ] });
+  if (!choice || !activeSession) return;
+  const xs = activeSession.exercises;
+  if (choice === 'up' || choice === 'down') {
+    const to = choice === 'up' ? ei - 1 : ei + 1;
+    [xs[ei], xs[to]] = [xs[to], xs[ei]];
+    activeSession.lastEi = null;
+    render();
+  } else if (choice === 'replace') {
+    openAddExSheet(ei);
+  } else if (choice === 'rest') {
+    restEditEi = ei;
+    openSessSheet({ cls: 'sess-sheet--exrest', label: 'Repos', html: exRestSheetHtml(ei), onClose: () => { restEditEi = null; } });
+  } else if (choice === 'restart') {
+    openRest(exRest(ex));
+  } else if (choice === 'remove') {
+    const done = ex.sets.filter(s => s.done).length;
+    if (done && !(await confirmSheet('Retirer l\'exercice ?', `Les ${done} séries validées de cet exercice ne seront pas enregistrées. Le programme ne change pas.`, 'Retirer'))) return;
+    xs.splice(ei, 1);
+    activeSession.lastEi = null;
+    editingSet = null;
+    render();
+    showToast('Exercice retiré de la séance');
+  }
+  persistSession();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Balayage d'une série vers la gauche : « Supprimer »
+// ═══════════════════════════════════════════════════════════
+
+const SWIPE_OPEN = 74, SWIPE_MIN = 80;
+let swipe = null, swipeBlockClick = false;
+
+function closeSwipes(except) {
+  document.querySelectorAll('.set-swipe--open').forEach(w => {
+    if (w === except) return;
+    w.classList.remove('set-swipe--open');
+    const r = w.querySelector('.set-row2');
+    if (r) r.style.transform = '';
+  });
+}
+
+document.addEventListener('pointerdown', e => {
+  const row = e.target.closest?.('.set-swipe .set-row2');
+  if (!row || row.classList.contains('set-row2--editing')) { if (!e.target.closest?.('.set-del')) closeSwipes(); return; }
+  const wrap = row.parentElement;
+  closeSwipes(wrap);
+  wrap.classList.add('set-swipe--swiping');
+  swipe = { row, wrap, x0: e.clientX, y0: e.clientY, dx: 0, axis: null, base: wrap.classList.contains('set-swipe--open') ? -SWIPE_OPEN : 0 };
+});
+document.addEventListener('pointermove', e => {
+  if (!swipe) return;
+  const dx = e.clientX - swipe.x0, dy = e.clientY - swipe.y0;
+  // Axe verrouillé après 10 px : le défilement vertical reste prioritaire
+  if (!swipe.axis && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) swipe.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+  if (swipe.axis !== 'x') return;
+  swipe.dx = dx;
+  const t = Math.min(0, Math.max(-140, swipe.base + dx));
+  swipe.row.style.transition = 'none';
+  swipe.row.style.transform  = `translateX(${t}px)`;
+});
+function endSwipe() {
+  if (!swipe) return;
+  const s = swipe; swipe = null;
+  setTimeout(() => s.wrap.classList.remove('set-swipe--swiping'), 260);
+  if (s.axis !== 'x') return;
+  swipeBlockClick = true;
+  setTimeout(() => { swipeBlockClick = false; }, 60);
+  s.row.style.transition = '';
+  const open = s.base + s.dx < -SWIPE_MIN || (s.base && s.dx < 20);
+  s.wrap.classList.toggle('set-swipe--open', open);
+  s.row.style.transform = open ? `translateX(${-SWIPE_OPEN}px)` : '';
+  if (open) haptic();
+}
+document.addEventListener('pointerup', endSwipe);
+document.addEventListener('pointercancel', () => {
+  if (!swipe) return;
+  swipe.row.style.transform = '';
+  swipe.wrap.classList.remove('set-swipe--swiping');
+  swipe = null;
+});
+// Le relâchement d'un balayage ne doit pas ouvrir la série en édition
+document.addEventListener('click', e => {
+  if (swipeBlockClick && e.target.closest?.('.set-row2')) { e.stopPropagation(); e.preventDefault(); }
+}, true);
+
+// ═══════════════════════════════════════════════════════════
+//  Saisie au clavier
+// ═══════════════════════════════════════════════════════════
+
+// Toucher un champ sélectionne son contenu : on retape directement la valeur
+document.addEventListener('focusin', e => {
+  const t = e.target;
+  if (!t.matches?.('.set-input')) return;
+  document.body.classList.add('kb-open');
+  setTimeout(() => { try { if (document.activeElement === t) t.select(); } catch {} }, 0);
+});
+document.addEventListener('focusout', () => {
+  setTimeout(() => {
+    if (!document.activeElement?.matches?.('.set-input')) document.body.classList.remove('kb-open');
+  }, 50);
+});
+
+// Entrée : du poids aux reps, puis validation de la série
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const t = e.target;
+  if (!t.matches?.('.set-input') || !t.closest('.set-row2')) return;
+  e.preventDefault();
+  const row = t.closest('.set-row2');
+  const isW = t.dataset.action === 'set-weight' || t.id === 'editSetWeight';
+  if (isW) { row.querySelector('[data-action="set-reps"], #editSetReps')?.focus(); return; }
+  row.querySelector('.set-check-zone')?.click();
+});
+
+// Recherche de la feuille « Ajouter un exercice »
+document.addEventListener('input', e => {
+  if (e.target.id === 'axSearch') {
+    const list = $('#axList');
+    if (list) list.innerHTML = axListHtml(e.target.value);
+  }
+  if (e.target.id === 'summaryNotes') summaryNotesInput(e.target.value);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'axSearch') {
+    e.preventDefault();
+    const q = e.target.value.trim();
+    if (q) pickExercise(q);
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  Bilan de fin de séance
+// ═══════════════════════════════════════════════════════════
+
+const RECORD_RANK = { 'Record charge': 3, 'Record reps': 2, 'Record 1RM est.': 1 };
+
+function bestSet(sets) {
+  return (sets || []).reduce((b, s) => {
+    const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
+    if (!b || w > b.w || (w === b.w && r > b.r)) return { w, r, s };
+    return b;
+  }, null);
+}
+
+function buildSummary(entry, baseline) {
+  const prevH = data.history.find(h => h !== entry && h.category === entry.category && (h.programme || 'ppl') === entry.programme);
+  let cur = 0, prev = 0;
+  const records = [], rows = [];
+  entry.exercises.forEach(ex => {
+    const pex = prevH?.exercises.find(e => sameEx(e, ex));
+    cur  += setsVolume(ex.sets);
+    prev += setsVolume(pex?.sets.slice(0, ex.sets.length) || []);
+    let rec = null;
+    ex.sets.forEach(s => {
+      const l = recordLabel(s, baseline[ex.exId]);
+      if (l && (!rec || RECORD_RANK[l] > RECORD_RANK[rec.label] || (RECORD_RANK[l] === RECORD_RANK[rec.label] && (parseFloat(s.weight) || 0) * 100 + (+s.reps) > (parseFloat(rec.s.weight) || 0) * 100 + (+rec.s.reps)))) rec = { label: l, s };
+    });
+    if (rec) records.push({ name: ex.name, label: rec.label, weight: rec.s.weight, reps: rec.s.reps });
+    const b = bestSet(ex.sets), pb = bestSet(pex?.sets);
+    const trend = !pb ? null : (b.w > pb.w || (b.w === pb.w && b.r > pb.r)) ? 'up' : (b.w === pb.w && b.r === pb.r) ? 'same' : 'down';
+    rows.push({ name: ex.name, weight: b.s.weight, reps: b.s.reps, trend });
+  });
+  return {
+    id: entry.id, programme: entry.programme, category: entry.category, date: entry.date,
+    duration: entry.duration, sets: entry.exercises.reduce((a, e) => a + e.sets.length, 0),
+    volume: cur, delta: prevH ? cur - prev : null, records, rows,
+  };
+}
+
+function renderSummary() {
+  const sm = lastSummary;
+  if (!sm) { view = 'dashboard'; return renderDashboard(); }
+  const meta = sessionMeta(sm.category, sm.programme);
+  const h    = data.history.find(x => x.id === sm.id);
+  const when = new Date(sm.date);
+  const date = when.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) + ' · ' + when.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const delta = sm.delta === null || Math.round(sm.delta) === 0 ? ''
+    : `<span class="sum-tile__delta ${sm.delta > 0 ? 'sum-tile__delta--up' : ''}">${sm.delta > 0 ? '↑ +' : '↓ −'}${fmtVolume(Math.abs(sm.delta))}</span>`;
+  const trend = t => t === 'up' ? '<span class="sum-trend sum-trend--up" aria-label="en progrès">↑</span>'
+                   : t === 'down' ? '<span class="sum-trend sum-trend--down" aria-label="en baisse">↓</span>'
+                   : t === 'same' ? '<span class="sum-trend" aria-label="identique">=</span>' : '<span class="sum-trend" aria-hidden="true"></span>';
+  const wr = r => `${r.weight !== '' && r.weight != null ? `${wTxt(r.weight)} ${unitLbl()} × ` : ''}${esc(r.reps)}`;
+  return `
+    <div class="view summary" style="--cat-color:${meta.color}">
+      <div class="summary-content">
+        <div class="sum-head">
+          <h1 class="sum-title">${esc(meta.label)}</h1>
+          <div class="sum-date">${esc(date)}</div>
+        </div>
+        <div class="sum-tiles">
+          <div class="sum-tile"><div class="sum-tile__label">Durée</div><div class="sum-tile__value num">${fmtDuration(sm.duration)}</div></div>
+          <div class="sum-tile"><div class="sum-tile__label">Volume</div><div class="sum-tile__value num">${fmtVolume(sm.volume)}</div>${delta}</div>
+          <div class="sum-tile"><div class="sum-tile__label">Séries</div><div class="sum-tile__value num">${sm.sets}</div></div>
+        </div>
+        ${sm.records.length ? `
+        <div class="sum-section-title">Nouveaux records</div>
+        <div class="sum-list sum-records">
+          ${sm.records.map(r => `
+            <div class="sum-row sum-record">
+              ${medalSvg(24)}
+              <div class="sum-row__main"><div class="sum-row__name">${esc(r.name)}</div><div class="sum-row__sub">${r.label}</div></div>
+              <div class="sum-row__val num">${wr(r)}</div>
+            </div>`).join('')}
+        </div>` : ''}
+        <div class="sum-section-title">Exercices</div>
+        <div class="sum-list">
+          ${sm.rows.map(r => `
+            <div class="sum-row">
+              <div class="sum-row__main"><div class="sum-row__name">${esc(r.name)}</div><div class="sum-row__sub">Meilleure série</div></div>
+              <div class="sum-row__val num">${wr(r)}</div>
+              ${trend(r.trend)}
+            </div>`).join('')}
+        </div>
+        <div class="sum-section-title">Notes</div>
+        <textarea id="summaryNotes" class="sum-notes" rows="3" placeholder="Comment s'est passée la séance ?"
+                  aria-label="Notes de séance">${esc(h?.notes || '')}</textarea>
+        <button class="sum-done" data-action="summary-done">Terminé</button>
       </div>
     </div>`;
 }
 
+// Notes du bilan : enregistrées au fil de la frappe
+let summaryNotesTimer = null;
+function summaryNotesInput(value) {
+  const h = lastSummary && data.history.find(x => x.id === lastSummary.id);
+  if (!h) return;
+  h.notes = value.trim();
+  clearTimeout(summaryNotesTimer);
+  summaryNotesTimer = setTimeout(() => save(), 300);
+}
+
+function recordSound() {
+  if (data.soundOn === false) return;
+  [660, 880, 1100, 1320].forEach((f, i) => setTimeout(() => beep(f, i === 3 ? .35 : .12), i * 120));
+}
+
+// Fenêtre « Ajouter un exercice » de la séance passée
 function knownExerciseNames() {
   const names = new Set();
   Object.values(prog().exercises).forEach(list => list.forEach(ex => names.add(ex.name)));
@@ -2050,37 +2652,6 @@ function renderAddExModal() {
       </div>
     </div>`;
 }
-
-function clearRest() { clearInterval(restInterval); restInterval = null; }
-
-function removeRestUI() {
-  document.querySelectorAll('.rest-overlay, .rest-mini').forEach(el => el.remove());
-}
-
-function openRest(secs) {
-  restActive    = true;
-  restMinimized = false;
-  restTimeLeft  = secs ?? data.defaultRest;
-  startRestCountdown();
-  render();
-}
-
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && restActive) {
-    const remaining = Math.ceil((restEndTime - Date.now()) / 1000);
-    if (remaining <= 0) {
-      clearInterval(restInterval);
-      restTimeLeft = 0;
-      restActive   = false;
-      persistSession();
-      timerDone();
-      setTimeout(removeRestUI, 350);
-    } else {
-      restTimeLeft = remaining;
-      resumeRestCountdown();
-    }
-  }
-});
 
 // ═══════════════════════════════════════════════════════════
 //  Editor
@@ -3290,19 +3861,22 @@ async function handleAction(e, el, action) {
       break;
     }
     case 'edit-set': {
-      editSetModal = { ei: parseInt(el.dataset.ei), si: parseInt(el.dataset.si) };
+      // Série validée rouverte sur place, avec ses champs et le ✓
+      if (swipeBlockClick) break;
+      editingSet = { ei: parseInt(el.dataset.ei), si: parseInt(el.dataset.si) };
       render();
-      setTimeout(() => { $('#editSetReps')?.focus(); $('#editSetReps')?.select(); }, 50);
+      setTimeout(() => { $('#editSetReps')?.focus(); }, 50);
       break;
     }
     case 'close-edit-set': {
-      editSetModal = null; render(); break;
+      editingSet = null; render(); break;
     }
     case 'save-edit-set': {
-      if (!editSetModal) break;
-      const { ei: eei, si: esi } = editSetModal;
+      if (!editingSet) break;
+      const { ei: eei, si: esi } = editingSet;
       const ex  = activeSession.exercises[eei];
-      const s   = ex.sets[esi];
+      const s   = ex?.sets[esi];
+      if (!s) { editingSet = null; render(); break; }
       const wIn = $('#editSetWeight'), rIn = $('#editSetReps');
       if (!weightOk(wIn?.value)) { flagInvalid(wIn, weightMsg()); break; }
       const reps = num(rIn?.value, 1, 100, true);
@@ -3310,69 +3884,125 @@ async function handleAction(e, el, action) {
       // Les records ne sont recalculés qu'à l'enregistrement de la séance
       s.weight = storeW(wIn?.value ?? '');
       s.reps   = String(reps);
-      editSetModal = null;
+      editingSet = null;
+      document.activeElement?.blur?.();
+      haptic();
       render();
       showToast('Série modifiée');
       break;
     }
-    case 'start-rest': {
-      const eiRest = el.dataset.ei !== undefined ? parseInt(el.dataset.ei) : null;
-      if (eiRest !== null) {
-        const cat    = activeSession.category;
-        const exData = sessProg().exercises[cat]?.find(e => e.id === activeSession.exercises[eiRest]?.exId);
-        openRest(exData?.rest ?? data.defaultRest);
-      } else {
-        openRest();
-      }
+    case 'delete-set': {
+      const ei = parseInt(el.dataset.ei), si = parseInt(el.dataset.si);
+      const ex = activeSession?.exercises[ei];
+      if (!ex?.sets[si]) break;
+      if (ex.sets.length === 1) { closeSwipes(); showToast('Dernière série : retire l\'exercice avec ⋯'); break; }
+      ex.sets.splice(si, 1);
+      editingSet = null;
+      haptic();
+      render();
+      break;
+    }
+    case 'add-set': {
+      const ex = activeSession?.exercises[parseInt(el.dataset.ei)];
+      if (!ex || ex.sets.length >= 20) break;
+      const last = ex.sets.at(-1);
+      const pex  = lastPerf(activeSession.programme, activeSession.category, ex)?.ex;
+      const prev = pex?.sets[ex.sets.length];
+      ex.sets.push({ weight: last?.weight ?? '', reps: last?.reps ?? '', plannedWeight: last?.weight ?? '',
+                     prev: prev ? { weight: prev.weight, reps: prev.reps } : null, done: false });
+      openDone.add(ex);
+      haptic();
+      render();
+      break;
+    }
+    case 'toggle-ex': {
+      const ex = activeSession?.exercises[parseInt(el.dataset.ei)];
+      if (!ex) break;
+      if (openDone.has(ex)) openDone.delete(ex); else openDone.add(ex);
+      render();
+      break;
+    }
+    case 'bump-weight': {
+      const ex = activeSession?.exercises[parseInt(el.dataset.ei)];
+      if (!ex) break;
+      const step = data.unit === 'lbs' ? 5 : 2.5;
+      ex.sets.forEach(s => {
+        if (s.done) return;
+        const cur = parseFloat(dispW(s.weight || s.prev?.weight)) || 0;
+        s.weight = storeW(String(Math.round((cur + step) * 100) / 100));
+        s.plannedWeight = s.weight;
+      });
+      ex.bumped = true;
+      haptic();
+      render();
+      showToast(`Charge augmentée : ${bumpLabel()}`);
+      break;
+    }
+    case 'ex-menu': {
+      await exerciseMenu(parseInt(el.dataset.ei));
       break;
     }
     case 'set-ex-rest': {
-      restEditEi = parseInt(el.dataset.ei);
-      render();
-      setTimeout(() => { $('#restEditInput')?.focus(); $('#restEditInput')?.select(); }, 50);
+      const ei = parseInt(el.dataset.ei);
+      if (!activeSession?.exercises[ei]) break;
+      restEditEi = ei;
+      openSessSheet({ cls: 'sess-sheet--exrest', label: 'Repos', html: exRestSheetHtml(ei), onClose: () => { restEditEi = null; render(); } });
       break;
     }
-    case 'close-rest-edit': {
-      restEditEi = null; render(); break;
+    case 'ex-rest-set': {
+      if (restEditEi !== null) setExRest(restEditEi, parseInt(el.dataset.secs));
+      break;
     }
-    case 'save-rest-edit': {
-      const secs = num($('#restEditInput')?.value, 10, 600, true);
-      if (secs === null) { flagInvalid($('#restEditInput'), 'Repos entre 10 et 600 s'); break; }
-      {
-        const ex     = activeSession.exercises[restEditEi];
-        const cat    = activeSession.category;
-        const exData = sessProg().exercises[cat]?.find(e => e.id === ex?.exId);
-        if (exData) { exData.rest = secs; save(); showToast(`Repos ${secs}s enregistré`); }
-      }
-      restEditEi = null; render(); break;
+    case 'ex-rest-adj': {
+      if (restEditEi !== null) setExRest(restEditEi, exRest(activeSession.exercises[restEditEi]) + parseInt(el.dataset.d));
+      break;
+    }
+    case 'sheet-done': {
+      el.closest('.sess-sheet')?._close?.();
+      break;
     }
     case 'skip-rest': {
-      clearRest(); restActive = false; restMinimized = false; render(); break;
-    }
-    case 'minimize-rest': {
-      restMinimized = true; render(); break;
+      clearRest(); restActive = false;
+      closeRestSheet();
+      removeRestUI();
+      persistSession();
+      break;
     }
     case 'expand-rest': {
-      if (e.target.closest('[data-action="skip-rest"]')) break;
-      restMinimized = false; render(); break;
+      if (restActive) openRestSheet();
+      break;
+    }
+    case 'rest-adjust': {
+      adjustRest(parseInt(el.dataset.d));
+      break;
     }
     case 'set-rest': {
       const secs = parseInt(el.dataset.secs);
-      clearRest(); restTimeLeft = secs; restEndTime = Date.now() + secs * 1000; startRestCountdown();
-      const timerEl = $('.rest-timer');
-      if (timerEl) timerEl.textContent = fmtRest(secs);
-      render(); break;
+      clearRest(); restTimeLeft = secs; restTotal = secs; startRestCountdown();
+      updateRestUI(); haptic();
+      break;
     }
-    case 'set-custom-rest': {
-      const val = num($('#customRest')?.value, 10, 600, true);
-      if (val !== null) {
-        clearRest(); restTimeLeft = val; restEndTime = Date.now() + val * 1000; startRestCountdown(); render();
-      } else {
-        showToast('Entre une durée entre 10 et 600 secondes');
-      }
+    case 'ax-sets': {
+      axSets = Math.min(10, Math.max(1, axSets + parseInt(el.dataset.d)));
+      const n = $('#axSets');
+      if (n) n.textContent = axSets;
+      break;
+    }
+    case 'ax-pick': {
+      pickExercise(el.dataset.name);
+      break;
+    }
+    case 'summary-done': {
+      const ta = $('#summaryNotes');
+      if (ta) summaryNotesInput(ta.value);
+      clearTimeout(summaryNotesTimer);
+      save();
+      lastSummary = null;
+      view = 'dashboard'; render(); startTicker();
       break;
     }
     case 'add-session-ex': {
+      if (view === 'session') { openAddExSheet(); break; }
       addExModal = true; addExName = ''; addExSets = 3; render();
       setTimeout(() => document.getElementById('addExNameInput')?.focus(), 80);
       break;
@@ -3427,8 +4057,7 @@ async function handleAction(e, el, action) {
       break;
     }
     case 'finish-session': {
-      const notesEl = $('.session-notes-input');
-      if (notesEl) sessionNotes = notesEl.value;
+      closeSessSheets();
       const total = activeSession.exercises.reduce((a, ex) => a + ex.sets.length, 0);
       const done  = activeSession.exercises.reduce((a, ex) => a + ex.sets.filter(st => st.done).length, 0);
       const dur   = fmtDuration(Date.now() - activeSession.startedAt);
@@ -3492,10 +4121,12 @@ async function handleAction(e, el, action) {
         recomputePRFromHistory();
         break;
       }
-      finishSound();
+      // Bilan : records comparés à ceux d'avant la séance
+      lastSummary = buildSummary(entry, activeSession.baseline || {});
+      if (lastSummary.records.length) recordSound(); else finishSound();
       haptic();
       endSession();
-      view = 'dashboard'; render(); startTicker();
+      view = 'summary'; render(); window.scrollTo(0, 0);
       showToast('Séance enregistrée !');
       break;
     }
