@@ -1,0 +1,64 @@
+"""Lance tous les test_lot*.py en parallèle : un processus par (lot, appareil, thème)
+plus un processus par lot pour les tests uniques. Code de sortie non nul si un test échoue.
+
+Options : python3 run_all.py [lot ...]   ex. `run_all.py 3 4` ne lance que les lots 3 et 4.
+PPL_JOBS (défaut 6) règle le nombre de processus simultanés. Garde-fou mémoire : aucun
+processus ne démarre tant que la mémoire disponible de WSL est sous 2,5 Go (évite de faire planter WSL).
+"""
+import glob
+import os
+import re
+import subprocess
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
+
+from fixtures import DEVICES, THEMES
+
+here = os.path.dirname(os.path.abspath(__file__))
+files = sorted(glob.glob(os.path.join(here, 'test_lot*.py')),
+               key=lambda f: int(re.search(r'test_lot(\d+)', f).group(1)))
+if sys.argv[1:]:
+    files = [f for f in files if re.search(r'test_lot(\d+)', f).group(1) in sys.argv[1:]]
+
+jobs = []
+for f in files:
+    for _, dev in DEVICES:
+        for theme in THEMES:
+            jobs.append((f, {'PPL_DEV': dev, 'PPL_THEME': theme}, f'{dev}-{theme}'))
+    jobs.append((f, {'PPL_ONCE': '1'}, 'unique'))
+
+
+def mem_available_mb():
+    with open('/proc/meminfo') as fh:
+        for line in fh:
+            if line.startswith('MemAvailable:'):
+                return int(line.split()[1]) // 1024
+    return 10**6
+
+
+def run(job):
+    f, env, label = job
+    while mem_available_mb() < 2500:
+        time.sleep(2)
+    t = time.time()
+    r = subprocess.run([sys.executable, '-u', f], cwd=here, env={**os.environ, **env},
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    return f, label, r.returncode, r.stdout, time.time() - t
+
+
+t0 = time.time()
+failed = []
+with ThreadPoolExecutor(int(os.environ.get('PPL_JOBS', '6'))) as ex:
+    for f, label, code, out, dt in ex.map(run, jobs):
+        name = os.path.basename(f)
+        if code != 0:
+            failed.append(f'{name} [{label}]')
+            sys.stdout.write(f'═══ {name} [{label}] : ÉCHEC ({dt:.0f} s)\n')
+            sys.stdout.write('\n'.join(l for l in out.splitlines() if 'KO' in l or 'ÉCHEC' in l or 'exception' in l or 'Traceback' in l) + '\n')
+        else:
+            last = out.strip().splitlines()[-1] if out.strip() else ''
+            print(f'═══ {name} [{label}] : OK ({dt:.0f} s) {last}', flush=True)
+print()
+print(f'{len(jobs) - len(failed)}/{len(jobs)} processus OK en {time.time() - t0:.0f} s' + (f' ; échecs : {", ".join(failed)}' if failed else ''))
+sys.exit(1 if failed else 0)
