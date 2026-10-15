@@ -6,6 +6,7 @@
 // Retour haptique : vibrate() sur Android ; sur iOS 18+, basculer un <input switch> déclenche le Taptic Engine
 function haptic() {
   if (data.vibrateOn === false) return;
+  if (Native.haptic('light')) return;   // app iOS : vrai Taptic Engine
   if (navigator.vibrate) { navigator.vibrate(8); return; }
   try {
     const label = document.createElement('label');
@@ -39,7 +40,7 @@ function beep(freq, dur = .15, vol = .35) {
 
 function timerDone() {
   if (data.soundOn !== false) { beep(880, .12); setTimeout(() => beep(1100, .12), 160); setTimeout(() => beep(1320, .35), 320); }
-  if (data.vibrateOn !== false && navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+  if (data.vibrateOn !== false && !Native.haptic('success') && navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
 }
 
 function validationSound() { if (data.soundOn !== false) beep(660, .1); }

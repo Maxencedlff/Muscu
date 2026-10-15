@@ -102,6 +102,15 @@ function updateRestUI() {
 function startRestCountdown() {
   restEndTime = Date.now() + restTimeLeft * 1000;
   resumeRestCountdown();
+  scheduleRestNotification();
+}
+
+// App iOS : notification de fin de repos, utile écran verrouillé ou app en arrière-plan
+function scheduleRestNotification() {
+  if (!Native.isNative || !restActive) return;
+  const nx = activeSession && currentSet();
+  const body = nx ? `Série ${nx.si + 1} · ${activeSession.exercises[nx.ei].name}` : 'C\'est reparti';
+  Native.scheduleRestEnd(restEndTime, body);
 }
 
 // Relance l'affichage du chrono sans toucher à l'heure de fin (retour au premier plan, restauration)
@@ -159,12 +168,13 @@ function resumeRest(saved) {
   restTimeLeft  = Math.ceil((endTime - Date.now()) / 1000);
   restTotal     = Number(saved.total) || Math.max(restTimeLeft, data.defaultRest);
   resumeRestCountdown();
+  scheduleRestNotification();
 }
 
 function clearRest() { clearInterval(restInterval); restInterval = null; }
 
 // Arrête le repos en cours (chrono et état) sans toucher à l'affichage
-function stopRest() { clearRest(); restActive = false; }
+function stopRest() { clearRest(); restActive = false; Native.cancelRestEnd(); }
 
 function removeRestUI() {
   document.querySelectorAll('.rest-mini').forEach(el => el.remove());
@@ -189,6 +199,7 @@ function adjustRest(d) {
   if (restTimeLeft <= 0) { restFinished(); return; }
   updateRestUI();
   persistSession();
+  scheduleRestNotification();
 }
 
 // Retour au premier plan : le son est réveillé et le repos recalé sur son heure de fin

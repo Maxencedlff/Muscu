@@ -4,6 +4,7 @@
 'use strict';
 
 function isStandalone() {
+  if (Native.isNative) return true;   // app iOS : plein écran, sans geste de retour du navigateur
   return navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
 }
 

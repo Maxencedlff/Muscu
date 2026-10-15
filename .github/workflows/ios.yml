@@ -1,0 +1,115 @@
+name: iOS
+
+# Deux modes, lancés à la main depuis l'onglet Actions (ou gh workflow run ios.yml) :
+#  - contrôle (par défaut) : compile pour le simulateur, lance l'app sur un iPhone virtuel et
+#    joint des captures d'écran. Ne demande aucun secret Apple.
+#  - testflight : compile la version signée et l'envoie sur App Store Connect (TestFlight).
+#    Demande les secrets ASC_KEY_ID, ASC_ISSUER_ID et ASC_KEY_P8 (clé d'API au rôle Admin).
+on:
+  workflow_dispatch:
+    inputs:
+      testflight:
+        description: Envoyer une version signée sur TestFlight
+        type: boolean
+        default: false
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TEAM_ID: NMK739Z59B
+  SCHEME: App
+  PROJECT: ios/App/App.xcodeproj
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Dépendances
+        run: npm ci
+
+      - name: Contenu web et synchronisation iOS
+        run: npm run web:build && npx cap sync ios
+
+      - name: Version de Xcode
+        run: xcodebuild -version
+
+      # ── Mode contrôle ─────────────────────────────────────────────
+      - name: Compilation pour le simulateur
+        if: ${{ !inputs.testflight }}
+        run: |
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -25
+
+      - name: Lancement sur un iPhone virtuel et captures
+        if: ${{ !inputs.testflight }}
+        run: |
+          set -e
+          DEVICE=$(xcrun simctl list devices available | grep -m1 -E 'iPhone 1[6-9] Pro \(' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          echo "Simulateur : $DEVICE"
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          APP=$(find build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' | head -1)
+          xcrun simctl install "$DEVICE" "$APP"
+          BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          mkdir -p shots
+          xcrun simctl launch "$DEVICE" "$BUNDLE"
+          sleep 12
+          xcrun simctl io "$DEVICE" screenshot shots/1-lancement.png
+          xcrun simctl ui "$DEVICE" appearance light
+          sleep 4
+          xcrun simctl io "$DEVICE" screenshot shots/2-theme-clair.png
+          # L'app doit encore tourner (pas de plantage au démarrage)
+          xcrun simctl spawn "$DEVICE" launchctl list | grep -q "$BUNDLE" && echo "L'app tourne"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.testflight }}
+        with:
+          name: captures-simulateur
+          path: shots/
+
+      # ── Mode TestFlight ───────────────────────────────────────────
+      - name: Clé d'API App Store Connect
+        if: ${{ inputs.testflight }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "$ASC_KEY_P8" > ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8
+
+      - name: Archive signée (signature automatique par la clé d'API)
+        if: ${{ inputs.testflight }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath build/App.xcarchive archive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} | tail -40
+
+      - name: Export et envoi sur App Store Connect
+        if: ${{ inputs.testflight }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          xcodebuild -exportArchive -archivePath build/App.xcarchive \
+            -exportOptionsPlist ios/ExportOptions.plist -exportPath build/export \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" | tail -40

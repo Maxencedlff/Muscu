@@ -1,1 +1,10 @@
 tests/
+node_modules/
+dist/
+ios/
+scripts/
+package.json
+package-lock.json
+capacitor.config.json
+.github/
+store/

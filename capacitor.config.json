@@ -1,0 +1,21 @@
+{
+  "appId": "com.mdlf.training",
+  "appName": "MDLF Training",
+  "webDir": "dist",
+  "backgroundColor": "#000000",
+  "ios": {
+    "contentInset": "never",
+    "scrollEnabled": true,
+    "backgroundColor": "#000000"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "backgroundColor": "#000000",
+      "showSpinner": false
+    },
+    "LocalNotifications": {
+      "presentationOptions": ["alert", "sound"]
+    }
+  }
+}

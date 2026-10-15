@@ -56,11 +56,13 @@ let wakeLock = null;
 
 async function requestWakeLock() {
   try {
+    if (Native.keepAwake(true)) return;   // app iOS : écran allumé natif
     if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
   } catch {}
 }
 
 async function releaseWakeLock() {
+  if (Native.keepAwake(false)) return;
   try { if (wakeLock) { await wakeLock.release(); wakeLock = null; } } catch {}
 }
 
@@ -113,8 +115,10 @@ function renderRescue() {
 
 // ── Démarrage ───────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
-  if (loadError) { renderRescue(); return; }
+document.addEventListener('DOMContentLoaded', async () => {
+  // App iOS : stockage web vide mais copie de sécurité présente → elle est restaurée (rechargement)
+  if (await Native.boot()) return;
+  if (loadError) { renderRescue(); Native.hideSplash(); return; }
   try {
     syncTimersFromHistory();
     // Séance restaurée (avec son repos), sinon séance passée en cours de saisie
@@ -126,8 +130,11 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch (err) {
     console.error(err);
     renderRescue();
+    Native.hideSplash();
     return;
   }
+  Native.hideSplash();
+  Native.statusBar(!document.body.classList.contains('light'));
   // Demande au navigateur de ne pas effacer les données en cas de manque d'espace
   try { navigator.storage?.persisted?.().then(p => { if (!p) navigator.storage.persist?.(); }).catch(() => {}); } catch {}
   registerServiceWorker();
