@@ -59,6 +59,42 @@ Deux modules Swift propres à l'app, enregistrés par `ios/App/App/MainViewContr
 - Capacité HealthKit activée sur `com.mdlf.training` (le profil App Store la contient) ; Apple Music
   passe par MediaPlayer et l'autorisation « Médias et Apple Music », sans capacité ni clé.
 
+## Mises à jour à chaud (sans repasser par Apple)
+
+Le contenu web de l'app (js/, css/, index.html) peut être mis à jour sans nouvelle version
+TestFlight / App Store, sur le modèle d'Expo Updates.
+
+| Élément | Rôle |
+|---|---|
+| `@capgo/capacitor-updater` 8.53.0 (MPL-2.0) | Module natif : télécharge un zip, vérifie son SHA-256, l'installe, revient au contenu précédent si le nouveau ne démarre pas. **Mode manuel** (`autoUpdate: false`), **statistiques Capgo coupées** (`statsUrl: ""`) : aucun serveur tiers |
+| `js/app/live-update.js` | Décision (`liveUpdateDecision`) et parcours (`checkLiveUpdate`) ; vérifie 3 s après le démarrage puis au retour au premier plan (au plus toutes les 6 h) |
+| `scripts/build-web.mjs` | Embarque `window.MDLF_BUILD = { version, seq, runtime }` dans dist/ |
+| `scripts/ota-bundle.py` | dist/ → `ota-site/` : `bundles/<version>.zip` (immuable), `manifest.json` (jamais en cache) |
+| `.github/workflows/ota.yml` | Tests, paquet, publication sur **https://mdlf-ota.vercel.app**, vérification en ligne du SHA-256 |
+
+**Règles de sûreté**
+- **Empreinte native (`runtime`)** : SHA-256 des fichiers Swift, d'Info.plist, des droits, du projet
+  Xcode, de capacitor.config.json et des versions des modules natifs. Une mise à jour n'est appliquée
+  que si elle a été construite pour la même coquille. Tout changement natif impose donc une version
+  TestFlight / App Store ; une coquille plus ancienne ignore les contenus qui ne lui sont pas destinés.
+- **Jamais de retour en arrière** : `seq` (date du commit) doit être plus récent que le contenu en place.
+- **Démarrage confirmé** : `notifyAppReady` n'est appelé qu'après un démarrage réussi (pas sur
+  l'écran de secours) ; sinon le module revient seul au contenu précédent au bout de 10 s, et la
+  version fautive n'est jamais retentée.
+- **Jamais en pleine séance** : téléchargée en arrière-plan, appliquée au prochain lancement
+  (`next` + délai `kill`). Réglages › « Rechercher une mise à jour » l'applique tout de suite hors séance.
+- Nouvelle version de l'app installée : retour au contenu d'origine (`resetWhenUpdate`).
+- Seul du code commité est publiable (version « -local » refusée).
+
+**Règle Apple (Guideline 2.5.2)** : une app ne doit pas télécharger de code qui « introduit ou
+modifie des fonctionnalités ». Les mises à jour à chaud sont donc **réservées aux corrections de
+bugs et aux petits ajustements** ; toute nouvelle fonctionnalité passe par une version soumise à
+Apple (ios.yml). C'est pourquoi la publication est **manuelle**, avec un motif obligatoire :
+
+```bash
+gh workflow run ota.yml -R Maxencedlff/Muscu -f motif="Correction : …"
+```
+
 ## Commandes
 
 Node 22 est requis (`nvm use 22`).
