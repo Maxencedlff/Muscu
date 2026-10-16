@@ -658,6 +658,27 @@ test('données : healthOn et musicOn désactivés par défaut, conservés ensuit
   assert.equal(d2.healthOn, true); assert.equal(d2.musicOn, false);
 });
 
+// ── Coquille iOS : les modules Swift de l'app sont bien joignables depuis le web ──
+// Régression du 16/10/2026 : le SceneDelegate créait CAPBridgeViewController() directement, les
+// modules Santé et Musique n'étaient jamais enregistrés (« not implemented on ios »).
+
+test('iOS : SceneDelegate → MainViewController → chaque module Swift, noms identiques côté web', () => {
+  const ios = p => fs.readFileSync(path.join(ROOT, 'ios/App/App', p), 'utf8');
+  assert.match(ios('SceneDelegate.swift'), /rootViewController\s*=\s*MainViewController\(\)/, 'SceneDelegate doit créer MainViewController');
+  const main = ios('MainViewController.swift');
+  const native = fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8');
+  for (const file of ['HealthPlugin.swift', 'MusicPlugin.swift']) {
+    const src = ios(file);
+    const cls = src.match(/public class (\w+): CAPPlugin/)[1];
+    const jsName = src.match(/jsName = "(\w+)"/)[1];
+    assert.match(main, new RegExp(`registerPluginInstance\\(${cls}\\(\\)\\)`), `${cls} enregistré par MainViewController`);
+    assert.match(native, new RegExp(`plugin\\('${jsName}'\\)`), `native.js appelle ${jsName}`);
+    // Chaque méthode appelée par native.js est déclarée par le module Swift
+    const declared = [...src.matchAll(/CAPPluginMethod\(name: "(\w+)"/g)].map(m => m[1]);
+    for (const m of declared) assert.match(src, new RegExp(`@objc func ${m}\\(`), `${file} : ${m} implémentée`);
+  }
+});
+
 // ── Exécution ───────────────────────────────────────────────
 
 let failed = 0;
