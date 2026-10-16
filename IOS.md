@@ -70,12 +70,17 @@ gh workflow run ios.yml -R Maxencedlff/Muscu --ref main -f testflight=true      
 
 | Secret | Valeur |
 |---|---|
-| `ASC_KEY_ID` | Identifiant de la clé d'API App Store Connect (rôle **Admin**) |
+| `ASC_KEY_ID` | Clé d'API App Store Connect au rôle **Admin** (`AVSJM6323R`, « MDLF CI ») |
 | `ASC_ISSUER_ID` | `02dafbe1-af2c-4c38-9ddc-e66714e62e2d` |
-| `ASC_KEY_P8` | Contenu du fichier `AuthKey_XXXX.p8` |
+| `ASC_KEY_P8` | Contenu du fichier `AuthKey_AVSJM6323R.p8` |
+| `DIST_CERT_P12` / `DIST_CERT_PASSWORD` | Certificat « Apple Distribution » (expire le 16/10/2027) et sa clé, en base64 |
+| `APPSTORE_PROFILE` | Profil « MDLF Training App Store » (IOS_APP_STORE, expire le 16/10/2027), en base64 |
 
-Une clé au rôle « Developer » ne suffit pas : elle ne peut ni enregistrer l'identifiant de l'app
-ni créer le certificat de distribution.
+La signature est **manuelle** pour la configuration Release : la signature automatique d'Xcode
+exige un appareil enregistré pour créer d'abord un profil de développement. Le certificat et le
+profil ont été créés par l'API App Store Connect depuis le PC (clé privée générée localement,
+copie dans `~/.config/apple/`). **À renouveler avant octobre 2027** : nouveau certificat
+(`POST /v1/certificates`, type DISTRIBUTION), nouveau profil, puis mise à jour des trois secrets.
 
 ## Publier une version
 

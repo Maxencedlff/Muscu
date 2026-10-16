@@ -2,7 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Export pour App Store Connect, envoyé directement (TestFlight puis App Store) -->
+	<!-- Export pour App Store Connect, envoyé directement (TestFlight puis App Store).
+	     Signature manuelle : certificat Apple Distribution + profil App Store créés par l'API
+	     (secrets DIST_CERT_P12 et APPSTORE_PROFILE), sans appareil enregistré. -->
 	<key>method</key>
 	<string>app-store-connect</string>
 	<key>destination</key>
@@ -10,7 +12,14 @@
 	<key>teamID</key>
 	<string>NMK739Z59B</string>
 	<key>signingStyle</key>
-	<string>automatic</string>
+	<string>manual</string>
+	<key>signingCertificate</key>
+	<string>Apple Distribution</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>com.mdlf.training</key>
+		<string>MDLF Training App Store</string>
+	</dict>
 	<key>manageAppVersionAndBuildNumber</key>
 	<false/>
 	<key>uploadSymbols</key>

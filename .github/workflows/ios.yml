@@ -22,6 +22,10 @@ env:
   SCHEME: App
   PROJECT: ios/App/App.xcodeproj
 
+defaults:
+  run:
+    shell: bash   # bash -eo pipefail : une erreur suivie de « | tail » fait bien échouer l'étape
+
 jobs:
   build:
     runs-on: macos-15
@@ -83,6 +87,29 @@ jobs:
           path: shots/
 
       # ── Mode TestFlight ───────────────────────────────────────────
+      # Signature manuelle : certificat Apple Distribution et profil App Store créés par l'API
+      # (aucun appareil enregistré nécessaire), installés dans un trousseau temporaire.
+      - name: Certificat et profil de distribution
+        if: ${{ inputs.testflight }}
+        env:
+          DIST_CERT_P12: ${{ secrets.DIST_CERT_P12 }}
+          DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+          APPSTORE_PROFILE: ${{ secrets.APPSTORE_PROFILE }}
+        run: |
+          KEYCHAIN=$RUNNER_TEMP/signature.keychain-db
+          KC_PASS=$(openssl rand -base64 24)
+          echo "$DIST_CERT_P12" | base64 --decode > $RUNNER_TEMP/dist.p12
+          security create-keychain -p "$KC_PASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KC_PASS" "$KEYCHAIN"
+          security import $RUNNER_TEMP/dist.p12 -P "$DIST_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KC_PASS" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KEYCHAIN"
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$APPSTORE_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/appstore.mobileprovision
+          rm $RUNNER_TEMP/dist.p12
+
       - name: Clé d'API App Store Connect
         if: ${{ inputs.testflight }}
         env:
@@ -92,18 +119,11 @@ jobs:
           mkdir -p ~/.appstoreconnect/private_keys
           printf '%s' "$ASC_KEY_P8" > ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8
 
-      - name: Archive signée (signature automatique par la clé d'API)
+      - name: Archive signée
         if: ${{ inputs.testflight }}
-        env:
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
             -destination 'generic/platform=iOS' -archivePath build/App.xcarchive archive \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8 \
-            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} | tail -40
 
       - name: Export et envoi sur App Store Connect
@@ -114,6 +134,9 @@ jobs:
         run: |
           xcodebuild -exportArchive -archivePath build/App.xcarchive \
             -exportOptionsPlist ios/ExportOptions.plist -exportPath build/export \
-            -allowProvisioningUpdates \
             -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8 \
             -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" | tail -40
+
+      - name: Nettoyage du trousseau
+        if: ${{ always() && inputs.testflight }}
+        run: security delete-keychain $RUNNER_TEMP/signature.keychain-db || true
