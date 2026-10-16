@@ -28,7 +28,46 @@ async function syncWorkoutToHealth(entry) {
   const kg  = (await latestBodyMass())?.kg;
   const end = entry.date;
   const ok  = await Native.health.saveWorkout({ start: end - entry.duration, end, kcal: estimateKcal(entry.duration, kg) });
-  if (!ok) showToast('Séance non enregistrée dans Santé (autorisation ?)', { error: true });
+  if (ok) { entry.healthSaved = true; save(true); }
+  else showToast('Séance non enregistrée dans Santé (autorisation ?)', { error: true });
+}
+
+// ── Santé : séances passées ─────────────────────────────────
+
+const DEFAULT_SESSION_MS = 60 * 60_000;
+
+// Séances pas encore envoyées à Santé, de la plus ancienne à la plus récente
+function healthBacklog() {
+  return (data.history || []).filter(h => !h.healthSaved && h.exercises?.length).sort((a, b) => a.date - b.date);
+}
+
+// Durée retenue pour une séance saisie après coup (sans chrono) : médiane des séances chronométrées
+function typicalDuration() {
+  const ds = (data.history || []).map(h => h.duration).filter(d => d > 5 * 60_000 && d < 4 * 3_600_000).sort((a, b) => a - b);
+  return ds.length ? ds[Math.floor(ds.length / 2)] : DEFAULT_SESSION_MS;
+}
+
+// Entraînement Santé d'une séance : une séance chronométrée se termine à sa date d'enregistrement ;
+// une séance saisie après coup (date à midi, sans durée) commence à cette heure-là
+function workoutOf(h, typical, kg) {
+  const dur = h.duration > 0 ? h.duration : typical;
+  const start = h.duration > 0 ? h.date - dur : h.date;
+  return { start, end: start + dur, kcal: estimateKcal(dur, kg) };
+}
+
+// Envoie les séances pas encore dans Santé ; renvoie { sent, failed } (l'action s'occupe de l'affichage)
+async function sendHistoryToHealth(onProgress = () => {}) {
+  const todo = healthBacklog();
+  const typical = typicalDuration();
+  const kg = (await latestBodyMass())?.kg;
+  let sent = 0, failed = 0;
+  for (const h of todo) {
+    if (await Native.health.saveWorkout(workoutOf(h, typical, kg))) { h.healthSaved = true; sent++; }
+    else failed++;
+    onProgress(sent + failed, todo.length);
+  }
+  save(true);
+  return { sent, failed };
 }
 
 // ── Santé : poids corporel ──────────────────────────────────
@@ -130,6 +169,13 @@ function renderAppleServicesGroup(tog) {
               <span class="cell__sub">Enregistre tes séances, lit ton poids</span></span>
             ${tog(data.healthOn === true)}
           </button>
+          ${data.healthOn === true ? (() => {
+            const n = healthBacklog().length;
+            return `<button class="cell cell--nav" data-action="health-backfill">
+            <span class="cell__body"><span class="cell__title">Envoyer l'historique dans Santé</span>
+              <span class="cell__sub">${n ? plural(n, 'séance pas encore envoyée', 'séances pas encore envoyées') : 'Tout est déjà dans Santé'}</span></span>
+            ${icon('chevron.right', 16)}
+          </button>`; })() : ''}
           <button class="cell" data-action="setting-music" role="switch" aria-checked="${data.musicOn === true}">
             <span class="cell__body"><span class="cell__title">Apple Music</span>
               <span class="cell__sub">Lecture en cours pendant la séance</span></span>
@@ -161,6 +207,19 @@ registerActions({
       return;
     }
     data.musicOn = true; save(); render(); showToast('Apple Music connecté');
+  },
+  'health-backfill': async () => {
+    const n = healthBacklog().length;
+    if (!n) { showToast('Tout ton historique est déjà dans Santé'); return; }
+    if (!(await confirmSheet(`Envoyer ${plural(n, 'séance', 'séances')} dans Santé ?`,
+      'Chaque séance devient un entraînement « Musculation » à sa date. Une séance saisie sans chrono reçoit ta durée habituelle. Les séances déjà envoyées ne sont pas renvoyées.',
+      'Envoyer', false))) return;
+    const { sent, failed } = await sendHistoryToHealth((i, total) => {
+      if (i % 5 === 0 && i < total) showToast(`Envoi dans Santé… ${i}/${total}`);
+    });
+    render();
+    if (failed) showToast(`${plural(sent, 'séance envoyée', 'séances envoyées')}, ${failed} en échec (autorisation ?)`, { error: true });
+    else showToast(`${plural(sent, 'séance envoyée', 'séances envoyées')} dans Santé`);
   },
   'music-play':     async () => { haptic(); updateMusicBar(await Native.music.command('play')); },
   'music-pause':    async () => { haptic(); updateMusicBar(await Native.music.command('pause')); },

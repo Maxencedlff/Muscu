@@ -651,6 +651,47 @@ test('santé : séance envoyée avec ses dates et les calories du poids le plus 
   }
 });
 
+test('santé historique : durée habituelle = médiane des séances chronométrées, 1 h sinon', () => {
+  reset();
+  assert.equal(run('typicalDuration()'), 3_600_000);
+  run(`data.history = [{ duration: 40*60000 }, { duration: 70*60000 }, { duration: 55*60000 }, { duration: 30000 }, {}]
+        .map((h, i) => Object.assign({ id: 'h' + i, date: 1e12 + i, category: 'push', exercises: [{}] }, h))`);
+  assert.equal(run('typicalDuration()'), 55 * 60_000, 'médiane de 40, 55, 70 min (30 s et sans durée ignorées)');
+});
+
+test('santé historique : dates d\'une séance chronométrée et d\'une séance saisie après coup', () => {
+  sameJSON(run('workoutOf({ date: 10_000_000, duration: 3_000_000 }, 999, 80)'), { start: 7_000_000, end: 10_000_000, kcal: 333 });
+  sameJSON(run('workoutOf({ date: 10_000_000 }, 3_600_000, null)'), { start: 10_000_000, end: 13_600_000, kcal: 0 });
+});
+
+test('santé historique : tout envoyé une seule fois, les échecs restent à envoyer', async () => {
+  reset();
+  const sent = [];
+  ctx.__sent = sent;
+  run(`data.healthOn = true;
+       data.history = [
+         { id: 'a', date: 3e12, duration: 3600000, category: 'push', exercises: [{}] },
+         { id: 'b', date: 2e12, category: 'pull', exercises: [{}] },
+         { id: 'c', date: 1e12, category: 'legs', exercises: [{}], healthSaved: true },
+         { id: 'd', date: 4e12, category: 'legs', exercises: [] } ];
+       __orig = { isNative: Native.isNative, health: Native.health };
+       Native.isNative = true;
+       let __fail = true;
+       Native.health = { saveWorkout: async (w) => { if (w.start === 2e12 && __fail) { __fail = false; return false; } __sent.push(w.start); return true; },
+                         bodyMass: async () => [] };
+       weightCache = { at: 0, samples: [] };`);
+  try {
+    sameJSON(run('healthBacklog().map(h => h.id)'), ['b', 'a'], 'du plus ancien au plus récent, sans les déjà envoyées ni les vides');
+    await run('sendHistoryToHealth()');
+    sameJSON(run('healthBacklog().map(h => h.id)'), ['b'], 'b a échoué : reste à envoyer');
+    await run('sendHistoryToHealth()');
+    sameJSON(run('healthBacklog().map(h => h.id)'), [], 'tout est envoyé');
+    sameJSON(sent, [3e12 - 3_600_000, 2e12], 'chaque séance envoyée une seule fois');
+  } finally {
+    run('Native.isNative = __orig.isNative; Native.health = __orig.health;');
+  }
+});
+
 test('données : healthOn et musicOn désactivés par défaut, conservés ensuite', () => {
   const d = run('normalizeData(makeDefaultData())');
   assert.equal(d.healthOn, false); assert.equal(d.musicOn, false);

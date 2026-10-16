@@ -176,6 +176,7 @@ function sanitizeData(d) {
     if (typeof h.date === 'string') { const t = Number(h.date) || Date.parse(h.date); if (Number.isFinite(t)) h.date = t; }
     if (!Number.isFinite(h.date) || !Array.isArray(h.exercises) || typeof h.category !== 'string') return false;
     if (!h.id) h.id = uid();
+    if (h.healthSaved !== undefined && h.healthSaved !== true) delete h.healthSaved;   // app iOS : déjà envoyée à Santé
     h.exercises = h.exercises.filter(ex => isObj(ex) && typeof ex.name === 'string');
     h.exercises.forEach(ex => {
       if (!Array.isArray(ex.sets)) ex.sets = [];
