@@ -135,6 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   Native.hideSplash();
   Native.statusBar(!document.body.classList.contains('light'));
+  liveUpdateBoot();   // app iOS : confirme ce contenu (sinon retour au précédent) et cherche une mise à jour
   // Demande au navigateur de ne pas effacer les données en cas de manque d'espace
   try { navigator.storage?.persisted?.().then(p => { if (!p) navigator.storage.persist?.(); }).catch(() => {}); } catch {}
   registerServiceWorker();

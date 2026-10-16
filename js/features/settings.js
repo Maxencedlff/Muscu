@@ -72,7 +72,10 @@ ${renderAppleServicesGroup(tog)}
           <div class="cell">
             <span class="cell__body"><span class="cell__title">MDLF Training<span id="appVersion"></span> · ${plural(nSess, 'séance', 'séances')}</span></span>
           </div>
-          ${Native.isNative ? '' : `<button class="cell cell--action" data-action="force-update"><span class="cell__title">Rechercher une mise à jour</span></button>`}
+          ${Native.isNative
+            ? `<button class="cell cell--action" data-action="live-update-check"><span class="cell__body"><span class="cell__title">Rechercher une mise à jour</span>
+                 <span class="cell__sub">${esc(liveUpdateLabel())}</span></span></button>`
+            : `<button class="cell cell--action" data-action="force-update"><span class="cell__title">Rechercher une mise à jour</span></button>`}
         </div>
 
       </div>

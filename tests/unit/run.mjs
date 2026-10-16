@@ -27,6 +27,7 @@ const SCRIPTS = [
   'js/ui/forms.js',
   'js/app/actions.js',
   'js/features/apple-services.js',
+  'js/app/live-update.js',
 ];
 
 // ── Environnement simulé ────────────────────────────────────
@@ -42,6 +43,7 @@ class MemoryStorage {
 const toasts = [];
 const sandbox = {
   console,
+  AbortController, setTimeout, clearTimeout,   // vérification des mises à jour à chaud
   localStorage: new MemoryStorage(),
   navigator: {},
   document: { querySelector: () => null, getElementById: () => null },
@@ -718,6 +720,69 @@ test('iOS : SceneDelegate → MainViewController → chaque module Swift, noms i
     const declared = [...src.matchAll(/CAPPluginMethod\(name: "(\w+)"/g)].map(m => m[1]);
     for (const m of declared) assert.match(src, new RegExp(`@objc func ${m}\\(`), `${file} : ${m} implémentée`);
   }
+});
+
+// ── Mises à jour à chaud ────────────────────────────────────
+
+const OTA_SUM = 'a'.repeat(64);
+const otaManifest = (o = {}) => ({ version: '2026.10.20-abc1234', seq: 2000, runtime: 'r1', url: 'https://mdlf-ota.vercel.app/b.zip', checksum: OTA_SUM, ...o });
+const otaCtx = (o = {}) => ({ build: { version: 'x', seq: 1000, runtime: 'r1' }, shellRuntime: 'r1', failed: [], ...o });
+
+test('mise à jour à chaud : décision (version, empreinte native, échecs, manifeste)', () => {
+  const d = (m, c) => run(`liveUpdateDecision(${JSON.stringify(m)}, ${JSON.stringify(c)})`);
+  assert.equal(d(otaManifest(), otaCtx()).download, true);
+  assert.equal(d(otaManifest({ seq: 1000 }), otaCtx()).reason, 'à jour', 'même contenu');
+  assert.equal(d(otaManifest({ seq: 900 }), otaCtx()).download, false, 'jamais de retour en arrière');
+  assert.equal(d(otaManifest({ runtime: 'r2' }), otaCtx()).reason, 'nécessite une nouvelle version de l\'app');
+  assert.equal(d(otaManifest(), otaCtx({ failed: ['2026.10.20-abc1234'] })).download, false, 'version en échec jamais retentée');
+  assert.equal(d(otaManifest({ url: 'http://x/b.zip' }), otaCtx()).reason, 'manifeste invalide', 'HTTPS obligatoire');
+  assert.equal(d(otaManifest({ checksum: 'abc' }), otaCtx()).reason, 'manifeste invalide', 'SHA-256 obligatoire');
+  assert.equal(d(null, otaCtx()).reason, 'manifeste invalide');
+  assert.equal(d(otaManifest(), otaCtx({ build: null })).download, false, 'PWA : jamais');
+});
+
+async function otaScenario({ manifest = otaManifest(), session = null, now = false, bundles = [], current = 'builtin' } = {}) {
+  const calls = [];
+  ctx.__calls = calls; ctx.__manifest = manifest; ctx.__bundles = bundles; ctx.__current = current;
+  ctx.activeSession = session;
+  run(`window.MDLF_BUILD = { version: 'x', seq: 1000, runtime: 'r1' };
+       __ota = { isNative: Native.isNative, ota: Native.ota, fetch: globalThis.fetch };
+       Native.isNative = true;
+       globalThis.fetch = async () => ({ ok: true, json: async () => __manifest });
+       Native.ota = {
+         current: async () => ({ bundle: { id: __current } }),
+         list: async () => __bundles,
+         download: async (o) => { __calls.push(['download', o.version, o.checksum]); return { id: 'b1', version: o.version, status: 'success' }; },
+         applyNow: async (id) => { __calls.push(['now', id]); return true; },
+         applyAtNextLaunch: async (id) => { __calls.push(['next', id]); return true; },
+       };`);
+  try { return { result: await run(`checkLiveUpdate({ now: ${now} })`), calls }; }
+  finally { run('Native.isNative = __ota.isNative; Native.ota = __ota.ota; globalThis.fetch = __ota.fetch; delete window.MDLF_BUILD;'); }
+}
+
+test('mise à jour à chaud : téléchargée (empreinte vérifiée) puis appliquée au prochain lancement', async () => {
+  const { result, calls } = await otaScenario();
+  assert.equal(result.status, 'ready');
+  sameJSON(calls, [['download', '2026.10.20-abc1234', OTA_SUM], ['next', 'b1']]);
+});
+
+test('mise à jour à chaud : « maintenant » appliquée tout de suite, sauf pendant une séance', async () => {
+  assert.equal((await otaScenario({ now: true })).result.status, 'applied');
+  const { result, calls } = await otaScenario({ now: true, session: { exercises: [] } });
+  assert.equal(result.status, 'ready', 'séance en cours : attend le prochain lancement');
+  sameJSON(calls.map(c => c[0]), ['download', 'next']);
+});
+
+test('mise à jour à chaud : déjà téléchargée → pas de nouveau téléchargement ; en échec → jamais retentée', async () => {
+  const ok = await otaScenario({ bundles: [{ id: 'b9', version: '2026.10.20-abc1234', status: 'success' }] });
+  sameJSON(ok.calls, [['next', 'b9']]);
+  const ko = await otaScenario({ bundles: [{ id: 'b8', version: '2026.10.20-abc1234', status: 'error' }] });
+  assert.equal(ko.result.status, 'none'); assert.equal(ko.calls.length, 0);
+});
+
+test('mise à jour à chaud : coquille native différente → rien (il faut passer par l\'App Store)', async () => {
+  const { result, calls } = await otaScenario({ manifest: otaManifest({ runtime: 'autre' }) });
+  assert.equal(result.reason, 'nécessite une nouvelle version de l\'app'); assert.equal(calls.length, 0);
 });
 
 // ── Exécution ───────────────────────────────────────────────

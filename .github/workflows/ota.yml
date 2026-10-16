@@ -1,0 +1,75 @@
+name: Mise à jour à chaud
+
+# Publie le contenu web de main comme mise à jour à chaud de l'app iOS (https://mdlf-ota.vercel.app).
+# Lancement manuel uniquement :  gh workflow run ota.yml -R Maxencedlff/Muscu -f motif="…"
+# Règle Apple 2.5.2 : à réserver aux corrections et petits ajustements ; une nouvelle fonctionnalité
+# passe par une version TestFlight / App Store (ios.yml). Voir IOS.md.
+on:
+  workflow_dispatch:
+    inputs:
+      motif:
+        description: Correction publiée (journal)
+        required: true
+        type: string
+
+concurrency:
+  group: ota
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Tests (rien n'est publié s'ils échouent)
+        run: |
+          for f in $(find js -name '*.js') sw.js; do node --check "$f"; done
+          node tests/unit/run.mjs
+
+      - name: Contenu web et paquet signé (SHA-256)
+        run: |
+          npm ci
+          npm run web:build
+          python3 scripts/ota-bundle.py
+
+      - name: Publication sur mdlf-ota.vercel.app
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_OTA_PROJECT_ID }}
+        run: |
+          cd ota-site
+          npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" > ../deploy-url.txt
+          cat ../deploy-url.txt
+
+      - name: Vérification du manifeste en ligne
+        run: |
+          EXPECTED=$(python3 -c "import json; print(json.load(open('ota-site/manifest.json'))['checksum'])")
+          for i in 1 2 3 4 5 6; do
+            ONLINE=$(curl -fsS https://mdlf-ota.vercel.app/manifest.json | python3 -c "import json,sys; print(json.load(sys.stdin)['checksum'])" || true)
+            [ "$ONLINE" = "$EXPECTED" ] && break
+            sleep 5
+          done
+          [ "$ONLINE" = "$EXPECTED" ] || { echo "Manifeste en ligne différent de celui publié"; exit 1; }
+          URL=$(python3 -c "import json; print(json.load(open('ota-site/manifest.json'))['url'])")
+          curl -fsS "$URL" -o /tmp/b.zip
+          echo "$EXPECTED  /tmp/b.zip" | sha256sum -c -
+          {
+            echo "### Mise à jour publiée"
+            echo "- Motif : ${{ inputs.motif }}"
+            echo "- Version : $(python3 -c "import json; print(json.load(open('ota-site/manifest.json'))['version'])")"
+            echo "- Empreinte native : $(python3 -c "import json; print(json.load(open('ota-site/manifest.json'))['runtime'])")"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -21,6 +21,7 @@ const Native = (() => {
   const Filesystem         = plugin('Filesystem');
   const Health             = plugin('MdlfHealth');   // module Swift de l'app (ios/App/App/HealthPlugin.swift)
   const Music              = plugin('MdlfMusic');    // module Swift de l'app (ios/App/App/MusicPlugin.swift)
+  const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
 
   // Un module natif indisponible ou en erreur ne doit jamais casser l'app web
   const quiet = promise => { promise?.catch?.(() => {}); };
@@ -146,6 +147,38 @@ const Native = (() => {
       },
       onChange(cb) {
         if (isNative) quiet(Music.addListener('change', cb));
+      },
+    },
+
+    // Mises à jour à chaud du contenu web (@capgo/capacitor-updater, mode manuel). Hors app : rien.
+    ota: {
+      // Confirme que le contenu en place démarre : sans cet appel sous 10 s, retour à la version précédente
+      ready() { if (isNative) quiet(Updater.notifyAppReady()); },
+      async current() {
+        if (!isNative) return null;
+        try { return await Updater.current(); } catch { return null; }
+      },
+      async list() {
+        if (!isNative) return [];
+        try { return (await Updater.list()).bundles || []; } catch { return []; }
+      },
+      async download({ url, version, checksum }) {
+        if (!isNative) return null;
+        try { return await Updater.download({ url, version, checksum }); } catch { return null; }
+      },
+      // Appliquée au prochain lancement de l'app (jamais pendant qu'on s'en sert)
+      async applyAtNextLaunch(id) {
+        if (!isNative) return false;
+        try {
+          await Updater.next({ id });
+          await Updater.setMultiDelay({ delayConditions: [{ kind: 'kill' }] });
+          return true;
+        } catch { return false; }
+      },
+      // Appliquée tout de suite (l'app se recharge)
+      async applyNow(id) {
+        if (!isNative) return false;
+        try { await Updater.set({ id }); return true; } catch { return false; }
       },
     },
 

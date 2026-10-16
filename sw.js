@@ -9,7 +9,7 @@ const ASSETS = [
   '/js/data/backup.js',
   '/js/ui/theme.js', '/js/ui/router.js', '/js/ui/navbar.js', '/js/ui/sheet.js',
   '/js/ui/forms.js', '/js/ui/edge-swipe.js',
-  '/js/app/actions.js', '/js/app/updates.js', '/js/app/init.js',
+  '/js/app/actions.js', '/js/app/updates.js', '/js/app/live-update.js', '/js/app/init.js',
   '/js/features/dashboard.js', '/js/features/programme.js', '/js/features/programme-editor.js', '/js/features/custom-session.js',
   '/js/features/session.js', '/js/features/rest.js', '/js/features/session-sheets.js', '/js/features/session-gestures.js',
   '/js/features/summary.js', '/js/features/add-session.js', '/js/features/settings.js', '/js/features/apple-services.js', '/js/features/progress.js',
