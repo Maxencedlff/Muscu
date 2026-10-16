@@ -14,8 +14,10 @@ on:
         default: false
 
 concurrency:
-  group: ios-${{ github.ref }}
-  cancel-in-progress: true
+  group: ios-${{ github.ref }}-${{ inputs.testflight }}
+  # Un contrôle peut être remplacé par un plus récent ; un envoi TestFlight ne s'annule jamais
+  # (le 16/10, la build 13 a été coupée pendant son envoi à Apple)
+  cancel-in-progress: ${{ !inputs.testflight }}
 
 env:
   TEAM_ID: NMK739Z59B
