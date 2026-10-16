@@ -19,6 +19,15 @@ def tag(device, theme):
     return f'{device}-{theme}'
 
 
+def saved_text(page, timeout=2500):
+    """Confirmation d'enregistrement : annoncée à VoiceOver (#sr-polite), plus de toast sur le bilan."""
+    try:
+        page.wait_for_function("document.getElementById('sr-polite').textContent.includes('Séance enregistrée')", timeout=timeout)
+        return page.evaluate("document.getElementById('sr-polite').textContent")
+    except Exception:
+        return ''
+
+
 def toast_text(page, timeout=2500):
     try:
         page.wait_for_selector('.toast', timeout=timeout)
@@ -154,8 +163,8 @@ def t_fix_typo(bench, eng, dev, theme):
         R.check(page.locator('.pr-badge').all_inner_texts() == ['Record reps'], f'{t} 32,5×11 : « Record reps »')
         page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
         tap_dialog(page, 'Enregistrer la séance')
-        txt = toast_text(page)
-        R.check('Séance enregistrée' in txt, f'{t} séance enregistrée « {txt} »')
+        txt = saved_text(page)
+        R.check('Séance enregistrée' in txt and page.locator('.toast').count() == 0, f'{t} séance enregistrée « {txt} », sans toast sur le bilan')
         pr = pr_of(page, 'push', 'p1dcouch')
         R.check(pr == {'weight': '32.5', 'reps': '11'}, f'{t} PR juste après correction {pr}')
         h = page.evaluate('data.history[0]')
@@ -324,7 +333,7 @@ def t_storage_full(bench, eng, dev, theme):
         page.evaluate("Object.keys(localStorage).filter(k => k.startsWith('fill_')).forEach(k => localStorage.removeItem(k))")
         page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
         tap_dialog(page, 'Enregistrer la séance')
-        R.check('Séance enregistrée' in toast_text(page) and page.evaluate('data.history.length') == 31, f'{t} après libération : séance enregistrée une seule fois')
+        R.check('Séance enregistrée' in saved_text(page) and page.evaluate('data.history.length') == 31, f'{t} après libération : séance enregistrée une seule fois')
 
 
 def t_old_session(bench, eng, dev, theme):
@@ -337,7 +346,7 @@ def t_old_session(bench, eng, dev, theme):
         shot(page, LOT, f'ancienne-seance-{t}')
         page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
         tap_dialog(page, 'Enregistrer la séance')
-        R.check('Séance enregistrée' in toast_text(page), f'{t} ancienne séance terminée')
+        R.check('Séance enregistrée' in saved_text(page), f'{t} ancienne séance terminée')
         h = page.evaluate('data.history[0]')
         ids = {e['name']: e['exId'] for e in h['exercises']}
         R.check(h['category'] == 'pull' and ids.get('Rowing haltère unilatéral') == 'l1rowing' and ids.get('Shrugs') == 'n:shrugs', f'{t} ancienne séance : exId {ids}')

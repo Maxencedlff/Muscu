@@ -72,14 +72,16 @@ def t_seance(bench, eng, dev, theme):
         d = page.locator('.ex-card[data-ei="0"] .ex-vol__delta')
         R.check(d.count() == 1 and 'ex-vol__delta--up' in (d.get_attribute('class') or ''), f'{t} delta vert une fois fini')
 
-        # Bilan : pas de toast sur « Terminé », baisse sans double signe
+        # Bilan : aucun toast (ni sur le titre ni sur « Terminé »), baisse sans double signe
         page.evaluate("activeSession.exercises[0].sets.forEach(s => { s.weight = '5'; s.reps = '5'; })")
         page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
         tap_dialog(page, 'Enregistrer la séance')
         page.wait_for_selector('.view.summary')
         page.wait_for_timeout(300)
         tb = page.evaluate("(() => { const t = document.querySelector('.toast'), b = document.querySelector('.sum-done'); if (!t) return null; const a = t.getBoundingClientRect(), c = b.getBoundingClientRect(); return [t.textContent, a.bottom <= c.top && a.top < 120]; })()")
-        R.check(tb is not None and 'Annuler' not in tb[0] and tb[1], f'{t} toast du bilan hors du bouton Terminé {tb}')
+        # Depuis le 16/10 : aucun toast sur le bilan (il masquait le titre) ; confirmation annoncée à VoiceOver
+        R.check(tb is None, f'{t} aucun toast sur le bilan {tb}')
+        R.check('Séance enregistrée' in page.evaluate("document.getElementById('sr-polite').textContent"), f'{t} enregistrement annoncé à VoiceOver')
         dl = page.locator('.sum-tile__delta')
         if dl.count():
             R.check('−' not in dl.inner_text(), f'{t} bilan : flèche sans signe moins ({dl.inner_text()})')

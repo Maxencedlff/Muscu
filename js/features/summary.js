@@ -228,8 +228,10 @@ registerActions({
     haptic();
     endSession();
     openSummary(); window.scrollTo(0, 0);
-    // Remplace l'« Annuler » de la dernière série ; affiché en haut du bilan, loin du bouton « Terminé »
-    showToast('Séance enregistrée !');
+    // Le bilan montre déjà que la séance est enregistrée : pas de toast sur son titre, annonce VoiceOver.
+    // Ferme le toast « Série validée · Annuler » de la dernière série, devenu sans objet.
+    document.querySelectorAll('.toast').forEach(t => t.remove());
+    announce('Séance enregistrée');
   },
   'summary-done': () => {
     const ta = $('#summaryNotes');
