@@ -37,6 +37,7 @@ function renderSettings() {
             ${tog(data.vibrateOn !== false)}
           </button>
         </div>
+${renderAppleServicesGroup(tog)}
 
         <div class="group-title">Affichage</div>
         <div class="group">

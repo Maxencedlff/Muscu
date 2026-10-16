@@ -328,3 +328,26 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
   .rest-mini, .rest-mini--done, .session-set--go, .sess-sheet__panel { animation: none; }
   .session-set { transition: none; }
 }
+
+/* ═══════════════════════════════════════════════
+   Apple Music : barre de lecture en haut de la séance (app iOS)
+═══════════════════════════════════════════════ */
+.music-bar {
+  display: flex; align-items: center; gap: 0.47rem;
+  margin: 0 0 12px; padding: 8px 6px 8px 8px;
+  background: var(--cell); border-radius: var(--r-lg);
+}
+.music-bar__art {
+  width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--r-xs);
+  object-fit: cover; background: var(--fill);
+}
+.music-bar__art--empty { display: flex; align-items: center; justify-content: center; color: var(--label2); }
+.music-bar__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.music-bar__title, .music-bar__artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.music-bar__title  { font-size: 0.88rem; font-weight: 600; color: var(--label); }
+.music-bar__artist { font-size: 0.76rem; color: var(--label2); }
+.music-bar__btn {
+  width: 44px; height: 44px; flex-shrink: 0; border: none; background: none; border-radius: 50%;
+  color: var(--label); display: flex; align-items: center; justify-content: center;
+}
+.music-bar__btn:active { background: var(--fill); }

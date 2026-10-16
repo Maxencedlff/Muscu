@@ -157,6 +157,7 @@ function renderSession() {
           <div class="progress-bar__fill" style="width:${pct}%"></div>
         </div>` })}
       <div class="session-content">
+        ${renderMusicBar()}
         ${exHtml}
         <button class="session-add-ex-btn" data-action="add-session-ex">${icon('plus', 20)} Ajouter un exercice</button>
       </div>

@@ -19,6 +19,8 @@ const Native = (() => {
   const StatusBar          = plugin('StatusBar');
   const SplashScreen       = plugin('SplashScreen');
   const Filesystem         = plugin('Filesystem');
+  const Health             = plugin('MdlfHealth');   // module Swift de l'app (ios/App/App/HealthPlugin.swift)
+  const Music              = plugin('MdlfMusic');    // module Swift de l'app (ios/App/App/MusicPlugin.swift)
 
   // Un module natif indisponible ou en erreur ne doit jamais casser l'app web
   const quiet = promise => { promise?.catch?.(() => {}); };
@@ -110,6 +112,41 @@ const Native = (() => {
         backupEnabled = true;
       }
       return false;
+    },
+
+    // Apple Santé : autorisation, entraînement « Musculation », pesées (kg). Hors app : rien.
+    health: {
+      async authorize() {
+        if (!isNative) return { available: false, workouts: false };
+        try { return await Health.requestAuthorization(); } catch { return { available: false, workouts: false }; }
+      },
+      async saveWorkout({ start, end, kcal = 0 }) {
+        if (!isNative) return false;
+        try { return !!(await Health.saveWorkout({ start, end, kcal })).saved; } catch { return false; }
+      },
+      async bodyMass(days = 90) {
+        if (!isNative) return [];
+        try { return (await Health.bodyMass({ days })).samples || []; } catch { return []; }
+      },
+    },
+
+    // Apple Music : morceau en cours et commandes du lecteur de l'app Musique. Hors app : rien.
+    music: {
+      async authorize() {
+        if (!isNative) return false;
+        try { return !!(await Music.requestAuthorization()).granted; } catch { return false; }
+      },
+      async nowPlaying() {
+        if (!isNative) return null;
+        try { return await Music.nowPlaying(); } catch { return null; }
+      },
+      async command(name) {   // 'play' | 'pause' | 'next' | 'previous'
+        if (!isNative) return null;
+        try { return await Music[name](); } catch { return null; }
+      },
+      onChange(cb) {
+        if (isNative) quiet(Music.addListener('change', cb));
+      },
     },
 
     async readBackup() {

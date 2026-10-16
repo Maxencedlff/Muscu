@@ -30,6 +30,12 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>MDLF Training affiche le morceau en cours et te permet de le contrôler pendant ta séance.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>MDLF Training lit ton poids dans Santé pour suivre ta prise de masse à côté de tes charges.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>MDLF Training enregistre tes séances terminées comme entraînements « Musculation » dans Santé.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

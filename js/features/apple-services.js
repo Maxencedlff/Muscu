@@ -1,0 +1,169 @@
+// ═══════════════════════════════════════════════════════════
+//  Services Apple (app iOS uniquement) : Santé et Apple Music
+// ═══════════════════════════════════════════════════════════
+'use strict';
+
+// Réglages data.healthOn / data.musicOn (false par défaut). Dans le navigateur, rien n'est affiché :
+// Native.isNative vaut false et ces fonctions renvoient du vide.
+
+const MET_STRENGTH = 5;          // musculation, effort soutenu (Compendium of Physical Activities)
+const WEIGHT_TTL   = 5 * 60_000; // pesées relues dans Santé au plus toutes les 5 minutes
+
+let weightCache = { at: 0, samples: [] };
+
+const healthEnabled = () => Native.isNative && data.healthOn === true;
+const musicEnabled  = () => Native.isNative && data.musicOn === true;
+
+// ── Santé : entraînement de fin de séance ───────────────────
+
+// Énergie active estimée (kcal) : MET × poids (kg) × durée (h). Sans pesée connue : pas d'estimation.
+function estimateKcal(durationMs, kg) {
+  if (!(kg > 0) || !(durationMs > 0)) return 0;
+  return Math.round(MET_STRENGTH * kg * (durationMs / 3_600_000));
+}
+
+// Appelé après l'enregistrement d'une séance ; un échec ne bloque jamais le bilan
+async function syncWorkoutToHealth(entry) {
+  if (!healthEnabled() || !entry?.duration) return;
+  const kg  = (await latestBodyMass())?.kg;
+  const end = entry.date;
+  const ok  = await Native.health.saveWorkout({ start: end - entry.duration, end, kcal: estimateKcal(entry.duration, kg) });
+  if (!ok) showToast('Séance non enregistrée dans Santé (autorisation ?)', { error: true });
+}
+
+// ── Santé : poids corporel ──────────────────────────────────
+
+async function bodyMassSamples() {
+  if (!healthEnabled()) return [];
+  if (Date.now() - weightCache.at < WEIGHT_TTL) return weightCache.samples;
+  const samples = await Native.health.bodyMass(90);
+  weightCache = { at: Date.now(), samples };
+  return samples;
+}
+
+async function latestBodyMass() {
+  return (await bodyMassSamples())[0] || null;
+}
+
+// Emplacement dans Progrès, rempli après le dessin (lecture asynchrone dans Santé)
+function renderWeightGroup() {
+  if (!healthEnabled()) return '';
+  return `<div class="group-title">Poids corporel</div>
+        <div class="group" id="weightGroup"><div class="cell"><span class="cell__body"><span class="cell__sub">Lecture dans Santé…</span></span></div></div>`;
+}
+
+async function fillWeightGroup() {
+  const box = $('#weightGroup');
+  if (!box) return;
+  const samples = await bodyMassSamples();
+  if (!$('#weightGroup')) return;   // écran quitté entre-temps
+  if (!samples.length) {
+    box.innerHTML = `<div class="cell"><span class="cell__body"><span class="cell__title">Aucune pesée</span>
+      <span class="cell__sub">Ajoute ton poids dans l'app Santé (ou une balance connectée) pour le suivre ici.</span></span></div>`;
+    return;
+  }
+  const last  = samples[0];
+  const month = samples.filter(s => s.date >= last.date - 30 * 86_400_000);
+  const delta = last.kg - month[month.length - 1].kg;
+  const trend = month.length > 1 && Math.abs(delta) >= 0.05
+    ? `${delta > 0 ? '+' : '−'}${fmtNum(Math.abs(delta), 1)} kg sur 30 jours` : 'Stable sur 30 jours';
+  box.innerHTML = `
+    <div class="cell">
+      <span class="cell__body">
+        <span class="cell__title num">${fmtNum(last.kg, 1)} kg</span>
+        <span class="cell__sub">${esc(trend)} · ${fmtDate(last.date)}</span>
+      </span>
+      ${sparkline(samples.slice(0, 30).reverse().map(s => s.kg))}
+    </div>`;
+}
+
+// ── Apple Music : barre de lecture pendant la séance ────────
+
+let musicState = null;
+let musicListening = false;
+
+function renderMusicBar() {
+  if (!musicEnabled()) return '';
+  return `<div class="music-bar" id="musicBar" aria-label="Apple Music">${musicBarInner(musicState)}</div>`;
+}
+
+function musicBarInner(st) {
+  const playing = !!st?.playing;
+  const title   = st?.title ? esc(st.title) : 'Aucune musique en cours';
+  const artist  = st?.artist ? esc(st.artist) : (st?.title ? '' : 'Lance une lecture');
+  const art     = st?.artwork ? `<img class="music-bar__art" src="${esc(st.artwork)}" alt="">`
+                              : `<span class="music-bar__art music-bar__art--empty" aria-hidden="true">${icon('music', 20)}</span>`;
+  return `
+    ${art}
+    <span class="music-bar__text">
+      <span class="music-bar__title">${title}</span>
+      ${artist ? `<span class="music-bar__artist">${artist}</span>` : ''}
+    </span>
+    <button class="music-bar__btn" data-action="music-previous" aria-label="Morceau précédent">${icon('backward', 22)}</button>
+    <button class="music-bar__btn" data-action="${playing ? 'music-pause' : 'music-play'}" aria-label="${playing ? 'Pause' : 'Lecture'}">${icon(playing ? 'pause' : 'play', 24)}</button>
+    <button class="music-bar__btn" data-action="music-next" aria-label="Morceau suivant">${icon('forward', 22)}</button>`;
+}
+
+function updateMusicBar(st) {
+  if (st && st.authorized === false) { data.musicOn = false; save(); return; }
+  musicState = st || musicState;
+  const bar = $('#musicBar');
+  if (bar) bar.innerHTML = musicBarInner(musicState);
+}
+
+// Après le dessin de la séance : état courant, puis mises à jour poussées par iOS
+async function mountMusicBar() {
+  if (!musicEnabled() || !$('#musicBar')) return;
+  if (!musicListening) { musicListening = true; Native.music.onChange(updateMusicBar); }
+  updateMusicBar(await Native.music.nowPlaying());
+}
+
+// ── Réglages ────────────────────────────────────────────────
+
+function renderAppleServicesGroup(tog) {
+  if (!Native.isNative) return '';
+  return `
+        <div class="group-title">Services Apple</div>
+        <div class="group">
+          <button class="cell" data-action="setting-health" role="switch" aria-checked="${data.healthOn === true}">
+            <span class="cell__body"><span class="cell__title">Apple Santé</span>
+              <span class="cell__sub">Enregistre tes séances, lit ton poids</span></span>
+            ${tog(data.healthOn === true)}
+          </button>
+          <button class="cell" data-action="setting-music" role="switch" aria-checked="${data.musicOn === true}">
+            <span class="cell__body"><span class="cell__title">Apple Music</span>
+              <span class="cell__sub">Lecture en cours pendant la séance</span></span>
+            ${tog(data.musicOn === true)}
+          </button>
+        </div>`;
+}
+
+registerActions({
+  'setting-health': async () => {
+    if (data.healthOn) { data.healthOn = false; save(); render(); return; }
+    const res = await Native.health.authorize();
+    if (!res.available) { showToast('Santé n\'est pas disponible sur cet appareil', { error: true }); return; }
+    if (!res.workouts) {
+      await dialog({ title: 'Accès à Santé refusé',
+        message: 'Autorise MDLF Training dans Réglages › Santé › Accès aux données et appareils, puis réessaie.',
+        actions: [{ label: 'OK', style: 'preferred' }] });
+      return;
+    }
+    data.healthOn = true; weightCache = { at: 0, samples: [] };
+    save(); render(); showToast('Apple Santé connecté');
+  },
+  'setting-music': async () => {
+    if (data.musicOn) { data.musicOn = false; save(); render(); return; }
+    if (!(await Native.music.authorize())) {
+      await dialog({ title: 'Accès à Apple Music refusé',
+        message: 'Autorise MDLF Training dans Réglages › Confidentialité et sécurité › Médias et Apple Music, puis réessaie.',
+        actions: [{ label: 'OK', style: 'preferred' }] });
+      return;
+    }
+    data.musicOn = true; save(); render(); showToast('Apple Music connecté');
+  },
+  'music-play':     async () => { haptic(); updateMusicBar(await Native.music.command('play')); },
+  'music-pause':    async () => { haptic(); updateMusicBar(await Native.music.command('pause')); },
+  'music-next':     async () => { haptic(); updateMusicBar(await Native.music.command('next')); },
+  'music-previous': async () => { haptic(); updateMusicBar(await Native.music.command('previous')); },
+});

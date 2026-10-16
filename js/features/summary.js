@@ -221,6 +221,7 @@ registerActions({
     // enregistrée quand même : l'historique sait afficher une catégorie inconnue (sessionMeta)
     const entry = await saveSessionEntry();
     if (!entry) return;
+    syncWorkoutToHealth(entry);   // app iOS : entraînement dans Santé, sans attendre
     // Bilan : records comparés à ceux d'avant la séance
     lastSummary = buildSummary(entry, activeSession.baseline || {});
     if (lastSummary.records.length) recordSound(); else finishSound();
