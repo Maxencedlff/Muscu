@@ -28,7 +28,7 @@ defaults:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -44,8 +44,13 @@ jobs:
       - name: Contenu web et synchronisation iOS
         run: npm run web:build && npx cap sync ios
 
-      - name: Version de Xcode
-        run: xcodebuild -version
+      # Apple refuse les envois compilés avec un SDK antérieur à iOS 26 : Xcode 26 au minimum
+      - name: Xcode 26
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$X" ]; then echo "Xcode 26 absent de l'image :"; ls /Applications | grep -i xcode; exit 1; fi
+          sudo xcode-select -s "$X"
+          xcodebuild -version
 
       # ── Mode contrôle ─────────────────────────────────────────────
       - name: Compilation pour le simulateur
