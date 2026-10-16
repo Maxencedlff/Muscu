@@ -63,6 +63,8 @@ gh workflow run ios.yml -R Maxencedlff/Muscu --ref main -f testflight=true      
   captures (artefact `captures-simulateur`). Aucun secret nécessaire.
 - **TestFlight** : archive signée (signature automatique par la clé d'API), numéro de build =
   numéro du run, envoi sur App Store Connect.
+- Image **macOS 26 avec Xcode 26** : Apple refuse tout envoi compilé avec un SDK antérieur à iOS 26.
+- Les builds envoyées arrivent dans le groupe TestFlight interne « Interne » (accès à toutes les builds).
 - Le dépôt étant privé, chaque compilation consomme des minutes macOS (environ 10 min par run,
   quota gratuit d'environ 200 min par mois).
 
