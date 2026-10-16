@@ -41,6 +41,24 @@ Les fichiers de l'app iOS sont exclus de la publication Vercel (`.vercelignore`)
 
 L'autorisation des notifications est demandée au premier repos, au moment où elle a du sens.
 
+### Santé et Apple Music (`js/features/apple-services.js`)
+
+Deux modules Swift propres à l'app, enregistrés par `ios/App/App/MainViewController.swift` :
+
+| Module | Côté web | Rôle |
+|---|---|---|
+| `HealthPlugin.swift` (`MdlfHealth`) | `Native.health.*` | Autorisation, entraînement « Musculation » (HKWorkoutBuilder, énergie active estimée), pesées des 90 derniers jours |
+| `MusicPlugin.swift` (`MdlfMusic`) | `Native.music.*` | Morceau en cours du lecteur Musique (titre, artiste, pochette), lecture, pause, suivant, précédent, événement `change` |
+
+- Réglages › Services Apple : interrupteurs `data.healthOn` / `data.musicOn` (désactivés par défaut,
+  autorisation demandée à l'activation).
+- Fin de séance : `syncWorkoutToHealth(entry)` envoie l'entraînement sans bloquer le bilan.
+  Calories : MET 5 × dernier poids × durée (aucune estimation sans pesée).
+- Progrès : groupe « Poids corporel » (dernière pesée, tendance sur 30 jours, courbe).
+- Séance : barre de lecture en haut, mise à jour par les notifications du lecteur.
+- Capacité HealthKit activée sur `com.mdlf.training` (le profil App Store la contient) ; Apple Music
+  passe par MediaPlayer et l'autorisation « Médias et Apple Music », sans capacité ni clé.
+
 ## Commandes
 
 Node 22 est requis (`nvm use 22`).
@@ -95,8 +113,6 @@ copie dans `~/.config/apple/`). **À renouveler avant octobre 2027** : nouveau c
 
 | Objectif | Ce qu'il faut | Remarques |
 |---|---|---|
-| **Apple Santé** | Capacité HealthKit sur l'identifiant + module Capacitor HealthKit | Enregistrer chaque séance terminée comme entraînement « Musculation » (durée, calories estimées). Texte de confidentialité déjà prêt |
 | **Version payante** | Contrat « Paid Applications » + infos fiscales et bancaires (App Store Connect), Small Business Program (15 %) | Abonnement ou achat unique via StoreKit (RevenueCat simplifie la gestion des reçus) ; garder une partie gratuite |
-| **Apple Music** | Capacité MusicKit + module natif | Contrôle de la lecture pendant la séance |
 | **Notifications push** (rappels) | Clé APNs | Les rappels de séance peuvent rester en notifications locales, sans serveur |
 | **Mises à jour sans App Store** | Capacitor Live Updates (Appflow) ou équivalent | Seulement si les corrections web doivent arriver plus vite que la revue d'Apple |

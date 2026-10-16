@@ -12,7 +12,7 @@ const ASSETS = [
   '/js/app/actions.js', '/js/app/updates.js', '/js/app/init.js',
   '/js/features/dashboard.js', '/js/features/programme.js', '/js/features/programme-editor.js', '/js/features/custom-session.js',
   '/js/features/session.js', '/js/features/rest.js', '/js/features/session-sheets.js', '/js/features/session-gestures.js',
-  '/js/features/summary.js', '/js/features/add-session.js', '/js/features/settings.js', '/js/features/progress.js',
+  '/js/features/summary.js', '/js/features/add-session.js', '/js/features/settings.js', '/js/features/apple-services.js', '/js/features/progress.js',
   '/js/features/progress-chart.js', '/js/features/progress-overview.js', '/js/features/history.js',
 ];
 

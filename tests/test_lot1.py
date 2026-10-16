@@ -141,9 +141,15 @@ def t_fix_typo(bench, eng, dev, theme):
         w.fill('325'); r.fill('11'); v.click(); page.wait_for_timeout(150)
         skip_rest(page)
         page.click('[data-action="edit-set"][data-ei="0"][data-si="0"]')
+        page.wait_for_selector('#editSetWeight')
         page.fill('#editSetWeight', '32,5')
         shot(page, LOT, f'modifier-serie-{t}')
-        page.click('[data-action="save-edit-set"]'); page.wait_for_timeout(150)
+        page.click('[data-action="save-edit-set"]')
+        # Attente de la correction réelle (et non d'un délai fixe, trop court sur une machine chargée)
+        try:
+            page.wait_for_function("activeSession.exercises[0].sets[0].weight === '32.5'", timeout=5000)
+        except Exception:
+            pass
         R.check(page.evaluate("activeSession.exercises[0].sets[0].weight") == '32.5', f'{t} 32,5 accepté (virgule)')
         R.check(page.locator('.pr-badge').all_inner_texts() == ['Record reps'], f'{t} 32,5×11 : « Record reps »')
         page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)

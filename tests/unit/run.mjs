@@ -25,6 +25,8 @@ const SCRIPTS = [
   'js/data/accessors.js',
   'js/data/backup.js',
   'js/ui/forms.js',
+  'js/app/actions.js',
+  'js/features/apple-services.js',
 ];
 
 // ── Environnement simulé ────────────────────────────────────
@@ -607,6 +609,53 @@ test('native : notification de fin de repos (autorisation demandée une fois, pu
   sameJSON(n.calls.filter(c => c[0] === 'schedule').map(c => c[1]), ['Série 2 · Squat', 'Série 3 · Squat']);
   await n.Native.scheduleRestEnd(Date.now() - 1000, 'passé');   // heure passée : rien
   assert.equal(n.calls.filter(c => c[0] === 'schedule').length, 2);
+});
+
+// ── Services Apple (Santé, Apple Music) ─────────────────────
+
+test('santé : énergie estimée = MET 5 × poids × durée, rien sans pesée', () => {
+  assert.equal(app.estimateKcal(3_600_000, 72), 360);
+  assert.equal(app.estimateKcal(45 * 60_000, 80), 300);
+  assert.equal(app.estimateKcal(3_600_000, null), 0);
+  assert.equal(app.estimateKcal(0, 72), 0);
+});
+
+test('santé et musique : rien dans le navigateur, même activés', async () => {
+  reset();
+  run('data.healthOn = true; data.musicOn = true;');
+  assert.equal(run('healthEnabled() || musicEnabled()'), false);
+  assert.equal(run('renderWeightGroup() + renderMusicBar() + renderAppleServicesGroup(() => "")'), '');
+  sameJSON(await run('Native.health.bodyMass()'), []);
+});
+
+test('santé : séance envoyée avec ses dates et les calories du poids le plus récent', async () => {
+  reset();
+  const sent = [];
+  run('data.healthOn = true;');
+  // Faux pont natif : app iOS, Santé autorisée, pesée de 72 kg (Native est une constante : on
+  // remplace ses propriétés, puis on les remet)
+  ctx.__sent = sent;
+  run(`__orig = { isNative: Native.isNative, health: Native.health };
+       Native.isNative = true;
+       Native.health = { saveWorkout: async (w) => { __sent.push(w); return true; },
+                         bodyMass: async () => [{ date: 1700000000000, kg: 72 }] };
+       weightCache = { at: 0, samples: [] };`);
+  try {
+    await app.syncWorkoutToHealth({ date: 1_700_003_600_000, duration: 3_600_000 });
+    sameJSON(sent, [{ start: 1_700_000_000_000, end: 1_700_003_600_000, kcal: 360 }]);
+    run('data.healthOn = false;');
+    await app.syncWorkoutToHealth({ date: 1_700_003_600_000, duration: 3_600_000 });
+    assert.equal(sent.length, 1, 'désactivé : rien envoyé');
+  } finally {
+    run('Native.isNative = __orig.isNative; Native.health = __orig.health;');
+  }
+});
+
+test('données : healthOn et musicOn désactivés par défaut, conservés ensuite', () => {
+  const d = run('normalizeData(makeDefaultData())');
+  assert.equal(d.healthOn, false); assert.equal(d.musicOn, false);
+  const d2 = run('normalizeData(Object.assign(makeDefaultData(), { healthOn: true, musicOn: "oui" }))');
+  assert.equal(d2.healthOn, true); assert.equal(d2.musicOn, false);
 });
 
 // ── Exécution ───────────────────────────────────────────────

@@ -219,11 +219,11 @@ const SCREENS = new Map([
   ['dashboard',      { render: () => renderDashboard() }],
   ['programmes',     { render: () => renderProgrammes() }],
   ['session',        { render: () => activeSession ? renderSession() : renderDashboard(),
-                       mount: ({ first }) => { if (activeSession) afterSessionRender(first); }, // centre la série courante
+                       mount: ({ first }) => { if (activeSession) { afterSessionRender(first); mountMusicBar(); } }, // centre la série courante
                        enter: () => requestWakeLock(), leave: () => releaseWakeLock() }],
   ['editor',         { render: () => renderEditor() }],
   ['history',        { render: () => renderHistory() }],
-  ['stats',          { render: () => renderStats() }],
+  ['stats',          { render: () => renderStats(), mount: () => fillWeightGroup() }],
   ['settings',       { render: () => renderSettings(), mount: () => fillAppVersion() }],
   ['add-session',    { render: () => renderAddSession(), enter: ({ dir }) => addSessionEnter(dir), leave: () => addSessionLeave() }],
   ['summary',        { render: () => renderSummary() }],          // Entraînement › Bilan
