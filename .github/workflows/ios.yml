@@ -81,12 +81,15 @@ jobs:
           # Journal de l'app (console JavaScript relayée par Capacitor en Debug) : erreurs au démarrage
           xcrun simctl spawn "$DEVICE" log show --last 3m --style compact \
             --predicate 'process == "App"' > shots/journal-app.txt 2>&1 || true
-          grep -iE 'error|exception|⚡' shots/journal-app.txt | head -40 || true
-          # L'app doit encore tourner (pas de plantage au démarrage)
-          xcrun simctl spawn "$DEVICE" launchctl list | grep -q "$BUNDLE" && echo "L'app tourne"
+          grep -iE 'error|exception|⚡' shots/journal-app.txt > shots/erreurs.txt || true
+          head -40 shots/erreurs.txt
+          # L'app doit encore tourner (pas de plantage au démarrage). Liste écrite dans un fichier :
+          # avec pipefail, « launchctl list | grep -q » échoue au hasard (SIGPIPE, code 141)
+          xcrun simctl spawn "$DEVICE" launchctl list > shots/launchctl.txt
+          grep -q "$BUNDLE" shots/launchctl.txt && echo "L'app tourne"
 
       - uses: actions/upload-artifact@v4
-        if: ${{ !inputs.testflight }}
+        if: ${{ always() && !inputs.testflight }}
         with:
           name: captures-simulateur
           path: shots/
