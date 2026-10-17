@@ -38,6 +38,7 @@ Les fichiers de l'app iOS sont exclus de la publication Vercel (`.vercelignore`)
 | `Native.statusBar()` | `applyTheme()`, démarrage | Texte de la barre d'état adapté au thème |
 | `Native.backup()` / `boot()` | `save()`, démarrage | Copie `ppl_v2.json` dans les Documents de l'app (sauvegardés par iCloud) ; restaurée si le stockage web est vide, jamais écrasée avant |
 | `Native.hideSplash()` | démarrage | Écran de démarrage retiré après le premier rendu (filet à 4 s) |
+| `Native.shareImage(dataUrl, nom)` | `share.js` | Image de la séance écrite dans le cache de l'app (`@capacitor/filesystem`), puis feuille de partage d'iOS (`@capacitor/share` 8.0.3 : Instagram, Messages, Photos…). « Enregistrer l'image » demande l'accès Photos en ajout seul (`NSPhotoLibraryAddUsageDescription`) |
 
 L'autorisation des notifications est demandée au premier repos, au moment où elle a du sens.
 

@@ -58,16 +58,29 @@ async function exportData(theme) {
   const fname = `muscu-backup-${localISO()}.json`;
   const file  = typeof File === 'function' ? new File([json], fname, { type: 'application/json' }) : null;
   const done = () => { data.lastExport = Date.now(); save(true); return true; };
-  if (file && navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: 'Sauvegarde MDLF Training' }); return done(); }
-    catch (err) { if (err?.name === 'AbortError') return false; }
+  if (!file) { downloadText(json, fname); return done(); }
+  return (await shareOrDownload(file, 'Sauvegarde MDLF Training')) === 'cancelled' ? false : done();
+}
+
+// Feuille de partage du système si elle accepte le fichier, sinon téléchargement.
+// Web Share API (MDN, Navigator.share) : canShare({ files }) d'abord ; AbortError = feuille fermée.
+// Renvoie 'shared', 'cancelled' ou 'downloaded'.
+async function shareOrDownload(file, title) {
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], title }); return 'shared'; }
+    catch (err) { if (err?.name === 'AbortError') return 'cancelled'; }
   }
-  downloadText(json, fname);
-  return done();
+  downloadBlob(file, file.name);
+  return 'downloaded';
 }
 
 function downloadText(text, fname) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  downloadBlob(new Blob([text], { type: 'application/json' }), fname);
+}
+
+// Fichier remis au navigateur (téléchargement), quel que soit son type
+function downloadBlob(blob, fname) {
+  const url = URL.createObjectURL(blob);
   const a   = document.createElement('a');
   a.href = url; a.download = fname;
   document.body.appendChild(a); a.click(); a.remove();

@@ -1,0 +1,23 @@
+/* ═══════════════════════════════════════════════
+   Partage de séance : bouton et aperçu de l'image
+═══════════════════════════════════════════════ */
+.share-btn .icon { margin-top: -3px; }   /* la flèche du symbole est haute : centrage optique */
+.sum-share { margin-top: 16px; }
+.share-detail { margin-top: 32px; }
+
+/* Aperçu : l'image garde son format 9:16 et tient dans la feuille, de l'iPhone SE au Pro Max */
+.share-preview { display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); padding-top: var(--sp-2); }
+.share-preview__frame {
+  height: min(58vh, 560px); height: min(58dvh, 560px); aspect-ratio: 9 / 16; max-width: 100%;
+  border-radius: var(--r-lg); overflow: hidden;
+  background: var(--fill2); box-shadow: var(--shadow-float);
+}
+.share-preview__img { display: block; width: 100%; height: 100%; }
+.share-preview__send { max-width: 420px; }
+.share-preview__send .icon { margin-top: -3px; }
+.share-preview__hint { font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
+
+/* Paysage ou très petite hauteur : l'aperçu rétrécit, le bouton reste visible */
+@media (max-height: 500px) {
+  .share-preview__frame { height: 46vh; height: 46dvh; }
+}

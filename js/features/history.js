@@ -146,6 +146,7 @@ function renderHistoryDetail(id) {
             </div>`).join('')}
         </div>
         ${h.notes ? `<div class="group-title">Notes</div><div class="group group--pad"><p class="hnotes">${esc(h.notes)}</p></div>` : ''}
+        <div class="share-detail">${shareStoryButton(h.id)}</div>
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="delete-session" data-id="${esc(h.id)}">Supprimer la séance</button>
         </div>

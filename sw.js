@@ -2,10 +2,10 @@ const CACHE = 'ppl-v28';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
-  '/css/navigation.css', '/css/session.css', '/css/screens.css',
+  '/css/navigation.css', '/css/session.css', '/css/screens.css', '/css/share.css',
   '/js/platform/native.js',
   '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
-  '/js/data/programmes.js', '/js/data/store.js', '/js/data/accessors.js', '/js/data/active-session.js',
+  '/js/data/programmes.js', '/js/data/store.js', '/js/data/records.js', '/js/data/accessors.js', '/js/data/active-session.js',
   '/js/data/backup.js',
   '/js/ui/theme.js', '/js/ui/router.js', '/js/ui/navbar.js', '/js/ui/sheet.js',
   '/js/ui/forms.js', '/js/ui/edge-swipe.js',
@@ -14,6 +14,7 @@ const ASSETS = [
   '/js/features/session.js', '/js/features/rest.js', '/js/features/session-sheets.js', '/js/features/session-gestures.js',
   '/js/features/summary.js', '/js/features/add-session.js', '/js/features/settings.js', '/js/features/apple-services.js', '/js/features/progress.js',
   '/js/features/progress-chart.js', '/js/features/progress-overview.js', '/js/features/history.js',
+  '/js/features/share-stats.js', '/js/features/share-canvas.js', '/js/features/share.js',
 ];
 
 // Une version = un cache complet, téléchargé d'un bloc (cache HTTP contourné) :

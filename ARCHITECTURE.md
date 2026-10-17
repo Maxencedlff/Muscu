@@ -51,6 +51,7 @@ tests/                tests de non-régression Playwright (Python) et tests unit
 | `components.css` | Badges, bandeau de séance, dialogues iOS, saisie invalide, bannière de mise à jour, écran de secours |
 | `navigation.css` | Barre de navigation (avec ses plafonds Dynamic Type), tab bar, mini-barre de séance, accueil, feuilles modales, transitions, geste de retour |
 | `session.css` | Séance active, repos, bilan |
+| `share.css` | Partage de séance : bouton « Partager ma séance », aperçu de l'image au format 9:16 |
 | `screens.css` | Écrans à fond groupé (`.view--grouped` : Programme, Progrès, Historique, Réglages) et leur composant de liste groupée (`.group` / `.cell`, seul composant de liste), accessibilité, paysage, Dynamic Type |
 
 Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
@@ -69,6 +70,7 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 |---|---|
 | `programmes.js` | `PROGRAMMES` (programmes intégrés et exercices par défaut), `exerciseLibrary()` |
 | `store.js` | `makeExercise`, `calc1RM`, `setsVolume`, `sessionVolume`, `recomputePRFromHistory`, `lastPerf`, `resolveExId`, `makeDefaultData`, `sanitizeData` (clés de séance limitées à `SESSION_CAT_RE`), `normalizeData` (migrations), `loadData`, `save`, `latestSessionDate`, `syncTimersFromHistory`, `releaseTimer` ; **charge `data` au chargement** (ou passe en mode secours) |
+| `records.js` | Records : `recordLabel` (badge d'une série), `exerciseRecord` (record marquant d'un exercice), `historyBaseline` (records d'avant une séance de l'historique), `recordKey` |
 | `accessors.js` | `prog`, `getCooldown`, `isUserProg`, `userSessions`, `progMeta`, `sessionKeys`, `sessionMeta`, `rawLabel`, `catBadge`, `firstSession`, régularité, unités (`toUnitW`, `fmtW`, `storeW`, `fmtVolume`), `bestSet`, `setTxt` |
 | `active-session.js` | `activeSession`, `sessionNotes`, `writeSession(rest)` (écrit la séance et l'état du repos reçu), `restoreSession()` (renvoie `{ rest }` sans relancer le chrono), `computeBaseline`, `sessProg` |
 | `backup.js` | `importText` (tout vérifié sur une copie ; renvoie `{ ok, reason }` ou `{ ok, count, skipped, theme, previous }`), `undoImport`, `exportData(theme)` (renvoie `true` une fois le fichier remis), `downloadText` |
@@ -118,6 +120,9 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `progress-chart.js` | Progrès › Exercice : courbe sur canvas, sélection d'un point au doigt |
 | `progress-overview.js` | Progrès › Vue d'ensemble : calendrier du mois, séances par semaine |
 | `history.js` | Historique : recherche, filtre, mois chargés par paquets, détail, balayage pour supprimer avec « Annuler » |
+| `share-stats.js` | Partage de séance, logique pure : `shareStoryStats(entry)` (durée, volume, séries, records, 3 à 5 exercices clés), texte VoiceOver, nom du fichier |
+| `share-canvas.js` | Partage de séance, dessin : `drawStory` (story Instagram 1080 × 1920, Canvas 2D, zones sûres), couleurs des tokens, point d'accroche `shareStoryHooks.muscleSvg` pour la silhouette des muscles |
+| `share.js` | Partage de séance, écran : bouton du bilan et d'Historique › Séance, aperçu, partage (`Native.shareImage` dans l'app iOS, `navigator.share` ou téléchargement dans la PWA) |
 
 ### js/app/
 
@@ -258,8 +263,19 @@ Chromium Pixel 7 / Galaxy S8 / S9+) en thèmes clair et sombre, plus des tests u
 (service worker, contrôles statiques). Voir l'en-tête de `run_all.py` pour les options.
 
 `node tests/unit/run.mjs` lance les tests unitaires de la logique pure (formats, 1RM, nettoyage et
-migrations, import, délais de récupération, clés de séance, saisie, programmes perso) : les scripts de `js/core/` et `js/data/` sont chargés
+migrations, import, délais de récupération, clés de séance, saisie, programmes perso ; records et
+image partagée dans `tests/unit/share.mjs`) : les scripts de `js/core/` et `js/data/` sont chargés
 dans un contexte `vm` de Node, sans navigateur, en moins d'une seconde.
+
+### Partage de séance
+
+`tests/test_partage.py` (hors `run_all.py`, qui ne lance que les `test_lot*.py`) génère l'image depuis
+le bilan et depuis l'historique sur les 5 appareils, vérifie son format (PNG 1080 × 1920), l'aperçu
+et le partage, et l'écrit dans `$PPL_SCRATCH/shots/partage/` pour la regarder.
+
+La silhouette des muscles s'accroche par `shareStoryHooks.muscleSvg = (entry, stats, palette) => svg`
+(texte SVG ou `null`) : l'image passe alors à la mise en page « chiffres + silhouette ». Sans
+fournisseur, elle se dessine en ligne.
 
 ## Suite prévue : modules ES
 
