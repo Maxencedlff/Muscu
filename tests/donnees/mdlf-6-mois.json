@@ -1,0 +1,10151 @@
+{
+ "activeProgramme": "ppl",
+ "programmes": {
+  "ppl": {
+   "exercises": {
+    "push": [
+     {
+      "id": "p1dcouch",
+      "name": "Développé couché haltères",
+      "sets": 4,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": 120,
+      "repMax": 10
+     },
+     {
+      "id": "p2dincli",
+      "name": "Développé incliné haltères",
+      "sets": 3,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": null,
+      "repMax": 12
+     },
+     {
+      "id": "p3ecarte",
+      "name": "Écarté haltères plat",
+      "sets": 3,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": null,
+      "repMax": 15
+     },
+     {
+      "id": "p4milita",
+      "name": "Développé militaire haltères",
+      "sets": 4,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": 120,
+      "repMax": 10
+     },
+     {
+      "id": "p5elevat",
+      "name": "Élévations latérales",
+      "sets": 4,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": 120,
+      "repMax": 15
+     },
+     {
+      "id": "p6extric",
+      "name": "Extension triceps poulie",
+      "sets": 3,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": null,
+      "repMax": 12
+     }
+    ],
+    "pull": [
+     {
+      "id": "l1rowing",
+      "name": "Rowing haltère unilatéral",
+      "sets": 4,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": 120,
+      "repMax": 12
+     },
+     {
+      "id": "l2tirver",
+      "name": "Tirage vertical prise large",
+      "sets": 4,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": 120,
+      "repMax": 12
+     },
+     {
+      "id": "l3tirhor",
+      "name": "Tirage horizontal câble",
+      "sets": 3,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": null,
+      "repMax": 12
+     },
+     {
+      "id": "l4curlbi",
+      "name": "Curl biceps haltères",
+      "sets": 3,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": null,
+      "repMax": 12
+     },
+     {
+      "id": "l5curlma",
+      "name": "Curl marteau",
+      "sets": 3,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": null,
+      "repMax": 12
+     }
+    ],
+    "legs": [
+     {
+      "id": "g1squatb",
+      "name": "Squat barre",
+      "sets": 4,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": 120,
+      "repMax": 8
+     },
+     {
+      "id": "g2presse",
+      "name": "Presse à cuisses",
+      "sets": 4,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": 120,
+      "repMax": 12
+     },
+     {
+      "id": "g3fentes",
+      "name": "Fentes marchées haltères",
+      "sets": 3,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": null,
+      "repMax": 12
+     },
+     {
+      "id": "g4legcur",
+      "name": "Leg curl machine",
+      "sets": 3,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": null,
+      "repMax": 12
+     },
+     {
+      "id": "g5extqua",
+      "name": "Extension quadriceps",
+      "sets": 3,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": null,
+      "repMax": 15
+     },
+     {
+      "id": "g6mollet",
+      "name": "Mollets debout",
+      "sets": 4,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": 120,
+      "repMax": 20
+     }
+    ]
+   },
+   "timers": {
+    "push": 1792094514809,
+    "pull": 1791746115640,
+    "legs": 1791834074168
+   },
+   "cooldowns": {
+    "push": 72,
+    "pull": 72,
+    "legs": 72
+   }
+  },
+  "u_bras2026": {
+   "exercises": {
+    "u_bras2026": [
+     {
+      "id": "b1curlpu",
+      "name": "Curl pupitre",
+      "sets": 3,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": null,
+      "repMax": 12
+     },
+     {
+      "id": "b2barfro",
+      "name": "Barre au front",
+      "sets": 3,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": null,
+      "repMax": 12
+     },
+     {
+      "id": "b3oiseau",
+      "name": "Oiseau haltères",
+      "sets": 3,
+      "lastWeight": "",
+      "lastReps": "",
+      "pr": null,
+      "est1RM": null,
+      "target": null,
+      "rest": null,
+      "repMax": 15
+     }
+    ]
+   },
+   "timers": {
+    "u_bras2026": 1791492578867
+   },
+   "cooldowns": {
+    "u_bras2026": 96
+   }
+  }
+ },
+ "customSessions": {},
+ "userProgrammes": {
+  "u_bras2026": {
+   "name": "Bras & épaules",
+   "archived": false,
+   "sessions": {
+    "u_bras2026": {
+     "label": "Bras",
+     "icon": "💪",
+     "desc": "Biceps · Triceps · Épaules",
+     "color": "#AF52DE"
+    }
+   }
+  }
+ },
+ "defaultRest": 90,
+ "unit": "kg",
+ "soundOn": true,
+ "vibrateOn": true,
+ "healthOn": false,
+ "musicOn": false,
+ "bodyWeightKg": 74.5,
+ "history": [
+  {
+   "id": "h077",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1792094514809,
+   "duration": 3423684,
+   "notes": "Salle bondée, repos raccourcis",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "28",
+       "reps": "8"
+      },
+      {
+       "weight": "28",
+       "reps": "8"
+      },
+      {
+       "weight": "28",
+       "reps": "8"
+      },
+      {
+       "weight": "28",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "9"
+      },
+      {
+       "weight": "26",
+       "reps": "9"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "14"
+      },
+      {
+       "weight": "12",
+       "reps": "14"
+      },
+      {
+       "weight": "12",
+       "reps": "14"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "22",
+       "reps": "8"
+      },
+      {
+       "weight": "22",
+       "reps": "8"
+      },
+      {
+       "weight": "22",
+       "reps": "8"
+      },
+      {
+       "weight": "22",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "14"
+      },
+      {
+       "weight": "11",
+       "reps": "14"
+      },
+      {
+       "weight": "11",
+       "reps": "14"
+      },
+      {
+       "weight": "11",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "35",
+       "reps": "12"
+      },
+      {
+       "weight": "35",
+       "reps": "12"
+      },
+      {
+       "weight": "35",
+       "reps": "12"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h076",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1791834074168,
+   "duration": 3602301,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "72.5",
+       "reps": "8"
+      },
+      {
+       "weight": "72.5",
+       "reps": "8"
+      },
+      {
+       "weight": "72.5",
+       "reps": "8"
+      },
+      {
+       "weight": "72.5",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "145",
+       "reps": "9"
+      },
+      {
+       "weight": "145",
+       "reps": "9"
+      },
+      {
+       "weight": "145",
+       "reps": "9"
+      },
+      {
+       "weight": "145",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "11"
+      },
+      {
+       "weight": "24",
+       "reps": "11"
+      },
+      {
+       "weight": "24",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "45",
+       "reps": "10"
+      },
+      {
+       "weight": "45",
+       "reps": "10"
+      },
+      {
+       "weight": "45",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "45",
+       "reps": "15"
+      },
+      {
+       "weight": "45",
+       "reps": "15"
+      },
+      {
+       "weight": "45",
+       "reps": "14"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "19"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h075",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1791746115640,
+   "duration": 4071111,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "32",
+       "reps": "9"
+      },
+      {
+       "weight": "32",
+       "reps": "9"
+      },
+      {
+       "weight": "32",
+       "reps": "9"
+      },
+      {
+       "weight": "32",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "57.5",
+       "reps": "9"
+      },
+      {
+       "weight": "57.5",
+       "reps": "9"
+      },
+      {
+       "weight": "57.5",
+       "reps": "9"
+      },
+      {
+       "weight": "57.5",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "57.5",
+       "reps": "10"
+      },
+      {
+       "weight": "57.5",
+       "reps": "10"
+      },
+      {
+       "weight": "57.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "14",
+       "reps": "9"
+      },
+      {
+       "weight": "14",
+       "reps": "9"
+      },
+      {
+       "weight": "14",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "17",
+       "reps": "11"
+      },
+      {
+       "weight": "17",
+       "reps": "11"
+      },
+      {
+       "weight": "17",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "name": "Crunch câble",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "13"
+      },
+      {
+       "weight": "25",
+       "reps": "15"
+      },
+      {
+       "weight": "25",
+       "reps": "12"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h074",
+   "programme": "u_bras2026",
+   "category": "u_bras2026",
+   "date": 1791492578867,
+   "duration": 3188483,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "b1curlpu",
+     "name": "Curl pupitre",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "9"
+      },
+      {
+       "weight": "20",
+       "reps": "9"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "b2barfro",
+     "name": "Barre au front",
+     "sets": [
+      {
+       "weight": "22.5",
+       "reps": "9"
+      },
+      {
+       "weight": "22.5",
+       "reps": "9"
+      },
+      {
+       "weight": "22.5",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "b3oiseau",
+     "name": "Oiseau haltères",
+     "sets": [
+      {
+       "weight": "6",
+       "reps": "13"
+      },
+      {
+       "weight": "6",
+       "reps": "13"
+      },
+      {
+       "weight": "6",
+       "reps": "11"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h073",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1791400481733,
+   "duration": 4337816,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "28",
+       "reps": "8"
+      },
+      {
+       "weight": "28",
+       "reps": "8"
+      },
+      {
+       "weight": "28",
+       "reps": "8"
+      },
+      {
+       "weight": "28",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "13"
+      },
+      {
+       "weight": "12",
+       "reps": "13"
+      },
+      {
+       "weight": "12",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "22",
+       "reps": "7"
+      },
+      {
+       "weight": "22",
+       "reps": "7"
+      },
+      {
+       "weight": "22",
+       "reps": "7"
+      },
+      {
+       "weight": "22",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "14"
+      },
+      {
+       "weight": "11",
+       "reps": "14"
+      },
+      {
+       "weight": "11",
+       "reps": "14"
+      },
+      {
+       "weight": "11",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "35",
+       "reps": "11"
+      },
+      {
+       "weight": "35",
+       "reps": "11"
+      },
+      {
+       "weight": "35",
+       "reps": "10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h072",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1791230165349,
+   "duration": 3031456,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "72.5",
+       "reps": "7"
+      },
+      {
+       "weight": "72.5",
+       "reps": "7"
+      },
+      {
+       "weight": "72.5",
+       "reps": "7"
+      },
+      {
+       "weight": "72.5",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "145",
+       "reps": "8"
+      },
+      {
+       "weight": "145",
+       "reps": "8"
+      },
+      {
+       "weight": "145",
+       "reps": "8"
+      },
+      {
+       "weight": "145",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "10"
+      },
+      {
+       "weight": "24",
+       "reps": "10"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "42.5",
+       "reps": "12"
+      },
+      {
+       "weight": "42.5",
+       "reps": "12"
+      },
+      {
+       "weight": "42.5",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "45",
+       "reps": "14"
+      },
+      {
+       "weight": "45",
+       "reps": "14"
+      },
+      {
+       "weight": "45",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "19"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h071",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1791061289827,
+   "duration": 3010872,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "32",
+       "reps": "8"
+      },
+      {
+       "weight": "32",
+       "reps": "8"
+      },
+      {
+       "weight": "32",
+       "reps": "8"
+      },
+      {
+       "weight": "32",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "57.5",
+       "reps": "8"
+      },
+      {
+       "weight": "57.5",
+       "reps": "8"
+      },
+      {
+       "weight": "57.5",
+       "reps": "8"
+      },
+      {
+       "weight": "57.5",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "12"
+      },
+      {
+       "weight": "55",
+       "reps": "12"
+      },
+      {
+       "weight": "55",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "14",
+       "reps": "8"
+      },
+      {
+       "weight": "14",
+       "reps": "8"
+      },
+      {
+       "weight": "14",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "17",
+       "reps": "10"
+      },
+      {
+       "weight": "17",
+       "reps": "10"
+      },
+      {
+       "weight": "17",
+       "reps": "10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h070",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1790718177790,
+   "duration": 4447922,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "8"
+      },
+      {
+       "weight": "25",
+       "reps": "8"
+      },
+      {
+       "weight": "25",
+       "reps": "8"
+      },
+      {
+       "weight": "25",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "23.5",
+       "reps": "8"
+      },
+      {
+       "weight": "23.5",
+       "reps": "8"
+      },
+      {
+       "weight": "23.5",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "13"
+      },
+      {
+       "weight": "11",
+       "reps": "13"
+      },
+      {
+       "weight": "11",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "7"
+      },
+      {
+       "weight": "20",
+       "reps": "7"
+      },
+      {
+       "weight": "20",
+       "reps": "7"
+      },
+      {
+       "weight": "20",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "10",
+       "reps": "14"
+      },
+      {
+       "weight": "10",
+       "reps": "14"
+      },
+      {
+       "weight": "10",
+       "reps": "14"
+      },
+      {
+       "weight": "10",
+       "reps": "14"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "31.5",
+       "reps": "11"
+      },
+      {
+       "weight": "31.5",
+       "reps": "11"
+      },
+      {
+       "weight": "31.5",
+       "reps": "10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h069",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1790629440403,
+   "duration": 3194734,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "65",
+       "reps": "7"
+      },
+      {
+       "weight": "65",
+       "reps": "7"
+      },
+      {
+       "weight": "65",
+       "reps": "7"
+      },
+      {
+       "weight": "65",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "130.5",
+       "reps": "8"
+      },
+      {
+       "weight": "130.5",
+       "reps": "8"
+      },
+      {
+       "weight": "130.5",
+       "reps": "8"
+      },
+      {
+       "weight": "130.5",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "21.5",
+       "reps": "10"
+      },
+      {
+       "weight": "21.5",
+       "reps": "10"
+      },
+      {
+       "weight": "21.5",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "38",
+       "reps": "12"
+      },
+      {
+       "weight": "38",
+       "reps": "12"
+      },
+      {
+       "weight": "38",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "40.5",
+       "reps": "14"
+      },
+      {
+       "weight": "40.5",
+       "reps": "14"
+      },
+      {
+       "weight": "40.5",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h068",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1790449250357,
+   "duration": 3571380,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "29",
+       "reps": "8"
+      },
+      {
+       "weight": "29",
+       "reps": "8"
+      },
+      {
+       "weight": "29",
+       "reps": "8"
+      },
+      {
+       "weight": "29",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "52",
+       "reps": "8"
+      },
+      {
+       "weight": "52",
+       "reps": "8"
+      },
+      {
+       "weight": "52",
+       "reps": "8"
+      },
+      {
+       "weight": "52",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "49.5",
+       "reps": "12"
+      },
+      {
+       "weight": "49.5",
+       "reps": "12"
+      },
+      {
+       "weight": "49.5",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "12.5",
+       "reps": "8"
+      },
+      {
+       "weight": "12.5",
+       "reps": "8"
+      },
+      {
+       "weight": "12.5",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "15.5",
+       "reps": "10"
+      },
+      {
+       "weight": "15.5",
+       "reps": "10"
+      },
+      {
+       "weight": "15.5",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "name": "Dips",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "9"
+      },
+      {
+       "weight": "",
+       "reps": "10"
+      },
+      {
+       "weight": "",
+       "reps": "9"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h067",
+   "programme": "u_bras2026",
+   "category": "u_bras2026",
+   "date": 1790372322904,
+   "duration": 2925441,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "b1curlpu",
+     "name": "Curl pupitre",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "b2barfro",
+     "name": "Barre au front",
+     "sets": [
+      {
+       "weight": "22.5",
+       "reps": "8"
+      },
+      {
+       "weight": "22.5",
+       "reps": "8"
+      },
+      {
+       "weight": "22.5",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "b3oiseau",
+     "name": "Oiseau haltères",
+     "sets": [
+      {
+       "weight": "6",
+       "reps": "12"
+      },
+      {
+       "weight": "6",
+       "reps": "12"
+      },
+      {
+       "weight": "6",
+       "reps": "12"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h066",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1790200064214,
+   "duration": 3829454,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "28",
+       "reps": "7"
+      },
+      {
+       "weight": "28",
+       "reps": "7"
+      },
+      {
+       "weight": "28",
+       "reps": "7"
+      },
+      {
+       "weight": "28",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "12"
+      },
+      {
+       "weight": "24",
+       "reps": "12"
+      },
+      {
+       "weight": "24",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "13"
+      },
+      {
+       "weight": "12",
+       "reps": "13"
+      },
+      {
+       "weight": "12",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "22",
+       "reps": "6"
+      },
+      {
+       "weight": "22",
+       "reps": "6"
+      },
+      {
+       "weight": "22",
+       "reps": "6"
+      },
+      {
+       "weight": "22",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "14"
+      },
+      {
+       "weight": "11",
+       "reps": "14"
+      },
+      {
+       "weight": "11",
+       "reps": "14"
+      },
+      {
+       "weight": "11",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "35",
+       "reps": "10"
+      },
+      {
+       "weight": "35",
+       "reps": "10"
+      },
+      {
+       "weight": "35",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "name": "Dips",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "12"
+      },
+      {
+       "weight": "",
+       "reps": "9"
+      },
+      {
+       "weight": "",
+       "reps": "8"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h065",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1790104461720,
+   "duration": 4295380,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "72.5",
+       "reps": "6"
+      },
+      {
+       "weight": "72.5",
+       "reps": "6"
+      },
+      {
+       "weight": "72.5",
+       "reps": "6"
+      },
+      {
+       "weight": "72.5",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "140",
+       "reps": "12"
+      },
+      {
+       "weight": "140",
+       "reps": "12"
+      },
+      {
+       "weight": "140",
+       "reps": "12"
+      },
+      {
+       "weight": "140",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "22",
+       "reps": "12"
+      },
+      {
+       "weight": "22",
+       "reps": "12"
+      },
+      {
+       "weight": "22",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "42.5",
+       "reps": "11"
+      },
+      {
+       "weight": "42.5",
+       "reps": "11"
+      },
+      {
+       "weight": "42.5",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "45",
+       "reps": "13"
+      },
+      {
+       "weight": "45",
+       "reps": "13"
+      },
+      {
+       "weight": "45",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h064",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1789935324825,
+   "duration": 3542052,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "30",
+       "reps": "12"
+      },
+      {
+       "weight": "30",
+       "reps": "12"
+      },
+      {
+       "weight": "30",
+       "reps": "12"
+      },
+      {
+       "weight": "30",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "12"
+      },
+      {
+       "weight": "55",
+       "reps": "12"
+      },
+      {
+       "weight": "55",
+       "reps": "12"
+      },
+      {
+       "weight": "55",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "11"
+      },
+      {
+       "weight": "55",
+       "reps": "11"
+      },
+      {
+       "weight": "55",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "14",
+       "reps": "8"
+      },
+      {
+       "weight": "14",
+       "reps": "8"
+      },
+      {
+       "weight": "14",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "12"
+      },
+      {
+       "weight": "16",
+       "reps": "12"
+      },
+      {
+       "weight": "16",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "name": "Face pull",
+     "sets": [
+      {
+       "weight": "15",
+       "reps": "12"
+      },
+      {
+       "weight": "15",
+       "reps": "15"
+      },
+      {
+       "weight": "15",
+       "reps": "12"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h063",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1789673573583,
+   "duration": 4480941,
+   "notes": "Superbe pump",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "28",
+       "reps": "6"
+      },
+      {
+       "weight": "28",
+       "reps": "6"
+      },
+      {
+       "weight": "28",
+       "reps": "6"
+      },
+      {
+       "weight": "28",
+       "reps": "4"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "11"
+      },
+      {
+       "weight": "24",
+       "reps": "11"
+      },
+      {
+       "weight": "24",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "12"
+      },
+      {
+       "weight": "12",
+       "reps": "12"
+      },
+      {
+       "weight": "12",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "10"
+      },
+      {
+       "weight": "20",
+       "reps": "10"
+      },
+      {
+       "weight": "20",
+       "reps": "10"
+      },
+      {
+       "weight": "20",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "13"
+      },
+      {
+       "weight": "11",
+       "reps": "13"
+      },
+      {
+       "weight": "11",
+       "reps": "13"
+      },
+      {
+       "weight": "11",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "35",
+       "reps": "10"
+      },
+      {
+       "weight": "35",
+       "reps": "10"
+      },
+      {
+       "weight": "35",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "name": "Crunch câble",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "13"
+      },
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "12"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h062",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1789592909084,
+   "duration": 3019707,
+   "notes": "Échauffement plus long, genou raide",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "72.5",
+       "reps": "6"
+      },
+      {
+       "weight": "72.5",
+       "reps": "6"
+      },
+      {
+       "weight": "72.5",
+       "reps": "6"
+      },
+      {
+       "weight": "72.5",
+       "reps": "5"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "140",
+       "reps": "11"
+      },
+      {
+       "weight": "140",
+       "reps": "11"
+      },
+      {
+       "weight": "140",
+       "reps": "11"
+      },
+      {
+       "weight": "140",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "22",
+       "reps": "11"
+      },
+      {
+       "weight": "22",
+       "reps": "11"
+      },
+      {
+       "weight": "22",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "42.5",
+       "reps": "10"
+      },
+      {
+       "weight": "42.5",
+       "reps": "10"
+      },
+      {
+       "weight": "42.5",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "45",
+       "reps": "12"
+      },
+      {
+       "weight": "45",
+       "reps": "12"
+      },
+      {
+       "weight": "45",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h061",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1789247281259,
+   "duration": 3115921,
+   "notes": "Grosse forme aujourd'hui",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "30",
+       "reps": "11"
+      },
+      {
+       "weight": "30",
+       "reps": "11"
+      },
+      {
+       "weight": "30",
+       "reps": "11"
+      },
+      {
+       "weight": "30",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "11"
+      },
+      {
+       "weight": "55",
+       "reps": "11"
+      },
+      {
+       "weight": "55",
+       "reps": "11"
+      },
+      {
+       "weight": "55",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "10"
+      },
+      {
+       "weight": "55",
+       "reps": "10"
+      },
+      {
+       "weight": "55",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "13",
+       "reps": "12"
+      },
+      {
+       "weight": "13",
+       "reps": "12"
+      },
+      {
+       "weight": "13",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "11"
+      },
+      {
+       "weight": "16",
+       "reps": "11"
+      },
+      {
+       "weight": "16",
+       "reps": "11"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h060",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1789162198821,
+   "duration": 3898340,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "10"
+      },
+      {
+       "weight": "26",
+       "reps": "10"
+      },
+      {
+       "weight": "26",
+       "reps": "10"
+      },
+      {
+       "weight": "26",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "10"
+      },
+      {
+       "weight": "24",
+       "reps": "10"
+      },
+      {
+       "weight": "24",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "12"
+      },
+      {
+       "weight": "12",
+       "reps": "12"
+      },
+      {
+       "weight": "12",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "9"
+      },
+      {
+       "weight": "20",
+       "reps": "9"
+      },
+      {
+       "weight": "20",
+       "reps": "9"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "12"
+      },
+      {
+       "weight": "11",
+       "reps": "12"
+      },
+      {
+       "weight": "11",
+       "reps": "12"
+      },
+      {
+       "weight": "11",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "32.5",
+       "reps": "12"
+      },
+      {
+       "weight": "32.5",
+       "reps": "12"
+      },
+      {
+       "weight": "32.5",
+       "reps": "11"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h059",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1788812939083,
+   "duration": 4131656,
+   "notes": "Échauffement plus long, genou raide",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "72.5",
+       "reps": "5"
+      },
+      {
+       "weight": "72.5",
+       "reps": "5"
+      },
+      {
+       "weight": "72.5",
+       "reps": "5"
+      },
+      {
+       "weight": "72.5",
+       "reps": "5"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "140",
+       "reps": "11"
+      },
+      {
+       "weight": "140",
+       "reps": "11"
+      },
+      {
+       "weight": "140",
+       "reps": "11"
+      },
+      {
+       "weight": "140",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "22",
+       "reps": "10"
+      },
+      {
+       "weight": "22",
+       "reps": "10"
+      },
+      {
+       "weight": "22",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "42.5",
+       "reps": "10"
+      },
+      {
+       "weight": "42.5",
+       "reps": "10"
+      },
+      {
+       "weight": "42.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "45",
+       "reps": "11"
+      },
+      {
+       "weight": "45",
+       "reps": "11"
+      },
+      {
+       "weight": "45",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h058",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1788728710130,
+   "duration": 4212664,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "30",
+       "reps": "10"
+      },
+      {
+       "weight": "30",
+       "reps": "10"
+      },
+      {
+       "weight": "30",
+       "reps": "10"
+      },
+      {
+       "weight": "30",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "11"
+      },
+      {
+       "weight": "55",
+       "reps": "11"
+      },
+      {
+       "weight": "55",
+       "reps": "11"
+      },
+      {
+       "weight": "55",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "10"
+      },
+      {
+       "weight": "55",
+       "reps": "10"
+      },
+      {
+       "weight": "55",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "13",
+       "reps": "11"
+      },
+      {
+       "weight": "13",
+       "reps": "11"
+      },
+      {
+       "weight": "13",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "10"
+      },
+      {
+       "weight": "16",
+       "reps": "10"
+      },
+      {
+       "weight": "16",
+       "reps": "10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h057",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1788552902050,
+   "duration": 4324679,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "9"
+      },
+      {
+       "weight": "26",
+       "reps": "9"
+      },
+      {
+       "weight": "26",
+       "reps": "9"
+      },
+      {
+       "weight": "26",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "10"
+      },
+      {
+       "weight": "24",
+       "reps": "10"
+      },
+      {
+       "weight": "24",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "11"
+      },
+      {
+       "weight": "12",
+       "reps": "11"
+      },
+      {
+       "weight": "12",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "10",
+       "reps": "15"
+      },
+      {
+       "weight": "10",
+       "reps": "15"
+      },
+      {
+       "weight": "10",
+       "reps": "15"
+      },
+      {
+       "weight": "10",
+       "reps": "14"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "32.5",
+       "reps": "11"
+      },
+      {
+       "weight": "32.5",
+       "reps": "11"
+      },
+      {
+       "weight": "32.5",
+       "reps": "11"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h056",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1788467618727,
+   "duration": 4560028,
+   "notes": "Grosse forme aujourd'hui",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "70",
+       "reps": "8"
+      },
+      {
+       "weight": "70",
+       "reps": "8"
+      },
+      {
+       "weight": "70",
+       "reps": "8"
+      },
+      {
+       "weight": "70",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "140",
+       "reps": "10"
+      },
+      {
+       "weight": "140",
+       "reps": "10"
+      },
+      {
+       "weight": "140",
+       "reps": "10"
+      },
+      {
+       "weight": "140",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "22",
+       "reps": "10"
+      },
+      {
+       "weight": "22",
+       "reps": "10"
+      },
+      {
+       "weight": "22",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "40",
+       "reps": "12"
+      },
+      {
+       "weight": "40",
+       "reps": "12"
+      },
+      {
+       "weight": "40",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "45",
+       "reps": "11"
+      },
+      {
+       "weight": "45",
+       "reps": "11"
+      },
+      {
+       "weight": "45",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h055",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1786740982315,
+   "duration": 4109421,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "30",
+       "reps": "9"
+      },
+      {
+       "weight": "30",
+       "reps": "9"
+      },
+      {
+       "weight": "30",
+       "reps": "9"
+      },
+      {
+       "weight": "30",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "10"
+      },
+      {
+       "weight": "55",
+       "reps": "10"
+      },
+      {
+       "weight": "55",
+       "reps": "10"
+      },
+      {
+       "weight": "55",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "10"
+      },
+      {
+       "weight": "55",
+       "reps": "10"
+      },
+      {
+       "weight": "55",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "13",
+       "reps": "10"
+      },
+      {
+       "weight": "13",
+       "reps": "10"
+      },
+      {
+       "weight": "13",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "15",
+       "reps": "12"
+      },
+      {
+       "weight": "15",
+       "reps": "12"
+      },
+      {
+       "weight": "15",
+       "reps": "11"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h054",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1786657599269,
+   "duration": 3417555,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "10"
+      },
+      {
+       "weight": "12",
+       "reps": "10"
+      },
+      {
+       "weight": "12",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "10",
+       "reps": "14"
+      },
+      {
+       "weight": "10",
+       "reps": "14"
+      },
+      {
+       "weight": "10",
+       "reps": "14"
+      },
+      {
+       "weight": "10",
+       "reps": "14"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "32.5",
+       "reps": "10"
+      },
+      {
+       "weight": "32.5",
+       "reps": "10"
+      },
+      {
+       "weight": "32.5",
+       "reps": "10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h053",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1786476299777,
+   "duration": 4001779,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "70",
+       "reps": "7"
+      },
+      {
+       "weight": "70",
+       "reps": "7"
+      },
+      {
+       "weight": "70",
+       "reps": "7"
+      },
+      {
+       "weight": "70",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "140",
+       "reps": "9"
+      },
+      {
+       "weight": "140",
+       "reps": "9"
+      },
+      {
+       "weight": "140",
+       "reps": "9"
+      },
+      {
+       "weight": "140",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "12"
+      },
+      {
+       "weight": "20",
+       "reps": "12"
+      },
+      {
+       "weight": "20",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "40",
+       "reps": "11"
+      },
+      {
+       "weight": "40",
+       "reps": "11"
+      },
+      {
+       "weight": "40",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "45",
+       "reps": "10"
+      },
+      {
+       "weight": "45",
+       "reps": "10"
+      },
+      {
+       "weight": "45",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      }
+     ]
+    },
+    {
+     "name": "Face pull",
+     "sets": [
+      {
+       "weight": "15",
+       "reps": "15"
+      },
+      {
+       "weight": "15",
+       "reps": "12"
+      },
+      {
+       "weight": "15",
+       "reps": "13"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h052",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1786309871779,
+   "duration": 3918609,
+   "notes": "Nouveau record au squat !",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "30",
+       "reps": "9"
+      },
+      {
+       "weight": "30",
+       "reps": "9"
+      },
+      {
+       "weight": "30",
+       "reps": "9"
+      },
+      {
+       "weight": "30",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "10"
+      },
+      {
+       "weight": "55",
+       "reps": "10"
+      },
+      {
+       "weight": "55",
+       "reps": "10"
+      },
+      {
+       "weight": "55",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "52.5",
+       "reps": "12"
+      },
+      {
+       "weight": "52.5",
+       "reps": "12"
+      },
+      {
+       "weight": "52.5",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "13",
+       "reps": "9"
+      },
+      {
+       "weight": "13",
+       "reps": "9"
+      },
+      {
+       "weight": "13",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "15",
+       "reps": "11"
+      },
+      {
+       "weight": "15",
+       "reps": "11"
+      },
+      {
+       "weight": "15",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "name": "Face pull",
+     "sets": [
+      {
+       "weight": "15",
+       "reps": "12"
+      },
+      {
+       "weight": "15",
+       "reps": "12"
+      },
+      {
+       "weight": "15",
+       "reps": "14"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h051",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1786129321584,
+   "duration": 3971850,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "10"
+      },
+      {
+       "weight": "12",
+       "reps": "10"
+      },
+      {
+       "weight": "12",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "10",
+       "reps": "13"
+      },
+      {
+       "weight": "10",
+       "reps": "13"
+      },
+      {
+       "weight": "10",
+       "reps": "13"
+      },
+      {
+       "weight": "10",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "30",
+       "reps": "12"
+      },
+      {
+       "weight": "30",
+       "reps": "12"
+      },
+      {
+       "weight": "30",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "name": "Face pull",
+     "sets": [
+      {
+       "weight": "15",
+       "reps": "13"
+      },
+      {
+       "weight": "15",
+       "reps": "14"
+      },
+      {
+       "weight": "15",
+       "reps": "13"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h050",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1785960462958,
+   "duration": 3292887,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "70",
+       "reps": "7"
+      },
+      {
+       "weight": "70",
+       "reps": "7"
+      },
+      {
+       "weight": "70",
+       "reps": "7"
+      },
+      {
+       "weight": "70",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "140",
+       "reps": "8"
+      },
+      {
+       "weight": "140",
+       "reps": "8"
+      },
+      {
+       "weight": "140",
+       "reps": "8"
+      },
+      {
+       "weight": "140",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "11"
+      },
+      {
+       "weight": "20",
+       "reps": "11"
+      },
+      {
+       "weight": "20",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "40",
+       "reps": "10"
+      },
+      {
+       "weight": "40",
+       "reps": "10"
+      },
+      {
+       "weight": "40",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "42.5",
+       "reps": "15"
+      },
+      {
+       "weight": "42.5",
+       "reps": "15"
+      },
+      {
+       "weight": "42.5",
+       "reps": "15"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "19"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h049",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1785875974263,
+   "duration": 4307804,
+   "notes": "Bonne séance, focus sur la technique",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "30",
+       "reps": "9"
+      },
+      {
+       "weight": "30",
+       "reps": "9"
+      },
+      {
+       "weight": "30",
+       "reps": "9"
+      },
+      {
+       "weight": "30",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "9"
+      },
+      {
+       "weight": "55",
+       "reps": "9"
+      },
+      {
+       "weight": "55",
+       "reps": "9"
+      },
+      {
+       "weight": "55",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "52.5",
+       "reps": "11"
+      },
+      {
+       "weight": "52.5",
+       "reps": "11"
+      },
+      {
+       "weight": "52.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "13",
+       "reps": "9"
+      },
+      {
+       "weight": "13",
+       "reps": "9"
+      },
+      {
+       "weight": "13",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "15",
+       "reps": "10"
+      },
+      {
+       "weight": "15",
+       "reps": "10"
+      },
+      {
+       "weight": "15",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "name": "Dips",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "10"
+      },
+      {
+       "weight": "",
+       "reps": "12"
+      },
+      {
+       "weight": "",
+       "reps": "12"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h048",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1785529495274,
+   "duration": 4537985,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "15"
+      },
+      {
+       "weight": "11",
+       "reps": "15"
+      },
+      {
+       "weight": "11",
+       "reps": "15"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "10",
+       "reps": "12"
+      },
+      {
+       "weight": "10",
+       "reps": "12"
+      },
+      {
+       "weight": "10",
+       "reps": "12"
+      },
+      {
+       "weight": "10",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "30",
+       "reps": "11"
+      },
+      {
+       "weight": "30",
+       "reps": "11"
+      },
+      {
+       "weight": "30",
+       "reps": "11"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h047",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1785180987770,
+   "duration": 2941295,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "70",
+       "reps": "6"
+      },
+      {
+       "weight": "70",
+       "reps": "6"
+      },
+      {
+       "weight": "70",
+       "reps": "6"
+      },
+      {
+       "weight": "70",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "135",
+       "reps": "12"
+      },
+      {
+       "weight": "135",
+       "reps": "12"
+      },
+      {
+       "weight": "135",
+       "reps": "12"
+      },
+      {
+       "weight": "135",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "10"
+      },
+      {
+       "weight": "20",
+       "reps": "10"
+      },
+      {
+       "weight": "20",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "37.5",
+       "reps": "12"
+      },
+      {
+       "weight": "37.5",
+       "reps": "12"
+      },
+      {
+       "weight": "37.5",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "42.5",
+       "reps": "14"
+      },
+      {
+       "weight": "42.5",
+       "reps": "14"
+      },
+      {
+       "weight": "42.5",
+       "reps": "14"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h046",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1785096368870,
+   "duration": 3964513,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "30",
+       "reps": "8"
+      },
+      {
+       "weight": "30",
+       "reps": "8"
+      },
+      {
+       "weight": "30",
+       "reps": "8"
+      },
+      {
+       "weight": "30",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "9"
+      },
+      {
+       "weight": "55",
+       "reps": "9"
+      },
+      {
+       "weight": "55",
+       "reps": "9"
+      },
+      {
+       "weight": "55",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "52.5",
+       "reps": "10"
+      },
+      {
+       "weight": "52.5",
+       "reps": "10"
+      },
+      {
+       "weight": "52.5",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "13",
+       "reps": "8"
+      },
+      {
+       "weight": "13",
+       "reps": "8"
+      },
+      {
+       "weight": "13",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "14",
+       "reps": "12"
+      },
+      {
+       "weight": "14",
+       "reps": "12"
+      },
+      {
+       "weight": "14",
+       "reps": "11"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h045",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1785010378033,
+   "duration": 3115694,
+   "notes": "Superbe pump",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "14"
+      },
+      {
+       "weight": "11",
+       "reps": "14"
+      },
+      {
+       "weight": "11",
+       "reps": "14"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "7"
+      },
+      {
+       "weight": "20",
+       "reps": "7"
+      },
+      {
+       "weight": "20",
+       "reps": "7"
+      },
+      {
+       "weight": "20",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "9",
+       "reps": "15"
+      },
+      {
+       "weight": "9",
+       "reps": "15"
+      },
+      {
+       "weight": "9",
+       "reps": "15"
+      },
+      {
+       "weight": "9",
+       "reps": "15"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "30",
+       "reps": "11"
+      },
+      {
+       "weight": "30",
+       "reps": "11"
+      },
+      {
+       "weight": "30",
+       "reps": "11"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h044",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1784921635239,
+   "duration": 4466657,
+   "notes": "Nouveau record au squat !",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "70",
+       "reps": "6"
+      },
+      {
+       "weight": "70",
+       "reps": "6"
+      },
+      {
+       "weight": "70",
+       "reps": "6"
+      },
+      {
+       "weight": "70",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "135",
+       "reps": "11"
+      },
+      {
+       "weight": "135",
+       "reps": "11"
+      },
+      {
+       "weight": "135",
+       "reps": "11"
+      },
+      {
+       "weight": "135",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "10"
+      },
+      {
+       "weight": "20",
+       "reps": "10"
+      },
+      {
+       "weight": "20",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "37.5",
+       "reps": "11"
+      },
+      {
+       "weight": "37.5",
+       "reps": "11"
+      },
+      {
+       "weight": "37.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "42.5",
+       "reps": "13"
+      },
+      {
+       "weight": "42.5",
+       "reps": "13"
+      },
+      {
+       "weight": "42.5",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "19"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h043",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1784840064569,
+   "duration": 3535571,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "30",
+       "reps": "8"
+      },
+      {
+       "weight": "30",
+       "reps": "8"
+      },
+      {
+       "weight": "30",
+       "reps": "8"
+      },
+      {
+       "weight": "30",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "9"
+      },
+      {
+       "weight": "55",
+       "reps": "9"
+      },
+      {
+       "weight": "55",
+       "reps": "9"
+      },
+      {
+       "weight": "55",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "52.5",
+       "reps": "10"
+      },
+      {
+       "weight": "52.5",
+       "reps": "10"
+      },
+      {
+       "weight": "52.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "12"
+      },
+      {
+       "weight": "12",
+       "reps": "12"
+      },
+      {
+       "weight": "12",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "14",
+       "reps": "11"
+      },
+      {
+       "weight": "14",
+       "reps": "11"
+      },
+      {
+       "weight": "14",
+       "reps": "10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h042",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1784666457325,
+   "duration": 4385552,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "8"
+      },
+      {
+       "weight": "24",
+       "reps": "8"
+      },
+      {
+       "weight": "24",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "13"
+      },
+      {
+       "weight": "11",
+       "reps": "13"
+      },
+      {
+       "weight": "11",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "6"
+      },
+      {
+       "weight": "20",
+       "reps": "6"
+      },
+      {
+       "weight": "20",
+       "reps": "6"
+      },
+      {
+       "weight": "20",
+       "reps": "5"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "9",
+       "reps": "14"
+      },
+      {
+       "weight": "9",
+       "reps": "14"
+      },
+      {
+       "weight": "9",
+       "reps": "14"
+      },
+      {
+       "weight": "9",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "30",
+       "reps": "10"
+      },
+      {
+       "weight": "30",
+       "reps": "10"
+      },
+      {
+       "weight": "30",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "name": "Face pull",
+     "sets": [
+      {
+       "weight": "15",
+       "reps": "12"
+      },
+      {
+       "weight": "15",
+       "reps": "14"
+      },
+      {
+       "weight": "15",
+       "reps": "14"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h041",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1784576109873,
+   "duration": 4040171,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "70",
+       "reps": "5"
+      },
+      {
+       "weight": "70",
+       "reps": "5"
+      },
+      {
+       "weight": "70",
+       "reps": "5"
+      },
+      {
+       "weight": "70",
+       "reps": "5"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "135",
+       "reps": "10"
+      },
+      {
+       "weight": "135",
+       "reps": "10"
+      },
+      {
+       "weight": "135",
+       "reps": "10"
+      },
+      {
+       "weight": "135",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "18",
+       "reps": "12"
+      },
+      {
+       "weight": "18",
+       "reps": "12"
+      },
+      {
+       "weight": "18",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "37.5",
+       "reps": "11"
+      },
+      {
+       "weight": "37.5",
+       "reps": "11"
+      },
+      {
+       "weight": "37.5",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "42.5",
+       "reps": "12"
+      },
+      {
+       "weight": "42.5",
+       "reps": "12"
+      },
+      {
+       "weight": "42.5",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "18"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h040",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1784324372176,
+   "duration": 4377504,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "28",
+       "reps": "12"
+      },
+      {
+       "weight": "28",
+       "reps": "12"
+      },
+      {
+       "weight": "28",
+       "reps": "12"
+      },
+      {
+       "weight": "28",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "55",
+       "reps": "8"
+      },
+      {
+       "weight": "55",
+       "reps": "8"
+      },
+      {
+       "weight": "55",
+       "reps": "8"
+      },
+      {
+       "weight": "55",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "50",
+       "reps": "12"
+      },
+      {
+       "weight": "50",
+       "reps": "12"
+      },
+      {
+       "weight": "50",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "11"
+      },
+      {
+       "weight": "12",
+       "reps": "11"
+      },
+      {
+       "weight": "12",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "14",
+       "reps": "10"
+      },
+      {
+       "weight": "14",
+       "reps": "10"
+      },
+      {
+       "weight": "14",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "name": "Crunch câble",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "13"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h039",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1783974985611,
+   "duration": 3316776,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "22",
+       "reps": "12"
+      },
+      {
+       "weight": "22",
+       "reps": "12"
+      },
+      {
+       "weight": "22",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "12"
+      },
+      {
+       "weight": "11",
+       "reps": "12"
+      },
+      {
+       "weight": "11",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "18",
+       "reps": "10"
+      },
+      {
+       "weight": "18",
+       "reps": "10"
+      },
+      {
+       "weight": "18",
+       "reps": "10"
+      },
+      {
+       "weight": "18",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "9",
+       "reps": "13"
+      },
+      {
+       "weight": "9",
+       "reps": "13"
+      },
+      {
+       "weight": "9",
+       "reps": "13"
+      },
+      {
+       "weight": "9",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "27.5",
+       "reps": "12"
+      },
+      {
+       "weight": "27.5",
+       "reps": "12"
+      },
+      {
+       "weight": "27.5",
+       "reps": "12"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h038",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1783803876564,
+   "duration": 3520732,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "67.5",
+       "reps": "8"
+      },
+      {
+       "weight": "67.5",
+       "reps": "8"
+      },
+      {
+       "weight": "67.5",
+       "reps": "8"
+      },
+      {
+       "weight": "67.5",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "135",
+       "reps": "10"
+      },
+      {
+       "weight": "135",
+       "reps": "10"
+      },
+      {
+       "weight": "135",
+       "reps": "10"
+      },
+      {
+       "weight": "135",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "18",
+       "reps": "11"
+      },
+      {
+       "weight": "18",
+       "reps": "11"
+      },
+      {
+       "weight": "18",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "37.5",
+       "reps": "10"
+      },
+      {
+       "weight": "37.5",
+       "reps": "10"
+      },
+      {
+       "weight": "37.5",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "42.5",
+       "reps": "12"
+      },
+      {
+       "weight": "42.5",
+       "reps": "12"
+      },
+      {
+       "weight": "42.5",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h037",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1783539065591,
+   "duration": 3599694,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "49.5",
+       "reps": "8"
+      },
+      {
+       "weight": "49.5",
+       "reps": "8"
+      },
+      {
+       "weight": "49.5",
+       "reps": "8"
+      },
+      {
+       "weight": "49.5",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "45",
+       "reps": "12"
+      },
+      {
+       "weight": "45",
+       "reps": "12"
+      },
+      {
+       "weight": "45",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "11"
+      },
+      {
+       "weight": "11",
+       "reps": "11"
+      },
+      {
+       "weight": "11",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "12.5",
+       "reps": "10"
+      },
+      {
+       "weight": "12.5",
+       "reps": "10"
+      },
+      {
+       "weight": "12.5",
+       "reps": "9"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h036",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1783374135283,
+   "duration": 4356383,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "23.5",
+       "reps": "8"
+      },
+      {
+       "weight": "23.5",
+       "reps": "8"
+      },
+      {
+       "weight": "23.5",
+       "reps": "8"
+      },
+      {
+       "weight": "23.5",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "12"
+      },
+      {
+       "weight": "20",
+       "reps": "12"
+      },
+      {
+       "weight": "20",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "10",
+       "reps": "12"
+      },
+      {
+       "weight": "10",
+       "reps": "12"
+      },
+      {
+       "weight": "10",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "10"
+      },
+      {
+       "weight": "16",
+       "reps": "10"
+      },
+      {
+       "weight": "16",
+       "reps": "10"
+      },
+      {
+       "weight": "16",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "8",
+       "reps": "13"
+      },
+      {
+       "weight": "8",
+       "reps": "13"
+      },
+      {
+       "weight": "8",
+       "reps": "13"
+      },
+      {
+       "weight": "8",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "name": "Crunch câble",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "13"
+      },
+      {
+       "weight": "25",
+       "reps": "13"
+      },
+      {
+       "weight": "25",
+       "reps": "15"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h035",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1783278313163,
+   "duration": 3807879,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "61",
+       "reps": "8"
+      },
+      {
+       "weight": "61",
+       "reps": "8"
+      },
+      {
+       "weight": "61",
+       "reps": "8"
+      },
+      {
+       "weight": "61",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "121.5",
+       "reps": "10"
+      },
+      {
+       "weight": "121.5",
+       "reps": "10"
+      },
+      {
+       "weight": "121.5",
+       "reps": "10"
+      },
+      {
+       "weight": "121.5",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "11"
+      },
+      {
+       "weight": "16",
+       "reps": "11"
+      },
+      {
+       "weight": "16",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "34",
+       "reps": "10"
+      },
+      {
+       "weight": "34",
+       "reps": "10"
+      },
+      {
+       "weight": "34",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "38",
+       "reps": "12"
+      },
+      {
+       "weight": "38",
+       "reps": "12"
+      },
+      {
+       "weight": "38",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h034",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1783201294345,
+   "duration": 3824498,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "49.5",
+       "reps": "8"
+      },
+      {
+       "weight": "49.5",
+       "reps": "8"
+      },
+      {
+       "weight": "49.5",
+       "reps": "8"
+      },
+      {
+       "weight": "49.5",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "45",
+       "reps": "12"
+      },
+      {
+       "weight": "45",
+       "reps": "12"
+      },
+      {
+       "weight": "45",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "11"
+      },
+      {
+       "weight": "11",
+       "reps": "11"
+      },
+      {
+       "weight": "11",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "12.5",
+       "reps": "10"
+      },
+      {
+       "weight": "12.5",
+       "reps": "10"
+      },
+      {
+       "weight": "12.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "name": "Dips",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "8"
+      },
+      {
+       "weight": "",
+       "reps": "10"
+      },
+      {
+       "weight": "",
+       "reps": "9"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h033",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1783114283839,
+   "duration": 3818429,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "7"
+      },
+      {
+       "weight": "26",
+       "reps": "7"
+      },
+      {
+       "weight": "26",
+       "reps": "7"
+      },
+      {
+       "weight": "26",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "22",
+       "reps": "11"
+      },
+      {
+       "weight": "22",
+       "reps": "11"
+      },
+      {
+       "weight": "22",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "12"
+      },
+      {
+       "weight": "11",
+       "reps": "12"
+      },
+      {
+       "weight": "11",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "18",
+       "reps": "9"
+      },
+      {
+       "weight": "18",
+       "reps": "9"
+      },
+      {
+       "weight": "18",
+       "reps": "9"
+      },
+      {
+       "weight": "18",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "9",
+       "reps": "12"
+      },
+      {
+       "weight": "9",
+       "reps": "12"
+      },
+      {
+       "weight": "9",
+       "reps": "12"
+      },
+      {
+       "weight": "9",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "27.5",
+       "reps": "11"
+      },
+      {
+       "weight": "27.5",
+       "reps": "11"
+      },
+      {
+       "weight": "27.5",
+       "reps": "10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h032",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1782938771066,
+   "duration": 3727405,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "67.5",
+       "reps": "7"
+      },
+      {
+       "weight": "67.5",
+       "reps": "7"
+      },
+      {
+       "weight": "67.5",
+       "reps": "7"
+      },
+      {
+       "weight": "67.5",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "135",
+       "reps": "9"
+      },
+      {
+       "weight": "135",
+       "reps": "9"
+      },
+      {
+       "weight": "135",
+       "reps": "9"
+      },
+      {
+       "weight": "135",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "18",
+       "reps": "10"
+      },
+      {
+       "weight": "18",
+       "reps": "10"
+      },
+      {
+       "weight": "18",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "37.5",
+       "reps": "10"
+      },
+      {
+       "weight": "37.5",
+       "reps": "10"
+      },
+      {
+       "weight": "37.5",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "42.5",
+       "reps": "11"
+      },
+      {
+       "weight": "42.5",
+       "reps": "11"
+      },
+      {
+       "weight": "42.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h031",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1782852236859,
+   "duration": 3895880,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "28",
+       "reps": "11"
+      },
+      {
+       "weight": "28",
+       "reps": "11"
+      },
+      {
+       "weight": "28",
+       "reps": "11"
+      },
+      {
+       "weight": "28",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "52.5",
+       "reps": "12"
+      },
+      {
+       "weight": "52.5",
+       "reps": "12"
+      },
+      {
+       "weight": "52.5",
+       "reps": "12"
+      },
+      {
+       "weight": "52.5",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "50",
+       "reps": "11"
+      },
+      {
+       "weight": "50",
+       "reps": "11"
+      },
+      {
+       "weight": "50",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "11"
+      },
+      {
+       "weight": "12",
+       "reps": "11"
+      },
+      {
+       "weight": "12",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "13",
+       "reps": "12"
+      },
+      {
+       "weight": "13",
+       "reps": "12"
+      },
+      {
+       "weight": "13",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "name": "Dips",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "8"
+      },
+      {
+       "weight": "",
+       "reps": "12"
+      },
+      {
+       "weight": "",
+       "reps": "11"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h030",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1781816581768,
+   "duration": 3758708,
+   "notes": "Salle bondée, repos raccourcis",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "7"
+      },
+      {
+       "weight": "26",
+       "reps": "7"
+      },
+      {
+       "weight": "26",
+       "reps": "7"
+      },
+      {
+       "weight": "26",
+       "reps": "5"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "22",
+       "reps": "10"
+      },
+      {
+       "weight": "22",
+       "reps": "10"
+      },
+      {
+       "weight": "22",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "12"
+      },
+      {
+       "weight": "11",
+       "reps": "12"
+      },
+      {
+       "weight": "11",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "18",
+       "reps": "9"
+      },
+      {
+       "weight": "18",
+       "reps": "9"
+      },
+      {
+       "weight": "18",
+       "reps": "9"
+      },
+      {
+       "weight": "18",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "8",
+       "reps": "15"
+      },
+      {
+       "weight": "8",
+       "reps": "15"
+      },
+      {
+       "weight": "8",
+       "reps": "15"
+      },
+      {
+       "weight": "8",
+       "reps": "15"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "27.5",
+       "reps": "10"
+      },
+      {
+       "weight": "27.5",
+       "reps": "10"
+      },
+      {
+       "weight": "27.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "name": "Crunch câble",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "15"
+      },
+      {
+       "weight": "25",
+       "reps": "14"
+      },
+      {
+       "weight": "25",
+       "reps": "14"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h029",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1781731017707,
+   "duration": 3045174,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "67.5",
+       "reps": "7"
+      },
+      {
+       "weight": "67.5",
+       "reps": "7"
+      },
+      {
+       "weight": "67.5",
+       "reps": "7"
+      },
+      {
+       "weight": "67.5",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "135",
+       "reps": "9"
+      },
+      {
+       "weight": "135",
+       "reps": "9"
+      },
+      {
+       "weight": "135",
+       "reps": "9"
+      },
+      {
+       "weight": "135",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "18",
+       "reps": "10"
+      },
+      {
+       "weight": "18",
+       "reps": "10"
+      },
+      {
+       "weight": "18",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "35",
+       "reps": "12"
+      },
+      {
+       "weight": "35",
+       "reps": "12"
+      },
+      {
+       "weight": "35",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "42.5",
+       "reps": "11"
+      },
+      {
+       "weight": "42.5",
+       "reps": "11"
+      },
+      {
+       "weight": "42.5",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h028",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1781636113304,
+   "duration": 3174858,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "28",
+       "reps": "10"
+      },
+      {
+       "weight": "28",
+       "reps": "10"
+      },
+      {
+       "weight": "28",
+       "reps": "10"
+      },
+      {
+       "weight": "28",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "52.5",
+       "reps": "11"
+      },
+      {
+       "weight": "52.5",
+       "reps": "11"
+      },
+      {
+       "weight": "52.5",
+       "reps": "11"
+      },
+      {
+       "weight": "52.5",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "50",
+       "reps": "10"
+      },
+      {
+       "weight": "50",
+       "reps": "10"
+      },
+      {
+       "weight": "50",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "10"
+      },
+      {
+       "weight": "12",
+       "reps": "10"
+      },
+      {
+       "weight": "12",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "13",
+       "reps": "11"
+      },
+      {
+       "weight": "13",
+       "reps": "11"
+      },
+      {
+       "weight": "13",
+       "reps": "11"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h027",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1781464641522,
+   "duration": 3761536,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "7"
+      },
+      {
+       "weight": "26",
+       "reps": "7"
+      },
+      {
+       "weight": "26",
+       "reps": "7"
+      },
+      {
+       "weight": "26",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "22",
+       "reps": "9"
+      },
+      {
+       "weight": "22",
+       "reps": "9"
+      },
+      {
+       "weight": "22",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "11"
+      },
+      {
+       "weight": "11",
+       "reps": "11"
+      },
+      {
+       "weight": "11",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "18",
+       "reps": "8"
+      },
+      {
+       "weight": "18",
+       "reps": "8"
+      },
+      {
+       "weight": "18",
+       "reps": "8"
+      },
+      {
+       "weight": "18",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "8",
+       "reps": "14"
+      },
+      {
+       "weight": "8",
+       "reps": "14"
+      },
+      {
+       "weight": "8",
+       "reps": "14"
+      },
+      {
+       "weight": "8",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "name": "Dips",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "9"
+      },
+      {
+       "weight": "",
+       "reps": "11"
+      },
+      {
+       "weight": "",
+       "reps": "12"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h026",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1781123834970,
+   "duration": 3885997,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "67.5",
+       "reps": "6"
+      },
+      {
+       "weight": "67.5",
+       "reps": "6"
+      },
+      {
+       "weight": "67.5",
+       "reps": "6"
+      },
+      {
+       "weight": "67.5",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "135",
+       "reps": "9"
+      },
+      {
+       "weight": "135",
+       "reps": "9"
+      },
+      {
+       "weight": "135",
+       "reps": "9"
+      },
+      {
+       "weight": "135",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "18",
+       "reps": "10"
+      },
+      {
+       "weight": "18",
+       "reps": "10"
+      },
+      {
+       "weight": "18",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "35",
+       "reps": "11"
+      },
+      {
+       "weight": "35",
+       "reps": "11"
+      },
+      {
+       "weight": "35",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "42.5",
+       "reps": "10"
+      },
+      {
+       "weight": "42.5",
+       "reps": "10"
+      },
+      {
+       "weight": "42.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "20"
+      },
+      {
+       "weight": "",
+       "reps": "19"
+      }
+     ]
+    },
+    {
+     "name": "Dips",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "10"
+      },
+      {
+       "weight": "",
+       "reps": "11"
+      },
+      {
+       "weight": "",
+       "reps": "9"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h025",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1780948554824,
+   "duration": 4415489,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "28",
+       "reps": "9"
+      },
+      {
+       "weight": "28",
+       "reps": "9"
+      },
+      {
+       "weight": "28",
+       "reps": "9"
+      },
+      {
+       "weight": "28",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "52.5",
+       "reps": "10"
+      },
+      {
+       "weight": "52.5",
+       "reps": "10"
+      },
+      {
+       "weight": "52.5",
+       "reps": "10"
+      },
+      {
+       "weight": "52.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "50",
+       "reps": "10"
+      },
+      {
+       "weight": "50",
+       "reps": "10"
+      },
+      {
+       "weight": "50",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "9"
+      },
+      {
+       "weight": "12",
+       "reps": "9"
+      },
+      {
+       "weight": "12",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "13",
+       "reps": "11"
+      },
+      {
+       "weight": "13",
+       "reps": "11"
+      },
+      {
+       "weight": "13",
+       "reps": "11"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h024",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1780776304021,
+   "duration": 3119821,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "6"
+      },
+      {
+       "weight": "26",
+       "reps": "6"
+      },
+      {
+       "weight": "26",
+       "reps": "6"
+      },
+      {
+       "weight": "26",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "22",
+       "reps": "8"
+      },
+      {
+       "weight": "22",
+       "reps": "8"
+      },
+      {
+       "weight": "22",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "10"
+      },
+      {
+       "weight": "11",
+       "reps": "10"
+      },
+      {
+       "weight": "11",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "18",
+       "reps": "7"
+      },
+      {
+       "weight": "18",
+       "reps": "7"
+      },
+      {
+       "weight": "18",
+       "reps": "7"
+      },
+      {
+       "weight": "18",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "8",
+       "reps": "13"
+      },
+      {
+       "weight": "8",
+       "reps": "13"
+      },
+      {
+       "weight": "8",
+       "reps": "13"
+      },
+      {
+       "weight": "8",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "11"
+      },
+      {
+       "weight": "25",
+       "reps": "11"
+      },
+      {
+       "weight": "25",
+       "reps": "11"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h023",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1780608603195,
+   "duration": 3274927,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "67.5",
+       "reps": "5"
+      },
+      {
+       "weight": "67.5",
+       "reps": "5"
+      },
+      {
+       "weight": "67.5",
+       "reps": "5"
+      },
+      {
+       "weight": "67.5",
+       "reps": "3"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "135",
+       "reps": "8"
+      },
+      {
+       "weight": "135",
+       "reps": "8"
+      },
+      {
+       "weight": "135",
+       "reps": "8"
+      },
+      {
+       "weight": "135",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "12"
+      },
+      {
+       "weight": "16",
+       "reps": "12"
+      },
+      {
+       "weight": "16",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "35",
+       "reps": "10"
+      },
+      {
+       "weight": "35",
+       "reps": "10"
+      },
+      {
+       "weight": "35",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "40",
+       "reps": "15"
+      },
+      {
+       "weight": "40",
+       "reps": "15"
+      },
+      {
+       "weight": "40",
+       "reps": "14"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "19"
+      },
+      {
+       "weight": "",
+       "reps": "19"
+      },
+      {
+       "weight": "",
+       "reps": "19"
+      },
+      {
+       "weight": "",
+       "reps": "18"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h022",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1780436012251,
+   "duration": 4280762,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "28",
+       "reps": "8"
+      },
+      {
+       "weight": "28",
+       "reps": "8"
+      },
+      {
+       "weight": "28",
+       "reps": "8"
+      },
+      {
+       "weight": "28",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "52.5",
+       "reps": "9"
+      },
+      {
+       "weight": "52.5",
+       "reps": "9"
+      },
+      {
+       "weight": "52.5",
+       "reps": "9"
+      },
+      {
+       "weight": "52.5",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "47.5",
+       "reps": "12"
+      },
+      {
+       "weight": "47.5",
+       "reps": "12"
+      },
+      {
+       "weight": "47.5",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "8"
+      },
+      {
+       "weight": "12",
+       "reps": "8"
+      },
+      {
+       "weight": "12",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "13",
+       "reps": "10"
+      },
+      {
+       "weight": "13",
+       "reps": "10"
+      },
+      {
+       "weight": "13",
+       "reps": "9"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h021",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1780348824977,
+   "duration": 4102514,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "10"
+      },
+      {
+       "weight": "24",
+       "reps": "10"
+      },
+      {
+       "weight": "24",
+       "reps": "10"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "12"
+      },
+      {
+       "weight": "20",
+       "reps": "12"
+      },
+      {
+       "weight": "20",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "10",
+       "reps": "15"
+      },
+      {
+       "weight": "10",
+       "reps": "15"
+      },
+      {
+       "weight": "10",
+       "reps": "15"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "18",
+       "reps": "6"
+      },
+      {
+       "weight": "18",
+       "reps": "6"
+      },
+      {
+       "weight": "18",
+       "reps": "6"
+      },
+      {
+       "weight": "18",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "8",
+       "reps": "12"
+      },
+      {
+       "weight": "8",
+       "reps": "12"
+      },
+      {
+       "weight": "8",
+       "reps": "12"
+      },
+      {
+       "weight": "8",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "10"
+      },
+      {
+       "weight": "25",
+       "reps": "10"
+      },
+      {
+       "weight": "25",
+       "reps": "9"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h020",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1779913865021,
+   "duration": 3263175,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "61",
+       "reps": "5"
+      },
+      {
+       "weight": "61",
+       "reps": "5"
+      },
+      {
+       "weight": "61",
+       "reps": "5"
+      },
+      {
+       "weight": "61",
+       "reps": "4"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "121.5",
+       "reps": "8"
+      },
+      {
+       "weight": "121.5",
+       "reps": "8"
+      },
+      {
+       "weight": "121.5",
+       "reps": "8"
+      },
+      {
+       "weight": "121.5",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "14.5",
+       "reps": "12"
+      },
+      {
+       "weight": "14.5",
+       "reps": "12"
+      },
+      {
+       "weight": "14.5",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "31.5",
+       "reps": "10"
+      },
+      {
+       "weight": "31.5",
+       "reps": "10"
+      },
+      {
+       "weight": "31.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "36",
+       "reps": "15"
+      },
+      {
+       "weight": "36",
+       "reps": "15"
+      },
+      {
+       "weight": "36",
+       "reps": "15"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "19"
+      },
+      {
+       "weight": "",
+       "reps": "19"
+      },
+      {
+       "weight": "",
+       "reps": "19"
+      },
+      {
+       "weight": "",
+       "reps": "18"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h019",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1779655593492,
+   "duration": 3183014,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "8"
+      },
+      {
+       "weight": "25",
+       "reps": "8"
+      },
+      {
+       "weight": "25",
+       "reps": "8"
+      },
+      {
+       "weight": "25",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "47",
+       "reps": "9"
+      },
+      {
+       "weight": "47",
+       "reps": "9"
+      },
+      {
+       "weight": "47",
+       "reps": "9"
+      },
+      {
+       "weight": "47",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "43",
+       "reps": "12"
+      },
+      {
+       "weight": "43",
+       "reps": "12"
+      },
+      {
+       "weight": "43",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "8"
+      },
+      {
+       "weight": "11",
+       "reps": "8"
+      },
+      {
+       "weight": "11",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "11.5",
+       "reps": "10"
+      },
+      {
+       "weight": "11.5",
+       "reps": "10"
+      },
+      {
+       "weight": "11.5",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "name": "Face pull",
+     "sets": [
+      {
+       "weight": "15",
+       "reps": "14"
+      },
+      {
+       "weight": "15",
+       "reps": "14"
+      },
+      {
+       "weight": "15",
+       "reps": "13"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h018",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1779565598459,
+   "duration": 3566157,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "21.5",
+       "reps": "10"
+      },
+      {
+       "weight": "21.5",
+       "reps": "10"
+      },
+      {
+       "weight": "21.5",
+       "reps": "10"
+      },
+      {
+       "weight": "21.5",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "18",
+       "reps": "12"
+      },
+      {
+       "weight": "18",
+       "reps": "12"
+      },
+      {
+       "weight": "18",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "9",
+       "reps": "15"
+      },
+      {
+       "weight": "9",
+       "reps": "15"
+      },
+      {
+       "weight": "9",
+       "reps": "15"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "6"
+      },
+      {
+       "weight": "16",
+       "reps": "6"
+      },
+      {
+       "weight": "16",
+       "reps": "6"
+      },
+      {
+       "weight": "16",
+       "reps": "5"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "7",
+       "reps": "12"
+      },
+      {
+       "weight": "7",
+       "reps": "12"
+      },
+      {
+       "weight": "7",
+       "reps": "12"
+      },
+      {
+       "weight": "7",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "22.5",
+       "reps": "10"
+      },
+      {
+       "weight": "22.5",
+       "reps": "10"
+      },
+      {
+       "weight": "22.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "name": "Face pull",
+     "sets": [
+      {
+       "weight": "15",
+       "reps": "15"
+      },
+      {
+       "weight": "15",
+       "reps": "12"
+      },
+      {
+       "weight": "15",
+       "reps": "12"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h017",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1779310911820,
+   "duration": 4503829,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "65",
+       "reps": "8"
+      },
+      {
+       "weight": "65",
+       "reps": "8"
+      },
+      {
+       "weight": "65",
+       "reps": "8"
+      },
+      {
+       "weight": "65",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "130",
+       "reps": "12"
+      },
+      {
+       "weight": "130",
+       "reps": "12"
+      },
+      {
+       "weight": "130",
+       "reps": "12"
+      },
+      {
+       "weight": "130",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "11"
+      },
+      {
+       "weight": "16",
+       "reps": "11"
+      },
+      {
+       "weight": "16",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "35",
+       "reps": "10"
+      },
+      {
+       "weight": "35",
+       "reps": "10"
+      },
+      {
+       "weight": "35",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "40",
+       "reps": "14"
+      },
+      {
+       "weight": "40",
+       "reps": "14"
+      },
+      {
+       "weight": "40",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "18"
+      },
+      {
+       "weight": "",
+       "reps": "18"
+      },
+      {
+       "weight": "",
+       "reps": "18"
+      },
+      {
+       "weight": "",
+       "reps": "18"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h016",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1779136104624,
+   "duration": 4617289,
+   "notes": "Salle bondée, repos raccourcis",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "12"
+      },
+      {
+       "weight": "26",
+       "reps": "12"
+      },
+      {
+       "weight": "26",
+       "reps": "12"
+      },
+      {
+       "weight": "26",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "52.5",
+       "reps": "8"
+      },
+      {
+       "weight": "52.5",
+       "reps": "8"
+      },
+      {
+       "weight": "52.5",
+       "reps": "8"
+      },
+      {
+       "weight": "52.5",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "47.5",
+       "reps": "11"
+      },
+      {
+       "weight": "47.5",
+       "reps": "11"
+      },
+      {
+       "weight": "47.5",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "12"
+      },
+      {
+       "weight": "11",
+       "reps": "12"
+      },
+      {
+       "weight": "11",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "13",
+       "reps": "10"
+      },
+      {
+       "weight": "13",
+       "reps": "10"
+      },
+      {
+       "weight": "13",
+       "reps": "10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h015",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1779052753764,
+   "duration": 4030409,
+   "notes": "Bonne séance, focus sur la technique",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "11"
+      },
+      {
+       "weight": "20",
+       "reps": "11"
+      },
+      {
+       "weight": "20",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "10",
+       "reps": "14"
+      },
+      {
+       "weight": "10",
+       "reps": "14"
+      },
+      {
+       "weight": "10",
+       "reps": "14"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "10"
+      },
+      {
+       "weight": "16",
+       "reps": "10"
+      },
+      {
+       "weight": "16",
+       "reps": "10"
+      },
+      {
+       "weight": "16",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "7",
+       "reps": "15"
+      },
+      {
+       "weight": "7",
+       "reps": "15"
+      },
+      {
+       "weight": "7",
+       "reps": "15"
+      },
+      {
+       "weight": "7",
+       "reps": "15"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "10"
+      },
+      {
+       "weight": "25",
+       "reps": "10"
+      },
+      {
+       "weight": "25",
+       "reps": "10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h014",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1778875513101,
+   "duration": 3151524,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "65",
+       "reps": "7"
+      },
+      {
+       "weight": "65",
+       "reps": "7"
+      },
+      {
+       "weight": "65",
+       "reps": "7"
+      },
+      {
+       "weight": "65",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "130",
+       "reps": "11"
+      },
+      {
+       "weight": "130",
+       "reps": "11"
+      },
+      {
+       "weight": "130",
+       "reps": "11"
+      },
+      {
+       "weight": "130",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "11"
+      },
+      {
+       "weight": "16",
+       "reps": "11"
+      },
+      {
+       "weight": "16",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "35",
+       "reps": "10"
+      },
+      {
+       "weight": "35",
+       "reps": "10"
+      },
+      {
+       "weight": "35",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "40",
+       "reps": "13"
+      },
+      {
+       "weight": "40",
+       "reps": "13"
+      },
+      {
+       "weight": "40",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "17"
+      },
+      {
+       "weight": "",
+       "reps": "17"
+      },
+      {
+       "weight": "",
+       "reps": "17"
+      },
+      {
+       "weight": "",
+       "reps": "15"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h013",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1778787864204,
+   "duration": 2909872,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "11"
+      },
+      {
+       "weight": "26",
+       "reps": "11"
+      },
+      {
+       "weight": "26",
+       "reps": "11"
+      },
+      {
+       "weight": "26",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "50",
+       "reps": "12"
+      },
+      {
+       "weight": "50",
+       "reps": "12"
+      },
+      {
+       "weight": "50",
+       "reps": "12"
+      },
+      {
+       "weight": "50",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "47.5",
+       "reps": "10"
+      },
+      {
+       "weight": "47.5",
+       "reps": "10"
+      },
+      {
+       "weight": "47.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "11"
+      },
+      {
+       "weight": "11",
+       "reps": "11"
+      },
+      {
+       "weight": "11",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "13",
+       "reps": "10"
+      },
+      {
+       "weight": "13",
+       "reps": "10"
+      },
+      {
+       "weight": "13",
+       "reps": "10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h012",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1778447821608,
+   "duration": 3954514,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "9"
+      },
+      {
+       "weight": "24",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "11"
+      },
+      {
+       "weight": "20",
+       "reps": "11"
+      },
+      {
+       "weight": "20",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "10",
+       "reps": "13"
+      },
+      {
+       "weight": "10",
+       "reps": "13"
+      },
+      {
+       "weight": "10",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "9"
+      },
+      {
+       "weight": "16",
+       "reps": "9"
+      },
+      {
+       "weight": "16",
+       "reps": "9"
+      },
+      {
+       "weight": "16",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "7",
+       "reps": "14"
+      },
+      {
+       "weight": "7",
+       "reps": "14"
+      },
+      {
+       "weight": "7",
+       "reps": "14"
+      },
+      {
+       "weight": "7",
+       "reps": "14"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "22.5",
+       "reps": "12"
+      },
+      {
+       "weight": "22.5",
+       "reps": "12"
+      },
+      {
+       "weight": "22.5",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "name": "Dips",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "9"
+      },
+      {
+       "weight": "",
+       "reps": "12"
+      },
+      {
+       "weight": "",
+       "reps": "10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h011",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1778355947121,
+   "duration": 3332839,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "65",
+       "reps": "7"
+      },
+      {
+       "weight": "65",
+       "reps": "7"
+      },
+      {
+       "weight": "65",
+       "reps": "7"
+      },
+      {
+       "weight": "65",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "130",
+       "reps": "10"
+      },
+      {
+       "weight": "130",
+       "reps": "10"
+      },
+      {
+       "weight": "130",
+       "reps": "10"
+      },
+      {
+       "weight": "130",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "10"
+      },
+      {
+       "weight": "16",
+       "reps": "10"
+      },
+      {
+       "weight": "16",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "32.5",
+       "reps": "12"
+      },
+      {
+       "weight": "32.5",
+       "reps": "12"
+      },
+      {
+       "weight": "32.5",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "40",
+       "reps": "12"
+      },
+      {
+       "weight": "40",
+       "reps": "12"
+      },
+      {
+       "weight": "40",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "16"
+      },
+      {
+       "weight": "",
+       "reps": "16"
+      },
+      {
+       "weight": "",
+       "reps": "16"
+      },
+      {
+       "weight": "",
+       "reps": "15"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h010",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1778272278579,
+   "duration": 4439688,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "11"
+      },
+      {
+       "weight": "26",
+       "reps": "11"
+      },
+      {
+       "weight": "26",
+       "reps": "11"
+      },
+      {
+       "weight": "26",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "50",
+       "reps": "11"
+      },
+      {
+       "weight": "50",
+       "reps": "11"
+      },
+      {
+       "weight": "50",
+       "reps": "11"
+      },
+      {
+       "weight": "50",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "47.5",
+       "reps": "10"
+      },
+      {
+       "weight": "47.5",
+       "reps": "10"
+      },
+      {
+       "weight": "47.5",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "10"
+      },
+      {
+       "weight": "11",
+       "reps": "10"
+      },
+      {
+       "weight": "11",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "13",
+       "reps": "10"
+      },
+      {
+       "weight": "13",
+       "reps": "10"
+      },
+      {
+       "weight": "13",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "name": "Face pull",
+     "sets": [
+      {
+       "weight": "15",
+       "reps": "12"
+      },
+      {
+       "weight": "15",
+       "reps": "12"
+      },
+      {
+       "weight": "15",
+       "reps": "15"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h009",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1778182757392,
+   "duration": 4195746,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "8"
+      },
+      {
+       "weight": "24",
+       "reps": "8"
+      },
+      {
+       "weight": "24",
+       "reps": "8"
+      },
+      {
+       "weight": "24",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "10"
+      },
+      {
+       "weight": "20",
+       "reps": "10"
+      },
+      {
+       "weight": "20",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "10",
+       "reps": "13"
+      },
+      {
+       "weight": "10",
+       "reps": "13"
+      },
+      {
+       "weight": "10",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "9"
+      },
+      {
+       "weight": "16",
+       "reps": "9"
+      },
+      {
+       "weight": "16",
+       "reps": "9"
+      },
+      {
+       "weight": "16",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "7",
+       "reps": "14"
+      },
+      {
+       "weight": "7",
+       "reps": "14"
+      },
+      {
+       "weight": "7",
+       "reps": "14"
+      },
+      {
+       "weight": "7",
+       "reps": "13"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "22.5",
+       "reps": "11"
+      },
+      {
+       "weight": "22.5",
+       "reps": "11"
+      },
+      {
+       "weight": "22.5",
+       "reps": "10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h008",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1778007221074,
+   "duration": 3829053,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "65",
+       "reps": "7"
+      },
+      {
+       "weight": "65",
+       "reps": "7"
+      },
+      {
+       "weight": "65",
+       "reps": "7"
+      },
+      {
+       "weight": "65",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "130",
+       "reps": "9"
+      },
+      {
+       "weight": "130",
+       "reps": "9"
+      },
+      {
+       "weight": "130",
+       "reps": "9"
+      },
+      {
+       "weight": "130",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "14",
+       "reps": "12"
+      },
+      {
+       "weight": "14",
+       "reps": "12"
+      },
+      {
+       "weight": "14",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "32.5",
+       "reps": "11"
+      },
+      {
+       "weight": "32.5",
+       "reps": "11"
+      },
+      {
+       "weight": "32.5",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "40",
+       "reps": "11"
+      },
+      {
+       "weight": "40",
+       "reps": "11"
+      },
+      {
+       "weight": "40",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "15"
+      },
+      {
+       "weight": "",
+       "reps": "15"
+      },
+      {
+       "weight": "",
+       "reps": "15"
+      },
+      {
+       "weight": "",
+       "reps": "15"
+      }
+     ]
+    },
+    {
+     "name": "Crunch câble",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "15"
+      },
+      {
+       "weight": "25",
+       "reps": "15"
+      },
+      {
+       "weight": "25",
+       "reps": "12"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h007",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1777930470734,
+   "duration": 3750913,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "10"
+      },
+      {
+       "weight": "26",
+       "reps": "10"
+      },
+      {
+       "weight": "26",
+       "reps": "10"
+      },
+      {
+       "weight": "26",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "50",
+       "reps": "10"
+      },
+      {
+       "weight": "50",
+       "reps": "10"
+      },
+      {
+       "weight": "50",
+       "reps": "10"
+      },
+      {
+       "weight": "50",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "45",
+       "reps": "12"
+      },
+      {
+       "weight": "45",
+       "reps": "12"
+      },
+      {
+       "weight": "45",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "9"
+      },
+      {
+       "weight": "11",
+       "reps": "9"
+      },
+      {
+       "weight": "11",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "12"
+      },
+      {
+       "weight": "12",
+       "reps": "12"
+      },
+      {
+       "weight": "12",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "name": "Crunch câble",
+     "sets": [
+      {
+       "weight": "25",
+       "reps": "12"
+      },
+      {
+       "weight": "25",
+       "reps": "15"
+      },
+      {
+       "weight": "25",
+       "reps": "13"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h006",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1777666508222,
+   "duration": 4562178,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "7"
+      },
+      {
+       "weight": "24",
+       "reps": "7"
+      },
+      {
+       "weight": "24",
+       "reps": "7"
+      },
+      {
+       "weight": "24",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "9"
+      },
+      {
+       "weight": "20",
+       "reps": "9"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "10",
+       "reps": "12"
+      },
+      {
+       "weight": "10",
+       "reps": "12"
+      },
+      {
+       "weight": "10",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "8"
+      },
+      {
+       "weight": "16",
+       "reps": "8"
+      },
+      {
+       "weight": "16",
+       "reps": "8"
+      },
+      {
+       "weight": "16",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "7",
+       "reps": "14"
+      },
+      {
+       "weight": "7",
+       "reps": "14"
+      },
+      {
+       "weight": "7",
+       "reps": "14"
+      },
+      {
+       "weight": "7",
+       "reps": "14"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "22.5",
+       "reps": "11"
+      },
+      {
+       "weight": "22.5",
+       "reps": "11"
+      },
+      {
+       "weight": "22.5",
+       "reps": "9"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h005",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1777579442157,
+   "duration": 4176850,
+   "notes": "Nouveau record au squat !",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "65",
+       "reps": "6"
+      },
+      {
+       "weight": "65",
+       "reps": "6"
+      },
+      {
+       "weight": "65",
+       "reps": "6"
+      },
+      {
+       "weight": "65",
+       "reps": "4"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "130",
+       "reps": "8"
+      },
+      {
+       "weight": "130",
+       "reps": "8"
+      },
+      {
+       "weight": "130",
+       "reps": "8"
+      },
+      {
+       "weight": "130",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "14",
+       "reps": "11"
+      },
+      {
+       "weight": "14",
+       "reps": "11"
+      },
+      {
+       "weight": "14",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "32.5",
+       "reps": "10"
+      },
+      {
+       "weight": "32.5",
+       "reps": "10"
+      },
+      {
+       "weight": "32.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "40",
+       "reps": "10"
+      },
+      {
+       "weight": "40",
+       "reps": "10"
+      },
+      {
+       "weight": "40",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "15"
+      },
+      {
+       "weight": "",
+       "reps": "15"
+      },
+      {
+       "weight": "",
+       "reps": "15"
+      },
+      {
+       "weight": "",
+       "reps": "15"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h004",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1777408224650,
+   "duration": 3053992,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "9"
+      },
+      {
+       "weight": "26",
+       "reps": "9"
+      },
+      {
+       "weight": "26",
+       "reps": "9"
+      },
+      {
+       "weight": "26",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "50",
+       "reps": "9"
+      },
+      {
+       "weight": "50",
+       "reps": "9"
+      },
+      {
+       "weight": "50",
+       "reps": "9"
+      },
+      {
+       "weight": "50",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "45",
+       "reps": "11"
+      },
+      {
+       "weight": "45",
+       "reps": "11"
+      },
+      {
+       "weight": "45",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "9"
+      },
+      {
+       "weight": "11",
+       "reps": "9"
+      },
+      {
+       "weight": "11",
+       "reps": "9"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "11"
+      },
+      {
+       "weight": "12",
+       "reps": "11"
+      },
+      {
+       "weight": "12",
+       "reps": "10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h003",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1776977482474,
+   "duration": 3527884,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "7"
+      },
+      {
+       "weight": "24",
+       "reps": "7"
+      },
+      {
+       "weight": "24",
+       "reps": "7"
+      },
+      {
+       "weight": "24",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "9"
+      },
+      {
+       "weight": "20",
+       "reps": "9"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "10",
+       "reps": "11"
+      },
+      {
+       "weight": "10",
+       "reps": "11"
+      },
+      {
+       "weight": "10",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "7"
+      },
+      {
+       "weight": "16",
+       "reps": "7"
+      },
+      {
+       "weight": "16",
+       "reps": "7"
+      },
+      {
+       "weight": "16",
+       "reps": "7"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "7",
+       "reps": "13"
+      },
+      {
+       "weight": "7",
+       "reps": "13"
+      },
+      {
+       "weight": "7",
+       "reps": "13"
+      },
+      {
+       "weight": "7",
+       "reps": "12"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "22.5",
+       "reps": "11"
+      },
+      {
+       "weight": "22.5",
+       "reps": "11"
+      },
+      {
+       "weight": "22.5",
+       "reps": "11"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h002",
+   "programme": "ppl",
+   "category": "legs",
+   "date": 1776893160951,
+   "duration": 3099623,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "g1squatb",
+     "name": "Squat barre",
+     "sets": [
+      {
+       "weight": "65",
+       "reps": "5"
+      },
+      {
+       "weight": "65",
+       "reps": "5"
+      },
+      {
+       "weight": "65",
+       "reps": "5"
+      },
+      {
+       "weight": "65",
+       "reps": "5"
+      }
+     ]
+    },
+    {
+     "exId": "g2presse",
+     "name": "Presse à cuisses",
+     "sets": [
+      {
+       "weight": "130",
+       "reps": "8"
+      },
+      {
+       "weight": "130",
+       "reps": "8"
+      },
+      {
+       "weight": "130",
+       "reps": "8"
+      },
+      {
+       "weight": "130",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "g3fentes",
+     "name": "Fentes marchées haltères",
+     "sets": [
+      {
+       "weight": "14",
+       "reps": "10"
+      },
+      {
+       "weight": "14",
+       "reps": "10"
+      },
+      {
+       "weight": "14",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g4legcur",
+     "name": "Leg curl machine",
+     "sets": [
+      {
+       "weight": "32.5",
+       "reps": "10"
+      },
+      {
+       "weight": "32.5",
+       "reps": "10"
+      },
+      {
+       "weight": "32.5",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g5extqua",
+     "name": "Extension quadriceps",
+     "sets": [
+      {
+       "weight": "40",
+       "reps": "10"
+      },
+      {
+       "weight": "40",
+       "reps": "10"
+      },
+      {
+       "weight": "40",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "g6mollet",
+     "name": "Mollets debout",
+     "sets": [
+      {
+       "weight": "",
+       "reps": "15"
+      },
+      {
+       "weight": "",
+       "reps": "15"
+      },
+      {
+       "weight": "",
+       "reps": "15"
+      },
+      {
+       "weight": "",
+       "reps": "13"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h001",
+   "programme": "ppl",
+   "category": "pull",
+   "date": 1776632656475,
+   "duration": 3645797,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "l1rowing",
+     "name": "Rowing haltère unilatéral",
+     "sets": [
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      },
+      {
+       "weight": "26",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l2tirver",
+     "name": "Tirage vertical prise large",
+     "sets": [
+      {
+       "weight": "50",
+       "reps": "8"
+      },
+      {
+       "weight": "50",
+       "reps": "8"
+      },
+      {
+       "weight": "50",
+       "reps": "8"
+      },
+      {
+       "weight": "50",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l3tirhor",
+     "name": "Tirage horizontal câble",
+     "sets": [
+      {
+       "weight": "45",
+       "reps": "10"
+      },
+      {
+       "weight": "45",
+       "reps": "10"
+      },
+      {
+       "weight": "45",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "l4curlbi",
+     "name": "Curl biceps haltères",
+     "sets": [
+      {
+       "weight": "11",
+       "reps": "8"
+      },
+      {
+       "weight": "11",
+       "reps": "8"
+      },
+      {
+       "weight": "11",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "l5curlma",
+     "name": "Curl marteau",
+     "sets": [
+      {
+       "weight": "12",
+       "reps": "10"
+      },
+      {
+       "weight": "12",
+       "reps": "10"
+      },
+      {
+       "weight": "12",
+       "reps": "9"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "h000",
+   "programme": "ppl",
+   "category": "push",
+   "date": 1776547863917,
+   "duration": 3521944,
+   "notes": "",
+   "exercises": [
+    {
+     "exId": "p1dcouch",
+     "name": "Développé couché haltères",
+     "sets": [
+      {
+       "weight": "24",
+       "reps": "6"
+      },
+      {
+       "weight": "24",
+       "reps": "6"
+      },
+      {
+       "weight": "24",
+       "reps": "6"
+      },
+      {
+       "weight": "24",
+       "reps": "6"
+      }
+     ]
+    },
+    {
+     "exId": "p2dincli",
+     "name": "Développé incliné haltères",
+     "sets": [
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      },
+      {
+       "weight": "20",
+       "reps": "8"
+      }
+     ]
+    },
+    {
+     "exId": "p3ecarte",
+     "name": "Écarté haltères plat",
+     "sets": [
+      {
+       "weight": "10",
+       "reps": "10"
+      },
+      {
+       "weight": "10",
+       "reps": "10"
+      },
+      {
+       "weight": "10",
+       "reps": "10"
+      }
+     ]
+    },
+    {
+     "exId": "p4milita",
+     "name": "Développé militaire haltères",
+     "sets": [
+      {
+       "weight": "16",
+       "reps": "6"
+      },
+      {
+       "weight": "16",
+       "reps": "6"
+      },
+      {
+       "weight": "16",
+       "reps": "6"
+      },
+      {
+       "weight": "16",
+       "reps": "5"
+      }
+     ]
+    },
+    {
+     "exId": "p5elevat",
+     "name": "Élévations latérales",
+     "sets": [
+      {
+       "weight": "7",
+       "reps": "12"
+      },
+      {
+       "weight": "7",
+       "reps": "12"
+      },
+      {
+       "weight": "7",
+       "reps": "12"
+      },
+      {
+       "weight": "7",
+       "reps": "11"
+      }
+     ]
+    },
+    {
+     "exId": "p6extric",
+     "name": "Extension triceps poulie",
+     "sets": [
+      {
+       "weight": "22.5",
+       "reps": "10"
+      },
+      {
+       "weight": "22.5",
+       "reps": "10"
+      },
+      {
+       "weight": "22.5",
+       "reps": "9"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "_theme": "auto"
+}
