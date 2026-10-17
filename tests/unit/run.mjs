@@ -24,7 +24,10 @@ const SCRIPTS = [
   'js/data/store.js',
   'js/data/accessors.js',
   'js/data/backup.js',
+  'js/data/muscles.js',
+  'js/data/muscle-load.js',
   'js/ui/forms.js',
+  'js/ui/body-map.js',
   'js/app/actions.js',
   'js/features/apple-services.js',
   'js/app/live-update.js',
@@ -807,6 +810,10 @@ test('mise à jour à chaud : coquille native différente → rien (il faut pass
   const { result, calls } = await otaScenario({ manifest: otaManifest({ runtime: 'autre' }) });
   assert.equal(result.reason, 'nécessite une nouvelle version de l\'app'); assert.equal(calls.length, 0);
 });
+
+// ── Muscles (tests/unit/muscles.mjs) ────────────────────────
+
+(await import('./muscles.mjs')).default({ test, app, run, reset, sameJSON, assert });
 
 // ── Exécution ───────────────────────────────────────────────
 

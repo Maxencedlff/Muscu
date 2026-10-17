@@ -73,7 +73,8 @@ const PROGRAMMES = {
   },
 };
 
-// Bibliothèque : exercices déjà faits (les plus récents d'abord), puis ceux des programmes
+// Bibliothèque : exercices déjà faits (les plus récents d'abord), puis ceux des programmes et du
+// catalogue des muscles (js/data/muscles.js)
 function exerciseLibrary() {
   const seen = new Map();
   const add  = n => { const k = normName(n); if (n && !seen.has(k)) seen.set(k, n); };
@@ -81,6 +82,7 @@ function exerciseLibrary() {
   const rest = [];
   Object.values(PROGRAMMES).forEach(p => Object.values(p.defaults || {}).forEach(list => list.forEach(([n]) => rest.push(n))));
   Object.values(data.programmes || {}).forEach(p => Object.values(p.exercises || {}).forEach(list => (list || []).forEach(e => rest.push(e.name))));
+  rest.push(...catalogueNames());
   rest.sort((a, b) => a.localeCompare(b, 'fr')).forEach(add);
   return [...seen.values()];
 }

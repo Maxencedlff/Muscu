@@ -1,7 +1,7 @@
 """Lance tous les test_lot*.py en parallèle : un processus par (lot, appareil, thème)
 plus un processus par lot pour les tests uniques. Code de sortie non nul si un test échoue.
 
-Options : python3 run_all.py [lot ...]   ex. `run_all.py 3 4` ne lance que les lots 3 et 4.
+Options : python3 run_all.py [lot ...]   ex. `run_all.py 3 4 muscles` ne lance que les lots 3, 4 et muscles.
 PPL_JOBS (défaut 6) règle le nombre de processus simultanés. Garde-fou mémoire : aucun
 processus ne démarre tant que la mémoire disponible de WSL est sous 2,5 Go (évite de faire planter WSL).
 """
@@ -16,10 +16,16 @@ from concurrent.futures import ThreadPoolExecutor
 from fixtures import DEVICES, THEMES
 
 here = os.path.dirname(os.path.abspath(__file__))
-files = sorted(glob.glob(os.path.join(here, 'test_lot*.py')),
-               key=lambda f: int(re.search(r'test_lot(\d+)', f).group(1)))
+# Lots numérotés (test_lotN*.py) puis tests par domaine (test_muscles.py…), désignés par leur nom
+def lot_of(f):
+    m = re.search(r'test_lot(\d+)', f)
+    return m.group(1) if m else re.search(r'test_(\w+)\.py', f).group(1)
+
+
+files = sorted(glob.glob(os.path.join(here, 'test_lot*.py')), key=lambda f: int(lot_of(f)))
+files += sorted(f for f in glob.glob(os.path.join(here, 'test_*.py')) if not re.search(r'test_lot\d', f))
 if sys.argv[1:]:
-    files = [f for f in files if re.search(r'test_lot(\d+)', f).group(1) in sys.argv[1:]]
+    files = [f for f in files if lot_of(f) in sys.argv[1:]]
 
 jobs = []
 for f in files:

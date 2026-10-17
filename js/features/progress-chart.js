@@ -85,6 +85,8 @@ function renderStatsExercise(exId) {
             <span class="cell__value num">${pts.length}</span></div>
         </div>
         ${targetBar}
+        <div class="group-title">Muscles ciblés</div>
+        <div class="group">${exMusclesPanelHtml(exerciseMuscles({ exId: it.exId, name: it.name }))}</div>
         <div class="group-title">Séances</div>
         <div class="group">${sessions}</div>
       </div>

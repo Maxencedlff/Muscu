@@ -111,7 +111,7 @@ function axListHtml(q) {
   const nq    = normName(q);
   const items = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && (!nq || normName(n).includes(nq))).slice(0, 60);
   const exact = items.some(n => normName(n) === nq);
-  return items.map(n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}">${esc(n)}</button>`).join('')
+  return items.map(n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}"><span class="ax__body"><span>${esc(n)}</span>${exMusclesSubHtml({ name: n }, 'ax__sub')}</span></button>`).join('')
     + (q.trim() && !exact ? `<button class="ax__item ax__item--create" data-action="ax-pick" data-name="${esc(q.trim())}">${icon('plus', 18)} Créer « ${esc(q.trim())} »</button>` : '')
     + (!items.length && !q.trim() ? '<div class="ax__empty">Aucun exercice</div>' : '');
 }

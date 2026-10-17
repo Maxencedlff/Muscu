@@ -24,8 +24,8 @@ function exDraftFor(route) {
   const i  = editExIdxOf(route);
   const ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
   exDraft = ex
-    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12 }
-    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12 };
+    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, muscles: draftMuscles(ex) }
+    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, muscles: null };
   return exDraft;
 }
 
@@ -61,6 +61,7 @@ function renderEditor() {
       <button class="cell cell--nav ed-row" data-action="edit-ex" data-i="${i}">
         <span class="cell__body">
           <span class="cell__title ed-name">${esc(ex.name)}</span>
+          ${exMusclesSubHtml(ex)}
           <span class="cell__sub">${sub}</span>
         </span>
         ${icon('chevron.right', 16)}
@@ -123,6 +124,7 @@ function renderExEdit() {
                    autocomplete="off" enterkeyhint="done" aria-label="Nom de l'exercice">
           </div>
         </div>
+        ${renderExEditMuscles(d)}
         <div class="group-title">Séance</div>
         <div class="group">
           <div class="cell cell--ctl">
@@ -326,6 +328,7 @@ registerActions({
       ex.target = target;
       ex.rest   = rest;
       ex.repMax = repMax;
+      applyDraftMuscles(ex, exDraft);
     } else {
       const ex = makeExercise(name, sets);
       // Un exercice déjà présent dans l'historique (supprimé puis recréé) retrouve son identifiant
@@ -334,6 +337,7 @@ registerActions({
       ex.target = target;
       ex.rest   = rest;
       ex.repMax = repMax;
+      applyDraftMuscles(ex, exDraft);
       list.push(ex);
       recomputePRFromHistory();
     }

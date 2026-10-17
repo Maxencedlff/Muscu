@@ -32,6 +32,8 @@
   /* Texte coloré à partir d'une couleur de séance (--cat-color) : éclairci en sombre, assombri en clair */
   --cat-text-mix: 72%; --cat-text-base: #FFFFFF;
   --cat-color: var(--green);     /* couleur de séance par défaut, redéfinie par écran */
+  /* Silhouette musculaire (js/ui/body-map.js) : corps, muscle au repos, muscle travaillé */
+  --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: var(--orange);
 
   /* Typographie (1 rem = 17 px) */
   --font: -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -74,6 +76,7 @@ body.light {
   --dlg-sep: rgba(60,60,67,.29); --dlg-press: rgba(0,0,0,.06);
   --shadow-float: 0 8px 24px rgba(0,0,0,.12);
   --cat-text-mix: 55%; --cat-text-base: #000000;
+  --body-skin: #E5E5EA; --body-zone: #C7C7CC;
 }
 
 /* Matériaux translucides : version opaque si le flou n'existe pas ou si l'utilisateur réduit la transparence */
