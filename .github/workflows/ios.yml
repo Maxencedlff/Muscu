@@ -119,7 +119,8 @@ jobs:
             -e 'tell application "System Events" to keystroke "l" using command down' || true
           at 44; shot 7-ecran-verrouille-sombre
           xcrun simctl ui "$DEVICE" appearance light
-          at 66; shot 8-ecran-verrouille-repos-fini
+          # Les commandes simctl prennent du retard (≈ 5 s) : marge après la fin du repos factice
+          at 85; shot 8-ecran-verrouille-repos-fini
           # Extension enregistrée par le système, et journaux de son affichage
           xcrun simctl spawn "$DEVICE" pluginkit -m -A -v -p com.apple.widgetkit-extension > shots/pluginkit.txt 2>&1 || true
           grep -i restactivity shots/pluginkit.txt || echo "RestActivity absente de pluginkit"

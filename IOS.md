@@ -85,8 +85,9 @@ avec la séance (nom et couleur), l'heure de reprise et « Ensuite : Squat · s�
 - **Couleur** : `var(--orange)` devient la couleur système `systemOrange` (claire ou sombre selon
   l'écran) ; une couleur de séance perso (`#RRGGBB`) est reprise telle quelle.
 - **Taille** : textes bornés (séance 40, exercice 60, charge 30 caractères) sous la limite de 4 Ko.
-- `NSSupportsLiveActivities = YES` dans `Info.plist` ; aucune autorisation à demander (l'utilisateur
-  peut les couper dans Réglages › MDLF Training).
+- `NSSupportsLiveActivities = YES` dans `Info.plist`. Rien à demander côté app : iOS propose lui-même
+  « Autoriser les Live Activities de MDLF Training ? » sur l'écran verrouillé la première fois
+  (vu sur le simulateur iOS 26), et l'utilisateur peut les couper dans Réglages › MDLF Training.
 - **Versions** : `MARKETING_VERSION` et `CURRENT_PROJECT_VERSION` sont réglées au niveau du projet
   (et non des cibles) : App Store Connect refuse une extension dont la version diffère de l'app.
 - **Contrôle sur la CI** : en Debug, l'argument de lancement `-MDLFDemoRestActivity` démarre un repos

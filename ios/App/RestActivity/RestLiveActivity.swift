@@ -52,14 +52,15 @@ struct RestLiveActivity: Widget {
                     .padding(.trailing, 4)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack(spacing: 8) {
+                    // Série suivante sur toute la largeur (sinon tronquée), marque en dessous
+                    VStack(alignment: .leading, spacing: 6) {
                         if let next = state.next {
                             RestNextLine(next: next, isStale: isStale, tint: tint)
                                 .font(.subheadline)
                         }
-                        Spacer(minLength: 0)
                         MDLFBrand(height: 11)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 4)
                     .padding(.top, 4)
                 }
