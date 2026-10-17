@@ -1,4 +1,4 @@
-const CACHE = 'ppl-v29';
+const CACHE = 'ppl-v30';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
@@ -6,13 +6,13 @@ const ASSETS = [
   '/js/platform/native.js',
   '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
   '/js/data/programmes.js', '/js/data/store.js', '/js/data/records.js', '/js/data/accessors.js', '/js/data/active-session.js',
-  '/js/data/backup.js', '/js/data/muscles.js', '/js/data/muscle-load.js',
+  '/js/data/backup.js', '/js/data/muscles.js', '/js/data/muscle-load.js', '/js/data/app-icons.js',
   '/js/ui/theme.js', '/js/ui/router.js', '/js/ui/navbar.js', '/js/ui/sheet.js',
   '/js/ui/forms.js', '/js/ui/edge-swipe.js', '/js/ui/body-map.js',
   '/js/app/actions.js', '/js/app/updates.js', '/js/app/live-update.js', '/js/app/init.js',
   '/js/features/dashboard.js', '/js/features/programme.js', '/js/features/programme-editor.js', '/js/features/custom-session.js',
   '/js/features/session.js', '/js/features/rest.js', '/js/features/rest-activity.js', '/js/features/session-sheets.js', '/js/features/session-gestures.js',
-  '/js/features/summary.js', '/js/features/add-session.js', '/js/features/settings.js', '/js/features/apple-services.js', '/js/features/progress.js',
+  '/js/features/summary.js', '/js/features/add-session.js', '/js/features/settings.js', '/js/features/apple-services.js', '/js/features/app-icon.js', '/js/features/progress.js',
   '/js/features/progress-chart.js', '/js/features/progress-overview.js', '/js/features/muscles.js', '/js/features/history.js',
   '/js/features/share-stats.js', '/js/features/share-canvas.js', '/js/features/share.js',
 ];

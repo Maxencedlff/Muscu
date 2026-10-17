@@ -20,7 +20,8 @@ aucun bundler.
 | `js/platform/native.js` | Pont vers iOS (`Native.*`). Dans le navigateur, `Native.isNative` vaut `false` et tout est sans effet |
 | `capacitor.config.json` | Identifiant `com.mdlf.training`, nom, dossier web `dist/`, écran de démarrage, notifications |
 | `scripts/build-web.mjs` | Copie le contenu web dans `dist/` (sans service worker) et vérifie que tout ce que charge `index.html` est présent |
-| `ios/App/` | Projet Xcode (Swift Package Manager) : équipe `NMK739Z59B`, iPhone uniquement, portrait, iOS 16.4+, icône, écran de démarrage, `PrivacyInfo.xcprivacy` |
+| `ios/App/` | Projet Xcode (Swift Package Manager) : équipe `NMK739Z59B`, iPhone uniquement, portrait, iOS 16.4+, icônes, écran de démarrage, `PrivacyInfo.xcprivacy` |
+| `scripts/brand-icons.py` | Génère toutes les images de la marque (PWA et iOS) depuis `js/data/app-icons.js` (voir « Icône de l'app ») |
 | `ios/ExportOptions.plist` | Export App Store Connect avec envoi direct |
 | `.github/workflows/ios.yml` | Compilation sur macOS : contrôle (simulateur) ou TestFlight |
 | `privacy.html` | Page de confidentialité exigée par Apple (servie par Vercel) |
@@ -39,6 +40,7 @@ Les fichiers de l'app iOS sont exclus de la publication Vercel (`.vercelignore`)
 | `Native.statusBar()` | `applyTheme()`, démarrage | Texte de la barre d'état adapté au thème |
 | `Native.backup()` / `boot()` | `save()`, démarrage | Copie `ppl_v2.json` dans les Documents de l'app (sauvegardés par iCloud) ; restaurée si le stockage web est vide, jamais écrasée avant |
 | `Native.hideSplash()` | démarrage | Écran de démarrage retiré après le premier rendu (filet à 4 s) |
+| `Native.appIcon.get()` / `set(nom)` | `app-icon.js` | Icône de l'app choisie dans Réglages (voir « Icône de l'app ») |
 | `Native.shareImage(dataUrl, nom)` | `share.js` | Image de la séance écrite dans le cache de l'app (`@capacitor/filesystem`), puis feuille de partage d'iOS (`@capacitor/share` 8.0.3 : Instagram, Messages, Photos…). « Enregistrer l'image » demande l'accès Photos en ajout seul (`NSPhotoLibraryAddUsageDescription`) |
 
 L'autorisation des notifications est demandée au premier repos, au moment où elle a du sens.
@@ -100,6 +102,53 @@ Références Apple : ActivityKit « Displaying live data with Live Activities »
 `ActivityConfiguration` / `DynamicIsland`, HIG « Live Activities » (marge de 14 pt, hauteur
 de 160 pt au plus, marque sans conteneur, contenu serré contre la caméra). Capacitor : « iOS custom
 native code » (module enregistré par `MainViewController`).
+
+### Icône de l'app (icônes alternatives)
+
+Le signe : un « M » dessiné comme une barre chargée vue de face (les disques forment les
+jambages, la barre qui fléchit forme le V), en aplat strict (aucun dégradé, reflet ni ombre).
+Réglages › **Icône de l'app** (app iOS seulement, absente de la PWA) propose cinq variantes :
+
+| Libellé | Jeu d'icônes (`Assets.xcassets`) | Fond | Signe |
+|---|---|---|---|
+| Orange (défaut) | `AppIcon` (+ variantes sombre et teintée d'iOS 18) | `#111111` | `#FF6A1A` |
+| Fonte rouillée | `AppIcon-Rouille` | `#1B1815` | `#D9542B` |
+| Inversée | `AppIcon-Inversee` | `#FF5A1F` | `#111111` |
+| Craie | `AppIcon-Craie` | `#F1ECE3` | `#C9461F` |
+| Signature | `AppIcon-Signature` (barre plus fléchie, plus fine) | `#E0582A` | `#15120F` |
+
+| Élément | Rôle |
+|---|---|
+| `js/data/app-icons.js` | **Seule source** : catalogue `APP_ICONS` (libellé, jeu d'icônes, couleurs) et dessin du signe (`appIconSvg`). Les vignettes de Réglages sont ce même SVG, dessiné en ligne : aucune image à embarquer |
+| `scripts/brand-icons.py` | Charge ce fichier avec Node, rend les SVG en PNG (CairoSVG, Pillow), de façon déterministe, et met à jour la liste des icônes alternatives du projet Xcode |
+| `ios/App/App/AppIconPlugin.swift` (`MdlfAppIcon`) | `getName` → `{ supported, name? }`, `change({ name })` → `UIApplication.setAlternateIconName` sur le fil principal (`name` absent ou null : icône par défaut ; refus si les icônes alternatives ne sont pas prises en charge). Enregistré par `MainViewController.swift` |
+| `js/features/app-icon.js` | Section de Réglages : grille de vignettes (`aria-pressed`, coche), un toucher = changement ; icône courante lue une fois au démarrage |
+| `project.pbxproj` (cible App, Debug et Release) | `ASSETCATALOG_COMPILER_ALTERNATE_APP_ICON_NAMES` (écrit par le script) et `ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES` : Xcode compile les jeux alternatifs et remplit lui-même `CFBundleIcons` (rien dans Info.plist) |
+
+- **Images produites** : `icon.svg`, `icon-192.png`, `icon-512.png` (aussi « maskable » : le signe
+  tient dans la zone sûre de 80 %), `apple-touch-icon.png` ; `AppIcon` 1024 opaque (Apple refuse la
+  transparence), `AppIcon-dark.png` (signe orange sur fond transparent : iOS pose son fond sombre),
+  `AppIcon-tinted.png` (signe en niveaux de gris sur fond transparent : iOS applique la teinte) ;
+  un 1024 opaque par icône alternative ; écran de démarrage `Splash` 2732 × 2732 (signe sur
+  `#111111`) ; marque `MDLFMark` de la Live Activity (image gabarit, seul l'alpha compte).
+- **Régénérer** après tout changement du catalogue ou du dessin, puis commiter le script et les
+  images ensemble (les tests unitaires vérifient que jeux d'icônes, réglages Xcode et catalogue
+  concordent) :
+
+  ```bash
+  python3 scripts/brand-icons.py
+  ```
+- **Ajouter une icône** : une ligne dans `APP_ICONS` (`asset` en `AppIcon-Nom`, sans accent),
+  relancer le script, c'est tout. Une icône retirée du catalogue voit son jeu supprimé ; un nom
+  natif inconnu (icône d'une ancienne version) s'affiche comme l'icône par défaut.
+- **Alerte d'iOS** : après chaque changement, iOS affiche « Vous avez modifié l'icône de
+  MDLF Training ». C'est le comportement imposé par le système ; elle n'est pas masquée.
+- Changement natif : nouvelle version TestFlight / App Store (les mises à jour à chaud ne le
+  transportent pas).
+
+Références Apple : `UIApplication.setAlternateIconName(_:completionHandler:)`,
+`supportsAlternateIcons`, réglage de compilation « Alternate App Icon Sets », HIG « App icons »
+(variantes Default, Dark et Tinted d'iOS 18).
 
 ## Mises à jour à chaud (sans repasser par Apple)
 

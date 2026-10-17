@@ -56,6 +56,8 @@ ${renderAppleServicesGroup(tog)}
           </div>
         </div>
 
+${renderAppIconGroup()}
+
         <div class="group-title">Données</div>
         <div class="group">
           <div class="cell">

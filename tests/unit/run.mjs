@@ -27,6 +27,7 @@ const SCRIPTS = [
   'js/data/backup.js',
   'js/data/muscles.js',
   'js/data/muscle-load.js',
+  'js/data/app-icons.js',
   'js/ui/forms.js',
   'js/ui/body-map.js',
   'js/app/actions.js',
@@ -538,7 +539,7 @@ test('esc, normName, sameEx, plural, setsVolume', () => {
 // native.js est chargé seul dans un contexte neuf, avec une coquille Capacitor simulée qui
 // enregistre chaque appel de module natif.
 
-function nativeContext({ native = true, localData = null, fileData = null, shareCancelled = false } = {}) {
+function nativeContext({ native = true, localData = null, fileData = null, shareCancelled = false, plugins: extra = {} } = {}) {
   const calls = [];
   const storage = new MemoryStorage();
   if (localData !== null) storage.setItem('ppl_v2', localData);
@@ -557,6 +558,7 @@ function nativeContext({ native = true, localData = null, fileData = null, share
     Share: {
       share: async (o) => { calls.push(['share', o.files]); if (shareCancelled) throw new Error('Share canceled'); },
     },
+    ...extra,   // modules propres à un test (ex. MdlfAppIcon)
   };
   const box = {
     console, localStorage: storage, setTimeout: (f) => f(), clearTimeout() {},
@@ -909,6 +911,10 @@ test('mise à jour à chaud : coquille native différente → rien (il faut pass
 // ── Partage de séance (tests dans share.mjs) ────────────────
 
 (await import('./share.mjs')).default({ test, app, run, reset, sameJSON, nativeContext });
+
+// ── Icône de l'app (tests dans app-icons.mjs) ──────────────
+
+(await import('./app-icons.mjs')).default({ test, app, run, sameJSON, assert, nativeContext });
 
 // ── Exécution ───────────────────────────────────────────────
 

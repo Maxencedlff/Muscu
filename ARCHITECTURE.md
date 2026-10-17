@@ -39,6 +39,7 @@ js/ui/                infrastructure d'écran : thème, navigation, barres, feui
 js/features/          un fichier (ou plusieurs) par écran ou fonctionnalité
 js/app/               mises à jour du service worker, démarrage et écouteurs globaux
 tests/                tests de non-régression Playwright (Python) et tests unitaires (tests/unit/)
+scripts/              construction de l'app iOS (build-web.mjs), mises à jour à chaud, images de la marque (brand-icons.py)
 ```
 
 ### css/
@@ -53,7 +54,7 @@ tests/                tests de non-régression Playwright (Python) et tests unit
 | `session.css` | Séance active, repos, bilan |
 | `muscles.css` | Silhouette musculaire, pastilles de muscles, carte « Muscles » de Progrès, écran Séries par muscle, feuille « Muscles ciblés » |
 | `share.css` | Partage de séance : bouton « Partager ma séance », aperçu de l'image au format 9:16 |
-| `screens.css` | Écrans à fond groupé (`.view--grouped` : Programme, Progrès, Historique, Réglages) et leur composant de liste groupée (`.group` / `.cell`, seul composant de liste), accessibilité, paysage, Dynamic Type |
+| `screens.css` | Écrans à fond groupé (`.view--grouped` : Programme, Progrès, Historique, Réglages) et leur composant de liste groupée (`.group` / `.cell`, seul composant de liste), vignettes « Icône de l'app » (`.app-icons`), accessibilité, paysage, Dynamic Type |
 
 Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 
@@ -76,6 +77,7 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `active-session.js` | `activeSession`, `sessionNotes`, `writeSession(rest)` (écrit la séance et l'état du repos reçu), `restoreSession()` (renvoie `{ rest }` sans relancer le chrono), `computeBaseline`, `sessProg` |
 | `muscles.js` | `MUSCLES` (16 groupes, `minor` pour les petits), `EXERCISE_CATALOGUE` (bibliothèque : nom, muscles principaux et secondaires ; tous les exercices de `PROGRAMMES` y figurent), `MUSCLE_RULES` (reconnaissance d'un nom libre par mots-clés, la première règle l'emporte), `musclesOf(nom)`, `chosenMuscles`, `exerciseMuscles(ex)` (choix de l'utilisateur, sinon nom), `musclesLine` |
 | `muscle-load.js` | `MUSCLE_SPANS` (semaine, 4 semaines), `muscleSetCounts` (principal 1 série, secondaire ½), `muscleLevel` (paliers 0 / 1–3 / 4–9 / 10+ séries par semaine), `muscleLoad(span)` : séries, paliers, intensités 0..1 et muscles peu travaillés |
+| `app-icons.js` | Marque : `APP_ICONS` (icônes de l'app : id, libellé, jeu d'icônes iOS `asset`, couleurs, flèche de la barre), `DEFAULT_APP_ICON`, `appIconFromNative(nom)` (null ou inconnu : défaut), `nativeAppIconName(id)` (défaut : null), `alternateAppIconNames()`, dessin du signe `appIconGlyph` / `appIconSvg(icône, options)`. Seule source des images de la marque (voir plus bas) |
 | `backup.js` | `importText` (tout vérifié sur une copie ; renvoie `{ ok, reason }` ou `{ ok, count, skipped, theme, previous }`), `undoImport`, `exportData(theme)` (renvoie `true` une fois le fichier remis), `downloadText` |
 
 ### js/app/actions.js
@@ -120,6 +122,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `session-gestures.js` | Balayage d'une série (« Supprimer »), clavier (Entrée, champ actif), recherche de la feuille d'ajout |
 | `summary.js` | Fin de séance (« Terminer » : enregistrement, stockage plein) et bilan |
 | `add-session.js` | Séance passée : saisie, modification d'une séance, brouillon en `sessionStorage` (crochets `enter` / `leave` de l'écran), ajout d'exercice par la feuille de recherche commune |
+| `app-icon.js` | Réglages › Icône de l'app (app iOS seulement) : `renderAppIconGroup()` (grille de vignettes, `aria-pressed`, coche), action `set-app-icon` (`Native.appIcon.set`), état lu une fois au démarrage |
 | `settings.js` | Réglages, import / export (résultat affiché ici : thème, toast « Annuler », date de sauvegarde), suppression des données, recherche de mise à jour |
 | `progress.js` | Progrès : tuiles et index des exercices tiré de l'historique |
 | `progress-chart.js` | Progrès › Exercice : courbe sur canvas, sélection d'un point au doigt |
@@ -255,6 +258,11 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
 - **Échappement.** Tout texte saisi par l'utilisateur (noms, notes, libellés de séances perso)
   passe par `esc()` avant d'entrer dans un gabarit HTML ; `sessionMeta()` renvoie des libellés déjà
   échappés, `rawLabel()` le texte brut (pour `textContent` et les dialogues).
+- **Images de la marque générées, jamais retouchées à la main.** Le signe et ses couleurs vivent
+  dans `js/data/app-icons.js` ; `python3 scripts/brand-icons.py` (Node, CairoSVG, Pillow ;
+  déterministe) en tire `icon.svg`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, les jeux
+  d'icônes iOS, l'écran de démarrage et la marque de la Live Activity (détail dans IOS.md). Ces
+  couleurs sont celles des images, pas de l'interface : elles restent hors des tokens.
 - **iOS : rien de révélé au `pointerdown`.** Faire apparaître un élément dès le toucher (bouton
   « Supprimer » d'une série, par exemple) fait avaler le tap par Safari : il faudrait toucher deux
   fois. Le contenu est révélé seulement quand le geste est reconnu (`pointermove` au-delà du seuil).
@@ -269,12 +277,15 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
 
 `tests/run_all.py` lance les lots Playwright (Python) sur 5 appareils (WebKit iPhone 13 / SE,
 Chromium Pixel 7 / Galaxy S8 / S9+) en thèmes clair et sombre, plus des tests uniques
-(service worker, contrôles statiques), puis les tests par domaine (`test_muscles.py`, `test_partage.py`). Voir l'en-tête
+(service worker, contrôles statiques), puis les tests par domaine (`test_muscles.py`, `test_partage.py`, `test_icone.py`).
+`test_icone.py` simule la coquille iOS (faux `window.Capacitor` injecté avant le chargement, faux
+module `MdlfAppIcon`) : c'est le modèle à suivre pour tester une fonction réservée à l'app. Voir l'en-tête
 de `run_all.py` pour les options.
 
 `node tests/unit/run.mjs` lance les tests unitaires de la logique pure (formats, 1RM, nettoyage et
 migrations, import, délais de récupération, clés de séance, saisie, programmes perso ; muscles
-dans `tests/unit/muscles.mjs`, records et image partagée dans `tests/unit/share.mjs`) : les scripts
+dans `tests/unit/muscles.mjs`, records et image partagée dans `tests/unit/share.mjs`, icône de l'app
+et cohérence avec le projet Xcode dans `tests/unit/app-icons.mjs`) : les scripts
 de `js/core/` et `js/data/` sont chargés dans un contexte `vm` de Node, sans navigateur, en moins d'une seconde.
 
 ### Partage de séance

@@ -80,6 +80,7 @@ js/ui/         thème, navigation, barres, feuilles, gestes
 js/features/   un fichier par écran ou fonctionnalité
 js/app/        registre des actions, mises à jour, démarrage
 tests/         tests Playwright (Python) et tests unitaires (tests/unit/)
+scripts/       construction de l'app iOS, images de la marque (brand-icons.py, seule source des icônes)
 ```
 
 Le rôle de chaque fichier, l'ordre de chargement, le flux d'une action et le modèle de données
