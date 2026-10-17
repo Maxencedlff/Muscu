@@ -133,9 +133,10 @@ public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
 
     #if DEBUG
     /// `-MDLFDemoRestActivity` au lancement (CI : xcrun simctl launch … -MDLFDemoRestActivity) :
-    /// démarre un repos factice de 90 s pour photographier la Live Activity sur le simulateur, puis,
-    /// 22 s plus tard (app passée en arrière-plan), envoie une mise à jour avec alerte : iOS montre
-    /// alors la présentation étendue de la Dynamic Island. Le démarrage attend que l'app soit au
+    /// démarre un repos factice (55 s restantes sur 90) pour photographier la Live Activity sur le
+    /// simulateur, puis, 22 s plus tard (app passée en arrière-plan), envoie une mise à jour avec
+    /// alerte : iOS montre alors la présentation étendue de la Dynamic Island. Une fois le repos
+    /// fini, l'écran verrouillé montre « C'est reparti ». Le démarrage attend que l'app soit au
     /// premier plan, condition d'ActivityKit.
     private var demoObserver: NSObjectProtocol?
 
@@ -150,7 +151,7 @@ public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
             // Laisse le temps d'envoyer l'alerte une fois l'app en arrière-plan
             let background = UIApplication.shared.beginBackgroundTask(withName: "Démonstration Live Activity")
             let state = RestActivityAttributes.ContentState(
-                endDate: Date().addingTimeInterval(90), totalSeconds: 120,
+                endDate: Date().addingTimeInterval(55), totalSeconds: 90,
                 next: .init(exercise: "Développé couché", set: 3, load: "80 kg × 8"))
             self.enqueue {
                 defer { Task { @MainActor in UIApplication.shared.endBackgroundTask(background) } }

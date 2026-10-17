@@ -90,8 +90,9 @@ avec la séance (nom et couleur), l'heure de reprise et « Ensuite : Squat · s�
 - **Versions** : `MARKETING_VERSION` et `CURRENT_PROJECT_VERSION` sont réglées au niveau du projet
   (et non des cibles) : App Store Connect refuse une extension dont la version diffère de l'app.
 - **Contrôle sur la CI** : en Debug, l'argument de lancement `-MDLFDemoRestActivity` démarre un repos
-  factice ; ios.yml photographie la Dynamic Island compacte, puis étendue (mise à jour avec alerte
-  22 s après), et tente l'écran verrouillé (⌘L de Simulator.app).
+  factice ; ios.yml signe l'app ad hoc (sans quoi le simulateur ignore l'extension), puis photographie
+  la Dynamic Island compacte, étendue (mise à jour avec alerte 22 s après) et l'écran verrouillé
+  (⌘L de Simulator.app), pendant puis après le repos.
 
 Références Apple : ActivityKit « Displaying live data with Live Activities », WidgetKit
 `ActivityConfiguration` / `DynamicIsland`, HIG « Live Activities » (marge de 14 pt, hauteur

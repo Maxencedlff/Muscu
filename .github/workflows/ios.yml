@@ -75,36 +75,58 @@ jobs:
           xcrun simctl boot "$DEVICE"
           xcrun simctl bootstatus "$DEVICE" -b
           APP=$(find build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' | head -1)
+          # L'extension Live Activity doit être embarquée dans l'app
+          test -d "$APP/PlugIns/RestActivity.appex" || { echo "Extension RestActivity absente de l'app"; exit 1; }
+          # Compilée sans signature : le système du simulateur n'enregistre une extension que signée.
+          # Signature ad hoc (« - ») d'une copie, de l'intérieur vers l'extérieur (frameworks,
+          # extension, app) ; en cas d'échec, l'app non signée est installée comme avant.
+          SIGNED="$RUNNER_TEMP/signed"; rm -rf "$SIGNED"; mkdir -p "$SIGNED"; cp -R "$APP" "$SIGNED/"
+          SAPP="$SIGNED/$(basename "$APP")"
+          adhoc() { codesign --force --sign - --timestamp=none "$1"; }
+          sign_all() {
+            if [ -d "$SAPP/Frameworks" ]; then
+              for f in "$SAPP"/Frameworks/*.framework "$SAPP"/Frameworks/*.dylib; do
+                [ -e "$f" ] && { adhoc "$f" || return 1; }
+              done
+            fi
+            adhoc "$SAPP/PlugIns/RestActivity.appex" && adhoc "$SAPP"
+          }
+          if sign_all; then APP="$SAPP"; echo "App et extension signées (ad hoc)"
+          else echo "Signature ad hoc impossible : app installée sans signature"; fi
           xcrun simctl install "$DEVICE" "$APP"
           BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
           mkdir -p shots
-          # L'extension Live Activity doit être embarquée dans l'app
-          test -d "$APP/PlugIns/RestActivity.appex" || { echo "Extension RestActivity absente de l'app"; exit 1; }
-          # -MDLFDemoRestActivity (Debug seulement) : repos factice de 90 s, pour photographier la
-          # Live Activity : compacte (app en arrière-plan), puis étendue (alerte envoyée 22 s après)
+          # Captures à heure fixe depuis le lancement (T0), notées dans le journal
+          T0=$(date +%s)
+          at() { local w=$(( T0 + $1 - $(date +%s) )); [ "$w" -gt 0 ] && sleep "$w"; return 0; }
+          shot() { echo "T0+$(( $(date +%s) - T0 )) s : $1"; xcrun simctl io "$DEVICE" screenshot "shots/$1.png" > /dev/null 2>&1 || true; }
+          # -MDLFDemoRestActivity (Debug seulement) : repos factice de 55 s ; alerte 22 s après le
+          # début (présentation étendue de la Dynamic Island), « C'est reparti » une fois fini
           xcrun simctl launch "$DEVICE" "$BUNDLE" -MDLFDemoRestActivity
-          sleep 12
-          xcrun simctl io "$DEVICE" screenshot shots/1-lancement.png
+          at 12; shot 1-lancement
           xcrun simctl ui "$DEVICE" appearance light
-          sleep 4
-          xcrun simctl io "$DEVICE" screenshot shots/2-theme-clair.png
+          at 16; shot 2-theme-clair
           xcrun simctl launch "$DEVICE" com.apple.Preferences
-          sleep 4
-          xcrun simctl io "$DEVICE" screenshot shots/3-dynamic-island.png
-          sleep 5
-          xcrun simctl io "$DEVICE" screenshot shots/4-dynamic-island-etendue.png
-          sleep 2
-          xcrun simctl io "$DEVICE" screenshot shots/5-dynamic-island-etendue.png
+          at 20; shot 3-dynamic-island
+          at 25; shot 4-dynamic-island-etendue
+          at 28; shot 5-dynamic-island-etendue
           xcrun simctl ui "$DEVICE" appearance dark
-          sleep 6
-          xcrun simctl io "$DEVICE" screenshot shots/6-dynamic-island-sombre.png
-          # Écran verrouillé : commande « Lock » de Simulator.app (⌘L), sans garantie sur la CI
+          at 32; shot 6-dynamic-island-sombre
+          # Écran verrouillé : commande « Lock » de Simulator.app (⌘L)
           open -a Simulator --args -CurrentDeviceUDID "$DEVICE" || true
-          sleep 6
+          sleep 5
           osascript -e 'tell application "Simulator" to activate' \
             -e 'tell application "System Events" to keystroke "l" using command down' || true
-          sleep 3
-          xcrun simctl io "$DEVICE" screenshot shots/7-ecran-verrouille.png || true
+          at 44; shot 7-ecran-verrouille-sombre
+          xcrun simctl ui "$DEVICE" appearance light
+          at 66; shot 8-ecran-verrouille-repos-fini
+          # Extension enregistrée par le système, et journaux de son affichage
+          xcrun simctl spawn "$DEVICE" pluginkit -m -A -v -p com.apple.widgetkit-extension > shots/pluginkit.txt 2>&1 || true
+          grep -i restactivity shots/pluginkit.txt || echo "RestActivity absente de pluginkit"
+          xcrun simctl spawn "$DEVICE" log show --last 3m --style compact \
+            --predicate 'process == "RestActivity" OR process == "chronod" OR process == "pkd" OR eventMessage CONTAINS[c] "RestActivity"' \
+            > shots/journal-extension.txt 2>&1 || true
+          grep -iE 'RestActivity.*(error|fail|reject|invalid|crash)|(error|fail|reject|invalid).*RestActivity' shots/journal-extension.txt | head -20 || true
           xcrun simctl launch "$DEVICE" "$BUNDLE"
           sleep 3
           # Journal de l'app (console JavaScript relayée par Capacitor en Debug) : erreurs au démarrage
