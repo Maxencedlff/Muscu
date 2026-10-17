@@ -100,6 +100,7 @@ function makeDefaultData() {
     soundOn: true,
     vibrateOn: true,
     healthOn: false,   // app iOS : Apple Santé
+    bodyWeightKg: null, // app iOS : poids de secours pour les calories
     musicOn: false,    // app iOS : Apple Music
     history: [],
   };
@@ -203,6 +204,8 @@ function normalizeData(d, rawJson = null) {
   if (d.soundOn   == null) d.soundOn   = true;
   if (d.vibrateOn == null) d.vibrateOn = true;
   d.healthOn = d.healthOn === true;   // app iOS : Apple Santé (désactivé par défaut)
+  // Poids de secours (kg) pour estimer les calories quand Santé n'a aucune pesée
+  d.bodyWeightKg = Number.isFinite(d.bodyWeightKg) && d.bodyWeightKg >= 25 && d.bodyWeightKg <= 300 ? d.bodyWeightKg : null;
   d.musicOn  = d.musicOn === true;    // app iOS : Apple Music (désactivé par défaut)
   if (!Array.isArray(d.history)) d.history = [];
   sanitizeData(d);

@@ -694,6 +694,29 @@ test('santé historique : tout envoyé une seule fois, les échecs restent à en
   }
 });
 
+test('calories : pesée de Santé en priorité, sinon poids de secours, sinon rien', async () => {
+  reset();
+  run(`data.healthOn = true; data.bodyWeightKg = 70;
+       __o = { isNative: Native.isNative, health: Native.health };
+       Native.isNative = true; weightCache = { at: 0, samples: [] };
+       Native.health = { bodyMass: async () => __samples };`);
+  try {
+    ctx.__samples = [{ date: 1, kg: 82.4 }];
+    assert.equal(await run('weightForCalories()'), 82.4, 'pesée Santé');
+    run('weightCache = { at: 0, samples: [] }'); ctx.__samples = [];
+    assert.equal(await run('weightForCalories()'), 70, 'poids de secours');
+    run('weightCache = { at: 0, samples: [] }; data.bodyWeightKg = null');
+    assert.equal(await run('weightForCalories()'), null, 'aucun poids : pas de calories');
+  } finally { run('Native.isNative = __o.isNative; Native.health = __o.health;'); }
+});
+
+test('données : poids de secours borné (25 à 300 kg), null sinon', () => {
+  assert.equal(run('normalizeData(Object.assign(makeDefaultData(), { bodyWeightKg: 72.5 }))').bodyWeightKg, 72.5);
+  assert.equal(run('normalizeData(Object.assign(makeDefaultData(), { bodyWeightKg: 5000 }))').bodyWeightKg, null);
+  assert.equal(run('normalizeData(Object.assign(makeDefaultData(), { bodyWeightKg: "70" }))').bodyWeightKg, null);
+  assert.equal(run('num("70,5", 25, 300)'), 70.5, 'virgule du clavier français acceptée');
+});
+
 test('données : healthOn et musicOn désactivés par défaut, conservés ensuite', () => {
   const d = run('normalizeData(makeDefaultData())');
   assert.equal(d.healthOn, false); assert.equal(d.musicOn, false);

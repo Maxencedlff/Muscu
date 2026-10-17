@@ -58,7 +58,9 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
         ${title   ? `<div class="ios-dialog__title" id="${dlgId}-t" tabindex="-1">${esc(title)}</div>` : ''}
         ${message ? `<div class="ios-dialog__msg" id="${dlgId}-m">${esc(message)}</div>` : ''}
         ${input   ? `<div class="ios-dialog__field">
-            <input class="ios-dialog__input" ${input.text ? 'type="text" autocomplete="off" autocapitalize="sentences" maxlength="40"' : `type="number" inputmode="${input.decimal ? 'decimal' : 'numeric'}"`}
+            <input class="ios-dialog__input" ${input.text ? 'type="text" autocomplete="off" autocapitalize="sentences" maxlength="40"'
+              : input.decimal ? 'type="text" inputmode="decimal" autocomplete="off"'   // « 70,5 » : la virgule du clavier français
+              : 'type="number" inputmode="numeric"'}
                    value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}">
             ${input.unit ? `<span class="ios-dialog__unit">${esc(input.unit)}</span>` : ''}
           </div>` : ''}
@@ -149,7 +151,7 @@ async function askNumber({ title, message, value, unit, min, max, decimal = fals
     { label: 'OK', style: 'preferred' },
   ] });
   if (raw === null || raw === '') return null;
-  const v = decimal ? parseFloat(raw) : parseInt(raw, 10);
+  const v = decimal ? num(raw, -Infinity, Infinity) ?? NaN : parseInt(raw, 10);   // num() accepte la virgule
   if (isNaN(v) || v < min || v > max) { showToast(`Valeur entre ${min} et ${max}`, { error: true }); return null; }
   return v;
 }

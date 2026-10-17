@@ -25,7 +25,7 @@ function estimateKcal(durationMs, kg) {
 // Appelé après l'enregistrement d'une séance ; un échec ne bloque jamais le bilan
 async function syncWorkoutToHealth(entry) {
   if (!healthEnabled() || !entry?.duration) return;
-  const kg  = (await latestBodyMass())?.kg;
+  const kg  = await weightForCalories();
   const end = entry.date;
   const ok  = await Native.health.saveWorkout({ start: end - entry.duration, end, kcal: estimateKcal(entry.duration, kg) });
   if (ok) { entry.healthSaved = true; save(true); }
@@ -59,7 +59,7 @@ function workoutOf(h, typical, kg) {
 async function sendHistoryToHealth(onProgress = () => {}) {
   const todo = healthBacklog();
   const typical = typicalDuration();
-  const kg = (await latestBodyMass())?.kg;
+  const kg = await weightForCalories();
   let sent = 0, failed = 0;
   for (const h of todo) {
     if (await Native.health.saveWorkout(workoutOf(h, typical, kg))) { h.healthSaved = true; sent++; }
@@ -82,6 +82,11 @@ async function bodyMassSamples() {
 
 async function latestBodyMass() {
   return (await bodyMassSamples())[0] || null;
+}
+
+// Poids retenu pour les calories : dernière pesée de Santé, sinon le poids de secours des Réglages
+async function weightForCalories() {
+  return (await latestBodyMass())?.kg || data.bodyWeightKg || null;
 }
 
 // Emplacement dans Progrès, rempli après le dessin (lecture asynchrone dans Santé)
@@ -169,6 +174,12 @@ function renderAppleServicesGroup(tog) {
               <span class="cell__sub">Enregistre tes séances, lit ton poids</span></span>
             ${tog(data.healthOn === true)}
           </button>
+          ${data.healthOn === true ? `<button class="cell cell--nav" data-action="set-body-weight">
+            <span class="cell__body"><span class="cell__title">Poids pour les calories</span>
+              <span class="cell__sub">Utilisé quand Santé n'a aucune pesée</span></span>
+            <span class="cell__value num">${data.bodyWeightKg ? `${fmtW(data.bodyWeightKg)} ${unitLbl()}` : 'Non renseigné'}</span>
+            ${icon('chevron.right', 16)}
+          </button>` : ''}
           ${data.healthOn === true ? (() => {
             const n = healthBacklog().length;
             return `<button class="cell cell--nav" data-action="health-backfill">
@@ -220,6 +231,16 @@ registerActions({
     render();
     if (failed) showToast(`${plural(sent, 'séance envoyée', 'séances envoyées')}, ${failed} en échec (autorisation ?)`, { error: true });
     else showToast(`${plural(sent, 'séance envoyée', 'séances envoyées')} dans Santé`);
+  },
+  'set-body-weight': async () => {
+    const lbs = data.unit === 'lbs';
+    const v = await askNumber({ title: 'Poids pour les calories',
+      message: 'Sert à estimer les calories de tes séances quand Santé n\'a aucune pesée.',
+      value: data.bodyWeightKg ? fmtW(data.bodyWeightKg, { plain: true }) : '', unit: unitLbl(),
+      min: lbs ? 55 : 25, max: lbs ? 660 : 300, decimal: true });
+    if (v === null) return;
+    data.bodyWeightKg = parseFloat(storeW(v));
+    save(); render(); showToast('Poids enregistré');
   },
   'music-play':     async () => { haptic(); updateMusicBar(await Native.music.command('play')); },
   'music-pause':    async () => { haptic(); updateMusicBar(await Native.music.command('pause')); },
