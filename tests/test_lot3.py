@@ -33,8 +33,13 @@ def tabbar_top(page):
 
 def last_content_bottom(page):
     """Bas du dernier élément visible de la vue, une fois défilé tout en bas."""
-    page.evaluate('window.scrollTo(0, document.documentElement.scrollHeight)')
-    page.wait_for_timeout(200)
+    # Juste après un changement d'onglet, WebKit peut encore limiter le défilement (vue en
+    # transition) : on redemande le bas jusqu'à l'atteindre vraiment, au lieu d'une attente fixe.
+    for _ in range(30):
+        page.evaluate('window.scrollTo(0, document.documentElement.scrollHeight)')
+        page.wait_for_timeout(100)
+        if page.evaluate('Math.abs(scrollY + innerHeight - document.documentElement.scrollHeight) <= 1'):
+            break
     return page.evaluate("""() => {
         let b = 0;
         for (const el of document.querySelectorAll('.view *')) {
