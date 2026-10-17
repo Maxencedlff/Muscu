@@ -5,8 +5,6 @@
 
 let lastSummary = null;  // bilan de la séance qui vient d'être enregistrée
 
-const RECORD_RANK = { 'Record charge': 3, 'Record reps': 2, 'Record 1RM est.': 1 };
-
 // Meilleure série (la plus lourde, puis le plus de reps). Contrairement à bestSet(), les séries
 // sans reps comptent aussi : la tendance du bilan se calcule sur toute la dernière séance.
 function summaryBestSet(sets) {
@@ -15,19 +13,6 @@ function summaryBestSet(sets) {
     if (!b || w > b.w || (w === b.w && r > b.r)) return { w, r, s };
     return b;
   }, null);
-}
-
-// Record le plus marquant d'un exercice : charge > reps > 1RM estimé, puis la série la plus lourde
-function exerciseRecord(ex, base) {
-  const score = s => (parseFloat(s.weight) || 0) * 100 + (+s.reps);
-  let rec = null;
-  ex.sets.forEach(s => {
-    const l = recordLabel(s, base);
-    if (!l) return;
-    const rank = RECORD_RANK[l], best = rec && RECORD_RANK[rec.label];
-    if (!rec || rank > best || (rank === best && score(s) > score(rec.s))) rec = { label: l, s };
-  });
-  return rec;
 }
 
 // Tendance de la meilleure série par rapport à la dernière fois : 'up', 'same', 'down' (null sans précédent)
@@ -54,6 +39,7 @@ function buildSummary(entry, baseline) {
     id: entry.id, programme: entry.programme, category: entry.category, date: entry.date,
     duration: entry.duration, sets: entry.exercises.reduce((a, e) => a + e.sets.length, 0),
     volume: cur, delta: prevH ? cur - prev : null, records, rows,
+    baseline,   // records d'avant la séance : l'image partagée montre les mêmes records que le bilan
   };
 }
 
@@ -114,6 +100,7 @@ function renderSummary() {
           <div class="sum-tile"><div class="sum-tile__label">Volume</div><div class="sum-tile__value num">${fmtVolume(sm.volume)}</div>${summaryDeltaHtml(sm.delta)}</div>
           <div class="sum-tile"><div class="sum-tile__label">Séries</div><div class="sum-tile__value num">${sm.sets}</div></div>
         </div>
+        ${shareStoryButton(sm.id, 'sum-share')}
         ${summaryRecordsHtml(sm.records)}
         <div class="sum-section-title">Exercices</div>
         <div class="sum-list">

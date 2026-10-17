@@ -19,6 +19,7 @@ const Native = (() => {
   const StatusBar          = plugin('StatusBar');
   const SplashScreen       = plugin('SplashScreen');
   const Filesystem         = plugin('Filesystem');
+  const Share              = plugin('Share');
   const Health             = plugin('MdlfHealth');   // module Swift de l'app (ios/App/App/HealthPlugin.swift)
   const Music              = plugin('MdlfMusic');    // module Swift de l'app (ios/App/App/MusicPlugin.swift)
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
@@ -180,6 +181,24 @@ const Native = (() => {
         if (!isNative) return false;
         try { await Updater.set({ id }); return true; } catch { return false; }
       },
+    },
+
+    // Partage d'une image (story de fin de séance) par la feuille de partage d'iOS : Instagram,
+    // Messages, Photos… L'image est écrite dans le dossier cache de l'app, puis son URL file://
+    // est passée à Share.share({ files }) (capacitorjs.com/docs/apis/share : « Array of file://
+    // URLs of the files to be shared » ; Filesystem.writeFile sans encoding attend du base64).
+    // Renvoie 'shared', 'cancelled' (feuille fermée) ou 'failed' ; hors app : false, sans effet.
+    async shareImage(dataUrl, fileName) {
+      if (!isNative) return false;
+      try {
+        const base64 = String(dataUrl).replace(/^data:[^,]*,/, '');
+        const { uri } = await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
+        await Share.share({ files: [uri] });
+        return 'shared';
+      } catch (e) {
+        // Fermeture de la feuille sans choisir d'app : rejet « Share canceled » du module
+        return /cancel/i.test(String(e?.message || e)) ? 'cancelled' : 'failed';
+      }
     },
 
     async readBackup() {

@@ -127,12 +127,17 @@ function doneSummary(ex) {
   return `${ex.sets.length} × ${same ? reps[0] : reps.join('/')}${maxW ? ` · ${fmtW(maxW, { plain: true })} ${unitLbl()}` : ''}`;
 }
 
-// Icône de médaille (records)
+// Icône de médaille (records), dessinée sur une grille de 24 : ruban, disque, étoile.
+// Les tracés servent aussi à l'image partagée (Path2D accepte la syntaxe SVG).
+const MEDAL_PATHS = {
+  ribbon: 'M7.5 2h3l1.5 4.5L13.5 2h3l-2.6 7.2A6 6 0 1 1 10.1 9.2z',
+  star:   'M12 11.8l1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5 2.2-.3z',
+};
 function medalSvg(size = 20) {
   return `<svg class="medal" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M7.5 2h3l1.5 4.5L13.5 2h3l-2.6 7.2A6 6 0 1 1 10.1 9.2z" fill="currentColor" opacity=".55"/>
+    <path d="${MEDAL_PATHS.ribbon}" fill="currentColor" opacity=".55"/>
     <circle cx="12" cy="15" r="6" fill="currentColor"/>
-    <path d="M12 11.8l1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5 2.2-.3z" fill="var(--cell, #1c1c1e)"/>
+    <path d="${MEDAL_PATHS.star}" fill="var(--cell, #1c1c1e)"/>
   </svg>`;
 }
 
@@ -281,18 +286,6 @@ function renderSetRow(ex, ei, s, si, cur) {
         ${check}
       </div>
     </div>`;
-}
-
-// Badge de record d'une série validée, comparée aux records d'avant la séance (jamais en cas d'égalité)
-function recordLabel(s, base) {
-  if (!base || !base.prR) return '';
-  const w = parseFloat(s.weight) || 0;
-  const r = parseInt(s.reps)     || 0;
-  if (w > base.prW) return 'Record charge';
-  if (w === base.prW && r > base.prR) return 'Record reps';
-  const e1 = calc1RM(s.weight, s.reps);
-  if (e1 && e1 > base.e1rm) return 'Record 1RM est.';
-  return '';
 }
 
 // ── Validation d'une série ───────────────────────────────────

@@ -22,6 +22,7 @@ const SCRIPTS = [
   'js/core/util.js',
   'js/data/programmes.js',
   'js/data/store.js',
+  'js/data/records.js',
   'js/data/accessors.js',
   'js/data/backup.js',
   'js/data/muscles.js',
@@ -31,6 +32,8 @@ const SCRIPTS = [
   'js/app/actions.js',
   'js/features/apple-services.js',
   'js/app/live-update.js',
+  'js/features/share-stats.js',
+  'js/features/share-canvas.js',
 ];
 
 // ── Environnement simulé ────────────────────────────────────
@@ -534,14 +537,14 @@ test('esc, normName, sameEx, plural, setsVolume', () => {
 // native.js est chargé seul dans un contexte neuf, avec une coquille Capacitor simulée qui
 // enregistre chaque appel de module natif.
 
-function nativeContext({ native = true, localData = null, fileData = null } = {}) {
+function nativeContext({ native = true, localData = null, fileData = null, shareCancelled = false } = {}) {
   const calls = [];
   const storage = new MemoryStorage();
   if (localData !== null) storage.setItem('ppl_v2', localData);
   let reloaded = false;
   const plugins = {
     Filesystem: {
-      writeFile: async (o) => { calls.push(['writeFile', o.path]); fileData = o.data; },
+      writeFile: async (o) => { calls.push(['writeFile', o.path, o.directory]); fileData = o.data; return { uri: `file:///${o.directory}/${o.path}` }; },
       readFile:  async () => { if (fileData === null) throw new Error('absent'); return { data: fileData }; },
     },
     LocalNotifications: {
@@ -549,6 +552,9 @@ function nativeContext({ native = true, localData = null, fileData = null } = {}
       requestPermissions: async () => { calls.push(['requestPermissions']); return { display: 'granted' }; },
       schedule: async (o) => { calls.push(['schedule', o.notifications[0].body]); },
       cancel:   async () => { calls.push(['cancel']); },
+    },
+    Share: {
+      share: async (o) => { calls.push(['share', o.files]); if (shareCancelled) throw new Error('Share canceled'); },
     },
   };
   const box = {
@@ -814,6 +820,10 @@ test('mise à jour à chaud : coquille native différente → rien (il faut pass
 // ── Muscles (tests/unit/muscles.mjs) ────────────────────────
 
 (await import('./muscles.mjs')).default({ test, app, run, reset, sameJSON, assert });
+
+// ── Partage de séance (tests dans share.mjs) ────────────────
+
+(await import('./share.mjs')).default({ test, app, run, reset, sameJSON, nativeContext });
 
 // ── Exécution ───────────────────────────────────────────────
 
