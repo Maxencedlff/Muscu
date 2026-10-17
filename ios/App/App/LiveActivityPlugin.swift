@@ -11,12 +11,16 @@ import ActivityKit
 /// démarre app au premier plan, se met à jour avec ActivityContent et se termine dès que la tâche
 /// est finie. staleDate = fin du repos : l'extension affiche alors « C'est reparti », même si l'app
 /// est suspendue et n'a rien pu envoyer.
+///
+/// App tuée pendant un repos : rien ne termine la Live Activity côté serveur (pas de push), et iOS
+/// la garderait jusqu'à 8 h, puis 4 h de plus sur l'écran verrouillé. Elle est donc terminée à la
+/// réception de UIApplication.willTerminateNotification. Limite : une app suspendue puis tuée par
+/// le système ne reçoit aucun signal ; l'extension affiche alors depuis quand le repos est fini.
 @objc(LiveActivityPlugin)
 public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "LiveActivityPlugin"
     public let jsName = "MdlfLiveActivity"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "isAvailable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "update", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "end", returnType: CAPPluginReturnPromise),
@@ -28,6 +32,7 @@ public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     /// chaque opération attend la précédente, dans l'ordre d'arrivée.
     private var lastOperation: Task<Void, Never>?
     private let lock = NSLock()
+    private var terminateObserver: NSObjectProtocol?
 
     private func enqueue(_ operation: @escaping () async -> Void) {
         lock.lock(); defer { lock.unlock() }
@@ -41,13 +46,29 @@ public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     override public func load() {
         // Repos fini pendant que l'app était fermée : sa Live Activity n'a plus lieu d'être
         enqueue { await Self.endAll(where: { $0.content.state.endDate <= Date() }) }
+        observeTermination()
         #if DEBUG
         startDemoIfRequested()
         #endif
     }
 
-    @objc func isAvailable(_ call: CAPPluginCall) {
-        call.resolve(["available": ActivityAuthorizationInfo().areActivitiesEnabled])
+    /// App tuée au premier plan ou en arrière-plan actif (balayage dans le sélecteur d'apps) :
+    /// iOS laisse quelques secondes au plus après willTerminate (UIKit, « applicationWillTerminate »).
+    /// Les Live Activities sont terminées de façon synchrone, avec 1 s au maximum, pour ne pas
+    /// laisser « C'est reparti » des heures sur l'écran verrouillé. queue: nil : le bloc s'exécute
+    /// tout de suite sur le fil qui poste la notification (Foundation, NotificationCenter). La tâche
+    /// est détachée pour ne pas attendre le fil principal, bloqué par le sémaphore.
+    private func observeTermination() {
+        terminateObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willTerminateNotification, object: nil, queue: nil
+        ) { _ in
+            let done = DispatchSemaphore(value: 0)
+            Task.detached {
+                await LiveActivityPlugin.endAll(where: { _ in true })
+                done.signal()
+            }
+            _ = done.wait(timeout: .now() + 1)
+        }
     }
 
     /// Démarre la Live Activity du repos. Une Live Activity de la même séance déjà affichée
@@ -58,7 +79,7 @@ public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
             sessionTitle: String((call.getString("title") ?? "Séance").prefix(40)),
             tint: call.getString("color") ?? "indigo")
         enqueue {
-            let current = RestActivity.activities
+            let current = Self.liveActivities
             if let same = current.first(where: { Self.sameSession($0.attributes, attributes) }) {
                 await Self.endAll(where: { $0.id != same.id })
                 await same.update(Self.content(state))
@@ -83,7 +104,7 @@ public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func update(_ call: CAPPluginCall) {
         guard let state = Self.contentState(call) else { call.reject("Repos invalide"); return }
         enqueue {
-            let current = RestActivity.activities
+            let current = Self.liveActivities
             for activity in current { await activity.update(Self.content(state)) }
             call.resolve(["updated": !current.isEmpty])
         }
@@ -123,8 +144,15 @@ public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         a.sessionTitle == b.sessionTitle && a.tint == b.tint
     }
 
+    /// Activités encore affichées. Juste après end(…, .immediate), une activité terminée peut rester
+    /// listée un instant dans Activity.activities (ActivityKit, « activityState ») : elle ne doit
+    /// pas être prise pour la Live Activity de la séance, sinon le nouveau repos s'afficherait sans.
+    private static var liveActivities: [RestActivity] {
+        RestActivity.activities.filter { $0.activityState == .active || $0.activityState == .stale }
+    }
+
     private static func endAll(where predicate: (RestActivity) -> Bool) async {
-        for activity in RestActivity.activities where predicate(activity) {
+        for activity in liveActivities where predicate(activity) {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
     }

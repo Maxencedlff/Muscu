@@ -225,9 +225,12 @@ document.addEventListener('pointercancel', endEdDrag);
 // iOS : sans ce preventDefault, le glisser de la poignée ferait défiler la liste
 document.addEventListener('touchmove', e => { if (edDrag) e.preventDefault(); }, { passive: false });
 
-// Nom saisi dans Programme › Exercice : gardé dans le brouillon
+// Nom saisi dans Programme › Exercice : gardé dans le brouillon, puis les muscles reconnus
+// suivent la frappe (muscles.js), dans cet ordre explicite
 document.addEventListener('input', e => {
-  if (e.target.id === 'exName' && exDraft) exDraft.name = e.target.value;
+  if (e.target.id !== 'exName' || !exDraft) return;
+  exDraft.name = e.target.value;
+  refreshExEditMuscles();
 });
 
 // ── Actions ─────────────────────────────────────────────────

@@ -149,6 +149,13 @@ struct RestLockScreenView: View {
                             .foregroundStyle(tint)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
+                        // Reste vrai même affiché longtemps (app tuée par le système pendant le repos) :
+                        // le système fait avancer cette durée seul (WidgetKit, « Displaying dynamic dates »)
+                        Text("Fini depuis \(state.endDate, style: .relative)")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .lineLimit(1)
                     } else {
                         RestCountdown(state: state)
                             .font(.system(size: 40, weight: .semibold, design: .rounded))

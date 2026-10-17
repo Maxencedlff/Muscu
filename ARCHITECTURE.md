@@ -104,6 +104,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `forms.js` | `flagInvalid`, `weightOk`, `weightMsg` |
 | `edge-swipe.js` | Geste de retour depuis le bord gauche (app installée sur iOS) |
 | `body-map.js` | `bodyMapSvg(niveaux, options)` : silhouette face / dos en SVG texte, chaque muscle coloriable (`data-muscle`) ; `bodyHeatOpacity`, `bodyMapColors()` (couleurs résolues pour un SVG autonome) |
+| `medal.js` | Médaille de record : `MEDAL_PATHS` (tracés partagés avec l'image de partage) et `medalSvg(taille)` |
 
 ### js/features/
 
@@ -115,7 +116,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `custom-session.js` | Séance perso : nom, description, icône, couleur, suppression |
 | `session.js` | Séance en cours : démarrage / fin, `persistSession()` (séance et repos, avertissement « stockage plein »), tableau des séries, badges de record, validation et « Annuler » |
 | `rest.js` | Repos : mini-barre, feuille détaillée, chrono calé sur une heure de fin, jalons annoncés, `restSnapshot()` / `resumeRest()` pour la séance enregistrée |
-| `rest-activity.js` | Live Activity du repos (app iOS) : données envoyées au module natif (`restActivityPayload`, couleur, série suivante), `syncRestActivity()` / `endRestActivity()` appelés par `rest.js` |
+| `rest-activity.js` | Live Activity du repos (app iOS) : données envoyées au module natif (`restActivityPayload`, couleur, série suivante), `syncRestActivity()` (via `syncNativeRest()`) / `endRestActivity()` appelés par `rest.js` |
 | `session-sheets.js` | Feuilles de la séance (`openSessSheet`), repos d'un exercice, feuille d'ajout / remplacement d'exercice (`openAddExSheet({ target })` : séance en cours, Programme › Séance ou séance passée), menu ⋯ |
 | `session-gestures.js` | Balayage d'une série (« Supprimer »), clavier (Entrée, champ actif), recherche de la feuille d'ajout |
 | `summary.js` | Fin de séance (« Terminer » : enregistrement, stockage plein) et bilan |

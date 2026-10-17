@@ -123,7 +123,7 @@ function drawCard(ctx, p, x, y, w, h) {
   }
 }
 
-// Médaille de record (mêmes tracés que medalSvg), carrée de côté size
+// Médaille de record (mêmes tracés que medalSvg, js/ui/medal.js), carrée de côté size
 function drawMedal(ctx, p, x, y, size) {
   const k = size / 24;
   ctx.save();
@@ -246,8 +246,10 @@ function drawHighlights(ctx, p, st, y, rows, more) {
     ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label);
     ctx.textAlign = 'right'; ctx.fillText(r.value, SIDE + w - padX, ry + 72); ctx.textAlign = 'left';
 
+    // Le nom est l'information principale : la police est réduite (40 → 32 px) avant de tronquer
     const nameW = w - 2 * padX - vw - 32;
-    ctx.font = storyFont(600, 40, false, p); ctx.fillStyle = rgbaCss(p.label);
+    fitSize(ctx, r.name, nameW, 40, 32, s => storyFont(600, s, false, p));
+    ctx.fillStyle = rgbaCss(p.label);
     ctx.fillText(fitText(ctx, r.name, nameW), SIDE + padX, ry + 50);
     ctx.font = storyFont(500, 30, false, p);
     if (r.record) {

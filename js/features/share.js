@@ -9,8 +9,11 @@
 // Safari n'autorise navigator.share que pendant le geste de l'utilisateur (« transient activation »,
 // MDN) : l'image est donc préparée dès l'ouverture de l'aperçu, et le toucher sur « Partager »
 // appelle le partage sans rien attendre avant.
+// L'image n'est encodée en PNG qu'une fois, de façon asynchrone (HTMLCanvasElement.toBlob, MDN),
+// à l'ouverture de l'aperçu : la PWA en fait un File, l'app iOS la relit en data URL au partage
+// (aucun geste à préserver côté natif), sans second encodage synchrone par toDataURL.
 
-let shareState = null;   // { entry, stats, canvas, file, name, close } de l'aperçu ouvert
+let shareState = null;   // { entry, stats, canvas, blob, file, name, busy, close } de l'aperçu ouvert
 
 // Tokens de css/base.css résolus dans le thème courant de l'app ([r, g, b, a] pour le canvas)
 function storyPalette(catColor) {
@@ -81,6 +84,16 @@ function canvasBlob(canvas) {
   return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
 }
 
+// Blob → « data:image/png;base64,… » attendu par Native.shareImage (FileReader.readAsDataURL, MDN)
+function blobDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
 function sharePreviewBody(stats) {
   return `
     <div class="share-preview">
@@ -101,7 +114,7 @@ async function openSharePreview(id) {
   // Bilan de la séance qui vient de se terminer : mêmes records que ceux affichés
   const baseline = lastSummary?.id === id ? lastSummary.baseline : null;
   const stats = shareStoryStats(entry, { baseline });
-  const state = { entry, stats, file: null, name: shareFileName(entry) };
+  const state = { entry, stats, blob: null, file: null, name: shareFileName(entry), busy: false };
   shareState = state;
   sheet({ title: 'Aperçu', cancel: 'Fermer', confirm: '', body: sharePreviewBody(stats) })
     .then(() => { if (shareState === state) shareState = null; });
@@ -110,26 +123,40 @@ async function openSharePreview(id) {
   state.canvas = root.querySelector('.share-preview__img');
   try {
     await renderShareStory(entry, { stats, canvas: state.canvas });
-    const blob = await canvasBlob(state.canvas);
-    if (blob && typeof File === 'function') state.file = new File([blob], state.name, { type: 'image/png' });
+    state.blob = await canvasBlob(state.canvas);
+    if (state.blob && !Native.isNative && typeof File === 'function') {
+      state.file = new File([state.blob], state.name, { type: 'image/png' });
+    }
   } catch {
     showToast('Image impossible à créer');
     return;
   }
   const btn = root.querySelector('.share-preview__send');
-  if (btn && (state.file || Native.isNative)) btn.disabled = false;
+  if (btn && (state.file || (Native.isNative && state.blob))) btn.disabled = false;
 }
 
 const SHARE_MESSAGES = { downloaded: 'Image enregistrée', failed: 'Partage impossible' };
 
 registerActions({
   'share-story': (e, el) => { openSharePreview(el.dataset.id); },
-  'share-story-send': async () => {
+  // Un seul partage à la fois : un double toucher ouvrirait une seconde feuille, refusée par iOS.
+  // busy et disabled sont posés sans rien attendre, pour garder le geste exigé par navigator.share.
+  'share-story-send': async (e, el) => {
     const st = shareState;
-    if (!st?.canvas) return;
-    const result = Native.isNative
-      ? await Native.shareImage(st.canvas.toDataURL('image/png'), st.name)
-      : (st.file ? await shareOrDownload(st.file, `${st.stats.title} · MDLF Training`) : 'failed');
+    if (!st?.blob || st.busy) return;
+    st.busy = true;
+    el.disabled = true;
+    let result = 'failed';
+    try {
+      result = Native.isNative
+        ? await Native.shareImage(await blobDataUrl(st.blob), st.name)
+        : (st.file ? await shareOrDownload(st.file, `${st.stats.title} · MDLF Training`) : 'failed');
+    } catch {
+      result = 'failed';
+    } finally {
+      st.busy = false;
+      el.disabled = false;
+    }
     if (SHARE_MESSAGES[result]) showToast(SHARE_MESSAGES[result]);
     if (result === 'shared' || result === 'downloaded') st.close?.(true);
   },

@@ -117,6 +117,37 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     sameJSON(app.mixColor([200, 100, 0, 1], [0, 0, 0, 1], 50), [100, 50, 0, 1]);
   });
 
+  // Contexte 2D factice : largeur mesurée = 0,55 × taille de police par caractère
+  function fakeCanvas2d() {
+    const drawn = [];
+    const target = {
+      font: '10px x', drawn,
+      measureText(t) { return { width: String(t).length * parseFloat(/(\d+)px/.exec(this.font)[1]) * 0.55 }; },
+      fillText(t) { drawn.push({ text: t, size: parseFloat(/(\d+)px/.exec(this.font)[1]) }); },
+    };
+    return new Proxy(target, { get: (o, k) => (k in o ? o[k] : () => {}) });
+  }
+
+  test('partage : nom d\'exercice réduit (40 → 32 px) avant d\'être tronqué', () => {
+    const c = [235, 235, 245, 1];
+    const palette = { light: false, label: c, label2: c, sep: c, cell: c, goldText: c, font: 'f', fontRounded: 'r' };
+    const names = { short: 'Squat', medium: 'Développé couché haltères pro', long: 'Développé incliné haltères prise neutre, banc à trente degrés' };
+    const st = { highlights: Object.values(names).map(name => ({ name, value: '100 kg × 8', record: null })), others: 0 };
+    const g = fakeCanvas2d();
+    app.drawHighlights(g, palette, st, 0, 3, false);
+    const at = name => g.drawn.find(d => d.text === name || (d.text.endsWith('…') && name.startsWith(d.text.slice(0, -1))));
+    assert.equal(at(names.short).size, 40, 'nom court : taille pleine');
+    assert.ok(at(names.medium).size < 40 && at(names.medium).text === names.medium, 'nom moyen : réduit, entier');
+    assert.equal(at(names.long).size, 32, 'nom très long : taille minimale');
+    assert.ok(at(names.long).text.endsWith('…'), 'puis tronqué');
+  });
+
+  test('médaille : mêmes tracés pour l\'icône des écrans et l\'image partagée', () => {
+    const svg = app.medalSvg(14);
+    assert.match(svg, /width="14"/);
+    for (const d of Object.values(run('MEDAL_PATHS'))) assert.ok(svg.includes(`d="${d}"`));
+  });
+
   test('native : partage d\'image hors app → rien ; dans l\'app → fichier en cache puis feuille de partage', async () => {
     const web = nativeContext({ native: false });
     assert.equal(await web.Native.shareImage('data:image/png;base64,AAAA', 'x.png'), false);

@@ -68,15 +68,11 @@ function exEditMusclesHtml(d) {
     <div class="group-foot">${foot}</div>`;
 }
 function renderExEditMuscles(d) { return `<div id="exMuscles">${exEditMusclesHtml(d)}</div>`; }
+// Appelée par programme-editor.js à chaque frappe dans le nom, après la mise à jour du brouillon
 function refreshExEditMuscles() {
   const box = $('#exMuscles');
   if (box && exDraft) box.innerHTML = exEditMusclesHtml(exDraft);
 }
-
-// Nom saisi : les muscles reconnus suivent la frappe
-document.addEventListener('input', e => {
-  if (e.target.id === 'exName') refreshExEditMuscles();
-});
 
 // Feuille de choix : liste à cocher (role="checkbox" + aria-checked, WAI-ARIA), coche à droite comme
 // les listes de choix iOS (Apple HIG, « Lists and tables ») ; « Automatique » revient au nom

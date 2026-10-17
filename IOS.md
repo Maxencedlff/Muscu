@@ -70,9 +70,9 @@ avec la séance (nom et couleur), l'heure de reprise et « Ensuite : Squat · s�
 | Élément | Rôle |
 |---|---|
 | `ios/App/Shared/RestActivityAttributes.swift` | Données de la Live Activity (`ActivityAttributes`) : séance et couleur (fixes), heure de fin, durée totale et série suivante (variables). Compilé dans l'app **et** dans l'extension |
-| `ios/App/App/LiveActivityPlugin.swift` (`MdlfLiveActivity`) | `start`, `update`, `end`, `isAvailable` ; opérations exécutées dans l'ordre d'arrivée ; reprend la Live Activity d'une séance restaurée au lieu d'en créer une autre ; au lancement, retire celle d'un repos déjà fini |
+| `ios/App/App/LiveActivityPlugin.swift` (`MdlfLiveActivity`) | `start`, `update`, `end` ; opérations exécutées dans l'ordre d'arrivée ; reprend la Live Activity d'une séance restaurée au lieu d'en créer une autre ; au lancement, retire celle d'un repos déjà fini ; à la fermeture de l'app (`willTerminateNotification`), les retire toutes |
 | `ios/App/RestActivity/` | Extension WidgetKit `com.mdlf.training.RestActivity` : écran verrouillé (`RestActivityViews.swift`), Dynamic Island compacte, minimale et étendue (`RestLiveActivity.swift`), marque MDLF Training (`Assets.xcassets`) |
-| `js/features/rest-activity.js` | Données envoyées (`restActivityPayload`, logique pure testée) et branchement : `syncRestActivity()` là où la notification de fin de repos est programmée (début, ±15 s, autre durée, reprise), `endRestActivity()` dans `stopRest()` (fin, Passer, annulation, fin de séance) |
+| `js/features/rest-activity.js` | Données envoyées (`restActivityPayload`, logique pure testée) et branchement : `syncRestActivity()` appelé par `syncNativeRest()` (`rest.js`), qui aligne aussi la notification de fin de repos (début, ±15 s, autre durée, reprise), `endRestActivity()` dans `stopRest()` (fin, Passer, annulation, fin de séance) et à la reprise d'un repos déjà fini (page rechargée) |
 | `scripts/ios/add-rest-activity-target.rb` | Crée la cible d'extension dans le projet Xcode (gem `xcodeproj`), idempotent |
 
 - **Aucune mise à jour chaque seconde** : le temps restant et l'anneau sont dessinés par iOS à
@@ -81,7 +81,17 @@ avec la séance (nom et couleur), l'heure de reprise et « Ensuite : Squat · s�
   suspendue.
 - **Repos fini app en arrière-plan** : la date de péremption (`staleDate`) vaut l'heure de fin ;
   passé cette heure, l'extension affiche « C'est reparti » sans que l'app ait à se réveiller. Au
-  retour dans l'app, `restFinished()` la retire.
+  retour dans l'app, `restFinished()` la retire. L'écran verrouillé ajoute « Fini depuis 3 min »
+  (`Text(_, style: .relative)`, avancé par iOS), pour rester juste même affiché longtemps.
+- **App tuée pendant un repos** : sans push, rien ne termine la Live Activity côté serveur, et iOS
+  la garde jusqu'à 8 h, puis 4 h de plus sur l'écran verrouillé (ActivityKit, « Displaying live data
+  with Live Activities »). Fermée par l'utilisateur (balayage dans le sélecteur d'apps) au premier
+  plan ou en arrière-plan actif, l'app reçoit `UIApplication.willTerminateNotification` et termine
+  ses Live Activities (1 s au plus). **Limite** : une app suspendue puis tuée par le système (mémoire)
+  ne reçoit aucun signal ; la Live Activity reste alors jusqu'au prochain lancement de l'app (retirée
+  par `load()`) ou jusqu'à ce qu'iOS l'efface, en affichant depuis quand le repos est fini.
+- **Activités terminées encore listées** : juste après `end(…, .immediate)`, une activité peut rester
+  un instant dans `Activity.activities` ; seules celles à l'état `.active` ou `.stale` sont reprises.
 - **Fin immédiate** (`dismissalPolicy: .immediate`), comme le demande Apple dès que la tâche est finie.
 - **Couleur** : `var(--orange)` devient la couleur système `systemOrange` (claire ou sombre selon
   l'écran) ; une couleur de séance perso (`#RRGGBB`) est reprise telle quelle.

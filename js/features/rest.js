@@ -102,12 +102,13 @@ function updateRestUI() {
 function startRestCountdown() {
   restEndTime = Date.now() + restTimeLeft * 1000;
   resumeRestCountdown();
-  scheduleRestNotification();
+  syncNativeRest();
 }
 
-// App iOS : notification de fin de repos et Live Activity (rest-activity.js), utiles écran
-// verrouillé ou app en arrière-plan
-function scheduleRestNotification() {
+// App iOS : aligne sur le repos en cours tout ce qu'iOS affiche hors de l'app, à savoir la
+// notification de fin de repos et la Live Activity (rest-activity.js), utiles écran verrouillé
+// ou app en arrière-plan
+function syncNativeRest() {
   if (!Native.isNative || !restActive) return;
   syncRestActivity();
   const nx = activeSession && currentSet();
@@ -160,17 +161,19 @@ function restSnapshot() {
   return restActive ? { endTime: restEndTime, minimized: restMinimized, total: restTotal } : null;
 }
 
-// Repos repris d'une séance restaurée : relancé s'il n'est pas déjà fini
+// Repos repris d'une séance restaurée : relancé s'il n'est pas déjà fini. Déjà fini (page
+// rechargée par une mise à jour à chaud après la fin du repos), sa Live Activity est retirée :
+// le module natif ne la nettoie qu'à son propre lancement.
 function resumeRest(saved) {
   const endTime = saved ? Number(saved.endTime) : 0;
-  if (!(endTime > Date.now())) return;
+  if (!(endTime > Date.now())) { endRestActivity(); return; }
   restActive    = true;
   restMinimized = !!saved.minimized;
   restEndTime   = endTime;
   restTimeLeft  = Math.ceil((endTime - Date.now()) / 1000);
   restTotal     = Number(saved.total) || Math.max(restTimeLeft, data.defaultRest);
   resumeRestCountdown();
-  scheduleRestNotification();
+  syncNativeRest();
 }
 
 function clearRest() { clearInterval(restInterval); restInterval = null; }
@@ -201,7 +204,7 @@ function adjustRest(d) {
   if (restTimeLeft <= 0) { restFinished(); return; }
   updateRestUI();
   persistSession();
-  scheduleRestNotification();
+  syncNativeRest();
 }
 
 // Retour au premier plan : le son est réveillé et le repos recalé sur son heure de fin

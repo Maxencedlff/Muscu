@@ -29,6 +29,7 @@ const SCRIPTS = [
   'js/data/muscle-load.js',
   'js/ui/forms.js',
   'js/ui/body-map.js',
+  'js/ui/medal.js',
   'js/app/actions.js',
   'js/features/rest-activity.js',
   'js/features/apple-services.js',
@@ -813,6 +814,25 @@ test('iOS : SceneDelegate → MainViewController → chaque module Swift, noms i
     const declared = [...src.matchAll(/CAPPluginMethod\(name: "(\w+)"/g)].map(m => m[1]);
     for (const m of declared) assert.match(src, new RegExp(`@objc func ${m}\\(`), `${file} : ${m} implémentée`);
   }
+});
+
+test('iOS : Live Activity du repos (API exposée, activités vivantes, fin à la fermeture de l\'app)', () => {
+  const read = p => fs.readFileSync(path.join(ROOT, p), 'utf8');
+  const src = read('ios/App/App/LiveActivityPlugin.swift');
+  const native = read('js/platform/native.js');
+  // Aucune méthode morte : chaque méthode déclarée est appelée par native.js, et inversement
+  const declared = [...src.matchAll(/CAPPluginMethod\(name: "(\w+)"/g)].map(m => m[1]).sort();
+  const used = [...native.matchAll(/LiveActivity\.(\w+)\(/g)].map(m => m[1]).sort();
+  sameJSON(declared, ['end', 'start', 'update']);
+  sameJSON([...new Set(used)], declared);
+  // Une activité terminée encore listée n'est jamais reprise
+  assert.doesNotMatch(src.replace(/static var liveActivities[\s\S]*?\n    \}/, ''), /RestActivity\.activities/);
+  assert.match(src, /activityState == \.active \|\| \$0\.activityState == \.stale/);
+  // App tuée par l'utilisateur : Live Activities terminées avant la fin du processus
+  assert.match(src, /UIApplication\.willTerminateNotification/);
+  assert.match(src, /done\.wait\(timeout: \.now\(\) \+ 1\)/);
+  // Écran verrouillé périmé : depuis quand le repos est fini
+  assert.match(read('ios/App/RestActivity/RestActivityViews.swift'), /state\.endDate, style: \.relative/);
 });
 
 test('iOS : extension RestActivity déclarée, embarquée et signée comme l\'app', () => {
