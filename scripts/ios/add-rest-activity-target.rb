@@ -10,6 +10,7 @@
 #   - cible app_extension RestActivity (com.mdlf.training.RestActivity), iPhone, iOS 16.4 comme l'app ;
 #   - sources ios/App/RestActivity/*.swift, catalogue d'images, Info.plist de l'extension ;
 #   - ios/App/Shared/RestActivityAttributes.swift compilé dans l'app ET dans l'extension ;
+#   - ios/App/App/LiveActivityPlugin.swift (module Capacitor qui pilote la Live Activity) dans l'app ;
 #   - frameworks WidgetKit, SwiftUI, ActivityKit ;
 #   - extension embarquée dans l'app (phase « Embed Foundation Extensions », dépendance de cible) ;
 #   - signature : Debug automatique comme l'app (le contrôle CI compile sans signature),
@@ -32,6 +33,7 @@ IOS_TARGET  = '16.4'
 PROFILE     = 'MDLF Training Rest Activity App Store'
 EXT_SOURCES = %w[RestActivityBundle.swift RestLiveActivity.swift RestActivityViews.swift].freeze
 SHARED      = 'RestActivityAttributes.swift'
+APP_PLUGIN  = 'LiveActivityPlugin.swift'
 
 project = Xcodeproj::Project.open(PROJECT)
 if project.targets.any? { |t| t.name == NAME }
@@ -74,7 +76,9 @@ ext.frameworks_build_phase.files_references.each do |ref|
   ref.source_tree = 'SDKROOT'
   ref.path = "System/Library/Frameworks/#{ref.name}"
 end
-app.add_file_references([shared_ref])
+app_group  = project.main_group.find_subpath('App', false) or abort('Groupe App introuvable')
+plugin_ref = app_group.files.find { |f| f.path == APP_PLUGIN } || app_group.new_reference(APP_PLUGIN)
+app.add_file_references([shared_ref, plugin_ref])
 
 common = {
   'PRODUCT_NAME'                  => '$(TARGET_NAME)',

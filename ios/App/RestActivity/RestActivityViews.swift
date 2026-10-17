@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import WidgetKit
 
 // Briques communes de la Live Activity du repos : couleur de séance, anneau, compte à rebours,

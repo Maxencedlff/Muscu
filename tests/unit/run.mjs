@@ -789,12 +789,16 @@ test('iOS : SceneDelegate → MainViewController → chaque module Swift, noms i
   const ios = p => fs.readFileSync(path.join(ROOT, 'ios/App/App', p), 'utf8');
   assert.match(ios('SceneDelegate.swift'), /rootViewController\s*=\s*MainViewController\(\)/, 'SceneDelegate doit créer MainViewController');
   const main = ios('MainViewController.swift');
+  const pbx = fs.readFileSync(path.join(ROOT, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8');
   const native = fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8');
   for (const file of ['HealthPlugin.swift', 'MusicPlugin.swift', 'LiveActivityPlugin.swift']) {
     const src = ios(file);
     const cls = src.match(/public (?:final )?class (\w+): CAPPlugin/)[1];
     const jsName = src.match(/jsName = "(\w+)"/)[1];
     assert.match(main, new RegExp(`registerPluginInstance\\(${cls}\\(\\)\\)`), `${cls} enregistré par MainViewController`);
+    // Régression du 17/10/2026 : un module présent sur le disque mais absent de la cible App
+    // (« cannot find 'LiveActivityPlugin' in scope » à la compilation)
+    assert.match(pbx, new RegExp(`${file} in Sources \\*/,`), `${file} compilé dans la cible App`);
     assert.match(native, new RegExp(`plugin\\('${jsName}'\\)`), `native.js appelle ${jsName}`);
     // Chaque méthode appelée par native.js est déclarée par le module Swift
     const declared = [...src.matchAll(/CAPPluginMethod\(name: "(\w+)"/g)].map(m => m[1]);

@@ -60,7 +60,11 @@ jobs:
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -25
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build > xcodebuild.log 2>&1 || {
+              # En cas d'échec, les erreurs du compilateur (et non les 25 dernières lignes)
+              grep -E -A4 'error:|BUILD FAILED' xcodebuild.log | head -120; exit 1; }
+          grep -E 'warning: .*(RestActivity|LiveActivity|Shared/)' xcodebuild.log | sort -u | head -40 || true
+          tail -5 xcodebuild.log
 
       - name: Lancement sur un iPhone virtuel et captures
         if: ${{ !inputs.testflight }}

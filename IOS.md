@@ -34,6 +34,7 @@ Les fichiers de l'app iOS sont exclus de la publication Vercel (`.vercelignore`)
 |---|---|---|
 | `Native.haptic()` | `haptic()`, `timerDone()` | Taptic Engine (toucher, fin de repos) |
 | `Native.scheduleRestEnd()` / `cancelRestEnd()` | `rest.js` | Notification « Repos terminé · Série 3 · Squat » à l'heure de fin, annulée si le repos est passé |
+| `Native.liveActivity.start()` / `update()` / `end()` | `rest-activity.js` | Live Activity du repos sur l'écran verrouillé et dans la Dynamic Island (voir plus bas) |
 | `Native.keepAwake()` | wake lock de `init.js` | Écran allumé pendant la séance |
 | `Native.statusBar()` | `applyTheme()`, démarrage | Texte de la barre d'état adapté au thème |
 | `Native.backup()` / `boot()` | `save()`, démarrage | Copie `ppl_v2.json` dans les Documents de l'app (sauvegardés par iCloud) ; restaurée si le stockage web est vide, jamais écrasée avant |
@@ -43,7 +44,8 @@ L'autorisation des notifications est demandée au premier repos, au moment où e
 
 ### Santé et Apple Music (`js/features/apple-services.js`)
 
-Deux modules Swift propres à l'app, enregistrés par `ios/App/App/MainViewController.swift` :
+Modules Swift propres à l'app, enregistrés par `ios/App/App/MainViewController.swift` (avec la
+Live Activity du repos, plus bas) :
 
 | Module | Côté web | Rôle |
 |---|---|---|
@@ -58,6 +60,43 @@ Deux modules Swift propres à l'app, enregistrés par `ios/App/App/MainViewContr
 - Séance : barre de lecture en haut, mise à jour par les notifications du lecteur.
 - Capacité HealthKit activée sur `com.mdlf.training` (le profil App Store la contient) ; Apple Music
   passe par MediaPlayer et l'autorisation « Médias et Apple Music », sans capacité ni clé.
+
+### Live Activity du repos (écran verrouillé et Dynamic Island)
+
+Pendant un repos, le compte à rebours s'affiche sur l'écran verrouillé et dans la Dynamic Island,
+avec la séance (nom et couleur), l'heure de reprise et « Ensuite : Squat · série 3 · 80 kg × 8 ».
+
+| Élément | Rôle |
+|---|---|
+| `ios/App/Shared/RestActivityAttributes.swift` | Données de la Live Activity (`ActivityAttributes`) : séance et couleur (fixes), heure de fin, durée totale et série suivante (variables). Compilé dans l'app **et** dans l'extension |
+| `ios/App/App/LiveActivityPlugin.swift` (`MdlfLiveActivity`) | `start`, `update`, `end`, `isAvailable` ; opérations exécutées dans l'ordre d'arrivée ; reprend la Live Activity d'une séance restaurée au lieu d'en créer une autre ; au lancement, retire celle d'un repos déjà fini |
+| `ios/App/RestActivity/` | Extension WidgetKit `com.mdlf.training.RestActivity` : écran verrouillé (`RestActivityViews.swift`), Dynamic Island compacte, minimale et étendue (`RestLiveActivity.swift`), marque MDLF Training (`Assets.xcassets`) |
+| `js/features/rest-activity.js` | Données envoyées (`restActivityPayload`, logique pure testée) et branchement : `syncRestActivity()` là où la notification de fin de repos est programmée (début, ±15 s, autre durée, reprise), `endRestActivity()` dans `stopRest()` (fin, Passer, annulation, fin de séance) |
+| `scripts/ios/add-rest-activity-target.rb` | Crée la cible d'extension dans le projet Xcode (gem `xcodeproj`), idempotent |
+
+- **Aucune mise à jour chaque seconde** : le temps restant et l'anneau sont dessinés par iOS à
+  partir de l'heure de fin (`Text(timerInterval:)`, `ProgressView(timerInterval:)`). L'app n'envoie
+  rien d'autre qu'au début, à ±15 s et à la fin, ce qui économise la batterie et reste juste app
+  suspendue.
+- **Repos fini app en arrière-plan** : la date de péremption (`staleDate`) vaut l'heure de fin ;
+  passé cette heure, l'extension affiche « C'est reparti » sans que l'app ait à se réveiller. Au
+  retour dans l'app, `restFinished()` la retire.
+- **Fin immédiate** (`dismissalPolicy: .immediate`), comme le demande Apple dès que la tâche est finie.
+- **Couleur** : `var(--orange)` devient la couleur système `systemOrange` (claire ou sombre selon
+  l'écran) ; une couleur de séance perso (`#RRGGBB`) est reprise telle quelle.
+- **Taille** : textes bornés (séance 40, exercice 60, charge 30 caractères) sous la limite de 4 Ko.
+- `NSSupportsLiveActivities = YES` dans `Info.plist` ; aucune autorisation à demander (l'utilisateur
+  peut les couper dans Réglages › MDLF Training).
+- **Versions** : `MARKETING_VERSION` et `CURRENT_PROJECT_VERSION` sont réglées au niveau du projet
+  (et non des cibles) : App Store Connect refuse une extension dont la version diffère de l'app.
+- **Contrôle sur la CI** : en Debug, l'argument de lancement `-MDLFDemoRestActivity` démarre un repos
+  factice ; ios.yml photographie la Dynamic Island compacte, puis étendue (mise à jour avec alerte
+  22 s après), et tente l'écran verrouillé (⌘L de Simulator.app).
+
+Références Apple : ActivityKit « Displaying live data with Live Activities », WidgetKit
+`ActivityConfiguration` / `DynamicIsland`, HIG « Live Activities » (marge de 14 pt, hauteur
+de 160 pt au plus, marque sans conteneur, contenu serré contre la caméra). Capacitor : « iOS custom
+native code » (module enregistré par `MainViewController`).
 
 ## Mises à jour à chaud (sans repasser par Apple)
 
@@ -131,16 +170,19 @@ gh workflow run ios.yml -R Maxencedlff/Muscu --ref main -f testflight=true      
 | `ASC_KEY_P8` | Contenu du fichier `AuthKey_AVSJM6323R.p8` |
 | `DIST_CERT_P12` / `DIST_CERT_PASSWORD` | Certificat « Apple Distribution » (expire le 16/10/2027) et sa clé, en base64 |
 | `APPSTORE_PROFILE` | Profil « MDLF Training App Store » (IOS_APP_STORE, expire le 16/10/2027), en base64 |
+| `APPSTORE_PROFILE_REST_ACTIVITY` | Profil « MDLF Training Rest Activity App Store » de l'extension `com.mdlf.training.RestActivity` (IOS_APP_STORE, même certificat, expire le 16/10/2027), en base64 |
 
 La signature est **manuelle** pour la configuration Release : la signature automatique d'Xcode
 exige un appareil enregistré pour créer d'abord un profil de développement. Le certificat et le
 profil ont été créés par l'API App Store Connect depuis le PC (clé privée générée localement,
 copie dans `~/.config/apple/`). **À renouveler avant octobre 2027** : nouveau certificat
-(`POST /v1/certificates`, type DISTRIBUTION), nouveau profil, puis mise à jour des trois secrets.
+(`POST /v1/certificates`, type DISTRIBUTION), deux nouveaux profils (app et extension), puis mise à jour
+des quatre secrets.
 
 ## Publier une version
 
-1. Mettre à jour `MARKETING_VERSION` (ex. 1.1.0) dans `ios/App/App.xcodeproj/project.pbxproj`.
+1. Mettre à jour `MARKETING_VERSION` (ex. 1.1.0) dans `ios/App/App.xcodeproj/project.pbxproj` (réglages
+   du projet, Debug et Release : l'app et l'extension la partagent).
 2. Lancer le mode TestFlight sur `main`.
 3. Tester la build dans TestFlight sur un vrai iPhone.
 4. Dans App Store Connect : nouvelle version, sélectionner la build, « Soumettre pour vérification ».
