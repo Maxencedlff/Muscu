@@ -37,9 +37,9 @@ const STORY = {
   SIGNATURE: 84,     // icône de la signature
 };
 
-// Point d'accroche de la silhouette des muscles : un module peut fournir
+// Point d'accroche de la silhouette des muscles : share.js y place storyMuscleSvg,
 // shareStoryHooks.muscleSvg = (entry, stats, palette) => texte SVG (ou null).
-// Sans fournisseur, l'image se dessine sans silhouette (mise en page en ligne).
+// Sans fournisseur ou sans muscle reconnu, l'image se dessine sans silhouette (mise en page en ligne).
 const shareStoryHooks = { muscleSvg: null };
 
 // ── Couleurs (logique pure, testée) ─────────────────────────

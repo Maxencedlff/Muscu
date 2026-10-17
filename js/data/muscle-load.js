@@ -64,5 +64,23 @@ function muscleLoad(spanKey = 'week', now = Date.now(), history = data.history) 
   return { span: MUSCLE_SPANS[spanKey] ? spanKey : 'week', sessions, sets: counts, perWeek, levels, intensity, low };
 }
 
+// Muscles d'une seule séance (image partagée) : intensité 0..1 rapportée au muscle le plus
+// travaillé de la séance, qui prend la couleur pleine. Les paliers hebdomadaires n'ont pas de sens
+// pour une séance seule (10 séries sur un muscle en une fois sont rares). Muscles non travaillés absents.
+function sessionMuscleLevels(entry, index = chosenMusclesIndex()) {
+  const { counts } = muscleSetCounts([entry], -Infinity, Infinity, index);
+  const max = Math.max(0, ...Object.values(counts));
+  if (!max) return {};
+  return Object.fromEntries(Object.entries(counts).filter(([, n]) => n > 0).map(([id, n]) => [id, n / max]));
+}
+
+// Muscles les plus travaillés d'une séance (identifiants, du plus au moins travaillé, ordre de
+// MUSCLES à égalité) : pour décrire l'image à VoiceOver
+function sessionTopMuscles(entry, max = 3, index = chosenMusclesIndex()) {
+  const lv = sessionMuscleLevels(entry, index);
+  return MUSCLES.map(m => m.id).filter(id => lv[id] > 0)
+    .sort((a, b) => lv[b] - lv[a]).slice(0, max);
+}
+
 // Nombre de séries à afficher : entier (les demi-séries des muscles secondaires sont arrondies)
 function roundSets(v) { return Math.round(v); }

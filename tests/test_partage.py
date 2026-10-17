@@ -22,17 +22,6 @@ FAKE_SHARE = """() => {
   navigator.share = async o => { const f = o.files[0]; window.__shared.push({ name: f.name, type: f.type, size: f.size, title: o.title }); };
 }"""
 
-# Silhouette factice (le module « muscles » fournira la vraie) : vérifie le point d'accroche
-FAKE_MUSCLES = """() => {
-  shareStoryHooks.muscleSvg = () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220">
-    <g fill="rgb(128,128,128)" opacity=".35"><circle cx="50" cy="22" r="16"/><rect x="28" y="42" width="44" height="80" rx="18"/>
-    <rect x="30" y="124" width="16" height="86" rx="8"/><rect x="54" y="124" width="16" height="86" rx="8"/>
-    <circle cx="150" cy="22" r="16"/><rect x="128" y="42" width="44" height="80" rx="18"/>
-    <rect x="130" y="124" width="16" height="86" rx="8"/><rect x="154" y="124" width="16" height="86" rx="8"/></g>
-    <rect x="32" y="48" width="36" height="26" rx="10" fill="rgb(255,149,0)"/></svg>`;
-}"""
-
-
 def tag(device, theme):
     return f'{device}-{theme}'.replace(' ', '_').replace('+', 'plus')
 
@@ -150,8 +139,20 @@ def t_historique(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(page.locator('.sheet-root').count() == 0, f'{t} historique : « Fermer » referme l\'aperçu')
 
-        # Point d'accroche de la silhouette des muscles
-        page.evaluate(FAKE_MUSCLES)
+        # Silhouette des muscles de la séance : couleurs résolues, muscle le plus travaillé en plein
+        m = page.evaluate("""() => {
+          const h = data.history.find(x => x.category === 'push');
+          const st = shareStoryStats(h), p = storyPalette(st.color);
+          const svg = shareStoryHooks.muscleSvg(h, st, p) || '';
+          const unknown = { ...h, exercises: [{ name: 'Exercice inventé', sets: [{ weight: '10', reps: '8' }] }] };
+          const top = sessionTopMuscles(h)[0];
+          return { svg, top, full: new RegExp(`data-muscle="${top}"[^>]*fill-opacity="1"`).test(svg),
+                   none: shareStoryHooks.muscleSvg(unknown, st, p), alt: shareStoryAlt(st) };
+        }""")
+        R.check(m['svg'].startswith('<svg xmlns=') and 'var(--' not in m['svg'], f'{t} silhouette : SVG autonome, couleurs résolues')
+        R.check(m['full'], f'{t} silhouette : muscle le plus travaillé ({m["top"]}) en couleur pleine')
+        R.check(m['none'] is None, f'{t} silhouette : aucun muscle reconnu → pas de silhouette')
+        R.check('Muscles travaillés : ' in m['alt'] and 'pectoraux' in m['alt'], f'{t} silhouette : muscles décrits pour VoiceOver ({m["alt"]})')
         url = page.evaluate("""async () => {
           const h = data.history.find(x => x.category === 'push');
           const { canvas } = await renderShareStory(h);

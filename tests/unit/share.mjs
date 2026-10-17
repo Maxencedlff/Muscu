@@ -98,7 +98,9 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     reset();
     const { latest, history } = pushHistory();
     const st = app.shareStoryStats(latest, { history });
-    assert.match(app.shareStoryAlt(st), /^Push, .+\. 1 h 02, .+ t, 9 séries, Nouveau record\.$/);
+    assert.match(app.shareStoryAlt(st), /^Push, .+\. 1 h 02, .+ t, 9 séries, Nouveau record\. Muscles travaillés : pectoraux, .+ et .+\.$/);
+    assert.equal(st.muscles.length, 3, 'trois muscles les plus travaillés');
+    assert.match(app.shareStoryAlt({ ...st, muscles: [] }), /Nouveau record\.$/, 'sans muscle reconnu : pas de phrase');
     assert.equal(app.shareRecordsText(3), '3 records battus');
     assert.match(app.shareFileName(latest), /^mdlf-training-push-\d{4}-\d{2}-\d{2}\.png$/);
     assert.match(app.shareFileName({ category: 'Ma séance!', date: NOW }), /^mdlf-training-masance-/);

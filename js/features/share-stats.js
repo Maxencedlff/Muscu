@@ -52,7 +52,8 @@ function shareStoryStats(entry, { history = data.history, baseline = null, max =
     records:  rows.filter(r => r.record).length,
     highlights,
     others:   exercises.length - highlights.length,
-    exercises: exercises.map(ex => ({ exId: ex.exId || null, name: ex.name })),   // pour la silhouette
+    exercises: exercises.map(ex => ({ exId: ex.exId || null, name: ex.name })),   // exercices faits
+    muscles:  sessionTopMuscles(entry).map(muscleLabel),             // « Pectoraux », pour VoiceOver
   };
 }
 
@@ -61,11 +62,17 @@ function shareRecordsText(n) {
   return n > 1 ? `${n} records battus` : 'Nouveau record';
 }
 
-// Description de l'image pour VoiceOver : « Push, samedi 17 octobre. 52 min, 8,4 t, 18 séries, 2 records battus. »
+// « pectoraux, triceps et épaules antérieures » (Intl.ListFormat, voir MDN)
+const SHARE_LIST_FR = new Intl.ListFormat('fr-FR', { type: 'conjunction' });
+
+// Description de l'image pour VoiceOver : « Push, samedi 17 octobre. 52 min, 8,4 t, 18 séries,
+// 2 records battus. Muscles travaillés : pectoraux, triceps et épaules antérieures. »
 function shareStoryAlt(st) {
   const parts = [st.duration, st.volume, plural(st.sets, 'série', 'séries')].filter(Boolean);
   if (st.records) parts.push(shareRecordsText(st.records));
-  return `${st.title}, ${st.day}. ${parts.join(', ')}.`;
+  const muscles = (st.muscles || []).map(m => m.toLocaleLowerCase('fr-FR'));
+  const tail = muscles.length ? ` Muscles travaillés : ${SHARE_LIST_FR.format(muscles)}.` : '';
+  return `${st.title}, ${st.day}. ${parts.join(', ')}.${tail}`;
 }
 
 // Nom du fichier partagé : « mdlf-training-push-2026-10-17.png » (clé de séance : [A-Za-z0-9_-])

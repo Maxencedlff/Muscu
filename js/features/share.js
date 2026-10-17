@@ -48,7 +48,20 @@ function loadImage(src) {
   });
 }
 
-// Silhouette fournie par un autre module (shareStoryHooks.muscleSvg), sinon null
+// Silhouette face et dos des muscles de la séance (js/ui/body-map.js), coloriée dans la couleur
+// de la séance comme le halo de l'image ; null si aucun muscle n'est reconnu (mise en page en ligne).
+// Couleurs résolues (SVG chargé comme image : var(--x) n'y a pas de sens) ; largeur 600 px pour
+// rester net une fois réduit dans le canvas. Sans légendes « Face » / « Dos » : à l'échelle de la
+// story elles seraient illisibles (≈ 11 px sur 1080), et la silhouette gagne de la hauteur.
+function storyMuscleSvg(entry, stats, palette) {
+  const levels = sessionMuscleLevels(entry);
+  if (!Object.keys(levels).length) return null;
+  const colors = { ...bodyMapColors(), heat: rgbaCss(palette.cat) };
+  return bodyMapSvg(levels, { standalone: true, width: 600, colors });
+}
+shareStoryHooks.muscleSvg = storyMuscleSvg;
+
+// Silhouette du fournisseur (shareStoryHooks.muscleSvg, remplaçable par les tests), sinon null
 async function storyMuscleImage(entry, stats, palette) {
   let svg = null;
   try { svg = shareStoryHooks.muscleSvg?.(entry, stats, palette) || null; } catch { svg = null; }

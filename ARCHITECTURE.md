@@ -75,7 +75,7 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `accessors.js` | `prog`, `getCooldown`, `isUserProg`, `userSessions`, `progMeta`, `sessionKeys`, `sessionMeta`, `rawLabel`, `catBadge`, `firstSession`, régularité, unités (`toUnitW`, `fmtW`, `storeW`, `fmtVolume`), `bestSet`, `setTxt` |
 | `active-session.js` | `activeSession`, `sessionNotes`, `writeSession(rest)` (écrit la séance et l'état du repos reçu), `restoreSession()` (renvoie `{ rest }` sans relancer le chrono), `computeBaseline`, `sessProg` |
 | `muscles.js` | `MUSCLES` (16 groupes, `minor` pour les petits), `EXERCISE_CATALOGUE` (bibliothèque : nom, muscles principaux et secondaires ; tous les exercices de `PROGRAMMES` y figurent), `MUSCLE_RULES` (reconnaissance d'un nom libre par mots-clés, la première règle l'emporte), `musclesOf(nom)`, `chosenMuscles`, `exerciseMuscles(ex)` (choix de l'utilisateur, sinon nom), `musclesLine` |
-| `muscle-load.js` | `MUSCLE_SPANS` (semaine, 4 semaines), `muscleSetCounts` (principal 1 série, secondaire ½), `muscleLevel` (paliers 0 / 1–3 / 4–9 / 10+ séries par semaine), `muscleLoad(span)` : séries, paliers, intensités 0..1 et muscles peu travaillés |
+| `muscle-load.js` | `MUSCLE_SPANS` (semaine, 4 semaines), `muscleSetCounts` (principal 1 série, secondaire ½), `muscleLevel` (paliers 0 / 1–3 / 4–9 / 10+ séries par semaine), `muscleLoad(span)` : séries, paliers, intensités 0..1 et muscles peu travaillés ; `sessionMuscleLevels` / `sessionTopMuscles` : muscles d'une seule séance (image partagée) |
 | `backup.js` | `importText` (tout vérifié sur une copie ; renvoie `{ ok, reason }` ou `{ ok, count, skipped, theme, previous }`), `undoImport`, `exportData(theme)` (renvoie `true` une fois le fichier remis), `downloadText` |
 
 ### js/app/actions.js
@@ -284,8 +284,11 @@ le bilan et depuis l'historique sur les 5 appareils, vérifie son format (PNG 10
 et le partage, et l'écrit dans `$PPL_SCRATCH/shots/partage/` pour la regarder.
 
 La silhouette des muscles s'accroche par `shareStoryHooks.muscleSvg = (entry, stats, palette) => svg`
-(texte SVG ou `null`) : l'image passe alors à la mise en page « chiffres + silhouette ». Sans
-fournisseur, elle se dessine en ligne.
+(texte SVG ou `null`), que `share.js` remplit avec `storyMuscleSvg` : `bodyMapSvg` autonome (face et
+dos), intensités de `sessionMuscleLevels(entry)` (séries de la séance par muscle, rapportées au plus
+travaillé), coloriée dans la couleur de la séance. L'image passe alors à la mise en page « chiffres +
+silhouette » ; si aucun muscle n'est reconnu, elle se dessine en ligne. La description VoiceOver
+nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
 
 ## Suite prévue : modules ES
 

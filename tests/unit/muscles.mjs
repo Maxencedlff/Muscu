@@ -164,6 +164,18 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.equal(app.muscleLoad('week', NOW, []).sessions, 0);
   });
 
+  test('séance seule (image partagée) : intensités rapportées au plus travaillé, muscles principaux', () => {
+    reset();
+    const h = hist(0, [{ name: 'Développé couché haltères', sets: sets(4) }, { name: 'Curl marteau', sets: sets(2) },
+                       { name: 'Inconnu', sets: sets(5) }]);
+    sameJSON(app.sessionMuscleLevels(h), { chest: 1, front_delts: 0.5, biceps: 0.5, triceps: 0.5, forearms: 0.5 });
+    sameJSON(app.sessionTopMuscles(h), ['chest', 'front_delts', 'biceps'], 'à égalité : ordre de MUSCLES');
+    sameJSON(app.sessionTopMuscles(h, 1), ['chest']);
+    sameJSON(app.sessionMuscleLevels(hist(0, [{ name: 'Inconnu', sets: sets(3) }])), {}, 'aucun muscle reconnu');
+    sameJSON(app.sessionMuscleLevels(hist(0, [])), {});
+    sameJSON(app.sessionTopMuscles(hist(0, [])), []);
+  });
+
   test('silhouette : une zone par muscle, couleurs par intensité, accessibilité', () => {
     const svg = app.bodyMapSvg({ chest: 1, biceps: 0.5, inconnu: 1, triceps: 7, abs: -2 }, { view: 'both' });
     const zones = [...svg.matchAll(/data-muscle="([a-z_]+)"/g)].map(m => m[1]);
