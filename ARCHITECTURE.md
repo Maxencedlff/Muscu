@@ -51,6 +51,7 @@ tests/                tests de non-régression Playwright (Python) et tests unit
 | `components.css` | Badges, bandeau de séance, dialogues iOS, saisie invalide, bannière de mise à jour, écran de secours |
 | `navigation.css` | Barre de navigation (avec ses plafonds Dynamic Type), tab bar, mini-barre de séance, accueil, feuilles modales, transitions, geste de retour |
 | `session.css` | Séance active, repos, bilan |
+| `muscles.css` | Silhouette musculaire, pastilles de muscles, carte « Muscles » de Progrès, écran Séries par muscle, feuille « Muscles ciblés » |
 | `screens.css` | Écrans à fond groupé (`.view--grouped` : Programme, Progrès, Historique, Réglages) et leur composant de liste groupée (`.group` / `.cell`, seul composant de liste), accessibilité, paysage, Dynamic Type |
 
 Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
@@ -71,6 +72,8 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `store.js` | `makeExercise`, `calc1RM`, `setsVolume`, `sessionVolume`, `recomputePRFromHistory`, `lastPerf`, `resolveExId`, `makeDefaultData`, `sanitizeData` (clés de séance limitées à `SESSION_CAT_RE`), `normalizeData` (migrations), `loadData`, `save`, `latestSessionDate`, `syncTimersFromHistory`, `releaseTimer` ; **charge `data` au chargement** (ou passe en mode secours) |
 | `accessors.js` | `prog`, `getCooldown`, `isUserProg`, `userSessions`, `progMeta`, `sessionKeys`, `sessionMeta`, `rawLabel`, `catBadge`, `firstSession`, régularité, unités (`toUnitW`, `fmtW`, `storeW`, `fmtVolume`), `bestSet`, `setTxt` |
 | `active-session.js` | `activeSession`, `sessionNotes`, `writeSession(rest)` (écrit la séance et l'état du repos reçu), `restoreSession()` (renvoie `{ rest }` sans relancer le chrono), `computeBaseline`, `sessProg` |
+| `muscles.js` | `MUSCLES` (16 groupes, `minor` pour les petits), `EXERCISE_CATALOGUE` (bibliothèque : nom, muscles principaux et secondaires ; tous les exercices de `PROGRAMMES` y figurent), `MUSCLE_RULES` (reconnaissance d'un nom libre par mots-clés, la première règle l'emporte), `musclesOf(nom)`, `chosenMuscles`, `exerciseMuscles(ex)` (choix de l'utilisateur, sinon nom), `musclesLine` |
+| `muscle-load.js` | `MUSCLE_SPANS` (semaine, 4 semaines), `muscleSetCounts` (principal 1 série, secondaire ½), `muscleLevel` (paliers 0 / 1–3 / 4–9 / 10+ séries par semaine), `muscleLoad(span)` : séries, paliers, intensités 0..1 et muscles peu travaillés |
 | `backup.js` | `importText` (tout vérifié sur une copie ; renvoie `{ ok, reason }` ou `{ ok, count, skipped, theme, previous }`), `undoImport`, `exportData(theme)` (renvoie `true` une fois le fichier remis), `downloadText` |
 
 ### js/app/actions.js
@@ -98,6 +101,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `sheet.js` | `sheet()` : feuille modale générique (Annuler / OK, glisser pour fermer) |
 | `forms.js` | `flagInvalid`, `weightOk`, `weightMsg` |
 | `edge-swipe.js` | Geste de retour depuis le bord gauche (app installée sur iOS) |
+| `body-map.js` | `bodyMapSvg(niveaux, options)` : silhouette face / dos en SVG texte, chaque muscle coloriable (`data-muscle`) ; `bodyHeatOpacity`, `bodyMapColors()` (couleurs résolues pour un SVG autonome) |
 
 ### js/features/
 
@@ -117,6 +121,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `progress.js` | Progrès : tuiles et index des exercices tiré de l'historique |
 | `progress-chart.js` | Progrès › Exercice : courbe sur canvas, sélection d'un point au doigt |
 | `progress-overview.js` | Progrès › Vue d'ensemble : calendrier du mois, séances par semaine |
+| `muscles.js` | Muscles des exercices : ligne sous le nom (Programme › Séance, feuille d'ajout), mini-silhouette et pastilles (Programme › Exercice, Progrès › Exercice), feuille « Muscles ciblés » ; carte « Muscles » de Progrès et écran Progrès › Séries par muscle (`stats-muscles`, inscrit dans `SCREENS` depuis ce fichier) |
 | `history.js` | Historique : recherche, filtre, mois chargés par paquets, détail, balayage pour supprimer avec « Annuler » |
 
 ### js/app/
@@ -177,7 +182,7 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
   programmes: {                              // données par programme utilisé
     ppl: {
       exercises: { push: [{ id, name, sets, lastWeight, lastReps, pr: { weight, reps } | null,
-                            est1RM, target, rest, repMax }] },
+                            est1RM, target, rest, repMax, muscles? }] },
       timers:    { push: 1712345678901 | null },   // date de la dernière séance (délai de récupération)
       cooldowns: { push: 72 },                     // heures
       skipped:   { push: 1712345678901 },          // facultatif : « Passer le délai », valable jusqu'à la séance suivante
@@ -194,6 +199,9 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
 
 - `exId` relie un exercice de l'historique à l'exercice du programme (`id`), même après un
   renommage ; un exercice inconnu reçoit `'n:' + normName(nom)`.
+- `muscles` (facultatif) : identifiants de muscles choisis dans Programme › Exercice ; absent, les
+  muscles viennent du nom (`exerciseMuscles`). Champ additif, ignoré par une version précédente ; un
+  identifiant inconnu est ignoré à la lecture.
 - Un programme perso supprimé est **archivé** (`archived: true`) et non effacé : l'historique garde
   les noms et couleurs de ses séances.
 - `pr`, `est1RM`, `lastWeight`, `lastReps` sont recalculés depuis l'historique
@@ -255,10 +263,12 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
 
 `tests/run_all.py` lance les lots Playwright (Python) sur 5 appareils (WebKit iPhone 13 / SE,
 Chromium Pixel 7 / Galaxy S8 / S9+) en thèmes clair et sombre, plus des tests uniques
-(service worker, contrôles statiques). Voir l'en-tête de `run_all.py` pour les options.
+(service worker, contrôles statiques), puis les tests par domaine (`test_muscles.py`). Voir l'en-tête
+de `run_all.py` pour les options.
 
 `node tests/unit/run.mjs` lance les tests unitaires de la logique pure (formats, 1RM, nettoyage et
-migrations, import, délais de récupération, clés de séance, saisie, programmes perso) : les scripts de `js/core/` et `js/data/` sont chargés
+migrations, import, délais de récupération, clés de séance, saisie, programmes perso ; muscles
+dans `tests/unit/muscles.mjs`) : les scripts de `js/core/` et `js/data/` sont chargés
 dans un contexte `vm` de Node, sans navigateur, en moins d'une seconde.
 
 ## Suite prévue : modules ES

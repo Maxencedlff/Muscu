@@ -1,0 +1,63 @@
+/* Muscles : silhouette, pastilles, carte de Progrès, choix des muscles (js/features/muscles.js) */
+
+/* ── Silhouette (js/ui/body-map.js) ── */
+.body-map { display: block; height: auto; }
+
+/* ── Pastilles « Pectoraux » ── */
+.mpills { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; }
+.mpill {
+  padding: 3px 10px; border-radius: var(--r-pill); background: var(--fill2); color: var(--label2);
+  font-size: var(--fs-footnote); line-height: 1.059rem; white-space: nowrap;
+}
+.mpill--main { background: color-mix(in srgb, var(--body-heat) 18%, transparent); color: var(--orange-text); font-weight: 600; }
+
+/* Ligne « Pectoraux · Triceps » sous le nom d'un exercice */
+.ex-muscles { color: var(--label2); }
+
+/* Feuille d'ajout d'exercice : muscles sous le nom */
+.ax__body { display: flex; flex-direction: column; min-width: 0; }
+.ax__sub { font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); }
+
+/* Mini-silhouette d'un exercice et ses pastilles */
+.mpanel { gap: 16px; }
+.mpanel__map { width: 92px; flex-shrink: 0; }
+
+/* ── Progrès : carte « Muscles » ── */
+.mcard__top { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px 16px 14px; }
+.mcard__map { width: min(100%, 216px); }
+.mcard__top + .cell::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
+.mlow { color: var(--label); font-size: var(--fs-subhead); line-height: 1.176rem; }
+
+/* Légende : un échantillon par palier */
+.mlegend { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 12px; font-size: var(--fs-caption); color: var(--label2); }
+.mlegend__item { display: inline-flex; align-items: center; gap: 5px; }
+.mlegend__dot { width: 10px; height: 10px; border-radius: 3px; background: var(--body-zone); position: relative; overflow: hidden; }
+.mlegend__dot::after { content: ''; position: absolute; inset: 0; background: var(--body-heat); opacity: var(--o, 0); }
+.mlegend__unit { flex-basis: 100%; text-align: center; }
+
+/* ── Progrès › Séries par muscle ── */
+.mdetail__seg { margin-top: 16px; }
+.mrow .cell__body { gap: 6px; }
+.mrow__top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.mrow__bar { display: block; height: 6px; border-radius: 3px; background: var(--fill2); overflow: hidden; }
+.mrow__bar i { display: block; height: 100%; min-width: 0; border-radius: 3px; background: var(--body-heat); opacity: var(--o, 0); }
+
+/* ── Feuille « Muscles ciblés » ── */
+.mpick { background: var(--cell2); border-radius: var(--r-md); overflow: hidden; }
+body.light .mpick { background: var(--cell); }
+.mpick__row {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+  min-height: 44px; padding: 11px 16px; border: 0; background: none; color: var(--label);
+  font-size: var(--fs-body); text-align: left; cursor: pointer;
+}
+.mpick__row + .mpick__row::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
+.mpick__row:active { background: var(--fill2); }
+.mpick__row .icon { color: var(--tint); visibility: hidden; }
+.mpick__row[aria-checked="true"] .icon { visibility: visible; }
+.mpick__auto {
+  display: block; width: 100%; min-height: 44px; margin-top: 20px; border: 0; border-radius: var(--r-md);
+  background: var(--cell2); color: var(--tint); font-size: var(--fs-body); cursor: pointer;
+}
+body.light .mpick__auto { background: var(--cell); }
+.mpick__auto:active { opacity: .6; }
+.mpick__foot { padding: 8px 16px 0; font-size: var(--fs-footnote); color: var(--label2); }

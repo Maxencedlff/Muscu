@@ -167,6 +167,7 @@ function renderStats() {
             ${icon('chevron.right', 16)}
           </button>
         </div>
+        ${renderMuscleCard()}
         ${renderWeightGroup()}
         ${idx.size ? list : `<div class="empty-note">Termine des séances pour voir ta progression ici.</div>`}
       </div>
