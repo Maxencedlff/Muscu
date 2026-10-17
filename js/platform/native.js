@@ -23,6 +23,7 @@ const Native = (() => {
   const Health             = plugin('MdlfHealth');   // module Swift de l'app (ios/App/App/HealthPlugin.swift)
   const Music              = plugin('MdlfMusic');    // module Swift de l'app (ios/App/App/MusicPlugin.swift)
   const LiveActivity       = plugin('MdlfLiveActivity'); // module Swift de l'app (ios/App/App/LiveActivityPlugin.swift)
+  const AppIcon            = plugin('MdlfAppIcon');   // module Swift de l'app (ios/App/App/AppIconPlugin.swift)
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
 
   // Un module natif indisponible ou en erreur ne doit jamais casser l'app web
@@ -158,6 +159,23 @@ const Native = (() => {
       start(state)  { if (!isNative) return false; quiet(LiveActivity.start(state)); return true; },
       update(state) { if (!isNative) return false; quiet(LiveActivity.update(state)); return true; },
       end()         { if (!isNative) return false; quiet(LiveActivity.end()); return true; },
+    },
+
+    // Icône de l'app (icônes alternatives d'iOS). Nom natif d'un jeu d'icônes ; null = icône par défaut.
+    // get() : { supported, name } (hors app : { supported: false, name: null }).
+    // set(name) : true une fois changée (iOS affiche lui-même une alerte), false sinon ou hors app.
+    appIcon: {
+      async get() {
+        if (!isNative) return { supported: false, name: null };
+        try {
+          const r = await AppIcon.getName();
+          return { supported: r?.supported !== false, name: r?.name ?? null };
+        } catch { return { supported: false, name: null }; }
+      },
+      async set(name) {
+        if (!isNative) return false;
+        try { await AppIcon.change({ name: name ?? null }); return true; } catch { return false; }
+      },
     },
 
     // Mises à jour à chaud du contenu web (@capgo/capacitor-updater, mode manuel). Hors app : rien.

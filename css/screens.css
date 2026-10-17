@@ -59,6 +59,27 @@
 .txt-flat { color: var(--label2); }
 .empty-note { text-align: center; color: var(--label2); font-size: 0.882rem; padding: 48px 16px; line-height: 1.5; }
 
+/* ── Réglages › Icône de l'app (app iOS) : vignettes au rayon des icônes d'iOS ── */
+.app-icons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 8px; }
+.app-icon {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 44px; min-height: 44px;
+  padding: 4px 0; background: none; border: none; color: var(--label); font: inherit; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.app-icon__img { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+.app-icon__img > svg {
+  display: block; width: 100%; height: 100%; overflow: hidden; border-radius: 22.37%;
+  box-shadow: 0 0 0 .5px var(--sep);   /* bord visible pour « Craie » sur fond clair */
+}
+.app-icon[aria-pressed="true"] .app-icon__img > svg { box-shadow: 0 0 0 2.5px var(--cell), 0 0 0 4.5px var(--tint); }
+.app-icon__check {
+  position: absolute; right: -7px; bottom: -7px; width: 24px; height: 24px; border-radius: var(--r-pill);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--tint-fill); color: var(--on-tint); box-shadow: 0 0 0 2px var(--cell);
+}
+.app-icon__name { font-size: 0.765rem; line-height: 1.059rem; text-align: center; overflow-wrap: anywhere; }
+.app-icon[aria-pressed="true"] .app-icon__name { font-weight: 600; }
+
 /* Champs */
 .field {
   width: 100%; min-height: 44px; border: none; background: none; color: var(--label);
