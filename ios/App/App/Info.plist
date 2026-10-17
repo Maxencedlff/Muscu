@@ -38,6 +38,8 @@
 	<string>MDLF Training lit ton poids dans Santé pour suivre ta prise de masse à côté de tes charges.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>MDLF Training enregistre tes séances terminées comme entraînements « Musculation » dans Santé.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

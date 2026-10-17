@@ -22,6 +22,7 @@ const Native = (() => {
   const Share              = plugin('Share');
   const Health             = plugin('MdlfHealth');   // module Swift de l'app (ios/App/App/HealthPlugin.swift)
   const Music              = plugin('MdlfMusic');    // module Swift de l'app (ios/App/App/MusicPlugin.swift)
+  const LiveActivity       = plugin('MdlfLiveActivity'); // module Swift de l'app (ios/App/App/LiveActivityPlugin.swift)
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
 
   // Un module natif indisponible ou en erreur ne doit jamais casser l'app web
@@ -149,6 +150,14 @@ const Native = (() => {
       onChange(cb) {
         if (isNative) quiet(Music.addListener('change', cb));
       },
+    },
+
+    // Live Activity du repos (écran verrouillé, Dynamic Island). Hors app : rien.
+    // state = { endTime (ms), total (s), title, color, next: { exercise, set, load } | null }
+    liveActivity: {
+      start(state)  { if (!isNative) return false; quiet(LiveActivity.start(state)); return true; },
+      update(state) { if (!isNative) return false; quiet(LiveActivity.update(state)); return true; },
+      end()         { if (!isNative) return false; quiet(LiveActivity.end()); return true; },
     },
 
     // Mises à jour à chaud du contenu web (@capgo/capacitor-updater, mode manuel). Hors app : rien.

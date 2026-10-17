@@ -1,4 +1,4 @@
-const CACHE = 'ppl-v28';
+const CACHE = 'ppl-v29';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
@@ -11,7 +11,7 @@ const ASSETS = [
   '/js/ui/forms.js', '/js/ui/edge-swipe.js', '/js/ui/body-map.js',
   '/js/app/actions.js', '/js/app/updates.js', '/js/app/live-update.js', '/js/app/init.js',
   '/js/features/dashboard.js', '/js/features/programme.js', '/js/features/programme-editor.js', '/js/features/custom-session.js',
-  '/js/features/session.js', '/js/features/rest.js', '/js/features/session-sheets.js', '/js/features/session-gestures.js',
+  '/js/features/session.js', '/js/features/rest.js', '/js/features/rest-activity.js', '/js/features/session-sheets.js', '/js/features/session-gestures.js',
   '/js/features/summary.js', '/js/features/add-session.js', '/js/features/settings.js', '/js/features/apple-services.js', '/js/features/progress.js',
   '/js/features/progress-chart.js', '/js/features/progress-overview.js', '/js/features/muscles.js', '/js/features/history.js',
   '/js/features/share-stats.js', '/js/features/share-canvas.js', '/js/features/share.js',

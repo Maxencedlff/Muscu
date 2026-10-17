@@ -31,11 +31,13 @@ fs.copyFileSync(CORE, path.join(OUT, 'js', 'vendor', 'capacitor.js'));
 // - seq : date du commit (secondes) ; une mise à jour plus ancienne que le contenu en place est ignorée.
 // - version : identifiant lisible du contenu (date du commit + commit court).
 const RUNTIME_INPUTS = ['capacitor.config.json', 'ios/App/App/Info.plist', 'ios/App/App/App.entitlements',
-  'ios/App/App.xcodeproj/project.pbxproj'];
+  'ios/App/App.xcodeproj/project.pbxproj', 'ios/App/RestActivity/Info.plist'];
+// Code Swift de l'app, partagé, et de l'extension Live Activity (RestActivity)
+const SWIFT_DIRS = ['ios/App/App', 'ios/App/Shared', 'ios/App/RestActivity'];
 function runtimeVersion() {
   const h = crypto.createHash('sha256');
-  const swift = fs.readdirSync(path.join(ROOT, 'ios/App/App')).filter(f => f.endsWith('.swift')).sort()
-    .map(f => 'ios/App/App/' + f);
+  const swift = SWIFT_DIRS.filter(d => fs.existsSync(path.join(ROOT, d))).flatMap(d =>
+    fs.readdirSync(path.join(ROOT, d)).filter(f => f.endsWith('.swift')).sort().map(f => `${d}/${f}`));
   for (const rel of [...RUNTIME_INPUTS, ...swift]) {
     const p = path.join(ROOT, rel);
     if (fs.existsSync(p)) h.update(rel + '\0' + fs.readFileSync(p));

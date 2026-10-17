@@ -60,7 +60,11 @@ jobs:
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -25
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build > xcodebuild.log 2>&1 || {
+              # En cas d'échec, les erreurs du compilateur (et non les 25 dernières lignes)
+              grep -E -A4 'error:|BUILD FAILED' xcodebuild.log | head -120; exit 1; }
+          grep -E 'warning: .*(RestActivity|LiveActivity|Shared/)' xcodebuild.log | sort -u | head -40 || true
+          tail -5 xcodebuild.log
 
       - name: Lancement sur un iPhone virtuel et captures
         if: ${{ !inputs.testflight }}
@@ -71,15 +75,61 @@ jobs:
           xcrun simctl boot "$DEVICE"
           xcrun simctl bootstatus "$DEVICE" -b
           APP=$(find build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' | head -1)
+          # L'extension Live Activity doit être embarquée dans l'app
+          test -d "$APP/PlugIns/RestActivity.appex" || { echo "Extension RestActivity absente de l'app"; exit 1; }
+          # Compilée sans signature : le système du simulateur n'enregistre une extension que signée.
+          # Signature ad hoc (« - ») d'une copie, de l'intérieur vers l'extérieur (frameworks,
+          # extension, app) ; en cas d'échec, l'app non signée est installée comme avant.
+          SIGNED="$RUNNER_TEMP/signed"; rm -rf "$SIGNED"; mkdir -p "$SIGNED"; cp -R "$APP" "$SIGNED/"
+          SAPP="$SIGNED/$(basename "$APP")"
+          adhoc() { codesign --force --sign - --timestamp=none "$1"; }
+          sign_all() {
+            if [ -d "$SAPP/Frameworks" ]; then
+              for f in "$SAPP"/Frameworks/*.framework "$SAPP"/Frameworks/*.dylib; do
+                [ -e "$f" ] && { adhoc "$f" || return 1; }
+              done
+            fi
+            adhoc "$SAPP/PlugIns/RestActivity.appex" && adhoc "$SAPP"
+          }
+          if sign_all; then APP="$SAPP"; echo "App et extension signées (ad hoc)"
+          else echo "Signature ad hoc impossible : app installée sans signature"; fi
           xcrun simctl install "$DEVICE" "$APP"
           BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
           mkdir -p shots
-          xcrun simctl launch "$DEVICE" "$BUNDLE"
-          sleep 12
-          xcrun simctl io "$DEVICE" screenshot shots/1-lancement.png
+          # Captures à heure fixe depuis le lancement (T0), notées dans le journal
+          T0=$(date +%s)
+          at() { local w=$(( T0 + $1 - $(date +%s) )); [ "$w" -gt 0 ] && sleep "$w"; return 0; }
+          shot() { echo "T0+$(( $(date +%s) - T0 )) s : $1"; xcrun simctl io "$DEVICE" screenshot "shots/$1.png" > /dev/null 2>&1 || true; }
+          # -MDLFDemoRestActivity (Debug seulement) : repos factice de 55 s ; alerte 22 s après le
+          # début (présentation étendue de la Dynamic Island), « C'est reparti » une fois fini
+          xcrun simctl launch "$DEVICE" "$BUNDLE" -MDLFDemoRestActivity
+          at 12; shot 1-lancement
           xcrun simctl ui "$DEVICE" appearance light
-          sleep 4
-          xcrun simctl io "$DEVICE" screenshot shots/2-theme-clair.png
+          at 16; shot 2-theme-clair
+          xcrun simctl launch "$DEVICE" com.apple.Preferences
+          at 20; shot 3-dynamic-island
+          at 25; shot 4-dynamic-island-etendue
+          at 28; shot 5-dynamic-island-etendue
+          xcrun simctl ui "$DEVICE" appearance dark
+          at 32; shot 6-dynamic-island-sombre
+          # Écran verrouillé : commande « Lock » de Simulator.app (⌘L)
+          open -a Simulator --args -CurrentDeviceUDID "$DEVICE" || true
+          sleep 5
+          osascript -e 'tell application "Simulator" to activate' \
+            -e 'tell application "System Events" to keystroke "l" using command down' || true
+          at 44; shot 7-ecran-verrouille-sombre
+          xcrun simctl ui "$DEVICE" appearance light
+          # Les commandes simctl prennent du retard (≈ 5 s) : marge après la fin du repos factice
+          at 85; shot 8-ecran-verrouille-repos-fini
+          # Extension enregistrée par le système, et journaux de son affichage
+          xcrun simctl spawn "$DEVICE" pluginkit -m -A -v -p com.apple.widgetkit-extension > shots/pluginkit.txt 2>&1 || true
+          grep -i restactivity shots/pluginkit.txt || echo "RestActivity absente de pluginkit"
+          xcrun simctl spawn "$DEVICE" log show --last 3m --style compact \
+            --predicate 'process == "RestActivity" OR process == "chronod" OR process == "pkd" OR eventMessage CONTAINS[c] "RestActivity"' \
+            > shots/journal-extension.txt 2>&1 || true
+          grep -iE 'RestActivity.*(error|fail|reject|invalid|crash)|(error|fail|reject|invalid).*RestActivity' shots/journal-extension.txt | head -20 || true
+          xcrun simctl launch "$DEVICE" "$BUNDLE"
+          sleep 3
           # Journal de l'app (console JavaScript relayée par Capacitor en Debug) : erreurs au démarrage
           xcrun simctl spawn "$DEVICE" log show --last 3m --style compact \
             --predicate 'process == "App"' > shots/journal-app.txt 2>&1 || true
@@ -105,6 +155,7 @@ jobs:
           DIST_CERT_P12: ${{ secrets.DIST_CERT_P12 }}
           DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
           APPSTORE_PROFILE: ${{ secrets.APPSTORE_PROFILE }}
+          APPSTORE_PROFILE_REST_ACTIVITY: ${{ secrets.APPSTORE_PROFILE_REST_ACTIVITY }}
         run: |
           KEYCHAIN=$RUNNER_TEMP/signature.keychain-db
           KC_PASS=$(openssl rand -base64 24)
@@ -116,8 +167,15 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "$KC_PASS" "$KEYCHAIN" > /dev/null
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
           security find-identity -v -p codesigning "$KEYCHAIN"
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$APPSTORE_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/appstore.mobileprovision
+          # Un profil par identifiant : l'app (com.mdlf.training) et son extension Live Activity
+          # (com.mdlf.training.RestActivity). Un secret manquant arrête tout de suite l'envoi.
+          PROFILES=~/Library/MobileDevice/Provisioning\ Profiles
+          mkdir -p "$PROFILES"
+          for name in APPSTORE_PROFILE APPSTORE_PROFILE_REST_ACTIVITY; do
+            if [ -z "${!name}" ]; then echo "Secret $name absent"; exit 1; fi
+          done
+          echo "$APPSTORE_PROFILE" | base64 --decode > "$PROFILES/appstore.mobileprovision"
+          echo "$APPSTORE_PROFILE_REST_ACTIVITY" | base64 --decode > "$PROFILES/appstore-rest-activity.mobileprovision"
           rm $RUNNER_TEMP/dist.p12
 
       - name: Clé d'API App Store Connect
