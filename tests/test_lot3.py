@@ -155,7 +155,9 @@ def t_scroll(bench, eng, dev, theme):
         y2 = page.evaluate('scrollY')
         page.click('[data-action="toggle-edit-mode"]'); page.wait_for_timeout(200)
         y3 = page.evaluate('scrollY')
-        R.check(y2 == y3, f'{t} micro-action : scrollY inchangé ({y2} → {y3})')
+        # Le mode Modifier retire « Ajouter un exercice » : la page peut raccourcir sous la position gardée
+        y_max = page.evaluate('document.documentElement.scrollHeight - innerHeight')
+        R.check(y3 == min(y2, y_max), f'{t} micro-action : scrollY inchangé ({y2} → {y3}, max {y_max})')
         tab(page, 'program')
         # La tab bar ne recouvre jamais le dernier élément
         for name in ('train', 'history', 'progress', 'program'):

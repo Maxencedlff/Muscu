@@ -51,6 +51,7 @@ function renderEditor() {
           <button class="ed-minus" data-action="ed-reveal" data-i="${i}" aria-label="Supprimer ${esc(ex.name)}">${icon('minus', 14)}</button>
           <span class="cell__body">
             <span class="cell__title ed-name">${esc(ex.name)}</span>
+            ${exMusclesSubHtml(ex)}
             <span class="cell__sub">${sub}</span>
           </span>
           <button class="ed-del" data-action="del-ex" data-i="${i}">Supprimer</button>
