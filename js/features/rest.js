@@ -105,9 +105,11 @@ function startRestCountdown() {
   scheduleRestNotification();
 }
 
-// App iOS : notification de fin de repos, utile écran verrouillé ou app en arrière-plan
+// App iOS : notification de fin de repos et Live Activity (rest-activity.js), utiles écran
+// verrouillé ou app en arrière-plan
 function scheduleRestNotification() {
   if (!Native.isNative || !restActive) return;
+  syncRestActivity();
   const nx = activeSession && currentSet();
   const body = nx ? `Série ${nx.si + 1} · ${activeSession.exercises[nx.ei].name}` : 'C\'est reparti';
   Native.scheduleRestEnd(restEndTime, body);
@@ -174,7 +176,7 @@ function resumeRest(saved) {
 function clearRest() { clearInterval(restInterval); restInterval = null; }
 
 // Arrête le repos en cours (chrono et état) sans toucher à l'affichage
-function stopRest() { clearRest(); restActive = false; Native.cancelRestEnd(); }
+function stopRest() { clearRest(); restActive = false; Native.cancelRestEnd(); endRestActivity(); }
 
 function removeRestUI() {
   document.querySelectorAll('.rest-mini').forEach(el => el.remove());

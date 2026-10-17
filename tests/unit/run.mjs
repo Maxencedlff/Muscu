@@ -26,6 +26,7 @@ const SCRIPTS = [
   'js/data/backup.js',
   'js/ui/forms.js',
   'js/app/actions.js',
+  'js/features/rest-activity.js',
   'js/features/apple-services.js',
   'js/app/live-update.js',
 ];
@@ -613,6 +614,62 @@ test('native : notification de fin de repos (autorisation demandée une fois, pu
   assert.equal(n.calls.filter(c => c[0] === 'schedule').length, 2);
 });
 
+test('native : Live Activity du repos relayée au module MdlfLiveActivity, rien dans le navigateur', () => {
+  const web = nativeContext({ native: false });
+  const state = { endTime: 1_700_000_090_000, total: 90, title: 'Push', color: 'orange', next: null };
+  assert.equal(web.Native.liveActivity.start(state), false);
+  assert.equal(web.Native.liveActivity.end(), false);
+  assert.equal(web.calls.length, 0);
+  const n = nativeContext({ localData: '{}' });
+  n.Native.liveActivity.start(state);
+  n.Native.liveActivity.update({ ...state, total: 105 });
+  n.Native.liveActivity.end();
+  sameJSON(n.calls.filter(c => c[0] === 'MdlfLiveActivity').map(c => c[1]), ['start', 'update', 'end']);
+});
+
+// ── Live Activity du repos (rest-activity.js) ───────────────
+
+test('live activity : couleur de séance → couleur système d\'iOS ou hexadécimal, sinon indigo', () => {
+  assert.equal(app.restActivityTint('var(--orange)'), 'orange');
+  assert.equal(app.restActivityTint(' var(--teal) '), 'teal');
+  assert.equal(app.restActivityTint('#30b0c7'), '#30B0C7');
+  assert.equal(app.restActivityTint('var(--label2)'), 'indigo', 'token qui n\'est pas une couleur de séance');
+  assert.equal(app.restActivityTint('red; x'), 'indigo');
+  assert.equal(app.restActivityTint(undefined), 'indigo');
+});
+
+test('live activity : série suivante (charge en kg ou lbs, poids du corps, sans reps)', () => {
+  reset();
+  const session = { exercises: [{ name: 'Squat', sets: [
+    { weight: '80', reps: '8' }, { weight: '', reps: '12' }, { weight: '32.5', reps: '' }] }] };
+  sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 0 })`), { exercise: 'Squat', set: 1, load: '80 kg × 8' });
+  sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 1 })`), { exercise: 'Squat', set: 2, load: '12 reps' });
+  sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 2 })`), { exercise: 'Squat', set: 3, load: '' });
+  assert.equal(run(`restActivityNext(${JSON.stringify(session)}, null)`), null, 'toutes les séries faites');
+  assert.equal(run(`restActivityNext(${JSON.stringify(session)}, { ei: 4, si: 0 })`), null);
+  reset({ unit: 'lbs' });
+  assert.equal(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 0 })`).load, '176,4 lbs × 8');
+});
+
+test('live activity : données envoyées (séance, couleur, durée entière, textes bornés pour les 4 Ko d\'Apple)', () => {
+  reset();
+  const long = 'X'.repeat(200);
+  const session = { category: 'push', programme: 'ppl', exercises: [{ name: long, sets: [{ weight: '20', reps: '10' }] }] };
+  const p = run(`restActivityPayload(${JSON.stringify(session)}, { ei: 0, si: 0 }, { endTime: 1700000090000, total: 89.6 })`);
+  assert.equal(p.title, 'Push');
+  assert.equal(p.color, 'orange');
+  assert.equal(p.total, 90);
+  assert.equal(p.endTime, 1700000090000);
+  assert.equal(p.next.exercise.length, 60);
+  assert.ok(JSON.stringify(p).length < 1024);
+  run(`data.userProgrammes = { u_test0001: { name: 'Perso', sessions: { a: { label: ${JSON.stringify('<b>' + long)}, icon: '', desc: '', color: '#FF3B30' } } } }`);
+  const u = run(`restActivityPayload({ category: 'a', programme: 'u_test0001', exercises: [] }, null, { endTime: 1, total: 0 })`);
+  assert.equal(u.title, ('<b>' + long).slice(0, 40), 'texte brut (pas de HTML côté natif), borné');
+  assert.equal(u.color, '#FF3B30');
+  assert.equal(u.total, 1);
+  assert.equal(u.next, null);
+});
+
 // ── Services Apple (Santé, Apple Music) ─────────────────────
 
 test('santé : énergie estimée = MET 5 × poids × durée, rien sans pesée', () => {
@@ -733,9 +790,9 @@ test('iOS : SceneDelegate → MainViewController → chaque module Swift, noms i
   assert.match(ios('SceneDelegate.swift'), /rootViewController\s*=\s*MainViewController\(\)/, 'SceneDelegate doit créer MainViewController');
   const main = ios('MainViewController.swift');
   const native = fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8');
-  for (const file of ['HealthPlugin.swift', 'MusicPlugin.swift']) {
+  for (const file of ['HealthPlugin.swift', 'MusicPlugin.swift', 'LiveActivityPlugin.swift']) {
     const src = ios(file);
-    const cls = src.match(/public class (\w+): CAPPlugin/)[1];
+    const cls = src.match(/public (?:final )?class (\w+): CAPPlugin/)[1];
     const jsName = src.match(/jsName = "(\w+)"/)[1];
     assert.match(main, new RegExp(`registerPluginInstance\\(${cls}\\(\\)\\)`), `${cls} enregistré par MainViewController`);
     assert.match(native, new RegExp(`plugin\\('${jsName}'\\)`), `native.js appelle ${jsName}`);
@@ -743,6 +800,30 @@ test('iOS : SceneDelegate → MainViewController → chaque module Swift, noms i
     const declared = [...src.matchAll(/CAPPluginMethod\(name: "(\w+)"/g)].map(m => m[1]);
     for (const m of declared) assert.match(src, new RegExp(`@objc func ${m}\\(`), `${file} : ${m} implémentée`);
   }
+});
+
+test('iOS : extension RestActivity déclarée, embarquée et signée comme l\'app', () => {
+  const read = p => fs.readFileSync(path.join(ROOT, p), 'utf8');
+  const pbx = read('ios/App/App.xcodeproj/project.pbxproj');
+  assert.match(read('ios/App/App/Info.plist'), /<key>NSSupportsLiveActivities<\/key>\s*<true\/>/, 'Live Activities autorisées par l\'app');
+  assert.match(read('ios/App/RestActivity/Info.plist'), /com\.apple\.widgetkit-extension/);
+  assert.match(pbx, /productType = "com\.apple\.product-type\.app-extension"/);
+  assert.match(pbx, /RestActivity\.appex in Embed Foundation Extensions/, 'extension embarquée dans l\'app');
+  // Attributs partagés : compilés dans les deux cibles (sinon l'app et l'extension ne parlent pas du même type)
+  assert.equal((pbx.match(/RestActivityAttributes\.swift in Sources \*\/,/g) || []).length, 2);
+  for (const f of ['RestActivityBundle.swift', 'RestLiveActivity.swift', 'RestActivityViews.swift'])
+    assert.match(pbx, new RegExp(`${f} in Sources \\*/,`), `${f} compilé`);
+  // App Store Connect exige la même version pour l'app et l'extension : une seule source (le projet)
+  const targetConfigs = pbx.split('/* Begin XCBuildConfiguration section */')[1].split(/\n\t\t[0-9A-F]{24} \/\* (?:Debug|Release) \*\/ = /)
+    .filter(c => /PRODUCT_BUNDLE_IDENTIFIER/.test(c));
+  assert.equal(targetConfigs.length, 4, 'Debug et Release des deux cibles');
+  for (const c of targetConfigs) assert.doesNotMatch(c, /MARKETING_VERSION|CURRENT_PROJECT_VERSION/);
+  assert.match(pbx, /PROVISIONING_PROFILE_SPECIFIER = "MDLF Training Rest Activity App Store";/);
+  // Export et CI : un profil par identifiant
+  const exp = read('ios/ExportOptions.plist');
+  assert.match(exp, /<key>com\.mdlf\.training<\/key>\s*<string>MDLF Training App Store<\/string>/);
+  assert.match(exp, /<key>com\.mdlf\.training\.RestActivity<\/key>\s*<string>MDLF Training Rest Activity App Store<\/string>/);
+  assert.match(read('.github/workflows/ios.yml'), /APPSTORE_PROFILE_REST_ACTIVITY/);
 });
 
 // ── Mises à jour à chaud ────────────────────────────────────
