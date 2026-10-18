@@ -16,14 +16,14 @@ Les limites de longueur d'Apple sont indiquées entre crochets.
 
 ## Texte promotionnel [170] (modifiable sans nouvelle version)
 
-Suis tes séances Push, Pull et Legs, valide tes séries d'un tap et regarde tes charges monter. Sans compte, sans pub : tes données restent sur ton iPhone.
+Le carnet de muscu pensé pour la salle : séries pré-remplies, chrono de repos sur l'écran verrouillé, records et courbes qui montent. Partage ta séance en story.
 
 ## Description [4000]
 
 MDLF Training, c'est le carnet de muscu pensé pour la salle : rapide, clair, et qui ne te fait jamais perdre une séance.
 
 PENSÉ POUR LA SALLE
-• Tes séries pré-remplies avec la séance précédente : un tap sur ✓ et c'est validé.
+• Tes séries pré-remplies avec la séance précédente : un tap suffit à valider.
 • Chrono de repos qui ne bloque pas l'écran, avec une notification à la fin même téléphone verrouillé.
 • Quitte l'app en pleine séance : tu la retrouves exactement où tu l'avais laissée.
 • L'écran reste allumé pendant la séance.
@@ -44,10 +44,6 @@ TA PROGRESSION
 • Records personnels, régularité semaine après semaine, calendrier de tes séances.
 • Bilan à la fin de chaque séance, avec tes nouveaux records.
 • Partage ta séance en story : une image prête pour Instagram, Messages ou Photos.
-
-TES DONNÉES T'APPARTIENNENT
-• Aucun compte, aucune publicité, aucun traceur.
-• Tout reste sur ton iPhone, avec export et import de sauvegarde.
 
 Mode clair et sombre, kg ou lbs, VoiceOver et tailles de texte iOS pris en charge. Choisis l'icône de l'app parmi cinq déclinaisons.
 
@@ -73,5 +69,5 @@ Générées automatiquement (dossier store/screenshots) :
 ## Informations pour la revue d'Apple
 
 - Connexion requise : non.
-- Notes : « Application de suivi d'entraînement, sans compte ni connexion. Elle fonctionne hors ligne, sauf la vérification des mises à jour du contenu (requête vers mdlf-ota.vercel.app, sans aucune donnée personnelle). Pour tester une séance : onglet Entraînement › Démarrer Push, valider une série avec ✓, le repos démarre (Live Activity sur l'écran verrouillé). Pour tester Apple Santé : onglet Entraînement › roue dentée en haut à droite (Réglages de l'app) › Services Apple › activer Apple Santé et accepter l'autorisation. Les séances terminées sont alors enregistrées dans Santé comme entraînements « Musculation », et le poids lu dans Santé s'affiche dans l'onglet Progrès. Apple Music s'active au même endroit : le morceau en cours apparaît pendant la séance. »
+- Notes : « Application de suivi d'entraînement, sans compte ni connexion. Elle fonctionne hors ligne, sauf la vérification des mises à jour du contenu (requête vers mdlf-ota.vercel.app, sans aucune donnée personnelle). Pour tester une séance : onglet Entraînement › Démarrer Push, valider une série avec la coche, le repos démarre (Live Activity sur l'écran verrouillé). Pour tester Apple Santé : onglet Entraînement › roue dentée en haut à droite (Réglages de l'app) › Services Apple › activer Apple Santé et accepter l'autorisation. Les séances terminées sont alors enregistrées dans Santé comme entraînements « Musculation », et le poids lu dans Santé s'affiche dans l'onglet Progrès. Apple Music s'active au même endroit : le morceau en cours apparaît pendant la séance. »
 - Contact : Maxence de La Fouchardière, maxdelafouch@gmail.com
