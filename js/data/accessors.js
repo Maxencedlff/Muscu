@@ -35,6 +35,20 @@ function progMeta(id) {
   return PROGRAMMES[id] || PROGRAMMES.ppl;
 }
 
+// Identifiant d'une nouvelle séance perso : jamais un entier, sinon l'objet le rangerait
+// en tête quel que soit l'ordre choisi (les clés entières passent avant les autres en JS)
+function newSessionId() { return 's' + uid(); }
+
+// Réordonne les séances d'un programme perso : l'ordre des clés de l'objet fait foi
+function moveSession(progId, from, to) {
+  const store = userSessions(progId);
+  if (!store) return false;
+  const entries = moveItem(Object.entries(store), from, to);
+  Object.keys(store).forEach(k => { delete store[k]; });
+  entries.forEach(([k, v]) => { store[k] = v; });
+  return true;
+}
+
 function sessionKeys(progId) {
   progId = progId || data.activeProgramme;
   if (isUserProg(progId)) return Object.keys(userSessions(progId) || {});

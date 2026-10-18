@@ -180,50 +180,14 @@ function renderExEdit() {
     </div>`;
 }
 
-// Glisser pour réordonner (poignée ≡ du mode Modifier)
-let edDrag = null;
-document.addEventListener('pointerdown', e => {
-  const h = e.target.closest?.('.ed-handle');
-  if (!h || currentView() !== 'editor') return;
-  e.preventDefault();
-  const row = h.closest('.ed-row');
-  const rows = [...document.querySelectorAll('.ed-list .ed-row')];
-  edDrag = { row, rows, from: rows.indexOf(row), idx: rows.indexOf(row), y0: e.clientY, h: row.offsetHeight, id: e.pointerId };
-  row.classList.add('is-dragging');
-  try { h.setPointerCapture(e.pointerId); } catch {}
+// Glisser pour réordonner les exercices (poignée ≡ du mode Modifier, js/ui/reorder.js)
+makeReorderable({
+  view: 'editor', list: '.ed-list', row: '.ed-row', handle: '.ed-handle',
+  onMove: (from, to) => {
+    const arr = prog().exercises[editorCatOf()];
+    if (arr) { moveItem(arr, from, to); save(); }
+  },
 });
-document.addEventListener('pointermove', e => {
-  if (!edDrag || e.pointerId !== edDrag.id) return;
-  e.preventDefault();
-  const dy = e.clientY - edDrag.y0;
-  const n  = edDrag.rows.length;
-  const idx = Math.max(0, Math.min(n - 1, edDrag.from + Math.round(dy / edDrag.h)));
-  if (idx !== edDrag.idx) { edDrag.idx = idx; haptic(); }
-  edDrag.row.style.transform = `translateY(${dy}px)`;
-  edDrag.rows.forEach((r, i) => {
-    if (r === edDrag.row) return;
-    let shift = 0;
-    if (edDrag.from < idx && i > edDrag.from && i <= idx) shift = -edDrag.h;
-    if (edDrag.from > idx && i < edDrag.from && i >= idx) shift = edDrag.h;
-    r.style.transform = shift ? `translateY(${shift}px)` : '';
-  });
-});
-function endEdDrag(e) {
-  if (!edDrag || e.pointerId !== edDrag.id) return;
-  const { from, idx } = edDrag;
-  edDrag = null;
-  const arr = prog().exercises[editorCatOf()];
-  if (arr && from !== idx) {
-    const [moved] = arr.splice(from, 1);
-    arr.splice(idx, 0, moved);
-    save();
-  }
-  render();
-}
-document.addEventListener('pointerup', endEdDrag);
-document.addEventListener('pointercancel', endEdDrag);
-// iOS : sans ce preventDefault, le glisser de la poignée ferait défiler la liste
-document.addEventListener('touchmove', e => { if (edDrag) e.preventDefault(); }, { passive: false });
 
 // Nom saisi dans Programme › Exercice : gardé dans le brouillon, puis les muscles reconnus
 // suivent la frappe (muscles.js), dans cet ordre explicite

@@ -15,6 +15,13 @@
   font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); text-transform: uppercase;
   padding: 22px 16px 7px;
 }
+.group-title--row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.group-title__btn {
+  border: none; background: none; color: var(--tint); font: inherit; font-size: 0.882rem; text-transform: none;
+  padding: 0; cursor: pointer; position: relative;
+}
+.group-title__btn::after { content: ''; position: absolute; inset: -12px -10px; }
+.group-title__btn--bold { font-weight: 600; }
 .group-foot { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); padding: 7px 16px 0; }
 .group { background: var(--cell); border-radius: var(--r-md); overflow: hidden; flex-shrink: 0; }
 .group + .group { margin-top: 20px; }
@@ -215,7 +222,7 @@ html.type-xl .chart-bubble { white-space: normal; }
 .ed-row .cell__sub { overflow-wrap: anywhere; }
 .ed-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .ed-row--edit { gap: 10px; background: var(--cell); transition: transform .2s; }
-.ed-row.is-dragging { z-index: 5; transition: none; box-shadow: var(--shadow-float); background: var(--cell2); }
+.ed-row.is-dragging, .ps-row.is-dragging { z-index: 5; transition: none; box-shadow: var(--shadow-float); background: var(--cell2); }
 .ed-minus {
   width: 22px; height: 22px; border-radius: 50%; border: none; background: var(--red); color: var(--white); flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;

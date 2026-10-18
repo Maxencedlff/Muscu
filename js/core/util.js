@@ -4,6 +4,12 @@
 'use strict';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
+// Déplace l'élément from à la position to (tableau modifié en place)
+function moveItem(arr, from, to) {
+  const [moved] = arr.splice(from, 1);
+  arr.splice(to, 0, moved);
+  return arr;
+}
 function $(sel, ctx = document) { return ctx.querySelector(sel); }
 function pad(n) { return String(n).padStart(2, '0'); }
 

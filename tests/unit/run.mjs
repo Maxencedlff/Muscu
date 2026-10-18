@@ -424,6 +424,27 @@ test('freshData : donnée vide au schéma courant, la copie de secours survit au
   assert.equal(JSON.parse(fresh).schema, run('SCHEMA'));
 });
 
+test('moveSession : réordonne les séances d\'un programme perso, ordre conservé après rechargement', () => {
+  reset();
+  run(`data.userProgrammes.u_sem = { name: 'Semaine', archived: false, sessions: {} };
+       ['Lundi', 'Mardi', 'Mercredi', 'Jeudi'].forEach(l => { data.userProgrammes.u_sem.sessions[newSessionId()] = { label: l, icon: '', desc: '', color: '#FF9500' }; });`);
+  const labels = () => run('sessionKeys("u_sem").map(k => data.userProgrammes.u_sem.sessions[k].label)');
+  sameJSON(labels(), ['Lundi', 'Mardi', 'Mercredi', 'Jeudi'], 'ordre de création');
+  assert.equal(app.moveSession('u_sem', 3, 0), true);
+  sameJSON(labels(), ['Jeudi', 'Lundi', 'Mardi', 'Mercredi']);
+  app.moveSession('u_sem', 0, 3);
+  app.moveSession('u_sem', 1, 2);
+  sameJSON(labels(), ['Lundi', 'Mercredi', 'Mardi', 'Jeudi']);
+  run('save(); data = loadData();');
+  sameJSON(labels(), ['Lundi', 'Mercredi', 'Mardi', 'Jeudi'], 'ordre relu du stockage');
+  assert.equal(app.moveSession('ppl', 0, 1), false, 'programme intégré : ordre fixe');
+});
+
+test('newSessionId : jamais une clé entière (elle passerait en tête de l\'objet)', () => {
+  for (let i = 0; i < 2000; i++) assert.ok(!/^\d+$/.test(app.newSessionId()));
+  sameJSON(app.moveItem(['a', 'b', 'c'], 0, 2), ['b', 'c', 'a']);
+});
+
 test('importText : ancien format ppl_v1 accepté, séances illisibles ignorées', () => {
   reset();
   const before = JSON.stringify(run('data'));

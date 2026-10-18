@@ -105,6 +105,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `sheet.js` | `sheet()` : feuille modale générique (Annuler / OK, glisser pour fermer) |
 | `forms.js` | `flagInvalid`, `weightOk`, `weightMsg` |
 | `edge-swipe.js` | Geste de retour depuis le bord gauche (app installée sur iOS) |
+| `reorder.js` | Glisser pour réordonner (poignée ≡ du mode Modifier) : `makeReorderable({ view, list, row, handle, onMove })`, utilisé par les exercices d’une séance et les séances d’un programme perso |
 | `body-map.js` | `bodyMapSvg(niveaux, options)` : silhouette face / dos en SVG texte, chaque muscle coloriable (`data-muscle`) ; `bodyHeatOpacity`, `bodyMapColors()` (couleurs résolues pour un SVG autonome) |
 | `medal.js` | Médaille de record : `MEDAL_PATHS` (tracés partagés avec l'image de partage) et `medalSvg(taille)` |
 

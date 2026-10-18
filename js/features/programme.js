@@ -3,6 +3,8 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
+let progEditing = false;   // mode Modifier de la liste des séances (ordre)
+
 function exSetsCount(cat, progId) {
   const list = data.programmes[progId]?.exercises?.[cat] || [];
   return { n: list.length, sets: list.reduce((a, e) => a + (parseInt(e.sets) || 0), 0) };
@@ -23,13 +25,30 @@ function renderProgrammes() {
         ${icon('chevron.right', 16)}
       </button>`;
   };
+  // Ligne du mode Modifier : la séance ne s'ouvre pas, la poignée ≡ la déplace (js/ui/reorder.js)
+  const editCell = (cat, progId) => {
+    const label = sessionMeta(cat, progId).label;
+    return `
+      <div class="cell ed-row--edit ps-row">
+        ${catDot(cat, progId)}
+        <span class="cell__body"><span class="cell__title">${label}</span></span>
+        <span class="ed-handle ps-handle" role="button" aria-label="Déplacer ${label}">${icon('line.3.horizontal', 22)}</span>
+      </div>`;
+  };
   const user = isUserProg(pid);
+  const keys = sessionKeys(pid);
+  const canReorder = user && keys.length > 1;
+  const editing = canReorder && progEditing;
   const sessions = `
-      <div class="group-title">Séances</div>
-      <div class="group">
-        ${sessionKeys(pid).map(c => cell(c, pid, 'open-prog-session')).join('')}
-        ${user ? `<button class="cell cell--action" data-action="add-custom-session">${icon('plus', 20)}<span>Ajouter une séance</span></button>` : ''}
+      <div class="group-title group-title--row">
+        <span>Séances</span>
+        ${canReorder ? `<button class="group-title__btn ${editing ? 'group-title__btn--bold' : ''}" data-action="toggle-prog-order">${editing ? 'OK' : 'Modifier l\'ordre'}</button>` : ''}
       </div>
+      <div class="group ps-list">
+        ${keys.map(c => editing ? editCell(c, pid) : cell(c, pid, 'open-prog-session')).join('')}
+        ${user && !editing ? `<button class="cell cell--action" data-action="add-custom-session">${icon('plus', 20)}<span>Ajouter une séance</span></button>` : ''}
+      </div>
+      ${editing ? `<div class="group-foot">Fais glisser ≡ pour ranger tes séances, par exemple dans l'ordre de ta semaine.</div>` : ''}
       ${user ? '' : `<div class="group-foot">Les séances d'un programme intégré sont fixes, mais tu peux modifier leurs exercices. Pour composer tes propres séances, crée un programme.</div>`}`;
   const manage = pid.startsWith('u_') ? `
       <div class="group group--gap">
@@ -110,6 +129,7 @@ function activateProgramme(id) {
   }
   addCat     = firstSession();
   histFilter = 'all';
+  progEditing = false;
   syncTimersFromHistory();
 }
 
@@ -120,8 +140,17 @@ function openProgramme(id) {
   routeTo('programmes');
 }
 
+// Ordre des séances d'un programme perso
+makeReorderable({
+  view: 'programmes', list: '.ps-list', row: '.ps-row', handle: '.ps-handle',
+  onMove: (from, to) => { if (moveSession(data.activeProgramme, from, to)) save(); },
+});
+
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
+  'toggle-prog-order': () => {
+    progEditing = !progEditing; render();
+  },
   'go-program': () => {
     switchTab('program');
   },

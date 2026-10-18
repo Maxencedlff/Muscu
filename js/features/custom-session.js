@@ -85,7 +85,7 @@ registerActions({
     const desc = $('#csDesc')?.value.trim() || '';
     if (!name) { flagInvalid($('#csName'), 'Entre un nom'); return; }
 
-    const id = csEditId || uid();
+    const id = csEditId || newSessionId();
     const store = userSessions(csProg);
     if (!store) return;
     const prev = store[id];
