@@ -195,7 +195,8 @@ registerActions({
     data.programmes[id] = pdata;
     openProgramme(id);
     showToast(`Programme « ${name} » créé`);
-    if (start === 'empty') setTimeout(() => showToast('Ajoute ta première séance'), 2300);
+    // Programme vide : on enchaîne sur sa première séance
+    if (start === 'empty') openNewSession();
   },
   'rename-programme': async () => {
     const id = data.activeProgramme, up = data.userProgrammes[id];

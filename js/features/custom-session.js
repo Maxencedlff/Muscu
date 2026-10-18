@@ -49,13 +49,16 @@ function renderCsEdit() {
     </div>`;
 }
 
+// Écran « Nouvelle séance » du programme actif (ou de Perso pour un programme intégré)
+function openNewSession() {
+  csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom';
+  csEditId = null; csColor = '#FF9500'; csIcon = '🏋️';
+  navigate('cs-edit');
+}
+
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
-  'add-custom-session': () => {
-    csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom';
-    csEditId = null; csColor = '#FF9500'; csIcon = '🏋️';
-    navigate('cs-edit');
-  },
+  'add-custom-session': openNewSession,
   'edit-custom-session': (e, el) => {
     const id = el.dataset.id;
     csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom';
@@ -105,7 +108,12 @@ registerActions({
 
     save();
     showToast(wasEdit ? 'Séance modifiée' : 'Séance créée');
-    goBack();
+    if (wasEdit) { goBack(); return; }
+    // Nouvelle séance : on enchaîne sur ses exercices, recherche ouverte. L'écran du nom est remplacé,
+    // le retour ramène donc à la liste des séances.
+    editorEditing = false;
+    navigate(makeRoute('editor', id), { replace: true });
+    setTimeout(() => { if (currentRoute() === makeRoute('editor', id)) openAddExSheet({ target: 'programme' }); }, 380);
   },
   'delete-custom-session': async (e, el) => {
     // Depuis l'écran de la séance (data-id) ou depuis « Nom, icône et couleur » (csEditId)

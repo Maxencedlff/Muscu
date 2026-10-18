@@ -34,19 +34,24 @@ def new_programme(page, name, start_label):
     tap_dialog(page, 'Suivant')
     page.wait_for_selector('.ios-dialog--sheet')
     tap_dialog(page, start_label)
-    page.wait_for_selector('.view.programmes')
+    # Programme vide : on arrive directement sur « Nouvelle séance »
+    page.wait_for_selector('#csName' if start_label == 'Programme vide' else '.view.programmes')
 
 
-def add_session(page, name):
-    page.click('[data-action="add-custom-session"]')
+def add_session(page, name, from_list=True):
+    if from_list:
+        page.click('[data-action="add-custom-session"]')
     page.wait_for_selector('#csName')
     page.fill('#csName', name)
     page.click('[data-action="save-cs-modal"]')
-    page.wait_for_selector('.view.programmes')
+    # Nouvelle séance : ses exercices s'ouvrent, recherche déjà ouverte
+    page.wait_for_selector('.view.editor')
+    page.wait_for_selector('#axSearch')
 
 
-def add_exercise(page, name):
-    page.click('[data-action="add-ex"]')
+def add_exercise(page, name, sheet_open=False):
+    if not sheet_open:
+        page.click('[data-action="add-ex"]')
     page.wait_for_selector('#axSearch')
     page.fill('#axSearch', name)
     page.wait_for_timeout(150)
@@ -70,19 +75,24 @@ def t_programmes(bench, eng, dev, theme):
         d = data(page)
         pid = d['activeProgramme']
         R.check(pid.startswith('u_') and d['userProgrammes'][pid]['name'] == 'Force 5×5', f'{t} programme vide créé et actif')
-        R.check('Force 5×5' in page.inner_text('.view.programmes'), f'{t} nom affiché dans Programme')
-        add_session(page, 'Haut du corps')
+        R.check(page.locator('.view.cs-edit').count() == 1, f'{t} programme vide : « Nouvelle séance » ouverte d\'office')
+        add_session(page, 'Haut du corps', from_list=False)
         cats = list(data(page)['userProgrammes'][pid]['sessions'])
         R.check(len(cats) == 1, f'{t} séance ajoutée au programme {cats}')
-        page.click(f'[data-action="open-prog-session"][data-cat="{cats[0]}"]')
-        page.wait_for_selector('.view.editor')
-        add_exercise(page, 'Développé couché haltères')
+        R.check(page.evaluate('currentRoute()') == f'editor:{cats[0]}', f'{t} séance créée : ses exercices s\'ouvrent')
+        add_exercise(page, 'Développé couché haltères', sheet_open=True)
         page.wait_for_timeout(400)
         add_exercise(page, 'Tractions lestées')
         page.wait_for_timeout(300)
         exs = [e['name'] for e in data(page)['programmes'][pid]['exercises'][cats[0]]]
         R.check(exs == ['Développé couché haltères', 'Tractions lestées'], f'{t} exercices choisis ajoutés {exs}')
         shot(page, LOT, f'editeur-{t}')
+        # Retour : la liste des séances, pas l'écran du nom
+        page.evaluate('goBack()')
+        page.wait_for_selector('.view.programmes')
+        page.wait_for_timeout(300)
+        R.check('Force 5×5' in page.inner_text('.view.programmes') and 'Haut du corps' in page.inner_text('.view.programmes'),
+                f'{t} retour : liste du programme avec la séance')
 
         # 2. La séance se fait depuis l'accueil
         tab(page, 0)
