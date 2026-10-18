@@ -152,7 +152,7 @@ registerActions({
       actions: [{ label: 'Annuler', value: false, style: 'cancel' }, { label: 'Supprimer', value: true, style: 'destructive' }] }))) return;
     try { localStorage.setItem(BACKUP_KEY, JSON.stringify(data)); } catch {}
     if (activeSession) endSession();
-    data = makeDefaultData();
+    data = freshData();
     resetSelections();
     save(); render(); showToast('Données supprimées');
   },

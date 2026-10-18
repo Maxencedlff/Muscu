@@ -111,6 +111,10 @@ const SCHEMA     = 3;
 
 // Clés des séances perso : celles que crée l'app (uid, push, legs…) passent toutes
 const SESSION_CAT_RE = /^[A-Za-z0-9_-]{1,40}$/;
+const MUSCLE_ID_RE   = /^[a-z_]{1,24}$/;
+const MAX_MUSCLES    = 16;
+const MAX_LOAD_KG    = 1000;   // mêmes bornes que la saisie en séance
+const MAX_REPS       = 1000;
 
 // Nettoie une donnée venue du stockage ou d'un import : retire ce qui ferait planter l'app,
 // sans toucher aux champs valides (idempotent).
@@ -130,6 +134,15 @@ function sanitizeData(d) {
         if (!ex.id) ex.id = uid();
         const sets = parseInt(ex.sets);
         ex.sets = sets >= 1 && sets <= 10 ? sets : 3;
+        // Champs facultatifs : bornés comme à la saisie (ils sont réinjectés dans les formulaires)
+        if (ex.repMax !== undefined) { const r = num(ex.repMax, 1, 100, true); if (r === null) delete ex.repMax; else ex.repMax = r; }
+        if (ex.rest   != null) ex.rest   = num(ex.rest, 10, 600, true);
+        if (ex.target != null) ex.target = num(ex.target, 0, 1000);
+        // Identifiants de muscles : leur validité exacte est vérifiée à la lecture (chosenMuscles)
+        if (ex.muscles != null) {
+          if (!Array.isArray(ex.muscles)) delete ex.muscles;
+          else ex.muscles = [...new Set(ex.muscles.filter(m => typeof m === 'string' && MUSCLE_ID_RE.test(m)))].slice(0, MAX_MUSCLES);
+        }
       });
     });
     Object.keys(p.timers).forEach(cat => { if (p.timers[cat] != null && !Number.isFinite(p.timers[cat])) p.timers[cat] = null; });
@@ -181,11 +194,13 @@ function sanitizeData(d) {
     h.exercises = h.exercises.filter(ex => isObj(ex) && typeof ex.name === 'string');
     h.exercises.forEach(ex => {
       if (!Array.isArray(ex.sets)) ex.sets = [];
-      ex.sets = ex.sets.filter(st => isObj(st) && Number.isInteger(parseInt(st.reps)) && parseInt(st.reps) >= 0);
+      ex.sets = ex.sets.filter(st => isObj(st) && num(st.reps, 0, MAX_REPS, true) !== null);
       ex.sets.forEach(st => {
-        st.reps = String(parseInt(st.reps));
+        st.reps = String(num(st.reps, 0, MAX_REPS, true));
         if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';
       });
+      // Charge aberrante (ex. 1e308) : série écartée plutôt que comptée en tonnes
+      ex.sets = ex.sets.filter(st => st.weight === '' || num(st.weight, 0, MAX_LOAD_KG) !== null);
     });
     return true;
   });
@@ -251,6 +266,12 @@ function loadData() {
     }
   } catch {}
 
+  return freshData();
+}
+
+// Donnée vide au schéma courant : ne déclenche aucune migration au lancement suivant
+// (une migration écraserait ppl_v2_backup). makeDefaultData seul sert de base aux migrations.
+function freshData() {
   const d = makeDefaultData();
   d.schema = SCHEMA;
   return d;

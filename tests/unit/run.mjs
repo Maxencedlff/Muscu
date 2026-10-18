@@ -383,6 +383,47 @@ test('importText : fichier invalide refusé sans rien modifier', () => {
   assert.equal(run('data.history.length'), 1);
 });
 
+test('sanitizeData : champs facultatifs d\'exercice bornés (audit 18/10 : XSS par repMax)', () => {
+  const d = app.sanitizeData({ programmes: { ppl: { exercises: { push: [
+    { name: 'A', sets: 3, repMax: '12"><img src=x onerror=alert(1)>', rest: '9999', target: 'abc',
+      muscles: ['chest', 'chest', '<b>', 42, 'x'.repeat(5000), ...Array(40).fill('triceps')] },
+    { name: 'B', sets: 3, repMax: '15', rest: '120', target: '82.5', muscles: 'chest' },
+  ] } } }, history: [] });
+  const [a, b] = d.programmes.ppl.exercises.push;
+  assert.equal(a.repMax, undefined, 'repMax invalide retiré');
+  assert.equal(a.rest, null, 'repos hors bornes : repos par défaut');
+  assert.equal(a.target, null);
+  sameJSON(a.muscles, ['chest', 'triceps'], 'muscles dédoublonnés, identifiants seulement');
+  assert.equal(b.repMax, 15);
+  assert.equal(b.rest, 120);
+  assert.equal(b.target, 82.5);
+  assert.equal(b.muscles, undefined, 'muscles qui ne sont pas une liste : retirés');
+});
+
+test('sanitizeData : séries aberrantes de l\'historique écartées', () => {
+  const d = app.sanitizeData({ programmes: {}, history: [{ date: 1, category: 'push', exercises: [{ name: 'A', sets: [
+    { weight: '1e308', reps: '8' }, { weight: '80', reps: '99999999' }, { weight: '80', reps: '8' }, { weight: '', reps: '12' },
+  ] }] }] });
+  sameJSON(d.history[0].exercises[0].sets, [{ weight: '80', reps: '8' }, { weight: '', reps: '12' }]);
+});
+
+test('importText : fichier d\'une version plus récente refusé', () => {
+  reset();
+  for (const schema of [99, 'abc']) {
+    sameJSON(app.importText(JSON.stringify({ schema, programmes: {}, activeProgramme: 'ppl', history: [] })), { ok: false, reason: 'invalid' }, String(schema));
+  }
+  assert.equal(app.importText(JSON.stringify({ schema: 3, programmes: {}, activeProgramme: 'ppl', history: [] })).ok, true);
+});
+
+test('freshData : donnée vide au schéma courant, la copie de secours survit au relancement', () => {
+  reset();
+  ctx.localStorage.setItem('ppl_v2_backup', '{"avant":"suppression"}');
+  const fresh = JSON.stringify(app.freshData());
+  app.normalizeData(JSON.parse(fresh), fresh);
+  assert.equal(ctx.localStorage.getItem('ppl_v2_backup'), '{"avant":"suppression"}', 'aucune migration déclenchée');
+  assert.equal(JSON.parse(fresh).schema, run('SCHEMA'));
+});
+
 test('importText : ancien format ppl_v1 accepté, séances illisibles ignorées', () => {
   reset();
   const before = JSON.stringify(run('data'));

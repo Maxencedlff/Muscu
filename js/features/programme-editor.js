@@ -165,7 +165,7 @@ function renderExEdit() {
             <span class="cell__body"><span class="cell__title">Haut de fourchette de reps</span></span>
             <span class="field-suffix">
               <input type="text" inputmode="numeric" id="exRepMax" class="field field--num" autocomplete="off"
-                     value="${d.repMax ?? 12}" aria-label="Haut de fourchette de reps">
+                     value="${esc(d.repMax ?? 12)}" aria-label="Haut de fourchette de reps">
               <span>reps</span>
             </span>
           </label>

@@ -24,7 +24,7 @@ function historyCell(h) {
   const vol    = sessionVolume(h.exercises || []);
   // Séance d'un autre programme : la mention remplace le nombre d'exercices (cellule sur 2 lignes)
   const other  = progId !== data.activeProgramme;
-  const parts  = [other ? `Programme ${progMeta(progId).name}` : plural((h.exercises || []).length, 'exercice', 'exercices')];
+  const parts  = [other ? `Programme ${esc(progMeta(progId).name)}` : plural((h.exercises || []).length, 'exercice', 'exercices')];
   if (vol > 0) parts.push(fmtVolume(vol));
   if (h.duration) parts.push(fmtDuration(h.duration));
   return `
@@ -129,7 +129,7 @@ function renderHistoryDetail(id) {
       ${navBar({ title: '', right: `<button class="navbar__text" data-action="edit-session" data-id="${esc(h.id)}">Modifier</button>` })}
       <div class="scr">
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${meta.color}"></span>${meta.label}</h1>
-        <p class="scr-sub">${when}${progId !== data.activeProgramme ? ` · Programme ${progMeta(progId).name}` : ''}</p>
+        <p class="scr-sub">${when}${progId !== data.activeProgramme ? ` · Programme ${esc(progMeta(progId).name)}` : ''}</p>
         <div class="tiles">
           <div class="tile"><span class="tile__val num">${h.duration ? fmtDuration(h.duration) : '—'}</span><span class="tile__lbl">durée</span></div>
           <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">volume</span></div>

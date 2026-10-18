@@ -136,7 +136,7 @@ function statsRow(it) {
 function statsSectionTitle(sec, key) {
   if (key === 'other') return 'Autres';
   const label = sessionMeta(sec.cat, sec.prog).label;
-  return sec.prog === data.activeProgramme ? label : `${label} · ${progMeta(sec.prog).name}`;
+  return sec.prog === data.activeProgramme ? label : `${label} · ${esc(progMeta(sec.prog).name)}`;
 }
 
 function renderStats() {

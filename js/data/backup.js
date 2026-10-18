@@ -13,6 +13,8 @@ function importText(text) {
   try {
     const d = JSON.parse(text);
     if (!d || typeof d !== 'object') throw new Error('format');
+    // Fichier d'une version plus récente de l'app : son format n'est pas encore connu
+    if (d.schema != null && !(Number(d.schema) <= SCHEMA)) throw new Error('schema');
     theme = d._theme;
     let candidate;
     if (d.exercises && !d.programmes) {

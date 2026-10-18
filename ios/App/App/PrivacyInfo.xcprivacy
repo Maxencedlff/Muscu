@@ -29,6 +29,15 @@
 				<string>C617.1</string>
 			</array>
 		</dict>
+		<dict>
+			<!-- Espace libre lu par le module de mises à jour (Capgo, CapgoUpdater.checkDiskSpace) avant d'écrire un paquet : le téléchargement est refusé si l'espace manque -->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>E174.1</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

@@ -71,7 +71,7 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | Fichier | Rôle |
 |---|---|
 | `programmes.js` | `PROGRAMMES` (programmes intégrés et exercices par défaut), `exerciseLibrary()` |
-| `store.js` | `makeExercise`, `calc1RM`, `setsVolume`, `sessionVolume`, `recomputePRFromHistory`, `lastPerf`, `resolveExId`, `makeDefaultData`, `sanitizeData` (clés de séance limitées à `SESSION_CAT_RE`), `normalizeData` (migrations), `loadData`, `save`, `latestSessionDate`, `syncTimersFromHistory`, `releaseTimer` ; **charge `data` au chargement** (ou passe en mode secours) |
+| `store.js` | `makeExercise`, `calc1RM`, `setsVolume`, `sessionVolume`, `recomputePRFromHistory`, `lastPerf`, `resolveExId`, `makeDefaultData` (base des migrations), `freshData` (donnée vide au schéma courant : suppression, démarrage à neuf), `sanitizeData` (clés de séance limitées à `SESSION_CAT_RE`, champs d’exercice et séries bornés comme à la saisie), `normalizeData` (migrations), `loadData`, `save`, `latestSessionDate`, `syncTimersFromHistory`, `releaseTimer` ; **charge `data` au chargement** (ou passe en mode secours) |
 | `records.js` | Records : `recordLabel` (badge d'une série), `exerciseRecord` (record marquant d'un exercice), `historyBaseline` (records d'avant une séance de l'historique), `recordKey` |
 | `accessors.js` | `prog`, `getCooldown`, `isUserProg`, `userSessions`, `progMeta`, `sessionKeys`, `sessionMeta`, `rawLabel`, `catBadge`, `firstSession`, régularité, unités (`toUnitW`, `fmtW`, `storeW`, `fmtVolume`), `bestSet`, `setTxt` |
 | `active-session.js` | `activeSession`, `sessionNotes`, `writeSession(rest)` (écrit la séance et l'état du repos reçu), `restoreSession()` (renvoie `{ rest }` sans relancer le chrono), `computeBaseline`, `sessProg` |
@@ -249,7 +249,7 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
 ## Règles
 
 - **Migrations additives et idempotentes.** `normalizeData` complète ce qui manque et ne retire
-  rien ; `sanitizeData` ne retire que ce qui ferait planter l'app. Un changement de schéma
+  rien ; `sanitizeData` ne retire que ce qui ferait planter l'app ou serait réinjecté tel quel dans le HTML (champs bornés comme à la saisie, fichier d'un schéma plus récent refusé à l'import). Un changement de schéma
   incrémente `SCHEMA`, sauvegarde l'ancien texte dans `ppl_v2_backup` et reste lisible par
   l'import d'un ancien fichier. Les formats de `ppl_v2`, `ppl_active_session`, `ppl_theme` et
   `ppl_v2_backup` ne changent pas sans migration.

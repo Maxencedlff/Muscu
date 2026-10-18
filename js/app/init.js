@@ -105,7 +105,7 @@ function renderRescue() {
     try {
       const raw = localStorage.getItem(KEY);
       if (raw) localStorage.setItem(BACKUP_KEY, raw);
-      const d = makeDefaultData(); d.schema = SCHEMA;
+      const d = freshData();
       localStorage.setItem(KEY, JSON.stringify(d));
       localStorage.removeItem(SESSION_KEY);
     } catch {}
