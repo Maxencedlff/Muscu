@@ -29,7 +29,23 @@ defaults:
     shell: bash   # bash -eo pipefail : une erreur suivie de « | tail » fait bien échouer l'étape
 
 jobs:
+  # Rien ne part sur TestFlight (ni ne consomme le quota macOS) si les tests du même commit
+  # ne sont pas verts : workflow Tests (unitaires et Playwright), terminé avec succès
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      actions: read
+    steps:
+      - name: Tests verts pour ${{ github.sha }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          C=$(gh api "repos/${{ github.repository }}/actions/workflows/tests.yml/runs?head_sha=${{ github.sha }}&status=completed&per_page=1" -q '.workflow_runs[0].conclusion')
+          [ "$C" = success ] || { echo "Tests de ${{ github.sha }} : ${C:-pas encore terminés}. Relance quand ils sont verts."; exit 1; }
+
   build:
+    needs: gate
     runs-on: macos-26
     timeout-minutes: 30
     steps:

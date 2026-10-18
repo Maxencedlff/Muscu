@@ -12,7 +12,7 @@ from playwright.sync_api import sync_playwright
 
 LOT = 1
 R = Results(LOT)
-APP_DIR = '/mnt/c/Users/maxde/ppl-training'
+APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # dépôt qui contient ce test
 
 
 def tag(device, theme):

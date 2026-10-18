@@ -1,10 +1,23 @@
 name: Tests
 
-# À chaque envoi : syntaxe de tous les scripts, tests unitaires (dont le pont natif) et
-# préparation du contenu de l'app iOS. Rapide et sur Linux (quelques secondes de quota).
+# À chaque envoi :
+#  1. unit : syntaxe de tous les scripts, tests unitaires (dont le pont natif), contenu de l'app iOS ;
+#  2. e2e : l'app tourne pour de vrai dans WebKit (iPhone 13) et Chromium (Pixel 7), toute la suite
+#     Playwright en thème sombre ;
+#  3. deploy : sur main seulement, et seulement si 1 et 2 sont verts, publication sur
+#     https://muscu-eta.vercel.app. Vercel ne publie plus seul (vercel.json : git.deploymentEnabled).
+# Tout tourne sur Linux : aucun quota macOS.
 on:
   push:
   pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  # Sur main, une publication ne s'interrompt jamais ; ailleurs, un envoi plus récent remplace l'ancien
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   unit:
@@ -12,6 +25,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -22,3 +37,61 @@ jobs:
         run: node tests/unit/run.mjs
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PLAYWRIGHT_VERSION: 1.62.0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Navigateurs en cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
+      - name: Playwright, WebKit et Chromium
+        run: |
+          pip install "playwright==$PLAYWRIGHT_VERSION"
+          python -m playwright install --with-deps chromium webkit
+      - name: Serveur local de l'app
+        run: |
+          python -m http.server 8731 > /tmp/serveur.log 2>&1 &
+          for i in $(seq 1 20); do curl -fsS -o /dev/null http://localhost:8731/ && break; sleep 0.5; done
+      - name: Suite Playwright (iPhone 13 et Pixel 7, sombre)
+        env:
+          PPL_URL: http://localhost:8731/
+          PPL_DEVICES: iPhone 13,Pixel 7
+          PPL_THEMES: dark
+          PPL_JOBS: '3'
+          PPL_SCRATCH: ${{ runner.temp }}/ppl-tests
+        run: cd tests && python -u run_all.py
+      - name: Captures en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: captures-playwright
+          path: ${{ runner.temp }}/ppl-tests/shots
+          retention-days: 7
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [unit, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Publication sur muscu-eta.vercel.app
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+        # La CLI échoue (code non nul) si la publication échoue ; version figée (pas de @latest)
+        run: npx --yes vercel@62.0.0 deploy --prod --yes --token "$VERCEL_TOKEN"

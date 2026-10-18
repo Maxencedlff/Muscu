@@ -49,13 +49,20 @@ PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_lot1.py   # un lot sur un appare
 ```
 
 Variables utiles : `PPL_JOBS` (processus simultanés, 6 par défaut), `PPL_URL` (adresse de l'app),
-`PPL_SCRATCH` (dossier des captures). Un test qui échoue sous la charge doit être relancé seul
-avant de conclure à une régression.
+`PPL_SCRATCH` (dossier des captures), `PPL_DEVICES` et `PPL_THEMES` (ex. `"iPhone 13,Pixel 7"`,
+`dark`). Un nom de lot ou d'appareil inconnu est refusé. Un processus en échec est relancé une
+fois : s'il passe, il est signalé « INSTABLE » (à surveiller) sans faire échouer la suite.
 
 ## Déploiement
 
-Le dépôt est relié à Vercel : chaque push sur `main` est publié automatiquement en production
-(site statique, pas de build). `tests/` est exclu par `.vercelignore`.
+Chaque push lance le workflow **Tests** (`.github/workflows/tests.yml`) : tests unitaires, puis
+toute la suite Playwright sur iPhone 13 (WebKit) et Pixel 7 (Chromium) en sombre. Sur `main`, et
+seulement si tout est vert, le job `deploy` publie en production sur https://muscu-eta.vercel.app
+(CLI Vercel figée, secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_WEB_PROJECT_ID`). Vercel ne
+publie plus seul (`vercel.json` : `git.deploymentEnabled: false`) : un push rouge ne part jamais en
+ligne. Compter 6 à 8 min entre le push et la mise en ligne. TestFlight (`ios.yml`) refuse aussi un
+commit dont les tests ne sont pas verts. `.vercelignore` exclut tests, natif, scripts et toute la
+documentation (`*.md`, `docs/`).
 
 Avant de publier une version :
 

@@ -9,7 +9,7 @@ from fixtures import *  # noqa
 
 LOT = 2
 R = Results(LOT)
-APP_DIR = os.environ.get('PPL_APP_DIR', '/mnt/c/Users/maxde/ppl-training')  # Fusion : dépôt principal
+APP_DIR = os.environ.get('PPL_APP_DIR') or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # dépôt qui contient ce test
 
 SPRITE = ['chevron.left', 'chevron.right', 'chevron.down', 'pencil', 'trash', 'timer', 'plus', 'minus', 'xmark',
           'checkmark', 'arrow.clockwise', 'line.3.horizontal', 'flame', 'chart', 'ellipsis', 'gear', 'dumbbell',

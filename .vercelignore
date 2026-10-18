@@ -10,3 +10,5 @@ capacitor.config.json
 store/
 IOS.md
 ota-site/
+docs/
+*.md
