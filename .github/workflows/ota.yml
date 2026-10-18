@@ -65,7 +65,8 @@ jobs:
           done
           [ "$ONLINE" = "$EXPECTED" ] || { echo "Manifeste en ligne différent de celui publié"; exit 1; }
           URL=$(python3 -c "import json; print(json.load(open('ota-site/manifest.json'))['url'])")
-          curl -fsS "$URL" -o /tmp/b.zip
+          # Le manifeste peut être servi quelques secondes avant le paquet (constaté le 18/10) : on réessaie
+          for i in 1 2 3 4 5 6; do curl -fsS "$URL" -o /tmp/b.zip && break; sleep 5; done
           echo "$EXPECTED  /tmp/b.zip" | sha256sum -c -
           {
             echo "### Mise à jour publiée"
