@@ -224,7 +224,7 @@ const SCREENS = new Map([
   ['editor',         { render: () => renderEditor() }],
   ['history',        { render: () => renderHistory() }],
   ['stats',          { render: () => renderStats(), mount: () => fillWeightGroup() }],
-  ['settings',       { render: () => renderSettings(), mount: () => fillAppVersion() }],
+  ['settings',       { render: () => renderSettings(), mount: () => { fillAppVersion(); fillBodyWeightCell(); } }],
   ['add-session',    { render: () => renderAddSession(), enter: ({ dir }) => addSessionEnter(dir), leave: () => addSessionLeave() }],
   ['summary',        { render: () => renderSummary() }],          // Entraînement › Bilan
   ['history-detail', { render: id => renderHistoryDetail(id) }],

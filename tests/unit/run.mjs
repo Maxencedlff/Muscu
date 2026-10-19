@@ -893,6 +893,22 @@ test('santé et musique : rien dans le navigateur, même activés', async () => 
   sameJSON(await run('Native.health.bodyMass()'), []);
 });
 
+test('santé : poids pour les calories, celui de Santé (non modifiable) sinon celui de l\'app', () => {
+  reset();
+  run('data.bodyWeightKg = 70;');
+  const cell = samples => run(`weightCache = ${samples === undefined ? '{ at: 0, samples: [] }' : `{ at: Date.now(), samples: ${JSON.stringify(samples)} }`};
+    renderBodyWeightCell()`);
+  assert.match(cell(undefined), /Lecture dans Santé/, 'pas encore lu');
+  const fromHealth = cell([{ kg: 72.4, date: Date.UTC(2026, 9, 12) }]);
+  assert.match(fromHealth, /72,4 kg/);
+  assert.match(fromHealth, /Pris dans Santé · pesée du/);
+  assert.doesNotMatch(fromHealth, /data-action/, 'pas de saisie quand Santé a une pesée');
+  const manual = cell([]);
+  assert.match(manual, /data-action="set-body-weight"/);
+  assert.match(manual, /70 kg/);
+  assert.match(manual, /Aucune pesée dans Santé/);
+});
+
 test('santé : séance envoyée avec ses dates et les calories du poids le plus récent', async () => {
   reset();
   const sent = [];

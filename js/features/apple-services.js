@@ -89,6 +89,12 @@ async function weightForCalories() {
   return (await latestBodyMass())?.kg || data.bodyWeightKg || null;
 }
 
+// Dernière pesée déjà lue : objet, null (Santé n'en a aucune) ou undefined (pas encore lue)
+function knownLatestBodyMass() {
+  if (Date.now() - weightCache.at >= WEIGHT_TTL) return undefined;
+  return weightCache.samples[0] || null;
+}
+
 // Emplacement dans Progrès, rempli après le dessin (lecture asynchrone dans Santé)
 function renderWeightGroup() {
   if (!healthEnabled()) return '';
@@ -174,12 +180,7 @@ function renderAppleServicesGroup(tog) {
               <span class="cell__sub">Enregistre tes séances, lit ton poids</span></span>
             ${tog(data.healthOn === true)}
           </button>
-          ${data.healthOn === true ? `<button class="cell cell--nav" data-action="set-body-weight">
-            <span class="cell__body"><span class="cell__title">Poids pour les calories</span>
-              <span class="cell__sub">Utilisé quand Santé n'a aucune pesée</span></span>
-            <span class="cell__value num">${data.bodyWeightKg ? `${fmtW(data.bodyWeightKg)} ${unitLbl()}` : 'Non renseigné'}</span>
-            ${icon('chevron.right', 16)}
-          </button>` : ''}
+          ${data.healthOn === true ? renderBodyWeightCell() : ''}
           ${data.healthOn === true ? (() => {
             const n = healthBacklog().length;
             return `<button class="cell cell--nav" data-action="health-backfill">
@@ -193,6 +194,37 @@ function renderAppleServicesGroup(tog) {
             ${tog(data.musicOn === true)}
           </button>
         </div>`;
+}
+
+// Poids pour les calories : celui de Santé dès qu'il y a une pesée (affiché, non modifiable ici),
+// sinon le poids saisi dans l'app. Une pesée ajoutée plus tard dans Santé prend le relais.
+function renderBodyWeightCell() {
+  const last = knownLatestBodyMass();
+  const title = '<span class="cell__title">Poids pour les calories</span>';
+  if (last === undefined) {
+    return `<div class="cell" id="bodyWeightCell">
+            <span class="cell__body">${title}<span class="cell__sub">Lecture dans Santé…</span></span></div>`;
+  }
+  if (last) {
+    return `<div class="cell" id="bodyWeightCell">
+            <span class="cell__body">${title}
+              <span class="cell__sub">Pris dans Santé · pesée du ${esc(fmtDate(last.date))}</span></span>
+            <span class="cell__value num">${fmtW(last.kg)} ${unitLbl()}</span></div>`;
+  }
+  return `<button class="cell cell--nav" id="bodyWeightCell" data-action="set-body-weight">
+            <span class="cell__body">${title}
+              <span class="cell__sub">Aucune pesée dans Santé : saisis-le ici</span></span>
+            <span class="cell__value num">${data.bodyWeightKg ? `${fmtW(data.bodyWeightKg)} ${unitLbl()}` : 'Non renseigné'}</span>
+            ${icon('chevron.right', 16)}
+          </button>`;
+}
+
+// Réglages : la cellule est redessinée une fois Santé lue (lecture asynchrone)
+async function fillBodyWeightCell() {
+  if (!$('#bodyWeightCell') || knownLatestBodyMass() !== undefined) return;
+  await bodyMassSamples();
+  const cell = $('#bodyWeightCell');   // écran quitté ou redessiné entre-temps
+  if (cell) cell.outerHTML = renderBodyWeightCell();
 }
 
 registerActions({
@@ -233,6 +265,7 @@ registerActions({
     else showToast(`${plural(sent, 'séance envoyée', 'séances envoyées')} dans Santé`);
   },
   'set-body-weight': async () => {
+    if (await latestBodyMass()) { render(); showToast('Ton poids vient de Santé : modifie-le dans l\'app Santé'); return; }
     const lbs = data.unit === 'lbs';
     const v = await askNumber({ title: 'Poids pour les calories',
       message: 'Sert à estimer les calories de tes séances quand Santé n\'a aucune pesée.',
