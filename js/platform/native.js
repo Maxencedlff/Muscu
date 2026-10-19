@@ -24,20 +24,90 @@ const Native = (() => {
   const Music              = plugin('MdlfMusic');    // module Swift de l'app (ios/App/App/MusicPlugin.swift)
   const LiveActivity       = plugin('MdlfLiveActivity'); // module Swift de l'app (ios/App/App/LiveActivityPlugin.swift)
   const AppIcon            = plugin('MdlfAppIcon');   // module Swift de l'app (ios/App/App/AppIconPlugin.swift)
+  const Cloud              = plugin('MdlfCloudBackup'); // module Swift de l'app (ios/App/App/CloudBackupPlugin.swift)
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
 
   // Un module natif indisponible ou en erreur ne doit jamais casser l'app web
   const quiet = promise => { promise?.catch?.(() => {}); };
 
+  const getItem = key => { try { return localStorage.getItem(key); } catch { return null; } };
+  const setItem = (key, value) => { try { localStorage.setItem(key, value); return true; } catch { return false; } };
+
+  // Nombre de séances d'un JSON de ppl_v2 (0 si illisible)
+  const sessionCount = json => {
+    try { const h = JSON.parse(json)?.history; return Array.isArray(h) ? h.length : 0; } catch { return 0; }
+  };
+
+  // Empreinte d'un texte (longueur + FNV-1a 32 bits) : sert à ne pas renvoyer à iCloud ce qu'il a déjà
+  const fingerprint = text => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    return `${text.length}:${(h >>> 0).toString(16)}`;
+  };
+
   const REST_NOTIF_ID = 1;           // une seule notification de repos à la fois
   const BACKUP_FILE   = 'ppl_v2.json';
+  const CLOUD_WAIT_MS = 2500;        // premier lancement : attente de la copie iCloud (écran de démarrage)
+  const CLOUD_READY   = 'ppl_cloud_ready'; // '1' : la copie iCloud peut être écrite (gardé d'un lancement à l'autre)
+  const CLOUD_SENT    = 'ppl_cloud_sent';  // empreinte du dernier JSON accepté par iCloud
   let notifPermission = null;        // 'granted' | 'denied' | null (pas encore demandé)
   let backupTimer     = null;
 
   // Lu avant que store.js ne crée une donnée par défaut : sans donnée locale au démarrage,
   // la copie de sécurité ne doit pas être écrasée avant d'avoir tenté de la restaurer (boot).
-  const hadLocalData = (() => { try { return !!localStorage.getItem('ppl_v2'); } catch { return false; } })();
+  const localAtStart = getItem('ppl_v2');
+  const hadLocalData = !!localAtStart;
   let backupEnabled  = hadLocalData;
+  // Copie iCloud : jamais écrasée par une donnée sans séance tant qu'on ne sait pas ce qu'elle
+  // contient (réinstallation, iCloud lent ou hors ligne). Ouverte une fois pour toutes quand iCloud
+  // a répondu, dès la première séance, ou d'emblée pour qui avait déjà des séances.
+  let cloudReady     = isNative && (getItem(CLOUD_READY) === '1' || sessionCount(localAtStart) > 0);
+  let cloudErase     = false;   // « Supprimer toutes les données » : vider aussi la copie iCloud
+  if (cloudReady) setItem(CLOUD_READY, '1');
+
+  const openCloud = () => { if (!cloudReady) { cloudReady = true; setItem(CLOUD_READY, '1'); } };
+
+  // Remet une copie dans le stockage web puis recharge l'app ; plus aucune écriture d'ici là
+  const restore = json => {
+    clearTimeout(backupTimer);
+    const was = backupEnabled;
+    backupEnabled = false;
+    if (setItem('ppl_v2', json)) { location.reload(); return true; }
+    backupEnabled = was;
+    return false;
+  };
+
+  // Copie iCloud : attend au plus waitMs la première synchronisation (réinstallation).
+  // Renvoie { json, synced } ; json null si iCloud n'a pas de copie (ou n'a pas encore répondu).
+  const readCloud = async waitMs => {
+    try {
+      const r = await Cloud.load({ waitMs });
+      const json = typeof r?.data === 'string' && r.data.length > 2 ? r.data : null;
+      return { json, synced: !!r?.synced || !!json };
+    } catch { return { json: null, synced: false }; }
+  };
+
+  // Copie iCloud arrivée (ou lue) alors que l'écriture était encore fermée : reprise si elle a des
+  // séances et l'iPhone aucune (une séance en cours, gardée à part, reprend après le rechargement)
+  const adoptCloud = json => {
+    if (sessionCount(json) > 0 && sessionCount(getItem('ppl_v2')) === 0 && restore(json)) return;
+    openCloud();
+  };
+
+  // Envoi à iCloud : rien tant que l'écriture est fermée, rien si iCloud a déjà ce JSON (ex.
+  // l'enregistrement de chaque démarrage, qui ferait gagner un vieil iPhone juste ouvert)
+  const pushCloud = json => {
+    const sessions = sessionCount(json);
+    if (sessions > 0) openCloud();
+    if (!cloudReady) return;
+    const print = fingerprint(json);
+    if (!cloudErase && print === getItem(CLOUD_SENT)) return;
+    const force = cloudErase;
+    cloudErase = false;
+    Promise.resolve(Cloud.save({ data: json, sessions, force }))
+      .then(r => { if (r?.saved) setItem(CLOUD_SENT, print); })
+      .catch(() => {});
+  };
 
   // Filet de sécurité : l'écran de démarrage disparaît même si le rendu échoue
   if (isNative) setTimeout(() => quiet(SplashScreen.hide()), 4000);
@@ -94,26 +164,56 @@ const Native = (() => {
       if (isNative) quiet(LocalNotifications.cancel({ notifications: [{ id: REST_NOTIF_ID }] }));
     },
 
-    // Copie de sécurité des données dans les Documents de l'app (sauvegardés par iCloud).
-    // Le stockage web d'iOS peut être vidé dans de rares cas ; ce fichier permet de tout retrouver.
+    // Deux copies de sécurité des données :
+    //  - ppl_v2.json dans les Documents de l'app (le stockage web d'iOS peut être vidé dans de rares
+    //    cas), inclus dans la sauvegarde iCloud de l'iPhone ;
+    //  - la copie iCloud de l'app (MdlfCloudBackup), qui survit à la suppression de l'app et revient
+    //    sur un nouvel iPhone. Une donnée sans séance n'y est écrite qu'une fois iCloud consulté.
     backup(json) {
       if (!isNative || !backupEnabled) return;
       clearTimeout(backupTimer);
       backupTimer = setTimeout(() => {
         quiet(Filesystem.writeFile({ path: BACKUP_FILE, data: json, directory: 'DOCUMENTS', encoding: 'utf8' }));
+        pushCloud(json);
       }, 800);
     },
 
-    // Au démarrage : stockage web vide mais copie présente (réinstallation, stockage vidé par iOS)
-    // → la copie est remise en place et l'app recharge. Renvoie true si un rechargement est lancé.
+    // « Supprimer toutes les données » : le prochain enregistrement vide aussi la copie iCloud
+    // (sans ce drapeau, iOS refuse d'écrire une donnée sans séance par-dessus une copie qui en a)
+    eraseCloudOnNextSave() {
+      if (isNative) cloudErase = true;
+    },
+
+    // Au démarrage, stockage web vide (premier lancement, réinstallation, stockage vidé par iOS) :
+    // la copie des Documents, sinon la copie iCloud, est remise en place et l'app recharge.
+    // Renvoie true si un rechargement est lancé. Tant que l'écriture iCloud est fermée, une copie
+    // iCloud arrivée plus tard (ou au lancement suivant) est encore reprise s'il n'y a aucune séance.
     async boot() {
       if (!isNative) return false;
       if (!hadLocalData) {
-        const json = await this.readBackup();
-        if (json) {
-          try { localStorage.setItem('ppl_v2', json); location.reload(); return true; } catch {}
+        const file = await this.readBackup();
+        if (file && restore(file)) return true;
+        if (!file) {
+          const { json, synced } = await readCloud(CLOUD_WAIT_MS);
+          if (json && restore(json)) return true;
+          if (synced) openCloud();
         }
         backupEnabled = true;
+      }
+      // Changement venu d'iCloud (autre iPhone, autre compte) : l'empreinte ne dit plus ce
+      // qu'iCloud contient, le prochain enregistrement renverra la donnée de cet iPhone
+      quiet(Cloud.addListener?.('change', ({ data } = {}) => {
+        setItem(CLOUD_SENT, '');
+        if (!cloudReady) adoptCloud(data);
+      }));
+      if (!cloudReady) {
+        if (hadLocalData) {
+          readCloud(0).then(({ json, synced }) => {
+            if (cloudReady) return;
+            if (json) adoptCloud(json);
+            else if (synced) openCloud();
+          });
+        }
       }
       return false;
     },

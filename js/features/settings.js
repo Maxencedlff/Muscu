@@ -154,6 +154,7 @@ registerActions({
     if (activeSession) endSession();
     data = freshData();
     resetSelections();
+    Native.eraseCloudOnNextSave();   // app iOS : la copie iCloud est vidée elle aussi
     save(); render(); showToast('Données supprimées');
   },
   'force-update': async () => {

@@ -38,12 +38,44 @@ Les fichiers de l'app iOS sont exclus de la publication Vercel (`.vercelignore`)
 | `Native.liveActivity.start()` / `update()` / `end()` | `rest-activity.js` | Live Activity du repos sur l'écran verrouillé et dans la Dynamic Island (voir plus bas) |
 | `Native.keepAwake()` | wake lock de `init.js` | Écran allumé pendant la séance |
 | `Native.statusBar()` | `applyTheme()`, démarrage | Texte de la barre d'état adapté au thème |
-| `Native.backup()` / `boot()` | `save()`, démarrage | Copie `ppl_v2.json` dans les Documents de l'app (sauvegardés par iCloud) ; restaurée si le stockage web est vide, jamais écrasée avant |
+| `Native.backup()` / `boot()` | `save()`, démarrage | Deux copies : `ppl_v2.json` dans les Documents de l'app (dans la sauvegarde iCloud de l'iPhone) et la copie iCloud de l'app (voir « Copie iCloud ») ; restaurées si le stockage web est vide, jamais écrasées avant |
 | `Native.hideSplash()` | démarrage | Écran de démarrage retiré après le premier rendu (filet à 4 s) |
 | `Native.appIcon.get()` / `set(nom)` | `app-icon.js` | Icône de l'app choisie dans Réglages (voir « Icône de l'app ») |
 | `Native.shareImage(dataUrl, nom)` | `share.js` | Image de la séance écrite dans le cache de l'app (`@capacitor/filesystem`), puis feuille de partage d'iOS (`@capacitor/share` 8.0.3 : Instagram, Messages, Photos…). « Enregistrer l'image » demande l'accès Photos en ajout seul (`NSPhotoLibraryAddUsageDescription`) |
 
 L'autorisation des notifications est demandée au premier repos, au moment où elle a du sens.
+
+### Copie iCloud (`CloudBackupPlugin.swift`)
+
+But : retrouver ses séances après avoir supprimé l'app ou sur un nouvel iPhone, sans compte ni
+serveur. La copie des Documents ne suffit pas : elle part avec l'app et ne revient qu'en restaurant
+tout l'iPhone.
+
+- Stockage clé-valeur d'iCloud (`NSUbiquitousKeyValueStore`) : le JSON de `ppl_v2` compressé
+  (zlib), sa date et son nombre de séances. Limite d'Apple : 1 Mo par app ; au-delà de 900 Ko
+  compressés (des années de séances), rien n'est écrit et la copie des Documents reste.
+- Envoyé avec le fichier (même délai de 800 ms), **seulement s'il a changé** depuis la dernière
+  copie acceptée (empreinte `ppl_cloud_sent`) : l'enregistrement de chaque démarrage n'écrit rien,
+  donc ouvrir un vieil iPhone sans rien faire n'écrase pas la copie du nouveau. iOS envoie lui-même
+  vers iCloud, par lots, et plus tard hors ligne.
+- **Réinstallation** : sans donnée locale ni fichier, `boot()` attend la copie iCloud 2,5 s au plus
+  (écran de démarrage), puis la restaure. Arrivée plus tard, ou lue au lancement suivant, elle est
+  encore reprise tant qu'il n'y a aucune séance sur l'iPhone (événement `change`, gardé par Swift
+  jusqu'à l'abonnement du web). Les enregistrements en attente sont annulés avant le rechargement.
+- **Garde-fou, en deux couches** :
+  - web (`pushCloud`) : l'écriture iCloud reste fermée tant qu'iCloud n'a pas répondu et qu'aucune
+    séance n'existe ; l'état est gardé entre lancements (`ppl_cloud_ready`). Ouverte d'emblée pour
+    qui avait déjà des séances avant cette version ;
+  - Swift (`save`) : une donnée sans séance n'écrase jamais une copie qui en a, sauf `force`, posé
+    par « Supprimer toutes les données » (`Native.eraseCloudOnNextSave()`), qui vide donc aussi
+    la copie iCloud.
+  Limite connue : réinstaller hors ligne puis enregistrer une séance avant toute connexion remplace
+  l'ancienne copie (la sauvegarde iCloud de l'iPhone garde alors le fichier des Documents).
+- Deux iPhone sur le même compte : la dernière modification gagne (pas de fusion).
+- Entitlement `com.apple.developer.ubiquity-kvstore-identifier` (`App.entitlements`) ; capacité
+  iCloud activée sur `com.mdlf.training` et profil App Store régénéré (secret `APPSTORE_PROFILE`).
+- Confidentialité : copie dans le compte iCloud de l'utilisateur, aucun accès pour le développeur
+  (pas une « collecte » au sens d'App Store Connect) ; `privacy.html` le dit.
 
 ### Santé et Apple Music (`js/features/apple-services.js`)
 

@@ -602,9 +602,14 @@ test('esc, normName, sameEx, plural, setsVolume', () => {
 // native.js est chargé seul dans un contexte neuf, avec une coquille Capacitor simulée qui
 // enregistre chaque appel de module natif.
 
-function nativeContext({ native = true, localData = null, fileData = null, shareCancelled = false, plugins: extra = {} } = {}) {
+// cloud : copie iCloud simulée (MdlfCloudBackup) { data, sessions, synced }, avec le filet du
+// module Swift (pas de donnée sans séance sur une copie qui en a, sauf force) ; cloud.emit(snap)
+// simule un changement venu d'iCloud, cloud.saved liste les écritures acceptées.
+// storage : stockage web d'un lancement précédent (relance de l'app) ;
+// manualTimers : les minuteries attendent timers.flush() au lieu de partir tout de suite
+function nativeContext({ native = true, localData = null, fileData = null, shareCancelled = false, cloud = {}, storage = new MemoryStorage(), manualTimers = false, plugins: extra = {} } = {}) {
   const calls = [];
-  const storage = new MemoryStorage();
+  const pending = [];
   if (localData !== null) storage.setItem('ppl_v2', localData);
   let reloaded = false;
   const plugins = {
@@ -621,10 +626,23 @@ function nativeContext({ native = true, localData = null, fileData = null, share
     Share: {
       share: async (o) => { calls.push(['share', o.files]); if (shareCancelled) throw new Error('Share canceled'); },
     },
+    MdlfCloudBackup: {
+      load: async (o) => { calls.push(['cloudLoad', o.waitMs]); return { synced: !!cloud.synced, ...(cloud.data ? { data: cloud.data } : {}) }; },
+      save: async (o) => {
+        calls.push(['cloudSave', o.sessions, !!o.force]);
+        if (o.sessions === 0 && !o.force && cloud.sessions > 0) return { saved: false, reason: 'wouldErase' };
+        Object.assign(cloud, { data: o.data, sessions: o.sessions });
+        (cloud.saved ||= []).push(o.data);
+        return { saved: true };
+      },
+      addListener: (ev, fn) => { if (ev === 'change') cloud.emit = fn; return Promise.resolve({ remove() {} }); },
+    },
     ...extra,   // modules propres à un test (ex. MdlfAppIcon)
   };
   const box = {
-    console, localStorage: storage, setTimeout: (f) => f(), clearTimeout() {},
+    console, localStorage: storage,
+    setTimeout: (f) => { if (!manualTimers) return f(); pending.push(f); return pending.length; },
+    clearTimeout: (id) => { if (id) pending[id - 1] = null; },
     location: { reload() { reloaded = true; } },
     Capacitor: native ? {
       isNativePlatform: () => true,
@@ -634,7 +652,8 @@ function nativeContext({ native = true, localData = null, fileData = null, share
   box.window = box;
   const c = vm.createContext(box);
   vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8') + '\nthis.Native = Native;', c);
-  return { Native: c.Native, calls, storage, isReloaded: () => reloaded, file: () => fileData };
+  const timers = { flush: () => pending.splice(0).forEach(f => f?.()) };
+  return { Native: c.Native, calls, storage, cloud, timers, isReloaded: () => reloaded, file: () => fileData };
 }
 
 test('native : dans le navigateur, tout est sans effet', () => {
@@ -676,6 +695,119 @@ test('native : premier lancement sans copie → les sauvegardes reprennent aprè
   assert.equal(await n.Native.boot(), false);
   n.Native.backup('{"history":[7]}');
   assert.equal(n.file(), '{"history":[7]}');
+});
+
+const tick = () => new Promise(r => setImmediate(r));
+
+test('native : copie iCloud suivie quand il y avait des séances, sans renvoyer ce qu\'elle a déjà', async () => {
+  const n = nativeContext({ localData: '{"history":[1]}' });
+  n.Native.backup('{"history":[1,2]}');
+  await tick();
+  n.Native.backup('{"history":[1,2]}');              // ex. enregistrement de chaque démarrage
+  await tick();
+  sameJSON(n.cloud.saved, ['{"history":[1,2]}']);
+  assert.equal(n.calls.filter(c => c[0] === 'cloudSave').length, 1, 'un vieil iPhone juste ouvert n\'écrit rien');
+});
+
+test('native : « Supprimer toutes les données » vide aussi la copie iCloud (et seulement là)', async () => {
+  const n = nativeContext({ localData: '{"history":[1]}', cloud: { data: '{"history":[1]}', sessions: 1 } });
+  n.Native.backup('{"history":[]}');                 // donnée vide sans demande explicite : refusée
+  await tick();
+  assert.equal(n.cloud.data, '{"history":[1]}');
+  n.Native.eraseCloudOnNextSave();
+  n.Native.backup('{"history":[]}');
+  await tick();
+  assert.equal(n.cloud.data, '{"history":[]}');
+  sameJSON(n.calls.filter(c => c[0] === 'cloudSave').at(-1), ['cloudSave', 0, true]);
+});
+
+test('native : réinstallation (rien sur l\'iPhone) → la copie iCloud est restaurée', async () => {
+  const n = nativeContext({ cloud: { data: '{"history":[5,6]}', sessions: 2 } });
+  assert.equal(await n.Native.boot(), true, 'rechargement demandé');
+  assert.equal(n.storage.getItem('ppl_v2'), '{"history":[5,6]}');
+  sameJSON(n.calls.find(c => c[0] === 'cloudLoad'), ['cloudLoad', 2500]);
+});
+
+test('native : la copie des Documents passe avant iCloud (iCloud pas consulté)', async () => {
+  const n = nativeContext({ fileData: '{"history":[1]}', cloud: { data: '{"history":[9]}', sessions: 1 } });
+  assert.equal(await n.Native.boot(), true);
+  assert.equal(n.storage.getItem('ppl_v2'), '{"history":[1]}');
+  assert.ok(!n.calls.some(c => c[0] === 'cloudLoad'));
+});
+
+test('native : iCloud vide et synchronisé → nouvelle donnée copiée tout de suite', async () => {
+  const n = nativeContext({ cloud: { synced: true } });
+  assert.equal(await n.Native.boot(), false);
+  n.Native.backup('{"history":[]}');
+  await tick();
+  sameJSON(n.cloud.saved, ['{"history":[]}']);
+});
+
+test('native : iCloud muet → copie iCloud intacte jusqu\'à la 1re séance', async () => {
+  const n = nativeContext();                         // iCloud n'a pas répondu dans le délai
+  assert.equal(await n.Native.boot(), false);
+  n.Native.backup('{"history":[]}');
+  await tick();
+  assert.equal(n.cloud.saved, undefined, 'donnée vide jamais envoyée : elle écraserait une vraie copie');
+  n.Native.backup('{"history":[1]}');
+  await tick();
+  sameJSON(n.cloud.saved, ['{"history":[1]}']);
+});
+
+test('native : réinstallation, iCloud muet puis relance → rien d\'écrasé, la copie est reprise', async () => {
+  const cloud = {};
+  const first = nativeContext({ cloud });            // lancement 1 : iCloud muet, donnée par défaut
+  await first.Native.boot();
+  first.storage.setItem('ppl_v2', '{"history":[]}');
+  first.Native.backup('{"history":[]}');
+  await tick();
+  Object.assign(cloud, { data: '{"history":[1,2,3]}', sessions: 3 });   // la copie arrive ensuite
+  const second = nativeContext({ storage: first.storage, cloud });       // lancement 2, même stockage
+  second.Native.backup('{"history":[]}');            // enregistrement du démarrage
+  assert.equal(await second.Native.boot(), false);
+  await tick();
+  assert.equal(cloud.data, '{"history":[1,2,3]}', 'copie iCloud intacte');
+  assert.equal(second.storage.getItem('ppl_v2'), '{"history":[1,2,3]}', 'et reprise');
+  assert.equal(second.isReloaded(), true);
+});
+
+test('native : copie iCloud arrivée après le lancement → reprise seulement sans séance locale', async () => {
+  const a = nativeContext();
+  await a.Native.boot();
+  a.storage.setItem('ppl_v2', '{"history":[]}');
+  a.cloud.emit({ data: '{"history":[3,4]}' });
+  assert.equal(a.storage.getItem('ppl_v2'), '{"history":[3,4]}');
+  assert.equal(a.isReloaded(), true);
+
+  const b = nativeContext();
+  await b.Native.boot();
+  b.storage.setItem('ppl_v2', '{"history":[7]}');   // séance déjà faite ici : on ne l'écrase pas
+  b.cloud.emit({ data: '{"history":[3,4]}' });
+  assert.equal(b.storage.getItem('ppl_v2'), '{"history":[7]}');
+  assert.equal(b.isReloaded(), false);
+});
+
+test('native : reprise tardive → l\'enregistrement en attente est annulé (il réécrirait le vide)', async () => {
+  const n = nativeContext({ manualTimers: true });
+  await n.Native.boot();
+  n.storage.setItem('ppl_v2', '{"history":[]}');
+  n.Native.backup('{"history":[]}');                 // en attente (800 ms)
+  n.cloud.emit({ data: '{"history":[3]}' });
+  n.timers.flush();
+  n.Native.backup('{"history":[]}');                 // un tap avant la fin du rechargement
+  n.timers.flush();
+  await tick();
+  assert.equal(n.storage.getItem('ppl_v2'), '{"history":[3]}');
+  assert.equal(n.file(), null, 'aucun fichier réécrit');
+  assert.equal(n.cloud.saved, undefined, 'rien envoyé à iCloud');
+});
+
+test('native : module MdlfCloudBackup enregistré, compilé et autorisé (projet Xcode)', () => {
+  const read = f => fs.readFileSync(path.join(ROOT, 'ios/App', f), 'utf8');
+  assert.match(read('App/MainViewController.swift'), /registerPluginInstance\(CloudBackupPlugin\(\)\)/);
+  assert.match(read('App/CloudBackupPlugin.swift'), /jsName = "MdlfCloudBackup"/);
+  assert.match(read('App.xcodeproj/project.pbxproj'), /\/\* CloudBackupPlugin\.swift in Sources \*\/,/);
+  assert.match(read('App/App.entitlements'), /com\.apple\.developer\.ubiquity-kvstore-identifier/);
 });
 
 test('native : notification de fin de repos (autorisation demandée une fois, puis programmée)', async () => {
