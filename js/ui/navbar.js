@@ -60,8 +60,9 @@ function updateChrome() {
 
 // ── Barre de navigation ──
 // title : titre ; large : grand titre (racine d'onglet) ; back : libellé du retour (auto) ;
-// left / right : HTML des actions ; sub : ligne sous le grand titre
-function navBar({ title = '', large, back, left = '', right = '', sub = '', extra = '' } = {}) {
+// left / right : HTML des actions ; sub : ligne sous le grand titre ;
+// largeTitle : contenu du grand titre s'il diffère du titre compact (accueil : la date)
+function navBar({ title = '', large, back, left = '', right = '', sub = '', extra = '', largeTitle = title } = {}) {
   const s = nav.stacks[nav.tab];
   const isRoot = s.length < 2;
   if (large === undefined) large = isRoot;
@@ -79,7 +80,7 @@ function navBar({ title = '', large, back, left = '', right = '', sub = '', extr
       </div>
       ${extra}
     </header>
-    ${large ? `<div class="navbar__largewrap"><h1 class="t-large navbar__large">${title}</h1>${sub}</div>` : ''}`;
+    ${large ? `<div class="navbar__largewrap"><h1 class="t-large navbar__large">${largeTitle}</h1>${sub}</div>` : ''}`;
 }
 
 // Libellé du bouton retour vers une route de la pile

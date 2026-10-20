@@ -28,6 +28,11 @@ function renderSettings() {
             <span class="cell__value num">${fmtRest(data.defaultRest)}</span>
             ${icon('chevron.right', 16)}
           </button>
+          <button class="cell cell--nav" data-action="setting-weekly-goal">
+            <span class="cell__body"><span class="cell__title">Objectif</span></span>
+            <span class="cell__value num">${data.weeklyGoal ? `${data.weeklyGoal} / semaine` : `Auto · ${weeklyGoal()} / sem.`}</span>
+            ${icon('chevron.right', 16)}
+          </button>
           <button class="cell" data-action="setting-sound" role="switch" aria-checked="${data.soundOn !== false}">
             <span class="cell__body"><span class="cell__title">Sons</span></span>
             ${tog(data.soundOn !== false)}
@@ -144,6 +149,18 @@ registerActions({
   'setting-rest': async () => {
     const v = await askNumber({ title: 'Repos par défaut', message: 'Durée entre deux séries, en secondes.', value: data.defaultRest, unit: 's', min: 10, max: 600 });
     if (v !== null) { data.defaultRest = v; save(); render(); }
+  },
+  // Objectif de séances par semaine (anneau de l'accueil) : « Auto » suit le nombre de séances du programme
+  'setting-weekly-goal': async () => {
+    const auto = Math.min(7, Math.max(1, sessionKeys().length));
+    const choice = await dialog({ type: 'sheet', title: 'Objectif par semaine', message: 'Séances visées chaque semaine, pour l\'anneau de l\'accueil.', actions: [
+      { label: `Auto : ${auto} séance${auto > 1 ? 's' : ''} (le programme)`, value: 'auto', style: data.weeklyGoal ? '' : 'preferred' },
+      ...[2, 3, 4, 5, 6].map(n => ({ label: `${n} séances`, value: String(n), style: data.weeklyGoal === n ? 'preferred' : '' })),
+      { label: 'Annuler', style: 'cancel' },
+    ] });
+    if (!choice) return;
+    if (choice === 'auto') delete data.weeklyGoal; else data.weeklyGoal = parseInt(choice, 10);
+    save(); render();
   },
   'wipe-data': async () => {
     if (!(await confirmSheet('Supprimer toutes les données ?', 'Séances, programmes et réglages seront effacés de cet appareil.', 'Tout supprimer'))) return;

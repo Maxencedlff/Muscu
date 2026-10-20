@@ -41,7 +41,7 @@ def t_ordre(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, semaine_json())
         # Accueil : séance proposée = la première de la semaine, les autres dans l'ordre
-        R.check(page.locator('.hero__name').inner_text().strip() == 'Lundi', f'{t} accueil : Lundi proposé en premier')
+        R.check(page.locator('.hero__name').inner_text().strip().lower() == 'lundi', f'{t} accueil : Lundi proposé en premier')
         R.check(labels(page, '.home-cell__name')[:6] == JOURS[1:], f'{t} accueil : séances dans l\'ordre de la semaine')
 
         page.evaluate("r => navigate(r)", 'programmes')

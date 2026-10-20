@@ -183,6 +183,8 @@ function sanitizeData(d) {
   if (!okProg(d.activeProgramme)) d.activeProgramme = 'ppl';
   const rest = parseInt(d.defaultRest);
   d.defaultRest = rest >= 10 && rest <= 600 ? rest : 90;
+  // Objectif de séances par semaine (accueil) : absent = nombre de séances du programme
+  if (d.weeklyGoal != null) { const g = num(d.weeklyGoal, 1, 7, true); if (g === null) delete d.weeklyGoal; else d.weeklyGoal = g; }
   if (d.unit !== 'kg' && d.unit !== 'lbs') d.unit = 'kg';
   if (!Array.isArray(d.history)) d.history = [];
   d.history = d.history.filter(h => {

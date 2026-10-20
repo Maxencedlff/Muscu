@@ -117,7 +117,6 @@ function bumpReady(ex) {
   const repMax = sessExData(ex)?.repMax ?? 12;
   return prevs.every(p => (parseInt(p.reps) || 0) >= repMax && (parseFloat(p.weight) || 0) > 0);
 }
-function bumpLabel() { return data.unit === 'lbs' ? '+5 lb' : '+2,5 kg'; }
 
 // Ligne repliée d'un exercice terminé : « 4 × 8 · 32,5 kg » (reps différentes : « 10/10/9/8 »)
 function doneSummary(ex) {

@@ -65,6 +65,118 @@ function cellStatusHtml(cat) {
     : `<span class="home-cell__status">dans ${fmtWait(st.remaining)}</span>${recoveryRing(st.progress)}`;
 }
 
+// Durée habituelle d'une séance (minutes, arrondies à 5) : médiane de ses 5 dernières,
+// sinon estimation à 2,5 min par série prévue
+function sessionMinutes(cat) {
+  const p = data.activeProgramme;
+  const durs = (data.history || [])
+    .filter(h => h.category === cat && (h.programme || 'ppl') === p && h.duration > 5 * 60000)
+    .slice(0, 5).map(h => h.duration).sort((a, b) => a - b);
+  const ms = durs.length ? durs[Math.floor(durs.length / 2)]
+    : (prog().exercises[cat] || []).reduce((a, ex) => a + (ex.sets || 0), 0) * 150_000;
+  return ms ? Math.max(5, Math.round(ms / 300_000) * 5) : 0;
+}
+
+// Cible du jour d'un exercice, même règle que la puce de la séance (bumpReady) :
+// toutes les séries de la dernière fois en haut de la fourchette → charge + 2,5 kg (5 lb) ;
+// sinon la meilleure série de la dernière fois + 1 rep ; jamais fait → nombre de séries prévu.
+function exerciseTarget(cat, ex) {
+  const lp = lastPerf(data.activeProgramme, cat, ex);
+  if (!lp) return { text: `${ex.sets} série${ex.sets > 1 ? 's' : ''}`, gain: '' };
+  const sets = lp.ex.sets.filter(s => (parseInt(s.reps) || 0) > 0);
+  const best = bestSet(sets);
+  if (!best) return { text: `${ex.sets} série${ex.sets > 1 ? 's' : ''}`, gain: '' };
+  const repMax = ex.repMax ?? 12;
+  const bump = best.w > 0 && sets.length >= Math.min(ex.sets, 2) && sets.every(s => (parseInt(s.reps) || 0) >= repMax);
+  if (bump) {
+    return { text: `${fmtW(best.w + bumpStepKg())} ${unitLbl()}`, gain: bumpLabel() };
+  }
+  return { text: setTxt({ ...best, r: best.r + 1 }), gain: '+1 rep' };
+}
+
+// « À battre aujourd'hui » : les premiers exercices de la séance et leur cible
+const HERO_TARGETS = 3;
+function targetsCard(cat) {
+  const exs = prog().exercises[cat] || [];
+  if (!exs.length) return '';
+  const rows = exs.slice(0, HERO_TARGETS).map(ex => {
+    const t = exerciseTarget(cat, ex);
+    return `<li class="targets__row"><span class="targets__name">${esc(ex.name)}</span>`
+      + `<span class="targets__val num">${esc(t.text)}${t.gain ? `<span class="targets__gain">${esc(t.gain)}</span>` : ''}</span></li>`;
+  }).join('');
+  const more = exs.length - HERO_TARGETS;
+  const anyHistory = exs.some(ex => lastPerf(data.activeProgramme, cat, ex));
+  return `
+    <section class="home-card targets" aria-label="${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}">
+      <h2 class="home-card__title">${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}${more > 0 ? `<span class="home-card__aside">+ ${more} exercice${more > 1 ? 's' : ''}</span>` : ''}</h2>
+      <ul class="targets__list">${rows}</ul>
+    </section>`;
+}
+
+// Semaine en cours (lundi → dimanche) : séances par jour, volume ; et le volume moyen
+// des 4 semaines précédentes, pour remplir l'anneau du volume
+function weekStats() {
+  const now = new Date();
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)).getTime();
+  const days = Array.from({ length: 7 }, () => []);
+  let count = 0, volume = 0, before = 0;
+  (data.history || []).forEach(h => {
+    const v = sessionVolume(h.exercises);
+    if (h.date >= monday) {
+      const i = Math.floor((h.date - monday) / 86400000);
+      if (i >= 0 && i < 7) { days[i].push(h); count++; volume += v; }
+    } else if (h.date >= monday - 28 * 86400000) before += v;
+  });
+  return { days, count, volume, avgVolume: before / 4, today: (now.getDay() + 6) % 7 };
+}
+
+// Objectif de séances par semaine : réglé par l'utilisateur, sinon le nombre de séances du programme
+function weeklyGoal() {
+  return data.weeklyGoal || Math.min(7, Math.max(1, sessionKeys().length)) || 3;
+}
+
+// Anneau d'activité (52 px) : progress de 0 à 1, couleur pleine sur une piste de la même couleur
+function activityRing(progress, color) {
+  const r = 22, c = 2 * Math.PI * r, p = Math.max(0, Math.min(1, progress));
+  return `<svg class="aring" width="52" height="52" viewBox="0 0 52 52" aria-hidden="true" style="--ring:${color}">
+    <circle cx="26" cy="26" r="${r}" class="aring__track"/>
+    <circle cx="26" cy="26" r="${r}" class="aring__fill" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - p)).toFixed(2)}"/>
+  </svg>`;
+}
+
+function ringsRow(ws) {
+  const goal = weeklyGoal(), streak = computeStreak();
+  // Régularité : la semaine en cours compte dès 2 séances (computeStreak)
+  const streakProgress = streak ? 1 : Math.min(1, ws.count / 2);
+  const tile = (ring, value, label, aria) =>
+    `<div class="rings__tile" role="img" aria-label="${esc(aria)}">${ring}<span class="rings__val num">${value}</span><span class="rings__lbl">${label}</span></div>`;
+  return `
+    <button class="rings" data-action="go-stats" aria-label="Voir les progrès">
+      ${tile(activityRing(ws.count / goal, 'var(--red)'), `${ws.count}/${goal}`, 'séances', `${ws.count} séance${ws.count > 1 ? 's' : ''} sur ${goal} cette semaine`)}
+      ${tile(activityRing(ws.avgVolume ? ws.volume / ws.avgVolume : (ws.volume ? 1 : 0), 'var(--green)'), fmtVolume(ws.volume), 'volume', `Volume de la semaine : ${fmtVolume(ws.volume)}`)}
+      ${tile(activityRing(streakProgress, 'var(--orange)'), `${streak} sem.`, 'd\'affilée', `Régularité : ${streak} semaine${streak > 1 ? 's' : ''} d'affilée`)}
+    </button>`;
+}
+
+const WEEK_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+const WEEK_NAMES = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+function weekCard(ws) {
+  const cells = WEEK_DAYS.map((l, i) => {
+    const h = ws.days[i][0];
+    const today = i === ws.today;
+    const label = `${WEEK_NAMES[i]}${today ? ', aujourd\'hui' : ''}${h ? ` : ${rawLabel(h.category, h.programme || 'ppl')}` : ''}`;
+    const box = h
+      ? `<span class="week__box week__box--done" style="--cat-color:${historyColor(h)}">${esc(rawLabel(h.category, h.programme || 'ppl').charAt(0).toUpperCase())}</span>`
+      : `<span class="week__box${today ? ' week__box--today' : ''}"></span>`;
+    return `<li class="week__day${today ? ' week__day--today' : ''}" aria-label="${esc(label)}"><span class="week__letter" aria-hidden="true">${l}</span>${box}</li>`;
+  }).join('');
+  return `
+    <section class="home-card week" aria-label="Cette semaine">
+      <h2 class="home-card__title">Cette semaine</h2>
+      <ul class="week__days">${cells}</ul>
+    </section>`;
+}
+
 function renderDashboard() {
   const keys = sessionKeys();
   const pm   = progMeta();
@@ -76,31 +188,37 @@ function renderDashboard() {
     const meta = sessionMeta(next);
     const st   = catStatus(next);
     const last = lastEntryOf(next);
+    const nEx  = (prog().exercises[next] || []).length;
+    const mins = sessionMinutes(next);
     let info, btn;
     if (liveHere) {
       info = `<div class="hero__info hero__info--live">En cours · <span class="num" id="hero-elapsed">${fmtClock(Date.now() - activeSession.startedAt)}</span></div>`;
-      btn  = `<button class="hero__btn" data-action="resume-session">Reprendre</button>`;
+      btn  = `<button class="hero__btn" data-action="resume-session">${icon('play', 18)}Reprendre</button>`;
     } else {
       info = last
         ? `<div class="hero__info">Dernière fois : ${fmtDate(last.date)} · ${fmtVolume(sessionVolume(last.exercises))}</div>`
         : `<div class="hero__info">Jamais faite</div>`;
       if (!st.ready) info += `<div class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</div>`;
       btn = st.ready
-        ? `<button class="hero__btn" data-action="start-session" data-cat="${esc(next)}">Démarrer ${meta.label}</button>`
+        ? `<button class="hero__btn" data-action="start-session" data-cat="${esc(next)}" aria-label="Démarrer ${meta.label}">${icon('play', 18)}Démarrer</button>`
         : `<button class="hero__btn hero__btn--gray" data-action="start-session" data-cat="${esc(next)}">Démarrer quand même</button>`;
     }
+    const chips = [nEx ? `${nEx} exercice${nEx > 1 ? 's' : ''}` : '', mins ? `≈ ${mins} min` : '']
+      .filter(Boolean).map(c => `<span class="hero__chip num">${c}</span>`).join('');
+    // Grand titre : la taille suit la longueur du nom (« PULL » comme « Bras & épaules »)
+    const len = rawLabel(next).length;
+    const size = len <= 5 ? 'xl' : len <= 9 ? 'l' : 'm';
     hero = `
-      <section class="hero" aria-label="Prochaine séance" style="--cat-color:${meta.color}">
+      <section class="hero" aria-label="${liveHere ? 'Séance en cours' : 'Prochaine séance'}">
         <div class="hero__eyebrow">${liveHere ? 'Séance en cours' : 'Prochaine séance'}</div>
-        <div class="hero__head">
-          ${catDot(next)}
-          <div class="hero__name">${meta.label}</div>
-        </div>
+        <div class="hero__name hero__name--${size}">${isUserProg(data.activeProgramme) && meta.emoji ? `<span class="hero__emoji" aria-hidden="true">${meta.emoji}</span>` : ''}${meta.label}</div>
         ${meta.desc ? `<div class="hero__desc">${meta.desc}</div>` : ''}
         ${info}
+        ${chips ? `<div class="hero__chips">${chips}</div>` : ''}
         ${btn}
         <button class="hero__link" data-action="go-editor" data-cat="${esc(next)}">Modifier les exercices</button>
-      </section>`;
+      </section>
+      ${liveHere ? '' : targetsCard(next)}`;
   }
 
   const others = keys.filter(k => k !== next).map(cat => {
@@ -113,17 +231,6 @@ function renderDashboard() {
       </button>`;
   }).join('');
 
-  const streak = computeStreak();
-  const streakCell = streak > 0 ? `
-    <div class="list-group">
-      <button class="home-cell home-cell--streak" data-action="go-stats">
-        <span class="home-cell__icon" aria-hidden="true">${icon('flame', 22)}</span>
-        <span class="home-cell__name">Régularité</span>
-        <span class="home-cell__value">${streak} semaine${streak > 1 ? 's' : ''} d'affilée</span>
-        <span class="home-cell__chev" aria-hidden="true">${icon('chevron.right', 14)}</span>
-      </button>
-    </div>` : '';
-
   const emptyCustom = isUserProg(data.activeProgramme) && keys.length === 0
     ? `<div class="empty-state">
          <div>Programme vide</div>
@@ -131,16 +238,20 @@ function renderDashboard() {
        </div>`
     : '';
 
+  const ws = weekStats();
+  const color = next ? sessionMeta(next).color : 'var(--tint)';
+  const date = fmtDate(Date.now(), 'day');
   const right = `<button class="navbar__icon" data-action="go-settings" aria-label="Réglages">${icon('gear', 24)}</button>`;
   const sub = `<button class="navbar__sub" data-action="go-programmes" aria-label="Programme ${esc(pm.name)}, changer de programme">Programme ${esc(pm.name)} ${icon('chevron.right', 12)}</button>`;
 
   return `
-    <div class="view dashboard">
-      ${navBar({ title: 'Entraînement', right, sub })}
+    <div class="view dashboard" style="--cat-color:${color}">
+      <div class="dashboard__glow" aria-hidden="true"></div>
+      ${navBar({ title: 'Entraînement', largeTitle: date, right, sub })}
       <div class="home">
         ${hero || emptyCustom}
-        ${others ? `<div class="list-title">Autres séances</div><div class="list-group">${others}</div>` : ''}
-        ${streakCell}
+        ${keys.length ? ringsRow(ws) + weekCard(ws) : ''}
+        ${others ? `<section class="home-card home-card--list" aria-label="Autres séances"><h2 class="home-card__title">Autres séances</h2>${others}</section>` : ''}
       </div>
     </div>`;
 }

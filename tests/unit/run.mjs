@@ -37,6 +37,7 @@ const SCRIPTS = [
   'js/app/live-update.js',
   'js/features/share-stats.js',
   'js/features/share-canvas.js',
+  'js/features/dashboard.js',
 ];
 
 // ── Environnement simulé ────────────────────────────────────
@@ -169,6 +170,72 @@ test('setTxt / bestSet : meilleure série affichée', () => {
   assert.equal(app.setTxt(app.bestSet([{ weight: '', reps: '12' }])), '12 reps');
   assert.equal(app.setTxt(null), '');
   assert.equal(app.bestSet([]), null);
+});
+
+// ── Accueil : cibles du jour, semaine, objectif ─────────────
+
+function seedPull(sets, extra = {}) {
+  run(`data.activeProgramme = 'ppl';
+    data.programmes.ppl.exercises.pull = [{ id: 'row', name: 'Rowing', sets: 3, ...${JSON.stringify(extra)} }];
+    data.history = [{ id: 'h1', programme: 'ppl', category: 'pull', date: Date.now() - 86400000, duration: 3000000,
+      exercises: [{ exId: 'row', name: 'Rowing', sets: ${JSON.stringify(sets)} }] }];`);
+  return run("data.programmes.ppl.exercises.pull[0]");
+}
+
+test('exerciseTarget : +1 rep sous le haut de la fourchette, palier de charge au-dessus', () => {
+  reset();
+  let ex = seedPull([{ weight: '30', reps: '10' }, { weight: '32', reps: '9' }, { weight: '32', reps: '8' }]);
+  sameJSON(app.exerciseTarget('pull', ex), { text: '32 kg × 10', gain: '+1 rep' });
+  ex = seedPull([{ weight: '32', reps: '12' }, { weight: '32', reps: '12' }, { weight: '32', reps: '12' }]);
+  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg', gain: '+2,5 kg' });
+  ex = seedPull([{ weight: '32', reps: '8' }, { weight: '32', reps: '8' }], { repMax: 8 });
+  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg', gain: '+2,5 kg' }, 'fourchette réglée sur l\'exercice');
+  ex = seedPull([{ weight: '', reps: '15' }]);
+  sameJSON(app.exerciseTarget('pull', ex), { text: '16 reps', gain: '+1 rep' }, 'poids du corps : jamais de palier de charge');
+  run('data.history = []');
+  sameJSON(app.exerciseTarget('pull', ex), { text: '3 séries', gain: '' }, 'jamais fait');
+});
+
+test('exerciseTarget en lbs : palier de 5 lb', () => {
+  reset({ unit: 'lbs' });
+  const ex = seedPull([{ weight: '20', reps: '12' }, { weight: '20', reps: '12' }]);
+  const t = app.exerciseTarget('pull', ex);
+  assert.equal(t.gain, '+5 lb');
+  assert.equal(t.text, '49,1 lbs');
+});
+
+test('weekStats : séances et volume depuis lundi, moyenne des 4 semaines d\'avant', () => {
+  reset();
+  const now = new Date();
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)).getTime();
+  run(`data.history = [
+    { id: 'a', programme: 'ppl', category: 'push', date: ${monday} + 3600000, exercises: [{ name: 'X', sets: [{ weight: '100', reps: '10' }] }] },
+    { id: 'b', programme: 'ppl', category: 'pull', date: ${monday} - 3 * 86400000, exercises: [{ name: 'X', sets: [{ weight: '100', reps: '20' }] }] },
+    { id: 'c', programme: 'ppl', category: 'legs', date: ${monday} - 40 * 86400000, exercises: [{ name: 'X', sets: [{ weight: '100', reps: '99' }] }] }];`);
+  const ws = app.weekStats();
+  assert.equal(ws.count, 1);
+  assert.equal(ws.volume, 1000);
+  assert.equal(ws.days[0].length, 1, 'séance du lundi dans la première colonne');
+  assert.equal(ws.avgVolume, 500, '2 000 kg sur les 4 semaines précédentes, la séance de -40 j exclue');
+});
+
+test('weeklyGoal : séances du programme par défaut, réglage borné par sanitizeData', () => {
+  reset();
+  run("data.activeProgramme = 'ppl'");
+  assert.equal(app.weeklyGoal(), 3);
+  run('data.weeklyGoal = 5');
+  assert.equal(app.weeklyGoal(), 5);
+  const d = app.sanitizeData({ ...run('data'), weeklyGoal: 12 });
+  assert.equal(d.weeklyGoal, undefined, 'hors bornes : retour à l\'automatique');
+  assert.equal(app.sanitizeData({ ...run('data'), weeklyGoal: '4' }).weeklyGoal, 4);
+});
+
+test('sessionMinutes : médiane des dernières séances, sinon 2,5 min par série', () => {
+  reset();
+  seedPull([{ weight: '30', reps: '10' }]);
+  assert.equal(app.sessionMinutes('pull'), 50);
+  run('data.history = []');
+  assert.equal(app.sessionMinutes('pull'), 10, '3 séries × 2,5 min arrondi à 5');
 });
 
 // ── Formats : durées et dates ───────────────────────────────

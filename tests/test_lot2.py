@@ -173,15 +173,18 @@ def t_custom_colors(bench, eng, dev, theme):
         c = page.evaluate("""() => { const card = document.querySelector('[style*="--cat-color"]');
             return card ? getComputedStyle(card).getPropertyValue('--cat-color').trim() : null; }""")
         R.check(c and c.lower() == '#ec4899', f'{t} séance Perso : couleur d\'origine conservée ({c})')
-        R.check(page.locator('.cat-badge--emoji', has_text='💥').count() >= 1, f'{t} séance Perso : emoji dans sa pastille')
+        R.check(page.locator('.cat-badge--emoji, .hero__emoji', has_text='💥').count() >= 1, f'{t} séance Perso : emoji affiché')
         shot(page, LOT, f'accueil-perso-{t}')
         page.evaluate("data.activeProgramme = 'ppl'; render()")
         page.wait_for_timeout(150)
         badges = page.evaluate("""() => [...document.querySelectorAll('.view.dashboard .cat-badge')  /* Fusion : accueil du lot 3 */].map(b => {
             const r = b.getBoundingClientRect(); return [b.textContent, r.width, r.height, getComputedStyle(b).backgroundColor]; })""")
-        R.check([b[0] for b in badges] == ['P', 'P', 'L'] and all(b[1] == 28 and b[2] == 28 for b in badges), f'{t} pastilles 28 px avec initiale {badges}')
+        # Push est la prochaine séance (grand titre, sans pastille) ; Pull et Legs dans « Autres séances »
+        R.check([b[0] for b in badges] == ['P', 'L'] and all(b[1] == 28 and b[2] == 28 for b in badges), f'{t} pastilles 28 px avec initiale {badges}')
         cols = [b[3] for b in badges]
-        R.check(cols == ['rgb(255, 159, 10)', 'rgb(94, 92, 230)', 'rgb(64, 200, 224)'], f'{t} Push orange, Pull indigo, Legs teal {cols}')
+        R.check(cols == ['rgb(94, 92, 230)', 'rgb(64, 200, 224)'], f'{t} Pull indigo, Legs teal {cols}')
+        glow = page.evaluate("getComputedStyle(document.querySelector('.hero__eyebrow')).color")
+        R.check(glow != page.evaluate("getComputedStyle(document.querySelector('.hero__desc')).color"), f'{t} surtitre teinté de la couleur de Push ({glow})')
         R.check(not page.errors, f'{t} perso : aucune erreur JS {page.errors}')
 
 

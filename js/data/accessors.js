@@ -154,6 +154,10 @@ function storeW(val) {
 }
 
 // Volume (kg) : « 850 kg », « 12,4 t », « 1 874 lbs », « 27,3 k lbs »
+// Palier de charge de la double progression (puce de la séance, cibles de l'accueil)
+function bumpLabel() { return data.unit === 'lbs' ? '+5 lb' : '+2,5 kg'; }
+function bumpStepKg() { return data.unit === 'lbs' ? 5 / KG_TO_LBS : 2.5; }
+
 function fmtVolume(kg) {
   if (kg === 0) return `0 ${unitLbl()}`;
   if (data.unit === 'lbs') {
