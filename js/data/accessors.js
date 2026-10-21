@@ -25,8 +25,14 @@ function userSessions(id) {
   return data.userProgrammes?.[id]?.sessions || null;
 }
 
+// Séance libre : faite hors de tout programme (programme et catégorie FREE dans l'historique).
+// Aucune entrée dans data.programmes : ni exercices prévus, ni délai de récupération.
+const FREE = 'free';
+const FREE_META = { label: 'Séance libre', color: '#8E8E93', desc: 'Hors programme' };
+
 function progMeta(id) {
   id = id || data.activeProgramme;
+  if (id === FREE) return { name: FREE_META.label, desc: FREE_META.desc, icon: '', sessions: {}, free: true };
   const up = data.userProgrammes?.[id];
   if (up) {
     const names = Object.values(up.sessions).map(x => x.label).join(' · ');
@@ -66,6 +72,7 @@ function catBadge(label, color, emoji, size = 28) {
 
 function sessionMeta(cat, progId) {
   progId = progId || data.activeProgramme;
+  if (progId === FREE) return { label: FREE_META.label, icon: catBadge(FREE_META.label, FREE_META.color), emoji: '', desc: FREE_META.desc, color: FREE_META.color };
   if (isUserProg(progId)) {
     const cs = userSessions(progId)?.[cat];
     if (!cs) return { label: esc(cat), icon: catBadge(cat, 'var(--label2)'), emoji: '', desc: '', color: '#8E8E93' };
@@ -79,6 +86,7 @@ function sessionMeta(cat, progId) {
 // Libellé brut (non échappé) pour les textes affichés via textContent
 function rawLabel(cat, progId) {
   progId = progId || data.activeProgramme;
+  if (progId === FREE) return FREE_META.label;
   if (isUserProg(progId)) return userSessions(progId)?.[cat]?.label || cat;
   return PROGRAMMES[progId]?.sessions[cat]?.label || cat;
 }

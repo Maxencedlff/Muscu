@@ -56,6 +56,7 @@ function lastPerf(progKey, cat, exLike, d = data) {
 
 // Identifiant stable pour un exercice connu par son seul nom (exercice ajouté en cours de route)
 function resolveExId(progKey, cat, name, d = data) {
+  if (progKey === FREE) return resolveFreeExId(name, d);
   const byName = { name };
   const inProg = (d.programmes[progKey]?.exercises?.[cat] || []).find(e => normName(e.name) === normName(name));
   if (inProg) return inProg.id;
@@ -65,6 +66,21 @@ function resolveExId(progKey, cat, name, d = data) {
     if (ex) return ex.exId;
   }
   return 'n:' + normName(name);
+}
+
+// Séance libre : l'exercice reprend l'identifiant du même nom ailleurs (programme actif d'abord,
+// puis les autres, puis l'historique) pour partager sa courbe de progrès ; sinon un identifiant de nom
+function resolveFreeExId(name, d = data) {
+  const n = normName(name);
+  const progs = [d.activeProgramme, ...Object.keys(d.programmes).filter(k => k !== d.activeProgramme)];
+  for (const k of progs) {
+    for (const list of Object.values(d.programmes[k]?.exercises || {})) {
+      const ex = (list || []).find(e => normName(e.name) === n);
+      if (ex) return ex.id;
+    }
+  }
+  const past = (d.history || []).flatMap(h => h.exercises || []).find(e => e.exId && normName(e.name) === n);
+  return past ? past.exId : 'n:' + n;
 }
 
 // Volume (kg) : Σ charge × reps d'une liste de séries, puis d'une liste d'exercices
@@ -103,6 +119,7 @@ function makeDefaultData() {
     bodyWeightKg: null, // app iOS : poids de secours pour les calories
     musicOn: false,    // app iOS : Apple Music
     history: [],
+    trash: [],          // { entry, deletedAt } : séances supprimées, récupérables TRASH_DAYS jours
   };
 }
 
@@ -115,6 +132,7 @@ const MUSCLE_ID_RE   = /^[a-z_]{1,24}$/;
 const MAX_MUSCLES    = 16;
 const MAX_LOAD_KG    = 1000;   // mêmes bornes que la saisie en séance
 const MAX_REPS       = 1000;
+const TRASH_DAYS     = 30;     // durée de vie d'une séance dans « Supprimés récemment »
 
 // Nettoie une donnée venue du stockage ou d'un import : retire ce qui ferait planter l'app,
 // sans toucher aux champs valides (idempotent).
@@ -187,26 +205,36 @@ function sanitizeData(d) {
   if (d.weeklyGoal != null) { const g = num(d.weeklyGoal, 1, 7, true); if (g === null) delete d.weeklyGoal; else d.weeklyGoal = g; }
   if (d.unit !== 'kg' && d.unit !== 'lbs') d.unit = 'kg';
   if (!Array.isArray(d.history)) d.history = [];
-  d.history = d.history.filter(h => {
-    if (!isObj(h)) return false;
-    if (typeof h.date === 'string') { const t = Number(h.date) || Date.parse(h.date); if (Number.isFinite(t)) h.date = t; }
-    if (!Number.isFinite(h.date) || !Array.isArray(h.exercises) || typeof h.category !== 'string') return false;
-    if (!h.id) h.id = uid();
-    if (h.healthSaved !== undefined && h.healthSaved !== true) delete h.healthSaved;   // app iOS : déjà envoyée à Santé
-    h.exercises = h.exercises.filter(ex => isObj(ex) && typeof ex.name === 'string');
-    h.exercises.forEach(ex => {
-      if (!Array.isArray(ex.sets)) ex.sets = [];
-      ex.sets = ex.sets.filter(st => isObj(st) && num(st.reps, 0, MAX_REPS, true) !== null);
-      ex.sets.forEach(st => {
-        st.reps = String(num(st.reps, 0, MAX_REPS, true));
-        if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';
-      });
-      // Charge aberrante (ex. 1e308) : série écartée plutôt que comptée en tonnes
-      ex.sets = ex.sets.filter(st => st.weight === '' || num(st.weight, 0, MAX_LOAD_KG) !== null);
-    });
-    return true;
-  });
+  d.history = d.history.filter(cleanHistoryEntry);
+  // Supprimés récemment : séances gardées TRASH_DAYS jours, absentes des stats tant qu'elles y sont
+  if (!Array.isArray(d.trash)) d.trash = [];
+  const kept = new Set(d.history.map(h => h.id));
+  const limit = Date.now() - TRASH_DAYS * 86400000;
+  d.trash = d.trash.filter(t => isObj(t) && Number.isFinite(t.deletedAt) && t.deletedAt > limit
+    && cleanHistoryEntry(t.entry) && !kept.has(t.entry.id));
   return d;
+}
+
+// Séance de l'historique (ou de la corbeille) : corrigée en place, false si elle est inutilisable
+function cleanHistoryEntry(h) {
+  const isObj = o => o && typeof o === 'object' && !Array.isArray(o);
+  if (!isObj(h)) return false;
+  if (typeof h.date === 'string') { const t = Number(h.date) || Date.parse(h.date); if (Number.isFinite(t)) h.date = t; }
+  if (!Number.isFinite(h.date) || !Array.isArray(h.exercises) || typeof h.category !== 'string') return false;
+  if (!h.id) h.id = uid();
+  if (h.healthSaved !== undefined && h.healthSaved !== true) delete h.healthSaved;   // app iOS : déjà envoyée à Santé
+  h.exercises = h.exercises.filter(ex => isObj(ex) && typeof ex.name === 'string');
+  h.exercises.forEach(ex => {
+    if (!Array.isArray(ex.sets)) ex.sets = [];
+    ex.sets = ex.sets.filter(st => isObj(st) && num(st.reps, 0, MAX_REPS, true) !== null);
+    ex.sets.forEach(st => {
+      st.reps = String(num(st.reps, 0, MAX_REPS, true));
+      if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';
+    });
+    // Charge aberrante (ex. 1e308) : série écartée plutôt que comptée en tonnes
+    ex.sets = ex.sets.filter(st => st.weight === '' || num(st.weight, 0, MAX_LOAD_KG) !== null);
+  });
+  return true;
 }
 
 // rawJson : texte stocké avant migration, sauvegardé tel quel dans ppl_v2_backup

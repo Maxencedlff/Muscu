@@ -48,9 +48,42 @@ function restoreAddDraft() {
   } catch { return false; }
 }
 
-// Données du programme de la séance passée (une séance d'un autre programme reste modifiable)
+// Données du programme de la séance passée (une séance d'un autre programme reste modifiable).
+// Programme jamais lancé : préparé comme à l'activation (makeProgData) et gardé pendant la saisie,
+// pour que les exercices affichés soient ceux enregistrés. Séance libre : aucun exercice prévu.
+let addProgFresh = null;   // { id, pd }
 function addProgData() {
-  return data.programmes[addProg] || { exercises: {}, timers: {}, cooldowns: {} };
+  if (data.programmes[addProg]) return data.programmes[addProg];
+  if (addProg === FREE) return { exercises: {}, timers: {}, cooldowns: {} };
+  if (addProgFresh?.id !== addProg) addProgFresh = { id: addProg, pd: makeProgData(addProg) };
+  return addProgFresh.pd;
+}
+
+// Programmes proposés par « Autre… » : ceux qui ont des séances, sauf le programme en cours de saisie
+function addProgChoices() {
+  const mine     = Object.entries(data.userProgrammes || {}).filter(([, p]) => !p.archived).map(([id]) => id);
+  const builtins = Object.keys(PROGRAMMES).filter(id => id !== 'custom' || sessionKeys('custom').length);
+  return [...new Set([data.activeProgramme, ...mine, ...builtins])]
+    .filter(id => id !== addProg && sessionKeys(id).length);
+}
+
+// Change le programme de la séance passée sans toucher au programme actif.
+// Les séries déjà saisies sont gardées : elles deviennent des exercices ajoutés.
+function switchAddProg(id) {
+  const kept = [];
+  (addProgData().exercises[addCat] || []).forEach(ex => {
+    const sets = addSets[ex.id] || [];
+    if (sets.some(st => String(st.reps ?? '').trim() !== '' || String(st.weight ?? '').trim() !== '')) {
+      kept.push({ key: 'x_' + uid(), name: ex.name, exId: ex.id, sets });
+    }
+  });
+  addExtras.forEach(x => kept.push({ ...x, sets: addSets[x.key] }));
+  addProg = id;
+  addCat  = id === FREE ? FREE : sessionKeys(id)[0] || '';
+  initAddSets(addCat);
+  kept.forEach(({ key, name, exId, sets }) => { addExtras.push({ key, name, exId }); addSets[key] = sets; });
+  haptic();
+  render();
 }
 
 // Valeurs vides : la dernière séance sert de placeholder (bouton « Reprendre la dernière séance »)
@@ -109,6 +142,14 @@ function renderAddSession() {
   const exercises = addProgData().exercises[addCat] || [];
   const hasPrev   = !editSessionId && exercises.some(ex => addPrev[ex.id]?.length);
 
+  // Cas courant : séances du programme actif, plus « Autre… » en bout de rangée.
+  // Autre programme ou séance libre : une ligne le rappelle au-dessus, avec « Changer ».
+  const elsewhere = addProg !== data.activeProgramme;
+  const progRow = elsewhere ? `
+        <div class="add-prog-row">
+          <span class="add-prog-row__name">${addProg === FREE ? 'Séance libre' : `Programme ${esc(progMeta(addProg).name)}`}</span>
+          <button class="navbar__text" data-action="add-other">Changer</button>
+        </div>` : '';
   const catBtns = sessionKeys(addProg).map(c => {
     const meta     = sessionMeta(c, addProg);
     const isActive = addCat === c;
@@ -126,7 +167,9 @@ function renderAddSession() {
         left: `<button class="navbar__text" data-action="cancel-add-session">Annuler</button>`,
         right: `<button class="navbar__text navbar__text--bold" data-action="save-past-session" ${addHasReps() ? '' : 'disabled'}>${editSessionId ? 'OK' : 'Ajouter'}</button>` })}
       <div class="add-session-meta">
-        <div class="cat-selector">${catBtns}</div>
+        ${progRow}
+        ${addProg === FREE ? '' : `<div class="cat-selector">${catBtns}${elsewhere ? '' : `
+          <button class="cat-sel-btn cat-sel-btn--other" data-action="add-other" aria-label="Autre programme ou séance libre">Autre…</button>`}</div>`}
         <div class="date-row">
           <label class="date-label">Date de la séance</label>
           <input type="date" id="addDate" class="date-input"
@@ -137,6 +180,7 @@ function renderAddSession() {
         ${hasPrev ? `<button class="btn btn--secondary btn--full add-copy-prev" data-action="add-copy-prev">Reprendre la dernière séance</button>` : ''}
         ${exercises.map(ex => addExerciseBlock(ex.id, ex.name, addPrev[ex.id] || [], false)).join('')}
         ${addExtras.map(({ key, name }) => addExerciseBlock(key, name, [], true)).join('')}
+        ${addProg === FREE && !addExtras.length ? `<p class="add-free-hint">Ajoute les exercices que tu as faits. Ils comptent dans tes progrès, sans toucher à ton programme.</p>` : ''}
         <button class="session-add-ex-btn" data-action="add-past-ex">
           + Ajouter un exercice
         </button>
@@ -204,6 +248,8 @@ function storePastSession(exercises) {
   data.history.sort((a, b) => b.date - a.date);
   editSessionId = null;
 
+  // Séance libre : aucun programme, donc aucun délai de récupération
+  if (addProg === FREE) return;
   // Le délai de récupération ne bouge que si cette séance est plus récente
   if (!data.programmes[addProg]) data.programmes[addProg] = pData;
   const timers = data.programmes[addProg].timers;
@@ -228,6 +274,7 @@ function addPastExercise(name, sets) {
 registerActions({
   'go-add-session': () => {
     addProg       = data.activeProgramme;
+    addProgFresh  = null;
     addCat        = firstSession();
     addDate       = localISO();
     editSessionId = null;
@@ -272,6 +319,16 @@ registerActions({
     extras.forEach(({ key, name, exId, sets }) => { addExtras.push({ key, name, exId }); addSets[key] = sets; });
     render();
   },
+  'add-other': async () => {
+    const choices = addProgChoices();
+    const choice = await dialog({ type: 'sheet', title: 'Séance passée',
+      message: 'Une séance d\'un autre programme, ou faite hors programme. Ton programme actif ne change pas.', actions: [
+        ...(addProg !== FREE ? [{ label: 'Séance libre', value: FREE, style: 'preferred' }] : []),
+        ...choices.map(id => ({ label: id === data.activeProgramme ? `${progMeta(id).name} (actuel)` : progMeta(id).name, value: id })),
+        { label: 'Annuler', style: 'cancel' },
+      ] });
+    if (choice) switchAddProg(choice);
+  },
   'add-copy-prev': () => {
     Object.entries(addPrev).forEach(([id, prev]) => {
       if (!prev.length) return;
@@ -312,6 +369,7 @@ registerActions({
     recomputePRFromHistory();
     save();
     showToast(wasEdit ? 'Séance modifiée' : 'Séance ajoutée');
+    histFilter = 'all';   // une séance d'un autre programme ou libre resterait masquée par le filtre
     routeTo('history');
   },
   // Même feuille de recherche que la séance en cours ; les exercices déjà saisis n'y figurent pas

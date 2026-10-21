@@ -214,7 +214,7 @@ registerActions({
     }
     const n = (data.history || []).filter(h => h.programme === id).length;
     if (!(await confirmSheet(`Supprimer « ${up.name} » ?`,
-      n ? `Ses ${n} séance${n > 1 ? 's' : ''} déjà faite${n > 1 ? 's' : ''} restent dans l'historique et les progrès.` : 'Ses séances et exercices seront supprimés.',
+      `${n ? `Ses ${n} séance${n > 1 ? 's' : ''} déjà faite${n > 1 ? 's' : ''} restent dans l'historique et les progrès. ` : ''}Tu pourras le restaurer dans Réglages › Supprimés récemment.`,
       'Supprimer le programme'))) return;
     // Archivé et non effacé : l'historique garde les noms et couleurs des séances
     up.archived = true;

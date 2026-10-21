@@ -70,6 +70,11 @@ ${renderAppIconGroup()}
           </div>
           <button class="cell cell--action" data-action="export"><span class="cell__title">Exporter les données</span></button>
           <button class="cell cell--action" data-action="import"><span class="cell__title">Importer une sauvegarde</span></button>
+          <button class="cell cell--nav" data-action="go-trash">
+            <span class="cell__body"><span class="cell__title">Supprimés récemment</span></span>
+            <span class="cell__value num">${trashCount() || ''}</span>
+            ${icon('chevron.right', 16)}
+          </button>
           <button class="cell cell--destructive cell--left" data-action="wipe-data"><span class="cell__title">Supprimer toutes les données</span></button>
         </div>
         <div class="group-foot">Exporte régulièrement : les données ne sont stockées que sur cet appareil.</div>

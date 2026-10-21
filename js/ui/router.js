@@ -233,6 +233,7 @@ const SCREENS = new Map([
   ['prog-picker',    { render: () => renderProgPicker() }],
   ['ex-edit',        { render: () => renderExEdit() }],
   ['cs-edit',        { render: () => renderCsEdit() }],
+  ['trash',          { render: () => renderTrash() }],          // Réglages › Supprimés récemment
 ]);
 function screenOf(name) { return SCREENS.get(name) || SCREENS.get('dashboard'); }
 

@@ -48,6 +48,7 @@
 .cell--nav > .icon:last-child, .hcell > .icon:last-child { color: var(--label3); }
 .cell--action { color: var(--tint) !important; }
 .cell--action .icon { color: var(--tint); }
+.trash-view .cell__value { color: var(--tint); }   /* « Restaurer » : action de la rangée */
 .cell--destructive { color: var(--red-text) !important; justify-content: center !important; }
 .cell--destructive.cell--left { justify-content: flex-start !important; }
 .cell--ctl { cursor: default; }

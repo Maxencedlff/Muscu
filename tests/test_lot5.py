@@ -76,9 +76,14 @@ def t_history(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         R.check(page.locator('.hrow.is-open').count() == 1, f'{t} historique : balayage révèle Supprimer')
         page.click('.hrow.is-open .hrow__del')
-        page.wait_for_timeout(150)
-        gone = page.evaluate(f'!data.history.some(h => h.id === "{hid}")')
-        R.check(gone and page.locator(f'.hrow[data-id="{hid}"]').count() == 0, f'{t} historique : séance supprimée sans re-rendu')
+        page.wait_for_timeout(250)
+        # Confirmation obligatoire : rien ne part avant « Supprimer la séance »
+        R.check(page.evaluate(f'data.history.some(h => h.id === "{hid}")') and page.locator('.ios-dialog__btn--destructive').count() == 1,
+                f'{t} historique : balayage demande confirmation')
+        page.click('.ios-dialog__btn--destructive')
+        page.wait_for_timeout(250)
+        gone = page.evaluate(f'!data.history.some(h => h.id === "{hid}") && data.trash[0]?.entry.id === "{hid}"')
+        R.check(gone and page.locator(f'.hrow[data-id="{hid}"]').count() == 0, f'{t} historique : séance passée en corbeille sans re-rendu')
         R.check('Séance supprimée' in page.locator('.toast').inner_text(), f'{t} historique : toast Annuler')
         shot(page, LOT, f'history_undo_{dev}_{theme}')
         page.click('.toast__action')

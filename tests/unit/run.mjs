@@ -25,6 +25,7 @@ const SCRIPTS = [
   'js/data/records.js',
   'js/data/accessors.js',
   'js/data/backup.js',
+  'js/data/trash.js',
   'js/data/muscles.js',
   'js/data/muscle-load.js',
   'js/data/app-icons.js',
@@ -1212,6 +1213,14 @@ test('mise à jour à chaud : coquille native différente → rien (il faut pass
 // ── Icône de l'app (tests dans app-icons.mjs) ──────────────
 
 (await import('./app-icons.mjs')).default({ test, app, run, sameJSON, assert, nativeContext });
+
+// ── Supprimés récemment (tests dans trash.mjs) ─────────────
+
+(await import('./trash.mjs')).default({ test, app, run, reset, assert });
+
+// ── Séance libre (tests dans free-session.mjs) ─────────────
+
+(await import('./free-session.mjs')).default({ test, app, run, reset, assert });
 
 // ── Exécution ───────────────────────────────────────────────
 

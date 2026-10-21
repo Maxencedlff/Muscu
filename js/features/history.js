@@ -23,7 +23,7 @@ function historyCell(h) {
   const meta   = sessionMeta(h.category, progId);
   const vol    = sessionVolume(h.exercises || []);
   // Séance d'un autre programme : la mention remplace le nombre d'exercices (cellule sur 2 lignes)
-  const other  = progId !== data.activeProgramme;
+  const other  = progId !== data.activeProgramme && progId !== FREE;
   const parts  = [other ? `Programme ${esc(progMeta(progId).name)}` : plural((h.exercises || []).length, 'exercice', 'exercices')];
   if (vol > 0) parts.push(fmtVolume(vol));
   if (h.duration) parts.push(fmtDuration(h.duration));
@@ -129,7 +129,7 @@ function renderHistoryDetail(id) {
       ${navBar({ title: '', right: `<button class="navbar__text" data-action="edit-session" data-id="${esc(h.id)}">Modifier</button>` })}
       <div class="scr">
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${meta.color}"></span>${meta.label}</h1>
-        <p class="scr-sub">${when}${progId !== data.activeProgramme ? ` · Programme ${esc(progMeta(progId).name)}` : ''}</p>
+        <p class="scr-sub">${when}${progId !== data.activeProgramme && progId !== FREE ? ` · Programme ${esc(progMeta(progId).name)}` : ''}</p>
         <div class="tiles">
           <div class="tile"><span class="tile__val num">${h.duration ? fmtDuration(h.duration) : '—'}</span><span class="tile__lbl">durée</span></div>
           <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">volume</span></div>
@@ -163,28 +163,31 @@ function historyChanged(removed = null) {
   save();
 }
 
-// Supprime une séance de la liste sans re-rendu complet, avec « Annuler » pendant 5 s
-function deleteSessionWithUndo(id) {
-  const list = data.history || [];
-  const idx  = list.findIndex(h => h.id === id);
-  if (idx < 0) return;
-  const [removed] = list.splice(idx, 1);
+// Supprime une séance après confirmation : elle part dans « Supprimés récemment » (TRASH_DAYS jours).
+// Depuis la liste, seule sa cellule disparaît (pas de re-rendu complet) ; « Annuler » pendant 5 s.
+async function deleteSession(id) {
+  const ok = await confirmSheet('Supprimer cette séance ?',
+    `Elle sera retirée de l'historique et des statistiques. Tu pourras la récupérer pendant ${TRASH_DAYS} jours dans Réglages › Supprimés récemment.`,
+    'Supprimer la séance');
+  if (!ok) { closeOpenRows(); return; }
+  const removed = moveToTrash(id);
+  if (!removed) return;
   historyChanged(removed);
-  const row = document.querySelector(`.hrow[data-id="${CSS.escape(id)}"]`);
-  if (row) {
-    const sec = row.closest('.hmonth');
-    row.remove();
-    if (sec && !sec.querySelector('.hrow')) sec.remove();
+  if (currentView() === 'history-detail') routeTo('history');
+  else {
+    const row = document.querySelector(`.hrow[data-id="${CSS.escape(id)}"]`);
+    if (row) {
+      const sec = row.closest('.hmonth');
+      row.remove();
+      if (sec && !sec.querySelector('.hrow')) sec.remove();
+    } else render();
   }
   showToast('Séance supprimée', {
     action: 'Annuler', duration: 5000,
     onAction: () => {
-      data.history.splice(Math.min(idx, data.history.length), 0, removed);
-      // Le délai reprend la date de la séance rétablie (quel que soit son programme)
-      const timers = data.programmes[removed.programme || 'ppl']?.timers;
-      if (timers && removed.date > (timers[removed.category] || 0)) timers[removed.category] = removed.date;
+      if (!restoreFromTrash(id)) return;
       historyChanged();
-      if (currentView() === 'history') refreshHistoryList();
+      if (['history', 'history-detail', 'trash'].includes(currentView())) render();
     },
   });
 }
@@ -264,14 +267,6 @@ registerActions({
   'hist-more': () => {
     histMonths += 3; refreshHistoryList();
   },
-  'swipe-delete-session': (e, el) => {
-    deleteSessionWithUndo(el.dataset.id);
-  },
-  'delete-session': async (e, el) => {
-    if (!(await confirmSheet('Supprimer cette séance ?', 'Elle sera retirée de l\'historique et des statistiques.', 'Supprimer la séance'))) return;
-    const removed = (data.history || []).find(h => h.id === el.dataset.id);
-    data.history = (data.history || []).filter(h => h.id !== el.dataset.id);
-    historyChanged(removed);
-    if (currentView() === 'history-detail') routeTo('history'); else render();
-  },
+  'swipe-delete-session': (e, el) => deleteSession(el.dataset.id),
+  'delete-session':       (e, el) => deleteSession(el.dataset.id),
 });
