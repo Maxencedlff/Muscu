@@ -675,7 +675,7 @@ test('esc, normName, sameEx, plural, setsVolume', () => {
 // simule un changement venu d'iCloud, cloud.saved liste les écritures acceptées.
 // storage : stockage web d'un lancement précédent (relance de l'app) ;
 // manualTimers : les minuteries attendent timers.flush() au lieu de partir tout de suite
-function nativeContext({ native = true, localData = null, fileData = null, shareCancelled = false, cloud = {}, storage = new MemoryStorage(), manualTimers = false, plugins: extra = {} } = {}) {
+function nativeContext({ native = true, localData = null, fileData = null, shareCancelled = false, cloud = {}, storage = new MemoryStorage(), manualTimers = false, plugins: extra = {}, available = [] } = {}) {
   const calls = [];
   const pending = [];
   if (localData !== null) storage.setItem('ppl_v2', localData);
@@ -714,6 +714,7 @@ function nativeContext({ native = true, localData = null, fileData = null, share
     location: { reload() { reloaded = true; } },
     Capacitor: native ? {
       isNativePlatform: () => true,
+      isPluginAvailable: (name) => available.includes(name),   // modules présents dans la coquille
       registerPlugin: (name) => plugins[name] || new Proxy({}, { get: (_, m) => async () => calls.push([name, m]) }),
     } : undefined,
   };
@@ -1088,7 +1089,7 @@ test('iOS : SceneDelegate → MainViewController → chaque module Swift, noms i
   const main = ios('MainViewController.swift');
   const pbx = fs.readFileSync(path.join(ROOT, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8');
   const native = fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8');
-  for (const file of ['HealthPlugin.swift', 'MusicPlugin.swift', 'LiveActivityPlugin.swift']) {
+  for (const file of ['HealthPlugin.swift', 'MusicPlugin.swift', 'LiveActivityPlugin.swift', 'SoundPlugin.swift']) {
     const src = ios(file);
     const cls = src.match(/public (?:final )?class (\w+): CAPPlugin/)[1];
     const jsName = src.match(/jsName = "(\w+)"/)[1];
@@ -1207,6 +1208,23 @@ test('mise à jour à chaud : déjà téléchargée → pas de nouveau télécha
 test('mise à jour à chaud : coquille native différente → rien (il faut passer par l\'App Store)', async () => {
   const { result, calls } = await otaScenario({ manifest: otaManifest({ runtime: 'autre' }) });
   assert.equal(result.reason, 'nécessite une nouvelle version de l\'app'); assert.equal(calls.length, 0);
+});
+
+test('son : joué par iOS seulement si la coquille a le module (build 22+), sinon Web Audio', async () => {
+  assert.equal(nativeContext({ native: false }).Native.sound.available, false, 'navigateur');
+  assert.equal(nativeContext().Native.sound.available, false, 'build 21 : module absent');
+  const c = nativeContext({ available: ['MdlfSound'] });
+  assert.equal(c.Native.sound.available, true);
+  c.Native.sound.play([{ freq: 660, start: 0, dur: .1 }]);
+  await new Promise(r => setImmediate(r));
+  assert.ok(c.calls.some(([n, m]) => n === 'MdlfSound' && m === 'play'), 'MdlfSound.play appelé');
+  // Mélodies dans les bornes acceptées par SoundPlugin.swift (start < 5 s, dur < 2 s, 20 Hz–20 kHz)
+  const src = fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8');
+  const MELODIES = vm.runInNewContext('(' + src.match(/const MELODIES = (\{[\s\S]*?\n\});/)[1] + ')');
+  assert.ok(Object.keys(MELODIES).length >= 5);
+  for (const [name, notes] of Object.entries(MELODIES)) {
+    for (const [f, s, d] of notes) assert.ok(f > 20 && f < 20000 && s >= 0 && s < 5 && d > 0 && d < 2, `${name} : note hors bornes`);
+  }
 });
 
 // ── Muscles (tests/unit/muscles.mjs) ────────────────────────

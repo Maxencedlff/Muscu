@@ -47,18 +47,31 @@ function beep(freq, dur = .15, vol = .35) {
   } catch {}
 }
 
+// Mélodies : notes { freq (Hz), start (s depuis le début), dur (s) }. Jouées par iOS dans l'app
+// (Native.sound : audibles en mode silencieux, par-dessus la musique), sinon en Web Audio.
+const MELODIES = {
+  timer:      [[880, 0, .12], [1100, .16, .12], [1320, .32, .35]],
+  validation: [[660, 0, .1]],
+  finish:     [[880, 0, .1], [1320, .16, .25]],
+  record:     [[660, 0, .12], [880, .12, .12], [1100, .24, .12], [1320, .36, .35]],
+  tick:       [[440, 0, .08]],
+};
+
+function playMelody(name) {
+  if (data.soundOn === false) return;
+  const notes = MELODIES[name].map(([freq, start, dur]) => ({ freq, start, dur }));
+  if (Native.sound.available) { Native.sound.play(notes); return; }
+  notes.forEach(n => setTimeout(() => beep(n.freq, n.dur), n.start * 1000));
+}
+
 function timerDone() {
-  if (data.soundOn !== false) { beep(880, .12); setTimeout(() => beep(1100, .12), 160); setTimeout(() => beep(1320, .35), 320); }
+  playMelody('timer');
   if (data.vibrateOn !== false && !Native.haptic('success') && navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
 }
 
-function validationSound() { if (data.soundOn !== false) beep(660, .1); }
-function finishSound()     { if (data.soundOn !== false) { beep(880, .1); setTimeout(() => beep(1320, .25), 160); } }
-
-function recordSound() {
-  if (data.soundOn === false) return;
-  [660, 880, 1100, 1320].forEach((f, i) => setTimeout(() => beep(f, i === 3 ? .35 : .12), i * 120));
-}
+function validationSound() { playMelody('validation'); }
+function finishSound()     { playMelody('finish'); }
+function recordSound()     { playMelody('record'); }
 
 // Son : le contexte audio est créé (ou réveillé) au premier geste, iOS refuse de le démarrer depuis un minuteur
 document.addEventListener('pointerdown', wakeAudio, { passive: true });
