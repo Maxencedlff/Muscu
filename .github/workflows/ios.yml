@@ -31,9 +31,10 @@ defaults:
 jobs:
   # Rien ne part sur TestFlight (ni ne consomme le quota macOS) si les tests du même commit
   # ne sont pas verts : workflow Tests (unitaires et Playwright), terminé avec succès
+  # Lancée juste après un envoi, elle attend la fin des tests (jusqu'à 25 min) au lieu d'échouer
   gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 30
     permissions:
       actions: read
     steps:
@@ -41,8 +42,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          C=$(gh api "repos/${{ github.repository }}/actions/workflows/tests.yml/runs?head_sha=${{ github.sha }}&status=completed&per_page=1" -q '.workflow_runs[0].conclusion')
-          [ "$C" = success ] || { echo "Tests de ${{ github.sha }} : ${C:-pas encore terminés}. Relance quand ils sont verts."; exit 1; }
+          for i in $(seq 1 50); do
+            R=$(gh api "repos/${{ github.repository }}/actions/workflows/tests.yml/runs?head_sha=${{ github.sha }}&per_page=1" -q '.workflow_runs[0] | "\(.status) \(.conclusion)"')
+            case "$R" in
+              "completed success") echo "Tests verts."; exit 0 ;;
+              completed*) echo "Tests de ${{ github.sha }} en échec ($R) : rien n'est envoyé."; exit 1 ;;
+            esac
+            echo "Tests ${R:-pas encore lancés}, nouvel essai dans 30 s"; sleep 30
+          done
+          echo "Tests toujours pas terminés après 25 min : rien n'est envoyé."; exit 1
 
   build:
     needs: gate
