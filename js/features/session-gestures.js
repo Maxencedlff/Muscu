@@ -69,9 +69,15 @@ document.addEventListener('focusin', e => {
   if (!t.matches?.('.set-input')) return;
   document.body.classList.add('kb-open');
 });
-document.addEventListener('focusout', () => {
+document.addEventListener('focusout', e => {
+  const leftEdit = e.target.closest?.('.session-set--editing');
   setTimeout(() => {
     if (!document.activeElement?.matches?.('.set-input')) document.body.classList.remove('kb-open');
+    // Saisie sortie de la série rouverte (clavier fermé, tap ailleurs) : enregistrée comme avec le ✓.
+    // Le délai laisse passer le tap sur le ✓ lui-même ; saveEditedSet ne fait rien s'il a déjà eu lieu.
+    // Champ retiré par un nouveau rendu (isConnected faux) : ce n'est pas l'utilisateur qui part, la
+    // saisie reste ouverte avec ses valeurs (editingSet).
+    if (leftEdit?.isConnected && editingSet && !document.activeElement?.closest?.('.session-set--editing')) saveEditedSet();
   }, 50);
 });
 

@@ -155,6 +155,9 @@ const Native = (() => {
           id: REST_NOTIF_ID,
           title: 'Repos terminé',
           body,
+          // Sans « sound », iOS présente la notification en silence (plugin : content.sound reste vide).
+          // Nom sans fichier correspondant : iOS joue le son de notification par défaut.
+          sound: 'default',
           schedule: { at: new Date(endTime), allowWhileIdle: true },
         }] });
       } catch {}

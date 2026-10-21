@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-let editingSet = null;  // { ei, si } — série validée rouverte en édition sur place
+let editingSet = null;  // { ei, si, weight?, reps? } — série validée rouverte en édition sur place, avec la saisie en cours
 let persistWarned = false; // un seul avertissement « stockage plein » par séance
 const openDone = new WeakSet(); // exercices terminés dépliés
 
@@ -251,6 +251,9 @@ function renderSetRow(ex, ei, s, si, cur) {
   if (s.done && !editing) return renderDoneSetRow(ex, ei, s, si, prev, del);
 
   const isCur = !editing && cur && cur.ei === ei && cur.si === si;
+  // Série rouverte : la saisie en cours (editingSet) prime, sinon un re-rendu la remettrait à l'ancienne valeur
+  const wVal = editing && editingSet.weight !== undefined ? editingSet.weight : fmtW(s.weight, { plain: true });
+  const rVal = editing && editingSet.reps   !== undefined ? editingSet.reps   : s.reps;
   const prevW = hasLoad(s.prev?.weight) ? fmtW(s.prev.weight, { plain: true }) : '';
   // Série validée rouverte : mêmes champs, enregistrés par le ✓
   const wAttr = editing ? 'id="editSetWeight"' : `data-action="set-weight" data-ei="${ei}" data-si="${si}"`;
@@ -265,9 +268,9 @@ function renderSetRow(ex, ei, s, si, cur) {
         <span class="set-n num">${si + 1}</span>
         <span class="set-prev num">${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
-               value="${fmtW(s.weight, { plain: true })}" placeholder="${prevW || '—'}" aria-label="Charge série ${si + 1}, ${esc(ex.name)}, en ${unitLbl()}">
+               value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="Charge série ${si + 1}, ${esc(ex.name)}, en ${unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
-               value="${esc(s.reps)}" placeholder="${esc(s.prev?.reps ?? '0')}" aria-label="Répétitions série ${si + 1}, ${esc(ex.name)}">
+               value="${esc(rVal)}" placeholder="${esc(s.prev?.reps ?? '0')}" aria-label="Répétitions série ${si + 1}, ${esc(ex.name)}">
         ${check}
       </div>
     </div>`;
@@ -344,23 +347,29 @@ function afterSessionRender(entering) {
   if (!(a && a.matches?.('.set-input'))) document.body.classList.remove('kb-open');
 }
 
-// Série validée rouverte : enregistre ses champs (les records ne sont recalculés qu'à l'enregistrement de la séance)
+// Série validée rouverte : enregistre ses champs (les records ne sont recalculés qu'à l'enregistrement de la séance).
+// Appelé par le ✓, par Entrée, et quand la saisie quitte la série (le ✓ est facile à manquer quand le clavier se ferme).
+// Renvoie false si une valeur est invalide (champ signalé, série laissée ouverte), true sinon.
 function saveEditedSet() {
-  if (!editingSet) return;
+  if (!editingSet) return true;
   const { ei, si } = editingSet;
   const s = activeSession.exercises[ei]?.sets[si];
-  if (!s) { editingSet = null; render(); return; }
+  if (!s) { editingSet = null; render(); return true; }
+  // Valeurs : la saisie gardée (editingSet), sinon les champs, sinon la série telle quelle
   const wIn = $('#editSetWeight'), rIn = $('#editSetReps');
-  if (!weightOk(wIn?.value)) { flagInvalid(wIn, weightMsg()); return; }
-  const reps = num(rIn?.value, 1, 100, true);
-  if (reps === null) { flagInvalid(rIn, 'Reps entre 1 et 100'); return; }
-  s.weight = storeW(wIn?.value ?? '');
+  const wRaw = editingSet.weight ?? wIn?.value ?? fmtW(s.weight, { plain: true });
+  const rRaw = editingSet.reps   ?? rIn?.value ?? s.reps;
+  if (!weightOk(wRaw)) { flagInvalid(wIn, weightMsg()); return false; }
+  const reps = num(rRaw, 1, 100, true);
+  if (reps === null) { flagInvalid(rIn, 'Reps entre 1 et 100'); return false; }
+  s.weight = storeW(wRaw ?? '');
   s.reps   = String(reps);
   editingSet = null;
   document.activeElement?.blur?.();
   haptic();
   render();
   showToast('Série modifiée');
+  return true;
 }
 
 // ── Actions ─────────────────────────────────────────────────
@@ -370,11 +379,13 @@ registerActions({
     if (currentRoute() !== 'session') navigate('session');
   },
   'validate-set': (e, el) => {
+    if (editingSet && !saveEditedSet()) return;   // correction en cours : enregistrée avant de passer à la suite
     validateSet(parseInt(el.dataset.ei), parseInt(el.dataset.si));
   },
   'edit-set': (e, el) => {
     // Série validée rouverte sur place, avec ses champs et le ✓
     if (swipeBlockClick) return;
+    if (editingSet && !saveEditedSet()) return;
     editingSet = { ei: parseInt(el.dataset.ei), si: parseInt(el.dataset.si) };
     render();
     setTimeout(() => { $('#editSetReps')?.focus(); }, 50);

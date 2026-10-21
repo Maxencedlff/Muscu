@@ -147,6 +147,15 @@ def t_flow(bench, eng, dev, theme):
         page.fill('#editSetReps', '9')
         page.click('[data-action="save-edit-set"]'); page.wait_for_timeout(150)
         R.check(page.evaluate("activeSession.exercises[0].sets[0].reps") == '9', f'{t} série corrigée sur place')
+        # Correction sans toucher le ✓ (clavier fermé, tap ailleurs) : gardée, même après un nouveau rendu
+        page.click('[data-action="edit-set"][data-ei="0"][data-si="0"]')
+        page.fill('#editSetWeight', '41'); page.fill('#editSetReps', '7')
+        page.evaluate('render()')   # un rendu pendant la saisie ne doit pas la remettre à l'ancienne valeur
+        R.check(page.input_value('#editSetWeight') == '41' and page.input_value('#editSetReps') == '7', f'{t} saisie gardée pendant un rendu')
+        page.focus('#editSetReps'); page.evaluate('document.activeElement.blur()'); page.wait_for_timeout(250)
+        s0 = page.evaluate("activeSession.exercises[0].sets[0]")
+        R.check(s0['weight'] == '41' and s0['reps'] == '7' and page.locator('.session-set--editing').count() == 0,
+                f'{t} série enregistrée en quittant la saisie {s0}')
         # Balayage : supprimer une série
         n0 = page.evaluate('activeSession.exercises[0].sets.length')
         box = page.locator('.ex-card[data-ei="0"] .set-swipe').nth(3).locator('.set-prev').bounding_box()

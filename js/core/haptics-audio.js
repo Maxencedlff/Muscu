@@ -22,9 +22,18 @@ function haptic() {
 
 let audioCtx = null;
 
-function beep(freq, dur = .15, vol = .35) {
+// iOS met le contexte en « suspended » (sans geste) ou « interrupted » (appel, arrière-plan, Siri) :
+// il est relancé à chaque occasion, sinon les bips suivants restent muets
+function wakeAudio() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state !== 'running') audioCtx.resume();
+  } catch {}
+}
+
+function beep(freq, dur = .15, vol = .35) {
+  try {
+    wakeAudio();
     const osc  = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.connect(gain);
@@ -52,10 +61,4 @@ function recordSound() {
 }
 
 // Son : le contexte audio est créé (ou réveillé) au premier geste, iOS refuse de le démarrer depuis un minuteur
-function unlockAudio() {
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  } catch {}
-}
-document.addEventListener('pointerdown', unlockAudio, { passive: true });
+document.addEventListener('pointerdown', wakeAudio, { passive: true });

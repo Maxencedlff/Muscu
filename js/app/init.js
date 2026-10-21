@@ -30,6 +30,11 @@ document.addEventListener('input', e => {
     }
   }
 
+  // Série validée rouverte : saisie gardée jusqu'à l'enregistrement
+  if (editingSet && (e.target.id === 'editSetWeight' || e.target.id === 'editSetReps')) {
+    editingSet[e.target.id === 'editSetWeight' ? 'weight' : 'reps'] = e.target.value;
+  }
+
   if (currentView() === 'add-session') {
     const exid = e.target.dataset.exid;
     const si   = parseInt(e.target.dataset.si);

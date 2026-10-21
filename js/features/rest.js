@@ -127,6 +127,8 @@ function resumeRestCountdown() {
     else if (before > 10 && restTimeLeft <= 10 && restTimeLeft > 0) announce('10 secondes');
     before = restTimeLeft;
     updateRestUI();
+    // App à l'écran : les bips de l'app annoncent la fin, la notification ferait doublon (bannière + son)
+    if (restTimeLeft <= 1 && document.visibilityState === 'visible') Native.cancelRestEnd();
     if (restTimeLeft <= 0) restFinished();
   }, 250);
 }
@@ -210,7 +212,7 @@ function adjustRest(d) {
 // Retour au premier plan : le son est réveillé et le repos recalé sur son heure de fin
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
-  try { if (audioCtx?.state === 'suspended') audioCtx.resume(); } catch {}
+  wakeAudio();
   if (!restActive) return;
   const remaining = Math.ceil((restEndTime - Date.now()) / 1000);
   if (remaining <= 0) restFinished();

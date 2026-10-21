@@ -194,6 +194,7 @@ async function saveSessionEntry() {
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
   'finish-session': async () => {
+    if (editingSet && !saveEditedSet()) return;   // correction en cours d'une série validée : enregistrée d'abord
     closeSessSheets();
     const { total, done } = sessionSetCounts();
     const choice = await askFinishSession(done, total);
