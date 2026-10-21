@@ -337,6 +337,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
   margin: 0 0 12px; padding: 8px 6px 8px 8px;
   background: var(--cell); border-radius: var(--r-lg);
 }
+.music-bar--idle { display: none; }   /* rien dans l'app Musique : pas de barre vide */
 .music-bar__art {
   width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--r-xs);
   object-fit: cover; background: var(--fill);

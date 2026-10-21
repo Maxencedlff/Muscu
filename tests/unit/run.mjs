@@ -1064,6 +1064,13 @@ test('données : poids de secours borné (25 à 300 kg), null sinon', () => {
   assert.equal(run('num("70,5", 25, 300)'), 70.5, 'virgule du clavier français acceptée');
 });
 
+test('Apple Music : barre masquée sans morceau dans l\'app Musique, visible en pause', () => {
+  assert.equal(app.musicBarIdle(null), true);
+  assert.equal(app.musicBarIdle({ playing: false }), true, 'Spotify ou rien : l\'app Musique ne renvoie aucun titre');
+  assert.equal(app.musicBarIdle({ title: 'Enter Sandman', playing: false }), false, 'morceau en pause : barre gardée');
+  assert.equal(app.musicBarIdle({ title: 'Enter Sandman', playing: true }), false);
+});
+
 test('données : healthOn et musicOn désactivés par défaut, conservés ensuite', () => {
   const d = run('normalizeData(makeDefaultData())');
   assert.equal(d.healthOn, false); assert.equal(d.musicOn, false);

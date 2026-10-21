@@ -132,9 +132,13 @@ async function fillWeightGroup() {
 let musicState = null;
 let musicListening = false;
 
+// Barre masquée tant que l'app Musique n'a aucun morceau (rien en cours, ou musique écoutée dans
+// une autre app comme Spotify, qu'iOS ne laisse pas piloter) ; un morceau en pause la garde visible
+function musicBarIdle(st) { return !st?.title; }
+
 function renderMusicBar() {
   if (!musicEnabled()) return '';
-  return `<div class="music-bar" id="musicBar" aria-label="Apple Music">${musicBarInner(musicState)}</div>`;
+  return `<div class="music-bar ${musicBarIdle(musicState) ? 'music-bar--idle' : ''}" id="musicBar" aria-label="Apple Music">${musicBarInner(musicState)}</div>`;
 }
 
 function musicBarInner(st) {
@@ -158,7 +162,10 @@ function updateMusicBar(st) {
   if (st && st.authorized === false) { data.musicOn = false; save(); return; }
   musicState = st || musicState;
   const bar = $('#musicBar');
-  if (bar) bar.innerHTML = musicBarInner(musicState);
+  if (bar) {
+    bar.innerHTML = musicBarInner(musicState);
+    bar.classList.toggle('music-bar--idle', musicBarIdle(musicState));
+  }
 }
 
 // Après le dessin de la séance : état courant, puis mises à jour poussées par iOS
@@ -190,7 +197,7 @@ function renderAppleServicesGroup(tog) {
           </button>`; })() : ''}
           <button class="cell" data-action="setting-music" role="switch" aria-checked="${data.musicOn === true}">
             <span class="cell__body"><span class="cell__title">Apple Music</span>
-              <span class="cell__sub">Lecture en cours pendant la séance</span></span>
+              <span class="cell__sub">Pilote l'app Musique d'Apple pendant la séance (pas Spotify ni Deezer)</span></span>
             ${tog(data.musicOn === true)}
           </button>
         </div>`;
