@@ -274,7 +274,7 @@ function drawSignature(ctx, p, icon, y) {
   ctx.font = storyFont(800, 46, false, p);
   const nameW = ctx.measureText('MDLF Training').width;
   ctx.font = storyFont(500, 28, false, p);
-  const subW = ctx.measureText('Carnet de musculation').width;
+  const subW = ctx.measureText('Suivi de musculation').width;
   const x = (STORY.W - (size + gap + Math.max(nameW, subW))) / 2;
 
   roundRect(ctx, x, y, size, size, size * .225);   // masque d'icône iOS (≈ 22,5 % du côté)
@@ -284,7 +284,7 @@ function drawSignature(ctx, p, icon, y) {
   ctx.fillStyle = rgbaCss(p.label); ctx.font = storyFont(800, 46, false, p); setTracking(ctx, -.5);
   ctx.fillText('MDLF Training', x + size + gap, cy - 2); setTracking(ctx, 0);
   ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(500, 28, false, p);
-  ctx.fillText('Carnet de musculation', x + size + gap, cy + 36);
+  ctx.fillText('Suivi de musculation', x + size + gap, cy + 36);
 }
 
 // ── Mise en page ────────────────────────────────────────────

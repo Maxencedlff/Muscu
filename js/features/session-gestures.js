@@ -69,6 +69,13 @@ document.addEventListener('focusin', e => {
   if (!t.matches?.('.set-input')) return;
   document.body.classList.add('kb-open');
 });
+// Appui commencé dans la série rouverte (✓, autre champ) : c'est ce geste qui enregistre ou
+// garde la saisie, pas la sortie du champ (sur iOS un bouton ne prend pas le focus, et sous
+// charge le délai ci-dessous passerait avant le clic du ✓, qui tomberait alors dans le vide)
+let editPointerInside = false;
+document.addEventListener('pointerdown', e => { editPointerInside = !!e.target.closest?.('.session-set--editing'); }, true);
+document.addEventListener('click', () => { setTimeout(() => { editPointerInside = false; }, 0); }, true);
+
 document.addEventListener('focusout', e => {
   const leftEdit = e.target.closest?.('.session-set--editing');
   setTimeout(() => {
@@ -77,7 +84,7 @@ document.addEventListener('focusout', e => {
     // Le délai laisse passer le tap sur le ✓ lui-même ; saveEditedSet ne fait rien s'il a déjà eu lieu.
     // Champ retiré par un nouveau rendu (isConnected faux) : ce n'est pas l'utilisateur qui part, la
     // saisie reste ouverte avec ses valeurs (editingSet).
-    if (leftEdit?.isConnected && editingSet && !document.activeElement?.closest?.('.session-set--editing')) saveEditedSet();
+    if (leftEdit?.isConnected && editingSet && !editPointerInside && !document.activeElement?.closest?.('.session-set--editing')) saveEditedSet();
   }, 50);
 });
 

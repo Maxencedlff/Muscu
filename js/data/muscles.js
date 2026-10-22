@@ -191,7 +191,43 @@ function exerciseMuscles(ex, index = null) {
   const id = exIdOf(ex);
   const chosen = id ? (index || chosenMusclesIndex()).get(id) : null;
   if (chosen) return { primary: chosen, secondary: [], source: 'user' };
+  const declared = declaredMuscles(ex?.name);
+  if (declared) return { primary: declared, secondary: [], source: 'user' };
   return musclesOf(ex?.name);
+}
+
+// Muscles déclarés pour un nom d'exercice (data.exerciseMuscles), quel que soit l'endroit où il est fait
+// (séance libre, exercice ajouté en séance, historique) ; null si aucun
+function declaredMuscles(name, d = data) {
+  const list = d?.exerciseMuscles?.[normName(name)];
+  return Array.isArray(list) && list.length ? list.filter(isMuscleId) : null;
+}
+
+// Déclare (liste) ou efface (null : retour à la reconnaissance par le nom) les muscles d'un nom d'exercice
+function setDeclaredMuscles(name, list, d = data) {
+  const key = normName(name);
+  if (!key) return;
+  const clean = [...new Set((list || []).filter(isMuscleId))];
+  if (clean.length) (d.exerciseMuscles ||= {})[key] = clean;
+  else if (d.exerciseMuscles) { delete d.exerciseMuscles[key]; if (!Object.keys(d.exerciseMuscles).length) delete d.exerciseMuscles; }
+  // Un choix fait dans Programme › Exercice (ex.muscles) primerait sur celui-ci : il suit le même choix
+  Object.values(d.programmes || {}).forEach(p => Object.values(p?.exercises || {}).forEach(xs => (xs || []).forEach(ex => {
+    if (normName(ex.name) !== key || !ex.muscles) return;
+    if (clean.length) ex.muscles = clean; else delete ex.muscles;
+  })));
+}
+
+// Exercices faits sans muscles connus (nom affiché, nombre de séances), les plus fréquents d'abord
+function unknownMuscleExercises(history = data.history, index = chosenMusclesIndex()) {
+  const seen = new Map();
+  (history || []).forEach(h => (h.exercises || []).forEach(e => {
+    if (exerciseMuscles(e, index).primary.length) return;
+    const k = normName(e.name);
+    if (!k) return;
+    const cur = seen.get(k) || { name: e.name, count: 0 };
+    cur.count++; seen.set(k, cur);
+  }));
+  return [...seen.values()].sort((a, b) => b.count - a.count);
 }
 
 // Libellé court pour une ligne de liste : « Pectoraux · Épaules » (principaux seulement, noms

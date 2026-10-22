@@ -76,25 +76,51 @@ function refreshExEditMuscles() {
 
 // Feuille de choix : liste à cocher (role="checkbox" + aria-checked, WAI-ARIA), coche à droite comme
 // les listes de choix iOS (Apple HIG, « Lists and tables ») ; « Automatique » revient au nom
-async function pickExMuscles() {
-  if (!exDraft) return;
-  const m = exerciseMuscles({ name: exDraft.name, muscles: exDraft.muscles });
-  const on = new Set(m.primary);
+// Renvoie { list } (muscles cochés), { auto: true } (« Automatique ») ou null (annulé)
+async function pickMusclesSheet({ title = 'Muscles ciblés', current = [], intro = '', cancel, auto = true } = {}) {
+  const on = new Set(current);
   const rows = MUSCLES.map(({ id, label }) => `
     <button class="mpick__row" role="checkbox" aria-checked="${on.has(id)}" data-action="toggle-muscle" data-muscle="${id}">
       <span>${label}</span>${icon('checkmark', 18)}
     </button>`).join('');
-  const res = await sheet({ title: 'Muscles ciblés', body: `
-    <div class="mpick" role="group" aria-label="Muscles ciblés">${rows}</div>
-    <button class="mpick__auto" data-action="muscles-auto">Revenir à la reconnaissance automatique</button>
-    <p class="mpick__foot">Les muscles choisis comptent comme principaux dans Progrès.</p>`,
+  return sheet({ title, ...(cancel ? { cancel } : {}), body: `
+    ${intro ? `<p class="mpick__intro">${intro}</p>` : ''}
+    <div class="mpick" role="group" aria-label="${esc(title)}">${rows}</div>
+    ${auto ? '<button class="mpick__auto" data-action="muscles-auto">Revenir à la reconnaissance automatique</button>' : ''}
+    <p class="mpick__foot">Les muscles choisis comptent comme principaux dans Progrès et pour la récupération.</p>`,
     onConfirm: panel => {
       if (panel.dataset.auto === '1') return { auto: true };
       return { list: [...panel.querySelectorAll('.mpick__row[aria-checked="true"]')].map(b => b.dataset.muscle) };
     } });
+}
+
+async function pickExMuscles() {
+  if (!exDraft) return;
+  const m = exerciseMuscles({ name: exDraft.name, muscles: exDraft.muscles });
+  const res = await pickMusclesSheet({ current: m.primary });
   if (!res || !exDraft) return;
   exDraft.muscles = res.auto || !res.list.length ? null : res.list;
   refreshExEditMuscles();
+}
+
+// Muscles d'un exercice quelconque (séance, séance libre, historique), gardés par nom pour toute l'app.
+// ask : proposé juste après l'ajout d'un exercice inconnu (« Plus tard » pour passer). Renvoie true si changé.
+async function declareMusclesFor(name, { ask = false } = {}) {
+  const m = exerciseMuscles({ name });
+  const res = await pickMusclesSheet({
+    title: ask ? 'Quels muscles ?' : 'Muscles ciblés',
+    intro: ask ? `L'app ne reconnaît pas « ${esc(name)} ». Choisis ce qu'il travaille pour la récupération et Progrès.` : esc(name),
+    current: m.primary, cancel: ask ? 'Plus tard' : undefined, auto: !ask && m.source === 'user' });
+  if (!res) return false;
+  setDeclaredMuscles(name, res.auto ? null : res.list);
+  save();
+  return true;
+}
+
+// Après l'ajout d'un exercice : si ses muscles sont inconnus, on les demande (une fois la feuille fermée)
+function askMusclesIfUnknown(name, after = () => render()) {
+  if (exerciseMuscles({ name }).primary.length) return;
+  setTimeout(async () => { if (await declareMusclesFor(name, { ask: true })) after(); }, 350);
 }
 
 // ── Progrès : carte « Muscles » ─────────────────────────────
@@ -147,6 +173,7 @@ function renderMuscleCard() {
         ${muscleSrListHtml(load)}
       </div>
       ${lowCell}
+      ${unknownMusclesCell()}
       <button class="cell cell--nav" data-action="go-stats-muscles">
         <span class="cell__body"><span class="cell__title">Séries par muscle</span></span>
         ${icon('chevron.right', 16)}
@@ -183,8 +210,41 @@ function renderStatsMuscles() {
     </div>`;
 }
 
-// Écran enregistré auprès du routeur (même table que les écrans de js/ui/router.js)
+// ── Progrès › Exercices sans muscles ────────────────────────
+
+// Rangée de la carte Muscles : n'existe que s'il reste des exercices inconnus
+function unknownMusclesCell() {
+  const n = unknownMuscleExercises().length;
+  if (!n) return '';
+  return `<button class="cell cell--nav" data-action="go-muscles-unknown">
+      <span class="cell__body"><span class="cell__title">${plural(n, 'exercice sans muscles', 'exercices sans muscles')}</span>
+        <span class="cell__sub">Absents de la carte et de la récupération</span></span>
+      ${icon('chevron.right', 16)}
+    </button>`;
+}
+
+function renderMusclesUnknown() {
+  const list = unknownMuscleExercises();
+  const rows = list.map(x => `
+      <button class="cell cell--nav" data-action="declare-muscles" data-name="${esc(x.name)}">
+        <span class="cell__body"><span class="cell__title">${esc(x.name)}</span>
+          <span class="cell__sub">${plural(x.count, 'séance', 'séances')}</span></span>
+        <span class="cell__value">Choisir</span>${icon('chevron.right', 16)}
+      </button>`).join('');
+  return `
+    <div class="view muscles-unknown view--grouped">
+      ${navBar({ title: 'Sans muscles' })}
+      <div class="scr">${list.length ? `
+        <div class="group">${rows}</div>
+        <div class="group-foot">L'app ne reconnaît pas ces exercices d'après leur nom. Une fois leurs muscles choisis, ils comptent dans la carte des muscles et pour la récupération, dans tous tes programmes.</div>`
+        : '<div class="empty-note">Tous tes exercices ont leurs muscles.</div>'}
+      </div>
+    </div>`;
+}
+
+// Écrans enregistrés auprès du routeur (même table que les écrans de js/ui/router.js)
 SCREENS.set('stats-muscles', { render: () => renderStatsMuscles() });
+SCREENS.set('muscles-unknown', { render: () => renderMusclesUnknown() });
 
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
@@ -193,7 +253,10 @@ registerActions({
     muscleSpan = el.dataset.span; render();
   },
   'go-stats-muscles': () => { navigate('stats-muscles'); },
+  'go-muscles-unknown': () => { navigate('muscles-unknown'); },
   'pick-ex-muscles': () => pickExMuscles(),
+  // Progrès : exercice sans muscles, ou muscles d'un exercice hors programme
+  'declare-muscles': async (e, el) => { if (await declareMusclesFor(el.dataset.name)) render(); },
   'toggle-muscle': (e, el) => {
     el.setAttribute('aria-checked', String(el.getAttribute('aria-checked') !== 'true'));
     haptic();

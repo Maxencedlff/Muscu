@@ -173,6 +173,7 @@ body.light .dashboard__glow { --glow: 32%; }
 .hero__info { font-size: 0.882rem; line-height: 1.176rem; color: var(--label2); margin-top: 4px; }
 .hero__info--live { color: var(--label); font-weight: 600; }
 .hero__wait { font-size: 0.882rem; line-height: 1.176rem; color: var(--label); margin-top: 4px; }
+.hero__why { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); margin-top: 2px; }
 .hero__chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .hero__chip {
   white-space: nowrap; padding: 6px 12px; border-radius: var(--r-pill);

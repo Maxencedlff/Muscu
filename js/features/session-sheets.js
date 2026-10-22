@@ -159,6 +159,7 @@ function axPick(name) {
   if (ax.target === 'programme') addExerciseToEditedSession(name);
   else if (ax.target === 'past') ax.onPick?.(name, axSets);
   else pickExercise(name);
+  askMusclesIfUnknown(name);
 }
 
 // Programme › Séance : l'exercice rejoint le programme ; ses réglages se font ensuite dans Programme › Exercice
@@ -220,6 +221,7 @@ async function exerciseMenu(ei) {
     ...(ei < last ? [{ label: 'Descendre', value: 'down' }] : []),
     { label: 'Remplacer l\'exercice', value: 'replace' },
     { label: 'Régler le repos', value: 'rest' },
+    { label: 'Muscles ciblés', value: 'muscles' },
     { label: 'Relancer le repos', value: 'restart' },
     { label: 'Retirer l\'exercice', value: 'remove', style: 'destructive' },
     { label: 'Annuler', style: 'cancel' },
@@ -233,6 +235,8 @@ async function exerciseMenu(ei) {
     render();
   } else if (choice === 'replace') {
     openAddExSheet({ replaceEi: ei });
+  } else if (choice === 'muscles') {
+    if (await declareMusclesFor(ex.name)) render();
   } else if (choice === 'rest') {
     openExRestSheet(ei);
   } else if (choice === 'restart') {

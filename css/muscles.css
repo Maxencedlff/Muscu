@@ -61,3 +61,4 @@ body.light .mpick { background: var(--cell); }
 body.light .mpick__auto { background: var(--cell); }
 .mpick__auto:active { opacity: .6; }
 .mpick__foot { padding: 8px 16px 0; font-size: var(--fs-footnote); color: var(--label2); }
+.mpick__intro { padding: 0 16px 12px; font-size: var(--fs-subhead); color: var(--label2); line-height: 1.4; }

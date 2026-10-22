@@ -86,7 +86,10 @@ function renderStatsExercise(exId) {
         </div>
         ${targetBar}
         <div class="group-title">Muscles ciblés</div>
-        <div class="group">${exMusclesPanelHtml(exerciseMuscles({ exId: it.exId, name: it.name }))}</div>
+        <div class="group">${exMusclesPanelHtml(exerciseMuscles({ exId: it.exId, name: it.name }))}
+          <button class="cell cell--nav" data-action="declare-muscles" data-name="${esc(it.name)}">
+            <span class="cell__body"><span class="cell__title">Choisir les muscles</span></span>${icon('chevron.right', 16)}
+          </button></div>
         <div class="group-title">Séances</div>
         <div class="group">${sessions}</div>
       </div>

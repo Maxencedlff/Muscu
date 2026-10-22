@@ -21,15 +21,67 @@ function fmtWait(ms) {
   return `${m} min`;
 }
 
-// État de récupération d'une séance du programme affiché. Un délai passé à la main (skipped)
-// compte comme une séance jamais faite, jusqu'à la séance suivante.
+// État de récupération d'une séance du programme affiché.
+// Par muscle : la séance attend que ses muscles principaux se reposent, où qu'ils aient travaillé
+// (autre programme, séance libre, moitié d'un double split) ; seuls les muscles principaux d'un
+// exercice comptent (les biceps d'un rowing ne bloquent pas une séance biceps). Séance dont aucun
+// muscle n'est connu : délai de la séance elle-même, comme avant. Un délai passé à la main (skipped)
+// libère la séance jusqu'au prochain entraînement de ces muscles.
+// by : { muscle, entry } qui fixe le délai quand il vient d'ailleurs que cette séance, sinon null.
 function catStatus(cat) {
   const p = prog();
-  const t = p.timers[cat] || null;
-  const last = t && !(p.skipped?.[cat] >= t) ? t : null;
+  const own = p.timers[cat] || null;
+  const rec = sessionRecovery(cat);
+  let last = own, by = null;
+  if (rec && rec.date > (own || 0)) {
+    last = rec.date;
+    const e = rec.entry;
+    if (!(e.category === cat && (e.programme || 'ppl') === data.activeProgramme)) by = rec;
+  }
+  if (last && p.skipped?.[cat] >= last) { last = null; by = null; }
   const cd = getCooldown(cat) * 3600_000;
   const remaining = last ? last + cd - Date.now() : 0;
-  return { last, remaining, ready: remaining <= 0, progress: last ? Math.min(1, 1 - remaining / cd) : 1 };
+  return { last, remaining, ready: remaining <= 0, progress: last ? Math.min(1, 1 - remaining / cd) : 1, by: remaining > 0 ? by : null };
+}
+
+// Dernier entraînement (muscle principal, au moins une série) de chaque muscle, sur tout l'historique.
+// Gardé tant que l'historique et les muscles déclarés ne changent pas (l'accueil le lit pour chaque séance).
+let muscleLastCache = { key: null, map: null };
+function muscleLastWorked() {
+  const h = data.history || [];
+  const key = `${h.length}:${h[0]?.id}:${h[0]?.date}:${JSON.stringify(data.exerciseMuscles || {})}:${JSON.stringify([...chosenMusclesIndex()])}`;
+  if (muscleLastCache.key === key) return muscleLastCache.map;
+  const map = new Map(), index = chosenMusclesIndex();
+  h.forEach(entry => (entry.exercises || []).forEach(e => {
+    if (!(e.sets || []).some(s => (parseInt(s?.reps) || 0) > 0)) return;
+    exerciseMuscles(e, index).primary.forEach(m => {
+      if (!(map.get(m)?.date >= entry.date)) map.set(m, { date: entry.date, entry });
+    });
+  }));
+  muscleLastCache = { key, map };
+  return map;
+}
+
+// Muscle principal de la séance travaillé le plus récemment : { muscle, date, entry } ou null
+function sessionRecovery(cat) {
+  const index = chosenMusclesIndex();
+  const muscles = new Set((prog().exercises[cat] || []).flatMap(ex => exerciseMuscles(ex, index).primary));
+  if (!muscles.size) return null;
+  const last = muscleLastWorked();
+  let best = null;
+  muscles.forEach(m => { const w = last.get(m); if (w && !(best?.date >= w.date)) best = { muscle: m, ...w }; });
+  return best;
+}
+
+// « Biceps : hier, Bras & épaules » : pourquoi une séance attend à cause d'une autre
+function recoveryReason(by) {
+  const startOfDay = t => new Date(t).setHours(0, 0, 0, 0);
+  const e = by.entry, pid = e.programme || 'ppl';
+  const where = pid === FREE ? 'séance libre'
+    : pid === data.activeProgramme ? rawLabel(e.category, pid) : progMeta(pid).name;
+  const days = Math.round((startOfDay(Date.now()) - startOfDay(e.date)) / 86400000);
+  const when = days <= 0 ? 'aujourd\'hui' : days === 1 ? 'hier' : `il y a ${days} jours`;
+  return `${muscleLabel(by.muscle)} : ${when}, ${where}`;   // texte brut : échappé à l'affichage
 }
 
 // Anneau de récupération (28 px)
@@ -199,6 +251,7 @@ function renderDashboard() {
         ? `<div class="hero__info">Dernière fois : ${fmtDate(last.date)} · ${fmtVolume(sessionVolume(last.exercises))}</div>`
         : `<div class="hero__info">Jamais faite</div>`;
       if (!st.ready) info += `<div class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</div>`;
+      if (st.by) info += `<div class="hero__why">${esc(recoveryReason(st.by))}</div>`;
       btn = st.ready
         ? `<button class="hero__btn" data-action="start-session" data-cat="${esc(next)}" aria-label="Démarrer ${meta.label}">${icon('play', 18)}Démarrer</button>`
         : `<button class="hero__btn hero__btn--gray" data-action="start-session" data-cat="${esc(next)}">Démarrer quand même</button>`;
@@ -259,7 +312,8 @@ function renderDashboard() {
 // Feuille d'actions d'une séance de l'accueil
 async function sessionActions(cat) {
   const st = catStatus(cat);
-  const choice = await dialog({ type: 'sheet', title: rawLabel(cat), actions: [
+  const choice = await dialog({ type: 'sheet', title: rawLabel(cat),
+    ...(st.by ? { message: `Muscles encore en récupération. ${recoveryReason(st.by)}` } : {}), actions: [
     { label: 'Démarrer', value: 'start', style: 'preferred' },
     ...(!st.ready ? [{ label: 'Passer le délai de récupération', value: 'skip' }] : []),
     { label: 'Voir les exercices', value: 'see' },

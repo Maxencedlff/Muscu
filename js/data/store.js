@@ -197,6 +197,14 @@ function sanitizeData(d) {
     cleanSessions(up.sessions);
     up.archived = !!up.archived;
   });
+  // Muscles déclarés par l'utilisateur pour un exercice, par nom normalisé (tous programmes,
+  // séances libres et historique) : { nom: [identifiants] }
+  if (!isObj(d.exerciseMuscles)) delete d.exerciseMuscles;
+  else Object.keys(d.exerciseMuscles).forEach(k => {
+    const v = d.exerciseMuscles[k];
+    const list = Array.isArray(v) ? [...new Set(v.filter(m => typeof m === 'string' && MUSCLE_ID_RE.test(m)))].slice(0, MAX_MUSCLES) : [];
+    if (!k || k.length > 80 || !list.length) delete d.exerciseMuscles[k]; else d.exerciseMuscles[k] = list;
+  });
   const okProg = id => PROGRAMMES[id] || (d.userProgrammes[id] && !d.userProgrammes[id].archived);
   if (!okProg(d.activeProgramme)) d.activeProgramme = 'ppl';
   const rest = parseInt(d.defaultRest);

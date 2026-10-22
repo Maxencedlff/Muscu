@@ -1229,6 +1229,10 @@ test('mise à jour à chaud : coquille native différente → rien (il faut pass
 
 (await import('./free-session.mjs')).default({ test, app, run, reset, assert });
 
+// ── Récupération par muscle (tests dans recovery.mjs) ──────
+
+(await import('./recovery.mjs')).default({ test, app, run, reset, assert });
+
 // ── Exécution ───────────────────────────────────────────────
 
 let failed = 0;
