@@ -76,10 +76,11 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 html.type-xl .navbar__large { font-size: min(2rem, 36px); }
 .navbar__sub {
   background: none; border: none; font: inherit; cursor: pointer; padding: 0;
-  font-size: 0.882rem; line-height: 1.176rem; color: var(--label2); min-height: 32px;
-  display: inline-flex; align-items: center; gap: 4px; position: relative;
+  font-size: 0.882rem; line-height: 1.176rem; color: var(--label2);
+  /* Zone de tap de 44 px (minimum Apple) ; les marges négatives gardent la mise en page d'une ligne de 32 px */
+  min-height: 44px; margin: -6px 0;
+  display: inline-flex; align-items: center; gap: 4px;
 }
-.navbar__sub::after { content: ''; position: absolute; inset: -6px 0; } /* zone de tap de 44 px */
 .navbar__sub .icon { color: var(--label3); }
 .navbar__sub:active { opacity: .5; }
 

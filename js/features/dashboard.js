@@ -202,8 +202,9 @@ function ringsRow(ws) {
   const streakProgress = streak ? 1 : Math.min(1, ws.count / 2);
   const tile = (ring, value, label, aria) =>
     `<div class="rings__tile" role="img" aria-label="${esc(aria)}">${ring}<span class="rings__val num">${value}</span><span class="rings__lbl">${label}</span></div>`;
+  // Pas d'aria-label sur le bouton : il masquerait le texte affiché. VoiceOver lit les trois anneaux, puis la destination
   return `
-    <button class="rings" data-action="go-stats" aria-label="Voir les progrès">
+    <button class="rings" data-action="go-stats" aria-description="Voir les progrès">
       ${tile(activityRing(ws.count / goal, 'var(--red)'), `${ws.count}/${goal}`, 'séances', `${ws.count} séance${ws.count > 1 ? 's' : ''} sur ${goal} cette semaine`)}
       ${tile(activityRing(ws.avgVolume ? ws.volume / ws.avgVolume : (ws.volume ? 1 : 0), 'var(--green)'), fmtVolume(ws.volume), 'volume', `Volume de la semaine : ${fmtVolume(ws.volume)}`)}
       ${tile(activityRing(streakProgress, 'var(--orange)'), `${streak} sem.`, 'd\'affilée', `Régularité : ${streak} semaine${streak > 1 ? 's' : ''} d'affilée`)}
