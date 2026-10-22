@@ -1,5 +1,5 @@
 // Séance libre (FREE) : libellés, rattachement des exercices, aucun effet sur les programmes
-export default function ({ test, app, run, reset, assert }) {
+export default function ({ test, run, reset, assert }) {
   test('séance libre : libellés neutres, pas de « Programme PPL »', () => {
     reset();
     assert.equal(run('progMeta(FREE).name'), 'Séance libre');

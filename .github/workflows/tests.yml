@@ -37,6 +37,8 @@ jobs:
         run: node tests/unit/run.mjs
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
+      - name: Lint (ESLint, erreurs réelles)
+        run: npm run lint
 
   e2e:
     runs-on: ubuntu-latest

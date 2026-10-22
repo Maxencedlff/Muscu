@@ -1,5 +1,5 @@
 // Récupération par muscle (dashboard.js : catStatus) et muscles déclarés (muscles.js)
-export default function ({ test, app, run, reset, assert }) {
+export default function ({ test, run, reset, assert }) {
   const H = 3600_000;
   const entry = (id, hoursAgo, programme, category, names) =>
     `{ id: '${id}', date: Date.now() - ${hoursAgo} * ${H}, programme: '${programme}', category: '${category}',

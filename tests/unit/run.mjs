@@ -1114,7 +1114,7 @@ test('iOS : Live Activity du repos (API exposée, activités vivantes, fin à la
   sameJSON(declared, ['end', 'start', 'update']);
   sameJSON([...new Set(used)], declared);
   // Une activité terminée encore listée n'est jamais reprise
-  assert.doesNotMatch(src.replace(/static var liveActivities[\s\S]*?\n    \}/, ''), /RestActivity\.activities/);
+  assert.doesNotMatch(src.replace(/static var liveActivities[\s\S]*?\n {4}\}/, ''), /RestActivity\.activities/);
   assert.match(src, /activityState == \.active \|\| \$0\.activityState == \.stale/);
   // App tuée par l'utilisateur : Live Activities terminées avant la fin du processus
   assert.match(src, /UIApplication\.willTerminateNotification/);
