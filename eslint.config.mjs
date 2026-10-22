@@ -12,7 +12,7 @@ export default [
   // Espaces insécables voulus dans les textes (typographie française : « 57 min », « 12 % »)
   { rules: { 'no-irregular-whitespace': ['error', { skipStrings: true, skipTemplates: true, skipRegExps: true }] } },
   {
-    files: ['js/**/*.js', 'sw.js'],
+    files: ['js/**/*.js', 'sw.js', 'web-public/*.js'],
     languageOptions: { ecmaVersion: 2023, sourceType: 'script', globals: { ...globals.browser, ...globals.serviceworker } },
     rules: { 'no-undef': 'off', 'no-unused-vars': 'off', 'no-empty': ['error', { allowEmptyCatch: true }] },
   },

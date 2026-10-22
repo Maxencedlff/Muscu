@@ -4,8 +4,8 @@ name: Tests
 #  1. unit : syntaxe de tous les scripts, tests unitaires (dont le pont natif), contenu de l'app iOS ;
 #  2. e2e : l'app tourne pour de vrai dans WebKit (iPhone 13) et Chromium (Pixel 7), toute la suite
 #     Playwright en thème sombre ;
-#  3. deploy : sur main seulement, et seulement si 1 et 2 sont verts, publication sur
-#     https://muscu-eta.vercel.app. Vercel ne publie plus seul (vercel.json : git.deploymentEnabled).
+#  3. deploy : sur main seulement, et seulement si 1 et 2 sont verts, publication de web-public/ sur
+#     https://muscu-eta.vercel.app (la version web est arrêtée : seule l'app iOS reste). Vercel ne publie plus seul (vercel.json : git.deploymentEnabled).
 # Tout tourne sur Linux : aucun quota macOS.
 on:
   push:
@@ -90,10 +90,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      # Version web arrêtée le 22/10/2026 : le site ne publie plus que web-public/ (page « l'app est
+      # sur iPhone » et politique de confidentialité, URL déclarée à l'App Store), voir web-public/README.md
       - name: Publication sur muscu-eta.vercel.app
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
         # La CLI échoue (code non nul) si la publication échoue ; version figée (pas de @latest)
-        run: npx --yes vercel@62.0.0 deploy --prod --yes --token "$VERCEL_TOKEN"
+        run: |
+          cp privacy.html web-public/
+          npx --yes vercel@62.0.0 deploy web-public --prod --yes --token "$VERCEL_TOKEN"

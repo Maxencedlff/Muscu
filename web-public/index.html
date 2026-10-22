@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>MDLF Training</title>
+  <meta name="description" content="MDLF Training est maintenant une application iPhone.">
+  <meta name="robots" content="noindex">
+  <style>
+    :root { --bg: #f2f2f7; --cell: #fff; --label: #000; --label2: rgba(60,60,67,.6); --tint: #007aff; color-scheme: light dark; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #000; --cell: #1c1c1e; --label: #fff; --label2: rgba(235,235,245,.6); --tint: #0a84ff; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--label); font: 17px/1.5 -apple-system, system-ui, sans-serif; }
+    main { max-width: 560px; margin: 0 auto; padding: calc(48px + env(safe-area-inset-top)) 16px 48px; }
+    h1 { font-size: 34px; line-height: 41px; margin: 0 0 8px; }
+    .sub { color: var(--label2); margin: 0 0 24px; }
+    section { background: var(--cell); border-radius: 12px; padding: 16px; margin: 0 0 16px; }
+    h2 { font-size: 20px; margin: 0 0 8px; }
+    p { margin: 0 0 8px; }
+    button { width: 100%; min-height: 50px; border: 0; border-radius: 12px; background: var(--tint); color: #fff; font: 600 17px -apple-system, system-ui, sans-serif; cursor: pointer; margin-top: 8px; }
+    a { color: var(--tint); }
+    [hidden] { display: none; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>MDLF Training</h1>
+  <p class="sub">La version web n'est plus disponible : l'application existe maintenant sur iPhone.</p>
+
+  <!-- Affiché seulement si ce navigateur garde des séances de l'ancienne version web -->
+  <section id="backup" hidden>
+    <h2>Tes séances sont encore ici</h2>
+    <p id="backupText">Ce navigateur garde les données de l'ancienne version web.</p>
+    <p>Télécharge-les, puis dans l'app iPhone : Réglages › Importer une sauvegarde.</p>
+    <button type="button" id="backupBtn">Télécharger mes données</button>
+  </section>
+
+  <p><a href="privacy.html">Politique de confidentialité</a></p>
+</main>
+<script>
+  // Données de l'ancienne PWA (clé ppl_v2, même origine) : proposées au téléchargement, jamais effacées
+  (function () {
+    var raw = null;
+    try { raw = localStorage.getItem('ppl_v2'); } catch (e) {}
+    if (!raw) return;
+    var n = 0;
+    try { n = (JSON.parse(raw).history || []).length; } catch (e) { return; }
+    document.getElementById('backup').hidden = false;
+    if (n) document.getElementById('backupText').textContent = n + (n > 1 ? ' séances de l’ancienne version web sont enregistrées dans ce navigateur.' : ' séance de l’ancienne version web est enregistrée dans ce navigateur.');
+    document.getElementById('backupBtn').addEventListener('click', function () {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+      a.download = 'muscu-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+    });
+  })();
+</script>
+</body>
+</html>
