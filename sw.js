@@ -1,4 +1,4 @@
-const CACHE = 'ppl-v45';
+const CACHE = 'ppl-v46';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',

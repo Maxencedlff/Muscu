@@ -352,3 +352,11 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
   color: var(--label); display: flex; align-items: center; justify-content: center;
 }
 .music-bar__btn:active { background: var(--fill); }
+/* Filtre de matériel de la feuille d'ajout : pastilles qui passent à la ligne, toutes visibles même sur petit écran */
+.ax__equip { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 16px; }
+.ax__chip {
+  min-height: 34px; padding: 0 12px; border: 0; border-radius: 17px; cursor: pointer;
+  background: var(--fill); color: var(--label); font: inherit; font-size: var(--fs-footnote); font-weight: 600;
+}
+.ax__chip[aria-pressed="true"] { background: var(--tint); color: var(--white); }
+.ax__chip:active { opacity: .6; }

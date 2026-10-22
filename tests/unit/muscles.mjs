@@ -22,6 +22,17 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     run('MUSCLE_RULES').forEach(([re, p, s]) => [...p, ...s].forEach(id => assert.ok(known.has(id), `${re} : ${id}`)));
   });
 
+  test('muscles : matériel renseigné pour toute la bibliothèque, filtres reconnus par sanitizeData', () => {
+    const equip = run('EQUIPMENT.map(e => e.id)');
+    sameJSON(['all', ...equip].sort(), run('EQUIP_IDS').slice().sort());
+    run('EXERCISE_CATALOGUE').forEach(e => assert.ok(equip.includes(e.equip), `${e.name} : matériel ${e.equip}`));
+    // De quoi composer une séance complète sans salle
+    const count = id => run('EXERCISE_CATALOGUE').filter(e => e.equip === id).length;
+    assert.ok(count('aucun') >= 15 && count('halteres') >= 20 && count('barre') >= 5);
+    assert.equal(app.equipmentOf('pompes diamant'), 'aucun');
+    assert.equal(app.equipmentOf('Mon exercice inventé'), null);
+  });
+
   test('muscles : tous les exercices des programmes intégrés sont dans la bibliothèque', () => {
     const names = run(`Object.values(PROGRAMMES).flatMap(p => Object.values(p.defaults).flatMap(l => l.map(([n]) => n)))`);
     assert.ok(names.length > 20);
@@ -41,12 +52,12 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     const cases = {
       'Curl haltères incliné prise supination': 'biceps',
       'Leg curl assis': 'hamstrings',
-      'Curl nordique': 'hamstrings',
+      'Nordic curl': 'hamstrings',
       'Curl marteau corde': 'biceps',
       'Squat bulgare': 'quads',
       'Fentes arrière': 'quads',
       'Bench press': 'chest',
-      'Pompes diamant': 'chest',
+      'Pompes prise large': 'chest',
       'Lat pulldown': 'lats',
       'Tractions lestées': 'lats',
       'Rowing poulie basse': 'lats',
@@ -64,7 +75,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
       'Hip thrust barre': 'glutes',
       'Mollets à la presse': 'calves',
       'Crunch à genoux': 'abs',
-      'Gainage latéral': 'abs',
+      'Gainage latéral sur le coude': 'abs',
       'Extension lombaires au banc': 'lower_back',
       'Adducteurs poulie': 'adductors',
       'Dips lestés': 'chest',

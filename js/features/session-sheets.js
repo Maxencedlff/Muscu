@@ -109,11 +109,21 @@ let axSets = 3;
 
 function axListHtml(q) {
   const nq    = normName(q);
-  const items = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && (!nq || normName(n).includes(nq))).slice(0, 60);
+  const eq    = data.exEquip;
+  const items = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && (!nq || normName(n).includes(nq))
+    && (eq === 'all' || equipmentOf(n) === eq)).slice(0, 60);
   const exact = items.some(n => normName(n) === nq);
   return items.map(n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}"><span class="ax__body"><span>${esc(n)}</span>${exMusclesSubHtml({ name: n }, 'ax__sub')}</span></button>`).join('')
     + (q.trim() && !exact ? `<button class="ax__item ax__item--create" data-action="ax-pick" data-name="${esc(q.trim())}">${icon('plus', 18)} Créer « ${esc(q.trim())} »</button>` : '')
     + (!items.length && !q.trim() ? '<div class="ax__empty">Aucun exercice</div>' : '');
+}
+
+// Filtre de matériel : retenu d'une fois sur l'autre (data.exEquip), pour qui s'entraîne toujours au même endroit
+function axEquipHtml() {
+  return `<div class="ax__equip" role="group" aria-label="Matériel">
+    ${[{ id: 'all', label: 'Tout' }, ...EQUIPMENT].map(({ id, label }) =>
+      `<button class="ax__chip" aria-pressed="${data.exEquip === id}" data-action="ax-equip" data-equip="${id}">${label}</button>`).join('')}
+  </div>`;
 }
 
 // exclude : noms à ne pas proposer (par défaut, les exercices de la séance en cours)
@@ -132,6 +142,7 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
       ${rep ? `<div class="ax__replacing">À la place de ${esc(rep.name)}</div>` : ''}
       <input type="search" id="axSearch" class="ax__search" placeholder="Rechercher ou créer" autocomplete="off"
              autocapitalize="sentences" enterkeyhint="done" aria-label="Rechercher un exercice">
+      ${axEquipHtml()}
       <div class="ax__opts">
         <div class="ax__opt">
           <span>Séries</span>
@@ -276,6 +287,13 @@ registerActions({
     axSets = Math.min(10, Math.max(1, axSets + parseInt(el.dataset.d)));
     const n = $('#axSets');
     if (n) n.textContent = axSets;
+  },
+  'ax-equip': (e, el) => {
+    data.exEquip = el.dataset.equip;
+    save();
+    document.querySelectorAll('[data-action="ax-equip"]').forEach(b => b.setAttribute('aria-pressed', String(b === el)));
+    const list = $('#axList');
+    if (list) { list.innerHTML = axListHtml($('#axSearch')?.value || ''); list.scrollTop = 0; }
   },
   'ax-pick': (e, el) => {
     axPick(el.dataset.name);
