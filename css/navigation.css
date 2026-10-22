@@ -152,6 +152,8 @@ body.light .dashboard__glow { --glow: 32%; }
   text-transform: uppercase; color: var(--label2);
 }
 .dashboard .navbar__sub { color: var(--label); font-weight: 600; font-size: 0.941rem; }
+/* Roue des réglages : le bleu tombait sur le halo coloré de l'accueil (1,4:1 en sombre) ; même couleur que le titre */
+.dashboard .navbar__icon { color: var(--label); }
 
 .home { padding: 4px 16px 0; }
 
@@ -204,7 +206,8 @@ body.light .hero__chip { background: color-mix(in srgb, var(--cell) 80%, transpa
 .targets__list { list-style: none; margin: 0; padding: 0; }
 .targets__row { display: flex; align-items: baseline; gap: 12px; padding: 8px 0; font-size: 0.941rem; }
 .targets__row + .targets__row { border-top: 0.5px solid var(--sep); }
-.targets__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Nom d'exercice en entier : passe à la ligne plutôt que d'être coupé (écrans Android étroits) */
+.targets__name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .targets__val { flex-shrink: 0; font-weight: 700; }
 .targets__gain { margin-left: 6px; font-size: 0.765rem; color: var(--green-text); }
 
@@ -224,7 +227,6 @@ html.type-xl .rings { grid-template-columns: minmax(0, 1fr); }
 /* Grands caractères : les lignes passent à la ligne au lieu de se couper */
 html.type-xl .home-card__title { flex-wrap: wrap; white-space: normal; }
 html.type-xl .targets__row { flex-wrap: wrap; }
-html.type-xl .targets__name { white-space: normal; overflow-wrap: anywhere; }
 
 /* Cette semaine */
 .week__days { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); justify-items: center; }
