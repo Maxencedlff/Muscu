@@ -388,7 +388,9 @@ registerActions({
     if (editingSet && !saveEditedSet()) return;
     editingSet = { ei: parseInt(el.dataset.ei), si: parseInt(el.dataset.si) };
     render();
-    setTimeout(() => { $('#editSetReps')?.focus(); }, 50);
+    // Curseur placé pendant le tap lui-même : iOS n'ouvre le clavier que dans le geste, et un focus
+    // différé reviendrait dans le champ après une sortie rapide (qui ne serait alors pas enregistrée)
+    $('#editSetReps')?.focus({ preventScroll: true });
   },
   'close-edit-set': () => {
     editingSet = null; render();
