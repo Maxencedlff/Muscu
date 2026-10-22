@@ -386,7 +386,7 @@ async function startSessionFlow(cat) {
     if (choice !== 'replace') return;
     endSession();
   }
-  if (data.soundOn !== false) beep(440, .08);
+  playMelody('tick');
   haptic();
   startSession(cat);
 }

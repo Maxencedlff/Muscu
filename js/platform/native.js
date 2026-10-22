@@ -25,6 +25,7 @@ const Native = (() => {
   const LiveActivity       = plugin('MdlfLiveActivity'); // module Swift de l'app (ios/App/App/LiveActivityPlugin.swift)
   const AppIcon            = plugin('MdlfAppIcon');   // module Swift de l'app (ios/App/App/AppIconPlugin.swift)
   const Cloud              = plugin('MdlfCloudBackup'); // module Swift de l'app (ios/App/App/CloudBackupPlugin.swift)
+  const Sound              = plugin('MdlfSound');     // module Swift de l'app (ios/App/App/SoundPlugin.swift), build 22 et suivantes
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
 
   // Un module natif indisponible ou en erreur ne doit jamais casser l'app web
@@ -267,6 +268,14 @@ const Native = (() => {
     // Icône de l'app (icônes alternatives d'iOS). Nom natif d'un jeu d'icônes ; null = icône par défaut.
     // get() : { supported, name } (hors app : { supported: false, name: null }).
     // set(name) : true une fois changée (iOS affiche lui-même une alerte), false sinon ou hors app.
+    // Bips joués par iOS (audibles en mode silencieux, par-dessus la musique sans la couper).
+    // available : faux dans le navigateur et dans une coquille plus ancienne que le module
+    // (une mise à jour à chaud peut arriver avant la nouvelle build) : l'appelant garde alors le Web Audio.
+    sound: {
+      available: isNative && !!cap.isPluginAvailable?.('MdlfSound'),
+      play(notes) { if (isNative) quiet(Sound.play({ notes })); },
+    },
+
     appIcon: {
       async get() {
         if (!isNative) return { supported: false, name: null };
