@@ -13,7 +13,7 @@ let restTotal     = 0;     // durée totale du repos en cours (anneau de progres
 
 const RING_SMALL = 2 * Math.PI * 17;
 const RING_BIG   = 2 * Math.PI * 100;
-const REST_PRESETS = [60, 90, 120, 180]; // préréglages proposés dans les feuilles de repos
+const REST_PRESETS = [60, 90, 120, 180, 240, 300]; // préréglages proposés dans les feuilles de repos
 
 function restFraction() {
   return restTotal > 0 ? Math.min(1, Math.max(0, restTimeLeft / restTotal)) : 0;

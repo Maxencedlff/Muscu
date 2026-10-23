@@ -310,11 +310,12 @@ function validateSet(ei, si) {
 function carryWeightToNextSet(ex, si) {
   const s       = ex.sets[si];
   const nextSet = ex.sets[si + 1];
-  const undo    = { s, next: null, nextW: null };
-  if (nextSet && !nextSet.done && (parseFloat(s.weight) || 0) !== (parseFloat(s.plannedWeight) || 0)) {
-    undo.next = nextSet; undo.nextW = nextSet.weight;
-    nextSet.weight = s.weight;
-  }
+  const undo    = { s, next: null, nextW: null, nextR: null };
+  if (!nextSet || nextSet.done) return undo;
+  undo.next = nextSet; undo.nextW = nextSet.weight; undo.nextR = nextSet.reps;
+  if ((parseFloat(s.weight) || 0) !== (parseFloat(s.plannedWeight) || 0)) nextSet.weight = s.weight;
+  // Reps : reprises seulement si rien n'était prévu (premier essai d'un exercice), jamais un objectif écrasé
+  if (String(nextSet.reps ?? '').trim() === '' && s.reps) nextSet.reps = s.reps;
   return undo;
 }
 
@@ -322,7 +323,7 @@ function carryWeightToNextSet(ex, si) {
 function undoValidate(u) {
   if (!activeSession || !u.s.done) return;
   u.s.done = false;
-  if (u.next && !u.next.done) u.next.weight = u.nextW;
+  if (u.next && !u.next.done) { u.next.weight = u.nextW; u.next.reps = u.nextR; }
   stopRest();
   closeSessSheets();
   persistSession();

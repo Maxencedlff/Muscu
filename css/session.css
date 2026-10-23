@@ -224,7 +224,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .rs__resume { font-size: 0.882rem; color: var(--label2); }
 .rs__value { font-family: var(--font-rounded); font-size: 64px; line-height: 1; font-weight: 300; padding: 8px 0; }
 .rs-seg {
-  display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; max-width: 360px;
+  display: grid; grid-template-columns: repeat(6, 1fr); width: 100%; max-width: 360px;
   background: var(--fill); border-radius: 9px; padding: 2px; gap: 2px;
 }
 .rs-seg__btn {
@@ -283,6 +283,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .ax__item:active { background: var(--fill); }
 .ax__item--create { color: var(--tint); }
 .ax__empty { padding: 11px 16px; color: var(--label2); font-size: 0.882rem; }
+.ax__hint { padding: 10px 16px 0; color: var(--label2); font-size: var(--fs-footnote); }
 
 /* ── Bilan de fin ────────────────────────────────── */
 .view.summary { background: var(--bg); }

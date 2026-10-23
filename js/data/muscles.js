@@ -43,34 +43,34 @@ const EQUIPMENT = [
 ];
 const EXERCISE_CATALOGUE = [
   // Pectoraux
-  ['Développé couché barre',           'chest',                  'front_delts triceps', 'salle', 'bench press|dc'],
-  ['Développé couché haltères',        'chest',                  'front_delts triceps', 'halteres'],
+  ['Développé couché barre',           'chest',                  'front_delts triceps', 'salle', 'bench press|dc|bp'],
+  ['Développé couché haltères',        'chest',                  'front_delts triceps', 'halteres', 'dumbbell bench press'],
   ['Développé incliné barre',          'chest front_delts',      'triceps', 'salle'],
-  ['Développé incliné haltères',       'chest front_delts',      'triceps', 'halteres'],
+  ['Développé incliné haltères',       'chest front_delts',      'triceps', 'halteres', 'incline dumbbell press'],
   ['Développé décliné',                'chest',                  'triceps', 'salle'],
-  ['Développé couché machine',         'chest',                  'front_delts triceps', 'salle'],
+  ['Développé couché machine',         'chest',                  'front_delts triceps', 'salle', 'chest press'],
   ['Écarté haltères plat',             'chest',                  'front_delts', 'halteres'],
-  ['Écarté poulie vis-à-vis',          'chest',                  'front_delts', 'salle'],
-  ['Pec deck',                         'chest',                  'front_delts', 'salle', 'écarté machine|butterfly'],
+  ['Écarté poulie vis-à-vis',          'chest',                  'front_delts', 'salle', 'cable fly|crossover|écarté poulie'],
+  ['Pec deck',                         'chest',                  'front_delts', 'salle', 'écarté machine|butterfly|peck deck'],
   ['Pompes',                           'chest',                  'front_delts triceps abs', 'aucun', 'push-up|push up'],
-  ['Dips',                             'chest triceps',          'front_delts', 'barre'],
+  ['Dips',                             'chest triceps',          'front_delts', 'barre', 'dips lestés|barres parallèles'],
   // Dos
   ['Soulevé de terre',                 'glutes hamstrings lower_back', 'quads traps forearms', 'salle', 'deadlift|sdt'],
-  ['Tractions pronation',              'lats',                   'biceps rear_delts forearms', 'barre', 'pull-ups|pull up|traction'],
+  ['Tractions pronation',              'lats',                   'biceps rear_delts forearms', 'barre', 'pull-ups|pull up|traction|traction lestée|tractions lestées'],
   ['Tractions prise serrée',           'lats biceps',            'forearms', 'barre'],
-  ['Tirage vertical prise large',      'lats',                   'biceps rear_delts', 'salle'],
+  ['Tirage vertical prise large',      'lats',                   'biceps rear_delts', 'salle', 'tirage poitrine|lat pulldown|poulie haute|pulldown'],
   ['Tirage vertical prise serrée',     'lats',                   'biceps', 'salle'],
-  ['Tirage horizontal câble',          'lats traps',             'rear_delts biceps', 'salle'],
-  ['Rowing barre',                     'lats traps',             'rear_delts biceps lower_back', 'salle'],
-  ['Rowing haltère unilatéral',        'lats',                   'traps rear_delts biceps', 'halteres'],
+  ['Tirage horizontal câble',          'lats traps',             'rear_delts biceps', 'salle', 'seated row|rowing assis|tirage assis|poulie basse'],
+  ['Rowing barre',                     'lats traps',             'rear_delts biceps lower_back', 'salle', 'barbell row|rowing buste penché barre'],
+  ['Rowing haltère unilatéral',        'lats',                   'traps rear_delts biceps', 'halteres', 'dumbbell row|rowing un bras'],
   ['Rowing barre T',                     'lats traps',             'rear_delts biceps', 'salle', 'rowing t-bar|t bar'],
   ['Pull-over poulie',                 'lats',                   'chest triceps', 'salle'],
   ['Haussements d\'épaules haltères',                  'traps',                  'forearms', 'halteres', 'shrugs haltères|shrug'],
-  ['Extension lombaires',              'lower_back',             'glutes hamstrings', 'salle'],
+  ['Extension lombaires',              'lower_back',             'glutes hamstrings', 'salle', 'hyperextension|banc lombaire'],
   ['Face pull',                        'rear_delts',             'traps side_delts', 'salle', 'tirage visage|tirage corde'],
   // Épaules
   ['Développé militaire barre',        'front_delts side_delts', 'triceps traps', 'salle', 'ohp|overhead press|military press'],
-  ['Développé militaire haltères',     'front_delts side_delts', 'triceps traps', 'halteres'],
+  ['Développé militaire haltères',     'front_delts side_delts', 'triceps traps', 'halteres', 'shoulder press haltères|dumbbell shoulder press'],
   ['Développé Arnold',                 'front_delts side_delts', 'triceps', 'halteres'],
   ['Élévations latérales',             'side_delts',             'traps', 'halteres', 'lateral raise'],
   ['Élévations latérales poulie',      'side_delts',             'traps', 'salle'],
@@ -78,66 +78,66 @@ const EXERCISE_CATALOGUE = [
   ['Oiseau (élévations arrière)',      'rear_delts',             'traps', 'halteres', 'reverse fly|élévations arrière'],
   ['Rowing menton',                    'side_delts traps',       'biceps', 'salle', 'upright row|tirage menton'],
   // Bras
-  ['Curl biceps barre',                'biceps',                 'forearms', 'salle'],
-  ['Curl biceps haltères',             'biceps',                 'forearms', 'halteres'],
-  ['Curl marteau',                     'biceps forearms',        '', 'halteres'],
-  ['Curl pupitre',                     'biceps',                 'forearms', 'salle'],
+  ['Curl biceps barre',                'biceps',                 'forearms', 'salle', 'curl ez|barbell curl'],
+  ['Curl biceps haltères',             'biceps',                 'forearms', 'halteres', 'dumbbell curl'],
+  ['Curl marteau',                     'biceps forearms',        '', 'halteres', 'hammer curl'],
+  ['Curl pupitre',                     'biceps',                 'forearms', 'salle', 'preacher curl|larry scott'],
   ['Curl incliné',                     'biceps',                 'forearms', 'halteres'],
   ['Curl poulie',                      'biceps',                 'forearms', 'salle'],
   ['Curl concentration',               'biceps',                 '', 'halteres'],
-  ['Extension triceps poulie',         'triceps',                '', 'salle'],
+  ['Extension triceps poulie',         'triceps',                '', 'salle', 'pushdown|triceps poulie|corde triceps'],
   ['Extension triceps unilatéral',     'triceps',                '', 'halteres'],
   ['Extension nuque',                  'triceps',                '', 'halteres'],
-  ['Barre au front',                   'triceps',                '', 'salle'],
-  ['Développé couché prise serrée',    'triceps chest',          'front_delts', 'salle'],
+  ['Barre au front',                   'triceps',                '', 'salle', 'skull crusher|extension triceps couché barre'],
+  ['Développé couché prise serrée',    'triceps chest',          'front_delts', 'salle', 'close grip bench'],
   ['Kickback triceps',                 'triceps',                '', 'halteres', 'extension triceps buste penché'],
   ['Curl poignets',                    'forearms',               '', 'halteres'],
-  ['Marche du fermier',                'forearms traps',         'abs', 'halteres'],
+  ['Marche du fermier',                'forearms traps',         'abs', 'halteres', 'farmer walk'],
   // Abdominaux
   ['Crunch',                           'abs',                    '', 'aucun'],
   ['Crunch poulie',                    'abs',                    '', 'salle'],
   ['Gainage (planche)',                'abs',                    'lower_back', 'aucun', 'planche|plank'],
-  ['Relevés de jambes',                'abs',                    '', 'aucun'],
+  ['Relevés de jambes',                'abs',                    '', 'aucun', 'leg raise'],
   ['Roue abdominale',                  'abs',                    'lats', 'salle', 'ab wheel'],
   ['Rotations russes',                    'abs',                    '', 'aucun', 'russian twist'],
   // Jambes
-  ['Squat barre',                      'quads glutes',           'adductors lower_back', 'salle'],
+  ['Squat barre',                      'quads glutes',           'adductors lower_back', 'salle', 'back squat'],
   ['Squat avant',                      'quads',                  'glutes abs', 'salle', 'front squat'],
   ['Squat gobelet',                     'quads glutes',           'adductors', 'halteres', 'goblet squat'],
   ['Hack squat',                       'quads',                  'glutes', 'salle', 'squat machine'],
   ['Presse à cuisses',                 'quads glutes',           'adductors', 'salle', 'leg press'],
-  ['Fentes marchées haltères',         'quads glutes',           'hamstrings adductors', 'halteres'],
-  ['Fentes bulgares',                  'quads glutes',           'hamstrings adductors', 'halteres'],
+  ['Fentes marchées haltères',         'quads glutes',           'hamstrings adductors', 'halteres', 'walking lunges'],
+  ['Fentes bulgares',                  'quads glutes',           'hamstrings adductors', 'halteres', 'squat bulgare|bulgarian split squat|split squat'],
   ['Extension quadriceps',             'quads',                  '', 'salle', 'leg extension'],
-  ['Leg curl machine',                 'hamstrings',             'calves', 'salle', 'curl ischios machine|curl jambes'],
-  ['Soulevé de terre roumain',         'hamstrings glutes',      'lower_back', 'salle', 'rdl|romanian deadlift'],
-  ['Hip thrust',                       'glutes',                 'hamstrings', 'salle', 'poussée de hanches'],
-  ['Abducteurs machine',               'glutes',                 '', 'salle'],
-  ['Adducteurs machine',               'adductors',              '', 'salle'],
-  ['Mollets debout',                   'calves',                 '', 'aucun'],
-  ['Mollets assis',                    'calves',                 '', 'salle'],
+  ['Leg curl machine',                 'hamstrings',             'calves', 'salle', 'curl ischios machine|curl jambes|leg curl assis|leg curl allongé'],
+  ['Soulevé de terre roumain',         'hamstrings glutes',      'lower_back', 'salle', 'rdl|romanian deadlift|jambes tendues|sdt jambes tendues'],
+  ['Hip thrust',                       'glutes',                 'hamstrings', 'salle', 'poussée de hanches|hip trust|his trust|hipthrust'],
+  ['Abducteurs machine',               'glutes',                 '', 'salle', 'abduction|hip abduction'],
+  ['Adducteurs machine',               'adductors',              '', 'salle', 'adduction'],
+  ['Mollets debout',                   'calves',                 '', 'aucun', 'calf raise'],
+  ['Mollets assis',                    'calves',                 '', 'salle', 'seated calf raise'],
   // Haltères et banc (à la maison)
   ['Développé au sol haltères',        'chest triceps',          'front_delts', 'halteres'],
   ['Écarté incliné haltères',          'chest',                  'front_delts', 'halteres'],
   ['Pull-over haltère',                'lats',                   'chest triceps', 'halteres'],
   ['Rowing haltères buste penché',     'lats traps',             'rear_delts biceps', 'halteres'],
   ['Extension triceps couché haltères','triceps',                '',            'halteres'],
-  ['Soulevé de terre roumain haltères','hamstrings glutes',      'lower_back',  'halteres'],
+  ['Soulevé de terre roumain haltères','hamstrings glutes',      'lower_back',  'halteres', 'rdl haltères|jambes tendues haltères'],
   ['Hip thrust haltère',               'glutes',                 'hamstrings',  'halteres', 'poussée de hanches haltère'],
   ['Montées sur banc haltères',                 'quads glutes',           'hamstrings',  'halteres', 'step-up haltères|step up'],
   // Barre de traction et barres à dips
   ['Tractions supination',             'lats biceps',            'forearms',    'barre', 'chin-up|chin up'],
-  ['Tractions australiennes',          'lats traps',             'rear_delts biceps', 'barre', 'rowing inversé|inverted row'],
-  ['Relevés de genoux suspendu',       'abs',                    'forearms',    'barre'],
+  ['Tractions australiennes',          'lats traps',             'rear_delts biceps', 'barre', 'rowing inversé|inverted row|australian pull-up'],
+  ['Relevés de genoux suspendu',       'abs',                    'forearms',    'barre', 'knee raise|hanging knee raise'],
   // Sans matériel (poids du corps)
-  ['Pompes inclinées',                 'chest',                  'front_delts triceps', 'aucun'],
+  ['Pompes inclinées',                 'chest',                  'front_delts triceps', 'aucun', 'pompes mains surélevées'],
   ['Pompes déclinées',                 'chest front_delts',      'triceps abs', 'aucun'],
-  ['Pompes diamant',                   'triceps chest',          'front_delts', 'aucun'],
+  ['Pompes diamant',                   'triceps chest',          'front_delts', 'aucun', 'pompes serrées|diamond push-up'],
   ['Pompes pike (épaules)',            'front_delts',            'side_delts triceps', 'aucun'],
   ['Dips sur chaise',                  'triceps',                'chest front_delts', 'aucun'],
   ['Squat poids du corps',             'quads glutes',           'adductors',   'aucun', 'air squat'],
   ['Squat sauté',                      'quads glutes',           'calves',      'aucun'],
-  ['Fentes',                           'quads glutes',           'hamstrings adductors', 'aucun'],
+  ['Fentes',                           'quads glutes',           'hamstrings adductors', 'aucun', 'lunges|fentes avant|fentes arrière'],
   ['Chaise contre le mur',             'quads',                  'glutes',      'aucun', 'wall sit'],
   ['Pont fessier',                     'glutes',                 'hamstrings',  'aucun', 'glute bridge'],
   ['Pont fessier unilatéral',          'glutes',                 'hamstrings',  'aucun'],
@@ -165,7 +165,7 @@ function catalogueEntry(name) { return CATALOGUE_BY_NAME.get(normName(name)) || 
 // Le nom normalisé (normName) reste la clé de stockage ; celle-ci ne sert qu'à reconnaître et chercher,
 // pour que « DC incliné smith », « SDT sumo » ou « Face-pull » soient compris comme leurs noms complets.
 const ABBREVIATIONS = [
-  [/\bdc\b/g, 'developpe couche'], [/\bdi\b/g, 'developpe incline'], [/\bdm\b/g, 'developpe militaire'],
+  [/\bdc (incline|decline)/g, 'developpe $1'], [/\bdc\b/g, 'developpe couche'], [/\bdi\b/g, 'developpe incline'], [/\bdm\b/g, 'developpe militaire'],
   [/\bdev\b/g, 'developpe'], [/\bsdt\b/g, 'souleve de terre'], [/\bext\b/g, 'extension'],
   [/\bkb\b/g, 'kettlebell'], [/\bghr\b/g, 'glute ham raise'],
 ];
@@ -193,16 +193,55 @@ function similarExercises(name, n = 3) {
     .slice(0, n).map(x => x.e);
 }
 
-// Recherche de la feuille d'ajout : chaque mot tapé doit se retrouver (dans n'importe quel ordre) dans
-// le nom, un alias ou un muscle principal (« biceps » trouve les curls, « dc » le développé couché)
-function exerciseMatches(name, query) {
-  const q = ruleKey(query).split(' ').filter(Boolean);
-  if (!q.length) return true;
-  const entry = catalogueEntry(name);
-  const muscles = exerciseMuscles({ name }).primary.map(id => normName(muscleLabel(id))).join(' ');
-  const hay = [ruleKey(name), ...(entry ? entry.aliases.map(ruleKey) : []), muscles].join(' ');
-  return q.every(w => hay.includes(w.replace(/s$/, '')));
+// ── Recherche de la feuille d'ajout ─────────────────────────
+// Chaque mot tapé doit commencer un mot du nom, d'un alias ou d'un muscle (« fesses », « dos », « bras »…),
+// dans n'importe quel ordre, avec une faute tolérée (« hip trust », « squatt », « dévelopé ») sur les mots
+// de 4 lettres et plus. Par début de mot, pour que « vélo » ne trouve pas « déVELOppé ».
+const MUSCLE_WORDS = {
+  chest: 'pectoraux pecs poitrine', front_delts: 'epaules', side_delts: 'epaules', rear_delts: 'epaules arriere',
+  traps: 'trapezes', lats: 'dos dorsaux', lower_back: 'lombaires dos', biceps: 'biceps bras', triceps: 'triceps bras',
+  forearms: 'avant bras', abs: 'abdos abdominaux ventre', glutes: 'fessiers fesses', quads: 'quadriceps cuisses jambes',
+  hamstrings: 'ischios jambiers jambes', adductors: 'adducteurs', calves: 'mollets',
+};
+const plainWord = w => w.replace(/s$/, '');
+// Distance d'édition avec transposition (Damerau, version restreinte), arrêtée au-delà de max
+function editDistance(a, b, max = 2) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const c = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + c);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  }
+  return d[a.length][b.length];
 }
+function searchWords(name) {
+  const entry = catalogueEntry(name);
+  const texts = [name, ...(entry ? entry.aliases : [])].map(ruleKey);
+  const muscles = exerciseMuscles({ name }).primary.map(id => MUSCLE_WORDS[id] || '').join(' ');
+  // Mots séparés, plus chaque nom en un seul mot (« hipthrust »)
+  return [...new Set([...texts.join(' ').split(' '), ...texts.map(t => t.replace(/ /g, '')), ...muscles.split(' ')]
+    .filter(Boolean).map(plainWord))];
+}
+// Score d'un exercice pour une recherche : 0 absent, 1 trouvé avec une faute, 2 trouvé, 3 le nom commence par la recherche
+function exerciseMatchScore(name, query) {
+  const q = ruleKey(query).split(' ').filter(Boolean).map(plainWord);
+  if (!q.length) return 2;
+  const words = searchWords(name);
+  let fuzzy = false;
+  for (const w of q) {
+    if (words.some(h => h.startsWith(w))) continue;
+    const tol = w.length >= 7 ? 2 : w.length >= 4 ? 1 : 0;
+    if (tol && words.some(h => editDistance(w, h.slice(0, w.length + 1), tol) <= tol || editDistance(w, h, tol) <= tol)) { fuzzy = true; continue; }
+    return 0;
+  }
+  if (fuzzy) return 1;
+  return ruleKey(name).startsWith(ruleKey(query)) ? 3 : 2;
+}
+function exerciseMatches(name, query) { return exerciseMatchScore(name, query) > 0; }
 
 // ── Reconnaissance d'un nom saisi librement ──────────────────
 // Testées dans l'ordre sur le nom normalisé (minuscules, sans accents) : la première qui
@@ -216,7 +255,7 @@ const MUSCLE_RULES = [
   [/curl|biceps/,                                                                         'biceps', 'forearms'],
   [/roumain|rdl|jambes tendues|stiff|good morning/,                                       'hamstrings glutes', 'lower_back'],
   [/souleve de terre|deadlift|rack pull|hex bar|trap bar/,                                'glutes hamstrings lower_back', 'quads traps forearms'],
-  [/swing|kettlebell|arrache|snatch|epaule jete|\bclean\b/,                               'glutes hamstrings', 'lower_back traps'],
+  [/swing|arrache|snatch|epaule jete|\bclean\b/,                               'glutes hamstrings', 'lower_back traps'],
   [/hip thrust|pont fessier|glute|fessier|kickback (jambe|fess|cable)|abduct|reverse hyper/, 'glutes', 'hamstrings'],
   [/adduct/,                                                                              'adductors', ''],
   [/mollet|calf|calves|soleaire|cheville/,                                                'calves', ''],

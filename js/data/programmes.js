@@ -5,7 +5,7 @@
 
 const PROGRAMMES = {
   ppl: {
-    name: 'PPL', desc: 'Push · Pull · Legs', icon: icon('dumbbell'),
+    name: 'PPL', desc: 'Pousser · Tirer · Jambes', icon: icon('dumbbell'),
     sessions: {
       push: { label: 'Push', icon: '💪', desc: 'Pectoraux · Épaules · Triceps', color: 'var(--orange)' },
       pull: { label: 'Pull', icon: '🦾', desc: 'Dos · Biceps · Trapèzes',       color: 'var(--indigo)' },
@@ -38,13 +38,13 @@ const PROGRAMMES = {
     },
   },
   bro: {
-    name: 'Bro Split', desc: 'Chest · Back · Shoulders · Arms · Legs', icon: icon('dumbbell'),
+    name: 'Bro Split', desc: 'Un muscle par jour : pecs, dos, épaules, bras, jambes', icon: icon('dumbbell'),
     sessions: {
-      chest:     { label: 'Chest',     icon: '💪', desc: 'Pectoraux',           color: 'var(--orange)' },
-      back:      { label: 'Back',      icon: '🦾', desc: 'Dos · Trapèzes',       color: 'var(--indigo)' },
-      shoulders: { label: 'Shoulders', icon: '🏔️', desc: 'Épaules',             color: 'var(--yellow)' },
-      arms:      { label: 'Arms',      icon: '🦾', desc: 'Biceps · Triceps',    color: 'var(--purple)' },
-      legs:      { label: 'Legs',      icon: '🦵', desc: 'Quadriceps · Ischio', color: 'var(--teal)' },
+      chest:     { label: 'Pecs',      icon: '💪', desc: 'Pectoraux',           color: 'var(--orange)' },
+      back:      { label: 'Dos',       icon: '🦾', desc: 'Dos · Trapèzes',       color: 'var(--indigo)' },
+      shoulders: { label: 'Épaules',   icon: '🏔️', desc: 'Épaules',             color: 'var(--yellow)' },
+      arms:      { label: 'Bras',      icon: '🦾', desc: 'Biceps · Triceps',    color: 'var(--purple)' },
+      legs:      { label: 'Jambes',    icon: '🦵', desc: 'Quadriceps · Ischio', color: 'var(--teal)' },
     },
     defaults: {
       chest:     [['Développé couché haltères',4],['Développé incliné haltères',4],['Écarté haltères plat',3],['Dips',3]],
@@ -57,9 +57,9 @@ const PROGRAMMES = {
   arnold: {
     name: 'Arnold Split', desc: 'Pecs+Dos · Épaules+Bras · Jambes', icon: icon('dumbbell'),
     sessions: {
-      chest_back:     { label: 'Chest & Back',     icon: '💪', desc: 'Pectoraux · Dos',              color: 'var(--orange)' },
-      shoulders_arms: { label: 'Shoulders & Arms', icon: '🤙', desc: 'Épaules · Biceps · Triceps',   color: 'var(--yellow)' },
-      legs:           { label: 'Legs',             icon: '🦵', desc: 'Quadriceps · Ischio · Mollets', color: 'var(--teal)' },
+      chest_back:     { label: 'Pecs & Dos',       icon: '💪', desc: 'Pectoraux · Dos',              color: 'var(--orange)' },
+      shoulders_arms: { label: 'Épaules & Bras',   icon: '🤙', desc: 'Épaules · Biceps · Triceps',   color: 'var(--yellow)' },
+      legs:           { label: 'Jambes',           icon: '🦵', desc: 'Quadriceps · Ischio · Mollets', color: 'var(--teal)' },
     },
     defaults: {
       chest_back:     [['Développé couché haltères',4],['Écarté haltères plat',3],['Tirage vertical prise large',4],['Rowing haltère unilatéral',4],['Tractions pronation',3]],

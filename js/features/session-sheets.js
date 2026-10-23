@@ -111,10 +111,17 @@ function axListHtml(q) {
   const nq    = normName(q);
   const eq    = data.exEquip;
   // Toute la bibliothèque (pas de coupure : un exercice ne doit jamais être introuvable sans le chercher)
-  const items = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && exerciseMatches(n, q)
-    && (eq === 'all' || equipmentOf(n) === eq));
-  const exact = items.some(n => normName(n) === nq);
-  return items.map(n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}"><span class="ax__body"><span>${esc(n)}</span>${exMusclesSubHtml({ name: n }, 'ax__sub')}</span></button>`).join('')
+  // Les exercices créés par la personne (sans matériel connu) restent visibles quel que soit le filtre
+  const scored = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && (eq === 'all' || [eq, null].includes(equipmentOf(n))))
+    .map(n => ({ n, score: q.trim() ? exerciseMatchScore(n, q) : 2 })).filter(x => x.score > 0);
+  // Recherche : le nom qui commence par le texte tapé d'abord, les correspondances avec une faute en dernier
+  if (q.trim()) scored.sort((a, b) => b.score - a.score);
+  const items = scored.map(x => x.n);
+  // Nom exact, ou alias d'un exercice proposé (« hip trust » est le Hip thrust) : pas de « Créer » en doublon
+  const alias = catalogueEntry(q)?.name;
+  const exact = items.some(n => normName(n) === nq || n === alias);
+  const guess = !exact && scored.length && scored[0].score === 1 ? '<div class="ax__hint">Tu voulais dire :</div>' : '';
+  return guess + items.map(n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}"><span class="ax__body"><span>${esc(n)}</span>${exMusclesSubHtml({ name: n }, 'ax__sub')}</span></button>`).join('')
     + (q.trim() && !exact ? axCreateHtml(q.trim()) : '')
     + (!items.length && !q.trim() ? '<div class="ax__empty">Aucun exercice</div>' : '');
 }
@@ -177,6 +184,7 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
 function axPick(name) {
   name = String(name || '').trim();
   if (!name) return;
+  name = name.charAt(0).toUpperCase() + name.slice(1);  // nom créé en minuscules : « Hip thrust », pas « hip thrust »
   if (ax.target === 'programme') addExerciseToEditedSession(name);
   else if (ax.target === 'past') ax.onPick?.(name, axSets);
   else pickExercise(name);

@@ -73,6 +73,17 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.ok(app.exerciseMatches('Curl marteau', 'biceps'));
     assert.ok(app.exerciseMatches('Hip thrust', 'poussée hanche'));
     assert.ok(!app.exerciseMatches('Curl marteau', 'squat'));
+    // Fautes, mots du quotidien, synonymes de salle ; par début de mot (pas de faux positifs)
+    const found = q => run(`exerciseLibrary().filter(n => exerciseMatches(n, ${JSON.stringify(q)}))`);
+    for (const [q, name] of [['hip trust', 'Hip thrust'], ['his trust', 'Hip thrust'], ['hip thurst', 'Hip thrust'],
+      ['hipthrust', 'Hip thrust'], ['squatt', 'Squat barre'], ['dévelopé couché', 'Développé couché barre'],
+      ['tirage poitrine', 'Tirage vertical prise large'], ['squat bulgare', 'Fentes bulgares'], ['fesses', 'Pont fessier'],
+      ['ventre', 'Crunch'], ['bras', 'Curl marteau'], ['skull crusher', 'Barre au front'], ['dc incliné', 'Développé incliné barre'],
+      ['peck deck', 'Pec deck']])
+      assert.ok(found(q).includes(name), `${q} → ${name}`);
+    for (const [q, name] of [['vélo', 'Développé couché barre'], ['dos', 'Crunch']])
+      assert.ok(!found(q).includes(name), `${q} ne doit pas trouver ${name}`);
+    assert.ok(run(`exerciseMatchScore('Hip thrust', 'hip trust')`) < run(`exerciseMatchScore('Hip thrust', 'hip')`), 'faute classée après');
     const sim = run(`similarExercises('Pompes genoux').map(e => e.name)`);
     assert.ok(sim.length && sim.every(n => /Pompes/.test(n)), sim.join(', '));
     assert.equal(run(`similarExercises('zzz').length`), 0);
@@ -81,11 +92,11 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
   test('muscles : reconnaissance des noms saisis librement', () => {
     const cases = {
       'Curl haltères incliné prise supination': 'biceps',
-      'Leg curl assis': 'hamstrings',
+      'Leg curl unilatéral': 'hamstrings',
       'Nordic curl assisté': 'hamstrings',
       'Curl marteau corde': 'biceps',
-      'Squat bulgare': 'quads',
-      'Fentes arrière': 'quads',
+      'Squat bulgare haltères': 'quads',
+      'Fentes arrière lestées': 'quads',
       'Bench press haltères': 'chest',
       'Pompes prise large': 'chest',
       'Lat pulldown': 'lats',
@@ -113,7 +124,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     };
     for (const [name, main] of Object.entries(cases)) {
       const m = pick(name);
-      assert.equal(m.src, 'rules', name);
+      assert.ok(['rules', 'catalogue'].includes(m.src), name);  // certains sont devenus des alias de la bibliothèque
       assert.equal(m.p[0], main, `${name} → ${m.p.join(', ')}`);
     }
     sameJSON(pick('Curl marteau corde').p, ['biceps', 'forearms']);

@@ -207,7 +207,10 @@ function ringsRow(ws) {
     <button class="rings" data-action="go-stats" aria-description="Voir les progrès">
       ${tile(activityRing(ws.count / goal, 'var(--red)'), `${ws.count}/${goal}`, 'séances', `${ws.count} séance${ws.count > 1 ? 's' : ''} sur ${goal} cette semaine`)}
       ${tile(activityRing(ws.avgVolume ? ws.volume / ws.avgVolume : (ws.volume ? 1 : 0), 'var(--green)'), fmtVolume(ws.volume), 'volume', `Volume de la semaine : ${fmtVolume(ws.volume)}`)}
-      ${tile(activityRing(streakProgress, 'var(--orange)'), `${streak} sem.`, 'd\'affilée', `Régularité : ${streak} semaine${streak > 1 ? 's' : ''} d'affilée`)}
+      ${streak || !ws.count
+        ? tile(activityRing(streakProgress, 'var(--orange)'), `${streak} sem.`, 'd\'affilée', `Régularité : ${streak} semaine${streak > 1 ? 's' : ''} d'affilée`)
+        // Pas encore de semaine complète : on montre la semaine en cours plutôt qu'un « 0 sem. » décourageant
+        : tile(activityRing(streakProgress, 'var(--orange)'), `${ws.count}/2`, 'pour la série', `Régularité : ${ws.count} séance sur 2 pour compter la semaine`)}
     </button>`;
 }
 
