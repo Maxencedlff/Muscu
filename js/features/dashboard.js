@@ -306,11 +306,30 @@ function renderDashboard() {
       <div class="dashboard__glow" aria-hidden="true"></div>
       ${navBar({ title: 'Entraînement', largeTitle: date, right, sub })}
       <div class="home">
+        ${onboardingCard()}
         ${hero || emptyCustom}
         ${keys.length ? ringsRow(ws) + weekCard(ws) : ''}
         ${others ? `<section class="home-card home-card--list" aria-label="Autres séances"><h2 class="home-card__title">Autres séances</h2>${others}</section>` : ''}
       </div>
     </div>`;
+}
+
+// Premier lancement : où s'entraîne-t-on ? Choisit le programme et le filtre de matériel adaptés.
+// Carte et non feuille : rien ne bloque qui veut juste appuyer sur « Démarrer ».
+const PLACES = {
+  salle:    { label: 'En salle',                     programme: 'ppl',             equip: 'all' },
+  halteres: { label: 'Chez moi, avec des haltères',  programme: 'maison_halteres', equip: 'halteres' },
+  rien:     { label: 'Chez moi, sans matériel',      programme: 'maison',          equip: 'aucun' },
+};
+function onboardingCard() {
+  if (data.onboarded || data.history.length) return '';
+  return `
+    <section class="home-card onboard" aria-label="Où t'entraînes-tu ?">
+      <h2 class="onboard__title">Où t'entraînes-tu ?</h2>
+      <p class="onboard__sub">L'app choisit un programme et des exercices adaptés. Tu pourras tout changer.</p>
+      ${Object.entries(PLACES).map(([k, p]) => `<button class="onboard__btn" data-action="onboard" data-place="${k}">${p.label}</button>`).join('')}
+      <button class="onboard__later" data-action="onboard" data-place="">Plus tard</button>
+    </section>`;
 }
 
 // Feuille d'actions d'une séance de l'accueil
@@ -396,6 +415,17 @@ async function startSessionFlow(cat) {
 }
 
 // ── Actions ─────────────────────────────────────────────────
+registerActions({
+  'onboard': (e, el) => {
+    const place = PLACES[el.dataset.place];
+    data.onboarded = true;
+    if (place) { activateProgramme(place.programme); data.exEquip = place.equip; }
+    save();
+    haptic();
+    render();
+  },
+});
+
 registerActions({
   'session-actions': async (e, el) => {
     await sessionActions(el.dataset.cat);

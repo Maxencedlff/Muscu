@@ -179,7 +179,7 @@ def t_add_sheet(bench, eng, dev, theme):
 
 
 def once_static(bench):
-    files = ['js/data/muscles.js', 'js/data/muscle-load.js', 'js/ui/body-map.js', 'js/features/muscles.js', 'css/muscles.css']
+    files = ['js/data/muscles.js', 'js/data/exercise-catalogue.js', 'js/data/muscle-load.js', 'js/ui/body-map.js', 'js/features/muscles.js', 'css/muscles.css']
     for f in files:
         n = sum(1 for _ in open(os.path.join(APP_DIR, f), encoding='utf-8'))
         R.check(n <= 400, f'{f} : {n} lignes (400 au plus)')

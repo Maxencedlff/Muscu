@@ -67,6 +67,31 @@ const PROGRAMMES = {
       legs:           [['Squat barre',4],['Presse à cuisses',4],['Fentes marchées haltères',3],['Leg curl machine',3],['Mollets debout',4]],
     },
   },
+  // À la maison : poids du corps seul, puis haltères et banc (mêmes noms que la bibliothèque)
+  maison: {
+    name: 'Maison', desc: 'Poids du corps · aucun matériel', icon: icon('dumbbell'),
+    sessions: {
+      haut: { label: 'Haut du corps', icon: '💪', desc: 'Pectoraux · Dos · Épaules · Bras', color: 'var(--orange)' },
+      bas:  { label: 'Bas du corps',  icon: '🦵', desc: 'Quadriceps · Fessiers · Abdos',   color: 'var(--teal)' },
+    },
+    defaults: {
+      haut: [['Pompes',4],['Rowing sous une table',4],['Pompes pike (épaules)',3],['Dips sur chaise',3],['Superman',3],['Gainage (planche)',3]],
+      bas:  [['Squat poids du corps',4],['Fentes',3],['Pont fessier',4],['Mollets sur une marche',3],['Gainage latéral',3],['Grimpeur',3]],
+    },
+  },
+  maison_halteres: {
+    name: 'Maison haltères', desc: 'Haltères et banc · Push · Pull · Legs', icon: icon('dumbbell'),
+    sessions: {
+      push: { label: 'Push', icon: '💪', desc: 'Pectoraux · Épaules · Triceps', color: 'var(--orange)' },
+      pull: { label: 'Pull', icon: '🦾', desc: 'Dos · Biceps · Trapèzes',       color: 'var(--indigo)' },
+      legs: { label: 'Legs', icon: '🦵', desc: 'Quadriceps · Ischio · Fessiers', color: 'var(--teal)' },
+    },
+    defaults: {
+      push: [['Développé couché haltères',4],['Développé incliné haltères',3],['Développé militaire haltères',3],['Élévations latérales',3],['Extension triceps couché haltères',3]],
+      pull: [['Rowing haltère unilatéral',4],['Rowing haltères buste penché',3],['Pull-over haltère',3],['Oiseau (élévations arrière)',3],['Curl biceps haltères',3],['Curl marteau',3]],
+      legs: [['Squat gobelet',4],['Soulevé de terre roumain haltères',4],['Fentes bulgares',3],['Hip thrust haltère',3],['Mollets sur une marche',4]],
+    },
+  },
   custom: {
     name: 'Perso', desc: 'Séances personnalisées', icon: icon('pencil'),
     sessions: {}, defaults: {},

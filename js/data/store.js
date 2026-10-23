@@ -118,7 +118,8 @@ function makeDefaultData() {
     healthOn: false,   // app iOS : Apple Santé
     bodyWeightKg: null, // app iOS : poids de secours pour les calories
     musicOn: false,    // app iOS : Apple Music
-    exEquip: 'all',    // feuille d'ajout d'exercice : filtre de matériel (id d'EQUIPMENT ou 'all')
+    exEquip: 'all',
+    onboarded: false,  // question « Où t'entraînes-tu ? » répondue (ou « Plus tard »)    // feuille d'ajout d'exercice : filtre de matériel (id d'EQUIPMENT ou 'all')
     history: [],
     trash: [],          // { entry, deletedAt } : séances supprimées, récupérables TRASH_DAYS jours
   };
@@ -270,6 +271,7 @@ function normalizeData(d, rawJson = null) {
   d.musicOn  = d.musicOn === true;    // app iOS : Apple Music (désactivé par défaut)
   // Liste écrite en dur : muscles.js (EQUIPMENT) est chargé après ce fichier ; concordance vérifiée par les tests
   if (!EQUIP_IDS.includes(d.exEquip)) d.exEquip = 'all';
+  d.onboarded = d.onboarded === true;
   if (!Array.isArray(d.history)) d.history = [];
   sanitizeData(d);
 
@@ -326,7 +328,7 @@ function freshData() {
 }
 
 // Renvoie false si l'écriture échoue (stockage plein) ; quiet = pas de toast
-const EQUIP_IDS = ['all', 'aucun', 'halteres', 'barre', 'salle'];
+const EQUIP_IDS = ['all', 'aucun', 'halteres', 'barre', 'elastique', 'kettlebell', 'salle'];
 let dataBroken = false;
 function save(quiet = false) {
   if (dataBroken) return false;

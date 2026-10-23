@@ -135,6 +135,15 @@ function axCreateHtml(name) {
     ${icon('plus', 18)}<span class="ax__body"><span>Créer « ${esc(name)} »</span><span class="ax__sub">${esc(sub)}</span></span></button>`;
 }
 
+// Remplacer : la version plus facile ou plus dure du même mouvement, en un toucher
+function axProgressionHtml(name) {
+  const { easier, harder } = progressionOf(name);
+  if (!easier && !harder) return '';
+  const row = (n, lbl) => n ? `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}" aria-label="${lbl} : ${esc(n)}">
+      <span class="ax__body"><span class="ax__sub">${lbl}</span><span>${esc(n)}</span></span></button>` : '';
+  return `<div class="ax__list ax__prog">${row(easier, 'Plus facile')}${row(harder, 'Plus dur')}</div>`;
+}
+
 // Filtre de matériel : retenu d'une fois sur l'autre (data.exEquip), pour qui s'entraîne toujours au même endroit
 function axEquipHtml() {
   return `<div class="ax__equip" role="group" aria-label="Matériel">
@@ -156,7 +165,7 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
         <div class="ax__title">${rep ? 'Remplacer l\'exercice' : 'Ajouter un exercice'}</div>
         <span class="ax__spacer"></span>
       </div>
-      ${rep ? `<div class="ax__replacing">À la place de ${esc(rep.name)}</div>` : ''}
+      ${rep ? `<div class="ax__replacing">À la place de ${esc(rep.name)}</div>${axProgressionHtml(rep.name)}` : ''}
       <input type="search" id="axSearch" class="ax__search" placeholder="Rechercher ou créer" autocomplete="off"
              autocapitalize="sentences" enterkeyhint="done" aria-label="Rechercher un exercice">
       ${axEquipHtml()}

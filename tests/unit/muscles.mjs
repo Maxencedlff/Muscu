@@ -33,6 +33,14 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.equal(app.equipmentOf('Mon exercice inventé'), null);
   });
 
+  test('muscles : progressions (plus facile / plus dur) toutes dans la bibliothèque', () => {
+    run('PROGRESSIONS').flat().forEach(n => assert.equal(app.musclesOf(n).source, 'catalogue', n));
+    sameJSON(run(`progressionOf('Pompes')`), { easier: 'Pompes sur les genoux', harder: 'Pompes déclinées' });
+    sameJSON(run(`progressionOf('Pull-ups')`), { easier: 'Tractions avec élastique', harder: 'Tractions archer' }, 'par alias');
+    sameJSON(run(`progressionOf('Muscle-up')`), { easier: 'Tractions archer', harder: null });
+    sameJSON(run(`progressionOf('Curl marteau')`), { easier: null, harder: null });
+  });
+
   test('muscles : tous les exercices des programmes intégrés sont dans la bibliothèque', () => {
     const names = run(`Object.values(PROGRAMMES).flatMap(p => Object.values(p.defaults).flatMap(l => l.map(([n]) => n)))`);
     assert.ok(names.length > 20);

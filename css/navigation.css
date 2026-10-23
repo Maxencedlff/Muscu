@@ -199,6 +199,16 @@ body.light .hero__chip { background: color-mix(in srgb, var(--cell) 80%, transpa
 /* Cartes de l'accueil */
 .home-card { background: var(--cell); border-radius: var(--r-lg); padding: 14px 16px; margin-top: 12px; }
 .hero + .home-card { margin-top: 4px; }
+/* Premier lancement : « Où t'entraînes-tu ? » */
+.onboard { margin: 4px 0 16px; display: flex; flex-direction: column; gap: 8px; }
+.onboard__title { margin: 0; font-size: 1.176rem; font-weight: 700; color: var(--label); }
+.onboard__sub { margin: 0 0 4px; font-size: var(--fs-footnote); color: var(--label2); line-height: 1.35; }
+.onboard__btn {
+  min-height: 48px; padding: 0 16px; border: 0; border-radius: var(--r-md); cursor: pointer; text-align: left;
+  background: var(--fill2); color: var(--label); font: inherit; font-size: 1rem; font-weight: 600;
+}
+.onboard__btn:active { opacity: .6; }
+.onboard__later { align-self: center; min-height: 44px; padding: 0 16px; border: 0; background: none; color: var(--tint); font: inherit; font-size: 0.941rem; cursor: pointer; }
 .home-card__title {
   display: flex; justify-content: space-between; gap: 8px; margin: 0 0 4px; white-space: nowrap;
   font-size: 0.765rem; line-height: 1.059rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--label2);
