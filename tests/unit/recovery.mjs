@@ -61,4 +61,11 @@ export default function ({ test, run, reset, assert }) {
     assert.equal(run(`catStatus('legs').ready`), false, 'repli : délai de la séance elle-même');
     assert.equal(run(`catStatus('legs').by`), null);
   });
+
+  test('texte sur une couleur de séance : noir sur les couleurs claires, blanc sinon', () => {
+    for (const c of ['var(--orange)', 'var(--yellow)', 'var(--teal)', 'var(--green)', 'var(--purple)', '#FFD60A'])
+      assert.equal(run(`textOnColor(${JSON.stringify(c)})`), '#000', c);
+    for (const c of ['var(--indigo)', '#1C1C1E', 'var(--label2)', 'n\'importe quoi'])
+      assert.equal(run(`textOnColor(${JSON.stringify(c)})`), 'var(--white)', c);
+  });
 }

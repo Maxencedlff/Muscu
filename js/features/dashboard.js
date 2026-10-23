@@ -219,7 +219,7 @@ function weekCard(ws) {
     const today = i === ws.today;
     const label = `${WEEK_NAMES[i]}${today ? ', aujourd\'hui' : ''}${h ? ` : ${rawLabel(h.category, h.programme || 'ppl')}` : ''}`;
     const box = h
-      ? `<span class="week__box week__box--done" style="--cat-color:${historyColor(h)}">${esc(rawLabel(h.category, h.programme || 'ppl').charAt(0).toUpperCase())}</span>`
+      ? `<span class="week__box week__box--done" style="--cat-color:${historyColor(h)};color:${textOnColor(historyColor(h))}">${esc(rawLabel(h.category, h.programme || 'ppl').charAt(0).toUpperCase())}</span>`
       : `<span class="week__box${today ? ' week__box--today' : ''}"></span>`;
     return `<li class="week__day${today ? ' week__day--today' : ''}" aria-label="${esc(label)}"><span class="week__letter" aria-hidden="true">${l}</span>${box}</li>`;
   }).join('');
