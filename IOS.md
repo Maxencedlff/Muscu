@@ -281,6 +281,18 @@ des quatre secrets.
 3. Tester la build dans TestFlight sur un vrai iPhone.
 4. Dans App Store Connect : nouvelle version, sélectionner la build, « Soumettre pour vérification ».
 
+### Avant la première sortie publique (pas nécessaire pour TestFlight)
+
+Relevé du 23/10/2026 : le reste (HTTPS, aucune clé dans l'app, copie iCloud, confidentialité, pas de
+cookies ni de pistage, contrastes, écrans de 8 téléphones et des pliables) est déjà en ordre.
+
+- [ ] **Mentions légales** : page dans Réglages › À propos (éditeur, contact). Le contrat de licence
+      standard d'Apple tient lieu de CGU pour une app gratuite sans compte.
+- [ ] **VoiceOver** sur tous les écrans (seul l'accueil a été vérifié, par `verif_ui --ux`).
+- [ ] **Fiche App Store** (`store/FICHE_APP_STORE.md`) : relire description et mots-clés, refaire les
+      captures (`store/captures.py`), car l'app a beaucoup changé depuis (accueil, récupération par muscle,
+      exercices sans salle).
+
 ## Suite prévue
 
 | Objectif | Ce qu'il faut | Remarques |
