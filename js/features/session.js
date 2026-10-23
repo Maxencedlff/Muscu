@@ -314,8 +314,8 @@ function validateSet(ei, si) {
   s.done = true;
   activeSession.lastEi = ei;
   editingSet = null;
-  validationSound();
   haptic();
+  afterPaint(validationSound);   // la coche verte d'abord : le son natif active la session audio d'iOS (bloquant)
 
   const undo = carryWeightToNextSet(ex, si);
   const allDone = activeSession.exercises.every(e => e.sets.every(st => st.done));

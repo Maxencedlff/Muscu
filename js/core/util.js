@@ -107,6 +107,10 @@ function num(v, min, max, int = false) {
 }
 
 // Nom d'exercice comparable : minuscules, sans accents, espaces réduits
+// Exécute fn juste après le prochain affichage : un appel natif lent (son, Live Activity) ne retarde
+// jamais la réponse visible d'un toucher
+function afterPaint(fn) { requestAnimationFrame(() => setTimeout(fn, 0)); }
+
 function normName(name) {
   return String(name ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }

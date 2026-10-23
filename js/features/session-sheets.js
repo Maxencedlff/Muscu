@@ -258,6 +258,7 @@ async function exerciseMenu(ei) {
   const choice = await dialog({ type: 'sheet', title: ex.name, actions: [
     ...(ei > 0    ? [{ label: 'Monter', value: 'up' }] : []),
     ...(ei < last ? [{ label: 'Descendre', value: 'down' }] : []),
+    ...(exerciseMove(ex.name) ? [{ label: 'Comment faire', value: 'howto' }] : []),
     { label: 'Remplacer l\'exercice', value: 'replace' },
     { label: 'Régler le repos', value: 'rest' },
     { label: 'Muscles ciblés', value: 'muscles' },
@@ -272,6 +273,8 @@ async function exerciseMenu(ei) {
     [xs[ei], xs[to]] = [xs[to], xs[ei]];
     activeSession.lastEi = null;
     render();
+  } else if (choice === 'howto') {
+    navigate(makeRoute('library-ex', catalogueEntry(ex.name)?.name || ex.name));
   } else if (choice === 'replace') {
     openAddExSheet({ replaceEi: ei });
   } else if (choice === 'muscles') {

@@ -86,4 +86,17 @@ export default function ({ test, run, reset, assert }) {
     const h = run(`(() => { const h = { id: 'r1', date: Date.now(), category: 'push', exercises: [{ name: 'Tapis de course', measure: 'reps', sets: [{ weight: '', reps: '12' }] }] }; cleanHistoryEntry(h); return h; })()`);
     assert.equal(h.exercises[0].measure, 'reps', 'choix « Répétitions » gardé au nettoyage');
   });
+
+  test('comment faire : mouvements rattachés à la bibliothèque, consignes présentes', () => {
+    reset();
+    const names = run('Object.keys(EXERCISE_MOVES)');
+    assert.ok(names.length >= 3);
+    names.forEach(n => {
+      assert.equal(run(`catalogueEntry(${JSON.stringify(n)})?.name`), n, `${n} : absent de la bibliothèque`);
+      const m = run(`EXERCISE_MOVES[${JSON.stringify(n)}]`);
+      assert.ok(m.poses.length >= 2 && m.cues.length >= 3 && m.mistake, n);
+    });
+    assert.equal(run(`exerciseMove('Squat poids du corps')?.cues.length`), 4);
+    assert.equal(run(`exerciseMove('Curl marteau')`), null);
+  });
 }

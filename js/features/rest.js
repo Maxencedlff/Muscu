@@ -102,7 +102,7 @@ function updateRestUI() {
 function startRestCountdown() {
   restEndTime = Date.now() + restTimeLeft * 1000;
   resumeRestCountdown();
-  syncNativeRest();
+  afterPaint(syncNativeRest);    // notification et Live Activity après l'affichage de la feuille du repos
 }
 
 // App iOS : aligne sur le repos en cours tout ce qu'iOS affiche hors de l'app, à savoir la

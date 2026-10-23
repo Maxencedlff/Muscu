@@ -75,6 +75,7 @@ function renderLibraryEx(name) {
     <div class="view library-ex view--grouped">
       ${navBar({ title: e.name })}
       <div class="scr">
+        ${howToHtml(e.name)}
         <div class="group-title">Muscles</div>
         <div class="group">${exMusclesPanelHtml(m)}</div>
         <div class="group-foot">En couleur pleine les muscles principaux, atténués les secondaires.</div>
@@ -95,7 +96,7 @@ function renderLibraryEx(name) {
 }
 
 SCREENS.set('library', { render: () => renderLibrary() });
-SCREENS.set('library-ex', { render: name => renderLibraryEx(name) });
+SCREENS.set('library-ex', { render: name => renderLibraryEx(name), mount: () => mountHowTo() });
 
 // Recherche : seule la liste est redessinée (le champ garde le focus et le clavier)
 document.addEventListener('input', e => {

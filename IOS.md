@@ -299,4 +299,5 @@ cookies ni de pistage, contrastes, écrans de 8 téléphones et des pliables) es
 |---|---|---|
 | **Version payante** | Contrat « Paid Applications » + infos fiscales et bancaires (App Store Connect), Small Business Program (15 %) | Abonnement ou achat unique via StoreKit (RevenueCat simplifie la gestion des reçus) ; garder une partie gratuite |
 | **Notifications push** (rappels) | Clé APNs | Les rappels de séance peuvent rester en notifications locales, sans serveur |
+| **Courses dans l'historique** | Lecture des entraînements de course (et vélo) d'Apple Santé : autorisation HealthKit en lecture, nouvelle build | Pour les clients coureurs : séances de l'Apple Watch, Strava, Nike Run Club visibles et comptées pour la récupération des jambes ; afficher aussi l'allure (min/km) des exercices cardio |
 | **Mises à jour sans App Store** | Capacitor Live Updates (Appflow) ou équivalent | Seulement si les corrections web doivent arriver plus vite que la revue d'Apple |
