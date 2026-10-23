@@ -7,7 +7,7 @@
 // ni DOM : testé par tests/unit/run.mjs. Les textes sont déjà formatés (unité de l'utilisateur,
 // virgule française) et bruts : le canvas les écrit tels quels, l'aperçu les passe par esc().
 
-const SHARE_MAX_HIGHLIGHTS = 5;   // exercices mis en avant au plus (l'image en montre 3 à 5 selon la place)
+const SHARE_MAX_HIGHLIGHTS = 30;  // tous les exercices de la séance (l'image passe en lignes compactes s'il le faut)
 
 // Exercice mis en avant : record marquant, sinon meilleure série (« 32,5 kg × 8 », « 12 reps »)
 function shareExerciseRow(ex, base, index, bodyKg = null) {

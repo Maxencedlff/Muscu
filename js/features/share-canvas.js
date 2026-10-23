@@ -31,6 +31,8 @@ const STORY = {
   CARD_HEAD: 88,     // titre « EXERCICES » de la carte
   CARD_FOOT: 24,
   MORE: 60,          // ligne « + 2 autres exercices »
+  ROW_COMPACT: 64,   // ligne d'exercice sur une seule ligne (nom à gauche, série à droite), quand il y en a beaucoup
+  ROW_MIN: 44,       // en dessous, la police deviendrait illisible : les derniers passent dans « + N autres »
   TILES: 214,        // tuiles côte à côte (sans silhouette)
   TILES_MAP: 356,    // chiffres en colonne + silhouette
   CHIP: 76,          // pastille des records
@@ -226,19 +228,40 @@ function drawTilesWithMap(ctx, p, st, y, image) {
   drawMuscleMap(ctx, right + 24, y + 28, W - SIDE - right - 24 - 28, h - 56, image);
 }
 
-function highlightsHeight(rows, more) {
-  return rows ? STORY.CARD_HEAD + rows * STORY.ROW + (more ? STORY.MORE : 0) + STORY.CARD_FOOT : 0;
+function highlightsHeight(rows, more, rowH = STORY.ROW) {
+  return rows ? STORY.CARD_HEAD + rows * rowH + (more ? STORY.MORE : 0) + STORY.CARD_FOOT : 0;
 }
 
 // Carte des exercices clés : nom et « Meilleure série » (ou record, en or), valeur ferrée à droite
-function drawHighlights(ctx, p, st, y, rows, more) {
+// rowH < ROW : lignes compactes, nom et série sur une seule ligne, police proportionnée à la hauteur
+function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW) {
   const { SIDE, W, ROW, CARD_HEAD } = STORY, w = W - 2 * SIDE, padX = 44;
   const list = st.highlights.slice(0, rows);
-  drawCard(ctx, p, SIDE, y, w, highlightsHeight(rows, more));
+  drawCard(ctx, p, SIDE, y, w, highlightsHeight(rows, more, rowH));
   ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p); setTracking(ctx, 3);
   ctx.fillText('EXERCICES', SIDE + padX, y + 68); setTracking(ctx, 0);
 
-  list.forEach((r, i) => {
+  if (rowH < ROW) {
+    const size = Math.round(Math.min(40, rowH * 0.6)), base = Math.round(rowH * 0.66);
+    // Une seule taille pour tous les noms (la plus petite nécessaire) : la liste se lit d'un bloc
+    const nameSize = Math.min(...list.map(r => {
+      ctx.font = storyFont(700, size, true, p);
+      const nameW = w - 2 * padX - ctx.measureText(r.value).width - 28;
+      return fitSize(ctx, r.name, nameW, size, Math.max(24, size - 8), s2 => storyFont(600, s2, false, p));
+    }));
+    list.forEach((r, i) => {
+      const ry = y + CARD_HEAD + i * rowH;
+      if (i) { ctx.fillStyle = rgbaCss(p.sep); ctx.fillRect(SIDE + padX, ry, w - 2 * padX, 2); }
+      ctx.font = storyFont(700, size, true, p);
+      const vw = ctx.measureText(r.value).width;
+      ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label);
+      ctx.textAlign = 'right'; ctx.fillText(r.value, SIDE + w - padX, ry + base); ctx.textAlign = 'left';
+      const nameW = w - 2 * padX - vw - 28;
+      ctx.font = storyFont(600, nameSize, false, p);
+      ctx.fillStyle = rgbaCss(p.label);
+      ctx.fillText(fitText(ctx, r.name, nameW), SIDE + padX, ry + base);
+    });
+  } else list.forEach((r, i) => {
     const ry = y + CARD_HEAD + i * ROW;
     if (i) { ctx.fillStyle = rgbaCss(p.sep); ctx.fillRect(SIDE + padX, ry, w - 2 * padX, 2); }
     ctx.font = storyFont(700, 46, true, p);
@@ -264,7 +287,7 @@ function drawHighlights(ctx, p, st, y, rows, more) {
   if (more) {
     const hidden = st.highlights.length + st.others - list.length;
     ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(500, 30, false, p);
-    ctx.fillText(`+ ${plural(hidden, 'autre exercice', 'autres exercices')}`, SIDE + padX, y + CARD_HEAD + rows * ROW + 42);
+    ctx.fillText(`+ ${plural(hidden, 'autre exercice', 'autres exercices')}`, SIDE + padX, y + CARD_HEAD + rows * rowH + 42);
   }
 }
 
@@ -289,32 +312,52 @@ function drawSignature(ctx, p, icon, y) {
 
 // ── Mise en page ────────────────────────────────────────────
 
-// Hauteurs de chaque bloc, nombre d'exercices qui tiennent, puis bloc entier centré dans la zone
-// sûre : l'image reste équilibrée qu'elle ait 1 ou 12 exercices, avec ou sans silhouette.
+// Hauteurs de chaque bloc et place des exercices, puis bloc entier centré dans la zone sûre.
+// Tous les exercices doivent figurer : lignes complètes si elles tiennent, sinon lignes compactes,
+// sinon la silhouette laisse sa place aux chiffres en ligne, sinon lignes resserrées (ROW_MIN) ;
+// seulement au-delà, les derniers passent dans « + N autres exercices ».
 function storyLayout(ctx, p, st, hasMap) {
-  const { W, H, TOP, BOTTOM, SIDE, ROW } = STORY;
+  const { W, H, TOP, BOTTOM, SIDE, ROW, ROW_COMPACT, ROW_MIN } = STORY;
   const titleSize = fitSize(ctx, st.title, W - 2 * SIDE, 150, 96, s => storyFont(800, s, false, p));
-  const blocks = [
-    ['header', 52 + titleSize * 1.1, 36],
-    st.records ? ['chip', STORY.CHIP, 28] : null,
-    ['tiles', hasMap ? STORY.TILES_MAP : STORY.TILES, 32],
-    ['highlights', 0, 48],
-    ['signature', STORY.SIGNATURE, 0],
-  ].filter(Boolean);
-  const safe  = H - TOP - BOTTOM;
-  const fixed = blocks.reduce((a, [, h, gap]) => a + h + gap, 0);
-  const room  = safe - fixed - STORY.CARD_HEAD - STORY.CARD_FOOT;
-  let rows = Math.max(0, Math.min(st.highlights.length, Math.floor(room / ROW)));
+  const n = st.highlights.length;
+  const plan = map => {
+    const blocks = [
+      ['header', 52 + titleSize * 1.1, 36],
+      st.records ? ['chip', STORY.CHIP, 28] : null,
+      ['tiles', map ? STORY.TILES_MAP : STORY.TILES, 32],
+      ['highlights', 0, 48],
+      ['signature', STORY.SIGNATURE, 0],
+    ].filter(Boolean);
+    const room = H - TOP - BOTTOM - blocks.reduce((a, [, h, gap]) => a + h + gap, 0) - STORY.CARD_HEAD - STORY.CARD_FOOT;
+    return { blocks, room, map };
+  };
+  // Premier essai qui montre tout, dans l'ordre de préférence
+  const tries = [[hasMap, ROW], [hasMap, ROW_COMPACT], [false, ROW_COMPACT]];
+  let chosen = null;
+  for (const [map, rowH] of tries) {
+    if (map !== hasMap && map) continue;
+    const pl = plan(map);
+    if (n * rowH <= pl.room) { chosen = { ...pl, rowH, rows: n }; break; }
+  }
+  if (!chosen) {
+    const pl = plan(false);
+    const rowH = Math.max(ROW_MIN, Math.min(ROW_COMPACT, Math.floor(pl.room / Math.max(1, n))));
+    chosen = { ...pl, rowH, rows: Math.max(0, Math.min(n, Math.floor(pl.room / rowH))) };
+  }
+  const { blocks, room, rowH } = chosen;
+  let rows = chosen.rows;
   if (rows === 0) blocks.find(b => b[0] === 'highlights')[2] = 0;   // pas de carte : pas d'écart
-  const hidden = st.highlights.length + st.others - rows;
-  const more = rows > 0 && hidden > 0 && room - rows * ROW >= STORY.MORE;
-  blocks.find(b => b[0] === 'highlights')[1] = highlightsHeight(rows, more);
+  let hidden = n + st.others - rows;
+  // La ligne « + N autres » doit tenir : on retire une ligne d'exercice si besoin
+  if (rows > 0 && hidden > 0 && room - rows * rowH < STORY.MORE) { rows--; hidden++; }
+  const more = rows > 0 && hidden > 0;
+  blocks.find(b => b[0] === 'highlights')[1] = highlightsHeight(rows, more, rowH);
 
   const total = blocks.reduce((a, [, h, gap]) => a + h + gap, 0);
-  let y = TOP + Math.max(0, (safe - total) / 2);
+  let y = TOP + Math.max(0, (H - TOP - BOTTOM - total) / 2);
   const at = {};
   blocks.forEach(([name, h, gap]) => { at[name] = y; y += h + gap; });
-  return { at, titleSize, rows, more };
+  return { at, titleSize, rows, more, rowH, map: chosen.map };
 }
 
 // ── Image complète ──────────────────────────────────────────
@@ -324,14 +367,13 @@ function storyLayout(ctx, p, st, hasMap) {
 function drawStory(canvas, st, palette, assets = {}) {
   canvas.width = STORY.W; canvas.height = STORY.H;
   const ctx = canvas.getContext('2d'), p = palette;
-  const hasMap = !!assets.muscle?.width;
-  const { at, titleSize, rows, more } = storyLayout(ctx, p, st, hasMap);
+  const { at, titleSize, rows, more, rowH, map } = storyLayout(ctx, p, st, !!assets.muscle?.width);
   drawBackground(ctx, p);
   drawHeader(ctx, p, st, at.header, titleSize);
   if (st.records) drawRecordsChip(ctx, p, st, at.chip);
-  if (hasMap) drawTilesWithMap(ctx, p, st, at.tiles, assets.muscle);
+  if (map) drawTilesWithMap(ctx, p, st, at.tiles, assets.muscle);
   else drawTilesRow(ctx, p, st, at.tiles);
-  if (rows) drawHighlights(ctx, p, st, at.highlights, rows, more);
+  if (rows) drawHighlights(ctx, p, st, at.highlights, rows, more, rowH);
   drawSignature(ctx, p, assets.icon, at.signature);
   return canvas;
 }

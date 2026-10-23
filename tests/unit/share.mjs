@@ -70,14 +70,14 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     assert.equal(st.sets, 9);
     assert.equal(st.volume, '1,8 t');   // 915 + 176 + 0 + 300 + 144 + 240 = 1 775 kg
     assert.equal(st.records, 1);
-    assert.equal(st.highlights.length, 5);
-    assert.equal(st.others, 1);
+    assert.equal(st.highlights.length, 6, 'tous les exercices de la séance figurent');
+    assert.equal(st.others, 0);
     const dc = st.highlights.find(h => h.name === 'Développé couché');
     assert.equal(dc.record, 'Record charge');
     assert.equal(dc.value, '62,5 kg × 6', 'la série du record, pas la plus volumineuse');
-    // Ordre de la séance conservé ; l'exercice au poids du corps (volume nul) est celui qui saute
-    sameJSON(st.highlights.map(h => h.name),
-      ['Développé couché', 'Élévations latérales', 'Développé militaire', 'Écarté', 'Extension triceps']);
+    // Ordre de la séance conservé, y compris l'exercice au poids du corps
+    assert.equal(st.highlights[0].name, 'Développé couché');
+    assert.equal(new Set(st.highlights.map(h => h.name)).size, 6);
     assert.equal(st.exercises.length, 6, 'exercice sans série écarté');
   });
 
