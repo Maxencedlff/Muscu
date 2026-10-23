@@ -76,7 +76,7 @@ function renderEditor() {
         <div class="group-title">Exercices</div>
         <div class="group ed-list">
           ${rows || '<div class="cell"><span class="cell__sub">Aucun exercice pour l\'instant</span></div>'}
-          ${editorEditing ? '' : `<button class="cell cell--action" data-action="add-ex">${icon('plus', 20)}<span>Ajouter un exercice</span></button>`}
+          <button class="cell cell--action" data-action="add-ex">${icon('plus', 20)}<span>Ajouter un exercice</span></button>
         </div>
         <div class="group-title">Réglages de la séance</div>
         <div class="group">
