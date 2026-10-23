@@ -53,10 +53,10 @@ const EXERCISE_CATALOGUE = [
   ['Écarté poulie vis-à-vis',          'chest',                  'front_delts', 'salle', 'cable fly|crossover|écarté poulie'],
   ['Pec deck',                         'chest',                  'front_delts', 'salle', 'écarté machine|butterfly|peck deck'],
   ['Pompes',                           'chest',                  'front_delts triceps abs', 'aucun', 'push-up|push up'],
-  ['Dips',                             'chest triceps',          'front_delts', 'barre', 'dips lestés|barres parallèles'],
+  ['Dips',                             'chest triceps',          'front_delts', 'barre', 'barres parallèles'],
   // Dos
   ['Soulevé de terre',                 'glutes hamstrings lower_back', 'quads traps forearms', 'salle', 'deadlift|sdt'],
-  ['Tractions pronation',              'lats',                   'biceps rear_delts forearms', 'barre', 'pull-ups|pull up|traction|traction lestée|tractions lestées'],
+  ['Tractions pronation',              'lats',                   'biceps rear_delts forearms', 'barre', 'pull-ups|pull up|traction'],
   ['Tractions prise serrée',           'lats biceps',            'forearms', 'barre'],
   ['Tirage vertical prise large',      'lats',                   'biceps rear_delts', 'salle', 'tirage poitrine|lat pulldown|poulie haute|pulldown'],
   ['Tirage vertical prise serrée',     'lats',                   'biceps', 'salle'],

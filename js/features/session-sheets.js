@@ -117,9 +117,9 @@ function axListHtml(q) {
   // Recherche : le nom qui commence par le texte tapé d'abord, les correspondances avec une faute en dernier
   if (q.trim()) scored.sort((a, b) => b.score - a.score);
   const items = scored.map(x => x.n);
-  // Nom exact, ou alias d'un exercice proposé (« hip trust » est le Hip thrust) : pas de « Créer » en doublon
-  const alias = catalogueEntry(q)?.name;
-  const exact = items.some(n => normName(n) === nq || n === alias);
+  // « Créer » reste proposé (en dernier) dès que le nom exact n'existe pas : une variante comme
+  // « Tractions lestées » doit pouvoir avoir son propre suivi
+  const exact = items.some(n => normName(n) === nq);
   const guess = !exact && scored.length && scored[0].score === 1 ? '<div class="ax__hint">Tu voulais dire :</div>' : '';
   return guess + items.map(n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}"><span class="ax__body"><span>${esc(n)}</span>${exMusclesSubHtml({ name: n }, 'ax__sub')}</span></button>`).join('')
     + (q.trim() && !exact ? axCreateHtml(q.trim()) : '')
