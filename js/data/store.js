@@ -26,7 +26,9 @@ function recomputePRFromHistory(d = data) {
       sessions.forEach(session => {
         (session.exercises || []).forEach(histEx => {
           const exData = exercises.find(e => sameEx(e, histEx));
-          if (!exData) return;
+          // Records : répétitions seulement. Mesure lue sur l'entrée (toujours enregistrée hors répétitions) :
+          // ce calcul tourne au chargement, avant js/data/measures.js
+          if (!exData || histEx.measure === 'time' || histEx.measure === 'cardio') return;
           (histEx.sets || []).forEach(s => {
             const w  = parseFloat(s.weight) || 0;
             const r  = parseInt(s.reps)     || 0;
@@ -87,8 +89,10 @@ function resolveFreeExId(name, d = data) {
 function setsVolume(sets) {
   return (sets || []).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0);
 }
+// Volume d'un exercice : seulement en répétitions (un lest × des secondes n'est pas un tonnage)
+function exVolume(ex, sets = ex?.sets) { return measureOf(ex) === 'reps' ? setsVolume(sets) : 0; }
 function sessionVolume(exercises) {
-  return exercises.reduce((total, ex) => total + setsVolume(ex.sets), 0);
+  return exercises.reduce((total, ex) => total + exVolume(ex), 0);
 }
 
 function makeProgData(progId) {
@@ -133,7 +137,7 @@ const SESSION_CAT_RE = /^[A-Za-z0-9_-]{1,40}$/;
 const MUSCLE_ID_RE   = /^[a-z_]{1,24}$/;
 const MAX_MUSCLES    = 16;
 const MAX_LOAD_KG    = 1000;   // mêmes bornes que la saisie en séance
-const MAX_REPS       = 1000;
+const MAX_COUNT      = 4000;   // champ reps d'une série : répétitions, ou secondes d'un maintien (≤ 3600)
 const TRASH_DAYS     = 30;     // durée de vie d'une séance dans « Supprimés récemment »
 
 // Nettoie une donnée venue du stockage ou d'un import : retire ce qui ferait planter l'app,
@@ -163,6 +167,7 @@ function sanitizeData(d) {
           if (!Array.isArray(ex.muscles)) delete ex.muscles;
           else ex.muscles = [...new Set(ex.muscles.filter(m => typeof m === 'string' && MUSCLE_ID_RE.test(m)))].slice(0, MAX_MUSCLES);
         }
+        if (ex.measure != null && !['reps', 'time', 'cardio'].includes(ex.measure)) delete ex.measure;
         if (ex.musclesSecondary != null) {
           if (!Array.isArray(ex.musclesSecondary)) delete ex.musclesSecondary;
           else ex.musclesSecondary = [...new Set(ex.musclesSecondary.filter(m => typeof m === 'string' && MUSCLE_ID_RE.test(m)))].slice(0, MAX_MUSCLES);
@@ -243,10 +248,13 @@ function cleanHistoryEntry(h) {
   h.exercises = h.exercises.filter(ex => isObj(ex) && typeof ex.name === 'string');
   h.exercises.forEach(ex => {
     if (!Array.isArray(ex.sets)) ex.sets = [];
-    ex.sets = ex.sets.filter(st => isObj(st) && num(st.reps, 0, MAX_REPS, true) !== null);
+    ex.sets = ex.sets.filter(st => isObj(st) && num(st.reps, 0, MAX_COUNT, true) !== null);
+    // Mesure (js/data/measures.js) : absente = répétitions ; 'time' (secondes) ou 'cardio' (minutes, km)
+    if (ex.measure !== 'time' && ex.measure !== 'cardio') delete ex.measure;
     ex.sets.forEach(st => {
-      st.reps = String(num(st.reps, 0, MAX_REPS, true));
+      st.reps = String(num(st.reps, 0, MAX_COUNT, true) ?? 0);
       if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';
+      if (st.dist != null) { const km = num(st.dist, 0, 500); if (km === null || km === 0) delete st.dist; else st.dist = String(km); }
     });
     // Charge aberrante (ex. 1e308) : série écartée plutôt que comptée en tonnes
     ex.sets = ex.sets.filter(st => st.weight === '' || num(st.weight, 0, MAX_LOAD_KG) !== null);
@@ -328,7 +336,7 @@ function freshData() {
 }
 
 // Renvoie false si l'écriture échoue (stockage plein) ; quiet = pas de toast
-const EQUIP_IDS = ['all', 'aucun', 'halteres', 'barre', 'elastique', 'kettlebell', 'salle'];
+const EQUIP_IDS = ['all', 'aucun', 'halteres', 'barre', 'elastique', 'kettlebell', 'cardio', 'salle'];
 let dataBroken = false;
 function save(quiet = false) {
   if (dataBroken) return false;

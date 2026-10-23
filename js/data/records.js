@@ -46,6 +46,7 @@ function historyBaseline(entry, history) {
     && (h.programme || 'ppl') === prog && h.category === entry.category);
   const baseline = {};
   (entry.exercises || []).forEach(ex => {
+    if (measureOf(ex) !== 'reps') return;
     let prW = 0, prR = 0, e1rm = 0, seen = false;
     before.forEach(h => (h.exercises || []).forEach(he => {
       if (!sameEx(he, ex)) return;

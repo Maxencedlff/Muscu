@@ -126,6 +126,7 @@ const MUSCLE_RULES = [
   [/swing|arrache|snatch|epaule jete|\bclean\b/,                               'glutes hamstrings', 'lower_back traps'],
   [/hip thrust|pont fessier|glute|fessier|kickback (jambe|fess|cable)|abduct|reverse hyper|clamshell|coquillage|marche laterale|monster walk/, 'glutes', 'hamstrings'],
   [/adduct/,                                                                              'adductors', ''],
+  [/course|courir|footing|jogging|running|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation|ergometre|jumping jack/, 'quads calves', 'glutes'],
   [/mollet|calf|calves|soleaire|cheville/,                                                'calves', ''],
   [/extension (quadri|des jambes|jambes?)|leg extension|quadri/,                          'quads', ''],
   [/squat|presse|leg press|fente|lunge|step ?up|chaise (contre le|au) mur|wall sit|\bhack\b|bulgare|montee|thruster|pistol|pendulum/, 'quads glutes', 'adductors'],

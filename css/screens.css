@@ -301,7 +301,12 @@ html.type-xl .chart-bubble { white-space: normal; }
 }
 
 /* Dynamic Type très grand (classe posée par l'app au-delà de 1,3 rem) : chaque série sur 2 lignes */
-html.type-xl .sets__head { display: none; }
+/* En-tête réduit aux deux colonnes saisies (kg / Reps, Lest / Sec., km / Min) : sans lui on ne sait plus quoi taper */
+html.type-xl .sets__head { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "w r check"; padding: 0 6px 4px; }
+html.type-xl .sets__head > :nth-child(-n+2) { display: none; }
+html.type-xl .sets__head > :nth-child(3) { grid-area: w; }
+html.type-xl .sets__head > :nth-child(4) { grid-area: r; }
+html.type-xl .sets__head > :nth-child(5) { grid-area: check; visibility: hidden; min-width: 44px; }
 html.type-xl .session-set {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "n prev check" "w r check";
   row-gap: 6px; padding: 8px 6px;

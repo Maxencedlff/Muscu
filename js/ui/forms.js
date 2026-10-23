@@ -13,6 +13,14 @@ function flagInvalid(input, msg) {
   showToast(msg);
 }
 
+// Distance (cardio) : '' accepté, sinon 0 à MAX_DIST_KM km, virgule ou point
+function distOk(raw) { return String(raw ?? '').trim() === '' || num(raw, 0, MAX_DIST_KM) !== null; }
+function distMsg() { return `Distance entre 0 et ${MAX_DIST_KM} km`; }
+function setDist(s, raw) {
+  const km = String(raw ?? '').trim() === '' ? null : num(raw, 0, MAX_DIST_KM);
+  if (km) s.dist = String(km); else delete s.dist;
+}
+
 function weightMsg() {
   return `Poids entre 0 et ${data.unit === 'lbs' ? '2205' : '1000'} ${unitLbl()}`;
 }

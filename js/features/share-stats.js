@@ -15,9 +15,9 @@ function shareExerciseRow(ex, base, index) {
   const best = rec ? bestSet([rec.s]) : bestSet(ex.sets);
   return {
     index, name: ex.name, exId: ex.exId || null,
-    value:  best ? setTxt(best) : '',
+    value:  best ? setTxt(best, measureOf(ex)) : '',
     record: rec ? rec.label : null,
-    volume: setsVolume(ex.sets),
+    volume: exVolume(ex),
   };
 }
 

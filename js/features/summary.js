@@ -28,12 +28,12 @@ function buildSummary(entry, baseline) {
   const records = [], rows = [];
   entry.exercises.forEach(ex => {
     const pex = prevH?.exercises.find(e => sameEx(e, ex));
-    cur  += setsVolume(ex.sets);
-    prev += setsVolume(pex?.sets.slice(0, ex.sets.length) || []);
+    cur  += exVolume(ex);
+    prev += pex ? exVolume(pex, pex.sets.slice(0, ex.sets.length)) : 0;
     const rec = exerciseRecord(ex, baseline[ex.exId]);
     if (rec) records.push({ name: ex.name, label: rec.label, weight: rec.s.weight, reps: rec.s.reps });
     const b = summaryBestSet(ex.sets), pb = summaryBestSet(pex?.sets);
-    rows.push({ name: ex.name, weight: b.s.weight, reps: b.s.reps, trend: bestSetTrend(b, pb) });
+    rows.push({ name: ex.name, weight: b.s.weight, reps: b.s.reps, dist: b.s.dist, measure: measureOf(ex), trend: bestSetTrend(b, pb) });
   });
   return {
     id: entry.id, programme: entry.programme, category: entry.category, date: entry.date,
@@ -51,7 +51,9 @@ const TREND_HTML = {
 const NO_TREND_HTML = '<span class="sum-trend" aria-hidden="true"></span>';
 
 // « 32,5 kg × 10 » (reps seules au poids du corps)
-function summarySetTxt(r) { return `${loadTimes(r.weight)}${esc(r.reps)}`; }
+function summarySetTxt(r) {
+  return r.measure && r.measure !== 'reps' ? esc(measureSetTxt(r, r.measure)) : `${loadTimes(r.weight)}${esc(r.reps)}`;
+}
 
 // Volume : écart avec la dernière séance du même type, rien s'il n'y en a pas ou s'il est nul
 function summaryDeltaHtml(delta) {
@@ -177,7 +179,8 @@ function sessionHistoryEntry(sp, sc) {
       .map(ex => ({
         exId: ex.exId || resolveExId(sp, sc, ex.name),
         name: ex.name,
-        sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps })),
+        ...(measureOf(ex) !== 'reps' ? { measure: measureOf(ex) } : {}),
+        sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}) })),
       }))
       .filter(ex => ex.sets.length),
   };

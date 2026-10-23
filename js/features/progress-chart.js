@@ -10,8 +10,10 @@ function metricOf(p, bw) {
   if (statsMode === '1rm')    return bw ? p.maxReps : toUnitW(p.best1RM || p.maxLoad);
   return bw ? p.totalReps : toUnitW(p.volume);
 }
+// Unité des courbes sans charge : reps, secondes (maintiens) ou minutes (cardio) ; posée à l'ouverture de l'exercice
+let chartUnit = 'reps';
 function fmtMetricVal(v, bw) {
-  if (bw) return `${Math.round(v)} reps`;
+  if (bw) return `${Math.round(v)} ${chartUnit}`;
   if (statsMode === 'volume') return fmtVolume(data.unit === 'lbs' ? v / KG_TO_LBS : v);
   return `${statsMode === '1rm' ? '~' : ''}${fmtNum(Math.round(v * 10) / 10)} ${unitLbl()}`;
 }
@@ -24,6 +26,7 @@ function renderStatsExercise(exId) {
       <div class="scr"><div class="empty-note">Aucune donnée pour cet exercice.</div></div></div>`;
   }
   const bw     = isBodyweight(it);
+  chartUnit    = it.unit || 'reps';
   const pts    = it.points;
   const sec    = exSection(it);
   const color  = sec.cat ? sessionMeta(sec.cat, sec.prog).color : sessionMeta(it.cat, it.prog).color;
@@ -51,7 +54,7 @@ function renderStatsExercise(exId) {
   const sessions = pts.slice().reverse().map(p => `
       <button class="cell cell--nav" data-action="open-history" data-id="${esc(p.hid)}">
         <span class="cell__body"><span class="cell__title cell__title--reg">${fmtDate(p.date)}</span></span>
-        <span class="cell__value num">${bw ? `${p.sets.map(s => parseInt(s.reps)).join(' · ')} reps` : setTxt(p.best)}</span>
+        <span class="cell__value num">${bw ? `${p.sets.map(s => parseInt(s.reps)).join(' · ')} ${chartUnit}` : setTxt(p.best)}</span>
         ${icon('chevron.right', 16)}
       </button>`).join('');
 
@@ -221,8 +224,8 @@ function chartSelect(clientX) {
   const p = st.points[best];
   const b = box.querySelector('.chart-bubble');
   const date = fmtDate(p.date, 'short');
-  const set  = st.bw ? `${p.maxReps} reps` : `${fmtW(p.best.weight)} ${unitLbl()} × ${p.best.r}`;
-  b.textContent = `${date} · ${set} · ${st.bw ? p.totalReps + ' reps' : fmtVolume(p.volume)}`;
+  const set  = st.bw ? `${p.maxReps} ${chartUnit}` : `${fmtW(p.best.weight)} ${unitLbl()} × ${p.best.r}`;
+  b.textContent = `${date} · ${set} · ${st.bw ? `${p.totalReps} ${chartUnit}` : fmtVolume(p.volume)}`;
   b.dataset.i = best;
   b.hidden = false;
   const bx = st.geom.xp(best);

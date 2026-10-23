@@ -16,6 +16,7 @@ const EQUIPMENT = [
   { id: 'barre',    label: 'Tractions et dips' },
   { id: 'elastique', label: 'Élastiques' },
   { id: 'kettlebell', label: 'Kettlebell' },
+  { id: 'cardio',   label: 'Cardio' },
   { id: 'salle',    label: 'Salle' },
 ];
 const EXERCISE_CATALOGUE = [
@@ -172,6 +173,15 @@ const EXERCISE_CATALOGUE = [
   ['Halo kettlebell',                  'front_delts side_delts', 'traps abs',   'kettlebell'],
   ['Thruster kettlebell',              'quads front_delts',      'glutes triceps', 'kettlebell'],
   ['Développé épaule kettlebell',      'front_delts side_delts', 'triceps',     'kettlebell'],
+  // Cardio : durée et distance (js/data/measures.js)
+  ['Course à pied',                    'quads calves',           'hamstrings glutes', 'cardio', 'running|footing|jogging|courir'],
+  ['Tapis de course',                  'quads calves',           'hamstrings glutes', 'cardio', 'tapis'],
+  ['Vélo',                             'quads',                  'calves glutes', 'cardio', 'vélo d\'appartement|bike|spinning'],
+  ['Rameur',                           'lats quads',             'biceps hamstrings glutes', 'cardio', 'ergomètre|rowing ergo'],
+  ['Vélo elliptique',                  'quads glutes',           'hamstrings',  'cardio', 'elliptique'],
+  ['Corde à sauter',                   'calves quads',           '',            'cardio', 'jump rope'],
+  ['Marche rapide',                    'quads calves',           'glutes',      'cardio', 'marche'],
+  ['Jumping jacks',                    'calves quads',           'side_delts',  'aucun', 'jumping jack'],
   // Salle : variantes courantes (smith, machines, poulies)
   ['Good morning',                     'hamstrings glutes',      'lower_back',  'salle'],
   ['Soulevé de terre sumo',            'glutes quads',           'hamstrings adductors lower_back', 'salle', 'sdt sumo|sumo deadlift'],

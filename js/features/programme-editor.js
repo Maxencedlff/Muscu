@@ -24,8 +24,8 @@ function exDraftFor(route) {
   const i  = editExIdxOf(route);
   const ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
   exDraft = ex
-    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex) }
-    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, muscles: null, musclesSecondary: null };
+    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, measure: ex.measure ?? null, muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex) }
+    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, measure: null, muscles: null, musclesSecondary: null };
   return exDraft;
 }
 
@@ -44,7 +44,7 @@ function renderEditor() {
   const rows = list.map((ex, i) => {
     const last = lastPerf(data.activeProgramme, cat, ex);
     const best = last ? bestSet(last.ex.sets) : null;
-    const sub  = `${plural(ex.sets, 'série', 'séries')}${best ? ` · dernier ${setTxt(best)}` : ''}`;
+    const sub  = `${plural(ex.sets, 'série', 'séries')}${best ? ` · dernier ${setTxt(best, measureOf(ex))}` : ''}`;
     if (editorEditing) {
       return `
         <div class="cell ed-row ed-row--edit" data-i="${i}">
@@ -107,6 +107,18 @@ function renderEditor() {
 }
 
 // Programme › Exercice : nom, séries, repos, objectif, haut de fourchette
+// Mesure des séries (js/data/measures.js) : choisie à la main, sinon d'après le nom
+function exMeasureBtns(d) {
+  const cur = measureOf({ name: d.name, measure: d.measure });
+  return Object.entries(MEASURES).map(([k, M]) =>
+    `<button class="segmented__btn ${cur === k ? 'segmented__btn--active' : ''}" aria-pressed="${cur === k}" data-action="ex-measure" data-m="${k}">${M.label}</button>`).join('');
+}
+function applyDraftMeasure(ex, draft) {
+  if (draft?.measure && MEASURES[draft.measure]) ex.measure = draft.measure; else delete ex.measure;
+  // Séance en cours : l'exercice suit le nouveau choix tout de suite
+  if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) e.measure = measureOf(ex); });
+}
+
 function renderExEdit() {
   const editExIdx = editExIdxOf();
   const isEdit = editExIdx !== null;
@@ -151,6 +163,15 @@ function renderExEdit() {
             </div>
           </div>
         </div>
+        <div class="group-title">Mesure</div>
+        <div class="group">
+          <div class="cell cell--ctl cell--wrap">
+            <div class="segmented seg-full" role="group" aria-label="Mesure des séries" id="exMeasure">
+              ${exMeasureBtns(d)}
+            </div>
+          </div>
+        </div>
+        <div class="group-foot">Durée pour les maintiens (gainage, chaise), cardio pour la distance et les minutes. Choisie d'après le nom si tu n'y touches pas.</div>
         <div class="group-title">Progression</div>
         <div class="group">
           <label class="cell cell--ctl">
@@ -211,6 +232,16 @@ function setDraftRest(e, el, action) {
     b.classList.toggle('segmented__btn--active', on); b.setAttribute('aria-pressed', on);
   });
 }
+
+registerActions({
+  'ex-measure': (e, el) => {
+    if (!exDraft || !MEASURES[el.dataset.m]) return;
+    exDraft.measure = el.dataset.m;
+    const box = $('#exMeasure');
+    if (box) box.innerHTML = exMeasureBtns(exDraft);
+    haptic();
+  },
+});
 
 registerActions({
   'go-editor': (e, el) => {
@@ -296,6 +327,7 @@ registerActions({
       ex.target = target;
       ex.rest   = rest;
       ex.repMax = repMax;
+      applyDraftMeasure(ex, exDraft);
       applyDraftMuscles(ex, exDraft);
     } else {
       const ex = makeExercise(name, sets);
@@ -305,6 +337,7 @@ registerActions({
       ex.target = target;
       ex.rest   = rest;
       ex.repMax = repMax;
+      applyDraftMeasure(ex, exDraft);
       applyDraftMuscles(ex, exDraft);
       list.push(ex);
       recomputePRFromHistory();

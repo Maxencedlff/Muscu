@@ -202,12 +202,13 @@ function bestSet(sets) {
   (sets || []).forEach(s => {
     const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
     if (r <= 0) return;
-    if (!best || w > best.w || (w === best.w && r > best.r)) best = { w, r, weight: s.weight, reps: s.reps };
+    if (!best || w > best.w || (w === best.w && r > best.r)) best = { w, r, weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}) };
   });
   return best;
 }
-// « 32,5 kg × 8 », ou « 8 reps » au poids du corps
-function setTxt(b) {
+// « 32,5 kg × 8 », ou « 8 reps » au poids du corps ; « 45 s », « 5 km · 30 min » selon la mesure
+function setTxt(b, measure = 'reps') {
   if (!b) return '';
+  if (measure !== 'reps') return measureSetTxt(b, measure);
   return b.w > 0 ? `${fmtW(b.weight)} ${unitLbl()} × ${b.r}` : `${b.r} reps`;
 }

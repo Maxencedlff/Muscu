@@ -100,10 +100,11 @@ function refreshHistoryList() {
   if (el) el.innerHTML = historyListHTML();
 }
 
-// Séries d'un exercice : poids mis en facteur s'il ne change pas
-function setsLine(sets) {
+// Séries d'un exercice : poids mis en facteur s'il ne change pas ; durée ou cardio série par série
+function setsLine(sets, measure = 'reps') {
   const ok = (sets || []).filter(s => String(s.reps ?? '') !== '');
   if (!ok.length) return '—';
+  if (measure !== 'reps') return ok.map(s => esc(measureSetTxt(s, measure))).join(' · ');
   const ws = ok.map(s => parseFloat(s.weight) || 0);
   if (ws.every(w => w === 0)) return `${ok.map(s => esc(s.reps)).join(' · ')} reps`;
   if (ws.every(w => w === ws[0])) return `${fmtW(ok[0].weight)} ${unitLbl()} × ${ok.map(s => esc(s.reps)).join(' · ')}`;
@@ -141,7 +142,7 @@ function renderHistoryDetail(id) {
             <div class="cell hex">
               <span class="cell__body">
                 <span class="hex__name">${esc(e.name)}</span>
-                <span class="hex__sets num">${setsLine(e.sets)}</span>
+                <span class="hex__sets num">${setsLine(e.sets, measureOf(e))}</span>
               </span>
             </div>`).join('')}
         </div>

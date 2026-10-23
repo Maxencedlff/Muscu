@@ -28,6 +28,7 @@ const SCRIPTS = [
   'js/data/trash.js',
   'js/data/muscles.js',
   'js/data/exercise-catalogue.js',
+  'js/data/measures.js',
   'js/data/muscle-load.js',
   'js/data/app-icons.js',
   'js/ui/forms.js',
@@ -1251,6 +1252,10 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 // ── Récupération par muscle (tests dans recovery.mjs) ──────
 
 (await import('./recovery.mjs')).default({ test, app, run, reset, assert });
+
+// ── Mesures : répétitions, durée, cardio (tests dans measures.mjs) ──
+
+(await import('./measures.mjs')).default({ test, app, run, reset, assert });
 
 // ── Exécution ───────────────────────────────────────────────
 

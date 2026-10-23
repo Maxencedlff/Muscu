@@ -24,7 +24,7 @@ function computeBaseline(sess) {
   const list = data.programmes[sess.programme]?.exercises?.[sess.category] || [];
   sess.exercises.forEach(ex => {
     const exData = ex.exId && list.find(e => e.id === ex.exId);
-    if (!exData) return;
+    if (!exData || measureOf(ex) !== 'reps') return;   // durée, cardio : pas de record de charge ni de reps
     baseline[ex.exId] = {
       prW:  parseFloat(exData.pr?.weight) || 0,
       prR:  parseInt(exData.pr?.reps)     || 0,

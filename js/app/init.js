@@ -27,6 +27,7 @@ document.addEventListener('input', e => {
     if (!isNaN(ei) && !isNaN(si)) {
       if (action === 'set-weight') activeSession.exercises[ei].sets[si].weight = storeW(e.target.value);
       if (action === 'set-reps')   activeSession.exercises[ei].sets[si].reps   = e.target.value;
+      if (action === 'set-dist')   setDist(activeSession.exercises[ei].sets[si], e.target.value);
     }
   }
 

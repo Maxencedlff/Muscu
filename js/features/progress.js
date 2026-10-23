@@ -11,7 +11,8 @@ function exPoint(h, e) {
   const sets = (e.sets || []).filter(s => (parseInt(s.reps) || 0) > 0);
   if (!sets.length) return null;
   const wts = sets.map(s => parseFloat(s.weight) || 0);
-  const hasWeight = wts.some(w => w > 0);
+  // Durée et cardio se suivent comme le poids du corps : sur le champ reps (secondes, minutes)
+  const hasWeight = measureOf(e) === 'reps' && wts.some(w => w > 0);
   const totalReps = sets.reduce((a, s) => a + (parseInt(s.reps) || 0), 0);
   const volume    = hasWeight ? setsVolume(sets) : totalReps;
   const maxLoad   = hasWeight ? Math.max(...wts) : 0;
@@ -30,7 +31,7 @@ function exerciseIndex() {
     if (!p) return;
     let it = map.get(key);
     if (!it) { it = { exId: key, name: e.name, points: [], cat: h.category, prog: h.programme || 'ppl' }; map.set(key, it); }
-    it.name = e.name; it.cat = h.category; it.prog = h.programme || 'ppl';
+    it.name = e.name; it.unit = MEASURES[measureOf(e)].unit; it.cat = h.category; it.prog = h.programme || 'ppl';
     it.points.push(p);
   }));
   return map;
@@ -125,7 +126,7 @@ function statsRow(it) {
       <button class="cell cell--nav prow" data-action="open-stats-ex" data-ex="${esc(it.exId)}">
         <span class="cell__body">
           <span class="cell__title prow__name">${esc(it.name)}</span>
-          <span class="cell__sub num">${bw ? `${last.maxReps} reps` : setTxt(last.best)}</span>
+          <span class="cell__sub num">${bw ? `${last.maxReps} ${it.unit || 'reps'}` : setTxt(last.best)}</span>
         </span>
         <span class="prow__spark ${cls}">${sparkline(vals.slice(-12))}</span>
         <span class="prow__trend num ${cls}">${tp === null ? '' : pctTxt(tp)}</span>

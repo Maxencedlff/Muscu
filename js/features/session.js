@@ -12,8 +12,9 @@ function plannedSet(src, prev) {
   return {
     weight: src?.weight ?? '',
     reps:   src?.reps   ?? '',
+    ...(src?.dist ? { dist: src.dist } : {}),
     plannedWeight: src?.weight ?? '',
-    prev:   prev ? { weight: prev.weight, reps: prev.reps } : null,
+    prev:   prev ? { weight: prev.weight, reps: prev.reps, ...(prev.dist ? { dist: prev.dist } : {}) } : null,
     done:   false,
   };
 }
@@ -37,7 +38,7 @@ function startSession(cat) {
     category:  cat,
     programme: progKey,
     startedAt: Date.now(),
-    exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
+    exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
   };
   activeSession.baseline = computeBaseline(activeSession);
   persistSession();
@@ -106,12 +107,13 @@ function nextSetText() {
   const cur = currentSet();
   if (!cur) return '';
   const ex = activeSession.exercises[cur.ei], s = ex.sets[cur.si];
-  return `${ex.name} · S${cur.si + 1}${s.reps !== '' ? ` · ${loadTimes(s.weight)}${s.reps}` : ''}`;
+  const m = measureOf(ex);
+  return `${ex.name} · S${cur.si + 1}${s.reps !== '' ? ` · ${m !== 'reps' ? measureSetTxt(s, m) : loadTimes(s.weight) + s.reps}` : ''}`;
 }
 
 // Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette
 function bumpReady(ex) {
-  if (ex.bumped || ex.sets.every(s => s.done)) return false;
+  if (ex.bumped || ex.sets.every(s => s.done) || measureOf(ex) !== 'reps') return false;
   const prevs = ex.sets.map(s => s.prev).filter(Boolean);
   if (!prevs.length || prevs.length < Math.min(ex.sets.length, 2)) return false;
   const repMax = sessExData(ex)?.repMax ?? 12;
@@ -120,6 +122,8 @@ function bumpReady(ex) {
 
 // Ligne repliée d'un exercice terminé : « 4 × 8 · 32,5 kg » (reps différentes : « 10/10/9/8 »)
 function doneSummary(ex) {
+  const m = measureOf(ex);
+  if (m !== 'reps') return ex.sets.map(s => measureSetTxt(s, m)).join(' · ');
   const reps = ex.sets.map(s => String(s.reps));
   const same = reps.every(r => r === reps[0]);
   const maxW = Math.max(0, ...ex.sets.map(s => parseFloat(s.weight) || 0));
@@ -172,6 +176,7 @@ function renderCollapsedExercise(ex, ei, records) {
 // Volume comparé au même nombre de séries que la dernière fois : jamais rouge en cours de séance.
 // Seule une hausse s'affiche, en gris tant que l'exercice n'est pas fini, en vert ensuite.
 function exVolumeHtml(ex, allDone) {
+  if (measureOf(ex) !== 'reps') return '';
   const prevSets = lastPerf(activeSession.programme, activeSession.category, ex)?.ex.sets || [];
   const doneSets = ex.sets.filter(s => s.done);
   const curVol   = setsVolume(doneSets);
@@ -183,7 +188,7 @@ function exVolumeHtml(ex, allDone) {
 
 // Sous-titre de la carte : record, repos de l'exercice (modifiable), hausse de volume
 function exSubHtml(ex, ei, allDone) {
-  const pr   = sessExData(ex)?.pr;
+  const pr   = measureOf(ex) === 'reps' ? sessExData(ex)?.pr : null;
   const rest = fmtRest(exRest(ex));
   return `${pr ? `<span class="num">Record ${fmtW(pr.weight, { plain: true })} × ${esc(pr.reps)}</span> · ` : ''}<button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${ei}" aria-label="Repos ${rest}, modifier">Repos ${rest}</button>${exVolumeHtml(ex, allDone)}`;
 }
@@ -215,7 +220,7 @@ function renderExerciseCard(ex, ei, cur) {
       <div class="sets" role="table" aria-label="Séries de ${esc(ex.name)}">
         <div class="sets__head" role="row">
           <span role="columnheader">Série</span><span role="columnheader">Préc.</span>
-          <span role="columnheader">${unitLbl()}</span><span role="columnheader">Reps</span>
+          <span role="columnheader">${MEASURES[measureOf(ex)].load()}</span><span role="columnheader">${MEASURES[measureOf(ex)].count}</span>
           <span role="columnheader" aria-label="Validée">${icon('checkmark', 14)}</span>
         </div>
         ${rows}
@@ -226,16 +231,18 @@ function renderExerciseCard(ex, ei, cur) {
 
 // Série validée : ligne en lecture seule, rouverte en édition au tap
 function renderDoneSetRow(ex, ei, s, si, prev, del) {
-  const record = recordLabel(s, (activeSession.baseline || {})[ex.exId]);
-  const load   = s.weight !== '' ? fmtW(s.weight, { plain: true }) + (data.unit === 'lbs' ? ' livres' : ' kilos') + ', ' : '';
+  const m      = measureOf(ex), M = MEASURES[m];
+  const record = m === 'reps' ? recordLabel(s, (activeSession.baseline || {})[ex.exId]) : '';
+  const first  = setFirstValue(s, m);
+  const load   = first ? `${first} ${m === 'cardio' ? 'kilomètres' : data.unit === 'lbs' ? 'livres' : 'kilos'}, ` : '';
   return `
       <div class="set-swipe" role="row">
         ${del}
         <div class="session-set session-set--done" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"
-             aria-label="Série ${si + 1} validée, ${load}${esc(s.reps)} répétitions, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
+             aria-label="Série ${si + 1} validée, ${load}${esc(s.reps)} ${M.spoken}, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
           <span class="set-n num">${si + 1}</span>
           <span class="set-prev num">${prev}</span>
-          <span class="set-val num">${s.weight !== '' ? fmtW(s.weight, { plain: true }) : '—'}</span>
+          <span class="set-val num">${first || '—'}</span>
           <span class="set-val num">${esc(s.reps)}</span>
           <span class="set-check-zone"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
           ${record ? `<span class="set-badge"><span class="pr-badge">${record}</span></span>` : ''}
@@ -243,8 +250,16 @@ function renderDoneSetRow(ex, ei, s, si, prev, del) {
       </div>`;
 }
 
+// Valeur de la première colonne : charge (ou lest) dans l'unité de l'app, distance en km pour le cardio
+function setFirstValue(s, m) {
+  if (m === 'cardio') return parseFloat(s?.dist) > 0 ? fmtNum(s.dist) : '';
+  return hasLoad(s?.weight) ? fmtW(s.weight, { plain: true }) : '';
+}
+
 function renderSetRow(ex, ei, s, si, cur) {
-  const prev    = s.prev ? `${hasLoad(s.prev.weight) ? fmtW(s.prev.weight, { plain: true }) + '&nbsp;× ' : ''}${esc(s.prev.reps)}` : '—';
+  const m       = measureOf(ex), M = MEASURES[m];
+  const prevF   = setFirstValue(s.prev, m);
+  const prev    = s.prev ? `${prevF ? prevF + '&nbsp;× ' : ''}${esc(s.prev.reps)}` : '—';
   const editing = editingSet && editingSet.ei === ei && editingSet.si === si;
   const del     = `<button class="set-del" data-action="delete-set" data-ei="${ei}" data-si="${si}" tabindex="-1" aria-label="Supprimer la série ${si + 1}">Supprimer</button>`;
 
@@ -252,11 +267,11 @@ function renderSetRow(ex, ei, s, si, cur) {
 
   const isCur = !editing && cur && cur.ei === ei && cur.si === si;
   // Série rouverte : la saisie en cours (editingSet) prime, sinon un re-rendu la remettrait à l'ancienne valeur
-  const wVal = editing && editingSet.weight !== undefined ? editingSet.weight : fmtW(s.weight, { plain: true });
+  const wVal = editing && editingSet.weight !== undefined ? editingSet.weight : (m === 'cardio' ? (s.dist ? fmtNum(s.dist) : '') : fmtW(s.weight, { plain: true }));
   const rVal = editing && editingSet.reps   !== undefined ? editingSet.reps   : s.reps;
-  const prevW = hasLoad(s.prev?.weight) ? fmtW(s.prev.weight, { plain: true }) : '';
+  const prevW = prevF;
   // Série validée rouverte : mêmes champs, enregistrés par le ✓
-  const wAttr = editing ? 'id="editSetWeight"' : `data-action="set-weight" data-ei="${ei}" data-si="${si}"`;
+  const wAttr = editing ? 'id="editSetWeight"' : `data-action="${m === 'cardio' ? 'set-dist' : 'set-weight'}" data-ei="${ei}" data-si="${si}"`;
   const rAttr = editing ? 'id="editSetReps"'   : `data-action="set-reps" data-ei="${ei}" data-si="${si}"`;
   const check = editing
     ? `<button class="set-check-zone" data-action="save-edit-set" aria-label="Enregistrer la série ${si + 1}, ${esc(ex.name)}"><span class="set-check set-check--edit">${icon('checkmark', 18)}</span></button>`
@@ -268,9 +283,9 @@ function renderSetRow(ex, ei, s, si, cur) {
         <span class="set-n num">${si + 1}</span>
         <span class="set-prev num">${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
-               value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="Charge série ${si + 1}, ${esc(ex.name)}, en ${unitLbl()}">
+               value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${m === 'cardio' ? 'Distance' : m === 'time' ? 'Lest' : 'Charge'} série ${si + 1}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
-               value="${esc(rVal)}" placeholder="${esc(s.prev?.reps ?? '0')}" aria-label="Répétitions série ${si + 1}, ${esc(ex.name)}">
+               value="${esc(rVal)}" placeholder="${esc(s.prev?.reps ?? '0')}" aria-label="${m === 'reps' ? 'Répétitions' : `Durée en ${M.spoken}`} série ${si + 1}, ${esc(ex.name)}">
         ${check}
       </div>
     </div>`;
@@ -283,9 +298,10 @@ function validateSet(ei, si) {
   const s   = ex?.sets[si];
   if (!s || s.done) return;
   const rIn = document.querySelector(`[data-action="set-reps"][data-ei="${ei}"][data-si="${si}"]`);
-  const wIn = document.querySelector(`[data-action="set-weight"][data-ei="${ei}"][data-si="${si}"]`);
-  if (wIn && !weightOk(wIn.value)) { flagInvalid(wIn, weightMsg()); return; }
-  if (num(s.reps, 1, 100, true) === null) { flagInvalid(rIn, 'Reps entre 1 et 100'); return; }
+  const m   = measureOf(ex);
+  const wIn = document.querySelector(`[data-action="${m === 'cardio' ? 'set-dist' : 'set-weight'}"][data-ei="${ei}"][data-si="${si}"]`);
+  if (m === 'cardio' ? !distOk(wIn?.value) : (wIn && !weightOk(wIn.value))) { flagInvalid(wIn, m === 'cardio' ? distMsg() : weightMsg()); return; }
+  if (num(s.reps, 1, MEASURES[m].max, true) === null) { flagInvalid(rIn, MEASURES[m].msg); return; }
   s.reps = String(parseInt(s.reps));
 
   s.done = true;
@@ -358,12 +374,13 @@ function saveEditedSet() {
   if (!s) { editingSet = null; render(); return true; }
   // Valeurs : la saisie gardée (editingSet), sinon les champs, sinon la série telle quelle
   const wIn = $('#editSetWeight'), rIn = $('#editSetReps');
-  const wRaw = editingSet.weight ?? wIn?.value ?? fmtW(s.weight, { plain: true });
   const rRaw = editingSet.reps   ?? rIn?.value ?? s.reps;
-  if (!weightOk(wRaw)) { flagInvalid(wIn, weightMsg()); return false; }
-  const reps = num(rRaw, 1, 100, true);
-  if (reps === null) { flagInvalid(rIn, 'Reps entre 1 et 100'); return false; }
-  s.weight = storeW(wRaw ?? '');
+  const m = measureOf(activeSession.exercises[ei]);
+  const firstRaw = editingSet.weight ?? wIn?.value ?? (m === 'cardio' ? (s.dist ? fmtNum(s.dist) : '') : fmtW(s.weight, { plain: true }));
+  if (m === 'cardio' ? !distOk(firstRaw) : !weightOk(firstRaw)) { flagInvalid(wIn, m === 'cardio' ? distMsg() : weightMsg()); return false; }
+  const reps = num(rRaw, 1, MEASURES[m].max, true);
+  if (reps === null) { flagInvalid(rIn, MEASURES[m].msg); return false; }
+  if (m === 'cardio') setDist(s, firstRaw); else s.weight = storeW(firstRaw ?? '');
   s.reps   = String(reps);
   editingSet = null;
   document.activeElement?.blur?.();

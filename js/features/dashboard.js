@@ -138,6 +138,8 @@ function exerciseTarget(cat, ex) {
   const sets = lp.ex.sets.filter(s => (parseInt(s.reps) || 0) > 0);
   const best = bestSet(sets);
   if (!best) return { text: `${ex.sets} série${ex.sets > 1 ? 's' : ''}`, gain: '' };
+  const m = measureOf(ex);
+  if (m !== 'reps') return { text: setTxt(best, m), gain: '' };   // durée, cardio : on rappelle la dernière fois
   const repMax = ex.repMax ?? 12;
   const bump = best.w > 0 && sets.length >= Math.min(ex.sets, 2) && sets.every(s => (parseInt(s.reps) || 0) >= repMax);
   if (bump) {
