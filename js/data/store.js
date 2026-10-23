@@ -162,6 +162,10 @@ function sanitizeData(d) {
           if (!Array.isArray(ex.muscles)) delete ex.muscles;
           else ex.muscles = [...new Set(ex.muscles.filter(m => typeof m === 'string' && MUSCLE_ID_RE.test(m)))].slice(0, MAX_MUSCLES);
         }
+        if (ex.musclesSecondary != null) {
+          if (!Array.isArray(ex.musclesSecondary)) delete ex.musclesSecondary;
+          else ex.musclesSecondary = [...new Set(ex.musclesSecondary.filter(m => typeof m === 'string' && MUSCLE_ID_RE.test(m)))].slice(0, MAX_MUSCLES);
+        }
       });
     });
     Object.keys(p.timers).forEach(cat => { if (p.timers[cat] != null && !Number.isFinite(p.timers[cat])) p.timers[cat] = null; });
@@ -200,11 +204,14 @@ function sanitizeData(d) {
   });
   // Muscles déclarés par l'utilisateur pour un exercice, par nom normalisé (tous programmes,
   // séances libres et historique) : { nom: [identifiants] }
-  if (!isObj(d.exerciseMuscles)) delete d.exerciseMuscles;
-  else Object.keys(d.exerciseMuscles).forEach(k => {
-    const v = d.exerciseMuscles[k];
-    const list = Array.isArray(v) ? [...new Set(v.filter(m => typeof m === 'string' && MUSCLE_ID_RE.test(m)))].slice(0, MAX_MUSCLES) : [];
-    if (!k || k.length > 80 || !list.length) delete d.exerciseMuscles[k]; else d.exerciseMuscles[k] = list;
+  // exerciseMusclesSecondary : même forme, muscles secondaires (une demi-série chacun)
+  ['exerciseMuscles', 'exerciseMusclesSecondary'].forEach(field => {
+    if (!isObj(d[field])) { delete d[field]; return; }
+    Object.keys(d[field]).forEach(k => {
+      const v = d[field][k];
+      const list = Array.isArray(v) ? [...new Set(v.filter(m => typeof m === 'string' && MUSCLE_ID_RE.test(m)))].slice(0, MAX_MUSCLES) : [];
+      if (!k || k.length > 80 || !list.length) delete d[field][k]; else d[field][k] = list;
+    });
   });
   const okProg = id => PROGRAMMES[id] || (d.userProgrammes[id] && !d.userProgrammes[id].archived);
   if (!okProg(d.activeProgramme)) d.activeProgramme = 'ppl';

@@ -82,6 +82,23 @@ function summaryRowsHtml(rows) {
             </div>`).join('');
 }
 
+// Exercices de la séance dont l'app ne connaît pas les muscles : choisis ici plutôt qu'en pleine série
+function summaryUnknownMusclesHtml(h) {
+  const index = chosenMusclesIndex();
+  const names = [...new Map((h?.exercises || []).filter(e => !exerciseMuscles(e, index).primary.length)
+    .map(e => [normName(e.name), e.name])).values()];
+  if (!names.length) return '';
+  return `
+        <div class="sum-section-title">Muscles à choisir</div>
+        <div class="sum-list">
+          ${names.map(n => `
+            <button class="sum-row sum-row--action" data-action="declare-muscles" data-name="${esc(n)}">
+              <div class="sum-row__main"><div class="sum-row__name">${esc(n)}</div><div class="sum-row__sub">Pour la récupération et Progrès</div></div>
+              <span class="sum-row__cta">Choisir</span>
+            </button>`).join('')}
+        </div>`;
+}
+
 function renderSummary() {
   const sm = lastSummary;
   if (!sm) return renderDashboard();
@@ -106,6 +123,7 @@ function renderSummary() {
         <div class="sum-list">
           ${summaryRowsHtml(sm.rows)}
         </div>
+        ${summaryUnknownMusclesHtml(h)}
         <div class="sum-section-title">Notes</div>
         <textarea id="summaryNotes" class="sum-notes" rows="3" placeholder="Comment s'est passée la séance ?"
                   aria-label="Notes de séance">${esc(h?.notes || '')}</textarea>

@@ -42,32 +42,62 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
   test('muscles : la bibliothèque et les règles concordent sur le muscle principal', () => {
     // Garde-fou : une règle trop large (ex. « press ») ne doit pas contredire la bibliothèque
     run('EXERCISE_CATALOGUE').forEach(e => {
-      const rule = run('MUSCLE_RULES').find(([re]) => re.test(app.normName(e.name)));
+      const rule = run('MUSCLE_RULES').find(([re]) => re.test(app.ruleKey(e.name)));
       assert.ok(rule, `${e.name} : aucune règle ne le reconnaît`);
       assert.ok(rule[1].some(id => e.primary.includes(id)), `${e.name} : règle ${rule[0]} → ${rule[1]}`);
     });
+  });
+
+  test('muscles : noms et abréviations d\'habitués de salle', () => {
+    const cases = {
+      'Close grip bench': 'triceps', 'Military press': 'front_delts', 'Push press': 'front_delts',
+      'Z press': 'front_delts', 'Landmine press': 'front_delts', 'JM press': 'triceps', 'Tate press': 'triceps',
+      'Pallof press': 'abs', 'Hammer strength chest press': 'chest', 'Rowing machine hammer': 'lats',
+      'Pec deck inversé': 'rear_delts', 'Butterfly inversé': 'rear_delts', 'Glute ham raise': 'hamstrings',
+      'Développé incliné smith': 'front_delts', 'DC': 'chest', 'DC incliné smith': 'front_delts', 'DM assis': 'front_delts',
+      'SDT sumo': 'glutes', 'Dév couché haltères': 'chest', 'Hack': 'quads', 'Bulgare': 'quads',
+      'Face-pull corde': 'rear_delts', 'Pull-down unilatéral': 'lats', 'Cable crossover': 'chest',
+      'Leg ext': 'quads', 'Rack pull': 'glutes', 'Hex bar deadlift': 'glutes', 'GHR': 'hamstrings',
+      'Reverse hyper': 'glutes', 'Ab wheel à genoux': 'abs', 'Pompes pieds surélevés': 'chest', 'Relevés de jambes suspendu': 'abs', 'Kettlebell swing': 'glutes', 'Y raise': 'side_delts',
+    };
+    for (const [name, main] of Object.entries(cases)) assert.ok(app.musclesOf(name).primary.includes(main), `${name} → ${app.musclesOf(name).primary}`);
+    // Écartés : pas de triceps en secondaire
+    assert.ok(!app.musclesOf('Écarté poulie haute').secondary.includes('triceps'));
+  });
+
+  test('muscles : alias, recherche par mots et noms proches', () => {
+    assert.equal(app.musclesOf('Pull-ups').source, 'catalogue');
+    assert.equal(app.equipmentOf('Russian twist'), 'aucun');
+    assert.ok(app.exerciseMatches('Développé incliné haltères', 'incliné dév'));
+    assert.ok(app.exerciseMatches('Développé couché barre', 'dc'));
+    assert.ok(app.exerciseMatches('Curl marteau', 'biceps'));
+    assert.ok(app.exerciseMatches('Hip thrust', 'poussée hanche'));
+    assert.ok(!app.exerciseMatches('Curl marteau', 'squat'));
+    const sim = run(`similarExercises('Pompes genoux').map(e => e.name)`);
+    assert.ok(sim.length && sim.every(n => /Pompes/.test(n)), sim.join(', '));
+    assert.equal(run(`similarExercises('zzz').length`), 0);
   });
 
   test('muscles : reconnaissance des noms saisis librement', () => {
     const cases = {
       'Curl haltères incliné prise supination': 'biceps',
       'Leg curl assis': 'hamstrings',
-      'Nordic curl': 'hamstrings',
+      'Nordic curl assisté': 'hamstrings',
       'Curl marteau corde': 'biceps',
       'Squat bulgare': 'quads',
       'Fentes arrière': 'quads',
-      'Bench press': 'chest',
+      'Bench press haltères': 'chest',
       'Pompes prise large': 'chest',
       'Lat pulldown': 'lats',
       'Tractions lestées': 'lats',
       'Rowing poulie basse': 'lats',
-      'Deadlift': 'glutes',
+      'Deadlift sumo': 'glutes',
       'Soulevé de terre jambes tendues': 'hamstrings',
       'Développé militaire assis': 'front_delts',
       'Développé couché prise serrée barre': 'triceps',
       'Extension triceps nuque haltère': 'triceps',
       'Barre au front EZ': 'triceps',
-      'Tirage menton': 'side_delts',
+      'Tirage menton barre EZ': 'side_delts',
       'Élévations latérales assis': 'side_delts',
       'Oiseau à la poulie': 'rear_delts',
       'Face pull corde': 'rear_delts',

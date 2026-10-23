@@ -54,6 +54,12 @@ body.light .mpick { background: var(--cell); }
 .mpick__row:active { background: var(--fill2); }
 .mpick__row .icon { color: var(--tint); visibility: hidden; }
 .mpick__row[aria-checked="true"] .icon { visibility: visible; }
+/* Secondaire : libellé gris à la place de la coche */
+.mpick__state { display: none; margin-left: auto; font-size: var(--fs-footnote); color: var(--label2); }
+.mpick__row[aria-checked="mixed"] .mpick__state { display: inline; }
+.mpick__row[aria-checked="mixed"] .icon { display: none; }
+.mpick__like { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 16px 12px; }
+.mpick__like-title { width: 100%; font-size: var(--fs-footnote); color: var(--label2); }
 .mpick__auto {
   display: block; width: 100%; min-height: 44px; margin-top: 20px; border: 0; border-radius: var(--r-md);
   background: var(--cell2); color: var(--tint); font-size: var(--fs-body); cursor: pointer;

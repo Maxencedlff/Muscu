@@ -110,12 +110,22 @@ let axSets = 3;
 function axListHtml(q) {
   const nq    = normName(q);
   const eq    = data.exEquip;
-  const items = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && (!nq || normName(n).includes(nq))
-    && (eq === 'all' || equipmentOf(n) === eq)).slice(0, 60);
+  // Toute la bibliothèque (pas de coupure : un exercice ne doit jamais être introuvable sans le chercher)
+  const items = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && exerciseMatches(n, q)
+    && (eq === 'all' || equipmentOf(n) === eq));
   const exact = items.some(n => normName(n) === nq);
   return items.map(n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}"><span class="ax__body"><span>${esc(n)}</span>${exMusclesSubHtml({ name: n }, 'ax__sub')}</span></button>`).join('')
-    + (q.trim() && !exact ? `<button class="ax__item ax__item--create" data-action="ax-pick" data-name="${esc(q.trim())}">${icon('plus', 18)} Créer « ${esc(q.trim())} »</button>` : '')
+    + (q.trim() && !exact ? axCreateHtml(q.trim()) : '')
     + (!items.length && !q.trim() ? '<div class="ax__empty">Aucun exercice</div>' : '');
+}
+
+// Ligne « Créer » : les muscles devinés d'après le nom sont annoncés, le tap qui crée les valide.
+// Nom non reconnu : en séance, rien ne s'ouvre (choix proposé au bilan) ; ailleurs, la feuille des muscles suit.
+function axCreateHtml(name) {
+  const line = musclesLine(musclesOf(name));
+  const sub  = line ? `${line} · devinés` : (ax.target === 'session' ? 'Muscles à choisir au bilan' : 'Muscles à choisir ensuite');
+  return `<button class="ax__item ax__item--create" data-action="ax-pick" data-name="${esc(name)}" aria-label="Créer ${esc(name)}, ${esc(sub)}">
+    ${icon('plus', 18)}<span class="ax__body"><span>Créer « ${esc(name)} »</span><span class="ax__sub">${esc(sub)}</span></span></button>`;
 }
 
 // Filtre de matériel : retenu d'une fois sur l'autre (data.exEquip), pour qui s'entraîne toujours au même endroit
@@ -170,7 +180,8 @@ function axPick(name) {
   if (ax.target === 'programme') addExerciseToEditedSession(name);
   else if (ax.target === 'past') ax.onPick?.(name, axSets);
   else pickExercise(name);
-  askMusclesIfUnknown(name);
+  // En séance, pas de feuille par-dessus : les exercices sans muscles sont proposés au bilan
+  if (ax.target !== 'session') askMusclesIfUnknown(name);
 }
 
 // Programme › Séance : l'exercice rejoint le programme ; ses réglages se font ensuite dans Programme › Exercice

@@ -45,13 +45,16 @@ function exMusclesPanelHtml(m) {
 
 // Le brouillon garde le choix de l'utilisateur (null : reconnaissance par le nom)
 function draftMuscles(ex) { return chosenMuscles(ex); }
+function draftSecondary(ex) { return chosenMuscles(ex) ? chosenSecondary(ex) : []; }
 function applyDraftMuscles(ex, draft) {
   const list = chosenMuscles(draft);
   if (list) ex.muscles = list; else delete ex.muscles;
+  const sec = list ? chosenSecondary(draft, list) : [];
+  if (sec.length) ex.musclesSecondary = sec; else delete ex.musclesSecondary;
 }
 
 function exEditMusclesHtml(d) {
-  const m = exerciseMuscles({ name: d.name, muscles: d.muscles });
+  const m = exerciseMuscles({ name: d.name, muscles: d.muscles, musclesSecondary: d.musclesSecondary });
   const foot = m.source === 'user' ? 'Muscles choisis par toi.'
     : m.source === 'none' ? (d.name.trim() ? 'Nom non reconnu : choisis les muscles travaillés.' : 'Reconnus d\'après le nom de l\'exercice.')
     : 'Reconnus d\'après le nom de l\'exercice.';
@@ -74,32 +77,47 @@ function refreshExEditMuscles() {
   if (box && exDraft) box.innerHTML = exEditMusclesHtml(exDraft);
 }
 
-// Feuille de choix : liste à cocher (role="checkbox" + aria-checked, WAI-ARIA), coche à droite comme
-// les listes de choix iOS (Apple HIG, « Lists and tables ») ; « Automatique » revient au nom
-// Renvoie { list } (muscles cochés), { auto: true } (« Automatique ») ou null (annulé)
-async function pickMusclesSheet({ title = 'Muscles ciblés', current = [], intro = '', cancel, auto = true } = {}) {
-  const on = new Set(current);
-  const rows = MUSCLES.map(({ id, label }) => `
-    <button class="mpick__row" role="checkbox" aria-checked="${on.has(id)}" data-action="toggle-muscle" data-muscle="${id}">
-      <span>${label}</span>${icon('checkmark', 18)}
-    </button>`).join('');
+// Feuille de choix : case à trois états (WAI-ARIA, aria-checked true / mixed / false). Un toucher :
+// principal (coche) ; deux : secondaire (compte pour une demi-série) ; trois : retiré. Les muscles devinés
+// arrivent déjà cochés ; « Ressemble à » reprend en un toucher ceux d'un exercice proche de la bibliothèque.
+// Renvoie { list, secondary }, { auto: true } (« Automatique ») ou null (annulé)
+const MPICK_STATE = { primary: 'true', secondary: 'mixed', none: 'false' };
+function mpickRowsHtml(primary, secondary) {
+  return MUSCLES.map(({ id, label }) => {
+    const st = primary.includes(id) ? 'primary' : secondary.includes(id) ? 'secondary' : 'none';
+    return `
+    <button class="mpick__row" role="checkbox" aria-checked="${MPICK_STATE[st]}" data-action="toggle-muscle" data-muscle="${id}">
+      <span>${label}</span><span class="mpick__state">Secondaire</span>${icon('checkmark', 18)}
+    </button>`;
+  }).join('');
+}
+async function pickMusclesSheet({ title = 'Muscles ciblés', current = [], currentSecondary = [], intro = '', cancel, auto = true, like = [] } = {}) {
+  const likeHtml = like.length ? `
+    <div class="mpick__like" role="group" aria-label="Ressemble à">
+      <span class="mpick__like-title">Ressemble à</span>
+      ${like.map(e => `<button class="ax__chip" data-action="muscles-like" data-name="${esc(e.name)}">${esc(e.name)}</button>`).join('')}
+    </div>` : '';
   return sheet({ title, ...(cancel ? { cancel } : {}), body: `
     ${intro ? `<p class="mpick__intro">${intro}</p>` : ''}
-    <div class="mpick" role="group" aria-label="${esc(title)}">${rows}</div>
+    ${likeHtml}
+    <div class="mpick" role="group" aria-label="${esc(title)}">${mpickRowsHtml(current, currentSecondary)}</div>
     ${auto ? '<button class="mpick__auto" data-action="muscles-auto">Revenir à la reconnaissance automatique</button>' : ''}
-    <p class="mpick__foot">Les muscles choisis comptent comme principaux dans Progrès et pour la récupération.</p>`,
+    <p class="mpick__foot">Un toucher : muscle principal. Deux : secondaire, compté pour une demi-série. Trois : retiré.</p>`,
     onConfirm: panel => {
       if (panel.dataset.auto === '1') return { auto: true };
-      return { list: [...panel.querySelectorAll('.mpick__row[aria-checked="true"]')].map(b => b.dataset.muscle) };
+      const pick = v => [...panel.querySelectorAll(`.mpick__row[aria-checked="${v}"]`)].map(b => b.dataset.muscle);
+      return { list: pick('true'), secondary: pick('mixed') };
     } });
 }
 
 async function pickExMuscles() {
   if (!exDraft) return;
-  const m = exerciseMuscles({ name: exDraft.name, muscles: exDraft.muscles });
-  const res = await pickMusclesSheet({ current: m.primary });
+  const m = exerciseMuscles({ name: exDraft.name, muscles: exDraft.muscles, musclesSecondary: exDraft.musclesSecondary });
+  const res = await pickMusclesSheet({ current: m.primary, currentSecondary: m.secondary, like: m.primary.length ? [] : similarExercises(exDraft.name) });
   if (!res || !exDraft) return;
-  exDraft.muscles = res.auto || !res.list.length ? null : res.list;
+  const none = res.auto || !res.list.length;
+  exDraft.muscles = none ? null : res.list;
+  exDraft.musclesSecondary = none ? null : res.secondary;
   refreshExEditMuscles();
 }
 
@@ -107,12 +125,13 @@ async function pickExMuscles() {
 // ask : proposé juste après l'ajout d'un exercice inconnu (« Plus tard » pour passer). Renvoie true si changé.
 async function declareMusclesFor(name, { ask = false } = {}) {
   const m = exerciseMuscles({ name });
+  const like = m.primary.length ? [] : similarExercises(name);
   const res = await pickMusclesSheet({
     title: ask ? 'Quels muscles ?' : 'Muscles ciblés',
     intro: ask ? `L'app ne reconnaît pas « ${esc(name)} ». Choisis ce qu'il travaille pour la récupération et Progrès.` : esc(name),
-    current: m.primary, cancel: ask ? 'Plus tard' : undefined, auto: !ask && m.source === 'user' });
+    current: m.primary, currentSecondary: m.secondary, like, cancel: ask ? 'Plus tard' : undefined, auto: !ask && m.source === 'user' });
   if (!res) return false;
-  setDeclaredMuscles(name, res.auto ? null : res.list);
+  setDeclaredMuscles(name, res.auto ? null : { primary: res.list, secondary: res.secondary });
   save();
   return true;
 }
@@ -258,7 +277,17 @@ registerActions({
   // Progrès : exercice sans muscles, ou muscles d'un exercice hors programme
   'declare-muscles': async (e, el) => { if (await declareMusclesFor(el.dataset.name)) render(); },
   'toggle-muscle': (e, el) => {
-    el.setAttribute('aria-checked', String(el.getAttribute('aria-checked') !== 'true'));
+    const next = { false: 'true', true: 'mixed', mixed: 'false' };
+    el.setAttribute('aria-checked', next[el.getAttribute('aria-checked')] || 'true');
+    haptic();
+  },
+  // « Ressemble à » : reprend les muscles (principaux et secondaires) de l'exercice touché
+  'muscles-like': (e, el) => {
+    const m = musclesOf(el.dataset.name);
+    el.closest('.sheet')?.querySelectorAll('.mpick__row').forEach(b => {
+      const id = b.dataset.muscle;
+      b.setAttribute('aria-checked', m.primary.includes(id) ? 'true' : m.secondary.includes(id) ? 'mixed' : 'false');
+    });
     haptic();
   },
   'muscles-auto': (e, el) => {

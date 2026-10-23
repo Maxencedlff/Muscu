@@ -68,4 +68,16 @@ export default function ({ test, run, reset, assert }) {
     for (const c of ['var(--indigo)', '#1C1C1E', 'var(--label2)', 'n\'importe quoi'])
       assert.equal(run(`textOnColor(${JSON.stringify(c)})`), 'var(--white)', c);
   });
+
+  test('muscles déclarés : principaux et secondaires (demi-série), ancien format lisible', () => {
+    reset();
+    run(`setDeclaredMuscles('Truc maison', { primary: ['chest', 'triceps'], secondary: ['triceps', 'front_delts'] })`);
+    const m = run(`exerciseMuscles({ name: 'Truc maison' })`);
+    assert.deepEqual([...m.primary], ['chest', 'triceps']);
+    assert.deepEqual([...m.secondary], ['front_delts'], 'un principal n\'est jamais aussi secondaire');
+    run(`setDeclaredMuscles('Truc maison', ['abs'])`);
+    assert.deepEqual([...run(`exerciseMuscles({ name: 'Truc maison' })`).secondary], [], 'liste seule : secondaires effacés');
+    run(`setDeclaredMuscles('Truc maison', null)`);
+    assert.equal(run(`data.exerciseMusclesSecondary`), undefined);
+  });
 }

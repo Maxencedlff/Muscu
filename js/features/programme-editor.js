@@ -24,8 +24,8 @@ function exDraftFor(route) {
   const i  = editExIdxOf(route);
   const ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
   exDraft = ex
-    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, muscles: draftMuscles(ex) }
-    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, muscles: null };
+    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex) }
+    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, muscles: null, musclesSecondary: null };
   return exDraft;
 }
 
