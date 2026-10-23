@@ -30,6 +30,7 @@ const SCRIPTS = [
   'js/data/exercise-catalogue.js',
   'js/data/measures.js',
   'js/data/exercise-moves.js',
+  'js/data/exercise-howto.js',
   'js/data/muscle-load.js',
   'js/data/app-icons.js',
   'js/ui/forms.js',

@@ -76,21 +76,21 @@ function workingSegments(name) {
   return new Set(Object.entries(SEG_MUSCLES).filter(([, ids]) => ids.some(id => primary.includes(id))).map(([seg]) => seg));
 }
 
-// Carte « Comment faire » : animation (ou deux positions superposées si les animations sont réduites),
-// consignes et erreur fréquente ; '' si l'exercice n'a pas encore de mouvement
+// Carte « Comment faire » : animation si le mouvement est prêt (ou deux positions superposées quand les
+// animations sont réduites), puis consignes et erreur fréquente ; '' si l'exercice n'en a pas
 function howToHtml(name) {
-  const move = exerciseMove(name);
-  if (!move) return '';
-  const working = workingSegments(name);
+  const how = exerciseHowTo(name), move = exerciseMove(name);
+  if (!how && !move) return '';
+  const working = move ? workingSegments(name) : null;
   return `
     <div class="group-title">Comment faire</div>
     <div class="group howto">
-      <svg class="howto__anim" viewBox="${moveViewBox(move)}" role="img" aria-label="Animation du mouvement : ${esc(name)}" data-move="${esc(name)}">
+      ${move ? `<svg class="howto__anim" viewBox="${moveViewBox(move)}" role="img" aria-label="Animation du mouvement : ${esc(name)}" data-move="${esc(name)}">
         <g class="mv-ghost">${moveSvgInner(move, movePose(move, 1), working)}</g>
         <g class="mv-live">${moveSvgInner(move, movePose(move, 0), working)}</g>
-      </svg>
-      <ol class="howto__cues">${move.cues.map(c => `<li>${esc(c)}</li>`).join('')}</ol>
-      <p class="howto__mistake"><strong>Erreur fréquente :</strong> ${esc(move.mistake)}</p>
+      </svg>` : ''}
+      ${how ? `<ol class="howto__cues">${how.cues.map(c => `<li>${esc(c)}</li>`).join('')}</ol>
+      <p class="howto__mistake"><strong>Erreur fréquente :</strong> ${esc(how.mistake)}</p>` : ''}
     </div>`;
 }
 

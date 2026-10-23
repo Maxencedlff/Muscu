@@ -87,16 +87,18 @@ export default function ({ test, run, reset, assert }) {
     assert.equal(h.exercises[0].measure, 'reps', 'choix « Répétitions » gardé au nettoyage');
   });
 
-  test('comment faire : mouvements rattachés à la bibliothèque, consignes présentes', () => {
+  test('comment faire : consignes de tous les exercices des programmes, rattachées à la bibliothèque', () => {
     reset();
-    const names = run('Object.keys(EXERCISE_MOVES)');
-    assert.ok(names.length >= 3);
-    names.forEach(n => {
+    run('Object.keys(EXERCISE_HOWTO)').forEach(n => {
       assert.equal(run(`catalogueEntry(${JSON.stringify(n)})?.name`), n, `${n} : absent de la bibliothèque`);
-      const m = run(`EXERCISE_MOVES[${JSON.stringify(n)}]`);
-      assert.ok(m.poses.length >= 2 && m.cues.length >= 3 && m.mistake, n);
+      const h = run(`exerciseHowTo(${JSON.stringify(n)})`);
+      assert.ok(h.cues.length >= 3 && h.mistake, n);
     });
-    assert.equal(run(`exerciseMove('Squat poids du corps')?.cues.length`), 4);
-    assert.equal(run(`exerciseMove('Curl marteau')`), null);
+    const progNames = run(`[...new Set(Object.values(PROGRAMMES).flatMap(p => Object.values(p.defaults).flatMap(l => l.map(([n]) => n))))]`);
+    progNames.forEach(n => assert.ok(run(`exerciseHowTo(${JSON.stringify(n)})`), `${n} : pas de consignes`));
+    assert.ok(run(`exerciseHowTo('Pull-ups')`), 'par alias');
+    run('Object.keys(EXERCISE_MOVES)').forEach(n => assert.equal(run(`catalogueEntry(${JSON.stringify(n)})?.name`), n));
+    assert.equal(run(`exerciseMove('Pompes')`), null, 'mannequin en bâtons retiré');
   });
+
 }

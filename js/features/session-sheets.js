@@ -258,7 +258,7 @@ async function exerciseMenu(ei) {
   const choice = await dialog({ type: 'sheet', title: ex.name, actions: [
     ...(ei > 0    ? [{ label: 'Monter', value: 'up' }] : []),
     ...(ei < last ? [{ label: 'Descendre', value: 'down' }] : []),
-    ...(exerciseMove(ex.name) ? [{ label: 'Comment faire', value: 'howto' }] : []),
+    ...(exerciseHowTo(ex.name) || exerciseMove(ex.name) ? [{ label: 'Comment faire', value: 'howto' }] : []),
     { label: 'Remplacer l\'exercice', value: 'replace' },
     { label: 'Régler le repos', value: 'rest' },
     { label: 'Muscles ciblés', value: 'muscles' },

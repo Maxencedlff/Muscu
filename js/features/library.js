@@ -73,7 +73,7 @@ function renderLibraryEx(name) {
   const share = bodyShare(e);
   return `
     <div class="view library-ex view--grouped">
-      ${navBar({ title: e.name })}
+      ${navBar({ title: esc(e.name), large: true })}
       <div class="scr">
         ${howToHtml(e.name)}
         <div class="group-title">Muscles</div>

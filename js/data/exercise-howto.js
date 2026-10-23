@@ -1,0 +1,111 @@
+// ═══════════════════════════════════════════════════════════
+//  « Comment faire » : consignes et erreur fréquente des exercices courants
+//  (tous ceux des programmes intégrés, puis les grands classiques). Noms de la bibliothèque.
+// ═══════════════════════════════════════════════════════════
+'use strict';
+
+const EXERCISE_HOWTO = {
+  // Pectoraux
+  'Développé couché barre': [['Allongé, yeux sous la barre, pieds à plat au sol', 'Omoplates serrées et basses, léger cambré naturel',
+    'Descends la barre au bas des pectoraux, coudes à 45° du corps', 'Pousse en gardant les fesses sur le banc'], 'Rebondir sur la poitrine ou décoller les fesses'],
+  'Développé couché haltères': [['Allongé, haltères au-dessus de la poitrine, paumes vers les pieds', 'Omoplates serrées, pieds bien ancrés',
+    'Descends jusqu\'à sentir l\'étirement des pectoraux, coudes à 45°', 'Remonte en rapprochant les haltères sans les cogner'], 'Coudes ouverts à 90°, qui fatiguent l\'épaule'],
+  'Développé incliné haltères': [['Banc incliné à 30-45°', 'Haltères à hauteur du haut de la poitrine',
+    'Pousse vers le haut et légèrement vers l\'intérieur', 'Redescends lentement, omoplates serrées'], 'Banc trop incliné : ce sont alors les épaules qui travaillent'],
+  'Écarté haltères plat': [['Allongé, haltères au-dessus de la poitrine, coudes légèrement fléchis', 'Ouvre les bras en arc de cercle, coudes fixes',
+    'Descends jusqu\'à l\'étirement, sans forcer', 'Referme comme pour enlacer un arbre'], 'Plier puis tendre les coudes : ça devient un développé'],
+  'Pompes': [['Mains un peu plus larges que les épaules', 'Corps gainé en ligne droite, de la tête aux talons',
+    'Descends la poitrine près du sol, coudes à 45° du corps', 'Pousse jusqu\'à tendre les bras'], 'Bassin qui s\'affaisse ou fesses trop hautes'],
+  'Dips': [['Bras tendus sur les barres, épaules basses', 'Penche légèrement le buste vers l\'avant',
+    'Descends jusqu\'à ce que les bras soient à 90°', 'Remonte sans verrouiller brutalement les coudes'], 'Descendre trop bas, épaules qui remontent vers les oreilles'],
+  // Dos
+  'Tractions pronation': [['Mains en pronation, un peu plus larges que les épaules', 'Pars bras tendus, épaules basses et engagées',
+    'Tire la poitrine vers la barre en ramenant les coudes vers les hanches', 'Redescends en contrôlant jusqu\'en bas'], 'Balancer les jambes ou ne faire que la moitié du mouvement'],
+  'Tirage vertical prise large': [['Assis, cuisses calées, mains larges sur la barre', 'Buste légèrement incliné en arrière, poitrine sortie',
+    'Tire la barre vers le haut de la poitrine, coudes vers le bas', 'Remonte lentement, bras tendus en haut'], 'Tirer derrière la nuque ou se pencher très en arrière'],
+  'Tirage horizontal câble': [['Assis, pieds calés, dos droit', 'Tire la poignée vers le nombril',
+    'Serre les omoplates en fin de mouvement', 'Laisse revenir en gardant le dos droit'], 'Se balancer d\'avant en arrière avec le buste'],
+  'Rowing barre': [['Penché à 45°, dos plat, genoux légèrement fléchis', 'Barre sous les épaules, bras tendus',
+    'Tire la barre vers le bas du ventre, coudes près du corps', 'Redescends sans arrondir le dos'], 'Dos rond, ou buste qui se redresse à chaque répétition'],
+  'Rowing haltère unilatéral': [['Une main et un genou sur le banc, dos plat', 'Haltère sous l\'épaule, bras tendu',
+    'Tire le coude vers la hanche', 'Redescends lentement jusqu\'à l\'étirement'], 'Tourner le buste pour monter la charge'],
+  'Rowing haltères buste penché': [['Penché à 45°, dos plat, un haltère dans chaque main', 'Bras tendus, paumes face à face',
+    'Tire les coudes vers l\'arrière, près du corps', 'Redescends sans arrondir le dos'], 'Dos rond ou mouvement donné par les jambes'],
+  'Rowing sous une table': [['Allongé sous une table solide, mains au bord', 'Corps gainé, talons au sol',
+    'Tire la poitrine vers le bord de la table', 'Redescends lentement, bras tendus'], 'Bassin qui tombe : garde le corps droit'],
+  'Pull-over haltère': [['Allongé en travers ou le long du banc, haltère tenu à deux mains au-dessus de la poitrine', 'Bras presque tendus',
+    'Descends l\'haltère derrière la tête en arc de cercle', 'Ramène-le au-dessus de la poitrine'], 'Plier les coudes : le mouvement passe aux triceps'],
+  'Superman': [['Allongé sur le ventre, bras tendus devant', 'Lève en même temps bras, buste et jambes',
+    'Tiens une à deux secondes en haut', 'Redescends lentement'], 'Tirer sur la nuque : regarde le sol'],
+  // Épaules
+  'Développé militaire haltères': [['Assis ou debout, haltères à hauteur des épaules', 'Abdos serrés, dos droit',
+    'Pousse au-dessus de la tête sans cambrer', 'Redescends à hauteur d\'oreilles'], 'Se cambrer pour pousser plus lourd'],
+  'Élévations latérales': [['Debout, haltères le long du corps, coudes légèrement fléchis', 'Monte les bras sur les côtés jusqu\'à l\'horizontale',
+    'Garde les coudes légèrement plus hauts que les mains', 'Redescends lentement'], 'Monter les épaules vers les oreilles ou balancer le buste'],
+  'Élévations frontales': [['Debout, haltères devant les cuisses', 'Monte un bras ou les deux devant, jusqu\'à hauteur des yeux',
+    'Bras presque tendus', 'Redescends en contrôlant'], 'Prendre de l\'élan avec le dos'],
+  'Oiseau (élévations arrière)': [['Buste penché vers l\'avant, dos plat', 'Bras pendants, coudes légèrement fléchis',
+    'Écarte les bras sur les côtés en serrant l\'arrière des épaules', 'Redescends lentement'], 'Trop de charge : le dos se redresse et prend le relais'],
+  'Pompes pike (épaules)': [['En V inversé, fesses hautes, mains au sol', 'Regarde vers tes pieds',
+    'Descends le sommet de la tête vers le sol entre les mains', 'Pousse pour remonter'], 'Descendre la poitrine au lieu de la tête : ça redevient une pompe'],
+  // Bras
+  'Curl biceps haltères': [['Debout, coudes collés au corps', 'Monte l\'haltère en pliant seulement le coude',
+    'Serre le biceps en haut, une seconde', 'Redescends lentement jusqu\'à bras tendu'], 'Balancer le buste ou avancer les coudes pour monter'],
+  'Curl marteau': [['Debout, paumes face à face, coudes au corps', 'Monte en gardant le pouce vers le haut',
+    'Serre en haut', 'Redescends lentement'], 'Coudes qui partent vers l\'avant'],
+  'Extension triceps poulie': [['Debout face à la poulie, coudes collés au corps', 'Pousse vers le bas jusqu\'à tendre les bras',
+    'Serre les triceps en bas', 'Remonte jusqu\'à 90°, coudes fixes'], 'Coudes qui bougent ou buste qui se penche pour pousser'],
+  'Extension triceps unilatéral': [['Haltère dans une main, bras tendu au-dessus de la tête', 'Coude pointé vers le haut, près de la tête',
+    'Descends l\'haltère derrière la tête', 'Remonte en tendant le bras'], 'Coude qui s\'écarte sur le côté'],
+  'Extension triceps couché haltères': [['Allongé, haltères au-dessus du front, paumes face à face', 'Coudes fixes, pointés vers le plafond',
+    'Plie les coudes pour descendre les haltères près des tempes', 'Remonte en tendant les bras'], 'Bras qui reculent : le mouvement passe au dos'],
+  'Dips sur chaise': [['Dos à une chaise stable, mains au bord, doigts vers l\'avant', 'Jambes tendues ou fléchies (plus facile)',
+    'Descends en pliant les coudes vers l\'arrière', 'Remonte en poussant sur les mains'], 'Coudes qui s\'écartent ou épaules qui montent'],
+  // Abdominaux
+  'Gainage (planche)': [['Sur les avant-bras, coudes sous les épaules', 'Corps aligné de la tête aux talons',
+    'Serre les abdos et les fessiers', 'Respire calmement, tiens la position'], 'Fesses trop hautes ou bas du dos creusé'],
+  'Gainage latéral': [['Sur un avant-bras, coude sous l\'épaule', 'Corps aligné sur le côté, pieds superposés',
+    'Monte le bassin et tiens', 'Change de côté'], 'Bassin qui tombe vers le sol'],
+  'Grimpeur': [['En position de pompe, bras tendus', 'Ramène un genou vers la poitrine, puis l\'autre',
+    'Garde le bassin bas et stable', 'Rythme régulier'], 'Fesses qui montent ou mains qui reculent'],
+  // Jambes
+  'Squat barre': [['Barre sur le haut du dos, pieds largeur d\'épaules', 'Inspire, gaine-toi, descends en poussant les hanches en arrière',
+    'Genoux dans l\'axe des pieds, au moins jusqu\'aux cuisses parallèles', 'Remonte en poussant dans le sol, dos droit'], 'Dos qui s\'arrondit ou genoux qui rentrent'],
+  'Squat poids du corps': [['Pieds largeur d\'épaules, pointes légèrement ouvertes', 'Descends en poussant les hanches en arrière, dos droit',
+    'Genoux dans l\'axe des pieds, talons au sol', 'Remonte en poussant dans le sol'], 'Genoux qui rentrent vers l\'intérieur, ou talons qui décollent'],
+  'Squat gobelet': [['Haltère tenu contre la poitrine, coudes vers le bas', 'Pieds un peu plus larges que les épaules',
+    'Descends entre les genoux, buste droit', 'Remonte en poussant dans les talons'], 'Buste qui plonge vers l\'avant'],
+  'Presse à cuisses': [['Dos et fesses bien plaqués au dossier', 'Pieds largeur d\'épaules au milieu de la plateforme',
+    'Descends jusqu\'à 90° aux genoux, sans décoller le bas du dos', 'Pousse sans verrouiller les genoux en haut'], 'Bas du dos qui décolle en bas du mouvement'],
+  'Fentes': [['Debout, fais un grand pas en avant', 'Descends le genou arrière vers le sol',
+    'Genou avant au-dessus de la cheville', 'Pousse sur le pied avant pour revenir'], 'Genou avant qui dépasse loin devant le pied ou qui rentre'],
+  'Fentes marchées haltères': [['Un haltère dans chaque main, buste droit', 'Grand pas en avant, descends le genou arrière',
+    'Pousse sur le pied avant et enchaîne avec l\'autre jambe', 'Garde un rythme régulier'], 'Pas trop courts : le genou avant part loin devant'],
+  'Fentes bulgares': [['Pied arrière posé sur un banc, pied avant loin devant', 'Descends à la verticale, buste droit',
+    'Genou avant dans l\'axe du pied', 'Pousse sur le talon avant pour remonter'], 'Pied avant trop près du banc'],
+  'Extension quadriceps': [['Assis, dos calé, rouleau au-dessus des chevilles', 'Tends les jambes jusqu\'en haut',
+    'Serre les quadriceps une seconde', 'Redescends lentement'], 'Donner un coup de reins ou laisser retomber la charge'],
+  'Leg curl machine': [['Rouleau au-dessus des talons, genoux dans l\'axe de la machine', 'Plie les jambes au maximum',
+    'Serre les ischios en fin de course', 'Reviens lentement'], 'Bassin qui se soulève pour aider'],
+  'Soulevé de terre': [['Barre au-dessus du milieu des pieds, mains juste à l\'extérieur des jambes', 'Dos plat, poitrine sortie, épaules au-dessus de la barre',
+    'Pousse dans le sol en gardant la barre contre les jambes', 'Verrouille hanches et genoux en haut, sans te pencher en arrière'], 'Dos rond au départ, ou barre qui s\'éloigne des jambes'],
+  'Soulevé de terre roumain haltères': [['Debout, haltères devant les cuisses, genoux légèrement fléchis', 'Pousse les hanches en arrière, dos plat',
+    'Descends les haltères le long des jambes jusqu\'à l\'étirement des ischios', 'Remonte en ramenant les hanches vers l\'avant'], 'Dos qui s\'arrondit ou genoux qui plient trop'],
+  'Hip thrust': [['Haut du dos sur un banc, barre sur les hanches', 'Pieds à plat, tibias verticaux en haut',
+    'Pousse les hanches vers le haut en serrant les fessiers', 'Redescends en contrôlant'], 'Se cambrer au lieu de pousser avec les fessiers'],
+  'Hip thrust haltère': [['Haut du dos sur un banc, haltère sur les hanches', 'Pieds à plat, largeur de hanches',
+    'Monte les hanches jusqu\'à l\'alignement genoux, hanches, épaules', 'Serre les fessiers en haut, redescends lentement'], 'Se cambrer au lieu de pousser avec les fessiers'],
+  'Pont fessier': [['Allongé sur le dos, genoux pliés, pieds à plat', 'Pousse dans les talons pour monter les hanches',
+    'Serre les fessiers en haut une seconde', 'Redescends sans poser complètement'], 'Pousser avec le bas du dos plutôt qu\'avec les fessiers'],
+  'Mollets debout': [['Debout, avant des pieds sur une marche ou la machine', 'Monte sur la pointe des pieds au maximum',
+    'Tiens une seconde en haut', 'Descends les talons sous le niveau de la marche'], 'Rebondir en bas sans amplitude'],
+  'Mollets sur une marche': [['Avant des pieds sur une marche, tiens-toi à un appui', 'Monte sur la pointe des pieds au maximum',
+    'Tiens une seconde en haut', 'Descends les talons sous la marche'], 'Rebondir en bas sans amplitude'],
+};
+
+// Consignes d'un exercice (nom, alias ou abréviation) : { cues, mistake } ou null
+function exerciseHowTo(name) {
+  const own = catalogueEntry(name)?.name || name;
+  const h = EXERCISE_HOWTO[own];
+  return h ? { cues: h[0], mistake: h[1] } : null;
+}
