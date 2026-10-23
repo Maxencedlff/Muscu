@@ -138,24 +138,13 @@ body.light .livebar { background: var(--cell); }
 .livebar__chev { color: var(--label3); display: flex; }
 
 /* ── Accueil ── */
-/* Halo de la couleur de la prochaine séance derrière le haut de l'écran (sous la barre transparente) */
-.dashboard { position: relative; isolation: isolate; }
-.dashboard__glow {
-  --glow: 70%;
-  position: absolute; z-index: -1; left: 0; right: 0; top: 0; height: 620px; pointer-events: none;
-  background:
-    radial-gradient(90% 60% at 88% 0%, color-mix(in srgb, var(--cat-color) var(--glow), transparent), transparent 72%),
-    radial-gradient(70% 45% at 0% 42%, color-mix(in srgb, var(--cat-color) calc(var(--glow) * .3), transparent), transparent 72%);
-}
-body.light .dashboard__glow { --glow: 32%; }
-.dashboard .navbar--large:not(.navbar--collapsed) { background: transparent; }
 /* Grand titre de l'accueil : la date, en surtitre (le titre compact reste « Entraînement ») */
 .dashboard .navbar__large {
   font-size: 0.765rem; line-height: 1.059rem; font-weight: 700; letter-spacing: .04em;
   text-transform: uppercase; color: var(--label2);
 }
 .dashboard .navbar__sub { color: var(--label); font-weight: 600; font-size: 0.941rem; }
-/* Roue des réglages : le bleu tombait sur le halo coloré de l'accueil (1,4:1 en sombre) ; même couleur que le titre */
+/* Roue des réglages : même couleur que le titre de l'accueil */
 .dashboard .navbar__icon { color: var(--label); }
 
 .home { padding: 4px 16px 0; }

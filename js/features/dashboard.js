@@ -306,7 +306,6 @@ function renderDashboard() {
 
   return `
     <div class="view dashboard" style="--cat-color:${color}">
-      <div class="dashboard__glow" aria-hidden="true"></div>
       ${navBar({ title: 'Entraînement', largeTitle: date, right, sub })}
       <div class="home">
         ${onboardingCard()}
