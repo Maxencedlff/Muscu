@@ -367,3 +367,6 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 }
 .ax__chip[aria-pressed="true"] { background: var(--tint); color: var(--white); }
 .ax__chip:active { opacity: .6; }
+
+/* Bibliothèque : pastilles de matériel sous la recherche */
+.lib__equip { margin: 10px 0 0; }

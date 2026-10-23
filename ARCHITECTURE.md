@@ -131,6 +131,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `progress.js` | Progrès : tuiles et index des exercices tiré de l'historique |
 | `progress-chart.js` | Progrès › Exercice : courbe sur canvas, sélection d'un point au doigt |
 | `progress-overview.js` | Progrès › Vue d'ensemble : calendrier du mois, séances par semaine |
+| `library.js` | Programme › Bibliothèque (`library`) : recherche, filtre de matériel, sections par zone du corps ; fiche d'un exercice (`library-ex:NOM`) : silhouette des muscles, matériel, mesure, part du poids du corps, progression plus facile / plus dure, lien vers ses progrès |
 | `muscles.js` | Muscles des exercices : ligne sous le nom (Programme › Séance, feuille d'ajout), mini-silhouette et pastilles (Programme › Exercice, Progrès › Exercice), feuille « Muscles ciblés » ; carte « Muscles » de Progrès et écran Progrès › Séries par muscle (`stats-muscles`, inscrit dans `SCREENS` depuis ce fichier) |
 | `history.js` | Historique : recherche, filtre, mois chargés par paquets, détail, balayage pour supprimer avec « Annuler » |
 | `share-stats.js` | Partage de séance, logique pure : `shareStoryStats(entry)` (durée, volume, séries, records, 3 à 5 exercices clés), texte VoiceOver, nom du fichier |

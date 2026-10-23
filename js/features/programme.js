@@ -72,6 +72,13 @@ function renderProgrammes() {
           <button class="cell cell--action" data-action="new-programme">${icon('plus', 20)}<span>Créer un programme</span></button>
         </div>
         ${sessions}
+        <div class="group group--gap">
+          <button class="cell cell--nav" data-action="go-library">
+            <span class="cell__body"><span class="cell__title">Bibliothèque d'exercices</span>
+              <span class="cell__sub">${EXERCISE_CATALOGUE.length} exercices, leurs muscles et leur matériel</span></span>
+            ${icon('chevron.right', 16)}
+          </button>
+        </div>
         ${manage}
       </div>
     </div>`;
