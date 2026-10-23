@@ -43,8 +43,8 @@ function renderEditor() {
   }
   const rows = list.map((ex, i) => {
     const last = lastPerf(data.activeProgramme, cat, ex);
-    const best = last ? bestSet(last.ex.sets) : null;
-    const sub  = `${plural(ex.sets, 'série', 'séries')}${best ? ` · dernier ${setTxt(best, measureOf(ex))}` : ''}`;
+    const best = last ? bestSet(last.ex.sets, ex) : null;
+    const sub  = `${plural(ex.sets, 'série', 'séries')}${best ? ` · dernier ${setTxt(best, ex)}` : ''}`;
     if (editorEditing) {
       return `
         <div class="cell ed-row ed-row--edit" data-i="${i}">

@@ -42,4 +42,30 @@ export default function ({ test, run, reset, assert }) {
     assert.equal(h.exercises[2].measure, 'cardio');
     assert.equal(h.exercises[0].measure, undefined, 'mesure inconnue retirée');
   });
+
+  test('poids du corps : part soulevée, lest, aide, volume et meilleure série', () => {
+    reset();
+    const share = n => run(`bodyShare({ name: ${JSON.stringify(n)} })`);
+    assert.equal(share('Tractions pronation'), 0.95);
+    assert.equal(share('Pull-ups'), 0.95, 'par alias');
+    assert.equal(share('Tractions lestées'), 0.95, 'nom libre');
+    assert.equal(share('Pompes sur les genoux'), 0.5);
+    assert.equal(share('Dips sur chaise'), 0, 'pas de valeur établie : rien inventé');
+    assert.equal(share('Tirage vertical prise large'), 0);
+    assert.equal(share('Gainage (planche)'), 0, 'durée');
+    assert.equal(run(`loadKind({ name: 'Dips' })`), 'lest');
+    assert.equal(run(`loadKind({ name: 'Tractions assistées (machine)' })`), 'aide');
+    assert.equal(run(`loadKind({ name: 'Curl marteau' })`), 'charge');
+    // 8 tractions à 80 kg : 76 kg effectifs ; +10 kg de lest : 86 ; machine qui aide de 20 kg : 56
+    assert.equal(run(`exVolume({ name: 'Tractions pronation', sets: [{ weight: '', reps: '8' }] }, undefined, 80)`), 608);
+    assert.equal(run(`exVolume({ name: 'Tractions pronation', sets: [{ weight: '10', reps: '8' }] }, undefined, 80)`), 688);
+    assert.equal(run(`exVolume({ name: 'Tractions assistées (machine)', sets: [{ weight: '20', reps: '8' }] }, undefined, 80)`), 448);
+    assert.equal(run(`exVolume({ name: 'Tractions pronation', sets: [{ weight: '10', reps: '8' }] }, undefined, null)`), 80, 'poids inconnu : le lest seul');
+    assert.equal(run(`exVolume({ name: 'Curl marteau', sets: [{ weight: '15', reps: '10' }] }, undefined, 80)`), 150, 'charge : inchangé');
+    // Aide : la meilleure série est celle qui a le moins d'aide
+    assert.equal(run(`bestSet([{ weight: '30', reps: '8' }, { weight: '20', reps: '6' }], { name: 'Tractions assistées (machine)' }).weight`), '20');
+    assert.equal(run(`setTxt({ w: 10, r: 8, weight: '10', reps: '8' }, { name: 'Dips' })`), '8 reps · +10 kg');
+    assert.equal(run(`setTxt({ w: 20, r: 8, weight: '20', reps: '8' }, { name: 'Tractions assistées (machine)' })`), '8 reps · aide 20 kg');
+    assert.equal(run(`recordLabel({ weight: '15', reps: '5' }, { prW: 10, prR: 5, e1rm: 0 }, { name: 'Dips' })`), 'Record lest');
+  });
 }

@@ -113,7 +113,7 @@ function nextSetText() {
 
 // Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette
 function bumpReady(ex) {
-  if (ex.bumped || ex.sets.every(s => s.done) || measureOf(ex) !== 'reps') return false;
+  if (ex.bumped || ex.sets.every(s => s.done) || measureOf(ex) !== 'reps' || isAssisted(ex)) return false;
   const prevs = ex.sets.map(s => s.prev).filter(Boolean);
   if (!prevs.length || prevs.length < Math.min(ex.sets.length, 2)) return false;
   const repMax = sessExData(ex)?.repMax ?? 12;
@@ -179,8 +179,8 @@ function exVolumeHtml(ex, allDone) {
   if (measureOf(ex) !== 'reps') return '';
   const prevSets = lastPerf(activeSession.programme, activeSession.category, ex)?.ex.sets || [];
   const doneSets = ex.sets.filter(s => s.done);
-  const curVol   = setsVolume(doneSets);
-  const prevVol  = setsVolume(prevSets.slice(0, doneSets.length));
+  const curVol   = exVolume(ex, doneSets, currentBodyKg());
+  const prevVol  = exVolume(ex, prevSets.slice(0, doneSets.length), currentBodyKg());
   const delta    = curVol - prevVol;
   return curVol > 0 && prevVol > 0 && Math.round(delta) > 0
     ? ` · <span class="ex-vol__delta ${allDone ? 'ex-vol__delta--up' : ''}">+${fmtVolume(delta)}</span>` : '';
@@ -199,7 +199,7 @@ function renderExerciseCard(ex, ei, cur) {
 
   if (allDone && !openDone.has(ex)) {
     const base    = (activeSession.baseline || {})[ex.exId];
-    const records = ex.sets.filter(s => s.done && recordLabel(s, base)).length;
+    const records = ex.sets.filter(s => s.done && recordLabel(s, base, ex)).length;
     return renderCollapsedExercise(ex, ei, records);
   }
 
@@ -220,7 +220,7 @@ function renderExerciseCard(ex, ei, cur) {
       <div class="sets" role="table" aria-label="Séries de ${esc(ex.name)}">
         <div class="sets__head" role="row">
           <span role="columnheader">Série</span><span role="columnheader">Préc.</span>
-          <span role="columnheader">${MEASURES[measureOf(ex)].load()}</span><span role="columnheader">${MEASURES[measureOf(ex)].count}</span>
+          <span role="columnheader">${loadHeader(ex)}</span><span role="columnheader">${MEASURES[measureOf(ex)].count}</span>
           <span role="columnheader" aria-label="Validée">${icon('checkmark', 14)}</span>
         </div>
         ${rows}
@@ -232,7 +232,7 @@ function renderExerciseCard(ex, ei, cur) {
 // Série validée : ligne en lecture seule, rouverte en édition au tap
 function renderDoneSetRow(ex, ei, s, si, prev, del) {
   const m      = measureOf(ex), M = MEASURES[m];
-  const record = m === 'reps' ? recordLabel(s, (activeSession.baseline || {})[ex.exId]) : '';
+  const record = m === 'reps' ? recordLabel(s, (activeSession.baseline || {})[ex.exId], ex) : '';
   const first  = setFirstValue(s, m);
   const load   = first ? `${first} ${m === 'cardio' ? 'kilomètres' : data.unit === 'lbs' ? 'livres' : 'kilos'}, ` : '';
   return `
@@ -248,6 +248,13 @@ function renderDoneSetRow(ex, ei, s, si, prev, del) {
           ${record ? `<span class="set-badge"><span class="pr-badge">${record}</span></span>` : ''}
         </div>
       </div>`;
+}
+
+// En-tête de la première colonne : kg (barre, haltères), Lest ou Aide (poids du corps), km, Lest (durée)
+function loadHeader(ex) {
+  const m = measureOf(ex);
+  if (m !== 'reps') return MEASURES[m].load();
+  return { charge: unitLbl(), lest: 'Lest', aide: 'Aide' }[loadKind(ex)];
 }
 
 // Valeur de la première colonne : charge (ou lest) dans l'unité de l'app, distance en km pour le cardio
@@ -283,7 +290,7 @@ function renderSetRow(ex, ei, s, si, cur) {
         <span class="set-n num">${si + 1}</span>
         <span class="set-prev num">${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
-               value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${m === 'cardio' ? 'Distance' : m === 'time' ? 'Lest' : 'Charge'} série ${si + 1}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
+               value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${m === 'cardio' ? 'Distance' : m === 'time' ? 'Lest' : { charge: 'Charge', lest: 'Lest', aide: 'Aide' }[loadKind(ex)]} série ${si + 1}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
                value="${esc(rVal)}" placeholder="${esc(s.prev?.reps ?? '0')}" aria-label="${m === 'reps' ? 'Répétitions' : `Durée en ${M.spoken}`} série ${si + 1}, ${esc(ex.name)}">
         ${check}

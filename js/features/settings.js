@@ -33,6 +33,12 @@ function renderSettings() {
             <span class="cell__value num">${data.weeklyGoal ? `${data.weeklyGoal} / semaine` : `Auto · ${weeklyGoal()} / sem.`}</span>
             ${icon('chevron.right', 16)}
           </button>
+          ${Native.isNative && data.healthOn === true ? '' : `<button class="cell cell--nav" data-action="set-body-weight">
+            <span class="cell__body"><span class="cell__title">Poids du corps</span>
+              <span class="cell__sub">Volume des tractions, dips, pompes</span></span>
+            <span class="cell__value num"${data.bodyWeightKg ? '' : ' aria-label="Non renseigné"'}>${data.bodyWeightKg ? `${fmtW(data.bodyWeightKg)} ${unitLbl()}` : '—'}</span>
+            ${icon('chevron.right', 16)}
+          </button>`}
           <button class="cell" data-action="setting-sound" role="switch" aria-checked="${data.soundOn !== false}">
             <span class="cell__body"><span class="cell__title">Sons</span></span>
             ${tog(data.soundOn !== false)}

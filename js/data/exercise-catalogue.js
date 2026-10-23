@@ -201,6 +201,8 @@ const EXERCISE_CATALOGUE = [
   ['Extension triceps corde nuque',    'triceps',                '',            'salle', 'overhead triceps extension|extension au-dessus de la tête'],
   ['JM press',                         'triceps',                'chest',       'salle'],
   ['Curl araignée',                    'biceps',                 '',            'salle', 'spider curl'],
+  ['Tractions assistées (machine)',    'lats',                   'biceps rear_delts', 'salle', 'assisted pull-up|machine à tractions'],
+  ['Dips assistés (machine)',          'chest triceps',          'front_delts', 'salle', 'assisted dips'],
   ['Mollets à la presse',              'calves',                 '',            'salle'],
   ['Crunch machine',                   'abs',                    '',            'salle'],
 ].map(([name, primary, secondary, equip, aliases = '']) => Object.freeze({

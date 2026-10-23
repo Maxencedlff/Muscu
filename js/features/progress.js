@@ -12,7 +12,16 @@ function exPoint(h, e) {
   if (!sets.length) return null;
   const wts = sets.map(s => parseFloat(s.weight) || 0);
   // Durée et cardio se suivent comme le poids du corps : sur le champ reps (secondes, minutes)
-  const hasWeight = measureOf(e) === 'reps' && wts.some(w => w > 0);
+  let hasWeight = measureOf(e) === 'reps' && wts.some(w => w > 0);
+  // Poids du corps connu : la charge effective (poids × part soulevée ± lest) remplace le lest seul
+  const bodyKg = bodyShare(e) ? entryBodyKg(h) : null;
+  if (bodyKg) {
+    const loads = sets.map(s => effectiveLoad(s, e, bodyKg));
+    const volume = sets.reduce((a, s, i) => a + loads[i] * (parseInt(s.reps) || 0), 0);
+    const best1RM = Math.max(0, ...sets.map((s, i) => (parseInt(s.reps) || 0) <= 10 ? calc1RM(loads[i], s.reps) : null).filter(v => v !== null));
+    return { date: h.date, hid: h.id, sets, hasWeight: true, totalReps: sets.reduce((a, s) => a + (parseInt(s.reps) || 0), 0),
+      volume, maxLoad: Math.max(...loads), best1RM, maxReps: Math.max(...sets.map(s => parseInt(s.reps) || 0)), best: bestSet(sets, e), bodyKg };
+  }
   const totalReps = sets.reduce((a, s) => a + (parseInt(s.reps) || 0), 0);
   const volume    = hasWeight ? setsVolume(sets) : totalReps;
   const maxLoad   = hasWeight ? Math.max(...wts) : 0;
@@ -126,7 +135,7 @@ function statsRow(it) {
       <button class="cell cell--nav prow" data-action="open-stats-ex" data-ex="${esc(it.exId)}">
         <span class="cell__body">
           <span class="cell__title prow__name">${esc(it.name)}</span>
-          <span class="cell__sub num">${bw ? `${last.maxReps} ${it.unit || 'reps'}` : setTxt(last.best)}</span>
+          <span class="cell__sub num">${bw ? `${last.maxReps} ${it.unit || 'reps'}` : setTxt(last.best, { name: it.name })}</span>
         </span>
         <span class="prow__spark ${cls}">${sparkline(vals.slice(-12))}</span>
         <span class="prow__trend num ${cls}">${tp === null ? '' : pctTxt(tp)}</span>

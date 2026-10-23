@@ -5,15 +5,16 @@
 'use strict';
 
 // Ordre d'importance des badges : charge > reps > 1RM estimé
-const RECORD_RANK = { 'Record charge': 3, 'Record reps': 2, 'Record 1RM est.': 1 };
+const RECORD_RANK = { 'Record charge': 3, 'Record lest': 3, 'Record reps': 2, 'Record 1RM est.': 1 };
 
 // Badge de record d'une série validée, comparée aux records d'avant la séance (jamais en cas d'égalité).
 // base : { prW, prR, e1rm } ; sans série précédente (prR nul), aucun record.
-function recordLabel(s, base) {
+// ex facultatif : au poids du corps, la charge battue est un lest (« Record lest »)
+function recordLabel(s, base, ex = null) {
   if (!base || !base.prR) return '';
   const w = parseFloat(s.weight) || 0;
   const r = parseInt(s.reps)     || 0;
-  if (w > base.prW) return 'Record charge';
+  if (w > base.prW) return ex && loadKind(ex) === 'lest' ? 'Record lest' : 'Record charge';
   if (w === base.prW && r > base.prR) return 'Record reps';
   const e1 = calc1RM(s.weight, s.reps);
   if (e1 && e1 > base.e1rm) return 'Record 1RM est.';
@@ -26,7 +27,7 @@ function exerciseRecord(ex, base) {
   const score = s => (parseFloat(s.weight) || 0) * 100 + (+s.reps);
   let rec = null;
   (ex.sets || []).forEach(s => {
-    const l = recordLabel(s, base);
+    const l = recordLabel(s, base, ex);
     if (!l) return;
     const rank = RECORD_RANK[l], best = rec && RECORD_RANK[rec.label];
     if (!rec || rank > best || (rank === best && score(s) > score(rec.s))) rec = { label: l, s };
@@ -46,7 +47,7 @@ function historyBaseline(entry, history) {
     && (h.programme || 'ppl') === prog && h.category === entry.category);
   const baseline = {};
   (entry.exercises || []).forEach(ex => {
-    if (measureOf(ex) !== 'reps') return;
+    if (measureOf(ex) !== 'reps' || isAssisted(ex)) return;
     let prW = 0, prR = 0, e1rm = 0, seen = false;
     before.forEach(h => (h.exercises || []).forEach(he => {
       if (!sameEx(he, ex)) return;

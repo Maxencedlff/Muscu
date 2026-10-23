@@ -197,18 +197,27 @@ function textOnColor(color) {
 }
 
 // Meilleure série d'une liste : la plus lourde, puis le plus de reps
-function bestSet(sets) {
-  let best = null;
+// ex facultatif : avec une machine d'assistance, la meilleure série est celle qui a le moins d'aide
+function bestSet(sets, ex = null) {
+  let best = null, bestKey = null;
+  const sign = ex && isAssisted(ex) ? -1 : 1;
   (sets || []).forEach(s => {
     const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
     if (r <= 0) return;
-    if (!best || w > best.w || (w === best.w && r > best.r)) best = { w, r, weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}) };
+    const key = sign * w;
+    if (!best || key > bestKey || (key === bestKey && r > best.r)) {
+      best = { w, r, weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}) };
+      bestKey = key;
+    }
   });
   return best;
 }
 // « 32,5 kg × 8 », ou « 8 reps » au poids du corps ; « 45 s », « 5 km · 30 min » selon la mesure
-function setTxt(b, measure = 'reps') {
+// Second argument : l'exercice (mesure et lest / aide déduits) ou directement une mesure
+function setTxt(b, exOrMeasure = 'reps') {
   if (!b) return '';
-  if (measure !== 'reps') return measureSetTxt(b, measure);
+  const ex = typeof exOrMeasure === 'object' ? exOrMeasure : null;
+  const measure = ex ? measureOf(ex) : exOrMeasure;
+  if (measure !== 'reps' || (ex && loadKind(ex) !== 'charge')) return measureSetTxt(b, measure, ex ? loadKind(ex) : 'charge');
   return b.w > 0 ? `${fmtW(b.weight)} ${unitLbl()} × ${b.r}` : `${b.r} reps`;
 }

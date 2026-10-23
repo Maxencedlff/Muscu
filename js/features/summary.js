@@ -28,17 +28,20 @@ function buildSummary(entry, baseline) {
   const records = [], rows = [];
   entry.exercises.forEach(ex => {
     const pex = prevH?.exercises.find(e => sameEx(e, ex));
-    cur  += exVolume(ex);
-    prev += pex ? exVolume(pex, pex.sets.slice(0, ex.sets.length)) : 0;
+    cur  += exVolume(ex, ex.sets, entryBodyKg(entry));
+    prev += pex ? exVolume(pex, pex.sets.slice(0, ex.sets.length), entryBodyKg(prevH)) : 0;
     const rec = exerciseRecord(ex, baseline[ex.exId]);
     if (rec) records.push({ name: ex.name, label: rec.label, weight: rec.s.weight, reps: rec.s.reps });
     const b = summaryBestSet(ex.sets), pb = summaryBestSet(pex?.sets);
-    rows.push({ name: ex.name, weight: b.s.weight, reps: b.s.reps, dist: b.s.dist, measure: measureOf(ex), trend: bestSetTrend(b, pb) });
+    rows.push({ name: ex.name, weight: b.s.weight, reps: b.s.reps, dist: b.s.dist, measure: measureOf(ex), kind: loadKind(ex), trend: bestSetTrend(b, pb) });
   });
   return {
     id: entry.id, programme: entry.programme, category: entry.category, date: entry.date,
     duration: entry.duration, sets: entry.exercises.reduce((a, e) => a + e.sets.length, 0),
     volume: cur, delta: prevH ? cur - prev : null, records, rows,
+    // Sans charge comptée (poids du corps inconnu, gainage…) : le total de reps remplace « 0 kg »
+    reps: entry.exercises.filter(ex => measureOf(ex) === 'reps').reduce((a, ex) => a + ex.sets.reduce((b, s) => b + (parseInt(s.reps) || 0), 0), 0),
+    needsBodyKg: !entryBodyKg(entry) && entry.exercises.some(ex => bodyShare(ex) > 0),
     baseline,   // records d'avant la séance : l'image partagée montre les mêmes records que le bilan
   };
 }
@@ -52,7 +55,8 @@ const NO_TREND_HTML = '<span class="sum-trend" aria-hidden="true"></span>';
 
 // « 32,5 kg × 10 » (reps seules au poids du corps)
 function summarySetTxt(r) {
-  return r.measure && r.measure !== 'reps' ? esc(measureSetTxt(r, r.measure)) : `${loadTimes(r.weight)}${esc(r.reps)}`;
+  if ((r.measure && r.measure !== 'reps') || (r.kind && r.kind !== 'charge')) return esc(measureSetTxt(r, r.measure || 'reps', r.kind));
+  return hasLoad(r.weight) ? `${loadTimes(r.weight)}${esc(r.reps)}` : `${esc(r.reps)} reps`;
 }
 
 // Volume : écart avec la dernière séance du même type, rien s'il n'y en a pas ou s'il est nul
@@ -116,9 +120,12 @@ function renderSummary() {
         </div>
         <div class="sum-tiles">
           <div class="sum-tile"><div class="sum-tile__label">Durée</div><div class="sum-tile__value num">${fmtDuration(sm.duration)}</div></div>
-          <div class="sum-tile"><div class="sum-tile__label">Volume</div><div class="sum-tile__value num">${fmtVolume(sm.volume)}</div>${summaryDeltaHtml(sm.delta)}</div>
+          ${sm.volume > 0 || !sm.reps
+            ? `<div class="sum-tile"><div class="sum-tile__label">Volume</div><div class="sum-tile__value num">${fmtVolume(sm.volume)}</div>${summaryDeltaHtml(sm.delta)}</div>`
+            : `<div class="sum-tile"><div class="sum-tile__label">Reps</div><div class="sum-tile__value num">${sm.reps}</div></div>`}
           <div class="sum-tile"><div class="sum-tile__label">Séries</div><div class="sum-tile__value num">${sm.sets}</div></div>
         </div>
+        ${sm.needsBodyKg ? `<button class="sum-hint" data-action="set-body-weight">Ajoute ton poids pour compter le volume des exercices au poids du corps ${icon('chevron.right', 14)}</button>` : ''}
         ${shareStoryButton(sm.id, 'sum-share')}
         ${summaryRecordsHtml(sm.records)}
         <div class="sum-section-title">Exercices</div>
@@ -175,6 +182,7 @@ function sessionHistoryEntry(sp, sc) {
     date:       Date.now(),
     duration:   Date.now() - activeSession.startedAt,
     notes:      sessionNotes.trim(),
+    ...(currentBodyKg() ? { bodyKg: currentBodyKg() } : {}),
     exercises:  activeSession.exercises
       .map(ex => ({
         exId: ex.exId || resolveExId(sp, sc, ex.name),

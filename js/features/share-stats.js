@@ -10,14 +10,14 @@
 const SHARE_MAX_HIGHLIGHTS = 5;   // exercices mis en avant au plus (l'image en montre 3 à 5 selon la place)
 
 // Exercice mis en avant : record marquant, sinon meilleure série (« 32,5 kg × 8 », « 12 reps »)
-function shareExerciseRow(ex, base, index) {
+function shareExerciseRow(ex, base, index, bodyKg = null) {
   const rec  = exerciseRecord(ex, base);
-  const best = rec ? bestSet([rec.s]) : bestSet(ex.sets);
+  const best = rec ? bestSet([rec.s], ex) : bestSet(ex.sets, ex);
   return {
     index, name: ex.name, exId: ex.exId || null,
-    value:  best ? setTxt(best, measureOf(ex)) : '',
+    value:  best ? setTxt(best, ex) : '',
     record: rec ? rec.label : null,
-    volume: exVolume(ex),
+    volume: exVolume(ex, ex.sets, bodyKg),
   };
 }
 
@@ -37,8 +37,8 @@ function shareStoryStats(entry, { history = data.history, baseline = null, max =
   const prog      = entry.programme || 'ppl';
   const base      = baseline || historyBaseline(entry, history);
   const exercises = (entry.exercises || []).filter(ex => (ex.sets || []).length);
-  const rows      = exercises.map((ex, i) => shareExerciseRow(ex, base[recordKey(ex)], i));
-  const volume    = sessionVolume(exercises);
+  const rows      = exercises.map((ex, i) => shareExerciseRow(ex, base[recordKey(ex)], i, entryBodyKg(entry)));
+  const volume    = sessionVolume(exercises, entryBodyKg(entry));
   const sameYear  = new Date(entry.date).getFullYear() === new Date().getFullYear();
   const highlights = shareHighlights(rows, max);
   return {

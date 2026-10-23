@@ -207,7 +207,7 @@ function renderAppleServicesGroup(tog) {
 // sinon le poids saisi dans l'app. Une pesée ajoutée plus tard dans Santé prend le relais.
 function renderBodyWeightCell() {
   const last = knownLatestBodyMass();
-  const title = '<span class="cell__title">Poids pour les calories</span>';
+  const title = '<span class="cell__title">Poids du corps</span>';
   if (last === undefined) {
     return `<div class="cell" id="bodyWeightCell">
             <span class="cell__body">${title}<span class="cell__sub">Lecture dans Santé…</span></span></div>`;
@@ -274,8 +274,8 @@ registerActions({
   'set-body-weight': async () => {
     if (await latestBodyMass()) { render(); showToast('Ton poids vient de Santé : modifie-le dans l\'app Santé'); return; }
     const lbs = data.unit === 'lbs';
-    const v = await askNumber({ title: 'Poids pour les calories',
-      message: 'Sert à estimer les calories de tes séances quand Santé n\'a aucune pesée.',
+    const v = await askNumber({ title: 'Poids du corps',
+      message: 'Sert au volume des exercices au poids du corps (tractions, dips, pompes) et aux calories quand Santé n\'a aucune pesée.',
       value: data.bodyWeightKg ? fmtW(data.bodyWeightKg, { plain: true }) : '', unit: unitLbl(),
       min: lbs ? 55 : 25, max: lbs ? 660 : 300, decimal: true });
     if (v === null) return;

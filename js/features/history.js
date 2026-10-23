@@ -21,7 +21,7 @@ function historyMatches(h, q) {
 function historyCell(h) {
   const progId = h.programme || 'ppl';
   const meta   = sessionMeta(h.category, progId);
-  const vol    = sessionVolume(h.exercises || []);
+  const vol    = sessionVolume(h.exercises || [], entryBodyKg(h));
   // Séance d'un autre programme : la mention remplace le nombre d'exercices (cellule sur 2 lignes)
   const other  = progId !== data.activeProgramme && progId !== FREE;
   const parts  = [other ? `Programme ${esc(progMeta(progId).name)}` : plural((h.exercises || []).length, 'exercice', 'exercices')];
@@ -123,7 +123,7 @@ function renderHistoryDetail(id) {
   let when = capitalize(fmtDate(h.date, 'long'));
   // L'heure n'a de sens que pour une séance chronométrée (une séance passée n'a pas d'heure)
   if (h.duration) when += ` · ${fmtTime(h.date)}`;
-  const vol   = sessionVolume(h.exercises || []);
+  const vol   = sessionVolume(h.exercises || [], entryBodyKg(h));
   const nSets = (h.exercises || []).reduce((a, e) => a + (e.sets || []).length, 0);
   return `
     <div class="view history-detail view--grouped">

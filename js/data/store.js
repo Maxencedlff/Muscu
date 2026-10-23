@@ -29,6 +29,7 @@ function recomputePRFromHistory(d = data) {
           // Records : répétitions seulement. Mesure lue sur l'entrée (toujours enregistrée hors répétitions) :
           // ce calcul tourne au chargement, avant js/data/measures.js
           if (!exData || histEx.measure === 'time' || histEx.measure === 'cardio') return;
+          if (/assist/i.test(histEx.name) && /machine/i.test(histEx.name)) return;   // aide : pas de record de charge
           (histEx.sets || []).forEach(s => {
             const w  = parseFloat(s.weight) || 0;
             const r  = parseInt(s.reps)     || 0;
@@ -89,11 +90,18 @@ function resolveFreeExId(name, d = data) {
 function setsVolume(sets) {
   return (sets || []).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0);
 }
-// Volume d'un exercice : seulement en répétitions (un lest × des secondes n'est pas un tonnage)
-function exVolume(ex, sets = ex?.sets) { return measureOf(ex) === 'reps' ? setsVolume(sets) : 0; }
-function sessionVolume(exercises) {
-  return exercises.reduce((total, ex) => total + exVolume(ex), 0);
+// Volume d'un exercice : seulement en répétitions (un lest × des secondes n'est pas un tonnage).
+// Au poids du corps, la charge effective compte (poids × part soulevée ± lest) : bodyKg est le poids
+// enregistré avec la séance (h.bodyKg), sinon le poids actuel ; inconnu, seul le lest compte.
+function exVolume(ex, sets = ex?.sets, bodyKg = null) {
+  if (measureOf(ex) !== 'reps') return 0;
+  if (!bodyShare(ex)) return setsVolume(sets);
+  return (sets || []).reduce((a, s) => a + effectiveLoad(s, ex, bodyKg) * (parseInt(s.reps) || 0), 0);
 }
+function sessionVolume(exercises, bodyKg = null) {
+  return exercises.reduce((total, ex) => total + exVolume(ex, ex.sets, bodyKg), 0);
+}
+function entryBodyKg(h) { return h?.bodyKg || currentBodyKg(); }
 
 function makeProgData(progId) {
   const pm = PROGRAMMES[progId];
@@ -245,6 +253,8 @@ function cleanHistoryEntry(h) {
   if (!Number.isFinite(h.date) || !Array.isArray(h.exercises) || typeof h.category !== 'string') return false;
   if (!h.id) h.id = uid();
   if (h.healthSaved !== undefined && h.healthSaved !== true) delete h.healthSaved;   // app iOS : déjà envoyée à Santé
+  // Poids du corps au moment de la séance (volume des exercices au poids du corps)
+  if (h.bodyKg !== undefined && !(Number.isFinite(h.bodyKg) && h.bodyKg >= 25 && h.bodyKg <= 300)) delete h.bodyKg;
   h.exercises = h.exercises.filter(ex => isObj(ex) && typeof ex.name === 'string');
   h.exercises.forEach(ex => {
     if (!Array.isArray(ex.sets)) ex.sets = [];

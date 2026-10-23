@@ -312,6 +312,8 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .sum-row__name { font-size: 1rem; line-height: 1.294rem; overflow-wrap: anywhere; }
 .sum-row__sub { font-size: 0.765rem; color: var(--label2); }
 .sum-row__val { font-size: 0.882rem; font-weight: 600; white-space: nowrap; }
+.sum-hint { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; margin-top: 8px; padding: 10px 12px;
+  border: 0; border-radius: var(--r-md); background: var(--cell); color: var(--tint); font: inherit; font-size: 0.882rem; text-align: left; cursor: pointer; }
 .sum-row--action { width: 100%; border: 0; background: none; color: var(--label); font: inherit; text-align: left; cursor: pointer; }
 .sum-row--action:active { background: var(--fill2); }
 .sum-row__cta { color: var(--tint); font-size: 0.941rem; font-weight: 600; }

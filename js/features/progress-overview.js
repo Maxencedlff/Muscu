@@ -44,7 +44,7 @@ function renderStatsOverview() {
       </span>`).join('');
 
   // Tuiles
-  const vol  = hist.reduce((a, h) => a + sessionVolume(h.exercises || []), 0);
+  const vol  = hist.reduce((a, h) => a + sessionVolume(h.exercises || [], entryBodyKg(h)), 0);
   const durs = hist.filter(h => h.duration > 0).map(h => h.duration);
   const avgD = durs.length ? durs.reduce((a, b) => a + b, 0) / durs.length : 0;
   const streak = computeStreak();

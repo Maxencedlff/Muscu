@@ -139,7 +139,8 @@ function exerciseTarget(cat, ex) {
   const best = bestSet(sets);
   if (!best) return { text: `${ex.sets} série${ex.sets > 1 ? 's' : ''}`, gain: '' };
   const m = measureOf(ex);
-  if (m !== 'reps') return { text: setTxt(best, m), gain: '' };   // durée, cardio : on rappelle la dernière fois
+  if (m !== 'reps' || isAssisted(ex)) return { text: setTxt(best, ex), gain: '' };
+  if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: best.r + 1 }, ex), gain: '+1 rep' };   // durée, cardio : on rappelle la dernière fois
   const repMax = ex.repMax ?? 12;
   const bump = best.w > 0 && sets.length >= Math.min(ex.sets, 2) && sets.every(s => (parseInt(s.reps) || 0) >= repMax);
   if (bump) {
@@ -175,7 +176,7 @@ function weekStats() {
   const days = Array.from({ length: 7 }, () => []);
   let count = 0, volume = 0, before = 0;
   (data.history || []).forEach(h => {
-    const v = sessionVolume(h.exercises);
+    const v = sessionVolume(h.exercises, entryBodyKg(h));
     if (h.date >= monday) {
       const i = Math.floor((h.date - monday) / 86400000);
       if (i >= 0 && i < 7) { days[i].push(h); count++; volume += v; }
@@ -254,7 +255,7 @@ function renderDashboard() {
       btn  = `<button class="hero__btn" data-action="resume-session">${icon('play', 18)}Reprendre</button>`;
     } else {
       info = last
-        ? `<div class="hero__info">Dernière fois : ${fmtDate(last.date)} · ${fmtVolume(sessionVolume(last.exercises))}</div>`
+        ? `<div class="hero__info">Dernière fois : ${fmtDate(last.date)} · ${fmtVolume(sessionVolume(last.exercises, entryBodyKg(last)))}</div>`
         : `<div class="hero__info">Jamais faite</div>`;
       if (!st.ready) info += `<div class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</div>`;
       if (st.by) info += `<div class="hero__why">${esc(recoveryReason(st.by))}</div>`;

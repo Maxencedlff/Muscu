@@ -12,6 +12,7 @@ function metricOf(p, bw) {
 }
 // Unité des courbes sans charge : reps, secondes (maintiens) ou minutes (cardio) ; posée à l'ouverture de l'exercice
 let chartUnit = 'reps';
+let chartEx   = null;   // { name } de l'exercice affiché : textes des séries (lest, aide)
 function fmtMetricVal(v, bw) {
   if (bw) return `${Math.round(v)} ${chartUnit}`;
   if (statsMode === 'volume') return fmtVolume(data.unit === 'lbs' ? v / KG_TO_LBS : v);
@@ -27,6 +28,7 @@ function renderStatsExercise(exId) {
   }
   const bw     = isBodyweight(it);
   chartUnit    = it.unit || 'reps';
+  chartEx      = { name: it.name };
   const pts    = it.points;
   const sec    = exSection(it);
   const color  = sec.cat ? sessionMeta(sec.cat, sec.prog).color : sessionMeta(it.cat, it.prog).color;
@@ -34,7 +36,7 @@ function renderStatsExercise(exId) {
   chartState   = { vals, dates: pts.map(p => p.date), points: pts, bw, mode: statsMode, color, xLabels: [], sel: null };
 
   // Record charge (poids puis reps) et 1RM estimé : record et dernière séance
-  const prBest = bestSet(pts.flatMap(p => p.sets));
+  const prBest = bestSet(pts.flatMap(p => p.sets), { name: it.name });
   const rec1RM = Math.max(0, ...pts.map(p => p.best1RM));
   const last   = pts[pts.length - 1];
   const progEx = Object.values(data.programmes).flatMap(p => Object.values(p.exercises || {}).flat()).find(x => x.id === it.exId);
@@ -54,7 +56,7 @@ function renderStatsExercise(exId) {
   const sessions = pts.slice().reverse().map(p => `
       <button class="cell cell--nav" data-action="open-history" data-id="${esc(p.hid)}">
         <span class="cell__body"><span class="cell__title cell__title--reg">${fmtDate(p.date)}</span></span>
-        <span class="cell__value num">${bw ? `${p.sets.map(s => parseInt(s.reps)).join(' · ')} ${chartUnit}` : setTxt(p.best)}</span>
+        <span class="cell__value num">${bw ? `${p.sets.map(s => parseInt(s.reps)).join(' · ')} ${chartUnit}` : setTxt(p.best, chartEx)}</span>
         ${icon('chevron.right', 16)}
       </button>`).join('');
 
@@ -78,7 +80,7 @@ function renderStatsExercise(exId) {
         </div>
         <div class="group">
           <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Record</span></span>
-            <span class="cell__value num">${prBest ? setTxt(prBest) : '—'}</span></div>
+            <span class="cell__value num">${prBest ? setTxt(prBest, chartEx) : '—'}</span></div>
           ${!bw && rec1RM ? `
           <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Record 1RM est.</span></span>
             <span class="cell__value num">~${fmtW(rec1RM)} ${unitLbl()}</span></div>
@@ -224,7 +226,7 @@ function chartSelect(clientX) {
   const p = st.points[best];
   const b = box.querySelector('.chart-bubble');
   const date = fmtDate(p.date, 'short');
-  const set  = st.bw ? `${p.maxReps} ${chartUnit}` : `${fmtW(p.best.weight)} ${unitLbl()} × ${p.best.r}`;
+  const set  = st.bw ? `${p.maxReps} ${chartUnit}` : setTxt(p.best, chartEx);
   b.textContent = `${date} · ${set} · ${st.bw ? `${p.totalReps} ${chartUnit}` : fmtVolume(p.volume)}`;
   b.dataset.i = best;
   b.hidden = false;
