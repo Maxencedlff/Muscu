@@ -89,6 +89,11 @@ async function weightForCalories() {
   return (await latestBodyMass())?.kg || data.bodyWeightKg || null;
 }
 
+// Dernière pesée lue dans Santé (kg), même au-delà de la durée du cache ; null si aucune
+function lastBodyMassKg() { return healthEnabled() ? weightCache.samples[0]?.kg || null : null; }
+// Lecture au démarrage : le poids est connu avant la première séance enregistrée
+function prefetchBodyMass() { if (healthEnabled()) bodyMassSamples().catch(() => {}); }
+
 // Dernière pesée déjà lue : objet, null (Santé n'en a aucune) ou undefined (pas encore lue)
 function knownLatestBodyMass() {
   if (Date.now() - weightCache.at >= WEIGHT_TTL) return undefined;
@@ -280,6 +285,7 @@ registerActions({
       min: lbs ? 55 : 25, max: lbs ? 660 : 300, decimal: true });
     if (v === null) return;
     data.bodyWeightKg = parseFloat(storeW(v));
+    refreshSummaryBodyKg();
     save(); render(); showToast('Poids enregistré');
   },
   'music-play':     async () => { haptic(); updateMusicBar(await Native.music.command('play')); },

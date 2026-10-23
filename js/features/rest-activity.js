@@ -32,7 +32,8 @@ function restActivityNext(session, cur) {
   const reps = String(s.reps ?? '').trim();
   const w    = fmtW(s.weight);
   const m    = measureOf(ex);
-  const load = !reps ? '' : m !== 'reps' ? measureSetTxt(s, m) : w ? `${w} ${unitLbl()} × ${reps}` : `${reps} reps`;
+  const kind = loadKind(ex);
+  const load = !reps ? '' : m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : w ? `${w} ${unitLbl()} × ${reps}` : `${reps} reps`;
   return { exercise: String(ex.name).slice(0, REST_ACTIVITY_MAX.exercise), set: cur.si + 1, load };
 }
 

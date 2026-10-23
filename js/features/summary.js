@@ -7,9 +7,11 @@ let lastSummary = null;  // bilan de la séance qui vient d'être enregistrée
 
 // Meilleure série (la plus lourde, puis le plus de reps). Contrairement à bestSet(), les séries
 // sans reps comptent aussi : la tendance du bilan se calcule sur toute la dernière séance.
-function summaryBestSet(sets) {
+// ex facultatif : avec une machine d'assistance, moins d'aide est meilleur (w comparé en négatif)
+function summaryBestSet(sets, ex = null) {
+  const sign = ex && isAssisted(ex) ? -1 : 1;
   return (sets || []).reduce((b, s) => {
-    const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
+    const w = sign * (parseFloat(s.weight) || 0), r = parseInt(s.reps) || 0;
     if (!b || w > b.w || (w === b.w && r > b.r)) return { w, r, s };
     return b;
   }, null);
@@ -32,7 +34,7 @@ function buildSummary(entry, baseline) {
     prev += pex ? exVolume(pex, pex.sets.slice(0, ex.sets.length), entryBodyKg(prevH)) : 0;
     const rec = exerciseRecord(ex, baseline[ex.exId]);
     if (rec) records.push({ name: ex.name, label: rec.label, weight: rec.s.weight, reps: rec.s.reps });
-    const b = summaryBestSet(ex.sets), pb = summaryBestSet(pex?.sets);
+    const b = summaryBestSet(ex.sets, ex), pb = summaryBestSet(pex?.sets, ex);
     rows.push({ name: ex.name, weight: b.s.weight, reps: b.s.reps, dist: b.s.dist, measure: measureOf(ex), kind: loadKind(ex), trend: bestSetTrend(b, pb) });
   });
   return {
@@ -141,6 +143,14 @@ function renderSummary() {
     </div>`;
 }
 
+// Poids du corps saisi depuis le bilan : la séance le reçoit et le bilan est recalculé (volume, indication)
+function refreshSummaryBodyKg() {
+  const h = lastSummary && data.history.find(x => x.id === lastSummary.id);
+  if (!h || h.bodyKg || !currentBodyKg()) return;
+  h.bodyKg = currentBodyKg();
+  lastSummary = buildSummary(h, lastSummary.baseline);
+}
+
 // Notes du bilan : enregistrées au fil de la frappe
 let summaryNotesTimer = null;
 function summaryNotesInput(value) {
@@ -187,7 +197,7 @@ function sessionHistoryEntry(sp, sc) {
       .map(ex => ({
         exId: ex.exId || resolveExId(sp, sc, ex.name),
         name: ex.name,
-        ...(measureOf(ex) !== 'reps' ? { measure: measureOf(ex) } : {}),
+        ...(storedMeasure(ex) ? { measure: storedMeasure(ex) } : {}),
         sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}) })),
       }))
       .filter(ex => ex.sets.length),

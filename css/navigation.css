@@ -105,6 +105,8 @@ html.type-xl .navbar__large { font-size: min(2rem, 36px); }
   color: var(--label2); font-family: inherit; padding-top: 2px;
 }
 .tabbar__btn--active { color: var(--tint); }
+/* Clair : gris un peu plus soutenu, la barre translucide laissant passer les cartes claires (4,5:1 garanti) */
+body.light .tabbar__btn:not(.tabbar__btn--active) { color: #5C5C61; }
 .tabbar__label { font-size: 10px; line-height: 12px; font-weight: 500; } /* comme iOS : la tab bar ne suit pas Dynamic Type */
 
 /* ── Mini-barre de la séance en cours ── */

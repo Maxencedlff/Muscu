@@ -23,6 +23,9 @@ const TIMED_EXERCISES = new Set(['Gainage (planche)', 'Gainage latéral', 'Gaina
 // Noms saisis librement : maintiens et cardio reconnus par mots-clés (sur ruleKey)
 const TIMED_RE  = /gainage|planche|plank|chaise (contre le|au) mur|wall sit|suspension|dead hang|\bl sit|hollow|front lever|back lever|maintien|isometri/;
 const CARDIO_RE = /course|courir|footing|jogging|running|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation/;
+// Mots qui l'emportent : « Crunch vélo », « Relevés de jambes en suspension », « Rowing rameur » restent en répétitions
+const NOT_TIMED_RE  = /releve|traction|crunch|curl|rowing|tirage|pompe|squat/;
+const NOT_CARDIO_RE = /crunch|abdo|rowing|tirage|releve|curl|squat|fente|pompe|gainage/;
 
 // Mesure d'un exercice : choix enregistré (séance, historique, programme), sinon bibliothèque, sinon nom
 function measureOf(ex) {
@@ -31,7 +34,14 @@ function measureOf(ex) {
   const entry = catalogueEntry(ex?.name || '');
   if (entry) return entry.equip === 'cardio' ? 'cardio' : TIMED_EXERCISES.has(entry.name) ? 'time' : 'reps';
   const k = ruleKey(ex?.name || '');
-  return CARDIO_RE.test(k) ? 'cardio' : TIMED_RE.test(k) ? 'time' : 'reps';
+  if (CARDIO_RE.test(k) && !NOT_CARDIO_RE.test(k)) return 'cardio';
+  return TIMED_RE.test(k) && !NOT_TIMED_RE.test(k) ? 'time' : 'reps';
+}
+// Mesure à enregistrer dans l'historique : toujours hors répétitions, et en répétitions seulement si ce
+// n'est pas ce que le nom donnerait (le choix doit survivre à une détection différente)
+function storedMeasure(ex) {
+  const m = measureOf(ex);
+  return m !== 'reps' || measureOf({ name: ex?.name }) !== 'reps' ? m : null;
 }
 
 // Texte d'une série selon la mesure : « 32,5 kg × 8 », « 8 reps », « 8 reps · +10 kg », « 8 reps · aide 20 kg »,
@@ -85,7 +95,7 @@ function loadKind(ex) { return !bodyShare(ex) ? 'charge' : isAssisted(ex) ? 'aid
 
 // Poids du corps connu : dernière pesée de Santé déjà lue, sinon celui saisi dans Réglages
 function currentBodyKg() {
-  const fromHealth = typeof knownLatestBodyMass === 'function' ? knownLatestBodyMass()?.kg : null;
+  const fromHealth = typeof lastBodyMassKg === 'function' ? lastBodyMassKg() : null;
   return fromHealth || data.bodyWeightKg || null;
 }
 // Charge effective d'une série (kg) ; bodyKg inconnu : le lest seul (0 pour une aide)

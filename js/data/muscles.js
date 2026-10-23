@@ -118,7 +118,7 @@ function exerciseMatches(name, query) { return exerciseMatchScore(name, query) >
 const MUSCLE_RULES = [
   [/leg curl|curl (jambes?|ischio|allonge|couche|assis)|ischio|nordi(c|que)|hamstring|glute ham/,  'hamstrings', 'calves'],
   [/developpe.*serree|close grip|jm press|tate press/,                                    'triceps chest', 'front_delts'],
-  [/poignet|wrist|fermier|farmer|\bgrip\b|suspension|dead hang/,                                               'forearms', ''],
+  [/poignet|wrist|fermier|farmer|\bgrip\b|suspension passive|dead hang/,                                               'forearms', ''],
   [/marteau|hammer curl|curl hammer/,                                                     'biceps forearms', ''],
   [/curl|biceps/,                                                                         'biceps', 'forearms'],
   [/roumain|rdl|jambes tendues|stiff|good morning/,                                       'hamstrings glutes', 'lower_back'],
@@ -126,7 +126,6 @@ const MUSCLE_RULES = [
   [/swing|arrache|snatch|epaule jete|\bclean\b/,                               'glutes hamstrings', 'lower_back traps'],
   [/hip thrust|pont fessier|glute|fessier|kickback (jambe|fess|cable)|abduct|reverse hyper|clamshell|coquillage|marche laterale|monster walk/, 'glutes', 'hamstrings'],
   [/adduct/,                                                                              'adductors', ''],
-  [/course|courir|footing|jogging|running|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation|ergometre|jumping jack/, 'quads calves', 'glutes'],
   [/mollet|calf|calves|soleaire|cheville/,                                                'calves', ''],
   [/extension (quadri|des jambes|jambes?)|leg extension|quadri/,                          'quads', ''],
   [/squat|presse|leg press|fente|lunge|step ?up|chaise (contre le|au) mur|wall sit|\bhack\b|bulgare|montee|thruster|pistol|pendulum/, 'quads glutes', 'adductors'],
@@ -146,6 +145,8 @@ const MUSCLE_RULES = [
   [/traction|pull ?up|chin ?up|muscle ?up|front lever|tirage (vertical|poitrine|nuque)|lat pull|pull ?down/,     'lats', 'biceps rear_delts'],
   [/rowing|\brow\b|tirage|t ?bar/,                                                        'lats traps', 'rear_delts biceps'],
   [/lombaire|extension (du )?dos|hyperextension|back extension|superman/,                 'lower_back', 'glutes hamstrings'],
+  // Cardio après les abdos, le dos et les jambes : « Crunch vélo », « Rowing rameur » gardent leurs muscles
+  [/course|courir|footing|jogging|running|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation|ergometre|jumping jack/, 'quads calves', 'glutes'],
   [/burpee/,                                                                              'quads chest', 'front_delts triceps abs'],
   [/developpe|press/,                                                                     'chest', 'front_delts triceps'],
 ].map(([re, primary, secondary]) => [re, primary.split(' ').filter(Boolean), secondary.split(' ').filter(Boolean)]);

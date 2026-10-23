@@ -12,9 +12,11 @@ function exPoint(h, e) {
   if (!sets.length) return null;
   const wts = sets.map(s => parseFloat(s.weight) || 0);
   // Durée et cardio se suivent comme le poids du corps : sur le champ reps (secondes, minutes)
-  let hasWeight = measureOf(e) === 'reps' && wts.some(w => w > 0);
-  // Poids du corps connu : la charge effective (poids × part soulevée ± lest) remplace le lest seul
-  const bodyKg = bodyShare(e) ? entryBodyKg(h) : null;
+  // Aide sans poids du corps : la charge saisie est une aide, suivie en reps (sinon un progrès paraîtrait une baisse)
+  let hasWeight = measureOf(e) === 'reps' && !isAssisted(e) && wts.some(w => w > 0);
+  // Poids du corps : seulement s'il est connu aujourd'hui, pour que toutes les séances d'un exercice
+  // soient comptées dans la même unité (kg effectifs), jamais un mélange de reps et de kg
+  const bodyKg = bodyShare(e) && currentBodyKg() ? entryBodyKg(h) : null;
   if (bodyKg) {
     const loads = sets.map(s => effectiveLoad(s, e, bodyKg));
     const volume = sets.reduce((a, s, i) => a + loads[i] * (parseInt(s.reps) || 0), 0);

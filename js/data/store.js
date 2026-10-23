@@ -130,8 +130,8 @@ function makeDefaultData() {
     healthOn: false,   // app iOS : Apple Santé
     bodyWeightKg: null, // app iOS : poids de secours pour les calories
     musicOn: false,    // app iOS : Apple Music
-    exEquip: 'all',
-    onboarded: false,  // question « Où t'entraînes-tu ? » répondue (ou « Plus tard »)    // feuille d'ajout d'exercice : filtre de matériel (id d'EQUIPMENT ou 'all')
+    exEquip: 'all',    // feuille d'ajout d'exercice : filtre de matériel (id d'EQUIPMENT ou 'all')
+    onboarded: false,  // question « Où t'entraînes-tu ? » répondue (ou « Plus tard »)
     history: [],
     trash: [],          // { entry, deletedAt } : séances supprimées, récupérables TRASH_DAYS jours
   };
@@ -260,7 +260,8 @@ function cleanHistoryEntry(h) {
     if (!Array.isArray(ex.sets)) ex.sets = [];
     ex.sets = ex.sets.filter(st => isObj(st) && num(st.reps, 0, MAX_COUNT, true) !== null);
     // Mesure (js/data/measures.js) : absente = répétitions ; 'time' (secondes) ou 'cardio' (minutes, km)
-    if (ex.measure !== 'time' && ex.measure !== 'cardio') delete ex.measure;
+    // 'reps' n'est gardé que s'il corrige la détection par le nom (« Crunch vélo » choisi en répétitions)
+    if (!['reps', 'time', 'cardio'].includes(ex.measure)) delete ex.measure;
     ex.sets.forEach(st => {
       st.reps = String(num(st.reps, 0, MAX_COUNT, true) ?? 0);
       if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';

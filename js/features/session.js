@@ -107,8 +107,8 @@ function nextSetText() {
   const cur = currentSet();
   if (!cur) return '';
   const ex = activeSession.exercises[cur.ei], s = ex.sets[cur.si];
-  const m = measureOf(ex);
-  return `${ex.name} · S${cur.si + 1}${s.reps !== '' ? ` · ${m !== 'reps' ? measureSetTxt(s, m) : loadTimes(s.weight) + s.reps}` : ''}`;
+  const m = measureOf(ex), kind = loadKind(ex);
+  return `${ex.name} · S${cur.si + 1}${s.reps !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}` : ''}`;
 }
 
 // Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette

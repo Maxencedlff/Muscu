@@ -140,7 +140,7 @@ function exerciseTarget(cat, ex) {
   if (!best) return { text: `${ex.sets} série${ex.sets > 1 ? 's' : ''}`, gain: '' };
   const m = measureOf(ex);
   if (m !== 'reps' || isAssisted(ex)) return { text: setTxt(best, ex), gain: '' };
-  if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: best.r + 1 }, ex), gain: '+1 rep' };   // durée, cardio : on rappelle la dernière fois
+  if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: best.r + 1, reps: String(best.r + 1) }, ex), gain: '+1 rep' };   // durée, cardio : on rappelle la dernière fois
   const repMax = ex.repMax ?? 12;
   const bump = best.w > 0 && sets.length >= Math.min(ex.sets, 2) && sets.every(s => (parseInt(s.reps) || 0) >= repMax);
   if (bump) {

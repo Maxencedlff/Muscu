@@ -102,26 +102,31 @@ function addHasReps() {
   return Object.values(addSets).some(sets => (sets || []).some(s => String(s.reps ?? '').trim() !== ''));
 }
 
-// Rangée d'une série : la dernière séance (prev) sert de placeholder
-function addSetRow(key, si, s, prev) {
+// Rangée d'une série : la dernière séance (prev) sert de placeholder. ex : { name, measure? } pour la mesure
+// (charge × reps, lest ou aide, durée, cardio : mêmes champs que pendant la séance)
+function addSetRow(key, si, s, prev, ex) {
+  const m = measureOf(ex), M = MEASURES[m], cardio = m === 'cardio';
+  const firstUnit = cardio ? 'km' : m === 'time' ? 'lest' : { charge: unitLbl(), lest: 'lest', aide: 'aide' }[loadKind(ex)];
+  const firstVal  = cardio ? (s.dist ? fmtNum(s.dist) : '') : fmtW(s.weight, { plain: true });
+  const firstPh   = cardio ? (prev?.dist ? fmtNum(prev.dist) : '—') : (prev?.weight ? fmtW(prev.weight, { plain: true }) : '—');
   return `
       <div class="set-row set-row--active">
         <span class="set-num">S${si + 1}</span>
         <div class="input-group">
-          <input type="text" inputmode="decimal" autocomplete="off" class="set-input" placeholder="${prev?.weight ? fmtW(prev.weight, { plain: true }) : '—'}" aria-label="Charge série ${si + 1}"
-                 value="${fmtW(s.weight, { plain: true })}" data-action="add-weight" data-exid="${esc(key)}" data-si="${si}">
-          <span class="input-unit">${unitLbl()}</span>
+          <input type="text" inputmode="decimal" autocomplete="off" class="set-input" placeholder="${firstPh}" aria-label="${cardio ? 'Distance' : 'Charge'} série ${si + 1}"
+                 value="${firstVal}" data-action="${cardio ? 'add-dist' : 'add-weight'}" data-exid="${esc(key)}" data-si="${si}">
+          <span class="input-unit">${firstUnit}</span>
         </div>
         <div class="input-group">
-          <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="set-input set-input--required" placeholder="${prev ? esc(prev.reps) : '0'}" aria-label="Répétitions série ${si + 1}"
-                 value="${esc(s.reps)}" data-action="add-reps" data-exid="${esc(key)}" data-si="${si}">
-          <span class="input-unit">reps</span>
+          <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="set-input set-input--required" placeholder="${prev ? esc(prev.reps) : '0'}" aria-label="${m === 'reps' ? 'Répétitions' : `Durée en ${M.spoken}`} série ${si + 1}"
+                 value="${esc(s.reps)}" data-action="add-reps" data-m="${m}" data-exid="${esc(key)}" data-si="${si}">
+          <span class="input-unit">${M.unit}</span>
         </div>
       </div>`;
 }
 
 // Bloc d'un exercice : séries, boutons + / − et, pour un exercice ajouté, « Retirer »
-function addExerciseBlock(key, name, prev, removable) {
+function addExerciseBlock(key, name, prev, removable, ex = { name }) {
   const sets = addSets[key] || [];
   return `
       <div class="exercise-block">
@@ -134,7 +139,7 @@ function addExerciseBlock(key, name, prev, removable) {
             ${removable ? `<button class="sets-adj" data-action="rem-extra-ex" data-exid="${esc(key)}" title="Retirer" aria-label="Retirer l'exercice">${icon('xmark', 16)}</button>` : ''}
           </div>
         </div>
-        ${sets.map((s, si) => addSetRow(key, si, s, prev[si])).join('')}
+        ${sets.map((s, si) => addSetRow(key, si, s, prev[si], ex)).join('')}
       </div>`;
 }
 
@@ -178,8 +183,8 @@ function renderAddSession() {
       </div>
       <div class="add-session-content">
         ${hasPrev ? `<button class="btn btn--secondary btn--full add-copy-prev" data-action="add-copy-prev">Reprendre la dernière séance</button>` : ''}
-        ${exercises.map(ex => addExerciseBlock(ex.id, ex.name, addPrev[ex.id] || [], false)).join('')}
-        ${addExtras.map(({ key, name }) => addExerciseBlock(key, name, [], true)).join('')}
+        ${exercises.map(ex => addExerciseBlock(ex.id, ex.name, addPrev[ex.id] || [], false, ex)).join('')}
+        ${addExtras.map(({ key, name, measure }) => addExerciseBlock(key, name, [], true, { name, measure })).join('')}
         ${addProg === FREE && !addExtras.length ? `<p class="add-free-hint">Ajoute les exercices que tu as faits. Ils comptent dans tes progrès, sans toucher à ton programme.</p>` : ''}
         <button class="session-add-ex-btn" data-action="add-past-ex">
           + Ajouter un exercice
@@ -199,28 +204,34 @@ function addSessionInputsValid(dateEl) {
     flagInvalid(dateEl, 'Choisis une date');
     return false;
   }
-  const bad = [...document.querySelectorAll('[data-action="add-reps"], [data-action="add-weight"]')].find(inp => {
+  const bad = [...document.querySelectorAll('[data-action="add-reps"], [data-action="add-weight"], [data-action="add-dist"]')].find(inp => {
     const v = inp.value.trim();
     if (inp.dataset.action === 'add-weight') return !weightOk(v);
-    return v !== '' && num(v, 1, 100, true) === null;
+    if (inp.dataset.action === 'add-dist') return !distOk(v);
+    return v !== '' && num(v, 1, (MEASURES[inp.dataset.m] || MEASURES.reps).max, true) === null;
   });
-  if (bad) { flagInvalid(bad, bad.dataset.action === 'add-reps' ? 'Reps entre 1 et 100' : weightMsg()); return false; }
+  if (bad) {
+    const a = bad.dataset.action;
+    flagInvalid(bad, a === 'add-reps' ? (MEASURES[bad.dataset.m] || MEASURES.reps).msg : a === 'add-dist' ? distMsg() : weightMsg());
+    return false;
+  }
   return true;
 }
 
 // Exercices saisis (séries avec des reps) : ceux du programme dans leur ordre, puis les ajouts
 function pastSessionExercises() {
   const clean = sets => (sets || []).filter(s => String(s.reps ?? '').trim() !== '')
-    .map(s => ({ weight: s.weight, reps: String(parseInt(s.reps)) }));
+    .map(s => ({ weight: s.weight, reps: String(parseInt(s.reps)), ...(s.dist ? { dist: s.dist } : {}) }));
   const exercises = (addProgData().exercises[addCat] || [])
     .map(ex => {
       const sets = clean(addSets[ex.id]);
-      return sets.length ? { exId: ex.id, name: ex.name, sets } : null;
+      return sets.length ? { exId: ex.id, name: ex.name, ...(storedMeasure(ex) ? { measure: storedMeasure(ex) } : {}), sets } : null;
     })
     .filter(Boolean);
-  addExtras.forEach(({ key, name, exId }) => {
+  addExtras.forEach(({ key, name, exId, measure }) => {
     const sets = clean(addSets[key]);
-    if (sets.length) exercises.push({ exId: exId || resolveExId(addProg, addCat, name), name, sets });
+    const m = storedMeasure({ name, measure });
+    if (sets.length) exercises.push({ exId: exId || resolveExId(addProg, addCat, name), name, ...(m ? { measure: m } : {}), sets });
   });
   return exercises;
 }
@@ -292,10 +303,10 @@ registerActions({
     initAddSets(addCat);
     session.exercises.forEach(ex => {
       const exData = (addProgData().exercises[addCat] || []).find(e => sameEx(e, ex));
-      const sets   = ex.sets.map(s => ({ weight: s.weight, reps: s.reps }));
+      const sets   = ex.sets.map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}) }));
       if (exData) { addSets[exData.id] = sets; return; }
       const key = 'x_' + uid();
-      addExtras.push({ key, name: ex.name, exId: ex.exId || null });
+      addExtras.push({ key, name: ex.name, exId: ex.exId || null, ...(ex.measure ? { measure: ex.measure } : {}) });
       addSets[key] = sets.length ? sets : [{ weight: '', reps: '' }];
     });
     addNotes = session.notes || '';
@@ -332,7 +343,7 @@ registerActions({
   'add-copy-prev': () => {
     Object.entries(addPrev).forEach(([id, prev]) => {
       if (!prev.length) return;
-      addSets[id] = prev.map(s => ({ weight: s.weight, reps: s.reps }));
+      addSets[id] = prev.map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}) }));
     });
     render();
   },

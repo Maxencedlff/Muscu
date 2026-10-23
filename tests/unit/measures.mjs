@@ -68,4 +68,22 @@ export default function ({ test, run, reset, assert }) {
     assert.equal(run(`setTxt({ w: 20, r: 8, weight: '20', reps: '8' }, { name: 'Tractions assistées (machine)' })`), '8 reps · aide 20 kg');
     assert.equal(run(`recordLabel({ weight: '15', reps: '5' }, { prW: 10, prR: 5, e1rm: 0 }, { name: 'Dips' })`), 'Record lest');
   });
+
+  test('relecture : noms ambigus, choix « Répétitions » enregistré, objectif +1 rep', () => {
+    reset();
+    const m = n => run(`measureOf({ name: ${JSON.stringify(n)} })`);
+    for (const n of ['Crunch vélo', 'Crunch bicyclette', 'Relevés de jambes en suspension', 'Rowing rameur', 'Tirage rameur'])
+      assert.equal(m(n), 'reps', n);
+    const mu = n => [...run(`musclesOf(${JSON.stringify(n)}).primary`)];
+    assert.ok(mu('Crunch vélo').includes('abs'));
+    assert.ok(mu('Relevés de jambes en suspension').includes('abs'));
+    assert.ok(mu('Rowing rameur').includes('lats'));
+    assert.ok(mu('Suspension passive').includes('forearms'));
+    // Un choix qui contredit le nom est enregistré ; sinon rien (répétitions par défaut)
+    assert.equal(run(`storedMeasure({ name: 'Tapis de course', measure: 'reps' })`), 'reps');
+    assert.equal(run(`storedMeasure({ name: 'Curl marteau' })`), null);
+    assert.equal(run(`storedMeasure({ name: 'Gainage (planche)' })`), 'time');
+    const h = run(`(() => { const h = { id: 'r1', date: Date.now(), category: 'push', exercises: [{ name: 'Tapis de course', measure: 'reps', sets: [{ weight: '', reps: '12' }] }] }; cleanHistoryEntry(h); return h; })()`);
+    assert.equal(h.exercises[0].measure, 'reps', 'choix « Répétitions » gardé au nettoyage');
+  });
 }
