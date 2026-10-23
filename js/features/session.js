@@ -392,9 +392,6 @@ registerActions({
     // différé reviendrait dans le champ après une sortie rapide (qui ne serait alors pas enregistrée)
     $('#editSetReps')?.focus({ preventScroll: true });
   },
-  'close-edit-set': () => {
-    editingSet = null; render();
-  },
   'save-edit-set': saveEditedSet,
   'delete-set': (e, el) => {
     const ei = parseInt(el.dataset.ei), si = parseInt(el.dataset.si);

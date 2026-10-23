@@ -65,5 +65,3 @@
   font-size: var(--fs-caption); font-weight: 600; padding: 2px 8px; border-radius: var(--r-xs); flex-shrink: 0;
 }
 
-/* Point pulsé (pastille « en cours » des composants) */
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }

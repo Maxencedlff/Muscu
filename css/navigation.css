@@ -258,7 +258,6 @@ html.type-xl .targets__row { flex-wrap: wrap; }
 .home-cell__status { font-size: 0.882rem; color: var(--label2); }
 .home-cell__status--ready { color: var(--green-text); font-weight: 600; }
 .home-cell__status--live { color: var(--tint); font-weight: 600; }
-.home-cell__chev { color: var(--label3); display: flex; }
 .ring { transform: rotate(-90deg); flex-shrink: 0; }
 .ring__track { fill: none; stroke: var(--fill); stroke-width: 3; }
 .ring__fill { fill: none; stroke: var(--tint); stroke-width: 3; stroke-linecap: round; }

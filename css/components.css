@@ -1,47 +1,10 @@
-/* Composants transverses : badges, bandeau de séance, dialogues iOS, saisie invalide, bannière, écran de secours */
-
-/* ═══════════════════════════════════════════════
-   Série d'entraînement (badge)
-═══════════════════════════════════════════════ */
-.streak-badge {
-  display: inline-flex; align-items: center; gap: 2px;
-  font-size: var(--fs-footnote); font-weight: 600; color: var(--orange-text);
-  background: var(--cell);
-  padding: 4px 8px; border-radius: var(--r-pill);
-  flex-shrink: 0; font-variant-numeric: tabular-nums;
-}
+/* Composants transverses : volume de séance, dialogues iOS, saisie invalide, bannière, écran de secours */
 
 /* ═══════════════════════════════════════════════
    Volume pendant la séance
 ═══════════════════════════════════════════════ */
-.ex-vol-line { font-size: var(--fs-footnote); color: var(--label2); margin-bottom: var(--sp-2); margin-top: -2px; }
-.ex-vol { font-weight: 600; color: var(--label2); font-variant-numeric: tabular-nums; }
 .ex-vol__delta { color: var(--label2); font-weight: 600; }
 .ex-vol__delta--up { color: var(--green-text); }
-
-/* ═══════════════════════════════════════════════
-   Séance en cours (bandeau d'accueil)
-═══════════════════════════════════════════════ */
-.live-banner {
-  display: flex; align-items: center; gap: var(--sp-3); width: 100%;
-  padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-3); text-align: left; min-height: 60px;
-  background: var(--cell);
-  border: none;
-  border-radius: var(--r-md); color: var(--label); cursor: pointer;
-}
-.live-banner:active { opacity: .7; }
-.live-banner__dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-  background: var(--green); animation: pulse 1.6s ease infinite;
-}
-.live-banner__body  { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.live-banner__title { font-weight: 600; font-size: var(--fs-body); display: inline-flex; align-items: center; gap: var(--sp-2); }
-.live-banner__title .cat-badge { width: 22px; height: 22px; font-size: var(--fs-caption2); }
-.live-banner__sub   { font-size: var(--fs-footnote); color: var(--label2); font-variant-numeric: tabular-nums; }
-.live-banner__cta {
-  font-size: var(--fs-subhead); font-weight: 600; color: var(--on-tint); background: var(--tint-fill);
-  padding: 7px 14px; border-radius: var(--r-pill); flex-shrink: 0;
-}
 
 /* ═══════════════════════════════════════════════
    Dialogues iOS (alerte + feuille d'actions)
@@ -117,11 +80,7 @@
 
 /* Petits écrans (iPhone SE, Galaxy S8) */
 @media (max-width: 374px) {
-  .header-actions { gap: 0; }
-  .header .icon-btn { min-width: 40px; }
   .segmented__btn { padding: 0 var(--sp-2); }
-  .prog-pill { padding: 0 var(--sp-2); }
-  .live-banner__cta { padding: 7px 12px; }
 }
 
 /* ═══════════════════════════════════════════════
