@@ -26,8 +26,11 @@ function exDraftFor(route) {
   exDraft = ex
     ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex) }
     : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null };
+  exDraft._init = exDraftSnapshot(exDraft);
   return exDraft;
 }
+// Réglages du brouillon comparables (sans la route ni l'état initial) : sert à savoir s'il a changé
+function exDraftSnapshot(d) { const { route, _init, ...rest } = d; return JSON.stringify(rest); }
 
 // Programme › Séance : exercices, récupération, repos, mode Modifier (glisser pour réordonner)
 function renderEditor() {
@@ -169,7 +172,7 @@ function renderExEdit() {
   return `
     <div class="view ex-edit view--grouped">
       ${navBar({ title: isEdit ? 'Exercice' : 'Nouvel exercice',
-          left: `<button class="navbar__text" data-action="back">Annuler</button>`,
+          left: `<button class="navbar__text" data-action="cancel-ex">Annuler</button>`,
           right: `<button class="navbar__text navbar__text--bold" data-action="save-ex">OK</button>` })}
       <div class="scr">
         <div class="group-title">Nom</div>
@@ -363,9 +366,21 @@ registerActions({
     const list = prog().exercises[editorCatOf()];
     const name = list[i].name;
     if (!(await confirmSheet(`Supprimer « ${name} » ?`, 'L\'historique de cet exercice est conservé.', 'Supprimer l\'exercice'))) return;
-    list.splice(i, 1);
+    const [removed] = list.splice(i, 1);
     save();
     if (currentView() === 'ex-edit') { exDraft = null; goBack(); } else render();
+    showToast(`« ${name} » supprimé`, { action: 'Annuler', duration: 5000, onAction: () => {
+      if (list.includes(removed)) return;
+      list.splice(Math.min(i, list.length), 0, removed); save(); render();
+    } });
+  },
+  // Annuler la fiche : confirmation seulement si quelque chose a changé
+  'cancel-ex': async () => {
+    const fieldsChanged = ['#exName', '#exTarget', '#exRepMax', '#exTempoIn'].some(sel => { const f = $(sel); return f && f.value !== f.defaultValue; });
+    const draftChanged = exDraft && exDraft._init !== exDraftSnapshot(exDraft);
+    if ((fieldsChanged || draftChanged) && !(await confirmSheet('Abandonner les modifications ?', 'Les réglages de cet exercice ne seront pas enregistrés.', 'Abandonner'))) return;
+    exDraft = null;
+    goBack();
   },
   'save-ex': async () => {
     const route = currentRoute(), editorCat = editorCatOf(route), editExIdx = editExIdxOf(route);

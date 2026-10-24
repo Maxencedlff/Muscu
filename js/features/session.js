@@ -191,7 +191,9 @@ function exVolumeHtml(ex, allDone) {
 function exSubHtml(ex, ei, allDone) {
   const pr   = measureOf(ex) === 'reps' ? sessExData(ex)?.pr : null;
   const rest = fmtRest(exRest(ex));
-  const tempo = parseTempo(ex.tempo) && measureOf(ex) === 'reps' ? `<span class="num">Tempo ${esc(shortTempo(ex.tempo))}</span> · ` : '';
+  const tempo = parseTempo(ex.tempo) && measureOf(ex) === 'reps'
+    ? `<span class="tempo-pill num" aria-label="Tempo ${esc(shortTempo(ex.tempo))}${ex.tempoGuide === true ? ', guidé au son' : ''}">${ex.tempoGuide === true ? icon('music', 12) : ''}Tempo ${esc(shortTempo(ex.tempo))}</span> `
+    : '';
   return `${tempo}${pr ? `<span class="num">Record ${fmtW(pr.weight, { plain: true })} × ${esc(pr.reps)}</span> · ` : ''}<button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${ei}" aria-label="Repos ${rest}, modifier">Repos ${rest}</button>${exVolumeHtml(ex, allDone)}`;
 }
 
@@ -289,7 +291,7 @@ function renderSetRow(ex, ei, s, si, cur) {
     <div class="set-swipe" role="row">
       ${editing ? '' : del}
       <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
-        ${(m === 'time' || (m === 'reps' && parseTempo(ex.tempo) && ex.tempoGuide === true)) && isCur
+        ${(m === 'time' || (m === 'reps' && parseTempo(ex.tempo) && ex.tempoGuide === true)) && !editing && si === ex.sets.findIndex(x => !x.done)
           ? `<button class="set-n set-play" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="${m === 'time' ? 'Lancer le chrono' : `Lancer la série guidée au tempo ${esc(ex.tempo)}`}, série ${si + 1}, ${esc(ex.name)}${s.reps ? `, ${esc(s.reps)} ${m === 'time' ? 'secondes' : 'répétitions'}` : ''}">${icon('play', 16)}</button>`
           : `<span class="set-n num">${si + 1}</span>`}
         <span class="set-prev num">${prev}</span>
@@ -298,8 +300,42 @@ function renderSetRow(ex, ei, s, si, cur) {
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
                value="${esc(rVal)}" placeholder="${esc(s.prev?.reps ?? '0')}" aria-label="${m === 'reps' ? 'Répétitions' : `Durée en ${M.spoken}`} série ${si + 1}, ${esc(ex.name)}">
         ${check}
+        ${isCur ? setStepsHtml(ex, ei, si) : ''}
       </div>
     </div>`;
+}
+
+// Pas des boutons −/+ : 2,5 kg (5 lbs), 0,5 km, 5 s, 1 rep
+function setStep(ex, field) {
+  const m = measureOf(ex);
+  if (field === 'r') return m === 'time' ? 5 : 1;
+  return m === 'cardio' ? 0.5 : (data.unit === 'lbs' ? 5 : 2.5);
+}
+// −/+ de la série en cours : changer la charge ou les reps sans effacer le champ au clavier
+function setStepsHtml(ex, ei, si) {
+  const m = measureOf(ex), fmt = v => String(v).replace('.', ',');
+  const wUnit = m === 'cardio' ? 'km' : unitLbl(), rUnit = m === 'time' ? 's' : m === 'reps' ? 'rep' : 'min';
+  const btn = (f, d, unit) => {
+    const v = setStep(ex, f);
+    return `<button class="set-step num" data-action="step-set" data-ei="${ei}" data-si="${si}" data-f="${f}" data-d="${d}" aria-label="${d > 0 ? 'Plus' : 'Moins'} ${fmt(v)} ${unit}">${d > 0 ? '+' : '−'}${fmt(v)}</button>`;
+  };
+  return `<div class="set-steps">
+          <span class="set-steps__grp">${btn('w', -1, wUnit)}${btn('w', 1, wUnit)}</span>
+          <span class="set-steps__grp">${btn('r', -1, rUnit)}${btn('r', 1, rUnit)}</span>
+        </div>`;
+}
+
+// Valeur au-delà de l'habituel, demandée avant de valider (unusualSetValue, js/data/measures.js) ;
+// une fois confirmée pour l'exercice (ex.oddOk), plus redemandée dans la séance
+function unusualSetText(ex, s) {
+  // Valeur hors bornes : c'est validateSet qui la refuse et signale le champ, sans question avant
+  if (measureOf(ex) !== 'reps' || ex.oddOk || num(s.reps, 1, MEASURES.reps.max, true) === null || !weightOk(fmtW(s.weight, { plain: true }))) return '';
+  const done = ex.sets.filter(x => x.done);
+  return unusualSetValue(s, {
+    prevReps: parseInt(s.prev?.reps) || 0, prevW: parseFloat(s.prev?.weight) || 0,
+    prW: parseFloat(sessExData(ex)?.pr?.weight) || 0, repMax: sessExData(ex)?.repMax ?? 12,
+    doneReps: done.map(x => parseInt(x.reps) || 0), doneW: done.map(x => parseFloat(x.weight) || 0), kind: loadKind(ex),
+  });
 }
 
 // ── Validation d'une série ───────────────────────────────────
@@ -411,9 +447,36 @@ registerActions({
     if (!activeSession) return;
     if (currentRoute() !== 'session') navigate('session');
   },
-  'validate-set': (e, el) => {
+  'validate-set': async (e, el) => {
     if (editingSet && !saveEditedSet()) return;   // correction en cours : enregistrée avant de passer à la suite
-    validateSet(parseInt(el.dataset.ei), parseInt(el.dataset.si));
+    const ei = parseInt(el.dataset.ei), si = parseInt(el.dataset.si);
+    const ex = activeSession?.exercises[ei], s = ex?.sets[si];
+    const odd = s && !s.done ? unusualSetText(ex, s) : '';
+    if (odd) {
+      if (!(await confirmSheet('Valeur inhabituelle', `${odd} : c'est bien ça ?`, 'Valider quand même', false))) return;
+      ex.oddOk = true;
+    }
+    validateSet(ei, si);
+  },
+  'step-set': (e, el) => {
+    const ei = parseInt(el.dataset.ei), si = parseInt(el.dataset.si), d = Number(el.dataset.d), f = el.dataset.f;
+    const ex = activeSession?.exercises[ei], s = ex?.sets[si];
+    if (!s || s.done) return;
+    const m = measureOf(ex), step = setStep(ex, f), round = v => Math.round(v * 100) / 100;
+    if (f === 'r') {
+      const cur = parseInt(s.reps) || parseInt(s.prev?.reps) || 0, min = m === 'time' ? 5 : 1;
+      s.reps = String(Math.min(MEASURES[m].max, Math.max(min, cur + d * step)));
+    } else if (m === 'cardio') {
+      const cur = parseFloat(s.dist) || parseFloat(s.prev?.dist) || 0;
+      setDist(s, String(Math.max(0, round(cur + d * step))));
+    } else {
+      // Redescendu à 0 : champ vide (« — »), comme un exercice sans charge
+      const cur = toUnitW(s.weight) ?? toUnitW(s.prev?.weight) ?? 0, v = Math.max(0, round(cur + d * step));
+      s.weight = v > 0 ? storeW(String(v)) : '';
+    }
+    haptic();
+    persistSession();
+    render();
   },
   'edit-set': (e, el) => {
     // Série validée rouverte sur place, avec ses champs et le ✓

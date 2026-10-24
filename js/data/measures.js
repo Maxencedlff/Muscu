@@ -93,6 +93,21 @@ function isAssisted(ex) { return bodyShare(ex) > 0 && ASSISTED_RE.test(ruleKey(e
 // Ce que contient la colonne de charge : 'charge' (barre, haltères), 'lest' ou 'aide'
 function loadKind(ex) { return !bodyShare(ex) ? 'charge' : isAssisted(ex) ? 'aide' : 'lest'; }
 
+// Série au-delà de l'habituel (faute de frappe : « 180 » au lieu de « 8 ») : texte à faire confirmer, '' sinon.
+// Références : la même série la dernière fois, le record, les séries déjà faites dans la séance et le haut de
+// fourchette. Charge vérifiée seulement en vraie charge (pas de lest ni d'aide), avec un écart minimal pour
+// ne pas alerter sur les petites charges (haltères de 4 à 7 kg).
+//   { reps, weight } : saisie (kg) ; ref : { prevReps, prevW, prW, doneReps: [], doneW: [], repMax, kind }
+function unusualSetValue({ reps, weight }, ref) {
+  const r = parseInt(reps) || 0, w = parseFloat(weight) || 0;
+  const refReps = Math.max(ref.prevReps || 0, ref.repMax || 12, ...(ref.doneReps || []));
+  if (r > Math.max(30, refReps * 2)) return `${r} répétitions`;
+  if (ref.kind !== 'charge') return '';
+  const refW = Math.max(ref.prevW || 0, ref.prW || 0, ...(ref.doneW || []));
+  if (refW > 0 && w - refW > Math.max(refW * 0.5, 20)) return `${fmtW(weight)} (d'habitude ${fmtW(refW)})`;
+  return '';
+}
+
 // Poids du corps connu : dernière pesée de Santé déjà lue, sinon celui saisi dans Réglages
 function currentBodyKg() {
   const fromHealth = typeof lastBodyMassKg === 'function' ? lastBodyMassKg() : null;

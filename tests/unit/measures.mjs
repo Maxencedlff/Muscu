@@ -131,6 +131,18 @@ export default function ({ test, run, reset, assert }) {
     assert.equal(run(`bothSides({ name: 'Élévations latérales' })`), false, 'en répétitions : pas de chrono');
   });
 
+  test('valeur inhabituelle : faute de frappe signalée, hausses normales et petites charges laissées', () => {
+    const u = (set, ref) => run(`unusualSetValue(${JSON.stringify(set)}, ${JSON.stringify({ kind: 'charge', repMax: 12, ...ref })})`);
+    assert.match(u({ reps: '180', weight: '25' }, { prevReps: 10, prevW: 25 }), /180 répétitions/);
+    assert.equal(u({ reps: '40', weight: '' }, { repMax: 40 }), '', 'crunchs à 40 : haut de fourchette');
+    assert.equal(u({ reps: '35', weight: '' }, { doneReps: [35] }), '', 'déjà fait dans la séance');
+    assert.match(u({ reps: '10', weight: '275' }, { prevW: 25 }), /d'habitude/);
+    assert.equal(u({ reps: '10', weight: '7' }, { prevW: 4 }), '', 'haltères de 4 à 7 kg');
+    assert.equal(u({ reps: '10', weight: '120' }, { prevW: 100, doneW: [] }), '', '+20 kg sur 100 : hausse normale');
+    assert.equal(u({ reps: '10', weight: '15' }, { kind: 'lest', prevW: 2.5 }), '', 'lest : pas de règle de charge');
+    assert.equal(u({ reps: '10', weight: '80' }, {}), '', 'première fois : rien à comparer');
+  });
+
   test('tempo : lecture de la notation, sens de départ, horloge des phases', () => {
     const p = v => run(`parseTempo(${JSON.stringify(v)})`);
     assert.deepEqual([...p('3-1-1')], [3, 1, 1, 0]);

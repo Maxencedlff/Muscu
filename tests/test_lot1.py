@@ -148,6 +148,8 @@ def t_fix_typo(bench, eng, dev, theme):
         start(page)
         si, w, r, v = active_inputs(page)
         w.fill('325'); r.fill('11'); v.click(); page.wait_for_timeout(150)
+        # 325 kg contre 30 d'habitude : l'appli demande confirmation (faute de frappe probable)
+        tap_dialog(page, 'Valider quand même'); page.wait_for_timeout(150)
         skip_rest(page)
         page.click('[data-action="edit-set"][data-ei="0"][data-si="0"]')
         page.wait_for_selector('#editSetWeight')

@@ -157,7 +157,7 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
   const names = exclude ?? (activeSession?.exercises || []).map(e => e.name);
   ax = { target, replaceEi: target === 'session' ? replaceEi : null, exclude: new Set(names.map(normName)), onPick };
   const rep   = ax.replaceEi !== null ? activeSession.exercises[ax.replaceEi] : null;
-  axSets      = rep ? rep.sets.length : 3;
+  axSets      = rep ? Math.max(1, rep.sets.filter(s => !s.done).length) : 3;   // les séries qui restent à faire
   const html = `
     <div class="ax">
       <div class="ax__bar">
@@ -234,9 +234,16 @@ function pickExercise(name) {
   }
   let target;
   if (ax.replaceEi !== null) {
-    activeSession.exercises.splice(ax.replaceEi, 1, exObj);
-    target = ax.replaceEi;
-    showToast('Exercice remplacé');
+    // Les séries déjà validées sont du travail fait : l'ancien exercice les garde (sans ses séries
+    // restantes) et le nouveau se place juste après ; « Annuler » rend la séance d'avant
+    const before = clone(activeSession.exercises), old = activeSession.exercises[ax.replaceEi];
+    const done = old?.sets.filter(s => s.done) || [];
+    if (done.length) { old.sets = done; activeSession.exercises.splice(ax.replaceEi + 1, 0, exObj); target = ax.replaceEi + 1; }
+    else { activeSession.exercises.splice(ax.replaceEi, 1, exObj); target = ax.replaceEi; }
+    showToast(done.length ? `Remplacé, ${plural(done.length, 'série gardée', 'séries gardées')}` : 'Exercice remplacé', {
+      action: 'Annuler', duration: 5000,
+      onAction: () => restoreSessionExercises(before),
+    });
   } else {
     activeSession.exercises.push(exObj);
     target = activeSession.exercises.length - 1;
@@ -250,6 +257,60 @@ function pickExercise(name) {
   setTimeout(() => document.querySelector(`.ex-card[data-ei="${target}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
 }
 
+// « Annuler » d'un remplacement ou d'un retrait : la liste d'avant revient ; série rouverte et chrono
+// abandonnés, leurs positions (ei) ne valant plus
+function restoreSessionExercises(before) {
+  if (!activeSession) return;
+  cancelEffort();
+  editingSet = null;
+  activeSession.exercises = before;
+  activeSession.lastEi = null;
+  persistSession();
+  render();
+}
+
+// Tempo choisi pendant la séance : préréglage ou saisie libre, puis rappel seul ou guidé au son.
+// Appliqué à l'exercice de la séance et à celui du programme (la prochaine fois aussi).
+async function chooseSessionTempo(ei) {
+  const ex = activeSession?.exercises[ei];
+  if (!ex) return;
+  const pick = await dialog({ type: 'sheet', title: 'Tempo', message: 'Descente, pause en bas, montée, en secondes.', actions: [
+    ...TEMPO_PRESETS.map(p => ({ label: `${p.label} ${shortTempo(p.tempo)}`, value: p.tempo })),
+    { label: 'Personnalisé…', value: 'custom' },
+    ...(ex.tempo ? [{ label: 'Sans tempo', value: 'none', style: 'destructive' }] : []),
+    { label: 'Annuler', style: 'cancel' },
+  ] });
+  if (!pick || !activeSession) return;
+  let tempo = null;
+  if (pick === 'custom') {
+    const raw = await askText({ title: 'Tempo personnalisé', message: '3 ou 4 chiffres, ex. 3-1-1 (X = explosif).', value: ex.tempo ? shortTempo(ex.tempo) : '', placeholder: '3-1-1' });
+    if (!raw) return;
+    const t = parseTempo(raw);
+    if (!t) { showToast('Tempo illisible, ex. 3-1-1', { error: true }); return; }
+    tempo = formatTempo(t);
+  } else if (pick !== 'none') tempo = pick;
+  let guide = false;
+  if (tempo) {
+    const mode = await dialog({ type: 'sheet', title: `Tempo ${shortTempo(tempo)}`, message: 'Pendant la série :', actions: [
+      { label: 'Rappel seulement', value: 'rappel', style: 'preferred' },
+      { label: 'Guidé au son', value: 'guide' },
+      { label: 'Annuler', style: 'cancel' },
+    ] });
+    if (!mode || !activeSession) return;
+    guide = mode === 'guide';
+  }
+  const apply = o => {
+    if (tempo) o.tempo = tempo; else delete o.tempo;
+    if (guide) { o.tempoGuide = true; o.tempoPrep = tempoPrepOf(o); } else { delete o.tempoGuide; delete o.tempoPrep; }
+  };
+  apply(ex);
+  const inProg = ex.exId && (sessProg().exercises[activeSession.category] || []).find(e => e.id === ex.exId);
+  if (inProg) { apply(inProg); save(); }
+  persistSession();
+  render();
+  showToast(tempo ? `Tempo ${shortTempo(tempo)}${guide ? ', guidé au son' : ''}` : 'Tempo retiré');
+}
+
 // ── Menu ⋯ d'un exercice ──
 async function exerciseMenu(ei) {
   const ex = activeSession.exercises[ei];
@@ -261,6 +322,7 @@ async function exerciseMenu(ei) {
     ...(exerciseHowTo(ex.name) || exerciseMove(ex.name) ? [{ label: 'Comment faire', value: 'howto' }] : []),
     { label: 'Remplacer l\'exercice', value: 'replace' },
     { label: 'Régler le repos', value: 'rest' },
+    ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
     { label: 'Muscles ciblés', value: 'muscles' },
     { label: 'Relancer le repos', value: 'restart' },
     { label: 'Retirer l\'exercice', value: 'remove', style: 'destructive' },
@@ -282,16 +344,19 @@ async function exerciseMenu(ei) {
     if (await declareMusclesFor(ex.name)) render();
   } else if (choice === 'rest') {
     openExRestSheet(ei);
+  } else if (choice === 'tempo') {
+    await chooseSessionTempo(ei);
   } else if (choice === 'restart') {
     openRest(exRest(ex));
   } else if (choice === 'remove') {
     const done = ex.sets.filter(s => s.done).length;
     if (done && !(await confirmSheet('Retirer l\'exercice ?', `Les ${done} séries validées de cet exercice ne seront pas enregistrées. Le programme ne change pas.`, 'Retirer'))) return;
+    const before = clone(xs);
     xs.splice(ei, 1);
     activeSession.lastEi = null;
     editingSet = null;
     render();
-    showToast('Exercice retiré de la séance');
+    showToast('Exercice retiré', { action: 'Annuler', duration: 5000, onAction: () => restoreSessionExercises(before) });
   }
   persistSession();
 }
