@@ -388,14 +388,6 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
   background: color-mix(in srgb, var(--cat-color, var(--tint)) 16%, transparent);
   color: var(--label); font-weight: 600;
 }
-/* −/+ sous la série en cours, alignés sous la charge et les reps */
-.set-steps { grid-column: 2 / -1; display: flex; gap: 12px; padding: 6px 0 2px; }
-.set-steps__grp { display: flex; gap: 4px; flex: 1; }
-.set-step {
-  flex: 1; min-height: 44px; min-width: 0; border: 0; border-radius: 10px; cursor: pointer;
-  background: var(--fill); color: var(--label); font: inherit; font-size: 0.882rem; font-weight: 600;
-}
-.set-step:active { background: var(--fill2, var(--fill)); transform: scale(.96); }
 /* Feuille d'effort : même composant que le repos, « Annuler » à gauche */
 .rs__top .rs__collapse--left { left: -8px; right: auto; }
 .rs--effort .rs__done { min-width: 160px; }

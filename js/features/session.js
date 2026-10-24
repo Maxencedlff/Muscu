@@ -300,29 +300,8 @@ function renderSetRow(ex, ei, s, si, cur) {
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
                value="${esc(rVal)}" placeholder="${esc(s.prev?.reps ?? '0')}" aria-label="${m === 'reps' ? 'Répétitions' : `Durée en ${M.spoken}`} série ${si + 1}, ${esc(ex.name)}">
         ${check}
-        ${isCur ? setStepsHtml(ex, ei, si) : ''}
       </div>
     </div>`;
-}
-
-// Pas des boutons −/+ : 2,5 kg (5 lbs), 0,5 km, 5 s, 1 rep
-function setStep(ex, field) {
-  const m = measureOf(ex);
-  if (field === 'r') return m === 'time' ? 5 : 1;
-  return m === 'cardio' ? 0.5 : (data.unit === 'lbs' ? 5 : 2.5);
-}
-// −/+ de la série en cours : changer la charge ou les reps sans effacer le champ au clavier
-function setStepsHtml(ex, ei, si) {
-  const m = measureOf(ex), fmt = v => String(v).replace('.', ',');
-  const wUnit = m === 'cardio' ? 'km' : unitLbl(), rUnit = m === 'time' ? 's' : m === 'reps' ? 'rep' : 'min';
-  const btn = (f, d, unit) => {
-    const v = setStep(ex, f);
-    return `<button class="set-step num" data-action="step-set" data-ei="${ei}" data-si="${si}" data-f="${f}" data-d="${d}" aria-label="${d > 0 ? 'Plus' : 'Moins'} ${fmt(v)} ${unit}">${d > 0 ? '+' : '−'}${fmt(v)}</button>`;
-  };
-  return `<div class="set-steps">
-          <span class="set-steps__grp">${btn('w', -1, wUnit)}${btn('w', 1, wUnit)}</span>
-          <span class="set-steps__grp">${btn('r', -1, rUnit)}${btn('r', 1, rUnit)}</span>
-        </div>`;
 }
 
 // Valeur au-delà de l'habituel, demandée avant de valider (unusualSetValue, js/data/measures.js) ;
@@ -457,26 +436,6 @@ registerActions({
       ex.oddOk = true;
     }
     validateSet(ei, si);
-  },
-  'step-set': (e, el) => {
-    const ei = parseInt(el.dataset.ei), si = parseInt(el.dataset.si), d = Number(el.dataset.d), f = el.dataset.f;
-    const ex = activeSession?.exercises[ei], s = ex?.sets[si];
-    if (!s || s.done) return;
-    const m = measureOf(ex), step = setStep(ex, f), round = v => Math.round(v * 100) / 100;
-    if (f === 'r') {
-      const cur = parseInt(s.reps) || parseInt(s.prev?.reps) || 0, min = m === 'time' ? 5 : 1;
-      s.reps = String(Math.min(MEASURES[m].max, Math.max(min, cur + d * step)));
-    } else if (m === 'cardio') {
-      const cur = parseFloat(s.dist) || parseFloat(s.prev?.dist) || 0;
-      setDist(s, String(Math.max(0, round(cur + d * step))));
-    } else {
-      // Redescendu à 0 : champ vide (« — »), comme un exercice sans charge
-      const cur = toUnitW(s.weight) ?? toUnitW(s.prev?.weight) ?? 0, v = Math.max(0, round(cur + d * step));
-      s.weight = v > 0 ? storeW(String(v)) : '';
-    }
-    haptic();
-    persistSession();
-    render();
   },
   'edit-set': (e, el) => {
     // Série validée rouverte sur place, avec ses champs et le ✓

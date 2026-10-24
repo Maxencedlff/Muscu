@@ -63,11 +63,26 @@ document.addEventListener('click', e => {
 
 // ── Saisie au clavier ───────────────────────────────────────
 
-// Champ de série touché : clavier ouvert (la barre de repos s'efface), curseur laissé où iOS le place
+// Champ de série touché : clavier ouvert (la barre de repos s'efface). Le champ d'une série à faire se vide
+// pour taper directement la nouvelle valeur (sinon « 8 » tapé derrière « 10 » donne « 108 ») ; l'ancienne
+// reste affichée en gris et revient si rien n'est tapé. Pas de select() : iOS ferait apparaître le menu
+// Copier/Coller et demanderait un second toucher. La donnée de la série ne change qu'à la frappe (input).
+const CLEAR_ON_FOCUS = new Set(['set-weight', 'set-reps', 'set-dist']);
 document.addEventListener('focusin', e => {
   const t = e.target;
   if (!t.matches?.('.set-input')) return;
   document.body.classList.add('kb-open');
+  if (CLEAR_ON_FOCUS.has(t.dataset.action) && t.value !== '') {
+    t.dataset.was = t.value; t.dataset.ph = t.placeholder;
+    t.placeholder = t.value; t.value = '';
+  }
+});
+document.addEventListener('focusout', e => {
+  const t = e.target;
+  if (t.dataset?.was === undefined) return;
+  if (t.value === '') t.value = t.dataset.was;
+  t.placeholder = t.dataset.ph ?? '';
+  delete t.dataset.was; delete t.dataset.ph;
 });
 // Appui commencé dans la série rouverte (✓, autre champ) : c'est ce geste qui enregistre ou
 // garde la saisie, pas la sortie du champ (sur iOS un bouton ne prend pas le focus, et sous
