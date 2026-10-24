@@ -27,6 +27,9 @@ function parseTempo(str) {
   return vals;
 }
 function formatTempo(t) { return t ? t.join('-') : ''; }
+// Série guidée : temps pour s'installer (sur le banc, la barre décrochée) avant la première rep
+const TEMPO_PREP_CHOICES = [5, 10, 20, 30], TEMPO_PREP_DEFAULT = 10;
+function tempoPrepOf(ex) { const v = Number(ex?.tempoPrep); return TEMPO_PREP_CHOICES.includes(v) ? v : TEMPO_PREP_DEFAULT; }
 // Affichage : « 3-1-1 » quand il n'y a pas de pause en haut (écriture usuelle), sinon les 4 phases
 function shortTempo(str) { const t = parseTempo(str); return !t ? '' : (t[3] === 0 ? t.slice(0, 3) : t).join('-'); }
 // Durée guidée d'une phase (X : 1 s) et d'une répétition

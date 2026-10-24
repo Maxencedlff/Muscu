@@ -152,6 +152,9 @@ export default function ({ test, run, reset, assert }) {
     // En tirant : la montée d'abord
     assert.equal(run(`tempoClock({ start: ${t0}, tempo: [3, 1, 1, 0], reps: 2, conFirst: true }, ${t0 + 500})`).phase, 'con');
     assert.equal(run(`concentricFirst('Développé militaire')`), true);
+    assert.equal(run(`tempoPrepOf({ tempoPrep: 20 })`), 20);
+    assert.equal(run(`tempoPrepOf({ tempoPrep: 7 })`), 10);
+    assert.equal(run(`tempoPrepOf({})`), 10);
     assert.equal(run(`concentricFirst('DM haltères')`), true);
     // Reprise à la rep 3 sur 8 : préparation, puis rep 3, fin après 6 reps guidées
     const r = now => run(`tempoClock({ start: ${t0}, tempo: [3, 1, 1, 0], reps: 8, conFirst: false, firstRep: 3 }, ${now})`);

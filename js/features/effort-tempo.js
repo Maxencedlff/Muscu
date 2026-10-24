@@ -15,9 +15,10 @@ const TEMPO_NOTES = { ecc: 'tempoDown', con: 'tempoUp' };
 
 // Effort au tempo pour la série si l'exercice en a un ; null sinon
 function tempoEffort(ex, s, ei, si) {
-  const tempo = measureOf(ex) === 'reps' && ex.tempoGuide !== false ? parseTempo(ex.tempo) : null;
+  const tempo = measureOf(ex) === 'reps' && ex.tempoGuide === true ? parseTempo(ex.tempo) : null;
   if (!tempo) return null;
-  return { kind: 'tempo', ei, si, start: Date.now() + EFFORT_PREP_S * 1000, tempo,
+  const prep = tempoPrepOf(ex);
+  return { kind: 'tempo', ei, si, start: Date.now() + prep * 1000, prep, tempo,
            reps: num(s.reps, 1, MEASURES.reps.max, true), conFirst: concentricFirst(ex.name) };
 }
 
@@ -29,7 +30,7 @@ function updateTempoUI(e) {
     if (time) time.innerHTML = `${c.prepLeft}`;
     if (sub) sub.textContent = 'Mets-toi en place';
     if (stop) stop.textContent = 'Commencer';
-    if (bar) bar.setAttribute('stroke-dashoffset', RING_BIG * (c.prepLeft / EFFORT_PREP_S));
+    if (bar) bar.setAttribute('stroke-dashoffset', RING_BIG * (c.prepLeft / (e.prep || EFFORT_PREP_S)));
   } else if (c.phase !== 'done') {
     if (time) time.innerHTML = `<span class="tempo__word">${words[c.phase]}</span><span class="tempo__left">${c.phaseLeft}</span>`;
     if (sub) sub.textContent = e.reps ? `Rep ${c.rep} sur ${e.reps}` : `Rep ${c.rep}`;
@@ -75,7 +76,7 @@ function pauseTempo(e) {
 function resumeTempoAfterPause(e) {
   if (!e.pausedRep) return;
   e.firstRep = e.pausedRep;
-  e.start = Date.now() + EFFORT_PREP_S * 1000;
+  e.start = Date.now() + (e.prep || EFFORT_PREP_S) * 1000;
   delete e.pausedRep;
   effortLastSecond = null;
   persistSession();

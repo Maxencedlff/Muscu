@@ -24,8 +24,8 @@ function exDraftFor(route) {
   const i  = editExIdxOf(route);
   const ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
   exDraft = ex
-    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide !== false, muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex) }
-    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, measure: null, tempo: null, tempoGuide: true, muscles: null, musclesSecondary: null };
+    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex) }
+    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null };
   return exDraft;
 }
 
@@ -132,20 +132,29 @@ function exTempoHtml(d) {
           </label>
           ${t ? `<div class="cell cell--ctl cell--wrap">
             <div class="segmented seg-full" role="group" aria-label="Pendant la série">
-              ${[[true, 'Guidé au son'], [false, 'Rappel seulement']].map(([g, label]) => `<button class="segmented__btn ${d.tempoGuide === g ? 'segmented__btn--active' : ''}" aria-pressed="${d.tempoGuide === g}" data-action="ex-tempo-guide" data-guide="${g}">${label}</button>`).join('')}
+              ${[[false, 'Rappel seulement'], [true, 'Guidé au son']].map(([g, label]) => `<button class="segmented__btn ${d.tempoGuide === g ? 'segmented__btn--active' : ''}" aria-pressed="${d.tempoGuide === g}" data-action="ex-tempo-guide" data-guide="${g}">${label}</button>`).join('')}
+            </div>
+          </div>` : ''}
+          ${t && d.tempoGuide ? `<div class="cell cell--ctl cell--wrap">
+            <span class="cell__body"><span class="cell__title">Préparation</span></span>
+            <div class="segmented seg-full" role="group" aria-label="Temps de préparation avant la première répétition">
+              ${TEMPO_PREP_CHOICES.map(s => `<button class="segmented__btn ${d.tempoPrep === s ? 'segmented__btn--active' : ''}" aria-pressed="${d.tempoPrep === s}" data-action="ex-tempo-prep" data-prep="${s}">${s} s</button>`).join('')}
             </div>
           </div>` : ''}
         </div>
-        <div class="group-foot">${t ? `${esc(tempoSentence(t, d.name))}. ${tempoRepSeconds(t) > 10 ? 'Au-delà de 10 s par répétition, ce n\'est pas plus efficace pour le muscle. ' : ''}Plus lent = plus dur : baisse la charge. ${d.tempoGuide ? 'Pendant la séance, ▶ guide chaque répétition au son.' : 'Pendant la séance, le tempo est rappelé sous l\'exercice, sans guidage.'}` : 'Descente, pause, montée, en secondes (X = explosif). Ex. 3-1-1 : 3 s pour descendre, 1 s en bas, 1 s pour remonter.'}</div>`;
+        <div class="group-foot">${t ? `${esc(tempoSentence(t, d.name))}. ${tempoRepSeconds(t) > 10 ? 'Au-delà de 10 s par répétition, ce n\'est pas plus efficace pour le muscle. ' : ''}Plus lent = plus dur : baisse la charge. ${d.tempoGuide ? `Pendant la séance, ▶ lance ${d.tempoPrep} s pour t'installer (« Commencer » pour partir avant), puis guide chaque répétition au son.` : 'Pendant la séance, le tempo est rappelé sous l\'exercice. « Guidé au son » ajoute un ▶ qui bipe chaque phase.'}` : 'Descente, pause, montée, en secondes (X = explosif). Ex. 3-1-1 : 3 s pour descendre, 1 s en bas, 1 s pour remonter.'}</div>`;
 }
 function refreshExTempo() { const box = $('#exTempo'); if (box && exDraft) box.innerHTML = exTempoHtml(exDraft); }
 
 function applyDraftMeasure(ex, draft) {
   if (draft?.measure && MEASURES[draft.measure]) ex.measure = draft.measure; else delete ex.measure;
   const tempo = measureOf(ex) === 'reps' ? formatTempo(parseTempo(draft?.tempo)) : '';
-  // Guidage : stocké seulement quand il est coupé (false), le guidé au son étant le choix par défaut
-  const guide = !(tempo && draft?.tempoGuide === false);
-  const setTempo = o => { if (tempo) o.tempo = tempo; else delete o.tempo; if (guide) delete o.tempoGuide; else o.tempoGuide = false; };
+  // Guidage au son : stocké seulement quand il est choisi (le rappel seul est le défaut), avec sa préparation
+  const guide = !!(tempo && draft?.tempoGuide === true);
+  const setTempo = o => {
+    if (tempo) o.tempo = tempo; else delete o.tempo;
+    if (guide) { o.tempoGuide = true; o.tempoPrep = tempoPrepOf(draft); } else { delete o.tempoGuide; delete o.tempoPrep; }
+  };
   setTempo(ex);
   if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) setTempo(e); });
   // Séance en cours : l'exercice suit le nouveau choix tout de suite
@@ -285,7 +294,13 @@ registerActions({
     refreshExTempo();
     haptic();
   },
-  // Les deux usages du tempo : ▶ qui bipe chaque phase, ou simple rappel sous l'exercice
+  'ex-tempo-prep': (e, el) => {
+    if (!exDraft) return;
+    exDraft.tempoPrep = Number(el.dataset.prep);
+    refreshExTempo();
+    haptic();
+  },
+  // Les deux usages du tempo : simple rappel sous l'exercice (défaut), ou ▶ qui bipe chaque phase
   'ex-tempo-guide': (e, el) => {
     if (!exDraft) return;
     exDraft.tempoGuide = el.dataset.guide === 'true';
