@@ -27,6 +27,7 @@ const Native = (() => {
   const Cloud              = plugin('MdlfCloudBackup'); // module Swift de l'app (ios/App/App/CloudBackupPlugin.swift)
   const Sound              = plugin('MdlfSound');     // module Swift de l'app (ios/App/App/SoundPlugin.swift), build 22 et suivantes
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
+  const AppInfo            = plugin('App');              // @capacitor/app : numéro de build installé
 
   // Un module natif indisponible ou en erreur ne doit jamais casser l'app web
   const quiet = promise => { promise?.catch?.(() => {}); };
@@ -291,6 +292,12 @@ const Native = (() => {
     },
 
     // Mises à jour à chaud du contenu web (@capgo/capacitor-updater, mode manuel). Hors app : rien.
+    // Numéro de build de l'app installée (CFBundleVersion, ex. 23) ; null hors app ou illisible
+    async appBuild() {
+      if (!isNative) return null;
+      try { return parseInt((await AppInfo.getInfo()).build) || null; } catch { return null; }
+    },
+
     ota: {
       // Confirme que le contenu en place démarre : sans cet appel sous 10 s, retour à la version précédente
       ready() { if (isNative) quiet(Updater.notifyAppReady()); },

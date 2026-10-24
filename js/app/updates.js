@@ -26,6 +26,31 @@ function registerServiceWorker() {
   });
 }
 
+// ── Nouvelle build dans TestFlight ──────────────────────────
+// Le code natif ne change que par une build : quand une build plus récente que celle installée est
+// disponible, une bannière (publiée par mise à jour à chaud, donc lue par l'ancienne build) envoie
+// vers TestFlight. LATEST_NATIVE_BUILD n'est relevé qu'une fois la build installable.
+const LATEST_NATIVE_BUILD = 24;
+const TESTFLIGHT_URL      = 'https://testflight.apple.com/join/qxpdFN6Z';
+const NATIVE_BANNER_KEY   = 'ppl_native_update_dismissed';   // build pour laquelle « Plus tard » a été touché
+
+async function maybeShowNativeUpdate() {
+  const build = await Native.appBuild();
+  if (!build || build >= LATEST_NATIVE_BUILD || activeSession || $('.update-banner')) return;
+  try { if (localStorage.getItem(NATIVE_BANNER_KEY) === String(LATEST_NATIVE_BUILD)) return; } catch {}
+  const el = document.createElement('div');
+  el.className = 'update-banner update-banner--native';
+  el.setAttribute('role', 'status');
+  el.innerHTML = `<span>Nouvelle version dans TestFlight</span>
+    <button class="update-banner__later" type="button">Plus tard</button>
+    <button class="update-banner__btn" type="button">Installer</button>`;
+  const close = () => { el.remove(); try { localStorage.setItem(NATIVE_BANNER_KEY, String(LATEST_NATIVE_BUILD)); } catch {} };
+  el.querySelector('.update-banner__later').addEventListener('click', close);
+  // Lien public TestFlight : iOS l'ouvre hors de l'app, TestFlight propose la mise à jour
+  el.querySelector('.update-banner__btn').addEventListener('click', () => { close(); window.open(TESTFLIGHT_URL, '_blank'); });
+  document.body.appendChild(el);
+}
+
 // Bannière « Nouvelle version disponible », jamais pendant une séance
 function maybeShowUpdateBanner() {
   if (!swReg?.waiting || !navigator.serviceWorker.controller || activeSession || $('.update-banner')) return;
