@@ -74,6 +74,7 @@ function updateEffortUI() {
     if (c.phase === 'switch' && lastPhase !== 'switch') { announce('Change de côté'); haptic(); }
     if (c.phase === 'effort' && lastPhase && (lastPhase !== 'effort' || lastSide !== String(c.side))) {
       announce(two ? `Côté ${c.side}, partez` : 'Partez'); haptic();
+      afterPaint(syncEffortActivity);   // écran verrouillé : décompte du côté qui commence
     }
     if (c.phase === 'effort' && e.target && c.left === 10 && e.target > 15) announce('10 secondes');
   }
@@ -162,6 +163,7 @@ function cancelEffort() {
   if (!activeSession?.effort) return;
   clearEffort();
   Native.cancelRestEnd();
+  if (!restActive) endRestActivity();
   document.querySelector('.sess-sheet--effort')?._close?.();
   persistSession();
 }

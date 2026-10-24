@@ -140,11 +140,11 @@ struct RestLockScreenView: View {
                     .frame(width: 54, height: 54)
 
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(isStale ? "Repos terminé" : "Repos")
+                    Text(state.title(stale: isStale))
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                     if isStale {
-                        Text("C'est reparti")
+                        Text(state.isEffort ? "Repos" : "C'est reparti")
                             .font(.system(size: 30, weight: .bold, design: .rounded))
                             .foregroundStyle(tint)
                             .lineLimit(1)
@@ -166,7 +166,7 @@ struct RestLockScreenView: View {
 
                 if !isStale {
                     VStack(alignment: .trailing, spacing: 1) {
-                        Text("Reprise")
+                        Text(state.isEffort ? "Fin" : "Reprise")
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.secondary)
                         Text(state.endDate, style: .time)

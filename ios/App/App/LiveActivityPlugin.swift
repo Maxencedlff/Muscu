@@ -132,7 +132,10 @@ public final class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
                 set: (n["set"] as? NSNumber)?.intValue ?? 1,
                 load: String(((n["load"] as? String) ?? "").prefix(30)))
         }
-        return .init(endDate: Date(timeIntervalSince1970: endMs / 1000), totalSeconds: total, next: next)
+        let phase = call.getString("phase") == "effort" ? "effort" : nil
+        let label = call.getString("label").map { String($0.prefix(60)) }
+        return .init(endDate: Date(timeIntervalSince1970: endMs / 1000), totalSeconds: total, next: next,
+                     phase: phase, label: phase == nil ? nil : label)
     }
 
     /// staleDate = fin du repos : passé cette heure, l'extension montre que le repos est terminé

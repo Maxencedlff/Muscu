@@ -29,7 +29,7 @@ struct RestLiveActivity: Widget {
                             .font(.headline)
                             .foregroundStyle(tint)
                             .lineLimit(1)
-                        Text(isStale ? "Repos terminé" : "Repos")
+                        Text(context.state.title(stale: isStale))
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.secondary)
                     }
@@ -40,7 +40,7 @@ struct RestLiveActivity: Widget {
                         if isStale {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(tint)
-                                .accessibilityLabel("Repos terminé")
+                                .accessibilityLabel(context.state.title(stale: true))
                         } else {
                             RestCountdown(state: state)
                         }
@@ -72,7 +72,7 @@ struct RestLiveActivity: Widget {
                 Group {
                     if isStale {
                         Image(systemName: "figure.strengthtraining.traditional")
-                            .accessibilityLabel("Repos terminé")
+                            .accessibilityLabel(context.state.title(stale: true))
                     } else {
                         RestCountdown(state: state)
                     }
