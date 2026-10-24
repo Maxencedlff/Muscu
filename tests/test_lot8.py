@@ -83,7 +83,10 @@ def t_programmes(bench, eng, dev, theme):
         add_exercise(page, 'Développé couché haltères', sheet_open=True)
         page.wait_for_timeout(400)
         add_exercise(page, 'Tractions lestées')
-        page.wait_for_timeout(300)
+        # Nom inventé dans Programme : muscles devinés proposés à la vérification ; « Plus tard » garde la devinette
+        page.wait_for_selector('.sheet .mpick'); page.wait_for_timeout(300)
+        R.check(page.locator('.sheet__title').inner_text() == 'Vérifier les muscles', f'{t} exercice inventé : muscles à vérifier')
+        page.click('.sheet__btn--cancel'); page.wait_for_timeout(350)
         exs = [e['name'] for e in data(page)['programmes'][pid]['exercises'][cats[0]]]
         R.check(exs == ['Développé couché haltères', 'Tractions lestées'], f'{t} exercices choisis ajoutés {exs}')
         shot(page, LOT, f'editeur-{t}')
