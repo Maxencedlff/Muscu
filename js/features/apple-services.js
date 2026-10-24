@@ -22,9 +22,19 @@ function estimateKcal(durationMs, kg) {
   return Math.round(MET_STRENGTH * kg * (durationMs / 3_600_000));
 }
 
+// Autorisation demandée à iOS une fois par lancement, avant le premier accès à Santé. Cas visé : Santé
+// activé dans une donnée restaurée (copie iCloud, nouvel iPhone, réinstallation) alors qu'iOS n'a jamais
+// posé la question pour cette installation : lecture et écriture refusées, « Lecture dans Santé… » sans fin.
+// iOS n'affiche la demande que pour les types jamais demandés : sans effet visible le reste du temps.
+let healthAuthAsked = null;
+function ensureHealthAuth() {
+  return (healthAuthAsked ||= Promise.resolve().then(() => Native.health.authorize?.()).catch(() => null));
+}
+
 // Appelé après l'enregistrement d'une séance ; un échec ne bloque jamais le bilan
 async function syncWorkoutToHealth(entry) {
   if (!healthEnabled() || !entry?.duration) return;
+  await ensureHealthAuth();
   const kg  = await weightForCalories();
   const end = entry.date;
   const ok  = await Native.health.saveWorkout({ start: end - entry.duration, end, kcal: estimateKcal(entry.duration, kg) });
@@ -57,6 +67,7 @@ function workoutOf(h, typical, kg) {
 
 // Envoie les séances pas encore dans Santé ; renvoie { sent, failed } (l'action s'occupe de l'affichage)
 async function sendHistoryToHealth(onProgress = () => {}) {
+  await ensureHealthAuth();
   const todo = healthBacklog();
   const typical = typicalDuration();
   const kg = await weightForCalories();
@@ -81,6 +92,7 @@ async function bodyMassSamples() {
   if (!healthEnabled()) return [];
   const ttl = weightCache.samples.length ? WEIGHT_TTL : WEIGHT_EMPTY_TTL;
   if (Date.now() - weightCache.at < ttl) return weightCache.samples;
+  await ensureHealthAuth();
   let samples = await Native.health.bodyMass(90);
   if (samples && !samples.length) samples = await Native.health.bodyMass(3650);
   if (!samples) { weightCache.failed = true; return weightCache.samples; }   // on garde la dernière lecture

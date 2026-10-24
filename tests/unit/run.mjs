@@ -989,6 +989,25 @@ test('santé : poids pour les calories, celui de Santé (non modifiable) sinon c
   assert.doesNotMatch(failed, /Lecture dans Santé/);
 });
 
+test('santé : autorisation demandée à iOS une seule fois par lancement, avant le premier accès', async () => {
+  reset();
+  run(`data.healthOn = true; healthAuthAsked = null; __auth = 0;
+       __orig = { isNative: Native.isNative, health: Native.health };
+       Native.isNative = true;
+       Native.health = { authorize: async () => { __auth++; return { available: true, workouts: true }; },
+                         bodyMass: async () => [{ date: 1e12, kg: 71.6 }], saveWorkout: async () => true };
+       weightCache = { at: 0, samples: [], failed: false };`);
+  try {
+    await run('bodyMassSamples()');
+    run('retryBodyMass()');
+    await run('bodyMassSamples()');
+    await run('syncWorkoutToHealth({ date: 2e12, duration: 3600000 })');
+    assert.equal(run('__auth'), 1);
+  } finally {
+    run('Native.isNative = __orig.isNative; Native.health = __orig.health; healthAuthAsked = null;');
+  }
+});
+
 test('santé : pesée cherchée sur 10 ans si rien sur 90 jours, échec signalé sans écraser la dernière lecture', async () => {
   reset();
   const asked = [];
