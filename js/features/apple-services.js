@@ -72,10 +72,15 @@ async function sendHistoryToHealth(onProgress = () => {}) {
 
 // ── Santé : poids corporel ──────────────────────────────────
 
+// Lecture en échec : jamais gardée (sinon Progrès dirait « Aucune pesée » et Réglages montrerait le
+// poids de secours pendant toute la durée du cache). Lecture vide : relue au bout d'une minute.
+const WEIGHT_EMPTY_TTL = 60_000;
 async function bodyMassSamples() {
   if (!healthEnabled()) return [];
-  if (Date.now() - weightCache.at < WEIGHT_TTL) return weightCache.samples;
+  const ttl = weightCache.samples.length ? WEIGHT_TTL : WEIGHT_EMPTY_TTL;
+  if (Date.now() - weightCache.at < ttl) return weightCache.samples;
   const samples = await Native.health.bodyMass(90);
+  if (!samples) return weightCache.samples;   // échec : on garde ce qu'on avait (souvent la dernière lecture)
   weightCache = { at: Date.now(), samples };
   return samples;
 }
@@ -96,7 +101,7 @@ function prefetchBodyMass() { if (healthEnabled()) bodyMassSamples().catch(() =>
 
 // Dernière pesée déjà lue : objet, null (Santé n'en a aucune) ou undefined (pas encore lue)
 function knownLatestBodyMass() {
-  if (Date.now() - weightCache.at >= WEIGHT_TTL) return undefined;
+  if (Date.now() - weightCache.at >= (weightCache.samples.length ? WEIGHT_TTL : WEIGHT_EMPTY_TTL)) return undefined;
   return weightCache.samples[0] || null;
 }
 

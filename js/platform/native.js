@@ -233,9 +233,11 @@ const Native = (() => {
         if (!isNative) return false;
         try { return !!(await Health.saveWorkout({ start, end, kcal })).saved; } catch { return false; }
       },
+      // Pesées des `days` derniers jours, la plus récente d'abord ; null si la lecture a échoué
+      // (Santé pas encore prête au lancement…) : l'appelant ne doit pas garder ce résultat
       async bodyMass(days = 90) {
         if (!isNative) return [];
-        try { return (await Health.bodyMass({ days })).samples || []; } catch { return []; }
+        try { return (await Health.bodyMass({ days })).samples || []; } catch { return null; }
       },
     },
 
