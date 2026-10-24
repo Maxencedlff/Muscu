@@ -35,7 +35,7 @@ function muscleLabel(id) { return MUSCLE_BY_ID.get(id)?.label ?? ''; }
 // pour que « DC incliné smith », « SDT sumo » ou « Face-pull » soient compris comme leurs noms complets.
 const ABBREVIATIONS = [
   [/\bdc (incline|decline)/g, 'developpe $1'], [/\bdc\b/g, 'developpe couche'], [/\bdi\b/g, 'developpe incline'], [/\bdm\b/g, 'developpe militaire'],
-  [/\bdev\b/g, 'developpe'], [/\bsdt\b/g, 'souleve de terre'], [/\bext\b/g, 'extension'],
+  [/\b(dev|devlp|dvlp|dvp)\b/g, 'developpe'], [/\bsdt\b/g, 'souleve de terre'], [/\bext\b/g, 'extension'],
   [/\bkb\b/g, 'kettlebell'], [/\bghr\b/g, 'glute ham raise'],
 ];
 function ruleKey(name) {
@@ -95,21 +95,69 @@ function searchWords(name) {
   return [...new Set([...texts.join(' ').split(' '), ...texts.map(t => t.replace(/ /g, '')), ...muscles.split(' ')]
     .filter(Boolean).map(plainWord))];
 }
+// Correspondance d'un mot tapé avec les mots d'un exercice : 2 début de mot, 1 avec une faute, 0 absent
+function wordMatch(w, words) {
+  if (words.some(h => h.startsWith(w))) return 2;
+  const tol = w.length >= 7 ? 2 : w.length >= 4 ? 1 : 0;
+  return tol && words.some(h => editDistance(w, h.slice(0, w.length + 1), tol) <= tol || editDistance(w, h, tol) <= tol) ? 1 : 0;
+}
+const queryWords = query => ruleKey(query).split(' ').filter(Boolean).map(plainWord);
 // Score d'un exercice pour une recherche : 0 absent, 1 trouvé avec une faute, 2 trouvé, 3 le nom commence par la recherche
 function exerciseMatchScore(name, query) {
-  const q = ruleKey(query).split(' ').filter(Boolean).map(plainWord);
+  const q = queryWords(query);
   if (!q.length) return 2;
   const words = searchWords(name);
   let fuzzy = false;
   for (const w of q) {
-    if (words.some(h => h.startsWith(w))) continue;
-    const tol = w.length >= 7 ? 2 : w.length >= 4 ? 1 : 0;
-    if (tol && words.some(h => editDistance(w, h.slice(0, w.length + 1), tol) <= tol || editDistance(w, h, tol) <= tol)) { fuzzy = true; continue; }
-    return 0;
+    const m = wordMatch(w, words);
+    if (!m) return 0;
+    if (m === 1) fuzzy = true;
   }
   if (fuzzy) return 1;
   return ruleKey(name).startsWith(ruleKey(query)) ? 3 : 2;
 }
+// Recherche approchée, quand aucun exercice ne contient tous les mots (« tractions lestées » : variante
+// absente de la bibliothèque) : part des mots trouvés, entre 0 et 1. Les premiers mots pèsent plus, le
+// mouvement venant d'abord dans un nom français (« Tractions » lestées) ; une faute compte pour moitié.
+// Les mots de moins de 3 lettres ne suffisent pas seuls (« de », « a »).
+function exercisePartialScore(name, query) {
+  const q = queryWords(query);
+  if (!q.length) return 0;
+  const words = searchWords(name);
+  let got = 0, total = 0, solid = false;
+  q.forEach((w, i) => {
+    const weight = 1 / (i + 1), m = wordMatch(w, words);
+    total += weight;
+    got += weight * m / 2;
+    if (m && w.length >= 3) solid = true;
+  });
+  return solid ? got / total : 0;
+}
+// Noms les plus proches d'une recherche sans résultat complet, au plus max. À égalité, les exercices de la
+// personne puis l'ordre de la bibliothèque. Les correspondances bien moins bonnes que la meilleure sont
+// écartées (une faute sur un seul des mots, par exemple).
+function closestExercises(names, query, max = 5) {
+  const scored = names.map(n => ({ n, score: exercisePartialScore(n, query), rank: catalogueRank(n) })).filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score || a.rank - b.rank);
+  const best = scored[0]?.score || 0;
+  return scored.filter(x => x.score >= best * 0.6).slice(0, max).map(x => x.n);
+}
+
+// Remplacer un exercice : parmi names, ceux qui partagent ses muscles principaux (le plus de muscles en
+// commun, puis le nom le plus proche, puis l'ordre de la bibliothèque) et le reste dans l'ordre reçu. { same, rest }
+function sameMusclesFirst(ex, names) {
+  const target = exerciseMuscles(ex).primary;
+  if (!target.length) return { same: [], rest: names };
+  const index = chosenMusclesIndex();
+  const near  = similarExercises(ex.name, 10).map(e => normName(e.name));
+  const rows  = names.map(n => {
+    const k = near.indexOf(normName(n));
+    return { n, rank: catalogueRank(n), common: exerciseMuscles({ name: n }, index).primary.filter(id => target.includes(id)).length, near: k < 0 ? near.length : k };
+  });
+  const same = rows.filter(x => x.common).sort((a, b) => b.common - a.common || a.near - b.near || a.rank - b.rank);
+  return { same: same.map(x => x.n), rest: rows.filter(x => !x.common).map(x => x.n) };
+}
+
 function exerciseMatches(name, query) { return exerciseMatchScore(name, query) > 0; }
 
 // ── Reconnaissance d'un nom saisi librement ──────────────────

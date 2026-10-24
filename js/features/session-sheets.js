@@ -107,26 +107,49 @@ function setExRest(ei, secs) {
 let ax = { target: 'session', replaceEi: null, exclude: new Set(), onPick: null };
 let axSets = 3;
 
+const axItemHtml = n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}"><span class="ax__body"><span>${esc(n)}</span>${exMusclesSubHtml({ name: n }, 'ax__sub')}</span></button>`;
+const axHintHtml = txt => `<div class="ax__hint">${txt}</div>`;
+// Recherche approchée : au plus 3 exercices, pour que « Créer » reste à portée de pouce, juste dessous
+const AX_PARTIAL_MAX = 3;
+
 function axListHtml(q) {
   const nq    = normName(q);
+  const query = q.trim();
   const eq    = data.exEquip;
   // Toute la bibliothèque (pas de coupure : un exercice ne doit jamais être introuvable sans le chercher)
   // Les exercices créés par la personne (sans matériel connu) restent visibles quel que soit le filtre
-  const scored = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && (eq === 'all' || [eq, null].includes(equipmentOf(n))))
-    .map(n => ({ n, score: q.trim() ? exerciseMatchScore(n, q) : 2 })).filter(x => x.score > 0);
+  const names = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && (eq === 'all' || [eq, null].includes(equipmentOf(n))));
+  // « Créer » reste toujours proposé (en dernier) dès que le nom exact n'existe pas, même quand un alias
+  // ou un exercice proche correspond : une variante comme « Tractions lestées » doit avoir son propre suivi
+  const create = query && !names.some(n => normName(n) === nq) ? axCreateHtml(query) : '';
+  if (!query) {
+    if (ax.replaceEi !== null) return axReplaceListHtml(names);
+    return names.length ? names.map(axItemHtml).join('') : '<div class="ax__empty">Aucun exercice</div>';
+  }
   // Recherche : le nom qui commence par le texte tapé d'abord, les correspondances avec une faute en dernier
-  if (q.trim()) scored.sort((a, b) => b.score - a.score);
-  const items = scored.map(x => x.n);
-  // « Créer » reste proposé (en dernier) dès que le nom exact n'existe pas : une variante comme
-  // « Tractions lestées » doit pouvoir avoir son propre suivi
-  const exact = items.some(n => normName(n) === nq);
-  const guess = !exact && scored.length && scored[0].score === 1 ? '<div class="ax__hint">Tu voulais dire :</div>' : '';
-  return guess + items.map(n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}"><span class="ax__body"><span>${esc(n)}</span>${exMusclesSubHtml({ name: n }, 'ax__sub')}</span></button>`).join('')
-    + (q.trim() && !exact ? axCreateHtml(q.trim()) : '')
-    + (!items.length && !q.trim() ? '<div class="ax__empty">Aucun exercice</div>' : '');
+  const scored = names.map(n => ({ n, score: exerciseMatchScore(n, q) })).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+  if (scored.length) {
+    const exact = scored.some(x => normName(x.n) === nq);
+    const guess = !exact && scored[0].score === 1 ? axHintHtml('Tu voulais dire :') : '';
+    return guess + scored.map(x => axItemHtml(x.n)).join('') + create;
+  }
+  // Aucun exercice n'a tous les mots : les plus proches (une partie des mots), au-dessus de « Créer »
+  const near = closestExercises(names, q, AX_PARTIAL_MAX);
+  return (near.length ? axHintHtml('Les plus proches :') + near.map(axItemHtml).join('') : '') + create;
 }
 
-// Ligne « Créer » : les muscles devinés d'après le nom sont annoncés, le tap qui crée les valide.
+// Remplacer, recherche vide : d'abord les exercices qui partagent les muscles principaux de l'exercice
+// remplacé (le plus de muscles en commun, puis le nom le plus proche), ensuite le reste de la bibliothèque.
+function axReplaceListHtml(names) {
+  const rep = activeSession?.exercises[ax.replaceEi];
+  const ranked = rep ? sameMusclesFirst(rep, names) : { same: [], rest: names };
+  if (!ranked.same.length) return ranked.rest.map(axItemHtml).join('') || '<div class="ax__empty">Aucun exercice</div>';
+  return axHintHtml('Mêmes muscles')
+    + ranked.same.map(axItemHtml).join('')
+    + (ranked.rest.length ? axHintHtml('Autres exercices') + ranked.rest.map(axItemHtml).join('') : '');
+}
+
+// Ligne « Créer » : les muscles devinés d'après le nom sont annoncés, puis proposés à la vérification après la création.
 // Nom non reconnu : en séance, rien ne s'ouvre (choix proposé au bilan) ; ailleurs, la feuille des muscles suit.
 function axCreateHtml(name) {
   const line = musclesLine(musclesOf(name));
@@ -194,11 +217,16 @@ function axPick(name) {
   name = String(name || '').trim();
   if (!name) return;
   name = name.charAt(0).toUpperCase() + name.slice(1);  // nom créé en minuscules : « Hip thrust », pas « hip thrust »
+  // Lu avant l'ajout, qui fait entrer le nom dans la bibliothèque
+  const created = !exerciseLibrary().some(n => normName(n) === normName(name));
   if (ax.target === 'programme') addExerciseToEditedSession(name);
   else if (ax.target === 'past') ax.onPick?.(name, axSets);
   else pickExercise(name);
-  // En séance, pas de feuille par-dessus : les exercices sans muscles sont proposés au bilan
-  if (ax.target !== 'session') askMusclesIfUnknown(name);
+  // Nom inventé dont les muscles sont devinés : proposés à la vérification, partout (un toucher sur OK
+  // les confirme, fermer garde la devinette). Sans aucun muscle deviné, en séance, pas de feuille par-dessus :
+  // le choix complet attend le bilan.
+  if (created && exerciseMuscles({ name }).source === 'rules') askMusclesToCheck(name);
+  else if (ax.target !== 'session') askMusclesIfUnknown(name);
 }
 
 // Programme › Séance : l'exercice rejoint le programme ; ses réglages se font ensuite dans Programme › Exercice

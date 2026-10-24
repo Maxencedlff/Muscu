@@ -122,14 +122,19 @@ async function pickExMuscles() {
 }
 
 // Muscles d'un exercice quelconque (séance, séance libre, historique), gardés par nom pour toute l'app.
-// ask : proposé juste après l'ajout d'un exercice inconnu (« Plus tard » pour passer). Renvoie true si changé.
-async function declareMusclesFor(name, { ask = false } = {}) {
+// ask : proposé juste après l'ajout d'un exercice inconnu (« Plus tard » pour passer).
+// check : muscles devinés d'après le nom d'un exercice inventé, cochés d'avance ; OK les enregistre comme
+// choisis, « Plus tard » garde la devinette. Renvoie true si changé.
+async function declareMusclesFor(name, { ask = false, check = false } = {}) {
   const m = exerciseMuscles({ name });
-  const like = m.primary.length ? [] : similarExercises(name);
+  const like = m.primary.length && !check ? [] : similarExercises(name);
+  // Guillemets à espaces insécables : « » jamais seuls en début de ligne
+  const quoted = `«\u00a0${esc(name)}\u00a0»`;
+  const intro = check ? `Devinés d'après le nom ${quoted}. Corrige-les si besoin : ils comptent pour la récupération et Progrès.`
+    : ask ? `L'app ne reconnaît pas ${quoted}. Choisis ce qu'il travaille pour la récupération et Progrès.` : esc(name);
   const res = await pickMusclesSheet({
-    title: ask ? 'Quels muscles ?' : 'Muscles ciblés',
-    intro: ask ? `L'app ne reconnaît pas « ${esc(name)} ». Choisis ce qu'il travaille pour la récupération et Progrès.` : esc(name),
-    current: m.primary, currentSecondary: m.secondary, like, cancel: ask ? 'Plus tard' : undefined, auto: !ask && m.source === 'user' });
+    title: check ? 'Vérifier les muscles' : ask ? 'Quels muscles ?' : 'Muscles ciblés', intro,
+    current: m.primary, currentSecondary: m.secondary, like, cancel: ask || check ? 'Plus tard' : undefined, auto: !ask && !check && m.source === 'user' });
   if (!res) return false;
   setDeclaredMuscles(name, res.auto ? null : { primary: res.list, secondary: res.secondary });
   save();
@@ -140,6 +145,10 @@ async function declareMusclesFor(name, { ask = false } = {}) {
 function askMusclesIfUnknown(name, after = () => render()) {
   if (exerciseMuscles({ name }).primary.length) return;
   setTimeout(async () => { if (await declareMusclesFor(name, { ask: true })) after(); }, 350);
+}
+// Après la création d'un exercice aux muscles devinés : vérification proposée (une fois la feuille fermée)
+function askMusclesToCheck(name, after = () => render()) {
+  setTimeout(async () => { if (await declareMusclesFor(name, { check: true })) after(); }, 350);
 }
 
 // ── Progrès : carte « Muscles » ─────────────────────────────
