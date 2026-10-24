@@ -6,9 +6,13 @@ import Capacitor
 /// par js/core/haptics-audio.js ; sans ce module (build plus ancienne), les bips restent en Web Audio.
 ///
 /// Pourquoi natif : le Web Audio d'une vue web suit la session audio « ambiante » d'iOS, coupée par le
-/// bouton silencieux. Ici la session est en lecture (.playback), donc audible en silencieux, et :
-///  - .mixWithOthers : la musique (Apple Music, Spotify…) n'est jamais arrêtée ;
-///  - .duckOthers    : elle baisse le temps du bip, puis remonte (désactivation avec notifyOthersOnDeactivation).
+/// bouton silencieux. Ici la session est en lecture (.playback, audible en silencieux) avec .mixWithOthers :
+/// la musique (Apple Music, Spotify…) n'est jamais arrêtée ni baissée, le bip s'y ajoute.
+///
+/// Réactivité : activer une session audio est bloquant (Apple le déconseille sur le fil principal) et
+/// le faire à chaque bip ralentissait la validation d'une série. Tout le travail audio passe donc sur une
+/// file dédiée, et la session reste active entre les bips ; elle n'est rendue qu'après IDLE_RELEASE
+/// secondes de silence (fin de séance, app en pause), sans gêner les autres apps puisqu'elle se mélange.
 /// Les notes sont synthétisées à la volée (sinus avec décroissance), comme le faisait le Web Audio :
 /// aucun fichier son à embarquer, les mélodies restent définies côté JS.
 @objc(SoundPlugin)
@@ -23,8 +27,12 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
     private let player = AVAudioPlayerNode()
     private let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
     private var attached = false
-    /// Incrémenté à chaque mélodie : seule la dernière programmée rend la main à la musique
-    private var generation = 0
+    private var sessionActive = false   // évite de réactiver la session (appel bloquant) à chaque bip
+
+    // Tout le travail audio (session, moteur, tampons) se fait sur cette file, jamais sur le fil principal
+    private let audioQueue = DispatchQueue(label: "mdlf.sound", qos: .userInitiated)
+    private static let IDLE_RELEASE: TimeInterval = 90
+    private var releaseWork: DispatchWorkItem?
 
     /// { notes: [{ freq, start, dur, vol? }] } : start et dur en secondes depuis le début de la mélodie
     @objc func play(_ call: CAPPluginCall) {
@@ -34,33 +42,44 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
             return (f, s, d, min(max(n["vol"] as? Double ?? 0.35, 0), 1))
         }
         guard !notes.isEmpty else { call.reject("Aucune note"); return }
-        DispatchQueue.main.async {
+        // Réponse immédiate au JS : le son se prépare et se joue hors du fil principal
+        call.resolve()
+        audioQueue.async {
             do {
                 try self.start()
-                let buffer = self.render(notes)
-                self.generation += 1
-                let gen = self.generation
-                self.player.scheduleBuffer(buffer, at: nil, options: .interrupts) {
-                    // Fin de la mélodie : la musique des autres apps reprend son volume
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                        guard gen == self.generation else { return }
-                        // Moteur en pause d'abord : iOS refuse de désactiver une session aux E/S actives
-                        self.engine.pause()
-                        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-                    }
-                }
+                self.player.scheduleBuffer(self.render(notes), at: nil, options: .interrupts, completionHandler: nil)
                 if !self.player.isPlaying { self.player.play() }
-                call.resolve()
+                self.scheduleRelease()
             } catch {
-                call.reject("Son indisponible : \(error.localizedDescription)", "FAILED", error)
+                CAPLog.print("MdlfSound : son indisponible", error.localizedDescription)
             }
         }
     }
 
+    /// Session rendue après un long silence (sur la file audio) ; repoussée à chaque bip
+    private func scheduleRelease() {
+        releaseWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.engine.pause()
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            self.sessionActive = false
+        }
+        releaseWork = work
+        audioQueue.asyncAfter(deadline: .now() + Self.IDLE_RELEASE, execute: work)
+    }
+
     private func start() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playback, mode: .default, options: [.mixWithOthers, .duckOthers])
-        try session.setActive(true)
+        // Catégorie et activation seulement si nécessaire : la session reste active entre les bips
+        if session.category != .playback || !session.categoryOptions.contains(.mixWithOthers) || session.categoryOptions.contains(.duckOthers) {
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        }
+        // Moteur arrêté par iOS (appel, autre app) : la session a pu être coupée, on la réactive
+        if !sessionActive || !engine.isRunning {
+            try session.setActive(true)
+            sessionActive = true
+        }
         if !attached {
             engine.attach(player)
             engine.connect(player, to: engine.mainMixerNode, format: format)

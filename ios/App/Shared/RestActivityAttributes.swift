@@ -16,6 +16,17 @@ struct RestActivityAttributes: ActivityAttributes {
         var totalSeconds: Int
         /// Série qui suit le repos, absente quand toutes les séries sont faites
         var next: NextSet?
+        /// « effort » pendant le chrono d'une série en durée (gainage…), absent pour un repos.
+        /// Champs facultatifs : une Live Activity d'une version précédente se décode toujours.
+        var phase: String?
+        /// Nom affiché pendant l'effort (« Gainage latéral · côté 2 »)
+        var label: String?
+
+        var isEffort: Bool { phase == "effort" }
+        /// Titre de l'activité : nom de l'exercice pendant l'effort, « Repos » sinon
+        func title(stale: Bool) -> String {
+            isEffort ? (stale ? "Terminé" : (label ?? "Effort")) : (stale ? "Repos terminé" : "Repos")
+        }
 
         /// Début théorique du repos : fin moins la durée totale (borné pour rester un intervalle valide)
         var startDate: Date { endDate.addingTimeInterval(-Double(max(1, totalSeconds))) }

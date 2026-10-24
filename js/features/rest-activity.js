@@ -59,6 +59,25 @@ function syncRestActivity() {
   restActivityLive = true;
 }
 
+// Chrono d'effort (gainage…) : la même Live Activity, en phase « effort », compte jusqu'à la fin du
+// côté en cours ; le repos qui suit la remplace (syncRestActivity). Chrono libre : pas d'heure de fin.
+function syncEffortActivity() {
+  const e = activeSession?.effort;
+  if (!Native.isNative || !e?.target) return;
+  const c = effortClock(e), ex = activeSession.exercises[e.ei];
+  if (c.phase !== 'effort') return;
+  const sideEnd = e.start + (c.side === 2 ? 2 * e.target + EFFORT_SWITCH_S : e.target) * 1000;
+  const payload = {
+    endTime: sideEnd, total: e.target,
+    title: rawLabel(activeSession.category, activeSession.programme).slice(0, REST_ACTIVITY_MAX.title),
+    color: restActivityTint(sessionMeta(activeSession.category, activeSession.programme).color),
+    next: null, phase: 'effort',
+    label: `${ex.name}${e.sides === 2 ? ` · côté ${c.side}` : ''}`.slice(0, 60),
+  };
+  if (restActivityLive) Native.liveActivity.update(payload); else Native.liveActivity.start(payload);
+  restActivityLive = true;
+}
+
 // Repos fini, passé, annulé, séance terminée ou abandonnée : retirée tout de suite
 // (Apple HIG, Live Activities : « Always end a Live Activity immediately when the task ends »)
 function endRestActivity() {
