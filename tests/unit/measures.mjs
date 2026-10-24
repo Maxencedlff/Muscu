@@ -174,4 +174,19 @@ export default function ({ test, run, reset, assert }) {
     assert.equal(r(t0 + 500).rep, 3); assert.equal(r(t0 + 5100).rep, 4);
     assert.equal(r(t0 + 30_000).phase, 'done'); assert.equal(r(t0 + 30_000).endAt, t0 + 30_000);
   });
+
+  test('objectif d\'une série jamais faite : haut de fourchette, durée et cardio par défaut', () => {
+    reset();
+    const g = (m, r) => run(`defaultGoal('${m}', ${JSON.stringify(r)})`);
+    assert.equal(g('reps', undefined), 12, 'sans réglage : 12');
+    assert.equal(g('reps', 8), 8, 'haut de fourchette du programme');
+    assert.equal(g('reps', '15'), 15);
+    assert.equal(g('reps', 0), 12, 'valeur hors bornes ignorée');
+    assert.equal(g('reps', 250), 12);
+    assert.equal(g('time', 8), 30, 'maintien : 30 s, la fourchette de reps ne compte pas');
+    assert.equal(g('cardio', undefined), 20);
+    for (const m of ['reps', 'time', 'cardio']) {
+      assert.ok(run(`num(defaultGoal('${m}'), 1, MEASURES.${m}.max, true)`) !== null, `${m} : objectif accepté par la validation`);
+    }
+  });
 }

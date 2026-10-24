@@ -9,13 +9,25 @@
 //  - cardio : distance en km (dist, jamais convertie en livres) et durée en minutes (reps)
 // Les données restent lisibles par une version précédente (reps reste un entier), et le volume en kg
 // comme les records ne comptent que les exercices en répétitions.
+// load : en-tête de la colonne de charge (« +kg » : charge ajoutée au poids du corps, comme « 45 s · +10 kg »)
+// count : en-tête de la colonne des reps ou de la durée (« Durée » : « Secondes » ne tient pas sur 360 px ;
+//         l'unité est dite par VoiceOver, voir spoken)
+// goal : objectif d'une série sans séance précédente (répétitions : haut de fourchette, voir defaultGoal)
 const MEASURES = {
-  reps:   { label: 'Répétitions', load: () => unitLbl(), count: 'Reps', max: 100,  unit: 'reps', spoken: 'répétitions', msg: 'Reps entre 1 et 100' },
-  time:   { label: 'Durée',       load: () => 'Lest',    count: 'Sec.', max: 3600, unit: 's',    spoken: 'secondes',    msg: 'Durée entre 1 et 3600 secondes' },
-  cardio: { label: 'Cardio',      load: () => 'km',      count: 'Min',  max: 600,  unit: 'min',  spoken: 'minutes',     msg: 'Durée entre 1 et 600 minutes' },
+  reps:   { label: 'Répétitions', load: () => unitLbl(),       count: 'Reps',     max: 100,  goal: 12, unit: 'reps', spoken: 'répétitions', msg: 'Reps entre 1 et 100' },
+  time:   { label: 'Durée',       load: () => `+${unitLbl()}`, count: 'Durée',    max: 3600, goal: 30, unit: 's',    spoken: 'secondes',    msg: 'Durée entre 1 et 3600 secondes' },
+  cardio: { label: 'Cardio',      load: () => 'km',            count: 'Durée',    max: 600,  goal: 20, unit: 'min',  spoken: 'minutes',     msg: 'Durée entre 1 et 600 minutes' },
 };
 const MAX_DIST_KM = 500;
 function isMeasure(m) { return m === 'time' || m === 'cardio'; }
+
+// Objectif d'une série qu'on n'a jamais faite : haut de fourchette de l'exercice en répétitions
+// (12 sans réglage), 30 s de maintien, 20 min de cardio. Affiché en gris dans la case et pris tel quel
+// si la case reste vide à la validation : ce que l'on voit est ce qui s'enregistre.
+function defaultGoal(measure, repMax) {
+  if (measure === 'time' || measure === 'cardio') return MEASURES[measure].goal;
+  return num(repMax, 1, MEASURES.reps.max, true) ?? MEASURES.reps.goal;
+}
 
 // Exercices de la bibliothèque qui se tiennent dans le temps (les cardio sont ceux de la famille « cardio »)
 const TIMED_EXERCISES = new Set(['Gainage (planche)', 'Gainage latéral', 'Gainage creux', 'L-sit', 'Chaise contre le mur',

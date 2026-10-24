@@ -197,12 +197,9 @@ def t_flow(bench, eng, dev, theme):
         page.fill('#axSearch', 'Pompes lestées')
         page.locator('.ax__item--create').click(); page.wait_for_timeout(250)
         R.check(page.evaluate('activeSession.exercises.at(-1).name') == 'Pompes lestées' and page.evaluate('activeSession.exercises.at(-1).sets.length') == 4, f'{t} exercice créé avec 4 séries')
-        # Nom inventé aux muscles devinés : vérification proposée ; « Plus tard » garde la devinette sans rien enregistrer
-        page.wait_for_selector('.sheet .mpick'); page.wait_for_timeout(300)
-        R.check(page.locator('.sheet__title').inner_text() == 'Vérifier les muscles'
-                and page.locator('.mpick__row[data-muscle="chest"]').get_attribute('aria-checked') == 'true', f'{t} muscles devinés à vérifier, cochés d\'avance')
-        page.click('.sheet__btn--cancel'); page.wait_for_timeout(350)
-        R.check(page.locator('.sheet .mpick').count() == 0 and not page.evaluate("data.exerciseMuscles?.['pompes lestees']"), f'{t} « Plus tard » : feuille fermée, rien enregistré')
+        # En séance, aucune feuille par-dessus l'entraînement après la création (muscles vérifiés hors séance)
+        page.wait_for_timeout(500)
+        R.check(page.locator('.sheet .mpick').count() == 0, f'{t} création en séance : pas de feuille des muscles')
         # Delta de volume jamais rouge : série plus légère que la dernière fois (une baisse ne s'affiche plus)
         w, r, v = row_inputs(page, 1, 0)
         w.fill('5'); blur(page); v.click(); page.wait_for_timeout(300)

@@ -222,11 +222,12 @@ function axPick(name) {
   if (ax.target === 'programme') addExerciseToEditedSession(name);
   else if (ax.target === 'past') ax.onPick?.(name, axSets);
   else pickExercise(name);
-  // Nom inventé dont les muscles sont devinés : proposés à la vérification, partout (un toucher sur OK
-  // les confirme, fermer garde la devinette). Sans aucun muscle deviné, en séance, pas de feuille par-dessus :
-  // le choix complet attend le bilan.
+  // Hors séance, nom inventé : muscles devinés proposés à la vérification (un toucher sur OK les confirme,
+  // fermer garde la devinette), muscles inconnus demandés. En séance, aucune feuille par-dessus
+  // l'entraînement : les muscles inconnus sont demandés au bilan.
+  if (ax.target === 'session') return;
   if (created && exerciseMuscles({ name }).source === 'rules') askMusclesToCheck(name);
-  else if (ax.target !== 'session') askMusclesIfUnknown(name);
+  else askMusclesIfUnknown(name);
 }
 
 // Programme › Séance : l'exercice rejoint le programme ; ses réglages se font ensuite dans Programme › Exercice
@@ -339,6 +340,10 @@ async function chooseSessionTempo(ei) {
   showToast(tempo ? `Tempo ${shortTempo(tempo)}${guide ? ', guidé au son' : ''}` : 'Tempo retiré');
 }
 
+// ── « Comment faire » d'un exercice : fiche de la bibliothèque, s'il y a des consignes ou une animation ──
+function hasHowTo(ex) { return !!(exerciseHowTo(ex.name) || exerciseMove(ex.name)); }
+function openHowTo(ex) { navigate(makeRoute('library-ex', catalogueEntry(ex.name)?.name || ex.name)); }
+
 // ── Menu ⋯ d'un exercice ──
 async function exerciseMenu(ei) {
   const ex = activeSession.exercises[ei];
@@ -347,7 +352,7 @@ async function exerciseMenu(ei) {
   const choice = await dialog({ type: 'sheet', title: ex.name, actions: [
     ...(ei > 0    ? [{ label: 'Monter', value: 'up' }] : []),
     ...(ei < last ? [{ label: 'Descendre', value: 'down' }] : []),
-    ...(exerciseHowTo(ex.name) || exerciseMove(ex.name) ? [{ label: 'Comment faire', value: 'howto' }] : []),
+    ...(hasHowTo(ex) ? [{ label: 'Comment faire', value: 'howto' }] : []),
     { label: 'Remplacer l\'exercice', value: 'replace' },
     { label: 'Régler le repos', value: 'rest' },
     ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
@@ -365,7 +370,7 @@ async function exerciseMenu(ei) {
     activeSession.lastEi = null;
     render();
   } else if (choice === 'howto') {
-    navigate(makeRoute('library-ex', catalogueEntry(ex.name)?.name || ex.name));
+    openHowTo(ex);
   } else if (choice === 'replace') {
     openAddExSheet({ replaceEi: ei });
   } else if (choice === 'muscles') {
@@ -393,6 +398,11 @@ async function exerciseMenu(ei) {
 registerActions({
   'ex-menu': async (e, el) => {
     await exerciseMenu(parseInt(el.dataset.ei));
+  },
+  // Nom de l'exercice touché sur sa carte : même fiche que « Comment faire » du menu ⋯
+  'ex-howto': (e, el) => {
+    const ex = activeSession?.exercises[parseInt(el.dataset.ei)];
+    if (ex && hasHowTo(ex)) openHowTo(ex);
   },
   'set-ex-rest': (e, el) => {
     const ei = parseInt(el.dataset.ei);
