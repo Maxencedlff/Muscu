@@ -267,6 +267,7 @@ async function exerciseMenu(ei) {
     { label: 'Annuler', style: 'cancel' },
   ] });
   if (!choice || !activeSession) return;
+  if (['up', 'down', 'replace', 'remove'].includes(choice)) cancelEffort();   // positions des séries modifiées
   const xs = activeSession.exercises;
   if (choice === 'up' || choice === 'down') {
     const to = choice === 'up' ? ei - 1 : ei + 1;

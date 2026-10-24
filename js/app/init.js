@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     syncTimersFromHistory();
     // Séance restaurée (avec son repos), sinon séance passée en cours de saisie
     const restored = restoreSession();
-    if (restored) resumeRest(restored.rest);
+    if (restored) { resumeRest(restored.rest); resumeEffort(); }
     const draft = !restored && restoreAddDraft();
     navBoot(restored ? { tab: 'train', route: 'session' } : draft ? { tab: 'history', route: 'add-session' } : null);
     if (draft) addSnapshot = '';  // brouillon repris : toute sortie demande confirmation

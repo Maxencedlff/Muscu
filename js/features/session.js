@@ -54,6 +54,7 @@ function persistSession() {
 }
 
 function endSession() {
+  cancelEffort();
   stopRest(); restMinimized = false;
   closeSessSheets();
   activeSession = null;
@@ -287,7 +288,9 @@ function renderSetRow(ex, ei, s, si, cur) {
     <div class="set-swipe" role="row">
       ${editing ? '' : del}
       <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
-        <span class="set-n num">${si + 1}</span>
+        ${m === 'time' && isCur
+          ? `<button class="set-n set-play" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="Lancer le chrono, série ${si + 1}, ${esc(ex.name)}${s.reps ? `, ${esc(s.reps)} secondes` : ''}">${icon('play', 16)}</button>`
+          : `<span class="set-n num">${si + 1}</span>`}
         <span class="set-prev num">${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
                value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${m === 'cardio' ? 'Distance' : m === 'time' ? 'Lest' : { charge: 'Charge', lest: 'Lest', aide: 'Aide' }[loadKind(ex)]} série ${si + 1}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
@@ -300,7 +303,9 @@ function renderSetRow(ex, ei, s, si, cur) {
 
 // ── Validation d'une série ───────────────────────────────────
 
-function validateSet(ei, si) {
+// opts.restFrom : fin réelle d'un effort chronométré (le repos part de là) ; opts.prevReps : valeur
+// d'avant le chrono, rendue par « Annuler »
+function validateSet(ei, si, opts = {}) {
   const ex  = activeSession.exercises[ei];
   const s   = ex?.sets[si];
   if (!s || s.done) return;
@@ -318,8 +323,9 @@ function validateSet(ei, si) {
   afterPaint(validationSound);   // la coche verte d'abord : le son natif active la session audio d'iOS (bloquant)
 
   const undo = carryWeightToNextSet(ex, si);
+  if (opts.prevReps !== undefined) undo.prevReps = opts.prevReps;
   const allDone = activeSession.exercises.every(e => e.sets.every(st => st.done));
-  if (!allDone) openRest(exRest(ex), false);
+  if (!allDone) openRest(exRest(ex), false, opts.restFrom);
   else { stopRest(); closeSessSheets(); }
 
   document.activeElement?.blur?.();
@@ -346,6 +352,7 @@ function carryWeightToNextSet(ex, si) {
 function undoValidate(u) {
   if (!activeSession || !u.s.done) return;
   u.s.done = false;
+  if (u.prevReps !== undefined) u.s.reps = u.prevReps;   // chrono : l'objectif d'avant revient
   if (u.next && !u.next.done) { u.next.weight = u.nextW; u.next.reps = u.nextR; }
   stopRest();
   closeSessSheets();
@@ -423,6 +430,7 @@ registerActions({
     const ex = activeSession?.exercises[ei];
     if (!ex?.sets[si]) return;
     if (ex.sets.length === 1) { closeSwipes(); showToast('Dernière série : retire l\'exercice avec ⋯'); return; }
+    if (activeSession.effort?.ei === ei) cancelEffort();   // les positions des séries changent
     ex.sets.splice(si, 1);
     editingSet = null;
     haptic();

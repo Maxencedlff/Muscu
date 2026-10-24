@@ -101,4 +101,33 @@ export default function ({ test, run, reset, assert }) {
     assert.equal(run(`exerciseMove('Pompes')`), null, 'mannequin en bâtons retiré');
   });
 
+
+  test('chrono d\'effort : préparation, décompte, fin à l\'heure exacte, chrono libre', () => {
+    const t0 = 1_000_000;
+    const c = (now, target = 30) => run(`effortClock({ ei: 0, si: 0, start: ${t0}, target: ${target} }, ${now})`);
+    assert.equal(c(t0 - 4200).phase, 'prep');
+    assert.equal(c(t0 - 4200).prepLeft, 5);
+    assert.equal(c(t0 + 10_400).left, 20);
+    assert.equal(c(t0 + 29_999).phase, 'effort');
+    const end = c(t0 + 45_000);
+    assert.equal(end.phase, 'done', 'fini pendant l\'absence de l\'app');
+    assert.equal(end.endAt, t0 + 30_000, 'le repos part de la vraie fin de l\'effort');
+    const free = run(`effortClock({ ei: 0, si: 0, start: ${t0}, target: null }, ${t0 + 125_000})`);
+    assert.equal(free.phase, 'effort'); assert.equal(free.elapsed, 125); assert.equal(free.left, null);
+  });
+
+  test('chrono d\'effort à deux côtés : côté 1, changement de côté, côté 2, fin', () => {
+    const t0 = 2_000_000, e = `{ ei: 0, si: 0, start: ${t0}, target: 30, sides: 2 }`;
+    const c = now => run(`effortClock(${e}, ${now})`);
+    assert.equal(c(t0 + 10_000).side, 1);
+    assert.equal(c(t0 + 31_000).phase, 'switch');
+    assert.equal(c(t0 + 31_000).switchLeft, 4);
+    const s2 = c(t0 + 45_000);
+    assert.equal(s2.phase, 'effort'); assert.equal(s2.side, 2); assert.equal(s2.left, 20);
+    const end = c(t0 + 70_000);
+    assert.equal(end.phase, 'done'); assert.equal(end.endAt, t0 + 65_000, '2 × 30 s + 5 s pour changer');
+    assert.equal(run(`bothSides({ name: 'Gainage latéral' })`), true);
+    assert.equal(run(`bothSides({ name: 'Gainage (planche)' })`), false);
+    assert.equal(run(`bothSides({ name: 'Élévations latérales' })`), false, 'en répétitions : pas de chrono');
+  });
 }
