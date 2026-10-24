@@ -38,7 +38,7 @@ function startSession(cat) {
     category:  cat,
     programme: progKey,
     startedAt: Date.now(),
-    exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
+    exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), ...(ex.tempoGuide === false ? { tempoGuide: false } : {}), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
   };
   activeSession.baseline = computeBaseline(activeSession);
   persistSession();
@@ -289,7 +289,7 @@ function renderSetRow(ex, ei, s, si, cur) {
     <div class="set-swipe" role="row">
       ${editing ? '' : del}
       <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
-        ${(m === 'time' || (m === 'reps' && parseTempo(ex.tempo))) && isCur
+        ${(m === 'time' || (m === 'reps' && parseTempo(ex.tempo) && ex.tempoGuide !== false)) && isCur
           ? `<button class="set-n set-play" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="${m === 'time' ? 'Lancer le chrono' : `Lancer la série guidée au tempo ${esc(ex.tempo)}`}, série ${si + 1}, ${esc(ex.name)}${s.reps ? `, ${esc(s.reps)} ${m === 'time' ? 'secondes' : 'répétitions'}` : ''}">${icon('play', 16)}</button>`
           : `<span class="set-n num">${si + 1}</span>`}
         <span class="set-prev num">${prev}</span>

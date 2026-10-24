@@ -15,7 +15,7 @@ const TEMPO_NOTES = { ecc: 'tempoDown', con: 'tempoUp' };
 
 // Effort au tempo pour la série si l'exercice en a un ; null sinon
 function tempoEffort(ex, s, ei, si) {
-  const tempo = measureOf(ex) === 'reps' ? parseTempo(ex.tempo) : null;
+  const tempo = measureOf(ex) === 'reps' && ex.tempoGuide !== false ? parseTempo(ex.tempo) : null;
   if (!tempo) return null;
   return { kind: 'tempo', ei, si, start: Date.now() + EFFORT_PREP_S * 1000, tempo,
            reps: num(s.reps, 1, MEASURES.reps.max, true), conFirst: concentricFirst(ex.name) };

@@ -178,6 +178,7 @@ function sanitizeData(d) {
         if (ex.measure != null && !['reps', 'time', 'cardio'].includes(ex.measure)) delete ex.measure;
         // Tempo (js/data/tempo.js) : chaîne normalisée « 3-1-1-0 », écartée si illisible
         if (ex.tempo != null) { const t = parseTempo(ex.tempo); if (t) ex.tempo = formatTempo(t); else delete ex.tempo; }
+        if (ex.tempoGuide !== undefined && (ex.tempoGuide !== false || !ex.tempo)) delete ex.tempoGuide;
         if (ex.musclesSecondary != null) {
           if (!Array.isArray(ex.musclesSecondary)) delete ex.musclesSecondary;
           else ex.musclesSecondary = [...new Set(ex.musclesSecondary.filter(m => typeof m === 'string' && MUSCLE_ID_RE.test(m)))].slice(0, MAX_MUSCLES);
