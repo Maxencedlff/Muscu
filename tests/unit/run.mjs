@@ -62,7 +62,6 @@ const toasts = [];
 const sandbox = {
   console,
   AbortController, setTimeout, clearTimeout,   // vérification des mises à jour à chaud
-  TextEncoder, TextDecoder, btoa, atob,        // code du programme partagé (js/data/prog-share.js)
   localStorage: new MemoryStorage(),
   navigator: {},
   document: { querySelector: () => null, getElementById: () => null },

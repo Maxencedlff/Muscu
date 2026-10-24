@@ -58,7 +58,7 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
         ${title   ? `<div class="ios-dialog__title" id="${dlgId}-t" tabindex="-1">${esc(title)}</div>` : ''}
         ${message ? `<div class="ios-dialog__msg" id="${dlgId}-m">${esc(message)}</div>` : ''}
         ${input   ? `<div class="ios-dialog__field">
-            <input class="ios-dialog__input" ${input.text ? 'type="text" autocomplete="off" autocapitalize="sentences" maxlength="${input.maxLength || 40}"'
+            <input class="ios-dialog__input" ${input.text ? 'type="text" autocomplete="off" autocapitalize="sentences" maxlength="40"'
               : input.decimal ? 'type="text" inputmode="decimal" autocomplete="off"'   // « 70,5 » : la virgule du clavier français
               : 'type="number" inputmode="numeric"'}
                    value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}">
@@ -156,9 +156,8 @@ async function askNumber({ title, message, value, unit, min, max, decimal = fals
   return v;
 }
 
-// maxLength : 40 par défaut (noms) ; plus long pour coller un message (programme partagé)
-async function askText({ title, message, value = '', placeholder = '', confirm = 'OK', maxLength = 40 }) {
-  const raw = await dialog({ title, message, input: { value, placeholder, text: true, maxLength }, actions: [
+async function askText({ title, message, value = '', placeholder = '', confirm = 'OK' }) {
+  const raw = await dialog({ title, message, input: { value, placeholder, text: true }, actions: [
     { label: 'Annuler', style: 'cancel' },
     { label: confirm, style: 'preferred' },
   ] });

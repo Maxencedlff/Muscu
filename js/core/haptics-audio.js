@@ -58,6 +58,7 @@ const MELODIES = {
   tempoDown:  [[392, 0, .12]],                  // tempo : début de la descente (grave)
   tempoUp:    [[659, 0, .12]],                  // tempo : début de la montée (aigu)
   tempoX:     [[880, 0, .07], [880, .1, .07]],  // tempo : montée explosive
+  tempoRep:   [[523, 0, .08], [1047, .1, .16]], // tempo : nouvelle répétition (deux notes, distincte des phases)
 };
 
 function playMelody(name) {
@@ -65,6 +66,18 @@ function playMelody(name) {
   const notes = MELODIES[name].map(([freq, start, dur]) => ({ freq, start, dur }));
   if (Native.sound.available) { Native.sound.play(notes); return; }
   notes.forEach(n => setTimeout(() => beep(n.freq, n.dur), n.start * 1000));
+}
+
+// Voix de synthèse (Web Speech API, MDN : speechSynthesis) : compte des répétitions du tempo.
+// Sans voix disponible, le son de la répétition suffit ; coupée avec le son de l'app.
+function sayCount(n) {
+  if (data.soundOn === false || typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(String(n));
+    u.lang = 'fr-FR'; u.rate = 1.15;
+    speechSynthesis.speak(u);
+  } catch {}
 }
 
 function timerDone() {

@@ -82,9 +82,8 @@ function renderProgrammes() {
         <div class="group-title">Partager</div>
         <div class="group">
           <button class="cell cell--action" data-action="share-programme">${icon('square.and.arrow.up', 20)}<span>Envoyer ce programme</span></button>
-          <button class="cell cell--action" data-action="import-programme">${icon('square.and.arrow.down', 20)}<span>Importer un programme reçu</span></button>
         </div>
-        <div class="group-foot">Envoie tes séances et tes exercices à un ami, par message. Tes charges, records et ton historique restent sur ton téléphone.</div>
+        <div class="group-foot">Envoie tes séances et tes exercices par message. Tes charges, records et ton historique restent sur ton téléphone.</div>
         ${manage}
       </div>
     </div>`;
@@ -218,21 +217,6 @@ registerActions({
     if (navigator.share) { try { await navigator.share({ text }); } catch {} return; }
     try { await navigator.clipboard.writeText(text); showToast('Programme copié, colle-le dans un message'); }
     catch { showToast('Partage impossible', { error: true }); }
-  },
-  // Import d'un programme reçu : il s'ajoute à « Mes programmes », rien n'est remplacé
-  'import-programme': async () => {
-    const raw = await askText({ title: 'Importer un programme', message: 'Colle le message reçu (appui long dans le champ, puis Coller).',
-      placeholder: 'Message avec MDLF-PROG1:…', confirm: 'Suivant', maxLength: 20000 });
-    if (!raw) return;
-    const p = parseProgrammeShare(raw);
-    if (!p) { showToast('Aucun programme trouvé', { error: true }); return; }
-    const nEx = p.sessions.reduce((a, s) => a + s.ex.length, 0);
-    if (!(await confirmSheet(`Ajouter « ${p.name} » ?`,
-      `${plural(p.sessions.length, 'séance', 'séances')} (${p.sessions.map(s => s.label).join(', ')}), ${plural(nEx, 'exercice', 'exercices')}. Il s'ajoute à tes programmes et devient le programme actif ; le tien reste disponible.`,
-      'Ajouter le programme', false))) return;
-    const id = importSharedProgramme(p);
-    openProgramme(id);
-    showToast(`Programme « ${progMeta(id).name} » ajouté`);
   },
   'rename-programme': async () => {
     const id = data.activeProgramme, up = data.userProgrammes[id];

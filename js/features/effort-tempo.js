@@ -41,14 +41,17 @@ function updateTempoUI(e) {
   // « Rep N » annoncé à VoiceOver, sans chaque phase (trop bavard)
   const key = `${c.phase}:${c.rep}:${c.phase === 'prep' ? c.prepLeft : ''}`;
   if (key !== effortLastSecond) {
-    if (c.phase === 'prep') playMelody('tick');
-    else if (TEMPO_NOTES[c.phase]) playMelody(c.phase === 'con' && e.tempo[2] === 'X' ? 'tempoX' : TEMPO_NOTES[c.phase]);
-    // Nouvelle répétition : changement de rang, ou première phase après la préparation
+    // Nouvelle répétition : changement de rang, ou première phase après la préparation. Son à deux notes
+    // et numéro dit à voix haute, pour compter sans regarder l'écran ; les autres phases gardent leur note
     const [lastPhase, lastRep] = String(effortLastSecond || '').split(':');
-    if (c.phase !== 'prep' && c.phase !== 'done' && (lastPhase === 'prep' || c.rep !== Number(lastRep))) {
+    const newRep = c.phase !== 'prep' && c.phase !== 'done' && (lastPhase === 'prep' || c.rep !== Number(lastRep));
+    if (c.phase === 'prep') playMelody('tick');
+    else if (newRep) {
+      playMelody('tempoRep');
+      sayCount(c.rep);
       announce(e.reps && c.rep === e.reps ? 'Dernière rep' : `Rep ${c.rep}`);
       if (lastPhase === 'prep') haptic();
-    }
+    } else if (TEMPO_NOTES[c.phase]) playMelody(c.phase === 'con' && e.tempo[2] === 'X' ? 'tempoX' : TEMPO_NOTES[c.phase]);
   }
   effortLastSecond = key;
   if (c.phase === 'done') finishEffort(c.endAt, e.reps);
