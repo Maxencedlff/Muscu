@@ -7,7 +7,7 @@ let editingSet = null;  // { ei, si, weight?, reps? } — série validée rouver
 let persistWarned = false; // un seul avertissement « stockage plein » par séance
 const openDone = new WeakSet(); // exercices terminés dépliés
 
-// Série à faire : charge et reps reprises de src, « Préc. » de la même série la dernière fois
+// Série à faire : charge et reps reprises de src, « Avant » : la même série la dernière fois
 function plannedSet(src, prev) {
   return {
     weight: src?.weight ?? '',
@@ -86,6 +86,12 @@ function sessionSetCounts() {
 // Exercice du programme correspondant à un exercice de la séance (null s'il a été ajouté en cours de route)
 function sessExData(ex) {
   return ex?.exId ? (sessProg().exercises[activeSession.category] || []).find(e => e.id === ex.exId) || null : null;
+}
+
+// Objectif de reps (ou de durée) d'une série : la même série la dernière fois, sinon l'objectif par
+// défaut de l'exercice (premier essai). Montré en gris dans la case vide, pris si elle le reste.
+function setGoal(ex, s) {
+  return String(s?.prev?.reps || defaultGoal(measureOf(ex), sessExData(ex)?.repMax));
 }
 
 function exRest(ex) {
@@ -207,6 +213,7 @@ function renderExerciseCard(ex, ei, cur) {
     return renderCollapsedExercise(ex, ei, records);
   }
 
+  const howTo = !allDone && hasHowTo(ex);
   const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${bumpLabel()}">↑ ${bumpLabel()}</button>` : '';
   const rows = ex.sets.map((s, si) => renderSetRow(ex, ei, s, si, cur)).join('');
 
@@ -215,7 +222,9 @@ function renderExerciseCard(ex, ei, cur) {
       <div class="ex-card__head">
         ${allDone
           ? `<button class="ex-card__name ex-card__name--btn" data-action="toggle-ex" data-ei="${ei}" aria-expanded="true">${esc(ex.name)}</button>`
-          : `<h2 class="ex-card__name">${esc(ex.name)}</h2>`}
+          : howTo
+            ? `<h2 class="ex-card__name ex-card__name--howto"><button class="ex-howto" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${esc(ex.name)}${icon('info.circle', 15)}</span></button></h2>`
+            : `<h2 class="ex-card__name">${esc(ex.name)}</h2>`}
         ${chip}
         <span class="ex-card__count num" aria-label="${doneN} séries sur ${ex.sets.length}">${doneN}/${ex.sets.length}</span>
         <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
@@ -223,8 +232,8 @@ function renderExerciseCard(ex, ei, cur) {
       <div class="ex-card__sub">${exSubHtml(ex, ei, allDone)}</div>
       <div class="sets" role="table" aria-label="Séries de ${esc(ex.name)}">
         <div class="sets__head" role="row">
-          <span role="columnheader">Série</span><span role="columnheader">Préc.</span>
-          <span role="columnheader">${loadHeader(ex)}</span><span role="columnheader">${MEASURES[measureOf(ex)].count}</span>
+          <span role="columnheader">Série</span><span role="columnheader" aria-label="La dernière fois">Avant</span>
+          <span role="columnheader" aria-label="${loadSpoken(ex)}">${loadHeader(ex)}</span><span role="columnheader" aria-label="${countSpoken(ex)}">${MEASURES[measureOf(ex)].count}</span>
           <span role="columnheader" aria-label="Validée">${icon('checkmark', 14)}</span>
         </div>
         ${rows}
@@ -238,7 +247,8 @@ function renderDoneSetRow(ex, ei, s, si, prev, del) {
   const m      = measureOf(ex), M = MEASURES[m];
   const record = m === 'reps' ? recordLabel(s, (activeSession.baseline || {})[ex.exId], ex) : '';
   const first  = setFirstValue(s, m);
-  const load   = first ? `${first} ${m === 'cardio' ? 'kilomètres' : data.unit === 'lbs' ? 'livres' : 'kilos'}, ` : '';
+  const kind   = m === 'cardio' ? 'charge' : m === 'time' ? 'lest' : loadKind(ex);
+  const load   = first ? `${{ charge: '', lest: 'plus ', aide: 'aide de ' }[kind]}${first} ${m === 'cardio' ? 'kilomètres' : data.unit === 'lbs' ? 'livres' : 'kilos'}, ` : '';
   return `
       <div class="set-swipe" role="row">
         ${del}
@@ -254,11 +264,24 @@ function renderDoneSetRow(ex, ei, s, si, prev, del) {
       </div>`;
 }
 
-// En-tête de la première colonne : kg (barre, haltères), Lest ou Aide (poids du corps), km, Lest (durée)
+// En-tête de la colonne de charge : kg (barre, haltères), +kg (lest ajouté au poids du corps, comme
+// « 8 reps · +10 kg »), Aide (machine d'assistance), km (cardio)
 function loadHeader(ex) {
   const m = measureOf(ex);
   if (m !== 'reps') return MEASURES[m].load();
-  return { charge: unitLbl(), lest: 'Lest', aide: 'Aide' }[loadKind(ex)];
+  return { charge: unitLbl(), lest: `+${unitLbl()}`, aide: 'Aide' }[loadKind(ex)];
+}
+// Même colonne, en toutes lettres pour VoiceOver (en-tête et champs) : « Charge ajoutée » plutôt que « Lest »
+function loadSpoken(ex) {
+  const m = measureOf(ex);
+  if (m === 'cardio') return 'Distance';
+  return m === 'time' ? 'Charge ajoutée' : { charge: 'Charge', lest: 'Charge ajoutée', aide: 'Aide' }[loadKind(ex)];
+}
+
+// Colonne des reps ou de la durée, pour VoiceOver : mêmes mots que les champs (« Durée en secondes »)
+function countSpoken(ex) {
+  const m = measureOf(ex);
+  return m === 'reps' ? 'Répétitions' : `Durée en ${MEASURES[m].spoken}`;
 }
 
 // Valeur de la première colonne : charge (ou lest) dans l'unité de l'app, distance en km pour le cardio
@@ -296,9 +319,9 @@ function renderSetRow(ex, ei, s, si, cur) {
           : `<span class="set-n num">${si + 1}</span>`}
         <span class="set-prev num">${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
-               value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${m === 'cardio' ? 'Distance' : m === 'time' ? 'Lest' : { charge: 'Charge', lest: 'Lest', aide: 'Aide' }[loadKind(ex)]} série ${si + 1}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
+               value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${loadSpoken(ex)} série ${si + 1}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
-               value="${esc(rVal)}" placeholder="${esc(s.prev?.reps ?? '0')}" aria-label="${m === 'reps' ? 'Répétitions' : `Durée en ${M.spoken}`} série ${si + 1}, ${esc(ex.name)}">
+               value="${esc(rVal)}" placeholder="${esc(setGoal(ex, s))}" aria-label="${countSpoken(ex)} série ${si + 1}, ${esc(ex.name)}">
         ${check}
         ${isCur ? setStepsHtml(ex, ei, si) : ''}
       </div>
@@ -350,6 +373,9 @@ function validateSet(ei, si, opts = {}) {
   const m   = measureOf(ex);
   const wIn = document.querySelector(`[data-action="${m === 'cardio' ? 'set-dist' : 'set-weight'}"][data-ei="${ei}"][data-si="${si}"]`);
   if (m === 'cardio' ? !distOk(wIn?.value) : (wIn && !weightOk(wIn.value))) { flagInvalid(wIn, m === 'cardio' ? distMsg() : weightMsg()); return; }
+  // Case vide : l'objectif affiché en gris est celui qui est fait (« Annuler » rend la case vide)
+  const goalTaken = String(s.reps ?? '').trim() === '';
+  if (goalTaken) s.reps = setGoal(ex, s);
   if (num(s.reps, 1, MEASURES[m].max, true) === null) { flagInvalid(rIn, MEASURES[m].msg); return; }
   s.reps = String(parseInt(s.reps));
 
@@ -361,6 +387,7 @@ function validateSet(ei, si, opts = {}) {
 
   const undo = carryWeightToNextSet(ex, si);
   if (opts.prevReps !== undefined) undo.prevReps = opts.prevReps;
+  else if (goalTaken) undo.prevReps = '';
   const allDone = activeSession.exercises.every(e => e.sets.every(st => st.done));
   if (!allDone) openRest(exRest(ex), false, opts.restFrom);
   else { stopRest(); closeSessSheets(); }
@@ -389,7 +416,7 @@ function carryWeightToNextSet(ex, si) {
 function undoValidate(u) {
   if (!activeSession || !u.s.done) return;
   u.s.done = false;
-  if (u.prevReps !== undefined) u.s.reps = u.prevReps;   // chrono : l'objectif d'avant revient
+  if (u.prevReps !== undefined) u.s.reps = u.prevReps;   // chrono ou case vide : la valeur d'avant revient
   if (u.next && !u.next.done) { u.next.weight = u.nextW; u.next.reps = u.nextR; }
   stopRest();
   closeSessSheets();
@@ -464,7 +491,7 @@ registerActions({
     if (!s || s.done) return;
     const m = measureOf(ex), step = setStep(ex, f), round = v => Math.round(v * 100) / 100;
     if (f === 'r') {
-      const cur = parseInt(s.reps) || parseInt(s.prev?.reps) || 0, min = m === 'time' ? 5 : 1;
+      const cur = parseInt(s.reps) || parseInt(setGoal(ex, s)), min = m === 'time' ? 5 : 1;
       s.reps = String(Math.min(MEASURES[m].max, Math.max(min, cur + d * step)));
     } else if (m === 'cardio') {
       const cur = parseFloat(s.dist) || parseFloat(s.prev?.dist) || 0;
