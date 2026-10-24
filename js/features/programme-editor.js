@@ -164,6 +164,58 @@ function applyDraftMeasure(ex, draft) {
   if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) e.measure = measureOf(ex); });
 }
 
+// Progression selon la mesure. Répétitions : objectif de charge (courbe de Progrès) et haut de fourchette
+// (puce « +2,5 kg » de la séance). Durée : l'objectif de chaque série est la durée de la dernière fois,
+// vers laquelle décompte le ▶ ; ni charge ni fourchette. Cardio : rien. target et repMax restent
+// enregistrés tels quels hors répétitions (save-ex), pour retrouver les réglages si l'on revient aux reps.
+function exProgressionHtml(d) {
+  const m = measureOf({ name: d.name, measure: d.measure });
+  if (m === 'time') return `
+        <div class="group-title">Progression</div>
+        <div class="group">
+          <div class="cell">
+            <span class="cell__body">
+              <span class="cell__title">Objectif</span>
+              <span class="cell__sub">Durée de la dernière fois, série par série</span>
+            </span>
+          </div>
+        </div>
+        <div class="group-foot">Le ▶ de la séance décompte jusqu'à cette durée. Pour progresser, ajoute quelques secondes à une série.</div>`;
+  if (m !== 'reps') return '';
+  const target = d.targetText ?? (d.target ? fmtW(d.target) : '');
+  const repMax = d.repMaxText ?? String(d.repMax ?? 12);
+  return `
+        <div class="group-title">Progression</div>
+        <div class="group">
+          <label class="cell cell--ctl">
+            <span class="cell__body"><span class="cell__title">Objectif</span></span>
+            <span class="field-suffix">
+              <input type="text" inputmode="decimal" id="exTarget" class="field field--num" autocomplete="off"
+                     value="${esc(target)}" placeholder="—" aria-label="Objectif en ${unitLbl()}">
+              <span>${unitLbl()}</span>
+            </span>
+          </label>
+          <label class="cell cell--ctl">
+            <span class="cell__body"><span class="cell__title">Haut de fourchette de reps</span></span>
+            <span class="field-suffix">
+              <input type="text" inputmode="numeric" id="exRepMax" class="field field--num" autocomplete="off"
+                     value="${esc(repMax)}" aria-label="Haut de fourchette de reps">
+              <span>reps</span>
+            </span>
+          </label>
+        </div>
+        <div class="group-foot">Quand toutes tes séries atteignent ce nombre de reps, l'app te propose d'augmenter la charge.</div>`;
+}
+function refreshExProgression() {
+  const box = $('#exProg');
+  if (!box || !exDraft) return;
+  // Saisie en cours gardée si la rubrique disparaît puis revient (Répétitions → Durée → Répétitions)
+  const t = $('#exTarget'), r = $('#exRepMax');
+  if (t) exDraft.targetText = t.value;
+  if (r) exDraft.repMaxText = r.value;
+  box.innerHTML = exProgressionHtml(exDraft);
+}
+
 function renderExEdit() {
   const editExIdx = editExIdxOf();
   const isEdit = editExIdx !== null;
@@ -211,35 +263,16 @@ function renderExEdit() {
         <div class="group-title">Mesure</div>
         <div class="group">
           <div class="cell cell--ctl cell--wrap">
-            <div class="segmented seg-full" role="group" aria-label="Mesure des séries" id="exMeasure">
+            <div class="segmented seg-full seg-fit" role="group" aria-label="Mesure des séries" id="exMeasure">
               ${exMeasureBtns(d)}
             </div>
           </div>
         </div>
         <div class="group-foot">Durée pour les maintiens (gainage, chaise), cardio pour la distance et les minutes. Choisie d'après le nom si tu n'y touches pas.</div>
         <div id="exTempo">${exTempoHtml(d)}</div>
-        <div class="group-title">Progression</div>
-        <div class="group">
-          <label class="cell cell--ctl">
-            <span class="cell__body"><span class="cell__title">Objectif</span></span>
-            <span class="field-suffix">
-              <input type="text" inputmode="decimal" id="exTarget" class="field field--num" autocomplete="off"
-                     value="${d.target ? fmtW(d.target) : ''}" placeholder="—" aria-label="Objectif en ${unitLbl()}">
-              <span>${unitLbl()}</span>
-            </span>
-          </label>
-          <label class="cell cell--ctl">
-            <span class="cell__body"><span class="cell__title">Haut de fourchette de reps</span></span>
-            <span class="field-suffix">
-              <input type="text" inputmode="numeric" id="exRepMax" class="field field--num" autocomplete="off"
-                     value="${esc(d.repMax ?? 12)}" aria-label="Haut de fourchette de reps">
-              <span>reps</span>
-            </span>
-          </label>
-        </div>
-        <div class="group-foot">Quand toutes tes séries atteignent ce nombre de reps, l'app te propose d'augmenter la charge.</div>
+        <div id="exProg">${exProgressionHtml(d)}</div>
         ${isEdit ? `
-        <div class="group">
+        <div class="group group--gap">
           <button class="cell cell--destructive" data-action="del-ex" data-i="${editExIdx}">Supprimer l'exercice</button>
         </div>
         <div class="group-foot">L'historique de cet exercice est conservé.</div>` : ''}
@@ -286,6 +319,7 @@ registerActions({
     const box = $('#exMeasure');
     if (box) box.innerHTML = exMeasureBtns(exDraft);
     refreshExTempo();
+    refreshExProgression();
     haptic();
   },
 });
@@ -390,12 +424,18 @@ registerActions({
     if (!name) { flagInvalid(nameIn, 'Entre un nom'); return; }
     const sets = exDraft?.sets ?? 3;
     const rest = exDraft?.rest ?? null;
-    const targetRaw = targetIn?.value.trim() || '';
-    if (targetRaw && (!weightOk(targetRaw) || !(parseFloat(storeW(targetRaw)) > 0))) { flagInvalid(targetIn, weightMsg()); return; }
-    const target = targetRaw ? parseFloat(storeW(targetRaw)) : null;
-    const repRaw = repIn?.value.trim() || '';
-    const repMax = repRaw ? num(repRaw, 1, 100, true) : 12;
-    if (repMax === null) { flagInvalid(repIn, 'Reps entre 1 et 100'); return; }
+    // Hors répétitions, la rubrique n'est pas affichée : objectif et fourchette gardent leur valeur
+    let target = exDraft?.target ?? null, repMax = exDraft?.repMax ?? 12;
+    if (targetIn) {
+      const targetRaw = targetIn.value.trim();
+      if (targetRaw && (!weightOk(targetRaw) || !(parseFloat(storeW(targetRaw)) > 0))) { flagInvalid(targetIn, weightMsg()); return; }
+      target = targetRaw ? parseFloat(storeW(targetRaw)) : null;
+    }
+    if (repIn) {
+      const repRaw = repIn.value.trim();
+      repMax = repRaw ? num(repRaw, 1, 100, true) : 12;
+      if (repMax === null) { flagInvalid(repIn, 'Reps entre 1 et 100'); return; }
+    }
     const tempoIn = $('#exTempoIn');
     if (tempoIn && exDraft) {
       const raw = tempoIn.value.trim(), t = parseTempo(raw);

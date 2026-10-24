@@ -62,6 +62,44 @@ export default function ({ test, run, reset, assert }) {
     assert.equal(run(`catStatus('legs').by`), null);
   });
 
+  // Push, Pull, Legs faits il y a 8, 6 et legsH heures ; un Squat ajouté à Push
+  const pplWithSquatInPush = legsH => {
+    reset();
+    const names = cat => JSON.parse(run(`JSON.stringify(prog().exercises['${cat}'].map(e => e.name))`));
+    run(`data.history = [${entry('l', legsH, 'ppl', 'legs', names('legs'))},
+                         ${entry('u', 6 * 24, 'ppl', 'pull', names('pull'))},
+                         ${entry('p', 8 * 24, 'ppl', 'push', names('push'))}];
+         data.history.forEach(h => { prog().timers[h.category] = h.date; });
+         prog().exercises.push.push(makeExercise('Squat barre', 3));`);
+  };
+
+  test('prochaine séance : séance prête écartée par ses muscles, raison donnée', () => {
+    pplWithSquatInPush(4 * 24);
+    assert.equal(run(`catStatus('push').ready`), true, 'Push prête : quadriceps travaillés il y a 4 jours');
+    assert.equal(run(`nextSessionCat(sessionKeys())`), 'pull', 'Pull : muscles reposés depuis plus longtemps');
+    assert.equal(run(`passedOverNote(sessionKeys(), 'pull')`), 'Push passe après (quadriceps : il y a 4 jours, Legs)');
+    assert.equal(run(`passedOverNote(sessionKeys(), 'push')`), '', 'séance attendue proposée : rien à dire');
+  });
+
+  test('prochaine séance : séance attendue en récupération, délai restant donné', () => {
+    pplWithSquatInPush(30);
+    assert.equal(run(`catStatus('push').ready`), false);
+    assert.equal(run(`nextSessionCat(sessionKeys())`), 'pull');
+    assert.equal(run(`passedOverNote(sessionKeys(), 'pull')`), 'Push attend : quadriceps en récupération (encore 1 j 18 h)');
+  });
+
+  test('prochaine séance : rien de prêt, la séance faite il y a le plus longtemps passe devant', () => {
+    reset();
+    // Maison : Haut du corps (gainage) bloque Bas du corps par les abdominaux, jusqu'à la même heure
+    run(`data.activeProgramme = 'maison'; data.programmes.maison = makeProgData('maison');
+         data.history = [${entry('h', 1, 'maison', 'haut', ['Pompes', 'Gainage (planche)'])}];
+         prog().timers.haut = data.history[0].date;`);
+    assert.equal(run(`catStatus('bas').by.muscle`), 'abs');
+    assert.equal(run(`catStatus('bas').readyAt === catStatus('haut').readyAt`), true);
+    assert.equal(run(`nextSessionCat(sessionKeys())`), 'bas', 'pas la séance qu\'on vient de finir');
+    assert.equal(run(`passedOverNote(sessionKeys(), 'bas')`), '');
+  });
+
   test('texte sur une couleur de séance : noir sur les couleurs claires, blanc sinon', () => {
     for (const c of ['var(--orange)', 'var(--yellow)', 'var(--teal)', 'var(--green)', 'var(--purple)', '#FFD60A'])
       assert.equal(run(`textOnColor(${JSON.stringify(c)})`), '#000', c);
