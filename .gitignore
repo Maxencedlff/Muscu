@@ -1,6 +1,6 @@
 .vercel
 __pycache__/
-node_modules/
+node_modules
 dist/
 ios/App/App/public/
 ios/App/build/
