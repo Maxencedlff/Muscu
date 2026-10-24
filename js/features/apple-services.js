@@ -9,7 +9,7 @@
 const MET_STRENGTH = 5;          // musculation, effort soutenu (Compendium of Physical Activities)
 const WEIGHT_TTL   = 5 * 60_000; // pesées relues dans Santé au plus toutes les 5 minutes
 
-let weightCache = { at: 0, samples: [] };
+let weightCache = { at: 0, samples: [], failed: false };   // failed : dernière lecture en échec
 
 const healthEnabled = () => Native.isNative && data.healthOn === true;
 const musicEnabled  = () => Native.isNative && data.musicOn === true;
@@ -73,17 +73,22 @@ async function sendHistoryToHealth(onProgress = () => {}) {
 // ── Santé : poids corporel ──────────────────────────────────
 
 // Lecture en échec : jamais gardée (sinon Progrès dirait « Aucune pesée » et Réglages montrerait le
-// poids de secours pendant toute la durée du cache). Lecture vide : relue au bout d'une minute.
+// poids de secours pendant toute la durée du cache), mais signalée (failed) pour proposer de réessayer
+// au lieu d'un « Lecture dans Santé… » sans fin. Lecture vide : relue au bout d'une minute.
+// Rien sur 90 jours : la dernière pesée est cherchée sur 10 ans (on se pèse parfois rarement).
 const WEIGHT_EMPTY_TTL = 60_000;
 async function bodyMassSamples() {
   if (!healthEnabled()) return [];
   const ttl = weightCache.samples.length ? WEIGHT_TTL : WEIGHT_EMPTY_TTL;
   if (Date.now() - weightCache.at < ttl) return weightCache.samples;
-  const samples = await Native.health.bodyMass(90);
-  if (!samples) return weightCache.samples;   // échec : on garde ce qu'on avait (souvent la dernière lecture)
-  weightCache = { at: Date.now(), samples };
+  let samples = await Native.health.bodyMass(90);
+  if (samples && !samples.length) samples = await Native.health.bodyMass(3650);
+  if (!samples) { weightCache.failed = true; return weightCache.samples; }   // on garde la dernière lecture
+  weightCache = { at: Date.now(), samples, failed: false };
   return samples;
 }
+// Nouvel essai demandé (Réglages, Progrès) : le cache est vidé avant de relire
+function retryBodyMass() { weightCache = { at: 0, samples: weightCache.samples, failed: false }; }
 
 async function latestBodyMass() {
   return (await bodyMassSamples())[0] || null;
@@ -99,7 +104,8 @@ function lastBodyMassKg() { return healthEnabled() ? weightCache.samples[0]?.kg 
 // Lecture au démarrage : le poids est connu avant la première séance enregistrée
 function prefetchBodyMass() { if (healthEnabled()) bodyMassSamples().catch(() => {}); }
 
-// Dernière pesée déjà lue : objet, null (Santé n'en a aucune) ou undefined (pas encore lue)
+// Dernière pesée déjà lue : objet, null (Santé n'en a aucune) ou undefined (pas encore lue, ou en échec :
+// voir weightCache.failed)
 function knownLatestBodyMass() {
   if (Date.now() - weightCache.at >= (weightCache.samples.length ? WEIGHT_TTL : WEIGHT_EMPTY_TTL)) return undefined;
   return weightCache.samples[0] || null;
@@ -117,9 +123,15 @@ async function fillWeightGroup() {
   if (!box) return;
   const samples = await bodyMassSamples();
   if (!$('#weightGroup')) return;   // écran quitté entre-temps
+  if (!samples.length && weightCache.failed) {
+    box.innerHTML = `<button class="cell cell--nav" data-action="retry-body-weight"><span class="cell__body"><span class="cell__title">Santé n'a pas répondu</span>
+      <span class="cell__sub">Touche pour réessayer.</span></span>${icon('arrow.clockwise', 18)}</button>`;
+    return;
+  }
   if (!samples.length) {
-    box.innerHTML = `<div class="cell"><span class="cell__body"><span class="cell__title">Aucune pesée</span>
-      <span class="cell__sub">Ajoute ton poids dans l'app Santé (ou une balance connectée) pour le suivre ici.</span></span></div>`;
+    // iOS ne dit pas si la lecture du poids est refusée : il renvoie juste une liste vide
+    box.innerHTML = `<div class="cell"><span class="cell__body"><span class="cell__title">Aucune pesée lue</span>
+      <span class="cell__sub">Ajoute ton poids dans Santé. Si tu en as déjà : Réglages de l'iPhone › Santé › Accès aux données et appareils › MDLF Training › autorise Poids.</span></span></div>`;
     return;
   }
   const last  = samples[0];
@@ -218,6 +230,11 @@ function renderAppleServicesGroup(tog) {
 function renderBodyWeightCell() {
   const last = knownLatestBodyMass();
   const title = '<span class="cell__title">Poids du corps</span>';
+  if (last === undefined && weightCache.failed) {
+    return `<button class="cell cell--nav" id="bodyWeightCell" data-action="retry-body-weight">
+            <span class="cell__body">${title}<span class="cell__sub">Santé n'a pas répondu : touche pour réessayer</span></span>
+            ${icon('arrow.clockwise', 18)}</button>`;
+  }
   if (last === undefined) {
     return `<div class="cell" id="bodyWeightCell">
             <span class="cell__body">${title}<span class="cell__sub">Lecture dans Santé…</span></span></div>`;
@@ -230,7 +247,7 @@ function renderBodyWeightCell() {
   }
   return `<button class="cell cell--nav" id="bodyWeightCell" data-action="set-body-weight">
             <span class="cell__body">${title}
-              <span class="cell__sub">Aucune pesée dans Santé : saisis-le ici</span></span>
+              <span class="cell__sub">Aucune pesée lue dans Santé : saisis-le ici</span></span>
             <span class="cell__value num">${data.bodyWeightKg ? `${fmtW(data.bodyWeightKg)} ${unitLbl()}` : 'Non renseigné'}</span>
             ${icon('chevron.right', 16)}
           </button>`;
@@ -238,13 +255,19 @@ function renderBodyWeightCell() {
 
 // Réglages : la cellule est redessinée une fois Santé lue (lecture asynchrone)
 async function fillBodyWeightCell() {
-  if (!$('#bodyWeightCell') || knownLatestBodyMass() !== undefined) return;
+  if (!$('#bodyWeightCell') || knownLatestBodyMass() !== undefined || weightCache.failed) return;
   await bodyMassSamples();
   const cell = $('#bodyWeightCell');   // écran quitté ou redessiné entre-temps
   if (cell) cell.outerHTML = renderBodyWeightCell();
 }
 
 registerActions({
+  'retry-body-weight': async () => {
+    retryBodyMass();
+    if ($('#weightGroup')) { $('#weightGroup').innerHTML = `<div class="cell"><span class="cell__body"><span class="cell__sub">Lecture dans Santé…</span></span></div>`; await fillWeightGroup(); }
+    const cell = $('#bodyWeightCell');
+    if (cell) { cell.outerHTML = renderBodyWeightCell(); await fillBodyWeightCell(); }
+  },
   'setting-health': async () => {
     if (data.healthOn) { data.healthOn = false; save(); render(); return; }
     const res = await Native.health.authorize();
@@ -255,7 +278,7 @@ registerActions({
         actions: [{ label: 'OK', style: 'preferred' }] });
       return;
     }
-    data.healthOn = true; weightCache = { at: 0, samples: [] };
+    data.healthOn = true; weightCache = { at: 0, samples: [], failed: false };
     save(); render(); showToast('Apple Santé connecté');
   },
   'setting-music': async () => {

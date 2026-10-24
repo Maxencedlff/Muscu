@@ -982,7 +982,31 @@ test('santé : poids pour les calories, celui de Santé (non modifiable) sinon c
   const manual = cell([]);
   assert.match(manual, /data-action="set-body-weight"/);
   assert.match(manual, /70 kg/);
-  assert.match(manual, /Aucune pesée dans Santé/);
+  assert.match(manual, /Aucune pesée lue dans Santé/);
+  // Lecture en échec : plus de « Lecture dans Santé… » sans fin, on propose de réessayer
+  const failed = run(`weightCache = { at: 0, samples: [], failed: true }; renderBodyWeightCell()`);
+  assert.match(failed, /data-action="retry-body-weight"/);
+  assert.doesNotMatch(failed, /Lecture dans Santé/);
+});
+
+test('santé : pesée cherchée sur 10 ans si rien sur 90 jours, échec signalé sans écraser la dernière lecture', async () => {
+  reset();
+  const asked = [];
+  ctx.__asked = asked;
+  run(`data.healthOn = true;
+       __orig = { isNative: Native.isNative, health: Native.health };
+       Native.isNative = true;
+       Native.health = { bodyMass: async (days) => { __asked.push(days); return days > 90 ? [{ date: 1e12, kg: 71 }] : []; } };
+       weightCache = { at: 0, samples: [], failed: false };`);
+  try {
+    sameJSON(await run('bodyMassSamples()'), [{ date: 1e12, kg: 71 }]);
+    sameJSON(asked, [90, 3650]);
+    run(`Native.health = { bodyMass: async () => null }; retryBodyMass();`);
+    sameJSON(await run('bodyMassSamples()'), [{ date: 1e12, kg: 71 }], 'échec : dernière lecture gardée');
+    assert.equal(run('weightCache.failed'), true);
+  } finally {
+    run('Native.isNative = __orig.isNative; Native.health = __orig.health;');
+  }
 });
 
 test('santé : séance envoyée avec ses dates et les calories du poids le plus récent', async () => {
