@@ -161,4 +161,12 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     const c = nativeContext({ localData: '{}', shareCancelled: true });
     assert.equal(await c.Native.shareImage('data:image/png;base64,AA', 'a.png'), 'cancelled');
   });
+
+  test('partage : nombre de séries affiché pour les exercices sans charge', () => {
+    const row = ex => run(`shareExerciseRow(${JSON.stringify(ex)}, null, 0).value`);
+    assert.equal(row({ name: 'Crunch', sets: [{ weight: '', reps: '15' }, { weight: '', reps: '15' }, { weight: '', reps: '15' }] }), '3 × 15 reps');
+    assert.equal(row({ name: 'Gainage (planche)', sets: [{ weight: '', reps: '45' }, { weight: '', reps: '45' }, { weight: '', reps: '45' }] }), '3 × 45 s');
+    assert.equal(row({ name: 'Crunch', sets: [{ weight: '', reps: '12' }, { weight: '', reps: '15' }] }), '15 reps · 2 séries');
+    assert.equal(row({ name: 'Curl marteau', sets: [{ weight: '10', reps: '10' }, { weight: '10', reps: '10' }] }), '10 kg × 10', 'avec charge : inchangé');
+  });
 }

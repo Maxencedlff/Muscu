@@ -381,3 +381,8 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 /* Feuille d'effort : même composant que le repos, « Annuler » à gauche */
 .rs__top .rs__collapse--left { left: -8px; right: auto; }
 .rs--effort .rs__done { min-width: 160px; }
+/* Série guidée au tempo : la phase en grand (« Descends »), les secondes restantes dessous */
+.rs--effort .rs__time { text-align: center; }
+.tempo__word { display: block; font-family: var(--font); font-size: 28px; font-weight: 700; line-height: 1.15; color: var(--cat-color, var(--tint)); }
+.tempo__left { display: block; font-size: 52px; line-height: 1; }
+.tempo__presets { margin: 0; padding: 4px 0; }

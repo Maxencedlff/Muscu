@@ -198,6 +198,7 @@ function sessionHistoryEntry(sp, sc) {
         exId: ex.exId || resolveExId(sp, sc, ex.name),
         name: ex.name,
         ...(storedMeasure(ex) ? { measure: storedMeasure(ex) } : {}),
+        ...(ex.tempo ? { tempo: ex.tempo } : {}),   // fait au tempo : plus dur, à ne pas comparer sans le savoir
         sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}) })),
       }))
       .filter(ex => ex.sets.length),

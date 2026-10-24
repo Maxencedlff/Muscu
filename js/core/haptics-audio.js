@@ -55,6 +55,9 @@ const MELODIES = {
   finish:     [[880, 0, .1], [1320, .16, .25]],
   record:     [[660, 0, .12], [880, .12, .12], [1100, .24, .12], [1320, .36, .35]],
   tick:       [[440, 0, .08]],
+  tempoDown:  [[392, 0, .12]],                  // tempo : début de la descente (grave)
+  tempoUp:    [[659, 0, .12]],                  // tempo : début de la montée (aigu)
+  tempoX:     [[880, 0, .07], [880, .1, .07]],  // tempo : montée explosive
 };
 
 function playMelody(name) {

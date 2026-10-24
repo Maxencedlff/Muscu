@@ -130,4 +130,33 @@ export default function ({ test, run, reset, assert }) {
     assert.equal(run(`bothSides({ name: 'Gainage (planche)' })`), false);
     assert.equal(run(`bothSides({ name: 'Élévations latérales' })`), false, 'en répétitions : pas de chrono');
   });
+
+  test('tempo : lecture de la notation, sens de départ, horloge des phases', () => {
+    const p = v => run(`parseTempo(${JSON.stringify(v)})`);
+    assert.deepEqual([...p('3-1-1')], [3, 1, 1, 0]);
+    assert.deepEqual([...p('31X0')], [3, 1, 'X', 0]);
+    assert.deepEqual([...p('3 1 1 2')], [3, 1, 1, 2]);
+    assert.equal(p('abc'), null); assert.equal(p('99-0-0-0'), null); assert.equal(p('0-0-0'), null);
+    assert.equal(run(`formatTempo(parseTempo('3/1/x'))`), '3-1-X-0');
+    assert.equal(run(`concentricFirst('Tractions pronation')`), true);
+    assert.equal(run(`concentricFirst('Développé couché haltères')`), false);
+    // 3-1-1 en poussant : descente 3 s, pause 1 s, montée 1 s ; 5 s par rep, 2 reps
+    const t0 = 5_000_000, e = `{ start: ${t0}, tempo: [3, 1, 1, 0], reps: 2, conFirst: false }`;
+    const c = now => run(`tempoClock(${e}, ${now})`);
+    assert.equal(c(t0 - 2000).phase, 'prep');
+    assert.equal(c(t0 + 500).phase, 'ecc'); assert.equal(c(t0 + 500).phaseLeft, 3);
+    assert.equal(c(t0 + 3500).phase, 'bottom');
+    assert.equal(c(t0 + 4200).phase, 'con');
+    assert.equal(c(t0 + 5100).rep, 2);
+    assert.equal(c(t0 + 10_000).phase, 'done'); assert.equal(c(t0 + 10_000).endAt, t0 + 10_000);
+    // En tirant : la montée d'abord
+    assert.equal(run(`tempoClock({ start: ${t0}, tempo: [3, 1, 1, 0], reps: 2, conFirst: true }, ${t0 + 500})`).phase, 'con');
+    assert.equal(run(`concentricFirst('Développé militaire')`), true);
+    assert.equal(run(`concentricFirst('DM haltères')`), true);
+    // Reprise à la rep 3 sur 8 : préparation, puis rep 3, fin après 6 reps guidées
+    const r = now => run(`tempoClock({ start: ${t0}, tempo: [3, 1, 1, 0], reps: 8, conFirst: false, firstRep: 3 }, ${now})`);
+    assert.equal(r(t0 - 1000).phase, 'prep'); assert.equal(r(t0 - 1000).rep, 3);
+    assert.equal(r(t0 + 500).rep, 3); assert.equal(r(t0 + 5100).rep, 4);
+    assert.equal(r(t0 + 30_000).phase, 'done'); assert.equal(r(t0 + 30_000).endAt, t0 + 30_000);
+  });
 }

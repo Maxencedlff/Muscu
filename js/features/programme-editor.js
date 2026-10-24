@@ -24,8 +24,8 @@ function exDraftFor(route) {
   const i  = editExIdxOf(route);
   const ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
   exDraft = ex
-    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, measure: ex.measure ?? null, muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex) }
-    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, measure: null, muscles: null, musclesSecondary: null };
+    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, measure: ex.measure ?? null, tempo: ex.tempo ?? null, muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex) }
+    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, measure: null, tempo: null, muscles: null, musclesSecondary: null };
   return exDraft;
 }
 
@@ -113,8 +113,33 @@ function exMeasureBtns(d) {
   return Object.entries(MEASURES).map(([k, M]) =>
     `<button class="segmented__btn ${cur === k ? 'segmented__btn--active' : ''}" aria-pressed="${cur === k}" data-action="ex-measure" data-m="${k}">${M.label}</button>`).join('');
 }
+// Tempo (js/data/tempo.js) : préréglages, saisie libre et phrase en clair ; répétitions seulement
+function exTempoHtml(d) {
+  if (measureOf({ name: d.name, measure: d.measure }) !== 'reps') return '';
+  const t = parseTempo(d.tempo), cur = formatTempo(t);
+  return `
+        <div class="group-title">Tempo</div>
+        <div class="group">
+          <div class="cell cell--ctl cell--wrap">
+            <div class="ax__equip tempo__presets" role="group" aria-label="Tempo">
+              ${[{ tempo: '', label: 'Aucun' }, ...TEMPO_PRESETS].map(p => `<button class="ax__chip" aria-pressed="${cur === p.tempo}" data-action="ex-tempo" data-tempo="${p.tempo}">${p.label}${p.tempo ? ` <span class="num">${shortTempo(p.tempo)}</span>` : ''}</button>`).join('')}
+            </div>
+          </div>
+          <label class="cell cell--ctl">
+            <span class="cell__body"><span class="cell__title">Personnalisé</span></span>
+            <input type="text" id="exTempoIn" class="field field--num" autocomplete="off" inputmode="text" enterkeyhint="done"
+                   value="${esc(shortTempo(cur))}" placeholder="3-1-1" aria-label="Tempo personnalisé, par exemple 3-1-1">
+          </label>
+        </div>
+        <div class="group-foot">${t ? `${esc(tempoSentence(t, d.name))}. ${tempoRepSeconds(t) > 10 ? 'Au-delà de 10 s par répétition, ce n\'est pas plus efficace pour le muscle. ' : ''}Plus lent = plus dur : baisse la charge. Pendant la séance, ▶ guide chaque répétition au son.` : 'Descente, pause, montée, en secondes (X = explosif). Ex. 3-1-1 : 3 s pour descendre, 1 s en bas, 1 s pour remonter.'}</div>`;
+}
+function refreshExTempo() { const box = $('#exTempo'); if (box && exDraft) box.innerHTML = exTempoHtml(exDraft); }
+
 function applyDraftMeasure(ex, draft) {
   if (draft?.measure && MEASURES[draft.measure]) ex.measure = draft.measure; else delete ex.measure;
+  const tempo = measureOf(ex) === 'reps' ? formatTempo(parseTempo(draft?.tempo)) : '';
+  if (tempo) ex.tempo = tempo; else delete ex.tempo;
+  if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) { if (tempo) e.tempo = tempo; else delete e.tempo; } });
   // Séance en cours : l'exercice suit le nouveau choix tout de suite
   if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) e.measure = measureOf(ex); });
 }
@@ -172,6 +197,7 @@ function renderExEdit() {
           </div>
         </div>
         <div class="group-foot">Durée pour les maintiens (gainage, chaise), cardio pour la distance et les minutes. Choisie d'après le nom si tu n'y touches pas.</div>
+        <div id="exTempo">${exTempoHtml(d)}</div>
         <div class="group-title">Progression</div>
         <div class="group">
           <label class="cell cell--ctl">
@@ -239,8 +265,27 @@ registerActions({
     exDraft.measure = el.dataset.m;
     const box = $('#exMeasure');
     if (box) box.innerHTML = exMeasureBtns(exDraft);
+    refreshExTempo();
     haptic();
   },
+});
+
+registerActions({
+  'ex-tempo': (e, el) => {
+    if (!exDraft) return;
+    exDraft.tempo = el.dataset.tempo || null;
+    refreshExTempo();
+    haptic();
+  },
+});
+
+// Saisie libre du tempo : lue à la sortie du champ (la phrase et les préréglages suivent)
+document.addEventListener('change', e => {
+  if (e.target.id !== 'exTempoIn' || !exDraft) return;
+  const t = parseTempo(e.target.value);
+  if (e.target.value.trim() && !t) { flagInvalid(e.target, 'Tempo : 3 ou 4 chiffres, ex. 3-1-1'); return; }
+  exDraft.tempo = t ? formatTempo(t) : null;
+  refreshExTempo();
 });
 
 registerActions({
@@ -306,6 +351,12 @@ registerActions({
     const repRaw = repIn?.value.trim() || '';
     const repMax = repRaw ? num(repRaw, 1, 100, true) : 12;
     if (repMax === null) { flagInvalid(repIn, 'Reps entre 1 et 100'); return; }
+    const tempoIn = $('#exTempoIn');
+    if (tempoIn && exDraft) {
+      const raw = tempoIn.value.trim(), t = parseTempo(raw);
+      if (raw && !t) { flagInvalid(tempoIn, 'Tempo : 3 ou 4 chiffres, ex. 3-1-1'); return; }
+      exDraft.tempo = t ? formatTempo(t) : null;
+    }
     const list = prog().exercises[editorCat] || (prog().exercises[editorCat] = []);
     if (editExIdx !== null && list[editExIdx]) {
       const ex = list[editExIdx];

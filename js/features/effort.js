@@ -15,7 +15,8 @@ let effortLastSecond = null;  // dernière seconde affichée (bips et annonces u
 function effortStillValid() {
   const e = activeSession?.effort;
   const ex = e && activeSession.exercises[e.ei], s = ex?.sets[e.si];
-  return !!(s && !s.done && measureOf(ex) === 'time' && Number.isFinite(e.start));
+  const m = measureOf(ex);
+  return !!(s && !s.done && Number.isFinite(e.start) && (e.kind === 'tempo' ? m === 'reps' && e.tempo : m === 'time'));
 }
 
 function effortSheetHtml() {
@@ -40,12 +41,14 @@ function effortSheetHtml() {
       <div class="rs__adj">
         <button class="rs__skip rs__done" data-action="stop-effort" id="effortStop">Terminer</button>
       </div>
-      ${ex.sets[e.si].prev?.reps ? `<div class="rs__next">Dernière fois : ${fmtSeconds(ex.sets[e.si].prev.reps)}</div>` : ''}
+      ${e.kind === 'tempo' ? `<div class="rs__next">Tempo ${shortTempo(formatTempo(e.tempo))} · ${esc(tempoSentence(e.tempo, ex.name))}</div>`
+        : ex.sets[e.si].prev?.reps ? `<div class="rs__next">Dernière fois : ${fmtSeconds(ex.sets[e.si].prev.reps)}</div>` : ''}
     </div>`;
 }
 
 function updateEffortUI() {
   if (!effortStillValid()) { cancelEffort(); return; }
+  if (activeSession.effort.kind === 'tempo') { updateTempoUI(activeSession.effort); return; }
   const e = activeSession.effort, c = effortClock(e), two = e.sides === 2;
   const time = $('#effortTime'), sub = $('#effortSub'), bar = $('.sess-sheet--effort .rest-ring__bar'), stop = $('#effortStop');
   const sideTxt = two ? `Côté ${c.side} · ` : '';
@@ -88,7 +91,8 @@ function startEffort(ei, si) {
   if (!s || s.done) return;
   if (restActive) { stopRest(); closeRestSheet(); removeRestUI(); }
   const target = num(s.reps, 1, MEASURES.time.max, true);
-  activeSession.effort = { ei, si, start: Date.now() + EFFORT_PREP_S * 1000, target, sides: bothSides(ex) ? 2 : 1 };
+  activeSession.effort = tempoEffort(ex, s, ei, si)
+    || { ei, si, start: Date.now() + EFFORT_PREP_S * 1000, target, sides: bothSides(ex) ? 2 : 1 };
   effortLastSecond = null;
   persistSession();
   haptic();
@@ -105,7 +109,8 @@ function openEffortSheet() {
 
 function runEffortClock() {
   clearInterval(effortInterval);
-  effortInterval = setInterval(updateEffortUI, 200);
+  // Tempo : 100 ms pour que les notes tombent juste au changement de phase
+  effortInterval = setInterval(updateEffortUI, activeSession.effort.kind === 'tempo' ? 100 : 200);
   // App en arrière-plan : la notification annonce la fin de l'effort (le repos suit au retour)
   if (activeSession.effort.target) {
     const e = activeSession.effort, ex = activeSession.exercises[e.ei];
@@ -123,7 +128,7 @@ function clearEffort() {
 // repos calé sur la vraie fin de l'effort (si l'app revient en retard, le repos a déjà avancé)
 function finishEffort(endAt, held) {
   if (!activeSession?.effort) return;               // déjà fini (horloge et retour au premier plan)
-  const { ei, si } = activeSession.effort;
+  const { ei, si, kind } = activeSession.effort;
   clearEffort();                                     // d'abord : plus de seconde validation possible
   document.querySelector('.sess-sheet--effort')?._close?.();
   const s = activeSession.exercises[ei]?.sets[si];
@@ -132,7 +137,7 @@ function finishEffort(endAt, held) {
   s.reps = String(Math.max(1, Math.round(held)));
   Native.cancelRestEnd();
   validateSet(ei, si, { restFrom: endAt, prevReps });
-  announce(`Terminé, ${fmtSeconds(s.reps)} tenues`);
+  announce(kind === 'tempo' ? `Terminé, ${s.reps} répétitions` : `Terminé, ${fmtSeconds(s.reps)} tenues`);
 }
 
 // Bouton du bas : « Commencer » (passe la préparation ou le changement de côté), « Côté suivant »
@@ -140,6 +145,7 @@ function finishEffort(endAt, held) {
 function stopEffortEarly() {
   const e = activeSession?.effort;
   if (!e) return;
+  if (e.kind === 'tempo') { stopTempoEarly(e); return; }
   const c = effortClock(e), now = Date.now();
   if (c.phase === 'prep') { e.start = now; }
   else if (c.phase === 'switch') {
@@ -172,6 +178,11 @@ function cancelEffort() {
 function resumeEffort() {
   if (!activeSession?.effort) return;
   if (!effortStillValid()) { clearEffort(); persistSession(); return; }
+  if (activeSession.effort.kind === 'tempo') {   // pas de guidage sans l'app : reprise à la répétition atteinte
+    const e = activeSession.effort;
+    if (!e.pausedRep) pauseTempo(e);
+    resumeTempoAfterPause(e); openEffortSheet(); runEffortClock(); return;
+  }
   const c = effortClock(activeSession.effort);
   if (c.phase === 'done') { const e = activeSession.effort; finishEffort(c.endAt, e.side1Held != null ? Math.min(e.side1Held, e.target) : e.target); return; }
   openEffortSheet();
@@ -180,7 +191,10 @@ function resumeEffort() {
 
 // Retour au premier plan : l'effort fini pendant l'absence est validé à son heure de fin
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && activeSession?.effort) updateEffortUI();
+  const e = activeSession?.effort;
+  if (!e) return;
+  if (e.kind === 'tempo') { if (document.visibilityState === 'hidden') pauseTempo(e); else { resumeTempoAfterPause(e); runEffortClock(); updateEffortUI(); } return; }
+  if (document.visibilityState === 'visible') updateEffortUI();
 });
 
 registerActions({

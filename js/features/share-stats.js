@@ -9,13 +9,24 @@
 
 const SHARE_MAX_HIGHLIGHTS = 30;  // tous les exercices de la séance (l'image passe en lignes compactes s'il le faut)
 
+// Exercices sans charge (abdos, gainage, poids du corps) : le nombre de séries est ajouté, sinon
+// « 15 reps » ne dit pas qu'il y en a eu 3. « 3 × 15 reps » si toutes sont pareilles, sinon
+// « 15 reps · 3 séries ». Avec une charge, la meilleure série (« 10 kg × 10 ») reste seule.
+function withSetCount(txt, ex, best) {
+  const sets = (ex.sets || []).filter(s => (parseInt(s.reps) || 0) > 0);
+  const m = measureOf(ex);
+  if (sets.length < 2 || m === 'cardio' || (m === 'reps' && best.w > 0)) return txt;
+  const same = sets.every(s => String(parseInt(s.reps)) === String(parseInt(sets[0].reps)) && (parseFloat(s.weight) || 0) === (parseFloat(sets[0].weight) || 0));
+  return same ? `${sets.length} × ${txt}` : `${txt} · ${sets.length} séries`;
+}
+
 // Exercice mis en avant : record marquant, sinon meilleure série (« 32,5 kg × 8 », « 12 reps »)
 function shareExerciseRow(ex, base, index, bodyKg = null) {
   const rec  = exerciseRecord(ex, base);
   const best = rec ? bestSet([rec.s], ex) : bestSet(ex.sets, ex);
   return {
     index, name: ex.name, exId: ex.exId || null,
-    value:  best ? setTxt(best, ex) : '',
+    value:  best ? withSetCount(setTxt(best, ex), ex, best) : '',
     record: rec ? rec.label : null,
     volume: exVolume(ex, ex.sets, bodyKg),
   };

@@ -38,7 +38,7 @@ function startSession(cat) {
     category:  cat,
     programme: progKey,
     startedAt: Date.now(),
-    exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
+    exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
   };
   activeSession.baseline = computeBaseline(activeSession);
   persistSession();
@@ -191,7 +191,8 @@ function exVolumeHtml(ex, allDone) {
 function exSubHtml(ex, ei, allDone) {
   const pr   = measureOf(ex) === 'reps' ? sessExData(ex)?.pr : null;
   const rest = fmtRest(exRest(ex));
-  return `${pr ? `<span class="num">Record ${fmtW(pr.weight, { plain: true })} × ${esc(pr.reps)}</span> · ` : ''}<button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${ei}" aria-label="Repos ${rest}, modifier">Repos ${rest}</button>${exVolumeHtml(ex, allDone)}`;
+  const tempo = parseTempo(ex.tempo) && measureOf(ex) === 'reps' ? `<span class="num">Tempo ${esc(shortTempo(ex.tempo))}</span> · ` : '';
+  return `${tempo}${pr ? `<span class="num">Record ${fmtW(pr.weight, { plain: true })} × ${esc(pr.reps)}</span> · ` : ''}<button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${ei}" aria-label="Repos ${rest}, modifier">Repos ${rest}</button>${exVolumeHtml(ex, allDone)}`;
 }
 
 function renderExerciseCard(ex, ei, cur) {
@@ -288,8 +289,8 @@ function renderSetRow(ex, ei, s, si, cur) {
     <div class="set-swipe" role="row">
       ${editing ? '' : del}
       <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
-        ${m === 'time' && isCur
-          ? `<button class="set-n set-play" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="Lancer le chrono, série ${si + 1}, ${esc(ex.name)}${s.reps ? `, ${esc(s.reps)} secondes` : ''}">${icon('play', 16)}</button>`
+        ${(m === 'time' || (m === 'reps' && parseTempo(ex.tempo))) && isCur
+          ? `<button class="set-n set-play" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="${m === 'time' ? 'Lancer le chrono' : `Lancer la série guidée au tempo ${esc(ex.tempo)}`}, série ${si + 1}, ${esc(ex.name)}${s.reps ? `, ${esc(s.reps)} ${m === 'time' ? 'secondes' : 'répétitions'}` : ''}">${icon('play', 16)}</button>`
           : `<span class="set-n num">${si + 1}</span>`}
         <span class="set-prev num">${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}

@@ -21,6 +21,7 @@ const SCRIPTS = [
   'js/platform/native.js',
   'js/core/util.js',
   'js/data/programmes.js',
+  'js/data/tempo.js',
   'js/data/store.js',
   'js/data/records.js',
   'js/data/accessors.js',
