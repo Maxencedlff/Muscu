@@ -125,6 +125,12 @@ function currentBodyKg() {
   const fromHealth = typeof lastBodyMassKg === 'function' ? lastBodyMassKg() : null;
   return fromHealth || data.bodyWeightKg || null;
 }
+// Poids gardé avec une séance (h.bodyKg) : seulement celui saisi à la main, jamais une pesée de Santé
+// (règle Apple 5.1.3(ii) : pas de donnée de Santé copiée dans iCloud ni envoyée sur un serveur)
+function storableBodyKg() {
+  const fromHealth = typeof lastBodyMassKg === 'function' ? lastBodyMassKg() : null;
+  return fromHealth ? null : data.bodyWeightKg || null;
+}
 // Charge effective d'une série (kg) ; bodyKg inconnu : le lest seul (0 pour une aide)
 function effectiveLoad(s, ex, bodyKg) {
   const w = parseFloat(s?.weight) || 0, share = bodyShare(ex);

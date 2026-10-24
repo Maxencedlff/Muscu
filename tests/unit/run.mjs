@@ -989,6 +989,29 @@ test('santé : poids pour les calories, celui de Santé (non modifiable) sinon c
   assert.doesNotMatch(failed, /Lecture dans Santé/);
 });
 
+test('santé : la pesée de Santé n\'est jamais gardée dans une séance (iCloud, serveur)', () => {
+  reset();
+  // Migration unique : Santé activé, pesées de Santé retirées, poids saisi à la main gardé
+  const d = run(`normalizeData({ healthOn: true, bodyWeightKg: 70, history: [
+    { id: 'a', date: 1, category: 'push', exercises: [], bodyKg: 71.6 },
+    { id: 'b', date: 2, category: 'push', exercises: [], bodyKg: 70 } ] })`);
+  assert.equal(d.history.find(h => h.id === 'a').bodyKg, undefined);
+  assert.equal(d.history.find(h => h.id === 'b').bodyKg, 70);
+  assert.equal(d.healthKgPurged, true);
+  // Une fois faite, la migration ne repasse plus (poids saisi changé ensuite : séances gardées)
+  const again = run(`normalizeData({ healthOn: true, bodyWeightKg: 72, healthKgPurged: true, history: [{ id: 'b', date: 2, category: 'push', exercises: [], bodyKg: 70 }] })`);
+  assert.equal(again.history[0].bodyKg, 70);
+  // Pesée de Santé connue : rien à garder ; sinon le poids saisi
+  run(`__origNative = Native.isNative; Native.isNative = true;
+       data.healthOn = true; data.bodyWeightKg = 70; weightCache = { at: Date.now(), samples: [{ date: 1, kg: 71.6 }], failed: false };`);
+  try {
+    assert.equal(run('storableBodyKg()'), null);
+    assert.equal(run('currentBodyKg()'), 71.6, 'le volume utilise quand même la pesée de Santé');
+    run(`weightCache = { at: 0, samples: [], failed: false };`);
+    assert.equal(run('storableBodyKg()'), 70);
+  } finally { run('Native.isNative = __origNative;'); }
+});
+
 test('santé : autorisation demandée à iOS une seule fois par lancement, avant le premier accès', async () => {
   reset();
   run(`data.healthOn = true; healthAuthAsked = null; __auth = 0;

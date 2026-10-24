@@ -132,6 +132,7 @@ function makeDefaultData() {
     musicOn: false,    // app iOS : Apple Music
     exEquip: 'all',    // feuille d'ajout d'exercice : filtre de matériel (id d'EQUIPMENT ou 'all')
     onboarded: false,  // question « Où t'entraînes-tu ? » répondue (ou « Plus tard »)
+    healthKgPurged: true, // migration des pesées de Santé (normalizeData) : rien à faire sur une donnée neuve
     history: [],
     trash: [],          // { entry, deletedAt } : séances supprimées, récupérables TRASH_DAYS jours
   };
@@ -297,6 +298,13 @@ function normalizeData(d, rawJson = null) {
   if (!EQUIP_IDS.includes(d.exEquip)) d.exEquip = 'all';
   d.onboarded = d.onboarded === true;
   if (!Array.isArray(d.history)) d.history = [];
+  // Règle Apple 5.1.3(ii) : aucune donnée de Santé dans iCloud (copie CloudBackupPlugin) ni sur le serveur.
+  // Avant le 25/10/2026, la pesée lue dans Santé était écrite dans chaque séance : une seule fois, toute
+  // valeur qui n'est pas le poids saisi à la main est retirée (le volume reprend le poids actuel).
+  if (!d.healthKgPurged) {
+    if (d.healthOn) d.history.forEach(h => { if (h && h.bodyKg !== undefined && h.bodyKg !== d.bodyWeightKg) delete h.bodyKg; });
+    d.healthKgPurged = true;
+  }
   sanitizeData(d);
 
   // Schéma 3 : identifiant stable (exId) sur chaque exercice de l'historique

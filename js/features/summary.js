@@ -147,7 +147,7 @@ function renderSummary() {
 function refreshSummaryBodyKg() {
   const h = lastSummary && data.history.find(x => x.id === lastSummary.id);
   if (!h || h.bodyKg || !currentBodyKg()) return;
-  h.bodyKg = currentBodyKg();
+  if (storableBodyKg()) h.bodyKg = storableBodyKg();   // pesée de Santé : relue, jamais gardée
   lastSummary = buildSummary(h, lastSummary.baseline);
 }
 
@@ -192,7 +192,7 @@ function sessionHistoryEntry(sp, sc) {
     date:       Date.now(),
     duration:   Date.now() - activeSession.startedAt,
     notes:      sessionNotes.trim(),
-    ...(currentBodyKg() ? { bodyKg: currentBodyKg() } : {}),
+    ...(storableBodyKg() ? { bodyKg: storableBodyKg() } : {}),
     exercises:  activeSession.exercises
       .map(ex => ({
         exId: ex.exId || resolveExId(sp, sc, ex.name),
