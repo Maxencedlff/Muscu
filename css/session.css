@@ -112,7 +112,7 @@
 
 .set-del {
   visibility: hidden;
-  position: absolute; top: 0; right: 0; bottom: 0; width: 74px; z-index: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; width: 88px; z-index: 0;   /* = SWIPE_OPEN (session-gestures.js) */
   background: var(--red); color: var(--white); border: 0; padding: 0; font-size: 0.824rem; font-weight: 600; letter-spacing: -.2px; cursor: pointer;
 }
 

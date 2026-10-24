@@ -59,7 +59,8 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
   background: none; border: none; color: var(--tint); font: inherit; cursor: pointer;
   min-height: 44px; min-width: 44px; display: inline-flex; align-items: center;
 }
-.navbar__back { gap: 2px; padding: 0 8px 0 0; font-size: min(1rem, 22px); max-width: 100%; }
+/* Pas de marge à droite : la place va au libellé (« Programme » entier sur un écran de 320 px) */
+.navbar__back { gap: 2px; padding: 0; font-size: min(1rem, 22px); max-width: 100%; }
 .navbar__back .icon { flex-shrink: 0; }
 .navbar__back-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .navbar__text {

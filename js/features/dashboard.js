@@ -28,7 +28,8 @@ function fmtWait(ms) {
 // muscle n'est connu : délai de la séance elle-même, comme avant. Un délai passé à la main (skipped)
 // libère la séance jusqu'au prochain entraînement de ces muscles.
 // by : { muscle, entry } qui fixe le délai quand il vient d'ailleurs que cette séance, sinon null.
-function catStatus(cat) {
+// readyAt : heure à laquelle la séance sera prête (0 si elle l'est depuis toujours).
+function catStatus(cat, now = Date.now()) {
   const p = prog();
   const own = p.timers[cat] || null;
   const rec = sessionRecovery(cat);
@@ -40,8 +41,9 @@ function catStatus(cat) {
   }
   if (last && p.skipped?.[cat] >= last) { last = null; by = null; }
   const cd = getCooldown(cat) * 3600_000;
-  const remaining = last ? last + cd - Date.now() : 0;
-  return { last, remaining, ready: remaining <= 0, progress: last ? Math.min(1, 1 - remaining / cd) : 1, by: remaining > 0 ? by : null };
+  const readyAt = last ? last + cd : 0;
+  const remaining = last ? readyAt - now : 0;
+  return { last, readyAt, remaining, ready: remaining <= 0, progress: last ? Math.min(1, 1 - remaining / cd) : 1, by: remaining > 0 ? by : null };
 }
 
 // Dernier entraînement (muscle principal, au moins une série) de chaque muscle, sur tout l'historique.
@@ -93,14 +95,36 @@ function recoveryRing(p) {
   </svg>`;
 }
 
-// Prochaine séance : la séance prête faite il y a le plus longtemps (ou jamais faite),
-// sinon celle qui sera prête la première
+// Prochaine séance : la séance prête dont les muscles se reposent depuis le plus longtemps (ou jamais
+// faite), sinon celle qui sera prête la première. À égalité, la séance faite il y a le plus longtemps :
+// juste après Haut du corps, Bas du corps (bloquée par les abdos du même entraînement) passe devant
+// la séance qu'on vient de finir. Une seule heure de référence : le tri reste cohérent.
 function nextSessionCat(keys) {
   if (!keys.length) return null;
-  const ready = keys.filter(k => catStatus(k).ready);
-  if (ready.length) return ready.sort((a, b) => (catStatus(a).last || 0) - (catStatus(b).last || 0))[0];
-  return keys.slice().sort((a, b) => catStatus(a).remaining - catStatus(b).remaining)[0];
+  const now = Date.now(), st = new Map(keys.map(k => [k, catStatus(k, now)]));
+  const own = k => prog().timers[k] || 0;
+  const ready = keys.filter(k => st.get(k).ready);
+  if (ready.length) return ready.sort((a, b) => (st.get(a).last || 0) - (st.get(b).last || 0))[0];
+  return keys.slice().sort((a, b) => st.get(a).readyAt - st.get(b).readyAt || own(a) - own(b))[0];
 }
+
+// Séance qu'attendait la rotation (jamais faite, sinon faite il y a le plus longtemps) quand
+// l'accueil en propose une autre à cause de la récupération des muscles : texte brut, sinon ''.
+//   « Push attend : quadriceps en récupération (encore 1 j) »  (pas prête)
+//   « Push passe après (quadriceps : il y a 4 jours, Legs) »   (prête, mais muscles moins reposés)
+function passedOverNote(keys, next) {
+  const own = k => prog().timers[k] || 0;
+  const expected = keys.slice().sort((a, b) => own(a) - own(b))[0];
+  if (!expected || !next || expected === next) return '';
+  const label = rawLabel(expected), st = catStatus(expected);
+  if (!st.ready) {
+    const why = st.by ? `${lowerFirst(muscleLabel(st.by.muscle))} en récupération` : 'récupération';
+    return `${label} attend : ${why} (encore ${fmtWait(st.remaining)})`;
+  }
+  const rec = sessionRecovery(expected);
+  return rec && rec.date > own(expected) ? `${label} passe après (${lowerFirst(recoveryReason(rec))})` : '';
+}
+function lowerFirst(s) { return s ? s.charAt(0).toLowerCase() + s.slice(1) : s; }
 
 function lastEntryOf(cat) {
   const p = data.activeProgramme;
@@ -259,6 +283,8 @@ function renderDashboard() {
         : `<div class="hero__info">Jamais faite</div>`;
       if (!st.ready) info += `<div class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</div>`;
       if (st.by) info += `<div class="hero__why">${esc(recoveryReason(st.by))}</div>`;
+      const passed = passedOverNote(keys, next);
+      if (passed) info += `<div class="hero__why hero__why--passed">${esc(passed)}</div>`;
       btn = st.ready
         ? `<button class="hero__btn" data-action="start-session" data-cat="${esc(next)}" aria-label="Démarrer ${meta.label}">${icon('play', 18)}Démarrer</button>`
         : `<button class="hero__btn hero__btn--gray" data-action="start-session" data-cat="${esc(next)}">Démarrer quand même</button>`;

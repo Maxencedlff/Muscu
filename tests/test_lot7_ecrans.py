@@ -73,7 +73,8 @@ def t_screens(bench, eng, dev, theme):
         # 10. Fiche exercice : espacement avant « Supprimer » et segment actif
         go(page, 'ex-edit', 'push', 0, exDraft={'route': 'ex-edit:push:0', 'name': 'Développé couché haltères', 'sets': 4, 'rest': None, 'target': None, 'repMax': 12})
         gap = page.evaluate("""() => { const f = [...document.querySelectorAll('.group-foot')].find(e => e.textContent.includes('Quand toutes'));
-            return f.nextElementSibling.getBoundingClientRect().top - f.getBoundingClientRect().bottom; }""")
+            const del = document.querySelector('.ex-edit [data-action="del-ex"]').closest('.group');
+            return del.getBoundingClientRect().top - f.getBoundingClientRect().bottom; }""")
         R.check(gap >= 24, f'{tag} fiche exercice : espace avant « Supprimer » ({gap:.0f} px)')
         act = page.evaluate("[...document.querySelectorAll('[data-action=\"ex-rest\"].segmented__btn--active')].map(b => b.textContent)")
         shown = page.evaluate("document.querySelector('#exRestVal').textContent")

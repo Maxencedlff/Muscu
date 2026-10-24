@@ -150,21 +150,25 @@ input, textarea, select { font-family: inherit; }
   min-height: 32px;
 }
 .segmented__btn {
-  flex: 1; position: relative; min-width: 0;
+  flex: 1; position: relative; z-index: 0; min-width: 0;
+  /* Zone de toucher de 44 px (le bouton lui-même, mesurable) : il déborde de 8 px en haut et en bas,
+     le contrôle garde ses 32 px et la pastille est dessinée par ::after */
+  margin: -8px 0;
   padding: 0 var(--sp-3); background: none; border: none; border-radius: 7px;
   color: var(--label); font-size: var(--fs-footnote); font-weight: 600;
   cursor: pointer; white-space: nowrap;
+}
+.segmented__btn::after {
+  content: ''; position: absolute; inset: 8px 0; z-index: -1; border-radius: 7px;
   transition: background .2s;
 }
 /* Séparateur fin entre deux segments inactifs */
 .segmented__btn + .segmented__btn::before {
-  content: ''; position: absolute; left: 0; top: 7px; bottom: 7px; width: .5px; background: var(--sep);
+  content: ''; position: absolute; left: 0; top: 15px; bottom: 15px; width: .5px; background: var(--sep);
 }
 .segmented__btn--active + .segmented__btn::before,
 .segmented__btn--active::before { opacity: 0; }
-.segmented__btn--active { background: var(--segment-on); box-shadow: var(--shadow-seg); }
-/* Zone de tap de 44 px même si le contrôle n'en mesure que 32 */
-.segmented__btn::after { content: ''; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px; }
+.segmented__btn--active::after { background: var(--segment-on); box-shadow: var(--shadow-seg); }
 
 /* Interrupteur (décoratif : l'état est porté par la cellule, role="switch") */
 .switch {

@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const SWIPE_OPEN = 74, SWIPE_MIN = 80;
+const SWIPE_OPEN = 88, SWIPE_MIN = 80;   // SWIPE_OPEN : largeur de .set-del (session.css), « Supprimer » en entier
 let swipe = null, swipeBlockClick = false;
 
 function closeSwipes(except) {
