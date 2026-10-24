@@ -368,6 +368,7 @@ function save(quiet = false) {
     const json = JSON.stringify(data);
     localStorage.setItem(KEY, json);
     Native.backup(json);   // app iOS : copie de sécurité dans les fichiers de l'app
+    if (typeof scheduleSync === 'function') scheduleSync();   // compte connecté : envoi groupé (js/data/account.js)
     return true;
   }
   catch {

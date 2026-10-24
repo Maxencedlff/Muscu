@@ -25,6 +25,11 @@ const CORE = path.join(ROOT, 'node_modules', '@capacitor', 'core', 'dist', 'capa
 if (!fs.existsSync(CORE)) throw new Error('@capacitor/core absent : lancer npm ci');
 fs.mkdirSync(path.join(OUT, 'js', 'vendor'), { recursive: true });
 fs.copyFileSync(CORE, path.join(OUT, 'js', 'vendor', 'capacitor.js'));
+// supabase-js (compte MDLF, js/data/account.js) : fichier UMD de la version figée dans package.json,
+// embarqué (l'app marche hors ligne, aucun script chargé depuis un CDN)
+const SUPABASE = path.join(ROOT, 'node_modules', '@supabase', 'supabase-js', 'dist', 'umd', 'supabase.js');
+if (!fs.existsSync(SUPABASE)) throw new Error('@supabase/supabase-js absent : lancer npm ci');
+fs.copyFileSync(SUPABASE, path.join(OUT, 'js', 'vendor', 'supabase.js'));
 // Informations de construction (mises à jour à chaud, voir IOS.md) :
 // - runtime : empreinte de tout ce qui est natif. Une mise à jour web n'est appliquée que dans une app
 //   dont la coquille a la même empreinte (même principe que le runtimeVersion d'Expo).
@@ -71,7 +76,7 @@ fs.writeFileSync(path.join(OUT, 'build-info.json'), JSON.stringify(BUILD, null, 
 const NATIVE_TAG = '<script src="js/platform/native.js"></script>';
 let index = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
 if (!index.includes(NATIVE_TAG)) throw new Error('index.html ne charge plus js/platform/native.js');
-index = index.replace(NATIVE_TAG, '<script src="js/vendor/capacitor.js"></script>\n  <script src="js/platform/build-info.js"></script>\n  ' + NATIVE_TAG);
+index = index.replace(NATIVE_TAG, '<script src="js/vendor/capacitor.js"></script>\n  <script src="js/vendor/supabase.js"></script>\n  <script src="js/platform/build-info.js"></script>\n  ' + NATIVE_TAG);
 fs.writeFileSync(path.join(OUT, 'index.html'), index);
 
 // Chaque script chargé par index.html doit être présent dans dist/

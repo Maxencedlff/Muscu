@@ -26,6 +26,7 @@ const SCRIPTS = [
   'js/data/records.js',
   'js/data/accessors.js',
   'js/data/backup.js',
+  'js/data/sync.js',
   'js/data/prog-share.js',
   'js/data/trash.js',
   'js/data/muscles.js',
@@ -1327,6 +1328,9 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 // ── Mesures : répétitions, durée, cardio (tests dans measures.mjs) ──
 
 (await import('./measures.mjs')).default({ test, app, run, reset, assert });
+
+// ── Synchronisation du compte (tests dans sync.mjs) ──
+(await import('./sync.mjs')).default({ test, run, assert, sameJSON });
 
 // ── Exécution ───────────────────────────────────────────────
 

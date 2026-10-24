@@ -20,6 +20,7 @@ function renderSettings() {
     <div class="view settings-view view--grouped">
       ${navBar({ title: 'Réglages' })}
       <div class="scr">
+${renderAccountGroup()}
 
         <div class="group-title">Séance</div>
         <div class="group">

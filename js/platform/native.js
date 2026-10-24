@@ -26,6 +26,7 @@ const Native = (() => {
   const AppIcon            = plugin('MdlfAppIcon');   // module Swift de l'app (ios/App/App/AppIconPlugin.swift)
   const Cloud              = plugin('MdlfCloudBackup'); // module Swift de l'app (ios/App/App/CloudBackupPlugin.swift)
   const Sound              = plugin('MdlfSound');     // module Swift de l'app (ios/App/App/SoundPlugin.swift), build 22 et suivantes
+  const Account            = plugin('MdlfAccount');   // module Swift de l'app (ios/App/App/AccountPlugin.swift), build 25 et suivantes
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
   const AppInfo            = plugin('App');              // @capacitor/app : numéro de build installé
 
@@ -277,6 +278,30 @@ const Native = (() => {
     sound: {
       available: isNative && !!cap.isPluginAvailable?.('MdlfSound'),
       play(notes) { if (isNative) quiet(Sound.play({ notes })); },
+    },
+
+    // Compte MDLF : connexion avec Apple et session gardée dans le Trousseau (js/data/account.js).
+    // available : faux dans le navigateur et dans une coquille plus ancienne que le module (une mise
+    // à jour à chaud peut arriver avant la nouvelle build) : la rubrique Compte est alors masquée.
+    account: {
+      available: isNative && !!cap.isPluginAvailable?.('MdlfAccount'),
+      // { identityToken, authorizationCode, user } ; null si l'utilisateur ferme la fenêtre d'Apple.
+      // Autre échec : exception avec le message d'iOS.
+      async signIn(nonce) {
+        try { return await Account.signIn({ nonce }); }
+        catch (e) { if (e?.code === 'CANCELED') return null; throw e; }
+      },
+      // 'authorized' | 'revoked' | 'notFound' | 'transferred' | 'unknown' (erreur : 'unknown')
+      async credentialState(user) {
+        try { return (await Account.credentialState({ user })).state || 'unknown'; } catch { return 'unknown'; }
+      },
+      // Stockage de la session pour supabase-js (getItem / setItem / removeItem, async). Une erreur de
+      // lecture vaut « pas de session » : supabase-js n'attrape pas une exception de son stockage.
+      storage: {
+        async getItem(key) { try { return (await Account.getItem({ key })).value ?? null; } catch { return null; } },
+        async setItem(key, value) { try { await Account.setItem({ key, value }); } catch { /* session gardée en mémoire */ } },
+        async removeItem(key) { try { await Account.removeItem({ key }); } catch { /* déjà absente */ } },
+      },
     },
 
     appIcon: {
