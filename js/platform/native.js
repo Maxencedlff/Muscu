@@ -349,6 +349,14 @@ const Native = (() => {
       }
     },
 
+    // Partage d'un texte (programme envoyé à un ami) par la feuille de partage d'iOS.
+    // Mêmes retours que shareImage : 'shared', 'cancelled' ou 'failed' ; hors app : false.
+    async shareText(text, title) {
+      if (!isNative) return false;
+      try { await Share.share({ text, title }); return 'shared'; }
+      catch (e) { return /cancel/i.test(String(e?.message || e)) ? 'cancelled' : 'failed'; }
+    },
+
     async readBackup() {
       if (!isNative) return null;
       try {

@@ -26,6 +26,7 @@ const SCRIPTS = [
   'js/data/records.js',
   'js/data/accessors.js',
   'js/data/backup.js',
+  'js/data/prog-share.js',
   'js/data/trash.js',
   'js/data/muscles.js',
   'js/data/exercise-catalogue.js',
@@ -61,6 +62,7 @@ const toasts = [];
 const sandbox = {
   console,
   AbortController, setTimeout, clearTimeout,   // vérification des mises à jour à chaud
+  TextEncoder, TextDecoder, btoa, atob,        // code du programme partagé (js/data/prog-share.js)
   localStorage: new MemoryStorage(),
   navigator: {},
   document: { querySelector: () => null, getElementById: () => null },

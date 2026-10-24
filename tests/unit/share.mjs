@@ -39,6 +39,39 @@ function pushHistory() {
 
 export default function shareTests({ test, app, run, reset, sameJSON, nativeContext }) {
 
+  test('programme partagé : message lisible, code relu à l\'identique, ajouté sans rien remplacer', () => {
+    reset();
+    run(`const e = data.programmes.ppl.exercises.push[0]; e.tempo = '3-1-1-0'; e.tempoGuide = true; e.tempoPrep = 20; e.rest = 120; e.target = 80`);
+    const payload = app.programmeSharePayload('ppl');
+    const text = app.programmeShareText(payload);
+    assert.match(text, /Push\n• Développé couché haltères : 4 séries, tempo 3-1-1, repos 2:00/);
+    assert.doesNotMatch(text, /80/, 'les charges restent personnelles');
+    const back = app.parseProgrammeShare(`Salut, regarde :\n${text}\nÀ plus`);
+    sameJSON(back, JSON.parse(JSON.stringify(payload)));
+    const before = run('Object.keys(data.programmes).length');
+    const id = app.importSharedProgramme(back);
+    assert.equal(run('Object.keys(data.programmes).length'), before + 1);
+    assert.equal(run(`data.userProgrammes['${id}'].name`), 'PPL');
+    const push = run(`Object.values(data.programmes['${id}'].exercises)[0][0]`);
+    assert.equal(push.name, 'Développé couché haltères');
+    assert.equal(push.tempo, '3-1-1-0'); assert.equal(push.tempoGuide, true); assert.equal(push.tempoPrep, 20); assert.equal(push.rest, 120);
+    assert.equal(push.target, null);
+    // Deuxième import du même programme : nom distinct
+    assert.equal(run(`data.userProgrammes['${app.importSharedProgramme(back)}'].name`), 'PPL (2)');
+  });
+
+  test('programme partagé : message sans code ou trafiqué refusé, valeurs bornées', () => {
+    reset();
+    assert.equal(app.parseProgrammeShare('bonjour'), null);
+    assert.equal(app.parseProgrammeShare('MDLF-PROG1:%%%'), null);
+    const forged = app.encodeProgrammeShare({ v: 1, name: 'x'.repeat(200), sessions: [{ label: '<b>A</b>', color: 'red;}', ex: [{ n: 'Squat', s: 99, r: 5, m: 'vol', t: 'abc', mu: ['../x', 'quads'] }, { n: '' }] }] });
+    const p = app.parseProgrammeShare(forged);
+    assert.equal(p.name.length, 40);
+    assert.equal(p.sessions[0].color, '#8E8E93');
+    sameJSON(p.sessions[0].ex, [{ n: 'Squat', s: 3, mu: ['quads'] }]);
+    assert.equal(app.parseProgrammeShare(app.encodeProgrammeShare({ v: 1, name: 'Vide', sessions: [] })), null);
+  });
+
   test('records : badge d\'une série (charge > reps > 1RM), jamais sans précédent ni à égalité', () => {
     const base = { prW: 60, prR: 8, e1rm: 76 };
     assert.equal(app.recordLabel({ weight: '62.5', reps: '3' }, base), 'Record charge');
