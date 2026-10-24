@@ -219,6 +219,10 @@ function catalogueNames() { return EXERCISE_CATALOGUE.map(e => e.name); }
 function equipmentOf(name) { return CATALOGUE_BY_NAME.get(normName(name))?.equip ?? null; }
 // Fiche de la bibliothèque d'un nom (nom exact, alias ou abréviation développée), null sinon
 function catalogueEntry(name) { return CATALOGUE_BY_NAME.get(normName(name)) || CATALOGUE_BY_NAME.get(ruleKey(name)) || null; }
+// Rang dans la bibliothèque, qui place le mouvement de référence d'une famille avant ses variantes
+// (« Tractions pronation » avant « Tractions archer ») ; -1 hors bibliothèque (exercice de la personne)
+const CATALOGUE_RANK = new Map(EXERCISE_CATALOGUE.map((e, i) => [e, i]));
+function catalogueRank(name) { const e = catalogueEntry(name); return e ? CATALOGUE_RANK.get(e) : -1; }
 
 // ── Progressions : du plus facile au plus dur ───────────────
 // Proposées dans « Remplacer l'exercice » (« Plus facile » / « Plus dur ») : qui n'arrive pas encore à

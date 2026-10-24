@@ -97,6 +97,54 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.equal(run(`similarExercises('zzz').length`), 0);
   });
 
+  test('muscles : recherche approchée, mot en plus ou faute, sans casser la recherche complète', () => {
+    reset();
+    const lib = () => run('exerciseLibrary()');
+    const strict = q => lib().filter(n => app.exerciseMatchScore(n, q) > 0);
+    const near = q => [...app.closestExercises(lib(), q, 5)];
+    // Variante absente de la bibliothèque : aucun résultat complet, les Tractions en plus proches
+    for (const q of ['tracion lesté', 'traction lest', 'tractions lestées']) {
+      assert.equal(strict(q).length, 0, q);
+      const got = near(q);
+      assert.ok(got.length && got.every(n => /^Tractions/.test(n)), `${q} → ${got.join(', ')}`);
+      assert.equal(got[0], 'Tractions pronation', 'le mouvement de référence avant ses variantes');
+    }
+    // Abréviation de « développé » sans voyelles
+    assert.ok(strict('dvlp incliné').includes('Développé incliné haltères'));
+    assert.ok(strict('dvp couché').includes('Développé couché barre'));
+    // Une faute sur un seul mot ne remonte pas d'exercice éloigné face à un mot bien trouvé
+    assert.ok(near('rotation landmine').every(n => /^Rotation/.test(n)), near('rotation landmine').join(', '));
+    // Le premier mot (le mouvement) pèse plus que les suivants
+    assert.ok(app.exercisePartialScore('Tractions pronation', 'tractions lestées') > app.exercisePartialScore('Fentes arrière', 'tractions arrière'));
+    // Rien de proche : rien proposé ; mots trop courts seuls : rien
+    assert.equal(near('zzz qqq').length, 0);
+    assert.equal(app.exercisePartialScore('Développé couché barre', 'de'), 0);
+    // Pas de régression : recherches complètes, abréviations et « Tu voulais dire » (score 1)
+    assert.ok(strict('DC').length >= 3 && strict('DC').every(n => /^Développé couché/.test(n)));
+    assert.equal(app.exerciseMatchScore('Squat barre', 'Squat'), 3);
+    assert.ok(strict('sdt').some(n => /^Soulevé de terre/.test(n)));
+    assert.equal(app.exerciseMatchScore('Tractions pronation', 'tracion'), 1);
+    assert.equal(app.exerciseMatchScore('Hip thrust', 'hip trust'), 2, 'nom exact par alias ou mot');
+    assert.equal(app.exerciseMatchScore('Hip thrust machine', 'hip trust'), 1);
+  });
+
+  test('muscles : remplacer, les exercices aux mêmes muscles principaux d\'abord', () => {
+    reset();
+    const lib = run('exerciseLibrary()').filter(n => n !== 'Développé couché barre');
+    const { same, rest } = app.sameMusclesFirst({ name: 'Développé couché barre' }, lib);
+    assert.equal(same.length + rest.length, lib.length, 'aucun exercice perdu');
+    assert.ok(same.every(n => app.musclesOf(n).primary.includes('chest')), same.join(', '));
+    assert.ok(!rest.some(n => app.musclesOf(n).primary.includes('chest')));
+    // Le nom le plus proche passe devant ; ni squat ni presse parmi les mêmes muscles
+    assert.ok(same.indexOf('Développé couché haltères') < 3, same.slice(0, 5).join(', '));
+    assert.ok(!same.includes('Squat barre') && !same.includes('Presse à cuisses'));
+    // Muscles choisis par la personne : ils priment sur la bibliothèque
+    run(`setDeclaredMuscles('Développé couché barre', { primary: ['triceps'] })`);
+    assert.ok(app.sameMusclesFirst({ name: 'Développé couché barre' }, lib).same.every(n => app.musclesOf(n).primary.includes('triceps')));
+    // Exercice aux muscles inconnus : ordre d'origine
+    sameJSON(app.sameMusclesFirst({ name: 'Zzz' }, lib), { same: [], rest: lib });
+  });
+
   test('muscles : reconnaissance des noms saisis librement', () => {
     const cases = {
       'Curl haltères incliné prise supination': 'biceps',
