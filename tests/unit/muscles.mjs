@@ -11,7 +11,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
 
   test('muscles : catalogue sans doublon, identifiants connus partout', () => {
     const known = new Set(ids());
-    assert.equal(known.size, 16);
+    assert.equal(known.size, 17);
     const names = run('EXERCISE_CATALOGUE.map(e => normName(e.name))');
     assert.equal(new Set(names).size, names.length, 'nom en double dans la bibliothèque');
     run('EXERCISE_CATALOGUE').forEach(e => {
@@ -102,7 +102,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
       'Curl haltères incliné prise supination': 'biceps',
       'Leg curl unilatéral': 'hamstrings',
       'Nordic curl assisté': 'hamstrings',
-      'Curl marteau corde': 'biceps',
+      'Curl marteau corde': 'brachialis',
       'Squat bulgare haltères': 'quads',
       'Fentes arrière lestées': 'quads',
       'Bench press haltères': 'chest',
@@ -135,7 +135,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
       assert.ok(['rules', 'catalogue'].includes(m.src), name);  // certains sont devenus des alias de la bibliothèque
       assert.equal(m.p[0], main, `${name} → ${m.p.join(', ')}`);
     }
-    sameJSON(pick('Curl marteau corde').p, ['biceps', 'forearms']);
+    sameJSON(pick('Curl marteau corde').p, ['brachialis', 'biceps']);
   });
 
   test('muscles : accents, casse et espaces ignorés ; nom inconnu ou vide → aucun muscle', () => {
@@ -190,7 +190,8 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.equal(counts.front_delts, 2);
     assert.equal(counts.triceps, 2);
     assert.equal(counts.biceps, 3);
-    assert.equal(counts.forearms, 3);
+    assert.equal(counts.brachialis, 3, 'curl marteau : le brachial en principal');
+    assert.equal(counts.forearms, 1.5);
     assert.equal(counts.quads, 0, 'séance d\'il y a 9 jours hors de la semaine');
     sameJSON(Object.keys(counts), ids(), 'tous les muscles, dans l\'ordre');
   });
@@ -228,7 +229,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     reset();
     const h = hist(0, [{ name: 'Développé couché haltères', sets: sets(4) }, { name: 'Curl marteau', sets: sets(2) },
                        { name: 'Inconnu', sets: sets(5) }]);
-    sameJSON(app.sessionMuscleLevels(h), { chest: 1, front_delts: 0.5, biceps: 0.5, triceps: 0.5, forearms: 0.5 });
+    sameJSON(app.sessionMuscleLevels(h), { chest: 1, front_delts: 0.5, biceps: 0.5, brachialis: 0.5, triceps: 0.5, forearms: 0.25 });
     sameJSON(app.sessionTopMuscles(h), ['chest', 'front_delts', 'biceps'], 'à égalité : ordre de MUSCLES');
     sameJSON(app.sessionTopMuscles(h, 1), ['chest']);
     sameJSON(app.sessionMuscleLevels(hist(0, [{ name: 'Inconnu', sets: sets(3) }])), {}, 'aucun muscle reconnu');

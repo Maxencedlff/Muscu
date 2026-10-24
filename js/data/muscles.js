@@ -15,6 +15,7 @@ const MUSCLES = [
   { id: 'lats',        label: 'Grand dorsal' },
   { id: 'lower_back',  label: 'Lombaires', minor: true },
   { id: 'biceps',      label: 'Biceps' },
+  { id: 'brachialis',  label: 'Brachial', minor: true },   // sous le biceps : curl marteau, curl inversé, tractions
   { id: 'triceps',     label: 'Triceps' },
   { id: 'forearms',    label: 'Avant-bras', minor: true },
   { id: 'abs',         label: 'Abdominaux' },
@@ -68,7 +69,7 @@ function similarExercises(name, n = 3) {
 const MUSCLE_WORDS = {
   chest: 'pectoraux pecs poitrine', front_delts: 'epaules', side_delts: 'epaules', rear_delts: 'epaules arriere',
   traps: 'trapezes', lats: 'dos dorsaux', lower_back: 'lombaires dos', biceps: 'biceps bras', triceps: 'triceps bras',
-  forearms: 'avant bras', abs: 'abdos abdominaux ventre', glutes: 'fessiers fesses', quads: 'quadriceps cuisses jambes',
+  forearms: 'avant bras', brachialis: 'brachial bras', abs: 'abdos abdominaux ventre', glutes: 'fessiers fesses', quads: 'quadriceps cuisses jambes',
   hamstrings: 'ischios jambiers jambes', adductors: 'adducteurs', calves: 'mollets',
 };
 const plainWord = w => w.replace(/s$/, '');
@@ -119,8 +120,9 @@ const MUSCLE_RULES = [
   [/leg curl|curl (jambes?|ischio|allonge|couche|assis)|ischio|nordi(c|que)|hamstring|glute ham/,  'hamstrings', 'calves'],
   [/developpe.*serree|close grip|jm press|tate press/,                                    'triceps chest', 'front_delts'],
   [/poignet|wrist|fermier|farmer|\bgrip\b|suspension passive|dead hang/,                                               'forearms', ''],
-  [/marteau|hammer curl|curl hammer/,                                                     'biceps forearms', ''],
-  [/curl|biceps/,                                                                         'biceps', 'forearms'],
+  [/curl (inverse|pronation)|reverse curl/,                                               'brachialis forearms', 'biceps'],
+  [/marteau|hammer curl|curl hammer/,                                                     'brachialis biceps', 'forearms'],
+  [/curl|biceps/,                                                                         'biceps', 'brachialis forearms'],
   [/roumain|rdl|jambes tendues|stiff|good morning/,                                       'hamstrings glutes', 'lower_back'],
   [/souleve de terre|deadlift|rack pull|hex bar|trap bar/,                                'glutes hamstrings lower_back', 'quads traps forearms'],
   [/swing|arrache|snatch|epaule jete|\bclean\b/,                               'glutes hamstrings', 'lower_back traps'],

@@ -142,7 +142,7 @@ const Native = (() => {
 
     // Notification de fin de repos, même téléphone verrouillé ou app en arrière-plan.
     // L'autorisation est demandée la première fois qu'un repos démarre (au moment où elle a du sens).
-    async scheduleRestEnd(endTime, body) {
+    async scheduleRestEnd(endTime, body, title = 'Repos terminé') {
       if (!isNative || !(endTime > Date.now() + 1000)) return;
       try {
         if (notifPermission === null) {
@@ -154,7 +154,7 @@ const Native = (() => {
         await LocalNotifications.cancel({ notifications: [{ id: REST_NOTIF_ID }] });
         await LocalNotifications.schedule({ notifications: [{
           id: REST_NOTIF_ID,
-          title: 'Repos terminé',
+          title,
           body,
           // Sans « sound », iOS présente la notification en silence (plugin : content.sound reste vide).
           // Nom sans fichier correspondant : iOS joue le son de notification par défaut.

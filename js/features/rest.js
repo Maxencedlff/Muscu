@@ -188,12 +188,19 @@ function removeRestUI() {
   $('.view.session')?.classList.remove('session--resting');
 }
 
-function openRest(secs, doRender = true) {
+// from : début réel du repos (fin d'un effort chronométré constatée en retard, app en arrière-plan)
+function openRest(secs, doRender = true, from = null) {
   restActive    = true;
   restMinimized = true;
-  restTimeLeft  = secs ?? data.defaultRest;
-  restTotal     = restTimeLeft;
-  startRestCountdown();
+  restTotal     = secs ?? data.defaultRest;
+  restTimeLeft  = restTotal;
+  if (from) {
+    restEndTime  = from + restTotal * 1000;
+    restTimeLeft = Math.ceil((restEndTime - Date.now()) / 1000);
+    if (restTimeLeft <= 0) { restFinished(); if (doRender) render(); return; }
+    resumeRestCountdown();
+    afterPaint(syncNativeRest);
+  } else startRestCountdown();
   if (doRender) render();
 }
 

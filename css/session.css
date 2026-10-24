@@ -370,3 +370,14 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 
 /* Bibliothèque : pastilles de matériel sous la recherche */
 .lib__equip { margin: 10px 0 0; }
+
+/* Chrono d'effort (js/features/effort.js) : ▶ à la place du numéro de la série en cours */
+.set-play {
+  width: 32px; height: 32px; justify-self: center; border: 0; border-radius: 50%; cursor: pointer;
+  background: var(--cat-color, var(--tint)); color: var(--white);
+  display: inline-flex; align-items: center; justify-content: center; padding: 0 0 0 2px;
+}
+.set-play:active { transform: scale(.92); }
+/* Feuille d'effort : même composant que le repos, « Annuler » à gauche */
+.rs__top .rs__collapse--left { left: -8px; right: auto; }
+.rs--effort .rs__done { min-width: 160px; }

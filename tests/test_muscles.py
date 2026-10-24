@@ -10,7 +10,7 @@ from fixtures import *  # noqa
 LOT = 'muscles'
 R = Results(LOT)
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MUSCLE_IDS = ['chest', 'front_delts', 'side_delts', 'rear_delts', 'traps', 'lats', 'lower_back', 'biceps',
+MUSCLE_IDS = ['chest', 'front_delts', 'side_delts', 'rear_delts', 'traps', 'lats', 'lower_back', 'biceps', 'brachialis',
               'triceps', 'forearms', 'abs', 'glutes', 'quads', 'hamstrings', 'adductors', 'calves']
 
 
@@ -53,7 +53,7 @@ def t_progress(bench, eng, dev, theme):
         low = page.locator('.mlow').inner_text()
         R.check('Pectoraux' in low and 'Grand dorsal' not in low, f'{t} peu travaillés : « {low} »')
         sr = page.locator('.mcard .visually-hidden li').all_inner_texts()
-        R.check(len(sr) == 16 and any(x.startswith('Grand dorsal : ') and 'série' in x for x in sr), f'{t} liste VoiceOver {sr[:2]}')
+        R.check(len(sr) == 17 and any(x.startswith('Grand dorsal : ') and 'série' in x for x in sr), f'{t} liste VoiceOver {sr[:2]}')
         R.check(page.locator('svg.mcard__map[aria-hidden="true"]').count() == 1, f'{t} dessin masqué à VoiceOver')
         R.check(no_hscroll(page), f'{t} Progrès : pas de défilement horizontal')
         card.scroll_into_view_if_needed()
@@ -69,7 +69,7 @@ def t_progress(bench, eng, dev, theme):
         page.click('[data-action="go-stats-muscles"]')
         page.wait_for_selector('.view.stats-muscles')
         rows = page.locator('.mrow').count()
-        R.check(rows == 16, f'{t} séries par muscle : 16 lignes ({rows})')
+        R.check(rows == 17, f'{t} séries par muscle : 17 lignes ({rows})')
         vals = [int(v) for v in page.locator('.mrow .cell__value').all_inner_texts()]
         R.check(vals == sorted(vals, reverse=True) and vals[0] > 0, f'{t} lignes triées par séries {vals[:4]}')
         R.check(page.locator('[data-action="muscle-span"][data-span="month"]').get_attribute('aria-pressed') == 'true', f'{t} période gardée')
@@ -115,7 +115,7 @@ def t_editor(bench, eng, dev, theme):
         page.fill('#exName', 'Curl marteau corde')
         page.wait_for_timeout(150)
         pills = page.locator('#exMuscles .mpill').all_inner_texts()
-        R.check(pills == ['Biceps', 'Avant-bras'], f'{t} reconnaissance en direct {pills}')
+        R.check(pills == ['Brachial', 'Biceps', 'Avant-bras'], f'{t} reconnaissance en direct {pills}')
         page.fill('#exName', 'Développé couché haltères')
 
         # Choix manuel : Biceps seul
