@@ -113,6 +113,9 @@
 .seg-fit .segmented__btn { flex: 1 1 auto; }   /* largeur selon le libellé : « Répétitions » entier sur 320 px */
 .seg-sm .segmented__btn { flex: 1 1 auto; padding: 0 10px; } /* largeur selon le libellé (« Sombre ») */
 .seg-scroll { overflow-x: auto; scrollbar-width: none; }
+/* overflow-x: auto rend aussi overflow-y défilant (CSS Overflow 3) : la zone de toucher de 44 px des
+   segments (8 px de débord) tient dans un rembourrage, sans défilement vertical parasite */
+.seg-scroll { overflow-y: hidden; padding-block: 8px; margin-block: -8px; }
 .seg-scroll::-webkit-scrollbar { display: none; }
 .view--grouped .segmented__btn { min-height: 28px; }
 

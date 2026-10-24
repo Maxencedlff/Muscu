@@ -291,7 +291,7 @@ function setFirstValue(s, m) {
 }
 
 function renderSetRow(ex, ei, s, si, cur) {
-  const m       = measureOf(ex), M = MEASURES[m];
+  const m       = measureOf(ex);
   const prevF   = setFirstValue(s.prev, m);
   const prev    = s.prev ? `${prevF ? prevF + '&nbsp;× ' : ''}${esc(s.prev.reps)}` : '—';
   const editing = editingSet && editingSet.ei === ei && editingSet.si === si;
@@ -351,6 +351,7 @@ function validateSet(ei, si, opts = {}) {
   const rIn = document.querySelector(`[data-action="set-reps"][data-ei="${ei}"][data-si="${si}"]`);
   const m   = measureOf(ex);
   const wIn = document.querySelector(`[data-action="${m === 'cardio' ? 'set-dist' : 'set-weight'}"][data-ei="${ei}"][data-si="${si}"]`);
+  restoreClearedInput(wIn); restoreClearedInput(rIn);   // champ vidé au toucher, ✓ touché sans en sortir
   if (m === 'cardio' ? !distOk(wIn?.value) : (wIn && !weightOk(wIn.value))) { flagInvalid(wIn, m === 'cardio' ? distMsg() : weightMsg()); return; }
   // Case vide : l'objectif affiché en gris est celui qui est fait (« Annuler » rend la case vide)
   const goalTaken = String(s.reps ?? '').trim() === '';
@@ -457,7 +458,9 @@ registerActions({
     if (editingSet && !saveEditedSet()) return;   // correction en cours : enregistrée avant de passer à la suite
     const ei = parseInt(el.dataset.ei), si = parseInt(el.dataset.si);
     const ex = activeSession?.exercises[ei], s = ex?.sets[si];
-    const odd = s && !s.done ? unusualSetText(ex, s) : '';
+    // Valeurs telles qu'elles seront enregistrées : champ vidé au toucher rendu, case vide = objectif
+    document.querySelectorAll(`.set-input[data-ei="${ei}"][data-si="${si}"]`).forEach(restoreClearedInput);
+    const odd = s && !s.done ? unusualSetText(ex, { ...s, reps: String(s.reps ?? '').trim() ? s.reps : setGoal(ex, s) }) : '';
     if (odd) {
       if (!(await confirmSheet('Valeur inhabituelle', `${odd} : c'est bien ça ?`, 'Valider quand même', false))) return;
       ex.oddOk = true;

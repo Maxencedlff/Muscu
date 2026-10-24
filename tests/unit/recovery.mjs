@@ -100,6 +100,19 @@ export default function ({ test, run, reset, assert }) {
     assert.equal(run(`passedOverNote(sessionKeys(), 'bas')`), '');
   });
 
+  test('prochaine séance : tout est prêt, à égalité de muscles la séance faite il y a le plus longtemps', () => {
+    reset();
+    // Maison : Bas il y a 5 jours, Haut (gainage) il y a 3 jours ; délai de 72 h, les deux sont prêtes
+    run(`data.activeProgramme = 'maison'; data.programmes.maison = makeProgData('maison');
+         const names = c => prog().exercises[c].map(e => e.name);
+         data.history = [${entry('h', 3 * 24, 'maison', 'haut', ['Pompes', 'Gainage (planche)'])}];
+         data.history.push(Object.assign(JSON.parse(JSON.stringify(data.history[0])), { id: 'b', category: 'bas', date: Date.now() - 5 * 24 * ${H},
+           exercises: names('bas').map(n => ({ name: n, sets: [{ weight: '', reps: '10', done: true }] })) }));
+         data.history.forEach(h => { prog().timers[h.category] = h.date; });`);
+    assert.equal(run(`catStatus('haut').ready && catStatus('bas').ready`), true);
+    assert.equal(run(`nextSessionCat(sessionKeys())`), 'bas', 'pas Haut, faite il y a 3 jours');
+  });
+
   test('texte sur une couleur de séance : noir sur les couleurs claires, blanc sinon', () => {
     for (const c of ['var(--orange)', 'var(--yellow)', 'var(--teal)', 'var(--green)', 'var(--purple)', '#FFD60A'])
       assert.equal(run(`textOnColor(${JSON.stringify(c)})`), '#000', c);

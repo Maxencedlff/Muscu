@@ -77,13 +77,16 @@ document.addEventListener('focusin', e => {
     t.placeholder = t.value; t.value = '';
   }
 });
-document.addEventListener('focusout', e => {
-  const t = e.target;
-  if (t.dataset?.was === undefined) return;
-  if (t.value === '') t.value = t.dataset.was;
+// Champ resté vide (rien tapé, ou tapé puis effacé) : l'ancienne valeur revient à l'écran ET dans la série,
+// par un événement input (sinon la série garderait '' alors que l'écran montre l'ancienne valeur).
+// Appelé à la sortie du champ et par validateSet (sur iOS, toucher ✓ ne fait pas sortir du champ).
+function restoreClearedInput(t) {
+  if (!t || t.dataset?.was === undefined) return;
+  if (t.value === '') { t.value = t.dataset.was; t.dispatchEvent(new Event('input', { bubbles: true })); }
   t.placeholder = t.dataset.ph ?? '';
   delete t.dataset.was; delete t.dataset.ph;
-});
+}
+document.addEventListener('focusout', e => restoreClearedInput(e.target));
 // Appui commencé dans la série rouverte (✓, autre champ) : c'est ce geste qui enregistre ou
 // garde la saisie, pas la sortie du champ (sur iOS un bouton ne prend pas le focus, et sous
 // charge le délai ci-dessous passerait avant le clic du ✓, qui tomberait alors dans le vide)

@@ -104,7 +104,7 @@ function nextSessionCat(keys) {
   const now = Date.now(), st = new Map(keys.map(k => [k, catStatus(k, now)]));
   const own = k => prog().timers[k] || 0;
   const ready = keys.filter(k => st.get(k).ready);
-  if (ready.length) return ready.sort((a, b) => (st.get(a).last || 0) - (st.get(b).last || 0))[0];
+  if (ready.length) return ready.sort((a, b) => (st.get(a).last || 0) - (st.get(b).last || 0) || own(a) - own(b))[0];
   return keys.slice().sort((a, b) => st.get(a).readyAt - st.get(b).readyAt || own(a) - own(b))[0];
 }
 
