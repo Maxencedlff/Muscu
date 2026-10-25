@@ -7,9 +7,14 @@
 //      d'Apple, du même identifiant Apple que le compte (claim sub, vérifié par index.ts) ;
 //    - sinon (ou si l'échange a échoué) : une connexion de moins de 10 minutes (claim amr, recent-auth.js).
 //    Un compte Apple sans code (corps vide) n'a donc plus de passe-droit.
-// 2. Aucun moyen de connexion ajouté depuis moins de 24 h, sauf ceux créés avec le compte. Relier un
-//    compte Google donne une session « oauth » toute neuve (link_identity de Supabase Auth) : sans
-//    cette règle, un jeton volé suffirait (relier son propre Google, puis supprimer).
+// 2. Aucun moyen de connexion ajouté ni retiré depuis moins de 24 h, sauf ceux créés avec le compte.
+//    Relier un compte Google donne une session « oauth » toute neuve (link_identity de Supabase Auth) :
+//    sans cette règle, un jeton volé suffirait (relier son propre Google, puis supprimer). Deux sources :
+//    - les identités présentes (identity.created_at), même règle que l'app ;
+//    - le journal du serveur (migration 20261026020000_journal_identites.sql, lu par index.ts avec
+//      public.recent_identity_change) : il voit aussi les retraits, sans quoi relier puis retirer
+//      aussitôt son Google effaçait la trace de l'ajout. Journal illisible : refus (500), jamais d'accord
+//      par défaut.
 import { isRecentAuth } from './recent-auth.js';
 
 export const LINKED_IDENTITY_MIN_AGE_S = 24 * 3600;
@@ -34,11 +39,25 @@ export function linkedIdentityHold(user, nowS) {
   return until;
 }
 
+// Dernier ajout ou retrait du journal (date ISO, ou null s'il n'y en a aucun dans les 24 h) : date (s)
+// à partir de laquelle la suppression redevient possible, ou null. undefined si la date est illisible.
+export function identityChangeHold(changeAt, nowS) {
+  if (changeAt === null) return null;
+  const at = typeof changeAt === 'string' ? seconds(changeAt) : null;
+  if (at === null) return undefined;
+  const end = at + LINKED_IDENTITY_MIN_AGE_S;
+  return end > nowS ? end : null;
+}
+
 // Décision : { ok: true, via: 'apple' | 'recent' } ou { ok: false, status, error, retryAt? }.
 // appleProof : code Apple échangé avec succès, même identifiant Apple que le compte.
-export function deleteDecision({ user, claims, nowS, appleProof = false }) {
+// identityChangeAt : réponse du journal (date ISO ou null). Absente ou illisible : refus 500.
+export function deleteDecision({ user, claims, nowS, appleProof = false, identityChangeAt }) {
   if (!user?.id) return { ok: false, status: 401, error: 'auth' };
-  const hold = linkedIdentityHold(user, nowS);
+  const journal = identityChangeHold(identityChangeAt, nowS);
+  if (journal === undefined) return { ok: false, status: 500, error: 'identity_check' };
+  const present = linkedIdentityHold(user, nowS);
+  const hold = present === null ? journal : journal === null ? present : Math.max(present, journal);
   if (hold !== null) return { ok: false, status: 403, error: 'identity_recent', retryAt: new Date(hold * 1000).toISOString() };
   const apple = (user.identities || []).some((i) => i?.provider === 'apple');
   if (apple && appleProof) return { ok: true, via: 'apple' };

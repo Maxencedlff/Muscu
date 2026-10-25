@@ -211,14 +211,14 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     assert.equal(c, RECENT_AUTH_MAX_AGE_S);
   });
 
-  test('compte : delete-account, preuve Apple ou connexion récente, aucun moyen relié depuis moins de 24 h', async () => {
-    const { deleteDecision, linkedIdentityHold, LINKED_IDENTITY_MIN_AGE_S } = await import(path.join(ROOT, 'supabase/functions/delete-account/delete-policy.js'));
+  test('compte : delete-account, preuve Apple ou connexion récente, aucun moyen relié ni retiré depuis moins de 24 h', async () => {
+    const { deleteDecision, linkedIdentityHold, identityChangeHold, LINKED_IDENTITY_MIN_AGE_S, ACCOUNT_CREATION_SLACK_S } = await import(path.join(ROOT, 'supabase/functions/delete-account/delete-policy.js'));
     const nowS = 1_800_000_000, iso = s => new Date(s * 1000).toISOString(), day = 86400;
     const id = (provider, at) => ({ provider, id: `${provider}-sub`, created_at: iso(at) });
     const user = (createdAt, ...ids) => ({ id: 'u1', created_at: iso(createdAt), identities: ids });
     const fresh = { sub: 'u1', amr: [{ method: 'oauth', timestamp: nowS - 60 }] };
     const old = { sub: 'u1', amr: [{ method: 'oauth', timestamp: nowS - 30 * day }] };
-    const decide = (u, claims, appleProof = false) => deleteDecision({ user: u, claims, nowS, appleProof });
+    const decide = (u, claims, appleProof = false, identityChangeAt = null) => deleteDecision({ user: u, claims, nowS, appleProof, identityChangeAt });
     const appleOld = user(nowS - 30 * day, id('apple', nowS - 30 * day));
 
     // Compte Apple : un corps vide (pas de code) avec une session ancienne est refusé
@@ -242,6 +242,28 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     assert.equal(linkedIdentityHold(user(nowS - 30 * day, { provider: 'google', created_at: 'n/a' }), nowS), null, 'date illisible : ignorée');
     sameJSON(decide(null, fresh), { ok: false, status: 401, error: 'auth' });
 
+    // Journal du serveur (ajouts ET retraits) : relier son Google puis le retirer aussitôt ne laisse
+    // aucune identité récente, mais le retrait d'il y a 5 min bloque la suppression 24 h
+    const emailOld = user(nowS - 30 * day, id('email', nowS - 30 * day));
+    sameJSON(decide(emailOld, fresh), { ok: true, via: 'recent' }, 'sans changement récent');
+    const removed = decide(emailOld, fresh, false, iso(nowS - 300));
+    assert.equal(removed.status, 403, 'retrait récent refusé');
+    assert.equal(removed.error, 'identity_recent');
+    assert.equal(Date.parse(removed.retryAt) / 1000, nowS - 300 + LINKED_IDENTITY_MIN_AGE_S, 'retry_at : 24 h après le retrait');
+    assert.equal(decide(appleOld, old, true, iso(nowS - 300)).error, 'identity_recent', 'retrait récent : refusé même avec la preuve Apple');
+    // Date au format de PostgREST (microsecondes, +00:00)
+    const pg = new Date((nowS - 300) * 1000).toISOString().replace('Z', '123+00:00');
+    assert.equal(decide(emailOld, fresh, false, pg).error, 'identity_recent', 'date PostgREST lue');
+    sameJSON(decide(emailOld, fresh, false, iso(nowS - day - 1)), { ok: true, via: 'recent' }, 'changement de plus de 24 h');
+    // La plus tardive des deux sources fixe retry_at
+    assert.equal(identityChangeHold(iso(nowS - 300), nowS), nowS - 300 + LINKED_IDENTITY_MIN_AGE_S);
+    assert.equal(Date.parse(decide(linked, fresh, false, iso(nowS - 7200)).retryAt) / 1000, nowS - 3600 + LINKED_IDENTITY_MIN_AGE_S, 'identité présente plus récente');
+    assert.equal(Date.parse(decide(linked, fresh, false, iso(nowS - 60)).retryAt) / 1000, nowS - 60 + LINKED_IDENTITY_MIN_AGE_S, 'journal plus récent');
+    // Journal injoignable ou illisible : refus, jamais d'accord par défaut
+    for (const bad of [undefined, 'n/a', 42, {}]) {
+      sameJSON(deleteDecision({ user: emailOld, claims: fresh, nowS, appleProof: false, identityChangeAt: bad }), { ok: false, status: 500, error: 'identity_check' }, `journal ${JSON.stringify(bad)}`);
+    }
+
     // Même règle côté app (l'écran prévient avant de demander une nouvelle connexion)
     for (const u of [appleOld, googleNew, linked, user(nowS - 300, id('email', nowS - 290), id('google', nowS - 200))]) {
       const server = linkedIdentityHold(u, nowS);
@@ -254,6 +276,14 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     const at = k => fn.indexOf(k);
     assert.ok(at('exchangeAppleCode(') > 0 && at('exchangeAppleCode(') < at('deleteDecision('), 'échange (preuve) avant la décision');
     assert.ok(at('if (!decision.ok)') < at('revokeAppleToken(') && at('revokeAppleToken(') < at('deleteUser('), 'refus avant révocation et suppression');
+    assert.ok(/rpc\('recent_identity_change'/.test(fn) && fn.includes('identityChangeAt: changeAt'), 'journal des identités consulté et transmis à la décision');
+    // Migration du journal : ajout ET retrait journalisés, fonction réservée à la clé serveur, même
+    // tolérance de création du compte que ACCOUNT_CREATION_SLACK_S
+    const journal = read('supabase/migrations/20261026020000_journal_identites.sql');
+    assert.ok(journal.includes('after insert or delete on auth.identities'));
+    assert.ok(/revoke all on function public\.recent_identity_change\(uuid, interval\) from public, anon, authenticated;/.test(journal));
+    assert.ok(/grant execute on function public\.recent_identity_change\(uuid, interval\) to service_role;/.test(journal));
+    assert.ok(journal.includes(`<= ${ACCOUNT_CREATION_SLACK_S}`), 'tolérance de création alignée');
     const apple = read('supabase/functions/_shared/apple.ts');
     assert.ok(/expectedSub && sub !== expectedSub\)+ return null/.test(apple), 'code d\'un autre identifiant Apple refusé');
     const revoke = read('supabase/functions/revoke-apple/index.ts');
