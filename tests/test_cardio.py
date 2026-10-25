@@ -26,6 +26,7 @@ window.Capacitor = {
   registerPlugin: (pluginName) => {
     if (pluginName === 'MdlfHealth') return {
       requestAuthorization: async () => ({ available: true, workouts: true }),
+      authorizationStatus: async () => ({ available: true, request: 'unnecessary' }),
       saveWorkout: async () => ({ saved: true }),
       bodyMass: async () => ({ samples: [] }),
       workouts: async () => { __hk.calls++; return { workouts: __hk.list }; },
