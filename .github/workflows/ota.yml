@@ -25,11 +25,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -52,10 +52,13 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_OTA_PROJECT_ID }}
         run: |
           cd ota-site
-          npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" > ../deploy-url.txt
+          npx --yes vercel@62.0.0 deploy --prod --yes --token "$VERCEL_TOKEN" > ../deploy-url.txt
           cat ../deploy-url.txt
 
       - name: Vérification du manifeste en ligne
+        env:
+          # Texte libre saisi au lancement : passé par l'environnement, jamais injecté dans le script
+          MOTIF: ${{ inputs.motif }}
         run: |
           EXPECTED=$(python3 -c "import json; print(json.load(open('ota-site/manifest.json'))['checksum'])")
           for i in 1 2 3 4 5 6; do
@@ -70,7 +73,7 @@ jobs:
           echo "$EXPECTED  /tmp/b.zip" | sha256sum -c -
           {
             echo "### Mise à jour publiée"
-            echo "- Motif : ${{ inputs.motif }}"
+            echo "- Motif : $MOTIF"
             echo "- Version : $(python3 -c "import json; print(json.load(open('ota-site/manifest.json'))['version'])")"
             echo "- Empreinte native : $(python3 -c "import json; print(json.load(open('ota-site/manifest.json'))['runtime'])")"
           } >> "$GITHUB_STEP_SUMMARY"
