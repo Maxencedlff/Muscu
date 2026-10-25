@@ -5,7 +5,8 @@
 //  openAuthFlow({ step, mode, closable, email, sentAt }) → Promise du résultat :
 //    mode 'signin'  (défaut) : connexion (Apple, Google, code e-mail) → 'signed-in' ; un compte tout
 //                   neuf passe par le pseudo (« Plus tard » possible) ;
-//    mode 'link'    : ajout d'une adresse e-mail au compte → 'linked' ;
+//    mode 'link'    : ajout d'une adresse e-mail à un compte qui n'en a pas (Apple) → 'linked', seulement
+//                   une fois l'adresse portée par le compte ;
 //    mode 'reauth'  : code envoyé à l'adresse du compte (avant la suppression) → 'reauth' ;
 //    mode 'profile' : pseudo ou avatar depuis l'écran Compte → 'saved'.
 //  null si l'écran est fermé sans aboutir. L'écran Bienvenue pose WELCOME_SEEN_KEY quel que soit le choix.
@@ -15,12 +16,13 @@
 const flow = {
   root: null, steps: [], mode: 'signin', closable: true, resolve: null,
   email: '', sentAt: 0, busy: false, tick: null, first: false,   // first : pseudo d'un compte tout neuf
+  notice: '',                                                      // avertissement « Nouveau compte créé » (newAccountNotice)
   username: '', avatar: null, checkTimer: null, checkSeq: 0,
 };
 
 function openAuthFlow({ step = 'welcome', mode = 'signin', closable = true, email = '', sentAt = 0 } = {}) {
   if (flow.root) closeAuthFlow(null);
-  Object.assign(flow, { steps: [], mode, closable, email, sentAt, busy: false, first: false,
+  Object.assign(flow, { steps: [], mode, closable, email, sentAt, busy: false, first: false, notice: '',
     username: account.profile?.username || '', avatar: validAvatar(account.profile?.avatar) });
   const root = document.createElement('div');
   root.className = 'auth';
@@ -127,6 +129,7 @@ const AUTH_STEPS = {
       </button>
       <h1 class="auth__title" id="authTitle" tabindex="-1">${flow.first ? 'Choisis ton pseudo' : 'Pseudo'}</h1>
       <p class="auth__lead">Il te représentera auprès de tes amis quand l'app le permettra. Pour l'instant, toi seul le vois.</p>
+      ${flow.first && flow.notice ? `<p class="auth__notice" role="note">${esc(flow.notice)}</p>` : ''}
       <form class="auth__form" data-form="username" novalidate>
         <label class="visually-hidden" for="authUsername">Pseudo</label>
         <div class="auth__at-field"><span class="auth__at" aria-hidden="true">@</span>
@@ -280,6 +283,7 @@ function signedIn(res) {
   render();
   if (res.isNew) {
     flow.first = true;
+    flow.notice = newAccountNotice(res);
     flow.closable = false;
     flow.steps = [];
     authGo('username');
@@ -306,7 +310,7 @@ async function signInWithProvider(provider, el) {
   if (flow.root) { signedIn(r); return; }
   // Depuis l'écran Compte : même suite, dans un calque ouvert pour le pseudo
   render();
-  if (r.isNew) { openAuthFlow({ step: 'username', mode: 'profile', closable: false }); flow.first = true; paintAuth(); }
+  if (r.isNew) { openAuthFlow({ step: 'username', mode: 'profile', closable: false }); flow.first = true; flow.notice = newAccountNotice(r); paintAuth(); }
   else showToast(signedInToast(r));
 }
 

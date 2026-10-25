@@ -171,6 +171,38 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(r, 0);
   });
 
+  test('compte : appareil rattaché au compte dès la connexion, même si la première synchro échoue', async () => {
+    // Serveur injoignable : profil et synchro échouent (hors ligne), la connexion elle-même a réussi
+    const r = await run(`(async () => {
+      localStorage.clear();
+      data.history = [{ id: 'a', date: 2, category: 'push', exercises: [] }];
+      const offline = () => { throw new TypeError('Failed to fetch'); };
+      sb = { from: offline, auth: { signOut: async () => ({ error: null }) } };
+      const asked = [];
+      const askMerge = async (n, pending) => { asked.push([n, pending]); return 'add'; };
+      const signIn = id => finishSignIn(async () => ({ data: { user: { id, identities: [] } }, error: null }), askMerge);
+      localStorage.setItem('mdlf_sync_A', JSON.stringify({ userId: 'A', cursor: 't', pushed: {}, profileHash: 'p' }));
+      localStorage.setItem('mdlf_sync_owner', 'A');
+      const first = await signIn('B');                     // B : synchro en échec
+      const ownerAfterB = localStorage.getItem('mdlf_sync_owner');
+      const metaA = localStorage.getItem('mdlf_sync_A');
+      await signIn('C');                                   // un autre compte ensuite : le choix est proposé
+      const owner = localStorage.getItem('mdlf_sync_owner');
+      const again = asked.length;
+      await signIn('C');                                   // le même compte : pas de question
+      return { first, ownerAfterB, metaA, owner, asked, again, after: asked.length };
+    })()`);
+    try {
+      assert.equal(r.first.ok, false);
+      assert.equal(r.first.reason, 'sync', 'connecté, synchro à refaire');
+      assert.equal(r.ownerAfterB, 'B', 'rattaché à B malgré l\'échec');
+      assert.equal(r.metaA, null, 'état de A oublié');
+      sameJSON(r.asked, [[1, 1], [1, 1]], 'fusion proposée à B puis à C (séance jamais sauvegardée sur le compte précédent)');
+      assert.equal(r.owner, 'C');
+      assert.equal(r.after, r.again, 'même compte : aucune question');
+    } finally { run('sb = null; account.user = null; account.error = null; localStorage.clear(); data.history = [];'); }
+  });
+
   test('compte : séances pas encore sur le compte comptées (aucune promesse « elles restent sur ton compte » à tort)', () => {
     const r = run(`(() => {
       data.history = [{ id: 'a', date: 2, category: 'push', exercises: [] }, { id: 'b', date: 1, category: 'push', exercises: [] }];

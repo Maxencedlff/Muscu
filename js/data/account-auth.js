@@ -9,8 +9,9 @@
 //  - Avatar : un emoji de AVATAR_EMOJIS, même liste blanche que le serveur (test unitaire). Aucune
 //    photo, aucune image de corps.
 //  - Moyens de connexion : identités Supabase (apple, google, email) de l'utilisateur.
-//  - Connexion récente (amr du jeton, comme supabase/functions/delete-account/recent-auth.js) et
-//    traduction des erreurs Supabase en messages français.
+//  - Connexion récente (amr du jeton, comme supabase/functions/delete-account/recent-auth.js), moyen de
+//    connexion ajouté depuis moins de 24 h (comme delete-policy.js) et traduction des erreurs Supabase
+//    en messages français.
 //  Le nom et l'e-mail renvoyés par Google (identity_data.full_name, email) ne sont jamais affichés ni
 //  copiés ailleurs : seul le pseudo choisi dans l'app sert de nom.
 // ═══════════════════════════════════════════════════════════
@@ -20,6 +21,8 @@ const OTP_LENGTH    = 6;
 const OTP_TTL_MS    = 10 * 60_000;   // durée de validité d'un code (mailer_otp_exp = 600 côté Supabase)
 const OTP_RESEND_MS = 60_000;        // « Renvoyer » grisé pendant ce délai (limite d'envoi de Supabase)
 const RECENT_AUTH_MS = 10 * 60_000;  // suppression du compte : connexion de moins de 10 min
+const LINKED_IDENTITY_MIN_AGE_MS = 24 * 3600_000;   // suppression : aucun moyen ajouté depuis moins de 24 h
+const ACCOUNT_CREATION_SLACK_MS = 10 * 60_000;      // identités créées avec le compte (à quelques minutes près)
 const WELCOME_SEEN_KEY  = 'ppl_welcome_seen';         // écran Bienvenue déjà montré (quel que soit le choix)
 const ACCOUNT_CARD_KEY  = 'ppl_account_card_closed';  // carte « Sauvegarde tes séances » fermée
 const USERNAME_RE  = /^[a-z0-9][a-z0-9._]{1,18}[a-z0-9]$/;
@@ -159,6 +162,25 @@ function canUnlink(user, provider) { return !!identityOf(user, provider) && (use
 function googleSubOf(user) { const i = identityOf(user, 'google'); return i?.identity_data?.sub || i?.id || null; }
 // Adresse à laquelle un code de connexion peut être envoyé (e-mail vérifié du compte), ou null
 function signInEmailOf(user) { return user?.email && (user.email_confirmed_at || identityOf(user, 'email')) ? user.email : null; }
+// Ajout d'une adresse e-mail : seulement pour un compte qui n'en a pas (Apple). Un compte Google a
+// déjà son adresse : la connexion par code y marche (signInEmailOf), et la changer demanderait deux
+// confirmations (mailer_secure_email_change_enabled) en remplaçant l'adresse au lieu d'en ajouter une.
+function canAddEmail(user) { return !!user && !user.email && !identityOf(user, 'email'); }
+// Moyen de connexion ajouté depuis moins de 24 h, hors ceux créés avec le compte : date (ms) à partir
+// de laquelle la suppression du compte redevient possible, ou 0. Même règle que le serveur
+// (supabase/functions/delete-account/delete-policy.js, linkedIdentityHold).
+function linkedIdentityHoldUntil(user, now = Date.now()) {
+  const created = Date.parse(user?.created_at || '');
+  let until = 0;
+  for (const i of user?.identities || []) {
+    const at = Date.parse(i?.created_at || '');
+    if (!Number.isFinite(at)) continue;
+    if (Number.isFinite(created) && Math.abs(at - created) <= ACCOUNT_CREATION_SLACK_MS) continue;
+    const end = at + LINKED_IDENTITY_MIN_AGE_MS;
+    if (end > now && end > until) until = end;
+  }
+  return until;
+}
 // Moyen principal à afficher sous le pseudo (« Connecté avec Apple ») : le plus ancien
 function primaryProvider(user) {
   const ids = (user?.identities || []).filter(i => LOGIN_PROVIDERS.some(p => p.provider === i?.provider));
@@ -237,6 +259,8 @@ const AUTH_ERROR_TEXT = {
   disabled: 'Ce moyen de connexion n\'est pas encore ouvert',
   no_account: 'Aucun compte avec cette adresse',
   same_email: 'Cette adresse sert déjà à te connecter',
+  has_email: 'Ton compte a déjà une adresse e-mail : tu peux recevoir un code de connexion à cette adresse',
+  email_unconfirmed: 'L\'adresse n\'a pas pu être confirmée. Réessaie dans un moment',
   other_account: 'Ce n\'est pas le compte relié à MDLF. Choisis le même compte qu\'à la connexion',
   provider: 'Connexion impossible. Réessaie dans un moment',
   server: 'Connexion impossible pour l\'instant, réessaie dans un moment',

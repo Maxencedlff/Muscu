@@ -5,7 +5,12 @@ FAKE_ACCOUNT est injecté avant le chargement de l'app (page.add_init_script) :
   (Apple, Google, Trousseau en mémoire), les autres modules répondent {} sans rien faire.
 - window.supabase factice : createClient() renvoie un client qui imite supabase-js pour ce que
   js/data/account.js utilise (auth, from(table), rpc, functions.invoke), avec ses vraies formes de
-  réponse et ses vrais codes d'erreur (otp_expired, identity_already_exists, 23505…).
+  réponse et ses vrais codes d'erreur (otp_expired, identity_already_exists, 23505…), et son vrai
+  comportement là où il compte pour la sécurité : changement d'e-mail confirmé deux fois si le compte a
+  déjà une adresse (mailer_secure_email_change_enabled) et qui remplace l'adresse ; nouvelle session
+  « oauth » à la liaison d'une identité (link_identity) ; delete-account qui refuse un compte Apple
+  sans code Apple frais (sauf connexion récente) et un moyen de connexion ajouté depuis moins de 24 h
+  (supabase/functions/delete-account/delete-policy.js) ; code Apple à usage unique.
 L'état du faux serveur est dans window.__sb (codes envoyés, comptes, profils, appels) ; les tests le
 lisent et le modifient (ex. __sb.google = false pour un client Google non configuré).
 """
@@ -18,6 +23,7 @@ FAKE_ACCOUNT = r"""
   const sb = window.__sb = {
     google: opts.google, calls: [], users: {}, profiles: {}, taken: ['pris', 'coach'],
     code: '123456', codes: [], session: null, fail: {}, keychain: {}, appleUser: 'apple-sub-1', googleSub: 'google-sub-1',
+    appleCodes: {}, appleN: 0, pendingEmail: null,
   };
   const log = (...a) => sb.calls.push(a);
   const err = (code, message = code, status = 400) => ({ name: 'AuthApiError', code, message, status });
@@ -29,7 +35,9 @@ FAKE_ACCOUNT = r"""
     registerPlugin: name => {
       if (name === 'MdlfAccount') return {
         signIn: async ({ nonce }) => { log('apple', nonce); if (sb.fail.apple === 'cancel') { const e = new Error('annulée'); e.code = 'CANCELED'; throw e; }
-          return { identityToken: 'apple.' + b64({ sub: sb.appleUser, nonce }) + '.sig', authorizationCode: 'code-apple', user: sb.appleUser }; },
+          // Code d'autorisation : nouveau à chaque connexion, à usage unique, lié à l'identifiant Apple
+          const code = 'code-apple-' + (++sb.appleN); sb.appleCodes[code] = sb.appleUser;
+          return { identityToken: 'apple.' + b64({ sub: sb.appleUser, nonce }) + '.sig', authorizationCode: code, user: sb.appleUser }; },
         signInGoogle: async ({ nonce }) => { log('google', nonce); if (sb.fail.google === 'cancel') { const e = new Error('annulée'); e.code = 'CANCELED'; throw e; }
           return { idToken: 'g.' + b64({ sub: sb.googleSub, nonce }) + '.sig' }; },
         googleStatus: async () => ({ available: !!sb.google }),
@@ -50,9 +58,11 @@ FAKE_ACCOUNT = r"""
   const listeners = [];
   const emit = (ev, s) => listeners.forEach(fn => fn(ev, s));
   let uid = 0;
+  // Identités du compte créées avec lui (même date), celles reliées ensuite datées du moment
   const newUser = (fields) => {
     const id = '00000000-0000-0000-0000-' + String(++uid).padStart(12, '0');
     const u = { id, created_at: new Date(now() - (opts.oldAccounts ? 30 * 86400_000 : 0)).toISOString(), identities: [], email: null, ...fields };
+    u.identities.forEach(i => { i.created_at = u.created_at; });
     sb.users[id] = u;
     return u;
   };
@@ -91,8 +101,14 @@ FAKE_ACCOUNT = r"""
       log('verify', email, token, type);
       if (token !== sb.code || sb.fail.expired) return { data: { user: null, session: null }, error: err('otp_expired', 'Token has expired or is invalid', 403) };
       if (type === 'email_change') {
-        const u = me();
+        // Une confirmation par adresse : l'ancienne (s'il y en a une) et la nouvelle. L'adresse ne
+        // change qu'après la dernière, et remplace l'ancienne (pas d'ajout)
+        const u = me(), p = sb.pendingEmail;
+        if (!p || p.email !== email) return { data: { user: null, session: null }, error: err('otp_expired', 'Token has expired or is invalid', 403) };
+        if (--p.left > 0) { refreshMe(); return { data: { user: sb.session.user, session: sb.session }, error: null }; }
+        sb.pendingEmail = null;
         u.email = email; u.email_confirmed_at = new Date().toISOString();
+        u.identities = u.identities.filter(i => i.provider !== 'email');
         u.identities.push(identity('email', { email, sub: email }));
         refreshMe();
         emit('USER_UPDATED', sb.session);
@@ -104,6 +120,7 @@ FAKE_ACCOUNT = r"""
     updateUser: async ({ email }) => {
       log('updateUser', email);
       if (Object.values(sb.users).some(u => u.email === email && u.id !== me()?.id)) return { data: { user: null }, error: err('email_exists', 'A user with this email address has already been registered', 422) };
+      sb.pendingEmail = { email, left: me().email ? 2 : 1 };
       return { data: { user: sb.session.user }, error: null };
     },
     linkIdentity: async ({ provider, token }) => {
@@ -111,9 +128,8 @@ FAKE_ACCOUNT = r"""
       const sub = tokenSub(token);
       if (sb.fail.link || findBy(provider, sub)) return { data: { user: null, session: null }, error: err('identity_already_exists', 'Identity is already linked to another user', 422) };
       me().identities.push(identity(provider, { sub }));
-      refreshMe();
-      emit('USER_UPDATED', sb.session);
-      return { data: { user: sb.session.user, session: sb.session }, error: null };
+      // Supabase Auth émet une nouvelle session (link_identity : amr « oauth » de maintenant)
+      return startSession(me(), 'oauth');
     },
     unlinkIdentity: async ({ identity_id }) => {
       log('unlink', identity_id);
@@ -169,11 +185,27 @@ FAKE_ACCOUNT = r"""
         rpc: async (fn, args) => { log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
+          const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });
+          const u = me(), nowS = now() / 1000;
           const amr = JSON.parse(atob(sb.session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).amr;
-          const hasApple = me().identities.some(i => i.provider === 'apple');
-          if (!hasApple && !(amr[0].timestamp > now() / 1000 - 600)) return { data: null, error: { name: 'FunctionsHttpError', context: { status: 401 } } };
-          delete sb.users[me().id];
-          return { data: { deleted: true, revoked: hasApple }, error: null };
+          const recent = amr.some(a => a.timestamp > nowS - 600);
+          // Code Apple : échangé une seule fois, identifiant Apple renvoyé par « Apple »
+          const appleSubOf = code => { const s = sb.appleCodes[code]; delete sb.appleCodes[code]; return s || null; };
+          if (fn === 'revoke-apple') {
+            const s = appleSubOf(body?.code);
+            if (!s) return { data: { revoked: false }, error: null };
+            if (u.identities.some(i => i.provider === 'apple' && i.id === s)) return fail(409, { error: 'still_linked', revoked: false });
+            return { data: { revoked: true }, error: null };
+          }
+          // delete-account (delete-policy.js) : moyen ajouté depuis moins de 24 h, preuve Apple ou connexion récente
+          const created = Date.parse(u.created_at) / 1000;
+          const holds = u.identities.map(i => Date.parse(i.created_at) / 1000).filter(t => Math.abs(t - created) > 600 && t + 86400 > nowS);
+          if (holds.length) return fail(403, { error: 'identity_recent', retry_at: new Date((Math.max(...holds) + 86400) * 1000).toISOString() });
+          const apple = u.identities.find(i => i.provider === 'apple');
+          const proof = !!apple && appleSubOf(body?.code) === apple.id;
+          if (!proof && !recent) return fail(401, { error: apple ? 'apple' : 'reauth' });
+          delete sb.users[u.id];
+          return { data: { deleted: true, revoked: proof }, error: null };
         } },
       };
     },

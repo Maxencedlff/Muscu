@@ -139,6 +139,44 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     assert.equal(call('signInEmailOf(x)', { x: { email: 'max@exemple.fr', email_confirmed_at: '2026-10-12', identities: [google] } }), 'max@exemple.fr');
     assert.equal(call('signInEmailOf(x)', { x: { email: 'max@exemple.fr', identities: [apple] } }), null, 'e-mail non confirmé');
     assert.equal(call('signInEmailOf(x)', { x: { identities: [apple] } }), null);
+    // Ajout d'une adresse : seulement pour un compte qui n'en a pas (Apple)
+    assert.equal(call('canAddEmail(x)', { x: { identities: [apple] } }), true);
+    assert.equal(call('canAddEmail(x)', { x: { email: 'max@gmail.com', email_confirmed_at: '2026-10-10', identities: [google] } }), false, 'Google : adresse déjà là');
+    assert.equal(call('canAddEmail(x)', { x: { email: 'max@exemple.fr', identities: [apple] } }), false, 'adresse en attente');
+    assert.equal(call('canAddEmail(x)', { x: null }), false);
+  });
+
+  test('compte : ajout d\'une adresse e-mail (refusé à un compte Google, validé seulement une fois l\'adresse sur le compte)', async () => {
+    const apple = { provider: 'apple', id: 'apple-sub', identity_data: { sub: 'apple-sub' } };
+    const google = { provider: 'google', id: 'g', identity_data: { sub: 'g' } };
+    // Faux client : updateUser et verifyOtp enregistrés, getUser renvoie l'utilisateur choisi par le test
+    const setup = (user, after) => run(`(() => {
+      globalThis.__calls = [];
+      account.user = ${JSON.stringify(user)};
+      sb = { auth: {
+        updateUser: async (x) => { __calls.push(['updateUser', x.email]); return { data: { user: account.user }, error: null }; },
+        verifyOtp: async (x) => { __calls.push(['verify', x.type]); return { data: { user: ${JSON.stringify(after)} }, error: null }; },
+        getUser: async () => ({ data: { user: ${JSON.stringify(after)} }, error: null }),
+      } };
+    })()`);
+    try {
+      setup({ id: 'u1', email: 'max@gmail.com', email_confirmed_at: '2026-10-10', identities: [google] }, null);
+      sameJSON(await run(`accountLinkEmailStart('autre@exemple.fr')`), { ok: false, kind: 'has_email' }, 'compte Google : refusé');
+      sameJSON(await run(`accountLinkEmailStart('max@gmail.com')`), { ok: false, kind: 'same_email' });
+      sameJSON(run('__calls'), [], 'aucun changement d\'e-mail demandé à Supabase');
+      assert.match(call('authErrorText("has_email")'), /déjà une adresse/);
+
+      // Compte Apple : une confirmation, puis l'adresse doit être sur le compte relu
+      const done = { id: 'u1', email: 'max@exemple.fr', identities: [apple, { provider: 'email', identity_data: { email: 'max@exemple.fr' } }] };
+      setup({ id: 'u1', email: null, identities: [apple] }, done);
+      assert.equal((await run(`accountLinkEmailStart('max@exemple.fr')`)).ok, true);
+      sameJSON(await run(`accountLinkEmailVerify('max@exemple.fr', '123456', Date.now())`), { ok: true });
+      sameJSON(run('__calls'), [['updateUser', 'max@exemple.fr'], ['verify', 'email_change']]);
+      // Code accepté mais adresse pas encore portée par le compte (confirmation manquante) : pas « ajoutée »
+      const pending = { id: 'u1', email: null, identities: [apple] };
+      setup(pending, pending);
+      sameJSON(await run(`accountLinkEmailVerify('max@exemple.fr', '123456', Date.now())`), { ok: false, kind: 'email_unconfirmed' });
+    } finally { run('sb = null; account.user = null; delete globalThis.__calls;'); }
   });
 
   test('compte : connexion récente lue dans le claim amr (client)', () => {
@@ -171,9 +209,56 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     // Le client garde 30 s de marge : jamais « récent » côté app et refusé côté serveur
     const c = call('RECENT_AUTH_MS') / 1000;
     assert.equal(c, RECENT_AUTH_MAX_AGE_S);
+  });
+
+  test('compte : delete-account, preuve Apple ou connexion récente, aucun moyen relié depuis moins de 24 h', async () => {
+    const { deleteDecision, linkedIdentityHold, LINKED_IDENTITY_MIN_AGE_S } = await import(path.join(ROOT, 'supabase/functions/delete-account/delete-policy.js'));
+    const nowS = 1_800_000_000, iso = s => new Date(s * 1000).toISOString(), day = 86400;
+    const id = (provider, at) => ({ provider, id: `${provider}-sub`, created_at: iso(at) });
+    const user = (createdAt, ...ids) => ({ id: 'u1', created_at: iso(createdAt), identities: ids });
+    const fresh = { sub: 'u1', amr: [{ method: 'oauth', timestamp: nowS - 60 }] };
+    const old = { sub: 'u1', amr: [{ method: 'oauth', timestamp: nowS - 30 * day }] };
+    const decide = (u, claims, appleProof = false) => deleteDecision({ user: u, claims, nowS, appleProof });
+    const appleOld = user(nowS - 30 * day, id('apple', nowS - 30 * day));
+
+    // Compte Apple : un corps vide (pas de code) avec une session ancienne est refusé
+    sameJSON(decide(appleOld, old), { ok: false, status: 401, error: 'apple' }, 'Apple sans code : refusé');
+    sameJSON(decide(appleOld, old, true), { ok: true, via: 'apple' }, 'code Apple prouvé');
+    sameJSON(decide(appleOld, fresh), { ok: true, via: 'recent' }, 'échange impossible mais connexion Apple récente');
+    // Compte créé avec Google (identité du même instant que le compte) : accepté si connexion récente
+    const googleNew = user(nowS - 120, id('google', nowS - 119));
+    sameJSON(decide(googleNew, fresh), { ok: true, via: 'recent' }, 'compte créé avec Google il y a 2 min');
+    sameJSON(decide(googleNew, old), { ok: false, status: 401, error: 'reauth' }, 'session ancienne');
+    sameJSON(decide(googleNew, { ...fresh, sub: 'autre' }), { ok: false, status: 401, error: 'reauth' }, 'jeton d\'un autre compte');
+    // Google relié il y a 1 h à un vieux compte e-mail : la session « oauth » de la liaison ne suffit pas
+    const linked = user(nowS - 30 * day, id('email', nowS - 30 * day), id('google', nowS - 3600));
+    const r = decide(linked, fresh);
+    assert.equal(r.ok, false);
+    assert.equal(r.status, 403);
+    assert.equal(r.error, 'identity_recent');
+    assert.equal(Date.parse(r.retryAt) / 1000, nowS - 3600 + LINKED_IDENTITY_MIN_AGE_S, 'date de fin de l\'attente');
+    assert.equal(decide(user(nowS - 30 * day, id('apple', nowS - 30 * day), id('google', nowS - 3600)), old, true).error, 'identity_recent', 'même avec la preuve Apple');
+    sameJSON(decide(user(nowS - 30 * day, id('email', nowS - 30 * day), id('google', nowS - 2 * day)), fresh), { ok: true, via: 'recent' }, 'relié il y a 2 jours');
+    assert.equal(linkedIdentityHold(user(nowS - 30 * day, { provider: 'google', created_at: 'n/a' }), nowS), null, 'date illisible : ignorée');
+    sameJSON(decide(null, fresh), { ok: false, status: 401, error: 'auth' });
+
+    // Même règle côté app (l'écran prévient avant de demander une nouvelle connexion)
+    for (const u of [appleOld, googleNew, linked, user(nowS - 300, id('email', nowS - 290), id('google', nowS - 200))]) {
+      const server = linkedIdentityHold(u, nowS);
+      assert.equal(call('linkedIdentityHoldUntil(u, now)', { u, now: nowS * 1000 }), server === null ? 0 : server * 1000, JSON.stringify(u.identities));
+    }
+    assert.equal(call('LINKED_IDENTITY_MIN_AGE_MS') / 1000, LINKED_IDENTITY_MIN_AGE_S);
+
+    // La fonction décide avant de révoquer ou de supprimer, et ne révoque qu'après une décision favorable
     const fn = read('supabase/functions/delete-account/index.ts');
-    assert.ok(/if \(appleSub\) \{[\s\S]*revokeApple[\s\S]*\} else \{[\s\S]*isRecentAuth\(claims/.test(fn), 'Apple : révocation ; sinon connexion récente exigée');
-    assert.ok(fn.includes("json({ error: 'reauth' }, 401)"));
+    const at = k => fn.indexOf(k);
+    assert.ok(at('exchangeAppleCode(') > 0 && at('exchangeAppleCode(') < at('deleteDecision('), 'échange (preuve) avant la décision');
+    assert.ok(at('if (!decision.ok)') < at('revokeAppleToken(') && at('revokeAppleToken(') < at('deleteUser('), 'refus avant révocation et suppression');
+    const apple = read('supabase/functions/_shared/apple.ts');
+    assert.ok(/expectedSub && sub !== expectedSub\)+ return null/.test(apple), 'code d\'un autre identifiant Apple refusé');
+    const revoke = read('supabase/functions/revoke-apple/index.ts');
+    assert.ok(revoke.includes("'still_linked'"), 'revoke-apple : jamais tant qu\'Apple est encore relié');
+    assert.ok(read('supabase/config.toml').includes('[functions.revoke-apple]'));
   });
 
   test('compte : erreurs de Supabase Auth → messages français', () => {
@@ -238,6 +323,10 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     assert.ok(/GoogleSignIn in Frameworks \*\/,/.test(pbx), 'dans la phase Frameworks');
     const privacy = read('ios/App/App/PrivacyInfo.xcprivacy');
     assert.ok(/NSPrivacyCollectedDataTypeEmailAddress<\/string>\s*<key>NSPrivacyCollectedDataTypeLinked<\/key>\s*<true\/>\s*<key>NSPrivacyCollectedDataTypeTracking<\/key>\s*<false\/>\s*<key>NSPrivacyCollectedDataTypePurposes<\/key>\s*<array>\s*<string>NSPrivacyCollectedDataTypePurposeAppFunctionality<\/string>/.test(privacy), 'e-mail déclaré : lié, sans suivi, fonctionnement de l\'app');
+    // Nom donné par Google, gardé par Supabase Auth (raw_user_meta_data) même si l'app ne l'utilise pas
+    assert.ok(/NSPrivacyCollectedDataTypeName<\/string>\s*<key>NSPrivacyCollectedDataTypeLinked<\/key>\s*<true\/>\s*<key>NSPrivacyCollectedDataTypeTracking<\/key>\s*<false\/>\s*<key>NSPrivacyCollectedDataTypePurposes<\/key>\s*<array>\s*<string>NSPrivacyCollectedDataTypePurposeAppFunctionality<\/string>/.test(privacy), 'nom déclaré : lié, sans suivi, fonctionnement de l\'app');
+    const page = read('privacy.html');
+    assert.ok(page.includes('photo de profil Google') && page.includes('Google profile picture'), 'privacy.html : URL de la photo Google citée (FR et EN)');
   });
 
   test('compte : le nom donné par Google n\'est jamais affiché ni copié', () => {

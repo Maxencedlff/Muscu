@@ -81,18 +81,27 @@ function syncStatusText() {
   return 'Sauvegarde en attente';
 }
 
-// Ligne d'un moyen de connexion : relié (avec « Retirer » dans sa feuille) ou « Ajouter »
+// Ligne d'un moyen de connexion : relié (avec « Retirer » dans sa feuille), « Ajouter », ou pour
+// l'e-mail d'un compte qui a déjà une adresse (Google) : « Actif », la connexion par code à cette
+// adresse marche déjà (signInEmailOf)
+function methodState(provider, user = account.user) {
+  if (identityOf(user, provider)) return 'linked';
+  return provider === 'email' && signInEmailOf(user) ? 'active' : 'add';
+}
+const METHOD_VALUE = { linked: 'Relié', active: 'Actif', add: 'Ajouter' };
 function methodCellHtml({ provider, label }) {
-  const id = identityOf(account.user, provider);
+  const state = methodState(provider);
   const logo = { apple: APPLE_LOGO, google: GOOGLE_LOGO, email: MAIL_ICON }[provider];
-  // Adresse affichée pour l'e-mail seulement (le nom et l'e-mail venus de Google ne sont pas repris)
-  const sub = provider === 'email' && id ? esc(id.identity_data?.email || account.user.email || '') : '';
+  // Adresse affichée pour l'e-mail seulement : celle qui reçoit les codes (le nom donné par Google
+  // n'est jamais repris)
+  const addr = provider === 'email' && state !== 'add' ? signInEmailOf(account.user) || identityOf(account.user, 'email')?.identity_data?.email || '' : '';
+  const sub = esc(addr);
   return `
           <button class="cell cell--nav method-cell method-cell--${provider}" data-action="account-method" data-provider="${provider}"
-            aria-label="${esc(`${label}, ${id ? 'relié' : 'ajouter'}`)}">
+            aria-label="${esc(`${label}, ${METHOD_VALUE[state].toLowerCase()}`)}">
             <span class="method-cell__logo" aria-hidden="true">${logo}</span>
             <span class="cell__body"><span class="cell__title">${label}</span>${sub ? `<span class="cell__sub cell__sub--1">${sub}</span>` : ''}</span>
-            <span class="cell__value ${id ? '' : 'method-cell__add'}">${id ? 'Relié' : 'Ajouter'}</span>
+            <span class="cell__value ${state === 'add' ? 'method-cell__add' : ''}">${METHOD_VALUE[state]}</span>
             ${icon('chevron.right', 16)}
           </button>`;
 }
@@ -270,6 +279,14 @@ async function askMergeOtherAccount(n, pending) {
   return choice || null;
 }
 
+// Compte tout neuf sur un appareil sans séance : souvent un nouvel iPhone où l'on s'est connecté avec un
+// autre moyen qu'à l'origine (Google au lieu d'Apple…), ce qui crée un compte vide. Affiché sur l'écran
+// du pseudo qui suit (auth-flow.js).
+function newAccountNotice(res) {
+  if (!res?.isNew || (data.history || []).length) return '';
+  return 'Nouveau compte créé. Tu avais déjà un compte ? Déconnecte-toi et utilise le même moyen de connexion.';
+}
+
 // Connexion réussie (Apple, Google ou code) : message, puis pseudo pour un compte tout neuf
 function signedInToast(res) {
   if (res.reason === 'sync') return 'Connecté : sauvegarde dès que le réseau revient';
@@ -277,16 +294,34 @@ function signedInToast(res) {
     : 'Connecté : tes données du compte sont sur cet iPhone';
 }
 
+// Moyen de connexion ajouté depuis moins de 24 h : suppression refusée (par le serveur aussi), date dite
+async function identityRecentDialog(retryAt) {
+  const when = retryAt ? ` à partir du ${fmtDate(retryAt, 'day')} à ${fmtTime(retryAt)}` : ' dans 24 heures';
+  await dialog({ title: 'Suppression possible plus tard',
+    message: `Un moyen de connexion a été ajouté à ton compte il y a moins de 24 heures. Pour ta sécurité, la suppression du compte sera possible${when}.`,
+    actions: [{ label: 'OK', style: 'preferred' }] });
+}
+
+const APPLE_MANUAL_REVOKE = 'Pour retirer aussi l\'accès dans ton identifiant Apple : Réglages de l\'iPhone › ton nom › Connexion et sécurité › Se connecter avec Apple › MDLF Training › Arrêter d\'utiliser.';
+
 // Supprime le compte après la confirmation d'identité, puis propose de garder les données locales
 async function deleteAccountFlow() {
+  // Refus connu d'avance : pas de nouvelle connexion demandée pour rien
+  const hold = linkedIdentityHoldUntil(account.user);
+  if (hold) { await identityRecentDialog(hold); return; }
   if (!hasApple(account.user) && !(await accountRecentlyAuthenticated())) {
-    const ok = await reauthenticate();
+    const ok = await reauthenticate('delete');
     if (!ok) return;
   }
   const res = await accountDelete();
   if (res.reason === 'cancel') return;
+  if (res.reason === 'identity_recent') { await identityRecentDialog(res.retryAt); return; }
   if (res.reason === 'reauth') { showToast('Confirme d\'abord ton identité, puis réessaie', { error: true }); return; }
-  if (!res.ok) { showToast(res.reason === 'apple' ? 'Connexion avec Apple impossible' : 'Suppression impossible, vérifie ta connexion', { error: true }); return; }
+  if (!res.ok) {
+    const msg = { apple: 'Connexion avec Apple impossible, réessaie', other_account: authErrorText('other_account') }[res.reason] || 'Suppression impossible, vérifie ta connexion';
+    showToast(msg, { error: true });
+    return;
+  }
   const wipe = await dialog({ type: 'sheet', title: 'Compte supprimé',
     message: 'Que faire des données de cet iPhone ?',
     actions: [
@@ -296,25 +331,27 @@ async function deleteAccountFlow() {
   if (wipe === 'wipe') wipeLocalData();
   if (currentView() === 'account') goBack(); else render();
   if (res.apple && !res.revoked) {
-    await dialog({ title: 'Dernière étape', message: 'Pour retirer aussi l\'accès dans ton identifiant Apple : Réglages de l\'iPhone › ton nom › Connexion et sécurité › Se connecter avec Apple › MDLF Training › Arrêter d\'utiliser.',
-      actions: [{ label: 'OK', style: 'preferred' }] });
+    await dialog({ title: 'Dernière étape', message: APPLE_MANUAL_REVOKE, actions: [{ label: 'OK', style: 'preferred' }] });
   } else showToast('Compte supprimé');
 }
 
-// Nouvelle connexion avant la suppression d'un compte sans Apple : Google, ou un code par e-mail.
-// true si la session est maintenant récente.
-async function reauthenticate() {
+// Nouvelle connexion avec un moyen déjà relié (Apple, Google ou un code par e-mail) : avant la
+// suppression d'un compte sans Apple (exigée par le serveur), et avant l'ajout d'un moyen de connexion
+// (confort : le serveur ne l'exige pas, mais relier un moyen sur une session restée ouverte n'a pas à
+// être aussi simple qu'un tap). true si la session est maintenant récente.
+const REAUTH_LABELS = { apple: 'Avec Apple', google: 'Avec Google', email: 'Recevoir un code par e-mail' };
+const REAUTH_PURPOSE = { delete: 'Pour supprimer ton compte, reconnecte-toi.', link: 'Pour ajouter un moyen de connexion, reconnecte-toi d\'abord avec un moyen déjà relié.' };
+async function reauthenticate(purpose = 'delete') {
   const methods = reauthMethods();
   if (!methods.length) { showToast('Confirmation impossible : aucun moyen de connexion disponible', { error: true }); return false; }
-  const choice = methods.length === 1 ? methods[0] : await dialog({ type: 'sheet', title: 'Confirme ton identité',
-    message: 'Pour supprimer ton compte, reconnecte-toi.',
+  const choice = methods.length === 1 && purpose === 'delete' ? methods[0] : await dialog({ type: 'sheet', title: 'Confirme ton identité',
+    message: REAUTH_PURPOSE[purpose],
     actions: [
-      { label: 'Avec Google', value: 'google', style: 'preferred' },
-      { label: 'Recevoir un code par e-mail', value: 'email' },
+      ...methods.map((m, i) => ({ label: REAUTH_LABELS[m], value: m, style: i ? 'default' : 'preferred' })),
       { label: 'Annuler', value: null, style: 'cancel' },
     ] });
-  if (choice === 'google') {
-    const r = await accountReauthGoogle();
+  if (choice === 'google' || choice === 'apple') {
+    const r = choice === 'google' ? await accountReauthGoogle() : await accountReauthApple();
     if (r.ok) return true;
     if (r.reason !== 'cancel') showToast(authErrorText(r.kind || 'provider'), { error: true });
     return false;
@@ -333,11 +370,24 @@ async function methodAction(provider) {
       await dialog({ title: `${label} est ton seul moyen de connexion`, message: 'Ajoute d\'abord un autre moyen de connexion pour pouvoir retirer celui-ci.', actions: [{ label: 'OK', style: 'preferred' }] });
       return;
     }
-    if (!(await confirmSheet(`Retirer ${label} ?`, `Tu ne pourras plus te connecter avec ${PROVIDER_NAMES[provider]}. Ton compte et tes données ne changent pas.`, `Retirer ${label}`))) return;
+    const apple = provider === 'apple';
+    if (!(await confirmSheet(`Retirer ${label} ?`, `Tu ne pourras plus te connecter avec ${PROVIDER_NAMES[provider]}. Ton compte et tes données ne changent pas.${apple ? ' Apple te demandera de confirmer ton identité.' : ''}`, `Retirer ${label}`))) return;
     const r = await accountUnlink(provider);
+    if (r.reason === 'cancel') return;
     showToast(r.ok ? `${label} retiré` : authErrorText(r.kind), { error: !r.ok });
+    if (r.ok && apple && !r.revoked) await dialog({ title: 'Dernière étape', message: APPLE_MANUAL_REVOKE, actions: [{ label: 'OK', style: 'preferred' }] });
     return;
   }
+  // E-mail d'un compte qui a déjà une adresse (Google) : rien à ajouter, les codes y arrivent déjà
+  if (provider === 'email' && !canAddEmail(account.user)) {
+    const addr = signInEmailOf(account.user);
+    await dialog({ title: 'Connexion par code',
+      message: addr ? `Tu peux déjà te connecter avec un code envoyé à ${addr}, l'adresse de ton compte.` : authErrorText('email_unconfirmed'),
+      actions: [{ label: 'OK', style: 'preferred' }] });
+    return;
+  }
+  // Session ancienne : nouvelle connexion avec un moyen déjà relié avant d'en ajouter un
+  if (!(await accountRecentlyAuthenticated()) && !(await reauthenticate('link'))) return;
   if (provider === 'email') { await openAuthFlow({ step: 'email', mode: 'link' }); return; }
   const r = await accountLink(provider);
   if (r.reason === 'cancel') return;

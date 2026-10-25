@@ -10,8 +10,8 @@
 //    compte. Une erreur réseau ne déconnecte jamais (hors ligne, la session stockée suffit).
 //  - Synchronisation (logique pure dans js/data/sync.js) : à la connexion, au retour dans l'app, et
 //    quelques secondes après chaque enregistrement. Hors ligne, rien ne se perd : l'envoi attend.
-//  - État de synchro (mdlf_sync_<id>) valable seulement pour le dernier compte synchronisé sur
-//    l'appareil (SYNC_OWNER_KEY) : se reconnecter au même compte reprend où on en était ; changer de
+//  - État de synchro (mdlf_sync_<id>) valable seulement pour le dernier compte connecté sur
+//    l'appareil (SYNC_OWNER_KEY, posé dès la connexion) : se reconnecter au même compte reprend où on en était ; changer de
 //    compte repart de zéro (le compte fait foi, rien n'est supprimé). Effacer les données de l'appareil, importer une sauvegarde ou la
 //    réinitialisation de secours détachent l'appareil (accountForgetDevice, accountResetSyncState) :
 //    jamais de suppression envoyée au compte pour une action locale.
@@ -33,7 +33,7 @@ const ACCOUNT_CONFIG = {
   publishableKey: 'sb_publishable_9L0-y5dhw7V8LVm5PuxG5g_Hd7ExHkS',   // clé publique (rien de secret dans l'app) gitleaks:allow
 };
 const SYNC_META_PREFIX = 'mdlf_sync_';      // + identifiant du compte : curseur et empreintes (localStorage)
-const SYNC_OWNER_KEY   = 'mdlf_sync_owner'; // dernier compte synchronisé sur cet appareil
+const SYNC_OWNER_KEY   = 'mdlf_sync_owner'; // dernier compte connecté sur cet appareil (posé à la connexion)
 const AUTH_STORAGE_KEY = 'mdlf-auth';
 const PROFILE_CACHE_KEY = 'mdlf_profile';  // { userId, username, avatar, changedAt } du dernier compte
 const SYNC_DEBOUNCE_MS = 4000;
@@ -175,8 +175,12 @@ async function finishSignIn(authenticate, askMerge) {
       const choice = n ? await askMerge(n, accountPendingCount(owner)) : 'add';
       if (!choice) { await accountSignOut(); return { ok: false, reason: 'cancel' }; }
       clearSyncMetas();   // l'ancien compte ne laisse rien derrière lui
-      try { localStorage.removeItem(SYNC_OWNER_KEY); } catch { /* loadSyncMeta compare de toute façon */ }
     }
+    // Appareil rattaché à ce compte dès la connexion, avant la première synchro : si elle échoue (hors
+    // ligne), un autre compte qui se connecte ensuite verra quand même le choix de fusion. Sans changement
+    // de compte, l'état de synchro déjà enregistré pour ce compte est repris (planSessionPush compare
+    // les empreintes : rien n'est renvoyé à tort).
+    try { localStorage.setItem(SYNC_OWNER_KEY, user.id); } catch { /* reposé à la fin de la synchro */ }
     account.user = user;
     account.profile = cachedProfile(user.id);
   } finally { syncHeld = false; }
@@ -240,6 +244,8 @@ async function refreshAccountUser() {
 // Supabase : « Manual linking » activé (security_manual_linking_enabled). Renvoient { ok } ou
 // { ok: false, reason?: 'cancel' | 'provider', kind? }.
 
+// Liaison d'Apple ou de Google : Supabase renvoie une nouvelle session (link_identity), gardée par
+// supabase-js. L'écran demande d'abord une nouvelle connexion (reauthenticate) si la session est ancienne.
 async function accountLink(provider) {
   if (!sb || !account.user) return { ok: false, kind: 'server' };
   const t = await providerToken(provider);
@@ -253,11 +259,15 @@ async function accountLink(provider) {
   return { ok: true };
 }
 
-// Ajout d'une adresse e-mail : code envoyé à cette adresse (changement d'e-mail de Supabase), puis
-// accountLinkEmailVerify. Une adresse déjà utilisée par un autre compte est refusée par le serveur.
+// Ajout d'une adresse e-mail à un compte qui n'en a pas (compte Apple, canAddEmail) : code envoyé à
+// cette adresse (changement d'e-mail de Supabase, une seule confirmation puisqu'il n'y a pas d'ancienne
+// adresse), puis accountLinkEmailVerify. Un compte qui a déjà une adresse (Google) est refusé ici :
+// updateUser la remplacerait, après deux confirmations. Une adresse déjà utilisée par un autre compte
+// est refusée par le serveur.
 async function accountLinkEmailStart(email) {
   if (!sb || !account.user) return { ok: false, kind: 'server' };
-  if (account.user.email && normalizeEmail(account.user.email) === email && signInEmailOf(account.user)) return { ok: false, kind: 'same_email' };
+  if (signInEmailOf(account.user) && normalizeEmail(account.user.email) === email) return { ok: false, kind: 'same_email' };
+  if (!canAddEmail(account.user)) return { ok: false, kind: 'has_email' };
   try {
     const { error } = await sb.auth.updateUser({ email });
     return error ? { ok: false, kind: authErrorKind(error) } : { ok: true, sentAt: Date.now() };
@@ -271,19 +281,36 @@ async function accountLinkEmailVerify(email, code, sentAt) {
     if (res?.user?.id === account.user.id) account.user = res.user;
   } catch (e) { return { ok: false, kind: authErrorKind(e) || 'server' }; }
   await refreshAccountUser();
+  // Ajoutée seulement si le serveur porte bien cette adresse (sinon une confirmation manque encore)
+  if (normalizeEmail(account.user?.email) !== email) return { ok: false, kind: 'email_unconfirmed' };
   return { ok: true };
 }
 
-// Retrait d'un moyen de connexion : seulement s'il en reste un autre (le serveur le vérifie aussi)
+// Retrait d'un moyen de connexion : seulement s'il en reste un autre (le serveur le vérifie aussi).
+// Apple : nouvelle connexion avec Apple d'abord (code tout frais), retrait, puis révocation de l'accès
+// Apple par la fonction serveur revoke-apple, au mieux. Connexion avec Apple impossible : retrait quand
+// même, sans révocation. Renvoie { ok, revoked? } (revoked : Apple seulement).
 async function accountUnlink(provider) {
   if (!sb || !account.user) return { ok: false, kind: 'server' };
   if (!canUnlink(account.user, provider)) return { ok: false, kind: 'last_identity' };
+  let code = '';
+  if (provider === 'apple') {
+    const r = await accountReauthApple({ session: false });
+    if (r.reason === 'cancel') return { ok: false, reason: 'cancel' };
+    if (r.kind === 'other_account') return { ok: false, kind: 'other_account' };
+    code = r.code || '';
+  }
   try {
     const { error } = await sb.auth.unlinkIdentity(identityOf(account.user, provider));
     if (error) return { ok: false, kind: authErrorKind(error) };
   } catch (e) { return { ok: false, kind: authErrorKind(e) || 'server' }; }
   await refreshAccountUser();
-  return { ok: true };
+  if (provider !== 'apple') return { ok: true };
+  let revoked = false;
+  if (code) {
+    try { revoked = (await sb.functions.invoke('revoke-apple', { body: { code } })).data?.revoked === true; } catch { /* au mieux */ }
+  }
+  return { ok: true, revoked };
 }
 
 // ── Profil public : pseudo et avatar ────────────────────────
@@ -391,13 +418,17 @@ function accountHoldSync(ms) {
 }
 
 // ── Suppression du compte (règle Apple 5.1.1(v)) ────────────
-// Compte relié à Apple : nouvelle connexion avec Apple pour un code frais, que la fonction serveur
-// delete-account échange pour révoquer l'accès Apple. Sinon : la fonction exige une connexion de moins
-// de 10 min (claim amr) ; l'écran la demande d'abord (accountReauthGoogle, accountReauthEmail…).
+// Compte relié à Apple : nouvelle connexion avec Apple, toujours, pour un code tout frais que la
+// fonction serveur delete-account échange auprès d'Apple (preuve d'identité, puis révocation de l'accès
+// Apple) ; la même connexion rend aussi la session récente, au cas où l'échange échouerait. Sinon : la
+// fonction exige une connexion de moins de 10 min (claim amr) ; l'écran la demande d'abord
+// (accountReauthGoogle, accountReauthEmail…). Dans tous les cas, refus si un moyen de connexion a été
+// ajouté depuis moins de 24 h (linkedIdentityHoldUntil, même règle que le serveur).
 
-// Moyens possibles pour se reconnecter avant la suppression d'un compte sans Apple
+// Moyens possibles pour se reconnecter (avant la suppression, avant l'ajout d'un moyen de connexion)
 function reauthMethods(user = account.user) {
   const out = [];
+  if (hasApple(user)) out.push('apple');
   if (account.google && identityOf(user, 'google')) out.push('google');
   if (signInEmailOf(user)) out.push('email');
   return out;
@@ -421,6 +452,22 @@ async function accountReauthGoogle() {
   catch (e) { return { ok: false, kind: authErrorKind(e) || 'server' }; }
 }
 
+// Nouvelle connexion avec Apple, du même identifiant Apple que le compte (sinon refusée avant de parler
+// à Supabase, qui créerait un autre compte). Renvoie { ok, code } : code d'autorisation tout frais pour
+// le serveur (delete-account, revoke-apple). session : aussi une session Supabase récente (claim amr).
+async function accountReauthApple({ session = true } = {}) {
+  if (!sb || !account.user) return { ok: false, kind: 'server' };
+  const userId = account.user.id, t = await providerToken('apple');
+  if (!t.token) return { ok: false, reason: t.cancel ? 'cancel' : 'provider' };
+  if (jwtPayload(t.token)?.sub !== appleUserOf(account.user)) return { ok: false, kind: 'other_account' };
+  if (!t.code) return { ok: false, reason: 'provider' };
+  if (!session) return { ok: true, code: t.code };
+  try {
+    const r = await sameAccountSession(await sb.auth.signInWithIdToken({ provider: 'apple', token: t.token, nonce: t.nonce }), userId);
+    return r.ok ? { ok: true, code: t.code } : r;
+  } catch (e) { return { ok: false, kind: authErrorKind(e) || 'server' }; }
+}
+
 // Code envoyé à l'adresse du compte (jamais de création de compte)
 function accountReauthEmailStart() {
   const email = signInEmailOf(account.user);
@@ -440,20 +487,31 @@ async function accountRecentlyAuthenticated() {
   try { return isRecentAuth((await sb.auth.getSession()).data.session?.access_token); } catch { return false; }
 }
 
-// Renvoie { ok, reason?: 'cancel' | 'apple' | 'reauth' | 'server', apple (compte relié à Apple), revoked }.
+// Renvoie { ok, reason?: 'cancel' | 'apple' | 'other_account' | 'reauth' | 'identity_recent' | 'server',
+// retryAt (identity_recent : date en ms), apple (compte relié à Apple), revoked }.
 async function accountDelete() {
   if (!sb || !account.user) return { ok: false, reason: 'server' };
+  const hold = linkedIdentityHoldUntil(account.user);
+  if (hold) return { ok: false, reason: 'identity_recent', retryAt: hold };
   let body = {};
   const apple = hasApple(account.user);
   if (apple) {
-    const t = await providerToken('apple');
-    if (t.cancel) return { ok: false, reason: 'cancel' };
-    if (!t.token) return { ok: false, reason: 'apple' };
-    body = { code: t.code };
+    const r = await accountReauthApple();
+    if (r.reason === 'cancel') return { ok: false, reason: 'cancel' };
+    if (!r.ok) return { ok: false, reason: r.kind === 'other_account' ? 'other_account' : 'apple' };
+    body = { code: r.code };
   } else if (!(await accountRecentlyAuthenticated())) return { ok: false, reason: 'reauth' };
   const { data: res, error } = await sb.functions.invoke('delete-account', { body });
-  if (error?.context?.status === 401) return { ok: false, reason: 'reauth' };
-  if (error || !res?.deleted) return { ok: false, reason: 'server' };
+  if (error) {
+    // Réponse d'erreur de la fonction : error.context est la réponse HTTP (FunctionsHttpError)
+    const status = error.context?.status;
+    let info = {};
+    try { info = await error.context.json(); } catch { /* corps illisible */ }
+    if (status === 403 && info?.error === 'identity_recent') return { ok: false, reason: 'identity_recent', retryAt: Date.parse(info.retry_at) || 0 };
+    if (status === 401) return { ok: false, reason: apple ? 'apple' : 'reauth' };
+    return { ok: false, reason: 'server' };
+  }
+  if (!res?.deleted) return { ok: false, reason: 'server' };
   await accountForgetDevice();
   return { ok: true, apple, revoked: !!res.revoked };
 }
@@ -553,6 +611,7 @@ async function syncNow() {
       keepMeta();
     }
     alive();
+    // Déjà posé à la connexion ; reposé ici pour une session reprise du Trousseau (installation d'avant)
     try { localStorage.setItem(SYNC_OWNER_KEY, userId); } catch { /* redemandé au prochain changement de compte */ }
     account.lastSync = Date.now();
     return true;

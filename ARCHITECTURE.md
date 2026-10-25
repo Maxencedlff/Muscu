@@ -84,8 +84,8 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `app-icons.js` | Marque : `APP_ICONS` (icônes de l'app : id, libellé, jeu d'icônes iOS `asset`, couleurs, flèche de la barre), `DEFAULT_APP_ICON`, `appIconFromNative(nom)` (null ou inconnu : défaut), `nativeAppIconName(id)` (défaut : null), `alternateAppIconNames()`, dessin du signe `appIconGlyph` / `appIconSvg(icône, options)`. Seule source des images de la marque (voir plus bas) |
 | `backup.js` | `importText` (tout vérifié sur une copie ; renvoie `{ ok, reason }` ou `{ ok, count, skipped, theme, previous }`), `undoImport`, `exportData(theme)` (renvoie `true` une fois le fichier remis), `downloadText` |
 | `sync.js` | Synchro du compte, logique pure : empreintes (`syncHash`), ce qui part (`planSessionPush`, `sessionPayload` sans poids du corps, `profilePayload` par liste autorisée `SYNC_PROFILE_KEYS`), fusion des séances reçues (`applyRemoteSessions` : modifiée ici → locale gagne ; sans état connu → le compte fait foi ; suppressions reçues → Supprimés récemment) et du profil (`applyRemoteProfile`) |
-| `account-auth.js` | Compte, logique pure : premier écran (`firstScreen` : Bienvenue au tout premier lancement seulement ; `accountCardShown`), pseudo (`normalizeUsername`, `usernameProblem`, `USERNAME_RE` identique à la migration, délai de 30 jours), avatar (`AVATAR_EMOJIS` : 30 emojis sans personnage, liste blanche identique au serveur), identités (`identityOf`, `hasApple`, `canUnlink`), connexion récente (`lastAuthAt`, `isRecentAuth` : claim amr), erreurs de Supabase → français (`authErrorKind`, `otpErrorKind`, `AUTH_ERROR_TEXT`) |
-| `account.js` | Compte facultatif (Supabase ; Apple, Google ou code par e-mail, un seul parcours `finishSignIn`) : session dans le Trousseau, profil public (`accountLoadProfile`, `accountSaveProfile`, `accountUsernameAvailable`), moyens de connexion (`accountLink`, `accountLinkEmailStart/Verify`, `accountUnlink`), nouvelle connexion avant suppression (`accountReauth*`), `syncNow` (réception, fusion, envoi par lots), état de synchro par compte, `accountForgetDevice` / `accountResetSyncState` avant tout effacement ou import local. Aucun affichage : l'écran s'abonne avec `onAccountChange` |
+| `account-auth.js` | Compte, logique pure : premier écran (`firstScreen` : Bienvenue au tout premier lancement seulement ; `accountCardShown`), pseudo (`normalizeUsername`, `usernameProblem`, `USERNAME_RE` identique à la migration, délai de 30 jours), avatar (`AVATAR_EMOJIS` : 30 emojis sans personnage, liste blanche identique au serveur), identités (`identityOf`, `hasApple`, `canUnlink`, `canAddEmail`, `linkedIdentityHoldUntil` : moyen relié depuis moins de 24 h), connexion récente (`lastAuthAt`, `isRecentAuth` : claim amr), erreurs de Supabase → français (`authErrorKind`, `otpErrorKind`, `AUTH_ERROR_TEXT`) |
+| `account.js` | Compte facultatif (Supabase ; Apple, Google ou code par e-mail, un seul parcours `finishSignIn`) : session dans le Trousseau, profil public (`accountLoadProfile`, `accountSaveProfile`, `accountUsernameAvailable`), moyens de connexion (`accountLink`, `accountLinkEmailStart/Verify` : comptes sans adresse seulement, `accountUnlink` : Apple révoqué au retrait), nouvelle connexion avant suppression ou ajout d'un moyen (`accountReauthApple/Google/Email*`), `syncNow` (réception, fusion, envoi par lots), état de synchro par compte, `accountForgetDevice` / `accountResetSyncState` avant tout effacement ou import local. Aucun affichage : l'écran s'abonne avec `onAccountChange` |
 
 ### js/app/actions.js
 
@@ -358,12 +358,26 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
   réservés et injures ; déclencheur `check_username` : refus, 30 jours entre deux changements), RLS sur sa
   ligne, GRANT par colonne (le client n'écrit que `username` et `avatar_emoji`), `username_available()`.
   Séparé de `profiles.doc` : le pseudo ne fait pas partie du bloc privé synchronisé.
-- `supabase/functions/delete-account/` : suppression du compte (règle Apple 5.1.1(v)). Compte relié à
-  Apple : révocation « Se connecter avec Apple » ; sinon connexion de moins de 10 min exigée (claim
-  `amr`, `recent-auth.js`, testé par `tests/unit/account.mjs`). Secrets Apple dans le projet Supabase,
-  jamais dans le dépôt.
-- Réglages d'authentification (SMTP Resend, modèles du code, Google, liaison manuelle, limites) :
-  `scripts/supabase-auth-config.py`, lecture seule par défaut.
+- `supabase/migrations/20261026010000_pseudos_renforces.sql` : mots interdits reconnus aussi en
+  chiffres « leet » (`sh1t`, `c0nnard`) et suivis de chiffres, mode `prefix` pour les rôles de l'équipe
+  (`admin2`, `support1`), unicité sans points ni tirets bas (`maxdlf` contre `max.dlf`, index
+  `user_profiles_username_plain_key`).
+- `supabase/functions/delete-account/` : suppression du compte (règle Apple 5.1.1(v)). Règle pure dans
+  `delete-policy.js` (même règle côté app : `linkedIdentityHoldUntil`) : preuve Apple (code tout frais
+  échangé auprès d'Apple, même identifiant Apple) ou connexion de moins de 10 min (claim `amr`,
+  `recent-auth.js`), et aucun moyen de connexion relié depuis moins de 24 h hors création du compte
+  (relier Google donne une session « oauth » neuve). Révocation Apple au mieux, après la décision.
+  Testé par `tests/unit/account.mjs`.
+- `supabase/functions/revoke-apple/` : révocation de l'accès Apple après le retrait de l'identité Apple
+  (code tout frais, refusée tant qu'Apple est encore relié). `supabase/functions/_shared/` : échange et
+  révocation Apple (`apple.ts`), CORS, clés et lecture de l'appelant (`http.ts`). Secrets Apple dans le
+  projet Supabase, jamais dans le dépôt.
+- Réglages d'authentification (SMTP Resend, modèles du code, Google, liaison manuelle, limites, e-mails
+  de sécurité : moyen relié ou retiré, adresse changée) : `scripts/supabase-auth-config.py`, lecture
+  seule par défaut (`--notifications` : e-mails de sécurité seulement).
+- Dépendances iOS (Swift Package Manager) : figées par
+  `ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` une fois committé
+  (workflow `ios.yml` : artefact `package-resolved`, puis `-onlyUsePackageVersionsFromResolvedFile`).
 - `tests/sql/run.sh` : applique toutes les migrations sur un Postgres local jetable (socle Supabase imité
   par `supabase_stub.sql`) puis vérifie RLS, GRANT et déclencheurs (`*_test.sql`). Rien n'est envoyé au projet.
 - Google stocke le nom de la personne dans les données d'identité (`identity_data.full_name`) : l'app ne

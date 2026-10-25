@@ -57,6 +57,8 @@
 .auth__lead { margin: 6px 0 0; font-size: var(--fs-body); line-height: 1.38; color: var(--label2); text-align: center; }
 .auth__lead--left { text-align: left; margin-bottom: 20px; }
 .auth__email { color: var(--label); font-weight: 600; overflow-wrap: anywhere; }
+/* « Nouveau compte créé… » sous le titre du pseudo : encadré discret, lisible en clair et en sombre */
+.auth__notice { margin: 14px 0 0; padding: 12px 14px; border-radius: var(--r-md); background: var(--cell); color: var(--label); font-size: var(--fs-subhead); line-height: 1.4; text-align: left; }
 
 /* « Commencer sans compte », « Plus tard » : bien lisibles, jamais en petit gris */
 .auth__skip {

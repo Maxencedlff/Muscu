@@ -53,6 +53,15 @@ def calls(page, kind):
     return page.evaluate('k => __sb.calls.filter(c => c[0] === k)', kind)
 
 
+def age_session(page, seconds=3600):
+    """Session ancienne : la dernière vraie connexion (claim amr) recule d'autant."""
+    page.evaluate("""s => { const p = JSON.parse(atob(__sb.session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        p.amr.forEach(a => { a.timestamp -= s; }); __sb.session.access_token = 'h.' + btoa(JSON.stringify(p)).replace(/=+$/, '') + '.s'; }""", seconds)
+
+
+NEW_ACCOUNT_NOTICE = 'Nouveau compte créé. Tu avais déjà un compte ?'
+
+
 def t_welcome(bench, eng, dev, theme):
     """Premier lancement : Bienvenue une seule fois, « Commencer sans compte » mène à l'app."""
     t = tag(dev, theme)
@@ -152,6 +161,8 @@ def t_code(bench, eng, dev, theme):
         page.wait_for_selector('#authUsername')
         page.wait_for_timeout(300)
         R.check(page.locator('[data-action="auth-later"]').count() == 1 and page.locator('[data-action="auth-close"]').count() == 0, f'{t} pseudo : « Plus tard », pas d\'Annuler')
+        notice = page.locator('.auth__notice')
+        R.check(notice.count() == 1 and NEW_ACCOUNT_NOTICE in notice.inner_text(), f'{t} iPhone vide + compte neuf : « Nouveau compte créé »')
         R.check(page.evaluate('account.user?.email') == 'max@exemple.fr', f'{t} connecté')
         shot(page, LOT, f'4-pseudo-{t}')
         page.fill('#authUsername', 'Pris')
@@ -330,12 +341,12 @@ def t_delete(bench, eng, dev, theme):
         page.wait_for_selector('#authCode')
         page.fill('#authCode', '123456')
         page.wait_for_timeout(500)
+        R.check(page.locator('.auth__notice').count() == 0, f'{t} séances sur l\'iPhone : pas d\'avertissement « Nouveau compte »')
         if page.locator('[data-action="auth-later"]').count():
             page.click('[data-action="auth-later"]')
             page.wait_for_timeout(300)
         # Session vieillie : la suppression doit redemander un code
-        page.evaluate("""(() => { const p = JSON.parse(atob(__sb.session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-            p.amr[0].timestamp -= 3600; __sb.session.access_token = 'h.' + btoa(JSON.stringify(p)).replace(/=+$/, '') + '.s'; })()""")
+        age_session(page)
         page.click('[data-action="account-delete"]')
         page.wait_for_timeout(300)
         R.check('confirmeras ton identité' in page.inner_text('.ios-dialog'), f'{t} suppression : confirmation d\'identité annoncée')
@@ -353,6 +364,85 @@ def t_delete(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_securite_compte(bench, eng, dev, theme):
+    """Compte Google : ligne E-mail « Actif » sans ajout, reconnexion avant d'ajouter un moyen, suppression
+    refusée 24 h après une liaison, retrait d'Apple révoqué ; compte Apple : suppression avec un code frais."""
+    t = tag(dev, theme)
+    # Compte Google ancien (créé il y a 30 jours : une liaison d'aujourd'hui n'est pas « avec le compte »)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, opts={'oldAccounts': True})
+        page.click('.auth .auth-btn--google')
+        page.wait_for_timeout(600)
+        R.check(page.locator('.auth').count() == 0 and page.evaluate('!!account.user'), f'{t} Google : compte existant, connecté')
+        page.evaluate("navigate('account')")
+        page.wait_for_selector('.account-view')
+
+        # E-mail : l'adresse Google reçoit déjà les codes, rien à « ajouter »
+        R.check(method_value(page, 'email') == 'Actif' and 'max@gmail.com' in page.inner_text('.method-cell--email'), f'{t} Google : e-mail « Actif » avec l\'adresse')
+        page.click('.method-cell--email')
+        page.wait_for_timeout(300)
+        R.check('max@gmail.com' in page.inner_text('.ios-dialog') and page.locator('.auth').count() == 0, f'{t} e-mail : explication, pas d\'écran d\'ajout')
+        tap_dialog(page, 'OK')
+        R.check(calls(page, 'updateUser') == [], f'{t} aucun changement d\'e-mail demandé')
+
+        # Session ancienne : nouvelle connexion avant d'ajouter Apple
+        age_session(page)
+        page.click('.method-cell--apple')
+        page.wait_for_timeout(300)
+        R.check('ajouter un moyen de connexion' in page.inner_text('.ios-dialog'), f'{t} ajout : reconnexion demandée')
+        shot(page, LOT, f'12-reconnexion-ajout-{t}')
+        tap_dialog(page, 'Avec Google')
+        page.wait_for_timeout(600)
+        R.check(calls(page, 'link') == [['link', 'apple']] and method_value(page, 'apple') == 'Relié', f'{t} Apple relié après la reconnexion')
+
+        # Suppression refusée : moyen relié il y a moins de 24 h (rien n'est demandé à Apple ni au serveur)
+        n_apple = len(calls(page, 'apple'))
+        page.click('[data-action="account-delete"]')
+        page.wait_for_timeout(300)
+        tap_dialog(page, 'Supprimer mon compte')
+        page.wait_for_timeout(400)
+        R.check('Suppression possible plus tard' in page.inner_text('.ios-dialog') and 'moins de 24 heures' in page.inner_text('.ios-dialog'), f'{t} suppression : attente de 24 h expliquée')
+        shot(page, LOT, f'13-suppression-24h-{t}')
+        tap_dialog(page, 'OK')
+        R.check(calls(page, 'invoke') == [] and len(calls(page, 'apple')) == n_apple, f'{t} ni connexion Apple ni appel serveur')
+        # Le serveur refuse aussi (appel direct, sans passer par l'écran)
+        st = page.evaluate("sb.functions.invoke('delete-account', { body: {} }).then(r => r.error?.context?.status)")
+        R.check(st == 403 and page.evaluate('!!account.user'), f'{t} serveur : 403, compte intact')
+
+        # Retrait d'Apple : connexion Apple (code frais), retrait, puis révocation
+        page.click('.method-cell--apple')
+        page.wait_for_timeout(300)
+        tap_dialog(page, 'Retirer Apple')
+        page.wait_for_timeout(700)
+        inv = calls(page, 'invoke')
+        R.check(method_value(page, 'apple') == 'Ajouter' and inv and inv[-1][1] == 'revoke-apple' and 'code-apple-' in inv[-1][2], f'{t} Apple retiré puis révoqué avec un code frais {inv}')
+        R.check(page.locator('.ios-dialog').count() == 0, f'{t} révoqué : pas de marche à suivre à la main')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # Compte Apple ancien : la suppression passe par une connexion Apple et son code tout frais
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), opts={'oldAccounts': True})
+        page.evaluate("navigate('account')")
+        page.wait_for_selector('.account-view')
+        page.click('.account-view .auth-btn--apple')
+        page.wait_for_timeout(600)
+        age_session(page, 30 * 86400)
+        st = page.evaluate("sb.functions.invoke('delete-account', { body: {} }).then(r => r.error?.context?.status)")
+        R.check(st == 401 and page.evaluate('!!account.user'), f'{t} compte Apple sans code : refusé (401)')
+        page.click('[data-action="account-delete"]')
+        page.wait_for_timeout(300)
+        R.check('Apple te demandera' in page.inner_text('.ios-dialog'), f'{t} Apple : confirmation annoncée')
+        tap_dialog(page, 'Supprimer mon compte')
+        page.wait_for_timeout(700)
+        inv = calls(page, 'invoke')
+        R.check(inv[-1][1] == 'delete-account' and 'code-apple-' in inv[-1][2], f'{t} code Apple frais envoyé {inv[-1]}')
+        R.check('Compte supprimé' in page.inner_text('.ios-dialog'), f'{t} compte Apple supprimé')
+        tap_dialog(page, 'Les garder sur cet iPhone')
+        page.wait_for_timeout(300)
+        R.check(page.evaluate('account.user') is None, f'{t} déconnecté')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def t_pwa(bench, eng, dev, theme):
     """Navigateur (PWA) : rien du compte n'apparaît."""
     t = tag(dev, theme)
@@ -366,4 +456,4 @@ def t_pwa(bench, eng, dev, theme):
         R.check(page.locator('.account-cell').count() == 0, f'{t} PWA : pas de cellule compte')
 
 
-run_main(R, [t_welcome, t_code, t_restore, t_compte, t_delete, t_pwa])
+run_main(R, [t_welcome, t_code, t_restore, t_compte, t_delete, t_securite_compte, t_pwa])
