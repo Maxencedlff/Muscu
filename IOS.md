@@ -221,8 +221,9 @@ d'identité : le nonce brut vient du JS, Apple et Google reçoivent son SHA-256,
   Xcode (et la CI) résolvent le paquet à la compilation ; le `Package.resolved` créé dans
   `App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/` au premier build sur Mac est à committer
   pour figer les versions.
-- `Info.plist` : `GIDClientID` et le schéma d'URL du client inversé (`CFBundleURLTypes`). Tant qu'ils
-  valent `REMPLACER-CLIENT-ID-IOS`, `googleStatus` répond « indisponible » et l'app masque le bouton
+- `Info.plist` : `GIDClientID` et le schéma d'URL du client inversé (`CFBundleURLTypes`), renseignés le
+  25/10/2026 (client iOS du projet Google Cloud « MDLF Training »). S'ils valaient encore
+  `REMPLACER-CLIENT-ID-IOS`, `googleStatus` répond « indisponible » et l'app masque le bouton
   Google (sans ce garde-fou, le SDK lèverait une exception Objective-C si le schéma manquait).
 - Retour de la fenêtre Google : `GIDSignIn.sharedInstance.handle(url)` dans `SceneDelegate`
   (`scene(_:openURLContexts:)`). L'app a une scène : iOS ne passe jamais par

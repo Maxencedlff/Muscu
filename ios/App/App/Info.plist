@@ -26,11 +26,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<!-- Connexion Google (AccountPlugin.swift). Valeurs de remplacement tant que le client iOS n'existe
-	     pas dans Google Cloud : le bouton Google reste masqué. Remplacer REMPLACER-CLIENT-ID-IOS aux deux
-	     endroits par la partie avant « .apps.googleusercontent.com » du client ID iOS (IOS.md). -->
+	<!-- Connexion Google (AccountPlugin.swift) : client iOS du projet Google Cloud « MDLF Training »
+	     (identifiant public, pas un secret). Le schéma d'URL est ce même identifiant à l'envers. -->
 	<key>GIDClientID</key>
-	<string>REMPLACER-CLIENT-ID-IOS.apps.googleusercontent.com</string>
+	<string>374163315572-ohsgdm9f3md7n0s1bvaqtdf1avljvu2u.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -38,7 +37,7 @@
 			<string>google-sign-in</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.REMPLACER-CLIENT-ID-IOS</string>
+				<string>com.googleusercontent.apps.374163315572-ohsgdm9f3md7n0s1bvaqtdf1avljvu2u</string>
 			</array>
 		</dict>
 	</array>

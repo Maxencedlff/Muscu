@@ -8,7 +8,7 @@ Avec --appliquer seulement, et toutes les valeurs remplies, il les envoie. À re
 
 Valeurs à fournir (variables d'environnement, jamais dans le dépôt) :
   RESEND_API_KEY          clé d'API Resend (sert de mot de passe SMTP), domaine d'envoi vérifié chez Resend
-  MDLF_MAIL_FROM          adresse d'expédition sur ce domaine, ex. connexion@mdlf.fr
+  MDLF_MAIL_FROM          adresse d'expédition sur ce domaine, ex. noreply@mdlf.app (domaine vérifié chez Resend le 25/10/2026)
   GOOGLE_WEB_CLIENT_ID    client OAuth « Application Web » (Google Cloud) : Supabase s'en sert comme client principal
   GOOGLE_WEB_SECRET       son secret
   GOOGLE_IOS_CLIENT_ID    client OAuth « iOS » (bundle com.mdlf.training) : audience des jetons de l'app,
@@ -69,7 +69,7 @@ def settings():
         'smtp_sender_name': 'MDLF Training',
         # Limites : un code par adresse et par minute (OTP_RESEND_MS), 30 e-mails par heure pour le projet
         'smtp_max_frequency': 60,
-        'rate_limit_email_sent': 30,
+        'rate_limit_email_sent': 100,
         'rate_limit_otp': 30,                # demandes et vérifications de code par 5 min et par adresse IP
         'rate_limit_verify': 30,
         # Google : jeton d'identité natif (signInWithIdToken), nonce vérifié
