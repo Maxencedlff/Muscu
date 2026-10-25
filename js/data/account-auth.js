@@ -26,7 +26,7 @@ const ACCOUNT_CREATION_SLACK_MS = 10 * 60_000;      // identités créées avec 
 const WELCOME_SEEN_KEY  = 'ppl_welcome_seen';         // choix fait sur l'écran Bienvenue (sans compte, ou connexion réussie)
 const ACCOUNT_CARD_KEY  = 'ppl_account_card_closed';  // carte « Sauvegarde tes séances » fermée
 const SIGNED_OUT_KEY    = 'mdlf_signed_out';          // déconnexion voulue (« Se déconnecter ») : pas de carte de reconnexion
-const SESSION_ENDED_KEY = 'mdlf_session_ended';       // session finie hors de l'app (compte supprimé, déconnecté ailleurs, Apple révoqué)
+const SESSION_ENDED_KEY = 'mdlf_session_ended';       // session finie hors de l'app (compte supprimé, jeton refusé, Apple révoqué)
 const PENDING_CODE_KEY  = 'mdlf_pending_code';        // { email, sentAt } : code demandé, l'app peut être fermée par iOS
 const USERNAME_RE  = /^[a-z0-9][a-z0-9._]{1,18}[a-z0-9]$/;
 const USERNAME_MIN = 3, USERNAME_MAX = 20;
@@ -137,6 +137,18 @@ function accountJustCreated(user, now = Date.now()) {
 function isNewAccount(user, profile, now = Date.now()) {
   if (profile !== null) return false;   // profil présent, ou illisible (undefined) : on ne redemande pas
   return accountJustCreated(user, now);
+}
+
+// Compte qui se connecte = dernier compte retenu dans les données (data.lastAccount : { method,
+// username }) ? username : pseudo du compte relu sur le serveur (null : aucun ; undefined : illisible).
+// Un compte tout juste créé n'est jamais l'ancien ; un autre moyen, ou un autre pseudo quand les deux
+// sont connus, non plus. Sinon (même moyen, pseudo inconnu d'un côté) : le même.
+function sameLastAccount(last, { method, username, justCreated }) {
+  if (!last) return true;
+  if (justCreated) return false;
+  if (last.method && last.method !== method) return false;
+  if (last.username && username !== undefined) return username === last.username;
+  return true;
 }
 
 // ── Avatar ──────────────────────────────────────────────────

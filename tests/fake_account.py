@@ -13,8 +13,8 @@ FAKE_ACCOUNT est injecté avant le chargement de l'app (page.add_init_script) :
   (supabase/functions/delete-account/delete-policy.js) ; code Apple à usage unique.
 L'état du faux serveur est dans window.__sb (codes envoyés, comptes, profils, appels) ; les tests le
 lisent et le modifient (ex. __sb.google = false pour un client Google non configuré ; __sb.remoteRows :
-séances déjà sur le compte ; __sb.endSession() : session finie ailleurs, comme supabase-js quand le
-jeton de rafraîchissement est refusé).
+séances déjà sur le compte ; __sb.upserted : séances envoyées ; __sb.endSession() : session finie hors
+de l'app, comme supabase-js quand le jeton de rafraîchissement est refusé).
 """
 
 FAKE_ACCOUNT = r"""
@@ -78,7 +78,7 @@ FAKE_ACCOUNT = r"""
     return { data: { user: sb.session.user, session: sb.session }, error: null };
   };
   const me = () => sb.session && sb.users[sb.session.user.id];
-  // Compte supprimé ou déconnecté sur un autre appareil : supabase-js retire la session et émet SIGNED_OUT
+  // Compte supprimé ou jeton refusé : supabase-js retire la session et émet SIGNED_OUT
   sb.endSession = () => { sb.session = null; if (sb.storage) sb.storage.removeItem(sb.storageKey); emit('SIGNED_OUT', null); };
   const refreshMe = () => { if (sb.session) sb.session.user = JSON.parse(JSON.stringify(me())); };
   const tokenSub = t => { try { return JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))))).sub; } catch { return null; } };
@@ -165,7 +165,8 @@ FAKE_ACCOUNT = r"""
     if (!sb.session) return { data: null, error: { code: '42501', message: 'permission denied' } };
     const id = sb.session.user.id;
     if (q.table === 'sessions') {
-      if (q.op === 'upsert') log('upsert', q.patch.length);
+      // Lignes envoyées gardées (__sb.upserted) : les tests vérifient ce qui part, suppressions comprises
+      if (q.op === 'upsert') { log('upsert', q.patch.length); (sb.upserted ||= []).push(...q.patch); }
       return { data: q.op === 'select' ? (sb.remoteRows || []) : null, error: null };
     }
     if (q.table === 'profiles') return q.op === 'select' ? { data: null, error: null } : { data: { updated_at: new Date().toISOString() }, error: null };

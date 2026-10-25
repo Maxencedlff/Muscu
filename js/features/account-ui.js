@@ -114,10 +114,10 @@ function renderAccount() {
   if (!accountAvailable()) return `<div class="view view--grouped account-view">${navBar(back)}<div class="scr"></div></div>`;
   if (!account.user) {
     // iPhone restauré (compte de l'appareil sans session) : on dit avec quoi se reconnecter ; session
-    // finie ailleurs (compte supprimé, déconnecté sur un autre appareil) : on le dit
+    // finie hors de l'app (compte supprimé, connexion expirée) : on le dit, avec le moyen d'avant
     const info = accountReconnectInfo();
     const title = info?.ended ? 'Ta session a pris fin' : info ? 'Reconnecte-toi' : 'Sauvegarde tes séances';
-    const lead = info?.ended ? SESSION_ENDED_TEXT
+    const lead = info?.ended ? `${SESSION_ENDED_TEXT} ${reconnectLine(info)}.`
       : info ? `${reconnectLine(info)}. Utilise le même moyen pour reprendre la sauvegarde.`
       : 'Retrouve tes séances sur un nouvel iPhone. Facultatif.';
     return `
@@ -200,33 +200,45 @@ function reconnectLine(info) {
   return info.username ? `${how} · ${info.username}` : how;
 }
 
-const SESSION_ENDED_TEXT = 'Compte supprimé ou déconnecté sur un autre appareil. Tes séances sont sur cet iPhone.';
+// La déconnexion est toujours locale (aucun appareil n'en déconnecte un autre) : compte supprimé, ou
+// jeton refusé par le serveur, ou accès Apple retiré
+const SESSION_ENDED_TEXT = 'Tu as été déconnecté : ton compte a été supprimé ou ta connexion a expiré. Tes séances sont toujours sur cet iPhone.';
+
+// Bouton de la carte : le moyen d'avant nommé (Apple, Google : sa fenêtre directement ; e-mail :
+// l'adresse préremplie, account-reconnect)
+function reconnectButtonLabel(info) {
+  if (info.method === 'apple' || info.method === 'google') return `Me reconnecter avec ${PROVIDER_NAMES[info.method]}`;
+  return info.method === 'email' ? 'Me reconnecter par e‑mail' : 'Me reconnecter';
+}
 
 // Carte compacte sous « Démarrer » (titre, action, croix) : jamais devant la séance du jour.
-// Session finie ailleurs, reconnexion (iPhone restauré), sinon proposition de compte pour qui n'a
+// Session finie hors de l'app, reconnexion (iPhone restauré), sinon proposition de compte pour qui n'a
 // pas vu Bienvenue.
 function accountHomeCard() {
   const info = accountReconnectInfo();
   if (info?.ended) {
+    // Moyen d'avant connu : reconnexion directe (même compte, s'il existe encore) ; sinon l'écran Compte
     return `
     <section class="home-card account-card account-card--reconnect" aria-labelledby="accountCardTitle">
       <div class="account-card__text">
         <h2 class="account-card__title" id="accountCardTitle">Ta session a pris fin</h2>
         <p class="account-card__sub">${SESSION_ENDED_TEXT}</p>
+        ${info.method || info.username ? `<p class="account-card__sub">${esc(reconnectLine(info))}</p>` : ''}
       </div>
-      <button class="account-card__btn" data-action="go-account">Se connecter</button>
+      ${info.method ? `<button class="account-card__btn" data-action="account-reconnect">${esc(reconnectButtonLabel(info))}</button>`
+        : '<button class="account-card__btn" data-action="go-account">Se connecter</button>'}
       <button class="account-card__close" data-action="account-reconnect-close" aria-label="Fermer">${icon('xmark', 16)}</button>
     </section>`;
   }
   if (info) {
-    const how = info.method === 'apple' || info.method === 'google' ? ` avec ${PROVIDER_NAMES[info.method]}` : '';
+    // Titre court : une ligne à côté de la croix, même sur un iPhone SE
     return `
     <section class="home-card account-card account-card--reconnect" aria-labelledby="accountCardTitle">
       <div class="account-card__text">
-        <h2 class="account-card__title" id="accountCardTitle">Reconnecte-toi pour reprendre la sauvegarde</h2>
+        <h2 class="account-card__title" id="accountCardTitle">Reprends ta sauvegarde</h2>
         <p class="account-card__sub">${esc(reconnectLine(info))}</p>
       </div>
-      <button class="account-card__btn" data-action="account-reconnect">${esc(`Me reconnecter${how}`)}</button>
+      <button class="account-card__btn" data-action="account-reconnect">${esc(reconnectButtonLabel(info))}</button>
       <button class="account-card__close" data-action="account-reconnect-close" aria-label="Fermer">${icon('xmark', 16)}</button>
     </section>`;
   }
@@ -321,14 +333,17 @@ function keepOnlyDeviceSettings() {
 }
 
 // Connexion sur un iPhone qui contient les séances d'un autre compte
-async function askMergeOtherAccount(n, pending) {
+async function askMergeOtherAccount(n, pending, previous = null) {
   const s = pending > 1 ? 's' : '';
-  // pending : compté sur l'état de synchro de l'autre compte (oublié si sa session a pris fin ailleurs,
-  // toutes les séances comptent alors)
-  const where = !pending ? `${n > 1 ? 'Elles restent' : 'Elle reste'} sur l'autre compte.`
+  // pending : compté sur l'état de synchro de l'autre compte (toutes les séances si sa session a pris
+  // fin hors de l'app). previous : compte d'avant connu seulement par la copie iCloud de l'app, sans
+  // état de synchro : rien n'est promis (ni « elles restent », ni « nulle part ailleurs »)
+  const from = previous ? [LOGIN_PROVIDERS.find(p => p.provider === previous.method)?.label, previous.username].filter(Boolean).join(' · ') : '';
+  const where = previous ? `${n > 1 ? 'Ces séances viennent' : 'Cette séance vient'} de ton compte précédent${from ? ` (${from})` : ''}. ${n > 1 ? 'Les ajouter' : 'L\'ajouter'} à ce compte ?`
+    : !pending ? `${n > 1 ? 'Elles restent' : 'Elle reste'} sur l'autre compte.`
     : `${pending === n ? (n > 1 ? 'Elles' : 'Elle') : `${pending} d'entre elles`} ne ${pending > 1 ? 'sont' : 'est'} sauvegardée${s} nulle part ailleurs : les retirer les effacerait.`;
   const choice = await dialog({ type: 'sheet', title: 'Des séances sont déjà sur cet iPhone',
-    message: `Cet iPhone contient ${plural(n, 'séance', 'séances')} d'un autre compte. ${where}`,
+    message: previous ? `Cet iPhone contient ${plural(n, 'séance', 'séances')}. ${where}` : `Cet iPhone contient ${plural(n, 'séance', 'séances')} d'un autre compte. ${where}`,
     actions: [
       { label: 'Les ajouter à ce compte', value: 'add', style: 'preferred' },
       { label: 'Les retirer de cet iPhone', value: 'replace', style: 'destructive' },

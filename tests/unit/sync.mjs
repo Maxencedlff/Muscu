@@ -217,7 +217,7 @@ export default function ({ test, run, assert, sameJSON }) {
   const fakeIos = 'Native.account.available = true; globalThis.supabase = {}; account.ready = true;';
   const undoIos = 'Native.account.available = false; delete globalThis.supabase; account.ready = false; sb = null; account.user = null; delete data.lastAccount; localStorage.clear(); data.history = [];';
 
-  test('compte : session finie ailleurs (SIGNED_OUT sans déconnexion de l\'app) : état oublié, séances comptées, carte « session finie »', async () => {
+  test('compte : session finie hors de l\'app (SIGNED_OUT sans déconnexion de l\'app) : état gardé, séances comptées pour un autre compte, carte « session finie »', async () => {
     const r = await run(`(async () => {
       localStorage.clear();
       data.history = [{ id: 'a', date: 2, category: 'push', exercises: [] }, { id: 'b', date: 1, category: 'push', exercises: [] }];
@@ -228,7 +228,7 @@ export default function ({ test, run, assert, sameJSON }) {
       const before = accountPendingCount('A');
       account.user = { id: 'A' };
       onAuthEvent('SIGNED_OUT', null);              // compte supprimé, ou session révoquée ailleurs
-      const out = { before, after: accountPendingCount('A'), ended: localStorage.getItem('mdlf_session_ended'),
+      const out = { before, after: accountPendingCount('A'), ended: localStorage.getItem('mdlf_session_ended'), metaKept: !!localStorage.getItem('mdlf_sync_A'),
         owner: localStorage.getItem('mdlf_sync_owner'), info: accountReconnectInfo() };
       // Déconnexion demandée par l'app (annulation, autre compte) : pas une session finie
       localStorage.removeItem('mdlf_session_ended');
@@ -241,10 +241,158 @@ export default function ({ test, run, assert, sameJSON }) {
     try {
       assert.equal(r.before, 0, 'tout était sauvegardé');
       assert.equal(r.after, 2, 'session finie : plus rien n\'est compté comme sauvegardé (feuille de fusion : « nulle part ailleurs »)');
+      assert.equal(r.metaKept, true, 'état de synchro gardé (reconnexion au même compte)');
       assert.equal(r.ended, '1');
       assert.equal(r.owner, 'A', 'iPhone toujours rattaché : un autre compte verra le choix de fusion');
       assert.equal(r.info?.ended, true, 'carte « Ta session a pris fin »');
       assert.equal(r.endedLocal, null, 'déconnexion locale : pas de « session finie »');
+    } finally { run(undoIos); }
+  });
+
+  // Faux client supabase pour finishSignIn, syncNow et discardNewAccount : requêtes chaînées, séances du
+  // compte dans srv.rows, lignes envoyées dans srv.sent, pseudo du compte dans srv.username
+  const fakeSb = `
+    globalThis.srv = { rows: [], sent: [], username: null, deleted: 0 };
+    syncHoldUntil = 0;   // délai d'un import laissé par un test précédent
+    sb = {
+      auth: { signOut: async () => ({ error: null }) },
+      functions: { invoke: async () => { srv.deleted++; return { data: { deleted: true }, error: null }; } },
+      from: table => {
+        const q = { table, op: 'select' };
+        const chain = new Proxy({}, { get: (_, m) => {
+          if (m === 'then') return (ok, ko) => Promise.resolve((() => {
+            if (q.op === 'upsert') { if (table === 'sessions') srv.sent.push(...q.patch); return { data: { updated_at: new Date().toISOString() }, error: null }; }
+            if (table === 'sessions') return { data: srv.rows, error: null };
+            if (table === 'user_profiles') return { data: srv.username ? { username: srv.username } : null, error: null };
+            return { data: null, error: null };
+          })()).then(ok, ko);
+          return (...args) => { if (m === 'upsert') { q.op = 'upsert'; q.patch = args[0]; } return chain; };
+        } });
+        return chain;
+      },
+    };`;
+  const oldUser = id => ({ id, created_at: '2026-01-01T00:00:00Z', identities: [] });
+  const freshUser = id => ({ id, created_at: new Date().toISOString(), identities: [] });
+  const twoSessions = `data.history = [{ id: 'a', date: 2, category: 'push', exercises: [{ name: 'Squat', sets: [{ weight: '60', reps: '8' }] }] },
+    { id: 'b', date: 1, category: 'pull', exercises: [] }];`;
+  // Compte A à jour sur le serveur et sur l'iPhone (état de synchro complet)
+  const syncedWithA = `${twoSessions}
+    localStorage.setItem('mdlf_sync_owner', 'A');
+    srv.rows = data.history.map(h => ({ id: h.id, data: JSON.parse(JSON.stringify(sessionPayload(h))), deleted_at: null, updated_at: '2026-10-20T10:00:00Z' }));
+    localStorage.setItem('mdlf_sync_A', JSON.stringify({ userId: 'A', cursor: '2026-10-20T10:00:00Z', profileHash: null,
+      pushed: Object.fromEntries(data.history.map(h => [h.id, syncHash(sessionPayload(h))])) }));`;
+
+  test('compte : session finie hors de l\'app puis reconnexion au MÊME compte : corrections et suppressions de l\'iPhone gardées et envoyées', async () => {
+    const r = await run(`(async () => {
+      localStorage.clear();
+      ${fakeIos}
+      ${fakeSb}
+      ${syncedWithA}
+      account.user = oldUser;
+      onAuthEvent('SIGNED_OUT', null);              // jeton refusé ou accès Apple révoqué : le compte existe encore
+      const metaKept = !!localStorage.getItem('mdlf_sync_A');
+      // Pendant ce temps, sur l'iPhone : « Modifier la séance » sur a, b supprimée
+      data.history[0].exercises[0].sets[0].reps = '10';
+      data.history = data.history.filter(h => h.id !== 'b');
+      const asked = [];
+      const res = await finishSignIn(async () => ({ data: { user: oldUser }, error: null }), async (...a) => { asked.push(a); return 'add'; }, 'apple');
+      return { metaKept, asked, ok: res.ok, history: data.history.map(h => [h.id, h.exercises[0]?.sets[0]?.reps]),
+        sent: srv.sent.map(x => [x.id, x.deleted_at ? 'supprimée' : x.data.exercises[0].sets[0].reps]),
+        ended: localStorage.getItem('mdlf_session_ended') };
+    })()`.replace('oldUser;', `${JSON.stringify(oldUser('A'))};`).replace('data: { user: oldUser }', `data: { user: ${JSON.stringify(oldUser('A'))} }`));
+    try {
+      sameJSON(r.history, [['a', '10']], 'correction gardée (pas écrasée par le compte), b pas revenue');
+      sameJSON(r.sent, [['a', '10'], ['b', 'supprimée']], 'la correction et la suppression partent au compte');
+      assert.equal(r.metaKept, true, 'état de synchro gardé à la fin de session');
+      sameJSON(r.asked, [], 'même compte : pas de feuille de fusion');
+      assert.equal(r.ok, true);
+      assert.equal(r.ended, null, 'carte « session finie » retirée');
+    } finally { run(undoIos); }
+  });
+
+  test('compte : compte supprimé, puis un NOUVEAU compte se connecte : séances « nulle part ailleurs », rien de supprimé', async () => {
+    const r = await run(`(async () => {
+      localStorage.clear();
+      ${fakeIos}
+      ${fakeSb}
+      ${syncedWithA}
+      account.user = { id: 'A' };
+      onAuthEvent('SIGNED_OUT', null);              // compte A supprimé sur un autre appareil
+      srv.rows = [];                                // nouveau compte : vide
+      const asked = [];
+      const res = await finishSignIn(async () => ({ data: { user: ${JSON.stringify(oldUser('N'))} }, error: null }), async (...a) => { asked.push(a); return 'add'; }, 'apple');
+      return { asked, ok: res.ok, sent: srv.sent.map(x => [x.id, !!x.deleted_at]), metaA: localStorage.getItem('mdlf_sync_A'),
+        owner: localStorage.getItem('mdlf_sync_owner') };
+    })()`);
+    try {
+      sameJSON(r.asked, [[2, 2, null]], 'feuille de fusion : les 2 séances comptées « nulle part ailleurs »');
+      assert.equal(r.ok, true);
+      sameJSON(r.sent, [['a', false], ['b', false]], 'ajoutées au nouveau compte, aucune suppression');
+      assert.equal(r.metaA, null, 'état de l\'ancien compte effacé au changement de compte');
+      assert.equal(r.owner, 'N');
+    } finally { run(undoIos); }
+  });
+
+  test('compte : « Annuler ce compte » rend l\'état de synchro de l\'ancien compte après « Les ajouter », jamais après « Les retirer »', async () => {
+    const r = await run(`(async () => {
+      const out = {};
+      for (const choice of ['add', 'replace']) {
+        localStorage.clear();
+        ${fakeIos}
+        ${fakeSb}
+        ${syncedWithA}
+        const before = localStorage.getItem('mdlf_sync_A');
+        // « Les retirer de cet iPhone » : l'écran a vidé l'appareil (keepOnlyDeviceSettings)
+        const askMerge = async () => { if (choice === 'replace') data.history = []; return choice; };
+        await finishSignIn(async () => ({ data: { user: ${JSON.stringify(freshUser('N'))} }, error: null }), askMerge, 'google');
+        srv.rows = srv.sent.map(x => ({ ...x }));   // ce que le compte neuf a reçu (rien qui manque ici)
+        const cancel = await accountCancelNewAccount();
+        out[choice] = { cancel: cancel.ok, same: localStorage.getItem('mdlf_sync_A') === before, meta: localStorage.getItem('mdlf_sync_A'),
+          owner: localStorage.getItem('mdlf_sync_owner'), deletes: planSessionPush(data.history, loadSyncMeta('A')).deletes };
+      }
+      return out;
+    })()`);
+    try {
+      assert.equal(r.add.cancel, true);
+      assert.equal(r.add.same, true, '« add » puis annuler : état de A rendu tel quel');
+      assert.equal(r.add.owner, 'A');
+      sameJSON(r.add.deletes, [], 'reconnexion à A : aucune suppression');
+      assert.equal(r.replace.cancel, true);
+      assert.equal(r.replace.meta, null, '« replace » puis annuler : état de A pas rendu');
+      sameJSON(r.replace.deletes, [], 'appareil vidé : aucune suppression envoyée à A à la reconnexion');
+    } finally { run(undoIos); }
+  });
+
+  test('compte : copie iCloud seule (data.lastAccount, sans rattachement) : un AUTRE compte voit la feuille neutre, le même non', async () => {
+    const same = (last, o) => call('sameLastAccount(last, o)', { last, o });
+    const apple = { method: 'apple', username: 'max.dlf' };
+    assert.equal(same(apple, { method: 'apple', username: 'max.dlf', justCreated: false }), true, 'même moyen, même pseudo');
+    assert.equal(same(apple, { method: 'apple', username: 'autre', justCreated: false }), false, 'autre pseudo');
+    assert.equal(same(apple, { method: 'apple', username: null, justCreated: false }), false, 'compte sans pseudo : pas max.dlf');
+    assert.equal(same(apple, { method: 'apple', username: undefined, justCreated: false }), true, 'pseudo illisible (hors ligne) : moyen et âge décident');
+    assert.equal(same(apple, { method: 'apple', username: undefined, justCreated: true }), false, 'compte tout juste créé : jamais l\'ancien');
+    assert.equal(same(apple, { method: 'google', username: 'max.dlf', justCreated: false }), false, 'autre moyen');
+    assert.equal(same({ method: 'email', username: null }, { method: 'email', username: 'x.y', justCreated: false }), true, 'pseudo d\'avant inconnu : même moyen');
+    const r = await run(`(async () => {
+      const out = {};
+      for (const [name, user, method, username] of [['autre', ${JSON.stringify(oldUser('G'))}, 'google', 'max.dlf'],
+          ['même', ${JSON.stringify(oldUser('P'))}, 'apple', 'max.dlf'], ['neuf', ${JSON.stringify(freshUser('Q'))}, 'apple', null]]) {
+        localStorage.clear();
+        ${fakeIos}
+        ${fakeSb}
+        ${twoSessions}
+        data.lastAccount = { method: 'apple', username: 'max.dlf' };
+        srv.username = username;
+        const asked = [];
+        await finishSignIn(async () => ({ data: { user }, error: null }), async (...a) => { asked.push(a); return 'add'; }, method);
+        out[name] = asked;
+      }
+      return out;
+    })()`);
+    try {
+      sameJSON(r['autre'], [[2, null, { method: 'apple', username: 'max.dlf' }]], 'autre compte : feuille neutre (compte précédent nommé)');
+      sameJSON(r['même'], [], 'même moyen et même pseudo : pas de feuille');
+      sameJSON(r['neuf'], [[2, null, { method: 'apple', username: 'max.dlf' }]], 'même moyen mais compte tout neuf : feuille');
     } finally { run(undoIos); }
   });
 

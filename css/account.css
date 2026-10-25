@@ -67,6 +67,8 @@
    avec l'action d'annulation du compte */
 .auth__notice { margin: 14px 0 0; padding: 12px 14px 2px; border-radius: var(--r-md); background: var(--cell); color: var(--label); font-size: var(--fs-subhead); line-height: 1.4; text-align: left; }
 .auth__notice p { margin: 0; text-wrap: pretty; }
+/* Message seul (annulation refusée, sans bouton dessous) */
+.auth__notice--alone { padding-bottom: 12px; }
 .auth__notice-btn {
   display: block; width: 100%; min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
   color: var(--tint); font: inherit; font-weight: 600; text-align: left;
@@ -239,12 +241,14 @@
 }
 .account-card__close::before { content: ''; position: absolute; width: 26px; height: 26px; border-radius: 50%; background: var(--fill2); }
 .account-card__close .icon { position: relative; }
-/* Reconnexion (et toute carte sur iPhone SE ou mini, où titre et action ne tiennent pas côte à côte) :
-   titre sur la largeur avec la croix, action dessous, alignée à gauche */
-.account-card--reconnect { display: grid; grid-template-columns: 1fr auto; align-items: start; column-gap: 4px; padding-top: 12px; padding-bottom: 2px; }
-.account-card--reconnect .account-card__text { grid-column: 1; grid-row: 1; padding-top: 2px; }
-.account-card--reconnect .account-card__close { grid-column: 2; grid-row: 1; margin-top: -9px; }
-.account-card--reconnect .account-card__btn { grid-column: 1 / -1; grid-row: 2; justify-self: start; padding: 0; }
+/* Reconnexion : titre sur la largeur, action dessous, alignée à gauche. La croix (44 pt de zone, cercle
+   de 26) en haut à droite par-dessus le texte, qui ne lui laisse que la place du cercle : « Reprends ta
+   sauvegarde » sur une ligne même sur un iPhone SE (sélecteur doublé : prime sur la règle du SE ci-dessous) */
+.account-card.account-card--reconnect { column-gap: 0; position: relative; display: grid; grid-template-columns: 1fr; align-items: start; padding-top: 12px; padding-bottom: 2px; }
+.account-card--reconnect .account-card__text { grid-row: 1; padding-top: 2px; padding-right: 30px; }
+.account-card--reconnect .account-card__close { position: absolute; top: 3px; right: 2px; margin-top: 0; }
+.account-card--reconnect .account-card__btn { grid-row: 2; justify-self: start; padding: 0; }
+/* Toute autre carte sur iPhone SE ou mini (titre et action ne tiennent pas côte à côte) : même disposition */
 @media (max-width: 374px) {
   .account-card { display: grid; grid-template-columns: 1fr auto; align-items: start; column-gap: 4px; padding-top: 12px; padding-bottom: 2px; }
   .account-card__text { grid-column: 1; grid-row: 1; padding-top: 2px; }

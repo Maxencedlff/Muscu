@@ -19,6 +19,7 @@ const flow = {
   root: null, steps: [], mode: 'signin', closable: true, resolve: null,
   email: '', sentAt: 0, busy: false, tick: null, first: false,   // first : pseudo d'un compte tout neuf
   notice: '',                                                      // avertissement « Nouveau compte créé » (newAccountNotice)
+  cancelExpired: false,                                            // « Me reconnecter autrement » refusé (compte de plus de 10 min)
   resent: false,                                                   // code renvoyé : seul le dernier est valable
   badCode: '',                                                     // code refusé, gardé dans le champ (curseur à la fin, la saisie suivante le remplace)
   username: '', avatar: null, checkTimer: null, checkSeq: 0,
@@ -27,7 +28,7 @@ const flow = {
 function openAuthFlow({ step = 'welcome', mode = 'signin', closable = true, email = '', sentAt = 0, resume = null } = {}) {
   if (flow.root) closeAuthFlow(null);
   if (resume) ({ email, sentAt } = resume);
-  Object.assign(flow, { steps: [], mode, closable, email, sentAt, busy: false, first: false, notice: '', resent: false, badCode: '',
+  Object.assign(flow, { steps: [], mode, closable, email, sentAt, busy: false, first: false, notice: '', cancelExpired: false, resent: false, badCode: '',
     username: account.profile?.username || '', avatar: validAvatar(account.profile?.avatar) });
   const root = document.createElement('div');
   root.className = 'auth';
@@ -143,7 +144,8 @@ const AUTH_STEPS = {
       </button>
       <h1 class="auth__title" id="authTitle" tabindex="-1">${flow.first ? 'Choisis ton pseudo' : 'Pseudo'}</h1>
       <p class="auth__lead">Il servira quand tu pourras ajouter des amis. Pour l'instant, toi seul le vois.</p>
-      ${flow.first && flow.notice ? `<div class="auth__notice" role="note"><p>${esc(flow.notice)}</p>
+      ${flow.first && flow.cancelExpired ? cancelExpiredHtml()
+        : flow.first && flow.notice ? `<div class="auth__notice" role="note"><p>${esc(flow.notice)}</p>
         <button class="auth__notice-btn" data-action="auth-cancel-account">Me reconnecter autrement</button></div>` : ''}
       <form class="auth__form" data-form="username" novalidate>
         <label class="visually-hidden" for="authUsername">Pseudo</label>
@@ -155,7 +157,7 @@ const AUTH_STEPS = {
         <button class="btn btn--primary auth__primary" type="submit" data-role="save" ${next || !valid ? 'disabled' : ''}>${flow.first ? 'Continuer' : 'Enregistrer'}</button>
       </form>
       ${flow.first ? '<button class="auth__skip" data-action="auth-later">Plus tard</button>' : ''}
-      ${flow.first && !flow.notice ? `<p class="auth__again auth__again--link">Tu avais déjà un compte ? <button class="link-inline auth__again-btn" data-action="auth-cancel-account">Reconnecte-toi</button></p>` : ''}`;
+      ${flow.first && !flow.notice && !flow.cancelExpired ? `<p class="auth__again auth__again--link">Tu avais déjà un compte ? <button class="link-inline auth__again-btn" data-action="auth-cancel-account">Reconnecte-toi</button></p>` : ''}`;
   },
 
   avatar: () => `
@@ -166,6 +168,13 @@ const AUTH_STEPS = {
       </div>
       <p class="auth__error" id="authError" role="alert"></p>`,
 };
+
+// Annulation refusée (compte de plus de 10 min) : seul ce message reste, à la place de « Nouveau
+// compte créé. Déjà un compte ? » et de son bouton (qui ne peut plus rien faire)
+const CANCEL_EXPIRED_TEXT = 'Ce nouveau compte (vide) a plus de 10 minutes : supprime-le dans Réglages › Compte › Supprimer mon compte. Ton ancien compte n\'est pas touché.';
+function cancelExpiredHtml() {
+  return `<div class="auth__notice auth__notice--alone" role="alert"><p>${esc(CANCEL_EXPIRED_TEXT)}</p></div>`;
+}
 
 // Code demandé (connexion) : gardé 10 min pour rouvrir l'écran du code si iOS ferme l'app
 function rememberPendingCode() {
@@ -452,11 +461,18 @@ registerActions({
     const r = await accountCancelNewAccount();
     setBusy(false);
     if (!flow.root) return;
+    if (!r.ok && r.reason === 'expired') {
+      // Le message remplace l'avertissement et son bouton (même place, sans redessiner : saisie gardée)
+      flow.cancelExpired = true;
+      flow.root.querySelectorAll('.auth__notice, .auth__again--link').forEach(n => n.remove());
+      flow.root.querySelector('.auth__form[data-form="username"]')?.insertAdjacentHTML('beforebegin', cancelExpiredHtml());
+      haptic('medium');
+      return;
+    }
     if (!r.ok) {
       el.disabled = false;
       const status = flow.root.querySelector('#authUsernameStatus');
       status.textContent = r.reason === 'kept' ? 'Ce compte contient déjà des données : il est gardé. Tu peux te déconnecter dans Réglages › Compte.'
-        : r.reason === 'expired' ? 'Ce compte a plus de 10 minutes : supprime-le dans Réglages › Compte › Supprimer mon compte.'
         : navigator.onLine === false ? authErrorText('offline') : 'Annulation impossible pour l\'instant, réessaie dans un moment.';
       status.className = 'auth__status auth__status--bad';
       haptic('medium');
@@ -467,7 +483,7 @@ registerActions({
       // Retour aux moyens de connexion (Bienvenue, avec « Commencer sans compte ») ; depuis l'écran
       // Compte, il les montre déjà. Aucun choix fait : Bienvenue revient si l'app est fermée ici.
       try { localStorage.removeItem(WELCOME_SEEN_KEY); } catch { /* rien */ }
-      Object.assign(flow, { steps: [], first: false, notice: '', closable: false, username: '', avatar: DEFAULT_AVATAR });
+      Object.assign(flow, { steps: [], first: false, notice: '', cancelExpired: false, closable: false, username: '', avatar: DEFAULT_AVATAR });
       authGo('welcome');
     } else closeAuthFlow(null);
     showToast('Compte annulé. Reconnecte-toi avec le même moyen qu\'avant');

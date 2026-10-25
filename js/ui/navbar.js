@@ -69,7 +69,7 @@ function navBar({ title = '', large, back, left = '', right = '', sub = '', extr
   if (back === undefined && !isRoot && !left) back = routeTitle(s[s.length - 2], s.length - 2 === 0);
   const backBtn = back ? `
     <button class="navbar__back" data-action="back" aria-label="Retour : ${esc(back)}">
-      ${icon('chevron.left', 22)}<span class="navbar__back-label">${esc(back)}</span>
+      ${icon('chevron.left', 22)}<span class="navbar__back-label" data-full="${esc(back)}">${esc(back)}</span>
     </button>` : left;
   return `
     <header class="navbar ${large ? 'navbar--large' : 'navbar--compact'}">
@@ -83,27 +83,47 @@ function navBar({ title = '', large, back, left = '', right = '', sub = '', extr
     ${large ? `<div class="navbar__largewrap"><h1 class="t-large navbar__large">${largeTitle}</h1>${sub}</div>` : ''}`;
 }
 
-// Bouton retour : une seule règle partout (barres de l'app, parcours de connexion js/features/auth-flow.js).
-// Libellé seulement s'il tient en entier ET laisse au moins BACK_LABEL_GAP pt avant le titre centré ;
-// sinon chevron seul, comme iOS (« ‹ Entraîn… Réglages » sur un iPhone SE). L'aria-label du bouton
-// garde le nom de l'écran. Barre sans titre (connexion) : le libellé reste.
+// Bouton retour : une seule règle partout (barres de l'app, parcours de connexion js/features/auth-flow.js),
+// celle de la barre de navigation d'iOS. Titre de l'écran précédent s'il tient en entier ET laisse au
+// moins BACK_LABEL_GAP pt avant le titre centré ; sinon « Retour » (« ‹ Entraînement » touche presque
+// « Compte » sur un iPhone 13) ; sinon chevron seul (iPhone SE étroit). L'aria-label du bouton garde le
+// nom de l'écran. Barre sans titre (connexion) : le libellé reste.
+// Mesure refaite après la mise en page (image suivante), au changement de taille et une fois les
+// polices chargées : une mesure prise trop tôt (boîtes vides) donnait le chevron seul à tort.
 const BACK_LABEL_GAP = 16;
-function fitBackLabel(scope = document) {
+const BACK_FALLBACK = 'Retour';
+function backLabelFits(btn, label) {
+  if (label.scrollWidth > label.clientWidth + 1) return false;
+  const title = btn.closest('.navbar__bar, .auth__bar')?.querySelector('.navbar__title');
+  if (!title?.textContent.trim()) return true;
+  // Bord gauche du texte du titre (pas de sa boîte) ; bord droit du libellé en entier
+  const range = document.createRange();
+  range.selectNodeContents(title);
+  return range.getBoundingClientRect().left - (label.getBoundingClientRect().left + label.scrollWidth) >= BACK_LABEL_GAP;
+}
+function fitBackLabelNow(scope = document) {
   scope.querySelectorAll('.navbar__back').forEach(btn => {
     const label = btn.querySelector('.navbar__back-label');
     if (!label) return;
+    // Bouton hors de la page affichée (calque fermé, écran en train de partir) : rien à mesurer
+    if (!btn.getClientRects().length) return;
     btn.classList.remove('navbar__back--icon');
-    let gap = Infinity;
-    const title = btn.closest('.navbar__bar, .auth__bar')?.querySelector('.navbar__title');
-    if (title?.textContent.trim()) {
-      // Bord gauche du texte du titre (pas de sa boîte) ; bord droit du libellé en entier
-      const range = document.createRange();
-      range.selectNodeContents(title);
-      gap = range.getBoundingClientRect().left - (label.getBoundingClientRect().left + label.scrollWidth);
+    const full = label.dataset.full || label.textContent;
+    for (const text of full === BACK_FALLBACK ? [full] : [full, BACK_FALLBACK]) {
+      if (label.textContent !== text) label.textContent = text;
+      if (backLabelFits(btn, label)) return;
     }
-    if (label.scrollWidth > label.clientWidth + 1 || gap < BACK_LABEL_GAP) btn.classList.add('navbar__back--icon');
+    btn.classList.add('navbar__back--icon');
   });
 }
+let backFitFrame = 0;
+function fitBackLabel(scope = document) {
+  fitBackLabelNow(scope);
+  cancelAnimationFrame(backFitFrame);
+  backFitFrame = requestAnimationFrame(() => fitBackLabelNow());   // toute la page (app et calque)
+}
+window.addEventListener('resize', () => fitBackLabel());
+document.fonts?.ready.then(() => fitBackLabel());
 
 // Libellé du bouton retour vers une route de la pile
 function routeTitle(route, isRoot) {

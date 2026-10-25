@@ -61,7 +61,8 @@ def age_session(page, seconds=3600):
 
 NEW_ACCOUNT_NOTICE = 'Nouveau compte créé. Déjà un compte ?'
 LAST_CODE_ONLY = 'Seul le code du dernier e-mail envoyé est valable (regarde l\'heure).'
-SESSION_ENDED = 'Compte supprimé ou déconnecté sur un autre appareil. Tes séances sont sur cet iPhone.'
+SESSION_ENDED = 'Tu as été déconnecté : ton compte a été supprimé ou ta connexion a expiré. Tes séances sont toujours sur cet iPhone.'
+CANCEL_EXPIRED = 'Ce nouveau compte (vide) a plus de 10 minutes : supprime-le dans Réglages › Compte › Supprimer mon compte. Ton ancien compte n\'est pas touché.'
 OWNER_1 = '00000000-0000-0000-0000-000000000002'   # premier compte créé par le faux serveur (1 : son identité)
 
 
@@ -584,7 +585,8 @@ def t_reconnect(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         card = page.locator('.account-card')
         txt = card.inner_text() if card.count() else ''
-        R.check('Reconnecte-toi pour reprendre la sauvegarde' in txt and 'Tu étais connecté avec Apple · max.dlf' in txt, f'{t} carte de reconnexion {txt!r}')
+        R.check('Reprends ta sauvegarde' in txt and 'Tu étais connecté avec Apple · max.dlf' in txt, f'{t} carte de reconnexion {txt!r}')
+        R.check(lines(page, '.account-card__title') == 1, f'{t} titre de la carte sur une ligne')
         R.check(small_targets(page, '.account-card button') == 0, f'{t} reconnexion : cibles de 44 pt')
         R.check(in_view(page, '.hero__btn'), f'{t} reconnexion : « Démarrer » visible')
         shot(page, LOT, f'6b-carte-reconnexion-{t}')
@@ -670,8 +672,12 @@ def t_second_account(bench, eng, dev, theme):
         page.evaluate("account.user.created_at = new Date(Date.now() - 11 * 60_000).toISOString()")
         page.click('[data-action="auth-cancel-account"]')
         page.wait_for_timeout(500)
-        st = page.locator('#authUsernameStatus').inner_text()
-        R.check(st == 'Ce compte a plus de 10 minutes : supprime-le dans Réglages › Compte › Supprimer mon compte.', f'{t} annulation après 10 min : {st!r}')
+        notice = page.locator('.auth__notice')
+        txt = notice.inner_text().strip() if notice.count() == 1 else ''
+        R.check(txt == CANCEL_EXPIRED, f'{t} annulation après 10 min : {txt!r}')
+        R.check(page.locator('.auth__notice button, .auth__again--link, [data-action="auth-cancel-account"]').count() == 0 and NEW_ACCOUNT_NOTICE not in page.inner_text('.auth'),
+                f'{t} annulation après 10 min : plus de « Nouveau compte créé » ni de « Me reconnecter autrement »')
+        R.check(not overflowing(page), f'{t} aucun texte coupé {overflowing(page)}')
         R.check(calls(page, 'invoke') == [] and page.evaluate('!!account.user'), f'{t} rien de supprimé, toujours connecté')
         shot(page, LOT, f'4d-annuler-expire-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -697,8 +703,8 @@ def t_second_account(bench, eng, dev, theme):
 
 
 def t_session_ended(bench, eng, dev, theme):
-    """Compte supprimé ou session révoquée ailleurs : carte « Ta session a pris fin », puis la feuille de fusion
-    d'un autre compte dit que les séances ne sont nulle part ailleurs."""
+    """Compte supprimé sur un autre appareil : carte « Ta session a pris fin » qui nomme le moyen d'avant, puis
+    la reconnexion crée un autre compte et la feuille de fusion dit que les séances ne sont nulle part ailleurs."""
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'}, opts={'oldAccounts': True})
@@ -708,30 +714,147 @@ def t_session_ended(bench, eng, dev, theme):
         page.wait_for_timeout(700)
         uid = page.evaluate('account.user.id')
         R.check(page.evaluate('accountPendingCount(account.user.id)') == 0, f'{t} tout est sauvegardé')
-        page.evaluate("document.querySelector('.toast')?.remove(); __sb.endSession()")
+        page.evaluate("document.querySelector('.toast')?.remove(); delete __sb.users[account.user.id]; __sb.endSession()")
         page.wait_for_timeout(300)
-        R.check(page.evaluate('account.user') is None and ls(page, 'mdlf_session_ended') == '1' and ls(page, 'mdlf_sync_owner') == uid, f'{t} session finie ailleurs : retenue, iPhone toujours rattaché')
+        R.check(page.evaluate('account.user') is None and ls(page, 'mdlf_session_ended') == '1' and ls(page, 'mdlf_sync_owner') == uid, f'{t} session finie hors de l\'app : retenue, iPhone toujours rattaché')
+        R.check(ls(page, f'mdlf_sync_{uid}') is not None, f'{t} état de synchro gardé (reconnexion au même compte possible)')
         R.check(ls(page, 'mdlf_signed_out') is None, f'{t} pas une déconnexion voulue')
         page.click('[data-action="back"]')
         page.wait_for_selector('.account-card')
         card = page.locator('.account-card').inner_text()
-        R.check('Ta session a pris fin' in card and SESSION_ENDED in card and 'Se connecter' in card, f'{t} carte « Ta session a pris fin » {card!r}')
+        R.check('Ta session a pris fin' in card and SESSION_ENDED in card and 'Tu étais connecté avec Apple' in card, f'{t} carte « Ta session a pris fin » {card!r}')
+        R.check(page.locator('.account-card [data-action="account-reconnect"]').inner_text().strip() == 'Me reconnecter avec Apple', f'{t} carte : « Me reconnecter avec Apple »')
+        R.check('autre appareil' not in card, f'{t} carte : pas de « déconnecté sur un autre appareil »')
         R.check(small_targets(page, '.account-card button') == 0, f'{t} carte : cibles de 44 pt')
+        R.check(in_view(page, '.hero__btn'), f'{t} carte : « Démarrer » visible')
         shot(page, LOT, f'6d-carte-session-finie-{t}')
-        page.click('.account-card [data-action="go-account"]')
+        page.evaluate("navigate('account')")
         page.wait_for_selector('.account-view')
-        R.check('Ta session a pris fin' in page.inner_text('.account-hero'), f'{t} écran Compte : session finie')
+        hero = page.inner_text('.account-hero')
+        R.check('Ta session a pris fin' in hero and SESSION_ENDED in hero and 'Tu étais connecté avec Apple' in hero, f'{t} écran Compte : session finie, moyen d\'avant {hero!r}')
         R.check(above_tabbar(page, '.account-view .auth-btn--mail'), f'{t} moyens visibles au-dessus de la barre d\'onglets')
         shot(page, LOT, f'7c-compte-session-finie-{t}')
-        # Un autre compte se connecte : les séances ne sont plus comptées comme sauvegardées
-        page.click('.account-view .auth-btn--google')
-        page.wait_for_timeout(500)
+        page.click('[data-action="back"]')
+        page.wait_for_selector('.account-card')
+        # Compte supprimé : Apple crée un autre compte, les séances ne sont plus comptées comme sauvegardées
+        page.click('.account-card [data-action="account-reconnect"]')
+        page.wait_for_selector('.ios-dialog')
         txt = page.inner_text('.ios-dialog')
         R.check('sauvegardées nulle part ailleurs' in txt and 'restent sur l\'autre compte' not in txt, f'{t} fusion : « nulle part ailleurs » {txt!r}')
         shot(page, LOT, f'12c-fusion-session-finie-{t}')
+        page.evaluate('__sb.upserted = []')
         tap_dialog(page, 'Les ajouter à ce compte')
-        page.wait_for_timeout(600)
-        R.check(page.evaluate('!!account.user') and ls(page, 'mdlf_session_ended') is None, f'{t} reconnecté : carte retirée')
+        page.wait_for_timeout(700)
+        R.check(page.evaluate('account.user?.id') not in (None, uid) and ls(page, 'mdlf_session_ended') is None, f'{t} nouveau compte : carte retirée')
+        up = page.evaluate('__sb.upserted.filter(r => r.data && r.data.exercises)')
+        n = page.evaluate('data.history.length')
+        R.check(len(up) == n and not any(r['deleted_at'] for r in up), f'{t} toutes les séances ajoutées au nouveau compte, aucune suppression ({len(up)}/{n})')
+        R.check(ls(page, f'mdlf_sync_{uid}') is None, f'{t} état du compte supprimé effacé')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_session_ended_same_account(bench, eng, dev, theme):
+    """Connexion expirée (le compte existe encore) puis « Me reconnecter avec Apple » : même compte, rien
+    d'écrasé ; la séance corrigée sur l'iPhone et celle supprimée ici partent au compte."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'}, opts={'oldAccounts': True})
+        page.evaluate("""__sb.remoteRows = data.history.map(h => ({ id: h.id, data: JSON.parse(JSON.stringify(sessionPayload(h))), deleted_at: null, updated_at: new Date().toISOString() }))""")
+        page.evaluate("navigate('account')")
+        page.wait_for_selector('.account-view')
+        page.click('.account-view .auth-btn--apple')
+        page.wait_for_timeout(800)
+        uid = page.evaluate('account.user.id')
+        R.check(not page.evaluate('__sb.upserted || []'), f'{t} tout était déjà sur le compte')
+        page.evaluate("document.querySelector('.toast')?.remove(); __sb.endSession()")
+        page.wait_for_timeout(300)
+        # Pendant ce temps, sur l'iPhone : une séance corrigée, une autre supprimée
+        fixed, gone = page.evaluate("""() => { const h = data.history[0]; h.exercises[0].sets[0].reps = '99';
+            const gone = data.history[1].id; data.history.splice(1, 1); save(true); return [h.id, gone]; }""")
+        page.click('[data-action="back"]')
+        page.wait_for_selector('.account-card [data-action="account-reconnect"]')
+        page.click('.account-card [data-action="account-reconnect"]')
+        page.wait_for_timeout(900)
+        R.check(page.evaluate('account.user?.id') == uid and page.locator('.ios-dialog').count() == 0, f'{t} même compte, pas de feuille de fusion')
+        local = page.evaluate("""([f, g]) => ({ reps: data.history.find(h => h.id === f)?.exercises[0].sets[0].reps, back: data.history.some(h => h.id === g) })""", [fixed, gone])
+        R.check(local['reps'] == '99', f'{t} correction gardée sur l\'iPhone (pas écrasée par le compte) {local}')
+        R.check(not local['back'], f'{t} séance supprimée ici : pas revenue')
+        up = page.evaluate('__sb.upserted')
+        sent_fix = [r for r in up if r['id'] == fixed and not r['deleted_at']]
+        sent_del = [r for r in up if r['id'] == gone and r['deleted_at']]
+        R.check(sent_fix and sent_fix[-1]['data']['exercises'][0]['sets'][0]['reps'] == '99', f'{t} correction envoyée au compte')
+        R.check(sent_del and len(up) == 2, f'{t} suppression envoyée au compte, rien d\'autre ({len(up)} lignes)')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_cancel_restores_state(bench, eng, dev, theme):
+    """« Les ajouter à ce compte » puis « Me reconnecter autrement » : l'iPhone retrouve l'ancien compte avec son
+    état de synchro ; après « Les retirer de cet iPhone » (appareil vidé), l'état n'est pas rendu."""
+    t = tag(dev, theme)
+    cache = json.dumps({'userId': 'ancien-compte', 'method': 'apple', 'username': 'max.dlf', 'avatar': '🦊', 'changedAt': None, 'stored': True})
+    for choice, kept in (('Les ajouter à ce compte', True), ('Les retirer de cet iPhone', False)):
+        with bench.page(eng, dev, theme) as page:
+            open_app(page, theme, ppl_v2_today_json(), extra={'mdlf_sync_owner': 'ancien-compte', 'mdlf_profile': cache, 'ppl_welcome_seen': '1'})
+            meta = page.evaluate("""() => { const m = JSON.stringify({ userId: 'ancien-compte', cursor: '2026-10-20T10:00:00Z', profileHash: null, profileAt: null,
+                pushed: Object.fromEntries(data.history.map(h => [h.id, syncHash(sessionPayload(h))])) });
+                localStorage.setItem('mdlf_sync_ancien-compte', m); return m; }""")
+            page.evaluate("navigate('account')")
+            page.wait_for_selector('.account-view')
+            page.click('.account-view .auth-btn--google')
+            page.wait_for_selector('.ios-dialog')
+            tap_dialog(page, choice)
+            page.wait_for_selector('#authUsername')
+            page.wait_for_timeout(300)
+            R.check(ls(page, 'mdlf_sync_ancien-compte') is None, f'{t} {choice} : état de l\'ancien compte effacé pendant le nouveau')
+            page.click('[data-action="auth-cancel-account"]')
+            page.wait_for_timeout(700)
+            R.check(page.evaluate('account.user') is None and ls(page, 'mdlf_sync_owner') == 'ancien-compte', f'{t} {choice} puis annuler : ancien compte rendu')
+            got = ls(page, 'mdlf_sync_ancien-compte')
+            R.check((got == meta) if kept else (got is None), f'{t} {choice} puis annuler : état de synchro {"rendu" if kept else "pas rendu"}')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def back_info(page):
+    """Bouton retour de la barre : texte affiché, chevron seul, nom de l'écran, écart avec le titre."""
+    return page.evaluate("""() => { const b = document.querySelector('.navbar .navbar__back'); const l = b.querySelector('.navbar__back-label');
+        const t = b.closest('.navbar__bar').querySelector('.navbar__title'); const r = document.createRange(); r.selectNodeContents(t);
+        const lr = l.getBoundingClientRect();
+        return { text: l.textContent, icon: b.classList.contains('navbar__back--icon'), shown: lr.width > 0, cut: l.scrollWidth > l.clientWidth + 1,
+                 aria: b.getAttribute('aria-label'), gap: r.getBoundingClientRect().left - lr.right }; }""")
+
+
+def t_back_label(bench, eng, dev, theme):
+    """Écran Compte : bouton retour avec un libellé quel que soit le chemin (Réglages ou carte de l'accueil),
+    titre de l'écran précédent s'il tient (16 pt d'écart avec le titre), sinon « Retour » comme iOS."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), opts={'oldAccounts': True})
+        page.click('[data-action="go-settings"]')
+        page.wait_for_selector('.settings-view')
+        page.click('.account-cell')
+        page.wait_for_selector('.account-view')
+        page.wait_for_timeout(400)
+        b = back_info(page)
+        R.check(b['shown'] and not b['icon'] and not b['cut'] and b['gap'] >= 16 and b['text'] in ('Réglages', 'Retour'), f'{t} Réglages › Compte : libellé visible {b}')
+        if dev == 'iPhone 13':
+            R.check(b['text'] == 'Réglages', f'{t} iPhone 13 : « ‹ Réglages » {b}')
+        R.check(b['aria'] == 'Retour : Réglages', f'{t} nom de l\'écran précédent pour VoiceOver {b}')
+        shot(page, LOT, f'8-compte-depuis-reglages-{t}')
+        page.click('[data-action="back"]')
+        page.click('[data-action="back"]')
+        page.wait_for_selector('.account-card [data-action="go-account"]')
+        page.click('.account-card [data-action="go-account"]')
+        page.wait_for_selector('.account-view')
+        page.wait_for_timeout(400)
+        b = back_info(page)
+        R.check(b['shown'] and not b['icon'] and not b['cut'] and b['gap'] >= 16 and b['text'] in ('Entraînement', 'Retour'), f'{t} carte › Compte : libellé visible {b}')
+        R.check(b['aria'] == 'Retour : Entraînement', f'{t} carte › Compte : nom de l\'écran précédent pour VoiceOver {b}')
+        shot(page, LOT, f'8-compte-depuis-carte-{t}')
+        # Redessiné après la connexion (alerte et calque fermés) : toujours un libellé
+        page.click('.account-view .auth-btn--apple')
+        page.wait_for_timeout(900)
+        b = back_info(page)
+        R.check(b['shown'] and not b['icon'] and b['gap'] >= 16, f'{t} après la connexion : libellé visible {b}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -745,13 +868,39 @@ def t_icloud_only(bench, eng, dev, theme):
         open_app(page, theme, json.dumps(d), extra={'ppl_welcome_seen': '1'})
         page.wait_for_selector('.account-card')
         txt = page.locator('.account-card').inner_text()
-        R.check('Reconnecte-toi pour reprendre la sauvegarde' in txt and 'Tu étais connecté avec Google · max.dlf' in txt and 'Me reconnecter avec Google' in txt, f'{t} copie iCloud seule : carte de reconnexion {txt!r}')
+        R.check('Reprends ta sauvegarde' in txt and 'Tu étais connecté avec Google · max.dlf' in txt and 'Me reconnecter avec Google' in txt, f'{t} copie iCloud seule : carte de reconnexion {txt!r}')
+        R.check(lines(page, '.account-card__title') == 1, f'{t} titre de la carte sur une ligne')
         shot(page, LOT, f'6e-carte-copie-icloud-{t}')
         # Rien de cette clé ne part au serveur
         R.check(page.evaluate("!('lastAccount' in profilePayload(data)) && SYNC_LOCAL_ONLY.includes('lastAccount')"), f'{t} lastAccount jamais envoyé')
         page.click('[data-action="account-reconnect-close"]')
         page.wait_for_timeout(300)
         R.check('"signedOut":true' in ls(page, 'ppl_v2'), f'{t} carte fermée : retenu dans les données (copie iCloud)')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # Un AUTRE compte se connecte (Apple, la copie vient d'un compte Google) : feuille neutre, rien de promis
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, json.dumps(d), extra={'ppl_welcome_seen': '1'}, opts={'oldAccounts': True})
+        page.evaluate("navigate('account')")
+        page.wait_for_selector('.account-view')
+        page.click('.account-view .auth-btn--apple')
+        page.wait_for_selector('.ios-dialog')
+        txt = page.inner_text('.ios-dialog')
+        R.check('viennent de ton compte précédent (Google · max.dlf). Les ajouter à ce compte ?' in txt, f'{t} copie iCloud, autre compte : feuille neutre {txt!r}')
+        R.check('nulle part ailleurs' not in txt and 'restent sur l\'autre compte' not in txt, f'{t} copie iCloud : rien de promis')
+        shot(page, LOT, f'12d-fusion-copie-icloud-{t}')
+        tap_dialog(page, 'Les ajouter à ce compte')
+        page.wait_for_timeout(600)
+        R.check(page.evaluate('!!account.user') and page.evaluate('data.history.length') > 10, f'{t} séances gardées et ajoutées')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # Le MÊME compte (Google, même pseudo) : pas de feuille
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, json.dumps(d), extra={'ppl_welcome_seen': '1'}, opts={'oldAccounts': True})
+        page.evaluate("__sb.profiles['%s'] = { username: 'max.dlf', avatar_emoji: '🦊', username_changed_at: null }" % OWNER_1)
+        page.click('.account-card [data-action="account-reconnect"]')
+        page.wait_for_timeout(900)
+        R.check(page.evaluate('account.user?.id') == OWNER_1 and page.locator('.ios-dialog').count() == 0, f'{t} copie iCloud, même compte : pas de feuille')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -810,4 +959,5 @@ def t_pwa(bench, eng, dev, theme):
         R.check(page.locator('.account-cell').count() == 0, f'{t} PWA : pas de cellule compte')
 
 
-run_main(R, [t_welcome, t_code, t_restore, t_reconnect, t_second_account, t_session_ended, t_icloud_only, t_offline, t_avatar_refuse, t_compte, t_delete, t_securite_compte, t_pwa])
+run_main(R, [t_welcome, t_code, t_restore, t_reconnect, t_second_account, t_session_ended, t_session_ended_same_account,
+          t_cancel_restores_state, t_back_label, t_icloud_only, t_offline, t_avatar_refuse, t_compte, t_delete, t_securite_compte, t_pwa])
