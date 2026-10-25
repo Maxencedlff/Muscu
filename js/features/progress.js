@@ -29,7 +29,21 @@ function exPoint(h, e) {
   const maxLoad   = hasWeight ? Math.max(...wts) : 0;
   const best1RM   = hasWeight ? Math.max(0, ...sets.map(s => calc1RM(s.weight, s.reps)).filter(v => v !== null)) : 0;
   const maxReps   = Math.max(...sets.map(s => parseInt(s.reps) || 0));
-  return { date: h.date, hid: h.id, sets, hasWeight, totalReps, volume, maxLoad, best1RM, maxReps, best: bestSet(sets) };
+  return { date: h.date, hid: h.id, sets, hasWeight, totalReps, volume, maxLoad, best1RM, maxReps, best: bestSet(sets), ...cardioPoint(e, sets) };
+}
+
+// « 5,2 km · 27 min · 5:12 /km » : une séance de cardio en une ligne (séries additionnées)
+function cardioPointTxt(p, kind) {
+  return [p.dist > 0 ? `${fmtNum(p.dist)} km` : '', `${p.totalReps} min`, fmtPace(p.pace, kind)].filter(Boolean).join(' · ');
+}
+
+// Cardio : distance totale (km) et allure moyenne de la séance (minutes et km des séries qui ont les deux)
+function cardioPoint(e, sets) {
+  if (measureOf(e) !== 'cardio') return {};
+  const dist = sets.reduce((a, s) => a + (parseFloat(s.dist) || 0), 0);
+  const timed = sets.filter(s => parseFloat(s.dist) > 0);
+  const pace = cardioPace(dist, timed.reduce((a, s) => a + (parseInt(s.reps) || 0), 0), paceKind(e));
+  return { dist: Math.round(dist * 100) / 100, pace };
 }
 
 // Tous les exercices de l'historique, tous programmes confondus, regroupés par exId
@@ -42,7 +56,7 @@ function exerciseIndex() {
     if (!p) return;
     let it = map.get(key);
     if (!it) { it = { exId: key, name: e.name, points: [], cat: h.category, prog: h.programme || 'ppl' }; map.set(key, it); }
-    it.name = e.name; it.unit = MEASURES[measureOf(e)].unit; it.cat = h.category; it.prog = h.programme || 'ppl';
+    it.name = e.name; it.measure = measureOf(e); it.unit = MEASURES[it.measure].unit; it.cat = h.category; it.prog = h.programme || 'ppl';
     it.points.push(p);
   }));
   return map;
@@ -137,7 +151,7 @@ function statsRow(it) {
       <button class="cell cell--nav prow" data-action="open-stats-ex" data-ex="${esc(it.exId)}">
         <span class="cell__body">
           <span class="cell__title prow__name">${esc(it.name)}</span>
-          <span class="cell__sub num">${bw ? `${last.maxReps} ${it.unit || 'reps'}` : setTxt(last.best, { name: it.name })}</span>
+          <span class="cell__sub num">${it.measure === 'cardio' ? cardioPointTxt(last, paceKind(it)) : bw ? `${last.maxReps} ${it.unit || 'reps'}` : setTxt(last.best, { name: it.name })}</span>
         </span>
         <span class="prow__spark ${cls}">${sparkline(vals.slice(-12))}</span>
         <span class="prow__trend num ${cls}">${tp === null ? '' : pctTxt(tp)}</span>
@@ -193,6 +207,9 @@ registerActions({
   },
   'stats-mode': (e, el) => {
     statsMode = el.dataset.mode; render();
+  },
+  'stats-cardio-mode': (e, el) => {
+    cardioMode = el.dataset.mode; render();
   },
   'open-stats-ex': (e, el) => {
     navigate(makeRoute('stats-ex', el.dataset.ex));

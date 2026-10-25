@@ -219,12 +219,12 @@ function bestSet(sets, ex = null) {
   });
   return best;
 }
-// « 32,5 kg × 8 », ou « 8 reps » au poids du corps ; « 45 s », « 5 km · 30 min » selon la mesure
-// Second argument : l'exercice (mesure et lest / aide déduits) ou directement une mesure
+// « 32,5 kg × 8 », ou « 8 reps » au poids du corps ; « 45 s », « 5 km · 30 min · 6:00 /km » selon la mesure
+// Second argument : l'exercice (mesure, lest / aide et allure déduits) ou directement une mesure
 function setTxt(b, exOrMeasure = 'reps') {
   if (!b) return '';
   const ex = typeof exOrMeasure === 'object' ? exOrMeasure : null;
   const measure = ex ? measureOf(ex) : exOrMeasure;
-  if (measure !== 'reps' || (ex && loadKind(ex) !== 'charge')) return measureSetTxt(b, measure, ex ? loadKind(ex) : 'charge');
+  if (measure !== 'reps' || (ex && loadKind(ex) !== 'charge')) return measureSetTxt(b, measure, ex ? setKind(ex) : 'charge');
   return b.w > 0 ? `${fmtW(b.weight)} ${unitLbl()} × ${b.r}` : `${b.r} reps`;
 }

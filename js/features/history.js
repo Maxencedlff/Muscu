@@ -14,11 +14,27 @@ function historySorted() {
 function historyMatches(h, q) {
   if (histFilter !== 'all' && !(h.category === histFilter && (h.programme || 'ppl') === data.activeProgramme)) return false;
   if (!q) return true;
+  if (isHealthEntry(h)) return [h.health.title, h.health.source, h.exercises[0].name].some(t => normName(t).includes(q));
   if (normName(h.notes).includes(q)) return true;
   return (h.exercises || []).some(e => normName(e.name).includes(q));
 }
 
+// Course ou sortie vélo lue dans Santé : ligne non modifiable (ni détail, ni balayage pour supprimer)
+function healthHistoryCell(h) {
+  return `
+    <div class="hrow hrow--health" data-id="${esc(h.id)}">
+      <div class="hcell hcell--static">
+        <span class="hcell__dot hcell__dot--health" aria-hidden="true"></span>
+        <span class="hcell__body">
+          <span class="hcell__top"><span class="hcell__title">${esc(h.health.title)}</span><span class="hcell__date">${fmtDate(h.date)}</span></span>
+          <span class="hcell__sub num">${esc(healthEntryLine(h))}</span>
+        </span>
+      </div>
+    </div>`;
+}
+
 function historyCell(h) {
+  if (isHealthEntry(h)) return healthHistoryCell(h);
   const progId = h.programme || 'ppl';
   const meta   = sessionMeta(h.category, progId);
   const vol    = sessionVolume(h.exercises || [], entryBodyKg(h));
@@ -60,12 +76,13 @@ function historyByMonth(list) {
   return months;
 }
 
-// Liste chargée par paquets de mois (« Afficher plus » ajoute les 3 suivants)
+// Liste chargée par paquets de mois (« Afficher plus » ajoute les 3 suivants) ; les courses et sorties
+// vélo de Santé s'y mêlent à leur date (filtre « Toutes » seulement : elles n'appartiennent à aucune séance)
 function historyListHTML() {
   const q   = normName(histQuery);
-  const all = historySorted().filter(h => historyMatches(h, q));
+  const all = [...historySorted(), ...healthEntries()].sort((a, b) => b.date - a.date).filter(h => historyMatches(h, q));
   if (!all.length) {
-    return (data.history || []).length
+    return (data.history || []).length || healthEntries().length
       ? `<div class="empty-note">Aucune séance ne correspond.</div>`
       : `<div class="empty-note">Aucune séance enregistrée.<br>Termine ta première séance pour la voir ici.</div>`;
   }
@@ -101,10 +118,11 @@ function refreshHistoryList() {
 }
 
 // Séries d'un exercice : poids mis en facteur s'il ne change pas ; durée ou cardio série par série
-function setsLine(sets, measure = 'reps') {
+// (kind : setKind() de l'exercice, pour l'allure du cardio)
+function setsLine(sets, measure = 'reps', kind = 'charge') {
   const ok = (sets || []).filter(s => String(s.reps ?? '') !== '');
   if (!ok.length) return '—';
-  if (measure !== 'reps') return ok.map(s => esc(measureSetTxt(s, measure))).join(' · ');
+  if (measure !== 'reps') return ok.map(s => esc(measureSetTxt(s, measure, kind))).join(' · ');
   const ws = ok.map(s => parseFloat(s.weight) || 0);
   if (ws.every(w => w === 0)) return `${ok.map(s => esc(s.reps)).join(' · ')} reps`;
   if (ws.every(w => w === ws[0])) return `${fmtW(ok[0].weight)} ${unitLbl()} × ${ok.map(s => esc(s.reps)).join(' · ')}`;
@@ -142,7 +160,7 @@ function renderHistoryDetail(id) {
             <div class="cell hex">
               <span class="cell__body">
                 <span class="hex__name">${esc(e.name)}</span>
-                <span class="hex__sets num">${setsLine(e.sets, measureOf(e))}</span>
+                <span class="hex__sets num">${setsLine(e.sets, measureOf(e), setKind(e))}</span>
               </span>
             </div>`).join('')}
         </div>
@@ -201,7 +219,7 @@ function closeOpenRows(except) {
   document.querySelectorAll('.hrow.is-open').forEach(r => { if (r !== except) { r.classList.remove('is-open'); r.querySelector('.hcell').style.transform = ''; } });
 }
 document.addEventListener('pointerdown', e => {
-  const cell = e.target.closest?.('.hcell');
+  const cell = e.target.closest?.('.hcell:not(.hcell--static)');
   if (!cell || currentView() !== 'history') { if (!e.target.closest?.('.hrow__del')) closeOpenRows(); return; }
   const row = cell.parentElement;
   closeOpenRows(row);

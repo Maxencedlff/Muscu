@@ -84,7 +84,7 @@ Live Activity du repos, plus bas) :
 
 | Module | Côté web | Rôle |
 |---|---|---|
-| `HealthPlugin.swift` (`MdlfHealth`) | `Native.health.*` | Autorisation, entraînement « Musculation » (HKWorkoutBuilder, énergie active estimée), pesées des 90 derniers jours |
+| `HealthPlugin.swift` (`MdlfHealth`) | `Native.health.*` | Autorisation, entraînement « Musculation » (HKWorkoutBuilder, énergie active estimée), pesées des 90 derniers jours, courses et sorties vélo des 60 derniers jours (`workouts` : durée, distance, source, intérieur, `own` pour celles écrites par l'app) |
 | `MusicPlugin.swift` (`MdlfMusic`) | `Native.music.*` | Morceau en cours du lecteur Musique (titre, artiste, pochette), lecture, pause, suivant, précédent, événement `change` |
 
 - Réglages › Services Apple : interrupteurs `data.healthOn` / `data.musicOn` (désactivés par défaut,
@@ -92,6 +92,14 @@ Live Activity du repos, plus bas) :
 - Fin de séance : `syncWorkoutToHealth(entry)` envoie l'entraînement sans bloquer le bilan.
   Calories : MET 5 × dernier poids × durée (aucune estimation sans pesée).
 - Progrès : groupe « Poids corporel » (dernière pesée, tendance sur 30 jours, courbe).
+- Courses et sorties vélo (Apple Watch, Strava, Nike Run Club…) : lecture des entraînements `.running` et
+  `.cycling` et des distances `distanceWalkingRunning` / `distanceCycling` (build qui suit le 25/10/2026 ; une build
+  plus ancienne répond `UNIMPLEMENTED`, traité comme une liste vide). Relues dans Santé avec un cache en mémoire
+  de 5 minutes comme les pesées, **jamais copiées dans `data.history`** (copie iCloud et compte : règle 5.1.3) :
+  lignes « Course · 5,2 km · 27 min · 5:12 /km · Apple Watch » dans Historique (non modifiables) et
+  récupération des jambes sur l'accueil. Écartées : celles écrites par MDLF, les doublons (même sortie de
+  deux apps), une sortie déjà notée à la main le même jour. L'autorisation de lecture est demandée au
+  lancement suivant (`ensureHealthAuth`, iOS ne demande que les types nouveaux).
 - Séance : barre de lecture en haut, mise à jour par les notifications du lecteur.
 - Capacité HealthKit activée sur `com.mdlf.training` (le profil App Store la contient) ; Apple Music
   passe par MediaPlayer et l'autorisation « Médias et Apple Music », sans capacité ni clé.
@@ -306,5 +314,4 @@ cookies ni de pistage, contrastes, écrans de 8 téléphones et des pliables) es
 |---|---|---|
 | **Version payante** | Contrat « Paid Applications » + infos fiscales et bancaires (App Store Connect), Small Business Program (15 %) | Abonnement ou achat unique via StoreKit (RevenueCat simplifie la gestion des reçus) ; garder une partie gratuite |
 | **Notifications push** (rappels) | Clé APNs | Les rappels de séance peuvent rester en notifications locales, sans serveur |
-| **Courses dans l'historique** | Lecture des entraînements de course (et vélo) d'Apple Santé : autorisation HealthKit en lecture, nouvelle build | Pour les clients coureurs : séances de l'Apple Watch, Strava, Nike Run Club visibles et comptées pour la récupération des jambes ; afficher aussi l'allure (min/km) des exercices cardio |
 | **Mises à jour sans App Store** | Capacitor Live Updates (Appflow) ou équivalent | Seulement si les corrections web doivent arriver plus vite que la revue d'Apple |

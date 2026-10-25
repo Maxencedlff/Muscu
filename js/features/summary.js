@@ -35,7 +35,7 @@ function buildSummary(entry, baseline) {
     const rec = exerciseRecord(ex, baseline[ex.exId]);
     if (rec) records.push({ name: ex.name, label: rec.label, weight: rec.s.weight, reps: rec.s.reps });
     const b = summaryBestSet(ex.sets, ex), pb = summaryBestSet(pex?.sets, ex);
-    rows.push({ name: ex.name, weight: b.s.weight, reps: b.s.reps, dist: b.s.dist, measure: measureOf(ex), kind: loadKind(ex), trend: bestSetTrend(b, pb) });
+    rows.push({ name: ex.name, weight: b.s.weight, reps: b.s.reps, dist: b.s.dist, measure: measureOf(ex), kind: setKind(ex), trend: bestSetTrend(b, pb) });
   });
   return {
     id: entry.id, programme: entry.programme, category: entry.category, date: entry.date,

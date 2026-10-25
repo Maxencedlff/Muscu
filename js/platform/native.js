@@ -224,7 +224,7 @@ const Native = (() => {
       return false;
     },
 
-    // Apple Santé : autorisation, entraînement « Musculation », pesées (kg). Hors app : rien.
+    // Apple Santé : autorisation, entraînement « Musculation », pesées (kg), courses et sorties vélo. Hors app : rien.
     health: {
       async authorize() {
         if (!isNative) return { available: false, workouts: false };
@@ -239,6 +239,13 @@ const Native = (() => {
       async bodyMass(days = 90) {
         if (!isNative) return [];
         try { return (await Health.bodyMass({ days })).samples || []; } catch { return null; }
+      },
+      // Courses et sorties vélo des `days` derniers jours (Apple Watch, Strava…), la plus récente d'abord ;
+      // null si la lecture a échoué. Module d'une build antérieure (méthode absente) : liste vide.
+      async workouts(days = 60) {
+        if (!isNative) return [];
+        try { return (await Health.workouts({ days })).workouts || []; }
+        catch (e) { return e?.code === 'UNIMPLEMENTED' ? [] : null; }
       },
     },
 

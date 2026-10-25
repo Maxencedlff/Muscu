@@ -174,10 +174,14 @@ const EXERCISE_CATALOGUE = [
   ['Halo kettlebell',                  'front_delts side_delts', 'traps abs',   'kettlebell'],
   ['Thruster kettlebell',              'quads front_delts',      'glutes triceps', 'kettlebell'],
   ['Développé épaule kettlebell',      'front_delts side_delts', 'triceps',     'kettlebell'],
-  // Cardio : durée et distance (js/data/measures.js)
-  ['Course à pied',                    'quads calves',           'hamstrings glutes', 'cardio', 'running|footing|jogging|courir'],
-  ['Tapis de course',                  'quads calves',           'hamstrings glutes', 'cardio', 'tapis'],
-  ['Vélo',                             'quads',                  'calves glutes', 'cardio', 'vélo d\'appartement|bike|spinning'],
+  // Cardio : durée et distance (js/data/measures.js) ; course et vélo : allure en min/km ou km/h (paceKind),
+  // et nom des entraînements lus dans Santé (js/data/health-workouts.js)
+  ['Course à pied',                    'quads calves',           'hamstrings glutes', 'cardio', 'running|footing|jogging|courir|course extérieure'],
+  ['Tapis de course',                  'quads calves',           'hamstrings glutes', 'cardio', 'tapis|treadmill'],
+  ['Trail',                            'quads calves',           'hamstrings glutes', 'cardio', 'course en nature|trail running'],
+  ['Fractionné (course)',              'quads calves',           'hamstrings glutes', 'cardio', 'fractionné|intervalles|vma|interval running'],
+  ['Vélo',                             'quads',                  'calves glutes', 'cardio', 'vélo de route|cyclisme|vtt|bike|cycling'],
+  ['Vélo d\'appartement',              'quads',                  'calves glutes', 'cardio', 'vélo stationnaire|home trainer|spinning|biking|rpm|indoor cycling'],
   ['Rameur',                           'lats quads',             'biceps hamstrings glutes', 'cardio', 'ergomètre|rowing ergo'],
   ['Vélo elliptique',                  'quads glutes',           'hamstrings',  'cardio', 'elliptique'],
   ['Corde à sauter',                   'calves quads',           '',            'cardio', 'jump rope'],
