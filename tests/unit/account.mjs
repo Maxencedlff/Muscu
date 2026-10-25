@@ -15,7 +15,7 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     .map(f => fs.readFileSync(path.join(ROOT, 'supabase/migrations', f), 'utf8')).find(t => t.includes(AVATAR_SQL));
   // Emojis ajoutés dans l'app avant la migration du serveur (refusés proprement d'ici là : USERNAME_TEXT.avatar).
   // À vider quand la migration qui les ajoute est dans supabase/migrations.
-  const AVATARS_PENDING_SERVER = ['🏅', '⏱\uFE0F', '🎽', '🔋', '🦍', '🦬', '🏔\uFE0F'];
+  const AVATARS_PENDING_SERVER = [];
   const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
   test('compte : écran Bienvenue au tout premier lancement seulement', () => {
