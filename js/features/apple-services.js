@@ -301,6 +301,12 @@ function renderAppleServicesGroup(tog) {
 
 // Poids pour les calories : celui de Santé dès qu'il y a une pesée (affiché, non modifiable ici),
 // sinon le poids saisi dans l'app. Une pesée ajoutée plus tard dans Santé prend le relais.
+// « pesée d'aujourd'hui », « pesée d'hier », « pesée du mar. 21 oct. »
+function weighInWhen(ts) {
+  const d = fmtDate(ts);
+  return d === 'Aujourd\'hui' || d === 'Hier' ? `d'${d.toLowerCase()}` : `du ${d}`;
+}
+
 function renderBodyWeightCell() {
   const last = knownLatestBodyMass();
   const title = '<span class="cell__title">Poids du corps</span>';
@@ -316,7 +322,7 @@ function renderBodyWeightCell() {
   if (last) {
     return `<div class="cell" id="bodyWeightCell">
             <span class="cell__body">${title}
-              <span class="cell__sub">Pris dans Santé · pesée du ${esc(fmtDate(last.date))}</span></span>
+              <span class="cell__sub">Pris dans Santé · pesée ${esc(weighInWhen(last.date))}</span></span>
             <span class="cell__value num">${fmtW(last.kg)} ${unitLbl()}</span></div>`;
   }
   return `<button class="cell cell--nav" id="bodyWeightCell" data-action="set-body-weight">
