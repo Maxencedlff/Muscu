@@ -345,22 +345,26 @@ function hasHowTo(ex) { return !!(exerciseHowTo(ex.name) || exerciseMove(ex.name
 function openHowTo(ex) { navigate(makeRoute('library-ex', catalogueEntry(ex.name)?.name || ex.name)); }
 
 // ── Menu ⋯ d'un exercice ──
-async function exerciseMenu(ei) {
-  const ex = activeSession.exercises[ei];
-  if (!ex) return;
-  const last = activeSession.exercises.length - 1;
-  const choice = await dialog({ type: 'sheet', title: ex.name, actions: [
+// Choix proposés pour l'exercice ei de la séance (ex), le dernier étant d'indice last
+function exerciseMenuActions(ex, ei, last) {
+  return [
     ...(ei > 0    ? [{ label: 'Monter', value: 'up' }] : []),
     ...(ei < last ? [{ label: 'Descendre', value: 'down' }] : []),
     ...(hasHowTo(ex) ? [{ label: 'Comment faire', value: 'howto' }] : []),
     { label: 'Remplacer l\'exercice', value: 'replace' },
     { label: 'Régler le repos', value: 'rest' },
     ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
-    { label: 'Muscles ciblés', value: 'muscles' },
+    // Exercice de la bibliothèque : muscles fixés (musclesLocked), déjà montrés par « Comment faire »
+    ...(musclesLocked(ex.name) ? [] : [{ label: 'Muscles ciblés', value: 'muscles' }]),
     { label: 'Relancer le repos', value: 'restart' },
     { label: 'Retirer l\'exercice', value: 'remove', style: 'destructive' },
     { label: 'Annuler', style: 'cancel' },
-  ] });
+  ];
+}
+async function exerciseMenu(ei) {
+  const ex = activeSession.exercises[ei];
+  if (!ex) return;
+  const choice = await dialog({ type: 'sheet', title: ex.name, actions: exerciseMenuActions(ex, ei, activeSession.exercises.length - 1) });
   if (!choice || !activeSession) return;
   if (['up', 'down', 'replace', 'remove'].includes(choice)) cancelEffort();   // positions des séries modifiées
   const xs = activeSession.exercises;

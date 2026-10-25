@@ -397,6 +397,16 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.equal(new Set(lib.map(app.normName)).size, lib.length);
   });
 
+  test('séance : menu ⋯ sans « Muscles ciblés » pour un exercice de la bibliothèque', () => {
+    reset();
+    const values = name => run(`exerciseMenuActions({ name: ${JSON.stringify(name)}, sets: [] }, 1, 2).map(a => a.value).join()`);
+    assert.ok(!values('Développé couché barre').split(',').includes('muscles'), 'muscles fixés : rien à choisir');
+    assert.ok(!values('bench press').split(',').includes('muscles'), 'alias de la bibliothèque');
+    assert.ok(values('Développé couché barre').split(',').includes('howto'), 'ses muscles restent visibles par « Comment faire »');
+    assert.ok(values('Grimpe au mur').split(',').includes('muscles'), 'exercice de la personne : choix proposé');
+    assert.ok(values('Curl marteau corde').split(',').includes('muscles'), 'reconnu par les règles : choix proposé');
+  });
+
   // Contexte vm (localStorage) : lu à l'appel, après reset()
   function ctx() { return run('globalThis'); }
 }

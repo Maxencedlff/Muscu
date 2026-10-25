@@ -49,6 +49,7 @@ const SCRIPTS = [
   'js/features/share-stats.js',
   'js/features/share-canvas.js',
   'js/features/dashboard.js',
+  'js/features/session-sheets.js',
 ];
 
 // ── Environnement simulé ────────────────────────────────────
