@@ -167,6 +167,8 @@ FAKE_ACCOUNT = r"""
       if (q.op === 'select') return { data: row || null, error: null };
       if (q.op === 'insert' && row) return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "user_profiles_pkey"' } };
       if (q.op === 'update' && !row) return { data: null, error: { code: 'PGRST116', message: 'no rows' } };
+      // Liste blanche du serveur pas encore à jour (opts.refuseAvatars) : contrainte CHECK
+      if ((opts.refuseAvatars || []).includes(q.patch?.avatar_emoji)) return { data: null, error: { code: '23514', message: 'new row for relation "user_profiles" violates check constraint "user_profiles_avatar_emoji"' } };
       const next = { username: null, avatar_emoji: '🔥', username_changed_at: null, ...(row || {}), ...q.patch };
       if (next.username && (sb.taken.includes(next.username) || Object.entries(sb.profiles).some(([k, p]) => k !== id && p.username === next.username)))
         return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "user_profiles_username_key"' } };

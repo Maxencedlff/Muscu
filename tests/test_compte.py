@@ -60,6 +60,20 @@ def age_session(page, seconds=3600):
 
 
 NEW_ACCOUNT_NOTICE = 'Nouveau compte créé. Tu avais déjà un compte ?'
+OWNER_1 = '00000000-0000-0000-0000-000000000002'   # premier compte créé par le faux serveur (1 : son identité)
+
+
+def in_view(page, sel):
+    """Élément entièrement visible sans défiler."""
+    return page.evaluate("""s => { const e = document.querySelector(s); if (!e) return false;
+        const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }""", sel)
+
+
+def one_line(page, sel):
+    """Libellés (span) des boutons qui passent sur deux lignes."""
+    return page.evaluate("""s => [...document.querySelectorAll(s)].filter(e => e.offsetParent)
+        .filter(e => e.offsetHeight > parseFloat(getComputedStyle(e).lineHeight || 0) * 1.5 || e.scrollWidth > e.clientWidth + 1)
+        .map(e => e.textContent)""", sel)
 
 
 def t_welcome(bench, eng, dev, theme):
@@ -81,10 +95,19 @@ def t_welcome(bench, eng, dev, theme):
         wrapped = page.evaluate("""[...document.querySelectorAll('.auth .auth-btn span')]
             .filter(s => s.offsetHeight > parseFloat(getComputedStyle(s).fontSize) * 1.7).map(s => s.textContent)""")
         R.check(not wrapped, f'{t} libellés des boutons sur une ligne {wrapped}')
-        R.check(ls(page, 'ppl_welcome_seen') == '1', f'{t} drapeau posé dès l\'affichage')
+        R.check(page.evaluate("getComputedStyle(document.querySelector('.auth-btn')).whiteSpace") == 'nowrap', f'{t} boutons : white-space nowrap')
+        R.check('Déjà un compte ? Utilise le même moyen qu\'avant.' in page.inner_text('.auth'), f'{t} « Déjà un compte ? »')
+        R.check(in_view(page, '.auth__skip') and in_view(page, '.auth__skip-note') and in_view(page, '.auth__foot'), f'{t} « Commencer sans compte » et les mentions visibles sans défiler')
+        R.check(ls(page, 'ppl_welcome_seen') is None, f'{t} drapeau pas posé à l\'affichage')
         shot(page, LOT, f'1-bienvenue-{t}')
+        # App fermée sans choix : Bienvenue revient
+        page.reload()
+        page.wait_for_selector('.auth__page--welcome')
+        R.check(welcome_open(page), f'{t} sans choix : Bienvenue au lancement suivant')
+        skip = page.locator('[data-action="auth-skip"]')
         skip.click()
         page.wait_for_timeout(400)
+        R.check(ls(page, 'ppl_welcome_seen') == '1', f'{t} « Commencer sans compte » : drapeau posé')
         R.check(page.locator('.auth').count() == 0, f'{t} sans compte : calque fermé')
         R.check(page.evaluate('view') == 'dashboard' and page.locator('.onboard').count() == 1, f'{t} accueil et « Où t\'entraînes-tu ? »')
         R.check(page.locator('.account-card').count() == 0, f'{t} pas de carte compte après Bienvenue')
@@ -131,9 +154,16 @@ def t_code(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(len(calls(page, 'verify')) == 1, f'{t} envoi automatique au 6e chiffre')
         err = page.locator('#authError').inner_text()
-        R.check('Code incorrect' in err, f'{t} code faux : {err}')
-        R.check(code.input_value() == '' and code.get_attribute('aria-invalid') == 'true', f'{t} champ vidé et signalé')
+        R.check('Code incorrect' in err and err.endswith('.'), f'{t} code faux : {err}')
+        R.check(code.input_value() == '000000' and code.get_attribute('aria-invalid') == 'true', f'{t} chiffres gardés et signalés')
+        sel = page.evaluate("[document.activeElement.id, authCode.selectionStart, authCode.selectionEnd]")
+        R.check(sel == ['authCode', 0, 6], f'{t} code faux sélectionné {sel}')
+        R.check(code.get_attribute('placeholder') == '······', f'{t} placeholder en points')
+        R.check(ls(page, 'mdlf_pending_code') and 'max@exemple.fr' in ls(page, 'mdlf_pending_code'), f'{t} adresse et heure d\'envoi gardées')
         shot(page, LOT, f'3-code-{t}')
+        # Retaper par-dessus la sélection remplace le code
+        code.type('11')
+        R.check(code.input_value() == '11', f'{t} saisie après erreur : remplace le code ({code.input_value()})')
 
         # Code expiré (envoyé il y a 11 min)
         page.evaluate('flow.sentAt -= 11 * 60_000')
@@ -148,6 +178,18 @@ def t_code(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(len(calls(page, 'otp')) == 2 and resend.is_disabled(), f'{t} code renvoyé, bouton de nouveau grisé')
         R.check(page.locator('#authError').inner_text() == '', f'{t} message effacé')
+        R.check('Seul le dernier code reçu est valable.' in page.inner_text('.auth__lead'), f'{t} code renvoyé : « Seul le dernier code » à l\'écran')
+        page.fill('#authCode', '999999')
+        page.wait_for_timeout(400)
+        R.check('Seul le dernier code reçu est valable.' in page.locator('#authError').inner_text(), f'{t} code renvoyé : rappel dans l\'erreur')
+        shot(page, LOT, f'3b-code-renvoye-{t}')
+
+        # iOS ferme l'app pendant la lecture du mail : réouverture sur l'écran du code
+        page.reload()
+        page.wait_for_selector('#authCode')
+        page.wait_for_timeout(200)
+        R.check('max@exemple.fr' in page.inner_text('.auth') and page.locator('[data-action="auth-back"]').count() == 1, f'{t} app rouverte sur l\'écran du code, Bienvenue dessous')
+        R.check(ls(page, 'ppl_welcome_seen') is None, f'{t} pas encore de choix : drapeau absent')
 
         # Changer d'adresse : retour au champ, adresse gardée
         page.click('[data-action="auth-change-email"]')
@@ -163,11 +205,19 @@ def t_code(bench, eng, dev, theme):
         R.check(page.locator('[data-action="auth-later"]').count() == 1 and page.locator('[data-action="auth-close"]').count() == 0, f'{t} pseudo : « Plus tard », pas d\'Annuler')
         notice = page.locator('.auth__notice')
         R.check(notice.count() == 1 and NEW_ACCOUNT_NOTICE in notice.inner_text(), f'{t} iPhone vide + compte neuf : « Nouveau compte créé »')
+        R.check(page.locator('[data-action="auth-cancel-account"]').count() == 1, f'{t} « Annuler ce compte et me reconnecter autrement »')
         R.check(page.evaluate('account.user?.email') == 'max@exemple.fr', f'{t} connecté')
+        R.check(ls(page, 'ppl_welcome_seen') == '1' and ls(page, 'mdlf_pending_code') is None, f'{t} connexion : drapeau posé, code oublié')
+        R.check(page.locator('[data-role="save"]').is_disabled(), f'{t} « Continuer » grisé sans pseudo')
+        bg = page.evaluate("getComputedStyle(document.querySelector('[data-role=save]')).opacity")
+        R.check(bg == '1', f'{t} bouton désactivé opaque (lisible) {bg}')
         shot(page, LOT, f'4-pseudo-{t}')
         page.fill('#authUsername', 'Pris')
         page.wait_for_timeout(700)
-        R.check('pas disponible' in page.locator('#authUsernameStatus').inner_text(), f'{t} pseudo pris : {page.locator("#authUsernameStatus").inner_text()}')
+        st = page.locator('#authUsernameStatus').inner_text()
+        R.check('C\'est ton pseudo ?' in st and 'même moyen' in st, f'{t} premier pseudo pris : sans doute déjà un compte ({st})')
+        R.check(page.locator('[data-role="save"]').is_disabled(), f'{t} pseudo pris : « Continuer » grisé')
+        shot(page, LOT, f'4b-pseudo-pris-{t}')
         page.fill('#authUsername', 'a!')
         page.wait_for_timeout(500)
         R.check('caractères' in page.locator('#authUsernameStatus').inner_text(), f'{t} pseudo trop court')
@@ -175,6 +225,7 @@ def t_code(bench, eng, dev, theme):
         page.wait_for_timeout(700)
         st = page.locator('#authUsernameStatus').inner_text()
         R.check('Disponible' in st and '@helene_dupont' in st, f'{t} pseudo normalisé annoncé : {st}')
+        R.check(page.locator('[data-role="save"]').is_enabled(), f'{t} pseudo valable : « Continuer » actif')
 
         # Avatar : grille d'emojis, choix coché, retour au pseudo
         page.click('[data-action="auth-open-avatar"]')
@@ -185,6 +236,10 @@ def t_code(bench, eng, dev, theme):
         page.click('.avatar-pick[aria-label="Renard"]')
         R.check(page.locator('.avatar-pick[aria-pressed="true"]').get_attribute('aria-label') == 'Renard', f'{t} Renard coché')
         R.check(no_hscroll(page), f'{t} grille sans défilement horizontal')
+        cols = page.evaluate("getComputedStyle(document.querySelector('.avatar-grid')).gridTemplateColumns.split(' ').length")
+        R.check(cols == 5, f'{t} grille de 5 colonnes ({cols})')
+        R.check(page.locator('.auth__bar [data-action="auth-avatar-done"]').count() == 1 and page.locator('.auth__page [data-action="auth-avatar-done"]').count() == 0, f'{t} « OK » dans la barre du haut')
+        R.check(in_view(page, '[data-action="auth-avatar-done"]'), f'{t} « OK » visible')
         shot(page, LOT, f'5-avatar-{t}')
         page.click('[data-action="auth-avatar-done"]')
         page.wait_for_selector('#authUsername')
@@ -213,8 +268,13 @@ def t_restore(bench, eng, dev, theme):
         open_app(page, theme, ppl_v2_today_json())
         R.check(not welcome_open(page), f'{t} utilisateur existant : pas de Bienvenue')
         card = page.locator('.account-card')
-        R.check(card.count() == 1 and 'Sauvegarde tes séances sur un compte' in card.inner_text(), f'{t} carte de l\'accueil')
+        R.check(card.count() == 1 and 'Sauvegarde tes séances' in card.inner_text() and 'Créer un compte' in card.inner_text(), f'{t} carte de l\'accueil')
         R.check(small_targets(page, '.account-card button') == 0, f'{t} carte : cibles de 44 pt')
+        h = page.evaluate("document.querySelector('.account-card').getBoundingClientRect().height")
+        # Une ligne (≈ 64 px) ; sur iPhone SE l'action passe sous le titre
+        R.check(h <= (110 if page.viewport_size['width'] < 375 else 72), f'{t} carte compacte ({h:.0f} px)')
+        R.check(page.evaluate("document.querySelector('.hero__btn').getBoundingClientRect().bottom < document.querySelector('.account-card').getBoundingClientRect().top"), f'{t} carte sous « Démarrer »')
+        R.check(in_view(page, '.hero__btn'), f'{t} « Démarrer » visible')
         shot(page, LOT, f'6-carte-accueil-{t}')
         page.click('[data-action="account-card-close"]')
         page.wait_for_timeout(300)
@@ -243,6 +303,8 @@ def t_compte(bench, eng, dev, theme):
         cell.click()
         page.wait_for_selector('.account-view')
         R.check(page.locator('.account-view .auth-btn').count() == 3, f'{t} Compte (déconnecté) : trois moyens')
+        R.check(not one_line(page, '.account-view .auth-btn span'), f'{t} Compte : boutons sur une ligne {one_line(page, ".account-view .auth-btn span")}')
+        R.check('tu peux masquer ton e' in page.inner_text('.account-foot') and page.evaluate("getComputedStyle(document.querySelector('.account-foot')).textAlign") == 'center', f'{t} mention centrée')
         shot(page, LOT, f'7-compte-deconnecte-{t}')
 
         # Apple (compte existant : pas de pseudo demandé)
@@ -273,7 +335,9 @@ def t_compte(bench, eng, dev, theme):
         page.evaluate('__sb.fail.link = true')
         page.click('.method-cell--google')
         page.wait_for_timeout(500)
-        R.check('déjà relié à un autre compte' in page.inner_text('body'), f'{t} identity_already_exists → message')
+        R.check('Ce compte Google a déjà son propre compte MDLF. Connecte-toi avec Google' in page.inner_text('.ios-dialog'), f'{t} identity_already_exists → marche à suivre')
+        shot(page, LOT, f'9b-deja-relie-{t}')
+        tap_dialog(page, 'OK')
         page.evaluate('__sb.fail.link = false')
 
         # E-mail : ajout par code
@@ -298,12 +362,16 @@ def t_compte(bench, eng, dev, theme):
         page.click('[data-role="save"]')
         page.wait_for_timeout(500)
         R.check(page.locator('.account-hero__name').inner_text() == 'max.dlf', f'{t} pseudo affiché')
-        page.click('.account-hero__avatar')
+        R.check(page.locator('.account-hero button').count() == 0, f'{t} en-tête sans lien « Modifier »')
+        page.click('[data-action="account-edit-avatar"]')
         page.wait_for_selector('.avatar-grid')
         page.click('.avatar-pick[aria-label="Pieuvre"]')
         page.click('[data-action="auth-avatar-done"]')
         page.wait_for_timeout(500)
         R.check('🐙' in page.locator('.account-hero .avatar').inner_text(), f'{t} avatar affiché')
+        R.check('Avatar' not in (page.locator('.toast').inner_text() if page.locator('.toast').count() else ''), f'{t} pas de toast « Avatar enregistré »')
+        R.check(page.locator('.method-cell--google .icon').count() == 0 and method_value(page, 'google') == 'Ajouter', f'{t} « Ajouter » sans chevron')
+        R.check('Il en faut au moins un.' in page.inner_text('.account-view'), f'{t} « Il en faut au moins un »')
         R.check(small_targets(page, '.account-view .cell') == 0, f'{t} cellules de 44 pt')
         R.check(no_hscroll(page), f'{t} pas de défilement horizontal')
         shot(page, LOT, f'8-compte-{t}')
@@ -314,17 +382,32 @@ def t_compte(bench, eng, dev, theme):
         page.click('[data-action="back"]')
         page.wait_for_selector('.settings-view')
         txt = page.locator('.account-cell').inner_text()
-        R.check('max.dlf' in txt and '🐙' in txt, f'{t} Réglages : avatar et pseudo {txt!r}')
+        R.check('max.dlf' in txt and '🐙' in txt and 'Compte et sauvegarde' in txt, f'{t} Réglages : avatar et pseudo {txt!r}')
+        gap = page.evaluate("""() => { const b = document.querySelector('.navbar__back'), l = document.querySelector('.navbar__back-label'), ti = document.querySelector('.navbar__title');
+            const right = l && l.offsetParent ? l.getBoundingClientRect().right : b.querySelector('.icon').getBoundingClientRect().right;
+            const r = ti.getBoundingClientRect(), range = document.createRange(); range.selectNodeContents(ti); const tr = range.getBoundingClientRect();
+            return { gap: tr.left - right, cut: !!(l && l.offsetParent && l.scrollWidth > l.clientWidth + 1) }; }""")
+        R.check(gap['gap'] >= 8 and not gap['cut'], f'{t} Réglages : retour séparé du titre {gap}')
         shot(page, LOT, f'10-reglages-{t}')
 
         # Déconnexion
         page.click('.account-cell')
         page.wait_for_selector('.account-view')
+        # Une séance pas encore partie : dite dans la feuille, avec le moyen pour revenir
+        page.evaluate("data.history.unshift({ ...data.history[0], id: 'pas-encore-partie', date: Date.now() }); clearTimeout(syncTimer)")
         page.click('[data-action="account-sign-out"]')
         page.wait_for_timeout(300)
+        txt = page.inner_text('.ios-dialog')
+        R.check('1 séance pas encore sauvegardée' in txt and 'partira quand tu te reconnecteras' in txt and 'utilise Apple' in txt, f'{t} déconnexion : séance en attente et moyen rappelés {txt!r}')
+        shot(page, LOT, f'11-deconnexion-{t}')
         tap_dialog(page, 'Se déconnecter')
         page.wait_for_timeout(400)
         R.check(page.locator('.account-view .auth-btn').count() == 3, f'{t} déconnecté : boutons de connexion')
+        R.check(ls(page, 'mdlf_signed_out') == '1', f'{t} déconnexion voulue retenue')
+        page.click('[data-action="back"]')
+        page.click('[data-action="back"]')
+        page.wait_for_timeout(400)
+        R.check(page.locator('.account-card').count() == 0, f'{t} déconnexion voulue : pas de carte de reconnexion')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -341,7 +424,7 @@ def t_delete(bench, eng, dev, theme):
         page.wait_for_selector('#authCode')
         page.fill('#authCode', '123456')
         page.wait_for_timeout(500)
-        R.check(page.locator('.auth__notice').count() == 0, f'{t} séances sur l\'iPhone : pas d\'avertissement « Nouveau compte »')
+        R.check(page.locator('.auth__notice').count() == 1, f'{t} séances sur l\'iPhone : avertissement « Nouveau compte » aussi')
         if page.locator('[data-action="auth-later"]').count():
             page.click('[data-action="auth-later"]')
             page.wait_for_timeout(300)
@@ -350,6 +433,7 @@ def t_delete(bench, eng, dev, theme):
         page.click('[data-action="account-delete"]')
         page.wait_for_timeout(300)
         R.check('confirmeras ton identité' in page.inner_text('.ios-dialog'), f'{t} suppression : confirmation d\'identité annoncée')
+        R.check('Tes autres appareils seront déconnectés et garderont leurs séances.' in page.inner_text('.ios-dialog'), f'{t} suppression : autres appareils')
         tap_dialog(page, 'Supprimer mon compte')
         page.wait_for_selector('#authCode')
         R.check(calls(page, 'otp')[-1] == ['otp', 'max@exemple.fr', False], f'{t} nouveau code, sans création de compte {calls(page, "otp")[-1]}')
@@ -443,6 +527,128 @@ def t_securite_compte(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_reconnect(bench, eng, dev, theme):
+    """iPhone restauré : stockage revenu, session du Trousseau perdue → carte qui nomme le moyen d'avant."""
+    t = tag(dev, theme)
+    cache = json.dumps({'userId': OWNER_1, 'method': 'apple', 'username': 'max.dlf', 'avatar': '🦊', 'changedAt': None, 'stored': True})
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), extra={'mdlf_sync_owner': OWNER_1, 'mdlf_profile': cache, 'ppl_welcome_seen': '1'}, opts={'oldAccounts': True})
+        page.wait_for_timeout(300)
+        card = page.locator('.account-card')
+        txt = card.inner_text() if card.count() else ''
+        R.check('Reconnecte-toi pour reprendre la sauvegarde' in txt and 'Tu étais connecté avec Apple · max.dlf' in txt, f'{t} carte de reconnexion {txt!r}')
+        R.check(small_targets(page, '.account-card button') == 0, f'{t} reconnexion : cibles de 44 pt')
+        R.check(in_view(page, '.hero__btn'), f'{t} reconnexion : « Démarrer » visible')
+        shot(page, LOT, f'6b-carte-reconnexion-{t}')
+        page.click('[data-action="go-settings"]')
+        page.wait_for_selector('.settings-view')
+        R.check('Reconnecte-toi' in page.inner_text('.account-cell'), f'{t} Réglages : cellule « Reconnecte-toi »')
+        page.click('.account-cell')
+        page.wait_for_selector('.account-view')
+        R.check('Tu étais connecté avec Apple · max.dlf' in page.inner_text('.account-hero'), f'{t} Compte : moyen d\'avant rappelé')
+        shot(page, LOT, f'7b-compte-reconnexion-{t}')
+        page.click('[data-action="back"]')
+        page.click('[data-action="back"]')
+        page.wait_for_selector('.account-card')
+        page.click('[data-action="account-reconnect"]')
+        page.wait_for_timeout(800)
+        R.check(page.evaluate('account.user?.id') == OWNER_1 and calls(page, 'apple'), f'{t} « Me reconnecter avec Apple » : même compte')
+        R.check(page.locator('.ios-dialog').count() == 0, f'{t} même compte : pas de feuille de fusion')
+        toast = page.locator('.toast').inner_text() if page.locator('.toast').count() else ''
+        R.check('séances sauvegardées' in toast, f'{t} toast : séances envoyées ({toast})')
+        R.check(page.locator('.account-card').count() == 0, f'{t} connecté : carte retirée')
+        shot(page, LOT, f'6c-toast-connexion-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # Carte fermée : plus proposée
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), extra={'mdlf_sync_owner': OWNER_1, 'mdlf_profile': cache, 'ppl_welcome_seen': '1'})
+        page.click('[data-action="account-reconnect-close"]')
+        page.wait_for_timeout(300)
+        page.reload()
+        page.wait_for_selector('#app > *')
+        page.wait_for_timeout(500)
+        R.check(page.locator('.account-card').count() == 0, f'{t} carte de reconnexion fermée pour de bon')
+
+
+def t_second_account(bench, eng, dev, theme):
+    """Nouvel iPhone, autre moyen qu'avant : le compte vide créé par erreur est supprimé à l'annulation."""
+    t = tag(dev, theme)
+    # Écran du pseudo : « Annuler ce compte et me reconnecter autrement »
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme)
+        page.click('.auth .auth-btn--google')
+        page.wait_for_selector('#authUsername')
+        uid = page.evaluate('account.user.id')
+        page.click('[data-action="auth-cancel-account"]')
+        page.wait_for_timeout(700)
+        inv = calls(page, 'invoke')
+        R.check(inv and inv[-1][1] == 'delete-account' and page.evaluate('id => !__sb.users[id]', uid), f'{t} compte vide supprimé sur le serveur {inv}')
+        R.check(page.evaluate('account.user') is None and ls(page, 'mdlf_sync_owner') is None, f'{t} déconnecté, appareil détaché')
+        R.check(welcome_open(page), f'{t} retour aux moyens de connexion')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # Feuille de fusion, « Annuler » : le compte qui vient d'être créé est supprimé, l'iPhone reste à l'ancien
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), extra={'mdlf_sync_owner': 'ancien-compte', 'ppl_welcome_seen': '1'})
+        page.evaluate("navigate('account')")
+        page.wait_for_selector('.account-view')
+        page.click('.account-view .auth-btn--apple')
+        page.wait_for_timeout(500)
+        txt = page.inner_text('.ios-dialog')
+        R.check('les retirer les effacerait' in txt and 'exporte' not in txt, f'{t} feuille de fusion simplifiée {txt!r}')
+        shot(page, LOT, f'12b-fusion-{t}')
+        tap_dialog(page, 'Annuler')
+        page.wait_for_timeout(600)
+        inv = calls(page, 'invoke')
+        R.check(inv and inv[-1][1] == 'delete-account' and 'code-apple-' in inv[-1][2], f'{t} compte neuf supprimé (preuve Apple) {inv}')
+        R.check(page.evaluate('Object.keys(__sb.users).length') == 0, f'{t} aucun compte vide laissé')
+        R.check(ls(page, 'mdlf_sync_owner') == 'ancien-compte' and ls(page, 'mdlf_signed_out') is None, f'{t} iPhone toujours rattaché à l\'ancien compte')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_offline(bench, eng, dev, theme):
+    """Hors ligne : « Pas d'Internet » pour Apple, synchro relancée au retour du réseau."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, opts={'oldAccounts': True})
+        page.context.set_offline(True)
+        page.click('.auth .auth-btn--apple')
+        page.wait_for_timeout(300)
+        err = page.locator('#authError').inner_text()
+        R.check('Pas d\'Internet' in err and not calls(page, 'apple'), f'{t} Apple hors ligne : {err!r}')
+        page.context.set_offline(False)
+        page.click('.auth .auth-btn--apple')
+        page.wait_for_timeout(600)
+        R.check(page.evaluate('!!account.user'), f'{t} connecté une fois en ligne')
+        page.wait_for_timeout(300)
+        page.context.set_offline(True)
+        n = len(calls(page, 'db'))
+        page.context.set_offline(False)
+        page.wait_for_timeout(500)
+        R.check(len(calls(page, 'db')) > n, f'{t} réseau revenu : synchro relancée')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_avatar_refuse(bench, eng, dev, theme):
+    """Emoji pas encore dans la liste blanche du serveur : erreur propre, rien de cassé."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, opts={'oldAccounts': True, 'refuseAvatars': ['🦬']})
+        page.click('.auth .auth-btn--apple')
+        page.wait_for_timeout(600)
+        page.evaluate("navigate('account')")
+        page.wait_for_selector('.account-view')
+        page.click('[data-action="account-edit-avatar"]')
+        page.wait_for_selector('.avatar-grid')
+        page.click('.avatar-pick[aria-label="Bison"]')
+        page.click('[data-action="auth-avatar-done"]')
+        page.wait_for_timeout(500)
+        err = page.locator('#authError').inner_text()
+        R.check('pas encore disponible' in err and page.locator('.avatar-grid').count() == 1, f'{t} avatar refusé par le serveur : {err!r}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def t_pwa(bench, eng, dev, theme):
     """Navigateur (PWA) : rien du compte n'apparaît."""
     t = tag(dev, theme)
@@ -456,4 +662,4 @@ def t_pwa(bench, eng, dev, theme):
         R.check(page.locator('.account-cell').count() == 0, f'{t} PWA : pas de cellule compte')
 
 
-run_main(R, [t_welcome, t_code, t_restore, t_compte, t_delete, t_securite_compte, t_pwa])
+run_main(R, [t_welcome, t_code, t_restore, t_reconnect, t_second_account, t_offline, t_avatar_refuse, t_compte, t_delete, t_securite_compte, t_pwa])

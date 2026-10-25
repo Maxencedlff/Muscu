@@ -20,7 +20,11 @@
 //    d'identité (signInWithIdToken, nonce brut ici, haché côté natif) ; l'e-mail un code à 6 chiffres
 //    (signInWithOtp puis verifyOtp). Logique pure (erreurs, pseudo, identités) : js/data/account-auth.js.
 //  - Profil public (user_profiles : pseudo, avatar emoji) séparé de profiles.doc (privé, synchronisé) ;
-//    gardé en cache sur l'appareil (PROFILE_CACHE_KEY) pour l'afficher hors ligne.
+//    gardé en cache sur l'appareil (PROFILE_CACHE_KEY) pour l'afficher hors ligne, avec le moyen de la
+//    dernière connexion : un iPhone restauré (stockage revenu, session du Trousseau perdue) dit avec
+//    quoi se reconnecter (accountReconnectInfo). Déconnexion voulue : SIGNED_OUT_KEY, pas de rappel.
+//  - Compte créé par erreur (autre moyen de connexion qu'avant, choix « Annuler ») : supprimé tant
+//    qu'il ne contient rien d'autre que ce que l'appareil a déjà (discardNewAccount).
 //  - Couche données : aucun affichage ici. L'écran (js/features/account-ui.js) s'abonne par
 //    onAccountChange et reçoit les résultats des actions.
 //  - Sans compte, l'app marche comme avant ; dans le navigateur ou une coquille iOS sans le module,
@@ -35,7 +39,8 @@ const ACCOUNT_CONFIG = {
 const SYNC_META_PREFIX = 'mdlf_sync_';      // + identifiant du compte : curseur et empreintes (localStorage)
 const SYNC_OWNER_KEY   = 'mdlf_sync_owner'; // dernier compte connecté sur cet appareil (posé à la connexion)
 const AUTH_STORAGE_KEY = 'mdlf-auth';
-const PROFILE_CACHE_KEY = 'mdlf_profile';  // { userId, username, avatar, changedAt } du dernier compte
+const PROFILE_CACHE_KEY = 'mdlf_profile';  // { userId, method, email?, username, avatar, changedAt, stored } du dernier compte
+const APPLE_CODE_TTL_MS = 5 * 60_000;      // durée de validité d'un code d'autorisation Apple
 const SYNC_DEBOUNCE_MS = 4000;
 const SYNC_BATCH = 200;
 
@@ -49,6 +54,7 @@ let applyingRemote = false;   // fusion en cours : son propre enregistrement ne 
 let syncHeld = false;         // connexion en cours (choix du compte pas encore fait) : aucune synchro
 let syncHoldUntil = 0;        // import : pas de synchro pendant le délai « Annuler » (accountHoldSync)
 let syncGeneration = 0;       // +1 à chaque oubli de l'état : une synchro commencée avant n'écrit plus rien
+let signInAppleCode = null;   // { code, at } de la dernière connexion Apple : preuve pour supprimer un compte créé par erreur
 const accountListeners = [];
 
 // kind : 'state' (connexion, synchro) ou 'merged' (données reçues du compte : l'écran est à redessiner)
@@ -123,6 +129,8 @@ async function accountInit() {
       notifyAccount();
     });
     document.addEventListener('visibilitychange', onAccountVisibility);
+    // Réseau revenu sans retour dans l'app (Wi-Fi retrouvé en salle) : ce qui attendait part
+    window.addEventListener('online', () => scheduleSync(0));
     const [{ data: { session } }, google] = await Promise.all([sb.auth.getSession(), Native.account.googleAvailable()]);
     account.google = google;
     account.user = session?.user || await storedSessionUser();
@@ -155,8 +163,10 @@ function onAccountVisibility() {
 // askMerge(n, pending) : appelé si cet appareil contient n séances d'un AUTRE compte (dont pending
 // jamais sauvegardées sur cet autre compte) ; renvoie 'add' (les ajouter à ce compte), 'replace'
 // (l'écran a déjà vidé l'appareil : ne garder que celles du compte) ou null (annuler : déconnexion).
-// Renvoie { ok, reason?: 'cancel' | 'provider' | 'auth' | 'server' | 'sync', kind?, sent, received, isNew }.
-async function finishSignIn(authenticate, askMerge) {
+// method : moyen utilisé ('apple', 'google', 'email'), retenu pour une reconnexion plus tard.
+// Renvoie { ok, reason?: 'cancel' | 'provider' | 'auth' | 'server' | 'sync', kind?, sent, received,
+// isNew, error (account.error si la synchro a échoué), newDevice (aucune séance ici avant), discarded }.
+async function finishSignIn(authenticate, askMerge, method) {
   if (!sb) return { ok: false, reason: 'server' };
   // Aucune synchro tant que l'utilisateur n'a pas choisi (sinon les séances d'un autre compte partiraient)
   syncHeld = true;
@@ -173,27 +183,38 @@ async function finishSignIn(authenticate, askMerge) {
     if (owner && owner !== user.id) {
       const n = (data.history || []).length;
       const choice = n ? await askMerge(n, accountPendingCount(owner)) : 'add';
-      if (!choice) { await accountSignOut(); return { ok: false, reason: 'cancel' }; }
+      if (!choice) {
+        // Annuler : un compte qui vient d'être créé par cette connexion ne doit pas rester vide sur le
+        // serveur ; l'appareil reste rattaché à l'ancien compte (sa carte de reconnexion aussi)
+        const discarded = (await discardNewAccount(user)) === 'deleted';
+        await accountSignOut({ voluntary: false });
+        return { ok: false, reason: 'cancel', discarded };
+      }
       clearSyncMetas();   // l'ancien compte ne laisse rien derrière lui
     }
     // Appareil rattaché à ce compte dès la connexion, avant la première synchro : si elle échoue (hors
     // ligne), un autre compte qui se connecte ensuite verra quand même le choix de fusion. Sans changement
     // de compte, l'état de synchro déjà enregistré pour ce compte est repris (planSessionPush compare
     // les empreintes : rien n'est renvoyé à tort).
-    try { localStorage.setItem(SYNC_OWNER_KEY, user.id); } catch { /* reposé à la fin de la synchro */ }
+    try { localStorage.setItem(SYNC_OWNER_KEY, user.id); localStorage.removeItem(SIGNED_OUT_KEY); } catch { /* reposé à la fin de la synchro */ }
     account.user = user;
     account.profile = cachedProfile(user.id);
+    writeLoginCache(user.id, method);
   } finally { syncHeld = false; }
   const profile = await accountLoadProfile();
   const isNew = isNewAccount(user, profile);
   const before = (data.history || []).length;
+  const toSend = accountPendingCount(user.id);
   const ok = await syncNow();
-  return { ok, reason: ok ? undefined : 'sync', sent: before, received: Math.max(0, (data.history || []).length - before), isNew };
+  return { ok, reason: ok ? undefined : 'sync', sent: ok ? toSend : 0, received: Math.max(0, (data.history || []).length - before),
+    isNew, error: ok ? null : account.error, newDevice: before === 0 };
 }
 
 // Jeton d'identité Apple ou Google : { token, nonce, extra } ; { cancel } ou { provider } sinon
 async function providerToken(provider) {
   const nonce = randomNonce();
+  // Hors ligne : la fenêtre d'Apple ou de Google échouerait de toute façon, avec un message moins clair
+  if (navigator.onLine === false) return { kind: 'offline' };
   try {
     if (provider === 'apple') {
       const apple = await Native.account.signIn(nonce);
@@ -209,8 +230,9 @@ function accountSignInWith(provider, askMerge) {
   return finishSignIn(async () => {
     const t = await providerToken(provider);
     if (!t.token) return t;
+    if (t.code) signInAppleCode = { code: t.code, at: Date.now() };
     return sb.auth.signInWithIdToken({ provider, token: t.token, nonce: t.nonce });
-  }, askMerge);
+  }, askMerge, provider);
 }
 
 // Code de connexion envoyé par e-mail (valable 10 min). create : false pour ne jamais créer de
@@ -228,7 +250,7 @@ function accountVerifyEmailCode(email, code, sentAt, askMerge) {
   return finishSignIn(async () => {
     const res = await sb.auth.verifyOtp({ email, token: code, type: 'email' });
     return res.error ? { kind: otpErrorKind(res.error, sentAt) } : res;
-  }, askMerge);
+  }, askMerge, 'email');
 }
 
 // Utilisateur relu sur le serveur (identités à jour après un ajout ou un retrait)
@@ -249,7 +271,7 @@ async function refreshAccountUser() {
 async function accountLink(provider) {
   if (!sb || !account.user) return { ok: false, kind: 'server' };
   const t = await providerToken(provider);
-  if (!t.token) return { ok: false, reason: t.cancel ? 'cancel' : 'provider' };
+  if (!t.token) return t.kind ? { ok: false, kind: t.kind } : { ok: false, reason: t.cancel ? 'cancel' : 'provider' };
   try {
     const { data: res, error } = await sb.auth.linkIdentity({ provider, token: t.token, nonce: t.nonce });
     if (error) return { ok: false, kind: authErrorKind(error) };
@@ -315,22 +337,52 @@ async function accountUnlink(provider) {
 
 // ── Profil public : pseudo et avatar ────────────────────────
 
+// Cache du profil et de la connexion : { userId, method, email?, username, avatar, changedAt, stored }.
+// stored : la ligne user_profiles existe (sinon seul le moyen de connexion est connu). Les caches d'avant
+// (sans stored) n'étaient écrits qu'avec une ligne.
+function readLoginCache() {
+  try { const p = JSON.parse(localStorage.getItem(PROFILE_CACHE_KEY)); return p && typeof p === 'object' ? p : null; }
+  catch { return null; }
+}
 function cachedProfile(userId) {
-  if (!userId) return null;
-  try {
-    const p = JSON.parse(localStorage.getItem(PROFILE_CACHE_KEY));
-    if (p?.userId === userId) return { username: p.username || null, avatar: validAvatar(p.avatar), changedAt: p.changedAt || null, stored: true };
-  } catch { /* cache illisible : relu au prochain passage */ }
-  return null;
+  const p = readLoginCache();
+  if (!userId || p?.userId !== userId || p.stored === false) return null;
+  return { username: p.username || null, avatar: validAvatar(p.avatar), changedAt: p.changedAt || null, stored: true };
+}
+// method : moyen de la connexion en cours (sinon celui déjà retenu pour ce compte, sinon le plus ancien)
+function writeLoginCache(userId, method) {
+  if (!userId) return;
+  const old = readLoginCache(), user = account.user?.id === userId ? account.user : null;
+  const m = method || (old?.userId === userId && old.method) || primaryProvider(user) || null;
+  const p = account.profile;
+  const entry = { userId, method: m, username: p?.username || null, avatar: p?.avatar || null, changedAt: p?.changedAt || null, stored: !!p?.stored };
+  // Adresse gardée pour préremplir le champ à la reconnexion (connexion par code seulement)
+  if (m === 'email') entry.email = signInEmailOf(user) || (old?.userId === userId ? old.email : null) || null;
+  try { localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(entry)); } catch { /* cache facultatif */ }
 }
 function setProfile(userId, row) {
   account.profile = row ? { username: row.username || null, avatar: validAvatar(row.avatar_emoji), changedAt: row.username_changed_at || null, stored: true } : null;
-  try {
-    if (row) localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ userId, ...account.profile }));
-    else localStorage.removeItem(PROFILE_CACHE_KEY);
-  } catch { /* cache facultatif */ }
+  writeLoginCache(userId);
   notifyAccount();
 }
+
+// Compte de cet appareil sans session (iPhone restauré, session du Trousseau perdue) et sans
+// déconnexion voulue : { method, username, email } (champs null s'ils sont inconnus), sinon null
+function accountReconnectInfo() {
+  let signedOut = false;
+  try { signedOut = localStorage.getItem(SIGNED_OUT_KEY) === '1'; } catch { /* rien */ }
+  const owner = syncOwner();
+  if (!reconnectCardShown({ accountAvailable: accountAvailable(), ready: account.ready, signedIn: !!account.user, owner, signedOut })) return null;
+  const p = readLoginCache();
+  const known = p?.userId === owner;
+  return { method: known ? p.method || null : null, username: known ? p.username || null : null, email: known ? p.email || null : null };
+}
+// Carte de reconnexion fermée : comme une déconnexion voulue
+function accountDismissReconnect() {
+  try { localStorage.setItem(SIGNED_OUT_KEY, '1'); } catch { /* reproposée au prochain lancement */ }
+  notifyAccount();
+}
+
 const PROFILE_COLUMNS = 'username,avatar_emoji,username_changed_at';
 
 // Profil du compte relu sur le serveur. Renvoie le profil, null (pas encore de profil) ou undefined
@@ -381,9 +433,11 @@ async function accountUsernameAvailable(name) {
 }
 
 // Déconnexion de cet appareil : les données restent sur l'iPhone et sur le compte. L'état de synchro
-// est gardé : une reconnexion au même compte reprend où elle en était.
-async function accountSignOut() {
+// est gardé : une reconnexion au même compte reprend où elle en était. voluntary : « Se déconnecter »
+// (pas de carte de reconnexion ensuite) ; false quand la connexion d'un autre compte est annulée.
+async function accountSignOut({ voluntary = true } = {}) {
   if (!sb) return;
+  if (voluntary) { try { localStorage.setItem(SIGNED_OUT_KEY, '1'); } catch { /* rien */ } }
   clearTimeout(syncTimer);
   account.user = null;
   account.profile = null;
@@ -437,7 +491,7 @@ function reauthMethods(user = account.user) {
 // Nouvelle session du même compte (jamais d'un autre : sinon on s'y retrouverait connecté)
 async function sameAccountSession(res, userId) {
   if (res.error || !res.data?.user) return { ok: false, kind: res.kind || authErrorKind(res.error) || 'server' };
-  if (res.data.user.id !== userId) { await accountSignOut(); return { ok: false, kind: 'other_account' }; }
+  if (res.data.user.id !== userId) { await accountSignOut({ voluntary: false }); return { ok: false, kind: 'other_account' }; }
   account.user = res.data.user;
   return { ok: true };
 }
@@ -445,7 +499,7 @@ async function sameAccountSession(res, userId) {
 async function accountReauthGoogle() {
   if (!sb || !account.user) return { ok: false, kind: 'server' };
   const userId = account.user.id, t = await providerToken('google');
-  if (!t.token) return { ok: false, reason: t.cancel ? 'cancel' : 'provider' };
+  if (!t.token) return t.kind ? { ok: false, kind: t.kind } : { ok: false, reason: t.cancel ? 'cancel' : 'provider' };
   // Autre compte Google choisi : refusé avant de parler à Supabase (qui créerait un autre compte)
   if (jwtPayload(t.token)?.sub !== googleSubOf(account.user)) return { ok: false, kind: 'other_account' };
   try { return await sameAccountSession(await sb.auth.signInWithIdToken({ provider: 'google', token: t.token, nonce: t.nonce }), userId); }
@@ -458,7 +512,7 @@ async function accountReauthGoogle() {
 async function accountReauthApple({ session = true } = {}) {
   if (!sb || !account.user) return { ok: false, kind: 'server' };
   const userId = account.user.id, t = await providerToken('apple');
-  if (!t.token) return { ok: false, reason: t.cancel ? 'cancel' : 'provider' };
+  if (!t.token) return t.kind ? { ok: false, kind: t.kind } : { ok: false, reason: t.cancel ? 'cancel' : 'provider' };
   if (jwtPayload(t.token)?.sub !== appleUserOf(account.user)) return { ok: false, kind: 'other_account' };
   if (!t.code) return { ok: false, reason: 'provider' };
   if (!session) return { ok: true, code: t.code };
@@ -514,6 +568,40 @@ async function accountDelete() {
   if (!res?.deleted) return { ok: false, reason: 'server' };
   await accountForgetDevice();
   return { ok: true, apple, revoked: !!res.revoked };
+}
+
+// ── Compte créé par erreur ──────────────────────────────────
+// Nouvel iPhone, autre moyen de connexion qu'à l'origine (Google au lieu d'Apple…) : Supabase crée un
+// second compte, vide. Annulé tout de suite (feuille de fusion, ou bouton de l'écran du pseudo), il est
+// supprimé par la fonction delete-account, sans nouvelle connexion : la session a moins de 10 min
+// (connexion récente) et, pour Apple, le code de cette connexion sert de preuve et révoque l'accès.
+// Seulement s'il a été créé il y a moins de 10 min, sans pseudo, et sans séance absente de cet appareil
+// (rien ne peut s'y perdre). Renvoie 'deleted', 'kept' (il contient autre chose) ou 'error'.
+async function discardNewAccount(user) {
+  if (!sb || !user || !accountJustCreated(user)) return 'kept';
+  try {
+    const { data: prof, error: profErr } = await sb.from('user_profiles').select('username').maybeSingle();
+    if (profErr) return 'error';
+    if (prof?.username) return 'kept';
+    const { data: rows, error: rowsErr } = await sb.from('sessions').select('id,deleted_at');
+    if (rowsErr) return 'error';
+    const here = new Set((data.history || []).map(h => h.id));
+    if ((rows || []).some(r => !r.deleted_at && !here.has(r.id))) return 'kept';
+    const apple = signInAppleCode && Date.now() - signInAppleCode.at < APPLE_CODE_TTL_MS ? signInAppleCode.code : '';
+    signInAppleCode = null;   // code à usage unique
+    const { data: res, error } = await sb.functions.invoke('delete-account', { body: apple ? { code: apple } : {} });
+    return !error && res?.deleted ? 'deleted' : 'error';
+  } catch { return 'error'; }
+}
+
+// Bouton « Annuler ce compte » (écran du pseudo d'un compte tout neuf) : compte supprimé et appareil
+// détaché (ses séances restent ici). Renvoie { ok } ou { ok: false, reason: 'kept' | 'error' }.
+async function accountCancelNewAccount() {
+  if (!account.user) return { ok: false, reason: 'error' };
+  const r = await discardNewAccount(account.user);
+  if (r !== 'deleted') return { ok: false, reason: r };
+  await accountForgetDevice();
+  return { ok: true };
 }
 
 // Après chaque enregistrement local : envoi groupé quelques secondes plus tard

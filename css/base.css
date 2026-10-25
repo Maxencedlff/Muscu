@@ -11,6 +11,7 @@
   --label:  #FFFFFF;
   --label2: rgba(235,235,245,.6);
   --label3: rgba(235,235,245,.3);
+  --label-disabled: rgba(235,235,245,.45);   /* texte d'un bouton désactivé (lisible, mais clairement inactif) */
   --sep:    rgba(84,84,88,.6);
   --fill:   rgba(120,120,128,.36);
   --fill2:  rgba(120,120,128,.24);
@@ -66,6 +67,7 @@ body.light {
   --label:  #000000;
   --label2: rgba(60,60,67,.76);
   --label3: rgba(60,60,67,.3);
+  --label-disabled: rgba(60,60,67,.45);
   --sep:    rgba(60,60,67,.29);
   --fill:   rgba(120,120,128,.2);
   --fill2:  rgba(120,120,128,.12);
@@ -142,6 +144,8 @@ input, textarea, select { font-family: inherit; }
 .btn:disabled { opacity: .35; cursor: not-allowed; }
 /* Variantes iOS : pleine (primary), grise (secondary), destructive (danger) */
 .btn--primary   { background: var(--tint-fill); color: var(--on-tint); }
+/* Bouton plein désactivé : fond gris et texte atténué plutôt qu'une teinte transparente (illisible sur noir) */
+.btn--primary:disabled { opacity: 1; background: var(--fill); color: var(--label-disabled); }
 .btn--secondary { background: var(--fill); color: var(--tint); }
 .btn--danger    { background: var(--fill); color: var(--red-text); }
 .btn--full { width: 100%; }
