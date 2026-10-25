@@ -499,12 +499,16 @@ async function accountSaveProfile(changes) {
     if (bad) return { ok: false, kind: bad };
     patch.username = changes.username;
   }
-  if ('avatar' in changes) patch.avatar_emoji = validAvatar(changes.avatar);
+  if ('avatar' in changes) patch.avatar_emoji = validAvatar(changes.avatar);   // null : aucun avatar (initiale)
   if (!Object.keys(patch).length) return { ok: true };
   try {
     // Pas encore de ligne connue : insertion (user_id vient de auth.uid() côté serveur). Ligne déjà
     // créée ailleurs entre-temps (clé primaire en double) : mise à jour.
-    let res = account.profile?.stored ? null : await sb.from('user_profiles').insert(patch).select(PROFILE_COLUMNS).single();
+    // Insertion sans avatar : la colonne garde son défaut (null ; 🔥 sur un serveur pas encore migré,
+    // affiché comme l'initiale puisque retiré de la liste).
+    const insert = { ...patch };
+    if (insert.avatar_emoji === null) delete insert.avatar_emoji;
+    let res = account.profile?.stored ? null : await sb.from('user_profiles').insert(insert).select(PROFILE_COLUMNS).single();
     if (!res || (res.error?.code === '23505' && /pkey/.test(res.error.message || ''))) {
       res = await sb.from('user_profiles').update(patch).eq('user_id', userId).select(PROFILE_COLUMNS).single();
     }

@@ -1,4 +1,4 @@
--- Vérifications de supabase/migrations/20261026000000_profils.sql (lancées par tests/sql/run.sh).
+-- Vérifications de supabase/migrations/20261026000000_profils.sql et des migrations qui le modifient (lancées par tests/sql/run.sh).
 -- Chaque bloc échoue (raise) si la règle n'est pas tenue.
 
 insert into auth.users (id) values
@@ -14,9 +14,10 @@ set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
 
 do $$ begin
-  -- Première ligne : user_id vient de auth.uid(), avatar par défaut
+  -- Première ligne : user_id vient de auth.uid(), aucun avatar par défaut (initiale du pseudo,
+  -- 20261026040000_avatars2.sql)
   insert into public.user_profiles (username) values ('max.dlf');
-  if (select avatar_emoji from public.user_profiles) <> '🔥' then raise 'avatar par défaut'; end if;
+  if (select avatar_emoji from public.user_profiles) is not null then raise 'pas d''avatar par défaut'; end if;
   if (select user_id from public.user_profiles) <> '00000000-0000-0000-0000-00000000000a' then raise 'user_id'; end if;
   if (select username_changed_at from public.user_profiles) is not null then raise 'premier choix : pas un changement'; end if;
 end $$;
@@ -34,6 +35,9 @@ do $$ begin
   if pg_temp.err($q$ update public.user_profiles set username = 'ab' $q$) not like '%user_profiles_username_format%' then raise 'trop court accepté'; end if;
   if pg_temp.err($q$ update public.user_profiles set avatar_emoji = '💩' $q$) not like '%user_profiles_avatar_emoji%' then raise 'emoji hors liste accepté'; end if;
   if pg_temp.err($q$ update public.user_profiles set avatar_emoji = '<script>' $q$) not like '%user_profiles_avatar_emoji%' then raise 'texte accepté comme avatar'; end if;
+  if pg_temp.err($q$ update public.user_profiles set avatar_emoji = '🔥' $q$) not like '%user_profiles_avatar_emoji%' then raise 'emoji retiré accepté'; end if;
+  if pg_temp.err($q$ update public.user_profiles set avatar_emoji = '🦊' $q$) <> 'ok' then raise 'emoji de la liste refusé'; end if;
+  if pg_temp.err($q$ update public.user_profiles set avatar_emoji = null $q$) <> 'ok' then raise 'retour à aucun avatar refusé'; end if;
   -- Mots interdits (exact et contains, points et tirets bas ignorés)
   if pg_temp.err($q$ update public.user_profiles set username = 'admin' $q$) <> 'username_forbidden' then raise 'admin accepté'; end if;
   if pg_temp.err($q$ update public.user_profiles set username = 'gros_con.nard' $q$) <> 'username_forbidden' then raise 'injure masquée acceptée'; end if;

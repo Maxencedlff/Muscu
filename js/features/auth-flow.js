@@ -94,18 +94,21 @@ function paintAuth() {
 
 // ── Gabarits des étapes ─────────────────────────────────────
 
+// Pseudo en cours de saisie (normalisé), sinon celui du compte : son initiale remplace l'avatar
+function flowUsername() { return normalizeUsername(flow.username) || account.profile?.username || ''; }
+function flowAvatarHtml() { return avatarHtml('xl', flow.avatar, flowUsername()); }
+
 const AUTH_STEPS = {
   welcome: () => `
       <div class="auth__hero">
         <div class="auth__logo">${appIconSvg(DEFAULT_APP_ICON, { attrs: 'aria-hidden="true" focusable="false"' })}</div>
         <h1 class="auth__title auth__title--welcome" id="authTitle" tabindex="-1">Bienvenue dans MDLF&nbsp;Training</h1>
-        <p class="auth__lead">Crée un compte pour garder tes séances à l'abri et les retrouver sur un nouvel iPhone.</p>
+        <p class="auth__lead">Crée un compte pour sauvegarder tes séances et les retrouver sur un nouvel iPhone.</p>
       </div>
       <div class="auth-buttons">${signInButtonsHtml()}</div>
       <p class="auth__again">Déjà un compte ? Utilise le même moyen qu'avant.</p>
       <button class="auth__skip" data-action="auth-skip" aria-describedby="authSkipNote">Commencer sans compte</button>
-      <p class="auth__skip-note" id="authSkipNote">Tu pourras créer un compte plus tard dans Réglages, tes séances seront gardées.</p>
-      <p class="auth__foot">Facultatif et sans publicité. Ton poids et tes données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
+      <p class="auth__foot" id="authSkipNote">Facultatif, sans publicité. Tu pourras créer un compte plus tard dans Réglages. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
       <p class="auth__error" id="authError" role="alert"></p>`,
 
   email: () => `
@@ -140,7 +143,7 @@ const AUTH_STEPS = {
     const valid = !usernameProblem(normalizeUsername(flow.username));
     return `
       <button class="auth__avatar" data-action="auth-open-avatar" aria-label="${esc(`Avatar : ${avatarName(flow.avatar)}. Modifier`)}">
-        <span class="avatar avatar--xl" aria-hidden="true">${esc(flow.avatar)}</span><span class="auth__avatar-edit" aria-hidden="true">Modifier</span>
+        ${flowAvatarHtml()}<span class="auth__avatar-edit" aria-hidden="true">Modifier</span>
       </button>
       <h1 class="auth__title" id="authTitle" tabindex="-1">${flow.first ? 'Choisis ton pseudo' : 'Pseudo'}</h1>
       <p class="auth__lead">Il servira quand tu pourras ajouter des amis. Pour l'instant, toi seul le vois.</p>
@@ -162,8 +165,9 @@ const AUTH_STEPS = {
 
   avatar: () => `
       <h1 class="auth__title" id="authTitle" tabindex="-1">Choisis ton avatar</h1>
-      <p class="auth__lead">Un emoji pour te reconnaître.</p>
+      <p class="auth__lead">Un emoji, ou l'initiale de ton pseudo.</p>
       <div class="avatar-grid" role="group" aria-labelledby="authTitle">
+        <button class="avatar-pick avatar-pick--initial" data-action="auth-avatar" data-emoji="" aria-label="${NO_AVATAR_NAME}" aria-pressed="${flow.avatar === null}">${avatarInitial(flowUsername()) ? esc(avatarInitial(flowUsername())) : icon('dumbbell', 24)}</button>
         ${AVATAR_EMOJIS.map(a => `<button class="avatar-pick" data-action="auth-avatar" data-emoji="${a.emoji}" aria-label="${esc(a.name)}" aria-pressed="${a.emoji === flow.avatar}">${a.emoji}</button>`).join('')}
       </div>
       <p class="auth__error" id="authError" role="alert"></p>`,
@@ -216,6 +220,9 @@ function onAuthInput(e) {
     if (digits.length === OTP_LENGTH) submitCode(digits);   // envoi automatique au 6e chiffre
   } else if (t.id === 'authUsername') {
     flow.username = t.value;
+    // Sans emoji, l'avatar suit l'initiale du pseudo tapé
+    const shown = flow.root.querySelector('.auth__avatar .avatar');
+    if (shown && !flow.avatar) shown.outerHTML = flowAvatarHtml();
     // « Continuer » actif seulement pour un pseudo valable (la disponibilité suit)
     flow.root.querySelector('[data-role="save"]').disabled = !!usernameProblem(normalizeUsername(t.value));
     clearTimeout(flow.checkTimer);
@@ -402,7 +409,9 @@ async function submitUsername() {
   const status = flow.root.querySelector('#authUsernameStatus');
   const fail = msg => { status.textContent = msg; status.className = 'auth__status auth__status--bad'; haptic('medium'); };
   if (bad) { fail(USERNAME_TEXT[bad]); return; }
-  const changes = { avatar: flow.avatar };
+  // Avatar envoyé seulement s'il a changé (un profil tout neuf sans avatar garde le défaut du serveur)
+  const changes = {};
+  if (flow.avatar !== validAvatar(account.profile?.avatar)) changes.avatar = flow.avatar;
   if (name !== account.profile?.username) changes.username = name;
   setBusy(true);
   const r = await accountSaveProfile(changes);
@@ -438,13 +447,14 @@ registerActions({
   'auth-open-avatar': () => authGo('avatar'),
   'auth-avatar': (e, el) => {
     flow.avatar = validAvatar(el.dataset.emoji);
-    flow.root.querySelectorAll('.avatar-pick').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.emoji === flow.avatar)));
+    flow.root.querySelectorAll('.avatar-pick').forEach(b => b.setAttribute('aria-pressed', String(validAvatar(b.dataset.emoji) === flow.avatar)));
     haptic();
   },
   'auth-avatar-done': async () => {
     // Depuis le pseudo : choix gardé pour l'enregistrement du pseudo
     if (flow.steps.includes('username')) { authBack(); return; }
     if (flow.busy) return;
+    if (flow.avatar === validAvatar(account.profile?.avatar)) { closeAuthFlow(null); return; }   // rien de changé
     setBusy(true);
     const r = await accountSaveProfile({ avatar: flow.avatar });
     setBusy(false);

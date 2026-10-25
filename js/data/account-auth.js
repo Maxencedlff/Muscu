@@ -6,8 +6,8 @@
 //  - Pseudo : normalisation (accents retirés, minuscules) et règles identiques à la migration
 //    supabase/migrations/20261026000000_profils.sql (USERNAME_RE). Les mots interdits sont vérifiés
 //    par le serveur seulement (liste privée).
-//  - Avatar : un emoji de AVATAR_EMOJIS, même liste blanche que le serveur (test unitaire). Aucune
-//    photo, aucune image de corps.
+//  - Avatar : facultatif, un emoji de AVATAR_EMOJIS (même liste blanche que le serveur, test unitaire)
+//    ou rien (initiale du pseudo). Aucune photo, aucune image de corps.
 //  - Moyens de connexion : identités Supabase (apple, google, email) de l'utilisateur.
 //  - Connexion récente (amr du jeton, comme supabase/functions/delete-account/recent-auth.js), moyen de
 //    connexion ajouté depuis moins de 24 h (comme delete-policy.js) et traduction des erreurs Supabase
@@ -154,16 +154,16 @@ function sameLastAccount(last, { method, username, justCreated }) {
 // ── Avatar ──────────────────────────────────────────────────
 
 // Liste blanche (même liste et même ordre que la contrainte user_profiles_avatar_emoji du serveur) :
-// énergie, récompenses et objets de salle d'abord, puis animaux et nature. Aucun personnage ni partie
-// du corps. Un point de code par emoji, plus le sélecteur de variante U+FE0F pour ceux qui s'afficheraient
-// sinon en texte (⏱️, 🏔️) : la comparaison avec le serveur reste exacte, octet pour octet.
+// objets de sport d'abord, puis animaux et nature. Aucun personnage ni partie du corps. Un point de code
+// par emoji, plus le sélecteur de variante U+FE0F pour ceux qui s'afficheraient sinon en texte (⏱️, 🏔️) :
+// la comparaison avec le serveur reste exacte, octet pour octet.
+// Avatar facultatif : null (par défaut) = initiale du pseudo sur un disque gris, comme Contacts.
 const AVATAR_EMOJIS = [
-  { emoji: '🔥', name: 'Flamme' }, { emoji: '⚡', name: 'Éclair' },
-  { emoji: '🥇', name: 'Médaille d\'or' }, { emoji: '🏆', name: 'Trophée' },
-  { emoji: '👟', name: 'Chaussure de sport' }, { emoji: '🥊', name: 'Gant de boxe' },
-  { emoji: '🏅', name: 'Médaille' }, { emoji: '⏱\uFE0F', name: 'Chronomètre' },
-  { emoji: '🎽', name: 'Maillot de course' }, { emoji: '🥋', name: 'Kimono' },
-  { emoji: '🎯', name: 'Cible' }, { emoji: '🔋', name: 'Batterie' },
+  { emoji: '🏆', name: 'Trophée' }, { emoji: '🥇', name: 'Médaille d\'or' },
+  { emoji: '🏅', name: 'Médaille' }, { emoji: '🥊', name: 'Gant de boxe' },
+  { emoji: '🥋', name: 'Kimono' }, { emoji: '👟', name: 'Chaussure de sport' },
+  { emoji: '🎽', name: 'Maillot de course' }, { emoji: '⏱\uFE0F', name: 'Chronomètre' },
+  { emoji: '🎧', name: 'Casque audio' }, { emoji: '⭐', name: 'Étoile' },
   { emoji: '🦍', name: 'Gorille' }, { emoji: '🦬', name: 'Bison' },
   { emoji: '🦁', name: 'Lion' }, { emoji: '🐯', name: 'Tigre' },
   { emoji: '🐻', name: 'Ours' }, { emoji: '🐺', name: 'Loup' },
@@ -171,12 +171,14 @@ const AVATAR_EMOJIS = [
   { emoji: '🦅', name: 'Aigle' }, { emoji: '🦈', name: 'Requin' },
   { emoji: '🐙', name: 'Pieuvre' }, { emoji: '🦉', name: 'Hibou' },
   { emoji: '🏔\uFE0F', name: 'Montagne' }, { emoji: '🌊', name: 'Vague' },
-  { emoji: '⭐', name: 'Étoile' }, { emoji: '🚀', name: 'Fusée' },
-  { emoji: '🎧', name: 'Casque audio' }, { emoji: '💎', name: 'Diamant' },
 ];
-const DEFAULT_AVATAR = '🔥';
+const DEFAULT_AVATAR = null;
+const NO_AVATAR_NAME = 'Initiale du pseudo';
+// Emoji de la liste, sinon null (aucun avatar, ou emoji retiré de la liste : l'initiale le remplace)
 function validAvatar(e) { return AVATAR_EMOJIS.some(a => a.emoji === e) ? e : DEFAULT_AVATAR; }
-function avatarName(e) { return (AVATAR_EMOJIS.find(a => a.emoji === e) || AVATAR_EMOJIS.find(a => a.emoji === DEFAULT_AVATAR)).name; }
+function avatarName(e) { return AVATAR_EMOJIS.find(a => a.emoji === e)?.name || NO_AVATAR_NAME; }
+// Initiale affichée à la place d'un avatar : première lettre ou chiffre du pseudo, '' sans pseudo
+function avatarInitial(username) { return (String(username || '').match(/[a-z0-9]/i)?.[0] || '').toUpperCase(); }
 
 // ── E-mail et code ──────────────────────────────────────────
 

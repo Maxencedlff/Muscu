@@ -79,16 +79,15 @@
 .auth__again--link { margin-top: 0; }
 .auth__again-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; margin: 0 -6px; font-weight: 600; vertical-align: middle; }
 
-/* « Commencer sans compte », « Plus tard » : bien lisibles, jamais en petit gris */
+/* « Commencer sans compte », « Plus tard » : lien de taille normale (pas en gras), 44 pt de haut */
 .auth__skip {
-  align-self: stretch; min-height: 50px; margin-top: 8px; padding: 0 16px; border: 0; background: none;
-  color: var(--tint); font: inherit; font-size: 1.059rem; font-weight: 600; cursor: pointer;
+  align-self: stretch; min-height: 44px; margin-top: 8px; padding: 0 16px; border: 0; background: none;
+  color: var(--tint); font: inherit; font-size: 1rem; font-weight: 400; cursor: pointer;
 }
 .auth__skip:active { opacity: .6; }
 .auth__foot { margin: 12px 0 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); text-align: center; text-wrap: pretty; }
-/* « Déjà un compte ? » sous les boutons, note sous « Commencer sans compte » */
+/* « Déjà un compte ? » sous les boutons */
 .auth__again { margin: 12px 0 0; font-size: var(--fs-footnote); line-height: 1.35; color: var(--label2); text-align: center; }
-.auth__skip-note { margin: -6px 0 0; padding: 0 16px; font-size: var(--fs-footnote); line-height: 1.35; color: var(--label2); text-align: center; text-wrap: pretty; }
 /* Petit écran (iPhone SE, mini) : tout tient sans défiler, « Commencer sans compte » compris */
 @media (max-height: 700px) {
   .auth__page--welcome .auth__hero { gap: 8px; padding: 4px 0 16px; }
@@ -98,9 +97,8 @@
   .auth__page--welcome .auth-buttons { gap: 8px; }
   .auth__page--welcome .auth-btn { min-height: 46px; }
   .auth__page--welcome .auth__again { margin-top: 8px; }
-  .auth__page--welcome .auth__skip { min-height: 44px; margin-top: 2px; }
-  .auth__page--welcome .auth__skip-note { margin-top: -4px; }
-  .auth__page--welcome .auth__foot { margin-top: 8px; }
+  .auth__page--welcome .auth__skip { margin-top: 2px; }
+  .auth__page--welcome .auth__foot { margin-top: 4px; }
 }
 /* iPhone SE (568 pt) : encore un cran, la mention du bas comprise */
 @media (max-height: 600px) {
@@ -184,7 +182,7 @@
 .avatar-pick[aria-pressed="true"] { box-shadow: inset 0 0 0 3px var(--tint); background: var(--fill); }
 .avatar-pick:active { transform: scale(.94); }
 
-/* Pastille d'avatar (emoji sur un disque) */
+/* Pastille d'avatar (emoji ou initiale sur un disque) */
 .avatar {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
   border-radius: 50%; background: var(--fill2); line-height: 1;
@@ -192,6 +190,15 @@
 .avatar--l  { width: 60px; height: 60px; font-size: 2rem; }
 .avatar--xl { width: 92px; height: 92px; font-size: 3.059rem; }
 .avatar--empty { color: var(--label2); }
+/* Sans avatar : initiale du pseudo, blanche sur un disque gris dégradé (monogramme de Contacts) */
+.avatar--initial, .avatar-pick--initial {
+  background: linear-gradient(#a5abb6, #858a95); color: #fff; font-weight: 600;
+}
+.avatar--initial.avatar--l  { font-size: 1.588rem; }
+.avatar--initial.avatar--xl { font-size: 2.471rem; }
+.avatar-pick--initial { font-size: 1.176rem; }
+.avatar-pick--initial .icon { color: #fff; }
+.avatar-pick--initial[aria-pressed="true"] { background: linear-gradient(#a5abb6, #858a95); }
 
 /* ── Réglages : cellule du compte (façon identifiant Apple) ── */
 .account-head { margin-bottom: 8px; }

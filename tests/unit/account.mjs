@@ -119,16 +119,17 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     assert.equal(kind({ code: '42501', message: 'permission denied' }), 'server');
   });
 
-  test('compte : 30 emojis d\'avatar, sans personnage, identiques à la liste blanche du serveur', () => {
+  test('compte : 24 emojis d\'avatar facultatifs, sans personnage, identiques à la liste blanche du serveur', () => {
     const list = run('AVATAR_EMOJIS.map(a => a.emoji)');
-    assert.equal(list.length, 30);
-    assert.equal(new Set(list).size, 30, 'aucun doublon');
+    assert.equal(list.length, 24, 'avec la case « initiale », une grille de 5 × 5');
+    assert.equal(new Set(list).size, 24, 'aucun doublon');
     assert.ok(run('AVATAR_EMOJIS.every(a => a.name && a.name.length > 2)'), 'un nom pour VoiceOver');
-    assert.ok(list.includes(run('DEFAULT_AVATAR')), 'emoji par défaut dans la liste');
     assert.ok(list.every(e => [...e].length === 1 || ([...e].length === 2 && e.endsWith('\uFE0F'))), 'un point de code, plus U+FE0F au besoin');
-    sameJSON(list.slice(0, 6), ['🔥', '⚡', '🥇', '🏆', '👟', '🥊'], 'énergie et récompenses en tête');
+    sameJSON(list.slice(0, 5), ['🏆', '🥇', '🏅', '🥊', '🥋'], 'objets de sport en tête');
     // Ni personne, ni partie du corps, ni geste de main (blocs Unicode des personnages)
     assert.ok(list.every(e => { const c = e.codePointAt(0); return !(c >= 0x1F466 && c <= 0x1F487) && !(c >= 0x1F574 && c <= 0x1F57A) && !(c >= 0x1F645 && c <= 0x1F64F) && !(c >= 0x1F90C && c <= 0x1F93E) && !(c >= 0x1F9B5 && c <= 0x1F9DF) && c !== 0x1F4AA && ![0x1F3C2, 0x1F3C3, 0x1F3C4, 0x1F3C7, 0x1F3CA, 0x1F3CB, 0x1F3CC].includes(c); }), 'aucune image de corps');
+    // Emojis jugés trop « décoratifs » : retirés pour de bon
+    assert.ok(['🔥', '⚡', '🎯', '🔋', '🚀', '💎'].every(e => !list.includes(e)), 'ni 🔥 ⚡ 🎯 🔋 🚀 💎');
     const at = avatarMigration.indexOf(AVATAR_SQL);
     const server = [...avatarMigration.slice(at, avatarMigration.indexOf('])', at)).matchAll(/'([^']+)'/g)].map(m => m[1]);
     const missing = list.filter(e => !server.includes(e));
@@ -136,11 +137,19 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
       // Migration du serveur pas encore écrite : seuls les emojis annoncés manquent, et rien n'est en trop
       sameJSON(missing.sort(), [...AVATARS_PENDING_SERVER].sort(), 'seuls les emojis en attente du serveur manquent');
     } else sameJSON(server, list, 'même liste et même ordre que la contrainte SQL');
-    assert.ok(migration.includes(`avatar_emoji        text not null default '${run('DEFAULT_AVATAR')}'`), 'même défaut que le serveur');
+    // Aucun avatar par défaut, des deux côtés : null = initiale du pseudo
+    assert.equal(run('DEFAULT_AVATAR'), null);
+    assert.ok(avatarMigration.includes('avatar_emoji is null or') && avatarMigration.includes('alter column avatar_emoji drop not null')
+      && avatarMigration.includes('alter column avatar_emoji drop default'), 'serveur : colonne facultative, sans défaut');
     assert.equal(call('validAvatar(e)', { e: '🦊' }), '🦊');
-    assert.equal(call('validAvatar(e)', { e: '<img>' }), run('DEFAULT_AVATAR'));
-    assert.equal(call('validAvatar(e)', { e: null }), run('DEFAULT_AVATAR'));
+    assert.equal(call('validAvatar(e)', { e: '<img>' }), null);
+    assert.equal(call('validAvatar(e)', { e: null }), null);
+    assert.equal(call('validAvatar(e)', { e: '🔥' }), null, 'ancien défaut : initiale');
     assert.equal(call('avatarName(e)', { e: '🦊' }), 'Renard');
+    assert.equal(call('avatarName(e)', { e: null }), 'Initiale du pseudo');
+    assert.equal(call('avatarInitial(u)', { u: 'max.dlf' }), 'M');
+    assert.equal(call('avatarInitial(u)', { u: '_42coach' }), '4', 'premier caractère alphanumérique');
+    assert.equal(call('avatarInitial(u)', { u: null }), '');
   });
 
   test('compte : e-mail et code saisis', () => {
