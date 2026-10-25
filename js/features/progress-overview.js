@@ -39,7 +39,7 @@ function renderStatsOverview() {
   });
   const top = Math.max(4, ...weeks.map(w => w.n));
   const bars = weeks.map(w => `
-      <span class="wk" aria-label="Semaine du ${fmtDate(w.start, 'short')} : ${plural(w.n, 'séance', 'séances')}">
+      <span class="wk" role="img" aria-label="Semaine du ${fmtDate(w.start, 'short')} : ${plural(w.n, 'séance', 'séances')}">
         <span class="wk__bar ${w.n >= 3 ? 'wk__bar--ok' : ''}" style="height:${w.n / top * 100}%"></span>
       </span>`).join('');
 

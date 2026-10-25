@@ -226,15 +226,15 @@ function renderExerciseCard(ex, ei, cur) {
             ? `<h2 class="ex-card__name ex-card__name--howto"><button class="ex-howto" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${esc(ex.name)}${icon('info.circle', 15)}</span></button></h2>`
             : `<h2 class="ex-card__name">${esc(ex.name)}</h2>`}
         ${chip}
-        <span class="ex-card__count num" aria-label="${doneN} séries sur ${ex.sets.length}">${doneN}/${ex.sets.length}</span>
+        <span class="ex-card__count num"><span aria-hidden="true">${doneN}/${ex.sets.length}</span><span class="visually-hidden">${doneN} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
         <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
       </div>
       <div class="ex-card__sub">${exSubHtml(ex, ei, allDone)}</div>
-      <div class="sets" role="table" aria-label="Séries de ${esc(ex.name)}">
-        <div class="sets__head" role="row">
-          <span role="columnheader">Série</span><span role="columnheader" aria-label="La dernière fois">Avant</span>
-          <span role="columnheader" aria-label="${loadSpoken(ex)}">${loadHeader(ex)}</span><span role="columnheader" aria-label="${countSpoken(ex)}">${MEASURES[measureOf(ex)].count}</span>
-          <span role="columnheader" aria-label="Validée">${icon('checkmark', 14)}</span>
+      <div class="sets" role="group" aria-label="Séries de ${esc(ex.name)}">
+        <div class="sets__head" aria-hidden="true">
+          <span>Série</span><span>Avant</span>
+          <span>${loadHeader(ex)}</span><span>${MEASURES[measureOf(ex)].count}</span>
+          <span>${icon('checkmark', 14)}</span>
         </div>
         ${rows}
       </div>
@@ -250,7 +250,7 @@ function renderDoneSetRow(ex, ei, s, si, prev, del) {
   const kind   = m === 'cardio' ? 'charge' : m === 'time' ? 'lest' : loadKind(ex);
   const load   = first ? `${{ charge: '', lest: 'plus ', aide: 'aide de ' }[kind]}${first} ${m === 'cardio' ? 'kilomètres' : data.unit === 'lbs' ? 'livres' : 'kilos'}, ` : '';
   return `
-      <div class="set-swipe" role="row">
+      <div class="set-swipe">
         ${del}
         <div class="session-set session-set--done" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"
              aria-label="Série ${si + 1} validée, ${load}${esc(s.reps)} ${M.spoken}, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
@@ -311,13 +311,13 @@ function renderSetRow(ex, ei, s, si, cur) {
     ? `<button class="set-check-zone" data-action="save-edit-set" aria-label="Enregistrer la série ${si + 1}, ${esc(ex.name)}"><span class="set-check set-check--edit">${icon('checkmark', 18)}</span></button>`
     : `<button class="set-check-zone" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-label="Valider la série ${si + 1}, ${esc(ex.name)}"><span class="set-check"></span></button>`;
   return `
-    <div class="set-swipe" role="row">
+    <div class="set-swipe">
       ${editing ? '' : del}
       <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
         ${(m === 'time' || (m === 'reps' && parseTempo(ex.tempo) && ex.tempoGuide === true)) && !editing && si === ex.sets.findIndex(x => !x.done)
           ? `<button class="set-n set-play" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="${m === 'time' ? 'Lancer le chrono' : `Lancer la série guidée au tempo ${esc(ex.tempo)}`}, série ${si + 1}, ${esc(ex.name)}${s.reps ? `, ${esc(s.reps)} ${m === 'time' ? 'secondes' : 'répétitions'}` : ''}">${icon('play', 16)}</button>`
           : `<span class="set-n num">${si + 1}</span>`}
-        <span class="set-prev num">${prev}</span>
+        <span class="set-prev num">${s.prev ? '<span class="visually-hidden">La dernière fois </span>' : ''}${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
                value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${loadSpoken(ex)} série ${si + 1}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}

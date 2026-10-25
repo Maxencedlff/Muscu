@@ -133,10 +133,10 @@ function addExerciseBlock(key, name, prev, removable, ex = { name }) {
         <div class="exercise-header">
           <span class="exercise-name">${esc(name)}</span>
           <div style="display:flex;gap:6px">
-            <button class="sets-adj" data-action="add-set-row" data-exid="${esc(key)}">+</button>
-            <button class="sets-adj" data-action="rem-set-row" data-exid="${esc(key)}"
+            <button class="sets-adj" data-action="add-set-row" data-exid="${esc(key)}" aria-label="Ajouter une série, ${esc(name)}">+</button>
+            <button class="sets-adj" data-action="rem-set-row" data-exid="${esc(key)}" aria-label="Retirer une série, ${esc(name)}"
                     ${sets.length <= 1 ? 'disabled' : ''} style="opacity:${sets.length <= 1 ? .3 : 1}">−</button>
-            ${removable ? `<button class="sets-adj" data-action="rem-extra-ex" data-exid="${esc(key)}" title="Retirer" aria-label="Retirer l'exercice">${icon('xmark', 16)}</button>` : ''}
+            ${removable ? `<button class="sets-adj" data-action="rem-extra-ex" data-exid="${esc(key)}" title="Retirer" aria-label="Retirer l'exercice ${esc(name)}">${icon('xmark', 16)}</button>` : ''}
           </div>
         </div>
         ${sets.map((s, si) => addSetRow(key, si, s, prev[si], ex)).join('')}
@@ -176,7 +176,7 @@ function renderAddSession() {
         ${addProg === FREE ? '' : `<div class="cat-selector">${catBtns}${elsewhere ? '' : `
           <button class="cat-sel-btn cat-sel-btn--other" data-action="add-other" aria-label="Autre programme ou séance libre">Autre…</button>`}</div>`}
         <div class="date-row">
-          <label class="date-label">Date de la séance</label>
+          <label class="date-label" for="addDate">Date de la séance</label>
           <input type="date" id="addDate" class="date-input"
                  value="${addDate}" max="${localISO()}" data-action="add-date">
         </div>

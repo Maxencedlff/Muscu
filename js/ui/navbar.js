@@ -48,7 +48,7 @@ function updateChrome() {
     const lm = sessionMeta(activeSession.category, activeSession.programme);
     const { total, done } = sessionCounts();
     live.style.setProperty('--cat-color', lm.color);
-    live.setAttribute('aria-label', `Séance ${rawLabel(activeSession.category, activeSession.programme)} en cours, ${done} séries sur ${total}. Ouvrir la séance`);
+    live.setAttribute('aria-label', `Séance ${rawLabel(activeSession.category, activeSession.programme)} en cours, ${done} sur ${plural(total, 'série', 'séries')} faites. Ouvrir la séance`);
     live.innerHTML = `
       <span class="livebar__dot" aria-hidden="true"></span>
       <span class="livebar__title">${lm.label} · <span class="num">${done}/${total}</span></span>

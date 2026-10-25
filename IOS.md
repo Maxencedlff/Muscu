@@ -290,7 +290,12 @@ cookies ni de pistage, contrastes, écrans de 8 téléphones et des pliables) es
       non professionnel, art. 1-1 LCEN ; hébergeurs Vercel et Supabase ; avertissement santé), ouverte
       depuis Réglages › À propos › Mentions légales. Le contrat de licence standard
       d'Apple tient lieu de CGU, compte compris (le compte ne stocke que les données de l'utilisateur).
-- [ ] **VoiceOver** sur tous les écrans (seul l'accueil a été vérifié, par `verif_ui --ux`).
+- [x] **VoiceOver** (25/10/2026) : arbre d'accessibilité contrôlé sur 22 écrans et feuilles (axe-core WCAG 2.2 AA
+      + contrôles maison : cliquables sans rôle, boutons au nom réduit à un symbole, icônes non masquées).
+      Corrigé : tableau des séries mal formé (role=table sans cellules → groupe, en-têtes masqués, « La
+      dernière fois » lu), barres de semaines muettes, +/− et date de « Ajouter une séance passée », liste
+      d'ajout d'exercice, compte « 1 séries ». Restent des contrastes du bleu système d'Apple sur gris
+      (dialogues, « Passer »), gardés comme dans iOS. À refaire à la main sur iPhone de temps en temps.
 - [x] **Fiche App Store** (25/10/2026, envoyée dans App Store Connect, captures en clair) : relire description et mots-clés, refaire les
       captures (`store/captures.py`), car l'app a beaucoup changé depuis (accueil, récupération par muscle,
       exercices sans salle).

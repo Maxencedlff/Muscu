@@ -207,7 +207,7 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
           <input type="checkbox" id="axToProg" class="ax-switch" role="switch">
         </label>`}
       </div>
-      <div class="ax__list" id="axList" role="list">${axListHtml('')}</div>
+      <div class="ax__list" id="axList">${axListHtml('')}</div>
     </div>`;
   openSessSheet({ cls: 'sess-sheet--addex', label: rep ? 'Remplacer l\'exercice' : 'Ajouter un exercice', html, full: true });
 }
