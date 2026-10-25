@@ -87,21 +87,6 @@ export default function ({ test, run, reset, assert }) {
     assert.equal(h.exercises[0].measure, 'reps', 'choix « Répétitions » gardé au nettoyage');
   });
 
-  test('comment faire : consignes de tous les exercices des programmes, rattachées à la bibliothèque', () => {
-    reset();
-    run('Object.keys(EXERCISE_HOWTO)').forEach(n => {
-      assert.equal(run(`catalogueEntry(${JSON.stringify(n)})?.name`), n, `${n} : absent de la bibliothèque`);
-      const h = run(`exerciseHowTo(${JSON.stringify(n)})`);
-      assert.ok(h.cues.length >= 3 && h.mistake, n);
-    });
-    const progNames = run(`[...new Set(Object.values(PROGRAMMES).flatMap(p => Object.values(p.defaults).flatMap(l => l.map(([n]) => n))))]`);
-    progNames.forEach(n => assert.ok(run(`exerciseHowTo(${JSON.stringify(n)})`), `${n} : pas de consignes`));
-    assert.ok(run(`exerciseHowTo('Pull-ups')`), 'par alias');
-    run('Object.keys(EXERCISE_MOVES)').forEach(n => assert.equal(run(`catalogueEntry(${JSON.stringify(n)})?.name`), n));
-    assert.equal(run(`exerciseMove('Pompes')`), null, 'mannequin en bâtons retiré');
-  });
-
-
   test('chrono d\'effort : préparation, décompte, fin à l\'heure exacte, chrono libre', () => {
     const t0 = 1_000_000;
     const c = (now, target = 30) => run(`effortClock({ ei: 0, si: 0, start: ${t0}, target: ${target} }, ${now})`);

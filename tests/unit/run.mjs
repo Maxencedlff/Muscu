@@ -1332,6 +1332,10 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 
 (await import('./measures.mjs')).default({ test, app, run, reset, assert });
 
+// ── Comment faire : consignes des exercices (tests dans howto.mjs) ──
+
+(await import('./howto.mjs')).default({ test, run, reset, assert });
+
 // ── Synchronisation du compte (tests dans sync.mjs) ──
 (await import('./sync.mjs')).default({ test, run, assert, sameJSON });
 
