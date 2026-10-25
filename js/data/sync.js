@@ -20,9 +20,10 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Profil partagé entre les appareils du compte
+// Profil partagé entre les appareils du compte. silhouette (carte des muscles) : choix de la personne,
+// le même sur tous ses appareils comme l'unité ; pas une donnée de santé
 const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
-  'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary'];
+  'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'silhouette'];
 // Restent sur l'appareil (liste tenue pour le test qui oblige à classer toute nouvelle clé)
 const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'healthOn', 'musicOn', 'soundOn', 'vibrateOn',
   'lastExport', 'healthKgPurged', 'schema'];

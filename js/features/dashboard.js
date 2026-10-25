@@ -343,7 +343,8 @@ function renderDashboard() {
 }
 
 // Premier lancement : où s'entraîne-t-on ? Choisit le programme et le filtre de matériel adaptés.
-// Carte et non feuille : rien ne bloque qui veut juste appuyer sur « Démarrer ».
+// Carte et non feuille : rien ne bloque qui veut juste appuyer sur « Démarrer ». La silhouette des
+// muscles (Femme / Homme) s'y choisit d'un toucher, sans fermer la carte ; elle reste dans Réglages.
 const PLACES = {
   salle:    { label: 'En salle',                     programme: 'ppl',             equip: 'all' },
   halteres: { label: 'Chez moi, avec des haltères',  programme: 'maison_halteres', equip: 'halteres' },
@@ -356,6 +357,7 @@ function onboardingCard() {
       <h2 class="onboard__title">Où t'entraînes-tu ?</h2>
       <p class="onboard__sub">L'app choisit un programme et des exercices adaptés. Tu pourras tout changer.</p>
       ${Object.entries(PLACES).map(([k, p]) => `<button class="onboard__btn" data-action="onboard" data-place="${k}">${p.label}</button>`).join('')}
+      <div class="onboard__row"><span class="onboard__label">Silhouette des muscles</span>${silhouetteSegmentedHtml()}</div>
       <button class="onboard__later" data-action="onboard" data-place="">Plus tard</button>
     </section>`;
 }

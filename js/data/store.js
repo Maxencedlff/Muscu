@@ -240,6 +240,8 @@ function sanitizeData(d) {
   // Objectif de séances par semaine (accueil) : absent = nombre de séances du programme
   if (d.weeklyGoal != null) { const g = num(d.weeklyGoal, 1, 7, true); if (g === null) delete d.weeklyGoal; else d.weeklyGoal = g; }
   if (d.unit !== 'kg' && d.unit !== 'lbs') d.unit = 'kg';
+  // Silhouette des muscles (bodySilhouette) : absente = homme ; valeur inconnue retirée
+  if (d.silhouette !== undefined && d.silhouette !== 'female' && d.silhouette !== 'male') delete d.silhouette;
   if (!Array.isArray(d.history)) d.history = [];
   d.history = d.history.filter(cleanHistoryEntry);
   // Identifiants uniques (un fichier importé retouché à la main peut en répéter un)

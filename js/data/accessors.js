@@ -129,6 +129,13 @@ function computeStreak() {
   return streak;
 }
 
+// ── Silhouette des muscles ──────────────────────────────────
+
+// Réglage « Silhouette » (Réglages › Affichage) : dessin de la carte des muscles (js/ui/body-map.js).
+// Absent (données d'avant le réglage) : homme, le seul dessin d'alors.
+const SILHOUETTES = [['female', 'Femme'], ['male', 'Homme']];
+function bodySilhouette() { return data?.silhouette === 'female' ? 'female' : 'male'; }
+
 // ── Unités ──────────────────────────────────────────────────
 // Les charges sont toujours stockées en kg (chaîne) ; l'affichage suit data.unit.
 const KG_TO_LBS = 2.20462;

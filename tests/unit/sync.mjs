@@ -119,12 +119,14 @@ export default function ({ test, run, assert, sameJSON }) {
   });
 
   test('synchro : chaque clé des données est classée « compte » ou « appareil » (rien ne part par oubli)', () => {
-    const r = run(`(() => { const d = freshData(); d.weeklyGoal = 3; d.exerciseMuscles = {}; d.exerciseMusclesSecondary = {}; d.lastExport = 1;
+    const r = run(`(() => { const d = freshData(); d.weeklyGoal = 3; d.exerciseMuscles = {}; d.exerciseMusclesSecondary = {}; d.lastExport = 1; d.silhouette = 'female';
       return Object.keys(d).filter(k => !SYNC_PROFILE_KEYS.includes(k) && !SYNC_LOCAL_ONLY.includes(k)); })()`);
     sameJSON(r, [], 'clé à ajouter à SYNC_PROFILE_KEYS ou SYNC_LOCAL_ONLY (js/data/sync.js)');
     const both = run(`SYNC_PROFILE_KEYS.filter(k => SYNC_LOCAL_ONLY.includes(k))`);
     sameJSON(both, []);
     for (const k of ['bodyWeightKg', 'healthOn', 'history']) assert.ok(run(`SYNC_LOCAL_ONLY.includes(${JSON.stringify(k)})`), k);
+    // Silhouette : réglage du profil, le même sur tous les appareils du compte
+    sameJSON(run(`profilePayload({ unit: 'kg', silhouette: 'female', soundOn: false })`), { unit: 'kg', silhouette: 'female' });
   });
 
   test('compte : effacer l\'appareil ou importer n\'envoie aucune suppression au compte', () => {
