@@ -109,7 +109,11 @@ def t_progress(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, ppl_v2_today_json())
         go(page, 'stats')
-        R.check(page.locator('.tile').count() == 3, f'{t} progrès : 3 tuiles')
+        R.check(page.locator('.tile').count() == 0 and page.locator('.stat-pair__item').count() == 2, f'{t} progrès : deux chiffres groupés, plus de tuiles')
+        # Records de la semaine sous « Vue d'ensemble » (le nombre dépend du jour : données datées depuis maintenant)
+        n = page.evaluate('weekRecordCount(exerciseIndex())')
+        subs = page.locator('[data-action="go-stats-overview"] .cell__sub').all_inner_texts()
+        R.check(subs == ([f'{n} record{"s" if n > 1 else ""} cette semaine'] if n else []) and n <= 6, f'{t} progrès : {n} records de la semaine sous « Vue d\'ensemble » {subs}')
         R.check(page.locator('[data-action="go-stats-overview"]').count() == 1, f'{t} progrès : ligne Vue d\'ensemble')
         R.check(page.locator('.group-title', has_text='Autres').count() == 1, f'{t} progrès : section Autres (Dips)')
         R.check(no_dot_decimal(page, '.view.stats'), f'{t} progrès : aucun point décimal')
@@ -155,7 +159,7 @@ def t_progress(bench, eng, dev, theme):
         page.click('[data-action="stats-mode"][data-mode="1rm"]')
         page.click('[data-action="info-1rm"]')
         page.wait_for_timeout(250)
-        R.check('Epley' in page.locator('.ios-dialog').inner_text(), f'{t} 1RM : explication Epley')
+        R.check('Fiable jusqu\'à 12 reps' in page.locator('.ios-dialog').inner_text(), f'{t} 1RM : explication courte')
         tap_dialog(page, 'OK')
         # Vue d'ensemble
         go(page, 'stats-overview')
