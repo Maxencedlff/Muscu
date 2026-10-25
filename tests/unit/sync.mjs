@@ -157,4 +157,15 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(r.deletes, 0, 'l\'état de A n\'est pas repris : aucune suppression envoyée à A');
     assert.equal(r.gen1, r.gen0 + 1, 'oublier l\'état arrête une synchro en cours (génération)');
   });
+
+  test('compte : déconnexion, « Supprimer toutes les données », reconnexion : aucune suppression envoyée', () => {
+    const r = run(`(() => {
+      localStorage.setItem('mdlf_sync_A', JSON.stringify({ userId: 'A', cursor: 't', pushed: { a1: 'h', a2: 'h' }, profileHash: 'p' }));
+      localStorage.setItem('mdlf_sync_owner', 'A');
+      account.user = null;                // déconnecté
+      accountForgetDevice();              // appelé sans condition par « Supprimer toutes les données »
+      return planSessionPush([], loadSyncMeta('A')).deletes.length;
+    })()`);
+    assert.equal(r, 0);
+  });
 }

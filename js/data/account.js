@@ -37,6 +37,7 @@ const account = { user: null, syncing: false, lastSync: null, error: null, ready
 let syncTimer = null;
 let applyingRemote = false;   // fusion en cours : son propre enregistrement ne relance pas de synchro
 let syncHeld = false;         // connexion en cours (choix du compte pas encore fait) : aucune synchro
+let syncHoldUntil = 0;        // import : pas de synchro pendant le délai « Annuler » (accountHoldSync)
 let syncGeneration = 0;       // +1 à chaque oubli de l'état : une synchro commencée avant n'écrit plus rien
 const accountListeners = [];
 
@@ -185,6 +186,13 @@ function accountResetSyncState() {
   clearSyncMetas();
 }
 
+// Import : la synchro attend la fin du délai où l'import peut être annulé. Annulé dans ce délai,
+// rien n'est parti et rien de ce qui est arrivé d'un autre appareil n'est supprimé.
+function accountHoldSync(ms) {
+  syncHoldUntil = Date.now() + ms;
+  scheduleSync(ms + 100);
+}
+
 // Suppression du compte (règle Apple 5.1.1(v)) : nouvelle connexion avec Apple pour un code frais,
 // puis la fonction serveur delete-account révoque l'accès Apple et efface le compte et ses données.
 // Renvoie { ok, reason?: 'cancel' | 'apple' | 'server', revoked }.
@@ -204,7 +212,7 @@ async function accountDelete() {
 function scheduleSync(delay = SYNC_DEBOUNCE_MS) {
   if (!sb || !account.user || applyingRemote || syncHeld) return;
   clearTimeout(syncTimer);
-  syncTimer = setTimeout(syncNow, delay);
+  syncTimer = setTimeout(syncNow, Math.max(delay, syncHoldUntil - Date.now() + 100));
 }
 
 // Lignes de séances modifiées sur le serveur depuis le curseur (marge de 5 min : la fusion est
@@ -230,6 +238,7 @@ function syncErrorKind(e) {
 // Synchronisation complète : réception, fusion, puis envoi. true si tout est passé.
 async function syncNow() {
   if (!sb || !account.user || account.syncing || syncHeld) return false;
+  if (Date.now() < syncHoldUntil) { scheduleSync(0); return false; }
   account.syncing = true; account.error = null;
   notifyAccount();
   const userId = account.user.id, meta = loadSyncMeta(userId), gen = syncGeneration;

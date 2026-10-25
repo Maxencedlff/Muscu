@@ -143,7 +143,7 @@ function importFile(text) {
   resetSelections();
   render();
   showToast(`Import réussi : ${r.count} séance${r.count > 1 ? 's' : ''}${r.skipped ? ` (${r.skipped} ignorée${r.skipped > 1 ? 's' : ''})` : ''}`, {
-    action: 'Annuler', duration: 6000,
+    action: 'Annuler', duration: IMPORT_UNDO_MS,
     onAction: () => {
       undoImport(r.previous);
       resetSelections();
@@ -186,11 +186,11 @@ registerActions({
     save(); render();
   },
   'wipe-data': async () => {
-    if (!(await confirmSheet('Supprimer toutes les données ?', account.user ? 'Séances, programmes et réglages seront effacés de cet appareil, qui sera déconnecté de ton compte. Ton compte garde tout.' : 'Séances, programmes et réglages seront effacés de cet appareil.', 'Tout supprimer'))) return;
+    if (!(await confirmSheet('Supprimer toutes les données ?', account.user || syncOwner() ? 'Séances, programmes et réglages seront effacés de cet appareil, qui sera déconnecté de ton compte. Ton compte garde tout.' : 'Séances, programmes et réglages seront effacés de cet appareil.', 'Tout supprimer'))) return;
     const n = (data.history || []).length;
     if (!(await dialog({ title: 'Es-tu sûr ?', message: `${n} séance${n > 1 ? 's' : ''} seront perdue${n > 1 ? 's' : ''} définitivement. Pense à exporter avant.`,
       actions: [{ label: 'Annuler', value: false, style: 'cancel' }, { label: 'Supprimer', value: true, style: 'destructive' }] }))) return;
-    if (account.user) await accountForgetDevice();   // le compte garde ses données
+    await accountForgetDevice();   // même déconnecté : l'état du dernier compte est oublié, le compte garde tout
     wipeLocalData();
     render(); showToast('Données supprimées');
   },

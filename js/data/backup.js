@@ -3,6 +3,9 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
+// Délai pendant lequel un import peut être annulé (toast « Annuler » de Réglages)
+const IMPORT_UNDO_MS = 6000;
+
 // Importe une sauvegarde : tout est vérifié sur une copie, `data` n'est remplacé qu'à la fin.
 // Aucun effet d'écran : l'appelant affiche le résultat.
 //   { ok: false, reason: 'invalid' }  fichier illisible, rien n'a été modifié
@@ -41,6 +44,7 @@ function importText(text) {
   try { localStorage.setItem(BACKUP_KEY, previous); } catch {}
   data = next;
   accountResetSyncState();   // compte : les séances absentes du fichier ne sont pas supprimées du compte
+  accountHoldSync(IMPORT_UNDO_MS);   // rien ne part tant que l'import peut être annulé
   if (!save()) { data = JSON.parse(previous); return { ok: false, reason: 'storage' }; }
   syncTimersFromHistory();
   return { ok: true, count: data.history.length, skipped, theme: theme || null, previous };
