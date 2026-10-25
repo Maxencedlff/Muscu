@@ -123,14 +123,6 @@ ${renderAppIconGroup()}
     </div>`;
 }
 
-// Choix de la silhouette des muscles (Réglages › Affichage, carte du premier lancement)
-function silhouetteSegmentedHtml() {
-  const cur = bodySilhouette();
-  return `<div class="segmented seg-sm" role="group" aria-label="Silhouette de la carte des muscles">
-    ${SILHOUETTES.map(([v, l]) => `<button class="segmented__btn ${cur === v ? 'segmented__btn--active' : ''}" aria-pressed="${cur === v}" data-action="set-silhouette" data-val="${v}">${l}</button>`).join('')}
-  </div>`;
-}
-
 // Version affichée dans À propos : lue dans le nom du cache du service worker (ppl-vNN)
 function fillAppVersion() {
   const el = $('#appVersion');

@@ -397,6 +397,46 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.equal(new Set(lib.map(app.normName)).size, lib.length);
   });
 
+  // Mouvement de référence de chaque règle : un nom libre proche (« Soulevé de terre lourd ») reçoit les
+  // muscles de la règle, qui doivent être ceux, vérifiés, de la bibliothèque pour ce mouvement. Les
+  // règles larges (squat, tirage, cardio…) couvrent des variantes différentes : leurs muscles doivent au
+  // moins tous appartenir au mouvement de référence (rien d'inventé).
+  const SAME_AS_RULE = ['Leg curl machine', 'Développé couché prise serrée', 'Curl poignets', 'Curl inversé', 'Curl marteau',
+    'Curl biceps barre', 'Soulevé de terre roumain', 'Soulevé de terre', 'Swing kettlebell', 'Hip thrust', 'Adducteurs machine',
+    'Mollets debout', 'Extension quadriceps', 'Extension triceps poulie', 'Dips', 'Oiseau (élévations arrière)', 'Pull-over poulie',
+    'Élévations latérales', 'Élévations frontales', 'Rowing menton', 'Haussements d\'épaules haltères', 'Crunch',
+    'Développé militaire barre', 'Écarté haltères plat', 'Développé incliné barre', 'Développé couché barre', 'Tirage horizontal câble',
+    'Extension lombaires', 'Burpees'];
+  const SUBSET_OF_CATALOGUE = ['Squat barre', 'Tractions pronation', 'Face pull', 'Course à pied', 'Développé au sol haltères'];
+
+  test('muscles : règles des noms libres alignées sur la bibliothèque (mouvement de référence)', () => {
+    const rule = name => run(`(() => { const r = MUSCLE_RULES.find(([re]) => re.test(ruleKey(${JSON.stringify(name)})));
+      return r ? { p: [...r[1]].sort(), s: [...r[2]].sort() } : null; })()`);
+    const cat = name => { const e = run(`catalogueEntry(${JSON.stringify(name)})`); return { p: [...e.primary].sort(), s: [...e.secondary].sort() }; };
+    for (const name of SAME_AS_RULE) {
+      const r = rule(name), c = cat(name);
+      assert.ok(r, `${name} : aucune règle`);
+      sameJSON(r, c, `${name} : règle ${JSON.stringify(r)}, bibliothèque ${JSON.stringify(c)}`);
+    }
+    for (const name of SUBSET_OF_CATALOGUE) {
+      const r = rule(name), c = cat(name), all = new Set([...c.p, ...c.s]);
+      [...r.p, ...r.s].forEach(m => assert.ok(all.has(m), `${name} : ${m} dans la règle, pas dans la bibliothèque`));
+      r.p.forEach(m => assert.ok(c.p.includes(m), `${name} : ${m} principal pour la règle seulement`));
+    }
+    // Chaque règle a son mouvement de référence dans l'une des deux listes
+    const covered = new Set([...SAME_AS_RULE, ...SUBSET_OF_CATALOGUE].map(n => run(`String(MUSCLE_RULES.find(([re]) => re.test(ruleKey(${JSON.stringify(n)})))[0])`)));
+    assert.equal(covered.size, run('MUSCLE_RULES.length'), 'règle sans mouvement de référence');
+  });
+
+  test('silhouette : choix Femme / Homme (js/ui/body-map.js), réglage actuel coché', () => {
+    reset();
+    const html = run('silhouetteSegmentedHtml()');
+    assert.match(html, /data-val="male"[^>]*>Homme/);
+    assert.match(html, /aria-pressed="true" data-action="set-silhouette" data-val="male"/, 'homme par défaut');
+    run(`data.silhouette = 'female'`);
+    assert.match(run('silhouetteSegmentedHtml()'), /aria-pressed="true" data-action="set-silhouette" data-val="female"/);
+  });
+
   test('séance : menu ⋯ sans « Muscles ciblés » pour un exercice de la bibliothèque', () => {
     reset();
     const values = name => run(`exerciseMenuActions({ name: ${JSON.stringify(name)}, sets: [] }, 1, 2).map(a => a.value).join()`);

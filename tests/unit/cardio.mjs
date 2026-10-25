@@ -39,6 +39,7 @@ export default function ({ test, run, reset, assert, sameJSON, nativeContext }) 
     assert.equal(run(`cardioPace('50', '30', 'pace')`), null, '36 s/km : faute de frappe');
     assert.equal(run(`cardioPace('5', '30', null)`), null);
     assert.equal(run(`spokenPace(cardioPace(5.2, 27, 'pace'), 'pace')`), '5 minutes 12 au kilomètre');
+    assert.equal(run(`spokenPace(cardioPace(10, 49.99, 'pace'), 'pace')`), '5 minutes au kilomètre', 'même arrondi que fmtPace');
   });
 
   test('allure : textes des séries (séance, historique, Progrès)', () => {

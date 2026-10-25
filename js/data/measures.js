@@ -106,20 +106,24 @@ function cardioPace(km, minutes, kind) {
   const [lo, hi] = kind === 'speed' ? SPEED_RANGE : PACE_RANGE;
   return v >= lo && v <= hi ? v : null;
 }
+// Allure en min/km découpée en minutes et secondes arrondies : 4,999 donne 5:00, jamais « 4:60 »
+function paceParts(v) {
+  let m = Math.floor(v), sec = Math.round((v - m) * 60);
+  if (sec === 60) { m++; sec = 0; }
+  return { m, sec };
+}
 // « 5:12 /km » (comme Strava et l'app Exercice), « 24,5 km/h »
 function fmtPace(v, kind) {
   if (v == null || !isFinite(v)) return '';
   if (kind === 'speed') return `${fmtNum(v, 1)} km/h`;
-  let m = Math.floor(v), sec = Math.round((v - m) * 60);
-  if (sec === 60) { m++; sec = 0; }
+  const { m, sec } = paceParts(v);
   return `${m}:${String(sec).padStart(2, '0')} /km`;
 }
 // Même allure pour VoiceOver : « 5 minutes 12 au kilomètre », « 24,5 kilomètres heure »
 function spokenPace(v, kind) {
   if (v == null || !isFinite(v)) return '';
   if (kind === 'speed') return `${fmtNum(v, 1)} kilomètres heure`;
-  let m = Math.floor(v), sec = Math.round((v - m) * 60);
-  if (sec === 60) { m++; sec = 0; }
+  const { m, sec } = paceParts(v);
   return `${m} minute${m > 1 ? 's' : ''}${sec ? ` ${sec}` : ''} au kilomètre`;
 }
 // Allure d'une série cardio (distance dans dist, minutes dans reps) : texte, '' si elle n'a pas de sens

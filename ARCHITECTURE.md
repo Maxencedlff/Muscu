@@ -111,7 +111,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `forms.js` | `flagInvalid`, `weightOk`, `weightMsg` |
 | `edge-swipe.js` | Geste de retour depuis le bord gauche (app installée sur iOS) |
 | `reorder.js` | Glisser pour réordonner (poignée ≡ du mode Modifier) : `makeReorderable({ view, list, row, handle, onMove })`, utilisé par les exercices d’une séance et les séances d’un programme perso |
-| `body-map.js` | `bodyMapSvg(niveaux, options)` : silhouette face / dos en SVG texte, homme ou femme (option `body`, par défaut le réglage `bodySilhouette()`), mêmes zones et mêmes identifiants pour les deux, chaque muscle coloriable (`data-muscle`) ; `bodyHeatOpacity`, `bodyMapColors()` (couleurs résolues pour un SVG autonome) |
+| `body-map.js` | `bodyMapSvg(niveaux, options)` : silhouette face / dos en SVG texte, homme ou femme (option `body`, par défaut le réglage `bodySilhouette()`), mêmes zones et mêmes identifiants pour les deux, chaque muscle coloriable (`data-muscle`) ; `bodyHeatOpacity`, `bodyMapColors()` (couleurs résolues pour un SVG autonome), `silhouetteSegmentedHtml()` (choix Femme / Homme : Réglages, carte du premier lancement) |
 | `medal.js` | Médaille de record : `MEDAL_PATHS` (tracés partagés avec l'image de partage) et `medalSvg(taille)` |
 
 ### js/features/
