@@ -84,6 +84,13 @@ function randomNonce() {
   return [...b].map(x => x.toString(16).padStart(2, '0')).join('');
 }
 
+// Séances de cet appareil pas encore sur le compte userId (selon le dernier état de synchro connu ;
+// sans état, toutes) : sert à ne jamais promettre « elles restent sur ton compte » à tort
+function accountPendingCount(userId) {
+  if (!userId) return (data.history || []).length;
+  return planSessionPush(data.history || [], loadSyncMeta(userId)).upserts.length;
+}
+
 // Session stockée, même expirée (lancement hors ligne : on reste « connecté », la synchro attend)
 async function storedSessionUser() {
   try { return JSON.parse(await Native.account.storage.getItem(AUTH_STORAGE_KEY))?.user || null; }
@@ -127,7 +134,8 @@ function onAccountVisibility() {
 }
 
 // Connexion avec Apple, puis première synchro.
-// askMerge(n) : appelé si cet appareil contient n séances d'un AUTRE compte ; renvoie 'add' (les ajouter
+// askMerge(n, pending) : appelé si cet appareil contient n séances d'un AUTRE compte (dont pending
+// jamais sauvegardées sur cet autre compte) ; renvoie 'add' (les ajouter
 // à ce compte), 'replace' (l'écran a déjà vidé l'appareil : ne garder que celles du compte) ou null
 // (annuler : déconnexion).
 // Renvoie { ok, reason?: 'cancel' | 'apple' | 'server' | 'sync', sent, received }.
@@ -146,7 +154,7 @@ async function accountSignIn(askMerge) {
     const owner = syncOwner();
     if (owner && owner !== auth.user.id) {
       const n = (data.history || []).length;
-      const choice = n ? await askMerge(n) : 'add';
+      const choice = n ? await askMerge(n, accountPendingCount(owner)) : 'add';
       if (!choice) { await accountSignOut(); return { ok: false, reason: 'cancel' }; }
       clearSyncMetas();   // l'ancien compte ne laisse rien derrière lui
       try { localStorage.removeItem(SYNC_OWNER_KEY); } catch { /* loadSyncMeta compare de toute façon */ }

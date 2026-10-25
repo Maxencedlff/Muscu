@@ -25,7 +25,8 @@ function renderSettings() {
   // Interrupteur iOS (le bouton de la rangée porte l'état pour VoiceOver)
   const tog = (on) => `<span class="switch ${on ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>`;
   const last  = data.lastExport;
-  const stale = !last || Date.now() - last > 14 * 86400000;
+  // Avec un compte, les séances sont déjà sauvegardées : l'export n'est qu'une copie en plus, sans alerte
+  const stale = !account.user && (!last || Date.now() - last > 14 * 86400000);
   const nSess = (data.history || []).length;
   return `
     <div class="view settings-view view--grouped">
@@ -84,10 +85,10 @@ ${renderAppIconGroup()}
         <div class="group-title">Données</div>
         <div class="group">
           <div class="cell">
-            <span class="cell__body"><span class="cell__title ${stale ? 'txt-warn' : ''}" id="lastExportTxt">Dernière sauvegarde : ${last ? agoText(last) : 'jamais'}</span></span>
+            <span class="cell__body"><span class="cell__title ${stale ? 'txt-warn' : ''}" id="lastExportTxt">${lastExportLabel()} : ${last ? agoText(last) : 'jamais'}</span></span>
           </div>
           <button class="cell cell--action" data-action="export"><span class="cell__title">Exporter les données</span></button>
-          <button class="cell cell--action" data-action="import"><span class="cell__title">Importer une sauvegarde</span></button>
+          <button class="cell cell--action" data-action="import"><span class="cell__title">${account.user ? 'Importer un fichier d\'export' : 'Importer une sauvegarde'}</span></button>
           <button class="cell cell--nav" data-action="go-trash">
             <span class="cell__body"><span class="cell__title">Supprimés récemment</span></span>
             <span class="cell__value num">${trashCount() || ''}</span>
@@ -95,7 +96,7 @@ ${renderAppIconGroup()}
           </button>
           <button class="cell cell--destructive cell--left" data-action="wipe-data"><span class="cell__title">Supprimer toutes les données</span></button>
         </div>
-        <div class="group-foot">Exporte régulièrement : les données ne sont stockées que sur cet appareil.</div>
+        <div class="group-foot">${account.user ? 'Tes séances et programmes sont aussi sur ton compte. L\'export te donne en plus un fichier à garder où tu veux. Pour effacer aussi ton compte\u00a0: Compte › Supprimer mon compte.' : 'Exporte régulièrement : les données ne sont stockées que sur cet appareil.'}</div>
 
         <div class="group-title">À propos</div>
         <div class="group">
@@ -124,8 +125,11 @@ function fillAppVersion() {
 
 function refreshLastExport() {
   const t = $('#lastExportTxt');
-  if (t) { t.textContent = 'Dernière sauvegarde : aujourd\'hui'; t.classList.remove('txt-warn'); }
+  if (t) { t.textContent = `${lastExportLabel()} : aujourd'hui`; t.classList.remove('txt-warn'); }
 }
+
+// Avec un compte, « sauvegarde » désigne le compte : le fichier s'appelle export
+function lastExportLabel() { return account.user ? 'Dernier export' : 'Dernière sauvegarde'; }
 
 // Sélections des écrans rattachées à la donnée remplacée : reprises sur le programme actif
 function resetSelections() {
@@ -186,9 +190,17 @@ registerActions({
     save(); render();
   },
   'wipe-data': async () => {
-    if (!(await confirmSheet('Supprimer toutes les données ?', account.user || syncOwner() ? 'Séances, programmes et réglages seront effacés de cet appareil, qui sera déconnecté de ton compte. Ton compte garde tout.' : 'Séances, programmes et réglages seront effacés de cet appareil.', 'Tout supprimer'))) return;
+    if (!(await confirmSheet('Supprimer toutes les données ?', account.user ? 'Séances, programmes et réglages seront effacés de cet appareil, qui sera déconnecté de ton compte. Ton compte garde tout.' : 'Séances, programmes et réglages seront effacés de cet appareil.', 'Tout supprimer'))) return;
     const n = (data.history || []).length;
-    if (!(await dialog({ title: 'Es-tu sûr ?', message: `${n} séance${n > 1 ? 's' : ''} seront perdue${n > 1 ? 's' : ''} définitivement. Pense à exporter avant.`,
+    // Compte : dernière sauvegarde tentée avant d'effacer ; on ne promet que ce qui est vraiment dessus
+    if (account.user) await syncNow();
+    const pending = account.user ? accountPendingCount(account.user.id) : n;
+    const lost = !account.user
+      ? `${n} séance${n > 1 ? 's' : ''} seront perdue${n > 1 ? 's' : ''} définitivement. Pense à exporter avant.`
+      : pending
+        ? `${plural(pending, 'séance n\'est pas encore sauvegardée', 'séances ne sont pas encore sauvegardées')} sur ton compte (pas d'Internet ?) et ${pending > 1 ? 'seront perdues' : 'sera perdue'}. Réessaie avec du réseau, ou exporte avant.`
+        : `${plural(n, 'séance sera effacée', 'séances seront effacées')} de cet iPhone. Elles restent sur ton compte\u00a0: reconnecte-toi pour les retrouver.`;
+    if (!(await dialog({ title: 'Es-tu sûr ?', message: lost,
       actions: [{ label: 'Annuler', value: false, style: 'cancel' }, { label: 'Supprimer', value: true, style: 'destructive' }] }))) return;
     await accountForgetDevice();   // même déconnecté : l'état du dernier compte est oublié, le compte garde tout
     wipeLocalData();
@@ -201,7 +213,7 @@ registerActions({
     if (await exportData(themePref())) refreshLastExport();
   },
   'import': async () => {
-    if (!(await confirmSheet('Importer une sauvegarde ?', account.user ? 'Les séances du fichier seront ajoutées à ton compte. Celles déjà sur le compte restent, et ses programmes priment.' : 'Les données actuelles seront remplacées par celles du fichier.', 'Choisir un fichier', false))) return;
+    if (!(await confirmSheet('Importer une sauvegarde ?', account.user ? 'Les séances du fichier seront ajoutées à celles de ton compte. Tes programmes actuels ne changent pas.' : 'Les données actuelles seront remplacées par celles du fichier.', 'Choisir un fichier', false))) return;
     const inp = document.createElement('input');
     inp.type  = 'file'; inp.accept = '.json,application/json';
     inp.onchange = ev => {

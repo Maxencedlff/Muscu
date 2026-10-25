@@ -168,4 +168,14 @@ export default function ({ test, run, assert, sameJSON }) {
     })()`);
     assert.equal(r, 0);
   });
+
+  test('compte : séances pas encore sur le compte comptées (aucune promesse « elles restent sur ton compte » à tort)', () => {
+    const r = run(`(() => {
+      data.history = [{ id: 'a', date: 2, category: 'push', exercises: [] }, { id: 'b', date: 1, category: 'push', exercises: [] }];
+      localStorage.setItem('mdlf_sync_owner', 'A');
+      localStorage.setItem('mdlf_sync_A', JSON.stringify({ userId: 'A', cursor: 't', pushed: { a: syncHash(sessionPayload(data.history[0])) }, profileHash: 'p' }));
+      return [accountPendingCount('A'), accountPendingCount('B'), accountPendingCount(null)];
+    })()`);
+    sameJSON(r, [1, 2, 2], 'b pas encore envoyée ; autre compte ou aucun : tout est à risque');
+  });
 }
