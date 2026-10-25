@@ -10,7 +10,9 @@
   display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 50px;
   padding: 10px 16px; border: 0; border-radius: var(--r-md); cursor: pointer;
   font: inherit; font-size: 1.059rem; font-weight: 600; line-height: 1.2; text-align: center;
+  white-space: nowrap;   /* jamais « Continuer avec un e- / mail » : logo et texte groupés, centrés */
 }
+.auth-btn > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .auth-btn:active { opacity: .7; }
 .auth-btn:disabled, .auth-btn[aria-busy] { opacity: .5; }
 .auth-btn__logo { width: 1.1rem; height: 1.1rem; flex-shrink: 0; }
@@ -20,8 +22,8 @@
 /* Charte Google Identity : fond, contour d'1 px et texte imposés, « G » multicolore */
 .auth-btn--google { background: var(--gsi-bg); color: var(--gsi-fg); box-shadow: inset 0 0 0 1px var(--gsi-border); }
 .auth-btn--mail { background: var(--fill); color: var(--label); }
-/* iPhone SE et petits écrans : libellé sur une ligne, logo collé au texte */
-@media (max-width: 359px) {
+/* iPhone SE, mini et petits écrans (moins de 375 pt) : libellé plus petit pour tenir sur une ligne */
+@media (max-width: 374px) {
   .auth-btn { font-size: .941rem; padding: 10px 12px; gap: 6px; }
 }
 
@@ -39,6 +41,8 @@
 @media (prefers-reduced-motion: reduce) { .auth, .auth--out { animation: none; } }
 
 .auth__bar { display: flex; align-items: center; min-height: 44px; padding: 0 8px; flex-shrink: 0; }
+.auth__bar-gap { flex: 1; }
+.auth__nav--done { font-weight: 600; }
 .auth__nav {
   display: inline-flex; align-items: center; gap: 2px; min-height: 44px; min-width: 44px; padding: 0 8px;
   border: 0; background: none; color: var(--tint); font: inherit; font-size: 1rem; cursor: pointer;
@@ -52,13 +56,21 @@
 .auth__page--welcome { padding-top: 0; }
 .auth__hero { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px 0 28px; text-align: center; }
 .auth__logo svg { display: block; width: 88px; height: 88px; border-radius: 22.5%; box-shadow: var(--shadow-float); }
-.auth__title { margin: 0; font-size: var(--fs-title1); line-height: 1.2; font-weight: 700; text-align: center; outline: none; }
+.auth__title { margin: 0; font-size: var(--fs-title1); line-height: 1.2; font-weight: 700; text-align: center; outline: none; text-wrap: balance; }
 .auth__title--left { text-align: left; margin-top: 8px; }
-.auth__lead { margin: 6px 0 0; font-size: var(--fs-body); line-height: 1.38; color: var(--label2); text-align: center; }
+.auth__lead { margin: 6px 0 0; font-size: var(--fs-body); line-height: 1.38; color: var(--label2); text-align: center; text-wrap: pretty; }
 .auth__lead--left { text-align: left; margin-bottom: 20px; }
 .auth__email { color: var(--label); font-weight: 600; overflow-wrap: anywhere; }
-/* « Nouveau compte créé… » sous le titre du pseudo : encadré discret, lisible en clair et en sombre */
-.auth__notice { margin: 14px 0 0; padding: 12px 14px; border-radius: var(--r-md); background: var(--cell); color: var(--label); font-size: var(--fs-subhead); line-height: 1.4; text-align: left; }
+/* « Nouveau compte créé… » sous le titre du pseudo : encadré discret, lisible en clair et en sombre,
+   avec l'action d'annulation du compte */
+.auth__notice { margin: 14px 0 0; padding: 12px 14px 2px; border-radius: var(--r-md); background: var(--cell); color: var(--label); font-size: var(--fs-subhead); line-height: 1.4; text-align: left; }
+.auth__notice p { margin: 0; text-wrap: pretty; }
+.auth__notice-btn {
+  display: block; width: 100%; min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
+  color: var(--tint); font: inherit; font-weight: 600; text-align: left;
+}
+.auth__notice-btn:active:not(:disabled) { opacity: .6; }
+.auth__notice-btn:disabled { color: var(--label2); }
 
 /* « Commencer sans compte », « Plus tard » : bien lisibles, jamais en petit gris */
 .auth__skip {
@@ -66,7 +78,32 @@
   color: var(--tint); font: inherit; font-size: 1.059rem; font-weight: 600; cursor: pointer;
 }
 .auth__skip:active { opacity: .6; }
-.auth__foot { margin: 12px 0 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); text-align: center; }
+.auth__foot { margin: 12px 0 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); text-align: center; text-wrap: pretty; }
+/* « Déjà un compte ? » sous les boutons, note sous « Commencer sans compte » */
+.auth__again { margin: 12px 0 0; font-size: var(--fs-footnote); line-height: 1.35; color: var(--label2); text-align: center; }
+.auth__skip-note { margin: -6px 0 0; padding: 0 16px; font-size: var(--fs-footnote); line-height: 1.35; color: var(--label2); text-align: center; text-wrap: pretty; }
+/* Petit écran (iPhone SE, mini) : tout tient sans défiler, « Commencer sans compte » compris */
+@media (max-height: 700px) {
+  .auth__page--welcome .auth__hero { gap: 8px; padding: 4px 0 16px; }
+  .auth__page--welcome .auth__logo svg { width: 64px; height: 64px; }
+  .auth__page--welcome .auth__title { font-size: var(--fs-title2); }
+  .auth__page--welcome .auth__lead { font-size: var(--fs-subhead); margin-top: 2px; }
+  .auth__page--welcome .auth-buttons { gap: 8px; }
+  .auth__page--welcome .auth-btn { min-height: 46px; }
+  .auth__page--welcome .auth__again { margin-top: 8px; }
+  .auth__page--welcome .auth__skip { min-height: 44px; margin-top: 2px; }
+  .auth__page--welcome .auth__skip-note { margin-top: -4px; }
+  .auth__page--welcome .auth__foot { margin-top: 8px; }
+}
+/* iPhone SE (568 pt) : encore un cran, la mention du bas comprise */
+@media (max-height: 600px) {
+  .auth__page--welcome .auth__hero { gap: 6px; padding: 0 0 12px; }
+  .auth__page--welcome .auth__logo svg { width: 56px; height: 56px; }
+  .auth__page--welcome .auth__lead { font-size: var(--fs-footnote); }
+  .auth__page--welcome .auth-btn { min-height: 44px; padding-top: 8px; padding-bottom: 8px; }
+  .auth__page--welcome .auth__again { margin-top: 6px; }
+  .auth__page--welcome .auth__foot { margin-top: 4px; }
+}
 
 /* Champs */
 .auth__form { display: flex; flex-direction: column; gap: 10px; }
@@ -76,21 +113,24 @@
   -webkit-appearance: none; appearance: none;
 }
 .auth__input::placeholder { color: var(--label3); }
-.auth__input:focus { outline: 2px solid var(--tint); outline-offset: -2px; }
-.auth__input[aria-invalid="true"] { outline: 2px solid var(--red); outline-offset: -2px; }
+/* Pas d'anneau au focus (le curseur suffit, comme iOS) ; contour rouge fin pour une erreur */
+.auth__input:focus { outline: none; }
+.auth__input[aria-invalid="true"] { outline: 1.5px solid var(--red); outline-offset: -1.5px; }
+.auth__code[aria-invalid="true"] { color: var(--red-text); }
 .auth__input:disabled { color: var(--label2); }
-.auth__code { min-height: 64px; text-align: center; font-size: max(16px, 1.765rem); font-weight: 600; letter-spacing: .45em; padding-left: calc(16px + .45em); }
+.auth__code { font-variant-numeric: tabular-nums; min-height: 64px; text-align: center; font-size: max(16px, 1.765rem); font-weight: 600; letter-spacing: .45em; padding-left: calc(16px + .45em); }
 .auth__error { min-height: 1.2em; margin: 0; font-size: var(--fs-footnote); line-height: 1.35; color: var(--red-text); }
 .auth__error:empty { min-height: 0; }
-.auth__primary { width: 100%; margin-top: 6px; }
+.auth__primary { width: 100%; margin-top: 6px; border-radius: var(--r-pill); }
 .auth__primary[aria-busy] { opacity: .6; }
 
-.auth__links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin-top: 12px; }
+.auth__links { display: flex; flex-direction: column; align-items: center; gap: 0; margin-top: 12px; }
 .auth__link {
   min-height: 44px; padding: 0 4px; border: 0; background: none; cursor: pointer;
   color: var(--tint); font: inherit; font-size: var(--fs-callout);
 }
-.auth__link:disabled { color: var(--label3); cursor: default; }
+.auth__link { font-variant-numeric: tabular-nums; }
+.auth__link:disabled { color: var(--label2); cursor: default; }
 .auth__link:active:not(:disabled) { opacity: .6; }
 
 /* Pseudo */
@@ -105,13 +145,13 @@
 .auth__at-field { position: relative; }
 .auth__at { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--label2); font-size: var(--fs-input); pointer-events: none; }
 .auth__input--at { padding-left: 36px; }
-.auth__status { min-height: 2.6em; margin: 0; padding: 0 4px; font-size: var(--fs-footnote); line-height: 1.35; color: var(--label2); }
+.auth__status { min-height: 2.6em; margin: 0; padding: 0 16px; font-size: var(--fs-footnote); line-height: 1.35; color: var(--label2); }
 .auth__status--ok { color: var(--green-text); }
 .auth__status--bad { color: var(--red-text); }
 
-/* Avatar : grille d'emojis (44 pt au moins, sélection cerclée de la teinte) */
+/* Avatar : grille de 5 colonnes partout (cases de 44 pt au moins même à 320 pt, sélection cerclée de la teinte) */
 .avatar-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 10px;
+  display: grid; grid-template-columns: repeat(5, minmax(44px, 1fr)); gap: 10px;
   margin: 20px 0 16px;
 }
 .avatar-pick {
@@ -139,30 +179,41 @@
 
 /* ── Écran Compte ── */
 .account-hero { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 16px 22px; text-align: center; }
-.account-hero__avatar { display: flex; flex-direction: column; align-items: center; gap: 6px; border: 0; background: none; color: var(--tint); font: inherit; cursor: pointer; }
-.account-hero__avatar:active { opacity: .7; }
-.account-hero__edit { font-size: var(--fs-footnote); font-weight: 600; }
 .account-hero__name { margin: 4px 0 0; font-size: var(--fs-title2); font-weight: 700; overflow-wrap: anywhere; }
 .account-hero__sub { margin: 0; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label2); max-width: 340px; }
 .account-view .auth-buttons { margin: 4px 0 0; }
+.account-foot { margin: 0; padding: 12px 16px 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); text-align: center; text-wrap: pretty; }
 .account-emoji { font-size: 1.294rem; }
 .method-cell { gap: 12px; }
 .method-cell__logo { width: 30px; height: 30px; border-radius: 7px; background: var(--fill2); display: flex; align-items: center; justify-content: center; color: var(--label); flex-shrink: 0; }
 .method-cell__logo .auth-btn__logo { width: 17px; height: 17px; margin: 0; }
 .method-cell__add { color: var(--tint); }
 
-/* ── Accueil : carte « Sauvegarde tes séances sur un compte » ── */
-.account-card { position: relative; padding: 16px 16px 14px; }
-.account-card__title { margin: 0 40px 4px 0; font-size: var(--fs-title3); line-height: 1.25; font-weight: 700; }
-.account-card__sub { margin: 0 0 12px; font-size: var(--fs-subhead); line-height: 1.38; color: var(--label2); }
+/* ── Accueil : carte compacte sous « Démarrer » (titre, action à droite, croix) ── */
+.account-card { display: flex; align-items: center; gap: 4px; min-height: 64px; padding: 10px 2px 10px 16px; }
+.account-card__text { flex: 1; min-width: 0; }
+.account-card__title { margin: 0; font-size: var(--fs-body); line-height: 1.25; font-weight: 600; text-wrap: balance; }
+.account-card__sub { margin: 2px 0 0; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); overflow-wrap: anywhere; }
 .account-card__btn {
-  width: 100%; min-height: 46px; border: 0; border-radius: var(--r-md); cursor: pointer;
-  background: var(--tint-fill); color: var(--on-tint); font: inherit; font-size: 1rem; font-weight: 600;
+  flex-shrink: 0; min-height: 44px; padding: 0 6px; border: 0; background: none; cursor: pointer;
+  color: var(--tint); font: inherit; font-size: var(--fs-body); font-weight: 600; white-space: nowrap;
 }
-.account-card__btn:active { opacity: .7; }
+.account-card__btn:active { opacity: .5; }
 .account-card__close {
-  position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; border: 0; border-radius: 50%;
+  position: relative; flex-shrink: 0; width: 44px; height: 44px; border: 0; border-radius: 50%;
   background: none; color: var(--label2); display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
-.account-card__close::before { content: ''; position: absolute; width: 28px; height: 28px; border-radius: 50%; background: var(--fill2); }
+.account-card__close::before { content: ''; position: absolute; width: 26px; height: 26px; border-radius: 50%; background: var(--fill2); }
 .account-card__close .icon { position: relative; }
+/* Reconnexion (et toute carte sur iPhone SE ou mini, où titre et action ne tiennent pas côte à côte) :
+   titre sur la largeur avec la croix, action dessous, alignée à gauche */
+.account-card--reconnect { display: grid; grid-template-columns: 1fr auto; align-items: start; column-gap: 4px; padding-top: 12px; padding-bottom: 2px; }
+.account-card--reconnect .account-card__text { grid-column: 1; grid-row: 1; padding-top: 2px; }
+.account-card--reconnect .account-card__close { grid-column: 2; grid-row: 1; margin-top: -9px; }
+.account-card--reconnect .account-card__btn { grid-column: 1 / -1; grid-row: 2; justify-self: start; padding: 0; }
+@media (max-width: 374px) {
+  .account-card { display: grid; grid-template-columns: 1fr auto; align-items: start; column-gap: 4px; padding-top: 12px; padding-bottom: 2px; }
+  .account-card__text { grid-column: 1; grid-row: 1; padding-top: 2px; }
+  .account-card__close { grid-column: 2; grid-row: 1; margin-top: -9px; }
+  .account-card__btn { grid-column: 1 / -1; grid-row: 2; justify-self: start; padding: 0; }
+}

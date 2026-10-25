@@ -244,6 +244,7 @@ function paint(scrollY = window.scrollY) {
   $('#app').innerHTML = screen.render(...routeParams(route));
   updateChrome();
   observeLargeTitle();
+  fitBackLabel();
   window.scrollTo(0, scrollY);
   screen.mount?.({ first: renderedView !== name });
   renderedView = name;

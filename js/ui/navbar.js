@@ -83,6 +83,14 @@ function navBar({ title = '', large, back, left = '', right = '', sub = '', extr
     ${large ? `<div class="navbar__largewrap"><h1 class="t-large navbar__large">${largeTitle}</h1>${sub}</div>` : ''}`;
 }
 
+// Libellé du bouton retour qui ne tient pas en entier à côté du titre (« ‹ Entraîn… Réglages » sur un
+// iPhone SE) : chevron seul, comme iOS ; l'aria-label « Retour : … » garde le nom de l'écran. L'écart
+// d'au moins 8 px avec le titre vient de la grille (column-gap de .navbar__bar).
+function fitBackLabel() {
+  const label = $('.navbar__back-label');
+  if (label && label.scrollWidth > label.clientWidth + 1) label.closest('.navbar__back').classList.add('navbar__back--icon');
+}
+
 // Libellé du bouton retour vers une route de la pile
 function routeTitle(route, isRoot) {
   if (isRoot && TAB_OF_ROOT[route]) return TABS[TAB_OF_ROOT[route]].label;

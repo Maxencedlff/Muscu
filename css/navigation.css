@@ -39,7 +39,7 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 /* Comme iOS, la barre grandit avec le texte mais ses tailles de police restent plafonnées */
 .navbar__bar {
   min-height: 44px; display: grid; grid-template-columns: 1fr minmax(0, auto) 1fr; align-items: center;
-  padding: 0 8px;
+  column-gap: 8px; padding: 0 8px;
 }
 .navbar__side { display: flex; align-items: center; min-width: 0; }
 /* « Annuler » / « OK » gardent leur largeur : c'est le titre qui se tronque (écrans étroits) */
@@ -63,6 +63,8 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 .navbar__back { gap: 2px; padding: 0; font-size: min(1rem, 22px); max-width: 100%; }
 .navbar__back .icon { flex-shrink: 0; }
 .navbar__back-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Libellé trop long pour tenir à côté du titre : chevron seul (fitBackLabel, js/ui/navbar.js) */
+.navbar__back--icon .navbar__back-label { display: none; }
 .navbar__text {
   font-size: min(1rem, 22px); padding: 0 8px; white-space: nowrap;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis;

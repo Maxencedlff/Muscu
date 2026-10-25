@@ -321,6 +321,7 @@ function renderDashboard() {
         ${btn}
         <button class="hero__link" data-action="go-editor" data-cat="${esc(next)}">Modifier les exercices</button>
       </section>
+      ${accountHomeCard()}
       ${liveHere ? '' : targetsCard(next)}`;
   }
 
@@ -352,8 +353,8 @@ function renderDashboard() {
       ${navBar({ title: 'Entraînement', largeTitle: date, right, sub })}
       <div class="home">
         ${onboardingCard()}
-        ${accountHomeCard()}
         ${hero || emptyCustom}
+        ${hero ? '' : accountHomeCard()}
         ${keys.length ? ringsRow(ws) + weekCard(ws) : ''}
         ${others ? `<section class="home-card home-card--list" aria-label="Autres séances"><h2 class="home-card__title">Autres séances</h2>${others}</section>` : ''}
       </div>

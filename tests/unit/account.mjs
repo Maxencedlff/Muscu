@@ -9,6 +9,13 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
   const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
   const jwt = claims => `${b64({ alg: 'ES256' })}.${b64(claims)}.signature`;
   const migration = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261026000000_profils.sql'), 'utf8');
+  // Dernière migration qui fixe la liste blanche des avatars (une migration plus récente peut la remplacer)
+  const AVATAR_SQL = 'avatar_emoji = any (array[';
+  const avatarMigration = fs.readdirSync(path.join(ROOT, 'supabase/migrations')).sort().reverse()
+    .map(f => fs.readFileSync(path.join(ROOT, 'supabase/migrations', f), 'utf8')).find(t => t.includes(AVATAR_SQL));
+  // Emojis ajoutés dans l'app avant la migration du serveur (refusés proprement d'ici là : USERNAME_TEXT.avatar).
+  // À vider quand la migration qui les ajoute est dans supabase/migrations.
+  const AVATARS_PENDING_SERVER = ['🏅', '⏱\uFE0F', '🎽', '🔋', '🦍', '🦬', '🏔\uFE0F'];
   const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
   test('compte : écran Bienvenue au tout premier lancement seulement', () => {
@@ -27,11 +34,33 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     const base = { accountAvailable: true, ready: true, signedIn: false, welcomeSeen: false, cardClosed: false };
     const shown = s => call('accountCardShown(s)', { s: { ...base, ...s } });
     assert.equal(shown({}), true);
+    assert.equal(shown({ reconnect: true }), false, 'carte de reconnexion à la place');
     assert.equal(shown({ welcomeSeen: true }), false, 'Bienvenue déjà vu : pas de deuxième proposition');
     assert.equal(shown({ cardClosed: true }), false, 'fermée');
     assert.equal(shown({ signedIn: true }), false, 'connecté');
     assert.equal(shown({ ready: false }), false, 'compte pas encore chargé');
     assert.equal(shown({ accountAvailable: false }), false, 'navigateur');
+  });
+
+  test('compte : carte de reconnexion (iPhone restauré sans session), jamais après une déconnexion voulue', () => {
+    const base = { accountAvailable: true, ready: true, signedIn: false, owner: 'u1', signedOut: false };
+    const shown = s => call('reconnectCardShown(s)', { s: { ...base, ...s } });
+    assert.equal(shown({}), true, 'compte de l\'appareil sans session');
+    assert.equal(shown({ signedOut: true }), false, '« Se déconnecter »');
+    assert.equal(shown({ owner: null }), false, 'aucun compte sur cet appareil');
+    assert.equal(shown({ signedIn: true }), false, 'connecté');
+    assert.equal(shown({ ready: false }), false, 'session pas encore lue');
+    assert.equal(shown({ accountAvailable: false }), false, 'navigateur');
+  });
+
+  test('compte : code demandé repris 10 min après l\'envoi seulement', () => {
+    const now = 10_000_000;
+    const ok = p => call('pendingCodeValid(p, now)', { p, now });
+    assert.equal(ok({ email: 'max@exemple.fr', sentAt: now - 60_000 }), true);
+    assert.equal(ok({ email: 'max@exemple.fr', sentAt: now - 11 * 60_000 }), false, 'code expiré');
+    assert.equal(ok({ email: 'max@exemple.fr', sentAt: now + 60_000 }), false, 'heure future');
+    assert.equal(ok({ email: 'pas une adresse', sentAt: now }), false);
+    assert.equal(ok(null), false);
   });
 
   test('compte : pseudo normalisé (accents, minuscules, espaces) puis validé', () => {
@@ -55,9 +84,10 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     assert.equal(bad('max_'), 'edge');
     assert.equal(bad('ma..x'), 'dots');
     assert.equal(call('Object.keys(USERNAME_TEXT).length') >= 10, true);
-    for (const k of ['empty', 'short', 'long', 'chars', 'edge', 'dots', 'taken', 'forbidden', 'too_soon', 'offline', 'server']) {
+    for (const k of ['empty', 'short', 'long', 'chars', 'edge', 'dots', 'taken', 'taken_first', 'forbidden', 'too_soon', 'avatar', 'offline', 'server']) {
       assert.ok(call(`USERNAME_TEXT[k]`, { k }), `message ${k}`);
     }
+    assert.ok(call('Object.values(USERNAME_TEXT).every(t => /[.?!]$/.test(t))'), 'chaque message finit par un point');
   });
 
   test('compte : règle du pseudo identique au serveur (migration)', () => {
@@ -84,6 +114,7 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     assert.equal(kind({ code: 'P0001', message: 'username_too_soon' }), 'too_soon');
     assert.equal(kind({ code: 'P0001', message: 'username_required' }), 'required');
     assert.equal(kind({ code: '23514', message: 'violates check constraint "user_profiles_username_format"' }), 'chars');
+    assert.equal(kind({ code: '23514', message: 'violates check constraint "user_profiles_avatar_emoji"' }), 'avatar', 'emoji pas encore accepté par le serveur');
     assert.equal(kind({ message: 'Failed to fetch' }), 'offline');
     assert.equal(kind({ code: '42501', message: 'permission denied' }), 'server');
   });
@@ -94,11 +125,17 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     assert.equal(new Set(list).size, 30, 'aucun doublon');
     assert.ok(run('AVATAR_EMOJIS.every(a => a.name && a.name.length > 2)'), 'un nom pour VoiceOver');
     assert.ok(list.includes(run('DEFAULT_AVATAR')), 'emoji par défaut dans la liste');
-    assert.ok(list.every(e => [...e].length === 1), 'un seul point de code (comparaison exacte avec le serveur)');
+    assert.ok(list.every(e => [...e].length === 1 || ([...e].length === 2 && e.endsWith('\uFE0F'))), 'un point de code, plus U+FE0F au besoin');
+    sameJSON(list.slice(0, 6), ['🔥', '⚡', '🥇', '🏆', '👟', '🥊'], 'énergie et récompenses en tête');
     // Ni personne, ni partie du corps, ni geste de main (blocs Unicode des personnages)
     assert.ok(list.every(e => { const c = e.codePointAt(0); return !(c >= 0x1F466 && c <= 0x1F487) && !(c >= 0x1F574 && c <= 0x1F57A) && !(c >= 0x1F645 && c <= 0x1F64F) && !(c >= 0x1F90C && c <= 0x1F93E) && !(c >= 0x1F9B5 && c <= 0x1F9DF) && c !== 0x1F4AA && ![0x1F3C2, 0x1F3C3, 0x1F3C4, 0x1F3C7, 0x1F3CA, 0x1F3CB, 0x1F3CC].includes(c); }), 'aucune image de corps');
-    const sql = migration.slice(migration.indexOf('avatar_emoji = any (array['), migration.indexOf('])', migration.indexOf('avatar_emoji = any (array[')));
-    sameJSON([...sql.matchAll(/'([^']+)'/g)].map(m => m[1]), list, 'même liste et même ordre que la contrainte SQL');
+    const at = avatarMigration.indexOf(AVATAR_SQL);
+    const server = [...avatarMigration.slice(at, avatarMigration.indexOf('])', at)).matchAll(/'([^']+)'/g)].map(m => m[1]);
+    const missing = list.filter(e => !server.includes(e));
+    if (missing.length) {
+      // Migration du serveur pas encore écrite : seuls les emojis annoncés manquent, et rien n'est en trop
+      sameJSON(missing.sort(), [...AVATARS_PENDING_SERVER].sort(), 'seuls les emojis en attente du serveur manquent');
+    } else sameJSON(server, list, 'même liste et même ordre que la contrainte SQL');
     assert.ok(migration.includes(`avatar_emoji        text not null default '${run('DEFAULT_AVATAR')}'`), 'même défaut que le serveur');
     assert.equal(call('validAvatar(e)', { e: '🦊' }), '🦊');
     assert.equal(call('validAvatar(e)', { e: '<img>' }), run('DEFAULT_AVATAR'));
@@ -312,7 +349,10 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
     assert.equal(call('otpErrorKind(e, sent, now)', { e: { code: 'otp_expired' }, sent, now: sent + 60_000 }), 'invalid');
     assert.equal(call('otpErrorKind(e, sent, now)', { e: { code: 'otp_expired' }, sent, now: sent + 11 * 60_000 }), 'expired');
     assert.equal(call('otpErrorKind(e, sent, now)', { e: { code: 'over_email_send_rate_limit' }, sent, now: sent }), 'rate');
-    assert.match(call('authErrorText("identity_exists")'), /déjà relié à un autre compte/);
+    assert.match(call('authErrorText("identity_exists")'), /déjà son propre compte MDLF/);
+    assert.equal(call('identityExistsText("google")'), 'Ce compte Google a déjà son propre compte MDLF. Connecte-toi avec Google, supprime ce compte-là (Réglages › Compte), puis reviens l\'ajouter ici.');
+    assert.match(call('identityExistsText("apple")'), /^Cet identifiant Apple .* Connecte-toi avec Apple/);
+    assert.ok(call('Object.values(AUTH_ERROR_TEXT).every(t => /[.?!]$/.test(t))'), 'chaque message finit par un point');
     assert.match(call('authErrorText("invalid")'), /Code incorrect/);
     assert.match(call('authErrorText("expired")'), /expiré/);
     assert.equal(call('authErrorText("inconnu")'), call('authErrorText("server")'), 'repli');

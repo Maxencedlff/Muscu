@@ -16,6 +16,8 @@ const MAIL_ICON = '<svg class="auth-btn__logo" viewBox="0 0 24 24" aria-hidden="
 // Page publique (aussi déclarée dans App Store Connect) ; _blank l'ouvre dans Safari, hors de l'app
 const PRIVACY_URL = 'https://muscu-eta.vercel.app/privacy.html#compte';
 const PROVIDER_NAMES = { apple: 'Apple', google: 'Google', email: 'un e-mail' };
+// « Tu étais connecté avec … », « utilise … » : moyen de la dernière connexion
+const METHOD_PHRASE = { apple: 'Apple', google: 'Google', email: 'un code par e‑mail' };
 
 // « e‑mail » : trait d'union insécable (U+2011), jamais coupé en fin de ligne sur un petit écran
 // Boutons de connexion, du plus au moins recommandé (Bienvenue et Compte). Google masqué tant que
@@ -52,7 +54,7 @@ function renderAccountGroupInner() {
   }
   const signedIn = !!account.user;
   const name = signedIn ? accountName() : 'Se connecter';
-  const sub = signedIn ? 'Compte, sauvegarde, connexion' : 'Sauvegarde tes séances sur un compte';
+  const sub = signedIn ? 'Compte et sauvegarde' : accountReconnectInfo() ? 'Reconnecte-toi pour reprendre la sauvegarde' : 'Sauvegarde tes séances sur un compte';
   return `
           <button class="cell cell--nav account-cell" data-action="go-account" aria-label="${esc(signedIn ? `${name}, ${sub}` : `${name}. ${sub}`)}">
             ${avatarHtml('l')}
@@ -97,12 +99,12 @@ function methodCellHtml({ provider, label }) {
   const addr = provider === 'email' && state !== 'add' ? signInEmailOf(account.user) || identityOf(account.user, 'email')?.identity_data?.email || '' : '';
   const sub = esc(addr);
   return `
-          <button class="cell cell--nav method-cell method-cell--${provider}" data-action="account-method" data-provider="${provider}"
+          <button class="cell ${state === 'add' ? 'cell--action' : 'cell--nav'} method-cell method-cell--${provider}" data-action="account-method" data-provider="${provider}"
             aria-label="${esc(`${label}, ${METHOD_VALUE[state].toLowerCase()}`)}">
             <span class="method-cell__logo" aria-hidden="true">${logo}</span>
             <span class="cell__body"><span class="cell__title">${label}</span>${sub ? `<span class="cell__sub cell__sub--1">${sub}</span>` : ''}</span>
             <span class="cell__value ${state === 'add' ? 'method-cell__add' : ''}">${METHOD_VALUE[state]}</span>
-            ${icon('chevron.right', 16)}
+            ${state === 'add' ? '' : icon('chevron.right', 16)}
           </button>`;
 }
 
@@ -110,17 +112,22 @@ function renderAccount() {
   const back = { title: 'Compte' };
   if (!accountAvailable()) return `<div class="view view--grouped account-view">${navBar(back)}<div class="scr"></div></div>`;
   if (!account.user) {
+    // iPhone restauré (compte de l'appareil sans session) : on dit avec quoi se reconnecter
+    const info = accountReconnectInfo();
+    const title = info ? 'Reconnecte-toi' : 'Sauvegarde tes séances';
+    const lead = info ? `${reconnectLine(info)}. Utilise le même moyen pour reprendre la sauvegarde.`
+      : 'Tes séances et programmes, gardés sur ton compte : tu les retrouves sur un nouvel iPhone ou après une réinstallation. Facultatif : l\'app marche sans compte.';
     return `
     <div class="view view--grouped account-view">
       ${navBar(back)}
       <div class="scr">
         <div class="account-hero">
           ${avatarHtml('xl')}
-          <h2 class="account-hero__name">Sauvegarde tes séances</h2>
-          <p class="account-hero__sub">Tes séances et programmes, gardés sur ton compte : tu les retrouves sur un nouvel iPhone ou après une réinstallation. Facultatif : l'app marche sans compte.</p>
+          <h2 class="account-hero__name">${title}</h2>
+          <p class="account-hero__sub">${esc(lead)}</p>
         </div>
         <div class="auth-buttons">${signInButtonsHtml()}</div>
-        <div class="group-foot">Avec Apple, ni nom ni e-mail ne sont demandés. Ton poids et tes données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></div>
+        <p class="account-foot">Avec Apple, tu peux masquer ton e‑mail. Ton poids et tes données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
       </div>
     </div>`;
   }
@@ -131,7 +138,7 @@ function renderAccount() {
       ${navBar(back)}
       <div class="scr">
         <div class="account-hero">
-          <button class="account-hero__avatar" data-action="account-edit-avatar" aria-label="${esc(`Avatar : ${avatarName(p?.avatar)}. Changer`)}">${avatarHtml('xl')}<span class="account-hero__edit">Modifier</span></button>
+          ${avatarHtml('xl')}
           <h2 class="account-hero__name">${esc(accountName())}</h2>
           <p class="account-hero__sub">${esc(providerLine())}</p>
         </div>
@@ -152,7 +159,7 @@ function renderAccount() {
 
         <div class="group-title">Moyens de connexion</div>
         <div class="group">${methods.map(methodCellHtml).join('')}</div>
-        <div class="group-foot">Tu peux te connecter avec n'importe lequel. Garde-en au moins un.</div>
+        <div class="group-foot">Tu peux te connecter avec n'importe lequel. Il en faut au moins un.</div>
 
         <div class="group-title">Sauvegarde</div>
         <div class="group">
@@ -183,35 +190,67 @@ SCREENS.set('account', { render: () => renderAccount() });
 function lsFlag(key) { try { return localStorage.getItem(key) === '1'; } catch { return false; } }
 function setLsFlag(key) { try { localStorage.setItem(key, '1'); } catch { /* redemandé au prochain lancement */ } }
 
+// « Tu étais connecté avec Apple · max.dlf »
+function reconnectLine(info) {
+  const how = info.method ? `Tu étais connecté avec ${METHOD_PHRASE[info.method] || info.method}` : 'Tu étais connecté à un compte';
+  return info.username ? `${how} · ${info.username}` : how;
+}
+
+// Carte compacte sous « Démarrer » (titre, action, croix) : jamais devant la séance du jour.
+// Reconnexion d'abord (iPhone restauré), sinon proposition de compte pour qui n'a pas vu Bienvenue.
 function accountHomeCard() {
+  const info = accountReconnectInfo();
+  if (info) {
+    const how = info.method === 'apple' || info.method === 'google' ? ` avec ${PROVIDER_NAMES[info.method]}` : '';
+    return `
+    <section class="home-card account-card account-card--reconnect" aria-labelledby="accountCardTitle">
+      <div class="account-card__text">
+        <h2 class="account-card__title" id="accountCardTitle">Reconnecte-toi pour reprendre la sauvegarde</h2>
+        <p class="account-card__sub">${esc(reconnectLine(info))}</p>
+      </div>
+      <button class="account-card__btn" data-action="account-reconnect">${esc(`Me reconnecter${how}`)}</button>
+      <button class="account-card__close" data-action="account-reconnect-close" aria-label="Fermer">${icon('xmark', 16)}</button>
+    </section>`;
+  }
   if (!accountCardShown({ accountAvailable: accountAvailable(), ready: account.ready, signedIn: !!account.user,
     welcomeSeen: lsFlag(WELCOME_SEEN_KEY), cardClosed: lsFlag(ACCOUNT_CARD_KEY) })) return '';
   return `
     <section class="home-card account-card" aria-labelledby="accountCardTitle">
+      <div class="account-card__text"><h2 class="account-card__title" id="accountCardTitle">Sauvegarde tes séances</h2></div>
+      <button class="account-card__btn" data-action="go-account">Créer un compte</button>
       <button class="account-card__close" data-action="account-card-close" aria-label="Fermer">${icon('xmark', 16)}</button>
-      <h2 class="account-card__title" id="accountCardTitle">Sauvegarde tes séances sur un compte</h2>
-      <p class="account-card__sub">Retrouve-les sur un nouvel iPhone ou après une réinstallation. Facultatif, sans publicité.</p>
-      <button class="account-card__btn" data-action="go-account">Se connecter</button>
     </section>`;
 }
 
 // ── Premier lancement : écran Bienvenue ─────────────────────
 
+// Code demandé avant que iOS ne ferme l'app (moins de 10 min) : { email, sentAt } ou null
+function pendingCode() {
+  try { const p = JSON.parse(localStorage.getItem(PENDING_CODE_KEY)); return pendingCodeValid(p) ? p : null; }
+  catch { return null; }
+}
+
 // Appelé au démarrage (init.js), avant que l'écran de lancement ne disparaisse. Ouvert au tout premier
-// lancement seulement (firstScreen) ; le drapeau est posé quel que soit le choix (auth-flow.js).
+// lancement seulement (firstScreen) ; le drapeau n'est posé que sur un vrai choix (« Commencer sans
+// compte », connexion réussie : auth-flow.js), l'écran revient donc si l'app est fermée avant. Un code
+// demandé il y a moins de 10 min rouvre l'écran du code (iOS a pu fermer l'app pendant la lecture du mail).
 async function maybeShowWelcome() {
   if (!accountAvailable()) return;
+  const pending = pendingCode();
   const state = {
     accountAvailable: true, hasHistory: (data.history || []).length > 0, onboarded: !!data.onboarded,
     restored: Native.restoredAtBoot, welcomeSeen: lsFlag(WELCOME_SEEN_KEY),
     // Session gardée dans le Trousseau (elle survit à une réinstallation) : déjà connecté
     signedIn: false,
   };
-  if (firstScreen(state) !== 'welcome') return;
+  if (firstScreen(state) !== 'welcome' && !pending) return;
   state.signedIn = !!(await storedSessionUser());
-  if (firstScreen(state) !== 'welcome') return;
+  const welcome = firstScreen(state) === 'welcome';
+  if (!welcome && (!pending || state.signedIn)) return;
   account.google = await Native.account.googleAvailable();
-  openAuthFlow({ step: 'welcome', closable: false });
+  openAuthFlow(welcome
+    ? { step: 'welcome', closable: false, resume: pending }
+    : { step: 'code', email: pending.email, sentAt: pending.sentAt });
 }
 
 // ── Mises à jour de l'écran ─────────────────────────────────
@@ -267,7 +306,7 @@ function keepOnlyDeviceSettings() {
 async function askMergeOtherAccount(n, pending) {
   const s = pending > 1 ? 's' : '';
   const where = !pending ? `${n > 1 ? 'Elles restent' : 'Elle reste'} sur l'autre compte.`
-    : `${pending === n ? (n > 1 ? 'Elles' : 'Elle') : `${pending} d'entre elles`} ne ${pending > 1 ? 'sont' : 'est'} sauvegardée${s} nulle part ailleurs : pour les garder, choisis Annuler et exporte-les d'abord (Réglages › Données).`;
+    : `${pending === n ? (n > 1 ? 'Elles' : 'Elle') : `${pending} d'entre elles`} ne ${pending > 1 ? 'sont' : 'est'} sauvegardée${s} nulle part ailleurs : les retirer les effacerait.`;
   const choice = await dialog({ type: 'sheet', title: 'Des séances sont déjà sur cet iPhone',
     message: `Cet iPhone contient ${plural(n, 'séance', 'séances')} d'un autre compte. ${where}`,
     actions: [
@@ -279,26 +318,35 @@ async function askMergeOtherAccount(n, pending) {
   return choice || null;
 }
 
-// Compte tout neuf sur un appareil sans séance : souvent un nouvel iPhone où l'on s'est connecté avec un
-// autre moyen qu'à l'origine (Google au lieu d'Apple…), ce qui crée un compte vide. Affiché sur l'écran
-// du pseudo qui suit (auth-flow.js).
+// Compte tout neuf : souvent un nouvel iPhone où l'on s'est connecté avec un autre moyen qu'à
+// l'origine (Google au lieu d'Apple…), ce qui crée un second compte. Affiché sur l'écran du pseudo qui
+// suit, avec le bouton « Annuler ce compte et me reconnecter autrement » (auth-flow.js).
 function newAccountNotice(res) {
-  if (!res?.isNew || (data.history || []).length) return '';
-  return 'Nouveau compte créé. Tu avais déjà un compte ? Déconnecte-toi et utilise le même moyen de connexion.';
+  if (!res?.isNew) return '';
+  return 'Nouveau compte créé. Tu avais déjà un compte ? Annule celui-ci et reconnecte-toi avec le même moyen qu\'avant.';
 }
 
-// Connexion réussie (Apple, Google ou code) : message, puis pseudo pour un compte tout neuf
+// Connexion réussie (Apple, Google ou code) : ce qui est arrivé (récupéré) et parti (sauvegardé) ;
+// synchro ratée : réseau ou serveur, « récupération » sur un iPhone qui n'avait encore rien
 function signedInToast(res) {
-  if (res.reason === 'sync') return 'Connecté : sauvegarde dès que le réseau revient';
-  return res.sent ? `Connecté : ${plural(res.sent, 'séance sauvegardée', 'séances sauvegardées')} sur ton compte`
-    : 'Connecté : tes données du compte sont sur cet iPhone';
+  if (res.reason === 'sync') {
+    const what = res.newDevice ? 'récupération de tes séances' : 'sauvegarde';
+    return res.error === 'offline' ? `Connecté. Pas d'Internet : ${what} dès que le réseau revient`
+      : `Connecté. ${what[0].toUpperCase() + what.slice(1)} impossible pour l'instant, nouvel essai automatique`;
+  }
+  // Court (une ligne de toast sur un iPhone SE) : « 120 séances récupérées, 3 sauvegardées »
+  const parts = [];
+  if (res.received) parts.push(plural(res.received, 'séance récupérée', 'séances récupérées'));
+  if (res.sent) parts.push(res.received ? `${res.sent} sauvegardée${res.sent > 1 ? 's' : ''}` : plural(res.sent, 'séance sauvegardée', 'séances sauvegardées'));
+  return parts.length ? parts.join(', ') : 'Connecté : tout est à jour';
 }
+const SIGNED_IN_TOAST_MS = 3500;
 
-// Moyen de connexion ajouté depuis moins de 24 h : suppression refusée (par le serveur aussi), date dite
+// Moyen de connexion ajouté ou retiré depuis moins de 24 h : suppression refusée (par le serveur aussi), date dite
 async function identityRecentDialog(retryAt) {
   const when = retryAt ? ` à partir du ${fmtDate(retryAt, 'day')} à ${fmtTime(retryAt)}` : ' dans 24 heures';
   await dialog({ title: 'Suppression possible plus tard',
-    message: `Un moyen de connexion a été ajouté à ton compte il y a moins de 24 heures. Pour ta sécurité, la suppression du compte sera possible${when}.`,
+    message: `Un moyen de connexion a été ajouté ou retiré récemment (moins de 24 heures). Pour ta sécurité, la suppression du compte sera possible${when}.`,
     actions: [{ label: 'OK', style: 'preferred' }] });
 }
 
@@ -318,7 +366,7 @@ async function deleteAccountFlow() {
   if (res.reason === 'identity_recent') { await identityRecentDialog(res.retryAt); return; }
   if (res.reason === 'reauth') { showToast('Confirme d\'abord ton identité, puis réessaie', { error: true }); return; }
   if (!res.ok) {
-    const msg = { apple: 'Connexion avec Apple impossible, réessaie', other_account: authErrorText('other_account') }[res.reason] || 'Suppression impossible, vérifie ta connexion';
+    const msg = { apple: navigator.onLine === false ? authErrorText('offline') : 'Connexion avec Apple impossible, réessaie', other_account: authErrorText('other_account') }[res.reason] || 'Suppression impossible, vérifie ta connexion';
     showToast(msg, { error: true });
     return;
   }
@@ -339,7 +387,7 @@ async function deleteAccountFlow() {
 // suppression d'un compte sans Apple (exigée par le serveur), et avant l'ajout d'un moyen de connexion
 // (confort : le serveur ne l'exige pas, mais relier un moyen sur une session restée ouverte n'a pas à
 // être aussi simple qu'un tap). true si la session est maintenant récente.
-const REAUTH_LABELS = { apple: 'Avec Apple', google: 'Avec Google', email: 'Recevoir un code par e-mail' };
+const REAUTH_LABELS = { apple: 'Avec Apple', google: 'Avec Google', email: 'Recevoir un code par e‑mail' };
 const REAUTH_PURPOSE = { delete: 'Pour supprimer ton compte, reconnecte-toi.', link: 'Pour ajouter un moyen de connexion, reconnecte-toi d\'abord avec un moyen déjà relié.' };
 async function reauthenticate(purpose = 'delete') {
   const methods = reauthMethods();
@@ -391,20 +439,49 @@ async function methodAction(provider) {
   if (provider === 'email') { await openAuthFlow({ step: 'email', mode: 'link' }); return; }
   const r = await accountLink(provider);
   if (r.reason === 'cancel') return;
+  // Déjà relié à un autre compte : la marche à suivre, pas une impasse
+  if (r.kind === 'identity_exists') { await identityExistsDialog(provider); return; }
   showToast(r.ok ? `${label} ajouté : tu peux te connecter avec` : authErrorText(r.kind || 'provider'), { error: !r.ok });
+}
+
+async function identityExistsDialog(provider) {
+  await dialog({ title: 'Déjà relié à un autre compte', message: identityExistsText(provider), actions: [{ label: 'OK', style: 'preferred' }] });
+}
+
+// Moyen à utiliser pour se reconnecter à ce compte (« Se déconnecter »)
+function reconnectHint() {
+  const c = readLoginCache();
+  const m = (c?.userId === account.user?.id && c.method) || primaryProvider(account.user);
+  if (m === 'email' && signInEmailOf(account.user)) return `Pour te reconnecter, demande un code à ${signInEmailOf(account.user)}.`;
+  return m ? `Pour te reconnecter, utilise ${METHOD_PHRASE[m]}.` : 'Tu pourras te reconnecter à tout moment.';
+}
+// « Se déconnecter ? » : ce qui n'est pas encore sauvegardé et avec quoi revenir
+function signOutMessage() {
+  const n = account.user ? accountPendingCount(account.user.id) : 0;
+  const pending = n ? `${plural(n, 'séance pas encore sauvegardée', 'séances pas encore sauvegardées')} : ${n > 1 ? 'elles restent' : 'elle reste'} sur cet iPhone et ${n > 1 ? 'partiront' : 'partira'} quand tu te reconnecteras à ce compte.`
+    : 'Tes données restent sur cet iPhone et sur ton compte.';
+  return `${pending} ${reconnectHint()}`;
 }
 
 registerActions({
   'go-account': () => navigate('account'),
   'account-privacy': () => { window.open(PRIVACY_URL, '_blank'); },
   'account-card-close': () => { setLsFlag(ACCOUNT_CARD_KEY); haptic(); render(); },
+  'account-reconnect-close': () => { accountDismissReconnect(); haptic(); render(); },
+  // Carte de reconnexion : le moyen d'avant directement (Apple, Google), l'adresse préremplie (code)
+  'account-reconnect': async () => {
+    const info = accountReconnectInfo();
+    if (info?.method === 'apple' || (info?.method === 'google' && account.google)) { await signInWithProvider(info.method); return; }
+    if (info?.method === 'email') { await openAuthFlow({ step: 'email', mode: 'signin', email: info.email || '' }); return; }
+    navigate('account');
+  },
   'account-sync': async () => {
     if (account.syncing) return;
     const ok = await syncNow();
     showToast(ok ? 'Sauvegardé' : syncStatusText(), { error: !ok });
   },
   'account-sign-out': async () => {
-    if (!(await confirmSheet('Se déconnecter ?', 'Tes données restent sur cet iPhone et sur ton compte. Tu pourras te reconnecter à tout moment.', 'Se déconnecter'))) return;
+    if (!(await confirmSheet('Se déconnecter ?', signOutMessage(), 'Se déconnecter'))) return;
     await accountSignOut();
     showToast('Déconnecté');
   },
@@ -418,7 +495,7 @@ registerActions({
   'account-delete': async () => {
     const apple = hasApple(account.user);
     if (!(await confirmSheet('Supprimer ton compte ?',
-      `Ton compte, ton pseudo et tout ce qui est sauvegardé dessus seront effacés définitivement. Les séances de cet iPhone ne sont pas touchées : tu choisiras ensuite de les garder ou non. ${apple ? 'Apple te demandera de confirmer ton identité.' : 'Tu confirmeras ton identité en te reconnectant.'}`,
+      `Ton compte, ton pseudo et tout ce qui est sauvegardé dessus seront effacés définitivement. Les séances de cet iPhone ne sont pas touchées : tu choisiras ensuite de les garder ou non. Tes autres appareils seront déconnectés et garderont leurs séances. ${apple ? 'Apple te demandera de confirmer ton identité.' : 'Tu confirmeras ton identité en te reconnectant.'}`,
       'Supprimer mon compte'))) return;
     await deleteAccountFlow();
   },

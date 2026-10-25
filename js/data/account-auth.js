@@ -23,8 +23,10 @@ const OTP_RESEND_MS = 60_000;        // « Renvoyer » grisé pendant ce délai 
 const RECENT_AUTH_MS = 10 * 60_000;  // suppression du compte : connexion de moins de 10 min
 const LINKED_IDENTITY_MIN_AGE_MS = 24 * 3600_000;   // suppression : aucun moyen ajouté depuis moins de 24 h
 const ACCOUNT_CREATION_SLACK_MS = 10 * 60_000;      // identités créées avec le compte (à quelques minutes près)
-const WELCOME_SEEN_KEY  = 'ppl_welcome_seen';         // écran Bienvenue déjà montré (quel que soit le choix)
+const WELCOME_SEEN_KEY  = 'ppl_welcome_seen';         // choix fait sur l'écran Bienvenue (sans compte, ou connexion réussie)
 const ACCOUNT_CARD_KEY  = 'ppl_account_card_closed';  // carte « Sauvegarde tes séances » fermée
+const SIGNED_OUT_KEY    = 'mdlf_signed_out';          // déconnexion voulue (« Se déconnecter ») : pas de carte de reconnexion
+const PENDING_CODE_KEY  = 'mdlf_pending_code';        // { email, sentAt } : code demandé, l'app peut être fermée par iOS
 const USERNAME_RE  = /^[a-z0-9][a-z0-9._]{1,18}[a-z0-9]$/;
 const USERNAME_MIN = 3, USERNAME_MAX = 20;
 const USERNAME_DELAY_MS = 30 * 86400_000;            // 30 jours entre deux changements (déclencheur serveur)
@@ -40,9 +42,23 @@ function firstScreen({ accountAvailable, hasHistory, onboarded, restored, welcom
 }
 
 // Carte unique de l'accueil pour qui n'a pas vu l'écran Bienvenue (utilisateur d'avant les comptes,
-// données restaurées) : tant qu'il n'est pas connecté et ne l'a pas fermée
-function accountCardShown({ accountAvailable, ready, signedIn, welcomeSeen, cardClosed }) {
-  return !!(accountAvailable && ready && !signedIn && !welcomeSeen && !cardClosed);
+// données restaurées) : tant qu'il n'est pas connecté et ne l'a pas fermée. Jamais en même temps que
+// la carte de reconnexion.
+function accountCardShown({ accountAvailable, ready, signedIn, welcomeSeen, cardClosed, reconnect = false }) {
+  return !!(accountAvailable && ready && !signedIn && !welcomeSeen && !cardClosed && !reconnect);
+}
+
+// Carte « Reconnecte-toi » : l'appareil a un compte de synchro (owner) mais plus de session, sans
+// déconnexion voulue. Cas typique : iPhone restauré depuis une sauvegarde (la session du Trousseau,
+// ThisDeviceOnly, n'est pas restaurée ; le stockage de l'app, si).
+function reconnectCardShown({ accountAvailable, ready, signedIn, owner, signedOut }) {
+  return !!(accountAvailable && ready && !signedIn && owner && !signedOut);
+}
+
+// Code demandé il y a moins de 10 min (l'app rouvre sur l'écran du code si iOS l'a fermée entre-temps)
+function pendingCodeValid(p, now = Date.now()) {
+  return !!(p && typeof p.email === 'string' && emailLooksValid(p.email) && Number.isFinite(p.sentAt)
+    && now - p.sentAt >= 0 && now - p.sentAt < OTP_TTL_MS);
 }
 
 // ── Pseudo ──────────────────────────────────────────────────
@@ -70,19 +86,23 @@ function usernameProblem(name) {
 
 // Messages du pseudo : règles locales et réponses du serveur (profileErrorKind, disponibilité)
 const USERNAME_TEXT = {
-  empty: 'Choisis un pseudo',
-  short: `Au moins ${USERNAME_MIN} caractères`,
-  long: `${USERNAME_MAX} caractères au plus`,
-  chars: 'Lettres sans accent, chiffres, point et tiret bas seulement',
-  edge: 'Ni point ni tiret bas au début ou à la fin',
-  dots: 'Pas deux points de suite',
-  taken: 'Ce pseudo n\'est pas disponible',
-  forbidden: 'Ce pseudo n\'est pas autorisé',
-  too_soon: 'Tu as déjà changé de pseudo il y a moins de 30 jours',
-  required: 'Ton pseudo ne peut pas être retiré, seulement changé',
-  offline: 'Pas d\'Internet : réessaie avec du réseau',
-  server: 'Enregistrement impossible pour l\'instant, réessaie dans un moment',
+  empty: 'Choisis un pseudo.',
+  short: `Au moins ${USERNAME_MIN} caractères.`,
+  long: `${USERNAME_MAX} caractères au plus.`,
+  chars: 'Lettres sans accent, chiffres, point et tiret bas seulement.',
+  edge: 'Ni point ni tiret bas au début ou à la fin.',
+  dots: 'Pas deux points de suite.',
+  taken: 'Ce pseudo n\'est pas disponible.',
+  // Premier pseudo d'un compte tout neuf : souvent le même utilisateur avec un autre moyen de connexion
+  taken_first: 'C\'est ton pseudo ? Tu as sans doute déjà un compte : reconnecte-toi avec le même moyen qu\'avant.',
+  forbidden: 'Ce pseudo n\'est pas autorisé.',
+  too_soon: 'Tu as déjà changé de pseudo il y a moins de 30 jours.',
+  required: 'Ton pseudo ne peut pas être retiré, seulement changé.',
+  avatar: 'Cet avatar n\'est pas encore disponible. Choisis-en un autre.',
+  offline: 'Pas d\'Internet : réessaie avec du réseau.',
+  server: 'Enregistrement impossible pour l\'instant, réessaie dans un moment.',
 };
+const USERNAME_HELP = '3 à 20 caractères : lettres sans accent, chiffres, point, tiret bas. Modifiable une fois par mois.';
 
 // Date à partir de laquelle le pseudo peut de nouveau changer (ms), ou 0 si c'est possible dès maintenant
 function usernameNextChange(profile, now = Date.now()) {
@@ -101,38 +121,45 @@ function profileErrorKind(error) {
   if (/username_forbidden/.test(msg)) return 'forbidden';
   if (/username_too_soon/.test(msg)) return 'too_soon';
   if (/username_required/.test(msg)) return 'required';
-  if (error.code === '23514') return /avatar/.test(msg) ? 'server' : 'chars';
+  // Avatar refusé : liste blanche du serveur pas encore à jour (emoji ajouté dans l'app d'abord)
+  if (error.code === '23514') return /avatar/.test(msg) ? 'avatar' : 'chars';
   return 'server';
 }
 
+// Compte créé il y a moins de 10 min (création à cette connexion)
+const NEW_ACCOUNT_MS = 10 * 60_000;
+function accountJustCreated(user, now = Date.now()) {
+  const created = Date.parse(user?.created_at || '');
+  return Number.isFinite(created) && now - created < NEW_ACCOUNT_MS;
+}
 // Compte tout juste créé (pas encore de profil, créé il y a moins de 10 min) : on propose le pseudo
 function isNewAccount(user, profile, now = Date.now()) {
   if (profile !== null) return false;   // profil présent, ou illisible (undefined) : on ne redemande pas
-  const created = Date.parse(user?.created_at || '');
-  return Number.isFinite(created) && now - created < 10 * 60_000;
+  return accountJustCreated(user, now);
 }
 
 // ── Avatar ──────────────────────────────────────────────────
 
 // Liste blanche (même liste et même ordre que la contrainte user_profiles_avatar_emoji du serveur) :
-// objets de sport, animaux, nature. Aucun personnage ni partie du corps. Un seul point de code par
-// emoji (pas de sélecteur de variante) : la comparaison avec le serveur est exacte.
+// énergie, récompenses et objets de salle d'abord, puis animaux et nature. Aucun personnage ni partie
+// du corps. Un point de code par emoji, plus le sélecteur de variante U+FE0F pour ceux qui s'afficheraient
+// sinon en texte (⏱️, 🏔️) : la comparaison avec le serveur reste exacte, octet pour octet.
 const AVATAR_EMOJIS = [
-  { emoji: '⚽', name: 'Ballon de foot' }, { emoji: '🏀', name: 'Ballon de basket' },
-  { emoji: '🎾', name: 'Balle de tennis' }, { emoji: '🥊', name: 'Gant de boxe' },
-  { emoji: '🥋', name: 'Kimono' }, { emoji: '🎯', name: 'Cible' },
-  { emoji: '🏓', name: 'Ping-pong' }, { emoji: '🏆', name: 'Trophée' },
-  { emoji: '🥇', name: 'Médaille d\'or' }, { emoji: '👟', name: 'Chaussure de sport' },
+  { emoji: '🔥', name: 'Flamme' }, { emoji: '⚡', name: 'Éclair' },
+  { emoji: '🥇', name: 'Médaille d\'or' }, { emoji: '🏆', name: 'Trophée' },
+  { emoji: '👟', name: 'Chaussure de sport' }, { emoji: '🥊', name: 'Gant de boxe' },
+  { emoji: '🏅', name: 'Médaille' }, { emoji: '⏱\uFE0F', name: 'Chronomètre' },
+  { emoji: '🎽', name: 'Maillot de course' }, { emoji: '🥋', name: 'Kimono' },
+  { emoji: '🎯', name: 'Cible' }, { emoji: '🔋', name: 'Batterie' },
+  { emoji: '🦍', name: 'Gorille' }, { emoji: '🦬', name: 'Bison' },
   { emoji: '🦁', name: 'Lion' }, { emoji: '🐯', name: 'Tigre' },
   { emoji: '🐻', name: 'Ours' }, { emoji: '🐺', name: 'Loup' },
   { emoji: '🦊', name: 'Renard' }, { emoji: '🐼', name: 'Panda' },
   { emoji: '🦅', name: 'Aigle' }, { emoji: '🦈', name: 'Requin' },
   { emoji: '🐙', name: 'Pieuvre' }, { emoji: '🦉', name: 'Hibou' },
-  { emoji: '🔥', name: 'Flamme' }, { emoji: '⚡', name: 'Éclair' },
-  { emoji: '⭐', name: 'Étoile' }, { emoji: '🌙', name: 'Lune' },
-  { emoji: '🌊', name: 'Vague' }, { emoji: '🌲', name: 'Sapin' },
-  { emoji: '🚀', name: 'Fusée' }, { emoji: '🎧', name: 'Casque audio' },
-  { emoji: '💎', name: 'Diamant' }, { emoji: '🍀', name: 'Trèfle' },
+  { emoji: '🏔\uFE0F', name: 'Montagne' }, { emoji: '🌊', name: 'Vague' },
+  { emoji: '⭐', name: 'Étoile' }, { emoji: '🚀', name: 'Fusée' },
+  { emoji: '🎧', name: 'Casque audio' }, { emoji: '💎', name: 'Diamant' },
 ];
 const DEFAULT_AVATAR = '🔥';
 function validAvatar(e) { return AVATAR_EMOJIS.some(a => a.emoji === e) ? e : DEFAULT_AVATAR; }
@@ -246,23 +273,33 @@ function otpErrorKind(error, sentAt, now = Date.now()) {
 }
 
 const AUTH_ERROR_TEXT = {
-  offline: 'Pas d\'Internet : vérifie ta connexion et réessaie',
-  invalid: 'Code incorrect. Vérifie les 6 chiffres reçus par e-mail',
-  expired: 'Ce code a expiré. Demande un nouveau code',
-  code: 'Code incorrect ou expiré',
-  rate: 'Trop de demandes : attends une minute avant de redemander un code',
-  email: 'Cette adresse e-mail n\'est pas valable',
-  not_authorized: 'L\'envoi des codes par e-mail n\'est pas encore ouvert. Utilise Apple pour l\'instant',
-  identity_exists: 'Ce moyen de connexion est déjà relié à un autre compte',
-  last_identity: 'Garde au moins un moyen de connexion',
-  linking_disabled: 'Ajout d\'un moyen de connexion indisponible pour l\'instant',
-  disabled: 'Ce moyen de connexion n\'est pas encore ouvert',
-  no_account: 'Aucun compte avec cette adresse',
-  same_email: 'Cette adresse sert déjà à te connecter',
-  has_email: 'Ton compte a déjà une adresse e-mail : tu peux recevoir un code de connexion à cette adresse',
-  email_unconfirmed: 'L\'adresse n\'a pas pu être confirmée. Réessaie dans un moment',
-  other_account: 'Ce n\'est pas le compte relié à MDLF. Choisis le même compte qu\'à la connexion',
-  provider: 'Connexion impossible. Réessaie dans un moment',
-  server: 'Connexion impossible pour l\'instant, réessaie dans un moment',
+  offline: 'Pas d\'Internet : vérifie ta connexion et réessaie.',
+  invalid: 'Code incorrect. Vérifie les 6 chiffres reçus par e-mail.',
+  expired: 'Ce code a expiré. Demande un nouveau code.',
+  code: 'Code incorrect ou expiré.',
+  rate: 'Trop de demandes : attends une minute avant de redemander un code.',
+  email: 'Cette adresse e-mail n\'est pas valable.',
+  not_authorized: 'L\'envoi des codes par e-mail n\'est pas encore ouvert. Utilise Apple pour l\'instant.',
+  identity_exists: 'Ce moyen de connexion a déjà son propre compte MDLF. Connecte-toi avec, supprime ce compte-là (Réglages › Compte), puis reviens l\'ajouter ici.',
+  last_identity: 'Garde au moins un moyen de connexion.',
+  linking_disabled: 'Ajout d\'un moyen de connexion indisponible pour l\'instant.',
+  disabled: 'Ce moyen de connexion n\'est pas encore ouvert.',
+  no_account: 'Aucun compte avec cette adresse.',
+  same_email: 'Cette adresse sert déjà à te connecter.',
+  has_email: 'Ton compte a déjà une adresse e-mail : tu peux recevoir un code de connexion à cette adresse.',
+  email_unconfirmed: 'L\'adresse n\'a pas pu être confirmée. Réessaie dans un moment.',
+  other_account: 'Ce n\'est pas le compte relié à MDLF. Choisis le même compte qu\'à la connexion.',
+  provider: 'Connexion impossible. Réessaie dans un moment.',
+  server: 'Connexion impossible pour l\'instant, réessaie dans un moment.',
 };
+// Après un « Renvoyer le code » : l'ancien code ne marche plus (Supabase n'en garde qu'un)
+const LAST_CODE_ONLY = 'Seul le dernier code reçu est valable.';
 function authErrorText(kind) { return AUTH_ERROR_TEXT[kind] || AUTH_ERROR_TEXT.server; }
+
+// Moyen déjà relié à un autre compte MDLF (ajout refusé) : la marche à suivre, nommée
+const IDENTITY_OWNER = { apple: 'Cet identifiant Apple', google: 'Ce compte Google', email: 'Cette adresse e-mail' };
+const IDENTITY_SIGNIN = { apple: 'avec Apple', google: 'avec Google', email: 'avec un code envoyé à cette adresse' };
+function identityExistsText(provider) {
+  if (!IDENTITY_OWNER[provider]) return AUTH_ERROR_TEXT.identity_exists;
+  return `${IDENTITY_OWNER[provider]} a déjà son propre compte MDLF. Connecte-toi ${IDENTITY_SIGNIN[provider]}, supprime ce compte-là (Réglages › Compte), puis reviens l'ajouter ici.`;
+}

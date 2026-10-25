@@ -9,7 +9,9 @@
 //                   une fois l'adresse portée par le compte ;
 //    mode 'reauth'  : code envoyé à l'adresse du compte (avant la suppression) → 'reauth' ;
 //    mode 'profile' : pseudo ou avatar depuis l'écran Compte → 'saved'.
-//  null si l'écran est fermé sans aboutir. L'écran Bienvenue pose WELCOME_SEEN_KEY quel que soit le choix.
+//  null si l'écran est fermé sans aboutir. WELCOME_SEEN_KEY n'est posé que sur un vrai choix
+//  (« Commencer sans compte », connexion réussie). resume : { email, sentAt } d'un code demandé avant
+//  que iOS ne ferme l'app (PENDING_CODE_KEY) : l'écran du code s'ouvre par-dessus Bienvenue.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -17,12 +19,15 @@ const flow = {
   root: null, steps: [], mode: 'signin', closable: true, resolve: null,
   email: '', sentAt: 0, busy: false, tick: null, first: false,   // first : pseudo d'un compte tout neuf
   notice: '',                                                      // avertissement « Nouveau compte créé » (newAccountNotice)
+  resent: false,                                                   // code renvoyé : seul le dernier est valable
+  badCode: '',                                                     // code refusé, gardé dans le champ (en rouge, sélectionné)
   username: '', avatar: null, checkTimer: null, checkSeq: 0,
 };
 
-function openAuthFlow({ step = 'welcome', mode = 'signin', closable = true, email = '', sentAt = 0 } = {}) {
+function openAuthFlow({ step = 'welcome', mode = 'signin', closable = true, email = '', sentAt = 0, resume = null } = {}) {
   if (flow.root) closeAuthFlow(null);
-  Object.assign(flow, { steps: [], mode, closable, email, sentAt, busy: false, first: false, notice: '',
+  if (resume) ({ email, sentAt } = resume);
+  Object.assign(flow, { steps: [], mode, closable, email, sentAt, busy: false, first: false, notice: '', resent: false, badCode: '',
     username: account.profile?.username || '', avatar: validAvatar(account.profile?.avatar) });
   const root = document.createElement('div');
   root.className = 'auth';
@@ -33,8 +38,8 @@ function openAuthFlow({ step = 'welcome', mode = 'signin', closable = true, emai
   root.addEventListener('input', onAuthInput);
   flow.root = root;
   document.body.appendChild(root);
-  if (step === 'welcome') setLsFlag(WELCOME_SEEN_KEY);   // posé dès l'affichage : jamais deux fois
-  authGo(step);
+  if (resume) flow.steps.push(step);   // Bienvenue dessous : « Retour » y ramène
+  authGo(resume ? 'code' : step);
   return new Promise(resolve => { flow.resolve = resolve; });
 }
 
@@ -44,6 +49,7 @@ function closeAuthFlow(result) {
   clearInterval(flow.tick);
   clearTimeout(flow.checkTimer);
   flow.root = null;
+  forgetPendingCode();   // fermé (connecté ou abandonné) : pas de reprise sur l'écran du code
   if (root.contains(document.activeElement)) document.activeElement.blur();   // clavier fermé avec le calque
   root.classList.add('auth--out');
   setTimeout(() => root.remove(), reduceMotion.matches ? 0 : 240);
@@ -70,8 +76,10 @@ function paintAuth() {
   const left = flow.steps.length > 1
     ? `<button class="auth__nav" data-action="auth-back" aria-label="Retour">${icon('chevron.left', 22)}<span>Retour</span></button>`
     : flow.closable ? `<button class="auth__nav" data-action="auth-close">Annuler</button>` : '';
+  // Avatar : « OK » en haut à droite, comme une feuille iOS (toujours visible, même sur un iPhone SE)
+  const right = step === 'avatar' ? '<button class="auth__nav auth__nav--done" data-action="auth-avatar-done">OK</button>' : '';
   flow.root.innerHTML = `
-    <div class="auth__bar">${left}</div>
+    <div class="auth__bar">${left}<span class="auth__bar-gap"></span>${right}</div>
     <div class="auth__page auth__page--${step}">${AUTH_STEPS[step]()}</div>`;
   flow.root.scrollTop = 0;
   const field = flow.root.querySelector('.auth__input');
@@ -87,11 +95,13 @@ const AUTH_STEPS = {
   welcome: () => `
       <div class="auth__hero">
         <div class="auth__logo">${appIconSvg(DEFAULT_APP_ICON, { attrs: 'aria-hidden="true" focusable="false"' })}</div>
-        <h1 class="auth__title" id="authTitle" tabindex="-1">Bienvenue dans MDLF Training</h1>
+        <h1 class="auth__title auth__title--welcome" id="authTitle" tabindex="-1">Bienvenue dans MDLF&nbsp;Training</h1>
         <p class="auth__lead">Crée un compte pour garder tes séances à l'abri et les retrouver sur un nouvel iPhone.</p>
       </div>
       <div class="auth-buttons">${signInButtonsHtml()}</div>
-      <button class="auth__skip" data-action="auth-skip">Commencer sans compte</button>
+      <p class="auth__again">Déjà un compte ? Utilise le même moyen qu'avant.</p>
+      <button class="auth__skip" data-action="auth-skip" aria-describedby="authSkipNote">Commencer sans compte</button>
+      <p class="auth__skip-note" id="authSkipNote">Tu pourras créer un compte plus tard dans Réglages, tes séances seront gardées.</p>
       <p class="auth__foot">Facultatif et sans publicité. Ton poids et tes données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
       <p class="auth__error" id="authError" role="alert"></p>`,
 
@@ -108,36 +118,38 @@ const AUTH_STEPS = {
 
   code: () => `
       <h1 class="auth__title auth__title--left" id="authTitle" tabindex="-1">Saisis le code</h1>
-      <p class="auth__lead auth__lead--left">Envoyé à <strong class="auth__email">${esc(flow.email)}</strong>. Il est valable 10 minutes. Pense à regarder dans les indésirables.</p>
+      <p class="auth__lead auth__lead--left">Envoyé à <strong class="auth__email">${esc(flow.email)}</strong>. Il est valable 10 minutes. Pense à regarder dans les indésirables.<span class="auth__last-code" id="authLastCode">${flow.resent ? ` ${LAST_CODE_ONLY}` : ''}</span></p>
       <form class="auth__form" data-form="code" novalidate>
         <label class="visually-hidden" for="authCode">Code à 6 chiffres</label>
         <input class="auth__input auth__code num" id="authCode" type="text" inputmode="numeric" autocomplete="one-time-code"
-          pattern="[0-9]*" maxlength="${OTP_LENGTH + 4}" enterkeyhint="done" placeholder="000000" aria-describedby="authError">
+          pattern="[0-9]*" maxlength="${OTP_LENGTH + 4}" enterkeyhint="done" placeholder="······" aria-describedby="authError">
         <p class="auth__error" id="authError" role="alert"></p>
         <button class="btn btn--primary auth__primary" type="submit" data-role="verify" disabled>Valider</button>
       </form>
       <div class="auth__links">
-        <button class="auth__link" data-action="auth-resend" id="authResend" disabled>Renvoyer le code</button>
+        <button class="auth__link num" data-action="auth-resend" id="authResend" disabled>Renvoyer le code</button>
         ${flow.mode === 'reauth' ? '' : '<button class="auth__link" data-action="auth-change-email">Changer d\'adresse</button>'}
       </div>`,
 
   username: () => {
     const next = flow.mode === 'profile' ? usernameNextChange(account.profile) : 0;
+    const valid = !usernameProblem(normalizeUsername(flow.username));
     return `
       <button class="auth__avatar" data-action="auth-open-avatar" aria-label="${esc(`Avatar : ${avatarName(flow.avatar)}. Changer`)}">
         <span class="avatar avatar--xl" aria-hidden="true">${esc(flow.avatar)}</span><span class="auth__avatar-edit" aria-hidden="true">Modifier</span>
       </button>
       <h1 class="auth__title" id="authTitle" tabindex="-1">${flow.first ? 'Choisis ton pseudo' : 'Pseudo'}</h1>
-      <p class="auth__lead">Il te représentera auprès de tes amis quand l'app le permettra. Pour l'instant, toi seul le vois.</p>
-      ${flow.first && flow.notice ? `<p class="auth__notice" role="note">${esc(flow.notice)}</p>` : ''}
+      <p class="auth__lead">Il servira quand tu pourras ajouter des amis. Pour l'instant, toi seul le vois.</p>
+      ${flow.first && flow.notice ? `<div class="auth__notice" role="note"><p>${esc(flow.notice)}</p>
+        <button class="auth__notice-btn" data-action="auth-cancel-account">Annuler ce compte et me reconnecter autrement</button></div>` : ''}
       <form class="auth__form" data-form="username" novalidate>
         <label class="visually-hidden" for="authUsername">Pseudo</label>
         <div class="auth__at-field"><span class="auth__at" aria-hidden="true">@</span>
           <input class="auth__input auth__input--at" id="authUsername" type="text" autocomplete="username" autocapitalize="none"
             autocorrect="off" spellcheck="false" maxlength="30" enterkeyhint="done" placeholder="pseudo" value="${esc(flow.username)}"
             aria-describedby="authUsernameStatus" ${next ? 'disabled' : ''}></div>
-        <p class="auth__status" id="authUsernameStatus" aria-live="polite">${next ? esc(`Prochain changement possible le ${fmtDate(next, 'day')}`) : '3 à 20 caractères : lettres, chiffres, point, tiret bas'}</p>
-        <button class="btn btn--primary auth__primary" type="submit" data-role="save" ${next ? 'disabled' : ''}>${flow.first ? 'Continuer' : 'Enregistrer'}</button>
+        <p class="auth__status" id="authUsernameStatus" aria-live="polite">${next ? esc(`Prochain changement possible le ${fmtDate(next, 'day')}.`) : USERNAME_HELP}</p>
+        <button class="btn btn--primary auth__primary" type="submit" data-role="save" ${next || !valid ? 'disabled' : ''}>${flow.first ? 'Continuer' : 'Enregistrer'}</button>
       </form>
       ${flow.first ? '<button class="auth__skip" data-action="auth-later">Plus tard</button>' : ''}`;
   },
@@ -148,9 +160,14 @@ const AUTH_STEPS = {
       <div class="avatar-grid" role="group" aria-labelledby="authTitle">
         ${AVATAR_EMOJIS.map(a => `<button class="avatar-pick" data-action="auth-avatar" data-emoji="${a.emoji}" aria-label="${esc(a.name)}" aria-pressed="${a.emoji === flow.avatar}">${a.emoji}</button>`).join('')}
       </div>
-      <button class="btn btn--primary auth__primary" data-action="auth-avatar-done">${flow.steps.includes('username') ? 'OK' : 'Enregistrer'}</button>
       <p class="auth__error" id="authError" role="alert"></p>`,
 };
+
+// Code demandé (connexion) : gardé 10 min pour rouvrir l'écran du code si iOS ferme l'app
+function rememberPendingCode() {
+  try { localStorage.setItem(PENDING_CODE_KEY, JSON.stringify({ email: flow.email, sentAt: flow.sentAt })); } catch { /* reprise impossible, rien de grave */ }
+}
+function forgetPendingCode() { try { localStorage.removeItem(PENDING_CODE_KEY); } catch { /* rien */ } }
 
 // ── Saisie ──────────────────────────────────────────────────
 
@@ -176,6 +193,9 @@ function onAuthInput(e) {
     authError('');
     flow.root.querySelector('[data-role="send"]').disabled = !emailLooksValid(normalizeEmail(t.value));
   } else if (t.id === 'authCode') {
+    // Code refusé encore dans le champ : ce qui est tapé derrière le remplace (pas de 7e chiffre ignoré)
+    if (flow.badCode && t.value.startsWith(flow.badCode) && t.value.length > flow.badCode.length) t.value = t.value.slice(flow.badCode.length);
+    flow.badCode = '';
     const digits = codeDigits(t.value);
     if (t.value !== digits) t.value = digits;
     authError('');
@@ -183,6 +203,8 @@ function onAuthInput(e) {
     if (digits.length === OTP_LENGTH) submitCode(digits);   // envoi automatique au 6e chiffre
   } else if (t.id === 'authUsername') {
     flow.username = t.value;
+    // « Continuer » actif seulement pour un pseudo valable (la disponibilité suit)
+    flow.root.querySelector('[data-role="save"]').disabled = !!usernameProblem(normalizeUsername(t.value));
     clearTimeout(flow.checkTimer);
     flow.checkTimer = setTimeout(checkUsername, 350);
   }
@@ -209,6 +231,8 @@ async function submitEmail() {
   if (!r.ok) { authError(authErrorText(r.kind)); return; }
   flow.email = email;
   flow.sentAt = r.sentAt;
+  flow.resent = false;
+  if (flow.mode === 'signin') rememberPendingCode();
   authGo('code');
 }
 
@@ -239,11 +263,18 @@ async function submitCode(code) {
   signedIn(r);
 }
 
+// Code refusé : les chiffres restent (en rouge, sélectionnés : la saisie suivante les remplace), le
+// message rappelle après un renvoi que seul le dernier code marche
 function codeFailed(kind) {
   const input = flow.root.querySelector('#authCode');
-  if (input && (kind === 'invalid' || kind === 'expired' || kind === 'code')) { input.value = ''; flow.root.querySelector('[data-role="verify"]').disabled = true; }
-  authError(authErrorText(kind));
-  input?.focus();
+  const wrongCode = kind === 'invalid' || kind === 'code';
+  authError(authErrorText(kind) + (wrongCode && flow.resent ? ` ${LAST_CODE_ONLY}` : ''));
+  if (!input) return;
+  input.focus();
+  if (kind === 'invalid' || kind === 'expired' || kind === 'code') {
+    flow.badCode = input.value;
+    try { input.setSelectionRange(0, input.value.length); } catch { /* champ sans sélection */ }
+  }
 }
 
 // « Renvoyer » grisé 60 s après chaque envoi (limite de Supabase), avec le décompte
@@ -270,16 +301,23 @@ async function resendCode() {
   if (!flow.root) return;
   if (!r.ok) { authError(authErrorText(r.kind)); return; }
   flow.sentAt = r.sentAt;
+  flow.resent = true;
+  flow.badCode = '';
+  if (flow.mode === 'signin') rememberPendingCode();
   authError('');
+  const hint = flow.root.querySelector('#authLastCode');
+  if (hint) hint.textContent = ` ${LAST_CODE_ONLY}`;
   const input = flow.root.querySelector('#authCode');
   if (input) { input.value = ''; input.focus(); }
-  announce('Nouveau code envoyé');
+  announce(`Nouveau code envoyé. ${LAST_CODE_ONLY}`);
   startResendTick();
 }
 
 // ── Après la connexion ──────────────────────────────────────
 
 function signedIn(res) {
+  setLsFlag(WELCOME_SEEN_KEY);   // vrai choix fait : Bienvenue ne revient plus
+  forgetPendingCode();
   render();
   if (res.isNew) {
     flow.first = true;
@@ -290,7 +328,7 @@ function signedIn(res) {
     return;
   }
   closeAuthFlow('signed-in');
-  showToast(signedInToast(res));
+  showToast(signedInToast(res), { duration: SIGNED_IN_TOAST_MS });
 }
 
 async function signInWithProvider(provider, el) {
@@ -301,17 +339,20 @@ async function signInWithProvider(provider, el) {
   try { r = await accountSignInWith(provider, askMergeOtherAccount); }
   catch { r = { ok: false, reason: 'server' }; }
   finally { setBusy(false); if (el?.isConnected) el.disabled = false; notifyAccount(); }
-  if (r.reason === 'cancel') return;
+  if (r.reason === 'cancel') { if (r.discarded) announce('Compte annulé'); return; }
   if (!r.ok && r.reason !== 'sync') {
-    const msg = r.reason === 'provider' ? `Connexion avec ${provider === 'apple' ? 'Apple' : 'Google'} impossible` : authErrorText(r.kind);
+    // Hors ligne : la cause, pas « Connexion impossible »
+    const msg = navigator.onLine === false ? authErrorText('offline')
+      : r.reason === 'provider' ? `Connexion avec ${provider === 'apple' ? 'Apple' : 'Google'} impossible.` : authErrorText(r.kind);
     if (flow.root) authError(msg); else showToast(msg, { error: true });
     return;
   }
   if (flow.root) { signedIn(r); return; }
   // Depuis l'écran Compte : même suite, dans un calque ouvert pour le pseudo
+  setLsFlag(WELCOME_SEEN_KEY);
   render();
   if (r.isNew) { openAuthFlow({ step: 'username', mode: 'profile', closable: false }); flow.first = true; flow.notice = newAccountNotice(r); paintAuth(); }
-  else showToast(signedInToast(r));
+  else showToast(signedInToast(r), { duration: SIGNED_IN_TOAST_MS });
 }
 
 // ── Pseudo et avatar ────────────────────────────────────────
@@ -322,8 +363,9 @@ async function checkUsername() {
   const input = flow.root?.querySelector('#authUsername');
   if (!status || !input || input.disabled) return;
   const name = normalizeUsername(flow.username);
+  const save = flow.root.querySelector('[data-role="save"]');
   status.className = 'auth__status';
-  if (!flow.username.trim()) { status.textContent = '3 à 20 caractères : lettres, chiffres, point, tiret bas'; return; }
+  if (!flow.username.trim()) { status.textContent = USERNAME_HELP; return; }
   const bad = usernameProblem(name);
   const shown = name !== flow.username.trim() ? ` · enregistré @${name}` : '';
   if (bad) { status.textContent = USERNAME_TEXT[bad]; status.classList.add('auth__status--bad'); return; }
@@ -333,9 +375,13 @@ async function checkUsername() {
   const free = await accountUsernameAvailable(name);
   if (seq !== flow.checkSeq || !flow.root) return;
   if (free === null) { status.textContent = `Disponibilité vérifiée à l'enregistrement${shown}`; return; }
-  status.textContent = free ? `Disponible${shown}` : USERNAME_TEXT.taken;
+  status.textContent = free ? `Disponible${shown}` : takenText();
   status.classList.add(free ? 'auth__status--ok' : 'auth__status--bad');
+  if (!free && save) save.disabled = true;
 }
+
+// Pseudo pris au tout premier choix : sans doute le même utilisateur, avec un autre moyen de connexion
+function takenText() { return flow.first ? USERNAME_TEXT.taken_first : USERNAME_TEXT.taken; }
 
 async function submitUsername() {
   if (flow.busy) return;
@@ -350,7 +396,7 @@ async function submitUsername() {
   const r = await accountSaveProfile(changes);
   setBusy(false);
   if (!flow.root) return;
-  if (!r.ok) { fail(USERNAME_TEXT[r.kind] || USERNAME_TEXT.server); return; }
+  if (!r.ok) { fail(r.kind === 'taken' ? takenText() : USERNAME_TEXT[r.kind] || USERNAME_TEXT.server); return; }
   closeAuthFlow('saved');
   render();
   showToast(flow.first ? `Bienvenue, ${name}` : 'Pseudo enregistré');
@@ -362,7 +408,7 @@ registerActions({
     if (flow.root) authGo('email');
     else openAuthFlow({ step: 'email', mode: 'signin' });
   },
-  'auth-skip': () => { setLsFlag(WELCOME_SEEN_KEY); closeAuthFlow(null); },
+  'auth-skip': () => { setLsFlag(WELCOME_SEEN_KEY); closeAuthFlow(null); render(); },
   'auth-back': () => authBack(),
   'auth-close': () => closeAuthFlow(null),
   'auth-resend': async () => { await resendCode(); },
@@ -392,8 +438,33 @@ registerActions({
     setBusy(false);
     if (!flow.root) return;
     if (!r.ok) { authError(USERNAME_TEXT[r.kind] || USERNAME_TEXT.server); return; }
-    closeAuthFlow('saved');
+    closeAuthFlow('saved');   // l'avatar changé à l'écran suffit, pas de message
     render();
-    showToast('Avatar enregistré');
+  },
+  // Compte tout neuf créé par erreur : supprimé (rien ne s'y perd), puis retour aux moyens de connexion
+  'auth-cancel-account': async (e, el) => {
+    if (flow.busy) return;
+    setBusy(true);
+    el.disabled = true;
+    const r = await accountCancelNewAccount();
+    setBusy(false);
+    if (!flow.root) return;
+    if (!r.ok) {
+      el.disabled = false;
+      const status = flow.root.querySelector('#authUsernameStatus');
+      status.textContent = r.reason === 'kept' ? 'Ce compte contient déjà des données : il est gardé. Tu peux te déconnecter dans Réglages › Compte.'
+        : navigator.onLine === false ? authErrorText('offline') : 'Annulation impossible pour l\'instant, réessaie dans un moment.';
+      status.className = 'auth__status auth__status--bad';
+      haptic('medium');
+      return;
+    }
+    render();
+    if (currentView() !== 'account') {
+      // Retour aux moyens de connexion (Bienvenue, avec « Commencer sans compte ») ; depuis l'écran
+      // Compte, il les montre déjà
+      Object.assign(flow, { steps: [], first: false, notice: '', closable: false, username: '', avatar: DEFAULT_AVATAR });
+      authGo('welcome');
+    } else closeAuthFlow(null);
+    showToast('Compte annulé. Reconnecte-toi avec le même moyen qu\'avant');
   },
 });
