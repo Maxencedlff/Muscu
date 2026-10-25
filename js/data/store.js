@@ -139,7 +139,7 @@ function makeDefaultData() {
 }
 
 const BACKUP_KEY = 'ppl_v2_backup';
-const SCHEMA     = 3;
+const SCHEMA     = 4;
 
 // Clés des séances perso : celles que crée l'app (uid, push, legs…) passent toutes
 const SESSION_CAT_RE = /^[A-Za-z0-9_-]{1,40}$/;
@@ -256,6 +256,22 @@ function sanitizeData(d) {
   return d;
 }
 
+// ── Noms devenus cardio (bibliothèque du 25/10/2026) ──
+// La bibliothèque reconnaît de nouveaux noms de cardio (« Trail », alias « treadmill », « fractionné »,
+// « vtt », « home trainer ») : un exercice à ce nom sans mesure enregistrée était en répétitions pour
+// les versions précédentes, et « Trail · 10 reps » deviendrait « 10 min ». Il garde donc 'reps'.
+// Liste figée : noms inconnus de l'ancienne bibliothèque et cardio pour la nouvelle (comparaison de
+// measureOf avant et après, refaite par tests/unit/measures.mjs). Clé : nom normalisé, séparateurs en
+// espaces, comme ruleKey (js/data/muscles.js, chargé après ce fichier ; ses abréviations ne touchent
+// aucun de ces noms). Une nouvelle entrée cardio de la bibliothèque dont le nom était en répétitions
+// avant s'ajoute ici.
+const LEGACY_REPS_NAMES = new Set(['treadmill', 'trail', 'fractionne', 'vtt', 'home trainer']);
+function pinLegacyReps(ex) {
+  if (ex.measure != null) return;
+  const key = normName(ex.name).replace(/[-_/.]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (LEGACY_REPS_NAMES.has(key)) ex.measure = 'reps';
+}
+
 // Séance de l'historique (ou de la corbeille) : corrigée en place, false si elle est inutilisable
 function cleanHistoryEntry(h) {
   const isObj = o => o && typeof o === 'object' && !Array.isArray(o);
@@ -272,8 +288,12 @@ function cleanHistoryEntry(h) {
     if (!Array.isArray(ex.sets)) ex.sets = [];
     ex.sets = ex.sets.filter(st => isObj(st) && num(st.reps, 0, MAX_COUNT, true) !== null);
     // Mesure (js/data/measures.js) : absente = répétitions ; 'time' (secondes) ou 'cardio' (minutes, km)
-    // 'reps' n'est gardé que s'il corrige la détection par le nom (« Crunch vélo » choisi en répétitions)
+    // 'reps' n'est gardé que s'il corrige la détection par le nom (« Crunch vélo » choisi en répétitions).
+    // Noms devenus cardio (pinLegacyReps) : à chaque nettoyage, pas une seule fois. Sans risque : l'app
+    // enregistre la mesure de tout cardio (storedMeasure), une séance sans mesure à ces noms vient donc
+    // d'une version précédente (copie importée, séance reçue d'un autre appareil par la synchro)
     if (!['reps', 'time', 'cardio'].includes(ex.measure)) delete ex.measure;
+    pinLegacyReps(ex);
     ex.sets.forEach(st => {
       st.reps = String(num(st.reps, 0, MAX_COUNT, true) ?? 0);
       if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';
@@ -313,9 +333,10 @@ function normalizeData(d, rawJson = null) {
   }
   sanitizeData(d);
 
+  // Toute migration de schéma : texte d'avant gardé dans ppl_v2_backup (écran de secours)
+  if ((d.schema || 2) < SCHEMA && rawJson) { try { localStorage.setItem(BACKUP_KEY, rawJson); } catch {} }
   // Schéma 3 : identifiant stable (exId) sur chaque exercice de l'historique
   if ((d.schema || 2) < 3) {
-    if (rawJson) { try { localStorage.setItem(BACKUP_KEY, rawJson); } catch {} }
     d.history.forEach(h => {
       const list = d.programmes[h.programme || 'ppl']?.exercises?.[h.category] || [];
       h.exercises.forEach(ex => {
@@ -327,8 +348,14 @@ function normalizeData(d, rawJson = null) {
     // Les PR ont pu être écrits par une séance non terminée (versions précédentes)
     try { recomputePRFromHistory(d); } catch {}
     delete d._prRecomputed;
-    d.schema = SCHEMA;
   }
+  // Schéma 4 : exercices des programmes aux noms devenus cardio (pinLegacyReps), une seule fois : dans
+  // l'app actuelle, un exercice de programme sans mesure suit son nom (« Trail » ajouté depuis la
+  // bibliothèque est du cardio). L'historique est traité par cleanHistoryEntry.
+  if ((d.schema || 2) < 4) {
+    Object.values(d.programmes).forEach(p => Object.values(p.exercises).forEach(list => list.forEach(pinLegacyReps)));
+  }
+  d.schema = SCHEMA;
   d.history.sort((a, b) => b.date - a.date);
   return d;
 }

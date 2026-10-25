@@ -15,6 +15,54 @@ export default function ({ test, run, reset, assert }) {
     assert.equal(run(`measureOf({ name: 'Gainage (planche)', measure: 'reps' })`), 'reps', 'choix explicite prioritaire');
   });
 
+  // Mesure des versions précédentes (bibliothèque d'avant le 25/10/2026, measureOf sur le nom seul) :
+  // relevée avec l'arbre d'avant ; un exercice enregistré sans mesure doit la garder
+  const BEFORE = {
+    'Treadmill': 'reps', 'Trail': 'reps', 'fractionné': 'reps', 'VTT': 'reps', 'Home trainer': 'reps', 'home-trainer': 'reps',
+    'Intervalles': 'reps', 'VMA': 'reps', 'Biking': 'reps', 'RPM': 'reps', 'Trail du dimanche': 'reps',
+    'Course à pied': 'cardio', 'Tapis de course': 'cardio', 'Fractionné (course)': 'cardio', 'Trail running': 'cardio',
+    'Vélo': 'cardio', 'Vélo d\'appartement': 'cardio', 'Spinning': 'cardio', 'Crunch vélo': 'reps', 'Gainage (planche)': 'time',
+  };
+
+  test('mesures : séances d\'avant la bibliothèque du 25/10 gardent leur mesure (« Trail · 10 reps »)', () => {
+    reset();
+    for (const [name, before] of Object.entries(BEFORE)) {
+      const h = run(`(() => { const h = { id: 'o', date: 1, category: 'free', exercises: [{ name: ${JSON.stringify(name)}, sets: [{ weight: '', reps: '10' }] }] };
+        cleanHistoryEntry(h); return h; })()`);
+      assert.equal(run(`measureOf(${JSON.stringify(h.exercises[0])})`), before, name);
+    }
+    const h = run(`(() => { const h = { id: 'o', date: 1, category: 'free', exercises: [{ name: 'Trail', sets: [{ weight: '', reps: '10' }] }] };
+      cleanHistoryEntry(h); cleanHistoryEntry(h); return h; })()`);
+    assert.equal(h.exercises[0].measure, 'reps', 'mesure écrite, nettoyage idempotent');
+    assert.equal(run(`measureSetTxt(${JSON.stringify(h.exercises[0].sets[0])}, measureOf(${JSON.stringify(h.exercises[0])}))`), '10 reps');
+    // Ce que l'app enregistre aujourd'hui n'est pas touché : la mesure de tout cardio est écrite
+    const now = run(`(() => { const h = { id: 'n', date: 1, category: 'free', exercises: [{ name: 'Trail', measure: storedMeasure({ name: 'Trail' }), sets: [{ weight: '', reps: '40' }] }] };
+      cleanHistoryEntry(h); return h.exercises[0].measure; })()`);
+    assert.equal(now, 'cardio');
+    // Liste figée : chaque nom est bien devenu cardio par la bibliothèque (sinon il n'a rien à faire là)
+    run('[...LEGACY_REPS_NAMES]').forEach(k => {
+      assert.equal(run(`catalogueEntry(${JSON.stringify(k)})?.equip`), 'cardio', k);
+      assert.equal(run(`measureOf({ name: ${JSON.stringify(k)} })`), 'cardio', k);
+    });
+    // Alias trop génériques retirés : un fractionné de squats ou un « RPM » de salle restent des répétitions
+    ['intervalles', 'vma', 'biking', 'rpm'].forEach(n => assert.equal(run(`catalogueEntry(${JSON.stringify(n)})`), null, n));
+  });
+
+  test('mesures : schéma 4, exercices de programme aux noms devenus cardio gardés en répétitions', () => {
+    const prog = () => ({ ppl: { exercises: { legs: [{ id: 'a', name: 'Trail', sets: 3 }, { id: 'b', name: 'VTT', sets: 3, measure: 'cardio' },
+      { id: 'c', name: 'Squat barre', sets: 3 }] }, timers: {}, cooldowns: {} } });
+    const old = run(`normalizeData(${JSON.stringify({ schema: 3, activeProgramme: 'ppl', programmes: prog(), history: [] })})`);
+    assert.equal(old.schema, run('SCHEMA'));
+    const legs = old.programmes.ppl.exercises.legs;
+    assert.equal(legs[0].measure, 'reps', 'Trail d\'avant : répétitions');
+    assert.equal(legs[1].measure, 'cardio', 'choix déjà enregistré : gardé');
+    assert.equal(legs[2].measure, undefined, 'autres noms : rien d\'écrit');
+    // Donnée au schéma courant : « Trail » ajouté depuis la bibliothèque reste du cardio
+    const cur = run(`normalizeData(${JSON.stringify({ schema: 4, activeProgramme: 'ppl', programmes: prog(), history: [] })})`);
+    assert.equal(cur.programmes.ppl.exercises.legs[0].measure, undefined);
+    assert.equal(run(`measureOf({ name: 'Trail' })`), 'cardio');
+  });
+
   test('mesures : textes des séries', () => {
     reset();
     const t = (s, m) => run(`measureSetTxt(${JSON.stringify(s)}, '${m}')`);

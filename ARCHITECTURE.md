@@ -195,11 +195,11 @@ texte (« 1 032,5 »), `fmtW(kg, { plain: true })` pour la valeur d'un champ de 
 relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fmtDate(ts, style)` et
 `fmtTime` pour les dates. Ne pas réécrire de `toLocaleDateString` ou d'arrondi de charge ailleurs.
 
-### localStorage `ppl_v2` (schéma 3)
+### localStorage `ppl_v2` (schéma 4)
 
 ```js
 {
-  schema: 3,
+  schema: 4,
   activeProgramme: 'ppl',                    // id intégré (ppl, upper_lower, fullbody, bro, arnold, custom) ou u_xxxxxxxx
   programmes: {                              // données par programme utilisé
     ppl: {
@@ -220,6 +220,13 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
 }
 ```
 
+- `measure` (facultatif, exercices du programme et de l'historique) : `'reps'`, `'time'` ou `'cardio'` ;
+  absent, la mesure vient du nom (`measureOf`). Schéma 4 (bibliothèque du 25/10/2026) : les noms devenus
+  cardio (« Trail », « treadmill », « fractionné », « vtt », « home trainer » : `LEGACY_REPS_NAMES`,
+  liste figée dans `store.js`) reçoivent `measure: 'reps'` quand ils n'en ont pas, pour qu'une ancienne
+  séance « Trail · 10 reps » ne devienne pas « 10 min ». Historique : à chaque nettoyage
+  (`cleanHistoryEntry`, aussi pour une séance reçue d'un appareil resté sur une version précédente ;
+  elle repart une fois vers le compte) ; programmes : une seule fois, à la migration.
 - `exId` relie un exercice de l'historique à l'exercice du programme (`id`), même après un
   renommage ; un exercice inconnu reçoit `'n:' + normName(nom)`.
 - `muscles` (facultatif) : identifiants de muscles choisis dans Programme › Exercice ; absent, les

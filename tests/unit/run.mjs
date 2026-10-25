@@ -403,7 +403,7 @@ test('normalizeData : migration vers le schéma 3 (exId) et sauvegarde ppl_v2_ba
   reset();
   const raw = JSON.stringify(legacyData());
   const d = app.normalizeData(JSON.parse(raw), raw);
-  assert.equal(d.schema, 3);
+  assert.equal(d.schema, run('SCHEMA'));
   assert.equal(ctx.localStorage.getItem('ppl_v2_backup'), raw, 'texte d\'origine sauvegardé tel quel');
   assert.equal(d.history[0].date > d.history[1].date, true, 'historique trié du plus récent au plus ancien');
   const byName = Object.fromEntries(d.history.map(h => [h.exercises[0].name, h.exercises[0].exId]));
@@ -433,7 +433,7 @@ test('loadData : migration depuis ppl_v1', () => {
     history: [{ id: 'h1', date: 1700000000000, category: 'push', exercises: [{ name: 'Dips', sets: [{ weight: '', reps: '10' }] }] }],
   }));
   const d = app.loadData();
-  assert.equal(d.schema, 3);
+  assert.equal(d.schema, run('SCHEMA'));
   assert.equal(d.defaultRest, 120);
   assert.equal(d.history[0].programme, 'ppl');
   assert.equal(d.history[0].exercises[0].exId, 'e1');
@@ -443,7 +443,7 @@ test('loadData : migration depuis ppl_v1', () => {
 test('loadData : stockage vide → donnée par défaut, stockage illisible → exception', () => {
   reset();
   const d = app.loadData();
-  assert.equal(d.schema, 3);
+  assert.equal(d.schema, run('SCHEMA'));
   assert.equal(d.activeProgramme, 'ppl');
   assert.equal(d.programmes.ppl.exercises.push.length, 6);
   ctx.localStorage.setItem('ppl_v2', '{pas du json');
