@@ -99,6 +99,7 @@ function renderRescue() {
       const raw = localStorage.getItem(BACKUP_KEY);
       normalizeData(JSON.parse(raw)); // vérifie qu'elle se lit avant de l'écrire
       localStorage.setItem(KEY, raw);
+      clearSyncMetas();               // compte : repartir du compte, sans supprimer ce qui manque ici
       location.reload();
     } catch { showToast('La sauvegarde est illisible elle aussi', { duration: 4000 }); }
   });
@@ -115,6 +116,7 @@ function renderRescue() {
       const d = freshData();
       localStorage.setItem(KEY, JSON.stringify(d));
       localStorage.removeItem(SESSION_KEY);
+      clearSyncMetas();   // compte : l'historique vidé ici ne part pas en suppressions, le compte le rendra
     } catch {}
     location.reload();
   });

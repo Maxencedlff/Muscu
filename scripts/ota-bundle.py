@@ -5,7 +5,8 @@
 ota-site/
   manifest.json           { version, seq, runtime, url, checksum, size, publishedAt } (jamais mis en cache)
   bundles/<version>.zip   contenu de dist/ avec index.html à la racine (immuable)
-  vercel.json             en-têtes de cache
+  vercel.json             en-têtes de cache, réveil quotidien du serveur des comptes
+  api/ping.js             ce réveil (copié depuis ota-api/)
 
 Format attendu par @capgo/capacitor-updater : zip du dossier web, index.html à la racine, sans
 fichier caché ; checksum = SHA-256 du zip, vérifié par le module natif avant d'installer.
@@ -56,7 +57,9 @@ def main():
         'publishedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
     }
     json.dump(manifest, open(os.path.join(OUT, 'manifest.json'), 'w'), indent=2)
-    json.dump({'headers': [
+    os.makedirs(os.path.join(OUT, 'api'))
+    shutil.copy(os.path.join(ROOT, 'ota-api', 'ping.js'), os.path.join(OUT, 'api', 'ping.js'))
+    json.dump({'crons': [{'path': '/api/ping', 'schedule': '17 6 * * *'}], 'headers': [
         {'source': '/manifest.json', 'headers': [{'key': 'Cache-Control', 'value': 'no-store'}]},
         {'source': '/bundles/(.*)', 'headers': [{'key': 'Cache-Control', 'value': 'public, max-age=31536000, immutable'}]},
     ]}, open(os.path.join(OUT, 'vercel.json'), 'w'), indent=2)

@@ -40,6 +40,7 @@ function importText(text) {
   const previous = JSON.stringify(data);
   try { localStorage.setItem(BACKUP_KEY, previous); } catch {}
   data = next;
+  accountResetSyncState();   // compte : les séances absentes du fichier ne sont pas supprimées du compte
   if (!save()) { data = JSON.parse(previous); return { ok: false, reason: 'storage' }; }
   syncTimersFromHistory();
   return { ok: true, count: data.history.length, skipped, theme: theme || null, previous };
@@ -48,6 +49,7 @@ function importText(text) {
 // Annule un import : la donnée d'avant (previous) est remise et enregistrée
 function undoImport(previous) {
   data = normalizeData(JSON.parse(previous));
+  accountResetSyncState();
   save();
 }
 

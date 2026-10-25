@@ -8,7 +8,7 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(run(`syncHash({ a: 1, b: [2, { c: 3, d: 4 }] })`), run(`syncHash({ b: [2, { d: 4, c: 3 }], a: 1 })`));
     sameJSON(run(`sessionPayload({ id: 'x', bodyKg: 71.6, notes: 'n' })`), { id: 'x', notes: 'n' });
     const p = run(`profilePayload({ history: [1], trash: [], bodyWeightKg: 70, healthOn: true, soundOn: false, unit: 'kg', programmes: {} })`);
-    sameJSON(p, { unit: 'kg', programmes: {} });
+    sameJSON(p, { programmes: {}, unit: 'kg' });
   });
 
   test('synchro : première liaison, tout part ; ensuite seules les séances modifiées ou supprimées', () => {
@@ -62,16 +62,87 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(blank.d.unit, 'lbs');
     assert.equal(blank.d.programmes.ppl, 'perso');
     assert.equal(blank.meta.profileAt, 't1');
-    // Première liaison d'un téléphone qui a des séances : union des programmes, le local gagne
-    const merged = call(`(() => { const d = { history: [{ id: 'x' }], unit: 'kg', userProgrammes: { u_1: 'ici' } };
-      applyRemoteProfile(d, { doc: { unit: 'lbs', userProgrammes: { u_2: 'ailleurs' } }, updated_at: 't1' }, { profileHash: null }); return d; })()`, {});
-    assert.equal(merged.unit, 'kg');
-    sameJSON(merged.userProgrammes, { u_2: 'ailleurs', u_1: 'ici' });
+    // Première liaison d'un téléphone qui a des séances : le compte gagne, ce qui n'est qu'ici est ajouté
+    const merged = call(`(() => { const d = { history: [{ id: 'x' }], unit: 'kg', userProgrammes: { u_1: 'ici' }, programmes: { ppl: 'défaut' } };
+      const meta = { profileHash: null };
+      applyRemoteProfile(d, { doc: { unit: 'lbs', userProgrammes: { u_2: 'ailleurs' }, programmes: { ppl: 'perso' } }, updated_at: 't1' }, meta);
+      return { d, push: syncHash(profilePayload(d)) !== meta.profileHash }; })()`, {});
+    assert.equal(merged.d.unit, 'lbs');
+    assert.equal(merged.d.programmes.ppl, 'perso', 'le PPL réglé sur le compte n\'est pas remplacé par le défaut de cet iPhone');
+    sameJSON(merged.d.userProgrammes, { u_1: 'ici', u_2: 'ailleurs' });
+    assert.equal(merged.push, true, 'le programme créé ici part sur le compte');
+    // Modifié des deux côtés depuis la dernière synchro : cet appareil gagne, ce qui n'est que sur le compte s'ajoute
+    const both = call(`(() => { const d = { history: [{ id: 'x' }], unit: 'kg', userProgrammes: { u_1: 'ici v2' } };
+      const meta = { profileHash: 'ancienne' };
+      applyRemoteProfile(d, { doc: { unit: 'lbs', userProgrammes: { u_1: 'ailleurs v2', u_3: 'nouveau' } }, updated_at: 't3' }, meta); return d; })()`, {});
+    assert.equal(both.unit, 'kg');
+    sameJSON(both.userProgrammes, { u_1: 'ici v2', u_3: 'nouveau' });
+    // Profil local inchangé : copie exacte du compte, clé retirée là-bas retirée ici
+    const exact = call(`(() => { const d = { history: [{ id: 'x' }], unit: 'kg', weeklyGoal: 4 };
+      const meta = { profileHash: syncHash(profilePayload(d)) };
+      applyRemoteProfile(d, { doc: { unit: 'lbs' }, updated_at: 't4' }, meta); return d; })()`, {});
+    assert.equal(exact.unit, 'lbs');
+    assert.equal(exact.weeklyGoal, undefined, 'objectif remis en automatique sur l\'autre appareil');
     // Profil déjà vu (même updated_at) : ignoré
     const same = call(`applyRemoteProfile({ history: [], unit: 'kg' }, { doc: { unit: 'lbs' }, updated_at: 't1' }, { profileAt: 't1' })`, {});
     assert.equal(same, false);
     // Réglage sur l'appareil jamais repris du compte
     const dev = call(`(() => { const d = { history: [], soundOn: false }; applyRemoteProfile(d, { doc: { soundOn: true, unit: 'kg' }, updated_at: 't2' }, {}); return d.soundOn; })()`, {});
     assert.equal(dev, false);
+  });
+
+  test('synchro : appareil sans état connu (reconnexion, réinstallation) : le compte fait foi', () => {
+    // Compte : X supprimée et Y corrigée à 12 sur un autre iPhone. Cet appareil revient avec X et Y = 8, sans empreintes.
+    const r = call(`(() => {
+      const meta = { pushed: {} };
+      const res = applyRemoteSessions(local, rows, meta);
+      const plan = planSessionPush(res.history, meta);
+      return { ids: res.history.map(x => x.id), y: res.history.find(x => x.id === 'Y').exercises[0].sets[0].reps,
+               removed: res.removed.map(x => x.id), up: plan.upserts.map(u => u.id), del: plan.deletes };
+    })()`, {
+      local: [h('X', '10'), h('Y', '8'), h('Z', '6')],
+      rows: [{ id: 'X', deleted_at: '2026-10-25T10:00:00Z' }, { id: 'Y', data: h('Y', '12') }],
+    });
+    sameJSON(r.ids, ['Y', 'Z']);
+    assert.equal(r.y, '12', 'la correction faite ailleurs n\'est pas écrasée');
+    sameJSON(r.removed, ['X'], 'X va dans Supprimés récemment, pas de résurrection');
+    sameJSON(r.up, ['Z'], 'seule la séance absente du compte part');
+    sameJSON(r.del, []);
+  });
+
+  test('synchro : historique retrié après fusion (plus récente d\'abord)', () => {
+    const r = call(`applyRemoteSessions(local, rows, { pushed: {} }).history.map(x => x.id)`, {
+      local: [h('b', '8', { date: 2e12 }), h('a', '8', { date: 1e12 })],
+      rows: [{ id: 'c', data: h('c', '8', { date: 3e12 }) }],
+    });
+    sameJSON(r, ['c', 'b', 'a']);
+  });
+
+  test('synchro : chaque clé des données est classée « compte » ou « appareil » (rien ne part par oubli)', () => {
+    const r = run(`(() => { const d = freshData(); d.weeklyGoal = 3; d.exerciseMuscles = {}; d.exerciseMusclesSecondary = {}; d.lastExport = 1;
+      return Object.keys(d).filter(k => !SYNC_PROFILE_KEYS.includes(k) && !SYNC_LOCAL_ONLY.includes(k)); })()`);
+    sameJSON(r, [], 'clé à ajouter à SYNC_PROFILE_KEYS ou SYNC_LOCAL_ONLY (js/data/sync.js)');
+    const both = run(`SYNC_PROFILE_KEYS.filter(k => SYNC_LOCAL_ONLY.includes(k))`);
+    sameJSON(both, []);
+    for (const k of ['bodyWeightKg', 'healthOn', 'history']) assert.ok(run(`SYNC_LOCAL_ONLY.includes(${JSON.stringify(k)})`), k);
+  });
+
+  test('compte : effacer l\'appareil ou importer n\'envoie aucune suppression au compte', () => {
+    const r = run(`(() => {
+      localStorage.setItem('mdlf_sync_u1', JSON.stringify({ userId: 'u1', cursor: 't', pushed: { a: 'h', b: 'h' }, profileHash: 'p' }));
+      localStorage.setItem('mdlf_sync_owner', 'u1');
+      account.user = { id: 'u1' };
+      accountResetSyncState();                       // import d'une sauvegarde
+      const afterImport = planSessionPush([], loadSyncMeta('u1')).deletes.length;
+      const ownerKept = localStorage.getItem('mdlf_sync_owner');
+      localStorage.setItem('mdlf_sync_u1', JSON.stringify({ userId: 'u1', cursor: 't', pushed: { a: 'h' }, profileHash: 'p' }));
+      accountForgetDevice();                         // « Supprimer toutes les données »
+      return { afterImport, ownerKept, user: account.user, meta: localStorage.getItem('mdlf_sync_u1'), owner: localStorage.getItem('mdlf_sync_owner') };
+    })()`);
+    assert.equal(r.afterImport, 0, 'état oublié : aucune tombstone');
+    assert.equal(r.ownerKept, 'u1', 'le dernier compte connu reste (choix si un autre compte se connecte)');
+    assert.equal(r.user, null, 'détaché avant l\'écriture');
+    assert.equal(r.meta, null);
+    assert.equal(r.owner, null);
   });
 }

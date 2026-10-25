@@ -242,6 +242,9 @@ function sanitizeData(d) {
   if (d.unit !== 'kg' && d.unit !== 'lbs') d.unit = 'kg';
   if (!Array.isArray(d.history)) d.history = [];
   d.history = d.history.filter(cleanHistoryEntry);
+  // Identifiants uniques (un fichier importé retouché à la main peut en répéter un)
+  const ids = new Set();
+  for (const h of d.history) { while (ids.has(h.id)) h.id = uid(); ids.add(h.id); }
   // Supprimés récemment : séances gardées TRASH_DAYS jours, absentes des stats tant qu'elles y sont
   if (!Array.isArray(d.trash)) d.trash = [];
   const kept = new Set(d.history.map(h => h.id));
@@ -257,7 +260,8 @@ function cleanHistoryEntry(h) {
   if (!isObj(h)) return false;
   if (typeof h.date === 'string') { const t = Number(h.date) || Date.parse(h.date); if (Number.isFinite(t)) h.date = t; }
   if (!Number.isFinite(h.date) || !Array.isArray(h.exercises) || typeof h.category !== 'string') return false;
-  if (!h.id) h.id = uid();
+  // Identifiant texte court (clé de la synchro du compte : 64 caractères au plus côté serveur)
+  if (typeof h.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(h.id)) h.id = uid();
   if (h.healthSaved !== undefined && h.healthSaved !== true) delete h.healthSaved;   // app iOS : déjà envoyée à Santé
   // Poids du corps au moment de la séance (volume des exercices au poids du corps)
   if (h.bodyKg !== undefined && !(Number.isFinite(h.bodyKg) && h.bodyKg >= 25 && h.bodyKg <= 300)) delete h.bodyKg;

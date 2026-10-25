@@ -10,6 +10,17 @@ function agoText(ts) {
   return `il y a ${days} jours`;
 }
 
+// Efface les données de cet appareil (copie de secours locale gardée, copie iCloud vidée aussi). Avec un
+// compte, l'appelant détache d'abord l'appareil (accountForgetDevice) : rien n'est supprimé du compte.
+function wipeLocalData() {
+  try { localStorage.setItem(BACKUP_KEY, JSON.stringify(data)); } catch {}
+  if (activeSession) endSession();
+  data = freshData();
+  resetSelections();
+  Native.eraseCloudOnNextSave();   // app iOS : la copie iCloud est vidée elle aussi
+  save();
+}
+
 function renderSettings() {
   // Interrupteur iOS (le bouton de la rangée porte l'état pour VoiceOver)
   const tog = (on) => `<span class="switch ${on ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>`;
@@ -175,16 +186,13 @@ registerActions({
     save(); render();
   },
   'wipe-data': async () => {
-    if (!(await confirmSheet('Supprimer toutes les données ?', 'Séances, programmes et réglages seront effacés de cet appareil.', 'Tout supprimer'))) return;
+    if (!(await confirmSheet('Supprimer toutes les données ?', account.user ? 'Séances, programmes et réglages seront effacés de cet appareil, qui sera déconnecté de ton compte. Ton compte garde tout.' : 'Séances, programmes et réglages seront effacés de cet appareil.', 'Tout supprimer'))) return;
     const n = (data.history || []).length;
     if (!(await dialog({ title: 'Es-tu sûr ?', message: `${n} séance${n > 1 ? 's' : ''} seront perdue${n > 1 ? 's' : ''} définitivement. Pense à exporter avant.`,
       actions: [{ label: 'Annuler', value: false, style: 'cancel' }, { label: 'Supprimer', value: true, style: 'destructive' }] }))) return;
-    try { localStorage.setItem(BACKUP_KEY, JSON.stringify(data)); } catch {}
-    if (activeSession) endSession();
-    data = freshData();
-    resetSelections();
-    Native.eraseCloudOnNextSave();   // app iOS : la copie iCloud est vidée elle aussi
-    save(); render(); showToast('Données supprimées');
+    if (account.user) await accountForgetDevice();   // le compte garde ses données
+    wipeLocalData();
+    render(); showToast('Données supprimées');
   },
   'force-update': async () => {
     await checkForUpdate();

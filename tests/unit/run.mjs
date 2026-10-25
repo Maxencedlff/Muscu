@@ -27,6 +27,7 @@ const SCRIPTS = [
   'js/data/accessors.js',
   'js/data/backup.js',
   'js/data/sync.js',
+  'js/data/account.js',
   'js/data/prog-share.js',
   'js/data/trash.js',
   'js/data/muscles.js',
@@ -57,6 +58,8 @@ class MemoryStorage {
   setItem(k, v) { this.map.set(k, String(v)); }
   removeItem(k) { this.map.delete(k); }
   clear() { this.map.clear(); }
+  key(i) { return [...this.map.keys()][i] ?? null; }
+  get length() { return this.map.size; }
 }
 
 const toasts = [];

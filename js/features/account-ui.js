@@ -17,8 +17,10 @@ function renderAccountGroup() {
 
 function syncStatusText() {
   if (account.syncing) return 'Synchronisation…';
-  if (account.error) return 'Pas de connexion : tout sera envoyé au prochain essai';
-  if (account.lastSync) return `Synchronisé ${agoText(account.lastSync)}`;
+  if (account.error === 'offline') return 'Pas de connexion : tout sera envoyé au prochain essai';
+  if (account.error) return 'Synchro refusée par le serveur, nouvel essai plus tard';
+  // Heure fixe plutôt que « il y a N min » : la ligne n'est redessinée qu'à la synchro suivante
+  if (account.lastSync) return `Synchronisé à ${new Date(account.lastSync).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
   return 'Synchronisation au prochain passage';
 }
 
@@ -39,7 +41,7 @@ function renderAccountGroupInner() {
             <button class="siwa" data-action="account-sign-in">${APPLE_LOGO}<span>Se connecter avec Apple</span></button>
           </div>
         </div>
-        <div class="group-foot">Ni nom ni e-mail demandés. Ton poids et tes données Santé restent sur l'iPhone.</div>`;
+        <div class="group-foot">Ni nom ni e-mail demandés. Ton poids et tes données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></div>`;
   }
   return `
         <div class="group">
@@ -53,17 +55,51 @@ function renderAccountGroupInner() {
           <button class="cell cell--action" data-action="account-sign-out"><span class="cell__title">Se déconnecter</span></button>
           <button class="cell cell--destructive cell--left" data-action="account-delete"><span class="cell__title">Supprimer mon compte</span></button>
         </div>
-        <div class="group-foot">Synchronisation automatique à chaque séance. Se déconnecter garde tes données sur cet iPhone.</div>`;
+        <div class="group-foot">Synchronisation automatique à chaque séance. Se déconnecter garde tes données sur cet iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></div>`;
 }
 
+// Page publique (aussi déclarée dans App Store Connect) ; _blank l'ouvre dans Safari, hors de l'app
+const PRIVACY_URL = 'https://muscu-eta.vercel.app/privacy.html#compte';
+
+// Réglages ouverts : la rubrique suit l'état du compte (connexion, synchro)
+onAccountChange(() => {
+  const box = document.getElementById('accountGroup');
+  if (box) box.innerHTML = renderAccountGroupInner();
+});
+
+// Connexion sur un iPhone qui contient les séances d'un autre compte
+function askMergeOtherAccount(n) {
+  return dialog({ type: 'sheet', title: 'Séances d\'un autre compte',
+    message: `Cet iPhone contient ${plural(n, 'séance', 'séances')} d'un autre compte. Que veux-tu en faire ?`,
+    actions: [
+      { label: 'Les ajouter à ce compte', value: 'add', style: 'preferred' },
+      { label: 'Garder seulement celles de ce compte', value: 'replace', style: 'destructive' },
+      { label: 'Annuler', value: null, style: 'cancel' },
+    ] });
+}
+
+const ACCOUNT_FAIL = {
+  apple: 'Connexion avec Apple impossible',
+  server: 'Connexion refusée par le serveur, réessaie',
+};
+
 registerActions({
+  'account-privacy': () => { window.open(PRIVACY_URL, '_blank'); },
   'account-sign-in': async (e, el) => {
     if (el) el.disabled = true;
-    try { await accountSignIn(); } finally { refreshAccountUI(); }
+    let res;
+    try { res = await accountSignIn(askMergeOtherAccount); } finally { notifyAccount(); }
+    if (ACCOUNT_FAIL[res.reason]) { showToast(ACCOUNT_FAIL[res.reason], { error: true }); return; }
+    if (res.reason === 'sync') { showToast('Connecté : la synchro se fera dès que le réseau revient'); return; }
+    if (!res.ok) return;
+    render();
+    showToast(res.sent ? `Connecté : ${plural(res.sent, 'séance sauvegardée', 'séances sauvegardées')} sur ton compte`
+      : 'Connecté : tes données du compte sont sur cet iPhone');
   },
   'account-sync': async () => {
+    if (account.syncing) return;
     const ok = await syncNow();
-    showToast(ok ? 'Synchronisé' : 'Pas de connexion : réessaie plus tard', { error: !ok });
+    showToast(ok ? 'Synchronisé' : syncStatusText(), { error: !ok });
   },
   'account-sign-out': async () => {
     if (!(await confirmSheet('Se déconnecter ?', 'Tes données restent sur cet iPhone et sur ton compte. Tu pourras te reconnecter à tout moment.', 'Se déconnecter'))) return;
@@ -75,6 +111,7 @@ registerActions({
       'Ton compte et tout ce qui est sauvegardé dessus seront effacés définitivement. Apple te demandera de confirmer avec Face ID.',
       'Supprimer mon compte'))) return;
     const res = await accountDelete();
+    if (ACCOUNT_FAIL[res.reason]) { showToast(res.reason === 'server' ? 'Suppression impossible, vérifie ta connexion' : ACCOUNT_FAIL[res.reason], { error: true }); return; }
     if (!res.ok) return;
     const wipe = await dialog({ type: 'sheet', title: 'Compte supprimé',
       message: 'Que faire des données de cet iPhone ?',
@@ -82,7 +119,7 @@ registerActions({
         { label: 'Les garder sur cet iPhone', value: 'keep', style: 'preferred' },
         { label: 'Les effacer aussi', value: 'wipe', style: 'destructive' },
       ] });
-    if (wipe === 'wipe') { data = makeDefaultData(); save(true); render(); }
+    if (wipe === 'wipe') { wipeLocalData(); render(); }
     if (!res.revoked) {
       await dialog({ title: 'Dernière étape', message: 'Pour retirer aussi l\'accès dans ton identifiant Apple : Réglages de l\'iPhone › ton nom › Connexion et sécurité › Se connecter avec Apple › MDLF Training › Arrêter d\'utiliser.',
         actions: [{ label: 'OK', style: 'preferred' }] });

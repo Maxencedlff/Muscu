@@ -8,17 +8,26 @@
 //
 //  Détection des changements par empreinte : meta.pushed[id] est l'empreinte de la séance telle
 //  qu'elle est sur le serveur (ou 'deleted'). Une séance locale dont l'empreinte diffère a changé
-//  ici depuis la dernière synchro : elle part, et une version distante ne l'écrase jamais.
+//  ici depuis la dernière synchro : elle part, et une version distante ne l'écrase pas (si la même
+//  séance a changé sur deux appareils, le dernier envoi gagne).
+//  Séance sans empreinte connue (première liaison de cet appareil, réinstallation, état de synchro
+//  remis à zéro après un import) : le compte fait foi. Ses versions et ses suppressions s'appliquent ;
+//  seules les séances absentes du compte partent.
 //
 //  Ne part jamais : le poids du corps (pesée de Santé ou saisi : règle Apple 5.1.3, déclaration de
-//  confidentialité) et les réglages propres à l'appareil (sons, Santé, Musique).
+//  confidentialité) et les réglages propres à l'appareil. Le profil part par liste autorisée
+//  (SYNC_PROFILE_KEYS) : une nouvelle clé reste sur l'appareil tant qu'on ne l'y ajoute pas.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const SYNC_LOCAL_ONLY = new Set(['history', 'trash', 'bodyWeightKg', 'healthOn', 'musicOn', 'soundOn',
-  'vibrateOn', 'lastExport', 'healthKgPurged', 'schema']);
-// Dictionnaires du profil fusionnés clé par clé à la première liaison d'un appareil (rien n'est perdu)
-const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles'];
+// Profil partagé entre les appareils du compte
+const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
+  'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary'];
+// Restent sur l'appareil (liste tenue pour le test qui oblige à classer toute nouvelle clé)
+const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'healthOn', 'musicOn', 'soundOn', 'vibrateOn',
+  'lastExport', 'healthKgPurged', 'schema'];
+// Dictionnaires du profil fusionnés élément par élément (programmes, exercices perso…) : rien n'est perdu
+const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary'];
 
 // État de synchro vide d'un compte : curseur serveur, empreintes envoyées, profil
 function emptySyncMeta(userId) { return { userId, cursor: null, pushed: {}, profileHash: null, profileAt: null }; }
@@ -39,10 +48,10 @@ function syncHash(v) {
 
 // Séance telle qu'elle part sur le serveur : sans le poids du corps
 function sessionPayload(h) { const { bodyKg, ...rest } = h; return rest; }
-// Profil partagé : tout sauf l'historique et ce qui reste sur l'appareil
+// Profil partagé : seulement les clés autorisées
 function profilePayload(d) {
   const out = {};
-  for (const k of Object.keys(d)) if (!SYNC_LOCAL_ONLY.has(k)) out[k] = d[k];
+  for (const k of SYNC_PROFILE_KEYS) if (d[k] !== undefined) out[k] = d[k];
   return out;
 }
 
@@ -61,64 +70,77 @@ function planSessionPush(history, meta) {
   return { upserts, deletes };
 }
 
-// Séances reçues du serveur appliquées à l'historique local. Renvoie le nouvel historique et un
-// indicateur de changement ; meta.pushed est tenu à jour. Règles :
+// Séances reçues du serveur appliquées à l'historique local. Renvoie { history (trié, plus récente
+// d'abord), changed, removed (séances retirées ici, pour « Supprimés récemment ») } ; meta.pushed est
+// tenu à jour. Règles :
 // - séance modifiée ici depuis la dernière synchro : la version locale gagne (elle partira) ;
-// - sinon la version distante remplace la locale (le poids du corps local est gardé) ;
-// - suppression distante : appliquée si la séance n'a pas changé ici ;
+// - inchangée ici, ou sans empreinte connue : la version distante remplace la locale (poids du corps
+//   local gardé) ;
+// - suppression distante : appliquée sauf si la séance a changé ici depuis la dernière synchro ;
 // - séance supprimée ici (encore à envoyer) : pas de résurrection, sauf si elle a changé ailleurs.
 function applyRemoteSessions(history, rows, meta) {
   const byId = new Map(history.map((h, i) => [h.id, i]));
   const out = history.slice();
-  const removed = new Set();
+  const removedIds = new Set();
   let changed = false;
   for (const row of rows) {
     if (!row || typeof row.id !== 'string') continue;
     const i = byId.get(row.id), local = i === undefined ? null : out[i];
-    const localHash = local ? syncHash(sessionPayload(local)) : null;
-    const unchangedHere = !!local && meta.pushed[row.id] === localHash;
+    const known = meta.pushed[row.id];
+    const changedHere = !!local && known !== undefined && known !== syncHash(sessionPayload(local));
     if (row.deleted_at) {
-      if (local && unchangedHere) { removed.add(row.id); changed = true; meta.pushed[row.id] = 'deleted'; }
-      else if (!local) meta.pushed[row.id] = 'deleted';
+      if (local && !changedHere) { removedIds.add(row.id); changed = true; }
+      if (!changedHere) meta.pushed[row.id] = 'deleted';
       continue;
     }
     if (!row.data || typeof row.data !== 'object') continue;
     const remoteHash = syncHash(row.data);
     if (!local) {
-      const deletedHere = meta.pushed[row.id] !== undefined && meta.pushed[row.id] !== 'deleted';
-      if (deletedHere && meta.pushed[row.id] === remoteHash) continue;   // suppression locale à envoyer
+      if (known === remoteHash) continue;   // supprimée ici, suppression encore à envoyer
       out.push({ ...row.data, id: row.id });
       byId.set(row.id, out.length - 1);
       meta.pushed[row.id] = remoteHash;
       changed = true;
-    } else if (localHash === remoteHash) {
+    } else if (syncHash(sessionPayload(local)) === remoteHash) {
       meta.pushed[row.id] = remoteHash;
-    } else if (unchangedHere) {
+    } else if (!changedHere) {
       out[i] = { ...row.data, id: row.id, ...(local.bodyKg !== undefined ? { bodyKg: local.bodyKg } : {}) };
       meta.pushed[row.id] = remoteHash;
       changed = true;
     }
-    // sinon : modifiée des deux côtés, la version locale partira au prochain envoi
+    // sinon : modifiée ici depuis la dernière synchro, la version locale partira au prochain envoi
   }
-  return { history: removed.size ? out.filter(h => !removed.has(h.id)) : out, changed };
+  const removed = out.filter(h => removedIds.has(h.id));
+  const kept = removed.length ? out.filter(h => !removedIds.has(h.id)) : out;
+  if (changed) kept.sort((a, b) => b.date - a.date);
+  return { history: kept, changed, removed };
 }
 
 // Profil reçu (doc, updated_at) appliqué aux données locales (modifiées en place). Renvoie true si
-// quelque chose a changé ici. Profil local inchangé depuis la dernière synchro, ou appareil vierge :
-// le profil distant remplace le local. Sinon (les deux ont changé, ou première liaison) : fusion
-// sans perte, dictionnaires réunis clé par clé et valeurs locales gagnantes.
+// quelque chose a changé ici.
+// - appareil vierge, ou profil local inchangé depuis la dernière synchro : copie exacte du compte ;
+// - première liaison (aucune empreinte connue) : le compte gagne, ce qui n'existe qu'ici est ajouté
+//   (un programme créé sur cet iPhone, par exemple) ;
+// - modifié des deux côtés : cet appareil gagne, ce qui n'existe que sur le compte est ajouté.
 function applyRemoteProfile(d, remote, meta) {
   if (!remote?.doc || typeof remote.doc !== 'object') return false;
   if (meta.profileAt && remote.updated_at && remote.updated_at <= meta.profileAt) return false;
   meta.profileAt = remote.updated_at || meta.profileAt;
   const doc = profilePayload(remote.doc);
-  const localHash = syncHash(profilePayload(d));
-  if (localHash === syncHash(doc)) { meta.profileHash = localHash; return false; }
-  const takeRemote = meta.profileHash === localHash || isBlankData(d);
-  for (const [k, v] of Object.entries(doc)) {
-    if (takeRemote || d[k] === undefined) d[k] = v;
-    else if (SYNC_UNION_KEYS.includes(k) && v && typeof v === 'object' && d[k] && typeof d[k] === 'object') d[k] = { ...v, ...d[k] };
+  const remoteHash = syncHash(doc), localHash = syncHash(profilePayload(d));
+  if (localHash === remoteHash) { meta.profileHash = localHash; return false; }
+  if (isBlankData(d) || meta.profileHash === localHash) {
+    for (const k of SYNC_PROFILE_KEYS) { if (k in doc) d[k] = doc[k]; else delete d[k]; }
+    meta.profileHash = remoteHash;
+    return true;
   }
-  if (takeRemote) meta.profileHash = syncHash(profilePayload(d));
+  const remoteWins = meta.profileHash == null;
+  for (const [k, v] of Object.entries(doc)) {
+    const both = SYNC_UNION_KEYS.includes(k) && v && typeof v === 'object' && d[k] && typeof d[k] === 'object';
+    if (both) d[k] = remoteWins ? { ...d[k], ...v } : { ...v, ...d[k] };
+    else if (remoteWins || d[k] === undefined) d[k] = v;
+  }
+  // Empreinte du compte : le résultat de la fusion, différent, partira au prochain envoi
+  meta.profileHash = remoteHash;
   return true;
 }

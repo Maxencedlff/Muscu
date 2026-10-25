@@ -348,3 +348,6 @@ html.type-xl .segmented__btn { white-space: normal; overflow-wrap: anywhere; lin
 .siwa:disabled { opacity: .5; }
 .siwa__logo { width: 17px; height: 17px; margin-top: -3px; }
 body:not(.light) .siwa { background: #fff; color: #000; }   /* thème sombre (js/ui/theme.js) */
+/* Lien dans un pied de groupe (Compte › Confidentialité) : texte teinté, zone de toucher agrandie sans décaler la ligne */
+.link-inline { font: inherit; color: var(--tint); background: none; border: 0; padding: 12px 4px; margin: -12px -4px; }
+.link-inline:active { opacity: .6; }

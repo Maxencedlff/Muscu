@@ -34,8 +34,11 @@ public class AccountPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationControll
     ]
 
     private static let service = "com.mdlf.training.auth"
-    /// Demande de connexion en cours (une seule à la fois ; lue et écrite sur le fil principal)
+    /// Demande de connexion en cours et sa fenêtre d'Apple (une seule à la fois ; fil principal).
+    /// Une demande remplacée garde son contrôleur : sa réponse tardive est ignorée, elle ne doit pas
+    /// répondre à la nouvelle demande avec un jeton signé pour l'ancien nonce.
     private var pending: CAPPluginCall?
+    private var currentController: ASAuthorizationController?
 
     // MARK: Connexion avec Apple
 
@@ -51,6 +54,7 @@ public class AccountPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationControll
             let controller = ASAuthorizationController(authorizationRequests: [request])
             controller.delegate = self
             controller.presentationContextProvider = self
+            self.currentController = controller
             controller.performRequests()
         }
     }
@@ -78,8 +82,9 @@ public class AccountPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationControll
 
     public func authorizationController(controller: ASAuthorizationController,
                                         didCompleteWithAuthorization authorization: ASAuthorization) {
-        guard let call = pending else { return }
+        guard controller === currentController, let call = pending else { return }
         pending = nil
+        currentController = nil
         guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
               let tokenData = credential.identityToken,
               let token = String(data: tokenData, encoding: .utf8) else {
@@ -90,8 +95,9 @@ public class AccountPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationControll
     }
 
     public func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
-        guard let call = pending else { return }
+        guard controller === currentController, let call = pending else { return }
         pending = nil
+        currentController = nil
         // Fenêtre fermée par l'utilisateur : rejet silencieux côté interface (code CANCELED)
         if (error as? ASAuthorizationError)?.code == .canceled { call.reject("Connexion annulée", "CANCELED"); return }
         call.reject(error.localizedDescription)

@@ -81,6 +81,8 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `muscle-load.js` | `MUSCLE_SPANS` (semaine, 4 semaines), `muscleSetCounts` (principal 1 série, secondaire ½), `muscleLevel` (paliers 0 / 1–3 / 4–9 / 10+ séries par semaine), `muscleLoad(span)` : séries, paliers, intensités 0..1 et muscles peu travaillés ; `sessionMuscleLevels` / `sessionTopMuscles` : muscles d'une seule séance (image partagée) |
 | `app-icons.js` | Marque : `APP_ICONS` (icônes de l'app : id, libellé, jeu d'icônes iOS `asset`, couleurs, flèche de la barre), `DEFAULT_APP_ICON`, `appIconFromNative(nom)` (null ou inconnu : défaut), `nativeAppIconName(id)` (défaut : null), `alternateAppIconNames()`, dessin du signe `appIconGlyph` / `appIconSvg(icône, options)`. Seule source des images de la marque (voir plus bas) |
 | `backup.js` | `importText` (tout vérifié sur une copie ; renvoie `{ ok, reason }` ou `{ ok, count, skipped, theme, previous }`), `undoImport`, `exportData(theme)` (renvoie `true` une fois le fichier remis), `downloadText` |
+| `sync.js` | Synchro du compte, logique pure : empreintes (`syncHash`), ce qui part (`planSessionPush`, `sessionPayload` sans poids du corps, `profilePayload` par liste autorisée `SYNC_PROFILE_KEYS`), fusion des séances reçues (`applyRemoteSessions` : modifiée ici → locale gagne ; sans état connu → le compte fait foi ; suppressions reçues → Supprimés récemment) et du profil (`applyRemoteProfile`) |
+| `account.js` | Compte facultatif (Supabase, Sign in with Apple) : session dans le Trousseau, `syncNow` (réception, fusion, envoi par lots), état de synchro par compte, `accountForgetDevice` / `accountResetSyncState` avant tout effacement ou import local. Aucun affichage : l'écran s'abonne avec `onAccountChange` |
 
 ### js/app/actions.js
 
@@ -128,6 +130,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `add-session.js` | Séance passée : saisie, modification d'une séance, brouillon en `sessionStorage` (crochets `enter` / `leave` de l'écran), ajout d'exercice par la feuille de recherche commune |
 | `app-icon.js` | Réglages › Icône de l'app (app iOS seulement) : `renderAppIconGroup()` (grille de vignettes, `aria-pressed`, coche), action `set-app-icon` (`Native.appIcon.set`), état lu une fois au démarrage |
 | `settings.js` | Réglages, import / export (résultat affiché ici : thème, toast « Annuler », date de sauvegarde), suppression des données, recherche de mise à jour |
+| `account-ui.js` | Réglages › Compte : bouton « Se connecter avec Apple », état de la synchro, déconnexion, suppression du compte (révocation Apple côté serveur, `supabase/functions/delete-account`), choix quand un autre compte se connecte |
 | `progress.js` | Progrès : tuiles et index des exercices tiré de l'historique |
 | `progress-chart.js` | Progrès › Exercice : courbe sur canvas, sélection d'un point au doigt |
 | `progress-overview.js` | Progrès › Vue d'ensemble : calendrier du mois, séances par semaine |
@@ -319,3 +322,13 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
 3. Exposer explicitement sur `window` ce que les tests lisent (`data`, `view`, `render`…), ou faire
    évoluer les tests.
 4. Ensuite seulement : renommer les dernières classes CSS héritées écran par écran (`.set-row2` est devenu `.session-set`, `.color-swatch2` est devenu `.color-swatch`).
+
+
+## Serveur des comptes (Supabase)
+
+- `supabase/migrations/` : tables `sessions` (une ligne par séance, tombstone `deleted_at`) et `profiles`
+  (document du profil partagé), RLS « chacun ses lignes », pas de DELETE côté client, `ping()` pour le
+  réveil quotidien (`ota-api/ping.js`, cron Vercel publié avec le site des mises à jour).
+- `supabase/functions/delete-account/` : suppression du compte et révocation « Se connecter avec Apple »
+  (règle Apple 5.1.1(v)). Secrets Apple dans le projet Supabase, jamais dans le dépôt.
+- Jamais sur le serveur : données Santé, poids du corps, réglages propres à l'appareil (règle 5.1.3).
