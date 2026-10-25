@@ -5,3 +5,7 @@ project_id = "yopptmdjtnezmccdvaxf"
 # Jeton vérifié dans le code (auth.getUser), compatible avec les clés de signature asymétriques ;
 # la passerelle ne le revérifie pas (recommandation Supabase pour les nouvelles clés)
 verify_jwt = false
+
+[functions.revoke-apple]
+# Même choix que delete-account : jeton vérifié dans le code (auth.getUser)
+verify_jwt = false

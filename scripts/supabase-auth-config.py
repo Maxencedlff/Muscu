@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Réglages d'authentification du projet Supabase (mdlf-training) pour la vague « Comptes 2 » :
-connexion par code e-mail (SMTP Resend), Google, liaison manuelle des identités, limites d'envoi.
+connexion par code e-mail (SMTP Resend), Google, liaison manuelle des identités, limites d'envoi,
+e-mails de sécurité (moyen de connexion relié ou retiré, adresse changée).
 
 Par défaut, n'envoie RIEN : affiche les réglages qui seraient appliqués (PATCH de la Management API
 https://api.supabase.com/v1/projects/{ref}/config/auth), secrets masqués, et ce qui manque encore.
@@ -17,6 +18,7 @@ Jeton de la Management API : SUPABASE_ACCESS_TOKEN, sinon ~/.config/mdlf/supabas
 
 Lancer :  python3 scripts/supabase-auth-config.py              (lecture seule : affiche)
           python3 scripts/supabase-auth-config.py --appliquer  (envoie le PATCH)
+          --notifications : seulement les e-mails de sécurité (aucun secret à fournir), avec ou sans --appliquer
 """
 import json
 import os
@@ -39,6 +41,28 @@ CODE_HTML = """<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;
 CHANGE_SUBJECT = 'Confirme ton adresse e-mail : {{ .Token }}'
 CHANGE_HTML = CODE_HTML.replace('Ton code de connexion', 'Confirme ton adresse e-mail').replace(
     'Saisis ce code dans MDLF Training.', 'Pour ajouter cette adresse à ton compte MDLF Training, saisis ce code.')
+
+# E-mails de sécurité (notifications de Supabase Auth, envoyés à l'adresse du compte après coup) : un
+# moyen de connexion relié ou retiré, l'adresse changée. Un compte Apple sans adresse n'en reçoit pas.
+# Variables de Supabase : {{ .Provider }} (apple, google, email), {{ .Email }}, {{ .OldEmail }}.
+# Noms des champs relevés dans GET /v1/projects/{ref}/config/auth le 25/10/2026.
+def notice_html(title, text):
+    return f"""<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:420px;margin:0 auto;padding:24px;color:#111">
+  <h1 style="font-size:20px;margin:0 0 12px">{title}</h1>
+  <p style="font-size:15px;line-height:1.45;margin:0 0 16px">{text}</p>
+  <p style="font-size:13px;line-height:1.45;color:#666;margin:0">Ce n'est pas toi ? Écris-nous tout de suite à contact@mdlf.app.</p>
+</div>"""
+
+
+LINKED_SUBJECT = 'Nouveau moyen de connexion sur ton compte MDLF Training'
+LINKED_HTML = notice_html('Nouveau moyen de connexion',
+                          'Ton compte {{ .Provider }} a été relié à ton compte MDLF Training ({{ .Email }}). Tu peux maintenant te connecter avec.')
+UNLINKED_SUBJECT = 'Moyen de connexion retiré de ton compte MDLF Training'
+UNLINKED_HTML = notice_html('Moyen de connexion retiré',
+                            'Ton compte {{ .Provider }} a été retiré des moyens de connexion de ton compte MDLF Training ({{ .Email }}).')
+EMAIL_CHANGED_SUBJECT = 'Adresse e-mail changée sur ton compte MDLF Training'
+EMAIL_CHANGED_HTML = notice_html('Adresse e-mail changée',
+                                 "L'adresse de ton compte MDLF Training est passée de {{ .OldEmail }} à {{ .Email }}.")
 
 
 def env(name):
@@ -67,7 +91,7 @@ def settings():
         'smtp_pass': env('RESEND_API_KEY'),
         'smtp_admin_email': env('MDLF_MAIL_FROM'),
         'smtp_sender_name': 'MDLF Training',
-        # Limites : un code par adresse et par minute (OTP_RESEND_MS), 30 e-mails par heure pour le projet
+        # Limites : un code par adresse et par minute (OTP_RESEND_MS), 100 e-mails par heure pour le projet
         'smtp_max_frequency': 60,
         'rate_limit_email_sent': 100,
         'rate_limit_otp': 30,                # demandes et vérifications de code par 5 min et par adresse IP
@@ -79,10 +103,23 @@ def settings():
         'external_google_skip_nonce_check': False,
         # Ajout / retrait de moyens de connexion depuis l'écran Compte (linkIdentity, unlinkIdentity)
         'security_manual_linking_enabled': True,
+        # E-mails de sécurité : prévenir le titulaire si quelqu'un relie un moyen de connexion à son compte
+        # (session volée), en retire un ou change l'adresse
+        'mailer_notifications_identity_linked_enabled': True,
+        'mailer_subjects_identity_linked_notification': LINKED_SUBJECT,
+        'mailer_templates_identity_linked_notification_content': LINKED_HTML,
+        'mailer_notifications_identity_unlinked_enabled': True,
+        'mailer_subjects_identity_unlinked_notification': UNLINKED_SUBJECT,
+        'mailer_templates_identity_unlinked_notification_content': UNLINKED_HTML,
+        'mailer_notifications_email_changed_enabled': True,
+        'mailer_subjects_email_changed_notification': EMAIL_CHANGED_SUBJECT,
+        'mailer_templates_email_changed_notification_content': EMAIL_CHANGED_HTML,
     }
 
 
 def missing(conf):
+    if 'smtp_pass' not in conf:   # --notifications : rien de secret
+        return []
     need = {'smtp_pass': 'RESEND_API_KEY', 'smtp_admin_email': 'MDLF_MAIL_FROM', 'external_google_secret': 'GOOGLE_WEB_SECRET'}
     out = [v for k, v in need.items() if not conf[k]]
     if not env('GOOGLE_WEB_CLIENT_ID'):
@@ -100,8 +137,13 @@ def token():
         return fh.read().strip()
 
 
+NOTIFICATION_KEYS = ('_notification', 'mailer_notifications_')
+
+
 def main():
     conf = settings()
+    if '--notifications' in sys.argv[1:]:
+        conf = {k: v for k, v in conf.items() if any(n in k for n in NOTIFICATION_KEYS)}
     shown = {k: ('••••' if k in SECRET_KEYS and v else v) for k, v in conf.items()}
     print(json.dumps(shown, ensure_ascii=False, indent=2))
     lack = missing(conf)
