@@ -224,7 +224,7 @@ def once_static(bench):
         seed(page, 'dark', ppl_v2_today_json())
         f = page.evaluate("""() => ({ n: fmtNum(32.5), n2: fmtNum('1234.5'), r: fmtRest(90), r2: fmtRest(45), r3: fmtRest(600),
             d1: fmtDuration(42 * 60000), d2: fmtDuration(69 * 60000), c: fmtClock(125000),
-            t: fmtDate(Date.now()), y: fmtDate(Date.now() - 86400000), o: fmtDate(new Date(2024, 2, 7).getTime()),
+            t: fmtDate(Date.now()), y: fmtDate(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 1, 12).getTime()), o: fmtDate(new Date(2024, 2, 7).getTime()),
             v: fmtVolume(12345), ic: icon('trash') })""")
         R.check(f['n'] == '32,5', f'fmtNum 32,5 ({f["n"]})')
         R.check(f['n2'].replace('\u202f', ' ').replace('\xa0', ' ') == '1 234,5', f'fmtNum milliers ({f["n2"]!r})')
