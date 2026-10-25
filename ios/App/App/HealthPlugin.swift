@@ -97,7 +97,9 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
 
     /// Courses et sorties vélo des `days` derniers jours (60 par défaut), de la plus récente à la plus
     /// ancienne. start / end en millisecondes depuis 1970, duration en secondes, km (0 si inconnue).
-    /// own : écrit par MDLF Training (le web l'écarte) ; indoor : tapis ou vélo d'appartement.
+    /// indoor : tapis ou vélo d'appartement. own : écrit par MDLF Training. La requête ne lit que .running et
+    /// .cycling et l'app n'écrit que .traditionalStrengthTraining : own reste faux aujourd'hui ; le web écarte
+    /// quand même ces entraînements, au cas où l'app écrirait un jour du cardio (il compterait deux fois).
     @objc func workouts(_ call: CAPPluginCall) {
         let days = call.getInt("days") ?? 60
         let since = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()

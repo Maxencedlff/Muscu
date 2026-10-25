@@ -15,6 +15,9 @@
 const HEALTH_PROG      = 'health';   // « programme » des lignes de Santé (aucun programme réel ne porte ce nom)
 const HEALTH_ID_PREFIX = 'hk:';
 const HEALTH_MIN_SEC   = 60;         // en dessous : entraînement lancé par erreur
+// En dessous : affiché dans l'Historique, mais sans effet sur la récupération (trajet à vélo ou course
+// pour attraper un bus, que l'Apple Watch détecte et enregistre d'elle-même)
+const HEALTH_RECOVERY_MIN_SEC = 20 * 60;
 
 // Nom d'exercice (bibliothèque : muscles, allure) et titre de la ligne, en extérieur et en intérieur
 const HEALTH_ACTIVITIES = {
@@ -25,7 +28,9 @@ const HEALTH_ACTIVITIES = {
 function isHealthEntry(h) { return String(h?.id || '').startsWith(HEALTH_ID_PREFIX); }
 
 // Entraînement exploitable : activité connue, dates cohérentes, au moins une minute, et pas écrit par
-// MDLF Training (own : la séance de musculation que l'app enregistre elle-même dans Santé)
+// MDLF Training (own). La lecture ne porte que sur les courses et le vélo et l'app n'écrit que de la
+// musculation : own ne devrait jamais être vrai, la vérification protège d'un changement futur de
+// l'un ou de l'autre (une séance de l'app relue comme une sortie compterait deux fois).
 function validHealthWorkout(w) {
   return !!w && !w.own && !!HEALTH_ACTIVITIES[w.activity] && typeof w.id === 'string' && w.id !== ''
     && Number.isFinite(w.start) && Number.isFinite(w.end) && w.end > w.start && (w.duration || 0) >= HEALTH_MIN_SEC;
@@ -51,14 +56,32 @@ function dedupeHealthWorkouts(list) {
   return kept;
 }
 
-// Sortie déjà notée à la main dans MDLF le même jour (exercice cardio de la même famille : course ou
-// vélo) : la ligne de Santé ferait doublon dans l'historique et compterait deux fois pour la récupération
+// Sortie déjà notée à la main dans MDLF (exercice cardio de la même famille : course ou vélo) : la ligne
+// de Santé ferait doublon dans l'historique et compterait deux fois pour la récupération. Même jour ne
+// suffit pas (vélo pour aller à la salle, puis vélo d'appartement à la séance) :
+//  - séance chronométrée : elle recouvre la sortie, comme deux enregistrements d'une même sortie
+//    (sameHealthWorkout : le plus court des deux recouvert à plus de moitié) ;
+//  - séance saisie après coup (sans durée, datée à midi) : durée notée comparable, à 30 % près.
 const HEALTH_FAMILY = { running: 'pace', cycling: 'speed' };
+const LOGGED_DURATION_TOLERANCE = 0.3;
 function loggedInHistory(w, history) {
-  const day = new Date(w.end).toDateString();
-  return (history || []).some(h => new Date(h.date).toDateString() === day
-    && (h.exercises || []).some(e => paceKind(e) === HEALTH_FAMILY[w.activity] && (e.sets || []).some(s => (parseInt(s.reps) || 0) > 0)));
+  const day = new Date(w.end).toDateString(), family = HEALTH_FAMILY[w.activity];
+  return (history || []).some(h => {
+    if (new Date(h.date).toDateString() !== day) return false;
+    const minutes = (h.exercises || []).filter(e => paceKind(e) === family)
+      .reduce((a, e) => a + (e.sets || []).reduce((b, s) => b + (parseInt(s.reps) || 0), 0), 0);
+    if (!minutes) return false;
+    if (h.duration > 0) {
+      const start = h.date - h.duration;
+      const overlap = Math.min(w.end, h.date) - Math.max(w.start, start);
+      return overlap > 0.5 * Math.min(w.end - w.start, h.duration);
+    }
+    return Math.abs(minutes - w.duration / 60) <= LOGGED_DURATION_TOLERANCE * (w.duration / 60);
+  });
 }
+
+// Ligne de Santé prise en compte dans la récupération (accueil) : assez longue pour fatiguer les jambes
+function healthCountsForRecovery(h) { return (h?.health?.sec || 0) >= HEALTH_RECOVERY_MIN_SEC; }
 
 // Ligne au format d'une séance : { id, date, duration, programme, category, exercises, health }
 // (une série cardio : minutes dans reps, km dans dist, comme une saisie dans l'app)

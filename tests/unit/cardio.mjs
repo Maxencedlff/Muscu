@@ -7,7 +7,7 @@ export default function ({ test, run, reset, assert, sameJSON, nativeContext }) 
     km: 5.2, source: 'Apple Watch de Max', productType: 'Watch6,1', indoor: false, own: false, ...o });
   // Santé activée et lecture déjà faite (cache frais) : ce que voient l'accueil et l'historique
   const withHealth = list => run(`Native.isNative = true; data.healthOn = true;
-    workoutCache = { at: Date.now(), list: ${JSON.stringify(list)}, failed: false }`);
+    workoutCache = { at: Date.now(), list: ${JSON.stringify(list)}, failed: false }; healthEntriesMemo = { key: null, entries: [] }`);
   const withoutHealth = () => run(`Native.isNative = false; workoutCache = { at: 0, list: [], failed: false }`);
 
   test('allure : famille de l\'exercice (min/km, km/h, aucune)', () => {
@@ -106,6 +106,68 @@ export default function ({ test, run, reset, assert, sameJSON, nativeContext }) 
     assert.equal(run(`catStatus('push').ready`), true, 'le haut du corps n\'est pas concerné');
     withoutHealth();
     assert.equal(run(`catStatus('legs').ready`), true, 'Santé coupée : plus rien');
+  });
+
+  test('Santé : sortie de moins de 20 min affichée, sans effet sur la récupération', () => {
+    reset();
+    const now = Date.now();
+    // Trajet à vélo de 12 min détecté par l'Apple Watch il y a 2 h
+    withHealth([workout({ activity: 'cycling', start: now - 2 * H - 12 * 60_000, end: now - 2 * H, duration: 12 * 60, km: 3 })]);
+    assert.equal(run(`healthEntries().length`), 1, 'affichée dans l\'Historique');
+    assert.equal(run(`catStatus('legs').ready`), true, 'ne bloque pas la séance jambes');
+    withHealth([workout({ id: 'B20', activity: 'cycling', start: now - 2 * H - 20 * 60_000, end: now - 2 * H, duration: 20 * 60, km: 6 })]);
+    assert.equal(run(`catStatus('legs').ready`), false, '20 min : comptée');
+    withoutHealth();
+  });
+
+  test('récupération : un muscle travaillé en cardio est prêt au bout de 24 h, la force garde le délai', () => {
+    reset();
+    const now = Date.now();
+    // Course de Santé il y a 5 h : prête dans 19 h, pas dans 67 h
+    withHealth([workout({ start: now - 5 * H - 30 * 60_000, end: now - 5 * H, duration: 30 * 60 })]);
+    const st = run(`catStatus('legs')`);
+    assert.equal(st.ready, false);
+    assert.ok(Math.abs(st.remaining - 19 * H) < 60_000, `reste ${st.remaining / H} h`);
+    assert.ok(st.progress > 0.2 && st.progress < 0.21, 'anneau sur 24 h');
+    withHealth([workout({ id: 'R30', start: now - 30 * H - 30 * 60_000, end: now - 30 * H, duration: 30 * 60 })]);
+    assert.equal(run(`catStatus('legs').ready`), true, 'il y a 30 h : prête');
+    withoutHealth();
+    // Cardio saisi dans une séance libre : même règle
+    const free = (id, hoursAgo, ex) => `{ id: '${id}', date: Date.now() - ${hoursAgo} * ${H}, programme: 'free', category: 'free', exercises: [${ex}] }`;
+    const runEx = `{ name: 'Course à pied', measure: 'cardio', sets: [{ weight: '', reps: '30', dist: '5' }] }`;
+    const squat = `{ name: 'Squat barre', sets: [{ weight: '80', reps: '8' }] }`;
+    run(`data.history = [${free('c', 30, runEx)}]`);
+    assert.equal(run(`catStatus('legs').ready`), true, 'course notée il y a 30 h : prête');
+    // Squat il y a 30 h, course il y a 1 h : la force fixe toujours le délai (prête dans 42 h, pas 23 h)
+    run(`data.history = [${free('c', 1, runEx)}, ${free('s', 30, squat)}]`);
+    const both = run(`catStatus('legs')`);
+    assert.ok(Math.abs(both.remaining - 42 * H) < 60_000, `reste ${both.remaining / H} h`);
+    assert.equal(both.by.entry.id, 's');
+    // Délai de la séance plus court que 24 h : il reste la limite
+    run(`data.history = [${free('c', 13, runEx)}]; prog().cooldowns.legs = 12`);
+    assert.equal(run(`catStatus('legs').ready`), true, 'délai de 12 h');
+    // Délai passé à la main, puis course : elle bloque de nouveau 24 h au plus
+    run(`prog().cooldowns.legs = 72; data.history = [${free('s', 30, squat)}]; (prog().skipped ||= {}).legs = Date.now() - 2 * ${H};
+         data.history.unshift(${free('c', 1, runEx)})`);
+    const after = run(`catStatus('legs')`);
+    assert.equal(after.by.entry.id, 'c', 'la course d\'après le délai passé compte');
+    assert.ok(Math.abs(after.remaining - 23 * H) < 60_000, `reste ${after.remaining / H} h`);
+  });
+
+  test('Santé : sortie notée à la main écartée seulement si elle recouvre la séance ou dure autant', () => {
+    reset();
+    const ids = list => run(`healthHistoryEntries(${JSON.stringify(list)}, data.history).map(e => e.id).join()`);
+    const day = new Date(2026, 9, 20, 18).getTime();
+    const ride = (o = {}) => workout({ activity: 'cycling', ...o });
+    const bikeEx = `{ name: 'Vélo d\\'appartement', measure: 'cardio', sets: [{ weight: '', reps: '20' }] }`;
+    // Séance chronométrée de 18 h à 19 h avec 20 min de vélo d'appartement
+    run(`data.history = [{ id: 'g', date: ${day + H}, duration: ${H}, programme: 'ppl', category: 'legs', exercises: [${bikeEx}] }]`);
+    assert.equal(ids([ride({ id: 'T', start: day - 50 * 60_000, end: day - 38 * 60_000, duration: 12 * 60 })]), 'hk:T', 'trajet avant la séance : gardé');
+    assert.equal(ids([ride({ id: 'S', start: day + 5 * 60_000, end: day + 25 * 60_000, duration: 20 * 60 })]), '', 'enregistré pendant la séance : doublon');
+    // Séance saisie après coup (sans durée) : durée comparable à 30 % près
+    run(`data.history = [{ id: 'a', date: ${new Date(2026, 9, 20, 12).getTime()}, programme: 'free', category: 'free', exercises: [${bikeEx}] }]`);
+    assert.equal(ids([ride({ id: 'C', start: day, end: day + 24 * 60_000, duration: 24 * 60 })]), '', '24 min pour 20 notées');
+    assert.equal(ids([ride({ id: 'L', start: day, end: day + 60 * 60_000, duration: 60 * 60 })]), 'hk:L', '60 min pour 20 notées : autre sortie');
   });
 
   test('Santé : lecture en cache, échec gardé sans effacer la dernière liste', async () => {

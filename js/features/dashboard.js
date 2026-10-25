@@ -27,52 +27,66 @@ function fmtWait(ms) {
 // exercice comptent (les biceps d'un rowing ne bloquent pas une séance biceps). Séance dont aucun
 // muscle n'est connu : délai de la séance elle-même, comme avant. Un délai passé à la main (skipped)
 // libère la séance jusqu'au prochain entraînement de ces muscles.
-// by : { muscle, entry } qui fixe le délai quand il vient d'ailleurs que cette séance, sinon null.
-// readyAt : heure à laquelle la séance sera prête (0 si elle l'est depuis toujours).
+// Le cardio fatigue moins qu'une séance de force : un muscle travaillé en cardio (course, vélo, saisi
+// ou lu dans Santé) est prêt au bout de CARDIO_RECOVERY_H heures au plus, pas du délai de la séance.
+// Ce qui attend le plus longtemps l'emporte : la séance elle-même, ou l'un de ses muscles.
+// last : date de ce qui fixe le délai ; readyAt : heure à laquelle la séance sera prête (0 si elle
+// l'est depuis toujours) ; by : { muscle, entry } qui fixe le délai quand il vient d'ailleurs que
+// cette séance, sinon null.
+const CARDIO_RECOVERY_H = 24;
 function catStatus(cat, now = Date.now()) {
   const p = prog();
+  const cd = getCooldown(cat) * 3600_000, skipped = p.skipped?.[cat] ?? -Infinity;
   const own = p.timers[cat] || null;
-  const rec = sessionRecovery(cat);
-  let last = own, by = null;
-  if (rec && rec.date > (own || 0)) {
-    last = rec.date;
-    const e = rec.entry;
-    if (!(e.category === cat && (e.programme || 'ppl') === data.activeProgramme)) by = rec;
+  let best = own && own > skipped ? { date: own, readyAt: own + cd, by: null } : null;
+  const rec = sessionRecovery(cat, { cd, after: skipped });
+  if (rec && rec.readyAt > (best?.readyAt || 0)) {
+    const e = rec.entry, mine = e.category === cat && (e.programme || 'ppl') === data.activeProgramme;
+    best = { date: rec.date, readyAt: rec.readyAt, by: mine ? null : rec };
   }
-  if (last && p.skipped?.[cat] >= last) { last = null; by = null; }
-  const cd = getCooldown(cat) * 3600_000;
-  const readyAt = last ? last + cd : 0;
-  const remaining = last ? readyAt - now : 0;
-  return { last, readyAt, remaining, ready: remaining <= 0, progress: last ? Math.min(1, 1 - remaining / cd) : 1, by: remaining > 0 ? by : null };
+  const last = best?.date ?? null, readyAt = best?.readyAt || 0;
+  const remaining = last ? readyAt - now : 0, span = readyAt - last;
+  return { last, readyAt, remaining, ready: remaining <= 0, progress: last && span > 0 ? Math.min(1, 1 - remaining / span) : 1,
+    by: remaining > 0 ? best.by : null };
 }
 
 // Dernier entraînement (muscle principal, au moins une série) de chaque muscle, sur tout l'historique
-// et les courses et sorties vélo lues dans Santé (quadriceps, mollets : la séance jambes attend).
+// et les courses et sorties vélo lues dans Santé (quadriceps, mollets : la séance jambes attend), à part
+// pour la force et le cardio (récupération plus courte) : Map muscle → { force?, cardio? }, chacun
+// { date, entry }. Une sortie de Santé trop courte (trajet détecté par la montre) ne compte pas
+// (healthCountsForRecovery) ; elle reste affichée dans l'Historique.
 // Gardé tant que l'historique, Santé et les muscles déclarés ne changent pas (l'accueil le lit pour chaque séance).
 let muscleLastCache = { key: null, map: null };
 function muscleLastWorked() {
-  const h = data.history || [], fromHealth = healthEntries();
+  const h = data.history || [], fromHealth = healthEntries().filter(healthCountsForRecovery);
   const key = `${h.length}:${h[0]?.id}:${h[0]?.date}:${fromHealth.length}:${fromHealth[0]?.id}:${JSON.stringify(data.exerciseMuscles || {})}:${JSON.stringify([...chosenMusclesIndex()])}`;
   if (muscleLastCache.key === key) return muscleLastCache.map;
   const map = new Map(), index = chosenMusclesIndex();
   [...h, ...fromHealth].forEach(entry => (entry.exercises || []).forEach(e => {
     if (!(e.sets || []).some(s => (parseInt(s?.reps) || 0) > 0)) return;
+    const kind = measureOf(e) === 'cardio' ? 'cardio' : 'force';
     exerciseMuscles(e, index).primary.forEach(m => {
-      if (!(map.get(m)?.date >= entry.date)) map.set(m, { date: entry.date, entry });
+      const w = map.get(m) || {};
+      if (!(w[kind]?.date >= entry.date)) { w[kind] = { date: entry.date, entry }; map.set(m, w); }
     });
   }));
   muscleLastCache = { key, map };
   return map;
 }
 
-// Muscle principal de la séance travaillé le plus récemment : { muscle, date, entry } ou null
-function sessionRecovery(cat) {
+// Muscle principal de la séance qui la fait attendre le plus longtemps : { muscle, date, entry, readyAt }
+// ou null. cd : délai de la séance (ms) ; after : le travail jusqu'à cette heure est ignoré (délai passé)
+function sessionRecovery(cat, { cd = getCooldown(cat) * 3600_000, after = -Infinity } = {}) {
   const index = chosenMusclesIndex();
   const muscles = new Set((prog().exercises[cat] || []).flatMap(ex => exerciseMuscles(ex, index).primary));
   if (!muscles.size) return null;
-  const last = muscleLastWorked();
+  const last = muscleLastWorked(), wait = { force: cd, cardio: Math.min(cd, CARDIO_RECOVERY_H * 3600_000) };
   let best = null;
-  muscles.forEach(m => { const w = last.get(m); if (w && !(best?.date >= w.date)) best = { muscle: m, ...w }; });
+  muscles.forEach(m => Object.entries(last.get(m) || {}).forEach(([kind, w]) => {
+    if (w.date <= after) return;
+    const readyAt = w.date + wait[kind];
+    if (!best || readyAt > best.readyAt || (readyAt === best.readyAt && w.date > best.date)) best = { muscle: m, ...w, readyAt };
+  }));
   return best;
 }
 
