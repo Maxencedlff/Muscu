@@ -78,13 +78,40 @@ jobs:
           sudo xcode-select -s "$X"
           xcodebuild -version
 
+      # Paquets Swift (GoogleSignIn, Capacitor…) : versions figées par Package.resolved. Tant qu'il
+      # n'est pas dans le dépôt, résolution libre (dernières versions permises par project.pbxproj et
+      # CapApp-SPM) et fichier publié en artefact « package-resolved », à committer à l'emplacement
+      # ci-dessous. Une fois committé, seules ses versions sont acceptées (-onlyUsePackageVersionsFromResolvedFile,
+      # aussi pour les compilations) : après une mise à jour d'un plugin Capacitor ou de GoogleSignIn,
+      # le régénérer (lancer ce workflow, récupérer l'artefact) et le committer avec.
+      - name: Paquets Swift
+        run: |
+          RESOLVED="$PROJECT/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+          FLAGS=""
+          if [ -f "$RESOLVED" ]; then
+            FLAGS="-onlyUsePackageVersionsFromResolvedFile"
+            echo "Package.resolved présent : versions figées"
+          else
+            echo "Package.resolved absent : résolution libre, fichier publié en artefact"
+          fi
+          echo "SPM_FLAGS=$FLAGS" >> "$GITHUB_ENV"
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" -derivedDataPath build -resolvePackageDependencies $FLAGS
+          mkdir -p spm && cp "$RESOLVED" spm/Package.resolved
+          grep -E '"identity"|"version"|"revision"' spm/Package.resolved
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: package-resolved
+          path: spm/Package.resolved
+          if-no-files-found: warn
+
       # ── Mode contrôle ─────────────────────────────────────────────
       - name: Compilation pour le simulateur
         if: ${{ !inputs.testflight }}
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build > xcodebuild.log 2>&1 || {
+            -derivedDataPath build $SPM_FLAGS CODE_SIGNING_ALLOWED=NO build > xcodebuild.log 2>&1 || {
               # En cas d'échec, les erreurs du compilateur (et non les 25 dernières lignes)
               grep -E -A4 'error:|BUILD FAILED' xcodebuild.log | head -120; exit 1; }
           grep -E 'warning: .*(RestActivity|LiveActivity|Shared/)' xcodebuild.log | sort -u | head -40 || true
@@ -215,7 +242,7 @@ jobs:
         if: ${{ inputs.testflight }}
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
-            -destination 'generic/platform=iOS' -archivePath build/App.xcarchive archive \
+            -destination 'generic/platform=iOS' -archivePath build/App.xcarchive $SPM_FLAGS archive \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} | tail -40
 
       - name: Export et envoi sur App Store Connect
