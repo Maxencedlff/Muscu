@@ -7,6 +7,13 @@
 // ── Bibliothèque : exercices connus et leurs muscles ─────────
 // [nom, muscles principaux, muscles secondaires, matériel (EQUIPMENT), alias facultatifs séparés par « | »] ; tous les exercices de PROGRAMMES y figurent
 // (vérifié par les tests unitaires). Elle complète aussi la recherche de la feuille d'ajout.
+// Muscles vérifiés un par un (audit du 25/10/2026) : principal = moteur du mouvement (« Target » d'ExRx.net,
+// muscle le plus activé en EMG), secondaire = synergiste notable (compté pour une demi-série). Ils ne sont
+// pas modifiables dans l'app (musclesLocked, muscles.js) : toute correction se fait ici, source à l'appui.
+// Exemples de sources : développé militaire, deltoïde antérieur principal (ExRx ; Coratella 2022, Front.
+// Physiol.) ; pull-over haltère, pectoral autant que grand dorsal (Marchetti et Uchida 2011, J. Appl.
+// Biomech.) ; bird dog, lombaires et grand fessier bien au-dessus des abdominaux (Ekstrom 2007, JOSPT) ;
+// marche latérale élastique, moyen fessier, aucun travail des adducteurs (EMG, PubMed 22845002).
 // Matériel nécessaire, pour filtrer la bibliothèque quand on s'entraîne sans salle (feuille d'ajout).
 // Chaque exercice a une seule catégorie : celle du matériel le plus lourd qu'il demande.
 // Ordre = ordre des filtres ; les identifiants sont repris tels quels par sanitizeData (store.js).
@@ -25,7 +32,7 @@ const EXERCISE_CATALOGUE = [
   ['Développé couché haltères',        'chest',                  'front_delts triceps', 'halteres', 'dumbbell bench press'],
   ['Développé incliné barre',          'chest front_delts',      'triceps', 'salle'],
   ['Développé incliné haltères',       'chest front_delts',      'triceps', 'halteres', 'incline dumbbell press'],
-  ['Développé décliné',                'chest',                  'triceps', 'salle'],
+  ['Développé décliné',                'chest',                  'front_delts triceps', 'salle'],
   ['Développé couché machine',         'chest',                  'front_delts triceps', 'salle', 'chest press'],
   ['Écarté haltères plat',             'chest',                  'front_delts', 'halteres'],
   ['Écarté poulie vis-à-vis',          'chest',                  'front_delts', 'salle', 'cable fly|crossover|écarté poulie'],
@@ -33,10 +40,10 @@ const EXERCISE_CATALOGUE = [
   ['Pompes',                           'chest',                  'front_delts triceps abs', 'aucun', 'push-up|push up'],
   ['Dips',                             'chest triceps',          'front_delts', 'barre', 'barres parallèles'],
   // Dos
-  ['Soulevé de terre',                 'glutes hamstrings lower_back', 'quads traps forearms', 'salle', 'deadlift|sdt'],
-  ['Tractions pronation',              'lats',                   'biceps brachialis rear_delts forearms', 'barre', 'pull-ups|pull up|traction'],
+  ['Soulevé de terre',                 'glutes hamstrings lower_back', 'quads adductors traps forearms', 'salle', 'deadlift|sdt'],
+  ['Tractions pronation',              'lats',                   'biceps brachialis rear_delts traps forearms', 'barre', 'pull-ups|pull up|traction'],
   ['Tractions prise serrée',           'lats biceps',            'brachialis forearms', 'barre'],
-  ['Tirage vertical prise large',      'lats',                   'biceps rear_delts', 'salle', 'tirage poitrine|lat pulldown|poulie haute|pulldown'],
+  ['Tirage vertical prise large',      'lats',                   'biceps brachialis rear_delts traps', 'salle', 'tirage poitrine|lat pulldown|poulie haute|pulldown'],
   ['Tirage vertical prise serrée',     'lats',                   'biceps', 'salle'],
   ['Tirage horizontal câble',          'lats traps',             'rear_delts biceps', 'salle', 'seated row|rowing assis|tirage assis|poulie basse'],
   ['Rowing barre',                     'lats traps',             'rear_delts biceps lower_back', 'salle', 'barbell row|rowing buste penché barre'],
@@ -47,18 +54,18 @@ const EXERCISE_CATALOGUE = [
   ['Extension lombaires',              'lower_back',             'glutes hamstrings', 'salle', 'hyperextension|banc lombaire'],
   ['Face pull',                        'rear_delts',             'traps side_delts', 'salle', 'tirage visage|tirage corde'],
   // Épaules
-  ['Développé militaire barre',        'front_delts side_delts', 'triceps traps', 'salle', 'ohp|overhead press|military press'],
-  ['Développé militaire haltères',     'front_delts side_delts', 'triceps traps', 'halteres', 'shoulder press haltères|dumbbell shoulder press'],
-  ['Développé Arnold',                 'front_delts side_delts', 'triceps', 'halteres'],
+  ['Développé militaire barre',        'front_delts',            'side_delts triceps traps', 'salle', 'ohp|overhead press|military press'],
+  ['Développé militaire haltères',     'front_delts',            'side_delts triceps traps', 'halteres', 'shoulder press haltères|dumbbell shoulder press'],
+  ['Développé Arnold',                 'front_delts',            'side_delts triceps', 'halteres'],
   ['Élévations latérales',             'side_delts',             'traps', 'halteres', 'lateral raise'],
   ['Élévations latérales poulie',      'side_delts',             'traps', 'salle'],
   ['Élévations frontales',             'front_delts',            'side_delts', 'halteres'],
   ['Oiseau (élévations arrière)',      'rear_delts',             'traps', 'halteres', 'reverse fly|élévations arrière'],
-  ['Rowing menton',                    'side_delts traps',       'biceps', 'salle', 'upright row|tirage menton'],
+  ['Rowing menton',                    'side_delts traps',       'front_delts biceps brachialis', 'salle', 'upright row|tirage menton'],
   // Bras
   ['Curl biceps barre',                'biceps',                 'brachialis forearms', 'salle', 'curl ez|barbell curl'],
   ['Curl biceps haltères',             'biceps',                 'brachialis forearms', 'halteres', 'dumbbell curl'],
-  ['Curl marteau',                     'brachialis biceps',      'forearms', 'halteres', 'hammer curl'],
+  ['Curl marteau',                     'brachialis biceps forearms', '',              'halteres', 'hammer curl'],
   ['Curl pupitre',                     'biceps',                 'brachialis forearms', 'salle', 'preacher curl|larry scott'],
   ['Curl incliné',                     'biceps',                 'brachialis forearms', 'halteres'],
   ['Curl poulie',                      'biceps',                 'brachialis forearms', 'salle'],
@@ -98,7 +105,7 @@ const EXERCISE_CATALOGUE = [
   // Haltères et banc (à la maison)
   ['Développé au sol haltères',        'chest triceps',          'front_delts', 'halteres'],
   ['Écarté incliné haltères',          'chest',                  'front_delts', 'halteres'],
-  ['Pull-over haltère',                'lats',                   'chest triceps', 'halteres'],
+  ['Pull-over haltère',                'chest lats',             'triceps', 'halteres'],
   ['Rowing haltères buste penché',     'lats traps',             'rear_delts biceps', 'halteres'],
   ['Extension triceps couché haltères','triceps',                '',            'halteres'],
   ['Soulevé de terre roumain haltères','hamstrings glutes',      'lower_back',  'halteres', 'rdl haltères|jambes tendues haltères'],
@@ -112,7 +119,7 @@ const EXERCISE_CATALOGUE = [
   ['Pompes inclinées',                 'chest',                  'front_delts triceps', 'aucun', 'pompes mains surélevées'],
   ['Pompes déclinées',                 'chest front_delts',      'triceps abs', 'aucun'],
   ['Pompes diamant',                   'triceps chest',          'front_delts', 'aucun', 'pompes serrées|diamond push-up'],
-  ['Pompes pike (épaules)',            'front_delts',            'side_delts triceps', 'aucun'],
+  ['Pompes pike (épaules)',            'front_delts',            'side_delts triceps traps', 'aucun'],
   ['Dips sur chaise',                  'triceps',                'chest front_delts', 'aucun'],
   ['Squat poids du corps',             'quads glutes',           'adductors',   'aucun', 'air squat'],
   ['Squat sauté',                      'quads glutes',           'calves',      'aucun'],
@@ -130,7 +137,7 @@ const EXERCISE_CATALOGUE = [
   ['Pompes contre le mur',             'chest',                  'front_delts triceps', 'aucun'],
   ['Pompes sur les genoux',            'chest',                  'front_delts triceps', 'aucun', 'pompes genoux'],
   ['Pompes archer',                    'chest',                  'front_delts triceps', 'aucun'],
-  ['Pompes en équilibre (épaules)',    'front_delts side_delts', 'triceps traps', 'aucun', 'handstand push-up|hspu|pompes poirier'],
+  ['Pompes en équilibre (épaules)',    'front_delts',            'side_delts triceps traps', 'aucun', 'handstand push-up|hspu|pompes poirier'],
   ['Squat sur chaise',                 'quads glutes',           'adductors',   'aucun', 'assis debout'],
   ['Fentes sautées',                   'quads glutes',           'calves',      'aucun', 'jump lunges'],
   ['Pistol squat assisté',             'quads glutes',           'adductors',   'aucun'],
@@ -138,12 +145,12 @@ const EXERCISE_CATALOGUE = [
   ['Shrimp squat',                     'quads glutes',           'hamstrings',  'aucun'],
   ['Rowing sous une table',            'lats traps',             'rear_delts biceps', 'aucun'],
   ['Dead bug',                         'abs',                    '',            'aucun'],
-  ['Bird dog',                         'abs lower_back',         'glutes',      'aucun', 'chien d\'arrêt'],
+  ['Bird dog',                         'lower_back glutes',      'abs', 'aucun', 'chien d\'arrêt'],
   ['Gainage creux',                    'abs',                    '',            'aucun', 'hollow body|hollow hold'],
   ['L-sit',                            'abs',                    'quads triceps', 'aucun', 'l sit'],
   ['Clamshell',                        'glutes',                 '',            'aucun', 'coquillage'],
   // Barre de traction et barres à dips : progression vers la traction et le muscle-up
-  ['Suspension passive',               'forearms lats',          '',            'barre', 'dead hang'],
+  ['Suspension passive',               'forearms',               'lats', 'barre', 'dead hang'],
   ['Tractions négatives',              'lats biceps',            'forearms',    'barre', 'traction excentrique'],
   ['Tractions avec élastique',         'lats',                   'biceps rear_delts', 'barre', 'traction assistée'],
   ['Tractions archer',                 'lats',                   'biceps rear_delts', 'barre'],
@@ -157,11 +164,11 @@ const EXERCISE_CATALOGUE = [
   ['Face pull élastique',              'rear_delts',             'traps side_delts', 'elastique'],
   ['Curl élastique',                   'biceps',                 'brachialis forearms',    'elastique'],
   ['Extension triceps élastique',      'triceps',                '',            'elastique'],
-  ['Développé épaules élastique',      'front_delts side_delts', 'triceps',     'elastique'],
+  ['Développé épaules élastique',      'front_delts',            'side_delts triceps', 'elastique'],
   ['Pompes avec élastique',            'chest',                  'front_delts triceps', 'elastique'],
   ['Squat élastique',                  'quads glutes',           'adductors',   'elastique'],
   ['Good morning élastique',           'hamstrings glutes',      'lower_back',  'elastique'],
-  ['Marche latérale élastique',        'glutes',                 'adductors',   'elastique', 'monster walk'],
+  ['Marche latérale élastique',        'glutes',                 '',              'elastique', 'monster walk'],
   ['Rotation externe élastique',       'rear_delts',             '',            'elastique', 'rotation externe épaule|coiffe des rotateurs'],
   // Kettlebell
   ['Swing kettlebell',                 'glutes hamstrings',      'lower_back traps', 'kettlebell', 'kettlebell swing'],
@@ -173,7 +180,7 @@ const EXERCISE_CATALOGUE = [
   ['Turkish get-up',                   'abs',                    'front_delts glutes', 'kettlebell', 'relevé turc'],
   ['Halo kettlebell',                  'front_delts side_delts', 'traps abs',   'kettlebell'],
   ['Thruster kettlebell',              'quads front_delts',      'glutes triceps', 'kettlebell'],
-  ['Développé épaule kettlebell',      'front_delts side_delts', 'triceps',     'kettlebell'],
+  ['Développé épaule kettlebell',      'front_delts',            'side_delts triceps', 'kettlebell'],
   // Cardio : durée et distance (js/data/measures.js)
   ['Course à pied',                    'quads calves',           'hamstrings glutes', 'cardio', 'running|footing|jogging|courir'],
   ['Tapis de course',                  'quads calves',           'hamstrings glutes', 'cardio', 'tapis'],
@@ -185,15 +192,15 @@ const EXERCISE_CATALOGUE = [
   ['Jumping jacks',                    'calves quads',           'side_delts',  'aucun', 'jumping jack'],
   // Salle : variantes courantes (smith, machines, poulies)
   ['Good morning',                     'hamstrings glutes',      'lower_back',  'salle'],
-  ['Soulevé de terre sumo',            'glutes quads',           'hamstrings adductors lower_back', 'salle', 'sdt sumo|sumo deadlift'],
-  ['Rack pull',                        'glutes lower_back',      'hamstrings traps', 'salle'],
+  ['Soulevé de terre sumo',            'glutes quads',           'hamstrings adductors lower_back traps forearms', 'salle', 'sdt sumo|sumo deadlift'],
+  ['Rack pull',                        'glutes lower_back',      'hamstrings traps forearms', 'salle'],
   ['Kickback fessier poulie',          'glutes',                 'hamstrings',  'salle', 'kickback poulie fessier'],
   ['Hip thrust machine',               'glutes',                 'hamstrings',  'salle'],
   ['Squat smith',                      'quads glutes',           'adductors',   'salle', 'squat guidé'],
   ['Pendulum squat',                   'quads',                  'glutes',      'salle'],
   ['Développé incliné smith',          'chest front_delts',      'triceps',     'salle', 'di smith'],
-  ['Développé militaire smith',        'front_delts side_delts', 'triceps',     'salle'],
-  ['Développé épaules machine',        'front_delts side_delts', 'triceps',     'salle', 'shoulder press machine'],
+  ['Développé militaire smith',        'front_delts',            'side_delts triceps', 'salle'],
+  ['Développé épaules machine',        'front_delts',            'side_delts triceps', 'salle', 'shoulder press machine'],
   ['Élévations latérales machine',     'side_delts',             'traps',       'salle'],
   ['Pec deck inversé',                 'rear_delts',             'traps',       'salle', 'reverse pec deck|butterfly inversé'],
   ['Écarté poulie basse',              'chest',                  'front_delts', 'salle', 'low cable fly'],

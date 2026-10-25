@@ -138,9 +138,9 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     // Le nom le plus proche passe devant ; ni squat ni presse parmi les mêmes muscles
     assert.ok(same.indexOf('Développé couché haltères') < 3, same.slice(0, 5).join(', '));
     assert.ok(!same.includes('Squat barre') && !same.includes('Presse à cuisses'));
-    // Muscles choisis par la personne : ils priment sur la bibliothèque
-    run(`setDeclaredMuscles('Développé couché barre', { primary: ['triceps'] })`);
-    assert.ok(app.sameMusclesFirst({ name: 'Développé couché barre' }, lib).same.every(n => app.musclesOf(n).primary.includes('triceps')));
+    // Exercice créé par la personne : ses muscles choisis servent à la comparaison
+    run(`setDeclaredMuscles('Mon développé maison', { primary: ['triceps'] })`);
+    assert.ok(app.sameMusclesFirst({ name: 'Mon développé maison' }, lib).same.every(n => app.musclesOf(n).primary.includes('triceps')));
     // Exercice aux muscles inconnus : ordre d'origine
     sameJSON(app.sameMusclesFirst({ name: 'Zzz' }, lib), { same: [], rest: lib });
   });
@@ -183,7 +183,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
       assert.ok(['rules', 'catalogue'].includes(m.src), name);  // certains sont devenus des alias de la bibliothèque
       assert.equal(m.p[0], main, `${name} → ${m.p.join(', ')}`);
     }
-    sameJSON(pick('Curl marteau corde').p, ['brachialis', 'biceps']);
+    sameJSON(pick('Curl marteau corde').p, ['brachialis', 'biceps', 'forearms'], 'comme Curl marteau : brachio-radial (avant-bras) principal');
   });
 
   test('muscles : accents, casse et espaces ignorés ; nom inconnu ou vide → aucun muscle', () => {
@@ -201,11 +201,58 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.equal(app.chosenMuscles({ muscles: ['nope'] }), null, 'aucun muscle connu → reconnaissance automatique');
     assert.equal(app.chosenMuscles({ muscles: 'biceps' }), null, 'valeur illisible ignorée');
     assert.equal(app.chosenMuscles({}), null);
-    run(`data.programmes.ppl.exercises.push[0].muscles = ['triceps'];`);
+    // Exercice créé par la personne, renommé : l'historique sous l'ancien nom suit le choix par exId
+    run(`Object.assign(data.programmes.ppl.exercises.push[0], { name: 'Mon développé maison', muscles: ['triceps'] });`);
     const id = run('data.programmes.ppl.exercises.push[0].id');
-    const viaId = app.exerciseMuscles({ exId: id, name: 'Développé couché haltères' });
+    const viaId = app.exerciseMuscles({ exId: id, name: 'Ancien nom maison' });
     sameJSON({ p: viaId.primary, s: viaId.secondary, src: viaId.source }, { p: ['triceps'], s: [], src: 'user' });
-    assert.equal(app.exerciseMuscles({ exId: 'autre', name: 'Développé couché haltères' }).primary[0], 'chest');
+    assert.equal(app.exerciseMuscles({ exId: 'autre', name: 'Ancien nom maison' }).source, 'none');
+    // Séance de l'historique sous un nom de la bibliothèque : le catalogue fait foi, même par exId
+    assert.equal(app.exerciseMuscles({ exId: id, name: 'Développé couché haltères' }).primary[0], 'chest');
+  });
+
+  test('muscles verrouillés : le catalogue fait foi pour un exercice de la bibliothèque', () => {
+    reset();
+    assert.equal(app.musclesLocked('Développé couché barre'), true);
+    assert.equal(app.musclesLocked('bench press'), true, 'alias de la bibliothèque');
+    assert.equal(app.musclesLocked('dc'), true, 'abréviation développée');
+    assert.equal(app.musclesLocked('Curl marteau corde'), false, 'reconnu par les règles : exercice de la personne');
+    assert.equal(app.musclesLocked('Grimpe au mur'), false);
+    assert.equal(app.musclesLocked(''), false);
+    // Aucune nouvelle déclaration pour un nom de la bibliothèque, par son nom ou un alias
+    run(`setDeclaredMuscles('Développé couché barre', { primary: ['triceps'], secondary: ['abs'] }); setDeclaredMuscles('bench press', ['calves']);`);
+    assert.equal(run('data.exerciseMuscles === undefined && data.exerciseMusclesSecondary === undefined'), true);
+    const m = app.exerciseMuscles({ name: 'Développé couché barre' });
+    sameJSON({ p: m.primary, s: m.secondary, src: m.source }, { p: ['chest'], s: ['front_delts', 'triceps'], src: 'catalogue' });
+  });
+
+  test('muscles verrouillés : anciens choix d\'un exercice de la bibliothèque ignorés à la lecture, gardés tels quels', () => {
+    reset();
+    // Enregistrés par une version précédente (ou reçus d'un autre appareil par la synchro)
+    run(`data.exerciseMuscles = { 'curl marteau': ['triceps'], 'grimpe au mur': ['lats'] };
+         data.exerciseMusclesSecondary = { 'curl marteau': ['abs'] };
+         Object.assign(data.programmes.ppl.exercises.push[0], { muscles: ['calves'], musclesSecondary: ['abs'] });`);
+    const name = run('data.programmes.ppl.exercises.push[0].name');
+    assert.equal(app.musclesLocked(name), true, `${name} : exercice intégré du programme`);
+    const cat = app.musclesOf(name);
+    sameJSON(app.exerciseMuscles(run('data.programmes.ppl.exercises.push[0]')).primary, [...cat.primary]);
+    assert.equal(app.chosenMuscles(run('data.programmes.ppl.exercises.push[0]')), null);
+    assert.ok(!app.chosenMusclesIndex().has(run('data.programmes.ppl.exercises.push[0].id')), 'absent de l\'index des choix');
+    sameJSON(app.exerciseMuscles({ name: 'Curl marteau' }).primary, ['brachialis', 'biceps', 'forearms']);
+    assert.equal(app.declaredMuscles('Curl marteau'), null);
+    sameJSON(app.declaredSecondary('Curl marteau'), []);
+    // Exercice de la personne : son choix compte toujours
+    sameJSON(app.exerciseMuscles({ name: 'Grimpe au mur' }).primary, ['lats']);
+    // Séries par muscle : l'ancien choix ne fausse pas les compteurs
+    const counts = app.muscleSetCounts([hist(0, [{ name: 'Curl marteau', sets: sets(2) }])], -Infinity, Infinity).counts;
+    assert.equal(counts.triceps, 0);
+    assert.equal(counts.biceps, 2);
+    // Rien d'effacé : nettoyage, migrations et profil synchronisé gardent les valeurs (un autre appareil,
+    // ou une version précédente, les retrouve ; la synchro les fusionnerait de toute façon par union)
+    const d = app.sanitizeData(app.normalizeData(JSON.parse(JSON.stringify(run('data')))));
+    sameJSON(d.exerciseMuscles['curl marteau'], ['triceps']);
+    sameJSON(d.programmes.ppl.exercises.push[0].muscles, ['calves']);
+    sameJSON(app.profilePayload(d).exerciseMuscles, { 'curl marteau': ['triceps'], 'grimpe au mur': ['lats'] });
   });
 
   test('muscles : le champ muscles survit au nettoyage, aux migrations et à l\'import', () => {
@@ -239,7 +286,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.equal(counts.triceps, 2);
     assert.equal(counts.biceps, 3);
     assert.equal(counts.brachialis, 3, 'curl marteau : le brachial en principal');
-    assert.equal(counts.forearms, 1.5);
+    assert.equal(counts.forearms, 3, 'curl marteau : le brachio-radial (avant-bras) en principal');
     assert.equal(counts.quads, 0, 'séance d\'il y a 9 jours hors de la semaine');
     sameJSON(Object.keys(counts), ids(), 'tous les muscles, dans l\'ordre');
   });
@@ -277,7 +324,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     reset();
     const h = hist(0, [{ name: 'Développé couché haltères', sets: sets(4) }, { name: 'Curl marteau', sets: sets(2) },
                        { name: 'Inconnu', sets: sets(5) }]);
-    sameJSON(app.sessionMuscleLevels(h), { chest: 1, front_delts: 0.5, biceps: 0.5, brachialis: 0.5, triceps: 0.5, forearms: 0.25 });
+    sameJSON(app.sessionMuscleLevels(h), { chest: 1, front_delts: 0.5, biceps: 0.5, brachialis: 0.5, triceps: 0.5, forearms: 0.5 });
     sameJSON(app.sessionTopMuscles(h), ['chest', 'front_delts', 'biceps'], 'à égalité : ordre de MUSCLES');
     sameJSON(app.sessionTopMuscles(h, 1), ['chest']);
     sameJSON(app.sessionMuscleLevels(hist(0, [{ name: 'Inconnu', sets: sets(3) }])), {}, 'aucun muscle reconnu');

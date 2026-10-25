@@ -43,10 +43,15 @@ function exMusclesPanelHtml(m) {
 
 // ── Programme › Exercice : muscles reconnus ou choisis ──────
 
+// Pied des muscles d'un exercice de la bibliothèque (Programme › Exercice, Progrès › Exercice, fiche)
+const LOCKED_MUSCLES_FOOT = 'Muscles de la bibliothèque : principaux en couleur pleine, secondaires atténués.';
+
 // Le brouillon garde le choix de l'utilisateur (null : reconnaissance par le nom)
 function draftMuscles(ex) { return chosenMuscles(ex); }
 function draftSecondary(ex) { return chosenMuscles(ex) ? chosenSecondary(ex) : []; }
+// Exercice de la bibliothèque : rien n'est écrit (un ancien choix reste stocké mais ignoré, voir musclesLocked)
 function applyDraftMuscles(ex, draft) {
+  if (musclesLocked(draft.name)) return;
   const list = chosenMuscles(draft);
   if (list) ex.muscles = list; else delete ex.muscles;
   const sec = list ? chosenSecondary(draft, list) : [];
@@ -55,6 +60,13 @@ function applyDraftMuscles(ex, draft) {
 
 function exEditMusclesHtml(d) {
   const m = exerciseMuscles({ name: d.name, muscles: d.muscles, musclesSecondary: d.musclesSecondary });
+  // Bibliothèque : muscles vérifiés, affichés sans bouton de choix
+  if (m.source === 'catalogue') {
+    return `
+    <div class="group-title">Muscles ciblés</div>
+    <div class="group">${exMusclesPanelHtml(m)}</div>
+    <div class="group-foot">${LOCKED_MUSCLES_FOOT}</div>`;
+  }
   const foot = m.source === 'user' ? 'Muscles choisis par toi.'
     : m.source === 'none' ? (d.name.trim() ? 'Nom non reconnu : choisis les muscles travaillés.' : 'Reconnus d\'après le nom de l\'exercice.')
     : 'Reconnus d\'après le nom de l\'exercice.';
@@ -111,7 +123,7 @@ async function pickMusclesSheet({ title = 'Muscles ciblés', current = [], curre
 }
 
 async function pickExMuscles() {
-  if (!exDraft) return;
+  if (!exDraft || musclesLocked(exDraft.name)) return;
   const m = exerciseMuscles({ name: exDraft.name, muscles: exDraft.muscles, musclesSecondary: exDraft.musclesSecondary });
   const res = await pickMusclesSheet({ current: m.primary, currentSecondary: m.secondary, like: m.primary.length ? [] : similarExercises(exDraft.name) });
   if (!res || !exDraft) return;
@@ -126,6 +138,7 @@ async function pickExMuscles() {
 // check : muscles devinés d'après le nom d'un exercice inventé, cochés d'avance ; OK les enregistre comme
 // choisis, « Plus tard » garde la devinette. Renvoie true si changé.
 async function declareMusclesFor(name, { ask = false, check = false } = {}) {
+  if (musclesLocked(name)) return false;
   const m = exerciseMuscles({ name });
   const like = m.primary.length && !check ? [] : similarExercises(name);
   // Guillemets à espaces insécables : « » jamais seuls en début de ligne
