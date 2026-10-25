@@ -212,4 +212,84 @@ export default function ({ test, run, assert, sameJSON }) {
     })()`);
     sameJSON(r, [1, 2, 2], 'b pas encore envoyée ; autre compte ou aucun : tout est à risque');
   });
+
+  // App iOS simulée pour accountReconnectInfo (module natif présent, client supabase chargé)
+  const fakeIos = 'Native.account.available = true; globalThis.supabase = {}; account.ready = true;';
+  const undoIos = 'Native.account.available = false; delete globalThis.supabase; account.ready = false; sb = null; account.user = null; delete data.lastAccount; localStorage.clear(); data.history = [];';
+
+  test('compte : session finie ailleurs (SIGNED_OUT sans déconnexion de l\'app) : état oublié, séances comptées, carte « session finie »', async () => {
+    const r = await run(`(async () => {
+      localStorage.clear();
+      data.history = [{ id: 'a', date: 2, category: 'push', exercises: [] }, { id: 'b', date: 1, category: 'push', exercises: [] }];
+      localStorage.setItem('mdlf_sync_owner', 'A');
+      localStorage.setItem('mdlf_sync_A', JSON.stringify({ userId: 'A', cursor: 't', profileHash: 'p',
+        pushed: Object.fromEntries(data.history.map(h => [h.id, syncHash(sessionPayload(h))])) }));
+      ${fakeIos}
+      const before = accountPendingCount('A');
+      account.user = { id: 'A' };
+      onAuthEvent('SIGNED_OUT', null);              // compte supprimé, ou session révoquée ailleurs
+      const out = { before, after: accountPendingCount('A'), ended: localStorage.getItem('mdlf_session_ended'),
+        owner: localStorage.getItem('mdlf_sync_owner'), info: accountReconnectInfo() };
+      // Déconnexion demandée par l'app (annulation, autre compte) : pas une session finie
+      localStorage.removeItem('mdlf_session_ended');
+      sb = { auth: { signOut: async () => { onAuthEvent('SIGNED_OUT', null); return { error: null }; } } };
+      account.user = { id: 'A' };
+      await accountSignOut({ voluntary: false });
+      out.endedLocal = localStorage.getItem('mdlf_session_ended');
+      return out;
+    })()`);
+    try {
+      assert.equal(r.before, 0, 'tout était sauvegardé');
+      assert.equal(r.after, 2, 'session finie : plus rien n\'est compté comme sauvegardé (feuille de fusion : « nulle part ailleurs »)');
+      assert.equal(r.ended, '1');
+      assert.equal(r.owner, 'A', 'iPhone toujours rattaché : un autre compte verra le choix de fusion');
+      assert.equal(r.info?.ended, true, 'carte « Ta session a pris fin »');
+      assert.equal(r.endedLocal, null, 'déconnexion locale : pas de « session finie »');
+    } finally { run(undoIos); }
+  });
+
+  test('compte : iPhone restauré depuis la seule copie iCloud (ppl_v2) : reconnexion proposée, rien n\'en part au serveur', () => {
+    const r = run(`(() => {
+      localStorage.clear();
+      ${fakeIos}
+      // Connexion : moyen et pseudo gardés dans les données
+      account.user = { id: 'A', identities: [{ provider: 'apple', created_at: '2026-01-01T00:00:00Z' }] };
+      account.profile = { username: 'max.dlf', avatar: '🦊', stored: true };
+      writeLoginCache('A', 'apple');
+      const kept = JSON.parse(JSON.stringify(data.lastAccount));
+      // Nouvel iPhone : seule la copie iCloud de l'app revient (ni stockage web, ni Trousseau)
+      const copy = JSON.parse(JSON.stringify(data));
+      localStorage.clear(); account.user = null; account.profile = null;
+      data = sanitizeData(normalizeData(copy));
+      const info = accountReconnectInfo();
+      const payload = profilePayload(data);
+      // Déconnexion voulue : retenue aussi dans les données, plus de carte après une restauration
+      markSignedOut();
+      localStorage.clear();
+      const afterSignOut = accountReconnectInfo();
+      return { kept, info, inPayload: 'lastAccount' in payload, localOnly: SYNC_LOCAL_ONLY.includes('lastAccount'),
+        bad: [sanitizeData({ ...data, lastAccount: { method: 'x', username: '<b>' } }).lastAccount,
+              sanitizeData({ ...data, lastAccount: 'apple' }).lastAccount,
+              sanitizeData({ ...data, lastAccount: { method: 'google', username: 'Max!', extra: 1 } }).lastAccount],
+        afterSignOut };
+    })()`);
+    try {
+      sameJSON(r.kept, { method: 'apple', username: 'max.dlf' });
+      sameJSON(r.info, { method: 'apple', username: 'max.dlf', email: null, ended: false });
+      assert.equal(r.inPayload, false, 'jamais dans le profil envoyé au serveur');
+      assert.equal(r.localOnly, true, 'classée « appareil » (SYNC_LOCAL_ONLY)');
+      sameJSON(r.bad, [undefined, undefined, { method: 'google', username: null }], 'valeurs illisibles retirées par sanitizeData');
+      assert.equal(r.afterSignOut, null);
+    } finally { run(undoIos); }
+  });
+
+  test('compte : « Annuler ce compte » après 10 min : raison « expired » (pas « contient des données »)', async () => {
+    const r = await run(`(async () => {
+      sb = {};
+      const old = { id: 'N', created_at: new Date(Date.now() - 11 * 60_000).toISOString(), identities: [] };
+      account.user = old;
+      return [await discardNewAccount(old), (await accountCancelNewAccount()).reason];
+    })()`);
+    try { sameJSON(r, ['expired', 'expired']); } finally { run(undoIos); }
+  });
 }

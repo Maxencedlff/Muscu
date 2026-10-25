@@ -61,6 +61,8 @@
 .auth__lead { margin: 6px 0 0; font-size: var(--fs-body); line-height: 1.38; color: var(--label2); text-align: center; text-wrap: pretty; }
 .auth__lead--left { text-align: left; margin-bottom: 20px; }
 .auth__email { color: var(--label); font-weight: 600; overflow-wrap: anywhere; }
+/* Code renvoyé : « Seul le code du dernier e-mail envoyé est valable », sous le texte d'envoi */
+.auth__last-code { margin: -12px 0 16px; font-size: var(--fs-footnote); line-height: 1.35; color: var(--label); font-weight: 600; text-wrap: pretty; }
 /* « Nouveau compte créé… » sous le titre du pseudo : encadré discret, lisible en clair et en sombre,
    avec l'action d'annulation du compte */
 .auth__notice { margin: 14px 0 0; padding: 12px 14px 2px; border-radius: var(--r-md); background: var(--cell); color: var(--label); font-size: var(--fs-subhead); line-height: 1.4; text-align: left; }
@@ -71,6 +73,9 @@
 }
 .auth__notice-btn:active:not(:disabled) { opacity: .6; }
 .auth__notice-btn:disabled { color: var(--label2); }
+/* « Tu avais déjà un compte ? Reconnecte-toi » sous « Plus tard » (compte neuf sans indice d'un compte d'avant) */
+.auth__again--link { margin-top: 0; }
+.auth__again-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; margin: 0 -6px; font-weight: 600; vertical-align: middle; }
 
 /* « Commencer sans compte », « Plus tard » : bien lisibles, jamais en petit gris */
 .auth__skip {
@@ -113,10 +118,10 @@
   -webkit-appearance: none; appearance: none;
 }
 .auth__input::placeholder { color: var(--label3); }
-/* Pas d'anneau au focus (le curseur suffit, comme iOS) ; contour rouge fin pour une erreur */
+/* Pas d'anneau au focus (le curseur suffit, comme iOS) ; erreur : seuls le contour et le message sont
+   rouges, les chiffres gardent la couleur du texte (lisibles, pas sélectionnés) */
 .auth__input:focus { outline: none; }
 .auth__input[aria-invalid="true"] { outline: 1.5px solid var(--red); outline-offset: -1.5px; }
-.auth__code[aria-invalid="true"] { color: var(--red-text); }
 .auth__input:disabled { color: var(--label2); }
 .auth__code { font-variant-numeric: tabular-nums; min-height: 64px; text-align: center; font-size: max(16px, 1.765rem); font-weight: 600; letter-spacing: .45em; padding-left: calc(16px + .45em); }
 .auth__error { min-height: 1.2em; margin: 0; font-size: var(--fs-footnote); line-height: 1.35; color: var(--red-text); }
@@ -148,6 +153,21 @@
 .auth__status { min-height: 2.6em; margin: 0; padding: 0 16px; font-size: var(--fs-footnote); line-height: 1.35; color: var(--label2); }
 .auth__status--ok { color: var(--green-text); }
 .auth__status--bad { color: var(--red-text); }
+
+/* Petit écran (iPhone SE, 320 pt) : « Continuer » visible sans défiler. Avatar plus petit, sans libellé
+   (on touche l'avatar, son aria-label dit « Modifier »), titre sur une ligne */
+@media (max-width: 360px) {
+  .auth__page--username { padding-top: 0; }
+  .auth__page--username .auth__avatar { margin: 0 0 8px; }
+  .auth__page--username .auth__avatar .avatar--xl { width: 64px; height: 64px; font-size: 2.118rem; }
+  .auth__page--username .auth__avatar-edit { display: none; }
+  /* Titre centré : il peut mordre sur les marges latérales pour tenir sur une ligne */
+  .auth__page--username .auth__title { font-size: 28px; white-space: nowrap; margin-inline: -10px; }
+  .auth__page--username .auth__lead { font-size: var(--fs-subhead); margin-top: 4px; }
+  .auth__page--username .auth__notice { margin-top: 10px; padding-top: 8px; }
+  .auth__page--username .auth__form { margin-top: 12px; }
+  .auth__page--username .auth__status { min-height: 0; }
+}
 
 /* Avatar : grille de 5 colonnes partout (cases de 44 pt au moins même à 320 pt, sélection cerclée de la teinte) */
 .avatar-grid {
@@ -182,21 +202,35 @@
 .account-hero__name { margin: 4px 0 0; font-size: var(--fs-title2); font-weight: 700; overflow-wrap: anywhere; }
 .account-hero__sub { margin: 0; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label2); max-width: 340px; }
 .account-view .auth-buttons { margin: 4px 0 0; }
+.account-view--out .account-hero__name { text-wrap: balance; }
+.account-view--out .account-hero__sub + .account-hero__sub { margin-top: 2px; }
+/* Petit écran (iPhone SE) : les trois moyens et la mention au-dessus de la barre d'onglets */
+@media (max-width: 360px) {
+  .account-view--out .account-hero { gap: 4px; padding-bottom: 14px; }
+  .account-view--out .avatar--xl { width: 60px; height: 60px; }
+  .account-view--out .avatar--xl .icon { width: 28px; height: 28px; }
+  .account-view--out .account-hero__name { font-size: 22px; white-space: nowrap; }
+  .account-view--out .auth-buttons { gap: 8px; }
+  .account-view--out .auth-btn { min-height: 46px; }
+}
 .account-foot { margin: 0; padding: 12px 16px 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); text-align: center; text-wrap: pretty; }
 .account-emoji { font-size: 1.294rem; }
 .method-cell { gap: 12px; }
 .method-cell__logo { width: 30px; height: 30px; border-radius: 7px; background: var(--fill2); display: flex; align-items: center; justify-content: center; color: var(--label); flex-shrink: 0; }
 .method-cell__logo .auth-btn__logo { width: 17px; height: 17px; margin: 0; }
+/* Nom du moyen en couleur de texte (la cellule « Ajouter » est une action : seul « Ajouter » est bleu) */
+.method-cell .cell__title { color: var(--label); }
 .method-cell__add { color: var(--tint); }
 
 /* ── Accueil : carte compacte sous « Démarrer » (titre, action à droite, croix) ── */
 .account-card { display: flex; align-items: center; gap: 4px; min-height: 64px; padding: 10px 2px 10px 16px; }
 .account-card__text { flex: 1; min-width: 0; }
 .account-card__title { margin: 0; font-size: var(--fs-body); line-height: 1.25; font-weight: 600; text-wrap: balance; }
+/* Lien plus petit que le titre (15 pt contre 17) : le titre domine */
 .account-card__sub { margin: 2px 0 0; font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); overflow-wrap: anywhere; }
 .account-card__btn {
   flex-shrink: 0; min-height: 44px; padding: 0 6px; border: 0; background: none; cursor: pointer;
-  color: var(--tint); font: inherit; font-size: var(--fs-body); font-weight: 600; white-space: nowrap;
+  color: var(--tint); font: inherit; font-size: var(--fs-subhead); font-weight: 600; white-space: nowrap;
 }
 .account-card__btn:active { opacity: .5; }
 .account-card__close {

@@ -54,7 +54,8 @@ function renderAccountGroupInner() {
   }
   const signedIn = !!account.user;
   const name = signedIn ? accountName() : 'Se connecter';
-  const sub = signedIn ? 'Compte et sauvegarde' : accountReconnectInfo() ? 'Reconnecte-toi pour reprendre la sauvegarde' : 'Sauvegarde tes séances sur un compte';
+  const info = signedIn ? null : accountReconnectInfo();
+  const sub = signedIn ? 'Compte et sauvegarde' : info?.ended ? 'Ta session a pris fin' : info ? 'Reconnecte-toi pour reprendre la sauvegarde' : 'Sauvegarde tes séances sur un compte';
   return `
           <button class="cell cell--nav account-cell" data-action="go-account" aria-label="${esc(signedIn ? `${name}, ${sub}` : `${name}. ${sub}`)}">
             ${avatarHtml('l')}
@@ -84,13 +85,13 @@ function syncStatusText() {
 }
 
 // Ligne d'un moyen de connexion : relié (avec « Retirer » dans sa feuille), « Ajouter », ou pour
-// l'e-mail d'un compte qui a déjà une adresse (Google) : « Actif », la connexion par code à cette
-// adresse marche déjà (signInEmailOf)
+// l'e-mail d'un compte qui a déjà une adresse (Google) : relié aussi pour l'utilisateur, la connexion
+// par code à cette adresse marche déjà (signInEmailOf), sans identité à retirer
 function methodState(provider, user = account.user) {
   if (identityOf(user, provider)) return 'linked';
   return provider === 'email' && signInEmailOf(user) ? 'active' : 'add';
 }
-const METHOD_VALUE = { linked: 'Relié', active: 'Actif', add: 'Ajouter' };
+const METHOD_VALUE = { linked: 'Relié', active: 'Relié', add: 'Ajouter' };
 function methodCellHtml({ provider, label }) {
   const state = methodState(provider);
   const logo = { apple: APPLE_LOGO, google: GOOGLE_LOGO, email: MAIL_ICON }[provider];
@@ -112,19 +113,22 @@ function renderAccount() {
   const back = { title: 'Compte' };
   if (!accountAvailable()) return `<div class="view view--grouped account-view">${navBar(back)}<div class="scr"></div></div>`;
   if (!account.user) {
-    // iPhone restauré (compte de l'appareil sans session) : on dit avec quoi se reconnecter
+    // iPhone restauré (compte de l'appareil sans session) : on dit avec quoi se reconnecter ; session
+    // finie ailleurs (compte supprimé, déconnecté sur un autre appareil) : on le dit
     const info = accountReconnectInfo();
-    const title = info ? 'Reconnecte-toi' : 'Sauvegarde tes séances';
-    const lead = info ? `${reconnectLine(info)}. Utilise le même moyen pour reprendre la sauvegarde.`
-      : 'Tes séances et programmes, gardés sur ton compte : tu les retrouves sur un nouvel iPhone ou après une réinstallation. Facultatif : l\'app marche sans compte.';
+    const title = info?.ended ? 'Ta session a pris fin' : info ? 'Reconnecte-toi' : 'Sauvegarde tes séances';
+    const lead = info?.ended ? SESSION_ENDED_TEXT
+      : info ? `${reconnectLine(info)}. Utilise le même moyen pour reprendre la sauvegarde.`
+      : 'Retrouve tes séances sur un nouvel iPhone. Facultatif.';
     return `
-    <div class="view view--grouped account-view">
+    <div class="view view--grouped account-view account-view--out">
       ${navBar(back)}
       <div class="scr">
         <div class="account-hero">
           ${avatarHtml('xl')}
           <h2 class="account-hero__name">${title}</h2>
           <p class="account-hero__sub">${esc(lead)}</p>
+          ${info ? '' : '<p class="account-hero__sub">Déjà un compte ? Utilise le même moyen qu\'avant.</p>'}
         </div>
         <div class="auth-buttons">${signInButtonsHtml()}</div>
         <p class="account-foot">Avec Apple, tu peux masquer ton e‑mail. Ton poids et tes données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
@@ -196,10 +200,24 @@ function reconnectLine(info) {
   return info.username ? `${how} · ${info.username}` : how;
 }
 
+const SESSION_ENDED_TEXT = 'Compte supprimé ou déconnecté sur un autre appareil. Tes séances sont sur cet iPhone.';
+
 // Carte compacte sous « Démarrer » (titre, action, croix) : jamais devant la séance du jour.
-// Reconnexion d'abord (iPhone restauré), sinon proposition de compte pour qui n'a pas vu Bienvenue.
+// Session finie ailleurs, reconnexion (iPhone restauré), sinon proposition de compte pour qui n'a
+// pas vu Bienvenue.
 function accountHomeCard() {
   const info = accountReconnectInfo();
+  if (info?.ended) {
+    return `
+    <section class="home-card account-card account-card--reconnect" aria-labelledby="accountCardTitle">
+      <div class="account-card__text">
+        <h2 class="account-card__title" id="accountCardTitle">Ta session a pris fin</h2>
+        <p class="account-card__sub">${SESSION_ENDED_TEXT}</p>
+      </div>
+      <button class="account-card__btn" data-action="go-account">Se connecter</button>
+      <button class="account-card__close" data-action="account-reconnect-close" aria-label="Fermer">${icon('xmark', 16)}</button>
+    </section>`;
+  }
   if (info) {
     const how = info.method === 'apple' || info.method === 'google' ? ` avec ${PROVIDER_NAMES[info.method]}` : '';
     return `
@@ -305,6 +323,8 @@ function keepOnlyDeviceSettings() {
 // Connexion sur un iPhone qui contient les séances d'un autre compte
 async function askMergeOtherAccount(n, pending) {
   const s = pending > 1 ? 's' : '';
+  // pending : compté sur l'état de synchro de l'autre compte (oublié si sa session a pris fin ailleurs,
+  // toutes les séances comptent alors)
   const where = !pending ? `${n > 1 ? 'Elles restent' : 'Elle reste'} sur l'autre compte.`
     : `${pending === n ? (n > 1 ? 'Elles' : 'Elle') : `${pending} d'entre elles`} ne ${pending > 1 ? 'sont' : 'est'} sauvegardée${s} nulle part ailleurs : les retirer les effacerait.`;
   const choice = await dialog({ type: 'sheet', title: 'Des séances sont déjà sur cet iPhone',
@@ -318,12 +338,12 @@ async function askMergeOtherAccount(n, pending) {
   return choice || null;
 }
 
-// Compte tout neuf : souvent un nouvel iPhone où l'on s'est connecté avec un autre moyen qu'à
-// l'origine (Google au lieu d'Apple…), ce qui crée un second compte. Affiché sur l'écran du pseudo qui
-// suit, avec le bouton « Annuler ce compte et me reconnecter autrement » (auth-flow.js).
+// Compte tout neuf alors qu'un compte d'avant a laissé une trace sur cet iPhone (res.hadAccount) :
+// sans doute un autre moyen de connexion qu'à l'origine (Google au lieu d'Apple…), ce qui crée un
+// second compte. Affiché sur l'écran du pseudo qui suit, avec « Me reconnecter autrement »
+// (auth-flow.js). Sans indice, rien d'inquiétant : une ligne discrète sous « Plus tard » suffit.
 function newAccountNotice(res) {
-  if (!res?.isNew) return '';
-  return 'Nouveau compte créé. Tu avais déjà un compte ? Annule celui-ci et reconnecte-toi avec le même moyen qu\'avant.';
+  return res?.isNew && res.hadAccount ? 'Nouveau compte créé. Déjà un compte ?' : '';
 }
 
 // Connexion réussie (Apple, Google ou code) : ce qui est arrivé (récupéré) et parti (sauvegardé) ;
@@ -346,7 +366,7 @@ const SIGNED_IN_TOAST_MS = 3500;
 async function identityRecentDialog(retryAt) {
   const when = retryAt ? ` à partir du ${fmtDate(retryAt, 'day')} à ${fmtTime(retryAt)}` : ' dans 24 heures';
   await dialog({ title: 'Suppression possible plus tard',
-    message: `Un moyen de connexion a été ajouté ou retiré récemment (moins de 24 heures). Pour ta sécurité, la suppression du compte sera possible${when}.`,
+    message: `Un moyen de connexion vient de changer. Par sécurité, tu pourras supprimer ton compte${when}.`,
     actions: [{ label: 'OK', style: 'preferred' }] });
 }
 
@@ -387,7 +407,7 @@ async function deleteAccountFlow() {
 // suppression d'un compte sans Apple (exigée par le serveur), et avant l'ajout d'un moyen de connexion
 // (confort : le serveur ne l'exige pas, mais relier un moyen sur une session restée ouverte n'a pas à
 // être aussi simple qu'un tap). true si la session est maintenant récente.
-const REAUTH_LABELS = { apple: 'Avec Apple', google: 'Avec Google', email: 'Recevoir un code par e‑mail' };
+const REAUTH_LABELS = { apple: 'Avec Apple', google: 'Avec Google', email: 'Code par e‑mail' };
 const REAUTH_PURPOSE = { delete: 'Pour supprimer ton compte, reconnecte-toi.', link: 'Pour ajouter un moyen de connexion, reconnecte-toi d\'abord avec un moyen déjà relié.' };
 async function reauthenticate(purpose = 'delete') {
   const methods = reauthMethods();
@@ -422,8 +442,9 @@ async function methodAction(provider) {
     if (!(await confirmSheet(`Retirer ${label} ?`, `Tu ne pourras plus te connecter avec ${PROVIDER_NAMES[provider]}. Ton compte et tes données ne changent pas.${apple ? ' Apple te demandera de confirmer ton identité.' : ''}`, `Retirer ${label}`))) return;
     const r = await accountUnlink(provider);
     if (r.reason === 'cancel') return;
+    // Retrait d'Apple non révoqué : l'alerte (qui remplace tout toast) le dit elle-même
+    if (r.ok && apple && !r.revoked) { await dialog({ title: 'Apple retiré : dernière étape', message: APPLE_MANUAL_REVOKE, actions: [{ label: 'OK', style: 'preferred' }] }); return; }
     showToast(r.ok ? `${label} retiré` : authErrorText(r.kind), { error: !r.ok });
-    if (r.ok && apple && !r.revoked) await dialog({ title: 'Dernière étape', message: APPLE_MANUAL_REVOKE, actions: [{ label: 'OK', style: 'preferred' }] });
     return;
   }
   // E-mail d'un compte qui a déjà une adresse (Google) : rien à ajouter, les codes y arrivent déjà
@@ -445,7 +466,7 @@ async function methodAction(provider) {
 }
 
 async function identityExistsDialog(provider) {
-  await dialog({ title: 'Déjà relié à un autre compte', message: identityExistsText(provider), actions: [{ label: 'OK', style: 'preferred' }] });
+  await dialog({ title: identityExistsTitle(provider), message: identityExistsText(provider), actions: [{ label: 'OK', style: 'preferred' }] });
 }
 
 // Moyen à utiliser pour se reconnecter à ce compte (« Se déconnecter »)

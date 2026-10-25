@@ -83,12 +83,26 @@ function navBar({ title = '', large, back, left = '', right = '', sub = '', extr
     ${large ? `<div class="navbar__largewrap"><h1 class="t-large navbar__large">${largeTitle}</h1>${sub}</div>` : ''}`;
 }
 
-// Libellé du bouton retour qui ne tient pas en entier à côté du titre (« ‹ Entraîn… Réglages » sur un
-// iPhone SE) : chevron seul, comme iOS ; l'aria-label « Retour : … » garde le nom de l'écran. L'écart
-// d'au moins 8 px avec le titre vient de la grille (column-gap de .navbar__bar).
-function fitBackLabel() {
-  const label = $('.navbar__back-label');
-  if (label && label.scrollWidth > label.clientWidth + 1) label.closest('.navbar__back').classList.add('navbar__back--icon');
+// Bouton retour : une seule règle partout (barres de l'app, parcours de connexion js/features/auth-flow.js).
+// Libellé seulement s'il tient en entier ET laisse au moins BACK_LABEL_GAP pt avant le titre centré ;
+// sinon chevron seul, comme iOS (« ‹ Entraîn… Réglages » sur un iPhone SE). L'aria-label du bouton
+// garde le nom de l'écran. Barre sans titre (connexion) : le libellé reste.
+const BACK_LABEL_GAP = 16;
+function fitBackLabel(scope = document) {
+  scope.querySelectorAll('.navbar__back').forEach(btn => {
+    const label = btn.querySelector('.navbar__back-label');
+    if (!label) return;
+    btn.classList.remove('navbar__back--icon');
+    let gap = Infinity;
+    const title = btn.closest('.navbar__bar, .auth__bar')?.querySelector('.navbar__title');
+    if (title?.textContent.trim()) {
+      // Bord gauche du texte du titre (pas de sa boîte) ; bord droit du libellé en entier
+      const range = document.createRange();
+      range.selectNodeContents(title);
+      gap = range.getBoundingClientRect().left - (label.getBoundingClientRect().left + label.scrollWidth);
+    }
+    if (label.scrollWidth > label.clientWidth + 1 || gap < BACK_LABEL_GAP) btn.classList.add('navbar__back--icon');
+  });
 }
 
 // Libellé du bouton retour vers une route de la pile

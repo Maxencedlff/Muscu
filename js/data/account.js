@@ -23,6 +23,11 @@
 //    gardé en cache sur l'appareil (PROFILE_CACHE_KEY) pour l'afficher hors ligne, avec le moyen de la
 //    dernière connexion : un iPhone restauré (stockage revenu, session du Trousseau perdue) dit avec
 //    quoi se reconnecter (accountReconnectInfo). Déconnexion voulue : SIGNED_OUT_KEY, pas de rappel.
+//    Moyen et pseudo aussi gardés dans les données (data.lastAccount, jamais envoyés) : un iPhone
+//    restauré seulement depuis la copie iCloud de l'app le sait aussi.
+//  - Session finie hors de l'app (compte supprimé, déconnecté sur un autre appareil, accès Apple
+//    révoqué) : SIGNED_OUT reçu sans déconnexion locale (localSignOut). L'état de synchro est oublié
+//    (les séances de l'iPhone ne sont plus comptées comme sauvegardées) et la carte le dit (SESSION_ENDED_KEY).
 //  - Compte créé par erreur (autre moyen de connexion qu'avant, choix « Annuler ») : supprimé tant
 //    qu'il ne contient rien d'autre que ce que l'appareil a déjà (discardNewAccount).
 //  - Couche données : aucun affichage ici. L'écran (js/features/account-ui.js) s'abonne par
@@ -55,6 +60,9 @@ let syncHeld = false;         // connexion en cours (choix du compte pas encore 
 let syncHoldUntil = 0;        // import : pas de synchro pendant le délai « Annuler » (accountHoldSync)
 let syncGeneration = 0;       // +1 à chaque oubli de l'état : une synchro commencée avant n'écrit plus rien
 let signInAppleCode = null;   // { code, at } de la dernière connexion Apple : preuve pour supprimer un compte créé par erreur
+let localSignOut = false;     // déconnexion demandée par l'app : le SIGNED_OUT qui suit n'est pas une session finie ailleurs
+let syncSent = 0;             // séances réellement envoyées par la dernière synchro (toast de connexion)
+let previousLogin = null;     // compte de l'appareil avant la connexion en cours, rendu par « Annuler ce compte »
 const accountListeners = [];
 
 // kind : 'state' (connexion, synchro) ou 'merged' (données reçues du compte : l'écran est à redessiner)
@@ -66,6 +74,8 @@ function accountAvailable() {
 }
 
 function syncOwner() { try { return localStorage.getItem(SYNC_OWNER_KEY); } catch { return null; } }
+function lsGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
+function lsSet(key, value) { try { if (value == null) localStorage.removeItem(key); else localStorage.setItem(key, value); } catch { /* stockage indisponible */ } }
 
 function loadSyncMeta(userId) {
   if (syncOwner() !== userId) return emptySyncMeta(userId);   // état d'un autre compte : jamais réutilisé
@@ -121,13 +131,7 @@ async function accountInit() {
       auth: { storage: Native.account.storage, storageKey: AUTH_STORAGE_KEY, persistSession: true,
               autoRefreshToken: true, detectSessionInUrl: false },
     });
-    sb.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') { account.user = null; account.lastSync = null; account.error = null; }
-      else if (session?.user) account.user = session.user;
-      // Réseau revenu (jeton rafraîchi) : ce qui attendait part
-      if (event === 'TOKEN_REFRESHED') scheduleSync(0);
-      notifyAccount();
-    });
+    sb.auth.onAuthStateChange(onAuthEvent);
     document.addEventListener('visibilitychange', onAccountVisibility);
     // Réseau revenu sans retour dans l'app (Wi-Fi retrouvé en salle) : ce qui attendait part
     window.addEventListener('online', () => scheduleSync(0));
@@ -143,9 +147,28 @@ async function accountInit() {
   // Connexion avec Apple retirée par l'utilisateur (Réglages › Apple ID) : déconnexion locale.
   // Seulement pour un compte relié à Apple (e-mail ou Google seuls : rien à demander à Apple)
   const appleUser = appleUserOf(account.user);
-  if (appleUser && (await Native.account.credentialState(appleUser)) === 'revoked') { await accountSignOut(); return; }
+  if (appleUser && (await Native.account.credentialState(appleUser)) === 'revoked') {
+    markSessionEnded();
+    await accountSignOut({ voluntary: false });
+    return;
+  }
   accountLoadProfile();
   syncNow();
+}
+
+// Événements de session de supabase-js
+function onAuthEvent(event, session) {
+  if (event === 'SIGNED_OUT') {
+    account.user = null; account.lastSync = null; account.error = null;
+    // Pas demandé par l'app : compte supprimé ou session révoquée ailleurs
+    if (!localSignOut) markSessionEnded();
+  }
+  // Choix de fusion en cours (syncHeld) : l'écran derrière ne montre pas encore le nouveau compte,
+  // finishSignIn le pose une fois le choix fait
+  else if (session?.user && !syncHeld) account.user = session.user;
+  // Réseau revenu (jeton rafraîchi) : ce qui attendait part
+  if (event === 'TOKEN_REFRESHED') scheduleSync(0);
+  notifyAccount();
 }
 
 // Rafraîchissement automatique seulement au premier plan (recommandation supabase-js pour une app) ;
@@ -153,6 +176,24 @@ async function accountInit() {
 function onAccountVisibility() {
   if (document.visibilityState === 'visible') { sb.auth.startAutoRefresh(); if (account.user) syncNow(); }
   else sb.auth.stopAutoRefresh();
+}
+
+// Session finie hors de l'app : l'état de synchro ne vaut plus rien (le compte a pu être supprimé),
+// les séances de l'iPhone redeviennent « nulle part ailleurs » (accountPendingCount) ; la carte de
+// reconnexion le dit. L'appareil reste rattaché au compte (SYNC_OWNER_KEY) : un autre compte qui se
+// connecte voit toujours le choix de fusion.
+function markSessionEnded() {
+  clearSyncMetas();
+  lsSet(SESSION_ENDED_KEY, '1');
+}
+
+// Dernier compte connecté, gardé aussi dans les données (copie iCloud de l'app) ; enregistré
+// seulement s'il change
+function rememberLastAccount(next) {
+  const clean = next ? cleanLastAccount(next) : null;
+  if (JSON.stringify(clean) === JSON.stringify(data.lastAccount ?? null)) return;
+  if (clean) data.lastAccount = clean; else delete data.lastAccount;
+  save(true);
 }
 
 // ── Connexion : un parcours commun aux trois moyens ─────────
@@ -165,9 +206,13 @@ function onAccountVisibility() {
 // (l'écran a déjà vidé l'appareil : ne garder que celles du compte) ou null (annuler : déconnexion).
 // method : moyen utilisé ('apple', 'google', 'email'), retenu pour une reconnexion plus tard.
 // Renvoie { ok, reason?: 'cancel' | 'provider' | 'auth' | 'server' | 'sync', kind?, sent, received,
-// isNew, error (account.error si la synchro a échoué), newDevice (aucune séance ici avant), discarded }.
+// isNew, hadAccount (indice d'un compte d'avant sur cet iPhone), error (account.error si la synchro a
+// échoué), newDevice (aucune séance ici avant), discarded }.
 async function finishSignIn(authenticate, askMerge, method) {
   if (!sb) return { ok: false, reason: 'server' };
+  // Compte de l'appareil avant cette connexion : rendu tel quel si le compte créé est annulé
+  previousLogin = { owner: syncOwner(), cache: lsGet(PROFILE_CACHE_KEY), signedOut: lsGet(SIGNED_OUT_KEY),
+    ended: lsGet(SESSION_ENDED_KEY), lastAccount: data.lastAccount ? { ...data.lastAccount } : null };
   // Aucune synchro tant que l'utilisateur n'a pas choisi (sinon les séances d'un autre compte partiraient)
   syncHeld = true;
   let user;
@@ -196,7 +241,7 @@ async function finishSignIn(authenticate, askMerge, method) {
     // ligne), un autre compte qui se connecte ensuite verra quand même le choix de fusion. Sans changement
     // de compte, l'état de synchro déjà enregistré pour ce compte est repris (planSessionPush compare
     // les empreintes : rien n'est renvoyé à tort).
-    try { localStorage.setItem(SYNC_OWNER_KEY, user.id); localStorage.removeItem(SIGNED_OUT_KEY); } catch { /* reposé à la fin de la synchro */ }
+    try { localStorage.setItem(SYNC_OWNER_KEY, user.id); localStorage.removeItem(SIGNED_OUT_KEY); localStorage.removeItem(SESSION_ENDED_KEY); } catch { /* reposé à la fin de la synchro */ }
     account.user = user;
     account.profile = cachedProfile(user.id);
     writeLoginCache(user.id, method);
@@ -204,10 +249,14 @@ async function finishSignIn(authenticate, askMerge, method) {
   const profile = await accountLoadProfile();
   const isNew = isNewAccount(user, profile);
   const before = (data.history || []).length;
-  const toSend = accountPendingCount(user.id);
   const ok = await syncNow();
-  return { ok, reason: ok ? undefined : 'sync', sent: ok ? toSend : 0, received: Math.max(0, (data.history || []).length - before),
-    isNew, error: ok ? null : account.error, newDevice: before === 0 };
+  // Un compte d'avant sur cet iPhone : rattaché, mémorisé (stockage web ou copie iCloud), ou un moyen
+  // de connexion déjà vu ici. Sinon, un compte tout neuf n'a rien de suspect.
+  const prev = previousLogin;
+  const hadAccount = !!(prev && ((prev.owner && prev.owner !== user.id) || prev.cache || prev.lastAccount));
+  // Séances réellement envoyées (pas celles que le compte avait déjà, reconnues à la réception)
+  return { ok, reason: ok ? undefined : 'sync', sent: ok ? syncSent : 0, received: Math.max(0, (data.history || []).length - before),
+    isNew, hadAccount, error: ok ? null : account.error, newDevice: before === 0 };
 }
 
 // Jeton d'identité Apple ou Google : { token, nonce, extra } ; { cancel } ou { provider } sinon
@@ -359,6 +408,7 @@ function writeLoginCache(userId, method) {
   // Adresse gardée pour préremplir le champ à la reconnexion (connexion par code seulement)
   if (m === 'email') entry.email = signInEmailOf(user) || (old?.userId === userId ? old.email : null) || null;
   try { localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(entry)); } catch { /* cache facultatif */ }
+  rememberLastAccount({ method: m, username: entry.username });
 }
 function setProfile(userId, row) {
   account.profile = row ? { username: row.username || null, avatar: validAvatar(row.avatar_emoji), changedAt: row.username_changed_at || null, stored: true } : null;
@@ -366,20 +416,28 @@ function setProfile(userId, row) {
   notifyAccount();
 }
 
-// Compte de cet appareil sans session (iPhone restauré, session du Trousseau perdue) et sans
-// déconnexion voulue : { method, username, email } (champs null s'ils sont inconnus), sinon null
+// Compte de cet appareil sans session et sans déconnexion voulue : { method, username, email, ended }
+// (champs null s'ils sont inconnus ; ended : session finie hors de l'app), sinon null. Compte connu
+// par le stockage web (SYNC_OWNER_KEY, PROFILE_CACHE_KEY : iPhone restauré, session du Trousseau
+// perdue) ou seulement par les données (data.lastAccount : restauration depuis la copie iCloud de l'app).
 function accountReconnectInfo() {
-  let signedOut = false;
-  try { signedOut = localStorage.getItem(SIGNED_OUT_KEY) === '1'; } catch { /* rien */ }
-  const owner = syncOwner();
+  const hint = cleanLastAccount(data.lastAccount);
+  const signedOut = lsGet(SIGNED_OUT_KEY) === '1' || !!hint?.signedOut;
+  const owner = syncOwner() || (hint ? 'données' : null);
   if (!reconnectCardShown({ accountAvailable: accountAvailable(), ready: account.ready, signedIn: !!account.user, owner, signedOut })) return null;
   const p = readLoginCache();
-  const known = p?.userId === owner;
-  return { method: known ? p.method || null : null, username: known ? p.username || null : null, email: known ? p.email || null : null };
+  const known = !!p && p.userId === syncOwner();
+  return { method: (known && p.method) || hint?.method || null, username: (known && p.username) || hint?.username || null,
+    email: known ? p.email || null : null, ended: lsGet(SESSION_ENDED_KEY) === '1' };
 }
-// Carte de reconnexion fermée : comme une déconnexion voulue
+// Déconnexion voulue (ou carte de reconnexion fermée) : retenue aussi dans les données, pour qu'une
+// copie iCloud restaurée ne repropose pas la reconnexion
+function markSignedOut() {
+  lsSet(SIGNED_OUT_KEY, '1');
+  if (data.lastAccount) rememberLastAccount({ ...data.lastAccount, signedOut: true });
+}
 function accountDismissReconnect() {
-  try { localStorage.setItem(SIGNED_OUT_KEY, '1'); } catch { /* reproposée au prochain lancement */ }
+  markSignedOut();
   notifyAccount();
 }
 
@@ -437,12 +495,18 @@ async function accountUsernameAvailable(name) {
 // (pas de carte de reconnexion ensuite) ; false quand la connexion d'un autre compte est annulée.
 async function accountSignOut({ voluntary = true } = {}) {
   if (!sb) return;
-  if (voluntary) { try { localStorage.setItem(SIGNED_OUT_KEY, '1'); } catch { /* rien */ } }
+  if (voluntary) markSignedOut();
   clearTimeout(syncTimer);
   account.user = null;
   account.profile = null;
-  await sb.auth.signOut({ scope: 'local' });
+  await localAuthSignOut();
   notifyAccount();
+}
+// Fin de session demandée par l'app : le SIGNED_OUT émis pendant l'appel ne la prend pas pour une
+// session finie ailleurs
+async function localAuthSignOut() {
+  localSignOut = true;
+  try { await sb.auth.signOut({ scope: 'local' }); } finally { localSignOut = false; }
 }
 
 // Effacement des données de cet appareil (Réglages, suppression du compte) : l'appareil quitte le
@@ -452,8 +516,9 @@ async function accountForgetDevice() {
   account.user = null;   // synchrone : le save() qui suit ne programme plus rien
   account.profile = null;
   clearSyncMetas();
-  try { localStorage.removeItem(SYNC_OWNER_KEY); localStorage.removeItem(PROFILE_CACHE_KEY); } catch { /* rien */ }
-  if (sb) await sb.auth.signOut({ scope: 'local' });
+  try { [SYNC_OWNER_KEY, PROFILE_CACHE_KEY, SESSION_ENDED_KEY].forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
+  rememberLastAccount(null);
+  if (sb) await localAuthSignOut();
   notifyAccount();
 }
 
@@ -576,9 +641,11 @@ async function accountDelete() {
 // supprimé par la fonction delete-account, sans nouvelle connexion : la session a moins de 10 min
 // (connexion récente) et, pour Apple, le code de cette connexion sert de preuve et révoque l'accès.
 // Seulement s'il a été créé il y a moins de 10 min, sans pseudo, et sans séance absente de cet appareil
-// (rien ne peut s'y perdre). Renvoie 'deleted', 'kept' (il contient autre chose) ou 'error'.
+// (rien ne peut s'y perdre). Renvoie 'deleted', 'kept' (il contient autre chose), 'expired' (créé il y
+// a plus de 10 min : la suppression passe par Réglages › Compte) ou 'error'.
 async function discardNewAccount(user) {
-  if (!sb || !user || !accountJustCreated(user)) return 'kept';
+  if (!sb || !user) return 'error';
+  if (!accountJustCreated(user)) return 'expired';
   try {
     const { data: prof, error: profErr } = await sb.from('user_profiles').select('username').maybeSingle();
     if (profErr) return 'error';
@@ -594,13 +661,24 @@ async function discardNewAccount(user) {
   } catch { return 'error'; }
 }
 
-// Bouton « Annuler ce compte » (écran du pseudo d'un compte tout neuf) : compte supprimé et appareil
-// détaché (ses séances restent ici). Renvoie { ok } ou { ok: false, reason: 'kept' | 'error' }.
+// Bouton « Annuler ce compte » (écran du pseudo d'un compte tout neuf) : compte supprimé, puis
+// l'appareil retrouve le compte d'avant la connexion (rattachement, cache, carte de reconnexion) ; ses
+// séances restent ici. Renvoie { ok } ou { ok: false, reason: 'kept' | 'expired' | 'error' }.
 async function accountCancelNewAccount() {
   if (!account.user) return { ok: false, reason: 'error' };
   const r = await discardNewAccount(account.user);
   if (r !== 'deleted') return { ok: false, reason: r };
+  const prev = previousLogin;
+  previousLogin = null;
   await accountForgetDevice();
+  if (prev) {
+    lsSet(SYNC_OWNER_KEY, prev.owner);
+    lsSet(PROFILE_CACHE_KEY, prev.cache);
+    lsSet(SIGNED_OUT_KEY, prev.signedOut);
+    lsSet(SESSION_ENDED_KEY, prev.ended);
+    rememberLastAccount(prev.lastAccount);
+    notifyAccount();
+  }
   return { ok: true };
 }
 
@@ -635,7 +713,7 @@ function syncErrorKind(e) {
 async function syncNow() {
   if (!sb || !account.user || account.syncing || syncHeld) return false;
   if (Date.now() < syncHoldUntil) { scheduleSync(0); return false; }
-  account.syncing = true; account.error = null;
+  account.syncing = true; account.error = null; syncSent = 0;
   notifyAccount();
   const userId = account.user.id, meta = loadSyncMeta(userId), gen = syncGeneration;
   // État oublié pendant la synchro (effacement, import, changement de compte) : tout s'arrête, rien
@@ -680,6 +758,7 @@ async function syncNow() {
       if (error) throw error;
       alive();
       batch.forEach(u => { meta.pushed[u.id] = u.hash; });
+      syncSent += batch.length;
       keepMeta();
     }
     for (let i = 0; i < plan.deletes.length; i += SYNC_BATCH) {

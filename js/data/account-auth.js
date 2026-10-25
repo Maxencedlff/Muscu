@@ -26,6 +26,7 @@ const ACCOUNT_CREATION_SLACK_MS = 10 * 60_000;      // identités créées avec 
 const WELCOME_SEEN_KEY  = 'ppl_welcome_seen';         // choix fait sur l'écran Bienvenue (sans compte, ou connexion réussie)
 const ACCOUNT_CARD_KEY  = 'ppl_account_card_closed';  // carte « Sauvegarde tes séances » fermée
 const SIGNED_OUT_KEY    = 'mdlf_signed_out';          // déconnexion voulue (« Se déconnecter ») : pas de carte de reconnexion
+const SESSION_ENDED_KEY = 'mdlf_session_ended';       // session finie hors de l'app (compte supprimé, déconnecté ailleurs, Apple révoqué)
 const PENDING_CODE_KEY  = 'mdlf_pending_code';        // { email, sentAt } : code demandé, l'app peut être fermée par iOS
 const USERNAME_RE  = /^[a-z0-9][a-z0-9._]{1,18}[a-z0-9]$/;
 const USERNAME_MIN = 3, USERNAME_MAX = 20;
@@ -94,7 +95,7 @@ const USERNAME_TEXT = {
   dots: 'Pas deux points de suite.',
   taken: 'Ce pseudo n\'est pas disponible.',
   // Premier pseudo d'un compte tout neuf : souvent le même utilisateur avec un autre moyen de connexion
-  taken_first: 'C\'est ton pseudo ? Tu as sans doute déjà un compte : reconnecte-toi avec le même moyen qu\'avant.',
+  taken_first: 'Ce pseudo est déjà pris. Si c\'est le tien, tu as déjà un compte : reconnecte-toi avec le même moyen qu\'avant.',
   forbidden: 'Ce pseudo n\'est pas autorisé.',
   too_soon: 'Tu as déjà changé de pseudo il y a moins de 30 jours.',
   required: 'Ton pseudo ne peut pas être retiré, seulement changé.',
@@ -280,7 +281,7 @@ const AUTH_ERROR_TEXT = {
   rate: 'Trop de demandes : attends une minute avant de redemander un code.',
   email: 'Cette adresse e-mail n\'est pas valable.',
   not_authorized: 'L\'envoi des codes par e-mail n\'est pas encore ouvert. Utilise Apple pour l\'instant.',
-  identity_exists: 'Ce moyen de connexion a déjà son propre compte MDLF. Connecte-toi avec, supprime ce compte-là (Réglages › Compte), puis reviens l\'ajouter ici.',
+  identity_exists: 'Ce moyen de connexion a son propre compte MDLF, peut-être avec des séances. Pour le retrouver : déconnecte-toi (tes séances restent sur cet iPhone), puis connecte-toi avec ce moyen.',
   last_identity: 'Garde au moins un moyen de connexion.',
   linking_disabled: 'Ajout d\'un moyen de connexion indisponible pour l\'instant.',
   disabled: 'Ce moyen de connexion n\'est pas encore ouvert.',
@@ -293,13 +294,17 @@ const AUTH_ERROR_TEXT = {
   server: 'Connexion impossible pour l\'instant, réessaie dans un moment.',
 };
 // Après un « Renvoyer le code » : l'ancien code ne marche plus (Supabase n'en garde qu'un)
-const LAST_CODE_ONLY = 'Seul le dernier code reçu est valable.';
+const LAST_CODE_ONLY = 'Seul le code du dernier e-mail envoyé est valable (regarde l\'heure).';
 function authErrorText(kind) { return AUTH_ERROR_TEXT[kind] || AUTH_ERROR_TEXT.server; }
 
-// Moyen déjà relié à un autre compte MDLF (ajout refusé) : la marche à suivre, nommée
+// Moyen déjà relié à un autre compte MDLF (ajout refusé) : titre et marche à suivre, nommés. Pas de
+// suppression proposée : cet autre compte contient peut-être des séances, on le retrouve en s'y connectant.
+const IDENTITY_TITLE = { apple: 'Identifiant Apple déjà utilisé', google: 'Compte Google déjà utilisé', email: 'Adresse e-mail déjà utilisée' };
 const IDENTITY_OWNER = { apple: 'Cet identifiant Apple', google: 'Ce compte Google', email: 'Cette adresse e-mail' };
 const IDENTITY_SIGNIN = { apple: 'avec Apple', google: 'avec Google', email: 'avec un code envoyé à cette adresse' };
+function identityExistsTitle(provider) { return IDENTITY_TITLE[provider] || 'Déjà relié à un autre compte'; }
 function identityExistsText(provider) {
   if (!IDENTITY_OWNER[provider]) return AUTH_ERROR_TEXT.identity_exists;
-  return `${IDENTITY_OWNER[provider]} a déjà son propre compte MDLF. Connecte-toi ${IDENTITY_SIGNIN[provider]}, supprime ce compte-là (Réglages › Compte), puis reviens l'ajouter ici.`;
+  return `${IDENTITY_OWNER[provider]} a son propre compte MDLF, peut-être avec des séances. Pour le retrouver : déconnecte-toi (tes séances restent sur cet iPhone), puis connecte-toi ${IDENTITY_SIGNIN[provider]}.`;
 }
+

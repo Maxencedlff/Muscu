@@ -12,7 +12,9 @@ FAKE_ACCOUNT est injecté avant le chargement de l'app (page.add_init_script) :
   sans code Apple frais (sauf connexion récente) et un moyen de connexion ajouté depuis moins de 24 h
   (supabase/functions/delete-account/delete-policy.js) ; code Apple à usage unique.
 L'état du faux serveur est dans window.__sb (codes envoyés, comptes, profils, appels) ; les tests le
-lisent et le modifient (ex. __sb.google = false pour un client Google non configuré).
+lisent et le modifient (ex. __sb.google = false pour un client Google non configuré ; __sb.remoteRows :
+séances déjà sur le compte ; __sb.endSession() : session finie ailleurs, comme supabase-js quand le
+jeton de rafraîchissement est refusé).
 """
 
 FAKE_ACCOUNT = r"""
@@ -76,6 +78,8 @@ FAKE_ACCOUNT = r"""
     return { data: { user: sb.session.user, session: sb.session }, error: null };
   };
   const me = () => sb.session && sb.users[sb.session.user.id];
+  // Compte supprimé ou déconnecté sur un autre appareil : supabase-js retire la session et émet SIGNED_OUT
+  sb.endSession = () => { sb.session = null; if (sb.storage) sb.storage.removeItem(sb.storageKey); emit('SIGNED_OUT', null); };
   const refreshMe = () => { if (sb.session) sb.session.user = JSON.parse(JSON.stringify(me())); };
   const tokenSub = t => { try { return JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))))).sub; } catch { return null; } };
 
@@ -160,7 +164,10 @@ FAKE_ACCOUNT = r"""
     log('db', q.table, q.op);
     if (!sb.session) return { data: null, error: { code: '42501', message: 'permission denied' } };
     const id = sb.session.user.id;
-    if (q.table === 'sessions') return { data: q.op === 'select' ? [] : null, error: null };
+    if (q.table === 'sessions') {
+      if (q.op === 'upsert') log('upsert', q.patch.length);
+      return { data: q.op === 'select' ? (sb.remoteRows || []) : null, error: null };
+    }
     if (q.table === 'profiles') return q.op === 'select' ? { data: null, error: null } : { data: { updated_at: new Date().toISOString() }, error: null };
     if (q.table === 'user_profiles') {
       const row = sb.profiles[id];

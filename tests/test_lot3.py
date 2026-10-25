@@ -79,6 +79,13 @@ def t_home(bench, eng, dev, theme):
         R.check('séances' in rings and 'volume' in rings and 'affilée' in rings, f'{t} anneaux séances / volume / régularité')
         R.check(page.locator('.week__day').count() == 7, f'{t} calendrier de la semaine')
         R.check(page.locator('.targets__row').count() == 3, f'{t} carte « À battre aujourd\'hui » : 3 exercices')
+        # Noms coupés seulement entre deux mots, titre et « + N » entiers (iPhone SE compris)
+        tg = page.evaluate("""() => { const t = document.querySelector('.targets .home-card__title');
+            const names = [...document.querySelectorAll('.targets__name')];
+            return { wrap: names.map(e => getComputedStyle(e).overflowWrap + '/' + getComputedStyle(e).wordBreak),
+                     narrow: names.filter(e => e.getBoundingClientRect().width < 100).length,
+                     title: t.scrollWidth <= t.clientWidth + 1 }; }""")
+        R.check(tg['title'] and not tg['narrow'] and all(w.split('/')[0] != 'anywhere' and w.split('/')[1] != 'break-all' for w in tg['wrap']), f'{t} « À battre » : noms coupés entre deux mots, titre entier {tg}')
         R.check(page.locator('.streak-badge, .order-badge, .card__cooldown, .prog-pill').count() == 0, f'{t} anciens badges retirés')
         shot(page, LOT, f'accueil-{t}')
         # Feuille d'actions d'une cellule, puis « Voir les exercices » dans une feuille modale
@@ -122,7 +129,16 @@ def t_back_stack(bench, eng, dev, theme):
         R.check(page.locator('.view.dashboard').count() == 1 and route(page) == '#train', f'{t} 2e retour → Entraînement')
         # Pile conservée par onglet ; toucher l'onglet actif revient à la racine
         page.click('[data-action="go-settings"]'); settle(page)
-        R.check(page.locator('.navbar__back').inner_text().strip() == 'Entraînement', f'{t} retour « ‹ Entraînement »')
+        # Règle unique du retour (fitBackLabel) : libellé s'il laisse 16 pt avant le titre centré, sinon
+        # chevron seul ; l'aria-label garde toujours le nom de l'écran
+        back = page.evaluate("""() => { const b = document.querySelector('.navbar__back'), l = b.querySelector('.navbar__back-label');
+            const ti = document.querySelector('.navbar__title'), r = document.createRange(); r.selectNodeContents(ti);
+            const shown = !!l.offsetParent, icon = b.classList.contains('navbar__back--icon');
+            b.classList.remove('navbar__back--icon');   // écart mesuré libellé affiché
+            const gap = r.getBoundingClientRect().left - (l.getBoundingClientRect().left + l.scrollWidth);
+            b.classList.toggle('navbar__back--icon', icon);
+            return { aria: b.getAttribute('aria-label'), shown, text: l.textContent, gap: Math.round(gap) }; }""")
+        R.check(back['aria'] == 'Retour : Entraînement' and back['text'] == 'Entraînement' and back['shown'] == (back['gap'] >= 16), f'{t} retour « ‹ Entraînement » (libellé si 16 pt, sinon chevron seul) {back}')
         tab(page, 'progress')
         R.check(page.locator('.view.stats').count() == 1, f'{t} onglet Progrès')
         tab(page, 'train')

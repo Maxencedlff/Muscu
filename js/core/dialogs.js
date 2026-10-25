@@ -42,6 +42,8 @@ function showToast(msg, opts = {}) {
 function dialog({ type = 'alert', title = '', message = '', actions, input = null }) {
   return new Promise(resolve => {
     document.querySelector('.ios-dialog')?.remove();
+    // Une alerte prend toute l'attention : un toast encore affiché (action précédente) disparaît
+    document.querySelector('.toast')?.remove();
     const root = document.createElement('div');
     root.className = `ios-dialog ios-dialog--${type}`;
     root.setAttribute('role', type === 'sheet' ? 'dialog' : 'alertdialog');

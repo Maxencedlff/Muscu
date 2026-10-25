@@ -24,9 +24,10 @@
 // le même sur tous ses appareils comme l'unité ; pas une donnée de santé
 const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
   'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'silhouette'];
-// Restent sur l'appareil (liste tenue pour le test qui oblige à classer toute nouvelle clé)
+// Restent sur l'appareil (liste tenue pour le test qui oblige à classer toute nouvelle clé).
+// lastAccount : moyen et pseudo du dernier compte connecté ici (reconnexion après une restauration iCloud)
 const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'healthOn', 'musicOn', 'soundOn', 'vibrateOn',
-  'lastExport', 'healthKgPurged', 'schema'];
+  'lastExport', 'healthKgPurged', 'schema', 'lastAccount'];
 // Dictionnaires du profil fusionnés élément par élément (programmes, exercices perso…) : rien n'est perdu
 const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary'];
 

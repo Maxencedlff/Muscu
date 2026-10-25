@@ -20,7 +20,7 @@ const flow = {
   email: '', sentAt: 0, busy: false, tick: null, first: false,   // first : pseudo d'un compte tout neuf
   notice: '',                                                      // avertissement « Nouveau compte créé » (newAccountNotice)
   resent: false,                                                   // code renvoyé : seul le dernier est valable
-  badCode: '',                                                     // code refusé, gardé dans le champ (en rouge, sélectionné)
+  badCode: '',                                                     // code refusé, gardé dans le champ (curseur à la fin, la saisie suivante le remplace)
   username: '', avatar: null, checkTimer: null, checkSeq: 0,
 };
 
@@ -73,8 +73,9 @@ function authBack() {
 function paintAuth() {
   const step = flow.steps[flow.steps.length - 1];
   clearInterval(flow.tick);
+  // Retour : même bouton et même règle que la barre de navigation de l'app (fitBackLabel)
   const left = flow.steps.length > 1
-    ? `<button class="auth__nav" data-action="auth-back" aria-label="Retour">${icon('chevron.left', 22)}<span>Retour</span></button>`
+    ? `<button class="auth__nav navbar__back" data-action="auth-back" aria-label="Retour">${icon('chevron.left', 22)}<span class="navbar__back-label">Retour</span></button>`
     : flow.closable ? `<button class="auth__nav" data-action="auth-close">Annuler</button>` : '';
   // Avatar : « OK » en haut à droite, comme une feuille iOS (toujours visible, même sur un iPhone SE)
   const right = step === 'avatar' ? '<button class="auth__nav auth__nav--done" data-action="auth-avatar-done">OK</button>' : '';
@@ -82,6 +83,7 @@ function paintAuth() {
     <div class="auth__bar">${left}<span class="auth__bar-gap"></span>${right}</div>
     <div class="auth__page auth__page--${step}">${AUTH_STEPS[step]()}</div>`;
   flow.root.scrollTop = 0;
+  fitBackLabel(flow.root);
   const field = flow.root.querySelector('.auth__input');
   if (field) setTimeout(() => field.focus(), 60);
   else flow.root.querySelector('#authTitle')?.focus({ preventScroll: true });
@@ -118,7 +120,8 @@ const AUTH_STEPS = {
 
   code: () => `
       <h1 class="auth__title auth__title--left" id="authTitle" tabindex="-1">Saisis le code</h1>
-      <p class="auth__lead auth__lead--left">Envoyé à <strong class="auth__email">${esc(flow.email)}</strong>. Il est valable 10 minutes. Pense à regarder dans les indésirables.<span class="auth__last-code" id="authLastCode">${flow.resent ? ` ${LAST_CODE_ONLY}` : ''}</span></p>
+      <p class="auth__lead auth__lead--left">Envoyé à <strong class="auth__email">${esc(flow.email)}</strong>. Il est valable 10 minutes. Pense à regarder dans les indésirables.</p>
+      <p class="auth__last-code" id="authLastCode" ${flow.resent ? '' : 'hidden'}>${LAST_CODE_ONLY}</p>
       <form class="auth__form" data-form="code" novalidate>
         <label class="visually-hidden" for="authCode">Code à 6 chiffres</label>
         <input class="auth__input auth__code num" id="authCode" type="text" inputmode="numeric" autocomplete="one-time-code"
@@ -135,13 +138,13 @@ const AUTH_STEPS = {
     const next = flow.mode === 'profile' ? usernameNextChange(account.profile) : 0;
     const valid = !usernameProblem(normalizeUsername(flow.username));
     return `
-      <button class="auth__avatar" data-action="auth-open-avatar" aria-label="${esc(`Avatar : ${avatarName(flow.avatar)}. Changer`)}">
+      <button class="auth__avatar" data-action="auth-open-avatar" aria-label="${esc(`Avatar : ${avatarName(flow.avatar)}. Modifier`)}">
         <span class="avatar avatar--xl" aria-hidden="true">${esc(flow.avatar)}</span><span class="auth__avatar-edit" aria-hidden="true">Modifier</span>
       </button>
       <h1 class="auth__title" id="authTitle" tabindex="-1">${flow.first ? 'Choisis ton pseudo' : 'Pseudo'}</h1>
       <p class="auth__lead">Il servira quand tu pourras ajouter des amis. Pour l'instant, toi seul le vois.</p>
       ${flow.first && flow.notice ? `<div class="auth__notice" role="note"><p>${esc(flow.notice)}</p>
-        <button class="auth__notice-btn" data-action="auth-cancel-account">Annuler ce compte et me reconnecter autrement</button></div>` : ''}
+        <button class="auth__notice-btn" data-action="auth-cancel-account">Me reconnecter autrement</button></div>` : ''}
       <form class="auth__form" data-form="username" novalidate>
         <label class="visually-hidden" for="authUsername">Pseudo</label>
         <div class="auth__at-field"><span class="auth__at" aria-hidden="true">@</span>
@@ -151,7 +154,8 @@ const AUTH_STEPS = {
         <p class="auth__status" id="authUsernameStatus" aria-live="polite">${next ? esc(`Prochain changement possible le ${fmtDate(next, 'day')}.`) : USERNAME_HELP}</p>
         <button class="btn btn--primary auth__primary" type="submit" data-role="save" ${next || !valid ? 'disabled' : ''}>${flow.first ? 'Continuer' : 'Enregistrer'}</button>
       </form>
-      ${flow.first ? '<button class="auth__skip" data-action="auth-later">Plus tard</button>' : ''}`;
+      ${flow.first ? '<button class="auth__skip" data-action="auth-later">Plus tard</button>' : ''}
+      ${flow.first && !flow.notice ? `<p class="auth__again auth__again--link">Tu avais déjà un compte ? <button class="link-inline auth__again-btn" data-action="auth-cancel-account">Reconnecte-toi</button></p>` : ''}`;
   },
 
   avatar: () => `
@@ -263,17 +267,17 @@ async function submitCode(code) {
   signedIn(r);
 }
 
-// Code refusé : les chiffres restent (en rouge, sélectionnés : la saisie suivante les remplace), le
-// message rappelle après un renvoi que seul le dernier code marche
+// Code refusé : les chiffres restent (contour et message en rouge), curseur à la fin, jamais de
+// sélection automatique (règle iOS de l'app) : le premier chiffre tapé ensuite remplace l'ancien code
+// (onAuthInput). Après un renvoi, « Seul le code du dernier e-mail… » reste sous le titre (un seul endroit).
 function codeFailed(kind) {
   const input = flow.root.querySelector('#authCode');
-  const wrongCode = kind === 'invalid' || kind === 'code';
-  authError(authErrorText(kind) + (wrongCode && flow.resent ? ` ${LAST_CODE_ONLY}` : ''));
+  authError(authErrorText(kind));
   if (!input) return;
   input.focus();
   if (kind === 'invalid' || kind === 'expired' || kind === 'code') {
     flow.badCode = input.value;
-    try { input.setSelectionRange(0, input.value.length); } catch { /* champ sans sélection */ }
+    try { input.setSelectionRange(input.value.length, input.value.length); } catch { /* champ sans curseur */ }
   }
 }
 
@@ -305,8 +309,7 @@ async function resendCode() {
   flow.badCode = '';
   if (flow.mode === 'signin') rememberPendingCode();
   authError('');
-  const hint = flow.root.querySelector('#authLastCode');
-  if (hint) hint.textContent = ` ${LAST_CODE_ONLY}`;
+  flow.root.querySelector('#authLastCode')?.removeAttribute('hidden');
   const input = flow.root.querySelector('#authCode');
   if (input) { input.value = ''; input.focus(); }
   announce(`Nouveau code envoyé. ${LAST_CODE_ONLY}`);
@@ -453,6 +456,7 @@ registerActions({
       el.disabled = false;
       const status = flow.root.querySelector('#authUsernameStatus');
       status.textContent = r.reason === 'kept' ? 'Ce compte contient déjà des données : il est gardé. Tu peux te déconnecter dans Réglages › Compte.'
+        : r.reason === 'expired' ? 'Ce compte a plus de 10 minutes : supprime-le dans Réglages › Compte › Supprimer mon compte.'
         : navigator.onLine === false ? authErrorText('offline') : 'Annulation impossible pour l\'instant, réessaie dans un moment.';
       status.className = 'auth__status auth__status--bad';
       haptic('medium');
@@ -461,7 +465,8 @@ registerActions({
     render();
     if (currentView() !== 'account') {
       // Retour aux moyens de connexion (Bienvenue, avec « Commencer sans compte ») ; depuis l'écran
-      // Compte, il les montre déjà
+      // Compte, il les montre déjà. Aucun choix fait : Bienvenue revient si l'app est fermée ici.
+      try { localStorage.removeItem(WELCOME_SEEN_KEY); } catch { /* rien */ }
       Object.assign(flow, { steps: [], first: false, notice: '', closable: false, username: '', avatar: DEFAULT_AVATAR });
       authGo('welcome');
     } else closeAuthFlow(null);

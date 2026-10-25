@@ -24,7 +24,7 @@
   --white: #FFFFFF;
   --segment-on: #636366;
   --dimmer: rgba(0,0,0,.5);      /* voile des surcouches */
-  --dlg-bg: rgba(44,44,46,.82); --dlg-solid: #2C2C2E;
+  --dlg-bg: rgba(44,44,46,.94); --dlg-solid: #2C2C2E;   /* feuilles, alertes, toasts : lisibles même si le flou est faible */
   --dlg-sep: rgba(84,84,88,.65); --dlg-press: rgba(255,255,255,.08);
   --flash: #FFFFFF;
   --shadow-seg: 0 3px 8px rgba(0,0,0,.12);
@@ -78,7 +78,7 @@ body.light {
   --green-text: #1F7A35; --red-text: #D70015; --orange-text: #C93400; --gold-text: #A05A00;
   --segment-on: #FFFFFF;
   --dimmer: rgba(0,0,0,.25);
-  --dlg-bg: rgba(242,242,247,.86); --dlg-solid: #F2F2F7;
+  --dlg-bg: rgba(242,242,247,.94); --dlg-solid: #F2F2F7;
   --dlg-sep: rgba(60,60,67,.29); --dlg-press: rgba(0,0,0,.06);
   --shadow-float: 0 8px 24px rgba(0,0,0,.12);
   --cat-text-mix: 55%; --cat-text-base: #000000;

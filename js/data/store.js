@@ -242,6 +242,8 @@ function sanitizeData(d) {
   if (d.unit !== 'kg' && d.unit !== 'lbs') d.unit = 'kg';
   // Silhouette des muscles (bodySilhouette) : absente = homme ; valeur inconnue retirée
   if (d.silhouette !== undefined && d.silhouette !== 'female' && d.silhouette !== 'male') delete d.silhouette;
+  // Dernier compte connecté sur l'appareil (cleanLastAccount) : retiré s'il est illisible
+  if (d.lastAccount !== undefined) { const a = cleanLastAccount(d.lastAccount); if (a) d.lastAccount = a; else delete d.lastAccount; }
   if (!Array.isArray(d.history)) d.history = [];
   d.history = d.history.filter(cleanHistoryEntry);
   // Identifiants uniques (un fichier importé retouché à la main peut en répéter un)
@@ -254,6 +256,20 @@ function sanitizeData(d) {
   d.trash = d.trash.filter(t => isObj(t) && Number.isFinite(t.deletedAt) && t.deletedAt > limit
     && cleanHistoryEntry(t.entry) && !kept.has(t.entry.id));
   return d;
+}
+
+// Dernier compte connecté sur cet appareil (data.lastAccount) : { method, username, signedOut? }.
+// Copié avec ppl_v2 dans la sauvegarde iCloud de l'app : un nouvel iPhone restauré seulement depuis
+// cette copie (sans le stockage web ni le Trousseau) propose quand même de se reconnecter
+// (accountReconnectInfo, js/data/account.js). Reste sur l'appareil (SYNC_LOCAL_ONLY, js/data/sync.js).
+const LAST_ACCOUNT_METHODS = ['apple', 'google', 'email'];
+const LAST_ACCOUNT_NAME_RE = /^[a-z0-9][a-z0-9._]{1,18}[a-z0-9]$/;   // forme du pseudo (USERNAME_RE)
+function cleanLastAccount(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const method = LAST_ACCOUNT_METHODS.includes(v.method) ? v.method : null;
+  const username = typeof v.username === 'string' && LAST_ACCOUNT_NAME_RE.test(v.username) ? v.username : null;
+  if (!method && !username) return null;
+  return { method, username, ...(v.signedOut === true ? { signedOut: true } : {}) };
 }
 
 // ── Noms devenus cardio (bibliothèque du 25/10/2026) ──
