@@ -301,6 +301,31 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.ok(!app.bodyMapSvg({}, { view: 'front' }).includes('data-muscle="glutes"'), 'fessiers seulement de dos');
   });
 
+  test('silhouette femme : mêmes muscles que l\'homme, vue par vue, et dessin différent', () => {
+    const zones = (body, view) => [...app.bodyMapSvg({}, { body, view }).matchAll(/data-muscle="([a-z_]+)"/g)].map(m => m[1]).sort();
+    for (const view of ['front', 'back']) sameJSON(zones('female', view), zones('male', view), `vue ${view}`);
+    const f = app.bodyMapSvg({ chest: 1 }, { body: 'female' }), m = app.bodyMapSvg({ chest: 1 }, { body: 'male' });
+    assert.ok(f.includes('data-body="female"') && m.includes('data-body="male"'));
+    assert.notEqual(f.replace('female', 'male'), m, 'tracés propres à la silhouette femme');
+    assert.ok(/data-muscle="chest" d="[^"]+" fill="var\(--body-heat\)" fill-opacity="1"/.test(f), 'coloration identique');
+    assert.ok(app.bodyMapSvg({}, { body: 'autre' }).includes('data-body="male"'), 'valeur inconnue : homme');
+  });
+
+  test('silhouette : suit le réglage (homme si absent), bornée par sanitizeData', () => {
+    reset();
+    assert.equal(app.bodySilhouette(), 'male', 'données existantes : homme');
+    assert.ok(app.bodyMapSvg({}).includes('data-body="male"'));
+    run(`data.silhouette = 'female'`);
+    assert.equal(app.bodySilhouette(), 'female');
+    assert.ok(app.bodyMapSvg({}).includes('data-body="female"'), 'par défaut, la carte suit le réglage');
+    assert.ok(app.bodyMapSvg({}, { body: 'male' }).includes('data-body="male"'), 'option explicite prioritaire');
+    assert.equal(app.sanitizeData({ ...run('data'), silhouette: 'female' }).silhouette, 'female');
+    assert.equal(app.sanitizeData({ ...run('data'), silhouette: 'male' }).silhouette, 'male');
+    assert.equal(app.sanitizeData({ ...run('data'), silhouette: '<b>' }).silhouette, undefined, 'valeur inconnue retirée');
+    assert.equal(app.sanitizeData({ ...run('data'), silhouette: 1 }).silhouette, undefined);
+    reset();
+  });
+
   test('silhouette autonome : xmlns, dimensions, couleurs résolues, légendes', () => {
     const svg = app.bodyMapSvg({ quads: 1 }, { standalone: true, width: 300, captions: true,
       colors: { skin: '#111111', zone: '#222222', heat: '#FF0000', text: '#999999' } });

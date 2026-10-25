@@ -178,6 +178,53 @@ def t_add_sheet(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def body_of(page, sel):
+    return page.evaluate('s => document.querySelector(s)?.dataset.body || null', sel)
+
+
+def t_silhouette(bench, eng, dev, theme):
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        # Premier lancement : choix dans la carte « Où t'entraînes-tu ? », sans la fermer
+        seed(page, theme, None)
+        seg = page.locator('.onboard [data-action="set-silhouette"]')
+        R.check(seg.count() == 2, f'{t} accueil : choix de la silhouette dans la carte du premier lancement')
+        R.check(page.locator('.onboard [data-val="male"]').get_attribute('aria-pressed') == 'true', f'{t} homme par défaut')
+        page.click('.onboard [data-action="set-silhouette"][data-val="female"]')
+        page.wait_for_timeout(250)
+        R.check(page.evaluate('data.silhouette') == 'female' and page.evaluate('data.onboarded') is False, f'{t} femme choisie, carte toujours là')
+        R.check(page.locator('.onboard [data-val="female"]').get_attribute('aria-pressed') == 'true', f'{t} état annoncé (aria-pressed)')
+        R.check(no_hscroll(page), f'{t} accueil : pas de défilement horizontal')
+        shot(page, LOT, f'silhouette-accueil-{t}')
+
+        # Données existantes : homme ; Réglages › Affichage › Silhouette, puis Progrès, fiche et story suivent
+        seed(page, theme, ppl_v2_today_json())
+        tab(page, 2)
+        R.check(body_of(page, '.mcard__map') == 'male', f'{t} données existantes : silhouette homme')
+        tab(page, 0)
+        page.click('[data-action="go-settings"]')
+        page.wait_for_selector('.view.settings-view')
+        page.locator('[data-action="set-silhouette"][data-val="female"]').scroll_into_view_if_needed()
+        page.click('[data-action="set-silhouette"][data-val="female"]')
+        page.wait_for_timeout(250)
+        R.check(page.locator('[data-action="set-silhouette"][data-val="female"]').get_attribute('aria-pressed') == 'true', f'{t} réglage : Femme sélectionné')
+        R.check(no_hscroll(page), f'{t} réglages : pas de défilement horizontal')
+        shot(page, LOT, f'silhouette-reglages-{t}')
+        tab(page, 2)
+        R.check(body_of(page, '.mcard__map') == 'female', f'{t} Progrès : silhouette femme')
+        drawn = set(page.evaluate("[...document.querySelectorAll('.mcard__map [data-muscle]')].map(z => z.dataset.muscle)"))
+        R.check(drawn == set(MUSCLE_IDS), f'{t} silhouette femme : tous les muscles dessinés')
+        R.check(heat(page, 'lats') > 0, f'{t} silhouette femme : coloration identique')
+        page.locator('.mcard').scroll_into_view_if_needed()
+        shot(page, LOT, f'silhouette-progres-{t}')
+        page.locator('[data-action="open-stats-ex"][data-ex="p1dcouch"]').click()
+        page.wait_for_selector('.view.stats-ex')
+        R.check(body_of(page, '.mpanel__map') == 'female', f'{t} fiche exercice : silhouette femme')
+        story = page.evaluate("shareStoryHooks.muscleSvg(data.history[0], null, storyPalette('#30D158'))")
+        R.check(story and 'data-body="female"' in story, f'{t} story partagée : silhouette femme')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def once_static(bench):
     files = ['js/data/muscles.js', 'js/data/exercise-catalogue.js', 'js/data/muscle-load.js', 'js/ui/body-map.js', 'js/features/muscles.js', 'css/muscles.css']
     for f in files:
@@ -198,4 +245,4 @@ def once_static(bench):
         R.check(ok, 'bodyMapSvg autonome : chargé comme image, couleurs résolues')
 
 
-run_main(R, [t_progress, t_empty, t_editor, t_add_sheet], once=[once_static])
+run_main(R, [t_progress, t_empty, t_editor, t_add_sheet, t_silhouette], once=[once_static])

@@ -73,7 +73,7 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `programmes.js` | `PROGRAMMES` (programmes intégrés et exercices par défaut), `exerciseLibrary()` |
 | `store.js` | `makeExercise`, `calc1RM`, `setsVolume`, `sessionVolume`, `recomputePRFromHistory`, `lastPerf`, `resolveExId`, `makeDefaultData` (base des migrations), `freshData` (donnée vide au schéma courant : suppression, démarrage à neuf), `sanitizeData` (clés de séance limitées à `SESSION_CAT_RE`, champs d’exercice et séries bornés comme à la saisie), `normalizeData` (migrations), `loadData`, `save`, `latestSessionDate`, `syncTimersFromHistory`, `releaseTimer` ; **charge `data` au chargement** (ou passe en mode secours) |
 | `records.js` | Records : `recordLabel` (badge d'une série), `exerciseRecord` (record marquant d'un exercice), `historyBaseline` (records d'avant une séance de l'historique), `recordKey` |
-| `accessors.js` | `prog`, `getCooldown`, `isUserProg`, `userSessions`, `progMeta`, `sessionKeys`, `sessionMeta`, `rawLabel`, `catBadge`, `firstSession`, régularité, unités (`toUnitW`, `fmtW`, `storeW`, `fmtVolume`), `bestSet`, `setTxt` |
+| `accessors.js` | `prog`, silhouette des muscles (`SILHOUETTES`, `bodySilhouette()` : `data.silhouette`, homme si absent), `getCooldown`, `isUserProg`, `userSessions`, `progMeta`, `sessionKeys`, `sessionMeta`, `rawLabel`, `catBadge`, `firstSession`, régularité, unités (`toUnitW`, `fmtW`, `storeW`, `fmtVolume`), `bestSet`, `setTxt` |
 | `active-session.js` | `activeSession`, `sessionNotes`, `writeSession(rest)` (écrit la séance et l'état du repos reçu), `restoreSession()` (renvoie `{ rest }` sans relancer le chrono), `computeBaseline`, `sessProg` |
 | `measures.js` | `MEASURES` (répétitions, durée `time` en secondes dans `reps`, `cardio` : minutes dans `reps`, km dans `dist`), `measureOf(ex)` (choix enregistré, bibliothèque, puis nom), `measureSetTxt`, `defaultGoal` (objectif d'une série jamais faite : haut de fourchette, 30 s, 20 min). Volume en kg et records : répétitions seulement. Poids du corps : `BODYWEIGHT_SHARE` (part soulevée, sources dans le fichier), `loadKind` (charge, lest, aide), `effectiveLoad`, `currentBodyKg` (Santé puis Réglages ; enregistré par séance dans `h.bodyKg`) |
 | `exercise-catalogue.js` | `EXERCISE_CATALOGUE` (bibliothèque : nom, muscles principaux et secondaires, matériel `EQUIPMENT`, alias ; tous les exercices de `PROGRAMMES` y figurent), `catalogueEntry(nom)` (nom, alias ou abréviation), `catalogueRank` (mouvement de référence avant ses variantes), `equipmentOf`, `PROGRESSIONS` et `progressionOf` (plus facile / plus dur) |
@@ -110,7 +110,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `forms.js` | `flagInvalid`, `weightOk`, `weightMsg` |
 | `edge-swipe.js` | Geste de retour depuis le bord gauche (app installée sur iOS) |
 | `reorder.js` | Glisser pour réordonner (poignée ≡ du mode Modifier) : `makeReorderable({ view, list, row, handle, onMove })`, utilisé par les exercices d’une séance et les séances d’un programme perso |
-| `body-map.js` | `bodyMapSvg(niveaux, options)` : silhouette face / dos en SVG texte, chaque muscle coloriable (`data-muscle`) ; `bodyHeatOpacity`, `bodyMapColors()` (couleurs résolues pour un SVG autonome) |
+| `body-map.js` | `bodyMapSvg(niveaux, options)` : silhouette face / dos en SVG texte, homme ou femme (option `body`, par défaut le réglage `bodySilhouette()`), mêmes zones et mêmes identifiants pour les deux, chaque muscle coloriable (`data-muscle`) ; `bodyHeatOpacity`, `bodyMapColors()` (couleurs résolues pour un SVG autonome) |
 | `medal.js` | Médaille de record : `MEDAL_PATHS` (tracés partagés avec l'image de partage) et `medalSvg(taille)` |
 
 ### js/features/
@@ -212,6 +212,7 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
   customSessions: { cat: { label, icon, desc, color } },          // séances de l'ancien programme « Perso »
   userProgrammes: { u_xxxxxxxx: { name, sessions: { cat: { label, icon, desc, color } }, archived } },
   defaultRest: 90, unit: 'kg' | 'lbs', soundOn: true, vibrateOn: true,
+  silhouette: 'female' | 'male',             // facultatif : carte des muscles (absent = homme), synchronisé
   lastExport: 1712345678901,                 // facultatif
   history: [{ id, programme, category, date, duration?, notes,
               exercises: [{ exId, name, sets: [{ weight, reps }] }] }],   // triée du plus récent au plus ancien

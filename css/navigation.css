@@ -200,6 +200,8 @@ body.light .hero__chip { background: color-mix(in srgb, var(--cell) 80%, transpa
   background: var(--fill2); color: var(--label); font: inherit; font-size: 1rem; font-weight: 600;
 }
 .onboard__btn:active { opacity: .6; }
+.onboard__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 4px 0 0; }
+.onboard__label { font-size: var(--fs-footnote); color: var(--label2); }
 .onboard__later { align-self: center; min-height: 44px; padding: 0 16px; border: 0; background: none; color: var(--tint); font: inherit; font-size: 0.941rem; cursor: pointer; }
 .home-card__title {
   display: flex; justify-content: space-between; gap: 8px; margin: 0 0 4px; white-space: nowrap;

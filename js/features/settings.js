@@ -81,6 +81,11 @@ ${renderAppleServicesGroup(tog)}
               ${['kg', 'lbs'].map(u => `<button class="segmented__btn ${data.unit === u ? 'segmented__btn--active' : ''}" aria-pressed="${data.unit === u}" data-action="setting-unit" data-val="${u}">${u}</button>`).join('')}
             </div>
           </div>
+          <div class="cell cell--ctl">
+            <span class="cell__body"><span class="cell__title">Silhouette</span>
+              <span class="cell__sub">Carte des muscles</span></span>
+            ${silhouetteSegmentedHtml()}
+          </div>
         </div>
 
 ${renderAppIconGroup()}
@@ -116,6 +121,14 @@ ${renderAppIconGroup()}
 
       </div>
     </div>`;
+}
+
+// Choix de la silhouette des muscles (Réglages › Affichage, carte du premier lancement)
+function silhouetteSegmentedHtml() {
+  const cur = bodySilhouette();
+  return `<div class="segmented seg-sm" role="group" aria-label="Silhouette de la carte des muscles">
+    ${SILHOUETTES.map(([v, l]) => `<button class="segmented__btn ${cur === v ? 'segmented__btn--active' : ''}" aria-pressed="${cur === v}" data-action="set-silhouette" data-val="${v}">${l}</button>`).join('')}
+  </div>`;
 }
 
 // Version affichée dans À propos : lue dans le nom du cache du service worker (ppl-vNN)
@@ -171,6 +184,10 @@ registerActions({
   },
   'setting-unit': (e, el) => {
     data.unit = el.dataset.val; save(); render();
+  },
+  'set-silhouette': (e, el) => {
+    if (!SILHOUETTES.some(([v]) => v === el.dataset.val)) return;
+    data.silhouette = el.dataset.val; save(); render();
   },
   'setting-sound': () => {
     data.soundOn = !data.soundOn; save(); render();
