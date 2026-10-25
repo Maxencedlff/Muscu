@@ -286,10 +286,12 @@ des quatre secrets.
 Relevé du 23/10/2026 : le reste (HTTPS, aucune clé dans l'app, copie iCloud, confidentialité, pas de
 cookies ni de pistage, contrastes, écrans de 8 téléphones et des pliables) est déjà en ordre.
 
-- [ ] **Mentions légales** : page dans Réglages › À propos (éditeur, contact). Le contrat de licence
-      standard d'Apple tient lieu de CGU pour une app gratuite sans compte.
+- [x] **Mentions légales** (25/10/2026) : section « Mentions légales » de privacy.html (éditeur particulier
+      non professionnel, art. 1-1 LCEN ; hébergeurs Vercel et Supabase ; avertissement santé), ouverte
+      depuis Réglages › À propos › Mentions légales. Le contrat de licence standard
+      d'Apple tient lieu de CGU, compte compris (le compte ne stocke que les données de l'utilisateur).
 - [ ] **VoiceOver** sur tous les écrans (seul l'accueil a été vérifié, par `verif_ui --ux`).
-- [ ] **Fiche App Store** (`store/FICHE_APP_STORE.md`) : relire description et mots-clés, refaire les
+- [x] **Fiche App Store** (25/10/2026, envoyée dans App Store Connect, captures en clair) : relire description et mots-clés, refaire les
       captures (`store/captures.py`), car l'app a beaucoup changé depuis (accueil, récupération par muscle,
       exercices sans salle).
 

@@ -3,6 +3,9 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
+// Confidentialité et mentions légales (page publique, privacy.html) ; _blank l'ouvre dans Safari
+const LEGAL_URL = 'https://muscu-eta.vercel.app/privacy.html#mentions';
+
 function agoText(ts) {
   const days = Math.floor((Date.now() - ts) / 86400000);
   if (days <= 0) return 'aujourd\'hui';
@@ -107,6 +110,8 @@ ${renderAppIconGroup()}
             ? `<button class="cell cell--action" data-action="live-update-check"><span class="cell__body"><span class="cell__title">Rechercher une mise à jour</span>
                  <span class="cell__sub">${esc(liveUpdateLabel())}</span></span></button>`
             : `<button class="cell cell--action" data-action="force-update"><span class="cell__title">Rechercher une mise à jour</span></button>`}
+          <button class="cell cell--action" data-action="open-legal"><span class="cell__body"><span class="cell__title">Mentions légales</span>
+            <span class="cell__sub">Confidentialité, éditeur, hébergeurs</span></span></button>
         </div>
 
       </div>
@@ -206,6 +211,7 @@ registerActions({
     wipeLocalData();
     render(); showToast('Données supprimées');
   },
+  'open-legal': () => { window.open(LEGAL_URL, '_blank'); },
   'force-update': async () => {
     await checkForUpdate();
   },
