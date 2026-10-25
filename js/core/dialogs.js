@@ -106,7 +106,8 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
     root._close = () => close(null); // retour système : vaut « Annuler »
     document.addEventListener('keydown', onKey);
     document.body.appendChild(root);
-    if (field) setTimeout(() => { field.focus(); field.select(); }, 60);
+    // Curseur en fin de texte, jamais de sélection automatique (iOS : un tap doit suffire, sans menu de sélection)
+    if (field) setTimeout(() => { field.focus(); try { field.setSelectionRange(field.value.length, field.value.length); } catch { /* type number */ } }, 60);
   });
 }
 
