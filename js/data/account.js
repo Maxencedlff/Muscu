@@ -9,8 +9,9 @@
 //    compte. Une erreur réseau ne déconnecte jamais (hors ligne, la session stockée suffit).
 //  - Synchronisation (logique pure dans js/data/sync.js) : à la connexion, au retour dans l'app, et
 //    quelques secondes après chaque enregistrement. Hors ligne, rien ne se perd : l'envoi attend.
-//  - État de synchro gardé par compte (mdlf_sync_<id>) : se déconnecter puis se reconnecter ne
-//    renvoie rien d'ancien. Effacer les données de l'appareil, importer une sauvegarde ou la
+//  - État de synchro (mdlf_sync_<id>) valable seulement pour le dernier compte synchronisé sur
+//    l'appareil (SYNC_OWNER_KEY) : se reconnecter au même compte reprend où on en était ; changer de
+//    compte repart de zéro (le compte fait foi, rien n'est supprimé). Effacer les données de l'appareil, importer une sauvegarde ou la
 //    réinitialisation de secours détachent l'appareil (accountForgetDevice, accountResetSyncState) :
 //    jamais de suppression envoyée au compte pour une action locale.
 //  - Couche données : aucun affichage ici. L'écran (js/features/account-ui.js) s'abonne par
@@ -35,16 +36,22 @@ let sb = null;   // client supabase unique (deux clients se voleraient le jeton 
 const account = { user: null, syncing: false, lastSync: null, error: null, ready: false };
 let syncTimer = null;
 let applyingRemote = false;   // fusion en cours : son propre enregistrement ne relance pas de synchro
+let syncHeld = false;         // connexion en cours (choix du compte pas encore fait) : aucune synchro
+let syncGeneration = 0;       // +1 à chaque oubli de l'état : une synchro commencée avant n'écrit plus rien
 const accountListeners = [];
 
+// kind : 'state' (connexion, synchro) ou 'merged' (données reçues du compte : l'écran est à redessiner)
 function onAccountChange(fn) { accountListeners.push(fn); }
-function notifyAccount() { for (const fn of accountListeners) { try { fn(); } catch { /* écran absent */ } } }
+function notifyAccount(kind = 'state') { for (const fn of accountListeners) { try { fn(kind); } catch { /* écran absent */ } } }
 
 function accountAvailable() {
   return Native.account.available && typeof supabase !== 'undefined' && !!ACCOUNT_CONFIG.publishableKey;
 }
 
+function syncOwner() { try { return localStorage.getItem(SYNC_OWNER_KEY); } catch { return null; } }
+
 function loadSyncMeta(userId) {
+  if (syncOwner() !== userId) return emptySyncMeta(userId);   // état d'un autre compte : jamais réutilisé
   try {
     const m = JSON.parse(localStorage.getItem(SYNC_META_PREFIX + userId));
     if (m && m.userId === userId && m.pushed && typeof m.pushed === 'object') return m;
@@ -55,6 +62,7 @@ function saveSyncMeta(m) { try { localStorage.setItem(SYNC_META_PREFIX + m.userI
 // Oublie les états de synchro de cet appareil (la prochaine synchro repart du compte) ; le
 // dernier compte connu (SYNC_OWNER_KEY) n'est pas un état de synchro et reste
 function clearSyncMetas() {
+  syncGeneration++;
   try {
     const keys = [];
     for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
@@ -119,7 +127,8 @@ function onAccountVisibility() {
 
 // Connexion avec Apple, puis première synchro.
 // askMerge(n) : appelé si cet appareil contient n séances d'un AUTRE compte ; renvoie 'add' (les ajouter
-// à ce compte), 'replace' (ne garder que celles du compte) ou null (annuler : déconnexion).
+// à ce compte), 'replace' (l'écran a déjà vidé l'appareil : ne garder que celles du compte) ou null
+// (annuler : déconnexion).
 // Renvoie { ok, reason?: 'cancel' | 'apple' | 'server' | 'sync', sent, received }.
 async function accountSignIn(askMerge) {
   if (!sb) return { ok: false, reason: 'server' };
@@ -128,30 +137,24 @@ async function accountSignIn(askMerge) {
   try { apple = await Native.account.signIn(nonce); }
   catch { return { ok: false, reason: 'apple' }; }
   if (!apple) return { ok: false, reason: 'cancel' };
-  const { data: auth, error } = await sb.auth.signInWithIdToken({ provider: 'apple', token: apple.identityToken, nonce });
-  if (error || !auth?.user) return { ok: false, reason: 'server' };
-  account.user = auth.user;
-  let owner = null;
-  try { owner = localStorage.getItem(SYNC_OWNER_KEY); } catch { /* inconnu : fusion comme une première liaison */ }
-  const n = (data.history || []).length;
-  if (owner && owner !== auth.user.id && n) {
-    const choice = await askMerge(n);
-    if (!choice) { await accountSignOut(); return { ok: false, reason: 'cancel' }; }
-    if (choice === 'replace') keepOnlyDeviceSettings();
-  }
+  // Aucune synchro tant que l'utilisateur n'a pas choisi (sinon les séances d'un autre compte partiraient)
+  syncHeld = true;
+  try {
+    const { data: auth, error } = await sb.auth.signInWithIdToken({ provider: 'apple', token: apple.identityToken, nonce });
+    if (error || !auth?.user) return { ok: false, reason: 'server' };
+    const owner = syncOwner();
+    if (owner && owner !== auth.user.id) {
+      const n = (data.history || []).length;
+      const choice = n ? await askMerge(n) : 'add';
+      if (!choice) { await accountSignOut(); return { ok: false, reason: 'cancel' }; }
+      clearSyncMetas();   // l'ancien compte ne laisse rien derrière lui
+      try { localStorage.removeItem(SYNC_OWNER_KEY); } catch { /* loadSyncMeta compare de toute façon */ }
+    }
+    account.user = auth.user;
+  } finally { syncHeld = false; }
   const before = (data.history || []).length;
   const ok = await syncNow();
   return { ok, reason: ok ? undefined : 'sync', sent: before, received: Math.max(0, (data.history || []).length - before) };
-}
-
-// Données remises à neuf avant de recevoir celles du compte ; les réglages de l'appareil restent
-function keepOnlyDeviceSettings() {
-  const keep = {};
-  for (const k of SYNC_LOCAL_ONLY) if (k !== 'history' && k !== 'trash' && data[k] !== undefined) keep[k] = data[k];
-  if (activeSession) endSession();
-  data = Object.assign(freshData(), keep);
-  resetSelections();
-  save(true);
 }
 
 // Déconnexion de cet appareil : les données restent sur l'iPhone et sur le compte. L'état de synchro
@@ -199,7 +202,7 @@ async function accountDelete() {
 
 // Après chaque enregistrement local : envoi groupé quelques secondes plus tard
 function scheduleSync(delay = SYNC_DEBOUNCE_MS) {
-  if (!sb || !account.user || applyingRemote) return;
+  if (!sb || !account.user || applyingRemote || syncHeld) return;
   clearTimeout(syncTimer);
   syncTimer = setTimeout(syncNow, delay);
 }
@@ -224,25 +227,22 @@ function syncErrorKind(e) {
   return 'server';
 }
 
-// Écran redessiné après une fusion, sauf pendant une saisie (le clavier et la saisie seraient perdus)
-function renderAfterMerge() {
-  if (typeof render !== 'function') return;
-  const el = document.activeElement;
-  if (el && el.matches?.('input, textarea, [contenteditable="true"]')) return;
-  render();
-}
-
 // Synchronisation complète : réception, fusion, puis envoi. true si tout est passé.
 async function syncNow() {
-  if (!sb || !account.user || account.syncing) return false;
+  if (!sb || !account.user || account.syncing || syncHeld) return false;
   account.syncing = true; account.error = null;
   notifyAccount();
-  const userId = account.user.id, meta = loadSyncMeta(userId);
+  const userId = account.user.id, meta = loadSyncMeta(userId), gen = syncGeneration;
+  // État oublié pendant la synchro (effacement, import, changement de compte) : tout s'arrête, rien
+  // n'est fusionné ni écrit avec l'ancien état
+  const alive = () => { if (gen !== syncGeneration || account.user?.id !== userId) throw new Error('reset'); };
+  const keepMeta = () => { alive(); saveSyncMeta(meta); };
   try {
     // 1. Réception et fusion
     const rows = await pullSessions(meta.cursor);
     const { data: prof, error: profErr } = await sb.from('profiles').select('doc,updated_at').maybeSingle();
     if (profErr) throw profErr;
+    alive();
     const merged = applyRemoteSessions(data.history || [], rows, meta);
     const profChanged = applyRemoteProfile(data, prof, meta);
     if (merged.changed || profChanged) {
@@ -250,18 +250,20 @@ async function syncNow() {
       // Suppressions venues d'un autre appareil : récupérables ici aussi (Supprimés récemment)
       const now = Date.now();
       for (const entry of merged.removed) (data.trash ||= []).unshift({ entry, deletedAt: now });
-      sanitizeData(data);
-      recomputePRFromHistory(data);
-      syncTimersFromHistory();
-      applyingRemote = true;
       let saved;
-      try { saved = save(true); } finally { applyingRemote = false; }
+      applyingRemote = true;
+      try {
+        sanitizeData(data);
+        recomputePRFromHistory(data);
+        syncTimersFromHistory();
+        saved = save(true);
+      } finally { applyingRemote = false; }
       // Stockage plein : l'état de synchro ne doit pas croire la fusion enregistrée
       if (!saved) throw new Error('storage');
-      renderAfterMerge();
+      notifyAccount('merged');
     }
     for (const r of rows) if (r.updated_at && (!meta.cursor || r.updated_at > meta.cursor)) meta.cursor = r.updated_at;
-    saveSyncMeta(meta);
+    keepMeta();
 
     // 2. Envoi des séances (par lots) puis du profil
     const plan = planSessionPush(data.history || [], meta);
@@ -271,28 +273,32 @@ async function syncNow() {
       const { error } = await sb.from('sessions').upsert(
         batch.map(u => ({ user_id: userId, id: u.id, data: u.data, client_mod: now, deleted_at: null })), { onConflict: 'user_id,id' });
       if (error) throw error;
+      alive();
       batch.forEach(u => { meta.pushed[u.id] = u.hash; });
-      saveSyncMeta(meta);
+      keepMeta();
     }
     for (let i = 0; i < plan.deletes.length; i += SYNC_BATCH) {
       const batch = plan.deletes.slice(i, i + SYNC_BATCH);
       const { error } = await sb.from('sessions').upsert(
         batch.map(id => ({ user_id: userId, id, data: {}, client_mod: now, deleted_at: now })), { onConflict: 'user_id,id' });
       if (error) throw error;
+      alive();
       batch.forEach(id => { meta.pushed[id] = 'deleted'; });
-      saveSyncMeta(meta);
+      keepMeta();
     }
     const doc = profilePayload(data), docHash = syncHash(doc);
     if (docHash !== meta.profileHash) {
       const { data: up, error } = await sb.from('profiles').upsert({ user_id: userId, doc }, { onConflict: 'user_id' }).select('updated_at').single();
       if (error) throw error;
       meta.profileHash = docHash; meta.profileAt = up.updated_at;
-      saveSyncMeta(meta);
+      keepMeta();
     }
+    alive();
     try { localStorage.setItem(SYNC_OWNER_KEY, userId); } catch { /* redemandé au prochain changement de compte */ }
     account.lastSync = Date.now();
     return true;
   } catch (e) {
+    if (e?.message === 'reset') return false;   // état oublié entre-temps : rien à signaler
     // Hors ligne ou serveur indisponible : on réessaiera ; jamais de déconnexion ici
     account.error = syncErrorKind(e);
     return false;

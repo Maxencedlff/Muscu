@@ -145,4 +145,16 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(r.meta, null);
     assert.equal(r.owner, null);
   });
+
+  test('compte : revenir sur un ancien compte après en avoir utilisé un autre ne supprime rien', () => {
+    const r = run(`(() => {
+      // A avait synchronisé 3 séances, puis B s'est connecté (dernier compte : B) et l'iPhone n'a plus que ses séances
+      localStorage.setItem('mdlf_sync_A', JSON.stringify({ userId: 'A', cursor: 't', pushed: { a1: 'h', a2: 'h', a3: 'h' }, profileHash: 'p' }));
+      localStorage.setItem('mdlf_sync_owner', 'B');
+      return { deletes: planSessionPush([{ id: 'b1', date: 1, category: 'push', exercises: [] }], loadSyncMeta('A')).deletes.length,
+               gen0: syncGeneration, gen1: (clearSyncMetas(), syncGeneration) };
+    })()`);
+    assert.equal(r.deletes, 0, 'l\'état de A n\'est pas repris : aucune suppression envoyée à A');
+    assert.equal(r.gen1, r.gen0 + 1, 'oublier l\'état arrête une synchro en cours (génération)');
+  });
 }

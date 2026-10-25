@@ -201,7 +201,7 @@ registerActions({
     if (await exportData(themePref())) refreshLastExport();
   },
   'import': async () => {
-    if (!(await confirmSheet('Importer une sauvegarde ?', 'Les données actuelles seront remplacées par celles du fichier.', 'Choisir un fichier', false))) return;
+    if (!(await confirmSheet('Importer une sauvegarde ?', account.user ? 'Les séances du fichier seront ajoutées à ton compte. Celles déjà sur le compte restent, et ses programmes priment.' : 'Les données actuelles seront remplacées par celles du fichier.', 'Choisir un fichier', false))) return;
     const inp = document.createElement('input');
     inp.type  = 'file'; inp.accept = '.json,application/json';
     inp.onchange = ev => {

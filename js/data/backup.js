@@ -48,8 +48,8 @@ function importText(text) {
 
 // Annule un import : la donnée d'avant (previous) est remise et enregistrée
 function undoImport(previous) {
+  // Compte : l'état de synchro est gardé, les séances que l'import avait envoyées en repartent
   data = normalizeData(JSON.parse(previous));
-  accountResetSyncState();
   save();
 }
 

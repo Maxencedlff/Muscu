@@ -122,6 +122,8 @@ function applyRemoteSessions(history, rows, meta) {
 // - première liaison (aucune empreinte connue) : le compte gagne, ce qui n'existe qu'ici est ajouté
 //   (un programme créé sur cet iPhone, par exemple) ;
 // - modifié des deux côtés : cet appareil gagne, ce qui n'existe que sur le compte est ajouté.
+//   Limite connue : sans tombstone de programme, un programme supprimé ailleurs revient dans ce cas
+//   (les programmes perso supprimés sont archivés, pas effacés : cas rare et sans perte).
 function applyRemoteProfile(d, remote, meta) {
   if (!remote?.doc || typeof remote.doc !== 'object') return false;
   if (meta.profileAt && remote.updated_at && remote.updated_at <= meta.profileAt) return false;

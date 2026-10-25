@@ -62,20 +62,46 @@ function renderAccountGroupInner() {
 const PRIVACY_URL = 'https://muscu-eta.vercel.app/privacy.html#compte';
 
 // Réglages ouverts : la rubrique suit l'état du compte (connexion, synchro)
-onAccountChange(() => {
+// Données reçues du compte : écran redessiné, sauf pendant une saisie (clavier et saisie seraient
+// perdus) : à la sortie du champ
+const EDITABLE = 'input, textarea, [contenteditable="true"]';
+function renderAfterMerge() {
+  const el = document.activeElement;
+  if (!el?.matches?.(EDITABLE)) { render(); return; }
+  el.addEventListener('focusout', () => setTimeout(() => {
+    if (!document.activeElement?.matches?.(EDITABLE)) render();
+  }, 0), { once: true });
+}
+
+onAccountChange(kind => {
+  if (kind === 'merged') { renderAfterMerge(); return; }
   const box = document.getElementById('accountGroup');
   if (box) box.innerHTML = renderAccountGroupInner();
 });
 
+// Appareil vidé avant de recevoir les données du compte (copie de secours locale gardée) ; les
+// réglages propres à l'appareil restent
+function keepOnlyDeviceSettings() {
+  const keep = {};
+  for (const k of SYNC_LOCAL_ONLY) if (k !== 'history' && k !== 'trash' && data[k] !== undefined) keep[k] = data[k];
+  try { localStorage.setItem(BACKUP_KEY, JSON.stringify(data)); } catch { /* copie de secours impossible */ }
+  if (activeSession) endSession();
+  data = Object.assign(freshData(), keep);
+  resetSelections();
+  save(true);
+}
+
 // Connexion sur un iPhone qui contient les séances d'un autre compte
-function askMergeOtherAccount(n) {
-  return dialog({ type: 'sheet', title: 'Séances d\'un autre compte',
+async function askMergeOtherAccount(n) {
+  const choice = await dialog({ type: 'sheet', title: 'Séances d\'un autre compte',
     message: `Cet iPhone contient ${plural(n, 'séance', 'séances')} d'un autre compte. Que veux-tu en faire ?`,
     actions: [
       { label: 'Les ajouter à ce compte', value: 'add', style: 'preferred' },
       { label: 'Garder seulement celles de ce compte', value: 'replace', style: 'destructive' },
       { label: 'Annuler', value: null, style: 'cancel' },
     ] });
+  if (choice === 'replace') keepOnlyDeviceSettings();
+  return choice || null;
 }
 
 const ACCOUNT_FAIL = {
@@ -88,7 +114,9 @@ registerActions({
   'account-sign-in': async (e, el) => {
     if (el) el.disabled = true;
     let res;
-    try { res = await accountSignIn(askMergeOtherAccount); } finally { notifyAccount(); }
+    try { res = await accountSignIn(askMergeOtherAccount); }
+    catch { res = { ok: false, reason: 'server' }; }
+    finally { notifyAccount(); }
     if (ACCOUNT_FAIL[res.reason]) { showToast(ACCOUNT_FAIL[res.reason], { error: true }); return; }
     if (res.reason === 'sync') { showToast('Connecté : la synchro se fera dès que le réseau revient'); return; }
     if (!res.ok) return;
