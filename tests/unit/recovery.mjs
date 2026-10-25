@@ -19,7 +19,7 @@ export default function ({ test, run, reset, assert }) {
 
   test('muscles déclarés : un choix du programme pour le même nom suit la déclaration', () => {
     reset();
-    run(`const ex = data.programmes.ppl.exercises.push[0]; ex.muscles = ['chest']; setDeclaredMuscles(ex.name, ['triceps']);`);
+    run(`const ex = data.programmes.ppl.exercises.push[0]; ex.name = 'Truc maison'; ex.muscles = ['chest']; setDeclaredMuscles(ex.name, ['triceps']);`);
     assert.equal(run(`JSON.stringify(data.programmes.ppl.exercises.push[0].muscles)`), '["triceps"]');
   });
 

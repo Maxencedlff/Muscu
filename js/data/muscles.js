@@ -169,7 +169,7 @@ const MUSCLE_RULES = [
   [/developpe.*serree|close grip|jm press|tate press/,                                    'triceps chest', 'front_delts'],
   [/poignet|wrist|fermier|farmer|\bgrip\b|suspension passive|dead hang/,                                               'forearms', ''],
   [/curl (inverse|pronation)|reverse curl/,                                               'brachialis forearms', 'biceps'],
-  [/marteau|hammer curl|curl hammer/,                                                     'brachialis biceps', 'forearms'],
+  [/marteau|hammer curl|curl hammer/,                                                     'brachialis biceps forearms', ''],
   [/curl|biceps/,                                                                         'biceps', 'brachialis forearms'],
   [/roumain|rdl|jambes tendues|stiff|good morning/,                                       'hamstrings glutes', 'lower_back'],
   [/souleve de terre|deadlift|rack pull|hex bar|trap bar/,                                'glutes hamstrings lower_back', 'quads traps forearms'],
@@ -187,14 +187,14 @@ const MUSCLE_RULES = [
   [/frontal|front raise/,                                                                 'front_delts', 'side_delts'],
   [/menton|upright/,                                                                      'side_delts traps', 'biceps'],
   [/shrug|haussement|trapeze/,                                                            'traps', 'forearms'],
-  [/crunch|abdo|gainage|planche|plank|\breleve|leg raise|roue|ab wheel|russian|rotations? russes?|oblique|sit ?up|mountain|grimpeur|hollow|pallof|get ?up|turc|dead bug|bird dog|\bl sit|toes to bar/, 'abs', ''],
-  [/militaire|military|epaule|arnold|overhead|shoulder press|\bohp\b|push press|\bz press|viking|landmine|developpe nuque|halo/, 'front_delts side_delts', 'triceps traps'],
+  [/crunch|abdo|gainage|planche|plank|\breleve|leg raise|roue|ab wheel|russian|rotations? russes?|oblique|sit ?up|mountain|grimpeur|hollow|pallof|get ?up|turc|dead bug|\bl sit|toes to bar/, 'abs', ''],
+  [/militaire|military|epaule|arnold|overhead|shoulder press|\bohp\b|push press|\bz press|viking|landmine|developpe nuque|halo/, 'front_delts', 'side_delts triceps traps'],
   [/ecarte|pec deck|\bpecs?\b|butterfly|\bfly\b|vis a vis|crossover|croise/,               'chest', 'front_delts'],
   [/(developpe|press|bench).*incline|incline.*(press|bench)/,                             'chest front_delts', 'triceps'],
   [/developpe (couche|decline)|bench|chest press|pompe|push ?up/,                         'chest', 'front_delts triceps'],
   [/traction|pull ?up|chin ?up|muscle ?up|front lever|tirage (vertical|poitrine|nuque)|lat pull|pull ?down/,     'lats', 'biceps rear_delts'],
   [/rowing|\brow\b|tirage|t ?bar/,                                                        'lats traps', 'rear_delts biceps'],
-  [/lombaire|extension (du )?dos|hyperextension|back extension|superman/,                 'lower_back', 'glutes hamstrings'],
+  [/lombaire|extension (du )?dos|hyperextension|back extension|superman|bird dog/,                 'lower_back', 'glutes hamstrings'],
   // Cardio après les abdos, le dos et les jambes : « Crunch vélo », « Rowing rameur » gardent leurs muscles
   [/course|courir|footing|jogging|running|trail|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation|ergometre|jumping jack/, 'quads calves', 'glutes'],
   [/burpee/,                                                                              'quads chest', 'front_delts triceps abs'],
@@ -221,11 +221,19 @@ function musclesOf(name) {
   return res;
 }
 
+// Muscles fixés : un exercice de la bibliothèque garde ceux du catalogue, vérifiés exercice par exercice
+// (sources dans exercise-catalogue.js). Seuls les exercices créés par la personne ont des muscles choisis.
+// Un ancien choix enregistré pour un exercice de la bibliothèque (ex.muscles, data.exerciseMuscles) est
+// ignoré à la lecture, pas effacé : la synchro fusionne ces dictionnaires par union (sync.js), un autre
+// appareil le renverrait aussitôt, et une version précédente de l'app le retrouve intact.
+function musclesLocked(name) { return musclesOf(name).source === 'catalogue'; }
+
 // Choix de l'utilisateur (Programme › Exercice) : champs facultatifs `muscles` (principaux) et
 // `musclesSecondary` d'un exercice du programme, listes d'identifiants. Champs additifs : une version
 // précédente les ignore ; une valeur illisible ou vide revient à la reconnaissance par le nom.
 function cleanMuscleList(v) { return Array.isArray(v) ? [...new Set(v.filter(isMuscleId))] : []; }
 function chosenMuscles(progEx) {
+  if (musclesLocked(progEx?.name)) return null;
   const list = cleanMuscleList(progEx?.muscles);
   return list.length ? list : null;
 }
@@ -248,6 +256,9 @@ function chosenMusclesIndex(d = data) {
 // Muscles d'un exercice du programme, de la séance ou de l'historique ({ id | exId, name, muscles? }).
 // index : chosenMusclesIndex() déjà calculé, pour les boucles sur tout l'historique.
 function exerciseMuscles(ex, index = null) {
+  // Bibliothèque : le catalogue fait foi, même si l'identifiant (exId) mène à un exercice renommé
+  const named = musclesOf(ex?.name);
+  if (named.source === 'catalogue') return named;
   const own = chosenMuscles(ex);
   if (own) return { primary: own, secondary: chosenSecondary(ex, own), source: 'user' };
   const id = exIdOf(ex);
@@ -255,22 +266,24 @@ function exerciseMuscles(ex, index = null) {
   if (chosen) return { ...chosen, source: 'user' };
   const declared = declaredMuscles(ex?.name);
   if (declared) return { primary: declared, secondary: declaredSecondary(ex?.name).filter(id => !declared.includes(id)), source: 'user' };
-  return musclesOf(ex?.name);
+  return named;
 }
 
 // Muscles déclarés pour un nom d'exercice (data.exerciseMuscles : principaux ; data.exerciseMusclesSecondary :
 // secondaires), quel que soit l'endroit où il est fait (séance libre, ajouté en séance, historique) ; null si aucun
+// ou si l'exercice est dans la bibliothèque (musclesLocked)
 function declaredMuscles(name, d = data) {
+  if (musclesLocked(name)) return null;
   const list = d?.exerciseMuscles?.[normName(name)];
   return Array.isArray(list) && list.length ? list.filter(isMuscleId) : null;
 }
-function declaredSecondary(name, d = data) { return cleanMuscleList(d?.exerciseMusclesSecondary?.[normName(name)]); }
+function declaredSecondary(name, d = data) { return musclesLocked(name) ? [] : cleanMuscleList(d?.exerciseMusclesSecondary?.[normName(name)]); }
 
 // Déclare ou efface (null : retour à la reconnaissance par le nom) les muscles d'un nom d'exercice.
-// value : liste de principaux, ou { primary, secondary }.
+// value : liste de principaux, ou { primary, secondary }. Sans effet pour un exercice de la bibliothèque.
 function setDeclaredMuscles(name, value, d = data) {
   const key = normName(name);
-  if (!key) return;
+  if (!key || musclesLocked(name)) return;
   const clean = cleanMuscleList(Array.isArray(value) ? value : value?.primary);
   const sec   = clean.length && !Array.isArray(value) ? cleanMuscleList(value?.secondary).filter(id => !clean.includes(id)) : [];
   const put = (field, list) => {

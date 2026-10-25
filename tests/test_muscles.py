@@ -101,24 +101,47 @@ def t_editor(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, ppl_v2_today_json())
+        # Exercice créé par la personne en tête de séance ; ancien choix (version précédente) sur un exercice intégré
+        page.evaluate("""() => { const xs = data.programmes.ppl.exercises.push;
+            xs[0].muscles = ['calves']; xs[0].musclesSecondary = ['abs'];
+            xs.unshift(makeExercise('Développé maison', 3)); save(); }""")
         tab(page, 3)
         page.click('[data-action="open-prog-session"][data-cat="push"]')
         page.wait_for_selector('.view.editor')
         lines = page.locator('.ed-row .ex-muscles').all_inner_texts()
-        R.check(lines[:1] == ['Pectoraux'] and 'Épaules' in lines, f'{t} Programme › Séance : muscles sous les noms {lines}')
+        R.check(lines[:2] == ['Pectoraux', 'Pectoraux'] and 'Épaules' in lines, f'{t} Programme › Séance : muscles sous les noms {lines}')
+        R.check('Mollets' not in lines, f'{t} ancien choix d\'un exercice intégré ignoré {lines[:2]}')
         shot(page, LOT, f'editeur-{t}')
 
-        page.click('.ed-row[data-i="0"]')
+        # Exercice de la bibliothèque : muscles affichés, aucun choix possible
+        page.click('.ed-row[data-i="1"]')
         page.wait_for_selector('.view.ex-edit')
-        R.check('Automatique' in page.locator('[data-action="pick-ex-muscles"]').inner_text(), f'{t} muscles automatiques')
-        # Le nom saisi met les muscles à jour en direct
+        R.check(page.locator('[data-action="pick-ex-muscles"]').count() == 0, f'{t} bibliothèque : pas de « Choisir les muscles »')
+        pills = page.locator('#exMuscles .mpill').all_inner_texts()
+        R.check(pills == ['Pectoraux', 'Épaules antérieures', 'Triceps'], f'{t} bibliothèque : muscles du catalogue {pills}')
+        R.check('bibliothèque' in page.locator('#exMuscles .group-foot').inner_text(), f'{t} bibliothèque : pied explicatif')
+        page.locator('#exMuscles').scroll_into_view_if_needed()
+        shot(page, LOT, f'exercice-verrouille-{t}')
+        # Le nom saisi met les muscles à jour en direct ; un nom inventé rend le choix possible
         page.fill('#exName', 'Curl marteau corde')
         page.wait_for_timeout(150)
         pills = page.locator('#exMuscles .mpill').all_inner_texts()
         R.check(pills == ['Brachial', 'Biceps', 'Avant-bras'], f'{t} reconnaissance en direct {pills}')
+        R.check('Automatique' in page.locator('[data-action="pick-ex-muscles"]').inner_text(), f'{t} nom inventé : choix proposé')
         page.fill('#exName', 'Développé couché haltères')
+        page.click('[data-action="cancel-ex"]')
+        page.wait_for_selector('.view.editor')
+        R.check(page.evaluate("data.programmes.ppl.exercises.push[1].muscles") == ['calves'], f'{t} ancien choix gardé tel quel')
 
-        # Choix manuel : Biceps seul
+        # Exercice de la personne : choix manuel, Biceps seul
+        page.click('.ed-row[data-i="0"]')
+        page.wait_for_selector('.view.ex-edit')
+        R.check('Automatique' in page.locator('[data-action="pick-ex-muscles"]').inner_text(), f'{t} muscles automatiques')
+        page.fill('#exName', 'Développé couché haltères')
+        page.wait_for_timeout(150)
+        R.check(page.locator('[data-action="pick-ex-muscles"]').count() == 0, f'{t} nom de la bibliothèque saisi : choix retiré')
+        page.fill('#exName', 'Développé maison')
+        page.wait_for_timeout(150)
         page.click('[data-action="pick-ex-muscles"]')
         page.wait_for_selector('.mpick')
         shot(page, LOT, f'choix-{t}')
@@ -154,6 +177,14 @@ def t_editor(bench, eng, dev, theme):
         page.wait_for_selector('.view.editor')
         R.check('muscles' not in page.evaluate("data.programmes.ppl.exercises.push[0]"), f'{t} champ retiré (automatique)')
         R.check(no_hscroll(page), f'{t} pas de défilement horizontal')
+
+        # Progrès › Exercice d'un exercice intégré : muscles affichés sans choix
+        page.evaluate("navigate(makeRoute('stats-ex', 'p1dcouch'))")
+        page.wait_for_timeout(400)
+        page.wait_for_selector('.mpanel')
+        R.check(page.locator('[data-action="declare-muscles"]').count() == 0, f'{t} Progrès › Exercice : pas de « Choisir les muscles »')
+        page.locator('.mpanel').evaluate("el => el.scrollIntoView({ block: 'center' })")
+        shot(page, LOT, f'progres-exercice-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
