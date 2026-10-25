@@ -373,7 +373,7 @@ registerActions({
     if (!addSessionInputsValid(dateEl)) return;
 
     const exercises = pastSessionExercises();
-    if (!exercises.length) { showToast('Entre au moins un exercice avec poids et reps !'); return; }
+    if (!exercises.length) { showToast('Ajoute au moins un exercice avec poids et reps.'); return; }
 
     const wasEdit = !!editSessionId;
     storePastSession(exercises);

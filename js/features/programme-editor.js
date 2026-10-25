@@ -145,7 +145,7 @@ function exTempoHtml(d) {
             </div>
           </div>` : ''}
         </div>
-        <div class="group-foot">${t ? `${esc(tempoSentence(t, d.name))}. ${tempoRepSeconds(t) > 10 ? 'Au-delà de 10 s par répétition, ce n\'est pas plus efficace pour le muscle. ' : ''}Plus lent = plus dur : baisse la charge. ${d.tempoGuide ? `Pendant la séance, ▶ lance ${d.tempoPrep} s pour t'installer (« Commencer » pour partir avant), puis guide chaque répétition au son.` : 'Pendant la séance, le tempo est rappelé sous l\'exercice. « Guidé au son » ajoute un ▶ qui bipe chaque phase.'}` : 'Descente, pause, montée, en secondes (X = explosif). Ex. 3-1-1 : 3 s pour descendre, 1 s en bas, 1 s pour remonter.'}</div>`;
+        <div class="group-foot">${t ? `${esc(tempoSentence(t, d.name))}. Plus lent, c'est plus dur : baisse la charge.` : 'Descente, pause, montée, en secondes (X = explosif). Ex. 3-1-1 : 3 s pour descendre, 1 s en bas, 1 s pour remonter.'}</div>`;
 }
 function refreshExTempo() { const box = $('#exTempo'); if (box && exDraft) box.innerHTML = exTempoHtml(exDraft); }
 

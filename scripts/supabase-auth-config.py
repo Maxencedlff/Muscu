@@ -50,7 +50,7 @@ def notice_html(title, text):
     return f"""<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:420px;margin:0 auto;padding:24px;color:#111">
   <h1 style="font-size:20px;margin:0 0 12px">{title}</h1>
   <p style="font-size:15px;line-height:1.45;margin:0 0 16px">{text}</p>
-  <p style="font-size:13px;line-height:1.45;color:#666;margin:0">Ce n'est pas toi ? Écris-nous tout de suite à contact@mdlf.app.</p>
+  <p style="font-size:13px;line-height:1.45;color:#666;margin:0">Ce n'est pas toi ? Écris à contact@mdlf.app.</p>
 </div>"""
 
 

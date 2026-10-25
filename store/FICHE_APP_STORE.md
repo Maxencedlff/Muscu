@@ -16,45 +16,45 @@ Les limites de longueur d'Apple sont indiquées entre crochets.
 
 ## Texte promotionnel [170] (modifiable sans nouvelle version)
 
-Le carnet de muscu pour la salle et la maison : séries pré-remplies, chrono de repos sur l'écran verrouillé, records qui montent. Tes séances sauvegardées sur ton compte.
+Note tes séries à la salle ou à la maison. Chaque série reprend ta dernière séance, et le repos reste visible sur l'écran verrouillé.
 
 ## Description [4000]
 
-MDLF Training, c'est le carnet de muscu pensé pour s'entraîner partout, à la salle comme à la maison : rapide, clair, et qui ne te fait jamais perdre une séance.
+MDLF Training est un carnet de musculation pour la salle et la maison. Tu notes tes séries en quelques secondes et tu suis tes charges d'une semaine à l'autre.
 
-PENDANT LA SÉANCE
-• Tes séries pré-remplies avec la séance précédente : un tap suffit à valider.
-• « À battre aujourd'hui » : l'accueil te montre les records à dépasser dans la séance du jour.
-• Chrono de repos qui ne bloque pas l'écran, avec une notification à la fin même téléphone verrouillé.
-• Live Activity : le repos et le chrono des exercices en durée s'affichent sur l'écran verrouillé et dans la Dynamic Island.
-• Tempo des répétitions (contrôlé, lent, explosif…), en simple rappel ou guidé au son.
-• Quitte l'app en pleine séance : tu la retrouves exactement où tu l'avais laissée.
+Pendant la séance
+• Chaque série est pré-remplie avec ta dernière séance. Un toucher sur la coche suffit pour la valider.
+• L'accueil affiche les records à battre dans la séance du jour.
+• Le repos démarre après chaque série validée. Une notification te prévient à la fin, même téléphone verrouillé.
+• Avec les Activités en direct, le repos et les exercices chronométrés restent visibles sur l'écran verrouillé et dans la Dynamic Island.
+• Tu peux régler un tempo par exercice (3-1-1, par exemple), en simple rappel ou guidé au son.
+• Si tu quittes l'app en pleine séance, tu la retrouves où tu l'avais laissée.
 
-TES PROGRAMMES
-• Programmes intégrés : PPL, Upper / Lower, Full Body, Bro Split, Arnold Split, et des programmes à la maison, au poids du corps ou avec haltères.
-• À la maison ou avec peu de matériel : dis à l'app ce que tu as (haltères, élastiques, kettlebell, banc…) et elle te propose les exercices qui vont avec.
-• Crée autant de programmes que tu veux, avec tes séances et tes exercices.
-• Bibliothèque de 171 exercices avec leurs muscles et leur matériel, et « Comment faire » pour les principaux mouvements.
-• Récupération par muscle : l'accueil te dit quelle séance faire aujourd'hui.
-• Envoie un programme à un ami par message.
+Programmes
+• PPL, Upper / Lower, Full Body, Bro Split et Arnold Split sont inclus, ainsi que deux programmes pour la maison, au poids du corps ou avec haltères.
+• Indique le matériel que tu as chez toi (haltères, élastiques, kettlebell, banc…) et l'app te propose les exercices qui vont avec.
+• Tu peux créer tes propres programmes et tes propres séances.
+• La bibliothèque compte 174 exercices, chacun avec ses muscles, son matériel et des consignes d'exécution.
+• L'accueil tient compte de la récupération de chaque muscle pour te proposer la séance du jour.
+• Un programme s'envoie à un ami par message.
 
-TA PROGRESSION
-• Courbes de volume, de charge max et de 1RM estimé, que tu touches pour lire chaque valeur.
-• Carte des muscles travaillés, semaine après semaine.
-• Records personnels, régularité, calendrier de tes séances.
-• Bilan à la fin de chaque séance, et ta séance en story pour Instagram, Messages ou Photos.
+Progression
+• Pour chaque exercice, des courbes de volume, de charge max et de 1RM estimé. Touche la courbe pour lire une valeur.
+• Une carte du corps montre les muscles travaillés dans la semaine ou sur quatre semaines.
+• La vue d'ensemble regroupe tes records, ta régularité et le calendrier de tes séances.
+• Un bilan s'affiche à la fin de chaque séance. Tu peux la partager en image dans Instagram, Messages ou Photos.
 
-TON COMPTE (FACULTATIF)
-• Connecte-toi avec Apple : tes séances et tes programmes sont sauvegardés et suivent sur ton nouvel iPhone.
-• Sans compte, l'app marche entièrement, hors ligne.
-• Ton poids et tes données Santé restent sur ton iPhone. Tu peux supprimer ton compte depuis l'app.
+Compte
+• Le compte est facultatif. Sans compte, l'app fonctionne entièrement, même hors ligne.
+• Connecte-toi avec Apple, Google ou une adresse e-mail pour sauvegarder tes séances et tes programmes, et les retrouver sur un nouvel iPhone.
+• Ton poids et tes données Santé ne quittent pas ton iPhone. Tu peux supprimer ton compte depuis l'app.
 
-APPLE SANTÉ ET MUSIQUE
-• Apple Santé (facultatif) : tes séances terminées sont enregistrées dans Santé comme entraînements « Musculation », avec une estimation des calories.
-• Si tu l'autorises, l'app lit ton poids dans Santé pour estimer ces calories et t'afficher son évolution dans Progrès.
-• Apple Music (facultatif) : le morceau en cours s'affiche pendant la séance, avec lecture, pause, morceau suivant et précédent.
+Apple Santé et Musique
+• Si tu l'actives, chaque séance terminée est enregistrée dans Santé comme entraînement « Musculation », avec une estimation des calories. L'app peut aussi y lire ton poids pour ce calcul et afficher son évolution dans Progrès.
+• Tes courses et tes sorties vélo enregistrées dans Santé apparaissent dans l'historique et comptent pour la récupération des jambes.
+• Avec Apple Music, le morceau en cours s'affiche pendant la séance, avec lecture, pause, morceau suivant et précédent.
 
-Mode clair et sombre, kg ou lbs, VoiceOver et tailles de texte iOS pris en charge. Choisis l'icône de l'app parmi cinq déclinaisons.
+Mode clair et sombre, kg ou lbs, VoiceOver et tailles de texte d'iOS. Cinq icônes d'app au choix.
 
 ## Mots-clés [100, séparés par des virgules, sans espace]
 
@@ -85,5 +85,5 @@ l'app ne les demande pas à Apple. Même liste dans ios/App/App/PrivacyInfo.xcpr
 ## Informations pour la revue d'Apple
 
 - Connexion requise : non (le compte est facultatif, l'app marche entièrement sans).
-- Notes : « Application de suivi d'entraînement. Le compte est facultatif : Se connecter avec Apple, dans Entraînement › roue dentée en haut à droite (Réglages de l'app) › Compte. Il sauvegarde les séances et les programmes pour les retrouver sur un autre iPhone. Suppression du compte au même endroit : Compte › Supprimer mon compte (le compte et ses données sont effacés, et l'accès « Se connecter avec Apple » est révoqué). Pour tester une séance : onglet Entraînement › Démarrer, valider une série avec la coche, le repos démarre (Live Activity sur l'écran verrouillé). Pour tester Apple Santé : Réglages de l'app › Services Apple › activer Apple Santé et accepter l'autorisation. Les séances terminées sont alors enregistrées dans Santé comme entraînements « Musculation », et le poids lu dans Santé s'affiche dans l'onglet Progrès. Le poids et les données de Santé ne sont jamais envoyés sur le compte. Apple Music s'active au même endroit : le morceau en cours apparaît pendant la séance. »
+- Notes : « Application de suivi d'entraînement. Le compte est facultatif. Pour se connecter : Entraînement › roue dentée en haut à droite (Réglages de l'app) › Compte, avec Apple, Google ou une adresse e-mail (code à 6 chiffres reçu par e-mail, sans mot de passe). Le compte sauvegarde les séances et les programmes pour les retrouver sur un autre iPhone. Suppression du compte au même endroit : Compte › Supprimer mon compte. Le compte et ses données sont effacés ; pour un compte Apple, l'accès « Se connecter avec Apple » est aussi révoqué. Pour tester une séance : onglet Entraînement › Démarrer, valider une série avec la coche ; le repos démarre (Activité en direct sur l'écran verrouillé). Pour tester Apple Santé : Réglages de l'app › Services Apple › activer Apple Santé et accepter l'autorisation. Les séances terminées sont alors enregistrées dans Santé comme entraînements « Musculation », et le poids lu dans Santé s'affiche dans l'onglet Progrès. Le poids et les données de Santé ne sont jamais envoyés sur le compte. Apple Music s'active au même endroit : le morceau en cours apparaît pendant la séance. »
 - Contact : Maxence de La Fouchardière, maxdelafouch@gmail.com

@@ -76,7 +76,7 @@ function updateEffortUI() {
     if (c.phase === 'prep' || c.phase === 'switch' || (e.target && c.left >= 1 && c.left <= 3)) playMelody('tick');
     if (c.phase === 'switch' && lastPhase !== 'switch') { announce('Change de côté'); haptic(); }
     if (c.phase === 'effort' && lastPhase && (lastPhase !== 'effort' || lastSide !== String(c.side))) {
-      announce(two ? `Côté ${c.side}, partez` : 'Partez'); haptic();
+      announce(two ? `Côté ${c.side}, vas-y` : 'Vas-y'); haptic();
       afterPaint(syncEffortActivity);   // écran verrouillé : décompte du côté qui commence
     }
     if (c.phase === 'effort' && e.target && c.left === 10 && e.target > 15) announce('10 secondes');
