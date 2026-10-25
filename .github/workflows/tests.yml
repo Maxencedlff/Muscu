@@ -35,6 +35,9 @@ jobs:
         run: for f in $(find js -name '*.js') sw.js; do node --check "$f"; done
       - name: Tests unitaires
         run: node tests/unit/run.mjs
+      # Postgres local jetable (préinstallé sur ubuntu-latest) : RLS, GRANT et déclencheurs des migrations
+      - name: Migrations Supabase (Postgres local, rien d'envoyé au projet)
+        run: bash tests/sql/run.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)

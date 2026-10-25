@@ -1,18 +1,22 @@
 // Suppression du compte MDLF (règle Apple 5.1.1(v)), appelée par js/data/account.js (accountDelete).
 //
 // 1. L'appelant est identifié par son jeton de session (JWT vérifié par Supabase et relu ici).
-// 2. Le code d'autorisation Apple tout frais (nouvelle connexion avec Apple dans l'app) est échangé
-//    contre un jeton, puis ce jeton est révoqué (POST appleid.apple.com/auth/revoke) : MDLF disparaît
-//    de « Se connecter avec Apple » dans l'identifiant Apple. Le code doit appartenir au même
-//    identifiant Apple que le compte (claim sub), sinon il est ignoré.
-// 3. L'utilisateur est supprimé ; ses séances et son profil partent avec lui (on delete cascade).
-// Révocation impossible (code périmé, Apple injoignable) : le compte est supprimé quand même et la
-// réponse le dit (revoked: false) ; l'app explique alors comment retirer l'accès à la main.
+// 2. Compte avec une identité Apple : le code d'autorisation Apple tout frais (nouvelle connexion avec
+//    Apple dans l'app) est échangé contre un jeton, puis ce jeton est révoqué (POST
+//    appleid.apple.com/auth/revoke) : MDLF disparaît de « Se connecter avec Apple » dans l'identifiant
+//    Apple. Le code doit appartenir au même identifiant Apple que le compte (claim sub), sinon il est
+//    ignoré. Révocation impossible (code périmé, Apple injoignable) : le compte est supprimé quand même
+//    et la réponse le dit (revoked: false) ; l'app explique alors comment retirer l'accès à la main.
+// 3. Compte sans Apple (e-mail, Google) : il faut une connexion de moins de 10 minutes (claim amr du
+//    jeton, recent-auth.js), obtenue par un nouveau code e-mail ou une nouvelle connexion Google. Un
+//    jeton volé ou une session restée ouverte ne suffit pas : réponse 401 { error: 'reauth' }.
+// 4. L'utilisateur est supprimé ; ses séances, son profil et son pseudo partent avec lui (on delete cascade).
 //
 // Secrets (Management API, jamais dans le dépôt) : APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY
 // (contenu du .p8 « Sign in with Apple »), APPLE_CLIENT_ID (com.mdlf.training).
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { importPKCS8, SignJWT, decodeJwt } from 'npm:jose@5.9.6';
+import { isRecentAuth } from './recent-auth.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -76,12 +80,18 @@ Deno.serve(async (req) => {
   const { data: { user }, error } = await asUser.auth.getUser(auth.slice(7));
   if (error || !user) return json({ error: 'auth' }, 401);
 
-  let code = '';
-  try { code = String((await req.json())?.code ?? ''); } catch { /* corps vide : suppression sans révocation */ }
   const appleSub = user.identities?.find((i) => i.provider === 'apple')?.id ?? '';
-
   let revoked = false;
-  try { revoked = await revokeApple(code, appleSub); } catch { revoked = false; }
+  if (appleSub) {
+    let code = '';
+    try { code = String((await req.json())?.code ?? ''); } catch { /* corps vide : suppression sans révocation */ }
+    try { revoked = await revokeApple(code, appleSub); } catch { revoked = false; }
+  } else {
+    // Jeton déjà validé par auth.getUser : ses claims sont ceux du serveur d'authentification
+    let claims: Record<string, unknown> = {};
+    try { claims = decodeJwt(auth.slice(7)); } catch { /* illisible : refusé ci-dessous */ }
+    if (claims.sub !== user.id || !isRecentAuth(claims, Math.floor(Date.now() / 1000))) return json({ error: 'reauth' }, 401);
+  }
 
   const admin = createClient(url, secretKey(), { auth: { persistSession: false } });
   const { error: delErr } = await admin.auth.admin.deleteUser(user.id);
