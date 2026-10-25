@@ -209,13 +209,19 @@ body.light .hero__chip { background: color-mix(in srgb, var(--cell) 80%, transpa
   display: flex; justify-content: space-between; gap: 8px; margin: 0 0 4px; white-space: nowrap;
   font-size: 0.765rem; line-height: 1.059rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--label2);
 }
-.home-card__aside { font-weight: 600; letter-spacing: 0; text-transform: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.home-card__aside { flex-shrink: 0; font-weight: 600; letter-spacing: 0; text-transform: none; }
+/* iPhone SE : « + 3 » seul à côté du titre (« exercices » reste lu par VoiceOver), jamais « + 3 e… » */
+@media (max-width: 374px) {
+  .home-card__aside-more { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
 .targets__list { list-style: none; margin: 0; padding: 0; }
 .targets__row { display: flex; align-items: baseline; gap: 12px; padding: 8px 0; font-size: 0.941rem; }
 .targets__row + .targets__row { border-top: 0.5px solid var(--sep); }
-/* Nom d'exercice en entier : passe à la ligne plutôt que d'être coupé (écrans Android étroits) */
-.targets__name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.targets__val { flex-shrink: 0; font-weight: 700; }
+/* Nom d'exercice en entier, coupé seulement entre deux mots. Il garde au moins 9 em : sinon la charge
+   passe sous le nom, alignée à droite (iPhone SE, grands caractères) */
+.targets__row { flex-wrap: wrap; row-gap: 0; }
+.targets__name { flex: 1 1 9em; min-width: 0; overflow-wrap: break-word; }
+.targets__val { flex-shrink: 0; margin-left: auto; font-weight: 700; }
 .targets__gain { margin-left: 6px; font-size: 0.765rem; color: var(--green-text); }
 
 /* Anneaux : séances / volume / régularité (toute la rangée mène aux progrès) */

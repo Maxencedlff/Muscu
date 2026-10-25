@@ -204,7 +204,7 @@ function targetsCard(cat) {
   const anyHistory = exs.some(ex => lastPerf(data.activeProgramme, cat, ex));
   return `
     <section class="home-card targets" aria-label="${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}">
-      <h2 class="home-card__title">${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}${more > 0 ? `<span class="home-card__aside">+ ${more} exercice${more > 1 ? 's' : ''}</span>` : ''}</h2>
+      <h2 class="home-card__title">${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}${more > 0 ? `<span class="home-card__aside">+ ${more}<span class="home-card__aside-more"> exercice${more > 1 ? 's' : ''}</span></span>` : ''}</h2>
       <ul class="targets__list">${rows}</ul>
     </section>`;
 }
