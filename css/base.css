@@ -209,14 +209,8 @@ input, textarea, select { font-family: inherit; }
 .stepper button::after { content: ''; position: absolute; inset: -6px 0; } /* zone de tap de 44 px */
 .stepper button:active { opacity: .5; }
 
-/* Pastille de catégorie (initiale blanche sur la couleur de la séance) */
+/* Pastille de séance : point de la couleur de la séance (même taille que celui de l'Historique) */
 .cat-badge {
-  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
-  width: var(--badge, 28px); height: var(--badge, 28px); border-radius: 50%;
-  background: var(--cat-color); color: var(--white);
-  font-size: var(--fs-footnote); font-weight: 700; line-height: 1;
-  vertical-align: middle;
+  display: inline-block; flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--cat-color); vertical-align: middle;
 }
-.cat-badge--emoji { background: none; font-size: var(--fs-title3); overflow: hidden; }
-.cat-badge[style*="--badge"] { font-size: calc(var(--badge) * .46); }
-.cat-badge--emoji[style*="--badge"] { font-size: calc(var(--badge) * .7); }

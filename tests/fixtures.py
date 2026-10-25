@@ -1,7 +1,7 @@
 """Données de test réalistes et outils partagés par les tests Playwright de PPL Training.
 
 - ppl_v2_today() : donnée au format actuel (avant le lot 1) : SANS champ schema ni exId,
-  ~9 semaines d'historique push/pull/legs à charges progressives, une séance Perso avec emoji,
+  ~9 semaines d'historique push/pull/legs à charges progressives, une séance Perso avec icône (ancien champ, plus affiché),
   quelques entrées sans champ programme, des reps stockées en nombre, un PR faussé.
 - old_active_session() : un ppl_active_session au format d'avant le lot 1.
 """
@@ -67,8 +67,10 @@ def ppl_v2_today(now_ms=None, weeks=9):
         for cat, exs, days_ago in (('push', PUSH, 8), ('pull', PULL, 6), ('legs', LEGS, 4)):
             date = now - back - days_ago * DAY - 3 * 3600_000
             exercises = []
-            for eid, name, nsets, base in exs:
-                w = None if base is None else base + 2.5 * (k // 2)
+            for j, (eid, name, nsets, base) in enumerate(exs):
+                # +2,5 kg toutes les deux semaines, pas au même moment pour tous les exercices (sinon
+                # chaque exercice bat son record la même semaine) ; charge finale identique pour tous
+                w = None if base is None else base + 2.5 * min(4, (k + j % 3) // 2)
                 reps = REPS[nsets] if base is not None else [15, 15, 14, 12][:nsets]
                 sets = []
                 for r in reps:
@@ -84,12 +86,12 @@ def ppl_v2_today(now_ms=None, weeks=9):
             if k == 6 and cat == 'legs':
                 entry['notes'] = 'Genou un peu raide, "squat" léger <ok>'
             history.append(entry)
-    # Séance Perso avec emoji
+    # Séance Perso avec icône (ancien champ, plus affiché)
     for i in range(3):
         date = now - (20 - i * 7) * DAY
         history.append({'id': 'hcs%02d' % i, 'programme': 'custom', 'category': CUSTOM_ID, 'date': date,
-                        'duration': 40 * 60_000, 'notes': 'Pump 💥' if i == 2 else '',
-                        'exercises': [{'name': n, 'sets': [{'weight': fmt_w(b + i), 'reps': '10'}] * s}
+                        'duration': 40 * 60_000, 'notes': 'Bonne congestion' if i == 2 else '',
+                        'exercises': [{'name': n, 'sets': [{'weight': fmt_w(b + min(i, 1)), 'reps': '10'}] * s}
                                       for _, n, s, b in CUSTOM]})
     history.sort(key=lambda h: -h['date'])
 
@@ -100,7 +102,7 @@ def ppl_v2_today(now_ms=None, weeks=9):
            'timers': {}, 'cooldowns': {'push': 72, 'pull': 72, 'legs': 72}}
     custom = {'exercises': {CUSTOM_ID: prog_ex(CUSTOM)}, 'timers': {CUSTOM_ID: None}, 'cooldowns': {CUSTOM_ID: 72}}
     d = {'activeProgramme': 'ppl', 'programmes': {'ppl': ppl, 'custom': custom},
-         'customSessions': {CUSTOM_ID: {'label': 'Bras 💥', 'icon': '💥', 'desc': 'Biceps · Triceps', 'color': '#ec4899'}},
+         'customSessions': {CUSTOM_ID: {'label': 'Bras', 'icon': '💥', 'desc': 'Biceps · Triceps', 'color': '#ec4899'}},
          'defaultRest': 90, 'unit': 'kg', 'soundOn': True, 'vibrateOn': True, 'history': history,
          '_prRecomputed': True}
     # PR / dernière série comme les calculait l'app (ordre chronologique)

@@ -181,15 +181,14 @@ function renderStats() {
     <div class="view stats view--grouped">
       ${navBar({ title: 'Progrès' })}
       <div class="scr">
-        <div class="tiles">
-          <div class="tile"><span class="tile__val num">${monthCount}</span><span class="tile__lbl">${monthCount > 1 ? 'séances' : 'séance'} ce mois-ci</span></div>
-          <div class="tile"><span class="tile__val num">${streak}</span><span class="tile__lbl">${streak > 1 ? 'semaines' : 'semaine'} d'affilée</span></div>
-          <div class="tile"><span class="tile__val num">${records}</span><span class="tile__lbl">${records > 1 ? 'records' : 'record'} cette semaine</span></div>
-        </div>
-        <div class="group">
+        <div class="group stats-head">
+          <div class="stat-pair">
+            <div class="stat-pair__item"><span class="stat-pair__val num">${monthCount}</span><span class="stat-pair__lbl">${monthCount > 1 ? 'séances' : 'séance'} ce mois-ci</span></div>
+            <div class="stat-pair__item"><span class="stat-pair__val num">${streak}</span><span class="stat-pair__lbl">${streak > 1 ? 'semaines' : 'semaine'} d'affilée</span></div>
+          </div>
           <button class="cell cell--nav" data-action="go-stats-overview">
             ${icon('chart', 22)}
-            <span class="cell__body"><span class="cell__title">Vue d'ensemble</span></span>
+            <span class="cell__body"><span class="cell__title">Vue d'ensemble</span>${records ? `<span class="cell__sub">${plural(records, 'record', 'records')} cette semaine</span>` : ''}</span>
             ${icon('chevron.right', 16)}
           </button>
         </div>
@@ -218,7 +217,7 @@ registerActions({
     ovMonth = null; navigate('stats-overview');
   },
   'info-1rm': async () => {
-    await dialog({ title: '1RM estimé', message: 'Charge maximale estimée pour une seule répétition, calculée avec la formule d\'Epley : poids × (1 + reps / 30). Elle n\'est fiable que jusqu\'à 12 reps : au-delà, la courbe reprend la charge max de la séance.',
+    await dialog({ title: '1RM estimé', message: 'Charge estimée pour une seule rep. Fiable jusqu\'à 12 reps.',
       actions: [{ label: 'OK', value: true, style: 'preferred' }] });
   },
 });

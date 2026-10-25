@@ -165,7 +165,6 @@ body.light .livebar { background: var(--cell); }
 .hero__name--xl { font-size: 4.7rem; }
 .hero__name--l  { font-size: 3.4rem; }
 .hero__name--m  { font-size: 2.3rem; line-height: 1.05; }
-.hero__emoji { margin-right: .15em; }
 .hero__desc { font-size: 1rem; line-height: 1.3rem; color: var(--label2); margin-top: 8px; }
 .hero__info { font-size: 0.882rem; line-height: 1.176rem; color: var(--label2); margin-top: 4px; }
 .hero__info--live { color: var(--label); font-weight: 600; }
@@ -261,7 +260,7 @@ html.type-xl .targets__row { flex-wrap: wrap; }
   color: var(--label); font: inherit; text-align: left;
 }
 .home-cell + .home-cell::before {
-  content: ''; position: absolute; top: 0; right: 0; left: 40px;
+  content: ''; position: absolute; top: 0; right: 0; left: 22px;
   height: 0.5px; background: var(--sep);
 }
 .home-cell:active { opacity: .6; }

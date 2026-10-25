@@ -630,7 +630,7 @@ test('userProgrammes : nettoyage des programmes et séances perso', () => {
   const s = d.userProgrammes.u_ok.sessions;
   sameJSON(Object.keys(s), ['a', 'b']);
   sameJSON(s.a, { label: 'A', icon: '🔥', desc: 'Haut', color: '#FF9F0A' });
-  sameJSON(s.b, { label: 'Séance', color: '#8E8E93', icon: '🏋️', desc: '' });
+  sameJSON(s.b, { label: 'Séance', color: '#8E8E93', icon: '', desc: '' });   // icône gardée si présente (s.a), plus affichée
   assert.equal(d.userProgrammes.u_ok.archived, false);
   assert.equal(d.userProgrammes.u_arch.name, 'Programme');
   assert.equal(d.userProgrammes.u_arch.archived, true);

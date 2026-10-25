@@ -206,7 +206,7 @@ function sanitizeData(d) {
       const cs = sessions[k];
       if (!isObj(cs) || !SESSION_CAT_RE.test(k)) { delete sessions[k]; return; }
       if (typeof cs.label !== 'string' || !cs.label.trim()) cs.label = 'Séance';
-      if (typeof cs.icon !== 'string') cs.icon = '🏋️';
+      if (typeof cs.icon !== 'string') cs.icon = '';   // gardée pour les anciennes données, plus affichée
       if (typeof cs.desc !== 'string') cs.desc = '';
       if (!/^(#[0-9a-f]{6}|var\(--[a-z]+\))$/i.test(cs.color || '')) cs.color = '#8E8E93';
     });

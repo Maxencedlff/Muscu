@@ -7,9 +7,9 @@ const PROGRAMMES = {
   ppl: {
     name: 'PPL', desc: 'Pousser · Tirer · Jambes', icon: icon('dumbbell'),
     sessions: {
-      push: { label: 'Push', icon: '💪', desc: 'Pectoraux · Épaules · Triceps', color: 'var(--orange)' },
-      pull: { label: 'Pull', icon: '🦾', desc: 'Dos · Biceps · Trapèzes',       color: 'var(--indigo)' },
-      legs: { label: 'Legs', icon: '🦵', desc: 'Quadriceps · Ischio · Mollets', color: 'var(--teal)' },
+      push: { label: 'Push', desc: 'Pectoraux · Épaules · Triceps', color: 'var(--orange)' },
+      pull: { label: 'Pull', desc: 'Dos · Biceps · Trapèzes',       color: 'var(--indigo)' },
+      legs: { label: 'Legs', desc: 'Quadriceps · Ischio · Mollets', color: 'var(--teal)' },
     },
     defaults: {
       push: [['Développé couché haltères',4],['Développé incliné haltères',3],['Écarté haltères plat',3],['Développé militaire haltères',4],['Élévations latérales',4],['Extension triceps poulie',3]],
@@ -20,8 +20,8 @@ const PROGRAMMES = {
   upper_lower: {
     name: 'Upper / Lower', desc: 'Haut · Bas du corps', icon: icon('dumbbell'),
     sessions: {
-      upper: { label: 'Upper', icon: '💪', desc: 'Pecs · Dos · Épaules · Bras',              color: 'var(--orange)' },
-      lower: { label: 'Lower', icon: '🦵', desc: 'Quadriceps · Ischio · Mollets · Fessiers', color: 'var(--indigo)' },
+      upper: { label: 'Upper', desc: 'Pecs · Dos · Épaules · Bras',              color: 'var(--orange)' },
+      lower: { label: 'Lower', desc: 'Quadriceps · Ischio · Mollets · Fessiers', color: 'var(--indigo)' },
     },
     defaults: {
       upper: [['Développé couché haltères',4],['Tirage vertical prise large',4],['Rowing haltère unilatéral',3],['Développé militaire haltères',3],['Curl biceps haltères',3],['Extension triceps poulie',3]],
@@ -31,7 +31,7 @@ const PROGRAMMES = {
   fullbody: {
     name: 'Full Body', desc: 'Corps entier · 3×/semaine', icon: icon('dumbbell'),
     sessions: {
-      fullbody: { label: 'Full Body', icon: '⚡', desc: 'Corps entier', color: 'var(--teal)' },
+      fullbody: { label: 'Full Body', desc: 'Corps entier', color: 'var(--teal)' },
     },
     defaults: {
       fullbody: [['Squat barre',3],['Développé couché haltères',3],['Rowing haltère unilatéral',3],['Développé militaire haltères',3],['Curl biceps haltères',3],['Extension triceps poulie',3],['Mollets debout',3]],
@@ -40,11 +40,11 @@ const PROGRAMMES = {
   bro: {
     name: 'Bro Split', desc: 'Un muscle par jour : pecs, dos, épaules, bras, jambes', icon: icon('dumbbell'),
     sessions: {
-      chest:     { label: 'Pecs',      icon: '💪', desc: 'Pectoraux',           color: 'var(--orange)' },
-      back:      { label: 'Dos',       icon: '🦾', desc: 'Dos · Trapèzes',       color: 'var(--indigo)' },
-      shoulders: { label: 'Épaules',   icon: '🏔️', desc: 'Épaules',             color: 'var(--yellow)' },
-      arms:      { label: 'Bras',      icon: '🦾', desc: 'Biceps · Triceps',    color: 'var(--purple)' },
-      legs:      { label: 'Jambes',    icon: '🦵', desc: 'Quadriceps · Ischio', color: 'var(--teal)' },
+      chest:     { label: 'Pecs',      desc: 'Pectoraux',           color: 'var(--orange)' },
+      back:      { label: 'Dos',       desc: 'Dos · Trapèzes',       color: 'var(--indigo)' },
+      shoulders: { label: 'Épaules',   desc: 'Épaules',             color: 'var(--yellow)' },
+      arms:      { label: 'Bras',      desc: 'Biceps · Triceps',    color: 'var(--purple)' },
+      legs:      { label: 'Jambes',    desc: 'Quadriceps · Ischio', color: 'var(--teal)' },
     },
     defaults: {
       chest:     [['Développé couché haltères',4],['Développé incliné haltères',4],['Écarté haltères plat',3],['Dips',3]],
@@ -57,9 +57,9 @@ const PROGRAMMES = {
   arnold: {
     name: 'Arnold Split', desc: 'Pecs+Dos · Épaules+Bras · Jambes', icon: icon('dumbbell'),
     sessions: {
-      chest_back:     { label: 'Pecs & Dos',       icon: '💪', desc: 'Pectoraux · Dos',              color: 'var(--orange)' },
-      shoulders_arms: { label: 'Épaules & Bras',   icon: '🤙', desc: 'Épaules · Biceps · Triceps',   color: 'var(--yellow)' },
-      legs:           { label: 'Jambes',           icon: '🦵', desc: 'Quadriceps · Ischio · Mollets', color: 'var(--teal)' },
+      chest_back:     { label: 'Pecs & Dos',       desc: 'Pectoraux · Dos',              color: 'var(--orange)' },
+      shoulders_arms: { label: 'Épaules & Bras',   desc: 'Épaules · Biceps · Triceps',   color: 'var(--yellow)' },
+      legs:           { label: 'Jambes',           desc: 'Quadriceps · Ischio · Mollets', color: 'var(--teal)' },
     },
     defaults: {
       chest_back:     [['Développé couché haltères',4],['Écarté haltères plat',3],['Tirage vertical prise large',4],['Rowing haltère unilatéral',4],['Tractions pronation',3]],
@@ -71,8 +71,8 @@ const PROGRAMMES = {
   maison: {
     name: 'Maison', desc: 'Poids du corps · aucun matériel', icon: icon('dumbbell'),
     sessions: {
-      haut: { label: 'Haut du corps', icon: '💪', desc: 'Pectoraux · Dos · Épaules · Bras', color: 'var(--orange)' },
-      bas:  { label: 'Bas du corps',  icon: '🦵', desc: 'Quadriceps · Fessiers · Abdos',   color: 'var(--teal)' },
+      haut: { label: 'Haut du corps', desc: 'Pectoraux · Dos · Épaules · Bras', color: 'var(--orange)' },
+      bas:  { label: 'Bas du corps',  desc: 'Quadriceps · Fessiers · Abdos',   color: 'var(--teal)' },
     },
     defaults: {
       haut: [['Pompes',4],['Rowing sous une table',4],['Pompes pike (épaules)',3],['Dips sur chaise',3],['Superman',3],['Gainage (planche)',3]],
@@ -82,9 +82,9 @@ const PROGRAMMES = {
   maison_halteres: {
     name: 'Maison haltères', desc: 'Haltères et banc · Push · Pull · Legs', icon: icon('dumbbell'),
     sessions: {
-      push: { label: 'Push', icon: '💪', desc: 'Pectoraux · Épaules · Triceps', color: 'var(--orange)' },
-      pull: { label: 'Pull', icon: '🦾', desc: 'Dos · Biceps · Trapèzes',       color: 'var(--indigo)' },
-      legs: { label: 'Legs', icon: '🦵', desc: 'Quadriceps · Ischio · Fessiers', color: 'var(--teal)' },
+      push: { label: 'Push', desc: 'Pectoraux · Épaules · Triceps', color: 'var(--orange)' },
+      pull: { label: 'Pull', desc: 'Dos · Biceps · Trapèzes',       color: 'var(--indigo)' },
+      legs: { label: 'Legs', desc: 'Quadriceps · Ischio · Fessiers', color: 'var(--teal)' },
     },
     defaults: {
       push: [['Développé couché haltères',4],['Développé incliné haltères',3],['Développé militaire haltères',3],['Élévations latérales',3],['Extension triceps couché haltères',3]],

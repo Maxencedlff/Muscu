@@ -1,21 +1,18 @@
 // ═══════════════════════════════════════════════════════════
-//  Séance perso : nom, description, icône, couleur
+//  Séance perso : nom, description, couleur
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
 let csEditId    = null;   // séance modifiée, null pour une nouvelle séance
 let csColor     = '#3b82f6';
 let csProg      = 'custom';   // programme modifiable visé par l'écran Séance perso
-let csIcon      = '🏋️';
-const CS_ICONS  = ['🏋️','💪','🦾','🦵','🔥','⚡','🏃','🧘','🥊','🚴','🤸','🎯'];
 const CS_COLORS = [['#FF9500','Orange'],['#FF3B30','Rouge'],['#FFCC00','Jaune'],['#34C759','Vert'],['#30B0C7','Turquoise'],
                    ['#007AFF','Bleu'],['#5856D6','Indigo'],['#AF52DE','Violet'],['#FF2D55','Rose'],['#8E8E93','Gris']];
 
-// Séance Perso : nom, description, icône (grille), couleur
+// Séance Perso : nom, description, couleur (la pastille de la séance est un point de cette couleur)
 function renderCsEdit() {
   const isEdit   = csEditId !== null;
   const existing = isEdit ? (userSessions(csProg)?.[csEditId] || {}) : {};
-  const icons    = CS_ICONS.includes(csIcon) ? CS_ICONS : [csIcon, ...CS_ICONS.slice(0, 11)];
   return `
     <div class="view cs-edit view--grouped">
       ${navBar({ title: isEdit ? 'Modifier la séance' : 'Nouvelle séance',
@@ -28,12 +25,6 @@ function renderCsEdit() {
                placeholder="Ex : Séance A" autocomplete="off" aria-label="Nom de la séance"></div>
           <div class="cell cell--field"><input type="text" id="csDesc" class="field" value="${esc(existing.desc)}"
                placeholder="Description (optionnel)" autocomplete="off" aria-label="Description"></div>
-        </div>
-        <div class="group-title">Icône</div>
-        <div class="group group--pad">
-          <div class="emoji-grid" role="radiogroup" aria-label="Icône">
-            ${icons.map(ic => `<button class="emoji-btn ${ic === csIcon ? 'is-on' : ''}" role="radio" aria-checked="${ic === csIcon}" data-action="pick-cs-icon" data-icon="${esc(ic)}">${esc(ic)}</button>`).join('')}
-          </div>
         </div>
         <div class="group-title">Couleur</div>
         <div class="group group--pad">
@@ -52,7 +43,7 @@ function renderCsEdit() {
 // Écran « Nouvelle séance » du programme actif (ou de Perso pour un programme intégré)
 function openNewSession() {
   csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom';
-  csEditId = null; csColor = '#FF9500'; csIcon = '🏋️';
+  csEditId = null; csColor = '#FF9500';
   navigate('cs-edit');
 }
 
@@ -63,7 +54,7 @@ registerActions({
     const id = el.dataset.id;
     csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom';
     const cs = userSessions(csProg)?.[id] || {};
-    csEditId = id; csColor = cs.color || '#FF9500'; csIcon = cs.icon || '🏋️';
+    csEditId = id; csColor = cs.color || '#FF9500';
     navigate('cs-edit');
   },
   'close-cs-modal': () => {
@@ -76,13 +67,6 @@ registerActions({
       b.classList.toggle('is-on', on); b.setAttribute('aria-checked', on);
     });
   },
-  'pick-cs-icon': (e, el) => {
-    csIcon = el.dataset.icon;
-    document.querySelectorAll('.emoji-btn').forEach(b => {
-      const on = b.dataset.icon === csIcon;
-      b.classList.toggle('is-on', on); b.setAttribute('aria-checked', on);
-    });
-  },
   'save-cs-modal': () => {
     const name = $('#csName')?.value.trim();
     const desc = $('#csDesc')?.value.trim() || '';
@@ -92,8 +76,8 @@ registerActions({
     const store = userSessions(csProg);
     if (!store) return;
     const prev = store[id];
-    // Une séance copiée d'un programme intégré garde sa pastille à initiale tant qu'on ne choisit pas d'emoji
-    store[id] = { label: name, icon: prev && !prev.icon && csIcon === '🏋️' ? '' : (csIcon || '🏋️'), desc, color: csColor };
+    // L'icône n'est plus choisie ni affichée : celle d'une séance existante est gardée telle quelle
+    store[id] = { label: name, icon: prev?.icon || '', desc, color: csColor };
 
     // Emplacements exercices / chrono / récupération
     const pd = data.programmes[csProg] ||= { exercises: {}, timers: {}, cooldowns: {} };

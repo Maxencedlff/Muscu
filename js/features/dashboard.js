@@ -5,11 +5,9 @@
 
 let ticker = null;
 
-// Pastille de séance : initiale sur la couleur de la séance, ou l'emoji choisi pour une séance Perso
-function catDot(cat, progId, size = 28) {
-  progId = progId || data.activeProgramme;
-  const meta = sessionMeta(cat, progId);
-  return catBadge(rawLabel(cat, progId), meta.color, isUserProg(progId) ? meta.emoji : '', size);
+// Pastille de séance : point de la couleur de la séance
+function catDot(cat, progId) {
+  return catBadge(sessionMeta(cat, progId || data.activeProgramme).color);
 }
 
 // « dans 1 j 18 h », « dans 14 h », « dans 35 min » (jamais de secondes)
@@ -314,7 +312,7 @@ function renderDashboard() {
     hero = `
       <section class="hero" aria-label="${liveHere ? 'Séance en cours' : 'Prochaine séance'}">
         <div class="hero__eyebrow">${liveHere ? 'Séance en cours' : 'Prochaine séance'}</div>
-        <div class="hero__name hero__name--${size}">${isUserProg(data.activeProgramme) && meta.emoji ? `<span class="hero__emoji" aria-hidden="true">${meta.emoji}</span>` : ''}${meta.label}</div>
+        <div class="hero__name hero__name--${size}">${meta.label}</div>
         ${meta.desc ? `<div class="hero__desc">${meta.desc}</div>` : ''}
         ${info}
         ${chips ? `<div class="hero__chips">${chips}</div>` : ''}

@@ -29,7 +29,7 @@
   font-family: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   white-space: nowrap; min-width: 0; overflow: hidden;
 }
-.cat-sel-btn .cat-badge { width: 18px; height: 18px; font-size: var(--fs-caption2); }
+.cat-sel-btn .cat-badge { width: 8px; height: 8px; margin-right: 2px; }
 .cat-sel-btn--active { background: var(--segment-on) !important; box-shadow: var(--shadow-seg); color: var(--label) !important; border: none !important; }
 .cat-sel-btn:active  { opacity: .7; }
 .cat-sel-btn--other { flex: 0 0 auto; padding: 0 10px; color: var(--tint); font-weight: 500; }

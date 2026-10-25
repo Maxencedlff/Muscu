@@ -61,26 +61,23 @@ function sessionKeys(progId) {
   return Object.keys(PROGRAMMES[progId]?.sessions || {});
 }
 
-// Pastille ronde de 28 px : initiale blanche sur la couleur de la séance,
-// ou l'emoji choisi par l'utilisateur (séances Perso) dans un carré fixe
-function catBadge(label, color, emoji, size = 28) {
-  const sz = size !== 28 ? `--badge:${size}px;` : '';
-  if (emoji) return `<span class="cat-badge cat-badge--emoji" ${sz ? `style="${sz}"` : ''} aria-hidden="true">${emoji}</span>`;
-  const initial = String(label || '?').trim().charAt(0).toUpperCase();
-  return `<span class="cat-badge" style="${sz}--cat-color:${color}" aria-hidden="true">${esc(initial)}</span>`;
+// Pastille de séance : un simple point de la couleur de la séance, comme dans l'Historique. L'icône
+// d'une séance Perso (cs.icon, emoji choisi avant) reste dans les données mais n'est plus affichée.
+function catBadge(color) {
+  return `<span class="cat-badge" style="--cat-color:${color}" aria-hidden="true"></span>`;
 }
 
 function sessionMeta(cat, progId) {
   progId = progId || data.activeProgramme;
-  if (progId === FREE) return { label: FREE_META.label, icon: catBadge(FREE_META.label, FREE_META.color), emoji: '', desc: FREE_META.desc, color: FREE_META.color };
+  if (progId === FREE) return { label: FREE_META.label, icon: catBadge(FREE_META.color), desc: FREE_META.desc, color: FREE_META.color };
   if (isUserProg(progId)) {
     const cs = userSessions(progId)?.[cat];
-    if (!cs) return { label: esc(cat), icon: catBadge(cat, 'var(--label2)'), emoji: '', desc: '', color: '#8E8E93' };
-    return { ...cs, label: esc(cs.label), icon: catBadge(cs.label, cs.color, esc(cs.icon)), emoji: esc(cs.icon), desc: esc(cs.desc) };
+    if (!cs) return { label: esc(cat), icon: catBadge('var(--label2)'), desc: '', color: '#8E8E93' };
+    return { ...cs, label: esc(cs.label), icon: catBadge(cs.color), desc: esc(cs.desc) };
   }
   const m = PROGRAMMES[progId]?.sessions[cat];
-  if (!m) return { label: esc(cat), icon: catBadge(cat, 'var(--label2)'), emoji: '', desc: '', color: '#8E8E93' };
-  return { ...m, emoji: m.icon, icon: catBadge(m.label, m.color) };
+  if (!m) return { label: esc(cat), icon: catBadge('var(--label2)'), desc: '', color: '#8E8E93' };
+  return { ...m, icon: catBadge(m.color) };
 }
 
 // Libellé brut (non échappé) pour les textes affichés via textContent

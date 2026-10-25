@@ -71,11 +71,8 @@ AUDIT_JS = r"""() => {
     if (/\d\.\d/.test(txt)) decimals.push(`${el.className} « ${txt.slice(0, 40)} »`);
   }
   document.querySelectorAll('#app button').forEach(b => {
-    // Les emojis choisis pour les séances Perso restent permis dans leur pastille
-    const clone = b.cloneNode(true);
-    clone.querySelectorAll('.cat-badge--emoji, .custom-session-icon').forEach(x => x.remove());
-    // Fusion : les noms saisis pour les séances Perso (« Bras 💥 ») sont des données de l'utilisateur
-    let txt = clone.textContent;
+    // Les noms saisis pour les séances Perso sont des données de l'utilisateur (emojis permis)
+    let txt = b.textContent;
     Object.values((typeof data !== 'undefined' && data && data.customSessions) || {}).forEach(c => { txt = txt.split(c.label).join(''); });
     if (/\p{Extended_Pictographic}/u.test(txt)) emojis.push(`${b.className} « ${b.textContent.trim().slice(0, 30)} »`);
   });
@@ -173,14 +170,14 @@ def t_custom_colors(bench, eng, dev, theme):
         c = page.evaluate("""() => { const card = document.querySelector('[style*="--cat-color"]');
             return card ? getComputedStyle(card).getPropertyValue('--cat-color').trim() : null; }""")
         R.check(c and c.lower() == '#ec4899', f'{t} séance Perso : couleur d\'origine conservée ({c})')
-        R.check(page.locator('.cat-badge--emoji, .hero__emoji', has_text='💥').count() >= 1, f'{t} séance Perso : emoji affiché')
+        R.check(page.locator('.cat-badge', has_text='💥').count() == 0 and page.locator('.hero__emoji').count() == 0, f'{t} séance Perso : icône gardée dans les données, plus affichée')
         shot(page, LOT, f'accueil-perso-{t}')
         page.evaluate("data.activeProgramme = 'ppl'; render()")
         page.wait_for_timeout(150)
         badges = page.evaluate("""() => [...document.querySelectorAll('.view.dashboard .cat-badge')  /* Fusion : accueil du lot 3 */].map(b => {
             const r = b.getBoundingClientRect(); return [b.textContent, r.width, r.height, getComputedStyle(b).backgroundColor]; })""")
         # Push est la prochaine séance (grand titre, sans pastille) ; Pull et Legs dans « Autres séances »
-        R.check([b[0] for b in badges] == ['P', 'L'] and all(b[1] == 28 and b[2] == 28 for b in badges), f'{t} pastilles 28 px avec initiale {badges}')
+        R.check([b[0] for b in badges] == ['', ''] and all(b[1] == 10 and b[2] == 10 for b in badges), f'{t} pastilles : point de couleur de 10 px, sans lettre {badges}')
         cols = [b[3] for b in badges]
         R.check(cols == ['rgb(94, 92, 230)', 'rgb(64, 200, 224)'], f'{t} Pull indigo, Legs teal {cols}')
         glow = page.evaluate("getComputedStyle(document.querySelector('.hero__eyebrow')).color")
