@@ -46,15 +46,16 @@ function catStatus(cat, now = Date.now()) {
   return { last, readyAt, remaining, ready: remaining <= 0, progress: last ? Math.min(1, 1 - remaining / cd) : 1, by: remaining > 0 ? by : null };
 }
 
-// Dernier entraînement (muscle principal, au moins une série) de chaque muscle, sur tout l'historique.
-// Gardé tant que l'historique et les muscles déclarés ne changent pas (l'accueil le lit pour chaque séance).
+// Dernier entraînement (muscle principal, au moins une série) de chaque muscle, sur tout l'historique
+// et les courses et sorties vélo lues dans Santé (quadriceps, mollets : la séance jambes attend).
+// Gardé tant que l'historique, Santé et les muscles déclarés ne changent pas (l'accueil le lit pour chaque séance).
 let muscleLastCache = { key: null, map: null };
 function muscleLastWorked() {
-  const h = data.history || [];
-  const key = `${h.length}:${h[0]?.id}:${h[0]?.date}:${JSON.stringify(data.exerciseMuscles || {})}:${JSON.stringify([...chosenMusclesIndex()])}`;
+  const h = data.history || [], fromHealth = healthEntries();
+  const key = `${h.length}:${h[0]?.id}:${h[0]?.date}:${fromHealth.length}:${fromHealth[0]?.id}:${JSON.stringify(data.exerciseMuscles || {})}:${JSON.stringify([...chosenMusclesIndex()])}`;
   if (muscleLastCache.key === key) return muscleLastCache.map;
   const map = new Map(), index = chosenMusclesIndex();
-  h.forEach(entry => (entry.exercises || []).forEach(e => {
+  [...h, ...fromHealth].forEach(entry => (entry.exercises || []).forEach(e => {
     if (!(e.sets || []).some(s => (parseInt(s?.reps) || 0) > 0)) return;
     exerciseMuscles(e, index).primary.forEach(m => {
       if (!(map.get(m)?.date >= entry.date)) map.set(m, { date: entry.date, entry });
@@ -75,11 +76,13 @@ function sessionRecovery(cat) {
   return best;
 }
 
-// « Biceps : hier, Bras & épaules » : pourquoi une séance attend à cause d'une autre
+// « Biceps : hier, Bras & épaules », « Quadriceps : aujourd'hui, Course (Apple Watch) » :
+// pourquoi une séance attend à cause d'une autre
 function recoveryReason(by) {
   const startOfDay = t => new Date(t).setHours(0, 0, 0, 0);
   const e = by.entry, pid = e.programme || 'ppl';
-  const where = pid === FREE ? 'séance libre'
+  const where = isHealthEntry(e) ? `${e.health.title} (${e.health.source})`
+    : pid === FREE ? 'séance libre'
     : pid === data.activeProgramme ? rawLabel(e.category, pid) : progMeta(pid).name;
   const days = Math.round((startOfDay(Date.now()) - startOfDay(e.date)) / 86400000);
   const when = days <= 0 ? 'aujourd\'hui' : days === 1 ? 'hier' : `il y a ${days} jours`;

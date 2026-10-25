@@ -34,7 +34,7 @@ const TIMED_EXERCISES = new Set(['Gainage (planche)', 'Gainage latéral', 'Gaina
   'Suspension passive', 'Front lever']);
 // Noms saisis librement : maintiens et cardio reconnus par mots-clés (sur ruleKey)
 const TIMED_RE  = /gainage|planche|plank|chaise (contre le|au) mur|wall sit|suspension|dead hang|\bl sit|hollow|front lever|back lever|maintien|isometri/;
-const CARDIO_RE = /course|courir|footing|jogging|running|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation/;
+const CARDIO_RE = /course|courir|footing|jogging|running|trail|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation/;
 // Mots qui l'emportent : « Crunch vélo », « Relevés de jambes en suspension », « Rowing rameur » restent en répétitions
 const NOT_TIMED_RE  = /releve|traction|crunch|curl|rowing|tirage|pompe|squat/;
 const NOT_CARDIO_RE = /crunch|abdo|rowing|tirage|releve|curl|squat|fente|pompe|gainage/;
@@ -57,12 +57,16 @@ function storedMeasure(ex) {
 }
 
 // Texte d'une série selon la mesure : « 32,5 kg × 8 », « 8 reps », « 8 reps · +10 kg », « 8 reps · aide 20 kg »,
-// « 45 s », « 45 s · +10 kg », « 5 km · 30 min ». kind : loadKind() de l'exercice (répétitions seulement)
+// « 45 s », « 45 s · +10 kg », « 5 km · 30 min », « 5 km · 30 min · 6:00 /km ».
+// kind : setKind() de l'exercice (loadKind() en répétitions, paceKind() en cardio : allure ajoutée)
 function measureSetTxt(s, measure, kind = 'charge') {
   if (!s) return '';
   const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
   if (measure === 'time')   return `${fmtSeconds(r)}${w > 0 ? ` · +${fmtW(s.weight)} ${unitLbl()}` : ''}`;
-  if (measure === 'cardio') return `${parseFloat(s.dist) > 0 ? `${fmtNum(s.dist)} km · ` : ''}${r} min`;
+  if (measure === 'cardio') {
+    const pace = paceTxt(s, kind);
+    return `${parseFloat(s.dist) > 0 ? `${fmtNum(s.dist)} km · ` : ''}${r} min${pace ? ` · ${pace}` : ''}`;
+  }
   if (kind === 'lest') return `${r} reps${w > 0 ? ` · +${fmtW(s.weight)} ${unitLbl()}` : ''}`;
   if (kind === 'aide') return `${r} reps${w > 0 ? ` · aide ${fmtW(s.weight)} ${unitLbl()}` : ''}`;
   return w > 0 ? `${fmtW(s.weight)} ${unitLbl()} × ${r}` : `${r} reps`;
@@ -74,6 +78,52 @@ function fmtSeconds(sec) {
   const m = Math.floor(n / 60), s = n % 60;
   return s ? `${m} min ${String(s).padStart(2, '0')}` : `${m} min`;
 }
+
+// ── Cardio : allure ─────────────────────────────────────────
+// Ce qui se court ou se marche s'affiche en min/km, le vélo en km/h ; le reste n'a pas d'allure
+// (rameur, elliptique, corde à sauter : la distance d'une machine n'y vaut pas d'un modèle à l'autre).
+// Bornes : une allure hors de ce qu'un humain tient vient d'une faute de frappe, elle n'est pas affichée.
+const SPEED_RE   = /\bvelo\b|bike|biking|spinning|cycl|vtt|home trainer|\brpm\b/;
+const PACE_RE    = /course|courir|footing|jogging|running|tapis|trail|fractionne|marche|randonnee/;
+const NO_PACE_RE = /elliptique|rameur|corde/;
+const PACE_RANGE  = [2, 30];    // min/km : du sprint à la marche lente
+const SPEED_RANGE = [3, 80];    // km/h
+function paceKind(ex) {
+  if (measureOf(ex) !== 'cardio') return null;
+  const k = ruleKey(catalogueEntry(ex?.name || '')?.name || ex?.name || '');
+  if (NO_PACE_RE.test(k)) return null;
+  return SPEED_RE.test(k) ? 'speed' : PACE_RE.test(k) ? 'pace' : null;
+}
+// Ce qui précise la série d'un exercice : allure en cardio, charge / lest / aide sinon (measureSetTxt)
+function setKind(ex) { return measureOf(ex) === 'cardio' ? paceKind(ex) : loadKind(ex); }
+
+// Allure : minutes par km ('pace') ou km/h ('speed') ; null sans distance, sans durée ou hors bornes.
+// minutes : durée en minutes, décimales acceptées (Santé donne la durée à la seconde)
+function cardioPace(km, minutes, kind) {
+  const d = parseFloat(km), t = parseFloat(minutes);
+  if ((kind !== 'pace' && kind !== 'speed') || !(d > 0) || !(t > 0)) return null;
+  const v = kind === 'speed' ? d / (t / 60) : t / d;
+  const [lo, hi] = kind === 'speed' ? SPEED_RANGE : PACE_RANGE;
+  return v >= lo && v <= hi ? v : null;
+}
+// « 5:12 /km » (comme Strava et l'app Exercice), « 24,5 km/h »
+function fmtPace(v, kind) {
+  if (v == null || !isFinite(v)) return '';
+  if (kind === 'speed') return `${fmtNum(v, 1)} km/h`;
+  let m = Math.floor(v), sec = Math.round((v - m) * 60);
+  if (sec === 60) { m++; sec = 0; }
+  return `${m}:${String(sec).padStart(2, '0')} /km`;
+}
+// Même allure pour VoiceOver : « 5 minutes 12 au kilomètre », « 24,5 kilomètres heure »
+function spokenPace(v, kind) {
+  if (v == null || !isFinite(v)) return '';
+  if (kind === 'speed') return `${fmtNum(v, 1)} kilomètres heure`;
+  let m = Math.floor(v), sec = Math.round((v - m) * 60);
+  if (sec === 60) { m++; sec = 0; }
+  return `${m} minute${m > 1 ? 's' : ''}${sec ? ` ${sec}` : ''} au kilomètre`;
+}
+// Allure d'une série cardio (distance dans dist, minutes dans reps) : texte, '' si elle n'a pas de sens
+function paceTxt(s, kind) { return fmtPace(cardioPace(s?.dist, s?.reps, kind), kind); }
 
 // ── Exercices au poids du corps : lest, aide et part du poids soulevée ──
 // Part du poids du corps réellement soulevée (charge effective = poids × part + lest, ou − aide) :

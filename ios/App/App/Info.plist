@@ -35,7 +35,7 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>MDLF Training enregistre l'image de ta séance dans Photos quand tu choisis « Enregistrer l'image ».</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>MDLF Training lit ton poids dans Santé pour suivre ta prise de masse à côté de tes charges.</string>
+	<string>MDLF Training lit ton poids dans Santé pour suivre ta prise de masse à côté de tes charges, et tes courses et sorties vélo (Apple Watch, Strava…) pour les afficher dans ton historique et tenir compte de la fatigue de tes jambes.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>MDLF Training enregistre tes séances terminées comme entraînements « Musculation » dans Santé.</string>
 	<key>NSSupportsLiveActivities</key>

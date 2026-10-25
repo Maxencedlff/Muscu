@@ -196,7 +196,7 @@ const MUSCLE_RULES = [
   [/rowing|\brow\b|tirage|t ?bar/,                                                        'lats traps', 'rear_delts biceps'],
   [/lombaire|extension (du )?dos|hyperextension|back extension|superman/,                 'lower_back', 'glutes hamstrings'],
   // Cardio après les abdos, le dos et les jambes : « Crunch vélo », « Rowing rameur » gardent leurs muscles
-  [/course|courir|footing|jogging|running|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation|ergometre|jumping jack/, 'quads calves', 'glutes'],
+  [/course|courir|footing|jogging|running|trail|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation|ergometre|jumping jack/, 'quads calves', 'glutes'],
   [/burpee/,                                                                              'quads chest', 'front_delts triceps abs'],
   [/developpe|press/,                                                                     'chest', 'front_delts triceps'],
 ].map(([re, primary, secondary]) => [re, primary.split(' ').filter(Boolean), secondary.split(' ').filter(Boolean)]);

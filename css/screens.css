@@ -154,6 +154,10 @@
 .hcell:active { background: var(--cell2); }
 .hcell__dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; align-self: flex-start; margin-top: 7px; }
 .hcell__dot--lg { width: 14px; height: 14px; margin: 0; align-self: center; }
+/* Course ou sortie vélo lue dans Santé : rien à ouvrir, pastille creuse ; la marge remplace le chevron */
+.hcell--static { cursor: default; padding-right: 44px; }
+.hcell--static:active { background: var(--cell); }
+.hcell__dot--health { box-shadow: inset 0 0 0 2px var(--label2); }
 .hcell__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hcell__top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .hcell__title { font-size: 1rem; line-height: 1.294rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }

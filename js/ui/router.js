@@ -216,13 +216,13 @@ function render() { paint(); }
 //   mount({ first })  : après chaque dessin (first : l'écran vient d'être ouvert)
 //   enter({ dir })    : à chaque affichage par la navigation ; leave() : quand on le quitte
 const SCREENS = new Map([
-  ['dashboard',      { render: () => renderDashboard() }],
+  ['dashboard',      { render: () => renderDashboard(), mount: () => mountHealthWorkouts('dashboard', render) }],   // Santé : récupération
   ['programmes',     { render: () => renderProgrammes() }],
   ['session',        { render: () => activeSession ? renderSession() : renderDashboard(),
                        mount: ({ first }) => { if (activeSession) { afterSessionRender(first); mountMusicBar(); } }, // centre la série courante
                        enter: () => requestWakeLock(), leave: () => releaseWakeLock() }],
   ['editor',         { render: () => renderEditor() }],
-  ['history',        { render: () => renderHistory() }],
+  ['history',        { render: () => renderHistory(), mount: () => mountHealthWorkouts('history', refreshHistoryList) }],
   ['stats',          { render: () => renderStats(), mount: () => fillWeightGroup() }],
   ['settings',       { render: () => renderSettings(), mount: () => { fillAppVersion(); fillBodyWeightCell(); } }],
   ['add-session',    { render: () => renderAddSession(), enter: ({ dir }) => addSessionEnter(dir), leave: () => addSessionLeave() }],

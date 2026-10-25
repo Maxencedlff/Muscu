@@ -161,6 +161,44 @@ async function fillWeightGroup() {
     </div>`;
 }
 
+// ── Santé : courses et sorties vélo ─────────────────────────
+
+// Relues dans Santé comme les pesées (cache en mémoire, jamais dans data : voir js/data/health-workouts.js),
+// sur les 60 derniers jours : assez pour l'Historique récent et la récupération, sans tout relire.
+const HEALTH_WORKOUT_DAYS = 60;
+let workoutCache = { at: 0, list: [], failed: false };
+
+// Relit les entraînements si le cache a expiré ; renvoie true si la liste a changé (l'écran se redessine)
+async function loadHealthWorkouts() {
+  if (!healthEnabled()) return false;
+  const ttl = workoutCache.list.length ? WEIGHT_TTL : WEIGHT_EMPTY_TTL;
+  if (Date.now() - workoutCache.at < ttl) return false;
+  await ensureHealthAuth();
+  const list = await Native.health.workouts(HEALTH_WORKOUT_DAYS);
+  if (!list) { workoutCache.failed = true; return false; }   // on garde la dernière lecture
+  const changed = JSON.stringify(list) !== JSON.stringify(workoutCache.list);
+  workoutCache = { at: Date.now(), list, failed: false };
+  return changed;
+}
+
+// Lignes de Santé déjà lues, au format d'une séance ; recalculées seulement quand la lecture ou
+// l'historique changent (l'accueil les lit pour chaque séance)
+let healthEntriesMemo = { key: null, entries: [] };
+function healthEntries() {
+  if (!healthEnabled() || !workoutCache.list.length) return [];
+  const h = data.history || [];
+  const key = `${workoutCache.at}:${h.length}:${h[0]?.id}:${h[0]?.date}`;
+  if (healthEntriesMemo.key !== key) healthEntriesMemo = { key, entries: healthHistoryEntries(workoutCache.list, h) };
+  return healthEntriesMemo.entries;
+}
+
+// Après le dessin de l'accueil et de l'historique : lecture en arrière-plan, puis l'écran est mis à jour
+// s'il est toujours affiché (refresh : redessin propre à l'écran)
+function mountHealthWorkouts(viewName, refresh) {
+  if (!healthEnabled()) return;
+  loadHealthWorkouts().then(changed => { if (changed && currentView() === viewName) refresh(); }).catch(() => {});
+}
+
 // ── Apple Music : barre de lecture pendant la séance ────────
 
 let musicState = null;
@@ -218,7 +256,7 @@ function renderAppleServicesGroup(tog) {
         <div class="group">
           <button class="cell" data-action="setting-health" role="switch" aria-checked="${data.healthOn === true}">
             <span class="cell__body"><span class="cell__title">Apple Santé</span>
-              <span class="cell__sub">Enregistre tes séances, lit ton poids</span></span>
+              <span class="cell__sub">Enregistre tes séances, lit ton poids, tes courses et sorties vélo</span></span>
             ${tog(data.healthOn === true)}
           </button>
           ${data.healthOn === true ? renderBodyWeightCell() : ''}
@@ -290,7 +328,7 @@ registerActions({
         actions: [{ label: 'OK', style: 'preferred' }] });
       return;
     }
-    data.healthOn = true; weightCache = { at: 0, samples: [], failed: false };
+    data.healthOn = true; weightCache = { at: 0, samples: [], failed: false }; workoutCache = { at: 0, list: [], failed: false };
     save(); render(); showToast('Apple Santé connecté');
   },
   'setting-music': async () => {

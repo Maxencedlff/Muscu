@@ -127,10 +127,10 @@ function bumpReady(ex) {
   return prevs.every(p => (parseInt(p.reps) || 0) >= repMax && (parseFloat(p.weight) || 0) > 0);
 }
 
-// Ligne repliée d'un exercice terminé : « 4 × 8 · 32,5 kg » (reps différentes : « 10/10/9/8 »)
+// Ligne repliée d'un exercice terminé : « 4 × 8 · 32,5 kg » (reps différentes : « 10/10/9/8 »), allure du cardio
 function doneSummary(ex) {
   const m = measureOf(ex);
-  if (m !== 'reps') return ex.sets.map(s => measureSetTxt(s, m)).join(' · ');
+  if (m !== 'reps') return ex.sets.map(s => measureSetTxt(s, m, setKind(ex))).join(' · ');
   const reps = ex.sets.map(s => String(s.reps));
   const same = reps.every(r => r === reps[0]);
   const maxW = Math.max(0, ...ex.sets.map(s => parseFloat(s.weight) || 0));
@@ -242,24 +242,28 @@ function renderExerciseCard(ex, ei, cur) {
     </div>`;
 }
 
-// Série validée : ligne en lecture seule, rouverte en édition au tap
+// Série validée : ligne en lecture seule, rouverte en édition au tap ; allure sous la ligne en cardio
+// (même place que le badge de record, qui ne concerne que les répétitions)
 function renderDoneSetRow(ex, ei, s, si, prev, del) {
   const m      = measureOf(ex), M = MEASURES[m];
   const record = m === 'reps' ? recordLabel(s, (activeSession.baseline || {})[ex.exId], ex) : '';
   const first  = setFirstValue(s, m);
   const kind   = m === 'cardio' ? 'charge' : m === 'time' ? 'lest' : loadKind(ex);
   const load   = first ? `${{ charge: '', lest: 'plus ', aide: 'aide de ' }[kind]}${first} ${m === 'cardio' ? 'kilomètres' : data.unit === 'lbs' ? 'livres' : 'kilos'}, ` : '';
+  const pk     = m === 'cardio' ? paceKind(ex) : null;
+  const pace   = pk ? cardioPace(s.dist, s.reps, pk) : null;
   return `
       <div class="set-swipe">
         ${del}
         <div class="session-set session-set--done" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"
-             aria-label="Série ${si + 1} validée, ${load}${esc(s.reps)} ${M.spoken}, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
+             aria-label="Série ${si + 1} validée, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
           <span class="set-n num">${si + 1}</span>
           <span class="set-prev num">${prev}</span>
           <span class="set-val num">${first || '—'}</span>
           <span class="set-val num">${esc(s.reps)}</span>
           <span class="set-check-zone"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
           ${record ? `<span class="set-badge"><span class="pr-badge">${record}</span></span>` : ''}
+          ${pace ? `<span class="set-badge"><span class="pace-badge">${fmtPace(pace, pk)}</span></span>` : ''}
         </div>
       </div>`;
 }

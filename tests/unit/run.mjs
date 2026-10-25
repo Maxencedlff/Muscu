@@ -33,6 +33,7 @@ const SCRIPTS = [
   'js/data/muscles.js',
   'js/data/exercise-catalogue.js',
   'js/data/measures.js',
+  'js/data/health-workouts.js',
   'js/data/effort-clock.js',
   'js/data/exercise-moves.js',
   'js/data/exercise-howto.js',
@@ -1331,6 +1332,10 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 // ── Mesures : répétitions, durée, cardio (tests dans measures.mjs) ──
 
 (await import('./measures.mjs')).default({ test, app, run, reset, assert });
+
+// ── Course et vélo : allure, entraînements de Santé (tests dans cardio.mjs) ──
+
+(await import('./cardio.mjs')).default({ test, run, reset, assert, sameJSON, nativeContext });
 
 // ── Synchronisation du compte (tests dans sync.mjs) ──
 (await import('./sync.mjs')).default({ test, run, assert, sameJSON });

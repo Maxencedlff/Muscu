@@ -122,6 +122,11 @@
   display: inline-block; background: color-mix(in srgb, var(--yellow) 20%, transparent); box-shadow: none;
   color: var(--gold-text); font-size: 0.706rem; font-weight: 600; padding: 2px 8px; border-radius: var(--r-xs);
 }
+/* Allure d'une série cardio validée (« 5:12 /km », « 24,5 km/h ») : même gabarit que le record, sans or */
+.session-set .pace-badge {
+  display: inline-block; background: var(--fill); color: var(--label2);
+  font-size: 0.706rem; font-weight: 600; padding: 2px 8px; border-radius: var(--r-xs);
+}
 
 .set-del {
   visibility: hidden;
