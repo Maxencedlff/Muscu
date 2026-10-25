@@ -84,7 +84,7 @@ Live Activity du repos, plus bas) :
 
 | Module | Côté web | Rôle |
 |---|---|---|
-| `HealthPlugin.swift` (`MdlfHealth`) | `Native.health.*` | Autorisation, entraînement « Musculation » (HKWorkoutBuilder, énergie active estimée), pesées des 90 derniers jours, courses et sorties vélo des 60 derniers jours (`workouts` : durée, distance, source, intérieur, `own` pour celles écrites par l'app) |
+| `HealthPlugin.swift` (`MdlfHealth`) | `Native.health.*` | Autorisation (`requestAuthorization`, option `workouts: false` pour ne demander que le poids et l'écriture ; `authorizationStatus` : fenêtre encore à montrer ou non, sans rien afficher), entraînement « Musculation » (HKWorkoutBuilder, énergie active estimée), pesées des 90 derniers jours, courses et sorties vélo des 60 derniers jours (`workouts` : durée, distance, source, intérieur, `own` pour celles écrites par l'app) |
 | `MusicPlugin.swift` (`MdlfMusic`) | `Native.music.*` | Morceau en cours du lecteur Musique (titre, artiste, pochette), lecture, pause, suivant, précédent, événement `change` |
 
 - Réglages › Services Apple : interrupteurs `data.healthOn` / `data.musicOn` (désactivés par défaut,
@@ -97,9 +97,15 @@ Live Activity du repos, plus bas) :
   plus ancienne répond `UNIMPLEMENTED`, traité comme une liste vide). Relues dans Santé avec un cache en mémoire
   de 5 minutes comme les pesées, **jamais copiées dans `data.history`** (copie iCloud et compte : règle 5.1.3) :
   lignes « Course · 5,2 km · 27 min · 5:12 /km · Apple Watch » dans Historique (non modifiables) et
-  récupération des jambes sur l'accueil. Écartées : celles écrites par MDLF, les doublons (même sortie de
-  deux apps), une sortie déjà notée à la main le même jour. L'autorisation de lecture est demandée au
-  lancement suivant (`ensureHealthAuth`, iOS ne demande que les types nouveaux).
+  récupération des jambes sur l'accueil (à partir de 20 min : un trajet à vélo détecté par la montre reste
+  dans l'Historique sans bloquer la séance jambes ; tout cardio libère ses muscles au bout de 24 h au plus).
+  Écartées : celles écrites par MDLF, les doublons (même sortie de deux apps), une sortie déjà notée à la
+  main (séance chronométrée qui la recouvre, ou séance saisie après coup de durée comparable à 30 % près).
+- Autorisation : jamais de fenêtre iOS sans contexte. `ensureHealthAuth` (premier accès de chaque
+  lancement) ne demande que le poids et l'écriture (`workouts: false`) : une installation qui a déjà répondu
+  ne voit rien. La lecture des courses et du vélo est demandée à l'activation de Santé, ou, pour qui l'avait
+  activé avant la build qui la lit, par la ligne « Courses et vélo de Santé » de Réglages › Services Apple
+  (affichée tant que `authorizationStatus` répond `shouldRequest`) ; d'ici là, rien n'est lu.
 - Séance : barre de lecture en haut, mise à jour par les notifications du lecteur.
 - Capacité HealthKit activée sur `com.mdlf.training` (le profil App Store la contient) ; Apple Music
   passe par MediaPlayer et l'autorisation « Médias et Apple Music », sans capacité ni clé.

@@ -170,13 +170,22 @@ export default function ({ test, run, reset, assert, sameJSON, nativeContext }) 
     assert.equal(ids([ride({ id: 'L', start: day, end: day + 60 * 60_000, duration: 60 * 60 })]), 'hk:L', '60 min pour 20 notées : autre sortie');
   });
 
-  test('Santé : lecture en cache, échec gardé sans effacer la dernière liste', async () => {
+  // Module natif simulé : réponses et appels lus dans le contexte de l'app (hkStatus : demande des courses)
+  const withFakeHealth = (status = 'unnecessary') => run(`var hkAnswer = ${JSON.stringify([workout()])}, hkCalls = [], hkAuth = [], hkStatus = '${status}';
+    var hkReal = { workouts: Native.health.workouts, authorize: Native.health.authorize, requestStatus: Native.health.requestStatus };
+    Native.health.workouts = async days => { hkCalls.push(days); return hkAnswer; };
+    Native.health.authorize = async (o = {}) => { hkAuth.push(o.workouts !== false); if (o.workouts !== false) hkStatus = 'unnecessary'; return { available: true, workouts: true }; };
+    Native.health.requestStatus = async () => hkStatus;
+    Native.isNative = true; data.healthOn = true; healthAuthAsked = null; resetWorkoutsAuth();
+    workoutCache = emptyWorkoutCache();`);
+  const restoreHealth = () => {
+    run('Object.assign(Native.health, hkReal); healthAuthAsked = null; resetWorkoutsAuth()');
+    withoutHealth();
+  };
+
+  test('Santé : lecture en cache, échec gardé sans effacer la dernière liste ni relire à chaque dessin', async () => {
     reset();
-    // Module natif simulé : réponse et appels lus dans le contexte de l'app
-    run(`var hkAnswer = ${JSON.stringify([workout()])}, hkCalls = [], hkReal = Native.health.workouts;
-         Native.health.workouts = async days => { hkCalls.push(days); return hkAnswer; };
-         Native.isNative = true; data.healthOn = true; healthAuthAsked = Promise.resolve();
-         workoutCache = { at: 0, list: [], failed: false };`);
+    withFakeHealth();
     try {
       assert.equal(await run('loadHealthWorkouts()'), true, 'première lecture : l\'écran se redessine');
       assert.equal(await run('loadHealthWorkouts()'), false, 'cache frais : pas de relecture');
@@ -185,10 +194,41 @@ export default function ({ test, run, reset, assert, sameJSON, nativeContext }) 
       assert.equal(await run('loadHealthWorkouts()'), false);
       assert.equal(run('workoutCache.failed'), true);
       assert.equal(run('workoutCache.list.length'), 1, 'dernière lecture gardée');
-    } finally {
-      run('Native.health.workouts = hkReal; healthAuthAsked = null');
-      withoutHealth();
-    }
+      assert.equal(await run('loadHealthWorkouts()'), false);
+      assert.equal(run('hkCalls.length'), 2, 'après un échec : pas de relecture avant une minute');
+      run(`workoutCache.failedAt = Date.now() - 61_000; hkAnswer = ${JSON.stringify([workout(), workout({ id: 'A2' })])}`);
+      assert.equal(await run('loadHealthWorkouts()'), true, 'une minute plus tard : relue');
+      assert.equal(run('workoutCache.failed'), false);
+      // Accueil et historique montés coup sur coup : une seule lecture native
+      run('workoutCache.at = 0; hkCalls.length = 0');
+      const [a, b] = await run('Promise.all([loadHealthWorkouts(), loadHealthWorkouts()])');
+      assert.equal(a, b);
+      assert.equal(run('hkCalls.length'), 1, 'lecture en cours partagée');
+      assert.equal(run('JSON.stringify(hkAuth)'), '[]', 'la lecture ne demande aucune autorisation');
+    } finally { restoreHealth(); }
+  });
+
+  test('Santé : courses et vélo jamais demandés au lancement, demandés dans Réglages', async () => {
+    reset();
+    withFakeHealth('shouldRequest');   // Santé activé avant la build qui lit les courses
+    try {
+      assert.equal(await run('loadHealthWorkouts()'), false);
+      assert.equal(run('hkCalls.length'), 0, 'rien n\'est lu tant qu\'iOS ne les a jamais demandés');
+      assert.equal(run('JSON.stringify(hkAuth)'), '[]', 'et rien n\'est demandé à l\'accueil');
+      await run('ensureHealthAuth()');
+      assert.equal(run('JSON.stringify(hkAuth)'), '[false]', 'poids et écriture seulement : aucune fenêtre pour qui a déjà répondu');
+      assert.match(run('renderHealthWorkoutsCell()'), /data-action="health-workouts-auth"/, 'Réglages : ligne pour les autoriser');
+      await run(`globalThis.render = () => {}; actionHandlers.get('health-workouts-auth')()`);
+      assert.equal(run('JSON.stringify(hkAuth)'), '[false,true]', 'demande complète au toucher');
+      assert.equal(run('hkCalls.length'), 1, 'puis lecture');
+      assert.equal(run('healthEntries().length'), 1);
+      assert.doesNotMatch(run('renderHealthWorkoutsCell()'), /data-action/, 'déjà demandé : simple rappel');
+      assert.match(run('renderHealthWorkoutsCell()'), /20 min/);
+      // Build antérieure (état inconnu) : la lecture est tentée, rien n'est affiché dans Réglages
+      run(`hkStatus = 'unknown'; resetWorkoutsAuth(); workoutCache = emptyWorkoutCache(); hkCalls.length = 0`);
+      assert.equal(await run('loadHealthWorkouts()'), true);
+      assert.equal(run('renderHealthWorkoutsCell()'), '');
+    } finally { restoreHealth(); run('delete globalThis.render'); }
   });
 
   test('native : lecture des entraînements (liste, échec, ancienne build)', async () => {
@@ -197,5 +237,17 @@ export default function ({ test, run, reset, assert, sameJSON, nativeContext }) 
     assert.equal(await make(async () => { throw new Error('Santé pas prête'); }).health.workouts(), null);
     sameJSON(await make(async () => { throw Object.assign(new Error('absent'), { code: 'UNIMPLEMENTED' }); }).health.workouts(), []);
     sameJSON(await nativeContext({ native: false }).Native.health.workouts(), [], 'navigateur');
+  });
+
+  test('native : état de la demande d\'autorisation, demande sans les courses', async () => {
+    const make = plugin => nativeContext({ plugins: { MdlfHealth: plugin } }).Native;
+    assert.equal(await make({ authorizationStatus: async () => ({ available: true, request: 'shouldRequest' }) }).health.requestStatus(), 'shouldRequest');
+    assert.equal(await make({ authorizationStatus: async () => { throw Object.assign(new Error('absent'), { code: 'UNIMPLEMENTED' }); } }).health.requestStatus(), 'unknown', 'ancienne build');
+    assert.equal(await nativeContext({ native: false }).Native.health.requestStatus(), 'unknown', 'navigateur');
+    const asked = [];
+    const n = make({ requestAuthorization: async o => { asked.push(o.workouts); return { available: true, workouts: true }; } });
+    await n.health.authorize({ workouts: false });
+    await n.health.authorize();
+    sameJSON(asked, [false, true]);
   });
 }

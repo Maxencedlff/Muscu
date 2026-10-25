@@ -22,14 +22,29 @@ function estimateKcal(durationMs, kg) {
   return Math.round(MET_STRENGTH * kg * (durationMs / 3_600_000));
 }
 
-// Autorisation demandée à iOS une fois par lancement, avant le premier accès à Santé. Cas visé : Santé
-// activé dans une donnée restaurée (copie iCloud, nouvel iPhone, réinstallation) alors qu'iOS n'a jamais
-// posé la question pour cette installation : lecture et écriture refusées, « Lecture dans Santé… » sans fin.
-// iOS n'affiche la demande que pour les types jamais demandés : sans effet visible le reste du temps.
+// Autorisations : iOS n'affiche sa fenêtre que pour les types jamais demandés (et retient la réponse,
+// qu'il ne dit pas pour la lecture). Elle ne doit jamais s'ouvrir sans contexte, au lancement :
+//  - ensureHealthAuth : poids et écriture des séances, une fois par lancement, avant le premier accès.
+//    Cas visé : Santé activé dans une donnée restaurée (copie iCloud, nouvel iPhone, réinstallation) alors
+//    qu'iOS n'a jamais posé la question pour cette installation : lecture et écriture refusées, « Lecture
+//    dans Santé… » sans fin. Sans les courses et le vélo : une installation qui a déjà répondu ne voit rien.
+//  - courses et vélo (lecture des entraînements et distances, arrivée avec la build du 25/10/2026) :
+//    demandés avec le reste à l'activation de Santé, sinon par un toucher dans Réglages › Services Apple
+//    (« Courses et vélo de Santé », action health-workouts-auth). Tant qu'iOS ne les a jamais demandés,
+//    rien n'est lu (workoutsAuthStatus).
 let healthAuthAsked = null;
 function ensureHealthAuth() {
-  return (healthAuthAsked ||= Promise.resolve().then(() => Native.health.authorize?.()).catch(() => null));
+  return (healthAuthAsked ||= Promise.resolve().then(() => Native.health.authorize({ workouts: false })).catch(() => null));
 }
+
+// Demande des courses et du vélo encore à faire ? Native.health.requestStatus, lu une fois par lancement
+// (et après une demande) : 'shouldRequest', 'unnecessary' ou 'unknown' (build antérieure, échec : la
+// lecture est tentée, elle n'ouvre jamais de fenêtre). workoutsAuthKnown : valeur déjà lue, pour Réglages.
+let workoutsAuthState = null, workoutsAuthKnown = null;
+function workoutsAuthStatus() {
+  return (workoutsAuthState ||= Native.health.requestStatus().catch(() => 'unknown').then(st => (workoutsAuthKnown = st)));
+}
+function resetWorkoutsAuth() { workoutsAuthState = null; workoutsAuthKnown = null; }
 
 // Appelé après l'enregistrement d'une séance ; un échec ne bloque jamais le bilan
 async function syncWorkoutToHealth(entry) {
@@ -165,19 +180,27 @@ async function fillWeightGroup() {
 
 // Relues dans Santé comme les pesées (cache en mémoire, jamais dans data : voir js/data/health-workouts.js),
 // sur les 60 derniers jours : assez pour l'Historique récent et la récupération, sans tout relire.
+// Lecture en échec : la dernière liste est gardée (failed) et Santé n'est pas relu avant WEIGHT_EMPTY_TTL
+// (failedAt), sinon chaque dessin de l'accueil relancerait un appel natif.
 const HEALTH_WORKOUT_DAYS = 60;
-let workoutCache = { at: 0, list: [], failed: false };
+const emptyWorkoutCache = () => ({ at: 0, list: [], failed: false, failedAt: 0 });
+let workoutCache = emptyWorkoutCache();
 
-// Relit les entraînements si le cache a expiré ; renvoie true si la liste a changé (l'écran se redessine)
-async function loadHealthWorkouts() {
-  if (!healthEnabled()) return false;
-  const ttl = workoutCache.list.length ? WEIGHT_TTL : WEIGHT_EMPTY_TTL;
-  if (Date.now() - workoutCache.at < ttl) return false;
-  await ensureHealthAuth();
+// Relit les entraînements si le cache a expiré ; renvoie true si la liste a changé (l'écran se redessine).
+// Deux appels rapprochés (accueil puis historique) partagent la même lecture (workoutLoad).
+let workoutLoad = null;
+function loadHealthWorkouts() {
+  if (!healthEnabled()) return Promise.resolve(false);
+  return (workoutLoad ||= readHealthWorkouts().finally(() => { workoutLoad = null; }));
+}
+async function readHealthWorkouts() {
+  const now = Date.now(), ttl = workoutCache.list.length ? WEIGHT_TTL : WEIGHT_EMPTY_TTL;
+  if (now - workoutCache.at < ttl || now - (workoutCache.failedAt || 0) < WEIGHT_EMPTY_TTL) return false;
+  if (await workoutsAuthStatus() === 'shouldRequest') return false;   // jamais demandé : rien à lire, rien demandé ici
   const list = await Native.health.workouts(HEALTH_WORKOUT_DAYS);
-  if (!list) { workoutCache.failed = true; return false; }   // on garde la dernière lecture
+  if (!list) { workoutCache = { ...workoutCache, failed: true, failedAt: Date.now() }; return false; }   // dernière lecture gardée
   const changed = JSON.stringify(list) !== JSON.stringify(workoutCache.list);
-  workoutCache = { at: Date.now(), list, failed: false };
+  workoutCache = { ...emptyWorkoutCache(), at: Date.now(), list };
   return changed;
 }
 
@@ -260,6 +283,7 @@ function renderAppleServicesGroup(tog) {
             ${tog(data.healthOn === true)}
           </button>
           ${data.healthOn === true ? renderBodyWeightCell() : ''}
+          ${data.healthOn === true ? renderHealthWorkoutsCell() : ''}
           ${data.healthOn === true ? (() => {
             const n = healthBacklog().length;
             return `<button class="cell cell--nav" data-action="health-backfill">
@@ -303,6 +327,29 @@ function renderBodyWeightCell() {
           </button>`;
 }
 
+// Courses et vélo de Santé : à autoriser tant qu'iOS ne les a jamais demandés (Santé activé avant la build
+// qui les lit), puis rappel de ce qui en est fait. État pas encore lu ou inconnu (build antérieure) : rien.
+function renderHealthWorkoutsCell() {
+  const title = '<span class="cell__title">Courses et vélo de Santé</span>';
+  if (workoutsAuthKnown === 'shouldRequest') {
+    return `<button class="cell cell--nav" data-action="health-workouts-auth">
+            <span class="cell__body">${title}
+              <span class="cell__sub">Autorise leur lecture : elles s'affichent dans l'Historique et comptent pour la récupération</span></span>
+            ${icon('chevron.right', 16)}
+          </button>`;
+  }
+  if (workoutsAuthKnown !== 'unnecessary') return '';
+  return `<div class="cell">
+            <span class="cell__body">${title}
+              <span class="cell__sub">Affichées dans l'Historique ; comptent pour la récupération à partir de 20 min</span></span>
+          </div>`;
+}
+// Réglages : l'état de l'autorisation est lu une fois, puis l'écran est redessiné s'il est toujours affiché
+function fillHealthWorkoutsCell() {
+  if (!healthEnabled() || workoutsAuthKnown !== null) return;
+  workoutsAuthStatus().then(st => { if (st !== 'unknown' && currentView() === 'settings') render(); });
+}
+
 // Réglages : la cellule est redessinée une fois Santé lue (lecture asynchrone)
 async function fillBodyWeightCell() {
   if (!$('#bodyWeightCell') || knownLatestBodyMass() !== undefined || weightCache.failed) return;
@@ -328,8 +375,18 @@ registerActions({
         actions: [{ label: 'OK', style: 'preferred' }] });
       return;
     }
-    data.healthOn = true; weightCache = { at: 0, samples: [], failed: false }; workoutCache = { at: 0, list: [], failed: false };
+    data.healthOn = true; weightCache = { at: 0, samples: [], failed: false }; workoutCache = emptyWorkoutCache();
+    healthAuthAsked = Promise.resolve(res); resetWorkoutsAuth();   // tout vient d'être demandé
     save(); render(); showToast('Apple Santé connecté');
+  },
+  // Courses et vélo, demandés ici seulement (jamais au lancement : voir ensureHealthAuth)
+  'health-workouts-auth': async () => {
+    const res = await Native.health.authorize();
+    if (!res.available) { showToast('Santé n\'est pas disponible sur cet appareil', { error: true }); return; }
+    resetWorkoutsAuth(); workoutCache = emptyWorkoutCache();
+    await workoutsAuthStatus();
+    render();
+    await loadHealthWorkouts();
   },
   'setting-music': async () => {
     if (data.musicOn) { data.musicOn = false; save(); render(); return; }

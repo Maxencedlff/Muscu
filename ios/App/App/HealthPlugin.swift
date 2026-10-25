@@ -12,6 +12,7 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "isAvailable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "authorizationStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveWorkout", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "bodyMass", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "workouts", returnType: CAPPluginReturnPromise),
@@ -28,17 +29,44 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve(["available": HKHealthStore.isHealthDataAvailable()])
     }
 
-    /// Demande l'autorisation d'écrire les entraînements (et leur énergie) et de lire le poids, les
-    /// entraînements et leurs distances (course, vélo). iOS ne redemande que les types jamais demandés.
+    // Écriture : la séance de musculation et son énergie. Lecture : le poids, puis (demandés à part) les
+    // entraînements et leurs distances pour les courses et sorties vélo.
+    private var shareTypes: Set<HKSampleType> { [workoutType, energyType] }
+    private var weightReadTypes: Set<HKObjectType> { [bodyMassType] }
+    private var workoutReadTypes: Set<HKObjectType> { [workoutType, runDistanceType, cycleDistanceType] }
+
+    /// Demande l'autorisation d'écrire les entraînements (et leur énergie) et de lire le poids ; avec
+    /// workouts (vrai par défaut), aussi celle de lire les entraînements et leurs distances (course, vélo).
+    /// iOS ne redemande que les types jamais demandés : workouts: false n'ouvre pas la fenêtre pour une
+    /// installation qui a déjà répondu pour le poids et l'écriture, même si les courses n'ont jamais été demandées.
     /// iOS ne dit pas si la lecture a été accordée (confidentialité) : seul l'état de l'écriture est renvoyé.
     @objc func requestAuthorization(_ call: CAPPluginCall) {
         guard HKHealthStore.isHealthDataAvailable() else {
             call.resolve(["available": false, "workouts": false]); return
         }
-        store.requestAuthorization(toShare: [workoutType, energyType], read: [bodyMassType, workoutType, runDistanceType, cycleDistanceType]) { _, error in
+        let read = (call.getBool("workouts") ?? true) ? weightReadTypes.union(workoutReadTypes) : weightReadTypes
+        store.requestAuthorization(toShare: shareTypes, read: read) { _, error in
             if let error = error { call.reject(error.localizedDescription); return }
             let status = self.store.authorizationStatus(for: self.workoutType)
             call.resolve(["available": true, "workouts": status == .sharingAuthorized])
+        }
+    }
+
+    /// La fenêtre d'autorisation reste-t-elle à montrer pour l'ensemble des types (poids, écriture, courses
+    /// et vélo) ? request : "shouldRequest" (au moins un type jamais demandé), "unnecessary" (tout a déjà
+    /// été demandé, quelle que soit la réponse), "unknown". Ne montre rien.
+    @objc func authorizationStatus(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.resolve(["available": false, "request": "unknown"]); return
+        }
+        store.getRequestStatusForAuthorization(toShare: shareTypes, read: weightReadTypes.union(workoutReadTypes)) { status, error in
+            let request: String
+            switch status {
+            case .shouldRequest: request = "shouldRequest"
+            case .unnecessary: request = "unnecessary"
+            default: request = "unknown"
+            }
+            call.resolve(["available": true, "request": error == nil ? request : "unknown"])
         }
     }
 

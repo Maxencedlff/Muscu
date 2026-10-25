@@ -226,9 +226,16 @@ const Native = (() => {
 
     // Apple Santé : autorisation, entraînement « Musculation », pesées (kg), courses et sorties vélo. Hors app : rien.
     health: {
-      async authorize() {
+      // workouts : false pour ne demander que le poids et l'écriture (sans la lecture des courses et du vélo)
+      async authorize({ workouts = true } = {}) {
         if (!isNative) return { available: false, workouts: false };
-        try { return await Health.requestAuthorization(); } catch { return { available: false, workouts: false }; }
+        try { return await Health.requestAuthorization({ workouts }); } catch { return { available: false, workouts: false }; }
+      },
+      // Fenêtre d'autorisation encore à montrer pour un type : 'shouldRequest', 'unnecessary' (tout a été
+      // demandé) ou 'unknown' (échec, build antérieure sans la méthode, navigateur). Ne montre rien.
+      async requestStatus() {
+        if (!isNative) return 'unknown';
+        try { return (await Health.authorizationStatus()).request || 'unknown'; } catch { return 'unknown'; }
       },
       async saveWorkout({ start, end, kcal = 0 }) {
         if (!isNative) return false;
