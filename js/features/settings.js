@@ -198,10 +198,10 @@ registerActions({
     const lost = !account.user
       ? `${n} séance${n > 1 ? 's' : ''} seront perdue${n > 1 ? 's' : ''} définitivement. Pense à exporter avant.`
       : pending
-        ? `${plural(pending, 'séance n\'est pas encore sauvegardée', 'séances ne sont pas encore sauvegardées')} sur ton compte (pas d'Internet ?) et ${pending > 1 ? 'seront perdues' : 'sera perdue'}. Réessaie avec du réseau, ou exporte avant.`
+        ? `${plural(pending, 'séance n\'est pas encore sauvegardée', 'séances ne sont pas encore sauvegardées')} sur ton compte${account.error === 'offline' ? ' (pas d\'Internet ?)' : ''} et ${pending > 1 ? 'seront perdues' : 'sera perdue'}. Réessaie avec du réseau, ou exporte avant.`
         : `${plural(n, 'séance sera effacée', 'séances seront effacées')} de cet iPhone. Elles restent sur ton compte\u00a0: reconnecte-toi pour les retrouver.`;
     if (!(await dialog({ title: 'Es-tu sûr ?', message: lost,
-      actions: [{ label: 'Annuler', value: false, style: 'cancel' }, { label: 'Supprimer', value: true, style: 'destructive' }] }))) return;
+      actions: [{ label: 'Annuler', value: false, style: 'cancel' }, { label: account.user && pending ? 'Supprimer quand même' : 'Supprimer', value: true, style: 'destructive' }] }))) return;
     await accountForgetDevice();   // même déconnecté : l'état du dernier compte est oublié, le compte garde tout
     wipeLocalData();
     render(); showToast('Données supprimées');
