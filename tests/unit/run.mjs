@@ -27,6 +27,7 @@ const SCRIPTS = [
   'js/data/accessors.js',
   'js/data/backup.js',
   'js/data/sync.js',
+  'js/data/account-auth.js',
   'js/data/account.js',
   'js/data/prog-share.js',
   'js/data/trash.js',
@@ -68,6 +69,7 @@ const toasts = [];
 const sandbox = {
   console,
   AbortController, setTimeout, clearTimeout,   // vérification des mises à jour à chaud
+  atob,                                        // lecture des jetons du compte (jwtPayload)
   localStorage: new MemoryStorage(),
   navigator: {},
   document: { querySelector: () => null, getElementById: () => null },
@@ -1344,6 +1346,9 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 
 // ── Synchronisation du compte (tests dans sync.mjs) ──
 (await import('./sync.mjs')).default({ test, run, assert, sameJSON });
+
+// ── Compte : connexion, pseudo, avatar, identités (tests dans account.mjs) ──
+(await import('./account.mjs')).default({ test, run, assert, sameJSON, nativeContext, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

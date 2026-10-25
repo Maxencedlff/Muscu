@@ -54,6 +54,7 @@ scripts/              construction de l'app iOS (build-web.mjs), mises à jour �
 | `session.css` | Séance active, repos, bilan |
 | `muscles.css` | Silhouette musculaire, pastilles de muscles, carte « Muscles » de Progrès, écran Séries par muscle, feuille « Muscles ciblés » |
 | `share.css` | Partage de séance : bouton « Partager ma séance », aperçu de l'image au format 9:16 |
+| `account.css` | Compte : calque plein écran (Bienvenue, e-mail, code, pseudo, avatar), boutons de connexion aux chartes Apple et Google (tokens `--siwa-*`, `--gsi-*`), écran Compte, cellule des Réglages, carte de l'accueil |
 | `screens.css` | Écrans à fond groupé (`.view--grouped` : Programme, Progrès, Historique, Réglages) et leur composant de liste groupée (`.group` / `.cell`, seul composant de liste), vignettes « Icône de l'app » (`.app-icons`), accessibilité, paysage, Dynamic Type |
 
 Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
@@ -83,7 +84,8 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `app-icons.js` | Marque : `APP_ICONS` (icônes de l'app : id, libellé, jeu d'icônes iOS `asset`, couleurs, flèche de la barre), `DEFAULT_APP_ICON`, `appIconFromNative(nom)` (null ou inconnu : défaut), `nativeAppIconName(id)` (défaut : null), `alternateAppIconNames()`, dessin du signe `appIconGlyph` / `appIconSvg(icône, options)`. Seule source des images de la marque (voir plus bas) |
 | `backup.js` | `importText` (tout vérifié sur une copie ; renvoie `{ ok, reason }` ou `{ ok, count, skipped, theme, previous }`), `undoImport`, `exportData(theme)` (renvoie `true` une fois le fichier remis), `downloadText` |
 | `sync.js` | Synchro du compte, logique pure : empreintes (`syncHash`), ce qui part (`planSessionPush`, `sessionPayload` sans poids du corps, `profilePayload` par liste autorisée `SYNC_PROFILE_KEYS`), fusion des séances reçues (`applyRemoteSessions` : modifiée ici → locale gagne ; sans état connu → le compte fait foi ; suppressions reçues → Supprimés récemment) et du profil (`applyRemoteProfile`) |
-| `account.js` | Compte facultatif (Supabase, Sign in with Apple) : session dans le Trousseau, `syncNow` (réception, fusion, envoi par lots), état de synchro par compte, `accountForgetDevice` / `accountResetSyncState` avant tout effacement ou import local. Aucun affichage : l'écran s'abonne avec `onAccountChange` |
+| `account-auth.js` | Compte, logique pure : premier écran (`firstScreen` : Bienvenue au tout premier lancement seulement ; `accountCardShown`), pseudo (`normalizeUsername`, `usernameProblem`, `USERNAME_RE` identique à la migration, délai de 30 jours), avatar (`AVATAR_EMOJIS` : 30 emojis sans personnage, liste blanche identique au serveur), identités (`identityOf`, `hasApple`, `canUnlink`), connexion récente (`lastAuthAt`, `isRecentAuth` : claim amr), erreurs de Supabase → français (`authErrorKind`, `otpErrorKind`, `AUTH_ERROR_TEXT`) |
+| `account.js` | Compte facultatif (Supabase ; Apple, Google ou code par e-mail, un seul parcours `finishSignIn`) : session dans le Trousseau, profil public (`accountLoadProfile`, `accountSaveProfile`, `accountUsernameAvailable`), moyens de connexion (`accountLink`, `accountLinkEmailStart/Verify`, `accountUnlink`), nouvelle connexion avant suppression (`accountReauth*`), `syncNow` (réception, fusion, envoi par lots), état de synchro par compte, `accountForgetDevice` / `accountResetSyncState` avant tout effacement ou import local. Aucun affichage : l'écran s'abonne avec `onAccountChange` |
 
 ### js/app/actions.js
 
@@ -131,7 +133,8 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `add-session.js` | Séance passée : saisie, modification d'une séance, brouillon en `sessionStorage` (crochets `enter` / `leave` de l'écran), ajout d'exercice par la feuille de recherche commune |
 | `app-icon.js` | Réglages › Icône de l'app (app iOS seulement) : `renderAppIconGroup()` (grille de vignettes, `aria-pressed`, coche), action `set-app-icon` (`Native.appIcon.set`), état lu une fois au démarrage |
 | `settings.js` | Réglages, import / export (résultat affiché ici : thème, toast « Annuler », date de sauvegarde), suppression des données, recherche de mise à jour |
-| `account-ui.js` | Réglages › Compte : bouton « Se connecter avec Apple », état de la synchro, déconnexion, suppression du compte (révocation Apple côté serveur, `supabase/functions/delete-account`), choix quand un autre compte se connecte |
+| `account-ui.js` | Compte : cellule en tête des Réglages (avatar et pseudo, ou « Se connecter »), écran Réglages › Compte (`account` : pseudo, avatar, moyens de connexion, sauvegarde, déconnexion, suppression avec nouvelle connexion), carte de l'accueil, `maybeShowWelcome()` au démarrage, choix quand un autre compte se connecte |
+| `auth-flow.js` | Calque plein écran du compte (`openAuthFlow({ step, mode })`) : Bienvenue, e-mail, code à 6 chiffres (envoi au 6e chiffre, « Renvoyer » après 60 s), pseudo (« Plus tard » pour un compte neuf), avatar ; modes `signin`, `link`, `reauth`, `profile` |
 | `progress.js` | Progrès : tuiles et index des exercices tiré de l'historique |
 | `progress-chart.js` | Progrès › Exercice : courbe sur canvas, sélection d'un point au doigt ; cardio : courbes Durée / Distance / Allure (ou Vitesse), meilleure allure et plus longue distance |
 | `progress-overview.js` | Progrès › Vue d'ensemble : calendrier du mois, séances par semaine |
@@ -269,6 +272,11 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
 - `ppl_v2_backup` : copie brute de `ppl_v2` avant une migration, un import ou une suppression totale
   (proposée par l'écran de secours).
 - `ppl_statusbar_hint` : le conseil « barre d'état » a déjà été montré.
+- `ppl_welcome_seen` : l'écran Bienvenue a été montré (posé quel que soit le choix) ; `ppl_account_card_closed` :
+  carte « Sauvegarde tes séances sur un compte » fermée. `mdlf_profile` : cache du profil public
+  (pseudo, avatar) du dernier compte, pour l'afficher hors ligne. Jamais dans `ppl_v2` (ni synchronisés
+  dans `profiles.doc`).
+- `sessionStorage.ppl_restored` : le lancement suit une restauration (`Native.restoredAtBoot`).
 - `sessionStorage.ppl_add_draft` : brouillon de la séance passée tant que l'écran est ouvert.
 
 ## Règles
@@ -304,7 +312,9 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
 `tests/run_all.py` lance les lots Playwright (Python) sur 5 appareils (WebKit iPhone 13 / SE,
 Chromium Pixel 7 / Galaxy S8 / S9+) en thèmes clair et sombre, plus des tests uniques
 (service worker, contrôles statiques), puis les tests par domaine (`test_muscles.py`, `test_partage.py`, `test_icone.py`).
-`test_icone.py` simule la coquille iOS (faux `window.Capacitor` injecté avant le chargement, faux
+`test_compte.py` simule la coquille iOS et Supabase (`tests/fake_account.py` : même forme de réponses et
+mêmes codes d'erreur que supabase-js) pour le compte : Bienvenue, code e-mail, pseudo, avatar, moyens de
+connexion, suppression. `test_icone.py` simule la coquille iOS (faux `window.Capacitor` injecté avant le chargement, faux
 module `MdlfAppIcon`) : c'est le modèle à suivre pour tester une fonction réservée à l'app. Voir l'en-tête
 de `run_all.py` pour les options.
 
@@ -343,6 +353,19 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
 - `supabase/migrations/` : tables `sessions` (une ligne par séance, tombstone `deleted_at`) et `profiles`
   (document du profil partagé), RLS « chacun ses lignes », pas de DELETE côté client, `ping()` pour le
   réveil quotidien (`ota-api/ping.js`, cron Vercel publié avec le site des mises à jour).
-- `supabase/functions/delete-account/` : suppression du compte et révocation « Se connecter avec Apple »
-  (règle Apple 5.1.1(v)). Secrets Apple dans le projet Supabase, jamais dans le dépôt.
+- `supabase/migrations/20261026000000_profils.sql` : profil public `user_profiles` (pseudo unique en
+  minuscules, avatar emoji en liste blanche), schéma `private` non exposé (`username_rules` : mots
+  réservés et injures ; déclencheur `check_username` : refus, 30 jours entre deux changements), RLS sur sa
+  ligne, GRANT par colonne (le client n'écrit que `username` et `avatar_emoji`), `username_available()`.
+  Séparé de `profiles.doc` : le pseudo ne fait pas partie du bloc privé synchronisé.
+- `supabase/functions/delete-account/` : suppression du compte (règle Apple 5.1.1(v)). Compte relié à
+  Apple : révocation « Se connecter avec Apple » ; sinon connexion de moins de 10 min exigée (claim
+  `amr`, `recent-auth.js`, testé par `tests/unit/account.mjs`). Secrets Apple dans le projet Supabase,
+  jamais dans le dépôt.
+- Réglages d'authentification (SMTP Resend, modèles du code, Google, liaison manuelle, limites) :
+  `scripts/supabase-auth-config.py`, lecture seule par défaut.
+- `tests/sql/run.sh` : applique toutes les migrations sur un Postgres local jetable (socle Supabase imité
+  par `supabase_stub.sql`) puis vérifie RLS, GRANT et déclencheurs (`*_test.sql`). Rien n'est envoyé au projet.
+- Google stocke le nom de la personne dans les données d'identité (`identity_data.full_name`) : l'app ne
+  le lit jamais.
 - Jamais sur le serveur : données Santé, poids du corps, réglages propres à l'appareil (règle 5.1.3).

@@ -28,7 +28,7 @@
 
   <section>
     <h2>En résumé</h2>
-    <p>Sans compte, MDLF Training ne collecte <strong>aucune donnée personnelle</strong> : tes séances, tes programmes et tes réglages restent sur ton appareil. Le compte est <strong>facultatif</strong> : si tu te connectes avec Apple, tes séances et tes programmes sont copiés sur le serveur de l'app pour les retrouver sur tes appareils. Il n'y a ni publicité, ni outil de mesure d'audience, ni traceur, et rien n'est vendu ni partagé à des fins commerciales. Tes données Santé et ton poids ne quittent jamais ton iPhone.</p>
+    <p>Sans compte, MDLF Training ne collecte <strong>aucune donnée personnelle</strong> : tes séances, tes programmes et tes réglages restent sur ton appareil. Le compte est <strong>facultatif</strong> : si tu te connectes (avec Apple, Google ou un code reçu par e-mail), tes séances et tes programmes sont copiés sur le serveur de l'app pour les retrouver sur tes appareils. Il n'y a ni publicité, ni outil de mesure d'audience, ni traceur, et rien n'est vendu ni partagé à des fins commerciales. Tes données Santé et ton poids ne quittent jamais ton iPhone.</p>
   </section>
 
   <section>
@@ -43,13 +43,20 @@
 
   <section>
     <h2 id="compte">Compte (facultatif)</h2>
-    <p>Tu peux créer un compte avec «&nbsp;Se connecter avec Apple&nbsp;» dans Réglages › Compte. L'app ne demande ni ton nom ni ton adresse e-mail : elle reçoit seulement un identifiant anonyme propre à MDLF Training, fourni par Apple.</p>
+    <p>Tu peux créer un compte au premier lancement ou dans Réglages › Compte, de trois façons, et en relier plusieurs au même compte :</p>
     <ul>
+      <li><strong>Apple</strong> : l'app ne demande ni ton nom ni ton adresse e-mail ; elle reçoit seulement un identifiant anonyme propre à MDLF Training, fourni par Apple.</li>
+      <li><strong>Google</strong> : Google transmet un identifiant de ton compte Google, ton adresse e-mail et, selon ton compte, ton nom. Le serveur des comptes les garde avec ton compte (c'est le fonctionnement de Supabase), mais l'app n'utilise ni n'affiche ton nom : seul le pseudo que tu choisis sert de nom.</li>
+      <li><strong>E-mail</strong> : tu saisis ton adresse et tu reçois un code à 6 chiffres, valable 10 minutes. Pas de mot de passe. Ton adresse sert uniquement à te connecter : jamais de lettre d'information ni de publicité.</li>
+    </ul>
+    <ul>
+      <li><strong>Pseudo et avatar</strong> : facultatifs. Tu choisis un pseudo et un emoji (aucune photo). Pour l'instant, toi seul les vois ; ils serviront plus tard à te retrouver entre amis, et cette page sera mise à jour avant.</li>
       <li><strong>Ce qui est copié sur le serveur</strong> : tes séances (exercices, séries, charges, répétitions, durées, notes), tes programmes, tes exercices personnalisés, tes notes de séance et tes réglages communs (unité, silhouette de la carte des muscles, temps de repos, objectif par semaine, programme actif).</li>
       <li><strong>Ce qui ne part jamais</strong> : tes données Apple Santé, ton poids du corps (lu dans Santé ou saisi), et les réglages propres à l'iPhone (sons, vibrations, Santé, Musique).</li>
       <li><strong>Pourquoi</strong> : uniquement pour retrouver tes données sur tes appareils et après une réinstallation. Aucune publicité, aucune analyse, aucun partage.</li>
       <li><strong>Où</strong> : chez Supabase (hébergement de la base de données), dans un centre de données de l'Union européenne (Irlande), chiffré pendant le transfert. Chaque compte ne peut lire que ses propres données.</li>
-      <li><strong>Combien de temps</strong> : tant que le compte existe. «&nbsp;Se déconnecter&nbsp;» garde les données sur l'iPhone et sur le compte ; «&nbsp;Supprimer mon compte&nbsp;» efface immédiatement le compte et toutes ses données du serveur, et retire en principe MDLF Training de «&nbsp;Se connecter avec Apple&nbsp;» dans ton identifiant Apple ; sinon l'app t'indique comment le faire dans les Réglages de l'iPhone.</li>
+      <li><strong>Envoi des codes par e-mail</strong> : par Resend (Resend, Inc., États-Unis), sous-traitant qui reçoit seulement ton adresse et le message contenant le code. Le transfert hors de l'Union européenne est encadré par les clauses contractuelles types de la Commission européenne. Le code expire au bout de 10 minutes ; Resend garde un journal technique des envois pendant une durée limitée, selon sa politique.</li>
+      <li><strong>Combien de temps</strong> : tant que le compte existe. «&nbsp;Se déconnecter&nbsp;» garde les données sur l'iPhone et sur le compte ; «&nbsp;Supprimer mon compte&nbsp;» efface immédiatement le compte et toutes ses données du serveur (adresse e-mail, pseudo et avatar compris), après une nouvelle connexion pour confirmer que c'est bien toi. Avec Apple, MDLF Training est en principe retiré de «&nbsp;Se connecter avec Apple&nbsp;» dans ton identifiant Apple ; sinon l'app t'indique comment le faire dans les Réglages de l'iPhone. Avec Google, tu peux retirer l'accès dans ton compte Google (Sécurité › Connexions à des applications tierces).</li>
     </ul>
     <p>Tu peux demander une copie ou la suppression de tes données à tout moment par e-mail (voir Contact). Tu peux aussi saisir la CNIL.</p>
   </section>
@@ -101,6 +108,7 @@
       <li><strong>Éditeur et directeur de la publication</strong> : Maxence de La Fouchardière, particulier, à titre non professionnel (article 1-1 de la loi n°&nbsp;2004-575 du 21 juin 2004, LCEN) · <a href="mailto:maxdelafouch@gmail.com">maxdelafouch@gmail.com</a></li>
       <li><strong>Hébergement du site et des mises à jour</strong> : Vercel Inc., 440 N Barranca Avenue #4133, Covina, CA 91723, États-Unis · <a href="https://vercel.com">vercel.com</a></li>
       <li><strong>Hébergement des comptes</strong> : Supabase Pte. Ltd., 65 Chulia Street #38-02/03, OCBC Centre, Singapour 049513 · <a href="https://supabase.com">supabase.com</a>. Données stockées dans l'Union européenne (Irlande).</li>
+      <li><strong>Envoi des codes de connexion</strong> : Resend, Inc., États-Unis · <a href="https://resend.com">resend.com</a></li>
       <li><strong>Distribution</strong> : Apple, par l'App Store. L'utilisation de l'application est régie par le contrat de licence standard d'Apple (EULA).</li>
       <li><strong>Santé</strong> : MDLF Training est un carnet d'entraînement, pas un dispositif médical. Les programmes, les estimations (1RM, calories, récupération) et les conseils d'exécution sont donnés à titre indicatif. Demande l'avis d'un professionnel de santé avant de reprendre le sport ou en cas de douleur.</li>
       <li><strong>Propriété</strong> : le nom, l'icône, les textes et le code de MDLF Training appartiennent à leur auteur. Tes séances et tes programmes t'appartiennent : tu peux les exporter à tout moment.</li>
@@ -112,7 +120,7 @@
   <h1>Privacy</h1>
   <p class="sub">MDLF Training · updated October 25, 2026</p>
   <section>
-    <p>Without an account, MDLF Training does <strong>not collect any personal data</strong>: your workouts, programs and settings stay on your device. The account is <strong>optional</strong>: if you sign in with Apple, your workouts and programs are copied to the app's server so you get them on all your devices. No ads, no analytics, no tracking, nothing sold or shared. Your Health data and body weight never leave your iPhone.</p>
+    <p>Without an account, MDLF Training does <strong>not collect any personal data</strong>: your workouts, programs and settings stay on your device. The account is <strong>optional</strong>: if you sign in (with Apple, Google or a code sent by email), your workouts and programs are copied to the app's server so you get them on all your devices. No ads, no analytics, no tracking, nothing sold or shared. Your Health data and body weight never leave your iPhone.</p>
   </section>
 
   <section>
@@ -123,7 +131,7 @@
 
   <section>
     <h2>Account (optional)</h2>
-    <p>You can sign in with Apple in Settings › Account. The app asks for neither your name nor your email: it only gets an anonymous identifier specific to MDLF Training. Your workouts, programs, custom exercises and shared settings are then stored with Supabase (database hosting, European Union, Ireland), only to sync your devices. Health data, body weight and device-only settings are never uploaded. Each account can only read its own data. “Sign out” keeps everything; “Delete my account” immediately erases the account and all its data from the server and normally removes MDLF Training from Sign in with Apple (otherwise the app shows how to do it in iPhone Settings). You can ask for a copy or deletion of your data by email at any time.</p>
+    <p>You can create an account on first launch or in Settings › Account, in three ways, and link several of them to the same account. <strong>Apple</strong>: the app asks for neither your name nor your email; it only gets an anonymous identifier specific to MDLF Training. <strong>Google</strong>: Google sends an identifier of your Google account, your email address and, depending on your account, your name; the account server keeps them with your account (this is how Supabase works), but the app never uses or shows your name: only the username you choose is used. <strong>Email</strong>: you enter your address and receive a 6-digit code valid for 10 minutes, with no password; your address is only used to sign in, never for newsletters or ads. Codes are sent by Resend (Resend, Inc., USA), a processor that only receives your address and the message with the code, under the European Commission's standard contractual clauses; Resend keeps a technical log of sent emails for a limited time. An optional username and emoji avatar (no photo) can be set; for now only you can see them. Your workouts, programs, custom exercises and shared settings are then stored with Supabase (database hosting, European Union, Ireland), only to sync your devices. Health data, body weight and device-only settings are never uploaded. Each account can only read its own data. “Sign out” keeps everything; “Delete my account” (after signing in again to confirm it is you) immediately erases the account and all its data from the server, including email address, username and avatar, and normally removes MDLF Training from Sign in with Apple (otherwise the app shows how to do it in iPhone Settings). You can ask for a copy or deletion of your data by email at any time.</p>
   </section>
 
   <section>
@@ -156,6 +164,7 @@
       <li><strong>Publisher</strong>: Maxence de La Fouchardière, private individual, non-commercial · <a href="mailto:maxdelafouch@gmail.com">maxdelafouch@gmail.com</a></li>
       <li><strong>Website and updates hosting</strong>: Vercel Inc., 440 N Barranca Avenue #4133, Covina, CA 91723, USA</li>
       <li><strong>Account hosting</strong>: Supabase Pte. Ltd., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513; data stored in the European Union (Ireland).</li>
+      <li><strong>Sign-in codes by email</strong>: Resend, Inc., USA · <a href="https://resend.com">resend.com</a></li>
       <li><strong>Terms</strong>: the app is distributed on the App Store under Apple's standard license agreement (EULA).</li>
       <li><strong>Health</strong>: MDLF Training is a training log, not a medical device. Programs, estimates (1RM, calories, recovery) and exercise tips are for information only. Ask a health professional before starting to train or if something hurts.</li>
     </ul>

@@ -142,6 +142,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     Native.hideSplash();
     return;
   }
+  // App iOS, tout premier lancement : écran Bienvenue (jamais un mur : « Commencer sans compte »)
+  try { await maybeShowWelcome(); } catch { /* l'app reste utilisable sans */ }
   Native.hideSplash();
   Native.statusBar(!document.body.classList.contains('light'));
   prefetchBodyMass(); // app iOS : dernière pesée de Santé, pour le volume au poids du corps

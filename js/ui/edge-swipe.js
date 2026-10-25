@@ -17,7 +17,7 @@ function isStandalone() {
     if (!isStandalone() || ev.touches.length !== 1) return;
     const x = ev.touches[0].clientX;
     if (x >= 24 || nav.stacks[nav.tab].length < 2) return;
-    if (currentRoute() === 'session' || document.querySelector('.sheet-root, .ios-dialog, .modal-overlay')) return;
+    if (currentRoute() === 'session' || document.querySelector('.sheet-root, .ios-dialog, .modal-overlay, .auth')) return;
     const fe = document.activeElement;
     if (fe && /^(INPUT|TEXTAREA|SELECT)$/.test(fe.tagName)) return;
     x0 = x; t0 = Date.now(); dx = 0; tracking = true;

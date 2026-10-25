@@ -341,17 +341,6 @@ html.type-xl .session-set .set-badge { grid-column: 1 / -1; }
 html.type-xl .segmented { height: auto; min-height: 32px; }
 html.type-xl .segmented__btn { white-space: normal; overflow-wrap: anywhere; line-height: 1.15; padding: 12px 6px; } /* 4 px + les 8 px de débord */
 
-/* Réglages › Compte : bouton « Se connecter avec Apple » (charte Apple : noir sur fond clair, blanc sur
-   fond sombre, logo et texte centrés, 44 px au moins) */
-.siwa {
-  display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 48px;
-  border: 0; border-radius: 12px; cursor: pointer; font: inherit; font-size: 1.059rem; font-weight: 600;
-  background: #000; color: #fff;
-}
-.siwa:active { opacity: .7; }
-.siwa:disabled { opacity: .5; }
-.siwa__logo { width: 17px; height: 17px; margin-top: -3px; }
-body:not(.light) .siwa { background: #fff; color: #000; }   /* thème sombre (js/ui/theme.js) */
 /* Lien dans un pied de groupe (Compte › Confidentialité) : texte teinté, zone de toucher agrandie sans décaler la ligne */
 .link-inline { font: inherit; color: var(--tint); background: none; border: 0; padding: 13px 6px; margin: -13px -6px; }
 .link-inline:active { opacity: .6; }

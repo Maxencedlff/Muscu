@@ -40,6 +40,7 @@ Les fichiers de l'app iOS sont exclus de la publication Vercel (`.vercelignore`)
 | `Native.statusBar()` | `applyTheme()`, démarrage | Texte de la barre d'état adapté au thème |
 | `Native.backup()` / `boot()` | `save()`, démarrage | Deux copies : `ppl_v2.json` dans les Documents de l'app (dans la sauvegarde iCloud de l'iPhone) et la copie iCloud de l'app (voir « Copie iCloud ») ; restaurées si le stockage web est vide, jamais écrasées avant |
 | `Native.hideSplash()` | démarrage | Écran de démarrage retiré après le premier rendu (filet à 4 s) |
+| `Native.account.*` | `account.js` | Compte : Apple (`signIn`, `credentialState`), Google (`signInGoogle`, `googleAvailable`), session dans le Trousseau (`storage`) ; voir « Compte » |
 | `Native.appIcon.get()` / `set(nom)` | `app-icon.js` | Icône de l'app choisie dans Réglages (voir « Icône de l'app ») |
 | `Native.shareImage(dataUrl, nom)` | `share.js` | Image de la séance écrite dans le cache de l'app (`@capacitor/filesystem`), puis feuille de partage d'iOS (`@capacitor/share` 8.0.3 : Instagram, Messages, Photos…). « Enregistrer l'image » demande l'accès Photos en ajout seul (`NSPhotoLibraryAddUsageDescription`) |
 
@@ -205,6 +206,59 @@ Réglages › **Icône de l'app** (app iOS seulement, absente de la PWA) propose
 Références Apple : `UIApplication.setAlternateIconName(_:completionHandler:)`,
 `supportsAlternateIcons`, réglage de compilation « Alternate App Icon Sets », HIG « App icons »
 (variantes Default, Dark et Tinted d'iOS 18).
+
+### Compte : Apple, Google, code par e-mail (`AccountPlugin.swift`)
+
+Trois moyens de connexion, un seul parcours dans `js/data/account.js` (`finishSignIn`). Le code par
+e-mail passe uniquement par supabase-js (aucun code natif). Apple et Google donnent un jeton
+d'identité : le nonce brut vient du JS, Apple et Google reçoivent son SHA-256, Supabase le nonce brut.
+
+**Google (SDK GoogleSignIn ≥ 10.1, Swift Package Manager)**
+
+- Dépendance déclarée dans `project.pbxproj` (référence `XCRemoteSwiftPackageReference`
+  « GoogleSignIn-iOS », `upToNextMajorVersion` 10.1.0, produit `GoogleSignIn` lié à la cible **App**
+  seulement). Pas dans `CapApp-SPM/Package.swift` : ce fichier est régénéré par `npx cap sync`.
+  Xcode (et la CI) résolvent le paquet à la compilation ; le `Package.resolved` créé dans
+  `App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/` au premier build sur Mac est à committer
+  pour figer les versions.
+- `Info.plist` : `GIDClientID` et le schéma d'URL du client inversé (`CFBundleURLTypes`). Tant qu'ils
+  valent `REMPLACER-CLIENT-ID-IOS`, `googleStatus` répond « indisponible » et l'app masque le bouton
+  Google (sans ce garde-fou, le SDK lèverait une exception Objective-C si le schéma manquait).
+- Retour de la fenêtre Google : `GIDSignIn.sharedInstance.handle(url)` dans `SceneDelegate`
+  (`scene(_:openURLContexts:)`). L'app a une scène : iOS ne passe jamais par
+  `AppDelegate.application(_:open:options:)`.
+- Le SDK ne garde pas de session Google (`signOut()` juste après) : Supabase tient la session.
+- Le nom renvoyé par Google (`identity_data.full_name` côté Supabase) n'est ni lu ni affiché ; seul le
+  pseudo choisi dans l'app sert de nom (test unitaire `account.mjs`).
+
+**Mettre en service Google** (Maxence, Google Cloud Console, projet « MDLF Training ») :
+
+1. Écran de consentement OAuth : type externe, nom « MDLF Training », logo, lien vers privacy.html,
+   droits `openid`, `email`, `profile` seulement ; publier (pas de vérification Google nécessaire pour
+   ces droits de base).
+2. Identifiants › Créer un ID client OAuth « iOS » : bundle `com.mdlf.training`, Team ID `NMK739Z59B`.
+   Recopier l'ID client dans `Info.plist` : `GIDClientID` = l'ID complet, schéma d'URL =
+   `com.googleusercontent.apps.` + la partie avant `.apps.googleusercontent.com`.
+3. Créer aussi un ID client « Application Web » (Supabase en a besoin comme client principal) ; donner
+   les deux ID et le secret Web à `scripts/supabase-auth-config.py`.
+4. Nouvelle build (changement natif : les mises à jour à chaud ne le transportent pas).
+
+**E-mail** : envoi des codes par Resend (SMTP), domaine d'envoi à acheter et vérifier chez Resend
+(enregistrements SPF, DKIM, DMARC). Tant que le SMTP n'est pas configuré, Supabase n'écrit qu'aux
+membres de l'équipe du projet (`email_address_not_authorized` : l'app l'explique). Réglages à appliquer :
+`scripts/supabase-auth-config.py` (lecture seule par défaut).
+
+**Écran Bienvenue** : seulement au tout premier lancement (pas de séance, carte « Où t'entraînes-tu ? »
+pas encore passée, aucune copie restaurée : `Native.restoredAtBoot`, pas de session dans le Trousseau),
+pendant l'écran de démarrage. Jamais un mur : « Commencer sans compte ».
+
+**Manifeste de confidentialité** : `NSPrivacyCollectedDataTypeEmailAddress` (lié, sans suivi,
+fonctionnement de l'app) ajouté pour les comptes e-mail et Google ; à reporter dans App Store Connect
+(Confidentialité de l'app › Coordonnées › Adresse e-mail). GoogleSignIn embarque son propre manifeste.
+
+**Non vérifiable sans Mac ni iPhone** : compilation du Swift (la CI `ios.yml` compile), fenêtre Google
+réelle, remplissage automatique du code depuis Mail (`autocomplete="one-time-code"`), clavier
+numérique, Face ID du trousseau.
 
 ## Mises à jour à chaud (sans repasser par Apple)
 

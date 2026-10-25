@@ -70,12 +70,23 @@ const Native = (() => {
 
   const openCloud = () => { if (!cloudReady) { cloudReady = true; setItem(CLOUD_READY, '1'); } };
 
+  // Lancement qui suit une restauration (Documents ou iCloud) : l'écran Bienvenue n'est pas montré
+  // (js/data/account-auth.js, firstScreen). Marque lue une fois puis effacée.
+  const RESTORED_MARK = 'ppl_restored';
+  const restoredAtBoot = (() => {
+    try { const v = sessionStorage.getItem(RESTORED_MARK) === '1'; sessionStorage.removeItem(RESTORED_MARK); return v; }
+    catch { return false; }
+  })();
+
   // Remet une copie dans le stockage web puis recharge l'app ; plus aucune écriture d'ici là
   const restore = json => {
     clearTimeout(backupTimer);
     const was = backupEnabled;
     backupEnabled = false;
-    if (setItem('ppl_v2', json)) { location.reload(); return true; }
+    if (setItem('ppl_v2', json)) {
+      try { sessionStorage.setItem(RESTORED_MARK, '1'); } catch { /* écran Bienvenue évité par les séances restaurées */ }
+      location.reload(); return true;
+    }
     backupEnabled = was;
     return false;
   };
@@ -117,6 +128,7 @@ const Native = (() => {
 
   return {
     isNative,
+    restoredAtBoot,
 
     // Retour haptique du Taptic Engine : 'light' au toucher, 'success' en fin de repos ou de séance
     haptic(kind = 'light') {
@@ -294,7 +306,7 @@ const Native = (() => {
       play(notes) { if (isNative) quiet(Sound.play({ notes })); },
     },
 
-    // Compte MDLF : connexion avec Apple et session gardée dans le Trousseau (js/data/account.js).
+    // Compte MDLF : connexion avec Apple ou Google et session gardée dans le Trousseau (js/data/account.js).
     // available : faux dans le navigateur et dans une coquille plus ancienne que le module (une mise
     // à jour à chaud peut arriver avant la nouvelle build) : la rubrique Compte est alors masquée.
     account: {
@@ -304,6 +316,18 @@ const Native = (() => {
       async signIn(nonce) {
         try { return await Account.signIn({ nonce }); }
         catch (e) { if (e?.code === 'CANCELED') return null; throw e; }
+      },
+      // Connexion Google (SDK GoogleSignIn) : { idToken } ; null si la fenêtre est fermée. Autre
+      // échec : exception. Le nonce brut part haché vers Google, brut vers Supabase (comme Apple).
+      async signInGoogle(nonce) {
+        try { return await Account.signInGoogle({ nonce }); }
+        catch (e) { if (e?.code === 'CANCELED') return null; throw e; }
+      },
+      // Bouton Google proposé ? Faux si le client Google n'est pas configuré (GIDClientID absent ou
+      // valeur de remplacement dans Info.plist), dans une build sans la méthode, ou hors app.
+      async googleAvailable() {
+        if (!isNative) return false;
+        try { return (await Account.googleStatus())?.available === true; } catch { return false; }
       },
       // 'authorized' | 'revoked' | 'notFound' | 'transferred' | 'unknown' (erreur : 'unknown')
       async credentialState(user) {
