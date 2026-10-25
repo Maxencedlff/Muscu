@@ -26,6 +26,22 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- Connexion Google (AccountPlugin.swift). Valeurs de remplacement tant que le client iOS n'existe
+	     pas dans Google Cloud : le bouton Google reste masqué. Remplacer REMPLACER-CLIENT-ID-IOS aux deux
+	     endroits par la partie avant « .apps.googleusercontent.com » du client ID iOS (IOS.md). -->
+	<key>GIDClientID</key>
+	<string>REMPLACER-CLIENT-ID-IOS.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>google-sign-in</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.REMPLACER-CLIENT-ID-IOS</string>
+			</array>
+		</dict>
+	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>

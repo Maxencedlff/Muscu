@@ -3,7 +3,8 @@
 <plist version="1.0">
 <dict>
 	<!-- Manifeste de confidentialité exigé par Apple : aucun suivi. Données collectées seulement avec le compte
-	     facultatif (js/data/account.js), pour synchroniser les appareils : identifiant, séances, notes.
+	     facultatif (js/data/account.js), pour synchroniser les appareils : identifiant, adresse e-mail (comptes
+	     e-mail et Google seulement), séances, notes, pseudo et avatar (un emoji).
 	     Jamais de donnée de Santé ni de poids du corps. Même déclaration dans App Store Connect et privacy.html. -->
 	<key>NSPrivacyTracking</key>
 	<false/>
@@ -15,6 +16,20 @@
 			<!-- Identifiant du compte (Supabase) et identifiant anonyme fourni par « Se connecter avec Apple » -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- Adresse e-mail : connexion par code e-mail, ou donnée par Google à la connexion avec Google.
+			     Sert seulement à se connecter (envoi du code par Resend) ; jamais de publicité ni de suivi -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
@@ -38,7 +53,7 @@
 			</array>
 		</dict>
 		<dict>
-			<!-- Notes de séance et noms d'exercices ou de programmes saisis -->
+			<!-- Notes de séance, noms d'exercices ou de programmes saisis, pseudo et avatar (emoji) du compte -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>

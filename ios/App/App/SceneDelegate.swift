@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import GoogleSignIn
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
@@ -16,8 +17,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)
     }
 
+    // L'app a une scène (UIApplicationSceneManifest) : iOS remet les URL ouvertes ici, jamais à
+    // AppDelegate.application(_:open:options:). Retour de la fenêtre Google d'abord (schéma
+    // com.googleusercontent.apps.…), le reste à Capacitor.
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
-        SceneDelegateProxy.shared.scene(scene, openURLContexts: URLContexts)
+        let others = URLContexts.filter { !GIDSignIn.sharedInstance.handle($0.url) }
+        if !others.isEmpty { SceneDelegateProxy.shared.scene(scene, openURLContexts: others) }
     }
 
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
