@@ -11,10 +11,11 @@ const TABS = {
   history:  { root: 'history',   label: 'Historique',   icon: 'clock.history', action: 'go-history' },
   progress: { root: 'stats',     label: 'Progrès',      icon: 'chart',         action: 'go-stats' },
   program:  { root: 'programmes', label: 'Programme',    icon: 'list.bullet',   action: 'go-program' },
+  friends:  { root: 'friends',   label: 'Amis',         icon: 'person.2',      action: 'go-friends' },   // js/features/social-ui.js
 };
 const TAB_OF_ROOT = Object.fromEntries(Object.entries(TABS).map(([t, v]) => [v.root, t]));
 
-let nav = { tab: 'train', stacks: { train: ['dashboard'], history: ['history'], progress: ['stats'], program: ['programmes'] } };
+let nav = { tab: 'train', stacks: { train: ['dashboard'], history: ['history'], progress: ['stats'], program: ['programmes'], friends: ['friends'] } };
 let navIndex   = 0;     // position dans l'historique du navigateur
 let navHist    = [];    // copie des états poussés, pour savoir si history.back() mène au bon écran
 let navDup     = [];    // entrées poussées à l'ouverture d'une feuille (même écran que la précédente)
@@ -227,7 +228,7 @@ const SCREENS = new Map([
   ['settings',       { render: () => renderSettings(), mount: () => { fillAppVersion(); fillBodyWeightCell(); fillHealthWorkoutsCell(); } }],
   ['add-session',    { render: () => renderAddSession(), enter: ({ dir }) => addSessionEnter(dir), leave: () => addSessionLeave() }],
   ['summary',        { render: () => renderSummary() }],          // Entraînement › Bilan
-  ['history-detail', { render: id => renderHistoryDetail(id) }],
+  ['history-detail', { render: id => renderHistoryDetail(id), mount: () => socialLoadMyBravos({ minAge: SOCIAL_REFRESH_MS }) }],   // bravos reçus
   ['stats-ex',       { render: exId => renderStatsExercise(exId), mount: () => drawCharts() }],
   ['stats-overview', { render: () => renderStatsOverview() }],
   ['prog-picker',    { render: () => renderProgPicker() }],

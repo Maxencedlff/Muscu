@@ -26,8 +26,12 @@ DEVICE = dict(viewport={'width': 440, 'height': 956}, device_scale_factor=3, is_
               color_scheme=THEME, service_workers='block')
 
 
+# Onglets dans l'ordre de TABS (js/ui/router.js), désignés par leur nom et non par leur rang
+TAB_NAMES = ['train', 'history', 'progress', 'program', 'friends']
+
+
 def tab(page, i):
-    page.locator('.tabbar [role=tab]').nth(i).click()
+    page.locator(f'.tabbar [data-tab="{TAB_NAMES[i]}"]').click()
     page.wait_for_timeout(500)
 
 

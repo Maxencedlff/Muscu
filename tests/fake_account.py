@@ -15,6 +15,15 @@ L'état du faux serveur est dans window.__sb (codes envoyés, comptes, profils, 
 lisent et le modifient (ex. __sb.google = false pour un client Google non configuré ; __sb.remoteRows :
 séances déjà sur le compte ; __sb.upserted : séances envoyées ; __sb.endSession() : session finie hors
 de l'app, comme supabase-js quand le jeton de rafraîchissement est refusé).
+
+Amis (docs/SOCIAL_V1.md et supabase/migrations/…_social.sql) : les RPC social_state, social_enable,
+social_disable, search_profiles, request_follow, cancel_follow, respond_follow, remove_follower,
+block_user, unblock_user, feed, toggle_bravo, my_bravos et la fonction Edge report suivent les règles
+du contrat (comptes privés, blocage jamais révélé, limites par jour, liste blanche des séances, mon
+social désactivé → fil et recherche vides). État dans __sb.so ; __sb.addPerson({ username, avatar,
+social, sessions }) crée un autre compte, __sb.follow(a, b, status) une relation, __sb.block(a, b) un
+blocage ; __sb.meId() : compte connecté. Appels dans __sb.calls sous ['social', fonction, arguments].
+__sb.fail.social = 'offline' : toutes les RPC du social échouent comme supabase-js hors ligne.
 """
 
 FAKE_ACCOUNT = r"""
@@ -187,15 +196,148 @@ FAKE_ACCOUNT = r"""
     return { data: null, error: null };
   };
 
+  // ── Amis ──
+  const so = sb.so = { at: {}, follows: [], blocks: [], bravos: [], posts: {}, reports: [], day: {} };
+  sb.meId = () => sb.session?.user.id || null;
+  sb.addPerson = ({ username, avatar = null, social = true, sessions = [] } = {}) => {
+    const u = newUser({ identities: [] });
+    sb.profiles[u.id] = { username, avatar_emoji: avatar, username_changed_at: null };
+    if (social) so.at[u.id] = now();
+    so.posts[u.id] = sessions.map(x => ({ id: x.id, data: x, deleted_at: x.deleted ? 'x' : null }));
+    return u.id;
+  };
+  sb.follow = (follower, followee, status = 'accepted') => { so.follows.push({ follower, followee, status, at: now() }); };
+  sb.block = (blocker, blocked) => { so.blocks.push({ blocker, blocked, at: now() }); };
+  const pgErr = message => ({ data: null, error: { code: 'P0001', message, details: null, hint: null } });
+  const blockedBetween = (a, b) => so.blocks.some(k => (k.blocker === a && k.blocked === b) || (k.blocker === b && k.blocked === a));
+  const rel = (a, b) => so.follows.find(f => f.follower === a && f.followee === b);
+  const person = (id, since) => ({ user_id: id, username: sb.profiles[id]?.username || null, avatar: sb.profiles[id]?.avatar_emoji || null, since: new Date(since).toISOString() });
+  const canSee = (viewer, owner) => rel(viewer, owner)?.status === 'accepted' && !!so.at[owner] && !!so.at[viewer] && !blockedBetween(viewer, owner);
+  // Mes séances côté serveur : dernière version envoyée de chaque séance (__sb.upserted)
+  const myPosts = id => { const m = new Map(); for (const r of sb.upserted || []) m.set(r.id, { id: r.id, data: r.data, deleted_at: r.deleted_at }); return [...m.values()]; };
+  const postsOf = id => (id === sb.meId() ? myPosts(id) : so.posts[id] || []);
+  const shown = p => !p.deleted_at && p.data && p.data.hidden !== true && Number.isFinite(p.data.date);
+  // private.session_public : liste blanche, rien d'autre ne sort
+  const sessionPublic = d => {
+    const sc = v => (['string', 'number', 'boolean'].includes(typeof v) ? v : undefined);
+    const strip = o => JSON.parse(JSON.stringify(o));
+    return strip({ date: sc(d.date), duration: sc(d.duration), programme: sc(d.programme), category: sc(d.category), label: sc(d.label),
+      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), sets: (e.sets || []).map(st => ({ weight: sc(st.weight), reps: sc(st.reps), dist: sc(st.dist) })) })) });
+  };
+  const limit = (me, action, max) => { const k = me + action; so.day[k] = (so.day[k] || 0) + 1; return so.day[k] > max; };
+  const bravoCount = (owner, sid) => so.bravos.filter(b => b.owner === owner && b.sid === sid).length;
+  const norm = q => String(q || '').trim().replace(/^@+/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const socialRpc = {
+    social_state: me => {
+      const pr = sb.profiles[me] || {};
+      const pend = so.follows.filter(f => f.followee === me && f.status === 'pending');
+      return { enabled: !!so.at[me], username: pr.username || null, avatar: pr.avatar_emoji || null,
+        pending_in: pend.map(f => person(f.follower, f.at)),
+        following: so.follows.filter(f => f.follower === me && f.status === 'accepted').map(f => person(f.followee, f.at)),
+        followers: so.follows.filter(f => f.followee === me && f.status === 'accepted').map(f => person(f.follower, f.at)),
+        requested: so.follows.filter(f => f.follower === me && (f.status === 'pending' || f.status === 'ghost')).map(f => person(f.followee, f.at)),
+        // Bloqué sans social : pseudo et avatar non renvoyés
+        blocked: so.blocks.filter(k => k.blocker === me).map(k => (so.at[k.blocked] ? person(k.blocked, k.at) : { ...person(k.blocked, k.at), username: null, avatar: null })), badge: pend.length };
+    },
+    social_enable: (me, { age_ok }) => {
+      if (!sb.profiles[me]?.username) return pgErr('username_required');
+      if (age_ok !== true) return pgErr('age_required');
+      so.at[me] ||= now(); return null;
+    },
+    social_disable: me => { delete so.at[me]; return null; },
+    search_profiles: (me, { q }) => {
+      const n = norm(q);
+      if (n.length < 2 || !so.at[me]) return [];
+      return Object.entries(sb.profiles).filter(([id, p]) => id !== me && so.at[id] && p.username?.startsWith(n) && !blockedBetween(me, id))
+        .slice(0, 20).map(([id, p]) => ({ user_id: id, username: p.username, avatar: p.avatar_emoji || null,
+          relation: rel(me, id)?.status === 'accepted' ? 'following' : rel(me, id) ? 'requested' : rel(id, me)?.status === 'accepted' ? 'follows_you' : 'none' }));
+    },
+    request_follow: (me, { target }) => {
+      if (!so.at[me]) return pgErr('social_not_enabled');
+      if (target === me || !sb.users[target]) return pgErr('not_found');
+      const r = rel(me, target);
+      if (r) return r.status === 'accepted' ? 'following' : 'requested';
+      if (limit(me, 'follow', 30)) return pgErr('rate_limited');
+      // Bloquée, bloquante ou sans social : demande fantôme (jamais vue par la cible, jamais acceptée)
+      sb.follow(me, target, !blockedBetween(me, target) && so.at[target] ? 'pending' : 'ghost');
+      return 'requested';
+    },
+    cancel_follow: (me, { target }) => { so.follows = so.follows.filter(f => !(f.follower === me && f.followee === target)); return null; },
+    respond_follow: (me, { follower, accept }) => {
+      const r = !blockedBetween(me, follower) && so.follows.find(f => f.follower === follower && f.followee === me && f.status === 'pending');
+      if (r && accept) { r.status = 'accepted'; r.at = now(); } else if (r) so.follows.splice(so.follows.indexOf(r), 1);
+      return null;
+    },
+    remove_follower: (me, { follower }) => { so.follows = so.follows.filter(f => !(f.follower === follower && f.followee === me)); return null; },
+    block_user: (me, { target }) => {
+      if (target === me) return pgErr('not_found');
+      if (!sb.users[target]) return null;   // identifiant inconnu : sans effet, sans erreur
+      if (!so.blocks.some(k => k.blocker === me && k.blocked === target)) sb.block(me, target);
+      // Mes demandes et abonnements vers lui, son abonnement vers moi : retirés ; sa demande en attente devient fantôme
+      so.follows = so.follows.filter(f => !((f.follower === me && f.followee === target) || (f.follower === target && f.followee === me && f.status === 'accepted')));
+      so.follows.forEach(f => { if (f.follower === target && f.followee === me) f.status = 'ghost'; });
+      so.bravos = so.bravos.filter(b => !((b.user === me && b.owner === target) || (b.user === target && b.owner === me)));
+      return null;
+    },
+    unblock_user: (me, { target }) => {
+      so.blocks = so.blocks.filter(k => !(k.blocker === me && k.blocked === target));
+      so.follows = so.follows.filter(f => !(f.status === 'ghost' && ((f.follower === me && f.followee === target) || (f.follower === target && f.followee === me))));
+      return null;
+    },
+    // Curseur complet : (done_at, owner, id) décroissant, page suivante strictement après la dernière carte
+    feed: (me, { before_at = null, before_owner = null, before_id = null, only_user = null }) => {
+      if (!so.at[me]) return [];
+      const owners = so.follows.filter(f => f.follower === me && canSee(me, f.followee) && (!only_user || f.followee === only_user)).map(f => f.followee);
+      const key = (at, o, id) => [at, o, id];
+      const cmp = (a, b) => (a[0] - b[0]) || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0) || (a[2] < b[2] ? -1 : a[2] > b[2] ? 1 : 0);
+      const cur = before_at == null ? null : key(before_at, before_owner || '', before_id || '');
+      return owners.flatMap(o => postsOf(o).filter(shown).filter(p => p.data.date <= now() + 86400_000).map(p => ({ o, p, k: key(p.data.date, o, p.id) })))
+        .filter(x => !cur || cmp(x.k, cur) < 0)
+        .sort((a, b) => cmp(b.k, a.k)).slice(0, 20)
+        .map(({ o, p }) => ({ owner: o, username: sb.profiles[o]?.username, avatar: sb.profiles[o]?.avatar_emoji || null, id: p.id, done_at: p.data.date,
+          s: sessionPublic(p.data), bravos: bravoCount(o, p.id), my_bravo: so.bravos.some(b => b.owner === o && b.sid === p.id && b.user === me) }));
+    },
+    toggle_bravo: (me, { owner, session_id }) => {
+      const p = postsOf(owner).find(x => x.id === session_id);
+      if (owner === me || !so.at[me] || !canSee(me, owner) || !p || !shown(p)) return pgErr('not_found');
+      if (limit(me, 'bravo', 200)) return pgErr('rate_limited');
+      const i = so.bravos.findIndex(b => b.owner === owner && b.sid === session_id && b.user === me);
+      if (i >= 0) so.bravos.splice(i, 1); else so.bravos.push({ owner, sid: session_id, user: me });
+      return { bravos: bravoCount(owner, session_id), mine: i < 0 };
+    },
+    my_bravos: me => [...new Set(so.bravos.filter(b => b.owner === me).map(b => b.sid))].map(sid => ({ session_id: sid, bravos: bravoCount(me, sid) })),
+  };
+  const callSocial = async (fn, args = {}) => {
+    log('social', fn, JSON.stringify(args));
+    if (sb.fail.social === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+    if (sb.fail.social === 'hang') return new Promise(() => {});
+    const me = sb.meId();
+    if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };
+    const out = socialRpc[fn](me, args);
+    return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
+  };
+  const REPORT_REASONS = ['spam', 'harcelement', 'sexuel', 'violence', 'haine', 'autre'];
+
   window.supabase = {
     createClient: (url, key, o) => {
       sb.storage = o?.auth?.storage; sb.storageKey = o?.auth?.storageKey;
       return {
         auth, from,
-        rpc: async (fn, args) => { log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
+        rpc: async (fn, args) => { if (socialRpc[fn]) return callSocial(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
           const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });
+          if (fn === 'report') {
+            if (sb.fail.social === 'offline') throw new TypeError('Failed to fetch');
+            if (!sb.session) return fail(401, { error: 'auth' });
+            const b = body || {};
+            if (!sb.users[b.target_user]) return fail(404, { error: 'not_found' });
+            if (b.target_user === sb.meId() || !['profile', 'session'].includes(b.kind) || !REPORT_REASONS.includes(b.reason)
+              || (b.details != null && String(b.details).length > 500)) return fail(400, { error: 'invalid' });
+            if (so.reports.filter(r => r.by === sb.meId()).length >= 10) return fail(429, { error: 'rate_limited' });
+            so.reports.push({ ...b, by: sb.meId() });
+            return { data: { ok: true }, error: null };
+          }
           const u = me(), nowS = now() / 1000;
           const amr = JSON.parse(atob(sb.session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).amr;
           const recent = amr.some(a => a.timestamp > nowS - 600);

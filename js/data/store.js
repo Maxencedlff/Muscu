@@ -297,6 +297,7 @@ function cleanHistoryEntry(h) {
   // Identifiant texte court (clé de la synchro du compte : 64 caractères au plus côté serveur)
   if (typeof h.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(h.id)) h.id = uid();
   if (h.healthSaved !== undefined && h.healthSaved !== true) delete h.healthSaved;   // app iOS : déjà envoyée à Santé
+  if (h.hidden !== undefined && h.hidden !== true) delete h.hidden;   // masquée aux abonnés (Amis), absent sinon
   // Poids du corps au moment de la séance (volume des exercices au poids du corps)
   if (h.bodyKg !== undefined && !(Number.isFinite(h.bodyKg) && h.bodyKg >= 25 && h.bodyKg <= 300)) delete h.bodyKg;
   h.exercises = h.exercises.filter(ex => isObj(ex) && typeof ex.name === 'string');

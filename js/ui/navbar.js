@@ -20,6 +20,19 @@ function ensureChrome() {
   document.body.append(live, bar);
 }
 
+// Badge de l'onglet Amis : demandes reçues en attente (socialBadge, js/data/social.js), annoncé par
+// VoiceOver avec le nom de l'onglet
+function updateTabBadge() {
+  const btn = $('.tabbar [data-tab="friends"]');
+  if (!btn) return;
+  const n = socialBadge();
+  let badge = btn.querySelector('.tabbar__badge');
+  if (!n) { badge?.remove(); btn.removeAttribute('aria-label'); return; }
+  if (!badge) { badge = document.createElement('span'); badge.className = 'tabbar__badge num'; badge.setAttribute('aria-hidden', 'true'); btn.append(badge); }
+  badge.textContent = n > 99 ? '99+' : String(n);
+  btn.setAttribute('aria-label', `${TABS.friends.label}, ${plural(n, 'demande', 'demandes')}`);
+}
+
 function sessionCounts(sess = activeSession) {
   const total = sess.exercises.reduce((a, ex) => a + ex.sets.length, 0);
   const done  = sess.exercises.reduce((a, ex) => a + ex.sets.filter(st => st.done).length, 0);
@@ -39,6 +52,7 @@ function updateChrome() {
     b.setAttribute('aria-selected', on ? 'true' : 'false');
     b.classList.toggle('tabbar__btn--active', on);
   });
+  updateTabBadge();
   const live = $('.livebar');
   const showLive = !!activeSession && !inSession;
   live.hidden = !showLive;
@@ -135,6 +149,8 @@ function routeTitle(route, isRoot) {
     programmes: 'Programme', settings: 'Réglages', account: 'Compte', session: 'Séance', summary: 'Bilan',
     'history-detail': 'Séance', 'stats-ex': 'Exercice', 'stats-overview': 'Vue d\'ensemble',
     'prog-picker': 'Programme actif', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
+    friends: 'Amis', 'social-profile': socialPerson(routeParams(route)[0])?.username || 'Profil',
+    'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
   }[name] || 'Retour';
 }

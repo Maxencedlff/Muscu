@@ -58,9 +58,9 @@ def t_home(bench, eng, dev, theme):
         t = tag(dev, theme)
         R.check(page.locator('.view.dashboard').count() == 1, f'{t} accueil affiché')
         tabs = page.locator('.tabbar [role="tab"]')
-        R.check(tabs.count() == 4, f'{t} tab bar : 4 onglets')
+        R.check(tabs.count() == 5, f'{t} tab bar : 5 onglets')
         labels = tabs.all_inner_texts()
-        R.check([l.strip() for l in labels] == ['Entraînement', 'Historique', 'Progrès', 'Programme'], f'{t} libellés des onglets {labels}')
+        R.check([l.strip() for l in labels] == ['Entraînement', 'Historique', 'Progrès', 'Programme', 'Amis'], f'{t} libellés des onglets {labels}')
         hs = [tabs.nth(i).bounding_box()['height'] for i in range(tabs.count())]
         R.check(min(hs) >= 44, f'{t} onglets >= 44 pt ({hs})')
         R.check(page.locator('.tabbar [aria-selected="true"]').inner_text().strip() == 'Entraînement', f'{t} onglet actif = Entraînement')
