@@ -34,7 +34,7 @@ const EXERCISE_CATALOGUE = [
   // Pectoraux
   ['Développé couché barre',           'chest',                  'front_delts triceps', 'salle', 'bench press|dc|bp|développé couché|bench|barbell bench press|flat bench press'],
   ['Développé couché haltères',        'chest',                  'front_delts triceps', 'halteres', 'dumbbell bench press|db bench press|dumbbell bench'],
-  ['Développé incliné barre',          'chest front_delts',      'triceps', 'salle', 'incline bench press|incline barbell press|incline bench'],
+  ['Développé incliné barre',          'chest front_delts',      'triceps', 'salle', 'incline bench press|incline barbell press|incline bench|développé incliné'],
   ['Développé incliné haltères',       'chest front_delts',      'triceps', 'halteres', 'incline dumbbell press|incline dumbbell bench press|incline db press'],
   ['Développé décliné',                'chest',                  'front_delts triceps', 'salle', 'decline bench press|decline press'],
   ['Développé couché machine',         'chest',                  'front_delts triceps', 'salle', 'chest press|chest press machine|machine chest press'],

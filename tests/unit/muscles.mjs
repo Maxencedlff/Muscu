@@ -160,8 +160,13 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.ok(Object.keys(TYPED_NAMES).length >= 40);
     for (const [typed, name] of Object.entries(TYPED_NAMES)) assert.equal(run(`catalogueEntry(${JSON.stringify(typed)})?.name`), name, typed);
     // Noms génériques laissés sans fiche : ils désignent plusieurs exercices de la bibliothèque
-    for (const typed of ['curl', 'squat', 'élévations', 'tirage', 'développé incliné', 'DI', 'kickback', 'shoulder press', 'rotation externe', 'rowing haltères', 'gainage'])
+    for (const typed of ['curl', 'squat', 'élévations', 'tirage', 'kickback', 'shoulder press', 'rotation externe', 'rowing haltères', 'gainage'])
       assert.equal(run(`catalogueEntry(${JSON.stringify(typed)})`), null, typed);
+    // « Développé incliné » et « DI » sans précision : version barre (choix de Maxence, 26/10 : en salle, c'est la barre)
+    for (const typed of ['développé incliné', 'DI', 'di'])
+      assert.equal(run(`catalogueEntry(${JSON.stringify(typed)})?.name`), 'Développé incliné barre', typed);
+    assert.equal(run(`catalogueEntry('Développé incliné haltères').name`), 'Développé incliné haltères');
+    assert.equal(run(`catalogueEntry('DI haltères')?.name`), 'Développé incliné haltères');
     // La clé souple ne confond pas deux fiches proches
     assert.equal(run(`catalogueEntry('Pompes pike').name`), 'Pompes pike (épaules)');
     assert.equal(run(`catalogueEntry('Squat gobelet kettlebell').name`), 'Squat gobelet kettlebell');
