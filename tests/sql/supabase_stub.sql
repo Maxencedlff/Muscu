@@ -25,3 +25,8 @@ create table auth.identities (
 alter table auth.users add column created_at timestamptz default now();
 grant usage on schema auth to supabase_auth_admin;
 grant select, insert, update, delete on auth.users, auth.identities to supabase_auth_admin;
+-- Droits par défaut de Supabase sur ce que postgres crée dans public : sans eux, un oubli de REVOKE
+-- dans une migration passerait inaperçu ici (les tests « anon n'a rien » seraient vrais par hasard)
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;

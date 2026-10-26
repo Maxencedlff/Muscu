@@ -16,12 +16,26 @@
 --    seulement { date, duration, programme, category, label, exercises: [{ name, measure, sets:
 --    [{ weight, reps, dist }] }] }, avec des valeurs simples (texte, nombre, booléen). Jamais notes,
 --    bodyKg, healthSaved, hidden, ni une clé ajoutée plus tard dans sessions.data.
---  - Blocage jamais révélé : la recherche et le fil se taisent, une demande vers quelqu'un qui m'a
---    bloqué (ou que j'ai bloqué, ou sans social) répond 'requested' sans rien créer. Bloquer supprime
---    les abonnements dans les deux sens et les bravos échangés.
+--  - Blocage jamais révélé : la recherche et le fil se taisent. Une demande vers quelqu'un qui m'a
+--    bloqué (ou que j'ai bloqué, ou sans social) crée une demande « fantôme » (status 'ghost') : je la
+--    vois dans social_state.requested comme une demande normale, mais elle n'existe pour personne
+--    d'autre (ni pending_in, ni badge, ni respond_follow, ni can_see) et ne devient jamais une vraie
+--    demande. Bloquer supprime mes demandes et abonnements vers l'autre, son abonnement vers moi et les
+--    bravos échangés ; sa demande en attente devient fantôme (de son côté, rien ne change, comme une
+--    demande sans réponse). Débloquer supprime les fantômes entre les deux comptes. Demandes et
+--    blocages d'une même paire de comptes sont sérialisés (verrou private.lock_pair) : une demande
+--    envoyée pendant un blocage en cours ne passe pas entre les mailles.
+--  - Le social de l'appelant est requis pour feed, search_profiles et toggle_bravo (sinon rien, ou
+--    not_found) : on ne regarde pas les autres sans être soi-même visible.
+--  - Fil : curseur complet (done_at, user_id, id) pour les séances à la même milliseconde ; séances
+--    datées à plus de 24 h dans le futur ignorées (elles resteraient sinon en tête du fil). Textes
+--    tronqués à 200 caractères, 60 exercices et 100 séries au plus par séance montrée (une séance très
+--    compressible passe la limite de taille stockée mais pèserait des Mo une fois envoyée).
 --  - Limites sur 24 h glissantes : 30 demandes d'abonnement et 200 bravos donnés (journal
 --    private.social_rate, qui compte aussi les demandes neutres et les bravos retirés puis remis, pour
 --    qu'annuler et recommencer ne contourne rien), 10 signalements (comptés sur reports).
+--  - Signalements gardés 12 mois : purge quotidienne par pg_cron quand l'extension est disponible
+--    (cas de Supabase), et à chaque nouveau signalement dans tous les cas (déclencheur).
 --  - Erreurs lisibles par l'app (message exact, errcode P0001) : social_not_enabled,
 --    username_required, age_required, rate_limited, not_found.
 --  - Suppression du compte : toutes les lignes partent en cascade avec auth.users.
@@ -36,8 +50,8 @@
 -- le client n'écrit que username et avatar_emoji).
 alter table public.user_profiles add column social_at timestamptz;
 
--- Recherche par préfixe du pseudo parmi les profils visibles. text_pattern_ops : LIKE 'préfixe%'
--- indexable quelle que soit la collation de la base.
+-- Recherche par préfixe du pseudo parmi les profils visibles. text_pattern_ops : comparaison octet par
+-- octet (~>=~, ~<~) indexable quelle que soit la collation de la base.
 create index user_profiles_social_username on public.user_profiles (username text_pattern_ops)
   where social_at is not null and username is not null;
 
@@ -52,12 +66,14 @@ alter table public.sessions add column done_at bigint generated always as (
       then floor((data ->> 'date')::numeric)::bigint end
   end
 ) stored;
-create index sessions_user_done on public.sessions (user_id, done_at desc) where deleted_at is null;
+create index sessions_user_done on public.sessions (user_id, done_at desc, id desc)
+  where deleted_at is null and done_at is not null;
 
 create table public.follows (
   follower_id  uuid not null references auth.users(id) on delete cascade,
   followee_id  uuid not null references auth.users(id) on delete cascade,
-  status       text not null default 'pending' check (status in ('pending', 'accepted')),
+  -- ghost : demande fantôme, visible seulement par son auteur (voir l'en-tête)
+  status       text not null default 'pending' check (status in ('pending', 'accepted', 'ghost')),
   created_at   timestamptz not null default now(),
   responded_at timestamptz,
   primary key (follower_id, followee_id),
@@ -145,6 +161,17 @@ begin
 end
 $$;
 
+-- Verrou de transaction sur une paire de comptes (ordre indifférent) : request_follow, respond_follow,
+-- block_user et unblock_user d'une même paire passent l'un après l'autre. Pris avant tout autre verrou
+-- (rate_limit) : toujours le même ordre, pas d'interblocage.
+create function private.lock_pair(a uuid, b uuid) returns void
+  language plpgsql set search_path = '' as
+$$
+begin
+  perform pg_advisory_xact_lock(hashtextextended('pair:' || least(a::text, b::text) || ':' || greatest(a::text, b::text), 0));
+end
+$$;
+
 -- Social activé ?
 create function private.social_on(uid uuid) returns boolean
   language sql stable set search_path = '' as
@@ -172,17 +199,32 @@ $$
      and not private.blocked_between(viewer, owner)
 $$;
 
--- Séance montrable aux abonnés : non supprimée, datée, non masquée (hidden: true ; « true » en texte
--- compte aussi, par prudence)
-create function private.session_shown(data jsonb, deleted_at timestamptz, done_at bigint) returns boolean
-  language sql immutable set search_path = '' as
-$$ select deleted_at is null and done_at is not null and coalesce(data ->> 'hidden', '') <> 'true' $$;
+-- Borne haute des dates montrées : maintenant + 24 h, en ms (une horloge d'iPhone en avance passe,
+-- une séance datée de l'an 5000 non)
+create function private.max_done_at() returns bigint
+  language sql stable set search_path = '' as
+$$ select (extract(epoch from now()) * 1000)::bigint + 86400000 $$;
 
--- Valeur simple (texte, nombre, booléen) ou null : un objet glissé à la place d'un nom ne fait pas
--- sortir de clés
+-- Séance montrable aux abonnés : non supprimée, datée, pas dans le futur lointain, non masquée
+-- (hidden: true ; « true » en texte compte aussi, par prudence)
+create function private.session_shown(data jsonb, deleted_at timestamptz, done_at bigint) returns boolean
+  language sql stable set search_path = '' as
+$$
+  select deleted_at is null and done_at is not null and done_at <= private.max_done_at()
+     and coalesce(data ->> 'hidden', '') <> 'true'
+$$;
+
+-- Valeur simple (texte de 200 caractères au plus, nombre, booléen) ou null : un objet glissé à la
+-- place d'un nom ne fait pas sortir de clés, un texte géant ne sort pas en entier
 create function private.scalar(v jsonb) returns jsonb
   language sql immutable set search_path = '' as
-$$ select case when jsonb_typeof(v) in ('string', 'number', 'boolean') then v end $$;
+$$
+  select case jsonb_typeof(v)
+    when 'string' then to_jsonb(left(v #>> '{}', 200))
+    when 'number' then v
+    when 'boolean' then v
+  end
+$$;
 
 -- Liste blanche d'une séance vue par un autre (docs/SOCIAL_V1.md). Clés absentes ou nulles omises.
 create function private.session_public(data jsonb) returns jsonb
@@ -206,21 +248,27 @@ $$
           ) order by st.n)
           from jsonb_array_elements(case when jsonb_typeof(e.v -> 'sets') = 'array' then e.v -> 'sets' else '[]'::jsonb end)
                with ordinality as st(v, n)
-          where jsonb_typeof(st.v) = 'object'
+          where jsonb_typeof(st.v) = 'object' and st.n <= 100
         ), '[]'::jsonb)
       ) order by e.n)
       from jsonb_array_elements(case when jsonb_typeof(data -> 'exercises') = 'array' then data -> 'exercises' else '[]'::jsonb end)
            with ordinality as e(v, n)
-      where jsonb_typeof(e.v) = 'object'
+      where jsonb_typeof(e.v) = 'object' and e.n <= 60
     ), '[]'::jsonb)
   ))
 $$;
 
--- Personne d'une liste de social_state : { user_id, username, avatar, since }
-create function private.person(uid uuid, since timestamptz) returns jsonb
+-- Personne d'une liste de social_state : { user_id, username, avatar, since }. only_social : pseudo et
+-- avatar seulement si son social est activé (liste des bloqués : un compte sans social a pu être
+-- bloqué par son identifiant, son pseudo ne doit pas en sortir)
+create function private.person(uid uuid, since timestamptz, only_social boolean default false) returns jsonb
   language sql stable set search_path = '' as
 $$
-  select jsonb_build_object('user_id', uid, 'username', p.username, 'avatar', p.avatar_emoji, 'since', since)
+  select jsonb_build_object(
+    'user_id', uid,
+    'username', case when not only_social or p.social_at is not null then p.username end,
+    'avatar', case when not only_social or p.social_at is not null then p.avatar_emoji end,
+    'since', since)
   from (select 1) one left join public.user_profiles p on p.user_id = uid
 $$;
 
@@ -270,7 +318,9 @@ create function public.social_disable() returns void
 $$ update public.user_profiles p set social_at = null where p.user_id = (select auth.uid()) and p.social_at is not null $$;
 
 -- État de l'onglet Amis. since : date de la demande (en attente) ou de l'acceptation (abonnement),
--- du blocage pour les bloqués. Listes du plus récent au plus ancien.
+-- du blocage pour les bloqués. Listes du plus récent au plus ancien. requested comprend mes demandes
+-- fantômes (indiscernables) ; pending_in, badge, following et followers ignorent les comptes avec qui
+-- un blocage existe (défense en profondeur : le blocage supprime déjà ces lignes).
 create function public.social_state() returns jsonb
   language sql stable security definer set search_path = '' as
 $$
@@ -280,16 +330,20 @@ $$
     'username',   p.username,
     'avatar',     p.avatar_emoji,
     'pending_in', coalesce((select jsonb_agg(private.person(f.follower_id, f.created_at) order by f.created_at desc)
-                            from public.follows f where f.followee_id = me.id and f.status = 'pending'), '[]'::jsonb),
+                            from public.follows f where f.followee_id = me.id and f.status = 'pending'
+                              and not private.blocked_between(me.id, f.follower_id)), '[]'::jsonb),
     'following',  coalesce((select jsonb_agg(private.person(f.followee_id, f.responded_at) order by f.responded_at desc)
-                            from public.follows f where f.follower_id = me.id and f.status = 'accepted'), '[]'::jsonb),
+                            from public.follows f where f.follower_id = me.id and f.status = 'accepted'
+                              and not private.blocked_between(me.id, f.followee_id)), '[]'::jsonb),
     'followers',  coalesce((select jsonb_agg(private.person(f.follower_id, f.responded_at) order by f.responded_at desc)
-                            from public.follows f where f.followee_id = me.id and f.status = 'accepted'), '[]'::jsonb),
+                            from public.follows f where f.followee_id = me.id and f.status = 'accepted'
+                              and not private.blocked_between(me.id, f.follower_id)), '[]'::jsonb),
     'requested',  coalesce((select jsonb_agg(private.person(f.followee_id, f.created_at) order by f.created_at desc)
-                            from public.follows f where f.follower_id = me.id and f.status = 'pending'), '[]'::jsonb),
-    'blocked',    coalesce((select jsonb_agg(private.person(k.blocked_id, k.created_at) order by k.created_at desc)
+                            from public.follows f where f.follower_id = me.id and f.status in ('pending', 'ghost')), '[]'::jsonb),
+    'blocked',    coalesce((select jsonb_agg(private.person(k.blocked_id, k.created_at, true) order by k.created_at desc)
                             from public.blocks k where k.blocker_id = me.id), '[]'::jsonb),
-    'badge',      (select count(*)::int from public.follows f where f.followee_id = me.id and f.status = 'pending')
+    'badge',      (select count(*)::int from public.follows f where f.followee_id = me.id and f.status = 'pending'
+                     and not private.blocked_between(me.id, f.follower_id))
   )
   from me left join public.user_profiles p on p.user_id = me.id
 $$;
@@ -297,11 +351,14 @@ $$;
 -- Recherche par préfixe du pseudo. q normalisé : sans espaces autour, sans « @ », accents retirés
 -- (translate : l'extension unaccent n'est pas forcément installée ; majuscules accentuées comprises,
 -- car lower() ne les connaît pas sous la collation C), minuscules. Moins de 2 caractères : rien.
--- % _ et \ échappés : ce sont des caractères de LIKE (et « _ » est permis dans un pseudo). Exclus :
+-- Préfixe par plage octet par octet : v <= pseudo < v || '~' (« ~ » vient après tous les caractères
+-- permis dans un pseudo), servie par l'index user_profiles_social_username et triée dans son ordre
+-- (USING ~<~) : la correspondance exacte vient d'elle-même en premier, et seules 20 lignes sont lues.
+-- Pas de LIKE, donc rien à échapper : « % » et « _ » sont des caractères comme les autres. Exclus :
 -- soi-même, les profils sans social, les blocages dans les deux sens. L'appelant doit avoir activé le
--- social (sinon rien) : on ne parcourt pas l'annuaire sans y figurer. Correspondance exacte d'abord.
--- relation : 'following' (abonnement accepté), 'requested' (ma demande en attente), 'follows_you'
--- (il est abonné à moi), sinon 'none'.
+-- social (sinon rien) : on ne parcourt pas l'annuaire sans y figurer.
+-- relation : 'following' (abonnement accepté), 'requested' (ma demande en attente, fantôme compris),
+-- 'follows_you' (son abonnement à moi est accepté), sinon 'none'.
 create function public.search_profiles(q text) returns table (user_id uuid, username text, avatar text, relation text)
   language sql stable security definer set search_path = '' as
 $$
@@ -311,19 +368,17 @@ $$
       'ÀÁÂÃÄÅàáâãäåÇçÈÉÊËèéêëÌÍÎÏìíîïÑñÒÓÔÕÖØòóôõöøÙÚÛÜùúûüÝŸýÿ',
       'AAAAAAaaaaaaCcEEEEeeeeIIIIiiiiNnOOOOOOooooooUUUUuuuuYYyy')) as v
   ),
-  pat as (
-    select replace(replace(replace(norm.v, '\', '\\'), '%', '\%'), '_', '\_') || '%' as like_q, norm.v
-    from norm where char_length(norm.v) >= 2
-  )
+  pat as (select norm.v from norm where char_length(norm.v) between 2 and 20)
   select p.user_id, p.username, p.avatar_emoji,
     case
       when f_out.status = 'accepted' then 'following'
-      when f_out.status = 'pending' then 'requested'
+      when f_out.status in ('pending', 'ghost') then 'requested'
       when f_in.status = 'accepted' then 'follows_you'
       else 'none'
     end
   from me, pat
-  join public.user_profiles p on p.username like pat.like_q escape '\'
+  join public.user_profiles p on p.username operator(pg_catalog.~>=~) pat.v
+                             and p.username operator(pg_catalog.~<~) (pat.v || '~')
   left join public.follows f_out on f_out.follower_id = (select id from me) and f_out.followee_id = p.user_id
   left join public.follows f_in on f_in.follower_id = p.user_id and f_in.followee_id = (select id from me)
   where me.id is not null
@@ -331,13 +386,15 @@ $$
     and p.social_at is not null
     and p.user_id <> me.id
     and not private.blocked_between(me.id, p.user_id)
-  order by (p.username = pat.v) desc, char_length(p.username), p.username
+  order by p.username using operator(pg_catalog.~<~)
   limit 20
 $$;
 
 -- Demande d'abonnement : 'requested' (en attente) ou 'following' (déjà accepté). Cible bloquée,
--- bloquante, sans social ou inconnue : 'requested' sans rien créer (jamais révélé). Comptée dans la
--- limite des 30 par jour, demandes neutres comprises (sinon la limite trahirait le blocage).
+-- bloquante ou sans social : demande fantôme (voir l'en-tête), même réponse. Cible inconnue :
+-- 'requested' sans rien créer. Comptée dans la limite des 30 par jour, demandes fantômes et neutres
+-- comprises (sinon la limite trahirait le blocage). Verrou de la paire : un blocage en cours est
+-- terminé avant qu'on regarde s'il existe.
 create function public.request_follow(target uuid) returns text
   language plpgsql security definer set search_path = '' as
 $$
@@ -351,28 +408,36 @@ begin
   if target is null or target = me then
     raise exception 'not_found' using errcode = 'P0001';
   end if;
+  perform private.lock_pair(me, target);
   select f.status into cur from public.follows f where f.follower_id = me and f.followee_id = target;
   if cur = 'accepted' then return 'following'; end if;
-  if cur = 'pending' then return 'requested'; end if;
+  if cur in ('pending', 'ghost') then return 'requested'; end if;
   perform private.rate_limit(me, 'follow', 30);
-  if private.social_on(target) and not private.blocked_between(me, target) then
-    insert into public.follows (follower_id, followee_id) values (me, target) on conflict do nothing;
+  if exists (select 1 from auth.users u where u.id = target) then
+    insert into public.follows (follower_id, followee_id, status)
+      values (me, target, case when private.social_on(target) and not private.blocked_between(me, target)
+                               then 'pending' else 'ghost' end)
+      on conflict do nothing;
   end if;
   return 'requested';
 end
 $$;
 
--- Retirer ma demande ou mon abonnement
+-- Retirer ma demande (fantôme comprise) ou mon abonnement
 create function public.cancel_follow(target uuid) returns void
   language sql security definer set search_path = '' as
 $$ delete from public.follows f where f.follower_id = (select auth.uid()) and f.followee_id = target $$;
 
--- Répondre à une demande reçue : acceptée, ou ligne supprimée si refusée. Sans demande en attente : rien.
+-- Répondre à une demande reçue : acceptée, ou ligne supprimée si refusée. Sans demande en attente
+-- (fantôme, déjà traitée, celle d'un autre) ou avec un blocage entre les deux : rien.
 create function public.respond_follow(follower uuid, accept boolean) returns void
   language plpgsql security definer set search_path = '' as
 $$
 declare me uuid := (select auth.uid());
 begin
+  if me is null or follower is null or follower = me then return; end if;
+  perform private.lock_pair(me, follower);
+  if private.blocked_between(me, follower) then return; end if;
   if accept is true then
     update public.follows f set status = 'accepted', responded_at = now()
       where f.follower_id = follower and f.followee_id = me and f.status = 'pending';
@@ -382,57 +447,117 @@ begin
 end
 $$;
 
--- Retirer un abonné (ou une demande reçue)
+-- Retirer un abonné (ou une demande reçue ; jamais une demande fantôme, que je ne connais pas)
 create function public.remove_follower(follower uuid) returns void
   language sql security definer set search_path = '' as
-$$ delete from public.follows f where f.follower_id = follower and f.followee_id = (select auth.uid()) $$;
+$$
+  delete from public.follows f
+  where f.follower_id = follower and f.followee_id = (select auth.uid()) and f.status <> 'ghost'
+$$;
 
--- Bloquer : abonnements et demandes supprimés dans les deux sens, bravos échangés supprimés
+-- Bloquer : mes demandes et abonnements vers lui supprimés, son abonnement à moi supprimé (comme un
+-- abonné retiré), sa demande en attente devenue fantôme (comme une demande sans réponse), bravos
+-- échangés supprimés. Silencieux pour un identifiant inconnu ou déjà bloqué (rien n'est révélé, rien
+-- n'est refait) ; not_found sur soi-même.
 create function public.block_user(target uuid) returns void
   language plpgsql security definer set search_path = '' as
 $$
 declare me uuid := (select auth.uid());
 begin
-  if me is null or target is null or target = me or not exists (select 1 from auth.users u where u.id = target) then
+  if me is null or target is null then return; end if;
+  if target = me then
     raise exception 'not_found' using errcode = 'P0001';
   end if;
-  delete from public.follows f
-    where (f.follower_id = me and f.followee_id = target) or (f.follower_id = target and f.followee_id = me);
+  if not exists (select 1 from auth.users u where u.id = target) then return; end if;
+  perform private.lock_pair(me, target);
+  if exists (select 1 from public.blocks k where k.blocker_id = me and k.blocked_id = target) then return; end if;
+  delete from public.follows f where f.follower_id = me and f.followee_id = target;
+  delete from public.follows f where f.follower_id = target and f.followee_id = me and f.status = 'accepted';
+  update public.follows f set status = 'ghost' where f.follower_id = target and f.followee_id = me and f.status = 'pending';
   delete from public.bravos b
     where (b.user_id = me and b.session_owner = target) or (b.user_id = target and b.session_owner = me);
   insert into public.blocks (blocker_id, blocked_id) values (me, target) on conflict do nothing;
 end
 $$;
 
+-- Débloquer. S'il ne reste aucun blocage entre les deux comptes, les demandes fantômes entre eux sont
+-- supprimées : elles ne deviennent jamais de vraies demandes (il faudra redemander).
 create function public.unblock_user(target uuid) returns void
-  language sql security definer set search_path = '' as
-$$ delete from public.blocks k where k.blocker_id = (select auth.uid()) and k.blocked_id = target $$;
+  language plpgsql security definer set search_path = '' as
+$$
+declare me uuid := (select auth.uid());
+begin
+  if me is null or target is null or target = me then return; end if;
+  perform private.lock_pair(me, target);
+  delete from public.blocks k where k.blocker_id = me and k.blocked_id = target;
+  if not private.blocked_between(me, target) then
+    delete from public.follows f
+      where f.status = 'ghost'
+        and ((f.follower_id = me and f.followee_id = target) or (f.follower_id = target and f.followee_id = me));
+  end if;
+end
+$$;
 
--- Fil : séances des personnes que je vois (private.can_see), montrables (private.session_shown),
--- par done_at décroissant, 20 par page ; page suivante : before = done_at de la dernière carte.
--- only_user : écran d'un profil (vide si je ne le vois pas). s : liste blanche private.session_public.
-create function public.feed(before bigint default null, only_user uuid default null)
+-- Fil : séances des personnes que je vois (private.can_see), montrables (private.session_shown), par
+-- (done_at, user_id, id) décroissant, 20 par page. Page suivante : before_at, before_owner, before_id
+-- = done_at, owner, id de la dernière carte (curseur complet : 25 séances à la même milliseconde
+-- donnent 20 puis 5). before_at seul : séances strictement plus anciennes. only_user : écran d'un
+-- profil (vide si je ne le vois pas). s : liste blanche private.session_public.
+-- Performance : pour chaque compte visible, au plus 20 séances lues dans l'index sessions_user_done
+-- (déjà dans l'ordre, borne haute dans la condition d'index), puis tri des candidates et limite à 20 ;
+-- la liste blanche et les bravos ne sont calculés que pour ces 20 cartes. Les règles de
+-- private.can_see et private.session_shown sont recopiées ici en SQL direct : une fonction qui fixe
+-- search_path n'est jamais intégrée au plan par Postgres, et l'appeler pour chaque compte et chaque
+-- séance coûtait 60 ms au lieu de 5 pour 200 comptes suivis. Les tests de social_test.sql vérifient
+-- que feed et toggle_bravo (qui, lui, appelle les fonctions) donnent la même visibilité.
+create function public.feed(before_at bigint default null, before_owner uuid default null,
+                            before_id text default null, only_user uuid default null)
   returns table (owner uuid, username text, avatar text, id text, done_at bigint, s jsonb, bravos int, my_bravo boolean)
   language sql stable security definer set search_path = '' as
 $$
-  with me as (select (select auth.uid()) as id),
+  with me as (
+    select u.id, private.max_done_at() as max_at
+    from (select (select auth.uid()) as id) u
+    -- Le social de l'appelant est requis (private.can_see)
+    where exists (select 1 from public.user_profiles mp where mp.user_id = u.id and mp.social_at is not null)
+  ),
   seen as (
-    select f.followee_id as uid
-    from me join public.follows f on f.follower_id = me.id and f.status = 'accepted'
+    -- private.can_see : abonnement accepté, social activé de l'autre côté, aucun blocage
+    select f.followee_id as uid, op.username, op.avatar_emoji
+    from me
+    join public.follows f on f.follower_id = me.id and f.status = 'accepted'
+    join public.user_profiles op on op.user_id = f.followee_id and op.social_at is not null
     where (only_user is null or f.followee_id = only_user)
-      and private.can_see(me.id, f.followee_id)
+      and not exists (select 1 from public.blocks k
+                      where (k.blocker_id = me.id and k.blocked_id = f.followee_id)
+                         or (k.blocker_id = f.followee_id and k.blocked_id = me.id))
+  ),
+  page as (
+    select seen.uid, seen.username, seen.avatar_emoji, c.id, c.done_at, c.data
+    from me, seen
+    cross join lateral (
+      -- private.session_shown : non supprimée, datée, pas dans le futur lointain, non masquée
+      select x.id, x.done_at, x.data
+      from public.sessions x
+      where x.user_id = seen.uid and x.deleted_at is null and x.done_at is not null
+        and x.done_at <= least(coalesce(before_at, 9223372036854775807), me.max_at)
+        and coalesce(x.data ->> 'hidden', '') <> 'true'
+        and (before_at is null
+             or x.done_at < before_at
+             or (before_owner is not null and before_id is not null
+                 and (x.user_id, x.id) < (before_owner, before_id)))
+      order by x.done_at desc, x.id desc
+      limit 20
+    ) c
+    order by c.done_at desc, seen.uid desc, c.id desc
+    limit 20
   )
-  select x.user_id, p.username, p.avatar_emoji, x.id, x.done_at, private.session_public(x.data),
-    (select count(*)::int from public.bravos b where b.session_owner = x.user_id and b.session_id = x.id),
+  select pg.uid, pg.username, pg.avatar_emoji, pg.id, pg.done_at, private.session_public(pg.data),
+    (select count(*)::int from public.bravos b where b.session_owner = pg.uid and b.session_id = pg.id),
     exists (select 1 from public.bravos b
-            where b.session_owner = x.user_id and b.session_id = x.id and b.user_id = (select id from me))
-  from seen
-  join public.sessions x on x.user_id = seen.uid and x.deleted_at is null
-  join public.user_profiles p on p.user_id = seen.uid
-  where private.session_shown(x.data, x.deleted_at, x.done_at)
-    and (before is null or x.done_at < before)
-  order by x.done_at desc, x.user_id, x.id
-  limit 20
+            where b.session_owner = pg.uid and b.session_id = pg.id and b.user_id = (select id from me))
+  from page pg
+  order by pg.done_at desc, pg.uid desc, pg.id desc
 $$;
 
 -- Bravo mis ou retiré, seulement sur une séance que feed me montrerait (sinon not_found, y compris
@@ -485,7 +610,9 @@ revoke all on function private.can_see(uuid, uuid) from public, anon, authentica
 revoke all on function private.session_shown(jsonb, timestamptz, bigint) from public, anon, authenticated, service_role;
 revoke all on function private.scalar(jsonb) from public, anon, authenticated, service_role;
 revoke all on function private.session_public(jsonb) from public, anon, authenticated, service_role;
-revoke all on function private.person(uuid, timestamptz) from public, anon, authenticated, service_role;
+revoke all on function private.lock_pair(uuid, uuid) from public, anon, authenticated, service_role;
+revoke all on function private.max_done_at() from public, anon, authenticated, service_role;
+revoke all on function private.person(uuid, timestamptz, boolean) from public, anon, authenticated, service_role;
 revoke all on function private.report_before_insert() from public, anon, authenticated, service_role;
 
 revoke all on function public.social_enable(boolean) from public, anon, authenticated;
@@ -498,7 +625,7 @@ revoke all on function public.respond_follow(uuid, boolean) from public, anon, a
 revoke all on function public.remove_follower(uuid) from public, anon, authenticated;
 revoke all on function public.block_user(uuid) from public, anon, authenticated;
 revoke all on function public.unblock_user(uuid) from public, anon, authenticated;
-revoke all on function public.feed(bigint, uuid) from public, anon, authenticated;
+revoke all on function public.feed(bigint, uuid, text, uuid) from public, anon, authenticated;
 revoke all on function public.toggle_bravo(uuid, text) from public, anon, authenticated;
 revoke all on function public.my_bravos() from public, anon, authenticated;
 
@@ -512,9 +639,22 @@ grant execute on function public.respond_follow(uuid, boolean) to authenticated;
 grant execute on function public.remove_follower(uuid) to authenticated;
 grant execute on function public.block_user(uuid) to authenticated;
 grant execute on function public.unblock_user(uuid) to authenticated;
-grant execute on function public.feed(bigint, uuid) to authenticated;
+grant execute on function public.feed(bigint, uuid, text, uuid) to authenticated;
 grant execute on function public.toggle_bravo(uuid, text) to authenticated;
 grant execute on function public.my_bravos() to authenticated;
+
+-- Purge quotidienne des signalements de plus de 12 mois (03:17 UTC) avec pg_cron, disponible sur
+-- Supabase. Sans l'extension (Postgres local des tests), seule la purge du déclencheur reste.
+-- cron.schedule avec un nom remplace la tâche du même nom : rejouer la migration ne la double pas.
+do $cron$
+begin
+  if exists (select 1 from pg_catalog.pg_available_extensions where name = 'pg_cron') then
+    create extension if not exists pg_cron;
+    perform cron.schedule('purge-reports-12-mois', '17 3 * * *',
+      $job$delete from public.reports where created_at < now() - interval '12 months'$job$);
+  end if;
+end
+$cron$;
 
 -- Signalements reçus sans alerte partie (Resend injoignable ou clé absente), à traiter à la main :
 --   select * from public.reports where notified_at is null order by created_at;

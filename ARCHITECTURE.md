@@ -372,7 +372,8 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
   (écrit par `social_enable` / `social_disable` seulement), `sessions.done_at` (colonne générée), tables `follows`,
   `blocks`, `bravos`, `reports` sans aucun GRANT client (RLS fermée) : tout passe par les RPC security definer
   (`social_state`, `search_profiles`, `request_follow`, `feed`, `toggle_bravo`…). Règle de visibilité unique
-  `private.can_see`, liste blanche `private.session_public`, limites par jour (`private.rate_limit`), blocage jamais
+  `private.can_see`, liste blanche `private.session_public`, limites par jour (`private.rate_limit`), fil paginé par
+  curseur complet, demandes « fantômes » (`status = 'ghost'`) et verrou par paire de comptes : blocage jamais
   révélé.
 - `supabase/functions/report/` : signalement (JWT vérifié, entrée validée par `report-policy.js`, insertion avec la clé
   serveur, 10 par jour imposés par le déclencheur de `reports`, alerte à contact@mdlf.app par Resend, secret
