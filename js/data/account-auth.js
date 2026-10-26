@@ -34,8 +34,8 @@ const USERNAME_DELAY_MS = 30 * 86400_000;            // 30 jours entre deux chan
 
 // ── Premier écran ───────────────────────────────────────────
 
-// 'welcome' au tout premier lancement de l'app iOS : aucune séance, carte « Où t'entraînes-tu ? »
-// pas encore passée, aucune copie restaurée (Documents ou iCloud), écran jamais montré, pas connecté.
+// 'welcome' au tout premier lancement de l'app iOS : aucune séance, questions du premier lancement
+// pas encore passées, aucune copie restaurée (Documents ou iCloud), écran jamais montré, pas connecté.
 // Sinon 'app'. Dans le navigateur (compte indisponible) : toujours 'app'.
 function firstScreen({ accountAvailable, hasHistory, onboarded, restored, welcomeSeen, signedIn }) {
   if (!accountAvailable || signedIn || welcomeSeen || restored || hasHistory || onboarded) return 'app';

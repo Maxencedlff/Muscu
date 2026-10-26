@@ -269,6 +269,7 @@ function pendingCode() {
 // lancement seulement (firstScreen) ; le drapeau n'est posé que sur un vrai choix (« Commencer sans
 // compte », connexion réussie : auth-flow.js), l'écran revient donc si l'app est fermée avant. Un code
 // demandé il y a moins de 10 min rouvre l'écran du code (iOS a pu fermer l'app pendant la lecture du mail).
+// Écran ouvert : { closed } (promesse du résultat de openAuthFlow, sans l'attendre ici), sinon undefined.
 async function maybeShowWelcome() {
   if (!accountAvailable()) return;
   const pending = pendingCode();
@@ -283,9 +284,10 @@ async function maybeShowWelcome() {
   const welcome = firstScreen(state) === 'welcome';
   if (!welcome && (!pending || state.signedIn)) return;
   account.google = await Native.account.googleAvailable();
-  openAuthFlow(welcome
+  const closed = openAuthFlow(welcome
     ? { step: 'welcome', closable: false, resume: pending }
     : { step: 'code', email: pending.email, sentAt: pending.sentAt });
+  return { closed };
 }
 
 // ── Mises à jour de l'écran ─────────────────────────────────

@@ -113,7 +113,7 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
 
 // Dialogues, feuilles et feuilles de séance : tant qu'une est ouverte, le reste de l'app est inerte
 // (VoiceOver et clavier restent dans la fenêtre). À la fermeture, le focus revient au déclencheur.
-const MODAL_SEL = '.auth, .ios-dialog, .sheet-root, .sess-sheet';
+const MODAL_SEL = '.auth, .onb, .ios-dialog, .sheet-root, .sess-sheet';
 let modalOpener = null;
 let modalOpen   = false;
 function syncModal() {

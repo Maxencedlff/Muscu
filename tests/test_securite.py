@@ -99,6 +99,7 @@ def t_hostile(bench):
             page.add_init_script(HOOK)
             page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
             seed(page, 'dark', None)
+            skip_questions(page)
             res = page.evaluate('t => importText(t)', json.dumps(hostile(now)))
             R.check(res.get('ok') is True, f'{eng} import du jeu hostile accepté (nettoyé) {res}')
             ex = page.evaluate("() => JSON.parse(localStorage.getItem('ppl_v2')).programmes.ppl.exercises.push[0]")

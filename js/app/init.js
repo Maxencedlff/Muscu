@@ -143,7 +143,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   // App iOS, tout premier lancement : écran Bienvenue (jamais un mur : « Commencer sans compte »)
-  try { await maybeShowWelcome(); } catch { /* l'app reste utilisable sans */ }
+  let welcome;
+  try { welcome = await maybeShowWelcome(); } catch { /* l'app reste utilisable sans */ }
+  // Puis les questions du premier lancement (nouvel utilisateur seulement). Connexion à un compte
+  // existant : ses séances et ses choix arrivent par la synchro, pas de questions.
+  const questions = () => { try { maybeShowOnboarding(); } catch { /* l'accueil reste utilisable */ } };
+  if (welcome) welcome.closed.then(r => { if (r !== 'signed-in') questions(); });
+  else questions();
   Native.hideSplash();
   Native.statusBar(!document.body.classList.contains('light'));
   prefetchBodyMass(); // app iOS : dernière pesée de Santé, pour le volume au poids du corps

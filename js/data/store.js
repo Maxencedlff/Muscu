@@ -131,7 +131,7 @@ function makeDefaultData() {
     bodyWeightKg: null, // app iOS : poids de secours pour les calories
     musicOn: false,    // app iOS : Apple Music
     exEquip: 'all',    // feuille d'ajout d'exercice : filtre de matériel (id d'EQUIPMENT ou 'all')
-    onboarded: false,  // question « Où t'entraînes-tu ? » répondue (ou « Plus tard »)
+    onboarded: false,  // questions du premier lancement répondues (ou « Plus tard ») : js/features/onboarding.js
     healthKgPurged: true, // migration des pesées de Santé (normalizeData) : rien à faire sur une donnée neuve
     history: [],
     trash: [],          // { entry, deletedAt } : séances supprimées, récupérables TRASH_DAYS jours
