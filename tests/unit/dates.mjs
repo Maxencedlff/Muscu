@@ -87,6 +87,15 @@ export default function ({ test, run, reset, assert, app }) {
     });
   }));
 
+  test('Supprimés récemment : « supprimée hier » et les jours restants s\'additionnent à 30', () => inParis(() => {
+    const now = at(2026, 9, 26, 8);
+    const hier = { deletedAt: at(2026, 9, 25, 23) };                  // la veille à 23 h, 9 h plus tôt
+    assert.equal(app.daysAgo(hier.deletedAt, now) + app.trashDaysLeft(hier, now), 30);
+    assert.equal(app.trashDaysLeft(hier, now), 29);
+    const vieille = { deletedAt: at(2026, 8, 27, 23) };               // 29 jours du calendrier plus tôt
+    assert.equal(app.trashDaysLeft(vieille, now), 1);
+  }));
+
   test('fmtDate, recoveryReason : mêmes jours du calendrier', () => inParis(() => {
     reset();
     atNow(at(2026, 9, 26, 0, 30), () => {

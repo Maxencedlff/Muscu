@@ -37,7 +37,7 @@ export default function ({ test, app, run, reset, assert }) {
     assert.equal(run('data.trash.length'), 0);
     const now = Date.now();
     assert.equal(app.trashDaysLeft({ deletedAt: now }, now), 30);
-    assert.equal(app.trashDaysLeft({ deletedAt: now - 29.5 * DAY }, now), 1);
+    assert.equal(app.trashDaysLeft({ deletedAt: now - 29.5 * DAY }, now), 1);   // au moins 1 tant qu'elle est là
     assert.equal(app.trashDaysLeft({ deletedAt: now - 40 * DAY }, now), 1, 'jamais 0 ni négatif à l\'affichage');
   });
 

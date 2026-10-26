@@ -41,9 +41,10 @@ function purgeFromTrash(id) {
 
 function emptyTrash() { data.trash = []; }
 
-// Jours restants avant l'effacement automatique (au moins 1 tant qu'elle est là)
+// Jours restants avant l'effacement automatique (au moins 1 tant qu'elle est là). En jours du
+// calendrier, comme « Supprimée hier » (daysAgo) : les deux s'additionnent toujours à TRASH_DAYS
 function trashDaysLeft(t, now = Date.now()) {
-  return Math.max(1, Math.ceil((t.deletedAt + TRASH_DAYS * DAY_MS - now) / DAY_MS));
+  return Math.max(1, TRASH_DAYS - daysAgo(t.deletedAt, now));
 }
 
 // Programmes créés puis supprimés : [[id, programme], …]
