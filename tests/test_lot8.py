@@ -18,9 +18,13 @@ def data(page):
     return json.loads(ls(page, 'ppl_v2') or '{}')
 
 
+# Onglets dans l'ordre de TABS (js/ui/router.js), désignés par leur nom et non par leur rang
+TAB_NAMES = ['train', 'history', 'progress', 'program', 'friends']
+
+
 def tab(page, i):
     # Comme sur iOS, l'onglet garde sa pile : un second toucher revient à sa racine
-    t = page.locator('.tabbar [role=tab]').nth(i)
+    t = page.locator(f'.tabbar [data-tab="{TAB_NAMES[i]}"]')
     t.click()
     page.wait_for_timeout(300)
     t.click()

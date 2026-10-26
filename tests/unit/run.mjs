@@ -29,6 +29,7 @@ const SCRIPTS = [
   'js/data/sync.js',
   'js/data/account-auth.js',
   'js/data/account.js',
+  'js/data/social.js',
   'js/data/prog-share.js',
   'js/data/trash.js',
   'js/data/muscles.js',
@@ -1355,6 +1356,9 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 
 // ── Compte : connexion, pseudo, avatar, identités (tests dans account.mjs) ──
 (await import('./account.mjs')).default({ test, run, assert, sameJSON, nativeContext, ROOT });
+
+// ── Amis : logique pure du social (tests dans social.mjs) ──
+(await import('./social.mjs')).default({ test, run, assert, sameJSON });
 
 // ── Exécution ───────────────────────────────────────────────
 

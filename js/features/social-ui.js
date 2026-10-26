@@ -1,0 +1,549 @@
+// ═══════════════════════════════════════════════════════════
+//  Amis (Social V1), écrans : onglet Amis (sans compte, activation, puis recherche, demandes et fil),
+//  séance d'un ami (détail des séries, Bravo, Signaler), profil d'un autre (s'abonner, annuler la
+//  demande, se désabonner, Bloquer, Signaler), Gérer (abonnés, abonnements, demandes envoyées,
+//  bloqués, Désactiver le social), règles de la communauté, et dans Historique › Séance : « Masquer à
+//  mes abonnés » et « N bravos ».
+//  Données et appels au serveur : js/data/social.js (contrat : docs/SOCIAL_V1.md). Tout texte venu du
+//  serveur (pseudos, noms de séances et d'exercices des autres) passe par esc().
+//  Rien ne bloque : l'état se charge en arrière-plan, l'écran se redessine quand il arrive.
+// ═══════════════════════════════════════════════════════════
+'use strict';
+
+const SOCIAL_VIEWS = ['friends', 'social-profile', 'social-session', 'social-manage', 'social-rules'];
+const RULES_URL = 'https://muscu-eta.vercel.app/privacy.html#communaute';
+
+let socialAgeOk = false;       // case « J'ai 15 ans ou plus » de la carte d'activation
+let socialQuery = '';          // recherche saisie
+let socialResults = null;      // { q, rows } ou { q, error } de la dernière recherche
+let socialSearchTimer = null, socialSearchSeq = 0;
+let friendsShown = null;       // état de l'onglet au dernier dessin complet (friendsState)
+
+// ── Petits gabarits ─────────────────────────────────────────
+
+// Pseudo, ou « Compte masqué » (bloqué sans social : pseudo non renvoyé)
+function personName(p) { return p?.username || 'Compte masqué'; }
+function personAvatar(p, size = 'm') { return avatarHtml(size, p?.avatar, p?.username || '?'); }
+// Couleur d'une séance d'un programme intégré ; séance perso d'un autre : gris neutre
+function publicSessionColor(s) { return PROGRAMMES[s.programme]?.sessions?.[s.category]?.color || 'var(--label3)'; }
+function seriesCount(s) { return s.exercises.reduce((a, e) => a + e.sets.length, 0); }
+function publicMetaLine(s) {
+  const parts = [];
+  if (s.duration) parts.push(fmtDuration(s.duration));
+  parts.push(plural(s.exercises.length, 'exercice', 'exercices'));
+  return parts.join(' · ');
+}
+// État de l'onglet : 'unavailable' (navigateur), 'out' (sans compte), 'loading', 'error', 'off', 'on'
+function friendsState() {
+  if (!accountAvailable()) return 'unavailable';
+  if (!account.ready) return 'loading';
+  if (!account.user) return 'out';
+  if (social.state) return social.state.enabled ? 'on' : 'off';
+  if (social.cached) return social.cached.enabled ? 'on' : 'off';
+  return social.error ? 'error' : 'loading';
+}
+function offlineNote(what) {
+  return `<div class="social-note" role="status"><p>${what}</p><button class="social-note__btn" data-action="social-retry">Réessayer</button></div>`;
+}
+function bravoHtml(row) {
+  return `<button class="bravo ${row.mine ? 'bravo--on' : ''}" data-action="social-bravo" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}" aria-pressed="${row.mine}">Bravo</button>
+    <span class="bravo__count num">${row.bravos ? plural(row.bravos, 'bravo', 'bravos') : ''}</span>`;
+}
+
+// Carte du fil : qui et quand (vers son profil), la séance (vers le détail des séries), puis Bravo.
+// owner : false sur l'écran du profil (la personne est déjà nommée), la date passe alors sous le nom
+function feedCardHtml(row, { owner = true } = {}) {
+  const s = row.s, p = { username: row.username, avatar: row.avatar };
+  return `
+    <article class="feed-card" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}">
+      ${owner ? `<button class="feed-card__who" data-action="social-open-profile" data-uid="${esc(row.owner)}">
+        ${personAvatar(p)}<span class="feed-card__who-text"><span class="feed-card__name">${esc(personName(p))}</span><span class="feed-card__date">${fmtDate(row.doneAt)}</span></span>
+      </button>` : ''}
+      <button class="feed-card__main" data-action="social-open-session" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}">
+        <span class="feed-card__title"><span class="hcell__dot" style="background:${publicSessionColor(s)}" aria-hidden="true"></span><span class="feed-card__label">${esc(s.label)}</span>${owner ? '' : `<span class="feed-card__date">${fmtDate(row.doneAt)}</span>`}</span>
+        <span class="feed-card__meta num">${esc(publicMetaLine(s))}</span>
+        ${s.exercises.length ? `<span class="feed-card__sum">${esc(feedExercisesLine(s))}</span>` : ''}
+      </button>
+      <div class="feed-card__foot">${bravoHtml(row)}</div>
+    </article>`;
+}
+
+// Liste de cartes d'un fil (fil principal '' ou profil), « Afficher plus », chargement, hors ligne
+function feedListHtml(key, { owner = true, empty }) {
+  const f = socialFeed(key);
+  const cards = f.rows.map(r => feedCardHtml(r, { owner })).join('');
+  if (!f.rows.length) {
+    if (f.loading || (!f.loadedAt && !f.error)) return '<div class="empty-note">Chargement…</div>';
+    if (f.error) return offlineNote(f.error === 'offline' ? 'Pas d\'Internet. Les séances s\'afficheront quand le réseau reviendra.' : socialErrorText(f.error));
+    return `<div class="empty-note">${empty}</div>`;
+  }
+  const more = !f.end ? `<button class="btn-more" data-action="social-more" data-key="${esc(key)}" ${f.loading ? 'disabled' : ''}>${f.loading ? 'Chargement…' : 'Afficher plus'}</button>` : '';
+  const err = f.error ? `<p class="social-inline-error" role="status">${esc(f.error === 'offline' ? 'Pas d\'Internet : fil pas à jour.' : socialErrorText(f.error))}</p>` : '';
+  return `${err}<div class="feed">${cards}</div>${more}`;
+}
+
+// Ligne d'une personne : avatar et pseudo (vers son profil), puis une action à droite
+function personRowHtml(p, trailing = '', sub = '') {
+  return `
+    <div class="cell social-row">
+      <button class="social-row__main" data-action="social-open-profile" data-uid="${esc(p.user_id)}">
+        ${personAvatar(p)}<span class="social-row__text"><span class="social-row__name">${esc(personName(p))}</span>${sub ? `<span class="cell__sub">${esc(sub)}</span>` : ''}</span>
+      </button>
+      ${trailing}
+    </div>`;
+}
+function pill(action, uid, label, { fill = false, aria = '' } = {}) {
+  return `<button class="social-pill ${fill ? 'social-pill--fill' : ''}" data-action="${action}" data-uid="${esc(uid)}"${aria ? ` aria-label="${esc(aria)}"` : ''}>${label}</button>`;
+}
+
+// ── Onglet Amis ─────────────────────────────────────────────
+
+function renderFriends() {
+  const st = friendsState();
+  friendsShown = st;
+  const right = st === 'on' ? '<button class="navbar__text" data-action="social-manage">Gérer</button>' : '';
+  const search = st === 'on' ? `
+        <div class="hist-tools">
+          <input type="search" id="socialSearch" class="search" placeholder="Rechercher un pseudo" value="${esc(socialQuery)}"
+                 autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Rechercher un ami par son pseudo">
+        </div>` : '';
+  return `
+    <div class="view view--grouped friends-view">
+      ${navBar({ title: 'Amis', right })}
+      <div class="scr">${search}<div id="friendsBody">${friendsBodyHtml(st)}</div></div>
+    </div>`;
+}
+
+function friendsBodyHtml(st = friendsState()) {
+  if (st === 'unavailable') return `
+        <div class="social-hero">
+          <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
+          <h2 class="social-hero__title">Entraîne-toi avec tes amis</h2>
+          <p class="social-hero__sub">Les amis demandent un compte MDLF, dans l'app iPhone.</p>
+        </div>`;
+  if (st === 'out') return `
+        <div class="social-hero">
+          <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
+          <h2 class="social-hero__title">Entraîne-toi avec tes amis</h2>
+          <p class="social-hero__sub">Suis les séances de tes amis et encourage-les d'un bravo. Il faut un compte, gratuit et facultatif.</p>
+        </div>
+        <button class="btn btn--primary btn--full" data-action="social-sign-in">Se connecter</button>`;
+  if (st === 'loading') return '<div class="empty-note">Chargement…</div>';
+  if (st === 'error') return offlineNote(social.error === 'offline' ? 'Pas d\'Internet. Reconnecte-toi au réseau pour voir tes amis.' : socialErrorText(social.error));
+  if (st === 'off') return activationHtml();
+  return enabledBodyHtml();
+}
+
+// Carte d'activation : pseudo obligatoire, âge déclaré, règles, puis « Activer »
+function activationHtml() {
+  const name = account.profile?.username;
+  const ready = !!name && socialAgeOk;
+  const tog = on => `<span class="switch ${on ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>`;
+  return `
+        <div class="social-hero">
+          <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
+          <h2 class="social-hero__title">Entraîne-toi avec tes amis</h2>
+          <p class="social-hero__sub">Suis leurs séances et encourage-les d'un bravo. Ton compte reste privé : seules les personnes que tu acceptes voient tes séances.</p>
+        </div>
+        <div class="group">
+          <button class="cell cell--nav" data-action="social-choose-username">
+            <span class="cell__body"><span class="cell__title">Pseudo</span></span>
+            <span class="cell__value ${name ? '' : 'social-choose'}">${name ? esc(name) : 'Choisir'}</span>
+            ${icon('chevron.right', 16)}
+          </button>
+          <button class="cell" data-action="social-age" role="switch" aria-checked="${socialAgeOk}">
+            <span class="cell__body"><span class="cell__title">J'ai 15 ans ou plus</span></span>
+            ${tog(socialAgeOk)}
+          </button>
+        </div>
+        <div class="group-foot">${name ? 'Tes amis te trouvent avec ce pseudo.' : 'Il faut un pseudo pour que tes amis te trouvent.'} Tes notes, ton poids et tes données Santé ne sont jamais montrés. <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>
+        <button class="btn btn--primary btn--full social-enable" data-action="social-enable" ${ready ? '' : 'disabled'}>Activer</button>`;
+}
+
+function enabledBodyHtml() {
+  const q = normalizeSocialQuery(socialQuery);
+  if (q) return searchResultsHtml(q);
+  const st = social.state;
+  const pending = st?.pending_in || [];
+  const requests = pending.length ? `
+        <div class="group-title">Demandes</div>
+        <div class="group">${pending.map(p => personRowHtml(p,
+          pill('social-accept', p.user_id, 'Accepter', { fill: true, aria: `Accepter ${personName(p)}` })
+          + `<button class="social-x" data-action="social-refuse" data-uid="${esc(p.user_id)}" aria-label="${esc(`Refuser ${personName(p)}`)}">${icon('xmark', 14)}</button>`,
+          '')).join('')}</div>` : '';
+  const stale = social.error && st ? `<p class="social-inline-error" role="status">${esc(social.error === 'offline' ? 'Pas d\'Internet : demandes pas à jour.' : socialErrorText(social.error))}</p>` : '';
+  return `${stale}${requests}
+        <div class="group-title">Séances de tes amis</div>
+        ${feedListHtml('', { empty: 'Rien pour l\'instant. Cherche un ami par son pseudo pour suivre ses séances.' })}`;
+}
+
+function searchResultsHtml(q) {
+  const r = socialResults;
+  if (!r || r.q !== q) return '<div class="empty-note">Recherche…</div>';
+  if (r.error) return offlineNote(r.error === 'offline' ? 'Pas d\'Internet : la recherche demande du réseau.' : socialErrorText(r.error));
+  if (!r.rows.length) return `<div class="empty-note">Aucun pseudo ne commence par « ${esc(q)} ».</div>`;
+  return `<div class="group social-results">${r.rows.map(p => {
+    const rel = socialRelation(p.user_id, social.state).status;
+    const status = rel === 'following' ? 'Abonné' : rel === 'requested' ? 'Demandé' : '';
+    const trailing = status ? `<span class="social-status">${status}</span>`
+      : pill('social-follow', p.user_id, 'S\'abonner', { fill: true, aria: `S'abonner à ${personName(p)}` });
+    return personRowHtml(p, trailing, p.relation === 'follows_you' ? 'Te suit' : '');
+  }).join('')}</div>`;
+}
+
+// Recherche : seule la zone sous le champ est redessinée (le champ garde le focus et le clavier)
+function refreshFriendsBody() {
+  const body = $('#friendsBody');
+  if (body) body.innerHTML = friendsBodyHtml();
+}
+function runSocialSearch() {
+  clearTimeout(socialSearchTimer);
+  const q = normalizeSocialQuery(socialQuery);
+  if (!q) { socialResults = null; refreshFriendsBody(); return; }
+  if (socialResults?.q !== q) refreshFriendsBody();
+  const seq = ++socialSearchSeq;
+  socialSearchTimer = setTimeout(async () => {
+    const r = await socialSearch(q);
+    if (seq !== socialSearchSeq) return;
+    socialResults = r.ok ? { q, rows: r.data } : { q, error: r.kind };
+    if (currentView() === 'friends') refreshFriendsBody();
+  }, 250);
+}
+
+// Ouverture de l'onglet : état relu (badge), puis le fil s'il a plus de 30 s
+async function friendsEnter() {
+  if (!account.user) return;
+  await socialRefresh();
+  if (socialEnabled() && Date.now() - socialFeed('').loadedAt > SOCIAL_REFRESH_MS) socialLoadFeed('');
+}
+SCREENS.set('friends', { render: () => renderFriends(), enter: () => { friendsEnter(); } });
+
+// ── Séance d'un ami ─────────────────────────────────────────
+
+function renderSocialSession(owner, id) {
+  const row = socialSessionOf(owner, id);
+  if (!row) {
+    return `<div class="view view--grouped social-session-view">${navBar({ title: 'Séance' })}
+      <div class="scr"><div class="empty-note">Cette séance n'est plus disponible.</div></div></div>`;
+  }
+  const s = row.s, p = { username: row.username, avatar: row.avatar };
+  let when = capitalize(fmtDate(row.doneAt, 'long'));
+  if (s.duration) when += ` · ${fmtTime(row.doneAt)}`;
+  const n = seriesCount(s);
+  return `
+    <div class="view view--grouped social-session-view">
+      ${navBar({ title: '' })}
+      <div class="scr">
+        <button class="social-who" data-action="social-open-profile" data-uid="${esc(row.owner)}">${personAvatar(p)}<span class="social-who__name">${esc(personName(p))}</span></button>
+        <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${publicSessionColor(s)}" aria-hidden="true"></span>${esc(s.label)}</h1>
+        <p class="scr-sub">${when}</p>
+        <div class="tiles">
+          <div class="tile"><span class="tile__val num">${s.duration ? fmtDuration(s.duration) : '—'}</span><span class="tile__lbl">durée</span></div>
+          <div class="tile"><span class="tile__val num">${s.exercises.length}</span><span class="tile__lbl">${s.exercises.length > 1 ? 'exercices' : 'exercice'}</span></div>
+          <div class="tile"><span class="tile__val num">${n}</span><span class="tile__lbl">${n > 1 ? 'séries' : 'série'}</span></div>
+        </div>
+        <div class="group-title">Exercices</div>
+        <div class="group">
+          ${s.exercises.map(e => `
+            <div class="cell hex">
+              <span class="cell__body">
+                <span class="hex__name">${esc(e.name)}</span>
+                <span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), setKind(e))}</span>
+              </span>
+            </div>`).join('') || '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}
+        </div>
+        <div class="feed-card__foot social-session__bravo">${bravoHtml(row)}</div>
+        <div class="group group--gap">
+          <button class="cell cell--destructive" data-action="social-report" data-uid="${esc(row.owner)}" data-ref="${esc(row.id)}">Signaler cette séance</button>
+        </div>
+      </div>
+    </div>`;
+}
+SCREENS.set('social-session', { render: (owner, id) => renderSocialSession(owner, id) });
+
+// ── Profil d'un autre ───────────────────────────────────────
+
+function renderSocialProfile(uid) {
+  const p = socialPerson(uid) || {};
+  const rel = socialRelation(uid, social.state);
+  const name = personName(p);
+  const sub = { following: rel.followsYou ? 'Vous vous suivez' : 'Abonné', requested: 'Demande envoyée', blocked: 'Bloqué' }[rel.status]
+    || (rel.followsYou ? 'Te suit' : '');
+  const main = {
+    none: `<button class="btn btn--primary btn--full" data-action="social-follow" data-uid="${esc(uid)}">S'abonner</button>`,
+    requested: `<button class="btn btn--secondary btn--full" data-action="social-cancel" data-uid="${esc(uid)}">Annuler la demande</button>`,
+    following: `<button class="btn btn--secondary btn--full" data-action="social-unfollow" data-uid="${esc(uid)}">Se désabonner</button>`,
+    blocked: `<button class="btn btn--secondary btn--full" data-action="social-unblock" data-uid="${esc(uid)}">Débloquer</button>`,
+  }[rel.status] || '';
+  const incoming = rel.pendingIn && rel.status !== 'blocked' ? `
+        <div class="group social-incoming">
+          <div class="cell"><span class="cell__body"><span class="cell__title">Veut voir tes séances</span></span>
+            ${pill('social-accept', uid, 'Accepter', { fill: true })}
+            <button class="social-x" data-action="social-refuse" data-uid="${esc(uid)}" aria-label="Refuser la demande">${icon('xmark', 14)}</button>
+          </div>
+        </div>` : '';
+  const sessions = rel.status === 'following'
+    ? `<div class="group-title">Séances</div>${feedListHtml(uid, { owner: false, empty: 'Aucune séance visible pour l\'instant.' })}`
+    : rel.status === 'blocked' ? ''
+    : `<div class="empty-note social-profile__locked">${rel.status === 'requested' ? 'Ses séances s\'afficheront ici quand ta demande sera acceptée.' : 'Abonne-toi pour voir ses séances, une fois ta demande acceptée.'}</div>`;
+  return `
+    <div class="view view--grouped social-profile-view">
+      ${navBar({ title: esc(name), large: false })}
+      <div class="scr">
+        <div class="account-hero">
+          ${personAvatar(p, 'xl')}
+          <h2 class="account-hero__name">${esc(name)}</h2>
+          ${sub ? `<p class="account-hero__sub">${sub}</p>` : ''}
+        </div>
+        ${incoming}
+        <div class="social-profile__action">${main}</div>
+        ${sessions}
+        ${rel.status === 'blocked' ? '' : `
+        <div class="group group--gap">
+          <button class="cell cell--destructive" data-action="social-block" data-uid="${esc(uid)}">Bloquer</button>
+          <button class="cell cell--destructive" data-action="social-report" data-uid="${esc(uid)}">Signaler</button>
+        </div>
+        <div class="group-foot">Bloquer coupe tout dans les deux sens : recherche, demandes, séances et bravos. Personne n'en est averti.</div>`}
+      </div>
+    </div>`;
+}
+SCREENS.set('social-profile', {
+  render: uid => renderSocialProfile(uid),
+  // Ses séances : chargées à l'arrivée si je le suis
+  enter: () => {
+    const uid = routeParams(currentRoute())[0];
+    if (uid && socialRelation(uid, social.state).status === 'following' && !socialFeed(uid).loadedAt) socialLoadFeed(uid);
+  },
+});
+
+// ── Gérer ───────────────────────────────────────────────────
+
+function renderSocialManage() {
+  const st = social.state || cleanSocialState({});
+  const section = (title, list, trailing, empty) => `
+        <div class="group-title">${title}${list.length ? ` (${list.length})` : ''}</div>
+        <div class="group">${list.length ? list.map(p => personRowHtml(p, trailing(p))).join('') : `<div class="cell"><span class="cell__sub social-empty">${empty}</span></div>`}</div>`;
+  const chevron = () => `<span class="social-row__chev" aria-hidden="true">${icon('chevron.right', 16)}</span>`;
+  return `
+    <div class="view view--grouped social-manage-view">
+      ${navBar({ title: 'Gérer', large: false })}
+      <div class="scr">
+        ${section('Abonnés', st.followers, p => pill('social-remove-follower', p.user_id, 'Retirer', { aria: `Retirer ${personName(p)} de tes abonnés` }), 'Personne pour l\'instant')}
+        ${section('Abonnements', st.following, chevron, 'Personne pour l\'instant')}
+        ${section('Demandes envoyées', st.requested, p => pill('social-cancel', p.user_id, 'Annuler', { aria: `Annuler la demande à ${personName(p)}` }), 'Aucune')}
+        ${section('Bloqués', st.blocked, p => pill('social-unblock', p.user_id, 'Débloquer', { aria: `Débloquer ${personName(p)}` }), 'Personne')}
+        <div class="group group--gap">
+          <button class="cell cell--action" data-action="social-rules"><span class="cell__title">Règles de la communauté</span></button>
+        </div>
+        <div class="group">
+          <button class="cell cell--destructive" data-action="social-disable">Désactiver le social</button>
+        </div>
+        <div class="group-foot">Tu disparais de la recherche et tes abonnés ne voient plus tes séances. Tes abonnés et abonnements sont gardés si tu réactives.</div>
+      </div>
+    </div>`;
+}
+SCREENS.set('social-manage', { render: () => renderSocialManage(), enter: () => { socialRefresh(); } });
+
+// ── Règles de la communauté (mêmes règles que privacy.html#communaute) ──
+
+function renderSocialRules() {
+  const rules = [
+    ['Respecte les autres', 'Pas d\'insulte, de moquerie ni de harcèlement.'],
+    ['Rien de choquant', 'Pas de contenu sexuel, violent ou haineux, pseudos et noms de séances compris.'],
+    ['Pas de spam', 'Ni publicité, ni demandes en masse.'],
+    ['Sois toi-même', 'Un compte par personne, sans te faire passer pour quelqu\'un d\'autre.'],
+    ['15 ans ou plus', 'Les amis sont réservés aux 15 ans et plus.'],
+  ];
+  return `
+    <div class="view view--grouped social-rules-view">
+      ${navBar({ title: 'Règles', large: false })}
+      <div class="scr">
+        <h1 class="scr-title">Règles de la communauté</h1>
+        <div class="group">${rules.map(([t, d]) => `
+          <div class="cell"><span class="cell__body"><span class="cell__title">${t}</span><span class="cell__sub">${d}</span></span></div>`).join('')}
+        </div>
+        <div class="group-foot">Chaque signalement est lu sous 24 heures. Un contenu contraire aux règles est retiré, et son auteur peut perdre son compte. Contact : contact@mdlf.app. <button class="link-inline" data-action="social-rules-web">Confidentialité</button></div>
+      </div>
+    </div>`;
+}
+SCREENS.set('social-rules', { render: () => renderSocialRules() });
+
+// ── Historique › Séance : masquer aux abonnés, bravos reçus ──
+
+// Groupe ajouté au détail d'une séance (js/features/history.js) quand le social est activé
+function historySocialGroup(h) {
+  if (!socialEnabled()) return '';
+  const n = myBravos(h.id);
+  return `
+        <div class="group-title">Amis</div>
+        <div class="group">
+          <button class="cell" data-action="history-hide" data-id="${esc(h.id)}" role="switch" aria-checked="${h.hidden === true}">
+            <span class="cell__body"><span class="cell__title">Masquer à mes abonnés</span></span>
+            <span class="switch ${h.hidden === true ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>
+          </button>
+          ${n ? `<div class="cell"><span class="cell__body"><span class="cell__title social-bravos-mine">${plural(n, 'bravo', 'bravos')}</span></span></div>` : ''}
+        </div>
+        <div class="group-foot">Tes abonnés voient le nom, la date, la durée et les séries. Jamais tes notes ni ton poids.</div>`;
+}
+
+// ── Flux d'actions ──────────────────────────────────────────
+
+function socialToast(r, okText) {
+  if (r.ok) { if (okText) showToast(okText); return true; }
+  showToast(socialErrorText(r.kind), { error: true });
+  return false;
+}
+
+// Signalement : motif, détails facultatifs (« Autre chose »), puis proposition de bloquer (profil)
+async function reportFlow(uid, ref) {
+  const name = personName(socialPerson(uid));
+  const reason = await dialog({ type: 'sheet', title: ref ? 'Signaler cette séance' : `Signaler ${name}`,
+    message: `Pourquoi ? ${name} ne saura pas que c'est toi.`,
+    actions: [...REPORT_REASONS.map(r => ({ label: r.label, value: r.reason })), { label: 'Annuler', style: 'cancel' }] });
+  if (!reason) return;
+  let details = '';
+  if (reason === 'autre') {
+    const t = await dialog({ title: 'Que se passe-t-il ?', message: 'Quelques mots pour nous aider (facultatif).',
+      input: { value: '', placeholder: 'Détails', text: true },
+      actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Envoyer', style: 'preferred' }] });
+    if (t === null) return;
+    details = t;
+  }
+  const r = await socialReport({ target: uid, kind: ref ? 'session' : 'profile', ref, reason, details });
+  if (!socialToast(r)) return;
+  haptic();
+  const block = await dialog({ title: 'Signalement envoyé', message: `Merci. Il sera traité sous 24 heures. Tu peux aussi bloquer ${name}.`,
+    actions: [{ label: 'Bloquer', value: true, style: 'destructive' }, { label: 'OK', style: 'preferred' }] });
+  if (block === true) await blockFlow(uid, { confirm: false });
+}
+
+async function blockFlow(uid, { confirm = true } = {}) {
+  const name = personName(socialPerson(uid));
+  if (confirm && !(await confirmSheet(`Bloquer ${name} ?`, `${name} ne pourra plus te trouver ni voir tes séances, et tu ne verras plus les siennes. Vos abonnements sont retirés. Personne n'en est averti.`, 'Bloquer'))) return;
+  const r = await socialBlock(uid);
+  if (!socialToast(r, `${name} bloqué`)) return;
+  if (currentView() === 'social-session') goBack();
+  render();
+}
+
+registerActions({
+  'go-friends': (e, el) => { if (el.closest('.tabbar')) switchTab('friends'); else routeTo('friends'); },
+  'social-sign-in': () => navigate('account'),
+  'social-choose-username': async () => { await openAuthFlow({ step: 'username', mode: 'profile' }); },
+  'social-age': () => { socialAgeOk = !socialAgeOk; haptic(); render(); },
+  'social-rules': () => navigate('social-rules'),
+  'social-rules-web': () => { window.open(RULES_URL, '_blank'); },
+  'social-manage': () => navigate('social-manage'),
+  'social-retry': async () => {
+    if (normalizeSocialQuery(socialQuery)) { socialResults = null; runSocialSearch(); }
+    await socialRefresh();
+    if (socialEnabled()) socialLoadFeed(currentView() === 'social-profile' ? routeParams(currentRoute())[0] : '');
+  },
+  'social-enable': async (e, el) => {
+    if (!account.profile?.username || !socialAgeOk) return;
+    el.disabled = true;
+    const r = await socialEnable(true);
+    if (!socialToast(r)) { el.disabled = false; return; }
+    haptic();
+    socialLoadFeed('');
+    render();
+  },
+  'social-disable': async () => {
+    if (!(await confirmSheet('Désactiver le social ?', 'Tu disparais de la recherche et tes abonnés ne voient plus tes séances. Tes abonnés et abonnements sont gardés si tu réactives.', 'Désactiver'))) return;
+    const r = await socialDisable();
+    if (!socialToast(r, 'Social désactivé')) return;
+    socialAgeOk = false;
+    routeTo('friends');
+  },
+  'social-open-profile': (e, el) => {
+    const route = makeRoute('social-profile', el.dataset.uid);
+    if (currentRoute() !== route) navigate(route);
+  },
+  'social-open-session': (e, el) => navigate(makeRoute('social-session', el.dataset.owner, el.dataset.id)),
+  'social-bravo': async (e, el) => {
+    haptic();
+    const r = await socialToggleBravo(el.dataset.owner, el.dataset.id);
+    socialToast(r);
+  },
+  'social-more': (e, el) => { socialLoadFeed(el.dataset.key || '', { more: true }); },
+  'social-follow': async (e, el) => {
+    el.disabled = true;
+    const r = await socialRequestFollow(el.dataset.uid);
+    socialToast(r);
+    if (currentView() === 'friends') refreshFriendsBody(); else render();
+  },
+  'social-cancel': async (e, el) => {
+    const r = await socialCancelFollow(el.dataset.uid);
+    socialToast(r, 'Demande annulée');
+    render();
+  },
+  'social-unfollow': async (e, el) => {
+    const name = personName(socialPerson(el.dataset.uid));
+    if (!(await confirmSheet(`Se désabonner de ${name} ?`, 'Ses séances ne seront plus dans ton fil. Pour le suivre à nouveau, il faudra une nouvelle demande.', 'Se désabonner'))) return;
+    const r = await socialCancelFollow(el.dataset.uid);
+    socialToast(r);
+    render();
+  },
+  'social-accept': async (e, el) => {
+    el.disabled = true;
+    const r = await socialRespond(el.dataset.uid, true);
+    if (socialToast(r, `${personName(socialPerson(el.dataset.uid))} peut voir tes séances`)) haptic();
+    render();
+  },
+  'social-refuse': async (e, el) => {
+    const r = await socialRespond(el.dataset.uid, false);
+    socialToast(r, 'Demande refusée');
+    render();
+  },
+  'social-remove-follower': async (e, el) => {
+    const name = personName(socialPerson(el.dataset.uid));
+    if (!(await confirmSheet(`Retirer ${name} ?`, `${name} ne verra plus tes séances. Personne n'en est averti.`, 'Retirer'))) return;
+    const r = await socialRemoveFollower(el.dataset.uid);
+    socialToast(r);
+    render();
+  },
+  'social-block': async (e, el) => { await blockFlow(el.dataset.uid); },
+  'social-unblock': async (e, el) => {
+    const r = await socialUnblock(el.dataset.uid);
+    socialToast(r, `${personName(socialPerson(el.dataset.uid))} débloqué`);
+    render();
+  },
+  'social-report': async (e, el) => { await reportFlow(el.dataset.uid, el.dataset.ref || null); },
+  'history-hide': (e, el) => {
+    const h = (data.history || []).find(x => x.id === el.dataset.id);
+    if (!h) return;
+    if (h.hidden) delete h.hidden; else h.hidden = true;
+    haptic();
+    save();   // la synchro envoie le changement (js/data/account.js)
+    render();
+  },
+});
+
+// Recherche au fil de la frappe
+document.addEventListener('input', e => {
+  if (e.target.id !== 'socialSearch') return;
+  socialQuery = e.target.value;
+  runSocialSearch();
+});
+
+// ── Mises à jour de l'écran ─────────────────────────────────
+
+// État reçu, fil chargé, bravo : badge, puis l'écran affiché. Onglet Amis au même état : seule la zone
+// sous la recherche est redessinée (le champ garde le clavier) ; sinon redessin complet
+onSocialChange(() => {
+  updateTabBadge();
+  const v = currentView();
+  if (v === 'friends' && friendsState() === friendsShown) { refreshFriendsBody(); return; }
+  if (!SOCIAL_VIEWS.includes(v) && v !== 'history-detail') return;
+  if (document.activeElement?.matches?.('#socialSearch')) { refreshFriendsBody(); return; }
+  render();
+});
+// Pseudo choisi, connexion, déconnexion : la carte d'activation et l'onglet changent de forme
+let socialAccountKey = null;
+onAccountChange(() => {
+  const key = JSON.stringify([account.ready, account.user?.id, account.profile?.username, account.profile?.avatar]);
+  if (key === socialAccountKey) return;
+  socialAccountKey = key;
+  updateTabBadge();
+  if (SOCIAL_VIEWS.includes(currentView())) render();
+});

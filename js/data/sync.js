@@ -48,8 +48,19 @@ function syncHash(v) {
   return (h >>> 0).toString(36);
 }
 
-// Séance telle qu'elle part sur le serveur : sans le poids du corps
-function sessionPayload(h) { const { bodyKg, ...rest } = h; return rest; }
+// Séance telle qu'elle part sur le serveur : sans le poids du corps, avec son nom affiché (label,
+// rawLabel du programme et de la séance) calculé au moment de la synchro, pour les abonnés qui n'ont pas
+// les programmes perso de la personne (docs/SOCIAL_V1.md). Seule lecture de `data` de ce fichier (noms
+// des séances perso, profil synchronisé avant l'envoi). Le nom fait partie de l'empreinte : renommer
+// une séance perso renvoie une fois ses séances ; l'ajout du champ (Social V1) les a toutes renvoyées une
+// fois, sans conflit (applyRemoteSessions compare des payloads qui portent le même nom). hidden : séance
+// masquée aux abonnés (true, absent sinon), envoyée telle quelle.
+function sessionPayload(h) {
+  const { bodyKg, label, ...rest } = h;
+  return typeof h.category === 'string' ? { ...rest, label: rawLabel(h.category, h.programme || 'ppl') } : rest;
+}
+// Séance reçue du compte : sans son nom (recalculé ici à l'envoi, jamais stocké dans l'historique)
+function remoteEntry(rowData, id) { const { label, ...rest } = rowData; return { ...rest, id }; }
 // Profil partagé : seulement les clés autorisées
 function profilePayload(d) {
   const out = {};
@@ -99,14 +110,14 @@ function applyRemoteSessions(history, rows, meta) {
     const remoteHash = syncHash(row.data);
     if (!local) {
       if (known === remoteHash) continue;   // supprimée ici, suppression encore à envoyer
-      out.push({ ...row.data, id: row.id });
+      out.push(remoteEntry(row.data, row.id));
       byId.set(row.id, out.length - 1);
       meta.pushed[row.id] = remoteHash;
       changed = true;
     } else if (syncHash(sessionPayload(local)) === remoteHash) {
       meta.pushed[row.id] = remoteHash;
     } else if (!changedHere) {
-      out[i] = { ...row.data, id: row.id, ...(local.bodyKg !== undefined ? { bodyKg: local.bodyKg } : {}) };
+      out[i] = { ...remoteEntry(row.data, row.id), ...(local.bodyKg !== undefined ? { bodyKg: local.bodyKg } : {}) };
       meta.pushed[row.id] = remoteHash;
       changed = true;
     }

@@ -43,7 +43,8 @@ export default function ({ test, run, assert, sameJSON }) {
   test('synchro : suppressions distantes et locales, sans résurrection', () => {
     const r = call(`(() => {
       const meta = { pushed: { a: syncHash(sessionPayload(local[0])), gone: syncHash(sessionPayload(goneEntry)) } };
-      const res = applyRemoteSessions(local, rows, meta);
+      // Lignes du compte telles que l'app les envoie (sessionPayload : avec le nom de la séance)
+      const res = applyRemoteSessions(local, rows.map(r => r.data ? { ...r, data: sessionPayload(r.data) } : r), meta);
       return { ids: res.history.map(x => x.id), meta };
     })()`, {
       local: [h('a', '10')],
@@ -95,7 +96,7 @@ export default function ({ test, run, assert, sameJSON }) {
     // Compte : X supprimée et Y corrigée à 12 sur un autre iPhone. Cet appareil revient avec X et Y = 8, sans empreintes.
     const r = call(`(() => {
       const meta = { pushed: {} };
-      const res = applyRemoteSessions(local, rows, meta);
+      const res = applyRemoteSessions(local, rows.map(r => r.data ? { ...r, data: sessionPayload(r.data) } : r), meta);
       const plan = planSessionPush(res.history, meta);
       return { ids: res.history.map(x => x.id), y: res.history.find(x => x.id === 'Y').exercises[0].sets[0].reps,
                removed: res.removed.map(x => x.id), up: plan.upserts.map(u => u.id), del: plan.deletes };
@@ -439,5 +440,48 @@ export default function ({ test, run, assert, sameJSON }) {
       return [await discardNewAccount(old), (await accountCancelNewAccount()).reason];
     })()`);
     try { sameJSON(r, ['expired', 'expired']); } finally { run(undoIos); }
+  });
+
+  test('synchro : nom de séance (label) ajouté au payload : un seul renvoi de toutes les séances, sans conflit ni perte', async () => {
+    // État d'avant le Social V1 : le compte et l'iPhone ont les séances SANS label, empreintes à jour
+    const r = await run(`(async () => {
+      localStorage.clear();
+      ${fakeIos}
+      ${fakeSb}
+      ${twoSessions}
+      data.history[0].bodyKg = 72; data.history[1].hidden = true;
+      const oldPayload = h => { const { bodyKg, label, ...rest } = sessionPayload(h); return rest; };
+      localStorage.setItem('mdlf_sync_owner', 'A');
+      srv.rows = data.history.map(h => ({ id: h.id, data: JSON.parse(JSON.stringify(oldPayload(h))), deleted_at: null, updated_at: '2026-10-20T10:00:00Z' }));
+      localStorage.setItem('mdlf_sync_A', JSON.stringify({ userId: 'A', cursor: '2026-10-20T10:00:00Z', profileHash: null,
+        pushed: Object.fromEntries(data.history.map(h => [h.id, syncHash(oldPayload(h))])) }));
+      const before = JSON.stringify(data.history);
+      account.user = ${JSON.stringify(oldUser('A'))};
+      const ok1 = await syncNow();
+      const first = srv.sent.map(x => ({ id: x.id, label: x.data.label, hidden: x.data.hidden, bodyKg: x.data.bodyKg }));
+      const unchanged = JSON.stringify(data.history) === before;
+      // Le serveur renvoie les lignes avec label (curseur dépassé) : rien ne change ici, rien ne repart
+      srv.rows = srv.sent.map(x => ({ id: x.id, data: JSON.parse(JSON.stringify(x.data)), deleted_at: null, updated_at: '2026-10-26T10:00:00Z' }));
+      srv.sent = [];
+      const ok2 = await syncNow();
+      const second = srv.sent.length;
+      const noLabelStored = data.history.every(h => !('label' in h));
+      // Un autre appareil encore sans label renvoie une séance modifiée : elle est reçue, puis repart avec son nom
+      srv.rows = [{ id: 'a', data: { ...oldPayload(data.history[0]), notes: 'ailleurs' }, deleted_at: null, updated_at: '2026-10-26T11:00:00Z' }];
+      srv.sent = [];
+      await syncNow();
+      const third = srv.sent.map(x => [x.id, x.data.notes, x.data.label]);
+      return { ok1, ok2, first, unchanged, second, noLabelStored, third, bodyKg: data.history[0].bodyKg };
+    })()`);
+    try {
+      assert.equal(r.ok1, true);
+      sameJSON(r.first, [{ id: 'a', label: 'Push' }, { id: 'b', label: 'Pull', hidden: true }], 'toutes renvoyées une fois, avec leur nom, hidden gardé, jamais bodyKg');
+      assert.equal(r.unchanged, true, 'historique local intact (aucune perte, aucun écrasement)');
+      assert.equal(r.ok2, true);
+      assert.equal(r.second, 0, 'synchro suivante : plus rien à renvoyer');
+      assert.equal(r.noLabelStored, true, 'le nom n\'est jamais stocké dans l\'historique');
+      sameJSON(r.third, [['a', 'ailleurs', 'Push']], 'version d\'un appareil sans label reçue puis renvoyée une fois avec le nom');
+      assert.equal(r.bodyKg, 72, 'poids du corps local gardé');
+    } finally { run(undoIos); }
   });
 }

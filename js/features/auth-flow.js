@@ -146,7 +146,7 @@ const AUTH_STEPS = {
         ${flowAvatarHtml()}<span class="auth__avatar-edit" aria-hidden="true">Modifier</span>
       </button>
       <h1 class="auth__title" id="authTitle" tabindex="-1">${flow.first ? 'Choisis ton pseudo' : 'Pseudo'}</h1>
-      <p class="auth__lead">Il servira quand tu pourras ajouter des amis. Pour l'instant, toi seul le vois.</p>
+      <p class="auth__lead">Tes amis te trouveront avec ce pseudo, une fois les Amis activés.</p>
       ${flow.first && flow.cancelExpired ? cancelExpiredHtml()
         : flow.first && flow.notice ? `<div class="auth__notice" role="note"><p>${esc(flow.notice)}</p>
         <button class="auth__notice-btn" data-action="auth-cancel-account">Me reconnecter autrement</button></div>` : ''}

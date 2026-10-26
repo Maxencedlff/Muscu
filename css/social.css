@@ -1,0 +1,128 @@
+/* ═══════════════════════════════════════════════
+   Amis (js/features/social-ui.js) : badge de l'onglet, accueil de l'onglet (sans compte,
+   activation), lignes de personnes, cartes du fil, bouton Bravo, profil d'un autre.
+   Couleurs : tokens de css/base.css seulement.
+═══════════════════════════════════════════════ */
+
+/* ── Badge de l'onglet Amis (demandes reçues) : pastille rouge en haut à droite de l'icône ── */
+.tabbar__btn { position: relative; }
+.tabbar__badge {
+  position: absolute; top: 3px; left: calc(50% + 6px);
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-pill);
+  background: var(--red); color: var(--white); font-size: 12px; line-height: 18px; font-weight: 600; text-align: center;
+}
+/* Cinq onglets sur 320 pt : libellés entiers, un peu plus serrés */
+@media (max-width: 360px) { .tabbar__label { letter-spacing: -.2px; } }
+
+/* ── Accueil de l'onglet (sans compte, activation) ── */
+.social-hero { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 8px 24px; text-align: center; }
+.social-hero__icon {
+  width: 76px; height: 76px; border-radius: 50%; background: var(--fill2); color: var(--tint);
+  display: flex; align-items: center; justify-content: center;
+}
+.social-hero__title { margin: 6px 0 0; font-size: var(--fs-title2); line-height: 1.25; font-weight: 700; text-wrap: balance; }
+.social-hero__sub { margin: 0; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label2); max-width: 340px; text-wrap: pretty; }
+.social-choose { color: var(--tint); }
+.social-enable { margin-top: 24px; }
+/* iPhone SE (568 pt) : sans l'icône, « Activer » reste au-dessus de la barre d'onglets */
+@media (max-height: 600px) {
+  .social-hero { gap: 4px; padding: 0 4px 14px; }
+  .social-hero__icon { display: none; }
+  .social-hero__title { margin-top: 0; font-size: var(--fs-title3); }
+  .social-enable { margin-top: 16px; }
+}
+
+/* Message hors ligne ou d'erreur, avec « Réessayer » */
+.social-note { text-align: center; color: var(--label2); font-size: var(--fs-subhead); line-height: 1.45; padding: 36px 16px 0; }
+.social-note p { margin: 0 0 4px; text-wrap: pretty; }
+.social-note__btn {
+  min-height: 44px; padding: 0 12px; border: 0; background: none; cursor: pointer;
+  color: var(--tint); font: inherit; font-weight: 600;
+}
+.social-note__btn:active { opacity: .6; }
+.social-inline-error { margin: 12px 4px 0; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
+
+/* ── Ligne d'une personne : avatar et pseudo (bouton vers le profil), action à droite ── */
+.avatar--m { width: 40px; height: 40px; font-size: 1.412rem; }
+.avatar--initial.avatar--m { font-size: 1.059rem; }
+.view--grouped .cell.social-row { padding-top: 0; padding-bottom: 0; gap: 8px; }
+.social-row__main {
+  flex: 1; min-width: 0; min-height: 56px; display: flex; align-items: center; gap: 12px;
+  padding: 8px 0; border: 0; background: none; color: var(--label); font: inherit; text-align: left; cursor: pointer;
+}
+.social-row__main:active { opacity: .6; }
+.social-row__text { min-width: 0; display: flex; flex-direction: column; }
+.social-row__name { font-size: var(--fs-body); line-height: 1.3; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.social-row__chev { color: var(--label3); display: flex; }
+.social-status { flex-shrink: 0; color: var(--label2); font-size: var(--fs-subhead); }
+.social-empty { padding: 2px 0; }
+/* Petit bouton arrondi (Accepter, Retirer, S'abonner) : 44 pt de zone, pastille de 32 */
+.social-pill {
+  flex-shrink: 0; min-height: 44px; padding: 0 14px; border: 0; cursor: pointer;
+  background: none; color: var(--tint); font: inherit; font-size: var(--fs-subhead); font-weight: 600; white-space: nowrap;
+  position: relative; z-index: 0;
+}
+.social-pill::before { content: ''; position: absolute; inset: 6px 0; border-radius: var(--r-pill); background: var(--fill); z-index: -1; }
+.social-pill--fill { color: var(--on-tint); }
+.social-pill--fill::before { background: var(--tint-fill); }
+.social-pill:active:not(:disabled) { opacity: .6; }
+.social-pill:disabled { opacity: .5; }
+/* Refuser : croix dans un cercle gris, 44 pt de zone */
+.social-x {
+  flex-shrink: 0; width: 44px; height: 44px; border: 0; background: none; cursor: pointer; color: var(--label2);
+  display: flex; align-items: center; justify-content: center; position: relative; margin-right: -8px;
+}
+.social-x::before { content: ''; position: absolute; width: 30px; height: 30px; border-radius: 50%; background: var(--fill2); }
+.social-x .icon { position: relative; }
+.social-x:active { opacity: .6; }
+
+/* ── Cartes du fil ── */
+.feed { display: flex; flex-direction: column; gap: 12px; }
+.feed-card { background: var(--cell); border-radius: var(--r-md); overflow: hidden; }
+.feed-card__who, .feed-card__main {
+  display: flex; width: 100%; border: 0; background: none; color: var(--label); font: inherit; text-align: left; cursor: pointer;
+}
+.feed-card__who:active, .feed-card__main:active { background: var(--cell2); }
+.feed-card__who { align-items: center; gap: 12px; min-height: 56px; padding: 12px 16px 4px; }
+.feed-card__who-text { min-width: 0; display: flex; flex-direction: column; }
+.feed-card__name { font-size: var(--fs-body); line-height: 1.3; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feed-card__date { font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); white-space: nowrap; }
+.feed-card__main { flex-direction: column; gap: 2px; min-height: 44px; padding: 8px 16px 10px; }
+.feed-card__title { display: flex; align-items: baseline; gap: 8px; width: 100%; min-width: 0; }
+.feed-card__title .hcell__dot { align-self: center; margin-top: 0; }
+.feed-card__label { flex: 1; min-width: 0; font-size: var(--fs-title3); line-height: 1.3; font-weight: 700; overflow-wrap: anywhere; }
+.feed-card__title .feed-card__date { margin-left: auto; }
+.feed-card__meta { font-size: var(--fs-subhead); color: var(--label2); }
+.feed-card__sum {
+  font-size: var(--fs-subhead); line-height: 1.35; color: var(--label);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+}
+.feed-card__foot { display: flex; align-items: center; gap: 10px; padding: 0 16px 6px; box-shadow: inset 0 .5px 0 var(--sep); margin-left: 16px; padding-left: 0; }
+
+/* Bravo : bouton texte sobre, plein à la teinte une fois donné */
+.bravo {
+  min-height: 44px; padding: 0 16px; border: 0; cursor: pointer; background: none; position: relative; z-index: 0;
+  color: var(--tint); font: inherit; font-size: var(--fs-subhead); font-weight: 600; margin-left: -4px;
+}
+.bravo::before { content: ''; position: absolute; inset: 7px 0; border-radius: var(--r-pill); background: var(--fill2); z-index: -1; transition: background .15s; }
+.bravo--on { color: var(--on-tint); }
+.bravo--on::before { background: var(--tint-fill); }
+.bravo:active { opacity: .6; }
+.bravo__count { font-size: var(--fs-subhead); color: var(--label2); }
+
+/* ── Séance d'un ami ── */
+.social-who {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 8px; padding: 0;
+  border: 0; background: none; color: var(--label); font: inherit; cursor: pointer; max-width: 100%;
+}
+.social-who:active { opacity: .6; }
+.social-who__name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.social-session__bravo { margin: 20px 0 0; padding: 4px 16px; background: var(--cell); border-radius: var(--r-md); box-shadow: none; }
+
+/* ── Profil d'un autre ── */
+.social-profile-view .account-hero { padding-bottom: 16px; }
+.social-profile__action:not(:empty) { margin-bottom: 4px; }
+.social-incoming { margin-bottom: 16px; }
+.social-incoming .cell { padding-top: 0; padding-bottom: 0; gap: 8px; }
+.social-profile__locked { padding-top: 32px; }
+.social-results { margin-top: 16px; }
