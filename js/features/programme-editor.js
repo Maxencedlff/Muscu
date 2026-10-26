@@ -154,12 +154,8 @@ function applyDraftMeasure(ex, draft) {
   const tempo = measureOf(ex) === 'reps' ? formatTempo(parseTempo(draft?.tempo)) : '';
   // Guidage au son : stocké seulement quand il est choisi (le rappel seul est le défaut), avec sa préparation
   const guide = !!(tempo && draft?.tempoGuide === true);
-  const setTempo = o => {
-    if (tempo) o.tempo = tempo; else delete o.tempo;
-    if (guide) { o.tempoGuide = true; o.tempoPrep = tempoPrepOf(draft); } else { delete o.tempoGuide; delete o.tempoPrep; }
-  };
-  setTempo(ex);
-  if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) setTempo(e); });
+  applyTempo(ex, tempo, guide, draft);
+  if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) applyTempo(e, tempo, guide, draft); });
   // Séance en cours : l'exercice suit le nouveau choix tout de suite
   if (activeSession) activeSession.exercises.forEach(e => { if (e.exId === ex.id) e.measure = measureOf(ex); });
 }
@@ -448,7 +444,7 @@ registerActions({
       if (ex.name !== name) {
         // L'exId garde le lien avec l'historique ; on propose aussi d'y reprendre le nouveau nom
         const progKey = data.activeProgramme;
-        const touched = (data.history || []).filter(h => (h.programme || 'ppl') === progKey && h.category === editorCat
+        const touched = (data.history || []).filter(h => entryProg(h) === progKey && h.category === editorCat
           && (h.exercises || []).some(e => sameEx(e, ex)));
         if (touched.length) {
           const n = touched.length;

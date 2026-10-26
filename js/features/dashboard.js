@@ -39,7 +39,7 @@ function catStatus(cat, now = Date.now()) {
   let best = own && own > skipped ? { date: own, readyAt: own + cd, by: null } : null;
   const rec = sessionRecovery(cat, { cd, after: skipped });
   if (rec && rec.readyAt > (best?.readyAt || 0)) {
-    const e = rec.entry, mine = e.category === cat && (e.programme || 'ppl') === data.activeProgramme;
+    const e = rec.entry, mine = e.category === cat && entryProg(e) === data.activeProgramme;
     best = { date: rec.date, readyAt: rec.readyAt, by: mine ? null : rec };
   }
   const last = best?.date ?? null, readyAt = best?.readyAt || 0;
@@ -91,12 +91,11 @@ function sessionRecovery(cat, { cd = getCooldown(cat) * 3600_000, after = -Infin
 // « Biceps : hier, Bras & épaules », « Quadriceps : aujourd'hui, Course (Apple Watch) » :
 // pourquoi une séance attend à cause d'une autre
 function recoveryReason(by) {
-  const startOfDay = t => new Date(t).setHours(0, 0, 0, 0);
-  const e = by.entry, pid = e.programme || 'ppl';
+  const e = by.entry, pid = entryProg(e);
   const where = isHealthEntry(e) ? `${e.health.title} (${e.health.source})`
     : pid === FREE ? 'séance libre'
     : pid === data.activeProgramme ? rawLabel(e.category, pid) : progMeta(pid).name;
-  const days = Math.round((startOfDay(Date.now()) - startOfDay(e.date)) / 86400000);
+  const days = daysAgo(e.date);
   const when = days <= 0 ? 'aujourd\'hui' : days === 1 ? 'hier' : `il y a ${days} jours`;
   return `${muscleLabel(by.muscle)} : ${when}, ${where}`;   // texte brut : échappé à l'affichage
 }
@@ -143,7 +142,7 @@ function lowerFirst(s) { return s ? s.charAt(0).toLowerCase() + s.slice(1) : s; 
 
 function lastEntryOf(cat) {
   const p = data.activeProgramme;
-  return (data.history || []).find(h => h.category === cat && (h.programme || 'ppl') === p) || null;
+  return (data.history || []).find(h => h.category === cat && entryProg(h) === p) || null;
 }
 
 function cellStatusHtml(cat) {
@@ -161,7 +160,7 @@ function cellStatusHtml(cat) {
 function sessionMinutes(cat) {
   const p = data.activeProgramme;
   const durs = (data.history || [])
-    .filter(h => h.category === cat && (h.programme || 'ppl') === p && h.duration > 5 * 60000)
+    .filter(h => h.category === cat && entryProg(h) === p && h.duration > 5 * 60000)
     .slice(0, 5).map(h => h.duration).sort((a, b) => a - b);
   const ms = durs.length ? durs[Math.floor(durs.length / 2)]
     : (prog().exercises[cat] || []).reduce((a, ex) => a + (ex.sets || 0), 0) * 150_000;
@@ -208,17 +207,15 @@ function targetsCard(cat) {
 }
 
 // Semaine en cours (lundi → dimanche) : séances par jour, nombre
-function weekStats() {
-  const now = new Date();
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)).getTime();
+function weekStats(now = Date.now()) {
+  const monday = weekStart(now), next = addDays(monday, 7);
   const days = Array.from({ length: 7 }, () => []);
   let count = 0;
   (data.history || []).forEach(h => {
-    if (h.date < monday) return;
-    const i = Math.floor((h.date - monday) / 86400000);
-    if (i < 7) { days[i].push(h); count++; }
+    if (h.date < monday || h.date >= next) return;
+    days[dayIndexInWeek(h.date)].push(h); count++;
   });
-  return { days, count, today: (now.getDay() + 6) % 7 };
+  return { days, count, today: dayIndexInWeek(now) };
 }
 
 // Objectif de séances par semaine : réglé par l'utilisateur, sinon le nombre de séances du programme
@@ -256,7 +253,7 @@ function weekCard(ws) {
     const dot = h ? ` week__dot--done" style="--cat-color:${historyColor(h)}` : today ? ' week__dot--today' : '';
     return `<span class="week__day${today ? ' week__day--today' : ''}"><span class="week__letter">${l}</span><span class="week__dot${dot}"></span></span>`;
   }).join('');
-  const done = ws.days.map((d, i) => d[0] ? `${WEEK_NAMES[i]} ${rawLabel(d[0].category, d[0].programme || 'ppl')}` : '').filter(Boolean);
+  const done = ws.days.map((d, i) => d[0] ? `${WEEK_NAMES[i]} ${rawLabel(d[0].category, entryProg(d[0]))}` : '').filter(Boolean);
   const line = weekLine();
   const aria = `Cette semaine : ${ws.count} séance${ws.count > 1 ? 's' : ''} sur ${goal}${done.length ? ` (${done.join(', ')})` : ''}.${line ? ` ${line.replace(/ · /g, ', ')}.` : ''}`;
   return `

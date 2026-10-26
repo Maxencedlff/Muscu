@@ -66,15 +66,21 @@ const DATE_FORMATS = {
   month: { month: 'long', year: 'numeric' },                                  // « octobre 2026 »
 };
 
+// Jours du calendrier (heure locale) entre `ts` et `now` : 0 aujourd'hui, 1 hier, négatif dans le futur.
+// Jamais des tranches de 24 h (« hier 22 h » vu à 8 h, c'est hier) ni un jour de 23 ou 25 h mal compté :
+// on compare les dates du calendrier, ramenées sur une échelle sans changement d'heure (UTC).
+function daysAgo(ts, now = Date.now()) {
+  const day = t => { const d = new Date(t); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()); };
+  return Math.round((day(now) - day(ts)) / 86400000);
+}
+
 // Date d'un horodatage ou d'un objet Date. Sans style : « Aujourd'hui », « Hier », sinon
 // « jeu. 9 oct. » (l'année seulement si ce n'est pas l'année en cours). Styles : DATE_FORMATS.
 function fmtDate(ts, style) {
   const d = new Date(ts);
   if (style) return d.toLocaleDateString('fr-FR', DATE_FORMATS[style]);
   const today = new Date();
-  const day0 = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const diff = Math.round((day0 - dd) / 86400000);
+  const diff = daysAgo(d, today);
   if (diff === 0) return 'Aujourd\'hui';
   if (diff === 1) return 'Hier';
   const opts = { weekday: 'short', day: 'numeric', month: 'short' };
@@ -122,5 +128,16 @@ function sameEx(a, b) {
   const ia = exIdOf(a), ib = exIdOf(b);
   return (ia && ib) ? ia === ib : normName(a?.name) === normName(b?.name);
 }
+
+// Clé d'un exercice connu par son seul nom : « n: » + nom normalisé. Stockée dans l'historique (exId),
+// les records et Progrès : son format ne doit jamais changer.
+function nameKey(name) { return 'n:' + normName(name); }
+// Clé de regroupement d'un exercice : son identifiant (exId de l'historique, sinon id du programme),
+// sinon son nom. Les records ont leur propre clé, recordKey (js/data/records.js), qui ignore l'id.
+function exKey(ex) { return exIdOf(ex) || nameKey(ex?.name); }
+
+// Programme d'une séance de l'historique : les séances d'avant les programmes n'en ont pas, c'est « ppl ».
+// Ici et non dans js/data/accessors.js : la migration de la donnée (js/data/store.js) s'en sert au chargement.
+function entryProg(h) { return h?.programme || 'ppl'; }
 
 function plural(n, one, many) { return `${n} ${n > 1 ? many : one}`; }

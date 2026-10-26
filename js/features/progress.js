@@ -19,8 +19,8 @@ function exPoint(h, e) {
   const bodyKg = bodyShare(e) && currentBodyKg() ? entryBodyKg(h) : null;
   if (bodyKg) {
     const loads = sets.map(s => effectiveLoad(s, e, bodyKg));
-    const volume = sets.reduce((a, s, i) => a + loads[i] * (parseInt(s.reps) || 0), 0);
-    const best1RM = Math.max(0, ...sets.map((s, i) => (parseInt(s.reps) || 0) <= 10 ? calc1RM(loads[i], s.reps) : null).filter(v => v !== null));
+    const volume = exVolume(e, sets, bodyKg);
+    const best1RM = Math.max(0, ...sets.map((s, i) => calc1RM(loads[i], s.reps)).filter(v => v !== null));
     return { date: h.date, hid: h.id, sets, hasWeight: true, totalReps: sets.reduce((a, s) => a + (parseInt(s.reps) || 0), 0),
       volume, maxLoad: Math.max(...loads), best1RM, maxReps: Math.max(...sets.map(s => parseInt(s.reps) || 0)), best: bestSet(sets, e), bodyKg };
   }
@@ -51,12 +51,12 @@ function exerciseIndex() {
   const map = new Map();
   const hist = (data.history || []).slice().sort((a, b) => a.date - b.date);
   hist.forEach(h => (h.exercises || []).forEach(e => {
-    const key = exIdOf(e) || 'n:' + normName(e.name);
+    const key = exKey(e);
     const p = exPoint(h, e);
     if (!p) return;
     let it = map.get(key);
-    if (!it) { it = { exId: key, name: e.name, points: [], cat: h.category, prog: h.programme || 'ppl' }; map.set(key, it); }
-    it.name = e.name; it.measure = measureOf(e); it.unit = MEASURES[it.measure].unit; it.cat = h.category; it.prog = h.programme || 'ppl';
+    if (!it) { it = { exId: key, name: e.name, points: [], cat: h.category, prog: entryProg(h) }; map.set(key, it); }
+    it.name = e.name; it.measure = measureOf(e); it.unit = MEASURES[it.measure].unit; it.cat = h.category; it.prog = entryProg(h);
     it.points.push(p);
   }));
   return map;

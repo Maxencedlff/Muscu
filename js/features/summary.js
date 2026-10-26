@@ -25,7 +25,7 @@ function bestSetTrend(b, pb) {
 }
 
 function buildSummary(entry, baseline) {
-  const prevH = data.history.find(h => h !== entry && h.category === entry.category && (h.programme || 'ppl') === entry.programme);
+  const prevH = data.history.find(h => h !== entry && h.category === entry.category && entryProg(h) === entryProg(entry));
   let cur = 0, prev = 0;
   const records = [], rows = [];
   entry.exercises.forEach(ex => {

@@ -21,7 +21,7 @@ function recomputePRFromHistory(d = data) {
       if (!Array.isArray(exercises)) return;
       exercises.forEach(ex => { ex.pr = null; ex.est1RM = null; ex.lastWeight = ''; ex.lastReps = ''; });
       const sessions = (d.history || [])
-        .filter(h => (h.programme || 'ppl') === progKey && h.category === cat)
+        .filter(h => entryProg(h) === progKey && h.category === cat)
         .sort((a, b) => a.date - b.date);
       sessions.forEach(session => {
         (session.exercises || []).forEach(histEx => {
@@ -50,7 +50,7 @@ function recomputePRFromHistory(d = data) {
 // Dernière séance (programme + catégorie) qui contient cet exercice : { h, ex } ou null
 function lastPerf(progKey, cat, exLike, d = data) {
   for (const h of d.history || []) {
-    if ((h.programme || 'ppl') !== progKey || h.category !== cat) continue;
+    if (entryProg(h) !== progKey || h.category !== cat) continue;
     const ex = (h.exercises || []).find(e => sameEx(e, exLike));
     if (ex && ex.sets?.length) return { h, ex };
   }
@@ -64,11 +64,11 @@ function resolveExId(progKey, cat, name, d = data) {
   const inProg = (d.programmes[progKey]?.exercises?.[cat] || []).find(e => normName(e.name) === normName(name));
   if (inProg) return inProg.id;
   for (const h of d.history || []) {
-    if ((h.programme || 'ppl') !== progKey || h.category !== cat) continue;
+    if (entryProg(h) !== progKey || h.category !== cat) continue;
     const ex = (h.exercises || []).find(e => e.exId && sameEx({ name: e.name }, byName));
     if (ex) return ex.exId;
   }
-  return 'n:' + normName(name);
+  return nameKey(name);
 }
 
 // Séance libre : l'exercice reprend l'identifiant du même nom ailleurs (programme actif d'abord,
@@ -83,7 +83,7 @@ function resolveFreeExId(name, d = data) {
     }
   }
   const past = (d.history || []).flatMap(h => h.exercises || []).find(e => e.exId && normName(e.name) === n);
-  return past ? past.exId : 'n:' + n;
+  return past ? past.exId : nameKey(name);
 }
 
 // Volume (kg) : Σ charge × reps d'une liste de séries, puis d'une liste d'exercices
@@ -296,7 +296,7 @@ function cleanMyProgrammes(d) {
   const used = id => id !== 'custom' || Object.keys(d.customSessions || {}).length > 0 || d.activeProgramme === 'custom';
   const known = id => typeof id === 'string' && (PROGRAMMES[id] ? used(id) : created.includes(id));
   const base = Array.isArray(d.myProgrammes) ? d.myProgrammes
-    : [d.activeProgramme, ...created, ...Object.keys(PROGRAMMES).filter(id => (d.history || []).some(h => (h.programme || 'ppl') === id))];
+    : [d.activeProgramme, ...created, ...Object.keys(PROGRAMMES).filter(id => (d.history || []).some(h => entryProg(h) === id))];
   return [...new Set([...base, d.activeProgramme, ...created])].filter(known);
 }
 
@@ -418,11 +418,11 @@ function normalizeData(d, rawJson = null) {
   // Schéma 3 : identifiant stable (exId) sur chaque exercice de l'historique
   if ((d.schema || 2) < 3) {
     d.history.forEach(h => {
-      const list = d.programmes[h.programme || 'ppl']?.exercises?.[h.category] || [];
+      const list = d.programmes[entryProg(h)]?.exercises?.[h.category] || [];
       h.exercises.forEach(ex => {
         if (ex.exId) return;
         const found = list.find(e => normName(e.name) === normName(ex.name));
-        ex.exId = found ? found.id : 'n:' + normName(ex.name);
+        ex.exId = found ? found.id : nameKey(ex.name);
       });
     });
     // Les PR ont pu être écrits par une séance non terminée (versions précédentes)
@@ -496,7 +496,7 @@ function save(quiet = false) {
 // Date de la dernière séance d'une catégorie d'un programme, null s'il n'y en a aucune
 function latestSessionDate(progKey, cat, d = data) {
   return (d.history || [])
-    .filter(h => h.category === cat && (h.programme || 'ppl') === progKey)
+    .filter(h => h.category === cat && entryProg(h) === progKey)
     .reduce((best, h) => (best === null || h.date > best ? h.date : best), null);
 }
 
@@ -513,9 +513,9 @@ function syncTimersFromHistory() {
 
 // Séance retirée de l'historique : si c'est elle qui fixait le délai, il recule à la précédente
 function releaseTimer(entry) {
-  const p = data.programmes[entry.programme || 'ppl'];
+  const p = data.programmes[entryProg(entry)];
   if (!p?.timers || p.timers[entry.category] !== entry.date) return;
-  p.timers[entry.category] = latestSessionDate(entry.programme || 'ppl', entry.category);
+  p.timers[entry.category] = latestSessionDate(entryProg(entry), entry.category);
 }
 
 // Donnée illisible : l'app démarre sur une donnée vide sans rien écrire, puis affiche l'écran de secours

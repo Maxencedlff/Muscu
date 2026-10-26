@@ -73,7 +73,7 @@ function renderAccountGroupInner() {
 // « Sauvegardé aujourd'hui à 10:02 », « hier à … », « le 21 oct. à … »
 function savedAtText(ts) {
   const d = new Date(ts), time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  const days = Math.round((new Date().setHours(0, 0, 0, 0) - new Date(ts).setHours(0, 0, 0, 0)) / 86400000);
+  const days = daysAgo(ts);
   if (days <= 0) return `aujourd'hui à ${time}`;
   if (days === 1) return `hier à ${time}`;
   return `le ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} à ${time}`;

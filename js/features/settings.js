@@ -6,8 +6,9 @@
 // Confidentialité et mentions légales (page publique, privacy.html) ; _blank l'ouvre dans Safari
 const LEGAL_URL = 'https://mdlf.app/privacy.html#mentions';
 
+// « aujourd'hui », « hier », « il y a 3 jours » : jours du calendrier (dernier export, Supprimés récemment)
 function agoText(ts) {
-  const days = Math.floor((Date.now() - ts) / 86400000);
+  const days = daysAgo(ts);
   if (days <= 0) return 'aujourd\'hui';
   if (days === 1) return 'hier';
   return `il y a ${days} jours`;

@@ -27,7 +27,7 @@ function restoreFromTrash(id) {
   data.history.push(entry);
   data.history.sort((a, b) => b.date - a.date);
   // Le délai de récupération reprend la date de la séance si elle est la plus récente de sa catégorie
-  const timers = data.programmes[entry.programme || 'ppl']?.timers;
+  const timers = data.programmes[entryProg(entry)]?.timers;
   if (timers && entry.date > (timers[entry.category] || 0)) timers[entry.category] = entry.date;
   return entry;
 }

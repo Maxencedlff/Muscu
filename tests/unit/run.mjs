@@ -55,6 +55,9 @@ const SCRIPTS = [
   'js/features/share-canvas.js',
   'js/features/dashboard.js',
   'js/features/session-sheets.js',
+  'js/features/summary.js',
+  'js/features/settings.js',
+  'js/features/progress.js',
 ];
 
 // ── Environnement simulé ────────────────────────────────────
@@ -1403,6 +1406,11 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 
 // ── Mes programmes : migration, nettoyage, liste, catalogue (tests dans my-programmes.mjs) ──
 (await import('./my-programmes.mjs')).default({ test, run, reset, assert });
+
+// ── Dates du calendrier : semaines, jours écoulés (tests dans dates.mjs) ──
+(await import('./dates.mjs')).default({ test, run, reset, assert, app });
+// ── Séances et exercices : programme, clés, volume, tempo (tests dans entries.mjs) ──
+(await import('./entries.mjs')).default({ test, run, reset, assert, app, sameJSON });
 
 // ── Exécution ───────────────────────────────────────────────
 

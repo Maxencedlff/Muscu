@@ -45,7 +45,7 @@ function shareHighlights(rows, max = SHARE_MAX_HIGHLIGHTS) {
 // entry : séance de l'historique. baseline : records d'avant la séance ({ [exId]: { prW, prR, e1rm } }) ;
 // absente (séance de l'historique), elle est reconstituée depuis les séances antérieures.
 function shareStoryStats(entry, { history = data.history, baseline = null, max = SHARE_MAX_HIGHLIGHTS } = {}) {
-  const prog      = entry.programme || 'ppl';
+  const prog      = entryProg(entry);
   const base      = baseline || historyBaseline(entry, history);
   const exercises = (entry.exercises || []).filter(ex => (ex.sets || []).length);
   const rows      = exercises.map((ex, i) => shareExerciseRow(ex, base[recordKey(ex)], i, entryBodyKg(entry)));

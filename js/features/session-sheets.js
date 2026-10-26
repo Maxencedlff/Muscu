@@ -328,13 +328,9 @@ async function chooseSessionTempo(ei) {
     if (!mode || !activeSession) return;
     guide = mode === 'guide';
   }
-  const apply = o => {
-    if (tempo) o.tempo = tempo; else delete o.tempo;
-    if (guide) { o.tempoGuide = true; o.tempoPrep = tempoPrepOf(o); } else { delete o.tempoGuide; delete o.tempoPrep; }
-  };
-  apply(ex);
+  applyTempo(ex, tempo, guide);
   const inProg = ex.exId && (sessProg().exercises[activeSession.category] || []).find(e => e.id === ex.exId);
-  if (inProg) { apply(inProg); save(); }
+  if (inProg) { applyTempo(inProg, tempo, guide); save(); }
   persistSession();
   render();
   showToast(tempo ? `Tempo ${shortTempo(tempo)}${guide ? ', guidé au son' : ''}` : 'Tempo retiré');

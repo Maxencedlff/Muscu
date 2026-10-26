@@ -35,16 +35,18 @@ function exerciseRecord(ex, base) {
   return rec;
 }
 
-// Clé d'un exercice dans une ligne de base (exercice sans exId : son nom normalisé)
-function recordKey(ex) { return ex.exId || 'n:' + normName(ex.name); }
+// Clé d'un exercice dans une ligne de base (exercice sans exId : son nom normalisé). Pas exKey() :
+// les lignes de base sont rangées par exId (computeBaseline) et l'id d'un exercice du programme
+// n'y figure jamais ; une clé de nom retombe au moins sur l'exercice de même nom.
+function recordKey(ex) { return ex.exId || nameKey(ex.name); }
 
 // Records d'avant une séance de l'historique, par exId : mêmes règles que recomputePRFromHistory
 // (même programme et même séance, séances strictement antérieures). Sert à retrouver les records
 // battus par une séance passée, dont la ligne de base n'a pas été conservée.
 function historyBaseline(entry, history) {
-  const prog = entry.programme || 'ppl';
+  const prog = entryProg(entry);
   const before = (history || []).filter(h => h !== entry && h.date < entry.date
-    && (h.programme || 'ppl') === prog && h.category === entry.category);
+    && entryProg(h) === prog && h.category === entry.category);
   const baseline = {};
   (entry.exercises || []).forEach(ex => {
     if (measureOf(ex) !== 'reps' || isAssisted(ex)) return;

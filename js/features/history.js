@@ -12,7 +12,7 @@ function historySorted() {
 }
 
 function historyMatches(h, q) {
-  if (histFilter !== 'all' && !(h.category === histFilter && (h.programme || 'ppl') === data.activeProgramme)) return false;
+  if (histFilter !== 'all' && !(h.category === histFilter && entryProg(h) === data.activeProgramme)) return false;
   if (!q) return true;
   if (isHealthEntry(h)) return [h.health.title, h.health.source, h.exercises[0].name].some(t => normName(t).includes(q));
   if (normName(h.notes).includes(q)) return true;
@@ -35,7 +35,7 @@ function healthHistoryCell(h) {
 
 function historyCell(h) {
   if (isHealthEntry(h)) return healthHistoryCell(h);
-  const progId = h.programme || 'ppl';
+  const progId = entryProg(h);
   const meta   = sessionMeta(h.category, progId);
   const vol    = sessionVolume(h.exercises || [], entryBodyKg(h));
   // Séance d'un autre programme : la mention remplace le nombre d'exercices (cellule sur 2 lignes)
@@ -136,7 +136,7 @@ function renderHistoryDetail(id) {
     return `<div class="view history-detail view--grouped">${navBar({ title: 'Séance' })}
       <div class="scr"><div class="empty-note">Cette séance n'existe plus.</div></div></div>`;
   }
-  const progId = h.programme || 'ppl';
+  const progId = entryProg(h);
   const meta   = sessionMeta(h.category, progId);
   let when = capitalize(fmtDate(h.date, 'long'));
   // L'heure n'a de sens que pour une séance chronométrée (une séance passée n'a pas d'heure)

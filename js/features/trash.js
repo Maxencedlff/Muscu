@@ -12,7 +12,7 @@ function trashCount() {
 
 function trashSessionCell(t) {
   const h    = t.entry;
-  const meta = sessionMeta(h.category, h.programme || 'ppl');
+  const meta = sessionMeta(h.category, entryProg(h));
   const left = trashDaysLeft(t);
   return `
     <div class="hrow">
@@ -67,7 +67,7 @@ registerActions({
   'trash-session': async (e, el) => {
     const t = (data.trash || []).find(x => x.entry.id === el.dataset.id);
     if (!t) return;
-    const meta = sessionMeta(t.entry.category, t.entry.programme || 'ppl');
+    const meta = sessionMeta(t.entry.category, entryProg(t.entry));
     const choice = await dialog({ type: 'sheet', title: `${meta.label} du ${fmtDate(t.entry.date)}`, actions: [
       { label: 'Restaurer dans l\'historique', value: 'restore', style: 'preferred' },
       { label: 'Effacer définitivement', value: 'purge', style: 'destructive' },

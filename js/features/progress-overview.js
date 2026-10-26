@@ -12,7 +12,7 @@ function renderStatsOverview() {
   // Calendrier du mois : lundi en premier
   const first = new Date(y, m, 1);
   const days  = new Date(y, m + 1, 0).getDate();
-  const lead  = (first.getDay() + 6) % 7;
+  const lead  = dayIndexInWeek(first);
   const byDay = {};
   hist.forEach(h => {
     const d = new Date(h.date);
@@ -23,7 +23,7 @@ function renderStatsOverview() {
   for (let i = 0; i < lead; i++) cells += '<span class="cal__d cal__d--empty"></span>';
   for (let d = 1; d <= days; d++) {
     const hs = byDay[d] || [];
-    const lbl = hs.length ? `, ${hs.map(h => sessionMeta(h.category, h.programme || 'ppl').label).join(', ')}` : '';
+    const lbl = hs.length ? `, ${hs.map(h => sessionMeta(h.category, entryProg(h)).label).join(', ')}` : '';
     cells += `<span class="cal__d ${d === today ? 'cal__d--today' : ''}" aria-label="${d}${lbl}"><span class="num">${d}</span>
       <span class="cal__dots">${hs.slice(0, 3).map(h => `<i style="background:${historyColor(h)}"></i>`).join('')}</span></span>`;
   }
@@ -32,11 +32,7 @@ function renderStatsOverview() {
   const isCur = y === now.getFullYear() && m === now.getMonth();
 
   // Séances par semaine sur 12 semaines (objectif : 3)
-  const ws = weekStart();
-  const weeks = Array.from({ length: 12 }, (_, i) => {
-    const start = ws - (11 - i) * 7 * 86400000;
-    return { start, n: hist.filter(h => h.date >= start && h.date < start + 7 * 86400000).length };
-  });
+  const weeks = weeklySessionCounts(12);
   const top = Math.max(4, ...weeks.map(w => w.n));
   const bars = weeks.map(w => `
       <span class="wk" role="img" aria-label="Semaine du ${fmtDate(w.start, 'short')} : ${plural(w.n, 'séance', 'séances')}">

@@ -161,7 +161,7 @@ function fmtVolume(kg) {
 }
 
 function historyColor(h) {
-  const progId = h.programme || 'ppl';
+  const progId = entryProg(h);
   return sessionMeta(h.category, progId).color || 'var(--label2)';
 }
 
@@ -207,9 +207,31 @@ function setTxt(b, exOrMeasure = 'reps') {
   return b.w > 0 ? `${fmtW(b.weight)} ${unitLbl()} × ${b.r}` : `${b.r} reps`;
 }
 
-// Lundi 0 h (heure locale) de la semaine de `ts` : début de « Cette semaine » (Progrès, silhouette)
+// ── Jours et semaines du calendrier (heure locale) ──────────
+// Jamais de pas de 24 h ni de 7 × 24 h : la semaine du passage à l'heure d'hiver dure 169 h,
+// celle de l'heure d'été 167 h. On compte en jours du calendrier (setDate, getDay).
+
+// Même heure locale, n jours plus tard (n négatif : plus tôt)
+function addDays(ts, n) {
+  const d = new Date(ts); d.setDate(d.getDate() + n);
+  return d.getTime();
+}
+
+// Rang du jour dans la semaine : lundi 0 … dimanche 6
+function dayIndexInWeek(ts) { return (new Date(ts).getDay() + 6) % 7; }
+
+// Lundi 0 h (heure locale) de la semaine de `ts` : début de « Cette semaine » (accueil, Progrès, silhouette)
 function weekStart(ts = Date.now()) {
   const d = new Date(ts); d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return d.getTime();
+  return addDays(d.getTime(), -dayIndexInWeek(d));
+}
+
+// Séances par semaine sur les `n` dernières semaines (la dernière : la semaine en cours),
+// de lundi 0 h à lundi 0 h : [{ start, n }] du plus ancien au plus récent (Progrès › Vue d'ensemble)
+function weeklySessionCounts(n, now = Date.now()) {
+  const ws = weekStart(now), hist = data.history || [];
+  return Array.from({ length: n }, (_, i) => {
+    const start = addDays(ws, -7 * (n - 1 - i)), end = addDays(start, 7);
+    return { start, n: hist.filter(h => h.date >= start && h.date < end).length };
+  });
 }

@@ -297,7 +297,7 @@ registerActions({
     const session = (data.history || []).find(h => h.id === el.dataset.id);
     if (!session) return;
     editSessionId = session.id;
-    addProg = session.programme || 'ppl';
+    addProg = entryProg(session);
     addCat  = session.category;
     addDate = localISO(session.date);
     initAddSets(addCat);

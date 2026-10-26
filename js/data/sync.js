@@ -65,7 +65,7 @@ function syncHash(v) {
 // masquée aux abonnés (true, absent sinon), envoyée telle quelle.
 function sessionPayload(h) {
   const { bodyKg, label, ...rest } = h;
-  return typeof h.category === 'string' ? { ...rest, label: rawLabel(h.category, h.programme || 'ppl') } : rest;
+  return typeof h.category === 'string' ? { ...rest, label: rawLabel(h.category, entryProg(h)) } : rest;
 }
 // Empreinte d'une séance au format d'avant Social V1 (sans label ; bodyKg n'est jamais parti) :
 // meta.pushed garde ces empreintes jusqu'au premier envoi de la séance avec son nom
