@@ -47,7 +47,6 @@ function renderStatsOverview() {
   const vol  = hist.reduce((a, h) => a + sessionVolume(h.exercises || [], entryBodyKg(h)), 0);
   const durs = hist.filter(h => h.duration > 0).map(h => h.duration);
   const avgD = durs.length ? durs.reduce((a, b) => a + b, 0) / durs.length : 0;
-  const streak = computeStreak();
 
   return `
     <div class="view stats-overview view--grouped">
@@ -56,7 +55,7 @@ function renderStatsOverview() {
         <div class="tiles">
           <div class="tile"><span class="tile__val num">${fmtVolume(vol)}</span><span class="tile__lbl">volume total</span></div>
           <div class="tile"><span class="tile__val num">${avgD ? fmtDuration(avgD) : '—'}</span><span class="tile__lbl">durée moyenne</span></div>
-          <div class="tile"><span class="tile__val num">${streak}</span><span class="tile__lbl">${streak > 1 ? 'semaines' : 'semaine'} d'affilée</span></div>
+          <div class="tile"><span class="tile__val num">${hist.length}</span><span class="tile__lbl">${hist.length > 1 ? 'séances' : 'séance'} au total</span></div>
         </div>
         <div class="group group--pad cal" id="ovCal">
           <div class="cal__head">

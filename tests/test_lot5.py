@@ -173,6 +173,44 @@ def t_progress(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} progrès : erreurs JS {page.errors[:2]}')
 
 
+def t_poids(bench, eng, dev, theme):
+    """Sans Santé : cumuls du mois et de l'année, pesées saisies en courbe dans Progrès, jamais sur le compte."""
+    t = tag(dev, theme)
+    now = int(time.time() * 1000)
+    d = ppl_v2_today(now)
+    d['bodyWeightKg'] = 74
+    d['bodyWeightLog'] = [{'date': now - i * 3 * DAY, 'kg': 74 - i * 0.2} for i in range(12)]
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, json.dumps(d, ensure_ascii=False))
+        go(page, 'stats')
+        lbls = page.locator('.stat-pair__lbl').all_inner_texts()
+        R.check(lbls[0].endswith('ce mois-ci') and lbls[1].endswith('cette année'), f'{t} progrès : mois et année {lbls}')
+        R.check('affil' not in page.inner_text('.view.stats'), f'{t} progrès : plus de semaines d\'affilée')
+        cell = page.locator('.group-title:has-text("Poids corporel") + .group [data-action="set-body-weight"]')
+        R.check(cell.count() == 1 and cell.locator('svg.spark polyline, svg.spark path').count() >= 1, f'{t} poids : courbe des pesées saisies')
+        R.check('74' in cell.inner_text() and '30 jours' in cell.inner_text(), f'{t} poids : dernière pesée et tendance {cell.inner_text()!r}')
+        R.check(page.evaluate("!('bodyWeightLog' in profilePayload(data)) && SYNC_LOCAL_ONLY.includes('bodyWeightLog')"), f'{t} poids : jamais envoyé sur le compte')
+        cell.scroll_into_view_if_needed()
+        shot(page, LOT, f'poids_{dev}_{theme}')
+        cell.click()
+        page.wait_for_selector('.ios-dialog__input')
+        page.wait_for_timeout(300)   # fin de l'apparition du dialogue (machine chargée : le toucher arrivait trop tôt)
+        page.fill('.ios-dialog__input', '73,4')
+        page.locator('.ios-dialog button', has_text='OK').click()
+        try:
+            page.wait_for_function("data.bodyWeightLog?.[0]?.kg === 73.4 && document.querySelector('.view.stats')?.innerText.includes('73,4')", timeout=3000)
+        except Exception:
+            pass
+        log = page.evaluate('data.bodyWeightLog')
+        R.check(log[0]['kg'] == 73.4 and len(log) == 12, f'{t} poids : la pesée du jour remplace la précédente ({len(log)})')
+        R.check('73,4' in page.inner_text('.view.stats'), f'{t} poids : courbe mise à jour')
+        go(page, 'stats-overview')
+        tiles = page.locator('.tile__lbl').all_inner_texts()
+        R.check(tiles[-1].endswith('au total'), f'{t} vue d\'ensemble : total des séances {tiles}')
+        shot(page, LOT, f'overview_{dev}_{theme}')
+        R.check(not page.errors, f'{t} poids : erreurs JS {page.errors[:2]}')
+
+
 def t_programme(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
@@ -273,7 +311,7 @@ def t_perf(bench):
         print(f'  perf historique {n} séances : {best:.1f} ms')
 
 
-TESTS = [t_history, t_progress, t_programme]
+TESTS = [t_history, t_progress, t_poids, t_programme]
 
 if __name__ == '__main__':
     run_main(R, TESTS, once=[t_perf])

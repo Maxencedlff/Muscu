@@ -151,8 +151,33 @@ const TRASH_DAYS     = 30;     // durée de vie d'une séance dans « Supprimés
 
 // Nettoie une donnée venue du stockage ou d'un import : retire ce qui ferait planter l'app,
 // sans toucher aux champs valides (idempotent).
+// Pesées saisies dans l'app (Réglages › Poids du corps, bilan) : [{ date, kg }] du plus récent au plus
+// ancien, une par jour au plus (la dernière du jour), BODY_LOG_MAX au plus. Jamais sur le serveur
+// (SYNC_LOCAL_ONLY, js/data/sync.js) ; gardées dans la copie iCloud et l'export comme bodyWeightKg.
+// Les pesées de Santé n'y entrent jamais (règle 5.1.3) : elles sont relues dans Santé.
+const BODY_LOG_MAX = 400;
+const dayKey = ts => { const d = new Date(ts); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+function cleanBodyWeightLog(log) {
+  if (!Array.isArray(log)) return [];
+  const seen = new Set();
+  return log
+    .filter(p => p && Number.isFinite(p.date) && p.date > 0 && Number.isFinite(p.kg) && p.kg >= 25 && p.kg <= 300)
+    .map(p => ({ date: p.date, kg: p.kg }))
+    .sort((a, b) => b.date - a.date)
+    .filter(p => { const k = dayKey(p.date); if (seen.has(k)) return false; seen.add(k); return true; })
+    .slice(0, BODY_LOG_MAX);
+}
+// Nouvelle pesée saisie : remplace celle du même jour
+function logBodyWeight(kg, now = Date.now()) {
+  data.bodyWeightLog = cleanBodyWeightLog([{ date: now, kg }, ...(data.bodyWeightLog || []).filter(p => dayKey(p.date) !== dayKey(now))]);
+}
+
 function sanitizeData(d) {
   const isObj = o => o && typeof o === 'object' && !Array.isArray(o);
+  if (d.bodyWeightLog !== undefined) {
+    d.bodyWeightLog = cleanBodyWeightLog(d.bodyWeightLog);
+    if (!d.bodyWeightLog.length) delete d.bodyWeightLog;
+  }
   if (!isObj(d.programmes)) d.programmes = {};
   Object.keys(d.programmes).forEach(k => {
     const p = d.programmes[k];

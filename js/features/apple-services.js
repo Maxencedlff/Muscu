@@ -140,7 +140,12 @@ function knownLatestBodyMass() {
 
 // Emplacement dans Progrès, rempli après le dessin (lecture asynchrone dans Santé)
 function renderWeightGroup() {
-  if (!healthEnabled()) return '';
+  // Sans Santé : les pesées saisies dans l'app, même cellule, dessinée tout de suite
+  if (!healthEnabled()) {
+    const log = data.bodyWeightLog || [];
+    return log.length ? `<div class="group-title">Poids corporel</div>
+        <div class="group">${weightCellHtml(log, 'set-body-weight')}</div>` : '';
+  }
   return `<div class="group-title">Poids corporel</div>
         <div class="group" id="weightGroup"><div class="cell"><span class="cell__body"><span class="cell__sub">Lecture dans Santé…</span></span></div></div>`;
 }
@@ -161,19 +166,29 @@ async function fillWeightGroup() {
       <span class="cell__sub">Ajoute ton poids dans Santé. Si tu en as déjà : Réglages de l'iPhone › Santé › Accès aux données et appareils › MDLF Training › autorise Poids.</span></span></div>`;
     return;
   }
+  box.innerHTML = weightCellHtml(samples);
+}
+
+// Dernière pesée, tendance sur 30 jours et courbe des 30 dernières : pesées de Santé ou saisies dans
+// l'app (samples du plus récent au plus ancien). action : la cellule devient un bouton (pesée à ajouter).
+function weightCellHtml(samples, action = '') {
   const last  = samples[0];
   const month = samples.filter(s => s.date >= last.date - 30 * 86_400_000);
-  const delta = last.kg - month[month.length - 1].kg;
+  // Dans l'unité de l'app (kg ou lbs), comme la saisie
+  const delta = toUnitW(last.kg) - toUnitW(month[month.length - 1].kg);
   const trend = month.length > 1 && Math.abs(delta) >= 0.05
-    ? `${delta > 0 ? '+' : '−'}${fmtNum(Math.abs(delta), 1)} kg sur 30 jours` : 'Stable sur 30 jours';
-  box.innerHTML = `
-    <div class="cell">
+    ? `${delta > 0 ? '+' : '−'}${fmtNum(Math.abs(delta), 1)} ${unitLbl()} sur 30 jours` : 'Stable sur 30 jours';
+  const value = `${fmtNum(toUnitW(last.kg), 1)} ${unitLbl()}`;
+  const tag = action ? 'button' : 'div';
+  return `
+    <${tag} class="cell${action ? ' cell--nav' : ''}"${action ? ` data-action="${action}" aria-label="Poids ${value}, ${esc(trend)}, ${fmtDate(last.date)}. Ajouter une pesée"` : ''}>
       <span class="cell__body">
-        <span class="cell__title num">${fmtNum(last.kg, 1)} kg</span>
+        <span class="cell__title num">${value}</span>
         <span class="cell__sub">${esc(trend)} · ${fmtDate(last.date)}</span>
       </span>
       ${sparkline(samples.slice(0, 30).reverse().map(s => s.kg))}
-    </div>`;
+      ${action ? icon('chevron.right', 16) : ''}
+    </${tag}>`;
 }
 
 // ── Santé : courses et sorties vélo ─────────────────────────
@@ -426,6 +441,7 @@ registerActions({
       min: lbs ? 55 : 25, max: lbs ? 660 : 300, decimal: true });
     if (v === null) return;
     data.bodyWeightKg = parseFloat(storeW(v));
+    logBodyWeight(data.bodyWeightKg);   // courbe de Progrès sans Santé (jamais envoyée sur le compte)
     refreshSummaryBodyKg();
     save(); render(); showToast('Poids enregistré');
   },
