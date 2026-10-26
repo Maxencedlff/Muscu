@@ -74,7 +74,7 @@ def t_migration(bench, eng, dev, theme):
             dips: data.history.flatMap(h => h.exercises).find(e => e.name === 'Dips')?.exId,
             curl: data.programmes.ppl.exercises.pull.find(e => e.id === 'l5curlma').pr,
             flag: '_prRecomputed' in data })""")
-        R.check(info['schema'] == 4, f'{t} migration : schéma 4')
+        R.check(info['schema'] == 5, f'{t} migration : schéma 5')
         R.check(info['n'] == 30, f'{t} migration : nombre de séances conservé ({info["n"]})')
         R.check(info['allIds'], f'{t} migration : 100 % des exercices ont un exId')
         R.check(info['dips'] == 'n:dips', f'{t} migration : exercice hors programme -> n:dips ({info["dips"]})')
@@ -82,7 +82,7 @@ def t_migration(bench, eng, dev, theme):
         R.check(not info['flag'], f'{t} migration : _prRecomputed retiré')
         R.check(ls(page, 'ppl_v2_backup') == raw, f'{t} migration : ppl_v2_backup identique octet pour octet')
         stored = json.loads(ls(page, 'ppl_v2'))
-        R.check(stored.get('schema') == 4, f'{t} migration : schéma 4 persisté')
+        R.check(stored.get('schema') == 5, f'{t} migration : schéma 5 persisté')
         # Idempotence : un 2e chargement ne touche ni la sauvegarde ni les exId
         ids1 = [e['exId'] for h in stored['history'] for e in h['exercises']]
         page.reload(); page.wait_for_selector('.view.dashboard')
