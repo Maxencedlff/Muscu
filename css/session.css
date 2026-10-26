@@ -114,6 +114,9 @@
   transition: background .15s, transform .15s;
 }
 .set-check-zone:active .set-check { transform: scale(.9); }
+/* Série suivante d'une série pas encore faite : ✓ grisé (validation dans l'ordre) */
+.set-check-zone--wait .set-check { opacity: .35; }
+.set-check-zone--wait:active .set-check { transform: none; }
 .set-check--done { background: var(--green); box-shadow: none; }
 .set-check--edit { background: var(--tint); box-shadow: none; }
 

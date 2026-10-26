@@ -129,9 +129,17 @@ def t_views(bench, eng, dev, theme):
         w = page.locator('[data-action="set-weight"][data-ei="0"][data-si="1"]')
         R.check(w.get_attribute('aria-label') == 'Charge série 2, Développé couché haltères, en kg', f'{t} libellé charge ({w.get_attribute("aria-label")})')
         R.check(page.locator('[data-action="set-reps"][data-ei="0"][data-si="1"]').get_attribute('aria-label') == 'Répétitions série 2, Développé couché haltères', f'{t} libellé reps')
-        R.check(page.locator('[data-action="validate-set"][data-ei="0"][data-si="1"]').get_attribute('aria-label') == 'Valider la série 2, Développé couché haltères', f'{t} libellé ✓')
+        R.check(page.locator('[data-action="validate-set"][data-ei="0"][data-si="0"]').get_attribute('aria-label') == 'Valider la série 1, Développé couché haltères', f'{t} libellé ✓')
+        # Validation dans l'ordre : le ✓ de la série 2 attend la série 1, et le dit
+        wait = page.locator('[data-action="validate-set"][data-ei="0"][data-si="1"]')
+        R.check(wait.get_attribute('aria-label') == "Série 2, Développé couché haltères : valide d'abord la série 1" and wait.get_attribute('aria-disabled') == 'true', f'{t} ✓ de la série 2 en attente')
+        wait.click(force=True)   # aria-disabled : Playwright ne toucherait pas, un doigt si
+        page.wait_for_timeout(300)
+        R.check(page.evaluate('activeSession.exercises[0].sets.every(s => !s.done)') and "Valide d'abord la série 1" in page.inner_text('body'), f'{t} série 2 non validée avant la 1')
+        page.wait_for_timeout(1500)
         page.locator('[data-action="validate-set"][data-ei="0"][data-si="0"]').click()
         page.wait_for_timeout(500)
+        R.check(page.locator('[data-action="validate-set"][data-ei="0"][data-si="1"]').get_attribute('aria-label') == 'Valider la série 2, Développé couché haltères', f'{t} série 1 faite : la 2 se valide')
         lbl = page.locator('.session-set--done').first.get_attribute('aria-label') or ''
         R.check(lbl.startswith('Série 1 validée, 32,5 kilos, 10 répétitions'), f'{t} libellé série validée ({lbl})')
         R.check(page.locator('[role="timer"][aria-live="off"]').count() >= 1, f'{t} chrono role=timer aria-live=off')

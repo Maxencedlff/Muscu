@@ -311,9 +311,14 @@ function renderSetRow(ex, ei, s, si, cur) {
   // Série validée rouverte : mêmes champs, enregistrés par le ✓
   const wAttr = editing ? 'id="editSetWeight"' : `data-action="${m === 'cardio' ? 'set-dist' : 'set-weight'}" data-ei="${ei}" data-si="${si}"`;
   const rAttr = editing ? 'id="editSetReps"'   : `data-action="set-reps" data-ei="${ei}" data-si="${si}"`;
+  const first = ex.sets.findIndex(x => !x.done);
+  const waitFor = !editing && first >= 0 && first < si ? first : -1;
   const check = editing
     ? `<button class="set-check-zone" data-action="save-edit-set" aria-label="Enregistrer la série ${si + 1}, ${esc(ex.name)}"><span class="set-check set-check--edit">${icon('checkmark', 18)}</span></button>`
-    : `<button class="set-check-zone" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-label="Valider la série ${si + 1}, ${esc(ex.name)}"><span class="set-check"></span></button>`;
+    : waitFor >= 0
+      // Une série plus haut n'est pas faite : on valide dans l'ordre (le ✓ grisé le rappelle au toucher)
+      ? `<button class="set-check-zone set-check-zone--wait" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-disabled="true" aria-label="Série ${si + 1}, ${esc(ex.name)} : valide d'abord la série ${waitFor + 1}"><span class="set-check"></span></button>`
+      : `<button class="set-check-zone" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-label="Valider la série ${si + 1}, ${esc(ex.name)}"><span class="set-check"></span></button>`;
   return `
     <div class="set-swipe">
       ${editing ? '' : del}
@@ -462,6 +467,13 @@ registerActions({
     if (editingSet && !saveEditedSet()) return;   // correction en cours : enregistrée avant de passer à la suite
     const ei = parseInt(el.dataset.ei), si = parseInt(el.dataset.si);
     const ex = activeSession?.exercises[ei], s = ex?.sets[si];
+    // Séries validées dans l'ordre : une série plus haut reste à faire, on y ramène
+    const first = ex ? ex.sets.findIndex(x => !x.done) : -1;
+    if (s && !s.done && first >= 0 && first < si) {
+      showToast(`Valide d'abord la série ${first + 1}`);
+      document.querySelector(`.session-set[data-ei="${ei}"][data-si="${first}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
     // Valeurs telles qu'elles seront enregistrées : champ vidé au toucher rendu, case vide = objectif
     document.querySelectorAll(`.set-input[data-ei="${ei}"][data-si="${si}"]`).forEach(restoreClearedInput);
     const odd = s && !s.done ? unusualSetText(ex, { ...s, reps: String(s.reps ?? '').trim() ? s.reps : setGoal(ex, s) }) : '';
