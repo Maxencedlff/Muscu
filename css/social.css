@@ -24,8 +24,8 @@
 .social-hero__sub { margin: 0; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label2); max-width: 340px; text-wrap: pretty; }
 .social-choose { color: var(--tint); }
 .social-enable { margin-top: 24px; }
-/* iPhone SE (568 pt) : sans l'icône, « Activer » reste au-dessus de la barre d'onglets */
-@media (max-height: 600px) {
+/* Petit écran : peu de hauteur, ou étroit (320 pt : le texte passe sur plus de lignes) et pas très haut */
+@media (max-height: 600px), (max-width: 340px) and (max-height: 700px) {
   .social-hero { gap: 4px; padding: 0 4px 14px; }
   .social-hero__icon { display: none; }
   .social-hero__title { margin-top: 0; font-size: var(--fs-title3); }
