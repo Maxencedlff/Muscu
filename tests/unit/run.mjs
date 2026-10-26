@@ -1356,6 +1356,9 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 // ── Compte : connexion, pseudo, avatar, identités (tests dans account.mjs) ──
 (await import('./account.mjs')).default({ test, run, assert, sameJSON, nativeContext, ROOT });
 
+// ── Social : fonction serveur report (tests dans report.mjs) ──
+(await import('./report.mjs')).default({ test, assert, sameJSON, ROOT });
+
 // ── Exécution ───────────────────────────────────────────────
 
 let failed = 0;

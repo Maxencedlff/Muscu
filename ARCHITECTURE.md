@@ -368,6 +368,15 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
   `recent-auth.js`), et aucun moyen de connexion relié depuis moins de 24 h hors création du compte
   (relier Google donne une session « oauth » neuve). Révocation Apple au mieux, après la décision.
   Testé par `tests/unit/account.mjs`.
+- `supabase/migrations/20261026050000_social.sql` : Social V1 (contrat `docs/SOCIAL_V1.md`). `user_profiles.social_at`
+  (écrit par `social_enable` / `social_disable` seulement), `sessions.done_at` (colonne générée), tables `follows`,
+  `blocks`, `bravos`, `reports` sans aucun GRANT client (RLS fermée) : tout passe par les RPC security definer
+  (`social_state`, `search_profiles`, `request_follow`, `feed`, `toggle_bravo`…). Règle de visibilité unique
+  `private.can_see`, liste blanche `private.session_public`, limites par jour (`private.rate_limit`), blocage jamais
+  révélé.
+- `supabase/functions/report/` : signalement (JWT vérifié, entrée validée par `report-policy.js`, insertion avec la clé
+  serveur, 10 par jour imposés par le déclencheur de `reports`, alerte à contact@mdlf.app par Resend, secret
+  `RESEND_API_KEY`).
 - `supabase/functions/revoke-apple/` : révocation de l'accès Apple après le retrait de l'identité Apple
   (code tout frais, refusée tant qu'Apple est encore relié). `supabase/functions/_shared/` : échange et
   révocation Apple (`apple.ts`), CORS, clés et lecture de l'appelant (`http.ts`). Secrets Apple dans le
