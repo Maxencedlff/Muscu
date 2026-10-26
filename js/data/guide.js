@@ -33,15 +33,16 @@ const GUIDE_SECTIONS = [
       },
       {
         id: 'choisir-programme', title: 'Choisir un programme', icon: 'list.bullet', color: 'indigo',
-        lead: 'L\'app contient sept programmes prêts à l\'emploi : PPL, Upper / Lower, Full Body, Bro Split, Arnold Split, Maison et Maison haltères.',
+        lead: 'Tes programmes sont rangés dans [Mes programmes], dans l\'ordre que tu choisis. L\'app en propose sept prêts à l\'emploi : PPL, Upper / Lower, Full Body, Bro Split, Arnold Split, Maison et Maison haltères.',
         steps: [
-          'Va dans [Programme] › [Programme actif] et touche celui que tu veux.',
-          'Sur l\'accueil, la ligne « Programme » sous la date mène au même endroit.',
+          'Va dans [Programme] › [Mes programmes] et touche celui que tu veux : la coche montre le programme actif.',
+          '[Ajouter un programme] › [Tous les programmes] : chaque fiche explique le programme et montre les muscles travaillés. [Ajouter à mes programmes] le garde dans ta liste, [Utiliser ce programme] l\'active tout de suite.',
+          '[Modifier] range ta liste avec la poignée ≡. [Retirer] enlève un programme de ta liste ; il reste dans [Tous les programmes].',
+          'Sur l\'accueil, la ligne « Programme » sous la date mène aussi à [Mes programmes].',
           'Ton historique reste disponible quand tu changes de programme.',
-          'Tu peux modifier les exercices d\'un programme intégré. Pour changer ses séances, crée ton propre programme.',
         ],
         related: ['creer-programme', 'modifier-seance'],
-        actions: ['go-prog-picker', 'select-prog', 'go-programmes'],
+        actions: ['go-my-programmes', 'select-prog', 'go-prog-add', 'open-prog-info', 'prog-info-add', 'prog-info-use', 'toggle-my-prog-edit', 'remove-my-prog'],
       },
       {
         id: 'reglages', title: 'Réglages de base', icon: 'gear', color: 'blue',
