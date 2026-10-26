@@ -206,3 +206,10 @@ function setTxt(b, exOrMeasure = 'reps') {
   if (measure !== 'reps' || (ex && loadKind(ex) !== 'charge')) return measureSetTxt(b, measure, ex ? setKind(ex) : 'charge');
   return b.w > 0 ? `${fmtW(b.weight)} ${unitLbl()} × ${b.r}` : `${b.r} reps`;
 }
+
+// Lundi 0 h (heure locale) de la semaine de `ts` : début de « Cette semaine » (Progrès, silhouette)
+function weekStart(ts = Date.now()) {
+  const d = new Date(ts); d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d.getTime();
+}

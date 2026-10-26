@@ -42,11 +42,22 @@ def heat(page, muscle):
     }""", muscle)
 
 
+def next_sunday_evening_ms():
+    """Dimanche prochain à 20 h (heure locale), en millisecondes"""
+    import datetime
+    d = datetime.datetime.now().replace(hour=20, minute=0, second=0, microsecond=0)
+    d += datetime.timedelta(days=(6 - d.weekday()) % 7 or 7)
+    return int(d.timestamp() * 1000)
+
+
 def t_progress(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
-        # Historique : push il y a 8 jours, pull il y a 6, legs il y a 4 (semaine : dos et jambes)
-        seed(page, theme, ppl_v2_today_json())
+        # Historique : push il y a 8 jours, pull il y a 6, legs il y a 4. Horloge figée un dimanche soir :
+        # « Cette semaine » part du lundi, pull et legs y sont, push (vendredi d'avant) non
+        sunday = next_sunday_evening_ms()
+        page.clock.install(time=sunday / 1000)
+        seed(page, theme, ppl_v2_today_json(now_ms=sunday))
         tab(page, 2)
         card = page.locator('.mcard')
         R.check(card.count() == 1, f'{t} carte « Muscles » dans Progrès')
@@ -352,8 +363,11 @@ def t_silhouette(bench, eng, dev, theme):
         R.check(no_hscroll(page), f'{t} premier lancement : pas de défilement horizontal')
         shot(page, LOT, f'silhouette-accueil-{t}')
 
-        # Données existantes : homme ; Réglages › Affichage › Silhouette, puis Progrès, fiche et story suivent
-        seed(page, theme, ppl_v2_today_json())
+        # Données existantes : homme ; Réglages › Affichage › Silhouette, puis Progrès, fiche et story suivent.
+        # Horloge figée un dimanche soir : la semaine contient pull et legs, quel que soit le jour du test
+        sunday = next_sunday_evening_ms()
+        page.clock.install(time=sunday / 1000)
+        seed(page, theme, ppl_v2_today_json(now_ms=sunday))
         tab(page, 2)
         R.check(body_of(page, '.mcard__map') == 'male', f'{t} données existantes : silhouette homme')
         tab(page, 0)

@@ -347,7 +347,7 @@ const GUIDE_SECTIONS = [
         id: 'muscles', title: 'Muscles travaillés', icon: 'chart', color: 'red',
         lead: 'La carte [Muscles] de l\'onglet [Progrès] colore la silhouette selon le nombre de séries reçues par chaque muscle.',
         steps: [
-          'Choisis la période : [Semaine] ou [4 semaines].',
+          'Choisis la période : [Cette semaine] (depuis lundi) ou [4 semaines] (les 28 derniers jours).',
           'Une série compte pour 1 sur les muscles principaux de l\'exercice et pour ½ sur les secondaires.',
           '[Peu travaillés] liste les muscles en retard. [Séries par muscle] donne le détail.',
           'Les muscles d\'un exercice de la bibliothèque sont vérifiés. ··· › [Muscles ciblés] les modifie, ou choisit ceux d\'un exercice que tu as créé ; [Rétablir les muscles par défaut] revient aux muscles vérifiés.',

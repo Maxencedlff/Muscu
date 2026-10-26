@@ -473,6 +473,20 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.equal(app.muscleLoad('week', NOW, []).sessions, 0);
   });
 
+  test('muscleLoad : « Cette semaine » repart de zéro le lundi, « 4 semaines » garde les 28 jours', () => {
+    reset();
+    const monday9h = new Date(2026, 9, 26, 9).getTime();              // lundi 26/10/2026, 9 h
+    const sunday = new Date(2026, 9, 25, 22, 42).getTime();          // la veille au soir
+    const h = [{ id: 's', programme: 'ppl', category: 'push', date: sunday,
+      exercises: [{ name: 'Développé couché haltères', sets: sets(12) }] }];
+    const w = app.muscleLoad('week', monday9h, h);
+    assert.equal(w.sessions, 0, 'séance de dimanche : semaine précédente');
+    assert.equal(w.levels.chest, 0);
+    assert.equal(app.muscleLoad('week', new Date(2026, 9, 25, 23).getTime(), h).sessions, 1, 'dimanche 23 h : même semaine que la séance');
+    assert.equal(app.muscleLoad('month', monday9h, h).sessions, 1, '4 semaines : toujours comptée');
+    assert.equal(app.weekStart(monday9h), new Date(2026, 9, 26).getTime());
+  });
+
   test('séance seule (image partagée) : intensités rapportées au plus travaillé, muscles principaux', () => {
     reset();
     const h = hist(0, [{ name: 'Développé couché haltères', sets: sets(4) }, { name: 'Curl marteau', sets: sets(2) },

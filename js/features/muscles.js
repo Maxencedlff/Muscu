@@ -233,7 +233,7 @@ function muscleSrListHtml(load) {
     `<li>${label} : ${setsTxt(load.sets[id])}, ${LEVEL_WORDS[load.levels[id]]}</li>`).join('')}</ul>`;
 }
 
-function periodTxt(span = muscleSpan) { return span === 'month' ? 'ces 4 dernières semaines' : 'ces 7 derniers jours'; }
+function periodTxt(span = muscleSpan) { return span === 'month' ? 'ces 4 dernières semaines' : 'cette semaine'; }
 
 function renderMuscleCard() {
   const load = muscleLoad(muscleSpan);

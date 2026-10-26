@@ -102,12 +102,6 @@ function sparkline(vals) {
     <circle cx="${last[0]}" cy="${last[1]}" r="2.2" fill="currentColor"/></svg>`;
 }
 
-function weekStart(ts = Date.now()) {
-  const d = new Date(ts); d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return d.getTime();
-}
-
 // Exercices dont la charge max de la semaine dépasse le record d'avant la semaine
 function weekRecordCount(idx) {
   const ws = weekStart();

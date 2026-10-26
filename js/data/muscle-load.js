@@ -4,11 +4,13 @@
 'use strict';
 
 // Périodes proposées par Progrès. La charge s'exprime toujours en séries par semaine, pour que
-// les seuils restent les mêmes d'une période à l'autre.
+// les seuils restent les mêmes d'une période à l'autre. « Cette semaine » part du lundi, comme la
+// carte de l'accueil (repart de zéro chaque lundi) ; « 4 semaines » couvre les 28 derniers jours.
 const MUSCLE_SPANS = {
-  week:  { days: 7,  weeks: 1, label: 'Semaine' },
+  week:  { days: 7,  weeks: 1, label: 'Cette semaine', calendar: true },
   month: { days: 28, weeks: 4, label: '4 semaines' },
 };
+
 
 // Séries par semaine qui ouvrent chaque palier de couleur (1 : entretien, 2 : travaillé,
 // 3 : 10 séries et plus). Repère des 10 séries hebdomadaires par muscle : méta-analyse
@@ -52,7 +54,8 @@ function muscleLevel(perWeek) {
 // (palier ≤ 1, hors petits groupes), du moins au plus travaillé.
 function muscleLoad(spanKey = 'week', now = Date.now(), history = data.history) {
   const span = MUSCLE_SPANS[spanKey] || MUSCLE_SPANS.week;
-  const { counts, sessions } = muscleSetCounts(history, now - span.days * 86_400_000, now + 1);
+  const from = span.calendar ? weekStart(now) : now - span.days * 86_400_000;
+  const { counts, sessions } = muscleSetCounts(history, from, now + 1);
   const perWeek = {}, levels = {}, intensity = {};
   MUSCLES.forEach(({ id }) => {
     perWeek[id]   = counts[id] / span.weeks;
