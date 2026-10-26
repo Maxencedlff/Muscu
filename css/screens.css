@@ -348,3 +348,31 @@ html.type-xl .segmented__btn { white-space: normal; overflow-wrap: anywhere; lin
 /* Lien dans un pied de groupe (Compte › Confidentialité) : texte teinté, zone de toucher agrandie sans décaler la ligne */
 .link-inline { font: inherit; color: var(--tint); background: none; border: 0; padding: 13px 6px; margin: -13px -6px; }
 .link-inline:active { opacity: .6; }
+
+/* ── Réglages › Guide de l'app : liste des sujets (pastille de couleur comme les Réglages d'iOS) et page d'un sujet ── */
+.guide-view h2.group-title, .guide-topic h2.group-title { font-weight: 400; }
+.guide-ic {
+  width: 29px; height: 29px; border-radius: 7px; flex-shrink: 0; color: var(--white);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.guide-ic--blue { background: var(--tint-fill); }
+.guide-ic--green { background: var(--green); }
+.guide-ic--orange { background: var(--orange); }
+.guide-ic--red { background: var(--red); }
+.guide-ic--indigo { background: var(--indigo); }
+.guide-ic--teal { background: var(--teal); }
+.guide-ic--purple { background: var(--purple); }
+/* Séparateur aligné sur le texte, après la pastille (16 + 29 + 12 px) */
+.view--grouped .guide-row + .guide-row::before { left: 57px; }
+.guide-row .cell__title { overflow-wrap: anywhere; }
+.guide-badge {
+  display: inline-block; margin: 2px 0 12px; padding: 3px 10px; border-radius: var(--r-pill);
+  background: var(--fill2); color: var(--label2); font-size: var(--fs-footnote); line-height: 1.059rem;
+}
+.guide-card { padding: 14px 16px 16px; overflow-wrap: anywhere; }
+.guide-lead { font-size: var(--fs-body); line-height: 1.4; }
+.guide-steps { margin-top: 12px; padding-left: 22px; font-size: var(--fs-callout); line-height: 1.45; }
+.guide-steps li + li { margin-top: 8px; }
+.guide-steps li::marker { color: var(--label2); }
+.guide-steps--ol li::marker { font-weight: 600; font-variant-numeric: tabular-nums; }
+.guide-ui { font-weight: 600; }

@@ -40,6 +40,7 @@ const SCRIPTS = [
   'js/data/exercise-howto.js',
   'js/data/muscle-load.js',
   'js/data/app-icons.js',
+  'js/data/guide.js',
   'js/ui/forms.js',
   'js/ui/body-map.js',
   'js/ui/medal.js',
@@ -1355,6 +1356,9 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 
 // ── Compte : connexion, pseudo, avatar, identités (tests dans account.mjs) ──
 (await import('./account.mjs')).default({ test, run, assert, sameJSON, nativeContext, ROOT });
+
+// ── Guide de l'app : contenus et libellés (tests dans guide.mjs) ──
+(await import('./guide.mjs')).default({ test, run, assert, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 
