@@ -43,6 +43,12 @@ function ruleKey(name) {
   for (const [re, full] of ABBREVIATIONS) k = k.replace(re, full);
   return k;
 }
+// Clé souple, pour retrouver une fiche de la bibliothèque malgré la forme tapée : « s » final de chaque mot
+// ôté (« Squats », « Curl haltère », « Tricep pushdown »), apostrophes et parenthèses ignorées, espaces
+// supprimés (« Pullup », « Push ups », « Facepull » = « pull-up », « push-up », « face pull »).
+function looseKey(name) {
+  return ruleKey(name).replace(/[()'\u2019]/g, ' ').split(' ').map(w => w.replace(/s$/, '')).join('');
+}
 
 // Mots significatifs d'un nom pour comparer deux exercices (pluriel retiré, mots courts ignorés)
 const STOP_WORDS = new Set(['avec', 'les', 'des', 'sur', 'aux', 'une', 'par', 'prise', 'machine', 'poulie']);

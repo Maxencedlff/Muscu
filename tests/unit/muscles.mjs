@@ -73,9 +73,9 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.ok(!app.musclesOf('Écarté poulie haute').secondary.includes('triceps'));
   });
 
-  test('muscles : un nom ou un alias ne mène qu\'à une fiche (clé normalisée et abréviations développées)', () => {
+  test('muscles : un nom ou un alias ne mène qu\'à une fiche (clé normalisée, abréviations développées, clé souple)', () => {
     const owner = new Map(), clash = [];
-    run('EXERCISE_CATALOGUE').forEach(e => [e.name, ...e.aliases].forEach(n => new Set([app.normName(n), app.ruleKey(n)]).forEach(k => {
+    run('EXERCISE_CATALOGUE').forEach(e => [e.name, ...e.aliases].forEach(n => new Set([app.normName(n), app.ruleKey(n), '~' + app.looseKey(n)]).forEach(k => {
       if (owner.has(k) && owner.get(k) !== e.name) clash.push(`${k} : ${owner.get(k)} / ${e.name}`);
       else owner.set(k, e.name);
     })));
@@ -126,6 +126,51 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.equal(app.normName('Développe couché'), app.normName('Développé couché'));
     assert.equal(run(`catalogueEntry('Développé couché').name`), 'Développé couché barre');
     assert.equal(run(`catalogueEntry('Développé couché haltères').name`), 'Développé couché haltères', 'variantes intactes');
+  });
+
+  // Noms tapés couramment (anglais de salle, pluriels, tirets et espaces, argot) : chacun retrouve sa fiche
+  const TYPED_NAMES = {
+    // Anglais de salle
+    'Incline dumbbell press': 'Développé incliné haltères', 'Incline bench press': 'Développé incliné barre',
+    'Lat pulldown': 'Tirage vertical prise large', 'Seated cable row': 'Tirage horizontal câble', 'Bent over row': 'Rowing barre',
+    'One arm dumbbell row': 'Rowing haltère unilatéral', 'T bar row': 'Rowing barre T', 'Arnold press': 'Développé Arnold',
+    'Cable lateral raise': 'Élévations latérales poulie', 'Rear delt fly': 'Oiseau (élévations arrière)', 'Triceps pushdown': 'Extension triceps poulie',
+    'Close grip bench press': 'Développé couché prise serrée', 'Preacher curl': 'Curl pupitre', 'Leg curl': 'Leg curl machine',
+    'Stiff leg deadlift': 'Soulevé de terre roumain', 'Dumbbell RDL': 'Soulevé de terre roumain haltères', 'Floor press': 'Développé au sol haltères',
+    'Kettlebell swing': 'Swing kettlebell', 'Side plank': 'Gainage latéral', 'Cable crossover': 'Écarté poulie vis-à-vis',
+    'Smith squat': 'Squat smith', 'Machine shoulder press': 'Développé épaules machine', 'Band pull-apart': 'Pull-apart élastique',
+    // Tirets, espaces, mot collé
+    'pull up': 'Tractions pronation', 'Pullup': 'Tractions pronation', 'Chinup': 'Tractions supination', 'Pushup': 'Pompes',
+    'Facepull': 'Face pull', 'Skullcrusher': 'Barre au front', 'Muscle up': 'Muscle-up', 'Lsit': 'L-sit', 'Turkish get up': 'Turkish get-up',
+    'Pull-over haltère': 'Pull-over haltère', 'Lat pull-down': 'Tirage vertical prise large',
+    // Pluriels, singuliers, haltère / haltères
+    'Squats barre': 'Squat barre', 'Front squats': 'Squat avant', 'Fente': 'Fentes', 'Pompe': 'Pompes', 'Tractions': 'Tractions pronation',
+    'Deadlifts': 'Soulevé de terre', 'Hammer curls': 'Curl marteau', 'Lateral raises': 'Élévations latérales', 'Élévation latérale': 'Élévations latérales',
+    'Curl haltère': 'Curl biceps haltères', 'Dc haltère': 'Développé couché haltères', 'Shrugs': 'Haussements d\'épaules haltères',
+    'Face pulls': 'Face pull', 'Leg extensions': 'Extension quadriceps', 'Tricep pushdown': 'Extension triceps poulie', 'Crunches': 'Crunch',
+    'Farmer\'s walk': 'Marche du fermier', 'Fente bulgare': 'Fentes bulgares', 'Dead bugs': 'Dead bug', 'Burpee': 'Burpees',
+    // Argot et abréviations de salle français
+    'DM': 'Développé militaire barre', 'Développé militaire': 'Développé militaire barre', 'DM haltères': 'Développé militaire haltères',
+    'DM smith': 'Développé militaire smith', 'SDT': 'Soulevé de terre', 'SDT roumain': 'Soulevé de terre roumain', 'Tirage poitrine': 'Tirage vertical prise large',
+    'Rowing assis': 'Tirage horizontal câble', 'Tirage horizontal': 'Tirage horizontal câble', 'Presse': 'Presse à cuisses', 'Oiseau': 'Oiseau (élévations arrière)',
+    'Curl barre': 'Curl biceps barre', 'Larry Scott': 'Curl pupitre', 'Écarté câble': 'Écarté poulie vis-à-vis', 'Squat multipower': 'Squat smith',
+    'DI multipower': 'Développé incliné smith', 'Gainage planche': 'Gainage (planche)', 'Roue abdo': 'Roue abdominale', 'La chaise': 'Chaise contre le mur',
+  };
+  test('muscles : les noms tapés couramment (anglais, pluriels, argot) retrouvent leur fiche', () => {
+    assert.ok(Object.keys(TYPED_NAMES).length >= 40);
+    for (const [typed, name] of Object.entries(TYPED_NAMES)) assert.equal(run(`catalogueEntry(${JSON.stringify(typed)})?.name`), name, typed);
+    // Noms génériques laissés sans fiche : ils désignent plusieurs exercices de la bibliothèque
+    for (const typed of ['curl', 'squat', 'élévations', 'tirage', 'développé incliné', 'DI', 'kickback', 'shoulder press', 'rotation externe', 'rowing haltères', 'gainage'])
+      assert.equal(run(`catalogueEntry(${JSON.stringify(typed)})`), null, typed);
+    // La clé souple ne confond pas deux fiches proches
+    assert.equal(run(`catalogueEntry('Pompes pike').name`), 'Pompes pike (épaules)');
+    assert.equal(run(`catalogueEntry('Squat gobelet kettlebell').name`), 'Squat gobelet kettlebell');
+    // La feuille d'ajout trouve ces noms : recherche complète, puis recherche approchée
+    const found = q => run(`exerciseLibrary().filter(n => exerciseMatches(n, ${JSON.stringify(q)}))`);
+    for (const [q, name] of [['lat pulldown', 'Tirage vertical prise large'], ['pullups', 'Tractions pronation'], ['skullcrusher', 'Barre au front'],
+      ['écarté câble', 'Écarté poulie vis-à-vis'], ['multipower', 'Squat smith']])
+      assert.ok(found(q).includes(name), `${q} → ${name}`);
+    assert.equal(run(`closestExercises(exerciseLibrary(), 'arnold press lourd', 5)[0]`), 'Développé Arnold');
   });
 
   test('muscles : alias, recherche par mots et noms proches', () => {
