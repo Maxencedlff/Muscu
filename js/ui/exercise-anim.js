@@ -72,7 +72,7 @@ function moveViewBox(move) {
 }
 
 function workingSegments(name) {
-  const primary = musclesOf(name).primary;
+  const primary = exerciseMuscles({ name }).primary;
   return new Set(Object.entries(SEG_MUSCLES).filter(([, ids]) => ids.some(id => primary.includes(id))).map(([seg]) => seg));
 }
 

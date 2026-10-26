@@ -114,29 +114,40 @@ def t_editor(bench, eng, dev, theme):
         page.click('[data-action="open-prog-session"][data-cat="push"]')
         page.wait_for_selector('.view.editor')
         lines = page.locator('.ed-row .ex-muscles').all_inner_texts()
-        R.check(lines[:2] == ['Pectoraux', 'Pectoraux'] and 'Épaules' in lines, f'{t} Programme › Séance : muscles sous les noms {lines}')
-        R.check('Mollets' not in lines, f'{t} ancien choix d\'un exercice intégré ignoré {lines[:2]}')
+        R.check(lines[:2] == ['Pectoraux', 'Mollets'] and 'Épaules' in lines, f'{t} Programme › Séance : muscles sous les noms {lines}')
         shot(page, LOT, f'editeur-{t}')
 
-        # Exercice de la bibliothèque : muscles affichés, aucun choix possible
+        # Exercice de la bibliothèque à l'ancien choix : respecté, affiché comme modifié
         page.click('.ed-row[data-i="1"]')
         page.wait_for_selector('.view.ex-edit')
-        R.check(page.locator('[data-action="pick-ex-muscles"]').count() == 0, f'{t} bibliothèque : pas de « Choisir les muscles »')
-        pills = page.locator('#exMuscles .mpill').all_inner_texts()
-        R.check(pills == ['Pectoraux', 'Épaules antérieures', 'Triceps'], f'{t} bibliothèque : muscles du catalogue {pills}')
-        R.check('bibliothèque' in page.locator('#exMuscles .group-foot').inner_text(), f'{t} bibliothèque : pied explicatif')
-        page.locator('#exMuscles').scroll_into_view_if_needed()
-        shot(page, LOT, f'exercice-verrouille-{t}')
-        # Le nom saisi met les muscles à jour en direct ; un nom inventé rend le choix possible
+        R.check('Modifiés' in page.locator('[data-action="pick-ex-muscles"]').inner_text(), f'{t} ancien choix : « Modifiés »')
+        R.check(page.locator('#exMuscles .mpill--main').all_inner_texts() == ['Mollets'], f'{t} ancien choix respecté')
+        R.check(page.locator('[data-action="reset-ex-muscles"]').count() == 1, f'{t} « Rétablir » proposé')
+        # Le nom saisi met les muscles à jour en direct ; un nom inventé rend le choix automatique
+        page.fill('#exName', 'Curl marteau corde')
+        page.wait_for_timeout(150)
+        R.check('Personnalisés' in page.locator('[data-action="pick-ex-muscles"]').inner_text(), f'{t} choix gardé au renommage')
+        page.click('[data-action="cancel-ex"]')
+        page.wait_for_timeout(300)
+        page.locator('.ios-dialog__btn--destructive').click()
+        page.wait_for_selector('.view.editor')
+        R.check(page.evaluate("data.programmes.ppl.exercises.push[1].muscles") == ['calves'], f'{t} ancien choix gardé tel quel')
+        page.evaluate("delete data.programmes.ppl.exercises.push[1].muscles; delete data.programmes.ppl.exercises.push[1].musclesSecondary; save(); render()")
+        page.click('.ed-row[data-i="1"]')
+        page.wait_for_selector('.view.ex-edit')
         page.fill('#exName', 'Curl marteau corde')
         page.wait_for_timeout(150)
         pills = page.locator('#exMuscles .mpill').all_inner_texts()
         R.check(pills == ['Brachial', 'Biceps', 'Avant-bras'], f'{t} reconnaissance en direct {pills}')
-        R.check('Automatique' in page.locator('[data-action="pick-ex-muscles"]').inner_text(), f'{t} nom inventé : choix proposé')
+        R.check('Automatique' in page.locator('[data-action="pick-ex-muscles"]').inner_text(), f'{t} nom inventé : automatique')
         page.fill('#exName', 'Développé couché haltères')
+        page.wait_for_timeout(150)
+        R.check('Vérifiés' in page.locator('[data-action="pick-ex-muscles"]').inner_text(), f'{t} nom de la bibliothèque : « Vérifiés »')
         page.click('[data-action="cancel-ex"]')
+        page.wait_for_timeout(300)
+        if page.locator('.ios-dialog__btn--destructive').count():
+            page.locator('.ios-dialog__btn--destructive').click()
         page.wait_for_selector('.view.editor')
-        R.check(page.evaluate("data.programmes.ppl.exercises.push[1].muscles") == ['calves'], f'{t} ancien choix gardé tel quel')
 
         # Exercice de la personne : choix manuel, Biceps seul
         page.click('.ed-row[data-i="0"]')
@@ -144,7 +155,7 @@ def t_editor(bench, eng, dev, theme):
         R.check('Automatique' in page.locator('[data-action="pick-ex-muscles"]').inner_text(), f'{t} muscles automatiques')
         page.fill('#exName', 'Développé couché haltères')
         page.wait_for_timeout(150)
-        R.check(page.locator('[data-action="pick-ex-muscles"]').count() == 0, f'{t} nom de la bibliothèque saisi : choix retiré')
+        R.check('Vérifiés' in page.locator('[data-action="pick-ex-muscles"]').inner_text(), f'{t} nom de la bibliothèque saisi : muscles vérifiés')
         page.fill('#exName', 'Développé maison')
         page.wait_for_timeout(150)
         page.click('[data-action="pick-ex-muscles"]')
@@ -183,13 +194,117 @@ def t_editor(bench, eng, dev, theme):
         R.check('muscles' not in page.evaluate("data.programmes.ppl.exercises.push[0]"), f'{t} champ retiré (automatique)')
         R.check(no_hscroll(page), f'{t} pas de défilement horizontal')
 
-        # Progrès › Exercice d'un exercice intégré : muscles affichés sans choix
-        page.evaluate("navigate(makeRoute('stats-ex', 'p1dcouch'))")
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def pick_state(page, muscle):
+    return page.locator(f'.mpick__row[data-muscle="{muscle}"]').get_attribute('aria-checked')
+
+
+def t_library_muscles(bench, eng, dev, theme):
+    """Muscles vérifiés d'un exercice de la bibliothèque : modifier (confirmation, Annuler, Modifier), puis rétablir."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        tab(page, 3)
+        page.click('[data-action="open-prog-session"][data-cat="push"]')
+        page.wait_for_selector('.view.editor')
+        page.click('.ed-row[data-i="0"]')
+        page.wait_for_selector('.view.ex-edit')
+        pick = page.locator('[data-action="pick-ex-muscles"]')
+        # Par défaut : muscles vérifiés, sans « Rétablir »
+        R.check('Modifier les muscles' in pick.inner_text() and 'Vérifiés' in pick.inner_text(), f'{t} défaut : « Modifier les muscles · Vérifiés »')
+        R.check(page.locator('#exMuscles .mpill').all_inner_texts() == ['Pectoraux', 'Épaules antérieures', 'Triceps'], f'{t} muscles du catalogue')
+        R.check(page.locator('[data-action="reset-ex-muscles"]').count() == 0, f'{t} défaut : pas de « Rétablir »')
+        R.check('vérifiés' in page.locator('#exMuscles .group-foot').inner_text(), f'{t} pied : muscles vérifiés')
+        R.check(pick.bounding_box()['height'] >= 44, f'{t} rangée de 44 pt au moins')
+        page.locator('#exMuscles').evaluate("el => el.scrollIntoView({ block: 'center' })")
+        shot(page, LOT, f'biblio-defaut-{t}')
+
+        # Modifier : la feuille n'a pas de bouton de retour (rien à rétablir), la validation demande confirmation
+        pick.click()
+        page.wait_for_selector('.mpick')
+        R.check(page.locator('.mpick__auto').count() == 0, f'{t} feuille : pas de « Rétablir » sans choix')
+        page.click('.mpick__row[data-muscle="biceps"]')
+        page.click('.sheet__btn--confirm')
+        page.wait_for_selector('.ios-dialog--alert')
+        title = page.locator('.ios-dialog__title').inner_text()
+        btns = page.locator('.ios-dialog__btn').all_inner_texts()
+        R.check(title == 'Modifier les muscles vérifiés ?', f'{t} confirmation : titre « {title} »')
+        R.check(btns == ['Annuler', 'Modifier'], f'{t} confirmation : boutons {btns}')
+        page.wait_for_timeout(350)   # fin de l'animation d'ouverture
+        R.check(all(b['height'] >= 44 for b in [x.bounding_box() for x in page.locator('.ios-dialog__btn').all()]), f'{t} boutons de 44 pt')
+        shot(page, LOT, f'biblio-confirmation-{t}')
+        page.locator('.ios-dialog__btn', has_text='Annuler').click()
+        page.wait_for_timeout(350)
+        R.check(page.locator('#exMuscles .mpill').all_inner_texts() == ['Pectoraux', 'Épaules antérieures', 'Triceps'], f'{t} Annuler : rien ne change')
+        R.check('Vérifiés' in pick.inner_text(), f'{t} Annuler : toujours vérifiés')
+
+        # Valider : Biceps en principal en plus
+        pick.click()
+        page.wait_for_selector('.mpick')
+        page.click('.mpick__row[data-muscle="biceps"]')
+        R.check(pick_state(page, 'biceps') == 'true', f'{t} biceps coché')
+        page.click('.sheet__btn--confirm')
+        page.wait_for_selector('.ios-dialog--alert')
+        page.locator('.ios-dialog__btn', has_text='Modifier').click()
         page.wait_for_timeout(400)
-        page.wait_for_selector('.mpanel')
-        R.check(page.locator('[data-action="declare-muscles"]').count() == 0, f'{t} Progrès › Exercice : pas de « Choisir les muscles »')
-        page.locator('.mpanel').evaluate("el => el.scrollIntoView({ block: 'center' })")
-        shot(page, LOT, f'progres-exercice-{t}')
+        R.check(page.locator('#exMuscles .mpill--main').all_inner_texts() == ['Pectoraux', 'Biceps'], f'{t} choix affiché')
+        R.check('Modifiés' in pick.inner_text(), f'{t} état : « Modifiés »')
+        R.check('modifiés par toi' in page.locator('#exMuscles .group-foot').inner_text(), f'{t} pied : modifiés par toi')
+        reset = page.locator('[data-action="reset-ex-muscles"]')
+        R.check(reset.inner_text() == 'Rétablir les muscles par défaut' and reset.bounding_box()['height'] >= 44, f'{t} « Rétablir les muscles par défaut »')
+        page.locator('#exMuscles').evaluate("el => el.scrollIntoView({ block: 'center' })")
+        shot(page, LOT, f'biblio-modifie-{t}')
+        # Nouveau changement d'un choix déjà modifié : pas de nouvelle question
+        pick.click()
+        page.wait_for_selector('.mpick')
+        R.check(page.locator('.mpick__auto').inner_text() == 'Rétablir les muscles par défaut', f'{t} feuille : « Rétablir » proposé')
+        page.click('.mpick__row[data-muscle="triceps"]')   # secondaire → retiré
+        page.click('.sheet__btn--confirm')
+        page.wait_for_timeout(400)
+        R.check(page.locator('.ios-dialog--alert').count() == 0, f'{t} déjà modifiés : pas de confirmation')
+        page.click('[data-action="save-ex"]')
+        page.wait_for_selector('.view.editor')
+        ex0 = page.evaluate("data.programmes.ppl.exercises.push[0]")
+        R.check(ex0.get('muscles') == ['chest', 'biceps'] and ex0.get('musclesSecondary') == ['front_delts'], f'{t} choix enregistré {ex0.get("muscles")} {ex0.get("musclesSecondary")}')
+        R.check(page.locator('.ed-row[data-i="0"] .ex-muscles').inner_text() == 'Pectoraux · Biceps', f'{t} liste à jour')
+
+        # Progrès › Exercice : même état, « Rétablir » annulable par le toast
+        page.evaluate("navigate(makeRoute('stats-ex', 'p1dcouch'))")
+        page.wait_for_selector('.view.stats-ex .mpanel')
+        R.check('Modifiés' in page.locator('.view.stats-ex [data-action="declare-muscles"]').inner_text(), f'{t} Progrès › Exercice : « Modifiés »')
+        page.locator('.view.stats-ex [data-action="reset-muscles"]').scroll_into_view_if_needed()
+        page.locator('.view.stats-ex [data-action="reset-muscles"]').click()
+        page.wait_for_timeout(300)
+        R.check(page.locator('.view.stats-ex .mpill').all_inner_texts() == ['Pectoraux', 'Épaules antérieures', 'Triceps'], f'{t} rétabli : muscles vérifiés')
+        R.check(page.locator('.view.stats-ex [data-action="reset-muscles"]').count() == 0, f'{t} rétabli : bouton retiré')
+        R.check('muscles' not in page.evaluate("data.programmes.ppl.exercises.push[0]"), f'{t} rétabli : choix effacé')
+        page.locator('.toast__action').click()
+        page.wait_for_timeout(300)
+        R.check(page.evaluate("data.programmes.ppl.exercises.push[0].muscles") == ['chest', 'biceps'], f'{t} toast Annuler : choix remis')
+        page.locator('.view.stats-ex [data-action="reset-muscles"]').click()
+        page.wait_for_timeout(300)
+        stored = json.loads(ls(page, 'ppl_v2'))['programmes']['ppl']['exercises']['push'][0]
+        R.check('muscles' not in stored, f'{t} rétabli écrit dans ppl_v2')
+
+        # Fiche de la bibliothèque : choix par le nom, confirmation, puis rétablir
+        page.evaluate("navigate(makeRoute('library-ex', 'Curl marteau'))")
+        page.wait_for_selector('.view.library-ex')
+        page.locator('.view.library-ex [data-action="declare-muscles"]').scroll_into_view_if_needed()
+        page.locator('.view.library-ex [data-action="declare-muscles"]').click()
+        page.wait_for_selector('.mpick')
+        page.click('.mpick__row[data-muscle="forearms"]')   # principal → secondaire
+        page.click('.sheet__btn--confirm')
+        page.wait_for_selector('.ios-dialog--alert')
+        page.locator('.ios-dialog__btn', has_text='Modifier').click()
+        page.wait_for_timeout(400)
+        R.check(page.evaluate("data.exerciseMusclesSecondary['curl marteau']") == ['forearms'], f'{t} fiche : choix par le nom')
+        R.check(page.locator('.view.library-ex [data-action="reset-muscles"]').count() == 1, f'{t} fiche : « Rétablir »')
+        page.locator('.view.library-ex [data-action="reset-muscles"]').click()
+        page.wait_for_timeout(300)
+        R.check(page.evaluate("data.exerciseMuscles === undefined"), f'{t} fiche : rétabli')
+        R.check(no_hscroll(page), f'{t} pas de défilement horizontal')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -285,4 +400,4 @@ def once_static(bench):
         R.check(ok, 'bodyMapSvg autonome : chargé comme image, couleurs résolues')
 
 
-run_main(R, [t_progress, t_empty, t_editor, t_add_sheet, t_silhouette], once=[once_static])
+run_main(R, [t_progress, t_empty, t_editor, t_library_muscles, t_add_sheet, t_silhouette], once=[once_static])

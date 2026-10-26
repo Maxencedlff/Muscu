@@ -41,17 +41,58 @@ function exMusclesPanelHtml(m) {
     </div>`;
 }
 
+// ── Muscles vérifiés de la bibliothèque : modifier, rétablir ─
+
+// Exercice de la bibliothèque : muscles vérifiés par défaut, modifiables après confirmation, rétablis d'un toucher
+const VERIFIED_MUSCLES_FOOT = 'Muscles vérifiés de la bibliothèque : principaux en couleur pleine, secondaires atténués.';
+const MODIFIED_MUSCLES_FOOT = 'Muscles modifiés par toi : ils remplacent ceux de la bibliothèque dans Progrès et la récupération.';
+const RESET_MUSCLES_LABEL = 'Rétablir les muscles par défaut';
+
+// Demandée une fois, quand le choix s'écarte des muscles vérifiés (déjà modifiés : pas de nouvelle question)
+function confirmModifyVerified() {
+  return dialog({ title: 'Modifier les muscles vérifiés ?',
+    message: 'Les muscles de la bibliothèque ont été vérifiés pour cet exercice. Tu pourras rétablir ceux par défaut à tout moment.',
+    actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Modifier', value: true, style: 'preferred' }] }).then(v => v === true);
+}
+
+// Rangées « Modifier / Choisir les muscles » et « Rétablir » sous la silhouette, pied d'état.
+// pick, reset : attributs des deux boutons (action et données)
+function musclesControlsHtml(m, name, { pick, reset }) {
+  const verified = musclesVerified(name), modified = verified && m.source === 'user';
+  const value = verified ? (modified ? 'Modifiés' : 'Vérifiés') : m.source === 'user' ? 'Personnalisés' : 'Automatique';
+  return {
+    rows: `
+      <button class="cell cell--nav" ${pick}>
+        <span class="cell__body"><span class="cell__title">${verified ? 'Modifier les muscles' : 'Choisir les muscles'}</span></span>
+        <span class="cell__value">${value}</span>${icon('chevron.right', 16)}
+      </button>
+      ${modified ? `<button class="cell cell--action" ${reset}><span class="cell__title">${RESET_MUSCLES_LABEL}</span></button>` : ''}`,
+    foot: verified ? (modified ? MODIFIED_MUSCLES_FOOT : VERIFIED_MUSCLES_FOOT) : '',
+  };
+}
+
+// Muscles d'un exercice hors programme (Progrès › Exercice, fiche de la bibliothèque) : { name, exId? }
+function exMusclesGroupHtml(ex, title = 'Muscles ciblés') {
+  const m = exerciseMuscles(ex);
+  const c = musclesControlsHtml(m, ex.name, { pick: `data-action="declare-muscles" data-name="${esc(ex.name)}"`,
+    reset: `data-action="reset-muscles" data-name="${esc(ex.name)}" data-ex="${esc(ex.exId || '')}"` });
+  return `
+    <div class="group-title">${title}</div>
+    <div class="group">${exMusclesPanelHtml(m)}${c.rows}</div>
+    ${c.foot ? `<div class="group-foot">${c.foot}</div>` : ''}`;
+}
+
 // ── Programme › Exercice : muscles reconnus ou choisis ──────
 
-// Pied des muscles d'un exercice de la bibliothèque (Programme › Exercice, Progrès › Exercice, fiche)
-const LOCKED_MUSCLES_FOOT = 'Muscles de la bibliothèque : principaux en couleur pleine, secondaires atténués.';
-
-// Le brouillon garde le choix de l'utilisateur (null : reconnaissance par le nom)
+// Le brouillon garde le choix de l'utilisateur (null : reconnaissance par le nom). musclesReset : choix
+// effacé dans le brouillon (Rétablir, Automatique), appliqué à l'enregistrement
 function draftMuscles(ex) { return chosenMuscles(ex); }
 function draftSecondary(ex) { return chosenMuscles(ex) ? chosenSecondary(ex) : []; }
-// Exercice de la bibliothèque : rien n'est écrit (un ancien choix reste stocké mais ignoré, voir musclesLocked)
+function draftExMuscles(d) {
+  return d.musclesReset ? musclesOf(d.name) : exerciseMuscles({ name: d.name, muscles: d.muscles, musclesSecondary: d.musclesSecondary });
+}
 function applyDraftMuscles(ex, draft) {
-  if (musclesLocked(draft.name)) return;
+  if (draft.musclesReset) resetChosenMuscles(ex);
   const list = chosenMuscles(draft);
   if (list) ex.muscles = list; else delete ex.muscles;
   const sec = list ? chosenSecondary(draft, list) : [];
@@ -59,26 +100,15 @@ function applyDraftMuscles(ex, draft) {
 }
 
 function exEditMusclesHtml(d) {
-  const m = exerciseMuscles({ name: d.name, muscles: d.muscles, musclesSecondary: d.musclesSecondary });
-  // Bibliothèque : muscles vérifiés, affichés sans bouton de choix
-  if (m.source === 'catalogue') {
-    return `
-    <div class="group-title">Muscles ciblés</div>
-    <div class="group">${exMusclesPanelHtml(m)}</div>
-    <div class="group-foot">${LOCKED_MUSCLES_FOOT}</div>`;
-  }
-  const foot = m.source === 'user' ? 'Muscles choisis par toi.'
-    : m.source === 'none' ? (d.name.trim() ? 'Nom non reconnu : choisis les muscles travaillés.' : 'Reconnus d\'après le nom de l\'exercice.')
-    : 'Reconnus d\'après le nom de l\'exercice.';
+  const m = draftExMuscles(d);
+  const c = musclesControlsHtml(m, d.name, { pick: 'data-action="pick-ex-muscles"', reset: 'data-action="reset-ex-muscles"' });
+  const foot = c.foot || (m.source === 'user' ? 'Muscles choisis par toi.'
+    : m.source === 'none' && d.name.trim() ? 'Nom non reconnu : choisis les muscles travaillés.'
+    : 'Reconnus d\'après le nom de l\'exercice.');
   return `
     <div class="group-title">Muscles ciblés</div>
     <div class="group">
-      ${exMusclesPanelHtml(m)}
-      <button class="cell cell--nav" data-action="pick-ex-muscles">
-        <span class="cell__body"><span class="cell__title">Choisir les muscles</span></span>
-        <span class="cell__value">${m.source === 'user' ? 'Personnalisés' : 'Automatique'}</span>
-        ${icon('chevron.right', 16)}
-      </button>
+      ${exMusclesPanelHtml(m)}${c.rows}
     </div>
     <div class="group-foot">${foot}</div>`;
 }
@@ -103,7 +133,8 @@ function mpickRowsHtml(primary, secondary) {
     </button>`;
   }).join('');
 }
-async function pickMusclesSheet({ title = 'Muscles ciblés', current = [], currentSecondary = [], intro = '', cancel, auto = true, like = [] } = {}) {
+// autoLabel : libellé du bouton de retour (Automatique pour un exercice de la personne, Rétablir pour la bibliothèque)
+async function pickMusclesSheet({ title = 'Muscles ciblés', current = [], currentSecondary = [], intro = '', cancel, auto = true, autoLabel = 'Revenir à la reconnaissance automatique', like = [] } = {}) {
   const likeHtml = like.length ? `
     <div class="mpick__like" role="group" aria-label="Ressemble à">
       <span class="mpick__like-title">Ressemble à</span>
@@ -113,7 +144,7 @@ async function pickMusclesSheet({ title = 'Muscles ciblés', current = [], curre
     ${intro ? `<p class="mpick__intro">${intro}</p>` : ''}
     ${likeHtml}
     <div class="mpick" role="group" aria-label="${esc(title)}">${mpickRowsHtml(current, currentSecondary)}</div>
-    ${auto ? '<button class="mpick__auto" data-action="muscles-auto">Revenir à la reconnaissance automatique</button>' : ''}
+    ${auto ? `<button class="mpick__auto" data-action="muscles-auto">${autoLabel}</button>` : ''}
     <p class="mpick__foot">Un toucher : muscle principal. Deux : secondaire, compté pour une demi-série. Trois : retiré.</p>`,
     onConfirm: panel => {
       if (panel.dataset.auto === '1') return { auto: true };
@@ -122,14 +153,20 @@ async function pickMusclesSheet({ title = 'Muscles ciblés', current = [], curre
     } });
 }
 
+// Bibliothèque : sans choix enregistré, pas de bouton de retour ; un choix égal aux muscles vérifiés (ou vide)
+// revient à ceux par défaut
 async function pickExMuscles() {
-  if (!exDraft || musclesLocked(exDraft.name)) return;
-  const m = exerciseMuscles({ name: exDraft.name, muscles: exDraft.muscles, musclesSecondary: exDraft.musclesSecondary });
-  const res = await pickMusclesSheet({ current: m.primary, currentSecondary: m.secondary, like: m.primary.length ? [] : similarExercises(exDraft.name) });
+  if (!exDraft) return;
+  const m = draftExMuscles(exDraft), verified = musclesVerified(exDraft.name);
+  const res = await pickMusclesSheet({ current: m.primary, currentSecondary: m.secondary, like: m.primary.length ? [] : similarExercises(exDraft.name),
+    auto: !verified || m.source === 'user', ...(verified ? { autoLabel: RESET_MUSCLES_LABEL } : {}) });
   if (!res || !exDraft) return;
-  const none = res.auto || !res.list.length;
+  const none = res.auto || !res.list.length || isVerifiedChoice(exDraft.name, res.list, res.secondary);
+  if (!none && verified && m.source !== 'user' && !(await confirmModifyVerified())) return;
+  if (!exDraft) return;
   exDraft.muscles = none ? null : res.list;
   exDraft.musclesSecondary = none ? null : res.secondary;
+  exDraft.musclesReset = none;
   refreshExEditMuscles();
 }
 
@@ -137,9 +174,9 @@ async function pickExMuscles() {
 // ask : proposé juste après l'ajout d'un exercice inconnu (« Plus tard » pour passer).
 // check : muscles devinés d'après le nom d'un exercice inventé, cochés d'avance ; OK les enregistre comme
 // choisis, « Plus tard » garde la devinette. Renvoie true si changé.
+// Exercice de la bibliothèque : confirmation avant de s'écarter des muscles vérifiés (confirmModifyVerified).
 async function declareMusclesFor(name, { ask = false, check = false } = {}) {
-  if (musclesLocked(name)) return false;
-  const m = exerciseMuscles({ name });
+  const m = exerciseMuscles({ name }), verified = musclesVerified(name);
   const like = m.primary.length && !check ? [] : similarExercises(name);
   // Guillemets à espaces insécables : « » jamais seuls en début de ligne
   const quoted = `«\u00a0${esc(name)}\u00a0»`;
@@ -147,8 +184,11 @@ async function declareMusclesFor(name, { ask = false, check = false } = {}) {
     : ask ? `L'app ne reconnaît pas ${quoted}. Choisis ce qu'il travaille pour la récupération et Progrès.` : esc(name);
   const res = await pickMusclesSheet({
     title: check ? 'Vérifier les muscles' : ask ? 'Quels muscles ?' : 'Muscles ciblés', intro,
-    current: m.primary, currentSecondary: m.secondary, like, cancel: ask || check ? 'Plus tard' : undefined, auto: !ask && !check && m.source === 'user' });
+    current: m.primary, currentSecondary: m.secondary, like, cancel: ask || check ? 'Plus tard' : undefined, auto: !ask && !check && m.source === 'user',
+    ...(verified ? { autoLabel: RESET_MUSCLES_LABEL } : {}) });
   if (!res) return false;
+  const changesVerified = verified && m.source !== 'user' && !res.auto && res.list.length && !isVerifiedChoice(name, res.list, res.secondary);
+  if (changesVerified && !(await confirmModifyVerified())) return false;
   setDeclaredMuscles(name, res.auto ? null : { primary: res.list, secondary: res.secondary });
   save();
   return true;
@@ -296,6 +336,19 @@ registerActions({
   'go-stats-muscles': () => { navigate('stats-muscles'); },
   'go-muscles-unknown': () => { navigate('muscles-unknown'); },
   'pick-ex-muscles': () => pickExMuscles(),
+  // Programme › Exercice : brouillon seulement, enregistré par OK (Annuler le défait)
+  'reset-ex-muscles': () => {
+    if (!exDraft) return;
+    Object.assign(exDraft, { muscles: null, musclesSecondary: null, musclesReset: true });
+    refreshExEditMuscles();
+    haptic();
+  },
+  // Progrès › Exercice, fiche : sans confirmation (rien d'irréversible), toast pour annuler
+  'reset-muscles': (e, el) => {
+    const undo = resetChosenMuscles({ name: el.dataset.name, exId: el.dataset.ex || null });
+    save(); render();
+    showToast('Muscles par défaut rétablis', { action: 'Annuler', duration: 5000, onAction: () => { undo(); save(); render(); } });
+  },
   // Progrès : exercice sans muscles, ou muscles d'un exercice hors programme
   'declare-muscles': async (e, el) => { if (await declareMusclesFor(el.dataset.name)) render(); },
   'toggle-muscle': (e, el) => {
@@ -305,7 +358,7 @@ registerActions({
   },
   // « Ressemble à » : reprend les muscles (principaux et secondaires) de l'exercice touché
   'muscles-like': (e, el) => {
-    const m = musclesOf(el.dataset.name);
+    const m = exerciseMuscles({ name: el.dataset.name });
     el.closest('.sheet')?.querySelectorAll('.mpick__row').forEach(b => {
       const id = b.dataset.muscle;
       b.setAttribute('aria-checked', m.primary.includes(id) ? 'true' : m.secondary.includes(id) ? 'mixed' : 'false');

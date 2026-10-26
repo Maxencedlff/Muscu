@@ -342,7 +342,8 @@ async function chooseSessionTempo(ei) {
 
 // ── « Comment faire » d'un exercice : fiche de la bibliothèque, s'il y a des consignes ou une animation ──
 function hasHowTo(ex) { return !!(exerciseHowTo(ex.name) || exerciseMove(ex.name)); }
-function openHowTo(ex) { navigate(makeRoute('library-ex', catalogueEntry(ex.name)?.name || ex.name)); }
+// Nom tel que tapé : la fiche montre les muscles choisis pour lui (alias compris)
+function openHowTo(ex) { navigate(makeRoute('library-ex', ex.name)); }
 
 // ── Menu ⋯ d'un exercice ──
 // Choix proposés pour l'exercice ei de la séance (ex), le dernier étant d'indice last
@@ -354,8 +355,7 @@ function exerciseMenuActions(ex, ei, last) {
     { label: 'Remplacer l\'exercice', value: 'replace' },
     { label: 'Régler le repos', value: 'rest' },
     ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
-    // Exercice de la bibliothèque : muscles fixés (musclesLocked), déjà montrés par « Comment faire »
-    ...(musclesLocked(ex.name) ? [] : [{ label: 'Muscles ciblés', value: 'muscles' }]),
+    { label: 'Muscles ciblés', value: 'muscles' },
     { label: 'Relancer le repos', value: 'restart' },
     { label: 'Retirer l\'exercice', value: 'remove', style: 'destructive' },
     { label: 'Annuler', style: 'cancel' },

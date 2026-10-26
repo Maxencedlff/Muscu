@@ -22,13 +22,13 @@ const PROGRAMME_ADVICE = {
 // Programmes du catalogue « Tous les programmes » : les intégrés, sans « Perso » (ancien programme unique)
 function catalogueProgrammeIds() { return Object.keys(PROGRAMMES).filter(id => id !== 'custom'); }
 
-// Muscles travaillés par un programme intégré, d'après ses exercices par défaut et la bibliothèque
-// (musclesOf, js/data/muscles.js) : { muscle: 1 } pour un muscle principal d'au moins un exercice,
+// Muscles travaillés par un programme intégré, d'après ses exercices par défaut : ceux choisis par la
+// personne pour ces noms, sinon la bibliothèque (exerciseMuscles, js/data/muscles.js) : { muscle: 1 } pour un muscle principal d'au moins un exercice,
 // 0.4 s'il n'est que secondaire (atténué sur la silhouette, comme dans les fiches d'exercice)
 function programmeMuscleLevels(id) {
   const levels = {};
   Object.values(PROGRAMMES[id]?.defaults || {}).forEach(list => list.forEach(([name]) => {
-    const m = musclesOf(name);
+    const m = exerciseMuscles({ name });
     m.secondary.forEach(k => { levels[k] = Math.max(levels[k] || 0, 0.4); });
     m.primary.forEach(k => { levels[k] = 1; });
   }));

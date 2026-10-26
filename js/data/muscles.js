@@ -221,19 +221,23 @@ function musclesOf(name) {
   return res;
 }
 
-// Muscles fixés : un exercice de la bibliothèque garde ceux du catalogue, vérifiés exercice par exercice
-// (sources dans exercise-catalogue.js). Seuls les exercices créés par la personne ont des muscles choisis.
-// Un ancien choix enregistré pour un exercice de la bibliothèque (ex.muscles, data.exerciseMuscles) est
-// ignoré à la lecture, pas effacé : la synchro fusionne ces dictionnaires par union (sync.js), un autre
-// appareil le renverrait aussitôt, et une version précédente de l'app le retrouve intact.
-function musclesLocked(name) { return musclesOf(name).source === 'catalogue'; }
+// Muscles vérifiés : un exercice de la bibliothèque a par défaut ceux du catalogue, vérifiés exercice par
+// exercice (sources dans exercise-catalogue.js). La personne peut les modifier (l'interface demande
+// confirmation) : son choix prime alors partout, y compris un choix enregistré avant que le nom soit
+// reconnu par la bibliothèque (nouvel alias) ou par une version qui l'ignorait. resetChosenMuscles rétablit.
+function musclesVerified(name) { return musclesOf(name).source === 'catalogue'; }
+const sameMuscleSet = (a, b) => a.length === b.length && a.every(id => b.includes(id));
+// Choix identique aux muscles vérifiés : rien à garder, l'exercice reste « par défaut »
+function isVerifiedChoice(name, primary, secondary = []) {
+  const m = musclesOf(name);
+  return m.source === 'catalogue' && sameMuscleSet(primary, m.primary) && sameMuscleSet(secondary, m.secondary);
+}
 
 // Choix de l'utilisateur (Programme › Exercice) : champs facultatifs `muscles` (principaux) et
 // `musclesSecondary` d'un exercice du programme, listes d'identifiants. Champs additifs : une version
 // précédente les ignore ; une valeur illisible ou vide revient à la reconnaissance par le nom.
 function cleanMuscleList(v) { return Array.isArray(v) ? [...new Set(v.filter(isMuscleId))] : []; }
 function chosenMuscles(progEx) {
-  if (musclesLocked(progEx?.name)) return null;
   const list = cleanMuscleList(progEx?.muscles);
   return list.length ? list : null;
 }
@@ -242,50 +246,57 @@ function chosenSecondary(progEx, primary = chosenMuscles(progEx) || []) {
   return cleanMuscleList(progEx?.musclesSecondary).filter(id => !primary.includes(id));
 }
 
-// Exercices du programme dont l'utilisateur a choisi les muscles, par identifiant (exId) : { primary, secondary }
+// Exercices du programme dont l'utilisateur a choisi les muscles, par identifiant (exId) : { primary, secondary, name }
 function chosenMusclesIndex(d = data) {
   const map = new Map();
   Object.values(d?.programmes || {}).forEach(p => Object.values(p?.exercises || {}).forEach(list =>
     (Array.isArray(list) ? list : []).forEach(ex => {
       const m = chosenMuscles(ex);
-      if (m && ex.id) map.set(ex.id, { primary: m, secondary: chosenSecondary(ex, m) });
+      if (m && ex.id) map.set(ex.id, { primary: m, secondary: chosenSecondary(ex, m), name: ex.name });
     })));
   return map;
 }
 
 // Muscles d'un exercice du programme, de la séance ou de l'historique ({ id | exId, name, muscles? }).
 // index : chosenMusclesIndex() déjà calculé, pour les boucles sur tout l'historique.
+// Le choix de l'utilisateur d'abord (champ de l'exercice, exercice du programme par exId, nom déclaré,
+// exercice du programme de même nom), sinon la bibliothèque, sinon les règles du nom.
 function exerciseMuscles(ex, index = null) {
-  // Bibliothèque : le catalogue fait foi, même si l'identifiant (exId) mène à un exercice renommé
-  const named = musclesOf(ex?.name);
-  if (named.source === 'catalogue') return named;
   const own = chosenMuscles(ex);
   if (own) return { primary: own, secondary: chosenSecondary(ex, own), source: 'user' };
+  const named = musclesOf(ex?.name);
+  const idx = index || chosenMusclesIndex();
   const id = exIdOf(ex);
-  const chosen = id ? (index || chosenMusclesIndex()).get(id) : null;
-  if (chosen) return { ...chosen, source: 'user' };
+  let chosen = id ? idx.get(id) : null;
+  // Nom de la bibliothèque dont l'exercice du programme a été renommé en autre chose : le choix va avec l'autre nom
+  if (chosen && named.source === 'catalogue' && catalogueEntry(chosen.name) !== catalogueEntry(ex.name)) chosen = null;
+  if (chosen) return { primary: chosen.primary, secondary: chosen.secondary, source: 'user' };
   const declared = declaredMuscles(ex?.name);
   if (declared) return { primary: declared, secondary: declaredSecondary(ex?.name).filter(id => !declared.includes(id)), source: 'user' };
+  // Sans identifiant (fiche de la bibliothèque, « Comment faire », nom seul) : exercice du programme de même nom
+  const key = normName(ex?.name);
+  const same = key && [...idx.values()].find(c => normName(c.name) === key);
+  if (same) return { primary: same.primary, secondary: same.secondary, source: 'user' };
   return named;
 }
 
 // Muscles déclarés pour un nom d'exercice (data.exerciseMuscles : principaux ; data.exerciseMusclesSecondary :
 // secondaires), quel que soit l'endroit où il est fait (séance libre, ajouté en séance, historique) ; null si aucun
-// ou si l'exercice est dans la bibliothèque (musclesLocked)
 function declaredMuscles(name, d = data) {
-  if (musclesLocked(name)) return null;
   const list = d?.exerciseMuscles?.[normName(name)];
   return Array.isArray(list) && list.length ? list.filter(isMuscleId) : null;
 }
-function declaredSecondary(name, d = data) { return musclesLocked(name) ? [] : cleanMuscleList(d?.exerciseMusclesSecondary?.[normName(name)]); }
+function declaredSecondary(name, d = data) { return cleanMuscleList(d?.exerciseMusclesSecondary?.[normName(name)]); }
 
 // Déclare ou efface (null : retour à la reconnaissance par le nom) les muscles d'un nom d'exercice.
-// value : liste de principaux, ou { primary, secondary }. Sans effet pour un exercice de la bibliothèque.
+// value : liste de principaux, ou { primary, secondary }. Les muscles vérifiés d'un exercice de la
+// bibliothèque choisis tels quels effacent le choix (retour aux muscles par défaut).
 function setDeclaredMuscles(name, value, d = data) {
   const key = normName(name);
-  if (!key || musclesLocked(name)) return;
-  const clean = cleanMuscleList(Array.isArray(value) ? value : value?.primary);
-  const sec   = clean.length && !Array.isArray(value) ? cleanMuscleList(value?.secondary).filter(id => !clean.includes(id)) : [];
+  if (!key) return;
+  let clean = cleanMuscleList(Array.isArray(value) ? value : value?.primary);
+  let sec   = clean.length && !Array.isArray(value) ? cleanMuscleList(value?.secondary).filter(id => !clean.includes(id)) : [];
+  if (isVerifiedChoice(name, clean, sec)) clean = sec = [];
   const put = (field, list) => {
     if (list.length) (d[field] ||= {})[key] = list;
     else if (d[field]) { delete d[field][key]; if (!Object.keys(d[field]).length) delete d[field]; }
@@ -298,6 +309,25 @@ function setDeclaredMuscles(name, value, d = data) {
     if (clean.length) ex.muscles = clean; else delete ex.muscles;
     if (sec.length) ex.musclesSecondary = sec; else delete ex.musclesSecondary;
   })));
+}
+
+// Rétablir : efface le choix fait pour ce nom (data.exerciseMuscles) et pour les exercices du programme de
+// même nom ou de même identifiant (ex.id, ex.exId). Renvoie la fonction qui le remet (toast « Annuler »).
+function resetChosenMuscles(ex, d = data) {
+  const key = normName(ex?.name), id = exIdOf(ex);
+  if (!key) return () => {};
+  const dict = ['exerciseMuscles', 'exerciseMusclesSecondary'].map(f => [f, d[f]?.[key]]);
+  const progs = [];
+  Object.values(d.programmes || {}).forEach(p => Object.values(p?.exercises || {}).forEach(xs => (xs || []).forEach(x => {
+    if (!(x.muscles || x.musclesSecondary) || (normName(x.name) !== key && !(id && x.id === id))) return;
+    progs.push([x, x.muscles, x.musclesSecondary]);
+    delete x.muscles; delete x.musclesSecondary;
+  })));
+  setDeclaredMuscles(ex.name, null, d);
+  return () => {
+    dict.forEach(([f, v]) => { if (v) (d[f] ||= {})[key] = v; });
+    progs.forEach(([x, m, s]) => { if (m) x.muscles = m; if (s) x.musclesSecondary = s; });
+  };
 }
 
 // Exercices faits sans muscles connus (nom affiché, nombre de séances), les plus fréquents d'abord

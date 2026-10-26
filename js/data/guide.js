@@ -350,11 +350,11 @@ const GUIDE_SECTIONS = [
           'Choisis la période : [Semaine] ou [4 semaines].',
           'Une série compte pour 1 sur les muscles principaux de l\'exercice et pour ½ sur les secondaires.',
           '[Peu travaillés] liste les muscles en retard. [Séries par muscle] donne le détail.',
-          'Pour un exercice que tu as créé, choisis ses muscles au bilan ou par ··· › [Muscles ciblés].',
+          'Les muscles d\'un exercice de la bibliothèque sont vérifiés. ··· › [Muscles ciblés] les modifie, ou choisit ceux d\'un exercice que tu as créé ; [Rétablir les muscles par défaut] revient aux muscles vérifiés.',
           'La silhouette se change dans [Réglages] › [Silhouette].',
         ],
         related: ['recuperation', 'progres'],
-        actions: ['muscle-span', 'go-stats-muscles', 'declare-muscles'],
+        actions: ['muscle-span', 'go-stats-muscles', 'declare-muscles', 'reset-muscles'],
       },
       {
         id: 'recuperation', title: 'Récupération', icon: 'clock.history', color: 'green',

@@ -21,7 +21,7 @@ function libRowHtml(e) {
   const equip = EQUIPMENT.find(q => q.id === e.equip)?.label || '';
   return `<button class="cell cell--nav" data-action="open-library-ex" data-name="${esc(e.name)}">
       <span class="cell__body"><span class="cell__title">${esc(e.name)}</span>
-        <span class="cell__sub">${esc([musclesLine(e, 3), equip].filter(Boolean).join(' · '))}</span></span>
+        <span class="cell__sub">${esc([musclesLine(exerciseMuscles({ name: e.name }), 3), equip].filter(Boolean).join(' · '))}</span></span>
       ${icon('chevron.right', 16)}
     </button>`;
 }
@@ -61,11 +61,12 @@ function renderLibrary() {
     </div>`;
 }
 
-// Fiche : silhouette et muscles, matériel, mesure, versions plus facile / plus dure, progrès si déjà fait
+// Fiche : silhouette et muscles, matériel, mesure, versions plus facile / plus dure, progrès si déjà fait.
+// name : nom de la bibliothèque ou nom tapé par la personne (« Comment faire » d'un alias) : les muscles
+// sont ceux qu'elle a choisis pour ce nom, sinon les muscles vérifiés
 function renderLibraryEx(name) {
   const e = catalogueEntry(name);
   if (!e) return `<div class="view library-ex view--grouped">${navBar({ title: 'Exercice' })}<div class="scr"><div class="empty-note">Exercice introuvable.</div></div></div>`;
-  const m = musclesOf(e.name);
   const { easier, harder } = progressionOf(e.name);
   const done = [...exerciseIndex().values()].find(it => catalogueEntry(it.name)?.name === e.name);
   const link = (n, lbl) => n ? `<button class="cell cell--nav" data-action="open-library-ex" data-name="${esc(n)}">
@@ -76,9 +77,7 @@ function renderLibraryEx(name) {
       ${navBar({ title: esc(e.name), large: true })}
       <div class="scr">
         ${howToHtml(e.name)}
-        <div class="group-title">Muscles</div>
-        <div class="group">${exMusclesPanelHtml(m)}</div>
-        <div class="group-foot">${LOCKED_MUSCLES_FOOT}</div>
+        ${exMusclesGroupHtml({ name }, 'Muscles')}
         <div class="group">
           <div class="cell"><span class="cell__body"><span class="cell__title">Matériel</span></span>
             <span class="cell__value">${esc(EQUIPMENT.find(q => q.id === e.equip)?.label || '—')}</span></div>
