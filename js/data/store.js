@@ -140,7 +140,7 @@ function makeDefaultData() {
 }
 
 const BACKUP_KEY = 'ppl_v2_backup';
-const SCHEMA     = 4;
+const SCHEMA     = 5;
 
 // Clés des séances perso : celles que crée l'app (uid, push, legs…) passent toutes
 const SESSION_CAT_RE = /^[A-Za-z0-9_-]{1,40}$/;
@@ -314,20 +314,41 @@ function cleanLastAccount(v) {
   return { method, username, ...(v.signedOut === true ? { signedOut: true } : {}) };
 }
 
-// ── Noms devenus cardio (bibliothèque du 25/10/2026) ──
-// La bibliothèque reconnaît de nouveaux noms de cardio (« Trail », alias « treadmill », « fractionné »,
-// « vtt », « home trainer ») : un exercice à ce nom sans mesure enregistrée était en répétitions pour
-// les versions précédentes, et « Trail · 10 reps » deviendrait « 10 min ». Il garde donc 'reps'.
-// Liste figée : noms inconnus de l'ancienne bibliothèque et cardio pour la nouvelle (comparaison de
-// measureOf avant et après, refaite par tests/unit/measures.mjs). Clé : nom normalisé, séparateurs en
-// espaces, comme ruleKey (js/data/muscles.js, chargé après ce fichier ; ses abréviations ne touchent
-// aucun de ces noms). Une nouvelle entrée cardio de la bibliothèque dont le nom était en répétitions
-// avant s'ajoute ici.
-const LEGACY_REPS_NAMES = new Set(['treadmill', 'trail', 'fractionne', 'vtt', 'home trainer']);
-function pinLegacyReps(ex) {
+// ── Noms dont la mesure a changé : gardés en répétitions ──
+// Un exercice enregistré sans mesure suit la détection par le nom (measureOf). Quand la bibliothèque
+// apprend un nom qui était en répétitions et devient cardio ou durée, « Trail · 10 reps » deviendrait
+// « 10 min » : un exercice à ce nom sans mesure enregistrée garde donc 'reps'.
+// - 25/10/2026 (cardio) : « Trail », alias « treadmill », « fractionné », « vtt », « home trainer » ;
+// - 26/10/2026 (alias anglais et argot) : cardio « rower », « elliptical », « cross trainer »,
+//   « skipping rope » ; durée « la chaise », « chaise murale », « wall squat ».
+// Liste figée : noms en répétitions pour la version d'avant et cardio ou durée pour la suivante
+// (comparaison de measureOf avant et après, refaite par tests/unit/measures.mjs avec
+// tests/unit/mesures-avant.json : un nouvel alias qui change une mesure fait échouer les tests tant
+// qu'il n'est pas ajouté ici). Clé souple comme looseKey (js/data/muscles.js, chargé après ce fichier :
+// recopiée sans ses abréviations, qui ne touchent aucun de ces noms) : « Rowers », « wall-squats » et
+// « Home trainer » sont retrouvés comme la bibliothèque les retrouve.
+// Par schéma de la version qui a appris le nom (les programmes ne sont figés qu'une fois, normalizeData)
+const LEGACY_REPS_BY_SCHEMA = {
+  4: ['treadmill', 'trail', 'fractionne', 'vtt', 'home trainer'],
+  5: ['rower', 'elliptical', 'cross trainer', 'skipping rope', 'la chaise', 'chaise murale', 'wall squat'],
+};
+const LEGACY_REPS_NAMES = Object.values(LEGACY_REPS_BY_SCHEMA).flat();
+// Clé exacte des versions d'avant la clé souple (séparateurs en espaces) et clé souple (schéma 5)
+const legacyExactKey = name => normName(name).replace(/[-_/.]+/g, ' ').replace(/\s+/g, ' ').trim();
+function legacyKey(name) {
+  return legacyExactKey(name).replace(/[()'\u2019]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').map(w => w.replace(/s$/, '')).join('');
+}
+const LOOSE_KEY_SCHEMA = 5;
+const LEGACY_REPS_KEYS = Object.entries(LEGACY_REPS_BY_SCHEMA).map(([v, names]) =>
+  ({ schema: Number(v), loose: new Set(names.map(legacyKey)), exact: new Set(names.map(legacyExactKey)) }));
+// fromSchema : schéma des données (historique : 0, tous les noms). Figé si le nom a été appris après ce
+// schéma, ou si c'est une variante (« Trails », « Treadmills ») que seule la clé souple reconnaît
+function pinLegacyReps(ex, fromSchema = 0) {
   if (ex.measure != null) return;
-  const key = normName(ex.name).replace(/[-_/.]+/g, ' ').replace(/\s+/g, ' ').trim();
-  if (LEGACY_REPS_NAMES.has(key)) ex.measure = 'reps';
+  const key = legacyKey(ex.name), exact = legacyExactKey(ex.name);
+  const pin = LEGACY_REPS_KEYS.some(l => l.loose.has(key)
+    && (l.schema > fromSchema || (fromSchema < LOOSE_KEY_SCHEMA && !l.exact.has(exact))));
+  if (pin) ex.measure = 'reps';
 }
 
 // Séance de l'historique (ou de la corbeille) : corrigée en place, false si elle est inutilisable
@@ -348,8 +369,8 @@ function cleanHistoryEntry(h) {
     ex.sets = ex.sets.filter(st => isObj(st) && num(st.reps, 0, MAX_COUNT, true) !== null);
     // Mesure (js/data/measures.js) : absente = répétitions ; 'time' (secondes) ou 'cardio' (minutes, km)
     // 'reps' n'est gardé que s'il corrige la détection par le nom (« Crunch vélo » choisi en répétitions).
-    // Noms devenus cardio (pinLegacyReps) : à chaque nettoyage, pas une seule fois. Sans risque : l'app
-    // enregistre la mesure de tout cardio (storedMeasure), une séance sans mesure à ces noms vient donc
+    // Noms devenus cardio ou durée (pinLegacyReps) : à chaque nettoyage, pas une seule fois. Sans risque :
+    // l'app enregistre toute mesure autre que répétitions (storedMeasure), une séance sans mesure à ces noms vient donc
     // d'une version précédente (copie importée, séance reçue d'un autre appareil par la synchro)
     if (!['reps', 'time', 'cardio'].includes(ex.measure)) delete ex.measure;
     pinLegacyReps(ex);
@@ -408,11 +429,14 @@ function normalizeData(d, rawJson = null) {
     try { recomputePRFromHistory(d); } catch {}
     delete d._prRecomputed;
   }
-  // Schéma 4 : exercices des programmes aux noms devenus cardio (pinLegacyReps), une seule fois : dans
-  // l'app actuelle, un exercice de programme sans mesure suit son nom (« Trail » ajouté depuis la
-  // bibliothèque est du cardio). L'historique est traité par cleanHistoryEntry.
-  if ((d.schema || 2) < 4) {
-    Object.values(d.programmes).forEach(p => Object.values(p.exercises).forEach(list => list.forEach(pinLegacyReps)));
+  // Schémas 4 (25/10/2026) et 5 (26/10/2026, alias) : exercices des programmes aux noms devenus cardio
+  // ou durée (pinLegacyReps), une seule fois : dans l'app actuelle, un exercice de programme sans mesure
+  // suit son nom (« Rameur » ou « Wall squat » ajouté depuis la bibliothèque n'est pas en répétitions).
+  // Seuls les noms appris après le schéma des données sont figés : au schéma 4, « Trail » sans mesure
+  // vient de la bibliothèque du 25/10 (cardio) et le reste. L'historique est traité par cleanHistoryEntry.
+  const from = d.schema || 2;
+  if (from < 5) {
+    Object.values(d.programmes).forEach(p => Object.values(p.exercises).forEach(list => list.forEach(ex => pinLegacyReps(ex, from))));
   }
   d.schema = SCHEMA;
   d.history.sort((a, b) => b.date - a.date);

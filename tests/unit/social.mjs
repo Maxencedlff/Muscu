@@ -50,4 +50,29 @@ export default function ({ test, run, assert, sameJSON }) {
     const r = run(`[true, false, 'oui'].map(v => { const h = { id: 'a', date: 1, category: 'push', exercises: [], hidden: v }; cleanHistoryEntry(h); return 'hidden' in h ? h.hidden : null; })`);
     sameJSON(r, [true, null, null]);
   });
+  test('amis : fil jamais chargé relancé d\'office une fois par lecture de l\'état (hors ligne puis réseau, onglet ouvert pendant la lecture)', () => {
+    const r = run(`(() => {
+      const user = account.user, saved = { ...social };
+      try {
+        account.user = { id: 'u' };
+        Object.assign(social, { userId: 'u', state: null, cached: null, loadedAt: 0, feeds: {} });
+        const out = [];
+        out.push(socialFeedNeedsLoad(''));                        // état pas encore lu : Amis activé inconnu
+        social.state = cleanSocialState({ enabled: true }); social.loadedAt = 1000;
+        out.push(socialFeedNeedsLoad(''));                        // état lu pendant que l'onglet était ouvert
+        const f = socialFeed(''); f.loading = true; f.triedAt = 1000;
+        out.push(socialFeedNeedsLoad(''));                        // en cours
+        f.loading = false; f.error = 'offline';
+        out.push(socialFeedNeedsLoad(''));                        // échec avec cet état : pas de boucle
+        social.loadedAt = 2000;
+        out.push(socialFeedNeedsLoad(''));                        // réseau revenu, état relu : nouvel essai
+        f.error = null; f.loadedAt = 2100;
+        out.push(socialFeedNeedsLoad(''));                        // chargé : rien
+        social.state = cleanSocialState({ enabled: false });
+        out.push(socialFeedNeedsLoad('autre'));                   // Amis désactivé : rien
+        return out;
+      } finally { account.user = user; Object.assign(social, saved); }
+    })()`);
+    assert.deepEqual([...r], [false, true, false, false, true, false, false]);
+  });
 }

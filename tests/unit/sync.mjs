@@ -492,4 +492,57 @@ export default function ({ test, run, assert, sameJSON }) {
       assert.equal(r.bodyKg, 72, 'poids du corps local gardé');
     } finally { run(undoIos); }
   });
+  test('synchro : ligne modifiée et ligne supprimée ailleurs, première synchro après la mise à jour (empreintes sans label)', () => {
+    // iPad resté sur la version d'avant le label : empreintes de l'ancien payload. Pendant ce temps,
+    // l'iPhone à jour a corrigé a (12 reps, renvoyée avec label) et supprimé b ; c n'a bougé nulle part,
+    // d a été supprimée sur l'iPad (suppression encore à envoyer) et renvoyée avec label par l'iPhone.
+    const r = call(`(() => {
+      const old = x => { const { bodyKg, label, ...rest } = x; return syncHash(rest); };
+      const meta = { pushed: { a: old(local[0]), b: old(local[1]), c: old(local[2]), d: old(goneD) } };
+      const rows = [
+        { id: 'a', data: sessionPayload({ ...local[0], exercises: [{ name: 'DC', sets: [{ weight: '60', reps: '12' }] }] }), deleted_at: null },
+        { id: 'b', data: null, deleted_at: '2026-10-26T10:00:00Z' },
+        { id: 'd', data: sessionPayload(goneD), deleted_at: null },
+      ];
+      const res = applyRemoteSessions(local, rows, meta);
+      const plan = planSessionPush(res.history, meta);
+      return { hist: res.history.map(x => [x.id, x.exercises[0].sets[0].reps]), removed: res.removed.map(x => x.id),
+        ups: plan.upserts.map(u => [u.id, u.data.label]), dels: plan.deletes, b: meta.pushed.b };
+    })()`, { local: [h('a', '8'), h('b', '10', { date: 2e12 }), h('c', '5', { date: 3e12 })], goneD: h('d', '6') });
+    sameJSON(r.hist, [['c', '5'], ['a', '12']], 'correction de l\'autre appareil reçue, pas écrasée');
+    sameJSON(r.removed, ['b'], 'suppression de l\'autre appareil appliquée (pas de résurrection deleted_at null)');
+    assert.equal(r.b, 'deleted');
+    sameJSON(r.ups, [['c', 'Push']], 'seule la séance inchangée partout repart, une fois, avec son nom');
+    sameJSON(r.dels, ['d'], 'séance supprimée ici : ni ressuscitée par la copie avec label, ni oubliée');
+  });
+  test('synchro : profil renvoyé par un appareil d\'une version précédente (sans myProgrammes) : Mes programmes gardé ici', () => {
+    const r = run(`(() => {
+      const saved = data;
+      try {
+        data = makeDefaultData(); data.schema = SCHEMA;
+        data.history = [{ id: 'h1', date: 1, category: 'push', programme: 'ppl', exercises: [] }];
+        data.myProgrammes = ['arnold', 'ppl', 'fullbody']; data.weeklyGoal = 4; data.exerciseMuscles = { 'curl perso': ['biceps'] };
+        sanitizeData(data);
+        const meta = { pushed: {}, profileHash: syncHash(profilePayload(data)), profileAt: 't1' };
+        // L'iPad (ancienne version) change le repos : profil complet, sans myProgrammes ; l'objectif y est
+        // repassé en « Auto » et le dernier choix de muscles rétabli (clés absentes : vrais choix)
+        const doc = profilePayload(data); delete doc.myProgrammes; delete doc.weeklyGoal; delete doc.exerciseMuscles; doc.defaultRest = 120;
+        applyRemoteProfile(data, { doc, updated_at: 't2' }, meta);
+        sanitizeData(data);
+        const out = { my: data.myProgrammes, rest: data.defaultRest, goal: data.weeklyGoal, muscles: data.exerciseMuscles };
+        // Appareil vierge : copie exacte (Mes programmes reconstruit depuis le compte)
+        const blank = { history: [], myProgrammes: ['ppl'], unit: 'kg' };
+        applyRemoteProfile(blank, { doc: { unit: 'lbs', activeProgramme: 'arnold' }, updated_at: 't3' }, { pushed: {} });
+        out.blankMy = blank.myProgrammes;
+        return out;
+      } finally { data = saved; }
+    })()`);
+    sameJSON(r.my, ['arnold', 'ppl', 'fullbody'], 'liste rangée à la main gardée');
+    assert.equal(r.rest, 120, 'le changement de l\'autre appareil est appliqué');
+    assert.equal(r.goal, undefined, 'objectif « Auto » choisi ailleurs : retiré ici aussi');
+    assert.equal(r.muscles, undefined, 'muscles rétablis ailleurs : retirés ici aussi');
+    assert.equal(r.blankMy, undefined);
+    // Toute clé du profil est classée : absence = choix, ou gardée ici
+    run('SYNC_ABSENT_IS_CHOICE').forEach(k => assert.ok(run('SYNC_PROFILE_KEYS').includes(k), k));
+  });
 }

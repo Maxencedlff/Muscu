@@ -45,7 +45,11 @@ function measureOf(ex) {
   if (ex?.measure === 'reps') return 'reps';
   const entry = catalogueEntry(ex?.name || '');
   if (entry) return entry.equip === 'cardio' ? 'cardio' : TIMED_EXERCISES.has(entry.name) ? 'time' : 'reps';
-  const k = ruleKey(ex?.name || '');
+  return measureByRules(ex?.name);
+}
+// Nom hors bibliothèque : mots-clés seulement
+function measureByRules(name) {
+  const k = ruleKey(name || '');
   if (CARDIO_RE.test(k) && !NOT_CARDIO_RE.test(k)) return 'cardio';
   return TIMED_RE.test(k) && !NOT_TIMED_RE.test(k) ? 'time' : 'reps';
 }

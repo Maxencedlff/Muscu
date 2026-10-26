@@ -30,6 +30,11 @@ const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'c
 // lastAccount : moyen et pseudo du dernier compte connecté ici (reconnexion après une restauration iCloud)
 const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'healthOn', 'musicOn', 'soundOn', 'vibrateOn',
   'lastExport', 'healthKgPurged', 'schema', 'lastAccount'];
+// Clés dont l'absence est un choix fait sur un appareil (objectif « Auto », derniers muscles rétablis) :
+// absentes du compte, elles sont retirées ici aussi. Toutes les versions qui synchronisent les envoient.
+// Les autres clés absentes du compte sont gardées ici : un appareil resté sur une version qui ne les
+// connaît pas encore (myProgrammes, silhouette) renvoie un profil sans elles, il ne les a pas effacées.
+const SYNC_ABSENT_IS_CHOICE = ['weeklyGoal', 'exerciseMuscles', 'exerciseMusclesSecondary'];
 // Dictionnaires du profil fusionnés élément par élément (programmes, exercices perso…) : rien n'est perdu
 const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary'];
 
@@ -54,13 +59,21 @@ function syncHash(v) {
 // rawLabel du programme et de la séance) calculé au moment de la synchro, pour les abonnés qui n'ont pas
 // les programmes perso de la personne (docs/SOCIAL_V1.md). Seule lecture de `data` de ce fichier (noms
 // des séances perso, profil synchronisé avant l'envoi). Le nom fait partie de l'empreinte : renommer
-// une séance perso renvoie une fois ses séances ; l'ajout du champ (Social V1) les a toutes renvoyées une
-// fois, sans conflit (applyRemoteSessions compare des payloads qui portent le même nom). hidden : séance
+// une séance perso renvoie une fois ses séances ; l'ajout du champ (Social V1) les renvoie toutes une
+// fois ; une empreinte enregistrée sans label compte comme « inchangée ici » (sessionUnchangedSince),
+// sinon une correction ou une suppression faite sur un autre appareil serait écrasée à cette occasion. hidden : séance
 // masquée aux abonnés (true, absent sinon), envoyée telle quelle.
 function sessionPayload(h) {
   const { bodyKg, label, ...rest } = h;
   return typeof h.category === 'string' ? { ...rest, label: rawLabel(h.category, h.programme || 'ppl') } : rest;
 }
+// Empreinte d'une séance au format d'avant Social V1 (sans label ; bodyKg n'est jamais parti) :
+// meta.pushed garde ces empreintes jusqu'au premier envoi de la séance avec son nom
+function legacySessionHash(h) { const { bodyKg, label, ...rest } = h; return syncHash(rest); }
+// Séance inchangée ici depuis la dernière synchro : son empreinte enregistrée est celle de son payload
+// actuel, ou celle de l'ancien format (appareil mis à jour depuis : la séance n'a pas changé pour autant ;
+// elle repartira une fois avec son nom, planSessionPush, si le compte ne l'a pas modifiée entre-temps)
+function sessionUnchangedSince(known, h) { return known === syncHash(sessionPayload(h)) || known === legacySessionHash(h); }
 // Séance reçue du compte : sans son nom (recalculé ici à l'envoi, jamais stocké dans l'historique)
 function remoteEntry(rowData, id) { const { label, ...rest } = rowData; return { ...rest, id }; }
 // Profil partagé : seulement les clés autorisées
@@ -102,7 +115,7 @@ function applyRemoteSessions(history, rows, meta) {
     if (!row || typeof row.id !== 'string') continue;
     const i = byId.get(row.id), local = i === undefined ? null : out[i];
     const known = meta.pushed[row.id];
-    const changedHere = !!local && known !== undefined && known !== syncHash(sessionPayload(local));
+    const changedHere = !!local && known !== undefined && !sessionUnchangedSince(known, local);
     if (row.deleted_at) {
       if (local && !changedHere) { removedIds.add(row.id); changed = true; }
       if (!changedHere) meta.pushed[row.id] = 'deleted';
@@ -111,7 +124,9 @@ function applyRemoteSessions(history, rows, meta) {
     if (!row.data || typeof row.data !== 'object') continue;
     const remoteHash = syncHash(row.data);
     if (!local) {
-      if (known === remoteHash) continue;   // supprimée ici, suppression encore à envoyer
+      // supprimée ici, suppression encore à envoyer (empreinte de l'ancien format : même séance renvoyée
+      // avec son nom par un appareil à jour)
+      if (known === remoteHash || known === legacySessionHash(row.data)) continue;
       out.push(remoteEntry(row.data, row.id));
       byId.set(row.id, out.length - 1);
       meta.pushed[row.id] = remoteHash;
@@ -133,7 +148,9 @@ function applyRemoteSessions(history, rows, meta) {
 
 // Profil reçu (doc, updated_at) appliqué aux données locales (modifiées en place). Renvoie true si
 // quelque chose a changé ici.
-// - appareil vierge, ou profil local inchangé depuis la dernière synchro : copie exacte du compte ;
+// - appareil vierge : copie exacte du compte ;
+// - profil local inchangé depuis la dernière synchro : copie du compte, mais une clé absente du compte
+//   n'est retirée ici que si son absence est un choix (SYNC_ABSENT_IS_CHOICE) ;
 // - première liaison (aucune empreinte connue) : le compte gagne, ce qui n'existe qu'ici est ajouté
 //   (un programme créé sur cet iPhone, par exemple) ;
 // - modifié des deux côtés : cet appareil gagne, ce qui n'existe que sur le compte est ajouté.
@@ -146,8 +163,11 @@ function applyRemoteProfile(d, remote, meta) {
   const doc = profilePayload(remote.doc);
   const remoteHash = syncHash(doc), localHash = syncHash(profilePayload(d));
   if (localHash === remoteHash) { meta.profileHash = localHash; return false; }
-  if (isBlankData(d) || meta.profileHash === localHash) {
-    for (const k of SYNC_PROFILE_KEYS) { if (k in doc) d[k] = doc[k]; else delete d[k]; }
+  const blank = isBlankData(d);
+  if (blank || meta.profileHash === localHash) {
+    // Appareil vierge : ses clés ne sont que les valeurs par défaut, copie exacte (Mes programmes se
+    // reconstruit alors depuis l'historique du compte, cleanMyProgrammes)
+    for (const k of SYNC_PROFILE_KEYS) { if (k in doc) d[k] = doc[k]; else if (blank || SYNC_ABSENT_IS_CHOICE.includes(k)) delete d[k]; }
     meta.profileHash = remoteHash;
     return true;
   }

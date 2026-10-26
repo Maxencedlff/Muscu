@@ -145,10 +145,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // App iOS, tout premier lancement : écran Bienvenue (jamais un mur : « Commencer sans compte »)
   let welcome;
   try { welcome = await maybeShowWelcome(); } catch { /* l'app reste utilisable sans */ }
-  // Puis les questions du premier lancement (nouvel utilisateur seulement). Connexion à un compte
-  // existant : ses séances et ses choix arrivent par la synchro, pas de questions.
-  const questions = () => { try { maybeShowOnboarding(); } catch { /* l'accueil reste utilisable */ } };
-  if (welcome) welcome.closed.then(r => { if (r !== 'signed-in') questions(); });
+  // Puis les questions du premier lancement, pour un nouvel utilisateur sans données (compte neuf ou
+  // sans compte) : décidées par onboardingNeeded() une fois les données du compte arrivées (première
+  // synchro, whenAccountSettled), sans bloquer le démarrage. Un compte existant retrouvé apporte ses
+  // séances et son choix déjà fait (data.onboarded) : pas de questions.
+  const questions = () => whenAccountSettled().then(() => { try { maybeShowOnboarding(); } catch { /* l'accueil reste utilisable */ } });
+  if (welcome) welcome.closed.then(questions);
   else questions();
   Native.hideSplash();
   Native.statusBar(!document.body.classList.contains('light'));

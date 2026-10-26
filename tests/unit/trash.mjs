@@ -68,9 +68,11 @@ export default function ({ test, app, run, reset, assert }) {
 
   test('programme supprimé : listé puis restauré, sans devenir actif', () => {
     reset();
-    run(`data.userProgrammes = { u_a: { name: 'Bras', sessions: {}, archived: true }, u_b: { name: 'Jambes', sessions: {}, archived: false } };`);
+    run(`data.userProgrammes = { u_a: { name: 'Bras', sessions: {}, archived: true }, u_b: { name: 'Jambes', sessions: {}, archived: false } };
+      data.myProgrammes = ['ppl', 'u_b'];`);
     assert.deepEqual(val('archivedProgrammes().map(([id]) => id)'), ['u_a']);
     assert.equal(run('restoreProgramme("u_a")'), true);
+    assert.deepEqual(val('data.myProgrammes'), ['ppl', 'u_b', 'u_a'], 'de retour dans Mes programmes tout de suite');
     assert.equal(run('restoreProgramme("u_a")'), false, 'déjà restauré');
     assert.equal(run('restoreProgramme("u_inconnu")'), false);
     assert.equal(run('archivedProgrammes().length'), 0);

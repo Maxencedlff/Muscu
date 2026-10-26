@@ -224,7 +224,7 @@ test('exerciseTarget en lbs : palier de 5 lb', () => {
   assert.equal(t.text, '49,1 lbs');
 });
 
-test('weekStats : séances et volume depuis lundi seulement', () => {
+test('weekStats : séances depuis lundi seulement', () => {
   reset();
   const now = new Date();
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)).getTime();
@@ -234,7 +234,7 @@ test('weekStats : séances et volume depuis lundi seulement', () => {
     { id: 'c', programme: 'ppl', category: 'legs', date: ${monday} - 40 * 86400000, exercises: [{ name: 'X', sets: [{ weight: '100', reps: '99' }] }] }];`);
   const ws = app.weekStats();
   assert.equal(ws.count, 1);
-  assert.equal(ws.volume, 1000);
+  assert.equal(ws.volume, undefined, 'volume de la semaine plus affiché : plus calculé');
   assert.equal(ws.days[0].length, 1, 'séance du lundi dans la première colonne');
   assert.equal(ws.days.flat().length, 1, 'semaines précédentes ignorées');
 });

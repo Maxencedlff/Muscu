@@ -71,6 +71,20 @@ const accountListeners = [];
 function onAccountChange(fn) { accountListeners.push(fn); }
 function notifyAccount(kind = 'state') { for (const fn of accountListeners) { try { fn(kind); } catch { /* écran absent */ } } }
 
+// Promesse tenue quand les données de l'appareil sont celles du compte : sans compte (ou compte
+// indisponible), dès que l'état est connu ; connecté, après la première synchro réussie de ce lancement
+// (hors ligne : à la suivante), ou à la déconnexion. Ne bloque rien (questions du premier lancement).
+function accountDataSettled() {
+  return !accountAvailable() || (account.ready && (!account.user || account.lastSync != null));
+}
+function whenAccountSettled() {
+  if (accountDataSettled()) return Promise.resolve();
+  return new Promise(resolve => {
+    let done = false;
+    onAccountChange(() => { if (!done && accountDataSettled()) { done = true; resolve(); } });
+  });
+}
+
 function accountAvailable() {
   return Native.account.available && typeof supabase !== 'undefined' && !!ACCOUNT_CONFIG.publishableKey;
 }

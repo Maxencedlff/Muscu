@@ -307,12 +307,17 @@ function renderSocialProfile(uid) {
       </div>
     </div>`;
 }
+// Profil affiché d'une personne que je suis (ses séances se chargent), sinon null
+function followedProfileShown() {
+  const uid = routeParams(currentRoute())[0];
+  return uid && socialRelation(uid, social.state).status === 'following' ? uid : null;
+}
 SCREENS.set('social-profile', {
   render: uid => renderSocialProfile(uid),
   // Ses séances : chargées à l'arrivée si je le suis
   enter: () => {
-    const uid = routeParams(currentRoute())[0];
-    if (uid && socialRelation(uid, social.state).status === 'following' && !socialFeed(uid).loadedAt) socialLoadFeed(uid);
+    const uid = followedProfileShown();
+    if (uid && !socialFeed(uid).loadedAt) socialLoadFeed(uid);
   },
 });
 
@@ -535,6 +540,10 @@ document.addEventListener('input', e => {
 onSocialChange(() => {
   updateTabBadge();
   const v = currentView();
+  // Fil affiché jamais chargé (hors ligne au premier passage, ou Amis activé connu après l'ouverture) :
+  // chargé maintenant ; son début de chargement notifie et redessine l'écran
+  const feedKey = v === 'friends' ? '' : v === 'social-profile' ? followedProfileShown() : null;
+  if (feedKey != null && socialFeedNeedsLoad(feedKey)) { socialLoadFeed(feedKey); return; }
   if (v === 'friends' && friendsState() === friendsShown) { refreshFriendsBody(); return; }
   if (!SOCIAL_VIEWS.includes(v) && v !== 'history-detail') return;
   if (document.activeElement?.matches?.('#socialSearch')) { refreshFriendsBody(); return; }

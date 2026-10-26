@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+
 // Mesures des exercices (js/data/measures.js) : répétitions, durée, cardio
 export default function ({ test, run, reset, assert }) {
   test('mesures : bibliothèque, noms libres et choix enregistré', () => {
@@ -39,10 +41,12 @@ export default function ({ test, run, reset, assert }) {
     const now = run(`(() => { const h = { id: 'n', date: 1, category: 'free', exercises: [{ name: 'Trail', measure: storedMeasure({ name: 'Trail' }), sets: [{ weight: '', reps: '40' }] }] };
       cleanHistoryEntry(h); return h.exercises[0].measure; })()`);
     assert.equal(now, 'cardio');
-    // Liste figée : chaque nom est bien devenu cardio par la bibliothèque (sinon il n'a rien à faire là)
+    // Liste figée : chaque nom est bien devenu cardio ou durée par la bibliothèque (sinon il n'a rien à
+    // faire là), et sa clé est celle de la bibliothèque (looseKey, abréviations comprises)
     run('[...LEGACY_REPS_NAMES]').forEach(k => {
-      assert.equal(run(`catalogueEntry(${JSON.stringify(k)})?.equip`), 'cardio', k);
-      assert.equal(run(`measureOf({ name: ${JSON.stringify(k)} })`), 'cardio', k);
+      assert.ok(run(`catalogueEntry(${JSON.stringify(k)})`), k);
+      assert.notEqual(run(`measureOf({ name: ${JSON.stringify(k)} })`), 'reps', k);
+      assert.equal(run(`legacyKey(${JSON.stringify(k)})`), run(`looseKey(${JSON.stringify(k)})`), k);
     });
     // Alias trop génériques retirés : un fractionné de squats ou un « RPM » de salle restent des répétitions
     ['intervalles', 'vma', 'biking', 'rpm'].forEach(n => assert.equal(run(`catalogueEntry(${JSON.stringify(n)})`), null, n));
@@ -61,6 +65,43 @@ export default function ({ test, run, reset, assert }) {
     const cur = run(`normalizeData(${JSON.stringify({ schema: 4, activeProgramme: 'ppl', programmes: prog(), history: [] })})`);
     assert.equal(cur.programmes.ppl.exercises.legs[0].measure, undefined);
     assert.equal(run(`measureOf({ name: 'Trail' })`), 'cardio');
+  });
+
+  // Mesure de chaque nom pour la version d'avant les alias du 26/10/2026 (tests/unit/mesures-avant.json,
+  // figé) : un exercice enregistré sans mesure la garde, dans l'historique comme dans un programme
+  const BEFORE_ALIAS = JSON.parse(fs.readFileSync(new URL('./mesures-avant.json', import.meta.url), 'utf8'));
+  const beforeAlias = new Map(['reps', 'time', 'cardio'].flatMap(m => BEFORE_ALIAS[m].map(n => [n, m])));
+  const keptMeasure = (names, fromSchema) => JSON.parse(run(`JSON.stringify(${JSON.stringify(names)}.map(name => {
+    const h = { id: 'o', date: 1, category: 'free', exercises: [{ name, sets: [{ weight: '', reps: '10' }] }] };
+    cleanHistoryEntry(h);
+    const d = normalizeData({ schema: ${fromSchema}, activeProgramme: 'ppl', history: [],
+      programmes: { ppl: { exercises: { legs: [{ id: 'p', name, sets: 3 }] }, timers: {}, cooldowns: {} } } });
+    return [name, measureOf(h.exercises[0]), measureOf(d.programmes.ppl.exercises.legs[0])];
+  }))`));
+
+  test('mesures : alias du 26/10 (rower, wall squat, la chaise…) : séances et programmes d\'avant gardent leur mesure', () => {
+    reset();
+    // Historique : les noms du 25/10 sans mesure viennent d'avant le 25/10 (répétitions, test précédent)
+    const of25 = new Set(run(`LEGACY_REPS_BY_SCHEMA[4].map(legacyKey)`));
+    const inHistory = n => beforeAlias.get(n) === 'cardio' && of25.has(run(`legacyKey(${JSON.stringify(n)})`)) ? 'reps' : beforeAlias.get(n);
+    const wrong = keptMeasure([...beforeAlias.keys()], 4).filter(([n, h, p]) => h !== inHistory(n) || p !== beforeAlias.get(n));
+    assert.deepEqual(wrong.map(([n, h, p]) => `${n} : ${beforeAlias.get(n)} avant, ${h} (historique), ${p} (programme)`), [],
+      'nom dont la mesure change : l\'ajouter à LEGACY_REPS_BY_SCHEMA (js/data/store.js)');
+    // Tout nom de la bibliothèque inconnu de la version d'avant (alias à venir) : avant lui, il suivait les
+    // mots-clés (measureByRules) ; s'il en change, un exercice enregistré sans mesure doit garder l'ancienne
+    const fresh = run(`EXERCISE_CATALOGUE.flatMap(e => [e.name, ...e.aliases])`).filter(n => !beforeAlias.has(n));
+    const changed = keptMeasure(fresh, run('SCHEMA')).filter(([n, h]) => h !== run(`measureByRules(${JSON.stringify(n)})`));
+    assert.deepEqual(changed.map(([n, h]) => `${n} : ${h}`), [], 'nouvel alias qui change la mesure d\'un nom : l\'ajouter à LEGACY_REPS_BY_SCHEMA');
+    // Ce qui est enregistré aujourd'hui n'est pas touché : « Rower » choisi depuis la bibliothèque est du cardio
+    const now = run(`(() => { const ex = { name: 'Rower', sets: [{ weight: '', reps: '20' }] }; ex.measure = storedMeasure(ex);
+      const h = { id: 'n', date: 1, category: 'free', exercises: [ex] }; cleanHistoryEntry(h); return measureOf(h.exercises[0]); })()`);
+    assert.equal(now, 'cardio');
+    // Programme au schéma courant : un exercice sans mesure suit son nom (ajouté depuis la bibliothèque)
+    const cur = keptMeasure(['Rower', 'Wall squat', 'Trail'], run('SCHEMA')).map(x => x[2]);
+    assert.deepEqual(cur, ['cardio', 'time', 'cardio']);
+    // Schéma 4 : « Trail » sans mesure vient de la bibliothèque du 25/10 (cardio) ; « Trails » n'y était
+    // reconnu que par son nom exact, il était en répétitions
+    assert.deepEqual(keptMeasure(['Trail', 'Trails', 'Rowers'], 4).map(x => x[2]), ['cardio', 'reps', 'reps']);
   });
 
   test('mesures : textes des séries', () => {

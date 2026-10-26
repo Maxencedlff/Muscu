@@ -286,7 +286,7 @@ async function socialUnblock(target) {
 
 // ── Fil ─────────────────────────────────────────────────────
 
-// Fil ('') ou séances d'un profil (identifiant) : { rows, end, loading, error, loadedAt }
+// Fil ('') ou séances d'un profil (identifiant) : { rows, end, loading, error, loadedAt, triedAt }
 function socialFeed(key = '') {
   return social.feeds[key] ||= { rows: [], end: false, loading: false, error: null, loadedAt: 0 };
 }
@@ -303,6 +303,7 @@ async function socialLoadFeed(key = '', { more = false } = {}) {
   const f = socialFeed(key);
   if (f.loading || (more && f.end)) return { ok: true };
   f.loading = true;
+  f.triedAt = social.loadedAt;   // essai fait avec cet état (socialFeedNeedsLoad)
   const seq = socialSeq;
   notifySocial();
   const last = more ? f.rows[f.rows.length - 1] : null;
@@ -321,6 +322,16 @@ async function socialLoadFeed(key = '', { more = false } = {}) {
   f.loadedAt = Date.now();
   notifySocial();
   return { ok: true };
+}
+
+// Fil affiché à charger d'office : Amis activé, jamais chargé, pas en cours, et pas déjà essayé avec
+// l'état social actuel. Cas : premier passage sur Amis hors ligne puis réseau revenu (l'état relu
+// relance le fil), onglet ouvert pendant la première lecture de l'état (Amis activé connu après).
+// Une seule tentative par lecture de l'état : un fil en erreur ne boucle pas sur ses propres notifications.
+function socialFeedNeedsLoad(key = '') {
+  if (!socialEnabled()) return false;
+  const f = socialFeed(key);
+  return !f.loading && !f.loadedAt && f.triedAt !== social.loadedAt;
 }
 
 // Séance d'un autre déjà reçue (fil ou profil), ou null

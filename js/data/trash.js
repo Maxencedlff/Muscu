@@ -51,10 +51,12 @@ function archivedProgrammes() {
   return Object.entries(data.userProgrammes || {}).filter(([, p]) => p.archived);
 }
 
-// Rend un programme supprimé à nouveau disponible (il ne devient pas actif) ; renvoie true si fait
+// Rend un programme supprimé à nouveau disponible (il ne devient pas actif), de retour dans Mes
+// programmes tout de suite (sans attendre le nettoyage du prochain lancement) ; renvoie true si fait
 function restoreProgramme(id) {
   const up = data.userProgrammes?.[id];
   if (!up?.archived) return false;
   up.archived = false;
+  addMyProgramme(id);
   return true;
 }

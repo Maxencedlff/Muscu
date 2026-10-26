@@ -151,7 +151,7 @@ def t_wipe(bench):
             page.reload()
             page.wait_for_selector('#app > *')
             R.check(len(backup()) == n, f'{eng} copie de secours conservée après relancement ({len(backup())}/{n})')
-            R.check(json.loads(ls(page, 'ppl_v2')).get('schema') == 4, f'{eng} donnée vide au schéma courant')
+            R.check(json.loads(ls(page, 'ppl_v2')).get('schema') == 5, f'{eng} donnée vide au schéma courant')
             R.check(not page.errors, f'{eng} aucune erreur JS {page.errors[:3]}')
 
 

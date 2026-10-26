@@ -417,4 +417,39 @@ export default function ({ test, run, assert, sameJSON, nativeContext, ROOT }) {
       .map(read).join('\n').split('\n').map(l => l.replace(/^\s*\/\/.*$/, '').replace(/\s\/\/ .*$/, '')).join('\n');
     assert.ok(!/full_name|\.name\b.*identity_data|identity_data\??\.(full_)?name|given_name|picture|avatar_url/.test(js), 'identity_data : ni nom ni photo de Google');
   });
+  test('premier lancement : questions décidées après la première synchro (compte neuf oui, compte retrouvé avec ses données non)', async () => {
+    run(`globalThis.__saved = { avail: accountAvailable, acc: { ...account }, data };
+      accountAvailable = () => true; Object.assign(account, { ready: false, user: null, lastSync: null });
+      data = makeDefaultData(); data.schema = SCHEMA;`);
+    try {
+      const tick = () => new Promise(r => setTimeout(r, 0));
+      const watch = () => run(`(() => { const s = { done: false }; whenAccountSettled().then(() => { s.done = true; s.needed = !data.onboarded && !data.history.length; }); return s; })()`);
+      // Démarrage, compte pas encore lu : rien n'est décidé
+      let s = watch(); await tick();
+      assert.equal(s.done, false, 'état du compte inconnu : on attend');
+      // Session reprise du Trousseau : attente de la première synchro, même si elle échoue (hors ligne)
+      run(`Object.assign(account, { ready: true, user: { id: 'u' } }); notifyAccount();`); await tick();
+      assert.equal(s.done, false, 'connecté, pas encore synchronisé');
+      run(`account.error = 'offline'; notifyAccount();`); await tick();
+      assert.equal(s.done, false, 'synchro échouée : toujours en attente');
+      // Compte existant retrouvé : ses séances arrivent par la synchro, puis la décision (pas de questions)
+      run(`data.history = [{ id: 'h', date: 1, category: 'push', exercises: [] }]; data.onboarded = true; account.lastSync = Date.now(); notifyAccount();`); await tick();
+      assert.equal(s.done, true);
+      assert.equal(s.needed, false, 'compte retrouvé avec ses données : pas de questions');
+      // Compte neuf (synchro faite, rien sur le compte) : questions
+      run(`data = makeDefaultData(); data.schema = SCHEMA;`);
+      s = watch(); await tick();
+      assert.equal(s.needed, true, 'compte neuf : questions');
+      // Sans compte : dès que l'état est connu
+      run(`Object.assign(account, { user: null, lastSync: null });`);
+      s = watch(); await tick();
+      assert.equal(s.done, true, 'sans compte : tout de suite');
+      // Navigateur (compte indisponible) : tout de suite
+      run(`accountAvailable = () => false; account.ready = false;`);
+      s = watch(); await tick();
+      assert.equal(s.done, true);
+    } finally {
+      run(`accountAvailable = __saved.avail; Object.assign(account, __saved.acc); data = __saved.data; delete globalThis.__saved;`);
+    }
+  });
 }

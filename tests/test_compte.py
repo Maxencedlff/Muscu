@@ -517,6 +517,9 @@ def t_securite_compte(bench, eng, dev, theme):
         page.click('.auth .auth-btn--google')
         page.wait_for_timeout(600)
         R.check(page.locator('.auth').count() == 0 and page.evaluate('!!account.user'), f'{t} Google : compte existant, connecté')
+        # Compte existant mais sans aucune donnée (synchro faite) : nouvel utilisateur, questions posées
+        R.check(page.locator('.onb .onb__page--place').count() == 1, f'{t} compte existant vide : questions après la synchro')
+        skip_questions(page)
         page.evaluate("navigate('account')")
         page.wait_for_selector('.account-view')
 
@@ -945,8 +948,12 @@ def t_avatar_refuse(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, opts={'oldAccounts': True, 'refuseAvatars': ['🦬']})
+        # Compte retrouvé avec ses séances : elles arrivent par la première synchro, pas de questions
+        page.evaluate("""__sb.remoteRows = [{ id: 'r1', updated_at: new Date().toISOString(), deleted_at: null,
+            data: { date: Date.now() - 86400000, category: 'push', programme: 'ppl', exercises: [{ name: 'Squat', sets: [{ weight: '60', reps: '8' }] }] } }]""")
         page.click('.auth .auth-btn--apple')
         page.wait_for_timeout(600)
+        R.check(page.evaluate('data.history.length') == 1 and page.locator('.onb').count() == 0, f'{t} compte retrouvé avec ses séances : pas de questions')
         page.evaluate("navigate('account')")
         page.wait_for_selector('.account-view')
         page.click('[data-action="account-edit-avatar"]')

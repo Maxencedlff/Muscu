@@ -204,7 +204,7 @@ const EXERCISE_CATALOGUE = [
   ['Good morning',                     'hamstrings glutes',      'lower_back',  'salle'],
   ['Soulevé de terre sumo',            'glutes quads',           'hamstrings adductors lower_back traps forearms', 'salle', 'sdt sumo|sumo deadlift'],
   ['Rack pull',                        'glutes lower_back',      'hamstrings traps forearms', 'salle'],
-  ['Kickback fessier poulie',          'glutes',                 'hamstrings',  'salle', 'kickback poulie fessier|cable kickback|glute kickback|kickback fessier'],
+  ['Kickback fessier poulie',          'glutes',                 'hamstrings',  'salle', 'kickback poulie fessier|glute kickback|kickback fessier'],
   ['Hip thrust machine',               'glutes',                 'hamstrings',  'salle'],
   ['Squat smith',                      'quads glutes',           'adductors',   'salle', 'squat guidé|smith squat|squat multipower'],
   ['Pendulum squat',                   'quads',                  'glutes',      'salle', 'pendulum'],

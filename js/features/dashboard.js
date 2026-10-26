@@ -207,18 +207,18 @@ function targetsCard(cat) {
     </section>`;
 }
 
-// Semaine en cours (lundi → dimanche) : séances par jour, nombre, volume
+// Semaine en cours (lundi → dimanche) : séances par jour, nombre
 function weekStats() {
   const now = new Date();
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)).getTime();
   const days = Array.from({ length: 7 }, () => []);
-  let count = 0, volume = 0;
+  let count = 0;
   (data.history || []).forEach(h => {
     if (h.date < monday) return;
     const i = Math.floor((h.date - monday) / 86400000);
-    if (i < 7) { days[i].push(h); count++; volume += sessionVolume(h.exercises, entryBodyKg(h)); }
+    if (i < 7) { days[i].push(h); count++; }
   });
-  return { days, count, volume, today: (now.getDay() + 6) % 7 };
+  return { days, count, today: (now.getDay() + 6) % 7 };
 }
 
 // Objectif de séances par semaine : réglé par l'utilisateur, sinon le nombre de séances du programme

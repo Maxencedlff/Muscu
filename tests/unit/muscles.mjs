@@ -159,9 +159,11 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
   test('muscles : les noms tapés couramment (anglais, pluriels, argot) retrouvent leur fiche', () => {
     assert.ok(Object.keys(TYPED_NAMES).length >= 40);
     for (const [typed, name] of Object.entries(TYPED_NAMES)) assert.equal(run(`catalogueEntry(${JSON.stringify(typed)})?.name`), name, typed);
-    // Noms génériques laissés sans fiche : ils désignent plusieurs exercices de la bibliothèque
-    for (const typed of ['curl', 'squat', 'élévations', 'tirage', 'kickback', 'shoulder press', 'rotation externe', 'rowing haltères', 'gainage'])
+    // Noms génériques laissés sans fiche : ils désignent plusieurs exercices de la bibliothèque (« cable
+    // kickback » : fessier ou triceps à la poulie)
+    for (const typed of ['curl', 'squat', 'élévations', 'tirage', 'kickback', 'cable kickback', 'cable kickbacks', 'shoulder press', 'rotation externe', 'rowing haltères', 'gainage'])
       assert.equal(run(`catalogueEntry(${JSON.stringify(typed)})`), null, typed);
+    assert.equal(run(`catalogueEntry('glute kickback')?.name`), 'Kickback fessier poulie');
     // « Développé incliné » et « DI » sans précision : version barre (choix de Maxence, 26/10 : en salle, c'est la barre)
     for (const typed of ['développé incliné', 'DI', 'di'])
       assert.equal(run(`catalogueEntry(${JSON.stringify(typed)})?.name`), 'Développé incliné barre', typed);
