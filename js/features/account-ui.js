@@ -14,7 +14,7 @@ const GOOGLE_LOGO = '<svg class="auth-btn__logo" viewBox="0 0 48 48" aria-hidden
 const MAIL_ICON = '<svg class="auth-btn__logo" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></svg>';
 
 // Page publique (aussi déclarée dans App Store Connect) ; _blank l'ouvre dans Safari, hors de l'app
-const PRIVACY_URL = 'https://muscu-eta.vercel.app/privacy.html#compte';
+const PRIVACY_URL = 'https://mdlf.app/privacy.html#compte';
 const PROVIDER_NAMES = { apple: 'Apple', google: 'Google', email: 'un e-mail' };
 // « Tu étais connecté avec … », « utilise … » : moyen de la dernière connexion
 const METHOD_PHRASE = { apple: 'Apple', google: 'Google', email: 'un code par e‑mail' };

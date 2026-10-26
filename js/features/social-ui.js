@@ -11,7 +11,7 @@
 'use strict';
 
 const SOCIAL_VIEWS = ['friends', 'social-profile', 'social-session', 'social-manage', 'social-rules'];
-const RULES_URL = 'https://muscu-eta.vercel.app/privacy.html#communaute';
+const RULES_URL = 'https://mdlf.app/privacy.html#communaute';
 
 let socialAgeOk = false;       // case « J'ai 15 ans ou plus » de la carte d'activation
 let socialQuery = '';          // recherche saisie
@@ -373,17 +373,19 @@ SCREENS.set('social-rules', { render: () => renderSocialRules() });
 // Groupe ajouté au détail d'une séance (js/features/history.js) quand le social est activé
 function historySocialGroup(h) {
   if (!socialEnabled()) return '';
-  const n = myBravos(h.id);
+  // Masquée : les bravos déjà reçus restent comptés, mais plus personne ne la voit (le serveur refuse les nouveaux)
+  const n = myBravos(h.id), hidden = h.hidden === true;
   return `
         <div class="group-title">Amis</div>
         <div class="group">
-          <button class="cell" data-action="history-hide" data-id="${esc(h.id)}" role="switch" aria-checked="${h.hidden === true}">
+          <button class="cell" data-action="history-hide" data-id="${esc(h.id)}" role="switch" aria-checked="${hidden}">
             <span class="cell__body"><span class="cell__title">Masquer à mes abonnés</span></span>
-            <span class="switch ${h.hidden === true ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>
+            <span class="switch ${hidden ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>
           </button>
-          ${n ? `<div class="cell"><span class="cell__body"><span class="cell__title social-bravos-mine">${plural(n, 'bravo', 'bravos')}</span></span></div>` : ''}
+          ${n ? `<div class="cell"><span class="cell__body"><span class="cell__title social-bravos-mine">${plural(n, 'bravo', 'bravos')}${hidden ? ' reçus avant de la masquer' : ''}</span></span></div>` : ''}
         </div>
-        <div class="group-foot">Tes abonnés voient le nom, la date, la durée et les séries. Jamais tes notes ni ton poids.</div>`;
+        <div class="group-foot">${hidden ? 'Tes abonnés ne voient pas cette séance.'
+          : 'Tes abonnés voient le nom, la date, la durée et les séries. Jamais tes notes ni ton poids.'}</div>`;
 }
 
 // ── Flux d'actions ──────────────────────────────────────────

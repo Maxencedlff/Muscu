@@ -11,8 +11,8 @@ Les limites de longueur d'Apple sont indiquées entre crochets.
 - **Catégorie secondaire** : Style de vie (facultatif)
 - **Classification par âge** : 4+ (aucun contenu sensible : répondre « Non » partout)
 - **Copyright** : 2026 Maxence de La Fouchardière
-- **URL de confidentialité** : https://muscu-eta.vercel.app/privacy.html
-- **URL d'assistance** : https://muscu-eta.vercel.app/privacy.html#contact (ou une page dédiée plus tard)
+- **URL de confidentialité** : https://mdlf.app/privacy.html
+- **URL d'assistance** : https://mdlf.app/privacy.html#contact (ou une page dédiée plus tard)
 
 ## Texte promotionnel [170] (modifiable sans nouvelle version)
 

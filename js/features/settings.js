@@ -4,7 +4,7 @@
 'use strict';
 
 // Confidentialité et mentions légales (page publique, privacy.html) ; _blank l'ouvre dans Safari
-const LEGAL_URL = 'https://muscu-eta.vercel.app/privacy.html#mentions';
+const LEGAL_URL = 'https://mdlf.app/privacy.html#mentions';
 
 function agoText(ts) {
   const days = Math.floor((Date.now() - ts) / 86400000);
