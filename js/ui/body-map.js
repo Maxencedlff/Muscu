@@ -212,8 +212,8 @@ function bodyMapSvg(levels = {}, { view = 'both', body = bodySilhouette(), label
   return `<svg${standalone ? ' xmlns="http://www.w3.org/2000/svg"' : ''} class="body-map ${esc(className)}" data-body="${kind}" viewBox="${BODY_X0} 0 ${vbW} ${vbH}"${size}${a11y}>${svgViews}${caps}</svg>`;
 }
 
-// Choix de la silhouette des muscles (Réglages › Affichage, carte du premier lancement de l'accueil) ;
-// action set-silhouette dans js/features/settings.js
+// Choix de la silhouette des muscles (Réglages › Affichage) ; action set-silhouette dans js/features/settings.js
+// (premier lancement : les silhouettes elles-mêmes, js/features/onboarding.js)
 function silhouetteSegmentedHtml() {
   const cur = bodySilhouette();
   return `<div class="segmented seg-sm" role="group" aria-label="Silhouette de la carte des muscles">

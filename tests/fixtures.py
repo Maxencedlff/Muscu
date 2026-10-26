@@ -207,6 +207,14 @@ def seed(page, theme, ppl_v2=None, active=None, extra=None, url=None):
     page.wait_for_selector('#app > *')
 
 
+def skip_questions(page):
+    """Premier lancement (aucune séance) : « Plus tard » sur les questions, comme l'ancienne carte."""
+    btn = page.locator('.onb [data-action="onb-later"]')
+    if btn.count():
+        btn.click()
+        page.wait_for_timeout(300)
+
+
 def shot(page, lot, name):
     d = os.path.join(SHOTS, 'lot%s' % lot)
     os.makedirs(d, exist_ok=True)

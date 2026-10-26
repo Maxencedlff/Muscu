@@ -94,6 +94,7 @@ def t_empty(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, None)
+        skip_questions(page)
         tab(page, 2)
         R.check(page.locator('.mcard').count() == 1, f'{t} carte présente sans historique')
         R.check('Aucune séance' in page.locator('.mcard').inner_text(), f'{t} état vide')
@@ -220,16 +221,20 @@ def body_of(page, sel):
 def t_silhouette(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
-        # Premier lancement : choix dans la carte « Où t'entraînes-tu ? », sans la fermer
+        # Premier lancement : choix sur l'écran de résultat des questions, sans le quitter
         seed(page, theme, None)
-        seg = page.locator('.onboard [data-action="set-silhouette"]')
-        R.check(seg.count() == 2, f'{t} accueil : choix de la silhouette dans la carte du premier lancement')
-        R.check(page.locator('.onboard [data-val="male"]').get_attribute('aria-pressed') == 'true', f'{t} homme par défaut')
-        page.click('.onboard [data-action="set-silhouette"][data-val="female"]')
+        page.wait_for_selector('.onb__page--place')
+        for sel in ('[data-action="onb-place"][data-val="salle"]', '[data-action="onb-freq"][data-val="3"]', '[data-action="onb-level"][data-val="debutant"]'):
+            page.click(sel)
+            page.wait_for_timeout(300)
+        seg = page.locator('.onb [data-action="onb-silhouette"]')
+        R.check(seg.count() == 2, f'{t} premier lancement : les deux silhouettes sur le résultat')
+        R.check(page.locator('.onb [data-val="male"]').get_attribute('aria-pressed') == 'true', f'{t} homme par défaut')
+        page.click('.onb [data-action="onb-silhouette"][data-val="female"]')
         page.wait_for_timeout(250)
-        R.check(page.evaluate('data.silhouette') == 'female' and page.evaluate('data.onboarded') is False, f'{t} femme choisie, carte toujours là')
-        R.check(page.locator('.onboard [data-val="female"]').get_attribute('aria-pressed') == 'true', f'{t} état annoncé (aria-pressed)')
-        R.check(no_hscroll(page), f'{t} accueil : pas de défilement horizontal')
+        R.check(page.evaluate('data.silhouette') == 'female' and page.evaluate('data.onboarded') is False, f'{t} femme choisie, résultat toujours là')
+        R.check(page.locator('.onb [data-val="female"]').get_attribute('aria-pressed') == 'true', f'{t} état annoncé (aria-pressed)')
+        R.check(no_hscroll(page), f'{t} premier lancement : pas de défilement horizontal')
         shot(page, LOT, f'silhouette-accueil-{t}')
 
         # Données existantes : homme ; Réglages › Affichage › Silhouette, puis Progrès, fiche et story suivent

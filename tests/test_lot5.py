@@ -266,9 +266,11 @@ def t_programme(bench, eng, dev, theme):
         page.click('[data-action="save-ex"]')
         ex = page.evaluate("data.programmes.ppl.exercises.pull[0]")
         R.check(ex['sets'] == 5 and ex['rest'] == 120 and ex['target'] == 32.5 and ex['repMax'] == 12, f'{t} exercice : enregistré ({ex["sets"]}, {ex["rest"]}, {ex["target"]})')
-        # Changer de programme : confirmation, on reste sur Programme
+        # Changer de programme (Mes programmes) : confirmation, retour sur Programme
         go(page, 'programmes')
-        page.click('[data-action="go-prog-picker"]')
+        # Upper / Lower gardé dans Mes programmes (ajout depuis le catalogue : test_mes_programmes.py)
+        page.evaluate("addMyProgramme('upper_lower'); save()")
+        page.click('[data-action="go-my-programmes"]')
         R.check(page.locator('.cell--pick[aria-pressed="true"] .icon').count() == 1, f'{t} sélecteur : coche sur le programme actif')
         shot(page, LOT, f'picker_{dev}_{theme}')
         page.click('[data-action="select-prog"][data-id="upper_lower"]')

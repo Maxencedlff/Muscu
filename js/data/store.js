@@ -123,6 +123,7 @@ function makeDefaultData() {
     programmes: { ppl: makeProgData('ppl') },
     customSessions: {},
     userProgrammes: {},   // { id: { name, sessions: { cat: { label, icon, desc, color } }, archived } }
+    myProgrammes: ['ppl'], // Mes programmes : ids dans l'ordre choisi (intégrés gardés et programmes créés)
     defaultRest: 90,
     unit: 'kg',
     soundOn: true,
@@ -131,7 +132,7 @@ function makeDefaultData() {
     bodyWeightKg: null, // app iOS : poids de secours pour les calories
     musicOn: false,    // app iOS : Apple Music
     exEquip: 'all',    // feuille d'ajout d'exercice : filtre de matériel (id d'EQUIPMENT ou 'all')
-    onboarded: false,  // question « Où t'entraînes-tu ? » répondue (ou « Plus tard »)
+    onboarded: false,  // questions du premier lancement répondues (ou « Plus tard ») : js/features/onboarding.js
     healthKgPurged: true, // migration des pesées de Santé (normalizeData) : rien à faire sur une donnée neuve
     history: [],
     trash: [],          // { entry, deletedAt } : séances supprimées, récupérables TRASH_DAYS jours
@@ -280,7 +281,23 @@ function sanitizeData(d) {
   const limit = Date.now() - TRASH_DAYS * 86400000;
   d.trash = d.trash.filter(t => isObj(t) && Number.isFinite(t.deletedAt) && t.deletedAt > limit
     && cleanHistoryEntry(t.entry) && !kept.has(t.entry.id));
+  d.myProgrammes = cleanMyProgrammes(d);   // après l'historique : la migration le lit
   return d;
+}
+
+// Mes programmes : liste ordonnée choisie par la personne (programmes intégrés gardés, programmes créés).
+// Absente (données d'avant le 26/10/2026) : programme actif, programmes créés non archivés, puis
+// programmes intégrés ayant au moins une séance dans l'historique, dans cet ordre (rien ne disparaît).
+// Toujours : ids existants, sans doublon, l'actif dedans (ajouté en fin s'il manque), chaque programme
+// créé non archivé dedans (créé sur un autre appareil, il arrive par la synchro du profil sans que la
+// liste du compte le cite encore). « Perso » (ancien programme unique) seulement s'il est utilisé.
+function cleanMyProgrammes(d) {
+  const created = Object.keys(d.userProgrammes || {}).filter(id => !d.userProgrammes[id].archived);
+  const used = id => id !== 'custom' || Object.keys(d.customSessions || {}).length > 0 || d.activeProgramme === 'custom';
+  const known = id => typeof id === 'string' && (PROGRAMMES[id] ? used(id) : created.includes(id));
+  const base = Array.isArray(d.myProgrammes) ? d.myProgrammes
+    : [d.activeProgramme, ...created, ...Object.keys(PROGRAMMES).filter(id => (d.history || []).some(h => (h.programme || 'ppl') === id))];
+  return [...new Set([...base, d.activeProgramme, ...created])].filter(known);
 }
 
 // Dernier compte connecté sur cet appareil (data.lastAccount) : { method, username, signedOut? }.

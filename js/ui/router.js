@@ -231,7 +231,9 @@ const SCREENS = new Map([
   ['history-detail', { render: id => renderHistoryDetail(id), mount: () => socialLoadMyBravos({ minAge: SOCIAL_REFRESH_MS }) }],   // bravos reçus
   ['stats-ex',       { render: exId => renderStatsExercise(exId), mount: () => drawCharts() }],
   ['stats-overview', { render: () => renderStatsOverview() }],
-  ['prog-picker',    { render: () => renderProgPicker() }],
+  ['my-programmes',  { render: () => renderMyProgrammes() }],   // Programme › Mes programmes (et sous-titre de l'accueil)
+  ['prog-add',       { render: () => renderProgAdd() }],
+  ['prog-info',      { render: id => renderProgInfo(id) }],      // fiche d'un programme de « Tous les programmes »
   ['ex-edit',        { render: () => renderExEdit() }],
   ['cs-edit',        { render: () => renderCsEdit() }],
   ['trash',          { render: () => renderTrash() }],          // Réglages › Supprimés récemment
