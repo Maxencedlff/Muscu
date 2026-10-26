@@ -227,16 +227,19 @@ function weeklyGoal() {
 }
 
 // Cette semaine, en une carte : l'anneau des séances face à l'objectif, une pastille par jour (couleur
-// de la séance faite), puis la régularité et le volume en une ligne. Toute la carte mène aux progrès.
+// de la séance faite), puis les séances du mois et de l'année en une ligne. Toute la carte mène aux
+// progrès.
 const WEEK_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const WEEK_NAMES = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
-function weekLine(ws) {
-  const streak = computeStreak();
-  // Régularité : une semaine compte dès 2 séances (computeStreak)
-  const parts = [streak ? `${streak} semaine${streak > 1 ? 's' : ''} d'affilée`
-    : ws.count === 1 ? 'Encore une séance pour lancer ta série' : ''];
-  if (ws.volume) parts.push(`${fmtVolume(ws.volume)} soulevées`);
-  return parts.filter(Boolean).join(' · ');
+// Des cumuls, jamais décourageants : « 9 séances ce mois · 87 cette année ». En janvier, l'année
+// répéterait le mois : elle est omise. Le volume de la semaine n'y est plus : la ligne passait sur deux
+// lignes, même sur iPhone 13 (« 13 séances ce mois · 130 cette année · 12,4 t soulevées »).
+function weekLine(totals = historyTotals()) {
+  const { month, year } = totals;
+  const parts = [];
+  if (month) parts.push(`${plural(month, 'séance', 'séances')} ce mois`);
+  if (year > month) parts.push(month ? `${year} cette année` : `${plural(year, 'séance', 'séances')} cette année`);
+  return parts.join(' · ');
 }
 // Anneau des séances de la semaine (52 px, comme l'anneau Bouger d'Apple) : le compte au centre
 function weekRing(count, goal) {
@@ -254,8 +257,8 @@ function weekCard(ws) {
     return `<span class="week__day${today ? ' week__day--today' : ''}"><span class="week__letter">${l}</span><span class="week__dot${dot}"></span></span>`;
   }).join('');
   const done = ws.days.map((d, i) => d[0] ? `${WEEK_NAMES[i]} ${rawLabel(d[0].category, d[0].programme || 'ppl')}` : '').filter(Boolean);
-  const line = weekLine(ws);
-  const aria = `Cette semaine : ${ws.count} séance${ws.count > 1 ? 's' : ''} sur ${goal}${done.length ? ` (${done.join(', ')})` : ''}.${line ? ` ${line}.` : ''}`;
+  const line = weekLine();
+  const aria = `Cette semaine : ${ws.count} séance${ws.count > 1 ? 's' : ''} sur ${goal}${done.length ? ` (${done.join(', ')})` : ''}.${line ? ` ${line.replace(/ · /g, ', ')}.` : ''}`;
   return `
     <button class="home-card week" data-action="go-stats" aria-label="${esc(aria)}" aria-description="Voir les progrès">
       <span class="home-card__title" aria-hidden="true">Cette semaine</span>

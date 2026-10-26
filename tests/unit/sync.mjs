@@ -125,9 +125,17 @@ export default function ({ test, run, assert, sameJSON }) {
     sameJSON(r, [], 'clé à ajouter à SYNC_PROFILE_KEYS ou SYNC_LOCAL_ONLY (js/data/sync.js)');
     const both = run(`SYNC_PROFILE_KEYS.filter(k => SYNC_LOCAL_ONLY.includes(k))`);
     sameJSON(both, []);
-    for (const k of ['bodyWeightKg', 'healthOn', 'history']) assert.ok(run(`SYNC_LOCAL_ONLY.includes(${JSON.stringify(k)})`), k);
+    for (const k of ['bodyWeightKg', 'bodyWeightLog', 'healthOn', 'history']) assert.ok(run(`SYNC_LOCAL_ONLY.includes(${JSON.stringify(k)})`), k);
     // Silhouette : réglage du profil, le même sur tous les appareils du compte
     sameJSON(run(`profilePayload({ unit: 'kg', silhouette: 'female', soundOn: false })`), { unit: 'kg', silhouette: 'female' });
+  });
+
+  test('synchro : le poids du corps et ses pesées ne partent jamais sur le compte', () => {
+    const r = run(`(() => { const d = freshData(); d.bodyWeightKg = 72.5; d.bodyWeightLog = [{ date: 1e12, kg: 72.5 }];
+      const p = profilePayload(d), s = JSON.stringify(p) + JSON.stringify(sessionPayload({ id: 'a', date: 1e12, category: 'push', bodyKg: 72.5, exercises: [] }));
+      return { keys: Object.keys(p), leak: /bodyWeight|72[.]5/.test(s) }; })()`);
+    assert.ok(!r.keys.includes('bodyWeightLog') && !r.keys.includes('bodyWeightKg'), `profil : ${r.keys}`);
+    assert.equal(r.leak, false, 'aucune trace du poids dans ce qui part');
   });
 
   test('compte : effacer l\'appareil ou importer n\'envoie aucune suppression au compte', () => {

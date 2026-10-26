@@ -169,7 +169,7 @@ function renderStats() {
   const idx  = exerciseIndex();
   const now  = new Date();
   const monthCount = (data.history || []).filter(h => { const d = new Date(h.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length;
-  const streak  = computeStreak();
+  const yearCount = historyTotals().year;
   const records = weekRecordCount(idx);
 
   let list = '';
@@ -184,7 +184,7 @@ function renderStats() {
         <div class="group stats-head">
           <div class="stat-pair">
             <div class="stat-pair__item"><span class="stat-pair__val num">${monthCount}</span><span class="stat-pair__lbl">${monthCount > 1 ? 'séances' : 'séance'} ce mois-ci</span></div>
-            <div class="stat-pair__item"><span class="stat-pair__val num">${streak}</span><span class="stat-pair__lbl">${streak > 1 ? 'semaines' : 'semaine'} d'affilée</span></div>
+            <div class="stat-pair__item"><span class="stat-pair__val num">${yearCount}</span><span class="stat-pair__lbl">${yearCount > 1 ? 'séances' : 'séance'} cette année</span></div>
           </div>
           <button class="cell cell--nav" data-action="go-stats-overview">
             ${icon('chart', 22)}

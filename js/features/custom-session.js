@@ -100,7 +100,7 @@ registerActions({
     setTimeout(() => { if (currentRoute() === makeRoute('editor', id)) openAddExSheet({ target: 'programme' }); }, 380);
   },
   'delete-custom-session': async (e, el) => {
-    // Depuis l'écran de la séance (data-id) ou depuis « Nom, icône et couleur » (csEditId)
+    // Depuis l'écran de la séance (data-id) ou depuis « Nom et couleur » (csEditId)
     if (el.dataset.id) { csEditId = el.dataset.id; csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom'; }
     const id = csEditId, pid = csProg;
     const running = activeSession && activeSession.programme === pid && activeSession.category === id;

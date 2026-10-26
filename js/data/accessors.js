@@ -92,38 +92,19 @@ function firstSession() {
   return sessionKeys()[0] || '';
 }
 
-// Clé de la semaine ISO d'un horodatage : « 2026-W41 »
-function isoWeek(ts) {
-  const d = new Date(ts);
-  const day = d.getDay() || 7; // lundi = 1 … dimanche = 7
-  d.setDate(d.getDate() + 4 - day); // jeudi de la même semaine
-  const year = d.getFullYear();
-  const startOfYear = new Date(year, 0, 1);
-  const week = Math.ceil(((d - startOfYear) / 86400000 + 1) / 7);
-  return `${year}-W${String(week).padStart(2, '0')}`;
-}
-
-// Régularité : semaines consécutives avec au moins deux séances
-function computeStreak() {
-  const history = data.history || [];
-  if (!history.length) return 0;
-  const weekCounts = {};
-  history.forEach(h => { const k = isoWeek(h.date); weekCounts[k] = (weekCounts[k] || 0) + 1; });
-  const activeWeeks = new Set(Object.keys(weekCounts).filter(k => weekCounts[k] >= 2));
-  let streak = 0;
-  const now = new Date();
-  for (let i = 0; i < 104; i++) {
-    const ts = now.getTime() - i * 7 * 86400000;
-    const key = isoWeek(ts);
-    if (activeWeeks.has(key)) {
-      streak++;
-    } else if (i === 0) {
-      // semaine en cours pas encore validée : elle ne casse pas la série
-    } else {
-      break;
-    }
-  }
-  return streak;
+// Séances du mois et de l'année en cours (calendrier local), et au total : des cumuls qui ne font que
+// monter, à la place d'une série de semaines qui retombait à zéro après une semaine manquée
+function historyTotals(now = Date.now()) {
+  const d = new Date(now), y = d.getFullYear(), m = d.getMonth();
+  let month = 0, year = 0;
+  const hist = data.history || [];
+  hist.forEach(h => {
+    const t = new Date(h.date);
+    if (t.getFullYear() !== y) return;
+    year++;
+    if (t.getMonth() === m) month++;
+  });
+  return { month, year, total: hist.length };
 }
 
 // ── Silhouette des muscles ──────────────────────────────────

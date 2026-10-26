@@ -108,6 +108,7 @@ ${renderAppIconGroup()}
 
         <div class="group-title">À propos</div>
         <div class="group">
+          <button class="cell cell--nav" data-action="go-guide"><span class="cell__body"><span class="cell__title">Guide de l'app</span></span>${icon('chevron.right', 16)}</button>
           <div class="cell">
             <span class="cell__body"><span class="cell__title">MDLF Training<span id="appVersion"></span> · ${plural(nSess, 'séance', 'séances')}</span></span>
           </div>

@@ -41,6 +41,7 @@ const SCRIPTS = [
   'js/data/exercise-howto.js',
   'js/data/muscle-load.js',
   'js/data/app-icons.js',
+  'js/data/guide.js',
   'js/ui/forms.js',
   'js/ui/body-map.js',
   'js/ui/medal.js',
@@ -236,10 +237,25 @@ test('weekStats : séances et volume depuis lundi seulement', () => {
   assert.equal(ws.days.flat().length, 1, 'semaines précédentes ignorées');
 });
 
-test('weekLine : régularité et volume en une ligne, rien de décourageant', () => {
+test('weekLine : séances du mois et de l\'année, rien de décourageant', () => {
   reset();
-  assert.equal(app.weekLine({ count: 0, volume: 0 }), '', 'semaine vide sans série : ligne absente');
-  assert.equal(app.weekLine({ count: 1, volume: 1000 }), 'Encore une séance pour lancer ta série · 1 t soulevées');
+  const line = (month, year) => app.weekLine({ month, year });
+  assert.equal(line(0, 0), '', 'aucune séance : ligne absente');
+  assert.equal(line(9, 87), '9 séances ce mois · 87 cette année');
+  assert.equal(line(1, 1), '1 séance ce mois', 'janvier : l\'année répéterait le mois');
+  assert.equal(line(0, 12), '12 séances cette année', 'mois vide : pas de « 0 séance »');
+  assert.equal(line(0, 1), '1 séance cette année');
+  assert.ok(!/affil|série/.test(line(2, 5)), 'plus de série de semaines');
+});
+
+test('historyTotals : mois et année du calendrier local, total', () => {
+  reset();
+  const now = new Date(2026, 9, 26, 12).getTime();
+  const at = (y, m, d) => new Date(y, m, d, 12).getTime();
+  run(`data.history = ${JSON.stringify([at(2026, 9, 1), at(2026, 9, 25), at(2026, 0, 3), at(2025, 9, 20)].map((date, i) => ({ id: 'h' + i, date, exercises: [] })))}`);
+  const t = app.historyTotals(now);
+  assert.equal(t.month, 2); assert.equal(t.year, 3); assert.equal(t.total, 4);
+  assert.equal(run('typeof computeStreak'), 'undefined', 'série de semaines supprimée');
 });
 
 test('weeklyGoal : séances du programme par défaut, réglage borné par sanitizeData', () => {
@@ -1153,6 +1169,23 @@ test('données : poids de secours borné (25 à 300 kg), null sinon', () => {
   assert.equal(run('num("70,5", 25, 300)'), 70.5, 'virgule du clavier français acceptée');
 });
 
+test('pesées saisies : une par jour, bornées, nettoyées, gardées par l\'export et l\'import', () => {
+  reset();
+  const day = (d, h = 12) => new Date(2026, 9, d, h).getTime();
+  run(`logBodyWeight(72, ${day(1)}); logBodyWeight(73, ${day(2, 8)}); logBodyWeight(72.6, ${day(2, 20)})`);
+  sameJSON(run('data.bodyWeightLog'), [{ date: day(2, 20), kg: 72.6 }, { date: day(1), kg: 72 }], 'la dernière du jour remplace la précédente');
+  const d = run(`sanitizeData(Object.assign(makeDefaultData(), { bodyWeightLog: [{ date: ${day(3)}, kg: 5000 }, { date: 'x', kg: 70 }, null,
+    { date: ${day(4)}, kg: 70, extra: 1 }, { date: ${day(4, 9)}, kg: 71 }] }))`);
+  sameJSON(d.bodyWeightLog, [{ date: day(4), kg: 70 }], 'valeurs hors bornes, doublons du jour et champs inconnus retirés');
+  assert.equal('bodyWeightLog' in run(`sanitizeData(Object.assign(makeDefaultData(), { bodyWeightLog: 'x' }))`), false, 'liste illisible retirée');
+  run(`data.bodyWeightLog = Array.from({ length: 500 }, (_, i) => ({ date: ${day(1)} - i * 86400000, kg: 70 })); sanitizeData(data)`);
+  assert.equal(run('data.bodyWeightLog.length'), run('BODY_LOG_MAX'), 'bornée');
+  run(`data.bodyWeightLog = [{ date: ${day(5)}, kg: 71.2 }]`);
+  const r = run('importText(JSON.stringify({ ...data, _theme: "dark" }))');
+  assert.equal(r.ok, true);
+  sameJSON(run('data.bodyWeightLog'), [{ date: day(5), kg: 71.2 }], 'export puis import : pesées gardées');
+});
+
 test('Apple Music : barre masquée sans morceau dans l\'app Musique, visible en pause', () => {
   assert.equal(app.musicBarIdle(null), true);
   assert.equal(app.musicBarIdle({ playing: false }), true, 'Spotify ou rien : l\'app Musique ne renvoie aucun titre');
@@ -1361,6 +1394,8 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 (await import('./report.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Amis : logique pure du social (tests dans social.mjs) ──
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
+// ── Guide de l'app : contenus et libellés (tests dans guide.mjs) ──
+(await import('./guide.mjs')).default({ test, run, assert, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

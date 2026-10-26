@@ -79,7 +79,7 @@ def t_home(bench, eng, dev, theme):
         R.check(page.locator('.rings').count() == 0 and week.count() == 1, f'{t} une seule carte « Cette semaine », plus d\'anneaux')
         R.check(page.locator('.week__day').count() == 7 and page.locator('.week__letter').all_inner_texts() == list('LMMJVSD'), f'{t} 7 jours')
         R.check(page.locator('.week__dot').evaluate_all('ds => ds.every(d => !d.textContent.trim())'), f'{t} pastilles sans lettre')
-        R.check(page.locator('.week__ring .aring').count() == 1 and '/' in page.inner_text('.week__ring-val') and 'affilée' in page.inner_text('.week__line'), f'{t} un seul anneau (séances) et la régularité')
+        R.check(page.locator('.week__ring .aring').count() == 1 and '/' in page.inner_text('.week__ring-val') and any(w in page.inner_text('.week__line') for w in ('ce mois', 'cette année')) and 'affil' not in page.inner_text('.week'), f'{t} un seul anneau (séances) et les cumuls du mois et de l\'année')
         aria = week.get_attribute('aria-label')
         R.check(aria.startswith('Cette semaine : ') and 'sur' in aria, f'{t} VoiceOver : {aria!r}')
         R.check(page.locator('.dashboard .navbar [data-action="go-settings"] .icon').count() == 1, f'{t} sans compte : la roue des Réglages')
