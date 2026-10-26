@@ -220,7 +220,7 @@ test('exerciseTarget en lbs : palier de 5 lb', () => {
   assert.equal(t.text, '49,1 lbs');
 });
 
-test('weekStats : séances et volume depuis lundi, moyenne des 4 semaines d\'avant', () => {
+test('weekStats : séances et volume depuis lundi seulement', () => {
   reset();
   const now = new Date();
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)).getTime();
@@ -232,7 +232,13 @@ test('weekStats : séances et volume depuis lundi, moyenne des 4 semaines d\'ava
   assert.equal(ws.count, 1);
   assert.equal(ws.volume, 1000);
   assert.equal(ws.days[0].length, 1, 'séance du lundi dans la première colonne');
-  assert.equal(ws.avgVolume, 500, '2 000 kg sur les 4 semaines précédentes, la séance de -40 j exclue');
+  assert.equal(ws.days.flat().length, 1, 'semaines précédentes ignorées');
+});
+
+test('weekLine : régularité et volume en une ligne, rien de décourageant', () => {
+  reset();
+  assert.equal(app.weekLine({ count: 0, volume: 0 }), '', 'semaine vide sans série : ligne absente');
+  assert.equal(app.weekLine({ count: 1, volume: 1000 }), 'Encore une séance pour lancer ta série · 1 t soulevées');
 });
 
 test('weeklyGoal : séances du programme par défaut, réglage borné par sanitizeData', () => {

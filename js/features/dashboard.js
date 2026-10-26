@@ -207,21 +207,18 @@ function targetsCard(cat) {
     </section>`;
 }
 
-// Semaine en cours (lundi → dimanche) : séances par jour, volume ; et le volume moyen
-// des 4 semaines précédentes, pour remplir l'anneau du volume
+// Semaine en cours (lundi → dimanche) : séances par jour, nombre, volume
 function weekStats() {
   const now = new Date();
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)).getTime();
   const days = Array.from({ length: 7 }, () => []);
-  let count = 0, volume = 0, before = 0;
+  let count = 0, volume = 0;
   (data.history || []).forEach(h => {
-    const v = sessionVolume(h.exercises, entryBodyKg(h));
-    if (h.date >= monday) {
-      const i = Math.floor((h.date - monday) / 86400000);
-      if (i >= 0 && i < 7) { days[i].push(h); count++; volume += v; }
-    } else if (h.date >= monday - 28 * 86400000) before += v;
+    if (h.date < monday) return;
+    const i = Math.floor((h.date - monday) / 86400000);
+    if (i < 7) { days[i].push(h); count++; volume += sessionVolume(h.exercises, entryBodyKg(h)); }
   });
-  return { days, count, volume, avgVolume: before / 4, today: (now.getDay() + 6) % 7 };
+  return { days, count, volume, today: (now.getDay() + 6) % 7 };
 }
 
 // Objectif de séances par semaine : réglé par l'utilisateur, sinon le nombre de séances du programme
@@ -229,50 +226,42 @@ function weeklyGoal() {
   return data.weeklyGoal || Math.min(7, Math.max(1, sessionKeys().length)) || 3;
 }
 
-// Anneau d'activité (52 px) : progress de 0 à 1, couleur pleine sur une piste de la même couleur
-function activityRing(progress, color) {
-  const r = 22, c = 2 * Math.PI * r, p = Math.max(0, Math.min(1, progress));
-  return `<svg class="aring" width="52" height="52" viewBox="0 0 52 52" aria-hidden="true" style="--ring:${color}">
-    <circle cx="26" cy="26" r="${r}" class="aring__track"/>
-    <circle cx="26" cy="26" r="${r}" class="aring__fill" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - p)).toFixed(2)}"/>
-  </svg>`;
-}
-
-function ringsRow(ws) {
-  const goal = weeklyGoal(), streak = computeStreak();
-  // Régularité : la semaine en cours compte dès 2 séances (computeStreak)
-  const streakProgress = streak ? 1 : Math.min(1, ws.count / 2);
-  const tile = (ring, value, label, aria) =>
-    `<div class="rings__tile" role="img" aria-label="${esc(aria)}">${ring}<span class="rings__val num">${value}</span><span class="rings__lbl">${label}</span></div>`;
-  // Pas d'aria-label sur le bouton : il masquerait le texte affiché. VoiceOver lit les trois anneaux, puis la destination
-  return `
-    <button class="rings" data-action="go-stats" aria-description="Voir les progrès">
-      ${tile(activityRing(ws.count / goal, 'var(--red)'), `${ws.count}/${goal}`, 'séances', `${ws.count} séance${ws.count > 1 ? 's' : ''} sur ${goal} cette semaine`)}
-      ${tile(activityRing(ws.avgVolume ? ws.volume / ws.avgVolume : (ws.volume ? 1 : 0), 'var(--green)'), fmtVolume(ws.volume), 'volume', `Volume de la semaine : ${fmtVolume(ws.volume)}`)}
-      ${streak || !ws.count
-        ? tile(activityRing(streakProgress, 'var(--orange)'), `${streak} sem.`, 'd\'affilée', `Régularité : ${streak} semaine${streak > 1 ? 's' : ''} d'affilée`)
-        // Pas encore de semaine complète : on montre la semaine en cours plutôt qu'un « 0 sem. » décourageant
-        : tile(activityRing(streakProgress, 'var(--orange)'), `${ws.count}/2`, 'pour la série', `Régularité : ${ws.count} séance sur 2 pour compter la semaine`)}
-    </button>`;
-}
-
+// Cette semaine, en une carte : l'anneau des séances face à l'objectif, une pastille par jour (couleur
+// de la séance faite), puis la régularité et le volume en une ligne. Toute la carte mène aux progrès.
 const WEEK_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const WEEK_NAMES = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+function weekLine(ws) {
+  const streak = computeStreak();
+  // Régularité : une semaine compte dès 2 séances (computeStreak)
+  const parts = [streak ? `${streak} semaine${streak > 1 ? 's' : ''} d'affilée`
+    : ws.count === 1 ? 'Encore une séance pour lancer ta série' : ''];
+  if (ws.volume) parts.push(`${fmtVolume(ws.volume)} soulevées`);
+  return parts.filter(Boolean).join(' · ');
+}
+// Anneau des séances de la semaine (52 px, comme l'anneau Bouger d'Apple) : le compte au centre
+function weekRing(count, goal) {
+  const r = 22, c = 2 * Math.PI * r, p = Math.min(1, count / goal);
+  return `<span class="week__ring"><svg class="aring" width="52" height="52" viewBox="0 0 52 52" aria-hidden="true">
+    <circle cx="26" cy="26" r="${r}" class="aring__track"/>
+    <circle cx="26" cy="26" r="${r}" class="aring__fill" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - p)).toFixed(2)}"/>
+  </svg><span class="week__ring-val num">${count}/${goal}</span></span>`;
+}
 function weekCard(ws) {
-  const cells = WEEK_DAYS.map((l, i) => {
-    const h = ws.days[i][0];
-    const today = i === ws.today;
-    const label = `${WEEK_NAMES[i]}${today ? ', aujourd\'hui' : ''}${h ? ` : ${rawLabel(h.category, h.programme || 'ppl')}` : ''}`;
-    const box = h
-      ? `<span class="week__box week__box--done" style="--cat-color:${historyColor(h)};color:${textOnColor(historyColor(h))}">${esc(rawLabel(h.category, h.programme || 'ppl').charAt(0).toUpperCase())}</span>`
-      : `<span class="week__box${today ? ' week__box--today' : ''}"></span>`;
-    return `<li class="week__day${today ? ' week__day--today' : ''}" aria-label="${esc(label)}"><span class="week__letter" aria-hidden="true">${l}</span>${box}</li>`;
+  const goal = weeklyGoal();
+  const days = WEEK_DAYS.map((l, i) => {
+    const h = ws.days[i][0], today = i === ws.today;
+    const dot = h ? ` week__dot--done" style="--cat-color:${historyColor(h)}` : today ? ' week__dot--today' : '';
+    return `<span class="week__day${today ? ' week__day--today' : ''}"><span class="week__letter">${l}</span><span class="week__dot${dot}"></span></span>`;
   }).join('');
+  const done = ws.days.map((d, i) => d[0] ? `${WEEK_NAMES[i]} ${rawLabel(d[0].category, d[0].programme || 'ppl')}` : '').filter(Boolean);
+  const line = weekLine(ws);
+  const aria = `Cette semaine : ${ws.count} séance${ws.count > 1 ? 's' : ''} sur ${goal}${done.length ? ` (${done.join(', ')})` : ''}.${line ? ` ${line}.` : ''}`;
   return `
-    <section class="home-card week" aria-label="Cette semaine">
-      <h2 class="home-card__title">Cette semaine</h2>
-      <ul class="week__days">${cells}</ul>
-    </section>`;
+    <button class="home-card week" data-action="go-stats" aria-label="${esc(aria)}" aria-description="Voir les progrès">
+      <span class="home-card__title" aria-hidden="true">Cette semaine</span>
+      <span class="week__body" aria-hidden="true">${weekRing(ws.count, goal)}<span class="week__days">${days}</span></span>
+      ${line ? `<span class="week__line" aria-hidden="true">${esc(line)}${icon('chevron.right', 12)}</span>` : ''}
+    </button>`;
 }
 
 function renderDashboard() {
@@ -343,7 +332,10 @@ function renderDashboard() {
   const ws = weekStats();
   const color = next ? sessionMeta(next).color : 'var(--tint)';
   const date = fmtDate(Date.now(), 'day');
-  const right = `<button class="navbar__icon" data-action="go-settings" aria-label="Réglages">${icon('gear', 24)}</button>`;
+  // Connecté : l'avatar remplace la roue (comme l'App Store) ; il mène aux Réglages, Compte en tête
+  const right = account.user
+    ? `<button class="navbar__icon navbar__avatar" data-action="go-settings" aria-label="Compte et réglages">${avatarHtml('s')}</button>`
+    : `<button class="navbar__icon" data-action="go-settings" aria-label="Réglages">${icon('gear', 24)}</button>`;
   const sub = `<button class="navbar__sub" data-action="go-programmes" aria-label="Programme ${esc(pm.name)}, changer de programme">Programme ${esc(pm.name)} ${icon('chevron.right', 12)}</button>`;
 
   return `
@@ -353,7 +345,7 @@ function renderDashboard() {
         ${onboardingCard()}
         ${hero || emptyCustom}
         ${hero ? '' : accountHomeCard()}
-        ${keys.length ? ringsRow(ws) + weekCard(ws) : ''}
+        ${keys.length ? weekCard(ws) : ''}
         ${others ? `<section class="home-card home-card--list" aria-label="Autres séances"><h2 class="home-card__title">Autres séances</h2>${others}</section>` : ''}
       </div>
     </div>`;

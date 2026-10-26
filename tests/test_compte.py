@@ -293,6 +293,10 @@ def t_code(bench, eng, dev, theme):
         R.check('helene' not in json.dumps(page.evaluate('profilePayload(data)')), f'{t} pseudo absent du profil synchronisé')
         R.check(page.evaluate('data.lastAccount') == {'method': 'email', 'username': 'helene_dupont'}, f'{t} dernier compte gardé dans les données {page.evaluate("data.lastAccount")}')
         R.check(page.evaluate("document.getElementById('app').inert") is False, f'{t} app de nouveau utilisable')
+        # Accueil : l'avatar choisi remplace la roue, et mène aux Réglages (Compte en tête)
+        nav = page.locator('.dashboard .navbar__avatar')
+        R.check(nav.count() == 1 and '🦊' in nav.inner_text() and nav.get_attribute('aria-label') == 'Compte et réglages', f'{t} accueil : avatar à la place de la roue')
+        R.check(small_targets(page, '.dashboard .navbar__avatar') == 0, f'{t} avatar : cible de 44 pt')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
