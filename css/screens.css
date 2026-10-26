@@ -348,3 +348,17 @@ html.type-xl .segmented__btn { white-space: normal; overflow-wrap: anywhere; lin
 /* Lien dans un pied de groupe (Compte › Confidentialité) : texte teinté, zone de toucher agrandie sans décaler la ligne */
 .link-inline { font: inherit; color: var(--tint); background: none; border: 0; padding: 13px 6px; margin: -13px -6px; }
 .link-inline:active { opacity: .6; }
+
+/* ── Séances d'un programme expliquées (premier lancement, fiche du catalogue) ── */
+.view--grouped .cell.prog-sess, .onb .cell.prog-sess { min-height: 56px; }
+.prog-sess__plain { color: var(--label2); }
+.prog-sess .cell__sub { font-size: var(--fs-subhead); line-height: 1.25; margin-top: 2px; }
+
+/* ── Mes programmes (mode Modifier) et fiche d'un programme du catalogue ── */
+.mp-keep { width: 22px; flex-shrink: 0; }   /* programme actif : pas de ⊖, la ligne garde son alignement */
+.prog-info__why { margin: 4px 16px 16px; font-size: var(--fs-body); line-height: 1.38; color: var(--label2); text-wrap: pretty; }
+.prog-info__map { display: flex; justify-content: center; }
+.prog-info__map .body-map { width: min(100%, 240px); }
+.prog-info__actions { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
+.prog-info__btn { width: 100%; border-radius: var(--r-pill); }
+.prog-info__state { margin: 0; min-height: 44px; display: flex; align-items: center; justify-content: center; color: var(--label2); font-size: var(--fs-body); }

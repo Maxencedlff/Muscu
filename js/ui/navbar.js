@@ -134,7 +134,7 @@ function routeTitle(route, isRoot) {
     dashboard: 'Entraînement', history: 'Historique', stats: 'Progrès',
     programmes: 'Programme', settings: 'Réglages', account: 'Compte', session: 'Séance', summary: 'Bilan',
     'history-detail': 'Séance', 'stats-ex': 'Exercice', 'stats-overview': 'Vue d\'ensemble',
-    'prog-picker': 'Programme actif', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
+    'my-programmes': 'Mes programmes', 'prog-add': 'Ajouter', 'prog-info': 'Programme', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
   }[name] || 'Retour';
 }

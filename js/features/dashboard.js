@@ -336,7 +336,7 @@ function renderDashboard() {
   const right = account.user
     ? `<button class="navbar__icon navbar__avatar" data-action="go-settings" aria-label="Compte et réglages">${avatarHtml('s')}</button>`
     : `<button class="navbar__icon" data-action="go-settings" aria-label="Réglages">${icon('gear', 24)}</button>`;
-  const sub = `<button class="navbar__sub" data-action="go-programmes" aria-label="Programme ${esc(pm.name)}, changer de programme">Programme ${esc(pm.name)} ${icon('chevron.right', 12)}</button>`;
+  const sub = `<button class="navbar__sub" data-action="go-my-programmes" aria-label="Programme ${esc(pm.name)}, mes programmes">Programme ${esc(pm.name)} ${icon('chevron.right', 12)}</button>`;
 
   return `
     <div class="view dashboard" style="--cat-color:${color}">

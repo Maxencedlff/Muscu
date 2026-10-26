@@ -49,10 +49,11 @@ function recommendProgramme({ place, perWeek, level } = {}) {
   return beginner ? 'upper_lower' : 'ppl';
 }
 
-// Pourquoi ce programme, en une ou deux phrases (écran de résultat)
-function recommendReason(id, { perWeek, level } = {}) {
+// Pourquoi ce programme, en une ou deux phrases (écran de résultat, catalogue « Tous les programmes »).
+// orMore : 5 se lit « 5 séances ou plus » (réponse « 5 fois ou plus »), pas dans le catalogue
+function recommendReason(id, { perWeek, level, orMore = true } = {}) {
   const n = Math.max(2, Math.min(5, parseInt(perWeek, 10) || 3));
-  const times = n >= 5 ? '5 séances ou plus' : `${n} séances`;
+  const times = n >= 5 && orMore ? '5 séances ou plus' : `${n} séances`;
   const beginner = level === 'debutant';
   switch (id) {
     case 'fullbody':
@@ -67,6 +68,11 @@ function recommendReason(id, { perWeek, level } = {}) {
       return `${times} par semaine, au poids du corps : le haut du corps, puis le bas, en alternance. Aucun matériel.`;
     case 'maison_halteres':
       return `${times} par semaine avec des haltères : pousser, tirer, puis jambes, en alternance.`;
+    // Jamais conseillés par les questions, décrits dans le catalogue (js/data/my-programmes.js)
+    case 'bro':
+      return `${times} par semaine : un groupe de muscles par séance. Chaque muscle travaille une fois par semaine, avec beaucoup de volume.`;
+    case 'arnold':
+      return `${times} par semaine : pectoraux et dos, épaules et bras, puis jambes. Avec 5 séances ou plus, le cycle repasse dans la semaine.`;
     default:
       return '';
   }

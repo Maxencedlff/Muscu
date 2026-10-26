@@ -41,7 +41,8 @@ export default function ({ test, run, assert }) {
     }
     assert.equal(run("recommendReason('fullbody', { perWeek: 3, level: 'debutant' })"),
       '3 séances par semaine, tout le corps à chaque fois. Idéal pour débuter.');
-    assert.equal(run("recommendReason('bro', {})"), '');
+    assert.equal(run("recommendReason('custom', {})"), '');
+    for (const id of ['bro', 'arnold']) assert.ok(run(`recommendReason('${id}', { perWeek: 5 })`).startsWith('5 séances ou plus'), `${id} : catalogue`);
   });
 
   test('premier lancement : séances en clair, données intactes', () => {

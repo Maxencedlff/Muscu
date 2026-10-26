@@ -21,9 +21,11 @@
 'use strict';
 
 // Profil partagé entre les appareils du compte. silhouette (carte des muscles) : choix de la personne,
-// le même sur tous ses appareils comme l'unité ; pas une donnée de santé
+// le même sur tous ses appareils comme l'unité ; pas une donnée de santé. myProgrammes (liste ordonnée,
+// remplacée en bloc, pas fusionnée) : un programme créé sur un autre appareil y revient par
+// cleanMyProgrammes (store.js) après la fusion
 const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
-  'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'silhouette'];
+  'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'silhouette', 'myProgrammes'];
 // Restent sur l'appareil (liste tenue pour le test qui oblige à classer toute nouvelle clé).
 // lastAccount : moyen et pseudo du dernier compte connecté ici (reconnexion après une restauration iCloud)
 const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'healthOn', 'musicOn', 'soundOn', 'vibrateOn',

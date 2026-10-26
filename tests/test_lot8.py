@@ -140,9 +140,9 @@ def t_programmes(bench, eng, dev, theme):
         R.check('legs' not in data(page)['userProgrammes'][pid2]['sessions'], f'{t} séance supprimée depuis son écran')
 
         # 4. Le sélecteur liste les deux sous « Mes programmes »
-        page.click('[data-action="go-prog-picker"]')
-        page.wait_for_selector('.view.prog-picker')
-        txt = page.inner_text('.view.prog-picker')
+        page.click('[data-action="go-my-programmes"]')
+        page.wait_for_selector('.view.my-programmes')
+        txt = page.inner_text('.view.my-programmes')
         R.check('Force 5×5' in txt and 'PPL perso' in txt and 'mes programmes' in txt.lower(), f'{t} sélecteur : mes programmes')
         shot(page, LOT, f'selecteur-{t}')
         page.locator('[data-action="select-prog"]', has_text='Force 5×5').first.click()
@@ -159,9 +159,9 @@ def t_programmes(bench, eng, dev, theme):
         tab(page, 1)
         R.check('Haut du corps' in page.inner_text('#app'), f'{t} historique affiche encore la séance du programme supprimé')
         tab(page, 3)
-        page.click('[data-action="go-prog-picker"]')
-        page.wait_for_selector('.view.prog-picker')
-        R.check('Force 5×5' not in page.inner_text('.view.prog-picker'), f'{t} programme supprimé absent du sélecteur')
+        page.click('[data-action="go-my-programmes"]')
+        page.wait_for_selector('.view.my-programmes')
+        R.check('Force 5×5' not in page.inner_text('.view.my-programmes'), f'{t} programme supprimé absent du sélecteur')
 
         # 6. Après rechargement, tout est conservé ; l'ancien « Perso » reste accessible
         page.reload()

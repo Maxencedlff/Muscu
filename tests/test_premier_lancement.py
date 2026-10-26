@@ -71,7 +71,7 @@ def t_parcours(bench, eng, dev, theme):
         tap(page, '[data-action="onb-level"][data-val="confirme"]')
         R.check(step(page) == 'result', f'{t} résultat')
         R.check(page.locator('#onbTitle').inner_text().strip() == 'PPL', f'{t} salle, 3 fois, déjà entraîné : PPL')
-        rows = page.locator('.onb__session').all_inner_texts()
+        rows = page.locator('.onb .prog-sess').all_inner_texts()
         R.check(len(rows) == 3 and 'pousser' in rows[0] and 'pectoraux' in rows[0], f'{t} séances en clair {rows[:1]}')
         R.check(page.locator('.onb [data-action="onb-later"]').count() == 0, f'{t} résultat : pas de « Plus tard »')
 
@@ -82,12 +82,19 @@ def t_parcours(bench, eng, dev, theme):
         R.check(page.locator('.onb__reason').inner_text().strip() == '3 séances par semaine, tout le corps à chaque fois. Idéal pour débuter.',
                 f'{t} phrase du Full Body')
 
-        # Silhouette : choisie sur le résultat, sans quitter l'écran
-        R.check(page.get_attribute('.onb [data-action="onb-silhouette"][data-val="male"]', 'aria-pressed') == 'true', f'{t} homme par défaut')
+        # Silhouettes : Femme et Homme côte à côte, muscles du programme surlignés, un toucher choisit
+        bodies = page.locator('.onb .onb__body')
+        R.check(bodies.count() == 2 and bodies.nth(0).get_attribute('aria-label') == 'Silhouette femme'
+                and bodies.nth(1).get_attribute('aria-label') == 'Silhouette homme', f'{t} deux silhouettes nommées pour VoiceOver')
+        R.check(page.locator('.onb [data-action="onb-silhouette"][data-val="male"]').get_attribute('aria-pressed') == 'true', f'{t} homme par défaut')
+        lit = page.evaluate("[...document.querySelectorAll('.onb__body[data-val=\"male\"] path[data-muscle][fill-opacity]')].map(p => p.dataset.muscle)")
+        R.check({'chest', 'quads', 'lats'} <= set(lit), f'{t} muscles du Full Body surlignés {sorted(set(lit))[:6]}')
+        R.check(page.locator('.onb .segmented').count() == 0, f'{t} plus de contrôle segmenté')
         tap(page, '.onb [data-action="onb-silhouette"][data-val="female"]')
         R.check(page.evaluate('data.silhouette') == 'female' and page.evaluate('data.onboarded') is False and step(page) == 'result',
                 f'{t} femme choisie, résultat toujours là')
-        R.check(page.get_attribute('.onb [data-action="onb-silhouette"][data-val="female"]', 'aria-pressed') == 'true', f'{t} état annoncé')
+        R.check(page.locator('.onb [data-val="female"]').get_attribute('aria-pressed') == 'true'
+                and 'onb__body--on' in page.locator('.onb [data-val="female"]').get_attribute('class'), f'{t} silhouette choisie encadrée, état annoncé')
         R.check(small_targets(page) == 0 and not overflowing(page) and no_hscroll(page), f'{t} résultat : 44 pt, rien de coupé {overflowing(page)}')
         R.check(page.evaluate("(() => { const r = document.querySelector('[data-action=\"onb-start\"]').getBoundingClientRect(); return r.bottom <= innerHeight; })()"),
                 f'{t} « Commencer » visible sans défiler')
@@ -106,6 +113,7 @@ def t_parcours(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         got = page.evaluate('[data.activeProgramme, data.exEquip, data.weeklyGoal, data.onboarded]')
         R.check(got == ['maison_halteres', 'halteres', 4, True], f'{t} Commencer : programme, matériel, objectif {got}')
+        R.check(page.evaluate('data.myProgrammes') == ['maison_halteres'], f'{t} Mes programmes : le conseil seul')
         R.check(page.locator('.onb').count() == 0 and page.evaluate('view') == 'dashboard', f'{t} accueil après Commencer')
         R.check(page.evaluate("document.getElementById('app').inert") is False, f'{t} app de nouveau active')
         page.reload()
@@ -134,9 +142,10 @@ def t_plus_tard_et_autres(bench, eng, dev, theme):
         tap(page, '[data-action="onb-level"][data-val="debutant"]')
         R.check(page.locator('#onbTitle').inner_text().strip() == 'Upper / Lower', f'{t} débutant, 5 fois : Upper / Lower')
         tap(page, '[data-action="onb-others"]')
-        page.wait_for_selector('.view.prog-picker')
-        R.check(page.get_attribute('.prog-picker [data-action="select-prog"][data-id="upper_lower"]', 'aria-pressed') == 'true',
-                f'{t} liste des programmes, Upper / Lower coché')
+        page.wait_for_selector('.view.prog-add')
+        row = page.locator('.prog-add [data-action="open-prog-info"][data-id="upper_lower"]')
+        R.check('Actif' in row.inner_text(), f'{t} Voir les autres : catalogue, Upper / Lower actif')
+        R.check(page.evaluate('[data.activeProgramme, data.myProgrammes]') == ['upper_lower', ['upper_lower']], f'{t} conseil appliqué et dans Mes programmes')
         R.check(page.evaluate('[data.weeklyGoal, data.onboarded]') == [5, True], f'{t} objectif 5, questions passées')
 
         # Utilisateur existant (séances) : rien

@@ -60,7 +60,7 @@ def active(now, prog, cat):
 
 
 ROUTES = ['dashboard', 'programmes', 'editor:{c}', 'ex-edit:{c}:0', 'history', 'history-detail:{h}', 'stats',
-          'stats-ex:e1', 'stats-overview', 'stats-muscles', 'settings', 'summary', 'prog-picker', 'cs-edit',
+          'stats-ex:e1', 'stats-overview', 'stats-muscles', 'settings', 'summary', 'my-programmes', 'prog-add', 'prog-info:ppl', 'cs-edit',
           'add-session', 'session']
 CASES = [('ppl', 'push', 'h1'), ('u_a', 's1', 'h2'), ('custom', 'cs1', 'h3')]
 

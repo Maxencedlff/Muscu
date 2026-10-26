@@ -2,8 +2,8 @@
 //  Premier lancement : trois questions puis le programme conseillé, en plein écran
 //
 //  Où ? → Combien de fois par semaine ? → Ton niveau ? → résultat (programme en clair, pourquoi,
-//  séances et muscles, silhouette Femme / Homme). Un toucher sur une réponse passe à la suivante ;
-//  « Retour » en haut à gauche, « Plus tard » en haut à droite (rien n'est imposé, comme avant).
+//  silhouettes Femme et Homme aux muscles du programme surlignés, séances). Un toucher sur une
+//  réponse passe à la suivante ; « Retour » en haut à gauche, « Plus tard » en haut à droite (rien n'est imposé, comme avant).
 //  Plein écran plutôt qu'une carte de l'accueil : sans explication, l'accueil montrait « Push » à qui
 //  ne sait pas ce qu'est un PPL ; les questions passent avant, une par écran, comme Bienvenue.
 //  Calque bâti comme celui des écrans du compte (css/account.css, .auth) : app inerte dessous (MODAL_SEL).
@@ -104,22 +104,13 @@ const ONB_STEPS = {
 
   result: () => {
     const id = recommendProgramme(onb);
-    const rows = programmePreview(id).map(s => `
-        <div class="cell onb__session">
-          ${catBadge(s.color)}
-          <span class="cell__body">
-            <span class="cell__title">${esc(s.label)}${s.plain ? ` <span class="onb__plain">· ${esc(s.plain.toLowerCase())}</span>` : ''}</span>
-            <span class="cell__sub">${esc(s.muscles)}</span>
-          </span>
-        </div>`).join('');
     return `
       <p class="onb__eyebrow">Ton programme</p>
       <h1 class="auth__title auth__title--left" id="onbTitle" tabindex="-1">${esc(PROGRAMMES[id].name)}</h1>
       <p class="auth__lead auth__lead--left onb__reason">${recommendReason(id, onb)}</p>
-      <div class="group onb__group">${rows}</div>
-      <div class="onb__silhouette">
-        <span class="onb__label">Silhouette des muscles</span>${silhouetteSegmentedHtml('onb-silhouette')}
-      </div>
+      <p class="onb__label" id="onbBodies">Muscles travaillés. Touche ta silhouette.</p>
+      <div class="onb__bodies" role="group" aria-labelledby="onbBodies">${onbBodiesHtml(programmeMuscleLevels(id))}</div>
+      <div class="group onb__group">${programmeSessionsHtml(id)}</div>
       <div class="onb__actions">
         <button class="btn btn--primary auth__primary" data-action="onb-start">Commencer</button>
         <button class="auth__skip" data-action="onb-others">Voir les autres programmes</button>
@@ -127,9 +118,24 @@ const ONB_STEPS = {
   },
 };
 
-// Réponses appliquées : programme, filtre de matériel, objectif de la semaine
+// Silhouettes Femme et Homme côte à côte, muscles du programme surlignés : un toucher choisit
+// (data.silhouette, comme Réglages › Affichage). La choisie est encadrée et cochée, l'autre atténuée.
+function onbBodiesHtml(levels) {
+  const cur = bodySilhouette();
+  return SILHOUETTES.map(([v, l]) => `
+    <button class="onb__body${cur === v ? ' onb__body--on' : ''}" data-action="onb-silhouette" data-val="${v}"
+      aria-pressed="${cur === v}" aria-label="Silhouette ${l.toLowerCase()}">
+      ${bodyMapSvg(levels, { body: v })}
+      <span class="onb__body-name" aria-hidden="true">${cur === v ? icon('checkmark', 14) : ''}${l}</span>
+    </button>`).join('');
+}
+
+// Réponses appliquées : programme (seul dans Mes programmes), filtre de matériel, objectif de la semaine
 function applyOnboarding() {
-  activateProgramme(recommendProgramme(onb));
+  const id = recommendProgramme(onb);
+  // Nouvel utilisateur : Mes programmes commence par le conseil seul (pas le PPL par défaut, jamais choisi)
+  data.myProgrammes = [id];
+  activateProgramme(id);
   data.exEquip = ONB_PLACES[onb.place]?.equip || 'all';
   if (onb.perWeek) data.weeklyGoal = onb.perWeek;
   data.onboarded = true;
@@ -147,14 +153,12 @@ registerActions({
     if (!SILHOUETTES.some(([v]) => v === el.dataset.val)) return;
     data.silhouette = el.dataset.val;
     save();
-    onb.root?.querySelectorAll('[data-action="onb-silhouette"]').forEach(b => {
-      const on = b.dataset.val === data.silhouette;
-      b.classList.toggle('segmented__btn--active', on);
-      b.setAttribute('aria-pressed', String(on));
-    });
+    const box = onb.root?.querySelector('.onb__bodies');
+    if (box) box.innerHTML = onbBodiesHtml(programmeMuscleLevels(recommendProgramme(onb)));
+    box?.querySelector(`[data-val="${data.silhouette}"]`)?.focus({ preventScroll: true });
     haptic();
   },
   'onb-start': () => { applyOnboarding(); haptic(); closeOnboarding(); render(); },
-  // Programme conseillé déjà coché dans la liste : un toucher en choisit un autre
-  'onb-others': () => { applyOnboarding(); closeOnboarding(); navigate('prog-picker'); },
+  // Conseil appliqué (actif, dans Mes programmes), puis le catalogue pour en essayer un autre
+  'onb-others': () => { applyOnboarding(); closeOnboarding(); navigate('prog-add'); },
 });

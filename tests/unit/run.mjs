@@ -41,6 +41,7 @@ const SCRIPTS = [
   'js/data/muscle-load.js',
   'js/data/app-icons.js',
   'js/data/onboarding.js',
+  'js/data/my-programmes.js',
   'js/ui/forms.js',
   'js/ui/body-map.js',
   'js/ui/medal.js',
@@ -1359,6 +1360,9 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 
 // ── Premier lancement : questions et programme conseillé (tests dans onboarding.mjs) ──
 (await import('./onboarding.mjs')).default({ test, run, assert });
+
+// ── Mes programmes : migration, nettoyage, liste, catalogue (tests dans my-programmes.mjs) ──
+(await import('./my-programmes.mjs')).default({ test, run, reset, assert });
 
 // ── Exécution ───────────────────────────────────────────────
 
