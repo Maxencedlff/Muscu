@@ -411,4 +411,27 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(p.consigne, 'Trois fois par semaine', 'programme intégré : consigne reprise au renvoi');
     assert.equal(p.sessions[0].exercises[0].consigne, 'Coudes serrés');
   });
+
+  test('coach : état des programmes envoyés (sent du serveur, sinon déduction locale)', () => {
+    const st = run(`cleanCoachState({ is_coach: true, students: [{ user_id: 'e', username: 'lea', sent: [
+      { id: 'u_a', sent_at: 1000, seen: false }, { id: 'u_b', sent_at: 2000, seen: true }, { id: 'u_c', sent_at: 3000, seen: true }, { id: '../x' }] }] })`);
+    sameJSON(st.students[0].sent.map(x => x.id), ['u_a', 'u_b', 'u_c'], 'identifiants sûrs seulement');
+    assert.equal(run(`cleanCoachState({ is_coach: true, students: [{ user_id: 'e' }] }).students[0].sent`), null, 'champ absent : null (repli)');
+    const r = run(`(() => {
+      const user = account.user, saved = { ...coach };
+      try {
+        account.user = { id: 'c1' };
+        coach.userId = 'c1';
+        coach.state = ${JSON.stringify(st)};
+        const rows = [{ doneAt: 2500, s: { programme: 'u_cc1_u_b' } }, { doneAt: 2500, s: { programme: 'u_cc1_u_c' } }];
+        const server = coachSentStatus('e', rows).map(x => x.progId + ':' + x.state);
+        coach.state = cleanCoachState({ is_coach: true, students: [{ user_id: 'e' }] });
+        localStorage.removeItem(COACH_SENT_KEY);
+        coachRecordSent('e', 'u_z', 100); coachRecordSent('e', 'u_y', 100);
+        const local = coachSentStatus('e', [{ doneAt: 200, s: { programme: 'u_cc1_u_y' } }]).map(x => x.progId + ':' + x.state);
+        return [server, local];
+      } finally { account.user = user; Object.assign(coach, saved); localStorage.removeItem(COACH_SENT_KEY); }
+    })()`);
+    sameJSON(r, [['u_c:unused', 'u_b:used', 'u_a:unseen'], ['u_z:unused']]);
+  });
 }

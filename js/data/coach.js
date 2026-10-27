@@ -49,7 +49,11 @@ function cleanStudent(raw) {
   const nInt = v => (Number.isInteger(v) && v >= 0 ? v : 0);
   const ls = raw.last_session && typeof raw.last_session === 'object' ? raw.last_session : null;
   const lastAt = ls ? coachTime(ls.done_at) : coachTime(raw.last_session_at);
-  return { ...p, sessions_7d: nInt(raw.sessions_7d), new_sessions: nInt(raw.new_sessions),
+  // sent : mes programmes envoyés à cet élève et s'il les a ouverts (null : serveur sans ce champ)
+  const sent = Array.isArray(raw.sent) ? raw.sent
+    .filter(x => x && typeof x.id === 'string' && COACH_PROG_ID_RE.test(x.id))
+    .map(x => ({ id: x.id, sentAt: coachTime(x.sent_at) ?? 0, seen: x.seen === true })) : null;
+  return { ...p, sessions_7d: nInt(raw.sessions_7d), new_sessions: nInt(raw.new_sessions), sent,
     last_session: lastAt === null ? null : { done_at: lastAt, label: coachStr(ls?.label, 60).trim() || 'Séance', programme: coachStr(ls?.programme, 50) } };
 }
 
@@ -632,6 +636,21 @@ function coachUnusedSent(student, sessions) {
   return Object.entries(sent).filter(([progId, at]) =>
     !sessions.some(r => coachSentIdOf(r.s.programme, me) === progId && r.doneAt >= at))
     .map(([progId, sentAt]) => ({ progId, sentAt }));
+}
+
+// Programmes envoyés à cet élève et ce qu'il en a fait : [{ progId, sentAt, state }], state = 'unseen'
+// (pas encore ouvert), 'unused' (vu, pas encore de séance avec depuis l'envoi), 'used' (vu, séance faite).
+// Source : sent de coach_state ; sinon (serveur sans ce champ) mes envois gardés sur l'appareil, réduits à
+// ceux sans séance (state 'unused', l'ouverture n'étant pas connue)
+function coachSentStatus(student, sessions) {
+  const st = coach.state?.students.find(s => s.user_id === student);
+  const me = account.user?.id;
+  const used = (progId, at) => sessions.some(r => coachSentIdOf(r.s.programme, me) === progId && r.doneAt >= at);
+  if (Array.isArray(st?.sent)) {
+    return st.sent.slice().sort((a, b) => b.sentAt - a.sentAt)
+      .map(x => ({ progId: x.id, sentAt: x.sentAt, state: !x.seen ? 'unseen' : used(x.id, x.sentAt) ? 'used' : 'unused' }));
+  }
+  return coachUnusedSent(student, sessions).map(x => ({ ...x, state: 'unused' }));
 }
 
 // Coach : autoriser un élève retiré à revenir avec un de mes codes

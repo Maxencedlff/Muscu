@@ -613,9 +613,14 @@ function renderCoachStudent(uid) {
     list = `<div class="group coach-sess-list">${f.rows.map(r => coachSessionCell(uid, r)).join('')}</div>
       ${f.end ? '' : `<button class="btn-more" data-action="coach-more" data-uid="${esc(uid)}" ${f.loading ? 'disabled' : ''}>${f.loading ? 'Chargement…' : 'Afficher plus'}</button>`}`;
   }
-  // Programmes envoyés (depuis cet appareil) sans séance faite avec depuis l'envoi
-  const unused = f.loadedAt ? coachUnusedSent(uid, f.rows) : [];
-  const sent = unused.length ? `<div class="group-foot coach-unused">${unused.map(u => `« ${esc(progMeta(u.progId).name)} », envoyé le ${esc(fmtDate(u.sentAt, 'short'))} : pas encore de séance avec.`).join('<br>')}</div>` : '';
+  // Programmes envoyés : pas encore ouvert, vu, pas encore de séance avec (coachSentStatus)
+  const sentList = f.loadedAt || coachStudent(uid)?.sent ? coachSentStatus(uid, f.rows) : [];
+  const STATE = { unseen: 'Pas encore ouvert', unused: 'Vu, pas encore de séance avec', used: 'Vu' };
+  const sent = sentList.length ? `
+        <div class="group-title">Programmes envoyés</div>
+        <div class="group">${sentList.map(x => `
+          <div class="cell coach-sent" data-prog="${esc(x.progId)}"><span class="cell__body"><span class="cell__title">${esc(progMeta(x.progId).name)}</span><span class="cell__sub">Envoyé le ${esc(fmtDate(x.sentAt, 'short'))}</span><span class="cell__sub coach-sent__state coach-sent__state--${x.state}">${STATE[x.state]}</span></span></div>`).join('')}</div>` : '';
+
   return `
     <div class="view view--grouped coach-student-view">
       ${head}

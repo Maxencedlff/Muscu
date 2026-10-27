@@ -33,6 +33,7 @@ invalid_programme, username_required sans pseudo), comme supabase/migrations/202
 badge_student (badge = leur somme), new_sessions depuis le lien tant que le coach n'a rien ouvert, 10 aperçus ou
 adhésions réussis par heure, rejoindre le même coach renvoie le coach, coach_preview avec since null. Élève retiré :
 listé dans removed, ses codes de ce coach répondent invalid_code jusqu'à coach_allow_student(student).
+students[].sent : programmes que je lui ai envoyés, { id, sent_at, seen }.
 État dans __sb.co ; __sb.makeCoach(id) pose coach_at, __sb.link(coach, élève) relie deux comptes. Appels dans
 __sb.calls sous ['coach', fonction, arguments] ; __sb.fail.coach = 'offline' pour le hors ligne.
 """
@@ -371,7 +372,8 @@ FAKE_ACCOUNT = r"""
         const ps = livePosts(x.student).sort((a, b) => b.data.date - a.data.date);
         const last = ps[0];
         return { ...cperson(x.student, x.at), last_session_at: last ? last.data.date : null, sessions_7d: ps.filter(p => p.data.date > now() - 7 * 86400_000).length,
-          new_sessions: ps.filter(p => p.data.date > (x.seen ?? x.at)).length, last_session: last ? { done_at: last.data.date, label: last.data.label || 'Séance', programme: last.data.programme } : null };
+          new_sessions: ps.filter(p => p.data.date > (x.seen ?? x.at)).length,
+          sent: co.progs.filter(p => p.coach === me && p.student === x.student).map(p => ({ id: p.id, sent_at: p.sent_at, seen: p.seen })), last_session: last ? { done_at: last.data.date, label: last.data.label || 'Séance', programme: last.data.programme } : null };
       }) : [];
       const unseen = l ? co.progs.filter(p => p.student === me && p.coach === l.coach && !p.seen).length + co.notes.filter(n => n.student === me && n.coach === l.coach && !n.seen).length : 0;
       const badgeCoach = students.reduce((a, s) => a + s.new_sessions, 0);

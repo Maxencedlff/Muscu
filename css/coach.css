@@ -150,3 +150,6 @@
 /* Onglet Amis : cellule du coach en haut, ou sous la carte d'activation des amis (#coachCellLow) */
 #coachCell .coach-head { margin-bottom: 12px; }
 #coachCellLow .coach-head { margin: 24px 0 0; }
+/* Programmes envoyés à un élève : état à droite */
+.coach-sent__state { color: var(--label); }
+.coach-sent__state--unseen { color: var(--orange-text); }
