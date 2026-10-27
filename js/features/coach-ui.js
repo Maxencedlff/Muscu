@@ -163,7 +163,7 @@ function renderCoachSettings() {
         <div class="group">
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
         </div>
-        <div class="group-foot">Si tu quittes ${esc(personName(me))}, ${esc(personName(me))} ne verra plus tes séances. Les programmes déjà ajoutés restent dans tes programmes.</div>` : `
+        <div class="group-foot">Si tu le quittes, ton coach ne verra plus tes séances. Les programmes déjà ajoutés restent dans tes programmes.</div>` : `
         <div class="social-hero coach-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
@@ -348,7 +348,7 @@ function renderCoachMine() {
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
         </div>
-        <div class="group-foot">Si tu quittes ${esc(personName(p))}, ${esc(personName(p))} ne verra plus tes séances.</div>
+        <div class="group-foot">Si tu le quittes, ton coach ne verra plus tes séances.</div>
       </div>
     </div>`;
 }
@@ -444,9 +444,25 @@ async function addCoachProgrammeFlow(progId, { take = false } = {}) {
 function coachProgOf(progId) { return data.userProgrammes?.[progId]?.fromCoach ? data.userProgrammes[progId] : null; }
 function coachAuthor(up) { return up?.fromCoach?.name || 'ton coach'; }
 // « De ton coach max » : Mes programmes, accueil
+// « De ton coach max » tant qu'on suit ce coach ; ensuite « Reçu de max » (ou rien si le nom manque)
 function coachFromLine(progId) {
   const up = coachProgOf(progId);
-  return up ? `De ton coach ${esc(coachAuthor(up))}` : '';
+  if (!up) return '';
+  const name = up.fromCoach.name;
+  if (myCoach()?.user_id && myCoach().user_id === up.fromCoach.coachId) return `De ton coach ${esc(name || myCoach().username || '')}`.trim();
+  return name ? `Reçu ${elide('de', esc(name))}` : '';
+}
+
+// Accueil : muscles d'une séance d'un programme reçu (le coach n'envoie pas de description) : les plus
+// travaillés par ses exercices, comme « Pectoraux · Épaules · Triceps » des programmes intégrés
+function coachSessionDesc(progId, cat) {
+  if (!coachProgOf(progId)) return '';
+  const count = new Map();
+  (data.programmes[progId]?.exercises?.[cat] || []).forEach(e => exerciseMuscles(e).primary.forEach(id => {
+    const label = MUSCLE_BY_ID.get(id)?.short || muscleLabel(id);
+    count.set(label, (count.get(label) || 0) + 1);
+  }));
+  return esc([...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([l]) => l).join(' · '));
 }
 
 // Programme et Programme › Séance : consigne générale du programme
@@ -640,7 +656,7 @@ function renderCoachStudent(uid) {
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="coach-remove" data-uid="${esc(uid)}">Retirer l'élève</button>
         </div>
-        <div class="group-foot">Tu ne verras plus ses séances, et ses codes ne marcheront plus pour cette personne, sauf si tu autorises son retour.</div>
+        <div class="group-foot">Tu ne verras plus ses séances, et tes codes ne marcheront plus pour cette personne, sauf si tu autorises son retour.</div>
       </div>
     </div>`;
 }
@@ -924,6 +940,7 @@ registerActions({
     coachSendDraft = null;
     coachSaveSendDraft();
     goBack();
+    coachRefresh();   // « Programmes envoyés » : « Pas encore ouvert » tout de suite, renvoi compris
   },
 });
 

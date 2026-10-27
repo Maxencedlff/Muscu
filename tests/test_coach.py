@@ -260,6 +260,7 @@ def t_eleve(bench, eng, dev, theme):
         page.evaluate("routeTo('dashboard')")
         page.wait_for_timeout(300)
         R.check('De ton coach max' in page.inner_text('.dashboard'), f'{t} accueil : « De ton coach max »')
+        R.check(page.locator('.hero__desc').count() == 1 and 'Pectoraux' in page.inner_text('.hero__desc'), f'{t} accueil : muscles de la séance du coach')
         page.evaluate("routeTo('programmes')")
         page.wait_for_timeout(300)
         R.check('trois séances par semaine' in page.inner_text('.programmes').lower(), f'{t} page Programme : consigne générale')
@@ -279,6 +280,8 @@ def t_eleve(bench, eng, dev, theme):
         # Séance : consigne sous le nom, repliable d'un toucher
         page.evaluate("startSession('sA')")
         page.wait_for_selector('.coach-tip')
+        page.wait_for_timeout(400)
+        R.check(page.evaluate("(() => { const r = document.querySelector('.coach-tip[data-ex=\"\"]').getBoundingClientRect(); return r.top >= document.querySelector('.navbar').getBoundingClientRect().bottom - 1; })()"), f'{t} séance ouverte en haut : consigne générale visible')
         R.check(page.locator('.coach-tip').count() == 3, f'{t} séance : consigne du programme, d\'un exercice et du superset ({page.locator(".coach-tip").count()})')
         tip = page.locator('.coach-tip[data-ex]:not([data-ex=""])').first
         R.check(tip.get_attribute('aria-expanded') == 'true' and 'Coudes serrés' in tip.inner_text(), f'{t} consigne dépliée')
@@ -394,6 +397,7 @@ def t_eleve(bench, eng, dev, theme):
         page.wait_for_timeout(500)
         R.check(page.evaluate('__sb.co.links.length') == 0 and page.evaluate("!!data.userProgrammes.u_c00000000_u_force"), f'{t} lien supprimé, programme gardé')
         R.check(page.locator('[data-action="coach-open-mine"]').count() == 0, f'{t} plus de cellule Mon coach')
+        R.check(page.evaluate("coachFromLine('u_c00000000_u_force')") == 'Reçu de max', f'{t} coach quitté : « Reçu de max »')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -546,12 +550,17 @@ def t_coach(bench, eng, dev, theme):
         R.check(page.evaluate("data.programmes.u_force.exercises.sA[0].consigne") == 'Coudes serrés.', f'{t} consignes gardées pour le prochain envoi')
         R.check(page.evaluate('view') == 'coach-student' and 'envoyé à lea' in toast(page), f'{t} retour à l\'élève, toast ({toast(page)!r})')
         page.wait_for_timeout(300)
-        page.evaluate('coachRefresh()')
         page.wait_for_timeout(400)
-        R.check(page.locator('.coach-sent[data-prog="u_force"] .coach-sent__state--unseen').inner_text() == 'Pas encore ouvert', f'{t} programme envoyé : « Pas encore ouvert »')
+        R.check(page.locator('.coach-sent[data-prog="u_force"] .coach-sent__state--unseen').inner_text() == 'Pas encore ouvert', f'{t} programme envoyé : « Pas encore ouvert » tout de suite')
         page.evaluate("__sb.co.progs.find(p => p.id === 'u_force').seen = true; coachRefresh()")
         page.wait_for_timeout(400)
         R.check('pas encore de séance avec' in page.locator('.coach-sent[data-prog="u_force"]').inner_text(), f'{t} programme vu sans séance : « Vu, pas encore de séance avec »')
+        # Renvoi d'un programme déjà vu : de nouveau « Pas encore ouvert », sans attendre
+        page.evaluate(f"navigate(makeRoute('coach-send', '{ids['lea']}', 'u_force'))")
+        page.wait_for_selector('.coach-send-view')
+        page.click('[data-action="coach-send-go"]')
+        page.wait_for_timeout(600)
+        R.check(page.locator('.coach-sent[data-prog="u_force"] .coach-sent__state--unseen').count() == 1, f'{t} renvoi : « Pas encore ouvert » tout de suite')
         layout(page, t, 'programmes envoyés')
         shot(page, LOT, f'13b-envoyes-{t}')
         # Programme intégré : la consigne du programme est reprise au renvoi
