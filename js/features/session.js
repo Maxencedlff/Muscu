@@ -457,13 +457,15 @@ function validateSet(ei, si, opts = {}) {
   s.reps = String(parseInt(s.reps));
 
   s.done = true;
-  const sameAgain = activeSession.lastEi === ei;   // même exercice deux fois de suite : fait seul
+  const prevLastEi = activeSession.lastEi;
+  const sameAgain  = prevLastEi === ei;   // même exercice deux fois de suite : fait seul
   activeSession.lastEi = ei;
   editingSet = null;
   haptic();
   afterPaint(validationSound);   // la coche verte d'abord : le son natif active la session audio d'iOS (bloquant)
 
   const undo = carryWeightToNextSet(ex, si);
+  undo.prevLastEi = prevLastEi;   // « Annuler » puis revalider : le superset enchaîne comme la 1re fois
   if (opts.prevReps !== undefined) undo.prevReps = opts.prevReps;
   else if (goalTaken) undo.prevReps = '';
   const xs      = activeSession.exercises;
@@ -500,6 +502,7 @@ function carryWeightToNextSet(ex, si) {
 function undoValidate(u) {
   if (!activeSession || !u.s.done) return;
   u.s.done = false;
+  if (u.prevLastEi !== undefined) activeSession.lastEi = u.prevLastEi;
   if (u.prevReps !== undefined) u.s.reps = u.prevReps;   // chrono ou case vide : la valeur d'avant revient
   if (u.next && !u.next.done) { u.next.weight = u.nextW; u.next.reps = u.nextR; }
   stopRest();

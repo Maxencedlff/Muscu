@@ -74,6 +74,11 @@ def t_seance(bench, eng, dev, theme):
         R.check(not resting(page), f'{t} pas de repos après A1')
         R.check(current(page) == [1, 0], f'{t} série courante A2 S1 ({current(page)})')
         R.check('Enchaîne' in page.locator('.toast').last.inner_text(), f'{t} toast « Enchaîne »')
+        # « Annuler » puis revalider A1 : on enchaîne toujours
+        page.locator('.toast button', has_text='Annuler').last.click()
+        page.wait_for_timeout(300)
+        validate(page, 0, 0)
+        R.check(not resting(page) and current(page) == [1, 0], f'{t} Annuler puis revalider : enchaîne ({current(page)})')
         validate(page, 1, 0)
         R.check(resting(page), f'{t} repos à la fin du tour')
         R.check(current(page) == [0, 1], f'{t} tour 2 : A1 S2 ({current(page)})')
