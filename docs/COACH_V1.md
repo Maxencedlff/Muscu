@@ -12,7 +12,7 @@ Hors V1 : paiement, push, plusieurs coachs pour un élève, groupes d'élèves, 
 
 ## Principes (mêmes règles que docs/SOCIAL_V1.md)
 - **Écritures par fonction seulement** : RPC `security definer`, `set search_path = ''`, utilisateur pris dans `auth.uid()`. Aucune écriture directe sur les nouvelles tables, RLS activée, GRANT explicites (`anon` n'a rien, `authenticated` seulement EXECUTE sur les RPC).
-- **Erreurs** en snake_case : `not_coach`, `already_coached`, `invalid_code`, `team_full`, `not_found`, `rate_limited`, `too_long`.
+- **Erreurs** en snake_case : `not_coach`, `already_coached`, `invalid_code`, `team_full`, `not_found`, `rate_limited`, `too_long`, `invalid_programme` (ajouté par le serveur, voir « Précisions du serveur »).
 - **Indépendant du social** : être coach ou élève ne demande pas d'avoir activé Amis, et ne rend visible dans aucune recherche. Un blocage social entre deux comptes n'empêche pas une relation coach (c'est l'élève qui l'a choisie avec un code) ; l'élève peut quitter à tout moment.
 - **Suppression du compte** : tout part en cascade avec `auth.users`.
 
@@ -45,10 +45,28 @@ Ses programmes perso : non en V1 (le coach envoie les siens).
 | `coach_leave()` | `void` | L'élève quitte son coach : lien, programmes envoyés non importés et commentaires supprimés côté serveur (les programmes déjà importés restent chez l'élève). |
 | `coach_remove_student(student uuid)` | `void` | Même effet, à l'initiative du coach. |
 | `coach_student_sessions(student uuid, before_at bigint default null, before_id text default null)` | `table(id, done_at, s jsonb, note text)` | Coach de cet élève seulement, sinon `not_found`. 30 par page, triées par `(done_at, id)` décroissant. `note` = son commentaire. |
+| `coach_mark_seen(student uuid)` | `void` | Coach de cet élève seulement, sinon `not_found`. Pose `coach_seen_at = now()` : `new_sessions` repart de zéro. |
 | `coach_send_programme(student uuid, prog_id text, data jsonb)` | `void` | Coach de cet élève seulement. Remplace un envoi du même `prog_id` (mise à jour), `seen_at` remis à null. 30 envois par jour. |
 | `coach_set_note(student uuid, session_id text, text text)` | `void` | Texte vide = supprime. `seen_at` remis à null. |
 | `student_inbox()` | `jsonb` | Élève : `{ programmes: [{ id, data, sent_at, seen }], notes: [{ session_id, text, updated_at, seen }] }`. |
 | `student_mark_seen(kind text, ref text)` | `void` | `kind` = `programme` ou `note`. |
+
+## Précisions du serveur (migration 20261027100000_coach.sql, 27/10)
+Points que le tableau ne disait pas, tranchés côté serveur ; l'app doit les connaître :
+- **Saisie du code** : majuscules, espaces et tirets ignorés (`abcd-efgh` = `ABCDEFGH`). Un code dont le coach n'a plus le rôle répond `invalid_code`.
+- **`coach_join` rejoué** (coupure réseau) vers le coach qu'on a déjà : renvoie le coach, sans erreur. `already_coached` seulement pour un autre coach. Même chose pour `coach_preview`.
+- **`coach_preview`** renvoie `since: null` (aucun lien encore) ; `coach_join`, la date du lien.
+- **Débit de `coach_preview` + `coach_join`** : 10 par heure à eux deux (aperçu puis acceptation = 2). Seuls les appels réussis comptent : Postgres annule l'écriture du compteur quand la fonction lève une erreur. La protection contre la devinette est la taille du code (32^8 combinaisons).
+- **`coach_create_invite`** : en plus de 5 codes actifs, 20 créations par 24 h (`rate_limited`).
+- **`coach_send_programme`** : `prog_id` = 1 à 64 caractères `[A-Za-z0-9_-]` et `data` = objet JSON, sinon `invalid_programme` ; plus de 200 Ko (texte JSON) : `too_long`.
+- **`coach_set_note`** : texte rogné des espaces ; séance inexistante ou supprimée : `not_found`.
+- **`coach_student_sessions`** : séances non supprimées et datées, au plus 24 h dans le futur (comme le fil Amis). `s` = liste blanche `private.session_public` + `id`, `notes` (texte, 2000 caractères au plus) et `hidden` (`true` ou absent).
+- **`coach_state().students[]`** : `{ user_id, username, avatar, since, last_session_at, sessions_7d, new_sessions, last_session }`. `last_session` = `null` sans séance ; `label` et `programme` peuvent valoir `null`. `username` vaut `null` pour un élève sans pseudo. `badge` = (élève) programmes et commentaires non vus de son coach + (coach) somme des `new_sessions`.
+- **`new_sessions`** : séances dont la date (`done_at`) est postérieure à `coach_seen_at`, ou à la date du lien tant que le coach n'a rien ouvert (un nouvel élève n'arrive pas avec tout son historique en « nouveau »). Une séance faite hors ligne puis synchronisée plus tard, mais datée d'avant la dernière ouverture, ne compte pas.
+- **`coach_mark_seen(student)`** : `not_found` si ce n'est pas mon élève ou si je ne suis plus coach.
+- **Rôle retiré par l'administrateur** : le coach reçoit `not_coach` (inviter, envoyer, commenter) ou `not_found` (séances, vu) ; `students` et `invites` sont vides ; ses élèves voient encore le lien (pour le quitter) et leur boîte. `coach_remove_student` marche toujours.
+- **Silencieux** (aucune erreur) : `coach_revoke_invite` d'un code inconnu ou d'un autre, `coach_remove_student` d'un non-élève, `student_mark_seen` d'une référence ou d'un `kind` inconnus, `coach_leave` sans coach.
+- **Tri de `student_inbox`** : programmes par `sent_at` décroissant, commentaires par `updated_at` décroissant ; commentaires des séances supprimées exclus.
 
 ## Programme envoyé (`data`)
 Format de js/data/prog-share.js étendu, validé par l'app à la réception :
