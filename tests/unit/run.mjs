@@ -1400,6 +1400,8 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 
 // ── Social : fonction serveur report (tests dans report.mjs) ──
 (await import('./report.mjs')).default({ test, assert, sameJSON, ROOT });
+// ── Payant : signature d'Apple, achats et notifications (tests dans payant.mjs) ──
+(await import('./payant.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Amis : logique pure du social (tests dans social.mjs) ──
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──

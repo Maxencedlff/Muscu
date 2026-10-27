@@ -401,6 +401,23 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
   (code tout frais, refusée tant qu'Apple est encore relié). `supabase/functions/_shared/` : échange et
   révocation Apple (`apple.ts`), CORS, clés et lecture de l'appelant (`http.ts`). Secrets Apple dans le
   projet Supabase, jamais dans le dépôt.
+- `supabase/migrations/20261028000000_payant.sql` : Payant V1 (contrat `docs/PAYANT_V1.md`). Tables `entitlements`
+  (l'instantané du droit d'accès d'un compte), `entitlement_claims` (registre à vie des transactions Apple :
+  `original_transaction_id` unique, une transaction ne sert qu'à un compte), `app_config` (`paywall_on` livré à
+  **false**, `trial_days` 90) et les codes cadeaux maison (`gift_codes`, `gift_redemptions`), toutes sans GRANT
+  client sauf la lecture de `app_config`. L'essai démarre à l'heure du serveur dans `my_access()` et
+  `trial_started_at` n'est jamais réécrit ; l'état qui fait foi est recalculé à chaque lecture
+  (`private.access_json`, statuts `gift` > `active` > `coach_team` > `trial` > `expired`). RPC client :
+  `my_access()`, `access_state()` (ne crée rien), `redeem_gift_code(code)`. Écriture du droit d'accès réservée à
+  la clé serveur : `srv_access_purchase` et `srv_access_event`, noyau dans `private`.
+- `supabase/functions/verify-purchase/` : un achat StoreKit 2. Signature d'Apple VRAIMENT vérifiée
+  (`_shared/apple-jws.js` : chaîne jusqu'à Apple Root CA G3 épinglée dans le dépôt, dates, contraintes de base,
+  marqueurs d'Apple, trois signatures ECDSA par WebCrypto), décision pure dans `purchase-policy.js`, puis
+  relecture de la transaction auprès de l'App Store Server API (jeton ES256, secrets `APPLE_IAP_*`,
+  `APPLE_ISSUER_ID`) avant d'écrire. Sandbox refusé sauf `APPLE_ALLOW_SANDBOX=1`.
+- `supabase/functions/appstore-notify/` : App Store Server Notifications V2, à déployer avec `--no-verify-jwt`
+  (Apple n'a pas de jeton Supabase). Signature invalide : 401, rien d'écrit. `notify-policy.js` traite SUBSCRIBED,
+  DID_RENEW, DID_CHANGE_RENEWAL_STATUS, EXPIRED, GRACE_PERIOD_EXPIRED, REFUND, REVOKE et ignore le reste en 200.
 - Réglages d'authentification (SMTP Resend, modèles du code, Google, liaison manuelle, limites, e-mails
   de sécurité : moyen relié ou retiré, adresse changée) : `scripts/supabase-auth-config.py`, lecture
   seule par défaut (`--notifications` : e-mails de sécurité seulement).
