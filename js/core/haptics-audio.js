@@ -55,6 +55,8 @@ const MELODIES = {
   finish:     [[880, 0, .1], [1320, .16, .25]],
   record:     [[660, 0, .12], [880, .12, .12], [1100, .24, .12], [1320, .36, .35]],
   tick:       [[440, 0, .08]],
+  restCount:  [[700, 0, .11]],                               // repos : chaque bip du decompte 3-2-1 (sec, moyen)
+  restGo:     [[1050, 0, .1], [1400, .12, .1], [1750, .26, .33]],  // repos : GO, montee nette, differente du decompte
   tempoDown:  [[392, 0, .12]],                  // tempo : début de la descente (grave)
   tempoUp:    [[659, 0, .12]],                  // tempo : début de la montée (aigu)
   tempoX:     [[880, 0, .07], [880, .1, .07]],  // tempo : montée explosive
@@ -80,8 +82,10 @@ function sayCount(n) {
   } catch {}
 }
 
+function restCountBeep() { playMelody('restCount'); }
+
 function timerDone() {
-  playMelody('timer');
+  playMelody('restGo');
   if (data.vibrateOn !== false && !Native.haptic('success') && navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
 }
 
