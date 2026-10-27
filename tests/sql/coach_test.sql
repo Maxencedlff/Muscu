@@ -58,7 +58,7 @@ do $$ begin
   perform pg_temp.clogin('s');
   insert into public.sessions (id, data) values
     ('s-1', jsonb_build_object(
-      'date', 1780000000000, 'duration', 3600, 'programme', 'u_cprogA', 'category', 'push', 'label', 'Push A',
+      'date', 1780000000000, 'duration', 3600, 'programme', 'u_c00000000_progA', 'category', 'push', 'label', 'Push A',
       'notes', 'genou un peu sensible', 'bodyKg', 80.5, 'healthSaved', true, 'cleInventee', 'secret-futur',
       'exercises', jsonb_build_array(
         jsonb_build_object('name', 'Squat', 'measure', 'reps', 'ss', 'g1', 'note', 'secret-ex',
@@ -181,7 +181,7 @@ begin
      or stu -> 'last_session' is distinct from '{"done_at": 1780000001000, "label": "Pull", "programme": null}'::jsonb
      then raise 'élève S : %', stu; end if;
   if (select array_agg(k order by k) from jsonb_object_keys(stu) k)
-     is distinct from array['avatar', 'last_session', 'last_session_at', 'new_sessions', 'sessions_7d', 'since', 'user_id', 'username'] then raise 'clés d''un élève : %', stu; end if;
+     is distinct from array['avatar', 'last_session', 'last_session_at', 'new_sessions', 'sent', 'sessions_7d', 'since', 'user_id', 'username'] then raise 'clés d''un élève : %', stu; end if;
   -- Séances d'avant l'adhésion : pas « nouvelles »
   if (stu ->> 'new_sessions')::int is distinct from 0 or (st ->> 'badge')::int is distinct from 0 then raise 'nouvelles séances d''avant l''adhésion : %', st; end if;
   -- V, sans séance
@@ -199,7 +199,7 @@ begin
   select * into r from public.coach_student_sessions(pg_temp.cu('s')) where id = 's-1';
   if (select array_agg(k order by k) from jsonb_object_keys(r.s) k)
      is distinct from array['category', 'date', 'duration', 'exercises', 'id', 'label', 'notes', 'programme'] then raise 'clés de la séance : %', r.s; end if;
-  if r.s ->> 'id' is distinct from 's-1' or r.s ->> 'notes' is distinct from 'genou un peu sensible' or r.s ->> 'programme' is distinct from 'u_cprogA' then raise 'valeurs : %', r.s; end if;
+  if r.s ->> 'id' is distinct from 's-1' or r.s ->> 'notes' is distinct from 'genou un peu sensible' or r.s ->> 'programme' is distinct from 'u_c00000000_progA' then raise 'valeurs : %', r.s; end if;
   if (select array_agg(k order by k) from jsonb_object_keys(r.s -> 'exercises' -> 0) k) is distinct from array['measure', 'name', 'sets', 'ss'] then raise 'clés de l''exercice : %', r.s; end if;
   if (select array_agg(k order by k) from jsonb_object_keys(r.s -> 'exercises' -> 0 -> 'sets' -> 0) k) is distinct from array['reps', 'weight'] then raise 'clés de la série : %', r.s; end if;
   if r.s::text ~ '(bodyKg|healthSaved|secret|cleInventee|rpe|hidden)' then raise 'fuite : %', r.s; end if;
@@ -246,13 +246,13 @@ begin
   set role authenticated;
   perform pg_temp.clogin('s');
   insert into public.sessions (id, data) values
-    ('s-new-1', jsonb_build_object('date', now_ms - 60000, 'category', 'push', 'label', 'Push', 'programme', 'u_cprogA', 'exercises', '[]'::jsonb)),
-    ('s-new-2', jsonb_build_object('date', now_ms - 30000, 'category', 'legs', 'label', 'Legs', 'programme', 'u_cprogA', 'exercises', '[]'::jsonb));
+    ('s-new-1', jsonb_build_object('date', now_ms - 60000, 'category', 'push', 'label', 'Push', 'programme', 'u_c00000000_progA', 'exercises', '[]'::jsonb)),
+    ('s-new-2', jsonb_build_object('date', now_ms - 30000, 'category', 'legs', 'label', 'Legs', 'programme', 'u_c00000000_progA', 'exercises', '[]'::jsonb));
   perform pg_temp.clogin('k');
   st := public.coach_state();
   select e into stu from jsonb_array_elements(st -> 'students') e where e ->> 'user_id' = pg_temp.cu('s')::text;
   if (stu ->> 'new_sessions')::int is distinct from 2 or (stu ->> 'sessions_7d')::int is distinct from 2 or (st ->> 'badge')::int is distinct from 2
-     or stu -> 'last_session' is distinct from jsonb_build_object('done_at', now_ms - 30000, 'label', 'Legs', 'programme', 'u_cprogA')
+     or stu -> 'last_session' is distinct from jsonb_build_object('done_at', now_ms - 30000, 'label', 'Legs', 'programme', 'u_c00000000_progA')
      then raise 'nouvelles séances : %', st; end if;
   -- Un autre coach (L) ne compte rien ; T ne voit pas le compteur de S
   perform pg_temp.clogin('l');
@@ -345,7 +345,7 @@ end $$;
 
 -- ── Envoi de programmes ──────────────────────────────────
 do $$
-declare ib jsonb; prog jsonb := '{"name": "Force 5x5", "consigne": "Pas d''échec", "sessions": [{"key": "a", "label": "A", "color": "#f00", "exercises": [{"name": "Squat", "sets": 5, "consigne": "Lent"}]}]}';
+declare ib jsonb; sent jsonb; prog jsonb := '{"name": "Force 5x5", "consigne": "Pas d''échec", "sessions": [{"key": "a", "label": "A", "color": "#f00", "exercises": [{"name": "Squat", "sets": 5, "consigne": "Lent"}]}]}';
 begin
   perform pg_temp.clogin('k');
   perform public.coach_send_programme(pg_temp.cu('s'), 'progA', prog);
@@ -356,8 +356,29 @@ begin
      or ib -> 'programmes' -> 0 ->> 'sent_at' is null then raise 'programme reçu : %', ib; end if;
   if (select array_agg(k order by k) from jsonb_object_keys(ib -> 'programmes' -> 0) k) is distinct from array['data', 'id', 'seen', 'sent_at'] then raise 'clés d''un programme'; end if;
   if (public.coach_state() ->> 'badge')::int is distinct from 2 then raise 'badge programme + commentaire'; end if;
+  -- Le coach voit l'envoi, pas encore vu
+  perform pg_temp.clogin('k');
+  sent := (select e -> 'sent' from jsonb_array_elements(public.coach_state() -> 'students') e where e ->> 'user_id' = pg_temp.cu('s')::text);
+  if jsonb_array_length(sent) is distinct from 1 or sent -> 0 ->> 'id' is distinct from 'progA' or (sent -> 0 ->> 'seen')::boolean is not false
+     or sent -> 0 ->> 'sent_at' is null then raise 'sent : %', sent; end if;
+  if (select array_agg(k order by k) from jsonb_object_keys(sent -> 0) k) is distinct from array['id', 'seen', 'sent_at'] then raise 'clés de sent : %', sent; end if;
+  -- Les autres élèves n'ont rien reçu
+  if exists (select 1 from jsonb_array_elements(public.coach_state() -> 'students') e
+             where e ->> 'user_id' <> pg_temp.cu('s')::text and e -> 'sent' is distinct from '[]'::jsonb) then raise 'sent chez un autre élève'; end if;
+  -- Un autre coach, l'élève lui-même, un autre élève : rien
+  perform pg_temp.clogin('l');
+  if public.coach_state()::text ~ 'progA' then raise 'L voit l''envoi de K'; end if;
+  perform pg_temp.clogin('t');
+  if public.coach_state()::text ~ 'progA' or public.coach_state() -> 'students' is distinct from '[]'::jsonb then raise 'T voit l''envoi à S'; end if;
+  perform pg_temp.clogin('s');
+  if public.coach_state() -> 'students' is distinct from '[]'::jsonb then raise 'S voit sent'; end if;
   perform public.student_mark_seen('programme', 'progA');
   if (public.coach_state() ->> 'badge')::int is distinct from 1 then raise 'programme vu'; end if;
+  -- seen passe à vrai chez le coach
+  perform pg_temp.clogin('k');
+  sent := (select e -> 'sent' from jsonb_array_elements(public.coach_state() -> 'students') e where e ->> 'user_id' = pg_temp.cu('s')::text);
+  if (sent -> 0 ->> 'seen')::boolean is not true then raise 'seen après student_mark_seen : %', sent; end if;
+  perform pg_temp.clogin('s');
   -- Nouvel envoi du même prog_id : mis à jour, à revoir
   perform pg_temp.clogin('k');
   perform public.coach_send_programme(pg_temp.cu('s'), 'progA', prog || '{"name": "Force 5x5 v2"}');
@@ -367,6 +388,11 @@ begin
   if jsonb_array_length(ib -> 'programmes') is distinct from 2 then raise 'deux programmes : %', ib; end if;
   if (select e -> 'data' ->> 'name' from jsonb_array_elements(ib -> 'programmes') e where e ->> 'id' = 'progA') is distinct from 'Force 5x5 v2'
      or (select (e ->> 'seen')::boolean from jsonb_array_elements(ib -> 'programmes') e where e ->> 'id' = 'progA') then raise 'mise à jour : %', ib; end if;
+  -- Chez le coach : deux envois, le plus récent d'abord, progA de nouveau non vu
+  perform pg_temp.clogin('k');
+  sent := (select e -> 'sent' from jsonb_array_elements(public.coach_state() -> 'students') e where e ->> 'user_id' = pg_temp.cu('s')::text);
+  if jsonb_array_length(sent) is distinct from 2 or sent -> 0 ->> 'id' is distinct from 'progB'
+     or (select (x ->> 'seen')::boolean from jsonb_array_elements(sent) x where x ->> 'id' = 'progA') is not false then raise 'sent après renvoi : %', sent; end if;
   -- Refus
   perform pg_temp.clogin('k');
   if pg_temp.cerr($q$ select public.coach_send_programme(pg_temp.cu('u'), 'p', '{}') $q$) is distinct from 'not_found' then raise 'envoi à un non-élève'; end if;

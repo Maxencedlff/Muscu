@@ -12,7 +12,12 @@
 --    toutes les deux ; elles-mêmes ne changent pas. L'élève retiré reçoit invalid_code, la même
 --    réponse qu'un code faux : rien n'est révélé.
 --  - coach_allow_student(student uuid) : lève l'interdiction, silencieuse sinon.
---  - coach_state() renvoie aussi removed: [p] (coach seulement).
+--  - coach_state() renvoie aussi removed: [p] (coach seulement), et pour chaque élève sent: [{ id,
+--    sent_at, seen }], les programmes que je lui ai envoyés (seen = seen_at non nul : l'élève l'a
+--    ouvert ou ajouté). Rien d'autre que ces trois champs : pas le contenu, déjà connu du coach.
+--  - Correction de 20261027100000_coach.sql (déjà en production, donc corrigée ici) : l'app importe un
+--    programme reçu sous l'id u_c<8 premiers caractères de l'id du coach>_<prog_id>, et plus
+--    u_c<prog_id> (deux coachs successifs peuvent envoyer le même prog_id). Le serveur n'en dépend pas.
 --  - Droits : create or replace garde ceux de la fonction remplacée ; ils sont quand même redonnés
 --    explicitement en bas (revoke de public et anon, grant à authenticated), comme partout.
 -- ═══════════════════════════════════════════════════════════
@@ -72,6 +77,7 @@ $$;
 -- État de Réglages › Coach et de la cellule de l'onglet Amis.
 -- coach : mon coach (since = date du lien). students, removed et invites : vides si je ne suis pas coach.
 -- removed : élèves que j'ai retirés (since = date du retrait).
+-- students[].sent : programmes que j'ai envoyés à cet élève, { id, sent_at, seen }, du plus récent.
 -- students[] : p + last_session_at (ms), sessions_7d, new_sessions, last_session { done_at, label,
 -- programme } (valeurs simples). badge_student : programmes et commentaires non vus de mon coach ;
 -- badge_coach : total des new_sessions de mes élèves ; badge : leur somme (compatibilité). Un compte
@@ -120,7 +126,12 @@ $$
     'coach',    (select private.person(l.coach_id, l.created_at) from public.coach_links l where l.student_id = me.id),
     'students', coalesce((select jsonb_agg(private.person(st.student_id, st.created_at) || jsonb_build_object(
                                  'last_session_at', st.last_at, 'sessions_7d', st.n7,
-                                 'new_sessions', st.nnew, 'last_session', st.last_s)
+                                 'new_sessions', st.nnew, 'last_session', st.last_s,
+                                 'sent', coalesce((select jsonb_agg(jsonb_build_object('id', cp.id, 'sent_at', cp.sent_at,
+                                                                                       'seen', cp.seen_at is not null)
+                                                                    order by cp.sent_at desc, cp.id)
+                                                   from public.coach_programmes cp
+                                                   where cp.student_id = st.student_id and cp.coach_id = me.id), '[]'::jsonb))
                                order by st.created_at desc) from st), '[]'::jsonb),
     'removed',  coalesce((select jsonb_agg(private.person(r.student_id, r.created_at) order by r.created_at desc)
                           from public.coach_removed r where r.coach_id = me.id and me.coach), '[]'::jsonb),
