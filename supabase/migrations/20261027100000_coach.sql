@@ -8,8 +8,8 @@
 --    (le client n'écrit que username et avatar_emoji, voir 20261026000000_profils.sql). La migration
 --    ne touche aucun compte. Commande à lancer à part :
 --      update public.user_profiles set coach_at = now() where user_id = '<uuid>';
---  - Aucune lecture ni écriture directe sur coach_invites, coach_links, coach_programmes et
---    coach_notes : RLS activée sans aucune politique, aucun GRANT à anon, authenticated ni
+--  - Aucune lecture ni écriture directe sur coach_invites, coach_links, coach_programmes,
+--    coach_notes et coach_removed : RLS activée sans aucune politique, aucun GRANT à anon, authenticated ni
 --    service_role. Tout passe par les fonctions RPC ci-dessous, security definer (propriétaire
 --    postgres), search_path vide et utilisateur pris dans auth.uid(), jamais dans un paramètre.
 --  - Un coach ne voit que ses élèves : chaque fonction côté coach vérifie le lien (coach_id = moi,
@@ -65,6 +65,9 @@
 --     postérieur à coach_seen_at, ou à la date du lien tant que le coach n'a rien ouvert (un nouvel
 --     élève n'arrive pas avec 300 « nouvelles » séances). coach_mark_seen : not_found si ce n'est
 --     pas mon élève ou si je ne suis plus coach.
+--  11. (ajout du 27/10) Élève retiré par le coach : inscrit dans coach_removed ; coach_preview et coach_join lui
+--     répondent invalid_code pour tous les codes de ce coach, jusqu'à coach_allow_student.
+--     coach_state().removed liste ces élèves (coach seulement). coach_leave n'interdit rien.
 -- ═══════════════════════════════════════════════════════════
 
 -- ── Données ──────────────────────────────────────────────
@@ -119,12 +122,23 @@ create table public.coach_notes (
   foreign key (student_id, session_id) references public.sessions (user_id, id) on delete cascade
 );
 
+-- Élèves retirés par le coach : ils ne peuvent plus le rejoindre (aucun de ses codes) tant qu'il ne
+-- les a pas autorisés à revenir (coach_allow_student). Quitter de soi-même n'inscrit rien ici.
+create table public.coach_removed (
+  coach_id   uuid not null references auth.users(id) on delete cascade,
+  student_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (coach_id, student_id)
+);
+create index coach_removed_student on public.coach_removed (student_id);
+
 alter table public.coach_invites enable row level security;
 alter table public.coach_links enable row level security;
 alter table public.coach_programmes enable row level security;
 alter table public.coach_notes enable row level security;
+alter table public.coach_removed enable row level security;
 -- Aucune politique : RLS fermée (défense en profondeur, en plus des GRANT)
-revoke all on public.coach_invites, public.coach_links, public.coach_programmes, public.coach_notes
+revoke all on public.coach_invites, public.coach_links, public.coach_programmes, public.coach_notes, public.coach_removed
   from public, anon, authenticated, service_role;
 
 -- ── Briques privées ──────────────────────────────────────
@@ -180,7 +194,8 @@ declare
 begin
   select i.coach_id into coach from public.coach_invites i
     where i.code = c and i.expires_at > now() and private.is_coach(i.coach_id);
-  if coach is null then
+  -- Retiré par ce coach : même réponse qu'un code faux (rien n'est révélé)
+  if coach is null or exists (select 1 from public.coach_removed r where r.coach_id = coach and r.student_id = me) then
     raise exception 'invalid_code' using errcode = 'P0001';
   end if;
   if coach = me then
@@ -288,6 +303,8 @@ $$
                                  'last_session_at', st.last_at, 'sessions_7d', st.n7,
                                  'new_sessions', st.nnew, 'last_session', st.last_s)
                                order by st.created_at desc) from st), '[]'::jsonb),
+    'removed',  coalesce((select jsonb_agg(private.person(r.student_id, r.created_at) order by r.created_at desc)
+                          from public.coach_removed r where r.coach_id = me.id and me.coach), '[]'::jsonb),
     'invites',  coalesce((select jsonb_agg(jsonb_build_object('code', i.code, 'expires_at', i.expires_at) order by i.created_at desc)
                           from public.coach_invites i where i.coach_id = me.id and i.expires_at > now() and me.coach), '[]'::jsonb),
     'badge_coach',   b.coach,
@@ -384,10 +401,24 @@ create function public.coach_leave() returns void
   language sql security definer set search_path = '' as
 $$ delete from public.coach_links l where l.student_id = (select auth.uid()) $$;
 
--- Le coach retire un élève : même effet (silencieux si ce n'est pas son élève)
+-- Le coach retire un élève : même effet, et l'élève ne peut plus revenir avec aucun code de ce coach
+-- (coach_removed) jusqu'à coach_allow_student. Silencieux si ce n'est pas son élève (rien n'est inscrit).
 create function public.coach_remove_student(student uuid) returns void
+  language plpgsql security definer set search_path = '' as
+$$
+declare me uuid := (select auth.uid());
+begin
+  delete from public.coach_links l where l.coach_id = me and l.student_id = student;
+  if found then
+    insert into public.coach_removed (coach_id, student_id) values (me, student) on conflict do nothing;
+  end if;
+end
+$$;
+
+-- Autoriser un élève retiré à revenir (il lui faudra un code). Silencieux sinon.
+create function public.coach_allow_student(student uuid) returns void
   language sql security definer set search_path = '' as
-$$ delete from public.coach_links l where l.coach_id = (select auth.uid()) and l.student_id = student $$;
+$$ delete from public.coach_removed r where r.coach_id = (select auth.uid()) and r.student_id = student $$;
 
 -- Séances d'un de mes élèves, 30 par page, par (done_at, id) décroissant. Page suivante : before_at
 -- et before_id = done_at et id de la dernière ligne (before_at seul : strictement plus anciennes).
@@ -541,6 +572,7 @@ revoke all on function public.coach_preview(text) from public, anon, authenticat
 revoke all on function public.coach_join(text) from public, anon, authenticated;
 revoke all on function public.coach_leave() from public, anon, authenticated;
 revoke all on function public.coach_remove_student(uuid) from public, anon, authenticated;
+revoke all on function public.coach_allow_student(uuid) from public, anon, authenticated;
 revoke all on function public.coach_student_sessions(uuid, bigint, text) from public, anon, authenticated;
 revoke all on function public.coach_mark_seen(uuid) from public, anon, authenticated;
 revoke all on function public.coach_send_programme(uuid, text, jsonb) from public, anon, authenticated;
@@ -555,6 +587,7 @@ grant execute on function public.coach_preview(text) to authenticated;
 grant execute on function public.coach_join(text) to authenticated;
 grant execute on function public.coach_leave() to authenticated;
 grant execute on function public.coach_remove_student(uuid) to authenticated;
+grant execute on function public.coach_allow_student(uuid) to authenticated;
 grant execute on function public.coach_student_sessions(uuid, bigint, text) to authenticated;
 grant execute on function public.coach_mark_seen(uuid) to authenticated;
 grant execute on function public.coach_send_programme(uuid, text, jsonb) to authenticated;

@@ -37,13 +37,14 @@ Ses programmes perso : non en V1 (le coach envoie les siens).
 
 | Fonction | Renvoie | Règles |
 |---|---|---|
-| `coach_state()` | `jsonb` | `{ is_coach, coach: p\|null, students: [p + { last_session_at, sessions_7d }], invites: [{ code, expires_at }], badge }`, `p = { user_id, username, avatar, since }`. `badge` (élève) = programmes non vus + commentaires non vus. |
+| `coach_state()` | `jsonb` | `{ is_coach, coach: p\|null, removed: [p], students: [p + { last_session_at, sessions_7d }], invites: [{ code, expires_at }], badge }`, `p = { user_id, username, avatar, since }`. `badge` (élève) = programmes non vus + commentaires non vus. |
 | `coach_create_invite()` | `text` (code) | `not_coach` si pas coach. 5 codes actifs au plus (le plus ancien est remplacé). |
 | `coach_revoke_invite(code text)` | `void` | |
 | `coach_join(code text)` | `jsonb p` (le coach) | `invalid_code` (inconnu ou expiré), `already_coached` (a déjà un coach), `not_found` (son propre code), `team_full`. 10 essais par heure (`rate_limited`). Le code reste utilisable par d'autres élèves jusqu'à expiration. |
 | `coach_preview(code text)` | `jsonb p` | Montre qui est le coach avant d'accepter ; mêmes erreurs que `coach_join`, sans rien créer. |
 | `coach_leave()` | `void` | L'élève quitte son coach : lien, programmes envoyés non importés et commentaires supprimés côté serveur (les programmes déjà importés restent chez l'élève). |
-| `coach_remove_student(student uuid)` | `void` | Même effet, à l'initiative du coach. |
+| `coach_remove_student(student uuid)` | `void` | Même effet, à l'initiative du coach ; l'élève ne peut plus revenir avant `coach_allow_student`. |
+| `coach_allow_student(student uuid)` | `void` | Lève l'interdiction de revenir posée par `coach_remove_student`. Silencieux si l'élève est inconnu. |
 | `coach_student_sessions(student uuid, before_at bigint default null, before_id text default null)` | `table(id, done_at, s jsonb, note text)` | Coach de cet élève seulement, sinon `not_found`. 30 par page, triées par `(done_at, id)` décroissant. `note` = son commentaire. |
 | `coach_mark_seen(student uuid)` | `void` | Coach de cet élève seulement, sinon `not_found`. Pose `coach_seen_at = now()` : `new_sessions` repart de zéro. |
 | `coach_send_programme(student uuid, prog_id text, data jsonb)` | `void` | Coach de cet élève seulement. Remplace un envoi du même `prog_id` (mise à jour), `seen_at` remis à null. 30 envois par jour. |
@@ -66,6 +67,7 @@ Points que le tableau ne disait pas, tranchés côté serveur ; l'app doit les c
 - **`new_sessions`** : séances dont la date (`done_at`) est postérieure à `coach_seen_at`, ou à la date du lien tant que le coach n'a rien ouvert (un nouvel élève n'arrive pas avec tout son historique en « nouveau »). Une séance faite hors ligne puis synchronisée plus tard, mais datée d'avant la dernière ouverture, ne compte pas.
 - **`coach_mark_seen(student)`** : `not_found` si ce n'est pas mon élève ou si je ne suis plus coach.
 - **Rôle retiré par l'administrateur** : le coach reçoit `not_coach` (inviter, envoyer, commenter) ou `not_found` (séances, vu) ; `students` et `invites` sont vides ; ses élèves voient encore le lien (pour le quitter) et leur boîte. `coach_remove_student` marche toujours.
+- **Élève retiré** (`coach_remove_student`) : il ne peut plus revenir, avec aucun code de ce coach (même un code créé après) ; `coach_preview` et `coach_join` lui répondent `invalid_code`, comme pour un code faux. `coach_state().removed` = `[p]` (coach seulement, `since` = date du retrait) pour proposer « Autoriser à revenir » : `coach_allow_student(student uuid)` lève l'interdiction (silencieux si l'élève est inconnu ou pas retiré) ; l'élève doit ensuite rejoindre avec un code valable. Quitter de soi-même (`coach_leave`) n'interdit rien.
 - **Silencieux** (aucune erreur) : `coach_revoke_invite` d'un code inconnu ou d'un autre, `coach_remove_student` d'un non-élève, `student_mark_seen` d'une référence ou d'un `kind` inconnus, `coach_leave` sans coach.
 - **Tri de `student_inbox`** : programmes par `sent_at` décroissant, commentaires par `updated_at` décroissant ; commentaires des séances supprimées exclus.
 

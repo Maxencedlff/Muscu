@@ -43,7 +43,7 @@ begin
   perform pg_temp.clogin('k');
   if pg_temp.cerr($q$ select public.coach_create_invite() $q$) is distinct from 'not_coach' then raise 'invitation sans être coach'; end if;
   st := public.coach_state();
-  if st is distinct from '{"is_coach": false, "coach": null, "students": [], "invites": [], "badge": 0, "badge_coach": 0, "badge_student": 0}'::jsonb then raise 'état vide : %', st; end if;
+  if st is distinct from '{"is_coach": false, "coach": null, "students": [], "removed": [], "invites": [], "badge": 0, "badge_coach": 0, "badge_student": 0}'::jsonb then raise 'état vide : %', st; end if;
   -- Aucune fonction du schéma public ne pose coach_at
   if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosrc ilike '%coach_at%') then
     raise 'une RPC écrit ou lit coach_at directement';
@@ -137,7 +137,7 @@ begin
   st := public.coach_state();
   if st -> 'coach' ->> 'username' is distinct from 'kevin.c1' or (st ->> 'is_coach')::boolean or st -> 'students' is distinct from '[]'::jsonb
      or (st ->> 'badge')::int is distinct from 0 then raise 'état élève : %', st; end if;
-  if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from array['badge', 'badge_coach', 'badge_student', 'coach', 'invites', 'is_coach', 'students'] then raise 'clés de coach_state : %', st; end if;
+  if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from array['badge', 'badge_coach', 'badge_student', 'coach', 'invites', 'is_coach', 'removed', 'students'] then raise 'clés de coach_state : %', st; end if;
   -- Déjà un coach : un code de L est refusé (aperçu et adhésion)
   if pg_temp.cerr(format('select public.coach_preview(%L)', (select code from codes where who = 'l1'))) is distinct from 'already_coached' then raise 'aperçu déjà suivi'; end if;
   if pg_temp.cerr(format('select public.coach_join(%L)', (select code from codes where who = 'l1'))) is distinct from 'already_coached' then raise 'deux coachs'; end if;
@@ -401,7 +401,9 @@ begin
   if pg_temp.cerr($q$ update public.coach_notes set seen_at = now() $q$) not like 'permission denied%' then raise 'update coach_notes'; end if;
   if pg_temp.cerr($q$ update public.coach_programmes set seen_at = now() $q$) not like 'permission denied%' then raise 'update coach_programmes'; end if;
   if pg_temp.cerr($q$ update public.coach_links set coach_seen_at = now() $q$) not like 'permission denied%' then raise 'update coach_links'; end if;
-  foreach t in array array['public.coach_invites', 'public.coach_links', 'public.coach_programmes', 'public.coach_notes'] loop
+  if pg_temp.cerr($q$ insert into public.coach_removed (coach_id, student_id) values (pg_temp.cu('l'), pg_temp.cu('s')) $q$) not like 'permission denied%' then raise 'insert coach_removed'; end if;
+  if pg_temp.cerr($q$ delete from public.coach_removed $q$) not like 'permission denied%' then raise 'delete coach_removed'; end if;
+  foreach t in array array['public.coach_invites', 'public.coach_links', 'public.coach_programmes', 'public.coach_notes', 'public.coach_removed'] loop
     if pg_temp.cerr(format('select * from %s', t)) not like 'permission denied%' then raise 'lecture directe de %', t; end if;
   end loop;
   foreach t in array array['private.session_for_coach(''x'', ''{}'')', 'private.is_coach(pg_temp.cu(''k''))', 'private.coach_new_code()',
@@ -444,6 +446,9 @@ begin
   perform pg_temp.clogin('s');
   perform public.coach_join((select code from codes where who = 'k-actif' limit 1));
   if public.student_inbox() is distinct from '{"programmes": [], "notes": []}'::jsonb then raise 'anciens envois revenus'; end if;
+  -- Quitter de soi-même n'interdit rien
+  perform pg_temp.clogin('k');
+  if public.coach_state() -> 'removed' is distinct from '[]'::jsonb then raise 'départ volontaire inscrit comme retrait'; end if;
 
   -- K retire T (avec un commentaire et un programme)
   perform pg_temp.clogin('k');
@@ -459,6 +464,44 @@ begin
   if pg_temp.cerr($q$ select * from public.coach_student_sessions(pg_temp.cu('t')) $q$) is distinct from 'not_found' then raise 'séances après retrait'; end if;
   perform pg_temp.clogin('t');
   if public.coach_state() -> 'coach' is distinct from 'null'::jsonb or public.student_inbox() is distinct from '{"programmes": [], "notes": []}'::jsonb then raise 'après retrait'; end if;
+
+  -- Retiré : aucun code de K ne marche pour T, même un code créé après ; même réponse qu'un code faux
+  if pg_temp.cerr(format('select public.coach_preview(%L)', (select code from codes where who = 'k-actif' limit 1))) is distinct from 'invalid_code' then raise 'aperçu après retrait'; end if;
+  if pg_temp.cerr(format('select public.coach_join(%L)', (select code from codes where who = 'k-actif' limit 1))) is distinct from 'invalid_code' then raise 'retour après retrait'; end if;
+  perform pg_temp.clogin('k'); c := public.coach_create_invite();
+  perform pg_temp.clogin('t');
+  if pg_temp.cerr(format('select public.coach_join(%L)', c)) is distinct from 'invalid_code' then raise 'retour avec un nouveau code'; end if;
+  -- Les autres élèves ne sont pas touchés
+  perform pg_temp.clogin('u');
+  if public.coach_preview(c) ->> 'username' is distinct from 'kevin.c1' then raise 'U touché par le retrait de T'; end if;
+  -- K voit T dans removed ; L ne voit rien (son « retrait » de T n'a rien inscrit)
+  perform pg_temp.clogin('k');
+  if jsonb_array_length(public.coach_state() -> 'removed') is distinct from 1
+     or public.coach_state() -> 'removed' -> 0 ->> 'user_id' is distinct from pg_temp.cu('t')::text
+     or public.coach_state() -> 'removed' -> 0 ->> 'username' is distinct from 'theo.c1'
+     or public.coach_state() -> 'removed' -> 0 ->> 'since' is null then raise 'removed : %', public.coach_state() -> 'removed'; end if;
+  if (select array_agg(k order by k) from jsonb_object_keys(public.coach_state() -> 'removed' -> 0) k) is distinct from array['avatar', 'since', 'user_id', 'username'] then raise 'clés de removed'; end if;
+  perform public.coach_remove_student(pg_temp.cu('t'));   -- déjà retiré : sans effet
+  if jsonb_array_length(public.coach_state() -> 'removed') is distinct from 1 then raise 'retrait doublé'; end if;
+  perform pg_temp.clogin('l');
+  if public.coach_state() -> 'removed' is distinct from '[]'::jsonb then raise 'removed de L'; end if;
+  perform pg_temp.clogin('t');
+  if public.coach_state() -> 'removed' is distinct from '[]'::jsonb then raise 'T voit removed'; end if;
+  -- Autoriser : L (pas son élève), T lui-même et un inconnu ne lèvent rien ; seul K lève l'interdiction
+  perform pg_temp.clogin('l'); perform public.coach_allow_student(pg_temp.cu('t'));
+  perform pg_temp.clogin('t'); perform public.coach_allow_student(pg_temp.cu('t'));
+  if pg_temp.cerr(format('select public.coach_join(%L)', c)) is distinct from 'invalid_code' then raise 'interdiction levée par un autre'; end if;
+  perform pg_temp.clogin('k');
+  if pg_temp.cerr($q$ select public.coach_allow_student(gen_random_uuid()) $q$) is distinct from 'ok' then raise 'autoriser un inconnu'; end if;
+  if pg_temp.cerr($q$ select public.coach_allow_student(null) $q$) is distinct from 'ok' then raise 'autoriser null'; end if;
+  perform public.coach_allow_student(pg_temp.cu('t'));
+  if public.coach_state() -> 'removed' is distinct from '[]'::jsonb then raise 'removed après autorisation'; end if;
+  perform pg_temp.clogin('t');
+  if public.coach_join(c) ->> 'username' is distinct from 'kevin.c1' then raise 'retour après autorisation'; end if;
+  -- T quitte de lui-même puis revient : aucune interdiction
+  perform public.coach_leave();
+  if public.coach_join(c) ->> 'username' is distinct from 'kevin.c1' then raise 'retour après départ volontaire'; end if;
+  perform public.coach_leave();
 end $$;
 
 -- ── Coach dont l'administrateur retire le rôle ───────────
@@ -534,6 +577,9 @@ begin
   -- voir l'en-tête de la migration)
   perform pg_temp.clogin('k');
   c := public.coach_create_invite();
+  reset role;
+  delete from private.social_rate where user_id = pg_temp.cu('u') and action = 'coach_code';   -- U a déjà fait un aperçu
+  set role authenticated;
   perform pg_temp.clogin('u');
   for i in 1..10 loop perform public.coach_preview(c); end loop;
   if pg_temp.cerr(format('select public.coach_preview(%L)', c)) is distinct from 'rate_limited' then raise '11e aperçu'; end if;
@@ -577,7 +623,8 @@ begin
     'public.coach_remove_student(pg_temp.cu(''s''))', '* from public.coach_student_sessions(pg_temp.cu(''s''))',
     'public.coach_mark_seen(pg_temp.cu(''s''))', 'public.coach_send_programme(pg_temp.cu(''s''), ''p'', ''{}'')',
     'public.coach_set_note(pg_temp.cu(''s''), ''s-1'', ''x'')', 'public.student_inbox()', 'public.student_mark_seen(''note'', ''s-1'')',
-    '* from public.coach_invites', '* from public.coach_links', '* from public.coach_programmes', '* from public.coach_notes'] loop
+    '* from public.coach_invites', '* from public.coach_links', '* from public.coach_programmes', '* from public.coach_notes', '* from public.coach_removed',
+    'public.coach_allow_student(pg_temp.cu(''s''))'] loop
     if pg_temp.cerr('select ' || f) not like 'permission denied%' then raise 'anon : %', f; end if;
   end loop;
 end $$;
@@ -587,7 +634,7 @@ reset role;
 do $$
 declare f regprocedure;
   names text[] := array['coach_state', 'coach_create_invite', 'coach_revoke_invite', 'coach_preview', 'coach_join', 'coach_leave',
-                        'coach_remove_student', 'coach_student_sessions', 'coach_mark_seen', 'coach_send_programme', 'coach_set_note',
+                        'coach_remove_student', 'coach_allow_student', 'coach_student_sessions', 'coach_mark_seen', 'coach_send_programme', 'coach_set_note',
                         'student_inbox', 'student_mark_seen'];
 begin
   for f in select p.oid::regprocedure from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = any (names) loop
@@ -595,14 +642,14 @@ begin
     if has_function_privilege('anon', f, 'execute') then raise '% : anon a le droit', f; end if;
     if not (select p.prosecdef and p.proconfig @> array['search_path=""'] from pg_proc p where p.oid = f) then raise '% : security definer et search_path vide', f; end if;
   end loop;
-  if (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = any (names)) <> 13 then raise 'fonctions du contrat manquantes'; end if;
+  if (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = any (names)) <> 14 then raise 'fonctions du contrat manquantes'; end if;
   for f in select p.oid::regprocedure from pg_proc p where p.pronamespace = 'private'::regnamespace
              and p.proname in ('is_coach', 'rate_limit_window', 'coach_code_norm', 'coach_new_code', 'coach_check_code', 'session_for_coach', 'coach_require_student') loop
     if has_function_privilege('authenticated', f, 'execute') or has_function_privilege('anon', f, 'execute') or has_function_privilege('service_role', f, 'execute') then raise '% : exécutable par l''API', f; end if;
   end loop;
   -- Aucune politique RLS sur les tables du coach, RLS activée
-  if exists (select 1 from pg_policies where tablename in ('coach_invites', 'coach_links', 'coach_programmes', 'coach_notes')) then raise 'politique RLS inattendue'; end if;
-  if exists (select 1 from pg_class where relname in ('coach_invites', 'coach_links', 'coach_programmes', 'coach_notes') and not relrowsecurity) then raise 'RLS désactivée'; end if;
+  if exists (select 1 from pg_policies where tablename in ('coach_invites', 'coach_links', 'coach_programmes', 'coach_notes', 'coach_removed')) then raise 'politique RLS inattendue'; end if;
+  if exists (select 1 from pg_class where relname in ('coach_invites', 'coach_links', 'coach_programmes', 'coach_notes', 'coach_removed') and not relrowsecurity) then raise 'RLS désactivée'; end if;
 end $$;
 
 -- ── Suppression du compte : tout part en cascade ─────────
@@ -618,12 +665,22 @@ begin
   delete from auth.users where id = s;
   if exists (select 1 from public.coach_links where student_id = s) or exists (select 1 from public.coach_programmes where student_id = s)
      or exists (select 1 from public.coach_notes where student_id = s) then raise 'cascade élève'; end if;
-  -- Le coach supprimé : codes, liens, envois, journal des limites
+  -- Retraits : K retire V (V supprimé ensuite) ; T, retiré lui aussi (écrit ici par le serveur), part avec K
+  set local role authenticated;
+  perform pg_temp.clogin('k');
+  perform public.coach_remove_student(pg_temp.cu('v'));
+  reset role;
+  insert into public.coach_removed (coach_id, student_id) values (k, pg_temp.cu('t'));
+  if (select count(*) from public.coach_removed where coach_id = k) is distinct from 2 then raise 'retraits avant suppression'; end if;
+  delete from auth.users where id = pg_temp.cu('v');
+  if exists (select 1 from public.coach_removed where student_id = pg_temp.cu('v')) then raise 'cascade coach_removed (élève)'; end if;
+  -- Le coach supprimé : codes, liens, envois, retraits, journal des limites
   if not exists (select 1 from public.coach_links where coach_id = k) or not exists (select 1 from public.coach_invites where coach_id = k)
      or not exists (select 1 from public.coach_programmes where coach_id = k) then raise 'données de K absentes avant la suppression'; end if;
   delete from auth.users where id = k;
   if exists (select 1 from public.coach_links where coach_id = k) then raise 'cascade coach_links'; end if;
   if exists (select 1 from public.coach_invites where coach_id = k) then raise 'cascade coach_invites'; end if;
+  if exists (select 1 from public.coach_removed where coach_id = k) then raise 'cascade coach_removed (coach)'; end if;
   if exists (select 1 from public.coach_programmes where coach_id = k) or exists (select 1 from public.coach_notes where coach_id = k) then raise 'cascade envois'; end if;
   if exists (select 1 from private.social_rate where user_id = k) then raise 'cascade social_rate'; end if;
   -- Ses anciens élèves n'ont plus de coach
