@@ -27,6 +27,12 @@ Hors V1 : paiement, push, plusieurs coachs pour un élève, groupes d'élèves, 
 Ses séances complètes, notes de séance comprises, **sans** `bodyKg` ni `healthSaved` : liste blanche `private.session_for_coach` = celle de `private.session_public` + `notes` + `hidden` + `id`. Les séances masquées aux abonnés restent visibles du coach (il est là pour ça), et l'écran d'acceptation le dit.
 Ses programmes perso : non en V1 (le coach envoie les siens).
 
+## Séances faites avec le programme du coach (ajout du 27/10)
+- Une séance faite avec un programme reçu a pour `programme` l'id `u_c<prog_id>` : le coach la reconnaît et l'affiche « Ton programme : <nom> ».
+- `coach_links.coach_seen_at timestamptz` : dernière fois que le coach a ouvert les séances de cet élève. `coach_state().students[]` ajoute `new_sessions` (séances terminées après `coach_seen_at`) et `last_session: { done_at, label, programme }`. `badge` côté coach = nombre total de `new_sessions`.
+- `coach_mark_seen(student uuid)` : pose `coach_seen_at = now()` (appelé à l'ouverture des séances de l'élève).
+- App : dans « Mes élèves », pastille du nombre de nouvelles séances et ligne « Push · ton programme · hier » ; dans les séances d'un élève, les séances faites avec un programme du coach portent la mention « Ton programme ». Badge de l'onglet Amis = social + coach (élève ou coach).
+
 ## Fonctions RPC (rôle `authenticated`)
 
 | Fonction | Renvoie | Règles |
