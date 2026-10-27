@@ -984,6 +984,10 @@ function coachApplyChange() {
   if (key !== coachShown && COACH_WATCH_VIEWS.includes(v)) { render(); coachShown = key; return; }
   coachShown = key;   // écran sans rapport : à jour sans redessin
 }
+// Repère initialisé au démarrage : sinon, pour un compte sans coach, coachShown reste null et le tout
+// premier focusout (par ex. le clic qui ouvre une séance) croit qu'il y a du nouveau et redessine
+// l'écran, ce qui, sur WebKit, passe avant la navigation du clic et l'annule.
+coachShown = coachShownKey();
 onCoachChange(() => { updateTabBadge(); coachApplyChange(); });
 // Fin d'une saisie : un changement arrivé pendant la frappe est redessiné maintenant (activeElement
 // mis à jour au tour suivant)
