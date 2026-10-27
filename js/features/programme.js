@@ -325,7 +325,7 @@ registerActions({
       message: 'Tu pourras ensuite ajouter, renommer ou supprimer des séances et des exercices.',
       actions: [
         { label: 'Programme vide', value: 'empty', style: 'preferred' },
-        ...Object.entries(PROGRAMMES).filter(([k]) => k !== 'custom').map(([k, pm]) => ({ label: `Copie de ${pm.name}`, value: k })),
+        ...Object.entries(PROGRAMMES).filter(([k]) => k !== 'custom').map(([k, pm]) => ({ label: `Copie ${elide('de', pm.name)}`, value: k })),
         { label: 'Annuler', style: 'cancel' },
       ] });
     if (!start) return;

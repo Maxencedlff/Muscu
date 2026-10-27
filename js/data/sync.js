@@ -83,6 +83,29 @@ function profilePayload(d) {
   return out;
 }
 
+// Empreinte du profil sans l'ordre des séances des programmes perso (userProgrammes[k].order, posé au
+// chargement et à l'enregistrement depuis le 27/10/2026, js/data/store.js : userSessionOrder). Comme
+// legacySessionHash : une empreinte enregistrée avant ce champ compte comme « inchangé ici », sinon la
+// première synchro après la mise à jour ferait gagner cet appareil sur les changements faits ailleurs.
+// Seul champ ajouté d'office à tout le monde par cette version (consigne, retired, fromCoach n'existent
+// que si la personne a un coach ou en est un, et ne sont jamais posés au chargement).
+function profileHashBeforeOrder(doc) {
+  const ups = doc?.userProgrammes;
+  if (!ups || typeof ups !== 'object') return syncHash(doc);
+  const out = {};
+  for (const [k, up] of Object.entries(ups)) {
+    if (up && typeof up === 'object') { const { order, ...rest } = up; out[k] = rest; } else out[k] = up;
+  }
+  return syncHash({ ...doc, userProgrammes: out });
+}
+// Ordres locaux des séances, gardés quand le profil reçu n'en a pas encore (compte rempli par une version
+// précédente : ses clés arrivent triées par jsonb, l'ordre de cet appareil est le bon)
+function keepLocalOrders(d, before) {
+  for (const [k, up] of Object.entries(d.userProgrammes || {})) {
+    if (up && typeof up === 'object' && !Array.isArray(up.order) && Array.isArray(before[k])) up.order = before[k];
+  }
+}
+
 // Appareil vierge (aucune séance) : à la liaison, le compte fait foi (nouvel iPhone, réinstallation)
 function isBlankData(d) { return !(d.history || []).length; }
 
@@ -164,10 +187,14 @@ function applyRemoteProfile(d, remote, meta) {
   const remoteHash = syncHash(doc), localHash = syncHash(profilePayload(d));
   if (localHash === remoteHash) { meta.profileHash = localHash; return false; }
   const blank = isBlankData(d);
-  if (blank || meta.profileHash === localHash) {
+  const before = Object.fromEntries(Object.entries(d.userProgrammes || {}).filter(([, up]) => Array.isArray(up?.order)).map(([k, up]) => [k, up.order.slice()]));
+  // Inchangé ici : empreinte égale, ou égale sans l'ordre des séances ajouté par cette version
+  const unchangedHere = meta.profileHash === localHash || (meta.profileHash != null && meta.profileHash === profileHashBeforeOrder(profilePayload(d)));
+  if (blank || unchangedHere) {
     // Appareil vierge : ses clés ne sont que les valeurs par défaut, copie exacte (Mes programmes se
     // reconstruit alors depuis l'historique du compte, cleanMyProgrammes)
     for (const k of SYNC_PROFILE_KEYS) { if (k in doc) d[k] = doc[k]; else if (blank || SYNC_ABSENT_IS_CHOICE.includes(k)) delete d[k]; }
+    keepLocalOrders(d, before);
     meta.profileHash = remoteHash;
     return true;
   }
@@ -177,6 +204,7 @@ function applyRemoteProfile(d, remote, meta) {
     if (both) d[k] = remoteWins ? { ...d[k], ...v } : { ...v, ...d[k] };
     else if (remoteWins || d[k] === undefined) d[k] = v;
   }
+  keepLocalOrders(d, before);
   // Empreinte du compte : le résultat de la fusion, différent, partira au prochain envoi
   meta.profileHash = remoteHash;
   return true;

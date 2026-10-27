@@ -382,7 +382,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(ex('Salut ! Voici mon code : K7M2QX9P, à bientôt'), 'K7M2QX9P');
     assert.equal(ex('MDLF Training rejoindre'), null);
     assert.equal(ex('ABCDEFGH1'), null, '9 caractères : pas un code');
-    sameJSON(['max', 'essai', 'hugo', 'Yann', 'Élise', '3pm'].map(n => run(`elide('de', ${JSON.stringify(n)})`)), ['de max', 'd\'essai', 'd\'hugo', 'd\'Yann', 'd\'Élise', 'de 3pm']);
+    sameJSON(['max', 'essai', 'hugo', 'Yann', 'Élise', '3pm'].map(n => run(`elide('de', ${JSON.stringify(n)})`)), ['de max', 'd\'essai', 'd\'hugo', 'de Yann', 'd\'Élise', 'de 3pm']);
     assert.equal(run(`'Ce ' + elide('que', 'essai') + ' verra'`), 'Ce qu\'essai verra');
     assert.match(run(`coachInviteText('HXFZMB3V')`), /onglet Amis › Rejoindre un coach/);
   });
@@ -433,5 +433,59 @@ export default function ({ test, run, reset, assert, sameJSON }) {
       } finally { account.user = user; Object.assign(coach, saved); localStorage.removeItem(COACH_SENT_KEY); }
     })()`);
     sameJSON(r, [['u_c:unused', 'u_b:used', 'u_a:unseen'], ['u_z:unused']]);
+  });
+
+  test('synchro après la mise à jour : l\'ordre des séances ajouté au chargement ne fait pas gagner cet appareil', () => {
+    const r = run(`(() => {
+      // iPhone sur la version précédente : programme perso sans order, profil synchronisé (empreinte d'avant)
+      const old = makeDefaultData(); old.schema = SCHEMA;
+      old.userProgrammes.u_aaaaaaaa = { name: 'Mon prog', archived: false, sessions: {
+        sZ: { label: 'Haut', icon: '', desc: '', color: '#FF0000' }, sA: { label: 'Bas', icon: '', desc: '', color: '#00FF00' } } };
+      old.history = [{ id: 'h1', date: 1e12, programme: 'u_aaaaaaaa', category: 'sZ', exercises: [] }];
+      sanitizeData(old); delete old.userProgrammes.u_aaaaaaaa.order;   // état laissé par la version précédente
+      const meta = { userId: 'u', cursor: null, pushed: {}, profileHash: syncHash(profilePayload(old)), profileAt: '2026-10-27T10:00:00Z' };
+      // Compte modifié ailleurs (iPad, version précédente) : lbs, programme renommé ; clés triées par jsonb
+      const doc = JSON.parse(JSON.stringify(profilePayload(old)));
+      doc.unit = 'lbs'; doc.userProgrammes.u_aaaaaaaa.name = 'Renommé sur iPad';
+      const ss = doc.userProgrammes.u_aaaaaaaa.sessions;
+      doc.userProgrammes.u_aaaaaaaa.sessions = Object.fromEntries(Object.keys(ss).sort().map(k => [k, ss[k]]));
+      // Mise à jour : chargement (sanitizeData pose order), puis première synchro
+      const d = sanitizeData(JSON.parse(JSON.stringify(old)));
+      const changed = applyRemoteProfile(d, { doc, updated_at: '2026-10-27T11:00:00Z' }, meta);
+      sanitizeData(d);
+      const keep = data; data = d; const labels = sessionKeys('u_aaaaaaaa').map(k => rawLabel(k, 'u_aaaaaaaa')); data = keep;
+      const first = [changed, d.unit, d.userProgrammes.u_aaaaaaaa.name, labels];
+      // Synchro suivante : le compte a encore son profil sans order, toujours rien d'écrasé
+      doc.unit = 'kg'; doc.weeklyGoal = 5;
+      const changed2 = applyRemoteProfile(d, { doc, updated_at: '2026-10-27T12:00:00Z' }, meta);
+      return [...first, changed2, d.unit, d.weeklyGoal, d.userProgrammes.u_aaaaaaaa.order];
+    })()`);
+    sameJSON(r, [true, 'lbs', 'Renommé sur iPad', ['Haut', 'Bas'], true, 'kg', 5, ['sZ', 'sA']]);
+    // Vraiment modifié ici (pas seulement l'ordre ajouté) : cet appareil garde ses changements, comme avant
+    const r2 = run(`(() => {
+      const d = makeDefaultData(); d.history = [{ id: 'h', date: 1, category: 'push', exercises: [] }];
+      const meta = { userId: 'u', cursor: null, pushed: {}, profileHash: syncHash(profilePayload(d)), profileAt: 'a' };
+      const doc = JSON.parse(JSON.stringify(profilePayload(d))); doc.defaultRest = 120;
+      d.unit = 'lbs';
+      applyRemoteProfile(d, { doc, updated_at: 'b' }, meta);
+      return [d.unit, d.defaultRest];
+    })()`);
+    sameJSON(r2, ['lbs', 90]);
+  });
+
+  test('coach : élèves retirés triés, nom d\'un programme envoyé puis supprimé', () => {
+    const st = run(`cleanCoachState({ is_coach: true, removed: [{ user_id: 'a', username: 'ana', since: '2026-10-01T00:00:00Z' }, { user_id: 'b', username: 'bob', since: '2026-10-20T00:00:00Z' }] })`);
+    sameJSON(st.removed.map(p => p.username), ['bob', 'ana'], 'du plus récent au plus ancien');
+    const r = run(`(() => {
+      const saved = { ...coach };
+      try {
+        coach.userId = 'c1';
+        localStorage.removeItem(COACH_SENT_KEY);
+        coachRecordSent('e', 'u_parti', 100, 'Ancien programme');
+        localStorage.setItem(COACH_SENT_KEY, JSON.stringify({ userId: 'c1', sent: { e: { ...JSON.parse(localStorage.getItem(COACH_SENT_KEY)).sent.e, u_vieux: 50 } } }));
+        return [coachSentName('e', 'u_parti'), coachSentName('e', 'ppl'), coachSentName('e', 'u_vieux'), coachUnusedSent('e', []).map(x => x.progId + ':' + x.sentAt).sort()];
+      } finally { Object.assign(coach, saved); localStorage.removeItem(COACH_SENT_KEY); }
+    })()`);
+    sameJSON(r, ['Ancien programme', run('PROGRAMMES.ppl.name'), 'Programme supprimé', ['u_parti:100', 'u_vieux:50']]);
   });
 }

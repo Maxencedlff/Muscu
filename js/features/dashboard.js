@@ -302,7 +302,7 @@ function renderDashboard() {
       <section class="hero" aria-label="${liveHere ? 'Séance en cours' : 'Prochaine séance'}">
         <div class="hero__eyebrow">${liveHere ? 'Séance en cours' : 'Prochaine séance'}</div>
         <div class="hero__name hero__name--${size}">${meta.label}</div>
-        ${meta.desc ? `<div class="hero__desc">${meta.desc}</div>` : ''}
+        ${meta.desc || coachSessionDesc(data.activeProgramme, next) ? `<div class="hero__desc">${meta.desc || coachSessionDesc(data.activeProgramme, next)}</div>` : ''}
         ${info}
         ${chips ? `<div class="hero__chips">${chips}</div>` : ''}
         ${btn}

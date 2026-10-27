@@ -163,7 +163,7 @@ function renderCoachSettings() {
         <div class="group">
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
         </div>
-        <div class="group-foot">Si tu quittes ${esc(personName(me))}, ${esc(personName(me))} ne verra plus tes séances. Les programmes déjà ajoutés restent dans tes programmes.</div>` : `
+        <div class="group-foot">Si tu le quittes, ton coach ne verra plus tes séances. Les programmes déjà ajoutés restent dans tes programmes.</div>` : `
         <div class="social-hero coach-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
@@ -290,7 +290,7 @@ function coachProgCardHtml(item) {
   const nS = item.data.sessions.length, who = esc(coachName());
   const kept = status === 'current' && data.userProgrammes?.[id]?.fromCoach?.keptAt === item.sentAt && item.sentAt > (data.userProgrammes[id].fromCoach.sentAt || 0);
   const eyebrow = status === 'update' ? `Mis à jour par ${who}` : status === 'new' ? `Nouveau programme ${elide('de', who)}` : `Reçu ${elide('de', who)}`;
-  const open = coachProgOpen.has(item.id);
+  const open = coachProgOpen.has(item.id) && !item.meta;
   const btn = status === 'current'
     ? (kept ? `<p class="coach-prog__done">Tu as gardé ta version.</p>
         <button class="btn btn--secondary coach-prog__btn" data-action="coach-take-prog" data-id="${esc(item.id)}">Prendre la version ${elide('de', who)}</button>`
@@ -300,9 +300,9 @@ function coachProgCardHtml(item) {
         <article class="coach-prog">
           <div class="coach-prog__eyebrow">${eyebrow}</div>
           <h3 class="coach-prog__name">${esc(item.data.name)}</h3>
-          <p class="coach-prog__meta">${plural(nS, 'séance', 'séances')}${nS ? ` : ${esc(item.data.sessions.map(s => s.label).join(', '))}` : ''}</p>
+          ${item.meta ? '<p class="coach-prog__meta">Détail disponible avec du réseau.</p>' : `<p class="coach-prog__meta">${plural(nS, 'séance', 'séances')}${nS ? ` : ${esc(item.data.sessions.map(s => s.label).join(', '))}` : ''}</p>`}
           ${item.data.consigne ? `<p class="coach-prog__consigne">${icon('info.circle', 14)}<span>${esc(item.data.consigne)}</span></p>` : ''}
-          <button class="coach-prog__toggle" data-action="coach-prog-toggle" data-id="${esc(item.id)}" aria-expanded="${open}">${open ? 'Masquer les exercices' : 'Voir les exercices'} ${icon(open ? 'chevron.up' : 'chevron.down', 12)}</button>
+          ${item.meta ? '' : `<button class="coach-prog__toggle" data-action="coach-prog-toggle" data-id="${esc(item.id)}" aria-expanded="${open}">${open ? 'Masquer les exercices' : 'Voir les exercices'} ${icon(open ? 'chevron.up' : 'chevron.down', 12)}</button>`}
           ${open ? coachProgPreviewHtml(item) : ''}
           ${btn}
         </article>`;
@@ -348,7 +348,7 @@ function renderCoachMine() {
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
         </div>
-        <div class="group-foot">Si tu quittes ${esc(personName(p))}, ${esc(personName(p))} ne verra plus tes séances.</div>
+        <div class="group-foot">Si tu le quittes, ton coach ne verra plus tes séances.</div>
       </div>
     </div>`;
 }
@@ -397,6 +397,16 @@ function coachHomeCard() {
 async function addCoachProgrammeFlow(progId, { take = false } = {}) {
   const item = coach.inbox?.programmes.find(p => p.id === progId);
   if (!item) return;
+  // Programme gardé hors ligne (cache, au démarrage avant la réponse du serveur) : on n'a que son nom. Si
+  // rien n'indique qu'on est hors ligne, on relit d'abord l'état et on réessaie avec le contenu complet ;
+  // vraiment hors ligne, l'ajout reste impossible (c'est voulu)
+  if (item.meta) {
+    if (coach.error) { showToast(coachErrorText('offline'), { error: true }); return; }
+    await coachRefresh();
+    const fresh = coach.inbox?.programmes.find(p => p.id === progId);
+    if (!fresh || fresh.meta) { showToast(coachErrorText('offline'), { error: true }); return; }
+    return addCoachProgrammeFlow(progId, { take });
+  }
   const st = coachStatus(item);
   const status = take ? 'update' : st.status, localId = st.id, name = item.data.name;
   // Séance en cours sur ce programme : la mise à jour attend la fin de la séance (ses exercices et ses
@@ -442,9 +452,25 @@ async function addCoachProgrammeFlow(progId, { take = false } = {}) {
 function coachProgOf(progId) { return data.userProgrammes?.[progId]?.fromCoach ? data.userProgrammes[progId] : null; }
 function coachAuthor(up) { return up?.fromCoach?.name || 'ton coach'; }
 // « De ton coach max » : Mes programmes, accueil
+// « De ton coach max » tant qu'on suit ce coach ; ensuite « Reçu de max » (ou rien si le nom manque)
 function coachFromLine(progId) {
   const up = coachProgOf(progId);
-  return up ? `De ton coach ${esc(coachAuthor(up))}` : '';
+  if (!up) return '';
+  const name = up.fromCoach.name;
+  if (myCoach()?.user_id && myCoach().user_id === up.fromCoach.coachId) return `De ton coach ${esc(name || myCoach().username || '')}`.trim();
+  return name ? `Reçu ${elide('de', esc(name))}` : '';
+}
+
+// Accueil : muscles d'une séance d'un programme reçu (le coach n'envoie pas de description) : les plus
+// travaillés par ses exercices, comme « Pectoraux · Épaules · Triceps » des programmes intégrés
+function coachSessionDesc(progId, cat) {
+  if (!coachProgOf(progId)) return '';
+  const count = new Map();
+  (data.programmes[progId]?.exercises?.[cat] || []).forEach(e => exerciseMuscles(e).primary.forEach(id => {
+    const label = MUSCLE_BY_ID.get(id)?.short || muscleLabel(id);
+    count.set(label, (count.get(label) || 0) + 1);
+  }));
+  return esc([...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([l]) => l).join(' · '));
 }
 
 // Programme et Programme › Séance : consigne générale du programme
@@ -619,7 +645,7 @@ function renderCoachStudent(uid) {
   const sent = sentList.length ? `
         <div class="group-title">Programmes envoyés</div>
         <div class="group">${sentList.map(x => `
-          <div class="cell coach-sent" data-prog="${esc(x.progId)}"><span class="cell__body"><span class="cell__title">${esc(progMeta(x.progId).name)}</span><span class="cell__sub">Envoyé le ${esc(fmtDate(x.sentAt, 'short'))}</span><span class="cell__sub coach-sent__state coach-sent__state--${x.state}">${STATE[x.state]}</span></span></div>`).join('')}</div>` : '';
+          <div class="cell coach-sent" data-prog="${esc(x.progId)}"><span class="cell__body"><span class="cell__title">${esc(coachSentName(uid, x.progId))}</span><span class="cell__sub">Envoyé le ${esc(fmtDate(x.sentAt, 'short'))}</span><span class="cell__sub coach-sent__state coach-sent__state--${x.state}">${STATE[x.state]}</span></span></div>`).join('')}</div>` : '';
 
   return `
     <div class="view view--grouped coach-student-view">
@@ -638,7 +664,7 @@ function renderCoachStudent(uid) {
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="coach-remove" data-uid="${esc(uid)}">Retirer l'élève</button>
         </div>
-        <div class="group-foot">Tu ne verras plus ses séances, et ses codes ne marcheront plus pour cette personne, sauf si tu autorises son retour.</div>
+        <div class="group-foot">Tu ne verras plus ses séances, et tes codes ne marcheront plus pour cette personne, sauf si tu autorises son retour.</div>
       </div>
     </div>`;
 }
@@ -922,6 +948,7 @@ registerActions({
     coachSendDraft = null;
     coachSaveSendDraft();
     goBack();
+    coachRefresh();   // « Programmes envoyés » : « Pas encore ouvert » tout de suite, renvoi compris
   },
 });
 
@@ -936,16 +963,30 @@ document.addEventListener('input', e => {
 
 // ── Mises à jour de l'écran ─────────────────────────────────
 
-onCoachChange(() => {
-  updateTabBadge();
-  const v = currentView();
-  if (v === 'friends') { refreshCoachCell(); return; }
-  if (v === 'settings') { render(); return; }
-  if (v === 'coach-send' && document.activeElement?.matches?.('textarea')) return;
-  if (COACH_VIEWS.includes(v) || ['dashboard', 'history', 'history-detail', 'editor', 'programmes', 'my-programmes', 'summary'].includes(v)) {
-    if (v === 'summary' && document.activeElement?.matches?.('textarea')) return;
-    render();
-  }
-});
+// Ce que les écrans hors coach montrent du coach (cartes de l'accueil, marques de l'Historique, cellule
+// des Réglages…) : ils ne sont redessinés que si cette signature change, jamais pendant une saisie
+function coachShownKey() {
+  const ib = coach.inbox;
+  return JSON.stringify([account.user?.id || null, coachRole(), coachBadge(), coachBadgeCoach(), coachBadgeStudent(), myCoach()?.user_id || null, myCoach()?.username || null,
+    coach.state?.students.length ?? null, account.user ? coachLost() : null,
+    ib ? [ib.programmes.map(p => [p.id, p.sentAt, p.seen, !!p.meta]), ib.notes.map(n => [n.session_id, n.updatedAt, n.seen])] : null]);
+}
+let coachShown = null;
+function coachTyping() { return !!document.activeElement?.matches?.('input, textarea, select, [contenteditable="true"]'); }
+// coachShown n'avance QUE lorsque l'écran a été redessiné (ou n'avait rien à redessiner) : un changement
+// arrivé pendant une saisie reste « non affiché » et sera repris au focusout, pas marqué « déjà vu »
+const COACH_WATCH_VIEWS = ['settings', 'dashboard', 'history', 'history-detail', 'editor', 'programmes', 'my-programmes', 'summary'];
+function coachApplyChange() {
+  const v = currentView(), key = coachShownKey();
+  if (v === 'friends') { if (key !== coachShown) { refreshCoachCell(); coachShown = key; } return; }
+  if (coachTyping()) return;   // champ en cours de saisie : rendu reporté au focusout (coachShown gardé)
+  if (COACH_VIEWS.includes(v)) { render(); coachShown = key; return; }
+  if (key !== coachShown && COACH_WATCH_VIEWS.includes(v)) { render(); coachShown = key; return; }
+  coachShown = key;   // écran sans rapport : à jour sans redessin
+}
+onCoachChange(() => { updateTabBadge(); coachApplyChange(); });
+// Fin d'une saisie : un changement arrivé pendant la frappe est redessiné maintenant (activeElement
+// mis à jour au tour suivant)
+document.addEventListener('focusout', () => { if (coachShownKey() !== coachShown) setTimeout(coachApplyChange, 0); });
 // Connexion, déconnexion : la cellule de l'onglet Amis change de forme
 onAccountChange(() => { if (currentView() === 'friends') refreshCoachCell(); });

@@ -225,7 +225,7 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
   },
   customSessions: { cat: { label, icon, desc, color } },          // séances de l'ancien programme « Perso »
   userProgrammes: { u_xxxxxxxx: { name, sessions: { cat: { label, icon, desc, color } }, order: [cat], archived,   // order : ordre des séances (userSessionOrder), seul ordre qui survit au serveur (jsonb trie les clés)
-                                 consigne?, fromCoach? } },   // séance { …, retired: true } : retirée par le coach, lue par l'historique, jamais listée   // programme reçu d'un coach : id u_c<prog_id>, fromCoach { coachId, name, sentAt, hash, keptAt? }
+                                 consigne?, fromCoach? } },   // séance { …, retired: true } : retirée par le coach, lue par l'historique, jamais listée   // programme reçu d'un coach : id u_c<8 caractères du coach>_<prog_id>, fromCoach { coachId, name, sentAt, hash, keptAt? }
   defaultRest: 90, unit: 'kg' | 'lbs', soundOn: true, vibrateOn: true,
   bodyWeightKg: 72.5, bodyWeightLog: [{ date, kg }],   // facultatifs : poids saisi et pesées (une par jour, 400 au plus) ; jamais sur le compte (SYNC_LOCAL_ONLY)
   silhouette: 'female' | 'male',             // facultatif : carte des muscles (absent = homme), synchronisé

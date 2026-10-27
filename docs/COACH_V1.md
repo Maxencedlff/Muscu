@@ -28,7 +28,7 @@ Ses séances complètes, notes de séance comprises, **sans** `bodyKg` ni `healt
 Ses programmes perso : non en V1 (le coach envoie les siens).
 
 ## Séances faites avec le programme du coach (ajout du 27/10)
-- Une séance faite avec un programme reçu a pour `programme` l'id `u_c<8 premiers caractères de l'id du coach>_<prog_id>` : le coach la reconnaît et l'affiche « Ton programme : <nom> ».
+- Une séance faite avec un programme reçu a pour `programme` l'id local `u_c<8 caractères du coach>_<prog_id>` (voir plus bas) : le coach la reconnaît à son propre préfixe et l'affiche « Ton programme : <nom> ». Une séance faite avec le programme d'un ancien coach n'est pas attribuée au nouveau.
 - `coach_links.coach_seen_at timestamptz` : dernière fois que le coach a ouvert les séances de cet élève. `coach_state().students[]` ajoute `new_sessions` (séances terminées après `coach_seen_at`) et `last_session: { done_at, label, programme }`. `badge` côté coach = nombre total de `new_sessions`.
 - `coach_mark_seen(student uuid)` : pose `coach_seen_at = now()` (appelé à l'ouverture des séances de l'élève).
 - App : dans « Mes élèves », pastille du nombre de nouvelles séances et ligne « Push · ton programme · hier » ; dans les séances d'un élève, les séances faites avec un programme du coach portent la mention « Ton programme ». Badge de l'onglet Amis = social + coach (élève ou coach).
@@ -75,7 +75,10 @@ Points que le tableau ne disait pas, tranchés côté serveur ; l'app doit les c
 Format de js/data/prog-share.js étendu, validé par l'app à la réception :
 `{ name, consigne?, sessions: [{ key, label, color, exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, ss?, consigne? }] }] }`.
 - `consigne` (programme ou exercice) : texte du coach, 500 caractères au plus.
-- À l'import, l'élève reçoit un programme perso (`userProgrammes`, id `u_c<8 premiers caractères de l'id du coach>_<prog_id>`, par exemple `u_c3f9a1b2c_force5x5` ; deux coachs successifs peuvent envoyer le même `prog_id`), marqué `fromCoach: { coachId, name, sentAt }`. Un nouvel envoi du même `prog_id` met à jour le programme importé (exercices et consignes), en gardant les `id` d'exercices dont le nom ne change pas, pour garder l'historique.
+- À l'import, l'élève reçoit un programme perso (`userProgrammes`, id `u_c<8 premiers caractères alphanumériques de l'id du coach>_<prog_id>`, choix du 27/10 : deux coachs qui envoient le même `prog_id` ne s'écrasent jamais, et le coach reconnaît ses programmes ; un import plus ancien `u_c<prog_id>` du même coach garde sa place), marqué `fromCoach: { coachId, name, sentAt, hash, keptAt? }`. Un nouvel envoi du même `prog_id` met à jour le programme importé (exercices et consignes), en gardant les `id` d'exercices dont le nom ne change pas dans la même séance, pour garder l'historique et les records.
+- `order: [clés]` : ordre des séances de tout programme perso (pas seulement reçu), synchronisé dans le profil, parce que jsonb trie les clés d'un objet. Absent, l'ordre des clés de l'appareil fait foi (migration douce) ; une empreinte de profil d'avant ce champ compte comme « inchangé ici » à la synchro.
+- `retired: true` sur une séance : séance retirée par le coach dans un nouvel envoi. Gardée pour l'historique (nom, couleur), jamais listée (accueil, programme, choix de séance).
+- Consigne d'un programme intégré que le coach envoie : gardée dans `programmes[id].consigne` (les programmes intégrés n'ont pas d'entrée `userProgrammes`).
 - L'élève peut l'utiliser comme n'importe quel programme ; s'il le modifie, un nouvel envoi lui demande avant d'écraser.
 
 ## App

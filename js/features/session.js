@@ -527,7 +527,11 @@ function scrollToCurrent(smooth = true) {
 
 // Appelé par render() après l'affichage de la séance
 function afterSessionRender(entering) {
-  if (entering) scrollToCurrent(false);
+  // Consigne générale du coach (js/features/coach-ui.js) et aucune série faite : la séance s'ouvre en haut,
+  // la consigne visible (sinon elle serait cachée sous la barre par le défilement vers le premier exercice)
+  const tipFirst = entering && coachSessionProgTipHtml() && !activeSession.exercises.some(ex => ex.sets.some(s => s.done));
+  if (tipFirst) window.scrollTo(0, 0);
+  else if (entering) scrollToCurrent(false);
   const a = document.activeElement;
   if (!(a && a.matches?.('.set-input'))) document.body.classList.remove('kb-open');
 }
