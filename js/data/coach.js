@@ -18,7 +18,8 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const COACH_CACHE_KEY   = 'mdlf_coach';   // { userId, isCoach, hasCoach, badge } du dernier état lu
+const COACH_CACHE_KEY   = 'mdlf_coach';   // { userId, isCoach, hasCoach, badge, badgeCoach, badgeStudent } du dernier état lu
+const COACH_INBOX_KEY   = 'mdlf_coach_inbox';   // { userId, coach, inbox } : dernière boîte de l'élève (commentaires hors ligne)
 const COACH_PAGE        = 30;             // séances d'un élève par page (comme le serveur)
 const COACH_NOTE_MAX    = 1000;           // commentaire d'une séance
 const COACH_PROG_BYTES  = 200 * 1024;     // programme envoyé : 200 Ko au plus
@@ -49,7 +50,9 @@ function cleanStudent(raw) {
     last_session: lastAt === null ? null : { done_at: lastAt, label: coachStr(ls?.label, 60).trim() || 'Séance', programme: coachStr(ls?.programme, 50) } };
 }
 
-// coach_state() nettoyé : { is_coach, coach, students, invites, badge }
+// coach_state() nettoyé : { is_coach, coach, students, invites, badge, badge_coach, badge_student }.
+// badge_coach : nouvelles séances de mes élèves (pastille « Mes élèves ») ; badge_student : programmes et
+// commentaires non vus de mon coach (« Mon coach ») ; badge : leur somme (onglet Amis)
 function cleanCoachState(raw) {
   const r = raw && typeof raw === 'object' ? raw : {};
   const students = (Array.isArray(r.students) ? r.students : []).map(cleanStudent).filter(Boolean);
@@ -57,9 +60,12 @@ function cleanCoachState(raw) {
     .filter(i => i && COACH_CODE_RE.test(i.code) && coachTime(i.expires_at) !== null)
     .map(i => ({ code: i.code, expires_at: coachTime(i.expires_at) }));
   const isCoach = r.is_coach === true;
-  const fallback = isCoach ? students.reduce((a, s) => a + s.new_sessions, 0) : 0;
+  const n = v => (Number.isInteger(v) && v >= 0 ? v : null);
+  const badgeCoach = isCoach ? (n(r.badge_coach) ?? students.reduce((a, s) => a + s.new_sessions, 0)) : 0;
+  const total = n(r.badge);
+  const badgeStudent = r.coach ? (n(r.badge_student) ?? Math.max(0, (total ?? badgeCoach) - badgeCoach)) : 0;
   return { is_coach: isCoach, coach: cleanPerson(r.coach), students: isCoach ? students : [], invites: isCoach ? invites : [],
-    badge: Number.isInteger(r.badge) && r.badge >= 0 ? r.badge : fallback };
+    badge: badgeCoach + badgeStudent, badge_coach: badgeCoach, badge_student: badgeStudent };
 }
 
 // Séance d'un élève vue par son coach : liste blanche private.session_for_coach (celle du social, plus
@@ -146,7 +152,7 @@ function coachErrorKind(error) {
   if (!error) return null;
   if (isNetworkError(error) || /fetch|network|load failed/i.test(String(error.message || ''))) return 'offline';
   const msg = String(error.message || error.error || '');
-  for (const k of ['not_coach', 'already_coached', 'invalid_code', 'team_full', 'not_found', 'rate_limited', 'too_long']) if (msg.includes(k)) return k;
+  for (const k of ['not_coach', 'already_coached', 'invalid_code', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required']) if (msg.includes(k)) return k;
   return 'server';
 }
 const COACH_ERROR_TEXT = {
@@ -158,6 +164,8 @@ const COACH_ERROR_TEXT = {
   not_found: 'Introuvable : ce code est peut-être le tien, ou l\'élève ne te suit plus.',
   rate_limited: 'Trop d\'essais pour l\'instant. Réessaie dans une heure.',
   too_long: 'Texte trop long.',
+  invalid_programme: 'Ce programme ne peut pas être envoyé.',
+  username_required: 'Choisis d\'abord un pseudo : ton coach te reconnaîtra avec.',
   too_big: 'Programme trop gros pour être envoyé.',
   signed_out: 'Connecte-toi d\'abord à ton compte.',
   server: 'Action impossible pour l\'instant, réessaie dans un moment.',
@@ -166,15 +174,30 @@ function coachErrorText(kind) { return COACH_ERROR_TEXT[kind] || COACH_ERROR_TEX
 
 // ── Logique pure : programmes (conversion, import, mise à jour) ──
 
-// Identifiant local d'un programme reçu, et l'inverse (null si ce n'est pas un programme reçu)
-function coachLocalId(progId) { return COACH_LOCAL_PREFIX + progId; }
-function coachSentIdOf(localId) {
-  return typeof localId === 'string' && localId.startsWith(COACH_LOCAL_PREFIX) && COACH_PROG_ID_RE.test(localId.slice(3)) ? localId.slice(3) : null;
+// Identifiant local d'un programme reçu : u_c<prog_id>. Si cette place est déjà prise par le programme
+// d'un autre coach (ancien coach qui avait envoyé le même prog_id), u_c<8 caractères du coach>_<prog_id> :
+// le nouveau programme n'écrase jamais celui d'avant. Un programme déjà importé garde son identifiant.
+const coachTag = id => String(id || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 8);
+function coachLocalId(progId, d = null, coachId = null) {
+  const base = COACH_LOCAL_PREFIX + progId;
+  const owner = d?.userProgrammes?.[base]?.fromCoach?.coachId;
+  if (!owner || !coachId || owner === coachId || !coachTag(coachId)) return base;
+  return `${COACH_LOCAL_PREFIX}${coachTag(coachId)}_${progId}`;
+}
+// Inverse, côté coach : prog_id de mon programme d'après le programme d'une séance d'élève (null sinon).
+// myId : mon identifiant (forme u_c<tag>_<prog_id>)
+function coachSentIdOf(localId, myId = null) {
+  if (typeof localId !== 'string' || !localId.startsWith(COACH_LOCAL_PREFIX)) return null;
+  const rest = localId.slice(COACH_LOCAL_PREFIX.length);
+  const tag = coachTag(myId);
+  if (tag && rest.startsWith(tag + '_') && COACH_PROG_ID_RE.test(rest.slice(tag.length + 1))) return rest.slice(tag.length + 1);
+  return COACH_PROG_ID_RE.test(rest) ? rest : null;
 }
 
 // Séances d'un programme de d (perso ou intégré), dans l'ordre : [{ key, label, color }]
+// (séances retirées par le coach exclues)
 function progSessionsOf(d, progId) {
-  if (d.userProgrammes?.[progId]) return Object.entries(d.userProgrammes[progId].sessions || {}).map(([key, s]) => ({ key, label: s.label, color: s.color }));
+  if (d.userProgrammes?.[progId]) return Object.entries(d.userProgrammes[progId].sessions || {}).filter(([, s]) => !s?.retired).map(([key, s]) => ({ key, label: s.label, color: s.color }));
   if (progId === 'custom') return Object.entries(d.customSessions || {}).map(([key, s]) => ({ key, label: s.label, color: s.color }));
   return Object.entries(PROGRAMMES[progId]?.sessions || {}).map(([key, s]) => ({ key, label: s.label, color: s.color }));
 }
@@ -214,30 +237,34 @@ function sentProgrammeBytes(p) { return unescape(encodeURIComponent(JSON.stringi
 // l'élève l'a modifié depuis l'import
 function coachProgrammeHash(d, localId) { return syncHash(cleanSentProgramme(programmeToSent(d, localId))); }
 
-// Programme reçu déjà importé et non supprimé (archivé = supprimé par l'élève), ou null
-function importedCoachProgramme(d, progId) {
-  const up = d.userProgrammes?.[coachLocalId(progId)];
+// Programme reçu de coachId déjà importé et non supprimé (archivé = supprimé par l'élève), ou null
+function importedCoachProgramme(d, progId, coachId = null) {
+  const up = d.userProgrammes?.[coachLocalId(progId, d, coachId)];
   return up && up.fromCoach && !up.archived ? up : null;
 }
 
 // État d'un programme de la boîte de réception : 'new' (pas encore dans mes programmes), 'update'
 // (nouvel envoi), 'current' (à jour, ou mise à jour refusée par l'élève) ; modified : changé par l'élève
-function coachProgrammeStatus(d, item) {
-  const up = importedCoachProgramme(d, item.id);
-  if (!up) return { status: 'new', modified: false };
+function coachProgrammeStatus(d, item, coachId = null) {
+  const id = coachLocalId(item.id, d, coachId);
+  const up = importedCoachProgramme(d, item.id, coachId);
+  if (!up) return { status: 'new', modified: false, id };
   const fc = up.fromCoach;
   const newer = item.sentAt > (fc.sentAt || 0) && item.sentAt !== fc.keptAt;
-  return { status: newer ? 'update' : 'current', modified: coachProgrammeHash(d, coachLocalId(item.id)) !== fc.hash };
+  return { status: newer ? 'update' : 'current', modified: coachProgrammeHash(d, id) !== fc.hash, id };
 }
 
 // Importe ou met à jour le programme reçu item = { id, data, sentAt } de coachPerson = { user_id, username }.
-// Exercices : celui de même nom (même séance d'abord, puis tout le programme) garde son identifiant et
-// ses réglages propres à l'élève (records, muscles choisis, objectif) ; ce que le coach décide (séries,
-// repos, mesure, tempo, fourchette, superset, consigne) est remplacé. Renvoie l'identifiant local.
+// Exercices : celui de même nom DANS LA MÊME séance garde son identifiant et ses réglages propres à
+// l'élève (records, muscles choisis, objectif) ; un exercice qui change de séance repart d'un nouvel
+// identifiant (les records se calculent par séance du programme). Ce que le coach décide (séries,
+// repos, mesure, tempo, fourchette, superset, consigne) est remplacé.
+// Séance retirée par le coach : gardée avec retired: true (nom et couleur des séances déjà faites dans
+// l'historique, rawLabel), mais absente de toutes les listes (sessionKeys). Renvoie l'identifiant local.
 function importCoachProgramme(d, item, coachPerson) {
   const sent = cleanSentProgramme(item.data);
   if (!sent || !COACH_PROG_ID_RE.test(item.id)) return null;
-  const id = coachLocalId(item.id);
+  const id = coachLocalId(item.id, d, coachPerson?.user_id);
   const prevUp = d.userProgrammes[id];
   const pd = d.programmes[id] && typeof d.programmes[id] === 'object' ? d.programmes[id] : { exercises: {}, timers: {}, cooldowns: {} };
   pd.exercises ||= {}; pd.timers ||= {}; pd.cooldowns ||= {};
@@ -245,8 +272,7 @@ function importCoachProgramme(d, item, coachPerson) {
   const used = new Set();
   const take = (cat, name) => {
     const n = normName(name);
-    const hit = old.find(o => o.cat === cat && !used.has(o.ex) && normName(o.ex.name) === n)
-      || old.find(o => !used.has(o.ex) && normName(o.ex.name) === n);
+    const hit = old.find(o => o.cat === cat && !used.has(o.ex) && normName(o.ex.name) === n);
     if (hit) used.add(hit.ex);
     return hit?.ex || null;
   };
@@ -265,6 +291,11 @@ function importCoachProgramme(d, item, coachPerson) {
     if (!(s.key in pd.timers)) pd.timers[s.key] = null;
     if (!(s.key in pd.cooldowns)) pd.cooldowns[s.key] = 72;
   });
+  Object.entries(prevUp?.sessions || {}).forEach(([k, ps]) => {
+    if (sessions[k] || !ps || typeof ps !== 'object') return;
+    sessions[k] = { ...ps, retired: true };
+    exercises[k] = Array.isArray(pd.exercises[k]) ? pd.exercises[k] : [];
+  });
   pd.exercises = exercises;
   d.programmes[id] = pd;
   const up = { name: sent.name, sessions, archived: false,
@@ -277,15 +308,15 @@ function importCoachProgramme(d, item, coachPerson) {
 }
 
 // Mise à jour refusée par l'élève (« Garder le mien ») : cet envoi n'est plus proposé
-function keepMyCoachProgramme(d, item) {
-  const up = importedCoachProgramme(d, item.id);
+function keepMyCoachProgramme(d, item, coachId = null) {
+  const up = importedCoachProgramme(d, item.id, coachId);
   if (up) up.fromCoach.keptAt = item.sentAt;
 }
 
-// Côté coach : nom de mon programme avec lequel une séance d'élève a été faite (programme u_c<mon id>),
-// sinon null
-function coachOwnProgrammeName(progField, d = data) {
-  const mine = coachSentIdOf(progField);
+// Côté coach : nom de mon programme avec lequel une séance d'élève a été faite (programme u_c<mon id>
+// ou u_c<mon tag>_<mon id>), sinon null
+function coachOwnProgrammeName(progField, d = data, myId = account.user?.id) {
+  const mine = coachSentIdOf(progField, myId);
   if (!mine) return null;
   if (d.userProgrammes?.[mine]) return d.userProgrammes[mine].name;
   return PROGRAMMES[mine] && mine !== 'custom' ? PROGRAMMES[mine].name : null;
@@ -296,14 +327,37 @@ function coachOwnProgrammeName(progField, d = data) {
 function readCoachCache(userId) {
   try {
     const c = JSON.parse(localStorage.getItem(COACH_CACHE_KEY));
-    return c && c.userId === userId ? { isCoach: c.isCoach === true, hasCoach: c.hasCoach === true, badge: Number.isInteger(c.badge) ? c.badge : 0 } : null;
+    const n = v => (Number.isInteger(v) && v >= 0 ? v : 0);
+    return c && c.userId === userId ? { isCoach: c.isCoach === true, hasCoach: c.hasCoach === true, badge: n(c.badge),
+      badgeCoach: n(c.badgeCoach), badgeStudent: n(c.badgeStudent) } : null;
   } catch { return null; }
 }
 function writeCoachCache() {
   if (!coach.userId || !coach.state) return;
-  try { localStorage.setItem(COACH_CACHE_KEY, JSON.stringify({ userId: coach.userId, isCoach: coach.state.is_coach, hasCoach: !!coach.state.coach, badge: coach.state.badge })); }
+  const st = coach.state;
+  try { localStorage.setItem(COACH_CACHE_KEY, JSON.stringify({ userId: coach.userId, isCoach: st.is_coach, hasCoach: !!st.coach, badge: st.badge,
+    badgeCoach: st.badge_coach, badgeStudent: st.badge_student })); }
   catch { /* cache facultatif */ }
 }
+// Dernière boîte de l'élève, gardée sur l'appareil (commentaires du coach lisibles hors ligne). Écrite au
+// format du serveur, relue par cleanInbox
+function readCoachInbox(userId) {
+  try {
+    const c = JSON.parse(localStorage.getItem(COACH_INBOX_KEY));
+    return c && c.userId === userId ? { coach: cleanPerson(c.coach), inbox: cleanInbox(c.inbox) } : null;
+  } catch { return null; }
+}
+function writeCoachInbox() {
+  try {
+    if (!coach.userId || !coach.inbox || !coach.state?.coach) { if (coach.userId && coach.state && !coach.state.coach) localStorage.removeItem(COACH_INBOX_KEY); return; }
+    const ib = coach.inbox;
+    localStorage.setItem(COACH_INBOX_KEY, JSON.stringify({ userId: coach.userId, coach: coach.state.coach,
+      inbox: { programmes: ib.programmes.map(p => ({ id: p.id, data: p.data, sent_at: p.sentAt, seen: p.seen })),
+        notes: ib.notes.map(x => ({ session_id: x.session_id, text: x.text, updated_at: x.updatedAt, seen: x.seen })) } }));
+  } catch { /* cache facultatif */ }
+}
+// Mon coach : celui de l'état lu, sinon celui de la dernière boîte gardée
+function myCoach() { return coach.state ? coach.state.coach : coach.cachedCoach || null; }
 
 // Rôle connu (état lu, sinon dernier état de l'appareil) : { isCoach, hasCoach }
 function coachRole() {
@@ -311,16 +365,19 @@ function coachRole() {
   if (coach.state) return { isCoach: coach.state.is_coach, hasCoach: !!coach.state.coach };
   return { isCoach: !!coach.cached?.isCoach, hasCoach: !!coach.cached?.hasCoach };
 }
-// Badge du coach sur l'onglet Amis : nouvelles séances (coach), programmes et commentaires non vus (élève)
+// Badges : onglet Amis (somme), pastille « Mes élèves » (nouvelles séances), « Mon coach » (non vus)
 function coachBadge() {
   if (!account.user) return 0;
   return coach.state ? coach.state.badge : (coach.cached?.badge || 0);
 }
+function coachBadgeCoach() { return !account.user ? 0 : coach.state ? coach.state.badge_coach : (coach.cached?.badgeCoach || 0); }
+function coachBadgeStudent() { return !account.user ? 0 : coach.state ? coach.state.badge_student : (coach.cached?.badgeStudent || 0); }
 
 function coachReset(userId) {
   coachSeq++;
-  Object.assign(coach, { userId, state: null, cached: userId ? readCoachCache(userId) : null, loading: false, error: null, loadedAt: 0,
-    inbox: null, sessions: {}, preview: null });
+  const kept = userId ? readCoachInbox(userId) : null;
+  Object.assign(coach, { userId, state: null, cached: userId ? readCoachCache(userId) : null, loading: false, again: false, error: null, loadedAt: 0,
+    inbox: kept?.inbox || null, cachedCoach: kept?.coach || null, sessions: {}, preview: null });
 }
 
 // ── Appels au serveur ───────────────────────────────────────
@@ -338,23 +395,32 @@ async function coachRpc(fn, args) {
 }
 
 // Relit coach_state (et la boîte de réception d'un élève). Renvoie true si l'état a pu être lu.
+// Demandée pendant une lecture en cours : relancée à la fin (un changement ne se perd pas)
 async function coachRefresh({ minAge = 0 } = {}) {
-  if (!sb || !account.user || coach.loading) return false;
+  if (!sb || !account.user) return false;
+  if (coach.loading) { coach.again = true; return false; }
   if (minAge && coach.state && Date.now() - coach.loadedAt < minAge) return true;
   coach.loading = true;
+  coach.again = false;
   const seq = coachSeq;
   const r = await coachRpc('coach_state');
   if (seq !== coachSeq) return false;
+  let ok = r.ok;
+  if (!r.ok) coach.error = r.kind;
+  else {
+    coach.state = cleanCoachState(r.data);
+    coach.error = null;
+    coach.loadedAt = Date.now();
+    writeCoachCache();
+    if (coach.state.coach) await coachLoadInbox();
+    else coach.inbox = null;
+    if (seq !== coachSeq) return false;
+    writeCoachInbox();
+  }
   coach.loading = false;
-  if (!r.ok) { coach.error = r.kind; notifyCoach(); return false; }
-  coach.state = cleanCoachState(r.data);
-  coach.error = null;
-  coach.loadedAt = Date.now();
-  writeCoachCache();
-  if (coach.state.coach) await coachLoadInbox();
-  else coach.inbox = null;
   notifyCoach();
-  return true;
+  if (coach.again) { coach.again = false; return coachRefresh(); }
+  return ok;
 }
 
 async function coachLoadInbox() {
@@ -383,7 +449,7 @@ async function coachJoin(code) {
 }
 async function coachLeave() {
   const r = await coachRpc('coach_leave');
-  if (r.ok) { coach.inbox = null; await coachRefresh(); }
+  if (r.ok) { coach.inbox = null; coach.cachedCoach = null; await coachRefresh(); }
   return r;
 }
 
@@ -439,6 +505,7 @@ async function coachMarkSeen(student) {
   const r = await coachRpc('coach_mark_seen', { student });
   if (r.ok && st && st.new_sessions) {
     coach.state.badge = Math.max(0, coach.state.badge - st.new_sessions);
+    coach.state.badge_coach = Math.max(0, coach.state.badge_coach - st.new_sessions);
     st.new_sessions = 0;
     writeCoachCache();
     notifyCoach();
@@ -469,7 +536,12 @@ async function coachMarkInboxSeen(kind, ref) {
   const item = (list || []).find(x => (kind === 'programme' ? x.id : x.session_id) === ref);
   if (!item || item.seen) return { ok: true };
   item.seen = true;
-  if (coach.state) { coach.state.badge = Math.max(0, coach.state.badge - 1); writeCoachCache(); }
+  if (coach.state) {
+    coach.state.badge = Math.max(0, coach.state.badge - 1);
+    coach.state.badge_student = Math.max(0, coach.state.badge_student - 1);
+    writeCoachCache();
+  }
+  writeCoachInbox();
   notifyCoach();
   return coachRpc('student_mark_seen', { kind, ref });
 }

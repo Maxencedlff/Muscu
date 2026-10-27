@@ -495,12 +495,12 @@ const GUIDE_SECTIONS = [
         steps: [
           'Demande un code à ton coach.',
           '[Réglages] › [Coach] › [Rejoindre un coach], puis saisis le code.',
-          'Tu vois qui est le coach et ce qu\'il verra : toutes tes séances et leurs notes, jamais ton poids ni Santé. Touche [Accepter].',
+          'Tu vois qui est le coach et ce qu\'il verra : toutes tes séances et leurs notes, jamais ton poids ni Santé. Coche [J\'ai 15 ans ou plus], puis [Accepter].',
           'Ton coach apparaît ensuite en haut de l\'onglet [Amis], même sans avoir activé les amis.',
           '[Quitter mon coach] arrête tout, quand tu veux. Les programmes déjà ajoutés restent chez toi.',
         ],
         related: ['programme-coach', 'coacher'],
-        actions: ['coach-open-settings', 'coach-join', 'coach-accept', 'coach-leave'],
+        actions: ['coach-open-settings', 'coach-join', 'coach-age', 'coach-accept', 'coach-leave'],
       },
       {
         id: 'programme-coach', title: 'Programme reçu d\'un coach', icon: 'list.bullet', color: 'indigo', iphone: true,

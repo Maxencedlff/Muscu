@@ -28,7 +28,10 @@ __sb.fail.social = 'offline' : toutes les RPC du social échouent comme supabase
 Coach (docs/COACH_V1.md) : coach_state, coach_create_invite, coach_revoke_invite, coach_preview, coach_join,
 coach_leave, coach_remove_student, coach_student_sessions (liste blanche session_for_coach, 30 par page),
 coach_mark_seen, coach_send_programme, coach_set_note, student_inbox, student_mark_seen, avec leurs erreurs
-(not_coach, invalid_code, already_coached, not_found sur son propre code, team_full, rate_limited, too_long).
+(not_coach, invalid_code, already_coached, not_found sur son propre code, team_full, rate_limited, too_long,
+invalid_programme, username_required sans pseudo), comme supabase/migrations/20261027100000_coach.sql : badge_coach et
+badge_student (badge = leur somme), new_sessions depuis le lien tant que le coach n'a rien ouvert, 10 aperçus ou
+adhésions réussis par heure, rejoindre le même coach renvoie le coach, coach_preview avec since null.
 État dans __sb.co ; __sb.makeCoach(id) pose coach_at, __sb.link(coach, élève) relie deux comptes. Appels dans
 __sb.calls sous ['coach', fonction, arguments] ; __sb.fail.coach = 'offline' pour le hors ligne.
 """
@@ -328,9 +331,12 @@ FAKE_ACCOUNT = r"""
   // État dans __sb.co : coachs (coach_at), codes, liens élève → coach (coach_seen_at), programmes envoyés, commentaires
   const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0 };
   sb.makeCoach = id => { co.coachAt[id] = now(); };
-  sb.link = (coachId, student, at = now()) => { co.links.push({ coach: coachId, student, at, seen: 0 }); };
+  // seen : coach_seen_at (null tant que le coach n'a rien ouvert : new_sessions comptées depuis le lien)
+  sb.link = (coachId, student, at = now()) => { co.links.push({ coach: coachId, student, at, seen: null }); };
   const linkOf = student => co.links.find(l => l.student === student);
-  const coachOf = (me, student) => { const l = linkOf(student); return l && l.coach === me ? l : null; };
+  // L'élève de ce coach, et je suis encore coach (private.coach_require_student)
+  const coachOf = (me, student) => { const l = linkOf(student); return l && l.coach === me && co.coachAt[me] ? l : null; };
+  const cperson = (id, since) => ({ ...person(id, since || 0), since: since == null ? null : new Date(since).toISOString() });
   const validInvite = code => co.invites.find(i => i.code === code && i.expires > now());
   const CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   // private.session_for_coach : liste blanche du social + notes, hidden, id (jamais bodyKg ni healthSaved)
@@ -340,14 +346,19 @@ FAKE_ACCOUNT = r"""
       exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), ss: sc(e.ss), sets: (e.sets || []).map(st => ({ weight: sc(st.weight), reps: sc(st.reps), dist: sc(st.dist) })) })) }));
   };
   const livePosts = id => postsOf(id).filter(p => !p.deleted_at && p.data && Number.isFinite(p.data.date));
+  // Limite de 10 par heure (aperçus et adhésions ensemble) : Postgres annule l'écriture d'une fonction
+  // en erreur, seuls les essais réussis restent comptés. Rejoindre le coach qu'on a déjà : renvoie le coach
   const joinCheck = (me, code) => {
-    co.tries[me] = (co.tries[me] || 0) + 1;
-    if (co.tries[me] > 10) return 'rate_limited';
-    const inv = validInvite(String(code || ''));
-    if (!inv) return 'invalid_code';
+    if (!sb.profiles[me]?.username) return 'username_required';
+    if ((co.tries[me] || []).filter(t => t > now() - 3600_000).length >= 10) return 'rate_limited';
+    const c = String(code || '').toUpperCase().replace(/[\s-]/g, '');
+    const inv = validInvite(c);
+    if (!inv || !co.coachAt[inv.coach]) return 'invalid_code';
     if (inv.coach === me) return 'not_found';
-    if (linkOf(me)) return 'already_coached';
-    if (co.links.filter(l => l.coach === inv.coach).length >= 50) return 'team_full';
+    const cur = linkOf(me);
+    if (cur && cur.coach !== inv.coach) return 'already_coached';
+    if (!cur && co.links.filter(l => l.coach === inv.coach).length >= 50) return 'team_full';
+    (co.tries[me] ||= []).push(now());
     return inv;
   };
   const coachRpc = {
@@ -356,13 +367,14 @@ FAKE_ACCOUNT = r"""
       const students = isCoach ? co.links.filter(x => x.coach === me).map(x => {
         const ps = livePosts(x.student).sort((a, b) => b.data.date - a.data.date);
         const last = ps[0];
-        return { ...person(x.student, x.at), last_session_at: last ? last.data.date : null, sessions_7d: ps.filter(p => p.data.date > now() - 7 * 86400_000).length,
-          new_sessions: ps.filter(p => p.data.date > x.seen).length, last_session: last ? { done_at: last.data.date, label: last.data.label || 'Séance', programme: last.data.programme } : null };
+        return { ...cperson(x.student, x.at), last_session_at: last ? last.data.date : null, sessions_7d: ps.filter(p => p.data.date > now() - 7 * 86400_000).length,
+          new_sessions: ps.filter(p => p.data.date > (x.seen ?? x.at)).length, last_session: last ? { done_at: last.data.date, label: last.data.label || 'Séance', programme: last.data.programme } : null };
       }) : [];
-      const unseen = co.progs.filter(p => p.student === me && !p.seen).length + co.notes.filter(n => n.student === me && !n.seen).length;
-      return { is_coach: isCoach, coach: l ? person(l.coach, l.at) : null, students,
+      const unseen = l ? co.progs.filter(p => p.student === me && p.coach === l.coach && !p.seen).length + co.notes.filter(n => n.student === me && n.coach === l.coach && !n.seen).length : 0;
+      const badgeCoach = students.reduce((a, s) => a + s.new_sessions, 0);
+      return { is_coach: isCoach, coach: l ? cperson(l.coach, l.at) : null, students,
         invites: isCoach ? co.invites.filter(i => i.coach === me && i.expires > now()).map(i => ({ code: i.code, expires_at: new Date(i.expires).toISOString() })) : [],
-        badge: isCoach ? students.reduce((a, s) => a + s.new_sessions, 0) : unseen };
+        badge_coach: badgeCoach, badge_student: unseen, badge: badgeCoach + unseen };
     },
     coach_create_invite: me => {
       if (!co.coachAt[me]) return pgErr('not_coach');
@@ -374,8 +386,12 @@ FAKE_ACCOUNT = r"""
       return code;
     },
     coach_revoke_invite: (me, { code }) => { co.invites = co.invites.filter(i => !(i.coach === me && i.code === code)); return null; },
-    coach_preview: (me, { code }) => { const r = joinCheck(me, code); return typeof r === 'string' ? pgErr(r) : person(r.coach, now()); },
-    coach_join: (me, { code }) => { const r = joinCheck(me, code); if (typeof r === 'string') return pgErr(r); sb.link(r.coach, me); return person(r.coach, now()); },
+    coach_preview: (me, { code }) => { const r = joinCheck(me, code); return typeof r === 'string' ? pgErr(r) : cperson(r.coach, null); },
+    coach_join: (me, { code }) => {
+      const r = joinCheck(me, code); if (typeof r === 'string') return pgErr(r);
+      if (!linkOf(me)) sb.link(r.coach, me);
+      return cperson(r.coach, linkOf(me).at);
+    },
     coach_leave: me => { co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
     coach_remove_student: (me, { student }) => {
       if (!coachOf(me, student)) return null;
@@ -391,7 +407,9 @@ FAKE_ACCOUNT = r"""
     },
     coach_mark_seen: (me, { student }) => { const l = coachOf(me, student); if (!l) return pgErr('not_found'); l.seen = now(); return null; },
     coach_send_programme: (me, { student, prog_id, data }) => {
+      if (!co.coachAt[me]) return pgErr('not_coach');
       if (!coachOf(me, student)) return pgErr('not_found');
+      if (typeof prog_id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(prog_id) || !data || typeof data !== 'object' || Array.isArray(data)) return pgErr('invalid_programme');
       if (JSON.stringify(data).length > 200 * 1024) return pgErr('too_long');
       co.sends[me] = (co.sends[me] || 0) + 1;
       if (co.sends[me] > 30) return pgErr('rate_limited');
@@ -400,15 +418,18 @@ FAKE_ACCOUNT = r"""
       return null;
     },
     coach_set_note: (me, { student, session_id, text }) => {
+      if (!co.coachAt[me]) return pgErr('not_coach');
       if (!coachOf(me, student)) return pgErr('not_found');
       if (String(text).length > 1000) return pgErr('too_long');
       co.notes = co.notes.filter(n => !(n.student === student && n.sid === session_id));
+      if (String(text).trim() && !livePosts(student).some(p => p.id === session_id)) return pgErr('not_found');
       if (String(text).trim()) co.notes.push({ coach: me, student, sid: session_id, text: String(text), updated_at: new Date(now()).toISOString(), seen: false });
       return null;
     },
+    // Seulement ce qui vient du coach actuel
     student_inbox: me => ({
-      programmes: co.progs.filter(p => p.student === me).map(p => ({ id: p.id, data: p.data, sent_at: p.sent_at, seen: p.seen })),
-      notes: co.notes.filter(n => n.student === me).map(n => ({ session_id: n.sid, text: n.text, updated_at: n.updated_at, seen: n.seen })),
+      programmes: co.progs.filter(p => p.student === me && p.coach === linkOf(me)?.coach).map(p => ({ id: p.id, data: p.data, sent_at: p.sent_at, seen: p.seen })),
+      notes: co.notes.filter(n => n.student === me && n.coach === linkOf(me)?.coach).map(n => ({ session_id: n.sid, text: n.text, updated_at: n.updated_at, seen: n.seen })),
     }),
     student_mark_seen: (me, { kind, ref }) => {
       const x = kind === 'programme' ? co.progs.find(p => p.student === me && p.id === ref) : co.notes.find(n => n.student === me && n.sid === ref);

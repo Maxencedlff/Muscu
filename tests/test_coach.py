@@ -189,6 +189,10 @@ def t_eleve(bench, eng, dev, theme):
         R.check(ccalls(page, 'coach_preview')[-1] == {'code': 'K7M2QX9P'} and not ccalls(page, 'coach_join'), f'{t} aperçu sans rien créer')
         layout(page, t, 'aperçu du coach')
         shot(page, LOT, f'2-apercu-{t}')
+        # Âge déclaré avant d'accepter (même règle que les amis)
+        R.check(page.locator('[data-action="coach-accept"]').is_disabled(), f'{t} « Accepter » grisé sans « 15 ans ou plus »')
+        page.click('[data-action="coach-age"]')
+        R.check(page.locator('[data-action="coach-age"]').get_attribute('aria-checked') == 'true' and page.locator('[data-action="coach-accept"]').is_enabled(), f'{t} case 15 ans cochée : « Accepter » actif')
         page.click('[data-action="coach-accept"]')
         page.wait_for_selector('.coach-view [data-action="coach-leave"]')
         R.check(page.evaluate(f"__sb.co.links.some(l => l.coach === '{ids['max']}' && l.student === __sb.meId())"), f'{t} lien créé')
@@ -284,15 +288,36 @@ def t_eleve(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         R.check(page.evaluate('data.programmes.u_cu_force.exercises.sB[0].sets') == 3 and page.evaluate('data.programmes.u_cu_force.exercises.sA[0].sets') == 4, f'{t} « Garder ma version » : rien d\'écrasé')
         R.check('Dans tes programmes' in page.inner_text('.coach-prog'), f'{t} version refusée plus proposée')
-        # Nouvel envoi accepté : identifiants gardés
-        page.evaluate("""() => { const p = __sb.co.progs[0]; p.sent_at = new Date(Date.now() + 10000).toISOString(); p.seen = false; }""")
+        # Nouvel envoi sans la séance Bas : séance en cours sur ce programme, la mise à jour attend
+        v3 = json.loads(json.dumps(v2))
+        v3['sessions'] = v3['sessions'][:1]
+        page.evaluate("""() => data.history.unshift({ id: 'hbas', programme: 'u_cu_force', category: 'sB', date: Date.now() - 3600000, duration: 2400000,
+            exercises: [{ name: 'Squat barre', sets: [{ weight: '60', reps: '5' }] }] })""")
+        page.evaluate('save()')
+        page.evaluate("""(prog) => { const p = __sb.co.progs[0]; p.data = prog; p.sent_at = new Date(Date.now() + 10000).toISOString(); p.seen = false; }""", v3)
         page.evaluate('coachRefresh()')
         page.wait_for_timeout(300)
+        page.evaluate("startSession('sA'); routeTo('friends'); navigate('coach-mine')")
+        page.wait_for_selector('.coach-prog [data-action="coach-add-prog"]')
+        page.click('.coach-prog [data-action="coach-add-prog"]')
+        page.wait_for_timeout(300)
+        R.check('Termine d\'abord ta séance' in page.inner_text('.ios-dialog'), f'{t} séance en cours : mise à jour repoussée')
+        tap_dialog(page, 'OK')
+        R.check(page.evaluate('data.programmes.u_cu_force.exercises.sA[0].sets') == 4, f'{t} séance en cours : rien de changé')
+        page.evaluate("activeSession = null; persistSession(); render()")
+        page.wait_for_timeout(200)
         page.click('.coach-prog [data-action="coach-add-prog"]')
         page.wait_for_timeout(300)
         tap_dialog(page, 'Prendre la nouvelle version')
         page.wait_for_timeout(300)
         R.check(page.evaluate('data.programmes.u_cu_force.exercises.sA[0].sets') == 5 and page.evaluate('data.programmes.u_cu_force.exercises.sA[0].id') == before_id, f'{t} mis à jour, identifiant d\'exercice gardé')
+        R.check(page.evaluate("sessionKeys('u_cu_force').join()") == 'sA' and page.evaluate("data.userProgrammes.u_cu_force.sessions.sB.retired") is True, f'{t} séance retirée par le coach : plus listée')
+        page.click('.tabbar [data-tab="history"]')
+        page.evaluate("routeTo('history')")
+        page.wait_for_timeout(400)
+        R.check('Bas' in page.locator('[data-action="open-history"][data-id="hbas"]').inner_text(), f'{t} Historique : la séance retirée garde son nom')
+        page.click('.tabbar [data-tab="friends"]')
+        page.wait_for_selector('[data-action="coach-leave"]')
         # Quitter mon coach
         page.click('[data-action="coach-leave"]')
         page.wait_for_timeout(300)
@@ -455,6 +480,42 @@ def t_coach(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_pseudo(bench, eng, dev, theme):
+    """Sans pseudo : l'app le fait choisir avant de rejoindre ; le serveur le demande aussi (username_required)."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, username=None)
+        ids = setup_student(page)
+        # Le serveur refuse sans pseudo (contrat), message traduit
+        r = page.evaluate("coachPreview('K7M2QX9P')")
+        R.check(r == {'ok': False, 'kind': 'username_required'} and 'pseudo' in page.evaluate("coachErrorText('username_required')"), f'{t} username_required traduit {r}')
+        page.evaluate("navigate('coach')")
+        page.wait_for_selector('[data-action="coach-join"]')
+        page.click('[data-action="coach-join"]')
+        page.wait_for_timeout(300)
+        R.check('Choisis un pseudo' in page.inner_text('.ios-dialog'), f'{t} sans pseudo : expliqué')
+        tap_dialog(page, 'Choisir')
+        page.wait_for_selector('#authUsername')
+        page.fill('#authUsername', 'lea.fit')
+        page.wait_for_timeout(700)
+        page.click('[data-role="save"]')
+        page.wait_for_timeout(700)
+        page.wait_for_selector('.ios-dialog__input')
+        page.fill('.ios-dialog__input', 'K7M2QX9P')
+        tap_dialog(page, 'Suivant')
+        page.wait_for_selector('.coach-join-view')
+        R.check(page.evaluate('coach.preview.person.since') is None, f'{t} aperçu : since null')
+        page.click('[data-action="coach-age"]')
+        page.click('[data-action="coach-accept"]')
+        page.wait_for_timeout(600)
+        R.check(page.evaluate('__sb.co.links.length') == 1, f'{t} pseudo choisi puis coach rejoint')
+        # Rejoindre une seconde fois le même coach (coupure réseau) : renvoie le coach, sans erreur
+        r = page.evaluate("coachJoin('K7M2QX9P')")
+        R.check(r['ok'] is True and r['data']['username'] == 'max' and page.evaluate('__sb.co.links.length') == 1, f'{t} adhésion rejouée : sans erreur ni doublon')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def t_hors_ligne(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
@@ -488,4 +549,4 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_eleve, t_coach, t_hors_ligne])
+run_main(R, [t_eleve, t_coach, t_pseudo, t_hors_ligne])

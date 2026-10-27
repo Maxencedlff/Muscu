@@ -24,7 +24,10 @@ let coachNoteDraft = null;          // commentaire pas envoyé (hors ligne) : { 
 
 // ── Petits gabarits ─────────────────────────────────────────
 
-function coachName() { return personName(coach.state?.coach); }
+function coachName() { return personName(myCoach()); }
+// État d'un programme reçu de mon coach actuel (js/data/coach.js : coachProgrammeStatus)
+function coachStatus(item) { return coachProgrammeStatus(data, item, myCoach()?.user_id || null); }
+let coachAgeOk = false;             // aperçu du coach : case « J'ai 15 ans ou plus » (même règle que les amis)
 function coachBadgeHtml(n, label) {
   return n ? `<span class="coach-count num" aria-label="${esc(label)}">${n > 99 ? '99+' : n}</span>` : '';
 }
@@ -80,7 +83,7 @@ function coachCellHtml() {
   const rows = [];
   if (isCoach) {
     const n = st ? st.students.length : null;
-    const badge = st ? st.badge : coach.cached?.badge || 0;
+    const badge = coachBadgeCoach();
     rows.push(`<button class="cell cell--nav coach-cell" data-action="coach-open-students">
         <span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span>
         <span class="cell__body"><span class="cell__title">Mes élèves</span>${n !== null ? `<span class="cell__sub">${n ? plural(n, 'élève', 'élèves') : 'Invite ton premier élève'}</span>` : ''}</span>
@@ -89,8 +92,8 @@ function coachCellHtml() {
       </button>`);
   }
   if (hasCoach) {
-    const p = st?.coach;
-    const badge = isCoach ? 0 : (st ? st.badge : coach.cached?.badge || 0);
+    const p = myCoach();
+    const badge = coachBadgeStudent();
     rows.push(`<button class="cell cell--nav coach-cell" data-action="coach-open-mine">
         ${p ? personAvatar(p) : `<span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span>`}
         <span class="cell__body"><span class="cell__title">Mon coach</span>${p ? `<span class="cell__sub">${esc(personName(p))}</span>` : ''}</span>
@@ -150,7 +153,7 @@ function renderCoachSettings() {
         <div class="group">
           <button class="cell cell--nav" data-action="coach-open-students">
             <span class="cell__body"><span class="cell__title">Mes élèves</span><span class="cell__sub">${st.students.length ? plural(st.students.length, 'élève', 'élèves') : 'Aucun élève pour l\'instant'}</span></span>
-            ${coachBadgeHtml(st.badge, plural(st.badge, 'nouvelle séance', 'nouvelles séances'))}
+            ${coachBadgeHtml(st.badge_coach, plural(st.badge_coach, 'nouvelle séance', 'nouvelles séances'))}
             ${icon('chevron.right', 16)}
           </button>
         </div>` : '';
@@ -168,7 +171,7 @@ function renderCoachJoin(code) {
     ['Toutes tes séances', 'Exercices, séries et notes de séance, même celles masquées à tes abonnés.'],
     ['Des programmes pour toi', 'Il pourra t\'en envoyer, avec ses consignes. Tu choisis de les ajouter.'],
     ['Ses commentaires', 'Il pourra commenter tes séances.'],
-    ['Jamais', 'Ni ton poids, ni tes données Santé, ni les autres élèves.'],
+    ['Jamais', 'Ni ton poids, ni tes données Santé, ni tes programmes perso, ni les autres élèves.'],
   ];
   return `
     <div class="view view--grouped coach-join-view">
@@ -183,8 +186,14 @@ function renderCoachJoin(code) {
         <div class="group">${items.map(([t, d]) => `
           <div class="cell"><span class="cell__body"><span class="cell__title">${t}</span><span class="cell__sub">${d}</span></span></div>`).join('')}
         </div>
+        <div class="group">
+          <button class="cell" data-action="coach-age" role="switch" aria-checked="${coachAgeOk}">
+            <span class="cell__body"><span class="cell__title">J'ai 15 ans ou plus</span></span>
+            <span class="switch ${coachAgeOk ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>
+          </button>
+        </div>
         <div class="group-foot">Tu peux le quitter à tout moment dans Réglages › Coach.</div>
-        <button class="btn btn--primary btn--full coach-accept" data-action="coach-accept" data-code="${esc(code)}">Accepter</button>
+        <button class="btn btn--primary btn--full coach-accept" data-action="coach-accept" data-code="${esc(code)}" ${coachAgeOk ? '' : 'disabled'}>Accepter</button>
         <button class="btn btn--secondary btn--full coach-cancel" data-action="back">Annuler</button>
       </div>
     </div>`;
@@ -195,7 +204,7 @@ SCREENS.set('coach-join', { render: code => renderCoachJoin(code) });
 
 // Carte d'un programme reçu (Mon coach), ou sa version compacte de l'accueil
 function coachProgCardHtml(item) {
-  const { status } = coachProgrammeStatus(data, item);
+  const { status } = coachStatus(item);
   const nS = item.data.sessions.length;
   const eyebrow = status === 'update' ? `Mis à jour par ${esc(coachName())}` : status === 'new' ? `Nouveau programme de ${esc(coachName())}` : `Reçu de ${esc(coachName())}`;
   const btn = status === 'current'
@@ -259,9 +268,9 @@ SCREENS.set('coach-mine', {
 // Carte de l'accueil : premier programme reçu pas encore ajouté (ou mis à jour) et pas encore vu
 function coachHomeCard() {
   if (!account.user || !coach.state?.coach || !coach.inbox) return '';
-  const item = coach.inbox.programmes.find(p => !p.seen && coachProgrammeStatus(data, p).status !== 'current');
+  const item = coach.inbox.programmes.find(p => !p.seen && coachStatus(p).status !== 'current');
   if (!item) return '';
-  const upd = coachProgrammeStatus(data, item).status === 'update';
+  const upd = coachStatus(item).status === 'update';
   return `
     <section class="home-card account-card coach-home" aria-labelledby="coachCardTitle">
       <div class="account-card__text">
@@ -277,15 +286,22 @@ function coachHomeCard() {
 async function addCoachProgrammeFlow(progId) {
   const item = coach.inbox?.programmes.find(p => p.id === progId);
   if (!item) return;
-  const { status, modified } = coachProgrammeStatus(data, item);
+  const { status, modified, id: localId } = coachStatus(item);
   const name = item.data.name;
+  // Séance en cours sur ce programme : la mise à jour attend la fin de la séance (ses exercices et ses
+  // séances changeraient en pleine séance)
+  if (status === 'update' && activeSession?.programme === localId) {
+    await dialog({ title: 'Séance en cours', message: `Termine d'abord ta séance, puis mets à jour « ${name} ». La nouvelle version t'attend dans Mon coach.`,
+      actions: [{ label: 'OK', style: 'preferred' }] });
+    return;
+  }
   if (status === 'update' && modified) {
     const choice = await dialog({ type: 'sheet', title: 'Remplacer tes changements ?',
       message: `Tu as modifié « ${name} ». La nouvelle version de ${coachName()} remplace tes changements. Tes séances déjà faites restent dans l'historique.`,
       actions: [{ label: 'Prendre la nouvelle version', value: 'replace', style: 'destructive' }, { label: 'Garder ma version', value: 'keep' }, { label: 'Annuler', style: 'cancel' }] });
     if (!choice) return;
     if (choice === 'keep') {
-      keepMyCoachProgramme(data, item);
+      keepMyCoachProgramme(data, item, myCoach()?.user_id || null);
       save();
       coachMarkInboxSeen('programme', item.id);
       showToast('Ta version est gardée');
@@ -293,7 +309,7 @@ async function addCoachProgrammeFlow(progId) {
       return;
     }
   }
-  const id = importCoachProgramme(data, item, coach.state?.coach);
+  const id = importCoachProgramme(data, item, myCoach());
   if (!id) { showToast(coachErrorText('server'), { error: true }); return; }
   if (data.activeProgramme === id) activateProgramme(id);
   save();
@@ -408,7 +424,7 @@ function coachStudent(uid) { return coach.state?.students.find(s => s.user_id ==
 
 // Couleur d'une séance d'élève : celle de ma séance si elle vient de mon programme, sinon comme le fil
 function coachSessionColor(s) {
-  const mine = coachSentIdOf(s.programme);
+  const mine = coachSentIdOf(s.programme, account.user?.id);
   return (mine && data.userProgrammes?.[mine]?.sessions?.[s.category]?.color) || publicSessionColor({ ...s, programme: mine || s.programme });
 }
 
@@ -592,6 +608,17 @@ async function shareCoachInvite(code) {
   catch { showToast(`Code : ${code}`); }
 }
 
+// Pseudo obligatoire pour rejoindre un coach (il reconnaît son élève à son pseudo), comme pour les amis :
+// sans pseudo, explication puis écran du pseudo. force : le serveur l'a demandé. Renvoie true s'il y en a un
+async function coachEnsureUsername(force = false) {
+  if (account.profile?.username && !force) return true;
+  const go = await dialog({ title: 'Choisis un pseudo', message: 'Ton coach te reconnaîtra avec ton pseudo.',
+    actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Choisir', value: true, style: 'preferred' }] });
+  if (go !== true) return false;
+  await openAuthFlow({ step: 'username', mode: 'profile' });
+  return !!account.profile?.username;
+}
+
 // ── Actions ─────────────────────────────────────────────────
 
 registerActions({
@@ -604,15 +631,24 @@ registerActions({
     if (v === 'coach-student') coachLoadSessions(routeParams(currentRoute())[0]);
   },
   'coach-join': async () => {
+    if (!(await coachEnsureUsername())) return;
     const raw = await askText({ title: 'Rejoindre un coach', message: 'Saisis le code reçu de ton coach.', placeholder: 'Ex : K7M2QX9P', confirm: 'Suivant' });
     if (!raw) return;
     const code = normalizeCoachCode(raw);
     if (!code) { showToast('Ce code n\'a pas la bonne forme : 8 lettres et chiffres.', { error: true }); return; }
-    const r = await coachPreview(code);
+    let r = await coachPreview(code);
+    // Compte sans pseudo (le serveur le demande) : choix du pseudo, puis nouvel essai avec le même code
+    if (!r.ok && r.kind === 'username_required') {
+      if (!(await coachEnsureUsername(true))) return;
+      r = await coachPreview(code);
+    }
     if (!coachToast(r)) return;
+    coachAgeOk = false;
     navigate(makeRoute('coach-join', code));
   },
+  'coach-age': () => { coachAgeOk = !coachAgeOk; haptic(); render(); },
   'coach-accept': async (e, el) => {
+    if (!coachAgeOk) return;
     el.disabled = true;
     const name = personName(coach.preview?.person);
     const r = await coachJoin(el.dataset.code);

@@ -239,6 +239,7 @@ function sanitizeData(d) {
       if (typeof cs.icon !== 'string') cs.icon = '';   // gardée pour les anciennes données, plus affichée
       if (typeof cs.desc !== 'string') cs.desc = '';
       if (!/^(#[0-9a-f]{6}|var\(--[a-z]+\))$/i.test(cs.color || '')) cs.color = '#8E8E93';
+      if (cs.retired !== undefined && cs.retired !== true) delete cs.retired;   // retirée par un coach (js/data/coach.js)
     });
   };
   if (!isObj(d.customSessions)) d.customSessions = {};
