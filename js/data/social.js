@@ -96,6 +96,7 @@ function cleanPublicSession(s) {
 function cleanFeedRow(r) {
   if (!r || typeof r !== 'object' || typeof r.owner !== 'string' || typeof r.id !== 'string') return null;
   const p = cleanPerson({ user_id: r.owner, username: r.username, avatar: r.avatar });
+  if (!p) return null;
   const s = cleanPublicSession(r.s);
   const doneAt = Number.isFinite(Number(r.done_at)) ? Number(r.done_at) : s.date;
   if (!Number.isFinite(doneAt)) return null;

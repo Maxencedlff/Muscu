@@ -544,12 +544,22 @@ async function accountUsernameAvailable(name) {
 // Déconnexion de cet appareil : les données restent sur l'iPhone et sur le compte. L'état de synchro
 // est gardé : une reconnexion au même compte reprend où elle en était. voluntary : « Se déconnecter »
 // (pas de carte de reconnexion ensuite) ; false quand la connexion d'un autre compte est annulée.
+// Caches qui contiennent des données d'autrui (Amis, coach) ou le profil : effacés à la déconnexion
+// comme à l'effacement, pour qu'ils ne restent pas en clair sur un appareil partagé. Les séances de
+// la personne (ppl_v2) restent ; ces caches se retéléchargent à la reconnexion.
+const CROSS_USER_CACHE_KEYS = [PROFILE_CACHE_KEY, 'mdlf_social', 'mdlf_coach', 'mdlf_coach_inbox',
+  'mdlf_coach_sent', 'mdlf_coach_seen', 'mdlf_coach_lost', 'mdlf_coach_send_draft'];
+function clearCrossUserCaches() {
+  try { CROSS_USER_CACHE_KEYS.forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
+}
+
 async function accountSignOut({ voluntary = true } = {}) {
   if (!sb) return;
   if (voluntary) markSignedOut();
   clearTimeout(syncTimer);
   account.user = null;
   account.profile = null;
+  clearCrossUserCaches();
   await localAuthSignOut();
   notifyAccount();
 }
@@ -568,8 +578,7 @@ async function accountForgetDevice() {
   account.profile = null;
   clearSyncMetas();
   // Caches des Amis et du coach compris (privacy.html : tout est effacé de l'appareil)
-  try { [SYNC_OWNER_KEY, PROFILE_CACHE_KEY, SESSION_ENDED_KEY, 'mdlf_social', 'mdlf_coach', 'mdlf_coach_inbox', 'mdlf_coach_sent',
-    'mdlf_coach_seen', 'mdlf_coach_lost', 'mdlf_coach_send_draft'].forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
+  try { [SYNC_OWNER_KEY, SESSION_ENDED_KEY, PENDING_CODE_KEY, ...CROSS_USER_CACHE_KEYS].forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
   rememberLastAccount(null);
   if (sb) await localAuthSignOut();
   notifyAccount();
