@@ -228,7 +228,7 @@ const SCREENS = new Map([
   ['settings',       { render: () => renderSettings(), mount: () => { fillAppVersion(); fillBodyWeightCell(); fillHealthWorkoutsCell(); } }],
   ['add-session',    { render: () => renderAddSession(), enter: ({ dir }) => addSessionEnter(dir), leave: () => addSessionLeave() }],
   ['summary',        { render: () => renderSummary() }],          // Entraînement › Bilan
-  ['history-detail', { render: id => renderHistoryDetail(id), mount: () => { if (socialEnabled()) socialLoadMyBravos({ minAge: SOCIAL_REFRESH_MS }); } }],   // bravos reçus (Amis activé)
+  ['history-detail', { render: id => renderHistoryDetail(id), mount: () => { if (socialEnabled()) socialLoadMyBravos({ minAge: SOCIAL_REFRESH_MS }); coachHistoryMount(); } }],   // bravos reçus (Amis activé)
   ['stats-ex',       { render: exId => renderStatsExercise(exId), mount: () => drawCharts() }],
   ['stats-overview', { render: () => renderStatsOverview() }],
   ['my-programmes',  { render: () => renderMyProgrammes() }],   // Programme › Mes programmes (et sous-titre de l'accueil)

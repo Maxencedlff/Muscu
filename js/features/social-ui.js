@@ -110,7 +110,7 @@ function renderFriends() {
   return `
     <div class="view view--grouped friends-view">
       ${navBar({ title: 'Amis', right })}
-      <div class="scr">${search}<div id="friendsBody">${friendsBodyHtml(st)}</div></div>
+      <div class="scr"><div id="coachCell">${coachCellHtml()}</div>${search}<div id="friendsBody">${friendsBodyHtml(st)}</div></div>
     </div>`;
 }
 
@@ -213,6 +213,7 @@ function runSocialSearch() {
 // Ouverture de l'onglet : état relu (badge), puis le fil s'il a plus de 30 s
 async function friendsEnter() {
   if (!account.user) return;
+  coachRefresh();   // cellule Mes élèves / Mon coach (js/features/coach-ui.js), indépendante d'Amis
   await socialRefresh();
   if (socialEnabled() && Date.now() - socialFeed('').loadedAt > SOCIAL_REFRESH_MS) socialLoadFeed('');
 }

@@ -24,6 +24,13 @@ social désactivé → fil et recherche vides). État dans __sb.so ; __sb.addPer
 social, sessions }) crée un autre compte, __sb.follow(a, b, status) une relation, __sb.block(a, b) un
 blocage ; __sb.meId() : compte connecté. Appels dans __sb.calls sous ['social', fonction, arguments].
 __sb.fail.social = 'offline' : toutes les RPC du social échouent comme supabase-js hors ligne.
+
+Coach (docs/COACH_V1.md) : coach_state, coach_create_invite, coach_revoke_invite, coach_preview, coach_join,
+coach_leave, coach_remove_student, coach_student_sessions (liste blanche session_for_coach, 30 par page),
+coach_mark_seen, coach_send_programme, coach_set_note, student_inbox, student_mark_seen, avec leurs erreurs
+(not_coach, invalid_code, already_coached, not_found sur son propre code, team_full, rate_limited, too_long).
+État dans __sb.co ; __sb.makeCoach(id) pose coach_at, __sb.link(coach, élève) relie deux comptes. Appels dans
+__sb.calls sous ['coach', fonction, arguments] ; __sb.fail.coach = 'offline' pour le hors ligne.
 """
 
 FAKE_ACCOUNT = r"""
@@ -316,6 +323,106 @@ FAKE_ACCOUNT = r"""
     const out = socialRpc[fn](me, args);
     return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
   };
+
+  // ── Coach (docs/COACH_V1.md) ──
+  // État dans __sb.co : coachs (coach_at), codes, liens élève → coach (coach_seen_at), programmes envoyés, commentaires
+  const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0 };
+  sb.makeCoach = id => { co.coachAt[id] = now(); };
+  sb.link = (coachId, student, at = now()) => { co.links.push({ coach: coachId, student, at, seen: 0 }); };
+  const linkOf = student => co.links.find(l => l.student === student);
+  const coachOf = (me, student) => { const l = linkOf(student); return l && l.coach === me ? l : null; };
+  const validInvite = code => co.invites.find(i => i.code === code && i.expires > now());
+  const CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  // private.session_for_coach : liste blanche du social + notes, hidden, id (jamais bodyKg ni healthSaved)
+  const sessionForCoach = (id, d) => {
+    const sc = v => (['string', 'number', 'boolean'].includes(typeof v) ? v : undefined);
+    return JSON.parse(JSON.stringify({ ...sessionPublic(d), notes: sc(d.notes), hidden: sc(d.hidden), id,
+      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), ss: sc(e.ss), sets: (e.sets || []).map(st => ({ weight: sc(st.weight), reps: sc(st.reps), dist: sc(st.dist) })) })) }));
+  };
+  const livePosts = id => postsOf(id).filter(p => !p.deleted_at && p.data && Number.isFinite(p.data.date));
+  const joinCheck = (me, code) => {
+    co.tries[me] = (co.tries[me] || 0) + 1;
+    if (co.tries[me] > 10) return 'rate_limited';
+    const inv = validInvite(String(code || ''));
+    if (!inv) return 'invalid_code';
+    if (inv.coach === me) return 'not_found';
+    if (linkOf(me)) return 'already_coached';
+    if (co.links.filter(l => l.coach === inv.coach).length >= 50) return 'team_full';
+    return inv;
+  };
+  const coachRpc = {
+    coach_state: me => {
+      const l = linkOf(me), isCoach = !!co.coachAt[me];
+      const students = isCoach ? co.links.filter(x => x.coach === me).map(x => {
+        const ps = livePosts(x.student).sort((a, b) => b.data.date - a.data.date);
+        const last = ps[0];
+        return { ...person(x.student, x.at), last_session_at: last ? last.data.date : null, sessions_7d: ps.filter(p => p.data.date > now() - 7 * 86400_000).length,
+          new_sessions: ps.filter(p => p.data.date > x.seen).length, last_session: last ? { done_at: last.data.date, label: last.data.label || 'Séance', programme: last.data.programme } : null };
+      }) : [];
+      const unseen = co.progs.filter(p => p.student === me && !p.seen).length + co.notes.filter(n => n.student === me && !n.seen).length;
+      return { is_coach: isCoach, coach: l ? person(l.coach, l.at) : null, students,
+        invites: isCoach ? co.invites.filter(i => i.coach === me && i.expires > now()).map(i => ({ code: i.code, expires_at: new Date(i.expires).toISOString() })) : [],
+        badge: isCoach ? students.reduce((a, s) => a + s.new_sessions, 0) : unseen };
+    },
+    coach_create_invite: me => {
+      if (!co.coachAt[me]) return pgErr('not_coach');
+      const mine = co.invites.filter(i => i.coach === me && i.expires > now());
+      if (mine.length >= 5) co.invites.splice(co.invites.indexOf(mine[0]), 1);
+      let code = ''; const n = ++co.codeN;
+      for (let i = 0; i < 8; i++) code += CODE_ABC[(n * 7 + i * 13 + i * i) % CODE_ABC.length];
+      co.invites.push({ code, coach: me, expires: now() + 7 * 86400_000 });
+      return code;
+    },
+    coach_revoke_invite: (me, { code }) => { co.invites = co.invites.filter(i => !(i.coach === me && i.code === code)); return null; },
+    coach_preview: (me, { code }) => { const r = joinCheck(me, code); return typeof r === 'string' ? pgErr(r) : person(r.coach, now()); },
+    coach_join: (me, { code }) => { const r = joinCheck(me, code); if (typeof r === 'string') return pgErr(r); sb.link(r.coach, me); return person(r.coach, now()); },
+    coach_leave: me => { co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
+    coach_remove_student: (me, { student }) => {
+      if (!coachOf(me, student)) return null;
+      co.links = co.links.filter(l => l.student !== student); co.progs = co.progs.filter(p => p.student !== student); co.notes = co.notes.filter(n => n.student !== student); return null;
+    },
+    coach_student_sessions: (me, { student, before_at = null, before_id = null }) => {
+      if (!coachOf(me, student)) return pgErr('not_found');
+      const key = p => [p.data.date, p.id];
+      const cmp = (a, b) => (a[0] - b[0]) || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0);
+      return livePosts(student).filter(p => before_at == null || cmp(key(p), [before_at, before_id || '']) < 0)
+        .sort((a, b) => cmp(key(b), key(a))).slice(0, 30)
+        .map(p => ({ id: p.id, done_at: p.data.date, s: sessionForCoach(p.id, p.data), note: co.notes.find(n => n.student === student && n.sid === p.id)?.text || null }));
+    },
+    coach_mark_seen: (me, { student }) => { const l = coachOf(me, student); if (!l) return pgErr('not_found'); l.seen = now(); return null; },
+    coach_send_programme: (me, { student, prog_id, data }) => {
+      if (!coachOf(me, student)) return pgErr('not_found');
+      if (JSON.stringify(data).length > 200 * 1024) return pgErr('too_long');
+      co.sends[me] = (co.sends[me] || 0) + 1;
+      if (co.sends[me] > 30) return pgErr('rate_limited');
+      co.progs = co.progs.filter(p => !(p.student === student && p.id === prog_id));
+      co.progs.push({ coach: me, student, id: prog_id, data: JSON.parse(JSON.stringify(data)), sent_at: new Date(now()).toISOString(), seen: false });
+      return null;
+    },
+    coach_set_note: (me, { student, session_id, text }) => {
+      if (!coachOf(me, student)) return pgErr('not_found');
+      if (String(text).length > 1000) return pgErr('too_long');
+      co.notes = co.notes.filter(n => !(n.student === student && n.sid === session_id));
+      if (String(text).trim()) co.notes.push({ coach: me, student, sid: session_id, text: String(text), updated_at: new Date(now()).toISOString(), seen: false });
+      return null;
+    },
+    student_inbox: me => ({
+      programmes: co.progs.filter(p => p.student === me).map(p => ({ id: p.id, data: p.data, sent_at: p.sent_at, seen: p.seen })),
+      notes: co.notes.filter(n => n.student === me).map(n => ({ session_id: n.sid, text: n.text, updated_at: n.updated_at, seen: n.seen })),
+    }),
+    student_mark_seen: (me, { kind, ref }) => {
+      const x = kind === 'programme' ? co.progs.find(p => p.student === me && p.id === ref) : co.notes.find(n => n.student === me && n.sid === ref);
+      if (x) x.seen = true; return null;
+    },
+  };
+  const callCoach = async (fn, args = {}) => {
+    log('coach', fn, JSON.stringify(args));
+    if (sb.fail.coach === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+    const me = sb.meId();
+    if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };
+    const out = coachRpc[fn](me, args);
+    return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
+  };
   const REPORT_REASONS = ['spam', 'harcelement', 'sexuel', 'violence', 'haine', 'autre'];
 
   window.supabase = {
@@ -323,7 +430,7 @@ FAKE_ACCOUNT = r"""
       sb.storage = o?.auth?.storage; sb.storageKey = o?.auth?.storageKey;
       return {
         auth, from,
-        rpc: async (fn, args) => { if (socialRpc[fn]) return callSocial(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
+        rpc: async (fn, args) => { if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn]) return callCoach(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
           const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });

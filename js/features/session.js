@@ -238,6 +238,7 @@ function renderExerciseCard(ex, ei, cur) {
         <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
       </div>
       <div class="ex-card__sub">${exSubHtml(ex, ei, allDone)}</div>
+      ${coachSessionTipHtml(ex)}
       <div class="sets" role="group" aria-label="Séries de ${esc(ex.name)}">
         <div class="sets__head" aria-hidden="true">
           <span>Série</span><span>Avant</span>
@@ -313,6 +314,7 @@ function renderGroupCard(members, cur, tags) {
       </div>
       <div class="ex-card__sub"><button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${members.at(-1)}" aria-label="Repos ${rest} après chaque tour, modifier">Repos ${rest} après chaque tour</button></div>
       <div class="ss-members">${legend}</div>
+      ${members.map(ei => coachSessionTipHtml(xs[ei], tags[ei])).join('')}
       <div class="sets" role="group" aria-label="Séries du ${kind.toLowerCase()}">
         <div class="sets__head" aria-hidden="true">
           <span>Exo</span><span>Avant</span>

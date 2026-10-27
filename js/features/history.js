@@ -158,6 +158,7 @@ function renderHistoryDetail(id) {
             </div>`).join('')}
         </div>
         ${h.notes ? `<div class="group-title">Notes</div><div class="group group--pad"><p class="hnotes">${esc(h.notes)}</p></div>` : ''}
+        ${historyCoachGroup(h)}
         ${historySocialGroup(h)}
         <div class="share-detail">${shareStoryButton(h.id)}</div>
         <div class="group group--gap">

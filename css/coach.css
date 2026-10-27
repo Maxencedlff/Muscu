@@ -1,0 +1,90 @@
+/* ═══════════════════════════════════════════════
+   Coach (js/features/coach-ui.js) : cellule en haut de l'onglet Amis, pastilles de nouveautés,
+   programmes reçus, consignes (Programme › Séance et séance en cours), séances d'un élève, codes
+   d'invitation, saisie des consignes et du commentaire. Couleurs : tokens de css/base.css seulement.
+═══════════════════════════════════════════════ */
+
+/* ── Cellule de l'onglet Amis et lignes d'élèves ── */
+.coach-head { margin-bottom: 20px; }
+.coach-cell { gap: 12px; }
+.coach-cell__icon {
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; background: var(--fill2); color: var(--tint);
+  display: flex; align-items: center; justify-content: center;
+}
+.view--grouped .cell.coach-row, .view--grouped .cell.coach-student-row { padding-top: 0; padding-bottom: 0; }
+.coach-student-row .social-row__main { padding: 10px 0; }
+.coach-student-row .cell__sub { overflow-wrap: anywhere; }
+/* Nombre de nouveautés : pastille rouge, comme le badge de l'onglet */
+.coach-count {
+  flex-shrink: 0; min-width: 22px; height: 22px; padding: 0 7px; border-radius: var(--r-pill);
+  background: var(--red); color: var(--white); font-size: .765rem; line-height: 22px; font-weight: 600; text-align: center;
+}
+.coach-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--tint); vertical-align: middle; margin-left: 4px; }
+.coach-hero { padding-bottom: 16px; }
+
+/* ── Aperçu avant d'accepter ── */
+.coach-accept { margin-top: 24px; }
+.coach-cancel { margin-top: 10px; }
+
+/* ── Programmes reçus (Mon coach) ── */
+.coach-progs { display: flex; flex-direction: column; gap: 12px; }
+.coach-prog { background: var(--cell); border-radius: var(--r-md); padding: 14px 16px 16px; }
+.coach-prog__eyebrow { font-size: var(--fs-footnote); font-weight: 600; color: var(--tint); text-transform: uppercase; letter-spacing: .3px; }
+.coach-prog__name { margin: 4px 0 0; font-size: var(--fs-title3); line-height: 1.3; font-weight: 700; overflow-wrap: anywhere; }
+.coach-prog__meta { margin: 2px 0 0; font-size: var(--fs-subhead); line-height: 1.35; color: var(--label2); overflow-wrap: anywhere; }
+.coach-prog__consigne, .coach-consigne {
+  margin: 10px 0 0; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.coach-consigne { margin: 0; }
+.coach-prog__btn { margin-top: 14px; width: 100%; min-height: 44px; padding-left: 12px; padding-right: 12px; font-size: var(--fs-callout); }
+.coach-prog__done { display: block; margin-top: 12px; font-size: var(--fs-subhead); color: var(--label2); }
+.coach-empty { padding-top: 12px; }
+.coach-note-row__text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.coach-note { margin: 0; color: var(--label); }
+
+/* ── Consigne dans Programme › Séance et dans la séance en cours ── */
+.coach-ex-consigne { color: var(--tint); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.coach-tip {
+  display: flex; flex-direction: column; gap: 4px; width: 100%; min-height: 44px; margin: 4px 0 8px; padding: 10px 12px;
+  border: 0; border-radius: var(--r-sm); background: var(--fill2); color: var(--label); font: inherit; text-align: left; cursor: pointer;
+}
+.coach-tip:active { opacity: .6; }
+.coach-tip__head { display: flex; align-items: center; gap: 6px; font-size: var(--fs-footnote); font-weight: 600; color: var(--tint); }
+.coach-tip__head > span { flex: 1; min-width: 0; }
+.coach-tip__text { font-size: var(--fs-subhead); line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+.coach-tip--closed .coach-tip__text { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+
+/* ── Séances d'un élève ── */
+.coach-sess-list .hcell { width: 100%; }
+.coach-sess__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.coach-tag {
+  display: inline-block; padding: 2px 8px; border-radius: var(--r-pill); background: var(--tint-fill); color: var(--on-tint);
+  font-size: var(--fs-footnote); line-height: 1.35; font-weight: 600; white-space: nowrap;
+}
+.coach-tag--note { background: var(--fill); color: var(--label2); }
+.coach-sess__prog { margin: 8px 0 0; font-size: var(--fs-subhead); color: var(--label2); overflow-wrap: anywhere; }
+
+/* ── Codes d'invitation ── */
+.view--grouped .cell.coach-invite { padding-top: 8px; padding-bottom: 8px; gap: 4px; min-height: 60px; }
+.coach-invite .cell__body { min-width: 0; }
+.coach-code { font-size: var(--fs-body); font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
+.coach-icon-btn {
+  flex-shrink: 0; width: 44px; height: 44px; border: 0; background: none; color: var(--tint); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.coach-icon-btn:active { opacity: .6; }
+
+/* ── Saisie : consignes (envoi) et commentaire (feuille) ── */
+.coach-textarea {
+  display: block; width: 100%; min-height: 44px; padding: 10px 12px; border: 0; border-radius: var(--r-sm);
+  background: var(--fill2); color: var(--label); font-size: var(--fs-input); line-height: 1.4; resize: none; field-sizing: content;
+}
+.coach-textarea::placeholder { color: var(--label3); }
+.coach-textarea--inline { margin: 8px 0 2px; }
+.group--pad .coach-textarea { background: transparent; padding: 0; min-height: 44px; }
+.coach-send-ex .cell__body { width: 100%; }
+.view--grouped .cell.coach-send-ex { padding-top: 10px; padding-bottom: 10px; }
+.coach-send-btn { margin-top: 24px; }
+.coach-sheet { padding: 4px 16px 16px; }
+.coach-sheet .coach-textarea { min-height: 140px; }
+.coach-sheet__hint { margin: 8px 4px 0; font-size: var(--fs-footnote); color: var(--label2); }

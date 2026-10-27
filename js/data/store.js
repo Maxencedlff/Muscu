@@ -209,6 +209,8 @@ function sanitizeData(d) {
         if (ex.tempoGuide !== undefined && (ex.tempoGuide !== true || !ex.tempo)) delete ex.tempoGuide;
         if (ex.tempoPrep !== undefined && (!ex.tempoGuide || !TEMPO_PREP_CHOICES.includes(ex.tempoPrep))) delete ex.tempoPrep;
         if (ex.ss !== undefined && !ssId(ex)) delete ex.ss;   // superset (js/data/supersets.js)
+        // Consigne du coach (js/data/coach.js) : texte court, retirée si vide
+        if (ex.consigne !== undefined) { const c = cleanConsigne(ex.consigne); if (c) ex.consigne = c; else delete ex.consigne; }
         if (ex.musclesSecondary != null) {
           if (!Array.isArray(ex.musclesSecondary)) delete ex.musclesSecondary;
           else ex.musclesSecondary = [...new Set(ex.musclesSecondary.filter(m => typeof m === 'string' && MUSCLE_ID_RE.test(m)))].slice(0, MAX_MUSCLES);
@@ -249,6 +251,7 @@ function sanitizeData(d) {
     if (!isObj(up.sessions)) up.sessions = {};
     cleanSessions(up.sessions);
     up.archived = !!up.archived;
+    cleanFromCoach(up);   // programme reçu d'un coach (js/data/coach.js)
   });
   // Muscles déclarés par l'utilisateur pour un exercice, par nom normalisé (tous programmes,
   // séances libres et historique) : { nom: [identifiants] }
@@ -351,6 +354,27 @@ function pinLegacyReps(ex, fromSchema = 0) {
   const pin = LEGACY_REPS_KEYS.some(l => l.loose.has(key)
     && (l.schema > fromSchema || (fromSchema < LOOSE_KEY_SCHEMA && !l.exact.has(exact))));
   if (pin) ex.measure = 'reps';
+}
+
+// Coach (js/data/coach.js, docs/COACH_V1.md) : consigne d'un programme ou d'un exercice (500 caractères
+// au plus, null si vide) et marque fromCoach d'un programme reçu { coachId, name, sentAt, hash?, keptAt? }.
+// Ici et non dans coach.js : sanitizeData s'exécute au chargement de ce fichier.
+const CONSIGNE_MAX = 500;
+function cleanConsigne(v) {
+  if (typeof v !== 'string') return null;
+  const t = v.trim().slice(0, CONSIGNE_MAX).trim();
+  return t || null;
+}
+function cleanFromCoach(up) {
+  if (up.consigne !== undefined) { const c = cleanConsigne(up.consigne); if (c) up.consigne = c; else delete up.consigne; }
+  if (up.fromCoach === undefined) return;
+  const f = up.fromCoach;
+  if (!f || typeof f !== 'object' || typeof f.coachId !== 'string' || f.coachId.length > 64) { delete up.fromCoach; return; }
+  const out = { coachId: f.coachId, name: typeof f.name === 'string' && LAST_ACCOUNT_NAME_RE.test(f.name) ? f.name : null,
+    sentAt: Number.isFinite(f.sentAt) && f.sentAt >= 0 ? f.sentAt : 0 };
+  if (typeof f.hash === 'string' && f.hash.length <= 16) out.hash = f.hash;
+  if (Number.isFinite(f.keptAt)) out.keptAt = f.keptAt;
+  up.fromCoach = out;
 }
 
 // Séance de l'historique (ou de la corbeille) : corrigée en place, false si elle est inutilisable

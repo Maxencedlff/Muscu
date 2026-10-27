@@ -487,6 +487,49 @@ const GUIDE_SECTIONS = [
     ],
   },
   {
+    id: 'coach', title: 'Coach',
+    topics: [
+      {
+        id: 'rejoindre-coach', title: 'Rejoindre un coach', icon: 'person.2', color: 'indigo', iphone: true, ordered: true,
+        lead: 'Ton coach suit tes séances, t\'envoie des programmes et commente tes séances. Il faut un compte.',
+        steps: [
+          'Demande un code à ton coach.',
+          '[Réglages] › [Coach] › [Rejoindre un coach], puis saisis le code.',
+          'Tu vois qui est le coach et ce qu\'il verra : toutes tes séances et leurs notes, jamais ton poids ni Santé. Touche [Accepter].',
+          'Ton coach apparaît ensuite en haut de l\'onglet [Amis], même sans avoir activé les amis.',
+          '[Quitter mon coach] arrête tout, quand tu veux. Les programmes déjà ajoutés restent chez toi.',
+        ],
+        related: ['programme-coach', 'coacher'],
+        actions: ['coach-open-settings', 'coach-join', 'coach-accept', 'coach-leave'],
+      },
+      {
+        id: 'programme-coach', title: 'Programme reçu d\'un coach', icon: 'list.bullet', color: 'indigo', iphone: true,
+        lead: 'Un programme envoyé par ton coach arrive sur l\'accueil et dans [Mon coach].',
+        steps: [
+          'Touche [Ajouter à mes programmes] : il rejoint tes programmes, tu peux l\'utiliser tout de suite.',
+          'Ses consignes s\'affichent dans la séance du programme et pendant la séance, sous le nom de l\'exercice. Un toucher les replie.',
+          'Quand ton coach le modifie, touche [Mettre à jour]. Si tu l\'as changé toi aussi, l\'app te demande avant de remplacer ta version.',
+          'Ses commentaires sur tes séances sont dans [Historique], sous la séance.',
+        ],
+        related: ['rejoindre-coach', 'modifier-seance'],
+        actions: ['coach-add-prog', 'coach-tip'],
+      },
+      {
+        id: 'coacher', title: 'Suivre des élèves', icon: 'person.2', color: 'purple', iphone: true,
+        lead: 'Avec un compte coach, la cellule [Mes élèves] est en haut de l\'onglet [Amis].',
+        steps: [
+          '[Inviter un élève] crée un code valable 7 jours et ouvre le partage. Tes élèves ne se voient pas entre eux.',
+          'Touche un élève pour voir ses séances. Une pastille rouge compte ses nouvelles séances.',
+          'Dans une séance, [Commenter] laisse un mot que l\'élève lit dans son historique.',
+          '[Envoyer un programme] : choisis un de tes programmes, ajoute des consignes, puis envoie.',
+          '[Retirer l\'élève] arrête le suivi.',
+        ],
+        related: ['rejoindre-coach', 'programme-coach'],
+        actions: ['coach-invite', 'coach-comment', 'coach-send', 'coach-remove'],
+      },
+    ],
+  },
+  {
     id: 'compte', title: 'Compte et sauvegarde',
     topics: [
       {
