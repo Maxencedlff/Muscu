@@ -35,8 +35,10 @@ function progMeta(id) {
   if (id === FREE) return { name: FREE_META.label, desc: FREE_META.desc, icon: '', sessions: {}, free: true };
   const up = data.userProgrammes?.[id];
   if (up) {
-    const names = Object.values(up.sessions).map(x => x.label).join(' · ');
-    return { name: up.name, desc: names || 'Aucune séance', icon: '', sessions: up.sessions, user: true, archived: up.archived };
+    // Séances retirées par un coach (retired, js/data/coach.js) : gardées pour l'historique, jamais listées
+    const sessions = Object.fromEntries(Object.entries(up.sessions).filter(([, x]) => !x.retired));
+    const names = Object.values(sessions).map(x => x.label).join(' · ');
+    return { name: up.name, desc: names || 'Aucune séance', icon: '', sessions, user: true, archived: up.archived };
   }
   return PROGRAMMES[id] || PROGRAMMES.ppl;
 }
@@ -45,11 +47,13 @@ function progMeta(id) {
 // en tête quel que soit l'ordre choisi (les clés entières passent avant les autres en JS)
 function newSessionId() { return 's' + uid(); }
 
-// Réordonne les séances d'un programme perso : l'ordre des clés de l'objet fait foi
+// Réordonne les séances d'un programme perso : l'ordre des clés de l'objet fait foi. from et to sont des
+// rangs de la liste affichée (sessionKeys) ; les séances retirées par un coach restent à la fin
 function moveSession(progId, from, to) {
   const store = userSessions(progId);
   if (!store) return false;
-  const entries = moveItem(Object.entries(store), from, to);
+  const all = Object.entries(store);
+  const entries = [...moveItem(all.filter(([, v]) => !v?.retired), from, to), ...all.filter(([, v]) => v?.retired)];
   Object.keys(store).forEach(k => { delete store[k]; });
   entries.forEach(([k, v]) => { store[k] = v; });
   return true;
@@ -57,7 +61,8 @@ function moveSession(progId, from, to) {
 
 function sessionKeys(progId) {
   progId = progId || data.activeProgramme;
-  if (isUserProg(progId)) return Object.keys(userSessions(progId) || {});
+  // Séance retirée par un coach (retired) : lue par rawLabel et sessionMeta (historique), jamais listée
+  if (isUserProg(progId)) return Object.entries(userSessions(progId) || {}).filter(([, s]) => !s?.retired).map(([k]) => k);
   return Object.keys(PROGRAMMES[progId]?.sessions || {});
 }
 

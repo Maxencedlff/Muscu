@@ -24,6 +24,12 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(el.coach.username, 'max');
     sameJSON([el.students.length, el.invites.length, el.badge], [0, 0, 0]);
     assert.equal(run(`cleanCoachState(null).is_coach`), false);
+    // Badges séparés du serveur : badge_coach (Mes élèves), badge_student (Mon coach), badge = leur somme
+    const both = run(`cleanCoachState({ is_coach: true, coach: { user_id: 'c', username: 'max' }, students: [{ user_id: 'a', new_sessions: 2 }], badge_coach: 2, badge_student: 3, badge: 5 })`);
+    sameJSON([both.badge_coach, both.badge_student, both.badge], [2, 3, 5]);
+    const old = run(`cleanCoachState({ is_coach: false, coach: { user_id: 'c', username: 'max' }, badge: 4 })`);
+    sameJSON([old.badge_coach, old.badge_student, old.badge], [0, 4, 4], 'sans les badges séparés : badge de l\'élève déduit');
+    assert.equal(run(`cleanCoachState({ is_coach: false, coach: null, badge_student: 3 }).badge`), 0, 'sans coach : rien côté élève');
   });
 
   test('coach : séance d\'un élève réduite à sa liste blanche (notes et hidden en plus)', () => {
@@ -76,6 +82,8 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     const kinds = run(`['not_coach', 'already_coached', 'invalid_code', 'team_full', 'not_found', 'rate_limited', 'too_long', 'TypeError: Failed to fetch', 'boom']
       .map(m => coachErrorKind({ code: 'P0001', message: m }))`);
     sameJSON(kinds, ['not_coach', 'already_coached', 'invalid_code', 'team_full', 'not_found', 'rate_limited', 'too_long', 'offline', 'server']);
+    sameJSON(run(`['invalid_programme', 'username_required'].map(m => coachErrorKind({ message: m }))`), ['invalid_programme', 'username_required']);
+    for (const k of ['invalid_programme', 'username_required']) assert.match(run(`coachErrorText(${JSON.stringify(k)})`), /^[A-ZÉ].+\.$/, k);
     for (const k of [...kinds, 'too_big', 'signed_out']) assert.match(run(`coachErrorText(${JSON.stringify(k)})`), /^[A-ZÉ].+\.$/, k);
     for (const k of kinds) assert.ok(!/ - | – /.test(run(`coachErrorText(${JSON.stringify(k)})`)), `${k} : sans tiret`);
   });
@@ -133,13 +141,13 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(xs[0].lastWeight, '', 'aucune charge du coach');
     assert.ok(run('data.myProgrammes.includes("u_cu_force")'), 'ajouté à Mes programmes');
     assert.equal(run('data.programmes.u_cu_force.cooldowns.sA'), 72);
-    sameJSON(run(`coachProgrammeStatus(data, ${JSON.stringify(item)})`), { status: 'current', modified: false });
+    sameJSON(run(`(({ status, modified }) => ({ status, modified }))(coachProgrammeStatus(data, ${JSON.stringify(item)}))`), { status: 'current', modified: false });
     // Gardé par sanitizeData (et normalizeData) puis par la synchro du profil
     run('save(); data = loadData();');
     assert.equal(run('data.userProgrammes.u_cu_force.fromCoach.name'), 'max');
     assert.equal(run('data.programmes.u_cu_force.exercises.sA[0].consigne'), 'Coudes serrés');
     assert.equal(run('data.userProgrammes.u_cu_force.consigne'), 'Progresse doucement');
-    sameJSON(run(`coachProgrammeStatus(data, ${JSON.stringify(item)})`), { status: 'current', modified: false }, 'empreinte stable après rechargement');
+    sameJSON(run(`(({ status, modified }) => ({ status, modified }))(coachProgrammeStatus(data, ${JSON.stringify(item)}))`), { status: 'current', modified: false }, 'empreinte stable après rechargement');
     const prof = run('profilePayload(data)');
     assert.equal(prof.userProgrammes.u_cu_force.fromCoach.coachId, 'c1');
     assert.equal(prof.programmes.u_cu_force.exercises.sA[0].consigne, 'Coudes serrés');
@@ -161,7 +169,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     const before = run('data.programmes.u_cu_force.exercises.sA.map(x => x.id)');
     run(`data.programmes.u_cu_force.exercises.sA[0].tempoGuide = true; data.programmes.u_cu_force.exercises.sA[0].muscles = ['chest'];
       data.history.push({ id: 'h1', programme: 'u_cu_force', category: 'sA', date: Date.now() - ${DAY}, exercises: [{ exId: '${before[0]}', name: 'Développé couché', sets: [{ weight: '70', reps: '8' }] }] });`);
-    sameJSON(run(`coachProgrammeStatus(data, ${JSON.stringify(v2)})`), { status: 'update', modified: false });
+    sameJSON(run(`(({ status, modified }) => ({ status, modified }))(coachProgrammeStatus(data, ${JSON.stringify(v2)}))`), { status: 'update', modified: false });
     run(`importCoachProgramme(data, ${JSON.stringify(v2)}, null)`);
     const xs = run('data.programmes.u_cu_force.exercises.sA');
     assert.equal(xs[0].id, before[0], 'même nom : même identifiant');
@@ -187,8 +195,8 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     reset();
     run(`importCoachProgramme(data, ${JSON.stringify(v1)}, { user_id: 'c1', username: 'max' })`);
     run('data.programmes.u_cu_force.exercises.sB[0].sets = 3;');   // l'élève change ses séries
-    sameJSON(run(`coachProgrammeStatus(data, ${JSON.stringify(v1)})`), { status: 'current', modified: true });
-    sameJSON(run(`coachProgrammeStatus(data, ${JSON.stringify(v2)})`), { status: 'update', modified: true }, 'nouvel envoi : la question sera posée');
+    sameJSON(run(`(({ status, modified }) => ({ status, modified }))(coachProgrammeStatus(data, ${JSON.stringify(v1)}))`), { status: 'current', modified: true });
+    sameJSON(run(`(({ status, modified }) => ({ status, modified }))(coachProgrammeStatus(data, ${JSON.stringify(v2)}))`), { status: 'update', modified: true }, 'nouvel envoi : la question sera posée');
     run(`keepMyCoachProgramme(data, ${JSON.stringify(v2)})`);
     assert.equal(run(`coachProgrammeStatus(data, ${JSON.stringify(v2)}).status`), 'current', 'version refusée : plus proposée');
     assert.equal(run('data.programmes.u_cu_force.exercises.sB[0].sets'), 3, 'version de l\'élève intacte');
@@ -227,11 +235,11 @@ export default function ({ test, run, reset, assert, sameJSON }) {
       const user = account.user, saved = { ...coach };
       try {
         account.user = { id: 'u' };
-        localStorage.setItem(COACH_CACHE_KEY, JSON.stringify({ userId: 'u', isCoach: true, hasCoach: false, badge: 4 }));
+        localStorage.setItem(COACH_CACHE_KEY, JSON.stringify({ userId: 'u', isCoach: true, hasCoach: false, badge: 4, badgeCoach: 4, badgeStudent: 0 }));
         coachReset('u');
-        const out = [coachRole().isCoach, coachBadge()];
+        const out = [coachRole().isCoach, coachBadge(), coachBadgeCoach(), coachBadgeStudent()];
         coach.state = cleanCoachState({ is_coach: false, coach: { user_id: 'c', username: 'max' }, badge: 2 });
-        out.push(coachRole().hasCoach, coachBadge());
+        out.push(coachRole().hasCoach, coachBadge(), coachBadgeStudent());
         coachReset('autre');
         out.push(coach.cached);
         account.user = null;
@@ -239,6 +247,103 @@ export default function ({ test, run, reset, assert, sameJSON }) {
         return out;
       } finally { account.user = user; Object.assign(coach, saved); }
     })()`);
-    sameJSON(r, [true, 4, true, 2, null, 0]);
+    sameJSON(r, [true, 4, 4, 0, true, 2, 2, null, 0]);
+  });
+
+  test('coach : séance retirée par le coach gardée pour l\'historique, absente des listes', () => {
+    const v1 = { name: 'Force', sessions: [{ key: 'sA', label: 'Haut', color: '#FF0000', exercises: [{ name: 'Squat', sets: 3 }] },
+      { key: 'sB', label: 'Jambes lourdes', color: '#00FF00', exercises: [{ name: 'Rowing', sets: 3 }] }] };
+    const v2 = { ...v1, sessions: [v1.sessions[0]] };
+    reset();
+    run(`importCoachProgramme(data, ${JSON.stringify({ id: 'u_x', data: v1, sentAt: 1 })}, { user_id: 'c', username: 'max' }); data.activeProgramme = 'u_cu_x';`);
+    run(`data.history.unshift({ id: 'hB', programme: 'u_cu_x', category: 'sB', date: Date.now() - 86400000, exercises: [{ name: 'Rowing', sets: [{ weight: '50', reps: '8' }] }] }); save();`);
+    run(`importCoachProgramme(data, ${JSON.stringify({ id: 'u_x', data: v2, sentAt: 2 })}, { user_id: 'c', username: 'max' }); data.activeProgramme = 'u_cu_x';`);
+    assert.equal(run(`rawLabel('sB', 'u_cu_x')`), 'Jambes lourdes', 'nom gardé pour l\'historique');
+    assert.equal(run(`sessionMeta('sB', 'u_cu_x').color`), '#00FF00');
+    sameJSON(run(`sessionKeys('u_cu_x')`), ['sA'], 'absente des listes');
+    assert.equal(run(`progMeta('u_cu_x').desc`), 'Haut');
+    sameJSON(Object.keys(run(`progMeta('u_cu_x').sessions`)), ['sA']);
+    assert.equal(run('firstSession()'), 'sA');
+    assert.equal(run(`sessionPayload(data.history.find(h => h.id === 'hB')).label`), 'Jambes lourdes', 'le nom repart juste par la synchro');
+    // Empreinte sans la séance retirée : pas de « modifié par l'élève » à tort
+    assert.equal(run(`coachProgrammeStatus(data, ${JSON.stringify({ id: 'u_x', data: v2, sentAt: 2 })}).modified`), false);
+    // Rechargement : retired gardé (true seulement), et réordonner ne touche que les séances affichées
+    run('save(); data = loadData();');
+    assert.equal(run('data.userProgrammes.u_cu_x.sessions.sB.retired'), true);
+    assert.equal(run(`sanitizeData({ userProgrammes: { u_z: { name: 'Z', sessions: { a: { label: 'A', retired: 'oui' } } } }, programmes: {}, history: [] }).userProgrammes.u_z.sessions.a.retired`), undefined);
+    run(`importCoachProgramme(data, ${JSON.stringify({ id: 'u_x', data: { ...v1, sessions: [v1.sessions[0], { ...v1.sessions[1], key: 'sC', label: 'Bas' }] }, sentAt: 3 })}, null)`);
+    sameJSON(run(`sessionKeys('u_cu_x')`), ['sA', 'sC']);
+    run(`moveSession('u_cu_x', 1, 0)`);
+    sameJSON(run(`sessionKeys('u_cu_x')`), ['sC', 'sA'], 'ordre des séances affichées');
+    assert.equal(run('data.userProgrammes.u_cu_x.sessions.sB.retired'), true, 'retirée gardée à la fin');
+    // Séance remise par le coach : de nouveau listée
+    run(`importCoachProgramme(data, ${JSON.stringify({ id: 'u_x', data: v1, sentAt: 4 })}, null)`);
+    assert.equal(run('data.userProgrammes.u_cu_x.sessions.sB.retired'), undefined);
+    assert.ok(run(`sessionKeys('u_cu_x').includes('sB')`));
+  });
+
+  test('coach : même prog_id d\'un nouveau coach, programme de l\'ancien jamais écrasé', () => {
+    reset();
+    const sentA = run(`cleanSentProgramme(programmeToSent(makeDefaultData(), 'ppl'))`);
+    const sentB = { ...sentA, name: 'Programme B' };
+    run(`importCoachProgramme(data, ${JSON.stringify({ id: 'ppl', data: sentA, sentAt: 1000 })}, { user_id: 'aaaaaaaa-1111', username: 'alice' })`);
+    const itemB = { id: 'ppl', data: sentB, sentAt: 5000 };
+    const stB = run(`coachProgrammeStatus(data, ${JSON.stringify(itemB)}, 'bbbbbbbb-2222')`);
+    sameJSON([stB.status, stB.id], ['new', 'u_cbbbbbbbb_ppl'], 'nouveau programme, autre identifiant');
+    assert.equal(run(`importCoachProgramme(data, ${JSON.stringify(itemB)}, { user_id: 'bbbbbbbb-2222', username: 'bob' })`), 'u_cbbbbbbbb_ppl');
+    sameJSON(run(`[data.userProgrammes.u_cppl.name, data.userProgrammes.u_cppl.fromCoach.name, data.userProgrammes.u_cbbbbbbbb_ppl.name]`), ['PPL', 'alice', 'Programme B']);
+    // Nouvel envoi de B : mise à jour de son programme ; ancien import (même coach) : même identifiant
+    assert.equal(run(`coachProgrammeStatus(data, ${JSON.stringify({ ...itemB, sentAt: 6000 })}, 'bbbbbbbb-2222').status`), 'update');
+    assert.equal(run(`coachProgrammeStatus(data, ${JSON.stringify({ ...itemB, sentAt: 6000 })}, 'aaaaaaaa-1111').id`), 'u_cppl');
+    // Compatibilité : programme importé avant (coach inconnu) reste à sa place
+    run(`data.userProgrammes.u_cppl.fromCoach.coachId = ''`);
+    assert.equal(run(`coachLocalId('ppl', data, 'bbbbbbbb-2222')`), 'u_cppl');
+    // Côté coach : ses séances reconnues sous les deux formes
+    run(`data.userProgrammes.u_force = { name: 'Force', sessions: {}, archived: false }`);
+    assert.equal(run(`coachOwnProgrammeName('u_cbbbbbbbb_u_force', data, 'bbbbbbbb-2222')`), 'Force');
+    assert.equal(run(`coachOwnProgrammeName('u_cu_force', data, 'bbbbbbbb-2222')`), 'Force');
+    assert.equal(run(`coachOwnProgrammeName('u_caaaaaaaa_u_force', data, 'bbbbbbbb-2222')`), null, 'programme d\'un autre coach');
+  });
+
+  test('coach : exercice déplacé dans une autre séance, nouvel identifiant (records par séance)', () => {
+    const v1 = { name: 'Force', sessions: [{ key: 'sA', label: 'Haut', color: '#FF0000', exercises: [{ name: 'Squat', sets: 3 }, { name: 'Dips', sets: 3 }] },
+      { key: 'sB', label: 'Bas', color: '#00FF00', exercises: [{ name: 'Rowing', sets: 3 }] }] };
+    reset();
+    run(`importCoachProgramme(data, ${JSON.stringify({ id: 'u_x', data: v1, sentAt: 1 })}, { user_id: 'c', username: 'max' })`);
+    const [sq, dips] = run('data.programmes.u_cu_x.exercises.sA.map(x => x.id)');
+    run(`for (let i = 0; i < 3; i++) data.history.push({ id: 'h' + i, programme: 'u_cu_x', category: 'sA', date: Date.now() - (i + 1) * 86400000,
+      exercises: [{ exId: '${sq}', name: 'Squat', sets: [{ weight: '100', reps: '5' }] }, { exId: '${dips}', name: 'Dips', sets: [{ weight: '20', reps: '8' }] }] });
+      recomputePRFromHistory();`);
+    const v2 = { ...v1, sessions: [{ ...v1.sessions[0], exercises: [{ name: 'Dips', sets: 4 }] }, { ...v1.sessions[1], exercises: [{ name: 'Rowing', sets: 3 }, { name: 'Squat', sets: 3 }] }] };
+    run(`importCoachProgramme(data, ${JSON.stringify({ id: 'u_x', data: v2, sentAt: 2 })}, null); recomputePRFromHistory();`);
+    const moved = run('data.programmes.u_cu_x.exercises.sB[1]');
+    assert.notEqual(moved.id, sq, 'Squat passé dans Bas : nouvel identifiant');
+    assert.equal(moved.pr, null, 'aucun record de Haut attribué à Bas');
+    const kept = run('data.programmes.u_cu_x.exercises.sA[0]');
+    assert.equal(kept.id, dips, 'Dips resté dans Haut : même identifiant');
+    sameJSON(kept.pr, { weight: '20', reps: '8' }, 'records de Dips gardés');
+  });
+
+  test('coach : boîte de l\'élève gardée sur l\'appareil (commentaires hors ligne)', () => {
+    const r = run(`(() => {
+      const user = account.user, saved = { ...coach };
+      try {
+        account.user = { id: 'u' };
+        coachReset('u');
+        coach.state = cleanCoachState({ is_coach: false, coach: { user_id: 'c', username: 'max' } });
+        coach.inbox = cleanInbox({ programmes: [], notes: [{ session_id: 's1', text: 'Bravo', updated_at: 5, seen: false }] });
+        writeCoachInbox();
+        coachReset('u');                     // relancé hors ligne : état pas encore lu
+        const out = [coach.state, coachNoteFor('s1')?.text, myCoach()?.username];
+        coach.state = cleanCoachState({ is_coach: false, coach: null });
+        writeCoachInbox();                   // plus de coach : boîte effacée
+        coachReset('u');
+        out.push(coach.inbox);
+        coachReset('autre');
+        out.push(coach.inbox);
+        return out;
+      } finally { account.user = user; Object.assign(coach, saved); localStorage.removeItem(COACH_INBOX_KEY); }
+    })()`);
+    sameJSON(r, [null, 'Bravo', 'max', null, null]);
   });
 }
