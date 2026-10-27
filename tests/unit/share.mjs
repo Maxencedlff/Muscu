@@ -151,6 +151,161 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     assert.ok(at(names.long).text.endsWith('…'), 'puis tronqué');
   });
 
+  // Séance Push avec un superset (2) et un tri-set (3), un exercice sans série au milieu du tri-set
+  function supersetHistory() {
+    const { latest, older, pull } = pushHistory();
+    const s = (weight, reps) => ({ weight, reps });
+    const ss = {
+      ...latest, id: 'ss',
+      exercises: [
+        { exId: 'dc', name: 'Développé couché', sets: [s('62.5', '6')] },
+        { exId: 'cb', name: 'Curl biceps', ss: 'g1', sets: [s('12', '10')] },
+        { exId: 'tr', name: 'Extension triceps', ss: 'g1', sets: [s('20', '12')] },
+        { exId: 'el', name: 'Élévations latérales', ss: 'g2', sets: [s('8', '12')] },
+        { exId: 'vi', name: 'Oiseau', ss: 'g2', sets: [] },
+        { exId: 'ec', name: 'Écarté', ss: 'g2', sets: [s('12', '12')] },
+      ],
+    };
+    return { ss, history: [ss, latest, pull, older] };
+  }
+
+  test('partage : supersets en blocs entiers, détail des séries et texte VoiceOver', () => {
+    reset();
+    const { ss, history } = supersetHistory();
+    const st = app.shareStoryStats(ss, { history });
+    sameJSON(st.highlights.map(h => h.kind ?? null), [null, 'Superset', 'Superset', 'Tri-set', 'Tri-set'], 'tri-set gardé malgré un exercice sans série');
+    assert.equal('group' in st.highlights[0], false, 'exercice seul : aucune clé ajoutée');
+    assert.equal(st.highlights[1].sets, '12 kg × 10');
+    sameJSON(app.shareUnits(st.highlights).map(u => u.map(r => r.name)), [
+      ['Développé couché'], ['Curl biceps', 'Extension triceps'], ['Élévations latérales', 'Écarté'],
+    ]);
+    sameJSON(st.supersets, [
+      { kind: 'Superset', names: ['Curl biceps (12 kg × 10)', 'Extension triceps (20 kg × 12)'] },
+      { kind: 'Tri-set', names: ['Élévations latérales (8 kg × 12)', 'Oiseau', 'Écarté (12 kg × 12)'] },
+    ]);
+    assert.match(app.shareStoryAlt(st), /\. Superset : Curl biceps \(12 kg × 10\) et Extension triceps \(20 kg × 12\)\. Tri-set : Élévations latérales \(8 kg × 12\), Oiseau et Écarté \(12 kg × 12\)\. Muscles travaillés : /);
+    // Limite d'exercices : un superset compte pour un bloc et n'est jamais coupé
+    const two = app.shareStoryStats(ss, { history, max: 2 });
+    for (const u of app.shareUnits(two.highlights)) {
+      if (u[0].group != null) assert.equal(u.length, st.highlights.filter(h => h.group === u[0].group).length, 'groupe entier');
+    }
+    assert.equal(app.shareUnits(two.highlights).length, 2);
+    assert.equal(two.others, 5 - two.highlights.length);
+  });
+
+  test('partage : détail des séries (charge fixe, charge qui change, sans charge, durée)', () => {
+    reset();
+    const txt = (sets, m = 'reps', k = 'charge') => app.setsText(sets, m, k);
+    const s = (weight, reps) => ({ weight, reps });
+    assert.equal(txt([s('30', '10'), s('30', '10'), s('30', '9')]), '30 kg × 10 · 10 · 9');
+    assert.equal(txt([s('30', '10'), s('32.5', '8'), s('32.5', '7')]), '30 × 10 · 32,5 × 8 · 32,5 × 7', 'historique : inchangé');
+    assert.equal(app.setsText([s('30', '10'), s('32.5', '8')], 'reps', 'charge', { unitEach: true }), '30 kg × 10 · 32,5 kg × 8', 'image : unité à chaque série');
+    assert.equal(app.setsText([s('30', '10'), s('30', '9')], 'reps', 'charge', { unitEach: true }), '30 kg × 10 · 9');
+    assert.equal(txt([s('', '15'), s('', '12')]), '15 · 12 reps');
+    assert.equal(txt([s('', '45'), s('', '60')], 'time'), '45 s · 1 min');
+    assert.equal(txt([]), '—');
+  });
+
+  test('partage : séance sans superset inchangée (lignes, alt)', () => {
+    reset();
+    const { latest, history } = pushHistory();
+    const st = app.shareStoryStats(latest, { history });
+    assert.ok(st.highlights.every(h => !('group' in h) && !('sets' in h) && !('kind' in h)));
+    sameJSON(st.supersets, []);
+    assert.equal(app.shareUnits(st.highlights).length, st.highlights.length, 'un bloc par exercice');
+    assert.doesNotMatch(app.shareStoryAlt(st), /Superset|Tri-set|Circuit/);
+    // Un `ss` isolé (exercice seul) ne fait pas de groupe
+    const lone = { ...latest, exercises: latest.exercises.map((e, i) => (i === 1 ? { ...e, ss: 'zz' } : e)) };
+    const sl = app.shareStoryStats(lone, { history });
+    assert.ok(sl.highlights.every(h => !('group' in h)));
+    assert.equal(app.shareStoryAlt(sl), app.shareStoryAlt(st));
+  });
+
+  test('partage : bloc de superset dessiné (titre, noms, détail), sans valeur à droite ni pastille', () => {
+    const c = [235, 235, 245, 1];
+    const palette = { light: false, label: c, label2: c, sep: c, cell: c, cat: c, catText: c, goldText: c, font: 'f', fontRounded: 'r' };
+    const row = (name, extra = {}) => ({ name, value: '100 kg × 8', record: null, ...extra });
+    const grp = { group: 1, kind: 'Tri-set', sets: '30 × 10 · 32,5 × 8 · 32,5 × 7' };
+    const st = { highlights: [row('Squat'), row('Curl', grp), row('Dips', grp), row('Pompes', grp)], others: 0 };
+    for (const rowH of [undefined, 64, 44]) {
+      const g = fakeCanvas2d();
+      app.drawHighlights(g, palette, st, 0, 4, false, rowH);
+      const texts = g.drawn.map(d => d.text);
+      assert.ok(texts.includes('TRI-SET'), 'titre du bloc');
+      assert.equal(texts.filter(t => t === grp.sets).length, 3, 'détail de chaque exercice');
+      assert.equal(texts.filter(t => t === '100 kg × 8').length, 1, 'meilleure série seulement pour l\'exercice seul');
+      assert.ok(!texts.some(t => /^[A-Z]\d$/.test(t)), 'aucune pastille A1');
+    }
+    // Bloc lisible : nom à la taille d'une ligne hors superset, détail ≥ 70 % du nom et ≥ 24 px,
+    // exercice du bloc à peu près de la hauteur d'une ligne complète
+    for (const rowH of [112, 64, 54]) {
+      const m = app.groupMetrics(rowH);
+      assert.equal(m.name, rowH >= 112 ? 40 : Math.round(Math.min(40, rowH * 0.6)));
+      assert.ok(m.detail >= 24 && m.detail >= 0.7 * m.name, `détail lisible (${rowH})`);
+      assert.ok(m.member >= 0.8 * rowH && m.head > m.titleBase + 16, `de l'air (${rowH})`);
+    }
+    // Hauteur : une ligne par exercice seul, titre + deux lignes par exercice du groupe
+    const rowsOnly = { highlights: [row('a'), row('b')], others: 0 };
+    assert.equal(app.highlightsHeight(rowsOnly.highlights, false, 64), 88 + 2 * 64 + 24, 'sans superset : comme avant');
+    assert.ok(app.highlightsHeight(st.highlights, false, 64) > 88 + 4 * 64 + 24);
+  });
+
+  // Cinq séances types pour la mise en page (lignes déjà calculées, comme shareStoryStats)
+  function layoutCases() {
+    const row = (i, extra = {}) => ({ index: i, name: `Développé exercice ${i}`, value: '30 kg × 10', record: i === 1 ? 'Record charge' : null, volume: 300 - i, ...extra });
+    const grp = (id, kind, sets = '30 kg × 10 · 10 · 9 · 8') => ({ group: id, kind, sets });
+    const make = (n, groups) => Array.from({ length: n }, (_, i) => {
+      const g = groups.find(([from, len]) => i >= from && i < from + len);
+      return row(i, g ? grp(g[0], g[2], g[3]) : {});
+    });
+    return {
+      'sans superset': make(6, []),
+      'superset + tri-set': make(6, [[1, 2, 'Superset'], [3, 3, 'Tri-set']]),
+      'grosse séance, circuit': make(12, [[4, 4, 'Circuit']]),
+      'charges qui changent': make(6, [[0, 2, 'Superset', '30 kg × 10 · 32,5 kg × 8 · 32,5 kg × 7 · 35 kg × 5']]),
+      'séance énorme': make(20, [[2, 2, 'Superset'], [7, 3, 'Tri-set'], [14, 2, 'Superset']]),
+    };
+  }
+
+  test('partage : signature au-dessus de la zone de réponse, haut sous la barre de profil, rien ne se chevauche', () => {
+    const palette = { font: 'f', fontRounded: 'r' };
+    for (const [name, highlights] of Object.entries(layoutCases())) {
+      for (const map of [false, true]) {
+        const st = { title: 'Push', highlights, others: 0, records: 1 };
+        const out = app.storyLayout(fakeCanvas2d(), palette, st, map);
+        const tag = `${name}${map ? ' (silhouette)' : ''}`;
+        assert.ok(1920 - (out.at.signature + 84) >= 340, `${tag} : signature à ${1920 - (out.at.signature + 84)} px du bas`);
+        assert.ok(out.at.header >= 250, `${tag} : haut à ${out.at.header} px`);
+        out.blocks.forEach(([b, h], i) => {
+          const next = out.blocks[i + 1];
+          if (next) assert.ok(out.at[b] + h <= out.at[next[0]], `${tag} : ${b} ne chevauche pas ${next[0]}`);
+        });
+        if (name !== 'séance énorme') {
+          assert.equal(out.list.length, highlights.length, `${tag} : tous les exercices`);
+          assert.equal(out.more, false);
+        }
+        if (highlights.some(r => r.group != null)) {
+          const g = app.groupMetrics(out.rowH, out.air);
+          assert.ok(out.rowH >= 50 && g.name >= 30 && g.detail >= 22, `${tag} : texte lisible (${out.rowH}, ${g.name}, ${g.detail})`);
+          // Un bloc montré l'est en entier
+          for (const id of new Set(out.list.filter(r => r.group != null).map(r => r.group))) {
+            assert.equal(out.list.filter(r => r.group === id).length, highlights.filter(r => r.group === id).length, `${tag} : bloc ${id} entier`);
+          }
+        }
+      }
+    }
+    // Petite séance avec superset : mise en page aérée gardée
+    const small = app.storyLayout(fakeCanvas2d(), palette, { title: 'Push', highlights: layoutCases()['charges qui changent'].slice(0, 3), others: 0, records: 0 }, false);
+    assert.equal(small.air, 1);
+    assert.equal(small.tilesH, 214);
+    // Séance énorme : tous les blocs ; seuls des exercices hors superset passent dans « + N autres »
+    const huge = layoutCases()['séance énorme'];
+    const out = app.storyLayout(fakeCanvas2d(), palette, { title: 'Push', highlights: huge, others: 0, records: 1 }, false);
+    const hidden = huge.filter(r => !out.list.includes(r));
+    assert.ok(hidden.every(r => r.group == null), 'aucun exercice de superset caché');
+    assert.equal(out.more, hidden.length > 0);
+  });
+
   test('médaille : mêmes tracés pour l\'icône des écrans et l\'image partagée', () => {
     const svg = app.medalSvg(14);
     assert.match(svg, /width="14"/);

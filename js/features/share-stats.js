@@ -32,14 +32,30 @@ function shareExerciseRow(ex, base, index, bodyKg = null) {
   };
 }
 
+// Blocs de la liste : un exercice seul [row], ou les exercices d'un même superset (row.group) côte à côte
+function shareUnits(rows) {
+  const units = [];
+  rows.forEach(r => {
+    const prev = units.at(-1);
+    if (prev && r.group != null && prev[0].group === r.group) prev.push(r); else units.push([r]);
+  });
+  return units;
+}
+
 // Exercices clés : d'abord les records (le plus marquant d'abord), puis le plus gros volume,
-// remis dans l'ordre de la séance pour se lire comme elle s'est déroulée.
+// remis dans l'ordre de la séance pour se lire comme elle s'est déroulée. Un superset compte comme
+// un seul bloc (rang de son meilleur exercice) et n'est jamais coupé.
+// Rang d'un bloc (exercice seul ou superset) : record le plus marquant, sinon plus gros volume
+function shareUnitRank(u) {
+  return Math.max(...u.map(r => (r.record ? RECORD_RANK[r.record] * 1e9 : 0) + r.volume));
+}
+
 function shareHighlights(rows, max = SHARE_MAX_HIGHLIGHTS) {
-  const rank = r => (r.record ? RECORD_RANK[r.record] * 1e9 : 0) + r.volume;
-  return rows.filter(r => r.value)
-    .sort((a, b) => rank(b) - rank(a) || a.index - b.index)
+  return shareUnits(rows.filter(r => r.value))
+    .sort((a, b) => shareUnitRank(b) - shareUnitRank(a) || a[0].index - b[0].index)
     .slice(0, max)
-    .sort((a, b) => a.index - b.index);
+    .sort((a, b) => a[0].index - b[0].index)
+    .flat();
 }
 
 // entry : séance de l'historique. baseline : records d'avant la séance ({ [exId]: { prW, prR, e1rm } }) ;
@@ -47,8 +63,19 @@ function shareHighlights(rows, max = SHARE_MAX_HIGHLIGHTS) {
 function shareStoryStats(entry, { history = data.history, baseline = null, max = SHARE_MAX_HIGHLIGHTS } = {}) {
   const prog      = entryProg(entry);
   const base      = baseline || historyBaseline(entry, history);
-  const exercises = (entry.exercises || []).filter(ex => (ex.sets || []).length);
-  const rows      = exercises.map((ex, i) => shareExerciseRow(ex, base[recordKey(ex)], i, entryBodyKg(entry)));
+  const all       = entry.exercises || [];
+  // Supersets de la séance complète (ssBlocks) : un exercice sans série n'en coupe pas le groupe
+  const groupOf   = {};
+  ssBlocks(all).forEach(b => { if (b.length > 1) b.forEach(oi => { groupOf[oi] = { id: b[0], kind: ssKind(b.length) }; }); });
+  const done      = all.map((ex, oi) => ({ ex, oi })).filter(({ ex }) => (ex.sets || []).length);
+  const exercises = done.map(d => d.ex);
+  const rows      = done.map(({ ex, oi }, i) => {
+    const row = shareExerciseRow(ex, base[recordKey(ex)], i, entryBodyKg(entry));
+    // Exercice d'un superset : son groupe et le détail de ses séries (seulement là : séance sans
+    // superset inchangée)
+    if (groupOf[oi]) Object.assign(row, { group: groupOf[oi].id, kind: groupOf[oi].kind, sets: setsText(ex.sets, measureOf(ex), setKind(ex), { unitEach: true }) });
+    return row;
+  });
   const volume    = sessionVolume(exercises, entryBodyKg(entry));
   const sameYear  = new Date(entry.date).getFullYear() === new Date().getFullYear();
   const highlights = shareHighlights(rows, max);
@@ -65,7 +92,18 @@ function shareStoryStats(entry, { history = data.history, baseline = null, max =
     others:   exercises.length - highlights.length,
     exercises: exercises.map(ex => ({ exId: ex.exId || null, name: ex.name })),   // exercices faits
     muscles:  sessionTopMuscles(entry).map(muscleLabel),             // « Pectoraux », pour VoiceOver
+    supersets: shareSupersets(all),                                  // pour VoiceOver
   };
+}
+
+// Groupes de la séance, dans l'ordre, avec le détail des séries de chaque exercice (VoiceOver) :
+// [{ kind: 'Superset', names: ['Curl biceps (12 kg × 10 · 10)', 'Extension triceps (20 kg × 12)'] }]
+function shareSupersets(xs) {
+  const named = ex => {
+    const sets = (ex.sets || []).length ? setsText(ex.sets, measureOf(ex), setKind(ex), { unitEach: true }) : '—';
+    return sets === '—' ? ex.name : `${ex.name} (${sets})`;
+  };
+  return ssBlocks(xs).filter(b => b.length > 1).map(b => ({ kind: ssKind(b.length), names: b.map(i => named(xs[i])) }));
 }
 
 // « 2 records battus », « Nouveau record »
@@ -77,13 +115,15 @@ function shareRecordsText(n) {
 const SHARE_LIST_FR = new Intl.ListFormat('fr-FR', { type: 'conjunction' });
 
 // Description de l'image pour VoiceOver : « Push, samedi 17 octobre. 52 min, 8,4 t, 18 séries,
-// 2 records battus. Muscles travaillés : pectoraux, triceps et épaules antérieures. »
+// 2 records battus. Superset : Curl biceps (12 kg × 10 · 10) et Extension triceps (20 kg × 12).
+// Muscles travaillés : pectoraux, triceps et épaules antérieures. »
 function shareStoryAlt(st) {
   const parts = [st.duration, st.volume, plural(st.sets, 'série', 'séries')].filter(Boolean);
   if (st.records) parts.push(shareRecordsText(st.records));
+  const groups = (st.supersets || []).map(g => ` ${g.kind} : ${SHARE_LIST_FR.format(g.names)}.`).join('');
   const muscles = (st.muscles || []).map(m => m.toLocaleLowerCase('fr-FR'));
   const tail = muscles.length ? ` Muscles travaillés : ${SHARE_LIST_FR.format(muscles)}.` : '';
-  return `${st.title}, ${st.day}. ${parts.join(', ')}.${tail}`;
+  return `${st.title}, ${st.day}. ${parts.join(', ')}.${groups}${tail}`;
 }
 
 // Nom du fichier partagé : « mdlf-training-push-2026-10-17.png » (clé de séance : [A-Za-z0-9_-])

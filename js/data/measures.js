@@ -75,6 +75,20 @@ function measureSetTxt(s, measure, kind = 'charge') {
   if (kind === 'aide') return `${r} reps${w > 0 ? ` · aide ${fmtW(s.weight)} ${unitLbl()}` : ''}`;
   return w > 0 ? `${fmtW(s.weight)} ${unitLbl()} × ${r}` : `${r} reps`;
 }
+// Séries d'un exercice, texte brut : poids mis en facteur s'il ne change pas (« 30 kg × 10 · 10 · 9 »),
+// sinon série par série (« 30 × 10 · 32,5 × 8 ») ; durée ou cardio série par série (measureSetTxt).
+// kind : setKind() de l'exercice. unitEach : unité à chaque série quand la charge change
+// (« 30 kg × 10 · 32,5 kg × 8 », image partagée) ; l'historique (setsLine, échappé) s'en passe.
+function setsText(sets, measure = 'reps', kind = 'charge', { unitEach = false } = {}) {
+  const ok = (sets || []).filter(s => String(s.reps ?? '') !== '');
+  if (!ok.length) return '—';
+  if (measure !== 'reps') return ok.map(s => measureSetTxt(s, measure, kind)).join(' · ');
+  const ws = ok.map(s => parseFloat(s.weight) || 0);
+  if (ws.every(w => w === 0)) return `${ok.map(s => s.reps).join(' · ')} reps`;
+  if (ws.every(w => w === ws[0])) return `${fmtW(ok[0].weight)} ${unitLbl()} × ${ok.map(s => s.reps).join(' · ')}`;
+  const unit = unitEach ? ` ${unitLbl()}` : '';
+  return ok.map(s => `${parseFloat(s.weight) > 0 ? fmtW(s.weight) + unit + ' × ' : ''}${s.reps}`).join(' · ');
+}
 // « 45 s », « 1 min 30 »
 function fmtSeconds(sec) {
   const n = Math.max(0, parseInt(sec) || 0);

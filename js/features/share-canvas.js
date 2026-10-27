@@ -30,9 +30,14 @@ const STORY = {
   ROW: 112,          // ligne d'exercice
   CARD_HEAD: 88,     // titre « EXERCICES » de la carte
   CARD_FOOT: 24,
+  CARD_HEAD_TIGHT: 64,   // séance avec supersets très chargée (air = 0) : titre et pied de carte resserrés
+  CARD_FOOT_TIGHT: 16,
   MORE: 60,          // ligne « + 2 autres exercices »
   ROW_COMPACT: 64,   // ligne d'exercice sur une seule ligne (nom à gauche, série à droite), quand il y en a beaucoup
   ROW_MIN: 44,       // en dessous, la police deviendrait illisible : les derniers passent dans « + N autres »
+  ROW_MIN_SS: 50,    // avec des supersets : lignes de 50 px au plus serré (nom de 30 px)
+  NAME_MIN: 30,      // avec des supersets : nom jamais plus petit (tronqué au-delà)
+  DETAIL_MIN: 22,    // détail des séries d'un superset (« 30 kg × 10 · 10 · 9 »)
   TILES: 214,        // tuiles côte à côte (sans silhouette)
   TILES_MAP: 356,    // chiffres en colonne + silhouette
   CHIP: 76,          // pastille des records
@@ -176,14 +181,16 @@ function drawHeader(ctx, p, st, y, titleSize) {
 }
 
 // Pastille dorée « 2 records battus »
-function drawRecordsChip(ctx, p, st, y) {
-  const text = shareRecordsText(st.records), h = STORY.CHIP, x = STORY.SIDE;
-  ctx.font = storyFont(700, 36, false, p);
-  roundRect(ctx, x, y, 28 + 48 + 16 + ctx.measureText(text).width + 36, h, h / 2);
+// h : hauteur (STORY.CHIP ; plus serrée quand une séance avec supersets manque de place)
+function drawRecordsChip(ctx, p, st, y, h = STORY.CHIP) {
+  const text = shareRecordsText(st.records), x = STORY.SIDE, k = h / STORY.CHIP;
+  const medal = Math.round(48 * k), pad = Math.round(28 * k);
+  ctx.font = storyFont(700, Math.max(28, Math.round(36 * Math.min(1, k * 1.1))), false, p);   // rien sous 28 px
+  roundRect(ctx, x, y, pad + medal + 16 + ctx.measureText(text).width + 36, h, h / 2);
   ctx.fillStyle = rgbaCss(p.gold, p.light ? .16 : .18); ctx.fill();
-  drawMedal(ctx, p, x + 26, y + 14, 48);
+  drawMedal(ctx, p, x + pad - 2, y + (h - medal) / 2, medal);
   ctx.fillStyle = rgbaCss(p.goldText); ctx.textBaseline = 'middle';
-  ctx.fillText(text, x + 28 + 48 + 16, y + h / 2 + 2);
+  ctx.fillText(text, x + pad + medal + 16, y + h / 2 + 2);
   ctx.textBaseline = 'alphabetic';
 }
 
@@ -200,14 +207,15 @@ function drawStat(ctx, p, label, value, x, y, maxW, size, gap) {
   ctx.fillText(value, x - 2, y + 30 + gap);
 }
 
-// Trois tuiles côte à côte (sans silhouette)
-function drawTilesRow(ctx, p, st, y) {
-  const { SIDE, W, TILES: h } = STORY, gap = 24;
+// Trois tuiles côte à côte (sans silhouette). h : hauteur (STORY.TILES ; moins hautes quand une
+// séance avec supersets manque de place, chiffres réduits d'autant)
+function drawTilesRow(ctx, p, st, y, h = STORY.TILES) {
+  const { SIDE, W } = STORY, gap = 24, k = h / STORY.TILES;
   const w = (W - 2 * SIDE - 2 * gap) / 3;
   storyTiles(st).forEach(([label, value], i) => {
     const x = SIDE + i * (w + gap);
     drawCard(ctx, p, x, y, w, h);
-    drawStat(ctx, p, label, value, x + 36, y + 36, w - 64, 80, 104);
+    drawStat(ctx, p, label, value, x + 36, y + Math.round(36 * k), w - 64, Math.round(80 * Math.min(1, k * 1.1)), Math.round(104 * k));
   });
 }
 
@@ -228,30 +236,106 @@ function drawTilesWithMap(ctx, p, st, y, image) {
   drawMuscleMap(ctx, right + 24, y + 28, W - SIDE - right - 24 - 28, h - 56, image);
 }
 
-function highlightsHeight(rows, more, rowH = STORY.ROW) {
-  return rows ? STORY.CARD_HEAD + rows * rowH + (more ? STORY.MORE : 0) + STORY.CARD_FOOT : 0;
+// Mesures d'un bloc de superset selon la hauteur de ligne : pleine (ROW) ou compacte.
+// Petit titre (« SUPERSET »), de l'air, puis chaque exercice sur deux lignes : le nom, à la taille des
+// lignes hors superset, et le détail des séries (75 % du nom, jamais sous DETAIL_MIN), en retrait
+// derrière le crochet. air (1 → 0,5) : espacements réduits quand la séance manque de place.
+function groupMetrics(rowH, air = 1) {
+  const full = rowH >= STORY.ROW;
+  const name = full ? 40 : Math.round(Math.min(40, rowH * 0.6));
+  const detail = Math.max(STORY.DETAIL_MIN, Math.round(name * 0.75));
+  const title = full ? 26 : Math.max(22, Math.round(name * 0.65));
+  const titleBase = Math.round(12 + 6 * air) + Math.round(title * 0.75);  // air sous la ligne de séparation
+  // air (1 → 0) : 0 seulement dans une séance très chargée, la carte se resserre aussi (CARD_HEAD_TIGHT)
+  const nameBase = Math.round(name * 0.92), detailBase = nameBase + Math.round(detail * 1.3);
+  return {
+    name, nameMin: full ? 32 : Math.max(STORY.NAME_MIN, name - 8), detail, title, titleBase,
+    head: titleBase + Math.round(8 + 10 * air),                           // air entre le titre et le premier exercice
+    nameBase, detailBase,
+    member: detailBase + Math.round(detail * 0.25) + Math.round(6 + 8 * air),   // air entre deux exercices
+    foot: 6, indent: 40,
+  };
 }
 
-// Carte des exercices clés : nom et « Meilleure série » (ou record, en or), valeur ferrée à droite
-// rowH < ROW : lignes compactes, nom et série sur une seule ligne, police proportionnée à la hauteur
-function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW) {
-  const { SIDE, W, ROW, CARD_HEAD } = STORY, w = W - 2 * SIDE, padX = 44;
-  const list = st.highlights.slice(0, rows);
-  drawCard(ctx, p, SIDE, y, w, highlightsHeight(rows, more, rowH));
-  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p); setTracking(ctx, 3);
-  ctx.fillText('EXERCICES', SIDE + padX, y + 68); setTracking(ctx, 0);
+// Hauteur d'un bloc de la liste : une ligne pour un exercice seul, titre + deux lignes par exercice
+// pour un superset
+function unitHeight(u, rowH, air = 1) {
+  if (u[0].group == null) return rowH;
+  const g = groupMetrics(rowH, air);
+  return g.head + u.length * g.member + g.foot;
+}
 
-  if (rowH < ROW) {
-    const size = Math.round(Math.min(40, rowH * 0.6)), base = Math.round(rowH * 0.66);
-    // Une seule taille pour tous les noms (la plus petite nécessaire) : la liste se lit d'un bloc
-    const nameSize = Math.min(...list.map(r => {
-      ctx.font = storyFont(700, size, true, p);
-      const nameW = w - 2 * padX - ctx.measureText(r.value).width - 28;
-      return fitSize(ctx, r.name, nameW, size, Math.max(24, size - 8), s2 => storyFont(600, s2, false, p));
-    }));
-    list.forEach((r, i) => {
-      const ry = y + CARD_HEAD + i * rowH;
-      if (i) { ctx.fillStyle = rgbaCss(p.sep); ctx.fillRect(SIDE + padX, ry, w - 2 * padX, 2); }
+// list : exercices montrés (st.highlights, début de la liste coupé entre deux blocs)
+function highlightsHeight(list, more, rowH = STORY.ROW, air = 1) {
+  const units = shareUnits(list);
+  if (!units.length) return 0;
+  const head = air > 0 ? STORY.CARD_HEAD : STORY.CARD_HEAD_TIGHT, foot = air > 0 ? STORY.CARD_FOOT : STORY.CARD_FOOT_TIGHT;
+  return head + units.reduce((a, u) => a + unitHeight(u, rowH, air), 0) + (more ? STORY.MORE : 0) + foot;
+}
+
+// Superset : « SUPERSET » en couleur de la séance, crochet « [ » qui tient ses exercices, puis pour
+// chacun le nom et le détail de toutes ses séries (« 30 kg × 10 · 10 · 9 », en or s'il y a un record).
+// nameSize : taille commune des noms en lignes compactes (sinon réduite exercice par exercice).
+function drawGroup(ctx, p, u, ry, rowH, nameSize = null, air = 1) {
+  const { SIDE, W } = STORY, padX = 44, g = groupMetrics(rowH, air);
+  const x = SIDE + padX, tx = x + g.indent, maxW = W - 2 * SIDE - 2 * padX - g.indent;
+  ctx.fillStyle = rgbaCss(p.catText); ctx.font = storyFont(700, g.title, false, p); setTracking(ctx, 3);
+  ctx.fillText(u[0].kind.toLocaleUpperCase('fr-FR'), x, ry + g.titleBase); setTracking(ctx, 0);
+
+  // Crochet « [ » : du haut du premier nom au bas du dernier détail, avec ses retours en haut et en bas
+  const top = ry + g.head + g.nameBase - g.name * 0.8;
+  const bottom = ry + g.head + (u.length - 1) * g.member + g.detailBase + g.detail * 0.25;
+  const lw = 6, bx = x + lw / 2, tick = 18;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(bx + tick, top); ctx.lineTo(bx, top); ctx.lineTo(bx, bottom); ctx.lineTo(bx + tick, bottom);
+  ctx.strokeStyle = rgbaCss(p.cat); ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.stroke();
+  ctx.restore();
+
+  u.forEach((r, i) => {
+    const my = ry + g.head + i * g.member;
+    if (nameSize) ctx.font = storyFont(600, nameSize, false, p);
+    else fitSize(ctx, r.name, maxW, g.name, g.nameMin, s => storyFont(600, s, false, p));
+    ctx.fillStyle = rgbaCss(p.label);
+    ctx.fillText(fitText(ctx, r.name, maxW), tx, my + g.nameBase);
+    fitSize(ctx, r.sets, maxW, g.detail, Math.max(STORY.DETAIL_MIN, g.detail - 4), s => storyFont(600, s, true, p));
+    ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label2);
+    ctx.fillText(fitText(ctx, r.sets, maxW), tx, my + g.detailBase);
+  });
+}
+
+// Carte des exercices clés : nom et « Meilleure série » (ou record, en or), valeur ferrée à droite ;
+// un superset forme un bloc (drawGroup).
+// rowH < ROW : lignes compactes, nom et série sur une seule ligne, police proportionnée à la hauteur
+function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW, air = 1) {
+  const { SIDE, W, ROW } = STORY, w = W - 2 * SIDE, padX = 44;
+  const CARD_HEAD = air > 0 ? STORY.CARD_HEAD : STORY.CARD_HEAD_TIGHT;
+  const list = st.highlights.slice(0, rows);
+  // Avec des supersets, un nom n'est jamais réduit sous NAME_MIN (il est tronqué au-delà)
+  const nameFloor = list.some(r => r.group != null) ? STORY.NAME_MIN : 24;
+  drawCard(ctx, p, SIDE, y, w, highlightsHeight(list, more, rowH, air));
+  ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p); setTracking(ctx, 3);
+  ctx.fillText('EXERCICES', SIDE + padX, y + CARD_HEAD - 20); setTracking(ctx, 0);
+
+  const compact = rowH < ROW;
+  const size = Math.round(Math.min(40, rowH * 0.6)), base = Math.round(rowH * 0.66);
+  // Lignes compactes : une seule taille pour tous les noms (la plus petite nécessaire), la liste se lit d'un bloc
+  const nameSize = compact ? Math.min(...list.map(r => {
+    if (r.group != null) {
+      return fitSize(ctx, r.name, w - 2 * padX - groupMetrics(rowH, air).indent, size, Math.max(nameFloor, size - 8), s2 => storyFont(600, s2, false, p));
+    }
+    ctx.font = storyFont(700, size, true, p);
+    const nameW = w - 2 * padX - ctx.measureText(r.value).width - 28;
+    return fitSize(ctx, r.name, nameW, size, Math.max(nameFloor, size - 8), s2 => storyFont(600, s2, false, p));
+  })) : null;
+
+  let ry = y + CARD_HEAD;
+  shareUnits(list).forEach((u, i) => {
+    if (i) { ctx.fillStyle = rgbaCss(p.sep); ctx.fillRect(SIDE + padX, ry, w - 2 * padX, 2); }
+    const r = u[0];
+    if (r.group != null) drawGroup(ctx, p, u, ry, rowH, nameSize, air);
+    else if (compact) {
       ctx.font = storyFont(700, size, true, p);
       const vw = ctx.measureText(r.value).width;
       ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label);
@@ -260,34 +344,33 @@ function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW) {
       ctx.font = storyFont(600, nameSize, false, p);
       ctx.fillStyle = rgbaCss(p.label);
       ctx.fillText(fitText(ctx, r.name, nameW), SIDE + padX, ry + base);
-    });
-  } else list.forEach((r, i) => {
-    const ry = y + CARD_HEAD + i * ROW;
-    if (i) { ctx.fillStyle = rgbaCss(p.sep); ctx.fillRect(SIDE + padX, ry, w - 2 * padX, 2); }
-    ctx.font = storyFont(700, 46, true, p);
-    const vw = ctx.measureText(r.value).width;
-    ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label);
-    ctx.textAlign = 'right'; ctx.fillText(r.value, SIDE + w - padX, ry + 72); ctx.textAlign = 'left';
-
-    // Le nom est l'information principale : la police est réduite (40 → 32 px) avant de tronquer
-    const nameW = w - 2 * padX - vw - 32;
-    fitSize(ctx, r.name, nameW, 40, 32, s => storyFont(600, s, false, p));
-    ctx.fillStyle = rgbaCss(p.label);
-    ctx.fillText(fitText(ctx, r.name, nameW), SIDE + padX, ry + 50);
-    ctx.font = storyFont(500, 30, false, p);
-    if (r.record) {
-      drawMedal(ctx, p, SIDE + padX - 4, ry + 65, 36);
-      ctx.fillStyle = rgbaCss(p.goldText);
-      ctx.fillText(fitText(ctx, r.record, nameW - 40), SIDE + padX + 38, ry + 93);
     } else {
-      ctx.fillStyle = rgbaCss(p.label2);
-      ctx.fillText('Meilleure série', SIDE + padX, ry + 93);
+      ctx.font = storyFont(700, 46, true, p);
+      const vw = ctx.measureText(r.value).width;
+      ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label);
+      ctx.textAlign = 'right'; ctx.fillText(r.value, SIDE + w - padX, ry + 72); ctx.textAlign = 'left';
+
+      // Le nom est l'information principale : la police est réduite (40 → 32 px) avant de tronquer
+      const nameW = w - 2 * padX - vw - 32;
+      fitSize(ctx, r.name, nameW, 40, 32, s => storyFont(600, s, false, p));
+      ctx.fillStyle = rgbaCss(p.label);
+      ctx.fillText(fitText(ctx, r.name, nameW), SIDE + padX, ry + 50);
+      ctx.font = storyFont(500, 30, false, p);
+      if (r.record) {
+        drawMedal(ctx, p, SIDE + padX - 4, ry + 65, 36);
+        ctx.fillStyle = rgbaCss(p.goldText);
+        ctx.fillText(fitText(ctx, r.record, nameW - 40), SIDE + padX + 38, ry + 93);
+      } else {
+        ctx.fillStyle = rgbaCss(p.label2);
+        ctx.fillText('Meilleure série', SIDE + padX, ry + 93);
+      }
     }
+    ry += unitHeight(u, rowH, air);
   });
   if (more) {
     const hidden = st.highlights.length + st.others - list.length;
     ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(500, 30, false, p);
-    ctx.fillText(`+ ${plural(hidden, 'autre exercice', 'autres exercices')}`, SIDE + padX, y + CARD_HEAD + rows * rowH + 42);
+    ctx.fillText(`+ ${plural(hidden, 'autre exercice', 'autres exercices')}`, SIDE + padX, ry + 42);
   }
 }
 
@@ -317,6 +400,8 @@ function drawSignature(ctx, p, icon, y) {
 // sinon la silhouette laisse sa place aux chiffres en ligne, sinon lignes resserrées (ROW_MIN) ;
 // seulement au-delà, les derniers passent dans « + N autres exercices ».
 function storyLayout(ctx, p, st, hasMap) {
+  const units = shareUnits(st.highlights);
+  if (units.some(u => u[0].group != null)) return storyLayoutGrouped(ctx, p, st, hasMap, units);
   const { W, H, TOP, BOTTOM, SIDE, ROW, ROW_COMPACT, ROW_MIN } = STORY;
   const titleSize = fitSize(ctx, st.title, W - 2 * SIDE, 150, 96, s => storyFont(800, s, false, p));
   const n = st.highlights.length;
@@ -351,13 +436,82 @@ function storyLayout(ctx, p, st, hasMap) {
   // La ligne « + N autres » doit tenir : on retire une ligne d'exercice si besoin
   if (rows > 0 && hidden > 0 && room - rows * rowH < STORY.MORE) { rows--; hidden++; }
   const more = rows > 0 && hidden > 0;
-  blocks.find(b => b[0] === 'highlights')[1] = highlightsHeight(rows, more, rowH);
+  blocks.find(b => b[0] === 'highlights')[1] = highlightsHeight(st.highlights.slice(0, rows), more, rowH);
 
   const total = blocks.reduce((a, [, h, gap]) => a + h + gap, 0);
   let y = TOP + Math.max(0, (H - TOP - BOTTOM - total) / 2);
   const at = {};
   blocks.forEach(([name, h, gap]) => { at[name] = y; y += h + gap; });
-  return { at, titleSize, rows, more, rowH, map: chosen.map };
+  return { at, titleSize, rows, more, rowH, map: chosen.map, list: st.highlights.slice(0, rows), blocks };
+}
+
+// Séance avec supersets : tous les exercices et tout le détail de chaque bloc, entre TOP (barre de
+// profil d'Instagram) et BOTTOM (zone de réponse), signature comprise. On part de la mise en page aérée
+// et on ne récupère de la place que s'il le faut, dans cet ordre : silhouette retirée, en-tête plus
+// compact (titre, pastille des records, tuiles), espacements réduits, puis texte réduit jusqu'aux
+// minimums lisibles (lignes de ROW_MIN_SS, nom de NAME_MIN, détail de DETAIL_MIN). En dernier recours
+// seulement (séance énorme), les derniers exercices hors superset passent dans « + N autres » ;
+// un bloc montré l'est toujours en entier.
+const STORY_SS_AIRY  = { titleMax: 150, headerGap: 36, chipH: 76, chipGap: 28, tilesH: 214, tilesGap: 32, cardGap: 48, air: 1 };
+const STORY_SS_TIGHT = { titleMax: 116, headerGap: 24, chipH: 60, chipGap: 18, tilesH: 168, tilesGap: 22, cardGap: 32 };
+const STORY_SS_ULTRA = { titleMax: 96, headerGap: 16, chipH: 52, chipGap: 12, tilesH: 140, tilesGap: 16, cardGap: 24 };
+
+// Mises en page essayées dans l'ordre, de la plus aérée à la plus serrée : silhouette, lignes complètes
+// puis compactes ; en-tête compact ; espacements réduits ; texte réduit (rowH : nom à 60 %)
+function storySsPresets(hasMap) {
+  const { ROW, ROW_COMPACT, ROW_MIN_SS } = STORY;
+  const airy = STORY_SS_AIRY, ultra = { ...airy, ...STORY_SS_ULTRA, map: false };
+  const out = [
+    { ...airy, map: hasMap, rowH: ROW },
+    { ...airy, map: hasMap, rowH: ROW_COMPACT },
+    { ...airy, map: false, rowH: ROW },
+    { ...airy, map: false, rowH: ROW_COMPACT },
+    { ...airy, ...STORY_SS_TIGHT, map: false, rowH: ROW_COMPACT },
+    { ...ultra, rowH: ROW_COMPACT },
+    { ...ultra, rowH: ROW_COMPACT, air: 0.5 },
+    { ...ultra, rowH: ROW_COMPACT, air: 0 },
+  ];
+  for (let rowH = ROW_COMPACT - 2; rowH >= ROW_MIN_SS; rowH -= 2) out.push({ ...ultra, rowH, air: 0 });
+  return out.filter(pr => !pr.map || hasMap);
+}
+
+function storyLayoutGrouped(ctx, p, st, hasMap, units) {
+  const { W, H, TOP, BOTTOM, SIDE } = STORY, avail = H - TOP - BOTTOM;
+  const measure = (pr, list, more) => {
+    const titleSize = fitSize(ctx, st.title, W - 2 * SIDE, pr.titleMax, 96, s => storyFont(800, s, false, p));
+    const card = highlightsHeight(list, more, pr.rowH, pr.air);
+    const blocks = [
+      ['header', 52 + titleSize * 1.1, pr.headerGap],
+      st.records ? ['chip', pr.chipH, pr.chipGap] : null,
+      ['tiles', pr.map ? STORY.TILES_MAP : pr.tilesH, pr.tilesGap],
+      ['highlights', card, card ? pr.cardGap : 0],
+      ['signature', STORY.SIGNATURE, 0],
+    ].filter(Boolean);
+    return { pr, list, more, titleSize, blocks, total: blocks.reduce((a, [, h, gap]) => a + h + gap, 0) };
+  };
+  const presets = storySsPresets(hasMap);
+  const all = st.highlights, moreAll = st.others > 0;
+  let chosen = presets.map(pr => measure(pr, all, moreAll)).find(m => m.total <= avail);
+  if (!chosen) {
+    // Séance énorme : les exercices hors superset les plus loin dans la séance passent dans « + N autres »,
+    // puis (s'il n'y a plus que des blocs) les derniers blocs
+    const pr = presets.at(-1);
+    let us = [...units];
+    while (us.length) {
+      const k = us.findLastIndex(u => u[0].group == null);
+      us.splice(k >= 0 ? k : us.length - 1, 1);
+      const m = measure(pr, us.flat(), true);
+      if (m.total <= avail) { chosen = m; break; }
+    }
+    chosen ||= measure(pr, [], true);
+  }
+  const { pr, list, blocks, total, titleSize } = chosen;
+  const more = list.length > 0 && list.length < all.length + st.others;
+  let y = TOP + Math.max(0, (avail - total) / 2);
+  const at = {};
+  blocks.forEach(([name, h, gap]) => { at[name] = y; y += h + gap; });
+  return { at, titleSize, rows: list.length, more, rowH: pr.rowH, map: pr.map, list, air: pr.air,
+           chipH: pr.chipH, tilesH: pr.tilesH, blocks };
 }
 
 // ── Image complète ──────────────────────────────────────────
@@ -367,13 +521,15 @@ function storyLayout(ctx, p, st, hasMap) {
 function drawStory(canvas, st, palette, assets = {}) {
   canvas.width = STORY.W; canvas.height = STORY.H;
   const ctx = canvas.getContext('2d'), p = palette;
-  const { at, titleSize, rows, more, rowH, map } = storyLayout(ctx, p, st, !!assets.muscle?.width);
+  const { at, titleSize, rows, more, rowH, map, list, air = 1, chipH, tilesH } = storyLayout(ctx, p, st, !!assets.muscle?.width);
+  // Exercices montrés (avec des supersets, pas forcément les premiers) ; les autres vont dans « + N autres »
+  const shown = { ...st, highlights: list, others: st.others + st.highlights.length - list.length };
   drawBackground(ctx, p);
   drawHeader(ctx, p, st, at.header, titleSize);
-  if (st.records) drawRecordsChip(ctx, p, st, at.chip);
+  if (st.records) drawRecordsChip(ctx, p, st, at.chip, chipH);
   if (map) drawTilesWithMap(ctx, p, st, at.tiles, assets.muscle);
-  else drawTilesRow(ctx, p, st, at.tiles);
-  if (rows) drawHighlights(ctx, p, st, at.highlights, rows, more, rowH);
+  else drawTilesRow(ctx, p, st, at.tiles, tilesH);
+  if (rows) drawHighlights(ctx, p, shown, at.highlights, rows, more, rowH, air);
   drawSignature(ctx, p, assets.icon, at.signature);
   return canvas;
 }
