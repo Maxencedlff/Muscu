@@ -125,6 +125,9 @@ function resumeRestCountdown() {
     // Seuls les jalons sont annoncés (le chrono lui-même est en aria-live="off")
     if (before > 30 && restTimeLeft <= 30 && restTimeLeft > 10) announce('30 secondes');
     else if (before > 10 && restTimeLeft <= 10 && restTimeLeft > 0) announce('10 secondes');
+    // Decompte sonore des 3 dernieres secondes (le GO vient de restFinished -> timerDone).
+    // App a l'ecran seulement : ecran verrouille, c'est la notification qui annonce la fin.
+    if (before > restTimeLeft && restTimeLeft >= 1 && restTimeLeft <= 3 && document.visibilityState === 'visible') restCountBeep();
     before = restTimeLeft;
     updateRestUI();
     // App à l'écran : les bips de l'app annoncent la fin, la notification ferait doublon (bannière + son)
