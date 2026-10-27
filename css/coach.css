@@ -88,3 +88,65 @@
 .coach-sheet { padding: 4px 16px 16px; }
 .coach-sheet .coach-textarea { min-height: 140px; }
 .coach-sheet__hint { margin: 8px 4px 0; font-size: var(--fs-footnote); color: var(--label2); }
+
+/* ── Relecture des testeurs : titres avec pseudo, rejoindre, cartes, consignes, marques ── */
+.group-title.coach-title { text-transform: none; font-size: var(--fs-footnote); font-weight: 400; margin: 0; }
+.coach-join__who { display: flex; align-items: center; gap: 14px; padding: 8px 4px 4px; }
+.coach-join__who > span:last-child { min-width: 0; display: flex; flex-direction: column; }
+.coach-join__name { font-size: var(--fs-title2); line-height: 1.25; font-weight: 700; overflow-wrap: anywhere; }
+.coach-join__sub { font-size: var(--fs-subhead); color: var(--label2); }
+.coach-join__item .cell__sub { color: var(--label2); }
+/* Case 15 ans et « Accepter » collés en bas, au-dessus de la barre d'onglets : visibles sans défiler */
+.coach-join__foot {
+  position: sticky; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); z-index: 2;
+  margin: 16px -16px 0; padding: 8px 16px 10px; background: var(--bg);
+  box-shadow: 0 -.5px 0 var(--sep);
+}
+.coach-join__foot .group { margin: 0; }
+.coach-join__hint { margin: 8px 4px 0; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
+.coach-join__foot .coach-accept { margin-top: 10px; }
+.coach-cell--join .cell__sub { color: var(--label2); }
+.coach-lost .cell__body { padding: 4px 0; }
+.coach-lost .cell__sub { color: var(--label2); }
+.coach-mine__who { margin-bottom: 4px; }
+/* Commentaires : texte entier, lisible */
+.coach-note-row__text { display: block; margin-top: 4px; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label); white-space: pre-wrap; overflow-wrap: anywhere; }
+.coach-prog__consigne { display: flex; gap: 6px; align-items: flex-start; }
+.coach-prog__consigne .icon { flex-shrink: 0; margin-top: 3px; color: var(--label2); }
+.coach-prog__toggle {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; margin-top: 4px; padding: 0;
+  border: 0; background: none; color: var(--tint); font: inherit; font-size: var(--fs-subhead); font-weight: 600; cursor: pointer;
+}
+.coach-prog__toggle:active { opacity: .6; }
+.coach-prog__preview { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 2px; }
+.coach-prog__sess-name { display: flex; align-items: center; gap: 8px; font-size: var(--fs-subhead); font-weight: 600; }
+.coach-prog__sess-name .hcell__dot { margin-top: 0; }
+.coach-prog__ex { margin: 4px 0 0; padding-left: 16px; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label); }
+.coach-prog__ex .num { color: var(--label2); }
+.coach-prog__ex-tip { display: block; color: var(--label2); overflow-wrap: anywhere; }
+/* Consigne d'exercice (Programme › Séance) : texte normal, petite icône, 3 lignes au plus */
+.coach-ex-consigne { color: var(--label); display: flex; gap: 5px; align-items: flex-start; }
+.coach-ex-consigne .icon { flex-shrink: 0; margin-top: 3px; color: var(--label2); }
+.coach-ex-consigne > span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.coach-tip__head { color: var(--label2); }
+.coach-tip-wrap { padding: 0; }
+.coach-from { display: block; color: var(--label2); }
+.coach-from--home { margin: 2px 0 0; font-size: var(--fs-footnote); }
+.coach-mark { display: inline-flex; vertical-align: -2px; margin-left: 6px; color: var(--label2); }
+.coach-notes-hint { margin: 6px 4px 0; font-size: var(--fs-footnote); color: var(--label2); }
+.coach-unused, .coach-missing { color: var(--label2); }
+/* Feuille du code */
+.coach-sheet__label { display: block; margin: 4px 4px 8px; font-size: var(--fs-footnote); color: var(--label2); }
+.coach-code-input {
+  display: block; width: 100%; min-height: 50px; padding: 10px 14px; border: 0; border-radius: var(--r-sm);
+  background: var(--fill2); color: var(--label); font-size: var(--fs-title3); letter-spacing: 1px;
+}
+.coach-code-input[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px var(--red); }
+.coach-sheet__hint { display: flex; justify-content: space-between; gap: 12px; }
+.coach-sheet__hint--bad { color: var(--red-text); }
+.coach-sheet__count { margin-left: auto; flex-shrink: 0; }
+/* « Ajouter à mes programmes » sur une ligne, même sur iPhone SE */
+.coach-prog__btn { white-space: nowrap; }
+/* Onglet Amis : cellule du coach en haut, ou sous la carte d'activation des amis (#coachCellLow) */
+#coachCell .coach-head { margin-bottom: 12px; }
+#coachCellLow .coach-head { margin: 24px 0 0; }

@@ -5,7 +5,9 @@
 
 // sheet({ title, cancel, confirm, body, onConfirm }) → Promise (valeur de onConfirm, ou null si annulée)
 // onConfirm(panel) peut renvoyer false pour garder la feuille ouverte.
-function sheet({ title = '', cancel = 'Annuler', confirm = 'OK', body = '', onConfirm = null, onCancel = null } = {}) {
+// focus : sélecteur du champ à activer tout de suite (dans le geste qui ouvre la feuille : sur iOS, le clavier
+// ne s'ouvre que si le focus est donné pendant le toucher), à la place du bouton OK
+function sheet({ title = '', cancel = 'Annuler', confirm = 'OK', body = '', onConfirm = null, onCancel = null, focus = null } = {}) {
   return new Promise(resolve => {
     const root = document.createElement('div');
     const id = 'sheet-' + uid();
@@ -66,6 +68,8 @@ function sheet({ title = '', cancel = 'Annuler', confirm = 'OK', body = '', onCo
     });
 
     document.body.appendChild(root);
-    setTimeout(() => $('.sheet__btn--confirm', root)?.focus({ preventScroll: true }), 50);
+    const field = focus && $(focus, root);
+    if (field) field.focus({ preventScroll: true });
+    else setTimeout(() => $('.sheet__btn--confirm', root)?.focus({ preventScroll: true }), 50);
   });
 }

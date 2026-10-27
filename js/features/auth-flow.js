@@ -25,10 +25,11 @@ const flow = {
   username: '', avatar: null, checkTimer: null, checkSeq: 0,
 };
 
-function openAuthFlow({ step = 'welcome', mode = 'signin', closable = true, email = '', sentAt = 0, resume = null } = {}) {
+// context : 'coach' quand le pseudo est demandé pour rejoindre un coach (texte du pseudo adapté)
+function openAuthFlow({ step = 'welcome', mode = 'signin', closable = true, email = '', sentAt = 0, resume = null, context = null } = {}) {
   if (flow.root) closeAuthFlow(null);
   if (resume) ({ email, sentAt } = resume);
-  Object.assign(flow, { steps: [], mode, closable, email, sentAt, busy: false, first: false, notice: '', cancelExpired: false, resent: false, badCode: '',
+  Object.assign(flow, { steps: [], mode, context, closable, email, sentAt, busy: false, first: false, notice: '', cancelExpired: false, resent: false, badCode: '',
     username: account.profile?.username || '', avatar: validAvatar(account.profile?.avatar) });
   const root = document.createElement('div');
   root.className = 'auth';
@@ -146,7 +147,7 @@ const AUTH_STEPS = {
         ${flowAvatarHtml()}<span class="auth__avatar-edit" aria-hidden="true">Modifier</span>
       </button>
       <h1 class="auth__title" id="authTitle" tabindex="-1">${flow.first ? 'Choisis ton pseudo' : 'Pseudo'}</h1>
-      <p class="auth__lead">Tes amis te trouveront avec ce pseudo, une fois les Amis activés.</p>
+      <p class="auth__lead">${flow.context === 'coach' ? 'Ton coach te reconnaîtra avec ce pseudo.' : 'Tes amis te trouveront avec ce pseudo, une fois les Amis activés.'}</p>
       ${flow.first && flow.cancelExpired ? cancelExpiredHtml()
         : flow.first && flow.notice ? `<div class="auth__notice" role="note"><p>${esc(flow.notice)}</p>
         <button class="auth__notice-btn" data-action="auth-cancel-account">Me reconnecter autrement</button></div>` : ''}
