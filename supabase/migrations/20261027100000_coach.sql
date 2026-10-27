@@ -29,7 +29,8 @@
 --    30 envois de programme par 24 h, 20 codes créés par 24 h (journal private.social_rate) ;
 --    5 codes actifs par coach (le plus ancien remplacé), 50 élèves par coach (team_full).
 --  - Erreurs lisibles par l'app (message exact, errcode P0001) : not_coach, already_coached,
---    invalid_code, team_full, not_found, rate_limited, too_long, invalid_programme.
+--    invalid_code, team_full, not_found, rate_limited, too_long, invalid_programme, username_required
+--    (coach_preview et coach_join sans pseudo).
 --  - Suppression du compte : toutes les lignes partent en cascade avec auth.users (coach ou élève).
 --  - GRANT explicites : chaque RPC perd le droit d'exécution donné par défaut à public (et à anon par
 --    Supabase), puis seul authenticated le reçoit. Les fonctions de private : aucun rôle de l'API.
@@ -197,6 +198,18 @@ begin
 end
 $$;
 
+-- Pseudo obligatoire pour être élève (comme social_enable) : sinon le coach verrait plusieurs élèves
+-- sans nom qu'il ne saurait pas distinguer
+create function private.coach_require_username(me uuid) returns void
+  language plpgsql stable security definer set search_path = '' as
+$$
+begin
+  if not exists (select 1 from public.user_profiles p where p.user_id = me and p.username is not null) then
+    raise exception 'username_required' using errcode = 'P0001';
+  end if;
+end
+$$;
+
 -- Liste blanche d'une séance vue par le coach : private.session_public + id, notes (2000 caractères
 -- au plus, texte seulement) et hidden (true, ou absent). Clés absentes ou nulles omises.
 create function private.session_for_coach(id text, data jsonb) returns jsonb
@@ -226,8 +239,9 @@ $$;
 -- État de Réglages › Coach et de la cellule de l'onglet Amis.
 -- coach : mon coach (since = date du lien). students et invites : vides si je ne suis pas coach.
 -- students[] : p + last_session_at (ms), sessions_7d, new_sessions, last_session { done_at, label,
--- programme } (valeurs simples). badge : programmes et commentaires non vus de mon coach + total des
--- new_sessions de mes élèves.
+-- programme } (valeurs simples). badge_student : programmes et commentaires non vus de mon coach ;
+-- badge_coach : total des new_sessions de mes élèves ; badge : leur somme (compatibilité). Un compte
+-- coach et élève à la fois a les deux, séparés.
 create function public.coach_state() returns jsonb
   language sql stable security definer set search_path = '' as
 $$
@@ -256,6 +270,17 @@ $$
   mine as (
     select l.coach_id from me join public.coach_links l on l.student_id = me.id
   )
+  ,
+  b as (
+    select
+      (select count(*)::int from public.coach_programmes cp, mine
+        where cp.student_id = me.id and cp.coach_id = mine.coach_id and cp.seen_at is null)
+      + (select count(*)::int from public.coach_notes cn, mine, public.sessions x
+          where cn.student_id = me.id and cn.coach_id = mine.coach_id and cn.seen_at is null
+            and x.user_id = cn.student_id and x.id = cn.session_id and x.deleted_at is null) as student,
+      coalesce((select sum(st.nnew)::int from st), 0) as coach
+    from me
+  )
   select jsonb_build_object(
     'is_coach', me.coach,
     'coach',    (select private.person(l.coach_id, l.created_at) from public.coach_links l where l.student_id = me.id),
@@ -265,14 +290,11 @@ $$
                                order by st.created_at desc) from st), '[]'::jsonb),
     'invites',  coalesce((select jsonb_agg(jsonb_build_object('code', i.code, 'expires_at', i.expires_at) order by i.created_at desc)
                           from public.coach_invites i where i.coach_id = me.id and i.expires_at > now() and me.coach), '[]'::jsonb),
-    'badge',    (select count(*)::int from public.coach_programmes cp, mine
-                  where cp.student_id = me.id and cp.coach_id = mine.coach_id and cp.seen_at is null)
-              + (select count(*)::int from public.coach_notes cn, mine, public.sessions x
-                  where cn.student_id = me.id and cn.coach_id = mine.coach_id and cn.seen_at is null
-                    and x.user_id = cn.student_id and x.id = cn.session_id and x.deleted_at is null)
-              + coalesce((select sum(st.nnew)::int from st), 0)
+    'badge_coach',   b.coach,
+    'badge_student', b.student,
+    'badge',         b.coach + b.student
   )
-  from me
+  from me, b
 $$;
 
 -- Nouveau code d'invitation, valable 7 jours. Codes expirés du coach purgés ; au-delà de 5 codes
@@ -321,6 +343,7 @@ declare
   coach uuid;
 begin
   if me is null then raise exception 'not_found' using errcode = 'P0001'; end if;
+  perform private.coach_require_username(me);
   perform private.rate_limit_window(me, 'coach_code', 10, interval '1 hour');
   coach := private.coach_check_code(me, code);
   return private.person(coach, null);
@@ -337,6 +360,7 @@ declare
   since timestamptz;
 begin
   if me is null then raise exception 'not_found' using errcode = 'P0001'; end if;
+  perform private.coach_require_username(me);
   perform private.rate_limit_window(me, 'coach_code', 10, interval '1 hour');
   coach := private.coach_check_code(me, code);
   perform pg_advisory_xact_lock(hashtextextended('coach_team:' || coach::text, 0));
@@ -508,6 +532,7 @@ revoke all on function private.coach_new_code() from public, anon, authenticated
 revoke all on function private.coach_check_code(uuid, text) from public, anon, authenticated, service_role;
 revoke all on function private.session_for_coach(text, jsonb) from public, anon, authenticated, service_role;
 revoke all on function private.coach_require_student(uuid, uuid) from public, anon, authenticated, service_role;
+revoke all on function private.coach_require_username(uuid) from public, anon, authenticated, service_role;
 
 revoke all on function public.coach_state() from public, anon, authenticated;
 revoke all on function public.coach_create_invite() from public, anon, authenticated;
