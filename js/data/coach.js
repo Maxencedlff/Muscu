@@ -8,9 +8,10 @@
 //  - Tout ce qui vient du serveur est nettoyé ici (cleanCoachState, cleanCoachSession, cleanSentProgramme…)
 //    et l'écran (js/features/coach-ui.js) échappe tout texte reçu.
 //  - Programme envoyé : format de js/data/prog-share.js étendu (consignes, supersets, clés de séance).
-//    Reçu, il devient un programme perso u_c<prog_id> marqué fromCoach ; un nouvel envoi le met à jour en
-//    gardant les identifiants d'exercices dont le nom ne change pas (historique et records suivent), et
-//    demande avant d'écraser un programme que l'élève a modifié (empreinte fromCoach.hash).
+//    Reçu, il devient un programme perso u_c<8 caractères du coach>_<prog_id> marqué fromCoach (coachLocalId) ;
+//    un nouvel envoi le met à jour en gardant les identifiants d'exercices dont le nom ne change pas dans la
+//    même séance (historique et records suivent), garde les séances retirées (retired: true) pour l'historique,
+//    et demande avant d'écraser un programme que l'élève a modifié (empreinte fromCoach.hash).
 //  - Rien ne bloque le démarrage : l'état (coach_state, et student_inbox pour un élève) est relu en
 //    arrière-plan (connexion, premier plan, onglet Amis, écrans du coach). Rôle et badge du dernier état
 //    lu sont gardés sur l'appareil (COACH_CACHE_KEY) pour l'onglet hors ligne.
@@ -23,12 +24,13 @@ const COACH_SEEN_KEY    = 'mdlf_coach_seen';    // { userId, items: [{ kind, ref
 const COACH_SENT_KEY    = 'mdlf_coach_sent';    // { userId, sent: { [élève]: { [prog_id]: date } } } : mes envois (coach)
 const COACH_LOST_KEY    = 'mdlf_coach_lost';    // { userId, name } : coach perdu (élève retiré), dit une fois
 const COACH_INBOX_KEY   = 'mdlf_coach_inbox';   // { userId, coach, inbox } : dernière boîte de l'élève (commentaires hors ligne)
+const COACH_IDLE_REFRESH_MS = 5 * 60_000;   // premier plan, compte ni coach ni élève
 const COACH_PAGE        = 30;             // séances d'un élève par page (comme le serveur)
 const COACH_NOTE_MAX    = 1000;           // commentaire d'une séance
 const COACH_PROG_BYTES  = 200 * 1024;     // programme envoyé : 200 Ko au plus
 const COACH_CODE_RE     = /^[A-HJ-NP-Z2-9]{8}$/;   // 8 caractères lisibles, sans 0, O, 1 ni I
 const COACH_PROG_ID_RE  = /^[A-Za-z0-9_-]{1,40}$/;
-const COACH_LOCAL_PREFIX = 'u_c';         // programme reçu : u_c<prog_id>
+const COACH_LOCAL_PREFIX = 'u_c';         // programme reçu : u_c<8 caractères du coach>_<prog_id>
 
 const coach = { userId: null, state: null, cached: null, loading: false, error: null, loadedAt: 0,
   inbox: null, sessions: {}, preview: null };
@@ -72,7 +74,7 @@ function cleanCoachState(raw) {
   const total = n(r.badge);
   const badgeStudent = r.coach ? (n(r.badge_student) ?? Math.max(0, (total ?? badgeCoach) - badgeCoach)) : 0;
   return { is_coach: isCoach, coach: cleanPerson(r.coach), students: isCoach ? students : [], invites: isCoach ? invites : [],
-    removed: isCoach ? cleanPeople(r.removed) : [],
+    removed: isCoach ? cleanPeople(r.removed).sort((a, b) => (Date.parse(b.since) || 0) - (Date.parse(a.since) || 0)) : [],
     badge: badgeCoach + badgeStudent, badge_coach: badgeCoach, badge_student: badgeStudent };
 }
 
@@ -139,7 +141,7 @@ function cleanInbox(raw) {
   const programmes = (Array.isArray(r.programmes) ? r.programmes : []).map(p => {
     if (!p || typeof p.id !== 'string' || !COACH_PROG_ID_RE.test(p.id)) return null;
     const d = cleanSentProgramme(p.data);
-    return d ? { id: p.id, data: d, sentAt: coachTime(p.sent_at) ?? 0, seen: p.seen === true } : null;
+    return d ? { id: p.id, data: d, sentAt: coachTime(p.sent_at) ?? 0, seen: p.seen === true, ...(p.meta === true ? { meta: true } : {}) } : null;
   }).filter(Boolean).sort((a, b) => b.sentAt - a.sentAt);
   const notes = (Array.isArray(r.notes) ? r.notes : []).map(n => {
     if (!n || typeof n.session_id !== 'string' || !n.session_id || n.session_id.length > 64) return null;
@@ -377,8 +379,9 @@ function writeCoachInbox() {
     if (!coach.userId || !coach.inbox || !coach.state?.coach) { if (coach.userId && coach.state && !coach.state.coach) localStorage.removeItem(COACH_INBOX_KEY); return; }
     const ib = coach.inbox;
     localStorage.setItem(COACH_INBOX_KEY, JSON.stringify({ userId: coach.userId, coach: coach.state.coach,
-      inbox: { programmes: ib.programmes.map(p => ({ id: p.id, data: p.data, sent_at: p.sentAt, seen: p.seen })),
-        notes: ib.notes.map(x => ({ session_id: x.session_id, text: x.text, updated_at: x.updatedAt, seen: x.seen })) } }));
+      // Programmes : métadonnées seulement (nom, date, vu) ; le contenu se relit sur le serveur
+      inbox: { programmes: ib.programmes.slice(0, 30).map(p => ({ id: p.id, data: { name: p.data.name, sessions: [] }, sent_at: p.sentAt, seen: p.seen, meta: true })),
+        notes: ib.notes.slice(0, 200).map(x => ({ session_id: x.session_id, text: x.text, updated_at: x.updatedAt, seen: x.seen })) } }));
   } catch { /* cache facultatif */ }
 }
 // Mon coach : celui de l'état lu, sinon celui de la dernière boîte gardée
@@ -559,7 +562,7 @@ async function coachSendProgramme(student, progId, over = null) {
   if (!p || !COACH_PROG_ID_RE.test(progId)) return { ok: false, kind: 'server' };
   if (sentProgrammeBytes(p) > COACH_PROG_BYTES) return { ok: false, kind: 'too_big' };
   const r = await coachRpc('coach_send_programme', { student, prog_id: progId, data: p });
-  if (r.ok) coachRecordSent(student, progId);
+  if (r.ok) coachRecordSent(student, progId, Date.now(), p.name);
   return r;
 }
 
@@ -618,14 +621,16 @@ function coachSetLost(name) {
   catch { /* facultatif */ }
 }
 
-// Coach : mes envois, gardés sur l'appareil (le serveur ne dit pas au coach ce que l'élève en a fait)
+// Coach : mes envois, gardés sur l'appareil : { [élève]: { [prog_id]: { at, name } } } (ancienne forme : la
+// date seule). Le nom sert si le programme a été supprimé depuis ; la date, au repli sans sent du serveur
+const sentEntry = v => (typeof v === 'number' ? { at: v, name: null } : v && typeof v === 'object' ? { at: Number(v.at) || 0, name: typeof v.name === 'string' ? v.name.slice(0, 40) : null } : { at: 0, name: null });
 function coachSentMap() {
   try { const c = JSON.parse(localStorage.getItem(COACH_SENT_KEY)); return c && c.userId === coach.userId && c.sent && typeof c.sent === 'object' ? c.sent : {}; }
   catch { return {}; }
 }
-function coachRecordSent(student, progId, at = Date.now()) {
+function coachRecordSent(student, progId, at = Date.now(), name = null) {
   const sent = coachSentMap();
-  (sent[student] ||= {})[progId] = at;
+  (sent[student] ||= {})[progId] = { at, name };
   try { localStorage.setItem(COACH_SENT_KEY, JSON.stringify({ userId: coach.userId, sent })); } catch { /* facultatif */ }
 }
 // Programmes que j'ai envoyés à cet élève et avec lesquels il n'a encore fait aucune séance depuis l'envoi
@@ -633,9 +638,14 @@ function coachRecordSent(student, progId, at = Date.now()) {
 function coachUnusedSent(student, sessions) {
   const sent = coachSentMap()[student] || {};
   const me = account.user?.id;
-  return Object.entries(sent).filter(([progId, at]) =>
-    !sessions.some(r => coachSentIdOf(r.s.programme, me) === progId && r.doneAt >= at))
-    .map(([progId, sentAt]) => ({ progId, sentAt }));
+  return Object.entries(sent).map(([progId, v]) => ({ progId, sentAt: sentEntry(v).at }))
+    .filter(({ progId, sentAt }) => !sessions.some(r => coachSentIdOf(r.s.programme, me) === progId && r.doneAt >= sentAt));
+}
+// Nom d'un programme que j'ai envoyé : le mien s'il existe encore, sinon celui gardé à l'envoi
+function coachSentName(student, progId) {
+  if (data.userProgrammes?.[progId] && !data.userProgrammes[progId].archived) return data.userProgrammes[progId].name;
+  if (PROGRAMMES[progId] && progId !== 'custom') return PROGRAMMES[progId].name;
+  return sentEntry(coachSentMap()[student]?.[progId]).name || data.userProgrammes?.[progId]?.name || 'Programme supprimé';
 }
 
 // Programmes envoyés à cet élève et ce qu'il en a fait : [{ progId, sentAt, state }], state = 'unseen'
@@ -673,6 +683,8 @@ onAccountChange(() => {
   if (id) coachRefresh();
 });
 document.addEventListener?.('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && account.user) coachRefresh({ minAge: SOCIAL_REFRESH_MS });
+  // Ni coach ni élève (d'après le dernier état connu) : une relecture toutes les 5 min au plus
+  const { isCoach, hasCoach } = coachRole();
+  if (document.visibilityState === 'visible' && account.user) coachRefresh({ minAge: isCoach || hasCoach ? SOCIAL_REFRESH_MS : COACH_IDLE_REFRESH_MS });
 });
 window.addEventListener?.('online', () => { if (account.user && coach.error === 'offline') coachRefresh(); });

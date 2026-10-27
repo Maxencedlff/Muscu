@@ -347,6 +347,7 @@ FAKE_ACCOUNT = r"""
     return JSON.parse(JSON.stringify({ ...sessionPublic(d), notes: sc(d.notes), hidden: sc(d.hidden), id,
       exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), ss: sc(e.ss), sets: (e.sets || []).map(st => ({ weight: sc(st.weight), reps: sc(st.reps), dist: sc(st.dist) })) })) }));
   };
+  const noteAlive = n => livePosts(n.student).some(p => p.id === n.sid);
   const livePosts = id => postsOf(id).filter(p => !p.deleted_at && p.data && Number.isFinite(p.data.date));
   // Limite de 10 par heure (aperçus et adhésions ensemble) : Postgres annule l'écriture d'une fonction
   // en erreur, seuls les essais réussis restent comptés. Rejoindre le coach qu'on a déjà : renvoie le coach
@@ -373,13 +374,15 @@ FAKE_ACCOUNT = r"""
         const last = ps[0];
         return { ...cperson(x.student, x.at), last_session_at: last ? last.data.date : null, sessions_7d: ps.filter(p => p.data.date > now() - 7 * 86400_000).length,
           new_sessions: ps.filter(p => p.data.date > (x.seen ?? x.at)).length,
-          sent: co.progs.filter(p => p.coach === me && p.student === x.student).map(p => ({ id: p.id, sent_at: p.sent_at, seen: p.seen })), last_session: last ? { done_at: last.data.date, label: last.data.label || 'Séance', programme: last.data.programme } : null };
+          sent: co.progs.filter(p => p.coach === me && p.student === x.student).sort((a, b) => (b.sent_at > a.sent_at ? 1 : -1)).map(p => ({ id: p.id, sent_at: p.sent_at, seen: p.seen })), last_session: last ? { done_at: last.data.date, label: last.data.label || 'Séance', programme: last.data.programme } : null };
       }) : [];
-      const unseen = l ? co.progs.filter(p => p.student === me && p.coach === l.coach && !p.seen).length + co.notes.filter(n => n.student === me && n.coach === l.coach && !n.seen).length : 0;
+      // Commentaires des séances supprimées : exclus (comme student_inbox)
+      const unseen = l ? co.progs.filter(p => p.student === me && p.coach === l.coach && !p.seen).length
+        + co.notes.filter(n => n.student === me && n.coach === l.coach && !n.seen && noteAlive(n)).length : 0;
       const badgeCoach = students.reduce((a, s) => a + s.new_sessions, 0);
       return { is_coach: isCoach, coach: l ? cperson(l.coach, l.at) : null, students,
         invites: isCoach ? co.invites.filter(i => i.coach === me && i.expires > now()).map(i => ({ code: i.code, expires_at: new Date(i.expires).toISOString() })) : [],
-        removed: isCoach ? co.bans.filter(b => b.coach === me).map(b => cperson(b.student, b.at)) : [],
+        removed: isCoach ? co.bans.filter(b => b.coach === me).sort((a, b) => b.at - a.at).map(b => cperson(b.student, b.at)) : [],
         badge_coach: badgeCoach, badge_student: unseen, badge: badgeCoach + unseen };
     },
     coach_create_invite: me => {
@@ -399,8 +402,10 @@ FAKE_ACCOUNT = r"""
       return cperson(r.coach, linkOf(me).at);
     },
     coach_leave: me => { co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
+    // Retirer un accès est toujours permis, même si mon rôle de coach a été retiré
     coach_remove_student: (me, { student }) => {
-      if (!coachOf(me, student)) return null;
+      const l = linkOf(student);
+      if (!l || l.coach !== me) return null;
       if (!co.bans.some(b => b.coach === me && b.student === student)) co.bans.push({ coach: me, student, at: now() });
       co.links = co.links.filter(l => l.student !== student); co.progs = co.progs.filter(p => p.student !== student); co.notes = co.notes.filter(n => n.student !== student); return null;
     },
@@ -428,16 +433,17 @@ FAKE_ACCOUNT = r"""
     coach_set_note: (me, { student, session_id, text }) => {
       if (!co.coachAt[me]) return pgErr('not_coach');
       if (!coachOf(me, student)) return pgErr('not_found');
-      if (String(text).length > 1000) return pgErr('too_long');
+      const t = String(text ?? '').trim();   // btrim, comme le serveur
+      if (t.length > 1000) return pgErr('too_long');
+      if (t && !livePosts(student).some(p => p.id === session_id)) return pgErr('not_found');
       co.notes = co.notes.filter(n => !(n.student === student && n.sid === session_id));
-      if (String(text).trim() && !livePosts(student).some(p => p.id === session_id)) return pgErr('not_found');
-      if (String(text).trim()) co.notes.push({ coach: me, student, sid: session_id, text: String(text), updated_at: new Date(now()).toISOString(), seen: false });
+      if (t) co.notes.push({ coach: me, student, sid: session_id, text: t, updated_at: new Date(now()).toISOString(), seen: false });
       return null;
     },
     // Seulement ce qui vient du coach actuel
     student_inbox: me => ({
       programmes: co.progs.filter(p => p.student === me && p.coach === linkOf(me)?.coach).map(p => ({ id: p.id, data: p.data, sent_at: p.sent_at, seen: p.seen })),
-      notes: co.notes.filter(n => n.student === me && n.coach === linkOf(me)?.coach).map(n => ({ session_id: n.sid, text: n.text, updated_at: n.updated_at, seen: n.seen })),
+      notes: co.notes.filter(n => n.student === me && n.coach === linkOf(me)?.coach && noteAlive(n)).map(n => ({ session_id: n.sid, text: n.text, updated_at: n.updated_at, seen: n.seen })),
     }),
     student_mark_seen: (me, { kind, ref }) => {
       const x = kind === 'programme' ? co.progs.find(p => p.student === me && p.id === ref) : co.notes.find(n => n.student === me && n.sid === ref);

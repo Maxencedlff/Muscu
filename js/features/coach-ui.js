@@ -290,7 +290,7 @@ function coachProgCardHtml(item) {
   const nS = item.data.sessions.length, who = esc(coachName());
   const kept = status === 'current' && data.userProgrammes?.[id]?.fromCoach?.keptAt === item.sentAt && item.sentAt > (data.userProgrammes[id].fromCoach.sentAt || 0);
   const eyebrow = status === 'update' ? `Mis à jour par ${who}` : status === 'new' ? `Nouveau programme ${elide('de', who)}` : `Reçu ${elide('de', who)}`;
-  const open = coachProgOpen.has(item.id);
+  const open = coachProgOpen.has(item.id) && !item.meta;
   const btn = status === 'current'
     ? (kept ? `<p class="coach-prog__done">Tu as gardé ta version.</p>
         <button class="btn btn--secondary coach-prog__btn" data-action="coach-take-prog" data-id="${esc(item.id)}">Prendre la version ${elide('de', who)}</button>`
@@ -300,9 +300,9 @@ function coachProgCardHtml(item) {
         <article class="coach-prog">
           <div class="coach-prog__eyebrow">${eyebrow}</div>
           <h3 class="coach-prog__name">${esc(item.data.name)}</h3>
-          <p class="coach-prog__meta">${plural(nS, 'séance', 'séances')}${nS ? ` : ${esc(item.data.sessions.map(s => s.label).join(', '))}` : ''}</p>
+          ${item.meta ? '<p class="coach-prog__meta">Détail disponible avec du réseau.</p>' : `<p class="coach-prog__meta">${plural(nS, 'séance', 'séances')}${nS ? ` : ${esc(item.data.sessions.map(s => s.label).join(', '))}` : ''}</p>`}
           ${item.data.consigne ? `<p class="coach-prog__consigne">${icon('info.circle', 14)}<span>${esc(item.data.consigne)}</span></p>` : ''}
-          <button class="coach-prog__toggle" data-action="coach-prog-toggle" data-id="${esc(item.id)}" aria-expanded="${open}">${open ? 'Masquer les exercices' : 'Voir les exercices'} ${icon(open ? 'chevron.up' : 'chevron.down', 12)}</button>
+          ${item.meta ? '' : `<button class="coach-prog__toggle" data-action="coach-prog-toggle" data-id="${esc(item.id)}" aria-expanded="${open}">${open ? 'Masquer les exercices' : 'Voir les exercices'} ${icon(open ? 'chevron.up' : 'chevron.down', 12)}</button>`}
           ${open ? coachProgPreviewHtml(item) : ''}
           ${btn}
         </article>`;
@@ -397,6 +397,8 @@ function coachHomeCard() {
 async function addCoachProgrammeFlow(progId, { take = false } = {}) {
   const item = coach.inbox?.programmes.find(p => p.id === progId);
   if (!item) return;
+  // Programme gardé hors ligne : seulement son nom, le contenu se relit sur le serveur
+  if (item.meta) { showToast(coachErrorText('offline'), { error: true }); return; }
   const st = coachStatus(item);
   const status = take ? 'update' : st.status, localId = st.id, name = item.data.name;
   // Séance en cours sur ce programme : la mise à jour attend la fin de la séance (ses exercices et ses
@@ -619,7 +621,7 @@ function renderCoachStudent(uid) {
   const sent = sentList.length ? `
         <div class="group-title">Programmes envoyés</div>
         <div class="group">${sentList.map(x => `
-          <div class="cell coach-sent" data-prog="${esc(x.progId)}"><span class="cell__body"><span class="cell__title">${esc(progMeta(x.progId).name)}</span><span class="cell__sub">Envoyé le ${esc(fmtDate(x.sentAt, 'short'))}</span><span class="cell__sub coach-sent__state coach-sent__state--${x.state}">${STATE[x.state]}</span></span></div>`).join('')}</div>` : '';
+          <div class="cell coach-sent" data-prog="${esc(x.progId)}"><span class="cell__body"><span class="cell__title">${esc(coachSentName(uid, x.progId))}</span><span class="cell__sub">Envoyé le ${esc(fmtDate(x.sentAt, 'short'))}</span><span class="cell__sub coach-sent__state coach-sent__state--${x.state}">${STATE[x.state]}</span></span></div>`).join('')}</div>` : '';
 
   return `
     <div class="view view--grouped coach-student-view">
@@ -936,16 +938,25 @@ document.addEventListener('input', e => {
 
 // ── Mises à jour de l'écran ─────────────────────────────────
 
+// Ce que les écrans hors coach montrent du coach (cartes de l'accueil, marques de l'Historique, cellule
+// des Réglages…) : ils ne sont redessinés que si cette signature change, jamais pendant une saisie
+function coachShownKey() {
+  const ib = coach.inbox;
+  return JSON.stringify([account.user?.id || null, coachRole(), coachBadge(), coachBadgeCoach(), coachBadgeStudent(), myCoach()?.user_id || null, myCoach()?.username || null,
+    coach.state?.students.length ?? null, account.user ? coachLost() : null,
+    ib ? [ib.programmes.map(p => [p.id, p.sentAt, p.seen, !!p.meta]), ib.notes.map(n => [n.session_id, n.updatedAt, n.seen])] : null]);
+}
+let coachShown = null;
+function coachTyping() { return !!document.activeElement?.matches?.('input, textarea, select, [contenteditable="true"]'); }
 onCoachChange(() => {
   updateTabBadge();
   const v = currentView();
-  if (v === 'friends') { refreshCoachCell(); return; }
-  if (v === 'settings') { render(); return; }
-  if (v === 'coach-send' && document.activeElement?.matches?.('textarea')) return;
-  if (COACH_VIEWS.includes(v) || ['dashboard', 'history', 'history-detail', 'editor', 'programmes', 'my-programmes', 'summary'].includes(v)) {
-    if (v === 'summary' && document.activeElement?.matches?.('textarea')) return;
-    render();
-  }
+  const key = coachShownKey(), changed = key !== coachShown;
+  coachShown = key;
+  if (v === 'friends') { if (changed) refreshCoachCell(); return; }
+  if (coachTyping()) return;   // champ en cours de saisie : ni focus ni clavier perdus
+  if (COACH_VIEWS.includes(v)) { render(); return; }
+  if (changed && ['settings', 'dashboard', 'history', 'history-detail', 'editor', 'programmes', 'my-programmes', 'summary'].includes(v)) render();
 });
 // Connexion, déconnexion : la cellule de l'onglet Amis change de forme
 onAccountChange(() => { if (currentView() === 'friends') refreshCoachCell(); });

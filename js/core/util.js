@@ -142,8 +142,8 @@ function entryProg(h) { return h?.programme || 'ppl'; }
 
 function plural(n, one, many) { return `${n} ${n > 1 ? many : one}`; }
 // Élision devant un mot (souvent un pseudo) : « de max », « d'essai », « que max », « qu'essai ». Voyelle,
-// ou h (muet dans presque tous les cas). word : de, que, le, la, je, ne… ; next : texte déjà échappé s'il va dans du HTML
+// ou h (muet dans presque tous les cas) ; pas devant y (« de Yann »). word : de, que, le, la, je, ne… ; next : texte déjà échappé s'il va dans du HTML
 function elide(word, next) {
   const n = String(next ?? '');
-  return /^[aeiouyàâäéèêëîïôöùûüÿœæh]/i.test(n) ? `${word.slice(0, -1)}'${n}` : `${word} ${n}`;
+  return /^[aeiouàâäéèêëîïôöùûüœæh]/i.test(n) ? `${word.slice(0, -1)}'${n}` : `${word} ${n}`;
 }

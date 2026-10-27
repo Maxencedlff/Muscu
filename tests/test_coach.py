@@ -291,6 +291,8 @@ def t_eleve(bench, eng, dev, theme):
         page.evaluate("activeSession = null; persistSession(); routeTo('dashboard')")
         page.wait_for_timeout(200)
         # Commentaire du coach sur une séance : Historique › Séance
+        page.evaluate('syncNow()')
+        page.wait_for_timeout(300)
         sid = page.evaluate('data.history[0].id')
         page.evaluate("""([max, sid]) => { __sb.co.notes.push({ coach: max, student: __sb.meId(), sid, text: 'Belle séance, garde ce rythme.', updated_at: new Date().toISOString(), seen: false }); }""", [ids['max'], sid])
         page.evaluate('coachRefresh()')
@@ -375,6 +377,8 @@ def t_eleve(bench, eng, dev, theme):
         txt = page.inner_text('.coach-mine-view')
         R.check('max' in txt and 'Belle séance' in txt and 'Force' in txt and 'Pas d' in txt, f'{t} hors ligne : Mon coach gardé sur l\'appareil')
         # « Vu » hors ligne : renvoyé au retour du réseau
+        page.evaluate('syncNow()')
+        page.wait_for_timeout(300)
         page.evaluate("(max) => { __sb.co.notes.push({ coach: max, student: __sb.meId(), sid: 'hbas', text: 'Bien joué', updated_at: new Date().toISOString(), seen: false }); }", ids['max'])
         page.evaluate("coach.inbox.notes.push({ session_id: 'hbas', text: 'Bien joué', updatedAt: Date.now(), seen: false }); coachMarkInboxSeen('note', 'hbas')")
         page.wait_for_timeout(300)
@@ -633,6 +637,28 @@ def t_pseudo(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_saisie(bench, eng, dev, theme):
+    """Une relecture du coach ne redessine pas l'écran pendant une saisie (recherche de l'Historique)."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, username='lea')
+        ids = setup_student(page)
+        page.click('.tabbar [data-tab="history"]')
+        page.wait_for_timeout(400)
+        page.focus('#histSearch')
+        page.keyboard.type('Dév')
+        page.evaluate('coach.loadedAt = 0; coachRefresh()')
+        page.wait_for_timeout(400)
+        R.check(page.evaluate("document.activeElement?.id") == 'histSearch' and page.input_value('#histSearch') == 'Dév', f'{t} relecture sans changement : saisie intacte')
+        # Changement réel (devenue élève) pendant la saisie : toujours pas de redessin
+        page.evaluate(f"__sb.link('{ids['max']}', __sb.meId()); coachRefresh()")
+        page.wait_for_timeout(500)
+        R.check(page.evaluate("document.activeElement?.id") == 'histSearch' and page.input_value('#histSearch') == 'Dév', f'{t} changement pendant la saisie : focus gardé')
+        R.check(tab_badge(page) == '' and page.evaluate('coachRole().hasCoach') is True, f'{t} état lu malgré tout')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def t_hors_ligne(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
@@ -664,4 +690,4 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_eleve, t_coach, t_pseudo, t_hors_ligne])
+run_main(R, [t_eleve, t_coach, t_pseudo, t_saisie, t_hors_ligne])

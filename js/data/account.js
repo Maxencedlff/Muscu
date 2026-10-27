@@ -567,7 +567,9 @@ async function accountForgetDevice() {
   account.user = null;   // synchrone : le save() qui suit ne programme plus rien
   account.profile = null;
   clearSyncMetas();
-  try { [SYNC_OWNER_KEY, PROFILE_CACHE_KEY, SESSION_ENDED_KEY].forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
+  // Caches des Amis et du coach compris (privacy.html : tout est effacé de l'appareil)
+  try { [SYNC_OWNER_KEY, PROFILE_CACHE_KEY, SESSION_ENDED_KEY, 'mdlf_social', 'mdlf_coach', 'mdlf_coach_inbox', 'mdlf_coach_sent',
+    'mdlf_coach_seen', 'mdlf_coach_lost', 'mdlf_coach_send_draft'].forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
   rememberLastAccount(null);
   if (sb) await localAuthSignOut();
   notifyAccount();
