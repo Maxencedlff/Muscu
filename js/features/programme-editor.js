@@ -304,7 +304,18 @@ makeReorderable({
   view: 'editor', list: '.ed-list', row: '.ed-row', handle: '.ed-handle',
   onMove: (from, to) => {
     const arr = prog().exercises[editorCatOf()];
-    if (arr) { moveItem(arr, from, to); ssNormalize(arr); save(); }
+    if (!arr) return;
+    // Superset : un exercice du groupe glissé hors de lui en sort ; un exercice déposé au milieu d'un
+    // groupe passe juste après lui (js/data/supersets.js, ssGather)
+    const moved = arr[from], id = ssId(moved);
+    moveItem(arr, from, to);
+    const i = arr.indexOf(moved);
+    const left = id && ssId(arr[i - 1]) !== id && ssId(arr[i + 1]) !== id;
+    if (left) delete moved.ss;
+    ssNormalize(ssGather(arr));
+    save();
+    if (left) { render(); showToast('Retiré du superset'); }
+    else if (arr.indexOf(moved) !== to) render();
   },
 });
 
@@ -426,7 +437,7 @@ registerActions({
     const list = prog().exercises[editorCatOf()];
     const name = list[i].name;
     if (!(await confirmSheet(`Supprimer « ${name} » ?`, 'L\'historique de cet exercice est conservé.', 'Supprimer l\'exercice'))) return;
-    const ssBefore = list.map(x => x.ss);   // « Annuler » rend aussi le superset dont il faisait partie
+    const ssBefore = new Map(list.map(x => [x, x.ss]));   // « Annuler » rend aussi le superset dont il faisait partie
     const [removed] = list.splice(i, 1);
     ssNormalize(list);
     save();
@@ -434,7 +445,8 @@ registerActions({
     showToast(`« ${name} » supprimé`, { action: 'Annuler', duration: 5000, onAction: () => {
       if (list.includes(removed)) return;
       list.splice(Math.min(i, list.length), 0, removed);
-      list.forEach((x, k) => { if (ssBefore[k] !== undefined) x.ss = ssBefore[k]; });
+      list.forEach(x => { if (ssBefore.get(x) !== undefined) x.ss = ssBefore.get(x); });
+      ssNormalize(ssGather(list));
       save(); render();
     } });
   },

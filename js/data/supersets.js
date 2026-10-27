@@ -5,8 +5,10 @@
 // Un groupe = des exercices CONSÉCUTIFS qui portent le même identifiant `ss` (programme, séance en
 // cours et historique). Deux exercices font un superset, trois un tri-set, quatre ou cinq un circuit.
 // Un `ss` isolé (exercice déplacé ou retiré) ne forme pas de groupe : ssNormalize l'efface.
-// Tour t = la série t de chaque exercice du groupe, dans l'ordre du groupe. Le repos (celui du
-// dernier exercice du groupe) ne part qu'à la fin d'un tour.
+// Affichage : tour t = la série t de chaque exercice du groupe. Enchaînement : après un exercice, on
+// passe au suivant du groupe qui a encore une série à faire ; après le dernier, repos (celui du dernier
+// exercice du groupe). On le décide par l'ordre du groupe, pas par le numéro de série : un exercice
+// sauté (machine prise) ou remplacé en cours de route ne décale rien.
 'use strict';
 
 const SS_MAX    = 5;
@@ -51,19 +53,42 @@ function ssRounds(xs, members) {
   return Array.from({ length: n }, (_, si) => members.filter(ei => xs[ei].sets[si]).map(ei => ({ ei, si })));
 }
 
-// Prochaine série à faire du groupe, tour par tour (null si tout est fait)
-function ssNextSet(xs, members) {
-  for (const round of ssRounds(xs, members)) {
-    const c = round.find(({ ei, si }) => !xs[ei].sets[si].done);
-    if (c) return c;
-  }
+const ssTodo = (xs, ei) => { const si = xs[ei].sets.findIndex(s => !s.done); return si >= 0 ? { ei, si } : null; };
+const ssDone = (xs, ei) => xs[ei].sets.filter(s => s.done).length;
+
+// Exercice qui suit ei dans le groupe et a encore une série à faire (null : fin du tour, repos)
+function ssChainAfter(xs, members, ei) {
+  for (const k of members.slice(members.indexOf(ei) + 1)) { const c = ssTodo(xs, k); if (c) return c; }
   return null;
 }
 
-// Après la validation de la série si : repos seulement si le tour est fini (ou le groupe entier)
-function ssRestAfter(xs, members, si) {
-  const next = ssNextSet(xs, members);
-  return !next || next.si > si;
+// Prochaine série à faire du groupe (null si tout est fait). Après l'exercice last : le suivant du
+// groupe, sinon on repart au début (nouveau tour). Sans last : le moins avancé, le premier à égalité.
+function ssNextSet(xs, members, last = null) {
+  if (members.includes(last)) {
+    const c = ssChainAfter(xs, members, last);
+    if (c) return c;
+    for (const k of members) { const t = ssTodo(xs, k); if (t) return t; }
+    return null;
+  }
+  let best = null;
+  members.forEach(k => { if (ssTodo(xs, k) && (best === null || ssDone(xs, k) < ssDone(xs, best))) best = k; });
+  return best === null ? null : ssTodo(xs, best);
+}
+
+// Réunit les exercices de chaque groupe à la place du premier d'entre eux (un exercice glissé au milieu
+// d'un superset passe juste après lui). Modifie la liste.
+function ssGather(xs) {
+  const out = [], seen = new Set();
+  xs.forEach(ex => {
+    const id = ssId(ex);
+    if (!id) { out.push(ex); return; }
+    if (seen.has(id)) return;
+    seen.add(id);
+    out.push(...xs.filter(e => ssId(e) === id));
+  });
+  xs.splice(0, xs.length, ...out);
+  return xs;
 }
 
 // Efface les `ss` qui ne forment plus de groupe (exercice seul, déplacé, retiré). Modifie la liste.

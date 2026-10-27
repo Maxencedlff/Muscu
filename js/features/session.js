@@ -109,7 +109,7 @@ function currentSet() {
   if (!activeSession) return null;
   const xs   = activeSession.exercises;
   const pick = ei => { const si = xs[ei]?.sets.findIndex(s => !s.done) ?? -1; return si >= 0 ? { ei, si } : null; };
-  const next = block => (block.length > 1 ? ssNextSet(xs, block) : pick(block[0]));
+  const next = block => (block.length > 1 ? ssNextSet(xs, block, activeSession.lastEi) : pick(block[0]));
   const last = activeSession.lastEi;
   if (Number.isInteger(last) && xs[last]) { const c = next(ssGroupOf(xs, last) || [last]); if (c) return c; }
   for (const block of ssBlocks(xs)) { const c = next(block); if (c) return c; }
@@ -248,6 +248,11 @@ function renderExerciseCard(ex, ei, cur) {
       </div>
       <button class="add-set-link" data-action="add-set" data-ei="${ei}">${icon('plus', 16)} Série</button>
     </div>`;
+}
+
+// Carte qui montre l'exercice ei (celle de son superset s'il en fait partie)
+function exCardOf(ei) {
+  return document.querySelector(`.ex-card[data-ei="${ei}"], .ex-card [data-ei="${ei}"]`)?.closest('.ex-card') || null;
 }
 
 // Superset (2 à 5 exercices enchaînés) : une seule carte, les séries rangées tour par tour.
@@ -452,6 +457,7 @@ function validateSet(ei, si, opts = {}) {
   s.reps = String(parseInt(s.reps));
 
   s.done = true;
+  const sameAgain = activeSession.lastEi === ei;   // même exercice deux fois de suite : fait seul
   activeSession.lastEi = ei;
   editingSet = null;
   haptic();
@@ -462,9 +468,10 @@ function validateSet(ei, si, opts = {}) {
   else if (goalTaken) undo.prevReps = '';
   const xs      = activeSession.exercises;
   const allDone = xs.every(e => e.sets.every(st => st.done));
-  // Superset : pas de repos avant la fin du tour, on enchaîne sur l'exercice suivant du groupe
+  // Superset : pas de repos avant la fin du tour, on enchaîne sur l'exercice suivant du groupe.
+  // Le même exercice validé deux fois de suite (l'autre est pris) : repos comme d'habitude.
   const group   = ssGroupOf(xs, ei);
-  const chain   = !allDone && group && !ssRestAfter(xs, group, si) ? ssNextSet(xs, group) : null;
+  const chain   = !allDone && group && !sameAgain ? ssChainAfter(xs, group, ei) : null;
   if (allDone) { stopRest(); closeSessSheets(); }
   else if (chain) stopRest();
   else openRest(exRest(xs[restEi(ei)]), false, opts.restFrom);

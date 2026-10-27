@@ -248,6 +248,14 @@ function storePastSession(exercises) {
     const idx = data.history.findIndex(h => h.id === editSessionId);
     if (idx !== -1) {
       const old = data.history[idx];
+      // Superset et tempo de la séance d'origine : repris par exercice (exId, sinon nom)
+      const was = e => (old.exercises || []).find(o => (o.exId && o.exId === e.exId)) || (old.exercises || []).find(o => normName(o.name) === normName(e.name));
+      exercises.forEach(e => {
+        const o = was(e);
+        if (ssId(o)) e.ss = o.ss;
+        if (o?.tempo && !e.tempo) e.tempo = o.tempo;
+      });
+      ssNormalize(ssGather(exercises));
       // Même jour : on garde l'heure d'origine
       savedDate = localISO(old.date) === addDate ? old.date : timestamp;
       data.history[idx] = { ...old, programme: addProg, category: addCat, date: savedDate, notes: addNotes.trim(), exercises };

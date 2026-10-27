@@ -267,8 +267,14 @@ function pickExercise(name) {
     // restantes) et le nouveau se place juste après ; « Annuler » rend la séance d'avant
     const before = clone(activeSession.exercises), old = activeSession.exercises[ax.replaceEi];
     const done = old?.sets.filter(s => s.done) || [];
-    if (ssId(old)) exObj.ss = old.ss;   // le remplaçant prend sa place dans le superset
-    if (done.length) { old.sets = done; activeSession.exercises.splice(ax.replaceEi + 1, 0, exObj); target = ax.replaceEi + 1; }
+    // Superset : le remplaçant prend sa place dans le groupe ; l'ancien, avec ses séries faites, en sort
+    // et passe juste avant le groupe (le groupe garde sa taille et son repos)
+    const xs = activeSession.exercises, g = ssGroupOf(xs, ax.replaceEi);
+    if (g) exObj.ss = old.ss;
+    if (done.length && g) {
+      old.sets = done; delete old.ss;
+      xs.splice(ax.replaceEi, 1, exObj); xs.splice(g[0], 0, old); target = ax.replaceEi + 1;
+    } else if (done.length) { old.sets = done; xs.splice(ax.replaceEi + 1, 0, exObj); target = ax.replaceEi + 1; }
     else { activeSession.exercises.splice(ax.replaceEi, 1, exObj); target = ax.replaceEi; }
     showToast(done.length ? `Remplacé, ${plural(done.length, 'série gardée', 'séries gardées')}` : 'Exercice remplacé', {
       action: 'Annuler', duration: 5000,
@@ -284,7 +290,7 @@ function pickExercise(name) {
   haptic();
   persistSession();
   render();
-  setTimeout(() => document.querySelector(`.ex-card[data-ei="${target}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  setTimeout(() => exCardOf(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
 }
 
 // « Annuler » d'un remplacement ou d'un retrait : la liste d'avant revient ; série rouverte et chrono
@@ -373,6 +379,7 @@ async function exerciseMenu(ei) {
     const moved = ssMove(xs, ei, choice === 'up' ? -1 : 1);
     if (moved) activeSession.exercises = moved;
     activeSession.lastEi = null;
+    editingSet = null;
     render();
   } else if (choice === 'superset') {
     await sessionSupersetPick(ei);

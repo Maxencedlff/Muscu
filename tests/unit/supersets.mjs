@@ -18,22 +18,47 @@ export default function ({ test, run, reset, sameJSON, assert }) {
     sameJSON(run(`ssBlocks(${list([['A', 3, 'g'], ['B', 3], ['C', 3, 'g']])})`), [[0], [1], [2]]);
   });
 
-  test('supersets : tours, série suivante et repos à la fin du tour seulement', () => {
+  test('supersets : tours affichés, enchaînement par l\'ordre du groupe', () => {
     reset();
     // A : 3 séries, B : 2 séries (le 3e tour n'a que A)
     run(`globalThis.xs = ${list([['A', 3, 'g'], ['B', 2, 'g']])}`);
     sameJSON(run('ssRounds(xs, [0, 1])'), [[{ ei: 0, si: 0 }, { ei: 1, si: 0 }], [{ ei: 0, si: 1 }, { ei: 1, si: 1 }], [{ ei: 0, si: 2 }]]);
     sameJSON(run('ssNextSet(xs, [0, 1])'), { ei: 0, si: 0 });
     run('xs[0].sets[0].done = true');
-    sameJSON(run('ssNextSet(xs, [0, 1])'), { ei: 1, si: 0 }, 'A1 fait : on enchaîne sur B');
-    assert.equal(run('ssRestAfter(xs, [0, 1], 0)'), false, 'pas de repos au milieu du tour');
+    sameJSON(run('ssChainAfter(xs, [0, 1], 0)'), { ei: 1, si: 0 }, 'A1 fait : on enchaîne sur B, sans repos');
+    sameJSON(run('ssNextSet(xs, [0, 1], 0)'), { ei: 1, si: 0 });
     run('xs[1].sets[0].done = true');
-    assert.equal(run('ssRestAfter(xs, [0, 1], 0)'), true, 'tour fini : repos');
-    run('xs[0].sets[1].done = true; xs[1].sets[1].done = true');
-    sameJSON(run('ssNextSet(xs, [0, 1])'), { ei: 0, si: 2 }, 'dernier tour : A seul');
-    run('xs[0].sets[2].done = true');
-    assert.equal(run('ssNextSet(xs, [0, 1])'), null);
-    assert.equal(run('ssRestAfter(xs, [0, 1], 2)'), true, 'groupe fini : repos avant la suite');
+    assert.equal(run('ssChainAfter(xs, [0, 1], 1)'), null, 'dernier du groupe : repos');
+    sameJSON(run('ssNextSet(xs, [0, 1], 1)'), { ei: 0, si: 1 }, 'nouveau tour');
+    run('xs[0].sets[1].done = true; xs[1].sets[1].done = true; xs[0].sets[2].done = true');
+    assert.equal(run('ssChainAfter(xs, [0, 1], 0)'), null, 'B fini : A seul, repos à chaque série');
+    assert.equal(run('ssNextSet(xs, [0, 1], 0)'), null);
+  });
+
+  test('supersets : exercice sauté ou remplacé, le groupe ne se décale pas', () => {
+    reset();
+    // B pris : A refait trois fois. Seule la 1re validation enchaîne (la séance ne peut pas savoir) ;
+    // ensuite, A deux fois de suite = fait seul, repos (validateSet, sameAgain)
+    run(`globalThis.xs = ${list([['A', 3, 'g', 1], ['B', 3, 'g']])}`);
+    sameJSON(run('ssChainAfter(xs, [0, 1], 0)'), { ei: 1, si: 0 });
+    // Plus tard, B rattrape seul : dernier du groupe, repos à chaque série
+    run('xs[0].sets.forEach(s => s.done = true)');
+    assert.equal(run('ssChainAfter(xs, [0, 1], 1)'), null);
+    sameJSON(run('ssNextSet(xs, [0, 1])'), { ei: 1, si: 0 });
+    // Remplaçant N arrivé à 0 série alors que B en a fait 2 : N puis B, repos, N puis B…
+    run(`globalThis.xs = ${list([['N', 2, 'g'], ['B', 4, 'g', 2]])}`);
+    sameJSON(run('ssNextSet(xs, [0, 1])'), { ei: 0, si: 0 }, 'le moins avancé d\'abord');
+    run('xs[0].sets[0].done = true');
+    sameJSON(run('ssChainAfter(xs, [0, 1], 0)'), { ei: 1, si: 2 }, 'N enchaîne sur B');
+    // B fait avant A : B est le dernier du groupe, repos ; puis A enchaîne sur B
+    run(`globalThis.xs = ${list([['A', 3, 'g'], ['B', 3, 'g', 1]])}`);
+    assert.equal(run('ssChainAfter(xs, [0, 1], 1)'), null);
+    sameJSON(run('ssNextSet(xs, [0, 1], 1)'), { ei: 0, si: 0 });
+  });
+
+  test('supersets : regrouper après un glisser (ssGather)', () => {
+    reset();
+    sameJSON(names(`ssGather(${list([['A', 3, 'g'], ['X', 3], ['B', 3, 'g'], ['D', 3]])})`), ['A*g', 'B*g', 'X', 'D'], 'X déposé au milieu passe après');
   });
 
   test('supersets : créer, modifier et défaire un groupe', () => {

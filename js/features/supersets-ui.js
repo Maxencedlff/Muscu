@@ -49,6 +49,7 @@ async function sessionSupersetPick(ei) {
     items, checked: new Set(group.filter(k => k !== ei)),
   });
   if (!picked || !activeSession || activeSession.exercises[ei] !== ex) return;
+  if (!picked.length && group.length < 2) return;   // rien coché, et il n'était dans aucun groupe
   applySessionSuperset(ei, picked);
 }
 
@@ -65,6 +66,7 @@ function applySessionSuperset(ei, others) {
   editingSet = null;
   const xs = activeSession.exercises, ex = xs[ei];
   const chosen = (others || []).map(k => xs[k]);
+  const before = (ssGroupOf(xs, ei) || []).filter(k => k !== ei).map(k => xs[k]);   // groupe d'avant (retrait)
   activeSession.exercises = others ? ssRegroup(xs, ei, others) : ssLeave(xs, ei);
   activeSession.lastEi = null;
 
@@ -72,7 +74,12 @@ function applySessionSuperset(ei, others) {
   const plist = sessProg().exercises[activeSession.category] || [];
   const pIdx  = e => (e.exId ? plist.findIndex(p => p.id === e.exId) : -1);
   const pi = pIdx(ex), pothers = chosen.map(pIdx);
-  const inProg = pi >= 0 && pothers.every(k => k >= 0);
+  // Regrouper : tous les exercices viennent du programme, chacun une seule fois (un doublon ajouté en
+  // séance a le même identifiant). Retirer : seulement si le programme avait ce même groupe.
+  const pg = pi >= 0 ? ssGroupOf(plist, pi) : null;
+  const inProg = pi >= 0 && (others
+    ? pothers.every(k => k >= 0) && new Set([pi, ...pothers]).size === pothers.length + 1
+    : !!pg && before.every(e => pg.includes(pIdx(e))));
   if (inProg) {
     sessProg().exercises[activeSession.category] = others ? ssRegroup(plist, pi, pothers) : ssLeave(plist, pi);
     save();
@@ -83,7 +90,7 @@ function applySessionSuperset(ei, others) {
   render();
   showToast(!g ? 'Retiré du superset'
     : inProg ? `${ssKind(g.length)} enregistré` : `${ssKind(g.length)} pour cette séance`);
-  setTimeout(() => document.querySelector(`.ex-card[data-ei="${activeSession?.exercises.indexOf(ex)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  setTimeout(() => activeSession && exCardOf(activeSession.exercises.indexOf(ex))?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
 }
 
 // ── Programme › Séance ──
