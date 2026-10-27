@@ -25,7 +25,11 @@ insert into auth.users (id) select pg_temp.cu50(i) from generate_series(1, 51) i
 insert into public.user_profiles (user_id, username, avatar_emoji) values
   (pg_temp.cu('k'), 'kevin.c1', '🦁'), (pg_temp.cu('l'), 'laura.c1', '🦊'), (pg_temp.cu('s'), 'sam.c1', '🦅'),
   (pg_temp.cu('t'), 'theo.c1', '🐼'), (pg_temp.cu('u'), 'ugo.c1', '⭐');
--- V sans ligne de profil (ni pseudo) : il peut quand même être élève
+-- V a un profil sans pseudo : il ne peut pas rejoindre un coach tant qu'il n'en a pas choisi un
+insert into public.user_profiles (user_id, avatar_emoji) values (pg_temp.cu('v'), '🦉');
+-- Les 50 élèves de L ont un pseudo
+insert into public.user_profiles (user_id, username, avatar_emoji)
+  select pg_temp.cu50(i), 'eleve' || lpad(i::text, 2, '0') || '.c1', '🐺' from generate_series(1, 51) i;
 
 -- ── Le rôle coach : administrateur seulement ─────────────
 set role authenticated;
@@ -39,7 +43,7 @@ begin
   perform pg_temp.clogin('k');
   if pg_temp.cerr($q$ select public.coach_create_invite() $q$) is distinct from 'not_coach' then raise 'invitation sans être coach'; end if;
   st := public.coach_state();
-  if st is distinct from '{"is_coach": false, "coach": null, "students": [], "invites": [], "badge": 0}'::jsonb then raise 'état vide : %', st; end if;
+  if st is distinct from '{"is_coach": false, "coach": null, "students": [], "invites": [], "badge": 0, "badge_coach": 0, "badge_student": 0}'::jsonb then raise 'état vide : %', st; end if;
   -- Aucune fonction du schéma public ne pose coach_at
   if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosrc ilike '%coach_at%') then
     raise 'une RPC écrit ou lit coach_at directement';
@@ -133,12 +137,27 @@ begin
   st := public.coach_state();
   if st -> 'coach' ->> 'username' is distinct from 'kevin.c1' or (st ->> 'is_coach')::boolean or st -> 'students' is distinct from '[]'::jsonb
      or (st ->> 'badge')::int is distinct from 0 then raise 'état élève : %', st; end if;
-  if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from array['badge', 'coach', 'invites', 'is_coach', 'students'] then raise 'clés de coach_state : %', st; end if;
+  if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from array['badge', 'badge_coach', 'badge_student', 'coach', 'invites', 'is_coach', 'students'] then raise 'clés de coach_state : %', st; end if;
   -- Déjà un coach : un code de L est refusé (aperçu et adhésion)
   if pg_temp.cerr(format('select public.coach_preview(%L)', (select code from codes where who = 'l1'))) is distinct from 'already_coached' then raise 'aperçu déjà suivi'; end if;
   if pg_temp.cerr(format('select public.coach_join(%L)', (select code from codes where who = 'l1'))) is distinct from 'already_coached' then raise 'deux coachs'; end if;
-  -- Le même code sert à un autre élève (jusqu'à expiration), V sans profil compris
+  -- Le même code sert à un autre élève (jusqu'à expiration)
   perform pg_temp.clogin('t'); perform public.coach_join(c);
+  -- Sans pseudo : username_required (aperçu et adhésion), rien de créé ; avec un pseudo : accepté
+  perform pg_temp.clogin('v');
+  if pg_temp.cerr(format('select public.coach_preview(%L)', c)) is distinct from 'username_required' then raise 'aperçu sans pseudo'; end if;
+  if pg_temp.cerr(format('select public.coach_join(%L)', c)) is distinct from 'username_required' then raise 'adhésion sans pseudo'; end if;
+  if pg_temp.cerr($q$ select public.coach_join('ZZZZZZZZ') $q$) is distinct from 'username_required' then raise 'pseudo vérifié avant le code'; end if;
+  if public.coach_state() -> 'coach' is distinct from 'null'::jsonb then raise 'lien créé sans pseudo'; end if;
+  perform pg_temp.clogin('u');   -- sans ligne de profil du tout : pareil
+  reset role;
+  delete from public.user_profiles where user_id = pg_temp.cu('u');
+  set role authenticated;
+  if pg_temp.cerr(format('select public.coach_join(%L)', c)) is distinct from 'username_required' then raise 'adhésion sans profil'; end if;
+  reset role;
+  insert into public.user_profiles (user_id, username, avatar_emoji) values (pg_temp.cu('u'), 'ugo.c1', '⭐');
+  update public.user_profiles set username = 'vic.c1' where user_id = pg_temp.cu('v');
+  set role authenticated;
   perform pg_temp.clogin('v'); perform public.coach_join(c);
   -- Son propre code : not_found
   perform pg_temp.clogin('k');
@@ -165,9 +184,9 @@ begin
      is distinct from array['avatar', 'last_session', 'last_session_at', 'new_sessions', 'sessions_7d', 'since', 'user_id', 'username'] then raise 'clés d''un élève : %', stu; end if;
   -- Séances d'avant l'adhésion : pas « nouvelles »
   if (stu ->> 'new_sessions')::int is distinct from 0 or (st ->> 'badge')::int is distinct from 0 then raise 'nouvelles séances d''avant l''adhésion : %', st; end if;
-  -- V sans profil : pseudo et avatar null, sans séance
+  -- V, sans séance
   select e into stu from jsonb_array_elements(st -> 'students') e where e ->> 'user_id' = pg_temp.cu('v')::text;
-  if stu ->> 'username' is not null or stu -> 'last_session' is distinct from 'null'::jsonb or stu -> 'last_session_at' is distinct from 'null'::jsonb then raise 'élève V : %', stu; end if;
+  if stu ->> 'username' is distinct from 'vic.c1' or stu ->> 'avatar' is distinct from '🦉' or stu -> 'last_session' is distinct from 'null'::jsonb or stu -> 'last_session_at' is distinct from 'null'::jsonb then raise 'élève V : %', stu; end if;
 
   -- Séances : 30 par page, masquée comprise ; supprimée, sans date et futur lointain exclus
   select count(*) into n from public.coach_student_sessions(pg_temp.cu('s'));
@@ -240,12 +259,31 @@ begin
   if (public.coach_state() ->> 'badge')::int is distinct from 0 then raise 'badge de L'; end if;
   perform pg_temp.clogin('t');
   if (public.coach_state() ->> 'badge')::int is distinct from 0 then raise 'badge de T'; end if;
+  -- K coach (2 nouvelles séances de S) et élève de L (1 programme non vu) : deux badges séparés
+  perform pg_temp.clogin('k'); perform public.coach_join((select code from codes where who = 'l1'));
+  perform pg_temp.clogin('l'); perform public.coach_send_programme(pg_temp.cu('k'), 'progK', '{"name": "K"}');
+  perform pg_temp.clogin('k');
+  st := public.coach_state();
+  if (st ->> 'badge_coach')::int is distinct from 2 or (st ->> 'badge_student')::int is distinct from 1 or (st ->> 'badge')::int is distinct from 3
+     then raise 'badges coach et élève : %', st; end if;
+  perform public.student_mark_seen('programme', 'progK');
+  st := public.coach_state();
+  if (st ->> 'badge_coach')::int is distinct from 2 or (st ->> 'badge_student')::int is distinct from 0 or (st ->> 'badge')::int is distinct from 2
+     then raise 'badge élève vu : %', st; end if;
+  -- L : son élève K n'a aucune séance ; les séances de S ne comptent pas chez lui
+  perform pg_temp.clogin('l');
+  st := public.coach_state();
+  if (st ->> 'badge_coach')::int is distinct from 0 or (st ->> 'badge_student')::int is distinct from 0 then raise 'badges de L : %', st; end if;
+  perform pg_temp.clogin('s');
+  st := public.coach_state();
+  if (st ->> 'badge_coach')::int is distinct from 0 or (st ->> 'badge_student')::int is distinct from 0 then raise 'badges de S : %', st; end if;
+  perform pg_temp.clogin('k'); perform public.coach_leave();
   -- Marquer vu remet à zéro
   perform pg_temp.clogin('k');
   perform public.coach_mark_seen(pg_temp.cu('s'));
   st := public.coach_state();
   select e into stu from jsonb_array_elements(st -> 'students') e where e ->> 'user_id' = pg_temp.cu('s')::text;
-  if (stu ->> 'new_sessions')::int is distinct from 0 or (st ->> 'badge')::int is distinct from 0 then raise 'après coach_mark_seen : %', st; end if;
+  if (stu ->> 'new_sessions')::int is distinct from 0 or (st ->> 'badge')::int is distinct from 0 or (st ->> 'badge_coach')::int is distinct from 0 then raise 'après coach_mark_seen : %', st; end if;
   if pg_temp.cerr($q$ select public.coach_mark_seen(pg_temp.cu('u')) $q$) is distinct from 'not_found' then raise 'mark_seen d''un non-élève'; end if;
   if pg_temp.cerr($q$ select public.coach_mark_seen(null) $q$) is distinct from 'not_found' then raise 'mark_seen null'; end if;
   -- Une séance supprimée ne compte plus
