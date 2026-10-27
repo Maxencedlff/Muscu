@@ -49,6 +49,43 @@
 .bump-chip::after { content: ''; position: absolute; inset: -6px -2px; }
 .bump-chip:active { opacity: .6; }
 
+/* ── Superset (js/features/session.js, renderGroupCard) : une carte, barre de couleur à gauche,
+   une ligne par exercice en tête, puis les séries tour par tour ─────────────── */
+.ex-card.ss-card { border-left: 4px solid var(--cat-color, var(--tint)); padding-left: 10px; }
+.ss-tag {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 22px; padding: 0 5px;
+  border-radius: 6px; background: color-mix(in srgb, var(--cat-color, var(--tint)) 22%, transparent);
+  color: var(--label); font-size: 0.765rem; font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.ss-tag--sm { min-width: 24px; height: 19px; font-size: 0.706rem; margin-right: 7px; vertical-align: 1px; }
+.ss-members { margin: -4px 0 6px; }
+.ss-member { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.ss-member__name {
+  flex: 1; min-width: 0; font-size: 0.941rem; font-weight: 500; color: var(--label);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ss-member__name.ex-howto { padding: 11px 0; margin: 0; }
+.ss-member__name .ex-howto__text { -webkit-line-clamp: 1; }
+.ss-round + .ss-round { margin-top: 2px; }
+.ss-round__title {
+  padding: 10px 0 2px; font-size: 0.706rem; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--label2);
+}
+.ss-exname {
+  margin: 4px 0 -4px; padding-left: 2px; font-size: 0.765rem; color: var(--label2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ex-summary__line .ss-tag--sm { margin-right: 6px; }
+/* Feuille « Superset » : nom et, s'il est déjà dans un autre groupe, lequel */
+.ssp__body { display: flex; flex-direction: column; min-width: 0; flex: 1; text-align: left; }
+.ssp__sub { font-size: var(--fs-footnote); color: var(--label2); }
+/* Programme › Exercice : « Retirer » / « Garder » */
+.ed-ss-btn {
+  min-height: 44px; padding: 0 4px; background: none; border: 0; font: inherit; color: var(--red); cursor: pointer;
+}
+.ed-ss-btn[aria-pressed="true"] { color: var(--tint); }
+.ed-ss-btn:active { opacity: .5; }
+
 .ex-card__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); margin: 0 0 8px; }
 .ex-rest-link {
   background: none; border: 0; color: var(--tint); font: inherit; cursor: pointer;

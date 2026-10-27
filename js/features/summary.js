@@ -185,7 +185,7 @@ function leaveSession(message) {
 
 // Entrée d'historique : seules les séries validées, exercices vides écartés
 function sessionHistoryEntry(sp, sc) {
-  return {
+  const entry = {
     id:         uid(),
     programme:  sp,
     category:   sc,
@@ -199,10 +199,13 @@ function sessionHistoryEntry(sp, sc) {
         name: ex.name,
         ...(storedMeasure(ex) ? { measure: storedMeasure(ex) } : {}),
         ...(ex.tempo ? { tempo: ex.tempo } : {}),   // fait au tempo : plus dur, à ne pas comparer sans le savoir
+        ...(ssId(ex) ? { ss: ex.ss } : {}),         // superset, affiché comme tel dans Historique et pour les abonnés
         sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}) })),
       }))
       .filter(ex => ex.sets.length),
   };
+  ssNormalize(entry.exercises);   // exercice vide écarté : un groupe réduit à un seul n'en est plus un
+  return entry;
 }
 
 // Enregistre la séance ; stockage plein : rien n'est perdu, la séance reste active et on propose

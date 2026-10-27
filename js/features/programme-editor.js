@@ -24,7 +24,7 @@ function exDraftFor(route) {
   const i  = editExIdxOf(route);
   const ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
   exDraft = ex
-    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false }
+    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false, ssLeave: false }
     : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null, musclesReset: false };
   exDraft._init = exDraftSnapshot(exDraft);
   return exDraft;
@@ -48,12 +48,13 @@ function renderEditor() {
     const last = lastPerf(data.activeProgramme, cat, ex);
     const best = last ? bestSet(last.ex.sets, ex) : null;
     const sub  = `${plural(ex.sets, 'série', 'séries')}${best ? ` · dernier ${setTxt(best, ex)}` : ''}`;
+    const tag  = ssTagHtml(list, i);
     if (editorEditing) {
       return `
         <div class="cell ed-row ed-row--edit" data-i="${i}">
           <button class="ed-minus" data-action="ed-reveal" data-i="${i}" aria-label="Supprimer ${esc(ex.name)}">${icon('minus', 14)}</button>
           <span class="cell__body">
-            <span class="cell__title ed-name">${esc(ex.name)}</span>
+            <span class="cell__title ed-name">${tag}${esc(ex.name)}</span>
             ${exMusclesSubHtml(ex)}
             <span class="cell__sub">${sub}</span>
           </span>
@@ -64,7 +65,7 @@ function renderEditor() {
     return `
       <button class="cell cell--nav ed-row" data-action="edit-ex" data-i="${i}">
         <span class="cell__body">
-          <span class="cell__title ed-name">${esc(ex.name)}</span>
+          <span class="cell__title ed-name">${tag}${esc(ex.name)}</span>
           ${exMusclesSubHtml(ex)}
           <span class="cell__sub">${sub}</span>
         </span>
@@ -80,7 +81,9 @@ function renderEditor() {
         <div class="group ed-list">
           ${rows || '<div class="cell"><span class="cell__sub">Aucun exercice pour l\'instant</span></div>'}
           <button class="cell cell--action" data-action="add-ex">${icon('plus', 20)}<span>Ajouter un exercice</span></button>
+          ${list.length >= 2 ? `<button class="cell cell--action" data-action="ed-superset">${icon('link', 20)}<span>Créer un superset</span></button>` : ''}
         </div>
+        ${list.length >= 2 ? '<div class="group-foot">Superset : des exercices enchaînés sans repos, tour par tour.</div>' : ''}
         <div class="group-title">Réglages de la séance</div>
         <div class="group">
           <div class="cell cell--ctl cell--flow">
@@ -212,6 +215,25 @@ function refreshExProgression() {
   box.innerHTML = exProgressionHtml(exDraft);
 }
 
+// Programme › Exercice d'un superset : avec qui, et « Retirer » (appliqué par OK, comme le reste)
+function exSupersetHtml(i, d) {
+  const list = prog().exercises[editorCatOf()] || [];
+  const g = ssGroupOf(list, i);
+  if (!g) return '';
+  const others = g.filter(k => k !== i).map(k => list[k].name).join(', ');
+  return `
+        <div class="group-title">${ssKind(g.length)} ${ssTags(list)[i][0]}</div>
+        <div class="group">
+          <div class="cell cell--ctl">
+            <span class="cell__body">
+              <span class="cell__title">${d.ssLeave ? 'Retiré à l\'enregistrement' : `Avec ${esc(others)}`}</span>
+            </span>
+            <button class="ed-ss-btn" data-action="ex-ss-leave" aria-pressed="${d.ssLeave}">${d.ssLeave ? 'Garder' : 'Retirer'}</button>
+          </div>
+        </div>
+        <div class="group-foot">Enchaînés sans repos ; le repos du dernier exercice part à la fin de chaque tour.</div>`;
+}
+
 function renderExEdit() {
   const editExIdx = editExIdxOf();
   const isEdit = editExIdx !== null;
@@ -267,6 +289,7 @@ function renderExEdit() {
         <div class="group-foot">Durée pour les maintiens (gainage, chaise), cardio pour la distance et les minutes. Choisie d'après le nom si tu n'y touches pas.</div>
         <div id="exTempo">${exTempoHtml(d)}</div>
         <div id="exProg">${exProgressionHtml(d)}</div>
+        ${isEdit ? exSupersetHtml(editExIdx, d) : ''}
         ${isEdit ? `
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="del-ex" data-i="${editExIdx}">Supprimer l'exercice</button>
@@ -281,7 +304,7 @@ makeReorderable({
   view: 'editor', list: '.ed-list', row: '.ed-row', handle: '.ed-handle',
   onMove: (from, to) => {
     const arr = prog().exercises[editorCatOf()];
-    if (arr) { moveItem(arr, from, to); save(); }
+    if (arr) { moveItem(arr, from, to); ssNormalize(arr); save(); }
   },
 });
 
@@ -383,6 +406,13 @@ registerActions({
     // Même feuille de recherche que pendant la séance (bibliothèque + création)
     openAddExSheet({ target: 'programme' });
   },
+  'ed-superset': () => editorSupersetCreate(editorCatOf()),
+  'ex-ss-leave': () => {
+    if (!exDraft) return;
+    exDraft.ssLeave = !exDraft.ssLeave;
+    render();
+    haptic();
+  },
   'ex-sets': (e, el) => {
     if (!exDraft) return;
     exDraft.sets = Math.max(1, Math.min(10, exDraft.sets + parseInt(el.dataset.d)));
@@ -396,12 +426,16 @@ registerActions({
     const list = prog().exercises[editorCatOf()];
     const name = list[i].name;
     if (!(await confirmSheet(`Supprimer « ${name} » ?`, 'L\'historique de cet exercice est conservé.', 'Supprimer l\'exercice'))) return;
+    const ssBefore = list.map(x => x.ss);   // « Annuler » rend aussi le superset dont il faisait partie
     const [removed] = list.splice(i, 1);
+    ssNormalize(list);
     save();
     if (currentView() === 'ex-edit') { exDraft = null; goBack(); } else render();
     showToast(`« ${name} » supprimé`, { action: 'Annuler', duration: 5000, onAction: () => {
       if (list.includes(removed)) return;
-      list.splice(Math.min(i, list.length), 0, removed); save(); render();
+      list.splice(Math.min(i, list.length), 0, removed);
+      list.forEach((x, k) => { if (ssBefore[k] !== undefined) x.ss = ssBefore[k]; });
+      save(); render();
     } });
   },
   // Annuler la fiche : confirmation seulement si quelque chose a changé
@@ -461,6 +495,7 @@ registerActions({
       ex.repMax = repMax;
       applyDraftMeasure(ex, exDraft);
       applyDraftMuscles(ex, exDraft);
+      if (exDraft?.ssLeave) editorSupersetLeave(editorCat, editExIdx);
     } else {
       const ex = makeExercise(name, sets);
       // Un exercice déjà présent dans l'historique (supprimé puis recréé) retrouve son identifiant

@@ -156,10 +156,10 @@ function renderHistoryDetail(id) {
         </div>
         <div class="group-title">Exercices</div>
         <div class="group">
-          ${(h.exercises || []).map(e => `
+          ${(h.exercises || []).map((e, i, xs) => `
             <div class="cell hex">
               <span class="cell__body">
-                <span class="hex__name">${esc(e.name)}</span>
+                <span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>
                 <span class="hex__sets num">${setsLine(e.sets, measureOf(e), setKind(e))}</span>
               </span>
             </div>`).join('')}

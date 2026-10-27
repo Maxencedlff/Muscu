@@ -70,7 +70,7 @@ function exRestSheetHtml(ei) {
   const v  = exRest(ex);
   return `
     <div class="rs rs--ex">
-      <div class="rs__title">Repos · ${esc(ex.name)}</div>
+      <div class="rs__title">Repos · ${ssGroupOf(activeSession.exercises, ei) ? 'après chaque tour' : esc(ex.name)}</div>
       <div class="rs__value num" id="exRestValue">${fmtRest(v)}</div>
       <div class="rs-seg" role="group" aria-label="Durée du repos">
         ${REST_PRESETS.map(p => `<button class="rs-seg__btn num" data-action="ex-rest-set" data-secs="${p}" aria-pressed="${v === p}">${fmtRest(p)}</button>`).join('')}
@@ -267,6 +267,7 @@ function pickExercise(name) {
     // restantes) et le nouveau se place juste après ; « Annuler » rend la séance d'avant
     const before = clone(activeSession.exercises), old = activeSession.exercises[ax.replaceEi];
     const done = old?.sets.filter(s => s.done) || [];
+    if (ssId(old)) exObj.ss = old.ss;   // le remplaçant prend sa place dans le superset
     if (done.length) { old.sets = done; activeSession.exercises.splice(ax.replaceEi + 1, 0, exObj); target = ax.replaceEi + 1; }
     else { activeSession.exercises.splice(ax.replaceEi, 1, exObj); target = ax.replaceEi; }
     showToast(done.length ? `Remplacé, ${plural(done.length, 'série gardée', 'séries gardées')}` : 'Exercice remplacé', {
@@ -342,14 +343,18 @@ function hasHowTo(ex) { return !!(exerciseHowTo(ex.name) || exerciseMove(ex.name
 function openHowTo(ex) { navigate(makeRoute('library-ex', ex.name)); }
 
 // ── Menu ⋯ d'un exercice ──
-// Choix proposés pour l'exercice ei de la séance (ex), le dernier étant d'indice last
-function exerciseMenuActions(ex, ei, last) {
+// Choix proposés pour l'exercice ei de la liste xs de la séance. Monter et Descendre gardent les
+// supersets entiers (js/data/supersets.js) ; dans un groupe, le repos réglé est celui du tour.
+function exerciseMenuActions(xs, ei) {
+  const ex = xs[ei], inGroup = !!ssGroupOf(xs, ei);
   return [
-    ...(ei > 0    ? [{ label: 'Monter', value: 'up' }] : []),
-    ...(ei < last ? [{ label: 'Descendre', value: 'down' }] : []),
+    ...(ssCanMove(xs, ei, -1) ? [{ label: 'Monter', value: 'up' }] : []),
+    ...(ssCanMove(xs, ei, 1)  ? [{ label: 'Descendre', value: 'down' }] : []),
     ...(hasHowTo(ex) ? [{ label: 'Comment faire', value: 'howto' }] : []),
+    ...(xs.length > 1 ? [{ label: inGroup ? 'Modifier le superset' : 'Superset avec…', value: 'superset' }] : []),
+    ...(inGroup ? [{ label: 'Retirer du superset', value: 'ss-leave' }] : []),
     { label: 'Remplacer l\'exercice', value: 'replace' },
-    { label: 'Régler le repos', value: 'rest' },
+    { label: inGroup ? 'Régler le repos du tour' : 'Régler le repos', value: 'rest' },
     ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
     { label: 'Muscles ciblés', value: 'muscles' },
     { label: 'Relancer le repos', value: 'restart' },
@@ -360,15 +365,21 @@ function exerciseMenuActions(ex, ei, last) {
 async function exerciseMenu(ei) {
   const ex = activeSession.exercises[ei];
   if (!ex) return;
-  const choice = await dialog({ type: 'sheet', title: ex.name, actions: exerciseMenuActions(ex, ei, activeSession.exercises.length - 1) });
-  if (!choice || !activeSession) return;
+  const choice = await dialog({ type: 'sheet', title: ex.name, actions: exerciseMenuActions(activeSession.exercises, ei) });
+  if (!choice || !activeSession || activeSession.exercises[ei] !== ex) return;
   if (['up', 'down', 'replace', 'remove'].includes(choice)) cancelEffort();   // positions des séries modifiées
   const xs = activeSession.exercises;
   if (choice === 'up' || choice === 'down') {
-    const to = choice === 'up' ? ei - 1 : ei + 1;
-    [xs[ei], xs[to]] = [xs[to], xs[ei]];
+    const moved = ssMove(xs, ei, choice === 'up' ? -1 : 1);
+    if (moved) activeSession.exercises = moved;
     activeSession.lastEi = null;
     render();
+  } else if (choice === 'superset') {
+    await sessionSupersetPick(ei);
+    return;
+  } else if (choice === 'ss-leave') {
+    sessionSupersetLeave(ei);
+    return;
   } else if (choice === 'howto') {
     openHowTo(ex);
   } else if (choice === 'replace') {
@@ -376,16 +387,17 @@ async function exerciseMenu(ei) {
   } else if (choice === 'muscles') {
     if (await declareMusclesFor(ex.name)) render();
   } else if (choice === 'rest') {
-    openExRestSheet(ei);
+    openExRestSheet(restEi(ei), render);
   } else if (choice === 'tempo') {
     await chooseSessionTempo(ei);
   } else if (choice === 'restart') {
-    openRest(exRest(ex));
+    openRest(exRest(xs[restEi(ei)]));
   } else if (choice === 'remove') {
     const done = ex.sets.filter(s => s.done).length;
     if (done && !(await confirmSheet('Retirer l\'exercice ?', `Les ${done} séries validées de cet exercice ne seront pas enregistrées. Le programme ne change pas.`, 'Retirer'))) return;
     const before = clone(xs);
     xs.splice(ei, 1);
+    ssNormalize(xs);
     activeSession.lastEi = null;
     editingSet = null;
     render();

@@ -69,7 +69,7 @@ function cleanSocialState(raw) {
 }
 
 // Séance d'un autre, telle que la liste blanche du serveur la décrit : { date, duration, programme,
-// category, label, exercises: [{ name, measure, sets: [{ weight, reps, dist }] }] }. Rien d'autre n'est
+// category, label, exercises: [{ name, measure, ss, sets: [{ weight, reps, dist }] }] }. Rien d'autre n'est
 // gardé, chaque champ est borné ; textes laissés bruts (échappés à l'affichage)
 function cleanPublicSession(s) {
   const o = s && typeof s === 'object' ? s : {};
@@ -80,6 +80,7 @@ function cleanPublicSession(s) {
     .map(e => ({
       name: e.name.slice(0, 80),
       ...(['reps', 'time', 'cardio'].includes(e.measure) ? { measure: e.measure } : {}),
+      ...(ssId(e) ? { ss: e.ss } : {}),
       sets: (Array.isArray(e.sets) ? e.sets : []).slice(0, 50).filter(st => st && typeof st === 'object')
         .map(st => ({ weight: numStr(st.weight), reps: numStr(st.reps), ...(numStr(st.dist) ? { dist: numStr(st.dist) } : {}) })),
     }));

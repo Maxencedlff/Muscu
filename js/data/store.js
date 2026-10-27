@@ -208,12 +208,14 @@ function sanitizeData(d) {
         // Guidage au son (option, le rappel seul étant le défaut) et temps de préparation choisi
         if (ex.tempoGuide !== undefined && (ex.tempoGuide !== true || !ex.tempo)) delete ex.tempoGuide;
         if (ex.tempoPrep !== undefined && (!ex.tempoGuide || !TEMPO_PREP_CHOICES.includes(ex.tempoPrep))) delete ex.tempoPrep;
+        if (ex.ss !== undefined && !ssId(ex)) delete ex.ss;   // superset (js/data/supersets.js)
         if (ex.musclesSecondary != null) {
           if (!Array.isArray(ex.musclesSecondary)) delete ex.musclesSecondary;
           else ex.musclesSecondary = [...new Set(ex.musclesSecondary.filter(m => typeof m === 'string' && MUSCLE_ID_RE.test(m)))].slice(0, MAX_MUSCLES);
         }
       });
     });
+    Object.values(p.exercises).forEach(ssNormalize);
     Object.keys(p.timers).forEach(cat => { if (p.timers[cat] != null && !Number.isFinite(p.timers[cat])) p.timers[cat] = null; });
     // Délai passé à la main : n'a de sens que tant qu'aucune séance plus récente n'a été faite
     if (p.skipped !== undefined) {

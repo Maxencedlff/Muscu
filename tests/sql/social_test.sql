@@ -68,7 +68,7 @@ do $$ begin
       'date', 1780000000000, 'duration', 3600, 'programme', 'ppl', 'category', 'push', 'label', 'Push A',
       'notes', 'note privée', 'bodyKg', 80.5, 'healthSaved', true, 'cleInventee', 'secret-futur',
       'exercises', jsonb_build_array(
-        jsonb_build_object('name', 'Développé couché', 'measure', 'reps', 'note', 'secret-ex',
+        jsonb_build_object('name', 'Développé couché', 'measure', 'reps', 'ss', 'k3x9', 'note', 'secret-ex',
           'sets', jsonb_build_array(jsonb_build_object('weight', '80', 'reps', '8', 'rpe', 'secret-set', 'done', true))),
         jsonb_build_object('name', jsonb_build_object('fuite', 'secret-objet'), 'sets', 'pas une liste'),
         'pas un objet'))),
@@ -133,7 +133,8 @@ begin
   -- Liste blanche exacte
   if (select array_agg(k order by k) from jsonb_object_keys(r.s) k) is distinct from array['category', 'date', 'duration', 'exercises', 'label', 'programme'] then raise 'clés de la séance : %', r.s; end if;
   if jsonb_array_length(r.s -> 'exercises') is distinct from 2 then raise 'exercices : %', r.s; end if;
-  if (select array_agg(k order by k) from jsonb_object_keys(r.s -> 'exercises' -> 0) k) is distinct from array['measure', 'name', 'sets'] then raise 'clés de l''exercice : %', r.s; end if;
+  if (select array_agg(k order by k) from jsonb_object_keys(r.s -> 'exercises' -> 0) k) is distinct from array['measure', 'name', 'sets', 'ss'] then raise 'clés de l''exercice : %', r.s; end if;
+  if r.s -> 'exercises' -> 0 ->> 'ss' is distinct from 'k3x9' then raise 'superset : %', r.s; end if;
   if (select array_agg(k order by k) from jsonb_object_keys(r.s -> 'exercises' -> 0 -> 'sets' -> 0) k) is distinct from array['reps', 'weight'] then raise 'clés de la série : %', r.s; end if;
   if r.s -> 'exercises' -> 1 is distinct from '{"sets": []}'::jsonb then raise 'objet glissé dans name : %', r.s; end if;
   if r.s::text ~ '(note|bodyKg|healthSaved|hidden|secret|cleInventee|rpe|done)' then raise 'fuite : %', r.s; end if;

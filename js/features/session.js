@@ -38,8 +38,9 @@ function startSession(cat) {
     category:  cat,
     programme: progKey,
     startedAt: Date.now(),
-    exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), ...(ex.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(ex) } : {}), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
+    exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), ...(ex.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(ex) } : {}), ...(ssId(ex) ? { ss: ex.ss } : {}), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
   };
+  ssNormalize(activeSession.exercises);
   activeSession.baseline = computeBaseline(activeSession);
   persistSession();
   routeTo('session');
@@ -97,15 +98,21 @@ function setGoal(ex, s) {
 function exRest(ex) {
   return sessExData(ex)?.rest ?? ex?.rest ?? data.defaultRest;
 }
+// Exercice dont le repos compte pour ei : le dernier de son superset (repos après chaque tour), sinon lui-même
+function restEi(ei) {
+  return ssGroupOf(activeSession.exercises, ei)?.at(-1) ?? ei;
+}
 
-// Série courante : la première non faite de l'exercice en cours, sinon la première non faite de la séance
+// Série courante : la première non faite de l'exercice en cours (de son superset, tour par tour),
+// sinon la première non faite de la séance
 function currentSet() {
   if (!activeSession) return null;
   const xs   = activeSession.exercises;
   const pick = ei => { const si = xs[ei]?.sets.findIndex(s => !s.done) ?? -1; return si >= 0 ? { ei, si } : null; };
+  const next = block => (block.length > 1 ? ssNextSet(xs, block) : pick(block[0]));
   const last = activeSession.lastEi;
-  if (Number.isInteger(last) && pick(last)) return pick(last);
-  for (let ei = 0; ei < xs.length; ei++) { const c = pick(ei); if (c) return c; }
+  if (Number.isInteger(last) && xs[last]) { const c = next(ssGroupOf(xs, last) || [last]); if (c) return c; }
+  for (const block of ssBlocks(xs)) { const c = next(block); if (c) return c; }
   return null;
 }
 
@@ -145,7 +152,8 @@ function renderSession() {
   const pct  = total ? Math.round(done / total * 100) : 0;
   const cur  = currentSet();
 
-  const exHtml = activeSession.exercises.map((ex, ei) => renderExerciseCard(ex, ei, cur)).join('');
+  const xs     = activeSession.exercises, tags = ssTags(xs);
+  const exHtml = ssBlocks(xs).map(b => (b.length > 1 ? renderGroupCard(b, cur, tags) : renderExerciseCard(xs[b[0]], b[0], cur))).join('');
 
   return `
     <div class="view session ${restActive ? 'session--resting' : ''}" style="--cat-color:${meta.color}">
@@ -242,9 +250,79 @@ function renderExerciseCard(ex, ei, cur) {
     </div>`;
 }
 
+// Superset (2 à 5 exercices enchaînés) : une seule carte, les séries rangées tour par tour.
+// En tête, une ligne par exercice (lettre, nom, séries faites, menu ⋯) ; le repos, celui du dernier
+// exercice, part à la fin de chaque tour.
+function renderGroupCard(members, cur, tags) {
+  const xs      = activeSession.exercises;
+  const exs     = members.map(ei => xs[ei]);
+  const total   = exs.reduce((a, ex) => a + ex.sets.length, 0);
+  const doneN   = exs.reduce((a, ex) => a + ex.sets.filter(s => s.done).length, 0);
+  const allDone = total > 0 && doneN === total;
+  const head    = members[0], kind = ssKind(members.length);
+
+  if (allDone && !openDone.has(exs[0])) {
+    return `
+      <div class="exercise-block ex-card ex-card--collapsed ss-card" data-ei="${head}">
+        <button class="ex-summary" data-action="toggle-ex" data-ei="${head}" aria-expanded="false">
+          <span class="ex-summary__text">
+            <span class="ex-summary__name">${kind}</span>
+            ${members.map(ei => `<span class="ex-summary__line num"><span class="ss-tag ss-tag--sm">${tags[ei]}</span>${esc(xs[ei].name)} · ${doneSummary(xs[ei])}</span>`).join('')}
+          </span>
+          <span class="set-check set-check--done ex-summary__check">${icon('checkmark', 18)}</span>
+        </button>
+      </div>`;
+  }
+
+  const legend = members.map(ei => {
+    const ex = xs[ei], n = ex.sets.filter(s => s.done).length;
+    const howTo = !allDone && hasHowTo(ex);
+    const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${bumpLabel()}, ${esc(ex.name)}">↑ ${bumpLabel()}</button>` : '';
+    return `
+        <div class="ss-member">
+          <span class="ss-tag" aria-hidden="true">${tags[ei]}</span>
+          ${howTo
+            ? `<button class="ex-howto ss-member__name" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${esc(ex.name)}${icon('info.circle', 15)}</span></button>`
+            : `<span class="ss-member__name">${esc(ex.name)}</span>`}
+          ${chip}
+          <span class="ex-card__count num"><span aria-hidden="true">${n}/${ex.sets.length}</span><span class="visually-hidden">${n} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
+          <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
+        </div>`;
+  }).join('');
+
+  const rounds = ssRounds(xs, members).map((round, t) => `
+        <div class="ss-round" role="group" aria-label="Tour ${t + 1}">
+          <div class="ss-round__title">Tour ${t + 1}</div>
+          ${round.map(({ ei, si }) => `<div class="ss-exname" aria-hidden="true">${esc(xs[ei].name)}</div>${renderSetRow(xs[ei], ei, xs[ei].sets[si], si, cur, tags[ei])}`).join('')}
+        </div>`).join('');
+  const rest = fmtRest(exRest(xs[members.at(-1)]));
+  const m0   = exs[0];
+
+  return `
+    <div class="exercise-block ex-card ss-card ${allDone ? 'ex-card--done' : ''}" data-ei="${head}">
+      <div class="ex-card__head">
+        ${allDone
+          ? `<button class="ex-card__name ex-card__name--btn" data-action="toggle-ex" data-ei="${head}" aria-expanded="true">${kind}</button>`
+          : `<h2 class="ex-card__name">${kind}</h2>`}
+        <span class="ex-card__count num"><span aria-hidden="true">${doneN}/${total}</span><span class="visually-hidden">${doneN} sur ${plural(total, 'série validée', 'séries validées')}</span></span>
+      </div>
+      <div class="ex-card__sub"><button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${members.at(-1)}" aria-label="Repos ${rest} après chaque tour, modifier">Repos ${rest} après chaque tour</button></div>
+      <div class="ss-members">${legend}</div>
+      <div class="sets" role="group" aria-label="Séries du ${kind.toLowerCase()}">
+        <div class="sets__head" aria-hidden="true">
+          <span>Exo</span><span>Avant</span>
+          <span>${loadHeader(m0)}</span><span>${MEASURES[measureOf(m0)].count}</span>
+          <span>${icon('checkmark', 14)}</span>
+        </div>
+        ${rounds}
+      </div>
+      <button class="add-set-link" data-action="add-round" data-ei="${head}">${icon('plus', 16)} Tour</button>
+    </div>`;
+}
+
 // Série validée : ligne en lecture seule, rouverte en édition au tap ; allure sous la ligne en cardio
 // (même place que le badge de record, qui ne concerne que les répétitions)
-function renderDoneSetRow(ex, ei, s, si, prev, del) {
+function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const m      = measureOf(ex), M = MEASURES[m];
   const record = m === 'reps' ? recordLabel(s, (activeSession.baseline || {})[ex.exId], ex) : '';
   const first  = setFirstValue(s, m);
@@ -257,7 +335,7 @@ function renderDoneSetRow(ex, ei, s, si, prev, del) {
         ${del}
         <div class="session-set session-set--done" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"
              aria-label="Série ${si + 1} validée, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
-          <span class="set-n num">${si + 1}</span>
+          ${setNumHtml(si, tag)}
           <span class="set-prev num">${prev}</span>
           <span class="set-val num">${first || '—'}</span>
           <span class="set-val num">${esc(s.reps)}</span>
@@ -294,14 +372,19 @@ function setFirstValue(s, m) {
   return hasLoad(s?.weight) ? fmtW(s.weight, { plain: true }) : '';
 }
 
-function renderSetRow(ex, ei, s, si, cur) {
+// Première colonne : numéro de la série, ou A1, A2… dans un superset (affiché tour par tour)
+function setNumHtml(si, tag) {
+  return tag ? `<span class="set-n"><span class="ss-tag">${tag}</span></span>` : `<span class="set-n num">${si + 1}</span>`;
+}
+
+function renderSetRow(ex, ei, s, si, cur, tag) {
   const m       = measureOf(ex);
   const prevF   = setFirstValue(s.prev, m);
   const prev    = s.prev ? `${prevF ? prevF + '&nbsp;× ' : ''}${esc(s.prev.reps)}` : '—';
   const editing = editingSet && editingSet.ei === ei && editingSet.si === si;
   const del     = `<button class="set-del" data-action="delete-set" data-ei="${ei}" data-si="${si}" tabindex="-1" aria-label="Supprimer la série ${si + 1}">Supprimer</button>`;
 
-  if (s.done && !editing) return renderDoneSetRow(ex, ei, s, si, prev, del);
+  if (s.done && !editing) return renderDoneSetRow(ex, ei, s, si, prev, del, tag);
 
   const isCur = !editing && cur && cur.ei === ei && cur.si === si;
   // Série rouverte : la saisie en cours (editingSet) prime, sinon un re-rendu la remettrait à l'ancienne valeur
@@ -325,7 +408,7 @@ function renderSetRow(ex, ei, s, si, cur) {
       <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
         ${(m === 'time' || (m === 'reps' && parseTempo(ex.tempo) && ex.tempoGuide === true)) && !editing && si === ex.sets.findIndex(x => !x.done)
           ? `<button class="set-n set-play" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="${m === 'time' ? 'Lancer le chrono' : `Lancer la série guidée au tempo ${esc(ex.tempo)}`}, série ${si + 1}, ${esc(ex.name)}${s.reps ? `, ${esc(s.reps)} ${m === 'time' ? 'secondes' : 'répétitions'}` : ''}">${icon('play', 16)}</button>`
-          : `<span class="set-n num">${si + 1}</span>`}
+          : setNumHtml(si, tag)}
         <span class="set-prev num">${s.prev ? '<span class="visually-hidden">La dernière fois </span>' : ''}${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
                value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${loadSpoken(ex)} série ${si + 1}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
@@ -377,14 +460,19 @@ function validateSet(ei, si, opts = {}) {
   const undo = carryWeightToNextSet(ex, si);
   if (opts.prevReps !== undefined) undo.prevReps = opts.prevReps;
   else if (goalTaken) undo.prevReps = '';
-  const allDone = activeSession.exercises.every(e => e.sets.every(st => st.done));
-  if (!allDone) openRest(exRest(ex), false, opts.restFrom);
-  else { stopRest(); closeSessSheets(); }
+  const xs      = activeSession.exercises;
+  const allDone = xs.every(e => e.sets.every(st => st.done));
+  // Superset : pas de repos avant la fin du tour, on enchaîne sur l'exercice suivant du groupe
+  const group   = ssGroupOf(xs, ei);
+  const chain   = !allDone && group && !ssRestAfter(xs, group, si) ? ssNextSet(xs, group) : null;
+  if (allDone) { stopRest(); closeSessSheets(); }
+  else if (chain) stopRest();
+  else openRest(exRest(xs[restEi(ei)]), false, opts.restFrom);
 
   document.activeElement?.blur?.();
   render();
   scrollToCurrent();
-  showToast(`Série ${si + 1} validée`, { action: 'Annuler', duration: 4000, onAction: () => undoValidate(undo) });
+  showToast(chain ? `Enchaîne : ${xs[chain.ei].name}` : `Série ${si + 1} validée`, { action: 'Annuler', duration: 4000, onAction: () => undoValidate(undo) });
 }
 
 // La série suivante garde sa valeur prévue, sauf si la charge vient d'être modifiée.
@@ -511,6 +599,19 @@ registerActions({
     const pex = lastPerf(activeSession.programme, activeSession.category, ex)?.ex;
     ex.sets.push(plannedSet(ex.sets.at(-1), pex?.sets[ex.sets.length]));
     openDone.add(ex);
+    haptic();
+    render();
+  },
+  // Superset : un tour de plus = une série de plus pour chaque exercice du groupe
+  'add-round': (e, el) => {
+    const g = activeSession && ssGroupOf(activeSession.exercises, parseInt(el.dataset.ei));
+    if (!g) return;
+    g.map(ei => activeSession.exercises[ei]).forEach(ex => {
+      if (ex.sets.length >= 20) return;
+      const pex = lastPerf(activeSession.programme, activeSession.category, ex)?.ex;
+      ex.sets.push(plannedSet(ex.sets.at(-1), pex?.sets[ex.sets.length]));
+    });
+    openDone.add(activeSession.exercises[g[0]]);
     haptic();
     render();
   },

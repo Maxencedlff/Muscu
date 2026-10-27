@@ -37,7 +37,9 @@ Hors V1 :
 - **reports** : signalements, écrits uniquement par la fonction Edge `report`.
 
 ## Liste blanche d'une séance vue par un autre (`private.session_public`)
-`{ date, duration, programme, category, label, exercises: [{ name, measure, sets: [{ weight, reps, dist }] }] }`
+`{ date, duration, programme, category, label, exercises: [{ name, measure, ss, sets: [{ weight, reps, dist }] }] }`
+
+`ss` : identifiant du superset de l'exercice (ajouté le 27/10/2026, migration 20261027000000_supersets.sql).
 
 Rien d'autre ne sort : ni `notes`, ni `bodyKg`, ni `healthSaved`, ni `hidden`, ni aucune clé future. Valeurs simples seulement (texte tronqué à 200 caractères, nombre, booléen), 60 exercices et 100 séries au plus.
 

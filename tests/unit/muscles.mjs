@@ -606,7 +606,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
 
   test('séance : menu ⋯ avec « Muscles ciblés » pour tout exercice, bibliothèque comprise', () => {
     reset();
-    const values = name => run(`exerciseMenuActions({ name: ${JSON.stringify(name)}, sets: [] }, 1, 2).map(a => a.value).join()`);
+    const values = name => run(`exerciseMenuActions([{ name: 'A', sets: [] }, { name: ${JSON.stringify(name)}, sets: [] }, { name: 'B', sets: [] }], 1).map(a => a.value).join()`);
     assert.ok(values('Développé couché barre').split(',').includes('muscles'), 'muscles vérifiés modifiables');
     assert.ok(values('bench press').split(',').includes('muscles'), 'alias de la bibliothèque');
     assert.ok(values('Développé couché barre').split(',').includes('howto'), 'et « Comment faire »');

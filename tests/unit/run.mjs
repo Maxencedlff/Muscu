@@ -22,6 +22,7 @@ const SCRIPTS = [
   'js/core/util.js',
   'js/data/programmes.js',
   'js/data/tempo.js',
+  'js/data/supersets.js',
   'js/data/store.js',
   'js/data/records.js',
   'js/data/accessors.js',
@@ -1356,6 +1357,7 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 // ── Muscles (tests/unit/muscles.mjs) ────────────────────────
 
 (await import('./muscles.mjs')).default({ test, app, run, reset, sameJSON, assert });
+(await import('./supersets.mjs')).default({ test, app, run, reset, sameJSON, assert });
 
 // ── Partage de séance (tests dans share.mjs) ────────────────
 
