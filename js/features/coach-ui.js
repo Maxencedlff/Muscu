@@ -397,8 +397,16 @@ function coachHomeCard() {
 async function addCoachProgrammeFlow(progId, { take = false } = {}) {
   const item = coach.inbox?.programmes.find(p => p.id === progId);
   if (!item) return;
-  // Programme gardé hors ligne : seulement son nom, le contenu se relit sur le serveur
-  if (item.meta) { showToast(coachErrorText('offline'), { error: true }); return; }
+  // Programme gardé hors ligne (cache, au démarrage avant la réponse du serveur) : on n'a que son nom. Si
+  // rien n'indique qu'on est hors ligne, on relit d'abord l'état et on réessaie avec le contenu complet ;
+  // vraiment hors ligne, l'ajout reste impossible (c'est voulu)
+  if (item.meta) {
+    if (coach.error) { showToast(coachErrorText('offline'), { error: true }); return; }
+    await coachRefresh();
+    const fresh = coach.inbox?.programmes.find(p => p.id === progId);
+    if (!fresh || fresh.meta) { showToast(coachErrorText('offline'), { error: true }); return; }
+    return addCoachProgrammeFlow(progId, { take });
+  }
   const st = coachStatus(item);
   const status = take ? 'update' : st.status, localId = st.id, name = item.data.name;
   // Séance en cours sur ce programme : la mise à jour attend la fin de la séance (ses exercices et ses
@@ -965,15 +973,20 @@ function coachShownKey() {
 }
 let coachShown = null;
 function coachTyping() { return !!document.activeElement?.matches?.('input, textarea, select, [contenteditable="true"]'); }
-onCoachChange(() => {
-  updateTabBadge();
-  const v = currentView();
-  const key = coachShownKey(), changed = key !== coachShown;
-  coachShown = key;
-  if (v === 'friends') { if (changed) refreshCoachCell(); return; }
-  if (coachTyping()) return;   // champ en cours de saisie : ni focus ni clavier perdus
-  if (COACH_VIEWS.includes(v)) { render(); return; }
-  if (changed && ['settings', 'dashboard', 'history', 'history-detail', 'editor', 'programmes', 'my-programmes', 'summary'].includes(v)) render();
-});
+// coachShown n'avance QUE lorsque l'écran a été redessiné (ou n'avait rien à redessiner) : un changement
+// arrivé pendant une saisie reste « non affiché » et sera repris au focusout, pas marqué « déjà vu »
+const COACH_WATCH_VIEWS = ['settings', 'dashboard', 'history', 'history-detail', 'editor', 'programmes', 'my-programmes', 'summary'];
+function coachApplyChange() {
+  const v = currentView(), key = coachShownKey();
+  if (v === 'friends') { if (key !== coachShown) { refreshCoachCell(); coachShown = key; } return; }
+  if (coachTyping()) return;   // champ en cours de saisie : rendu reporté au focusout (coachShown gardé)
+  if (COACH_VIEWS.includes(v)) { render(); coachShown = key; return; }
+  if (key !== coachShown && COACH_WATCH_VIEWS.includes(v)) { render(); coachShown = key; return; }
+  coachShown = key;   // écran sans rapport : à jour sans redessin
+}
+onCoachChange(() => { updateTabBadge(); coachApplyChange(); });
+// Fin d'une saisie : un changement arrivé pendant la frappe est redessiné maintenant (activeElement
+// mis à jour au tour suivant)
+document.addEventListener('focusout', () => { if (coachShownKey() !== coachShown) setTimeout(coachApplyChange, 0); });
 // Connexion, déconnexion : la cellule de l'onglet Amis change de forme
 onAccountChange(() => { if (currentView() === 'friends') refreshCoachCell(); });

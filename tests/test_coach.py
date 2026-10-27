@@ -665,6 +665,42 @@ def t_saisie(bench, eng, dev, theme):
         page.wait_for_timeout(500)
         R.check(page.evaluate("document.activeElement?.id") == 'histSearch' and page.input_value('#histSearch') == 'Dév', f'{t} changement pendant la saisie : focus gardé')
         R.check(tab_badge(page) == '' and page.evaluate('coachRole().hasCoach') is True, f'{t} état lu malgré tout')
+        # Un commentaire arrive pendant la saisie : la bulle n'apparaît pas pendant la frappe, mais au focusout
+        sid = page.evaluate("(data.history.find(h => h.category === 'push') || data.history[0]).id")
+        R.check(page.locator(f'[data-action="open-history"][data-id="{sid}"]').count() == 1, f'{t} séance « push » visible sous « Dév »')
+        page.evaluate(f"""(sid) => {{ const max = __sb.co.links[0].coach; __sb.co.notes.push({{ coach: max, student: __sb.meId(), sid, text: 'Super', updated_at: new Date().toISOString(), seen: false }}); coachRefresh(); }}""", sid)
+        page.wait_for_timeout(500)
+        R.check(page.evaluate("document.activeElement?.id") == 'histSearch', f'{t} commentaire pendant la saisie : focus gardé')
+        R.check(page.locator(f'[data-action="open-history"][data-id="{sid}"] .coach-mark').count() == 0, f'{t} bulle pas affichée pendant la saisie')
+        page.evaluate("document.querySelector('#histSearch').blur()")
+        page.wait_for_timeout(300)
+        R.check(page.locator(f'[data-action="open-history"][data-id="{sid}"] .coach-mark').count() == 1, f'{t} bulle affichée au focusout')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_cache_online(bench, eng, dev, theme):
+    """Démarrage depuis le cache en ligne : « Ajouter » relit l'état puis ajoute, sans faux « Pas d'Internet »."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, username='lea')
+        ids = setup_student(page)
+        page.evaluate("""([max, prog]) => { __sb.link(max, __sb.meId());
+            __sb.co.progs.push({ coach: max, student: __sb.meId(), id: 'u_force', data: prog, sent_at: new Date().toISOString(), seen: false }); }""", [ids['max'], COACH_PROG])
+        page.evaluate('coachRefresh()')
+        page.wait_for_timeout(400)
+        # L'app garde la boîte sur l'appareil, programmes réduits à leurs métadonnées (nom, date, vu)
+        R.check(json.loads(ls(page, 'mdlf_coach_inbox'))['inbox']['programmes'][0].get('meta') is True, f'{t} cache : programme en métadonnées')
+        # Redémarrage en ligne depuis le cache : état pas encore relu, la carte s'affiche
+        page.evaluate('coachReset(account.user.id)')
+        page.wait_for_timeout(80)
+        R.check(page.evaluate('coach.error') is None and page.evaluate("coach.inbox.programmes.some(p => p.meta)"), f'{t} cache chargé, état pas encore lu')
+        # « Ajouter » touché tout de suite : pas de faux hors ligne, l'état est relu puis le programme ajouté
+        page.evaluate("addCoachProgrammeFlow('u_force'); null")   # sans await : le flux ouvre ensuite une feuille
+        page.wait_for_timeout(700)
+        if page.locator('.ios-dialog').count():
+            tap_dialog(page, 'Plus tard')
+        R.check('Pas d' not in toast(page) and page.evaluate("!!data.userProgrammes.u_c00000000_u_force"), f'{t} ajout depuis le cache en ligne : programme ajouté ({toast(page)!r})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -699,4 +735,4 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_eleve, t_coach, t_pseudo, t_saisie, t_hors_ligne])
+run_main(R, [t_eleve, t_coach, t_pseudo, t_saisie, t_cache_online, t_hors_ligne])
