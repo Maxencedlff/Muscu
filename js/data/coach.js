@@ -19,6 +19,9 @@
 'use strict';
 
 const COACH_CACHE_KEY   = 'mdlf_coach';   // { userId, isCoach, hasCoach, badge, badgeCoach, badgeStudent } du dernier état lu
+const COACH_SEEN_KEY    = 'mdlf_coach_seen';    // { userId, items: [{ kind, ref }] } : « vu » à renvoyer (échec hors ligne)
+const COACH_SENT_KEY    = 'mdlf_coach_sent';    // { userId, sent: { [élève]: { [prog_id]: date } } } : mes envois (coach)
+const COACH_LOST_KEY    = 'mdlf_coach_lost';    // { userId, name } : coach perdu (élève retiré), dit une fois
 const COACH_INBOX_KEY   = 'mdlf_coach_inbox';   // { userId, coach, inbox } : dernière boîte de l'élève (commentaires hors ligne)
 const COACH_PAGE        = 30;             // séances d'un élève par page (comme le serveur)
 const COACH_NOTE_MAX    = 1000;           // commentaire d'une séance
@@ -46,7 +49,11 @@ function cleanStudent(raw) {
   const nInt = v => (Number.isInteger(v) && v >= 0 ? v : 0);
   const ls = raw.last_session && typeof raw.last_session === 'object' ? raw.last_session : null;
   const lastAt = ls ? coachTime(ls.done_at) : coachTime(raw.last_session_at);
-  return { ...p, sessions_7d: nInt(raw.sessions_7d), new_sessions: nInt(raw.new_sessions),
+  // sent : mes programmes envoyés à cet élève et s'il les a ouverts (null : serveur sans ce champ)
+  const sent = Array.isArray(raw.sent) ? raw.sent
+    .filter(x => x && typeof x.id === 'string' && COACH_PROG_ID_RE.test(x.id))
+    .map(x => ({ id: x.id, sentAt: coachTime(x.sent_at) ?? 0, seen: x.seen === true })) : null;
+  return { ...p, sessions_7d: nInt(raw.sessions_7d), new_sessions: nInt(raw.new_sessions), sent,
     last_session: lastAt === null ? null : { done_at: lastAt, label: coachStr(ls?.label, 60).trim() || 'Séance', programme: coachStr(ls?.programme, 50) } };
 }
 
@@ -65,6 +72,7 @@ function cleanCoachState(raw) {
   const total = n(r.badge);
   const badgeStudent = r.coach ? (n(r.badge_student) ?? Math.max(0, (total ?? badgeCoach) - badgeCoach)) : 0;
   return { is_coach: isCoach, coach: cleanPerson(r.coach), students: isCoach ? students : [], invites: isCoach ? invites : [],
+    removed: isCoach ? cleanPeople(r.removed) : [],
     badge: badgeCoach + badgeStudent, badge_coach: badgeCoach, badge_student: badgeStudent };
 }
 
@@ -146,6 +154,18 @@ function normalizeCoachCode(raw) {
   const c = String(raw ?? '').toUpperCase().replace(/[\s-]/g, '');
   return COACH_CODE_RE.test(c) ? c : null;
 }
+// Message d'invitation partagé par le coach : dit où aller dans l'app (pas de lien : app en TestFlight)
+function coachInviteText(code) {
+  return `Je te propose de te suivre sur MDLF Training. Dans l'app MDLF Training : onglet Amis › Rejoindre un coach, puis saisis le code ${code}. Il est valable 7 jours.`;
+}
+// Code trouvé dans ce qui a été saisi ou collé : le code seul (« k7m2-qx9p »), ou le message d'invitation
+// entier, où il est écrit en capitales et isolé des autres mots
+function extractCoachCode(raw) {
+  const whole = normalizeCoachCode(raw);
+  if (whole) return whole;
+  const m = String(raw ?? '').match(/(?:^|[^A-Za-z0-9])([A-HJ-NP-Z2-9]{8})(?![A-Za-z0-9])/);
+  return m ? m[1] : null;
+}
 
 // Erreur du serveur → clé de COACH_ERROR_TEXT
 function coachErrorKind(error) {
@@ -156,16 +176,16 @@ function coachErrorKind(error) {
   return 'server';
 }
 const COACH_ERROR_TEXT = {
-  offline: 'Pas d\'Internet : réessaie avec du réseau.',
+  offline: 'Pas d\'Internet : réessaie avec du réseau.',
   not_coach: 'Ton compte n\'est pas un compte coach.',
   already_coached: 'Tu as déjà un coach. Quitte-le d\'abord dans Réglages › Coach.',
   invalid_code: 'Ce code n\'existe pas ou a expiré. Demande un nouveau code à ton coach.',
   team_full: 'Ce coach suit déjà 50 élèves.',
-  not_found: 'Introuvable : ce code est peut-être le tien, ou l\'élève ne te suit plus.',
+  not_found: 'Introuvable : ce code est peut-être le tien, ou l\'élève ne te suit plus.',
   rate_limited: 'Trop d\'essais pour l\'instant. Réessaie dans une heure.',
   too_long: 'Texte trop long.',
   invalid_programme: 'Ce programme ne peut pas être envoyé.',
-  username_required: 'Choisis d\'abord un pseudo : ton coach te reconnaîtra avec.',
+  username_required: 'Choisis d\'abord un pseudo : ton coach te reconnaîtra avec.',
   too_big: 'Programme trop gros pour être envoyé.',
   signed_out: 'Connecte-toi d\'abord à ton compte.',
   server: 'Action impossible pour l\'instant, réessaie dans un moment.',
@@ -174,30 +194,35 @@ function coachErrorText(kind) { return COACH_ERROR_TEXT[kind] || COACH_ERROR_TEX
 
 // ── Logique pure : programmes (conversion, import, mise à jour) ──
 
-// Identifiant local d'un programme reçu : u_c<prog_id>. Si cette place est déjà prise par le programme
-// d'un autre coach (ancien coach qui avait envoyé le même prog_id), u_c<8 caractères du coach>_<prog_id> :
-// le nouveau programme n'écrase jamais celui d'avant. Un programme déjà importé garde son identifiant.
+// Identifiant local d'un programme reçu : u_c<8 caractères du coach>_<prog_id>. Le coach y est inscrit :
+// - deux coachs qui envoient le même prog_id (ancien et nouveau coach) n'écrasent jamais le programme
+//   de l'autre ;
+// - le coach reconnaît, dans les séances de son élève (champ programme, seul transmis par le serveur),
+//   celles faites avec SON programme, et pas avec celui d'un ancien coach.
+// Compatibilité : un programme importé avant sous u_c<prog_id> par ce même coach garde sa place.
 const coachTag = id => String(id || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 8);
 function coachLocalId(progId, d = null, coachId = null) {
   const base = COACH_LOCAL_PREFIX + progId;
-  const owner = d?.userProgrammes?.[base]?.fromCoach?.coachId;
-  if (!owner || !coachId || owner === coachId || !coachTag(coachId)) return base;
-  return `${COACH_LOCAL_PREFIX}${coachTag(coachId)}_${progId}`;
+  const tag = coachTag(coachId);
+  if (!tag) return base;
+  if (d?.userProgrammes?.[base]?.fromCoach?.coachId === coachId) return base;
+  return `${COACH_LOCAL_PREFIX}${tag}_${progId}`;
 }
-// Inverse, côté coach : prog_id de mon programme d'après le programme d'une séance d'élève (null sinon).
-// myId : mon identifiant (forme u_c<tag>_<prog_id>)
+// Inverse, côté coach : prog_id de MON programme d'après le programme d'une séance d'élève, null sinon
+// (programme d'un autre coach, ou ancienne forme u_c<prog_id> qui ne dit pas de quel coach il vient)
 function coachSentIdOf(localId, myId = null) {
   if (typeof localId !== 'string' || !localId.startsWith(COACH_LOCAL_PREFIX)) return null;
-  const rest = localId.slice(COACH_LOCAL_PREFIX.length);
-  const tag = coachTag(myId);
-  if (tag && rest.startsWith(tag + '_') && COACH_PROG_ID_RE.test(rest.slice(tag.length + 1))) return rest.slice(tag.length + 1);
-  return COACH_PROG_ID_RE.test(rest) ? rest : null;
+  const rest = localId.slice(COACH_LOCAL_PREFIX.length), tag = coachTag(myId);
+  if (!tag || !rest.startsWith(tag + '_')) return null;
+  const id = rest.slice(tag.length + 1);
+  return COACH_PROG_ID_RE.test(id) ? id : null;
 }
 
 // Séances d'un programme de d (perso ou intégré), dans l'ordre : [{ key, label, color }]
 // (séances retirées par le coach exclues)
 function progSessionsOf(d, progId) {
-  if (d.userProgrammes?.[progId]) return Object.entries(d.userProgrammes[progId].sessions || {}).filter(([, s]) => !s?.retired).map(([key, s]) => ({ key, label: s.label, color: s.color }));
+  const up = d.userProgrammes?.[progId];
+  if (up) return userSessionOrder(up).map(key => ({ key, ...up.sessions[key] })).filter(s => !s.retired).map(s => ({ key: s.key, label: s.label, color: s.color }));
   if (progId === 'custom') return Object.entries(d.customSessions || {}).map(([key, s]) => ({ key, label: s.label, color: s.color }));
   return Object.entries(PROGRAMMES[progId]?.sessions || {}).map(([key, s]) => ({ key, label: s.label, color: s.color }));
 }
@@ -225,7 +250,7 @@ function programmeToSent(d, progId, over = null) {
         return o;
       }) })),
   };
-  const c = cleanConsigne(over && over.prog !== undefined ? over.prog : up?.consigne);
+  const c = cleanConsigne(over && over.prog !== undefined ? over.prog : up?.consigne ?? d.programmes?.[progId]?.consigne);
   if (c) out.consigne = c;
   return out;
 }
@@ -298,7 +323,7 @@ function importCoachProgramme(d, item, coachPerson) {
   });
   pd.exercises = exercises;
   d.programmes[id] = pd;
-  const up = { name: sent.name, sessions, archived: false,
+  const up = { name: sent.name, sessions, order: Object.keys(sessions), archived: false,
     fromCoach: { coachId: coachPerson?.user_id || prevUp?.fromCoach?.coachId || '', name: coachPerson?.username || prevUp?.fromCoach?.name || null, sentAt: item.sentAt || 0 } };
   if (sent.consigne) up.consigne = sent.consigne;
   d.userProgrammes[id] = up;
@@ -403,12 +428,18 @@ async function coachRefresh({ minAge = 0 } = {}) {
   coach.loading = true;
   coach.again = false;
   const seq = coachSeq;
+  await coachFlushSeen();
   const r = await coachRpc('coach_state');
   if (seq !== coachSeq) return false;
   let ok = r.ok;
   if (!r.ok) coach.error = r.kind;
   else {
+    const before = myCoach();
     coach.state = cleanCoachState(r.data);
+    // Plus de coach sans l'avoir quitté ici (retiré par le coach, ou quitté sur un autre appareil) : dit une fois
+    if (before && !coach.state.coach && !coach.selfLeft) coachSetLost(personName(before));
+    if (coach.state.coach) coachSetLost(null);
+    coach.selfLeft = false;
     coach.error = null;
     coach.loadedAt = Date.now();
     writeCoachCache();
@@ -449,7 +480,7 @@ async function coachJoin(code) {
 }
 async function coachLeave() {
   const r = await coachRpc('coach_leave');
-  if (r.ok) { coach.inbox = null; coach.cachedCoach = null; await coachRefresh(); }
+  if (r.ok) { coach.inbox = null; coach.cachedCoach = null; coach.selfLeft = true; await coachRefresh(); }
   return r;
 }
 
@@ -527,7 +558,9 @@ async function coachSendProgramme(student, progId, over = null) {
   const p = cleanSentProgramme(programmeToSent(data, progId, over));
   if (!p || !COACH_PROG_ID_RE.test(progId)) return { ok: false, kind: 'server' };
   if (sentProgrammeBytes(p) > COACH_PROG_BYTES) return { ok: false, kind: 'too_big' };
-  return coachRpc('coach_send_programme', { student, prog_id: progId, data: p });
+  const r = await coachRpc('coach_send_programme', { student, prog_id: progId, data: p });
+  if (r.ok) coachRecordSent(student, progId);
+  return r;
 }
 
 // Élève : programme ou commentaire vu (badge)
@@ -536,6 +569,7 @@ async function coachMarkInboxSeen(kind, ref) {
   const item = (list || []).find(x => (kind === 'programme' ? x.id : x.session_id) === ref);
   if (!item || item.seen) return { ok: true };
   item.seen = true;
+  coachQueueSeen(kind, ref);
   if (coach.state) {
     coach.state.badge = Math.max(0, coach.state.badge - 1);
     coach.state.badge_student = Math.max(0, coach.state.badge_student - 1);
@@ -543,7 +577,87 @@ async function coachMarkInboxSeen(kind, ref) {
   }
   writeCoachInbox();
   notifyCoach();
-  return coachRpc('student_mark_seen', { kind, ref });
+  return coachFlushSeen();
+}
+
+// « Vu » d'un programme ou d'un commentaire : mis en file sur l'appareil, envoyé tout de suite si possible,
+// sinon renvoyé à la prochaine lecture de l'état (hors ligne : le badge du serveur finira par suivre)
+function coachSeenQueue() {
+  try { const q = JSON.parse(localStorage.getItem(COACH_SEEN_KEY)); return q && q.userId === coach.userId && Array.isArray(q.items) ? q.items : []; }
+  catch { return []; }
+}
+function coachSaveSeenQueue(items) {
+  try { if (items.length) localStorage.setItem(COACH_SEEN_KEY, JSON.stringify({ userId: coach.userId, items })); else localStorage.removeItem(COACH_SEEN_KEY); }
+  catch { /* file facultative */ }
+}
+function coachQueueSeen(kind, ref) {
+  const items = coachSeenQueue().filter(x => !(x.kind === kind && x.ref === ref));
+  coachSaveSeenQueue([...items, { kind, ref }].slice(-100));
+}
+async function coachFlushSeen() {
+  const items = coachSeenQueue();
+  if (!items.length || !sb || !account.user) return { ok: true };
+  const left = [];
+  let last = { ok: true };
+  for (const it of items) {
+    if (!['programme', 'note'].includes(it?.kind) || typeof it.ref !== 'string') continue;
+    const r = await coachRpc('student_mark_seen', { kind: it.kind, ref: it.ref });
+    if (!r.ok) { left.push(it); last = r; }
+  }
+  coachSaveSeenQueue(left);
+  return last;
+}
+
+// Élève : coach perdu (retiré par le coach) à dire une fois dans l'onglet Amis
+function coachLost() {
+  try { const c = JSON.parse(localStorage.getItem(COACH_LOST_KEY)); return c && c.userId === coach.userId && typeof c.name === 'string' ? c.name : null; }
+  catch { return null; }
+}
+function coachSetLost(name) {
+  try { if (name) localStorage.setItem(COACH_LOST_KEY, JSON.stringify({ userId: coach.userId, name })); else localStorage.removeItem(COACH_LOST_KEY); }
+  catch { /* facultatif */ }
+}
+
+// Coach : mes envois, gardés sur l'appareil (le serveur ne dit pas au coach ce que l'élève en a fait)
+function coachSentMap() {
+  try { const c = JSON.parse(localStorage.getItem(COACH_SENT_KEY)); return c && c.userId === coach.userId && c.sent && typeof c.sent === 'object' ? c.sent : {}; }
+  catch { return {}; }
+}
+function coachRecordSent(student, progId, at = Date.now()) {
+  const sent = coachSentMap();
+  (sent[student] ||= {})[progId] = at;
+  try { localStorage.setItem(COACH_SENT_KEY, JSON.stringify({ userId: coach.userId, sent })); } catch { /* facultatif */ }
+}
+// Programmes que j'ai envoyés à cet élève et avec lesquels il n'a encore fait aucune séance depuis l'envoi
+// (sessions : ses séances chargées) : [{ progId, sentAt }]
+function coachUnusedSent(student, sessions) {
+  const sent = coachSentMap()[student] || {};
+  const me = account.user?.id;
+  return Object.entries(sent).filter(([progId, at]) =>
+    !sessions.some(r => coachSentIdOf(r.s.programme, me) === progId && r.doneAt >= at))
+    .map(([progId, sentAt]) => ({ progId, sentAt }));
+}
+
+// Programmes envoyés à cet élève et ce qu'il en a fait : [{ progId, sentAt, state }], state = 'unseen'
+// (pas encore ouvert), 'unused' (vu, pas encore de séance avec depuis l'envoi), 'used' (vu, séance faite).
+// Source : sent de coach_state ; sinon (serveur sans ce champ) mes envois gardés sur l'appareil, réduits à
+// ceux sans séance (state 'unused', l'ouverture n'étant pas connue)
+function coachSentStatus(student, sessions) {
+  const st = coach.state?.students.find(s => s.user_id === student);
+  const me = account.user?.id;
+  const used = (progId, at) => sessions.some(r => coachSentIdOf(r.s.programme, me) === progId && r.doneAt >= at);
+  if (Array.isArray(st?.sent)) {
+    return st.sent.slice().sort((a, b) => b.sentAt - a.sentAt)
+      .map(x => ({ progId: x.id, sentAt: x.sentAt, state: !x.seen ? 'unseen' : used(x.id, x.sentAt) ? 'used' : 'unused' }));
+  }
+  return coachUnusedSent(student, sessions).map(x => ({ ...x, state: 'unused' }));
+}
+
+// Coach : autoriser un élève retiré à revenir avec un de mes codes
+async function coachAllowStudent(student) {
+  const r = await coachRpc('coach_allow_student', { student });
+  if (r.ok) await coachRefresh();
+  return r;
 }
 
 // Élève : commentaire de son coach sur une séance, ou null

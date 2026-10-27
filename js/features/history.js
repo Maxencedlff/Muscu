@@ -49,7 +49,7 @@ function historyCell(h) {
       <button class="hcell" data-action="open-history" data-id="${esc(h.id)}">
         <span class="hcell__dot" style="background:${meta.color}"></span>
         <span class="hcell__body">
-          <span class="hcell__top"><span class="hcell__title">${meta.label}</span><span class="hcell__date">${fmtDate(h.date)}</span></span>
+          <span class="hcell__top"><span class="hcell__title">${meta.label}${coachHistoryMark(h)}</span><span class="hcell__date">${fmtDate(h.date)}</span></span>
           <span class="hcell__sub num">${parts.join(' · ')}</span>
         </span>
         ${icon('chevron.right', 16)}

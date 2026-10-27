@@ -52,8 +52,12 @@ function newSessionId() { return 's' + uid(); }
 function moveSession(progId, from, to) {
   const store = userSessions(progId);
   if (!store) return false;
-  const all = Object.entries(store);
-  const entries = [...moveItem(all.filter(([, v]) => !v?.retired), from, to), ...all.filter(([, v]) => v?.retired)];
+  const up = data.userProgrammes?.[progId];
+  const visible = moveItem(sessionKeys(progId), from, to);
+  const retired = Object.keys(store).filter(k => store[k]?.retired);
+  if (up) up.order = [...visible, ...retired];   // ordre synchronisé (userSessionOrder)
+  // Clés de l'objet dans le même ordre (versions précédentes de l'app)
+  const entries = [...visible, ...retired].map(k => [k, store[k]]);
   Object.keys(store).forEach(k => { delete store[k]; });
   entries.forEach(([k, v]) => { store[k] = v; });
   return true;
@@ -62,7 +66,11 @@ function moveSession(progId, from, to) {
 function sessionKeys(progId) {
   progId = progId || data.activeProgramme;
   // Séance retirée par un coach (retired) : lue par rawLabel et sessionMeta (historique), jamais listée
-  if (isUserProg(progId)) return Object.entries(userSessions(progId) || {}).filter(([, s]) => !s?.retired).map(([k]) => k);
+  if (progId === 'custom') return Object.keys(userSessions(progId) || {});
+  if (isUserProg(progId)) {
+    const up = data.userProgrammes[progId];
+    return userSessionOrder(up).filter(k => !up.sessions[k]?.retired);
+  }
   return Object.keys(PROGRAMMES[progId]?.sessions || {});
 }
 

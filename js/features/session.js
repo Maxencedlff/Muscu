@@ -167,6 +167,7 @@ function renderSession() {
         </div>` })}
       <div class="session-content">
         ${renderMusicBar()}
+        ${coachSessionProgTipHtml()}
         ${exHtml}
         <button class="session-add-ex-btn" data-action="add-session-ex">${icon('plus', 20)} Ajouter un exercice</button>
       </div>

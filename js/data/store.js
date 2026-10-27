@@ -218,6 +218,8 @@ function sanitizeData(d) {
       });
     });
     Object.values(p.exercises).forEach(ssNormalize);
+    // Consigne d'un programme que je coache (programme intégré : pas de userProgrammes, js/data/coach.js)
+    if (p.consigne !== undefined) { const c = cleanConsigne(p.consigne); if (c) p.consigne = c; else delete p.consigne; }
     Object.keys(p.timers).forEach(cat => { if (p.timers[cat] != null && !Number.isFinite(p.timers[cat])) p.timers[cat] = null; });
     // Délai passé à la main : n'a de sens que tant qu'aucune séance plus récente n'a été faite
     if (p.skipped !== undefined) {
@@ -252,6 +254,7 @@ function sanitizeData(d) {
     if (!isObj(up.sessions)) up.sessions = {};
     cleanSessions(up.sessions);
     up.archived = !!up.archived;
+    up.order = userSessionOrder(up);   // ordre des séances (voir userSessionOrder)
     cleanFromCoach(up);   // programme reçu d'un coach (js/data/coach.js)
   });
   // Muscles déclarés par l'utilisateur pour un exercice, par nom normalisé (tous programmes,
@@ -355,6 +358,16 @@ function pinLegacyReps(ex, fromSchema = 0) {
   const pin = LEGACY_REPS_KEYS.some(l => l.loose.has(key)
     && (l.schema > fromSchema || (fromSchema < LOOSE_KEY_SCHEMA && !l.exact.has(exact))));
   if (pin) ex.measure = 'reps';
+}
+
+// Ordre des séances d'un programme perso : liste explicite up.order. L'ordre des clés d'un objet ne survit
+// pas au serveur (profiles.doc est en jsonb, qui trie les clés) : sans cette liste, un deuxième appareil
+// voyait les séances dans l'ordre alphabétique. Migration douce : absente, elle reprend l'ordre des clés
+// de l'appareil ; sinon ses clés existantes d'abord, puis les séances qu'elle ne cite pas encore.
+function userSessionOrder(up) {
+  const keys = Object.keys(up?.sessions || {});
+  const ord = Array.isArray(up?.order) ? up.order.filter(k => typeof k === 'string' && keys.includes(k)) : [];
+  return [...new Set([...ord, ...keys])];
 }
 
 // Coach (js/data/coach.js, docs/COACH_V1.md) : consigne d'un programme ou d'un exercice (500 caractères
@@ -508,6 +521,7 @@ let dataBroken = false;
 function save(quiet = false) {
   if (dataBroken) return false;
   try {
+    Object.values(data.userProgrammes || {}).forEach(up => { if (up && typeof up === 'object') up.order = userSessionOrder(up); });
     const json = JSON.stringify(data);
     localStorage.setItem(KEY, json);
     Native.backup(json);   // app iOS : copie de sécurité dans les fichiers de l'app
