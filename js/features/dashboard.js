@@ -309,6 +309,7 @@ function renderDashboard() {
         <button class="hero__link" data-action="go-editor" data-cat="${esc(next)}">Modifier les exercices</button>
       </section>
       ${accountHomeCard()}
+      ${coachHomeCard()}
       ${liveHere ? '' : targetsCard(next)}`;
   }
 

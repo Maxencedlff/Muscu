@@ -56,6 +56,7 @@ scripts/              construction de l'app iOS (build-web.mjs), mises à jour �
 | `share.css` | Partage de séance : bouton « Partager ma séance », aperçu de l'image au format 9:16 |
 | `account.css` | Compte : calque plein écran (Bienvenue, e-mail, code, pseudo, avatar), boutons de connexion aux chartes Apple et Google (tokens `--siwa-*`, `--gsi-*`), écran Compte, cellule des Réglages, carte de l'accueil |
 | `social.css` | Amis : badge de l'onglet, accueil de l'onglet (sans compte, activation), lignes de personnes et petits boutons arrondis, cartes du fil, bouton Bravo, profil d'un autre |
+| `coach.css` | Coach : cellule en haut de l'onglet Amis, pastilles de nouveautés, programmes reçus, consignes (Programme › Séance, séance en cours), séances d'un élève, codes d'invitation, saisie des consignes et du commentaire |
 | `screens.css` | Écrans à fond groupé (`.view--grouped` : Programme, Progrès, Historique, Réglages) et leur composant de liste groupée (`.group` / `.cell`, seul composant de liste), vignettes « Icône de l'app » (`.app-icons`), accessibilité, paysage, Dynamic Type |
 
 Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
@@ -89,6 +90,8 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `account-auth.js` | Compte, logique pure : premier écran (`firstScreen` : Bienvenue au tout premier lancement seulement ; `accountCardShown`), pseudo (`normalizeUsername`, `usernameProblem`, `USERNAME_RE` identique à la migration, délai de 30 jours), avatar (`AVATAR_EMOJIS` : 30 emojis sans personnage, liste blanche identique au serveur), identités (`identityOf`, `hasApple`, `canUnlink`, `canAddEmail`, `linkedIdentityHoldUntil` : moyen relié depuis moins de 24 h), connexion récente (`lastAuthAt`, `isRecentAuth` : claim amr), erreurs de Supabase → français (`authErrorKind`, `otpErrorKind`, `AUTH_ERROR_TEXT`) |
 | `account.js` | Compte facultatif (Supabase ; Apple, Google ou code par e-mail, un seul parcours `finishSignIn`) : session dans le Trousseau, profil public (`accountLoadProfile`, `accountSaveProfile`, `accountUsernameAvailable`), moyens de connexion (`accountLink`, `accountLinkEmailStart/Verify` : comptes sans adresse seulement, `accountUnlink` : Apple révoqué au retrait), nouvelle connexion avant suppression ou ajout d'un moyen (`accountReauthApple/Google/Email*`), `syncNow` (réception, fusion, envoi par lots), état de synchro par compte, `accountForgetDevice` / `accountResetSyncState` avant tout effacement ou import local. Aucun affichage : l'écran s'abonne avec `onAccountChange` |
 | `social.js` | Amis (Social V1, contrat `docs/SOCIAL_V1.md`) : appels RPC (`socialRpc`, `socialRefresh`, `socialEnable/Disable`, `socialSearch`, `socialRequestFollow`, `socialCancelFollow`, `socialRespond`, `socialRemoveFollower`, `socialBlock/Unblock`, `socialLoadFeed` par curseur complet, `socialToggleBravo`, `socialLoadMyBravos`) et fonction Edge `report` (`socialReport`) ; nettoyage de ce que renvoie le serveur (`cleanSocialState`, `cleanPerson`, `cleanPublicSession` : liste blanche, `cleanFeedRow`), `socialRelation`, `normalizeSocialQuery`, erreurs traduites (`socialErrorKind`, `SOCIAL_ERROR_TEXT`). Chargé en arrière-plan (connexion, premier plan, ouverture de l'onglet), état « activé » et badge gardés dans `mdlf_social`. Aucun affichage : l'écran s'abonne avec `onSocialChange` |
+
+| `coach.js` | Coach (Coach V1, contrat `docs/COACH_V1.md`) : appels RPC (`coachRefresh`, `coachPreview`, `coachJoin`, `coachLeave`, invitations, `coachLoadSessions` par curseur, `coachMarkSeen`, `coachSetNote`, `coachSendProgramme`, `coachMarkInboxSeen`), nettoyage strict de ce que renvoie le serveur (`cleanCoachState`, `cleanCoachSessionRow`, `cleanSentProgramme`, `cleanInbox`), format d'envoi (`programmeToSent` : consignes et supersets), import et mise à jour d'un programme reçu (`importCoachProgramme` : id `u_c<prog_id>`, `fromCoach`, identifiants d'exercices gardés par nom ; `coachProgrammeStatus` : nouveau, mise à jour, modifié par l'élève ; `keepMyCoachProgramme`), séances faites avec mon programme (`coachOwnProgrammeName`). Rôle et badge gardés dans `mdlf_coach`. `cleanConsigne` et `cleanFromCoach` sont dans `store.js` (sanitizeData au chargement). Aucun affichage : l'écran s'abonne avec `onCoachChange` |
 
 ### js/app/actions.js
 
@@ -137,6 +140,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `app-icon.js` | Réglages › Icône de l'app (app iOS seulement) : `renderAppIconGroup()` (grille de vignettes, `aria-pressed`, coche), action `set-app-icon` (`Native.appIcon.set`), état lu une fois au démarrage |
 | `settings.js` | Réglages, import / export (résultat affiché ici : thème, toast « Annuler », date de sauvegarde), suppression des données, recherche de mise à jour |
 | `social-ui.js` | Onglet Amis (`friends` : sans compte, activation avec pseudo et case « 15 ans ou plus », puis recherche, demandes et fil), séance d'un ami (`social-session:OWNER:ID`), profil d'un autre (`social-profile:ID`), Gérer (`social-manage`), règles (`social-rules`), signalement (feuille de motifs), et dans Historique › Séance « Masquer à mes abonnés » et les bravos reçus (`historySocialGroup`) |
+| `coach-ui.js` | Coach : Réglages › Coach (`coach`), aperçu avant d'accepter (`coach-join:CODE`), cellule « Mes élèves » / « Mon coach » en haut de l'onglet Amis (`coachCellHtml`, sans avoir activé Amis), Mon coach (`coach-mine`), carte de l'accueil (`coachHomeCard`), consignes dans Programme › Séance et dans la séance (repliables), commentaire dans Historique › Séance (`historyCoachGroup`), Mes élèves (`coach-students` : nouvelles séances, invitations), un élève (`coach-student:UID`), une séance (`coach-session:UID:ID`, « Commenter »), envoi d'un programme avec consignes (`coach-send:UID:PROG`). Badge de l'onglet Amis = social + coach (`updateTabBadge`) |
 | `account-ui.js` | Compte : cellule en tête des Réglages (avatar et pseudo, ou « Se connecter »), écran Réglages › Compte (`account` : pseudo, avatar, moyens de connexion, sauvegarde, déconnexion, suppression avec nouvelle connexion), carte de l'accueil, `maybeShowWelcome()` au démarrage, choix quand un autre compte se connecte |
 | `auth-flow.js` | Calque plein écran du compte (`openAuthFlow({ step, mode })`) : Bienvenue, e-mail, code à 6 chiffres (envoi au 6e chiffre, « Renvoyer » après 60 s), pseudo (« Plus tard » pour un compte neuf), avatar ; modes `signin`, `link`, `reauth`, `profile` |
 | `progress.js` | Progrès : tuiles et index des exercices tiré de l'historique |
@@ -213,14 +217,15 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
   programmes: {                              // données par programme utilisé
     ppl: {
       exercises: { push: [{ id, name, sets, lastWeight, lastReps, pr: { weight, reps } | null,
-                            est1RM, target, rest, repMax, muscles? }] },
+                            est1RM, target, rest, repMax, muscles?, consigne? }] },   // consigne : programme reçu d'un coach
       timers:    { push: 1712345678901 | null },   // date de la dernière séance (délai de récupération)
       cooldowns: { push: 72 },                     // heures
       skipped:   { push: 1712345678901 },          // facultatif : « Passer le délai », valable jusqu'à la séance suivante
     },
   },
   customSessions: { cat: { label, icon, desc, color } },          // séances de l'ancien programme « Perso »
-  userProgrammes: { u_xxxxxxxx: { name, sessions: { cat: { label, icon, desc, color } }, archived } },
+  userProgrammes: { u_xxxxxxxx: { name, sessions: { cat: { label, icon, desc, color } }, archived,
+                                 consigne?, fromCoach? } },   // programme reçu d'un coach : id u_c<prog_id>, fromCoach { coachId, name, sentAt, hash, keptAt? }
   defaultRest: 90, unit: 'kg' | 'lbs', soundOn: true, vibrateOn: true,
   bodyWeightKg: 72.5, bodyWeightLog: [{ date, kg }],   // facultatifs : poids saisi et pesées (une par jour, 400 au plus) ; jamais sur le compte (SYNC_LOCAL_ONLY)
   silhouette: 'female' | 'male',             // facultatif : carte des muscles (absent = homme), synchronisé
@@ -283,6 +288,7 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
   (proposée par l'écran de secours).
 - `ppl_statusbar_hint` : le conseil « barre d'état » a déjà été montré.
 - `mdlf_social` : `{ userId, enabled, badge }` du dernier état des Amis lu (onglet et badge justes hors ligne).
+- `mdlf_coach` : `{ userId, isCoach, hasCoach, badge }` du dernier état du coach lu (cellule de l'onglet Amis et badge hors ligne).
 - `ppl_welcome_seen` : l'écran Bienvenue a été montré (posé quel que soit le choix) ; `ppl_account_card_closed` :
   carte « Sauvegarde tes séances sur un compte » fermée. `mdlf_profile` : cache du profil public
   (pseudo, avatar) du dernier compte, pour l'afficher hors ligne. Jamais dans `ppl_v2` (ni synchronisés
@@ -326,7 +332,7 @@ Chromium Pixel 7 / Galaxy S8 / S9+) en thèmes clair et sombre, plus des tests u
 `test_compte.py` simule la coquille iOS et Supabase (`tests/fake_account.py` : même forme de réponses et
 mêmes codes d'erreur que supabase-js) pour le compte : Bienvenue, code e-mail, pseudo, avatar, moyens de
 connexion, suppression. `test_social.py` couvre les Amis avec le même faux serveur (RPC du social et fonction `report` selon les
-règles de `docs/SOCIAL_V1.md`). `test_icone.py` simule la coquille iOS (faux `window.Capacitor` injecté avant le chargement, faux
+règles de `docs/SOCIAL_V1.md`). `test_coach.py` couvre le coach (RPC du coach simulées selon `docs/COACH_V1.md`) : parcours de l'élève et du coach. `test_icone.py` simule la coquille iOS (faux `window.Capacitor` injecté avant le chargement, faux
 module `MdlfAppIcon`) : c'est le modèle à suivre pour tester une fonction réservée à l'app. Voir l'en-tête
 de `run_all.py` pour les options.
 

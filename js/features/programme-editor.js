@@ -57,6 +57,7 @@ function renderEditor() {
             <span class="cell__title ed-name">${tag}${esc(ex.name)}</span>
             ${exMusclesSubHtml(ex)}
             <span class="cell__sub">${sub}</span>
+            ${coachExConsigneSub(data.activeProgramme, ex)}
           </span>
           <button class="ed-del" data-action="del-ex" data-i="${i}">Supprimer</button>
           <span class="ed-handle" data-i="${i}" role="button" aria-label="Déplacer ${esc(ex.name)}">${icon('line.3.horizontal', 22)}</span>
@@ -68,6 +69,7 @@ function renderEditor() {
           <span class="cell__title ed-name">${tag}${esc(ex.name)}</span>
           ${exMusclesSubHtml(ex)}
           <span class="cell__sub">${sub}</span>
+          ${coachExConsigneSub(data.activeProgramme, ex)}
         </span>
         ${icon('chevron.right', 16)}
       </button>`;
@@ -77,6 +79,7 @@ function renderEditor() {
     <div class="view editor view--grouped">
       ${navBar({ title: meta.label, right: list.length ? `<button class="navbar__text ${editorEditing ? 'navbar__text--bold' : ''}" data-action="toggle-edit-mode">${editorEditing ? 'OK' : 'Modifier'}</button>` : '' })}
       <div class="scr">
+        ${coachEditorConsigneHtml(data.activeProgramme)}
         <div class="group-title">Exercices</div>
         <div class="group ed-list">
           ${rows || '<div class="cell"><span class="cell__sub">Aucun exercice pour l\'instant</span></div>'}

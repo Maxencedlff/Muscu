@@ -37,6 +37,7 @@ function renderSettings() {
       ${navBar({ title: 'Réglages' })}
       <div class="scr">
 ${renderAccountGroup()}
+${renderCoachSettingsGroup()}
 
         <div class="group-title">Séance</div>
         <div class="group">

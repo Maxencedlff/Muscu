@@ -31,6 +31,7 @@ const SCRIPTS = [
   'js/data/account-auth.js',
   'js/data/account.js',
   'js/data/social.js',
+  'js/data/coach.js',
   'js/data/prog-share.js',
   'js/data/trash.js',
   'js/data/muscles.js',
@@ -1401,6 +1402,8 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 (await import('./report.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Amis : logique pure du social (tests dans social.mjs) ──
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
+// ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──
+(await import('./coach.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Guide de l'app : contenus et libellés (tests dans guide.mjs) ──
 (await import('./guide.mjs')).default({ test, run, assert, ROOT });
 // ── Premier lancement : questions et programme conseillé (tests dans onboarding.mjs) ──

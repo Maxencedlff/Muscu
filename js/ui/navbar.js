@@ -25,12 +25,13 @@ function ensureChrome() {
 function updateTabBadge() {
   const btn = $('.tabbar [data-tab="friends"]');
   if (!btn) return;
-  const n = socialBadge();
+  // Demandes reçues (Amis) + nouveautés du coach (js/data/coach.js : nouvelles séances, programmes, commentaires)
+  const social = socialBadge(), fromCoach = coachBadge(), n = social + fromCoach;
   let badge = btn.querySelector('.tabbar__badge');
   if (!n) { badge?.remove(); btn.removeAttribute('aria-label'); return; }
   if (!badge) { badge = document.createElement('span'); badge.className = 'tabbar__badge num'; badge.setAttribute('aria-hidden', 'true'); btn.append(badge); }
   badge.textContent = n > 99 ? '99+' : String(n);
-  btn.setAttribute('aria-label', `${TABS.friends.label}, ${plural(n, 'demande', 'demandes')}`);
+  btn.setAttribute('aria-label', `${TABS.friends.label}, ${fromCoach ? plural(n, 'nouveauté', 'nouveautés') : plural(n, 'demande', 'demandes')}`);
 }
 
 function sessionCounts(sess = activeSession) {
@@ -144,6 +145,7 @@ function routeTitle(route, isRoot) {
   if (isRoot && TAB_OF_ROOT[route]) return TABS[TAB_OF_ROOT[route]].label;
   const name = routeName(route);
   if (name === 'editor') { const cat = editorCatOf(route); return cat ? rawLabel(cat) : 'Séance'; }
+  if (name.startsWith('coach')) return coachRouteTitle(route) || 'Retour';
   return {
     dashboard: 'Entraînement', history: 'Historique', stats: 'Progrès',
     programmes: 'Programme', settings: 'Réglages', guide: 'Guide', account: 'Compte', session: 'Séance', summary: 'Bilan',
