@@ -470,6 +470,23 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     assert.ok(/create function public\.redeem_gift_code\(code text\) returns jsonb/.test(sql));
   });
 
+  test('payant : un remboursé le reste, sauf réabonnement réel', async () => {
+    const sql = migration();
+    const fn = sql.slice(sql.indexOf('create function private.access_claim'));
+    const body = fn.slice(0, fn.indexOf('\n$$;'));
+    // La réouverture demande les DEUX conditions : évènement plus récent ET période plus lointaine
+    assert.ok(/reopen\s*:=\s*cur\.revoked_at is not null and not p_revoked/.test(body), 'règle de réouverture absente');
+    assert.ok(/new_end is not null and \(cur\.expires_at is null or new_end > cur\.expires_at\)/.test(body), 'période strictement plus lointaine non exigée');
+    assert.ok(/cur\.event_at is not null and p_event_at is not null and p_event_at > cur\.event_at/.test(body), 'évènement strictement plus récent non exigé');
+    assert.ok(/when reopen then null\s*\n\s*when p_revoked then coalesce\(cur\.revoked_at, now\(\)\)/.test(body), 'revoked_at pas gardé hors réouverture');
+    // Un évènement plus ancien ne touche à rien, et une transaction révoquée garde sa période
+    assert.ok(/elsif cur\.event_at is null or p_event_at is null or p_event_at >= cur\.event_at then/.test(body), 'évènement en retard non ignoré');
+    assert.ok(/when cur\.revoked_at is not null then cur\.expires_at/.test(body), 'la période d\'une transaction révoquée bouge');
+    const doc = contract();
+    assert.ok(doc.includes('strictement plus lointaine'), 'règle de réouverture absente du contrat');
+    assert.ok(doc.includes('access_refresh'), 'commande de secours absente du contrat');
+  });
+
   test('payant : le verrou est tenu par un déclencheur du serveur, pas par l\'app', async () => {
     const sql = migration();
     // Se déconnecter met can_write à vrai côté app : le serveur doit refuser lui-même

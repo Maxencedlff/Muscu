@@ -547,7 +547,7 @@ begin
   if public.my_access() ->> 'status' is distinct from 'active' then raise 'une expiration en retard a coupé l''abonné'; end if;
 end $$;
 
--- ── Un remboursé le RESTE ────────────────────────────────
+-- ── Un remboursé le RESTE, un vrai réabonnement le rouvre ──
 do $$
 declare st jsonb;
 begin
@@ -559,21 +559,61 @@ begin
   reset role;
   if (select revoked_at from public.entitlement_claims where original_transaction_id = 'tx-a2') is null then raise 'revoked_at non posé'; end if;
   set role authenticated;
-  -- Un évènement plus récent qui ne révoque pas ne le réactive pas (notification rejouée)
+  -- (1) Un DID_RENEW REJOUÉ (même période, évènement plus récent) ne rouvre rien
   if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L)', 'tx-a2',
-     'com.mdlf.training.pro.yearly', now() + interval '900 days', now() + interval '7 minutes')) is distinct from 'ok' then raise 'évènement après remboursement'; end if;
-  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un remboursé a été réactivé par une notification'; end if;
-  -- Ni un verify-purchase (l'app qui renvoie la transaction)
+     'com.mdlf.training.pro.yearly', now() + interval '365 days', now() + interval '7 minutes')) is distinct from 'ok' then raise 'notification rejouée'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un DID_RENEW rejoué a rouvert un remboursé'; end if;
+  -- (2) Un évènement EN RETARD, même avec une période plus lointaine, ne rouvre rien
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '900 days', now() + interval '4 minutes')) is distinct from 'ok' then raise 'évènement en retard'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un évènement en retard a rouvert un remboursé'; end if;
+  -- (3) Sans date d'évènement, on ne peut pas savoir s'il est en retard : on ne rouvre pas
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '900 days')) is distinct from 'ok' then raise 'évènement sans date'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un évènement sans date a rouvert un remboursé'; end if;
+  -- (4) Un verify-purchase qui renvoie la même période ne rouvre rien non plus
   if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L, false, %L)', pg_temp.pu('a'),
-     'com.mdlf.training.pro.yearly', now() + interval '900 days', 'tx-a2', now() + interval '8 minutes')) is distinct from 'ok' then raise 'achat après remboursement'; end if;
+     'com.mdlf.training.pro.yearly', now() + interval '365 days', 'tx-a2', now() + interval '8 minutes')) is distinct from 'ok' then raise 'achat après remboursement'; end if;
   if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un remboursé a été réactivé par verify-purchase'; end if;
   reset role;
+  -- Tant qu'elle est révoquée, la période de la transaction ne bouge pas (sinon la barre du
+  -- réabonnement monterait toute seule)
+  if (select expires_at from public.entitlement_claims where original_transaction_id = 'tx-a2')
+     not between now() + interval '364 days' and now() + interval '366 days' then raise 'période d''une transaction révoquée : %', (select expires_at from public.entitlement_claims where original_transaction_id = 'tx-a2'); end if;
   if (select revoked_at from public.entitlement_claims where original_transaction_id = 'tx-a2') is null then raise 'revoked_at effacé'; end if;
   -- L'instantané ne montre plus la transaction révoquée (il retombe sur l'ancienne, échue)
   if (select original_transaction_id from public.entitlements where user_id = pg_temp.pu('a')) is distinct from 'tx-a1'
      or (select expires_at from public.entitlements where user_id = pg_temp.pu('a')) > now()
      then raise 'instantané après remboursement : %', (select row_to_json(t) from public.entitlements t where t.user_id = pg_temp.pu('a')); end if;
   set role authenticated;
+  -- (5) Un VRAI réabonnement : évènement plus récent ET période strictement plus lointaine.
+  -- Apple garde la même transaction d'origine : sans cette réouverture, le client resterait bloqué.
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L, false, %L)', pg_temp.pu('a'),
+     'com.mdlf.training.pro.yearly', now() + interval '400 days', 'tx-a2', now() + interval '9 minutes')) is distinct from 'ok' then raise 'réabonnement'; end if;
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'active' then raise 'un réabonnement n''a pas rouvert l''accès : %', st; end if;
+  if (st ->> 'until')::timestamptz not between now() + interval '399 days' and now() + interval '401 days' then raise 'période du réabonnement : %', st; end if;
+  reset role;
+  if (select revoked_at from public.entitlement_claims where original_transaction_id = 'tx-a2') is not null then raise 'revoked_at non levé par le réabonnement'; end if;
+  set role authenticated;
+  -- (6) Après réouverture, un DID_RENEW en retard ne referme rien
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '365 days', now() + interval '5 minutes')) is distinct from 'ok' then raise 'évènement en retard après réouverture'; end if;
+  if public.my_access() ->> 'status' is distinct from 'active' then raise 'réouverture défaite par un évènement en retard'; end if;
+  -- (7) Un remboursement, lui, referme (évènement plus récent)
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, true, %L)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '400 days', now() + interval '10 minutes')) is distinct from 'ok' then raise 'second remboursement'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'second remboursement sans effet'; end if;
+  -- (8) La commande d'administration reste le secours quand la période d'Apple ne va pas plus loin
+  reset role;
+  update public.entitlement_claims set revoked_at = null, event_at = null where original_transaction_id = 'tx-a2';
+  perform private.access_refresh(pg_temp.pu('a'));
+  set role authenticated;
+  if public.my_access() ->> 'status' is distinct from 'active' then raise 'réouverture par l''administrateur'; end if;
+  -- On repart d'un compte remboursé pour la suite
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, true, %L)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '400 days', now() + interval '11 minutes')) is distinct from 'ok' then raise 'remboursement final'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'remboursement final sans effet'; end if;
 end $$;
 
 -- ── Débit de verify-purchase ─────────────────────────────

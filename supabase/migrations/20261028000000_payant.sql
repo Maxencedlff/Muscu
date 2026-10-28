@@ -27,7 +27,9 @@
 --    (réessayées jusqu'à 3 jours, ordre non garanti) ne peuvent faire reculer une date de fin.
 --    entitlement_claims.event_at garde la date du dernier évènement appliqué, un évènement plus ancien
 --    est ignoré, et la date de fin ne recule que quand Apple ferme l'accès lui-même (remboursement,
---    révocation, expiration, fin de grâce). Une transaction remboursée le reste.
+--    révocation, expiration, fin de grâce). Une transaction remboursée le reste, sauf réabonnement
+--    réel : la révocation n'est levée que par un évènement à la fois plus récent et portant une
+--    période strictement plus lointaine.
 --  - Notifications dédoublonnées (public.appstore_notifications, notificationUUID) : la déduplication
 --    et l'écriture sont dans la MÊME transaction, donc une écriture qui échoue ne consomme pas la
 --    notification et le réessai d'Apple la retraite.
@@ -103,10 +105,11 @@
 --     corriger et pouvoir mettre à la corbeille. Un compte sans ligne entitlements voit son essai
 --     démarrer là aussi, à l'heure du serveur : ne jamais appeler my_access() ne donne pas un essai
 --     éternel.
---  10. revoked_at est GARDÉ (coalesce) : aucun évènement ultérieur ne réactive une transaction
---     remboursée. Conséquence connue et assumée : Apple garde la même transaction d'origine quand
---     quelqu'un se réabonne après un remboursement, il faut alors un geste de l'administrateur
---     (commande en bas de ce fichier). Côté sûr choisi : on ne redonne jamais l'accès tout seul.
+--  10. Un remboursé le RESTE, sauf réabonnement réel : la révocation n'est levée que par un évènement
+--     à la fois plus récent et portant une période strictement plus lointaine (private.access_claim,
+--     règle 4). Apple garde la même transaction d'origine au réabonnement : sans cette réouverture,
+--     un client remboursé qui repaie resterait bloqué et devrait écrire au support. Un évènement en
+--     retard, rejoué ou de même période ne rouvre rien, donc la règle reste sûre.
 -- ═══════════════════════════════════════════════════════════
 
 -- ── Données ──────────────────────────────────────────────
@@ -370,15 +373,20 @@ $$;
 -- compte (transaction_taken), un produit qui n'est pas des nôtres (unknown_product), une transaction
 -- mal formée (invalid_transaction) et un compte inconnu (not_found).
 --
--- Trois règles qui protègent un abonné contre un évènement arrivé dans le désordre :
---  - p_event_at plus ancien que le dernier évènement appliqué : la ligne n'est PAS touchée (clause
---    where du on conflict). Ni Transaction.unfinished (ordre non garanti) ni une notification
---    réessayée ne peuvent défaire un renouvellement déjà connu.
---  - la date de fin ne RECULE jamais (greatest), sauf quand Apple ferme l'accès lui-même : un
---    remboursement, une révocation, une expiration ou une fin de grâce (p_revoked ou p_force).
---  - revoked_at est gardé : un évènement qui n'est pas une révocation ne RÉACTIVE jamais une
---    transaction remboursée (coalesce). Un réabonnement d'Apple garde la même transaction d'origine :
---    pour le rouvrir à la main, voir la commande en bas de ce fichier.
+-- Quatre règles qui protègent un abonné contre un évènement arrivé dans le désordre, et un remboursé
+-- contre une réactivation involontaire :
+--  1. p_event_at plus ancien que le dernier évènement appliqué : la ligne n'est PAS touchée du tout.
+--     Ni Transaction.unfinished (ordre non garanti au lancement de l'app) ni une notification
+--     réessayée par Apple ne peuvent défaire un renouvellement déjà connu.
+--  2. La date de fin ne RECULE jamais, sauf quand Apple ferme l'accès lui-même : un remboursement,
+--     une révocation, une expiration ou une fin de grâce (p_revoked ou p_force).
+--  3. Tant qu'une transaction est révoquée, sa période ne bouge pas : sinon un évènement sans date
+--     relèverait la barre du réabonnement (règle 4) sans rien rouvrir.
+--  4. Réouverture après un remboursement (28/10) : Apple garde la même transaction d'origine quand
+--     quelqu'un se réabonne, il faut donc pouvoir rouvrir. La révocation n'est levée QUE par un
+--     évènement à la fois PLUS RÉCENT (p_event_at > event_at, les deux connus) et portant une période
+--     STRICTEMENT plus lointaine. Un évènement en retard, rejoué, de même période, ou sans date, ne
+--     lève donc jamais une révocation. En secours, la commande d'administration en bas de ce fichier.
 create function private.access_claim(p_user uuid, p_product text, p_expires timestamptz,
                                      p_original_tx text, p_revoked boolean,
                                      p_event_at timestamptz default null,
@@ -386,8 +394,11 @@ create function private.access_claim(p_user uuid, p_product text, p_expires time
   language plpgsql security definer set search_path = '' as
 $$
 declare
-  k     text := private.access_product_kind(p_product);
-  owner uuid;
+  k        text := private.access_product_kind(p_product);
+  cur      public.entitlement_claims;
+  -- Une période de fin n'a de sens que pour un abonnement (l'accès offert est à vie)
+  new_end  timestamptz := case when k = 'sub' then p_expires end;
+  reopen   boolean := false;
 begin
   if p_user is null or not exists (select 1 from auth.users u where u.id = p_user) then
     raise exception 'not_found' using errcode = 'P0001';
@@ -398,31 +409,48 @@ begin
   if k is null then
     raise exception 'unknown_product' using errcode = 'P0001';
   end if;
-  -- Deux comptes qui présentent la même transaction en même temps : l'un des deux attend et sera refusé
+  -- Deux comptes qui présentent la même transaction en même temps : l'un des deux attend et sera
+  -- refusé. Le verrou sérialise aussi deux évènements de la même transaction.
   perform pg_advisory_xact_lock(hashtextextended('access_tx:' || p_original_tx, 0));
-  select c.user_id into owner from public.entitlement_claims c
-    where c.original_transaction_id = p_original_tx;
-  if owner is not null and owner <> p_user then
+  select * into cur from public.entitlement_claims c where c.original_transaction_id = p_original_tx;
+  if cur.user_id is not null and cur.user_id <> p_user then
     raise exception 'transaction_taken' using errcode = 'P0001';
   end if;
-  insert into public.entitlement_claims as c
-      (original_transaction_id, user_id, product_id, kind, expires_at, revoked_at, event_at)
-    values (p_original_tx, p_user, p_product, k,
-            case when k = 'sub' then p_expires end,
-            case when p_revoked then now() end,
-            p_event_at)
-  on conflict (original_transaction_id) do update set
-    product_id = excluded.product_id,
-    kind       = excluded.kind,
-    -- La date de fin ne recule que si Apple ferme l'accès (remboursement, révocation, expiration)
-    expires_at = case when p_revoked or p_force then excluded.expires_at
-                      else greatest(c.expires_at, excluded.expires_at) end,
-    -- Une transaction remboursée le reste : aucun évènement ultérieur ne la réactive
-    revoked_at = coalesce(c.revoked_at, excluded.revoked_at),
-    event_at   = greatest(c.event_at, excluded.event_at),
-    updated_at = now()
-  -- Évènement plus ancien que le dernier appliqué : rien n'est touché
-  where c.event_at is null or excluded.event_at is null or excluded.event_at >= c.event_at;
+
+  if cur.user_id is null then
+    begin
+      insert into public.entitlement_claims
+          (original_transaction_id, user_id, product_id, kind, expires_at, revoked_at, event_at)
+        values (p_original_tx, p_user, p_product, k, new_end,
+                case when p_revoked then now() end, p_event_at);
+    exception when unique_violation then
+      raise exception 'transaction_taken' using errcode = 'P0001';
+    end;
+  -- Règle 1 : un évènement plus ancien que le dernier appliqué ne touche à rien
+  elsif cur.event_at is null or p_event_at is null or p_event_at >= cur.event_at then
+    -- Règle 4 : réabonnement réel = évènement plus récent ET période strictement plus lointaine
+    reopen := cur.revoked_at is not null and not p_revoked
+              and new_end is not null and (cur.expires_at is null or new_end > cur.expires_at)
+              and cur.event_at is not null and p_event_at is not null and p_event_at > cur.event_at;
+    update public.entitlement_claims c set
+      product_id = p_product,
+      kind       = k,
+      expires_at = case
+                     -- Règle 2 : Apple ferme l'accès, ou règle 4 : la nouvelle période fait foi
+                     when p_revoked or p_force or reopen then new_end
+                     -- Règle 3 : révoquée et pas rouverte, sa période ne bouge pas
+                     when cur.revoked_at is not null then cur.expires_at
+                     else greatest(cur.expires_at, new_end)
+                   end,
+      revoked_at = case
+                     when reopen then null
+                     when p_revoked then coalesce(cur.revoked_at, now())
+                     else cur.revoked_at
+                   end,
+      event_at   = greatest(cur.event_at, p_event_at),
+      updated_at = now()
+    where c.original_transaction_id = p_original_tx;
+  end if;
   perform private.access_refresh(p_user);
   return private.access_json(p_user);
 end
@@ -719,8 +747,8 @@ grant execute on function public.srv_access_event(text, text, timestamptz, boole
 --     where status = 'expired' and expires_at is not null order by expires_at desc;
 -- Codes cadeaux et leur usage :
 --   select code, kind, days, uses, max_uses, expires_at, note from public.gift_codes order by created_at desc;
--- Réabonnement après un remboursement : Apple garde la même transaction d'origine, et revoked_at est
--- gardé exprès (un évènement en retard ne doit pas réactiver un remboursé). Pour rouvrir l'accès :
+-- Réouverture à la main, en secours (un réabonnement réel rouvre tout seul, voir la règle 4 de
+-- private.access_claim ; cette commande sert si la période d'Apple ne va pas plus loin que l'ancienne) :
 --   update public.entitlement_claims set revoked_at = null, event_at = null
 --     where original_transaction_id = '…';
 --   select private.access_refresh('<user_id>');
