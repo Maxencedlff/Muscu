@@ -247,6 +247,36 @@ revoke all on function public.srv_link_app_transaction(uuid, text, text, text)
   from public, anon, authenticated, service_role;
 grant execute on function public.srv_link_app_transaction(uuid, text, text, text) to service_role;
 
+-- ── Conservation limitée (RGPD) ──────────────────────────
+-- Un identifiant Apple qui n'est plus rattaché à aucun compte (comptes supprimés) n'est gardé que
+-- 2 ans après le premier essai : assez pour empêcher de supprimer puis recréer son compte afin de
+-- repartir de zéro, sans garder indéfiniment un identifiant (même opaque) sans personne derrière.
+-- Tant qu'un compte l'utilise, il fait partie des données de ce compte et reste. Au-delà de 2 ans,
+-- un nouvel essai sur cet identifiant est accepté : c'est voulu.
+create function private.purge_apple_app_ids() returns int
+  language sql volatile set search_path = '' as
+$$
+  with gone as (
+    delete from public.apple_app_ids a
+     where a.first_trial_at < now() - interval '2 years'
+       and not exists (select 1 from public.apple_app_links l where l.app_transaction_id = a.app_transaction_id)
+    returning 1)
+  select count(*)::int from gone
+$$;
+revoke all on function private.purge_apple_app_ids() from public, anon, authenticated, service_role;
+
+-- Purge quotidienne (03:27 UTC) par pg_cron, comme celle des signalements ; sans l'extension (tests
+-- locaux), la fonction s'appelle à la main. Un nom de tâche fixe : rejouer la migration ne la double pas.
+do $cron$
+begin
+  if exists (select 1 from pg_catalog.pg_available_extensions where name = 'pg_cron') then
+    create extension if not exists pg_cron;
+    perform cron.schedule('purge-apple-app-ids-2-ans', '27 3 * * *',
+      $job$select private.purge_apple_app_ids()$job$);
+  end if;
+end
+$cron$;
+
 -- Administration, en cas de doute :
 --   select l.user_id, a.app_transaction_id, a.environment, a.first_trial_at, l.linked_at
 --     from public.apple_app_links l join public.apple_app_ids a using (app_transaction_id)

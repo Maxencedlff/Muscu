@@ -1158,6 +1158,28 @@ begin
   reset role;
 end $$;
 
+-- ── Conservation limitée de l'identifiant Apple (RGPD) ──
+do $$
+declare n int;
+begin
+  insert into public.apple_app_ids (app_transaction_id, environment, first_trial_at) values
+    ('PURGE-VIEUX-ORPHELIN', 'Production', now() - interval '25 months'),
+    ('PURGE-RECENT-ORPHELIN', 'Production', now() - interval '6 months'),
+    ('PURGE-VIEUX-LIE', 'Production', now() - interval '30 months');
+  insert into auth.users (id) values ('00000000-0000-0000-0000-00000000a9a9') on conflict do nothing;
+  insert into public.apple_app_links (user_id, app_transaction_id)
+    values ('00000000-0000-0000-0000-00000000a9a9', 'PURGE-VIEUX-LIE');
+  n := private.purge_apple_app_ids();
+  if n is distinct from 1 then raise 'purge : % ligne(s) au lieu de 1', n; end if;
+  if exists (select 1 from public.apple_app_ids where app_transaction_id = 'PURGE-VIEUX-ORPHELIN') then raise 'orphelin de plus de 2 ans gardé'; end if;
+  if not exists (select 1 from public.apple_app_ids where app_transaction_id = 'PURGE-RECENT-ORPHELIN') then raise 'orphelin récent effacé trop tôt'; end if;
+  if not exists (select 1 from public.apple_app_ids where app_transaction_id = 'PURGE-VIEUX-LIE') then raise 'identifiant encore utilisé par un compte effacé'; end if;
+  -- Le compte supprimé, l'identifiant devient orphelin et part au passage suivant
+  delete from auth.users where id = '00000000-0000-0000-0000-00000000a9a9';
+  if private.purge_apple_app_ids() is distinct from 1 then raise 'orphelin après suppression du compte non purgé'; end if;
+  if has_function_privilege('authenticated', 'private.purge_apple_app_ids()', 'execute') then raise 'purge appelable par un client'; end if;
+end $$;
+
 -- Nettoyage
 delete from auth.users where id in (select pg_temp.pq(c) from unnest(array['a', 'b', 'c', 'd', 'e', 'f', 'g']) c);
 delete from public.apple_app_ids;
