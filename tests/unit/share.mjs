@@ -95,7 +95,9 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     const { latest, history } = pushHistory();
     const st = app.shareStoryStats(latest, { history, baseline: {} });
     assert.equal(st.records, 0, 'bilan sans ligne de base : aucun record');
-    assert.match(st.highlights[0].value, /lbs × 6$/);
+    // Charges différentes : le détail de toutes les séries (l'unité est portée par les autres lignes
+    // et par la tuile Volume ; la répéter à chaque série faisait déborder la carte)
+    assert.match(st.highlights[0].value, /^\d[\d,]* × 6 · /, 'détail des séries, la meilleure en tête');
     const past = { ...latest, duration: undefined };
     const sp = app.shareStoryStats(past, { history });
     assert.equal(sp.duration, null);
@@ -330,7 +332,10 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     const row = ex => run(`shareExerciseRow(${JSON.stringify(ex)}, null, 0).value`);
     assert.equal(row({ name: 'Crunch', sets: [{ weight: '', reps: '15' }, { weight: '', reps: '15' }, { weight: '', reps: '15' }] }), '3 × 15 reps');
     assert.equal(row({ name: 'Gainage (planche)', sets: [{ weight: '', reps: '45' }, { weight: '', reps: '45' }, { weight: '', reps: '45' }] }), '3 × 45 s');
-    assert.equal(row({ name: 'Crunch', sets: [{ weight: '', reps: '12' }, { weight: '', reps: '15' }] }), '15 reps · 2 séries');
+    // Séries différentes : le DÉTAIL, pas la meilleure suivie du nombre de séries (qui se lisait
+    // comme si toutes valaient la meilleure : 6, 6, 6, 7 affiché « 7 reps · 4 séries »)
+    assert.equal(row({ name: 'Crunch', sets: [{ weight: '', reps: '12' }, { weight: '', reps: '15' }] }), '12 · 15 reps');
+    assert.equal(row({ name: 'Tractions', sets: [{ weight: '', reps: '6' }, { weight: '', reps: '6' }, { weight: '', reps: '6' }, { weight: '', reps: '7' }] }), '6 · 6 · 6 · 7 reps');
     assert.equal(row({ name: 'Curl marteau', sets: [{ weight: '10', reps: '10' }, { weight: '10', reps: '10' }] }), '10 kg × 10', 'avec charge : inchangé');
   });
 }

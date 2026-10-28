@@ -336,19 +336,23 @@ function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW, air = 1) {
     const r = u[0];
     if (r.group != null) drawGroup(ctx, p, u, ry, rowH, nameSize, air);
     else if (compact) {
-      ctx.font = storyFont(700, size, true, p);
-      const vw = ctx.measureText(r.value).width;
+      const valMax = w - 2 * padX - 140;
+      fitSize(ctx, r.value, valMax, size, Math.max(22, size - 14), s2 => storyFont(700, s2, true, p));
+      const vw = Math.min(ctx.measureText(r.value).width, valMax);
       ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label);
-      ctx.textAlign = 'right'; ctx.fillText(r.value, SIDE + w - padX, ry + base); ctx.textAlign = 'left';
+      ctx.textAlign = 'right'; ctx.fillText(fitText(ctx, r.value, valMax), SIDE + w - padX, ry + base); ctx.textAlign = 'left';
       const nameW = w - 2 * padX - vw - 28;
       ctx.font = storyFont(600, nameSize, false, p);
       ctx.fillStyle = rgbaCss(p.label);
       ctx.fillText(fitText(ctx, r.name, nameW), SIDE + padX, ry + base);
     } else {
-      ctx.font = storyFont(700, 46, true, p);
-      const vw = ctx.measureText(r.value).width;
+      // La valeur peut être le détail de toutes les séries (« 6 · 6 · 6 · 7 reps ») : elle rétrécit
+      // puis se tronque, sinon elle déborderait de la carte et écraserait le nom de l'exercice
+      const valMax = w - 2 * padX - 170;
+      fitSize(ctx, r.value, valMax, 46, 26, s2 => storyFont(700, s2, true, p));
+      const vw = Math.min(ctx.measureText(r.value).width, valMax);
       ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label);
-      ctx.textAlign = 'right'; ctx.fillText(r.value, SIDE + w - padX, ry + 72); ctx.textAlign = 'left';
+      ctx.textAlign = 'right'; ctx.fillText(fitText(ctx, r.value, valMax), SIDE + w - padX, ry + 72); ctx.textAlign = 'left';
 
       // Le nom est l'information principale : la police est réduite (40 → 32 px) avant de tronquer
       const nameW = w - 2 * padX - vw - 32;
@@ -362,7 +366,7 @@ function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW, air = 1) {
         ctx.fillText(fitText(ctx, r.record, nameW - 40), SIDE + padX + 38, ry + 93);
       } else {
         ctx.fillStyle = rgbaCss(p.label2);
-        ctx.fillText('Meilleure série', SIDE + padX, ry + 93);
+        ctx.fillText(r.detail ? 'Séries' : 'Meilleure série', SIDE + padX, ry + 93);
       }
     }
     ry += unitHeight(u, rowH, air);

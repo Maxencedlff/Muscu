@@ -9,15 +9,18 @@
 
 const SHARE_MAX_HIGHLIGHTS = 30;  // tous les exercices de la séance (l'image passe en lignes compactes s'il le faut)
 
-// Exercices sans charge (abdos, gainage, poids du corps) : le nombre de séries est ajouté, sinon
-// « 15 reps » ne dit pas qu'il y en a eu 3. « 3 × 15 reps » si toutes sont pareilles, sinon
-// « 15 reps · 3 séries ». Avec une charge, la meilleure série (« 10 kg × 10 ») reste seule.
-function withSetCount(txt, ex, best) {
+// Séries toutes pareilles : « 3 × 15 reps », compact et exact. Séries différentes : le DÉTAIL
+// (« 6 · 6 · 6 · 7 reps »), jamais la meilleure suivie du nombre de séries, qui se lisait comme si
+// toutes valaient la meilleure (6, 6, 6, 7 affiché « 7 reps · 4 séries » laissait croire à 4 × 7).
+// Avec une charge, la meilleure série (« 10 kg × 10 ») reste seule quand elles sont identiques.
+function withSetCount(txt, ex, best, hasRecord = false) {
   const sets = (ex.sets || []).filter(s => (parseInt(s.reps) || 0) > 0);
   const m = measureOf(ex);
-  if (sets.length < 2 || m === 'cardio' || (m === 'reps' && best.w > 0)) return txt;
+  // Record mis en avant : on montre LA série du record, pas le détail de toutes
+  if (sets.length < 2 || m === 'cardio' || hasRecord) return txt;
   const same = sets.every(s => String(parseInt(s.reps)) === String(parseInt(sets[0].reps)) && (parseFloat(s.weight) || 0) === (parseFloat(sets[0].weight) || 0));
-  return same ? `${sets.length} × ${txt}` : `${txt} · ${sets.length} séries`;
+  if (same) return m === 'reps' && best.w > 0 ? txt : `${sets.length} × ${txt}`;
+  return setsText(sets, m, setKind(ex));
 }
 
 // Exercice mis en avant : record marquant, sinon meilleure série (« 32,5 kg × 8 », « 12 reps »)
@@ -26,7 +29,9 @@ function shareExerciseRow(ex, base, index, bodyKg = null) {
   const best = rec ? bestSet([rec.s], ex) : bestSet(ex.sets, ex);
   return {
     index, name: ex.name, exId: ex.exId || null,
-    value:  best ? withSetCount(setTxt(best, ex), ex, best) : '',
+    value:  best ? withSetCount(setTxt(best, ex), ex, best, !!rec) : '',
+    detail: !!best && !rec && withSetCount(setTxt(best, ex), ex, best, false) !== setTxt(best, ex)
+            && !withSetCount(setTxt(best, ex), ex, best, false).startsWith(`${(ex.sets || []).filter(x => (parseInt(x.reps) || 0) > 0).length} × `),
     record: rec ? rec.label : null,
     volume: exVolume(ex, ex.sets, bodyKg),
   };
