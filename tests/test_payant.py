@@ -657,6 +657,8 @@ def t_iphone_deja_essaye(bench, eng, dev, theme):
         R.check(page.evaluate('__st.appleLinks[__sb.meId()]') == ['dl-iphone-1'], f'{t} second compte : même identifiant Apple')
         R.check(page.evaluate('accessStatus()') == 'trial' and page.evaluate('daysLeft()') == 10,
                 f'{t} second compte : pas de nouvel essai, il reste 10 jours ({page.evaluate("daysLeft()")})')
+        R.check(page.evaluate('access.state.trial_shared') is True, f'{t} second compte : essai venu d\'un autre compte')
+        R.check(['platform', 'ios'] in page.evaluate('__st.calls'), f'{t} my_access déclare la plateforme iOS')
         page.evaluate("switchTab('train')")
         page.wait_for_timeout(300)
         R.check('10 jours' in banner(page), f'{t} second compte : le bandeau le dit ({banner(page)!r})')
@@ -674,6 +676,10 @@ def t_iphone_deja_essaye(bench, eng, dev, theme):
         R.check(page.evaluate("currentView()") == 'paywall' and page.evaluate('!activeSession'),
                 f'{t} troisième compte : l\'abonnement est proposé, aucune séance démarrée')
         R.check(page.locator('[data-action="pay-apple-verify"]').count() == 0, f'{t} identifiant lié : rien à vérifier')
+        txt = page.inner_text('.pay-view')
+        R.check('Un identifiant Apple n\'a qu\'un essai gratuit' in txt and 'ne peut servir qu\'à un compte' in txt,
+                f'{t} identifiant Apple de foyer : expliqué ({txt[-260:]!r})')
+        shot(page, LOT, f'19-foyer-{t}')
         # Payer reste possible, et ouvre l'accès comme avant
         page.click(f'[data-action="pay-buy"][data-id="{MONTHLY}"]')
         page.wait_for_timeout(900)
@@ -681,19 +687,21 @@ def t_iphone_deja_essaye(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
     # Sans preuve Apple (App Store pas connecté, TestFlight, client modifié) : rien ne bloque tout de
-    # suite, l'essai est plafonné à 14 jours ; la preuve revenue, l'essai complet aussi
+    # suite, l'essai est plafonné à 3 jours ; la preuve revenue, l'essai complet aussi
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), store={'appleProof': 'unavailable'})
         signin(page, username='max')
         page.wait_for_timeout(300)
-        R.check(page.evaluate('access.state.apple_linked') is False and page.evaluate('daysLeft()') == 14
-                and page.evaluate('canWrite()') is True, f'{t} sans preuve : essai plafonné, rien de bloqué ({page.evaluate("daysLeft()")})')
+        R.check(page.evaluate('access.state.apple_linked') is False and page.evaluate('daysLeft()') == 3
+                and page.evaluate('canWrite()') is True, f'{t} sans preuve : essai plafonné à 3 jours, rien de bloqué ({page.evaluate("daysLeft()")})')
         R.check(len(page.evaluate('__st.calls.filter(c => c[0] === "apple-link")')) == 0, f'{t} sans preuve : rien envoyé')
         trial_started(page, 20)
-        R.check(page.evaluate('canWrite()') is False, f'{t} sans preuve, au-delà de 14 jours : plus d\'écriture')
+        R.check(page.evaluate('canWrite()') is False, f'{t} sans preuve, au-delà de 3 jours : plus d\'écriture')
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
         page.wait_for_timeout(600)
         R.check(page.locator('[data-action="pay-apple-verify"]').count() == 1, f'{t} sans preuve : « Vérifier mon identifiant Apple » proposé')
+        R.check('Connecte-toi à l\'App Store pour ton essai complet de 3 mois' in page.inner_text('.pay-view'),
+                f'{t} sans preuve : l\'écran dit comment avoir l\'essai complet')
         layout(page, t, 'abonnement sans preuve Apple')
         shot(page, LOT, f'17-sans-preuve-{t}')
         # Geste explicite : la fenêtre d'Apple (refresh) rend la preuve, l'essai complet revient
@@ -704,6 +712,17 @@ def t_iphone_deja_essaye(bench, eng, dev, theme):
                 f'{t} vérifier : fenêtre d\'Apple demandée une fois')
         R.check(page.evaluate('canWrite()') is True and page.evaluate('daysLeft()') == 70,
                 f'{t} preuve reçue : essai complet depuis son départ ({page.evaluate("daysLeft()")})')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # Android (pas encore d'ancrage) : pas de preuve Apple, mais essai complet rattaché au compte
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'store': False}, opts={'platform': 'android'})
+        signin(page, username='max')
+        page.wait_for_timeout(300)
+        trial_started(page, 20)
+        R.check(['platform', 'android'] in page.evaluate('__st.calls'), f'{t} Android : plateforme déclarée')
+        R.check(page.evaluate('daysLeft()') == 70 and page.evaluate('canWrite()') is True,
+                f'{t} Android : essai complet, pas de plafond sans preuve ({page.evaluate("daysLeft()")})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -731,10 +750,24 @@ def t_compte_obligatoire(bench, eng, dev, theme):
                 f'{t} démarrer sans compte : invitation à se connecter ({txt[:120]!r})')
         R.check('Commencer sans compte' not in txt and page.locator('.auth [data-action="auth-close"]').count() == 1,
                 f'{t} invitation : on peut fermer, sans « Commencer sans compte »')
+        R.check('auth-btn--apple' in (page.locator('.auth .auth-buttons button').first.get_attribute('class') or ''),
+                f'{t} invitation : « Continuer avec Apple » en premier')
         R.check(page.evaluate('!activeSession'), f'{t} démarrer sans compte : aucune séance démarrée')
         shot(page, LOT, f'18-compte-obligatoire-{t}')
         page.click('.auth [data-action="auth-close"]')
         page.wait_for_timeout(400)
+        # Verrou jamais lu (serveur injoignable) depuis plus de 7 jours : une lecture est demandée, pas un compte
+        page.evaluate("__st.fail.config = 'offline'; access.anon = null; access.firstSeen = Date.now() - 8 * 86400000")
+        start_session(page)
+        page.wait_for_timeout(300)
+        dlg = page.inner_text('.ios-dialog') if page.locator('.ios-dialog').count() else ''
+        R.check('Internet' in dlg and page.locator('.auth').count() == 0 and page.evaluate('!activeSession'),
+                f'{t} verrou jamais lu depuis 8 jours : lecture demandée ({dlg[:80]!r})')
+        shot(page, LOT, f'20-verrou-jamais-lu-{t}')
+        tap_dialog(page, 'OK')
+        page.evaluate("__st.fail.config = null; access.firstSeen = Date.now()")
+        refreshed = page.evaluate('accessAnonRefresh()')
+        R.check(refreshed is True, f'{t} réseau revenu : verrou relu')
         # Séance passée : même invitation, rien n'est enregistré
         before = page.evaluate('data.history.length')
         page.evaluate("handleAction(null, document.createElement('div'), 'go-add-session'); null")

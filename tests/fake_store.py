@@ -48,7 +48,9 @@ Règles du 28/10/2026 (supabase/migrations/20261029000000_payant_apple.sql) :
   PREMIER compte qui l'a présenté, `__st.appleLinks[compte]` = ses identifiants. Appels dans
   `__st.calls` sous `['apple-link', identifiant]`.
 - l'essai d'un compte part du plus ancien entre son départ et celui de ses identifiants Apple ; sans
-  identifiant lié et verrou allumé, il est plafonné à `__st.unprovenDays` (14) jours.
+  identifiant lié, vu sur iPhone (`my_access({ p_platform: 'ios' })`) et verrou allumé, il est plafonné
+  à `__st.unprovenDays` (3) jours ; `trial_shared` : l'essai vient d'un identifiant Apple déjà utilisé
+  par un autre compte. `__st.fail.config = 'offline'` : app_config injoignable (verrou inconnu).
   `__st.appleUsed(id, joursAvant)` : cet identifiant Apple a eu son premier essai il y a N jours.
 - `from('app_config')` : sans compte, seule la ligne `paywall_on` est rendue (politique anon) ;
   appels dans `__st.calls` sous `['app_config', 'anon' | 'auth']`.
@@ -77,7 +79,7 @@ FAKE_STORE = r"""
     canMakePayments: true, cancelRestore: false,
     // Règle 1 : identifiant Apple de l'« iPhone », preuves et liaisons côté serveur
     appleId: 'dl-iphone-1', appleProof: 'ok', appleBundle: null, appleEnv: 'Production', allowSandbox: false,
-    appleIds: {}, appleLinks: {}, unprovenDays: 14,
+    appleIds: {}, appleLinks: {}, unprovenDays: 3,
     // Décrits comme le Swift : displayPrice (affichable) ET price (nombre), displayName, currency…
     products: [
       { id: 'com.mdlf.training.pro.monthly', displayName: 'MDLF Training mensuel', description: 'Abonnement mensuel',
@@ -147,7 +149,9 @@ FAKE_STORE = r"""
     const links = st.appleLinks[uid] || [];
     const appleAt = links.length ? Math.min(...links.map(id => st.appleIds[id])) : Infinity;
     let trialEnd = Math.min(e.trial_started_at, appleAt) + st.trialDays * DAY;
-    if (st.paywallOn && !links.length) trialEnd = Math.min(trialEnd, e.trial_started_at + st.unprovenDays * DAY);
+    // Plafond sans preuve : seulement pour un compte qui s'est déclaré sur iPhone (my_access('ios'))
+    if (st.paywallOn && e.ios_seen && !links.length) trialEnd = Math.min(trialEnd, e.trial_started_at + st.unprovenDays * DAY);
+    const shared = appleAt < e.trial_started_at;
     let status, until = null;
     if (e.gift) { status = 'gift'; until = null; }
     else if (giftDays && (!paid || giftDays > paid)) { status = 'gift'; until = giftDays; }
@@ -159,7 +163,7 @@ FAKE_STORE = r"""
     const can = !st.paywallOn || status !== 'expired';
     return { status, until: iso(until), paywall_on: !!st.paywallOn, trial_days: st.trialDays,
       days_left: status === 'expired' ? null : days, can_write: can,
-      gift: !!e.gift, gift_until: iso(e.gift_until), coach_team: coach, apple_linked: links.length > 0, server_now: iso(now) };
+      gift: !!e.gift, gift_until: iso(e.gift_until), coach_team: coach, apple_linked: links.length > 0, trial_shared: shared, server_now: iso(now) };
   };
 
   st.startTrial = daysAgo => { const e = row(me(), true); e.status = 'trial'; e.gift = false; e.expires_at = null;
@@ -201,7 +205,9 @@ FAKE_STORE = r"""
   };
 
   const accessRpcs = {
-    my_access: uid => stateOf(uid, row(uid, true)),
+    // p_platform 'ios' : le compte est vu sur iPhone, pour toujours
+    my_access: (uid, args) => { const e = row(uid, true); if (args.p_platform === 'ios') e.ios_seen = true;
+      log('platform', args.p_platform || ''); return stateOf(uid, e); },
     access_state: uid => { const e = row(uid, false); return e ? stateOf(uid, e) : null; },
     redeem_gift_code: (uid, args) => redeem(uid, args.code),
   };
@@ -262,8 +268,12 @@ FAKE_STORE = r"""
     if (!p.appTransactionId) return fail(400, { error: 'no_app_transaction_id' });
     log('apple-link', p.appTransactionId);
     const e = row(uid, true);
-    // La première liaison fixe la date (on conflict do nothing)
-    if (!(p.appTransactionId in st.appleIds)) st.appleIds[p.appTransactionId] = e.trial_started_at;
+    e.ios_seen = true;
+    // La première liaison fixe la date (on conflict do nothing) : départ du compte si son essai court
+    // encore, sinon maintenant (un vieux compte n'éteint pas l'essai d'un proche)
+    if (!(p.appTransactionId in st.appleIds)) {
+      st.appleIds[p.appTransactionId] = e.trial_started_at > serverNow() - st.trialDays * DAY ? e.trial_started_at : serverNow();
+    }
     const links = st.appleLinks[uid] = st.appleLinks[uid] || [];
     if (!links.includes(p.appTransactionId)) links.push(p.appTransactionId);
     return { data: { ok: true, access: stateOf(uid, e) }, error: null };
@@ -276,6 +286,7 @@ FAKE_STORE = r"""
     if (st.fail.access === 'offline') return offline();
     const rows = [{ key: 'paywall_on', value: !!st.paywallOn }];
     if (uid) rows.push({ key: 'trial_days', value: st.trialDays }, { key: 'trial_unproven_days', value: st.unprovenDays });
+    if (st.fail.config === 'offline') return offline();
     const found = rows.filter(r => !q.key || r.key === q.key);
     return { data: q.single ? (found[0] || null) : found, error: null };
   };

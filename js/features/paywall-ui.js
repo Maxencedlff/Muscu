@@ -112,16 +112,34 @@ function payCodeSheet() {
   });
 }
 
-// L'essai gratuit est rattaché à l'identifiant Apple : sans preuve reçue par le serveur, il est plus
-// court (verrou allumé). Proposé seulement dans ce cas, et dans l'app iOS : la fenêtre d'Apple ne
-// s'ouvre que sur ce geste (AppTransaction.refresh demande le mot de passe).
+// Durée de l'essai complet, dite comme le contrat la vend : « 3 mois » pour 90 jours (lue chez le
+// serveur, trial_days, jamais écrite en dur)
+function trialLengthText(days) {
+  const n = Number.isInteger(days) && days > 0 ? days : 90;
+  return n % 30 === 0 ? `${n / 30} mois` : plural(n, 'jour', 'jours');
+}
+
+// L'essai gratuit est rattaché à l'identifiant Apple. Sans preuve reçue par le serveur (App Store
+// déconnecté, le plus souvent), l'essai d'un iPhone est plafonné à quelques jours : on dit pourquoi et
+// comment l'avoir en entier. La fenêtre d'Apple ne s'ouvre que sur ce geste (AppTransaction.refresh
+// demande le mot de passe).
 function payAppleCheckHtml() {
   if (!paywallOn() || !Native.store.available || access.state?.apple_linked !== false) return '';
   return `
+        <div class="pay-note" role="status">
+          <p>Connecte-toi à l'App Store pour ton essai complet de ${esc(trialLengthText(access.state?.trial_days))}.</p>
+          <p>L'essai gratuit est lié à ton identifiant Apple. Sans lui, il ne dure que quelques jours.</p>
+        </div>
         <div class="group">
           <button class="cell cell--action" data-action="pay-apple-verify"><span class="cell__title">Vérifier mon identifiant Apple</span></button>
-        </div>
-        <div class="group-foot">L'essai gratuit est lié à ton identifiant Apple. Tant qu'il n'est pas vérifié, l'essai est plus court.</div>`;
+        </div>`;
+}
+
+// Identifiant Apple partagé par un foyer : l'essai de ce compte vient d'un autre compte MDLF
+function paySharedNoteHtml() {
+  if (!paywallOn() || access.state?.trial_shared !== true) return '';
+  return `
+        <div class="group-foot">Ton identifiant Apple a déjà servi à un autre compte MDLF. Un identifiant Apple n'a qu'un essai gratuit, et un même abonnement ne peut servir qu'à un compte.</div>`;
 }
 
 // Liens obligatoires (Apple) : conditions et confidentialité, sous les formules
@@ -224,13 +242,14 @@ function renderPaywall(reason = 'offer') {
           <h2 class="social-hero__title">${title}</h2>
           <p class="social-hero__sub">${sub}</p>
         </div>
+        ${payAppleCheckHtml()}
         ${payPlansHtml()}
         <div class="group">
           <button class="cell cell--action" data-action="pay-restore"><span class="cell__title">Restaurer mes achats</span></button>
           ${payCodeCellsHtml()}
         </div>
         <div class="group-foot">${PAY_CODE_NOTE}</div>
-        ${payAppleCheckHtml()}
+        ${paySharedNoteHtml()}
         <div class="group-foot">Abonnement sans engagement, renouvelé automatiquement par Apple jusqu'à ce que tu l'arrêtes. Tu peux l'arrêter à tout moment dans les réglages de ton identifiant Apple.</div>
         ${payLegalHtml()}
       </div>
@@ -313,9 +332,20 @@ async function accessGate() {
   if (await accessEnsure()) return true;
   // Sans compte, verrou allumé : il faut un compte (l'essai démarre avec lui). Les moyens de connexion
   // sont ceux de toujours ; fermer l'écran ne perd rien (la séance en cours reste en cours).
-  if (!account.user) { accessSignInPrompt(); return false; }
+  if (!account.user) {
+    if (accessSignInRequired()) accessSignInPrompt(); else accessOfflinePrompt();
+    return false;
+  }
   openPaywall('end');
   return false;
+}
+
+// Sans compte et verrou jamais lu depuis plus de 7 jours (accessUnknownExpired) : une lecture
+// réussie suffit, on ne parle ni de compte ni d'abonnement
+function accessOfflinePrompt() {
+  dialog({ title: 'Connexion à Internet nécessaire',
+    message: 'MDLF Training doit vérifier une fois ses réglages en ligne. Connecte-toi à Internet, puis réessaie. Tes séances restent sur cet iPhone.',
+    actions: [{ label: 'OK', style: 'preferred' }] });
 }
 
 // Écran de connexion, avec le texte du verrou (auth-flow.js, contexte « paywall »)

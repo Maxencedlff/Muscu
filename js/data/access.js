@@ -21,7 +21,10 @@
 //  - COMPTE OBLIGATOIRE QUAND LE VERROU EST ALLUMÉ (règle du 28/10/2026) : sans compte, l'app lit la
 //    seule ligne `paywall_on` de `app_config` (lisible par anon, rien d'autre) ; allumé, démarrer ou
 //    enregistrer une séance invite à se connecter (accessGate, js/features/paywall-ui.js). Verrou
-//    éteint, valeur inconnue (jamais lue, hors ligne) ou comptes indisponibles : rien ne bloque.
+//    éteint ou lu à faux, comptes indisponibles : rien ne bloque. Valeur INCONNUE (jamais lue sur
+//    cette installation) : ouverte 7 jours après la première ouverture de l'app, date gardée dans le
+//    Trousseau (elle survit à une réinstallation) ; ensuite une lecture réussie est nécessaire. Sans
+//    cette borne, réinstaller l'app et bloquer le serveur suffirait à tout garder ouvert pour toujours.
 //  - ESSAI RATTACHÉ À L'IDENTIFIANT APPLE (règle du 28/10/2026) : l'app envoie la preuve signée par
 //    Apple du téléchargement (Native.store.appTransaction) à la fonction Edge verify-app-transaction,
 //    au lancement tant que le compte n'a aucun identifiant Apple lié (`apple_linked`), et juste avant de
@@ -33,6 +36,8 @@
 const ACCESS_CACHE_KEY   = 'mdlf_access';     // { userId, state } du dernier état lu (effacé à la déconnexion)
 const ACCESS_ANON_KEY    = 'mdlf_paywall_anon'; // { on, at } : verrou lu sans compte (réglage public, pas une donnée)
 const ACCESS_ANON_MS     = 10 * 60_000;       // sans compte : une relecture du verrou toutes les 10 min au plus
+const ACCESS_UNKNOWN_MS  = 7 * 86400_000;     // sans compte : verrou jamais lu, ouvert 7 jours après la 1re ouverture
+const ACCESS_FIRST_KEY   = 'mdlf_first_seen'; // première ouverture (ms), Trousseau puis localStorage
 const ACCESS_CACHE_MS    = 7 * 86400_000;     // hors ligne : validité du dernier état lu
 const ACCESS_SKEW_MS     = 5 * 60_000;        // tolérance d'horloge (l'appareil peut être un peu en retard)
 const ACCESS_GRACE_MS    = 2 * 86400_000;     // abonné hors ligne : marge après la date de fin du serveur
@@ -51,7 +56,7 @@ const access = { userId: null, state: null, cached: null, loading: false, again:
   products: null, missing: null, productsAt: 0, buying: null, verifying: false, syncing: false,
   canPay: true, refused: new Set(),
   // Sans compte : verrou lu dans app_config (true, false, ou null tant qu'il n'a jamais été lu)
-  anon: readAnonPaywall(), anonAt: 0, anonLoading: false,
+  anon: readAnonPaywall(), anonAt: 0, anonLoading: false, firstSeen: null,
   // Preuve Apple : envoi en cours, et refus déjà reçu pendant ce lancement (pas de nouvel essai inutile)
   linking: false, appleRefused: false };
 const accessListeners = [];
@@ -94,6 +99,8 @@ function cleanAccess(raw) {
     coach_team: r.coach_team === true,
     // Un identifiant Apple est lié au compte (règle 1). Absent d'une vieille réponse : inconnu (null)
     apple_linked: typeof r.apple_linked === 'boolean' ? r.apple_linked : null,
+    // L'essai vient d'un identifiant Apple qu'un autre compte a utilisé avant (foyer)
+    trial_shared: r.trial_shared === true,
     server_now: serverNow,
   };
 }
@@ -134,14 +141,39 @@ function accessStale() {
 
 // Compte obligatoire (règle 2) : pas de compte, comptes disponibles sur cet appareil, et verrou lu
 // ALLUMÉ. Une valeur jamais lue (null) ne bloque pas : seule une réponse du serveur ferme.
+// account.ready : au démarrage à froid, la session n'est pas encore relue (account.user vaut null
+// un instant) ; sans cette condition un compte connecté verrait l'écran de connexion.
 function accessSignInRequired() {
-  return !account.user && accountAvailable() && access.anon === true;
+  return !account.user && account.ready && accountAvailable() && access.anon === true;
+}
+
+// Verrou jamais lu sur cette installation, et plus de 7 jours depuis la première ouverture : une
+// lecture réussie est nécessaire (hors ligne depuis toujours, ou serveur bloqué exprès). Lu à faux une
+// fois, jamais bloqué. Horloge de l'appareil reculée : reste ouvert (limite documentée).
+function accessUnknownExpired() {
+  return !account.user && account.ready && accountAvailable() && access.anon === null
+    && access.firstSeen !== null && Date.now() - access.firstSeen > ACCESS_UNKNOWN_MS;
+}
+
+// Première ouverture de l'app : Trousseau d'abord (survit à une réinstallation), sinon localStorage.
+// Posée au premier lancement qui exécute ce code, jamais reculée par l'app.
+async function accessLoadFirstSeen() {
+  const valid = v => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
+  let at = null;
+  try { at = valid(await Native.account?.storage?.getItem(ACCESS_FIRST_KEY)); } catch { at = null; }
+  let local = null;
+  try { local = valid(localStorage.getItem(ACCESS_FIRST_KEY)); } catch { local = null; }
+  at = at ?? local ?? Date.now();
+  try { await Native.account?.storage?.setItem(ACCESS_FIRST_KEY, String(at)); } catch { /* Trousseau absent */ }
+  try { localStorage.setItem(ACCESS_FIRST_KEY, String(at)); } catch { /* facultatif */ }
+  access.firstSeen = at;
+  return at;
 }
 
 // Droit d'enregistrer une séance. Jamais bloqué : sans état connu ou verrou éteint ; sans compte,
 // seulement quand le verrou est allumé (il faut alors un compte).
 function canWrite() {
-  if (!account.user) return !accessSignInRequired();
+  if (!account.user) return !accessSignInRequired() && !accessUnknownExpired();
   const st = accessKnown();
   if (!st || !st.paywall_on) return true;
   return st.can_write === true;
@@ -263,7 +295,8 @@ async function accessRefresh({ minAge = 0, fn = null } = {}) {
   access.again = false;
   const seq = accessSeq;
   const call = fn || (!access.state && !access.cached ? 'my_access' : 'access_state');
-  const r = await accessRpc(call);
+  // my_access déclare la plateforme de la coquille (le plafond sans preuve ne vise que l'iPhone)
+  const r = await accessRpc(call, call === 'my_access' && Native.platform ? { p_platform: Native.platform } : undefined);
   if (seq !== accessSeq) return false;
   let ok = false;
   const st = r.ok ? cleanAccess(r.data) : null;
@@ -559,7 +592,8 @@ async function accessSyncCurrent() {
 // Lancement et retour du réseau : on relit l'état, on envoie la preuve Apple si le compte n'en a
 // aucune (essai rattaché à l'identifiant Apple), puis on rattrape ce qu'Apple connaît déjà
 async function accessBoot() {
-  const ok = await accessRefresh();
+  // my_access à chaque lancement : c'est lui qui déclare la plateforme au serveur
+  const ok = await accessRefresh({ fn: 'my_access' });
   await accessLinkApple();
   await accessSyncCurrent();
   return ok;
@@ -617,3 +651,5 @@ window.addEventListener?.('online', () => {
   if (account.user && (access.error === 'offline' || accessStale())) accessBoot();
   else if (!account.user) accessAnonRefresh();
 });
+// Première ouverture de l'app, pour borner un verrou jamais lu (accessUnknownExpired)
+accessLoadFirstSeen();

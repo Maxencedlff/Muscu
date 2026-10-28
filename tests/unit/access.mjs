@@ -42,7 +42,8 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     const a = run(`cleanAccess({ status: 'trial', until: '2027-01-01T00:00:00Z', paywall_on: true, trial_days: 90,
       days_left: 42, can_write: true, gift: false, coach_team: false, server_now: '2026-10-28T10:00:00Z',
       user_id: 'secret', original_transaction_id: '1000', evil: '<img src=x>' })`);
-    sameJSON(Object.keys(a).sort(), ['apple_linked', 'can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'paywall_on', 'server_now', 'status', 'trial_days', 'until']);
+    sameJSON(Object.keys(a).sort(), ['apple_linked', 'can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'paywall_on', 'server_now', 'status', 'trial_days', 'trial_shared', 'until']);
+    sameJSON(run(`[cleanAccess({ server_now: 1, trial_shared: true }).trial_shared, cleanAccess({ server_now: 1, trial_shared: 'oui' }).trial_shared]`), [true, false]);
     // apple_linked : booléen du serveur, sinon inconnu (vieille réponse), jamais deviné
     sameJSON(run(`[cleanAccess({ server_now: 1, apple_linked: true }).apple_linked, cleanAccess({ server_now: 1, apple_linked: false }).apple_linked,
       cleanAccess({ server_now: 1 }).apple_linked, cleanAccess({ server_now: 1, apple_linked: 'oui' }).apple_linked]`), [true, false, null, null]);
@@ -458,14 +459,16 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
   // ── Règle 2 (28/10) : compte obligatoire seulement quand le verrou est allumé ──
 
   // Sans compte : décision selon le verrou lu sans compte (anon) et la disponibilité des comptes
-  const guest = ({ anon, available = true }) => run(`(() => {
-    const u = account.user, saved = { ...access }, avail = accountAvailable;
+  const guest = ({ anon, available = true, ready = true, firstSeenDaysAgo = 0 }) => run(`(() => {
+    const u = account.user, r = account.ready, saved = { ...access }, avail = accountAvailable;
     try {
       account.user = null;
+      account.ready = ${ready};
       accountAvailable = () => ${available};
       access.anon = ${JSON.stringify(anon)};
+      access.firstSeen = Date.now() - ${firstSeenDaysAgo} * 86400000;
       return [canWrite(), accessSignInRequired(), paywallOn()];
-    } finally { account.user = u; Object.assign(access, saved); accountAvailable = avail; }
+    } finally { account.user = u; account.ready = r; Object.assign(access, saved); accountAvailable = avail; }
   })()`);
 
   test('accès sans compte : verrou éteint ou inconnu, jamais bloqué ; allumé, il faut un compte', () => {
@@ -474,13 +477,16 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(guest({ anon: true }), [false, true, false], 'verrou allumé sans compte : il faut se connecter');
     // Pas de comptes sur cet appareil (navigateur, configuration absente) : impossible de se connecter, rien ne bloque
     sameJSON(guest({ anon: true, available: false }), [true, false, false]);
+    // Démarrage à froid : la session n'est pas encore relue, un compte connecté ne doit pas voir la connexion
+    sameJSON(guest({ anon: true, ready: false }), [true, false, false]);
     // Connecté, la règle du compte ne joue plus : c'est l'état du serveur qui décide
     assert.equal(decide({ status: 'trial', paywall_on: true, can_write: true, server_now: NOW })[0], true);
   });
 
   test('accès sans compte : le verrou est lu dans app_config (seule la ligne paywall_on), une erreur ne ferme rien', async () => {
     const r = await run(`(async () => {
-      const u = account.user, saved = { ...access }, avail = accountAvailable, realSb = sb;
+      const u = account.user, r = account.ready, saved = { ...access }, avail = accountAvailable, realSb = sb;
+      account.ready = true;
       const asked = [];
       const reply = { value: true, error: null };
       const out = [];
@@ -507,7 +513,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
         await accessAnonRefresh();
         out.push(asked.length === n);
         return [out, asked.slice(0, 3)];
-      } finally { account.user = u; Object.assign(access, saved); accountAvailable = avail; sb = realSb;
+      } finally { account.user = u; account.ready = r; Object.assign(access, saved); accountAvailable = avail; sb = realSb;
         localStorage.removeItem(ACCESS_ANON_KEY); }
     })()`);
     sameJSON(r[0], [true, false, true, true, false, true, false, true, true]);
@@ -586,5 +592,61 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       access.state = cleanAccess({ status: 'expired', paywall_on: true, can_write: false, apple_linked: true, server_now: Date.now() });
       return [await accessEnsure(), sent.length];`);
     sameJSON(r2, [false, 0]);
+  });
+
+  // ── Relecture du 28/10 : verrou jamais lu, fenêtre bornée (B4) ──
+
+  test('accès sans compte : verrou jamais lu, ouvert 7 jours après la 1re ouverture, puis une lecture est nécessaire', () => {
+    sameJSON(guest({ anon: null, firstSeenDaysAgo: 0 }).slice(0, 2), [true, false], 'premier jour : ouvert');
+    sameJSON(guest({ anon: null, firstSeenDaysAgo: 6 }).slice(0, 2), [true, false], '6 jours : ouvert');
+    sameJSON(guest({ anon: null, firstSeenDaysAgo: 8 }).slice(0, 2), [false, false], '8 jours sans aucune lecture : fermé, sans parler de compte');
+    // Lu à faux une fois : jamais bloqué, même longtemps après
+    sameJSON(guest({ anon: false, firstSeenDaysAgo: 400 }).slice(0, 2), [true, false]);
+    // Horloge reculée : reste ouvert (limite documentée), jamais l'inverse à tort
+    sameJSON(guest({ anon: null, firstSeenDaysAgo: -30 }).slice(0, 2), [true, false]);
+    // Comptes indisponibles (navigateur) : jamais bloqué
+    sameJSON(guest({ anon: null, firstSeenDaysAgo: 400, available: false }).slice(0, 2), [true, false]);
+  });
+
+  test('accès : la 1re ouverture est gardée dans le Trousseau (survit à la réinstallation), sinon sur l\'appareil', async () => {
+    const r = await run(`(async () => {
+      const saved = { ...access }, real = Native.account.storage;
+      const keychain = {};
+      try {
+        Native.account.storage = { getItem: async k => keychain[k] ?? null, setItem: async (k, v) => { keychain[k] = v; } };
+        localStorage.removeItem(ACCESS_FIRST_KEY);
+        // Réinstallation : localStorage vide, Trousseau gardé : la date d'origine revient
+        keychain[ACCESS_FIRST_KEY] = String(Date.now() - 30 * 86400000);
+        const back = await accessLoadFirstSeen();
+        // Rien nulle part : maintenant, écrit aux deux endroits
+        delete keychain[ACCESS_FIRST_KEY]; localStorage.removeItem(ACCESS_FIRST_KEY);
+        const t0 = Date.now();
+        const fresh = await accessLoadFirstSeen();
+        // Trousseau indisponible : l'appareil sert
+        Native.account.storage = { getItem: async () => { throw new Error('x'); }, setItem: async () => { throw new Error('x'); } };
+        const local = await accessLoadFirstSeen();
+        return [Math.round((Date.now() - back) / 86400000), fresh >= t0, keychain[ACCESS_FIRST_KEY] === String(fresh), local === fresh];
+      } finally { Native.account.storage = real; Object.assign(access, saved); localStorage.removeItem(ACCESS_FIRST_KEY); }
+    })()`);
+    sameJSON(r, [30, true, true, true]);
+  });
+
+  test('accès : my_access déclare la plateforme de la coquille au serveur', async () => {
+    const r = await run(`(async () => {
+      const u = account.user, saved = { ...access }, realSb = sb, plat = Native.platform;
+      const calls = [];
+      try {
+        account.user = { id: 'u' };
+        accessReset('u');
+        sb = { rpc: async (fn, a) => { calls.push([fn, a ?? null]); return { data: { status: 'trial', paywall_on: false, can_write: true, server_now: Date.now() }, error: null }; } };
+        Native.platform = 'ios';
+        await accessRefresh({ fn: 'my_access' });
+        await accessRefresh({ fn: 'access_state' });
+        Native.platform = null;
+        await accessRefresh({ fn: 'my_access' });
+        return calls;
+      } finally { account.user = u; Object.assign(access, saved); sb = realSb; Native.platform = plat; localStorage.removeItem(ACCESS_CACHE_KEY); }
+    })()`);
+    sameJSON(r, [['my_access', { p_platform: 'ios' }], ['access_state', null], ['my_access', null]]);
   });
 }

@@ -82,3 +82,6 @@
   .pay-plan { flex-wrap: wrap; }
   .pay-plan__price { width: 100%; }
 }
+
+/* « Vérifier mon identifiant Apple » juste au-dessus des formules : même respiration qu'entre deux groupes */
+.pay-view .group + .pay-plans { margin-top: 20px; }

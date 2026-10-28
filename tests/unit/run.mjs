@@ -1405,6 +1405,8 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 (await import('./payant.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Payant : essai rattaché à l'identifiant Apple, preuve AppTransaction (app-transaction.mjs) ──
 (await import('./app-transaction.mjs')).default({ test, assert, sameJSON, ROOT });
+// ── Fonctions Edge : garde de l'appelant (verify_jwt = false) (auth-guard.mjs) ──
+(await import('./auth-guard.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Amis : logique pure du social (tests dans social.mjs) ──
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──

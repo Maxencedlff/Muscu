@@ -99,24 +99,32 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     assert.ok(/verifyAppleJws\(await bodyJws\(req\)/.test(index) && /appTransactionDecision\(signed\.payload/.test(index), 'la règle ne lit pas la charge utile vérifiée');
     assert.ok(/caller\(req\)/.test(index) && /401/.test(index), 'appelant non identifié');
     assert.ok(/APPLE_ALLOW_SANDBOX/.test(index), 'règle Sandbox absente');
-    assert.ok(/rpc\('srv_link_app_transaction'/.test(index) && /p_bundle: proof\.value\.bundle_id/.test(index), 'écriture ou bundle non transmis');
+    assert.ok(/rpc\('srv_link_store_install'/.test(index) && /p_store: 'apple'/.test(index) && /p_bundle: proof\.value\.bundle_id/.test(index), 'écriture, magasin ou bundle non transmis');
     // Même identifiant d'app que les achats
     assert.ok(/import \{ BUNDLE_ID \} from '\.\.\/verify-purchase\/purchase-policy\.js'/.test(read('supabase/functions/verify-app-transaction/app-transaction-policy.js')));
     // Migration : tables fermées, écriture réservée à service_role, anon ne lit que paywall_on
     const sql = read('supabase/migrations/20261029000000_payant_apple.sql');
-    assert.ok(/revoke all on public\.apple_app_ids, public\.apple_app_links from public, anon, authenticated, service_role/.test(sql));
-    assert.ok(/grant execute on function public\.srv_link_app_transaction\(uuid, text, text, text\) to service_role;/.test(sql));
-    assert.ok(!/grant execute on function public\.srv_link_app_transaction[^;]*to (authenticated|anon)/.test(sql));
+    assert.ok(/revoke all on public\.store_installs, public\.store_install_links from public, anon, authenticated, service_role/.test(sql));
+    assert.ok(/grant execute on function public\.srv_link_store_install\(uuid, text, text, text, text\) to service_role;/.test(sql));
+    assert.ok(!/grant execute on function public\.srv_link_store_install[^;]*to (authenticated|anon)/.test(sql));
     assert.ok(/for select to anon using \(key = 'paywall_on'\)/.test(sql), 'politique anon absente');
     assert.ok(/grant select \(key, value\) on public\.app_config to anon;/.test(sql));
     // La première liaison fixe la date ; la table des identifiants n'est pas liée aux comptes
-    assert.ok(/on conflict \(app_transaction_id\) do nothing/.test(sql));
-    assert.ok(!/create table public\.apple_app_ids[^;]*auth\.users/.test(sql), 'apple_app_ids partirait avec le compte');
+    assert.ok(/on conflict \(store, install_id\) do nothing/.test(sql));
+    assert.ok(!/create table public\.store_installs[^;]*auth\.users/.test(sql), 'store_installs partirait avec le compte');
+    // Premier rattachement : départ du compte seulement si son essai court encore (relecture du 28/10)
+    assert.ok(/case when own > now\(\) - make_interval\(days => private\.access_trial_days\(\)\) then own else now\(\) end/.test(sql));
     // La fonction n'est pas protégée par la passerelle (jeton relu dans le code, comme delete-account)
     assert.ok(/\[functions\.verify-app-transaction\]\s*\n#[^\n]*\nverify_jwt = false/.test(read('supabase/config.toml')));
-    // Le contrat le dit
+    // La page de confidentialité le dit, en français et en anglais (relecture du 28/10)
+    const privacy = read('privacy.html');
+    for (const k of ['article 21 du RGPD', 'GDPR Article 21', 'sauf l\'identifiant d\'installation', 'except the free-trial installation identifier',
+      'réglage public', 'public setting', 'commence dès maintenant', 'starts now', 'même au-delà de 2 ans', 'even beyond 2 years', 'Base légale']) {
+      assert.ok(privacy.includes(k), `${k} absent de privacy.html`);
+    }
+        // Le contrat le dit
     const doc = read('docs/PAYANT_V1.md');
-    for (const k of ['verify-app-transaction', 'appTransactionId', 'apple_linked', 'trial_unproven_days', 'apple_app_ids']) {
+    for (const k of ['verify-app-transaction', 'appTransactionId', 'apple_linked', 'trial_shared', 'trial_unproven_days', 'store_installs', 'ios_seen_at', 'DeviceCheck']) {
       assert.ok(doc.includes(k), `${k} absent de docs/PAYANT_V1.md`);
     }
   });

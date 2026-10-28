@@ -127,8 +127,13 @@ const Native = (() => {
   // Filet de sécurité : l'écran de démarrage disparaît même si le rendu échoue
   if (isNative) setTimeout(() => quiet(SplashScreen.hide()), 4000);
 
+  // Plateforme de la coquille ('ios' ou 'android'), null dans le navigateur : déclarée au serveur par
+  // my_access (le plafond de l'essai sans preuve Apple ne vise que les comptes vus sur iPhone)
+  const platform = isNative && ['ios', 'android'].includes(cap.getPlatform?.()) ? cap.getPlatform() : null;
+
   return {
     isNative,
+    platform,
     restoredAtBoot,
 
     // Retour haptique du Taptic Engine : 'light' au toucher, 'success' en fin de repos ou de séance

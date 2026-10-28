@@ -3,6 +3,7 @@
 // du projet et lecture de l'appelant.
 import { createClient, type User } from 'npm:@supabase/supabase-js@2.118.0';
 import { decodeJwt } from 'npm:jose@5.9.6';
+import { requireCaller } from './auth-guard.js';
 
 export const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -24,17 +25,17 @@ function publishableKey(): string {
 }
 
 // Appelant identifié par son jeton de session, relu sur le serveur d'authentification (auth.getUser :
-// jeton vérifié, utilisateur et identités à jour). claims : charge utile de ce même jeton (amr…).
+// jeton vérifié, utilisateur et identités à jour), par la garde pure _shared/auth-guard.js (testée
+// sans Deno). claims : charge utile de ce même jeton (amr…). null = l'appelant doit recevoir 401.
 export async function caller(req: Request): Promise<{ user: User; claims: Record<string, unknown> } | null> {
-  const auth = req.headers.get('Authorization') ?? '';
-  if (!auth.startsWith('Bearer ')) return null;
-  const jwt = auth.slice(7);
-  const asUser = createClient(env('SUPABASE_URL'), publishableKey(), { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
-  const { data: { user }, error } = await asUser.auth.getUser(jwt);
-  if (error || !user) return null;
+  const found = await requireCaller(req, (jwt: string) => {
+    const asUser = createClient(env('SUPABASE_URL'), publishableKey(), { global: { headers: { Authorization: `Bearer ${jwt}` } }, auth: { persistSession: false } });
+    return asUser.auth.getUser(jwt);
+  });
+  if (!found) return null;
   let claims: Record<string, unknown> = {};
-  try { claims = decodeJwt(jwt); } catch { /* illisible : aucune connexion récente reconnue */ }
-  return { user, claims };
+  try { claims = decodeJwt(found.jwt); } catch { /* illisible : aucune connexion récente reconnue */ }
+  return { user: found.user as User, claims };
 }
 
 export const adminClient = () => createClient(env('SUPABASE_URL'), secretKey(), { auth: { persistSession: false } });

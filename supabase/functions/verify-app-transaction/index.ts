@@ -11,7 +11,7 @@
 //    (_shared/apple-jws.js, Apple Root CA G3 épinglée). Le détail du refus reste dans les journaux.
 // 3. La charge utile est jugée par app-transaction-policy.js : bundleId com.mdlf.training,
 //    environnement Production (Sandbox seulement avec APPLE_ALLOW_SANDBOX=1), appTransactionId présent.
-// 4. Écriture par public.srv_link_app_transaction (clé serveur, seul rôle qui peut l'exécuter) : la
+// 4. Écriture par public.srv_link_store_install('apple', …) (clé serveur, seul rôle qui peut l'exécuter) : la
 //    base retient la date du premier essai de cet identifiant Apple et rattache le compte.
 //
 // Pas de relecture chez Apple (contrairement à verify-purchase) : l'App Store Server API n'a pas de
@@ -35,9 +35,10 @@ Deno.serve(async (req) => {
   const proof = appTransactionDecision(signed.payload, { allowSandbox: env('APPLE_ALLOW_SANDBOX') === '1' });
   if (!proof.ok) return json({ error: proof.error }, appTxStatus(proof.error));
 
-  const { data, error } = await adminClient().rpc('srv_link_app_transaction', {
+  const { data, error } = await adminClient().rpc('srv_link_store_install', {
     p_user: who.user.id,
-    p_app_tx: proof.value.app_transaction_id,
+    p_store: 'apple',
+    p_install_id: proof.value.app_transaction_id,
     p_environment: proof.value.environment,
     p_bundle: proof.value.bundle_id,
   });
