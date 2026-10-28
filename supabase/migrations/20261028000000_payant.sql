@@ -22,6 +22,23 @@
 --    entitlement_claims reste à son nom (elle ne part qu'avec son compte, on delete cascade).
 --  - can_write vaut TOUJOURS true tant que app_config.paywall_on est faux (le verrou est livré éteint).
 --  - Un élève suivi par un coach (public.coach_links) a can_write à true, statut coach_team.
+--  - Un évènement arrivé dans le DÉSORDRE ne coupe pas un abonné (relecture du 28/10) : ni
+--    Transaction.unfinished (ordre non garanti au lancement de l'app) ni les notifications V2
+--    (réessayées jusqu'à 3 jours, ordre non garanti) ne peuvent faire reculer une date de fin.
+--    entitlement_claims.event_at garde la date du dernier évènement appliqué, un évènement plus ancien
+--    est ignoré, et la date de fin ne recule que quand Apple ferme l'accès lui-même (remboursement,
+--    révocation, expiration, fin de grâce). Une transaction remboursée le reste, sauf réabonnement
+--    réel : la révocation n'est levée que par un évènement à la fois plus récent et portant une
+--    période strictement plus lointaine.
+--  - Notifications dédoublonnées (public.appstore_notifications, notificationUUID) : la déduplication
+--    et l'écriture sont dans la MÊME transaction, donc une écriture qui échoue ne consomme pas la
+--    notification et le réessai d'Apple la retraite.
+--  - Achat orphelin repêché : si la transaction d'origine est inconnue du serveur, srv_access_event
+--    retombe sur l'appAccountToken de la transaction (l'app y met l'identifiant du compte).
+--  - Le verrou n'est PAS seulement côté app : un déclencheur before insert sur public.sessions refuse
+--    une nouvelle séance quand le verrou est allumé et que can_write est faux (erreur paywall_locked).
+--    Se déconnecter, enregistrer des séances puis se reconnecter ne passe donc plus. update et delete
+--    restent ouverts : on ne perd rien et on peut corriger une séance déjà enregistrée.
 --  - Codes cadeaux MAISON (public.gift_codes, ajout du 28/10 : les codes promotionnels d'Apple sont
 --    limités à 100 par version, expirent en 28 jours et se saisissent dans l'App Store, donc
 --    inutilisables ici). Créés UNIQUEMENT par l'administrateur en SQL (private.make_gift_code) : aucune
@@ -37,7 +54,7 @@
 --    seuls rate_limited et not_found (aucun utilisateur) sont levés, et les annuler ne gêne pas
 --    (les essais déjà comptés sont, eux, enregistrés).
 --  - Erreurs lisibles par l'app (message exact, errcode P0001) : not_found, transaction_taken,
---    unknown_product, invalid_transaction, rate_limited.
+--    unknown_product, invalid_transaction, rate_limited, paywall_locked.
 --  - Suppression du compte : entitlements, entitlement_claims et gift_redemptions partent en cascade
 --    avec auth.users (le code cadeau lui-même reste, son compteur uses ne redescend pas).
 --  - GRANT explicites : anon n'a rien ; chaque fonction perd le droit d'exécution donné par défaut à
@@ -82,10 +99,17 @@
 --     même brique que le coach). L'écouteur Transaction.updates de StoreKit renvoie une transaction à
 --     chaque renouvellement et à chaque restauration : 120 laisse large, et empêche une app modifiée de
 --     marteler l'App Store Server API avec notre clé.
---  9. Hors V1 (noté ici pour ne pas l'oublier) : le serveur ne refuse pas encore l'écriture d'une
---     séance quand can_write est faux. Le verrou est appliqué par l'app, comme le dit le contrat ; la
---     table sessions garde sa RLS « ses lignes seulement ». Rien de payant n'est déverrouillé par cette
---     décision : seule l'écriture de ses propres séances l'est.
+--  9. Verrou dur côté serveur (relecture du 28/10) : le déclencheur private.sessions_paywall refuse
+--     l'INSERTION d'une séance quand le verrou est allumé et que can_write est faux. Seules les
+--     nouvelles séances sont refusées : update et delete restent permis, pour ne rien perdre, pouvoir
+--     corriger et pouvoir mettre à la corbeille. Un compte sans ligne entitlements voit son essai
+--     démarrer là aussi, à l'heure du serveur : ne jamais appeler my_access() ne donne pas un essai
+--     éternel.
+--  10. Un remboursé le RESTE, sauf réabonnement réel : la révocation n'est levée que par un évènement
+--     à la fois plus récent et portant une période strictement plus lointaine (private.access_claim,
+--     règle 4). Apple garde la même transaction d'origine au réabonnement : sans cette réouverture,
+--     un client remboursé qui repaie resterait bloqué et devrait écrire au support. Un évènement en
+--     retard, rejoué ou de même période ne rouvre rien, donc la règle reste sûre.
 -- ═══════════════════════════════════════════════════════════
 
 -- ── Données ──────────────────────────────────────────────
@@ -112,6 +136,10 @@ grant select on public.app_config to authenticated;
 -- fait qu'un abonnement ne sert qu'à un compte (voir le choix 1 de l'en-tête). kind : abonnement ou
 -- accès offert. expires_at : fin de la période payée (abonnements seulement). revoked_at :
 -- remboursement ou révocation signalés par Apple.
+-- event_at : date de l'évènement le plus récent déjà appliqué à cette transaction (purchaseDate pour
+-- une transaction relue chez Apple, signedDate pour une notification). Un évènement plus ancien est
+-- IGNORÉ : ni Transaction.unfinished (ordre non garanti au lancement), ni les notifications V2
+-- (réessayées jusqu'à 3 jours, ordre non garanti) ne peuvent faire reculer une date de fin.
 create table public.entitlement_claims (
   original_transaction_id text primary key check (char_length(original_transaction_id) between 1 and 64),
   user_id    uuid not null references auth.users(id) on delete cascade,
@@ -119,10 +147,19 @@ create table public.entitlement_claims (
   kind       text not null check (kind in ('sub', 'gift')),
   expires_at timestamptz,
   revoked_at timestamptz,
+  event_at   timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 create index entitlement_claims_user on public.entitlement_claims (user_id, kind);
+
+-- Notifications d'Apple déjà traitées (déduplication) : Apple réessaie une notification jusqu'à
+-- 3 jours, et peut l'envoyer deux fois. Gardées 30 jours, purgées à la notification suivante.
+create table public.appstore_notifications (
+  notification_uuid text primary key check (char_length(notification_uuid) between 1 and 64),
+  at                timestamptz not null default now()
+);
+create index appstore_notifications_at on public.appstore_notifications (at);
 
 -- Instantané du droit d'accès d'un compte (colonnes du contrat). trial_started_at : heure du serveur au
 -- premier my_access(), jamais réécrite. gift : accès à VIE (non consommable d'Apple ou code cadeau
@@ -175,13 +212,14 @@ create index gift_redemptions_user on public.gift_redemptions (user_id);
 
 alter table public.entitlements enable row level security;
 alter table public.entitlement_claims enable row level security;
+alter table public.appstore_notifications enable row level security;
 alter table public.gift_codes enable row level security;
 alter table public.gift_redemptions enable row level security;
 -- Aucune politique : RLS fermée (défense en profondeur, en plus des GRANT). Les Edge Functions
 -- n'écrivent pas les tables, elles appellent les fonctions srv_* ci-dessous ; l'app passe par
 -- redeem_gift_code. Personne ne LIT gift_codes : sans quoi tous les codes seraient connus.
-revoke all on public.entitlements, public.entitlement_claims, public.gift_codes, public.gift_redemptions
-  from public, anon, authenticated, service_role;
+revoke all on public.entitlements, public.entitlement_claims, public.appstore_notifications,
+  public.gift_codes, public.gift_redemptions from public, anon, authenticated, service_role;
 
 -- ── Briques privées ──────────────────────────────────────
 
@@ -334,13 +372,33 @@ $$;
 -- Noyau commun de verify-purchase et appstore-notify. Refuse une transaction déjà au nom d'un autre
 -- compte (transaction_taken), un produit qui n'est pas des nôtres (unknown_product), une transaction
 -- mal formée (invalid_transaction) et un compte inconnu (not_found).
+--
+-- Quatre règles qui protègent un abonné contre un évènement arrivé dans le désordre, et un remboursé
+-- contre une réactivation involontaire :
+--  1. p_event_at plus ancien que le dernier évènement appliqué : la ligne n'est PAS touchée du tout.
+--     Ni Transaction.unfinished (ordre non garanti au lancement de l'app) ni une notification
+--     réessayée par Apple ne peuvent défaire un renouvellement déjà connu.
+--  2. La date de fin ne RECULE jamais, sauf quand Apple ferme l'accès lui-même : un remboursement,
+--     une révocation, une expiration ou une fin de grâce (p_revoked ou p_force).
+--  3. Tant qu'une transaction est révoquée, sa période ne bouge pas : sinon un évènement sans date
+--     relèverait la barre du réabonnement (règle 4) sans rien rouvrir.
+--  4. Réouverture après un remboursement (28/10) : Apple garde la même transaction d'origine quand
+--     quelqu'un se réabonne, il faut donc pouvoir rouvrir. La révocation n'est levée QUE par un
+--     évènement à la fois PLUS RÉCENT (p_event_at > event_at, les deux connus) et portant une période
+--     STRICTEMENT plus lointaine. Un évènement en retard, rejoué, de même période, ou sans date, ne
+--     lève donc jamais une révocation. En secours, la commande d'administration en bas de ce fichier.
 create function private.access_claim(p_user uuid, p_product text, p_expires timestamptz,
-                                     p_original_tx text, p_revoked boolean) returns jsonb
+                                     p_original_tx text, p_revoked boolean,
+                                     p_event_at timestamptz default null,
+                                     p_force boolean default false) returns jsonb
   language plpgsql security definer set search_path = '' as
 $$
 declare
-  k     text := private.access_product_kind(p_product);
-  owner uuid;
+  k        text := private.access_product_kind(p_product);
+  cur      public.entitlement_claims;
+  -- Une période de fin n'a de sens que pour un abonnement (l'accès offert est à vie)
+  new_end  timestamptz := case when k = 'sub' then p_expires end;
+  reopen   boolean := false;
 begin
   if p_user is null or not exists (select 1 from auth.users u where u.id = p_user) then
     raise exception 'not_found' using errcode = 'P0001';
@@ -351,25 +409,48 @@ begin
   if k is null then
     raise exception 'unknown_product' using errcode = 'P0001';
   end if;
-  -- Deux comptes qui présentent la même transaction en même temps : l'un des deux attend et sera refusé
+  -- Deux comptes qui présentent la même transaction en même temps : l'un des deux attend et sera
+  -- refusé. Le verrou sérialise aussi deux évènements de la même transaction.
   perform pg_advisory_xact_lock(hashtextextended('access_tx:' || p_original_tx, 0));
-  select c.user_id into owner from public.entitlement_claims c
-    where c.original_transaction_id = p_original_tx;
-  if owner is not null and owner <> p_user then
+  select * into cur from public.entitlement_claims c where c.original_transaction_id = p_original_tx;
+  if cur.user_id is not null and cur.user_id <> p_user then
     raise exception 'transaction_taken' using errcode = 'P0001';
   end if;
-  insert into public.entitlement_claims as c
-      (original_transaction_id, user_id, product_id, kind, expires_at, revoked_at)
-    values (p_original_tx, p_user, p_product, k,
-            case when k = 'sub' then p_expires end,
-            case when p_revoked then now() end)
-  on conflict (original_transaction_id) do update set
-    product_id = excluded.product_id,
-    kind       = excluded.kind,
-    expires_at = excluded.expires_at,
-    -- Date du premier remboursement gardée ; une transaction redevenue valable n'est plus révoquée
-    revoked_at = case when p_revoked then coalesce(c.revoked_at, now()) end,
-    updated_at = now();
+
+  if cur.user_id is null then
+    begin
+      insert into public.entitlement_claims
+          (original_transaction_id, user_id, product_id, kind, expires_at, revoked_at, event_at)
+        values (p_original_tx, p_user, p_product, k, new_end,
+                case when p_revoked then now() end, p_event_at);
+    exception when unique_violation then
+      raise exception 'transaction_taken' using errcode = 'P0001';
+    end;
+  -- Règle 1 : un évènement plus ancien que le dernier appliqué ne touche à rien
+  elsif cur.event_at is null or p_event_at is null or p_event_at >= cur.event_at then
+    -- Règle 4 : réabonnement réel = évènement plus récent ET période strictement plus lointaine
+    reopen := cur.revoked_at is not null and not p_revoked
+              and new_end is not null and (cur.expires_at is null or new_end > cur.expires_at)
+              and cur.event_at is not null and p_event_at is not null and p_event_at > cur.event_at;
+    update public.entitlement_claims c set
+      product_id = p_product,
+      kind       = k,
+      expires_at = case
+                     -- Règle 2 : Apple ferme l'accès, ou règle 4 : la nouvelle période fait foi
+                     when p_revoked or p_force or reopen then new_end
+                     -- Règle 3 : révoquée et pas rouverte, sa période ne bouge pas
+                     when cur.revoked_at is not null then cur.expires_at
+                     else greatest(cur.expires_at, new_end)
+                   end,
+      revoked_at = case
+                     when reopen then null
+                     when p_revoked then coalesce(cur.revoked_at, now())
+                     else cur.revoked_at
+                   end,
+      event_at   = greatest(cur.event_at, p_event_at),
+      updated_at = now()
+    where c.original_transaction_id = p_original_tx;
+  end if;
   perform private.access_refresh(p_user);
   return private.access_json(p_user);
 end
@@ -533,8 +614,12 @@ $$ select private.access_json((select auth.uid())) $$;
 -- signature d'Apple vérifiée. Aucun client ne peut les exécuter (revoke de public, anon, authenticated).
 
 -- verify-purchase : la transaction relue chez Apple est rattachée au compte de l'appelant.
+-- p_event_at : purchaseDate de la transaction (stable d'une relecture à l'autre, et croissant d'un
+-- renouvellement au suivant) : une transaction du mois N parcourue après celle du mois N+1
+-- (Transaction.unfinished, ordre non garanti) ne fait plus reculer la date de fin.
 create function public.srv_access_purchase(p_user uuid, p_product text, p_expires timestamptz,
-                                           p_original_tx text, p_revoked boolean default false)
+                                           p_original_tx text, p_revoked boolean default false,
+                                           p_event_at timestamptz default null)
   returns jsonb
   language plpgsql security definer set search_path = '' as
 $$
@@ -543,32 +628,87 @@ begin
     raise exception 'not_found' using errcode = 'P0001';
   end if;
   perform private.rate_limit_window(p_user, 'access_verify', 120, interval '24 hours');
-  return private.access_claim(p_user, p_product, p_expires, p_original_tx, coalesce(p_revoked, false));
+  return private.access_claim(p_user, p_product, p_expires, p_original_tx,
+                              coalesce(p_revoked, false), p_event_at, false);
 end
 $$;
 
 -- appstore-notify : un évènement d'Apple ne dit pas quel compte est concerné, il porte la transaction
--- d'origine. Transaction inconnue (achat pas encore remonté par l'app) ou produit qui n'est pas des
--- nôtres : { matched: false }, et la fonction Edge répond 200 pour qu'Apple ne réessaie pas sans fin.
+-- d'origine. Tout est fait ici dans UNE transaction de base de données (déduplication comprise) : si
+-- l'écriture échoue, la notification n'est pas marquée vue et le réessai d'Apple la retraitera.
+--  - p_uuid : notificationUUID. Déjà vu : { duplicate: true }, rien n'est réécrit.
+--  - p_event_at : signedDate de la notification. Plus ancien que le dernier évènement appliqué :
+--    la transaction n'est pas touchée (private.access_claim).
+--  - p_force : vrai pour les évènements où Apple FERME l'accès (EXPIRED, GRACE_PERIOD_EXPIRED), seuls
+--    cas où la date de fin peut reculer.
+--  - p_account_token : appAccountToken de la transaction (l'app y met l'identifiant du compte). Il
+--    sert de repêchage quand la transaction d'origine est inconnue (achat jamais remonté par l'app) :
+--    sans lui, l'achat resterait orphelin pour toujours.
+-- Transaction inconnue et sans repêchage, ou produit qui n'est pas des nôtres : { matched: false }, et
+-- la fonction Edge répond 200 pour qu'Apple ne réessaie pas sans fin.
 create function public.srv_access_event(p_original_tx text, p_product text, p_expires timestamptz,
-                                        p_revoked boolean default false)
+                                        p_revoked boolean default false,
+                                        p_event_at timestamptz default null,
+                                        p_force boolean default false,
+                                        p_uuid text default null,
+                                        p_account_token text default null)
   returns jsonb
   language plpgsql security definer set search_path = '' as
 $$
 declare owner uuid;
 begin
+  if p_uuid is not null and char_length(p_uuid) between 1 and 64 then
+    insert into public.appstore_notifications (notification_uuid) values (p_uuid) on conflict do nothing;
+    if not found then
+      return jsonb_build_object('matched', false, 'duplicate', true);
+    end if;
+    delete from public.appstore_notifications n where n.at < now() - interval '30 days';
+  end if;
   if p_original_tx is null or private.access_product_kind(p_product) is null then
-    return jsonb_build_object('matched', false);
+    return jsonb_build_object('matched', false, 'duplicate', false);
   end if;
   select c.user_id into owner from public.entitlement_claims c
     where c.original_transaction_id = p_original_tx;
-  if owner is null then
-    return jsonb_build_object('matched', false);
+  -- Repêchage par appAccountToken : l'achat n'a jamais été remonté par l'app
+  if owner is null and p_account_token ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    select u.id into owner from auth.users u where u.id = p_account_token::uuid;
   end if;
-  perform private.access_claim(owner, p_product, p_expires, p_original_tx, coalesce(p_revoked, false));
-  return jsonb_build_object('matched', true, 'user_id', owner, 'access', private.access_json(owner));
+  if owner is null then
+    return jsonb_build_object('matched', false, 'duplicate', false);
+  end if;
+  perform private.access_claim(owner, p_product, p_expires, p_original_tx,
+                               coalesce(p_revoked, false), p_event_at, coalesce(p_force, false));
+  return jsonb_build_object('matched', true, 'duplicate', false,
+                            'user_id', owner, 'access', private.access_json(owner));
 end
 $$;
+
+-- ── Verrou côté serveur (le client ne décide pas) ────────
+
+-- Le verrou ne peut pas vivre seulement dans l'app : se déconnecter met can_write à vrai côté app, et
+-- la synchronisation suivante téléverserait tout. Ce déclencheur refuse donc une NOUVELLE séance quand
+-- le verrou est allumé et que le droit d'écrire est tombé. update et delete restent ouverts : on ne
+-- perd rien, on peut corriger une séance déjà enregistrée et la mettre à la corbeille.
+-- Verrou éteint : aucun coût (une seule lecture de app_config, et rien d'autre).
+create function private.sessions_paywall() returns trigger
+  language plpgsql security definer set search_path = '' as
+$$
+begin
+  if not private.access_paywall_on() then
+    return new;
+  end if;
+  -- Compte qui n'a encore jamais lu son accès : son essai démarre ici, à l'heure du serveur
+  insert into public.entitlements (user_id, status, trial_started_at)
+    values (new.user_id, 'trial', now()) on conflict (user_id) do nothing;
+  if not (private.access_json(new.user_id) ->> 'can_write')::boolean then
+    raise exception 'paywall_locked' using errcode = 'P0001';
+  end if;
+  return new;
+end
+$$;
+-- Nommé pour passer avant sessions_touch (les déclencheurs d'une table se suivent par ordre de nom)
+create trigger sessions_paywall before insert on public.sessions
+  for each row execute function private.sessions_paywall();
 
 -- ── Droits des fonctions ─────────────────────────────────
 
@@ -577,8 +717,9 @@ revoke all on function private.access_paywall_on() from public, anon, authentica
 revoke all on function private.access_trial_days() from public, anon, authenticated, service_role;
 revoke all on function private.access_json(uuid) from public, anon, authenticated, service_role;
 revoke all on function private.access_refresh(uuid) from public, anon, authenticated, service_role;
-revoke all on function private.access_claim(uuid, text, timestamptz, text, boolean)
+revoke all on function private.access_claim(uuid, text, timestamptz, text, boolean, timestamptz, boolean)
   from public, anon, authenticated, service_role;
+revoke all on function private.sessions_paywall() from public, anon, authenticated, service_role;
 revoke all on function private.gift_code_norm(text) from public, anon, authenticated, service_role;
 revoke all on function private.gift_new_code() from public, anon, authenticated, service_role;
 revoke all on function private.gift_refused(uuid, text) from public, anon, authenticated, service_role;
@@ -594,15 +735,20 @@ grant execute on function public.access_state() to authenticated;
 grant execute on function public.redeem_gift_code(text) to authenticated;
 
 -- Écriture du droit d'accès : la clé serveur et personne d'autre
-revoke all on function public.srv_access_purchase(uuid, text, timestamptz, text, boolean)
+revoke all on function public.srv_access_purchase(uuid, text, timestamptz, text, boolean, timestamptz)
   from public, anon, authenticated, service_role;
-revoke all on function public.srv_access_event(text, text, timestamptz, boolean)
+revoke all on function public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text)
   from public, anon, authenticated, service_role;
-grant execute on function public.srv_access_purchase(uuid, text, timestamptz, text, boolean) to service_role;
-grant execute on function public.srv_access_event(text, text, timestamptz, boolean) to service_role;
+grant execute on function public.srv_access_purchase(uuid, text, timestamptz, text, boolean, timestamptz) to service_role;
+grant execute on function public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text) to service_role;
 
 -- Comptes dont l'abonnement vient de tomber, à regarder à la main en cas de doute :
 --   select user_id, status, product_id, expires_at from public.entitlements
 --     where status = 'expired' and expires_at is not null order by expires_at desc;
 -- Codes cadeaux et leur usage :
 --   select code, kind, days, uses, max_uses, expires_at, note from public.gift_codes order by created_at desc;
+-- Réouverture à la main, en secours (un réabonnement réel rouvre tout seul, voir la règle 4 de
+-- private.access_claim ; cette commande sert si la période d'Apple ne va pas plus loin que l'ancienne) :
+--   update public.entitlement_claims set revoked_at = null, event_at = null
+--     where original_transaction_id = '…';
+--   select private.access_refresh('<user_id>');

@@ -4,7 +4,7 @@
 // la fois. Contrat : docs/PAYANT_V1.md.
 import fs from 'node:fs';
 import path from 'node:path';
-import { makeCert, makeChain, makeJws, newKey, notificationPayload, transactionPayload,
+import { makeCert, makeChain, makeJws, newKey, notificationPayload, renewalPayload, transactionPayload,
   APPLE_RECEIPT_SIGNER_OID, APPLE_INTERMEDIATE_OID } from './apple-jws-fixtures.mjs';
 
 export default function ({ test, assert, sameJSON, ROOT }) {
@@ -165,13 +165,18 @@ export default function ({ test, assert, sameJSON, ROOT }) {
 
   test('verify-purchase : transaction valable → droit d\'accès à écrire', async () => {
     const { transactionDecision } = await policy();
-    const r = transactionDecision(transactionPayload({ expiresDate: nowMs + 30 * 86400_000 }), { nowMs });
+    const r = transactionDecision(transactionPayload({ expiresDate: nowMs + 30 * 86400_000, purchaseDate: nowMs - 86400_000 }), { nowMs });
     sameJSON(r, { ok: true, value: {
       product_id: 'com.mdlf.training.pro.monthly', kind: 'sub',
       expires_at: new Date(nowMs + 30 * 86400_000).toISOString(),
       original_transaction_id: '2000000900000001', transaction_id: '2000000900000001',
       revoked: false, environment: 'Production', expired: false,
+      // event_at = purchaseDate (stable d'une relecture à l'autre), jamais signedDate
+      event_at: new Date(nowMs - 86400_000).toISOString(), account_token: null,
     } });
+    // signedDate ne sert que si purchaseDate manque
+    assert.equal(transactionDecision(transactionPayload({ purchaseDate: undefined, signedDate: nowMs }), { nowMs }).value.event_at, new Date(nowMs).toISOString());
+    assert.equal(transactionDecision(transactionPayload({ purchaseDate: undefined, signedDate: undefined }), { nowMs }).value.event_at, null);
     // Formule annuelle
     assert.equal(transactionDecision(transactionPayload({ productId: 'com.mdlf.training.pro.yearly' }), { nowMs }).value.kind, 'sub');
     // Accès offert : non consommable, sans date de fin
@@ -253,24 +258,64 @@ export default function ({ test, assert, sameJSON, ROOT }) {
 
   // ── Notifications d'Apple (appstore-notify) ─────────────
 
-  test('appstore-notify : les sept types du contrat sont traités', async () => {
+  test('appstore-notify : les types du contrat sont traités', async () => {
     const { notificationDecision, HANDLED_TYPES } = await notify();
-    sameJSON([...HANDLED_TYPES].sort(), ['DID_CHANGE_RENEWAL_STATUS', 'DID_RENEW', 'EXPIRED', 'GRACE_PERIOD_EXPIRED', 'REFUND', 'REVOKE', 'SUBSCRIBED']);
-    // La même liste que le contrat
+    sameJSON([...HANDLED_TYPES].sort(), ['DID_CHANGE_RENEWAL_STATUS', 'DID_FAIL_TO_RENEW', 'DID_RENEW', 'EXPIRED',
+      'GRACE_PERIOD_EXPIRED', 'REFUND', 'REVOKE', 'SUBSCRIBED']);
+    // Les sept du contrat y sont (DID_FAIL_TO_RENEW est en plus : il porte la période de grâce)
     const doc = contract();
     for (const t of HANDLED_TYPES) assert.ok(doc.includes(t), `${t} absent du contrat`);
     const until = nowMs + 30 * 86400_000;
-    const tx = transactionPayload({ expiresDate: until });
-    for (const type of ['SUBSCRIBED', 'DID_RENEW', 'DID_CHANGE_RENEWAL_STATUS']) {
-      const r = notificationDecision({ notification: notificationPayload({ notificationType: type }), transaction: tx, nowMs });
-      sameJSON(r, { ok: true, handled: true, type, value: {
+    const tx = transactionPayload({ expiresDate: until, purchaseDate: nowMs - 86400_000 });
+    for (const type of ['SUBSCRIBED', 'DID_RENEW', 'DID_CHANGE_RENEWAL_STATUS', 'DID_FAIL_TO_RENEW']) {
+      const r = notificationDecision({ notification: notificationPayload({ notificationType: type, signedDate: nowMs }), transaction: tx, nowMs });
+      sameJSON(r, { handled: true, type, value: {
         original_transaction_id: '2000000900000001', product_id: 'com.mdlf.training.pro.monthly',
-        expires_at: new Date(until).toISOString(), revoked: false,
+        expires_at: new Date(until).toISOString(), revoked: false, force: false,
+        event_at: new Date(nowMs).toISOString(), account_token: null,
       } }, type);
     }
   });
 
-  test('appstore-notify : expiration ramenée à maintenant, remboursement révoqué', async () => {
+  test('appstore-notify : la période de grâce de facturation garde l\'accès', async () => {
+    const { notificationDecision } = await notify();
+    // gracePeriodExpiresDate n'existe que dans signedRenewalInfo : sans le lire, une carte qui échoue
+    // couperait un abonné qu'Apple considère toujours abonné
+    const expired = nowMs - 3600_000;
+    const grace = nowMs + 16 * 86400_000;
+    const tx = transactionPayload({ expiresDate: expired });
+    const sansGrace = notificationDecision({ notification: notificationPayload({ notificationType: 'DID_FAIL_TO_RENEW' }), transaction: tx, nowMs });
+    assert.equal(sansGrace.value.expires_at, new Date(expired).toISOString(), 'sans renewalInfo');
+    const avecGrace = notificationDecision({
+      notification: notificationPayload({ notificationType: 'DID_FAIL_TO_RENEW' }),
+      transaction: tx, renewal: renewalPayload({ gracePeriodExpiresDate: grace }), nowMs,
+    });
+    assert.equal(avecGrace.value.expires_at, new Date(grace).toISOString(), 'la grâce doit garder l\'accès');
+    assert.equal(avecGrace.value.revoked, false);
+    assert.equal(avecGrace.value.force, false);
+    // La grâce ne raccourcit jamais une période déjà plus lointaine
+    const long = notificationDecision({
+      notification: notificationPayload({ notificationType: 'DID_RENEW' }),
+      transaction: transactionPayload({ expiresDate: nowMs + 30 * 86400_000 }),
+      renewal: renewalPayload({ gracePeriodExpiresDate: nowMs + 86400_000 }), nowMs,
+    });
+    assert.equal(long.value.expires_at, new Date(nowMs + 30 * 86400_000).toISOString());
+    // Une grâce qui n'est pas une date est ignorée
+    for (const bad of [null, 'bientôt', 0, -1]) {
+      const r = notificationDecision({ notification: notificationPayload({ notificationType: 'DID_FAIL_TO_RENEW' }),
+        transaction: tx, renewal: renewalPayload({ gracePeriodExpiresDate: bad }), nowMs });
+      assert.equal(r.value.expires_at, new Date(expired).toISOString(), String(bad));
+    }
+    // GRACE_PERIOD_EXPIRED ferme l'accès même si le renewalInfo porte encore une date
+    const fin = notificationDecision({
+      notification: notificationPayload({ notificationType: 'GRACE_PERIOD_EXPIRED' }),
+      transaction: tx, renewal: renewalPayload({ gracePeriodExpiresDate: nowMs + 86400_000 }), nowMs,
+    });
+    assert.equal(fin.value.expires_at, new Date(nowMs).toISOString());
+    assert.equal(fin.value.force, true);
+  });
+
+  test('appstore-notify : expiration ramenée à maintenant (et force), remboursement révoqué', async () => {
     const { notificationDecision } = await notify();
     // Apple envoie parfois EXPIRED avec une date encore dans le futur : on ne laisse rien d'ouvert
     for (const type of ['EXPIRED', 'GRACE_PERIOD_EXPIRED']) {
@@ -278,6 +323,8 @@ export default function ({ test, assert, sameJSON, ROOT }) {
         transaction: transactionPayload({ expiresDate: nowMs + 60_000 }), nowMs });
       assert.equal(r.value.expires_at, new Date(nowMs).toISOString(), type);
       assert.equal(r.value.revoked, false, type);
+      // force : seul cas où le serveur accepte de faire reculer la date de fin
+      assert.equal(r.value.force, true, type);
     }
     // Une expiration déjà passée garde sa date
     const past = notificationDecision({ notification: notificationPayload({ notificationType: 'EXPIRED' }),
@@ -287,31 +334,62 @@ export default function ({ test, assert, sameJSON, ROOT }) {
       const r = notificationDecision({ notification: notificationPayload({ notificationType: type }),
         transaction: transactionPayload({ expiresDate: nowMs + 86400_000 }), nowMs });
       assert.equal(r.value.revoked, true, type);
+      assert.equal(r.value.force, false, type);
     }
     // Un accès offert révoqué passe aussi
-    const gift = notificationDecision({ notification: notificationPayload({ notificationType: 'REVOKE' }),
-      transaction: transactionPayload({ productId: 'com.mdlf.training.access.gift', type: 'Non-Consumable', expiresDate: undefined }), nowMs });
-    sameJSON(gift.value, { original_transaction_id: '2000000900000001', product_id: 'com.mdlf.training.access.gift', expires_at: null, revoked: true });
+    const gift = notificationDecision({ notification: notificationPayload({ notificationType: 'REVOKE', signedDate: nowMs }),
+      transaction: transactionPayload({ productId: 'com.mdlf.training.access.gift', type: 'Non-Consumable', expiresDate: undefined, purchaseDate: nowMs - 1000 }), nowMs });
+    sameJSON(gift.value, { original_transaction_id: '2000000900000001', product_id: 'com.mdlf.training.access.gift',
+      expires_at: null, revoked: true, force: false, event_at: new Date(nowMs).toISOString(), account_token: null });
   });
 
-  test('appstore-notify : types et produits ignorés (200), refus (401 ou 400)', async () => {
+  test('appstore-notify : tout ce qui est signé par Apple repart en 200', async () => {
     const { notificationDecision } = await notify();
     const tx = transactionPayload();
-    for (const type of ['TEST', 'DID_FAIL_TO_RENEW', 'PRICE_INCREASE', 'CONSUMPTION_REQUEST', 'RENEWAL_EXTENDED']) {
-      const r = notificationDecision({ notification: notificationPayload({ notificationType: type }), transaction: tx, nowMs });
-      sameJSON(r, { ok: true, handled: false, type, reason: 'type_ignored' }, type);
+    // Types qu'on ne traite pas : ignorés, jamais refusés (sinon Apple rejoue 5 fois sur 3 jours)
+    for (const type of ['TEST', 'PRICE_INCREASE', 'CONSUMPTION_REQUEST', 'RENEWAL_EXTENDED', 'RENEWAL_EXTENSION', 'RESCIND_CONSENT']) {
+      sameJSON(notificationDecision({ notification: notificationPayload({ notificationType: type }), transaction: tx, nowMs }),
+        { handled: false, type, reason: 'type_ignored' }, type);
     }
-    // Un produit d'une autre app du même compte Apple : accepté et ignoré, jamais une erreur
-    const other = notificationDecision({ notification: notificationPayload(), transaction: transactionPayload({ productId: 'com.autre.pro' }), nowMs });
-    sameJSON(other, { ok: true, handled: false, type: 'DID_RENEW', reason: 'unknown_product' });
-    // Refus
-    assert.equal(notificationDecision({ notification: notificationPayload({}, { bundleId: 'com.autre.app' }), transaction: tx, nowMs }).error, 'bad_bundle');
-    assert.equal(notificationDecision({ notification: notificationPayload({}, { environment: 'Sandbox' }), transaction: tx, nowMs }).error, 'bad_environment');
-    assert.equal(notificationDecision({ notification: notificationPayload({}, { environment: 'Sandbox' }), transaction: transactionPayload({ environment: 'Sandbox' }), nowMs, allowSandbox: true }).ok, true);
-    assert.equal(notificationDecision({ notification: null, transaction: tx, nowMs }).error, 'invalid_jws');
-    assert.equal(notificationDecision({ notification: { notificationType: 'DID_RENEW' }, transaction: tx, nowMs }).error, 'invalid_jws', 'sans data');
-    assert.equal(notificationDecision({ notification: notificationPayload(), transaction: null, nowMs }).error, 'invalid_jws', 'sans transaction');
-    assert.equal(notificationDecision({ notification: notificationPayload(), transaction: transactionPayload({ bundleId: 'com.autre.app' }), nowMs }).error, 'bad_bundle', 'transaction d\'une autre app');
+    // Notification SANS data (exclusif de summary, appData, externalPurchaseToken) : 200
+    const noData = { notificationType: 'DID_RENEW', notificationUUID: 'u', version: '2.0', signedDate: nowMs,
+      summary: { requestIdentifier: 'r', environment: 'Production' } };
+    sameJSON(notificationDecision({ notification: noData, transaction: tx, nowMs }), { handled: false, type: 'DID_RENEW', reason: 'no_data' });
+    // Le type est regardé AVANT l'environnement : en Sandbox sans la variable, un type ignoré reste ignoré
+    sameJSON(notificationDecision({ notification: notificationPayload({ notificationType: 'TEST' }, { environment: 'Sandbox' }), transaction: tx, nowMs }),
+      { handled: false, type: 'TEST', reason: 'type_ignored' });
+    // Autre bundleId, environnement non autorisé, produit d'une autre app, transaction absente : ignorés
+    const cas = [
+      [notificationPayload({}, { bundleId: 'com.autre.app' }), tx, 'bad_bundle'],
+      [notificationPayload({}, { environment: 'Sandbox' }), tx, 'bad_environment'],
+      [notificationPayload(), transactionPayload({ productId: 'com.autre.pro' }), 'unknown_product'],
+      [notificationPayload(), transactionPayload({ bundleId: 'com.autre.app' }), 'bad_bundle'],
+      [notificationPayload(), null, 'invalid_jws'],
+    ];
+    for (const [n, t, reason] of cas) {
+      const r = notificationDecision({ notification: n, transaction: t, nowMs });
+      sameJSON(r, { handled: false, type: 'DID_RENEW', reason }, reason);
+    }
+    // Charge utile inattendue : ignorée sans exception
+    for (const n of [null, 42, 'texte', {}, { notificationType: 5 }, []]) {
+      assert.equal(notificationDecision({ notification: n, transaction: tx, nowMs }).handled, false, String(n));
+    }
+    // Sandbox autorisé pendant les essais
+    assert.equal(notificationDecision({ notification: notificationPayload({}, { environment: 'Sandbox' }),
+      transaction: transactionPayload({ environment: 'Sandbox' }), nowMs, allowSandbox: true }).handled, true);
+  });
+
+  test('appstore-notify : event_at et appAccountToken remontés au serveur', async () => {
+    const { notificationDecision } = await notify();
+    // event_at = signedDate de la notification : le serveur ignore un évènement plus ancien
+    const r = notificationDecision({ notification: notificationPayload({ signedDate: nowMs + 5000 }),
+      transaction: transactionPayload({ purchaseDate: nowMs - 86400_000, appAccountToken: '11111111-1111-4111-8111-111111111111' }), nowMs });
+    assert.equal(r.value.event_at, new Date(nowMs + 5000).toISOString());
+    assert.equal(r.value.account_token, '11111111-1111-4111-8111-111111111111');
+    // signedDate illisible : on retombe sur la purchaseDate de la transaction
+    const sans = notificationDecision({ notification: notificationPayload({ signedDate: 'hier' }),
+      transaction: transactionPayload({ purchaseDate: nowMs - 86400_000 }), nowMs });
+    assert.equal(sans.value.event_at, new Date(nowMs - 86400_000).toISOString());
   });
 
   // ── Serveur et app disent la même chose ─────────────────
@@ -374,7 +452,8 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   test('payant : aucune RPC du client n\'écrit un droit d\'accès', async () => {
     const sql = migration();
     // Les deux fonctions qui écrivent sont réservées à service_role
-    for (const f of ['srv_access_purchase(uuid, text, timestamptz, text, boolean)', 'srv_access_event(text, text, timestamptz, boolean)']) {
+    for (const f of ['srv_access_purchase(uuid, text, timestamptz, text, boolean, timestamptz)',
+                     'srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text)']) {
       assert.ok(sql.includes(`revoke all on function public.${f}\n  from public, anon, authenticated, service_role;`), `${f} : revoke incomplet`);
       assert.ok(sql.includes(`grant execute on function public.${f} to service_role;`), `${f} : grant manquant`);
       assert.ok(!new RegExp(`grant execute on function public\\.${f.replace(/[().,\s]/g, '.')} to authenticated`).test(sql), `${f} : donnée à authenticated`);
@@ -389,6 +468,37 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     assert.ok(/create function public\.my_access\(\) returns jsonb/.test(sql));
     assert.ok(/create function public\.access_state\(\) returns jsonb/.test(sql));
     assert.ok(/create function public\.redeem_gift_code\(code text\) returns jsonb/.test(sql));
+  });
+
+  test('payant : un remboursé le reste, sauf réabonnement réel', async () => {
+    const sql = migration();
+    const fn = sql.slice(sql.indexOf('create function private.access_claim'));
+    const body = fn.slice(0, fn.indexOf('\n$$;'));
+    // La réouverture demande les DEUX conditions : évènement plus récent ET période plus lointaine
+    assert.ok(/reopen\s*:=\s*cur\.revoked_at is not null and not p_revoked/.test(body), 'règle de réouverture absente');
+    assert.ok(/new_end is not null and \(cur\.expires_at is null or new_end > cur\.expires_at\)/.test(body), 'période strictement plus lointaine non exigée');
+    assert.ok(/cur\.event_at is not null and p_event_at is not null and p_event_at > cur\.event_at/.test(body), 'évènement strictement plus récent non exigé');
+    assert.ok(/when reopen then null\s*\n\s*when p_revoked then coalesce\(cur\.revoked_at, now\(\)\)/.test(body), 'revoked_at pas gardé hors réouverture');
+    // Un évènement plus ancien ne touche à rien, et une transaction révoquée garde sa période
+    assert.ok(/elsif cur\.event_at is null or p_event_at is null or p_event_at >= cur\.event_at then/.test(body), 'évènement en retard non ignoré');
+    assert.ok(/when cur\.revoked_at is not null then cur\.expires_at/.test(body), 'la période d\'une transaction révoquée bouge');
+    const doc = contract();
+    assert.ok(doc.includes('strictement plus lointaine'), 'règle de réouverture absente du contrat');
+    assert.ok(doc.includes('access_refresh'), 'commande de secours absente du contrat');
+  });
+
+  test('payant : le verrou est tenu par un déclencheur du serveur, pas par l\'app', async () => {
+    const sql = migration();
+    // Se déconnecter met can_write à vrai côté app : le serveur doit refuser lui-même
+    assert.ok(/create trigger sessions_paywall before insert on public\.sessions/.test(sql), 'déclencheur absent');
+    assert.ok(!/create trigger sessions_paywall before insert or update/.test(sql), 'le déclencheur doit porter sur insert seulement');
+    const fn = sql.slice(sql.indexOf('create function private.sessions_paywall'));
+    const body = fn.slice(0, fn.indexOf('\n$$;'));
+    assert.ok(/raise exception 'paywall_locked'/.test(body), 'erreur paywall_locked absente');
+    assert.ok(/if not private\.access_paywall_on\(\) then\s*\n\s*return new;/.test(body), 'coût non nul verrou éteint');
+    assert.ok(/insert into public\.entitlements[\s\S]*on conflict \(user_id\) do nothing/.test(body),
+      'un compte qui n\'a jamais lu son accès aurait un essai éternel');
+    assert.ok(contract().includes('paywall_locked'), 'paywall_locked absent du contrat');
   });
 
   test('payant : la fonction de notification ne doit pas vérifier le jeton', async () => {

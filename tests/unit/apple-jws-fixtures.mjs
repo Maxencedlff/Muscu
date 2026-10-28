@@ -193,3 +193,16 @@ export function notificationPayload(over = {}, dataOver = {}) {
     },
   };
 }
+
+// renewalInfo d'une notification V2 (champs utiles seulement). gracePeriodExpiresDate n'existe QUE là.
+export function renewalPayload(over = {}) {
+  return {
+    originalTransactionId: '2000000900000001',
+    productId: 'com.mdlf.training.pro.monthly',
+    autoRenewProductId: 'com.mdlf.training.pro.monthly',
+    autoRenewStatus: 1,
+    environment: 'Production',
+    signedDate: Date.now(),
+    ...over,
+  };
+}

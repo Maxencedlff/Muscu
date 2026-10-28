@@ -124,6 +124,9 @@ Deno.serve(async (req) => {
     p_expires: sure.value.expires_at,
     p_original_tx: sure.value.original_transaction_id,
     p_revoked: sure.value.revoked,
+    // purchaseDate de la période : le serveur ignore une transaction plus ancienne que ce qu'il sait
+    // déjà (Transaction.unfinished est parcouru dans un ordre non garanti)
+    p_event_at: sure.value.event_at,
   });
   if (error) {
     const f = purchaseFailure(error.message);

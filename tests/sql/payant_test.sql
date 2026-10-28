@@ -9,7 +9,7 @@
 create function pg_temp.perr(stmt text) returns text language plpgsql as
 $$ begin execute stmt; return 'ok'; exception when others then return sqlerrm; end $$;
 create function pg_temp.pu(c text) returns uuid language sql immutable as
-$$ select ('00000000-0000-0000-0000-00000000070' || translate(c, 'abcdefgh', 'abcdef78'))::uuid $$;
+$$ select ('00000000-0000-0000-0000-00000000070' || translate(c, 'abcdefghij', 'abcdef7890'))::uuid $$;
 create function pg_temp.plogin(c text) returns void language sql as
 $$ select set_config('request.jwt.claim.sub', pg_temp.pu(c)::text, false) $$;
 -- Un droit d'accès écrit comme le fait une Edge Function (clé serveur), sans quitter le rôle courant
@@ -26,11 +26,12 @@ $$;
 grant execute on function pg_temp.perr(text), pg_temp.pu(text), pg_temp.plogin(text), pg_temp.psrv(text)
   to authenticated, anon, service_role;
 
-insert into auth.users (id) select pg_temp.pu(c) from unnest(array['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) c;
+insert into auth.users (id) select pg_temp.pu(c) from unnest(array['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']) c;
 insert into public.user_profiles (user_id, username, avatar_emoji) values
   (pg_temp.pu('a'), 'anna.p1', '🦁'), (pg_temp.pu('b'), 'bob.p1', '🦊'), (pg_temp.pu('c'), 'cyril.p1', '🦅'),
   (pg_temp.pu('d'), 'dina.p1', '🐼'), (pg_temp.pu('e'), 'eva.p1', '⭐'), (pg_temp.pu('f'), 'fred.p1', '🦉'),
-  (pg_temp.pu('g'), 'gaby.p1', '🐺'), (pg_temp.pu('h'), 'hugo.p1', '🦈');
+  (pg_temp.pu('g'), 'gaby.p1', '🐺'), (pg_temp.pu('h'), 'hugo.p1', '🦈'),
+  (pg_temp.pu('i'), 'ines.p1', '🐙'), (pg_temp.pu('j'), 'jules.p1', '🏔️');
 -- C est coach (rôle donné par l'administrateur) et D est son élève
 update public.user_profiles set coach_at = now() where user_id = pg_temp.pu('c');
 
@@ -264,9 +265,19 @@ begin
   if pg_temp.psrv(format('select public.srv_access_event(%L, %L, null, true)', 'tx-b1', 'com.mdlf.training.access.gift')) is distinct from 'ok' then raise 'révocation du cadeau'; end if;
   st := public.my_access();
   if st ->> 'status' is distinct from 'expired' or (st ->> 'gift')::boolean then raise 'cadeau révoqué : %', st; end if;
-  -- Puis rendu
-  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, null, false)', 'tx-b1', 'com.mdlf.training.access.gift')) is distinct from 'ok' then raise 'cadeau rendu'; end if;
-  if public.my_access() ->> 'status' is distinct from 'gift' then raise 'cadeau non rendu'; end if;
+  -- I1 : un remboursé le RESTE. Un évènement ultérieur qui ne révoque pas ne réactive rien, même
+  -- avec une date d'évènement plus récente (notification rejouée, transaction rechargée par l'app).
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, null, false, %L)', 'tx-b1', 'com.mdlf.training.access.gift', now() + interval '1 day')) is distinct from 'ok' then raise 'évènement après remboursement'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un remboursé a été réactivé'; end if;
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, null, %L)', pg_temp.pu('b'), 'com.mdlf.training.access.gift', 'tx-b1')) is distinct from 'ok' then raise 'achat après remboursement'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un remboursé réactivé par verify-purchase'; end if;
+  reset role;
+  if (select revoked_at from public.entitlement_claims where original_transaction_id = 'tx-b1') is null then raise 'revoked_at effacé'; end if;
+  -- L'administrateur peut rouvrir à la main (réabonnement sur la même transaction d'origine)
+  update public.entitlement_claims set revoked_at = null, event_at = null where original_transaction_id = 'tx-b1';
+  perform private.access_refresh(pg_temp.pu('b'));
+  set role authenticated;
+  if public.my_access() ->> 'status' is distinct from 'gift' then raise 'réouverture par l''administrateur'; end if;
 end $$;
 
 -- ── Codes cadeaux maison : création par l'administrateur ──
@@ -471,44 +482,138 @@ end $$;
 
 -- ── Évènements d'Apple (appstore-notify) ─────────────────
 do $$
-declare r jsonb; st jsonb;
+declare r jsonb;
 begin
-  -- Transaction inconnue : accepté sans rien écrire (Apple ne doit pas réessayer sans fin)
   set local role service_role;
+  -- Transaction inconnue, produit qui n'est pas des nôtres, transaction null : accepté sans rien
+  -- écrire (Apple ne doit pas réessayer sans fin)
   r := public.srv_access_event('tx-inconnue', 'com.mdlf.training.pro.yearly', now() + interval '1 year', false);
-  if r is distinct from '{"matched": false}'::jsonb then raise 'transaction inconnue : %', r; end if;
+  if r is distinct from '{"matched": false, "duplicate": false}'::jsonb then raise 'transaction inconnue : %', r; end if;
   r := public.srv_access_event('tx-a1', 'com.autre.app', now() + interval '1 year', false);
-  if r is distinct from '{"matched": false}'::jsonb then raise 'produit inconnu en notification : %', r; end if;
+  if r is distinct from '{"matched": false, "duplicate": false}'::jsonb then raise 'produit inconnu en notification : %', r; end if;
   r := public.srv_access_event(null, 'com.mdlf.training.pro.yearly', null, false);
-  if r is distinct from '{"matched": false}'::jsonb then raise 'transaction null : %', r; end if;
+  if r is distinct from '{"matched": false, "duplicate": false}'::jsonb then raise 'transaction null : %', r; end if;
   -- Renouvellement : la période est repoussée, le compte est retrouvé par sa transaction
-  r := public.srv_access_event('tx-a2', 'com.mdlf.training.pro.yearly', now() + interval '800 days', false);
-  if not (r ->> 'matched')::boolean or r ->> 'user_id' is distinct from pg_temp.pu('a')::text
+  r := public.srv_access_event('tx-a2', 'com.mdlf.training.pro.yearly', now() + interval '800 days', false, now());
+  if not (r ->> 'matched')::boolean or (r ->> 'duplicate')::boolean
+     or r ->> 'user_id' is distinct from pg_temp.pu('a')::text
      or r -> 'access' ->> 'status' is distinct from 'active' then raise 'renouvellement : %', r; end if;
   set local role authenticated;
   perform pg_temp.plogin('a');
   if (public.my_access() ->> 'until')::timestamptz not between now() + interval '799 days' and now() + interval '801 days' then raise 'période repoussée'; end if;
-  -- Expiration : la date passe derrière nous, l'accès tombe tout seul
-  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false)', 'tx-a2', 'com.mdlf.training.pro.yearly', now() - interval '1 second')) is distinct from 'ok' then raise 'expiration'; end if;
-  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false)', 'tx-a1', 'com.mdlf.training.pro.yearly', now() - interval '1 day')) is distinct from 'ok' then raise 'expiration tx-a1'; end if;
+end $$;
+
+-- ── Un évènement en retard ne fait JAMAIS reculer la date ──
+-- Deux cas réels : Transaction.unfinished est parcouru dans un ordre non garanti au lancement de
+-- l'app, et Apple ne garantit pas l'ordre des notifications V2 (réessayées jusqu'à 3 jours).
+do $$
+declare st jsonb;
+begin
+  perform pg_temp.plogin('a');
+  -- (a) la transaction du mois N arrive APRÈS celle du mois N+1
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L, false, %L)', pg_temp.pu('a'),
+     'com.mdlf.training.pro.yearly', now() - interval '1 day', 'tx-a2', now() - interval '370 days')) is distinct from 'ok' then raise 'transaction en retard'; end if;
   st := public.my_access();
-  if st ->> 'status' is distinct from 'expired' or (st ->> 'days_left')::int is distinct from 0 then raise 'abonnement échu : %', st; end if;
+  if st ->> 'status' is distinct from 'active' then raise 'une transaction en retard a coupé l''abonné : %', st; end if;
+  if (st ->> 'until')::timestamptz not between now() + interval '799 days' and now() + interval '801 days' then raise 'date reculée par une transaction en retard : %', st; end if;
+  -- (b) notification rejouée avec la période précédente
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() - interval '1 day', now() - interval '400 days')) is distinct from 'ok' then raise 'notification en retard'; end if;
+  if public.my_access() ->> 'status' is distinct from 'active' then raise 'une notification en retard a coupé l''abonné'; end if;
+  -- Même sans date d'évènement, la date de fin ne recule pas (greatest)
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '10 days')) is distinct from 'ok' then raise 'notification sans date'; end if;
+  if (public.my_access() ->> 'until')::timestamptz not between now() + interval '799 days' and now() + interval '801 days' then raise 'date reculée sans date d''évènement'; end if;
+  -- Un évènement plus RÉCENT, lui, repousse bien la date
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '900 days', now() + interval '1 minute')) is distinct from 'ok' then raise 'vrai renouvellement'; end if;
+  if (public.my_access() ->> 'until')::timestamptz not between now() + interval '899 days' and now() + interval '901 days' then raise 'renouvellement non appliqué'; end if;
+  -- Apple ferme l'accès lui-même (EXPIRED, GRACE_PERIOD_EXPIRED) : là, la date recule
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L, true)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() - interval '1 second', now() + interval '2 minutes')) is distinct from 'ok' then raise 'expiration'; end if;
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L, true)', 'tx-a1',
+     'com.mdlf.training.pro.yearly', now() - interval '1 day', now() + interval '2 minutes')) is distinct from 'ok' then raise 'expiration tx-a1'; end if;
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'expired' or (st ->> 'days_left')::int is distinct from 0 then raise 'EXPIRED n''a pas fermé l''accès : %', st; end if;
   reset role;
   if (select status from public.entitlements where user_id = pg_temp.pu('a')) is distinct from 'expired' then raise 'instantané après expiration'; end if;
   set role authenticated;
-  -- Remboursement : révoqué, et la date de révocation ne bouge plus
-  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pu('a'), 'com.mdlf.training.pro.yearly', now() + interval '1 year', 'tx-a2')) is distinct from 'ok' then raise 'nouvel abonnement de A'; end if;
-  if public.my_access() ->> 'status' is distinct from 'active' then raise 'A de nouveau abonné'; end if;
-  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, true)', 'tx-a2', 'com.mdlf.training.pro.yearly', now() + interval '1 year')) is distinct from 'ok' then raise 'remboursement'; end if;
+  -- Une expiration EN RETARD, elle, ne ferme rien : A se réabonne, puis l'EXPIRED du mois d'avant arrive
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L, false, %L)', pg_temp.pu('a'),
+     'com.mdlf.training.pro.yearly', now() + interval '365 days', 'tx-a2', now() + interval '5 minutes')) is distinct from 'ok' then raise 'réabonnement'; end if;
+  if public.my_access() ->> 'status' is distinct from 'active' then raise 'réabonnement non appliqué'; end if;
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L, true)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() - interval '1 second', now() + interval '3 minutes')) is distinct from 'ok' then raise 'expiration en retard'; end if;
+  if public.my_access() ->> 'status' is distinct from 'active' then raise 'une expiration en retard a coupé l''abonné'; end if;
+end $$;
+
+-- ── Un remboursé le RESTE, un vrai réabonnement le rouvre ──
+do $$
+declare st jsonb;
+begin
+  perform pg_temp.plogin('a');
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, true, %L)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '365 days', now() + interval '6 minutes')) is distinct from 'ok' then raise 'remboursement'; end if;
   st := public.my_access();
   if st ->> 'status' is distinct from 'expired' or (st ->> 'can_write')::boolean is not true then raise 'remboursé : %', st; end if;
   reset role;
   if (select revoked_at from public.entitlement_claims where original_transaction_id = 'tx-a2') is null then raise 'revoked_at non posé'; end if;
+  set role authenticated;
+  -- (1) Un DID_RENEW REJOUÉ (même période, évènement plus récent) ne rouvre rien
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '365 days', now() + interval '7 minutes')) is distinct from 'ok' then raise 'notification rejouée'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un DID_RENEW rejoué a rouvert un remboursé'; end if;
+  -- (2) Un évènement EN RETARD, même avec une période plus lointaine, ne rouvre rien
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '900 days', now() + interval '4 minutes')) is distinct from 'ok' then raise 'évènement en retard'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un évènement en retard a rouvert un remboursé'; end if;
+  -- (3) Sans date d'évènement, on ne peut pas savoir s'il est en retard : on ne rouvre pas
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '900 days')) is distinct from 'ok' then raise 'évènement sans date'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un évènement sans date a rouvert un remboursé'; end if;
+  -- (4) Un verify-purchase qui renvoie la même période ne rouvre rien non plus
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L, false, %L)', pg_temp.pu('a'),
+     'com.mdlf.training.pro.yearly', now() + interval '365 days', 'tx-a2', now() + interval '8 minutes')) is distinct from 'ok' then raise 'achat après remboursement'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un remboursé a été réactivé par verify-purchase'; end if;
+  reset role;
+  -- Tant qu'elle est révoquée, la période de la transaction ne bouge pas (sinon la barre du
+  -- réabonnement monterait toute seule)
+  if (select expires_at from public.entitlement_claims where original_transaction_id = 'tx-a2')
+     not between now() + interval '364 days' and now() + interval '366 days' then raise 'période d''une transaction révoquée : %', (select expires_at from public.entitlement_claims where original_transaction_id = 'tx-a2'); end if;
+  if (select revoked_at from public.entitlement_claims where original_transaction_id = 'tx-a2') is null then raise 'revoked_at effacé'; end if;
   -- L'instantané ne montre plus la transaction révoquée (il retombe sur l'ancienne, échue)
   if (select original_transaction_id from public.entitlements where user_id = pg_temp.pu('a')) is distinct from 'tx-a1'
      or (select expires_at from public.entitlements where user_id = pg_temp.pu('a')) > now()
      then raise 'instantané après remboursement : %', (select row_to_json(t) from public.entitlements t where t.user_id = pg_temp.pu('a')); end if;
   set role authenticated;
+  -- (5) Un VRAI réabonnement : évènement plus récent ET période strictement plus lointaine.
+  -- Apple garde la même transaction d'origine : sans cette réouverture, le client resterait bloqué.
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L, false, %L)', pg_temp.pu('a'),
+     'com.mdlf.training.pro.yearly', now() + interval '400 days', 'tx-a2', now() + interval '9 minutes')) is distinct from 'ok' then raise 'réabonnement'; end if;
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'active' then raise 'un réabonnement n''a pas rouvert l''accès : %', st; end if;
+  if (st ->> 'until')::timestamptz not between now() + interval '399 days' and now() + interval '401 days' then raise 'période du réabonnement : %', st; end if;
+  reset role;
+  if (select revoked_at from public.entitlement_claims where original_transaction_id = 'tx-a2') is not null then raise 'revoked_at non levé par le réabonnement'; end if;
+  set role authenticated;
+  -- (6) Après réouverture, un DID_RENEW en retard ne referme rien
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '365 days', now() + interval '5 minutes')) is distinct from 'ok' then raise 'évènement en retard après réouverture'; end if;
+  if public.my_access() ->> 'status' is distinct from 'active' then raise 'réouverture défaite par un évènement en retard'; end if;
+  -- (7) Un remboursement, lui, referme (évènement plus récent)
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, true, %L)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '400 days', now() + interval '10 minutes')) is distinct from 'ok' then raise 'second remboursement'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'second remboursement sans effet'; end if;
+  -- (8) La commande d'administration reste le secours quand la période d'Apple ne va pas plus loin
+  reset role;
+  update public.entitlement_claims set revoked_at = null, event_at = null where original_transaction_id = 'tx-a2';
+  perform private.access_refresh(pg_temp.pu('a'));
+  set role authenticated;
+  if public.my_access() ->> 'status' is distinct from 'active' then raise 'réouverture par l''administrateur'; end if;
+  -- On repart d'un compte remboursé pour la suite
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, true, %L)', 'tx-a2',
+     'com.mdlf.training.pro.yearly', now() + interval '400 days', now() + interval '11 minutes')) is distinct from 'ok' then raise 'remboursement final'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'remboursement final sans effet'; end if;
 end $$;
 
 -- ── Débit de verify-purchase ─────────────────────────────
@@ -529,12 +634,123 @@ begin
   if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pu('f'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-f1')) is distinct from 'ok' then raise 'limite non libérée'; end if;
 end $$;
 
+-- ── Notifications dédoublonnées ──────────────────────────
+-- Apple réessaie une notification jusqu'à 3 jours et peut l'envoyer deux fois.
+do $$
+declare r jsonb;
+begin
+  set local role service_role;
+  r := public.srv_access_event('tx-a1', 'com.mdlf.training.pro.yearly', now() + interval '500 days', false,
+                               now() + interval '10 minutes', false, 'uuid-1');
+  if not (r ->> 'matched')::boolean or (r ->> 'duplicate')::boolean then raise 'première notification : %', r; end if;
+  -- La même, rejouée avec une autre période : ignorée, rien n'est réécrit
+  r := public.srv_access_event('tx-a1', 'com.mdlf.training.pro.yearly', now() + interval '900 days', false,
+                               now() + interval '11 minutes', false, 'uuid-1');
+  if (r ->> 'matched')::boolean or not (r ->> 'duplicate')::boolean then raise 'doublon traité : %', r; end if;
+  set local role authenticated;
+  perform pg_temp.plogin('a');
+  if (public.my_access() ->> 'until')::timestamptz > now() + interval '501 days' then raise 'le doublon a été appliqué'; end if;
+  -- Un autre notificationUUID passe
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L, false, %L)', 'tx-a1',
+     'com.mdlf.training.pro.yearly', now() + interval '900 days', now() + interval '12 minutes', 'uuid-2')) is distinct from 'ok' then raise 'uuid-2'; end if;
+  if (public.my_access() ->> 'until')::timestamptz not between now() + interval '899 days' and now() + interval '901 days' then raise 'uuid-2 non appliqué'; end if;
+  -- Notifications de plus de 30 jours purgées, récentes gardées
+  reset role;
+  update public.appstore_notifications set at = now() - interval '31 days' where notification_uuid = 'uuid-1';
+  set role authenticated;
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L, false, %L)', 'tx-a1',
+     'com.mdlf.training.pro.yearly', now() + interval '900 days', now() + interval '13 minutes', 'uuid-3')) is distinct from 'ok' then raise 'uuid-3'; end if;
+  reset role;
+  if exists (select 1 from public.appstore_notifications where notification_uuid = 'uuid-1') then raise 'notification ancienne non purgée'; end if;
+  if not exists (select 1 from public.appstore_notifications where notification_uuid = 'uuid-2') then raise 'notification récente purgée'; end if;
+  set role authenticated;
+end $$;
+
+-- ── Achat orphelin repêché par appAccountToken ───────────
+do $$
+declare r jsonb;
+begin
+  set local role service_role;
+  -- La transaction n'a jamais été remontée par l'app : sans repêchage, elle serait perdue pour toujours
+  r := public.srv_access_event('tx-orphan', 'com.mdlf.training.pro.yearly', now() + interval '1 year', false,
+                               now(), false, 'uuid-orphan', pg_temp.pu('e')::text);
+  if not (r ->> 'matched')::boolean or r ->> 'user_id' is distinct from pg_temp.pu('e')::text then raise 'repêchage : %', r; end if;
+  -- Un jeton qui n'est pas un identifiant, ou d'un compte inconnu : rien
+  r := public.srv_access_event('tx-orphan2', 'com.mdlf.training.pro.yearly', now() + interval '1 year', false,
+                               now(), false, 'uuid-o2', 'pas-un-uuid');
+  if (r ->> 'matched')::boolean then raise 'jeton quelconque accepté : %', r; end if;
+  r := public.srv_access_event('tx-orphan3', 'com.mdlf.training.pro.yearly', now() + interval '1 year', false,
+                               now(), false, 'uuid-o3', gen_random_uuid()::text);
+  if (r ->> 'matched')::boolean then raise 'compte inconnu accepté : %', r; end if;
+  -- Le repêchage ne sert JAMAIS à détourner une transaction déjà rattachée
+  r := public.srv_access_event('tx-a1', 'com.mdlf.training.pro.yearly', now() + interval '900 days', false,
+                               now() + interval '20 minutes', false, 'uuid-o4', pg_temp.pu('g')::text);
+  if r ->> 'user_id' is distinct from pg_temp.pu('a')::text then raise 'transaction détournée par appAccountToken : %', r; end if;
+  set local role authenticated;
+  perform pg_temp.plogin('e');
+  if public.my_access() ->> 'status' is distinct from 'active' then raise 'E abonné par repêchage'; end if;
+end $$;
+
+-- ── Le verrou est tenu par le SERVEUR, pas par l'app ─────
+-- Se déconnecter met can_write à vrai côté app : sans ce déclencheur, il suffirait d'enregistrer ses
+-- séances déconnecté puis de se reconnecter pour tout téléverser.
+do $$ begin
+  perform pg_temp.plogin('i');
+  perform public.my_access();
+  reset role;
+  update public.entitlements set trial_started_at = now() - interval '200 days' where user_id = pg_temp.pu('i');
+  set role authenticated;
+  -- Verrou éteint : l'insertion passe, essai terminé ou non
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('i-1', '{"date": 1780000000000, "exercises": []}') $q$) is distinct from 'ok' then raise 'insertion refusée verrou éteint'; end if;
+  reset role;
+  update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
+  set role authenticated;
+  if (public.my_access() ->> 'can_write')::boolean then raise 'can_write devrait être faux'; end if;
+  -- Verrou allumé et droit tombé : une NOUVELLE séance est refusée par le serveur
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('i-2', '{"date": 1780000001000, "exercises": []}') $q$) is distinct from 'paywall_locked' then raise 'le serveur accepte une nouvelle séance, verrou allumé'; end if;
+  if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data) values (%L, 'i-3', '{"date": 1, "exercises": []}') $q$, pg_temp.pu('i'))) is distinct from 'paywall_locked' then raise 'contournement en posant user_id'; end if;
+  -- Corriger et mettre à la corbeille une séance déjà là restent permis : on ne perd rien
+  if pg_temp.perr($q$ update public.sessions set data = '{"date": 1780000000000, "notes": "corrigée", "exercises": []}' where id = 'i-1' $q$) is distinct from 'ok' then raise 'correction refusée'; end if;
+  if pg_temp.perr($q$ update public.sessions set deleted_at = now() where id = 'i-1' $q$) is distinct from 'ok' then raise 'mise à la corbeille refusée'; end if;
+  reset role;
+  if exists (select 1 from public.sessions where user_id = pg_temp.pu('i') and id in ('i-2', 'i-3')) then raise 'séance refusée pourtant écrite'; end if;
+  set role authenticated;
+  -- Un abonné passe, verrou allumé
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pu('i'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-i1')) is distinct from 'ok' then raise 'abonnement de I'; end if;
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('i-4', '{"date": 1780000002000, "exercises": []}') $q$) is distinct from 'ok' then raise 'abonné refusé'; end if;
+  -- Un élève de coach aussi
+  reset role;
+  update public.entitlement_claims set revoked_at = now() where original_transaction_id = 'tx-i1';
+  perform private.access_refresh(pg_temp.pu('i'));
+  insert into public.coach_links (student_id, coach_id) values (pg_temp.pu('i'), pg_temp.pu('c'));
+  set role authenticated;
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('i-5', '{"date": 1780000003000, "exercises": []}') $q$) is distinct from 'ok' then raise 'élève de coach refusé'; end if;
+  reset role;
+  delete from public.coach_links where student_id = pg_temp.pu('i');
+  set role authenticated;
+  -- Un compte tout neuf, jamais passé par my_access : son essai démarre dans le déclencheur, à
+  -- l'heure du serveur (ne jamais appeler my_access ne donne pas un essai éternel)
+  perform pg_temp.plogin('j');
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('j-1', '{"date": 1780000000000, "exercises": []}') $q$) is distinct from 'ok' then raise 'nouveau compte refusé'; end if;
+  reset role;
+  if (select trial_started_at from public.entitlements where user_id = pg_temp.pu('j')) not between now() - interval '1 minute' and now() + interval '1 minute' then raise 'essai de J non démarré par le déclencheur'; end if;
+  update public.entitlements set trial_started_at = now() - interval '200 days' where user_id = pg_temp.pu('j');
+  set role authenticated;
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('j-2', '{"date": 1780000001000, "exercises": []}') $q$) is distinct from 'paywall_locked' then raise 'J après son essai'; end if;
+  reset role;
+  update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
+  set role authenticated;
+  -- Verrou éteint : tout repasse
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('j-3', '{"date": 1780000002000, "exercises": []}') $q$) is distinct from 'ok' then raise 'verrou éteint'; end if;
+end $$;
+
 -- ── Aucune lecture directe, aucune fuite ─────────────────
 do $$
 declare t text;
 begin
   perform pg_temp.plogin('e');
-  foreach t in array array['public.entitlements', 'public.entitlement_claims', 'public.gift_codes', 'public.gift_redemptions'] loop
+  foreach t in array array['public.entitlements', 'public.entitlement_claims', 'public.appstore_notifications',
+                           'public.gift_codes', 'public.gift_redemptions'] loop
     if pg_temp.perr(format('select * from %s', t)) not like 'permission denied%' then raise 'lecture directe de %', t; end if;
   end loop;
   foreach t in array array['private.access_json(pg_temp.pu(''a''))', 'private.access_refresh(pg_temp.pu(''e''))',
@@ -548,6 +764,7 @@ begin
   if public.access_state()::text ~ '(tx-|com\.mdlf\.training\.)' then raise 'fuite dans access_state'; end if;
   -- La clé serveur ne lit pas les tables non plus (elle passe par les fonctions srv_*)
   if pg_temp.psrv($q$ select * from public.entitlements $q$) not like 'permission denied%' then raise 'service_role lit entitlements'; end if;
+  if pg_temp.psrv($q$ select * from public.appstore_notifications $q$) not like 'permission denied%' then raise 'service_role lit les notifications'; end if;
   if pg_temp.psrv($q$ select * from public.entitlement_claims $q$) not like 'permission denied%' then raise 'service_role lit les transactions'; end if;
   if pg_temp.psrv($q$ update public.entitlements set gift = true $q$) not like 'permission denied%' then raise 'service_role écrit entitlements'; end if;
   if pg_temp.psrv($q$ update public.app_config set value = 'true'::jsonb where key = 'paywall_on' $q$) not like 'permission denied%' then raise 'service_role allume le verrou'; end if;
@@ -566,7 +783,7 @@ begin
     format('public.srv_access_event(%L, %L, null, false)', 'tx-a1', 'com.mdlf.training.pro.yearly'),
     'public.redeem_gift_code(''ABCDEFGHJKLM'')', 'private.make_gift_code(''lifetime'')',
     '* from public.entitlements', '* from public.entitlement_claims', '* from public.app_config',
-    '* from public.gift_codes', '* from public.gift_redemptions'] loop
+    '* from public.gift_codes', '* from public.gift_redemptions', '* from public.appstore_notifications'] loop
     if pg_temp.perr('select ' || f) not like 'permission denied%' then raise 'anon : %', f; end if;
   end loop;
 end $$;
@@ -595,7 +812,7 @@ begin
   -- Briques privées : aucun rôle de l'API
   for f in select p.oid::regprocedure from pg_proc p where p.pronamespace = 'private'::regnamespace
              and p.proname in ('access_json', 'access_refresh', 'access_claim', 'access_product_kind', 'access_paywall_on', 'access_trial_days',
-                               'gift_code_norm', 'gift_new_code', 'gift_refused', 'make_gift_code') loop
+                               'gift_code_norm', 'gift_new_code', 'gift_refused', 'make_gift_code', 'sessions_paywall') loop
     if has_function_privilege('authenticated', f, 'execute') or has_function_privilege('anon', f, 'execute')
        or has_function_privilege('service_role', f, 'execute') then raise '% : exécutable par l''API', f; end if;
   end loop;
@@ -608,8 +825,10 @@ begin
     raise 'une autre RPC touche au droit d''accès';
   end if;
   -- RLS fermée sur les tables du droit d'accès ; app_config : lecture seule
-  if exists (select 1 from pg_policies where tablename in ('entitlements', 'entitlement_claims', 'gift_codes', 'gift_redemptions')) then raise 'politique RLS inattendue'; end if;
-  if exists (select 1 from pg_class where relname in ('entitlements', 'entitlement_claims', 'app_config', 'gift_codes', 'gift_redemptions') and not relrowsecurity) then raise 'RLS désactivée'; end if;
+  if exists (select 1 from pg_policies where tablename in ('entitlements', 'entitlement_claims', 'appstore_notifications', 'gift_codes', 'gift_redemptions')) then raise 'politique RLS inattendue'; end if;
+  if exists (select 1 from pg_class where relname in ('entitlements', 'entitlement_claims', 'appstore_notifications', 'app_config', 'gift_codes', 'gift_redemptions') and not relrowsecurity) then raise 'RLS désactivée'; end if;
+  -- Le verrou dur : un déclencheur before insert sur sessions, et seulement sur insert
+  if not exists (select 1 from pg_trigger g where g.tgrelid = 'public.sessions'::regclass and g.tgname = 'sessions_paywall') then raise 'déclencheur du verrou absent'; end if;
   if exists (select 1 from pg_policies where tablename = 'app_config' and cmd <> 'SELECT') then raise 'app_config : politique d''écriture'; end if;
   if has_table_privilege('authenticated', 'public.app_config', 'update') or has_table_privilege('authenticated', 'public.app_config', 'insert')
      or has_table_privilege('anon', 'public.app_config', 'select') then raise 'droits de app_config'; end if;
@@ -651,4 +870,4 @@ begin
 end $$;
 
 -- Nettoyage : les tests suivants partent d'une base sans ces comptes
-delete from auth.users where id in (select pg_temp.pu(c) from unnest(array['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) c);
+delete from auth.users where id in (select pg_temp.pu(c) from unnest(array['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']) c);
