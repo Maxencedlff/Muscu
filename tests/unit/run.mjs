@@ -1294,6 +1294,9 @@ test('mise à jour à chaud : décision (version, empreinte native, échecs, man
   assert.equal(d(otaManifest(), otaCtx({ build: null })).download, false, 'PWA : jamais');
 });
 
+const OTA_BG   = JSON.stringify([{ kind: 'background', value: '300000' }]);
+const OTA_KILL = JSON.stringify([{ kind: 'kill' }]);
+
 async function otaScenario({ manifest = otaManifest(), session = null, now = false, bundles = [], current = 'builtin' } = {}) {
   const calls = [];
   ctx.__calls = calls; ctx.__manifest = manifest; ctx.__bundles = bundles; ctx.__current = current;
@@ -1307,28 +1310,49 @@ async function otaScenario({ manifest = otaManifest(), session = null, now = fal
          list: async () => __bundles,
          download: async (o) => { __calls.push(['download', o.version, o.checksum]); return { id: 'b1', version: o.version, status: 'success' }; },
          applyNow: async (id) => { __calls.push(['now', id]); return true; },
-         applyAtNextLaunch: async (id) => { __calls.push(['next', id]); return true; },
+         applyAtNextLaunch: async (id, cond) => { __calls.push(['next', id]); __calls.push(['delay', JSON.stringify(cond)]); return true; },
        };`);
   try { return { result: await run(`checkLiveUpdate({ now: ${now} })`), calls }; }
   finally { run('Native.isNative = __ota.isNative; Native.ota = __ota.ota; globalThis.fetch = __ota.fetch; delete window.MDLF_BUILD;'); }
 }
 
-test('mise à jour à chaud : téléchargée (empreinte vérifiée) puis appliquée au prochain lancement', async () => {
+test('mise à jour à chaud : téléchargée (empreinte vérifiée), installée après 5 min en arrière-plan', async () => {
   const { result, calls } = await otaScenario();
   assert.equal(result.status, 'ready');
-  sameJSON(calls, [['download', '2026.10.20-abc1234', OTA_SUM], ['next', 'b1']]);
+  sameJSON(calls, [['download', '2026.10.20-abc1234', OTA_SUM], ['next', 'b1'], ['delay', OTA_BG]]);
+});
+
+test('mise à jour à chaud : jamais installée en arrière-plan pendant une séance en cours', async () => {
+  const { calls } = await otaScenario({ session: { exercises: [] } });
+  sameJSON(calls.at(-1), ['delay', OTA_KILL], 'séance : seulement à la fermeture de l\'app, séance restaurée ensuite');
+});
+
+test('mise à jour à chaud : début et fin de séance rebasculent une mise à jour en file', async () => {
+  const scenario = async ({ pending, session }) => {
+    const calls = [];
+    ctx.__calls = calls; ctx.__pending = pending; ctx.activeSession = session;
+    run(`__ota2 = { isNative: Native.isNative, ota: Native.ota };
+         Native.isNative = true;
+         Native.ota = { pending: async () => __pending, setDelay: async (c) => { __calls.push(JSON.stringify(c)); return true; } };`);
+    try { await run('otaSessionChanged()'); return calls; }
+    finally { run('Native.isNative = __ota2.isNative; Native.ota = __ota2.ota;'); ctx.activeSession = null; }
+  };
+  sameJSON(await scenario({ pending: { id: 'b1' }, session: { exercises: [] } }), [OTA_KILL], 'début de séance');
+  sameJSON(await scenario({ pending: { id: 'b1' }, session: null }), [OTA_BG], 'fin de séance');
+  sameJSON(await scenario({ pending: null, session: { exercises: [] } }), [], 'rien en file : rien à faire');
 });
 
 test('mise à jour à chaud : « maintenant » appliquée tout de suite, sauf pendant une séance', async () => {
   assert.equal((await otaScenario({ now: true })).result.status, 'applied');
   const { result, calls } = await otaScenario({ now: true, session: { exercises: [] } });
-  assert.equal(result.status, 'ready', 'séance en cours : attend le prochain lancement');
-  sameJSON(calls.map(c => c[0]), ['download', 'next']);
+  assert.equal(result.status, 'ready', 'séance en cours : attend la fin de la séance');
+  sameJSON(calls.map(c => c[0]), ['download', 'next', 'delay']);
+  sameJSON(calls.at(-1), ['delay', OTA_KILL], 'jamais en arrière-plan pendant la séance');
 });
 
 test('mise à jour à chaud : déjà téléchargée → pas de nouveau téléchargement ; en échec → jamais retentée', async () => {
   const ok = await otaScenario({ bundles: [{ id: 'b9', version: '2026.10.20-abc1234', status: 'success' }] });
-  sameJSON(ok.calls, [['next', 'b9']]);
+  sameJSON(ok.calls, [['next', 'b9'], ['delay', OTA_BG]]);
   const ko = await otaScenario({ bundles: [{ id: 'b8', version: '2026.10.20-abc1234', status: 'error' }] });
   assert.equal(ko.result.status, 'none'); assert.equal(ko.calls.length, 0);
 });

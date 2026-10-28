@@ -43,6 +43,7 @@ function startSession(cat) {
   ssNormalize(activeSession.exercises);
   activeSession.baseline = computeBaseline(activeSession);
   persistSession();
+  otaSessionChanged();   // une mise à jour en file attend la fin de la séance (js/app/live-update.js)
   routeTo('session');
   requestWakeLock();
 }
@@ -66,6 +67,7 @@ function endSession() {
   releaseWakeLock();
   applyPendingTheme();
   maybeShowUpdateBanner();
+  otaSessionChanged();   // séance finie : une mise à jour en file peut de nouveau s'installer
 }
 
 // ── Petites aides de la séance ───────────────────────────────
