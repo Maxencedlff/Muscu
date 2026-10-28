@@ -6,14 +6,15 @@
 //
 // 1. Le bundleId doit être le nôtre (bad_bundle) : un JWS signé par Apple pour une AUTRE app est
 //    parfaitement valable, il ne doit simplement rien ouvrir chez nous.
-// 2. Le produit doit être un des trois d'App Store Connect (unknown_product), et son type doit
-//    correspondre (bad_type) : un abonnement renouvelable pour les deux formules, un non consommable
-//    pour l'accès offert. Un consommable ou un abonnement non renouvelable ne donne rien.
+// 2. Le produit doit être un des deux abonnements d'App Store Connect (unknown_product), et son type
+//    doit être « Auto-Renewable Subscription » (bad_type). L'« Accès offert » (non consommable) a été
+//    supprimé le 28/10 (modèle B) : il est inconnu, donc refusé.
 // 3. inAppOwnershipType : PURCHASED seulement. Le partage familial n'est pas activé sur ces produits
 //    (App Store Connect) : une transaction FAMILY_SHARED est refusée (not_purchased) plutôt que crue.
-// 4. L'environnement Sandbox est REFUSÉ par défaut (bad_environment). Un testeur Sandbox s'obtient
-//    gratuitement : sans cette règle, n'importe qui aurait l'app à vie. Pendant les essais d'achat,
-//    poser le secret APPLE_ALLOW_SANDBOX=1, et le retirer avant la mise en vente.
+// 4. Production ET Sandbox sont acceptés (modèle B, 28/10), l'environnement est renvoyé pour être
+//    enregistré. L'équipe d'examen d'Apple achète en Sandbox sur la version de production : refuser le
+//    Sandbox serait un refus quasi certain. Ce que ça ouvre (TestFlight tourne toujours en Sandbox) est
+//    dans docs/PAYANT_V1.md. Xcode (fichier StoreKit local) et tout le reste : bad_environment.
 // 5. Une période déjà échue est acceptée (c'est une vraie transaction) : elle écrit un droit d'accès
 //    qui est tout de suite « expiré ». C'est le serveur qui compare les dates, jamais l'app.
 // 6. Remboursée ou révoquée (revocationDate) : la transaction est écrite comme révoquée, donc sans
@@ -24,20 +25,24 @@
 //    rien de l'ancienneté de la période. purchaseDate, lui, est stable d'une relecture à l'autre et
 //    croissant d'un renouvellement au suivant, donc une transaction du mois N parcourue après celle du
 //    mois N+1 (Transaction.unfinished, ordre non garanti) est bien reconnue comme la plus ancienne.
+// 8. Offre de lancement (l'essai gratuit de 3 mois, géré par Apple) : intro_offer vaut true quand la
+//    transaction signée porte offerType = 1 (INTRODUCTORY_OFFER, App Store Server Library : OfferType ;
+//    offerDiscountType vaut alors FREE_TRIAL pour un essai gratuit). Champ absent : false (renouvellement
+//    payé, achat sans offre).
 
 export const BUNDLE_ID = 'com.mdlf.training';
 export const PRODUCT_MONTHLY = 'com.mdlf.training.pro.monthly';
 export const PRODUCT_YEARLY = 'com.mdlf.training.pro.yearly';
-export const PRODUCT_GIFT = 'com.mdlf.training.access.gift';
+// Offre de lancement chez Apple (OfferType.INTRODUCTORY_OFFER)
+export const OFFER_INTRODUCTORY = 1;
 
-// Mêmes produits et mêmes natures que private.access_product_kind (migration 20261028000000_payant.sql)
+// Mêmes produits et mêmes natures que private.access_product_kind (20261029000000_payant_modele_b.sql)
 export const PRODUCT_KINDS = Object.freeze({
   [PRODUCT_MONTHLY]: 'sub',
   [PRODUCT_YEARLY]: 'sub',
-  [PRODUCT_GIFT]: 'gift',
 });
 // Type de transaction attendu par nature de produit (champ « type » d'Apple)
-export const EXPECTED_TYPES = Object.freeze({ sub: 'Auto-Renewable Subscription', gift: 'Non-Consumable' });
+export const EXPECTED_TYPES = Object.freeze({ sub: 'Auto-Renewable Subscription' });
 export const ENVIRONMENTS = Object.freeze(['Production', 'Sandbox']);
 export const TRANSACTION_ID_MAX = 64;
 
@@ -49,12 +54,12 @@ const msDate = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 && v
 
 // Charge utile d'une transaction vérifiée → droit d'accès à écrire, ou refus.
 // { ok: true, value: { product_id, kind, expires_at (ISO|null), original_transaction_id,
-//   transaction_id, revoked, environment, expired } } ou { ok: false, error }.
-export function transactionDecision(payload, { nowMs = Date.now(), allowSandbox = false } = {}) {
+//   transaction_id, revoked, environment, expired, event_at, account_token, intro_offer } } ou
+// { ok: false, error }.
+export function transactionDecision(payload, { nowMs = Date.now() } = {}) {
   if (!isObject(payload)) return { ok: false, error: 'invalid_jws' };
   if (payload.bundleId !== BUNDLE_ID) return { ok: false, error: 'bad_bundle' };
   if (!ENVIRONMENTS.includes(payload.environment)) return { ok: false, error: 'bad_environment' };
-  if (payload.environment === 'Sandbox' && !allowSandbox) return { ok: false, error: 'bad_environment' };
   if (typeof payload.productId !== 'string' || !own(PRODUCT_KINDS, payload.productId)) return { ok: false, error: 'unknown_product' };
   const kind = PRODUCT_KINDS[payload.productId];
   if (payload.type !== EXPECTED_TYPES[kind]) return { ok: false, error: 'bad_type' };
@@ -63,9 +68,9 @@ export function transactionDecision(payload, { nowMs = Date.now(), allowSandbox 
   const original = txId(payload.originalTransactionId);
   const transaction = txId(payload.transactionId) ?? original;
   if (!original || !transaction) return { ok: false, error: 'invalid_transaction' };
-  const expires = kind === 'sub' ? msDate(payload.expiresDate) : null;
+  const expires = msDate(payload.expiresDate);
   // Un abonnement sans date de fin n'est pas exploitable
-  if (kind === 'sub' && expires === null) return { ok: false, error: 'invalid_transaction' };
+  if (expires === null) return { ok: false, error: 'invalid_transaction' };
   const revoked = msDate(payload.revocationDate) !== null;
   const eventAt = msDate(payload.purchaseDate) ?? msDate(payload.signedDate);
   return {
@@ -73,14 +78,15 @@ export function transactionDecision(payload, { nowMs = Date.now(), allowSandbox 
     value: {
       product_id: payload.productId,
       kind,
-      expires_at: expires === null ? null : new Date(expires).toISOString(),
+      expires_at: new Date(expires).toISOString(),
       original_transaction_id: original,
       transaction_id: transaction,
       revoked,
       environment: payload.environment,
-      expired: expires !== null && expires <= nowMs,
+      expired: expires <= nowMs,
       event_at: eventAt === null ? null : new Date(eventAt).toISOString(),
       account_token: typeof payload.appAccountToken === 'string' ? payload.appAccountToken.slice(0, 64) : null,
+      intro_offer: payload.offerType === OFFER_INTRODUCTORY,
     },
   };
 }

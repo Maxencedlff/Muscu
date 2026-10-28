@@ -268,9 +268,9 @@ dans `docs/PAYANT_V1.md` ; ici, seulement le natif.
 
 | Appel | Rend |
 |---|---|
-| `status()` | `{ canMakePayments, subscriptionIds, giftId }`, sans réseau. `canMakePayments` est faux quand les achats sont bloqués (Temps d'écran, profil de gestion) : ne rien proposer |
-| `products()` | Les deux abonnements avec le **prix localisé par Apple** (`displayPrice`), la période, et l'offre d'introduction si l'utilisateur y a droit. `missing` liste les produits qu'Apple n'a pas rendus (produit pas « Prêt à être envoyé », contrat Paid Apps non signé) : afficher un message, jamais un prix de secours |
-| `purchase({ productId, appAccountToken? })` | `{ status: "success" \| "userCancelled" \| "pending" }` ; avec `"success"`, la transaction vérifiée et son `jws`. `"pending"` = « Demander la permission d'acheter » ou validation bancaire : la transaction arrivera par l'écouteur. Seuls les deux abonnements sont achetables, « Accès offert » est refusé (`BAD_PRODUCT`) |
+| `status()` | `{ canMakePayments, subscriptionIds }`, sans réseau. `canMakePayments` est faux quand les achats sont bloqués (Temps d'écran, profil de gestion) : ne rien proposer |
+| `products()` | Les deux abonnements avec le **prix localisé par Apple** (`displayPrice`), la période, et l'offre de lancement (l'essai gratuit de 3 mois, modèle B : `introEligible`, `offer`) si l'utilisateur y a droit. `missing` liste les produits qu'Apple n'a pas rendus (produit pas « Prêt à être envoyé », contrat Paid Apps non signé) : afficher un message, jamais un prix de secours |
+| `purchase({ productId, appAccountToken? })` | `{ status: "success" \| "userCancelled" \| "pending" }` ; avec `"success"`, la transaction vérifiée et son `jws`. `"pending"` = « Demander la permission d'acheter » ou validation bancaire : la transaction arrivera par l'écouteur. Seuls les deux abonnements sont achetables, tout autre identifiant est refusé (`BAD_PRODUCT`) |
 | `finish({ transactionId })` | À appeler **seulement après** que `verify-purchase` a accepté le JWS |
 | `restore()` | `AppStore.sync()` (demande le mot de passe Apple : réservé au bouton « Restaurer mes achats »), puis les droits en cours |
 | `current()` | `Transaction.currentEntitlements` avec le JWS de chacun, sans réseau ni fenêtre |
@@ -285,9 +285,8 @@ dans `docs/PAYANT_V1.md` ; ici, seulement le natif.
   encaissé mais perdu par le réseau finit toujours par arriver. Le serveur est idempotent
   (`original_transaction_id` unique) : un renvoi ne crée rien en double.
 - **Codes** : la feuille d'iOS est celle des **codes d'offre d'abonnement** (1 an gratuit au maximum,
-  PAYANT_V1.md). Un **code promotionnel d'achat intégré** (« Accès offert », non consommable) ne s'y
-  saisit pas : il se tape dans l'app App Store (Compte › Utiliser un code cadeau) ou par un lien
-  `apps.apple.com/redeem` ; la transaction arrive ensuite dans l'app par l'écouteur.
+  PAYANT_V1.md) ; la transaction arrive ensuite dans l'app par l'écouteur. Les codes cadeaux MDLF se
+  saisissent dans un champ de l'app. L'« Accès offert » (non consommable) a été supprimé le 28/10.
 - **iOS 16.4 minimum** (cible du projet) : `AppStore.presentOfferCodeRedeemSheet(in:)` suffit, le repli
   `SKPaymentQueue.presentCodeRedemptionSheet()` (déprécié depuis iOS 18) n'a pas lieu d'être.
   `Transaction.reason` (iOS 17+) est le seul champ protégé par une disponibilité.

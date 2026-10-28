@@ -1,11 +1,10 @@
-"""Abonnement (Payant V1, app iOS simulée) : essai gratuit et bandeau des jours restants, fin d'essai
-et mode lecture seule (Historique, Progrès, profil et export restent ouverts, rien n'est supprimé),
-écran d'abonnement avec les prix LUS CHEZ STOREKIT, achat, restauration, code d'offre, Réglages ›
-Abonnement, verrou éteint (rien ne bloque jamais), horloge de l'appareil trafiquée (ne débloque ni ne
-bloque rien), hors ligne.
-Règles du 28/10/2026 : essai rattaché à l'identifiant Apple (un nouveau compte sur un « iPhone » dont
-l'identifiant Apple a déjà eu son essai n'en a pas de neuf ; sans preuve, essai plafonné verrou
-allumé) et compte obligatoire pour enregistrer quand le verrou est allumé (rien ne change éteint).
+"""Abonnement (Payant V1, MODÈLE B, app iOS simulée) : l'essai gratuit de 3 mois est l'offre de
+lancement d'Apple, lue chez StoreKit (« 3 mois gratuits, puis 77,77 € par an », ou le prix normal si
+l'essai a déjà servi) ; sans abonnement, plus d'essai maison : mode lecture seule verrou allumé
+(Historique, Progrès, profil et export restent ouverts, rien n'est supprimé) ; mentions de la règle
+3.1.2 d'Apple ; achat, restauration, codes ; séance commencée avec le droit d'écrire qui s'enregistre
+même si l'accès a pris fin ; compte obligatoire verrou allumé ; verrou éteint (rien ne bloque) ;
+horloge de l'appareil trafiquée ; hors ligne.
 
 L'app iOS, StoreKit et Supabase sont simulés (tests/fake_account.py + tests/fake_store.py, règles de
 docs/PAYANT_V1.md) : aucune requête ne sort, aucun achat réel.
@@ -30,10 +29,10 @@ YEARLY = 'com.mdlf.training.pro.yearly'
 # celles du vrai module Swift (displayPrice affichable, price numérique), cf. fake_store.py
 PRICES = [{'id': MONTHLY, 'displayName': 'MDLF Training mensuel', 'description': 'Mensuel',
            'displayPrice': '7,77 €', 'price': 7.77, 'currency': 'EUR',
-           'period': {'unit': 'month', 'value': 1}, 'introEligible': False},
+           'period': {'unit': 'month', 'value': 1}, 'introEligible': True},
           {'id': YEARLY, 'displayName': 'MDLF Training annuel', 'description': 'Annuel',
            'displayPrice': '77,77 €', 'price': 77.77, 'currency': 'EUR',
-           'period': {'unit': 'year', 'value': 1}, 'introEligible': False}]
+           'period': {'unit': 'year', 'value': 1}, 'introEligible': True}]
 
 
 def tag(device, theme):
@@ -65,9 +64,15 @@ def refresh_access(page):
     page.wait_for_timeout(350)
 
 
-def trial_started(page, days_ago):
-    """Essai démarré il y a N jours, à l'heure du SERVEUR."""
-    page.evaluate('n => __st.startTrial(n)', days_ago)
+def subscribed(page, days=365, intro=False, product=YEARLY):
+    """Abonnement écrit par le serveur (intro : dans l'offre de lancement d'Apple, l'essai gratuit)."""
+    page.evaluate('([p, d, i]) => __st.subscribe(p, d, { intro: i })', [product, days, intro])
+    refresh_access(page)
+
+
+def ended(page, hours_ago):
+    """L'abonnement a pris fin il y a N heures (Apple l'a fermé), à l'heure du SERVEUR."""
+    page.evaluate('h => __st.endAccess(h)', hours_ago)
     refresh_access(page)
 
 
@@ -148,85 +153,97 @@ def start_session(page):
 #  Essai gratuit : bandeau, Réglages, et rien de bloqué
 # ─────────────────────────────────────────────────────────────
 def t_essai(bench, eng, dev, theme):
+    """Modèle B : pas d'essai maison ; l'essai gratuit est l'offre de lancement d'Apple."""
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
-        # Sans compte : aucun appel au droit d'accès, aucun bandeau ; verrou allumé, il faut un compte
-        # (règle 2, voir t_compte_obligatoire)
         R.check(len(acalls(page, 'my_access')) == 0, f'{t} sans compte : aucun appel d\'accès')
         R.check(banner(page) == '' and page.evaluate('canWrite()') is False, f'{t} sans compte, verrou allumé : il faut un compte')
         signin(page, username='max')
         page.wait_for_timeout(500)
-        # Première lecture : c'est my_access() qui crée la ligne et démarre l'essai, à l'heure du serveur
-        R.check(len(acalls(page, 'my_access')) >= 1, f'{t} connexion : my_access appelé (essai démarré par le serveur)')
-        R.check(page.evaluate("__st.ents[__sb.meId()].status") == 'trial', f'{t} essai créé côté serveur')
-        R.check(page.evaluate('accessStatus()') == 'trial' and page.evaluate('daysLeft()') == 90, f'{t} essai de 90 jours')
-        # Règle 1 : la preuve Apple est partie au lancement, l'identifiant de l'« iPhone » est lié
-        R.check(page.evaluate('__st.appleLinks[__sb.meId()]') == ['dl-iphone-1'] and page.evaluate('access.state.apple_linked') is True,
-                f'{t} connexion : identifiant Apple lié au compte')
+        # Compte tout neuf, verrou allumé : aucun droit, aucun essai maison
+        R.check(len(acalls(page, 'my_access')) >= 1, f'{t} connexion : my_access appelé')
+        R.check(page.evaluate('accessStatus()') == 'none' and page.evaluate('canWrite()') is False,
+                f'{t} compte neuf : pas d\'essai maison, pas de droit ({page.evaluate("accessStatus()")})')
         page.evaluate("switchTab('train')")
         page.wait_for_timeout(300)
-        R.check('90 jours' in banner(page), f'{t} bandeau : jours restants ({banner(page)!r})')
-        layout(page, t, 'accueil pendant l\'essai')
-        shot(page, LOT, f'0-essai-accueil-{t}')
-        # Démarrer une séance : rien ne bloque
-        start_session(page)
-        R.check(page.evaluate('!!activeSession'), f'{t} essai : séance démarrée')
-        R.check(page.evaluate("currentView()") == 'session', f'{t} essai : écran de séance')
-        # Essai bientôt fini : le bandeau suit le serveur
-        page.evaluate("endSession(); routeTo('dashboard')")
-        trial_started(page, 89)
-        page.wait_for_timeout(250)
-        R.check('1 jour' in banner(page), f'{t} dernier jour : bandeau au singulier ({banner(page)!r})')
-        # Réglages › Abonnement : état et date de fin
-        page.evaluate("navigate('settings')")
-        page.wait_for_selector('[data-action="access-open-settings"]')
-        cell = page.inner_text('[data-action="access-open-settings"]')
-        R.check('Abonnement' in cell and 'jour' in cell, f'{t} Réglages : cellule Abonnement ({cell!r})')
-        page.click('[data-action="access-open-settings"]')
-        page.wait_for_selector('.pay-settings-view')
-        txt = page.inner_text('.pay-settings-view')
-        R.check('Essai gratuit' in txt and 'Fin de l\'essai' in txt, f'{t} Abonnement : état et date de fin ({txt[:120]!r})')
-        R.check('Restaurer mes achats' in txt and 'J\'ai un code' in txt and 'J\'ai un code d\'offre Apple' in txt
-                and 'Un code MDLF se saisit ici' in txt,
-                f'{t} Abonnement : restaurer, les deux sortes de codes et leur explication')
-        layout(page, t, 'Réglages › Abonnement')
-        shot(page, LOT, f'1-reglages-abonnement-{t}')
-        # Écran d'abonnement : prix lus chez StoreKit
-        page.click('[data-action="pay-open"]')
-        page.wait_for_selector('.pay-view')
+        # Le bandeau dit ce qui bloque (abonnement nécessaire, ou séances de l'iPhone refusées par le
+        # compte), jamais plus « il te reste N jours »
+        R.check(('Abonnement nécessaire' in banner(page) or 'pas sauvegardée' in banner(page)) and 'il te reste' not in banner(page),
+                f'{t} accueil : plus de bandeau « il te reste N jours » ({banner(page)!r})')
+        # Écran d'abonnement : l'offre de lancement lue chez StoreKit, et les mentions de la règle 3.1.2
+        page.evaluate("navigate(makeRoute('paywall', 'offer'))")
+        page.wait_for_selector('.pay-plan')
         page.wait_for_timeout(400)
         txt = page.inner_text('.pay-view')
-        R.check('7,77 €' in txt and '77,77 €' in txt, f'{t} formules : prix de StoreKit, pas écrits en dur ({txt[:160]!r})')
-        R.check('Mensuel' in txt and 'Annuel' in txt and 'Conditions d\'utilisation' in txt and 'Confidentialité' in txt,
-                f'{t} formules : deux formules et les liens obligatoires')
-        R.check(len(store_calls(page, 'products')) >= 1, f'{t} formules : products() lu chez StoreKit')
-        layout(page, t, 'écran d\'abonnement')
+        R.check('3 mois gratuits, puis 77,77 € par an' in txt and '3 mois gratuits, puis 7,77 € par mois' in txt,
+                f'{t} formules : essai et prix lus chez StoreKit ({txt[:220]!r})')
+        R.check('Essai gratuit de 3 mois, puis 7,77 € par mois ou 77,77 € par an' in txt
+                and 'renouvelle automatiquement' in txt and 'résilier à tout moment' in txt
+                and 'Conditions d\'utilisation' in txt and 'Confidentialité' in txt,
+                f'{t} mentions 3.1.2 : durée, prix après l\'essai, renouvellement, résiliation, liens')
+        R.check('Un identifiant Apple n\'a droit qu\'à un seul essai gratuit' in txt, f'{t} un essai par identifiant Apple : dit')
+        layout(page, t, 'écran d\'abonnement avec essai')
         shot(page, LOT, f'2-abonnement-{t}')
+        # Achat : Apple donne l'essai (offre de lancement), le serveur écrit un abonnement actif
+        page.click(f'[data-action="pay-buy"][data-id="{YEARLY}"]')
+        page.wait_for_timeout(1200)
+        R.check(page.evaluate('accessStatus()') == 'active' and page.evaluate('canWrite()') is True
+                and page.evaluate('access.state.intro_offer') is True, f'{t} essai d\'Apple : abonnement actif, offre en cours')
+        page.evaluate("navigate('subscription')")
+        page.wait_for_selector('.pay-settings-view')
+        page.wait_for_timeout(500)
+        txt = page.inner_text('.pay-settings-view')
+        R.check('Essai gratuit jusqu\'au' in txt and 'puis 77,77 € par an' in txt,
+                f'{t} Réglages : « Essai gratuit jusqu\'au <date>, puis <prix> » ({txt[:200]!r})')
+        R.check('Restaurer mes achats' in txt and 'J\'ai un code' in txt and 'J\'ai un code d\'offre Apple' in txt,
+                f'{t} Abonnement : restaurer et les deux sortes de codes')
+        layout(page, t, 'Réglages › Abonnement en essai')
+        shot(page, LOT, f'1-reglages-essai-{t}')
+        page.evaluate("switchTab('train')")
+        page.wait_for_timeout(300)
+        R.check(banner(page) == '', f'{t} en essai : aucun bandeau ({banner(page)!r})')
+        start_session(page)
+        R.check(page.evaluate('!!activeSession'), f'{t} en essai : séance démarrée')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # Essai déjà utilisé sur cet identifiant Apple : StoreKit ne propose plus l'offre, prix normal
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'introEligible': False})
+        signin(page, username='max')
+        page.evaluate("navigate(makeRoute('paywall', 'end'))")
+        page.wait_for_selector('.pay-plan')
+        page.wait_for_timeout(400)
+        txt = page.inner_text('.pay-view')
+        R.check('gratuit' not in txt.split('Restaurer')[0].lower().replace('essai gratuit', '') and '77,77 €' in txt
+                and 'Essai gratuit de' not in txt, f'{t} sans droit à l\'essai : prix normal, aucun essai promis ({txt[:200]!r})')
+        R.check('77,77 € par an selon la formule' in txt.replace('7,77 € par mois ou ', ''), f'{t} sans essai : mentions de prix et période')
+        shot(page, LOT, f'2b-abonnement-sans-essai-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
 # ─────────────────────────────────────────────────────────────
 #  Fin d'essai : mode lecture seule sur tous les points d'écriture
 # ─────────────────────────────────────────────────────────────
+
 def t_lecture_seule(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
         signin(page, username='max')
-        trial_started(page, 100)
-        R.check(page.evaluate('accessStatus()') == 'expired' and page.evaluate('canWrite()') is False,
-                f'{t} essai terminé : plus le droit d\'écrire')
+        refresh_access(page)
+        R.check(page.evaluate('accessStatus()') == 'none' and page.evaluate('canWrite()') is False,
+                f'{t} sans abonnement : pas le droit d\'écrire')
         page.evaluate("switchTab('train')")
         page.wait_for_timeout(300)
-        R.check('Abonnement nécessaire' in banner(page), f'{t} accueil : bandeau de fin d\'essai ({banner(page)!r})')
+        R.check('Abonnement nécessaire' in banner(page) or 'pas sauvegardée' in banner(page), f'{t} accueil : bandeau du mode lecture seule ({banner(page)!r})')
         layout(page, t, 'accueil après l\'essai')
         shot(page, LOT, f'3-fin-essai-accueil-{t}')
         # 1. Démarrer une séance : l'abonnement est proposé, aucune séance démarrée
         start_session(page)
         R.check(page.evaluate("currentView()") == 'paywall' and page.evaluate('!activeSession'),
                 f'{t} démarrer : écran de fin d\'essai, aucune séance ({page.evaluate("currentView()")})')
-        R.check('essai est terminé' in page.inner_text('.pay-view'), f'{t} écran de fin d\'essai')
+        R.check('Abonnement nécessaire' in page.inner_text('.pay-view'), f'{t} écran d\'abonnement')
         layout(page, t, 'fin d\'essai')
         shot(page, LOT, f'4-fin-essai-{t}')
         page.evaluate("routeTo('dashboard')")
@@ -247,9 +264,9 @@ def t_lecture_seule(bench, eng, dev, theme):
         R.check(page.evaluate('data.history.length') == before, f'{t} rien n\'est supprimé de l\'historique')
         page.evaluate("routeTo('dashboard')")
         page.wait_for_timeout(250)
-        # 4. Enregistrer une séance en cours : la séance reste en cours, avec ses séries
-        page.evaluate("""() => { access.state.can_write = true; startSession(firstSession()); access.state.can_write = false;
-            validateSet(0, 0); }""")
+        # 4. Enregistrer une séance en cours commencée SANS le droit d'écrire : la séance reste en cours
+        page.evaluate("""() => { startSession(firstSession()); validateSet(0, 0); }""")
+        R.check(page.evaluate('activeSession.writeOk') is False, f'{t} séance commencée sans droit : notée')
         page.wait_for_timeout(300)
         done = page.evaluate('activeSession.exercises[0].sets.filter(s => s.done).length')
         # Sans await : « Terminer » ouvre une feuille, la promesse n'est tenue qu'après le choix
@@ -288,7 +305,7 @@ def t_achat(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
         signin(page, username='max')
-        trial_started(page, 100)
+        refresh_access(page)
         # Achat annulé : rien ne change
         page.evaluate("__st.fail.purchase = 'cancel'")
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
@@ -296,7 +313,7 @@ def t_achat(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         page.click(f'[data-action="pay-buy"][data-id="{MONTHLY}"]')
         page.wait_for_timeout(700)
-        R.check(page.evaluate('canWrite()') is False and page.evaluate('accessStatus()') == 'expired'
+        R.check(page.evaluate('canWrite()') is False and page.evaluate('accessStatus()') == 'none'
                 and page.evaluate("__st.ents[__sb.meId()].product_id") is None,
                 f'{t} achat annulé : aucun droit donné')
         R.check(len(store_calls(page, 'finish')) == 0, f'{t} achat annulé : aucune transaction terminée')
@@ -318,7 +335,7 @@ def t_achat(bench, eng, dev, theme):
         page.evaluate("endSession(); navigate('subscription')")
         page.wait_for_selector('.pay-settings-view')
         txt = page.inner_text('.pay-settings-view')
-        R.check('Abonné' in txt and 'Renouvellement' in txt and '2027' in txt and 'Gérer chez Apple' in txt,
+        R.check('Essai gratuit' in txt and 'Essai gratuit jusqu\'au' in txt and 'Gérer chez Apple' in txt,
                 f'{t} Abonnement : état abonné et gestion chez Apple ({txt[:120]!r})')
         layout(page, t, 'Abonnement actif')
         shot(page, LOT, f'6-abonne-{t}')
@@ -328,24 +345,22 @@ def t_achat(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
         signin(page, username='max')
-        trial_started(page, 100)
-        # Deux droits chez Apple en même temps : un abonnement et un « Accès offert »
+        refresh_access(page)
+        # L'abonnement est chez Apple (nouvel iPhone), pas encore sur le serveur
         page.evaluate("""() => { __st.owned = { productId: 'com.mdlf.training.pro.monthly', originalId: 'apple-99',
-            transactionId: 'tx-99', expiresAt: Date.now() + 20 * 86400000 };
-            __st.ownedGift = { productId: 'com.mdlf.training.access.gift', originalId: 'apple-98',
-            transactionId: 'tx-98', expiresAt: null }; }""")
+            transactionId: 'tx-99', expiresAt: Date.now() + 20 * 86400000 }; }""")
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
         page.wait_for_selector('[data-action="pay-restore"]')
         page.click('[data-action="pay-restore"]')
         page.wait_for_timeout(1500)
         R.check(page.evaluate('canWrite()') is True, f'{t} restauration : accès rendu')
-        R.check(len(store_calls(page, 'restore')) == 1 and len(store_calls(page, 'finish')) == 2,
-                f'{t} restauration : les deux droits envoyés puis terminés ({store_calls(page, "finish")})')
-        R.check(len(page.evaluate('__st.calls.filter(c => c[0] === "verify")')) == 2,
-                f'{t} restauration : un appel de vérification par droit')
+        R.check(len(store_calls(page, 'restore')) == 1 and len(store_calls(page, 'finish')) == 1,
+                f'{t} restauration : le droit envoyé puis terminé ({store_calls(page, "finish")})')
+        R.check(len(page.evaluate('__st.calls.filter(c => c[0] === "verify")')) == 1,
+                f'{t} restauration : un appel de vérification')
         # Rien à restaurer : message clair, aucun droit inventé
-        page.evaluate("""() => { __st.owned = null; __st.ownedGift = null; __st.ents[__sb.meId()] = { status: 'expired', gift: false,
-            expires_at: null, trial_started_at: Date.now() - 200 * 86400000, product_id: null, original_transaction_id: null }; }""")
+        page.evaluate("""() => { __st.owned = null; __st.ents[__sb.meId()] = { status: 'none', gift: false, gift_until: null,
+            expires_at: null, product_id: null, original_transaction_id: null, intro: false, ended: null }; }""")
         refresh_access(page)
         page.click('[data-action="pay-restore"]')
         page.wait_for_timeout(900)
@@ -376,7 +391,7 @@ def t_achat(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
         signin(page, username='max')
-        trial_started(page, 100)
+        refresh_access(page)
         page.evaluate("__st.addCode('K7M2QX9PR4TD', { kind: 'days', days: 30 }); "
                       "__st.addCode('VTEK7M2QX9PR', { kind: 'lifetime' }); "
                       "__st.addCode('ZPREK7M2QX94', { kind: 'days', days: 30, expires: Date.now() - 1000 }); null")
@@ -428,18 +443,19 @@ def t_achat(bench, eng, dev, theme):
         page.evaluate("__st.fail.redeem = null")
         # Apple annonce la transaction du code d'offre utilisé (écouteur Transaction.updates) :
         # l'abonnement est écrit par le serveur, mais l'accès à vie du code cadeau passe devant
-        # (ordre des statuts : gift > active > coach_team > trial > expired)
+        # (ordre des statuts : gift > active > coach_team > expired > none)
         page.evaluate("__st.emitTransaction('com.mdlf.training.pro.yearly')")
         page.wait_for_timeout(1200)
         R.check(page.evaluate("__st.ents[__sb.meId()].status") == 'active' and page.evaluate('canWrite()') is True,
                 f'{t} code d\'offre : abonnement écrit par le serveur, accès ouvert')
         R.check(page.evaluate('accessStatus()') == 'gift', f'{t} accès à vie prioritaire sur l\'abonnement')
         R.check(len(store_calls(page, 'finish')) == 1, f'{t} code d\'offre : transaction terminée')
-        # Transaction du non consommable « Accès offert » annoncée par Apple
-        page.evaluate("__st.emitTransaction('com.mdlf.training.access.gift')")
-        page.wait_for_timeout(1200)
-        R.check(page.evaluate('accessStatus()') == 'gift' and page.evaluate('canWrite()') is True,
-                f'{t} accès offert : statut gift')
+        # L'ancien « Accès offert » d'Apple n'existe plus : refusé (produit inconnu) et terminé
+        n = len(store_calls(page, 'finish'))
+        page.evaluate("__st.emitTransaction('com.mdlf.training.access.gift', { expiresAt: null })")
+        page.wait_for_timeout(1000)
+        R.check(len(store_calls(page, 'finish')) == n + 1 and page.evaluate("__st.ents[__sb.meId()].product_id") != 'com.mdlf.training.access.gift',
+                f'{t} ancien accès offert : refusé, transaction terminée')
         # Une transaction d'une autre app est refusée et terminée pour ne pas revenir
         n = len(store_calls(page, 'finish'))
         page.evaluate("__st.emitTransaction('com.mdlf.training.pro.monthly', { bundleId: 'com.autre.app' })")
@@ -458,7 +474,7 @@ def t_achats_bloques(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), store={'canMakePayments': False})
         signin(page, username='max')
-        trial_started(page, 100)
+        refresh_access(page)
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
         page.wait_for_timeout(800)
         txt = page.inner_text('.pay-view')
@@ -479,8 +495,8 @@ def t_rattrapage(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
         signin(page, username='max')
-        trial_started(page, 100)
-        R.check(page.evaluate('canWrite()') is False, f'{t} essai terminé : bloqué')
+        refresh_access(page)
+        R.check(page.evaluate('canWrite()') is False, f'{t} sans abonnement : bloqué')
         # L'abonnement existe chez Apple (achat perdu par le réseau, nouvel iPhone) mais pas au serveur
         page.evaluate("""() => { __st.owned = { productId: 'com.mdlf.training.pro.yearly', originalId: 'apple-50',
             transactionId: 'tx-50', expiresAt: Date.now() + 300 * 86400000 }; }""")
@@ -507,15 +523,15 @@ def t_verrou_serveur(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
         signin(page, username='max')
-        # D'abord pendant l'essai : tout passe, les séances arrivent sur le compte
-        trial_started(page, 1)
+        # D'abord abonné : tout passe, les séances arrivent sur le compte
+        subscribed(page, 30)
         page.evaluate('syncNow()')
         page.wait_for_timeout(900)
         on_server = page.evaluate('(__sb.upserted || []).length')
-        R.check(on_server > 0 and page.evaluate('account.error') is None, f'{t} pendant l\'essai : séances sauvegardées')
-        R.check(page.evaluate('accountLockedCount()') == 0, f'{t} pendant l\'essai : rien de refusé')
-        # Essai terminé : une nouvelle séance est refusée par le déclencheur du serveur
-        trial_started(page, 200)
+        R.check(on_server > 0 and page.evaluate('account.error') is None, f'{t} abonné : séances sauvegardées')
+        R.check(page.evaluate('accountLockedCount()') == 0, f'{t} abonné : rien de refusé')
+        # Abonnement fini depuis 2 jours (au-delà de la grâce) : une séance nouvelle est refusée
+        ended(page, 48)
         before = page.evaluate('data.history.length')
         page.evaluate("""() => { data.history.unshift({ id: 'apres-essai', programme: 'ppl', category: 'push',
             date: Date.now(), duration: 3000000, notes: '', exercises: [{ name: 'Dips', sets: [{ weight: '', reps: '12' }] }] });
@@ -592,8 +608,7 @@ def t_verrou_eteint(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), store={'paywallOn': False})
         signin(page, username='max')
-        trial_started(page, 1000)   # essai largement terminé
-        R.check(page.evaluate('accessStatus()') == 'expired', f'{t} verrou éteint : essai terminé côté serveur')
+        R.check(page.evaluate('accessStatus()') == 'none', f'{t} verrou éteint : aucun abonnement')
         R.check(page.evaluate('canWrite()') is True and page.evaluate('paywallOn()') is False,
                 f'{t} verrou éteint : rien ne bloque')
         page.evaluate("switchTab('train')")
@@ -630,99 +645,6 @@ def t_verrou_eteint(bench, eng, dev, theme):
         R.check('Tout est ouvert pour l\'instant' in page.inner_text('.pay-settings-view'), f'{t} Abonnement : verrou éteint expliqué')
         layout(page, t, 'Abonnement verrou éteint')
         shot(page, LOT, f'12-verrou-eteint-{t}')
-        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
-
-
-# ─────────────────────────────────────────────────────────────
-#  Règle 1 (28/10) : l'essai est rattaché à l'identifiant Apple
-# ─────────────────────────────────────────────────────────────
-def t_iphone_deja_essaye(bench, eng, dev, theme):
-    t = tag(dev, theme)
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json())
-        # Premier compte sur cet iPhone : essai complet, identifiant Apple lié
-        signin(page, username='max')
-        page.wait_for_timeout(300)
-        first = page.evaluate('__sb.meId()')
-        R.check(page.evaluate('daysLeft()') == 90 and page.evaluate("__st.appleIds['dl-iphone-1']") is not None,
-                f'{t} premier compte : essai complet, identifiant Apple retenu')
-        # 80 jours plus tard, il crée un second compte (nouvelle adresse) sur le même iPhone
-        page.evaluate("__st.appleUsed('dl-iphone-1', 80)")
-        page.evaluate('accountSignOut()')
-        page.wait_for_timeout(300)
-        page.evaluate("__sb.appleUser = 'apple-sub-2'")
-        signin(page, username='max2')
-        page.wait_for_timeout(500)
-        R.check(page.evaluate('__sb.meId()') != first, f'{t} second compte : bien un autre compte')
-        R.check(page.evaluate('__st.appleLinks[__sb.meId()]') == ['dl-iphone-1'], f'{t} second compte : même identifiant Apple')
-        R.check(page.evaluate('accessStatus()') == 'trial' and page.evaluate('daysLeft()') == 10,
-                f'{t} second compte : pas de nouvel essai, il reste 10 jours ({page.evaluate("daysLeft()")})')
-        R.check(page.evaluate('access.state.trial_shared') is True, f'{t} second compte : essai venu d\'un autre compte')
-        R.check(['platform', 'ios'] in page.evaluate('__st.calls'), f'{t} my_access déclare la plateforme iOS')
-        page.evaluate("switchTab('train')")
-        page.wait_for_timeout(300)
-        R.check('10 jours' in banner(page), f'{t} second compte : le bandeau le dit ({banner(page)!r})')
-        shot(page, LOT, f'16-iphone-deja-essaye-{t}')
-        # Plus tard encore (essai de l'identifiant Apple fini) : un troisième compte n'a plus rien
-        page.evaluate("__st.appleUsed('dl-iphone-1', 120)")
-        page.evaluate('accountSignOut()')
-        page.wait_for_timeout(300)
-        page.evaluate("__sb.appleUser = 'apple-sub-3'")
-        signin(page, username='max3')
-        page.wait_for_timeout(500)
-        R.check(page.evaluate('accessStatus()') == 'expired' and page.evaluate('canWrite()') is False,
-                f'{t} troisième compte : essai déjà utilisé par cet identifiant Apple')
-        start_session(page)
-        R.check(page.evaluate("currentView()") == 'paywall' and page.evaluate('!activeSession'),
-                f'{t} troisième compte : l\'abonnement est proposé, aucune séance démarrée')
-        R.check(page.locator('[data-action="pay-apple-verify"]').count() == 0, f'{t} identifiant lié : rien à vérifier')
-        txt = page.inner_text('.pay-view')
-        R.check('Un identifiant Apple n\'a qu\'un essai gratuit' in txt and 'ne peut servir qu\'à un compte' in txt,
-                f'{t} identifiant Apple de foyer : expliqué ({txt[-260:]!r})')
-        shot(page, LOT, f'19-foyer-{t}')
-        # Payer reste possible, et ouvre l'accès comme avant
-        page.click(f'[data-action="pay-buy"][data-id="{MONTHLY}"]')
-        page.wait_for_timeout(900)
-        R.check(page.evaluate('canWrite()') is True and page.evaluate('accessStatus()') == 'active', f'{t} achat : accès rendu')
-        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
-
-    # Sans preuve Apple (App Store pas connecté, TestFlight, client modifié) : rien ne bloque tout de
-    # suite, l'essai est plafonné à 3 jours ; la preuve revenue, l'essai complet aussi
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json(), store={'appleProof': 'unavailable'})
-        signin(page, username='max')
-        page.wait_for_timeout(300)
-        R.check(page.evaluate('access.state.apple_linked') is False and page.evaluate('daysLeft()') == 3
-                and page.evaluate('canWrite()') is True, f'{t} sans preuve : essai plafonné à 3 jours, rien de bloqué ({page.evaluate("daysLeft()")})')
-        R.check(len(page.evaluate('__st.calls.filter(c => c[0] === "apple-link")')) == 0, f'{t} sans preuve : rien envoyé')
-        trial_started(page, 20)
-        R.check(page.evaluate('canWrite()') is False, f'{t} sans preuve, au-delà de 3 jours : plus d\'écriture')
-        page.evaluate("navigate(makeRoute('paywall', 'end'))")
-        page.wait_for_timeout(600)
-        R.check(page.locator('[data-action="pay-apple-verify"]').count() == 1, f'{t} sans preuve : « Vérifier mon identifiant Apple » proposé')
-        R.check('Connecte-toi à l\'App Store pour ton essai complet de 3 mois' in page.inner_text('.pay-view'),
-                f'{t} sans preuve : l\'écran dit comment avoir l\'essai complet')
-        layout(page, t, 'abonnement sans preuve Apple')
-        shot(page, LOT, f'17-sans-preuve-{t}')
-        # Geste explicite : la fenêtre d'Apple (refresh) rend la preuve, l'essai complet revient
-        page.evaluate("__st.fail.appleRefresh = 'ok'")
-        page.click('[data-action="pay-apple-verify"]')
-        page.wait_for_timeout(700)
-        R.check(page.evaluate("__st.calls.filter(c => c[0] === 'appTransaction' && c[1] === 'refresh').length") == 1,
-                f'{t} vérifier : fenêtre d\'Apple demandée une fois')
-        R.check(page.evaluate('canWrite()') is True and page.evaluate('daysLeft()') == 70,
-                f'{t} preuve reçue : essai complet depuis son départ ({page.evaluate("daysLeft()")})')
-        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
-
-    # Android (pas encore d'ancrage) : pas de preuve Apple, mais essai complet rattaché au compte
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json(), store={'store': False}, opts={'platform': 'android'})
-        signin(page, username='max')
-        page.wait_for_timeout(300)
-        trial_started(page, 20)
-        R.check(['platform', 'android'] in page.evaluate('__st.calls'), f'{t} Android : plateforme déclarée')
-        R.check(page.evaluate('daysLeft()') == 70 and page.evaluate('canWrite()') is True,
-                f'{t} Android : essai complet, pas de plafond sans preuve ({page.evaluate("daysLeft()")})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -776,8 +698,9 @@ def t_compte_obligatoire(bench, eng, dev, theme):
                 f'{t} séance passée sans compte : invitation à se connecter')
         page.click('.auth [data-action="auth-close"]')
         page.wait_for_timeout(400)
-        # Une séance commencée avant (verrou allumé ensuite) : la terminer garde la séance en cours
-        page.evaluate("""() => { access.anon = false; startSession(firstSession()); access.anon = true; validateSet(0, 0); }""")
+        # Une séance commencée SANS le droit d'écrire (verrou allumé, sans compte) : la terminer garde la
+        # séance en cours et invite à se connecter
+        page.evaluate("""() => { startSession(firstSession()); validateSet(0, 0); }""")
         page.wait_for_timeout(300)
         page.evaluate("handleAction(null, document.createElement('div'), 'finish-session'); null")
         page.wait_for_timeout(500)
@@ -801,7 +724,9 @@ def t_compte_obligatoire(bench, eng, dev, theme):
         # Connexion : l'essai démarre, et la séance peut être démarrée
         signin(page, username='max')
         page.wait_for_timeout(400)
-        R.check(page.evaluate('canWrite()') is True and page.evaluate('accessStatus()') == 'trial', f'{t} connecté : essai démarré')
+        R.check(page.evaluate('accessStatus()') == 'none' and page.evaluate('canWrite()') is False, f'{t} connecté : pas d\'essai maison')
+        subscribed(page, 90, intro=True)
+        R.check(page.evaluate('canWrite()') is True, f'{t} essai d\'Apple pris : droit d\'écrire')
         page.evaluate("switchTab('train')")
         page.wait_for_timeout(300)
         start_session(page)
@@ -815,28 +740,27 @@ def t_horloge(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
         signin(page, username='max')
-        trial_started(page, 1)
-        R.check(page.evaluate('daysLeft()') == 89, f'{t} essai : 89 jours (heure du serveur)')
-        # 1. Horloge avancée de 400 jours : l'essai court toujours, rien n'est bloqué
+        subscribed(page, 89, intro=True)
+        until = page.evaluate('accessIntroUntil()')
+        R.check(until is not None and page.evaluate('canWrite()') is True, f'{t} essai d\'Apple : fin donnée par le serveur')
+        # 1. Horloge avancée de 400 jours : la fin d'essai est celle du serveur, rien n'est bloqué
         page.evaluate('__st.deviceShift = 400 * 86400000')
         refresh_access(page)
-        R.check(page.evaluate('daysLeft()') == 89 and page.evaluate('canWrite()') is True,
-                f'{t} horloge avancée de 400 jours : essai intact, rien de bloqué')
+        R.check(page.evaluate('accessIntroUntil()') == until and page.evaluate('canWrite()') is True,
+                f'{t} horloge avancée de 400 jours : rien ne change')
         page.evaluate("switchTab('train')")
         page.wait_for_timeout(300)
-        R.check('89 jours' in banner(page), f'{t} horloge avancée : bandeau inchangé ({banner(page)!r})')
         start_session(page)
         R.check(page.evaluate('!!activeSession'), f'{t} horloge avancée : séance démarrée quand même')
         page.evaluate('endSession()')
-        # 2. Horloge reculée de 400 jours : pas d'essai rallongé, rien de bloqué non plus
+        # 2. Horloge reculée : pas de rallonge, rien de bloqué non plus
         page.evaluate('__st.deviceShift = -400 * 86400000')
         refresh_access(page)
-        R.check(page.evaluate('daysLeft()') == 89 and page.evaluate('canWrite()') is True,
-                f'{t} horloge reculée : essai inchangé')
-        # 3. Essai terminé côté serveur : avancer l'horloge ne DÉBLOQUE rien
+        R.check(page.evaluate('accessIntroUntil()') == until and page.evaluate('canWrite()') is True, f'{t} horloge reculée : inchangé')
+        # 3. Abonnement fini côté serveur : décaler l'horloge ne DÉBLOQUE rien
         page.evaluate('__st.deviceShift = 0')
-        trial_started(page, 200)
-        R.check(page.evaluate('canWrite()') is False, f'{t} essai terminé : refusé')
+        ended(page, 48)
+        R.check(page.evaluate('canWrite()') is False, f'{t} abonnement fini : refusé')
         for shift in (400, -400, 8):
             page.evaluate('n => { __st.deviceShift = n * 86400000; }', shift)
             refresh_access(page)
@@ -851,17 +775,55 @@ def t_horloge(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_grace(bench, eng, dev, theme):
+    """Séance COMMENCÉE avec le droit d'écrire : « Terminer » l'enregistre même si l'accès a pris fin
+    pendant la séance, et le serveur l'accepte (grâce bornée)."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, username='max')
+        subscribed(page, 30)
+        page.evaluate("switchTab('train')")
+        page.wait_for_timeout(300)
+        start_session(page)
+        R.check(page.evaluate('!!activeSession && activeSession.writeOk') is True, f'{t} séance commencée avec le droit')
+        page.evaluate('validateSet(0, 0)')
+        # L'abonnement prend fin pendant la séance (maintenant, après son début)
+        page.wait_for_timeout(300)
+        ended(page, 0)
+        R.check(page.evaluate('canWrite()') is False, f'{t} accès fini pendant la séance')
+        before = page.evaluate('data.history.length')
+        page.evaluate("handleAction(null, document.createElement('div'), 'finish-session'); null")
+        page.wait_for_timeout(500)
+        if page.locator('.ios-dialog').count():
+            tap_dialog(page, 'Enregistrer')
+        page.wait_for_timeout(900)
+        R.check(page.evaluate('data.history.length') == before + 1 and page.evaluate("currentView()") != 'paywall',
+                f'{t} « Terminer » : séance enregistrée, pas d\'écran d\'abonnement')
+        page.evaluate('syncNow()')
+        page.wait_for_timeout(1200)
+        sid = page.evaluate('data.history[0].id')
+        R.check(page.evaluate('id => (__sb.upserted || []).some(r => r.id === id)', sid) and page.evaluate('accountLockedCount()') == 0,
+                f'{t} le serveur l\'accepte dans sa grâce')
+        # La séance suivante, commencée après la fin : porte fermée
+        page.evaluate("routeTo('dashboard')")
+        page.wait_for_timeout(300)
+        start_session(page)
+        R.check(page.evaluate('!activeSession') and page.evaluate("currentView()") == 'paywall', f'{t} séance suivante : abonnement proposé')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
 def t_hors_ligne(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
         signin(page, username='max')
-        trial_started(page, 10)
-        R.check(page.evaluate('daysLeft()') == 80, f'{t} essai lu : 80 jours')
+        page.evaluate('__st.giveGift()')
+        refresh_access(page)
+        R.check(page.evaluate('accessStatus()') == 'gift', f'{t} accès à vie (code maison) lu')
         # Relance hors ligne : le dernier état connu suffit, la salle sans réseau ne bloque personne
         page.evaluate("__st.fail.access = 'offline'; accessReset(account.user.id)")
         page.wait_for_timeout(300)
-        R.check(page.evaluate('access.state') is None and page.evaluate('accessStatus()') == 'trial'
+        R.check(page.evaluate('access.state') is None and page.evaluate('accessStatus()') == 'gift'
                 and page.evaluate('canWrite()') is True, f'{t} hors ligne : état gardé sur l\'appareil')
         page.evaluate("switchTab('train')")
         page.wait_for_timeout(300)
@@ -885,15 +847,15 @@ def t_hors_ligne(bench, eng, dev, theme):
         page.evaluate("__st.fail.access = null; __st.deviceShift = 0")
         page.evaluate('accessRefresh()')
         page.wait_for_timeout(500)
-        R.check(page.evaluate('canWrite()') is True and page.evaluate('accessStatus()') == 'trial',
-                f'{t} réseau revenu : essai retrouvé')
+        R.check(page.evaluate('canWrite()') is True and page.evaluate('accessStatus()') == 'gift',
+                f'{t} réseau revenu : accès retrouvé')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
     # Hors app iOS (navigateur) : aucun achat, l'écran invite à utiliser l'app
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), store={'store': False})
         signin(page, username='max')
-        trial_started(page, 100)
+        refresh_access(page)
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
         page.wait_for_timeout(600)
         txt = page.inner_text('.pay-view')
@@ -908,7 +870,7 @@ def t_hors_ligne(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), store={'missing': [MONTHLY, YEARLY]})
         signin(page, username='max')
-        trial_started(page, 100)
+        refresh_access(page)
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
         page.wait_for_timeout(700)
         txt = page.inner_text('.pay-view')
@@ -922,4 +884,4 @@ def t_hors_ligne(bench, eng, dev, theme):
 
 
 run_main(R, [t_essai, t_lecture_seule, t_achat, t_achats_bloques, t_rattrapage, t_verrou_serveur,
-             t_verrou_eteint, t_iphone_deja_essaye, t_compte_obligatoire, t_horloge, t_hors_ligne])
+             t_verrou_eteint, t_compte_obligatoire, t_horloge, t_grace, t_hors_ligne])

@@ -85,3 +85,13 @@
 
 /* « Vérifier mon identifiant Apple » juste au-dessus des formules : même respiration qu'entre deux groupes */
 .pay-view .group + .pay-plans { margin-top: 20px; }
+
+/* Mentions exigées par Apple (règle 3.1.2) sous les formules : lisibles mais discrètes, comme un pied de
+   groupe ; les liens Conditions et Confidentialité suivent juste après */
+.pay-terms {
+  padding: 10px 16px 0; color: var(--label2);
+  font-size: 0.765rem; line-height: 1.059rem;
+}
+.pay-terms p { margin: 0 0 6px; text-wrap: pretty; }
+.pay-terms + .pay-legal { margin-top: 4px; }
+.pay-intro-line { color: var(--label); }

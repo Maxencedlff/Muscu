@@ -12,6 +12,9 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   const policy = () => import(path.join(ROOT, 'supabase/functions/verify-purchase/purchase-policy.js'));
   const notify = () => import(path.join(ROOT, 'supabase/functions/appstore-notify/notify-policy.js'));
   const migration = () => fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261028000000_payant.sql'), 'utf8');
+  // Définitions en vigueur (modèle B) : la migration du 29/10 remplace plusieurs fonctions du 28/10
+  const modelB = () => fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261029000000_payant_modele_b.sql'), 'utf8');
+  const bodyOf = (sql, head) => { const f = sql.slice(sql.indexOf(head)); return f.slice(0, f.indexOf('\n$$;')); };
   const contract = () => fs.readFileSync(path.join(ROOT, 'docs/PAYANT_V1.md'), 'utf8');
   const nowMs = Date.UTC(2026, 9, 28, 12, 0, 0);
 
@@ -172,19 +175,17 @@ export default function ({ test, assert, sameJSON, ROOT }) {
       original_transaction_id: '2000000900000001', transaction_id: '2000000900000001',
       revoked: false, environment: 'Production', expired: false,
       // event_at = purchaseDate (stable d'une relecture à l'autre), jamais signedDate
-      event_at: new Date(nowMs - 86400_000).toISOString(), account_token: null,
+      event_at: new Date(nowMs - 86400_000).toISOString(), account_token: null, intro_offer: false,
     } });
     // signedDate ne sert que si purchaseDate manque
     assert.equal(transactionDecision(transactionPayload({ purchaseDate: undefined, signedDate: nowMs }), { nowMs }).value.event_at, new Date(nowMs).toISOString());
     assert.equal(transactionDecision(transactionPayload({ purchaseDate: undefined, signedDate: undefined }), { nowMs }).value.event_at, null);
     // Formule annuelle
     assert.equal(transactionDecision(transactionPayload({ productId: 'com.mdlf.training.pro.yearly' }), { nowMs }).value.kind, 'sub');
-    // Accès offert : non consommable, sans date de fin
-    const gift = transactionDecision(transactionPayload({
+    // « Accès offert » d'Apple supprimé (modèle B) : inconnu, refusé
+    assert.equal(transactionDecision(transactionPayload({
       productId: 'com.mdlf.training.access.gift', type: 'Non-Consumable', expiresDate: undefined,
-    }), { nowMs });
-    assert.equal(gift.value.kind, 'gift');
-    assert.equal(gift.value.expires_at, null);
+    }), { nowMs }).error, 'unknown_product');
     // Transaction d'origine différente de la transaction courante (renouvellement)
     const renew = transactionDecision(transactionPayload({ transactionId: '2000000900000009' }), { nowMs });
     assert.equal(renew.value.original_transaction_id, '2000000900000001');
@@ -202,19 +203,39 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     assert.equal(err({ productId: '__proto__' }), 'unknown_product');
     assert.equal(err({ type: 'Consumable' }), 'bad_type');
     assert.equal(err({ type: 'Non-Consumable' }), 'bad_type', 'abonnement annoncé non consommable');
-    assert.equal(err({ productId: 'com.mdlf.training.access.gift' }), 'bad_type', 'cadeau annoncé abonnement');
+    assert.equal(err({ productId: 'com.mdlf.training.access.gift' }), 'unknown_product', 'ancien accès offert');
     assert.equal(err({ inAppOwnershipType: 'FAMILY_SHARED' }), 'not_purchased');
     assert.equal(transactionDecision(null, { nowMs }).error, 'invalid_jws');
     assert.equal(transactionDecision([transactionPayload()], { nowMs }).error, 'invalid_jws');
   });
 
-  test('verify-purchase : Sandbox refusé par défaut', async () => {
+  test('verify-purchase : Sandbox ACCEPTÉ et enregistré (examen d\'Apple), Xcode refusé', async () => {
     const { transactionDecision } = await policy();
-    const sandbox = transactionPayload({ environment: 'Sandbox' });
-    assert.equal(transactionDecision(sandbox, { nowMs }).error, 'bad_environment');
-    assert.equal(transactionDecision(sandbox, { nowMs, allowSandbox: true }).ok, true, 'accepté pendant les essais');
-    assert.equal(transactionDecision(transactionPayload({ environment: 'Xcode' }), { nowMs, allowSandbox: true }).error, 'bad_environment');
+    // L'équipe d'examen d'Apple achète en Sandbox sur la version de production : refuser, c'est un refus
+    const sandbox = transactionDecision(transactionPayload({ environment: 'Sandbox' }), { nowMs });
+    assert.equal(sandbox.ok, true);
+    assert.equal(sandbox.value.environment, 'Sandbox');
+    assert.equal(transactionDecision(transactionPayload(), { nowMs }).value.environment, 'Production');
+    assert.equal(transactionDecision(transactionPayload({ environment: 'Xcode' }), { nowMs }).error, 'bad_environment');
+    assert.equal(transactionDecision(transactionPayload({ environment: 'LocalTesting' }), { nowMs }).error, 'bad_environment');
     assert.equal(transactionDecision(transactionPayload({ environment: undefined }), { nowMs }).error, 'bad_environment');
+    // Plus aucune variable d'environnement ne règle le Sandbox
+    for (const f of ['verify-purchase/index.ts', 'verify-purchase/purchase-policy.js', 'appstore-notify/index.ts', 'appstore-notify/notify-policy.js']) {
+      assert.ok(!/ALLOW_SANDBOX|allowSandbox/.test(fs.readFileSync(path.join(ROOT, 'supabase/functions', f), 'utf8')), `${f} : règle Sandbox restée`);
+    }
+  });
+
+  test('verify-purchase : offre de lancement (essai gratuit d\'Apple) lue dans la transaction signée', async () => {
+    const { transactionDecision, OFFER_INTRODUCTORY } = await policy();
+    assert.equal(OFFER_INTRODUCTORY, 1, 'OfferType.INTRODUCTORY_OFFER vaut 1 chez Apple');
+    const trial = transactionDecision(transactionPayload({ offerType: 1, offerDiscountType: 'FREE_TRIAL', offerPeriod: 'P3M',
+      expiresDate: nowMs + 90 * 86400_000 }), { nowMs });
+    assert.equal(trial.value.intro_offer, true);
+    assert.equal(trial.value.expires_at, new Date(nowMs + 90 * 86400_000).toISOString(), 'la fin de l\'essai est la fin de la période');
+    // Offre promotionnelle, code d'offre, retour : pas une offre de lancement ; champ absent ou mal typé : non
+    for (const offerType of [2, 3, 4, '1', undefined, null]) {
+      assert.equal(transactionDecision(transactionPayload({ offerType }), { nowMs }).value.intro_offer, false, String(offerType));
+    }
   });
 
   test('verify-purchase : transaction mal formée, expirée, remboursée', async () => {
@@ -272,7 +293,7 @@ export default function ({ test, assert, sameJSON, ROOT }) {
       sameJSON(r, { handled: true, type, value: {
         original_transaction_id: '2000000900000001', product_id: 'com.mdlf.training.pro.monthly',
         expires_at: new Date(until).toISOString(), revoked: false, force: false,
-        event_at: new Date(nowMs).toISOString(), account_token: null,
+        event_at: new Date(nowMs).toISOString(), account_token: null, intro_offer: false, environment: 'Production',
       } }, type);
     }
   });
@@ -336,11 +357,10 @@ export default function ({ test, assert, sameJSON, ROOT }) {
       assert.equal(r.value.revoked, true, type);
       assert.equal(r.value.force, false, type);
     }
-    // Un accès offert révoqué passe aussi
+    // L'ancien « Accès offert » n'est plus un de nos produits : ignoré (200)
     const gift = notificationDecision({ notification: notificationPayload({ notificationType: 'REVOKE', signedDate: nowMs }),
-      transaction: transactionPayload({ productId: 'com.mdlf.training.access.gift', type: 'Non-Consumable', expiresDate: undefined, purchaseDate: nowMs - 1000 }), nowMs });
-    sameJSON(gift.value, { original_transaction_id: '2000000900000001', product_id: 'com.mdlf.training.access.gift',
-      expires_at: null, revoked: true, force: false, event_at: new Date(nowMs).toISOString(), account_token: null });
+      transaction: transactionPayload({ productId: 'com.mdlf.training.access.gift', type: 'Non-Consumable', expiresDate: undefined }), nowMs });
+    sameJSON(gift, { handled: false, type: 'REVOKE', reason: 'unknown_product' });
   });
 
   test('appstore-notify : tout ce qui est signé par Apple repart en 200', async () => {
@@ -355,13 +375,13 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     const noData = { notificationType: 'DID_RENEW', notificationUUID: 'u', version: '2.0', signedDate: nowMs,
       summary: { requestIdentifier: 'r', environment: 'Production' } };
     sameJSON(notificationDecision({ notification: noData, transaction: tx, nowMs }), { handled: false, type: 'DID_RENEW', reason: 'no_data' });
-    // Le type est regardé AVANT l'environnement : en Sandbox sans la variable, un type ignoré reste ignoré
-    sameJSON(notificationDecision({ notification: notificationPayload({ notificationType: 'TEST' }, { environment: 'Sandbox' }), transaction: tx, nowMs }),
+    // Le type est regardé AVANT l'environnement
+    sameJSON(notificationDecision({ notification: notificationPayload({ notificationType: 'TEST' }, { environment: 'Xcode' }), transaction: tx, nowMs }),
       { handled: false, type: 'TEST', reason: 'type_ignored' });
     // Autre bundleId, environnement non autorisé, produit d'une autre app, transaction absente : ignorés
     const cas = [
       [notificationPayload({}, { bundleId: 'com.autre.app' }), tx, 'bad_bundle'],
-      [notificationPayload({}, { environment: 'Sandbox' }), tx, 'bad_environment'],
+      [notificationPayload({}, { environment: 'Xcode' }), tx, 'bad_environment'],
       [notificationPayload(), transactionPayload({ productId: 'com.autre.pro' }), 'unknown_product'],
       [notificationPayload(), transactionPayload({ bundleId: 'com.autre.app' }), 'bad_bundle'],
       [notificationPayload(), null, 'invalid_jws'],
@@ -374,9 +394,12 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     for (const n of [null, 42, 'texte', {}, { notificationType: 5 }, []]) {
       assert.equal(notificationDecision({ notification: n, transaction: tx, nowMs }).handled, false, String(n));
     }
-    // Sandbox autorisé pendant les essais
-    assert.equal(notificationDecision({ notification: notificationPayload({}, { environment: 'Sandbox' }),
-      transaction: transactionPayload({ environment: 'Sandbox' }), nowMs, allowSandbox: true }).handled, true);
+    // Sandbox accepté (examen d'Apple, TestFlight), environnement et offre de lancement remontés
+    const sb = notificationDecision({ notification: notificationPayload({}, { environment: 'Sandbox' }),
+      transaction: transactionPayload({ environment: 'Sandbox', offerType: 1, offerDiscountType: 'FREE_TRIAL' }), nowMs });
+    assert.equal(sb.handled, true);
+    assert.equal(sb.value.environment, 'Sandbox');
+    assert.equal(sb.value.intro_offer, true);
   });
 
   test('appstore-notify : event_at et appAccountToken remontés au serveur', async () => {
@@ -395,8 +418,8 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   // ── Serveur et app disent la même chose ─────────────────
 
   test('payant : mêmes produits, mêmes erreurs et mêmes clés que la migration et le contrat', async () => {
-    const { PRODUCT_KINDS, BUNDLE_ID, PRODUCT_GIFT } = await policy();
-    const sql = migration();
+    const { PRODUCT_KINDS, BUNDLE_ID } = await policy();
+    const sql = modelB();
     // Produits et natures : private.access_product_kind doit dire exactement la même chose
     for (const [product, kind] of Object.entries(PRODUCT_KINDS)) {
       assert.ok(new RegExp(`when '${product.replace(/\./g, '\\.')}'\\s+then '${kind}'`).test(sql), `${product} absent de la migration`);
@@ -406,23 +429,29 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     // Les mêmes identifiants que le contrat
     const doc = contract();
     for (const p of [...Object.keys(PRODUCT_KINDS), BUNDLE_ID]) assert.ok(doc.includes(p), `${p} absent du contrat`);
-    assert.equal(PRODUCT_KINDS[PRODUCT_GIFT], 'gift');
-    // Les 10 clés de my_access(), côté serveur et côté contrat
-    const keys = ['status', 'until', 'paywall_on', 'trial_days', 'days_left', 'can_write', 'gift', 'gift_until', 'coach_team', 'server_now'];
+    sameJSON(Object.keys(PRODUCT_KINDS).sort(), ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly'], 'deux abonnements, rien d\'autre');
+    // Les clés de my_access() (modèle B), côté serveur et côté contrat
+    const keys = ['status', 'until', 'paywall_on', 'days_left', 'can_write', 'gift', 'gift_until', 'coach_team', 'intro_offer', 'intro_until', 'server_now'];
     for (const k of keys) {
       assert.ok(new RegExp(`'${k}',`).test(sql), `clé ${k} absente de private.access_json`);
       assert.ok(doc.includes(k), `clé ${k} absente du contrat`);
     }
     // Erreurs levées par la base, toutes connues de purchaseFailure ou documentées
-    const raised = [...new Set([...sql.matchAll(/raise exception '([a-z_]+)'/g)].map((m) => m[1]))];
+    const raised = [...new Set([...(migration() + sql).matchAll(/raise exception '([a-z_]+)'/g)].map((m) => m[1]))];
     for (const e of raised) assert.ok(doc.includes(e), `erreur ${e} absente du contrat`);
-    // Le verrou est livré éteint, l'essai fait 90 jours
-    assert.ok(/\('paywall_on', 'false'::jsonb\)/.test(sql), 'paywall_on livré allumé');
-    assert.ok(/\('trial_days', '90'::jsonb\)/.test(sql), 'essai ≠ 90 jours');
+    // Le verrou est livré éteint ; l'essai maison a disparu (c'est l'offre de lancement d'Apple)
+    assert.ok(/\('paywall_on', 'false'::jsonb\)/.test(migration()), 'paywall_on livré allumé');
+    assert.ok(/delete from public\.app_config where key = 'trial_days';/.test(sql), 'trial_days non retiré');
+    assert.ok(/drop column trial_started_at;/.test(sql), 'trial_started_at non retiré');
+    assert.ok(!/trial_started_at|trial_days/.test(sql.replace(/^--.*$/gm, '').replace(/delete from public\.app_config where key = 'trial_days';|drop column trial_started_at;|drop function private\.access_trial_days\(\);/g, '')),
+      'l\'essai maison fait encore autorité dans une définition en vigueur');
   });
 
   test('payant : codes cadeaux, règles du serveur et du contrat', async () => {
     const sql = migration();
+    // redeem_gift_code en vigueur (modèle B) : mêmes règles
+    const current = bodyOf(modelB(), 'create or replace function public.redeem_gift_code');
+    assert.ok(/rate_limit_window\(me, 'gift_code', 10, interval '1 hour'\)/.test(current) && /for update/.test(current), 'redeem_gift_code du modèle B affaibli');
     const doc = contract();
     // Un code ne se devine pas : 10 caractères au moins, alphabet sans 0/O/1/I, imposé par la base
     assert.ok(sql.includes("check (code ~ '^[A-HJ-NP-Z2-9]{10,24}$')"), 'format des codes non imposé');
@@ -452,18 +481,22 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   test('payant : aucune RPC du client n\'écrit un droit d\'accès', async () => {
     const sql = migration();
     // Les deux fonctions qui écrivent sont réservées à service_role
+    const sql2 = modelB();
+    for (const f of ['srv_access_purchase(uuid, text, timestamptz, text, boolean, timestamptz, boolean, text)',
+                     'srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text)']) {
+      assert.ok(sql2.includes(`revoke all on function public.${f}\n  from public, anon, authenticated, service_role;`), `${f} : revoke incomplet`);
+      assert.ok(sql2.includes(`grant execute on function public.${f} to service_role;`), `${f} : grant manquant`);
+      assert.ok(!new RegExp(`grant execute on function public\\.${f.replace(/[().,\s]/g, '.')} to authenticated`).test(sql2), `${f} : donnée à authenticated`);
+    }
     for (const f of ['srv_access_purchase(uuid, text, timestamptz, text, boolean, timestamptz)',
                      'srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text)']) {
       assert.ok(sql.includes(`revoke all on function public.${f}\n  from public, anon, authenticated, service_role;`), `${f} : revoke incomplet`);
       assert.ok(sql.includes(`grant execute on function public.${f} to service_role;`), `${f} : grant manquant`);
       assert.ok(!new RegExp(`grant execute on function public\\.${f.replace(/[().,\s]/g, '.')} to authenticated`).test(sql), `${f} : donnée à authenticated`);
     }
-    // my_access ne pose trial_started_at qu'à l'insertion, jamais dans un update
-    const my = sql.slice(sql.indexOf('create function public.my_access'));
-    const body = my.slice(0, my.indexOf('\n$$;'));
-    assert.ok(/insert into public\.entitlements \(user_id, status, trial_started_at\)[\s\S]*on conflict \(user_id\) do nothing/.test(body),
-      'l\'essai n\'est pas protégé par on conflict do nothing');
-    assert.ok(!/update public\.entitlements[\s\S]*trial_started_at\s*=/.test(body), 'my_access réécrit trial_started_at');
+    // my_access en vigueur (modèle B) : crée la ligne en 'none', ne donne rien
+    const body = bodyOf(sql2, 'create or replace function public.my_access()');
+    assert.ok(/insert into public\.entitlements \(user_id, status\) values \(me, 'none'\) on conflict \(user_id\) do nothing/.test(body), 'my_access crée autre chose qu\'une ligne vide');
     // Aucune des deux RPC du client ne prend de date en paramètre (l'heure vient du serveur)
     assert.ok(/create function public\.my_access\(\) returns jsonb/.test(sql));
     assert.ok(/create function public\.access_state\(\) returns jsonb/.test(sql));
@@ -471,7 +504,7 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   });
 
   test('payant : un remboursé le reste, sauf réabonnement réel', async () => {
-    const sql = migration();
+    const sql = modelB();
     const fn = sql.slice(sql.indexOf('create function private.access_claim'));
     const body = fn.slice(0, fn.indexOf('\n$$;'));
     // La réouverture demande les DEUX conditions : évènement plus récent ET période plus lointaine
@@ -496,9 +529,13 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     const body = fn.slice(0, fn.indexOf('\n$$;'));
     assert.ok(/raise exception 'paywall_locked'/.test(body), 'erreur paywall_locked absente');
     assert.ok(/if not private\.access_paywall_on\(\) then\s*\n\s*return new;/.test(body), 'coût non nul verrou éteint');
-    assert.ok(/insert into public\.entitlements[\s\S]*on conflict \(user_id\) do nothing/.test(body),
-      'un compte qui n\'a jamais lu son accès aurait un essai éternel');
     assert.ok(contract().includes('paywall_locked'), 'paywall_locked absent du contrat');
+    // Version en vigueur (modèle B) : grâce de fin de séance bornée à l'heure du SERVEUR
+    const now = bodyOf(modelB(), 'create or replace function private.sessions_paywall');
+    assert.ok(/now\(\) <= ended \+ interval '24 hours'/.test(now), 'fenêtre serveur de 24 h absente');
+    assert.ok(/began <= ended and began >= ended - interval '12 hours'/.test(now), 'début de séance non borné');
+    assert.ok(/r\.action = 'session_grace' and r\.at > ended\) < 2/.test(now), 'nombre de séances de grâce non borné');
+    assert.ok(/raise exception 'paywall_locked'/.test(now));
   });
 
   test('payant : la fonction de notification ne doit pas vérifier le jeton', async () => {

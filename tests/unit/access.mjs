@@ -18,7 +18,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       account.user = ${user ? `{ id: ${JSON.stringify(user)} }` : 'null'};
       accessReset(account.user?.id || null);
       access.state = ${state === null ? 'null' : `cleanAccess(${JSON.stringify(state)})`};
-      return [canWrite(), paywallOn(), accessStatus(), daysLeft(), accessUntil(), accessStale()];
+      return [canWrite(), paywallOn(), accessStatus(), accessIntroUntil(), accessUntil(), accessStale()];
     } finally { account.user = u; Object.assign(access, saved); localStorage.removeItem(ACCESS_CACHE_KEY); }
   })()`);
 
@@ -31,27 +31,36 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       localStorage.setItem(ACCESS_CACHE_KEY, JSON.stringify({ userId: ${JSON.stringify(userId)}, state: cleanAccess(${JSON.stringify(state)}) }));
       Date.now = () => realNow() + ${shiftDays} * 86400000;
       accessReset('u');
-      return [canWrite(), accessStatus(), daysLeft(), accessStale()];
+      return [canWrite(), accessStatus(), accessIntroUntil(), accessStale()];
     } finally { account.user = u; Object.assign(access, saved); Date.now = realNow; localStorage.removeItem(ACCESS_CACHE_KEY); }
   })()`);
 
-  const trial = (extra = {}) => ({ status: 'trial', paywall_on: true, trial_days: 90, days_left: 42,
-    can_write: true, gift: false, coach_team: false, until: NOW + 42 * DAY, server_now: NOW, ...extra });
+  // Modèle B : l'essai gratuit est l'offre de lancement d'Apple, un abonnement « active » comme un autre
+  const trial = (extra = {}) => ({ status: 'active', paywall_on: true, days_left: 42, can_write: true, gift: false,
+    coach_team: false, until: NOW + 42 * DAY, intro_offer: true, intro_until: NOW + 42 * DAY, server_now: NOW, ...extra });
+  // Sans abonnement (plus d'essai maison) : aucun droit verrou allumé
+  const none = (extra = {}) => ({ status: 'none', paywall_on: true, can_write: false, gift: false, coach_team: false,
+    until: null, server_now: NOW, ...extra });
 
   test('accès : réponse du serveur nettoyée (liste blanche, bornes, server_now obligatoire)', () => {
-    const a = run(`cleanAccess({ status: 'trial', until: '2027-01-01T00:00:00Z', paywall_on: true, trial_days: 90,
-      days_left: 42, can_write: true, gift: false, coach_team: false, server_now: '2026-10-28T10:00:00Z',
-      user_id: 'secret', original_transaction_id: '1000', evil: '<img src=x>' })`);
-    sameJSON(Object.keys(a).sort(), ['apple_linked', 'can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'paywall_on', 'server_now', 'status', 'trial_days', 'trial_shared', 'until']);
-    sameJSON(run(`[cleanAccess({ server_now: 1, trial_shared: true }).trial_shared, cleanAccess({ server_now: 1, trial_shared: 'oui' }).trial_shared]`), [true, false]);
-    // apple_linked : booléen du serveur, sinon inconnu (vieille réponse), jamais deviné
-    sameJSON(run(`[cleanAccess({ server_now: 1, apple_linked: true }).apple_linked, cleanAccess({ server_now: 1, apple_linked: false }).apple_linked,
-      cleanAccess({ server_now: 1 }).apple_linked, cleanAccess({ server_now: 1, apple_linked: 'oui' }).apple_linked]`), [true, false, null, null]);
+    const a = run(`cleanAccess({ status: 'active', until: '2027-01-01T00:00:00Z', paywall_on: true, trial_days: 90,
+      days_left: 42, can_write: true, gift: false, coach_team: false, intro_offer: true, intro_until: '2027-01-01T00:00:00Z',
+      server_now: '2026-10-28T10:00:00Z', user_id: 'secret', original_transaction_id: '1000', evil: '<img src=x>' })`);
+    sameJSON(Object.keys(a).sort(), ['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until'],
+      'liste blanche du modèle B (plus de trial_days ni d\'essai maison)');
+    assert.equal(a.intro_offer, true);
+    assert.equal(a.intro_until, Date.parse('2027-01-01T00:00:00Z'));
+    // L'offre de lancement n'a de sens que pour un abonnement actif ; une date illisible n'est pas gardée
+    sameJSON(run(`[cleanAccess({ server_now: 1, status: 'expired', intro_offer: true, intro_until: 5 }).intro_offer,
+      cleanAccess({ server_now: 1, status: 'active', intro_offer: 'oui' }).intro_offer,
+      cleanAccess({ server_now: 1, status: 'active', intro_offer: true, intro_until: 'x' }).intro_until]`), [false, false, null]);
+    // L'ancien statut « trial » (essai maison) n'existe plus
+    assert.equal(run(`cleanAccess({ server_now: 1, status: 'trial' }).status`), 'unknown');
     assert.equal(a.until, Date.parse('2027-01-01T00:00:00Z'));
     assert.equal(a.server_now, Date.parse('2026-10-28T10:00:00Z'));
     assert.equal(a.days_left, 42);
     // Sans l'heure du serveur, rien n'est gardé : l'app ne saurait pas quand cet état a été lu
-    assert.equal(run(`cleanAccess({ status: 'trial', paywall_on: true, can_write: true })`), null);
+    assert.equal(run(`cleanAccess({ status: 'active', paywall_on: true, can_write: true })`), null);
     assert.equal(run(`cleanAccess({ server_now: 'pas une date' })`), null);
     assert.equal(run('cleanAccess(null)'), null);
     assert.equal(run('cleanAccess([1])'), null);
@@ -59,8 +68,6 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     // Bornes et formes refusées
     assert.equal(run(`cleanAccess({ server_now: 1, status: 'bidon' }).status`), 'unknown');
     assert.equal(run(`cleanAccess({ server_now: 1, until: 'x' }).until`), null);
-    assert.equal(run(`cleanAccess({ server_now: 1, trial_days: -5 }).trial_days`), 90, 'essai hors bornes : 90 jours');
-    assert.equal(run(`cleanAccess({ server_now: 1, trial_days: 99999 }).trial_days`), 90);
     assert.equal(run(`cleanAccess({ server_now: 1, days_left: 1.5 }).days_left`), null);
     assert.equal(run(`cleanAccess({ server_now: 1, days_left: '42' }).days_left`), null);
     sameJSON(run(`[cleanAccess({ server_now: 1, gift: true }).gift, cleanAccess({ server_now: 1, gift: 'oui' }).gift,
@@ -73,25 +80,24 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(run(`cleanAccess({ server_now: 1, paywall_on: 'oui' }).paywall_on`), false);
   });
 
-  test('accès : verrou éteint, rien ne bloque jamais (sans compte, sans état, essai fini)', () => {
-    // Pas de compte : l'app marche comme avant, aucun appel, aucun blocage
+  test('accès : verrou éteint, rien ne bloque jamais (sans compte, sans état, abonnement fini)', () => {
     sameJSON(decide(null, { user: null }), [true, false, 'unknown', null, null, true]);
-    // Compte connecté, état jamais lu : jamais bloqué, mais l'état est à redemander
     sameJSON(decide(null), [true, false, 'unknown', null, null, true]);
-    // Verrou éteint côté serveur : même un essai terminé n'empêche rien
-    sameJSON(decide({ status: 'expired', paywall_on: false, can_write: false, days_left: 0, server_now: NOW }).slice(0, 3),
+    sameJSON(decide({ status: 'expired', paywall_on: false, can_write: false, server_now: NOW }).slice(0, 3),
       [true, false, 'expired'], 'verrou éteint : canWrite vrai, paywall jamais affiché');
+    sameJSON(decide({ status: 'none', paywall_on: false, can_write: false, server_now: NOW }).slice(0, 3), [true, false, 'none']);
   });
 
-  test('accès : essai, fin d\'essai, abonné, accès offert, élève suivi par un coach', () => {
-    sameJSON(decide(trial()), [true, true, 'trial', 42, NOW + 42 * DAY, false]);
-    sameJSON(decide(trial({ days_left: 0 })).slice(0, 4), [true, true, 'trial', 0], 'dernier jour : encore ouvert');
-    sameJSON(decide({ status: 'expired', paywall_on: true, can_write: false, days_left: 0, until: NOW, server_now: NOW }).slice(0, 4),
-      [false, true, 'expired', null], 'essai terminé : plus d\'écriture, aucun jour restant');
+  test('accès : modèle B, sans abonnement pas d\'essai maison ; essai d\'Apple, abonné, cadeau, coach', () => {
+    // Compte tout neuf, verrou allumé : aucun droit (l'essai est celui d'Apple, avec un moyen de paiement)
+    sameJSON(decide(none()), [false, true, 'none', null, null, false]);
+    // Essai gratuit d'Apple : abonnement actif, avec la fin de l'offre
+    sameJSON(decide(trial()), [true, true, 'active', NOW + 42 * DAY, NOW + 42 * DAY, false]);
+    sameJSON(decide({ status: 'expired', paywall_on: true, can_write: false, until: NOW - DAY, server_now: NOW }).slice(0, 4),
+      [false, true, 'expired', null], 'abonnement fini : plus d\'écriture');
     sameJSON(decide({ status: 'active', paywall_on: true, can_write: true, until: NOW + 30 * DAY, server_now: NOW }).slice(0, 4),
-      [true, true, 'active', null]);
+      [true, true, 'active', null], 'abonné payant : pas d\'offre en cours');
     sameJSON(decide({ status: 'gift', paywall_on: true, can_write: true, gift: true, server_now: NOW }).slice(0, 3), [true, true, 'gift']);
-    // Élève suivi par un coach : accès gratuit tant qu'il est suivi (le serveur le dit, l'app le croit)
     sameJSON(decide({ status: 'coach_team', paywall_on: true, can_write: true, coach_team: true, server_now: NOW }).slice(0, 3),
       [true, true, 'coach_team']);
     // Serveur incohérent (coach_team sans droit) : c'est le serveur qui fait foi, pas l'app
@@ -99,18 +105,12 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
   });
 
   test('accès : hors ligne, le dernier état connu vaut 7 jours (droit gardé, puis redemandé)', () => {
-    // Dans les 7 jours : la salle sans réseau ne bloque personne
-    sameJSON(offline(trial(), 0), [true, 'trial', 42, false]);
-    sameJSON(offline(trial(), 6), [true, 'trial', 42, false], '6 jours plus tard : encore valable');
-    sameJSON(offline({ status: 'active', paywall_on: true, can_write: true, server_now: NOW }, 6).slice(0, 2), [true, 'active']);
-    // Au-delà : l'app ne se prolonge pas elle-même, l'état est à redemander
-    sameJSON(offline(trial(), 8), [false, 'unknown', null, true], 'droit périmé : plus d\'écriture tant que le serveur n\'a pas répondu');
-    // Verrou éteint : même périmé, rien ne bloque
-    sameJSON(offline({ status: 'trial', paywall_on: false, can_write: true, days_left: 5, server_now: NOW }, 400),
-      [true, 'unknown', null, true]);
-    // Cache d'un autre compte : jamais réutilisé (et jamais bloquant)
-    sameJSON(offline(trial({ can_write: false, status: 'expired' }), 0, 'autre-compte'), [true, 'unknown', null, true]);
-    // Cache illisible : comme s'il n'y en avait pas
+    const coach = { status: 'coach_team', paywall_on: true, can_write: true, coach_team: true, until: null, server_now: NOW };
+    sameJSON(offline(coach, 0), [true, 'coach_team', null, false]);
+    sameJSON(offline(coach, 6), [true, 'coach_team', null, false], '6 jours plus tard : encore valable');
+    sameJSON(offline(coach, 8), [false, 'unknown', null, true], 'au-delà : droit périmé, état à redemander');
+    sameJSON(offline({ status: 'none', paywall_on: false, can_write: true, server_now: NOW }, 400), [true, 'unknown', null, true]);
+    sameJSON(offline(none(), 0, 'autre-compte'), [true, 'unknown', null, true], 'cache d\'un autre compte jamais repris');
     const broken = run(`(() => {
       const u = account.user, saved = { ...access };
       try { account.user = { id: 'u' }; localStorage.setItem(ACCESS_CACHE_KEY, '{pas du json'); accessReset('u');
@@ -121,22 +121,16 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
   });
 
   test('accès : horloge de l\'appareil trafiquée, aucun droit gagné ni perdu à tort', () => {
-    // Essai terminé gardé sur l'appareil : avancer l'horloge de 400 jours ne DÉBLOQUE rien
-    const expired = { status: 'expired', paywall_on: true, can_write: false, days_left: 0, server_now: NOW };
+    const expired = { status: 'expired', paywall_on: true, can_write: false, server_now: NOW };
     sameJSON(offline(expired, 0), [false, 'expired', null, false]);
     sameJSON(offline(expired, 8), [false, 'unknown', null, true], 'horloge avancée : toujours refusé');
     sameJSON(offline(expired, 400), [false, 'unknown', null, true]);
     sameJSON(offline(expired, -400), [false, 'unknown', null, true], 'horloge reculée : toujours refusé');
-    // Essai en cours : les jours restants sont ceux du serveur, jamais recalculés ici
-    assert.equal(offline(trial(), 0)[2], 42, 'jours restants : ceux du serveur');
-    // Reculer l'horloge ne doit PAS faire durer le cache indéfiniment : l'état est à redemander
-    sameJSON(offline(trial({ days_left: 3 }), -1), [false, 'unknown', null, true], 'horloge reculée d\'un jour : état périmé');
-    sameJSON(offline(trial({ days_left: 3 }), -400), [false, 'unknown', null, true]);
-    // Petit décalage d'horloge (quelques minutes de retard) : l'état reste valable
-    assert.equal(offline(trial(), -0.001)[0], true);
-    assert.equal(offline(trial(), -0.001)[2], 42);
-    // Et l'essai ne devient jamais « actif » ni « offert » tout seul
-    assert.ok(!['active', 'gift'].includes(offline(trial(), 8)[1]));
+    sameJSON(offline(none(), 400), [false, 'unknown', null, true], 'sans abonnement : jamais ouvert par l\'horloge');
+    // La fin de l'essai d'Apple est celle du serveur, jamais recalculée ici
+    assert.equal(offline(trial(), 0)[2], NOW + 42 * DAY);
+    assert.equal(offline(trial(), -10)[0], false, 'horloge reculée : jamais de rallonge');
+    assert.equal(offline(trial(), -0.001)[0], true, 'quelques minutes de retard : valable');
   });
 
   test('accès : état relu pendant le lancement, puis gardé par compte sur l\'appareil', () => {
@@ -151,7 +145,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
         const written = JSON.parse(localStorage.getItem(ACCESS_CACHE_KEY));
         // Relance de l'app, hors ligne : l'état n'est pas encore lu, le cache suffit
         accessReset('u');
-        const fromCache = [access.state, canWrite(), accessStatus(), daysLeft()];
+        const fromCache = [access.state, canWrite(), accessStatus(), accessIntroUntil()];
         // Changement de compte : le cache de l'autre n'est pas repris
         accessReset('autre');
         const other = [access.cached, canWrite()];
@@ -161,17 +155,19 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
           CROSS_USER_CACHE_KEYS.includes('mdlf_access')];
       } finally { account.user = u; Object.assign(access, saved); Date.now = realNow; localStorage.removeItem(ACCESS_CACHE_KEY); }
     })()`);
-    sameJSON(r, ['u', 42, [null, true, 'trial', 42], [null, true], null, true]);
+    sameJSON(r, ['u', 42, [null, true, 'active', NOW + 42 * DAY], [null, true], null, true]);
   });
 
-  test('accès : formules lues chez StoreKit, « Accès offert » jamais proposé', async () => {
+  test('accès : formules et essai gratuit lus chez StoreKit, ancien « Accès offert » écarté', async () => {
     const list = await run(`(async () => {
       const saved = Native.store;
       try {
         Native.store = { available: true, products: async () => ({ products: [
-          { id: ACCESS_YEARLY_ID, displayPrice: '41,99 €', displayName: 'MDLF Training annuel', price: 41.99, period: { unit: 'year', value: 1 } },
-          { id: ACCESS_MONTHLY_ID, displayPrice: '  5,99 €  ', displayName: 'MDLF Training mensuel', price: 5.99, period: { unit: 'month', value: 1 } },
-          { id: ACCESS_GIFT_ID, displayPrice: '24,99 €', displayName: 'Accès offert' },
+          { id: ACCESS_YEARLY_ID, displayPrice: '41,99 €', displayName: 'MDLF Training annuel', price: 41.99, period: { unit: 'year', value: 1 },
+            introEligible: true, offer: { displayPrice: '0,00 €', price: 0, paymentMode: 'freeTrial', period: { unit: 'month', value: 3 }, periodCount: 1 } },
+          { id: ACCESS_MONTHLY_ID, displayPrice: '  5,99 €  ', displayName: 'MDLF Training mensuel', price: 5.99, period: { unit: 'month', value: 1 },
+            introEligible: false, offer: { paymentMode: 'freeTrial', period: { unit: 'month', value: 3 }, periodCount: 1 } },
+          { id: 'com.mdlf.training.access.gift', displayPrice: '24,99 €', displayName: 'Accès offert' },
           { id: 'com.autre.app.pro', displayPrice: '1 €' },
           { id: ACCESS_MONTHLY_ID, displayPrice: 599 },
           null,
@@ -180,9 +176,15 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
         return await accessLoadProducts();
       } finally { Native.store = saved; access.products = null; access.missing = null; }
     })()`);
-    sameJSON(list.map(p => [p.id, p.price, p.period, p.label]),
-      [[MONTHLY, '5,99 €', 'month', 'MDLF Training mensuel'], [YEARLY, '41,99 €', 'year', 'MDLF Training annuel']],
-      'prix affichable displayPrice (jamais le nombre), nom displayName, accès offert et autres identifiants écartés');
+    sameJSON(list.map(p => [p.id, p.price, p.period, p.label, p.trial]),
+      [[MONTHLY, '5,99 €', 'month', 'MDLF Training mensuel', null], [YEARLY, '41,99 €', 'year', 'MDLF Training annuel', { unit: 'month', value: 3 }]],
+      'prix displayPrice, essai seulement si introEligible (StoreKit), ancien accès offert et autres identifiants écartés');
+    // Offre qui n'est pas un essai gratuit, ou mal formée : pas d'essai annoncé
+    const bad = run(`[accessTrialOf({ introEligible: true, offer: { paymentMode: 'payAsYouGo', period: { unit: 'month', value: 1 } } }),
+      accessTrialOf({ introEligible: true, offer: { paymentMode: 'freeTrial', period: { unit: 'siècle', value: 1 } } }),
+      accessTrialOf({ introEligible: true, offer: { paymentMode: 'freeTrial', period: { unit: 'week', value: 1 }, periodCount: 2 } }),
+      accessTrialOf({ introEligible: true })]`);
+    sameJSON(bad, [null, null, { unit: 'week', value: 2 }, null]);
     // Produits qu'Apple ne connaît pas encore (contrat Paid Apps pas signé) : liste vide et missing
     const pending = await run(`(async () => {
       const saved = Native.store;
@@ -240,8 +242,15 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       assert.ok(!/€/.test(src), `${f} : une devise est écrite en dur`);
     }
     // Les identifiants de produits, eux, sont bien ceux du contrat
-    sameJSON([MONTHLY, YEARLY, run('ACCESS_GIFT_ID')],
-      ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly', 'com.mdlf.training.access.gift']);
+    sameJSON([MONTHLY, YEARLY, run('ACCESS_PRODUCT_IDS')],
+      ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly', ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly']]);
+    // L'ancien « Accès offert » d'Apple n'existe plus nulle part dans l'app
+    for (const [f, src] of files) assert.ok(!/access\.gift|ACCESS_GIFT_ID|giftId/.test(src), `${f} : accès offert d'Apple resté`);
+    // Plus aucune trace de l'essai maison ni du rattachement à l'identifiant Apple
+    for (const f of ['js/data/access.js', 'js/features/paywall-ui.js', 'js/platform/native.js']) {
+      const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
+      assert.ok(!/daysLeft\(|trial_days|apple_linked|trial_shared|appTransaction|accessLinkApple|verify-app-transaction|Native\.platform/.test(src), `${f} : reste de l'essai maison`);
+    }
   });
 
   test('accès : achat jamais cru sur parole, erreurs du serveur traduites', async () => {
@@ -346,8 +355,8 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(offline({ status: 'coach_team', paywall_on: true, can_write: true, coach_team: true, until: null, server_now: NOW }, 8)[0], false);
     // Horloge reculée : jamais de rallonge, même pour un abonné
     assert.equal(offline(active, -10)[0], false);
-    // Essai : toujours 7 jours
-    assert.equal(offline(trial(), 8)[0], false);
+    // Essai gratuit d'Apple : c'est un abonnement daté, même règle
+    assert.equal(offline(trial(), 30)[0], true);
   });
 
   test('accès : Apple injoignable (503), la transaction est gardée pour plus tard', async () => {
@@ -520,82 +529,6 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(r[1], [['from', 'app_config'], ['select', 'value'], ['key', 'paywall_on']]);
   });
 
-  // ── Règle 1 (28/10) : la preuve Apple part au serveur, qui décide ──
-
-  const linking = (script) => run(`(async () => {
-    const u = account.user, saved = { ...access }, realSb = sb, nativeStore = Native.store;
-    const sent = [];
-    const proofs = [];
-    const S = { proof: { available: true, jws: 'jws-app', appTransactionId: 'dl-1' }, reply: null };
-    try {
-      account.user = { id: 'u' };
-      accessReset('u');
-      Native.store = { available: true, appTransaction: async o => { proofs.push(o); return S.proof; } };
-      sb = { functions: { invoke: async (fn, o) => { sent.push([fn, o.body.jws]);
-        return S.reply || { data: { ok: true, access: { status: 'trial', paywall_on: true, can_write: true, apple_linked: true, days_left: 90, server_now: Date.now() } }, error: null }; } },
-        rpc: async () => ({ data: { status: 'expired', paywall_on: true, can_write: false, apple_linked: false, server_now: Date.now() }, error: null }) };
-      ${script}
-    } finally { account.user = u; Object.assign(access, saved); sb = realSb; Native.store = nativeStore;
-      localStorage.removeItem(ACCESS_CACHE_KEY); }
-  })()`);
-
-  test('accès : la preuve Apple n\'est envoyée que si le serveur dit qu\'aucun identifiant n\'est lié', async () => {
-    const r = await linking(`
-      const out = [];
-      // Déjà lié : rien n'est demandé, ni à StoreKit ni au serveur
-      access.state = cleanAccess({ status: 'trial', paywall_on: true, can_write: true, apple_linked: true, server_now: Date.now() });
-      out.push((await accessLinkApple()).skipped === true, proofs.length, sent.length);
-      // État inconnu (vieille réponse) : rien non plus
-      access.state = cleanAccess({ status: 'trial', paywall_on: true, can_write: true, server_now: Date.now() });
-      out.push((await accessLinkApple()).skipped === true);
-      // Pas lié : la preuve part telle quelle, et l'état rendu par le serveur est appliqué
-      access.state = cleanAccess({ status: 'trial', paywall_on: true, can_write: true, apple_linked: false, days_left: 14, server_now: Date.now() });
-      out.push((await accessLinkApple()).ok, sent[0], daysLeft(), access.state.apple_linked);
-      return out;`);
-    sameJSON(r, [true, 0, 0, true, true, ['verify-app-transaction', 'jws-app'], 90, true]);
-  });
-
-  test('accès : preuve Apple absente ou refusée, rien ne bloque côté app et rien ne boucle', async () => {
-    const r = await linking(`
-      const out = [];
-      access.state = cleanAccess({ status: 'trial', paywall_on: true, can_write: true, apple_linked: false, server_now: Date.now() });
-      // Indisponible (hors ligne, App Store pas connecté, vieille coquille : null) : rien n'est envoyé
-      for (const p of [{ available: false, reason: 'unavailable' }, { available: false, reason: 'unverified' }, null, { available: true }]) {
-        S.proof = p;
-        out.push((await accessLinkApple()).kind);
-      }
-      out.push(sent.length, canWrite());
-      // Fenêtre d'Apple fermée sur « Vérifier » : ce n'est pas une erreur
-      S.proof = { available: false, reason: 'cancelled' };
-      out.push((await accessLinkApple({ refresh: true, force: true })).reason, proofs[proofs.length - 1].refresh);
-      // Refus définitif (Sandbox refusé en TestFlight) : plus renvoyée pendant ce lancement
-      S.proof = { available: true, jws: 'jws-app' };
-      S.reply = { data: null, error: { context: { status: 400, json: async () => ({ error: 'bad_environment' }) } } };
-      out.push((await accessLinkApple()).kind, (await accessLinkApple()).skipped === true, sent.length);
-      // Serveur injoignable : on réessaiera (pas marqué refusé)
-      access.appleRefused = false;
-      S.reply = { data: null, error: { context: { status: 503, json: async () => ({}) } } };
-      out.push((await accessLinkApple()).kind, access.appleRefused);
-      return out;`);
-    sameJSON(r, ['apple_unavailable', 'apple_unavailable', 'apple_unavailable', 'apple_unavailable', 0, true,
-      'cancel', true, 'bad_environment', true, 1, 'retry', false]);
-  });
-
-  test('accès : avant de refuser une séance, la preuve Apple est renvoyée (essai plafonné faute de preuve)', async () => {
-    const r = await linking(`
-      access.state = cleanAccess({ status: 'expired', paywall_on: true, can_write: false, apple_linked: false, server_now: Date.now() });
-      const allowed = await accessEnsure();
-      return [allowed, sent.length, accessStatus()];`);
-    sameJSON(r, [true, 1, 'trial']);
-    // Déjà lié et vraiment expiré : aucune preuve renvoyée, le refus tient
-    const r2 = await linking(`
-      access.state = cleanAccess({ status: 'expired', paywall_on: true, can_write: false, apple_linked: true, server_now: Date.now() });
-      return [await accessEnsure(), sent.length];`);
-    sameJSON(r2, [false, 0]);
-  });
-
-  // ── Relecture du 28/10 : verrou jamais lu, fenêtre bornée (B4) ──
-
   test('accès sans compte : verrou jamais lu, ouvert 7 jours après la 1re ouverture, puis une lecture est nécessaire', () => {
     sameJSON(guest({ anon: null, firstSeenDaysAgo: 0 }).slice(0, 2), [true, false], 'premier jour : ouvert');
     sameJSON(guest({ anon: null, firstSeenDaysAgo: 6 }).slice(0, 2), [true, false], '6 jours : ouvert');
@@ -631,22 +564,10 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(r, [30, true, true, true]);
   });
 
-  test('accès : my_access déclare la plateforme de la coquille au serveur', async () => {
-    const r = await run(`(async () => {
-      const u = account.user, saved = { ...access }, realSb = sb, plat = Native.platform;
-      const calls = [];
-      try {
-        account.user = { id: 'u' };
-        accessReset('u');
-        sb = { rpc: async (fn, a) => { calls.push([fn, a ?? null]); return { data: { status: 'trial', paywall_on: false, can_write: true, server_now: Date.now() }, error: null }; } };
-        Native.platform = 'ios';
-        await accessRefresh({ fn: 'my_access' });
-        await accessRefresh({ fn: 'access_state' });
-        Native.platform = null;
-        await accessRefresh({ fn: 'my_access' });
-        return calls;
-      } finally { account.user = u; Object.assign(access, saved); sb = realSb; Native.platform = plat; localStorage.removeItem(ACCESS_CACHE_KEY); }
-    })()`);
-    sameJSON(r, [['my_access', { p_platform: 'ios' }], ['access_state', null], ['my_access', null]]);
+  test('accès : une séance commencée avec le droit d\'écrire se termine même si l\'accès a pris fin', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'js/features/summary.js'), 'utf8');
+    assert.ok(/if \(!activeSession\.writeOk && !\(await accessGate\(\)\)\) return;/.test(src), '« Terminer » repasse par la porte');
+    const start = fs.readFileSync(path.join(ROOT, 'js/features/session.js'), 'utf8');
+    assert.ok(/writeOk: typeof canWrite !== 'function' \|\| canWrite\(\),/.test(start), 'droit d\'écrire non noté au début de la séance');
   });
 }

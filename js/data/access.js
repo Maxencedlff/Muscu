@@ -2,9 +2,13 @@
 //  Accès payant (Payant V1) : lecture du droit d'accès, sans affichage
 //
 //  - Contrat serveur / app / Apple : docs/PAYANT_V1.md. Deux fonctions RPC seulement :
-//    `my_access()` (crée la ligne `entitlements` en `trial` au premier appel : c'est le serveur qui
-//    démarre l'essai) et `access_state()` (lecture seule, ne crée rien). Aucune RPC n'écrit un droit :
-//    les écritures viennent des fonctions Edge (`verify-purchase`, `appstore-notify`).
+//    `my_access()` (crée la ligne `entitlements` au premier appel, sans rien donner) et
+//    `access_state()` (lecture seule, ne crée rien). Aucune RPC n'écrit un droit : les écritures
+//    viennent des fonctions Edge (`verify-purchase`, `appstore-notify`).
+//  - MODÈLE B (28/10/2026) : l'essai gratuit de 3 mois est l'OFFRE DE LANCEMENT D'APPLE sur les deux
+//    abonnements (Apple garantit un seul essai par identifiant Apple). Il n'y a plus d'essai maison :
+//    sans abonnement, cadeau maison ni coach, pas de droit d'écrire quand le verrou est allumé. Un
+//    abonné en essai est 'active' avec `intro_offer` et `intro_until` (lus dans la transaction signée).
 //  - LE SERVEUR FAIT FOI. Tout ce qu'il renvoie est nettoyé ici (cleanAccess : liste blanche, bornes),
 //    et l'écran (js/features/paywall-ui.js) échappe tout texte reçu.
 //  - L'HORLOGE DE L'APPAREIL NE DÉCIDE JAMAIS. Le droit d'écrire est celui que le serveur a calculé à
@@ -25,10 +29,6 @@
 //    cette installation) : ouverte 7 jours après la première ouverture de l'app, date gardée dans le
 //    Trousseau (elle survit à une réinstallation) ; ensuite une lecture réussie est nécessaire. Sans
 //    cette borne, réinstaller l'app et bloquer le serveur suffirait à tout garder ouvert pour toujours.
-//  - ESSAI RATTACHÉ À L'IDENTIFIANT APPLE (règle du 28/10/2026) : l'app envoie la preuve signée par
-//    Apple du téléchargement (Native.store.appTransaction) à la fonction Edge verify-app-transaction,
-//    au lancement tant que le compte n'a aucun identifiant Apple lié (`apple_linked`), et juste avant de
-//    refuser une séance. Le serveur décide de tout ; preuve indisponible : rien ne bloque ici.
 //  - Résultats : { ok: true, data } ou { ok: false, kind }. L'écran s'abonne par onAccessChange.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -42,10 +42,9 @@ const ACCESS_CACHE_MS    = 7 * 86400_000;     // hors ligne : validité du derni
 const ACCESS_SKEW_MS     = 5 * 60_000;        // tolérance d'horloge (l'appareil peut être un peu en retard)
 const ACCESS_GRACE_MS    = 2 * 86400_000;     // abonné hors ligne : marge après la date de fin du serveur
 const ACCESS_REFRESH_MS  = 30_000;            // retour au premier plan : une relecture toutes les 30 s au plus
-const ACCESS_STATUSES    = ['trial', 'active', 'expired', 'gift', 'coach_team'];
+const ACCESS_STATUSES    = ['none', 'active', 'expired', 'gift', 'coach_team'];
 const ACCESS_MONTHLY_ID  = 'com.mdlf.training.pro.monthly';
 const ACCESS_YEARLY_ID   = 'com.mdlf.training.pro.yearly';
-const ACCESS_GIFT_ID     = 'com.mdlf.training.access.gift';   // jamais vendu : codes seulement
 const ACCESS_PRODUCT_IDS = [ACCESS_MONTHLY_ID, ACCESS_YEARLY_ID];
 // Code cadeau maison : 10 à 24 caractères parmi les 32 symboles lisibles (sans 0, O, 1 ni I),
 // même alphabet que la contrainte de gift_codes côté serveur
@@ -54,11 +53,9 @@ const ACCESS_GIFT_CODE_RE = /^[A-HJ-NP-Z2-9]{10,24}$/;
 // state : dernier état lu pendant ce lancement ; cached : dernier état gardé sur l'appareil
 const access = { userId: null, state: null, cached: null, loading: false, again: false, error: null, loadedAt: 0,
   products: null, missing: null, productsAt: 0, buying: null, verifying: false, syncing: false,
-  canPay: true, refused: new Set(),
+  canPay: true, refused: new Set(), currentProduct: null,
   // Sans compte : verrou lu dans app_config (true, false, ou null tant qu'il n'a jamais été lu)
-  anon: readAnonPaywall(), anonAt: 0, anonLoading: false, firstSeen: null,
-  // Preuve Apple : envoi en cours, et refus déjà reçu pendant ce lancement (pas de nouvel essai inutile)
-  linking: false, appleRefused: false };
+  anon: readAnonPaywall(), anonAt: 0, anonLoading: false, firstSeen: null };
 const accessListeners = [];
 let accessSeq = 0;   // +1 à chaque changement de compte : une réponse arrivée après n'écrit plus rien
 
@@ -75,7 +72,8 @@ const accessTime = v => { const t = typeof v === 'number' ? v : Date.parse(v); r
 const accessInt = (v, max) => (Number.isInteger(v) && v >= 0 && v <= max ? v : null);
 
 // my_access() / access_state() nettoyé, ou null si inutilisable :
-// { status, until, paywall_on, trial_days, days_left, can_write, gift, coach_team, server_now }.
+// { status, until, paywall_on, days_left, can_write, gift, gift_until, coach_team, intro_offer,
+//   intro_until, server_now }.
 // Sans `server_now`, rien n'est gardé : l'app ne saurait pas quand cet état a été lu, et l'horloge de
 // l'appareil ne sert jamais à le décider. `can_write` est forcé à vrai quand le verrou est éteint
 // (même règle que le serveur : rien ne bloque tant que `paywall_on` est faux).
@@ -89,7 +87,6 @@ function cleanAccess(raw) {
     status: ACCESS_STATUSES.includes(r.status) ? r.status : 'unknown',
     until: accessTime(r.until),
     paywall_on: paywallOn,
-    trial_days: accessInt(r.trial_days, 3650) ?? 90,
     days_left: accessInt(r.days_left, 3650),
     // Le droit vient du serveur, jamais recalculé ici ; verrou éteint = toujours vrai (même règle
     // que le serveur, reprise pour qu'une réponse abîmée ne bloque jamais personne)
@@ -97,10 +94,9 @@ function cleanAccess(raw) {
     gift: r.gift === true,
     gift_until: accessTime(r.gift_until),
     coach_team: r.coach_team === true,
-    // Un identifiant Apple est lié au compte (règle 1). Absent d'une vieille réponse : inconnu (null)
-    apple_linked: typeof r.apple_linked === 'boolean' ? r.apple_linked : null,
-    // L'essai vient d'un identifiant Apple qu'un autre compte a utilisé avant (foyer)
-    trial_shared: r.trial_shared === true,
+    // Abonnement dans son offre de lancement (essai gratuit d'Apple) et fin de cette offre
+    intro_offer: r.intro_offer === true && r.status === 'active',
+    intro_until: r.intro_offer === true && r.status === 'active' ? accessTime(r.intro_until) : null,
     server_now: serverNow,
   };
 }
@@ -185,17 +181,16 @@ function paywallOn() {
   return accessKnown()?.paywall_on === true;
 }
 
-// 'trial' | 'active' | 'expired' | 'gift' | 'coach_team' | 'unknown' (rien de sûr : hors ligne trop longtemps)
+// 'none' | 'active' | 'expired' | 'gift' | 'coach_team' | 'unknown' (rien de sûr : hors ligne trop longtemps)
 function accessStatus() {
   const st = accessKnown();
   return st ? st.status : 'unknown';
 }
 
-// Jours restants de l'essai d'après le SERVEUR (jamais recalculés depuis l'horloge de l'appareil) ;
-// null hors essai, ou quand l'état n'est plus sûr
-function daysLeft() {
+// Fin de l'essai gratuit d'Apple (offre de lancement) d'après le serveur, ou null
+function accessIntroUntil() {
   const st = accessKnown();
-  return st && st.status === 'trial' ? st.days_left : null;
+  return st && !st.stale && st.intro_offer ? st.intro_until : null;
 }
 
 // Date de fin donnée par le serveur (fin d'essai ou fin d'abonnement), ou null
@@ -214,8 +209,7 @@ function accessErrorKind(error) {
 }
 // Refus nommés par le serveur (verify-purchase, appstore-notify, RPC) : tous traduits
 const ACCESS_SERVER_ERRORS = ['invalid_jws', 'bad_bundle', 'bad_environment', 'bad_type', 'not_purchased',
-  'transaction_taken', 'unknown_product', 'invalid_transaction', 'rate_limited', 'not_found',
-  'not_app_transaction', 'no_app_transaction_id', 'invalid_app_transaction'];
+  'transaction_taken', 'unknown_product', 'invalid_transaction', 'rate_limited', 'not_found'];
 const ACCESS_ERROR_TEXT = {
   offline: 'Pas d\'Internet : réessaie avec du réseau.',
   invalid_jws: 'Cet achat n\'a pas pu être vérifié auprès d\'Apple.',
@@ -223,7 +217,7 @@ const ACCESS_ERROR_TEXT = {
   transaction_taken: 'Cet abonnement est déjà rattaché à un autre compte MDLF. Connecte-toi à ce compte pour le retrouver.',
   not_found: 'Apple ne retrouve pas cet achat. Réessaie dans un moment.',
   unknown_product: 'Cet achat ne correspond à aucune formule de l\'app.',
-  bad_environment: 'Cet achat vient de l\'environnement de test d\'Apple : il ne donne pas l\'accès ici.',
+  bad_environment: 'Cet achat vient d\'un environnement de test que l\'app ne reconnaît pas.',
   bad_type: 'Ce type d\'achat n\'est pas reconnu par l\'app.',
   not_purchased: 'Cet achat n\'est pas rattaché à ton identifiant Apple. Le partage familial n\'est pas accepté.',
   invalid_transaction: 'Apple n\'a pas reconnu cette transaction.',
@@ -240,10 +234,6 @@ const ACCESS_ERROR_TEXT = {
   no_store: 'Les achats se font dans l\'app MDLF Training sur iPhone.',
   nothing: 'Aucun achat à restaurer sur cet identifiant Apple.',
   signed_out: 'Connecte-toi d\'abord à ton compte.',
-  apple_unavailable: 'Ton identifiant Apple n\'a pas pu être vérifié. Vérifie que tu es connecté à l\'App Store, puis réessaie.',
-  not_app_transaction: 'Ton identifiant Apple n\'a pas pu être vérifié.',
-  no_app_transaction_id: 'Ton identifiant Apple n\'a pas pu être vérifié. Réessaie dans un moment.',
-  invalid_app_transaction: 'Ton identifiant Apple n\'a pas pu être vérifié.',
   server: 'Action impossible pour l\'instant, réessaie dans un moment.',
 };
 function accessErrorText(kind) { return ACCESS_ERROR_TEXT[kind] || ACCESS_ERROR_TEXT.server; }
@@ -266,8 +256,7 @@ function accessReset(userId) {
   accessSeq++;
   access.refused.clear();
   Object.assign(access, { userId, state: null, cached: userId ? readAccessCache(userId) : null,
-    loading: false, again: false, error: null, loadedAt: 0, buying: null, verifying: false,
-    linking: false, appleRefused: false });
+    loading: false, again: false, error: null, loadedAt: 0, buying: null, verifying: false });
 }
 
 // ── Appels au serveur ───────────────────────────────────────
@@ -295,8 +284,7 @@ async function accessRefresh({ minAge = 0, fn = null } = {}) {
   access.again = false;
   const seq = accessSeq;
   const call = fn || (!access.state && !access.cached ? 'my_access' : 'access_state');
-  // my_access déclare la plateforme de la coquille (le plafond sans preuve ne vise que l'iPhone)
-  const r = await accessRpc(call, call === 'my_access' && Native.platform ? { p_platform: Native.platform } : undefined);
+  const r = await accessRpc(call);
   if (seq !== accessSeq) return false;
   let ok = false;
   const st = r.ok ? cleanAccess(r.data) : null;
@@ -366,9 +354,6 @@ async function accessEnsure() {
   // Sans compte : le verrou a peut-être été éteint depuis
   if (!account.user) { await accessAnonRefresh(); return canWrite(); }
   if (accessStale() || !access.state) await accessRefresh();
-  // Essai plafonné faute de preuve Apple : on la renvoie avant de refuser (elle a pu échouer au
-  // lancement, réseau ou App Store indisponibles) ; la réponse porte l'état à jour
-  if (!canWrite() && access.state?.apple_linked === false) await accessLinkApple();
   return canWrite();
 }
 
@@ -396,56 +381,16 @@ async function accessAnonRefresh({ minAge = 0 } = {}) {
   finally { access.anonLoading = false; }
 }
 
-// ── Essai rattaché à l'identifiant Apple (règle 1) ──────────
-
-// Envoie la preuve signée par Apple du téléchargement (AppTransaction) à verify-app-transaction.
-// Seulement pour un compte dont le serveur dit qu'aucun identifiant Apple n'est lié, sauf `force`
-// (geste explicite « Vérifier mon identifiant Apple », avec `refresh` qui ouvre la fenêtre d'Apple).
-// Renvoie { ok: true } (état relu), { ok: true, skipped: true } (rien à faire) ou { ok: false, kind }.
-// Preuve indisponible (hors ligne, App Store pas connecté, vieille coquille, navigateur) : rien n'est
-// bloqué ici, le serveur applique son plafond « sans preuve » et l'app réessaiera.
-async function accessLinkApple({ refresh = false, force = false } = {}) {
-  if (!sb || !account.user) return { ok: false, kind: 'signed_out' };
-  if (!Native.store.available) return { ok: false, kind: 'no_store' };
-  if (!force && (access.state?.apple_linked !== false || access.appleRefused)) return { ok: true, skipped: true };
-  if (access.linking) return { ok: false, kind: 'busy' };
-  access.linking = true;
-  const seq = accessSeq;
-  try {
-    const proof = await Native.store.appTransaction({ refresh });
-    if (seq !== accessSeq) return { ok: false, kind: 'signed_out' };
-    if (proof?.reason === 'cancelled') return { ok: false, reason: 'cancel' };
-    if (proof?.available !== true || typeof proof.jws !== 'string' || !proof.jws) return { ok: false, kind: 'apple_unavailable' };
-    const { data: res, error } = await sb.functions.invoke('verify-app-transaction', { body: { jws: proof.jws } });
-    if (seq !== accessSeq) return { ok: false, kind: 'signed_out' };
-    if (error) {
-      let info = {};
-      try { info = await error.context.json(); } catch { /* corps illisible */ }
-      const status = error.context?.status;
-      const kind = ACCESS_SERVER_ERRORS.includes(info?.error) ? info.error
-        : status === 429 ? 'rate_limited' : status >= 500 ? 'retry' : accessErrorKind(error);
-      // Refus définitif pour cette preuve (autre app, Sandbox refusé, signature) : plus renvoyée
-      // pendant ce lancement. Réseau ou serveur en panne : on réessaiera.
-      if (!['offline', 'retry', 'rate_limited', 'server'].includes(kind)) access.appleRefused = true;
-      return { ok: false, kind };
-    }
-    if (!accessApplyState(res?.access)) await accessRefresh();
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, kind: accessErrorKind(e) || 'server' };
-  } finally {
-    access.linking = false;
-  }
-}
-
 // Transaction signée par Apple (JWS) envoyée à la fonction Edge verify-purchase : c'est elle qui
 // vérifie la signature, relit la transaction auprès d'Apple et écrit `entitlements`. L'app ne décide
 // rien. La transaction n'est terminée chez Apple (Native.store.finish) QU'APRÈS l'accord du serveur,
-// ou sur un refus définitif (JWS illisible, autre app) : sans cela, Apple la réannoncerait à chaque
+// ou sur un refus définitif (JWS illisible, autre app, produit inconnu) : sans cela, Apple la réannoncerait à chaque
 // lancement. Un refus qui peut encore changer (transaction prise par un autre compte, inconnue
 // d'Apple pour l'instant) laisse la transaction ouverte : elle reviendra.
 // Renvoie { ok: true } (état relu) ou { ok: false, kind }.
-const ACCESS_FINAL_REFUSALS = ['invalid_jws', 'bad_bundle'];
+// unknown_product : produit qui n'est plus des nôtres (l'ancien « Accès offert » d'Apple, supprimé
+// le 28/10) ; terminé aussi, sinon StoreKit le réannoncerait à chaque lancement
+const ACCESS_FINAL_REFUSALS = ['invalid_jws', 'bad_bundle', 'unknown_product'];
 async function accessVerifyPurchase(jws, transactionId = null) {
   if (!sb || !account.user) return { ok: false, kind: 'signed_out' };
   if (typeof jws !== 'string' || !jws) return { ok: false, kind: 'invalid_jws' };
@@ -491,8 +436,19 @@ async function accessVerifyPurchase(jws, transactionId = null) {
 // Formules proposées : prix LUS CHEZ STOREKIT (localisés par Apple), jamais écrits en dur. Le module
 // rend `displayPrice` (chaîne déjà formatée dans la monnaie de la boutique) et `displayName` ; `price`
 // est un nombre, inutilisable tel quel à l'écran. Hors app iOS, ou module absent : liste vide
-// (l'écran invite à utiliser l'app). Les identifiants inconnus et l'« Accès offert » (jamais vendu)
-// sont écartés. `canMakePayments` : faux quand les achats sont bloqués (Temps d'écran).
+// (l'écran invite à utiliser l'app). Les identifiants inconnus sont écartés. `canMakePayments` : faux
+// quand les achats sont bloqués (Temps d'écran).
+// Offre de lancement (essai gratuit de 3 mois, géré par Apple) : `trial` = { unit, value } quand
+// StoreKit dit que la personne y a droit (introEligible) et que l'offre est gratuite (freeTrial) ;
+// null sinon (déjà utilisée sur cet identifiant Apple, ou pas d'offre) : l'écran montre le prix normal.
+const ACCESS_UNITS = ['day', 'week', 'month', 'year'];
+function accessTrialOf(p) {
+  const o = p?.offer;
+  if (p?.introEligible !== true || !o || o.paymentMode !== 'freeTrial') return null;
+  const unit = ACCESS_UNITS.includes(o.period?.unit) ? o.period.unit : null;
+  const n = (Number.isInteger(o.period?.value) ? o.period.value : 0) * (Number.isInteger(o.periodCount) && o.periodCount > 0 ? o.periodCount : 1);
+  return unit && n > 0 && n <= 366 ? { unit, value: n } : null;
+}
 async function accessLoadProducts({ force = false } = {}) {
   if (!Native.store.available) { access.products = []; access.missing = []; return []; }
   if (access.products?.length && !force) return access.products;
@@ -501,7 +457,8 @@ async function accessLoadProducts({ force = false } = {}) {
     .filter(p => p && ACCESS_PRODUCT_IDS.includes(p.id) && typeof p.displayPrice === 'string' && p.displayPrice.trim())
     .map(p => ({ id: p.id, price: p.displayPrice.trim().slice(0, 24),
       label: typeof p.displayName === 'string' ? p.displayName.slice(0, 60) : '',
-      period: p.period?.unit === 'year' || p.id === ACCESS_YEARLY_ID ? 'year' : 'month' }))
+      period: p.period?.unit === 'year' || p.id === ACCESS_YEARLY_ID ? 'year' : 'month',
+      trial: accessTrialOf(p) }))
     .sort((a, b) => ACCESS_PRODUCT_IDS.indexOf(a.id) - ACCESS_PRODUCT_IDS.indexOf(b.id));
   if (typeof raw?.canMakePayments === 'boolean') access.canPay = raw.canMakePayments;
   access.products = list;
@@ -539,7 +496,7 @@ async function accessBuy(productId) {
 }
 
 // Droits en cours rendus par le module : [{ jws, transactionId, productId, … }]. Le JWS est dans
-// CHAQUE droit, jamais à la racine : un abonnement et un « Accès offert » peuvent coexister.
+// CHAQUE droit, jamais à la racine.
 function accessEntitlementsOf(r) {
   const list = Array.isArray(r?.entitlements) ? r.entitlements : [];
   return list.filter(e => e && typeof e.jws === 'string' && e.jws);
@@ -589,19 +546,15 @@ async function accessSyncCurrent() {
   } finally { access.syncing = false; }
 }
 
-// Lancement et retour du réseau : on relit l'état, on envoie la preuve Apple si le compte n'en a
-// aucune (essai rattaché à l'identifiant Apple), puis on rattrape ce qu'Apple connaît déjà
+// Lancement et retour du réseau : on relit l'état, puis on rattrape ce qu'Apple connaît déjà
 async function accessBoot() {
-  // my_access à chaque lancement : c'est lui qui déclare la plateforme au serveur
-  const ok = await accessRefresh({ fn: 'my_access' });
-  await accessLinkApple();
+  const ok = await accessRefresh();
   await accessSyncCurrent();
   return ok;
 }
 
 // « J'ai un code » : feuille de codes d'Apple. Attention, elle n'accepte que les codes d'offre
-// d'ABONNEMENT (par exemple un an gratuit) ; un code promotionnel de l'« Accès offert » (non
-// consommable) se saisit dans l'app App Store, pas ici. Le code utilisé arrive par
+// d'ABONNEMENT (par exemple un an gratuit). Le code utilisé arrive par
 // Transaction.updates (accessOnTransaction), jamais par cette fonction : elle ouvre juste la feuille.
 async function accessRedeemCode() {
   if (!account.user) return { ok: false, kind: 'signed_out' };
@@ -610,6 +563,19 @@ async function accessRedeemCode() {
   if (r?.presented === true) return { ok: true };
   // Feuille fermée par l'utilisateur : rien à dire, surtout pas une erreur
   return r?.cancelled ? { ok: false, reason: 'cancel' } : { ok: false, kind: 'server' };
+}
+
+// Formule de l'abonnement en cours sur cet iPhone (pour « Essai gratuit jusqu'au …, puis <prix> ») :
+// lue dans les droits en cours de StoreKit, sans rien demander, et les prix chez StoreKit. Aucune
+// décision n'en dépend : c'est du texte.
+async function accessLoadCurrentPlan() {
+  if (!Native.store.available || !account.user) return null;
+  const list = accessEntitlementsOf(await Native.store.current());
+  const sub = list.find(e => ACCESS_PRODUCT_IDS.includes(e.productId));
+  access.currentProduct = sub ? sub.productId : null;
+  if (sub && !access.products?.length) await accessLoadProducts();
+  notifyAccess();
+  return access.currentProduct;
 }
 
 // Achats possibles sur cet iPhone ? Faux quand ils sont bloqués (Temps d'écran, profil de gestion) :

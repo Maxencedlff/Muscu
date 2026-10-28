@@ -48,15 +48,15 @@ function swiftBetween(src, from, to) {
 // Toute entrée d'ici doit exister côté Swift ET côté faux StoreKit.
 const READS = {
   products:    ['products', 'missing', 'canMakePayments'],
-  productItem: ['id', 'displayName', 'displayPrice'],
+  productItem: ['id', 'displayName', 'displayPrice', 'introEligible', 'offer', 'period'],
+  // Offre de lancement (essai gratuit d'Apple), lue par accessTrialOf
+  offer:       ['paymentMode', 'period', 'periodCount'],
   purchase:    ['status'],
   finish:      ['finished'],
   restore:     ['entitlements', 'cancelled'],
   current:     ['entitlements'],
   status:      ['canMakePayments'],
   redeemCode:  ['presented', 'cancelled'],
-  // Preuve du téléchargement (essai rattaché à l'identifiant Apple, accessLinkApple)
-  appTransaction: ['available', 'jws', 'reason'],
   // Transaction rendue par purchase(), par restore()/current() et par l'écouteur
   transaction: ['jws', 'transactionId'],
 };
@@ -82,14 +82,17 @@ function loadFakeStore(ROOT) {
 export default function ({ test, run, assert, sameJSON, ROOT }) {
   const MONTHLY = 'com.mdlf.training.pro.monthly';
 
-  test('contrat natif : le module Swift est là et rend les huit méthodes du contrat', () => {
+  test('contrat natif : le module Swift est là et rend les sept méthodes du contrat', () => {
     const { src, tries } = swiftSource(ROOT);
     assert.ok(src, `StorePlugin.swift introuvable, contrat invérifiable :\n${(tries || []).join('\n')}`);
-    for (const m of ['status', 'products', 'purchase', 'finish', 'restore', 'current', 'redeemCode', 'appTransaction']) {
+    for (const m of ['status', 'products', 'purchase', 'finish', 'restore', 'current', 'redeemCode']) {
       assert.ok(new RegExp(`CAPPluginMethod\\(name: "${m}"`).test(src), `méthode ${m} absente de pluginMethods`);
       assert.ok(swiftBlock(src, m), `méthode ${m} sans implémentation`);
     }
     assert.ok(/jsName = "MdlfStore"/.test(src), 'le module ne s\'appelle plus MdlfStore');
+    // Modèle B : plus de preuve AppTransaction ni d'« Accès offert » dans le module
+    assert.ok(!/appTransaction|AppTransaction/.test(src), 'appTransaction() resté dans le Swift');
+    assert.ok(!/giftId|access\.gift|"gift"/.test(src), '« Accès offert » resté dans le Swift');
     // L'événement de l'écouteur, auquel l'app s'abonne (un seul des deux noms)
     assert.ok(/notifyListeners\("transaction"/.test(src) && /notifyListeners\("change"/.test(src),
       'l\'écouteur n\'émet plus transaction et change');
@@ -109,8 +112,8 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       current: swiftKeys(swiftBlock(src, 'current')),
       status: swiftKeys(swiftBlock(src, 'status')),
       redeemCode: swiftKeys(swiftBlock(src, 'redeemCode')),
-      appTransaction: swiftKeys(swiftBlock(src, 'appTransaction')),
       productItem, transaction,
+      offer: swiftKeys(swiftBetween(src, 'let described: [String: Any] = [', 'out["offer"] = described')),
     };
     const missing = [];
     for (const [where, keys] of Object.entries(READS)) {
@@ -124,28 +127,6 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     // restore() ne rend PAS de jws à la racine : il est dans chaque entitlement
     assert.ok(!blocks.restore.has('jws'), 'restore() rend un jws à la racine : le contrat a changé');
     assert.ok(transaction.has('jws'), 'une transaction sans jws : le serveur n\'aurait rien à vérifier');
-  });
-
-  test('contrat natif : appTransaction() rend la preuve d\'Apple, refuse .unverified et ne demande rien sans geste', () => {
-    const { src } = swiftSource(ROOT);
-    assert.ok(src, 'StorePlugin.swift introuvable');
-    const b = swiftBlock(src, 'appTransaction');
-    // La preuve signée, et le champ STABLE de StoreKit (pas originalPurchaseDate, fixe en Sandbox)
-    assert.ok(/StoreKit\.AppTransaction\.shared/.test(b), 'AppTransaction.shared absent');
-    assert.ok(/result\.jwsRepresentation/.test(b), 'le JWS d\'Apple n\'est pas rendu');
-    assert.ok(/app\.appTransactionID/.test(b), 'appTransactionID (identifiant stable) absent');
-    // .unverified : refusé, sans JWS (le JWS n'est lu que dans la branche .verified)
-    const unverified = swiftBetween(b, 'case .unverified', 'case .verified');
-    assert.ok(unverified && /"reason": "unverified"/.test(unverified) && !/jws/i.test(unverified.replace(/\/\/\/.*$/gm, '')),
-      'une preuve non vérifiée par StoreKit serait transmise');
-    // refresh() ouvre la fenêtre d'Apple : seulement sur demande explicite du web
-    assert.ok(/let refresh = call\.getBool\("refresh"\) \?\? false/.test(b), 'refresh demandé sans geste');
-    assert.ok(/if refresh \{\s*\n\s*result = try await StoreKit\.AppTransaction\.refresh\(\)/.test(b), 'refresh() hors du cas demandé');
-    // Les échecs ne sont pas des rejets : le web traite « pas de preuve » sans exception
-    assert.ok(!/call\.reject/.test(b), 'appTransaction rejette au lieu de dire « pas de preuve »');
-    for (const reason of ['cancelled', 'unavailable', 'unverified', 'noIdentifier']) {
-      assert.ok(new RegExp(`"reason": "${reason}"`).test(b), `raison ${reason} absente`);
-    }
   });
 
   test('contrat natif : le faux StoreKit des tests copie le Swift, clé pour clé', async () => {
@@ -164,13 +145,6 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     const redeemCancelled = await store.redeemCode();
     st.fail.redeem = null;
     const finish = await store.finish({ transactionId: purchase.transactionId });
-    const appTx = await store.appTransaction();
-    st.appleProof = 'unavailable';
-    const appTxNone = await store.appTransaction();
-    st.appleProof = 'ok';
-    st.fail.appleRefresh = 'cancel';
-    const appTxCancelled = await store.appTransaction({ refresh: true });
-    st.fail.appleRefresh = null;
 
     const keysOf = o => new Set(Object.keys(o || {}));
     const fake = {
@@ -182,7 +156,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       current: keysOf(current),
       status: keysOf(status),
       redeemCode: new Set([...keysOf(redeem), ...keysOf(redeemCancelled)]),
-      appTransaction: new Set([...keysOf(appTx), ...keysOf(appTxNone), ...keysOf(appTxCancelled)]),
+      offer: keysOf(products.products[0].offer),
       transaction: keysOf(restore.entitlements[0]),
     };
     const productItem = swiftKeys(swiftBetween(src, 'private static func describe(_ product: Product)',
@@ -196,8 +170,8 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       current: swiftKeys(swiftBlock(src, 'current')),
       status: swiftKeys(swiftBlock(src, 'status')),
       redeemCode: swiftKeys(swiftBlock(src, 'redeemCode')),
-      appTransaction: swiftKeys(swiftBlock(src, 'appTransaction')),
       productItem, transaction,
+      offer: swiftKeys(swiftBetween(src, 'let described: [String: Any] = [', 'out["offer"] = described')),
     };
     // Rien d'inventé par le faux : un faux plus généreux que le vrai cacherait le bogue
     const invented = [];
@@ -224,12 +198,10 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(finish.finished, true);
     // Annulation : la feuille d'Apple fermée n'est pas un succès
     sameJSON(redeemCancelled, { presented: false, cancelled: true });
-    // Preuve du téléchargement : JWS en texte, et « pas de preuve » sans exception
-    assert.equal(appTx.available, true);
-    assert.equal(typeof appTx.jws, 'string');
-    assert.equal(typeof appTx.appTransactionId, 'string', 'appTransactionId en texte (entier 64 bits chez Apple)');
-    sameJSON(appTxNone, { available: false, reason: 'unavailable' });
-    sameJSON(appTxCancelled, { available: false, reason: 'cancelled' });
+    // Offre de lancement : rendue seulement si la personne y a droit (introEligible)
+    assert.equal(products.products[0].introEligible, true);
+    assert.equal(products.products[0].offer.paymentMode, 'freeTrial');
+    sameJSON(status, { canMakePayments: true, subscriptionIds: ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly'] });
     // Achat annulé : trois issues sans exception
     st.fail.purchase = 'cancel';
     sameJSON(await store.purchase({ productId: MONTHLY }), { status: 'userCancelled' });
@@ -245,7 +217,6 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     const { st, store } = loadFakeStore(ROOT);
     const products = await store.products();
     st.owned = { productId: MONTHLY, originalId: 'apple-1', transactionId: 'tx-1', expiresAt: Date.now() + 30 * 86400000 };
-    st.ownedGift = { productId: 'com.mdlf.training.access.gift', originalId: 'apple-2', transactionId: 'tx-2', expiresAt: null };
     const restore = await store.restore();
     const r = await run(`(async () => {
       const u = account.user, saved = { ...access }, realSb = sb, nativeStore = Native.store;
@@ -261,7 +232,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
           access: { status: 'active', paywall_on: true, can_write: true, server_now: Date.now() } }, error: null }; } } };
         const list = await accessLoadProducts();
         const res = await accessRestore();
-        return [list.map(p => [p.id, p.price, p.label]), res, sent.length, finished, canWrite()];
+        return [list.map(p => [p.id, p.price, p.label]), res, sent.length, finished, canWrite(), list.map(p => p.trial)];
       } finally { account.user = u; Object.assign(access, saved); sb = realSb; Native.store = nativeStore;
         localStorage.removeItem(ACCESS_CACHE_KEY); }
     })()`);
@@ -270,46 +241,17 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(r[0][1][1], '41,99 €');
     assert.ok(r[0][0][2], 'le nom du produit (displayName) n\'est pas lu');
     sameJSON(r[1], { ok: true }, 'restauration : le serveur n\'a rien reçu');
-    assert.equal(r[2], 2, 'les deux droits en cours (abonnement et accès offert) doivent partir');
-    sameJSON(r[3], ['tx-1', 'tx-2'], 'chaque transaction vérifiée doit être terminée chez Apple');
+    assert.equal(r[2], 1, 'le droit en cours (abonnement) doit partir');
+    sameJSON(r[3], ['tx-1'], 'chaque transaction vérifiée doit être terminée chez Apple');
+    // L'essai gratuit est lu chez StoreKit (offre de lancement), jamais écrit dans l'app
+    sameJSON(r[5], [{ unit: 'month', value: 3 }, { unit: 'month', value: 3 }], 'essai lu dans offer (StoreKit), pas inventé');
     assert.equal(r[4], true, 'accès rendu après la restauration');
-  });
-
-  // Même idée pour la preuve Apple : la charge utile du faux (donc du Swift) donnée telle quelle à
-  // l'app ; elle doit envoyer le JWS au serveur, et ne rien envoyer quand il n'y a pas de preuve.
-  test('contrat natif : l\'app envoie vraiment la preuve que le module rend', async () => {
-    const { st, store } = loadFakeStore(ROOT);
-    const proof = await store.appTransaction();
-    st.appleProof = 'unavailable';
-    const none = await store.appTransaction();
-    const r = await run(`(async () => {
-      const u = account.user, saved = { ...access }, realSb = sb, nativeStore = Native.store;
-      const sent = [];
-      let next = ${JSON.stringify(proof)};
-      try {
-        account.user = { id: '11111111-2222-3333-4444-555555555555' };
-        accessReset(account.user.id);
-        access.state = cleanAccess({ status: 'trial', paywall_on: true, can_write: true, apple_linked: false, server_now: Date.now() });
-        Native.store = { available: true, appTransaction: async () => next };
-        sb = { functions: { invoke: async (fn, o) => { sent.push([fn, o.body.jws]); return { data: { ok: true,
-          access: { status: 'trial', paywall_on: true, can_write: true, apple_linked: true, server_now: Date.now() } }, error: null }; } } };
-        const ok = await accessLinkApple();
-        next = ${JSON.stringify(none)};
-        access.state = cleanAccess({ status: 'trial', paywall_on: true, can_write: true, apple_linked: false, server_now: Date.now() });
-        const ko = await accessLinkApple();
-        return [ok, ko, sent];
-      } finally { account.user = u; Object.assign(access, saved); sb = realSb; Native.store = nativeStore;
-        localStorage.removeItem(ACCESS_CACHE_KEY); }
-    })()`);
-    sameJSON(r[0], { ok: true });
-    sameJSON(r[1], { ok: false, kind: 'apple_unavailable' });
-    sameJSON(r[2], [['verify-app-transaction', proof.jws]], 'la preuve doit partir telle quelle, et seulement elle');
   });
 
   test('contrat natif : le contrat écrit dit la même chose que le Swift', () => {
     const doc = fs.readFileSync(path.join(ROOT, 'docs/PAYANT_V1.md'), 'utf8');
     for (const k of ['displayPrice', 'displayName', 'entitlements', 'canMakePayments', 'appAccountToken',
-      'userCancelled', 'presented', 'finish', 'appTransaction()', 'appTransactionId', 'noIdentifier']) {
+      'userCancelled', 'presented', 'finish', 'introEligible', 'paymentMode']) {
       assert.ok(doc.includes(k), `${k} absent de docs/PAYANT_V1.md : la spécification ment sur le plugin`);
     }
     assert.ok(!/`purchase\(\{ productId \}\)` : achat, puis renvoie le JWS/.test(doc),

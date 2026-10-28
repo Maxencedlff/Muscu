@@ -127,13 +127,8 @@ const Native = (() => {
   // Filet de sécurité : l'écran de démarrage disparaît même si le rendu échoue
   if (isNative) setTimeout(() => quiet(SplashScreen.hide()), 4000);
 
-  // Plateforme de la coquille ('ios' ou 'android'), null dans le navigateur : déclarée au serveur par
-  // my_access (le plafond de l'essai sans preuve Apple ne vise que les comptes vus sur iPhone)
-  const platform = isNative && ['ios', 'android'].includes(cap.getPlatform?.()) ? cap.getPlatform() : null;
-
   return {
     isNative,
-    platform,
     restoredAtBoot,
 
     // Retour haptique du Taptic Engine : 'light' au toucher, 'success' en fin de repos ou de séance
@@ -385,7 +380,7 @@ const Native = (() => {
       },
       // AppStore.sync() (mot de passe Apple demandé) puis les droits en cours :
       // { synced, cancelled, entitlements: [{ jws, transactionId, productId, … }], unverified }.
-      // Le JWS est dans CHAQUE droit, jamais à la racine : abonnement et « Accès offert » coexistent.
+      // Le JWS est dans CHAQUE droit, jamais à la racine.
       async restore() {
         if (!this.available) return null;
         try { return await Store.restore(); } catch { return null; }
@@ -396,7 +391,7 @@ const Native = (() => {
         if (!this.available) return null;
         try { return await Store.current(); } catch { return null; }
       },
-      // { canMakePayments, subscriptionIds, giftId }, sans aucun appel réseau. canMakePayments est
+      // { canMakePayments, subscriptionIds }, sans aucun appel réseau. canMakePayments est
       // faux quand les achats sont bloqués (Temps d'écran) : l'écran ne doit rien proposer.
       async status() {
         if (!this.available) return null;
@@ -408,16 +403,6 @@ const Native = (() => {
       async redeemCode() {
         if (!this.available) return null;
         try { return await Store.redeemCode(); } catch { return null; }
-      },
-      // Preuve signée par Apple du téléchargement de l'app par CET identifiant Apple (AppTransaction) :
-      // { available: true, jws, appTransactionId, environment, … } ou { available: false, reason:
-      // 'unavailable' | 'unverified' | 'cancelled' | 'noIdentifier' }. Le serveur
-      // (verify-app-transaction) vérifie le JWS et y rattache l'essai gratuit. refresh : fenêtre de
-      // mot de passe d'Apple, seulement sur un geste explicite. null : coquille plus ancienne que la
-      // méthode (mise à jour à chaud arrivée avant la build), ou module absent.
-      async appTransaction({ refresh = false } = {}) {
-        if (!this.available) return null;
-        try { return await Store.appTransaction(refresh ? { refresh: true } : {}); } catch { return null; }
       },
       // Écouteur permanent Transaction.updates : renouvellement, code utilisé, achat sur un autre
       // appareil. Le module émet le même événement sous deux noms ('transaction' et 'change') :

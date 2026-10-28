@@ -1,25 +1,30 @@
 // ═══════════════════════════════════════════════════════════
 //  Abonnement (Payant V1), écrans. Contrat : docs/PAYANT_V1.md ; droit d'accès : js/data/access.js.
 //
-//  - Écran d'abonnement (`paywall`, paramètre `offer` ou `end`) : les deux formules, dont les PRIX SONT
-//    LUS CHEZ STOREKIT et jamais écrits en dur, « Restaurer mes achats », et les liens obligatoires
-//    vers les conditions et la confidentialité.
+//  - Écran d'abonnement (`paywall`, paramètre `offer` ou `end`) : les deux formules, dont les PRIX ET
+//    L'ESSAI GRATUIT SONT LUS CHEZ STOREKIT et jamais écrits en dur (modèle B : l'essai de 3 mois est
+//    l'offre de lancement d'Apple ; « 3 mois gratuits, puis <prix> par an », ou le prix normal si la
+//    personne n'y a plus droit), les mentions de la règle 3.1.2 d'Apple à côté des boutons (durée de
+//    l'essai, prix et période après l'essai, renouvellement automatique, résiliation, liens Conditions
+//    et Confidentialité), et « Restaurer mes achats ».
 //  - DEUX SORTES DE CODES, jamais mélangées : « J'ai un code » ouvre un champ pour un code cadeau
 //    MDLF (vérifié par le serveur, `redeem_gift_code`) ; « J'ai un code d'offre Apple » ouvre la
 //    fenêtre d'Apple, qui n'accepte que les codes d'offre d'abonnement. On ne promet jamais qu'un
 //    code d'Apple se saisit dans l'app.
-//  - Bandeau discret « il te reste N jours » en haut de l'accueil (accessBannerHtml, appelée par
-//    js/features/dashboard.js), qui devient « Abonnement nécessaire pour enregistrer » après l'essai.
-//  - Réglages › Abonnement (`subscription`) : état en clair, date de fin, gérer chez Apple, restaurer,
-//    code. Cellule des Réglages : renderAccessSettingsGroup (js/features/settings.js).
+//  - Bandeau de l'accueil (accessBannerHtml, appelée par js/features/dashboard.js) seulement quand le
+//    verrou est allumé et l'écriture refusée : « Abonnement nécessaire pour enregistrer ».
+//  - Réglages › Abonnement (`subscription`) : état en clair, « Essai gratuit jusqu'au <date>, puis
+//    <prix> » pendant l'offre de lancement, date de fin, gérer chez Apple, restaurer, code. Cellule
+//    des Réglages : renderAccessSettingsGroup (js/features/settings.js).
+//  - Séance COMMENCÉE avec le droit d'écrire (activeSession.writeOk, posé par startSession) : la
+//    terminer ne passe pas par la porte, même si l'accès a pris fin pendant la séance ; le serveur
+//    l'accepte dans sa grâce bornée (24 h après la fin de l'accès, 2 séances au plus).
 //  - Mode lecture seule : accessGate() est appelée par les points d'écriture d'une séance (démarrer,
 //    enregistrer, séance passée, séance libre, modifier). Historique, Progrès, profil et export ne
 //    passent jamais par là : ils restent ouverts. Rien n'est supprimé, la séance en cours est gardée.
 //  - Sans compte et verrou allumé (règle du 28/10/2026) : la même porte ouvre l'écran de connexion
-//    (Apple, Google, e-mail : les moyens habituels), avec un texte qui dit pourquoi. Verrou éteint :
-//    rien ne change.
-//  - Essai plafonné faute de preuve Apple : « Vérifier mon identifiant Apple » (fenêtre d'Apple, sur
-//    un geste seulement) sur l'écran d'abonnement.
+//    (Apple en premier, puis Google et e-mail), avec un texte qui dit pourquoi. Verrou éteint : rien
+//    ne change.
 //  - Hors app iOS (navigateur) : aucun achat possible, l'écran invite à utiliser l'app.
 //  Rien au pointerdown : actions au clic seulement. Zones de 44 px, textes en français sans tirets.
 // ═══════════════════════════════════════════════════════════
@@ -42,24 +47,33 @@ let payBusy = false;   // un seul achat, une seule restauration à la fois
 
 // État en clair, pour les Réglages et l'écran d'abonnement
 const ACCESS_STATUS_TEXT = {
-  trial: 'Essai gratuit', active: 'Abonné', expired: 'Essai terminé',
+  none: 'Sans abonnement', active: 'Abonné', expired: 'Abonnement terminé',
   gift: 'Accès offert', coach_team: 'Offert par ton coach', unknown: 'Pas à jour',
 };
+// Élève gratuit : le texte dit la condition (le coach peut arrêter de le suivre)
+const ACCESS_COACH_TEXT = 'Accès offert par ton coach tant qu\'il te suit';
 function accessStatusText() {
   const st = accessStatus();
-  if (st === 'trial') {
-    const n = daysLeft();
-    return n === null ? 'Essai gratuit' : n > 0 ? `Essai gratuit, ${plural(n, 'jour restant', 'jours restants')}` : 'Essai : dernier jour';
-  }
+  if (st === 'active' && accessIntroUntil()) return 'Essai gratuit';
   return ACCESS_STATUS_TEXT[st] || ACCESS_STATUS_TEXT.unknown;
 }
 
 // Valeur courte affichée dans la cellule des Réglages
 function accessShortValue() {
   if (!paywallOn()) return 'Tout est ouvert';
-  const st = accessStatus();
-  if (st === 'trial') { const n = daysLeft(); return n === null ? 'Essai' : plural(n, 'jour', 'jours'); }
-  return ACCESS_STATUS_TEXT[st] || ACCESS_STATUS_TEXT.unknown;
+  return accessStatusText();
+}
+
+// Durée lue chez StoreKit ({ unit, value }) → « 3 mois », « 1 an », « 2 semaines », « 7 jours »
+const PAY_UNIT_TEXT = { day: ['jour', 'jours'], week: ['semaine', 'semaines'], month: ['mois', 'mois'], year: ['an', 'ans'] };
+function payDurationText(t) {
+  const w = t && PAY_UNIT_TEXT[t.unit];
+  return w ? plural(t.value, w[0], w[1]) : '';
+}
+// « 3 mois gratuits, puis <prix> par an », ou « <prix> par an » sans essai (déjà utilisé)
+function payOfferText(p) {
+  const after = `${p.price} ${PAY_PLAN_PERIOD[p.id] || ''}`.trim();
+  return p.trial ? `${payDurationText(p.trial)} ${p.trial.value > 1 || p.trial.unit === 'month' ? 'gratuits' : 'gratuit'}, puis ${after}` : after;
 }
 
 function payToast(r, okText) {
@@ -112,36 +126,6 @@ function payCodeSheet() {
   });
 }
 
-// Durée de l'essai complet, dite comme le contrat la vend : « 3 mois » pour 90 jours (lue chez le
-// serveur, trial_days, jamais écrite en dur)
-function trialLengthText(days) {
-  const n = Number.isInteger(days) && days > 0 ? days : 90;
-  return n % 30 === 0 ? `${n / 30} mois` : plural(n, 'jour', 'jours');
-}
-
-// L'essai gratuit est rattaché à l'identifiant Apple. Sans preuve reçue par le serveur (App Store
-// déconnecté, le plus souvent), l'essai d'un iPhone est plafonné à quelques jours : on dit pourquoi et
-// comment l'avoir en entier. La fenêtre d'Apple ne s'ouvre que sur ce geste (AppTransaction.refresh
-// demande le mot de passe).
-function payAppleCheckHtml() {
-  if (!paywallOn() || !Native.store.available || access.state?.apple_linked !== false) return '';
-  return `
-        <div class="pay-note" role="status">
-          <p>Connecte-toi à l'App Store pour ton essai complet de ${esc(trialLengthText(access.state?.trial_days))}.</p>
-          <p>L'essai gratuit est lié à ton identifiant Apple. Sans lui, il ne dure que quelques jours.</p>
-        </div>
-        <div class="group">
-          <button class="cell cell--action" data-action="pay-apple-verify"><span class="cell__title">Vérifier mon identifiant Apple</span></button>
-        </div>`;
-}
-
-// Identifiant Apple partagé par un foyer : l'essai de ce compte vient d'un autre compte MDLF
-function paySharedNoteHtml() {
-  if (!paywallOn() || access.state?.trial_shared !== true) return '';
-  return `
-        <div class="group-foot">Ton identifiant Apple a déjà servi à un autre compte MDLF. Un identifiant Apple n'a qu'un essai gratuit, et un même abonnement ne peut servir qu'à un compte.</div>`;
-}
-
 // Liens obligatoires (Apple) : conditions et confidentialité, sous les formules
 function payLegalHtml() {
   return `
@@ -153,11 +137,10 @@ function payLegalHtml() {
 
 // ── Bandeau de l'accueil ────────────────────────────────────
 
-// Bandeau discret en haut de l'accueil : jours d'essai restants, ou abonnement nécessaire. Rien
-// quand le verrou est éteint, sans compte, ou pour un abonné (et un élève suivi par un coach).
+// Bandeau discret en haut de l'accueil, seulement quand l'écriture est refusée. Rien quand le verrou
+// est éteint, sans compte, ou pour un abonné (essai d'Apple compris) et un élève gratuit.
 function accessBannerHtml() {
   if (!paywallOn()) return '';
-  const st = accessStatus();
   if (!canWrite()) {
     // Des séances que le compte a refusées (verrou du serveur) : on le dit, elles restent ici
     const n = typeof accountLockedCount === 'function' ? accountLockedCount() : 0;
@@ -170,30 +153,39 @@ function accessBannerHtml() {
           <span class="pay-banner__more">Voir ${icon('chevron.right', 12)}</span>
         </button>`;
   }
-  if (st !== 'trial') return '';
-  const n = daysLeft();
-  if (n === null) return '';
-  const txt = n > 1 ? `Essai gratuit : il te reste ${n} jours` : n === 1 ? 'Essai gratuit : il te reste 1 jour' : 'Essai gratuit : dernier jour';
-  return `
-        <button class="pay-banner" data-action="pay-open" data-reason="offer">
-          <span class="pay-banner__text">${txt}</span>
-          <span class="pay-banner__more">Voir ${icon('chevron.right', 12)}</span>
-        </button>`;
+  return '';
 }
 
 // ── Écran d'abonnement ─────────────────────────────────────
 
-// Une formule : nom, prix lu chez StoreKit, période. Aucun prix n'est écrit dans l'app.
+// Une formule : nom, prix et essai lus chez StoreKit. Aucun prix ni aucune durée n'est écrit dans l'app.
 function payPlanHtml(p) {
   const label = PAY_PLAN_LABEL[p.id] || 'Abonnement';
   const best = p.id === ACCESS_YEARLY_ID ? '<span class="pay-plan__tag">Le plus avantageux</span>' : '';
+  const line = p.trial ? payOfferText(p) : PAY_PLAN_PERIOD[p.id] || '';
   return `
           <button class="pay-plan" data-action="pay-buy" data-id="${esc(p.id)}" ${access.buying ? 'disabled' : ''}
-                  aria-label="${esc(p.label || label)}, ${esc(p.price)} ${PAY_PLAN_PERIOD[p.id] || ''}">
+                  aria-label="${esc(p.label || label)}, ${esc(payOfferText(p))}">
             <span class="pay-plan__left"><span class="pay-plan__name">${esc(label)}${best}</span>
-              <span class="pay-plan__period">${PAY_PLAN_PERIOD[p.id] || ''}</span></span>
-            <span class="pay-plan__price num">${access.buying === p.id ? 'Achat…' : esc(p.price)}</span>
+              <span class="pay-plan__period">${esc(line)}</span></span>
+            <span class="pay-plan__price num">${access.buying === p.id ? 'Achat…' : esc(p.trial ? 'Essai gratuit' : p.price)}</span>
           </button>`;
+}
+
+// Mentions exigées par Apple (règle 3.1.2) à côté des boutons d'achat : durée de l'essai, prix et
+// période après l'essai, renouvellement automatique, résiliation à tout moment. Tout est lu chez
+// StoreKit ; les liens Conditions et Confidentialité suivent (payLegalHtml).
+function payTermsHtml(list) {
+  const trial = list.find(p => p.trial);
+  const prices = list.map(p => `${esc(p.price)} ${PAY_PLAN_PERIOD[p.id] || ''}`.trim()).join(' ou ');
+  const first = trial
+    ? `Essai gratuit de ${esc(payDurationText(trial.trial))}, puis ${prices} selon la formule choisie. Le paiement est débité sur ton compte Apple à la fin de l'essai, sauf si tu résilies avant.`
+    : `${prices} selon la formule choisie, débité sur ton compte Apple à la confirmation de l'achat.`;
+  return `
+        <div class="pay-terms" role="note">
+          <p>${first}</p>
+          <p>L'abonnement se renouvelle automatiquement, au même prix et pour la même période, sauf si tu le résilies au moins 24 heures avant la fin de la période en cours. Tu peux le résilier à tout moment dans les réglages de ton identifiant Apple.</p>
+        </div>`;
 }
 
 function payPlansHtml() {
@@ -217,20 +209,18 @@ function payPlansHtml() {
           <p>Tes séances, tes progrès et ton export restent à toi.</p>
           <button class="pay-note__btn" data-action="pay-reload-products">Réessayer</button></div>`;
   }
-  return `<div class="pay-plans">${list.map(payPlanHtml).join('')}</div>`;
+  return `<div class="pay-plans">${list.map(payPlanHtml).join('')}</div>${payTermsHtml(list)}${payLegalHtml()}`;
 }
 
-// reason : 'end' (essai terminé) ou 'offer' (pendant l'essai, ou depuis les Réglages)
+// reason : 'end' (écriture refusée) ou 'offer' (depuis les Réglages ou un bandeau)
 function renderPaywall(reason = 'offer') {
   const head = navBar({ title: 'Abonnement', large: false });
-  const n = daysLeft();
   const end = reason === 'end';
-  const title = end ? 'Ton essai est terminé' : 'MDLF Training, sans limite';
-  const sub = end
-    ? 'Tes séances, tes progrès et ton export restent à toi. Pour enregistrer de nouvelles séances, choisis une formule.'
-    : n !== null && n > 0
-      ? `Il te reste ${plural(n, 'jour', 'jours')} d'essai. Tu peux t'abonner dès maintenant, l'essai n'est pas perdu.`
-      : 'Un abonnement pour enregistrer tes séances, suivre tes progrès et garder tout sur ton compte.';
+  const trial = (access.products || []).find(p => p.trial);
+  const title = end ? 'Abonnement nécessaire' : 'MDLF Training, sans limite';
+  const sub = trial
+    ? `Essaie gratuitement pendant ${esc(payDurationText(trial.trial))}, puis choisis de continuer ou non. Tes séances, tes progrès et ton export restent à toi.`
+    : 'Pour enregistrer de nouvelles séances, choisis une formule. Tes séances, tes progrès et ton export restent à toi.';
   const stale = accessStale() && account.user ? `<p class="social-inline-error" role="status">${esc(access.error === 'offline' ? 'Pas d\'Internet : état pas à jour.' : 'État pas à jour.')}</p>` : '';
   return `
     <div class="view view--grouped pay-view">
@@ -242,16 +232,14 @@ function renderPaywall(reason = 'offer') {
           <h2 class="social-hero__title">${title}</h2>
           <p class="social-hero__sub">${sub}</p>
         </div>
-        ${payAppleCheckHtml()}
         ${payPlansHtml()}
         <div class="group">
           <button class="cell cell--action" data-action="pay-restore"><span class="cell__title">Restaurer mes achats</span></button>
           ${payCodeCellsHtml()}
         </div>
         <div class="group-foot">${PAY_CODE_NOTE}</div>
-        ${paySharedNoteHtml()}
-        <div class="group-foot">Abonnement sans engagement, renouvelé automatiquement par Apple jusqu'à ce que tu l'arrêtes. Tu peux l'arrêter à tout moment dans les réglages de ton identifiant Apple.</div>
-        ${payLegalHtml()}
+        <div class="group-foot">Un identifiant Apple n'a droit qu'à un seul essai gratuit, et un même abonnement ne peut servir qu'à un compte MDLF.</div>
+        ${Native.store.available && access.products?.length ? '' : payLegalHtml()}
       </div>
     </div>`;
 }
@@ -284,7 +272,12 @@ function renderSubscription() {
   // Verrou éteint : on ne montre ni « essai terminé » ni date passée, qui inquiéteraient pour rien
   const until = on ? accessUntil() : null;
   const st = accessStatus();
-  const endLabel = st === 'trial' ? 'Fin de l\'essai' : st === 'active' ? 'Renouvellement' : 'Fin';
+  const intro = on ? accessIntroUntil() : null;
+  const endLabel = st === 'active' ? 'Renouvellement' : 'Fin';
+  // Essai gratuit d'Apple en cours : « Essai gratuit jusqu'au <date>, puis <prix> » (formule lue sur
+  // l'iPhone, prix lu chez StoreKit ; sans eux, la date seule)
+  const plan = intro ? (access.products || []).find(p => p.id === access.currentProduct) : null;
+  const introLine = intro ? `Essai gratuit jusqu'au ${fmtDate(intro)}${plan ? `, puis ${plan.price} ${PAY_PLAN_PERIOD[plan.id] || ''}`.trimEnd() : ''}` : '';
   const offNote = !on ? `
         <div class="group-foot">Tout est ouvert pour l'instant : l'abonnement n'est pas encore demandé.</div>` : '';
   const rows = `
@@ -293,14 +286,16 @@ function renderSubscription() {
             <span class="cell__body"><span class="cell__title">État</span></span>
             <span class="cell__value">${esc(on ? accessStatusText() : 'Tout est ouvert')}</span>
           </div>
-          ${until ? `<div class="cell">
+          ${!introLine && until ? `<div class="cell">
             <span class="cell__body"><span class="cell__title">${endLabel}</span></span>
             <span class="cell__value">${esc(fmtDate(until))}</span>
           </div>` : ''}
-        </div>${offNote}`;
+        </div>${introLine ? `
+        <div class="group-foot pay-intro-line">${esc(introLine)}.</div>` : ''}${on && st === 'coach_team' ? `
+        <div class="group-foot">${esc(ACCESS_COACH_TEXT)}.</div>` : ''}${offNote}`;
   const actions = `
         <div class="group">
-          ${st === 'trial' || st === 'expired' || st === 'unknown'
+          ${st === 'none' || st === 'expired' || st === 'unknown'
             ? '<button class="cell cell--action" data-action="pay-open" data-reason="offer"><span class="cell__title">Voir les formules</span></button>' : ''}
           ${Native.store.available ? '<button class="cell cell--action" data-action="pay-manage"><span class="cell__title">Gérer chez Apple</span></button>' : ''}
           <button class="cell cell--action" data-action="pay-restore"><span class="cell__title">Restaurer mes achats</span></button>
@@ -315,7 +310,7 @@ function renderSubscription() {
       <div class="scr">${stale}${rows}${actions}${payLegalHtml()}</div>
     </div>`;
 }
-SCREENS.set('subscription', { render: () => renderSubscription(), enter: () => { accessRefresh(); } });
+SCREENS.set('subscription', { render: () => renderSubscription(), enter: () => { accessRefresh(); accessLoadCurrentPlan(); } });
 
 // ── Mode lecture seule : la porte des écritures ─────────────
 
@@ -395,18 +390,6 @@ registerActions({
     showToast('Saisis ton code d\'offre dans la fenêtre d\'Apple');
   },
   'access-retry': async () => { await accessRefresh(); render(); },
-  // Preuve Apple redemandée sur un geste (fenêtre de mot de passe d'Apple)
-  'pay-apple-verify': async () => {
-    if (payBusy) return;
-    payBusy = true;
-    try {
-      const r = await accessLinkApple({ refresh: true, force: true });
-      if (r.reason === 'cancel') return;
-      if (r.ok) showToast('Identifiant Apple vérifié');
-      else showToast(accessErrorText(r.kind), { error: true });
-      render();
-    } finally { payBusy = false; }
-  },
 });
 
 // ── Mises à jour de l'écran ─────────────────────────────────
@@ -414,7 +397,7 @@ registerActions({
 // Ce que les écrans hors abonnement montrent de l'accès (bandeau de l'accueil, cellule des Réglages) :
 // ils ne sont redessinés que si cette signature change, jamais pendant une saisie
 function accessShownKey() {
-  return JSON.stringify([account.user?.id || null, paywallOn(), accessStatus(), daysLeft(), canWrite(),
+  return JSON.stringify([account.user?.id || null, paywallOn(), accessStatus(), accessIntroUntil(), canWrite(),
     accessUntil(), accountLockedCount()]);
 }
 let accessShown = null;

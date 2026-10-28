@@ -23,11 +23,10 @@
 // 4. public.srv_access_event (clé serveur) dédoublonne par notificationUUID, retrouve le compte par la
 //    transaction d'origine (ou par appAccountToken), et met le droit d'accès à jour. Le tout dans une
 //    seule transaction de base de données : une écriture qui échoue ne consomme pas la notification.
-import { adminClient, CORS, env, json } from '../_shared/http.ts';
+import { adminClient, CORS, json } from '../_shared/http.ts';
 import { verifyAppleJws } from '../_shared/apple-jws.js';
 import { notificationDecision } from './notify-policy.js';
 
-const allowSandbox = () => env('APPLE_ALLOW_SANDBOX') === '1';
 
 // Corps JSON { signedPayload }, '' s'il est absent ou illisible
 async function bodyPayload(req: Request): Promise<string> {
@@ -66,7 +65,6 @@ Deno.serve(async (req) => {
     transaction: inner.signedTransactionInfo ?? null,
     renewal: inner.signedRenewalInfo ?? null,
     nowMs,
-    allowSandbox: allowSandbox(),
   });
   if (!decided.handled) {
     console.log('appstore-notify: ignorée', decided.type, decided.reason, notification.notificationUUID);
@@ -83,6 +81,8 @@ Deno.serve(async (req) => {
     p_force: decided.value.force,
     p_uuid: typeof notification.notificationUUID === 'string' ? notification.notificationUUID.slice(0, 64) : null,
     p_account_token: decided.value.account_token,
+    p_intro: decided.value.intro_offer,
+    p_environment: decided.value.environment,
   });
   if (error) {
     // Panne de notre côté : 500, Apple réessaiera (la notification n'est pas marquée vue)

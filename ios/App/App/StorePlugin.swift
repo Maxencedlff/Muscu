@@ -30,16 +30,12 @@ import StoreKit
 ///   est parcouru une fois en plus, pour rattraper ce qui n'a pas pu être envoyé la fois précédente.
 ///   L'événement s'appelle `transaction`, doublé en `change` (nom utilisé par les autres modules MDLF) ;
 ///   `retainUntilConsumed` le garde si le web n'est pas encore abonné (lancement, rechargement de la vue).
-/// - **« Accès offert »** (`com.mdlf.training.access.gift`, non consommable) n'est **jamais achetable** :
-///   `purchase()` refuse tout identifiant hors des deux abonnements. Il est seulement **lu** dans les
-///   droits en cours. Attention : la feuille de `redeemCode()` est celle des **codes d'offre
-///   d'abonnement** ; un code promotionnel d'achat intégré se saisit dans l'app App Store, et la
-///   transaction qui en résulte arrive ici par l'écouteur.
-///
-/// - **Preuve du téléchargement** (`appTransaction()`, règle du 28/10/2026) : le JWS d'`AppTransaction`,
-///   signé par Apple, que le serveur vérifie pour rattacher l'essai gratuit à l'**identifiant Apple**
-///   (une nouvelle adresse e-mail ne redonne plus d'essai). Lu sans rien demander à l'utilisateur ;
-///   `refresh: true` (fenêtre de mot de passe d'Apple) seulement sur un geste explicite.
+/// - **Deux abonnements seulement** (modèle B, 28/10/2026) : `purchase()` refuse tout autre identifiant,
+///   et seuls ces deux produits sont lus dans les droits en cours. L'« Accès offert » (non consommable)
+///   a été supprimé. L'essai gratuit de 3 mois est l'**offre de lancement d'Apple** sur ces
+///   abonnements : `products()` rend `introEligible` et `offer` (lus chez StoreKit), et c'est Apple qui
+///   garantit un seul essai par identifiant Apple. La feuille de `redeemCode()` est celle des **codes
+///   d'offre d'abonnement** ; la transaction qui en résulte arrive ici par l'écouteur.
 ///
 /// Cible de compilation iOS 16.4 (projet Xcode) : tout StoreKit 2 est disponible et
 /// `AppStore.presentOfferCodeRedeemSheet(in:)` (iOS 16+) suffit — le repli
@@ -57,16 +53,11 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "restore", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "current", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "redeemCode", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "appTransaction", returnType: CAPPluginReturnPromise),
     ]
 
     /// Les deux abonnements vendus, dans l'ordre d'affichage voulu (PAYANT_V1.md)
     private static let subscriptionIds = ["com.mdlf.training.pro.monthly",
                                           "com.mdlf.training.pro.yearly"]
-    /// « Accès offert » : non consommable obtenu seulement par code, jamais mis en vente
-    private static let giftId = "com.mdlf.training.access.gift"
-    /// Produits dont un droit en cours nous intéresse (les autres sont ignorés)
-    private static let knownIds = Set(subscriptionIds + [giftId])
 
     /// Protège le cache des produits, les transactions à finir et les identifiants déjà annoncés.
     /// Ces trois tables sont touchées depuis l'écouteur, depuis le fil principal (achat) et depuis les
@@ -151,12 +142,11 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    /// → { canMakePayments, subscriptionIds, giftId } sans aucun appel réseau. canMakePayments est faux
+    /// → { canMakePayments, subscriptionIds } sans aucun appel réseau. canMakePayments est faux
     /// quand les achats sont bloqués (Temps d'écran, profil de gestion) : l'écran ne doit rien proposer.
     @objc func status(_ call: CAPPluginCall) {
         call.resolve(["canMakePayments": AppStore.canMakePayments,
-                      "subscriptionIds": Self.subscriptionIds,
-                      "giftId": Self.giftId])
+                      "subscriptionIds": Self.subscriptionIds])
     }
 
     // MARK: Achat
@@ -175,7 +165,7 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
         guard let productId = call.getString("productId"), !productId.isEmpty else {
             call.reject("Identifiant de produit manquant", "BAD_PRODUCT"); return
         }
-        // « Accès offert » et tout autre identifiant : rien d'autre que les deux abonnements n'est vendu
+        // Rien d'autre que les deux abonnements n'est vendu
         guard Self.subscriptionIds.contains(productId) else {
             call.reject("Produit non vendu dans l'app", "BAD_PRODUCT"); return
         }
@@ -278,81 +268,17 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    /// Droits en cours : abonnement actif (ou en période de grâce) et « Accès offert ». Les droits
+    /// Droits en cours : abonnement actif (ou en période de grâce). Les droits
     /// révoqués (remboursement, retrait du partage familial) et les produits inconnus sont écartés.
     private static func entitlements() async -> (list: [[String: Any]], unverified: Int) {
         var list: [[String: Any]] = []
         var refused = 0
         for await result in StoreKit.Transaction.currentEntitlements {
             guard let transaction = verified(result) else { refused += 1; continue }
-            guard knownIds.contains(transaction.productID), transaction.revocationDate == nil else { continue }
+            guard subscriptionIds.contains(transaction.productID), transaction.revocationDate == nil else { continue }
             list.append(describe(transaction, jws: result.jwsRepresentation))
         }
         return (list, refused)
-    }
-
-    // MARK: Preuve du téléchargement (essai rattaché à l'identifiant Apple)
-
-    /// { refresh? } → { available: true, jws, appTransactionId, environment, bundleId,
-    /// originalPurchaseDate, appVersion, originalAppVersion }, ou { available: false, reason }.
-    ///
-    /// `AppTransaction` est la preuve, signée par Apple, que **cet identifiant Apple** a téléchargé l'app
-    /// (docs/PAYANT_V1.md, « Essai rattaché à l'identifiant Apple »). Le serveur
-    /// (`verify-app-transaction`) en vérifie la signature et lit `appTransactionId` dans la charge
-    /// utile signée : l'`appTransactionId` rendu ici n'est qu'indicatif, le web ne décide rien avec.
-    ///
-    /// - `appTransactionID` (StoreKit) : identifiant **unique par identifiant Apple et par app**, le même
-    ///   après une réinstallation, sur un autre appareil, après un remboursement ou un changement de
-    ///   pays, et présent même sans aucun achat. Déclaré iOS 16.0+ et `@backDeployed(before: iOS 18.4)` :
-    ///   compilé avec le SDK d'Xcode 26 (ios.yml), il est disponible sur toute la cible (16.4), sans
-    ///   `#available`. Vide malgré tout (preuve ancienne gardée par StoreKit) : `noIdentifier`.
-    /// - `AppTransaction.shared` ne demande rien à l'utilisateur, mais peut avoir besoin du réseau et
-    ///   échoue si l'App Store n'est pas connecté : `unavailable`, ce n'est pas une erreur. Le serveur
-    ///   traite alors le compte comme « sans preuve » (essai plafonné verrou allumé), et l'app réessaie.
-    /// - `refresh: true` appelle `AppTransaction.refresh()`, qui **affiche la fenêtre de mot de passe
-    ///   d'Apple** : seulement sur un geste explicite (« Vérifier mon identifiant Apple »). Fermée :
-    ///   `cancelled`.
-    /// - Un résultat `.unverified` (signature d'Apple invalide, appareil modifié) est **refusé** :
-    ///   `unverified`, et le JWS n'est jamais transmis au web.
-    /// - TestFlight et Sandbox : la preuve existe, signée par Apple, avec `environment` `sandbox` ; le
-    ///   serveur la refuse sans `APPLE_ALLOW_SANDBOX=1`. Fichier StoreKit d'Xcode : signée par Xcode, le
-    ///   serveur la refuse toujours (mauvaise racine).
-    @objc func appTransaction(_ call: CAPPluginCall) {
-        let refresh = call.getBool("refresh") ?? false
-        // refresh() présente une fenêtre d'iOS : fil principal, comme purchase() et restore()
-        Task { @MainActor in
-            let result: VerificationResult<StoreKit.AppTransaction>
-            do {
-                if refresh {
-                    result = try await StoreKit.AppTransaction.refresh()
-                } else {
-                    result = try await StoreKit.AppTransaction.shared
-                }
-            } catch StoreKitError.userCancelled {
-                call.resolve(["available": false, "reason": "cancelled"]); return
-            } catch {
-                CAPLog.print("MdlfStore : AppTransaction indisponible (\(error.localizedDescription))")
-                call.resolve(["available": false, "reason": "unavailable"]); return
-            }
-            switch result {
-            case .unverified:
-                CAPLog.print("MdlfStore : AppTransaction non vérifiée par StoreKit, refusée")
-                call.resolve(["available": false, "reason": "unverified"])
-            case .verified(let app):
-                let id = app.appTransactionID
-                guard !id.isEmpty else {
-                    call.resolve(["available": false, "reason": "noIdentifier"]); return
-                }
-                call.resolve(["available": true,
-                              "jws": result.jwsRepresentation,
-                              "appTransactionId": id,
-                              "environment": Self.name(app.environment),
-                              "bundleId": app.bundleID,
-                              "originalPurchaseDate": app.originalPurchaseDate.timeIntervalSince1970 * 1000,
-                              "appVersion": app.appVersion,
-                              "originalAppVersion": app.originalAppVersion])
-            }
-        }
     }
 
     // MARK: Codes d'Apple
@@ -479,7 +405,6 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
             "familyShared": transaction.ownershipType == .familyShared,
             "environment": name(transaction.environment),
             "subscription": subscriptionIds.contains(transaction.productID),
-            "gift": transaction.productID == giftId,
         ]
         // Renouvellement automatique ou achat : indisponible avant iOS 17, le web s'en passe
         if #available(iOS 17.0, *) {

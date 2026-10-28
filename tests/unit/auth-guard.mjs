@@ -37,7 +37,7 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   test('garde de l\'appelant : chaque fonction sans vérification de la passerelle répond 401 avant tout travail', () => {
     const config = read('supabase/config.toml');
     const open = [...config.matchAll(/\[functions\.([a-z-]+)\]\s*\n(?:#[^\n]*\n)*verify_jwt = false/g)].map(m => m[1]);
-    for (const f of ['delete-account', 'revoke-apple', 'report', 'verify-purchase', 'verify-app-transaction']) {
+    for (const f of ['delete-account', 'revoke-apple', 'report', 'verify-purchase']) {
       assert.ok(open.includes(f), `${f} : verify_jwt = false absent de config.toml`);
     }
     for (const f of open) {

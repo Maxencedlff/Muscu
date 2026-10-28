@@ -207,21 +207,3 @@ export function renewalPayload(over = {}) {
   };
 }
 
-// AppTransaction signé (AppTransaction.shared de StoreKit 2), champs de l'App Store Server Library :
-// l'environnement est dans receiptType (pas environment), et appTransactionId identifie le
-// téléchargement de l'app par un identifiant Apple
-export function appTransactionPayload(over = {}) {
-  const now = Date.now();
-  return {
-    receiptType: 'Production',
-    appAppleId: 1234567890,
-    bundleId: 'com.mdlf.training',
-    applicationVersion: '30',
-    receiptCreationDate: now,
-    originalPurchaseDate: now - 30 * 86400_000,
-    originalApplicationVersion: '1',
-    appTransactionId: '704964138470003520',
-    originalPlatform: 'iOS',
-    ...over,
-  };
-}

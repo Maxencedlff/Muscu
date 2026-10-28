@@ -9,8 +9,9 @@
 // 2. La signature d'Apple est VRAIMENT vérifiée (_shared/apple-jws.js) : chaîne de certificats jusqu'à
 //    Apple Root CA G3 épinglée dans le dépôt, dates, contraintes, marqueurs d'Apple, puis les trois
 //    signatures ECDSA. Décoder la charge utile ne prouverait rien.
-// 3. La charge utile est jugée par purchase-policy.js : bundleId com.mdlf.training, un de nos trois
-//    produits, type cohérent, achat personnel, environnement autorisé.
+// 3. La charge utile est jugée par purchase-policy.js : bundleId com.mdlf.training, un de nos deux
+//    abonnements, type cohérent, achat personnel, environnement Production ou Sandbox (accepté et
+//    enregistré : l'équipe d'examen d'Apple achète en Sandbox), offre de lancement (offerType 1).
 // 4. La transaction est RELUE auprès de l'App Store Server API
 //    (GET /inApps/v1/transactions/{id}, jeton ES256 signé avec la clé In-App Purchase), et c'est cette
 //    relecture qui fait foi : un JWS valable mais vieux, remboursé ou révoqué entre-temps ne passe pas.
@@ -19,8 +20,7 @@
 //    refuse une transaction déjà au nom d'un autre compte : 409 { error: 'transaction_taken' }.
 //
 // Secrets (Management API, jamais dans le dépôt) : APPLE_IAP_KEY_ID, APPLE_IAP_PRIVATE_KEY (contenu du
-// .p8 « In-App Purchase »), APPLE_ISSUER_ID (App Store Connect › Clés › Issuer ID) et, pendant les
-// essais Sandbox seulement, APPLE_ALLOW_SANDBOX=1 (à retirer avant la mise en vente).
+// .p8 « In-App Purchase »), APPLE_ISSUER_ID (App Store Connect › Clés › Issuer ID).
 import { adminClient, bodyJws, caller, CORS, env, json } from '../_shared/http.ts';
 import { verifyAppleJws } from '../_shared/apple-jws.js';
 import { BUNDLE_ID, httpStatus, purchaseFailure, transactionDecision } from './purchase-policy.js';
@@ -30,7 +30,6 @@ const HOSTS: Record<string, string> = {
   Production: 'https://api.storekit.itunes.apple.com',
   Sandbox: 'https://api.storekit-sandbox.itunes.apple.com',
 };
-const allowSandbox = () => env('APPLE_ALLOW_SANDBOX') === '1';
 
 // Jeton d'accès à l'App Store Server API : JWT ES256 signé avec la clé In-App Purchase, 10 minutes.
 // null si un des trois secrets manque (la relecture est alors impossible, et rien n'est écrit).
@@ -98,13 +97,13 @@ Deno.serve(async (req) => {
     return json({ error: 'invalid_jws' }, 400);
   }
   // 3. Ce que la transaction dit
-  const claimed = transactionDecision(signed.payload, { nowMs, allowSandbox: allowSandbox() });
+  const claimed = transactionDecision(signed.payload, { nowMs });
   if (!claimed.ok) return json({ error: claimed.error }, httpStatus(claimed.error));
 
   // 4. Relecture chez Apple : c'est elle qui fait foi
   const fresh = await freshTransaction(claimed.value.transaction_id, claimed.value.environment, nowMs);
   if (fresh.error) return json({ error: fresh.error }, httpStatus(fresh.error));
-  const sure = transactionDecision(fresh.payload, { nowMs, allowSandbox: allowSandbox() });
+  const sure = transactionDecision(fresh.payload, { nowMs });
   if (!sure.ok) return json({ error: sure.error }, httpStatus(sure.error));
   // La relecture doit parler de la même transaction d'origine que ce que l'app a présenté
   if (sure.value.original_transaction_id !== claimed.value.original_transaction_id) {
@@ -122,6 +121,9 @@ Deno.serve(async (req) => {
     // purchaseDate de la période : le serveur ignore une transaction plus ancienne que ce qu'il sait
     // déjà (Transaction.unfinished est parcouru dans un ordre non garanti)
     p_event_at: sure.value.event_at,
+    // Offre de lancement (essai gratuit d'Apple) et environnement, lus dans la relecture signée
+    p_intro: sure.value.intro_offer,
+    p_environment: sure.value.environment,
   });
   if (error) {
     const f = purchaseFailure(error.message);

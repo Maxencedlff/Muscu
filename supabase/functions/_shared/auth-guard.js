@@ -2,7 +2,7 @@
 // _shared/http.ts (caller) et testée par tests/unit/auth-guard.mjs (Node).
 //
 // Les fonctions déployées avec verify_jwt = false (supabase/config.toml : delete-account,
-// revoke-apple, report, verify-purchase, verify-app-transaction) ne sont PAS protégées par la
+// revoke-apple, report, verify-purchase) ne sont PAS protégées par la
 // passerelle de Supabase : c'est ce code qui refuse un appel sans jeton valable. Le jeton est relu
 // sur le serveur d'authentification (auth.getUser), qui en vérifie la signature et l'expiration ;
 // décoder le jeton ne prouverait rien.

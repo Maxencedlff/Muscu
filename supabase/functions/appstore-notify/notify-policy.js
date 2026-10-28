@@ -12,7 +12,8 @@
 //    Conséquence : `data` est facultatif et exclusif de `summary`, `appData` et
 //    `externalPurchaseToken` (RENEWAL_EXTENSION, RESCIND_CONSENT…) ; une notification sans `data`
 //    repart donc en 200 { handled: false }, pas en 400. Pareil pour un autre bundleId, un
-//    environnement non autorisé, un produit qui n'est pas des nôtres, une charge utile inattendue.
+//    environnement inconnu (ni Production ni Sandbox, tous deux acceptés depuis le modèle B), un
+//    produit qui n'est pas des nôtres, une charge utile inattendue.
 // 2. Types traités (contrat) : SUBSCRIBED, DID_RENEW, DID_CHANGE_RENEWAL_STATUS, EXPIRED,
 //    GRACE_PERIOD_EXPIRED, REFUND, REVOKE, plus DID_FAIL_TO_RENEW (ajouté le 28/10 : c'est LUI qui
 //    porte la période de grâce de facturation, sans quoi une carte qui échoue couperait un abonné
@@ -34,8 +35,10 @@
 //    dans le désordre ne défait pas un renouvellement déjà connu.
 // 8. Le compte n'est jamais dans la notification : public.srv_access_event le retrouve par la
 //    transaction d'origine, et à défaut par l'appAccountToken de la transaction.
+// 9. Offre de lancement (offerType 1 de la transaction signée) et environnement : remontés au serveur,
+//    qui les enregistre (intro_offer, environment).
 
-import { BUNDLE_ID, transactionDecision } from '../verify-purchase/purchase-policy.js';
+import { BUNDLE_ID, ENVIRONMENTS, transactionDecision } from '../verify-purchase/purchase-policy.js';
 
 export const HANDLED_TYPES = Object.freeze([
   'SUBSCRIBED', 'DID_RENEW', 'DID_CHANGE_RENEWAL_STATUS', 'DID_FAIL_TO_RENEW',
@@ -52,9 +55,9 @@ const ignore = (type, reason) => ({ handled: false, type, reason });
 
 // Notification vérifiée (+ sa transaction et son renewalInfo vérifiés) → ce qu'il faut écrire.
 // { handled: true, type, value: { original_transaction_id, product_id, expires_at, revoked, force,
-//   event_at, account_token } } ou { handled: false, type, reason } : accepté et ignoré (200).
+//   event_at, account_token, intro_offer, environment } } ou { handled: false, type, reason } : accepté et ignoré (200).
 // Ne renvoie JAMAIS de refus : tout ce qui est signé par Apple repart en 200 (voir la règle 1).
-export function notificationDecision({ notification, transaction, renewal = null, nowMs = Date.now(), allowSandbox = false } = {}) {
+export function notificationDecision({ notification, transaction, renewal = null, nowMs = Date.now() } = {}) {
   if (!isObject(notification) || typeof notification.notificationType !== 'string') return ignore(null, 'malformed');
   const type = notification.notificationType;
   if (!HANDLED_TYPES.includes(type)) return ignore(type, 'type_ignored');
@@ -62,15 +65,15 @@ export function notificationDecision({ notification, transaction, renewal = null
   const data = notification.data;
   if (!isObject(data)) return ignore(type, 'no_data');
   if (data.bundleId !== undefined && data.bundleId !== BUNDLE_ID) return ignore(type, 'bad_bundle');
-  if (data.environment === 'Sandbox' && !allowSandbox) return ignore(type, 'bad_environment');
+  if (data.environment !== undefined && !ENVIRONMENTS.includes(data.environment)) return ignore(type, 'bad_environment');
 
-  const decided = transactionDecision(transaction, { nowMs, allowSandbox });
+  const decided = transactionDecision(transaction, { nowMs });
   if (!decided.ok) return ignore(type, decided.error);
   const v = decided.value;
 
   // La période de grâce de facturation ne vit que dans le renewalInfo
   const grace = isObject(renewal) ? msDate(renewal.gracePeriodExpiresDate) : null;
-  let until = v.expires_at === null ? null : Date.parse(v.expires_at);
+  let until = Date.parse(v.expires_at);
   if (grace !== null) until = until === null ? grace : Math.max(until, grace);
   const force = EXPIRING_TYPES.includes(type);
   if (force && until !== null) until = Math.min(until, nowMs);
@@ -88,6 +91,8 @@ export function notificationDecision({ notification, transaction, renewal = null
         ? new Date(msDate(notification.signedDate)).toISOString()
         : v.event_at,
       account_token: v.account_token,
+      intro_offer: v.intro_offer,
+      environment: v.environment,
     },
   };
 }

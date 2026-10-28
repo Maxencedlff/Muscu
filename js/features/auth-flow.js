@@ -106,7 +106,7 @@ const AUTH_STEPS = {
       <div class="auth__hero">
         <div class="auth__logo">${appIconSvg(DEFAULT_APP_ICON, { attrs: 'aria-hidden="true" focusable="false"' })}</div>
         <h1 class="auth__title auth__title--welcome" id="authTitle" tabindex="-1">Un compte pour enregistrer</h1>
-        <p class="auth__lead">Connecte-toi ou crée un compte pour enregistrer tes séances. Ton essai gratuit démarre avec lui.</p>
+        <p class="auth__lead">Connecte-toi ou crée un compte pour enregistrer tes séances. Ton abonnement, et son essai gratuit, y seront rattachés.</p>
       </div>
       <div class="auth-buttons">${signInButtonsHtml()}</div>
       <p class="auth__again">Déjà un compte ? Utilise le même moyen qu'avant.</p>

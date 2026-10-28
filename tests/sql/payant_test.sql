@@ -1,4 +1,5 @@
--- Vérifications de supabase/migrations/20261028000000_payant.sql (lancées par tests/sql/run.sh).
+-- Vérifications de Payant V1 après TOUTES les migrations (20261028000000_payant.sql puis
+-- 20261029000000_payant_modele_b.sql : essai géré par Apple), lancées par tests/sql/run.sh.
 -- Chaque bloc échoue (raise) si la règle n'est pas tenue.
 --
 -- Comptes simulés (pg_temp.pu('a') → …00000000070a) : A fait le parcours essai → payé → expiré ;
@@ -35,15 +36,15 @@ insert into public.user_profiles (user_id, username, avatar_emoji) values
 -- C est coach (rôle donné par l'administrateur) et D est son élève
 update public.user_profiles set coach_at = now() where user_id = pg_temp.pu('c');
 
--- ── Réglages livrés : verrou éteint, essai de 90 jours ───
+-- ── Réglages livrés : verrou éteint, plus d'essai maison ──
 do $$
-declare v jsonb;
 begin
   if (select value from public.app_config where key = 'paywall_on') is distinct from 'false'::jsonb then raise 'paywall_on livré allumé'; end if;
-  if (select value from public.app_config where key = 'trial_days') is distinct from '90'::jsonb then raise 'trial_days'; end if;
-  -- Plafond de l'essai sans preuve Apple (20261029000000_payant_apple.sql) : 3 jours
-  if (select value from public.app_config where key = 'trial_unproven_days') is distinct from '3'::jsonb then raise 'trial_unproven_days'; end if;
-  if (select count(*) from public.app_config) is distinct from 3 then raise 'clés de app_config'; end if;
+  -- Modèle B : l'essai est l'offre de lancement d'Apple, plus aucun réglage d'essai côté serveur
+  if (select array_agg(key) from public.app_config) is distinct from array['paywall_on'] then raise 'clés de app_config : %', (select array_agg(key) from public.app_config); end if;
+  if exists (select 1 from information_schema.columns where table_name = 'entitlements' and column_name = 'trial_started_at') then raise 'trial_started_at encore là'; end if;
+  if exists (select 1 from pg_proc where proname in ('access_trial_days', 'access_unproven_days')) then raise 'fonction d''essai maison restée'; end if;
+  if exists (select 1 from pg_class where relname in ('store_installs', 'store_install_links', 'apple_app_ids', 'apple_app_links')) then raise 'tables du rattachement Apple restées'; end if;
 end $$;
 
 set role authenticated;
@@ -53,82 +54,55 @@ do $$ begin
   if (select value from public.app_config where key = 'paywall_on') is distinct from 'false'::jsonb then raise 'app_config illisible'; end if;
   -- Jamais modifiable par le client
   if pg_temp.perr($q$ update public.app_config set value = 'true'::jsonb where key = 'paywall_on' $q$) not like 'permission denied%' then raise 'paywall_on modifiable par le client'; end if;
-  if pg_temp.perr($q$ update public.app_config set value = '36500'::jsonb where key = 'trial_days' $q$) not like 'permission denied%' then raise 'trial_days modifiable'; end if;
   if pg_temp.perr($q$ insert into public.app_config (key, value) values ('autre', '1') $q$) not like 'permission denied%' then raise 'app_config : insertion'; end if;
   if pg_temp.perr($q$ delete from public.app_config $q$) not like 'permission denied%' then raise 'app_config : suppression'; end if;
 end $$;
 
--- ── L'essai démarre à l'heure du serveur, et une seule fois ──
+-- ── Sans abonnement : aucun droit (verrou allumé), aucun essai maison ──
 do $$
-declare st jsonb; t0 timestamptz; t1 timestamptz;
+declare st jsonb;
 begin
   perform pg_temp.plogin('a');
-  -- Avant tout appel : access_state ne crée rien et montre un essai qui n'a pas commencé
+  -- Avant tout appel : access_state ne crée rien
   st := public.access_state();
-  if st ->> 'status' is distinct from 'trial' or st -> 'until' is distinct from 'null'::jsonb
-     or (st ->> 'days_left')::int is distinct from 90 or not (st ->> 'can_write')::boolean
-     or (st ->> 'paywall_on')::boolean or (st ->> 'trial_days')::int is distinct from 90
-     or (st ->> 'gift')::boolean or (st ->> 'coach_team')::boolean then raise 'access_state avant essai : %', st; end if;
+  if st ->> 'status' is distinct from 'none' or st -> 'until' is distinct from 'null'::jsonb
+     or st -> 'days_left' is distinct from 'null'::jsonb or not (st ->> 'can_write')::boolean
+     or (st ->> 'paywall_on')::boolean or (st ->> 'gift')::boolean or (st ->> 'coach_team')::boolean
+     or (st ->> 'intro_offer')::boolean or st -> 'intro_until' is distinct from 'null'::jsonb then raise 'access_state sans rien : %', st; end if;
   if (st ->> 'server_now')::timestamptz not between now() - interval '1 minute' and now() + interval '1 minute' then raise 'server_now : %', st; end if;
-  -- Les 10 clés du contrat, plus apple_linked et trial_shared (règle 1, 20261029000000_payant_apple.sql), exactement
+  -- Les clés du contrat (modèle B), exactement
   if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from
-     array['apple_linked', 'can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'paywall_on', 'server_now', 'status', 'trial_days', 'trial_shared', 'until']
+     array['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until']
      then raise 'clés de access_state : %', st; end if;
-  -- Rien n'a été créé
   reset role;
   if exists (select 1 from public.entitlements where user_id = pg_temp.pu('a')) then raise 'access_state a créé une ligne'; end if;
   set role authenticated;
-
-  -- my_access : l'essai démarre ici
+  -- my_access crée la ligne, sans rien démarrer
   st := public.my_access();
   if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from
-     array['apple_linked', 'can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'paywall_on', 'server_now', 'status', 'trial_days', 'trial_shared', 'until']
+     array['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until']
      then raise 'clés de my_access : %', st; end if;
-  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 90
-     or not (st ->> 'can_write')::boolean then raise 'my_access : %', st; end if;
-  if (st ->> 'until')::timestamptz not between now() + interval '89 days' and now() + interval '91 days' then raise 'fin de l''essai : %', st; end if;
+  if st ->> 'status' is distinct from 'none' or not (st ->> 'can_write')::boolean then raise 'my_access : %', st; end if;
   reset role;
-  select trial_started_at into t0 from public.entitlements where user_id = pg_temp.pu('a');
-  if t0 not between now() - interval '1 minute' and now() + interval '1 minute' then raise 'trial_started_at n''est pas l''heure du serveur : %', t0; end if;
-  if (select status from public.entitlements where user_id = pg_temp.pu('a')) is distinct from 'trial' then raise 'instantané du statut'; end if;
+  if (select status from public.entitlements where user_id = pg_temp.pu('a')) is distinct from 'none' then raise 'instantané du statut'; end if;
+  -- Le piège : aucune ligne ne donne d'essai, même vieille ou neuve (pas de 3 mois serveur PUIS 3 mois Apple)
+  update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
   set role authenticated;
-  -- Rappelée : rien ne bouge (ni l'essai, ni la date)
-  perform public.my_access();
-  perform public.my_access();
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'none' or (st ->> 'can_write')::boolean then raise 'compte neuf, verrou allumé : %', st; end if;
+  for i in 1..5 loop perform public.my_access(); perform public.access_state(); end loop;
+  if (public.my_access() ->> 'can_write')::boolean then raise 'droit regagné par my_access'; end if;
   reset role;
-  select trial_started_at into t1 from public.entitlements where user_id = pg_temp.pu('a');
-  if t1 is distinct from t0 then raise 'my_access a redémarré l''essai : % → %', t0, t1; end if;
-  if (select count(*) from public.entitlements where user_id = pg_temp.pu('a')) is distinct from 1 then raise 'deux lignes'; end if;
+  update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
   set role authenticated;
-  -- access_state donne le même état, sans écrire
-  if public.access_state() ->> 'status' is distinct from 'trial'
-     or (public.access_state() ->> 'until')::timestamptz is distinct from (public.my_access() ->> 'until')::timestamptz
-     then raise 'access_state et my_access divergent'; end if;
+  if public.access_state() ->> 'status' is distinct from 'none' then raise 'access_state et my_access divergent'; end if;
 end $$;
 
--- ── Un client ne peut PAS prolonger son essai ────────────
+-- ── Un client ne peut rien écrire lui-même ───────────────
 do $$
-declare st jsonb; t0 timestamptz;
 begin
-  -- Essai vieux de 100 jours : terminé
-  reset role;
-  update public.entitlements set trial_started_at = now() - interval '100 days' where user_id = pg_temp.pu('a');
-  select trial_started_at into t0 from public.entitlements where user_id = pg_temp.pu('a');
-  set role authenticated;
   perform pg_temp.plogin('a');
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'expired' or (st ->> 'days_left')::int is distinct from 0 then raise 'essai terminé : %', st; end if;
-  if (st ->> 'until')::timestamptz not between now() - interval '11 days' and now() - interval '9 days' then raise 'until d''un essai terminé : %', st; end if;
-  -- Le verrou est éteint : on peut toujours écrire
-  if not (st ->> 'can_write')::boolean then raise 'can_write faux avec le verrou éteint'; end if;
-  -- Rappeler my_access (ou access_state) en rafale ne redonne rien
-  for i in 1..5 loop perform public.my_access(); perform public.access_state(); end loop;
-  reset role;
-  if (select trial_started_at from public.entitlements where user_id = pg_temp.pu('a')) is distinct from t0 then raise 'essai prolongé par my_access'; end if;
-  set role authenticated;
-  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'statut regagné'; end if;
   -- Aucune autre RPC du client ne touche aux tables du droit d'accès
-  if pg_temp.perr($q$ update public.entitlements set trial_started_at = now() $q$) not like 'permission denied%' then raise 'trial_started_at modifiable'; end if;
   if pg_temp.perr($q$ update public.entitlements set status = 'gift', gift = true $q$) not like 'permission denied%' then raise 'statut modifiable'; end if;
   if pg_temp.perr($q$ update public.entitlements set expires_at = now() + interval '10 years' $q$) not like 'permission denied%' then raise 'expires_at modifiable'; end if;
   if pg_temp.perr($q$ insert into public.entitlements (user_id, status, gift) values (pg_temp.pu('a'), 'gift', true) $q$) not like 'permission denied%' then raise 'entitlements : insertion'; end if;
@@ -156,7 +130,7 @@ begin
   set role authenticated;
   perform pg_temp.plogin('a');
   st := public.my_access();
-  if not (st ->> 'paywall_on')::boolean or (st ->> 'can_write')::boolean or st ->> 'status' is distinct from 'expired'
+  if not (st ->> 'paywall_on')::boolean or (st ->> 'can_write')::boolean or st ->> 'status' is distinct from 'none'
      then raise 'verrou allumé : %', st; end if;
   if public.access_state() is distinct from st - 'server_now' || jsonb_build_object('server_now', public.access_state() ->> 'server_now')
      then raise 'access_state avec le verrou allumé'; end if;
@@ -170,12 +144,9 @@ end $$;
 
 -- ── Achat payé : écrit par le serveur seulement ──────────
 do $$
-declare st jsonb; t0 timestamptz;
+declare st jsonb;
 begin
   perform pg_temp.plogin('a');
-  reset role;
-  select trial_started_at into t0 from public.entitlements where user_id = pg_temp.pu('a');
-  set role authenticated;
   -- Le client ne peut pas appeler les fonctions du serveur
   if pg_temp.perr(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pu('a'), 'com.mdlf.training.pro.yearly', now() + interval '1 year', 'tx-a1')) not like 'permission denied%' then raise 'srv_access_purchase appelable par le client'; end if;
   if pg_temp.perr(format('select public.srv_access_event(%L, %L, %L, false)', 'tx-a1', 'com.mdlf.training.pro.yearly', now() + interval '1 year')) not like 'permission denied%' then raise 'srv_access_event appelable par le client'; end if;
@@ -191,8 +162,8 @@ begin
      or (select original_transaction_id from public.entitlements where user_id = pg_temp.pu('a')) is distinct from 'tx-a1'
      or (select status from public.entitlements where user_id = pg_temp.pu('a')) is distinct from 'active'
      then raise 'instantané de l''abonnement'; end if;
-  -- L'achat ne touche pas la date de début d'essai
-  if (select trial_started_at from public.entitlements where user_id = pg_temp.pu('a')) is distinct from t0 then raise 'achat et trial_started_at'; end if;
+  -- Pas d'offre de lancement annoncée : intro_offer faux ; environnement inconnu (null) accepté
+  if (st ->> 'intro_offer')::boolean or st -> 'intro_until' is distinct from 'null'::jsonb then raise 'intro_offer sans offre : %', st; end if;
   set role authenticated;
 
   -- Changement de formule (mensuel → annuel), même transaction d'origine
@@ -212,7 +183,7 @@ begin
   if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pu('e'), 'com.mdlf.training.pro.yearly', now() + interval '1 year', 'tx-a1')) is distinct from 'transaction_taken' then raise 'transaction partagée'; end if;
   perform pg_temp.plogin('e');
   st := public.my_access();
-  if st ->> 'status' is distinct from 'trial' or st ->> 'gift' is distinct from 'false' then raise 'E a gagné un accès : %', st; end if;
+  if st ->> 'status' is distinct from 'none' or st ->> 'gift' is distinct from 'false' then raise 'E a gagné un accès : %', st; end if;
   reset role;
   if exists (select 1 from public.entitlement_claims where user_id = pg_temp.pu('e')) then raise 'transaction écrite au nom de E'; end if;
   set role authenticated;
@@ -244,42 +215,30 @@ do $$ begin
   set role authenticated;
 end $$;
 
--- ── Accès offert d'Apple (non consommable) ──────────────
+-- ── « Accès offert » d'Apple supprimé ; un remboursé le reste ──
 do $$
 declare st jsonb;
 begin
-  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, null, %L)', pg_temp.pu('b'), 'com.mdlf.training.access.gift', 'tx-b1')) is distinct from 'ok' then raise 'accès offert refusé'; end if;
+  -- Le non consommable n'est plus un de nos produits
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, null, %L)', pg_temp.pu('b'), 'com.mdlf.training.access.gift', 'tx-b0')) is distinct from 'unknown_product' then raise 'accès offert d''Apple accepté'; end if;
+  reset role;
+  if (select private.access_product_kind('com.mdlf.training.access.gift')) is not null then raise 'produit cadeau encore reconnu'; end if;
+  set role authenticated;
+  -- B s'abonne, puis est remboursé : l'accès tombe et ne revient pas tout seul
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L, false, %L)', pg_temp.pu('b'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-b1', now() - interval '1 hour')) is distinct from 'ok' then raise 'abonnement de B'; end if;
   perform pg_temp.plogin('b');
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, true, %L)', 'tx-b1', 'com.mdlf.training.pro.monthly', now() + interval '30 days', now())) is distinct from 'ok' then raise 'remboursement de B'; end if;
   st := public.my_access();
-  if st ->> 'status' is distinct from 'gift' or not (st ->> 'gift')::boolean or st -> 'until' is distinct from 'null'::jsonb
-     or st -> 'days_left' is distinct from 'null'::jsonb or not (st ->> 'can_write')::boolean then raise 'accès offert : %', st; end if;
-  -- Tient même le verrou allumé et l'essai terminé
-  reset role;
-  update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
-  update public.entitlements set trial_started_at = now() - interval '5 years' where user_id = pg_temp.pu('b');
-  set role authenticated;
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'gift' or not (st ->> 'can_write')::boolean then raise 'accès offert avec le verrou : %', st; end if;
-  reset role;
-  update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
-  set role authenticated;
-  -- Un accès offert révoqué (remboursement) tombe
-  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, null, true)', 'tx-b1', 'com.mdlf.training.access.gift')) is distinct from 'ok' then raise 'révocation du cadeau'; end if;
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'expired' or (st ->> 'gift')::boolean then raise 'cadeau révoqué : %', st; end if;
-  -- I1 : un remboursé le RESTE. Un évènement ultérieur qui ne révoque pas ne réactive rien, même
-  -- avec une date d'évènement plus récente (notification rejouée, transaction rechargée par l'app).
-  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, null, false, %L)', 'tx-b1', 'com.mdlf.training.access.gift', now() + interval '1 day')) is distinct from 'ok' then raise 'évènement après remboursement'; end if;
-  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un remboursé a été réactivé'; end if;
-  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, null, %L)', pg_temp.pu('b'), 'com.mdlf.training.access.gift', 'tx-b1')) is distinct from 'ok' then raise 'achat après remboursement'; end if;
-  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un remboursé réactivé par verify-purchase'; end if;
+  if st ->> 'status' is distinct from 'expired' or (st ->> 'gift')::boolean then raise 'remboursé : %', st; end if;
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L)', 'tx-b1', 'com.mdlf.training.pro.monthly', now() + interval '30 days', now() + interval '1 day')) is distinct from 'ok' then raise 'évènement après remboursement'; end if;
+  if public.my_access() ->> 'status' is distinct from 'expired' then raise 'un remboursé a été réactivé (même période)'; end if;
   reset role;
   if (select revoked_at from public.entitlement_claims where original_transaction_id = 'tx-b1') is null then raise 'revoked_at effacé'; end if;
-  -- L'administrateur peut rouvrir à la main (réabonnement sur la même transaction d'origine)
+  -- L'administrateur peut rouvrir à la main
   update public.entitlement_claims set revoked_at = null, event_at = null where original_transaction_id = 'tx-b1';
   perform private.access_refresh(pg_temp.pu('b'));
   set role authenticated;
-  if public.my_access() ->> 'status' is distinct from 'gift' then raise 'réouverture par l''administrateur'; end if;
+  if public.my_access() ->> 'status' is distinct from 'active' then raise 'réouverture par l''administrateur'; end if;
 end $$;
 
 -- ── Codes cadeaux maison : création par l'administrateur ──
@@ -317,7 +276,7 @@ begin
   if (g ->> 'ok')::boolean or g ->> 'error' is distinct from 'invalid_code' then raise 'code inconnu : %', g; end if;
   if (select array_agg(k order by k) from jsonb_object_keys(g) k) is distinct from array['access', 'error', 'kind', 'ok'] then raise 'clés de redeem_gift_code : %', g; end if;
   -- Le refus porte quand même l'état courant, pour que l'app se rafraîchisse
-  if g -> 'access' ->> 'status' is distinct from 'trial' then raise 'access dans un refus : %', g; end if;
+  if g -> 'access' ->> 'status' is distinct from 'none' then raise 'access dans un refus : %', g; end if;
   if g -> 'kind' is distinct from 'null'::jsonb then raise 'kind d''un refus'; end if;
   if public.redeem_gift_code('COURT') ->> 'error' is distinct from 'invalid_code' then raise 'code trop court'; end if;
   if public.redeem_gift_code(null) ->> 'error' is distinct from 'invalid_code' then raise 'code null'; end if;
@@ -359,10 +318,9 @@ begin
   if (select uses from public.gift_codes where code = (select code from gifts where who = 'j30')) is distinct from 1 then raise 'compteur après already_redeemed'; end if;
   if (select count(*) from public.gift_redemptions where user_id = pg_temp.pu('g')) is distinct from 2 then raise 'deux usages enregistrés'; end if;
   set role authenticated;
-  -- Le cadeau tient le verrou allumé et un essai terminé
+  -- Le cadeau tient le verrou allumé
   reset role;
   update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
-  update public.entitlements set trial_started_at = now() - interval '300 days' where user_id = pg_temp.pu('g');
   set role authenticated;
   st := public.my_access();
   if st ->> 'status' is distinct from 'gift' or not (st ->> 'can_write')::boolean then raise 'cadeau avec le verrou : %', st; end if;
@@ -439,11 +397,9 @@ do $$
 declare st jsonb;
 begin
   perform pg_temp.plogin('d');
-  if public.my_access() ->> 'status' is distinct from 'trial' then raise 'D avant le coach'; end if;
+  if public.my_access() ->> 'status' is distinct from 'none' then raise 'D avant le coach'; end if;
   reset role;
   insert into public.coach_links (student_id, coach_id) values (pg_temp.pu('d'), pg_temp.pu('c'));
-  -- Essai terminé et verrou allumé : seul le coach le sauve
-  update public.entitlements set trial_started_at = now() - interval '200 days' where user_id = pg_temp.pu('d');
   update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
   set role authenticated;
   st := public.my_access();
@@ -457,21 +413,30 @@ begin
   -- Le coach, lui, n'a rien de plus
   perform pg_temp.plogin('c');
   st := public.my_access();
-  if (st ->> 'coach_team')::boolean or st ->> 'status' is distinct from 'trial' then raise 'le coach n''est pas son propre élève : %', st; end if;
-  -- L'élève quitte : l'accès tombe au prochain appel, sans écriture d'Apple
+  if (st ->> 'coach_team')::boolean or st ->> 'status' is distinct from 'none' then raise 'le coach n''est pas son propre élève : %', st; end if;
+  -- BOGUE CORRIGÉ : l'administrateur retire le rôle au coach, ses élèves perdent l'accès gratuit
   reset role;
-  delete from public.coach_links where student_id = pg_temp.pu('d');
+  update public.user_profiles set coach_at = null where user_id = pg_temp.pu('c');
   set role authenticated;
   perform pg_temp.plogin('d');
   st := public.my_access();
-  if st ->> 'status' is distinct from 'expired' or (st ->> 'coach_team')::boolean or (st ->> 'can_write')::boolean
+  if st ->> 'status' is distinct from 'none' or (st ->> 'coach_team')::boolean or (st ->> 'can_write')::boolean
+     then raise 'élève d''un ancien coach encore gratuit : %', st; end if;
+  reset role;
+  if (select in_coach_team from public.entitlements where user_id = pg_temp.pu('d')) then raise 'instantané in_coach_team après le retrait du rôle'; end if;
+  update public.user_profiles set coach_at = now() where user_id = pg_temp.pu('c');
+  set role authenticated;
+  if public.my_access() ->> 'status' is distinct from 'coach_team' then raise 'rôle rendu : élève de nouveau gratuit'; end if;
+  -- L'élève quitte : l'accès tombe au prochain appel
+  reset role;
+  delete from public.coach_links where student_id = pg_temp.pu('d');
+  set role authenticated;
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'none' or (st ->> 'coach_team')::boolean or (st ->> 'can_write')::boolean
      then raise 'après le départ du coach : %', st; end if;
   reset role;
-  if (select in_coach_team from public.entitlements where user_id = pg_temp.pu('d')) then raise 'instantané in_coach_team non remis'; end if;
   update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
-  set role authenticated;
-  -- Un abonné qui est aussi élève reste « active » (ordre des statuts, choix 3)
-  reset role;
+  -- Un abonné qui est aussi élève reste « active »
   insert into public.coach_links (student_id, coach_id) values (pg_temp.pu('d'), pg_temp.pu('c'));
   set role authenticated;
   if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pu('d'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-d1')) is distinct from 'ok' then raise 'abonnement de D'; end if;
@@ -536,7 +501,7 @@ begin
   if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L, true)', 'tx-a1',
      'com.mdlf.training.pro.yearly', now() - interval '1 day', now() + interval '2 minutes')) is distinct from 'ok' then raise 'expiration tx-a1'; end if;
   st := public.my_access();
-  if st ->> 'status' is distinct from 'expired' or (st ->> 'days_left')::int is distinct from 0 then raise 'EXPIRED n''a pas fermé l''accès : %', st; end if;
+  if st ->> 'status' is distinct from 'expired' or st -> 'days_left' is distinct from 'null'::jsonb then raise 'EXPIRED n''a pas fermé l''accès : %', st; end if;
   reset role;
   if (select status from public.entitlements where user_id = pg_temp.pu('a')) is distinct from 'expired' then raise 'instantané après expiration'; end if;
   set role authenticated;
@@ -699,26 +664,21 @@ end $$;
 do $$ begin
   perform pg_temp.plogin('i');
   perform public.my_access();
-  reset role;
-  update public.entitlements set trial_started_at = now() - interval '200 days' where user_id = pg_temp.pu('i');
-  set role authenticated;
-  -- Verrou éteint : l'insertion passe, essai terminé ou non
+  -- Verrou éteint : l'insertion passe, sans abonnement
   if pg_temp.perr($q$ insert into public.sessions (id, data) values ('i-1', '{"date": 1780000000000, "exercises": []}') $q$) is distinct from 'ok' then raise 'insertion refusée verrou éteint'; end if;
   reset role;
   update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
   set role authenticated;
   if (public.my_access() ->> 'can_write')::boolean then raise 'can_write devrait être faux'; end if;
-  -- Verrou allumé et droit tombé : une NOUVELLE séance est refusée par le serveur
   if pg_temp.perr($q$ insert into public.sessions (id, data) values ('i-2', '{"date": 1780000001000, "exercises": []}') $q$) is distinct from 'paywall_locked' then raise 'le serveur accepte une nouvelle séance, verrou allumé'; end if;
   if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data) values (%L, 'i-3', '{"date": 1, "exercises": []}') $q$, pg_temp.pu('i'))) is distinct from 'paywall_locked' then raise 'contournement en posant user_id'; end if;
-  -- Corriger et mettre à la corbeille une séance déjà là restent permis : on ne perd rien
   if pg_temp.perr($q$ update public.sessions set data = '{"date": 1780000000000, "notes": "corrigée", "exercises": []}' where id = 'i-1' $q$) is distinct from 'ok' then raise 'correction refusée'; end if;
   if pg_temp.perr($q$ update public.sessions set deleted_at = now() where id = 'i-1' $q$) is distinct from 'ok' then raise 'mise à la corbeille refusée'; end if;
   reset role;
   if exists (select 1 from public.sessions where user_id = pg_temp.pu('i') and id in ('i-2', 'i-3')) then raise 'séance refusée pourtant écrite'; end if;
   set role authenticated;
-  -- Un abonné passe, verrou allumé
-  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pu('i'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-i1')) is distinct from 'ok' then raise 'abonnement de I'; end if;
+  -- Un abonné passe, verrou allumé (offre de lancement comprise)
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L, false, null, true, %L)', pg_temp.pu('i'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-i1', 'Production')) is distinct from 'ok' then raise 'abonnement de I'; end if;
   if pg_temp.perr($q$ insert into public.sessions (id, data) values ('i-4', '{"date": 1780000002000, "exercises": []}') $q$) is distinct from 'ok' then raise 'abonné refusé'; end if;
   -- Un élève de coach aussi
   reset role;
@@ -730,19 +690,14 @@ do $$ begin
   reset role;
   delete from public.coach_links where student_id = pg_temp.pu('i');
   set role authenticated;
-  -- Un compte tout neuf, jamais passé par my_access : son essai démarre dans le déclencheur, à
-  -- l'heure du serveur (ne jamais appeler my_access ne donne pas un essai éternel)
+  -- Un compte tout neuf, jamais passé par my_access : aucun essai, refusé verrou allumé
   perform pg_temp.plogin('j');
-  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('j-1', '{"date": 1780000000000, "exercises": []}') $q$) is distinct from 'ok' then raise 'nouveau compte refusé'; end if;
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('j-1', '{"date": 1780000000000, "exercises": []}') $q$) is distinct from 'paywall_locked' then raise 'nouveau compte accepté sans abonnement'; end if;
   reset role;
-  if (select trial_started_at from public.entitlements where user_id = pg_temp.pu('j')) not between now() - interval '1 minute' and now() + interval '1 minute' then raise 'essai de J non démarré par le déclencheur'; end if;
-  update public.entitlements set trial_started_at = now() - interval '200 days' where user_id = pg_temp.pu('j');
-  set role authenticated;
-  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('j-2', '{"date": 1780000001000, "exercises": []}') $q$) is distinct from 'paywall_locked' then raise 'J après son essai'; end if;
-  reset role;
+  -- Le refus annule tout ce que le déclencheur a écrit (aucune ligne laissée derrière)
+  if exists (select 1 from public.entitlements where user_id = pg_temp.pu('j')) then raise 'ligne de J laissée par un refus'; end if;
   update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
   set role authenticated;
-  -- Verrou éteint : tout repasse
   if pg_temp.perr($q$ insert into public.sessions (id, data) values ('j-3', '{"date": 1780000002000, "exercises": []}') $q$) is distinct from 'ok' then raise 'verrou éteint'; end if;
 end $$;
 
@@ -756,10 +711,11 @@ begin
     if pg_temp.perr(format('select * from %s', t)) not like 'permission denied%' then raise 'lecture directe de %', t; end if;
   end loop;
   foreach t in array array['private.access_json(pg_temp.pu(''a''))', 'private.access_refresh(pg_temp.pu(''e''))',
-                           'private.access_claim(pg_temp.pu(''e''), ''com.mdlf.training.access.gift'', null, ''tx-e9'', false)',
-                           'private.access_product_kind(''com.mdlf.training.access.gift'')',
-                           'private.access_paywall_on()', 'private.access_trial_days()'] loop
-    if pg_temp.perr('select ' || t) not like 'permission denied%' then raise '% appelable', t; end if;
+                           'private.access_claim(pg_temp.pu(''e''), ''com.mdlf.training.pro.monthly'', null, ''tx-e9'', false)',
+                           'private.access_product_kind(''com.mdlf.training.pro.monthly'')',
+                           'private.access_paywall_on()', 'private.access_coach_free(pg_temp.pu(''e''))',
+                           'private.coach_free_limits'] loop
+    if pg_temp.perr('select ' || case when t like 'private.coach_free_limits' then '* from ' else '' end || t) not like 'permission denied%' then raise '% appelable', t; end if;
   end loop;
   -- Mon état ne dit rien d'un autre compte
   if public.my_access()::text ~ '(tx-a1|tx-a2|tx-b1|anna|bob)' then raise 'fuite dans my_access'; end if;
@@ -781,7 +737,7 @@ declare f text;
 begin
   foreach f in array array[
     'public.my_access()', 'public.access_state()',
-    format('public.srv_access_purchase(%L, %L, null, %L)', pg_temp.pu('a'), 'com.mdlf.training.access.gift', 'tx-anon'),
+    format('public.srv_access_purchase(%L, %L, null, %L)', pg_temp.pu('a'), 'com.mdlf.training.pro.monthly', 'tx-anon'),
     format('public.srv_access_event(%L, %L, null, false)', 'tx-a1', 'com.mdlf.training.pro.yearly'),
     'public.redeem_gift_code(''ABCDEFGHJKLM'')', 'private.make_gift_code(''lifetime'')',
     '* from public.entitlements', '* from public.entitlement_claims', '* from public.app_config',
@@ -813,7 +769,7 @@ begin
   if (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('srv_access_purchase', 'srv_access_event')) <> 2 then raise 'fonctions du serveur manquantes'; end if;
   -- Briques privées : aucun rôle de l'API
   for f in select p.oid::regprocedure from pg_proc p where p.pronamespace = 'private'::regnamespace
-             and p.proname in ('access_json', 'access_refresh', 'access_claim', 'access_product_kind', 'access_paywall_on', 'access_trial_days',
+             and p.proname in ('access_json', 'access_refresh', 'access_claim', 'access_product_kind', 'access_paywall_on', 'access_coach_free',
                                'gift_code_norm', 'gift_new_code', 'gift_refused', 'make_gift_code', 'sessions_paywall') loop
     if has_function_privilege('authenticated', f, 'execute') or has_function_privilege('anon', f, 'execute')
        or has_function_privilege('service_role', f, 'execute') then raise '% : exécutable par l''API', f; end if;
@@ -832,6 +788,7 @@ begin
   -- Le verrou dur : un déclencheur before insert sur sessions, et seulement sur insert
   if not exists (select 1 from pg_trigger g where g.tgrelid = 'public.sessions'::regclass and g.tgname = 'sessions_paywall') then raise 'déclencheur du verrou absent'; end if;
   if exists (select 1 from pg_policies where tablename = 'app_config' and cmd <> 'SELECT') then raise 'app_config : politique d''écriture'; end if;
+  if exists (select 1 from pg_trigger g where g.tgrelid = 'public.sessions'::regclass and g.tgname = 'sessions_paywall' and (g.tgtype & 16) <> 0) then raise 'le verrou porte aussi sur update'; end if;
   if has_table_privilege('authenticated', 'public.app_config', 'update') or has_table_privilege('authenticated', 'public.app_config', 'insert')
      or has_table_privilege('anon', 'public.app_config', 'select') then raise 'droits de app_config'; end if;
   -- original_transaction_id unique (une transaction, un compte)
@@ -874,262 +831,165 @@ end $$;
 -- Nettoyage : les tests suivants partent d'une base sans ces comptes
 delete from auth.users where id in (select pg_temp.pu(c) from unnest(array['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']) c);
 
-
 -- ═══════════════════════════════════════════════════════════
---  Règles du 28/10 (supabase/migrations/20261029000000_payant_apple.sql)
---  Règle 1 : l'essai est rattaché à l'installation (identifiant du magasin), plafond sans preuve pour
---  les comptes vus sur iPhone seulement. Règle 2 : paywall_on lisible sans compte, et rien d'autre.
---  Comptes : pg_temp.pq('a') → …00000000071a. Le serveur a déjà vérifié la signature (fonction
---  Edge) : ici on appelle srv_link_store_install comme elle le fait.
+--  Modèle B (20261029000000_payant_modele_b.sql) : offre de lancement d'Apple, Sandbox accepté,
+--  élèves de coach plafonnés, grâce de fin de séance. Comptes : pg_temp.pq('a') → …00000000071a.
 -- ═══════════════════════════════════════════════════════════
 create function pg_temp.pq(c text) returns uuid language sql immutable as
 $$ select ('00000000-0000-0000-0000-00000000071' || translate(c, 'abcdefghij', 'abcdef7890'))::uuid $$;
 create function pg_temp.pqlogin(c text) returns void language sql as
 $$ select set_config('request.jwt.claim.sub', pg_temp.pq(c)::text, false) $$;
--- Liaison faite par la fonction Edge (clé serveur), sans quitter le rôle courant
-create function pg_temp.plink(c text, app text, env text default 'Production', bundle text default 'com.mdlf.training',
-                              store text default 'apple')
-  returns text language sql as
-$$ select pg_temp.psrv(format('select public.srv_link_store_install(%L, %L, %L, %L, %L)', pg_temp.pq(c), store, app, env, bundle)) $$;
--- Départ de l'essai d'un compte (heure du serveur), posé comme le ferait le temps qui passe
-create function pg_temp.pstart(c text, ago interval) returns void language sql as
-$$ update public.entitlements set trial_started_at = now() - ago where user_id = pg_temp.pq(c) $$;
-grant execute on function pg_temp.pq(text), pg_temp.pqlogin(text), pg_temp.plink(text, text, text, text, text)
+-- Séance commencée à « began », finie à « done » (l'app enregistre date = fin, duration = durée)
+create function pg_temp.psess(id text, began timestamptz, done timestamptz) returns text language sql as
+$$ select pg_temp.perr(format('insert into public.sessions (id, data) values (%L, %L)', id,
+     jsonb_build_object('date', (extract(epoch from done) * 1000)::bigint,
+                        'duration', (extract(epoch from done - began) * 1000)::bigint, 'exercises', '[]'::jsonb))) $$;
+grant execute on function pg_temp.pq(text), pg_temp.pqlogin(text), pg_temp.psess(text, timestamptz, timestamptz)
   to authenticated, anon, service_role;
-insert into auth.users (id) select pg_temp.pq(c) from unnest(array['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']) c;
--- G est coach (rôle donné par l'administrateur)
-insert into public.user_profiles (user_id, username, avatar_emoji, coach_at) values (pg_temp.pq('g'), 'quentin.p2', '🦁', now());
+insert into auth.users (id) select pg_temp.pq(c) from unnest(array['a', 'b', 'c', 'd', 'e', 'f', 'g']) c;
 
--- ── Règle 1 : deux comptes sur le même identifiant Apple n'ont qu'un essai ──
+-- ── Offre de lancement d'Apple (« 3 mois gratuits ») et environnement ──
 do $$
 declare st jsonb;
 begin
-  -- K a commencé son essai il y a 80 jours sur son iPhone, puis la preuve d'Apple arrive
   set role authenticated;
   perform pg_temp.pqlogin('a');
-  perform public.my_access('ios');
-  reset role;
-  perform pg_temp.pstart('a', interval '80 days');
-  set role authenticated;
-  if pg_temp.plink('a', 'APPTX-1') is distinct from 'ok' then raise 'liaison de K'; end if;
-  st := public.my_access('ios');
-  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 10
-     or not (st ->> 'apple_linked')::boolean or (st ->> 'trial_shared')::boolean then raise 'K après liaison : %', st; end if;
-  reset role;
-  if (select first_trial_at from public.store_installs where store = 'apple' and install_id = 'APPTX-1')
-     not between now() - interval '80 days 1 minute' and now() - interval '79 days 23 hours' then raise 'date du premier essai de APPTX-1'; end if;
-  if (select trial_started_at from public.entitlements where user_id = pg_temp.pq('a')) > now() - interval '79 days' then raise 'trial_started_at réécrit'; end if;
-  set role authenticated;
-
-  -- L : nouveau compte (nouvelle adresse) sur le même iPhone, donc le même identifiant Apple
-  perform pg_temp.pqlogin('b');
-  st := public.my_access('ios');
-  if (st ->> 'days_left')::int is distinct from 90 or (st ->> 'apple_linked')::boolean then raise 'L avant liaison (verrou éteint) : %', st; end if;
-  if pg_temp.plink('b', 'APPTX-1') is distinct from 'ok' then raise 'liaison de L'; end if;
-  st := public.my_access('ios');
-  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 10
-     or not (st ->> 'trial_shared')::boolean then raise 'L a un essai neuf : %', st; end if;
-  if (public.access_state() ->> 'days_left')::int is distinct from 10 then raise 'access_state de L'; end if;
-  perform pg_temp.pqlogin('a');
-  if (public.access_state() ->> 'days_left')::int is distinct from 10 then raise 'K a bougé'; end if;
-
-  -- Essai de l'identifiant Apple fini : L est expiré ; verrou éteint il écrit encore
-  reset role;
-  update public.store_installs set first_trial_at = first_trial_at - interval '20 days' where install_id = 'APPTX-1';
-  set role authenticated;
-  perform pg_temp.pqlogin('b');
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'expired' or not (st ->> 'can_write')::boolean then raise 'L expiré, verrou éteint : %', st; end if;
+  perform public.my_access();
   reset role;
   update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
   set role authenticated;
-  if (public.my_access() ->> 'can_write')::boolean then raise 'L écrit après l''essai de son identifiant Apple'; end if;
-  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('l-1', '{"date": 1, "exercises": []}') $q$) is distinct from 'paywall_locked' then raise 'le serveur accepte la séance de L'; end if;
+  -- Pas d'abonnement : pas d'essai, même pour un compte tout neuf
+  if (public.my_access() ->> 'can_write')::boolean then raise 'compte neuf : droit sans abonnement'; end if;
+  -- L'essai gratuit d'Apple (offerType 1) est un abonnement actif, intro_offer et sa fin exposés
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L, false, %L, true, %L)', pg_temp.pq('a'),
+     'com.mdlf.training.pro.yearly', now() + interval '90 days', 'tx-q1', now() - interval '1 minute', 'Sandbox')) is distinct from 'ok' then raise 'essai d''Apple'; end if;
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'active' or not (st ->> 'can_write')::boolean or not (st ->> 'intro_offer')::boolean
+     or (st ->> 'intro_until')::timestamptz not between now() + interval '89 days' and now() + interval '91 days'
+     or (st ->> 'until')::timestamptz is distinct from (st ->> 'intro_until')::timestamptz then raise 'essai d''Apple : %', st; end if;
+  -- Sandbox ACCEPTÉ (examen d'Apple, TestFlight) et enregistré
+  reset role;
+  if (select environment from public.entitlement_claims where original_transaction_id = 'tx-q1') is distinct from 'Sandbox' then raise 'environnement non enregistré'; end if;
+  set role authenticated;
+  -- Un évènement en retard (plus ancien) ne change pas l'offre
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L, false, null, null, false, %L)', 'tx-q1',
+     'com.mdlf.training.pro.yearly', now() + interval '90 days', now() - interval '1 day', 'Production')) is distinct from 'ok' then raise 'évènement en retard'; end if;
+  if not (public.my_access() ->> 'intro_offer')::boolean then raise 'offre effacée par un évènement en retard'; end if;
+  reset role;
+  if (select environment from public.entitlement_claims where original_transaction_id = 'tx-q1') is distinct from 'Sandbox' then raise 'environnement écrasé par un évènement en retard'; end if;
+  set role authenticated;
+  -- Fin de l'essai : premier renouvellement payé (offerType absent) → abonné sans offre
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L, false, null, null, false, %L)', 'tx-q1',
+     'com.mdlf.training.pro.yearly', now() + interval '455 days', now(), 'Sandbox')) is distinct from 'ok' then raise 'renouvellement'; end if;
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'active' or (st ->> 'intro_offer')::boolean or st -> 'intro_until' is distinct from 'null'::jsonb then raise 'après l''essai : %', st; end if;
+  -- p_intro inconnu (null) : la valeur gardée ne bouge pas ; environnement inconnu : ignoré
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L, false, null, null, null, %L)', 'tx-q1',
+     'com.mdlf.training.pro.yearly', now() + interval '455 days', now() + interval '1 minute', 'Xcode')) is distinct from 'ok' then raise 'évènement sans offre'; end if;
+  reset role;
+  if (select intro_offer from public.entitlement_claims where original_transaction_id = 'tx-q1') then raise 'intro null a écrasé la valeur'; end if;
+  if (select environment from public.entitlement_claims where original_transaction_id = 'tx-q1') is distinct from 'Sandbox' then raise 'environnement Xcode écrit'; end if;
+  update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
+end $$;
 
-  -- Ce qui est payé, offert ou donné par un coach ne change pas
-  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pq('b'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-l1')) is distinct from 'ok' then raise 'abonnement de L'; end if;
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'active' or not (st ->> 'can_write')::boolean then raise 'L abonné : %', st; end if;
-  reset role;
-  update public.entitlement_claims set revoked_at = now() where original_transaction_id = 'tx-l1';
-  perform private.access_refresh(pg_temp.pq('b'));
-  insert into public.coach_links (student_id, coach_id) values (pg_temp.pq('b'), pg_temp.pq('g'));
+-- ── Élèves gratuits : 10 par coach, les plus anciens liens d'abord ──
+do $$
+declare st jsonb; free int;
+begin
+  -- B est coach ; 12 élèves (deux comptes de ce bloc + 10 comptes jetables), du plus ancien au plus récent
+  insert into public.user_profiles (user_id, username, avatar_emoji, coach_at) values (pg_temp.pq('b'), 'coachb.p2', '🦁', now());
+  insert into auth.users (id) select ('00000000-0000-0000-0000-0000000007' || lpad(i::text, 2, '0'))::uuid from generate_series(20, 29) i;
+  insert into public.coach_links (student_id, coach_id, created_at)
+    select ('00000000-0000-0000-0000-0000000007' || lpad(i::text, 2, '0'))::uuid, pg_temp.pq('b'), now() - make_interval(days => 100 - i)
+      from generate_series(20, 29) i;
+  -- C : 11e lien, D : 12e lien
+  insert into public.coach_links (student_id, coach_id, created_at) values
+    (pg_temp.pq('c'), pg_temp.pq('b'), now() - interval '10 days'), (pg_temp.pq('d'), pg_temp.pq('b'), now() - interval '5 days');
+  update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
+  select count(*) into free from public.coach_links l where l.coach_id = pg_temp.pq('b') and private.access_coach_free(l.student_id);
+  if free is distinct from 10 then raise '% élèves gratuits au lieu de 10', free; end if;
+  if not private.access_coach_free('00000000-0000-0000-0000-000000000720') then raise 'le plus ancien élève n''est pas gratuit'; end if;
   set role authenticated;
+  perform pg_temp.pqlogin('c');
   st := public.my_access();
-  if st ->> 'status' is distinct from 'coach_team' or not (st ->> 'can_write')::boolean then raise 'L élève de coach : %', st; end if;
+  if st ->> 'status' is distinct from 'none' or (st ->> 'coach_team')::boolean or (st ->> 'can_write')::boolean then raise '11e élève gratuit : %', st; end if;
+  -- Au-delà du plafond, l'élève reste suivi et peut s'abonner lui-même
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pq('c'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-qc')) is distinct from 'ok' then raise 'abonnement du 11e'; end if;
+  if public.my_access() ->> 'status' is distinct from 'active' then raise '11e élève abonné'; end if;
   reset role;
-  delete from public.coach_links where student_id = pg_temp.pq('b');
+  if not exists (select 1 from public.coach_links where student_id = pg_temp.pq('c')) then raise 'le 11e n''est plus suivi'; end if;
+  -- Un ancien élève part : le 11e entre dans les 10, le 12e non
+  delete from public.coach_links where student_id = '00000000-0000-0000-0000-000000000720';
+  if not private.access_coach_free(pg_temp.pq('c')) or private.access_coach_free(pg_temp.pq('d')) then raise 'rang après un départ'; end if;
+  -- Plafond relevé à la main pour ce coach
+  insert into private.coach_free_limits (coach_id, max_free) values (pg_temp.pq('b'), 11);
+  if not private.access_coach_free(pg_temp.pq('d')) then raise 'plafond relevé non appliqué'; end if;
+  update private.coach_free_limits set max_free = 0 where coach_id = pg_temp.pq('b');
+  if private.access_coach_free('00000000-0000-0000-0000-000000000721') then raise 'plafond à 0 non appliqué'; end if;
+  -- Personne d'autre ne lit ni n'écrit le plafond
   set role authenticated;
-  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, null, %L)', pg_temp.pq('b'), 'com.mdlf.training.access.gift', 'tx-l2')) is distinct from 'ok' then raise 'accès offert de L'; end if;
-  if public.my_access() ->> 'status' is distinct from 'gift' then raise 'L accès offert'; end if;
+  if pg_temp.perr($q$ select * from private.coach_free_limits $q$) not like 'permission denied%' then raise 'plafond lisible'; end if;
+  if pg_temp.psrv($q$ update private.coach_free_limits set max_free = 1000 $q$) not like 'permission denied%' then raise 'plafond modifiable par la clé serveur'; end if;
+  reset role;
+  delete from auth.users where id in (select ('00000000-0000-0000-0000-0000000007' || lpad(i::text, 2, '0'))::uuid from generate_series(20, 29) i);
+  -- Suppression du coach : son plafond part avec lui
+  delete from auth.users where id = pg_temp.pq('b');
+  if exists (select 1 from private.coach_free_limits where coach_id = pg_temp.pq('b')) then raise 'cascade coach_free_limits'; end if;
+  update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
+end $$;
+
+-- ── Grâce de fin de séance : bornée, et sans antidatage possible ──
+do $$
+declare ended timestamptz;
+begin
+  update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
+  -- E : abonnement fini il y a 2 heures (Apple a fermé l'accès)
+  set role authenticated;
+  perform pg_temp.pqlogin('e');
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pq('e'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-qe')) is distinct from 'ok' then raise 'abonnement de E'; end if;
+  if pg_temp.psrv(format('select public.srv_access_event(%L, %L, %L, false, %L, true)', 'tx-qe', 'com.mdlf.training.pro.monthly', now() - interval '2 hours', now())) is distinct from 'ok' then raise 'fin de E'; end if;
+  if (public.my_access() ->> 'can_write')::boolean then raise 'E écrit encore'; end if;
+  ended := (public.my_access() ->> 'until')::timestamptz;
+  -- Séance commencée 30 min avant la fin, terminée maintenant : enregistrée
+  if pg_temp.psess('e-1', ended - interval '30 minutes', now()) is distinct from 'ok' then raise 'séance commencée avec le droit refusée'; end if;
+  -- Commencée APRÈS la fin : refusée
+  if pg_temp.psess('e-2', ended + interval '10 minutes', now()) is distinct from 'paywall_locked' then raise 'séance commencée sans droit acceptée'; end if;
+  -- Antidatée (commencée 2 jours avant la fin, plus de 12 h) : refusée
+  if pg_temp.psess('e-3', ended - interval '2 days', ended - interval '2 days' + interval '1 hour') is distinct from 'paywall_locked' then raise 'séance antidatée acceptée'; end if;
+  -- Date absente ou absurde : refusée
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('e-4', '{"exercises": []}') $q$) is distinct from 'paywall_locked' then raise 'séance sans date acceptée'; end if;
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('e-5', '{"date": "hier", "exercises": []}') $q$) is distinct from 'paywall_locked' then raise 'date texte acceptée'; end if;
+  -- Une deuxième passe, la troisième non (2 séances au plus par fin d'accès)
+  if pg_temp.psess('e-6', ended - interval '3 hours', ended - interval '1 hour') is distinct from 'ok' then raise 'deuxième séance de grâce'; end if;
+  if pg_temp.psess('e-7', ended - interval '4 hours', ended - interval '3 hours') is distinct from 'paywall_locked' then raise 'troisième séance de grâce acceptée'; end if;
+  -- Les refus n'ont rien écrit
+  reset role;
+  if (select count(*) from public.sessions where user_id = pg_temp.pq('e')) is distinct from 2 then raise 'séances de E : %', (select array_agg(id) from public.sessions where user_id = pg_temp.pq('e')); end if;
+  -- Plus de 24 h après la fin (heure du serveur) : plus rien, quelle que soit la date déclarée
+  delete from private.social_rate where user_id = pg_temp.pq('e') and action = 'session_grace';
+  update public.entitlement_claims set expires_at = now() - interval '25 hours', event_at = null where original_transaction_id = 'tx-qe';
+  perform private.access_refresh(pg_temp.pq('e'));
+  set role authenticated;
+  ended := (public.my_access() ->> 'until')::timestamptz;
+  if pg_temp.psess('e-8', ended - interval '30 minutes', ended + interval '10 minutes') is distinct from 'paywall_locked' then raise 'grâce au-delà de 24 h'; end if;
+  -- Jamais abonné : aucune grâce
+  perform pg_temp.pqlogin('f');
+  if pg_temp.psess('f-1', now() - interval '1 hour', now()) is distinct from 'paywall_locked' then raise 'grâce sans abonnement'; end if;
   reset role;
   update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
 end $$;
 
--- ── Premier rattachement : un vieux compte n'éteint pas l'essai d'un proche ──
-do $$
-declare st jsonb;
-begin
-  set role authenticated;
-  -- 1. Le proche (M) d'abord, puis le vieux compte (N, essai fini) : la première liaison fait foi
-  perform pg_temp.pqlogin('c');
-  perform public.my_access('ios');
-  if pg_temp.plink('c', 'APPTX-2') is distinct from 'ok' then raise 'liaison de M'; end if;
-  if (public.my_access() ->> 'days_left')::int is distinct from 90 then raise 'M : essai complet'; end if;
-  perform pg_temp.pqlogin('d');
-  perform public.my_access('ios');
-  reset role;
-  perform pg_temp.pstart('d', interval '300 days');
-  set role authenticated;
-  if pg_temp.plink('d', 'APPTX-2') is distinct from 'ok' then raise 'liaison de N'; end if;
-  perform pg_temp.pqlogin('c');
-  if (public.my_access() ->> 'days_left')::int is distinct from 90 then raise 'l''essai de M a été raccourci par N'; end if;
-  -- 2. Le vieux compte (N) se connecte le PREMIER sur l'iPhone d'un autre proche (APPTX-4) : la date
-  --    posée est maintenant, pas son vieux départ (correction de la relecture)
-  perform pg_temp.pqlogin('d');
-  if pg_temp.plink('d', 'APPTX-4') is distinct from 'ok' then raise 'liaison de N sur APPTX-4'; end if;
-  reset role;
-  if (select first_trial_at from public.store_installs where install_id = 'APPTX-4') < now() - interval '1 minute'
-     then raise 'le vieux départ de N a été posé sur l''identifiant du proche'; end if;
-  set role authenticated;
-  perform pg_temp.pqlogin('h');
-  perform public.my_access('ios');
-  if pg_temp.plink('h', 'APPTX-4') is distinct from 'ok' then raise 'liaison du proche'; end if;
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 90 then raise 'proche privé de son essai : %', st; end if;
-  -- 3. Le tricheur ne gagne rien : N reste expiré (le plus ancien des départs reste le sien)
-  perform pg_temp.pqlogin('d');
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'expired' or (st ->> 'trial_shared')::boolean then raise 'N a regagné un essai : %', st; end if;
-  -- Compte encore en essai qui lie en premier : son départ est gardé (pas de rajeunissement)
-  perform pg_temp.pqlogin('i');
-  perform public.my_access('ios');
-  reset role;
-  perform pg_temp.pstart('i', interval '30 days');
-  set role authenticated;
-  if pg_temp.plink('i', 'APPTX-5') is distinct from 'ok' then raise 'liaison de I'; end if;
-  reset role;
-  if (select first_trial_at from public.store_installs where install_id = 'APPTX-5') > now() - interval '29 days' then raise 'départ d''un essai en cours remplacé'; end if;
-  set role authenticated;
-  -- Se relier plusieurs fois ne crée rien de plus
-  perform pg_temp.pqlogin('d');
-  if pg_temp.plink('d', 'APPTX-2') is distinct from 'ok' then raise 'liaison répétée'; end if;
-  reset role;
-  if (select count(*) from public.store_install_links where user_id = pg_temp.pq('d') and install_id = 'APPTX-2') is distinct from 1 then raise 'liaison doublée'; end if;
-end $$;
-
--- ── Sans preuve Apple : plafond de 3 jours, et seulement sur iPhone ──
-do $$
-declare st jsonb;
-begin
-  -- O sur iPhone n'a jamais envoyé de preuve (App Store déconnecté), essai démarré il y a 2 jours
-  set role authenticated;
-  perform pg_temp.pqlogin('e');
-  perform public.my_access('ios');
-  reset role;
-  perform pg_temp.pstart('e', interval '2 days');
-  set role authenticated;
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 88
-     or not (st ->> 'can_write')::boolean then raise 'O sans preuve, verrou éteint : %', st; end if;
-  reset role;
-  update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
-  set role authenticated;
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 1 or not (st ->> 'can_write')::boolean then raise 'O plafonné : %', st; end if;
-  reset role;
-  perform pg_temp.pstart('e', interval '5 days');
-  set role authenticated;
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'expired' or (st ->> 'can_write')::boolean then raise 'O au-delà du plafond : %', st; end if;
-  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('o-1', '{"date": 1, "exercises": []}') $q$) is distinct from 'paywall_locked' then raise 'le serveur accepte O sans preuve'; end if;
-  -- Une déclaration « android » ultérieure n'efface pas l'iPhone
-  st := public.my_access('android');
-  if st ->> 'status' is distinct from 'expired' then raise 'android a levé le plafond d''un compte vu sur iPhone'; end if;
-
-  -- P sur Android (pas encore d'ancrage) : essai complet, rattaché au compte, même verrou allumé
-  perform pg_temp.pqlogin('f');
-  perform public.my_access('android');
-  reset role;
-  perform pg_temp.pstart('f', interval '20 days');
-  set role authenticated;
-  st := public.my_access('android');
-  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 70 or not (st ->> 'can_write')::boolean then raise 'Android plafonné : %', st; end if;
-  -- Compte jamais déclaré (vieille coquille) : pas de plafond non plus
-  perform pg_temp.pqlogin('j');
-  st := public.my_access();
-  if (st ->> 'days_left')::int is distinct from 90 then raise 'compte non déclaré plafonné : %', st; end if;
-  -- Compte iPhone tout neuf sans preuve : 3 jours affichés
-  perform pg_temp.pqlogin('j');
-  st := public.my_access('ios');
-  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 3 then raise 'compte iPhone neuf sans preuve : %', st; end if;
-  -- Plafond réglable sans redéployer
-  reset role;
-  update public.app_config set value = '90'::jsonb where key = 'trial_unproven_days';
-  set role authenticated;
-  perform pg_temp.pqlogin('e');
-  if (public.my_access() ->> 'days_left')::int is distinct from 85 then raise 'plafond réglable'; end if;
-  reset role;
-  update public.app_config set value = '"beaucoup"'::jsonb where key = 'trial_unproven_days';
-  set role authenticated;
-  if (public.my_access() ->> 'status') is distinct from 'expired' then raise 'valeur invalide : retour aux 3 jours'; end if;
-  reset role;
-  update public.app_config set value = '3'::jsonb where key = 'trial_unproven_days';
-  set role authenticated;
-  -- La preuve arrive (identifiant Apple neuf) : l'essai complet revient, calculé depuis son départ
-  if pg_temp.plink('e', 'APPTX-3') is distinct from 'ok' then raise 'liaison de O'; end if;
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 85
-     or not (st ->> 'can_write')::boolean or not (st ->> 'apple_linked')::boolean then raise 'O avec preuve : %', st; end if;
-  -- Une installation Google (ancrage Android à venir) se stocke au même endroit
-  if pg_temp.plink('f', 'GOOGLE-1', 'Production', 'com.mdlf.training', 'google') is distinct from 'ok' then raise 'installation google'; end if;
-  perform pg_temp.pqlogin('f');
-  st := public.my_access('android');
-  if (st ->> 'apple_linked')::boolean or (st ->> 'days_left')::int is distinct from 70 then raise 'P après installation google : %', st; end if;
-  reset role;
-  if not exists (select 1 from public.store_installs where store = 'google' and install_id = 'GOOGLE-1') then raise 'installation google absente'; end if;
-  update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
-end $$;
-
--- ── Preuves refusées par la base ─────────────────────────
-do $$
-begin
-  set role authenticated;
-  if pg_temp.plink('f', 'APPTX-9', 'Production', 'com.autre.app') is distinct from 'bad_bundle' then raise 'autre bundleId accepté'; end if;
-  if pg_temp.plink('f', 'APPTX-9', 'Production', null) is distinct from 'bad_bundle' then raise 'bundleId absent accepté'; end if;
-  if pg_temp.plink('f', 'APPTX-9', 'Xcode') is distinct from 'invalid_app_transaction' then raise 'environnement Xcode accepté'; end if;
-  if pg_temp.plink('f', 'APPTX-9', 'Production', 'com.mdlf.training', 'amazon') is distinct from 'invalid_app_transaction' then raise 'magasin inconnu accepté'; end if;
-  if pg_temp.plink('f', '', 'Production') is distinct from 'invalid_app_transaction' then raise 'identifiant vide accepté'; end if;
-  if pg_temp.plink('f', 'a b''; drop table x', 'Production') is distinct from 'invalid_app_transaction' then raise 'identifiant mal formé accepté'; end if;
-  if pg_temp.plink('f', repeat('9', 129), 'Production') is distinct from 'invalid_app_transaction' then raise 'identifiant trop long accepté'; end if;
-  if pg_temp.psrv(format('select public.srv_link_store_install(%L, %L, %L, %L, %L)', '00000000-0000-0000-0000-0000000007ff', 'apple', 'APPTX-9', 'Production', 'com.mdlf.training')) is distinct from 'not_found' then raise 'compte inconnu accepté'; end if;
-  reset role;
-  if exists (select 1 from public.store_installs where install_id = 'APPTX-9') then raise 'preuve refusée pourtant écrite'; end if;
-  set role authenticated;
-  for i in 1..29 loop
-    if pg_temp.plink('f', 'APPTX-F') is distinct from 'ok' then raise 'liaison % refusée trop tôt', i; end if;
-  end loop;
-  -- 30 par 24 h (dont la liaison google ci-dessus et la 1re de cette boucle)
-  if pg_temp.plink('f', 'APPTX-F') is distinct from 'rate_limited' then raise 'débit des liaisons'; end if;
-  reset role;
-end $$;
-
--- ── Aucune écriture directe, aucune lecture ──────────────
+-- ── Aucune écriture directe des nouveautés ───────────────
 set role authenticated;
 do $$ begin
   perform pg_temp.pqlogin('a');
-  if pg_temp.perr($q$ select * from public.store_installs $q$) not like 'permission denied%' then raise 'store_installs lisible'; end if;
-  if pg_temp.perr($q$ select * from public.store_install_links $q$) not like 'permission denied%' then raise 'store_install_links lisible'; end if;
-  if pg_temp.perr($q$ insert into public.store_installs (store, install_id, environment, first_trial_at) values ('apple', 'X1', 'Production', now()) $q$) not like 'permission denied%' then raise 'store_installs : insertion'; end if;
-  if pg_temp.perr($q$ update public.store_installs set first_trial_at = now() $q$) not like 'permission denied%' then raise 'store_installs : rajeunir son identifiant'; end if;
-  if pg_temp.perr($q$ delete from public.store_install_links $q$) not like 'permission denied%' then raise 'store_install_links : se délier'; end if;
-  if pg_temp.perr($q$ update public.entitlements set ios_seen_at = null $q$) not like 'permission denied%' then raise 'ios_seen_at effaçable'; end if;
-  if pg_temp.perr(format('select public.srv_link_store_install(%L, %L, %L, %L, %L)', pg_temp.pq('a'), 'apple', 'APPTX-X', 'Production', 'com.mdlf.training')) not like 'permission denied%' then raise 'srv_link_store_install exécutable par un compte'; end if;
-  if (select count(*) from public.app_config) is distinct from 3 then raise 'app_config pour authenticated'; end if;
+  if pg_temp.perr($q$ update public.entitlement_claims set intro_offer = true $q$) not like 'permission denied%' then raise 'intro_offer modifiable'; end if;
+  if pg_temp.perr($q$ select private.access_coach_free(pg_temp.pq('a')) $q$) not like 'permission denied%' then raise 'access_coach_free appelable'; end if;
+  if (select count(*) from public.app_config) is distinct from 1 then raise 'app_config pour authenticated'; end if;
 end $$;
 reset role;
 
--- ── Règle 2 : anon ne lit QUE paywall_on ─────────────────
+-- ── Compte obligatoire : anon ne lit QUE paywall_on ──────
 set role anon;
 do $$
 declare k text[];
@@ -1137,41 +997,12 @@ begin
   perform set_config('request.jwt.claim.sub', '', false);
   select array_agg(key) into k from public.app_config;
   if k is distinct from array['paywall_on'] then raise 'anon lit : %', k; end if;
-  if (select value from public.app_config where key = 'paywall_on') is distinct from 'false'::jsonb then raise 'anon : paywall_on illisible'; end if;
   if pg_temp.perr($q$ select updated_at from public.app_config $q$) not like 'permission denied%' then raise 'anon lit updated_at'; end if;
   if pg_temp.perr($q$ update public.app_config set value = 'false'::jsonb where key = 'paywall_on' $q$) not like 'permission denied%' then raise 'anon modifie paywall_on'; end if;
-  if pg_temp.perr($q$ insert into public.app_config (key, value) values ('x', '1') $q$) not like 'permission denied%' then raise 'anon insère'; end if;
-  if pg_temp.perr($q$ delete from public.app_config $q$) not like 'permission denied%' then raise 'anon supprime'; end if;
-  if pg_temp.perr($q$ select * from public.store_installs $q$) not like 'permission denied%' then raise 'anon lit store_installs'; end if;
-  if pg_temp.perr($q$ select * from public.store_install_links $q$) not like 'permission denied%' then raise 'anon lit store_install_links'; end if;
-  if pg_temp.perr(format('select public.srv_link_store_install(%L, %L, %L, %L, %L)', pg_temp.pq('a'), 'apple', 'APPTX-X', 'Production', 'com.mdlf.training')) not like 'permission denied%' then raise 'anon lie une installation'; end if;
-  if pg_temp.perr('select public.my_access(''ios'')') not like 'permission denied%' then raise 'anon : my_access'; end if;
+  if pg_temp.perr('select public.my_access()') not like 'permission denied%' then raise 'anon : my_access'; end if;
 end $$;
 reset role;
-update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
-set role anon;
 do $$ begin
-  if (select value from public.app_config where key = 'paywall_on') is distinct from 'true'::jsonb then raise 'anon ne voit pas le verrou allumé'; end if;
-end $$;
-reset role;
-update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
-
--- ── Droits déclarés ──────────────────────────────────────
-do $$ begin
-  if has_function_privilege('authenticated', 'public.srv_link_store_install(uuid, text, text, text, text)', 'execute')
-     or has_function_privilege('anon', 'public.srv_link_store_install(uuid, text, text, text, text)', 'execute')
-     or not has_function_privilege('service_role', 'public.srv_link_store_install(uuid, text, text, text, text)', 'execute')
-     then raise 'droits de srv_link_store_install'; end if;
-  if not has_function_privilege('authenticated', 'public.my_access(text)', 'execute')
-     or has_function_privilege('anon', 'public.my_access(text)', 'execute') then raise 'droits de my_access(text)'; end if;
-  if exists (select 1 from pg_proc where proname = 'my_access' and pronargs = 0) then raise 'ancienne my_access() restée'; end if;
-  if has_function_privilege('authenticated', 'private.access_unproven_days()', 'execute')
-     or has_function_privilege('service_role', 'private.access_unproven_days()', 'execute') then raise 'access_unproven_days exécutable'; end if;
-  if exists (select 1 from pg_policies where tablename in ('store_installs', 'store_install_links')) then raise 'politique RLS inattendue'; end if;
-  if exists (select 1 from pg_class where relname in ('store_installs', 'store_install_links') and not relrowsecurity) then raise 'RLS désactivée'; end if;
-  if has_table_privilege('service_role', 'public.store_installs', 'select') or has_table_privilege('service_role', 'public.store_install_links', 'insert')
-     or has_table_privilege('authenticated', 'public.store_installs', 'select') or has_table_privilege('anon', 'public.store_install_links', 'select')
-     then raise 'GRANT sur les tables des installations'; end if;
   if (select count(*) from pg_policies where tablename = 'app_config' and 'anon' = any(roles)) is distinct from 1
      or not exists (select 1 from pg_policies where tablename = 'app_config' and 'anon' = any(roles) and cmd = 'SELECT' and qual like '%paywall_on%')
      then raise 'politique anon de app_config'; end if;
@@ -1179,48 +1010,5 @@ do $$ begin
      then raise 'anon a trop de droits sur app_config'; end if;
 end $$;
 
--- ── Suppression du compte : le lien part, l'installation reste ──
-do $$
-declare st jsonb;
-begin
-  delete from auth.users where id = pg_temp.pq('a');
-  if exists (select 1 from public.store_install_links where user_id = pg_temp.pq('a')) then raise 'cascade store_install_links'; end if;
-  if exists (select 1 from public.entitlements where user_id = pg_temp.pq('a')) then raise 'cascade entitlements (K)'; end if;
-  if not exists (select 1 from public.store_installs where install_id = 'APPTX-1') then raise 'l''installation est partie avec le compte'; end if;
-  if (select count(*) from public.store_install_links where install_id = 'APPTX-1') is distinct from 1 then raise 'les autres liens de APPTX-1 ont bougé'; end if;
-  insert into auth.users (id) values (pg_temp.pq('a'));
-  set role authenticated;
-  perform pg_temp.pqlogin('a');
-  perform public.my_access('ios');
-  if pg_temp.plink('a', 'APPTX-1') is distinct from 'ok' then raise 'liaison du nouveau compte'; end if;
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'expired' then raise 'compte recréé : essai neuf : %', st; end if;
-  reset role;
-end $$;
-
--- ── Conservation limitée des installations (RGPD) ────────
-do $$
-declare n int;
-begin
-  insert into public.store_installs (store, install_id, environment, first_trial_at) values
-    ('apple', 'PURGE-VIEUX-ORPHELIN', 'Production', now() - interval '25 months'),
-    ('google', 'PURGE-VIEUX-ORPHELIN', 'Production', now() - interval '25 months'),
-    ('apple', 'PURGE-RECENT-ORPHELIN', 'Production', now() - interval '6 months'),
-    ('apple', 'PURGE-VIEUX-LIE', 'Production', now() - interval '30 months');
-  insert into auth.users (id) values ('00000000-0000-0000-0000-00000000a9a9') on conflict do nothing;
-  insert into public.store_install_links (user_id, store, install_id)
-    values ('00000000-0000-0000-0000-00000000a9a9', 'apple', 'PURGE-VIEUX-LIE');
-  n := private.purge_store_installs();
-  if n is distinct from 2 then raise 'purge : % ligne(s) au lieu de 2', n; end if;
-  if exists (select 1 from public.store_installs where install_id = 'PURGE-VIEUX-ORPHELIN') then raise 'orphelin de plus de 2 ans gardé'; end if;
-  if not exists (select 1 from public.store_installs where install_id = 'PURGE-RECENT-ORPHELIN') then raise 'orphelin récent effacé trop tôt'; end if;
-  -- Plus de 2 ans, mais un compte l'utilise encore : gardé
-  if not exists (select 1 from public.store_installs where install_id = 'PURGE-VIEUX-LIE') then raise 'installation encore utilisée effacée'; end if;
-  delete from auth.users where id = '00000000-0000-0000-0000-00000000a9a9';
-  if private.purge_store_installs() is distinct from 1 then raise 'orphelin après suppression du compte non purgé'; end if;
-  if has_function_privilege('authenticated', 'private.purge_store_installs()', 'execute') then raise 'purge appelable par un client'; end if;
-end $$;
-
 -- Nettoyage
-delete from auth.users where id in (select pg_temp.pq(c) from unnest(array['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']) c);
-delete from public.store_installs;
+delete from auth.users where id in (select pg_temp.pq(c) from unnest(array['a', 'b', 'c', 'd', 'e', 'f', 'g']) c);

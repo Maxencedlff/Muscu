@@ -54,7 +54,6 @@ FAKE_ACCOUNT = r"""
   // ── Coquille iOS ──
   window.Capacitor = {
     isNativePlatform: () => true,
-    getPlatform: () => opts.platform || 'ios',
     isPluginAvailable: name => name === 'MdlfAccount',
     registerPlugin: name => {
       if (name === 'MdlfAccount') return {
