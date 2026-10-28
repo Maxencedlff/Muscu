@@ -468,16 +468,17 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
   // ── Règle 2 (28/10) : compte obligatoire seulement quand le verrou est allumé ──
 
   // Sans compte : décision selon le verrou lu sans compte (anon) et la disponibilité des comptes
-  const guest = ({ anon, available = true, ready = true, firstSeenDaysAgo = 0 }) => run(`(() => {
-    const u = account.user, r = account.ready, saved = { ...access }, avail = accountAvailable;
+  const guest = ({ anon, available = true, ready = true, firstSeenDaysAgo = 0, launched = true }) => run(`(() => {
+    const u = account.user, r = account.ready, saved = { ...access }, avail = accountAvailable, launch = accessLaunch.on;
     try {
+      accessLaunch.on = ${launched};
       account.user = null;
       account.ready = ${ready};
       accountAvailable = () => ${available};
       access.anon = ${JSON.stringify(anon)};
       access.firstSeen = Date.now() - ${firstSeenDaysAgo} * 86400000;
       return [canWrite(), accessSignInRequired(), paywallOn()];
-    } finally { account.user = u; account.ready = r; Object.assign(access, saved); accountAvailable = avail; }
+    } finally { account.user = u; account.ready = r; Object.assign(access, saved); accountAvailable = avail; accessLaunch.on = launch; }
   })()`);
 
   test('accès sans compte : verrou éteint ou inconnu, jamais bloqué ; allumé, il faut un compte', () => {
@@ -533,6 +534,13 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(guest({ anon: null, firstSeenDaysAgo: 0 }).slice(0, 2), [true, false], 'premier jour : ouvert');
     sameJSON(guest({ anon: null, firstSeenDaysAgo: 6 }).slice(0, 2), [true, false], '6 jours : ouvert');
     sameJSON(guest({ anon: null, firstSeenDaysAgo: 8 }).slice(0, 2), [false, false], '8 jours sans aucune lecture : fermé, sans parler de compte');
+    // I3 : tant que le verrou n'est pas mis en service (PAYWALL_LAUNCHED faux, livré ainsi), un verrou
+    // jamais lu ne ferme RIEN, même au bout de 400 jours : « verrou éteint = rien ne bloque »
+    assert.equal(run('PAYWALL_LAUNCHED'), false, 'livré avec le verrou mis en service');
+    sameJSON(guest({ anon: null, firstSeenDaysAgo: 8, launched: false }).slice(0, 2), [true, false]);
+    sameJSON(guest({ anon: null, firstSeenDaysAgo: 400, launched: false }).slice(0, 2), [true, false]);
+    // … et lu ALLUMÉ, il faut quand même un compte (la constante ne touche que l'inconnu)
+    sameJSON(guest({ anon: true, launched: false }).slice(0, 2), [false, true]);
     // Lu à faux une fois : jamais bloqué, même longtemps après
     sameJSON(guest({ anon: false, firstSeenDaysAgo: 400 }).slice(0, 2), [true, false]);
     // Horloge reculée : reste ouvert (limite documentée), jamais l'inverse à tort

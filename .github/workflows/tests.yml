@@ -38,6 +38,12 @@ jobs:
       # Postgres local jetable (préinstallé sur ubuntu-latest) : RLS, GRANT et déclencheurs des migrations
       - name: Migrations Supabase (Postgres local, rien d'envoyé au projet)
         run: bash tests/sql/run.sh
+      # Montée de version de production : migrations jusqu'à 20261028, données réalistes, puis la suite
+      - name: Montée de version des migrations (données de production simulées)
+        run: bash tests/sql/upgrade_test.sh
+      # Grâce de fin de séance sous concurrence (6 envois simultanés, 2 acceptés)
+      - name: Grâce de fin de séance en parallèle
+        run: bash tests/sql/grace_race_test.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)

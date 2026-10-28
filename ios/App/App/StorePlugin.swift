@@ -355,8 +355,8 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
         // Vrai si l'utilisateur n'a jamais eu d'offre d'introduction dans le groupe d'abonnement
         let eligible = await subscription.isEligibleForIntroOffer
         out["introEligible"] = eligible
-        // Offre d'introduction d'App Store Connect : l'essai de 3 mois de l'app, lui, est tenu par le
-        // serveur (trial_days), pas par Apple — ce champ reste nil tant qu'aucune offre n'y est créée.
+        // Offre de lancement d'App Store Connect : c'est L'essai gratuit de 3 mois de l'app (modèle B,
+        // docs/PAYANT_V1.md) ; rendue seulement si Apple l'accorde encore à cet identifiant Apple.
         if eligible, let offer = subscription.introductoryOffer {
             let described: [String: Any] = [
                 "displayPrice": offer.displayPrice,

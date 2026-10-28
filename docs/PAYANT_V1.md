@@ -57,8 +57,8 @@ Aucune RPC d'écriture du droit d'accès venant d'Apple : les écritures d'abonn
 
 ## Modèle B : l'essai gratuit est celui d'Apple (28/10/2026)
 - **Ce qui a été retiré** (migration `20261029000000_payant_modele_b.sql`, la migration du 28/10 étant déjà en production) : l'essai maison (`trial_started_at`, `trial_days`, statut `trial`), le rattachement de l'essai à l'identifiant Apple (`verify-app-transaction`, `store_installs`, purge à 2 ans, plafond « sans preuve », plateforme déclarée, `appTransaction()` du Swift et du JS), et l'« Accès offert » d'Apple. Le piège évité : sans ce retrait, un compte aurait eu 3 mois de serveur **puis** 3 mois d'Apple.
-- **Offre de lancement** : l'achat d'un abonnement par quelqu'un qui y a droit commence par 3 mois gratuits, que StoreKit annonce (`introEligible`, `offer`). Côté serveur, c'est un abonnement `active` comme un autre ; la transaction signée porte **`offerType` = 1** (`OfferType.INTRODUCTORY_OFFER` de l'App Store Server Library) et **`offerDiscountType` = `FREE_TRIAL`** (avec `offerPeriod`, par exemple `P3M`). Le serveur retient `intro_offer` (vrai quand `offerType` vaut 1) et expose `intro_until` = la fin de cette période. Au premier renouvellement payé (sans `offerType`), `intro_offer` repasse à faux.
-- **Écran d'abonnement** : chaque formule affiche l'offre lue chez StoreKit, « **3 mois gratuits, puis 41,99 € par an** », ou le prix normal si la personne n'y a plus droit. À côté des boutons, les **mentions de la règle 3.1.2** d'Apple : durée de l'essai, prix et période après l'essai, renouvellement automatique (sauf résiliation au moins 24 h avant la fin de la période), résiliable à tout moment dans les réglages de l'identifiant Apple, puis les liens **Conditions d'utilisation** et **Confidentialité**. Une phrase rappelle qu'un identifiant Apple n'a droit qu'à un seul essai et qu'un même abonnement ne sert qu'à un compte.
+- **Offre de lancement** : l'achat d'un abonnement par quelqu'un qui y a droit commence par 3 mois gratuits, que StoreKit annonce (`introEligible`, `offer`). Côté serveur, c'est un abonnement `active` comme un autre ; la transaction signée porte **`offerType` = 1** (`OfferType.INTRODUCTORY_OFFER` de l'App Store Server Library) et **`offerDiscountType` = `FREE_TRIAL`** (avec `offerPeriod`, par exemple `P3M`). Le serveur retient `intro_offer`, vrai seulement quand `offerType` vaut 1 **et** `offerDiscountType` vaut `FREE_TRIAL` (une offre de lancement payante ne s'affiche jamais comme « Essai gratuit »), et expose `intro_until` = la fin de cette période. Au premier renouvellement payé (sans `offerType`), `intro_offer` repasse à faux.
+- **Écran d'abonnement** (règle 3.1.2(c) d'Apple : l'essai ne doit pas dominer le prix réellement débité) : chaque formule montre **en gros le prix et sa période** (« 41,99 € par an »), et « 3 mois gratuits » en **ligne secondaire** seulement si Apple l'accorde encore. Au-dessus des formules, ce que donne l'abonnement (« tu enregistres de nouvelles séances ; ton historique, tes progrès et l'export restent ouverts »). Le texte du haut dit exactement : « 3 mois gratuits, puis l'abonnement continue sauf si tu l'arrêtes avant la fin de l'essai ». À côté des boutons, les **mentions de la règle 3.1.2** d'Apple : durée de l'essai, prix et période après l'essai, renouvellement automatique (sauf résiliation au moins 24 h avant la fin de la période), résiliable à tout moment dans les réglages de l'identifiant Apple, puis les liens **Conditions d'utilisation** et **Confidentialité**. Une phrase rappelle qu'un identifiant Apple n'a droit qu'à un seul essai et qu'un même abonnement ne sert qu'à un compte.
 - **Réglages › Abonnement** pendant l'essai : « **Essai gratuit jusqu'au <date>, puis <prix>** » (date du serveur, formule lue dans les droits en cours de l'iPhone, prix lu chez StoreKit).
 - Le bandeau « il te reste N jours » de l'essai maison a disparu ; le bandeau de l'accueil ne s'affiche plus que quand l'écriture est refusée.
 
@@ -67,12 +67,14 @@ Aucune RPC d'écriture du droit d'accès venant d'Apple : les écritures d'abonn
 - **Ce que ça ouvre, honnêtement** :
   - Un **compte Sandbox** ne se crée que dans App Store Connect, donc seulement par l'équipe de Maxence, et ne fonctionne que pour les apps de ce compte développeur.
   - Sur un iPhone normal, une app **téléchargée sur l'App Store** achète toujours en **Production** : un utilisateur ne peut pas y payer en Sandbox. Le réglage « Compte Sandbox » n'apparaît que dans **Réglages › Développeur**, donc avec le **mode développeur** activé, après un premier achat dans une app signée pour le développement (documentation StoreKit, vérifiée par Context7 le 28/10).
-  - **TestFlight tourne toujours en Sandbox**, même avec un identifiant Apple ordinaire : un testeur TestFlight « s'abonne » sans payer et obtient un vrai accès sur son compte MDLF. C'est la seule ouverture réelle. Elle reste limitée aux testeurs invités par Maxence ; **ne pas publier de lien TestFlight public** une fois le verrou allumé, ou accepter que ses testeurs aient l'app gratuitement. Les accès Sandbox se retrouvent en SQL : `select user_id from public.entitlement_claims where environment = 'Sandbox';`.
-  - Les abonnements Sandbox et TestFlight durent beaucoup moins longtemps que les vrais (de quelques minutes à un jour par période selon le réglage) et cessent de se renouveler après quelques cycles : l'accès qu'ils donnent tombe donc de lui-même.
+  - **TestFlight tourne toujours en Sandbox**, même avec un identifiant Apple ordinaire : un testeur TestFlight « s'abonne » sans payer et obtient un vrai accès sur son compte MDLF. Un abonnement TestFlight se **renouvelle chaque jour, 6 fois au plus**, puis s'arrête ; mais le testeur peut **se réabonner gratuitement** autant de fois qu'il veut. **Conséquence : tout testeur TestFlight a l'app gratuite.** C'est l'ouverture réelle, et elle est acceptée parce que le Sandbox est indispensable à l'examen d'Apple.
+  - **Règle : jamais de lien TestFlight public une fois le verrou allumé.** Les testeurs restent des personnes invitées par Maxence.
+  - Requête d'administration (lecture seule) qui liste les accès Sandbox :
+    `select c.user_id, p.username, c.product_id, c.expires_at, c.revoked_at, c.updated_at from public.entitlement_claims c left join public.user_profiles p using (user_id) where c.environment = 'Sandbox' order by c.updated_at desc;`
 
 ## Élèves de coach (28/10/2026)
 - **Bogue corrigé** : l'accès gratuit d'un élève exige maintenant que son coach ait **encore** le rôle (`user_profiles.coach_at` non nul). Avant, retirer le rôle à un coach laissait ses élèves gratuits pour toujours.
-- **Au plus 10 élèves gratuits par coach**, les plus anciens liens d'abord (`coach_links.created_at`). Au-delà, l'élève reste suivi (le coach voit ses séances, envoie des programmes) mais il lui faut son propre abonnement ou un code. Si un ancien élève part, le suivant entre dans les 10.
+- **Au plus 10 élèves gratuits par coach**, les plus anciens liens d'abord (`coach_links.created_at`), en ne classant que les élèves **sans droit payé propre** (`private.access_own_paid` : abonnement en cours, cadeau maison en jours ou à vie) : un élève abonné n'occupe pas une place gratuite. Au-delà, l'élève reste suivi (le coach voit ses séances, envoie des programmes) mais il lui faut son propre abonnement ou un code. Si un ancien élève part, ou s'abonne, le suivant entre dans les 10.
 - Plafond par coach, relevé à la main par l'administrateur :
   `insert into private.coach_free_limits (coach_id, max_free) values ('<uuid>', 25) on conflict (coach_id) do update set max_free = excluded.max_free, updated_at = now();`
 - Côté élève, Réglages › Abonnement dit : « **Accès offert par ton coach tant qu'il te suit** ». Voir aussi `docs/COACH_V1.md`.
@@ -84,7 +86,7 @@ Aucune RPC d'écriture du droit d'accès venant d'Apple : les écritures d'abonn
   - le statut est `expired` et la fin de l'accès (`until`) est connue ;
   - on est **au plus 24 h après cette fin, à l'heure du serveur** (salle sans réseau, envoi le lendemain) ;
   - la séance a **commencé avant la fin et au plus 12 h avant** (début = `data.date - data.duration`, l'app enregistre `date` = fin de séance) ;
-  - **2 séances au plus** par fin d'accès (journal `private.social_rate`, action `session_grace`).
+  - **2 séances au plus** par fin d'accès (journal `private.social_rate`, action `session_grace`), comptées sous **verrou consultatif** (`pg_advisory_xact_lock(hashtextextended('session_grace:' || user_id, 0))`) : 6 envois simultanés n'en font passer que 2 (`tests/sql/grace_race_test.sh`). Seules les **vraies nouvelles lignes** sont comptées : une séance de grâce renvoyée (réessai réseau, correction) ne consomme rien.
 - **Pourquoi l'antidatage ne sert à rien** : la fenêtre se ferme 24 h après la fin à l'heure du **serveur**, quelle que soit la date déclarée, et ne laisse passer que 2 séances. Sans date de fin connue (jamais abonné, élève dont le coach n'a plus le rôle) : aucune grâce. Une séance refusée quand même reste sur l'iPhone, rien n'est perdu.
 
 ## Compte obligatoire quand le verrou est allumé (28/10/2026)
@@ -92,7 +94,7 @@ Aucune RPC d'écriture du droit d'accès venant d'Apple : les écritures d'abonn
 - **Verrou éteint ou lu à faux** : **rien ne change**, rien ne bloque.
 - **Historique, Progrès et export** restent toujours ouverts.
 - **Lire le verrou sans compte** : la seule ligne `paywall_on` de `app_config` est lisible par `anon`. L'app la garde sur l'appareil (`mdlf_paywall_anon`). Sans compte, aucune séance n'atteint le serveur, dont le verrou dur (`sessions_paywall`) reste la vraie garde.
-- **Valeur jamais lue** : ouverte seulement **7 jours après la première ouverture de l'app** (date gardée dans le **Trousseau**, `mdlf_first_seen`, elle survit à une réinstallation) ; ensuite une lecture réussie est nécessaire, et l'app le dit (« Connexion à Internet nécessaire »). Un verrou lu à faux une fois ne bloque jamais. Restent ouverts (documentés) : reculer l'horloge de l'iPhone, ou lire le verrou à faux une fois puis bloquer le serveur pour toujours (l'app perd alors toute synchronisation).
+- **Valeur jamais lue** : tant que le verrou n'est **pas mis en service** (constante `PAYWALL_LAUNCHED` de `js/data/access.js`, livrée à `false`), un verrou jamais lu ne ferme **rien**, jamais (« éteint = rien ne bloque »). Une fois mis en service : ouverte seulement **7 jours après la première ouverture de l'app** (date gardée dans le **Trousseau**, `mdlf_first_seen`, elle survit à une réinstallation) ; ensuite une lecture réussie est nécessaire, et l'app le dit (« Connexion à Internet nécessaire »). Un verrou lu à faux une fois ne bloque jamais. Restent ouverts (documentés) : reculer l'horloge de l'iPhone, ou lire le verrou à faux une fois puis bloquer le serveur pour toujours (l'app perd alors toute synchronisation).
 - `accessSignInRequired()` exige `account.ready` : au démarrage à froid, un compte connecté ne voit jamais l'écran de connexion.
 
 ### Note pour l'équipe d'examen d'Apple (règle 5.1.1(v)), prête à coller
@@ -128,7 +130,7 @@ Fabriqués par Maxence en SQL, utilisés **dans l'app** (Réglages › Abonnemen
 - **Erreurs levées** (message exact, errcode `P0001`) : `not_found`, `transaction_taken`, `unknown_product`, `invalid_transaction`, `rate_limited`, `paywall_locked`, et `invalid_kind` pour l'administrateur qui se trompe de `kind` dans `make_gift_code`.
 - **Débit** : 120 appels de `srv_access_purchase` par compte et par 24 h, 10 essais de code cadeau par heure.
 - **Partage familial refusé** (`not_purchased`) : il n'est pas activé sur ces produits.
-- **Verrou dur côté serveur** : un déclencheur `before insert on public.sessions` refuse l'enregistrement d'une séance **nouvelle** avec l'erreur P0001 `paywall_locked` quand le verrou est allumé et `can_write` faux, sauf grâce de fin de séance. Les **mises à jour** et les **suppressions** restent permises. Côté app (`syncNow`, js/data/account.js) ce refus n'est ni une panne ni un problème de réseau : la séance reste sur l'iPhone, elle n'est **jamais marquée envoyée**, le lot est coupé en deux pour isoler les refusées, le **profil et les programmes partent quand même**. L'accueil le dit et mène à l'abonnement ; dès que le droit revient, ce qui était gardé repart tout seul.
+- **Verrou dur côté serveur** : un déclencheur `before insert on public.sessions` refuse l'enregistrement d'une séance **nouvelle** avec l'erreur P0001 `paywall_locked` quand le verrou est allumé et `can_write` faux, sauf grâce de fin de séance. Les **mises à jour** et les **suppressions** restent permises, **y compris par `upsert`** (`insert … on conflict`, ce que fait l'app pour corriger et mettre à la corbeille) : une ligne `(user_id, id)` déjà présente passe toujours (relecture du 28/10). Côté app (`syncNow`, js/data/account.js) ce refus n'est ni une panne ni un problème de réseau : la séance reste sur l'iPhone, elle n'est **jamais marquée envoyée**, le lot est coupé en deux pour isoler les refusées, le **profil et les programmes partent quand même**. L'accueil le dit et mène à l'abonnement ; dès que le droit revient, ce qui était gardé repart tout seul.
 - **Pas de contrôle de révocation des certificats** (OCSP, CRL) : la révocation d'une **transaction**, elle, est vue (relecture chez Apple, notifications `REFUND` et `REVOKE`).
 - **Fonctions du serveur** (clé serveur seulement) : `srv_access_purchase(p_user, p_product, p_expires, p_original_tx, p_revoked, p_event_at, p_intro, p_environment)` et `srv_access_event(p_original_tx, p_product, p_expires, p_revoked, p_event_at, p_force, p_uuid, p_account_token, p_intro, p_environment)`.
 ## Réouverture après un remboursement
@@ -159,13 +161,26 @@ Fabriqués par Maxence en SQL, utilisés **dans l'app** (Réglages › Abonnemen
 
 Hors app iOS (web) : aucun achat possible, l'écran invite à utiliser l'app.
 
+## Ordre de déploiement (relecture du 28/10)
+Toujours dans cet ordre, une étape seulement quand la précédente est en place :
+1. **Contrôle avant la migration**, en lecture seule, sur la production : `select status, count(*) from public.entitlements group by 1;` (les lignes `trial` deviennent `none`, les anciens « Accès offert » perdent leur accès à vie ; rien d'autre ne doit surprendre). `tests/sql/upgrade_test.sh` rejoue cette montée de version sur des données réalistes.
+2. **Migration** `20261029000000_payant_modele_b.sql`.
+3. **Fonctions Edge** `verify-purchase` et `appstore-notify`. Elles envoient `p_intro` et `p_environment` : déployées AVANT la migration, la base ne connaîtrait pas ces paramètres et refuserait chaque achat et chaque notification.
+4. **Mise à jour à chaud (OTA)** du contenu web. Elle lit `paywall_on` sans compte (lecture `anon`, posée par la migration) et ne connaît plus le statut `trial` : publiée avant la migration, elle ne pourrait pas lire le verrou sans compte.
+5. **Build** de l'app (Swift sans `appTransaction()` ni « Accès offert »).
+
+**Allumer le verrou**, plus tard, après validation de Maxence :
+- publier une mise à jour à chaud avec **`PAYWALL_LAUNCHED = true`** dans `js/data/access.js` (sans elle, un verrou jamais lu ne ferme jamais rien) ;
+- puis `update public.app_config set value = 'true'::jsonb, updated_at = now() where key = 'paywall_on';`
+- et ne plus publier de lien TestFlight public (voir « Sandbox accepté »).
+
 ## Ce qui reste à faire par Maxence (ne peut pas être fait par l'API)
 1. Signer le contrat **Paid Apps** sur App Store Connect.
 2. Vérifier le statut micro-entreprise pour la vente d'applications.
 3. Configurer l'**offre de lancement** « 3 mois gratuits » sur les deux abonnements, et supprimer le produit « Accès offert » (`com.mdlf.training.access.gift`).
 4. Créer un **testeur Sandbox** pour l'essai d'achat réel.
 5. Fournir l'**URL de notification** à App Store Connect et la clé d'API **In-App Purchase**.
-6. Appliquer `20261029000000_payant_modele_b.sql`, redéployer `verify-purchase` (sa ligne `verify_jwt = false` est dans `supabase/config.toml`) et `appstore-notify` (avec `--no-verify-jwt`).
+6. Suivre l'**ordre de déploiement** ci-dessus : contrôle, migration, `verify-purchase` (sa ligne `verify_jwt = false` est dans `supabase/config.toml`) et `appstore-notify` (avec `--no-verify-jwt`), mise à jour à chaud, build.
 7. Poser les secrets des Edge Functions : `APPLE_IAP_KEY_ID`, `APPLE_IAP_PRIVATE_KEY`, `APPLE_ISSUER_ID`. `APPLE_ALLOW_SANDBOX` n'existe plus (le Sandbox est toujours accepté) : le retirer s'il avait été posé.
 8. Trancher la règle 5.1.1(v) (note ci-dessus), et le lien TestFlight public (voir « Sandbox accepté »).
 9. Fabriquer ses premiers codes cadeaux : `select private.make_gift_code('days', 90, 10, 'Beta');`

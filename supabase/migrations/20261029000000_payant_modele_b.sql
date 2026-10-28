@@ -15,13 +15,16 @@
 --     offerType = 1 (INTRODUCTORY_OFFER) chez Apple (App Store Server Library : OfferType,
 --     OfferDiscountType FREE_TRIAL ; la fonction Edge le passe en p_intro).
 --  2. « ACCÈS OFFERT » D'APPLE SUPPRIMÉ (com.mdlf.training.access.gift) : produit inconnu, refusé
---     (unknown_product). Les codes cadeaux MAISON restent (gift, gift_until, redeem_gift_code).
+--     (unknown_product), ses transactions effacées et l'instantané de leurs comptes recalculé (sinon
+--     gift resterait vrai : accès à vie). Les codes cadeaux MAISON restent (gift, gift_until,
+--     redeem_gift_code).
 --  3. SANDBOX ACCEPTÉ, environnement enregistré (entitlement_claims.environment). L'équipe d'examen
 --     d'Apple achète en Sandbox sur la version de production : le refuser, c'est un refus quasi
 --     certain. Ce que ça ouvre est dans le contrat (TestFlight tourne toujours en Sandbox).
 --  4. ÉLÈVES DE COACH, LIMITÉS : un élève n'a l'accès gratuit que si son coach a ENCORE le rôle
 --     (user_profiles.coach_at non nul : avant, retirer le rôle laissait ses élèves gratuits pour
---     toujours) et s'il est parmi les 10 plus anciens liens de ce coach. Au-delà, l'élève reste suivi
+--     toujours) et s'il est parmi les 10 plus anciens liens de ce coach, en ne comptant que les élèves
+--     sans droit payé propre (un élève abonné ne prend pas de place). Au-delà, l'élève reste suivi
 --     mais il lui faut son propre abonnement ou un code. Plafond par coach dans
 --     private.coach_free_limits (défaut 10), relevé à la main :
 --       insert into private.coach_free_limits (coach_id, max_free) values ('<uuid>', 25)
@@ -33,7 +36,10 @@
 --       salle sans réseau et un envoi le lendemain ;
 --     - la séance doit avoir COMMENCÉ avant la fin de l'accès et au plus 12 h avant
 --       (début = data.date - data.duration, l'app enregistre date = fin de séance) ;
---     - 2 séances au plus par fin d'accès (journal private.social_rate, action 'session_grace').
+--     - 2 séances au plus par fin d'accès (journal private.social_rate, action 'session_grace'), compté
+--       sous verrou consultatif (envois en parallèle) et seulement pour les VRAIES nouvelles lignes ;
+--     - une ligne (user_id, id) déjà présente (correction, mise à la corbeille par upsert) passe
+--       toujours, verrou allumé ou non : seules les séances nouvelles sont refusées.
 --     Antidater ne permet donc pas de continuer à écrire : la fenêtre se ferme 24 h après la fin à
 --     l'heure du serveur, quelle que soit la date déclarée, et ne laisse passer que 2 séances.
 --     Sans date de fin (jamais abonné, élève dont le coach n'a plus le rôle) : pas de grâce.
@@ -52,8 +58,10 @@ grant select (key, value) on public.app_config to anon;
 -- ── 1. L'essai maison disparaît ──────────────────────────
 
 delete from public.app_config where key = 'trial_days';
-update public.entitlements set status = 'none' where status = 'trial';
+-- Ordre imposé (relecture du 28/10) : l'ancienne contrainte refuse 'none', elle part AVANT la mise à
+-- jour des lignes 'trial', puis la nouvelle est posée. tests/sql/upgrade_test.sh le vérifie.
 alter table public.entitlements drop constraint entitlements_status_check;
+update public.entitlements set status = 'none' where status = 'trial';
 alter table public.entitlements add constraint entitlements_status_check
   check (status in ('none', 'active', 'expired', 'gift', 'coach_team'));
 alter table public.entitlements alter column status set default 'none';
@@ -61,6 +69,11 @@ alter table public.entitlements drop column trial_started_at;
 
 -- ── 2. « Accès offert » d'Apple supprimé ─────────────────
 
+-- Les comptes qui avaient un « Accès offert » sont notés AVANT la suppression : leur instantané
+-- (entitlements.gift, statut) est recalculé à la fin de ce fichier, une fois access_refresh remplacée.
+-- Sans cela, un ancien détenteur garderait gift = true, donc un accès à vie.
+create temporary table modele_b_gift_users as
+  select distinct user_id from public.entitlement_claims where kind = 'gift';
 delete from public.entitlement_claims where kind = 'gift';
 alter table public.entitlement_claims drop constraint entitlement_claims_kind_check;
 alter table public.entitlement_claims add constraint entitlement_claims_kind_check check (kind = 'sub');
@@ -90,7 +103,17 @@ create table private.coach_free_limits (
 );
 revoke all on private.coach_free_limits from public, anon, authenticated, service_role;
 
+-- Droit payé PROPRE (abonnement en cours, cadeau maison en jours ou à vie) : un tel élève n'occupe
+-- pas l'une des places gratuites de son coach (relecture du 28/10)
+create function private.access_own_paid(uid uuid) returns boolean
+  language sql stable security definer set search_path = '' as
+$$
+  select exists (select 1 from public.entitlements e
+                  where e.user_id = uid and (e.gift or coalesce(e.expires_at > now(), false)))
+$$;
+
 -- Élève gratuit : suivi par un coach qui a ENCORE le rôle, et parmi ses max_free plus anciens liens
+-- d'élèves SANS droit payé propre (les élèves abonnés ne prennent pas de place)
 create function private.access_coach_free(uid uuid) returns boolean
   language sql stable security definer set search_path = '' as
 $$
@@ -101,7 +124,8 @@ $$
      where l.student_id = uid
        and (select count(*) from public.coach_links o
              where o.coach_id = l.coach_id
-               and (o.created_at, o.student_id) < (l.created_at, l.student_id))
+               and (o.created_at, o.student_id) < (l.created_at, l.student_id)
+               and not private.access_own_paid(o.student_id))
            < coalesce((select f.max_free from private.coach_free_limits f where f.coach_id = l.coach_id), 10))
 $$;
 
@@ -438,6 +462,12 @@ begin
   if not private.access_paywall_on() then
     return new;
   end if;
+  -- L'app corrige et met à la corbeille par upsert (insert … on conflict) : le déclencheur BEFORE
+  -- INSERT voit donc aussi ces écritures. Une ligne (user_id, id) déjà là n'est pas une séance
+  -- nouvelle : elle passe toujours, et ne consomme jamais de grâce (relecture du 28/10).
+  if exists (select 1 from public.sessions s where s.user_id = new.user_id and s.id = new.id) then
+    return new;
+  end if;
   insert into public.entitlements (user_id, status) values (new.user_id, 'none') on conflict (user_id) do nothing;
   st := private.access_json(new.user_id);
   if (st ->> 'can_write')::boolean then
@@ -450,6 +480,8 @@ begin
     dur_ms  := case when jsonb_typeof(new.data -> 'duration') = 'number' then greatest((new.data ->> 'duration')::numeric, 0) else 0 end;
     if done_ms is not null and done_ms - dur_ms between 0 and 1e14 then
       began := to_timestamp((done_ms - dur_ms) / 1000);
+      -- Plusieurs envois en parallèle : un seul compte à la fois, sinon tous verraient « moins de 2 »
+      perform pg_advisory_xact_lock(hashtextextended('session_grace:' || new.user_id::text, 0));
       if began <= ended and began >= ended - interval '12 hours'
          and (select count(*) from private.social_rate r
                where r.user_id = new.user_id and r.action = 'session_grace' and r.at > ended) < 2 then
@@ -465,6 +497,7 @@ $$;
 -- ── Droits des fonctions ─────────────────────────────────
 
 revoke all on function private.access_coach_free(uuid) from public, anon, authenticated, service_role;
+revoke all on function private.access_own_paid(uuid) from public, anon, authenticated, service_role;
 revoke all on function private.access_product_kind(text) from public, anon, authenticated, service_role;
 revoke all on function private.access_json(uuid) from public, anon, authenticated, service_role;
 revoke all on function private.access_refresh(uuid) from public, anon, authenticated, service_role;
@@ -481,6 +514,17 @@ revoke all on function public.srv_access_event(text, text, timestamptz, boolean,
   from public, anon, authenticated, service_role;
 grant execute on function public.srv_access_purchase(uuid, text, timestamptz, text, boolean, timestamptz, boolean, text) to service_role;
 grant execute on function public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text) to service_role;
+
+-- ── Recalcul des anciens détenteurs de l'« Accès offert » (point 2) ──
+do $refresh$
+declare u uuid;
+begin
+  for u in select g.user_id from modele_b_gift_users g loop
+    perform private.access_refresh(u);
+  end loop;
+end
+$refresh$;
+drop table modele_b_gift_users;
 
 -- Administration :
 --   select user_id, status, product_id, expires_at from public.entitlements order by updated_at desc;

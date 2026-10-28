@@ -26,7 +26,8 @@
 //    seule ligne `paywall_on` de `app_config` (lisible par anon, rien d'autre) ; allumé, démarrer ou
 //    enregistrer une séance invite à se connecter (accessGate, js/features/paywall-ui.js). Verrou
 //    éteint ou lu à faux, comptes indisponibles : rien ne bloque. Valeur INCONNUE (jamais lue sur
-//    cette installation) : ouverte 7 jours après la première ouverture de l'app, date gardée dans le
+//    cette installation), une fois le verrou mis en service (PAYWALL_LAUNCHED) : ouverte 7 jours après
+//    la première ouverture de l'app, date gardée dans le
 //    Trousseau (elle survit à une réinstallation) ; ensuite une lecture réussie est nécessaire. Sans
 //    cette borne, réinstaller l'app et bloquer le serveur suffirait à tout garder ouvert pour toujours.
 //  - Résultats : { ok: true, data } ou { ok: false, kind }. L'écran s'abonne par onAccessChange.
@@ -38,6 +39,12 @@ const ACCESS_ANON_KEY    = 'mdlf_paywall_anon'; // { on, at } : verrou lu sans c
 const ACCESS_ANON_MS     = 10 * 60_000;       // sans compte : une relecture du verrou toutes les 10 min au plus
 const ACCESS_UNKNOWN_MS  = 7 * 86400_000;     // sans compte : verrou jamais lu, ouvert 7 jours après la 1re ouverture
 const ACCESS_FIRST_KEY   = 'mdlf_first_seen'; // première ouverture (ms), Trousseau puis localStorage
+// Verrou mis en service (relecture du 28/10) : tant que c'est faux, un verrou JAMAIS lu ne ferme rien,
+// même après 7 jours (« verrou éteint = rien ne bloque »). À passer à vrai dans la mise à jour à chaud
+// qui accompagne l'allumage du verrou (docs/PAYANT_V1.md, « Ordre de déploiement »).
+const PAYWALL_LAUNCHED   = false;
+// Copie lue par accessUnknownExpired (les tests la basculent pour simuler le verrou mis en service)
+const accessLaunch = { on: PAYWALL_LAUNCHED };
 const ACCESS_CACHE_MS    = 7 * 86400_000;     // hors ligne : validité du dernier état lu
 const ACCESS_SKEW_MS     = 5 * 60_000;        // tolérance d'horloge (l'appareil peut être un peu en retard)
 const ACCESS_GRACE_MS    = 2 * 86400_000;     // abonné hors ligne : marge après la date de fin du serveur
@@ -143,11 +150,11 @@ function accessSignInRequired() {
   return !account.user && account.ready && accountAvailable() && access.anon === true;
 }
 
-// Verrou jamais lu sur cette installation, et plus de 7 jours depuis la première ouverture : une
-// lecture réussie est nécessaire (hors ligne depuis toujours, ou serveur bloqué exprès). Lu à faux une
+// Verrou mis en service (PAYWALL_LAUNCHED), jamais lu sur cette installation, et plus de 7 jours
+// depuis la première ouverture : une lecture réussie est nécessaire (hors ligne depuis toujours, ou serveur bloqué exprès). Lu à faux une
 // fois, jamais bloqué. Horloge de l'appareil reculée : reste ouvert (limite documentée).
 function accessUnknownExpired() {
-  return !account.user && account.ready && accountAvailable() && access.anon === null
+  return accessLaunch.on && !account.user && account.ready && accountAvailable() && access.anon === null
     && access.firstSeen !== null && Date.now() - access.firstSeen > ACCESS_UNKNOWN_MS;
 }
 
@@ -193,7 +200,7 @@ function accessIntroUntil() {
   return st && !st.stale && st.intro_offer ? st.intro_until : null;
 }
 
-// Date de fin donnée par le serveur (fin d'essai ou fin d'abonnement), ou null
+// Date de fin donnée par le serveur (fin de l'abonnement, essai d'Apple compris, ou du cadeau), ou null
 function accessUntil() {
   const st = accessKnown();
   return st && !st.stale ? st.until : null;
@@ -273,8 +280,8 @@ async function accessRpc(fn, args) {
   }
 }
 
-// Relit le droit d'accès. `my_access()` tant qu'aucun état n'est connu pour ce compte (c'est lui qui
-// démarre l'essai, à l'heure du serveur), `access_state()` ensuite (lecture seule, ne crée rien).
+// Relit le droit d'accès. `my_access()` tant qu'aucun état n'est connu pour ce compte (il crée la ligne
+// du compte, sans rien donner), `access_state()` ensuite (lecture seule, ne crée rien).
 // Renvoie true si l'état a pu être lu. Demandée pendant une lecture en cours : relancée à la fin.
 async function accessRefresh({ minAge = 0, fn = null } = {}) {
   if (!sb || !account.user) return false;
@@ -291,8 +298,8 @@ async function accessRefresh({ minAge = 0, fn = null } = {}) {
   if (!st) {
     access.error = r.ok ? 'server' : r.kind;
     access.loading = false;
-    // access_state() ne crée rien : un compte dont la ligne n'existe pas encore (essai jamais
-    // démarré, ligne effacée) est rattrapé une fois par my_access()
+    // access_state() ne crée rien : un compte dont la ligne n'existe pas encore (jamais lue, ligne
+    // effacée) est rattrapé une fois par my_access()
     if (r.ok && call !== 'my_access') return accessRefresh({ fn: 'my_access' });
     notifyAccess();
     if (access.again) { access.again = false; return accessRefresh(); }
@@ -360,7 +367,7 @@ async function accessEnsure() {
 // ── Sans compte : le verrou (règle 2) ───────────────────────
 
 // Lit la seule ligne paywall_on de app_config, lisible sans compte (politique RLS de
-// 20261029000000_payant_apple.sql). Gardée sur l'appareil : hors ligne, la dernière valeur lue vaut.
+// 20261029000000_payant_modele_b.sql). Gardée sur l'appareil : hors ligne, la dernière valeur lue vaut.
 // Une erreur ne change rien (la dernière valeur, ou rien de bloqué si jamais lue).
 async function accessAnonRefresh({ minAge = 0 } = {}) {
   if (!sb || account.user || !accountAvailable() || access.anonLoading) return access.anon;

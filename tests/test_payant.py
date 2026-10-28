@@ -176,8 +176,17 @@ def t_essai(bench, eng, dev, theme):
         page.wait_for_selector('.pay-plan')
         page.wait_for_timeout(400)
         txt = page.inner_text('.pay-view')
-        R.check('3 mois gratuits, puis 77,77 € par an' in txt and '3 mois gratuits, puis 7,77 € par mois' in txt,
-                f'{t} formules : essai et prix lus chez StoreKit ({txt[:220]!r})')
+        R.check('77,77 € par an' in txt and '7,77 € par mois' in txt and txt.count('3 mois gratuits') >= 2,
+                f'{t} formules : prix et essai lus chez StoreKit ({txt[:220]!r})')
+        # Règle 3.1.2(c) : le prix débité domine, l'essai est secondaire ; le texte du haut dit que
+        # l'abonnement continue tout seul ; ce que donne l'abonnement est dit
+        sizes = page.evaluate("""() => { const b = document.querySelector('.pay-plan');
+            const px = s => parseFloat(getComputedStyle(b.querySelector(s)).fontSize);
+            return [px('.pay-plan__price'), px('.pay-plan__trial')]; }""")
+        R.check(sizes[0] > sizes[1], f'{t} formule : prix en gros, essai en ligne secondaire {sizes}')
+        R.check('3 mois gratuits, puis l\'abonnement continue sauf si tu l\'arrêtes avant la fin de l\'essai' in txt
+                and 'choisis de continuer' not in txt, f'{t} texte du haut exact')
+        R.check('tu enregistres de nouvelles séances' in txt and 'l\'export restent ouverts' in txt, f'{t} ce que donne l\'abonnement')
         R.check('Essai gratuit de 3 mois, puis 7,77 € par mois ou 77,77 € par an' in txt
                 and 'renouvelle automatiquement' in txt and 'résilier à tout moment' in txt
                 and 'Conditions d\'utilisation' in txt and 'Confidentialité' in txt,
@@ -678,8 +687,13 @@ def t_compte_obligatoire(bench, eng, dev, theme):
         shot(page, LOT, f'18-compte-obligatoire-{t}')
         page.click('.auth [data-action="auth-close"]')
         page.wait_for_timeout(400)
-        # Verrou jamais lu (serveur injoignable) depuis plus de 7 jours : une lecture est demandée, pas un compte
+        # Verrou jamais lu (serveur injoignable) depuis plus de 7 jours, mais pas encore mis en service
+        # (PAYWALL_LAUNCHED faux, livré ainsi) : rien ne bloque
         page.evaluate("__st.fail.config = 'offline'; access.anon = null; access.firstSeen = Date.now() - 8 * 86400000")
+        R.check(page.evaluate('PAYWALL_LAUNCHED') is False and page.evaluate('canWrite()') is True,
+                f'{t} verrou jamais lu, pas mis en service : rien ne bloque')
+        # Mis en service (mise à jour à chaud de l'allumage) : une lecture est demandée, pas un compte
+        page.evaluate("accessLaunch.on = true")
         start_session(page)
         page.wait_for_timeout(300)
         dlg = page.inner_text('.ios-dialog') if page.locator('.ios-dialog').count() else ''
@@ -687,7 +701,7 @@ def t_compte_obligatoire(bench, eng, dev, theme):
                 f'{t} verrou jamais lu depuis 8 jours : lecture demandée ({dlg[:80]!r})')
         shot(page, LOT, f'20-verrou-jamais-lu-{t}')
         tap_dialog(page, 'OK')
-        page.evaluate("__st.fail.config = null; access.firstSeen = Date.now()")
+        page.evaluate("__st.fail.config = null; access.firstSeen = Date.now(); accessLaunch.on = PAYWALL_LAUNCHED")
         refreshed = page.evaluate('accessAnonRefresh()')
         R.check(refreshed is True, f'{t} réseau revenu : verrou relu')
         # Séance passée : même invitation, rien n'est enregistré
@@ -721,7 +735,7 @@ def t_compte_obligatoire(bench, eng, dev, theme):
         R.check(page.evaluate("currentView()") == 'stats', f'{t} sans compte : Progrès ouvert')
         exported = page.evaluate("async () => { const ok = await exportData('dark'); return [ok, currentView(), !!document.querySelector('.auth')]; }")
         R.check(exported[0] is not False and exported[2] is False, f'{t} sans compte : export possible {exported}')
-        # Connexion : l'essai démarre, et la séance peut être démarrée
+        # Connexion : pas d'essai maison ; avec l'essai d'Apple pris, la séance peut être démarrée
         signin(page, username='max')
         page.wait_for_timeout(400)
         R.check(page.evaluate('accessStatus()') == 'none' and page.evaluate('canWrite()') is False, f'{t} connecté : pas d\'essai maison')
@@ -783,6 +797,11 @@ def t_grace(bench, eng, dev, theme):
         open_app(page, theme, ppl_v2_today_json())
         signin(page, username='max')
         subscribed(page, 30)
+        # Les séances de l'iPhone refusées avant l'abonnement repartent d'abord : on attend qu'elles
+        # soient sur le compte, sinon elles seraient refusées à nouveau à la fin de l'accès
+        page.evaluate('syncNow()')
+        page.wait_for_function('accountLockedCount() === 0', timeout=10000)
+        page.wait_for_timeout(300)
         page.evaluate("switchTab('train')")
         page.wait_for_timeout(300)
         start_session(page)

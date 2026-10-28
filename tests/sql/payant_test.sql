@@ -918,11 +918,19 @@ begin
   if public.my_access() ->> 'status' is distinct from 'active' then raise '11e élève abonné'; end if;
   reset role;
   if not exists (select 1 from public.coach_links where student_id = pg_temp.pq('c')) then raise 'le 11e n''est plus suivi'; end if;
-  -- Un ancien élève part : le 11e entre dans les 10, le 12e non
+  -- 10 anciens élèves sans abonnement occupent les 10 places : le 12e (D) n'en a pas
+  if private.access_coach_free(pg_temp.pq('d')) then raise '12e gratuit avec 10 places prises'; end if;
+  -- Un ancien élève part : M4, le 11e (C) est abonné et ne prend PAS de place, donc c'est le 12e qui entre
   delete from public.coach_links where student_id = '00000000-0000-0000-0000-000000000720';
-  if not private.access_coach_free(pg_temp.pq('c')) or private.access_coach_free(pg_temp.pq('d')) then raise 'rang après un départ'; end if;
-  -- Plafond relevé à la main pour ce coach
-  insert into private.coach_free_limits (coach_id, max_free) values (pg_temp.pq('b'), 11);
+  if not private.access_coach_free(pg_temp.pq('d')) then raise 'un élève abonné occupe encore une place gratuite'; end if;
+  -- L'abonnement du 11e se termine : il reprend sa place (lien plus ancien), le 12e en sort
+  update public.entitlement_claims set expires_at = now() - interval '1 minute' where original_transaction_id = 'tx-qc';
+  perform private.access_refresh(pg_temp.pq('c'));
+  if not private.access_coach_free(pg_temp.pq('c')) or private.access_coach_free(pg_temp.pq('d')) then raise 'rang après la fin de l''abonnement du 11e'; end if;
+  -- Plafond baissé puis relevé à la main pour ce coach
+  insert into private.coach_free_limits (coach_id, max_free) values (pg_temp.pq('b'), 9);
+  if private.access_coach_free(pg_temp.pq('c')) then raise 'plafond baissé non appliqué'; end if;
+  update private.coach_free_limits set max_free = 11 where coach_id = pg_temp.pq('b');
   if not private.access_coach_free(pg_temp.pq('d')) then raise 'plafond relevé non appliqué'; end if;
   update private.coach_free_limits set max_free = 0 where coach_id = pg_temp.pq('b');
   if private.access_coach_free('00000000-0000-0000-0000-000000000721') then raise 'plafond à 0 non appliqué'; end if;
@@ -952,6 +960,14 @@ begin
   ended := (public.my_access() ->> 'until')::timestamptz;
   -- Séance commencée 30 min avant la fin, terminée maintenant : enregistrée
   if pg_temp.psess('e-1', ended - interval '30 minutes', now()) is distinct from 'ok' then raise 'séance commencée avec le droit refusée'; end if;
+  -- I2 : la même séance renvoyée (réessai réseau, correction, par upsert comme l'app) passe et ne
+  -- consomme PAS la seconde grâce
+  if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data) values (%L, 'e-1', '{"date": 1, "duration": 0, "note": "renvoyée"}')
+       on conflict (user_id, id) do update set data = excluded.data $q$, pg_temp.pq('e'))) is distinct from 'ok' then raise 'renvoi d''une séance de grâce refusé'; end if;
+  reset role;
+  if (select count(*) from private.social_rate where user_id = pg_temp.pq('e') and action = 'session_grace') is distinct from 1 then raise 'un renvoi a consommé une grâce'; end if;
+  set role authenticated;
+  perform pg_temp.pqlogin('e');
   -- Commencée APRÈS la fin : refusée
   if pg_temp.psess('e-2', ended + interval '10 minutes', now()) is distinct from 'paywall_locked' then raise 'séance commencée sans droit acceptée'; end if;
   -- Antidatée (commencée 2 jours avant la fin, plus de 12 h) : refusée
@@ -972,6 +988,21 @@ begin
   set role authenticated;
   ended := (public.my_access() ->> 'until')::timestamptz;
   if pg_temp.psess('e-8', ended - interval '30 minutes', ended + interval '10 minutes') is distinct from 'paywall_locked' then raise 'grâce au-delà de 24 h'; end if;
+  -- I1 : verrou allumé, sans droit, hors grâce : l'app corrige et met à la corbeille par upsert
+  -- (insert … on conflict) ; une ligne déjà là n'est pas une séance nouvelle, elle passe
+  if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data) values (%L, 'e-6', '{"date": 1, "notes": "corrigée"}')
+       on conflict (user_id, id) do update set data = excluded.data $q$, pg_temp.pq('e'))) is distinct from 'ok' then raise 'correction par upsert refusée'; end if;
+  if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data, deleted_at) values (%L, 'e-6', '{}', now())
+       on conflict (user_id, id) do update set deleted_at = excluded.deleted_at $q$, pg_temp.pq('e'))) is distinct from 'ok' then raise 'mise à la corbeille par upsert refusée'; end if;
+  -- … mais une séance NOUVELLE par le même chemin (upsert) reste refusée
+  if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data) values (%L, 'e-9', '{"date": 1}')
+       on conflict (user_id, id) do update set data = excluded.data $q$, pg_temp.pq('e'))) is distinct from 'paywall_locked' then raise 'séance nouvelle par upsert acceptée'; end if;
+  reset role;
+  if (select data ->> 'notes' from public.sessions where user_id = pg_temp.pq('e') and id = 'e-6') is distinct from 'corrigée'
+     or (select deleted_at from public.sessions where user_id = pg_temp.pq('e') and id = 'e-6') is null then raise 'correction ou corbeille non écrites'; end if;
+  if exists (select 1 from public.sessions where user_id = pg_temp.pq('e') and id = 'e-9') then raise 'e-9 écrite'; end if;
+  set role authenticated;
+  perform pg_temp.pqlogin('e');
   -- Jamais abonné : aucune grâce
   perform pg_temp.pqlogin('f');
   if pg_temp.psess('f-1', now() - interval '1 hour', now()) is distinct from 'paywall_locked' then raise 'grâce sans abonnement'; end if;

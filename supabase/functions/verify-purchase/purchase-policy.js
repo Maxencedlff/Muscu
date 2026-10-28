@@ -25,16 +25,18 @@
 //    rien de l'ancienneté de la période. purchaseDate, lui, est stable d'une relecture à l'autre et
 //    croissant d'un renouvellement au suivant, donc une transaction du mois N parcourue après celle du
 //    mois N+1 (Transaction.unfinished, ordre non garanti) est bien reconnue comme la plus ancienne.
-// 8. Offre de lancement (l'essai gratuit de 3 mois, géré par Apple) : intro_offer vaut true quand la
-//    transaction signée porte offerType = 1 (INTRODUCTORY_OFFER, App Store Server Library : OfferType ;
-//    offerDiscountType vaut alors FREE_TRIAL pour un essai gratuit). Champ absent : false (renouvellement
-//    payé, achat sans offre).
+// 8. Essai gratuit d'Apple (offre de lancement gratuite) : intro_offer vaut true seulement quand la
+//    transaction signée porte offerType = 1 (INTRODUCTORY_OFFER, App Store Server Library : OfferType)
+//    ET offerDiscountType = 'FREE_TRIAL'. Une offre de lancement PAYANTE (PAY_AS_YOU_GO, PAY_UP_FRONT)
+//    ne s'affiche donc jamais comme « Essai gratuit ». Champ absent : false (renouvellement payé, achat
+//    sans offre).
 
 export const BUNDLE_ID = 'com.mdlf.training';
 export const PRODUCT_MONTHLY = 'com.mdlf.training.pro.monthly';
 export const PRODUCT_YEARLY = 'com.mdlf.training.pro.yearly';
-// Offre de lancement chez Apple (OfferType.INTRODUCTORY_OFFER)
+// Offre de lancement chez Apple (OfferType.INTRODUCTORY_OFFER) et remise « essai gratuit »
 export const OFFER_INTRODUCTORY = 1;
+export const OFFER_FREE_TRIAL = 'FREE_TRIAL';
 
 // Mêmes produits et mêmes natures que private.access_product_kind (20261029000000_payant_modele_b.sql)
 export const PRODUCT_KINDS = Object.freeze({
@@ -86,7 +88,7 @@ export function transactionDecision(payload, { nowMs = Date.now() } = {}) {
       expired: expires <= nowMs,
       event_at: eventAt === null ? null : new Date(eventAt).toISOString(),
       account_token: typeof payload.appAccountToken === 'string' ? payload.appAccountToken.slice(0, 64) : null,
-      intro_offer: payload.offerType === OFFER_INTRODUCTORY,
+      intro_offer: payload.offerType === OFFER_INTRODUCTORY && payload.offerDiscountType === OFFER_FREE_TRIAL,
     },
   };
 }

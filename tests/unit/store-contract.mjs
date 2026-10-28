@@ -129,6 +129,22 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.ok(transaction.has('jws'), 'une transaction sans jws : le serveur n\'aurait rien à vérifier');
   });
 
+  test('contrat natif : VALEURS de l\'offre de lancement et clés de la période, telles que l\'app les lit', () => {
+    const { src } = swiftSource(ROOT);
+    assert.ok(src, 'StorePlugin.swift introuvable');
+    // accessTrialOf n'annonce un essai que si paymentMode vaut exactement « freeTrial »
+    assert.ok(/if mode == \.freeTrial \{ return "freeTrial" \}/.test(src), 'le Swift ne rend plus « freeTrial » pour un essai gratuit');
+    assert.ok(/"paymentMode": name\(offer\.paymentMode\)/.test(src), 'paymentMode ne passe plus par name(_ mode:)');
+    // Période de l'offre et du produit : { unit, value }, unit parmi day, week, month, year
+    const period = swiftBetween(src, 'private static func describe(_ period: Product.SubscriptionPeriod)', 'private static func name(');
+    const keys = swiftKeys(period);
+    for (const k of ['unit', 'value']) assert.ok(keys.has(k), `clé ${k} absente de describe(_ period:)`);
+    for (const u of ['day', 'week', 'month', 'year']) assert.ok(period.includes(`unit = "${u}"`), `unité ${u} absente`);
+    // … et l'app lit exactement ces valeurs
+    sameJSON(run('ACCESS_UNITS'), ['day', 'week', 'month', 'year']);
+    assert.ok(/o\.paymentMode !== 'freeTrial'/.test(fs.readFileSync(path.join(ROOT, 'js/data/access.js'), 'utf8')), 'l\'app ne compare plus à « freeTrial »');
+  });
+
   test('contrat natif : le faux StoreKit des tests copie le Swift, clé pour clé', async () => {
     const { src } = swiftSource(ROOT);
     assert.ok(src, 'StorePlugin.swift introuvable');

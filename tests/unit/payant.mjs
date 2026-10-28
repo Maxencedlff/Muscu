@@ -234,7 +234,11 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     assert.equal(trial.value.expires_at, new Date(nowMs + 90 * 86400_000).toISOString(), 'la fin de l\'essai est la fin de la période');
     // Offre promotionnelle, code d'offre, retour : pas une offre de lancement ; champ absent ou mal typé : non
     for (const offerType of [2, 3, 4, '1', undefined, null]) {
-      assert.equal(transactionDecision(transactionPayload({ offerType }), { nowMs }).value.intro_offer, false, String(offerType));
+      assert.equal(transactionDecision(transactionPayload({ offerType, offerDiscountType: 'FREE_TRIAL' }), { nowMs }).value.intro_offer, false, String(offerType));
+    }
+    // Offre de lancement PAYANTE ou sans type de remise : jamais affichée comme « Essai gratuit »
+    for (const offerDiscountType of ['PAY_AS_YOU_GO', 'PAY_UP_FRONT', 'free_trial', undefined]) {
+      assert.equal(transactionDecision(transactionPayload({ offerType: 1, offerDiscountType }), { nowMs }).value.intro_offer, false, String(offerDiscountType));
     }
   });
 
@@ -397,6 +401,8 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     // Sandbox accepté (examen d'Apple, TestFlight), environnement et offre de lancement remontés
     const sb = notificationDecision({ notification: notificationPayload({}, { environment: 'Sandbox' }),
       transaction: transactionPayload({ environment: 'Sandbox', offerType: 1, offerDiscountType: 'FREE_TRIAL' }), nowMs });
+    assert.equal(notificationDecision({ notification: notificationPayload(), nowMs,
+      transaction: transactionPayload({ offerType: 1, offerDiscountType: 'PAY_UP_FRONT' }) }).value.intro_offer, false, 'offre de lancement payante');
     assert.equal(sb.handled, true);
     assert.equal(sb.value.environment, 'Sandbox');
     assert.equal(sb.value.intro_offer, true);

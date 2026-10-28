@@ -159,18 +159,23 @@ function accessBannerHtml() {
 // ── Écran d'abonnement ─────────────────────────────────────
 
 // Une formule : nom, prix et essai lus chez StoreKit. Aucun prix ni aucune durée n'est écrit dans l'app.
+// Règle 3.1.2(c) d'Apple : le prix réellement débité et sa période dominent (en gros), l'essai gratuit
+// n'est qu'une ligne secondaire.
 function payPlanHtml(p) {
   const label = PAY_PLAN_LABEL[p.id] || 'Abonnement';
   const best = p.id === ACCESS_YEARLY_ID ? '<span class="pay-plan__tag">Le plus avantageux</span>' : '';
-  const line = p.trial ? payOfferText(p) : PAY_PLAN_PERIOD[p.id] || '';
+  const trial = p.trial ? `${payDurationText(p.trial)} ${p.trial.value > 1 || p.trial.unit === 'month' ? 'gratuits' : 'gratuit'}` : '';
   return `
           <button class="pay-plan" data-action="pay-buy" data-id="${esc(p.id)}" ${access.buying ? 'disabled' : ''}
                   aria-label="${esc(p.label || label)}, ${esc(payOfferText(p))}">
-            <span class="pay-plan__left"><span class="pay-plan__name">${esc(label)}${best}</span>
-              <span class="pay-plan__period">${esc(line)}</span></span>
-            <span class="pay-plan__price num">${access.buying === p.id ? 'Achat…' : esc(p.trial ? 'Essai gratuit' : p.price)}</span>
+            <span class="pay-plan__name">${esc(label)}${best}</span>
+            <span class="pay-plan__price num">${access.buying === p.id ? 'Achat…' : `${esc(p.price)} <span class="pay-plan__per">${PAY_PLAN_PERIOD[p.id] || ''}</span>`}</span>
+            ${trial ? `<span class="pay-plan__trial">${esc(trial)}</span>` : ''}
           </button>`;
 }
+
+// Ce que donne l'abonnement, dit avant les formules
+const PAY_BENEFITS = 'Avec l\'abonnement, tu enregistres de nouvelles séances. Ton historique, tes progrès et l\'export restent ouverts, abonné ou non.';
 
 // Mentions exigées par Apple (règle 3.1.2) à côté des boutons d'achat : durée de l'essai, prix et
 // période après l'essai, renouvellement automatique, résiliation à tout moment. Tout est lu chez
@@ -209,7 +214,8 @@ function payPlansHtml() {
           <p>Tes séances, tes progrès et ton export restent à toi.</p>
           <button class="pay-note__btn" data-action="pay-reload-products">Réessayer</button></div>`;
   }
-  return `<div class="pay-plans">${list.map(payPlanHtml).join('')}</div>${payTermsHtml(list)}${payLegalHtml()}`;
+  return `<p class="pay-benefits">${PAY_BENEFITS}</p>
+        <div class="pay-plans">${list.map(payPlanHtml).join('')}</div>${payTermsHtml(list)}${payLegalHtml()}`;
 }
 
 // reason : 'end' (écriture refusée) ou 'offer' (depuis les Réglages ou un bandeau)
@@ -218,9 +224,10 @@ function renderPaywall(reason = 'offer') {
   const end = reason === 'end';
   const trial = (access.products || []).find(p => p.trial);
   const title = end ? 'Abonnement nécessaire' : 'MDLF Training, sans limite';
+  // Formulation exacte : l'abonnement continue tout seul après l'essai (jamais « choisis de continuer »)
   const sub = trial
-    ? `Essaie gratuitement pendant ${esc(payDurationText(trial.trial))}, puis choisis de continuer ou non. Tes séances, tes progrès et ton export restent à toi.`
-    : 'Pour enregistrer de nouvelles séances, choisis une formule. Tes séances, tes progrès et ton export restent à toi.';
+    ? `${esc(payDurationText(trial.trial))} gratuits, puis l'abonnement continue sauf si tu l'arrêtes avant la fin de l'essai.`
+    : 'Pour enregistrer de nouvelles séances, choisis une formule.';
   const stale = accessStale() && account.user ? `<p class="social-inline-error" role="status">${esc(access.error === 'offline' ? 'Pas d\'Internet : état pas à jour.' : 'État pas à jour.')}</p>` : '';
   return `
     <div class="view view--grouped pay-view">
@@ -325,7 +332,7 @@ function openPaywall(reason = 'offer') {
 async function accessGate() {
   if (canWrite()) return true;
   if (await accessEnsure()) return true;
-  // Sans compte, verrou allumé : il faut un compte (l'essai démarre avec lui). Les moyens de connexion
+  // Sans compte, verrou allumé : il faut un compte (l'abonnement lui est rattaché). Les moyens de connexion
   // sont ceux de toujours ; fermer l'écran ne perd rien (la séance en cours reste en cours).
   if (!account.user) {
     if (accessSignInRequired()) accessSignInPrompt(); else accessOfflinePrompt();
