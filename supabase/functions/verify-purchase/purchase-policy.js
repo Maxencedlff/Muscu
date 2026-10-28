@@ -18,6 +18,12 @@
 //    qui est tout de suite « expiré ». C'est le serveur qui compare les dates, jamais l'app.
 // 6. Remboursée ou révoquée (revocationDate) : la transaction est écrite comme révoquée, donc sans
 //    accès. On ne l'ignore pas : si elle était connue, son accès doit tomber.
+// 7. event_at = date de l'évènement, pour que le serveur ignore ce qui arrive en retard : on prend
+//    purchaseDate (la date d'achat de CETTE période), pas signedDate. signedDate d'une relecture par
+//    l'App Store Server API est l'heure de notre appel, donc toujours la plus récente : elle ne dirait
+//    rien de l'ancienneté de la période. purchaseDate, lui, est stable d'une relecture à l'autre et
+//    croissant d'un renouvellement au suivant, donc une transaction du mois N parcourue après celle du
+//    mois N+1 (Transaction.unfinished, ordre non garanti) est bien reconnue comme la plus ancienne.
 
 export const BUNDLE_ID = 'com.mdlf.training';
 export const PRODUCT_MONTHLY = 'com.mdlf.training.pro.monthly';
@@ -61,6 +67,7 @@ export function transactionDecision(payload, { nowMs = Date.now(), allowSandbox 
   // Un abonnement sans date de fin n'est pas exploitable
   if (kind === 'sub' && expires === null) return { ok: false, error: 'invalid_transaction' };
   const revoked = msDate(payload.revocationDate) !== null;
+  const eventAt = msDate(payload.purchaseDate) ?? msDate(payload.signedDate);
   return {
     ok: true,
     value: {
@@ -72,6 +79,8 @@ export function transactionDecision(payload, { nowMs = Date.now(), allowSandbox 
       revoked,
       environment: payload.environment,
       expired: expires !== null && expires <= nowMs,
+      event_at: eventAt === null ? null : new Date(eventAt).toISOString(),
+      account_token: typeof payload.appAccountToken === 'string' ? payload.appAccountToken.slice(0, 64) : null,
     },
   };
 }

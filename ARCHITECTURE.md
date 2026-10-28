@@ -409,7 +409,11 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
   `trial_started_at` n'est jamais réécrit ; l'état qui fait foi est recalculé à chaque lecture
   (`private.access_json`, statuts `gift` > `active` > `coach_team` > `trial` > `expired`). RPC client :
   `my_access()`, `access_state()` (ne crée rien), `redeem_gift_code(code)`. Écriture du droit d'accès réservée à
-  la clé serveur : `srv_access_purchase` et `srv_access_event`, noyau dans `private`.
+  la clé serveur : `srv_access_purchase` et `srv_access_event`, noyau dans `private`. Un évènement arrivé dans le
+  désordre ne coupe pas un abonné (`entitlement_claims.event_at`, date de fin qui ne recule que si Apple ferme
+  l'accès, `revoked_at` gardé), les notifications sont dédoublonnées par `notificationUUID`
+  (`appstore_notifications`), et le verrou est tenu par le serveur : déclencheur `private.sessions_paywall`
+  (`before insert on public.sessions`, erreur `paywall_locked`), `update` et `delete` restant ouverts.
 - `supabase/functions/verify-purchase/` : un achat StoreKit 2. Signature d'Apple VRAIMENT vérifiée
   (`_shared/apple-jws.js` : chaîne jusqu'à Apple Root CA G3 épinglée dans le dépôt, dates, contraintes de base,
   marqueurs d'Apple, trois signatures ECDSA par WebCrypto), décision pure dans `purchase-policy.js`, puis
@@ -417,7 +421,9 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
   `APPLE_ISSUER_ID`) avant d'écrire. Sandbox refusé sauf `APPLE_ALLOW_SANDBOX=1`.
 - `supabase/functions/appstore-notify/` : App Store Server Notifications V2, à déployer avec `--no-verify-jwt`
   (Apple n'a pas de jeton Supabase). Signature invalide : 401, rien d'écrit. `notify-policy.js` traite SUBSCRIBED,
-  DID_RENEW, DID_CHANGE_RENEWAL_STATUS, EXPIRED, GRACE_PERIOD_EXPIRED, REFUND, REVOKE et ignore le reste en 200.
+  DID_RENEW, DID_CHANGE_RENEWAL_STATUS, DID_FAIL_TO_RENEW, EXPIRED, GRACE_PERIOD_EXPIRED, REFUND et REVOKE ;
+  lit aussi `signedRenewalInfo` (seule source de `gracePeriodExpiresDate`) et répond 200 pour tout le reste,
+  500 seulement si notre écriture échoue.
 - Réglages d'authentification (SMTP Resend, modèles du code, Google, liaison manuelle, limites, e-mails
   de sécurité : moyen relié ou retiré, adresse changée) : `scripts/supabase-auth-config.py`, lecture
   seule par défaut (`--notifications` : e-mails de sécurité seulement).
