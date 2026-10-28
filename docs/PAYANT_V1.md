@@ -27,6 +27,7 @@ Groupe d'abonnement `MDLF Training Acces` (id 22520671) : les deux abonnements s
 - **Le début de l'essai est posé par le serveur** (`trial_started_at`, à la création du profil), jamais par l'app. Réinstaller l'app ou vider le stockage ne redonne pas d'essai.
 - **Une preuve d'achat n'est jamais crue sur parole** : l'app transmet la transaction signée par Apple (JWS), et c'est l'**Edge Function** qui en vérifie la signature contre les certificats Apple, puis relit la transaction auprès de l'**App Store Server API**. Aucune RPC ne permet à un client d'écrire un droit d'accès.
 - **Un abonnement ne sert qu'à un compte** : `original_transaction_id` est **unique**. Si la même transaction arrive sur un second compte, elle est refusée (`transaction_taken`), pour éviter qu'un abonnement soit partagé entre plusieurs comptes.
+- **Un remboursé le reste, sauf réabonnement réel** : `revoked_at` n'est levé que par un évènement à la fois **plus récent** et portant une période **strictement plus lointaine**. Apple garde la même `originalTransactionId` au réabonnement, donc un client remboursé qui repaie retrouve son accès tout seul ; un évènement en retard, rejoué, de même période ou sans date ne rouvre rien.
 - **Le serveur est prévenu par Apple** (App Store Server Notifications V2) des renouvellements, annulations, remboursements et expirations : l'accès tombe tout seul, même si l'app n'est jamais rouverte.
 - **Hors ligne** : l'app garde le dernier droit connu **signé par le serveur** avec une date d'expiration courte (voir plus bas). Elle ne peut pas se prolonger elle-même.
 
@@ -51,7 +52,7 @@ Aucune RPC d'écriture du droit d'accès venant d'Apple. Les seules écritures d
 
 ## Edge Functions
 - **`verify-purchase`** (JWT vérifié) : entrée `{ jws }` (la transaction signée rendue par StoreKit 2). Vérifie la chaîne de certificats Apple (racine Apple Root CA G3), le `bundleId`, l'environnement, puis relit la transaction par l'**App Store Server API** (`/inApps/v1/transactions/{id}`). Écrit `entitlements`. Erreurs : `invalid_jws`, `bad_bundle`, `transaction_taken`, `not_found`.
-- **`appstore-notify`** (pas de JWT, vérifiée par la signature Apple ; à déployer avec `--no-verify-jwt`) : reçoit les **App Store Server Notifications V2**. Traite `SUBSCRIBED`, `DID_RENEW`, `DID_CHANGE_RENEWAL_STATUS`, `EXPIRED`, `GRACE_PERIOD_EXPIRED`, `REFUND`, `REVOKE`. Met `entitlements` à jour. Une notification dont la signature ne vérifie pas est **rejetée en 401** et n'écrit rien.
+- **`appstore-notify`** (pas de JWT, vérifiée par la signature Apple ; à déployer avec `--no-verify-jwt`) : reçoit les **App Store Server Notifications V2**. Traite `SUBSCRIBED`, `DID_RENEW`, `DID_CHANGE_RENEWAL_STATUS`, `EXPIRED`, `GRACE_PERIOD_EXPIRED`, `REFUND`, `REVOKE`, et `DID_FAIL_TO_RENEW` (ajouté le 28/10 : c'est lui qui porte la **période de grâce de facturation**). Met `entitlements` à jour.
 
 ## Codes cadeaux maison (28/10/2026)
 Fabriqués par Maxence en SQL, utilisés **dans l'app** (Réglages › Abonnement › « J'ai un code »).
@@ -121,3 +122,7 @@ Hors app iOS (web) : aucun achat possible, l'écran invite à utiliser l'app.
 5. Poser les secrets des Edge Functions : `APPLE_IAP_KEY_ID`, `APPLE_IAP_PRIVATE_KEY` (contenu du `.p8` In-App Purchase), `APPLE_ISSUER_ID`, et `APPLE_ALLOW_SANDBOX=1` **seulement** pendant les essais Sandbox.
 6. Déployer `appstore-notify` avec `--no-verify-jwt` (Apple n'a pas de jeton Supabase) et `verify-purchase` normalement.
 7. Fabriquer ses premiers codes cadeaux : `select private.make_gift_code('days', 90, 10, 'Beta');`
+
+## Précisions du serveur (28/10)
+- **Réouverture après un remboursement** (`private.access_claim`, règle 4) : la révocation n'est levée que par un évènement **à la fois plus récent** (`event_at` connu des deux côtés) **et portant une période strictement plus lointaine**. Un vrai réabonnement rouvre donc l'accès tout seul, sans support, alors qu'un évènement en retard, rejoué, de même période ou sans date d'évènement ne rouvre rien. Tant qu'une transaction reste révoquée, **sa période ne bouge pas** : sinon un évènement sans date relèverait la barre du réabonnement sans rien rouvrir.
+  - En secours (si la période d'Apple ne va pas plus loin que l'ancienne, ou pour un accès offert, qui n'a pas de date de fin) : `update public.entitlement_claims set revoked_at = null, event_at = null where original_transaction_id = '…';` puis `select private.access_refresh('<user_id>');`
