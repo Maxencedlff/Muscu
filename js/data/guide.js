@@ -571,6 +571,37 @@ const GUIDE_SECTIONS = [
       },
     ],
   },
+  {
+    id: 'abonnement', title: 'Abonnement',
+    topics: [
+      {
+        id: 'essai', title: 'Essai et formules', icon: 'flame', color: 'orange', iphone: true,
+        lead: 'L\'app commence par un essai gratuit de trois mois. Ensuite, un abonnement permet d\'enregistrer de nouvelles séances.',
+        steps: [
+          'Le bandeau de l\'onglet [Entraînement] rappelle les jours d\'essai qui te restent. Touche-le pour voir les formules.',
+          'Deux formules, mensuelle ou annuelle. Les prix affichés sont ceux d\'Apple, dans ta monnaie.',
+          'Après l\'essai, ton [Historique], tes [Progrès] et [Exporter les données] restent ouverts : rien n\'est supprimé.',
+          'Sans abonnement, [Démarrer] une séance ou l\'enregistrer te propose les formules.',
+          'Un élève suivi par un coach garde l\'accès sans rien payer.',
+        ],
+        related: ['abonnement-gerer', 'compte'],
+        actions: ['pay-open', 'pay-buy'],
+      },
+      {
+        id: 'abonnement-gerer', title: 'Gérer son abonnement', icon: 'gear', color: 'blue', iphone: true,
+        lead: 'Tout se passe dans [Réglages] › [Abonnement] : l\'état de ton accès, sa date de fin et les boutons utiles.',
+        steps: [
+          '[Gérer chez Apple] ouvre les réglages de ton identifiant Apple : c\'est là qu\'on change de formule ou qu\'on arrête.',
+          '[Restaurer mes achats] retrouve un abonnement déjà payé, par exemple sur un nouvel iPhone.',
+          '[J\'ai un code] ouvre un champ pour saisir un code MDLF. [J\'ai un code d\'offre Apple] ouvre la fenêtre d\'Apple pour un code reçu d\'Apple.',
+          'Les paiements passent par Apple : l\'app ne voit jamais ta carte.',
+          '[Conditions d\'utilisation] et [Confidentialité] sont en bas de l\'écran.',
+        ],
+        related: ['essai', 'compte'],
+        actions: ['access-open-settings', 'pay-manage', 'pay-restore', 'pay-code', 'pay-apple-code'],
+      },
+    ],
+  },
 ];
 
 // Tous les sujets, dans l'ordre de l'écran, chacun avec sa section

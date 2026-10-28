@@ -91,19 +91,21 @@ Points que les tableaux ne disaient pas, tranchés côté serveur ; l'app doit l
 ## App
 - `js/data/access.js` : lit `my_access()`, garde le dernier état connu par compte (`mdlf_access`, verrouillé par `userId`), expose `canWrite()`, `accessStatus()`, `daysLeft()`.
   - **Hors ligne** : le dernier état connu vaut **7 jours** au plus après sa lecture (`server_now`), pour qu'une salle sans réseau ne bloque personne, sans permettre de rester bloqué en « gratuit » indéfiniment. Au-delà, l'app redemande au premier réseau.
-  - L'horloge de l'appareil n'est jamais utilisée pour décider : on compare les dates du serveur.
-- `js/features/paywall-ui.js` : écran d'abonnement (deux formules, prix lus chez StoreKit, pas écrits en dur), bandeau « il te reste N jours », écran de fin d'essai, « Restaurer mes achats », « J'ai un code » (feuille de codes d'Apple), et le lien obligatoire vers les conditions et la confidentialité.
+  - L'horloge de l'appareil n'est jamais utilisée pour décider : on compare les dates du serveur. Conséquence : passé les 7 jours, un **droit d'écriture** gardé ne vaut plus (l'app ne se prolonge pas elle-même) et un **refus** gardé reste un refus (seul le serveur le lève). Les deux sens vont vers le plus strict : avancer ou reculer l'horloge de l'iPhone ne peut rien ouvrir, et déclenche seulement une nouvelle lecture.
+  - `can_write` vient du serveur et n'est jamais recalculé dans l'app.
+  - Codes cadeaux : `accessRedeemGiftCode(code)` regarde `ok` et `error` de `redeem_gift_code`, **pas seulement** le bloc d'erreur, et traduit `invalid_code`, `code_expired`, `code_used_up`, `already_redeemed` et `rate_limited`.
+- `js/features/paywall-ui.js` : écran d'abonnement (deux formules, prix lus chez StoreKit, pas écrits en dur), bandeau « il te reste N jours », écran de fin d'essai, « Restaurer mes achats », **« J'ai un code »** (champ de saisie du code cadeau MDLF, saisie souple) et **« J'ai un code d'offre Apple »** (feuille d'Apple, app iOS seulement), et le lien obligatoire vers les conditions et la confidentialité. Produits inconnus d'Apple (`missing`) : message clair, aucun prix affiché.
 - **Mode lecture seule** (quand `can_write` est faux et le verrou allumé) : Historique, Progrès, profil et **export** restent ouverts ; démarrer ou enregistrer une séance propose l'abonnement. Rien n'est supprimé.
 - **Réglages › Abonnement** : état en clair, date de fin, gérer l'abonnement (lien Apple), restaurer, code.
 
 ## Natif (iOS, StoreKit 2)
 `ios/App/App/StorePlugin.swift`, module Capacitor `MdlfStore` :
-- `products()` : les deux abonnements avec leur prix **localisé par Apple** ;
-- `purchase({ productId })` : achat, puis renvoie le JWS de la transaction ;
-- `restore()` : `AppStore.sync()` puis l'état courant ;
-- `current()` : droits en cours (`Transaction.currentEntitlements`), avec leur JWS ;
-- `redeemCode()` : ouvre la feuille de codes d'Apple ;
-- **écouteur permanent** `Transaction.updates` : toute transaction (renouvellement, code utilisé, achat sur un autre appareil) est transmise au serveur, puis `finish()`.
+- `products()` : renvoie `{ products, missing }`. Les abonnements trouvés portent leur prix **localisé par Apple** ; `missing` liste les identifiants qu'Apple ne connaît pas encore (cas normal tant que le contrat **Paid Apps** n'est pas signé : `products` est alors **vide**). L'écran le dit, sans prix inventé.
+- `purchase({ productId, appAccountToken? })` : **ne rejette jamais** sur annulation. Il résout `{ status: 'success' | 'userCancelled' | 'pending' }`, avec `jws` et `transactionId` quand `status` vaut `success`. L'app traite les trois cas.
+- `finish({ transactionId })` : **obligatoire**. `purchase()` et l'écouteur rendent le JWS **sans terminer** la transaction, exprès : un achat perdu par le réseau revient au lancement suivant. L'app appelle `finish()` **après** que le serveur a confirmé la vérification (ou sur un refus définitif : `invalid_jws`, `bad_bundle`). **Jamais** sur une erreur passagère (503 : Apple injoignable) : la transaction est gardée pour un nouvel essai. Sans cet appel, Apple réannonce la même transaction à chaque lancement.
+- `restore()` : `AppStore.sync()` puis l'état courant ; `current()` : droits en cours (`Transaction.currentEntitlements`), avec leur JWS ; `status()` : état de StoreKit.
+- `redeemCode()` : ouvre la feuille de codes d'Apple. Elle n'accepte que les **codes d'offre d'abonnement** d'Apple. Les **codes cadeaux maison** (ci-dessus) se saisissent, eux, dans un champ de l'app. L'écran propose les deux séparément et ne promet jamais qu'un code d'Apple se saisit dans l'app.
+- **écouteur permanent** `Transaction.updates` : toute transaction (renouvellement, code utilisé, achat sur un autre appareil) est transmise au serveur, puis terminée par `finish()`. Le module émet le même événement sous **deux noms** (`transaction` et `change`, en `retainUntilConsumed`, donc rien n'est perdu si l'app s'abonne après le lancement) : l'app s'abonne à **un seul** des deux, sinon chaque transaction serait traitée deux fois.
 
 Hors app iOS (web) : aucun achat possible, l'écran invite à utiliser l'app.
 
