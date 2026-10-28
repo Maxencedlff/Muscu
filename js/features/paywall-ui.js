@@ -15,6 +15,11 @@
 //  - Mode lecture seule : accessGate() est appelée par les points d'écriture d'une séance (démarrer,
 //    enregistrer, séance passée, séance libre, modifier). Historique, Progrès, profil et export ne
 //    passent jamais par là : ils restent ouverts. Rien n'est supprimé, la séance en cours est gardée.
+//  - Sans compte et verrou allumé (règle du 28/10/2026) : la même porte ouvre l'écran de connexion
+//    (Apple, Google, e-mail : les moyens habituels), avec un texte qui dit pourquoi. Verrou éteint :
+//    rien ne change.
+//  - Essai plafonné faute de preuve Apple : « Vérifier mon identifiant Apple » (fenêtre d'Apple, sur
+//    un geste seulement) sur l'écran d'abonnement.
 //  - Hors app iOS (navigateur) : aucun achat possible, l'écran invite à utiliser l'app.
 //  Rien au pointerdown : actions au clic seulement. Zones de 44 px, textes en français sans tirets.
 // ═══════════════════════════════════════════════════════════
@@ -105,6 +110,18 @@ function payCodeSheet() {
       return r.ok ? { kind: r.kind } : fail(accessErrorText(r.kind));
     },
   });
+}
+
+// L'essai gratuit est rattaché à l'identifiant Apple : sans preuve reçue par le serveur, il est plus
+// court (verrou allumé). Proposé seulement dans ce cas, et dans l'app iOS : la fenêtre d'Apple ne
+// s'ouvre que sur ce geste (AppTransaction.refresh demande le mot de passe).
+function payAppleCheckHtml() {
+  if (!paywallOn() || !Native.store.available || access.state?.apple_linked !== false) return '';
+  return `
+        <div class="group">
+          <button class="cell cell--action" data-action="pay-apple-verify"><span class="cell__title">Vérifier mon identifiant Apple</span></button>
+        </div>
+        <div class="group-foot">L'essai gratuit est lié à ton identifiant Apple. Tant qu'il n'est pas vérifié, l'essai est plus court.</div>`;
 }
 
 // Liens obligatoires (Apple) : conditions et confidentialité, sous les formules
@@ -213,6 +230,7 @@ function renderPaywall(reason = 'offer') {
           ${payCodeCellsHtml()}
         </div>
         <div class="group-foot">${PAY_CODE_NOTE}</div>
+        ${payAppleCheckHtml()}
         <div class="group-foot">Abonnement sans engagement, renouvelé automatiquement par Apple jusqu'à ce que tu l'arrêtes. Tu peux l'arrêter à tout moment dans les réglages de ton identifiant Apple.</div>
         ${payLegalHtml()}
       </div>
@@ -293,8 +311,17 @@ function openPaywall(reason = 'offer') {
 async function accessGate() {
   if (canWrite()) return true;
   if (await accessEnsure()) return true;
+  // Sans compte, verrou allumé : il faut un compte (l'essai démarre avec lui). Les moyens de connexion
+  // sont ceux de toujours ; fermer l'écran ne perd rien (la séance en cours reste en cours).
+  if (!account.user) { accessSignInPrompt(); return false; }
   openPaywall('end');
   return false;
+}
+
+// Écran de connexion, avec le texte du verrou (auth-flow.js, contexte « paywall »)
+function accessSignInPrompt() {
+  if (typeof openAuthFlow !== 'function') return;
+  openAuthFlow({ step: 'welcome', closable: true, context: 'paywall' });
 }
 
 // ── Actions ─────────────────────────────────────────────────
@@ -338,6 +365,18 @@ registerActions({
     showToast('Saisis ton code d\'offre dans la fenêtre d\'Apple');
   },
   'access-retry': async () => { await accessRefresh(); render(); },
+  // Preuve Apple redemandée sur un geste (fenêtre de mot de passe d'Apple)
+  'pay-apple-verify': async () => {
+    if (payBusy) return;
+    payBusy = true;
+    try {
+      const r = await accessLinkApple({ refresh: true, force: true });
+      if (r.reason === 'cancel') return;
+      if (r.ok) showToast('Identifiant Apple vérifié');
+      else showToast(accessErrorText(r.kind), { error: true });
+      render();
+    } finally { payBusy = false; }
+  },
 });
 
 // ── Mises à jour de l'écran ─────────────────────────────────

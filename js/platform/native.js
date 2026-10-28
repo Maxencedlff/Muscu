@@ -404,6 +404,16 @@ const Native = (() => {
         if (!this.available) return null;
         try { return await Store.redeemCode(); } catch { return null; }
       },
+      // Preuve signée par Apple du téléchargement de l'app par CET identifiant Apple (AppTransaction) :
+      // { available: true, jws, appTransactionId, environment, … } ou { available: false, reason:
+      // 'unavailable' | 'unverified' | 'cancelled' | 'noIdentifier' }. Le serveur
+      // (verify-app-transaction) vérifie le JWS et y rattache l'essai gratuit. refresh : fenêtre de
+      // mot de passe d'Apple, seulement sur un geste explicite. null : coquille plus ancienne que la
+      // méthode (mise à jour à chaud arrivée avant la build), ou module absent.
+      async appTransaction({ refresh = false } = {}) {
+        if (!this.available) return null;
+        try { return await Store.appTransaction(refresh ? { refresh: true } : {}); } catch { return null; }
+      },
       // Écouteur permanent Transaction.updates : renouvellement, code utilisé, achat sur un autre
       // appareil. Le module émet le même événement sous deux noms ('transaction' et 'change') :
       // on s'abonne à UN SEUL, sinon chaque transaction serait traitée deux fois.

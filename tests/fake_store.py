@@ -37,6 +37,22 @@ Ce qu'il ajoute, selon docs/PAYANT_V1.md :
   sur le compte et les suppressions passent. `__st.noTrigger = true` l'éteint ; les refus sont dans
   `__st.calls` sous `['locked', nombre, identifiants]`.
 
+Règles du 28/10/2026 (supabase/migrations/20261029000000_payant_apple.sql) :
+- `appTransaction({ refresh? })` → `{ available: true, jws, appTransactionId, environment, bundleId,
+  originalPurchaseDate, appVersion, originalAppVersion }` ou `{ available: false, reason }`, comme le
+  Swift. `__st.appleId` : identifiant de téléchargement Apple de l'« iPhone » (le même pour tous les
+  comptes de la page) ; `__st.appleProof = 'unavailable' | 'unverified'` : pas de preuve ;
+  `__st.appleBundle`, `__st.appleEnv` : preuve d'une autre app, Sandbox.
+- fonction Edge `verify-app-transaction` : refuse `invalid_jws`, `bad_bundle`, `bad_environment`
+  (Sandbox sans `__st.allowSandbox`), puis lie le compte : `__st.appleIds[id]` = départ de l'essai du
+  PREMIER compte qui l'a présenté, `__st.appleLinks[compte]` = ses identifiants. Appels dans
+  `__st.calls` sous `['apple-link', identifiant]`.
+- l'essai d'un compte part du plus ancien entre son départ et celui de ses identifiants Apple ; sans
+  identifiant lié et verrou allumé, il est plafonné à `__st.unprovenDays` (14) jours.
+  `__st.appleUsed(id, joursAvant)` : cet identifiant Apple a eu son premier essai il y a N jours.
+- `from('app_config')` : sans compte, seule la ligne `paywall_on` est rendue (politique anon) ;
+  appels dans `__st.calls` sous `['app_config', 'anon' | 'auth']`.
+
 Deux horloges SÉPARÉES : celle du serveur (`__st.serverShift`) et celle de l'appareil
 (`__st.deviceShift`, qui décale `Date.now()` dans la page). Un test peut donc avancer l'horloge de
 l'iPhone sans toucher à celle du serveur, et vérifier que rien ne se débloque ni ne se bloque.
@@ -59,6 +75,9 @@ FAKE_STORE = r"""
     fail: {}, calls: [], listeners: [], changeListeners: [], open: [], missing: [], n: 0,
     codes: {}, redeemed: [], tries: {},
     canMakePayments: true, cancelRestore: false,
+    // Règle 1 : identifiant Apple de l'« iPhone », preuves et liaisons côté serveur
+    appleId: 'dl-iphone-1', appleProof: 'ok', appleBundle: null, appleEnv: 'Production', allowSandbox: false,
+    appleIds: {}, appleLinks: {}, unprovenDays: 14,
     // Décrits comme le Swift : displayPrice (affichable) ET price (nombre), displayName, currency…
     products: [
       { id: 'com.mdlf.training.pro.monthly', displayName: 'MDLF Training mensuel', description: 'Abonnement mensuel',
@@ -123,7 +142,12 @@ FAKE_STORE = r"""
     const coach = inCoachTeam(uid);
     const giftDays = e.gift_until !== null && e.gift_until > now ? e.gift_until : null;
     const paid = e.status === 'active' && e.expires_at !== null && e.expires_at > now ? e.expires_at : null;
-    const trialEnd = e.trial_started_at + st.trialDays * DAY;
+    // Règle 1 : le plus ancien des départs (compte, identifiants Apple liés) ; sans preuve et verrou
+    // allumé, essai plafonné à unprovenDays jours
+    const links = st.appleLinks[uid] || [];
+    const appleAt = links.length ? Math.min(...links.map(id => st.appleIds[id])) : Infinity;
+    let trialEnd = Math.min(e.trial_started_at, appleAt) + st.trialDays * DAY;
+    if (st.paywallOn && !links.length) trialEnd = Math.min(trialEnd, e.trial_started_at + st.unprovenDays * DAY);
     let status, until = null;
     if (e.gift) { status = 'gift'; until = null; }
     else if (giftDays && (!paid || giftDays > paid)) { status = 'gift'; until = giftDays; }
@@ -135,11 +159,12 @@ FAKE_STORE = r"""
     const can = !st.paywallOn || status !== 'expired';
     return { status, until: iso(until), paywall_on: !!st.paywallOn, trial_days: st.trialDays,
       days_left: status === 'expired' ? null : days, can_write: can,
-      gift: !!e.gift, gift_until: iso(e.gift_until), coach_team: coach, server_now: iso(now) };
+      gift: !!e.gift, gift_until: iso(e.gift_until), coach_team: coach, apple_linked: links.length > 0, server_now: iso(now) };
   };
 
   st.startTrial = daysAgo => { const e = row(me(), true); e.status = 'trial'; e.gift = false; e.expires_at = null;
     e.trial_started_at = serverNow() - daysAgo * DAY; };
+  st.appleUsed = (id, daysAgo) => { st.appleIds[id] = serverNow() - daysAgo * DAY; };
   st.giveGift = () => { const e = row(me(), true); e.gift = true; e.product_id = GIFT; };
   st.subscribe = (productId, days = 30) => { const e = row(me(), true); e.status = 'active'; e.product_id = productId;
     e.expires_at = serverNow() + days * DAY; e.original_transaction_id = 'orig-' + (++st.n); };
@@ -220,6 +245,49 @@ FAKE_STORE = r"""
     return { data: { ok: true, access: stateOf(uid, e) }, error: null };
   };
 
+  // ── verify-app-transaction : l'essai rattaché à l'identifiant Apple ──
+  const verifyAppTransaction = async body => {
+    if (st.fail.access === 'offline') throw new TypeError('Failed to fetch');
+    const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError',
+      message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });
+    const uid = me();
+    if (!uid) return fail(401, { error: 'auth' });
+    if (st.fail.link) return fail(st.fail.link === 'down' ? 503 : 400, { error: st.fail.link });
+    const jws = String((body && body.jws) || '');
+    let p = null;
+    try { if (/^appjws\..*\.sig$/.test(jws)) p = unb64(jws.slice(7, -4)); } catch (e) { p = null; }
+    if (!p) return fail(400, { error: 'invalid_jws' });
+    if (p.bundleId !== BUNDLE) return fail(400, { error: 'bad_bundle' });
+    if (p.receiptType === 'Sandbox' && !st.allowSandbox) return fail(400, { error: 'bad_environment' });
+    if (!p.appTransactionId) return fail(400, { error: 'no_app_transaction_id' });
+    log('apple-link', p.appTransactionId);
+    const e = row(uid, true);
+    // La première liaison fixe la date (on conflict do nothing)
+    if (!(p.appTransactionId in st.appleIds)) st.appleIds[p.appTransactionId] = e.trial_started_at;
+    const links = st.appleLinks[uid] = st.appleLinks[uid] || [];
+    if (!links.includes(p.appTransactionId)) links.push(p.appTransactionId);
+    return { data: { ok: true, access: stateOf(uid, e) }, error: null };
+  };
+
+  // ── app_config : sans compte, seule la ligne paywall_on (politique anon) ──
+  const appConfig = q => {
+    const uid = me();
+    log('app_config', uid ? 'auth' : 'anon');
+    if (st.fail.access === 'offline') return offline();
+    const rows = [{ key: 'paywall_on', value: !!st.paywallOn }];
+    if (uid) rows.push({ key: 'trial_days', value: st.trialDays }, { key: 'trial_unproven_days', value: st.unprovenDays });
+    const found = rows.filter(r => !q.key || r.key === q.key);
+    return { data: q.single ? (found[0] || null) : found, error: null };
+  };
+  const appConfigQuery = () => {
+    const q = { key: null, single: false };
+    const chain = new Proxy({}, { get: (_, m) => {
+      if (m === 'then') return (res, rej) => Promise.resolve(appConfig(q)).then(res, rej);
+      return (...a) => { if (m === 'eq' && a[0] === 'key') q.key = a[1]; if (m === 'maybeSingle' || m === 'single') q.single = true; return chain; };
+    } });
+    return chain;
+  };
+
   // ── Module natif MdlfStore (StoreKit 2) ──
   const period = id => (id.endsWith('yearly') ? 365 : 30);
   const buy = productId => {
@@ -270,6 +338,19 @@ FAKE_STORE = r"""
     },
     current: async () => { log('current'); return entitlements(); },
     status: async () => ({ canMakePayments: st.canMakePayments !== false, subscriptionIds: [...SUB_IDS], giftId: GIFT_ID }),
+    // Preuve du téléchargement (AppTransaction), mêmes clés que StorePlugin.appTransaction
+    appTransaction: async ({ refresh } = {}) => {
+      log('appTransaction', refresh ? 'refresh' : '');
+      if (refresh && st.fail.appleRefresh === 'cancel') return { available: false, reason: 'cancelled' };
+      if (st.appleProof === 'unavailable' && !(refresh && st.fail.appleRefresh === 'ok')) return { available: false, reason: 'unavailable' };
+      if (st.appleProof === 'unverified') return { available: false, reason: 'unverified' };
+      const bundleId = st.appleBundle || BUNDLE;
+      const payload = { appTransactionId: st.appleId, bundleId, receiptType: st.appleEnv,
+        originalPurchaseDate: serverNow() - 30 * DAY, receiptCreationDate: serverNow() };
+      return { available: true, jws: 'appjws.' + b64(payload) + '.sig', appTransactionId: st.appleId,
+        environment: st.appleEnv === 'Sandbox' ? 'sandbox' : 'production', bundleId,
+        originalPurchaseDate: payload.originalPurchaseDate, appVersion: '30', originalAppVersion: '1' };
+    },
     redeemCode: async () => {
       log('redeemCode');
       return st.fail.redeem === 'cancel' ? { presented: false, cancelled: true } : { presented: true };
@@ -318,8 +399,10 @@ FAKE_STORE = r"""
     const rpc = c.rpc.bind(c), invoke = c.functions.invoke.bind(c.functions);
     const from = c.from.bind(c);
     c.rpc = (fn, a) => (accessRpcs[fn] ? callAccess(fn, a) : rpc(fn, a));
-    c.functions = { invoke: (fn, o) => (fn === 'verify-purchase' ? verifyPurchase(o && o.body) : invoke(fn, o)) };
+    c.functions = { invoke: (fn, o) => (fn === 'verify-purchase' ? verifyPurchase(o && o.body)
+      : fn === 'verify-app-transaction' ? verifyAppTransaction(o && o.body) : invoke(fn, o)) };
     c.from = table => {
+      if (table === 'app_config') return appConfigQuery();
       const chain = from(table);
       if (table !== 'sessions') return chain;
       let rows = null;

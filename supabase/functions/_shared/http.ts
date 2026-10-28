@@ -1,4 +1,5 @@
-// Briques communes des fonctions serveur (delete-account, revoke-apple) : CORS, réponse JSON, clés
+// Briques communes des fonctions serveur (delete-account, revoke-apple, verify-purchase,
+// verify-app-transaction) : CORS, réponse JSON, clés
 // du projet et lecture de l'appelant.
 import { createClient, type User } from 'npm:@supabase/supabase-js@2.118.0';
 import { decodeJwt } from 'npm:jose@5.9.6';
@@ -41,4 +42,10 @@ export const adminClient = () => createClient(env('SUPABASE_URL'), secretKey(), 
 // Corps JSON { code } (code d'autorisation Apple), '' s'il est absent ou illisible
 export async function bodyCode(req: Request): Promise<string> {
   try { const c = (await req.json())?.code; return typeof c === 'string' ? c.slice(0, 512) : ''; } catch { return ''; }
+}
+
+// Corps JSON { jws } (preuve signée par Apple : transaction ou AppTransaction), '' s'il est absent ou
+// illisible ; 64 Ko au plus, comme ce que _shared/apple-jws.js accepte
+export async function bodyJws(req: Request): Promise<string> {
+  try { const j = (await req.json())?.jws; return typeof j === 'string' ? j.slice(0, 65536) : ''; } catch { return ''; }
 }

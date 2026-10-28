@@ -21,7 +21,7 @@
 // Secrets (Management API, jamais dans le dépôt) : APPLE_IAP_KEY_ID, APPLE_IAP_PRIVATE_KEY (contenu du
 // .p8 « In-App Purchase »), APPLE_ISSUER_ID (App Store Connect › Clés › Issuer ID) et, pendant les
 // essais Sandbox seulement, APPLE_ALLOW_SANDBOX=1 (à retirer avant la mise en vente).
-import { adminClient, caller, CORS, env, json } from '../_shared/http.ts';
+import { adminClient, bodyJws, caller, CORS, env, json } from '../_shared/http.ts';
 import { verifyAppleJws } from '../_shared/apple-jws.js';
 import { BUNDLE_ID, httpStatus, purchaseFailure, transactionDecision } from './purchase-policy.js';
 import { importPKCS8, SignJWT } from 'npm:jose@5.9.6';
@@ -81,11 +81,6 @@ async function freshTransaction(transactionId: string, environment: string, nowM
     console.error('verify-purchase: App Store Server API injoignable', e instanceof Error ? e.name : 'erreur');
     return { error: 'apple_unreachable' };
   }
-}
-
-// Corps JSON { jws }, '' s'il est absent ou illisible
-async function bodyJws(req: Request): Promise<string> {
-  try { const j = (await req.json())?.jws; return typeof j === 'string' ? j.slice(0, 65536) : ''; } catch { return ''; }
 }
 
 Deno.serve(async (req) => {

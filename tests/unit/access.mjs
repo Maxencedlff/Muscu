@@ -42,7 +42,10 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     const a = run(`cleanAccess({ status: 'trial', until: '2027-01-01T00:00:00Z', paywall_on: true, trial_days: 90,
       days_left: 42, can_write: true, gift: false, coach_team: false, server_now: '2026-10-28T10:00:00Z',
       user_id: 'secret', original_transaction_id: '1000', evil: '<img src=x>' })`);
-    sameJSON(Object.keys(a).sort(), ['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'paywall_on', 'server_now', 'status', 'trial_days', 'until']);
+    sameJSON(Object.keys(a).sort(), ['apple_linked', 'can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'paywall_on', 'server_now', 'status', 'trial_days', 'until']);
+    // apple_linked : booléen du serveur, sinon inconnu (vieille réponse), jamais deviné
+    sameJSON(run(`[cleanAccess({ server_now: 1, apple_linked: true }).apple_linked, cleanAccess({ server_now: 1, apple_linked: false }).apple_linked,
+      cleanAccess({ server_now: 1 }).apple_linked, cleanAccess({ server_now: 1, apple_linked: 'oui' }).apple_linked]`), [true, false, null, null]);
     assert.equal(a.until, Date.parse('2027-01-01T00:00:00Z'));
     assert.equal(a.server_now, Date.parse('2026-10-28T10:00:00Z'));
     assert.equal(a.days_left, 42);
@@ -450,5 +453,138 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       } finally { account.user = u; Object.assign(access, saved); localStorage.removeItem(ACCESS_CACHE_KEY); }
     })()`);
     sameJSON(r, [false, true]);
+  });
+
+  // ── Règle 2 (28/10) : compte obligatoire seulement quand le verrou est allumé ──
+
+  // Sans compte : décision selon le verrou lu sans compte (anon) et la disponibilité des comptes
+  const guest = ({ anon, available = true }) => run(`(() => {
+    const u = account.user, saved = { ...access }, avail = accountAvailable;
+    try {
+      account.user = null;
+      accountAvailable = () => ${available};
+      access.anon = ${JSON.stringify(anon)};
+      return [canWrite(), accessSignInRequired(), paywallOn()];
+    } finally { account.user = u; Object.assign(access, saved); accountAvailable = avail; }
+  })()`);
+
+  test('accès sans compte : verrou éteint ou inconnu, jamais bloqué ; allumé, il faut un compte', () => {
+    sameJSON(guest({ anon: false }), [true, false, false], 'verrou éteint : rien ne change, même sans compte');
+    sameJSON(guest({ anon: null }), [true, false, false], 'verrou jamais lu (hors ligne au premier lancement) : rien ne bloque');
+    sameJSON(guest({ anon: true }), [false, true, false], 'verrou allumé sans compte : il faut se connecter');
+    // Pas de comptes sur cet appareil (navigateur, configuration absente) : impossible de se connecter, rien ne bloque
+    sameJSON(guest({ anon: true, available: false }), [true, false, false]);
+    // Connecté, la règle du compte ne joue plus : c'est l'état du serveur qui décide
+    assert.equal(decide({ status: 'trial', paywall_on: true, can_write: true, server_now: NOW })[0], true);
+  });
+
+  test('accès sans compte : le verrou est lu dans app_config (seule la ligne paywall_on), une erreur ne ferme rien', async () => {
+    const r = await run(`(async () => {
+      const u = account.user, saved = { ...access }, avail = accountAvailable, realSb = sb;
+      const asked = [];
+      const reply = { value: true, error: null };
+      const out = [];
+      try {
+        account.user = null;
+        accountAvailable = () => true;
+        access.anon = null; access.anonAt = 0;
+        const q = { eq: (k, v) => { asked.push([k, v]); return q; }, select: c => { asked.push(['select', c]); return q; },
+          maybeSingle: async () => (reply.error ? { data: null, error: reply.error } : { data: { value: reply.value }, error: null }) };
+        sb = { from: t => { asked.push(['from', t]); return q; } };
+        out.push(await accessAnonRefresh(), canWrite(), JSON.parse(localStorage.getItem(ACCESS_ANON_KEY)).on);
+        // Hors ligne ensuite : la dernière valeur lue reste (on demande toujours un compte)
+        reply.error = { message: 'TypeError: Failed to fetch' };
+        out.push(await accessAnonRefresh(), canWrite());
+        // Le verrou est éteint côté serveur : plus rien ne bloque
+        reply.error = null; reply.value = false;
+        out.push(await accessEnsure());
+        // Valeur d'un autre type : jamais lue comme « allumé »
+        reply.value = 'true';
+        out.push(await accessAnonRefresh(), canWrite());
+        // Connecté : plus aucune lecture anonyme
+        account.user = { id: 'u' };
+        const n = asked.length;
+        await accessAnonRefresh();
+        out.push(asked.length === n);
+        return [out, asked.slice(0, 3)];
+      } finally { account.user = u; Object.assign(access, saved); accountAvailable = avail; sb = realSb;
+        localStorage.removeItem(ACCESS_ANON_KEY); }
+    })()`);
+    sameJSON(r[0], [true, false, true, true, false, true, false, true, true]);
+    sameJSON(r[1], [['from', 'app_config'], ['select', 'value'], ['key', 'paywall_on']]);
+  });
+
+  // ── Règle 1 (28/10) : la preuve Apple part au serveur, qui décide ──
+
+  const linking = (script) => run(`(async () => {
+    const u = account.user, saved = { ...access }, realSb = sb, nativeStore = Native.store;
+    const sent = [];
+    const proofs = [];
+    const S = { proof: { available: true, jws: 'jws-app', appTransactionId: 'dl-1' }, reply: null };
+    try {
+      account.user = { id: 'u' };
+      accessReset('u');
+      Native.store = { available: true, appTransaction: async o => { proofs.push(o); return S.proof; } };
+      sb = { functions: { invoke: async (fn, o) => { sent.push([fn, o.body.jws]);
+        return S.reply || { data: { ok: true, access: { status: 'trial', paywall_on: true, can_write: true, apple_linked: true, days_left: 90, server_now: Date.now() } }, error: null }; } },
+        rpc: async () => ({ data: { status: 'expired', paywall_on: true, can_write: false, apple_linked: false, server_now: Date.now() }, error: null }) };
+      ${script}
+    } finally { account.user = u; Object.assign(access, saved); sb = realSb; Native.store = nativeStore;
+      localStorage.removeItem(ACCESS_CACHE_KEY); }
+  })()`);
+
+  test('accès : la preuve Apple n\'est envoyée que si le serveur dit qu\'aucun identifiant n\'est lié', async () => {
+    const r = await linking(`
+      const out = [];
+      // Déjà lié : rien n'est demandé, ni à StoreKit ni au serveur
+      access.state = cleanAccess({ status: 'trial', paywall_on: true, can_write: true, apple_linked: true, server_now: Date.now() });
+      out.push((await accessLinkApple()).skipped === true, proofs.length, sent.length);
+      // État inconnu (vieille réponse) : rien non plus
+      access.state = cleanAccess({ status: 'trial', paywall_on: true, can_write: true, server_now: Date.now() });
+      out.push((await accessLinkApple()).skipped === true);
+      // Pas lié : la preuve part telle quelle, et l'état rendu par le serveur est appliqué
+      access.state = cleanAccess({ status: 'trial', paywall_on: true, can_write: true, apple_linked: false, days_left: 14, server_now: Date.now() });
+      out.push((await accessLinkApple()).ok, sent[0], daysLeft(), access.state.apple_linked);
+      return out;`);
+    sameJSON(r, [true, 0, 0, true, true, ['verify-app-transaction', 'jws-app'], 90, true]);
+  });
+
+  test('accès : preuve Apple absente ou refusée, rien ne bloque côté app et rien ne boucle', async () => {
+    const r = await linking(`
+      const out = [];
+      access.state = cleanAccess({ status: 'trial', paywall_on: true, can_write: true, apple_linked: false, server_now: Date.now() });
+      // Indisponible (hors ligne, App Store pas connecté, vieille coquille : null) : rien n'est envoyé
+      for (const p of [{ available: false, reason: 'unavailable' }, { available: false, reason: 'unverified' }, null, { available: true }]) {
+        S.proof = p;
+        out.push((await accessLinkApple()).kind);
+      }
+      out.push(sent.length, canWrite());
+      // Fenêtre d'Apple fermée sur « Vérifier » : ce n'est pas une erreur
+      S.proof = { available: false, reason: 'cancelled' };
+      out.push((await accessLinkApple({ refresh: true, force: true })).reason, proofs[proofs.length - 1].refresh);
+      // Refus définitif (Sandbox refusé en TestFlight) : plus renvoyée pendant ce lancement
+      S.proof = { available: true, jws: 'jws-app' };
+      S.reply = { data: null, error: { context: { status: 400, json: async () => ({ error: 'bad_environment' }) } } };
+      out.push((await accessLinkApple()).kind, (await accessLinkApple()).skipped === true, sent.length);
+      // Serveur injoignable : on réessaiera (pas marqué refusé)
+      access.appleRefused = false;
+      S.reply = { data: null, error: { context: { status: 503, json: async () => ({}) } } };
+      out.push((await accessLinkApple()).kind, access.appleRefused);
+      return out;`);
+    sameJSON(r, ['apple_unavailable', 'apple_unavailable', 'apple_unavailable', 'apple_unavailable', 0, true,
+      'cancel', true, 'bad_environment', true, 1, 'retry', false]);
+  });
+
+  test('accès : avant de refuser une séance, la preuve Apple est renvoyée (essai plafonné faute de preuve)', async () => {
+    const r = await linking(`
+      access.state = cleanAccess({ status: 'expired', paywall_on: true, can_write: false, apple_linked: false, server_now: Date.now() });
+      const allowed = await accessEnsure();
+      return [allowed, sent.length, accessStatus()];`);
+    sameJSON(r, [true, 1, 'trial']);
+    // Déjà lié et vraiment expiré : aucune preuve renvoyée, le refus tient
+    const r2 = await linking(`
+      access.state = cleanAccess({ status: 'expired', paywall_on: true, can_write: false, apple_linked: true, server_now: Date.now() });
+      return [await accessEnsure(), sent.length];`);
+    sameJSON(r2, [false, 0]);
   });
 }

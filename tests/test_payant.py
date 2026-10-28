@@ -3,6 +3,9 @@ et mode lecture seule (Historique, Progrès, profil et export restent ouverts, r
 écran d'abonnement avec les prix LUS CHEZ STOREKIT, achat, restauration, code d'offre, Réglages ›
 Abonnement, verrou éteint (rien ne bloque jamais), horloge de l'appareil trafiquée (ne débloque ni ne
 bloque rien), hors ligne.
+Règles du 28/10/2026 : essai rattaché à l'identifiant Apple (un nouveau compte sur un « iPhone » dont
+l'identifiant Apple a déjà eu son essai n'en a pas de neuf ; sans preuve, essai plafonné verrou
+allumé) et compte obligatoire pour enregistrer quand le verrou est allumé (rien ne change éteint).
 
 L'app iOS, StoreKit et Supabase sont simulés (tests/fake_account.py + tests/fake_store.py, règles de
 docs/PAYANT_V1.md) : aucune requête ne sort, aucun achat réel.
@@ -148,15 +151,19 @@ def t_essai(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
-        # Sans compte : aucun appel, aucun bandeau, rien de bloqué
+        # Sans compte : aucun appel au droit d'accès, aucun bandeau ; verrou allumé, il faut un compte
+        # (règle 2, voir t_compte_obligatoire)
         R.check(len(acalls(page, 'my_access')) == 0, f'{t} sans compte : aucun appel d\'accès')
-        R.check(banner(page) == '' and page.evaluate('canWrite()') is True, f'{t} sans compte : rien ne bloque')
+        R.check(banner(page) == '' and page.evaluate('canWrite()') is False, f'{t} sans compte, verrou allumé : il faut un compte')
         signin(page, username='max')
         page.wait_for_timeout(500)
         # Première lecture : c'est my_access() qui crée la ligne et démarre l'essai, à l'heure du serveur
         R.check(len(acalls(page, 'my_access')) >= 1, f'{t} connexion : my_access appelé (essai démarré par le serveur)')
         R.check(page.evaluate("__st.ents[__sb.meId()].status") == 'trial', f'{t} essai créé côté serveur')
         R.check(page.evaluate('accessStatus()') == 'trial' and page.evaluate('daysLeft()') == 90, f'{t} essai de 90 jours')
+        # Règle 1 : la preuve Apple est partie au lancement, l'identifiant de l'« iPhone » est lié
+        R.check(page.evaluate('__st.appleLinks[__sb.meId()]') == ['dl-iphone-1'] and page.evaluate('access.state.apple_linked') is True,
+                f'{t} connexion : identifiant Apple lié au compte')
         page.evaluate("switchTab('train')")
         page.wait_for_timeout(300)
         R.check('90 jours' in banner(page), f'{t} bandeau : jours restants ({banner(page)!r})')
@@ -559,6 +566,29 @@ def t_verrou_serveur(bench, eng, dev, theme):
 
 def t_verrou_eteint(bench, eng, dev, theme):
     t = tag(dev, theme)
+    # Sans compte, verrou éteint : RIEN ne change (règle 2), la séance démarre et s'enregistre
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'paywallOn': False})
+        page.wait_for_timeout(300)
+        R.check(page.evaluate('access.anon') is False and page.evaluate('canWrite()') is True,
+                f'{t} sans compte, verrou éteint : rien ne bloque')
+        page.evaluate("switchTab('train')")
+        page.wait_for_timeout(300)
+        start_session(page)
+        R.check(page.evaluate('!!activeSession') and page.locator('.auth').count() == 0,
+                f'{t} sans compte, verrou éteint : séance démarrée sans invitation')
+        before = page.evaluate('data.history.length')
+        page.evaluate('validateSet(0, 0)')
+        page.wait_for_timeout(200)
+        page.evaluate("handleAction(null, document.createElement('div'), 'finish-session'); null")
+        page.wait_for_timeout(500)
+        if page.locator('.ios-dialog').count():
+            tap_dialog(page, 'Enregistrer')
+        page.wait_for_timeout(900)
+        R.check(page.evaluate('data.history.length') == before + 1 and page.locator('.auth').count() == 0,
+                f'{t} sans compte, verrou éteint : séance enregistrée')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), store={'paywallOn': False})
         signin(page, username='max')
@@ -600,6 +630,149 @@ def t_verrou_eteint(bench, eng, dev, theme):
         R.check('Tout est ouvert pour l\'instant' in page.inner_text('.pay-settings-view'), f'{t} Abonnement : verrou éteint expliqué')
         layout(page, t, 'Abonnement verrou éteint')
         shot(page, LOT, f'12-verrou-eteint-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+# ─────────────────────────────────────────────────────────────
+#  Règle 1 (28/10) : l'essai est rattaché à l'identifiant Apple
+# ─────────────────────────────────────────────────────────────
+def t_iphone_deja_essaye(bench, eng, dev, theme):
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        # Premier compte sur cet iPhone : essai complet, identifiant Apple lié
+        signin(page, username='max')
+        page.wait_for_timeout(300)
+        first = page.evaluate('__sb.meId()')
+        R.check(page.evaluate('daysLeft()') == 90 and page.evaluate("__st.appleIds['dl-iphone-1']") is not None,
+                f'{t} premier compte : essai complet, identifiant Apple retenu')
+        # 80 jours plus tard, il crée un second compte (nouvelle adresse) sur le même iPhone
+        page.evaluate("__st.appleUsed('dl-iphone-1', 80)")
+        page.evaluate('accountSignOut()')
+        page.wait_for_timeout(300)
+        page.evaluate("__sb.appleUser = 'apple-sub-2'")
+        signin(page, username='max2')
+        page.wait_for_timeout(500)
+        R.check(page.evaluate('__sb.meId()') != first, f'{t} second compte : bien un autre compte')
+        R.check(page.evaluate('__st.appleLinks[__sb.meId()]') == ['dl-iphone-1'], f'{t} second compte : même identifiant Apple')
+        R.check(page.evaluate('accessStatus()') == 'trial' and page.evaluate('daysLeft()') == 10,
+                f'{t} second compte : pas de nouvel essai, il reste 10 jours ({page.evaluate("daysLeft()")})')
+        page.evaluate("switchTab('train')")
+        page.wait_for_timeout(300)
+        R.check('10 jours' in banner(page), f'{t} second compte : le bandeau le dit ({banner(page)!r})')
+        shot(page, LOT, f'16-iphone-deja-essaye-{t}')
+        # Plus tard encore (essai de l'identifiant Apple fini) : un troisième compte n'a plus rien
+        page.evaluate("__st.appleUsed('dl-iphone-1', 120)")
+        page.evaluate('accountSignOut()')
+        page.wait_for_timeout(300)
+        page.evaluate("__sb.appleUser = 'apple-sub-3'")
+        signin(page, username='max3')
+        page.wait_for_timeout(500)
+        R.check(page.evaluate('accessStatus()') == 'expired' and page.evaluate('canWrite()') is False,
+                f'{t} troisième compte : essai déjà utilisé par cet identifiant Apple')
+        start_session(page)
+        R.check(page.evaluate("currentView()") == 'paywall' and page.evaluate('!activeSession'),
+                f'{t} troisième compte : l\'abonnement est proposé, aucune séance démarrée')
+        R.check(page.locator('[data-action="pay-apple-verify"]').count() == 0, f'{t} identifiant lié : rien à vérifier')
+        # Payer reste possible, et ouvre l'accès comme avant
+        page.click(f'[data-action="pay-buy"][data-id="{MONTHLY}"]')
+        page.wait_for_timeout(900)
+        R.check(page.evaluate('canWrite()') is True and page.evaluate('accessStatus()') == 'active', f'{t} achat : accès rendu')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # Sans preuve Apple (App Store pas connecté, TestFlight, client modifié) : rien ne bloque tout de
+    # suite, l'essai est plafonné à 14 jours ; la preuve revenue, l'essai complet aussi
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'appleProof': 'unavailable'})
+        signin(page, username='max')
+        page.wait_for_timeout(300)
+        R.check(page.evaluate('access.state.apple_linked') is False and page.evaluate('daysLeft()') == 14
+                and page.evaluate('canWrite()') is True, f'{t} sans preuve : essai plafonné, rien de bloqué ({page.evaluate("daysLeft()")})')
+        R.check(len(page.evaluate('__st.calls.filter(c => c[0] === "apple-link")')) == 0, f'{t} sans preuve : rien envoyé')
+        trial_started(page, 20)
+        R.check(page.evaluate('canWrite()') is False, f'{t} sans preuve, au-delà de 14 jours : plus d\'écriture')
+        page.evaluate("navigate(makeRoute('paywall', 'end'))")
+        page.wait_for_timeout(600)
+        R.check(page.locator('[data-action="pay-apple-verify"]').count() == 1, f'{t} sans preuve : « Vérifier mon identifiant Apple » proposé')
+        layout(page, t, 'abonnement sans preuve Apple')
+        shot(page, LOT, f'17-sans-preuve-{t}')
+        # Geste explicite : la fenêtre d'Apple (refresh) rend la preuve, l'essai complet revient
+        page.evaluate("__st.fail.appleRefresh = 'ok'")
+        page.click('[data-action="pay-apple-verify"]')
+        page.wait_for_timeout(700)
+        R.check(page.evaluate("__st.calls.filter(c => c[0] === 'appTransaction' && c[1] === 'refresh').length") == 1,
+                f'{t} vérifier : fenêtre d\'Apple demandée une fois')
+        R.check(page.evaluate('canWrite()') is True and page.evaluate('daysLeft()') == 70,
+                f'{t} preuve reçue : essai complet depuis son départ ({page.evaluate("daysLeft()")})')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+# ─────────────────────────────────────────────────────────────
+#  Règle 2 (28/10) : compte obligatoire quand le verrou est allumé
+# ─────────────────────────────────────────────────────────────
+def t_compte_obligatoire(bench, eng, dev, theme):
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        page.wait_for_timeout(300)
+        # Le verrou est lu sans compte, et rien d'autre
+        R.check(len(page.evaluate("__st.calls.filter(c => c[0] === 'app_config' && c[1] === 'anon')")) >= 1,
+                f'{t} sans compte : verrou lu dans app_config')
+        R.check(len(acalls(page, 'my_access')) == 0, f'{t} sans compte : aucun droit d\'accès demandé')
+        R.check(page.evaluate('canWrite()') is False and page.evaluate('accessSignInRequired()') is True,
+                f'{t} sans compte, verrou allumé : il faut un compte')
+        # Démarrer une séance : invitation à se connecter (Apple, Google, e-mail), aucune séance démarrée
+        page.evaluate("switchTab('train')")
+        page.wait_for_timeout(300)
+        start_session(page)
+        page.wait_for_selector('.auth')
+        txt = page.inner_text('.auth')
+        R.check('Un compte pour enregistrer' in txt and 'Continuer avec Apple' in txt and 'e‑mail' in txt,
+                f'{t} démarrer sans compte : invitation à se connecter ({txt[:120]!r})')
+        R.check('Commencer sans compte' not in txt and page.locator('.auth [data-action="auth-close"]').count() == 1,
+                f'{t} invitation : on peut fermer, sans « Commencer sans compte »')
+        R.check(page.evaluate('!activeSession'), f'{t} démarrer sans compte : aucune séance démarrée')
+        shot(page, LOT, f'18-compte-obligatoire-{t}')
+        page.click('.auth [data-action="auth-close"]')
+        page.wait_for_timeout(400)
+        # Séance passée : même invitation, rien n'est enregistré
+        before = page.evaluate('data.history.length')
+        page.evaluate("handleAction(null, document.createElement('div'), 'go-add-session'); null")
+        page.wait_for_timeout(600)
+        R.check(page.locator('.auth').count() == 1 and page.evaluate("currentView()") != 'add-session',
+                f'{t} séance passée sans compte : invitation à se connecter')
+        page.click('.auth [data-action="auth-close"]')
+        page.wait_for_timeout(400)
+        # Une séance commencée avant (verrou allumé ensuite) : la terminer garde la séance en cours
+        page.evaluate("""() => { access.anon = false; startSession(firstSession()); access.anon = true; validateSet(0, 0); }""")
+        page.wait_for_timeout(300)
+        page.evaluate("handleAction(null, document.createElement('div'), 'finish-session'); null")
+        page.wait_for_timeout(500)
+        if page.locator('.ios-dialog').count():
+            tap_dialog(page, 'Enregistrer')
+        page.wait_for_timeout(700)
+        R.check(page.locator('.auth').count() == 1 and page.evaluate('!!activeSession') and page.evaluate('data.history.length') == before,
+                f'{t} enregistrer sans compte : invitation, séance en cours intacte, rien de perdu')
+        page.click('.auth [data-action="auth-close"]')
+        page.wait_for_timeout(400)
+        page.evaluate('endSession()')
+        # Historique, Progrès et export restent ouverts sans compte
+        page.evaluate("switchTab('history')")
+        page.wait_for_timeout(400)
+        R.check(page.evaluate("currentView()") == 'history' and page.locator('.auth').count() == 0, f'{t} sans compte : Historique ouvert')
+        page.evaluate("switchTab('progress')")
+        page.wait_for_timeout(400)
+        R.check(page.evaluate("currentView()") == 'stats', f'{t} sans compte : Progrès ouvert')
+        exported = page.evaluate("async () => { const ok = await exportData('dark'); return [ok, currentView(), !!document.querySelector('.auth')]; }")
+        R.check(exported[0] is not False and exported[2] is False, f'{t} sans compte : export possible {exported}')
+        # Connexion : l'essai démarre, et la séance peut être démarrée
+        signin(page, username='max')
+        page.wait_for_timeout(400)
+        R.check(page.evaluate('canWrite()') is True and page.evaluate('accessStatus()') == 'trial', f'{t} connecté : essai démarré')
+        page.evaluate("switchTab('train')")
+        page.wait_for_timeout(300)
+        start_session(page)
+        R.check(page.evaluate('!!activeSession') and page.locator('.auth').count() == 0, f'{t} connecté : séance démarrée')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -716,4 +889,4 @@ def t_hors_ligne(bench, eng, dev, theme):
 
 
 run_main(R, [t_essai, t_lecture_seule, t_achat, t_achats_bloques, t_rattrapage, t_verrou_serveur,
-             t_verrou_eteint, t_horloge, t_hors_ligne])
+             t_verrou_eteint, t_iphone_deja_essaye, t_compte_obligatoire, t_horloge, t_hors_ligne])

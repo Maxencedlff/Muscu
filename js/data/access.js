@@ -18,11 +18,21 @@
 //    Les deux sens vont donc vers le plus strict : une horloge trafiquée ne peut rien ouvrir.
 //  - LE VERROU EST LIVRÉ ÉTEINT. Tant que `paywall_on` est faux, `canWrite()` est TOUJOURS vrai, même
 //    sans compte, sans réseau et sans état connu : rien ne doit bloquer.
+//  - COMPTE OBLIGATOIRE QUAND LE VERROU EST ALLUMÉ (règle du 28/10/2026) : sans compte, l'app lit la
+//    seule ligne `paywall_on` de `app_config` (lisible par anon, rien d'autre) ; allumé, démarrer ou
+//    enregistrer une séance invite à se connecter (accessGate, js/features/paywall-ui.js). Verrou
+//    éteint, valeur inconnue (jamais lue, hors ligne) ou comptes indisponibles : rien ne bloque.
+//  - ESSAI RATTACHÉ À L'IDENTIFIANT APPLE (règle du 28/10/2026) : l'app envoie la preuve signée par
+//    Apple du téléchargement (Native.store.appTransaction) à la fonction Edge verify-app-transaction,
+//    au lancement tant que le compte n'a aucun identifiant Apple lié (`apple_linked`), et juste avant de
+//    refuser une séance. Le serveur décide de tout ; preuve indisponible : rien ne bloque ici.
 //  - Résultats : { ok: true, data } ou { ok: false, kind }. L'écran s'abonne par onAccessChange.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
 const ACCESS_CACHE_KEY   = 'mdlf_access';     // { userId, state } du dernier état lu (effacé à la déconnexion)
+const ACCESS_ANON_KEY    = 'mdlf_paywall_anon'; // { on, at } : verrou lu sans compte (réglage public, pas une donnée)
+const ACCESS_ANON_MS     = 10 * 60_000;       // sans compte : une relecture du verrou toutes les 10 min au plus
 const ACCESS_CACHE_MS    = 7 * 86400_000;     // hors ligne : validité du dernier état lu
 const ACCESS_SKEW_MS     = 5 * 60_000;        // tolérance d'horloge (l'appareil peut être un peu en retard)
 const ACCESS_GRACE_MS    = 2 * 86400_000;     // abonné hors ligne : marge après la date de fin du serveur
@@ -39,11 +49,19 @@ const ACCESS_GIFT_CODE_RE = /^[A-HJ-NP-Z2-9]{10,24}$/;
 // state : dernier état lu pendant ce lancement ; cached : dernier état gardé sur l'appareil
 const access = { userId: null, state: null, cached: null, loading: false, again: false, error: null, loadedAt: 0,
   products: null, missing: null, productsAt: 0, buying: null, verifying: false, syncing: false,
-  canPay: true, refused: new Set() };
+  canPay: true, refused: new Set(),
+  // Sans compte : verrou lu dans app_config (true, false, ou null tant qu'il n'a jamais été lu)
+  anon: readAnonPaywall(), anonAt: 0, anonLoading: false,
+  // Preuve Apple : envoi en cours, et refus déjà reçu pendant ce lancement (pas de nouvel essai inutile)
+  linking: false, appleRefused: false };
 const accessListeners = [];
 let accessSeq = 0;   // +1 à chaque changement de compte : une réponse arrivée après n'écrit plus rien
 
 function onAccessChange(fn) { accessListeners.push(fn); }
+function readAnonPaywall() {
+  try { const v = JSON.parse(localStorage.getItem(ACCESS_ANON_KEY)); return typeof v?.on === 'boolean' ? v.on : null; }
+  catch { return null; }
+}
 function notifyAccess() { for (const fn of accessListeners) { try { fn(); } catch { /* écran absent */ } } }
 
 // ── Logique pure : nettoyage de ce que renvoie le serveur ───
@@ -74,6 +92,8 @@ function cleanAccess(raw) {
     gift: r.gift === true,
     gift_until: accessTime(r.gift_until),
     coach_team: r.coach_team === true,
+    // Un identifiant Apple est lié au compte (règle 1). Absent d'une vieille réponse : inconnu (null)
+    apple_linked: typeof r.apple_linked === 'boolean' ? r.apple_linked : null,
     server_now: serverNow,
   };
 }
@@ -112,9 +132,16 @@ function accessStale() {
   return !access.cached || !accessCacheValid(access.cached);
 }
 
-// Droit d'enregistrer une séance. Jamais bloqué : sans compte, sans état connu, ou verrou éteint.
+// Compte obligatoire (règle 2) : pas de compte, comptes disponibles sur cet appareil, et verrou lu
+// ALLUMÉ. Une valeur jamais lue (null) ne bloque pas : seule une réponse du serveur ferme.
+function accessSignInRequired() {
+  return !account.user && accountAvailable() && access.anon === true;
+}
+
+// Droit d'enregistrer une séance. Jamais bloqué : sans état connu ou verrou éteint ; sans compte,
+// seulement quand le verrou est allumé (il faut alors un compte).
 function canWrite() {
-  if (!account.user) return true;
+  if (!account.user) return !accessSignInRequired();
   const st = accessKnown();
   if (!st || !st.paywall_on) return true;
   return st.can_write === true;
@@ -155,7 +182,8 @@ function accessErrorKind(error) {
 }
 // Refus nommés par le serveur (verify-purchase, appstore-notify, RPC) : tous traduits
 const ACCESS_SERVER_ERRORS = ['invalid_jws', 'bad_bundle', 'bad_environment', 'bad_type', 'not_purchased',
-  'transaction_taken', 'unknown_product', 'invalid_transaction', 'rate_limited', 'not_found'];
+  'transaction_taken', 'unknown_product', 'invalid_transaction', 'rate_limited', 'not_found',
+  'not_app_transaction', 'no_app_transaction_id', 'invalid_app_transaction'];
 const ACCESS_ERROR_TEXT = {
   offline: 'Pas d\'Internet : réessaie avec du réseau.',
   invalid_jws: 'Cet achat n\'a pas pu être vérifié auprès d\'Apple.',
@@ -180,6 +208,10 @@ const ACCESS_ERROR_TEXT = {
   no_store: 'Les achats se font dans l\'app MDLF Training sur iPhone.',
   nothing: 'Aucun achat à restaurer sur cet identifiant Apple.',
   signed_out: 'Connecte-toi d\'abord à ton compte.',
+  apple_unavailable: 'Ton identifiant Apple n\'a pas pu être vérifié. Vérifie que tu es connecté à l\'App Store, puis réessaie.',
+  not_app_transaction: 'Ton identifiant Apple n\'a pas pu être vérifié.',
+  no_app_transaction_id: 'Ton identifiant Apple n\'a pas pu être vérifié. Réessaie dans un moment.',
+  invalid_app_transaction: 'Ton identifiant Apple n\'a pas pu être vérifié.',
   server: 'Action impossible pour l\'instant, réessaie dans un moment.',
 };
 function accessErrorText(kind) { return ACCESS_ERROR_TEXT[kind] || ACCESS_ERROR_TEXT.server; }
@@ -202,7 +234,8 @@ function accessReset(userId) {
   accessSeq++;
   access.refused.clear();
   Object.assign(access, { userId, state: null, cached: userId ? readAccessCache(userId) : null,
-    loading: false, again: false, error: null, loadedAt: 0, buying: null, verifying: false });
+    loading: false, again: false, error: null, loadedAt: 0, buying: null, verifying: false,
+    linking: false, appleRefused: false });
 }
 
 // ── Appels au serveur ───────────────────────────────────────
@@ -297,8 +330,79 @@ async function accessRedeemGiftCode(raw) {
 // ne change et le dernier état connu décide). Renvoie le droit d'écrire après cette tentative.
 async function accessEnsure() {
   if (canWrite()) return true;
+  // Sans compte : le verrou a peut-être été éteint depuis
+  if (!account.user) { await accessAnonRefresh(); return canWrite(); }
   if (accessStale() || !access.state) await accessRefresh();
+  // Essai plafonné faute de preuve Apple : on la renvoie avant de refuser (elle a pu échouer au
+  // lancement, réseau ou App Store indisponibles) ; la réponse porte l'état à jour
+  if (!canWrite() && access.state?.apple_linked === false) await accessLinkApple();
   return canWrite();
+}
+
+// ── Sans compte : le verrou (règle 2) ───────────────────────
+
+// Lit la seule ligne paywall_on de app_config, lisible sans compte (politique RLS de
+// 20261029000000_payant_apple.sql). Gardée sur l'appareil : hors ligne, la dernière valeur lue vaut.
+// Une erreur ne change rien (la dernière valeur, ou rien de bloqué si jamais lue).
+async function accessAnonRefresh({ minAge = 0 } = {}) {
+  if (!sb || account.user || !accountAvailable() || access.anonLoading) return access.anon;
+  if (minAge && access.anonAt && Date.now() - access.anonAt < minAge) return access.anon;
+  access.anonLoading = true;
+  try {
+    const { data: row, error } = await sb.from('app_config').select('value').eq('key', 'paywall_on').maybeSingle();
+    if (error || account.user) return access.anon;
+    const on = row?.value === true;
+    access.anonAt = Date.now();
+    if (on !== access.anon) {
+      access.anon = on;
+      try { localStorage.setItem(ACCESS_ANON_KEY, JSON.stringify({ on, at: Date.now() })); } catch { /* facultatif */ }
+      notifyAccess();
+    }
+    return on;
+  } catch { return access.anon; }
+  finally { access.anonLoading = false; }
+}
+
+// ── Essai rattaché à l'identifiant Apple (règle 1) ──────────
+
+// Envoie la preuve signée par Apple du téléchargement (AppTransaction) à verify-app-transaction.
+// Seulement pour un compte dont le serveur dit qu'aucun identifiant Apple n'est lié, sauf `force`
+// (geste explicite « Vérifier mon identifiant Apple », avec `refresh` qui ouvre la fenêtre d'Apple).
+// Renvoie { ok: true } (état relu), { ok: true, skipped: true } (rien à faire) ou { ok: false, kind }.
+// Preuve indisponible (hors ligne, App Store pas connecté, vieille coquille, navigateur) : rien n'est
+// bloqué ici, le serveur applique son plafond « sans preuve » et l'app réessaiera.
+async function accessLinkApple({ refresh = false, force = false } = {}) {
+  if (!sb || !account.user) return { ok: false, kind: 'signed_out' };
+  if (!Native.store.available) return { ok: false, kind: 'no_store' };
+  if (!force && (access.state?.apple_linked !== false || access.appleRefused)) return { ok: true, skipped: true };
+  if (access.linking) return { ok: false, kind: 'busy' };
+  access.linking = true;
+  const seq = accessSeq;
+  try {
+    const proof = await Native.store.appTransaction({ refresh });
+    if (seq !== accessSeq) return { ok: false, kind: 'signed_out' };
+    if (proof?.reason === 'cancelled') return { ok: false, reason: 'cancel' };
+    if (proof?.available !== true || typeof proof.jws !== 'string' || !proof.jws) return { ok: false, kind: 'apple_unavailable' };
+    const { data: res, error } = await sb.functions.invoke('verify-app-transaction', { body: { jws: proof.jws } });
+    if (seq !== accessSeq) return { ok: false, kind: 'signed_out' };
+    if (error) {
+      let info = {};
+      try { info = await error.context.json(); } catch { /* corps illisible */ }
+      const status = error.context?.status;
+      const kind = ACCESS_SERVER_ERRORS.includes(info?.error) ? info.error
+        : status === 429 ? 'rate_limited' : status >= 500 ? 'retry' : accessErrorKind(error);
+      // Refus définitif pour cette preuve (autre app, Sandbox refusé, signature) : plus renvoyée
+      // pendant ce lancement. Réseau ou serveur en panne : on réessaiera.
+      if (!['offline', 'retry', 'rate_limited', 'server'].includes(kind)) access.appleRefused = true;
+      return { ok: false, kind };
+    }
+    if (!accessApplyState(res?.access)) await accessRefresh();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, kind: accessErrorKind(e) || 'server' };
+  } finally {
+    access.linking = false;
+  }
 }
 
 // Transaction signée par Apple (JWS) envoyée à la fonction Edge verify-purchase : c'est elle qui
@@ -452,9 +556,11 @@ async function accessSyncCurrent() {
   } finally { access.syncing = false; }
 }
 
-// Lancement et retour du réseau : on relit l'état, puis on rattrape ce qu'Apple connaît déjà
+// Lancement et retour du réseau : on relit l'état, on envoie la preuve Apple si le compte n'en a
+// aucune (essai rattaché à l'identifiant Apple), puis on rattrape ce qu'Apple connaît déjà
 async function accessBoot() {
   const ok = await accessRefresh();
+  await accessLinkApple();
   await accessSyncCurrent();
   return ok;
 }
@@ -495,12 +601,19 @@ function accessOnTransaction() {
 
 onAccountChange(() => {
   const id = account.user?.id || null;
+  // Sans compte (lancement, déconnexion) : le verrou est lu pour savoir s'il faut un compte
+  if (!id && account.ready) accessAnonRefresh({ minAge: ACCESS_ANON_MS });
   if (id === access.userId) return;
   accessReset(id);
   notifyAccess();
   if (id) accessBoot();
 });
 document.addEventListener?.('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && account.user) accessRefresh({ minAge: ACCESS_REFRESH_MS });
+  if (document.visibilityState !== 'visible') return;
+  if (account.user) accessRefresh({ minAge: ACCESS_REFRESH_MS });
+  else if (account.ready) accessAnonRefresh({ minAge: ACCESS_ANON_MS });
 });
-window.addEventListener?.('online', () => { if (account.user && (access.error === 'offline' || accessStale())) accessBoot(); });
+window.addEventListener?.('online', () => {
+  if (account.user && (access.error === 'offline' || accessStale())) accessBoot();
+  else if (!account.user) accessAnonRefresh();
+});

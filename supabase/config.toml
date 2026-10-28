@@ -10,6 +10,10 @@ verify_jwt = false
 # Même choix que delete-account : jeton vérifié dans le code (auth.getUser)
 verify_jwt = false
 
+[functions.verify-app-transaction]
+# Même choix que delete-account : jeton vérifié dans le code (auth.getUser)
+verify_jwt = false
+
 [functions.report]
 # Même choix que delete-account : jeton vérifié dans le code (auth.getUser)
 verify_jwt = false

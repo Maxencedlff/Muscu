@@ -41,7 +41,9 @@ declare v jsonb;
 begin
   if (select value from public.app_config where key = 'paywall_on') is distinct from 'false'::jsonb then raise 'paywall_on livré allumé'; end if;
   if (select value from public.app_config where key = 'trial_days') is distinct from '90'::jsonb then raise 'trial_days'; end if;
-  if (select count(*) from public.app_config) is distinct from 2 then raise 'clés de app_config'; end if;
+  -- Plafond de l'essai sans preuve Apple (20261029000000_payant_apple.sql) : 14 jours
+  if (select value from public.app_config where key = 'trial_unproven_days') is distinct from '14'::jsonb then raise 'trial_unproven_days'; end if;
+  if (select count(*) from public.app_config) is distinct from 3 then raise 'clés de app_config'; end if;
 end $$;
 
 set role authenticated;
@@ -68,9 +70,9 @@ begin
      or (st ->> 'paywall_on')::boolean or (st ->> 'trial_days')::int is distinct from 90
      or (st ->> 'gift')::boolean or (st ->> 'coach_team')::boolean then raise 'access_state avant essai : %', st; end if;
   if (st ->> 'server_now')::timestamptz not between now() - interval '1 minute' and now() + interval '1 minute' then raise 'server_now : %', st; end if;
-  -- Les 9 clés du contrat, exactement
+  -- Les 10 clés du contrat, plus apple_linked (règle 1, 20261029000000_payant_apple.sql), exactement
   if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from
-     array['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'paywall_on', 'server_now', 'status', 'trial_days', 'until']
+     array['apple_linked', 'can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'paywall_on', 'server_now', 'status', 'trial_days', 'until']
      then raise 'clés de access_state : %', st; end if;
   -- Rien n'a été créé
   reset role;
@@ -80,7 +82,7 @@ begin
   -- my_access : l'essai démarre ici
   st := public.my_access();
   if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from
-     array['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'paywall_on', 'server_now', 'status', 'trial_days', 'until']
+     array['apple_linked', 'can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'paywall_on', 'server_now', 'status', 'trial_days', 'until']
      then raise 'clés de my_access : %', st; end if;
   if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 90
      or not (st ->> 'can_write')::boolean then raise 'my_access : %', st; end if;
@@ -871,3 +873,291 @@ end $$;
 
 -- Nettoyage : les tests suivants partent d'une base sans ces comptes
 delete from auth.users where id in (select pg_temp.pu(c) from unnest(array['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']) c);
+
+-- ═══════════════════════════════════════════════════════════
+--  Règles du 28/10 (supabase/migrations/20261029000000_payant_apple.sql)
+--  Règle 1 : l'essai est rattaché à l'identifiant Apple (appTransactionId), pas seulement au compte.
+--  Règle 2 : paywall_on lisible sans compte, et rien d'autre.
+--  Comptes : pg_temp.pq('a') → …00000000071a (K, L, M, N, O, P, Q). Le serveur a déjà vérifié la
+--  signature d'Apple (fonction Edge) : ici on appelle srv_link_app_transaction comme elle le fait.
+-- ═══════════════════════════════════════════════════════════
+create function pg_temp.pq(c text) returns uuid language sql immutable as
+$$ select ('00000000-0000-0000-0000-00000000071' || translate(c, 'abcdefghij', 'abcdef7890'))::uuid $$;
+create function pg_temp.pqlogin(c text) returns void language sql as
+$$ select set_config('request.jwt.claim.sub', pg_temp.pq(c)::text, false) $$;
+-- Liaison faite par la fonction Edge (clé serveur), sans quitter le rôle courant
+create function pg_temp.plink(c text, app text, env text default 'Production', bundle text default 'com.mdlf.training')
+  returns text language sql as
+$$ select pg_temp.psrv(format('select public.srv_link_app_transaction(%L, %L, %L, %L)', pg_temp.pq(c), app, env, bundle)) $$;
+grant execute on function pg_temp.pq(text), pg_temp.pqlogin(text), pg_temp.plink(text, text, text, text)
+  to authenticated, anon, service_role;
+insert into auth.users (id) select pg_temp.pq(c) from unnest(array['a', 'b', 'c', 'd', 'e', 'f', 'g']) c;
+-- Q est coach (rôle donné par l'administrateur)
+insert into public.user_profiles (user_id, username, avatar_emoji, coach_at) values (pg_temp.pq('g'), 'quentin.p2', '🦁', now());
+
+-- ── Règle 1 : deux comptes sur le même identifiant Apple n'ont qu'un essai ──
+do $$
+declare st jsonb;
+begin
+  -- K a commencé son essai il y a 80 jours, puis son iPhone envoie la preuve d'Apple
+  set role authenticated;
+  perform pg_temp.pqlogin('a');
+  perform public.my_access();
+  reset role;
+  update public.entitlements set trial_started_at = now() - interval '80 days' where user_id = pg_temp.pq('a');
+  set role authenticated;
+  if pg_temp.plink('a', 'APPTX-1') is distinct from 'ok' then raise 'liaison de K'; end if;
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 10
+     or not (st ->> 'apple_linked')::boolean then raise 'K après liaison : %', st; end if;
+  reset role;
+  if (select first_trial_at from public.apple_app_ids where app_transaction_id = 'APPTX-1')
+     not between now() - interval '80 days 1 minute' and now() - interval '79 days 23 hours' then raise 'date du premier essai de APPTX-1'; end if;
+  -- La liaison ne réécrit jamais trial_started_at
+  if (select trial_started_at from public.entitlements where user_id = pg_temp.pq('a')) > now() - interval '79 days' then raise 'trial_started_at réécrit'; end if;
+  set role authenticated;
+
+  -- L : nouveau compte (nouvelle adresse) sur le même iPhone, donc le même identifiant Apple
+  perform pg_temp.pqlogin('b');
+  st := public.my_access();
+  if (st ->> 'days_left')::int is distinct from 90 or (st ->> 'apple_linked')::boolean then raise 'L avant liaison (verrou éteint) : %', st; end if;
+  if pg_temp.plink('b', 'APPTX-1') is distinct from 'ok' then raise 'liaison de L'; end if;
+  st := public.my_access();
+  -- Pas d'essai neuf : il reste les 10 jours de l'identifiant Apple
+  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 10 then raise 'L a un essai neuf : %', st; end if;
+  if (st ->> 'until')::timestamptz not between now() + interval '9 days 23 hours' and now() + interval '10 days 1 minute' then raise 'fin de l''essai de L : %', st; end if;
+  -- access_state dit pareil, et l'essai de K n'a pas bougé
+  if (public.access_state() ->> 'days_left')::int is distinct from 10 then raise 'access_state de L'; end if;
+  perform pg_temp.pqlogin('a');
+  if (public.access_state() ->> 'days_left')::int is distinct from 10 then raise 'K a bougé'; end if;
+
+  -- 20 jours plus tard (essai de l'identifiant Apple fini) : L est expiré, verrou éteint il écrit encore
+  reset role;
+  update public.apple_app_ids set first_trial_at = first_trial_at - interval '20 days' where app_transaction_id = 'APPTX-1';
+  set role authenticated;
+  perform pg_temp.pqlogin('b');
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'expired' or not (st ->> 'can_write')::boolean then raise 'L expiré, verrou éteint : %', st; end if;
+  -- Verrou allumé : L ne peut plus enregistrer, et le serveur le refuse
+  reset role;
+  update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
+  set role authenticated;
+  if (public.my_access() ->> 'can_write')::boolean then raise 'L écrit après l''essai de son identifiant Apple'; end if;
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('l-1', '{"date": 1, "exercises": []}') $q$) is distinct from 'paywall_locked' then raise 'le serveur accepte la séance de L'; end if;
+
+  -- Ce qui est payé, offert ou donné par un coach ne change pas
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pq('b'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-l1')) is distinct from 'ok' then raise 'abonnement de L'; end if;
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'active' or not (st ->> 'can_write')::boolean then raise 'L abonné : %', st; end if;
+  reset role;
+  update public.entitlement_claims set revoked_at = now() where original_transaction_id = 'tx-l1';
+  perform private.access_refresh(pg_temp.pq('b'));
+  insert into public.coach_links (student_id, coach_id) values (pg_temp.pq('b'), pg_temp.pq('g'));
+  set role authenticated;
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'coach_team' or not (st ->> 'can_write')::boolean then raise 'L élève de coach : %', st; end if;
+  reset role;
+  delete from public.coach_links where student_id = pg_temp.pq('b');
+  set role authenticated;
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, null, %L)', pg_temp.pq('b'), 'com.mdlf.training.access.gift', 'tx-l2')) is distinct from 'ok' then raise 'accès offert de L'; end if;
+  if public.my_access() ->> 'status' is distinct from 'gift' then raise 'L accès offert'; end if;
+  reset role;
+  update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
+end $$;
+
+-- ── La première liaison fixe la date : un vieux compte n'éteint pas l'essai d'un proche ──
+do $$
+declare st jsonb;
+begin
+  set role authenticated;
+  -- M crée son compte sur son iPhone (identifiant Apple neuf) : essai complet
+  perform pg_temp.pqlogin('c');
+  perform public.my_access();
+  if pg_temp.plink('c', 'APPTX-2') is distinct from 'ok' then raise 'liaison de M'; end if;
+  if (public.my_access() ->> 'days_left')::int is distinct from 90 then raise 'M : essai complet'; end if;
+  -- N, compte ancien (essai fini), se connecte un jour sur l'iPhone de M
+  perform pg_temp.pqlogin('d');
+  perform public.my_access();
+  reset role;
+  update public.entitlements set trial_started_at = now() - interval '300 days' where user_id = pg_temp.pq('d');
+  set role authenticated;
+  if pg_temp.plink('d', 'APPTX-2') is distinct from 'ok' then raise 'liaison de N'; end if;
+  perform pg_temp.pqlogin('c');
+  if (public.my_access() ->> 'days_left')::int is distinct from 90 then raise 'l''essai de M a été raccourci par N'; end if;
+  -- N lui-même ne gagne rien : le plus ancien des départs reste le sien
+  perform pg_temp.pqlogin('d');
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'expired' then raise 'N a regagné un essai : %', st; end if;
+  -- Se relier plusieurs fois au même identifiant ne crée rien de plus
+  if pg_temp.plink('d', 'APPTX-2') is distinct from 'ok' then raise 'liaison répétée'; end if;
+  reset role;
+  if (select count(*) from public.apple_app_links where user_id = pg_temp.pq('d')) is distinct from 1 then raise 'liaison doublée'; end if;
+  if (select count(*) from public.apple_app_ids where app_transaction_id = 'APPTX-2') is distinct from 1 then raise 'identifiant doublé'; end if;
+end $$;
+
+-- ── Sans preuve Apple : comportement sûr, et pas d'essai à l'infini ──
+do $$
+declare st jsonb;
+begin
+  -- O n'a jamais envoyé de preuve (hors ligne, TestFlight, client modifié), essai démarré il y a 5 jours
+  set role authenticated;
+  perform pg_temp.pqlogin('e');
+  perform public.my_access();
+  reset role;
+  update public.entitlements set trial_started_at = now() - interval '5 days' where user_id = pg_temp.pq('e');
+  set role authenticated;
+  -- Verrou éteint : rien ne change, essai complet et écriture permise
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 85
+     or not (st ->> 'can_write')::boolean or (st ->> 'apple_linked')::boolean then raise 'O sans preuve, verrou éteint : %', st; end if;
+  -- Verrou allumé : rien ne bloque tout de suite, mais l'essai est plafonné à 14 jours
+  reset role;
+  update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
+  set role authenticated;
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 9 or not (st ->> 'can_write')::boolean then raise 'O plafonné : %', st; end if;
+  -- Au-delà du plafond : plus d'écriture (un client qui n'envoie jamais la preuve ne repart pas de zéro)
+  reset role;
+  update public.entitlements set trial_started_at = now() - interval '20 days' where user_id = pg_temp.pq('e');
+  set role authenticated;
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'expired' or (st ->> 'can_write')::boolean then raise 'O au-delà du plafond : %', st; end if;
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('o-1', '{"date": 1, "exercises": []}') $q$) is distinct from 'paywall_locked' then raise 'le serveur accepte O sans preuve'; end if;
+  -- Compte tout neuf sans preuve (essai pas encore démarré) : 14 jours affichés, pas 90
+  perform pg_temp.pqlogin('g');
+  st := public.access_state();
+  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 14 then raise 'compte neuf sans preuve : %', st; end if;
+  -- Plafond réglable sans redéployer (transition) : 90 = aucun plafond
+  reset role;
+  update public.app_config set value = '90'::jsonb where key = 'trial_unproven_days';
+  set role authenticated;
+  perform pg_temp.pqlogin('e');
+  if (public.my_access() ->> 'days_left')::int is distinct from 70 then raise 'plafond réglable'; end if;
+  reset role;
+  update public.app_config set value = '"beaucoup"'::jsonb where key = 'trial_unproven_days';
+  set role authenticated;
+  if (public.my_access() ->> 'status') is distinct from 'expired' then raise 'valeur invalide : retour aux 14 jours'; end if;
+  reset role;
+  update public.app_config set value = '14'::jsonb where key = 'trial_unproven_days';
+  set role authenticated;
+  -- La preuve arrive (identifiant Apple neuf) : l'essai complet revient, calculé depuis son départ
+  if pg_temp.plink('e', 'APPTX-3') is distinct from 'ok' then raise 'liaison de O'; end if;
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'trial' or (st ->> 'days_left')::int is distinct from 70
+     or not (st ->> 'can_write')::boolean or not (st ->> 'apple_linked')::boolean then raise 'O avec preuve : %', st; end if;
+  reset role;
+  update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
+end $$;
+
+-- ── Preuves refusées par la base ─────────────────────────
+do $$
+begin
+  set role authenticated;
+  -- Une autre app (même signée par Apple) ne lie rien
+  if pg_temp.plink('f', 'APPTX-9', 'Production', 'com.autre.app') is distinct from 'bad_bundle' then raise 'autre bundleId accepté'; end if;
+  if pg_temp.plink('f', 'APPTX-9', 'Production', null) is distinct from 'bad_bundle' then raise 'bundleId absent accepté'; end if;
+  if pg_temp.plink('f', 'APPTX-9', 'Xcode') is distinct from 'invalid_app_transaction' then raise 'environnement Xcode accepté'; end if;
+  if pg_temp.plink('f', '', 'Production') is distinct from 'invalid_app_transaction' then raise 'identifiant vide accepté'; end if;
+  if pg_temp.plink('f', 'a b''; drop table x', 'Production') is distinct from 'invalid_app_transaction' then raise 'identifiant mal formé accepté'; end if;
+  if pg_temp.plink('f', repeat('9', 65), 'Production') is distinct from 'invalid_app_transaction' then raise 'identifiant trop long accepté'; end if;
+  if pg_temp.psrv(format('select public.srv_link_app_transaction(%L, %L, %L, %L)', '00000000-0000-0000-0000-0000000007ff', 'APPTX-9', 'Production', 'com.mdlf.training')) is distinct from 'not_found' then raise 'compte inconnu accepté'; end if;
+  reset role;
+  if exists (select 1 from public.apple_app_ids where app_transaction_id = 'APPTX-9') then raise 'preuve refusée pourtant écrite'; end if;
+  -- Débit : 30 liaisons par 24 h et par compte
+  set role authenticated;
+  for i in 1..30 loop
+    if pg_temp.plink('f', 'APPTX-F') is distinct from 'ok' then raise 'liaison % refusée trop tôt', i; end if;
+  end loop;
+  if pg_temp.plink('f', 'APPTX-F') is distinct from 'rate_limited' then raise 'débit des liaisons'; end if;
+  reset role;
+end $$;
+
+-- ── Aucune écriture directe, aucune lecture ──────────────
+set role authenticated;
+do $$ begin
+  perform pg_temp.pqlogin('a');
+  if pg_temp.perr($q$ select * from public.apple_app_ids $q$) not like 'permission denied%' then raise 'apple_app_ids lisible'; end if;
+  if pg_temp.perr($q$ select * from public.apple_app_links $q$) not like 'permission denied%' then raise 'apple_app_links lisible'; end if;
+  if pg_temp.perr($q$ insert into public.apple_app_ids (app_transaction_id, environment, first_trial_at) values ('X1', 'Production', now()) $q$) not like 'permission denied%' then raise 'apple_app_ids : insertion'; end if;
+  if pg_temp.perr($q$ update public.apple_app_ids set first_trial_at = now() $q$) not like 'permission denied%' then raise 'apple_app_ids : rajeunir son identifiant'; end if;
+  if pg_temp.perr($q$ delete from public.apple_app_links $q$) not like 'permission denied%' then raise 'apple_app_links : se délier'; end if;
+  if pg_temp.perr(format('select public.srv_link_app_transaction(%L, %L, %L, %L)', pg_temp.pq('a'), 'APPTX-X', 'Production', 'com.mdlf.training')) not like 'permission denied%' then raise 'srv_link_app_transaction exécutable par un compte'; end if;
+  -- Un compte connecté lit toujours tous les réglages
+  if (select count(*) from public.app_config) is distinct from 3 then raise 'app_config pour authenticated'; end if;
+end $$;
+reset role;
+
+-- ── Règle 2 : anon ne lit QUE paywall_on ─────────────────
+set role anon;
+do $$
+declare k text[];
+begin
+  perform set_config('request.jwt.claim.sub', '', false);
+  select array_agg(key) into k from public.app_config;
+  if k is distinct from array['paywall_on'] then raise 'anon lit : %', k; end if;
+  if (select value from public.app_config where key = 'paywall_on') is distinct from 'false'::jsonb then raise 'anon : paywall_on illisible'; end if;
+  if exists (select 1 from public.app_config where key in ('trial_days', 'trial_unproven_days')) then raise 'anon lit les autres réglages'; end if;
+  if pg_temp.perr($q$ select updated_at from public.app_config $q$) not like 'permission denied%' then raise 'anon lit updated_at'; end if;
+  if pg_temp.perr($q$ update public.app_config set value = 'false'::jsonb where key = 'paywall_on' $q$) not like 'permission denied%' then raise 'anon modifie paywall_on'; end if;
+  if pg_temp.perr($q$ insert into public.app_config (key, value) values ('x', '1') $q$) not like 'permission denied%' then raise 'anon insère'; end if;
+  if pg_temp.perr($q$ delete from public.app_config $q$) not like 'permission denied%' then raise 'anon supprime'; end if;
+  if pg_temp.perr($q$ select * from public.apple_app_ids $q$) not like 'permission denied%' then raise 'anon lit apple_app_ids'; end if;
+  if pg_temp.perr($q$ select * from public.apple_app_links $q$) not like 'permission denied%' then raise 'anon lit apple_app_links'; end if;
+  if pg_temp.perr(format('select public.srv_link_app_transaction(%L, %L, %L, %L)', pg_temp.pq('a'), 'APPTX-X', 'Production', 'com.mdlf.training')) not like 'permission denied%' then raise 'anon lie un identifiant'; end if;
+  if pg_temp.perr('select public.my_access()') not like 'permission denied%' then raise 'anon : my_access'; end if;
+end $$;
+reset role;
+-- Verrou allumé : anon le voit (c'est tout ce qu'il lui faut pour inviter à se connecter)
+update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
+set role anon;
+do $$ begin
+  if (select value from public.app_config where key = 'paywall_on') is distinct from 'true'::jsonb then raise 'anon ne voit pas le verrou allumé'; end if;
+end $$;
+reset role;
+update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
+
+-- ── Droits déclarés ──────────────────────────────────────
+do $$ begin
+  if has_function_privilege('authenticated', 'public.srv_link_app_transaction(uuid, text, text, text)', 'execute')
+     or has_function_privilege('anon', 'public.srv_link_app_transaction(uuid, text, text, text)', 'execute')
+     or not has_function_privilege('service_role', 'public.srv_link_app_transaction(uuid, text, text, text)', 'execute')
+     then raise 'droits de srv_link_app_transaction'; end if;
+  if has_function_privilege('authenticated', 'private.access_unproven_days()', 'execute')
+     or has_function_privilege('service_role', 'private.access_unproven_days()', 'execute') then raise 'access_unproven_days exécutable'; end if;
+  if exists (select 1 from pg_policies where tablename in ('apple_app_ids', 'apple_app_links')) then raise 'politique RLS inattendue'; end if;
+  if exists (select 1 from pg_class where relname in ('apple_app_ids', 'apple_app_links') and not relrowsecurity) then raise 'RLS désactivée'; end if;
+  for r in 1..1 loop
+    if has_table_privilege('service_role', 'public.apple_app_ids', 'select') or has_table_privilege('service_role', 'public.apple_app_links', 'insert')
+       or has_table_privilege('authenticated', 'public.apple_app_ids', 'select') or has_table_privilege('anon', 'public.apple_app_links', 'select')
+       then raise 'GRANT sur les tables Apple'; end if;
+  end loop;
+  -- anon : une seule politique, sur la seule clé paywall_on, en lecture
+  if (select count(*) from pg_policies where tablename = 'app_config' and 'anon' = any(roles)) is distinct from 1
+     or not exists (select 1 from pg_policies where tablename = 'app_config' and 'anon' = any(roles) and cmd = 'SELECT' and qual like '%paywall_on%')
+     then raise 'politique anon de app_config'; end if;
+  if has_column_privilege('anon', 'public.app_config', 'updated_at', 'select') or has_table_privilege('anon', 'public.app_config', 'update')
+     then raise 'anon a trop de droits sur app_config'; end if;
+end $$;
+
+-- ── Suppression du compte : le lien part, l'identifiant Apple reste ──
+do $$
+declare st jsonb;
+begin
+  -- K supprime son compte et en recrée un (P) sur le même iPhone : pas d'essai neuf
+  delete from auth.users where id = pg_temp.pq('a');
+  if exists (select 1 from public.apple_app_links where user_id = pg_temp.pq('a')) then raise 'cascade apple_app_links'; end if;
+  if exists (select 1 from public.entitlements where user_id = pg_temp.pq('a')) then raise 'cascade entitlements (K)'; end if;
+  if not exists (select 1 from public.apple_app_ids where app_transaction_id = 'APPTX-1') then raise 'l''identifiant Apple est parti avec le compte'; end if;
+  if (select count(*) from public.apple_app_links where app_transaction_id = 'APPTX-1') is distinct from 1 then raise 'les autres liens de APPTX-1 ont bougé'; end if;
+  insert into auth.users (id) values (pg_temp.pq('a'));
+  set role authenticated;
+  perform pg_temp.pqlogin('a');
+  if pg_temp.plink('a', 'APPTX-1') is distinct from 'ok' then raise 'liaison du nouveau compte'; end if;
+  st := public.my_access();
+  if st ->> 'status' is distinct from 'expired' then raise 'compte recréé : essai neuf : %', st; end if;
+  reset role;
+end $$;
+
+-- Nettoyage
+delete from auth.users where id in (select pg_temp.pq(c) from unnest(array['a', 'b', 'c', 'd', 'e', 'f', 'g']) c);
+delete from public.apple_app_ids;
