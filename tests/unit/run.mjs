@@ -1409,6 +1409,8 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 (await import('./coach.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Accès payant : nettoyage, horloge de l'appareil, cache hors ligne, verrou (tests dans access.mjs) ──
 (await import('./access.mjs')).default({ test, run, assert, sameJSON, ROOT });
+// ── Contrat du module natif StoreKit : clés réellement envoyées par le Swift (store-contract.mjs) ──
+(await import('./store-contract.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Guide de l'app : contenus et libellés (tests dans guide.mjs) ──
 (await import('./guide.mjs')).default({ test, run, assert, ROOT });
 // ── Premier lancement : questions et programme conseillé (tests dans onboarding.mjs) ──

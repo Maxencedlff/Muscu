@@ -165,24 +165,25 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       const saved = Native.store;
       try {
         Native.store = { available: true, products: async () => ({ products: [
-          { id: ACCESS_YEARLY_ID, price: '41,99 €', title: 'MDLF Training annuel' },
-          { id: ACCESS_MONTHLY_ID, price: '  5,99 €  ', title: 'MDLF Training mensuel' },
-          { id: ACCESS_GIFT_ID, price: '24,99 €' },
-          { id: 'com.autre.app.pro', price: '1 €' },
-          { id: ACCESS_MONTHLY_ID, price: 599 },
+          { id: ACCESS_YEARLY_ID, displayPrice: '41,99 €', displayName: 'MDLF Training annuel', price: 41.99, period: { unit: 'year', value: 1 } },
+          { id: ACCESS_MONTHLY_ID, displayPrice: '  5,99 €  ', displayName: 'MDLF Training mensuel', price: 5.99, period: { unit: 'month', value: 1 } },
+          { id: ACCESS_GIFT_ID, displayPrice: '24,99 €', displayName: 'Accès offert' },
+          { id: 'com.autre.app.pro', displayPrice: '1 €' },
+          { id: ACCESS_MONTHLY_ID, displayPrice: 599 },
           null,
-        ], missing: [] }) };
+        ], missing: [], canMakePayments: true }) };
         access.products = null;
         return await accessLoadProducts();
       } finally { Native.store = saved; access.products = null; access.missing = null; }
     })()`);
-    sameJSON(list.map(p => [p.id, p.price, p.period]), [[MONTHLY, '5,99 €', 'month'], [YEARLY, '41,99 €', 'year']],
-      'mensuel d\'abord, prix nettoyés, accès offert et autres identifiants écartés');
+    sameJSON(list.map(p => [p.id, p.price, p.period, p.label]),
+      [[MONTHLY, '5,99 €', 'month', 'MDLF Training mensuel'], [YEARLY, '41,99 €', 'year', 'MDLF Training annuel']],
+      'prix affichable displayPrice (jamais le nombre), nom displayName, accès offert et autres identifiants écartés');
     // Produits qu'Apple ne connaît pas encore (contrat Paid Apps pas signé) : liste vide et missing
     const pending = await run(`(async () => {
       const saved = Native.store;
       try {
-        Native.store = { available: true, products: async () => ({ products: [], missing: [ACCESS_MONTHLY_ID, ACCESS_YEARLY_ID, 'com.autre'] }) };
+        Native.store = { available: true, products: async () => ({ products: [], missing: [ACCESS_MONTHLY_ID, ACCESS_YEARLY_ID, 'com.autre'], canMakePayments: true }) };
         access.products = null;
         const l = await accessLoadProducts();
         return [l, access.missing];
@@ -192,7 +193,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     // Hors app iOS : aucune formule, aucun achat
     const web = await run(`(async () => {
       const saved = Native.store;
-      try { Native.store = { available: false, products: async () => ({ products: [{ id: ACCESS_MONTHLY_ID, price: '5,99 €' }], missing: [] }) };
+      try { Native.store = { available: false, products: async () => ({ products: [{ id: ACCESS_MONTHLY_ID, displayPrice: '5,99 €' }], missing: [], canMakePayments: true }) };
         access.products = null;
         return [await accessLoadProducts(), await accessBuy(ACCESS_MONTHLY_ID), await accessRestore(), await accessRedeemCode()]; }
       finally { Native.store = saved; access.products = null; access.missing = null; }
@@ -298,6 +299,53 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       'code normalisé avant l\'envoi, et le code mal formé n\'est jamais envoyé');
   });
 
+  test('accès : l\'achat porte l\'identifiant du compte, la feuille de codes fermée n\'est pas un succès', async () => {
+    const r = await run(`(async () => {
+      const u = account.user, saved = { ...access }, store = Native.store;
+      const bought = [];
+      try {
+        account.user = { id: '11111111-2222-3333-4444-555555555555' };
+        accessReset(account.user.id);
+        let redeem = { presented: true };
+        Native.store = { available: true,
+          purchase: async (id, token) => { bought.push([id, token]); return { status: 'userCancelled' }; },
+          redeemCode: async () => redeem,
+          status: async () => ({ canMakePayments: false }) };
+        await accessBuy(ACCESS_MONTHLY_ID);
+        const opened = await accessRedeemCode();
+        redeem = { presented: false, cancelled: true };
+        const closed = await accessRedeemCode();
+        redeem = null;
+        const broken = await accessRedeemCode();
+        const canPay = await accessLoadStoreStatus();
+        return [bought, opened, closed, broken, canPay, access.canPay];
+      } finally { account.user = u; Object.assign(access, saved); Native.store = store; localStorage.removeItem(ACCESS_CACHE_KEY); }
+    })()`);
+    sameJSON(r[0], [[MONTHLY, '11111111-2222-3333-4444-555555555555']], 'appAccountToken : sans lui, un achat devient orphelin');
+    sameJSON(r[1], { ok: true });
+    sameJSON(r[2], { ok: false, reason: 'cancel' }, 'feuille fermée : jamais un succès, jamais une erreur');
+    sameJSON(r[3], { ok: false, kind: 'server' });
+    sameJSON(r.slice(4), [false, false], 'achats bloqués (Temps d\'écran) : l\'écran ne doit rien proposer');
+  });
+
+  test('accès : hors ligne, un abonné n\'est pas coupé au bout de 7 jours', async () => {
+    // Abonnement jusqu'à J+30 : le dernier état connu vaut jusqu'à cette date (plus deux jours),
+    // pas seulement 7 jours. L'essai, lui, garde les 7 jours.
+    const active = { status: 'active', paywall_on: true, can_write: true, until: NOW + 30 * DAY, server_now: NOW };
+    sameJSON(offline(active, 20).slice(0, 2), [true, 'active'], '20 jours hors ligne : toujours abonné');
+    sameJSON(offline(active, 31).slice(0, 2), [true, 'active'], 'un jour après la fin : marge de renouvellement');
+    sameJSON(offline(active, 33), [false, 'unknown', null, true], 'bien après la fin : état à redemander');
+    // Cadeau en jours : même règle
+    assert.equal(offline({ status: 'gift', paywall_on: true, can_write: true, gift: true, until: NOW + 60 * DAY, server_now: NOW }, 50)[0], true);
+    // Accès à vie (sans date de fin) et élève d'un coach : 7 jours, faute de borne
+    assert.equal(offline({ status: 'gift', paywall_on: true, can_write: true, gift: true, until: null, server_now: NOW }, 8)[0], false);
+    assert.equal(offline({ status: 'coach_team', paywall_on: true, can_write: true, coach_team: true, until: null, server_now: NOW }, 8)[0], false);
+    // Horloge reculée : jamais de rallonge, même pour un abonné
+    assert.equal(offline(active, -10)[0], false);
+    // Essai : toujours 7 jours
+    assert.equal(offline(trial(), 8)[0], false);
+  });
+
   test('accès : Apple injoignable (503), la transaction est gardée pour plus tard', async () => {
     const r = await run(`(async () => {
       const u = account.user, saved = { ...access }, realSb = sb, store = Native.store;
@@ -321,6 +369,68 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(r.slice(0, 3), [{ ok: false, kind: 'retry' }, { ok: false, kind: 'bad_bundle' }, { ok: false, kind: 'transaction_taken' }]);
     sameJSON(r[3], ['tx-2'], 'seul un refus définitif termine la transaction');
     assert.match(run('accessErrorText("retry")'), /réessaiera/);
+    // Trop d'appels (429) : message juste, pas « action impossible »
+    const limited = await run(`(async () => {
+      const u = account.user, saved = { ...access }, realSb = sb, store = Native.store;
+      try {
+        account.user = { id: 'u' }; accessReset('u');
+        Native.store = { available: true, finish: async () => true };
+        sb = { functions: { invoke: async () => ({ error: { context: { status: 429, json: async () => ({ error: 'rate_limited' }) } } }) } };
+        const a = await accessVerifyPurchase('jws', 'tx-9');
+        sb = { functions: { invoke: async () => ({ error: { context: { status: 400, json: async () => ({ error: 'bad_environment' }) } } }) } };
+        const b = await accessVerifyPurchase('jws', 'tx-10');
+        // Une transaction déjà refusée pour ce compte n'est pas renvoyée à Apple
+        sb = { functions: { invoke: async () => { throw new Error('ne devrait pas être appelé'); } } };
+        const c = await accessVerifyPurchase('jws', 'tx-10');
+        const taken = await (async () => {
+          sb = { functions: { invoke: async () => ({ error: { context: { status: 409, json: async () => ({ error: 'transaction_taken' }) } } }) } };
+          const first = await accessVerifyPurchase('jws', 'tx-11');
+          sb = { functions: { invoke: async () => { throw new Error('ne devrait pas être appelé'); } } };
+          return [first, await accessVerifyPurchase('jws', 'tx-11')];
+        })();
+        return [a, b, c, taken];
+      } finally { account.user = u; Object.assign(access, saved); sb = realSb; Native.store = store; localStorage.removeItem(ACCESS_CACHE_KEY); }
+    })()`);
+    sameJSON(limited[0], { ok: false, kind: 'rate_limited' });
+    sameJSON(limited[1], { ok: false, kind: 'bad_environment' });
+    sameJSON(limited[2], { ok: false, kind: 'server' }, 'tx-10 n\'est pas dans les refusées : la vérification est retentée');
+    sameJSON(limited[3], [{ ok: false, kind: 'transaction_taken' }, { ok: false, kind: 'transaction_taken' }],
+      'prise par un autre compte : plus jamais réenvoyée tant qu\'on reste sur ce compte');
+    for (const k of ['bad_environment', 'bad_type', 'not_purchased', 'invalid_transaction', 'rate_limited', 'blocked']) {
+      const txt = run(`accessErrorText(${JSON.stringify(k)})`);
+      assert.match(txt, /^[A-ZÉÀ].+\.$/, k);
+      assert.notEqual(txt, run('ACCESS_ERROR_TEXT.server'), `${k} : message générique`);
+    }
+  });
+
+  test('verrou du compte : une séance refusée n\'est ni perdue, ni marquée envoyée, et ne bloque pas les autres', async () => {
+    // Le serveur refuse l'INSERT d'une séance nouvelle (P0001 paywall_locked). Le lot est coupé en
+    // deux jusqu'à isoler les refusées : tout le reste passe.
+    const r = await run(`(async () => {
+      const realSb = sb, calls = [];
+      try {
+        clearPaywallLock();
+        const refuse = new Set(['n1', 'n2']);
+        sb = { from: () => ({ upsert: rows => { calls.push(rows.map(x => x.id));
+          return Promise.resolve(rows.some(x => refuse.has(x.id))
+            ? { error: { code: 'P0001', message: 'paywall_locked' } } : { error: null }); } }) };
+        const rows = ['a', 'b', 'n1', 'c', 'n2', 'd'].map(id => ({ id, data: {}, hash: 'h' + id }));
+        const sent = await pushSessionRows(rows, u => ({ user_id: 'u', id: u.id }));
+        // Une autre erreur n'est pas avalée : elle remonte comme avant
+        sb = { from: () => ({ upsert: () => Promise.resolve({ error: { message: 'boom' } }) }) };
+        let thrown = null;
+        try { await pushSessionRows([{ id: 'x' }], u => ({ id: u.id })); } catch (e) { thrown = e.message; }
+        return [sent.map(u => u.id), calls.length, thrown];
+      } finally { sb = realSb; clearPaywallLock(); }
+    })()`);
+    sameJSON(r[0], ['a', 'b', 'c', 'd'], 'les séances acceptées passent, les refusées sont isolées');
+    assert.ok(r[1] >= 3 && r[1] <= 13, `lots envoyés : ${r[1]} (le découpage reste borné)`);
+    assert.equal(r[2], 'boom', 'une vraie erreur de serveur remonte toujours');
+    // Reconnaissance du refus, et seulement de celui-là
+    sameJSON(run(`[isPaywallLocked({ message: 'paywall_locked' }), isPaywallLocked({ error: 'paywall_locked' }),
+      isPaywallLocked({ message: 'permission denied' }), isPaywallLocked(null)]`), [true, true, false, false]);
+    // Le verrou est oublié au changement de compte (clearSyncMetas) : rien ne traîne d'un compte à l'autre
+    assert.equal(run('(() => { clearPaywallLock(); return accountLockedCount(); })()'), 0);
   });
 
   test('accès : la porte des écritures ne bloque que verrou allumé et droit refusé', async () => {

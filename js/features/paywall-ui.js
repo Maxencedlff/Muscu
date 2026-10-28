@@ -59,9 +59,21 @@ function accessShortValue() {
 
 function payToast(r, okText) {
   if (r.ok) { if (okText) showToast(okText); return true; }
-  if (r.reason === 'cancel') return false;
+  if (r.reason === 'cancel') return false;   // fenêtre d'Apple fermée : rien à dire
+  // Abonnement rattaché à un autre compte MDLF : un toast ne dirait pas quoi faire
+  if (r.kind === 'transaction_taken') { payTakenDialog(); return false; }
   showToast(accessErrorText(r.kind), { error: true });
   return false;
+}
+
+// Cet abonnement appartient à un autre compte MDLF : on explique et on mène au bon endroit
+async function payTakenDialog() {
+  const choice = await dialog({
+    title: 'Abonnement sur un autre compte',
+    message: 'Cet abonnement Apple est déjà rattaché à un autre compte MDLF. Connecte-toi à ce compte pour le retrouver. Un abonnement ne peut pas servir à deux comptes.',
+    actions: [{ label: 'Voir mon compte', value: 'account', style: 'preferred' },
+      { label: 'Plus tard', style: 'cancel' }] });
+  if (choice === 'account') navigate('account');
 }
 
 // Les deux entrées de code : le code cadeau MDLF (champ dans l'app) et, dans l'app iOS seulement,
@@ -112,9 +124,14 @@ function accessBannerHtml() {
   if (!paywallOn()) return '';
   const st = accessStatus();
   if (!canWrite()) {
+    // Des séances que le compte a refusées (verrou du serveur) : on le dit, elles restent ici
+    const n = typeof accountLockedCount === 'function' ? accountLockedCount() : 0;
+    const txt = n
+      ? `${plural(n, 'séance n\'est pas sauvegardée', 'séances ne sont pas sauvegardées')} sur ton compte`
+      : 'Abonnement nécessaire pour enregistrer une séance';
     return `
         <button class="pay-banner pay-banner--off" data-action="pay-open" data-reason="end">
-          <span class="pay-banner__text">Abonnement nécessaire pour enregistrer une séance</span>
+          <span class="pay-banner__text">${txt}</span>
           <span class="pay-banner__more">Voir ${icon('chevron.right', 12)}</span>
         </button>`;
   }
@@ -137,7 +154,7 @@ function payPlanHtml(p) {
   const best = p.id === ACCESS_YEARLY_ID ? '<span class="pay-plan__tag">Le plus avantageux</span>' : '';
   return `
           <button class="pay-plan" data-action="pay-buy" data-id="${esc(p.id)}" ${access.buying ? 'disabled' : ''}
-                  aria-label="${esc(label)}, ${esc(p.price)} ${PAY_PLAN_PERIOD[p.id] || ''}">
+                  aria-label="${esc(p.label || label)}, ${esc(p.price)} ${PAY_PLAN_PERIOD[p.id] || ''}">
             <span class="pay-plan__left"><span class="pay-plan__name">${esc(label)}${best}</span>
               <span class="pay-plan__period">${PAY_PLAN_PERIOD[p.id] || ''}</span></span>
             <span class="pay-plan__price num">${access.buying === p.id ? 'Achat…' : esc(p.price)}</span>
@@ -148,6 +165,10 @@ function payPlansHtml() {
   if (!Native.store.available) {
     return `<div class="pay-note" role="status"><p>Les abonnements s'achètent dans l'app MDLF Training sur iPhone.</p>
           <p>Tes séances et tes progrès restent accessibles ici.</p></div>`;
+  }
+  if (access.canPay === false) {
+    return `<div class="pay-note" role="status"><p>Les achats sont bloqués sur cet iPhone.</p>
+          <p>Regarde dans Réglages, Temps d'écran, Restrictions, Achats intégrés.</p></div>`;
   }
   const list = access.products;
   if (list === null) return '<div class="pay-note" role="status"><p>Chargement des formules…</p></div>';
@@ -199,7 +220,7 @@ function renderPaywall(reason = 'offer') {
 }
 SCREENS.set('paywall', {
   render: reason => renderPaywall(reason || 'offer'),
-  enter: () => { accessRefresh(); accessLoadProducts(); },
+  enter: () => { accessRefresh(); accessLoadStoreStatus(); accessLoadProducts(); },
 });
 
 // ── Réglages › Abonnement ──────────────────────────────────
@@ -324,7 +345,8 @@ registerActions({
 // Ce que les écrans hors abonnement montrent de l'accès (bandeau de l'accueil, cellule des Réglages) :
 // ils ne sont redessinés que si cette signature change, jamais pendant une saisie
 function accessShownKey() {
-  return JSON.stringify([account.user?.id || null, paywallOn(), accessStatus(), daysLeft(), canWrite(), accessUntil()]);
+  return JSON.stringify([account.user?.id || null, paywallOn(), accessStatus(), daysLeft(), canWrite(),
+    accessUntil(), accountLockedCount()]);
 }
 let accessShown = null;
 const PAY_WATCH_VIEWS = ['dashboard', 'settings'];
@@ -337,6 +359,9 @@ function accessApplyChange() {
 }
 accessShown = accessShownKey();
 onAccessChange(() => { accessApplyChange(); });
+// La synchro aussi change ce qui est montré : une séance refusée par le compte (verrou du serveur)
+// doit apparaître dans le bandeau sans attendre le prochain dessin
+onAccountChange(() => { accessApplyChange(); });
 document.addEventListener('focusout', () => { if (accessShownKey() !== accessShown) setTimeout(accessApplyChange, 0); });
 
 // Écouteur permanent des transactions d'Apple : posé une fois au chargement

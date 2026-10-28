@@ -350,15 +350,18 @@ const Native = (() => {
     // l'écran invite alors à utiliser l'app iPhone.
     store: {
       available: isNative && !!cap.isPluginAvailable?.('MdlfStore'),
-      // { products: [{ id, price (localisé par Apple), title }], missing: [identifiants inconnus
-      // d'Apple] }. Tant que le contrat Paid Apps n'est pas signé, products est VIDE et missing
-      // contient les deux identifiants : l'écran le dit, sans prix et sans planter.
+      // { products: [{ id, displayName, description, displayPrice, price (nombre), currency,
+      // period, introEligible }], missing: [identifiants inconnus d'Apple], canMakePayments }.
+      // Le prix AFFICHABLE est `displayPrice` (déjà formaté par Apple dans la monnaie de la
+      // boutique) ; `price` est un nombre. Tant que le contrat Paid Apps n'est pas signé, products
+      // est VIDE et missing contient les deux identifiants : l'écran le dit, sans prix, sans planter.
       async products() {
-        if (!this.available) return { products: [], missing: [] };
+        if (!this.available) return { products: [], missing: [], canMakePayments: false };
         try {
           const r = await Store.products();
-          return { products: r?.products || [], missing: r?.missing || [] };
-        } catch { return { products: [], missing: [] }; }
+          return { products: r?.products || [], missing: r?.missing || [],
+            canMakePayments: r?.canMakePayments !== false };
+        } catch { return { products: [], missing: [], canMakePayments: true }; }
       },
       // Ne rejette jamais sur annulation : { status: 'success' | 'userCancelled' | 'pending' }, avec
       // { jws, transactionId } quand status vaut 'success'. La transaction n'est PAS terminée ici :
@@ -375,26 +378,31 @@ const Native = (() => {
         if (!this.available || transactionId == null) return false;
         try { await Store.finish({ transactionId }); return true; } catch { return false; }
       },
-      // AppStore.sync() puis l'état courant : { jws, transactionId } du droit en cours, ou { jws: null }
+      // AppStore.sync() (mot de passe Apple demandé) puis les droits en cours :
+      // { synced, cancelled, entitlements: [{ jws, transactionId, productId, … }], unverified }.
+      // Le JWS est dans CHAQUE droit, jamais à la racine : abonnement et « Accès offert » coexistent.
       async restore() {
         if (!this.available) return null;
         try { return await Store.restore(); } catch { return null; }
       },
-      // Droits en cours (Transaction.currentEntitlements) : { jws, transactionId, productId } ou { jws: null }
+      // Droits en cours (Transaction.currentEntitlements), sans rien demander à l'utilisateur :
+      // { entitlements: [...], unverified }
       async current() {
         if (!this.available) return null;
         try { return await Store.current(); } catch { return null; }
       },
-      // État de StoreKit (droits connus, environnement) ; null hors app ou en cas d'échec
+      // { canMakePayments, subscriptionIds, giftId }, sans aucun appel réseau. canMakePayments est
+      // faux quand les achats sont bloqués (Temps d'écran) : l'écran ne doit rien proposer.
       async status() {
         if (!this.available) return null;
         try { return await Store.status(); } catch { return null; }
       },
-      // Ouvre la feuille de codes d'Apple : codes d'offre d'ABONNEMENT seulement (un code d'« Accès
-      // offert » se saisit dans l'App Store). Le code utilisé revient par l'écouteur de transactions.
+      // Ouvre la feuille de codes d'offre d'ABONNEMENT d'Apple (un code cadeau MDLF, lui, se saisit
+      // dans l'app). Renvoie { presented: true }, ou { presented: false, cancelled: true } si la
+      // fenêtre est fermée : ce n'est PAS un succès. Le code utilisé revient par l'écouteur.
       async redeemCode() {
-        if (!this.available) return false;
-        try { await Store.redeemCode(); return true; } catch { return false; }
+        if (!this.available) return null;
+        try { return await Store.redeemCode(); } catch { return null; }
       },
       // Écouteur permanent Transaction.updates : renouvellement, code utilisé, achat sur un autre
       // appareil. Le module émet le même événement sous deux noms ('transaction' et 'change') :
