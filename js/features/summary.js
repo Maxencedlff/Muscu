@@ -248,6 +248,9 @@ registerActions({
       return;
     }
     if (choice !== 'save') return;
+    // Mode lecture seule (verrou allumé, plus le droit d'écrire) : l'abonnement est proposé et la
+    // séance en cours reste en cours, avec toutes ses séries. Rien n'est supprimé.
+    if (!(await accessGate())) return;
 
     // La séance a pu disparaître entre-temps (séance perso supprimée, import) : elle est
     // enregistrée quand même : l'historique sait afficher une catégorie inconnue (sessionMeta)

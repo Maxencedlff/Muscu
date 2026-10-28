@@ -38,6 +38,7 @@ function renderSettings() {
       <div class="scr">
 ${renderAccountGroup()}
 ${renderCoachSettingsGroup()}
+${renderAccessSettingsGroup()}
 
         <div class="group-title">Séance</div>
         <div class="group">

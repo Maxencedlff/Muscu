@@ -154,6 +154,7 @@ function routeTitle(route, isRoot) {
     friends: 'Amis', 'social-profile': socialPerson(routeParams(route)[0])?.username || 'Profil',
     'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
+    paywall: 'Abonnement', subscription: 'Abonnement',
   }[name] || 'Retour';
 }
 
