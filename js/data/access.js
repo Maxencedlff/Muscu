@@ -25,6 +25,7 @@
 const ACCESS_CACHE_KEY   = 'mdlf_access';     // { userId, state } du dernier état lu (effacé à la déconnexion)
 const ACCESS_CACHE_MS    = 7 * 86400_000;     // hors ligne : validité du dernier état lu
 const ACCESS_SKEW_MS     = 5 * 60_000;        // tolérance d'horloge (l'appareil peut être un peu en retard)
+const ACCESS_GRACE_MS    = 2 * 86400_000;     // abonné hors ligne : marge après la date de fin du serveur
 const ACCESS_REFRESH_MS  = 30_000;            // retour au premier plan : une relecture toutes les 30 s au plus
 const ACCESS_STATUSES    = ['trial', 'active', 'expired', 'gift', 'coach_team'];
 const ACCESS_MONTHLY_ID  = 'com.mdlf.training.pro.monthly';
@@ -37,7 +38,8 @@ const ACCESS_GIFT_CODE_RE = /^[A-HJ-NP-Z2-9]{10,24}$/;
 
 // state : dernier état lu pendant ce lancement ; cached : dernier état gardé sur l'appareil
 const access = { userId: null, state: null, cached: null, loading: false, again: false, error: null, loadedAt: 0,
-  products: null, missing: null, productsAt: 0, buying: null, verifying: false };
+  products: null, missing: null, productsAt: 0, buying: null, verifying: false, syncing: false,
+  canPay: true, refused: new Set() };
 const accessListeners = [];
 let accessSeq = 0;   // +1 à chaque changement de compte : une réponse arrivée après n'écrit plus rien
 
@@ -79,9 +81,17 @@ function cleanAccess(raw) {
 // Âge du dernier état lu, mesuré depuis l'heure du SERVEUR (`server_now`). Une horloge en avance donne
 // un âge trop grand, une horloge en retard un âge négatif : les deux périment le cache, jamais l'inverse.
 function accessAge(st) { return st ? Date.now() - st.server_now : Infinity; }
+// Horloge reculée : jamais de rallonge. Dans les 7 jours : la salle sans réseau ne bloque personne.
+// Au-delà, un abonnement ou un cadeau garde sa valeur jusqu'à la date de fin DONNÉE PAR LE SERVEUR
+// (plus deux jours, le temps qu'un renouvellement soit annoncé) : un abonné parti trois semaines sans
+// réseau n'est pas coupé. Un accès sans date de fin (à vie, élève d'un coach) et l'essai gardent les
+// 7 jours : rien ne permettrait de borner leur validité autrement.
 function accessCacheValid(st) {
   const age = accessAge(st);
-  return age >= -ACCESS_SKEW_MS && age <= ACCESS_CACHE_MS;
+  if (age < -ACCESS_SKEW_MS) return false;
+  if (age <= ACCESS_CACHE_MS) return true;
+  if (!['active', 'gift'].includes(st.status) || st.until === null) return false;
+  return Date.now() <= st.until + ACCESS_GRACE_MS;
 }
 
 // État retenu pour décider : celui lu pendant ce lancement, sinon le dernier état de l'appareil.
@@ -140,16 +150,24 @@ function accessErrorKind(error) {
   if (!error) return null;
   if (isNetworkError(error) || /fetch|network|load failed/i.test(String(error.message || ''))) return 'offline';
   const msg = String(error.message || error.error || '');
-  for (const k of ['invalid_jws', 'bad_bundle', 'transaction_taken', 'unknown_product', 'rate_limited', 'not_found']) if (msg.includes(k)) return k;
+  for (const k of ACCESS_SERVER_ERRORS) if (msg.includes(k)) return k;
   return 'server';
 }
+// Refus nommés par le serveur (verify-purchase, appstore-notify, RPC) : tous traduits
+const ACCESS_SERVER_ERRORS = ['invalid_jws', 'bad_bundle', 'bad_environment', 'bad_type', 'not_purchased',
+  'transaction_taken', 'unknown_product', 'invalid_transaction', 'rate_limited', 'not_found'];
 const ACCESS_ERROR_TEXT = {
   offline: 'Pas d\'Internet : réessaie avec du réseau.',
   invalid_jws: 'Cet achat n\'a pas pu être vérifié auprès d\'Apple.',
   bad_bundle: 'Cet achat vient d\'une autre app.',
-  transaction_taken: 'Cet abonnement est déjà utilisé par un autre compte MDLF.',
+  transaction_taken: 'Cet abonnement est déjà rattaché à un autre compte MDLF. Connecte-toi à ce compte pour le retrouver.',
   not_found: 'Apple ne retrouve pas cet achat. Réessaie dans un moment.',
   unknown_product: 'Cet achat ne correspond à aucune formule de l\'app.',
+  bad_environment: 'Cet achat vient de l\'environnement de test d\'Apple : il ne donne pas l\'accès ici.',
+  bad_type: 'Ce type d\'achat n\'est pas reconnu par l\'app.',
+  not_purchased: 'Cet achat n\'est pas rattaché à ton identifiant Apple. Le partage familial n\'est pas accepté.',
+  invalid_transaction: 'Apple n\'a pas reconnu cette transaction.',
+  blocked: 'Les achats sont bloqués sur cet iPhone. Regarde dans Réglages, Temps d\'écran.',
   retry: 'Apple ne répond pas pour l\'instant. Ton achat n\'est pas perdu, on réessaiera.',
   rate_limited: 'Trop d\'essais pour l\'instant. Réessaie dans une heure.',
   invalid_code: 'Ce code n\'existe pas. Vérifie les lettres et les chiffres.',
@@ -182,6 +200,7 @@ function writeAccessCache() {
 
 function accessReset(userId) {
   accessSeq++;
+  access.refused.clear();
   Object.assign(access, { userId, state: null, cached: userId ? readAccessCache(userId) : null,
     loading: false, again: false, error: null, loadedAt: 0, buying: null, verifying: false });
 }
@@ -242,6 +261,9 @@ function accessApplyState(raw) {
   access.error = null;
   access.loadedAt = Date.now();
   writeAccessCache();
+  // Droit d'écrire retrouvé (abonnement pris, code utilisé, élève repris par un coach) : les séances
+  // que le serveur avait refusées (paywall_locked) repartent tout de suite, rien n'a été perdu
+  if (canWrite() && accountLockedCount()) { clearPaywallLock(); syncNow(); }
   notifyAccess();
   return true;
 }
@@ -290,6 +312,8 @@ const ACCESS_FINAL_REFUSALS = ['invalid_jws', 'bad_bundle'];
 async function accessVerifyPurchase(jws, transactionId = null) {
   if (!sb || !account.user) return { ok: false, kind: 'signed_out' };
   if (typeof jws !== 'string' || !jws) return { ok: false, kind: 'invalid_jws' };
+  // Déjà refusée pour ce compte (rattachée à un autre) : inutile de redemander à Apple
+  if (transactionId != null && access.refused.has(String(transactionId))) return { ok: false, kind: 'transaction_taken' };
   access.verifying = true;
   notifyAccess();
   try {
@@ -301,10 +325,14 @@ async function accessVerifyPurchase(jws, transactionId = null) {
       // 503 : Apple injoignable. Ce n'est pas un refus : la transaction n'est SURTOUT pas terminée,
       // elle reviendra par Transaction.updates au prochain lancement.
       const status = error.context?.status;
-      const kind = status >= 500 ? 'retry'
-        : ['invalid_jws', 'bad_bundle', 'transaction_taken', 'unknown_product', 'not_found'].includes(info?.error)
-          ? info.error : accessErrorKind(error);
+      const kind = ACCESS_SERVER_ERRORS.includes(info?.error) ? info.error
+        : status === 429 ? 'rate_limited'
+          : status >= 500 ? 'retry' : accessErrorKind(error);
       if (ACCESS_FINAL_REFUSALS.includes(kind)) await Native.store.finish(transactionId);
+      // Transaction rattachée à un autre compte : gardée OUVERTE chez Apple (elle redeviendra utile
+      // si la personne se connecte au bon compte), mais plus réenvoyée tant qu'on reste sur ce
+      // compte : sans cela, chaque lancement rejouerait la vérification et mangerait le quota.
+      if (kind === 'transaction_taken' && transactionId != null) access.refused.add(String(transactionId));
       return { ok: false, kind };
     }
     if (res?.ok === false) return { ok: false, kind: ACCESS_ERROR_TEXT[res.error] ? res.error : 'server' };
@@ -323,19 +351,22 @@ async function accessVerifyPurchase(jws, transactionId = null) {
 
 // ── Achats (StoreKit 2, par le module natif) ────────────────
 
-// Formules proposées : prix LUS CHEZ STOREKIT (localisés par Apple), jamais écrits en dur. Hors app
-// iOS, ou module absent : liste vide (l'écran invite à utiliser l'app). Les identifiants inconnus et
-// l'« Accès offert » (jamais vendu) sont écartés.
+// Formules proposées : prix LUS CHEZ STOREKIT (localisés par Apple), jamais écrits en dur. Le module
+// rend `displayPrice` (chaîne déjà formatée dans la monnaie de la boutique) et `displayName` ; `price`
+// est un nombre, inutilisable tel quel à l'écran. Hors app iOS, ou module absent : liste vide
+// (l'écran invite à utiliser l'app). Les identifiants inconnus et l'« Accès offert » (jamais vendu)
+// sont écartés. `canMakePayments` : faux quand les achats sont bloqués (Temps d'écran).
 async function accessLoadProducts({ force = false } = {}) {
   if (!Native.store.available) { access.products = []; access.missing = []; return []; }
   if (access.products?.length && !force) return access.products;
   const raw = await Native.store.products();
   const list = (Array.isArray(raw?.products) ? raw.products : [])
-    .filter(p => p && ACCESS_PRODUCT_IDS.includes(p.id) && typeof p.price === 'string' && p.price.trim())
-    .map(p => ({ id: p.id, price: p.price.trim().slice(0, 24),
-      title: typeof p.title === 'string' ? p.title.slice(0, 60) : '',
-      period: p.id === ACCESS_YEARLY_ID ? 'year' : 'month' }))
+    .filter(p => p && ACCESS_PRODUCT_IDS.includes(p.id) && typeof p.displayPrice === 'string' && p.displayPrice.trim())
+    .map(p => ({ id: p.id, price: p.displayPrice.trim().slice(0, 24),
+      label: typeof p.displayName === 'string' ? p.displayName.slice(0, 60) : '',
+      period: p.period?.unit === 'year' || p.id === ACCESS_YEARLY_ID ? 'year' : 'month' }))
     .sort((a, b) => ACCESS_PRODUCT_IDS.indexOf(a.id) - ACCESS_PRODUCT_IDS.indexOf(b.id));
+  if (typeof raw?.canMakePayments === 'boolean') access.canPay = raw.canMakePayments;
   access.products = list;
   // Identifiants qu'Apple ne connaît pas encore (contrat Paid Apps pas signé, produit en attente) :
   // l'écran le dit au lieu d'afficher une liste vide sans explication
@@ -354,8 +385,12 @@ async function accessBuy(productId) {
   access.buying = productId;
   notifyAccess();
   try {
-    // purchase() ne rejette jamais : il résout 'success', 'userCancelled' ou 'pending'
-    const r = await Native.store.purchase(productId);
+    // purchase() ne rejette jamais : il résout 'success', 'userCancelled' ou 'pending'.
+    // appAccountToken : l'identifiant du compte MDLF part avec l'achat, et revient dans la
+    // transaction et dans les notifications d'Apple. Sans lui, un achat dont la vérification échoue
+    // (réseau coupé juste après le paiement) serait orphelin : le serveur ne saurait pas à qui le
+    // rattacher. L'identifiant Supabase est un UUID, c'est ce qu'Apple attend.
+    const r = await Native.store.purchase(productId, account.user.id);
     if (r?.status === 'userCancelled') return { ok: false, reason: 'cancel' };
     if (r?.status === 'pending') return { ok: false, kind: 'pending' };
     if (r?.status !== 'success' || !r?.jws) return { ok: false, kind: 'server' };
@@ -366,18 +401,62 @@ async function accessBuy(productId) {
   }
 }
 
-// « Restaurer mes achats » : AppStore.sync() puis l'état courant ; le JWS rendu repart au serveur.
-// Renvoie { ok: true }, { ok: false, kind: 'nothing' } (rien sur cet identifiant Apple) ou { ok: false, kind }.
+// Droits en cours rendus par le module : [{ jws, transactionId, productId, … }]. Le JWS est dans
+// CHAQUE droit, jamais à la racine : un abonnement et un « Accès offert » peuvent coexister.
+function accessEntitlementsOf(r) {
+  const list = Array.isArray(r?.entitlements) ? r.entitlements : [];
+  return list.filter(e => e && typeof e.jws === 'string' && e.jws);
+}
+
+// Envoie chaque droit au serveur. Un seul accepté suffit ; Apple injoignable arrête la série (les
+// suivants échoueraient pareil et consommeraient le quota d'appels).
+async function accessSendEntitlements(list) {
+  let ok = false, first = null;
+  for (const e of list) {
+    const r = await accessVerifyPurchase(e.jws, e.transactionId);
+    if (r.ok) { ok = true; continue; }
+    first ||= r;
+    if (r.kind === 'retry') break;
+  }
+  return ok ? { ok: true } : (first || { ok: false, kind: 'nothing' });
+}
+
+// « Restaurer mes achats » : AppStore.sync() (qui demande le mot de passe Apple) puis les droits en
+// cours. Renvoie { ok: true }, { ok: false, kind: 'nothing' } (rien sur cet identifiant Apple),
+// { ok: false, reason: 'cancel' } (fenêtre d'Apple fermée et rien à restaurer) ou { ok: false, kind }.
 async function accessRestore() {
   if (!account.user) return { ok: false, kind: 'signed_out' };
   if (!Native.store.available) return { ok: false, kind: 'no_store' };
   const r = await Native.store.restore();
-  if (!r?.jws) {
-    // Rien chez Apple : l'état du serveur peut quand même avoir changé (notification Apple reçue)
-    await accessRefresh();
-    return canWrite() && paywallOn() ? { ok: true } : { ok: false, kind: 'nothing' };
-  }
-  return await accessVerifyPurchase(r.jws, r.transactionId);
+  if (!r) return { ok: false, kind: 'server' };
+  const list = accessEntitlementsOf(r);
+  if (list.length) return await accessSendEntitlements(list);
+  // Rien chez Apple : l'état du serveur peut quand même avoir changé (notification Apple reçue)
+  await accessRefresh();
+  if (canWrite() && paywallOn()) return { ok: true };
+  return r.cancelled ? { ok: false, reason: 'cancel' } : { ok: false, kind: 'nothing' };
+}
+
+// Droits déjà chez Apple mais que le serveur ne connaît pas encore : achat dont la vérification a
+// échoué (réseau coupé), app réinstallée, nouvel iPhone restauré. Lu au lancement SANS rien demander
+// à l'utilisateur (Transaction.currentEntitlements, aucun mot de passe), seulement quand le verrou
+// est allumé et qu'on n'a pas le droit d'écrire : sinon il n'y a rien à rattraper.
+async function accessSyncCurrent() {
+  if (!Native.store.available || !account.user) return false;
+  if (!paywallOn() || canWrite() || access.syncing) return false;
+  access.syncing = true;
+  try {
+    const list = accessEntitlementsOf(await Native.store.current());
+    if (!list.length) return false;
+    return (await accessSendEntitlements(list)).ok;
+  } finally { access.syncing = false; }
+}
+
+// Lancement et retour du réseau : on relit l'état, puis on rattrape ce qu'Apple connaît déjà
+async function accessBoot() {
+  const ok = await accessRefresh();
+  await accessSyncCurrent();
+  return ok;
 }
 
 // « J'ai un code » : feuille de codes d'Apple. Attention, elle n'accepte que les codes d'offre
@@ -387,8 +466,20 @@ async function accessRestore() {
 async function accessRedeemCode() {
   if (!account.user) return { ok: false, kind: 'signed_out' };
   if (!Native.store.available) return { ok: false, kind: 'no_store' };
-  const ok = await Native.store.redeemCode();
-  return ok ? { ok: true } : { ok: false, kind: 'server' };
+  const r = await Native.store.redeemCode();
+  if (r?.presented === true) return { ok: true };
+  // Feuille fermée par l'utilisateur : rien à dire, surtout pas une erreur
+  return r?.cancelled ? { ok: false, reason: 'cancel' } : { ok: false, kind: 'server' };
+}
+
+// Achats possibles sur cet iPhone ? Faux quand ils sont bloqués (Temps d'écran, profil de gestion) :
+// l'écran ne doit alors proposer aucun bouton d'achat. Lu sans aucun appel réseau.
+async function accessLoadStoreStatus() {
+  if (!Native.store.available) { access.canPay = false; return false; }
+  const r = await Native.store.status();
+  if (typeof r?.canMakePayments === 'boolean') access.canPay = r.canMakePayments;
+  notifyAccess();
+  return access.canPay;
 }
 
 // Écouteur permanent des transactions (renouvellement, code utilisé, achat sur un autre appareil) :
@@ -407,9 +498,9 @@ onAccountChange(() => {
   if (id === access.userId) return;
   accessReset(id);
   notifyAccess();
-  if (id) accessRefresh();
+  if (id) accessBoot();
 });
 document.addEventListener?.('visibilitychange', () => {
   if (document.visibilityState === 'visible' && account.user) accessRefresh({ minAge: ACCESS_REFRESH_MS });
 });
-window.addEventListener?.('online', () => { if (account.user && (access.error === 'offline' || accessStale())) accessRefresh(); });
+window.addEventListener?.('online', () => { if (account.user && (access.error === 'offline' || accessStale())) accessBoot(); });

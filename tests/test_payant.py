@@ -23,9 +23,14 @@ R = Results(LOT)
 DAY = 86400_000
 MONTHLY = 'com.mdlf.training.pro.monthly'
 YEARLY = 'com.mdlf.training.pro.yearly'
-# Prix volontairement inhabituels : s'ils s'affichent, ils viennent bien de StoreKit
-PRICES = [{'id': MONTHLY, 'price': '7,77 €', 'title': 'MDLF Training mensuel'},
-          {'id': YEARLY, 'price': '77,77 €', 'title': 'MDLF Training annuel'}]
+# Prix volontairement inhabituels : s'ils s'affichent, ils viennent bien de StoreKit. Les clés sont
+# celles du vrai module Swift (displayPrice affichable, price numérique), cf. fake_store.py
+PRICES = [{'id': MONTHLY, 'displayName': 'MDLF Training mensuel', 'description': 'Mensuel',
+           'displayPrice': '7,77 €', 'price': 7.77, 'currency': 'EUR',
+           'period': {'unit': 'month', 'value': 1}, 'introEligible': False},
+          {'id': YEARLY, 'displayName': 'MDLF Training annuel', 'description': 'Annuel',
+           'displayPrice': '77,77 €', 'price': 77.77, 'currency': 'EUR',
+           'period': {'unit': 'year', 'value': 1}, 'introEligible': False}]
 
 
 def tag(device, theme):
@@ -317,18 +322,22 @@ def t_achat(bench, eng, dev, theme):
         open_app(page, theme, ppl_v2_today_json())
         signin(page, username='max')
         trial_started(page, 100)
+        # Deux droits chez Apple en même temps : un abonnement et un « Accès offert »
         page.evaluate("""() => { __st.owned = { productId: 'com.mdlf.training.pro.monthly', originalId: 'apple-99',
-            transactionId: 'tx-99', expiresAt: Date.now() + 20 * 86400000 }; }""")
+            transactionId: 'tx-99', expiresAt: Date.now() + 20 * 86400000 };
+            __st.ownedGift = { productId: 'com.mdlf.training.access.gift', originalId: 'apple-98',
+            transactionId: 'tx-98', expiresAt: null }; }""")
         page.evaluate("navigate(makeRoute('paywall', 'end'))")
         page.wait_for_selector('[data-action="pay-restore"]')
         page.click('[data-action="pay-restore"]')
-        page.wait_for_timeout(1200)
-        R.check(page.evaluate('canWrite()') is True and page.evaluate('accessStatus()') == 'active',
-                f'{t} restauration : accès rendu')
-        R.check(len(store_calls(page, 'restore')) == 1 and len(store_calls(page, 'finish')) == 1,
-                f'{t} restauration : JWS vérifié puis transaction terminée')
+        page.wait_for_timeout(1500)
+        R.check(page.evaluate('canWrite()') is True, f'{t} restauration : accès rendu')
+        R.check(len(store_calls(page, 'restore')) == 1 and len(store_calls(page, 'finish')) == 2,
+                f'{t} restauration : les deux droits envoyés puis terminés ({store_calls(page, "finish")})')
+        R.check(len(page.evaluate('__st.calls.filter(c => c[0] === "verify")')) == 2,
+                f'{t} restauration : un appel de vérification par droit')
         # Rien à restaurer : message clair, aucun droit inventé
-        page.evaluate("""() => { __st.owned = null; __st.ents[__sb.meId()] = { status: 'expired', gift: false,
+        page.evaluate("""() => { __st.owned = null; __st.ownedGift = null; __st.ents[__sb.meId()] = { status: 'expired', gift: false,
             expires_at: null, trial_started_at: Date.now() - 200 * 86400000, product_id: null, original_transaction_id: null }; }""")
         refresh_access(page)
         page.click('[data-action="pay-restore"]')
@@ -340,9 +349,20 @@ def t_achat(bench, eng, dev, theme):
             __st.owned = { productId: 'com.mdlf.training.pro.monthly', originalId: 'apple-77', transactionId: 'tx-77', expiresAt: Date.now() + 20 * 86400000 }; }""")
         page.click('[data-action="pay-restore"]')
         page.wait_for_timeout(1000)
-        R.check('autre compte' in toast(page), f'{t} transaction prise : refus expliqué ({toast(page)!r})')
+        dlg = page.inner_text('.ios-dialog') if page.locator('.ios-dialog').count() else ''
+        R.check('autre compte' in dlg and 'Voir mon compte' in dlg,
+                f'{t} transaction prise : refus expliqué avec une action ({dlg[:120]!r})')
         R.check(page.evaluate('canWrite()') is False, f'{t} transaction prise : aucun accès')
         shot(page, LOT, f'7-restauration-refusee-{t}')
+        tap_dialog(page, 'Plus tard')
+        # La même transaction n'est pas réenvoyée à Apple : elle reste ouverte mais le quota est épargné
+        before = len(page.evaluate('__st.calls.filter(c => c[0] === "verify")'))
+        page.click('[data-action="pay-restore"]')
+        page.wait_for_timeout(900)
+        if page.locator('.ios-dialog').count():
+            tap_dialog(page, 'Plus tard')
+        R.check(len(page.evaluate('__st.calls.filter(c => c[0] === "verify")')) == before,
+                f'{t} transaction prise : plus jamais réenvoyée sur ce compte')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
     # Codes : le code cadeau MDLF se saisit dans l'app, le code d'offre Apple ouvre la fenêtre d'Apple
@@ -393,6 +413,12 @@ def t_achat(bench, eng, dev, theme):
         page.wait_for_timeout(600)
         R.check(len(store_calls(page, 'redeemCode')) == 1, f'{t} code Apple : feuille d\'Apple ouverte')
         R.check('Apple' in toast(page), f'{t} code Apple : message clair ({toast(page)!r})')
+        # Feuille d'Apple fermée : ni succès ni erreur
+        page.evaluate("document.querySelectorAll('.toast').forEach(e => e.remove()); __st.fail.redeem = 'cancel'")
+        page.click('[data-action="pay-apple-code"]')
+        page.wait_for_timeout(600)
+        R.check(toast(page) == '', f'{t} feuille de codes fermée : aucun message ({toast(page)!r})')
+        page.evaluate("__st.fail.redeem = null")
         # Apple annonce la transaction du code d'offre utilisé (écouteur Transaction.updates) :
         # l'abonnement est écrit par le serveur, mais l'accès à vie du code cadeau passe devant
         # (ordre des statuts : gift > active > coach_team > trial > expired)
@@ -419,6 +445,118 @@ def t_achat(bench, eng, dev, theme):
 # ─────────────────────────────────────────────────────────────
 #  Verrou éteint, horloge de l'appareil, hors ligne, navigateur
 # ─────────────────────────────────────────────────────────────
+def t_achats_bloques(bench, eng, dev, theme):
+    """Temps d'écran : les achats sont bloqués sur l'iPhone, l'écran ne propose rien à acheter."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'canMakePayments': False})
+        signin(page, username='max')
+        trial_started(page, 100)
+        page.evaluate("navigate(makeRoute('paywall', 'end'))")
+        page.wait_for_timeout(800)
+        txt = page.inner_text('.pay-view')
+        R.check(page.locator('.pay-plan').count() == 0 and 'bloqués sur cet iPhone' in txt,
+                f'{t} achats bloqués : aucune formule, message clair ({txt[:140]!r})')
+        R.check('Temps d\'écran' in txt, f'{t} achats bloqués : on dit où regarder')
+        R.check(page.locator('[data-action="pay-restore"]').count() == 1
+                and page.locator('[data-action="pay-code"]').count() == 1,
+                f'{t} achats bloqués : restauration et code cadeau encore possibles')
+        layout(page, t, 'achats bloqués')
+        shot(page, LOT, f'13-achats-bloques-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_rattrapage(bench, eng, dev, theme):
+    """Achat déjà chez Apple mais inconnu du serveur : rattrapé au lancement, sans rien demander."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, username='max')
+        trial_started(page, 100)
+        R.check(page.evaluate('canWrite()') is False, f'{t} essai terminé : bloqué')
+        # L'abonnement existe chez Apple (achat perdu par le réseau, nouvel iPhone) mais pas au serveur
+        page.evaluate("""() => { __st.owned = { productId: 'com.mdlf.training.pro.yearly', originalId: 'apple-50',
+            transactionId: 'tx-50', expiresAt: Date.now() + 300 * 86400000 }; }""")
+        before = len(store_calls(page, 'restore'))
+        page.evaluate('accessBoot()')
+        page.wait_for_timeout(1500)
+        R.check(page.evaluate('canWrite()') is True and page.evaluate('accessStatus()') == 'active',
+                f'{t} rattrapage : accès rendu au lancement')
+        R.check(len(store_calls(page, 'current')) >= 1 and len(store_calls(page, 'restore')) == before,
+                f'{t} rattrapage : current() lu, sans demander le mot de passe Apple')
+        R.check(len(store_calls(page, 'finish')) == 1, f'{t} rattrapage : transaction terminée')
+        # Déjà rattrapé : on ne relit plus rien
+        n = len(store_calls(page, 'current'))
+        page.evaluate('accessBoot()')
+        page.wait_for_timeout(800)
+        R.check(len(store_calls(page, 'current')) == n, f'{t} rien à rattraper : aucun appel de plus')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_verrou_serveur(bench, eng, dev, theme):
+    """Le serveur refuse l'enregistrement d'une séance nouvelle (paywall_locked) : rien n'est perdu,
+    ce n'est pas une erreur de synchro, et le reste de la synchro continue."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, username='max')
+        # D'abord pendant l'essai : tout passe, les séances arrivent sur le compte
+        trial_started(page, 1)
+        page.evaluate('syncNow()')
+        page.wait_for_timeout(900)
+        on_server = page.evaluate('(__sb.upserted || []).length')
+        R.check(on_server > 0 and page.evaluate('account.error') is None, f'{t} pendant l\'essai : séances sauvegardées')
+        R.check(page.evaluate('accountLockedCount()') == 0, f'{t} pendant l\'essai : rien de refusé')
+        # Essai terminé : une nouvelle séance est refusée par le déclencheur du serveur
+        trial_started(page, 200)
+        before = page.evaluate('data.history.length')
+        page.evaluate("""() => { data.history.unshift({ id: 'apres-essai', programme: 'ppl', category: 'push',
+            date: Date.now(), duration: 3000000, notes: '', exercises: [{ name: 'Dips', sets: [{ weight: '', reps: '12' }] }] });
+            data.unit = 'kg'; data.defaultRest = 95; save(); }""")
+        page.evaluate('syncNow()')
+        page.wait_for_timeout(1200)
+        R.check(len(page.evaluate('__st.calls.filter(c => c[0] === "locked")')) >= 1, f'{t} verrou : le serveur a refusé la séance')
+        # Rien n'est perdu, rien n'est marqué envoyé, et ce n'est PAS une erreur de synchro
+        R.check(page.evaluate('data.history.length') == before + 1
+                and page.evaluate("!!data.history.find(h => h.id === 'apres-essai')"),
+                f'{t} verrou : la séance reste sur l\'iPhone')
+        R.check(page.evaluate('account.error') is None, f'{t} verrou : aucune erreur de synchro ({page.evaluate("account.error")!r})')
+        R.check(page.evaluate("JSON.parse(localStorage.getItem('mdlf_sync_' + account.user.id)).pushed['apres-essai']") is None,
+                f'{t} verrou : la séance refusée n\'est pas marquée sauvegardée')
+        R.check(page.evaluate('accountLockedCount()') == 1, f'{t} verrou : une séance en attente')
+        # Le reste de la synchro passe quand même : le profil (unité, repos, programmes) est parti
+        R.check(page.evaluate("__sb.calls.filter(c => c[0] === 'db' && c[1] === 'profiles' && c[2] === 'upsert').length") >= 1,
+                f'{t} verrou : le profil est sauvegardé malgré la séance refusée')
+        # Les séances d'avant restent sur le compte, une correction de l'une d'elles passe encore
+        page.evaluate("data.history.find(h => h.id !== 'apres-essai').notes = 'corrigée'; save()")
+        n_locked = len(page.evaluate('__st.calls.filter(c => c[0] === "locked")'))
+        page.evaluate('syncNow()')
+        page.wait_for_timeout(1200)
+        R.check(page.evaluate("(__sb.upserted || []).some(r => r.data && r.data.notes === 'corrigée')"),
+                f'{t} verrou : une correction d\'une séance déjà sur le compte passe')
+        R.check(len(page.evaluate('__st.calls.filter(c => c[0] === "locked")')) == n_locked,
+                f'{t} verrou : la séance refusée n\'est pas renvoyée en boucle')
+        # L'accueil propose l'abonnement et dit ce qui n'est pas sauvegardé
+        page.evaluate("switchTab('train')")
+        page.wait_for_timeout(400)
+        R.check('pas sauvegardée' in banner(page), f'{t} verrou : l\'accueil le dit ({banner(page)!r})')
+        layout(page, t, 'séance refusée par le compte')
+        shot(page, LOT, f'14-verrou-serveur-{t}')
+        page.click('.pay-banner')
+        page.wait_for_timeout(500)
+        R.check(page.evaluate("currentView()") == 'paywall', f'{t} verrou : le bandeau mène à l\'abonnement')
+        # Code cadeau accepté : la séance refusée repart toute seule
+        page.evaluate("__st.addCode('K7M2QX9PR4TD', { kind: 'days', days: 30 }); null")
+        page.click('[data-action="pay-code"]')
+        code_sheet(page, 'K7M2QX9PR4TD')
+        page.wait_for_timeout(1500)
+        R.check(page.evaluate('canWrite()') is True, f'{t} code accepté : droit rendu')
+        R.check(page.evaluate("(__sb.upserted || []).some(r => r.id === 'apres-essai')"),
+                f'{t} droit rendu : la séance gardée part toute seule')
+        R.check(page.evaluate('accountLockedCount()') == 0, f'{t} droit rendu : plus rien en attente')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def t_verrou_eteint(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
@@ -577,4 +715,5 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_essai, t_lecture_seule, t_achat, t_verrou_eteint, t_horloge, t_hors_ligne])
+run_main(R, [t_essai, t_lecture_seule, t_achat, t_achats_bloques, t_rattrapage, t_verrou_serveur,
+             t_verrou_eteint, t_horloge, t_hors_ligne])

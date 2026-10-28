@@ -14,14 +14,28 @@ Ce qu'il ajoute, selon docs/PAYANT_V1.md :
 - fonction Edge `verify-purchase` : refuse un JWS mal formé (`invalid_jws`), une autre app
   (`bad_bundle`), une transaction déjà rattachée à un autre compte (`transaction_taken`) et une
   transaction inconnue d'Apple (`not_found`) ; sinon elle écrit `entitlements` (seule écriture) ;
-- module Capacitor `MdlfStore`, avec l'interface exacte de ios/App/App/StorePlugin.swift :
-  `products()` → `{ products, missing }` (identifiants qu'Apple ne connaît pas encore : la liste est
-  alors vide), `purchase({ productId })` qui NE REJETTE PAS et résout
-  `{ status: 'success' | 'userCancelled' | 'pending' }` (plus `jws` et `transactionId` en cas de
-  succès), `finish({ transactionId })` obligatoire après la vérification par le serveur (sans lui, la
-  même transaction est réannoncée à chaque lancement : `__st.open` liste celles qui restent
-  ouvertes), `restore()`, `current()`, `status()`, `redeemCode()` (codes d'offre d'ABONNEMENT
-  seulement) et l'événement `transaction`, émis aussi sous le nom `change`.
+- module Capacitor `MdlfStore`, COPIE CLÉ POUR CLÉ de ios/App/App/StorePlugin.swift (vérifié par
+  tests/unit/store-contract.mjs, qui lit le vrai Swift) :
+  `products()` → `{ products: [{ id, displayName, description, displayPrice, price (nombre),
+  currency, period, introEligible }], missing, canMakePayments }` — le prix affichable est
+  `displayPrice`, jamais `price` ;
+  `purchase({ productId, appAccountToken? })` NE REJETTE PAS : il résout
+  `{ status: 'success' | 'userCancelled' | 'pending' }`, et pour un succès la transaction entière
+  (`jws`, `transactionId`, `originalTransactionId`, `productId`, `expiresAt`…) ;
+  `finish({ transactionId })` → `{ finished, reason? }`, obligatoire après la vérification par le
+  serveur (sans lui, la même transaction est réannoncée : `__st.open` liste celles qui restent
+  ouvertes) ;
+  `restore()` → `{ synced, cancelled, entitlements: [transaction…], unverified }` — le JWS est dans
+  CHAQUE entitlement, jamais à la racine ;
+  `current()` → `{ entitlements, unverified }` ; `status()` → `{ canMakePayments, subscriptionIds,
+  giftId }` ; `redeemCode()` → `{ presented: true }` ou `{ presented: false, cancelled: true }` ;
+  événement `transaction`, émis aussi sous le nom `change`, avec la transaction entière.
+  `__st.fail.redeem = 'cancel'` ferme la feuille de codes, `__st.canMakePayments = false` bloque les
+  achats (Temps d'écran), `__st.cancelRestore = true` fait fermer la fenêtre d'AppStore.sync().
+- déclencheur `before insert on public.sessions` : une séance NOUVELLE est refusée en P0001
+  `paywall_locked` quand le verrou est allumé et `can_write` faux ; les corrections de séances déjà
+  sur le compte et les suppressions passent. `__st.noTrigger = true` l'éteint ; les refus sont dans
+  `__st.calls` sous `['locked', nombre, identifiants]`.
 
 Deux horloges SÉPARÉES : celle du serveur (`__st.serverShift`) et celle de l'appareil
 (`__st.deviceShift`, qui décale `Date.now()` dans la page). Un test peut donc avancer l'horloge de
@@ -41,11 +55,16 @@ FAKE_STORE = r"""
 (() => {
   const st = window.__st = Object.assign({
     paywallOn: false, trialDays: 90, serverShift: 0, deviceShift: 0, store: true,
-    ents: {}, taken: {}, owned: null, fail: {}, calls: [], listeners: [], changeListeners: [], open: [], missing: [], n: 0,
+    ents: {}, taken: {}, owned: null, ownedGift: null, noTrigger: false,
+    fail: {}, calls: [], listeners: [], changeListeners: [], open: [], missing: [], n: 0,
     codes: {}, redeemed: [], tries: {},
+    canMakePayments: true, cancelRestore: false,
+    // Décrits comme le Swift : displayPrice (affichable) ET price (nombre), displayName, currency…
     products: [
-      { id: 'com.mdlf.training.pro.monthly', price: '5,99 €', title: 'MDLF Training mensuel' },
-      { id: 'com.mdlf.training.pro.yearly', price: '41,99 €', title: 'MDLF Training annuel' },
+      { id: 'com.mdlf.training.pro.monthly', displayName: 'MDLF Training mensuel', description: 'Abonnement mensuel',
+        displayPrice: '5,99 €', price: 5.99, currency: 'EUR', period: { unit: 'month', value: 1 }, introEligible: false },
+      { id: 'com.mdlf.training.pro.yearly', displayName: 'MDLF Training annuel', description: 'Abonnement annuel',
+        displayPrice: '41,99 €', price: 41.99, currency: 'EUR', period: { unit: 'year', value: 1 }, introEligible: false },
     ],
   }, window.__stOpts || {});
   const DAY = 86400000;
@@ -60,6 +79,25 @@ FAKE_STORE = r"""
   const log = (...a) => st.calls.push(a);
 
   const b64 = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const GIFT_ID = 'com.mdlf.training.access.gift';
+  const SUB_IDS = ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly'];
+  // Même charge utile que StorePlugin.describe(_ transaction:, jws:) : identifiants en TEXTE,
+  // dates en millisecondes, rien de plus, rien de moins
+  const describeTx = tx => ({
+    jws: makeJws(tx, tx.bundleId || BUNDLE),
+    transactionId: String(tx.transactionId),
+    originalTransactionId: String(tx.originalId),
+    productId: tx.productId,
+    purchasedAt: tx.purchasedAt == null ? serverNow() : tx.purchasedAt,
+    expiresAt: tx.expiresAt == null ? null : tx.expiresAt,
+    revokedAt: tx.revokedAt == null ? null : tx.revokedAt,
+    isUpgraded: false,
+    familyShared: !!tx.familyShared,
+    environment: tx.environment || 'production',
+    subscription: SUB_IDS.includes(tx.productId),
+    gift: tx.productId === GIFT_ID,
+    reason: tx.reason || 'purchase',
+  });
   const unb64 = s => JSON.parse(decodeURIComponent(escape(atob(String(s).replace(/-/g, '+').replace(/_/g, '/')))));
   // Transaction signée par Apple, telle que StoreKit 2 la rend
   const makeJws = (tx, bundleId = BUNDLE) => 'jws.' + b64({ ...tx, bundleId }) + '.sig';
@@ -192,36 +230,50 @@ FAKE_STORE = r"""
     return st.owned;
   };
   // Transaction rendue sans être terminée : elle reste ouverte jusqu'à finish()
-  const openTx = tx => { st.open.push(tx.transactionId); return tx; };
+  const openTx = tx => { if (!st.open.includes(tx.transactionId)) st.open.push(tx.transactionId); return tx; };
+  // Droits en cours chez Apple (Transaction.currentEntitlements) : abonnement et accès offert
+  // peuvent coexister. __st.owned garde le dernier abonnement, __st.ownedGift l'accès offert.
+  const entitlements = () => {
+    const list = [st.owned, st.ownedGift].filter(Boolean).map(tx => { openTx(tx); return describeTx(tx); });
+    return { entitlements: list, unverified: st.unverified || 0 };
+  };
   const storePlugin = {
     // Les produits qu'Apple ne connaît pas encore sortent dans `missing`, pas dans `products`
     products: async () => {
       log('products');
       const miss = st.missing || [];
-      return { products: st.products.filter(p => !miss.includes(p.id)).map(p => ({ ...p })), missing: [...miss] };
+      return { products: st.products.filter(p => !miss.includes(p.id)).map(p => ({ ...p })),
+        missing: [...miss], canMakePayments: st.canMakePayments !== false };
     },
-    // Ne rejette jamais : trois états possibles
-    purchase: async ({ productId }) => {
-      log('purchase', productId);
+    // Ne rejette jamais : trois issues, comme le Swift
+    purchase: async ({ productId, appAccountToken }) => {
+      log('purchase', productId, appAccountToken || '');
       if (st.fail.purchase === 'cancel') return { status: 'userCancelled' };
       if (st.fail.purchase === 'pending') return { status: 'pending' };
-      if (st.fail.purchase === 'fail') return { status: 'failed' };
+      if (st.fail.purchase === 'fail') return { status: 'unknown' };
       const tx = buy(productId);
-      return openTx({ status: 'success', jws: makeJws(tx), transactionId: tx.transactionId });
+      openTx(tx);
+      return { status: 'success', ...describeTx(tx) };
     },
     // Obligatoire après la vérification : la transaction ne sera plus réannoncée
     finish: async ({ transactionId }) => {
       log('finish', String(transactionId));
+      const known = st.open.includes(transactionId);
       st.open = st.open.filter(id => id !== transactionId);
-      return {};
+      return known ? { finished: true } : { finished: false, reason: 'notFound' };
     },
+    // AppStore.sync() puis les droits en cours ; la fenêtre fermée n'est pas une erreur
     restore: async () => {
       log('restore');
-      return st.owned ? openTx({ jws: makeJws(st.owned), transactionId: st.owned.transactionId }) : { jws: null };
+      const cancelled = !!st.cancelRestore;
+      return { synced: !cancelled, cancelled, ...entitlements() };
     },
-    current: async () => (st.owned ? { jws: makeJws(st.owned), transactionId: st.owned.transactionId, productId: st.owned.productId } : { jws: null }),
-    status: async () => ({ entitled: !!st.owned, environment: 'Sandbox' }),
-    redeemCode: async () => { log('redeemCode'); return {}; },
+    current: async () => { log('current'); return entitlements(); },
+    status: async () => ({ canMakePayments: st.canMakePayments !== false, subscriptionIds: [...SUB_IDS], giftId: GIFT_ID }),
+    redeemCode: async () => {
+      log('redeemCode');
+      return st.fail.redeem === 'cancel' ? { presented: false, cancelled: true } : { presented: true };
+    },
     // Le module émet le même événement sous deux noms : l'app ne doit s'abonner qu'à un seul
     addListener: (ev, fn) => {
       if (ev === 'transaction') st.listeners.push(fn);
@@ -234,9 +286,9 @@ FAKE_STORE = r"""
     const n = ++st.n;
     const tx = { productId, originalId: 'apple-' + n, transactionId: 'tx-' + n,
       expiresAt: productId === GIFT ? null : serverNow() + period(productId) * DAY, ...extra };
-    if (productId !== GIFT) st.owned = tx;
+    if (productId === GIFT) st.ownedGift = tx; else st.owned = tx;
     openTx(tx);
-    const ev = { jws: makeJws(tx, extra.bundleId || BUNDLE), transactionId: tx.transactionId };
+    const ev = { ...describeTx(tx), source: 'update' };
     return Promise.all([...st.listeners, ...st.changeListeners].map(fn => fn({ ...ev })));
   };
 
@@ -246,12 +298,44 @@ FAKE_STORE = r"""
   cap.registerPlugin = name => (name === 'MdlfStore' ? storePlugin : register(name));
   cap.isPluginAvailable = name => (name === 'MdlfStore' ? !!st.store : avail(name));
 
+  // Verrou du serveur : déclencheur `before insert on public.sessions`. Une séance NOUVELLE est
+  // refusée (P0001 paywall_locked) quand le verrou est allumé et `can_write` faux ; les corrections
+  // de séances déjà sur le compte et les suppressions passent.
+  // ATTENTION : écrire `sb` ici désignerait le client Supabase de l'app (js/data/account.js déclare
+  // un `let sb` dans la même portée globale) : c'est `window.__sb`, le faux serveur, qu'il faut lire.
+  const alreadyOnServer = id => ((window.__sb && window.__sb.upserted) || []).some(x => x.id === id);
+  const lockedRows = rows => {
+    const uid = me();
+    const e = uid ? row(uid, false) : null;
+    if (!uid || !e || !st.paywallOn || st.noTrigger) return [];
+    if (stateOf(uid, e).can_write) return [];
+    return (Array.isArray(rows) ? rows : []).filter(r => r && !r.deleted_at && !alreadyOnServer(r.id));
+  };
+
   const create = window.supabase.createClient;
   window.supabase.createClient = (...args) => {
     const c = create(...args);
     const rpc = c.rpc.bind(c), invoke = c.functions.invoke.bind(c.functions);
+    const from = c.from.bind(c);
     c.rpc = (fn, a) => (accessRpcs[fn] ? callAccess(fn, a) : rpc(fn, a));
     c.functions = { invoke: (fn, o) => (fn === 'verify-purchase' ? verifyPurchase(o && o.body) : invoke(fn, o)) };
+    c.from = table => {
+      const chain = from(table);
+      if (table !== 'sessions') return chain;
+      let rows = null;
+      const wrap = new Proxy({}, { get: (_, m) => {
+        if (m === 'then') return (res, rej) => {
+          const refused = lockedRows(rows);
+          if (refused.length) {
+            log('locked', refused.length, JSON.stringify(refused.map(r => r.id)));
+            return Promise.resolve({ data: null, error: { code: 'P0001', message: 'paywall_locked', details: null, hint: null } }).then(res, rej);
+          }
+          return Promise.resolve(chain).then(res, rej);
+        };
+        return (...args2) => { if (m === 'upsert') rows = args2[0]; chain[m](...args2); return wrap; };
+      } });
+      return wrap;
+    };
     return c;
   };
 })();
