@@ -724,6 +724,15 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     assert.ok(p3.side === 'right', 'à coût égal, l\'ordre de préférence');
   });
 
+  test('bulle muscle : mise en valeur du muscle touché, calque de sa vue en masque', () => {
+    const html = app.bodyTipMarkHtml('female', 'back', 'lats');
+    assert.ok(html.includes('class="body-map__hl" data-muscle="lats"') && html.includes('aria-hidden="true"'));
+    assert.ok(html.includes('mask-image:url(img/body/female/back/lats.webp)') && html.includes('background-color:#FFFFFF'));
+    assert.ok(app.bodyTipMarkHtml('male', 'front', 'chest', 'red"><b>').includes('red&quot;&gt;&lt;b&gt;'), 'couleur échappée');
+    assert.equal(app.bodyTipMarkHtml('male', 'front', 'glutes'), '', 'muscle absent de la vue : rien');
+    assert.equal(app.bodyTipMarkHtml('male', 'front', '"><b>'), '', 'identifiant inconnu : rien');
+  });
+
   test('carte : toucher activé sur demande, muscles secondaires dans leur teinte', () => {
     const html = app.bodyMapHtml({ chest: 1, triceps: 0.8 }, { secondary: ['triceps'], tap: true });
     assert.ok(html.includes('data-action="body-tap"'));

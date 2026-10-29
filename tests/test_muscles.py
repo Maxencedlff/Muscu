@@ -478,6 +478,13 @@ def t_tip(bench, eng, dev, theme):
         R.check(lines <= (3 if page.viewport_size['width'] < 360 else 2), f'{t} légende compacte : {lines} ligne(s) de paliers')
         R.check(page.locator('.btip[role="dialog"][aria-labelledby="btipTitle"]').count() == 1, f'{t} bulle : rôle et nom')
         R.check(tip_inside(page), f'{t} bulle dans l\'écran, au-dessus des onglets {tip_rect(page)}')
+        R.check(page.locator('.mcard__map .body-map__front .body-map__hl[data-muscle="chest"]').count() == 1
+                and page.locator('.body-map__hl').count() == 1, f'{t} pectoraux mis en valeur sur la face')
+        anim = lambda: page.evaluate("getComputedStyle(document.querySelector('.body-map__hl > i')).animationName")
+        R.check(anim() == 'body-hl', f'{t} mise en valeur : pulsation douce')
+        page.emulate_media(reduced_motion='reduce')
+        R.check(anim() == 'none', f'{t} réduire les animations : pas de pulsation')
+        page.emulate_media(reduced_motion='no-preference')
         shot(page, LOT, f'bulle-face-{t}')
         n_chest = int(re.search(r'(\d+) séries?', txt).group(1))
         # Un autre muscle, de dos : la bulle suit
@@ -496,6 +503,7 @@ def t_tip(bench, eng, dev, theme):
         page.mouse.click(gx, gy)
         page.wait_for_timeout(300)
         R.check(page.locator('.btip').count() == 0, f'{t} toucher le fond : bulle fermée')
+        R.check(page.locator('.body-map__hl').count() == 0, f'{t} bulle fermée : mise en valeur retirée')
         tap_muscle(page, '.mcard__map', 'calves', 'front')
         R.check(tip_text(page).startswith('Mollets'), f'{t} bulle mollets : « {tip_text(page)} »')
         page.mouse.click(f['x'] + f['width'] / 2, f['y'] + f['height'] * .04)
@@ -548,6 +556,8 @@ def t_tip(bench, eng, dev, theme):
         R.check(tip_text(page) == 'Pectoraux Muscle principal', f'{t} fiche : « {tip_text(page)} »')
         tap_muscle(page, '.mpanel__map', 'triceps', 'back')
         R.check(tip_text(page) == 'Triceps Muscle secondaire', f'{t} fiche : « {tip_text(page)} »')
+        R.check(page.locator('.mpanel__map .body-map__back .body-map__hl[data-muscle="triceps"]').count() == 1
+                and page.locator('.body-map__hl').count() == 1, f'{t} fiche : triceps mis en valeur, seul')
         R.check(tip_inside(page), f'{t} fiche : bulle dans l\'écran')
         shot(page, LOT, f'bulle-fiche-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')

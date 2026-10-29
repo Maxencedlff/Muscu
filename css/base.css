@@ -39,6 +39,7 @@
   --body-heat-max: #FF5A1F;      /* palier le plus haut (20 séries et plus) : orange rouge, au bout de l'échelle */
   --body-base-bright: .78;       /* personnage 3D gris un peu assombri sur le noir, lisible (clair : 1, tel quel) */
   --tip-bg: #2C2C2E;             /* bulle d'un muscle touché */
+  --body-hl-glow: rgba(255,255,255,.75);  /* halo du muscle touché (clair : bleu, le blanc s'y perd) */
   --tip-link: #409CFF;           /* son lien : bleu iOS « contraste élevé », 4,5:1 sur la bulle */
   /* Boutons de connexion (css/account.css) : chartes Apple (blanc sur fond sombre, noir sur fond clair)
      et Google Identity (thème sombre #131314, clair #FFFFFF, contour et texte imposés) */
@@ -88,6 +89,7 @@ body.light {
   --shadow-float: 0 8px 24px rgba(0,0,0,.12);
   --cat-text-mix: 55%; --cat-text-base: #000000;
   --body-skin: #E5E5EA; --body-zone: #C7C7CC; --body-base-bright: 1; --body-heat-max: #E03E00; --tip-bg: #FFFFFF; --tip-link: var(--tint);
+  --body-hl-glow: rgba(0,102,204,.7);
   --siwa-bg: #000000; --siwa-fg: #FFFFFF;
   --gsi-bg: #FFFFFF; --gsi-fg: #1F1F1F; --gsi-border: #747775;
 }

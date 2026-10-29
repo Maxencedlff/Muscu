@@ -191,7 +191,25 @@ function bodyTipSpots(mapEl, x, y, w, h, prefer) {
   return prefer.flatMap(k => at[k] || []);
 }
 
+// Muscle touché mis en valeur pendant que sa bulle est ouverte : une copie opaque de son calque (même
+// ombrage, sa couleur à l'écran ou blanc s'il n'est pas coloré), éclaircie et cernée d'un halo, posée
+// au-dessus des autres dans la vue touchée (CSS : .body-map__hl). Opaque, pour que le halo ne se voie
+// qu'autour du muscle, pas à travers. tint : couleur CSS déjà résolue (bodyTipTint)
+function bodyTipMarkHtml(kind, view, muscle, tint = '#FFFFFF') {
+  if (!BODY_IMG.bodies[kind]?.[view]?.includes(muscle)) return '';
+  const url = `url(${bodyImgUrl(kind, view, muscle)})`;
+  return `<span class="body-map__hl" data-muscle="${muscle}" aria-hidden="true"><i style="background-color:${esc(tint)};background-image:${url};-webkit-mask-image:${url};mask-image:${url}"></i></span>`;
+}
+
+// Couleur du muscle tel qu'il apparaît : celle de son calque mêlée de blanc selon son opacité (palier)
+function bodyTipTint(layer) {
+  if (!layer) return '#FFFFFF';
+  const op = Math.round((parseFloat(layer.style.opacity) || 0) * 100);
+  return `color-mix(in srgb, ${getComputedStyle(layer).backgroundColor} ${op}%, #FFFFFF)`;
+}
+
 let bodyTipEl = null;
+let bodyTipMarkEl = null;      // mise en valeur du muscle touché (retirée à la fermeture)
 let bodyTipAnchor = null;      // { el, top } : carte touchée et sa position à l'ouverture (fermeture au défilement)
 let bodyTipSeq = 0;            // un toucher plus récent annule l'affichage d'un précédent encore en calcul
 
@@ -221,7 +239,8 @@ function bodyTipAvoid(anchor) {
 function closeBodyTip() {
   bodyTipSeq++;
   bodyTipEl?.remove();
-  bodyTipEl = bodyTipAnchor = null;
+  bodyTipMarkEl?.remove();
+  bodyTipEl = bodyTipAnchor = bodyTipMarkEl = null;
 }
 
 // Ouvre la bulle près du doigt. html : contenu (dont un titre #btipTitle, nom de la bulle pour VoiceOver).
@@ -260,6 +279,12 @@ async function bodyTipTap(e, mapEl, content, prefer = []) {
   const cost = await bodyTipCoverage(mapEl);
   if (seq !== bodyTipSeq || !mapEl.isConnected) return;
   showBodyTip(content(hit.muscle, mapEl), e.clientX, e.clientY, mapEl, { prefer, cost });
+  const fig = mapEl.querySelector(`.body-map__${hit.view}`);
+  if (fig) {
+    const tint = bodyTipTint(fig.querySelector(`.body-map__m[data-muscle="${hit.muscle}"]`));
+    fig.insertAdjacentHTML('beforeend', bodyTipMarkHtml(bodyKind(mapEl.dataset.body), hit.view, hit.muscle, tint));
+    bodyTipMarkEl = fig.lastElementChild?.classList.contains('body-map__hl') ? fig.lastElementChild : null;
+  }
   haptic();
 }
 

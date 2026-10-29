@@ -14,6 +14,21 @@
 }
 .body-map__m--sec { background-color: var(--body-heat-sec); }
 .body-map__m--peak { background-color: var(--body-heat-max); }
+/* Muscle touché, bulle ouverte (js/ui/body-tip.js) : copie opaque du calque, éclaircie (pulsation
+   douce de la luminosité), halo autour. Le halo (drop-shadow) est sur l'enveloppe : posé sur l'élément
+   masqué, le masque le couperait. */
+.body-map__hl { position: absolute; inset: 0; pointer-events: none; filter: drop-shadow(0 0 1.5px var(--body-hl-glow)) drop-shadow(0 0 4px var(--body-hl-glow)); }
+.body-map__hl > i {
+  position: absolute; inset: 0; background-size: 100% 100%; background-blend-mode: multiply;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  filter: brightness(calc(var(--body-base-bright) * 1.2));
+  animation: body-hl 1.4s ease-in-out infinite alternate;
+}
+@keyframes body-hl {
+  from { filter: brightness(calc(var(--body-base-bright) * 1.08)); }
+  to   { filter: brightness(calc(var(--body-base-bright) * 1.32)); }
+}
+@media (prefers-reduced-motion: reduce) { .body-map__hl > i { animation: none; } }
 .body-map[data-action="body-tap"] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .body-map__caps { display: flex; justify-content: space-between; margin-top: 4px; font-size: var(--fs-caption); line-height: 1; }
 .body-map__caps > span { flex: 0 0 var(--fig); text-align: center; }
