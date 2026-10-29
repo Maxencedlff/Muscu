@@ -4,9 +4,11 @@
 'use strict';
 
 let muscleSpan = 'week';   // période de Progrès : 'week' | 'month' (MUSCLE_SPANS)
+let muscleFocus = null;    // muscle mis en avant dans « Séries par muscle » (ouvert depuis la bulle)
 
-// Intensités d'un exercice pour la mini-silhouette : principaux pleins, secondaires atténués
-const SECONDARY_INTENSITY = 0.4;
+// Intensités d'un exercice pour la silhouette de la fiche : principaux pleins, secondaires presque
+// pleins mais d'une autre teinte (--body-heat-sec), pour rester lisibles et distincts
+const SECONDARY_INTENSITY = 0.8;
 function exerciseIntensity(m) {
   const lv = {};
   m.secondary.forEach(id => { lv[id] = SECONDARY_INTENSITY; });
@@ -18,7 +20,7 @@ function exerciseIntensity(m) {
 
 // « Pectoraux » (principal, teinté) puis « Triceps » (secondaire, gris)
 function musclePillsHtml(m) {
-  const pill = (id, main) => `<li class="mpill ${main ? 'mpill--main' : ''}">${muscleLabel(id)}</li>`;
+  const pill = (id, main) => `<li class="mpill ${main ? 'mpill--main' : 'mpill--sec'}">${muscleLabel(id)}</li>`;
   return `<ul class="mpills" aria-label="Muscles ciblés">${m.primary.map(id => pill(id, true)).join('')}${m.secondary.map(id => pill(id, false)).join('')}</ul>`;
 }
 
@@ -28,7 +30,7 @@ function exMusclesSubHtml(ex, cls = 'cell__sub') {
   return line ? `<span class="${cls} ex-muscles">${line}</span>` : '';
 }
 
-// Mini-silhouette et pastilles d'un exercice (Programme › Exercice, Progrès › Exercice)
+// Silhouette et pastilles d'un exercice (Programme › Exercice, Progrès › Exercice)
 function exMusclesPanelHtml(m) {
   if (!m.primary.length) {
     return `<div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Muscles non reconnus</span>
@@ -36,7 +38,7 @@ function exMusclesPanelHtml(m) {
   }
   return `
     <div class="cell mpanel">
-      ${bodyMapHtml(exerciseIntensity(m), { className: 'mpanel__map' })}
+      ${bodyMapHtml(exerciseIntensity(m), { className: 'mpanel__map', secondary: m.secondary, tap: true })}
       <div class="cell__body">${musclePillsHtml(m)}</div>
     </div>`;
 }
@@ -44,7 +46,7 @@ function exMusclesPanelHtml(m) {
 // ── Muscles vérifiés de la bibliothèque : modifier, rétablir ─
 
 // Exercice de la bibliothèque : muscles vérifiés par défaut, modifiables après confirmation, rétablis d'un toucher
-const VERIFIED_MUSCLES_FOOT = 'Muscles vérifiés de la bibliothèque : principaux en couleur pleine, secondaires atténués.';
+const VERIFIED_MUSCLES_FOOT = 'Muscles vérifiés de la bibliothèque : principaux en orange, secondaires en jaune.';
 const MODIFIED_MUSCLES_FOOT = 'Muscles modifiés par toi : ils remplacent ceux de la bibliothèque dans Progrès et la récupération.';
 const RESET_MUSCLES_LABEL = 'Rétablir les muscles par défaut';
 
@@ -249,7 +251,7 @@ function renderMuscleCard() {
     <div class="group mcard">
       <div class="mcard__top">
         ${spanSegmentedHtml()}
-        ${bodyMapHtml(load.intensity, { className: 'mcard__map', captions: true })}
+        ${bodyMapHtml(load.intensity, { className: 'mcard__map', captions: true, tap: true })}
         ${muscleLegendHtml()}
         ${muscleSrListHtml(load)}
       </div>
@@ -271,7 +273,7 @@ function renderStatsMuscles() {
   const rows = MUSCLES.slice().sort((a, b) => load.sets[b.id] - load.sets[a.id]).map(({ id, label }) => {
     const pct = Math.round(load.sets[id] / max * 100);
     return `
-      <div class="cell mrow">
+      <div class="cell mrow${id === muscleFocus ? ' mrow--focus' : ''}" data-muscle="${id}">
         <span class="cell__body">
           <span class="mrow__top"><span class="cell__title">${label}</span><span class="cell__value num">${roundSets(load.sets[id])}</span></span>
           <span class="mrow__bar" aria-hidden="true"><i style="width:${pct}%;--o:${bodyHeatOpacity(load.intensity[id]) || 0}"></i></span>
@@ -333,7 +335,12 @@ registerActions({
     if (!MUSCLE_SPANS[el.dataset.span] || el.dataset.span === muscleSpan) return;
     muscleSpan = el.dataset.span; render();
   },
-  'go-stats-muscles': () => { navigate('stats-muscles'); },
+  // Depuis la bulle d'un muscle (js/features/muscle-tip.js) : sa ligne mise en avant et amenée à l'écran
+  'go-stats-muscles': (e, el) => {
+    muscleFocus = isMuscleId(el.dataset.muscle) ? el.dataset.muscle : null;
+    navigate('stats-muscles');
+    if (muscleFocus) requestAnimationFrame(() => $(`.stats-muscles .mrow[data-muscle="${muscleFocus}"]`)?.scrollIntoView({ block: 'center' }));
+  },
   'go-muscles-unknown': () => { navigate('muscles-unknown'); },
   'pick-ex-muscles': () => pickExMuscles(),
   // Programme › Exercice : brouillon seulement, enregistré par OK (Annuler le défait)

@@ -631,6 +631,56 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     assert.ok(values('Curl marteau corde').split(',').includes('muscles'), 'reconnu par les règles : choix proposé');
   });
 
+  // ── Muscle touché sur le personnage (js/ui/body-tip.js) ──
+  // Carte de 6 × 4 points : muscle 0 à gauche, muscle 1 à droite, recouvrement en colonne 2
+  const W = 6, H = 4;
+  const alpha = fill => Uint8Array.from({ length: W * H }, (_, i) => fill(i % W, Math.floor(i / W)));
+  const left  = alpha(x => (x <= 2 ? 255 : 0));
+  const right = alpha(x => (x === 2 ? 120 : x >= 3 && x <= 4 ? 255 : 0));
+
+  test('bulle muscle : carte d\'étiquettes, muscle le plus opaque, transparent ignoré', () => {
+    const map = app.bodyHitBuild([left, right], W * H);
+    sameJSON([...map.slice(0, W)], [1, 1, 1, 2, 2, 0], 'colonne 2 : le calque le plus opaque (gauche)');
+    // À égalité, le calque posé au-dessus (le dernier) l'emporte ; sous le seuil, rien
+    const tie = app.bodyHitBuild([alpha(() => 200), alpha(() => 200)], W * H);
+    assert.ok([...tie].every(v => v === 2));
+    const faint = app.bodyHitBuild([alpha(() => 30)], W * H);
+    assert.ok([...faint].every(v => v === 0), 'bord antialiasé presque transparent : pas un muscle');
+  });
+
+  test('bulle muscle : point exact, tolérance du doigt, hors muscle', () => {
+    const map = app.bodyHitBuild([left, right], W * H);
+    assert.equal(app.bodyHitAt(map, W, H, 0, 0), 0);
+    assert.equal(app.bodyHitAt(map, W, H, 3.6, 1), 1, 'arrondi au point le plus proche');
+    assert.equal(app.bodyHitAt(map, W, H, 5, 1, 0), -1, 'colonne vide, sans tolérance');
+    assert.equal(app.bodyHitAt(map, W, H, 5, 1, 1.2), 1, 'colonne vide, voisin à 1 point');
+    assert.equal(app.bodyHitAt(map, W, H, 9, 1, 1.5), -1, 'trop loin');
+    assert.equal(app.bodyHitAt(map, W, H, -3, -3, 2), -1, 'hors de la carte');
+    assert.equal(app.bodyHitAt(new Uint8Array(W * H), W, H, 2, 2, 10), -1, 'zone grise seule');
+  });
+
+  test('bulle muscle : placée au-dessus du doigt, jamais hors écran ni sous la barre d\'onglets', () => {
+    const base = { w: 200, h: 90, vw: 375, minTop: 55, maxBottom: 754 };
+    const up = app.bodyTipPlace({ ...base, x: 180, y: 400 });
+    assert.ok(!up.below && up.top + 90 <= 400 && up.left === 80 && up.arrowX === 100);
+    const edge = app.bodyTipPlace({ ...base, x: 5, y: 400 });
+    assert.equal(edge.left, 8, 'bord gauche');
+    assert.equal(edge.arrowX, 16, 'flèche gardée dans la bulle');
+    assert.equal(app.bodyTipPlace({ ...base, x: 370, y: 400 }).left, 375 - 8 - 200, 'bord droit');
+    const low = app.bodyTipPlace({ ...base, x: 180, y: 100 });
+    assert.ok(low.below && low.top > 100, 'trop haut : sous le doigt');
+    const bottom = app.bodyTipPlace({ ...base, h: 300, x: 180, y: 300 });
+    assert.ok(bottom.top >= 55 && bottom.top + 300 <= 754, 'bornée entre la barre d\'état et la barre d\'onglets');
+  });
+
+  test('carte : toucher activé sur demande, muscles secondaires dans leur teinte', () => {
+    const html = app.bodyMapHtml({ chest: 1, triceps: 0.8 }, { secondary: ['triceps'], tap: true });
+    assert.ok(html.includes('data-action="body-tap"'));
+    assert.ok(/body-map__m body-map__m--sec" data-muscle="triceps"/.test(html));
+    assert.ok(/class="body-map__m" data-muscle="chest"/.test(html));
+    assert.ok(!app.bodyMapHtml({}).includes('data-action'), 'sans tap : carte inerte (premier lancement)');
+  });
+
   // Contexte vm (localStorage) : lu à l'appel, après reset()
   function ctx() { return run('globalThis'); }
 }

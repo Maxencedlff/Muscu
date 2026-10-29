@@ -48,6 +48,7 @@ const SCRIPTS = [
   'js/data/my-programmes.js',
   'js/ui/forms.js',
   'js/ui/body-map.js',
+  'js/ui/body-tip.js',
   'js/ui/medal.js',
   'js/app/actions.js',
   'js/features/rest-activity.js',

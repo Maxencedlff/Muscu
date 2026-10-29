@@ -77,13 +77,15 @@ function bodyKind(body) { return BODY_IMG.bodies[body] ? body : 'male'; }
 function bodyViews(view) { return view === 'both' ? ['front', 'back'] : [view === 'back' ? 'back' : 'front']; }
 
 // Une vue : base, puis un calque teinté par muscle coloré (rien pour un muscle au repos)
-function bodyViewHtml(kind, view, levels, heat) {
+// secondary : muscles dessinés dans la couleur des secondaires (--body-heat-sec), au lieu de la chaleur
+function bodyViewHtml(kind, view, levels, heat, secondary = []) {
   const color = heat === BODY_COLORS.heat ? '' : `background-color:${esc(heat)};`;
   const layers = BODY_IMG.bodies[kind][view].map(m => {
     const op = bodyHeatOpacity(levels[m]);
     if (!op) return '';
     const url = `url(${bodyImgUrl(kind, view, m)})`;
-    return `<i class="body-map__m" data-muscle="${m}" data-heat="${op}" style="${color}background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;
+    const sec = secondary.includes(m);
+    return `<i class="body-map__m${sec ? ' body-map__m--sec' : ''}" data-muscle="${m}" data-heat="${op}" style="${sec ? '' : color}background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;
   }).join('');
   return `<span class="body-map__fig body-map__${view}"><img class="body-map__base" src="${bodyImgUrl(kind, view, 'base')}" alt="" draggable="false" decoding="async">${layers}</span>`;
 }
@@ -97,9 +99,11 @@ function bodyViewHtml(kind, view, levels, heat) {
 //   className  classe(s) ajoutée(s) au conteneur
 //   colors     { heat, text } : couleurs CSS (tokens par défaut)
 //   captions   true : « Face » et « Dos » sous les vues
+//   secondary  identifiants des muscles secondaires (fiche exercice) : autre teinte (--body-heat-sec)
+//   tap        true : un toucher sur un muscle ouvre une bulle (action body-tap, js/features/muscle-tip.js)
 // Le conteneur prend la largeur que lui donne la feuille de style (ou sa hauteur : premier lancement),
 // le rapport largeur / hauteur est fixé par aspect-ratio.
-function bodyMapHtml(levels = {}, { view = 'both', body = bodySilhouette(), label = '', className = '', colors = {}, captions = false } = {}) {
+function bodyMapHtml(levels = {}, { view = 'both', body = bodySilhouette(), label = '', className = '', colors = {}, captions = false, secondary = [], tap = false } = {}) {
   const c = { ...BODY_COLORS, ...colors };
   const views = bodyViews(view);
   const safe = levels && typeof levels === 'object' ? levels : {};
@@ -107,10 +111,12 @@ function bodyMapHtml(levels = {}, { view = 'both', body = bodySilhouette(), labe
   const n = views.length, rowW = n + (n - 1) * BODY_GAP;
   const ratio = `${Math.round(rowW * BODY_IMG.w)} / ${BODY_IMG.h}`;
   const fig = `${Math.round(10000 / rowW) / 100}%`;
-  const figs = views.map(v => bodyViewHtml(kind, v, safe, c.heat)).join('');
+  const sec = Array.isArray(secondary) ? secondary : [];
+  const figs = views.map(v => bodyViewHtml(kind, v, safe, c.heat, sec)).join('');
   const caps = captions ? `<span class="body-map__caps" aria-hidden="true" style="--fig:${fig};color:${esc(c.text)}">${views.map(v => `<span>${v === 'front' ? 'Face' : 'Dos'}</span>`).join('')}</span>` : '';
   const a11y = label ? ` role="img" aria-label="${esc(label)}"` : ' aria-hidden="true"';
-  return `<div class="body-map ${esc(className)}" data-body="${kind}"${a11y}><span class="body-map__row" style="aspect-ratio:${ratio};--fig:${fig}">${figs}</span>${caps}</div>`;
+  const act = tap ? ' data-action="body-tap"' : '';
+  return `<div class="body-map ${esc(className)}" data-body="${kind}"${act}${a11y}><span class="body-map__row" style="aspect-ratio:${ratio};--fig:${fig}">${figs}</span>${caps}</div>`;
 }
 
 // ── Image partagée (canvas) ─────────────────────────────────

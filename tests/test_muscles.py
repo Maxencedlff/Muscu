@@ -398,8 +398,118 @@ def t_silhouette(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+# Point d'un muscle à l'écran, tiré directement de son calque (pixel opaque le plus proche du centre
+# de sa forme) : indépendant de la détection de l'app (js/ui/body-tip.js), qui est ce qu'on vérifie
+MUSCLE_POINT_JS = """async ([sel, m, view]) => {
+  const map = document.querySelector(sel), fig = map.querySelector('.body-map__' + view);
+  const img = await bodyLoadImage(bodyImgUrl(map.dataset.body, view, m));
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, c.width, c.height).data, W = c.width, N = W * c.height;
+  let sx = 0, sy = 0, n = 0;
+  // Moitié gauche seulement : un muscle pair (bras, jambes) a son centre entre les deux côtés
+  const half = i => i % W < W / 2;
+  for (let i = 0; i < N; i++) if (half(i) && d[i * 4 + 3] > 200) { sx += i % W; sy += (i / W) | 0; n++; }
+  let best = null, bd = Infinity;
+  for (let i = 0; i < N; i++) if (half(i) && d[i * 4 + 3] > 250) {
+    const dd = (i % W - sx / n) ** 2 + (((i / W) | 0) - sy / n) ** 2;
+    if (dd < bd) { bd = dd; best = [i % W, (i / W) | 0]; }
+  }
+  const r = fig.getBoundingClientRect();
+  return [r.left + best[0] / W * r.width, r.top + best[1] / c.height * r.height];
+}"""
+
+
+def tap_muscle(page, sel, muscle, view):
+    x, y = page.evaluate(MUSCLE_POINT_JS, [sel, muscle, view])
+    page.mouse.click(x, y)
+    page.wait_for_timeout(350)
+
+
+def tip_text(page):
+    tip = page.locator('.btip')
+    return ' '.join(tip.inner_text().split()) if tip.count() else ''
+
+
+def tip_inside(page):
+    """La bulle tient dans l'écran, au-dessus de la barre d'onglets."""
+    return page.evaluate("""() => { const r = document.querySelector('.btip').getBoundingClientRect();
+        const bar = document.querySelector('.tabbar').getBoundingClientRect();
+        return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= bar.top; }""")
+
+
+def t_tip(bench, eng, dev, theme):
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        tab(page, 2)
+        page.click('[data-action="muscle-span"][data-span="month"]')
+        page.wait_for_timeout(250)
+        page.locator('.mcard__map').scroll_into_view_if_needed()
+        R.check(bases_loaded(page, '.mcard__map') == 2, f'{t} bulle : personnage chargé')
+        tap_muscle(page, '.mcard__map', 'chest', 'front')
+        txt = tip_text(page)
+        R.check(txt.startswith('Pectoraux') and 'ces 4 dernières semaines' in txt, f'{t} bulle pectoraux : « {txt} »')
+        R.check(page.locator('.btip[role="dialog"][aria-labelledby="btipTitle"]').count() == 1, f'{t} bulle : rôle et nom')
+        R.check(tip_inside(page), f'{t} bulle dans l\'écran, au-dessus des onglets')
+        shot(page, LOT, f'bulle-face-{t}')
+        n_chest = int(re.search(r'(\d+) séries?', txt).group(1))
+        # Un autre muscle, de dos : la bulle suit
+        tap_muscle(page, '.mcard__map', 'lats', 'back')
+        txt = tip_text(page)
+        R.check(txt.startswith('Grand dorsal') and page.locator('.btip').count() == 1, f'{t} bulle grand dorsal : « {txt} »')
+        n_lats = int(re.search(r'(\d+) séries?', txt).group(1))
+        shot(page, LOT, f'bulle-dos-{t}')
+        # Toucher hors d'un muscle : entre les deux vues (fond), puis sur la tête (zone grise) : fermée
+        f, b = (page.locator(f'.mcard__map .body-map__{v}').bounding_box() for v in ('front', 'back'))
+        page.mouse.click((f['x'] + f['width'] + b['x']) / 2, f['y'] + f['height'] * .55)
+        page.wait_for_timeout(300)
+        R.check(page.locator('.btip').count() == 0, f'{t} toucher le fond : bulle fermée')
+        tap_muscle(page, '.mcard__map', 'calves', 'front')
+        R.check(tip_text(page).startswith('Mollets'), f'{t} bulle mollets : « {tip_text(page)} »')
+        page.mouse.click(f['x'] + f['width'] / 2, f['y'] + f['height'] * .04)
+        page.wait_for_timeout(300)
+        R.check(page.locator('.btip').count() == 0, f'{t} toucher la tête (zone grise) : bulle fermée')
+        tap_muscle(page, '.mcard__map', 'lats', 'back')
+        page.locator('.mlegend').click()
+        page.wait_for_timeout(200)
+        R.check(page.locator('.btip').count() == 0, f'{t} toucher ailleurs : bulle fermée')
+        tap_muscle(page, '.mcard__map', 'lats', 'back')
+        page.click('[data-action="muscle-span"][data-span="week"]')
+        page.wait_for_timeout(250)
+        R.check(page.locator('.btip').count() == 0, f'{t} changement de période : bulle fermée')
+        page.click('[data-action="muscle-span"][data-span="month"]')
+        page.wait_for_timeout(250)
+        # Lien : « Séries par muscle », mêmes chiffres, ligne du muscle mise en avant
+        tap_muscle(page, '.mcard__map', 'chest', 'front')
+        page.locator('.btip [data-action="go-stats-muscles"]').click()
+        page.wait_for_selector('.view.stats-muscles')
+        page.wait_for_timeout(300)
+        val = lambda m: int(page.locator(f'.mrow[data-muscle="{m}"] .cell__value').inner_text())
+        R.check(val('chest') == n_chest and val('lats') == n_lats, f'{t} bulle = Séries par muscle ({n_chest}, {n_lats})')
+        R.check(page.locator('.mrow--focus[data-muscle="chest"]').count() == 1, f'{t} ligne Pectoraux mise en avant')
+        R.check(page.locator('.btip').count() == 0, f'{t} bulle fermée après le lien')
+        page.click('[data-action="back"]')
+        page.wait_for_selector('.view.stats')
+        # Fiche exercice : principal / secondaire
+        page.locator('[data-action="open-stats-ex"][data-ex="p1dcouch"]').click()
+        page.wait_for_selector('.view.stats-ex .mpanel')
+        page.locator('.mpanel').scroll_into_view_if_needed()
+        bases_loaded(page, '.mpanel__map')
+        w = page.locator('.mpanel__map').bounding_box()['width']
+        R.check(w >= 200, f'{t} fiche : personnage agrandi ({w:.0f} px)')
+        R.check(page.locator('.mpanel__map .body-map__m--sec[data-muscle="triceps"]').count() >= 1, f'{t} fiche : triceps en secondaire')
+        tap_muscle(page, '.mpanel__map', 'chest', 'front')
+        R.check(tip_text(page) == 'Pectoraux Muscle principal', f'{t} fiche : « {tip_text(page)} »')
+        tap_muscle(page, '.mpanel__map', 'triceps', 'back')
+        R.check(tip_text(page) == 'Triceps Muscle secondaire', f'{t} fiche : « {tip_text(page)} »')
+        R.check(tip_inside(page), f'{t} fiche : bulle dans l\'écran')
+        shot(page, LOT, f'bulle-fiche-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def once_static(bench):
-    files = ['js/data/muscles.js', 'js/data/exercise-catalogue.js', 'js/data/muscle-load.js', 'js/ui/body-map.js', 'js/features/muscles.js', 'css/muscles.css']
+    files = ['js/data/muscles.js', 'js/data/exercise-catalogue.js', 'js/data/muscle-load.js', 'js/ui/body-map.js', 'js/ui/body-tip.js', 'js/features/muscles.js', 'js/features/muscle-tip.js', 'css/muscles.css']
     for f in files:
         n = sum(1 for _ in open(os.path.join(APP_DIR, f), encoding='utf-8'))
         R.check(n <= 400, f'{f} : {n} lignes (400 au plus)')
@@ -422,4 +532,4 @@ def once_static(bench):
         R.check(px and px['red'] > 2000 and px['gray'] > 20000, f'bodyMapImage : base grise et pectoraux teintés en rouge {px}')
 
 
-run_main(R, [t_progress, t_empty, t_editor, t_library_muscles, t_add_sheet, t_silhouette], once=[once_static])
+run_main(R, [t_progress, t_empty, t_editor, t_library_muscles, t_add_sheet, t_silhouette, t_tip], once=[once_static])

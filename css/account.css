@@ -294,14 +294,19 @@
 .onb__body {
   display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 44px; padding: 10px 6px 8px;
   border: 0; border-radius: var(--r-lg); background: var(--cell); color: var(--label2); font: inherit; cursor: pointer;
-  box-shadow: inset 0 0 0 1px var(--sep); opacity: .45; transition: opacity .2s;
+  box-shadow: inset 0 0 0 1px var(--sep);
 }
+/* Silhouette non choisie : dessin atténué mais lisible (sombre : moins atténué, le corps gris se perd vite sur
+   le noir) ; son nom reste en gris secondaire plein, lisible (4,5:1) */
+.onb__body .body-map { transition: opacity .2s; }
+.onb__body:not(.onb__body--on) .body-map { opacity: .62; }
+body.light .onb__body:not(.onb__body--on) .body-map { opacity: .5; }
 .onb__body--on { opacity: 1; color: var(--tint); box-shadow: inset 0 0 0 2px var(--tint); }
 .onb__body .body-map { height: clamp(96px, 19vh, 168px); }
 .onb__body .body-map__row { width: auto; height: 100%; }
 .onb__body-name { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-subhead); font-weight: 600; }
 .onb__body:active { opacity: .7; }
-@media (prefers-reduced-motion: reduce) { .onb__body { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .onb__body .body-map { transition: none; } }
 /* Boutons en bas de l'écran, toujours visibles : collés au bas du calque quand la liste dépasse (iPhone SE) */
 .onb__actions {
   position: sticky; bottom: 0; margin: auto calc(-1 * var(--gutter)) -24px; padding: 16px var(--gutter) 8px;
