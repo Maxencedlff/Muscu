@@ -166,6 +166,164 @@ def t_seance(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def machine_set(prev=None):
+    return {'weight': '', 'reps': '', 'plannedWeight': '', 'prev': prev, 'done': False}
+
+
+def shift_clock(page, sec):
+    """Fait comme si sec secondes de chrono étaient passées (horodatage de départ reculé, séance enregistrée)."""
+    page.evaluate("s => { activeSession.effort.start -= s * 1000; persistSession(); updateEffortUI(); }", sec)
+
+
+def t_machines(bench, eng, dev, theme):
+    """Machines de cardio : chrono, réglage noté au fil de l'effort (−/+, saisie directe, unité), rechargement en
+    pleine séance, bilan (moyenne pondérée, temps à chaque valeur, étages), tapis à deux valeurs, rameur aux 500 m."""
+    t = tag(dev, theme)
+    now = int(time.time() * 1000)
+    active = {'activeSession': {'category': 'legs', 'programme': 'ppl', 'startedAt': now - 10 * 60_000, 'baseline': {}, 'exercises': [
+        {'exId': 'n:escaliers', 'name': 'Escaliers', 'measure': 'cardio', 'sets': [
+            machine_set({'weight': '', 'reps': '20', 'machine': {'end': 1200, 'lvl': [[0, 7, 'level'], [300, 9, 'level']]}})]},
+        {'exId': 'n:tapis', 'name': 'Tapis de course', 'measure': 'cardio', 'sets': [machine_set()]},
+        {'exId': 'n:rameur', 'name': 'Rameur', 'measure': 'cardio', 'sets': [machine_set()]}]},
+        'sessionNotes': '', 'rest': None}
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, now, native=False, active=active, health=False)
+        plays = page.locator('.set-play')
+        R.check(plays.count() == 3, f'{t} ▶ sur les trois machines ({plays.count()})')
+        plays.first.click()
+        page.wait_for_selector('.rs--machine .mach-slot')
+        val = lambda sl='lvl': page.inner_text(f'.rs--machine .mach-val[data-slot="{sl}"]').strip()
+        R.check(val() == '7', f'{t} départ au niveau du début de la dernière fois : {val()!r}')
+        R.check(page.locator('.mach-units__btn[aria-pressed="true"]').inner_text() == 'Niveau', f'{t} unité Niveau par défaut')
+        shot(page, LOT, f'machine-chrono-{t}')
+        # 10 min au niveau 7, puis trois + d'affilée : un seul changement, niveau 10
+        shift_clock(page, 600)
+        for _ in range(3):
+            page.click('.rs--machine [data-action="mach-step"][data-d="1"]')
+        R.check(val() == '10', f'{t} + + + : niveau 10 ({val()!r})')
+        log = page.evaluate("activeSession.effort.log.lvl")
+        R.check(log[0] == [0, 7, 'level'] and len(log) == 2 and 600 <= log[1][0] <= 603 and log[1][1:] == [10, 'level'],
+                f'{t} changement daté au chrono, un seul pour trois + : {log}')
+        # Rechargement en pleine séance : chrono, valeur et journal repris
+        page.reload()
+        page.wait_for_selector('.rs--machine .mach-slot')
+        R.check(val() == '10', f'{t} rechargement : niveau 10 gardé ({val()!r})')
+        clock = page.inner_text('#effortTime')
+        R.check(clock.startswith('10:'), f'{t} rechargement : chrono repris ({clock})')
+        # 10 min plus tard : Marches/min, saisie directe de 80
+        shift_clock(page, 600)
+        page.click('.mach-units__btn[data-u="spm"]')
+        R.check(val() == '—', f'{t} autre unité : rien de converti ({val()!r})')
+        page.click('.rs--machine .mach-val[data-slot="lvl"]')
+        page.fill('.mach-val--input', '80')
+        page.keyboard.press('Enter')
+        page.wait_for_timeout(150)
+        R.check(val() == '80', f'{t} saisie directe : 80 marches/min ({val()!r})')
+        shot(page, LOT, f'machine-spm-{t}')
+        shift_clock(page, 300)
+        page.click('#effortStop')
+        page.wait_for_selector('.rs--review')
+        review = page.inner_text('.rs--review')
+        R.check('Niveau moyen 8,5' in review and '80 marches/min' in review, f'{t} bilan : moyenne pondérée et unités séparées')
+        bars = page.locator('.mach-bar').count()
+        R.check(bars == 3, f'{t} bilan : temps à chaque valeur ({bars} barres)')
+        R.check(page.locator('#machDist').count() == 0, f'{t} escaliers : pas de distance')
+        page.fill('#machX-floors', '42')
+        shot(page, LOT, f'machine-bilan-{t}')
+        page.click('[data-action="mach-save"]')
+        page.wait_for_selector('.ex-summary__line')   # exercice terminé : replié sur sa ligne
+        s0 = page.evaluate("activeSession.exercises[0].sets[0]")
+        R.check(s0['done'] and s0['reps'] == '25' and 1500 <= s0['machine']['end'] <= 1510 and s0['machine']['floors'] == 42,
+                f'{t} série validée : 25 min, durée exacte, étages ({s0.get("reps")}, {s0.get("machine")})')
+        line = page.locator('.ex-summary__line').first.inner_text()
+        R.check(line == '25 min · niveau moy. 8,5 · 80 marches/min · 42 étages', f'{t} ligne de l\'exercice : {line!r}')
+        page.evaluate("stopRest(); closeSessSheets(); removeRestUI()")
+
+        # Tapis : vitesse et inclinaison suivies ensemble
+        page.locator('.set-play').first.click()
+        page.wait_for_selector('.rs--machine .mach-slot[data-slot="incl"]')
+        R.check(page.locator('.rs--machine .mach-slot').count() == 2, f'{t} tapis : deux rangées')
+        page.click('.rs--machine .mach-val[data-slot="speed"]')
+        page.fill('.mach-val--input', '10,5')
+        page.keyboard.press('Enter')
+        page.wait_for_timeout(150)
+        page.click('.rs--machine .mach-slot[data-slot="incl"] [data-action="mach-step"][data-d="1"]')
+        page.click('.rs--machine .mach-slot[data-slot="incl"] [data-action="mach-step"][data-d="1"]')
+        R.check(val('speed') == '10,5' and val('incl') == '0,5', f'{t} tapis : 10,5 km/h, 0,5 % ({val("speed")}, {val("incl")})')
+        shot(page, LOT, f'machine-tapis-{t}')
+        shift_clock(page, 900)
+        page.click('.rs--machine .mach-slot[data-slot="speed"] [data-action="mach-step"][data-d="1"]')
+        shift_clock(page, 900)
+        page.click('#effortStop')
+        page.wait_for_selector('.rs--review')
+        page.fill('#machDist', '5,3')
+        page.click('[data-action="mach-save"]')
+        page.wait_for_timeout(300)
+        s1 = page.evaluate("activeSession.exercises[1].sets[0]")
+        R.check(s1['done'] and s1['dist'] == '5.3' and s1['reps'] == '30', f'{t} tapis : 5,3 km en 30 min ({s1.get("dist")}, {s1.get("reps")})')
+        txt = page.locator('.ex-summary__line').nth(1).inner_text()
+        R.check(('10,5 km/h moy.' in txt or '10,6 km/h moy.' in txt) and '0,5 %' in txt and '5:40 /km' in txt, f'{t} tapis : vitesse moyenne pondérée ({txt!r})')
+        page.evaluate("stopRest(); closeSessSheets(); removeRestUI()")
+
+        # Rameur : pas de réglage au chrono, temps aux 500 m calculé de la durée exacte
+        page.locator('.set-play').first.click()
+        page.wait_for_selector('.rs--machine')
+        R.check(page.locator('.rs--machine .mach-slot').count() == 0, f'{t} rameur : aucun réglage suivi')
+        shift_clock(page, 452)
+        page.click('#effortStop')
+        page.wait_for_selector('.rs--review #machDist')
+        page.fill('#machDist', '2')
+        page.wait_for_timeout(100)
+        split = page.inner_text('#machSplit')
+        R.check('1:53' in split, f'{t} rameur : 2 000 m en 7:32 = 1:53 /500 m ({split!r})')
+        page.fill('#machX-damper', '5')
+        shot(page, LOT, f'machine-rameur-{t}')
+        page.click('[data-action="mach-save"]')
+        page.wait_for_timeout(300)
+        badges = page.locator('.ex-summary__line').nth(2).inner_text()
+        R.check('1:53 /500 m' in badges and 'résistance 5' in badges, f'{t} rameur : ligne validée ({badges!r})')
+        # Série rouverte : allure et réglage sous la ligne validée
+        page.locator('.ex-summary').nth(2).click()
+        page.wait_for_timeout(300)
+        badge = page.locator('.session-set--done .mach-badge')
+        R.check(badge.count() == 1 and badge.inner_text() == 'résistance 5', f'{t} rameur déplié : pastille du réglage')
+        # La séance enregistrée garde les réglages (format de sessions.data)
+        entry = page.evaluate("sessionHistoryEntry('ppl', 'legs').exercises.map(e => e.sets[0].machine)")
+        R.check(entry[0]['lvl'][-1][1:] == [80, 'spm'] and entry[1]['speed'] and entry[2] == {'end': 452, 'damper': 5},
+                f'{t} séance enregistrée : réglages gardés {entry}')
+        page.evaluate("stopRest(); closeSessSheets(); removeRestUI()")
+        shot(page, LOT, f'machine-seance-{t}')
+
+        R.check(not page.errors, f'{t} machines : aucune erreur JS {page.errors}')
+
+
+def t_alias(bench, eng, dev, theme):
+    """« Pec fly » est un alias de « Pec deck » : « = Pec deck » sous le nom (programme, Comment faire)."""
+    t = tag(dev, theme)
+    now = int(time.time() * 1000)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, now, native=False, health=False)
+        page.evaluate("navigate(makeRoute('library-ex', 'Pec fly'))")
+        page.wait_for_selector('.view.library-ex')
+        note = page.locator('.library-ex .ex-alias').inner_text().strip()
+        R.check(note.endswith('= Pec deck') or note == '= Pec deck', f'{t} fiche : {note!r}')
+        R.check(page.locator('.library-ex .navbar__large').inner_text().strip() == 'Pec fly', f'{t} fiche : titre = nom tapé')
+        shot(page, LOT, f'alias-fiche-{t}')
+        page.evaluate("navigate(makeRoute('library-ex', 'Pec deck'))")
+        page.wait_for_timeout(300)
+        R.check(page.locator('.view.library-ex .ex-alias').count() == 0, f'{t} fiche du nom exact : rien')
+        # Programme › Exercice : suit la frappe
+        page.evaluate("exDraft = null; navigate(makeRoute('ex-edit', 'push', 0))")
+        page.wait_for_selector('#exName')
+        page.fill('#exName', 'Dead lift')
+        page.wait_for_timeout(150)
+        R.check(page.inner_text('#exAlias').strip().endswith('= Soulevé de terre'), f'{t} édition : {page.inner_text("#exAlias")!r}')
+        page.fill('#exName', 'Mon exercice')
+        page.wait_for_timeout(150)
+        R.check(page.inner_text('#exAlias').strip() == '', f'{t} édition : nom libre, rien')
+        R.check(not page.errors, f'{t} alias : aucune erreur JS {page.errors}')
+
+
 def t_pwa(bench, eng, dev, theme):
     """Dans le navigateur : aucune ligne de Santé, aucune lecture."""
     t = tag(dev, theme)
@@ -179,4 +337,4 @@ def t_pwa(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} PWA : aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_historique, t_accueil, t_seance, t_pwa])
+run_main(R, [t_historique, t_accueil, t_seance, t_machines, t_alias, t_pwa])

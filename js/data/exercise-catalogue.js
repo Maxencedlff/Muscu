@@ -197,6 +197,10 @@ const EXERCISE_CATALOGUE = [
   ['Vélo d\'appartement',              'quads',                  'calves glutes', 'cardio', 'vélo stationnaire|home trainer|spinning|indoor cycling'],
   ['Rameur',                           'lats quads',             'biceps hamstrings glutes', 'cardio', 'ergomètre|rowing ergo|rower'],
   ['Vélo elliptique',                  'quads glutes',           'hamstrings',  'cardio', 'elliptique|elliptical|cross trainer'],
+  // Escaliers (stair climber à marches qui défilent, ou stepper à pédales) : la montée sollicite surtout
+  // quadriceps et grand fessier, les mollets poussent en fin d'appui, ischios en synergistes (EMG de la montée
+  // d'escalier et du stair stepping : Brown et al. 1994, J. Orthop. Sports Phys. Ther. ; ExRx, « Stair climb »)
+  ['Escaliers',                        'quads glutes',           'calves hamstrings', 'cardio', 'stepper|stair climber|stairmaster|stepmill|escalier|stair master|step mill|climbmill|powermill'],
   ['Corde à sauter',                   'calves quads',           '',            'cardio', 'jump rope|skipping rope'],
   ['Marche rapide',                    'quads calves',           'glutes',      'cardio', 'marche'],
   ['Jumping jacks',                    'calves quads',           'side_delts',  'aucun', 'jumping jack'],
@@ -235,6 +239,13 @@ const CATALOGUE_BY_LOOSE_KEY = new Map(EXERCISE_CATALOGUE.flatMap(e =>
   [e.name, ...e.aliases].map(n => [looseKey(n), e])));
 
 function catalogueNames() { return EXERCISE_CATALOGUE.map(e => e.name); }
+// Nom de la fiche quand le nom tapé en est un alias ou une forme proche (« Pec fly » → « Pec deck »,
+// « Hack squats » → « Hack squat ») : affiché discrètement « = Pec deck » sous le nom (aliasNoteHtml).
+// null si le nom est celui de la fiche (aux accents, majuscules et espaces près) ou hors bibliothèque.
+function catalogueAliasOf(name) {
+  const e = catalogueEntry(name || '');
+  return e && normName(e.name) !== normName(name) ? e.name : null;
+}
 // Matériel d'un exercice de la bibliothèque (id d'EQUIPMENT), null pour un nom saisi librement
 function equipmentOf(name) { return CATALOGUE_BY_NAME.get(normName(name))?.equip ?? null; }
 // Fiche de la bibliothèque d'un nom (nom exact, alias, abréviation développée ou clé souple), null sinon

@@ -573,7 +573,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     'Mollets debout', 'Extension quadriceps', 'Extension triceps poulie', 'Dips', 'Oiseau (élévations arrière)', 'Pull-over poulie',
     'Élévations latérales', 'Élévations frontales', 'Rowing menton', 'Haussements d\'épaules haltères', 'Crunch',
     'Développé militaire barre', 'Écarté haltères plat', 'Développé incliné barre', 'Développé couché barre', 'Tirage horizontal câble',
-    'Extension lombaires', 'Burpees'];
+    'Extension lombaires', 'Burpees', 'Escaliers'];
   const SUBSET_OF_CATALOGUE = ['Squat barre', 'Tractions pronation', 'Face pull', 'Course à pied', 'Développé au sol haltères'];
 
   test('muscles : règles des noms libres alignées sur la bibliothèque (mouvement de référence)', () => {

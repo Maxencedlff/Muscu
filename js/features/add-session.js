@@ -221,7 +221,7 @@ function addSessionInputsValid(dateEl) {
 // Exercices saisis (séries avec des reps) : ceux du programme dans leur ordre, puis les ajouts
 function pastSessionExercises() {
   const clean = sets => (sets || []).filter(s => String(s.reps ?? '').trim() !== '')
-    .map(s => ({ weight: s.weight, reps: String(parseInt(s.reps)), ...(s.dist ? { dist: s.dist } : {}) }));
+    .map(s => ({ weight: s.weight, reps: String(parseInt(s.reps)), ...(s.dist ? { dist: s.dist } : {}), ...(s.machine ? { machine: s.machine } : {}) }));
   const exercises = (addProgData().exercises[addCat] || [])
     .map(ex => {
       const sets = clean(addSets[ex.id]);
@@ -311,7 +311,8 @@ registerActions({
     initAddSets(addCat);
     session.exercises.forEach(ex => {
       const exData = (addProgData().exercises[addCat] || []).find(e => sameEx(e, ex));
-      const sets   = ex.sets.map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}) }));
+      // Réglage de la machine noté au chrono : gardé (la durée modifiée à la main reprend le pas, setMinutes)
+      const sets   = ex.sets.map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}), ...(s.machine ? { machine: s.machine } : {}) }));
       if (exData) { addSets[exData.id] = sets; return; }
       const key = 'x_' + uid();
       addExtras.push({ key, name: ex.name, exId: ex.exId || null, ...(ex.measure ? { measure: ex.measure } : {}) });

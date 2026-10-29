@@ -418,6 +418,8 @@ function cleanHistoryEntry(h) {
       st.reps = String(num(st.reps, 0, MAX_COUNT, true) ?? 0);
       if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';
       if (st.dist != null) { const km = num(st.dist, 0, 500); if (km === null || km === 0) delete st.dist; else st.dist = String(km); }
+      // Réglage d'une machine noté au chrono (js/data/machine-track.js, chargé avant ce fichier)
+      if (st.machine !== undefined) { const m = cleanMachine(st.machine); if (m) st.machine = m; else delete st.machine; }
     });
     // Charge aberrante (ex. 1e308) : série écartée plutôt que comptée en tonnes
     ex.sets = ex.sets.filter(st => st.weight === '' || num(st.weight, 0, MAX_LOAD_KG) !== null);
