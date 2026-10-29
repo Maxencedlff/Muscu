@@ -423,7 +423,12 @@ MUSCLE_POINT_JS = """async ([sel, m, view]) => {
 def tap_muscle(page, sel, muscle, view):
     x, y = page.evaluate(MUSCLE_POINT_JS, [sel, muscle, view])
     page.mouse.click(x, y)
-    page.wait_for_timeout(350)
+    # Premier toucher d'une vue : cartes d'étiquettes calculées avant l'ouverture (plus long sous charge)
+    try:
+        page.wait_for_selector('.btip', timeout=3000)
+    except Exception:
+        pass
+    page.wait_for_timeout(250)
 
 
 def tip_text(page):

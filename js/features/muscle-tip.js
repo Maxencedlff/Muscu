@@ -32,7 +32,13 @@ function muscleTipExerciseHtml(id, mapEl) {
   return `<p class="btip__title" id="btipTitle">${esc(muscleLabel(id))}</p><p class="btip__sub">${role}</p>`;
 }
 
+// Places préférées (js/ui/body-tip.js, bodyTipSpots) : Progrès, la marge extérieure de la vue touchée
+// puis sous le corps (sur la légende) ; fiche exercice, sous le personnage (au-dessus des pastilles)
+// puis la marge extérieure. Dans tous les cas, jamais sur un muscle coloré s'il reste une autre place.
 registerActions({
-  'body-tap': (e, el) => bodyTipTap(e, el, (id, mapEl) =>
-    mapEl.classList.contains('mcard__map') ? muscleTipLoadHtml(id) : muscleTipExerciseHtml(id, mapEl)),
+  'body-tap': (e, el) => {
+    const progress = el.classList.contains('mcard__map');
+    return bodyTipTap(e, el, (id, mapEl) => (progress ? muscleTipLoadHtml(id) : muscleTipExerciseHtml(id, mapEl)),
+      progress ? ['outer', 'under'] : ['under', 'outer']);
+  },
 });

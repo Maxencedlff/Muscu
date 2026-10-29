@@ -93,35 +93,102 @@ async function bodyMuscleAt(mapEl, clientX, clientY) {
 
 // ── Bulle ───────────────────────────────────────────────────
 
-// Place de la bulle (w × h) pour un doigt en (x, y). Ordre de préférence : à côté du muscle (du côté
-// le plus large de l'écran), puis en dessous, puis au-dessus ; la première place qui tient entre minTop
-// et maxBottom (barre de navigation, barre d'onglets), à margin des bords, sans couvrir aucun rectangle
-// de avoid (sélecteur de période). Sinon : en dessous, ramenée dans l'écran.
-// side : côté de la bulle par rapport au doigt ; arrow : position de la pointe le long du bord concerné
-function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, avoid = [], margin = 8, gap = 14 }) {
+// Place de la bulle (w × h) pour un doigt en (x, y).
+// Candidats, dans l'ordre de préférence : spots (places choisies par l'écran : marge extérieure, sous
+// le personnage…), puis à côté du doigt (côté le plus large d'abord), dessous, dessus, puis une grille
+// autour du doigt (la plus proche d'abord). Chacun est ramené
+// dans l'écran (entre minTop et maxBottom, à margin des bords) et descendu sous un rectangle de avoid
+// qu'il chevaucherait. Interdits : couvrir un rectangle de avoid (sélecteur de période) ou le doigt.
+// Choix : le premier candidat qui ne couvre (presque) pas de muscle coloré (cost : surface colorée
+// couverte, en points²), sinon celui qui en couvre le moins.
+// side : 'above' | 'below' | 'left' | 'right' (flèche vers le doigt, arrow : sa position le long du
+// bord) ou 'free' (bulle à l'écart du doigt, sans flèche)
+function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, avoid = [], spots = [], cost = () => 0, margin = 8, gap = 14 }) {
   const clampX = l => Math.max(margin, Math.min(vw - margin - w, l));
   const clampY = t => Math.max(minTop, Math.min(maxBottom - h, t));
-  const sides = vw - x >= x ? ['right', 'left'] : ['left', 'right'];
-  // À côté : centrée sur le doigt, puis descendue sous un rectangle à éviter qu'elle chevaucherait,
-  // tant que sa flèche peut encore viser le doigt (14 points du coin au moins)
-  const beside = left => {
-    let top = clampY(y - h / 2);
-    for (const r of avoid) if (left < r.right && left + w > r.left && top < r.bottom && top + h > r.top) top = r.bottom + margin;
-    return { left, top: y - top >= 14 ? top : -Infinity };
+  const hits = (p, r) => p.left < r.right && p.left + w > r.left && p.top < r.bottom && p.top + h > r.top;
+  const finger = { left: x - gap + 2, right: x + gap - 2, top: y - gap + 2, bottom: y + gap - 2 };
+  const settle = ({ left, top }) => {
+    const p = { left: clampX(left), top: clampY(top) };
+    for (const r of avoid) if (hits(p, r)) p.top = r.bottom + margin;
+    return p;
   };
+  const near = vw - x >= x ? [x + gap, x - gap - w] : [x - gap - w, x + gap];
+  // Puis une grille autour du doigt (bords, centre), la plus proche d'abord : de quoi trouver une place
+  // hors des muscles colorés quand les places habituelles en couvrent
+  const grid = [];
+  for (let top = y - gap - 1.5 * h; top <= y + gap + h / 2; top += 12) {
+    for (const left of [margin, (vw - w) / 2, vw - margin - w, x - w / 2]) grid.push({ left, top });
+  }
+  const dist = p => Math.hypot(p.left + w / 2 - x, p.top + h / 2 - y);
+  grid.sort((a, b) => dist(a) - dist(b));
+  const cands = [...spots, ...near.map(left => ({ left, top: y - h / 2 })),
+    { left: x - w / 2, top: y + gap }, { left: x - w / 2, top: y - gap - h }, ...grid].map(settle)
+    .filter(p => p.left >= margin && p.left + w <= vw - margin && p.top >= minTop && p.top + h <= maxBottom
+      && !avoid.some(r => hits(p, r)) && !hits(p, finger));
+  const tol = 0.02 * w * h;
+  const scored = cands.map(p => ({ p, c: cost({ left: p.left, top: p.top, right: p.left + w, bottom: p.top + h }) }));
+  let best = scored.find(s => s.c <= tol) || scored.reduce((a, b) => (b.c < a.c ? b : a), scored[0]);
+  if (!best) best = { p: { left: clampX(x - w / 2), top: clampY(y + gap) } };
+  const { left, top } = best.p;
+  // Flèche : seulement si la bulle borde le doigt (à moins de 3 fois l'écart) sur l'un de ses côtés
+  const reach = 3 * gap;
+  let side = 'free', arrow = 0;
+  if (x >= left + 16 && x <= left + w - 16 && top >= y && top - y <= reach) { side = 'below'; arrow = x - left; }
+  else if (x >= left + 16 && x <= left + w - 16 && top + h <= y && y - top - h <= reach) { side = 'above'; arrow = x - left; }
+  else if (y >= top + 14 && y <= top + h - 14 && left >= x && left - x <= reach) { side = 'right'; arrow = y - top; }
+  else if (y >= top + 14 && y <= top + h - 14 && left + w <= x && x - left - w <= reach) { side = 'left'; arrow = y - top; }
+  return { left: Math.round(left), top: Math.round(top), side, arrow: Math.round(arrow) };
+}
+
+// Surface colorée (en points²) d'une carte affichée sous un rectangle de l'écran : muscles qui ont un
+// calque dans la carte (palier > 0, principal ou secondaire), d'après les cartes d'étiquettes.
+// Une table de sommes cumulées par vue rend chaque mesure immédiate.
+async function bodyTipCoverage(mapEl) {
+  const kind = bodyKind(mapEl.dataset.body);
+  const parts = [];
+  for (const fig of mapEl.querySelectorAll('.body-map__fig')) {
+    const view = fig.classList.contains('body-map__back') ? 'back' : 'front';
+    const hit = await bodyHitMap(kind, view);
+    if (!hit) continue;
+    const on = new Set([...fig.querySelectorAll('.body-map__m')].map(e => e.dataset.muscle));
+    const colored = hit.ids.map(id => on.has(id));
+    const W = hit.w + 1, sum = new Uint32Array(W * (hit.h + 1));
+    for (let j = 0; j < hit.h; j++) {
+      let row = 0;
+      for (let i = 0; i < hit.w; i++) {
+        const v = hit.map[j * hit.w + i];
+        row += v && colored[v - 1] ? 1 : 0;
+        sum[(j + 1) * W + i + 1] = sum[j * W + i + 1] + row;
+      }
+    }
+    parts.push({ r: fig.getBoundingClientRect(), w: hit.w, h: hit.h, W, sum });
+  }
+  return rect => parts.reduce((total, { r, w, h, W, sum }) => {
+    const sx = w / r.width, sy = h / r.height;
+    const i0 = Math.max(0, Math.floor((rect.left - r.left) * sx)), i1 = Math.min(w, Math.ceil((rect.right - r.left) * sx));
+    const j0 = Math.max(0, Math.floor((rect.top - r.top) * sy)), j1 = Math.min(h, Math.ceil((rect.bottom - r.top) * sy));
+    if (i1 <= i0 || j1 <= j0) return total;
+    const n = sum[j1 * W + i1] - sum[j0 * W + i1] - sum[j1 * W + i0] + sum[j0 * W + i0];
+    return total + n / (sx * sy);
+  }, 0);
+}
+
+// Places proposées par l'écran, en points de l'écran, à partir des boîtes de la carte touchée :
+//   'outer'  marge extérieure de la vue touchée (à gauche de la face, à droite du dos), à hauteur du
+//            doigt, puis en haut, puis en bas du personnage
+//   'under'  sous le personnage (sur la légende ou au-dessus des pastilles), sous le doigt
+function bodyTipSpots(mapEl, x, y, w, h, prefer) {
+  const row = mapEl.querySelector('.body-map__row')?.getBoundingClientRect();
+  if (!row) return [];
+  const figs = [...mapEl.querySelectorAll('.body-map__fig')].map(f => ({ back: f.classList.contains('body-map__back'), r: f.getBoundingClientRect() }));
+  const fig = figs.find(f => x >= f.r.left && x <= f.r.right) || figs[0];
+  const outerLeft = fig.back && figs.length > 1 ? fig.r.right - w * 0.25 : fig.r.left - w * 0.75;
   const at = {
-    right: () => beside(x + gap),
-    left:  () => beside(x - gap - w),
-    below: () => ({ left: clampX(x - w / 2), top: y + gap }),
-    above: () => ({ left: clampX(x - w / 2), top: y - gap - h }),
+    outer: [y - h / 2, row.top, row.bottom - h].map(top => ({ left: outerLeft, top })),
+    under: [{ left: x - w / 2, top: row.bottom + 4 }],
   };
-  const fits = ({ left, top }) => left >= margin && left + w <= vw - margin && top >= minTop && top + h <= maxBottom
-    && !avoid.some(r => left < r.right && left + w > r.left && top < r.bottom && top + h > r.top);
-  let side = [...sides, 'below', 'above'].find(s => fits(at[s]()));
-  let p = side ? at[side]() : null;
-  if (!p) { side = 'below'; p = at.below(); p.top = clampY(p.top); }
-  const arrow = side === 'left' || side === 'right' ? Math.max(14, Math.min(h - 14, y - p.top)) : Math.max(16, Math.min(w - 16, x - p.left));
-  return { left: Math.round(p.left), top: Math.round(p.top), side, arrow: Math.round(arrow) };
+  return prefer.flatMap(k => at[k] || []);
 }
 
 let bodyTipEl = null;
@@ -159,7 +226,8 @@ function closeBodyTip() {
 
 // Ouvre la bulle près du doigt. html : contenu (dont un titre #btipTitle, nom de la bulle pour VoiceOver).
 // anchor : élément touché, dont le déplacement à l'écran (défilement) ferme la bulle
-function showBodyTip(html, x, y, anchor = null) {
+// place : { spots, cost } (bodyTipSpots, bodyTipCoverage), facultatif
+function showBodyTip(html, x, y, anchor = null, place = {}) {
   closeBodyTip();
   const el = document.createElement('div');
   el.className = 'btip';
@@ -168,8 +236,9 @@ function showBodyTip(html, x, y, anchor = null) {
   el.setAttribute('aria-labelledby', 'btipTitle');
   el.innerHTML = `${html}<i class="btip__arrow" aria-hidden="true"></i>`;
   document.body.appendChild(el);
-  const p = bodyTipPlace({ x, y, w: el.offsetWidth, h: el.offsetHeight, vw: document.documentElement.clientWidth,
-    ...bodyTipBounds(anchor), avoid: bodyTipAvoid(anchor) });
+  const w = el.offsetWidth, h = el.offsetHeight;
+  const p = bodyTipPlace({ x, y, w, h, vw: document.documentElement.clientWidth, ...bodyTipBounds(anchor), avoid: bodyTipAvoid(anchor),
+    spots: place.prefer && anchor ? bodyTipSpots(anchor, x, y, w, h, place.prefer) : [], cost: place.cost });
   el.style.left = `${p.left}px`; el.style.top = `${p.top}px`;
   el.style.setProperty('--arrow', `${p.arrow}px`);
   el.classList.add(`btip--${p.side}`);
@@ -180,13 +249,17 @@ function showBodyTip(html, x, y, anchor = null) {
 
 // Touche une carte (.body-map) : muscle sous le doigt, puis bulle de contenu(muscle, carte), ou
 // fermeture hors d'un muscle. Un clic clavier (sans position) ne fait rien : VoiceOver lit la liste.
-async function bodyTipTap(e, mapEl, content) {
+// prefer : places préférées de l'écran (bodyTipSpots), avant celles autour du doigt ; la bulle évite
+// dans tous les cas de couvrir un muscle coloré quand une autre place existe
+async function bodyTipTap(e, mapEl, content, prefer = []) {
   if (!e || (!e.clientX && !e.clientY)) return;
   const seq = ++bodyTipSeq;
   const hit = await bodyMuscleAt(mapEl, e.clientX, e.clientY);
   if (seq !== bodyTipSeq || !mapEl.isConnected) return;
   if (!hit) { closeBodyTip(); return; }
-  showBodyTip(content(hit.muscle, mapEl), e.clientX, e.clientY, mapEl);
+  const cost = await bodyTipCoverage(mapEl);
+  if (seq !== bodyTipSeq || !mapEl.isConnected) return;
+  showBodyTip(content(hit.muscle, mapEl), e.clientX, e.clientY, mapEl, { prefer, cost });
   haptic();
 }
 

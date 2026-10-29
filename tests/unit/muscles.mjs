@@ -678,34 +678,50 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     assert.equal(app.bodyHitAt(new Uint8Array(W * H), W, H, 2, 2, 10), -1, 'zone grise seule');
   });
 
-  test('bulle muscle : à côté du muscle, sinon dessous, jamais sur le sélecteur ni hors écran', () => {
+  test('bulle muscle : à côté du doigt par défaut, jamais sur le sélecteur, le doigt ni hors écran', () => {
     const base = { w: 180, h: 90, vw: 375, minTop: 100, maxBottom: 754 };
     const inside = p => p.left >= 8 && p.left + 180 <= 367 && p.top >= 100 && p.top + 90 <= 754;
-    // Muscle à gauche de l'écran : bulle à droite du doigt, centrée sur lui, flèche à sa hauteur
+    // Sans muscle coloré : à côté du doigt, du côté le plus large, flèche à sa hauteur
     const r = app.bodyTipPlace({ ...base, x: 140, y: 400 });
     assert.ok(r.side === 'right' && r.left === 154 && r.top === 355 && r.arrow === 45 && inside(r), JSON.stringify(r));
-    // À droite : à gauche du doigt
     const l = app.bodyTipPlace({ ...base, x: 250, y: 400 });
     assert.ok(l.side === 'left' && l.left + 180 === 236 && inside(l), JSON.stringify(l));
     // Pas de place sur les côtés (doigt au centre) : dessous
     const b = app.bodyTipPlace({ ...base, x: 187, y: 400 });
     assert.ok(b.side === 'below' && b.top === 414 && inside(b), JSON.stringify(b));
-    // Côté et dessous occupés (sélecteur de période, bas de l'écran) : au-dessus, sans le couvrir
+    // Sélecteur de période : jamais couvert, la bulle descend dessous
     const sel = { left: 16, right: 359, top: 140, bottom: 172 };
-    const a = app.bodyTipPlace({ ...base, x: 187, y: 700, avoid: [sel] });
-    assert.ok(a.side === 'above' && a.top + 90 <= 686 && inside(a), JSON.stringify(a));
     const s = app.bodyTipPlace({ ...base, x: 140, y: 200, avoid: [sel] });
-    assert.ok(s.side === 'right' && s.top === 180 && s.arrow === 20, `à côté, descendue sous le sélecteur ${JSON.stringify(s)}`);
-    const s2 = app.bodyTipPlace({ ...base, x: 140, y: 185, avoid: [sel] });
-    assert.ok(s2.side !== 'right' && !(s2.top < sel.bottom && s2.top + 90 > sel.top), `flèche impossible à côté : ailleurs ${JSON.stringify(s2)}`);
-    // Près du haut : à côté, ramenée sous minTop, la flèche ne viserait plus le doigt : dessous
-    const t = app.bodyTipPlace({ ...base, x: 140, y: 110 });
-    assert.ok(t.side === 'below' && t.top === 124 && inside(t), JSON.stringify(t));
-    const t2 = app.bodyTipPlace({ ...base, x: 140, y: 120 });
-    assert.ok(t2.side === 'right' && t2.top === 100 && t2.arrow === 20, JSON.stringify(t2));
+    assert.ok(s.side === 'right' && s.top === 180 && s.arrow === 20, JSON.stringify(s));
+    const a = app.bodyTipPlace({ ...base, x: 187, y: 700, avoid: [sel] });
+    assert.ok(a.side === 'above' && inside(a), JSON.stringify(a));
     // Rien ne tient (bulle trop haute) : dessous, ramenée dans l'écran
     const big = app.bodyTipPlace({ ...base, h: 600, x: 187, y: 400 });
-    assert.ok(big.side === 'below' && big.top >= 100 && big.top + 600 <= 754, JSON.stringify(big));
+    assert.ok(big.top >= 100 && big.top + 600 <= 754, JSON.stringify(big));
+    // Le doigt n'est jamais sous la bulle
+    for (const x of [20, 140, 187, 250, 360]) for (const y of [110, 400, 740]) {
+      const p = app.bodyTipPlace({ ...base, x, y });
+      assert.ok(!(x > p.left && x < p.left + 180 && y > p.top && y < p.top + 90) || p.top + 90 > 754 - 1, `doigt couvert ${x},${y} ${JSON.stringify(p)}`);
+    }
+  });
+
+  test('bulle muscle : places préférées de l\'écran, sauf si elles couvrent un muscle coloré', () => {
+    const base = { w: 180, h: 90, vw: 375, minTop: 100, maxBottom: 754, x: 140, y: 300 };
+    // Muscle coloré : rectangle 100..280 × 250..450 (le torse) ; coût = surface couverte
+    const torso = { left: 100, right: 280, top: 250, bottom: 450 };
+    const cost = r => Math.max(0, Math.min(r.right, torso.right) - Math.max(r.left, torso.left)) * Math.max(0, Math.min(r.bottom, torso.bottom) - Math.max(r.top, torso.top));
+    const under = { left: 50, top: 470 }, outer = { left: 8, top: 120 };
+    // Place préférée libre : prise, sans flèche si loin du doigt
+    const p1 = app.bodyTipPlace({ ...base, spots: [under, outer], cost });
+    assert.ok(p1.left === 50 && p1.top === 470 && p1.side === 'free', JSON.stringify(p1));
+    sameJSON(app.bodyTipPlace({ ...base, spots: [outer, under], cost }).top, 120, 'ordre de l\'écran respecté');
+    // Place préférée sur le torse : écartée au profit d'une place libre
+    const p2 = app.bodyTipPlace({ ...base, spots: [{ left: 100, top: 300 }], cost });
+    assert.ok(cost({ left: p2.left, top: p2.top, right: p2.left + 180, bottom: p2.top + 90 }) <= 0.02 * 180 * 90, `presque rien couvert ${JSON.stringify(p2)}`);
+    // Tout couvre le torse : la place qui en couvre le moins
+    const all = () => 1000;
+    const p3 = app.bodyTipPlace({ ...base, cost: all });
+    assert.ok(p3.side === 'right', 'à coût égal, l\'ordre de préférence');
   });
 
   test('carte : toucher activé sur demande, muscles secondaires dans leur teinte', () => {

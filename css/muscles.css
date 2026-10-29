@@ -113,6 +113,7 @@ body.light .mpick__auto { background: var(--cell); }
 .btip--above .btip__arrow { top: 100%; left: calc(var(--arrow) - 8px); border-top-color: var(--tip-bg); border-bottom: 0; }
 .btip--below .btip__arrow { bottom: 100%; left: calc(var(--arrow) - 8px); border-bottom-color: var(--tip-bg); border-top: 0; }
 .btip--right .btip__arrow { right: 100%; top: calc(var(--arrow) - 8px); border-right-color: var(--tip-bg); border-left: 0; }
+.btip--free .btip__arrow { display: none; }
 .btip--left .btip__arrow { left: 100%; top: calc(var(--arrow) - 8px); border-left-color: var(--tip-bg); border-right: 0; }
 @keyframes btip-in { from { opacity: 0; transform: scale(.92); } }
 @media (prefers-reduced-motion: reduce) { .btip { animation: none; } }
