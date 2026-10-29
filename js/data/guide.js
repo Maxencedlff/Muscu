@@ -347,9 +347,9 @@ const GUIDE_SECTIONS = [
         id: 'muscles', title: 'Muscles travaillés', icon: 'chart', color: 'red',
         lead: 'La carte [Muscles] de l\'onglet [Progrès] colore la silhouette selon le nombre de séries reçues par chaque muscle.',
         steps: [
-          'Choisis la période : [Cette semaine] (depuis lundi) ou [4 semaines] (les 28 derniers jours).',
-          'Une série compte pour 1 sur les muscles principaux de l\'exercice et pour ½ sur les secondaires.',
-          '[Peu travaillés] liste les muscles en retard. [Séries par muscle] donne le détail.',
+          'Choisis la période : [Cette semaine] (depuis lundi) ou [4 semaines] (les 28 derniers jours, en moyenne par semaine).',
+          'La couleur suit les séries par semaine, 1 par série pour les muscles principaux et ½ pour les secondaires : entretien de 1 à 4, travaillé de 5 à 9, objectif atteint de 10 à 19, gros volume à partir de 20.',
+          'Touche un muscle de la silhouette pour voir ses séries. [Peu travaillés] liste les muscles en retard, [Séries par muscle] donne le détail.',
           'Les muscles d\'un exercice de la bibliothèque sont vérifiés. ··· › [Muscles ciblés] les modifie, ou choisit ceux d\'un exercice que tu as créé ; [Rétablir les muscles par défaut] revient aux muscles vérifiés.',
           'La silhouette se change dans [Réglages] › [Silhouette].',
         ],

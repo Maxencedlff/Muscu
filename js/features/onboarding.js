@@ -138,6 +138,7 @@ function applyOnboarding() {
   activateProgramme(id);
   data.exEquip = ONB_PLACES[onb.place]?.equip || 'all';
   if (onb.perWeek) data.weeklyGoal = onb.perWeek;
+  if (TRAINING_LEVELS.includes(onb.level)) data.level = onb.level;
   data.onboarded = true;
   save();
 }

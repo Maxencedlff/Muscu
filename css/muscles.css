@@ -13,6 +13,7 @@
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
 }
 .body-map__m--sec { background-color: var(--body-heat-sec); }
+.body-map__m--peak { background-color: var(--body-heat-max); }
 .body-map[data-action="body-tap"] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .body-map__caps { display: flex; justify-content: space-between; margin-top: 4px; font-size: var(--fs-caption); line-height: 1; }
 .body-map__caps > span { flex: 0 0 var(--fig); text-align: center; }
@@ -44,11 +45,14 @@
 .mcard__top + .cell::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
 .mlow { color: var(--label); font-size: var(--fs-subhead); line-height: 1.176rem; }
 
-/* Légende : un échantillon par palier */
-.mlegend { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 12px; font-size: var(--fs-caption); color: var(--label2); }
-.mlegend__item { display: inline-flex; align-items: center; gap: 5px; }
+/* Légende : un échantillon par palier, son nom et ses bornes */
+.mlegend { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 3px 8px; font-size: var(--fs-caption); color: var(--label2); }
+.mlegend__item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--label); }
+.mlegend__n { color: var(--label2); }
 .mlegend__dot { width: 10px; height: 10px; border-radius: 3px; background: var(--body-zone); position: relative; overflow: hidden; }
 .mlegend__dot::after { content: ''; position: absolute; inset: 0; background: var(--body-heat); opacity: var(--o, 0); }
+.mlegend__dot { flex-shrink: 0; }
+.mlegend__dot--peak::after { background: var(--body-heat-max); }
 .mlegend__unit { flex-basis: 100%; text-align: center; }
 
 /* ── Progrès › Séries par muscle ── */
@@ -58,6 +62,7 @@
 .mrow--focus { background: color-mix(in srgb, var(--body-heat) 12%, var(--cell)); }
 .mrow__bar { display: block; height: 6px; border-radius: 3px; background: var(--fill2); overflow: hidden; }
 .mrow__bar i { display: block; height: 100%; min-width: 0; border-radius: 3px; background: var(--body-heat); opacity: var(--o, 0); }
+.mrow__bar i.is-peak { background: var(--body-heat-max); }
 
 /* ── Feuille « Muscles ciblés » ── */
 .mpick { background: var(--cell2); border-radius: var(--r-md); overflow: hidden; }
@@ -88,25 +93,27 @@ body.light .mpick__auto { background: var(--cell); }
 
 /* ── Bulle d'un muscle touché (js/ui/body-tip.js, js/features/muscle-tip.js) ── */
 .btip {
-  position: fixed; z-index: 60; min-width: 150px; max-width: min(260px, calc(100vw - 16px)); padding: 10px 14px 4px;
+  position: fixed; z-index: 60; width: max-content; min-width: 150px; max-width: min(228px, calc(100vw - 16px)); padding: 10px 14px;
   border-radius: 14px; background: var(--tip-bg); color: var(--label); box-shadow: var(--shadow-float), inset 0 0 0 .5px var(--sep);
-  animation: btip-in .16s ease-out; transform-origin: var(--ax) 100%;
+  animation: btip-in .16s ease-out;
+  pointer-events: none;   /* posée sur la carte : un toucher la traverse vers le muscle d'en dessous */
 }
-.btip--below { transform-origin: var(--ax) 0; }
 .btip__title { font-size: var(--fs-subhead); line-height: 1.176rem; font-weight: 600; }
 .btip__sub { margin-top: 2px; font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); }
-.btip__sub:last-of-type { padding-bottom: 6px; }
+.btip__level { display: flex; align-items: baseline; gap: 5px; margin-top: 4px; font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); }
+.btip__level .mlegend__dot { transform: translateY(1px); }
 .btip__link {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: calc(100% + 28px); min-height: 44px;
-  margin: 6px -14px 0; padding: 0 14px; border: 0; border-top: .5px solid var(--sep); border-radius: 0 0 14px 14px;
+  pointer-events: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; width: calc(100% + 28px); min-height: 44px;
+  margin: 8px -14px -10px; padding: 0 14px; border: 0; border-top: .5px solid var(--sep); border-radius: 0 0 14px 14px;
   background: none; color: var(--tip-link); font-size: var(--fs-subhead); text-align: left; cursor: pointer;
 }
 .btip__link:active { background: var(--fill2); }
-.btip__arrow {
-  position: absolute; top: 100%; left: calc(var(--ax) - 8px); width: 0; height: 0;
-  border: 8px solid transparent; border-top-color: var(--tip-bg); border-bottom: 0;
-}
-.btip--below .btip__arrow { top: auto; bottom: 100%; border-top: 0; border-bottom: 8px solid var(--tip-bg); }
+/* Flèche vers le doigt, sur le bord tourné vers lui (--arrow : sa position le long de ce bord) */
+.btip__arrow { position: absolute; width: 0; height: 0; border: 8px solid transparent; }
+.btip--above .btip__arrow { top: 100%; left: calc(var(--arrow) - 8px); border-top-color: var(--tip-bg); border-bottom: 0; }
+.btip--below .btip__arrow { bottom: 100%; left: calc(var(--arrow) - 8px); border-bottom-color: var(--tip-bg); border-top: 0; }
+.btip--right .btip__arrow { right: 100%; top: calc(var(--arrow) - 8px); border-right-color: var(--tip-bg); border-left: 0; }
+.btip--left .btip__arrow { left: 100%; top: calc(var(--arrow) - 8px); border-left-color: var(--tip-bg); border-right: 0; }
 @keyframes btip-in { from { opacity: 0; transform: scale(.92); } }
 @media (prefers-reduced-motion: reduce) { .btip { animation: none; } }
 

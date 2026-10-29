@@ -120,6 +120,7 @@ def t_parcours(bench, eng, dev, theme):
         page.wait_for_selector('#app > *')
         page.wait_for_timeout(400)
         R.check(page.locator('.onb').count() == 0, f'{t} questions jamais deux fois')
+        R.check(page.evaluate('trainingLevel()') == 'debutant', f'{t} niveau gardé (repère de la bulle des muscles)')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

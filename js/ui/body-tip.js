@@ -93,31 +93,62 @@ async function bodyMuscleAt(mapEl, clientX, clientY) {
 
 // ── Bulle ───────────────────────────────────────────────────
 
-// Place de la bulle (w × h) pour un doigt en (x, y) : au-dessus du doigt (qui cache ce qui est
-// dessous), sinon en dessous, toujours entre minTop et maxBottom (barre d'état, barre d'onglets) et
-// à margin des bords. arrowX : pointe de la flèche, dans la bulle
-function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, margin = 8, gap = 14 }) {
-  const left = Math.max(margin, Math.min(vw - margin - w, x - w / 2));
-  let top = y - gap - h, below = false;
-  if (top < minTop) { top = y + gap + 6; below = true; }
-  top = Math.max(minTop, Math.min(maxBottom - h, top));
-  return { left: Math.round(left), top: Math.round(top), below, arrowX: Math.round(Math.max(16, Math.min(w - 16, x - left))) };
+// Place de la bulle (w × h) pour un doigt en (x, y). Ordre de préférence : à côté du muscle (du côté
+// le plus large de l'écran), puis en dessous, puis au-dessus ; la première place qui tient entre minTop
+// et maxBottom (barre de navigation, barre d'onglets), à margin des bords, sans couvrir aucun rectangle
+// de avoid (sélecteur de période). Sinon : en dessous, ramenée dans l'écran.
+// side : côté de la bulle par rapport au doigt ; arrow : position de la pointe le long du bord concerné
+function bodyTipPlace({ x, y, w, h, vw, minTop, maxBottom, avoid = [], margin = 8, gap = 14 }) {
+  const clampX = l => Math.max(margin, Math.min(vw - margin - w, l));
+  const clampY = t => Math.max(minTop, Math.min(maxBottom - h, t));
+  const sides = vw - x >= x ? ['right', 'left'] : ['left', 'right'];
+  // À côté : centrée sur le doigt, puis descendue sous un rectangle à éviter qu'elle chevaucherait,
+  // tant que sa flèche peut encore viser le doigt (14 points du coin au moins)
+  const beside = left => {
+    let top = clampY(y - h / 2);
+    for (const r of avoid) if (left < r.right && left + w > r.left && top < r.bottom && top + h > r.top) top = r.bottom + margin;
+    return { left, top: y - top >= 14 ? top : -Infinity };
+  };
+  const at = {
+    right: () => beside(x + gap),
+    left:  () => beside(x - gap - w),
+    below: () => ({ left: clampX(x - w / 2), top: y + gap }),
+    above: () => ({ left: clampX(x - w / 2), top: y - gap - h }),
+  };
+  const fits = ({ left, top }) => left >= margin && left + w <= vw - margin && top >= minTop && top + h <= maxBottom
+    && !avoid.some(r => left < r.right && left + w > r.left && top < r.bottom && top + h > r.top);
+  let side = [...sides, 'below', 'above'].find(s => fits(at[s]()));
+  let p = side ? at[side]() : null;
+  if (!p) { side = 'below'; p = at.below(); p.top = clampY(p.top); }
+  const arrow = side === 'left' || side === 'right' ? Math.max(14, Math.min(h - 14, y - p.top)) : Math.max(16, Math.min(w - 16, x - p.left));
+  return { left: Math.round(p.left), top: Math.round(p.top), side, arrow: Math.round(arrow) };
 }
 
 let bodyTipEl = null;
 let bodyTipAnchor = null;      // { el, top } : carte touchée et sa position à l'ouverture (fermeture au défilement)
 let bodyTipSeq = 0;            // un toucher plus récent annule l'affichage d'un précédent encore en calcul
 
-// Limites verticales : sous la barre d'état (zone sûre du haut), au-dessus de la barre d'onglets
-function bodyTipBounds() {
-  const probe = document.createElement('div');
-  probe.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px);visibility:hidden';
-  document.body.appendChild(probe);
-  const safeTop = probe.offsetHeight;
-  probe.remove();
+// Limites verticales : sous la barre de navigation de l'écran (sinon la zone sûre du haut), au-dessus de
+// la barre d'onglets
+function bodyTipBounds(anchor) {
+  const nav = anchor?.closest('.view')?.querySelector('.navbar__bar');
+  let top = nav ? nav.getBoundingClientRect().bottom : 0;
+  if (!nav) {
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px);visibility:hidden';
+    document.body.appendChild(probe);
+    top = probe.offsetHeight;
+    probe.remove();
+  }
   const bar = document.querySelector('.tabbar');
-  const barTop = bar && bar.offsetParent !== null ? bar.getBoundingClientRect().top : innerHeight;
-  return { minTop: safeTop + 8, maxBottom: Math.min(innerHeight, barTop) - 8 };
+  const r = bar?.getBoundingClientRect();   // barre fixe : offsetParent toujours nul, on mesure sa boîte
+  const barTop = r && r.height > 0 ? r.top : innerHeight;
+  return { minTop: top + 8, maxBottom: Math.min(innerHeight, barTop) - 8 };
+}
+
+// À ne jamais couvrir : le sélecteur de période (et tout autre contrôle segmenté) du groupe de la carte
+function bodyTipAvoid(anchor) {
+  return [...(anchor?.closest('.group')?.querySelectorAll('.segmented') || [])].map(e => e.getBoundingClientRect());
 }
 
 function closeBodyTip() {
@@ -137,10 +168,11 @@ function showBodyTip(html, x, y, anchor = null) {
   el.setAttribute('aria-labelledby', 'btipTitle');
   el.innerHTML = `${html}<i class="btip__arrow" aria-hidden="true"></i>`;
   document.body.appendChild(el);
-  const p = bodyTipPlace({ x, y, w: el.offsetWidth, h: el.offsetHeight, vw: document.documentElement.clientWidth, ...bodyTipBounds() });
+  const p = bodyTipPlace({ x, y, w: el.offsetWidth, h: el.offsetHeight, vw: document.documentElement.clientWidth,
+    ...bodyTipBounds(anchor), avoid: bodyTipAvoid(anchor) });
   el.style.left = `${p.left}px`; el.style.top = `${p.top}px`;
-  el.style.setProperty('--ax', `${p.arrowX}px`);
-  el.classList.toggle('btip--below', p.below);
+  el.style.setProperty('--arrow', `${p.arrow}px`);
+  el.classList.add(`btip--${p.side}`);
   bodyTipEl = el;
   bodyTipAnchor = anchor ? { el: anchor, top: anchor.getBoundingClientRect().top } : null;
   return el;

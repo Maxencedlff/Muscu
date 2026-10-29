@@ -438,6 +438,18 @@ def tip_inside(page):
         return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= bar.top; }""")
 
 
+def tip_rect(page):
+    return page.evaluate("""() => { const r = document.querySelector('.btip').getBoundingClientRect();
+        return [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom), innerWidth,
+                Math.round(document.querySelector('.tabbar').getBoundingClientRect().top)]; }""")
+
+
+def tip_covers_selector(page):
+    return page.evaluate("""() => { const a = document.querySelector('.btip').getBoundingClientRect();
+        const b = document.querySelector('.mcard .segmented').getBoundingClientRect();
+        return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top; }""")
+
+
 def t_tip(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
@@ -449,20 +461,34 @@ def t_tip(bench, eng, dev, theme):
         R.check(bases_loaded(page, '.mcard__map') == 2, f'{t} bulle : personnage chargé')
         tap_muscle(page, '.mcard__map', 'chest', 'front')
         txt = tip_text(page)
-        R.check(txt.startswith('Pectoraux') and 'ces 4 dernières semaines' in txt, f'{t} bulle pectoraux : « {txt} »')
+        R.check(txt.startswith('Pectoraux') and re.search(r'\d+ séries en 4 semaines, soit [\d,]+ par semaine', txt)
+                and 'Repère : 10 à 20 par semaine' in txt, f'{t} bulle pectoraux : « {txt} »')
+        lvl = page.evaluate("muscleLoad('month').levels.chest")
+        R.check(page.evaluate("MUSCLE_LEVEL_WORDS")[lvl] in txt, f'{t} bulle : palier en mots (légende) {lvl}')
+        R.check(not tip_covers_selector(page), f'{t} bulle : sélecteur de période jamais couvert')
+        leg = ' '.join(page.locator('.mcard .mlegend').inner_text().split())
+        R.check(all(w in leg for w in ('Pas travaillé', 'Entretien 1–4', 'Travaillé 5–9', 'Objectif atteint 10–19', 'Gros volume 20+'))
+                and 'en moyenne par semaine' in leg, f'{t} légende 4 semaines : « {leg} »')
+        lines = page.evaluate("new Set([...document.querySelectorAll('.mcard .mlegend__item')].map(e => Math.round(e.getBoundingClientRect().top))).size")
+        R.check(lines <= (3 if page.viewport_size['width'] < 360 else 2), f'{t} légende compacte : {lines} ligne(s) de paliers')
         R.check(page.locator('.btip[role="dialog"][aria-labelledby="btipTitle"]').count() == 1, f'{t} bulle : rôle et nom')
-        R.check(tip_inside(page), f'{t} bulle dans l\'écran, au-dessus des onglets')
+        R.check(tip_inside(page), f'{t} bulle dans l\'écran, au-dessus des onglets {tip_rect(page)}')
         shot(page, LOT, f'bulle-face-{t}')
         n_chest = int(re.search(r'(\d+) séries?', txt).group(1))
         # Un autre muscle, de dos : la bulle suit
         tap_muscle(page, '.mcard__map', 'lats', 'back')
         txt = tip_text(page)
         R.check(txt.startswith('Grand dorsal') and page.locator('.btip').count() == 1, f'{t} bulle grand dorsal : « {txt} »')
+        R.check(not tip_covers_selector(page), f'{t} bulle dos : sélecteur non couvert')
         n_lats = int(re.search(r'(\d+) séries?', txt).group(1))
         shot(page, LOT, f'bulle-dos-{t}')
         # Toucher hors d'un muscle : entre les deux vues (fond), puis sur la tête (zone grise) : fermée
         f, b = (page.locator(f'.mcard__map .body-map__{v}').bounding_box() for v in ('front', 'back'))
-        page.mouse.click((f['x'] + f['width'] + b['x']) / 2, f['y'] + f['height'] * .55)
+        tr = page.locator('.btip').bounding_box()
+        gx = (f['x'] + f['width'] + b['x']) / 2
+        gy = next(f['y'] + f['height'] * k for k in (.55, .7, .85, .95, .3)
+                  if not (tr['x'] <= gx <= tr['x'] + tr['width'] and tr['y'] <= f['y'] + f['height'] * k <= tr['y'] + tr['height']))
+        page.mouse.click(gx, gy)
         page.wait_for_timeout(300)
         R.check(page.locator('.btip').count() == 0, f'{t} toucher le fond : bulle fermée')
         tap_muscle(page, '.mcard__map', 'calves', 'front')
@@ -478,6 +504,20 @@ def t_tip(bench, eng, dev, theme):
         page.click('[data-action="muscle-span"][data-span="week"]')
         page.wait_for_timeout(250)
         R.check(page.locator('.btip').count() == 0, f'{t} changement de période : bulle fermée')
+        leg = ' '.join(page.locator('.mcard .mlegend').inner_text().split())
+        R.check(leg.endswith('séries par semaine') and 'moyenne' not in leg, f'{t} légende semaine : « {leg} »')
+        tap_muscle(page, '.mcard__map', 'lats', 'back')
+        txt = tip_text(page)
+        R.check(re.search(r'\d+ séries? depuis lundi', txt), f'{t} bulle semaine : « {txt} »')
+        page.locator('.mlegend').click()
+        page.wait_for_timeout(200)
+        # Niveau débutant (premier lancement) : repère à 10
+        page.evaluate("data.level = 'debutant'")
+        tap_muscle(page, '.mcard__map', 'lats', 'back')
+        R.check('Repère : 10 par semaine' in tip_text(page), f'{t} débutant : « {tip_text(page)} »')
+        page.evaluate("delete data.level")
+        page.locator('.mlegend').click()
+        page.wait_for_timeout(200)
         page.click('[data-action="muscle-span"][data-span="month"]')
         page.wait_for_timeout(250)
         # Lien : « Séries par muscle », mêmes chiffres, ligne du muscle mise en avant

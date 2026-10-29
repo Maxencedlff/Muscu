@@ -447,8 +447,24 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     sameJSON(Object.keys(counts), ids(), 'tous les muscles, dans l\'ordre');
   });
 
-  test('séries par muscle : paliers 0 / 1–3 / 4–9 / 10+ par semaine', () => {
-    sameJSON([0, -1, NaN, 0.5, 3.9, 4, 9.9, 10, 25].map(v => app.muscleLevel(v)), [0, 0, 0, 1, 1, 2, 2, 3, 3]);
+  test('séries par muscle : paliers 0 / 1–4 / 5–9 / 10–19 / 20+ par semaine, nommés', () => {
+    sameJSON([0, -1, NaN, 0.5, 4.9, 5, 9.9, 10, 19.9, 20, 35].map(v => app.muscleLevel(v)), [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+    assert.equal(run('MUSCLE_LEVEL_MAX'), 4);
+    sameJSON([0, 1, 2, 3, 4].map(l => app.muscleLevelRange(l)), ['0', '1–4', '5–9', '10–19', '20+']);
+    sameJSON(run('MUSCLE_LEVEL_WORDS'), ['Pas travaillé', 'Entretien', 'Travaillé', 'Objectif atteint', 'Gros volume']);
+  });
+
+  test('repère de la bulle : 10 par semaine pour qui débute, sinon 10 à 20 ; niveau vérifié au chargement', () => {
+    reset();
+    assert.equal(app.trainingLevel(), null);
+    assert.equal(app.muscleTarget(), '10 à 20 par semaine', 'niveau inconnu');
+    run("data.level = 'debutant'");
+    assert.equal(app.muscleTarget(), '10 par semaine');
+    run("data.level = 'confirme'");
+    assert.equal(app.muscleTarget(), '10 à 20 par semaine');
+    const d = run("(() => { const d = makeDefaultData(); d.level = 'expert'; sanitizeData(d); return d; })()");
+    assert.equal(d.level, undefined, 'valeur inconnue retirée');
+    assert.ok(run("SYNC_PROFILE_KEYS.includes('level')"), 'niveau suivi d\'un appareil à l\'autre');
   });
 
   test('muscleLoad : semaine et 4 semaines, intensités, peu travaillés sans les petits groupes', () => {
@@ -459,8 +475,8 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     ];
     const w = app.muscleLoad('week', NOW, h);
     assert.equal(w.sessions, 1);
-    assert.equal(w.levels.chest, 3);
-    assert.equal(w.intensity.chest, 1);
+    assert.equal(w.levels.chest, 3, '12 séries : objectif atteint');
+    assert.equal(w.intensity.chest, 0.75);
     assert.equal(w.levels.quads, 2);
     assert.equal(w.levels.calves, 0);
     assert.equal(w.intensity.calves, 0);
@@ -472,6 +488,9 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     assert.equal(m.sets.chest, 20);
     assert.equal(m.perWeek.chest, 5);
     assert.equal(m.levels.chest, 2);
+    // Palier calculé sur le nombre affiché : 9,5 séries (demi-séries) s'affichent 10, palier objectif
+    const half = app.muscleLoad('week', NOW, [hist(1, [{ name: 'Développé couché haltères', sets: sets(9) }, { name: 'Dips', sets: sets(1) }])]);
+    assert.equal(app.roundSets(half.sets.triceps) >= 10 ? 3 : 2, half.levels.triceps, 'couleur = chiffre lu');
     assert.equal(app.muscleLoad('autre', NOW, h).span, 'week', 'période inconnue → semaine');
     assert.equal(app.muscleLoad('week', NOW, []).sessions, 0);
   });
@@ -659,18 +678,34 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     assert.equal(app.bodyHitAt(new Uint8Array(W * H), W, H, 2, 2, 10), -1, 'zone grise seule');
   });
 
-  test('bulle muscle : placée au-dessus du doigt, jamais hors écran ni sous la barre d\'onglets', () => {
-    const base = { w: 200, h: 90, vw: 375, minTop: 55, maxBottom: 754 };
-    const up = app.bodyTipPlace({ ...base, x: 180, y: 400 });
-    assert.ok(!up.below && up.top + 90 <= 400 && up.left === 80 && up.arrowX === 100);
-    const edge = app.bodyTipPlace({ ...base, x: 5, y: 400 });
-    assert.equal(edge.left, 8, 'bord gauche');
-    assert.equal(edge.arrowX, 16, 'flèche gardée dans la bulle');
-    assert.equal(app.bodyTipPlace({ ...base, x: 370, y: 400 }).left, 375 - 8 - 200, 'bord droit');
-    const low = app.bodyTipPlace({ ...base, x: 180, y: 100 });
-    assert.ok(low.below && low.top > 100, 'trop haut : sous le doigt');
-    const bottom = app.bodyTipPlace({ ...base, h: 300, x: 180, y: 300 });
-    assert.ok(bottom.top >= 55 && bottom.top + 300 <= 754, 'bornée entre la barre d\'état et la barre d\'onglets');
+  test('bulle muscle : à côté du muscle, sinon dessous, jamais sur le sélecteur ni hors écran', () => {
+    const base = { w: 180, h: 90, vw: 375, minTop: 100, maxBottom: 754 };
+    const inside = p => p.left >= 8 && p.left + 180 <= 367 && p.top >= 100 && p.top + 90 <= 754;
+    // Muscle à gauche de l'écran : bulle à droite du doigt, centrée sur lui, flèche à sa hauteur
+    const r = app.bodyTipPlace({ ...base, x: 140, y: 400 });
+    assert.ok(r.side === 'right' && r.left === 154 && r.top === 355 && r.arrow === 45 && inside(r), JSON.stringify(r));
+    // À droite : à gauche du doigt
+    const l = app.bodyTipPlace({ ...base, x: 250, y: 400 });
+    assert.ok(l.side === 'left' && l.left + 180 === 236 && inside(l), JSON.stringify(l));
+    // Pas de place sur les côtés (doigt au centre) : dessous
+    const b = app.bodyTipPlace({ ...base, x: 187, y: 400 });
+    assert.ok(b.side === 'below' && b.top === 414 && inside(b), JSON.stringify(b));
+    // Côté et dessous occupés (sélecteur de période, bas de l'écran) : au-dessus, sans le couvrir
+    const sel = { left: 16, right: 359, top: 140, bottom: 172 };
+    const a = app.bodyTipPlace({ ...base, x: 187, y: 700, avoid: [sel] });
+    assert.ok(a.side === 'above' && a.top + 90 <= 686 && inside(a), JSON.stringify(a));
+    const s = app.bodyTipPlace({ ...base, x: 140, y: 200, avoid: [sel] });
+    assert.ok(s.side === 'right' && s.top === 180 && s.arrow === 20, `à côté, descendue sous le sélecteur ${JSON.stringify(s)}`);
+    const s2 = app.bodyTipPlace({ ...base, x: 140, y: 185, avoid: [sel] });
+    assert.ok(s2.side !== 'right' && !(s2.top < sel.bottom && s2.top + 90 > sel.top), `flèche impossible à côté : ailleurs ${JSON.stringify(s2)}`);
+    // Près du haut : à côté, ramenée sous minTop, la flèche ne viserait plus le doigt : dessous
+    const t = app.bodyTipPlace({ ...base, x: 140, y: 110 });
+    assert.ok(t.side === 'below' && t.top === 124 && inside(t), JSON.stringify(t));
+    const t2 = app.bodyTipPlace({ ...base, x: 140, y: 120 });
+    assert.ok(t2.side === 'right' && t2.top === 100 && t2.arrow === 20, JSON.stringify(t2));
+    // Rien ne tient (bulle trop haute) : dessous, ramenée dans l'écran
+    const big = app.bodyTipPlace({ ...base, h: 600, x: 187, y: 400 });
+    assert.ok(big.side === 'below' && big.top >= 100 && big.top + 600 <= 754, JSON.stringify(big));
   });
 
   test('carte : toucher activé sur demande, muscles secondaires dans leur teinte', () => {

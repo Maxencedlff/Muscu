@@ -208,7 +208,6 @@ function askMusclesToCheck(name, after = () => render()) {
 
 // ── Progrès : carte « Muscles » ─────────────────────────────
 
-const LEVEL_WORDS = ['non travaillé', 'peu travaillé', 'travaillé', 'bien travaillé'];
 
 function spanSegmentedHtml() {
   return `<div class="segmented seg-full" role="group" aria-label="Période">
@@ -216,13 +215,17 @@ function spanSegmentedHtml() {
   </div>`;
 }
 
-// Légende : un échantillon par palier, bornes en séries par semaine
-function muscleLegendHtml() {
-  const from = MUSCLE_LEVEL_FROM;
-  const labels = ['0', ...from.map((f, i) => i + 1 < from.length ? `${i ? f : 1}–${from[i + 1] - 1}` : `${f}+`)];
+// Pastille de couleur d'un palier (légende, bulle) : la teinte de la carte, la plus forte pour le dernier
+function muscleLevelDot(lvl) {
+  return `<i class="mlegend__dot${lvl >= MUSCLE_LEVEL_MAX ? ' mlegend__dot--peak' : ''}" style="--o:${bodyHeatOpacity(lvl / MUSCLE_LEVEL_MAX)}"></i>`;
+}
+function levelWord(lvl) { return MUSCLE_LEVEL_WORDS[lvl].toLowerCase(); }
+
+// Légende : chaque palier en mots, avec ses bornes ; en « 4 semaines », la couleur suit la moyenne par semaine
+function muscleLegendHtml(span = muscleSpan) {
   return `<div class="mlegend" aria-hidden="true">
-    ${labels.map((l, lvl) => `<span class="mlegend__item"><i class="mlegend__dot" style="--o:${bodyHeatOpacity(lvl / MUSCLE_LEVEL_MAX)}"></i>${l}</span>`).join('')}
-    <span class="mlegend__unit">séries / semaine</span>
+    ${MUSCLE_LEVEL_WORDS.map((w, lvl) => `<span class="mlegend__item">${muscleLevelDot(lvl)}${w}${lvl ? ` <span class="mlegend__n num">${muscleLevelRange(lvl)}</span>` : ''}</span>`).join('')}
+    <span class="mlegend__unit">${span === 'month' ? 'séries en moyenne par semaine' : 'séries par semaine'}</span>
   </div>`;
 }
 
@@ -232,7 +235,7 @@ function setsTxt(n) { return plural(roundSets(n), 'série', 'séries'); }
 // par la couleur existe aussi en texte)
 function muscleSrListHtml(load) {
   return `<ul class="visually-hidden">${MUSCLES.map(({ id, label }) =>
-    `<li>${label} : ${setsTxt(load.sets[id])}, ${LEVEL_WORDS[load.levels[id]]}</li>`).join('')}</ul>`;
+    `<li>${label} : ${setsTxt(load.sets[id])}, ${levelWord(load.levels[id])}</li>`).join('')}</ul>`;
 }
 
 function periodTxt(span = muscleSpan) { return span === 'month' ? 'ces 4 dernières semaines' : 'cette semaine'; }
@@ -251,7 +254,7 @@ function renderMuscleCard() {
     <div class="group mcard">
       <div class="mcard__top">
         ${spanSegmentedHtml()}
-        ${bodyMapHtml(load.intensity, { className: 'mcard__map', captions: true, tap: true })}
+        ${bodyMapHtml(load.intensity, { className: 'mcard__map', captions: true, peak: true, tap: true })}
         ${muscleLegendHtml()}
         ${muscleSrListHtml(load)}
       </div>
@@ -276,8 +279,8 @@ function renderStatsMuscles() {
       <div class="cell mrow${id === muscleFocus ? ' mrow--focus' : ''}" data-muscle="${id}">
         <span class="cell__body">
           <span class="mrow__top"><span class="cell__title">${label}</span><span class="cell__value num">${roundSets(load.sets[id])}</span></span>
-          <span class="mrow__bar" aria-hidden="true"><i style="width:${pct}%;--o:${bodyHeatOpacity(load.intensity[id]) || 0}"></i></span>
-          <span class="visually-hidden">${setsTxt(load.sets[id])}, ${LEVEL_WORDS[load.levels[id]]}</span>
+          <span class="mrow__bar" aria-hidden="true"><i${load.levels[id] >= MUSCLE_LEVEL_MAX ? ' class="is-peak"' : ''} style="width:${pct}%;--o:${bodyHeatOpacity(load.intensity[id]) || 0}"></i></span>
+          <span class="visually-hidden">${setsTxt(load.sets[id])}, ${levelWord(load.levels[id])}</span>
         </span>
       </div>`;
   }).join('');
@@ -288,7 +291,7 @@ function renderStatsMuscles() {
         <div class="mdetail__seg">${spanSegmentedHtml()}</div>
         <div class="group-title">Séries ${periodTxt(load.span)}</div>
         <div class="group">${rows}</div>
-        <div class="group-foot">Une série compte entière pour les muscles principaux d'un exercice et pour moitié pour ses muscles secondaires. Repère : une dizaine de séries par semaine et par muscle.</div>
+        <div class="group-foot">Une série compte entière pour les muscles principaux d'un exercice et pour moitié pour ses muscles secondaires. Repère : 10 séries par semaine et par muscle ; jusqu'à 20, les gains continuent, plus lentement.</div>
       </div>
     </div>`;
 }
