@@ -3,7 +3,10 @@
 //  Chargés par run.mjs (même contexte vm, mêmes outils)
 // ═══════════════════════════════════════════════════════════
 
-export default function muscleTests({ test, app, run, reset, sameJSON, assert }) {
+import fs from 'node:fs';
+import path from 'node:path';
+
+export default function muscleTests({ test, app, run, reset, sameJSON, assert, ROOT }) {
   const DAY = 86_400_000;
   const NOW = Date.UTC(2026, 9, 15, 12);
   const ids = () => run('MUSCLES.map(m => m.id)');
@@ -499,40 +502,58 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     sameJSON(app.sessionTopMuscles(hist(0, [])), []);
   });
 
-  test('silhouette : une zone par muscle, couleurs par intensité, accessibilité', () => {
-    const svg = app.bodyMapSvg({ chest: 1, biceps: 0.5, inconnu: 1, triceps: 7, abs: -2 }, { view: 'both' });
-    const zones = [...svg.matchAll(/data-muscle="([a-z_]+)"/g)].map(m => m[1]);
-    sameJSON([...new Set(zones)].sort(), ids().slice().sort(), 'chaque muscle dessiné au moins une fois');
-    assert.ok(/data-muscle="chest" d="[^"]+" fill="var\(--body-heat\)" fill-opacity="1"/.test(svg));
-    assert.ok(/data-muscle="triceps" [^>]*fill-opacity="1"/.test(svg), 'intensité bornée à 1');
-    assert.ok(/data-muscle="abs" d="[^"]+" fill="var\(--body-zone\)"\/>/.test(svg), 'intensité négative → neutre');
-    assert.ok(!svg.includes('inconnu'));
-    assert.ok(svg.includes('aria-hidden="true"') && !svg.includes('role="img"'), 'décoratif sans label');
-    const lab = app.bodyMapSvg({}, { label: 'Pecs <b>"fort"</b>', view: 'front' });
+  test('carte des muscles : un calque teinté par muscle coloré, intensité bornée, accessibilité', () => {
+    const html = app.bodyMapHtml({ chest: 1, biceps: 0.5, inconnu: 1, triceps: 7, abs: -2 }, { view: 'both' });
+    const zones = [...new Set([...html.matchAll(/data-muscle="([a-z_]+)"/g)].map(m => m[1]))].sort();
+    sameJSON(zones, ['biceps', 'chest', 'triceps'], 'seuls les muscles colorés ont un calque');
+    assert.ok(/data-muscle="chest" data-heat="1" style="background-image:url\(img\/body\/male\/front\/chest\.webp\);-webkit-mask-image:url\(img\/body\/male\/front\/chest\.webp\);mask-image:[^;]+;opacity:1"/.test(html), 'fond et masque : le même calque');
+    assert.ok(/data-muscle="triceps" data-heat="1"/.test(html), 'intensité bornée à 1');
+    assert.ok(/data-muscle="biceps" data-heat="0.6"/.test(html));
+    assert.ok(!html.includes('inconnu') && !html.includes('data-muscle="abs"'), 'clé inconnue ou intensité négative : rien');
+    assert.ok(html.includes('src="img/body/male/front/base.webp"') && html.includes('src="img/body/male/back/base.webp"'));
+    assert.ok(html.includes('aria-hidden="true"') && !html.includes('role="img"'), 'décoratif sans label');
+    const lab = app.bodyMapHtml({}, { label: 'Pecs <b>"fort"</b>', view: 'front' });
     assert.ok(lab.includes('role="img"') && lab.includes('aria-label="Pecs &lt;b&gt;&quot;fort&quot;&lt;/b&gt;"'));
     assert.ok(!lab.includes('body-map__back'), 'face seule');
-    assert.ok(app.bodyMapSvg({}, { view: 'back' }).includes('data-muscle="glutes"'));
-    assert.ok(!app.bodyMapSvg({}, { view: 'front' }).includes('data-muscle="glutes"'), 'fessiers seulement de dos');
+    assert.ok(app.bodyMapHtml({ glutes: 1 }, { view: 'back' }).includes('data-muscle="glutes"'));
+    assert.ok(!app.bodyMapHtml({ glutes: 1 }, { view: 'front' }).includes('data-muscle="glutes"'), 'fessiers seulement de dos');
+    const cap = app.bodyMapHtml({}, { captions: true });
+    assert.ok(cap.includes('<span>Face</span><span>Dos</span>'));
+    assert.ok(/aspect-ratio:\d+ \/ \d+/.test(cap), 'rapport largeur / hauteur fixé');
   });
 
-  test('silhouette femme : mêmes muscles que l\'homme, vue par vue, et dessin différent', () => {
-    const zones = (body, view) => [...app.bodyMapSvg({}, { body, view }).matchAll(/data-muscle="([a-z_]+)"/g)].map(m => m[1]).sort();
-    for (const view of ['front', 'back']) sameJSON(zones('female', view), zones('male', view), `vue ${view}`);
-    const f = app.bodyMapSvg({ chest: 1 }, { body: 'female' }), m = app.bodyMapSvg({ chest: 1 }, { body: 'male' });
-    assert.ok(f.includes('data-body="female"') && m.includes('data-body="male"'));
-    assert.notEqual(f.replace('female', 'male'), m, 'tracés propres à la silhouette femme');
-    assert.ok(/data-muscle="chest" d="[^"]+" fill="var\(--body-heat\)" fill-opacity="1"/.test(f), 'coloration identique');
-    assert.ok(app.bodyMapSvg({}, { body: 'autre' }).includes('data-body="male"'), 'valeur inconnue : homme');
+  test('carte des muscles : chaque muscle a un calque dans au moins une vue, pour les deux personnages', () => {
+    const img = run('BODY_IMG');
+    for (const body of ['male', 'female']) {
+      const all = new Set([...img.bodies[body].front, ...img.bodies[body].back]);
+      sameJSON([...all].sort(), ids().slice().sort(), body);
+      assert.ok(img.bodies[body].front.includes('chest') && !img.bodies[body].front.includes('glutes'));
+      assert.ok(img.bodies[body].back.includes('lats') && img.bodies[body].back.includes('glutes'));
+    }
+    const f = app.bodyMapHtml({ chest: 1 }, { body: 'female' }), m = app.bodyMapHtml({ chest: 1 }, { body: 'male' });
+    assert.ok(f.includes('data-body="female"') && f.includes('img/body/female/front/chest.webp'));
+    assert.ok(m.includes('data-body="male"') && m.includes('img/body/male/front/chest.webp'));
+    assert.ok(app.bodyMapHtml({}, { body: 'autre' }).includes('data-body="male"'), 'valeur inconnue : homme');
+  });
+
+  test('carte des muscles : images listées pour le cache hors ligne (sw.js)', () => {
+    const urls = run('bodyImageUrls()');
+    const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+    assert.ok(urls.length > 20);
+    for (const u of urls) {
+      assert.ok(sw.includes(`'/${u}'`), `sw.js : ${u}`);
+      assert.ok(fs.existsSync(path.join(ROOT, u)), `fichier ${u}`);
+    }
   });
 
   test('silhouette : suit le réglage (homme si absent), bornée par sanitizeData', () => {
     reset();
     assert.equal(app.bodySilhouette(), 'male', 'données existantes : homme');
-    assert.ok(app.bodyMapSvg({}).includes('data-body="male"'));
+    assert.ok(app.bodyMapHtml({}).includes('data-body="male"'));
     run(`data.silhouette = 'female'`);
     assert.equal(app.bodySilhouette(), 'female');
-    assert.ok(app.bodyMapSvg({}).includes('data-body="female"'), 'par défaut, la carte suit le réglage');
-    assert.ok(app.bodyMapSvg({}, { body: 'male' }).includes('data-body="male"'), 'option explicite prioritaire');
+    assert.ok(app.bodyMapHtml({}).includes('data-body="female"'), 'par défaut, la carte suit le réglage');
+    assert.ok(app.bodyMapHtml({}, { body: 'male' }).includes('data-body="male"'), 'option explicite prioritaire');
     assert.equal(app.sanitizeData({ ...run('data'), silhouette: 'female' }).silhouette, 'female');
     assert.equal(app.sanitizeData({ ...run('data'), silhouette: 'male' }).silhouette, 'male');
     assert.equal(app.sanitizeData({ ...run('data'), silhouette: '<b>' }).silhouette, undefined, 'valeur inconnue retirée');
@@ -540,13 +561,9 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     reset();
   });
 
-  test('silhouette autonome : xmlns, dimensions, couleurs résolues, légendes', () => {
-    const svg = app.bodyMapSvg({ quads: 1 }, { standalone: true, width: 300, captions: true,
-      colors: { skin: '#111111', zone: '#222222', heat: '#FF0000', text: '#999999' } });
-    assert.ok(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"'));
-    assert.ok(/ width="300" height="\d+"/.test(svg));
-    assert.ok(!svg.includes('var(--'), 'aucune variable CSS dans un SVG autonome');
-    assert.ok(svg.includes('fill="#FF0000" fill-opacity="1"') && svg.includes('>Face</text>') && svg.includes('>Dos</text>'));
+  test('carte des muscles : couleur imposée (image partagée), opacité par palier', () => {
+    const html = app.bodyMapHtml({ quads: 1 }, { colors: { heat: '#FF0000' } });
+    assert.ok(html.includes('style="background-color:#FF0000;background-image:'));
     sameJSON([0, 1 / 3, 2 / 3, 1, 2].map(v => app.bodyHeatOpacity(v)), [0, 0.4, 0.7, 1, 1]);
   });
 

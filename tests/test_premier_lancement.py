@@ -87,7 +87,7 @@ def t_parcours(bench, eng, dev, theme):
         R.check(bodies.count() == 2 and bodies.nth(0).get_attribute('aria-label') == 'Silhouette femme'
                 and bodies.nth(1).get_attribute('aria-label') == 'Silhouette homme', f'{t} deux silhouettes nommées pour VoiceOver')
         R.check(page.locator('.onb [data-action="onb-silhouette"][data-val="male"]').get_attribute('aria-pressed') == 'true', f'{t} homme par défaut')
-        lit = page.evaluate("[...document.querySelectorAll('.onb__body[data-val=\"male\"] path[data-muscle][fill-opacity]')].map(p => p.dataset.muscle)")
+        lit = page.evaluate("[...document.querySelectorAll('.onb__body[data-val=\"male\"] [data-muscle][data-heat]')].map(p => p.dataset.muscle)")
         R.check({'chest', 'quads', 'lats'} <= set(lit), f'{t} muscles du Full Body surlignés {sorted(set(lit))[:6]}')
         R.check(page.locator('.onb .segmented').count() == 0, f'{t} plus de contrôle segmenté')
         tap(page, '.onb [data-action="onb-silhouette"][data-val="female"]')

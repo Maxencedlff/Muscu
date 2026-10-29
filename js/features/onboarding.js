@@ -125,7 +125,7 @@ function onbBodiesHtml(levels) {
   return SILHOUETTES.map(([v, l]) => `
     <button class="onb__body${cur === v ? ' onb__body--on' : ''}" data-action="onb-silhouette" data-val="${v}"
       aria-pressed="${cur === v}" aria-label="Silhouette ${l.toLowerCase()}">
-      ${bodyMapSvg(levels, { body: v })}
+      ${bodyMapHtml(levels, { body: v })}
       <span class="onb__body-name" aria-hidden="true">${cur === v ? icon('checkmark', 14) : ''}${l}</span>
     </button>`).join('');
 }

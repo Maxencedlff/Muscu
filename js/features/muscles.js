@@ -36,7 +36,7 @@ function exMusclesPanelHtml(m) {
   }
   return `
     <div class="cell mpanel">
-      ${bodyMapSvg(exerciseIntensity(m), { className: 'mpanel__map' })}
+      ${bodyMapHtml(exerciseIntensity(m), { className: 'mpanel__map' })}
       <div class="cell__body">${musclePillsHtml(m)}</div>
     </div>`;
 }
@@ -249,7 +249,7 @@ function renderMuscleCard() {
     <div class="group mcard">
       <div class="mcard__top">
         ${spanSegmentedHtml()}
-        ${bodyMapSvg(load.intensity, { className: 'mcard__map', captions: true })}
+        ${bodyMapHtml(load.intensity, { className: 'mcard__map', captions: true })}
         ${muscleLegendHtml()}
         ${muscleSrListHtml(load)}
       </div>

@@ -50,7 +50,7 @@ function muscleLevel(perWeek) {
 }
 
 // Charge de la période qui se termine à `now`, par muscle : séries de la période (sets), séries par
-// semaine, palier et intensité 0..1 (celle que reçoit bodyMapSvg) ; muscles peu travaillés
+// semaine, palier et intensité 0..1 (celle que reçoit bodyMapHtml) ; muscles peu travaillés
 // (palier ≤ 1, hors petits groupes), du moins au plus travaillé.
 function muscleLoad(spanKey = 'week', now = Date.now(), history = data.history) {
   const span = MUSCLE_SPANS[spanKey] || MUSCLE_SPANS.week;

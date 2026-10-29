@@ -35,10 +35,10 @@ def no_hscroll(page):
 
 
 def heat(page, muscle):
-    """Opacité de chaleur d'un muscle dans la carte de Progrès (0 : neutre)."""
+    """Opacité de chaleur d'un muscle dans la carte de Progrès (0 : neutre, aucun calque coloré)."""
     return page.evaluate("""m => {
         const z = document.querySelector(`.mcard__map [data-muscle="${m}"]`);
-        return z ? parseFloat(z.getAttribute('fill-opacity') || '0') : -1;
+        return z ? parseFloat(z.dataset.heat || '0') : 0;
     }""", muscle)
 
 
@@ -61,15 +61,14 @@ def t_progress(bench, eng, dev, theme):
         tab(page, 2)
         card = page.locator('.mcard')
         R.check(card.count() == 1, f'{t} carte « Muscles » dans Progrès')
-        drawn = set(page.evaluate("[...document.querySelectorAll('.mcard__map [data-muscle]')].map(z => z.dataset.muscle)"))
-        R.check(drawn == set(MUSCLE_IDS), f'{t} silhouette : tous les muscles dessinés {set(MUSCLE_IDS) ^ drawn}')
+        R.check(bases_loaded(page, '.mcard__map') == 2, f'{t} personnage : face et dos affichés (images chargées)')
         R.check(heat(page, 'lats') > 0 and heat(page, 'quads') > 0, f'{t} semaine : dos et jambes colorés')
         R.check(heat(page, 'chest') == 0, f'{t} semaine : pectoraux neutres (push il y a 8 jours)')
         low = page.locator('.mlow').inner_text()
         R.check('Pectoraux' in low and 'Grand dorsal' not in low, f'{t} peu travaillés : « {low} »')
         sr = page.locator('.mcard .visually-hidden li').all_inner_texts()
         R.check(len(sr) == 17 and any(x.startswith('Grand dorsal : ') and 'série' in x for x in sr), f'{t} liste VoiceOver {sr[:2]}')
-        R.check(page.locator('svg.mcard__map[aria-hidden="true"]').count() == 1, f'{t} dessin masqué à VoiceOver')
+        R.check(page.locator('.mcard__map[aria-hidden="true"]').count() == 1, f'{t} dessin masqué à VoiceOver')
         R.check(no_hscroll(page), f'{t} Progrès : pas de défilement horizontal')
         card.scroll_into_view_if_needed()
         shot(page, LOT, f'progres-semaine-{t}')
@@ -340,6 +339,12 @@ def t_add_sheet(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def bases_loaded(page, sel):
+    """Nombre d'images de base (face, dos) chargées et décodées dans la carte sel."""
+    page.wait_for_function("""s => [...document.querySelectorAll(s + ' .body-map__base')].every(i => i.complete)""", arg=sel, timeout=5000)
+    return page.evaluate("""s => [...document.querySelectorAll(s + ' .body-map__base')].filter(i => i.naturalWidth > 0).length""", sel)
+
+
 def body_of(page, sel):
     return page.evaluate('s => document.querySelector(s)?.dataset.body || null', sel)
 
@@ -381,16 +386,15 @@ def t_silhouette(bench, eng, dev, theme):
         shot(page, LOT, f'silhouette-reglages-{t}')
         tab(page, 2)
         R.check(body_of(page, '.mcard__map') == 'female', f'{t} Progrès : silhouette femme')
-        drawn = set(page.evaluate("[...document.querySelectorAll('.mcard__map [data-muscle]')].map(z => z.dataset.muscle)"))
-        R.check(drawn == set(MUSCLE_IDS), f'{t} silhouette femme : tous les muscles dessinés')
+        R.check(bases_loaded(page, '.mcard__map') == 2, f'{t} personnage femme : face et dos affichés')
+        R.check('img/body/female/' in page.evaluate("document.querySelector('.mcard__map .body-map__base').src"), f'{t} images du personnage femme')
         R.check(heat(page, 'lats') > 0, f'{t} silhouette femme : coloration identique')
         page.locator('.mcard').scroll_into_view_if_needed()
         shot(page, LOT, f'silhouette-progres-{t}')
         page.locator('[data-action="open-stats-ex"][data-ex="p1dcouch"]').click()
         page.wait_for_selector('.view.stats-ex')
         R.check(body_of(page, '.mpanel__map') == 'female', f'{t} fiche exercice : silhouette femme')
-        story = page.evaluate("shareStoryHooks.muscleSvg(data.history[0], null, storyPalette('#30D158'))")
-        R.check(story and 'data-body="female"' in story, f'{t} story partagée : silhouette femme')
+        R.check(page.evaluate("bodySilhouette()") == 'female', f'{t} story partagée : personnage femme (bodyMapImage suit le réglage)')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -401,17 +405,21 @@ def once_static(bench):
         R.check(n <= 400, f'{f} : {n} lignes (400 au plus)')
     css = open(os.path.join(APP_DIR, 'css/muscles.css'), encoding='utf-8').read()
     R.check(not re.findall(r'#[0-9a-fA-F]{3,8}\b|rgba?\(', css), 'muscles.css : couleurs en tokens seulement')
-    # Silhouette autonome (story de partage) : rendue en image sans variable CSS
+    # Carte dessinée dans un canvas (story de partage) : images chargées, muscle teinté de la couleur voulue
     with bench.page('chromium', 'Pixel 7', 'dark') as page:
         seed(page, 'dark', ppl_v2_today_json())
-        ok = page.evaluate("""() => new Promise(res => {
-            const svg = bodyMapSvg({ chest: 1, quads: .5 }, { standalone: true, captions: true, colors: bodyMapColors() });
-            const img = new Image();
-            img.onload = () => res(!svg.includes('var(--') && img.naturalWidth > 0);
-            img.onerror = () => res(false);
-            img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-        })""")
-        R.check(ok, 'bodyMapSvg autonome : chargé comme image, couleurs résolues')
+        px = page.evaluate("""async () => {
+            const c = await bodyMapImage({ chest: 1 }, { view: 'front', body: 'male', colors: { heat: '#FF0000', bright: .5 } });
+            if (!c) return null;
+            const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+            let red = 0, gray = 0;
+            for (let i = 0; i < d.length; i += 4) {
+              if (d[i + 3] < 200) continue;
+              if (d[i] > 80 && d[i + 1] < 40 && d[i + 2] < 40) red++; else if (Math.abs(d[i] - d[i + 2]) < 12) gray++;
+            }
+            return { w: c.width, red, gray };
+        }""")
+        R.check(px and px['red'] > 2000 and px['gray'] > 20000, f'bodyMapImage : base grise et pectoraux teintés en rouge {px}')
 
 
 run_main(R, [t_progress, t_empty, t_editor, t_library_muscles, t_add_sheet, t_silhouette], once=[once_static])

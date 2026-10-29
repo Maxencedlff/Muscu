@@ -119,7 +119,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `forms.js` | `flagInvalid`, `weightOk`, `weightMsg` |
 | `edge-swipe.js` | Geste de retour depuis le bord gauche (app installée sur iOS) |
 | `reorder.js` | Glisser pour réordonner (poignée ≡ du mode Modifier) : `makeReorderable({ view, list, row, handle, onMove })`, utilisé par les exercices d’une séance et les séances d’un programme perso |
-| `body-map.js` | `bodyMapSvg(niveaux, options)` : silhouette face / dos en SVG texte, homme ou femme (option `body`, par défaut le réglage `bodySilhouette()`), mêmes zones et mêmes identifiants pour les deux, chaque muscle coloriable (`data-muscle`) ; `bodyHeatOpacity`, `bodyMapColors()` (couleurs résolues pour un SVG autonome), `silhouetteSegmentedHtml()` (choix Femme / Homme : Réglages, carte du premier lancement) |
+| `body-map.js` | `bodyMapHtml(niveaux, options)` : personnage 3D face / dos (images de `img/body/<sexe>/<vue>/`, rendues dans Blender par le dépôt mdlf-perso, `src/export_app.py`), homme ou femme (option `body`, par défaut le réglage `bodySilhouette()`). Base grise + un calque par muscle coloré (`data-muscle`, `data-heat`) : couleur × ombrage du calque (`background-blend-mode: multiply`), découpé par son alpha (`mask-image`), opacité du palier ; `BODY_IMG` (tailles, muscles par vue), `bodyImageUrls()` (listées dans `sw.js`), préchargement au repos ; `bodyMapImage()` (même carte dans un canvas, image partagée), `bodyHeatOpacity`, `bodyMapColors()`, `silhouetteSegmentedHtml()` (choix Femme / Homme) |
 | `medal.js` | Médaille de record : `MEDAL_PATHS` (tracés partagés avec l'image de partage) et `medalSvg(taille)` |
 
 ### js/features/
@@ -156,7 +156,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `guide.js` | Réglages › Guide de l'app : liste par thème avec recherche (`guide`), page d'un sujet (`guide-topic:ID`, « Voir aussi » remplace le sujet affiché), inscrits dans `SCREENS` depuis ce fichier ; testé par `tests/test_guide.py` |
 | `history.js` | Historique : recherche, filtre, mois chargés par paquets, détail, balayage pour supprimer avec « Annuler » ; courses et sorties vélo de Santé mêlées à leur date (filtre « Toutes »), non modifiables |
 | `share-stats.js` | Partage de séance, logique pure : `shareStoryStats(entry)` (durée, volume, séries, records, 3 à 5 exercices clés), texte VoiceOver, nom du fichier |
-| `share-canvas.js` | Partage de séance, dessin : `drawStory` (story Instagram 1080 × 1920, Canvas 2D, zones sûres), couleurs des tokens, point d'accroche `shareStoryHooks.muscleSvg` pour la silhouette des muscles |
+| `share-canvas.js` | Partage de séance, dessin : `drawStory` (story Instagram 1080 × 1920, Canvas 2D, zones sûres), couleurs des tokens, point d'accroche `shareStoryHooks.muscleMap` pour la carte des muscles |
 | `share.js` | Partage de séance, écran : bouton du bilan et d'Historique › Séance, aperçu, partage (`Native.shareImage` dans l'app iOS, `navigator.share` ou téléchargement dans la PWA) |
 
 ### js/app/
@@ -349,8 +349,8 @@ de `js/core/` et `js/data/` sont chargés dans un contexte `vm` de Node, sans na
 le bilan et depuis l'historique sur les 5 appareils, vérifie son format (PNG 1080 × 1920), l'aperçu
 et le partage, et l'écrit dans `$PPL_SCRATCH/shots/partage/` pour la regarder.
 
-La silhouette des muscles s'accroche par `shareStoryHooks.muscleSvg = (entry, stats, palette) => svg`
-(texte SVG ou `null`), que `share.js` remplit avec `storyMuscleSvg` : `bodyMapSvg` autonome (face et
+La carte des muscles s'accroche par `shareStoryHooks.muscleMap = (entry, stats, palette) => { levels, colors }`
+(ou `null`), que `share.js` remplit avec `storyMuscleMap` et dessine avec `bodyMapImage` (canvas, face et
 dos), intensités de `sessionMuscleLevels(entry)` (séries de la séance par muscle, rapportées au plus
 travaillé), coloriée dans la couleur de la séance. L'image passe alors à la mise en page « chiffres +
 silhouette » ; si aucun muscle n'est reconnu, elle se dessine en ligne. La description VoiceOver

@@ -70,7 +70,7 @@ def t_mes_programmes(bench, eng, dev, theme):
         R.check(page.evaluate('view') == 'prog-info', f'{t} fiche du programme')
         why = page.locator('.prog-info__why').inner_text()
         R.check(why.startswith('5 séances par semaine'), f'{t} fiche : pourquoi ({why[:40]})')
-        R.check(page.locator('.prog-info__map svg[role="img"]').count() == 1, f'{t} fiche : silhouette nommée pour VoiceOver')
+        R.check(page.locator('.prog-info__map .body-map[role="img"]').count() == 1, f'{t} fiche : personnage nommé pour VoiceOver')
         R.check(page.locator('.prog-info .prog-sess').count() == 5, f'{t} fiche : 5 séances')
         shot(page, LOT, f'3-fiche-{t}')
         tap(page, '[data-action="prog-info-add"]')

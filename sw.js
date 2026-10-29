@@ -15,6 +15,20 @@ const ASSETS = [
   '/js/features/summary.js', '/js/features/add-session.js', '/js/features/settings.js', '/js/features/account-ui.js', '/js/features/auth-flow.js', '/js/features/social-ui.js', '/js/features/coach-ui.js', '/js/features/apple-services.js', '/js/features/app-icon.js', '/js/features/progress.js',
   '/js/features/progress-chart.js', '/js/features/progress-overview.js', '/js/features/muscles.js', '/js/features/library.js', '/js/features/history.js', '/js/features/trash.js', '/js/features/guide.js', '/js/features/onboarding.js',
   '/js/features/share-stats.js', '/js/features/share-canvas.js', '/js/features/share.js',
+  // Personnage 3D de la carte des muscles (js/ui/body-map.js, BODY_IMG) : base et calques par muscle
+  '/img/body/male/front/base.webp', '/img/body/male/front/chest.webp', '/img/body/male/front/front_delts.webp', '/img/body/male/front/side_delts.webp',
+  '/img/body/male/front/traps.webp', '/img/body/male/front/biceps.webp', '/img/body/male/front/brachialis.webp', '/img/body/male/front/triceps.webp',
+  '/img/body/male/front/forearms.webp', '/img/body/male/front/abs.webp', '/img/body/male/front/quads.webp', '/img/body/male/front/adductors.webp',
+  '/img/body/male/front/calves.webp', '/img/body/male/back/base.webp', '/img/body/male/back/side_delts.webp', '/img/body/male/back/rear_delts.webp',
+  '/img/body/male/back/traps.webp', '/img/body/male/back/lats.webp', '/img/body/male/back/lower_back.webp', '/img/body/male/back/triceps.webp',
+  '/img/body/male/back/forearms.webp', '/img/body/male/back/glutes.webp', '/img/body/male/back/hamstrings.webp', '/img/body/male/back/adductors.webp',
+  '/img/body/male/back/calves.webp', '/img/body/female/front/base.webp', '/img/body/female/front/chest.webp', '/img/body/female/front/front_delts.webp',
+  '/img/body/female/front/side_delts.webp', '/img/body/female/front/traps.webp', '/img/body/female/front/biceps.webp', '/img/body/female/front/brachialis.webp',
+  '/img/body/female/front/triceps.webp', '/img/body/female/front/forearms.webp', '/img/body/female/front/abs.webp', '/img/body/female/front/quads.webp',
+  '/img/body/female/front/adductors.webp', '/img/body/female/front/calves.webp', '/img/body/female/back/base.webp', '/img/body/female/back/side_delts.webp',
+  '/img/body/female/back/rear_delts.webp', '/img/body/female/back/traps.webp', '/img/body/female/back/lats.webp', '/img/body/female/back/lower_back.webp',
+  '/img/body/female/back/triceps.webp', '/img/body/female/back/forearms.webp', '/img/body/female/back/glutes.webp', '/img/body/female/back/hamstrings.webp',
+  '/img/body/female/back/adductors.webp', '/img/body/female/back/calves.webp',
 ];
 
 // Une version = un cache complet, téléchargé d'un bloc (cache HTTP contourné) :

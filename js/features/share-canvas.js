@@ -44,10 +44,11 @@ const STORY = {
   SIGNATURE: 84,     // icône de la signature
 };
 
-// Point d'accroche de la silhouette des muscles : share.js y place storyMuscleSvg,
-// shareStoryHooks.muscleSvg = (entry, stats, palette) => texte SVG (ou null).
-// Sans fournisseur ou sans muscle reconnu, l'image se dessine sans silhouette (mise en page en ligne).
-const shareStoryHooks = { muscleSvg: null };
+// Point d'accroche de la carte des muscles : share.js y place storyMuscleMap,
+// shareStoryHooks.muscleMap = (entry, stats, palette) => { levels, colors } (ou null), dessinée par
+// bodyMapImage (js/ui/body-map.js). Sans fournisseur ou sans muscle reconnu, l'image se dessine sans
+// personnage (mise en page en ligne).
+const shareStoryHooks = { muscleMap: null };
 
 // ── Couleurs (logique pure, testée) ─────────────────────────
 
@@ -142,7 +143,7 @@ function drawMedal(ctx, p, x, y, size) {
   ctx.restore();
 }
 
-// Silhouette des muscles (image déjà chargée depuis le SVG du fournisseur), contenue dans le cadre
+// Carte des muscles (canvas déjà dessiné par bodyMapImage), contenue dans le cadre
 function drawMuscleMap(ctx, x, y, w, h, image) {
   if (!image?.width) return false;
   const k = Math.min(w / image.width, h / image.height);

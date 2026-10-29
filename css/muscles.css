@@ -1,7 +1,19 @@
 /* Muscles : silhouette, pastilles, carte de Progrès, choix des muscles (js/features/muscles.js) */
 
-/* ── Silhouette (js/ui/body-map.js) ── */
-.body-map { display: block; height: auto; }
+/* ── Carte des muscles : personnage 3D (js/ui/body-map.js) ──
+   Une vue = la base grise + un calque par muscle coloré : couleur × ombrage du calque (multiply),
+   découpée par l'alpha du même calque (mask), opacité = palier. */
+.body-map { display: block; }
+.body-map__row { display: flex; justify-content: space-between; width: 100%; }
+.body-map__fig { position: relative; flex: 0 0 var(--fig); }
+.body-map__base, .body-map__m { position: absolute; inset: 0; width: 100%; height: 100%; }
+.body-map__base { display: block; filter: brightness(var(--body-base-bright)); -webkit-user-select: none; user-select: none; pointer-events: none; }
+.body-map__m {
+  background-color: var(--body-heat); background-size: 100% 100%; background-blend-mode: multiply;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+}
+.body-map__caps { display: flex; justify-content: space-between; margin-top: 4px; font-size: var(--fs-caption); line-height: 1; }
+.body-map__caps > span { flex: 0 0 var(--fig); text-align: center; }
 
 /* ── Pastilles « Pectoraux » ── */
 .mpills { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; }
