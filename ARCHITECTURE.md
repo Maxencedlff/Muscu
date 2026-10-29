@@ -166,7 +166,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 
 | Fichier | Rôle |
 |---|---|
-| `updates.js` | Service worker : enregistrement, bannière « Nouvelle version disponible » (jamais pendant une séance), `checkForUpdate` |
+| `updates.js` | Service worker : enregistrement, bannière « Nouvelle version disponible » (jamais pendant une séance), `checkForUpdate` ; version minimale de l'app (`checkMinBuild` : `app_config.min_build` lu au démarrage et au retour au premier plan, écran « Mets à jour l'app » qui ne se ferme pas quand la build native est plus ancienne) |
 | `init.js` | Écouteur de clic global vers le registre, saisie en direct, sauvegarde à la mise en arrière-plan, wake lock, écran de secours, démarrage (`DOMContentLoaded`) |
 
 ## Flux d'une action
@@ -429,7 +429,10 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
   (`private.access_coach_free`, `private.access_own_paid`, plafond par coach dans `private.coach_free_limits`) ;
   dans `private.sessions_paywall`, une ligne déjà présente (correction ou corbeille par upsert) passe toujours,
   et grâce de fin de séance (24 h après la fin à l'heure du serveur, séance commencée dans les 12 h avant la fin,
-  2 au plus, comptées sous verrou consultatif) ; seule la ligne `paywall_on` de `app_config` lisible par `anon`.
+  2 au plus, comptées sous verrou consultatif, test d'existence refait sous ce verrou) ; déclencheur
+  `sessions_paywall_upd` (`private.sessions_paywall_update`, before update) : sans droit, ni changement d'id,
+  ni sortie de la corbeille, ni changement de date d'une ligne vivante ; seules les lignes `paywall_on` et
+  `min_build` de `app_config` sont lisibles par `anon`.
 - `supabase/functions/_shared/auth-guard.js` : garde pure de l'appelant (`requireCaller` : jeton Bearer relu par
   `auth.getUser`, null sinon), utilisée par `caller()` de `_shared/http.ts` pour toutes les fonctions déployées
   avec `verify_jwt = false` (delete-account, revoke-apple, report, verify-purchase) ;

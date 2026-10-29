@@ -91,6 +91,7 @@ Deno.serve(async (req) => {
   }
   const out = (res ?? {}) as { matched?: boolean; duplicate?: boolean };
   if (out.duplicate) console.log('appstore-notify: doublon ignoré', notification.notificationUUID);
-  else if (!out.matched) console.log('appstore-notify: transaction inconnue', decided.type, decided.value.original_transaction_id);
+  // Jamais l'identifiant de transaction dans les journaux (donnée rattachable à une personne)
+  else if (!out.matched) console.log('appstore-notify: transaction inconnue', decided.type);
   return json({ ok: true, handled: true, type: decided.type, matched: !!out.matched, duplicate: !!out.duplicate });
 });

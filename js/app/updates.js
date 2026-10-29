@@ -51,6 +51,54 @@ async function maybeShowNativeUpdate() {
   document.body.appendChild(el);
 }
 
+// ── Version minimale de l'app (app_config.min_build) ────────
+// Relecture du 28/10 : le jour où le verrou de l'abonnement s'allume, une build trop ancienne ne saurait
+// rien proposer quand le serveur refuse ses séances. Le serveur publie donc la build native minimale
+// (`min_build`, lisible sans compte comme `paywall_on`) ; une app plus ancienne affiche un écran « Mets à
+// jour l'app » qui ne se ferme pas. Rien n'est perdu : les séances restent sur l'iPhone. 0 (valeur
+// livrée) ou une lecture impossible : rien n'est affiché. Les builds publiées AVANT ce code ne le
+// lisent pas : voir docs/PAYANT_V1.md, « Ordre de déploiement ».
+const MIN_BUILD_KEY = 'mdlf_min_build';      // dernière valeur lue (hors ligne, elle vaut encore)
+const UPDATE_URL    = TESTFLIGHT_URL;        // à remplacer par la page App Store à la sortie publique
+
+function readMinBuild() {
+  try { const v = Number(localStorage.getItem(MIN_BUILD_KEY)); return Number.isInteger(v) && v > 0 ? v : 0; } catch { return 0; }
+}
+async function loadMinBuild() {
+  if (typeof sb === 'undefined' || !sb) return readMinBuild();
+  try {
+    const { data: row, error } = await sb.from('app_config').select('value').eq('key', 'min_build').maybeSingle();
+    if (error) return readMinBuild();
+    const v = Number.isInteger(row?.value) && row.value > 0 ? row.value : 0;
+    try { localStorage.setItem(MIN_BUILD_KEY, String(v)); } catch { /* facultatif */ }
+    return v;
+  } catch { return readMinBuild(); }
+}
+async function checkMinBuild() {
+  const build = await Native.appBuild();
+  if (!build) return false;
+  const min = await loadMinBuild();
+  if (!min || build >= min || $('.min-build')) return false;
+  const el = document.createElement('div');
+  el.className = 'min-build';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-labelledby', 'minBuildTitle');
+  el.innerHTML = `<div class="min-build__box">
+      <h1 class="min-build__title" id="minBuildTitle" tabindex="-1">Mets à jour l'app</h1>
+      <p class="min-build__text">Cette version de MDLF Training est trop ancienne. Installe la dernière version pour continuer. Tes séances restent sur cet iPhone.</p>
+      <button class="btn btn--primary min-build__btn" type="button">Mettre à jour</button>
+    </div>`;
+  el.querySelector('.min-build__btn').addEventListener('click', () => window.open(UPDATE_URL, '_blank'));
+  document.body.appendChild(el);
+  el.querySelector('#minBuildTitle')?.focus({ preventScroll: true });
+  return true;
+}
+// Au démarrage, une fois le compte relu (le client Supabase existe alors), et au retour au premier plan
+let minBuildChecked = false;
+onAccountChange(() => { if (account.ready && !minBuildChecked) { minBuildChecked = true; checkMinBuild(); } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && account.ready) checkMinBuild(); });
+
 // Bannière « Nouvelle version disponible », jamais pendant une séance
 function maybeShowUpdateBanner() {
   if (!swReg?.waiting || !navigator.serviceWorker.controller || activeSession || $('.update-banner')) return;

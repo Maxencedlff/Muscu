@@ -544,6 +544,25 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     assert.ok(/raise exception 'paywall_locked'/.test(now));
   });
 
+  test('payant : aucun identifiant de transaction dans les journaux des fonctions Edge', () => {
+    for (const f of ['verify-purchase/index.ts', 'appstore-notify/index.ts']) {
+      const src = fs.readFileSync(path.join(ROOT, 'supabase/functions', f), 'utf8');
+      const logs = src.split('\n').filter(l => /console\.(log|error|warn)/.test(l));
+      assert.ok(logs.length > 0, `${f} : aucun journal trouvé`);
+      for (const l of logs) assert.ok(!/transaction_id|original_transaction|transactionId|originalTransactionId/.test(l), `${f} : identifiant de transaction journalisé : ${l.trim()}`);
+    }
+  });
+
+  test('payant : verrou des mises à jour (sortie de corbeille, renommage, nouvelle date)', () => {
+    const sql = modelB();
+    assert.ok(/create trigger sessions_paywall_upd before update on public\.sessions/.test(sql), 'déclencheur before update absent');
+    const body = bodyOf(sql, 'create function private.sessions_paywall_update');
+    assert.ok(/new\.id is not distinct from old\.id/.test(body), 'changement d\'id non contrôlé');
+    assert.ok(/old\.deleted_at is not null and new\.deleted_at is null/.test(body), 'sortie de corbeille non contrôlée');
+    assert.ok(/\(new\.data -> 'date'\) is not distinct from \(old\.data -> 'date'\)/.test(body), 'changement de date non contrôlé');
+    assert.ok(/raise exception 'paywall_locked'/.test(body));
+  });
+
   test('payant : la fonction de notification ne doit pas vérifier le jeton', async () => {
     const index = fs.readFileSync(path.join(ROOT, 'supabase/functions/appstore-notify/index.ts'), 'utf8');
     // Apple n'a pas de jeton Supabase : l'identification est la signature, et c'est dit dans le fichier

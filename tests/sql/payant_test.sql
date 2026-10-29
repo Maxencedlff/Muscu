@@ -41,7 +41,8 @@ do $$
 begin
   if (select value from public.app_config where key = 'paywall_on') is distinct from 'false'::jsonb then raise 'paywall_on livré allumé'; end if;
   -- Modèle B : l'essai est l'offre de lancement d'Apple, plus aucun réglage d'essai côté serveur
-  if (select array_agg(key) from public.app_config) is distinct from array['paywall_on'] then raise 'clés de app_config : %', (select array_agg(key) from public.app_config); end if;
+  if (select array_agg(key order by key) from public.app_config) is distinct from array['min_build', 'paywall_on'] then raise 'clés de app_config : %', (select array_agg(key) from public.app_config); end if;
+  if (select value from public.app_config where key = 'min_build') is distinct from '0'::jsonb then raise 'min_build livré non nul'; end if;
   if exists (select 1 from information_schema.columns where table_name = 'entitlements' and column_name = 'trial_started_at') then raise 'trial_started_at encore là'; end if;
   if exists (select 1 from pg_proc where proname in ('access_trial_days', 'access_unproven_days')) then raise 'fonction d''essai maison restée'; end if;
   if exists (select 1 from pg_class where relname in ('store_installs', 'store_install_links', 'apple_app_ids', 'apple_app_links')) then raise 'tables du rattachement Apple restées'; end if;
@@ -962,8 +963,8 @@ begin
   if pg_temp.psess('e-1', ended - interval '30 minutes', now()) is distinct from 'ok' then raise 'séance commencée avec le droit refusée'; end if;
   -- I2 : la même séance renvoyée (réessai réseau, correction, par upsert comme l'app) passe et ne
   -- consomme PAS la seconde grâce
-  if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data) values (%L, 'e-1', '{"date": 1, "duration": 0, "note": "renvoyée"}')
-       on conflict (user_id, id) do update set data = excluded.data $q$, pg_temp.pq('e'))) is distinct from 'ok' then raise 'renvoi d''une séance de grâce refusé'; end if;
+  if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data) values (%L, 'e-1', '{}')
+       on conflict (user_id, id) do update set data = public.sessions.data || '{"note": "renvoyée"}' $q$, pg_temp.pq('e'))) is distinct from 'ok' then raise 'renvoi d''une séance de grâce refusé'; end if;
   reset role;
   if (select count(*) from private.social_rate where user_id = pg_temp.pq('e') and action = 'session_grace') is distinct from 1 then raise 'un renvoi a consommé une grâce'; end if;
   set role authenticated;
@@ -990,8 +991,8 @@ begin
   if pg_temp.psess('e-8', ended - interval '30 minutes', ended + interval '10 minutes') is distinct from 'paywall_locked' then raise 'grâce au-delà de 24 h'; end if;
   -- I1 : verrou allumé, sans droit, hors grâce : l'app corrige et met à la corbeille par upsert
   -- (insert … on conflict) ; une ligne déjà là n'est pas une séance nouvelle, elle passe
-  if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data) values (%L, 'e-6', '{"date": 1, "notes": "corrigée"}')
-       on conflict (user_id, id) do update set data = excluded.data $q$, pg_temp.pq('e'))) is distinct from 'ok' then raise 'correction par upsert refusée'; end if;
+  if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data) values (%L, 'e-6', '{}')
+       on conflict (user_id, id) do update set data = public.sessions.data || '{"notes": "corrigée"}' $q$, pg_temp.pq('e'))) is distinct from 'ok' then raise 'correction par upsert refusée'; end if;
   if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data, deleted_at) values (%L, 'e-6', '{}', now())
        on conflict (user_id, id) do update set deleted_at = excluded.deleted_at $q$, pg_temp.pq('e'))) is distinct from 'ok' then raise 'mise à la corbeille par upsert refusée'; end if;
   -- … mais une séance NOUVELLE par le même chemin (upsert) reste refusée
@@ -1010,13 +1011,58 @@ begin
   update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
 end $$;
 
+-- ── Verrou sur les MISES À JOUR (relecture du 28/10) ─────
+-- Sans droit d'écrire, verrou allumé : ni réécrire la date d'une séance, ni renommer son id, ni la
+-- sortir de la corbeille, par UPDATE direct ou par upsert. Corriger sans changer la date et mettre à
+-- la corbeille restent permis. Les lignes semées verrou éteint ne se réveillent pas verrou allumé.
+do $$
+begin
+  set role authenticated;
+  perform pg_temp.pqlogin('g');
+  -- Verrou éteint : une séance vivante et 50 lignes de corbeille « en réserve »
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('g-1', '{"date": 1780000000000, "notes": "a"}') $q$) is distinct from 'ok' then raise 'g-1'; end if;
+  if pg_temp.perr($q$ insert into public.sessions (id, data, deleted_at) select 'reserve-' || g, '{}', now() from generate_series(1, 50) g $q$) is distinct from 'ok' then raise 'réserve semée'; end if;
+  reset role;
+  update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
+  set role authenticated;
+  perform pg_temp.pqlogin('g');
+  if (public.my_access() ->> 'can_write')::boolean then raise 'G ne devrait pas pouvoir écrire'; end if;
+  -- Refusés : UPDATE direct de la date, renommage, sortie de la corbeille (direct et par upsert)
+  if pg_temp.perr($q$ update public.sessions set data = '{"date": 1790000000000, "exercises": ["NEUVE"]}' where id = 'g-1' $q$) is distinct from 'paywall_locked' then raise 'date réécrite par UPDATE'; end if;
+  if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data) values (%L, 'g-1', '{"date": 1790000000000}') on conflict (user_id, id) do update set data = excluded.data $q$, pg_temp.pq('g'))) is distinct from 'paywall_locked' then raise 'date réécrite par upsert'; end if;
+  if pg_temp.perr($q$ update public.sessions set id = 'id-tout-neuf' where id = 'g-1' $q$) is distinct from 'paywall_locked' then raise 'id renommé'; end if;
+  if pg_temp.perr($q$ update public.sessions set deleted_at = null, data = '{"date": 1790000000000}' where id = 'reserve-1' $q$) is distinct from 'paywall_locked' then raise 'sortie de corbeille par UPDATE'; end if;
+  if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data, deleted_at) select %L, 'reserve-' || g, jsonb_build_object('date', 1790000000000 + g), null from generate_series(1, 50) g
+       on conflict (user_id, id) do update set data = excluded.data, deleted_at = excluded.deleted_at $q$, pg_temp.pq('g'))) is distinct from 'paywall_locked' then raise 'réserve réveillée par upsert'; end if;
+  reset role;
+  if (select count(*) from public.sessions where user_id = pg_temp.pq('g') and id like 'reserve-%' and deleted_at is null) <> 0 then raise 'une ligne de réserve a été réveillée'; end if;
+  if (select data ->> 'date' from public.sessions where user_id = pg_temp.pq('g') and id = 'g-1') is distinct from '1780000000000' then raise 'g-1 modifiée'; end if;
+  set role authenticated;
+  perform pg_temp.pqlogin('g');
+  -- Permis : corriger sans changer la date (UPDATE et upsert), puis mettre à la corbeille
+  if pg_temp.perr($q$ update public.sessions set data = '{"date": 1780000000000, "notes": "corrigée"}' where id = 'g-1' $q$) is distinct from 'ok' then raise 'correction refusée'; end if;
+  if pg_temp.perr(format($q$ insert into public.sessions (user_id, id, data) values (%L, 'g-1', '{"date": 1780000000000, "notes": "corrigée 2"}') on conflict (user_id, id) do update set data = excluded.data $q$, pg_temp.pq('g'))) is distinct from 'ok' then raise 'correction par upsert refusée'; end if;
+  if pg_temp.perr($q$ update public.sessions set deleted_at = now() where id = 'g-1' $q$) is distinct from 'ok' then raise 'mise à la corbeille refusée'; end if;
+  -- Une ligne déjà à la corbeille peut changer de contenu (elle reste à la corbeille, rien n'est gagné)
+  if pg_temp.perr($q$ update public.sessions set data = '{"date": 1790000000000}' where id = 'reserve-2' $q$) is distinct from 'ok' then raise 'corbeille modifiable sans sortir'; end if;
+  -- Avec un droit (abonné), tout redevient possible
+  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pq('g'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-qg')) is distinct from 'ok' then raise 'abonnement de G'; end if;
+  if pg_temp.perr($q$ update public.sessions set deleted_at = null, data = '{"date": 1790000000000}' where id = 'reserve-3' $q$) is distinct from 'ok' then raise 'abonné : sortie de corbeille refusée'; end if;
+  if pg_temp.perr($q$ update public.sessions set id = 'renommee' where id = 'reserve-3' $q$) is distinct from 'ok' then raise 'abonné : renommage refusé'; end if;
+  reset role;
+  -- Ordre des déclencheurs : le verrou des mises à jour passe AVANT sessions_touch
+  if (select array_agg(tgname::text order by tgname) from pg_trigger where tgrelid = 'public.sessions'::regclass and not tgisinternal and (tgtype & 16) <> 0)
+     is distinct from array['sessions_paywall_upd', 'sessions_touch'] then raise 'déclencheurs de mise à jour : %', (select array_agg(tgname) from pg_trigger where tgrelid = 'public.sessions'::regclass and not tgisinternal); end if;
+  update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
+end $$;
+
 -- ── Aucune écriture directe des nouveautés ───────────────
 set role authenticated;
 do $$ begin
   perform pg_temp.pqlogin('a');
   if pg_temp.perr($q$ update public.entitlement_claims set intro_offer = true $q$) not like 'permission denied%' then raise 'intro_offer modifiable'; end if;
   if pg_temp.perr($q$ select private.access_coach_free(pg_temp.pq('a')) $q$) not like 'permission denied%' then raise 'access_coach_free appelable'; end if;
-  if (select count(*) from public.app_config) is distinct from 1 then raise 'app_config pour authenticated'; end if;
+  if (select count(*) from public.app_config) is distinct from 2 then raise 'app_config pour authenticated'; end if;
 end $$;
 reset role;
 
@@ -1026,8 +1072,10 @@ do $$
 declare k text[];
 begin
   perform set_config('request.jwt.claim.sub', '', false);
-  select array_agg(key) into k from public.app_config;
-  if k is distinct from array['paywall_on'] then raise 'anon lit : %', k; end if;
+  select array_agg(key order by key) into k from public.app_config;
+  if k is distinct from array['min_build', 'paywall_on'] then raise 'anon lit : %', k; end if;
+  -- anon ne modifie pas min_build non plus
+  if pg_temp.perr($q$ update public.app_config set value = '9999'::jsonb where key = 'min_build' $q$) not like 'permission denied%' then raise 'anon modifie min_build'; end if;
   if pg_temp.perr($q$ select updated_at from public.app_config $q$) not like 'permission denied%' then raise 'anon lit updated_at'; end if;
   if pg_temp.perr($q$ update public.app_config set value = 'false'::jsonb where key = 'paywall_on' $q$) not like 'permission denied%' then raise 'anon modifie paywall_on'; end if;
   if pg_temp.perr('select public.my_access()') not like 'permission denied%' then raise 'anon : my_access'; end if;

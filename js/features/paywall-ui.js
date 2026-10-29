@@ -184,16 +184,21 @@ function payTermsHtml(list) {
   const trial = list.find(p => p.trial);
   const prices = list.map(p => `${esc(p.price)} ${PAY_PLAN_PERIOD[p.id] || ''}`.trim()).join(' ou ');
   const first = trial
-    ? `Essai gratuit de ${esc(payDurationText(trial.trial))}, puis ${prices} selon la formule choisie. Le paiement est débité sur ton compte Apple à la fin de l'essai, sauf si tu résilies avant.`
+    ? `Essai gratuit de ${esc(payDurationText(trial.trial))}, puis ${prices} selon la formule choisie. Le paiement est débité sur ton compte Apple à la fin de l'essai, sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
     : `${prices} selon la formule choisie, débité sur ton compte Apple à la confirmation de l'achat.`;
   return `
         <div class="pay-terms" role="note">
           <p>${first}</p>
-          <p>L'abonnement se renouvelle automatiquement, au même prix et pour la même période, sauf si tu le résilies au moins 24 heures avant la fin de la période en cours. Tu peux le résilier à tout moment dans les réglages de ton identifiant Apple.</p>
+          <p>L'abonnement se renouvelle automatiquement pour la même période, sauf si tu le résilies au moins 24 heures avant la fin de la période en cours. Tu peux le résilier à tout moment dans les réglages de ton identifiant Apple.</p>
         </div>`;
 }
 
 function payPlansHtml() {
+  // Verrou éteint : rien à vendre. Proposer une formule ferait commencer l'essai d'Apple pour rien, et la
+  // personne serait débitée 3 mois plus tard (relecture du 28/10). Restaurer et les codes restent.
+  if (!paywallOn()) {
+    return `<div class="pay-note" role="status"><p>Rien à acheter pour l'instant&nbsp;: tes séances s'enregistrent comme avant.</p></div>`;
+  }
   if (!Native.store.available) {
     return `<div class="pay-note" role="status"><p>Les abonnements s'achètent dans l'app MDLF Training sur iPhone.</p>
           <p>Tes séances et tes progrès restent accessibles ici.</p></div>`;
@@ -223,10 +228,13 @@ function renderPaywall(reason = 'offer') {
   const head = navBar({ title: 'Abonnement', large: false });
   const end = reason === 'end';
   const trial = (access.products || []).find(p => p.trial);
-  const title = end ? 'Abonnement nécessaire' : 'MDLF Training, sans limite';
-  // Formulation exacte : l'abonnement continue tout seul après l'essai (jamais « choisis de continuer »)
-  const sub = trial
-    ? `${esc(payDurationText(trial.trial))} gratuits, puis l'abonnement continue sauf si tu l'arrêtes avant la fin de l'essai.`
+  const off = !paywallOn();
+  const title = off ? 'Tout est ouvert' : end ? 'Abonnement nécessaire' : 'MDLF Training, sans limite';
+  // Formulation exacte : l'abonnement continue tout seul après l'essai, et Apple demande de résilier au
+  // moins 24 h avant sa fin (https://support.apple.com/en-us/118428)
+  const sub = off ? 'L\'abonnement n\'est pas encore demandé.'
+    : trial
+    ? `${esc(payDurationText(trial.trial))} gratuits, puis l'abonnement continue sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
     : 'Pour enregistrer de nouvelles séances, choisis une formule.';
   const stale = accessStale() && account.user ? `<p class="social-inline-error" role="status">${esc(access.error === 'offline' ? 'Pas d\'Internet : état pas à jour.' : 'État pas à jour.')}</p>` : '';
   return `
@@ -302,7 +310,7 @@ function renderSubscription() {
         <div class="group-foot">${esc(ACCESS_COACH_TEXT)}.</div>` : ''}${offNote}`;
   const actions = `
         <div class="group">
-          ${st === 'none' || st === 'expired' || st === 'unknown'
+          ${on && (st === 'none' || st === 'expired' || st === 'unknown')
             ? '<button class="cell cell--action" data-action="pay-open" data-reason="offer"><span class="cell__title">Voir les formules</span></button>' : ''}
           ${Native.store.available ? '<button class="cell cell--action" data-action="pay-manage"><span class="cell__title">Gérer chez Apple</span></button>' : ''}
           <button class="cell cell--action" data-action="pay-restore"><span class="cell__title">Restaurer mes achats</span></button>

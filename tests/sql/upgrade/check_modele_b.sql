@@ -6,7 +6,7 @@ begin
   -- Plus d'essai maison, plus de statut trial, contrainte en place
   if exists (select 1 from public.entitlements where status = 'trial') then raise 'ligne trial restée'; end if;
   if exists (select 1 from information_schema.columns where table_name = 'entitlements' and column_name = 'trial_started_at') then raise 'trial_started_at resté'; end if;
-  if (select array_agg(key) from public.app_config) is distinct from array['paywall_on'] then raise 'app_config : %', (select array_agg(key) from public.app_config); end if;
+  if (select array_agg(key order by key) from public.app_config) is distinct from array['min_build', 'paywall_on'] then raise 'app_config : %', (select array_agg(key) from public.app_config); end if;
   if pg_temp.perr($q$ update public.entitlements set status = 'trial' where user_id = '00000000-0000-0000-0000-000000000901' $q$) not like '%entitlements_status_check%' then raise 'contrainte de statut absente'; end if;
   -- 901 (ancien essai) : aucun droit, verrou allumé
   update public.app_config set value = 'true'::jsonb where key = 'paywall_on';

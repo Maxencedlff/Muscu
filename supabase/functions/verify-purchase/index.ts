@@ -107,7 +107,8 @@ Deno.serve(async (req) => {
   if (!sure.ok) return json({ error: sure.error }, httpStatus(sure.error));
   // La relecture doit parler de la même transaction d'origine que ce que l'app a présenté
   if (sure.value.original_transaction_id !== claimed.value.original_transaction_id) {
-    console.error('verify-purchase: la relecture ne correspond pas', claimed.value.transaction_id);
+    // Jamais l'identifiant de transaction dans les journaux (donnée rattachable à une personne)
+    console.error('verify-purchase: la relecture ne correspond pas');
     return json({ error: 'invalid_jws' }, 400);
   }
 

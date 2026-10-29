@@ -35,7 +35,7 @@ Ce qu'il ajoute, selon docs/PAYANT_V1.md (MODÈLE B : l'essai gratuit est l'offr
   `paywall_locked` quand le verrou est allumé et `can_write` faux, SAUF grâce de fin de séance
   (statut `expired`, au plus 24 h après la fin à l'heure du serveur, séance commencée dans les 12 h
   avant la fin, 2 séances au plus). `__st.noTrigger = true` l'éteint ; refus sous `['locked', …]`.
-- `from('app_config')` : sans compte, seule la ligne `paywall_on` est rendue (politique anon) ;
+- `from('app_config')` : lignes `paywall_on` et `min_build` (`__st.minBuild`), avec ou sans compte ;
   appels sous `['app_config', 'anon' | 'auth']` ; `__st.fail.config = 'offline'` : injoignable.
 
 Deux horloges SÉPARÉES : celle du serveur (`__st.serverShift`) et celle de l'appareil
@@ -48,7 +48,8 @@ Outils : `__st.subscribe(productId, days, { intro })` (abonnement écrit côté 
 `__st.endAccess(hoursAgo)` (l'abonnement a pris fin il y a N heures, Apple l'a fermé),
 `__st.giveGift()` (code maison à vie), `__st.emitTransaction(productId)` (transaction poussée par
 Apple : code d'offre utilisé, renouvellement, achat sur un autre appareil).
-Réglages avant chargement : `window.__stOpts` (ex. `{ paywallOn: true, store: false }`).
+Réglages avant chargement : `window.__stOpts` (ex. `{ paywallOn: true, store: false }`) ; `appBuild` simule le
+numéro de build natif (CFBundleVersion) et `minBuild` la valeur de `app_config.min_build`.
 """
 
 FAKE_STORE = r"""
@@ -227,7 +228,7 @@ FAKE_STORE = r"""
     const uid = me();
     log('app_config', uid ? 'auth' : 'anon');
     if (st.fail.access === 'offline' || st.fail.config === 'offline') return offline();
-    const rows = [{ key: 'paywall_on', value: !!st.paywallOn }];
+    const rows = [{ key: 'paywall_on', value: !!st.paywallOn }, { key: 'min_build', value: st.minBuild || 0 }];
     const found = rows.filter(r => !q.key || r.key === q.key);
     return { data: q.single ? (found[0] || null) : found, error: null };
   };
@@ -319,7 +320,9 @@ FAKE_STORE = r"""
   // ── On enveloppe la coquille et le client déjà posés par FAKE_ACCOUNT ──
   const cap = window.Capacitor;
   const register = cap.registerPlugin, avail = cap.isPluginAvailable;
-  cap.registerPlugin = name => (name === 'MdlfStore' ? storePlugin : register(name));
+  // @capacitor/app : numéro de build natif simulé par __st.appBuild (version minimale, js/app/updates.js)
+  cap.registerPlugin = name => (name === 'MdlfStore' ? storePlugin
+    : name === 'App' && st.appBuild ? { getInfo: async () => ({ build: String(st.appBuild) }) } : register(name));
   cap.isPluginAvailable = name => (name === 'MdlfStore' ? !!st.store : avail(name));
 
   // Verrou du serveur : déclencheur `before insert on public.sessions`, avec la grâce de fin de séance.

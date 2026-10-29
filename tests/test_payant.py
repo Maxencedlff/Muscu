@@ -184,11 +184,12 @@ def t_essai(bench, eng, dev, theme):
             const px = s => parseFloat(getComputedStyle(b.querySelector(s)).fontSize);
             return [px('.pay-plan__price'), px('.pay-plan__trial')]; }""")
         R.check(sizes[0] > sizes[1], f'{t} formule : prix en gros, essai en ligne secondaire {sizes}')
-        R.check('3 mois gratuits, puis l\'abonnement continue sauf si tu l\'arrêtes avant la fin de l\'essai' in txt
-                and 'choisis de continuer' not in txt, f'{t} texte du haut exact')
+        R.check('3 mois gratuits, puis l\'abonnement continue sauf si tu le résilies au moins 24 heures avant la fin de l\'essai' in txt
+                and 'choisis de continuer' not in txt and 'tu l\'arrêtes' not in txt, f'{t} texte du haut exact (règle des 24 h)')
         R.check('tu enregistres de nouvelles séances' in txt and 'l\'export restent ouverts' in txt, f'{t} ce que donne l\'abonnement')
         R.check('Essai gratuit de 3 mois, puis 7,77 € par mois ou 77,77 € par an' in txt
-                and 'renouvelle automatiquement' in txt and 'résilier à tout moment' in txt
+                and 'renouvelle automatiquement pour la même période' in txt and 'au même prix' not in txt
+                and 'sauf si tu le résilies au moins 24 heures avant la fin de l\'essai' in txt and 'résilier à tout moment' in txt
                 and 'Conditions d\'utilisation' in txt and 'Confidentialité' in txt,
                 f'{t} mentions 3.1.2 : durée, prix après l\'essai, renouvellement, résiliation, liens')
         R.check('Un identifiant Apple n\'a droit qu\'à un seul essai gratuit' in txt, f'{t} un essai par identifiant Apple : dit')
@@ -348,6 +349,21 @@ def t_achat(bench, eng, dev, theme):
                 f'{t} Abonnement : état abonné et gestion chez Apple ({txt[:120]!r})')
         layout(page, t, 'Abonnement actif')
         shot(page, LOT, f'6-abonne-{t}')
+        # Supprimer son compte avec un abonnement en cours : Apple continue de facturer, on le dit et on
+        # mène à « Gérer chez Apple » avant toute suppression
+        page.evaluate("navigate('account')")
+        page.wait_for_selector('[data-action="account-delete"]')
+        page.click('[data-action="account-delete"]')
+        page.wait_for_selector('.ios-dialog')
+        dlg = page.inner_text('.ios-dialog')
+        R.check('continuera d\'être facturé par Apple' in dlg and 'Gérer chez Apple' in dlg and 'Supprimer mon compte' in dlg,
+                f'{t} suppression avec abonnement : facturation et gestion chez Apple ({dlg[:160]!r})')
+        shot(page, LOT, f'6b-suppression-abonne-{t}')
+        page.evaluate("() => { window.__opened = []; window.open = u => { window.__opened.push(u); return null; }; }")
+        tap_dialog(page, 'Gérer chez Apple')
+        page.wait_for_timeout(300)
+        R.check(page.evaluate('window.__opened') == ['https://apps.apple.com/account/subscriptions'] and page.evaluate('!!account.user'),
+                f'{t} « Gérer chez Apple » : réglages d\'abonnement ouverts, compte intact')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
     # Restauration sur un nouvel iPhone : l'achat est chez Apple, pas sur l'appareil
@@ -652,6 +668,18 @@ def t_verrou_eteint(bench, eng, dev, theme):
         page.click('[data-action="access-open-settings"]')
         page.wait_for_selector('.pay-settings-view')
         R.check('Tout est ouvert pour l\'instant' in page.inner_text('.pay-settings-view'), f'{t} Abonnement : verrou éteint expliqué')
+        # B-1 : verrou éteint, AUCUNE formule proposée (l'essai d'Apple serait grillé pour rien) ;
+        # restaurer, gérer chez Apple et les codes restent
+        R.check(page.locator('[data-action="pay-open"]').count() == 0, f'{t} verrou éteint : pas de « Voir les formules »')
+        R.check(page.locator('[data-action="pay-restore"]').count() == 1 and page.locator('[data-action="pay-manage"]').count() == 1,
+                f'{t} verrou éteint : restaurer et gérer chez Apple restent')
+        page.evaluate("navigate(makeRoute('paywall', 'offer'))")
+        page.wait_for_timeout(700)
+        ptxt = page.inner_text('.pay-view')
+        R.check(page.locator('.pay-plan').count() == 0 and 'Tout est ouvert' in ptxt and '€' not in ptxt
+                and len(store_calls(page, 'purchase')) == 0, f'{t} verrou éteint : écran d\'abonnement sans formule ni prix ({ptxt[:140]!r})')
+        R.check(page.locator('[data-action="pay-restore"]').count() == 1, f'{t} verrou éteint : restaurer encore possible')
+        shot(page, LOT, f'12b-verrou-eteint-sans-formule-{t}')
         layout(page, t, 'Abonnement verrou éteint')
         shot(page, LOT, f'12-verrou-eteint-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -746,6 +774,32 @@ def t_compte_obligatoire(bench, eng, dev, theme):
         start_session(page)
         R.check(page.evaluate('!!activeSession') and page.locator('.auth').count() == 0, f'{t} connecté : séance démarrée')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_version_min(bench, eng, dev, theme):
+    """Version minimale (app_config.min_build) : une build native plus ancienne demande sa mise à jour,
+    avec ou sans compte ; à jour, ou min_build à 0, rien n'est affiché."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'appBuild': 25, 'minBuild': 30, 'paywallOn': False})
+        page.wait_for_selector('.min-build', timeout=5000)
+        txt = page.inner_text('.min-build')
+        R.check('Mets à jour l\'app' in txt and 'Tes séances restent sur cet iPhone' in txt,
+                f'{t} build trop ancienne : écran de mise à jour ({txt[:120]!r})')
+        page.evaluate("() => { window.__opened = []; window.open = u => { window.__opened.push(u); return null; }; }")
+        page.click('.min-build__btn')
+        R.check(page.evaluate('window.__opened.length') == 1 and 'testflight.apple.com' in page.evaluate('window.__opened[0]'),
+                f'{t} « Mettre à jour » : lien de mise à jour ouvert')
+        R.check(page.evaluate('data.history.length') > 0, f'{t} build trop ancienne : séances intactes sur l\'iPhone')
+        shot(page, LOT, f'21-version-min-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+    # À jour, ou aucune version minimale : rien
+    for opts, name in (({'appBuild': 30, 'minBuild': 30}, 'build à jour'), ({'appBuild': 25, 'minBuild': 0}, 'min_build à 0')):
+        with bench.page(eng, dev, theme) as page:
+            open_app(page, theme, ppl_v2_today_json(), store={**opts, 'paywallOn': False})
+            page.wait_for_timeout(800)
+            R.check(page.locator('.min-build').count() == 0, f'{t} {name} : aucun écran de mise à jour')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
 def t_horloge(bench, eng, dev, theme):
@@ -903,4 +957,4 @@ def t_hors_ligne(bench, eng, dev, theme):
 
 
 run_main(R, [t_essai, t_lecture_seule, t_achat, t_achats_bloques, t_rattrapage, t_verrou_serveur,
-             t_verrou_eteint, t_compte_obligatoire, t_horloge, t_grace, t_hors_ligne])
+             t_verrou_eteint, t_compte_obligatoire, t_version_min, t_horloge, t_grace, t_hors_ligne])

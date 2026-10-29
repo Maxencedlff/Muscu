@@ -52,7 +52,10 @@
 
 -- ── Compte obligatoire : paywall_on lisible sans compte, et rien d'autre ──
 
-create policy app_config_anon_paywall on public.app_config for select to anon using (key = 'paywall_on');
+-- min_build (relecture du 28/10) : build native minimale ; une app plus ancienne demande sa mise à
+-- jour. Lisible sans compte pour la même raison que paywall_on, et rien d'autre.
+insert into public.app_config (key, value) values ('min_build', '0'::jsonb);
+create policy app_config_anon_paywall on public.app_config for select to anon using (key in ('paywall_on', 'min_build'));
 grant select (key, value) on public.app_config to anon;
 
 -- ── 1. L'essai maison disparaît ──────────────────────────
@@ -482,6 +485,11 @@ begin
       began := to_timestamp((done_ms - dur_ms) / 1000);
       -- Plusieurs envois en parallèle : un seul compte à la fois, sinon tous verraient « moins de 2 »
       perform pg_advisory_xact_lock(hashtextextended('session_grace:' || new.user_id::text, 0));
+      -- Test d'existence REFAIT sous le verrou : deux upserts simultanés de la MÊME séance ne
+      -- consomment qu'une grâce (le second voit la ligne écrite par le premier)
+      if exists (select 1 from public.sessions s where s.user_id = new.user_id and s.id = new.id) then
+        return new;
+      end if;
       if began <= ended and began >= ended - interval '12 hours'
          and (select count(*) from private.social_rate r
                where r.user_id = new.user_id and r.action = 'session_grace' and r.at > ended) < 2 then
@@ -494,6 +502,39 @@ begin
 end
 $$;
 
+-- ── Verrou côté serveur : les mises à jour (relecture du 28/10) ──
+
+-- Sans ce déclencheur, verrou allumé et sans droit, un UPDATE (ou le « do update » d'un upsert)
+-- permettait d'écrire une séance neuve par une ligne déjà là : réécrire une vieille séance, renommer
+-- son id, ou sortir de la corbeille des lignes semées à l'avance verrou éteint. Sans droit d'écrire,
+-- il refuse (paywall_locked) :
+--  - un changement d'id ;
+--  - une sortie de la corbeille (deleted_at de non nul à null) ;
+--  - un changement de data->'date' sur une ligne vivante.
+-- Restent permis : corriger une séance sans changer sa date, et la mettre à la corbeille. Il porte
+-- aussi sur le chemin « on conflict do update » des upserts (Postgres y déclenche BEFORE UPDATE), et
+-- passe avant sessions_touch (ordre alphabétique des déclencheurs : sessions_paywall_upd < sessions_touch).
+create function private.sessions_paywall_update() returns trigger
+  language plpgsql security definer set search_path = '' as
+$$
+begin
+  if not private.access_paywall_on() then
+    return new;
+  end if;
+  if new.id is not distinct from old.id
+     and not (old.deleted_at is not null and new.deleted_at is null)
+     and (new.deleted_at is not null or (new.data -> 'date') is not distinct from (old.data -> 'date')) then
+    return new;
+  end if;
+  if (private.access_json(new.user_id) ->> 'can_write')::boolean then
+    return new;
+  end if;
+  raise exception 'paywall_locked' using errcode = 'P0001';
+end
+$$;
+create trigger sessions_paywall_upd before update on public.sessions
+  for each row execute function private.sessions_paywall_update();
+
 -- ── Droits des fonctions ─────────────────────────────────
 
 revoke all on function private.access_coach_free(uuid) from public, anon, authenticated, service_role;
@@ -504,6 +545,7 @@ revoke all on function private.access_refresh(uuid) from public, anon, authentic
 revoke all on function private.access_claim(uuid, text, timestamptz, text, boolean, timestamptz, boolean, boolean, text)
   from public, anon, authenticated, service_role;
 revoke all on function private.sessions_paywall() from public, anon, authenticated, service_role;
+revoke all on function private.sessions_paywall_update() from public, anon, authenticated, service_role;
 revoke all on function public.my_access() from public, anon, authenticated;
 revoke all on function public.redeem_gift_code(text) from public, anon, authenticated;
 grant execute on function public.my_access() to authenticated;

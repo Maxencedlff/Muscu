@@ -114,8 +114,9 @@ function accessAge(st) { return st ? Date.now() - st.server_now : Infinity; }
 // Horloge reculée : jamais de rallonge. Dans les 7 jours : la salle sans réseau ne bloque personne.
 // Au-delà, un abonnement ou un cadeau garde sa valeur jusqu'à la date de fin DONNÉE PAR LE SERVEUR
 // (plus deux jours, le temps qu'un renouvellement soit annoncé) : un abonné parti trois semaines sans
-// réseau n'est pas coupé. Un accès sans date de fin (à vie, élève d'un coach) et l'essai gardent les
-// 7 jours : rien ne permettrait de borner leur validité autrement.
+// réseau n'est pas coupé (l'essai gratuit d'Apple est un abonnement daté : même règle). Un accès sans
+// date de fin (code à vie, élève d'un coach) garde les 7 jours : rien ne permettrait de borner sa
+// validité autrement.
 function accessCacheValid(st) {
   const age = accessAge(st);
   if (age < -ACCESS_SKEW_MS) return false;
