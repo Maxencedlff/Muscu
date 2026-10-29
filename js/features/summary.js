@@ -139,6 +139,7 @@ function renderSummary() {
         <textarea id="summaryNotes" class="sum-notes" rows="3" placeholder="Comment s'est passée la séance ?"
                   aria-label="Notes de séance">${esc(h?.notes || '')}</textarea>
         ${coachNotesHint()}
+        ${summarySocialGroup(h)}
         <button class="sum-done" data-action="summary-done">Terminé</button>
       </div>
     </div>`;

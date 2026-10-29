@@ -375,7 +375,43 @@ function renderSocialRules() {
 }
 SCREENS.set('social-rules', { render: () => renderSocialRules() });
 
-// ── Historique › Séance : masquer aux abonnés, bravos reçus ──
+// ── Visible sur mon profil : bilan, Historique › Séance et liste de l'Historique ──
+// Un seul réglage par séance, le même libellé partout : allumé = visible (champ hidden absent),
+// éteint = hidden: true (docs/SOCIAL_V1.md). La synchro l'envoie tel quel ; le coach voit tout.
+
+function switchHtml(on) {
+  return `<span class="switch ${on ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>`;
+}
+
+// Bascule visible ↔ masquée, enregistrée (la synchro part de save, js/data/account.js). Renvoie la séance.
+function toggleSessionHidden(id) {
+  const h = (data.history || []).find(x => x.id === id);
+  if (!h) return null;
+  if (h.hidden) delete h.hidden; else h.hidden = true;
+  haptic();
+  save();
+  return h;
+}
+
+// Bilan de fin de séance (js/features/summary.js) : seulement quand le social est activé
+function summarySocialGroup(h) {
+  if (!h || !socialEnabled()) return '';
+  const on = h.hidden !== true;
+  return `
+        <div class="sum-section-title">Amis</div>
+        <div class="sum-list">
+          <button class="sum-row sum-row--action" data-action="summary-visible" data-id="${esc(h.id)}" role="switch" aria-checked="${on}">
+            <div class="sum-row__main"><div class="sum-row__name">Visible sur mon profil</div><div class="sum-row__sub">Tes abonnés verront cette séance (jamais tes notes ni ton poids).</div></div>
+            ${switchHtml(on)}
+          </button>
+        </div>`;
+}
+
+// Liste de l'Historique : œil barré discret sur une séance masquée (social activé : sinon rien à masquer)
+function historyHiddenMark(h) {
+  if (h.hidden !== true || !socialEnabled()) return '';
+  return `<span class="hidden-mark" role="img" aria-label="Masquée à tes abonnés">${icon('eye.slash', 14)}</span>`;
+}
 
 // Groupe ajouté au détail d'une séance (js/features/history.js) quand le social est activé
 function historySocialGroup(h) {
@@ -385,9 +421,9 @@ function historySocialGroup(h) {
   return `
         <div class="group-title">Amis</div>
         <div class="group">
-          <button class="cell" data-action="history-hide" data-id="${esc(h.id)}" role="switch" aria-checked="${hidden}">
-            <span class="cell__body"><span class="cell__title">Masquer à mes abonnés</span></span>
-            <span class="switch ${hidden ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>
+          <button class="cell" data-action="history-hide" data-id="${esc(h.id)}" role="switch" aria-checked="${!hidden}">
+            <span class="cell__body"><span class="cell__title">Visible sur mon profil</span></span>
+            ${switchHtml(!hidden)}
           </button>
           ${n ? `<div class="cell"><span class="cell__body"><span class="cell__title social-bravos-mine">${plural(n, 'bravo', 'bravos')}${hidden ? ' reçus avant de la masquer' : ''}</span></span></div>` : ''}
         </div>
@@ -519,12 +555,15 @@ registerActions({
   },
   'social-report': async (e, el) => { await reportFlow(el.dataset.uid, el.dataset.ref || null); },
   'history-hide': (e, el) => {
-    const h = (data.history || []).find(x => x.id === el.dataset.id);
+    if (toggleSessionHidden(el.dataset.id)) render();
+  },
+  // Bilan : l'interrupteur change sur place (pas de redessin : les notes en cours et le défilement restent)
+  'summary-visible': (e, el) => {
+    const h = toggleSessionHidden(el.dataset.id);
     if (!h) return;
-    if (h.hidden) delete h.hidden; else h.hidden = true;
-    haptic();
-    save();   // la synchro envoie le changement (js/data/account.js)
-    render();
+    const on = h.hidden !== true;
+    el.setAttribute('aria-checked', String(on));
+    el.querySelector('.switch')?.classList.toggle('switch--on', on);
   },
 });
 
