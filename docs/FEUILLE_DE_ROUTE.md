@@ -4,10 +4,10 @@ Mise à jour le 30 octobre 2026, dans l'ordre. OTA = mise à jour à chaud, sans
 
 | #  | Étape           | Quoi                                                                          | Qui                            | État                                         |
 |----|-----------------|-------------------------------------------------------------------------------|--------------------------------|----------------------------------------------|
-| 1  | Lot 1 · OTA     | Cardio sur machines + « = Pec deck »                                          | Claude                         | En cours : tests, puis publication           |
-| 1  | Lot 1 · OTA     | Personnage 3D : bulle, légende 5 paliers, fiche agrandie, sombre              | Claude                         | En cours                                     |
-| 1  | Lot 1 · OTA     | Page Séance du coach (volume, flèches, records, notes)                        | Claude                         | En cours                                     |
-| 1  | Lot 1 · OTA     | Vibrations fortes, corrections de la relecture, CI épinglée, en-têtes du site | Claude                         | En cours                                     |
+| 1  | Lot 1 · OTA     | Cardio sur machines + « = Pec deck »                                          | Claude                         | Publié le 30/10 (49e1070)                    |
+| 1  | Lot 1 · OTA     | Personnage 3D : bulle, légende 5 paliers, fiche agrandie, sombre              | Claude                         | Publié le 30/10 (49e1070)                     |
+| 1  | Lot 1 · OTA     | Page Séance du coach (volume, flèches, records, notes)                        | Claude                         | Publié le 30/10 (49e1070)                     |
+| 1  | Lot 1 · OTA     | Vibrations fortes, corrections de la relecture, CI épinglée, en-têtes du site | Claude                         | Publié le 30/10 (49e1070)                     |
 | 2  | Lot 2 · OTA     | Réglages réorganisés + sous-écran Sauvegarde                                  | Claude                         | À faire                                      |
 | 3  | Lot 2 · OTA     | Calculateur de disques + échauffement automatique                             | Claude                         | À faire                                      |
 | 4  | Lot 2 · OTA     | RPE / RIR facultatif après chaque série                                       | Claude                         | À faire                                      |
