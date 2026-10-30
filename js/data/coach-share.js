@@ -19,7 +19,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const COACH_SHARE_KEY = 'mdlf_coach_share';   // { userId, coachId, hash } : dernier envoi des pesées de cet appareil
+const COACH_SHARE_KEY = 'mdlf_coach_share';   // { userId, coachId, hash } : dernier envoi des pesées de cet appareil (hash null : en attente)
 const COACH_SHARE_MAX = 400;                  // pesées envoyées au plus (comme le serveur et BODY_LOG_MAX)
 // Données que l'élève peut partager ; open : affichée et acceptée par le serveur (private.share_kind_open)
 const COACH_SHARE_KINDS = [
@@ -160,6 +160,9 @@ async function coachShareUpload({ force = false } = {}) {
   const last = readShareSent();
   const mine = last && last.coachId === coachId;
   if (!force && (!mine || last.hash === hash)) return { ok: true, skipped: true };
+  // Geste ici, premier envoi pour ce coach : marque « en attente » (hash null) posée avant l'envoi, pour
+  // qu'un échec (hors ligne) soit retenté à la relecture (mine, et hash différent)
+  if (!mine) writeShareSent({ coachId, hash: null });
   const seq = coachShareSeq;
   coachShare.upload = (async () => {
     const r = await coachRpc('student_share_weights', { weights });

@@ -145,6 +145,27 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     } finally { teardown(); }
   });
 
+  test('partage coach : premier cochage hors ligne, envoyé à la relecture suivante en ligne', async () => {
+    reset();
+    try {
+      setup();   // appareil qui n'a jamais rien envoyé
+      run(`data.bodyWeightLog = [{ date: ${5 * DAY}, kg: 80 }]`);
+      const on = { coach: true, shares: { weight: { granted_at: '2026-10-30T10:00:00Z', n: 0 } } };
+      run(`__answers.student_set_share = ${JSON.stringify(on)}; __answers.student_shares = ${JSON.stringify(on)}`);
+      run(`__answers.student_share_weights = { error: { message: 'TypeError: Failed to fetch' } }`);
+      const r = await run(`coachShareSet('weight', true)`);
+      sameJSON([r.ok, r.uploadFailed], [true, 'offline']);
+      // De retour en ligne : la relecture renvoie les pesées
+      run(`__answers.student_share_weights = a => a.weights.length; __calls.length = 0`);
+      await run('coachShareRefresh()');
+      sameJSON(calls(), ['student_shares', 'student_share_weights']);
+      assert.equal(JSON.parse(run('localStorage.getItem(COACH_SHARE_KEY)')).hash, run('syncHash(sharedWeightsPayload())'), 'marqué envoyé');
+      run('__calls.length = 0');
+      await run('coachShareRefresh()');
+      sameJSON(calls(), ['student_shares'], 'ensuite : rien de renvoyé sans changement');
+    } finally { teardown(); }
+  });
+
   test('partage coach : pesées reçues par le coach nettoyées, rien sans partage', () => {
     const w = run(`cleanCoachWeights({ shared: true, since: '2026-10-30T10:00:00Z', weights: [{ date: ${1 * DAY}, kg: 81 }, { date: ${3 * DAY}, kg: '79.5' }, { date: 'x', kg: 80 }, { date: ${2 * DAY}, kg: 500 }] })`);
     sameJSON(w.weights, [{ date: 3 * DAY, kg: 79.5 }, { date: 1 * DAY, kg: 81 }]);
