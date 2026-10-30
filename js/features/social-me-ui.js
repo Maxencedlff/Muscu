@@ -47,13 +47,13 @@ function activityRowHtml(a) {
     : '';
   return `
     <div class="cell social-row activity-row">
-      <button class="social-row__main" ${open} aria-label="${esc(`${a.isNew ? 'Nouveau. ' : ''}${name} ${text}, ${fmtAgo(a.at)}`)}">
+      <button class="social-row__main" ${open}>
         ${personAvatar(a)}
         <span class="social-row__text">
           <span class="activity-row__text"><b>${esc(name)}</b> ${esc(text)}</span>
           <span class="cell__sub">${esc(fmtAgo(a.at))}</span>
         </span>
-        ${a.isNew ? '<span class="activity-row__new" aria-hidden="true"></span>' : ''}
+        ${a.isNew ? '<span class="activity-row__new" role="img" aria-label="Nouveau"></span>' : ''}
       </button>
       ${trailing}
     </div>`;
