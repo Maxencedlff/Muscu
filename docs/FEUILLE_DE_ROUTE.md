@@ -9,13 +9,13 @@ Mise à jour le 30 octobre 2026 (après-midi), dans l'ordre. ✓ = fermé. OTA =
 | ✓  | Lot 1 · OTA     | Page Séance du coach (volume, flèches, records, notes)                        | Claude                         | Publié le 30/10 (49e1070)                    |
 | ✓  | Lot 1 · OTA     | Vibrations fortes, corrections de la relecture, CI épinglée, en-têtes du site | Claude                         | Publié le 30/10 (49e1070)                    |
 | ✓  | Correctif · OTA | Geste de retour : plus de zoom arrière de la page sur iOS                     | Claude                         | Publié le 30/10 (f0fba79)                    |
-| 1  | Lot 2 · OTA     | Réglages réorganisés + sous-écran Sauvegarde + version envoyée au serveur     | Claude                         | Assemblé (branche lot-n2), à publier         |
-| 2  | Lot 2 · OTA     | Calculateur de disques + échauffement automatique + RPE / RIR facultatif      | Claude                         | Assemblé (branche lot-n2), à publier         |
-| 3  | Lot 2 · OTA     | Import depuis Hevy et Strong                                                  | Claude                         | Assemblé (branche lot-n2), à publier         |
-| 4  | Lot 2 · OTA     | Mensurations + photos de progression (iPhone seul)                            | Claude                         | Assemblé (branche lot-n2), à publier         |
-| 5  | Lot 2 · OTA     | Récaps semaine / mois / année façon Replay, en stories                        | Claude                         | Assemblé (branche lot-n2), à publier         |
-| 6  | Lot 2 · OTA     | Abdominaux et Obliques séparés (muscle, exercices, personnage)                | Claude                         | Assemblé (branche lot-n2), à publier         |
-| 7  | Lot 2 · OTA     | Assemblage, suite complète, relecture, publication                            | Claude, feu vert               | Assemblé et vérifié · publication à faire    |
+| ✓  | Lot 2 · OTA     | Réglages réorganisés + sous-écran Sauvegarde + version envoyée au serveur     | Claude                         | Publié le 30/10 (2b0a3fd)                    |
+| ✓  | Lot 2 · OTA     | Calculateur de disques + échauffement automatique + RPE / RIR facultatif      | Claude                         | Publié le 30/10 (2b0a3fd)                    |
+| ✓  | Lot 2 · OTA     | Import depuis Hevy et Strong                                                  | Claude                         | Publié le 30/10 (2b0a3fd)                    |
+| ✓  | Lot 2 · OTA     | Mensurations + photos de progression (iPhone seul)                            | Claude                         | Publié le 30/10 (2b0a3fd)                    |
+| ✓  | Lot 2 · OTA     | Récaps semaine / mois / année façon Replay, en stories                        | Claude                         | Publié le 30/10 (2b0a3fd)                    |
+| ✓  | Lot 2 · OTA     | Abdominaux et Obliques séparés (muscle, exercices, personnage)                | Claude                         | Publié le 30/10 (2b0a3fd)                    |
+| ✓  | Lot 2 · OTA     | Assemblage, suite complète, relecture, publication                            | Claude, feu vert               | Publié le 30/10 (2b0a3fd)                    |
 | 8  | Lot 2 · OTA     | @compte Instagram sur la story + « on la repartage »                          | Claude                         | Dès que le compte existe                     |
 | 9  | Lot 3 · Serveur | Records notés dans la séance, visibles par amis et coach                      | Claude                         | Feu vert n° 2                                |
 | 10 | Lot 3 · Serveur | Nouveaux records : temps, distance, allure, assistés                          | Claude                         | Feu vert n° 2                                |
