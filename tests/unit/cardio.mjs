@@ -22,7 +22,8 @@ export default function ({ test, run, reset, assert, sameJSON, nativeContext }) 
     assert.equal(k('Vélo d\'appartement'), 'speed');
     assert.equal(k('Spinning'), 'speed', 'par alias');
     assert.equal(k('Vélo elliptique'), null, 'distance de machine : pas d\'allure');
-    assert.equal(k('Rameur'), null);
+    assert.equal(k('Rameur'), 'split', 'temps aux 500 m, comme les consoles');
+    assert.equal(k('Escaliers'), null, 'marches d\'une machine : pas d\'allure');
     assert.equal(k('Développé couché barre'), null, 'hors cardio');
     assert.equal(run(`paceKind({ name: 'Sortie du dimanche', measure: 'cardio' })`), null, 'cardio inconnu : pas d\'allure inventée');
   });

@@ -255,6 +255,7 @@ function renderExEdit() {
                    autocomplete="off" enterkeyhint="done" aria-label="Nom de l'exercice">
           </div>
         </div>
+        <div id="exAlias">${aliasNoteHtml(d.name, 'group-foot ex-alias')}</div>
         ${renderExEditMuscles(d)}
         <div class="group-title">Séance</div>
         <div class="group">
@@ -327,6 +328,8 @@ makeReorderable({
 document.addEventListener('input', e => {
   if (e.target.id !== 'exName' || !exDraft) return;
   exDraft.name = e.target.value;
+  const alias = $('#exAlias');
+  if (alias) alias.innerHTML = aliasNoteHtml(exDraft.name, 'group-foot ex-alias');
   refreshExEditMuscles();
 });
 

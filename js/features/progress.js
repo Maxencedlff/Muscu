@@ -42,7 +42,7 @@ function cardioPoint(e, sets) {
   if (measureOf(e) !== 'cardio') return {};
   const dist = sets.reduce((a, s) => a + (parseFloat(s.dist) || 0), 0);
   const timed = sets.filter(s => parseFloat(s.dist) > 0);
-  const pace = cardioPace(dist, timed.reduce((a, s) => a + (parseInt(s.reps) || 0), 0), paceKind(e));
+  const pace = cardioPace(dist, timed.reduce((a, s) => a + setMinutes(s), 0), paceKind(e));
   return { dist: Math.round(dist * 100) / 100, pace };
 }
 

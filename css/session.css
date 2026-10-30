@@ -162,11 +162,13 @@
   display: inline-block; background: color-mix(in srgb, var(--yellow) 20%, transparent); box-shadow: none;
   color: var(--gold-text); font-size: 0.706rem; font-weight: 600; padding: 2px 8px; border-radius: var(--r-xs);
 }
-/* Allure d'une série cardio validée (« 5:12 /km », « 24,5 km/h ») : même gabarit que le record, sans or */
-.session-set .pace-badge {
+/* Allure d'une série cardio validée (« 5:12 /km », « 24,5 km/h ») : même gabarit que le record, sans or ;
+   réglage de la machine noté au chrono (« niveau moy. 9,4 ») à côté */
+.session-set .pace-badge, .session-set .mach-badge {
   display: inline-block; background: var(--fill); color: var(--label2);
   font-size: 0.706rem; font-weight: 600; padding: 2px 8px; border-radius: var(--r-xs);
 }
+.session-set .set-badge { display: flex; flex-wrap: wrap; gap: 4px; }
 
 .set-del {
   visibility: hidden;
@@ -454,3 +456,56 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .tempo__word { display: block; font-family: var(--font); font-size: 28px; font-weight: 700; line-height: 1.15; color: var(--cat-color, var(--tint)); }
 .tempo__left { display: block; font-size: 52px; line-height: 1; }
 .tempo__presets { margin: 0; padding: 4px 0; }
+
+/* ── Chrono d'une machine de cardio (js/features/effort-machine.js) ──
+   Chrono en haut, une rangée par réglage suivi : gros −/+ (64 px) et la valeur, touchée pour la saisir */
+.set-play--live { box-shadow: 0 0 0 3px color-mix(in srgb, var(--cat-color, var(--tint)) 35%, transparent); }
+.rs--machine { gap: 12px; }
+.mach-clock { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.rs--machine .rs__time { font-size: 64px; }
+.mach-slot { width: 100%; max-width: 380px; background: var(--fill2); border-radius: var(--r-lg); padding: 10px 12px 8px; }
+.mach-slot__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; }
+.mach-slot__label { font-size: var(--fs-subhead); font-weight: 600; color: var(--label2); }
+.mach-slot__unit { font-size: var(--fs-subhead); color: var(--label2); }
+.mach-units { display: inline-grid; grid-auto-flow: column; background: var(--fill); border-radius: 9px; padding: 2px; gap: 2px; }
+.mach-units__btn {
+  position: relative; min-height: 44px; padding: 0 12px; border: 0; border-radius: 7px; background: none;
+  color: var(--label); font-size: var(--fs-footnote); font-weight: 600; cursor: pointer;
+}
+.mach-units__btn[aria-pressed="true"] { background: var(--segment-on); box-shadow: var(--shadow-seg); }
+.mach-slot__ctl { display: grid; grid-template-columns: 64px 1fr 64px; align-items: center; gap: 8px; margin-top: 6px; }
+.mach-btn {
+  width: 64px; height: 64px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--fill); color: var(--label);   /* comme les ±15 s du repos : icône lisible sur tout fond */
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.mach-btn:active, .mach-units__btn:active, .mach-val:active { opacity: .6; }
+.mach-val {
+  min-height: 64px; width: 100%; border: 0; background: none; color: var(--label); cursor: pointer; text-align: center;
+  font-family: var(--font-rounded); font-size: 52px; font-weight: 400; line-height: 1; padding: 0;
+}
+.mach-val--input {
+  font-size: 44px; border-radius: var(--r-sm); background: var(--cell); box-shadow: inset 0 0 0 2px var(--tint); outline: none;
+}
+.mach-slot__since { min-height: 18px; text-align: center; font-size: var(--fs-footnote); color: var(--label2); }
+/* Bilan : temps passé à chaque valeur, en barres */
+.mach-review { width: 100%; max-width: 420px; }
+.mach-review .group-title:first-child { margin-top: 0; }
+.mach-sum__head { font-size: var(--fs-title3); font-weight: 600; margin-bottom: 8px; }
+.mach-bar { display: grid; grid-template-columns: 52px 1fr 64px; align-items: center; gap: 8px; min-height: 26px; }
+.mach-bar__v { font-weight: 600; text-align: right; }
+.mach-bar__track { height: 10px; border-radius: 5px; background: var(--fill); overflow: hidden; }
+.mach-bar__fill { display: block; height: 100%; border-radius: 5px; background: var(--cat-color, var(--tint)); }
+.mach-bar__t { text-align: right; color: var(--label2); font-size: var(--fs-footnote); }
+.mach-sum__foot { margin-top: 6px; font-size: var(--fs-footnote); color: var(--label2); }
+/* Cellules du bilan : la feuille n'est pas une vue groupée (.view--grouped .cell) */
+.mach-review .cell { position: relative; display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 6px 16px; }
+.mach-review .cell + .cell::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
+.mach-review .cell__body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.mach-review .cell__sub { font-size: var(--fs-footnote); color: var(--label2); }
+.mach-field__in { width: 96px; min-height: 44px; flex: none; text-align: right; }
+.mach-field__unit { flex: none; min-width: 24px; color: var(--label2); }
+.rs--machine .rs__done { min-width: 200px; background: var(--tint-fill); color: var(--on-tint); }   /* contraste 5:1 */
+/* Bilan : « Enregistrer » aussi en haut à droite (le bas de la feuille peut être sous le pli) */
+.rs__collapse--bold { font-weight: 600; }
+.rs--review .rs__top .rs__title { padding: 0 100px; }

@@ -14,7 +14,8 @@ function plannedSet(src, prev) {
     reps:   src?.reps   ?? '',
     ...(src?.dist ? { dist: src.dist } : {}),
     plannedWeight: src?.weight ?? '',
-    prev:   prev ? { weight: prev.weight, reps: prev.reps, ...(prev.dist ? { dist: prev.dist } : {}) } : null,
+    // machine : réglages de la dernière fois, point de départ du chrono (machineStart)
+    prev:   prev ? { weight: prev.weight, reps: prev.reps, ...(prev.dist ? { dist: prev.dist } : {}), ...(prev.machine ? { machine: prev.machine } : {}) } : null,
     done:   false,
   };
 }
@@ -339,19 +340,20 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const kind   = m === 'cardio' ? 'charge' : m === 'time' ? 'lest' : loadKind(ex);
   const load   = first ? `${{ charge: '', lest: 'plus ', aide: 'aide de ' }[kind]}${first} ${m === 'cardio' ? 'kilomètres' : data.unit === 'lbs' ? 'livres' : 'kilos'}, ` : '';
   const pk     = m === 'cardio' ? paceKind(ex) : null;
-  const pace   = pk ? cardioPace(s.dist, s.reps, pk) : null;
+  const pace   = pk ? cardioPace(s.dist, setMinutes(s), pk) : null;
+  const mach   = m === 'cardio' ? machineTxt(s.machine) : '';
   return `
       <div class="set-swipe">
         ${del}
         <div class="session-set session-set--done" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"
-             aria-label="Série ${si + 1} validée, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
+             aria-label="Série ${si + 1} validée, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
           ${setNumHtml(si, tag)}
           <span class="set-prev num">${prev}</span>
           <span class="set-val num">${first || '—'}</span>
           <span class="set-val num">${esc(s.reps)}</span>
           <span class="set-check-zone"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
           ${record ? `<span class="set-badge"><span class="pr-badge">${record}</span></span>` : ''}
-          ${pace ? `<span class="set-badge"><span class="pace-badge">${fmtPace(pace, pk)}</span></span>` : ''}
+          ${pace || mach ? `<span class="set-badge">${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
         </div>
       </div>`;
 }
@@ -387,6 +389,17 @@ function setNumHtml(si, tag) {
   return tag ? `<span class="set-n"><span class="ss-tag">${tag}</span></span>` : `<span class="set-n num">${si + 1}</span>`;
 }
 
+// ▶ de la série à faire : chrono d'un maintien, série guidée au tempo, ou chrono d'une machine de cardio
+// (js/features/effort-machine.js ; déjà lancé et feuille fermée : le même bouton la rouvre)
+function setPlayHtml(ex, ei, s, si) {
+  const m = measureOf(ex), e = activeSession.effort;
+  const live = e?.kind === 'machine' && e.ei === ei && e.si === si;
+  const what = m === 'cardio' ? (live ? 'Rouvrir le chrono en cours' : 'Lancer le chrono et noter le réglage de la machine')
+    : m === 'time' ? 'Lancer le chrono' : `Lancer la série guidée au tempo ${esc(ex.tempo)}`;
+  const goal = s.reps && m !== 'cardio' ? `, ${esc(s.reps)} ${m === 'time' ? 'secondes' : 'répétitions'}` : '';
+  return `<button class="set-n set-play${live ? ' set-play--live' : ''}" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="${what}, série ${si + 1}, ${esc(ex.name)}${goal}">${icon(live ? 'timer' : 'play', 16)}</button>`;
+}
+
 function renderSetRow(ex, ei, s, si, cur, tag) {
   const m       = measureOf(ex);
   const prevF   = setFirstValue(s.prev, m);
@@ -416,8 +429,8 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
     <div class="set-swipe">
       ${editing ? '' : del}
       <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
-        ${(m === 'time' || (m === 'reps' && parseTempo(ex.tempo) && ex.tempoGuide === true)) && !editing && si === ex.sets.findIndex(x => !x.done)
-          ? `<button class="set-n set-play" data-action="start-effort" data-ei="${ei}" data-si="${si}" aria-label="${m === 'time' ? 'Lancer le chrono' : `Lancer la série guidée au tempo ${esc(ex.tempo)}`}, série ${si + 1}, ${esc(ex.name)}${s.reps ? `, ${esc(s.reps)} ${m === 'time' ? 'secondes' : 'répétitions'}` : ''}">${icon('play', 16)}</button>`
+        ${(m === 'time' || (m === 'reps' && parseTempo(ex.tempo) && ex.tempoGuide === true) || hasMachineClock(ex)) && !editing && si === ex.sets.findIndex(x => !x.done)
+          ? setPlayHtml(ex, ei, s, si)
           : setNumHtml(si, tag)}
         <span class="set-prev num">${s.prev ? '<span class="visually-hidden">La dernière fois </span>' : ''}${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}

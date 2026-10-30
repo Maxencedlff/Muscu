@@ -34,7 +34,7 @@ const TIMED_EXERCISES = new Set(['Gainage (planche)', 'Gainage latéral', 'Gaina
   'Suspension passive', 'Front lever']);
 // Noms saisis librement : maintiens et cardio reconnus par mots-clés (sur ruleKey)
 const TIMED_RE  = /gainage|planche|plank|chaise (contre le|au) mur|wall sit|suspension|dead hang|\bl sit|hollow|front lever|back lever|maintien|isometri/;
-const CARDIO_RE = /course|courir|footing|jogging|running|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation/;
+const CARDIO_RE = /course|courir|footing|jogging|running|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|escalier|stair|stepmill|step mill|climbmill|powermill|rameur|natation/;
 // Mots qui l'emportent : « Crunch vélo », « Relevés de jambes en suspension », « Rowing rameur » restent en répétitions
 const NOT_TIMED_RE  = /releve|traction|crunch|curl|rowing|tirage|pompe|squat/;
 const NOT_CARDIO_RE = /crunch|abdo|rowing|tirage|releve|curl|squat|fente|pompe|gainage/;
@@ -68,8 +68,9 @@ function measureSetTxt(s, measure, kind = 'charge') {
   const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
   if (measure === 'time')   return `${fmtSeconds(r)}${w > 0 ? ` · +${fmtW(s.weight)} ${unitLbl()}` : ''}`;
   if (measure === 'cardio') {
-    const pace = paceTxt(s, kind);
-    return `${parseFloat(s.dist) > 0 ? `${fmtNum(s.dist)} km · ` : ''}${r} min${pace ? ` · ${pace}` : ''}`;
+    // Réglage de la machine noté au chrono (js/data/machine-track.js) : « niveau moy. 9,4 », « 42 étages »
+    const pace = paceTxt(s, kind), mach = typeof machineTxt === 'function' ? machineTxt(s.machine) : '';
+    return `${parseFloat(s.dist) > 0 ? `${fmtNum(s.dist)} km · ` : ''}${r} min${pace ? ` · ${pace}` : ''}${mach ? ` · ${mach}` : ''}`;
   }
   if (kind === 'lest') return `${r} reps${w > 0 ? ` · +${fmtW(s.weight)} ${unitLbl()}` : ''}`;
   if (kind === 'aide') return `${r} reps${w > 0 ? ` · aide ${fmtW(s.weight)} ${unitLbl()}` : ''}`;
@@ -98,30 +99,35 @@ function fmtSeconds(sec) {
 }
 
 // ── Cardio : allure ─────────────────────────────────────────
-// Ce qui se court ou se marche s'affiche en min/km, le vélo en km/h ; le reste n'a pas d'allure
-// (rameur, elliptique, corde à sauter : la distance d'une machine n'y vaut pas d'un modèle à l'autre).
+// Ce qui se court ou se marche s'affiche en min/km, le vélo en km/h, le rameur en temps aux 500 m (ce
+// qu'affichent les consoles Concept2, WaterRower, Life Fitness Row HX) ; le reste n'a pas d'allure
+// (elliptique, escaliers, corde à sauter : la distance d'une machine n'y vaut pas d'un modèle à l'autre).
 // Bornes : une allure hors de ce qu'un humain tient vient d'une faute de frappe, elle n'est pas affichée.
 const SPEED_RE   = /\bvelo\b|bike|biking|spinning|cycl|vtt|home trainer|\brpm\b/;
 const PACE_RE    = /course|courir|footing|jogging|running|tapis|trail|fractionne|marche|randonnee/;
-const NO_PACE_RE = /elliptique|rameur|corde/;
+const SPLIT_RE   = /rameur|rower|ergometre|rowing ergo/;
+const NO_PACE_RE = /elliptique|corde|escalier|stair|stepper|stepmill/;
 const PACE_RANGE  = [2, 30];    // min/km : du sprint à la marche lente
 const SPEED_RANGE = [3, 80];    // km/h
+const SPLIT_RANGE = [1, 10];    // min /500 m : record du monde vers 1:10, rameur débutant au-delà de 3:00
 function paceKind(ex) {
   if (measureOf(ex) !== 'cardio') return null;
   const k = ruleKey(catalogueEntry(ex?.name || '')?.name || ex?.name || '');
+  if (SPLIT_RE.test(k)) return 'split';
   if (NO_PACE_RE.test(k)) return null;
   return SPEED_RE.test(k) ? 'speed' : PACE_RE.test(k) ? 'pace' : null;
 }
 // Ce qui précise la série d'un exercice : allure en cardio, charge / lest / aide sinon (measureSetTxt)
 function setKind(ex) { return measureOf(ex) === 'cardio' ? paceKind(ex) : loadKind(ex); }
 
-// Allure : minutes par km ('pace') ou km/h ('speed') ; null sans distance, sans durée ou hors bornes.
-// minutes : durée en minutes, décimales acceptées (Santé donne la durée à la seconde)
+// Allure : minutes par km ('pace'), km/h ('speed') ou minutes aux 500 m ('split') ; null sans distance,
+// sans durée ou hors bornes. minutes : durée en minutes, décimales acceptées (Santé et le chrono des
+// machines donnent la durée à la seconde)
 function cardioPace(km, minutes, kind) {
   const d = parseFloat(km), t = parseFloat(minutes);
-  if ((kind !== 'pace' && kind !== 'speed') || !(d > 0) || !(t > 0)) return null;
-  const v = kind === 'speed' ? d / (t / 60) : t / d;
-  const [lo, hi] = kind === 'speed' ? SPEED_RANGE : PACE_RANGE;
+  if (!['pace', 'speed', 'split'].includes(kind) || !(d > 0) || !(t > 0)) return null;
+  const v = kind === 'speed' ? d / (t / 60) : kind === 'split' ? t / (d * 2) : t / d;
+  const [lo, hi] = kind === 'speed' ? SPEED_RANGE : kind === 'split' ? SPLIT_RANGE : PACE_RANGE;
   return v >= lo && v <= hi ? v : null;
 }
 // Allure en min/km découpée en minutes et secondes arrondies : 4,999 donne 5:00, jamais « 4:60 »
@@ -130,22 +136,29 @@ function paceParts(v) {
   if (sec === 60) { m++; sec = 0; }
   return { m, sec };
 }
-// « 5:12 /km » (comme Strava et l'app Exercice), « 24,5 km/h »
+// « 5:12 /km » (comme Strava et l'app Exercice), « 24,5 km/h », « 2:05 /500 m » (comme le moniteur Concept2)
 function fmtPace(v, kind) {
   if (v == null || !isFinite(v)) return '';
   if (kind === 'speed') return `${fmtNum(v, 1)} km/h`;
   const { m, sec } = paceParts(v);
-  return `${m}:${String(sec).padStart(2, '0')} /km`;
+  return `${m}:${String(sec).padStart(2, '0')} ${kind === 'split' ? '/500 m' : '/km'}`;
 }
 // Même allure pour VoiceOver : « 5 minutes 12 au kilomètre », « 24,5 kilomètres heure »
 function spokenPace(v, kind) {
   if (v == null || !isFinite(v)) return '';
   if (kind === 'speed') return `${fmtNum(v, 1)} kilomètres heure`;
   const { m, sec } = paceParts(v);
-  return `${m} minute${m > 1 ? 's' : ''}${sec ? ` ${sec}` : ''} au kilomètre`;
+  return `${m} minute${m > 1 ? 's' : ''}${sec ? ` ${sec}` : ''} ${kind === 'split' ? 'aux 500 mètres' : 'au kilomètre'}`;
+}
+// Durée d'une série cardio en minutes : exacte (décimales) quand le chrono d'une machine l'a mesurée
+// (machine.end, js/data/machine-track.js) et que les minutes n'ont pas été modifiées depuis, sinon les
+// minutes entières saisies. Le temps aux 500 m d'un 2 000 m en 7:32 vaut 1:53, pas 2:00 (8 min).
+function setMinutes(s) {
+  const r = parseInt(s?.reps) || 0, end = s?.machine?.end;
+  return Number.isFinite(end) && end > 0 && Math.max(1, Math.round(end / 60)) === r ? end / 60 : r;
 }
 // Allure d'une série cardio (distance dans dist, minutes dans reps) : texte, '' si elle n'a pas de sens
-function paceTxt(s, kind) { return fmtPace(cardioPace(s?.dist, s?.reps, kind), kind); }
+function paceTxt(s, kind) { return fmtPace(cardioPace(s?.dist, setMinutes(s), kind), kind); }
 
 // ── Exercices au poids du corps : lest, aide et part du poids soulevée ──
 // Part du poids du corps réellement soulevée (charge effective = poids × part + lest, ou − aide) :

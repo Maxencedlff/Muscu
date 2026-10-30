@@ -23,6 +23,7 @@ const SCRIPTS = [
   'js/data/programmes.js',
   'js/data/tempo.js',
   'js/data/supersets.js',
+  'js/data/machine-track.js',
   'js/data/store.js',
   'js/data/records.js',
   'js/data/accessors.js',
@@ -1415,6 +1416,8 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 // ── Course et vélo : allure, entraînements de Santé (tests dans cardio.mjs) ──
 
 (await import('./cardio.mjs')).default({ test, run, reset, assert, sameJSON, nativeContext });
+// ── Machines de cardio : réglage noté au chrono, bilan, rameur, alias affiché (tests dans machines.mjs) ──
+(await import('./machines.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Synchronisation du compte (tests dans sync.mjs) ──
 (await import('./sync.mjs')).default({ test, run, assert, sameJSON });

@@ -365,6 +365,8 @@ const EXERCISE_HOWTO = {
     'Pousse et tire les poignées en rythme avec les jambes', 'Garde une cadence régulière'], 'Se pencher sur les poignées et s\'y appuyer'],
   'Rameur': [['Pieds sanglés, poignée en main, bras tendus', 'Pousse avec les jambes, bascule le buste, puis tire les bras',
     'Retour dans l\'ordre inverse : bras, buste, jambes', 'Souffle en tirant, inspire au retour'], 'Tirer avec les bras avant de pousser avec les jambes'],
+  'Escaliers': [['Monte à l\'arrêt, une main sur la rampe, puis lance la machine lentement', 'Buste droit, légèrement penché vers l\'avant depuis les hanches',
+    'Pose tout le pied sur la marche et pousse sur le talon', 'Les mains effleurent la rampe, sans porter ton poids'], 'Se suspendre aux rampes, buste plié : la machine travaille à ta place'],
   'Corde à sauter': [['Corde réglée : pied dessus, poignées à hauteur des aisselles', 'Coudes près du corps, la corde tourne avec les poignets',
     'Petits sauts sur l\'avant des pieds, genoux souples, souffle régulier'], 'Sauter trop haut ou tourner avec les bras'],
   'Marche rapide': [['Buste droit, regard devant', 'Pose le talon puis déroule le pied',

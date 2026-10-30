@@ -55,7 +55,7 @@ function renderStatsExercise(exId) {
   const color  = sec.cat ? sessionMeta(sec.cat, sec.prog).color : sessionMeta(it.cat, it.prog).color;
   const vals   = pts.map(p => cardio ? cardioMetric(p, cardioMode) : metricOf(p, bw));
   // lowerBetter : allure en min/km, la tendance qui baisse est un progrès
-  const lowerBetter = cardio && cardioMode === 'pace' && pk === 'pace';
+  const lowerBetter = cardio && cardioMode === 'pace' && (pk === 'pace' || pk === 'split');
   chartState   = { vals, dates: pts.map(p => p.date), points: pts, bw, mode: statsMode, color, xLabels: [], sel: null,
                    cardio: cardio ? cardioMode : null, paceKind: pk, lowerBetter };
 
@@ -103,6 +103,7 @@ function renderStatsExercise(exId) {
       ${navBar({ title: '' })}
       <div class="scr">
         <h1 class="scr-title">${esc(it.name)}</h1>
+        ${aliasNoteHtml(it.name, 'scr-sub ex-alias')}
         <div class="segmented seg-full" role="group" aria-label="Mesure affichée">
           ${modes.map(([m, l]) => `<button class="segmented__btn ${modeOn === m ? 'segmented__btn--active' : ''}" aria-pressed="${modeOn === m}" data-action="${cardio ? 'stats-cardio-mode' : 'stats-mode'}" data-mode="${m}">${l}</button>`).join('')}
         </div>
@@ -141,7 +142,7 @@ function resolveColor(el, c) {
 }
 
 function axisFmt(v) {
-  if (chartState.cardio === 'pace') return chartState.paceKind === 'speed' ? fmtNum(Math.round(v * 10) / 10) : fmtPace(v, 'pace').replace(' /km', '');
+  if (chartState.cardio === 'pace') return chartState.paceKind === 'speed' ? fmtNum(Math.round(v * 10) / 10) : fmtPace(v, 'pace').replace(' /km', '');   // aussi /500 m (même format m:ss)
   if (chartState.cardio === 'dist') return fmtNum(Math.round(v * 10) / 10);
   if (chartState.bw) return String(Math.round(v));
   // Volume : une seule unité pour toutes les graduations (t ou kg selon le maximum)

@@ -15,6 +15,11 @@ function flagInvalid(input, msg) {
 
 // Distance (cardio) : '' accepté, sinon 0 à MAX_DIST_KM km, virgule ou point
 function distOk(raw) { return String(raw ?? '').trim() === '' || num(raw, 0, MAX_DIST_KM) !== null; }
+// « = Pec deck » sous un nom qui est un alias d'une fiche de la bibliothèque (catalogueAliasOf) ; '' sinon
+function aliasNoteHtml(name, cls = 'ex-alias') {
+  const own = catalogueAliasOf(name);
+  return own ? `<div class="${cls}"><span class="visually-hidden">Même exercice que </span><span aria-hidden="true">= </span>${esc(own)}</div>` : '';
+}
 function distMsg() { return `Distance entre 0 et ${MAX_DIST_KM} km`; }
 function setDist(s, raw) {
   const km = String(raw ?? '').trim() === '' ? null : num(raw, 0, MAX_DIST_KM);

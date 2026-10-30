@@ -7,6 +7,7 @@
 // État dans la séance (persisté avec elle, repris après un rechargement) :
 // activeSession.effort = { ei, si, start, target, sides, side1Held?, side2Start? } : voir effortClock
 // (js/data/effort-clock.js) ; sides = 2 pour un exercice tenu d'un côté puis de l'autre.
+// kind 'tempo' : série guidée au tempo (effort-tempo.js) ; kind 'machine' : cardio sur machine (effort-machine.js)
 // Tout se calcule depuis les horodatages : le chrono reste juste si l'app passe en arrière-plan.
 let effortInterval = null;
 let effortLastSecond = null;  // dernière seconde affichée (bips et annonces une seule fois)
@@ -16,6 +17,7 @@ function effortStillValid() {
   const e = activeSession?.effort;
   const ex = e && activeSession.exercises[e.ei], s = ex?.sets[e.si];
   const m = measureOf(ex);
+  if (e?.kind === 'machine') return !!(s && !s.done && Number.isFinite(e.start) && hasMachineClock(ex) && e.cur && e.log);
   return !!(s && !s.done && Number.isFinite(e.start) && (e.kind === 'tempo' ? m === 'reps' && e.tempo : m === 'time'));
 }
 
@@ -49,6 +51,7 @@ function effortSheetHtml() {
 function updateEffortUI() {
   if (!effortStillValid()) { cancelEffort(); return; }
   if (activeSession.effort.kind === 'tempo') { updateTempoUI(activeSession.effort); return; }
+  if (activeSession.effort.kind === 'machine') { updateMachineUI(activeSession.effort); return; }
   const e = activeSession.effort, c = effortClock(e), two = e.sides === 2;
   const time = $('#effortTime'), sub = $('#effortSub'), bar = $('.sess-sheet--effort .rest-ring__bar'), stop = $('#effortStop');
   const sideTxt = two ? `Côté ${c.side} · ` : '';
@@ -89,9 +92,13 @@ function updateEffortUI() {
 function startEffort(ei, si) {
   const ex = activeSession?.exercises[ei], s = ex?.sets[si];
   if (!s || s.done) return;
+  // Chrono de machine déjà lancé sur cette série (feuille fermée d'un glissement) : il est rouvert
+  const cur = activeSession.effort;
+  if (cur?.kind === 'machine' && cur.ei === ei && cur.si === si && effortStillValid()) { openEffortSheet(); runEffortClock(); return; }
   if (restActive) { stopRest(); closeRestSheet(); removeRestUI(); }
   const target = num(s.reps, 1, MEASURES.time.max, true);
-  activeSession.effort = tempoEffort(ex, s, ei, si)
+  // Machine de cardio : chrono qui part tout de suite (la machine tourne déjà), sans préparation
+  activeSession.effort = tempoEffort(ex, s, ei, si) || machineEffort(ex, s, ei, si)
     || { ei, si, start: Date.now() + EFFORT_PREP_S * 1000, target, sides: bothSides(ex) ? 2 : 1 };
   effortLastSecond = null;
   persistSession();
@@ -101,6 +108,7 @@ function startEffort(ei, si) {
 }
 
 function openEffortSheet() {
+  if (activeSession.effort.kind === 'machine') { openMachineSheet(); return; }
   closeSessSheets();
   const root = openSessSheet({ cls: 'sess-sheet--effort', label: 'Chrono', html: effortSheetHtml() });
   root.style.setProperty('--cat-color', sessionMeta(activeSession.category, activeSession.programme).color);
@@ -146,6 +154,7 @@ function stopEffortEarly() {
   const e = activeSession?.effort;
   if (!e) return;
   if (e.kind === 'tempo') { stopTempoEarly(e); return; }
+  if (e.kind === 'machine') { stopMachine(e); return; }
   const c = effortClock(e), now = Date.now();
   if (c.phase === 'prep') { e.start = now; }
   else if (c.phase === 'switch') {
@@ -183,6 +192,7 @@ function resumeEffort() {
     if (!e.pausedRep) pauseTempo(e);
     resumeTempoAfterPause(e); openEffortSheet(); runEffortClock(); return;
   }
+  if (activeSession.effort.kind === 'machine') { openEffortSheet(); runEffortClock(); return; }   // chrono ou bilan, là où il en était
   const c = effortClock(activeSession.effort);
   if (c.phase === 'done') { const e = activeSession.effort; finishEffort(c.endAt, e.side1Held != null ? Math.min(e.side1Held, e.target) : e.target); return; }
   openEffortSheet();
@@ -200,5 +210,5 @@ document.addEventListener('visibilitychange', () => {
 registerActions({
   'start-effort': (e, el) => startEffort(parseInt(el.dataset.ei), parseInt(el.dataset.si)),
   'stop-effort': () => stopEffortEarly(),
-  'cancel-effort': () => cancelEffort(),
+  'cancel-effort': () => (activeSession?.effort?.kind === 'machine' ? cancelMachine(activeSession.effort) : cancelEffort()),
 });
