@@ -269,6 +269,14 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Compte Google Play (25 $), 12 testeurs pendant 14 jours | Après la sortie iPhone |
 | ○ | Parties natives, paiement Google Play, pré-inscription  | Après la sortie iPhone |
 
+### Après le payant · parrainage et tarifs
+
+|   | Quoi                                                                                      | Quand / état              |
+|---|-------------------------------------------------------------------------------------------|---------------------------|
+| ○ | Parrainage entre utilisateurs : 1 mois offert à l'ami et au parrain (quand l'ami paie)    | Après le payant + clé IAP |
+| ○ | Coachs vérifiés (carte pro), code unique, 20 % du net pendant 12 mois sur leurs élèves    | Branche payant (en cours) |
+| ○ | Tarifs : 6,49 €/mois, coach 15,99 à 29,99 € selon les élèves, annuel = 8,5 mois, élève −25 % | Branche payant (en cours) |
+
 ### Plus tard
 
 |   | Quoi                                                          | Quand / état          |
