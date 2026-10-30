@@ -99,6 +99,7 @@ ${renderAppIconGroup()}
           </div>
           <button class="cell cell--action" data-action="export"><span class="cell__title">Exporter les données</span></button>
           <button class="cell cell--action" data-action="import"><span class="cell__title">${account.user ? 'Importer un fichier d\'export' : 'Importer une sauvegarde'}</span></button>
+          <button class="cell cell--action" data-action="import-other-app"><span class="cell__body"><span class="cell__title">Importer depuis une autre app</span><span class="cell__sub">Hevy, Strong (fichier CSV)</span></span></button>
           <button class="cell cell--nav" data-action="go-trash">
             <span class="cell__body"><span class="cell__title">Supprimés récemment</span></span>
             <span class="cell__value num">${trashCount() || ''}</span>
