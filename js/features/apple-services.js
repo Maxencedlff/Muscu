@@ -444,6 +444,7 @@ registerActions({
     logBodyWeight(data.bodyWeightKg);   // courbe de Progrès sans Santé (jamais envoyée sur le compte)
     refreshSummaryBodyKg();
     save(); render(); showToast('Poids enregistré');
+    coachShareWeightsChanged();   // partagé avec le coach (case cochée) : la nouvelle pesée part aussi
   },
   'music-play':     async () => { haptic(); updateMusicBar(await Native.music.command('play')); },
   'music-pause':    async () => { haptic(); updateMusicBar(await Native.music.command('pause')); },

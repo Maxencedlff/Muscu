@@ -1,0 +1,182 @@
+// Partage avec le coach (js/data/coach-share.js) : ce qui part (pesées saisies seulement), quand (case cochée
+// sur le serveur, pesées changées), nettoyage de ce que renvoie le serveur, et volume relu par le coach
+// avec le poids de l'élève (js/data/session-review.js)
+import fs from 'node:fs';
+import path from 'node:path';
+
+export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
+  const DAY = 86400000;
+  // Faux serveur : RPC enregistrées dans __calls ; __answers[fn] donne la réponse (fonction ou valeur)
+  const setup = () => run(`(() => {
+    globalThis.__calls = [];
+    globalThis.__answers = {};
+    account.user = { id: 'u1' };
+    coachShareReset('u1');
+    coach.userId = 'u1';
+    coach.state = cleanCoachState({ is_coach: false, coach: { user_id: 'c1', username: 'max', since: '2026-10-01' } });
+    sb = { rpc: async (fn, args) => {
+      __calls.push([fn, args === undefined ? null : JSON.parse(JSON.stringify(args))]);
+      const a = __answers[fn];
+      const v = typeof a === 'function' ? a(args) : a;
+      return v && v.error ? { data: null, error: v.error } : { data: v ?? null, error: null };
+    } };
+  })()`);
+  const teardown = () => run('sb = null; account.user = null; coach.state = null; coachShareReset(null); delete globalThis.__calls; delete globalThis.__answers;');
+  const calls = () => run('__calls').map(c => c[0]);
+
+  test('partage coach : données prévues dans le modèle, seul le poids affiché ; mêmes données que le serveur', () => {
+    sameJSON(run('COACH_SHARE_KINDS.map(k => k.kind)'), ['weight', 'sleep', 'steps', 'resting_hr']);
+    sameJSON(run('coachShareKindsShown().map(k => k.kind)'), ['weight'], 'sommeil, pas, FC : pas avant la build HealthKit');
+    const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261031300000_partage_coach.sql'), 'utf8');
+    assert.match(sql, /kind in \('weight', 'sleep', 'steps', 'resting_hr'\)/, 'liste du serveur = COACH_SHARE_KINDS');
+    assert.match(sql, /\$\$ select kind = 'weight' \$\$/, 'seul le poids est ouvert côté serveur');
+  });
+
+  test('partage coach : seules les pesées saisies dans l\'app partent, nettoyées et bornées', () => {
+    reset();
+    run('data.bodyWeightKg = 80');
+    sameJSON(run('sharedWeightsPayload()'), [], 'poids de secours seul (sans pesée) : rien');
+    const t3 = Date.UTC(2026, 9, 20, 9, 37), t1 = Date.UTC(2026, 9, 18, 21, 5);
+    const day0 = t => new Date(t).setHours(0, 0, 0, 0);
+    run(`data.bodyWeightLog = [{ date: ${t3}, kg: 79.456, note: 'x' }, { date: ${t3 - DAY}, kg: 10 }, { date: 'x', kg: 80 }, { date: ${t1}, kg: 81 }]`);
+    sameJSON(run('sharedWeightsPayload()'), [{ date: day0(t3), kg: 79.46 }, { date: day0(t1), kg: 81 }], 'heure de la pesée jamais envoyée');
+    run(`data.bodyWeightLog = Array.from({ length: 450 }, (_, i) => ({ date: ${DAY} * (i + 1), kg: 80 }))`);
+    assert.equal(run('sharedWeightsPayload().length'), 400);
+    assert.ok(run('sharedWeightsPayload().every(p => new Date(p.date).getHours() === 0 && new Date(p.date).getMinutes() === 0)'));
+    // Rien d'autre de data : mensurations, historique, Santé
+    run(`data.bodyMeasures = { waist: [{ date: ${DAY}, cm: 80 }] }; data.healthOn = true;`);
+    assert.ok(run('sharedWeightsPayload().every(p => Object.keys(p).join() === "date,kg")'));
+  });
+
+  test('partage coach : état du serveur nettoyé (données connues seulement)', () => {
+    const st = run(`cleanShareState({ coach: true, shares: { weight: { granted_at: '2026-10-30T10:00:00Z', n: 3, last_at: 1780000000000 }, photos: { n: 1 }, sleep: 'x' } })`);
+    assert.equal(st.coach, true);
+    sameJSON(Object.keys(st.shares), ['weight']);
+    sameJSON(st.shares.weight, { grantedAt: Date.parse('2026-10-30T10:00:00Z'), n: 3, lastAt: 1780000000000 });
+    sameJSON(run('cleanShareState(null)'), { coach: false, shares: {} });
+    sameJSON(run(`cleanShareState({ shares: [1] })`).shares, {});
+  });
+
+  test('partage coach : rien n\'est envoyé tant que la case n\'est pas cochée sur le serveur', async () => {
+    reset();
+    try {
+      setup();
+      run(`data.bodyWeightLog = [{ date: ${5 * DAY}, kg: 80 }]`);
+      run(`__answers.student_shares = { coach: true, shares: {} }`);
+      assert.equal(await run('coachShareRefresh()'), true);
+      sameJSON(calls(), ['student_shares'], 'décoché par défaut : aucune pesée envoyée');
+      assert.equal(run('coachShareSummary()'), 'Rien');
+      sameJSON(await run('coachShareUpload({ force: true })'), { ok: true, skipped: true });
+      run('coachShareWeightsChanged()');
+      sameJSON(calls(), ['student_shares']);
+      // Donnée pas encore ouverte : refusée sans appel
+      assert.equal((await run(`coachShareSet('sleep', true)`)).kind, 'invalid_kind');
+      sameJSON(calls(), ['student_shares']);
+      // Sans coach : l'état est oublié, rien n'est lu
+      run('coach.state = cleanCoachState({ coach: null })');
+      assert.equal(await run('coachShareRefresh()'), false);
+      assert.equal(run('coachShareSummary()'), null);
+      sameJSON(calls(), ['student_shares']);
+    } finally { teardown(); }
+  });
+
+  test('partage coach : cocher envoie les pesées, puis seulement quand elles changent ; décocher oublie', async () => {
+    reset();
+    try {
+      setup();
+      run(`data.bodyWeightLog = [{ date: ${5 * DAY}, kg: 80 }]`);
+      const on = { coach: true, shares: { weight: { granted_at: '2026-10-30T10:00:00Z', n: 0, last_at: null } } };
+      run(`__answers.student_set_share = a => a.enabled ? ${JSON.stringify(on)} : { coach: true, shares: {} }`);
+      run(`__answers.student_share_weights = a => a.weights.length`);
+      sameJSON((await run(`coachShareSet('weight', true)`)).ok, true);
+      sameJSON(run('__calls'), [['student_set_share', { kind: 'weight', enabled: true }], ['student_share_weights', { weights: run('sharedWeightsPayload()') }]]);
+      assert.equal(run('coachShareSummary()'), 'Poids du corps');
+      assert.equal(run('coachShare.state.shares.weight.n'), 1);
+      // Relecture sans changement : rien de renvoyé
+      run(`__answers.student_shares = ${JSON.stringify(on)}`);
+      await run('coachShareRefresh()');
+      sameJSON(calls().slice(2), ['student_shares']);
+      // Nouvelle pesée : renvoyée (liste entière, miroir)
+      run(`logBodyWeight(81, ${6 * DAY})`);
+      run('coachShareWeightsChanged()');
+      await run('Promise.resolve()'); await new Promise(r => setTimeout(r, 0));
+      assert.equal(calls().at(-1), 'student_share_weights');
+      assert.equal(run('__calls').at(-1)[1].weights.length, 2);
+      // Décocher : appel au serveur (qui efface tout), empreinte locale oubliée
+      await run(`coachShareSet('weight', false)`);
+      sameJSON(run('__calls').at(-1), ['student_set_share', { kind: 'weight', enabled: false }]);
+      assert.equal(run('localStorage.getItem(COACH_SHARE_KEY)'), null);
+      assert.equal(run('coachShareOn("weight")'), false);
+      run('coachShareWeightsChanged()');
+      assert.equal(calls().at(-1), 'student_set_share', 'décoché : plus rien ne part');
+    } finally { teardown(); }
+  });
+
+  test('partage coach : un second appareil sans pesées n\'écrase pas celles du premier à la connexion', async () => {
+    reset();
+    try {
+      setup();   // appareil neuf : aucune pesée, jamais rien envoyé
+      run(`__answers.student_shares = { coach: true, shares: { weight: { granted_at: '2026-10-30T10:00:00Z', n: 100 } } }`);
+      run(`__answers.student_share_weights = a => a.weights.length`);
+      await run('coachShareRefresh()');
+      sameJSON(calls(), ['student_shares'], 'relecture : rien envoyé (pas de liste vide)');
+      // Pesée saisie ici : geste explicite, la liste de l'appareil part ; ensuite les relectures suivent
+      run(`logBodyWeight(70, ${7 * DAY}); coachShareWeightsChanged()`);
+      await new Promise(r => setTimeout(r, 0));
+      assert.equal(calls().at(-1), 'student_share_weights');
+    } finally { teardown(); }
+  });
+
+  test('partage coach : coupé ailleurs (not_shared) ou hors ligne', async () => {
+    reset();
+    try {
+      setup();
+      run(`data.bodyWeightLog = [{ date: ${5 * DAY}, kg: 80 }]`);
+      run(`__answers.student_shares = { coach: true, shares: { weight: { granted_at: '2026-10-30T10:00:00Z', n: 0 } } }`);
+      run(`__answers.student_share_weights = { error: { message: 'not_shared' } }`);
+      run(`localStorage.setItem(COACH_SHARE_KEY, JSON.stringify({ userId: 'u1', coachId: 'c1', hash: 'ancien' }))`);   // cet appareil a déjà envoyé
+      await run('coachShareRefresh()');
+      assert.equal(run('coachShareOn("weight")'), false, 'décoché sur un autre appareil : l\'état suit');
+      run(`__answers.student_set_share = { coach: true, shares: { weight: { granted_at: '2026-10-30T10:00:00Z', n: 0 } } }`);
+      run(`__answers.student_share_weights = { error: { message: 'TypeError: Failed to fetch' } }`);
+      const r = await run(`coachShareSet('weight', true)`);
+      sameJSON([r.ok, r.uploadFailed], [true, 'offline'], 'coché, envoi à refaire');
+      assert.ok(!String(run('localStorage.getItem(COACH_SHARE_KEY)')).includes(run('syncHash(sharedWeightsPayload())')), 'rien de marqué « envoyé »');
+    } finally { teardown(); }
+  });
+
+  test('partage coach : pesées reçues par le coach nettoyées, rien sans partage', () => {
+    const w = run(`cleanCoachWeights({ shared: true, since: '2026-10-30T10:00:00Z', weights: [{ date: ${1 * DAY}, kg: 81 }, { date: ${3 * DAY}, kg: '79.5' }, { date: 'x', kg: 80 }, { date: ${2 * DAY}, kg: 500 }] })`);
+    sameJSON(w.weights, [{ date: 3 * DAY, kg: 79.5 }, { date: 1 * DAY, kg: 81 }]);
+    assert.equal(w.since, Date.parse('2026-10-30T10:00:00Z'));
+    sameJSON(run(`cleanCoachWeights({ shared: false, weights: [{ date: 1, kg: 80 }] })`), { shared: false, since: null, weights: [] });
+    sameJSON(run('cleanCoachWeights(null)'), { shared: false, since: null, weights: [] });
+  });
+
+  test('relecture coach : poids de l\'élève compté quand il le partage, écart sous une même règle', () => {
+    reset();
+    run('data.bodyWeightKg = 95');   // poids du coach : jamais utilisé
+    const ex = (name, sets) => ({ name, sets: sets.map(([weight, reps]) => ({ weight: String(weight), reps: String(reps) })) });
+    const exs = [ex('Squat barre', [[100, 5]]), ex('Tractions pronation', [['', 10]])];
+    const row = (id, day, extra = {}) => ({ id, doneAt: day * DAY, s: { date: day * DAY, programme: 'ppl', category: 'pull', label: 'Pull', exercises: exs, ...extra } });
+    const R = rows => run(`(${JSON.stringify(rows)})`);
+    run(`globalThis.__r = ${JSON.stringify([row('b', 5, { bodyKg: 80 }), row('a', 3, { bodyKg: 82 }), row('z', 1)])}`);
+    const rv = run('sessionReview(__r[0], __r)');
+    assert.equal(rv.bodyKg, 80);
+    const share = run(`bodyShare({ name: 'Tractions pronation' })`);
+    assert.ok(share > 0.5);
+    assert.equal(rv.volume, 500 + 80 * share * 10, 'tractions : part soulevée de 80 kg × 10');
+    assert.equal(rv.exercises[1].volume, 80 * share * 10);
+    // a : 500 + 820 ; b : 1300 → −1 % : « = »
+    sameJSON(rv.volDelta, { dir: 'same', pct: 0 });
+    // Référence sans poids : les deux comparées sans poids du corps (500 contre 500)
+    const rv2 = run('sessionReview(__r[1], [__r[1], __r[2]])');
+    assert.equal(rv2.volume, 500 + 82 * share * 10);
+    sameJSON(rv2.volDelta, { dir: 'same', pct: 0 }, 'pas de +164 % artificiel');
+    // Sans poids partagé : comportement d'avant (lest seul)
+    const rv3 = run('sessionReview(__r[2], [__r[2]])');
+    assert.equal(rv3.bodyKg, null);
+    assert.equal(rv3.volume, 500);
+    R([]);
+  });
+}

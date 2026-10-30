@@ -79,11 +79,13 @@ function cleanCoachState(raw) {
 }
 
 // Séance d'un élève vue par son coach : liste blanche private.session_for_coach (celle du social, plus
-// notes, hidden et id) ; textes bruts bornés (échappés à l'affichage)
+// notes, hidden et id) ; textes bruts bornés (échappés à l'affichage). bodyKg : seulement si l'élève me
+// partage son poids (serveur : private.coach_session_body ; js/data/coach-share.js), sinon absent
 function cleanCoachSession(s) {
   const base = cleanPublicSession(s);
   const o = s && typeof s === 'object' ? s : {};
-  return { ...base, notes: coachStr(o.notes, 2000), hidden: o.hidden === true };
+  const bodyKg = typeof cleanSessionBodyKg === 'function' ? cleanSessionBodyKg(o.bodyKg) : null;
+  return { ...base, notes: coachStr(o.notes, 2000), hidden: o.hidden === true, ...(bodyKg ? { bodyKg } : {}) };
 }
 
 // Ligne de coach_student_sessions : { id, doneAt, s, note }, null si inutilisable
@@ -174,7 +176,7 @@ function coachErrorKind(error) {
   if (!error) return null;
   if (isNetworkError(error) || /fetch|network|load failed/i.test(String(error.message || ''))) return 'offline';
   const msg = String(error.message || error.error || '');
-  for (const k of ['not_coach', 'already_coached', 'invalid_code', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required']) if (msg.includes(k)) return k;
+  for (const k of ['not_coach', 'already_coached', 'invalid_code', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required', 'not_shared', 'invalid_kind', 'invalid_data']) if (msg.includes(k)) return k;
   return 'server';
 }
 const COACH_ERROR_TEXT = {
@@ -189,6 +191,10 @@ const COACH_ERROR_TEXT = {
   invalid_programme: 'Ce programme ne peut pas être envoyé.',
   username_required: 'Choisis d\'abord un pseudo : ton coach te reconnaîtra avec.',
   too_big: 'Programme trop gros pour être envoyé.',
+  // Partage avec le coach (js/data/coach-share.js)
+  not_shared: 'Ce partage est coupé : coche-le à nouveau pour l\'envoyer.',
+  invalid_kind: 'Ce partage n\'est pas encore disponible.',
+  invalid_data: 'Pesées illisibles : rien n\'a été envoyé.',
   signed_out: 'Connecte-toi d\'abord à ton compte.',
   server: 'Action impossible pour l\'instant, réessaie dans un moment.',
 };
@@ -450,6 +456,8 @@ async function coachRefresh({ minAge = 0 } = {}) {
     else coach.inbox = null;
     if (seq !== coachSeq) return false;
     writeCoachInbox();
+    // Élève : ce qu'il partage avec son coach, et ses pesées si elles ont changé (js/data/coach-share.js)
+    if (typeof coachShareRefresh === 'function') coachShareRefresh();
   }
   coach.loading = false;
   notifyCoach();
@@ -501,7 +509,7 @@ async function coachRevokeInvite(code) {
 }
 async function coachRemoveStudent(student) {
   const r = await coachRpc('coach_remove_student', { student });
-  if (r.ok) { delete coach.sessions[student]; await coachRefresh(); }
+  if (r.ok) { delete coach.sessions[student]; if (typeof coachWeights === 'object') delete coachWeights[student]; await coachRefresh(); }
   return r;
 }
 
