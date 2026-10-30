@@ -229,12 +229,27 @@ FAKE_ACCOUNT = r"""
   const myPosts = id => { const m = new Map(); for (const r of sb.upserted || []) m.set(r.id, { id: r.id, data: r.data, deleted_at: r.deleted_at }); return [...m.values()]; };
   const postsOf = id => (id === sb.meId() ? myPosts(id) : so.posts[id] || []);
   const shown = p => !p.deleted_at && p.data && p.data.hidden !== true && Number.isFinite(p.data.date);
-  // private.session_public : liste blanche, rien d'autre ne sort
+  // private.session_public : liste blanche, rien d'autre ne sort. records (private.session_records), warmup et rir
+  // par série : migration 20261031100000_records_series.sql
+  const pubSet = st => {
+    const sc = v => (['string', 'number', 'boolean'].includes(typeof v) ? v : undefined);
+    return { weight: sc(st.weight), reps: sc(st.reps), dist: sc(st.dist), warmup: st.warmup === true ? true : undefined,
+      rir: Number.isInteger(st.rir) && st.rir >= 0 && st.rir <= 4 ? st.rir : undefined };
+  };
+  const pubRecords = v => {
+    if (!Array.isArray(v)) return undefined;
+    const n = x => typeof x === 'number' && x >= 0 && x <= 100000, D = [0.5, 1, 2, 5, 10];
+    return v.slice(0, 20).filter(r => r && typeof r === 'object' && typeof r.ex === 'string' && r.ex.trim()
+      && ['charge', 'reps', 'lest', 'aide', 'temps', 'duree', 'distance', 'allure'].includes(r.kind) && n(r.before) && n(r.after)
+      && (r.kind !== 'allure' || D.includes(r.d)))
+      .map(r => ({ ex: r.ex.slice(0, 80), kind: r.kind, before: r.before, after: r.after, w: n(r.w) ? r.w : undefined, d: D.includes(r.d) ? r.d : undefined }));
+  };
   const sessionPublic = d => {
     const sc = v => (['string', 'number', 'boolean'].includes(typeof v) ? v : undefined);
     const strip = o => JSON.parse(JSON.stringify(o));
     return strip({ date: sc(d.date), duration: sc(d.duration), programme: sc(d.programme), category: sc(d.category), label: sc(d.label),
-      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), sets: (e.sets || []).map(st => ({ weight: sc(st.weight), reps: sc(st.reps), dist: sc(st.dist) })) })) });
+      records: pubRecords(d.records),
+      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), sets: (e.sets || []).map(pubSet) })) });
   };
   const limit = (me, action, max) => { const k = me + action; so.day[k] = (so.day[k] || 0) + 1; return so.day[k] > max; };
   const bravoCount = (owner, sid) => so.bravos.filter(b => b.owner === owner && b.sid === sid).length;
@@ -345,7 +360,7 @@ FAKE_ACCOUNT = r"""
   const sessionForCoach = (id, d) => {
     const sc = v => (['string', 'number', 'boolean'].includes(typeof v) ? v : undefined);
     return JSON.parse(JSON.stringify({ ...sessionPublic(d), notes: sc(d.notes), hidden: sc(d.hidden), id,
-      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), ss: sc(e.ss), sets: (e.sets || []).map(st => ({ weight: sc(st.weight), reps: sc(st.reps), dist: sc(st.dist) })) })) }));
+      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), ss: sc(e.ss), sets: (e.sets || []).map(pubSet) })) }));
   };
   const noteAlive = n => livePosts(n.student).some(p => p.id === n.sid);
   const livePosts = id => postsOf(id).filter(p => !p.deleted_at && p.data && Number.isFinite(p.data.date));

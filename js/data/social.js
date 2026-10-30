@@ -83,13 +83,18 @@ function cleanPublicSession(s) {
       ...(['reps', 'time', 'cardio'].includes(e.measure) ? { measure: e.measure } : pinnedLegacyMeasure(e.name)),
       ...(ssId(e) ? { ss: e.ss } : {}),
       sets: (Array.isArray(e.sets) ? e.sets : []).slice(0, 50).filter(st => st && typeof st === 'object')
-        .map(st => ({ weight: numStr(st.weight), reps: numStr(st.reps), ...(numStr(st.dist) ? { dist: numStr(st.dist) } : {}) })),
+        .map(st => ({ weight: numStr(st.weight), reps: numStr(st.reps), ...(numStr(st.dist) ? { dist: numStr(st.dist) } : {}),
+          // Échauffement (true seulement) et RIR (entier 0 à 4), envoyés depuis la migration 20261031100000_records_series.sql
+          ...(st.warmup === true ? { warmup: true } : {}), ...(typeof st.rir === 'number' && cleanRir(st.rir) !== null ? { rir: cleanRir(st.rir) } : {}) })),
     }));
+  // Records notés par son app (js/data/records.js) ; absents : séance d'une version d'avant, recalculés
+  const records = cleanNotedRecords(o.records);
   return {
     date: Number.isFinite(o.date) ? o.date : null,
     duration: Number.isFinite(o.duration) && o.duration > 0 ? o.duration : null,
     programme: str(o.programme, 40), category: str(o.category, 40),
     label: str(o.label, 60).trim() || 'Séance', exercises,
+    ...(records ? { records } : {}),
   };
 }
 

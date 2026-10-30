@@ -24,7 +24,7 @@ Hors V1 : paiement, push, plusieurs coachs pour un élève, groupes d'élèves, 
 - `coach_notes (coach_id, student_id, session_id text, text, updated_at, seen_at)`, clé `(student_id, session_id)` : commentaire du coach sur une séance de l'élève, 1000 caractères au plus, `seen_at` pour le badge.
 
 ## Ce que le coach voit d'un élève
-Ses séances complètes, notes de séance comprises, **sans** `bodyKg` ni `healthSaved` : liste blanche `private.session_for_coach` = celle de `private.session_public` + `notes` + `hidden` + `id`. Les séances masquées aux abonnés restent visibles du coach (il est là pour ça), et l'écran d'acceptation le dit.
+Ses séances complètes, notes de séance comprises, **sans** `bodyKg` ni `healthSaved` : liste blanche `private.session_for_coach` = celle de `private.session_public` + `notes` + `hidden` + `id` (donc, depuis la migration 20261031100000_records_series.sql, les records notés, l'échauffement et le RIR de chaque série : voir docs/SOCIAL_V1.md). Les séances masquées aux abonnés restent visibles du coach (il est là pour ça), et l'écran d'acceptation le dit.
 Ses programmes perso : non en V1 (le coach envoie les siens).
 
 ## Séances faites avec le programme du coach (ajout du 27/10)

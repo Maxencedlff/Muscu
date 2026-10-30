@@ -26,6 +26,7 @@ function restoreFromTrash(id) {
   const [{ entry }] = data.trash.splice(idx, 1);
   data.history.push(entry);
   data.history.sort((a, b) => b.date - a.date);
+  renoteRecords(entry);   // records notés de la séance et de celles d'après (js/data/records.js)
   // Le délai de récupération reprend la date de la séance si elle est la plus récente de sa catégorie
   const timers = data.programmes[entryProg(entry)]?.timers;
   if (timers && entry.date > (timers[entry.category] || 0)) timers[entry.category] = entry.date;

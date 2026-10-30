@@ -97,6 +97,8 @@
   font-size: var(--fs-subhead); line-height: 1.35; color: var(--label);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
 }
+/* Record noté mis en avant : une ligne sobre, en or lisible (--gold-text) */
+.feed-card__rec { margin-top: 2px; font-size: var(--fs-subhead); line-height: 1.35; font-weight: 600; color: var(--gold-text); overflow-wrap: anywhere; }
 .feed-card__foot { display: flex; align-items: center; gap: 10px; padding: 0 16px 6px; box-shadow: inset 0 .5px 0 var(--sep); margin-left: 16px; padding-left: 0; }
 
 /* Bravo : bouton texte sobre, plein à la teinte une fois donné */

@@ -305,10 +305,46 @@ def t_record_ami(bench, eng, dev, theme):
         d = page.inner_text('.social-session-view')
         R.check(page.locator('.social-session-view .tile').first.inner_text().startswith('1,1 t'), f'{t} volume sans poids du corps : 1 080 kg, soit 1,1 t ({d[:200]!r})')
         rec = page.inner_text('.social-session-view .review-rec')
-        R.check(page.locator('.social-session-view .review-rec').count() == 1 and 'Squat haltère' in rec and 'Record charge' in rec and '22,5 kg × 12' in rec and 'avant' not in rec, f'{t} un record nommé, sans ancienne valeur ({rec!r})')
+        R.check(page.locator('.social-session-view .review-rec').count() == 1 and 'Squat haltère' in rec and 'Record charge' in rec and '22,5 kg' in rec and 'avant' not in rec, f'{t} un record nommé, sans ancienne valeur ({rec!r})')
         R.check(page.locator('.social-session-view .review-trend').count() == 0, f'{t} aucune flèche')
         layout(page, t, 'séance d\'un ami avec record')
         shot(page, LOT, f'5b-seance-ami-record-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_record_note(bench, eng, dev, theme):
+    """Records notés par l'app de l'ami : sur la carte du fil (« Nouveau record : Squat 100 kg ») et dans sa
+    séance, même quand ses séances ne sont pas toutes chargées ; échauffement hors des séries et du volume."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, enable=True)
+        now = int(time.time() * 1000)
+        top = {'id': 'n0', 'date': now - DAY, 'duration': 2400_000, 'programme': 'ppl', 'category': 'legs', 'label': 'Legs',
+               'records': [{'ex': 'Gainage', 'kind': 'temps', 'before': 60, 'after': 75}, {'ex': 'Squat', 'kind': 'charge', 'before': 95, 'after': 100},
+                           {'ex': 'Squat', 'kind': '1rm', 'before': 110, 'after': 115}],
+               'exercises': [{'name': 'Squat', 'sets': [{'weight': '40', 'reps': '8', 'warmup': True}, {'weight': '100', 'reps': '5', 'rir': 1}]}]}
+        # 25 séances visibles en tout : le fil n'en charge que 20
+        page.evaluate("""(s) => { const id = __sb.addPerson({ username: 'nina', avatar: '🦊', sessions: s }); __sb.follow(__sb.meId(), id, 'accepted'); }""",
+                      [top] + sessions('m', 24, start_days=2))
+        page.evaluate('socialRefresh()')
+        page.wait_for_timeout(300)
+        friends_tab(page)
+        page.wait_for_selector('.feed-card[data-id="n0"]')
+        card = page.inner_text('.feed-card[data-id="n0"]').replace('\u202f', ' ').replace('\u00a0', ' ')
+        R.check('Nouveau record : Squat 100 kg' in card, f'{t} carte : record le plus marquant ({card!r})')
+        R.check(page.locator('.feed-card__rec').count() == 1, f'{t} seule la séance qui a des records notés en montre un')
+        layout(page, t, 'fil avec record')
+        shot(page, LOT, f'4c-fil-record-{t}')
+        page.locator('.feed-card[data-id="n0"] .feed-card__main').click()
+        page.wait_for_selector('.social-session-view .review-rec')
+        rec = page.inner_text('.social-session-view .review-rec')
+        R.check('Squat' in rec and 'Record charge' in rec and '100 kg' in rec, f'{t} séance : record noté sans recalcul ({rec!r})')
+        tiles = page.locator('.social-session-view .tile').all_inner_texts()
+        R.check(tiles[0].startswith('500') and tiles[2].startswith('1'), f'{t} échauffement hors du volume et des séries ({tiles})')
+        d = page.inner_text('.social-session-view')
+        R.check('Échauffement 40 kg × 8' in d.replace('\u202f', ' ').replace('\u00a0', ' ') and 'RIR' not in d, f'{t} échauffement à part, RIR réservé au coach')
+        shot(page, LOT, f'5c-seance-ami-record-note-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -612,4 +648,4 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_tabbar_sans_compte, t_activation, t_fil, t_record_ami, t_profil, t_gerer, t_masquer, t_bilan_visible, t_hors_ligne])
+run_main(R, [t_tabbar_sans_compte, t_activation, t_fil, t_record_ami, t_record_note, t_profil, t_gerer, t_masquer, t_bilan_visible, t_hors_ligne])

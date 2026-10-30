@@ -74,12 +74,24 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     run(`globalThis.__rows = ${JSON.stringify(rows)}`);
     const recs = run('reviewRecords(__rows[1], __rows)');
     assert.equal(recs.length, 3, 'au plus 3');
-    sameJSON(recs.map(r => [r.ex.name, r.label]), [['Squat haltère', 'Record charge'], ['Leg curl', 'Record charge'], ['Presse à cuisses', 'Record charge']], 'charge d\'abord');
-    sameJSON([recs[0].before.w, recs[0].before.r], [20, 12], 'ancienne valeur');
+    sameJSON(recs.map(r => [r.ex, r.kind]), [['Squat haltère', 'charge'], ['Leg curl', 'charge'], ['Presse à cuisses', 'charge']], 'charge d\'abord');
+    sameJSON([recs[0].before, recs[0].after], [20, 22.5], 'ancienne valeur');
     const all = run('reviewRecords(__rows[1], __rows, 10)');
-    assert.ok(all.some(r => r.ex.name === 'Soulevé de terre roumain' && r.label === 'Record reps'), 'reps à charge égale');
-    assert.ok(!all.some(r => r.ex.name === 'Mollets debout haltères'), 'moins lourd, plus de reps : pas un record (1RM estimé écarté)');
+    assert.ok(all.some(r => r.ex === 'Soulevé de terre roumain' && r.kind === 'reps' && r.before === 12 && r.after === 14 && r.w === 16), 'reps à charge égale');
+    assert.ok(!all.some(r => r.ex === 'Mollets debout haltères'), 'moins lourd, plus de reps : pas un record (1RM estimé écarté)');
+    assert.equal(run('reviewRecordsSure(__rows[1], false)'), false, 'recalculé sur une partie : pas sûr');
     sameJSON(run('reviewRecords(__rows[0], __rows)'), [], 'première séance : rien à battre');
+  });
+
+  test('relecture : records notés par son app pris tels quels (sans recalcul ni séances chargées), échauffement hors volume', () => {
+    reset();
+    const noted = [{ ex: 'Gainage', kind: 'temps', before: 60, after: 75 }, { ex: 'Squat', kind: 'charge', before: 95, after: 100 }];
+    const rows = [row('b', 2, [{ name: 'Squat', sets: [{ weight: '40', reps: '8', warmup: true }, { weight: '100', reps: '5', rir: 2 }] }], { records: noted })];
+    run(`globalThis.__rows = ${JSON.stringify(rows)}`);
+    sameJSON(run('reviewRecords(__rows[0], __rows)').map(r => r.ex), ['Squat', 'Gainage'], 'le plus marquant d\'abord, sans séance d\'avant chargée');
+    assert.equal(run('reviewRecordsSure(__rows[0], false)'), true);
+    assert.equal(run('reviewVolume(__rows[0].s.exercises)'), 500, 'échauffement exclu');
+    sameJSON(run('reviewRecords({ ...__rows[0], s: { ...__rows[0].s, records: [] } }, __rows)'), [], 'notés vides : aucun record, même recalculable');
   });
 
   test('relecture : mots de douleur (mise en avant, sans faux positif courant)', () => {
