@@ -161,7 +161,8 @@ def t_outils(bench, eng, dev, theme):
         page.locator('.hcell').first.click(); page.wait_for_selector('.view.history-detail'); page.wait_for_timeout(300)
         notes = page.locator('.hex__sets--note').all_inner_texts()
         R.check(any(n.startswith('Échauffement 25 kg × 8') for n in notes) and any(n.startswith('RIR 0 · —') for n in notes), f'{t} détail : lignes Échauffement et RIR {notes}')
-        R.check(page.locator('.hex__sets').first.inner_text().startswith('60 kg × 8'), f'{t} détail : séries de travail seules ({page.locator(".hex__sets").first.inner_text()})')
+        work = page.locator('.hex__sets').first.inner_text()
+        R.check(work.startswith('60 kg × ') and '25 kg' not in work and '35 kg' not in work and work.count('·') == 1, f'{t} détail : deux séries de travail seules ({work})')
         shot(page, LOT, f'{t}-06-historique')
         # Progrès › Exercice : courbe Effort proposée pour le Squat barre
         page.evaluate("navigate(makeRoute('stats-ex', 'g1squatb'))"); page.wait_for_selector('.view.stats-ex'); page.wait_for_timeout(300)
@@ -174,7 +175,7 @@ def t_outils(bench, eng, dev, theme):
 
 
 def t_reglage(bench):
-    """Réglage « RIR après chaque série » : désactivé, plus de sélecteur ; restauration d'une séance avec échauffement."""
+    """Réglage « Noter le RIR » : désactivé, plus de sélecteur ; restauration d'une séance avec échauffement."""
     with bench.page('chromium', 'Pixel 7', 'dark') as page:
         seed(page, 'dark', ppl_v2_today_json())
         page.evaluate("navigate('settings')"); page.wait_for_selector('.settings-view'); page.wait_for_timeout(200)

@@ -282,20 +282,10 @@ function show(dir = 'none') {
   } catch { update(); }
 }
 
-// Navigateur piloté par les tests (verif_ui, captures) : « #progress/body-measures » ouvre cet écran au
-// démarrage. Jamais pour une vraie personne : l'app repart de l'accueil, le hash n'est qu'un reflet de la navigation.
-function navFromHash() {
-  if (!navigator.webdriver) return;
-  const [tab, ...rest] = location.hash.slice(1).split('/').filter(Boolean);
-  if (!TABS[tab] || !rest.length) return;
-  nav = navSanitize({ tab, stacks: { ...nav.stacks, [tab]: [TABS[tab].root, ...rest.map(decodeURIComponent)] } });
-}
-
 // Démarrage : #train, ou un écran repris au-dessus de la racine de son onglet
 // (start = { tab, route } : séance restaurée, séance passée en cours de saisie)
 function navBoot(start = null) {
   navIndex = 0; navHist = []; navDup = [];
-  if (!start) navFromHash();
   navWrite('replace');
   if (start) {
     if (start.tab !== nav.tab) { nav.tab = start.tab; navWrite('replace'); }

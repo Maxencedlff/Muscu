@@ -1,7 +1,7 @@
 # Import depuis Hevy et Strong (fichiers CSV d'export)
 
 But (lot 2, point 5 de la feuille de route) : quelqu'un qui quitte Hevy ou Strong garde tout son historique
-dans MDLF Training. Réglages › Données › **Importer depuis une autre app** : choix du fichier, aperçu, import.
+dans MDLF Training. Réglages › Données › Sauvegarde › **Importer depuis une autre app** : choix du fichier, aperçu, import.
 
 Code : `js/data/import-csv.js` (logique pure, testée dans `tests/unit/import-csv.mjs`), `js/features/import-ui.js`
 (feuille d'aperçu et de lien), `tests/test_import.py` (bout en bout), jeux d'essai `tests/donnees/hevy_exemple.csv`

@@ -17,6 +17,7 @@
   --fill2:  rgba(120,120,128,.24);
   --tint:   #0A84FF;
   --tint-fill: #0A6CDB;         /* fond des boutons pleins : texte blanc à 5:1 */
+  --tint-on-fill: #64AFFF;      /* texte bleu sur --fill (bouton secondaire) : 4,7:1 sur cellule, 6:1 sur fond */
   --on-tint: #FFFFFF;
   --green:  #30D158; --red: #FF453A; --orange: #FF9F0A;
   --yellow: #FFD60A; --indigo: #5E5CE6; --teal: #40C8E0; --purple: #BF5AF2;
@@ -79,6 +80,7 @@ body.light {
   --fill2:  rgba(120,120,128,.12);
   --tint:   #0066CC;
   --tint-fill: #0066CC;
+  --tint-on-fill: #005BB8;      /* texte bleu sur --fill : 4,7:1 sur fond, 5,2:1 sur cellule */
   --green:  #34C759; --red: #FF3B30; --orange: #FF9500;
   --yellow: #FFCC00; --indigo: #5856D6; --teal: #30B0C7; --purple: #AF52DE;
   --green-text: #1F7A35; --red-text: #D70015; --orange-text: #C93400; --gold-text: #A05A00;
@@ -153,7 +155,7 @@ input, textarea, select { font-family: inherit; }
 .btn--primary   { background: var(--tint-fill); color: var(--on-tint); }
 /* Bouton plein désactivé : fond gris et texte atténué plutôt qu'une teinte transparente (illisible sur noir) */
 .btn--primary:disabled { opacity: 1; background: var(--fill); color: var(--label-disabled); }
-.btn--secondary { background: var(--fill); color: var(--tint); }
+.btn--secondary { background: var(--fill); color: var(--tint-on-fill); }
 .btn--danger    { background: var(--fill); color: var(--red-text); }
 .btn--full { width: 100%; }
 

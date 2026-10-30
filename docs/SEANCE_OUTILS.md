@@ -12,7 +12,7 @@ obligatoire : valider une série reste un seul toucher sur ✓.
 | RIR : nettoyage, équivalence RPE, effort moyen, ligne de l'historique | `js/data/rir.js` |
 | Feuilles « Disques » et « Échauffement », actions | `js/features/session-tools.js` |
 | Lignes de séries (É, bouton Disques, sélecteur RIR), toasts | `js/features/session.js` |
-| Interrupteur « RIR après chaque série » | `js/features/settings.js` (Réglages › Séance) |
+| Interrupteur « Noter le RIR » | `js/features/settings.js` (Réglages › Entraînement) |
 | Courbe « Effort » (RPE moyen) | `js/features/progress-chart.js`, `exPoint` dans `progress.js` |
 | Tests unitaires | `tests/unit/seance-outils.mjs` |
 | Tests E2E | `tests/test_seance_outils.py` |
@@ -61,7 +61,7 @@ obligatoire : valider une série reste un seul toucher sur ✓.
   apparaît sous la dernière série validée, avec l'équivalent RPE du choix (RIR 0 = RPE 10, 1 = 9, 2 = 8, 3 = 7,
   4+ = ≤ 6 : échelle de Zourdos et al., *J Strength Cond Res*, 2016). Même toucher = effacé. Une série validée
   rouverte montre aussi le sélecteur ; les autres séries notées portent un badge « RIR 2 ».
-- Réglage : Réglages › Séance › « RIR après chaque série » (`data.rirOn`, vrai par défaut, propre à l'appareil).
+- Réglage : Réglages › Entraînement › « Noter le RIR » (`data.rirOn`, vrai par défaut, propre à l'appareil).
 - Stockage : `rir` entier 0 à 4 sur la série, absent sinon (`cleanRir`).
 - Affichage : Historique › Séance, ligne « RIR 2 · — · 1 » sous les séries ; Progrès › Exercice, courbe
   « Effort » (RPE moyen des séries notées, échelle fixe 6 à 10, sans tendance en %) dès qu'une séance en a,

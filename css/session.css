@@ -233,7 +233,7 @@ body.kb-open .rest-mini { transform: translateY(140%); opacity: 0; pointer-event
   background: var(--fill); color: var(--label); font-size: 0.882rem; font-weight: 600; white-space: nowrap; cursor: pointer;
 }
 .rest-mini .rest-mini__skip {
-  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; color: var(--tint);
+  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; color: var(--tint-on-fill);
 }
 .rest-mini__btn:active, .rest-mini .rest-mini__skip:active { opacity: .6; }
 .rest-mini__next {
@@ -531,16 +531,17 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 /* RIR (js/data/rir.js) : sélecteur 0 à 4+ sous la dernière série validée, badge « RIR 2 » sur les autres */
 /* Sous la ligne (hors de son bouton « Modifier »), aligné sur la colonne « Avant » */
 .set-swipe .rir {
-  position: relative; z-index: 1; display: flex; align-items: center; gap: 4px; min-width: 0;
+  position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; min-width: 0;
   padding: 0 6px 6px calc(34px + var(--set-gap) + 6px); background: var(--cell); border-radius: 0 0 var(--r-sm) var(--r-sm);
 }
 @media (max-width: 374px) { .set-swipe .rir { padding-left: calc(30px + var(--set-gap) + 6px); } }
-.rir__lbl { font-size: 0.706rem; font-weight: 600; color: var(--label2); margin-right: 2px; flex-shrink: 0; }
+.rir__lbl { font-size: 0.706rem; font-weight: 600; color: var(--label2); margin-right: -2px; flex-shrink: 0; }
 .rir__btn {
   position: relative; min-width: 36px; height: 32px; padding: 0 4px; border: 0; border-radius: var(--r-pill); cursor: pointer;
   background: var(--fill); color: var(--label); font-size: 0.765rem; font-weight: 600; font-family: inherit;
 }
-.rir__btn::after { content: ''; position: absolute; inset: -6px -2px; }   /* zone de toucher de 44 px */
+/* Zone de toucher de 44 × 44 px : 36 px + 2 × 4 px, et 8 px d'écart entre deux boutons (pas de 44 px, sans chevauchement) */
+.rir__btn::after { content: ''; position: absolute; inset: -6px -4px; }
 .rir__btn[aria-pressed="true"] { background: var(--tint-fill); color: var(--on-tint); }
 .rir__btn:active { opacity: .6; }
 .rir__rpe { font-size: 0.706rem; font-weight: 600; color: var(--label2); margin-left: 4px; white-space: nowrap; }
@@ -548,7 +549,10 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
   display: inline-block; background: var(--fill); color: var(--label2);
   font-size: 0.706rem; font-weight: 600; padding: 2px 8px; border-radius: var(--r-xs);
 }
-@media (max-width: 374px) { .rir__btn { min-width: 32px; } .rir__rpe { display: none; } }
+@media (max-width: 374px) {   /* 32 px + 2 × 6 px, écart de 12 px : toujours 44 px */
+  .set-swipe .rir { gap: 12px; } .rir__lbl { margin-right: -6px; }
+  .rir__btn { min-width: 32px; } .rir__btn::after { inset: -6px; } .rir__rpe { display: none; }
+}
 
 /* Historique : lignes « Échauffement … » et « RIR … » sous les séries */
 .hex__sets--note { color: var(--label3); }
