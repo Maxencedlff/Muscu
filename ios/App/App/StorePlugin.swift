@@ -55,9 +55,19 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "redeemCode", returnType: CAPPluginReturnPromise),
     ]
 
-    /// Les deux abonnements vendus, dans l'ordre d'affichage voulu (PAYANT_V1.md)
+    /// Les abonnements vendus, tous dans le même groupe d'App Store Connect (PAYANT_V1.md) : le
+    /// particulier, puis les quatre paliers coach (10, 20, 30 élèves, illimité), mensuel et annuel.
+    /// L'app ne montre les paliers coach qu'à un coach validé ; l'ordre ici est celui de l'affichage.
     private static let subscriptionIds = ["com.mdlf.training.pro.monthly",
-                                          "com.mdlf.training.pro.yearly"]
+                                          "com.mdlf.training.pro.yearly",
+                                          "com.mdlf.training.coach10.monthly",
+                                          "com.mdlf.training.coach10.yearly",
+                                          "com.mdlf.training.coach20.monthly",
+                                          "com.mdlf.training.coach20.yearly",
+                                          "com.mdlf.training.coach30.monthly",
+                                          "com.mdlf.training.coach30.yearly",
+                                          "com.mdlf.training.coachmax.monthly",
+                                          "com.mdlf.training.coachmax.yearly"]
 
     /// Protège le cache des produits, les transactions à finir et les identifiants déjà annoncés.
     /// Ces trois tables sont touchées depuis l'écouteur, depuis le fil principal (achat) et depuis les

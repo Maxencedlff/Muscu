@@ -64,14 +64,23 @@ FAKE_STORE = r"""
     // et l'offre de lancement d'App Store Connect (3 mois gratuits) sur les deux abonnements
     products: [
       { id: 'com.mdlf.training.pro.monthly', displayName: 'MDLF Training mensuel', description: 'Abonnement mensuel',
-        displayPrice: '5,99 €', price: 5.99, currency: 'EUR', period: { unit: 'month', value: 1 }, introEligible: true },
+        displayPrice: '6,49 €', price: 6.49, currency: 'EUR', period: { unit: 'month', value: 1 }, introEligible: true },
       { id: 'com.mdlf.training.pro.yearly', displayName: 'MDLF Training annuel', description: 'Abonnement annuel',
-        displayPrice: '41,99 €', price: 41.99, currency: 'EUR', period: { unit: 'year', value: 1 }, introEligible: true },
+        displayPrice: '55,00 €', price: 55, currency: 'EUR', period: { unit: 'year', value: 1 }, introEligible: true },
+      // Paliers coach (tarifs du 30/10), mêmes clés : visibles dans l'app pour un coach validé seulement
+      ...[['coach10', 15.99, 134.99, '10 élèves'], ['coach20', 19.99, 169, '20 élèves'], ['coach30', 24.99, 209.99, '30 élèves'],
+          ['coachmax', 29.99, 250, 'illimité']].flatMap(([k, m, y, l]) => [
+        { id: `com.mdlf.training.${k}.monthly`, displayName: `Coach ${l}`, description: 'Coach, mensuel',
+          displayPrice: m.toFixed(2).replace('.', ',') + ' €', price: m, currency: 'EUR', period: { unit: 'month', value: 1 }, introEligible: true },
+        { id: `com.mdlf.training.${k}.yearly`, displayName: `Coach ${l}`, description: 'Coach, annuel',
+          displayPrice: y.toFixed(2).replace('.', ',') + ' €', price: y, currency: 'EUR', period: { unit: 'year', value: 1 }, introEligible: true }]),
     ],
+    // Offre élève : codes d'offre d'Apple à usage unique distribués par student_offer_code
+    offerCodes: ['STUDENTCODE01', 'STUDENTCODE02', 'STUDENTCODE03'], offerGiven: {},
   }, window.__stOpts || {});
   const DAY = 86400000, HOUR = 3600000;
   const BUNDLE = 'com.mdlf.training';
-  const SUB_IDS = ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly'];
+  const SUB_IDS = ['pro', 'coach10', 'coach20', 'coach30', 'coachmax'].flatMap(k => [`com.mdlf.training.${k}.monthly`, `com.mdlf.training.${k}.yearly`]);
   const TRIAL = { unit: 'month', value: 3 };
   const OFFER = { displayPrice: '0,00 €', price: 0, paymentMode: 'freeTrial', period: { unit: 'month', value: 3 }, periodCount: 1 };
 
@@ -114,14 +123,14 @@ FAKE_STORE = r"""
     }
     return e || null;
   };
-  // Élève gratuit : suivi par un coach (état du faux coach de fake_account) qui a encore le rôle
-  const inCoachTeam = uid => !!(window.__sb && __sb.co && __sb.co.links.some(l => l.student === uid));
+  // Élève d'un coach (état du faux coach de fake_account) : plus de gratuité depuis le 30/10
+  const coachOf = uid => (window.__sb && __sb.co ? (__sb.co.links.find(l => l.student === uid) || {}).coach || null : null);
 
   // Ce que my_access() / access_state() renvoient, calculé à l'heure du SERVEUR
-  // gift > active > coach_team > expired > none ; aucun essai maison
+  // gift > active > expired > none ; aucun essai maison, plus d'élève gratuit (coach_team toujours faux)
   const stateOf = (uid, e) => {
     const now = serverNow();
-    const coach = inCoachTeam(uid);
+    const coach = false;
     const giftDays = e.gift_until !== null && e.gift_until > now ? e.gift_until : null;
     const paid = e.expires_at !== null && e.expires_at > now ? e.expires_at : null;
     let status, until = null;
@@ -180,6 +189,15 @@ FAKE_STORE = r"""
     my_access: uid => stateOf(uid, row(uid, true)),
     access_state: uid => { const e = row(uid, false); return e ? stateOf(uid, e) : null; },
     redeem_gift_code: (uid, args) => redeem(uid, args.code),
+    // Offre élève : élève d'un coach validé, jamais abonné ; même code tant qu'il n'a pas expiré
+    student_offer_code: uid => {
+      const coach = coachOf(uid);
+      const e = row(uid, true);
+      if (!coach || !(__sb.co.coachAt || {})[coach]) return { ok: false, error: 'not_student', code: null };
+      if (e.original_transaction_id || e.expires_at !== null || st.everSubscribed) return { ok: false, error: 'not_new', code: null };
+      if (!st.offerGiven[uid]) { const c = st.offerCodes.shift(); if (!c) return { ok: false, error: 'no_code', code: null }; st.offerGiven[uid] = c; }
+      return { ok: true, error: null, code: st.offerGiven[uid], expires_at: iso(serverNow() + 90 * DAY), coach: { user_id: coach } };
+    },
   };
   const callAccess = async (fn, args) => {
     log('access', fn, JSON.stringify(args || {}));

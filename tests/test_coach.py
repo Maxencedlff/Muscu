@@ -735,4 +735,86 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_eleve, t_coach, t_pseudo, t_saisie, t_cache_online, t_hors_ligne])
+# ─────────────────────────────────────────────────────────────
+#  Devenir coach : une demande vérifiée à la main (carte professionnelle), puis code permanent
+# ─────────────────────────────────────────────────────────────
+
+def t_demande_coach(bench, eng, dev, theme):
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, username='max')
+        page.evaluate("navigate('coach')")
+        page.wait_for_timeout(700)
+        cell = page.locator('[data-action="coach-request-open"]')
+        R.check(cell.count() == 1 and 'Devenir coach' in cell.inner_text(), f'{t} Réglages › Coach : entrée « Devenir coach »')
+        cell.click()
+        page.wait_for_selector('.coach-req-view')
+        page.wait_for_timeout(400)
+        txt = page.inner_text('.coach-req-view')
+        R.check('réservé aux éducateurs sportifs diplômés titulaires d\'une carte professionnelle' in txt and 'ministère des Sports, sous 48 h' in txt,
+                f'{t} demande : explication honnête')
+        R.check(page.locator('#coachReqName').count() == 1 and page.locator('#coachReqCard').count() == 1
+                and page.locator('#coachReqDiploma option').count() == 8, f'{t} demande : nom, numéro de carte, diplôme')
+        layout(page, t, 'demande coach')
+        shot(page, LOT, f'30-demande-coach-{t}')
+        # Numéro mal formé : refus sur l'appareil, rien n'est envoyé
+        page.fill('#coachReqName', 'Maxence Martin')
+        page.fill('#coachReqCard', 'ab1')
+        page.select_option('#coachReqDiploma', 'BPJEPS')
+        page.click('[data-action="coach-request-send"]')
+        page.wait_for_timeout(400)
+        R.check('Numéro de carte introuvable' in page.inner_text('#coachReqError')
+                and page.evaluate("__sb.calls.filter(c => c[0] === 'coach' && c[1] === 'coach_request_submit').length") == 0,
+                f'{t} numéro mal formé : refusé sans appel')
+        page.fill('#coachReqCard', '049 12 ED 0123')
+        page.click('[data-action="coach-request-send"]')
+        page.wait_for_timeout(700)
+        txt = page.inner_text('.coach-req-view')
+        req = page.evaluate("__sb.co.requests[__sb.meId()]")
+        R.check(req and req['card_number'] == '04912ED0123' and req['diploma'] == 'BPJEPS' and 'En cours de vérification' in txt,
+                f'{t} demande envoyée : en cours de vérification ({req})')
+        R.check(page.evaluate('__sb.co.alerts') == 1, f'{t} administrateur prévenu (coach-request-alert)')
+        R.check(not page.evaluate('coachRole().isCoach'), f'{t} demande en attente : pas encore coach')
+        shot(page, LOT, f'31-demande-en-cours-{t}')
+        # Refusée, avec le motif
+        page.evaluate("async () => { __sb.rejectCoach(__sb.meId(), 'Carte introuvable sur le site du ministère.'); coachPro.loadedAt = 0; await coachProRefresh(); }")
+        page.wait_for_timeout(400)
+        txt = page.inner_text('.coach-req-view')
+        R.check('Refusée' in txt and 'Motif : Carte introuvable sur le site du ministère.' in txt and 'Faire une nouvelle demande' in txt,
+                f'{t} demande refusée : motif affiché')
+        # Validée : rôle coach, code permanent, abonnement coach
+        page.evaluate("async () => { __sb.makeCoach(__sb.meId()); await coachRefresh(); coachPro.loadedAt = 0; await coachProRefresh(); }")
+        page.wait_for_timeout(400)
+        R.check('Validée' in page.inner_text('.coach-req-view'), f'{t} demande validée')
+        page.evaluate("navigate('coach')")
+        page.wait_for_timeout(800)
+        txt = page.inner_text('.coach-view')
+        code = page.evaluate("coachPro.code")
+        R.check(code and len(code) == 12 and formatted(code) in txt and 'sans date de fin' in txt and 'abonnement coach' in txt.lower(),
+                f'{t} coach validé : code permanent et abonnement ({code})')
+        layout(page, t, 'Réglages › Coach validé')
+        shot(page, LOT, f'32-coach-valide-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # L'élève rejoint avec le code permanent (12 caractères, tirets), et un palier plein le refuse
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), opts={})
+        signin(page, username='lea')
+        code = page.evaluate("""() => { const c = __sb.addPerson({ username: 'lucas', social: false }); __sb.makeCoach(c);
+            window.__coach = c; return __sb.co.permCode[c]; }""")
+        r = page.evaluate("async c => (await coachPreview(c)).ok", f'{code[:4]}-{code[4:8]}-{code[8:]}'.lower())
+        R.check(r is True, f'{t} code permanent accepté avec tirets et minuscules')
+        page.evaluate("""() => { window.__st = { paywallOn: true }; __sb.setTier(__coach, 'com.mdlf.training.coach10.monthly');
+            for (let i = 0; i < 10; i++) __sb.link(__coach, __sb.addPerson({ username: 'e' + i, social: false })); }""")
+        r = page.evaluate("async c => await coachJoin(c)", code)
+        R.check(r == {'ok': False, 'kind': 'tier_full'} and 'passer au palier supérieur' in page.evaluate("coachErrorText('tier_full')"),
+                f'{t} palier plein : élève refusé, message clair ({r})')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def formatted(code):
+    return f'{code[:4]}-{code[4:8]}-{code[8:]}'
+
+
+run_main(R, [t_demande_coach, t_eleve, t_coach, t_pseudo, t_saisie, t_cache_online, t_hors_ligne])

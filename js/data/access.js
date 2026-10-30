@@ -50,9 +50,10 @@ const ACCESS_SKEW_MS     = 5 * 60_000;        // tolérance d'horloge (l'apparei
 const ACCESS_GRACE_MS    = 2 * 86400_000;     // abonné hors ligne : marge après la date de fin du serveur
 const ACCESS_REFRESH_MS  = 30_000;            // retour au premier plan : une relecture toutes les 30 s au plus
 const ACCESS_STATUSES    = ['none', 'active', 'expired', 'gift', 'coach_team'];
-const ACCESS_MONTHLY_ID  = 'com.mdlf.training.pro.monthly';
-const ACCESS_YEARLY_ID   = 'com.mdlf.training.pro.yearly';
-const ACCESS_PRODUCT_IDS = [ACCESS_MONTHLY_ID, ACCESS_YEARLY_ID];
+// Formules : catalogue dans js/data/plans.js (chargé avant), particulier puis paliers coach
+const ACCESS_MONTHLY_ID  = planId('pro', 'month');
+const ACCESS_YEARLY_ID   = planId('pro', 'year');
+const ACCESS_PRODUCT_IDS = PLAN_IDS;
 // Code cadeau maison : 10 à 24 caractères parmi les 32 symboles lisibles (sans 0, O, 1 ni I),
 // même alphabet que la contrainte de gift_codes côté serveur
 const ACCESS_GIFT_CODE_RE = /^[A-HJ-NP-Z2-9]{10,24}$/;
@@ -60,7 +61,7 @@ const ACCESS_GIFT_CODE_RE = /^[A-HJ-NP-Z2-9]{10,24}$/;
 // state : dernier état lu pendant ce lancement ; cached : dernier état gardé sur l'appareil
 const access = { userId: null, state: null, cached: null, loading: false, again: false, error: null, loadedAt: 0,
   products: null, missing: null, productsAt: 0, buying: null, verifying: false, syncing: false,
-  canPay: true, refused: new Set(), currentProduct: null,
+  canPay: true, refused: new Set(), currentProduct: null, studentOffer: null,
   // Sans compte : verrou lu dans app_config (true, false, ou null tant qu'il n'a jamais été lu)
   anon: readAnonPaywall(), anonAt: 0, anonLoading: false, firstSeen: null };
 const accessListeners = [];
@@ -237,6 +238,9 @@ const ACCESS_ERROR_TEXT = {
   code_used_up: 'Ce code a déjà servi au maximum de fois prévu.',
   already_redeemed: 'Tu as déjà utilisé ce code.',
   cancelled: 'Achat annulé.',
+  not_student: 'L\'offre élève est réservée aux élèves d\'un coach vérifié.',
+  not_new: 'L\'offre élève est réservée à un premier abonnement. Choisis une formule ci-dessous.',
+  no_code: 'Plus d\'offre élève disponible pour l\'instant. Réessaie dans quelques jours.',
   pending: 'Ton achat attend une autorisation. L\'accès arrivera dès qu\'Apple l\'aura validé.',
   no_products: 'Les formules ne sont pas encore proposées par Apple. Réessaie plus tard.',
   no_store: 'Les achats se font dans l\'app MDLF Training sur iPhone.',
@@ -264,7 +268,7 @@ function accessReset(userId) {
   accessSeq++;
   access.refused.clear();
   Object.assign(access, { userId, state: null, cached: userId ? readAccessCache(userId) : null,
-    loading: false, again: false, error: null, loadedAt: 0, buying: null, verifying: false });
+    loading: false, again: false, error: null, loadedAt: 0, buying: null, verifying: false, studentOffer: null });
 }
 
 // ── Appels au serveur ───────────────────────────────────────
@@ -465,7 +469,10 @@ async function accessLoadProducts({ force = false } = {}) {
     .filter(p => p && ACCESS_PRODUCT_IDS.includes(p.id) && typeof p.displayPrice === 'string' && p.displayPrice.trim())
     .map(p => ({ id: p.id, price: p.displayPrice.trim().slice(0, 24),
       label: typeof p.displayName === 'string' ? p.displayName.slice(0, 60) : '',
-      period: p.period?.unit === 'year' || p.id === ACCESS_YEARLY_ID ? 'year' : 'month',
+      period: planOf(p.id).period,
+      // Nombre (pour « soit 8,5 mois ») et devise (prix de l'offre élève) : jamais affichés tels quels
+      amount: typeof p.price === 'number' && Number.isFinite(p.price) ? p.price : null,
+      currency: typeof p.currency === 'string' ? p.currency.slice(0, 3) : null,
       trial: accessTrialOf(p) }))
     .sort((a, b) => ACCESS_PRODUCT_IDS.indexOf(a.id) - ACCESS_PRODUCT_IDS.indexOf(b.id));
   if (typeof raw?.canMakePayments === 'boolean') access.canPay = raw.canMakePayments;
@@ -571,6 +578,31 @@ async function accessRedeemCode() {
   if (r?.presented === true) return { ok: true };
   // Feuille fermée par l'utilisateur : rien à dire, surtout pas une erreur
   return r?.cancelled ? { ok: false, reason: 'cancel' } : { ok: false, kind: 'server' };
+}
+
+// Offre élève (−25 % pendant 12 mois, sans essai) : un CODE D'OFFRE d'Apple à usage unique, distribué
+// par le serveur à un élève lié à un coach validé et jamais abonné (student_offer_code). Un refus n'est
+// pas une exception : { ok: false, error: 'not_student' | 'not_new' | 'no_code' }. Le même code revient
+// tant qu'il n'a pas expiré. L'app ouvre ensuite la page d'Apple, code déjà rempli (planRedeemUrl) ;
+// la transaction revient par l'écouteur permanent, comme tout achat.
+// Environnement : l'app ne sait pas reconnaître TestFlight, elle demande toujours un code de Production.
+// Renvoie { ok: true, code, expiresAt } ou { ok: false, kind }. access.studentOffer garde la réponse.
+const ACCESS_STUDENT_ERRORS = ['not_student', 'not_new', 'no_code'];
+async function accessStudentOffer() {
+  const r = await accessRpc('student_offer_code', { env: 'Production' });
+  if (!r.ok) return r;
+  const d = r.data && typeof r.data === 'object' ? r.data : {};
+  if (d.ok !== true) {
+    const kind = ACCESS_STUDENT_ERRORS.includes(d.error) ? d.error : 'server';
+    access.studentOffer = { error: kind };
+    notifyAccess();
+    return { ok: false, kind };
+  }
+  const code = typeof d.code === 'string' && /^[A-Z0-9]{6,64}$/.test(d.code) ? d.code : null;
+  if (!code) return { ok: false, kind: 'server' };
+  access.studentOffer = { code, expiresAt: accessTime(d.expires_at) };
+  notifyAccess();
+  return { ok: true, code, expiresAt: access.studentOffer.expiresAt };
 }
 
 // Formule de l'abonnement en cours sur cet iPhone (pour « Essai gratuit jusqu'au …, puis <prix> ») :

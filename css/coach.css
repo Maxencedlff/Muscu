@@ -153,3 +153,21 @@
 /* Programmes envoyés à un élève : état à droite */
 .coach-sent__state { color: var(--label); }
 .coach-sent__state--unseen { color: var(--orange-text); }
+
+/* ── Devenir coach (js/features/coach-pro-ui.js) : champ sous son libellé (libellés longs, gros textes) ── */
+.coach-req-field { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding-top: 8px; padding-bottom: 4px; cursor: text; text-align: left; }
+.coach-req-field__label { align-self: flex-start; font-size: var(--fs-footnote); color: var(--label2); text-align: left; }
+.coach-req-field__input {
+  width: 100%; min-width: 0; min-height: 44px; padding: 0; border: 0; background: none;
+  color: var(--label); font: inherit; font-size: var(--fs-body); text-align: left;
+}
+.coach-req-field__input::placeholder { color: var(--label3); }
+select.coach-req-field__input { appearance: none; -webkit-appearance: none; cursor: pointer; }
+select.coach-req-field__input:invalid { color: var(--label2); }
+.coach-req-field__input[aria-invalid="true"] { color: var(--red-text); }
+.coach-req-error { min-height: 1.2em; margin: 6px 16px 10px; font-size: var(--fs-footnote); color: var(--red-text); }
+.coach-req-error:empty { margin: 0 0 12px; min-height: 0; }
+.coach-req-foot { margin-top: 12px; }
+.coach-req-reason { color: var(--label); }
+.pay-banner.coach-tier-banner { margin-bottom: 16px; background: var(--cell); }   /* « Voir » en bleu lisible (contraste 4,5:1) */
+.coach-code-cell .coach-code { letter-spacing: 1px; }

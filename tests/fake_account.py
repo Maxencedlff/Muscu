@@ -34,7 +34,13 @@ badge_student (badge = leur somme), new_sessions depuis le lien tant que le coac
 adhésions réussis par heure, rejoindre le même coach renvoie le coach, coach_preview avec since null. Élève retiré :
 listé dans removed, ses codes de ce coach répondent invalid_code jusqu'à coach_allow_student(student).
 students[].sent : programmes que je lui ai envoyés, { id, sent_at, seen }.
-État dans __sb.co ; __sb.makeCoach(id) pose coach_at, __sb.link(coach, élève) relie deux comptes. Appels dans
+Rôle coach (tarifs du 30/10, docs/PAYANT_V1.md) : coach_request_state, coach_request_submit (invalid_name,
+invalid_card, invalid_diploma, already_coach, rate_limited 5 par 24 h), coach_tier_state, coach_my_code, fonction
+Edge coach-request-alert (__sb.co.alerts) ; codes de 8 ou 12 caractères ; un élève de trop : tier_full (verrou
+allumé : limite de la formule coach, 0 sans formule ; éteint : 50, ou plus selon le palier).
+État dans __sb.co ; __sb.makeCoach(id) valide le rôle (coach_at, code permanent, demande « approved »),
+__sb.rejectCoach(id, motif) refuse la demande, __sb.setTier(id, produit) pose la formule coach,
+__sb.link(coach, élève) relie deux comptes. Appels dans
 __sb.calls sous ['coach', fonction, arguments] ; __sb.fail.coach = 'offline' pour le hors ligne.
 """
 
@@ -331,8 +337,35 @@ FAKE_ACCOUNT = r"""
 
   // ── Coach (docs/COACH_V1.md) ──
   // État dans __sb.co : coachs (coach_at), codes, liens élève → coach (coach_seen_at), programmes envoyés, commentaires
-  const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0, bans: [] };
-  sb.makeCoach = id => { co.coachAt[id] = now(); };
+  const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0, bans: [],
+    requests: {}, reqTries: {}, tierProduct: {}, permCode: {}, alerts: 0 };
+  const CODE_ABC12 = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  // Rôle validé par l'administrateur (private.approve_coach) : coach_at posé, code permanent de 12 caractères
+  sb.makeCoach = id => {
+    co.coachAt[id] = now();
+    if (!co.permCode[id]) {
+      let code = ''; const n = Object.keys(co.permCode).length + 3;
+      for (let i = 0; i < 12; i++) code += CODE_ABC12[(n * 11 + i * 7 + i * i * 3) % 32];
+      co.permCode[id] = code;
+      co.invites.push({ code, coach: id, expires: Infinity, permanent: true });
+    }
+    if (co.requests[id]) Object.assign(co.requests[id], { status: 'approved', decided_at: new Date(now()).toISOString() });
+  };
+  // Refus ou retrait par l'administrateur (private.reject_coach, private.revoke_coach)
+  sb.rejectCoach = (id, reason) => { if (co.requests[id]) Object.assign(co.requests[id], { status: 'rejected', reason, decided_at: new Date(now()).toISOString() }); };
+  // Formule coach en cours chez Apple (abonnement vérifié par le serveur) : sa limite d'élèves
+  sb.setTier = (id, product) => { co.tierProduct[id] = product; };
+  const TIER_LIMIT = { coach10: 10, coach20: 20, coach30: 30, coachmax: null };
+  const TIER_ORDER = ['coach10', 'coach20', 'coach30', 'coachmax'];
+  const tierKey = product => { const m = /^com\.mdlf\.training\.(coach\w+)\.(monthly|yearly)$/.exec(product || ''); return m && m[1] in TIER_LIMIT ? m[1] : null; };
+  // Limite d'élèves : verrou allumé, celle de la formule coach (0 sans formule) ; éteint, 50 comme avant
+  // sauf palier plus haut. null : illimité
+  const limitOf = coachId => {
+    const k = tierKey(co.tierProduct[coachId]);
+    const lim = k ? TIER_LIMIT[k] : 0;
+    if (window.__st && window.__st.paywallOn) return lim;
+    return lim === null ? null : Math.max(50, lim);
+  };
   // seen : coach_seen_at (null tant que le coach n'a rien ouvert : new_sessions comptées depuis le lien)
   sb.link = (coachId, student, at = now()) => { co.links.push({ coach: coachId, student, at, seen: null }); };
   const linkOf = student => co.links.find(l => l.student === student);
@@ -362,7 +395,8 @@ FAKE_ACCOUNT = r"""
     if (co.bans.some(b => b.coach === inv.coach && b.student === me)) return 'invalid_code';
     const cur = linkOf(me);
     if (cur && cur.coach !== inv.coach) return 'already_coached';
-    if (!cur && co.links.filter(l => l.coach === inv.coach).length >= 50) return 'team_full';
+    const lim = limitOf(inv.coach);
+    if (!cur && lim !== null && co.links.filter(l => l.coach === inv.coach).length >= lim) return 'tier_full';
     (co.tries[me] ||= []).push(now());
     return inv;
   };
@@ -381,19 +415,42 @@ FAKE_ACCOUNT = r"""
         + co.notes.filter(n => n.student === me && n.coach === l.coach && !n.seen && noteAlive(n)).length : 0;
       const badgeCoach = students.reduce((a, s) => a + s.new_sessions, 0);
       return { is_coach: isCoach, coach: l ? cperson(l.coach, l.at) : null, students,
-        invites: isCoach ? co.invites.filter(i => i.coach === me && i.expires > now()).map(i => ({ code: i.code, expires_at: new Date(i.expires).toISOString() })) : [],
+        invites: isCoach ? co.invites.filter(i => i.coach === me && i.expires > now()).map(i => ({ code: i.code, expires_at: i.permanent ? 'infinity' : new Date(i.expires).toISOString() })) : [],
         removed: isCoach ? co.bans.filter(b => b.coach === me).sort((a, b) => b.at - a.at).map(b => cperson(b.student, b.at)) : [],
         badge_coach: badgeCoach, badge_student: unseen, badge: badgeCoach + unseen };
     },
     coach_create_invite: me => {
       if (!co.coachAt[me]) return pgErr('not_coach');
-      const mine = co.invites.filter(i => i.coach === me && i.expires > now());
+      const mine = co.invites.filter(i => i.coach === me && i.expires > now() && !i.permanent);
       if (mine.length >= 5) co.invites.splice(co.invites.indexOf(mine[0]), 1);
       let code = ''; const n = ++co.codeN;
       for (let i = 0; i < 8; i++) code += CODE_ABC[(n * 7 + i * 13 + i * i) % CODE_ABC.length];
       co.invites.push({ code, coach: me, expires: now() + 7 * 86400_000 });
       return code;
     },
+    // Rôle coach : demande vérifiée à la main, palier, code permanent (tarifs du 30/10)
+    coach_request_state: me => ({ status: 'none', ...(co.requests[me] || {}), is_coach: !!co.coachAt[me] }),
+    coach_request_submit: (me, { card_name, card_number, diploma }) => {
+      if (co.coachAt[me]) return pgErr('already_coach');
+      const name = String(card_name || '').trim(), card = String(card_number || '').toUpperCase().replace(/[\s-]/g, ''), dip = String(diploma || '').trim();
+      if (name.length < 2 || name.length > 80) return pgErr('invalid_name');
+      if (!/^[A-Z0-9]{6,20}$/.test(card)) return pgErr('invalid_card');
+      if (dip.length < 2 || dip.length > 80) return pgErr('invalid_diploma');
+      const tries = (co.reqTries[me] || []).filter(t => t > now() - 86400_000);
+      if (tries.length >= 5) return pgErr('rate_limited');
+      co.reqTries[me] = [...tries, now()];
+      co.requests[me] = { status: 'pending', card_name: name, card_number: card, diploma: dip, reason: null,
+        created_at: new Date(now()).toISOString(), decided_at: null };
+      return { ...co.requests[me], is_coach: false };
+    },
+    coach_tier_state: me => {
+      if (!co.coachAt[me]) return { is_coach: false, paywall_on: !!(window.__st && __st.paywallOn), product_id: null, limit: 0, students: 0, full: true, next_product: null };
+      const k = tierKey(co.tierProduct[me]), lim = limitOf(me), n = co.links.filter(l => l.coach === me).length;
+      const next = TIER_ORDER[k ? TIER_ORDER.indexOf(k) + 1 : 0];
+      return { is_coach: true, paywall_on: !!(window.__st && __st.paywallOn), product_id: k ? co.tierProduct[me] : null, limit: lim, students: n,
+        full: lim !== null && n >= lim, next_product: next ? `com.mdlf.training.${next}.monthly` : null };
+    },
+    coach_my_code: me => (co.coachAt[me] ? { code: co.permCode[me], created_at: new Date(co.coachAt[me]).toISOString() } : pgErr('not_coach')),
     coach_revoke_invite: (me, { code }) => { co.invites = co.invites.filter(i => !(i.coach === me && i.code === code)); return null; },
     coach_preview: (me, { code }) => { const r = joinCheck(me, code); return typeof r === 'string' ? pgErr(r) : cperson(r.coach, null); },
     coach_join: (me, { code }) => {
@@ -469,6 +526,11 @@ FAKE_ACCOUNT = r"""
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
           const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });
+          if (fn === 'coach-request-alert') {
+            if (!sb.session) return fail(401, { error: 'auth' });
+            co.alerts++;
+            return { data: { ok: true, notified: true }, error: null };
+          }
           if (fn === 'report') {
             if (sb.fail.social === 'offline') throw new TypeError('Failed to fetch');
             if (!sb.session) return fail(401, { error: 'auth' });

@@ -41,9 +41,11 @@ def tag(device, theme):
 
 def open_app(page, theme, ppl_v2=None, store=None, opts=None):
     """App lancée avec la coquille iOS, Supabase et StoreKit simulés. store : réglages de __st."""
+    st_opts = {'paywallOn': True, 'products': PRICES, **(store or {})}
+    if st_opts.get('products') == 'all':
+        del st_opts['products']   # les 10 formules du faux StoreKit (tarifs du 30/10)
     page.add_init_script('window.__fakeOpts = %s; window.__stOpts = %s;'
-                         % (json.dumps({'oldAccounts': True, **(opts or {})}),
-                            json.dumps({'paywallOn': True, 'products': PRICES, **(store or {})})))
+                         % (json.dumps({'oldAccounts': True, **(opts or {})}), json.dumps(st_opts)))
     page.add_init_script(FAKE_ACCOUNT)
     page.add_init_script(FAKE_STORE)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
@@ -956,5 +958,141 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_essai, t_lecture_seule, t_achat, t_achats_bloques, t_rattrapage, t_verrou_serveur,
+# ─────────────────────────────────────────────────────────────
+#  Tarifs du 30/10 : particulier, coach validé (paliers), élève avec le code de son coach
+# ─────────────────────────────────────────────────────────────
+
+C10 = 'com.mdlf.training.coach10.monthly'
+
+
+def paywall(page, tab=None, pre=None):
+    route = "makeRoute('paywall', 'offer'%s)" % (f", 'coach'{', ' + json.dumps(pre) if pre else ''}" if tab == 'coach' else '')
+    page.evaluate(f"navigate({route})")
+    page.wait_for_selector('.pay-view')
+    page.wait_for_timeout(600)
+    return page.inner_text('.pay-view')
+
+
+def make_me_coach(page):
+    page.evaluate("async () => { __sb.makeCoach(__sb.meId()); await coachRefresh(); await coachProRefresh(); }")
+    page.wait_for_timeout(300)
+
+
+def plans_text(page):
+    return [x.replace('\n', ' ') for x in page.locator('.pay-plan').all_inner_texts()]
+
+
+def t_tarifs(bench, eng, dev, theme):
+    t = tag(dev, theme)
+    # 1. Particulier : prix lus chez StoreKit, « soit 8,5 mois » calculé, aucune formule coach
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'products': 'all'})
+        signin(page, username='max')
+        refresh_access(page)
+        txt = paywall(page)
+        pl = plans_text(page)
+        R.check(len(pl) == 2 and '6,49 € par mois' in pl[0] and '55,00 € par an' in pl[1] and 'soit 8,5 mois' in pl[1]
+                and 'soit' not in pl[0], f'{t} particulier : mensuel, annuel « soit 8,5 mois » {pl}')
+        R.check(page.locator('.pay-tabs').count() == 0 and '15,99' not in txt and 'élèves' not in ' '.join(pl),
+                f'{t} pas coach : aucun palier coach visible')
+        R.check('Tu es coach ?' in txt, f'{t} pas coach : lien vers la demande')
+        R.check('Essai gratuit de 3 mois, puis 6,49 € par mois ou 55,00 € par an' in txt and 'au moins 24 heures avant la fin de l\'essai' in txt
+                and 'Conditions d\'utilisation' in txt and 'Confidentialité' in txt, f'{t} particulier : mentions 3.1.2')
+        layout(page, t, 'abonnement particulier')
+        shot(page, LOT, f'20-tarifs-particulier-{t}')
+        # Le lien mène à la demande, pas à un achat
+        page.click('[data-action="coach-request-open"]')
+        page.wait_for_timeout(500)
+        R.check(page.evaluate('currentView()') == 'coach-request', f'{t} « Tu es coach ? » : écran de demande')
+        # 2. Coach validé : onglet Coach, 4 paliers, mensuel puis annuel
+        make_me_coach(page)
+        txt = paywall(page, 'coach')
+        pl = plans_text(page)
+        R.check(page.locator('.pay-tabs .segmented__btn').count() == 2 and len(pl) == 4
+                and '15,99 € par mois' in pl[0] and '10 élèves' in pl[0] and 'Conseillé' in pl[0]
+                and '29,99 € par mois' in pl[3] and 'illimités' in pl[3], f'{t} coach : 4 paliers mensuels {pl}')
+        R.check('Tu suis 0 élève' in txt and 'ton propre accès complet' in txt, f'{t} coach : élèves suivis, accès compris')
+        R.check('3 mois gratuits' in pl[0] and 'Essai gratuit de 3 mois, puis 15,99 € par mois' in txt, f'{t} coach : essai de 3 mois, mentions')
+        layout(page, t, 'abonnement coach')
+        shot(page, LOT, f'21-tarifs-coach-{t}')
+        page.click('[data-action="pay-period"][data-period="year"]')
+        page.wait_for_timeout(300)
+        pl = plans_text(page)
+        R.check(len(pl) == 4 and '134,99 € par an' in pl[0] and all('soit 8,5 mois' in x for x in pl), f'{t} coach annuel : « soit 8,5 mois » {pl}')
+        page.click('[data-action="pay-period"][data-period="month"]')
+        page.wait_for_timeout(200)
+        # Onglet Particulier toujours là pour un coach
+        page.click('[data-action="pay-tab"][data-tab="pro"]')
+        page.wait_for_timeout(400)
+        R.check(len(plans_text(page)) == 2 and 'Tu es coach ?' not in page.inner_text('.pay-view'), f'{t} coach : onglet Particulier')
+        # 3. Palier plein : 10 élèves sur 10 → bandeau, palier suivant mis en avant, formule en cours marquée
+        page.evaluate("""async (p) => { const me = __sb.meId(); __sb.setTier(me, p);
+            for (let i = 0; i < 10; i++) __sb.link(me, __sb.addPerson({ username: 'eleve' + i, social: false }));
+            await coachRefresh(); coachPro.loadedAt = 0; await coachProRefresh(); }""", C10)
+        page.evaluate("navigate('coach-students')")
+        page.wait_for_timeout(700)
+        b = page.locator('.coach-tier-banner')
+        R.check(b.count() == 1 and '10 élèves sur 10 : passe au palier supérieur' in b.inner_text(), f'{t} palier plein : bandeau ({b.count()})')
+        shot(page, LOT, f'22-palier-plein-{t}')
+        b.click()
+        page.wait_for_timeout(700)
+        pl = plans_text(page)
+        R.check(page.evaluate('currentView()') == 'paywall' and 'Ta formule' in pl[0] and 'Conseillé' in pl[1] and '20 élèves' in pl[1],
+                f'{t} montée de palier : 20 élèves conseillé, 10 élèves « Ta formule » {pl}')
+        R.check(page.locator(f'[data-action="pay-buy"][data-id="{C10}"]').is_disabled(), f'{t} formule en cours : pas rachetable')
+        # Achat du palier suivant : même groupe Apple, accès complet
+        page.click('[data-action="pay-buy"][data-id="com.mdlf.training.coach20.monthly"]')
+        page.wait_for_timeout(1200)
+        R.check(page.evaluate('accessStatus()') == 'active' and page.evaluate('canWrite()') is True, f'{t} palier coach acheté : accès complet')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # 4. Élève avec le code de son coach : −25 % pendant 12 mois, sans essai, code d'offre d'Apple
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'products': 'all'})
+        signin(page, username='lea')
+        page.evaluate("""async () => { const c = __sb.addPerson({ username: 'lucas', social: false }); __sb.makeCoach(c);
+            __sb.link(c, __sb.meId()); window.__opened = []; window.open = u => { __opened.push(String(u)); return null; };
+            await coachRefresh(); }""")
+        refresh_access(page)
+        txt = paywall(page)
+        card = page.locator('.pay-student')
+        ctext = card.inner_text().replace('\n', ' ') if card.count() else ''
+        R.check(card.count() == 1 and 'Offre élève de lucas' in ctext and '4,89 €' in ctext
+                and 'par mois pendant 12 mois, puis 6,49 € par mois. Sans essai gratuit.' in ctext, f'{t} élève : offre −25 % ({ctext!r})')
+        R.check(page.locator('.pay-plan').count() == 0 and '3 mois gratuits' not in txt, f'{t} élève : pas de formule avec essai')
+        R.check('25 % de moins pendant 12 mois' in txt and 'renouvelle automatiquement' in txt and 'au moins 24 heures' in txt
+                and 'Conditions d\'utilisation' in txt, f'{t} élève : mentions 3.1.2')
+        layout(page, t, 'abonnement élève')
+        shot(page, LOT, f'23-tarifs-eleve-{t}')
+        page.click('[data-action="pay-student"]')
+        page.wait_for_timeout(700)
+        opened = page.evaluate('__opened')
+        R.check(len(opened) == 1 and 'apps.apple.com/redeem' in opened[0] and 'code=STUDENTCODE01' in opened[0],
+                f'{t} élève : page d\'Apple ouverte avec le code {opened}')
+        page.click('[data-action="pay-student"]')
+        page.wait_for_timeout(600)
+        R.check(page.evaluate('__opened.length') == 2 and 'code=STUDENTCODE01' in page.evaluate('__opened[1]'), f'{t} élève : même code redonné')
+        # Déjà abonné une fois : plus d'offre élève, formules habituelles
+        page.evaluate("__st.everSubscribed = true; access.studentOffer = null; delete __st.offerGiven[__sb.meId()]")
+        page.click('[data-action="pay-student"]')
+        page.wait_for_timeout(700)
+        R.check(page.locator('.pay-plan').count() == 2 and 'premier abonnement' in page.inner_text('.pay-view'), f'{t} élève déjà abonné : formules habituelles')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # 5. Verrou éteint (TestFlight) : rien d'achetable, ni paliers coach ni offre élève
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'products': 'all', 'paywallOn': False})
+        signin(page, username='max')
+        make_me_coach(page)
+        page.evaluate("""async () => { const c = __sb.addPerson({ username: 'lucas', social: false }); __sb.makeCoach(c);
+            __sb.link(c, __sb.meId()); await coachRefresh(); }""")
+        refresh_access(page)
+        for tab in (None, 'coach'):
+            txt = paywall(page, tab)
+            R.check(page.locator('.pay-plan, .pay-student, .pay-tabs, [data-action="pay-student"]').count() == 0 and '€' not in txt,
+                    f'{t} verrou éteint ({tab or "particulier"}) : rien à acheter')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_tarifs, t_essai, t_lecture_seule, t_achat, t_achats_bloques, t_rattrapage, t_verrou_serveur,
              t_verrou_eteint, t_compte_obligatoire, t_version_min, t_horloge, t_grace, t_hors_ligne])

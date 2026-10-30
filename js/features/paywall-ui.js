@@ -36,7 +36,6 @@ const PAY_TERMS_URL   = 'https://www.apple.com/legal/internet-services/itunes/de
 const PAY_PRIVACY_URL = 'https://mdlf.app/privacy.html';
 const PAY_MANAGE_URL  = 'https://apps.apple.com/account/subscriptions';
 const PAY_PLAN_LABEL  = { [ACCESS_MONTHLY_ID]: 'Mensuel', [ACCESS_YEARLY_ID]: 'Annuel' };
-const PAY_PLAN_PERIOD = { [ACCESS_MONTHLY_ID]: 'par mois', [ACCESS_YEARLY_ID]: 'par an' };
 // Deux sortes de codes, jamais mélangées : le code cadeau MDLF se saisit dans l'app (« J'ai un
 // code »), le code d'offre d'abonnement d'Apple passe par la fenêtre d'Apple.
 const PAY_CODE_NOTE = 'Un code MDLF se saisit ici, avec « J\'ai un code ». Un code d\'offre reçu d\'Apple s\'ouvre dans la fenêtre d\'Apple.';
@@ -48,10 +47,8 @@ let payBusy = false;   // un seul achat, une seule restauration à la fois
 // État en clair, pour les Réglages et l'écran d'abonnement
 const ACCESS_STATUS_TEXT = {
   none: 'Sans abonnement', active: 'Abonné', expired: 'Abonnement terminé',
-  gift: 'Accès offert', coach_team: 'Offert par ton coach', unknown: 'Pas à jour',
+  gift: 'Accès offert', unknown: 'Pas à jour',
 };
-// Élève gratuit : le texte dit la condition (le coach peut arrêter de le suivre)
-const ACCESS_COACH_TEXT = 'Accès offert par ton coach tant qu\'il te suit';
 function accessStatusText() {
   const st = accessStatus();
   if (st === 'active' && accessIntroUntil()) return 'Essai gratuit';
@@ -69,11 +66,6 @@ const PAY_UNIT_TEXT = { day: ['jour', 'jours'], week: ['semaine', 'semaines'], m
 function payDurationText(t) {
   const w = t && PAY_UNIT_TEXT[t.unit];
   return w ? plural(t.value, w[0], w[1]) : '';
-}
-// « 3 mois gratuits, puis <prix> par an », ou « <prix> par an » sans essai (déjà utilisé)
-function payOfferText(p) {
-  const after = `${p.price} ${PAY_PLAN_PERIOD[p.id] || ''}`.trim();
-  return p.trial ? `${payDurationText(p.trial)} ${p.trial.value > 1 || p.trial.unit === 'month' ? 'gratuits' : 'gratuit'}, puis ${after}` : after;
 }
 
 function payToast(r, okText) {
@@ -138,7 +130,7 @@ function payLegalHtml() {
 // ── Bandeau de l'accueil ────────────────────────────────────
 
 // Bandeau discret en haut de l'accueil, seulement quand l'écriture est refusée. Rien quand le verrou
-// est éteint, sans compte, ou pour un abonné (essai d'Apple compris) et un élève gratuit.
+// est éteint, sans compte, ou pour un abonné (essai d'Apple compris, offre élève comprise).
 function accessBannerHtml() {
   if (!paywallOn()) return '';
   if (!canWrite()) {
@@ -160,29 +152,38 @@ function accessBannerHtml() {
 
 // Une formule : nom, prix et essai lus chez StoreKit. Aucun prix ni aucune durée n'est écrit dans l'app.
 // Règle 3.1.2(c) d'Apple : le prix réellement débité et sa période dominent (en gros), l'essai gratuit
-// n'est qu'une ligne secondaire.
-function payPlanHtml(p) {
-  const label = PAY_PLAN_LABEL[p.id] || 'Abonnement';
-  const best = p.id === ACCESS_YEARLY_ID ? '<span class="pay-plan__tag">Le plus avantageux</span>' : '';
+// n'est qu'une ligne secondaire. opts : { label, tag, current, months } (palier coach, annuel).
+function payPlanHtml(p, opts = {}) {
+  const label = opts.label || PAY_PLAN_LABEL[p.id] || 'Abonnement';
+  const tag = opts.current ? 'Ta formule' : opts.tag || (p.id === ACCESS_YEARLY_ID ? 'Le plus avantageux' : '');
   const trial = p.trial ? `${payDurationText(p.trial)} ${p.trial.value > 1 || p.trial.unit === 'month' ? 'gratuits' : 'gratuit'}` : '';
+  const months = opts.months ? `soit ${planMonthsText(opts.months)}` : '';
+  const sub = [months, trial].filter(Boolean).join(', ');
   return `
-          <button class="pay-plan" data-action="pay-buy" data-id="${esc(p.id)}" ${access.buying ? 'disabled' : ''}
-                  aria-label="${esc(p.label || label)}, ${esc(payOfferText(p))}">
-            <span class="pay-plan__name">${esc(label)}${best}</span>
-            <span class="pay-plan__price num">${access.buying === p.id ? 'Achat…' : `${esc(p.price)} <span class="pay-plan__per">${PAY_PLAN_PERIOD[p.id] || ''}</span>`}</span>
-            ${trial ? `<span class="pay-plan__trial">${esc(trial)}</span>` : ''}
+          <button class="pay-plan${opts.current ? ' pay-plan--current' : ''}" data-action="pay-buy" data-id="${esc(p.id)}" ${access.buying || opts.current ? 'disabled' : ''}>
+            <span class="pay-plan__name">${esc(label)}${tag ? `<span class="pay-plan__tag">${esc(tag)}</span>` : ''}</span>
+            <span class="pay-plan__price num">${access.buying === p.id ? 'Achat…' : `${esc(p.price)} <span class="pay-plan__per">${payPer(p)}</span>`}</span>
+            ${sub ? `<span class="pay-plan__trial">${esc(sub)}</span>` : ''}
           </button>`;
+}
+const payPer = p => (p.period === 'year' ? 'par an' : 'par mois');
+// Mois de la formule mensuelle que paie l'annuelle du même palier (« soit 8,5 mois »), calculé
+function payYearMonths(list, p) {
+  const plan = planOf(p.id);
+  if (!plan || plan.period !== 'year') return null;
+  return planYearMonths(list.find(x => x.id === planId(plan.tier.key, 'month')), p);
 }
 
 // Ce que donne l'abonnement, dit avant les formules
 const PAY_BENEFITS = 'Avec l\'abonnement, tu enregistres de nouvelles séances. Ton historique, tes progrès et l\'export restent ouverts, abonné ou non.';
+const PAY_COACH_BENEFITS = 'L\'abonnement coach comprend ton propre accès complet et le suivi de tes élèves. Tu peux changer de palier à tout moment chez Apple.';
 
 // Mentions exigées par Apple (règle 3.1.2) à côté des boutons d'achat : durée de l'essai, prix et
 // période après l'essai, renouvellement automatique, résiliation à tout moment. Tout est lu chez
 // StoreKit ; les liens Conditions et Confidentialité suivent (payLegalHtml).
 function payTermsHtml(list) {
   const trial = list.find(p => p.trial);
-  const prices = list.map(p => `${esc(p.price)} ${PAY_PLAN_PERIOD[p.id] || ''}`.trim()).join(' ou ');
+  const prices = list.map(p => `${esc(p.price)} ${payPer(p)}`).join(' ou ');
   const first = trial
     ? `Essai gratuit de ${esc(payDurationText(trial.trial))}, puis ${prices} selon la formule choisie. Le paiement est débité sur ton compte Apple à la fin de l'essai, sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
     : `${prices} selon la formule choisie, débité sur ton compte Apple à la confirmation de l'achat.`;
@@ -193,9 +194,98 @@ function payTermsHtml(list) {
         </div>`;
 }
 
-function payPlansHtml() {
+// ── Particulier, coach, élève ───────────────────────────────
+
+let payCoachPeriod = 'month';   // onglet Coach : Mensuel ou Annuel
+
+// Élève d'un coach, jamais abonné : son offre (code d'offre d'Apple, −25 % pendant 12 mois, sans essai)
+// à la place des formules habituelles. Le serveur a le dernier mot (not_new : déjà abonné une fois).
+function payIsStudentOffer() {
+  return coachRole().hasCoach && accessStatus() === 'none' && access.studentOffer?.error !== 'not_new'
+    && access.studentOffer?.error !== 'not_student';
+}
+
+// Prix de l'offre élève : repli par devise (StoreKit ne donne pas le prix d'un code d'offre), puis le
+// mensuel lu chez StoreKit. Sans devise connue : en pourcentage, sans chiffre inventé.
+function payStudentLines(monthly) {
+  const price = planStudentPrice(monthly?.currency);
+  const after = monthly ? `${monthly.price} par mois` : 'le prix normal';
+  return price
+    ? { big: price, per: 'par mois', sub: `pendant ${PLAN_STUDENT_MONTHS} mois, puis ${after}. Sans essai gratuit.`,
+        terms: `${price} par mois pendant ${PLAN_STUDENT_MONTHS} mois, puis ${after}, débité sur ton compte Apple quand tu confirmes dans la page d'Apple.` }
+    : { big: '25 % de moins', per: '', sub: `pendant ${PLAN_STUDENT_MONTHS} mois, puis ${after}. Sans essai gratuit.`,
+        terms: `25 % de moins pendant ${PLAN_STUDENT_MONTHS} mois, puis ${after}, débité sur ton compte Apple quand tu confirmes dans la page d'Apple.` };
+}
+function payStudentHtml(list) {
+  const monthly = list.find(p => p.id === ACCESS_MONTHLY_ID);
+  const l = payStudentLines(monthly);
+  const who = myCoach() ? elide('de', personName(myCoach())) : 'de ton coach';
+  const busy = access.studentBusy;
+  return `<p class="pay-benefits">${PAY_BENEFITS}</p>
+        <div class="pay-student">
+          <span class="pay-plan__name">Offre élève ${esc(who)}</span>
+          <span class="pay-plan__price num">${esc(l.big)}${l.per ? ` <span class="pay-plan__per">${l.per}</span>` : ''}</span>
+          <span class="pay-plan__trial">${esc(l.sub)}</span>
+          <button class="btn btn--primary btn--full pay-student__btn" data-action="pay-student" ${busy ? 'disabled' : ''}>${busy ? 'Un instant…' : 'Obtenir mon offre élève'}</button>
+        </div>
+        <div class="pay-terms" role="note">
+          <p>${esc(l.terms)}</p>
+          <p>Ton code d'offre s'ouvre dans la page d'Apple, qui affiche le prix exact avant que tu confirmes. L'abonnement se renouvelle automatiquement chaque mois, sauf si tu le résilies au moins 24 heures avant la fin de la période en cours. Tu peux le résilier à tout moment dans les réglages de ton identifiant Apple.</p>
+        </div>${payLegalHtml()}`;
+}
+
+// Formules du particulier (mensuel, annuel « soit 8,5 mois »)
+function payProHtml(list) {
+  const pro = list.filter(p => planOf(p.id)?.tier.key === 'pro');
+  if (!pro.length) return payMissingHtml();
+  const notNew = access.studentOffer?.error === 'not_new' && coachRole().hasCoach
+    ? '<div class="pay-note" role="status"><p>L\'offre élève est réservée à un premier abonnement.</p></div>' : '';
+  return `${notNew}<p class="pay-benefits">${PAY_BENEFITS}</p>
+        <div class="pay-plans">${pro.map(p => payPlanHtml(p, { months: payYearMonths(list, p) })).join('')}</div>${payTermsHtml(pro)}${payLegalHtml()}`;
+}
+
+// Paliers coach, réservés à un coach validé : 4 formules pour la période choisie, nombre d'élèves suivis,
+// palier conseillé (celui qui les contient, ou celui demandé par le bandeau « passe au palier
+// supérieur »), formule en cours marquée « Ta formule ».
+function payCoachHtml(list, pre) {
+  const tier = coachPro.tier;
+  const students = tier ? tier.students : (coach.state?.students.length ?? 0);
+  const current = tier?.product_id || null;
+  const wanted = planOf(pre)?.tier.coach ? planOf(pre).tier
+    : tier?.full && current ? planNextTier(current) : planTierFor(students);
+  const per = payCoachPeriod;
+  const shown = PLAN_COACH_TIERS.map(t => list.find(p => p.id === planId(t.key, per))).filter(Boolean);
+  if (!shown.length) return payMissingHtml();
+  const seg = `
+        <div class="pay-period"><div class="segmented seg-full" role="group" aria-label="Période">
+          <button class="segmented__btn ${per === 'month' ? 'segmented__btn--active' : ''}" aria-pressed="${per === 'month'}" data-action="pay-period" data-period="month">Mensuel</button>
+          <button class="segmented__btn ${per === 'year' ? 'segmented__btn--active' : ''}" aria-pressed="${per === 'year'}" data-action="pay-period" data-period="year">Annuel</button>
+        </div></div>`;
+  const count = `<p class="pay-benefits">${PAY_COACH_BENEFITS} Tu suis ${plural(students, 'élève', 'élèves')}.</p>`;
+  const plans = shown.map(p => {
+    const t = planOf(p.id).tier;
+    return payPlanHtml(p, { label: t.label, current: current === p.id, tag: t === wanted && current !== p.id ? 'Conseillé' : '',
+      months: payYearMonths(list, p) });
+  }).join('');
+  return `${count}${seg}<div class="pay-plans">${plans}</div>${payTermsHtml(shown)}${payLegalHtml()}`;
+}
+
+function payMissingHtml() {
+  // Apple ne connaît pas encore les produits (contrat Paid Apps en attente, produit pas validé) :
+  // on le dit, sans prix inventé et sans écran cassé
+  const pending = access.missing && access.missing.length;
+  return `<div class="pay-note" role="status"><p>${pending
+    ? 'Les formules ne sont pas encore proposées par Apple.'
+    : 'Les formules n\'ont pas pu être lues chez Apple.'}</p>
+          <p>Tes séances, tes progrès et ton export restent à toi.</p>
+          <button class="pay-note__btn" data-action="pay-reload-products">Réessayer</button></div>`;
+}
+
+// Ce qui peut s'acheter, ou pourquoi rien ne peut l'être. tab : 'pro' ou 'coach'.
+function payPlansHtml(tab = 'pro', pre = null) {
   // Verrou éteint : rien à vendre. Proposer une formule ferait commencer l'essai d'Apple pour rien, et la
-  // personne serait débitée 3 mois plus tard (relecture du 28/10). Restaurer et les codes restent.
+  // personne serait débitée 3 mois plus tard (relecture du 28/10). Vaut aussi pour les paliers coach et
+  // l'offre élève. Restaurer et les codes restent.
   if (!paywallOn()) {
     return `<div class="pay-note" role="status"><p>Rien à acheter pour l'instant&nbsp;: tes séances s'enregistrent comme avant.</p></div>`;
   }
@@ -209,58 +299,86 @@ function payPlansHtml() {
   }
   const list = access.products;
   if (list === null) return '<div class="pay-note" role="status"><p>Chargement des formules…</p></div>';
-  if (!list.length) {
-    // Apple ne connaît pas encore les produits (contrat Paid Apps en attente, produit pas validé) :
-    // on le dit, sans prix inventé et sans écran cassé
-    const pending = access.missing && access.missing.length;
-    return `<div class="pay-note" role="status"><p>${pending
-      ? 'Les formules ne sont pas encore proposées par Apple.'
-      : 'Les formules n\'ont pas pu être lues chez Apple.'}</p>
-          <p>Tes séances, tes progrès et ton export restent à toi.</p>
-          <button class="pay-note__btn" data-action="pay-reload-products">Réessayer</button></div>`;
-  }
-  return `<p class="pay-benefits">${PAY_BENEFITS}</p>
-        <div class="pay-plans">${list.map(payPlanHtml).join('')}</div>${payTermsHtml(list)}${payLegalHtml()}`;
+  if (!list.length) return payMissingHtml();
+  if (tab === 'coach' && coachRole().isCoach) return payCoachHtml(list, pre);
+  if (payIsStudentOffer()) return payStudentHtml(list);
+  return payProHtml(list);
 }
 
-// reason : 'end' (écriture refusée) ou 'offer' (depuis les Réglages ou un bandeau)
-function renderPaywall(reason = 'offer') {
+// Onglets Particulier / Coach : seulement pour un coach validé (les autres ne voient jamais les paliers)
+function payTabsHtml(tab) {
+  if (!paywallOn() || !coachRole().isCoach || !Native.store.available) return '';
+  return `
+        <div class="pay-tabs"><div class="segmented seg-full" role="group" aria-label="Formule">
+          <button class="segmented__btn ${tab !== 'coach' ? 'segmented__btn--active' : ''}" aria-pressed="${tab !== 'coach'}" data-action="pay-tab" data-tab="pro">Particulier</button>
+          <button class="segmented__btn ${tab === 'coach' ? 'segmented__btn--active' : ''}" aria-pressed="${tab === 'coach'}" data-action="pay-tab" data-tab="coach">Coach</button>
+        </div></div>`;
+}
+
+// Pas encore coach : le chemin vers la demande (le rôle se vérifie, il ne s'achète pas)
+function payCoachLinkHtml() {
+  if (!account.user || coachRole().isCoach) return '';
+  const st = coachPro.request?.status;
+  const value = st === 'pending' ? 'En cours de vérification' : st === 'rejected' ? 'Demande refusée' : '';
+  return `
+        <div class="group">
+          <button class="cell cell--nav" data-action="coach-request-open">
+            <span class="cell__body"><span class="cell__title">Tu es coach ?</span><span class="cell__sub">Éducateur sportif diplômé : fais vérifier ta carte</span></span>
+            ${value ? `<span class="cell__value">${esc(value)}</span>` : ''}
+            ${icon('chevron.right', 16)}
+          </button>
+        </div>`;
+}
+
+// reason : 'end' (écriture refusée) ou 'offer' (depuis les Réglages ou un bandeau) ; tab : 'pro' ou
+// 'coach' ; pre : formule à mettre en avant (montée de palier)
+function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
   const head = navBar({ title: 'Abonnement', large: false });
   const end = reason === 'end';
-  const trial = (access.products || []).find(p => p.trial);
+  const coachTab = tab === 'coach' && coachRole().isCoach;
+  const shown = (access.products || []).filter(p => planIsCoach(p.id) === coachTab);
+  const trial = shown.find(p => p.trial);
   const off = !paywallOn();
-  const title = off ? 'Tout est ouvert' : end ? 'Abonnement nécessaire' : 'MDLF Training, sans limite';
+  const student = !off && !coachTab && payIsStudentOffer() && Native.store.available && access.products?.length;
+  const title = off ? 'Tout est ouvert' : coachTab ? 'MDLF Training pour coachs' : end ? 'Abonnement nécessaire' : 'MDLF Training, sans limite';
   // Formulation exacte : l'abonnement continue tout seul après l'essai, et Apple demande de résilier au
   // moins 24 h avant sa fin (https://support.apple.com/en-us/118428)
   const sub = off ? 'L\'abonnement n\'est pas encore demandé.'
+    : student ? `Avec le code de ton coach, ton abonnement est à 25 % de moins pendant ${PLAN_STUDENT_MONTHS} mois.`
     : trial
     ? `${esc(payDurationText(trial.trial))} gratuits, puis l'abonnement continue sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
     : 'Pour enregistrer de nouvelles séances, choisis une formule.';
   const stale = accessStale() && account.user ? `<p class="social-inline-error" role="status">${esc(access.error === 'offline' ? 'Pas d\'Internet : état pas à jour.' : 'État pas à jour.')}</p>` : '';
+  const planned = Native.store.available && access.products?.length && !off;
   return `
     <div class="view view--grouped pay-view">
       ${head}
       <div class="scr">
         ${stale}
         <div class="social-hero pay-hero">
-          <span class="social-hero__icon" aria-hidden="true">${icon('flame', 40)}</span>
+          <span class="social-hero__icon" aria-hidden="true">${icon(coachTab ? 'person.2' : 'flame', 40)}</span>
           <h2 class="social-hero__title">${title}</h2>
           <p class="social-hero__sub">${sub}</p>
         </div>
-        ${payPlansHtml()}
+        ${payTabsHtml(coachTab ? 'coach' : 'pro')}
+        ${payPlansHtml(coachTab ? 'coach' : 'pro', pre)}
         <div class="group">
           <button class="cell cell--action" data-action="pay-restore"><span class="cell__title">Restaurer mes achats</span></button>
           ${payCodeCellsHtml()}
         </div>
         <div class="group-foot">${PAY_CODE_NOTE}</div>
         <div class="group-foot">Un identifiant Apple n'a droit qu'à un seul essai gratuit, et un même abonnement ne peut servir qu'à un compte MDLF.</div>
-        ${Native.store.available && access.products?.length ? '' : payLegalHtml()}
+        ${coachTab ? '' : payCoachLinkHtml()}
+        ${planned ? '' : payLegalHtml()}
       </div>
     </div>`;
 }
 SCREENS.set('paywall', {
-  render: reason => renderPaywall(reason || 'offer'),
-  enter: () => { accessRefresh(); accessLoadStoreStatus(); accessLoadProducts(); },
+  render: (reason, tab, pre) => renderPaywall(reason || 'offer', tab === 'coach' ? 'coach' : 'pro', pre || null),
+  enter: () => {
+    accessRefresh(); accessLoadStoreStatus(); accessLoadProducts();
+    if (account.user) coachProRefresh({ minAge: 30_000 });
+  },
 });
 
 // ── Réglages › Abonnement ──────────────────────────────────
@@ -292,7 +410,7 @@ function renderSubscription() {
   // Essai gratuit d'Apple en cours : « Essai gratuit jusqu'au <date>, puis <prix> » (formule lue sur
   // l'iPhone, prix lu chez StoreKit ; sans eux, la date seule)
   const plan = intro ? (access.products || []).find(p => p.id === access.currentProduct) : null;
-  const introLine = intro ? `Essai gratuit jusqu'au ${fmtDate(intro)}${plan ? `, puis ${plan.price} ${PAY_PLAN_PERIOD[plan.id] || ''}`.trimEnd() : ''}` : '';
+  const introLine = intro ? `Essai gratuit jusqu'au ${fmtDate(intro)}${plan ? `, puis ${plan.price} ${payPer(plan)}` : ''}` : '';
   const offNote = !on ? `
         <div class="group-foot">Tout est ouvert pour l'instant : l'abonnement n'est pas encore demandé.</div>` : '';
   const rows = `
@@ -306,12 +424,12 @@ function renderSubscription() {
             <span class="cell__value">${esc(fmtDate(until))}</span>
           </div>` : ''}
         </div>${introLine ? `
-        <div class="group-foot pay-intro-line">${esc(introLine)}.</div>` : ''}${on && st === 'coach_team' ? `
-        <div class="group-foot">${esc(ACCESS_COACH_TEXT)}.</div>` : ''}${offNote}`;
+        <div class="group-foot pay-intro-line">${esc(introLine)}.</div>` : ''}${offNote}`;
   const actions = `
         <div class="group">
           ${on && (st === 'none' || st === 'expired' || st === 'unknown')
             ? '<button class="cell cell--action" data-action="pay-open" data-reason="offer"><span class="cell__title">Voir les formules</span></button>' : ''}
+          ${on && coachRole().isCoach ? `<button class="cell cell--action" data-action="pay-open" data-reason="offer" data-tab="coach"><span class="cell__title">${planIsCoach(access.currentProduct) ? 'Changer de palier coach' : 'Voir les formules coach'}</span></button>` : ''}
           ${Native.store.available ? '<button class="cell cell--action" data-action="pay-manage"><span class="cell__title">Gérer chez Apple</span></button>' : ''}
           <button class="cell cell--action" data-action="pay-restore"><span class="cell__title">Restaurer mes achats</span></button>
           ${payCodeCellsHtml()}
@@ -330,8 +448,10 @@ SCREENS.set('subscription', { render: () => renderSubscription(), enter: () => {
 // ── Mode lecture seule : la porte des écritures ─────────────
 
 // Ouvre l'écran d'abonnement (depuis un bandeau, une cellule ou un refus d'écriture)
-function openPaywall(reason = 'offer') {
-  navigate(makeRoute('paywall', reason === 'end' ? 'end' : 'offer'));
+// tab 'coach' (coach validé seulement) et pre : formule à mettre en avant (montée de palier)
+function openPaywall(reason = 'offer', tab = null, pre = null) {
+  const r = reason === 'end' ? 'end' : 'offer';
+  navigate(tab === 'coach' ? makeRoute('paywall', r, 'coach', ...(pre ? [pre] : [])) : makeRoute('paywall', r));
 }
 
 // Appelée par chaque point d'écriture d'une séance. true : on continue. false : l'abonnement est
@@ -366,7 +486,21 @@ function accessSignInPrompt() {
 
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
-  'pay-open': (e, el) => { openPaywall(el.dataset.reason); },
+  'pay-open': (e, el) => { openPaywall(el.dataset.reason, el.dataset.tab, el.dataset.id); },
+  'pay-tab': (e, el) => { navigate(makeRoute('paywall', 'offer', el.dataset.tab === 'coach' ? 'coach' : 'pro'), { replace: true }); },
+  'pay-period': (e, el) => { payCoachPeriod = el.dataset.period === 'year' ? 'year' : 'month'; haptic(); render(); },
+  // Offre élève : le serveur donne un code d'offre d'Apple à usage unique, la page d'Apple l'applique
+  'pay-student': async () => {
+    if (access.studentBusy) return;
+    access.studentBusy = true; render();
+    try {
+      const r = await accessStudentOffer();
+      if (!r.ok) { showToast(accessErrorText(r.kind), { error: true }); return; }
+      window.open(planRedeemUrl(r.code), '_blank');
+      showToast('Confirme ton offre élève dans la page d\'Apple');
+    } finally { access.studentBusy = false; render(); }
+  },
+  'coach-request-open': () => { navigate('coach-request'); },
   'access-open-settings': () => { navigate('subscription'); accessRefresh(); },
   'pay-terms': () => { window.open(PAY_TERMS_URL, '_blank'); },
   'pay-privacy': () => { window.open(PAY_PRIVACY_URL, '_blank'); },
@@ -426,6 +560,8 @@ function accessApplyChange() {
 }
 accessShown = accessShownKey();
 onAccessChange(() => { accessApplyChange(); });
+// Rôle coach, palier, coach de l'élève : l'écran d'abonnement en dépend (onglet Coach, offre élève)
+onCoachChange(() => { if (PAYWALL_VIEWS.includes(currentView()) && !document.activeElement?.matches?.('input, textarea, select')) render(); });
 // La synchro aussi change ce qui est montré : une séance refusée par le compte (verrou du serveur)
 // doit apparaître dans le bandeau sans attendre le prochain dessin
 onAccountChange(() => { accessApplyChange(); });

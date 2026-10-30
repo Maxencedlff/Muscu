@@ -217,7 +217,14 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     // Offre de lancement : rendue seulement si la personne y a droit (introEligible)
     assert.equal(products.products[0].introEligible, true);
     assert.equal(products.products[0].offer.paymentMode, 'freeTrial');
-    sameJSON(status, { canMakePayments: true, subscriptionIds: ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly'] });
+    // Les identifiants vendus : ceux du Swift, du faux StoreKit et du catalogue de l'app (js/data/plans.js)
+    const swiftSrc = swiftSource(ROOT).src;
+    const block = /subscriptionIds = \[([^\]]+)\]/.exec(swiftSrc);
+    assert.ok(block, 'liste subscriptionIds introuvable dans le Swift');
+    const swiftIds = [...block[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
+    assert.equal(swiftIds.length, 10, 'particulier + 4 paliers coach, mensuel et annuel');
+    sameJSON(status, { canMakePayments: true, subscriptionIds: swiftIds });
+    sameJSON(run('PLAN_IDS'), swiftIds, 'catalogue de l\'app différent du Swift');
     // Achat annulé : trois issues sans exception
     st.fail.purchase = 'cancel';
     sameJSON(await store.purchase({ productId: MONTHLY }), { status: 'userCancelled' });
@@ -252,15 +259,16 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       } finally { account.user = u; Object.assign(access, saved); sb = realSb; Native.store = nativeStore;
         localStorage.removeItem(ACCESS_CACHE_KEY); }
     })()`);
-    assert.equal(r[0].length, 2, 'aucune formule lue : l\'écran d\'abonnement serait vide');
-    assert.equal(r[0][0][1], '5,99 €', 'le prix affiché doit être displayPrice, pas le nombre');
-    assert.equal(r[0][1][1], '41,99 €');
+    assert.equal(r[0].length, 10, 'aucune formule lue : l\'écran d\'abonnement serait vide');
+    assert.equal(r[0][0][1], '6,49 €', 'le prix affiché doit être displayPrice, pas le nombre');
+    assert.equal(r[0][1][1], '55,00 €');
+    assert.equal(r[0][2][1], '15,99 €', 'palier coach 10 élèves');
     assert.ok(r[0][0][2], 'le nom du produit (displayName) n\'est pas lu');
     sameJSON(r[1], { ok: true }, 'restauration : le serveur n\'a rien reçu');
     assert.equal(r[2], 1, 'le droit en cours (abonnement) doit partir');
     sameJSON(r[3], ['tx-1'], 'chaque transaction vérifiée doit être terminée chez Apple');
     // L'essai gratuit est lu chez StoreKit (offre de lancement), jamais écrit dans l'app
-    sameJSON(r[5], [{ unit: 'month', value: 3 }, { unit: 'month', value: 3 }], 'essai lu dans offer (StoreKit), pas inventé');
+    sameJSON(r[5], Array(10).fill({ unit: 'month', value: 3 }), 'essai lu dans offer (StoreKit), pas inventé');
     assert.equal(r[4], true, 'accès rendu après la restauration');
   });
 

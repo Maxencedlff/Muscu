@@ -235,15 +235,24 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
   });
 
   test('accès : aucun prix ni durée d\'essai écrits en dur dans l\'app', () => {
-    const files = ['js/data/access.js', 'js/features/paywall-ui.js', 'css/paywall.css']
+    const files = ['js/data/access.js', 'js/features/paywall-ui.js', 'css/paywall.css', 'js/data/coach-pro.js', 'js/features/coach-pro-ui.js']
       .map(f => [f, fs.readFileSync(path.join(ROOT, f), 'utf8')]);
+    // Prix des formules (tarifs du 30/10, et les anciens) : jamais écrits, toujours lus chez StoreKit
+    const PRICES = /5[,.]99|41[,.]99|6[,.]49|55[,.]00|15[,.]99|134[,.]99|19[,.]99|169[,.]00|24[,.]99|209[,.]99|29[,.]99|250[,.]00/;
     for (const [f, src] of files) {
-      assert.ok(!/5[,.]99|41[,.]99/.test(src), `${f} : un prix est écrit en dur (les prix viennent de StoreKit)`);
+      assert.ok(!PRICES.test(src), `${f} : un prix est écrit en dur (les prix viennent de StoreKit)`);
       assert.ok(!/€/.test(src), `${f} : une devise est écrite en dur`);
     }
+    // Seule exception : le prix de l'offre élève (code d'offre d'Apple, que StoreKit ne donne pas), dans
+    // la table de repli de js/data/plans.js, et nulle part ailleurs dans ce fichier
+    const plans = fs.readFileSync(path.join(ROOT, 'js/data/plans.js'), 'utf8');
+    assert.ok(!PRICES.test(plans), 'plans.js : prix d\'une formule écrit en dur');
+    const euros = plans.split('\n').filter(l => /€/.test(l) && !/^\s*\/\//.test(l));
+    assert.equal(euros.length, 1, `plans.js : une seule ligne de prix (PLAN_STUDENT_PRICE) ${euros}`);
+    assert.ok(/^const PLAN_STUDENT_PRICE = /.test(euros[0]));
     // Les identifiants de produits, eux, sont bien ceux du contrat
-    sameJSON([MONTHLY, YEARLY, run('ACCESS_PRODUCT_IDS')],
-      ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly', ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly']]);
+    sameJSON([MONTHLY, YEARLY, run('ACCESS_PRODUCT_IDS.slice(0, 2)'), run('ACCESS_PRODUCT_IDS.length')],
+      ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly', ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly'], 10]);
     // L'ancien « Accès offert » d'Apple n'existe plus nulle part dans l'app
     for (const [f, src] of files) assert.ok(!/access\.gift|ACCESS_GIFT_ID|giftId/.test(src), `${f} : accès offert d'Apple resté`);
     // Plus aucune trace de l'essai maison ni du rattachement à l'identifiant Apple
@@ -578,4 +587,69 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     const start = fs.readFileSync(path.join(ROOT, 'js/features/session.js'), 'utf8');
     assert.ok(/writeOk: typeof canWrite !== 'function' \|\| canWrite\(\),/.test(start), 'droit d\'écrire non noté au début de la séance');
   });
+  test('formules : catalogue, paliers coach, « soit 8,5 mois » calculé', () => {
+    sameJSON(run(`[planOf('com.mdlf.training.coach20.yearly').tier.key, planOf('com.mdlf.training.coach20.yearly').period,
+      planOf('com.mdlf.training.pro.monthly').tier.coach, planOf('com.mdlf.training.access.gift'), planIsCoach('com.mdlf.training.coachmax.monthly')]`),
+      ['coach20', 'year', false, null, true]);
+    // Palier conseillé : le plus petit qui contient les élèves ; au-delà de 30, illimité
+    sameJSON(run(`[0, 1, 10, 11, 20, 21, 30, 31, 500].map(n => planTierFor(n).key)`),
+      ['coach10', 'coach10', 'coach10', 'coach20', 'coach20', 'coach30', 'coach30', 'coachmax', 'coachmax']);
+    sameJSON(run(`['com.mdlf.training.coach10.monthly', 'com.mdlf.training.coach30.yearly', 'com.mdlf.training.coachmax.monthly', 'com.mdlf.training.pro.monthly']
+      .map(id => planNextTier(id)?.key ?? null)`), ['coach20', 'coachmax', null, 'coach10']);
+    // Prix lus chez StoreKit (nombres) : 55 / 6,49 = 8,47 → 8,5 mois ; 134,99 / 15,99 = 8,44 → 8,5
+    sameJSON(run(`[planYearMonths({ amount: 6.49 }, { amount: 55 }), planYearMonths({ amount: 15.99 }, { amount: 134.99 }),
+      planYearMonths({ amount: 29.99 }, { amount: 250 }), planYearMonths({ amount: 7.77 }, { amount: 77.77 }),
+      planYearMonths(null, { amount: 55 }), planYearMonths({ amount: 0 }, { amount: 55 }), planYearMonths({ amount: 5 }, { amount: 70 })]`),
+      [8.5, 8.5, 8.5, 10, null, null, null]);
+    assert.equal(run('planMonthsText(8.5)'), '8,5 mois');
+    // Offre élève : repli par devise (StoreKit ne donne pas le prix d'un code d'offre)
+    sameJSON(run(`[planStudentPrice('EUR'), planStudentPrice('JPY'), planStudentPrice(undefined)]`), ['4,89 €', null, null]);
+    assert.equal(run(`planRedeemUrl('ABC123DEF')`), 'https://apps.apple.com/redeem?ctx=offercodes&id=6823561962&code=ABC123DEF');
+  });
+
+  test('coach : code permanent de 12 caractères, numéro de carte, palier plein', () => {
+    sameJSON(run(`[normalizeCoachCode('k7m2-qx9p-r4td'), normalizeCoachCode('K7M2QX9P'), normalizeCoachCode('K7M2QX9PR4T'),
+      extractCoachCode('saisis le code K7M2-QX9P-R4TD. Avec ce code'), extractCoachCode('le code K7M2QX9P. Il est valable')]`),
+      ['K7M2QX9PR4TD', 'K7M2QX9P', null, 'K7M2QX9PR4TD', 'K7M2QX9P']);
+    assert.equal(run(`formatCoachCode('K7M2QX9PR4TD')`), 'K7M2-QX9P-R4TD');
+    assert.ok(/K7M2-QX9P-R4TD/.test(run(`coachInviteText('K7M2QX9PR4TD')`)) && !/7 jours/.test(run(`coachInviteText('K7M2QX9PR4TD')`)));
+    assert.equal(run(`coachErrorKind({ code: 'P0001', message: 'tier_full' })`), 'tier_full');
+    sameJSON(run(`[normalizeCardNumber(' 049 12-ed0123 '), normalizeCardNumber('ab12'), normalizeCardNumber('A'.repeat(21))]`), ['04912ED0123', null, null]);
+    const t = run(`cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach10.monthly', limit: 10, students: 10, next_product: 'com.mdlf.training.coach20.monthly' })`);
+    assert.equal(t.full, true);
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach10.monthly', limit: 10, students: 10 }))`),
+      '10 élèves sur 10 : passe au palier supérieur.');
+    assert.equal(run(`coachTierFullText(cleanCoachTier({ is_coach: true, limit: null, students: 99 }))`), null, 'illimité : jamais plein');
+    // Produit inconnu renvoyé par le serveur : ignoré
+    assert.equal(run(`cleanCoachTier({ is_coach: true, product_id: 'autre', limit: 3, students: 1 }).product_id`), null);
+    sameJSON(run(`cleanCoachRequest({ status: 'bizarre', card_name: 1 })`).status, 'none');
+    for (const k of ['already_coach', 'invalid_name', 'invalid_card', 'invalid_diploma', 'rate_limited', 'tier_full']) {
+      const txt = run(`coachProErrorText(${JSON.stringify(k)})`);
+      assert.match(txt, /^[A-ZÉÀ].+\.$/, k);
+      assert.ok(!/ - | – /.test(txt), `${k} : sans tiret`);
+    }
+  });
+
+  test('offre élève : un refus du serveur n\'est pas une exception, le code est gardé', async () => {
+    const r = await run(`(async () => {
+      const u = account.user, saved = { ...access }, realSb = sb;
+      const calls = [];
+      try {
+        account.user = { id: 'u' };
+        accessReset('u');
+        const answer = { data: { ok: false, error: 'not_new', code: null }, error: null };
+        sb = { rpc: async (fn, args) => { calls.push([fn, args.env]); return answer; } };
+        const notNew = await accessStudentOffer();
+        const kept = access.studentOffer;
+        answer.data = { ok: true, error: null, code: 'STUDENTCODE01', expires_at: '2027-01-01T00:00:00Z' };
+        const ok = await accessStudentOffer();
+        answer.data = { ok: true, code: '<script>' };
+        const bad = await accessStudentOffer();
+        return [notNew, kept, ok.ok, ok.code, bad, calls];
+      } finally { account.user = u; Object.assign(access, saved); sb = realSb; }
+    })()`);
+    sameJSON(r, [{ ok: false, kind: 'not_new' }, { error: 'not_new' }, true, 'STUDENTCODE01', { ok: false, kind: 'server' },
+      [['student_offer_code', 'Production'], ['student_offer_code', 'Production'], ['student_offer_code', 'Production']]]);
+  });
 }
+

@@ -17,7 +17,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send'];
+const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send', 'coach-request'];
 const COACH_SEND_DRAFT_KEY = 'mdlf_coach_send_draft';   // brouillon de l'écran Envoyer (retour arrière, relance)
 const coachTipClosed = new Set();   // séance en cours : consignes repliées (identifiant d'exercice, '' : programme)
 const coachProgOpen = new Set();    // Mon coach : programmes reçus dont les exercices sont dépliés
@@ -59,7 +59,7 @@ function coachTitle(html) { return `<h2 class="group-title coach-title">${html}<
 function coachRouteTitle(route) {
   const name = routeName(route);
   if (name === 'coach-student') return coachStudent(routeParams(route)[0])?.username || 'Élève';
-  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer' }[name] || null;
+  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-request': 'Devenir coach' }[name] || null;
 }
 
 // ── Cellules : Réglages et onglet Amis ──────────────────────
@@ -182,9 +182,12 @@ function renderCoachSettings() {
             ${icon('chevron.right', 16)}
           </button>
         </div>` : '';
-  return `<div class="view view--grouped coach-view">${head}<div class="scr">${stale}${students}${mine}</div></div>`;
+  // Rôle coach (js/features/coach-pro-ui.js) : code permanent et palier sous Mes élèves, ou la demande
+  // « Devenir coach » en bas pour qui n'est pas coach
+  const pro = renderCoachProGroup();
+  return `<div class="view view--grouped coach-view">${head}<div class="scr">${stale}${isCoach ? students + pro + mine : mine + pro}</div></div>`;
 }
-SCREENS.set('coach', { render: () => renderCoachSettings(), enter: () => { coachRefresh(); } });
+SCREENS.set('coach', { render: () => renderCoachSettings(), enter: () => { coachRefresh(); coachProRefresh(); } });
 
 // ── Rejoindre : code, aperçu, âge, accepter ─────────────────
 
@@ -196,15 +199,15 @@ function coachCodeSheet() {
     body: `<div class="coach-sheet">
         <label class="coach-sheet__label" for="coachCode">Code reçu de ton coach</label>
         <input class="coach-code-input" id="coachCode" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off"
-               spellcheck="false" enterkeyhint="go" placeholder="Ex : K7M2QX9P" aria-describedby="coachCodeHelp">
-        <p class="coach-sheet__hint" id="coachCodeHelp" aria-live="polite">8 lettres et chiffres. Tu peux coller tout le message d'invitation.</p>
+               spellcheck="false" enterkeyhint="go" placeholder="Ex : K7M2-QX9P-R4TD" aria-describedby="coachCodeHelp">
+        <p class="coach-sheet__hint" id="coachCodeHelp" aria-live="polite">8 ou 12 lettres et chiffres. Tu peux coller tout le message d'invitation.</p>
       </div>`,
     onConfirm: async panel => {
       const input = panel.querySelector('#coachCode'), help = panel.querySelector('#coachCodeHelp');
       const btn = panel.querySelector('.sheet__btn--confirm');
       const fail = msg => { help.textContent = msg; help.classList.add('coach-sheet__hint--bad'); input.setAttribute('aria-invalid', 'true'); haptic('medium'); return false; };
       const code = extractCoachCode(input.value);
-      if (!code) return fail('Code introuvable : il fait 8 lettres et chiffres, comme K7M2QX9P.');
+      if (!code) return fail('Code introuvable : il fait 8 ou 12 lettres et chiffres, comme K7M2-QX9P-R4TD.');
       btn.disabled = true; btn.textContent = 'Vérification…';
       let r = await coachPreview(code);
       if (!r.ok && r.kind === 'username_required') {
@@ -569,6 +572,7 @@ function renderCoachStudents() {
       ${head}
       <div class="scr">
         ${coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : liste pas à jour.' : coachErrorText(coach.error))}</p>` : ''}
+        ${coachTierBannerHtml()}
         <div class="group-title">Élèves${st.students.length ? ` (${st.students.length})` : ''}</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub social-empty">Aucun élève pour l\'instant</span></div>'}</div>
         <div class="group-foot">Tes élèves ne se voient pas entre eux.</div>
@@ -577,12 +581,12 @@ function renderCoachStudents() {
           ${invites}
           <button class="cell cell--action" data-action="coach-invite" ${coachInviteBusy ? 'disabled' : ''}>${icon('plus', 20)}<span>Inviter un élève</span></button>
         </div>
-        <div class="group-foot">Chaque code est valable 7 jours et sert à plusieurs élèves. L'élève le saisit dans l'onglet Amis › Rejoindre un coach.</div>
+        <div class="group-foot">Ces codes sont valables 7 jours et servent à plusieurs élèves. Ton code coach, dans Réglages › Coach, n'expire pas. L'élève le saisit dans l'onglet Amis › Rejoindre un coach.</div>
         ${removed}
       </div>
     </div>`;
 }
-SCREENS.set('coach-students', { render: () => renderCoachStudents(), enter: () => { coachRefresh(); } });
+SCREENS.set('coach-students', { render: () => renderCoachStudents(), enter: () => { coachRefresh(); coachProRefresh({ minAge: 30_000 }); } });
 
 // ── Coach : un élève et ses séances ─────────────────────────
 
