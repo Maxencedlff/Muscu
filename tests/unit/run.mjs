@@ -1382,6 +1382,19 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
   }
 });
 
+test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light par défaut', () => {
+  const asked = [];
+  const box = { data: { vibrateOn: true }, navigator: {}, document: { addEventListener() {} },
+                Native: { haptic: k => { asked.push(k); return true; } } };
+  const c = vm.createContext(box);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8') + '\nthis.haptic = haptic;', c);
+  c.haptic(); c.haptic('medium'); c.haptic('success'); c.haptic({ type: 'click' }); c.haptic('fort');
+  sameJSON(asked, ['light', 'medium', 'success', 'light', 'light']);
+  box.data.vibrateOn = false;
+  c.haptic('medium');
+  assert.equal(asked.length, 5, 'vibrations coupées dans les Réglages : rien');
+});
+
 // ── Muscles (tests/unit/muscles.mjs) ────────────────────────
 
 (await import('./muscles.mjs')).default({ test, app, run, reset, sameJSON, assert, ROOT });

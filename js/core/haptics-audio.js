@@ -3,10 +3,13 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Retour haptique : vibrate() sur Android ; sur iOS 18+, basculer un <input switch> déclenche le Taptic Engine
-function haptic() {
+// Retour haptique : vibrate() sur Android ; sur iOS 18+, basculer un <input switch> déclenche le Taptic Engine.
+// kind : 'light' (toucher, par défaut), 'medium' (erreur de saisie), 'success' ; tout autre argument
+// (un événement passé par addEventListener, par exemple) revient à 'light'.
+const HAPTIC_KINDS = ['light', 'medium', 'success'];
+function haptic(kind = 'light') {
   if (data.vibrateOn === false) return;
-  if (Native.haptic('light')) return;   // app iOS : vrai Taptic Engine
+  if (Native.haptic(HAPTIC_KINDS.includes(kind) ? kind : 'light')) return;   // app iOS : vrai Taptic Engine
   if (navigator.vibrate) { navigator.vibrate(8); return; }
   try {
     const label = document.createElement('label');
