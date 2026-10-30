@@ -94,11 +94,12 @@ function blobDataUrl(blob) {
   });
 }
 
-function sharePreviewBody(stats) {
+// alt : description de l'image pour VoiceOver (shareStoryAlt, recapPageAlt)
+function sharePreviewBody(alt) {
   return `
     <div class="share-preview">
       <div class="share-preview__frame">
-        <canvas class="share-preview__img" width="1080" height="1920" role="img" aria-label="${esc(shareStoryAlt(stats))}"></canvas>
+        <canvas class="share-preview__img" width="1080" height="1920" role="img" aria-label="${esc(alt)}"></canvas>
       </div>
       <button class="btn btn--primary btn--full share-preview__send" data-action="share-story-send" disabled>
         ${icon('square.and.arrow.up', 22)}<span>Partager</span>
@@ -107,22 +108,20 @@ function sharePreviewBody(stats) {
     </div>`;
 }
 
-// Ouvre l'aperçu de l'image d'une séance de l'historique
-async function openSharePreview(id) {
-  const entry = (data.history || []).find(h => h.id === id);
-  if (!entry || shareState) return;   // double toucher : un seul aperçu
-  // Bilan de la séance qui vient de se terminer : mêmes records que ceux affichés
-  const baseline = lastSummary?.id === id ? lastSummary.baseline : null;
-  const stats = shareStoryStats(entry, { baseline });
-  const state = { entry, stats, blob: null, file: null, name: shareFileName(entry), busy: false };
+// Feuille d'aperçu commune aux images partagées (séance, écran d'un récap : js/features/recap.js).
+// state : { stats: { title }, name (fichier), alt, … } devient shareState le temps de l'aperçu ;
+// draw(canvas) dessine l'image dans le canvas de la feuille. Un seul aperçu à la fois (double toucher).
+async function openStoryPreview(state, draw) {
+  if (shareState) return;
+  Object.assign(state, { blob: null, file: null, busy: false });
   shareState = state;
-  sheet({ title: 'Aperçu', cancel: 'Fermer', confirm: '', body: sharePreviewBody(stats) })
+  sheet({ title: 'Aperçu', cancel: 'Fermer', confirm: '', body: sharePreviewBody(state.alt) })
     .then(() => { if (shareState === state) shareState = null; });
   const root = [...document.querySelectorAll('.sheet-root')].pop();
   state.close  = v => root?._close?.(v);
   state.canvas = root.querySelector('.share-preview__img');
   try {
-    await renderShareStory(entry, { stats, canvas: state.canvas });
+    await draw(state.canvas);
     state.blob = await canvasBlob(state.canvas);
     if (state.blob && !Native.isNative && typeof File === 'function') {
       state.file = new File([state.blob], state.name, { type: 'image/png' });
@@ -133,6 +132,17 @@ async function openSharePreview(id) {
   }
   const btn = root.querySelector('.share-preview__send');
   if (btn && (state.file || (Native.isNative && state.blob))) btn.disabled = false;
+}
+
+// Ouvre l'aperçu de l'image d'une séance de l'historique
+async function openSharePreview(id) {
+  const entry = (data.history || []).find(h => h.id === id);
+  if (!entry) return;
+  // Bilan de la séance qui vient de se terminer : mêmes records que ceux affichés
+  const baseline = lastSummary?.id === id ? lastSummary.baseline : null;
+  const stats = shareStoryStats(entry, { baseline });
+  await openStoryPreview({ entry, stats, name: shareFileName(entry), alt: shareStoryAlt(stats) },
+    canvas => renderShareStory(entry, { stats, canvas }));
 }
 
 const SHARE_MESSAGES = { downloaded: 'Image enregistrée', failed: 'Partage impossible' };

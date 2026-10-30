@@ -287,6 +287,8 @@ function sanitizeData(d) {
   if (d.unit !== 'kg' && d.unit !== 'lbs') d.unit = 'kg';
   // Barre et disques de la personne (js/data/plates.js) : réglage retiré s'il n'en reste rien de valable
   if (d.plates !== undefined) { const p = cleanPlates(d.plates); if (p) d.plates = p; else delete d.plates; }
+  // Carte « Ta semaine » de l'accueil coupée (js/features/recap.js) : true ou absent
+  if (d.recapCardOff !== undefined && d.recapCardOff !== true) delete d.recapCardOff;
   // Silhouette des muscles (bodySilhouette) : absente = homme ; valeur inconnue retirée
   if (d.silhouette !== undefined && d.silhouette !== 'female' && d.silhouette !== 'male') delete d.silhouette;
   // Niveau du premier lancement (trainingLevel) : valeur inconnue retirée

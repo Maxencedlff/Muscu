@@ -233,6 +233,8 @@ const SCREENS = new Map([
   ['stats-overview', { render: () => renderStatsOverview() }],
   ['body-measures',  { render: () => renderBodyMeasures(), mount: () => mountBodyMeasures(), leave: () => leaveBodyMeasures() }],   // Progrès › Mesures (js/features/body-measures-ui.js)
   ['body-measure',   { render: key => renderBodyMeasure(key), mount: () => drawCharts() }],   // courbe d'une mensuration
+  ['recaps',         { render: () => renderRecaps() }],                                 // Progrès › Récaps
+  ['recap',          { render: key => renderRecap(key), mount: () => recapMount() }],   // écrans d'un récap (js/features/recap.js)
   ['my-programmes',  { render: () => renderMyProgrammes() }],   // Programme › Mes programmes (et sous-titre de l'accueil)
   ['prog-add',       { render: () => renderProgAdd() }],
   ['prog-info',      { render: id => renderProgInfo(id) }],      // fiche d'un programme de « Tous les programmes »

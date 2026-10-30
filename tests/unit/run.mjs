@@ -50,6 +50,7 @@ const SCRIPTS = [
   'js/data/exercise-moves.js',
   'js/data/exercise-howto.js',
   'js/data/muscle-load.js',
+  'js/data/recap.js',
   'js/data/app-icons.js',
   'js/data/guide.js',
   'js/data/onboarding.js',
@@ -1474,6 +1475,8 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 (await import('./seance-outils.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Import depuis Hevy et Strong (tests dans import-csv.mjs) ──
 (await import('./import-csv.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
+// ── Récaps de la semaine, du mois et de l'année (tests dans recap.mjs) ──
+(await import('./recap.mjs')).default({ test, run, reset, assert, app, sameJSON });
 
 // ── Exécution ───────────────────────────────────────────────
 
