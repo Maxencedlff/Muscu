@@ -24,6 +24,21 @@ def skip_rest(page):
     page.wait_for_timeout(120)
 
 
+def squat60_json():
+    """Données des tests avec le Squat barre à 60 kg partout (le jeu commun monte à 70 kg) : 60 = barre de 20
+    + un disque de 20 par côté, base des vérifications des disques et de l'échauffement."""
+    d = ppl_v2_today()
+    for h in d['history']:
+        for e in h['exercises']:
+            if e['name'] == 'Squat barre':
+                for st in e['sets']:
+                    st['weight'] = '60'
+    for e in d['programmes']['ppl']['exercises']['legs']:
+        if e['name'] == 'Squat barre':
+            e.update(lastWeight='60', pr={'weight': '60', 'reps': '10'})
+    return json.dumps(d, ensure_ascii=False, separators=(',', ':'))
+
+
 def rects_ok(page, sel, mini=44):
     """Toutes les zones de toucher (bouton ou son ::after) font au moins `mini` px."""
     return page.evaluate("""([sel, mini]) => [...document.querySelectorAll(sel)].map(b => {
@@ -36,7 +51,7 @@ def rects_ok(page, sel, mini=44):
 def t_outils(bench, eng, dev, theme):
     t = f'{dev}-{theme}'
     with bench.page(eng, dev, theme) as page:
-        seed(page, theme, ppl_v2_today_json())
+        seed(page, theme, squat60_json())
         start(page, 'legs')   # Squat barre (barre, 60 kg la dernière fois), Presse à cuisses (machine)
 
         # ── Disques : bouton sur la série à faire du Squat barre seulement
@@ -60,12 +75,20 @@ def t_outils(bench, eng, dev, theme):
         R.check(page.evaluate("JSON.parse(localStorage.getItem('ppl_v2')).plates?.bar?.kg") == 15, f'{t} barre mémorisée')
         page.click('[data-action="pl-plate"][data-plate="1.25"]'); page.wait_for_timeout(100)
         res = page.locator('.pl__result').inner_text()
-        R.check('au plus proche' in res and page.locator('.pl__apply').count() == 1, f'{t} sans 1,25 : charge atteignable proposée ({res})')
+        # 62,5 inatteignable : 60 au plus proche, déjà la charge de la série → pas de bouton « Mettre 60 kg »
+        R.check('au plus proche' in res and '60 kg' in res and page.locator('.pl__apply').count() == 0, f'{t} sans 1,25 : charge atteignable proposée, déjà dans la série ({res})')
+        # Sans 1,25, le pas est de 5 kg (2 × 2,5) : 67,5 inatteignable, 65 au plus proche (15 + 2 × 25),
+        # différent de la série → un toucher la reporte
+        page.click('[data-action="pl-adj"][data-d="1"]'); page.wait_for_timeout(100)
+        res = page.locator('.pl__result').inner_text()
+        R.check('65 kg au plus proche' in res and page.locator('.pl__apply').count() == 1, f'{t} 67,5 : 65 proposé, bouton pour le reporter ({res})')
         page.click('[data-action="pl-apply"]'); page.wait_for_timeout(200)
-        R.check(page.evaluate("activeSession.exercises[0].sets[0].weight") == '60', f'{t} charge atteignable reportée dans la série')
+        R.check(page.evaluate("activeSession.exercises[0].sets[0].weight") == '65', f'{t} charge atteignable reportée dans la série')
         shot(page, LOT, f'{t}-02-disques-ajuste')
         page.click('.sess-sheet--plates [data-action="sheet-done"]'); page.wait_for_timeout(300)
         R.check(page.locator('.sess-sheet--plates').count() == 0, f'{t} feuille fermée')
+        # Retour à 60 pour la suite (échauffement calculé sur 60)
+        page.evaluate("activeSession.exercises[0].sets[0].weight = '60'; persistSession(); render()"); page.wait_for_timeout(200)
 
         # ── Échauffement : depuis le menu ⋯ du Squat barre (barre 15, disques sans 1,25 : pas de 5 kg)
         page.click('.ex-card[data-ei="0"] [data-action="ex-menu"]'); page.wait_for_timeout(300)
@@ -80,10 +103,12 @@ def t_outils(bench, eng, dev, theme):
         page.click('[data-action="wu-add"]'); page.wait_for_timeout(400)
         sets = page.evaluate("activeSession.exercises[0].sets.map(s => [s.warmup === true, s.weight, s.reps])")
         R.check(sets[:3] == [[True, '25', '8'], [True, '35', '5'], [True, '50', '3']] and not sets[3][0], f'{t} 3 séries warmup:true insérées avant le travail {sets[:4]}')
-        R.check(page.locator('.ex-card[data-ei="0"] .sets__caption').inner_text() == 'Échauffement', f'{t} titre gris « Échauffement »')
+        R.check(page.locator('.ex-card[data-ei="0"] .sets__caption').text_content().strip() == 'Échauffement', f'{t} titre gris « Échauffement »')   # capitales par CSS
         R.check(page.locator('.ex-card[data-ei="0"] .session-set--warmup').count() == 3, f'{t} 3 lignes grises')
         nums = page.locator('.ex-card[data-ei="0"] .set-n').all_inner_texts()
-        R.check(nums[:3] == ['É', 'É', 'É'] and nums[3:5] == ['1', '2'] if len(nums) >= 5 else False, f'{t} numérotation : É É É puis 1, 2 ({nums[:6]})')
+        # Série en cours (1er échauffement) : le bouton Disques remplace son numéro
+        cur_plates = page.locator('.ex-card[data-ei="0"] .session-set--current .set-plates').count() == 1
+        R.check(cur_plates and nums[1:3] == ['É', 'É'] and nums[3:5] == ['1', '2'] if len(nums) >= 5 else False, f'{t} numérotation : (Disques) É É puis 1, 2 ({nums[:6]})')
         R.check(page.evaluate("JSON.parse(localStorage.getItem('ppl_active_session')).activeSession.exercises[0].sets[0].warmup") is True, f'{t} séance sauvegardée avec l\'échauffement')
         page.evaluate("document.querySelector('.ex-card[data-ei=\"0\"]').scrollIntoView()")
         shot(page, LOT, f'{t}-04-echauffement-seance')
@@ -118,7 +143,7 @@ def t_outils(bench, eng, dev, theme):
         R.check(page.locator('.rir__rpe').inner_text() == 'RPE 10', f'{t} RIR 0 = RPE 10')
         # Série suivante : le sélecteur passe sur elle, la précédente garde un badge « RIR 0 »
         page.click('[data-action="validate-set"][data-ei="0"][data-si="4"]'); page.wait_for_timeout(300); skip_rest(page)
-        R.check(page.locator('.session-set[data-si="3"] .rir-badge').inner_text() == 'RIR 0' and page.locator('.rir .rir__btn[data-si="4"]').count() == 5, f'{t} badge sur la série 1, sélecteur sur la série 2')
+        R.check(page.locator('.ex-card[data-ei="0"] .set-swipe:has(.session-set[data-si="3"]) .rir-badge').inner_text() == 'RIR 0' and page.locator('.rir .rir__btn[data-si="4"]').count() == 5, f'{t} badge sur la série 1, sélecteur sur la série 2')
         # Volume de l'exercice : les 3 échauffements ne comptent pas (2 × 60 × 8 = 960 contre 2 × 60 × 10 = 1200 l'an dernier : pas de hausse affichée)
         vol = page.evaluate("exVolume(activeSession.exercises[0], activeSession.exercises[0].sets.filter(s => s.done))")
         R.check(vol == 60 * 8 * 2 or vol == page.evaluate("workSets(activeSession.exercises[0].sets).filter(s => s.done).reduce((a, s) => a + s.weight * s.reps, 0)"), f'{t} volume sans l\'échauffement ({vol})')
