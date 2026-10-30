@@ -93,7 +93,7 @@ $$;
 drop function public.set_reaction(uuid, text, text);
 drop function public.my_reactions();
 drop function public.session_reactions(text);
-drop function public.my_activity(timestamptz);
+drop function public.my_activity(timestamptz, text);
 drop function public.mark_activity_seen();
 drop function public.my_shown_sessions(bigint, text);
 drop function private.activity_new(uuid);

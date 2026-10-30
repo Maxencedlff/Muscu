@@ -125,6 +125,24 @@ begin
   if (public.social_state() ->> 'activity_new')::int <> 0 or exists (select 1 from public.my_activity() where is_new) then raise 'activité vue'; end if;
   if pg_temp.err($q$ update public.user_profiles set activity_seen_at = null $q$) not like 'permission denied%' then raise 'activity_seen_at modifiable'; end if;
 end $$;
+-- Curseur stable (at complet + clé kind:user_id:session_id) : après chaque ligne, exactement les lignes
+-- d'après, même quand plusieurs lignes ont la même date (B, C et F acceptés dans la même transaction)
+do $$
+declare all_rows text[]; k int; n int; r record;
+begin
+  perform pg_temp.login('a');
+  select array_agg(x.kind || ':' || x.user_id || ':' || coalesce(x.session_id, '') order by x.o) into all_rows
+    from (select m.*, row_number() over () as o from public.my_activity() m) x;
+  if (select count(*) from (select at from public.my_activity() group by at having count(*) > 1) d) = 0 then raise 'pas de lignes à la même date : test sans objet'; end if;
+  for k in 1 .. array_length(all_rows, 1) loop
+    select * into r from (select m.*, row_number() over () as o from public.my_activity() m) x where x.o = k;
+    select count(*) into n from public.my_activity(r.at, r.kind || ':' || r.user_id || ':' || coalesce(r.session_id, ''));
+    if n <> array_length(all_rows, 1) - k then raise 'curseur après la ligne % : % lignes au lieu de %', k, n, array_length(all_rows, 1) - k; end if;
+    if (select array_agg(m.kind || ':' || m.user_id || ':' || coalesce(m.session_id, ''))
+        from public.my_activity(r.at, r.kind || ':' || r.user_id || ':' || coalesce(r.session_id, '')) m) is distinct from all_rows[k + 1:]
+       and n > 0 then raise 'curseur après la ligne % : ordre', k; end if;
+  end loop;
+end $$;
 -- Réaction changée : de nouveau nouvelle
 do $$ begin perform pg_temp.login('b'); perform public.set_reaction(pg_temp.u('a'), 'a-1', 'wow'); end $$;
 do $$ begin

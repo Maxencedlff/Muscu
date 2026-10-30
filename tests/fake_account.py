@@ -259,13 +259,14 @@ FAKE_ACCOUNT = r"""
     return { weight: sc(st.weight), reps: sc(st.reps), dist: sc(st.dist), warmup: st.warmup === true ? true : undefined,
       rir: Number.isInteger(st.rir) && st.rir >= 0 && st.rir <= 4 ? st.rir : undefined };
   };
-  const pubRecords = v => {
+  // withBefore : valeur d'avant gardée pour le coach seulement (private.session_records(v, true))
+  const pubRecords = (v, withBefore = false) => {
     if (!Array.isArray(v)) return undefined;
     const n = x => typeof x === 'number' && x >= 0 && x <= 100000, D = [0.5, 1, 2, 5, 10];
     return v.slice(0, 20).filter(r => r && typeof r === 'object' && typeof r.ex === 'string' && r.ex.trim()
       && ['charge', 'reps', 'lest', 'aide', 'temps', 'duree', 'distance', 'allure'].includes(r.kind) && n(r.before) && n(r.after)
       && (r.kind !== 'allure' || D.includes(r.d)))
-      .map(r => ({ ex: r.ex.slice(0, 80), kind: r.kind, before: r.before, after: r.after, w: n(r.w) ? r.w : undefined, d: D.includes(r.d) ? r.d : undefined }));
+      .map(r => ({ ex: r.ex.slice(0, 80), kind: r.kind, before: withBefore ? r.before : undefined, after: r.after, w: n(r.w) ? r.w : undefined, d: D.includes(r.d) ? r.d : undefined }));
   };
   const sessionPublic = d => {
     const sc = v => (['string', 'number', 'boolean'].includes(typeof v) ? v : undefined);
@@ -387,7 +388,7 @@ FAKE_ACCOUNT = r"""
     session_reactions: (me, { session_id }) => so.bravos.filter(b => b.owner === me && b.sid === session_id && canSee(b.user, me))
       .sort((a, b) => b.at - a.at)
       .map(b => ({ user_id: b.user, username: sb.profiles[b.user]?.username || null, avatar: sb.profiles[b.user]?.avatar_emoji || null, kind: b.kind, at: iso(b.at) })),
-    my_activity: (me, { before_at = null } = {}) => {
+    my_activity: (me, { before_at = null, before_key = null } = {}) => {
       if (!so.at[me]) return [];
       const seen = seenOf(me);
       const pr = id => ({ user_id: id, username: sb.profiles[id]?.username || null, avatar: sb.profiles[id]?.avatar_emoji || null });
@@ -402,8 +403,11 @@ FAKE_ACCOUNT = r"""
         ...so.follows.filter(f => f.followee === me && f.status === 'pending' && !blockedBetween(me, f.follower))
           .map(f => ({ kind: 'request', ...pr(f.follower), at: f.at, is_new: false })),
       ];
+      // Curseur (at, clé kind:user_id:session_id), comme le serveur : à date égale, clé croissante
+      const key = r => `${r.kind}:${r.user_id}:${r.session_id || ''}`;
       const before = before_at ? Date.parse(before_at) : Infinity;
-      return rows.filter(r => r.at < before).sort((a, b) => b.at - a.at).slice(0, 50)
+      return rows.filter(r => r.at < before || (before_key != null && r.at === before && key(r) > before_key))
+        .sort((a, b) => b.at - a.at || (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0)).slice(0, 50)
         .map(r => ({ reaction: null, session_id: null, session_label: null, session_at: null, ...r, at: iso(r.at) }));
     },
     mark_activity_seen: me => { so.seenAt[me] = now(); return null; },
@@ -448,10 +452,10 @@ FAKE_ACCOUNT = r"""
   const cperson = (id, since) => ({ ...person(id, since || 0), since: since == null ? null : new Date(since).toISOString() });
   const validInvite = code => co.invites.find(i => i.code === code && i.expires > now());
   const CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  // private.session_for_coach : liste blanche du social + notes, hidden, id (jamais bodyKg ni healthSaved)
+  // private.session_for_coach : liste blanche du social + notes, hidden, id, records avec before (jamais bodyKg ni healthSaved)
   const sessionForCoach = (id, d) => {
     const sc = v => (['string', 'number', 'boolean'].includes(typeof v) ? v : undefined);
-    return JSON.parse(JSON.stringify({ ...sessionPublic(d), notes: sc(d.notes), hidden: sc(d.hidden), id,
+    return JSON.parse(JSON.stringify({ ...sessionPublic(d), records: pubRecords(d.records, true), notes: sc(d.notes), hidden: sc(d.hidden), id,
       exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), ss: sc(e.ss), sets: (e.sets || []).map(pubSet) })) }));
   };
   const noteAlive = n => livePosts(n.student).some(p => p.id === n.sid);

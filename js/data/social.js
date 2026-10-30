@@ -184,7 +184,9 @@ function cleanWhoRow(r) {
 }
 
 // Ligne de l'activité (my_activity) : { kind, user_id, username, avatar, at, reaction, sessionId, label,
-// sessionAt, isNew }, null si inutilisable
+// sessionAt, isNew, cursor }, null si inutilisable. cursor : { at, key } de la page suivante, at tel que
+// le serveur l'a renvoyé (microsecondes : Date.parse les perdrait et sauterait des lignes) et key =
+// kind:user_id:session_id, la clé de départage de my_activity à date égale
 const ACTIVITY_KINDS = ['reaction', 'follower', 'accepted', 'request'];
 function cleanActivityRow(r) {
   if (!r || !ACTIVITY_KINDS.includes(r.kind)) return null;
@@ -197,7 +199,8 @@ function cleanActivityRow(r) {
     sessionId: r.kind === 'reaction' ? r.session_id : null,
     label: typeof r.session_label === 'string' ? r.session_label.slice(0, 60) : '',
     sessionAt: Number.isFinite(Number(r.session_at)) && r.session_at != null ? Number(r.session_at) : null,
-    isNew: r.is_new === true };
+    isNew: r.is_new === true,
+    cursor: { at: String(r.at), key: `${r.kind}:${r.user_id}:${r.kind === 'reaction' ? r.session_id : ''}` } };
 }
 
 // Texte d'une ligne de l'activité, sans le pseudo (affiché en gras devant) : « a réagi 🔥 à ta séance
@@ -549,7 +552,7 @@ async function socialLoadWho(sessionId, { minAge = 0 } = {}) {
 }
 
 // Activité de Mon profil : { rows, end, loading, error, loadedAt }. Première page (more : false) ou la
-// suivante (avant la date de la dernière ligne)
+// suivante (après la dernière ligne : son curseur, cleanActivityRow)
 function socialActivity() { return social.activity ||= { rows: [], end: false, loading: false, error: null, loadedAt: 0 }; }
 async function socialLoadActivity({ more = false } = {}) {
   const a = socialActivity();
@@ -558,7 +561,7 @@ async function socialLoadActivity({ more = false } = {}) {
   const seq = socialSeq;
   notifySocial();
   const last = more ? a.rows[a.rows.length - 1] : null;
-  const r = await socialRpc('my_activity', last ? { before_at: new Date(last.at).toISOString() } : {});
+  const r = await socialRpc('my_activity', last ? { before_at: last.cursor.at, before_key: last.cursor.key } : {});
   if (seq !== socialSeq) return;
   a.loading = false;
   if (!r.ok) { a.error = r.kind; notifySocial(); return; }

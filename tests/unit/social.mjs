@@ -144,6 +144,27 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(run(`activityText(${JSON.stringify(rows[0])}, 'Jambes A')`), 'a réagi 🔥 à ta séance Jambes A', 'nom de cet appareil d\'abord');
   });
 
+  test('réactions : page suivante de Mon profil avec le curseur exact du serveur (microsecondes, clé de départage)', async () => {
+    const args = await run(`(async () => {
+      const user = account.user, savedSb = sb, saved = social.activity, calls = [];
+      try {
+        account.user = { id: 'u' }; social.activity = null;
+        // 50 lignes à la même date (microsecondes que Date.parse perdrait) : la page est pleine
+        const at = '2026-10-30T10:00:00.123456+00:00';
+        sb = { rpc: async (fn, a) => { calls.push(a ?? null);
+          return { data: Array.from({ length: 50 }, (_, i) => ({ kind: i % 2 ? 'follower' : 'reaction', user_id: 'b' + i, username: 'p' + i, at,
+            reaction: 'fire', session_id: 's' + i })), error: null }; } };
+        await socialLoadActivity();
+        await socialLoadActivity({ more: true });
+        return calls;
+      } finally { account.user = user; sb = savedSb; social.activity = saved; }
+    })()`);
+    sameJSON(args[0], {}, 'première page : sans curseur');
+    sameJSON(args[1], { before_at: '2026-10-30T10:00:00.123456+00:00', before_key: 'follower:b49:' },
+      'date telle que reçue et clé kind:user_id:session_id (vide hors réaction)');
+    assert.equal(run(`cleanActivityRow({ kind: 'reaction', user_id: 'b', at: '2026-10-30T10:00:00Z', reaction: 'fire', session_id: 's1' }).cursor.key`), 'reaction:b:s1');
+  });
+
   test('réactions : « il y a » de l\'activité', () => {
     const now = Date.parse('2026-10-30T12:00:00Z');
     sameJSON(run(`[30e3, 5 * 60e3, 2 * 3600e3, 26 * 3600e3, 3 * 86400e3].map(d => fmtAgo(${now} - d, ${now}))`),

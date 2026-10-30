@@ -246,8 +246,12 @@ begin
 end
 $$;
 
--- Activité de Mon profil, du plus récent au plus ancien, 50 par page (before_at : date de la dernière
--- ligne reçue, strictement avant) :
+-- Activité de Mon profil, du plus récent au plus ancien, 50 par page. Page suivante : before_at = at de
+-- la dernière ligne reçue, tel que le serveur l'a renvoyé (microsecondes comprises), et before_key = sa
+-- clé kind:user_id:session_id (session_id vide hors réaction) ; plusieurs lignes à la même date ne sont
+-- ni perdues ni doublées (B et C acceptés dans la même transaction ont le même at). Sans before_key :
+-- strictement avant before_at.
+-- Lignes :
 --   reaction : réaction à une de mes séances (non supprimée), d'une personne qui voit mes séances ;
 --   follower : abonnement à moi accepté (date de l'acceptation) ;
 --   accepted : ma demande acceptée (date de l'acceptation), l'autre ayant le social activé ;
@@ -255,7 +259,7 @@ $$;
 -- Blocages exclus dans les deux sens. is_new : réaction ou demande acceptée plus récente que
 -- l'activité vue (private.activity_seen). session_label : nom de ma séance (texte de 60 caractères
 -- au plus), session_at : sa date. Vide tant que mon social n'est pas activé.
-create function public.my_activity(before_at timestamptz default null)
+create function public.my_activity(before_at timestamptz default null, before_key text default null)
   returns table (kind text, user_id uuid, username text, avatar text, at timestamptz, reaction text,
                  session_id text, session_label text, session_at bigint, is_new boolean)
   language plpgsql security definer set search_path = '' as
@@ -297,7 +301,9 @@ begin
     ) a
     left join public.user_profiles p on p.user_id = a.uid
     where my_activity.before_at is null or a.at < my_activity.before_at
-    order by a.at desc, a.kind, a.uid
+       or (my_activity.before_key is not null and a.at = my_activity.before_at
+           and (a.kind || ':' || a.uid::text || ':' || coalesce(a.sid, '')) collate "C" > my_activity.before_key collate "C")
+    order by a.at desc, (a.kind || ':' || a.uid::text || ':' || coalesce(a.sid, '')) collate "C"
     limit 50;
 end
 $$;
@@ -388,7 +394,7 @@ revoke all on function public.set_reaction(uuid, text, text) from public, anon, 
 revoke all on function public.feed(bigint, uuid, text, uuid) from public, anon, authenticated;
 revoke all on function public.my_reactions() from public, anon, authenticated;
 revoke all on function public.session_reactions(text) from public, anon, authenticated;
-revoke all on function public.my_activity(timestamptz) from public, anon, authenticated;
+revoke all on function public.my_activity(timestamptz, text) from public, anon, authenticated;
 revoke all on function public.mark_activity_seen() from public, anon, authenticated;
 revoke all on function public.my_shown_sessions(bigint, text) from public, anon, authenticated;
 revoke all on function public.social_state() from public, anon, authenticated;
@@ -397,7 +403,7 @@ grant execute on function public.set_reaction(uuid, text, text) to authenticated
 grant execute on function public.feed(bigint, uuid, text, uuid) to authenticated;
 grant execute on function public.my_reactions() to authenticated;
 grant execute on function public.session_reactions(text) to authenticated;
-grant execute on function public.my_activity(timestamptz) to authenticated;
+grant execute on function public.my_activity(timestamptz, text) to authenticated;
 grant execute on function public.mark_activity_seen() to authenticated;
 grant execute on function public.my_shown_sessions(bigint, text) to authenticated;
 grant execute on function public.social_state() to authenticated;
