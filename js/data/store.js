@@ -370,21 +370,28 @@ function pinLegacyReps(ex, fromSchema = 0) {
 // « climbmill » et « powermill » (chrono des machines, Escaliers). Un exercice perso sans mesure à l'un de
 // ces mots (« Montées d'escaliers lestées », 20 kg × 12) était en répétitions : sans cette règle il
 // deviendrait « 12 min », volume 0, record perdu, et storedMeasure écrirait 'cardio' pour de bon.
-// Copie figée de la règle d'avant : la comparaison ne dépend pas de la bibliothèque (« Escaliers » y est
-// entré le même jour) ni de CARDIO_RE, qui peut encore grandir.
-const LEGACY_CARDIO_RE = /course|courir|footing|jogging|running|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation/;
+// Copies figées (règle d'avant, mots ajoutés, exceptions) : la comparaison ne dépend ni de la bibliothèque
+// (« Escaliers » y est entré le même jour) ni de CARDIO_RE, qui peut encore grandir. Tout est autonome : ce
+// fichier nettoie l'historique dès son chargement, avant muscles.js (ruleKey) et measures.js (CARDIO_RE) ;
+// tests/unit/measures.mjs vérifie que les copies et les règles vivantes concordent.
+const LEGACY_CARDIO_RE     = /course|courir|footing|jogging|running|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation/;
+const CARDIO_WORDS_ADDED   = /escalier|stair|stepmill|step mill|climbmill|powermill/;   // ajoutés à CARDIO_RE le 29/10/2026
+const LEGACY_NOT_CARDIO_RE = /crunch|abdo|rowing|tirage|releve|curl|squat|fente|pompe|gainage/;
+// Clé des mots-clés sans les abréviations de salle (ruleKey, muscles.js) : aucune ne contient ces mots
+const legacyRuleKey = name => normName(name).replace(/[-_/.]+/g, ' ').replace(/\s+/g, ' ').trim();
+// Mesure que les mots-clés d'avant donnaient à un nom (tests, hors chargement : ruleKey et TIMED_RE existent)
 function legacyMeasureByRules(name) {
   const k = ruleKey(name || '');
-  if (LEGACY_CARDIO_RE.test(k) && !NOT_CARDIO_RE.test(k)) return 'cardio';
+  if (LEGACY_CARDIO_RE.test(k) && !LEGACY_NOT_CARDIO_RE.test(k)) return 'cardio';
   return TIMED_RE.test(k) && !NOT_TIMED_RE.test(k) ? 'time' : 'reps';
 }
 const CARDIO_WORDS_SCHEMA = 6;
 // fromSchema : schéma des données (historique, séance reçue d'un autre : 0, toujours ; programmes : une
-// fois, au passage au schéma 6). Figé seulement si ce sont les nouveaux mots qui rendent le nom cardio.
+// fois, au passage au schéma 6). Figé seulement si ce sont les mots ajoutés qui rendent le nom cardio.
 function pinLegacyCardioWords(ex, fromSchema = 0) {
   if (ex.measure != null || fromSchema >= CARDIO_WORDS_SCHEMA) return;
-  const k = ruleKey(ex.name || '');
-  if (!LEGACY_CARDIO_RE.test(k) && CARDIO_RE.test(k) && !NOT_CARDIO_RE.test(k)) ex.measure = 'reps';
+  const k = legacyRuleKey(ex.name || '');
+  if (!LEGACY_CARDIO_RE.test(k) && CARDIO_WORDS_ADDED.test(k) && !LEGACY_NOT_CARDIO_RE.test(k)) ex.measure = 'reps';
 }
 
 // Ordre des séances d'un programme perso : liste explicite up.order. L'ordre des clés d'un objet ne survit

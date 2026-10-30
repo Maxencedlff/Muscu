@@ -120,6 +120,19 @@ export default function ({ test, run, reset, assert, ROOT }) {
     assert.equal(run(`measureOf(${JSON.stringify(h.exercises[4])})`), 'cardio', 'stepper : cardio avant comme après');
     // Ce que l'app enregistre aujourd'hui n'est pas touché : « Escaliers » de la bibliothèque a sa mesure écrite
     assert.equal(run(`storedMeasure({ name: 'Escaliers' })`), 'cardio');
+    // Copies figées de store.js (autonomes : l'historique est nettoyé avant measures.js) et règles vivantes concordent
+    assert.equal(run('LEGACY_NOT_CARDIO_RE.source'), run('NOT_CARDIO_RE.source'), 'NOT_CARDIO_RE a changé : figer l\'ancienne et revoir pinLegacyCardioWords');
+    for (const w of ['escalier', 'stair', 'stepmill', 'step mill', 'climbmill', 'powermill']) {
+      assert.ok(run(`CARDIO_RE.test(${JSON.stringify(w)}) && !LEGACY_CARDIO_RE.test(${JSON.stringify(w)})`), w);
+    }
+    assert.equal(run(`CARDIO_RE.source.replace(CARDIO_WORDS_ADDED.source + '|', '')`), run('LEGACY_CARDIO_RE.source'), 'CARDIO_RE a changé : figer les nouveaux mots (CARDIO_WORDS_ADDED, schéma suivant)');
+    // Chargement : une donnée avec historique se lit dès store.js (avant ruleKey et CARDIO_RE), sans erreur
+    run(`localStorage.setItem(KEY, JSON.stringify({ schema: 5, history: [{ id: 'b', date: 1, category: 'free', exercises: [{ name: 'Escaliers', sets: [{ weight: '20', reps: '12' }] }] }] }))`);
+    assert.equal(run(`(() => { const src = ${JSON.stringify(fs.readFileSync(path.join(ROOT, 'js/data/store.js'), 'utf8'))};
+      const box = { localStorage, console, normName, cleanMachine, uid: () => 'u', showToast: () => {} };
+      try { return new Function('with (this) { ' + src + ' } return loadData().history[0].exercises[0].measure;').call(box); } catch (e) { return String(e); } })()`),
+      'reps', 'chargement de store.js seul, historique « Escaliers » sans mesure');
+    run('localStorage.clear()');
     // Programmes : une seule fois, au passage au schéma 6 ; une donnée déjà au schéma 6 suit la bibliothèque
     const prog = () => ({ ppl: { exercises: { legs: names.map((name, i) => ({ id: 'e' + i, name, sets: 3 })) }, timers: {}, cooldowns: {} } });
     const old = run(`normalizeData(${JSON.stringify({ schema: 5, activeProgramme: 'ppl', programmes: prog(), history: [] })})`);
