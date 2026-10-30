@@ -195,6 +195,7 @@ function sessionHistoryEntry(sp, sc) {
     duration:   Date.now() - activeSession.startedAt,
     notes:      sessionNotes.trim(),
     ...(storableBodyKg() ? { bodyKg: storableBodyKg() } : {}),
+    ...(newSessionHidden() ? { hidden: true } : {}),   // Réglages › Amis et coach › Séances visibles par défaut éteint
     exercises:  activeSession.exercises
       .map(ex => ({
         exId: ex.exId || resolveExId(sp, sc, ex.name),

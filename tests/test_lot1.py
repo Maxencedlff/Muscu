@@ -92,6 +92,7 @@ def t_migration(bench, eng, dev, theme):
         # Un ancien export se ré-importe sans perte
         page.click('[data-action="go-settings"]')
         shot(page, LOT, f'reglages-{t}')
+        page.click('[data-action="go-backup"]')   # Réglages › Données › Sauvegarde
         with page.expect_file_chooser() as fc:
             page.click('[data-action="import"]')
             tap_dialog(page, 'Choisir un fichier')
@@ -277,6 +278,7 @@ def t_import_bad(bench, eng, dev, theme):
         before = ls(page, 'ppl_v2')
         bad = '{"activeProgramme":"ppl","programmes":{},"history":[{"id":"x","date":1,"category":"push"}]}'
         page.click('[data-action="go-settings"]')
+        page.click('[data-action="go-backup"]')   # Réglages › Données › Sauvegarde
         with page.expect_file_chooser() as fc:
             page.click('[data-action="import"]')
             tap_dialog(page, 'Choisir un fichier')
@@ -285,6 +287,7 @@ def t_import_bad(bench, eng, dev, theme):
         R.check('Fichier invalide' in txt, f'{t} import corrompu : toast d\'erreur « {txt} »')
         shot(page, LOT, f'import-invalide-{t}')
         R.check(ls(page, 'ppl_v2') == before and page.evaluate('data.history.length') == 30, f'{t} import corrompu : données intactes')
+        page.click('[data-action="back"]'); page.wait_for_timeout(300)   # Sauvegarde → Réglages
         page.click('[data-action="setting-sound"]')  # une écriture après l'échec
         page.reload(); page.wait_for_selector('#app > *')
         R.check(page.locator('.view.dashboard').count() == 1 and page.locator('.rescue').count() == 0, f'{t} import corrompu : pas d\'écran noir au relancement')
@@ -292,6 +295,7 @@ def t_import_bad(bench, eng, dev, theme):
         # Import valide puis « Annuler » : la donnée d'avant revient
         small = ppl_v2_today(); small['history'] = small['history'][:5]
         page.click('[data-action="go-settings"]')
+        page.click('[data-action="go-backup"]')   # Réglages › Données › Sauvegarde
         with page.expect_file_chooser() as fc:
             page.click('[data-action="import"]')
             tap_dialog(page, 'Choisir un fichier')

@@ -78,6 +78,15 @@ export default function ({ test, run, reset, assert, app }) {
     assert.equal(app.daysAgo(at(2025, 11, 31, 23), at(2026, 0, 1, 1)), 1, 'changement d\'année');
   }));
 
+  test('exportStale (Sauvegarde) : orange sans compte si jamais exporté ou plus de 14 jours ; jamais avec un compte', () => {
+    const day = 86400000, now = 20 * day;
+    assert.equal(app.exportStale({}, false, now), true, 'jamais exporté');
+    assert.equal(app.exportStale({ lastExport: now - 15 * day }, false, now), true, '15 jours');
+    assert.equal(app.exportStale({ lastExport: now - 13 * day }, false, now), false, '13 jours');
+    assert.equal(app.exportStale({}, true, now), false, 'compte : les séances sont déjà dessus');
+    assert.equal(app.exportStale({ lastExport: now - 40 * day }, true, now), false);
+  });
+
   test('agoText (export, supprimés) : un export d\'hier 22 h s\'affiche « hier »', () => inParis(() => {
     const now = at(2026, 9, 26, 10);
     atNow(now, () => {

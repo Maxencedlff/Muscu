@@ -410,9 +410,19 @@ SCREENS.set('social-rules', { render: () => renderSocialRules() });
 // ── Visible sur mon profil : bilan, Historique › Séance et liste de l'Historique ──
 // Un seul réglage par séance, le même libellé partout : allumé = visible (champ hidden absent),
 // éteint = hidden: true (docs/SOCIAL_V1.md). La synchro l'envoie tel quel ; le coach voit tout.
+// Réglages › Amis et coach › Séances visibles par défaut (sessionVisibleDefault, js/data/social.js) préremplit
+// l'interrupteur du bilan pour les séances à venir ; les séances déjà faites ne changent pas.
 
-function switchHtml(on) {
-  return `<span class="switch ${on ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>`;
+// Cellule des Réglages, seulement quand Amis est activé (sans Amis, rien à montrer à personne)
+function socialDefaultVisibleCell() {
+  if (!socialEnabled()) return '';
+  const on = sessionsVisibleByDefault();
+  return `
+          <button class="cell" data-action="setting-visible-default" role="switch" aria-checked="${on}">
+            <span class="cell__body"><span class="cell__title">Séances visibles par défaut</span>
+              <span class="cell__sub">Préremplit « Visible sur mon profil » au bilan de chaque séance</span></span>
+            ${switchHtml(on)}
+          </button>`;
 }
 
 // Bascule visible ↔ masquée, enregistrée (la synchro part de save, js/data/account.js). Renvoie la séance.
@@ -588,6 +598,10 @@ registerActions({
   'social-report': async (e, el) => { await reportFlow(el.dataset.uid, el.dataset.ref || null); },
   'history-hide': (e, el) => {
     if (toggleSessionHidden(el.dataset.id)) render();
+  },
+  'setting-visible-default': () => {
+    data.sessionVisibleDefault = !sessionsVisibleByDefault();
+    save(); render();
   },
   // Bilan : l'interrupteur change sur place (pas de redessin : les notes en cours et le défilement restent)
   'summary-visible': (e, el) => {

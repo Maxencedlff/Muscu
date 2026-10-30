@@ -368,7 +368,7 @@ def t_silhouette(bench, eng, dev, theme):
         R.check(no_hscroll(page), f'{t} premier lancement : pas de défilement horizontal')
         shot(page, LOT, f'silhouette-accueil-{t}')
 
-        # Données existantes : homme ; Réglages › Affichage › Silhouette, puis Progrès, fiche et story suivent.
+        # Données existantes : homme ; Réglages › Apparence › Silhouette, puis Progrès, fiche et story suivent.
         # Horloge figée un dimanche soir : la semaine contient pull et legs, quel que soit le jour du test
         sunday = next_sunday_evening_ms()
         page.clock.install(time=sunday / 1000)

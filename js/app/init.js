@@ -155,6 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   Native.hideSplash();
   Native.statusBar(!document.body.classList.contains('light'));
   prefetchBodyMass(); // app iOS : dernière pesée de Santé, pour le volume au poids du corps
+  if (noteAppVersion(data, currentBuild()?.version)) save(true);   // version du contenu notée dans le profil (js/data/sync.js)
   accountInit().catch(() => {}); // app iOS : compte (session du Trousseau, synchro) ; sans compte, rien
   maybeShowNativeUpdate();   // app iOS : nouvelle build dans TestFlight
   liveUpdateBoot();   // app iOS : confirme ce contenu (sinon retour au précédent) et cherche une mise à jour

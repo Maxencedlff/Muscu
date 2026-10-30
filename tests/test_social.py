@@ -552,6 +552,27 @@ def t_bilan_visible(bench, eng, dev, theme):
         page.click('[data-action="back"]'); page.wait_for_timeout(300)
         R.check(page.locator('.hidden-mark').count() == 0, f'{t} Historique : plus d\'œil une fois visible')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+    # Réglages › Amis et coach › Séances visibles par défaut : éteint → la séance suivante naît masquée, bilan éteint
+    with bench.page(eng, dev, theme) as page:
+        open_with_session(page, theme)
+        signin(page, enable=False)
+        page.evaluate("navigate('settings')"); page.wait_for_selector('[data-action="coach-open-settings"]')
+        R.check(page.locator('[data-action="setting-visible-default"]').count() == 0, f'{t} Réglages sans Amis : pas de réglage de visibilité')
+        page.evaluate('socialEnable(true).then(() => render())'); page.wait_for_timeout(300)
+        sw = page.locator('[data-action="setting-visible-default"]')
+        R.check(sw.count() == 1 and sw.get_attribute('aria-checked') == 'true' and sw.get_attribute('role') == 'switch', f'{t} Réglages › Amis et coach : « Séances visibles par défaut » allumé')
+        R.check(page.locator('.view.settings-view .group-title', has_text='Amis et coach').count() == 1, f'{t} Réglages : groupe « Amis et coach »')
+        sw.scroll_into_view_if_needed(); sw.click(); page.wait_for_timeout(200)
+        sw = page.locator('[data-action="setting-visible-default"]')
+        R.check(sw.get_attribute('aria-checked') == 'false' and page.evaluate('data.sessionVisibleDefault') is False, f'{t} Réglages : éteint d\'un tap, enregistré')
+        shot(page, LOT, f'15-reglages-visibles-{t}')
+        page.evaluate("navigate('session')"); page.wait_for_selector('[data-action="finish-session"]')
+        finish_to_summary(page)
+        sw = page.locator('[data-action="summary-visible"]')
+        sid = page.evaluate('lastSummary.id')
+        R.check(sw.count() == 1 and sw.get_attribute('aria-checked') == 'false', f'{t} bilan : « Visible sur mon profil » prérempli éteint')
+        R.check(page.evaluate(f"data.history.find(h => h.id === '{sid}').hidden") is True, f'{t} bilan : séance née masquée (hidden: true)')
+        R.check(not page.errors, f'{t} réglage par défaut : aucune erreur JS {page.errors}')
 
 
 def t_hors_ligne(bench, eng, dev, theme):

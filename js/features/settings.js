@@ -25,21 +25,18 @@ function wipeLocalData() {
   save();
 }
 
+// Écran Réglages, sur le modèle des Réglages d'iOS : Compte, Entraînement, Sons et vibrations, Apparence,
+// Amis et coach, Données, Aide. Les groupes propres à l'app iOS (Services Apple, Icône de l'app) suivent
+// la section la plus proche ; absents dans le navigateur.
 function renderSettings() {
-  // Interrupteur iOS (le bouton de la rangée porte l'état pour VoiceOver)
-  const tog = (on) => `<span class="switch ${on ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>`;
-  const last  = data.lastExport;
-  // Avec un compte, les séances sont déjà sauvegardées : l'export n'est qu'une copie en plus, sans alerte
-  const stale = !account.user && (!last || Date.now() - last > 14 * 86400000);
   const nSess = (data.history || []).length;
   return `
     <div class="view settings-view view--grouped">
       ${navBar({ title: 'Réglages' })}
       <div class="scr">
 ${renderAccountGroup()}
-${renderCoachSettingsGroup()}
 
-        <div class="group-title">Séance</div>
+        <div class="group-title">Entraînement</div>
         <div class="group">
           <button class="cell cell--nav" data-action="setting-rest">
             <span class="cell__body"><span class="cell__title">Repos par défaut</span></span>
@@ -47,28 +44,34 @@ ${renderCoachSettingsGroup()}
             ${icon('chevron.right', 16)}
           </button>
           <button class="cell cell--nav" data-action="setting-weekly-goal">
-            <span class="cell__body"><span class="cell__title">Objectif</span></span>
+            <span class="cell__body"><span class="cell__title">Objectif</span>
+              <span class="cell__sub">Séances par semaine</span></span>
             <span class="cell__value num">${data.weeklyGoal ? `${data.weeklyGoal} / semaine` : `Auto · ${weeklyGoal()} / sem.`}</span>
             ${icon('chevron.right', 16)}
           </button>
-          ${Native.isNative && data.healthOn === true ? '' : `<button class="cell cell--nav" data-action="set-body-weight">
-            <span class="cell__body"><span class="cell__title">Poids du corps</span>
-              <span class="cell__sub">Volume des tractions, dips, pompes</span></span>
-            <span class="cell__value num"${data.bodyWeightKg ? '' : ' aria-label="Non renseigné"'}>${data.bodyWeightKg ? `${fmtW(data.bodyWeightKg)} ${unitLbl()}` : '—'}</span>
-            ${icon('chevron.right', 16)}
-          </button>`}
+          <div class="cell cell--ctl">
+            <span class="cell__body"><span class="cell__title">Unité</span></span>
+            <div class="segmented seg-sm" role="group" aria-label="Unité de poids">
+              ${['kg', 'lbs'].map(u => `<button class="segmented__btn ${data.unit === u ? 'segmented__btn--active' : ''}" aria-pressed="${data.unit === u}" data-action="setting-unit" data-val="${u}">${u}</button>`).join('')}
+            </div>
+          </div>
+          ${renderBodyWeightSetting()}
+        </div>
+
+        <div class="group-title">Sons et vibrations</div>
+        <div class="group">
           <button class="cell" data-action="setting-sound" role="switch" aria-checked="${data.soundOn !== false}">
             <span class="cell__body"><span class="cell__title">Sons</span></span>
-            ${tog(data.soundOn !== false)}
+            ${switchHtml(data.soundOn !== false)}
           </button>
           <button class="cell" data-action="setting-vibrate" role="switch" aria-checked="${data.vibrateOn !== false}">
             <span class="cell__body"><span class="cell__title">Vibrations</span></span>
-            ${tog(data.vibrateOn !== false)}
+            ${switchHtml(data.vibrateOn !== false)}
           </button>
         </div>
-${renderAppleServicesGroup(tog)}
+${renderAppleServicesGroup(switchHtml)}
 
-        <div class="group-title">Affichage</div>
+        <div class="group-title">Apparence</div>
         <div class="group">
           <div class="cell cell--ctl">
             <span class="cell__body"><span class="cell__title">Thème</span></span>
@@ -78,37 +81,31 @@ ${renderAppleServicesGroup(tog)}
             </div>
           </div>
           <div class="cell cell--ctl">
-            <span class="cell__body"><span class="cell__title">Unité</span></span>
-            <div class="segmented seg-sm" role="group" aria-label="Unité de poids">
-              ${['kg', 'lbs'].map(u => `<button class="segmented__btn ${data.unit === u ? 'segmented__btn--active' : ''}" aria-pressed="${data.unit === u}" data-action="setting-unit" data-val="${u}">${u}</button>`).join('')}
-            </div>
-          </div>
-          <div class="cell cell--ctl">
             <span class="cell__body"><span class="cell__title">Silhouette</span>
               <span class="cell__sub">Carte des muscles</span></span>
             ${silhouetteSegmentedHtml()}
           </div>
         </div>
-
 ${renderAppIconGroup()}
+${renderCoachSettingsGroup()}
 
         <div class="group-title">Données</div>
         <div class="group">
-          <div class="cell">
-            <span class="cell__body"><span class="cell__title ${stale ? 'txt-warn' : ''}" id="lastExportTxt">${lastExportLabel()} : ${last ? agoText(last) : 'jamais'}</span></span>
-          </div>
-          <button class="cell cell--action" data-action="export"><span class="cell__title">Exporter les données</span></button>
-          <button class="cell cell--action" data-action="import"><span class="cell__title">${account.user ? 'Importer un fichier d\'export' : 'Importer une sauvegarde'}</span></button>
           <button class="cell cell--nav" data-action="go-trash">
             <span class="cell__body"><span class="cell__title">Supprimés récemment</span></span>
             <span class="cell__value num">${trashCount() || ''}</span>
             ${icon('chevron.right', 16)}
           </button>
+          <button class="cell cell--nav" data-action="go-backup">
+            <span class="cell__body"><span class="cell__title">Sauvegarde</span></span>
+            ${backupCellValue()}
+            ${icon('chevron.right', 16)}
+          </button>
           <button class="cell cell--destructive cell--left" data-action="wipe-data"><span class="cell__title">Supprimer toutes les données</span></button>
         </div>
-        <div class="group-foot">${account.user ? 'Tes séances et programmes sont aussi sur ton compte. L\'export te donne en plus un fichier à garder où tu veux. Pour effacer aussi ton compte\u00a0: Compte › Supprimer mon compte.' : 'Exporte régulièrement : les données ne sont stockées que sur cet appareil.'}</div>
+        ${account.user ? '<div class="group-foot">Efface cet appareil seulement. Pour effacer aussi ton compte\u00a0: Compte › Supprimer mon compte.</div>' : ''}
 
-        <div class="group-title">À propos</div>
+        <div class="group-title">Aide</div>
         <div class="group">
           <button class="cell cell--nav" data-action="go-guide"><span class="cell__body"><span class="cell__title">Guide de l'app</span></span>${icon('chevron.right', 16)}</button>
           <div class="cell">
@@ -122,6 +119,61 @@ ${renderAppIconGroup()}
             <span class="cell__sub">Confidentialité, éditeur, hébergeurs</span></span></button>
         </div>
 
+      </div>
+    </div>`;
+}
+
+// Entraînement › Poids du corps : la pesée de Santé quand elle est activée (app iOS, js/features/apple-services.js),
+// sinon le poids saisi dans l'app
+function renderBodyWeightSetting() {
+  if (Native.isNative && data.healthOn === true) return renderBodyWeightCell();
+  return `<button class="cell cell--nav" data-action="set-body-weight">
+            <span class="cell__body"><span class="cell__title">Poids du corps</span>
+              <span class="cell__sub">Volume des tractions, dips, pompes</span></span>
+            <span class="cell__value num"${data.bodyWeightKg ? '' : ' aria-label="Non renseigné"'}>${data.bodyWeightKg ? `${fmtW(data.bodyWeightKg)} ${unitLbl()}` : '—'}</span>
+            ${icon('chevron.right', 16)}
+          </button>`;
+}
+
+// ── Sauvegarde ──────────────────────────────────────────────
+
+// Sans compte, l'export est la seule copie hors de l'appareil : « jamais » ou plus de 14 jours devient
+// un avertissement (orange). Avec un compte, les séances sont déjà dessus : jamais d'alerte.
+function exportStale(d = data, hasAccount = !!account.user, now = Date.now()) {
+  if (hasAccount) return false;
+  return !d.lastExport || now - d.lastExport > 14 * 86400000;
+}
+
+// Valeur de la cellule « Sauvegarde » des Réglages : date du dernier export (orange si en retard, sans compte)
+function backupCellValue() {
+  const last = data.lastExport;
+  if (account.user && !last) return '';
+  const txt = last ? agoText(last) : 'Jamais';
+  return `<span class="cell__value ${exportStale() ? 'txt-warn' : ''}">${txt.charAt(0).toUpperCase()}${txt.slice(1)}</span>`;
+}
+
+// Réglages › Données › Sauvegarde : où sont les données, export et import
+function renderBackup() {
+  const last = data.lastExport;
+  const stale = exportStale();
+  const lead = account.user
+    ? 'Tes séances et tes programmes sont sauvegardés sur ton compte et te suivent sur tes appareils. Le poids du corps et les données Santé restent sur cet iPhone.'
+    : 'Sans compte, tes données ne sont stockées que sur cet appareil. Exporte-les régulièrement, ou connecte-toi pour les sauvegarder sur un compte.';
+  return `
+    <div class="view backup-view view--grouped">
+      ${navBar({ title: 'Sauvegarde' })}
+      <div class="scr">
+        <div class="group-foot group-lead">${lead}</div>
+        <div class="group">
+          <button class="cell cell--action" data-action="export"><span class="cell__title">Exporter les données</span></button>
+          <button class="cell cell--action" data-action="import"><span class="cell__title">${account.user ? 'Importer un fichier d\'export' : 'Importer une sauvegarde'}</span></button>
+          <div class="cell">
+            <span class="cell__body"><span class="cell__title ${stale ? 'txt-warn' : ''}" id="lastExportTxt">${lastExportLabel()} : ${last ? agoText(last) : 'jamais'}</span></span>
+          </div>
+        </div>
+        <div class="group-foot">${account.user
+          ? 'L\'export te donne en plus un fichier (JSON) à garder où tu veux. Importer un fichier ajoute ses séances à celles de ton compte.'
+          : 'L\'export est un fichier (JSON) à garder où tu veux : Fichiers, iCloud Drive, un e-mail. Importer une sauvegarde remplace les données actuelles.'}</div>
       </div>
     </div>`;
 }
@@ -173,6 +225,9 @@ function importFile(text) {
 registerActions({
   'go-settings': () => {
     navigate('settings');
+  },
+  'go-backup': () => {
+    navigate('backup');
   },
   'set-theme': (e, el) => {
     setThemePref(el.dataset.val); render();

@@ -175,6 +175,11 @@ function writeSocialCache() {
 
 // Social activé : état lu, sinon dernier état connu sur l'appareil
 function socialEnabled() { return !!account.user && !!(social.state ? social.state.enabled : social.cached?.enabled); }
+// Réglages › Amis et coach › Séances visibles par défaut : absent = oui (toute séance visible des abonnés
+// tant qu'on n'éteint pas « Visible sur mon profil » à la fin)
+function sessionsVisibleByDefault(d = data) { return d.sessionVisibleDefault !== false; }
+// Une séance qui se termine maintenant naît masquée (hidden: true) : Amis activé et réglage éteint
+function newSessionHidden(d = data) { return socialEnabled() && !sessionsVisibleByDefault(d); }
 // Badge de l'onglet : demandes reçues en attente
 function socialBadge() {
   if (!account.user) return 0;

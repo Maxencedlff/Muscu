@@ -560,7 +560,7 @@ const GUIDE_SECTIONS = [
         id: 'export', title: 'Exporter et importer', icon: 'square.and.arrow.up', color: 'indigo',
         lead: 'Un export est un fichier avec toutes tes données, à garder où tu veux.',
         steps: [
-          '[Réglages] › [Exporter les données].',
+          '[Réglages] › [Sauvegarde] › [Exporter les données].',
           'Sans compte, la ligne [Dernière sauvegarde] passe en orange après 14 jours sans export.',
           '[Importer une sauvegarde] remplace les données de l\'app par celles du fichier. Avec un compte, les séances du fichier s\'ajoutent aux tiennes.',
           '[Annuler] reste disponible quelques secondes après l\'import.',
