@@ -742,9 +742,9 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
   });
 
   // ── Obliques séparés des abdominaux (30/10/2026) ───────────
-  test('obliques : muscle à part entière (non mineur), mots de recherche, abdominaux = grand droit', () => {
+  test('obliques : muscle à part entière (mineur : jamais « peu travaillés »), mots de recherche, abdominaux = grand droit', () => {
     const m = run(`MUSCLES.find(m => m.id === 'obliques')`);
-    sameJSON({ label: m.label, minor: !!m.minor }, { label: 'Obliques', minor: false });
+    sameJSON({ label: m.label, minor: !!m.minor }, { label: 'Obliques', minor: true });
     assert.equal(app.muscleLabel('abs'), 'Abdominaux');
     assert.equal(ids().indexOf('obliques'), ids().indexOf('abs') + 1, 'juste après les abdominaux dans les listes');
     assert.ok(run('MUSCLE_WORDS.obliques').split(' ').includes('flancs'));
@@ -825,10 +825,11 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     // Rétablir sur un ancien choix « abs » revient aux muscles vérifiés (obliques)
     app.resetChosenMuscles({ name: 'Gainage latéral', exId: ex.id });
     sameJSON([...app.exerciseMuscles({ exId: ex.id, name: 'Gainage latéral' }).primary], ['obliques']);
-    // Progrès : les deux muscles ont leur palier ; les obliques, non mineurs, sont signalés « peu travaillés »
+    // Progrès : les deux muscles ont leur palier ; les obliques, mineurs (surtout travaillés en secondaire),
+    // ne sont jamais signalés « peu travaillés » : pas de bruit chez tout le monde après leur séparation
     const load = app.muscleLoad('week', NOW, [hist(0, [{ name: 'Crunch', sets: sets(10) }])]);
     assert.ok('obliques' in load.levels && load.levels.abs === 3 && load.levels.obliques === 0);
-    assert.ok(load.low.includes('obliques'));
+    assert.ok(!load.low.includes('obliques'));
   });
 
   test('obliques : calque à part du grand droit, de face, pour les deux personnages (sw.js à jour)', () => {

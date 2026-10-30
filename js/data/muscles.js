@@ -19,7 +19,9 @@ const MUSCLES = [
   { id: 'triceps',     label: 'Triceps' },
   { id: 'forearms',    label: 'Avant-bras', minor: true },
   { id: 'abs',         label: 'Abdominaux' },                 // grand droit (le transverse, profond, n'a pas de zone)
-  { id: 'obliques',    label: 'Obliques' },                   // obliques externe et interne, sur les flancs : rotations, flexions latérales, gainage latéral
+  // Mineur : travaillés surtout en secondaire (gainage, soulevé de terre, marche du fermier) ; sinon presque
+  // tout le monde les verrait « peu travaillés » dès leur séparation des abdominaux (30/10/2026)
+  { id: 'obliques',    label: 'Obliques', minor: true },      // obliques externe et interne, sur les flancs : rotations, flexions latérales, gainage latéral
   { id: 'glutes',      label: 'Fessiers' },
   { id: 'quads',       label: 'Quadriceps' },
   { id: 'hamstrings',  label: 'Ischio-jambiers' },
