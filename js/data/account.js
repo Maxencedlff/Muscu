@@ -805,8 +805,8 @@ async function syncNow() {
       try {
         sanitizeData(data);
         // Records notés des séances reçues ou supprimées ailleurs, et de celles d'après : recalculés avec
-        // l'historique de cet appareil (ils repartiront s'ils changent, sans compter comme « modifiés ici »)
-        renoteRecordsFrom([...merged.applied, ...merged.removed], data.history);
+        // l'historique de cet appareil, sauf ceux reçus d'une séance dont seuls les records ont changé (renoteMerged)
+        renoteMerged(merged, data.history);
         recomputePRFromHistory(data);
         syncTimersFromHistory();
         saved = save(true);
