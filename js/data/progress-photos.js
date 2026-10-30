@@ -70,7 +70,7 @@ function photosTotalBytes(list) { return (list || []).reduce((a, p) => a + (p.by
 // mensurations restent. Passer à true dans le même contenu que la build qui ajoute la clé : Info.plist
 // fait partie de l'empreinte runtime (scripts/build-web.mjs), et une mise à jour à chaud n'est appliquée
 // qu'à une coquille de même empreinte (js/app/live-update.js) : ce true n'atteint jamais une build sans la clé.
-const PHOTOS_NATIVE_READY = false;
+const PHOTOS_NATIVE_READY = true;
 // Photos permises ici (navigateur, ou app iOS dont la build a la clé) : textes et guide
 function photosAllowedHere() { return !Native.isNative || PHOTOS_NATIVE_READY; }
 // Photos utilisables : permises et stockage IndexedDB présent
