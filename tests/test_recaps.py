@@ -128,13 +128,14 @@ def t_semaine(bench, eng, dev, theme):
           return { w: c.width, h: c.height, prev: card.previousElementSibling?.className || '', chips,
                    overlap: fig ? (c.bottom > fig.top && c.left < fig.right && fig.top < c.bottom - 30) : false,
                    titleClear: title.right <= c.left + 4 || title.top >= c.bottom - 4,
-                   bg: getComputedStyle(card).backgroundColor, label: card.querySelector('.recap-card__open').getAttribute('aria-label') };
+                   bg: getComputedStyle(card).backgroundColor, label: card.querySelector('.recap-card__open').textContent.replace(/\s+/g, ' ').trim(),
+                   hasAria: card.querySelector('.recap-card__open').hasAttribute('aria-label') };
         }""")
         R.check(m['w'] >= 44 and m['h'] >= 44, f'{t} carte : bouton Masquer ≥ 44 pt ({m["w"]:.0f}×{m["h"]:.0f})')
         R.check(m['prev'].startswith('hero'), f'{t} carte : juste sous la séance du jour ({m["prev"]})')
         R.check(any(c['t'] == '16,1\u00a0t' for c in m['chips']) and all(c['h'] < 2 * c['lh'] for c in m['chips']), f'{t} carte : « 16,1 t » insécable, pastilles sur une ligne {m["chips"]}')
         R.check(m['titleClear'], f'{t} carte : le titre ne passe pas sous le bouton Masquer')
-        R.check(m['label'].startswith('Ta semaine, 12 – 18 octobre : 2 séances'), f'{t} carte : une seule étiquette VoiceOver ({m["label"][:60]})')
+        R.check(m['label'].startswith('Ta semaine · 12 – 18 oct. 2 séances') and m['label'].endswith('Voir mon récap') and not m['hasAria'], f'{t} carte : un seul bouton, lu comme il est écrit ({m["label"][:70]})')
         black = m['bg'] in ('rgb(0, 0, 0)',)
         R.check(black == (theme == 'dark'), f'{t} carte : noir pur en sombre, citron vert en clair ({m["bg"]})')
         shot(page, LOT, f'accueil-carte-{t}')

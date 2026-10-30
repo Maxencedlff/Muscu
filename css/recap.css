@@ -36,6 +36,7 @@
   margin-top: 4px; font-size: clamp(22px, 6.6vw, 27px); line-height: 1.12; font-weight: 800; letter-spacing: -.02em;
   text-wrap: balance;
 }
+.recap-card--body .recap-card__kicker { width: calc(100% + 64px); max-width: none; }   /* le surtitre passe au-dessus du personnage */
 .recap-card__chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
 .recap-card__chip {
   white-space: nowrap; padding: 3px 9px; border-radius: 999px; background: rgba(0, 0, 0, .1);
@@ -90,7 +91,7 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
 .recap__brand { display: flex; align-items: center; gap: 6px; font-size: var(--fs-subhead); font-weight: 700; white-space: nowrap; }
 .recap__brand img { border-radius: 5px; }
 .recap__period {
-  flex: 1; min-width: 0; text-align: right; font-size: var(--fs-footnote); font-weight: 600; opacity: .75;
+  flex: 1; min-width: 0; text-align: right; font-size: var(--fs-footnote); font-weight: 700;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .recap__close {
@@ -199,18 +200,18 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
 
 /* Bas : flèches et Partager (fond = couleur du texte de l'écran, texte = couleur de l'écran) */
 .recap__foot {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; align-items: center; gap: 8px;
-  padding: 8px var(--gutter) calc(env(safe-area-inset-bottom, 0px) + 12px);
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; align-items: center; gap: 4px;
+  color: var(--rc-fg); padding: 8px var(--gutter) calc(env(safe-area-inset-bottom, 0px) + 12px);
 }
 .recap__arrow {
-  flex-shrink: 0; width: 44px; height: 52px; border: none; background: none; color: inherit; cursor: pointer;
+  flex-shrink: 0; width: 44px; height: 52px; border: none; background: none; color: var(--rc-fg); cursor: pointer;
   display: flex; align-items: center; justify-content: center; border-radius: 50%;
 }
-.recap__arrow:disabled { opacity: .3; cursor: default; }
+.recap__arrow:disabled { visibility: hidden; }   /* rien à toucher : la flèche disparaît (sa place reste) */
 .recap__share {
   flex: 1; min-width: 0; min-height: 52px; border: none; border-radius: 999px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px;
-  background: var(--rc-fg); color: var(--rc-bg); font: inherit; font-size: var(--fs-body); font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px;
+  background: var(--rc-fg); color: var(--rc-bg); font: inherit; font-size: min(var(--fs-body), 3.9vw); font-weight: 700;
   transition: background-color .35s ease, color .35s ease;
 }
 .recap__share span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -236,7 +237,7 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
 }
 
 /* Petite hauteur (iPhone SE, paysage) : tout se resserre */
-@media (max-height: 760px) { .rp-list li:nth-child(n+3) { display: none; } }
+@media (max-height: 760px) { .rp-list li:nth-child(n+3) { display: none; } .rp-curve ~ .rp-list { display: none; } }
 @media (max-height: 700px) {
   .recap-page { padding-top: calc(env(safe-area-inset-top, 0px) + 64px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
   .rp-inner { gap: 6px; }

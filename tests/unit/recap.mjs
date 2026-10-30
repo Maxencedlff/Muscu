@@ -131,7 +131,7 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(st.records.length, 1, 'le record du samedi se compare au mardi de la même semaine, jamais à rien');
     assert.equal(st.records[0].label, 'Record reps');
     const pages = app.recapPages(st);
-    sameJSON(pages.map(p => p.id), ['sessions', 'profile', 'volume', 'records', 'exercise', 'summary'], 'ni série de semaines, ni premières fois');
+    sameJSON(pages.map(p => p.id), ['sessions', 'profile', 'volume', 'records', 'exercise', 'summary'], 'ni série de semaines, ni palier');
     assert.equal(pages[0].note, '', 'pas d\'écart inventé');
     assert.ok(!pages.at(-1).tiles.some(([l]) => l === 'Durée'));
     assert.ok(!pages.find(p => p.id === 'volume').tiles.some(([l]) => l === 'Durée'), 'pas de durée sans chronomètre');
@@ -176,7 +176,8 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     run('data.bodyWeightKg = 80');
     const st = app.recapStats(week(), weekHistory(), NOW);
     const pages = app.recapPages(st);
-    sameJSON(pages.map(p => p.id), ['sessions', 'profile', 'volume', 'records', 'exercise', 'streak', 'firsts', 'summary']);
+    sameJSON(pages.map(p => p.id), ['sessions', 'profile', 'volume', 'records', 'exercise', 'streak', 'summary'], 'aucun écran « premières fois »');
+    assert.ok(!pages.some(p => /premi[èe]re|nouvel exercice/i.test(JSON.stringify(p))), 'jamais de « première fois » ni de « nouvel exercice »');
     assert.ok(pages.every(p => ['lime', 'violet', 'orange', 'pink'].includes(p.tone) && p.share), 'chaque écran a sa couleur et son bouton');
     const by = Object.fromEntries(pages.map(p => [p.id, p]));
     assert.equal(by.sessions.tone, 'lime'); assert.equal(by.records.tone, 'orange'); assert.equal(by.profile.tone, 'violet'); assert.equal(by.streak.tone, 'pink');
@@ -199,8 +200,6 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(by.exercise.box, '', 'semaine : pas de progression du 1RM');
     assert.equal(by.streak.value, '2'); assert.equal(by.streak.caption, 'semaines d\'affilée');
     assert.equal(by.streak.strip.length, 8); assert.equal(by.streak.strip.filter(w => w.on).length, 2);
-    sameJSON(by.firsts.list.map(x => x.name), ['Élévations latérales', 'Squat barre', 'Dips']);
-    assert.equal(by.firsts.value, '3'); assert.equal(by.firsts.caption, 'nouveaux exercices');
     assert.equal(by.summary.tone, 'lime'); assert.equal(by.summary.kicker, 'MA SEMAINE · 12 – 18 OCTOBRE');
     assert.equal(by.summary.title, st.profile.title, 'le profil en titre de la story');
     sameJSON(by.summary.tiles.map(([l]) => l), ['Séries', 'Durée', 'Record', 'Semaines d\'affilée'], 'pas de « Séances » : la légende du chiffre le dit déjà');
@@ -242,13 +241,15 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(app.recapProfile([], p, [], null, null), null, 'rien à dire : pas de profil');
   }));
 
-  test('recapFirsts / recapWeekStrip / recapExerciseProgress / recapHeadline', () => inParis(() => {
+  test('recapMilestones / recapWeekStrip / recapExerciseProgress / recapHeadline', () => inParis(() => {
     reset();
     const one = (i, d) => ({ id: 'x' + i, programme: 'ppl', category: 'push', date: d, duration: 0, exercises: [{ exId: 'dc', name: 'Développé couché haltères', sets: [s(String(40 + i), '8')] }] });
     const hist = Array.from({ length: 10 }, (_, i) => one(i, at(2026, 8, 1 + i * 4, 18)));   // 10 séances, la 10e le 6 octobre
-    const f = app.recapFirsts(hist, app.recapPeriod('week', at(2026, 9, 6), NOW));
-    sameJSON(f.milestones.map(m => m.n), [10]); sameJSON(f.newExercises, []);
-    assert.equal(app.recapFirsts(hist.slice(0, 3), app.recapPeriod('week', at(2026, 8, 1), NOW)), null, 'première semaine : rien n\'est « nouveau »');
+    const wk = app.recapPeriod('week', at(2026, 9, 6), NOW);
+    sameJSON(app.recapMilestones(hist, wk), [{ n: 10, date: at(2026, 9, 7, 18) }], '10e séance, le 7 octobre');
+    sameJSON(app.recapMilestones(hist.slice(0, 3), app.recapPeriod('week', at(2026, 8, 1), NOW)), [], 'aucun palier franchi');
+    const ms = app.recapPages(app.recapStats(wk, hist, NOW)).find(p => p.id === 'milestone');
+    assert.equal(ms.value, '10e'); assert.equal(ms.caption, 'séance, le 7 octobre'); assert.equal(ms.kicker, 'TON PALIER');
     const strip = app.recapWeekStrip(hist, app.recapPeriod('week', at(2026, 9, 6), NOW));
     assert.equal(strip.length, 8); assert.ok(strip.at(-1).on);
     assert.equal(app.recapWeekStrip(hist, app.recapPeriod('month', at(2026, 8, 10), NOW)).length, 5, 'septembre 2026 : 5 semaines');

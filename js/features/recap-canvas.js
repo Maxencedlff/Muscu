@@ -223,11 +223,12 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
       ctx.globalAlpha = .1; ctx.fillStyle = c.fg; roundRect(ctx, x, ty, tw, th, 40); ctx.fill(); ctx.globalAlpha = 1;
       const size = fitSize(ctx, v, tw - 80, Math.min(96, Math.round(th * .46)), 56, s => storyFont(800, s, true, c.p));
       ctx.fillStyle = c.fg; ctx.font = storyFont(800, size, true, c.p); ctx.fillText(v, x + 40, ty + 26 + size * .8);
-      text(l, f(700, R.SMALL + 2), .75, ty + th - 30, x + 40, tw - 80);
+      const ls = fitSize(ctx, l, tw - 64, R.SMALL + 2, R.SMALL, s => f(700, s));
+      text(l, f(700, ls), .75, ty + th - 30, x + 40, tw - 64);
     }) });
   }
 
-  // Liste (autres records, premières fois ; lignes du résumé)
+  // Liste (autres records, paliers de séances ; lignes du résumé)
   const rows = page.list?.length ? page.list.map(x => [x.name, x.value]) : isSummary ? page.lines || [] : [];
   if (rows.length) {
     const rh = 84, h = rows.length * rh + 24;

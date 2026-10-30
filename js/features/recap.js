@@ -46,14 +46,13 @@ function recapHomeCard() {
     plural(st.sets, 'série', 'séries')].filter(Boolean);
   const levels = st.profile?.levels || {};
   const body = Object.keys(levels).length ? bodyMapHtml(levels, { view: 'front', className: 'recap-card__body' }) : '';
-  const aria = `Ta semaine, ${p.label} : ${head}. ${chips.join(', ').replace(/ /g, ' ')}. Voir mon récap`;
   return `
     <section class="recap-card${body ? ' recap-card--body' : ''}" aria-label="Ta semaine">
-      <button class="recap-card__open" data-action="open-recap" data-key="${esc(p.key)}" data-from="card" aria-label="${esc(aria)}">
-        <span class="recap-card__kicker" aria-hidden="true">Ta semaine · ${esc(p.short)}</span>
-        <span class="recap-card__title" aria-hidden="true">${esc(head)}</span>
-        <span class="recap-card__chips" aria-hidden="true">${chips.map(c => `<span class="recap-card__chip num">${esc(c)}</span>`).join('')}</span>
-        <span class="recap-card__cta" aria-hidden="true">Voir mon récap ${icon('chevron.right', 14)}</span>
+      <button class="recap-card__open" data-action="open-recap" data-key="${esc(p.key)}" data-from="card">
+        <span class="recap-card__kicker">Ta semaine · ${esc(p.short)}</span>
+        <span class="recap-card__title">${esc(head)}</span>
+        <span class="recap-card__chips">${chips.map(c => `<span class="recap-card__chip num">${esc(c)}</span>`).join('')}</span>
+        <span class="recap-card__cta">Voir mon récap ${icon('chevron.right', 14)}</span>
         ${body ? `<span class="recap-card__fig" aria-hidden="true">${body}</span>` : ''}
       </button>
       <button class="recap-card__close" data-action="recap-card-hide" data-key="${esc(p.key)}" aria-label="Masquer la carte">${icon('xmark', 14)}</button>
@@ -146,7 +145,7 @@ function recapPageHtml(page, i, st) {
     ? `<div class="rp-side">${bodyMapHtml(page.body, { view: 'front', className: 'rp-body', colors: { heat: 'var(--rc-heat)' } })}</div>` : '';
   if (page.pills?.length) parts.push(`<div class="rp-pills">${page.pills.map(([l, x]) => `<span class="rp-pill"><i></i>${esc(l)} <b class="num">${esc(x)}</b></span>`).join('')}</div>`);
   if (page.tiles?.length && page.id !== 'summary') parts.push(`<div class="rp-tiles">${page.tiles.map(([l, x]) => `<div class="rp-tile"><b class="num">${esc(x)}</b><span>${esc(l)}</span></div>`).join('')}</div>`);
-  if (page.list?.length) parts.push(`<ul class="rp-list">${page.list.slice(0, 3).map(x => `<li><span>${esc(x.name)}</span><b class="num">${esc(x.value)}</b></li>`).join('')}</ul>`);
+  if (page.list?.length) parts.push(`<ul class="rp-list">${page.list.slice(0, page.curve ? 2 : 3).map(x => `<li><span>${esc(x.name)}</span><b class="num">${esc(x.value)}</b></li>`).join('')}</ul>`);
   const inner = page.id === 'summary'
     ? `<div class="rp-story"><canvas class="rp-story__img" width="1080" height="1920" aria-hidden="true"></canvas></div>`
     : `<div class="rp-inner${side ? ' rp-inner--side' : ''}">${side}${parts.join('')}</div>`;
@@ -179,7 +178,7 @@ function renderRecap(key) {
           <button class="recap__close" data-action="back" aria-label="Fermer le récap">${icon('xmark', 16)}</button>
         </div>
       </div>
-      <div class="recap__track" id="recapTrack" role="region" aria-label="${esc(`${p.title}, ${p.label} : ${pages.length} écrans`)}">
+      <div class="recap__track" id="recapTrack" tabindex="0" role="region" aria-label="${esc(`${p.title}, ${p.label} : ${pages.length} écrans`)}">
         ${pages.map((pg, i) => recapPageHtml(pg, i, st)).join('')}
       </div>
       <div class="recap__foot">
@@ -199,7 +198,12 @@ function recapMount() {
   let raf = 0;
   track.addEventListener('scroll', () => {
     if (raf) return;
-    raf = requestAnimationFrame(() => { raf = 0; recapSetIndex(Math.round(track.scrollLeft / Math.max(1, track.clientWidth))); });
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      const at = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+      if (recapTarget !== null) { if (at === recapTarget) recapTarget = null; return; }   // défilement lancé par un toucher : on attend qu'il arrive
+      recapSetIndex(at);
+    });
   }, { passive: true });
   track.addEventListener('click', e => {
     if (e.target.closest('button, a')) return;
@@ -275,10 +279,22 @@ function recapSetIndex(i) {
   recapAnimate(pages[i]);
 }
 
+// Écran visé par un toucher ou une flèche : tant que le défilement doux n'y est pas arrivé, les positions
+// intermédiaires ne changent pas l'écran courant (plusieurs touchers rapides, crans de WebKit). S'il
+// s'arrête ailleurs (défilement interrompu), il est remis sur l'écran visé.
+let recapTarget = null, recapTargetTimer = 0;
 function recapGo(delta) {
   const track = $('#recapTrack');
   if (!track) return;
   const n = track.children.length, i = Math.max(0, Math.min(n - 1, recapIndex + delta));
+  recapTarget = i;
+  clearTimeout(recapTargetTimer);
+  recapTargetTimer = setTimeout(() => {
+    recapTarget = null;
+    if (track.isConnected && Math.round(track.scrollLeft / Math.max(1, track.clientWidth)) !== recapIndex) {
+      track.scrollTo({ left: recapIndex * track.clientWidth, behavior: 'instant' });
+    }
+  }, 900);
   track.scrollTo({ left: i * track.clientWidth, behavior: reduceMotion.matches ? 'instant' : 'smooth' });
   recapSetIndex(i);
 }

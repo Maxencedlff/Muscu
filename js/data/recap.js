@@ -340,25 +340,13 @@ function recapWeekStrip(history, p) {
 // Semaines de la période avec au moins une séance (année : « 41 semaines actives »)
 function recapActiveWeeks(sessions) { return new Set(sessions.map(h => weekStart(h.date))).size; }
 
-// Paliers de séances franchis pendant la période (« ta 100e séance », avec sa date)
 const RECAP_MILESTONES = [10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
-// Premières fois de la période : paliers de séances et exercices jamais faits avant (seulement s'il y a
-// un historique avant la période : la toute première semaine, tout serait « nouveau »). null si rien.
-function recapFirsts(history, p) {
+// Paliers de séances franchis pendant la période (10e, 25e, 50e, 100e… séance de tout l'historique), avec
+// leur date : [{ n, date }], vide si aucun. Seulement des comptes exacts ; jamais de « nouvel exercice ».
+function recapMilestones(history, p) {
   const all = (history || []).filter(h => h && h.date < p.end).sort((a, b) => a.date - b.date);
-  const before = all.filter(h => h.date < p.start);
-  const milestones = RECAP_MILESTONES.filter(n => n > before.length && n <= all.length).map(n => ({ n, date: all[n - 1].date }));
-  let newExercises = [];
-  if (before.length) {
-    const known = new Set(before.flatMap(h => (h.exercises || []).filter(e => workSets(e.sets).length).map(exKey)));
-    const seen = new Map();
-    all.filter(h => h.date >= p.start).forEach(h => (h.exercises || []).forEach(e => {
-      const k = exKey(e);
-      if (!known.has(k) && !seen.has(k) && workSets(e.sets).some(s => (parseInt(s?.reps) || 0) > 0)) seen.set(k, e.name);
-    }));
-    newExercises = [...seen.values()];
-  }
-  return milestones.length || newExercises.length ? { milestones, newExercises } : null;
+  const before = all.filter(h => h.date < p.start).length;
+  return RECAP_MILESTONES.filter(n => n > before && n <= all.length).map(n => ({ n, date: all[n - 1].date }));
 }
 
 // Progression de l'exercice n° 1 sur un mois ou une année : 1RM estimé de sa meilleure série, première
@@ -412,7 +400,7 @@ function recapStats(p, history = data.history, now = Date.now()) {
   st.profile  = recapProfile(history, p, sessions, st.favSlot, st.favDay);
   st.strip    = recapWeekStrip(history, p);
   st.activeWeeks = recapActiveWeeks(sessions);
-  st.firsts   = recapFirsts(history, p);
+  st.milestones = recapMilestones(history, p);
   st.progress = p.kind === 'week' ? null : recapExerciseProgress(sessions, st.topExercise);
   return st;
 }
@@ -550,23 +538,17 @@ function recapPages(st) {
       strip: st.strip.map(w => ({ on: w.on, label: new Date(w.start).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) })), share: 'Partager' };
   }
 
-  // Premières fois : paliers de séances, nouveaux exercices
-  let firsts = null;
-  if (st.firsts) {
-    const { milestones, newExercises } = st.firsts, m = milestones.at(-1);
+  // Palier de séances : le plus haut en grand, les autres en liste (du plus récent au plus ancien)
+  let milestone = null;
+  if (st.milestones.length) {
     const date = ts => new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-    // Le palier le plus haut en grand, les autres premières fois en liste (du plus récent au plus ancien)
-    const items = milestones.slice(0, -1).reverse().map(x => ({ name: `${x.n}e séance`, value: date(x.date) }));
-    newExercises.slice(0, 4).forEach(name => items.push({ name, value: 'nouvel exercice' }));
-    firsts = { id: 'firsts', tone: 'orange', kicker: 'TES PREMIÈRES FOIS',
-      ...(m ? { value: `${m.n}e`, caption: `séance, le ${date(m.date)}` }
-            : { value: String(newExercises.length), caption: newExercises.length > 1 ? 'nouveaux exercices' : 'nouvel exercice' }),
-      list: m ? items.slice(0, 5) : [], share: 'Partager' };
-    if (!m) firsts.list = newExercises.slice(0, 5).map(name => ({ name, value: '' }));
+    const m = st.milestones.at(-1);
+    milestone = { id: 'milestone', tone: 'orange', kicker: 'TON PALIER', value: `${m.n}e`, caption: `séance, le ${date(m.date)}`,
+      list: st.milestones.slice(0, -1).reverse().slice(0, 4).map(x => ({ name: `${x.n}e séance`, value: date(x.date) })), share: 'Partager' };
   }
 
   // Petite période (1 ou 2 séances) : le record et la régularité d'abord, le volume ensuite
-  const order = st.sessions <= 2 ? [record, streak, profile, volume, ex, firsts] : [profile, volume, record, ex, streak, firsts];
+  const order = st.sessions <= 2 ? [record, streak, profile, volume, ex, milestone] : [profile, volume, record, ex, streak, milestone];
   order.forEach(pg => { if (pg) pages.push(pg); });
   pages.push(recapSummaryPage(st));
   return pages;
