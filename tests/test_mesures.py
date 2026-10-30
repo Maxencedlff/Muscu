@@ -65,7 +65,7 @@ def t_mensurations(bench, eng, dev, theme):
         page.click('.tabbar [data-action="go-stats"]')
         page.wait_for_selector('.view.stats')
         cell = page.locator('[data-action="go-body-measures"]')
-        R.check(cell.count() == 1 and 'Privé, reste sur ton iPhone' in cell.inner_text(), f'{t} Progrès : ligne Mesures avec la mention Privé')
+        R.check(cell.count() == 1 and 'Mensurations et photos' in cell.inner_text() and 'Privé' in cell.inner_text(), f'{t} Progrès : ligne Mesures avec la mention Privé')
         R.check(page.locator('.view.stats img[src^="blob:"], .view.stats .pgal, .view.stats .pcmp').count() == 0, f'{t} Progrès : aucune vignette de photo')
         cell.click()
         page.wait_for_selector('.view.body-measures')
@@ -271,4 +271,42 @@ def t_export_inclut_mesures(bench):
         R.check('buf' not in payload and 'mdlf-photos' not in payload, 'export : aucune photo')
 
 
-run_main(R, [t_mensurations, t_photos, t_unite_pouces], once=[t_tout_supprimer, t_export_inclut_mesures])
+# Coquille iOS factice (build sans NSCameraUsageDescription) : modules natifs muets
+FAKE_SHELL = """
+window.Capacitor = {
+  isNativePlatform: () => true,
+  registerPlugin: () => new Proxy({}, { get: (_, m) => (m === 'then' ? undefined : async () => ({})) }),
+};
+"""
+
+
+def t_natif_sans_photos(bench, eng, dev, theme):
+    """App iOS dont la build n'a pas l'autorisation de l'appareil photo : aucune photo nulle part (le champ
+    « image/* » proposerait « Prendre une photo » et iOS tuerait l'app), mensurations intactes."""
+    t = tag(dev, theme)
+    now = int(time.time() * 1000)
+    with bench.page(eng, dev, theme) as page:
+        page.add_init_script(FAKE_SHELL)
+        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        seed(page, theme, measures_data(now))
+        R.check(page.evaluate('Native.isNative') is True and page.evaluate('photosAllowedHere()') is False, f'{t} natif : photos non permises')
+        page.click('.tabbar [data-action="go-stats"]')
+        page.wait_for_selector('.view.stats')
+        cell = page.locator('[data-action="go-body-measures"]')
+        R.check(cell.count() == 1 and cell.locator('.cell__title').inner_text() == 'Mensurations', f'{t} natif : ligne « Mensurations »')
+        cell.click()
+        page.wait_for_selector('.view.body-measures')
+        page.wait_for_timeout(400)
+        txt = page.inner_text('.view.body-measures')
+        R.check(page.locator('#photoFile, #photosBox, [data-action="photo-add"], .pgal, .pcmp').count() == 0 and 'photo' not in txt.lower(), f'{t} natif : écran Mesures sans photos')
+        R.check(page.locator('.bm-cell').count() == 10 and 'jamais sur nos serveurs' in txt, f'{t} natif : mensurations et mention de confidentialité')
+        shot(page, LOT, f'natif-{t}')
+        page.evaluate("navigate('backup')"); page.wait_for_selector('.backup-view')
+        R.check('photo' not in page.inner_text('.backup-view').lower(), f'{t} natif : Sauvegarde ne parle pas de photos')
+        page.evaluate("navigate('settings')"); page.wait_for_selector('[data-action="wipe-data"]')
+        page.click('[data-action="wipe-data"]'); page.wait_for_selector('.ios-dialog')
+        R.check('photo' not in page.inner_text('.ios-dialog').lower() and 'mensurations' in page.inner_text('.ios-dialog'), f'{t} natif : confirmation sans photos')
+        R.check(page.evaluate("JSON.stringify(GUIDE_SECTIONS).toLowerCase().includes('photo de progression') || JSON.stringify(GUIDE_SECTIONS).includes('[Ajouter une photo]')") is False, f'{t} natif : guide sans photos de progression')
+
+
+run_main(R, [t_mensurations, t_photos, t_unite_pouces, t_natif_sans_photos], once=[t_tout_supprimer, t_export_inclut_mesures])

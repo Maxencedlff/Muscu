@@ -2,12 +2,14 @@
 //  Progrès › Mesures : mensurations et photos de progression (écran, feuilles, actions)
 // ═══════════════════════════════════════════════════════════
 //
-// Tout reste sur l'appareil : mensurations dans data.bodyMeasures (js/data/body-measures.js, jamais
-// synchronisées), photos dans IndexedDB (js/data/progress-photos.js). Rien n'apparaît sur l'écran
-// Progrès lui-même (pas de vignette : l'app s'ouvre en salle), seulement une ligne qui mène ici.
+// Rien sur le serveur : mensurations dans data.bodyMeasures (js/data/body-measures.js, jamais
+// synchronisées, mais dans la copie iCloud de l'app et dans l'export), photos dans IndexedDB
+// (js/data/progress-photos.js, sur l'appareil seulement). Rien n'apparaît sur l'écran Progrès lui-même
+// (pas de vignette : l'app s'ouvre en salle), seulement une ligne qui mène ici. Photos absentes de l'app
+// iOS tant que sa build n'a pas l'autorisation de l'appareil photo (photosAllowedHere).
 'use strict';
 
-const BM_PRIVATE = 'Privé, reste sur ton iPhone';
+const BM_PRIVATE = 'Privé : reste sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs';
 
 // ── Progrès : ligne d'entrée ────────────────────────────────
 function renderBodyMeasuresGroup() {
@@ -17,8 +19,8 @@ function renderBodyMeasuresGroup() {
         <div class="group">
           <button class="cell cell--nav" data-action="go-body-measures">
             ${icon('ruler', 22)}
-            <span class="cell__body"><span class="cell__title">Mensurations et photos</span>
-              <span class="cell__sub">${BM_PRIVATE}${s.latest ? ` · ${esc(fmtDate(s.latest))}` : ''}</span></span>
+            <span class="cell__body"><span class="cell__title">${photosAllowedHere() ? 'Mensurations et photos' : 'Mensurations'}</span>
+              <span class="cell__sub">Privé${s.latest ? ` · ${esc(fmtDate(s.latest))}` : ''}</span></span>
             ${icon('chevron.right', 16)}
           </button>
         </div>`;
@@ -44,15 +46,15 @@ function renderBodyMeasures() {
     <div class="view body-measures view--grouped">
       ${navBar({ title: 'Mesures' })}
       <div class="scr">
-        <div class="bm-private">${icon('eye.slash', 16)}<span>${BM_PRIVATE} : rien ne part sur ton compte, rien n'est montré à tes amis ni à ton coach.</span></div>
+        <div class="bm-private">${icon('eye.slash', 16)}<span>${BM_PRIVATE}. Rien n'est montré à tes amis ni à ton coach.</span></div>
         <div class="group-title">Mensurations</div>
         <div class="group">
           <button class="cell cell--action" data-action="bm-add">${icon('plus', 22)}<span class="cell__title">Ajouter des mesures</span></button>
           ${rows}
         </div>
-        <div class="group-foot">En ${unit === 'in' ? 'pouces, comme tes charges en lbs' : 'centimètres'}. Tes mensurations sont dans l'export de l'app ; pas tes photos, trop lourdes.</div>
-        <div id="photosBox">${photosSectionHtml()}</div>
-        <input type="file" id="photoFile" class="visually-hidden" accept="image/*" aria-hidden="true" tabindex="-1">
+        <div class="group-foot">En ${unit === 'in' ? 'pouces, comme tes charges en lbs' : 'centimètres'}. Tes mensurations sont dans l'export de l'app${photosAllowedHere() ? ' ; pas tes photos, trop lourdes' : ''}.</div>
+        ${photosAllowedHere() ? `<div id="photosBox">${photosSectionHtml()}</div>
+        <input type="file" id="photoFile" class="visually-hidden" accept="image/*" aria-hidden="true" tabindex="-1">` : ''}
       </div>
     </div>`;
 }
@@ -208,8 +210,10 @@ function photoCompareHtml(list) {
 }
 
 // Lecture des photos après le dessin (IndexedDB est asynchrone), puis remplissage de la section
-async function refreshPhotos() {
-  if (!photosSupported()) return;
+// Lues une fois à l'ouverture de l'écran, puis après un ajout ou une suppression (force) : un redessin
+// de l'écran reprend la liste en mémoire, sans relire IndexedDB
+async function refreshPhotos(force = false) {
+  if (!photosEnabled() || (!force && photoCache !== null)) return;
   try { photoCache = await photosAll(); } catch { photoCache = []; }
   const box = $('#photosBox');
   if (box) box.innerHTML = photosSectionHtml();
@@ -232,7 +236,7 @@ async function newPhotoSheet(file) {
       ${PHOTO_POSES.map(([k, l]) => `<button type="button" class="segmented__btn ${k === photoNewPose ? 'segmented__btn--active' : ''}" role="radio" aria-checked="${k === photoNewPose}" data-action="photo-pose" data-pose="${k}">${l}</button>`).join('')}
     </div>
     <div class="date-row bm-date"><label class="date-label" for="phDate">Date</label><input type="date" id="phDate" class="date-input" value="${today}" max="${today}"></div>
-    <p class="mpick__foot">Réduite à ${PHOTO_MAX_PX} px et gardée dans l'app, pas dans ta pellicule. ${BM_PRIVATE}.</p>`,
+    <p class="mpick__foot">Réduite à ${PHOTO_MAX_PX} px et gardée dans l'app, pas dans ta pellicule. Privée : sur ton iPhone seulement, ni dans la copie iCloud de l'app ni dans l'export.</p>`,
     onConfirm: panel => {
       const dateIn = $('#phDate', panel);
       const date = dateInputToTs(dateIn.value);
@@ -244,7 +248,7 @@ async function newPhotoSheet(file) {
   try {
     const rec = await photoFromFile(file, res);
     await photoPut(rec);
-    await refreshPhotos();
+    await refreshPhotos(true);
     showToast(`Photo enregistrée · ${fmtBytes(rec.bytes)}`);
   } catch {
     showToast('Photo illisible ou stockage indisponible', { error: true });
@@ -309,7 +313,7 @@ registerActions({
     try { await photoDelete(id); } catch { showToast('Suppression impossible', { error: true }); return; }
     if (photoUrls.has(id)) { URL.revokeObjectURL(photoUrls.get(id)); photoUrls.delete(id); }
     el.closest('.sheet-root')?._close?.(null);
-    await refreshPhotos();
+    await refreshPhotos(true);
     showToast('Photo supprimée');
   },
 });

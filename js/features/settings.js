@@ -26,6 +26,9 @@ function wipeLocalData() {
   save();
 }
 
+// Ce que « Supprimer toutes les données » efface en plus (photos : seulement là où elles existent)
+function wipedExtras() { return photosAllowedHere() ? 'mensurations et photos' : 'mensurations'; }
+
 // Écran Réglages, sur le modèle des Réglages d'iOS : Compte, Entraînement, Sons et vibrations, Apparence,
 // Amis et coach, Données, Aide. Les groupes propres à l'app iOS (Services Apple, Icône de l'app) suivent
 // la section la plus proche ; absents dans le navigateur.
@@ -184,7 +187,7 @@ function renderBackup() {
         </div>
         <div class="group-foot">${account.user
           ? 'L\'export te donne en plus un fichier (JSON) à garder où tu veux. Importer un fichier ajoute ses séances à celles de ton compte.'
-          : 'L\'export est un fichier (JSON) à garder où tu veux : Fichiers, iCloud Drive, un e-mail. Importer une sauvegarde remplace les données actuelles.'} L'export contient tes mensurations, pas tes photos de progression (trop lourdes) : elles restent sur cet appareil, et « Supprimer toutes les données » les efface aussi.</div>
+          : 'L\'export est un fichier (JSON) à garder où tu veux : Fichiers, iCloud Drive, un e-mail. Importer une sauvegarde remplace les données actuelles.'} ${photosAllowedHere() ? 'L\'export contient tes mensurations, pas tes photos de progression (trop lourdes) : elles restent sur cet appareil, et « Supprimer toutes les données » les efface aussi.' : 'L\'export contient aussi tes mensurations.'}</div>
         <div class="group">
           <button class="cell cell--action" data-action="import-other-app"><span class="cell__body"><span class="cell__title">Importer depuis une autre app</span><span class="cell__sub">Hevy, Strong (fichier CSV)</span></span></button>
         </div>
@@ -280,7 +283,7 @@ registerActions({
     save(); render();
   },
   'wipe-data': async () => {
-    if (!(await confirmSheet('Supprimer toutes les données ?', account.user ? 'Séances, programmes, réglages, mensurations et photos seront effacés de cet appareil, qui sera déconnecté de ton compte. Ton compte garde tes séances et programmes.' : 'Séances, programmes, réglages, mensurations et photos seront effacés de cet appareil.', 'Tout supprimer'))) return;
+    if (!(await confirmSheet('Supprimer toutes les données ?', account.user ? `Séances, programmes, réglages, ${wipedExtras()} seront effacés de cet appareil, qui sera déconnecté de ton compte. Ton compte garde tes séances et programmes.` : `Séances, programmes, réglages, ${wipedExtras()} seront effacés de cet appareil.`, 'Tout supprimer'))) return;
     const n = (data.history || []).length;
     // Compte : dernière sauvegarde tentée avant d'effacer ; on ne promet que ce qui est vraiment dessus
     if (account.user) await syncNow();

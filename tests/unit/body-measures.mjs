@@ -22,7 +22,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
                sessionKeys: Object.keys(session) };
     })()`);
     assert.equal(r.inProfile, false, 'jamais dans le profil envoyé au serveur');
-    assert.ok(!r.txt.includes('82') && !r.txt.includes('waist'), 'aucune mensuration dans ce qui part');
+    assert.ok(!r.txt.includes('waist') && !r.txt.includes('"cm"') && !r.txt.includes('bodyMeasures'), 'aucune mensuration dans ce qui part');
     // Une séance ne porte jamais ce champ : s'il y était glissé, il partirait tel quel → on vérifie que l'app ne l'y met pas
     assert.ok(!run(`JSON.stringify(makeDefaultData())`).includes('bodyMeasures'), 'pas de clé par défaut (freshData vide = suppression)');
   });
@@ -150,5 +150,15 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     let failed = false;
     try { await run(`photosAll()`); } catch { failed = true; }
     assert.ok(failed, 'lecture impossible signalée par un rejet (l\'écran affiche une liste vide)');
+  });
+
+  test('photos : absentes de l\'app iOS tant que sa build n\'a pas l\'autorisation de l\'appareil photo', () => {
+    // Navigateur : permises
+    assert.equal(run('photosAllowedHere()'), true);
+    // App iOS (PHOTOS_NATIVE_READY = false) : ni permises ni utilisables (écran vérifié par tests/test_mesures.py)
+    sameJSON(run(`(() => {
+      const was = Native.isNative; Native.isNative = true;
+      try { return [photosAllowedHere(), photosEnabled(), PHOTOS_NATIVE_READY]; } finally { Native.isNative = was; }
+    })()`), [false, false, false]);
   });
 }

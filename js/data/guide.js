@@ -14,6 +14,8 @@
 // bien dans le code : un bouton renommé sans mise à jour du guide fait échouer les tests.
 // Ton : tutoiement, phrases courtes, chemin exact pour chaque geste.
 
+// Photos de progression présentes ici (navigateur, ou app iOS dont la build a l'autorisation de l'appareil photo)
+const GUIDE_PHOTOS = photosAllowedHere();
 const GUIDE_SECTIONS = [
   {
     id: 'commencer', title: 'Commencer',
@@ -344,17 +346,24 @@ const GUIDE_SECTIONS = [
         actions: ['go-stats', 'open-stats-ex', 'stats-mode', 'go-stats-overview'],
       },
       {
-        id: 'mesures', title: 'Mensurations et photos', icon: 'ruler', color: 'teal',
-        lead: 'Dans [Progrès] › [Mesures], note tes tours de poitrine, de taille, de bras… et garde des photos de progression. Tout reste sur ton iPhone.',
+        // Photos absentes de l'app iOS tant que sa build n'a pas l'autorisation de l'appareil photo
+        // (photosAllowedHere, js/data/progress-photos.js, chargé avant ce fichier)
+        id: 'mesures', title: GUIDE_PHOTOS ? 'Mensurations et photos' : 'Mensurations', icon: 'ruler', color: 'teal',
+        lead: `Dans [Progrès] › [Mesures], note tes tours de poitrine, de taille, de bras…${GUIDE_PHOTOS ? ' et garde des photos de progression' : ''}. Rien ne part sur nos serveurs.`,
         steps: [
           '[Ajouter des mesures] : la date, puis les mesures que tu as prises (laisse vide le reste). Une valeur par jour et par mesure, en cm ou en pouces selon ton unité.',
           'Touche une mesure pour sa courbe, l\'écart avec la mesure d\'avant et depuis la première.',
-          '[Ajouter une photo] ouvre la caméra ou la pellicule ; choisis [Face], [Profil] ou [Dos]. La photo est réduite et gardée dans l\'app, pas dans ta pellicule.',
-          '[Comparer] met deux dates côte à côte.',
-          'Rien ne part sur ton compte, rien n\'est montré à tes amis ni à ton coach. L\'export contient tes mensurations, pas tes photos. [Supprimer toutes les données] efface les deux.',
+          ...(GUIDE_PHOTOS ? [
+            '[Ajouter une photo] ouvre la caméra ou la pellicule ; choisis [Face], [Profil] ou [Dos]. La photo est réduite et gardée dans l\'app, pas dans ta pellicule. [Comparer] met deux dates côte à côte.',
+            'Tes mensurations restent sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs ; tes photos restent sur ton iPhone seulement. Rien n\'est montré à tes amis ni à ton coach.',
+            'L\'export contient tes mensurations, pas tes photos. [Supprimer toutes les données] efface les deux.',
+          ] : [
+            'Tes mensurations restent sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs. Rien n\'est montré à tes amis ni à ton coach.',
+            'L\'export contient tes mensurations. [Supprimer toutes les données] les efface.',
+          ]),
         ],
         related: ['poids-corps', 'export'],
-        actions: ['go-body-measures', 'bm-add', 'open-body-measure', 'photo-add'],
+        actions: ['go-body-measures', 'bm-add', 'open-body-measure', ...(GUIDE_PHOTOS ? ['photo-add'] : [])],
       },
       {
         id: 'muscles', title: 'Muscles travaillés', icon: 'chart', color: 'red',
@@ -573,11 +582,11 @@ const GUIDE_SECTIONS = [
         id: 'export', title: 'Exporter et importer', icon: 'square.and.arrow.up', color: 'indigo',
         lead: 'Un export est un fichier avec toutes tes données, à garder où tu veux.',
         steps: [
-          '[Réglages] › [Sauvegarde] › [Exporter les données]. Le fichier contient tes mensurations, pas tes photos de progression.',
+          `[Réglages] › [Sauvegarde] › [Exporter les données]. Le fichier contient tes mensurations${GUIDE_PHOTOS ? ', pas tes photos de progression' : ''}.`,
           'Sans compte, la ligne [Dernière sauvegarde] passe en orange après 14 jours sans export.',
           '[Importer une sauvegarde] remplace les données de l\'app par celles du fichier (avec un compte, ses séances s\'ajoutent aux tiennes) ; [Annuler] reste disponible quelques secondes.',
           'Tu viens de Hevy ou Strong ? [Importer depuis une autre app] ajoute les séances de leur fichier CSV d\'export, après un aperçu.',
-          '[Supprimer toutes les données] efface tout sur cet appareil, photos comprises.',
+          `[Supprimer toutes les données] efface tout sur cet appareil${GUIDE_PHOTOS ? ', photos comprises' : ''}.`,
         ],
         related: ['icloud', 'compte', 'corbeille'],
         actions: ['export', 'import', 'wipe-data'],
