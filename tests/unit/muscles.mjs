@@ -14,7 +14,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
 
   test('muscles : catalogue sans doublon, identifiants connus partout', () => {
     const known = new Set(ids());
-    assert.equal(known.size, 17);
+    assert.equal(known.size, 18);
     const names = run('EXERCISE_CATALOGUE.map(e => normName(e.name))');
     assert.equal(new Set(names).size, names.length, 'nom en double dans la bibliothèque');
     run('EXERCISE_CATALOGUE').forEach(e => {
@@ -63,7 +63,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     const cases = {
       'Close grip bench': 'triceps', 'Military press': 'front_delts', 'Push press': 'front_delts',
       'Z press': 'front_delts', 'Landmine press': 'front_delts', 'JM press': 'triceps', 'Tate press': 'triceps',
-      'Pallof press': 'abs', 'Hammer strength chest press': 'chest', 'Rowing machine hammer': 'lats',
+      'Pallof press': 'obliques', 'Hammer strength chest press': 'chest', 'Rowing machine hammer': 'lats',
       'Pec deck inversé': 'rear_delts', 'Butterfly inversé': 'rear_delts', 'Glute ham raise': 'hamstrings',
       'Développé incliné smith': 'front_delts', 'DC': 'chest', 'DC incliné smith': 'front_delts', 'DM assis': 'front_delts',
       'SDT sumo': 'glutes', 'Dév couché haltères': 'chest', 'Hack': 'quads', 'Bulgare': 'quads',
@@ -282,7 +282,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
       'Hip thrust barre': 'glutes',
       'Mollets à la presse': 'calves',
       'Crunch à genoux': 'abs',
-      'Gainage latéral sur le coude': 'abs',
+      'Gainage latéral sur le coude': 'obliques',
       'Extension lombaires au banc': 'lower_back',
       'Adducteurs poulie': 'adductors',
       'Dips lestés': 'chest',
@@ -609,7 +609,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     'Mollets debout', 'Extension quadriceps', 'Extension triceps poulie', 'Dips', 'Oiseau (élévations arrière)', 'Pull-over poulie',
     'Élévations latérales', 'Élévations frontales', 'Rowing menton', 'Haussements d\'épaules haltères', 'Crunch',
     'Développé militaire barre', 'Écarté haltères plat', 'Développé incliné barre', 'Développé couché barre', 'Tirage horizontal câble',
-    'Extension lombaires', 'Burpees', 'Escaliers'];
+    'Extension lombaires', 'Burpees', 'Escaliers', 'Rotations russes'];
   const SUBSET_OF_CATALOGUE = ['Squat barre', 'Tractions pronation', 'Face pull', 'Course à pied', 'Développé au sol haltères'];
 
   test('muscles : règles des noms libres alignées sur la bibliothèque (mouvement de référence)', () => {
@@ -739,6 +739,108 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     assert.ok(/body-map__m body-map__m--sec" data-muscle="triceps"/.test(html));
     assert.ok(/class="body-map__m" data-muscle="chest"/.test(html));
     assert.ok(!app.bodyMapHtml({}).includes('data-action'), 'sans tap : carte inerte (premier lancement)');
+  });
+
+  // ── Obliques séparés des abdominaux (30/10/2026) ───────────
+  test('obliques : muscle à part entière (non mineur), mots de recherche, abdominaux = grand droit', () => {
+    const m = run(`MUSCLES.find(m => m.id === 'obliques')`);
+    sameJSON({ label: m.label, minor: !!m.minor }, { label: 'Obliques', minor: false });
+    assert.equal(app.muscleLabel('abs'), 'Abdominaux');
+    assert.equal(ids().indexOf('obliques'), ids().indexOf('abs') + 1, 'juste après les abdominaux dans les listes');
+    assert.ok(run('MUSCLE_WORDS.obliques').split(' ').includes('flancs'));
+    // Recherche de la feuille d'ajout : « obliques » et « flancs » trouvent les rotations russes, « abdos » aussi
+    for (const q of ['obliques', 'flancs', 'abdos']) assert.ok(app.exerciseMatches('Rotations russes', q), q);
+    assert.ok(!app.exerciseMatches('Crunch', 'obliques'));
+    assert.ok(fs.readFileSync(path.join(ROOT, 'js/features/library.js'), 'utf8').includes("['Abdominaux', ['abs', 'obliques']]"), 'bibliothèque : même groupe « Abdominaux »');
+  });
+
+  test('obliques : règles des noms libres (rotations, flexions latérales, gainage sur le côté, anti-rotation)', () => {
+    const cases = {
+      'Rotations russes lestées': 'obliques', 'Russian twist disque': 'obliques', 'Twist à la barre': 'obliques', 'Rotation du buste élastique': 'obliques',
+      'Bûcheron haltère': 'obliques', 'Woodchop élastique': 'obliques', 'Pallof press élastique': 'obliques', 'Anti-rotation poulie': 'obliques',
+      'Flexion latérale poulie': 'obliques', 'Side bend kettlebell': 'obliques', 'Gainage latéral lesté': 'obliques', 'Side plank avec rotation': 'obliques',
+      'Crunch croisé au sol': 'obliques', 'Crunch latéral': 'obliques', 'Suitcase carry': 'obliques', 'Windmill kettlebell': 'obliques',
+      // Flexion du tronc : toujours les abdominaux
+      'Crunch inversé': 'abs', 'Relevés de jambes lestés': 'abs', 'Gainage sur les mains': 'abs', 'Planche 2 min': 'abs', 'Vacuum à genoux': 'abs', 'Hollow rock': 'abs',
+      // Règles voisines intactes
+      'Rotation externe poulie': 'rear_delts', 'Élévations latérales poulie basse': 'side_delts', 'Fentes latérales': 'quads', 'Landmine press': 'front_delts',
+    };
+    for (const [name, main] of Object.entries(cases)) {
+      const m = pick(name);
+      assert.equal(m.p[0], main, `${name} → ${m.p.join(', ')} (${m.src})`);
+    }
+    sameJSON(pick('Rotations russes lestées').s, ['abs'], 'grand droit en secondaire des rotations');
+  });
+
+  test('obliques : reclassement de la bibliothèque (flexion du tronc = abdominaux, rotation et côté = obliques)', () => {
+    const main = n => [...app.musclesOf(n).primary].join(' '), sec = n => [...app.musclesOf(n).secondary].join(' ');
+    const expected = {
+      'Crunch': ['abs', ''], 'Crunch poulie': ['abs', ''], 'Crunch machine': ['abs', ''], 'Relevés de jambes': ['abs', ''], 'Relevés de genoux suspendu': ['abs', 'forearms'],
+      'Toes to bar': ['abs', 'forearms lats'], 'Gainage (planche)': ['abs', 'obliques'], 'Gainage creux': ['abs', ''], 'Dead bug': ['abs', ''], 'L-sit': ['abs', 'quads triceps'],
+      'Roue abdominale': ['abs', 'obliques lats'], 'Grimpeur': ['abs', 'quads front_delts'], 'Vacuum': ['abs', ''], 'Turkish get-up': ['abs', 'obliques front_delts glutes'],
+      'Rotations russes': ['obliques', 'abs'], 'Gainage latéral': ['obliques', 'glutes'], 'Crunch oblique': ['obliques', 'abs'], 'Bûcheron poulie': ['obliques', 'abs'],
+      'Pallof press': ['obliques', 'abs'], 'Flexion latérale haltère': ['obliques', 'lower_back'], 'Crunch vélo': ['abs obliques', ''],
+      'Marche du fermier': ['forearms traps', 'abs obliques'], 'Bird dog': ['lower_back glutes', 'abs'],
+    };
+    for (const [n, [p, s]] of Object.entries(expected)) {
+      assert.equal(app.musclesOf(n).source, 'catalogue', n);
+      sameJSON([main(n), sec(n)], [p, s], n);
+    }
+    // Chaque nouvel exercice a sa fiche « Comment faire » et son matériel
+    ['Crunch oblique', 'Crunch vélo', 'Bûcheron poulie', 'Pallof press', 'Flexion latérale haltère', 'Vacuum'].forEach(n => {
+      assert.ok(run(`exerciseHowTo(${JSON.stringify(n)})`), n);
+      assert.ok(app.equipmentOf(n), n);
+    });
+    // Alias : « Side plank » → Gainage latéral, « Woodchop » → Bûcheron, « Crunch croisé » → Crunch oblique
+    assert.equal(run(`catalogueEntry('Side plank').name`), 'Gainage latéral');
+    assert.equal(run(`catalogueEntry('Woodchop').name`), 'Bûcheron poulie');
+    assert.equal(run(`catalogueEntry('Crunch croisé').name`), 'Crunch oblique');
+    // Le transverse (sans zone) est nommé dans les fiches du gainage, du dead bug et du vacuum
+    ['Gainage (planche)', 'Dead bug', 'Vacuum'].forEach(n => assert.ok(run(`exerciseHowTo(${JSON.stringify(n)})`).cues.some(s => /transverse/.test(s)), n));
+    // Programme intégré Maison : « Bas du corps » travaille les obliques (Gainage latéral), sans changer de nom
+    assert.ok(run(`programmeMuscleLevels('maison').obliques`) > 0);
+  });
+
+  test('obliques : séances passées et anciens choix « abs » (muscle recalculé par le nom, choix explicite gardé)', () => {
+    reset();
+    // Séance d'avant la séparation : Gainage latéral et Rotations russes comptaient en abdominaux ; aujourd'hui en obliques, sans migration
+    const h = hist(1, [{ name: 'Gainage latéral', sets: sets(3) }, { name: 'Rotations russes', sets: sets(2) }, { name: 'Crunch', sets: sets(4) }]);
+    let c = app.muscleSetCounts([h], -Infinity, Infinity).counts;
+    sameJSON([c.obliques, c.abs, c.glutes], [5, 5, 1.5]);
+    // Choix explicite enregistré avec « abs » (Programme › Exercice, avant la séparation) : respecté tel quel, identifiant toujours valide
+    run(`data.programmes.ppl.exercises.legs.push(makeExercise('Gainage latéral', 3)); Object.assign(data.programmes.ppl.exercises.legs.at(-1), { muscles: ['abs'] });`);
+    const ex = run('data.programmes.ppl.exercises.legs.at(-1)');
+    sameJSON([...app.exerciseMuscles(ex).primary], ['abs']);
+    assert.equal(app.exerciseMuscles(ex).source, 'user');
+    c = app.muscleSetCounts([hist(0, [{ exId: ex.id, name: 'Gainage latéral', sets: sets(3) }])], -Infinity, Infinity).counts;
+    sameJSON([c.abs, c.obliques], [3, 0]);
+    const d = app.sanitizeData(app.normalizeData(JSON.parse(JSON.stringify(run('data')))));
+    sameJSON(d.programmes.ppl.exercises.legs.at(-1).muscles, ['abs'], 'nettoyage : « abs » reste un identifiant connu');
+    // Choix par le nom (data.exerciseMuscles) d'un exercice perso deviné « abs » à l'époque : gardé
+    run(`data.exerciseMuscles = { 'twist russe leste': ['abs'] }`);
+    sameJSON([...app.exerciseMuscles({ name: 'Twist russe lesté' }).primary], ['abs']);
+    // Exercice perso sans choix, deviné « abs » par l'ancienne règle : suit la nouvelle règle (obliques)
+    sameJSON([...app.exerciseMuscles({ name: 'Rotations russes lestées' }).primary], ['obliques']);
+    assert.equal(app.exerciseMuscles({ name: 'Rotations russes lestées' }).source, 'rules');
+    // Rétablir sur un ancien choix « abs » revient aux muscles vérifiés (obliques)
+    app.resetChosenMuscles({ name: 'Gainage latéral', exId: ex.id });
+    sameJSON([...app.exerciseMuscles({ exId: ex.id, name: 'Gainage latéral' }).primary], ['obliques']);
+    // Progrès : les deux muscles ont leur palier ; les obliques, non mineurs, sont signalés « peu travaillés »
+    const load = app.muscleLoad('week', NOW, [hist(0, [{ name: 'Crunch', sets: sets(10) }])]);
+    assert.ok('obliques' in load.levels && load.levels.abs === 3 && load.levels.obliques === 0);
+    assert.ok(load.low.includes('obliques'));
+  });
+
+  test('obliques : calque à part du grand droit, de face, pour les deux personnages (sw.js à jour)', () => {
+    const img = run('BODY_IMG');
+    for (const body of ['male', 'female']) {
+      assert.ok(img.bodies[body].front.includes('obliques') && img.bodies[body].front.includes('abs'), body);
+      assert.ok(!img.bodies[body].back.includes('obliques'), `${body} : de dos, le flanc est couvert par le grand dorsal et les lombaires`);
+      for (const m of ['abs', 'obliques']) assert.ok(fs.existsSync(path.join(ROOT, `img/body/${body}/front/${m}.webp`)), `${body}/${m}`);
+    }
+    const html = app.bodyMapHtml({ obliques: 1 }, { view: 'front' });
+    assert.ok(html.includes('data-muscle="obliques"') && !html.includes('data-muscle="abs"'), 'les obliques seuls colorent leur calque');
+    assert.ok(fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8').includes("'/img/body/female/front/obliques.webp'"));
   });
 
   // Contexte vm (localStorage) : lu à l'appel, après reset()
