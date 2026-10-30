@@ -24,10 +24,13 @@
 // lancement, repère de la bulle des muscles) : réponses de la personne,
 // le même sur tous ses appareils comme l'unité ; pas une donnée de santé. myProgrammes (liste ordonnée,
 // remplacée en bloc, pas fusionnée) : un programme créé sur un autre appareil y revient par
-// cleanMyProgrammes (store.js) après la fusion
+// cleanMyProgrammes (store.js) après la fusion. sessionVisibleDefault (Réglages › Amis et coach) :
+// préremplit « Visible sur mon profil » à la fin d'une séance, même choix sur tous les appareils.
+// appVersion / appSeenAt (noteAppVersion) : version du contenu de l'app et date où elle a été vue,
+// pour savoir côté serveur qui a quelle version ; le dernier appareil lancé l'emporte, rien d'autre ne part.
 const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
   'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'silhouette', 'myProgrammes',
-  'level'];
+  'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt'];
 // Restent sur l'appareil (liste tenue pour le test qui oblige à classer toute nouvelle clé).
 // lastAccount : moyen et pseudo du dernier compte connecté ici (reconnexion après une restauration iCloud)
 const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'healthOn', 'musicOn', 'soundOn', 'vibrateOn',
@@ -78,6 +81,16 @@ function legacySessionHash(h) { const { bodyKg, label, ...rest } = h; return syn
 function sessionUnchangedSince(known, h) { return known === syncHash(sessionPayload(h)) || known === legacySessionHash(h); }
 // Séance reçue du compte : sans son nom (recalculé ici à l'envoi, jamais stocké dans l'historique)
 function remoteEntry(rowData, id) { const { label, ...rest } = rowData; return { ...rest, id }; }
+// Version du contenu de l'app notée dans le profil au démarrage (js/app/init.js). Renvoie true si elle
+// a changé (à enregistrer) : appVersion = version du contenu (window.MDLF_BUILD, absent dans la PWA :
+// rien n'est noté), appSeenAt = date ISO du premier lancement de cette version sur cet appareil.
+function noteAppVersion(d, version, now = new Date()) {
+  if (typeof version !== 'string' || !version || d.appVersion === version) return false;
+  d.appVersion = version;
+  d.appSeenAt  = now.toISOString();
+  return true;
+}
+
 // Profil partagé : seulement les clés autorisées
 function profilePayload(d) {
   const out = {};

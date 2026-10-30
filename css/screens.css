@@ -59,6 +59,7 @@
 .cell--flow > .cell__body { flex: 1 0 auto; }
 .cell--flow > .segmented { margin-left: auto; }
 .group-foot + .group { margin-top: 28px; }
+.group-lead { padding-top: 14px; }   /* même texte qu'un pied de groupe, en tête d'un sous-écran (Sauvegarde) */
 .cell--field { padding-top: 0; padding-bottom: 0; }
 .cell__check { width: 22px; color: var(--tint); display: flex; }
 .txt-warn { color: var(--orange-text); }

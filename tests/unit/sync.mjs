@@ -130,6 +130,21 @@ export default function ({ test, run, assert, sameJSON }) {
     sameJSON(run(`profilePayload({ unit: 'kg', silhouette: 'female', soundOn: false })`), { unit: 'kg', silhouette: 'female' });
   });
 
+  test('synchro : version de l\'app notée dans le profil au démarrage (noteAppVersion), une fois par version', () => {
+    const r = run(`(() => { const d = freshData();
+      const a = noteAppVersion(d, '1.4.2', new Date('2026-10-30T08:00:00Z'));
+      const again = noteAppVersion(d, '1.4.2', new Date('2026-10-31T08:00:00Z'));   // même version : rien ne bouge
+      const none = [noteAppVersion(d, null), noteAppVersion(d, ''), noteAppVersion(d, undefined)];   // PWA sans MDLF_BUILD
+      const p = profilePayload(d);
+      const up = noteAppVersion(d, '1.5.0', new Date('2026-11-01T00:00:00Z'));
+      return { a, again, none, v: p.appVersion, at: p.appSeenAt, up, v2: d.appVersion, at2: d.appSeenAt }; })()`);
+    assert.equal(r.a, true); assert.equal(r.again, false); sameJSON(r.none, [false, false, false]);
+    assert.equal(r.v, '1.4.2', 'la version part dans le profil');
+    assert.equal(r.at, '2026-10-30T08:00:00.000Z', 'date ISO du premier lancement de cette version');
+    assert.equal(r.up, true); assert.equal(r.v2, '1.5.0'); assert.equal(r.at2, '2026-11-01T00:00:00.000Z');
+    for (const k of ['appVersion', 'appSeenAt', 'sessionVisibleDefault']) assert.ok(run(`SYNC_PROFILE_KEYS.includes(${JSON.stringify(k)})`), k);
+  });
+
   test('synchro : le poids du corps et ses pesées ne partent jamais sur le compte', () => {
     const r = run(`(() => { const d = freshData(); d.bodyWeightKg = 72.5; d.bodyWeightLog = [{ date: 1e12, kg: 72.5 }];
       const p = profilePayload(d), s = JSON.stringify(p) + JSON.stringify(sessionPayload({ id: 'a', date: 1e12, category: 'push', bodyKg: 72.5, exercises: [] }));

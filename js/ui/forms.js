@@ -3,6 +3,11 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
+// Interrupteur iOS : le bouton de la rangée porte l'état (role="switch", aria-checked), le dessin est décoratif
+function switchHtml(on) {
+  return `<span class="switch ${on ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>`;
+}
+
 // Signale un champ invalide (contour rouge, aria-invalid) et affiche le message
 function flagInvalid(input, msg) {
   if (input) {

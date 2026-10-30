@@ -64,17 +64,20 @@ function coachRouteTitle(route) {
 
 // ── Cellules : Réglages et onglet Amis ──────────────────────
 
+// Réglages › Amis et coach : la cellule Coach, puis « Séances visibles par défaut » (js/features/social-ui.js,
+// seulement quand Amis est activé)
 function renderCoachSettingsGroup() {
   if (!accountAvailable()) return '';
   const { isCoach, hasCoach } = coachRole();
   const value = hasCoach ? esc(coachName()) : isCoach ? 'Mes élèves' : account.user ? 'Rejoindre' : '';
   return `
+        <div class="group-title">Amis et coach</div>
         <div class="group">
           <button class="cell cell--nav" data-action="coach-open-settings">
             <span class="cell__body"><span class="cell__title">Coach</span></span>
             <span class="cell__value">${value}</span>
             ${icon('chevron.right', 16)}
-          </button>
+          </button>${socialDefaultVisibleCell()}
         </div>`;
 }
 

@@ -237,6 +237,7 @@ const SCREENS = new Map([
   ['ex-edit',        { render: () => renderExEdit() }],
   ['cs-edit',        { render: () => renderCsEdit() }],
   ['trash',          { render: () => renderTrash() }],          // Réglages › Supprimés récemment
+  ['backup',         { render: () => renderBackup() }],         // Réglages › Données › Sauvegarde (export, import)
 ]);
 function screenOf(name) { return SCREENS.get(name) || SCREENS.get('dashboard'); }
 
