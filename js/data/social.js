@@ -37,7 +37,7 @@ const ACTIVITY_PAGE = 50;                  // lignes par page de l'activité (co
 // Réactions, dans l'ordre du choix (liste fermée, la même que la contrainte bravos_kind du serveur).
 // La première est celle d'un simple toucher.
 const REACTIONS = [
-  { kind: 'clap', emoji: '👏', label: 'Bravo' },
+  { kind: 'clap', emoji: '👏', label: 'Applaudissements' },
   { kind: 'fire', emoji: '🔥', label: 'Chaud' },
   { kind: 'strong', emoji: '💪', label: 'Costaud' },
   { kind: 'trophy', emoji: '🏆', label: 'Record' },
@@ -111,7 +111,7 @@ function reactionsSummary(counts, max = 3) {
   const n = reactionTotal(counts);
   return n ? `${reactionsTop(counts, max).map(k => reactionOf(k).emoji).join('')} ${n}` : '';
 }
-// Pour VoiceOver : « 3 réactions : 2 Chaud, 1 Bravo »
+// Pour VoiceOver : « 3 réactions : 2 Chaud, 1 Applaudissements »
 function reactionsSpoken(counts) {
   const n = reactionTotal(counts);
   if (!n) return 'Aucune réaction';

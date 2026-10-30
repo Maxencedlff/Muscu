@@ -156,7 +156,7 @@ def t_reagir(bench, eng, dev, theme):
         R.check(page.evaluate('__sb.so.bravos.filter(b => b.user === __sb.meId()).length') == 0, f'{t} appui long : aucun 👏 posé en plus')
         R.check(page.locator('.react-picker__btn').count() == 5, f'{t} bulle : 5 réactions')
         labels = page.evaluate("[...document.querySelectorAll('.react-picker__btn')].map(b => b.getAttribute('aria-label'))")
-        R.check(labels == ['Bravo', 'Chaud', 'Costaud', 'Record', 'Impressionnant'], f'{t} bulle : noms VoiceOver {labels}')
+        R.check(labels == ['Applaudissements', 'Chaud', 'Costaud', 'Record', 'Impressionnant'], f'{t} bulle : noms VoiceOver {labels}')
         R.check(small_targets(page, '.react-picker__btn') == [], f'{t} bulle : 44 pt')
         r = page.evaluate("(() => { const p = document.querySelector('.react-picker').getBoundingClientRect(); return [p.left >= 0, p.right <= innerWidth, p.top >= 0]; })()")
         R.check(all(r), f'{t} bulle dans l\'écran {r}')
@@ -170,7 +170,7 @@ def t_reagir(bench, eng, dev, theme):
         mine = page.evaluate("__sb.so.bravos.filter(b => b.user === __sb.meId()).map(b => b.kind)")
         R.check(mine == ['fire'], f'{t} 🔥 choisi et envoyé {mine}')
         btn = page.locator('.feed-card').first.locator('.react')
-        R.check(btn.get_attribute('aria-pressed') == 'true' and 'Chaud' in btn.inner_text() and '🔥' in btn.inner_text(), f'{t} bouton : ma réaction 🔥 Chaud')
+        R.check(btn.get_attribute('aria-pressed') == 'true' and btn.inner_text().strip() == '🔥' and btn.get_attribute('aria-label') == 'Retirer ma réaction (Chaud)', f'{t} bouton : ma réaction 🔥 seule, sans texte ({btn.inner_text()!r})')
         R.check(calls(page, 'set_reaction')[-1]['kind'] == 'fire', f'{t} set_reaction(kind: fire)')
         # Changer : une seule par personne
         long_press(page, btn)

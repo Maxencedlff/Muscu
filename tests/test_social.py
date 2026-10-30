@@ -250,6 +250,8 @@ def t_fil(bench, eng, dev, theme):
         R.check(page.locator('[data-action="social-more"]').count() == 0, f'{t} fin du fil : plus de bouton')
         # Réaction (un toucher) : 👏 donné puis retiré (détail des réactions : test_reactions.py)
         bravo = page.locator('.feed-card').first.locator('.react')
+        R.check(bravo.inner_text().strip() == '👏' and bravo.get_attribute('aria-label') == 'Réagir' and 'bravo' not in page.inner_text('#app').lower(),
+                f'{t} bouton : 👏 seul, sans « Bravo » ({bravo.inner_text()!r})')
         bravo.click()
         page.wait_for_timeout(300)
         bravo = page.locator('.feed-card').first.locator('.react')

@@ -56,7 +56,7 @@ scripts/              construction de l'app iOS (build-web.mjs), mises à jour �
 | `share.css` | Partage de séance : bouton « Partager ma séance », aperçu de l'image au format 9:16 |
 | `recap.css` | Récaps : carte « Ta semaine » de l'accueil, écrans côte à côte (scroll-snap), chiffre énorme en SF Rounded, listes et tuiles du résumé, points et flèches, arrivée légère (coupée avec prefers-reduced-motion) |
 | `account.css` | Compte : calque plein écran (Bienvenue, e-mail, code, pseudo, avatar), boutons de connexion aux chartes Apple et Google (tokens `--siwa-*`, `--gsi-*`), écran Compte, cellule des Réglages, carte de l'accueil |
-| `social.css` | Amis : badge de l'onglet, accueil de l'onglet (sans compte, activation), lignes de personnes et petits boutons arrondis, cartes du fil, bouton Bravo, profil d'un autre |
+| `social.css` | Amis : badge de l'onglet, accueil de l'onglet (sans compte, activation), lignes de personnes et petits boutons arrondis, cartes du fil, bouton de réaction, profil d'un autre |
 | `coach.css` | Coach : cellule en haut de l'onglet Amis, pastilles de nouveautés, programmes reçus, consignes (Programme › Séance, séance en cours), séances d'un élève, codes d'invitation, saisie des consignes et du commentaire |
 | `screens.css` | Écrans à fond groupé (`.view--grouped` : Programme, Progrès, Historique, Réglages) et leur composant de liste groupée (`.group` / `.cell`, seul composant de liste), vignettes « Icône de l'app » (`.app-icons`), accessibilité, paysage, Dynamic Type |
 

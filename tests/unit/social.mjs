@@ -104,7 +104,7 @@ export default function ({ test, run, assert, sameJSON }) {
     sameJSON(run(`reactionsTop({ fire: 1, clap: 1, wow: 3 })`), ['wow', 'clap', 'fire'], 'égalité : ordre de la liste, comme le serveur');
     assert.equal(run(`reactionsSummary({ fire: 2, clap: 1 })`), '🔥👏 3');
     assert.equal(run(`reactionsSummary({})`), '');
-    assert.equal(run(`reactionsSpoken({ fire: 2, clap: 1 })`), '3 réactions : 2 Chaud, 1 Bravo');
+    assert.equal(run(`reactionsSpoken({ fire: 2, clap: 1 })`), '3 réactions : 2 Chaud, 1 Applaudissements');
     // Ma réaction changée, retirée, posée : les comptes suivent, l'objet d'entrée ne bouge pas
     sameJSON(run(`(() => { const c = { fire: 1, clap: 2 }; const out = [withMyReaction(c, 'fire', 'clap'), withMyReaction(c, 'clap', null), withMyReaction(c, null, 'wow'), c]; return out; })()`),
       [{ clap: 3 }, { fire: 1, clap: 1 }, { fire: 1, clap: 2, wow: 1 }, { fire: 1, clap: 2 }]);

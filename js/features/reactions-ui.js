@@ -22,13 +22,14 @@ function reactionsSummaryHtml(counts, cls = 'react__count') {
   return txt ? `<span class="${cls} num" role="img" aria-label="${esc(reactionsSpoken(counts))}">${esc(txt)}</span>` : `<span class="${cls}"></span>`;
 }
 
-// Bouton du fil : ma réaction (pleine à la teinte), sinon 👏 Bravo ; puis le résumé
+// Bouton du fil : l'emoji seul, sans texte (ma réaction, pleine à la teinte, sinon 👏) ; puis le résumé.
+// Nom pour VoiceOver : ce que fait un toucher (« Réagir », ou « Retirer ma réaction (Chaud) »).
 function reactionBarHtml(row) {
   const my = reactionOf(row.my);
   const shown = my || reactionOf(REACTION_DEFAULT);
   return `<button class="react ${my ? 'react--on' : ''}" data-action="social-react" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}"
-      aria-pressed="${!!my}" aria-label="${esc(my ? `Ta réaction : ${my.label}` : 'Bravo')}" aria-describedby="reactHint">
-      <span class="react__emoji" aria-hidden="true">${shown.emoji}</span><span class="react__label" aria-hidden="true">${esc(my ? my.label : 'Bravo')}</span>
+      aria-pressed="${!!my}" aria-label="${esc(my ? `Retirer ma réaction (${my.label})` : 'Réagir')}" aria-describedby="reactHint">
+      <span class="react__emoji" aria-hidden="true">${shown.emoji}</span>
     </button>
     ${reactionsSummaryHtml(row.reactions)}`;
 }

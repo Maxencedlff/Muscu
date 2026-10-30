@@ -70,7 +70,7 @@ Rien d'autre ne sort : ni `notes`, ni `bodyKg`, ni `healthSaved`, ni `hidden`, n
 ## Réactions et Mon profil (31/10/2026, migration `20261031200000_reactions_profil.sql`)
 
 Décisions de Maxence (30/10/2026) :
-- cinq réactions, liste fermée, sans texte (rien à modérer) : 👏 `clap` Bravo, 🔥 `fire` Chaud, 💪 `strong` Costaud, 🏆 `trophy` Record, 😮 `wow` Impressionnant ;
+- cinq réactions, liste fermée, sans texte (rien à modérer) : 👏 `clap` Applaudissements, 🔥 `fire` Chaud, 💪 `strong` Costaud, 🏆 `trophy` Record, 😮 `wow` Impressionnant ;
 - une réaction par personne et par séance, changeable et retirable ; un toucher pose 👏 (ou retire la mienne), un appui long ouvre le choix ;
 - sur MES séances, la liste de qui a réagi (pseudo, avatar, réaction), seulement pour les personnes que j'ai acceptées ;
 - écran « Mon profil » dans l'onglet Amis, ouvert par mon avatar en haut à droite ;
@@ -102,7 +102,7 @@ Décisions de Maxence (30/10/2026) :
 `supabase/rollback/20261031200000_reactions_profil_down.sql`, à lancer à la main : chaque réaction redevient un bravo (la ligne reste), `feed` et `social_state` reprennent leur forme d'origine, les nouvelles fonctions et colonnes partent. Vérifié par `tests/sql/rollback_check.sh` (migrations, réaction posée, retour arrière, puis les tests du social d'avant les réactions).
 
 ### App
-- **Fil** : bouton « 👏 Bravo » (ma réaction à la place une fois posée, pleine à la teinte) et résumé « 🔥👏 3 ». Un toucher : 👏, ou retirer la mienne ; appui long (0,42 s) : bulle des cinq réactions au-dessus du bouton (Échap ou toucher à côté la ferme ; retoucher la mienne la retire). Rien ne se passe au pointerdown ; le clic qui suit l'appui long est avalé. VoiceOver : consigne « Maintiens pour choisir », double-toucher maintenu.
+- **Fil** : bouton emoji seul, sans texte, « 👏 » (ma réaction à la place une fois posée, pleine à la teinte ; VoiceOver : « Réagir » ou « Retirer ma réaction (…) ») et résumé « 🔥👏 3 ». Un toucher : 👏, ou retirer la mienne ; appui long (0,42 s) : bulle des cinq réactions au-dessus du bouton (Échap ou toucher à côté la ferme ; retoucher la mienne la retire). Rien ne se passe au pointerdown ; le clic qui suit l'appui long est avalé. VoiceOver : consigne « Maintiens pour choisir », double-toucher maintenu.
 - **Séance d'un ami** : rangée des cinq réactions (sans geste), « Ta réaction : Chaud » et le résumé.
 - **Mon profil** (`social-me`, mon avatar en haut à droite de l'onglet, point rouge s'il y a du nouveau) : avatar, pseudo, chiffres (séances visibles, abonnés, abonnements : ces deux-là ouvrent leur liste, `social-people:followers|following`, avec « Retirer » pour un abonné), Activité (8 lignes puis « Afficher plus », point bleu sur les nouveautés, une demande reçue avec Accepter et Refuser, une réaction ouvre ma séance dans l'Historique), mes séances vues par mes abonnés (avec leurs réactions ; une séance ouvre sa page avec qui a réagi), puis Gérer. Ouvrir Mon profil appelle `mark_activity_seen` une fois l'activité lue.
 - **Gérer** : demandes envoyées, bloqués, règles, Désactiver le social (abonnés et abonnements sont passés dans Mon profil).
