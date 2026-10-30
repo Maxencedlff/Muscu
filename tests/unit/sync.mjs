@@ -612,4 +612,14 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     // Toute clé du profil est classée : absence = choix, ou gardée ici
     run('SYNC_ABSENT_IS_CHOICE').forEach(k => assert.ok(run('SYNC_PROFILE_KEYS').includes(k), k));
   });
+
+  test('sanitizeData : séances visibles par défaut, version de l\'app et date vue bornées', () => {
+    const clean = extra => run(`(() => { const d = sanitizeData({ ...freshData(), ...${JSON.stringify(extra)} });
+      return { v: d.sessionVisibleDefault, a: d.appVersion, s: d.appSeenAt }; })()`);
+    sameJSON(clean({ sessionVisibleDefault: false, appVersion: '2026.10.30-83f98c7', appSeenAt: '2026-10-30T08:00:00.000Z' }),
+      { v: false, a: '2026.10.30-83f98c7', s: '2026-10-30T08:00:00.000Z' });
+    sameJSON(clean({ sessionVisibleDefault: 'non', appVersion: 'x'.repeat(41), appSeenAt: '<script>' }), {});
+    sameJSON(clean({ appVersion: 42, appSeenAt: '2026-10-30T08:00:00.000Z' + 'Z'.repeat(30) }), {});
+    sameJSON(clean({ appVersion: '', appSeenAt: '2026-99-99T99:99:99Z' }), {});
+  });
 }

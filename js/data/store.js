@@ -289,6 +289,12 @@ function sanitizeData(d) {
   if (d.plates !== undefined) { const p = cleanPlates(d.plates); if (p) d.plates = p; else delete d.plates; }
   // Carte « Ta semaine » de l'accueil coupée (js/features/recap.js) : true ou absent
   if (d.recapCardOff !== undefined && d.recapCardOff !== true) delete d.recapCardOff;
+  // Séances visibles par défaut (Réglages › Amis et coach, js/data/social.js) : booléen ou absent (= oui)
+  if (d.sessionVisibleDefault !== undefined && typeof d.sessionVisibleDefault !== 'boolean') delete d.sessionVisibleDefault;
+  // Version de l'app et date où elle a été vue (noteAppVersion, js/data/sync.js) : envoyées au profil, bornées
+  if (d.appVersion !== undefined && !(typeof d.appVersion === 'string' && d.appVersion && d.appVersion.length <= 40)) delete d.appVersion;
+  if (d.appSeenAt !== undefined && !(typeof d.appSeenAt === 'string' && d.appSeenAt.length <= 40
+    && /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(d.appSeenAt) && Number.isFinite(Date.parse(d.appSeenAt)))) delete d.appSeenAt;
   // Silhouette des muscles (bodySilhouette) : absente = homme ; valeur inconnue retirée
   if (d.silhouette !== undefined && d.silhouette !== 'female' && d.silhouette !== 'male') delete d.silhouette;
   // Niveau du premier lancement (trainingLevel) : valeur inconnue retirée
