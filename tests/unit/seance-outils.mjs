@@ -133,6 +133,22 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(sum.sets, 2); assert.equal(sum.volume, 1200); assert.equal(sum.rows[0].weight, '80');
   });
 
+  test('bilan : volume d\'avant comparé sur autant de séries de travail, échauffements retirés des deux côtés', () => {
+    reset();
+    const w = (weight, reps) => ({ weight, reps, warmup: true }), s = (weight, reps) => ({ weight, reps });
+    const sq = { exId: 'sq', name: 'Squat barre' };
+    // La dernière fois : 2 échauffements puis 3 séries à 80 × 5 (1200 kg) ; aujourd'hui : 3 échauffements puis 3 séries à 80 × 5
+    run(`data.history = [{ id: 'p', programme: 'ppl', category: 'legs', date: Date.now() - 86400000, exercises: [${JSON.stringify({ ...sq, sets: [w('40', '8'), w('60', '5'), s('80', '5'), s('80', '5'), s('80', '5')] })}] }]`);
+    const today = { id: 'e', programme: 'ppl', category: 'legs', date: Date.now(), duration: 1,
+      exercises: [{ ...sq, sets: [w('30', '8'), w('50', '5'), w('70', '3'), s('80', '5'), s('80', '5'), s('80', '5')] }] };
+    const sum = run(`buildSummary(${JSON.stringify(today)}, {})`);
+    assert.equal(sum.volume, 1200);
+    assert.equal(sum.delta, 0, 'même travail : aucun progrès inventé');
+    // Aujourd'hui sans échauffement, la dernière fois avec : toujours 3 séries contre 3
+    const plain = { ...today, exercises: [{ ...sq, sets: [s('80', '5'), s('80', '5'), s('80', '5')] }] };
+    assert.equal(run(`buildSummary(${JSON.stringify(plain)}, {})`).delta, 0);
+  });
+
   test('échauffement et RIR : nettoyés au chargement, gardés à l\'enregistrement, ignorés par les versions d\'avant', () => {
     reset();
     const h = { id: 'h', programme: 'ppl', category: 'push', date: 1, exercises: [{ name: 'DC', sets: [

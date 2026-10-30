@@ -31,7 +31,10 @@ function buildSummary(entry, baseline) {
   entry.exercises.forEach(ex => {
     const pex = prevH?.exercises.find(e => sameEx(e, ex));
     cur  += exVolume(ex, ex.sets, entryBodyKg(entry));
-    prev += pex ? exVolume(pex, pex.sets.slice(0, ex.sets.length), entryBodyKg(prevH)) : 0;
+    // Même nombre de séries de travail des deux côtés (échauffements retirés avant de couper : sinon
+    // l'échauffement d'aujourd'hui ferait entrer une série de travail de plus de la dernière fois, ou
+    // celui de la dernière fois en ferait sortir une)
+    prev += pex ? exVolume(pex, workSets(pex.sets).slice(0, workSets(ex.sets).length), entryBodyKg(prevH)) : 0;
     const rec = exerciseRecord(ex, baseline[ex.exId]);
     if (rec) records.push({ name: ex.name, label: rec.label, weight: rec.s.weight, reps: rec.s.reps });
     const b = summaryBestSet(ex.sets, ex), pb = summaryBestSet(pex?.sets, ex);
