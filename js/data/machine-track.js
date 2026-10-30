@@ -11,8 +11,10 @@
 //               lvl: [[0, 8, 'level'], [125, 10, 'level']],   une liste par grandeur suivie :
 //               incl: [[0, 1, 'pct']],                         [seconde du chrono, valeur, unité]
 //               floors: 42, damper: 5 }            saisis en fin d'exercice, facultatifs
-// Une valeur vaut jusqu'à la suivante de la même liste (ou jusqu'à end). Les versions précédentes de l'app
-// gardent ce champ tel quel (cleanHistoryEntry ne fait que corriger les champs qu'elle connaît).
+// Une valeur vaut jusqu'à la suivante de la même liste (ou jusqu'à end). Une version précédente de l'app qui
+// LIT ou SYNCHRONISE la séance garde ce champ tel quel (cleanHistoryEntry ne fait que corriger les champs
+// qu'elle connaît) ; seule une version précédente qui MODIFIE la séance (Historique › Modifier, add-session.js
+// réécrit les séries depuis son formulaire) le perd : les km et minutes restent, la moyenne et les étages non.
 // Les niveaux ne sont jamais convertis : un niveau 10 n'a pas le même sens d'une marque à l'autre (aucun
 // constructeur ne publie de table niveau → vitesse), ils ne se comparent que sur la même machine.
 

@@ -25,9 +25,11 @@ tests : `tests/unit/machines.mjs`, `tests/test_cardio.py` (`t_machines`, `t_alia
 ```
 
 `[seconde du chrono, valeur, unité]` ; une valeur vaut jusqu'à la suivante de la même liste ; `null` = changement
-d'unité sans valeur encore notée (ce temps n'entre dans aucune moyenne). Les versions précédentes de l'app gardent
-le champ tel quel (`cleanHistoryEntry` corrige les champs qu'elle connaît sans reconstruire la série) ; seule la
-modification d'une ancienne séance dans une version précédente (`add-session.js`) le perdrait.
+d'unité sans valeur encore notée (ce temps n'entre dans aucune moyenne). Une version précédente de l'app qui **lit ou
+synchronise** la séance garde le champ tel quel (`cleanHistoryEntry` corrige les champs qu'elle connaît sans
+reconstruire la série, la synchro recopie la séance entière) ; seule une version précédente qui **modifie** la
+séance (Historique › Modifier, `add-session.js` réécrit les séries depuis son formulaire) le perd : les km et les
+minutes restent, la moyenne, les étages et le temps exact non.
 Au plus 300 changements par grandeur (limite de taille de `sessions.data` : 200 Ko).
 
 ## Plages retenues et sources
