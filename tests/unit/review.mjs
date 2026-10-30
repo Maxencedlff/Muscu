@@ -88,4 +88,13 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     for (const t of ['Pas mal du tout, bonne séance', 'Travail du dos, bonne connexion', 'Courbatures normales', 'Séance normale', '', 'animal', 'Bloqué la respiration au squat'])
       assert.equal(run(`painInNotes(${JSON.stringify(t)})`), false, t);
   });
+
+  test('relecture : jamais le temps aux 500 m du rameur (durée exacte non transmise), allures au km gardées', () => {
+    assert.equal(run(`reviewSetKind({ name: 'Rameur', measure: 'cardio' })`), null);
+    assert.equal(run(`reviewSetKind({ name: 'Course à pied', measure: 'cardio' })`), 'pace');
+    assert.equal(run(`reviewSetKind({ name: 'Vélo', measure: 'cardio' })`), 'speed');
+    assert.equal(run(`reviewSetKind({ name: 'Développé couché' })`), 'charge');
+    const line = run(`setsText([{ weight: '', reps: '8', dist: '2' }], 'cardio', reviewSetKind({ name: 'Rameur', measure: 'cardio' }))`);
+    assert.equal(line, '2 km · 8 min');
+  });
 }
