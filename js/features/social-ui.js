@@ -222,6 +222,28 @@ SCREENS.set('friends', { render: () => renderFriends(), enter: () => { friendsEn
 
 // ── Séance d'un ami ─────────────────────────────────────────
 
+// « 22,5 kg × 12 » d'une série, ou « 12 reps · +5 kg » (lest), selon l'exercice
+function reviewSetTxt(set, ex) {
+  return setTxt({ w: parseFloat(set.weight) || 0, r: parseInt(set.reps) || 0, weight: set.weight, reps: set.reps }, ex);
+}
+// Record battu : exercice, type et ancienne valeur (séance d'un élève, js/features/coach-ui.js) ; sans
+// l'ancienne valeur sur la séance d'un ami
+function reviewRecordCell(rec, { before = true } = {}) {
+  return `
+          <div class="cell review-rec">${medalSvg(22)}
+            <span class="cell__body"><span class="cell__title">${esc(rec.ex.name)}</span><span class="cell__sub num">${esc(rec.label)}${before ? ` · avant ${esc(reviewSetTxt(rec.before, rec.ex))}` : ''}</span></span>
+            <span class="review-rec__val num">${esc(reviewSetTxt(rec.s, rec.ex))}</span>
+          </div>`;
+}
+// Record nommé, un seul : encourager, pas relire (ni flèches de baisse, ni notes, que les amis ne reçoivent
+// pas). Seulement quand toutes ses séances visibles sont chargées (fil de son profil complet) : sur une
+// partie seulement, un « record » pourrait être faux. Le poids du corps n'y entre jamais (js/data/session-review.js).
+function friendRecord(row) {
+  const f = socialFeed(row.owner);
+  if (!f.end || !f.loadedAt) return null;
+  return reviewRecords(row, f.rows, 1)[0] || null;
+}
+
 function renderSocialSession(owner, id) {
   const row = socialSessionOf(owner, id);
   if (!row) {
@@ -231,7 +253,7 @@ function renderSocialSession(owner, id) {
   const s = row.s, p = { username: row.username, avatar: row.avatar };
   let when = capitalize(fmtDate(row.doneAt, 'long'));
   if (s.duration) when += ` · ${fmtTime(row.doneAt)}`;
-  const n = seriesCount(s);
+  const n = seriesCount(s), vol = reviewVolume(s.exercises), rec = friendRecord(row);
   return `
     <div class="view view--grouped social-session-view">
       ${navBar({ title: '' })}
@@ -239,11 +261,13 @@ function renderSocialSession(owner, id) {
         <button class="social-who" data-action="social-open-profile" data-uid="${esc(row.owner)}">${personAvatar(p)}<span class="social-who__name">${esc(personName(p))}</span></button>
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${publicSessionColor(s)}" aria-hidden="true"></span>${esc(s.label)}</h1>
         <p class="scr-sub">${when}</p>
-        <div class="tiles">
+        <div class="tiles tiles--4">
+          <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">volume</span></div>
           <div class="tile"><span class="tile__val num">${s.duration ? fmtDuration(s.duration) : '—'}</span><span class="tile__lbl">durée</span></div>
-          <div class="tile"><span class="tile__val num">${s.exercises.length}</span><span class="tile__lbl">${s.exercises.length > 1 ? 'exercices' : 'exercice'}</span></div>
           <div class="tile"><span class="tile__val num">${n}</span><span class="tile__lbl">${n > 1 ? 'séries' : 'série'}</span></div>
+          <div class="tile"><span class="tile__val num">${s.exercises.length}</span><span class="tile__lbl">${s.exercises.length > 1 ? 'exercices' : 'exercice'}</span></div>
         </div>
+        ${rec ? `<div class="group social-session__rec">${reviewRecordCell(rec, { before: false })}</div>` : ''}
         <div class="group-title">Exercices</div>
         <div class="group">
           ${s.exercises.map((e, i, xs) => `
@@ -258,10 +282,18 @@ function renderSocialSession(owner, id) {
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="social-report" data-uid="${esc(row.owner)}" data-ref="${esc(row.id)}">Signaler cette séance</button>
         </div>
+        ${vol > 0 ? '<div class="group-foot">Volume = charge notée × reps, poids du corps non compté (lest compris).</div>' : ''}
       </div>
     </div>`;
 }
-SCREENS.set('social-session', { render: (owner, id) => renderSocialSession(owner, id) });
+SCREENS.set('social-session', {
+  render: (owner, id) => renderSocialSession(owner, id),
+  // Séances visibles de l'ami (fil de son profil) chargées pour savoir si un record est vraiment battu
+  enter: () => {
+    const owner = routeParams(currentRoute())[0];
+    if (owner && socialFeedNeedsLoad(owner)) socialLoadFeed(owner);
+  },
+});
 
 // ── Profil d'un autre ───────────────────────────────────────
 
