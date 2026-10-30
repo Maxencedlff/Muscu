@@ -92,6 +92,36 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(dev, false);
   });
 
+  test('synchro : nouvelle version de l\'app notée avant la synchro, les changements faits ailleurs gagnent', () => {
+    // iPhone A synchronisé (repos 90, version 1.0) ; l'iPad B passe le repos à 120 et l'envoie ; A reçoit la
+    // mise à jour 1.1, notée au démarrage (noteAppVersion) avant sa première synchro
+    const two = (withCore) => call(`(() => {
+      // Sans profileCore : appareil synchronisé par la version d'avant (profil encore sans appVersion)
+      const A = { history: [{ id: 'x' }], defaultRest: 90, unit: 'kg', ...(${withCore} ? { appVersion: '1.0', appSeenAt: '2026-10-30T09:00:00.000Z' } : {}) };
+      const meta = { profileHash: syncHash(profilePayload(A)), profileAt: '2026-10-30T10:00:00Z' };
+      if (${withCore}) meta.profileCore = profileCoreHash(profilePayload(A));
+      const remote = { doc: { ...profilePayload(A), defaultRest: 120, appVersion: '1.0-ipad', appSeenAt: '2026-10-30T10:30:00.000Z' }, updated_at: '2026-10-30T11:00:00Z' };
+      noteAppVersion(A, '1.1', new Date('2026-10-30T12:00:00Z'));
+      applyRemoteProfile(A, remote, meta);
+      return { rest: A.defaultRest, version: A.appVersion, push: syncHash(profilePayload(A)) !== meta.profileHash };
+    })()`, {});
+    for (const withCore of [true, false]) {   // false : état de synchro enregistré par la version d'avant
+      const r = two(withCore);
+      assert.equal(r.rest, 120, `repos de l'iPad repris (profileCore ${withCore})`);
+      assert.equal(r.version, '1.1', 'la version de cet appareil est gardée');
+      assert.equal(r.push, true, 'elle part au prochain envoi');
+    }
+    // Témoin : un vrai changement ici (repos 75) reste « modifié des deux côtés » : cet appareil gagne
+    const own = call(`(() => {
+      const A = { history: [{ id: 'x' }], defaultRest: 90, unit: 'kg', appVersion: '1.0' };
+      const meta = { profileHash: syncHash(profilePayload(A)), profileCore: profileCoreHash(profilePayload(A)) };
+      A.defaultRest = 75; noteAppVersion(A, '1.1');
+      applyRemoteProfile(A, { doc: { ...profilePayload({ ...A, defaultRest: 90, appVersion: '1.0' }), defaultRest: 120 }, updated_at: 't9' }, meta);
+      return A.defaultRest;
+    })()`, {});
+    assert.equal(own, 75);
+  });
+
   test('synchro : appareil sans état connu (reconnexion, réinstallation) : le compte fait foi', () => {
     // Compte : X supprimée et Y corrigée à 12 sur un autre iPhone. Cet appareil revient avec X et Y = 8, sans empreintes.
     const r = call(`(() => {

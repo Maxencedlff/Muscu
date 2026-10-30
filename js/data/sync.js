@@ -48,7 +48,7 @@ const SYNC_ABSENT_IS_CHOICE = ['weeklyGoal', 'exerciseMuscles', 'exerciseMuscles
 const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary'];
 
 // État de synchro vide d'un compte : curseur serveur, empreintes envoyées, profil
-function emptySyncMeta(userId) { return { userId, cursor: null, pushed: {}, profileHash: null, profileAt: null }; }
+function emptySyncMeta(userId) { return { userId, cursor: null, pushed: {}, profileHash: null, profileCore: null, profileAt: null }; }
 
 // JSON aux clés triées : deux objets égaux donnent la même empreinte, quel que soit l'ordre des clés
 function stableJson(v) {
@@ -116,6 +116,17 @@ function profileHashBeforeOrder(doc) {
     if (up && typeof up === 'object') { const { order, ...rest } = up; out[k] = rest; } else out[k] = up;
   }
   return syncHash({ ...doc, userProgrammes: out });
+}
+// Clés du profil que l'app change d'elle-même (noteAppVersion) : elles partent sur le compte, mais ne
+// comptent pas comme « modifié ici » ; sinon une mise à jour de l'app, notée avant la première synchro,
+// ferait gagner cet appareil sur les changements faits ailleurs entre-temps
+const SYNC_PROFILE_VOLATILE = ['appVersion', 'appSeenAt'];
+// Empreinte du profil sans ces clés (meta.profileCore). Une empreinte enregistrée avant elles (profil sans
+// appVersion) est égale à celle-ci tant que rien d'autre n'a changé
+function profileCoreHash(doc) {
+  const out = { ...(doc || {}) };
+  for (const k of SYNC_PROFILE_VOLATILE) delete out[k];
+  return syncHash(out);
 }
 // Ordres locaux des séances, gardés quand le profil reçu n'en a pas encore (compte rempli par une version
 // précédente : ses clés arrivent triées par jsonb, l'ordre de cet appareil est le bon)
@@ -204,17 +215,24 @@ function applyRemoteProfile(d, remote, meta) {
   meta.profileAt = remote.updated_at || meta.profileAt;
   const doc = profilePayload(remote.doc);
   const remoteHash = syncHash(doc), localHash = syncHash(profilePayload(d));
-  if (localHash === remoteHash) { meta.profileHash = localHash; return false; }
+  if (localHash === remoteHash) { meta.profileHash = localHash; meta.profileCore = profileCoreHash(doc); return false; }
   const blank = isBlankData(d);
   const before = Object.fromEntries(Object.entries(d.userProgrammes || {}).filter(([, up]) => Array.isArray(up?.order)).map(([k, up]) => [k, up.order.slice()]));
-  // Inchangé ici : empreinte égale, ou égale sans l'ordre des séances ajouté par cette version
-  const unchangedHere = meta.profileHash === localHash || (meta.profileHash != null && meta.profileHash === profileHashBeforeOrder(profilePayload(d)));
+  // Inchangé ici : empreinte égale, ou égale sans l'ordre des séances ajouté par une version précédente,
+  // ou égale sans la version de l'app (SYNC_PROFILE_VOLATILE : notée au démarrage, avant la synchro)
+  const localDoc = profilePayload(d), localCore = profileCoreHash(localDoc);
+  const unchangedHere = meta.profileHash === localHash
+    || (meta.profileHash != null && (meta.profileHash === profileHashBeforeOrder(localDoc) || meta.profileHash === localCore))
+    || (meta.profileCore != null && meta.profileCore === localCore);
   if (blank || unchangedHere) {
     // Appareil vierge : ses clés ne sont que les valeurs par défaut, copie exacte (Mes programmes se
     // reconstruit alors depuis l'historique du compte, cleanMyProgrammes)
+    // La version de l'app reste celle de cet appareil (elle partira au prochain envoi)
+    const ownVersion = Object.fromEntries(SYNC_PROFILE_VOLATILE.filter(k => d[k] !== undefined).map(k => [k, d[k]]));
     for (const k of SYNC_PROFILE_KEYS) { if (k in doc) d[k] = doc[k]; else if (blank || SYNC_ABSENT_IS_CHOICE.includes(k)) delete d[k]; }
+    Object.assign(d, ownVersion);
     keepLocalOrders(d, before);
-    meta.profileHash = remoteHash;
+    meta.profileHash = remoteHash; meta.profileCore = profileCoreHash(doc);
     return true;
   }
   const remoteWins = meta.profileHash == null;
@@ -225,6 +243,6 @@ function applyRemoteProfile(d, remote, meta) {
   }
   keepLocalOrders(d, before);
   // Empreinte du compte : le résultat de la fusion, différent, partira au prochain envoi
-  meta.profileHash = remoteHash;
+  meta.profileHash = remoteHash; meta.profileCore = profileCoreHash(doc);
   return true;
 }
