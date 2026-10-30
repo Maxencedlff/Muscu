@@ -92,7 +92,8 @@ function legacySessionHash(h) { const { bodyKg, label, ...rest } = h; return syn
 // ignorée (séance ressuscitée) ou une correction faite ailleurs écrasée. Les records repartent quand même
 // (planSessionPush compare l'empreinte complète) ; après une version distante appliquée, ils sont
 // recalculés ici (renoteRecordsFrom, js/data/account.js). État de synchro d'avant ce champ (pas de
-// pushedCore) : comportement d'avant jusqu'au prochain envoi ou à la prochaine réception de la séance.
+// pushedCore) : repris à la première synchro (applyRemoteSessions) pour les séances inchangées ici ;
+// seuls des records renotés avant cette première synchro comptent encore comme « modifiés ici ».
 function sessionUnchangedSince(known, h, core) {
   return known === syncHash(sessionPayload(h)) || known === legacySessionHash(h)
     || (core != null && core === sessionCoreHash(sessionPayload(h)));
@@ -189,6 +190,15 @@ function applyRemoteSessions(history, rows, meta) {
   const removedIds = new Set();
   const applied = [];
   let changed = false;
+  // État de synchro d'avant pushedCore : empreinte sans records reprise des séances inchangées ici (une
+  // seule fois par séance), pour que les records renotés ensuite ne comptent plus comme « modifiés ici »
+  meta.pushedCore ||= {};
+  for (const h of history) {
+    const known = meta.pushed[h.id];
+    if (known === undefined || known === 'deleted' || meta.pushedCore[h.id] !== undefined) continue;
+    const payload = sessionPayload(h);
+    if (known === syncHash(payload)) meta.pushedCore[h.id] = sessionCoreHash(payload);
+  }
   for (const row of rows) {
     if (!row || typeof row.id !== 'string') continue;
     const i = byId.get(row.id), local = i === undefined ? null : out[i];

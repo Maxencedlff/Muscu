@@ -657,6 +657,25 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(r.unchanged, true, 'records seuls changés : toujours « inchangée ici »');
   });
 
+  test('synchro : état de synchro d\'avant pushedCore repris à la première synchro', () => {
+    const r = call(`(() => {
+      const day = d => d * 86400000;
+      const sq = (id, d, w) => ({ id, programme: 'ppl', category: 'legs', date: day(d), exercises: [{ name: 'Squat barre', sets: [{ weight: String(w), reps: '5' }] }] });
+      const S0 = sq('S0', 0, 90), S1 = sq('S1', 2, 100);
+      let hist = [S1, S0];
+      S1.records = sessionRecords(S1, hist);
+      // Version d'avant : pushed seul
+      const meta = { userId: 'u', cursor: null, pushed: Object.fromEntries(hist.map(h => [h.id, syncHash(sessionPayload(h))])) };
+      applyRemoteSessions(hist, [], meta);          // première synchro après la mise à jour : rien de reçu
+      const backfilled = Object.keys(meta.pushedCore || {}).sort();
+      const P = sq('P', 1, 110); hist = [S1, P, S0]; renoteRecords(P, hist);
+      const res = applyRemoteSessions(hist, [{ id: 'S1', deleted_at: '2026-10-31T10:00:00Z' }], meta);
+      return { backfilled, kept: res.history.some(h => h.id === 'S1') };
+    })()`, {});
+    sameJSON(r.backfilled, ['S0', 'S1']);
+    assert.equal(r.kept, false, 'records renotés après la reprise : la suppression distante s\'applique');
+  });
+
   test('synchro : un vrai changement ici reste « modifié ici » malgré pushedCore', () => {
     const r = call(`(() => {
       const meta = emptySyncMeta('u');
