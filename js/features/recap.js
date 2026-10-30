@@ -210,6 +210,7 @@ function recapMount() {
     const r = track.getBoundingClientRect();
     recapGo(e.clientX - r.left < r.width / 3 ? -1 : 1);
   });
+  bodyPreload();   // calques du personnage (déjà chargés au repos, sinon tout de suite)
   recapStatusBar();
   recapAnimate(document.querySelector('.recap-page.is-active'));
   recapDrawSummary();

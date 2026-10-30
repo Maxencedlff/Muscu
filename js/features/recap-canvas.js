@@ -170,8 +170,10 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
 
   // Courbe de la meilleure charge
   if (page.curve) {
-    const ch = 220, ah = 56;
-    blocks.push({ h: ch + ah, optional: 2, draw: y => {
+    const ah = 56;
+    const b = { h: 220 + ah, minH: 140 + ah, optional: 2 };
+    blocks.push(Object.assign(b, { draw: y => {
+      const ch = b.h - ah;
       const ws = page.curve.map(x => x.w), lo = Math.min(...ws), hi = Math.max(...ws), span = hi - lo || 1, pad = 16;
       const pts = page.curve.map((x, i) => [SIDE + pad + i * (maxW - 2 * pad) / (page.curve.length - 1), y + ch - pad - (x.w - lo) / span * (ch - 2 * pad)]);
       ctx.strokeStyle = c.fg; ctx.lineWidth = 9; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
@@ -182,7 +184,7 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
       ctx.lineWidth = 8; ctx.stroke();
       text(page.curve[0].label, f(700, R.SMALL), .75, y + ch + ah - 8);
       ctx.textAlign = 'right'; text(page.curve.at(-1).label, f(700, R.SMALL), .75, y + ch + ah - 8, SIDE + maxW); ctx.textAlign = 'left';
-    } });
+    } }));
   }
 
   // Frise des semaines
@@ -202,13 +204,15 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
 
   // Séances par mois (année)
   if (page.bars) {
-    const bh = 280, lh = 52, n = 12, gap = 14, bw = (maxW - (n - 1) * gap) / n, max = Math.max(1, ...page.bars.values);
-    blocks.push({ h: bh + lh, draw: y => page.bars.values.forEach((v, m) => {
+    const lh = 52, n = 12, gap = 14, bw = (maxW - (n - 1) * gap) / n, max = Math.max(1, ...page.bars.values);
+    const b = { h: 280 + lh, minH: 150 + lh };
+    blocks.push(Object.assign(b, { draw: y => page.bars.values.forEach((v, m) => {
+      const bh = b.h - lh;
       const x = SIDE + m * (bw + gap), hh = Math.max(v ? 18 : 8, v / max * bh);
       ctx.globalAlpha = m === page.bars.top ? 1 : .35; ctx.fillStyle = c.fg;
       roundRect(ctx, x, y + bh - hh, bw, hh, 10); ctx.fill(); ctx.globalAlpha = 1;
       ctx.textAlign = 'center'; text(RECAP_MONTH_NAME(m).charAt(0).toLocaleUpperCase('fr-FR'), f(700, R.SMALL), .75, y + bh + lh - 8, x + bw / 2, bw + gap); ctx.textAlign = 'left';
-    }) });
+    }) }));
   }
 
   // Personnage : grand et centré (profil), à droite du haut (résumé)
@@ -289,6 +293,9 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
   const FIG_MIN = 460;   // personnage du profil : jamais plus petit (on retire d'abord les lignes facultatives)
   const need = list => total(list) + (list.some(b => b.flex) ? FIG_MIN : 0);
   for (const level of [1, 2]) if (need(shown) > bottom - top) shown = shown.filter(b => b.optional !== level);
+  // Encore trop haut : courbe et barres se tassent (jamais sous minH)
+  let over = need(shown) - (bottom - top);
+  for (const b of shown) if (over > 0 && b.minH) { const cut = Math.min(over, b.h - b.minH); b.h -= cut; over -= cut; }
   const flex = shown.find(b => b.flex);
   if (flex) flex.h = Math.max(0, Math.min(760, bottom - top - total(shown.filter(b => b !== flex)) - R.GAP));
   const used = total(shown);
@@ -304,7 +311,7 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
     let fy = heroTop, k = 0;
     for (const b of shown) { if (b.hero) break; fy += b.h + R.GAP; k++; }
     const heroH = shown.slice(k).filter(b => b.hero).reduce((a, b) => a + b.h + R.GAP, 0) - R.GAP;
-    drawMuscleMap(ctx, W - SIDE - 310, fy - 10, 310, Math.max(420, heroH + 20), sideFig);
+    drawMuscleMap(ctx, W - SIDE - 310, fy - 10, 310, heroH + 10, sideFig);   // jamais sur les tuiles d'en dessous
   }
   recapSignature(ctx, c, f, assets.icon, sigY);
   return canvas;
