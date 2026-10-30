@@ -135,7 +135,7 @@ function renderHistoryDetail(id) {
   // L'heure n'a de sens que pour une séance chronométrée (une séance passée n'a pas d'heure)
   if (h.duration) when += ` · ${fmtTime(h.date)}`;
   const vol   = sessionVolume(h.exercises || [], entryBodyKg(h));
-  const nSets = (h.exercises || []).reduce((a, e) => a + (e.sets || []).length, 0);
+  const nSets = (h.exercises || []).reduce((a, e) => a + workSets(e.sets).length, 0);   // séries de travail
   return `
     <div class="view history-detail view--grouped">
       ${navBar({ title: '', right: `<button class="navbar__text" data-action="edit-session" data-id="${esc(h.id)}">Modifier</button>` })}
@@ -154,6 +154,8 @@ function renderHistoryDetail(id) {
               <span class="cell__body">
                 <span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>
                 <span class="hex__sets num">${setsLine(e.sets, measureOf(e), setKind(e))}</span>
+                ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
+                ${rirLine(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(rirLine(e.sets))}</span>` : ''}
               </span>
             </div>`).join('')}
         </div>

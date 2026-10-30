@@ -14,7 +14,7 @@ const SHARE_MAX_HIGHLIGHTS = 30;  // tous les exercices de la séance (l'image p
 // toutes valaient la meilleure (6, 6, 6, 7 affiché « 7 reps · 4 séries » laissait croire à 4 × 7).
 // Avec une charge, la meilleure série (« 10 kg × 10 ») reste seule quand elles sont identiques.
 function withSetCount(txt, ex, best, hasRecord = false) {
-  const sets = (ex.sets || []).filter(s => (parseInt(s.reps) || 0) > 0);
+  const sets = workSets(ex.sets).filter(s => (parseInt(s.reps) || 0) > 0);
   const m = measureOf(ex);
   // Record mis en avant : on montre LA série du record, pas le détail de toutes
   if (sets.length < 2 || m === 'cardio' || hasRecord) return txt;
@@ -31,7 +31,7 @@ function shareExerciseRow(ex, base, index, bodyKg = null) {
     index, name: ex.name, exId: ex.exId || null,
     value:  best ? withSetCount(setTxt(best, ex), ex, best, !!rec) : '',
     detail: !!best && !rec && withSetCount(setTxt(best, ex), ex, best, false) !== setTxt(best, ex)
-            && !withSetCount(setTxt(best, ex), ex, best, false).startsWith(`${(ex.sets || []).filter(x => (parseInt(x.reps) || 0) > 0).length} × `),
+            && !withSetCount(setTxt(best, ex), ex, best, false).startsWith(`${workSets(ex.sets).filter(x => (parseInt(x.reps) || 0) > 0).length} × `),
     record: rec ? rec.label : null,
     volume: exVolume(ex, ex.sets, bodyKg),
   };
@@ -91,7 +91,7 @@ function shareStoryStats(entry, { history = data.history, baseline = null, max =
     time:     entry.duration ? fmtTime(entry.date) : '',          // une séance passée n'a pas d'heure
     duration: entry.duration ? fmtDuration(entry.duration) : null,
     volume:   volume > 0 ? fmtVolume(volume) : null,
-    sets:     exercises.reduce((a, ex) => a + ex.sets.length, 0),
+    sets:     exercises.reduce((a, ex) => a + workSets(ex.sets).length, 0),   // séries de travail
     records:  rows.filter(r => r.record).length,
     highlights,
     others:   exercises.length - highlights.length,

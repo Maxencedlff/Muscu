@@ -509,3 +509,77 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 /* Bilan : « Enregistrer » aussi en haut à droite (le bas de la feuille peut être sous le pli) */
 .rs__collapse--bold { font-weight: 600; }
 .rs--review .rs__top .rs__title { padding: 0 100px; }
+
+/* ── Lot 2 · outils de la séance : échauffement, RIR, Disques (js/features/session-tools.js) ── */
+/* Séries d'échauffement (js/data/warmup.js) : en gris, sous un titre « Échauffement » */
+.sets__caption {
+  padding: 8px 6px 2px; font-size: 0.706rem; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--label2);
+}
+.session-set--warmup .set-val, .session-set--warmup .set-input, .session-set--warmup .set-prev { color: var(--label2); }
+.session-set--warmup .set-n--warm { font-size: 0.765rem; font-weight: 700; letter-spacing: .02em; }
+.session-set--warmup .set-check--done { background: var(--label2); }
+/* Bouton « Disques » à la place du numéro de la série à faire (exercice à barre) : 44 px de zone de toucher */
+.set-plates {
+  position: relative; width: 32px; height: 32px; justify-self: center; border: 0; border-radius: 50%; cursor: pointer; padding: 0;
+  background: var(--fill); color: var(--tint); display: inline-flex; align-items: center; justify-content: center;
+}
+.set-plates::after { content: ''; position: absolute; inset: -6px; }
+.set-plates:active { opacity: .6; }
+/* RIR (js/data/rir.js) : sélecteur 0 à 4+ sous la dernière série validée, badge « RIR 2 » sur les autres */
+.session-set .rir { display: flex; align-items: center; gap: 4px; padding: 2px 0 6px; flex-wrap: nowrap; min-width: 0; }
+.rir__lbl { font-size: 0.706rem; font-weight: 600; color: var(--label2); margin-right: 2px; flex-shrink: 0; }
+.rir__btn {
+  position: relative; min-width: 36px; height: 32px; padding: 0 4px; border: 0; border-radius: var(--r-pill); cursor: pointer;
+  background: var(--fill); color: var(--label); font-size: 0.765rem; font-weight: 600; font-family: inherit;
+}
+.rir__btn::after { content: ''; position: absolute; inset: -6px -2px; }   /* zone de toucher de 44 px */
+.rir__btn[aria-pressed="true"] { background: var(--tint-fill); color: var(--on-tint); }
+.rir__btn:active { opacity: .6; }
+.rir__rpe { font-size: 0.706rem; font-weight: 600; color: var(--label2); margin-left: 4px; white-space: nowrap; }
+.session-set .rir-badge {
+  display: inline-block; background: var(--fill); color: var(--label2);
+  font-size: 0.706rem; font-weight: 600; padding: 2px 8px; border-radius: var(--r-xs);
+}
+@media (max-width: 374px) { .rir__btn { min-width: 32px; } .rir__rpe { display: none; } }
+
+/* Historique : lignes « Échauffement … » et « RIR … » sous les séries */
+.hex__sets--note { color: var(--label3); }
+
+/* Feuille « Disques » */
+.rs--plates { gap: 12px; }
+.pl__target { display: flex; align-items: center; justify-content: center; gap: 20px; }
+.pl__val { font-family: var(--font-rounded); font-size: 56px; line-height: 1; font-weight: 300; min-width: 150px; text-align: center; }
+.pl__unit { font-size: 1.294rem; font-weight: 500; color: var(--label2); }
+.pl__svg { width: 100%; max-width: 360px; height: auto; display: block; }
+.pl__bar { fill: var(--label3); }
+.pl__collar { fill: var(--label2); }
+.pl__plate { fill: color-mix(in srgb, var(--cat-color, var(--tint)) 55%, var(--cell)); stroke: var(--cat-color, var(--tint)); stroke-width: 1.5; }
+.pl__pw { fill: var(--label); font-size: 13px; font-weight: 600; font-family: var(--font); }
+.pl__result { font-size: 0.941rem; text-align: center; color: var(--label2); padding: 0 8px; }
+.pl__result b { color: var(--label); font-weight: 600; }
+.pl__warn { color: var(--orange-text); }
+.pl__apply {
+  min-height: 44px; padding: 0 16px; border: 0; border-radius: 22px; background: var(--fill); color: var(--tint);
+  font: inherit; font-size: 0.941rem; font-weight: 600; cursor: pointer;
+}
+.pl__apply:active { opacity: .6; }
+.pl__row { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 360px; }
+.pl__row--top { align-items: flex-start; }
+.pl__row--top .pl__lbl { padding-top: 9px; }
+.pl__lbl { width: 56px; flex-shrink: 0; font-size: 0.882rem; font-weight: 600; color: var(--label2); }
+.pl__bars.rs-seg { grid-template-columns: repeat(3, 1fr); max-width: none; flex: 1; }
+.pl__bars .rs-seg__btn { height: 36px; }
+.pl__chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+.pl__chips .ax__chip { display: inline-flex; align-items: center; gap: 2px; min-width: 44px; justify-content: center; }
+
+/* Feuille « Échauffement » */
+.rs--warmup { gap: 12px; }
+.wu__sub { font-size: 0.882rem; color: var(--label2); margin-top: -8px; }
+.wu__list { width: 100%; max-width: 360px; background: var(--fill2); border-radius: var(--r-md); overflow: hidden; }
+.wu__row { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 16px; position: relative; font-size: 1rem; }
+.wu__row + .wu__row::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
+.wu__pct { color: var(--label2); font-weight: 600; }
+.wu__set { font-weight: 600; }
+.wu__note, .wu__empty { margin: 0; padding: 0 8px; font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); text-align: center; max-width: 360px; }
+.rs__done--primary { background: var(--tint-fill); color: var(--on-tint); min-width: 200px; }

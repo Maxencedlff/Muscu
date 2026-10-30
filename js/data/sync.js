@@ -29,9 +29,11 @@ const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'c
   'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'silhouette', 'myProgrammes',
   'level'];
 // Restent sur l'appareil (liste tenue pour le test qui oblige à classer toute nouvelle clé).
-// lastAccount : moyen et pseudo du dernier compte connecté ici (reconnexion après une restauration iCloud)
+// lastAccount : moyen et pseudo du dernier compte connecté ici (reconnexion après une restauration iCloud).
+// rirOn (sélecteur RIR) et plates (barre et disques de la salle) : préférences d'affichage et de matériel,
+// comme les sons : propres à l'appareil
 const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'healthOn', 'musicOn', 'soundOn', 'vibrateOn',
-  'lastExport', 'healthKgPurged', 'schema', 'lastAccount'];
+  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates'];
 // Clés dont l'absence est un choix fait sur un appareil (objectif « Auto », derniers muscles rétablis) :
 // absentes du compte, elles sont retirées ici aussi. Toutes les versions qui synchronisent les envoient.
 // Les autres clés absentes du compte sont gardées ici : un appareil resté sur une version qui ne les

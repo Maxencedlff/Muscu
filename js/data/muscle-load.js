@@ -42,7 +42,7 @@ const SECONDARY_WEIGHT = 0.5;
 
 function emptyMuscleCounts() { return Object.fromEntries(MUSCLES.map(m => [m.id, 0])); }
 
-// Séries faites (reps > 0) par muscle dans les séances de [from, to[
+// Séries faites (reps > 0, échauffement exclu : js/data/warmup.js) par muscle dans les séances de [from, to[
 function muscleSetCounts(history, from = -Infinity, to = Infinity, index = chosenMusclesIndex()) {
   const counts = emptyMuscleCounts();
   let sessions = 0;
@@ -50,7 +50,7 @@ function muscleSetCounts(history, from = -Infinity, to = Infinity, index = chose
     if (!(h?.date >= from && h.date < to)) return;
     sessions++;
     (h.exercises || []).forEach(e => {
-      const n = (e.sets || []).filter(s => (parseInt(s?.reps) || 0) > 0).length;
+      const n = workSets(e.sets).filter(s => (parseInt(s?.reps) || 0) > 0).length;
       if (!n) return;
       const m = exerciseMuscles(e, index);
       m.primary.forEach(id => { counts[id] += n; });

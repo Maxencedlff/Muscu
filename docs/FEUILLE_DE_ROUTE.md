@@ -9,8 +9,8 @@ Mise à jour le 30 octobre 2026, dans l'ordre. OTA = mise à jour à chaud, sans
 | 1  | Lot 1 · OTA     | Page Séance du coach (volume, flèches, records, notes)                        | Claude                         | Publié le 30/10 (49e1070)                     |
 | 1  | Lot 1 · OTA     | Vibrations fortes, corrections de la relecture, CI épinglée, en-têtes du site | Claude                         | Publié le 30/10 (49e1070)                     |
 | 2  | Lot 2 · OTA     | Réglages réorganisés + sous-écran Sauvegarde                                  | Claude                         | À faire                                      |
-| 3  | Lot 2 · OTA     | Calculateur de disques + échauffement automatique                             | Claude                         | À faire                                      |
-| 4  | Lot 2 · OTA     | RPE / RIR facultatif après chaque série                                       | Claude                         | À faire                                      |
+| 3  | Lot 2 · OTA     | Calculateur de disques + échauffement automatique                             | Claude                         | Fait le 30/10 (branche lot2-seance), à publier |
+| 4  | Lot 2 · OTA     | RPE / RIR facultatif après chaque série                                       | Claude                         | Fait le 30/10 (branche lot2-seance), à publier |
 | 5  | Lot 2 · OTA     | Import depuis Hevy et Strong                                                  | Claude                         | À faire                                      |
 | 6  | Lot 2 · OTA     | Mensurations + photos de progression (iPhone seul)                            | Claude                         | À faire                                      |
 | 7  | Lot 2 · OTA     | Export vers Strava                                                            | Claude                         | À faire                                      |
