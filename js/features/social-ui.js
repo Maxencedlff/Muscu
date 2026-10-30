@@ -1,16 +1,17 @@
 // ═══════════════════════════════════════════════════════════
 //  Amis (Social V1), écrans : onglet Amis (sans compte, activation, puis recherche, demandes et fil),
-//  séance d'un ami (détail des séries, Bravo, Signaler), profil d'un autre (s'abonner, annuler la
-//  demande, se désabonner, Bloquer, Signaler), Gérer (abonnés, abonnements, demandes envoyées,
-//  bloqués, Désactiver le social), règles de la communauté, et dans Historique › Séance : « Masquer à
-//  mes abonnés » et « N bravos ».
+//  séance d'un ami (détail des séries, réactions, Signaler) ou la mienne telle que mes abonnés la
+//  voient (qui a réagi), profil d'un autre (s'abonner, annuler la demande, se désabonner, Bloquer,
+//  Signaler), Gérer (demandes envoyées, bloqués, Désactiver le social), règles de la communauté, et
+//  dans Historique › Séance : « Visible sur mon profil » et qui a réagi.
+//  Réactions : js/features/reactions-ui.js ; Mon profil, Abonnés, Abonnements : js/features/social-me-ui.js.
 //  Données et appels au serveur : js/data/social.js (contrat : docs/SOCIAL_V1.md). Tout texte venu du
 //  serveur (pseudos, noms de séances et d'exercices des autres) passe par esc().
 //  Rien ne bloque : l'état se charge en arrière-plan, l'écran se redessine quand il arrive.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const SOCIAL_VIEWS = ['friends', 'social-profile', 'social-session', 'social-manage', 'social-rules'];
+const SOCIAL_VIEWS = ['friends', 'social-profile', 'social-session', 'social-manage', 'social-rules', 'social-me', 'social-people'];
 const RULES_URL = 'https://mdlf.app/privacy.html#communaute';
 
 let socialAgeOk = false;       // case « J'ai 15 ans ou plus » de la carte d'activation
@@ -45,11 +46,6 @@ function friendsState() {
 function offlineNote(what) {
   return `<div class="social-note" role="status"><p>${what}</p><button class="social-note__btn" data-action="social-retry">Réessayer</button></div>`;
 }
-function bravoHtml(row) {
-  return `<button class="bravo ${row.mine ? 'bravo--on' : ''}" data-action="social-bravo" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}" aria-pressed="${row.mine}">Bravo</button>
-    <span class="bravo__count num">${row.bravos ? plural(row.bravos, 'bravo', 'bravos') : ''}</span>`;
-}
-
 // Record mis en avant sur la carte : le plus marquant de ceux que son app a notés (jamais recalculé ici :
 // le fil ne contient qu'une partie de ses séances). « 🏆 Nouveau record : Squat 100 kg »
 function feedRecordHtml(s) {
@@ -57,7 +53,8 @@ function feedRecordHtml(s) {
   return r ? `<span class="feed-card__rec"><span aria-hidden="true">🏆 </span>Nouveau record : <span class="num">${esc(notedFeedTxt(r))}</span></span>` : '';
 }
 
-// Carte du fil : qui et quand (vers son profil), la séance (vers le détail des séries), puis Bravo.
+// Carte du fil : qui et quand (vers son profil), la séance (vers le détail des séries), puis la
+// réaction (js/features/reactions-ui.js). Ma séance (Mon profil) : le résumé des réactions seulement.
 // owner : false sur l'écran du profil (la personne est déjà nommée), la date passe alors sous le nom
 function feedCardHtml(row, { owner = true } = {}) {
   const s = row.s, p = { username: row.username, avatar: row.avatar };
@@ -72,7 +69,9 @@ function feedCardHtml(row, { owner = true } = {}) {
         ${s.exercises.length ? `<span class="feed-card__sum">${esc(feedExercisesLine(s))}</span>` : ''}
         ${feedRecordHtml(s)}
       </button>
-      <div class="feed-card__foot">${bravoHtml(row)}</div>
+      <div class="feed-card__foot">${row.owner === social.userId
+        ? `<span class="react-own">${reactionsSummary(row.reactions) ? reactionsSummaryHtml(row.reactions) : '<span class="react-own__none">Aucune réaction</span>'}</span>`
+        : reactionBarHtml(row)}</div>
     </article>`;
 }
 
@@ -109,7 +108,7 @@ function pill(action, uid, label, { fill = false, aria = '' } = {}) {
 function renderFriends() {
   const st = friendsState();
   friendsShown = st;
-  const right = st === 'on' ? '<button class="navbar__text" data-action="social-manage">Gérer</button>' : '';
+  const right = st === 'on' ? meButtonHtml() : '';
   const search = st === 'on' ? `
         <div class="hist-tools">
           <input type="search" id="socialSearch" class="search" placeholder="Rechercher un pseudo" value="${esc(socialQuery)}"
@@ -118,7 +117,7 @@ function renderFriends() {
   return `
     <div class="view view--grouped friends-view">
       ${navBar({ title: 'Amis', right })}
-      <div class="scr"><div id="coachCell">${coachCellHtml({ place: 'top', friends: st })}</div>${search}<div id="friendsBody">${friendsBodyHtml(st)}</div></div>
+      <div class="scr">${reactHintHtml()}<div id="coachCell">${coachCellHtml({ place: 'top', friends: st })}</div>${search}<div id="friendsBody">${friendsBodyHtml(st)}</div></div>
     </div>`;
 }
 
@@ -133,7 +132,7 @@ function friendsBodyHtml(st = friendsState()) {
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec tes amis</h2>
-          <p class="social-hero__sub">Suis les séances de tes amis et encourage-les d'un bravo. Il faut un compte, gratuit et facultatif.</p>
+          <p class="social-hero__sub">Suis les séances de tes amis et encourage-les d'une réaction. Il faut un compte, gratuit et facultatif.</p>
         </div>
         <button class="btn btn--primary btn--full" data-action="social-sign-in">Se connecter</button>`;
   if (st === 'loading') return '<div class="empty-note">Chargement…</div>';
@@ -151,7 +150,7 @@ function activationHtml() {
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec tes amis</h2>
-          <p class="social-hero__sub">Suis leurs séances et encourage-les d'un bravo. Ton compte reste privé : seules les personnes que tu acceptes voient tes séances.</p>
+          <p class="social-hero__sub">Suis leurs séances et encourage-les d'une réaction. Ton compte reste privé : seules les personnes que tu acceptes voient tes séances.</p>
         </div>
         <div class="group">
           <button class="cell cell--nav" data-action="social-choose-username">
@@ -246,6 +245,7 @@ function renderSocialSession(owner, id) {
       <div class="scr"><div class="empty-note">Cette séance n'est plus disponible.</div></div></div>`;
   }
   const s = row.s, p = { username: row.username, avatar: row.avatar };
+  const mine = row.owner === social.userId;
   let when = capitalize(fmtDate(row.doneAt, 'long'));
   if (s.duration) when += ` · ${fmtTime(row.doneAt)}`;
   const n = seriesCount(s), vol = reviewVolume(s.exercises), rec = friendRecord(row);
@@ -253,7 +253,8 @@ function renderSocialSession(owner, id) {
     <div class="view view--grouped social-session-view">
       ${navBar({ title: '' })}
       <div class="scr">
-        <button class="social-who" data-action="social-open-profile" data-uid="${esc(row.owner)}">${personAvatar(p)}<span class="social-who__name">${esc(personName(p))}</span></button>
+        ${mine ? `<p class="social-who social-who--me">${personAvatar(p)}<span class="social-who__name">Vue par tes abonnés</span></p>`
+          : `<button class="social-who" data-action="social-open-profile" data-uid="${esc(row.owner)}">${personAvatar(p)}<span class="social-who__name">${esc(personName(p))}</span></button>`}
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${publicSessionColor(s)}" aria-hidden="true"></span>${esc(s.label)}</h1>
         <p class="scr-sub">${when}</p>
         <div class="tiles tiles--4">
@@ -274,19 +275,30 @@ function renderSocialSession(owner, id) {
               </span>
             </div>`).join('') || '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}
         </div>
-        <div class="feed-card__foot social-session__bravo">${bravoHtml(row)}</div>
+        ${mine ? mySessionWhoHtml(row) : `
+        <div class="group-title">Réagir</div>
+        <div class="group group--pad social-session__react">${reactionRowHtml(row)}</div>
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="social-report" data-uid="${esc(row.owner)}" data-ref="${esc(row.id)}">Signaler cette séance</button>
-        </div>
+        </div>`}
         ${vol > 0 ? '<div class="group-foot">Volume = charge notée × reps, sans l\'échauffement, poids du corps non compté (lest compris).</div>' : ''}
       </div>
     </div>`;
 }
+// Ma séance vue par mes abonnés : qui a réagi
+function mySessionWhoHtml(row) {
+  const list = whoListHtml(row.id, row.bravos);
+  return `
+        <div class="group-title">Réactions${row.bravos ? ` (${row.bravos})` : ''}</div>
+        <div class="group who-list">${list || '<div class="cell"><span class="cell__sub social-empty">Aucune réaction pour l\'instant.</span></div>'}</div>`;
+}
 SCREENS.set('social-session', {
   render: (owner, id) => renderSocialSession(owner, id),
-  // Séances visibles de l'ami (fil de son profil) chargées pour savoir si un record est vraiment battu
+  // Séance d'un ami : ses séances visibles (fil de son profil) chargées pour savoir si un record est
+  // vraiment battu. La mienne : qui a réagi.
   enter: () => {
-    const owner = routeParams(currentRoute())[0];
+    const [owner, id] = routeParams(currentRoute());
+    if (owner && owner === social.userId) { if (id) socialLoadWho(id); return; }
     if (owner && socialFeedNeedsLoad(owner)) socialLoadFeed(owner);
   },
 });
@@ -320,6 +332,7 @@ function renderSocialProfile(uid) {
     <div class="view view--grouped social-profile-view">
       ${navBar({ title: esc(name), large: false })}
       <div class="scr">
+        ${reactHintHtml()}
         <div class="account-hero">
           ${personAvatar(p, 'xl')}
           <h2 class="account-hero__name">${esc(name)}</h2>
@@ -333,7 +346,7 @@ function renderSocialProfile(uid) {
           <button class="cell cell--destructive" data-action="social-block" data-uid="${esc(uid)}">Bloquer</button>
           <button class="cell cell--destructive" data-action="social-report" data-uid="${esc(uid)}">Signaler</button>
         </div>
-        <div class="group-foot">Bloquer coupe tout dans les deux sens : recherche, demandes, séances et bravos. Personne n'en est averti.</div>`}
+        <div class="group-foot">Bloquer coupe tout dans les deux sens : recherche, demandes, séances et réactions. Personne n'en est averti.</div>`}
       </div>
     </div>`;
 }
@@ -358,13 +371,11 @@ function renderSocialManage() {
   const section = (title, list, trailing, empty) => `
         <div class="group-title">${title}${list.length ? ` (${list.length})` : ''}</div>
         <div class="group">${list.length ? list.map(p => personRowHtml(p, trailing(p))).join('') : `<div class="cell"><span class="cell__sub social-empty">${empty}</span></div>`}</div>`;
-  const chevron = () => `<span class="social-row__chev" aria-hidden="true">${icon('chevron.right', 16)}</span>`;
+  // Abonnés et Abonnements : dans Mon profil (js/features/social-me-ui.js)
   return `
     <div class="view view--grouped social-manage-view">
       ${navBar({ title: 'Gérer', large: false })}
       <div class="scr">
-        ${section('Abonnés', st.followers, p => pill('social-remove-follower', p.user_id, 'Retirer', { aria: `Retirer ${personName(p)} de tes abonnés` }), 'Personne pour l\'instant')}
-        ${section('Abonnements', st.following, chevron, 'Personne pour l\'instant')}
         ${section('Demandes envoyées', st.requested, p => pill('social-cancel', p.user_id, 'Annuler', { aria: `Annuler la demande à ${personName(p)}` }), 'Aucune')}
         ${section('Bloqués', st.blocked, p => pill('social-unblock', p.user_id, 'Débloquer', { aria: `Débloquer ${personName(p)}` }), 'Personne')}
         <div class="group group--gap">
@@ -454,8 +465,8 @@ function historyHiddenMark(h) {
 // Groupe ajouté au détail d'une séance (js/features/history.js) quand le social est activé
 function historySocialGroup(h) {
   if (!socialEnabled()) return '';
-  // Masquée : les bravos déjà reçus restent comptés, mais plus personne ne la voit (le serveur refuse les nouveaux)
-  const n = myBravos(h.id), hidden = h.hidden === true;
+  // Masquée : les réactions déjà reçues restent, mais plus personne ne la voit (le serveur refuse les nouvelles)
+  const hidden = h.hidden === true;
   return `
         <div class="group-title">Amis</div>
         <div class="group">
@@ -463,10 +474,10 @@ function historySocialGroup(h) {
             <span class="cell__body"><span class="cell__title">Visible sur mon profil</span></span>
             ${switchHtml(!hidden)}
           </button>
-          ${n ? `<div class="cell"><span class="cell__body"><span class="cell__title social-bravos-mine">${plural(n, 'bravo', 'bravos')}${hidden ? ' reçus avant de la masquer' : ''}</span></span></div>` : ''}
         </div>
         <div class="group-foot">${hidden ? 'Tes abonnés ne voient pas cette séance.'
-          : 'Tes abonnés voient le nom, la date, la durée et les séries. Jamais tes notes ni ton poids.'}</div>`;
+          : 'Tes abonnés voient le nom, la date, la durée et les séries. Jamais tes notes ni ton poids.'}</div>
+        ${historyWhoHtml(h)}`;
 }
 
 // ── Flux d'actions ──────────────────────────────────────────
@@ -543,11 +554,6 @@ registerActions({
     if (currentRoute() !== route) navigate(route);
   },
   'social-open-session': (e, el) => navigate(makeRoute('social-session', el.dataset.owner, el.dataset.id)),
-  'social-bravo': async (e, el) => {
-    haptic();
-    const r = await socialToggleBravo(el.dataset.owner, el.dataset.id);
-    socialToast(r);
-  },
   'social-more': (e, el) => { socialLoadFeed(el.dataset.key || '', { more: true }); },
   'social-follow': async (e, el) => {
     el.disabled = true;
@@ -618,16 +624,19 @@ document.addEventListener('input', e => {
 
 // ── Mises à jour de l'écran ─────────────────────────────────
 
-// État reçu, fil chargé, bravo : badge, puis l'écran affiché. Onglet Amis au même état : seule la zone
+let historyReactionsShown = null;   // réactions reçues au dernier dessin de la liste de l'Historique
+// État reçu, fil chargé, réaction : badge, puis l'écran affiché. Onglet Amis au même état : seule la zone
 // sous la recherche est redessinée (le champ garde le clavier) ; sinon redessin complet
 onSocialChange(() => {
   updateTabBadge();
   const v = currentView();
   // Fil affiché jamais chargé (hors ligne au premier passage, ou Amis activé connu après l'ouverture) :
   // chargé maintenant ; son début de chargement notifie et redessine l'écran
-  const feedKey = v === 'friends' ? '' : v === 'social-profile' ? followedProfileShown() : null;
+  const feedKey = v === 'friends' ? '' : v === 'social-profile' ? followedProfileShown() : v === 'social-me' ? SOCIAL_ME : null;
   if (feedKey != null && socialFeedNeedsLoad(feedKey)) { socialLoadFeed(feedKey); return; }
-  if (v === 'friends' && friendsState() === friendsShown) { refreshFriendsBody(); return; }
+  if (v === 'friends' && friendsState() === friendsShown) { refreshFriendsBody(); refreshMeButton(); return; }
+  // Liste de l'Historique : redessinée seulement si les réactions reçues ont changé (« 👏 2 »)
+  if (v === 'history') { if (social.reactions !== historyReactionsShown) { historyReactionsShown = social.reactions; refreshHistoryList(); } return; }
   if (!SOCIAL_VIEWS.includes(v) && v !== 'history-detail') return;
   if (document.activeElement?.matches?.('#socialSearch')) { refreshFriendsBody(); return; }
   render();

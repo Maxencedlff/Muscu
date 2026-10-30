@@ -223,12 +223,12 @@ const SCREENS = new Map([
                        mount: ({ first }) => { if (activeSession) { afterSessionRender(first); mountMusicBar(); } }, // centre la série courante
                        enter: () => requestWakeLock(), leave: () => releaseWakeLock() }],
   ['editor',         { render: () => renderEditor() }],
-  ['history',        { render: () => renderHistory(), mount: () => mountHealthWorkouts('history', refreshHistoryList) }],
+  ['history',        { render: () => renderHistory(), mount: () => { mountHealthWorkouts('history', refreshHistoryList); if (socialEnabled()) socialLoadMyReactions({ minAge: SOCIAL_REFRESH_MS }); } }],   // « 👏 2 » (Amis activé)
   ['stats',          { render: () => renderStats(), mount: () => fillWeightGroup() }],
   ['settings',       { render: () => renderSettings(), mount: () => { fillAppVersion(); fillBodyWeightCell(); fillHealthWorkoutsCell(); } }],
   ['add-session',    { render: () => renderAddSession(), enter: ({ dir }) => addSessionEnter(dir), leave: () => addSessionLeave() }],
   ['summary',        { render: () => renderSummary() }],          // Entraînement › Bilan
-  ['history-detail', { render: id => renderHistoryDetail(id), mount: () => { if (socialEnabled()) socialLoadMyBravos({ minAge: SOCIAL_REFRESH_MS }); coachHistoryMount(); } }],   // bravos reçus (Amis activé)
+  ['history-detail', { render: id => renderHistoryDetail(id), mount: () => { historyReactionsMount(routeParams(currentRoute())[0]); coachHistoryMount(); } }],   // qui a réagi (Amis activé)
   ['stats-ex',       { render: exId => renderStatsExercise(exId), mount: () => drawCharts() }],
   ['stats-overview', { render: () => renderStatsOverview() }],
   ['body-measures',  { render: () => renderBodyMeasures(), mount: () => mountBodyMeasures(), leave: () => leaveBodyMeasures() }],   // Progrès › Mesures (js/features/body-measures-ui.js)

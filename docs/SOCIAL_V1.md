@@ -2,7 +2,7 @@
 
 Décisions de Maxence (26/10/2026) :
 - 5e onglet « Amis » ;
-- réaction « Bravo » sans texte ;
+- réaction « Bravo » sans texte (31/10/2026 : cinq réactions, voir « Réactions et Mon profil ») ;
 - 13+ déclaré à Apple et case « J'ai 15 ans ou plus » à l'activation ;
 - pseudo obligatoire pour être trouvé ;
 - les abonnés voient tout l'historique, avec « Visible sur mon profil » par séance (éteint = masquée), mais jamais les notes, le poids du corps ni Santé (décision du 25/10) ;
@@ -33,7 +33,8 @@ Hors V1 :
   - `hidden: true` : séance masquée aux abonnés (absent = visible).
 - **follows** `(follower_id, followee_id, status 'pending'|'accepted'|'ghost', created_at, responded_at)`.
 - **blocks** `(blocker_id, blocked_id, created_at)`.
-- **bravos** `(session_owner, session_id, user_id, created_at)`, clé primaire sur les trois premiers champs.
+- **bravos** `(session_owner, session_id, user_id, created_at, kind, updated_at)`, clé primaire sur les trois premiers champs : c'est la table des réactions (`kind` et `updated_at` ajoutés le 31/10/2026, voir plus bas).
+- **user_profiles.activity_seen_at** (31/10/2026) : date de la dernière consultation de l'activité, écrite seulement par `mark_activity_seen`.
 - **reports** : signalements, écrits uniquement par la fonction Edge `report`.
 
 ## Liste blanche d'une séance vue par un autre (`private.session_public`)
@@ -63,8 +64,50 @@ Rien d'autre ne sort : ni `notes`, ni `bodyKg`, ni `healthSaved`, ni `hidden`, n
 | `remove_follower(follower uuid)` | `void` | Supprime l'abonnement de quelqu'un à moi. |
 | `block_user(target uuid)` / `unblock_user(target uuid)` | `void` | Le blocage supprime mes demandes et abonnements vers l'autre, son abonnement vers moi et les bravos échangés ; sa demande en attente devient fantôme. Silencieux pour un identifiant inconnu, `not_found` sur soi-même. Le déblocage supprime les demandes fantômes entre les deux. |
 | `feed(before_at bigint default null, before_owner uuid default null, before_id text default null, only_user uuid default null)` | `table(owner, username, avatar, id, done_at, s jsonb, bravos int, my_bravo boolean)` | Séances des personnes que je suis, si leur abonnement est accepté, leur social activé (et le mien), sans blocage, séance non supprimée, non masquée et datée au plus 24 h dans le futur. Triées par `(done_at, owner, id)` décroissant, 20 par page. Page suivante : `before_at`, `before_owner`, `before_id` = `done_at`, `owner`, `id` de la dernière carte (les séances à la même milliseconde ne sont ni perdues ni doublées). `only_user` sert à l'écran d'un profil (appel par nom : `feed(only_user => …)`) : vide si je ne le suis pas. |
-| `toggle_bravo(owner uuid, session_id text)` | `jsonb {bravos, mine}` | Seulement sur une séance que `feed` me montrerait, sinon `not_found`. Pas sur mes propres séances. Au plus 200 par jour. |
-| `my_bravos()` | `table(session_id text, bravos int)` | Bravos reçus sur mes séances, pour Historique. |
+| `toggle_bravo(owner uuid, session_id text)` | `jsonb {bravos, mine}` | Seulement sur une séance que `feed` me montrerait, sinon `not_found`. Pas sur mes propres séances. Au plus 200 par jour. Depuis les réactions : pose un 👏, ou retire ma réaction quelle qu'elle soit (anciennes versions de l'app). |
+| `my_bravos()` | `table(session_id text, bravos int)` | Bravos reçus sur mes séances, pour Historique. Gardée pour les anciennes versions : compte toutes les réactions. |
+
+## Réactions et Mon profil (31/10/2026, migration `20261031200000_reactions_profil.sql`)
+
+Décisions de Maxence (30/10/2026) :
+- cinq réactions, liste fermée, sans texte (rien à modérer) : 👏 `clap` Bravo, 🔥 `fire` Chaud, 💪 `strong` Costaud, 🏆 `trophy` Record, 😮 `wow` Impressionnant ;
+- une réaction par personne et par séance, changeable et retirable ; un toucher pose 👏 (ou retire la mienne), un appui long ouvre le choix ;
+- sur MES séances, la liste de qui a réagi (pseudo, avatar, réaction), seulement pour les personnes que j'ai acceptées ;
+- écran « Mon profil » dans l'onglet Amis, ouvert par mon avatar en haut à droite ;
+- pastille de l'onglet pour une nouvelle activité, remise à zéro à l'ouverture de Mon profil (vu côté serveur).
+
+### Règles
+- **Données** : la table `bravos` garde sa clé primaire (une ligne par personne et par séance) et gagne `kind` (contrainte `bravos_kind`, défaut `clap`) et `updated_at` (pose ou dernier changement). Les bravos d'avant deviennent des 👏 par la valeur par défaut, sans recopie ; leur `updated_at` reprend leur `created_at`.
+- **Une réaction compte tant que son auteur voit la séance** (`private.can_see(auteur, propriétaire)` : abonnement accepté, social activé des deux côtés, aucun blocage). Un abonné retiré ou désabonné disparaît des comptes, de « qui a réagi » et de l'activité ; sa ligne reste et recompte s'il est de nouveau accepté. Le blocage supprime les réactions échangées, comme avant. Seule exception : `my_bravos`, inchangée.
+- **Compatibilité** : `toggle_bravo` et `my_bravos` ne changent pas ; `feed` garde ses colonnes dans le même ordre (`bravos` = total des réactions qui comptent, `my_bravo` = j'ai réagi) et en ajoute deux à la fin. Une ancienne version de l'app continue de marcher ; elle voit chaque réaction comme un bravo.
+- **Ordre de mise en production** : migration d'abord, puis l'OTA. Une app à jour sur un serveur d'avant compte tout en 👏 (feed sans `reactions`) mais ne peut pas réagir (`set_reaction` absente).
+- **Limites** : 200 réactions posées ou changées par 24 h (compteur `bravo`, partagé avec `toggle_bravo`) ; reposer la même ou retirer ne compte pas. Lectures, par heure : `my_activity` 120, `my_shown_sessions` 120, `session_reactions` 300, `my_reactions` 300, `mark_activity_seen` 120.
+- **Nouveautés** (`activity_new`) : réactions à mes séances et demandes acceptées plus récentes que `activity_seen_at` (ou que l'activation du social). Un nouvel abonné n'en est pas une : c'est moi qui l'ai accepté. Les demandes reçues restent comptées à part (`badge`). La pastille de l'onglet affiche `badge + activity_new` (plus les nouveautés du coach).
+- **Erreurs** : `invalid_reaction` (réaction hors liste ou texte), `not_found`, `rate_limited`.
+
+### Fonctions RPC (rôle `authenticated` seulement)
+
+| Fonction | Renvoie | Règles |
+|---|---|---|
+| `set_reaction(owner uuid, session_id text, kind text)` | `jsonb {bravos, mine, my_reaction, reactions}` | Pose, change ou retire (`kind` null) ma réaction. Mêmes séances que `toggle_bravo` (sinon `not_found`). `reactions` : comptes par sorte, ex. `{"fire": 2, "clap": 1}`. |
+| `feed(…)` | `table(owner, username, avatar, id, done_at, s, bravos, my_bravo, reactions jsonb, my_reaction text)` | Comme avant, avec les comptes par sorte et ma réaction (ou null). Supprimée puis recréée (type de retour changé), droits redonnés. |
+| `my_reactions()` | `table(session_id, total int, top text, reactions jsonb)` | Réactions reçues sur mes séances non supprimées, pour l'Historique. `top` : la plus fréquente (égalité : ordre de la liste). |
+| `session_reactions(session_id text)` | `table(user_id, username, avatar, kind, at)` | Qui a réagi à MA séance, du plus récent au plus ancien, 200 au plus. Séance d'un autre, inconnue ou supprimée : vide. |
+| `my_activity(before_at timestamptz default null)` | `table(kind, user_id, username, avatar, at, reaction, session_id, session_label, session_at, is_new)` | `kind` : `reaction`, `follower` (abonnement accepté), `accepted` (ma demande acceptée), `request` (demande reçue, jamais fantôme). 50 par page, page suivante avant `at` de la dernière ligne. Blocages exclus. Vide sans social. |
+| `mark_activity_seen()` | `void` | `activity_seen_at = now()`. |
+| `my_shown_sessions(before_at bigint default null, before_id text default null)` | mêmes colonnes que `feed` | Mes séances telles que mes abonnés les voient (`private.session_shown`, liste blanche), 20 par page, curseur `(done_at, id)`. |
+| `social_state()` | `jsonb` | Comme avant, plus `activity_new` (0 à 99) et `shown_sessions` (mes séances visibles). |
+
+### Retour arrière
+`supabase/rollback/20261031200000_reactions_profil_down.sql`, à lancer à la main : chaque réaction redevient un bravo (la ligne reste), `feed` et `social_state` reprennent leur forme d'origine, les nouvelles fonctions et colonnes partent. Vérifié par `tests/sql/rollback_check.sh` (migrations, réaction posée, retour arrière, puis les tests du social d'avant les réactions).
+
+### App
+- **Fil** : bouton « 👏 Bravo » (ma réaction à la place une fois posée, pleine à la teinte) et résumé « 🔥👏 3 ». Un toucher : 👏, ou retirer la mienne ; appui long (0,42 s) : bulle des cinq réactions au-dessus du bouton (Échap ou toucher à côté la ferme ; retoucher la mienne la retire). Rien ne se passe au pointerdown ; le clic qui suit l'appui long est avalé. VoiceOver : consigne « Maintiens pour choisir », double-toucher maintenu.
+- **Séance d'un ami** : rangée des cinq réactions (sans geste), « Ta réaction : Chaud » et le résumé.
+- **Mon profil** (`social-me`, mon avatar en haut à droite de l'onglet, point rouge s'il y a du nouveau) : avatar, pseudo, chiffres (séances visibles, abonnés, abonnements : ces deux-là ouvrent leur liste, `social-people:followers|following`, avec « Retirer » pour un abonné), Activité (8 lignes puis « Afficher plus », point bleu sur les nouveautés, une demande reçue avec Accepter et Refuser, une réaction ouvre ma séance dans l'Historique), mes séances vues par mes abonnés (avec leurs réactions ; une séance ouvre sa page avec qui a réagi), puis Gérer. Ouvrir Mon profil appelle `mark_activity_seen` une fois l'activité lue.
+- **Gérer** : demandes envoyées, bloqués, règles, Désactiver le social (abonnés et abonnements sont passés dans Mon profil).
+- **Historique** : « 🔥 2 » (la plus fréquente et le total) à côté du titre d'une séance qui a reçu des réactions ; dans le détail, « Réactions (N) » et la liste de qui a réagi.
+- **privacy.html** : « Réactions » remplace « Bravos » (FR et EN), avec qui voit qui a réagi et la date de consultation de l'activité.
 
 ## Fonction Edge `report` (vérifie le JWT)
 - **Entrée** : POST `{ target_user uuid, kind: 'profile'|'session', target_ref?: text, reason: 'spam'|'harcelement'|'sexuel'|'violence'|'haine'|'autre', details?: text (500 caractères max) }`.
@@ -78,11 +121,11 @@ Rien d'autre ne sort : ni `notes`, ni `bodyKg`, ni `healthSaved`, ni `hidden`, n
   - sans compte : explication et bouton « Se connecter » ;
   - sans social : carte d'activation avec le pseudo (obligatoire, sinon lien pour le choisir), la case « J'ai 15 ans ou plus », un lien vers les règles de la communauté et le bouton « Activer » ;
   - social activé : champ de recherche, demandes reçues, puis le fil.
-- **Fil** : chaque carte montre l'avatar et le pseudo, la date, le nom de la séance, la durée et un résumé des exercices, avec un bouton « Bravo » et son compte. Un toucher ouvre le détail des séries.
+- **Fil** : chaque carte montre l'avatar et le pseudo, la date, le nom de la séance, la durée et un résumé des exercices, avec le bouton de réaction et le résumé des réactions (voir « Réactions et Mon profil »). Un toucher ouvre le détail des séries.
 - **Profil d'un autre** : ses séances (`feed` avec `only_user`), puis les actions : se désabonner ou annuler la demande, Bloquer, Signaler.
-- **Gestion** : abonnés (avec « Retirer »), abonnements, bloqués (avec « Débloquer »), et « Désactiver le social ».
+- **Gestion** : demandes envoyées, bloqués (avec « Débloquer »), et « Désactiver le social » ; abonnés (avec « Retirer ») et abonnements dans Mon profil.
 - **Bilan de fin de séance** : interrupteur « Visible sur mon profil », allumé par défaut, seulement si le social est activé ; éteint, la séance est enregistrée avec `hidden: true`.
-- **Historique › séance** : le même interrupteur « Visible sur mon profil » (le champ `hidden`) et « N bravos » quand il y en a. Dans la liste, un œil barré marque une séance masquée (VoiceOver : « Masquée à tes abonnés »).
+- **Historique › séance** : le même interrupteur « Visible sur mon profil » (le champ `hidden`) et qui a réagi quand il y en a. Dans la liste, un œil barré marque une séance masquée (VoiceOver : « Masquée à tes abonnés »).
 - **privacy.html** : section « Communauté », qui contient :
   - ce que voient les abonnés ;
   - les blocages et les signalements (gardés 12 mois) ;
