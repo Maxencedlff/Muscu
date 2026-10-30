@@ -380,4 +380,37 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     const prof = run('profilePayload(data)');
     assert.ok(prof.userProgrammes.u_hevy && prof.programmes.u_hevy && prof.myProgrammes.includes('u_hevy'));
   });
+
+  test('readImportCsv : séance datée de plus de 24 h dans le futur ignorée', () => {
+    const h = 'title,start_time,end_time,description,exercise_title,superset_id,exercise_notes,set_index,set_type,weight_kg,reps,distance_km,duration_seconds,rpe';
+    const fmt = t => { const d = new Date(t); return `"${d.getDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]} ${d.getFullYear()}, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}"`; };
+    const row = t => `"A",${fmt(t)},${fmt(t + 3600000)},"","Squat (Barbell)",,"",0,"normal",100,5,,,`;
+    const now = Date.now();
+    const r = call('readImportCsv(t)', { t: [h, row(now - 86400000), row(now + 3 * 86400000), ''].join('\n') });
+    assert.equal(r.sessions.length, 1, 'seule la séance passée est gardée');
+    assert.equal(r.skippedRows, 1);
+    assert.ok(r.sessions[0].date < now);
+  });
+
+  test('readImportCsv / applyImport : fichier énorme borné (100 exercices par séance, 2 000 noms) et lu en temps borné', () => {
+    reset();
+    const h = 'title,start_time,end_time,description,exercise_title,superset_id,exercise_notes,set_index,set_type,weight_kg,reps,distance_km,duration_seconds,rpe';
+    const lines = [h];
+    // 300 séances × 150 exercices distincts par séance (45 000 noms possibles) × 3 séries : 135 000 lignes
+    for (let k = 0; k < 300; k++) {
+      const day = `"${(k % 28) + 1} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'][Math.floor(k / 28) % 9]} 2025, 18:${String(k % 60).padStart(2, '0')}"`;
+      for (let e = 0; e < 150; e++) for (let j = 0; j < 3; j++) lines.push(`"S${k}",${day},,"","Exo ${k}-${e}",,"",${j},"normal",50,10,,,`);
+    }
+    const t0 = Date.now();
+    const r = app.readImportCsv(lines.join('\n'));
+    const tRead = Date.now() - t0;
+    assert.equal(r.ok, true);
+    assert.ok(r.sessions.every(s => s.exercises.length <= 100), 'au plus 100 exercices par séance');
+    assert.ok(r.names.length <= 2000, `au plus 2 000 noms distincts (${r.names.length})`);
+    assert.ok(tRead < 4000, `lecture en temps borné (${tRead} ms)`);
+    const t1 = Date.now();
+    const a = app.applyImport(r, {});
+    assert.ok(a.added > 0);
+    assert.ok(Date.now() - t1 < 8000, `import en temps borné (${Date.now() - t1} ms)`);
+  });
 }

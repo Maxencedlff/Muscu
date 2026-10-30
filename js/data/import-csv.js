@@ -14,6 +14,9 @@ const IMPORT_MAX_TEXT     = 2000;               // notes d'une séance (notes de
 const IMPORT_MAX_NAME     = 80;                 // nom d'exercice : même borne que les muscles déclarés (sanitizeData)
 const IMPORT_MAX_LABEL    = 40;                 // nom d'une séance du programme créé
 const IMPORT_MAX_DURATION = 24 * 3600000;       // durée d'une séance : au plus 24 h
+const IMPORT_MAX_EXERCISES = 100;               // exercices d'une séance (au-delà, lignes ignorées)
+const IMPORT_MAX_NAMES    = 2000;               // noms d'exercice distincts dans le fichier (aperçu, correspondance)
+const IMPORT_FUTURE_MS    = 24 * 3600000;       // séance datée de plus de 24 h dans le futur : ligne ignorée
 const IMPORT_LBS_PER_KG   = 2.20462;            // KG_TO_LBS (accessors.js), recopié : ce fichier reste autonome dans les tests
 const IMPORT_KM_PER_MILE  = 1.609344;
 
@@ -201,6 +204,22 @@ function columnIndex(header, ...variants) {
 // Colonnes : title, start_time, end_time, description, exercise_title, superset_id, exercise_notes,
 // set_index, set_type (normal, warmup, dropset, failure), weight_kg | weight_lbs, reps,
 // distance_km | distance_miles, duration_seconds, rpe.
+// Date d'une ligne : null si illisible ou à plus de 24 h dans le futur (horloge d'un autre appareil
+// déréglée, fichier modifié) : une séance future fausserait l'accueil, la semaine et les récaps
+function importDate(t) { return t !== null && t <= Date.now() + IMPORT_FUTURE_MS ? t : null; }
+// Exercice d'une séance en cours de lecture (index par nom brut : pas de recherche à chaque ligne),
+// créé au besoin ; null au-delà de IMPORT_MAX_EXERCISES dans la séance ou de IMPORT_MAX_NAMES noms
+// distincts dans le fichier (names : noms déjà vus)
+function importExercise(s, raw, names, make) {
+  let ex = s.byRaw.get(raw);
+  if (ex) return ex;
+  if (s.exercises.length >= IMPORT_MAX_EXERCISES || (!names.has(raw) && names.size >= IMPORT_MAX_NAMES)) return null;
+  names.add(raw);
+  ex = make();
+  s.byRaw.set(raw, ex);
+  s.exercises.push(ex);
+  return ex;
+}
 function readHevyRows(header, rows) {
   const c = {
     title: columnIndex(header, 'title'), start: columnIndex(header, 'start_time'), end: columnIndex(header, 'end_time'),
@@ -211,26 +230,23 @@ function readHevyRows(header, rows) {
     rpe: columnIndex(header, 'rpe'),
   };
   const weightUnit = c.kg >= 0 ? 'kg' : c.lbs >= 0 ? 'lbs' : null;
-  const sessions = new Map();
+  const sessions = new Map(), names = new Set();
   let skippedRows = 0;
   for (const row of rows) {
     const raw = cleanName(cell(row, c.ex));
-    const date = parseHevyDate(cell(row, c.start));
+    const date = importDate(parseHevyDate(cell(row, c.start)));
     if (!raw || date === null) { skippedRows++; continue; }
     const key = `${cell(row, c.start)}|${cell(row, c.title)}`;
     let s = sessions.get(key);
     if (!s) {
       const end = parseHevyDate(cell(row, c.end));
       const duration = end !== null && end > date && end - date <= IMPORT_MAX_DURATION ? end - date : null;
-      s = { key, title: cleanName(cell(row, c.title)) || 'Séance', date, duration, notes: cleanText(cell(row, c.desc)), exNotes: new Map(), exercises: [] };
+      s = { key, title: cleanName(cell(row, c.title)) || 'Séance', date, duration, notes: cleanText(cell(row, c.desc)), exNotes: new Map(), exercises: [], byRaw: new Map() };
       sessions.set(key, s);
     }
-    let ex = s.exercises.find(e => e.raw === raw);
-    if (!ex) {
-      const ss = cell(row, c.ss);
-      ex = { raw, sets: [], ss: /^\d{1,6}$/.test(ss) ? ss : null };
-      s.exercises.push(ex);
-    }
+    const ss = cell(row, c.ss);
+    const ex = importExercise(s, raw, names, () => ({ raw, sets: [], ss: /^\d{1,6}$/.test(ss) ? ss : null }));
+    if (!ex) { skippedRows++; continue; }
     const note = cleanText(cell(row, c.exNotes));
     if (note && !s.exNotes.has(raw)) s.exNotes.set(raw, note);
     const miles = cellNum(row, c.miles);
@@ -260,22 +276,22 @@ function readStrongRows(header, rows) {
   };
   const weightUnit = c.kg >= 0 ? 'kg' : c.lbs >= 0 ? 'lbs' : null;
   const wCol = c.kg >= 0 ? c.kg : c.lbs >= 0 ? c.lbs : c.w;
-  const sessions = new Map();
+  const sessions = new Map(), names = new Set();
   let skippedRows = 0;
   for (const row of rows) {
     const raw = cleanName(cell(row, c.ex));
-    const date = parseLocalDateTime(cell(row, c.date));
+    const date = importDate(parseLocalDateTime(cell(row, c.date)));
     const order = cell(row, c.order);
     if (!raw || date === null || /rest timer|^note$/i.test(order)) { skippedRows++; continue; }
     const key = c.num >= 0 && cell(row, c.num) ? `#${cell(row, c.num)}` : `${cell(row, c.date)}|${cell(row, c.title)}`;
     let s = sessions.get(key);
     if (!s) {
       s = { key, title: cleanName(cell(row, c.title)) || 'Séance', date, duration: parseStrongDuration(cell(row, c.dur)),
-        notes: cleanText(cell(row, c.wNotes)), exNotes: new Map(), exercises: [] };
+        notes: cleanText(cell(row, c.wNotes)), exNotes: new Map(), exercises: [], byRaw: new Map() };
       sessions.set(key, s);
     }
-    let ex = s.exercises.find(e => e.raw === raw);
-    if (!ex) { ex = { raw, sets: [], ss: null }; s.exercises.push(ex); }
+    const ex = importExercise(s, raw, names, () => ({ raw, sets: [], ss: null }));
+    if (!ex) { skippedRows++; continue; }
     const note = cleanText(cell(row, c.notes));
     if (note && !s.exNotes.has(raw)) s.exNotes.set(raw, note);
     let km = null;
@@ -295,7 +311,7 @@ function finishNotes(sessions) {
   for (const s of sessions.values()) {
     const lines = [s.notes, ...[...s.exNotes.entries()].map(([raw, n]) => `${raw} : ${n}`)].filter(Boolean);
     s.notes = lines.join('\n').slice(0, IMPORT_MAX_TEXT).trim();
-    delete s.exNotes;
+    delete s.exNotes; delete s.byRaw;
   }
   return sessions;
 }
@@ -563,6 +579,7 @@ function applyImport(plan, { links = {}, keepWarmups = false, unit = null } = {}
   if (up.archived) up.archived = false;   // réimport après une suppression du programme : il revient
   const pd = d.programmes[pm.id] || (d.programmes[pm.id] = { exercises: {}, timers: {}, cooldowns: {} });
   const newCats = new Set();
+  const exIds = importExIndex(d);
   const entries = [];
   let duplicates = 0;
   for (const s of plan.sessions) {
@@ -601,7 +618,7 @@ function applyImport(plan, { links = {}, keepWarmups = false, unit = null } = {}
     const last = entries.filter(h => h.category === cat).at(-1);
     pd.exercises[cat] = (last?.exercises || []).slice(0, 30).map(e => {
       const pe = makeExercise(e.name, Math.min(10, Math.max(1, e.sets.length)));
-      pe.id = importExId(e.name, d);
+      pe.id = importExId(e.name, exIds);
       if (e.measure && e.measure !== 'reps') pe.measure = e.measure;
       return pe;
     });
@@ -613,7 +630,7 @@ function applyImport(plan, { links = {}, keepWarmups = false, unit = null } = {}
   for (const h of entries) {
     for (const e of h.exercises) {
       const inProg = (pd.exercises[h.category] || []).find(x => normName(x.name) === normName(e.name));
-      e.exId = inProg ? inProg.id : importExId(e.name, d);
+      e.exId = inProg ? inProg.id : importExId(e.name, exIds);
     }
     ssNormalize(h.exercises);
   }
@@ -624,15 +641,23 @@ function applyImport(plan, { links = {}, keepWarmups = false, unit = null } = {}
   return { added: kept.length, duplicates, recognized, created: plan.names.length - recognized, programme: pm.id };
 }
 
-// Identifiant d'un exercice importé : celui du même nom dans un programme ou l'historique, sinon un nouveau
-function importExId(name, d) {
-  const n = normName(name);
+// Identifiants connus par nom normalisé : programmes d'abord, puis historique (le premier trouvé gagne).
+// Construit une fois par import ; importExId y ajoute chaque identifiant qu'il crée.
+function importExIndex(d) {
+  const idx = new Map();
   for (const p of Object.values(d.programmes || {})) {
     for (const list of Object.values(p.exercises || {})) {
-      const ex = (list || []).find(e => normName(e.name) === n);
-      if (ex) return ex.id;
+      for (const e of list || []) { const n = normName(e.name); if (e.id && !idx.has(n)) idx.set(n, e.id); }
     }
   }
-  const past = (d.history || []).flatMap(h => h.exercises || []).find(e => e.exId && normName(e.name) === n);
-  return past ? past.exId : uid();
+  for (const h of d.history || []) {
+    for (const e of h.exercises || []) { const n = normName(e.name); if (e.exId && !idx.has(n)) idx.set(n, e.exId); }
+  }
+  return idx;
+}
+// Identifiant d'un exercice importé : celui du même nom dans un programme ou l'historique, sinon un nouveau
+function importExId(name, idx) {
+  const n = normName(name);
+  if (!idx.has(n)) idx.set(n, uid());
+  return idx.get(n);
 }
