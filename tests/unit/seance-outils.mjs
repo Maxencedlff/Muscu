@@ -90,6 +90,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(run(`canWarmup(${JSON.stringify(ex)})`), true);
     assert.equal(run(`canWarmup(${JSON.stringify({ ...ex, sets: [{ weight: '60', reps: '8', done: true }] })})`), false, 'série déjà faite');
     assert.equal(run(`canWarmup(${JSON.stringify({ ...ex, sets: [{ weight: '20', reps: '8', warmup: true }, ...ex.sets] })})`), false, 'déjà un échauffement');
+    assert.equal(run(`canWarmup(${JSON.stringify({ ...ex, ss: 'g1' })})`), false, 'en superset : jamais (les tours se décaleraient)');
     assert.equal(run(`canWarmup({ name: 'Tractions pronation', sets: [{ weight: '10', reps: '8' }] })`), false, 'lest : pas d\'échauffement calculé');
     assert.equal(run(`canWarmup({ name: 'Gainage (planche)', sets: [{ weight: '', reps: '45' }] })`), false, 'durée');
     assert.equal(run(`canWarmup({ name: 'Développé couché haltères', sets: [{ weight: '', reps: '10', prev: null }] })`), false, 'sans charge connue');

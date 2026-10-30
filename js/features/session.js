@@ -705,8 +705,9 @@ registerActions({
   'add-set': (e, el) => {
     const ex = activeSession?.exercises[parseInt(el.dataset.ei)];
     if (!ex || ex.sets.length >= 20) return;
-    const pex = lastPerf(activeSession.programme, activeSession.category, ex)?.ex;
-    ex.sets.push(plannedSet(ex.sets.at(-1), pex?.sets[ex.sets.length]));
+    // « La dernière fois » de la nouvelle série : la série de travail de même rang (échauffements retirés des deux côtés)
+    const prevWork = workSets(lastPerf(activeSession.programme, activeSession.category, ex)?.ex.sets);
+    ex.sets.push(plannedSet(workSets(ex.sets).at(-1) ?? ex.sets.at(-1), prevWork[workSets(ex.sets).length]));
     openDone.add(ex);
     haptic();
     render();
@@ -717,8 +718,8 @@ registerActions({
     if (!g) return;
     g.map(ei => activeSession.exercises[ei]).forEach(ex => {
       if (ex.sets.length >= 20) return;
-      const pex = lastPerf(activeSession.programme, activeSession.category, ex)?.ex;
-      ex.sets.push(plannedSet(ex.sets.at(-1), pex?.sets[ex.sets.length]));
+      const prevWork = workSets(lastPerf(activeSession.programme, activeSession.category, ex)?.ex.sets);
+      ex.sets.push(plannedSet(workSets(ex.sets).at(-1) ?? ex.sets.at(-1), prevWork[workSets(ex.sets).length]));
     });
     openDone.add(activeSession.exercises[g[0]]);
     haptic();

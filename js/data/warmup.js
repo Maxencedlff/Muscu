@@ -55,8 +55,9 @@ function setDisplayNo(sets, si) {
 }
 
 // Un exercice peut recevoir un échauffement : répétitions en vraie charge, charge connue, aucune série
-// faite ni d'échauffement déjà présent
+// faite ni d'échauffement déjà présent, hors superset (un tour = une série de chaque exercice du groupe :
+// des échauffements d'un seul côté décaleraient les tours)
 function canWarmup(ex) {
-  return measureOf(ex) === 'reps' && loadKind(ex) === 'charge' && warmupBaseKg(ex) !== ''
+  return measureOf(ex) === 'reps' && loadKind(ex) === 'charge' && warmupBaseKg(ex) !== '' && !ssId(ex)
     && !(ex.sets || []).some(s => s.done || isWarmupSet(s));
 }
