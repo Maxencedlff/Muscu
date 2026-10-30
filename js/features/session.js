@@ -457,8 +457,8 @@ function unusualSetText(ex, s) {
 
 // ── Validation d'une série ───────────────────────────────────
 
-// opts.restFrom : fin réelle d'un effort chronométré (le repos part de là) ; opts.prevReps : valeur
-// d'avant le chrono, rendue par « Annuler »
+// opts.restFrom : fin réelle d'un effort chronométré (le repos part de là) ; opts.prevReps, opts.prevDist,
+// opts.prevMachine : valeurs d'avant le chrono (reps, km et réglages de la machine), rendues par « Annuler »
 function validateSet(ei, si, opts = {}) {
   const ex  = activeSession.exercises[ei];
   const s   = ex?.sets[si];
@@ -486,6 +486,8 @@ function validateSet(ei, si, opts = {}) {
   undo.prevLastEi = prevLastEi;   // « Annuler » puis revalider : le superset enchaîne comme la 1re fois
   if (opts.prevReps !== undefined) undo.prevReps = opts.prevReps;
   else if (goalTaken) undo.prevReps = '';
+  if ('prevDist' in opts) undo.prevDist = opts.prevDist;
+  if ('prevMachine' in opts) undo.prevMachine = opts.prevMachine;
   const xs      = activeSession.exercises;
   const allDone = xs.every(e => e.sets.every(st => st.done));
   // Superset : pas de repos avant la fin du tour, on enchaîne sur l'exercice suivant du groupe.
@@ -522,6 +524,9 @@ function undoValidate(u) {
   u.s.done = false;
   if (u.prevLastEi !== undefined) activeSession.lastEi = u.prevLastEi;
   if (u.prevReps !== undefined) u.s.reps = u.prevReps;   // chrono ou case vide : la valeur d'avant revient
+  // Chrono d'une machine : km et réglages notés d'avant (absents : retirés), comme si rien n'avait été enregistré
+  if ('prevDist' in u) { if (u.prevDist == null) delete u.s.dist; else u.s.dist = u.prevDist; }
+  if ('prevMachine' in u) { if (u.prevMachine == null) delete u.s.machine; else u.s.machine = u.prevMachine; }
   if (u.next && !u.next.done) { u.next.weight = u.nextW; u.next.reps = u.nextR; }
   stopRest();
   closeSessSheets();

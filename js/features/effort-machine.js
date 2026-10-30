@@ -271,7 +271,7 @@ function saveMachine() {
     if (v === null) { flagInvalid(input, `${X.label} : nombre entier de ${X.min} à ${X.max}`); return; }
     extras[k] = v;
   }
-  const end = Math.max(1, machineElapsed(e)), endAt = e.review, prevReps = s.reps;
+  const end = Math.max(1, machineElapsed(e)), endAt = e.review, prevReps = s.reps, prevDist = s.dist, prevMachine = s.machine;
   if (distIn) setDist(s, distIn.value);
   s.reps = String(Math.min(MEASURES.cardio.max, Math.max(1, Math.round(end / 60))));
   const m = cleanMachine({ end, ...e.log, ...extras });
@@ -282,7 +282,7 @@ function saveMachine() {
   const { ei, si } = e;
   clearEffort();
   document.querySelector('.sess-sheet--effort')?._close?.();
-  validateSet(ei, si, { restFrom: endAt, prevReps });
+  validateSet(ei, si, { restFrom: endAt, prevReps, prevDist, prevMachine });
 }
 
 // « Annuler » : après une minute de chrono, confirmé (le temps et les réglages seraient perdus)
