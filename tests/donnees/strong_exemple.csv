@@ -1,0 +1,70 @@
+Date,Workout Name,Duration,Exercise Name,Set Order,Weight,Reps,Distance,Seconds,Notes,Workout Notes,RPE
+2026-03-02 07:05:00,Upper A,1h 5m,Bench Press (Barbell),W,40,10,0,0,,"Bonne séance, un peu fatigué",
+2026-03-02 07:05:00,Upper A,1h 5m,Bench Press (Barbell),1,80,5,0,0,,"Bonne séance, un peu fatigué",8
+2026-03-02 07:05:00,Upper A,1h 5m,Bench Press (Barbell),2,80,5,0,0,,"Bonne séance, un peu fatigué",8
+2026-03-02 07:05:00,Upper A,1h 5m,Bench Press (Barbell),3,80,5,0,0,,"Bonne séance, un peu fatigué",9
+2026-03-02 07:05:00,Upper A,1h 5m,Bent Over Row (Barbell),1,70,8,0,0,Dos bien droit,"Bonne séance, un peu fatigué",
+2026-03-02 07:05:00,Upper A,1h 5m,Bent Over Row (Barbell),2,70,8,0,0,Dos bien droit,"Bonne séance, un peu fatigué",
+2026-03-02 07:05:00,Upper A,1h 5m,Bent Over Row (Barbell),3,70,7,0,0,Dos bien droit,"Bonne séance, un peu fatigué",
+2026-03-02 07:05:00,Upper A,1h 5m,Overhead Press (Barbell),1,45,8,0,0,,"Bonne séance, un peu fatigué",
+2026-03-02 07:05:00,Upper A,1h 5m,Overhead Press (Barbell),2,45,7,0,0,,"Bonne séance, un peu fatigué",
+2026-03-02 07:05:00,Upper A,1h 5m,Overhead Press (Barbell),3,45,6,0,0,,"Bonne séance, un peu fatigué",
+2026-03-02 07:05:00,Upper A,1h 5m,Bicep Curl (Dumbbell),1,14,12,0,0,,"Bonne séance, un peu fatigué",
+2026-03-02 07:05:00,Upper A,1h 5m,Bicep Curl (Dumbbell),2,14,11,0,0,,"Bonne séance, un peu fatigué",
+2026-03-02 07:05:00,Upper A,1h 5m,Triceps Extension (Cable),1,25,12,0,0,,"Bonne séance, un peu fatigué",
+2026-03-02 07:05:00,Upper A,1h 5m,Triceps Extension (Cable),2,25,12,0,0,,"Bonne séance, un peu fatigué",
+2026-03-04 07:10:00,Lower A,55m,Squat (Barbell),W,50,8,0,0,,,
+2026-03-04 07:10:00,Lower A,55m,Squat (Barbell),1,100,5,0,0,,,8
+2026-03-04 07:10:00,Lower A,55m,Squat (Barbell),2,100,5,0,0,,,8.5
+2026-03-04 07:10:00,Lower A,55m,Squat (Barbell),3,100,5,0,0,,,9
+2026-03-04 07:10:00,Lower A,55m,Romanian Deadlift (Barbell),1,90,8,0,0,,,
+2026-03-04 07:10:00,Lower A,55m,Romanian Deadlift (Barbell),2,90,8,0,0,,,
+2026-03-04 07:10:00,Lower A,55m,Romanian Deadlift (Barbell),3,90,8,0,0,,,
+2026-03-04 07:10:00,Lower A,55m,Leg Extension (Machine),1,50,12,0,0,,,
+2026-03-04 07:10:00,Lower A,55m,Leg Extension (Machine),2,50,12,0,0,,,
+2026-03-04 07:10:00,Lower A,55m,Seated Calf Raise (Machine),1,40,15,0,0,,,
+2026-03-04 07:10:00,Lower A,55m,Seated Calf Raise (Machine),2,40,15,0,0,,,
+2026-03-04 07:10:00,Lower A,55m,Plank,1,0,0,0,60,,,
+2026-03-04 07:10:00,Lower A,55m,Plank,2,0,0,0,50,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Incline Bench Press (Dumbbell),1,26,10,0,0,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Incline Bench Press (Dumbbell),2,26,9,0,0,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Incline Bench Press (Dumbbell),3,26,8,0,0,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Lat Pulldown (Cable),1,55,10,0,0,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Lat Pulldown (Cable),2,55,10,0,0,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Lat Pulldown (Cable),3,55,9,0,0,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Seated Row (Cable),1,50,12,0,0,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Seated Row (Cable),2,50,12,0,0,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Lateral Raise (Dumbbell),1,8,15,0,0,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Lateral Raise (Dumbbell),2,8,15,0,0,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Lateral Raise (Dumbbell),3,8,12,0,0,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Chin Up,1,0,8,0,0,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Chin Up,2,0,7,0,0,,,
+2026-03-06 07:00:00,Upper B,1h 2m,Landmine Press,1,30,10,0,0,Essai,,
+2026-03-06 07:00:00,Upper B,1h 2m,Landmine Press,2,30,10,0,0,Essai,,
+2026-03-08 09:30:00,Cardio,32m,Running (Treadmill),1,0,0,5000,1800,,,
+2026-03-09 07:05:00,Upper A,1h 1m,Bench Press (Barbell),W,40,10,0,0,,,
+2026-03-09 07:05:00,Upper A,1h 1m,Bench Press (Barbell),1,82.5,5,0,0,,,8
+2026-03-09 07:05:00,Upper A,1h 1m,Bench Press (Barbell),2,82.5,5,0,0,,,8.5
+2026-03-09 07:05:00,Upper A,1h 1m,Bench Press (Barbell),3,82.5,4,0,0,,,9.5
+2026-03-09 07:05:00,Upper A,1h 1m,Bent Over Row (Barbell),1,72.5,8,0,0,,,
+2026-03-09 07:05:00,Upper A,1h 1m,Bent Over Row (Barbell),2,72.5,8,0,0,,,
+2026-03-09 07:05:00,Upper A,1h 1m,Bent Over Row (Barbell),3,72.5,7,0,0,,,
+2026-03-09 07:05:00,Upper A,1h 1m,Overhead Press (Barbell),1,47.5,7,0,0,,,
+2026-03-09 07:05:00,Upper A,1h 1m,Overhead Press (Barbell),2,47.5,6,0,0,,,
+2026-03-09 07:05:00,Upper A,1h 1m,Overhead Press (Barbell),3,47.5,6,0,0,,,
+2026-03-09 07:05:00,Upper A,1h 1m,Bicep Curl (Dumbbell),1,14,12,0,0,,,
+2026-03-09 07:05:00,Upper A,1h 1m,Bicep Curl (Dumbbell),2,14,12,0,0,,,
+2026-03-09 07:05:00,Upper A,1h 1m,Triceps Extension (Cable),1,27.5,12,0,0,,,
+2026-03-09 07:05:00,Upper A,1h 1m,Triceps Extension (Cable),2,27.5,11,0,0,,,
+2026-03-11 07:10:00,Lower A,58m,Squat (Barbell),W,50,8,0,0,,,
+2026-03-11 07:10:00,Lower A,58m,Squat (Barbell),1,102.5,5,0,0,,,8.5
+2026-03-11 07:10:00,Lower A,58m,Squat (Barbell),2,102.5,5,0,0,,,9
+2026-03-11 07:10:00,Lower A,58m,Squat (Barbell),3,102.5,5,0,0,,,9.5
+2026-03-11 07:10:00,Lower A,58m,Romanian Deadlift (Barbell),1,92.5,8,0,0,,,
+2026-03-11 07:10:00,Lower A,58m,Romanian Deadlift (Barbell),2,92.5,8,0,0,,,
+2026-03-11 07:10:00,Lower A,58m,Romanian Deadlift (Barbell),3,92.5,7,0,0,,,
+2026-03-11 07:10:00,Lower A,58m,Leg Extension (Machine),1,52.5,12,0,0,,,
+2026-03-11 07:10:00,Lower A,58m,Leg Extension (Machine),2,52.5,12,0,0,,,
+2026-03-11 07:10:00,Lower A,58m,Seated Calf Raise (Machine),1,42.5,15,0,0,,,
+2026-03-11 07:10:00,Lower A,58m,Seated Calf Raise (Machine),2,42.5,15,0,0,,,
+2026-03-11 07:10:00,Lower A,58m,Plank,1,0,0,0,70,,,

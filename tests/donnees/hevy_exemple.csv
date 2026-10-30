@@ -1,0 +1,96 @@
+"title","start_time","end_time","description","exercise_title","superset_id","exercise_notes","set_index","set_type","weight_kg","reps","distance_km","duration_seconds","rpe"
+"Push Day","14 Jan 2026, 18:02","14 Jan 2026, 19:11","Première séance de l'année, ""en forme""","Bench Press (Barbell)",,"Pause 1 s en bas",0,"warmup",40,12,,,
+"Push Day","14 Jan 2026, 18:02","14 Jan 2026, 19:11","Première séance de l'année, ""en forme""","Bench Press (Barbell)",,"Pause 1 s en bas",1,"normal",80,8,,,8
+"Push Day","14 Jan 2026, 18:02","14 Jan 2026, 19:11","Première séance de l'année, ""en forme""","Bench Press (Barbell)",,"Pause 1 s en bas",2,"normal",80,7,,,8.5
+"Push Day","14 Jan 2026, 18:02","14 Jan 2026, 19:11","Première séance de l'année, ""en forme""","Bench Press (Barbell)",,"Pause 1 s en bas",3,"failure",80,6,,,10
+"Push Day","14 Jan 2026, 18:02","14 Jan 2026, 19:11","Première séance de l'année, ""en forme""","Incline Bench Press (Dumbbell)",,"",0,"normal",26,10,,,
+"Push Day","14 Jan 2026, 18:02","14 Jan 2026, 19:11","Première séance de l'année, ""en forme""","Incline Bench Press (Dumbbell)",,"",1,"normal",26,9,,,
+"Push Day","14 Jan 2026, 18:02","14 Jan 2026, 19:11","Première séance de l'année, ""en forme""","Incline Bench Press (Dumbbell)",,"",2,"normal",26,8,,,
+"Push Day","14 Jan 2026, 18:02","14 Jan 2026, 19:11","Première séance de l'année, ""en forme""","Lateral Raise (Dumbbell)",1,"",0,"normal",10,15,,,
+"Push Day","14 Jan 2026, 18:02","14 Jan 2026, 19:11","Première séance de l'année, ""en forme""","Lateral Raise (Dumbbell)",1,"",1,"normal",10,14,,,
+"Push Day","14 Jan 2026, 18:02","14 Jan 2026, 19:11","Première séance de l'année, ""en forme""","Lateral Raise (Dumbbell)",1,"",2,"dropset",8,12,,,
+"Push Day","14 Jan 2026, 18:02","14 Jan 2026, 19:11","Première séance de l'année, ""en forme""","Triceps Pushdown (Cable - Straight Bar)",1,"",0,"normal",30,12,,,
+"Push Day","14 Jan 2026, 18:02","14 Jan 2026, 19:11","Première séance de l'année, ""en forme""","Triceps Pushdown (Cable - Straight Bar)",1,"",1,"normal",30,12,,,
+"Push Day","14 Jan 2026, 18:02","14 Jan 2026, 19:11","Première séance de l'année, ""en forme""","Triceps Pushdown (Cable - Straight Bar)",1,"",2,"normal",30,10,,,
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Deadlift (Barbell)",,"",0,"warmup",60,5,,,
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Deadlift (Barbell)",,"",1,"normal",120,5,,,8
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Deadlift (Barbell)",,"",2,"normal",120,5,,,8.5
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Deadlift (Barbell)",,"",3,"normal",120,4,,,9
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Lat Pulldown (Cable)",,"",0,"normal",55,10,,,
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Lat Pulldown (Cable)",,"",1,"normal",55,10,,,
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Lat Pulldown (Cable)",,"",2,"normal",55,9,,,
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Seated Cable Row - Bar Grip",,"",0,"normal",50,12,,,
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Seated Cable Row - Bar Grip",,"",1,"normal",50,12,,,
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Face Pull",,"",0,"normal",15,15,,,
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Face Pull",,"",1,"normal",15,15,,,
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Hammer Curl (Dumbbell)",,"",0,"normal",14,12,,,
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Hammer Curl (Dumbbell)",,"",1,"normal",14,11,,,
+"Pull Day","16 Jan 2026, 18:10","16 Jan 2026, 19:05","","Hammer Curl (Dumbbell)",,"",2,"normal",14,10,,,
+"Leg Day","18 Jan 2026, 10:00","18 Jan 2026, 11:20","Genou droit un peu sensible
+Échauffement plus long","Squat (Barbell)",,"",0,"warmup",50,8,,,
+"Leg Day","18 Jan 2026, 10:00","18 Jan 2026, 11:20","Genou droit un peu sensible
+Échauffement plus long","Squat (Barbell)",,"",1,"normal",100,6,,,8
+"Leg Day","18 Jan 2026, 10:00","18 Jan 2026, 11:20","Genou droit un peu sensible
+Échauffement plus long","Squat (Barbell)",,"",2,"normal",100,6,,,8.5
+"Leg Day","18 Jan 2026, 10:00","18 Jan 2026, 11:20","Genou droit un peu sensible
+Échauffement plus long","Squat (Barbell)",,"",3,"normal",100,5,,,9
+"Leg Day","18 Jan 2026, 10:00","18 Jan 2026, 11:20","Genou droit un peu sensible
+Échauffement plus long","Leg Press (Machine)",,"",0,"normal",180,12,,,
+"Leg Day","18 Jan 2026, 10:00","18 Jan 2026, 11:20","Genou droit un peu sensible
+Échauffement plus long","Leg Press (Machine)",,"",1,"normal",180,12,,,
+"Leg Day","18 Jan 2026, 10:00","18 Jan 2026, 11:20","Genou droit un peu sensible
+Échauffement plus long","Leg Press (Machine)",,"",2,"normal",180,10,,,
+"Leg Day","18 Jan 2026, 10:00","18 Jan 2026, 11:20","Genou droit un peu sensible
+Échauffement plus long","Seated Leg Curl (Machine)",,"",0,"normal",45,12,,,
+"Leg Day","18 Jan 2026, 10:00","18 Jan 2026, 11:20","Genou droit un peu sensible
+Échauffement plus long","Seated Leg Curl (Machine)",,"",1,"normal",45,12,,,
+"Leg Day","18 Jan 2026, 10:00","18 Jan 2026, 11:20","Genou droit un peu sensible
+Échauffement plus long","Standing Calf Raise (Machine)",,"",0,"normal",80,15,,,
+"Leg Day","18 Jan 2026, 10:00","18 Jan 2026, 11:20","Genou droit un peu sensible
+Échauffement plus long","Standing Calf Raise (Machine)",,"",1,"normal",80,15,,,
+"Leg Day","18 Jan 2026, 10:00","18 Jan 2026, 11:20","Genou droit un peu sensible
+Échauffement plus long","Plank",,"",0,"normal",,,,60,
+"Leg Day","18 Jan 2026, 10:00","18 Jan 2026, 11:20","Genou droit un peu sensible
+Échauffement plus long","Plank",,"",1,"normal",,,,45,
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Bench Press (Barbell)",,"",0,"warmup",40,12,,,
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Bench Press (Barbell)",,"",1,"normal",82.5,8,,,8
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Bench Press (Barbell)",,"",2,"normal",82.5,7,,,9
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Bench Press (Barbell)",,"",3,"normal",82.5,6,,,9.5
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Incline Bench Press (Dumbbell)",,"",0,"normal",28,9,,,
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Incline Bench Press (Dumbbell)",,"",1,"normal",28,8,,,
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Incline Bench Press (Dumbbell)",,"",2,"normal",28,8,,,
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Lateral Raise (Dumbbell)",1,"",0,"normal",10,15,,,
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Lateral Raise (Dumbbell)",1,"",1,"normal",10,15,,,
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Lateral Raise (Dumbbell)",1,"",2,"normal",10,13,,,
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Triceps Pushdown (Cable - Straight Bar)",1,"",0,"normal",32.5,12,,,
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Triceps Pushdown (Cable - Straight Bar)",1,"",1,"normal",32.5,11,,,
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Triceps Pushdown (Cable - Straight Bar)",1,"",2,"normal",32.5,10,,,
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Svend Press (Plate)",,"Nouveau, à garder",0,"normal",20,12,,,
+"Push Day","21 Jan 2026, 18:05","21 Jan 2026, 19:08","","Svend Press (Plate)",,"Nouveau, à garder",1,"normal",20,12,,,
+"Cardio","24 Jan 2026, 08:30","24 Jan 2026, 09:05","","Running",,"",0,"normal",,,5.2,1860,
+"Cardio","24 Jan 2026, 08:30","24 Jan 2026, 09:05","","Running",,"",1,"normal",,,1,300,
+"Pull Day","26 Jan 2026, 18:00","26 Jan 2026, 18:58","","Deadlift (Barbell)",,"",0,"warmup",60,5,,,
+"Pull Day","26 Jan 2026, 18:00","26 Jan 2026, 18:58","","Deadlift (Barbell)",,"",1,"normal",125,5,,,8.5
+"Pull Day","26 Jan 2026, 18:00","26 Jan 2026, 18:58","","Deadlift (Barbell)",,"",2,"normal",125,5,,,9
+"Pull Day","26 Jan 2026, 18:00","26 Jan 2026, 18:58","","Deadlift (Barbell)",,"",3,"normal",125,3,,,10
+"Pull Day","26 Jan 2026, 18:00","26 Jan 2026, 18:58","","Lat Pulldown (Cable)",,"",0,"normal",57.5,10,,,
+"Pull Day","26 Jan 2026, 18:00","26 Jan 2026, 18:58","","Lat Pulldown (Cable)",,"",1,"normal",57.5,9,,,
+"Pull Day","26 Jan 2026, 18:00","26 Jan 2026, 18:58","","Lat Pulldown (Cable)",,"",2,"normal",57.5,8,,,
+"Pull Day","26 Jan 2026, 18:00","26 Jan 2026, 18:58","","Pull Up",,"",0,"normal",,8,,,
+"Pull Day","26 Jan 2026, 18:00","26 Jan 2026, 18:58","","Pull Up",,"",1,"normal",,7,,,
+"Pull Day","26 Jan 2026, 18:00","26 Jan 2026, 18:58","","Pull Up",,"",2,"normal",,6,,,
+"Pull Day","26 Jan 2026, 18:00","26 Jan 2026, 18:58","","Hammer Curl (Dumbbell)",,"",0,"normal",14,12,,,
+"Pull Day","26 Jan 2026, 18:00","26 Jan 2026, 18:58","","Hammer Curl (Dumbbell)",,"",1,"normal",14,12,,,
+"Pull Day","26 Jan 2026, 18:00","26 Jan 2026, 18:58","","Hammer Curl (Dumbbell)",,"",2,"normal",14,10,,,
+"Leg Day","01 Feb 2026, 10:05","01 Feb 2026, 11:15","","Squat (Barbell)",,"",0,"warmup",50,8,,,
+"Leg Day","01 Feb 2026, 10:05","01 Feb 2026, 11:15","","Squat (Barbell)",,"",1,"normal",105,6,,,8.5
+"Leg Day","01 Feb 2026, 10:05","01 Feb 2026, 11:15","","Squat (Barbell)",,"",2,"normal",105,6,,,9
+"Leg Day","01 Feb 2026, 10:05","01 Feb 2026, 11:15","","Squat (Barbell)",,"",3,"normal",105,5,,,9.5
+"Leg Day","01 Feb 2026, 10:05","01 Feb 2026, 11:15","","Leg Press (Machine)",,"",0,"normal",190,12,,,
+"Leg Day","01 Feb 2026, 10:05","01 Feb 2026, 11:15","","Leg Press (Machine)",,"",1,"normal",190,11,,,
+"Leg Day","01 Feb 2026, 10:05","01 Feb 2026, 11:15","","Leg Press (Machine)",,"",2,"normal",190,10,,,
+"Leg Day","01 Feb 2026, 10:05","01 Feb 2026, 11:15","","Seated Leg Curl (Machine)",,"",0,"normal",47.5,12,,,
+"Leg Day","01 Feb 2026, 10:05","01 Feb 2026, 11:15","","Seated Leg Curl (Machine)",,"",1,"normal",47.5,11,,,
+"Leg Day","01 Feb 2026, 10:05","01 Feb 2026, 11:15","","Standing Calf Raise (Machine)",,"",0,"normal",85,15,,,
+"Leg Day","01 Feb 2026, 10:05","01 Feb 2026, 11:15","","Standing Calf Raise (Machine)",,"",1,"normal",85,14,,,
+"Leg Day","01 Feb 2026, 10:05","01 Feb 2026, 11:15","","Plank",,"",0,"normal",,,,75,

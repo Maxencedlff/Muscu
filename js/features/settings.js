@@ -179,6 +179,10 @@ function renderBackup() {
         <div class="group-foot">${account.user
           ? 'L\'export te donne en plus un fichier (JSON) à garder où tu veux. Importer un fichier ajoute ses séances à celles de ton compte.'
           : 'L\'export est un fichier (JSON) à garder où tu veux : Fichiers, iCloud Drive, un e-mail. Importer une sauvegarde remplace les données actuelles.'}</div>
+        <div class="group">
+          <button class="cell cell--action" data-action="import-other-app"><span class="cell__body"><span class="cell__title">Importer depuis une autre app</span><span class="cell__sub">Hevy, Strong (fichier CSV)</span></span></button>
+        </div>
+        <div class="group-foot">Ajoute les séances d'un export Hevy ou Strong à ton historique, après un aperçu.</div>
       </div>
     </div>`;
 }
