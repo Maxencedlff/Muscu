@@ -12,6 +12,17 @@ function isStandalone() {
   let x0 = null, t0 = 0, dx = 0, layer = null, cur = null, tracking = false;
   const W = () => window.innerWidth;
   const reset = () => { x0 = null; tracking = false; dx = 0; };
+  // Calque fixe (position: fixed, overflow: hidden) qui montre un écran figé à sa position de défilement
+  function makeEdgeLayer(html, scrollY, className) {
+    const el = document.createElement('div');
+    el.className = className;
+    el.setAttribute('aria-hidden', 'true');
+    el.inert = true;
+    el.innerHTML = html;
+    document.body.appendChild(el);
+    el.scrollTop = scrollY;
+    return el;
+  }
 
   document.addEventListener('touchstart', ev => {
     if (!isStandalone() || ev.touches.length !== 1) return;
@@ -27,16 +38,14 @@ function isStandalone() {
     if (!tracking) return;
     dx = Math.max(0, ev.touches[0].clientX - x0);
     if (!layer && dx > 6) {
-      // Écran précédent, figé, glissé dessous
+      // Les deux écrans deviennent des calques FIXES qui ne débordent jamais de l'écran : déplacer #app
+      // lui-même élargissait le document de la largeur du glissement, et iOS faisait alors un zoom
+      // arrière de toute la page pendant le geste (vu le 30/10). Chaque calque défile au même endroit
+      // que l'écran qu'il remplace (scrollTop), donc la barre de titre collante reste en haut.
       const prevKey = navKey({ tab: nav.tab, stacks: { [nav.tab]: nav.stacks[nav.tab].slice(0, -1) } });
-      layer = document.createElement('div');
-      layer.className = 'edge-layer';
-      layer.setAttribute('aria-hidden', 'true');
-      layer.inert = true;
-      layer.innerHTML = `<div style="transform:translateY(${-(scrollMem[prevKey] || 0)}px)">${snapMem[prevKey] || ''}</div>`;
-      document.body.appendChild(layer);
-      cur = $('#app');
-      cur.classList.add('edge-current');
+      layer = makeEdgeLayer(snapMem[prevKey] || '', scrollMem[prevKey] || 0, 'edge-layer');
+      cur = makeEdgeLayer($('#app').innerHTML, window.scrollY, 'edge-layer edge-layer--current');
+      document.body.classList.add('edge-swiping');   // #app reste en place mais invisible
     }
     if (!layer) return;
     const p = Math.min(1, dx / W());
@@ -57,16 +66,15 @@ function isStandalone() {
       c.style.transform = `translateX(${W()}px)`;
       l.style.transform = 'translateX(0)';
       setTimeout(() => {
-        c.style.transition = c.style.transform = '';
-        c.classList.remove('edge-current');
         skipTransition = true; // le geste a déjà animé
         try { goBack(); } finally { skipTransition = false; }
-        l.remove();
+        document.body.classList.remove('edge-swiping');
+        c.remove(); l.remove();
       }, 250);
     } else {
       c.style.transform = 'translateX(0)';
       l.style.transform = 'translateX(-30%)';
-      setTimeout(() => { c.style.transition = c.style.transform = ''; c.classList.remove('edge-current'); l.remove(); }, 250);
+      setTimeout(() => { document.body.classList.remove('edge-swiping'); c.remove(); l.remove(); }, 250);
     }
   };
   document.addEventListener('touchend', end);
