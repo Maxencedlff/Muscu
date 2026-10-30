@@ -231,6 +231,8 @@ const SCREENS = new Map([
   ['history-detail', { render: id => renderHistoryDetail(id), mount: () => { if (socialEnabled()) socialLoadMyBravos({ minAge: SOCIAL_REFRESH_MS }); coachHistoryMount(); } }],   // bravos reçus (Amis activé)
   ['stats-ex',       { render: exId => renderStatsExercise(exId), mount: () => drawCharts() }],
   ['stats-overview', { render: () => renderStatsOverview() }],
+  ['body-measures',  { render: () => renderBodyMeasures(), mount: () => mountBodyMeasures(), leave: () => leaveBodyMeasures() }],   // Progrès › Mesures (js/features/body-measures-ui.js)
+  ['body-measure',   { render: key => renderBodyMeasure(key), mount: () => drawCharts() }],   // courbe d'une mensuration
   ['my-programmes',  { render: () => renderMyProgrammes() }],   // Programme › Mes programmes (et sous-titre de l'accueil)
   ['prog-add',       { render: () => renderProgAdd() }],
   ['prog-info',      { render: id => renderProgInfo(id) }],      // fiche d'un programme de « Tous les programmes »
@@ -277,10 +279,20 @@ function show(dir = 'none') {
   } catch { update(); }
 }
 
+// Navigateur piloté par les tests (verif_ui, captures) : « #progress/body-measures » ouvre cet écran au
+// démarrage. Jamais pour une vraie personne : l'app repart de l'accueil, le hash n'est qu'un reflet de la navigation.
+function navFromHash() {
+  if (!navigator.webdriver) return;
+  const [tab, ...rest] = location.hash.slice(1).split('/').filter(Boolean);
+  if (!TABS[tab] || !rest.length) return;
+  nav = navSanitize({ tab, stacks: { ...nav.stacks, [tab]: [TABS[tab].root, ...rest.map(decodeURIComponent)] } });
+}
+
 // Démarrage : #train, ou un écran repris au-dessus de la racine de son onglet
 // (start = { tab, route } : séance restaurée, séance passée en cours de saisie)
 function navBoot(start = null) {
   navIndex = 0; navHist = []; navDup = [];
+  if (!start) navFromHash();
   navWrite('replace');
   if (start) {
     if (start.tab !== nav.tab) { nav.tab = start.tab; navWrite('replace'); }

@@ -344,6 +344,19 @@ const GUIDE_SECTIONS = [
         actions: ['go-stats', 'open-stats-ex', 'stats-mode', 'go-stats-overview'],
       },
       {
+        id: 'mesures', title: 'Mensurations et photos', icon: 'ruler', color: 'teal',
+        lead: 'Dans [Progrès] › [Mesures], note tes tours de poitrine, de taille, de bras… et garde des photos de progression. Tout reste sur ton iPhone.',
+        steps: [
+          '[Ajouter des mesures] : la date, puis les mesures que tu as prises (laisse vide le reste). Une valeur par jour et par mesure, en cm ou en pouces selon ton unité.',
+          'Touche une mesure pour sa courbe, l\'écart avec la mesure d\'avant et depuis la première.',
+          '[Ajouter une photo] ouvre la caméra ou la pellicule ; choisis [Face], [Profil] ou [Dos]. La photo est réduite et gardée dans l\'app, pas dans ta pellicule.',
+          '[Comparer] met deux dates côte à côte.',
+          'Rien ne part sur ton compte, rien n\'est montré à tes amis ni à ton coach. L\'export contient tes mensurations, pas tes photos. [Supprimer toutes les données] efface les deux.',
+        ],
+        related: ['poids-corps', 'export'],
+        actions: ['go-body-measures', 'bm-add', 'open-body-measure', 'photo-add'],
+      },
+      {
         id: 'muscles', title: 'Muscles travaillés', icon: 'chart', color: 'red',
         lead: 'La carte [Muscles] de l\'onglet [Progrès] colore la silhouette selon le nombre de séries reçues par chaque muscle.',
         steps: [

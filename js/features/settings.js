@@ -22,6 +22,7 @@ function wipeLocalData() {
   data = freshData();
   resetSelections();
   Native.eraseCloudOnNextSave();   // app iOS : la copie iCloud est vidée elle aussi
+  photosWipe();                    // photos de progression (IndexedDB, js/data/progress-photos.js)
   save();
 }
 
@@ -106,7 +107,7 @@ ${renderAppIconGroup()}
           </button>
           <button class="cell cell--destructive cell--left" data-action="wipe-data"><span class="cell__title">Supprimer toutes les données</span></button>
         </div>
-        <div class="group-foot">${account.user ? 'Tes séances et programmes sont aussi sur ton compte. L\'export te donne en plus un fichier à garder où tu veux. Pour effacer aussi ton compte\u00a0: Compte › Supprimer mon compte.' : 'Exporte régulièrement : les données ne sont stockées que sur cet appareil.'}</div>
+        <div class="group-foot">${account.user ? 'Tes séances et programmes sont aussi sur ton compte. L\'export te donne en plus un fichier à garder où tu veux. Pour effacer aussi ton compte\u00a0: Compte › Supprimer mon compte.' : 'Exporte régulièrement : les données ne sont stockées que sur cet appareil.'} L'export contient tes mensurations, pas tes photos de progression (trop lourdes) : elles restent dans l'app, et « Supprimer toutes les données » les efface aussi.</div>
 
         <div class="group-title">À propos</div>
         <div class="group">
@@ -207,7 +208,7 @@ registerActions({
     save(); render();
   },
   'wipe-data': async () => {
-    if (!(await confirmSheet('Supprimer toutes les données ?', account.user ? 'Séances, programmes et réglages seront effacés de cet appareil, qui sera déconnecté de ton compte. Ton compte garde tout.' : 'Séances, programmes et réglages seront effacés de cet appareil.', 'Tout supprimer'))) return;
+    if (!(await confirmSheet('Supprimer toutes les données ?', account.user ? 'Séances, programmes, réglages, mensurations et photos seront effacés de cet appareil, qui sera déconnecté de ton compte. Ton compte garde tes séances et programmes.' : 'Séances, programmes, réglages, mensurations et photos seront effacés de cet appareil.', 'Tout supprimer'))) return;
     const n = (data.history || []).length;
     // Compte : dernière sauvegarde tentée avant d'effacer ; on ne promet que ce qui est vraiment dessus
     if (account.user) await syncNow();

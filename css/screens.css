@@ -393,3 +393,37 @@ html.type-xl .segmented__btn { white-space: normal; overflow-wrap: anywhere; lin
 .prog-info__actions { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
 .prog-info__btn { width: 100%; border-radius: var(--r-pill); }
 .prog-info__state { margin: 0; min-height: 44px; display: flex; align-items: center; justify-content: center; color: var(--label2); font-size: var(--fs-body); }
+
+/* ── Progrès › Mesures : mensurations et photos (js/features/body-measures-ui.js) ── */
+.bm-private { display: flex; align-items: flex-start; gap: 8px; padding: 4px 16px 20px; color: var(--label2); font-size: 0.765rem; line-height: 1.059rem; }
+.bm-private .icon { flex-shrink: 0; margin-top: 1px; }
+.bm-entry { padding-right: 8px; }
+.bm-del {
+  width: 44px; height: 44px; margin: -11px 0; flex-shrink: 0; border: none; background: none; border-radius: var(--r-sm);
+  color: var(--red-text); display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.bm-del:active { background: var(--cell2); }
+.bm-row .field--num { width: 76px; min-height: 44px; }
+.bm-row .field-suffix span { min-width: 24px; }
+.bm-date { padding: 4px 0 12px; }
+.bm-date .date-input { flex: 0 1 190px; }
+/* Galerie par date : trois vignettes par rangée (face, profil, dos), portrait */
+.pgal { display: flex; flex-direction: column; gap: 14px; width: 100%; padding: 2px 0; }
+.pgal__date { display: block; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); margin-bottom: 6px; }
+.pgal__row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pgal__item { position: relative; aspect-ratio: 3 / 4; min-height: 44px; border-radius: var(--r-sm); overflow: hidden; background: var(--cell2); border: none; padding: 0; cursor: pointer; }
+.pgal__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pgal__pose { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: var(--r-pill); background: rgba(0,0,0,.6); color: #fff; font-size: 0.647rem; font-weight: 600; }
+/* Comparaison côte à côte */
+.pcmp__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pcmp__col { min-width: 0; }
+.pcmp__sel {
+  width: 100%; min-height: 44px; border: none; border-radius: var(--r-sm); background: var(--fill2); color: var(--label);
+  padding: 0 10px; font-family: inherit; font-size: var(--fs-input); -webkit-appearance: none; appearance: none;
+}
+.pcmp__img { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--r-sm); margin-top: 8px; background: var(--cell2); }
+.pcmp__gap { text-align: center; color: var(--label2); font-size: 0.765rem; padding-top: 10px; }
+/* Feuilles : nouvelle photo, photo ouverte */
+.pnew__img, .pview__img { display: block; max-width: 100%; max-height: 48vh; margin: 0 auto 12px; border-radius: var(--r-md); object-fit: contain; }
+.pnew__pose { display: flex; margin: 4px 0 14px; }
+.pview__meta { text-align: center; color: var(--label2); font-size: 0.765rem; margin: 0 0 14px; }

@@ -12,7 +12,7 @@ Mise à jour le 30 octobre 2026, dans l'ordre. OTA = mise à jour à chaud, sans
 | 3  | Lot 2 · OTA     | Calculateur de disques + échauffement automatique                             | Claude                         | À faire                                      |
 | 4  | Lot 2 · OTA     | RPE / RIR facultatif après chaque série                                       | Claude                         | À faire                                      |
 | 5  | Lot 2 · OTA     | Import depuis Hevy et Strong                                                  | Claude                         | À faire                                      |
-| 6  | Lot 2 · OTA     | Mensurations + photos de progression (iPhone seul)                            | Claude                         | À faire                                      |
+| 6  | Lot 2 · OTA     | Mensurations + photos de progression (iPhone seul)                            | Claude                         | Construit (branche lot2-mesures), à publier  |
 | 7  | Lot 2 · OTA     | Export vers Strava                                                            | Claude                         | À faire                                      |
 | 8  | Lot 2 · OTA     | Récaps semaine / mois / année façon Replay, en stories                        | Claude                         | À faire                                      |
 | 9  | Lot 2 · OTA     | Version de l'app envoyée au serveur                                           | Claude                         | À faire                                      |

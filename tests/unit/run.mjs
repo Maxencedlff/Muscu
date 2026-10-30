@@ -24,6 +24,7 @@ const SCRIPTS = [
   'js/data/tempo.js',
   'js/data/supersets.js',
   'js/data/machine-track.js',
+  'js/data/body-measures.js',
   'js/data/store.js',
   'js/data/records.js',
   'js/data/accessors.js',
@@ -38,6 +39,7 @@ const SCRIPTS = [
   'js/data/muscles.js',
   'js/data/exercise-catalogue.js',
   'js/data/measures.js',
+  'js/data/progress-photos.js',
   'js/data/session-review.js',
   'js/data/health-workouts.js',
   'js/data/effort-clock.js',
@@ -1433,6 +1435,9 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 (await import('./cardio.mjs')).default({ test, run, reset, assert, sameJSON, nativeContext });
 // ── Machines de cardio : réglage noté au chrono, bilan, rameur, alias affiché (tests dans machines.mjs) ──
 (await import('./machines.mjs')).default({ test, run, reset, assert, sameJSON });
+
+// ── Mensurations et photos de progression (tests dans body-measures.mjs) ──
+(await import('./body-measures.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Synchronisation du compte (tests dans sync.mjs) ──
 (await import('./sync.mjs')).default({ test, run, assert, sameJSON });
