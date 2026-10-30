@@ -393,7 +393,7 @@ begin
   if (public.my_access() ->> 'days_left')::int is distinct from 5 then raise '5 jours offerts à F'; end if;
 end $$;
 
--- ── Élève suivi par un coach ─────────────────────────────
+-- ── Élève suivi par un coach : plus d'accès gratuit (20261030000000_payant_tarifs.sql) ──
 do $$
 declare st jsonb;
 begin
@@ -404,45 +404,16 @@ begin
   update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
   set role authenticated;
   st := public.my_access();
-  if st ->> 'status' is distinct from 'coach_team' or not (st ->> 'coach_team')::boolean
-     or not (st ->> 'can_write')::boolean or st -> 'until' is distinct from 'null'::jsonb
-     or st -> 'days_left' is distinct from 'null'::jsonb then raise 'élève de coach : %', st; end if;
-  if public.access_state() ->> 'status' is distinct from 'coach_team' then raise 'access_state pour un élève'; end if;
-  reset role;
-  if not (select in_coach_team from public.entitlements where user_id = pg_temp.pu('d')) then raise 'instantané in_coach_team'; end if;
-  set role authenticated;
-  -- Le coach, lui, n'a rien de plus
-  perform pg_temp.plogin('c');
-  st := public.my_access();
-  if (st ->> 'coach_team')::boolean or st ->> 'status' is distinct from 'none' then raise 'le coach n''est pas son propre élève : %', st; end if;
-  -- BOGUE CORRIGÉ : l'administrateur retire le rôle au coach, ses élèves perdent l'accès gratuit
-  reset role;
-  update public.user_profiles set coach_at = null where user_id = pg_temp.pu('c');
-  set role authenticated;
-  perform pg_temp.plogin('d');
-  st := public.my_access();
   if st ->> 'status' is distinct from 'none' or (st ->> 'coach_team')::boolean or (st ->> 'can_write')::boolean
-     then raise 'élève d''un ancien coach encore gratuit : %', st; end if;
+     then raise 'élève de coach encore gratuit : %', st; end if;
   reset role;
-  if (select in_coach_team from public.entitlements where user_id = pg_temp.pu('d')) then raise 'instantané in_coach_team après le retrait du rôle'; end if;
-  update public.user_profiles set coach_at = now() where user_id = pg_temp.pu('c');
-  set role authenticated;
-  if public.my_access() ->> 'status' is distinct from 'coach_team' then raise 'rôle rendu : élève de nouveau gratuit'; end if;
-  -- L'élève quitte : l'accès tombe au prochain appel
-  reset role;
-  delete from public.coach_links where student_id = pg_temp.pu('d');
-  set role authenticated;
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'none' or (st ->> 'coach_team')::boolean or (st ->> 'can_write')::boolean
-     then raise 'après le départ du coach : %', st; end if;
-  reset role;
+  if (select in_coach_team from public.entitlements where user_id = pg_temp.pu('d')) then raise 'instantané in_coach_team'; end if;
   update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
-  -- Un abonné qui est aussi élève reste « active »
-  insert into public.coach_links (student_id, coach_id) values (pg_temp.pu('d'), pg_temp.pu('c'));
   set role authenticated;
+  -- Un abonné qui est aussi élève est « active », coach_team toujours faux
   if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pu('d'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-d1')) is distinct from 'ok' then raise 'abonnement de D'; end if;
   st := public.my_access();
-  if st ->> 'status' is distinct from 'active' or not (st ->> 'coach_team')::boolean then raise 'abonné et élève : %', st; end if;
+  if st ->> 'status' is distinct from 'active' or (st ->> 'coach_team')::boolean then raise 'abonné et élève : %', st; end if;
   reset role;
   delete from public.coach_links where student_id = pg_temp.pu('d');
   set role authenticated;
@@ -681,13 +652,13 @@ do $$ begin
   -- Un abonné passe, verrou allumé (offre de lancement comprise)
   if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L, false, null, true, %L)', pg_temp.pu('i'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-i1', 'Production')) is distinct from 'ok' then raise 'abonnement de I'; end if;
   if pg_temp.perr($q$ insert into public.sessions (id, data) values ('i-4', '{"date": 1780000002000, "exercises": []}') $q$) is distinct from 'ok' then raise 'abonné refusé'; end if;
-  -- Un élève de coach aussi
+  -- Un élève de coach, lui, n'a plus d'accès gratuit (20261030000000_payant_tarifs.sql)
   reset role;
   update public.entitlement_claims set revoked_at = now() where original_transaction_id = 'tx-i1';
   perform private.access_refresh(pg_temp.pu('i'));
   insert into public.coach_links (student_id, coach_id) values (pg_temp.pu('i'), pg_temp.pu('c'));
   set role authenticated;
-  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('i-5', '{"date": 1780000003000, "exercises": []}') $q$) is distinct from 'ok' then raise 'élève de coach refusé'; end if;
+  if pg_temp.perr($q$ insert into public.sessions (id, data) values ('i-5', '{"date": 1780000003000, "exercises": []}') $q$) is distinct from 'paywall_locked' then raise 'élève de coach accepté sans abonnement'; end if;
   reset role;
   delete from public.coach_links where student_id = pg_temp.pu('i');
   set role authenticated;
@@ -714,7 +685,7 @@ begin
   foreach t in array array['private.access_json(pg_temp.pu(''a''))', 'private.access_refresh(pg_temp.pu(''e''))',
                            'private.access_claim(pg_temp.pu(''e''), ''com.mdlf.training.pro.monthly'', null, ''tx-e9'', false)',
                            'private.access_product_kind(''com.mdlf.training.pro.monthly'')',
-                           'private.access_paywall_on()', 'private.access_coach_free(pg_temp.pu(''e''))',
+                           'private.access_paywall_on()',
                            'private.coach_free_limits'] loop
     if pg_temp.perr('select ' || case when t like 'private.coach_free_limits' then '* from ' else '' end || t) not like 'permission denied%' then raise '% appelable', t; end if;
   end loop;
@@ -770,14 +741,15 @@ begin
   if (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('srv_access_purchase', 'srv_access_event')) <> 2 then raise 'fonctions du serveur manquantes'; end if;
   -- Briques privées : aucun rôle de l'API
   for f in select p.oid::regprocedure from pg_proc p where p.pronamespace = 'private'::regnamespace
-             and p.proname in ('access_json', 'access_refresh', 'access_claim', 'access_product_kind', 'access_paywall_on', 'access_coach_free',
+             and p.proname in ('access_json', 'access_refresh', 'access_claim', 'access_product_kind', 'access_paywall_on',
                                'gift_code_norm', 'gift_new_code', 'gift_refused', 'make_gift_code', 'sessions_paywall') loop
     if has_function_privilege('authenticated', f, 'execute') or has_function_privilege('anon', f, 'execute')
        or has_function_privilege('service_role', f, 'execute') then raise '% : exécutable par l''API', f; end if;
   end loop;
   -- Aucune autre fonction du schéma public exécutable par un client ne touche au droit d'accès
   if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
-               and p.proname not in ('my_access', 'access_state', 'srv_access_purchase', 'srv_access_event', 'redeem_gift_code')
+               and p.proname not in ('my_access', 'access_state', 'srv_access_purchase', 'srv_access_event', 'redeem_gift_code',
+                                 'coach_tier_state', 'student_offer_code')
                and (p.prosrc ilike '%entitlement%' or p.prosrc ilike '%app_config%')
                and (has_function_privilege('authenticated', p.oid::regprocedure, 'execute')
                     or has_function_privilege('anon', p.oid::regprocedure, 'execute'))) then
@@ -893,59 +865,7 @@ begin
   update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
 end $$;
 
--- ── Élèves gratuits : 10 par coach, les plus anciens liens d'abord ──
-do $$
-declare st jsonb; free int;
-begin
-  -- B est coach ; 12 élèves (deux comptes de ce bloc + 10 comptes jetables), du plus ancien au plus récent
-  insert into public.user_profiles (user_id, username, avatar_emoji, coach_at) values (pg_temp.pq('b'), 'coachb.p2', '🦁', now());
-  insert into auth.users (id) select ('00000000-0000-0000-0000-0000000007' || lpad(i::text, 2, '0'))::uuid from generate_series(20, 29) i;
-  insert into public.coach_links (student_id, coach_id, created_at)
-    select ('00000000-0000-0000-0000-0000000007' || lpad(i::text, 2, '0'))::uuid, pg_temp.pq('b'), now() - make_interval(days => 100 - i)
-      from generate_series(20, 29) i;
-  -- C : 11e lien, D : 12e lien
-  insert into public.coach_links (student_id, coach_id, created_at) values
-    (pg_temp.pq('c'), pg_temp.pq('b'), now() - interval '10 days'), (pg_temp.pq('d'), pg_temp.pq('b'), now() - interval '5 days');
-  update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
-  select count(*) into free from public.coach_links l where l.coach_id = pg_temp.pq('b') and private.access_coach_free(l.student_id);
-  if free is distinct from 10 then raise '% élèves gratuits au lieu de 10', free; end if;
-  if not private.access_coach_free('00000000-0000-0000-0000-000000000720') then raise 'le plus ancien élève n''est pas gratuit'; end if;
-  set role authenticated;
-  perform pg_temp.pqlogin('c');
-  st := public.my_access();
-  if st ->> 'status' is distinct from 'none' or (st ->> 'coach_team')::boolean or (st ->> 'can_write')::boolean then raise '11e élève gratuit : %', st; end if;
-  -- Au-delà du plafond, l'élève reste suivi et peut s'abonner lui-même
-  if pg_temp.psrv(format('select public.srv_access_purchase(%L, %L, %L, %L)', pg_temp.pq('c'), 'com.mdlf.training.pro.monthly', now() + interval '30 days', 'tx-qc')) is distinct from 'ok' then raise 'abonnement du 11e'; end if;
-  if public.my_access() ->> 'status' is distinct from 'active' then raise '11e élève abonné'; end if;
-  reset role;
-  if not exists (select 1 from public.coach_links where student_id = pg_temp.pq('c')) then raise 'le 11e n''est plus suivi'; end if;
-  -- 10 anciens élèves sans abonnement occupent les 10 places : le 12e (D) n'en a pas
-  if private.access_coach_free(pg_temp.pq('d')) then raise '12e gratuit avec 10 places prises'; end if;
-  -- Un ancien élève part : M4, le 11e (C) est abonné et ne prend PAS de place, donc c'est le 12e qui entre
-  delete from public.coach_links where student_id = '00000000-0000-0000-0000-000000000720';
-  if not private.access_coach_free(pg_temp.pq('d')) then raise 'un élève abonné occupe encore une place gratuite'; end if;
-  -- L'abonnement du 11e se termine : il reprend sa place (lien plus ancien), le 12e en sort
-  update public.entitlement_claims set expires_at = now() - interval '1 minute' where original_transaction_id = 'tx-qc';
-  perform private.access_refresh(pg_temp.pq('c'));
-  if not private.access_coach_free(pg_temp.pq('c')) or private.access_coach_free(pg_temp.pq('d')) then raise 'rang après la fin de l''abonnement du 11e'; end if;
-  -- Plafond baissé puis relevé à la main pour ce coach
-  insert into private.coach_free_limits (coach_id, max_free) values (pg_temp.pq('b'), 9);
-  if private.access_coach_free(pg_temp.pq('c')) then raise 'plafond baissé non appliqué'; end if;
-  update private.coach_free_limits set max_free = 11 where coach_id = pg_temp.pq('b');
-  if not private.access_coach_free(pg_temp.pq('d')) then raise 'plafond relevé non appliqué'; end if;
-  update private.coach_free_limits set max_free = 0 where coach_id = pg_temp.pq('b');
-  if private.access_coach_free('00000000-0000-0000-0000-000000000721') then raise 'plafond à 0 non appliqué'; end if;
-  -- Personne d'autre ne lit ni n'écrit le plafond
-  set role authenticated;
-  if pg_temp.perr($q$ select * from private.coach_free_limits $q$) not like 'permission denied%' then raise 'plafond lisible'; end if;
-  if pg_temp.psrv($q$ update private.coach_free_limits set max_free = 1000 $q$) not like 'permission denied%' then raise 'plafond modifiable par la clé serveur'; end if;
-  reset role;
-  delete from auth.users where id in (select ('00000000-0000-0000-0000-0000000007' || lpad(i::text, 2, '0'))::uuid from generate_series(20, 29) i);
-  -- Suppression du coach : son plafond part avec lui
-  delete from auth.users where id = pg_temp.pq('b');
-  if exists (select 1 from private.coach_free_limits where coach_id = pg_temp.pq('b')) then raise 'cascade coach_free_limits'; end if;
-  update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
-end $$;
+-- Les élèves gratuits (10 par coach) ont été retirés par 20261030000000_payant_tarifs.sql : voir tarifs_test.sql.
 
 -- ── Grâce de fin de séance : bornée, et sans antidatage possible ──
 do $$
@@ -1061,7 +981,6 @@ set role authenticated;
 do $$ begin
   perform pg_temp.pqlogin('a');
   if pg_temp.perr($q$ update public.entitlement_claims set intro_offer = true $q$) not like 'permission denied%' then raise 'intro_offer modifiable'; end if;
-  if pg_temp.perr($q$ select private.access_coach_free(pg_temp.pq('a')) $q$) not like 'permission denied%' then raise 'access_coach_free appelable'; end if;
   if (select count(*) from public.app_config) is distinct from 2 then raise 'app_config pour authenticated'; end if;
 end $$;
 reset role;

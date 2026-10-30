@@ -14,6 +14,8 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   const migration = () => fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261028000000_payant.sql'), 'utf8');
   // Définitions en vigueur (modèle B) : la migration du 29/10 remplace plusieurs fonctions du 28/10
   const modelB = () => fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261029000000_payant_modele_b.sql'), 'utf8');
+  // Dernière définition des produits reconnus : 20261030000000_payant_tarifs.sql
+  const tarifs = () => fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261030000000_payant_tarifs.sql'), 'utf8');
   const bodyOf = (sql, head) => { const f = sql.slice(sql.indexOf(head)); return f.slice(0, f.indexOf('\n$$;')); };
   const contract = () => fs.readFileSync(path.join(ROOT, 'docs/PAYANT_V1.md'), 'utf8');
   const nowMs = Date.UTC(2026, 9, 28, 12, 0, 0);
@@ -424,18 +426,23 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   // ── Serveur et app disent la même chose ─────────────────
 
   test('payant : mêmes produits, mêmes erreurs et mêmes clés que la migration et le contrat', async () => {
-    const { PRODUCT_KINDS, BUNDLE_ID } = await policy();
+    const { PRODUCT_KINDS, BUNDLE_ID, COACH_PRODUCTS } = await policy();
     const sql = modelB();
-    // Produits et natures : private.access_product_kind doit dire exactement la même chose
+    const productSql = tarifs().slice(tarifs().indexOf('function private.access_product_kind'), tarifs().indexOf('function private.coach_product_limit'));
+    // Produits et natures : private.access_product_kind (dernière version) doit dire exactement la même chose
     for (const [product, kind] of Object.entries(PRODUCT_KINDS)) {
-      assert.ok(new RegExp(`when '${product.replace(/\./g, '\\.')}'\\s+then '${kind}'`).test(sql), `${product} absent de la migration`);
+      assert.ok(new RegExp(`when '${product.replace(/\./g, '\\.')}'\\s+then '${kind}'`).test(productSql), `${product} absent de la migration`);
     }
-    const inSql = [...sql.matchAll(/when '(com\.mdlf\.training[^']*)'\s+then '(sub|gift)'/g)].map((m) => m[1]);
+    const inSql = [...productSql.matchAll(/when '(com\.mdlf\.training[^']*)'\s+then '(sub|gift)'/g)].map((m) => m[1]);
     sameJSON(inSql.sort(), Object.keys(PRODUCT_KINDS).sort(), 'produits en trop ou en moins côté serveur');
     // Les mêmes identifiants que le contrat
     const doc = contract();
     for (const p of [...Object.keys(PRODUCT_KINDS), BUNDLE_ID]) assert.ok(doc.includes(p), `${p} absent du contrat`);
-    sameJSON(Object.keys(PRODUCT_KINDS).sort(), ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly'], 'deux abonnements, rien d\'autre');
+    const tiers = ['coach10', 'coach20', 'coach30', 'coachmax'].flatMap(t => [`com.mdlf.training.${t}.monthly`, `com.mdlf.training.${t}.yearly`]);
+    sameJSON(Object.keys(PRODUCT_KINDS).sort(), ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly', ...tiers].sort(), 'dix abonnements, rien d\'autre');
+    sameJSON([...COACH_PRODUCTS].sort(), [...tiers].sort(), 'paliers coach');
+    // Chaque produit coach a son palier côté serveur (private.coach_product_limit)
+    for (const id of tiers) assert.ok(tarifs().includes(`when '${id}'`) && /coach_product_limit/.test(tarifs()), `${id} sans palier`);
     // Les clés de my_access() (modèle B), côté serveur et côté contrat
     const keys = ['status', 'until', 'paywall_on', 'days_left', 'can_write', 'gift', 'gift_until', 'coach_team', 'intro_offer', 'intro_until', 'server_now'];
     for (const k of keys) {

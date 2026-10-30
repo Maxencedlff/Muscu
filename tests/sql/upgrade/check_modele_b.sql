@@ -1,4 +1,4 @@
--- Vérifications après 20261029000000_payant_modele_b.sql appliquée sur les données de production
+-- Vérifications après 20261029000000_payant_modele_b.sql et 20261030000000_payant_tarifs.sql appliquées sur les données de production
 -- (tests/sql/upgrade/seed_20261028.sql). Chaque bloc échoue (raise) si la règle n'est pas tenue.
 do $$
 declare st jsonb;
@@ -20,8 +20,15 @@ begin
   if (select status from public.entitlements where user_id = '00000000-0000-0000-0000-000000000902') = 'gift' then raise 'instantané de 902'; end if;
   -- 903 (abonné) : intact
   if private.access_json('00000000-0000-0000-0000-000000000903') ->> 'status' is distinct from 'active' then raise '903 abonné perdu'; end if;
-  -- 905 (élève d'un coach qui a le rôle) : toujours gratuit
-  if private.access_json('00000000-0000-0000-0000-000000000905') ->> 'status' is distinct from 'coach_team' then raise '905 élève perdu'; end if;
+  -- 905 (élève d'un coach qui a le rôle) : plus gratuit depuis 20261030 (tarifs), noté pour pouvoir
+  -- revenir en arrière, attribution à son coach gardée, et son coach a reçu son code permanent
+  if private.access_json('00000000-0000-0000-0000-000000000905') ->> 'status' is distinct from 'none' then raise '905 encore gratuit'; end if;
+  if not exists (select 1 from private.tarifs_ex_coach_team where user_id = '00000000-0000-0000-0000-000000000905') then raise '905 non noté'; end if;
+  if (select status from public.entitlements where user_id = '00000000-0000-0000-0000-000000000905') = 'coach_team' then raise 'instantané de 905'; end if;
+  if not exists (select 1 from public.coach_origins o join public.coach_links l on l.student_id = o.student_id and l.coach_id = o.coach_id
+                  where o.student_id = '00000000-0000-0000-0000-000000000905') then raise 'attribution de 905'; end if;
+  if not exists (select 1 from public.coach_invites i join public.coach_links l on l.coach_id = i.coach_id
+                  where l.student_id = '00000000-0000-0000-0000-000000000905' and i.permanent) then raise 'code permanent du coach'; end if;
   -- 906 (code cadeau maison à vie) : intact
   if private.access_json('00000000-0000-0000-0000-000000000906') ->> 'status' is distinct from 'gift' then raise '906 code maison perdu'; end if;
   -- Les séances sont toutes là

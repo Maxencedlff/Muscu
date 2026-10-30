@@ -6,7 +6,8 @@
 //
 // 1. Le bundleId doit être le nôtre (bad_bundle) : un JWS signé par Apple pour une AUTRE app est
 //    parfaitement valable, il ne doit simplement rien ouvrir chez nous.
-// 2. Le produit doit être un des deux abonnements d'App Store Connect (unknown_product), et son type
+// 2. Le produit doit être un des dix abonnements d'App Store Connect (unknown_product) : particulier
+//    mensuel et annuel, et les quatre paliers coach (20261030, tarifs), et son type
 //    doit être « Auto-Renewable Subscription » (bad_type). L'« Accès offert » (non consommable) a été
 //    supprimé le 28/10 (modèle B) : il est inconnu, donc refusé.
 // 3. inAppOwnershipType : PURCHASED seulement. Le partage familial n'est pas activé sur ces produits
@@ -38,11 +39,14 @@ export const PRODUCT_YEARLY = 'com.mdlf.training.pro.yearly';
 export const OFFER_INTRODUCTORY = 1;
 export const OFFER_FREE_TRIAL = 'FREE_TRIAL';
 
-// Mêmes produits et mêmes natures que private.access_product_kind (20261029000000_payant_modele_b.sql)
-export const PRODUCT_KINDS = Object.freeze({
-  [PRODUCT_MONTHLY]: 'sub',
-  [PRODUCT_YEARLY]: 'sub',
-});
+// Paliers coach (20261030000000_payant_tarifs.sql) : accès complet, et nombre d'élèves du coach si son
+// rôle a été validé à la main. L'achat ne donne jamais le rôle coach.
+export const COACH_TIERS = Object.freeze(['coach10', 'coach20', 'coach30', 'coachmax']);
+export const COACH_PRODUCTS = Object.freeze(COACH_TIERS.flatMap(t => [`com.mdlf.training.${t}.monthly`, `com.mdlf.training.${t}.yearly`]));
+
+// Mêmes produits et mêmes natures que private.access_product_kind (20261030000000_payant_tarifs.sql)
+export const PRODUCT_KINDS = Object.freeze(Object.fromEntries(
+  [PRODUCT_MONTHLY, PRODUCT_YEARLY, ...COACH_PRODUCTS].map(id => [id, 'sub'])));
 // Type de transaction attendu par nature de produit (champ « type » d'Apple)
 export const EXPECTED_TYPES = Object.freeze({ sub: 'Auto-Renewable Subscription' });
 export const ENVIRONMENTS = Object.freeze(['Production', 'Sandbox']);
