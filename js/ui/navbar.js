@@ -44,8 +44,8 @@ function updateChrome() {
   ensureChrome();
   const route = currentRoute();
   const inSession = route === 'session' && !!activeSession;
-  // Séance et bilan en plein écran, sans tab bar
-  const full = inSession || route === 'summary';
+  // Séance, bilan et récap (story) en plein écran, sans tab bar
+  const full = inSession || route === 'summary' || routeName(route) === 'recap';
   const bar = $('.tabbar');
   bar.hidden = full;
   bar.querySelectorAll('.tabbar__btn').forEach(b => {
