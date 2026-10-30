@@ -21,14 +21,16 @@ function plInitialTarget(s) {
 // hauteur et épaisseur proportionnelles au poids ; le poids sous chaque disque
 function plDrawHtml(perSide, plates) {
   const maxP = Math.max(...plates, ...perSide, 1);
-  const W = 320, H = 132, barY = 60, x0 = 18;
+  const W = 320, H = 140, barY = 56, x0 = 18;
   let x = x0 + 26;
-  const rects = perSide.map(p => {
-    const h = Math.round(34 + 78 * Math.sqrt(p / maxP));
-    const w = Math.round(9 + 15 * (p / maxP));
+  // Poids sous chaque disque, en quinconce sur deux lignes : deux disques fins côte à côte ne se lisent
+  // jamais comme un seul nombre (« 5 » et « 2,5 » n'affichent pas « 52,5 »)
+  const rects = perSide.map((p, i) => {
+    const h = Math.round(34 + 66 * Math.sqrt(p / maxP));
+    const w = Math.round(14 + 14 * (p / maxP));
     const el = `<rect class="pl__plate" x="${x}" y="${barY - h / 2}" width="${w}" height="${h}" rx="3"/>
-      <text class="pl__pw" x="${x + w / 2}" y="${H - 6}" text-anchor="middle">${fmtNum(p)}</text>`;
-    x += w + 4;
+      <text class="pl__pw" x="${x + w / 2}" y="${i % 2 ? H - 4 : H - 20}" text-anchor="middle">${fmtNum(p)}</text>`;
+    x += w + 5;
     return el;
   }).join('');
   const sleeveEnd = Math.max(x + 30, 150);
@@ -86,7 +88,7 @@ function platesSheetHtml() {
           <button class="ax__chip" data-action="pl-other" aria-label="Ajouter un autre disque">${icon('plus', 14)} Autre</button>
         </div>
       </div>
-      <button class="rs__done" data-action="sheet-done">OK</button>
+      <button class="rs__done rs__done--primary" data-action="sheet-done">OK</button>
     </div>`;
 }
 
@@ -127,7 +129,7 @@ function warmupSheetHtml(ei) {
   const first = workSets(ex.sets).find(s => !s.done);
   const goal  = first ? (String(first.reps ?? '').trim() || setGoal(ex, first)) : '';
   const rows = sets.map(s => `
-        <div class="wu__row num">
+        <div class="wu__row num" role="listitem">
           <span class="wu__pct">${Math.round(s.pct * 100)} %</span>
           <span class="wu__set">${fmtNum(s.load)} ${u} × ${s.reps}</span>
         </div>`).join('');

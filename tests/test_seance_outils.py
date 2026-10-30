@@ -10,7 +10,8 @@ R = Results(LOT)
 
 
 def start(page, cat):
-    page.click(f'[data-action="start-session"][data-cat="{cat}"]')
+    # Seule la prochaine séance a un bouton « Démarrer » à l'accueil : démarrage direct de la séance voulue
+    page.evaluate(f"startSession('{cat}')")
     page.wait_for_selector('.view.session')
     page.wait_for_timeout(200)
 
@@ -117,7 +118,7 @@ def t_outils(bench, eng, dev, theme):
         R.check(page.locator('.rir__rpe').inner_text() == 'RPE 10', f'{t} RIR 0 = RPE 10')
         # Série suivante : le sélecteur passe sur elle, la précédente garde un badge « RIR 0 »
         page.click('[data-action="validate-set"][data-ei="0"][data-si="4"]'); page.wait_for_timeout(300); skip_rest(page)
-        R.check(page.locator('.session-set[data-si="3"] .rir-badge').inner_text() == 'RIR 0' and page.locator('.session-set[data-si="4"] .rir').count() == 1, f'{t} badge sur la série 1, sélecteur sur la série 2')
+        R.check(page.locator('.session-set[data-si="3"] .rir-badge').inner_text() == 'RIR 0' and page.locator('.rir .rir__btn[data-si="4"]').count() == 5, f'{t} badge sur la série 1, sélecteur sur la série 2')
         # Volume de l'exercice : les 3 échauffements ne comptent pas (2 × 60 × 8 = 960 contre 2 × 60 × 10 = 1200 l'an dernier : pas de hausse affichée)
         vol = page.evaluate("exVolume(activeSession.exercises[0], activeSession.exercises[0].sets.filter(s => s.done))")
         R.check(vol == 60 * 8 * 2 or vol == page.evaluate("workSets(activeSession.exercises[0].sets).filter(s => s.done).reduce((a, s) => a + s.weight * s.reps, 0)"), f'{t} volume sans l\'échauffement ({vol})')

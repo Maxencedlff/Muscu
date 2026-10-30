@@ -356,7 +356,7 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
       <div class="set-swipe">
         ${del}
         <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"
-             aria-label="${setSpokenName(ex, si)} validée, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
+             aria-label="${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
           ${setNumHtml(ex, si, tag)}
           <span class="set-prev num">${prev}</span>
           <span class="set-val num">${first || '—'}</span>
@@ -364,8 +364,8 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
           <span class="set-check-zone"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
           ${record ? `<span class="set-badge"><span class="pr-badge">${record}</span></span>` : ''}
           ${pace || mach ? `<span class="set-badge">${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
-          ${rir}
         </div>
+        ${rir}
       </div>`;
 }
 
@@ -381,10 +381,11 @@ function setRefName(ex, si) {
 }
 
 // Sélecteur RIR d'une série validée : 0 à 4+, l'équivalent RPE à côté du choix ; un nouveau toucher sur le
-// même bouton efface. Facultatif : rien n'attend ce choix
+// même bouton efface. Facultatif : rien n'attend ce choix. Placé sous la ligne, hors de son bouton « Modifier »
+// (pas de boutons imbriqués dans un rôle bouton)
 function rirPickerHtml(ei, si, s, ex) {
   const r = cleanRir(s.rir);
-  return `<div class="set-badge rir" role="group" aria-label="Répétitions en réserve, ${setSpokenName(ex, si)}">
+  return `<div class="rir" role="group" aria-label="Répétitions en réserve, ${setSpokenName(ex, si)}">
             <span class="rir__lbl">RIR</span>
             ${RIR_CHOICES.map(c => `<button class="rir__btn num" data-action="set-rir" data-ei="${ei}" data-si="${si}" data-rir="${c}" aria-pressed="${r === c}" aria-label="${rirTxt(c)} en réserve, RPE ${rirToRpe(c)}">${rirTxt(c)}</button>`).join('')}
             <span class="rir__rpe num" aria-live="polite">${r === null ? '' : `RPE ${rirToRpe(r)}`}</span>
@@ -491,8 +492,8 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
                value="${esc(rVal)}" placeholder="${esc(setGoal(ex, s))}" aria-label="${countSpoken(ex)} ${name.toLowerCase()}, ${esc(ex.name)}">
         ${check}
-        ${rir}
       </div>
+      ${rir}
     </div>`;
 }
 
