@@ -177,114 +177,114 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 ### Reste du lot 2
 
-|   | Quoi                                                 | Qui    | Quand / état             |
-|---|------------------------------------------------------|--------|--------------------------|
-| ○ | @compte Instagram sur la story + « on la repartage » | Claude | Dès que le compte existe |
+|   | Quoi                                                 | Quand / état             |
+|---|------------------------------------------------------|--------------------------|
+| ○ | @compte Instagram sur la story + « on la repartage » | Dès que le compte existe |
 
 ### Lot 3 · Serveur (feu vert n° 2 : montré avant la mise en ligne)
 
-|   | Quoi                                                            | Qui    | Quand / état                                 |
-|---|-----------------------------------------------------------------|--------|----------------------------------------------|
-| ○ | Records notés dans la séance, visibles par amis et coach        | Claude | Feu vert n° 2                                |
-| ○ | Nouveaux records : temps, distance, allure, assistés            | Claude | Feu vert n° 2                                |
-| ○ | Plusieurs réactions emoji + qui a réagi                         | Claude | Feu vert n° 2                                |
-| ○ | Écran Mon profil, pastille d'activité, bravos dans l'Historique | Claude | Feu vert n° 2                                |
-| ○ | Partage du poids avec le coach (consentement)                   | Claude | Feu vert n° 2                                |
-| ○ | Échauffements et RIR visibles par les amis et le coach          | Claude | Feu vert n° 2                                |
-| ○ | Export vers Strava (jeton côté serveur)                         | Claude | Feu vert n° 2                                |
-| ○ | 3 index manquants                                               | Claude | Feu vert n° 2                                |
-| ○ | Mise en ligne du payant modèle B, verrou éteint                 | Claude | Prêt · attend ta décision carte / sans carte |
+|   | Quoi                                                            | Quand / état                                 |
+|---|-----------------------------------------------------------------|----------------------------------------------|
+| ○ | Records notés dans la séance, visibles par amis et coach        | Feu vert n° 2                                |
+| ○ | Nouveaux records : temps, distance, allure, assistés            | Feu vert n° 2                                |
+| ○ | Plusieurs réactions emoji + qui a réagi                         | Feu vert n° 2                                |
+| ○ | Écran Mon profil, pastille d'activité, bravos dans l'Historique | Feu vert n° 2                                |
+| ○ | Partage du poids avec le coach (consentement)                   | Feu vert n° 2                                |
+| ○ | Échauffements et RIR visibles par les amis et le coach          | Feu vert n° 2                                |
+| ○ | Export vers Strava (jeton côté serveur)                         | Feu vert n° 2                                |
+| ○ | 3 index manquants                                               | Feu vert n° 2                                |
+| ○ | Mise en ligne du payant modèle B, verrou éteint                 | Prêt · attend ta décision carte / sans carte |
 
 ### Build unique (TestFlight, puis App Store)
 
-|   | Quoi                                                  | Qui    | Quand / état                       |
-|---|-------------------------------------------------------|--------|------------------------------------|
-| ○ | Paiement Apple (StoreKit)                             | Claude | Module écrit sur la branche payant |
-| ○ | Sommeil partagé avec le coach                         | Claude | À faire                            |
-| ○ | Notifications (coach, amis, réactions)                | Claude | À faire                            |
-| ○ | Écriture des séances dans Apple Santé                 | Claude | À faire                            |
-| ○ | Vérification de l'âge par Apple pour l'onglet Amis    | Claude | À faire                            |
-| ○ | Écran « mets à jour l'app » avant d'allumer le verrou | Claude | À faire                            |
-| ○ | Apple Watch (2e build si trop long)                   | Claude | À faire                            |
+|   | Quoi                                                  | Quand / état                       |
+|---|-------------------------------------------------------|------------------------------------|
+| ○ | Paiement Apple (StoreKit)                             | Module écrit sur la branche payant |
+| ○ | Sommeil partagé avec le coach                         | À faire                            |
+| ○ | Notifications (coach, amis, réactions)                | À faire                            |
+| ○ | Écriture des séances dans Apple Santé                 | À faire                            |
+| ○ | Vérification de l'âge par Apple pour l'onglet Amis    | À faire                            |
+| ○ | Écran « mets à jour l'app » avant d'allumer le verrou | À faire                            |
+| ○ | Apple Watch (2e build si trop long)                   | À faire                            |
 
 ### Démarches Apple et légales
 
-|   | Quoi                                                                 | Qui                           | Quand / état     |
-|---|----------------------------------------------------------------------|-------------------------------|------------------|
-| ○ | Décider : essai avec ou sans carte bancaire                          | Maxence                       | En attente       |
-| ○ | Vérifier que la micro-entreprise couvre la vente d'apps              | Maxence                       | À faire          |
-| ○ | Contrat Paid Apps (RIB, fiscal)                                      | Maxence                       | À faire          |
-| ○ | Clé In-App Purchase (.p8) → secrets                                  | Maxence puis Claude           | À faire          |
-| ○ | Testeur Sandbox                                                      | Maxence                       | À faire          |
-| ○ | Small Business Program (15 % au lieu de 30 %)                        | Maxence                       | À faire          |
-| ○ | Statut de commerçant (DSA) + domiciliation                           | Maxence                       | À faire          |
-| ○ | Mentions légales pro, CGU, CGV, médiateur (SIREN)                    | Claude rédige, Maxence valide | À faire          |
-| ○ | Fiche Confidentialité de l'app (Santé partagée)                      | Maxence                       | À faire          |
-| ○ | URL de confidentialité de la fiche → mdlf.app/privacy.html           | Maxence                       | À la publication |
-| ○ | Âge 13+, prix et pays, mode de publication                           | Maxence                       | À la soumission  |
-| ○ | Capture de revue, note d'examen, compte de test, URL de notification | Claude + Maxence              | À faire          |
+|   | Quoi                                                                 | Quand / état     |
+|---|----------------------------------------------------------------------|------------------|
+| ○ | Décider : essai avec ou sans carte bancaire                          | En attente       |
+| ○ | Vérifier que la micro-entreprise couvre la vente d'apps              | À faire          |
+| ○ | Contrat Paid Apps (RIB, fiscal)                                      | À faire          |
+| ○ | Clé In-App Purchase (.p8) → secrets                                  | À faire          |
+| ○ | Testeur Sandbox                                                      | À faire          |
+| ○ | Small Business Program (15 % au lieu de 30 %)                        | À faire          |
+| ○ | Statut de commerçant (DSA) + domiciliation                           | À faire          |
+| ○ | Mentions légales pro, CGU, CGV, médiateur (SIREN)                    | À faire          |
+| ○ | Fiche Confidentialité de l'app (Santé partagée)                      | À faire          |
+| ○ | URL de confidentialité de la fiche → mdlf.app/privacy.html           | À la publication |
+| ○ | Âge 13+, prix et pays, mode de publication                           | À la soumission  |
+| ○ | Capture de revue, note d'examen, compte de test, URL de notification | À faire          |
 
 ### Sortie App Store
 
-|   | Quoi                                          | Qui              | Quand / état              |
-|---|-----------------------------------------------|------------------|---------------------------|
-| ○ | Codes gratuit à vie (Maxence et les testeurs) | Claude           | Le jour de l'allumage     |
-| ○ | Précommande App Store + lien en bio           | Maxence          | Quand la build est prête  |
-| ○ | Allumer le verrou payant                      | Claude, feu vert | Après les démarches Apple |
+|   | Quoi                                          | Quand / état              |
+|---|-----------------------------------------------|---------------------------|
+| ○ | Codes gratuit à vie (Maxence et les testeurs) | Le jour de l'allumage     |
+| ○ | Précommande App Store + lien en bio           | Quand la build est prête  |
+| ○ | Allumer le verrou payant                      | Après les démarches Apple |
 
 ### Partenariat coachs (vidéos d'exercices et pubs Instagram)
 
-|   | Quoi                                                      | Qui                           | Quand / état         |
-|---|-----------------------------------------------------------|-------------------------------|----------------------|
-| ○ | Décider du partenariat avec les deux coachs               | Maxence                       | En attente           |
-| ○ | Contrat vidéos : cession de droits + droit à l'image      | Claude rédige, Maxence valide | Quand tu le demandes |
-| ○ | Contrat d'influence (mention « Publicité » obligatoire)   | Claude rédige, Maxence valide | Quand tu le demandes |
-| ○ | Commission : proposition 20 à 25 % du net pendant 12 mois | Maxence                       | À décider            |
-| ○ | Vérifier leur carte pro et leur statut pour facturer      | Maxence                       | À faire              |
-| ○ | Code par coach : compter les abonnés qu'il apporte        | Claude                        | Avec le lot 3        |
-| ○ | Vidéos hébergées en ligne, 20 à 30 exercices d'abord      | Claude                        | Quand elles arrivent |
-| ○ | Vidéos aussi dans le mode coach, pour leurs élèves        | Claude                        | Quand elles arrivent |
+|   | Quoi                                                      | Quand / état         |
+|---|-----------------------------------------------------------|----------------------|
+| ○ | Décider du partenariat avec les deux coachs               | En attente           |
+| ○ | Contrat vidéos : cession de droits + droit à l'image      | Quand tu le demandes |
+| ○ | Contrat d'influence (mention « Publicité » obligatoire)   | Quand tu le demandes |
+| ○ | Commission : proposition 20 à 25 % du net pendant 12 mois | À décider            |
+| ○ | Vérifier leur carte pro et leur statut pour facturer      | À faire              |
+| ○ | Code par coach : compter les abonnés qu'il apporte        | Avec le lot 3        |
+| ○ | Vidéos hébergées en ligne, 20 à 30 exercices d'abord      | Quand elles arrivent |
+| ○ | Vidéos aussi dans le mode coach, pour leurs élèves        | Quand elles arrivent |
 
 ### Instagram
 
-|   | Quoi                                       | Qui                            | Quand / état           |
-|---|--------------------------------------------|--------------------------------|------------------------|
-| ○ | Compte dédié pro, app Meta, autorisation   | Maxence puis Claude            | À faire                |
-| ○ | 3 Reels prêts, puis 3 ou 4 par semaine     | Claude, après ton ok           | Reels prêts            |
-| ○ | 5 à 10 petits créateurs contre codes à vie | Claude prépare, Maxence valide | Dès la précommande     |
-| ○ | Pub payante sur un Reel qui a déjà marché  | Maxence                        | Jamais avant la sortie |
+|   | Quoi                                       | Quand / état           |
+|---|--------------------------------------------|------------------------|
+| ○ | Compte dédié pro, app Meta, autorisation   | À faire                |
+| ○ | 3 Reels prêts, puis 3 ou 4 par semaine     | Reels prêts            |
+| ○ | 5 à 10 petits créateurs contre codes à vie | Dès la précommande     |
+| ○ | Pub payante sur un Reel qui a déjà marché  | Jamais avant la sortie |
 
 ### Personnage 3D animé
 
-|   | Quoi                                        | Qui    | Quand / état   |
-|---|---------------------------------------------|--------|----------------|
-| ○ | Animation : squat + curl d'abord, sur le PC | Claude | Après le lot 2 |
-| ○ | Puis toute la bibliothèque (Colab)          | Claude | Après l'essai  |
-| ○ | Version femme, matériel, vues de profil     | Claude | Ensuite        |
+|   | Quoi                                        | Quand / état   |
+|---|---------------------------------------------|----------------|
+| ○ | Animation : squat + curl d'abord, sur le PC | Après le lot 2 |
+| ○ | Puis toute la bibliothèque (Colab)          | Après l'essai  |
+| ○ | Version femme, matériel, vues de profil     | Ensuite        |
 
 ### Android
 
-|   | Quoi                                                    | Qui     | Quand / état           |
-|---|---------------------------------------------------------|---------|------------------------|
-| ○ | Compte Google Play (25 $), 12 testeurs pendant 14 jours | Maxence | Après la sortie iPhone |
-| ○ | Parties natives, paiement Google Play, pré-inscription  | Claude  | Après la sortie iPhone |
+|   | Quoi                                                    | Quand / état           |
+|---|---------------------------------------------------------|------------------------|
+| ○ | Compte Google Play (25 $), 12 testeurs pendant 14 jours | Après la sortie iPhone |
+| ○ | Parties natives, paiement Google Play, pré-inscription  | Après la sortie iPhone |
 
 ### Plus tard
 
-|   | Quoi                                                          | Qui | Quand / état          |
-|---|---------------------------------------------------------------|-----|-----------------------|
-| ○ | Newsletter, commentaires libres, chat coach, widgets, Siri    | —   | Plus tard             |
-| ○ | Score de force, périodisation, option à vie, marque INPI      | —   | Plus tard             |
-| ○ | Test mini-barre, rôle coach d'un testeur                      | —   | Plus tard             |
-| ○ | Messages tout faits en réaction                               | —   | Plus tard             |
-| ○ | Coach payant selon son nombre d'élèves                        | —   | Plus tard             |
-| ○ | Programmes envoyés entre amis, programmes publics             | —   | Plus tard             |
-| ○ | Liens de profil mdlf.app/u/… (demandent une build)            | —   | Plus tard             |
-| ○ | Vraie version anglaise                                        | —   | Plus tard             |
-| ○ | Autre app de musique (Spotify fermé ; YouTube, Deezer à voir) | —   | Plus tard             |
-| ○ | Chronomètre de vitesse dans l'app (vrais temps sur iPhone)    | —   | Si l'app paraît lente |
-| ○ | Import des mensurations depuis Hevy                           | —   | Plus tard             |
-| ○ | Tests du tempo à renforcer                                    | —   | Pas urgent            |
+|   | Quoi                                                          | Quand / état          |
+|---|---------------------------------------------------------------|-----------------------|
+| ○ | Newsletter, commentaires libres, chat coach, widgets, Siri    | Plus tard             |
+| ○ | Score de force, périodisation, option à vie, marque INPI      | Plus tard             |
+| ○ | Test mini-barre, rôle coach d'un testeur                      | Plus tard             |
+| ○ | Messages tout faits en réaction                               | Plus tard             |
+| ○ | Coach payant selon son nombre d'élèves                        | Plus tard             |
+| ○ | Programmes envoyés entre amis, programmes publics             | Plus tard             |
+| ○ | Liens de profil mdlf.app/u/… (demandent une build)            | Plus tard             |
+| ○ | Vraie version anglaise                                        | Plus tard             |
+| ○ | Autre app de musique (Spotify fermé ; YouTube, Deezer à voir) | Plus tard             |
+| ○ | Chronomètre de vitesse dans l'app (vrais temps sur iPhone)    | Si l'app paraît lente |
+| ○ | Import des mensurations depuis Hevy                           | Plus tard             |
+| ○ | Tests du tempo à renforcer                                    | Pas urgent            |
 
 ---
 
