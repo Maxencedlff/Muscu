@@ -478,7 +478,8 @@ async function coachJoin(code) {
   const c = normalizeCoachCode(code);
   if (!c) return { ok: false, kind: 'invalid_code' };
   const r = await coachRpc('coach_join', { code: c });
-  if (r.ok) { coach.preview = null; await coachRefresh(); }
+  // Rejoindre un coach peut attribuer le compte au coach (parrainage) : état relu à la prochaine lecture
+  if (r.ok) { coach.preview = null; if (typeof referral === 'object') referral.state = null; await coachRefresh(); }
   return r.ok ? { ok: true, data: cleanPerson(r.data) } : r;
 }
 async function coachLeave() {

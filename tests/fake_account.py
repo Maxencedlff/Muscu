@@ -36,6 +36,13 @@ listé dans removed, ses codes de ce coach répondent invalid_code jusqu'à coac
 students[].sent : programmes que je lui ai envoyés, { id, sent_at, seen }.
 État dans __sb.co ; __sb.makeCoach(id) pose coach_at, __sb.link(coach, élève) relie deux comptes. Appels dans
 __sb.calls sous ['coach', fonction, arguments] ; __sb.fail.coach = 'offline' pour le hors ligne.
+
+Parrainage (docs/PARRAINAGE.md, supabase/migrations/20261031400000_parrainage.sql) : referral_state et
+referral_apply avec les mêmes règles (un parrain par compte, fixé à la première saisie, 30 jours après la
+création du compte, 10 essais par 24 h échecs compris, code inconnu ou inactif → { ok: false, error:
+'invalid_code' }, autres refus en erreur). État dans __sb.rf : codes partners { CODE: { name, active } }
+(LUCAS actif, VIEUX inactif au départ), attributions links { compte: CODE }. Appels dans __sb.calls sous
+['referral', fonction, arguments] ; __sb.fail.referral = 'offline' pour le hors ligne.
 """
 
 FAKE_ACCOUNT = r"""
@@ -458,6 +465,33 @@ FAKE_ACCOUNT = r"""
     const out = coachRpc[fn](me, args);
     return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
   };
+  // ── Parrainage ──
+  const rf = sb.rf = { partners: { LUCAS: { name: 'Lucas', active: true }, VIEUX: { name: 'Ancien', active: false } }, links: {}, tries: {} };
+  const rfUntil = me => Date.parse(sb.users[me].created_at) + 30 * 86400_000;
+  const rfReferrer = me => { const c = rf.links[me]; return c ? { name: rf.partners[c.code].name, since: new Date(c.at).toISOString() } : null; };
+  const referralRpc = {
+    referral_state: me => ({ referrer: rfReferrer(me), can_enter: !rf.links[me] && now() < rfUntil(me), until: new Date(rfUntil(me)).toISOString() }),
+    referral_apply: (me, { code }) => {
+      const c = String(code || '').toUpperCase().replace(/[\s.\-_]/g, '');
+      if (rf.links[me]) return rf.links[me].code === c ? { ok: true, referrer: rfReferrer(me) } : pgErr('already_referred');
+      if (now() >= rfUntil(me)) return pgErr('too_late');
+      const t = rf.tries[me] = (rf.tries[me] || []).filter(x => x > now() - 86400_000);
+      if (t.length >= 10) return pgErr('rate_limited');
+      t.push(now());
+      const p = rf.partners[c];
+      if (!p || !p.active) return { ok: false, error: 'invalid_code' };
+      rf.links[me] = { code: c, at: now() };
+      return { ok: true, referrer: rfReferrer(me) };
+    },
+  };
+  const callReferral = async (fn, args = {}) => {
+    log('referral', fn, JSON.stringify(args));
+    if (sb.fail.referral === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+    const me = sb.meId();
+    if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };
+    const out = referralRpc[fn](me, args);
+    return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
+  };
   const REPORT_REASONS = ['spam', 'harcelement', 'sexuel', 'violence', 'haine', 'autre'];
 
   window.supabase = {
@@ -465,7 +499,7 @@ FAKE_ACCOUNT = r"""
       sb.storage = o?.auth?.storage; sb.storageKey = o?.auth?.storageKey;
       return {
         auth, from,
-        rpc: async (fn, args) => { if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn]) return callCoach(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
+        rpc: async (fn, args) => { if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
           const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });

@@ -37,6 +37,7 @@ const SCRIPTS = [
   'js/data/account.js',
   'js/data/social.js',
   'js/data/coach.js',
+  'js/data/referral.js',
   'js/data/prog-share.js',
   'js/data/trash.js',
   'js/data/muscles.js',
@@ -1457,6 +1458,8 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──
 (await import('./coach.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Parrainage : code saisi, état du serveur, rapport CSV (tests dans referral.mjs) ──
+await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Relecture de la séance d'un autre : volume, écarts, records, douleur (tests dans review.mjs) ──
 (await import('./review.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Guide de l'app : contenus et libellés (tests dans guide.mjs) ──

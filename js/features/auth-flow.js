@@ -8,7 +8,9 @@
 //    mode 'link'    : ajout d'une adresse e-mail à un compte qui n'en a pas (Apple) → 'linked', seulement
 //                   une fois l'adresse portée par le compte ;
 //    mode 'reauth'  : code envoyé à l'adresse du compte (avant la suppression) → 'reauth' ;
-//    mode 'profile' : pseudo ou avatar depuis l'écran Compte → 'saved'.
+//    mode 'profile' : pseudo ou avatar depuis l'écran Compte → 'saved' ;
+//    mode 'referral' : code d'un coach ou d'un ami depuis l'écran Compte (étape 'referral') → 'saved'.
+//  Compte tout neuf : « J'ai un code d'un coach ou d'un ami » sous le pseudo ouvre la même étape.
 //  null si l'écran est fermé sans aboutir. WELCOME_SEEN_KEY n'est posé que sur un vrai choix
 //  (« Commencer sans compte », connexion réussie). resume : { email, sentAt } d'un code demandé avant
 //  que iOS ne ferme l'app (PENDING_CODE_KEY) : l'écran du code s'ouvre par-dessus Bienvenue.
@@ -23,13 +25,22 @@ const flow = {
   resent: false,                                                   // code renvoyé : seul le dernier est valable
   badCode: '',                                                     // code refusé, gardé dans le champ (curseur à la fin, la saisie suivante le remplace)
   username: '', avatar: null, checkTimer: null, checkSeq: 0,
+  referralCode: '',                                                // code de parrainage en cours de saisie
 };
+
+// Sous le pseudo d'un compte tout neuf : lien vers l'étape du code, ou le parrain déjà enregistré.
+// Masqué hors délai (compte de plus de 30 jours, d'après le serveur s'il a répondu).
+function referralLinkHtml() {
+  const v = referralView();
+  if (v.referrer) return `<p class="auth__referral-done">${icon('checkmark', 16)}<span>${esc(`Parrainé par ${v.referrer}`)}</span></p>`;
+  return v.canEnter ? '<button class="auth__link auth__referral-link" data-action="auth-referral">J\'ai un code d\'un coach ou d\'un ami</button>' : '';
+}
 
 // context : 'coach' quand le pseudo est demandé pour rejoindre un coach (texte du pseudo adapté)
 function openAuthFlow({ step = 'welcome', mode = 'signin', closable = true, email = '', sentAt = 0, resume = null, context = null } = {}) {
   if (flow.root) closeAuthFlow(null);
   if (resume) ({ email, sentAt } = resume);
-  Object.assign(flow, { steps: [], mode, context, closable, email, sentAt, busy: false, first: false, notice: '', cancelExpired: false, resent: false, badCode: '',
+  Object.assign(flow, { steps: [], mode, context, closable, email, sentAt, busy: false, first: false, notice: '', cancelExpired: false, resent: false, badCode: '', referralCode: '',
     username: account.profile?.username || '', avatar: validAvatar(account.profile?.avatar) });
   const root = document.createElement('div');
   root.className = 'auth';
@@ -91,6 +102,14 @@ function paintAuth() {
   else flow.root.querySelector('#authTitle')?.focus({ preventScroll: true });
   if (step === 'code') startResendTick();
   if (step === 'username') checkUsername();
+  if (step === 'username' && flow.first) refreshReferralSlot();
+}
+
+// État du parrainage relu sur le serveur : seul le lien sous le pseudo change (la saisie reste)
+async function refreshReferralSlot() {
+  if (!(await referralLoad())) return;
+  const slot = flow.root?.querySelector('#authReferralSlot');
+  if (slot) slot.innerHTML = referralLinkHtml();
 }
 
 // ── Gabarits des étapes ─────────────────────────────────────
@@ -160,9 +179,22 @@ const AUTH_STEPS = {
         <p class="auth__status" id="authUsernameStatus" aria-live="polite">${next ? esc(`Prochain changement possible le ${fmtDate(next, 'day')}.`) : USERNAME_HELP}</p>
         <button class="btn btn--primary auth__primary" type="submit" data-role="save" ${next || !valid ? 'disabled' : ''}>${flow.first ? 'Continuer' : 'Enregistrer'}</button>
       </form>
+      ${flow.first ? `<div class="auth__referral-slot" id="authReferralSlot">${referralLinkHtml()}</div>` : ''}
       ${flow.first ? '<button class="auth__skip" data-action="auth-later">Plus tard</button>' : ''}
       ${flow.first && !flow.notice && !flow.cancelExpired ? `<p class="auth__again auth__again--link">Tu avais déjà un compte ? <button class="link-inline auth__again-btn" data-action="auth-cancel-account">Reconnecte-toi</button></p>` : ''}`;
   },
+
+  referral: () => `
+      <h1 class="auth__title auth__title--left" id="authTitle" tabindex="-1">Code d'un coach ou d'un ami</h1>
+      <p class="auth__lead auth__lead--left">Si quelqu'un t'a fait découvrir l'app, saisis son code. Facultatif.</p>
+      <form class="auth__form" data-form="referral" novalidate>
+        <label class="visually-hidden" for="authReferral">Code</label>
+        <input class="auth__input auth__referral" id="authReferral" type="text" autocomplete="off" autocapitalize="characters"
+          autocorrect="off" spellcheck="false" maxlength="30" enterkeyhint="done" placeholder="CODE" value="${esc(flow.referralCode)}" aria-describedby="authError authReferralNote">
+        <p class="auth__error" id="authError" role="alert"></p>
+        <button class="btn btn--primary auth__primary" type="submit" data-role="referral" ${normalizeReferralCode(flow.referralCode) ? '' : 'disabled'}>Valider</button>
+      </form>
+      <p class="auth__foot" id="authReferralNote">Le code est gardé avec ton compte pour rémunérer la personne qui t'a fait connaître l'app. Il ne lui donne accès ni à ton compte ni à tes séances. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>`,
 
   avatar: () => `
       <h1 class="auth__title" id="authTitle" tabindex="-1">Choisis ton avatar</h1>
@@ -228,6 +260,10 @@ function onAuthInput(e) {
     flow.root.querySelector('[data-role="save"]').disabled = !!usernameProblem(normalizeUsername(t.value));
     clearTimeout(flow.checkTimer);
     flow.checkTimer = setTimeout(checkUsername, 350);
+  } else if (t.id === 'authReferral') {
+    flow.referralCode = t.value;
+    authError('');
+    flow.root.querySelector('[data-role="referral"]').disabled = !normalizeReferralCode(t.value);
   }
 }
 
@@ -237,6 +273,27 @@ function onAuthSubmit(e) {
   if (form === 'email') submitEmail();
   if (form === 'code') { const d = codeDigits(flow.root.querySelector('#authCode').value); if (d.length === OTP_LENGTH) submitCode(d); }
   if (form === 'username') submitUsername();
+  if (form === 'referral') submitReferral();
+}
+
+// ── Code de parrainage ──────────────────────────────────────
+
+// Enregistré : depuis le pseudo d'un compte neuf, retour au pseudo (qui affiche « Parrainé par … ») ;
+// depuis l'écran Compte, fermé
+async function submitReferral() {
+  if (flow.busy) return;
+  const code = normalizeReferralCode(flow.referralCode);
+  if (!code) { authError(referralErrorText('invalid_code')); return; }
+  setBusy(true);
+  const r = await referralApply(code);
+  setBusy(false);
+  if (!flow.root) return;
+  if (!r.ok) { authError(referralErrorText(r.kind)); flow.root.querySelector('#authReferral')?.focus(); return; }
+  haptic('success');
+  const text = `Parrainé par ${r.data.name}`;
+  if (flow.mode === 'referral') { closeAuthFlow('saved'); render(); showToast(text); return; }
+  announce(text);
+  authBack();
 }
 
 // ── E-mail et code ──────────────────────────────────────────
@@ -446,6 +503,7 @@ registerActions({
     showToast('Tu pourras choisir ton pseudo dans Réglages › Compte');
   },
   'auth-open-avatar': () => authGo('avatar'),
+  'auth-referral': () => authGo('referral'),
   'auth-avatar': (e, el) => {
     flow.avatar = validAvatar(el.dataset.emoji);
     flow.root.querySelectorAll('.avatar-pick').forEach(b => b.setAttribute('aria-pressed', String(validAvatar(b.dataset.emoji) === flow.avatar)));
