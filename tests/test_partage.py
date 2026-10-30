@@ -139,20 +139,21 @@ def t_historique(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(page.locator('.sheet-root').count() == 0, f'{t} historique : « Fermer » referme l\'aperçu')
 
-        # Silhouette des muscles de la séance : couleurs résolues, muscle le plus travaillé en plein
-        m = page.evaluate("""() => {
+        # Carte des muscles de la séance : couleurs résolues, muscle le plus travaillé en plein
+        m = page.evaluate("""async () => {
           const h = data.history.find(x => x.category === 'push');
           const st = shareStoryStats(h), p = storyPalette(st.color);
-          const svg = shareStoryHooks.muscleSvg(h, st, p) || '';
+          const map = shareStoryHooks.muscleMap(h, st, p);
           const unknown = { ...h, exercises: [{ name: 'Exercice inventé', sets: [{ weight: '10', reps: '8' }] }] };
           const top = sessionTopMuscles(h)[0];
-          return { svg, top, full: new RegExp(`data-muscle="${top}"[^>]*fill-opacity="1"`).test(svg),
-                   none: shareStoryHooks.muscleSvg(unknown, st, p), alt: shareStoryAlt(st) };
+          const img = await storyMuscleImage(h, st, p);
+          return { colors: JSON.stringify(map.colors), top, full: map.levels[top] === 1, w: img?.width || 0,
+                   none: shareStoryHooks.muscleMap(unknown, st, p), alt: shareStoryAlt(st) };
         }""")
-        R.check(m['svg'].startswith('<svg xmlns=') and 'var(--' not in m['svg'], f'{t} silhouette : SVG autonome, couleurs résolues')
-        R.check(m['full'], f'{t} silhouette : muscle le plus travaillé ({m["top"]}) en couleur pleine')
-        R.check(m['none'] is None, f'{t} silhouette : aucun muscle reconnu → pas de silhouette')
-        R.check('Muscles travaillés : ' in m['alt'] and 'pectoraux' in m['alt'], f'{t} silhouette : muscles décrits pour VoiceOver ({m["alt"]})')
+        R.check('var(--' not in m['colors'] and m['w'] > 0, f'{t} personnage : couleurs résolues, dessiné dans un canvas ({m["w"]} px)')
+        R.check(m['full'], f'{t} personnage : muscle le plus travaillé ({m["top"]}) en couleur pleine')
+        R.check(m['none'] is None, f'{t} personnage : aucun muscle reconnu → pas de carte')
+        R.check('Muscles travaillés : ' in m['alt'] and 'pectoraux' in m['alt'], f'{t} personnage : muscles décrits pour VoiceOver ({m["alt"]})')
         url = page.evaluate("""async () => {
           const h = data.history.find(x => x.category === 'push');
           const { canvas } = await renderShareStory(h);

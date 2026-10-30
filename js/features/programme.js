@@ -212,7 +212,7 @@ function renderProgInfo(id) {
       <div class="scr">
         <p class="prog-info__why">${recommendReason(id, { ...adv, orMore: false })}</p>
         <div class="group group--pad prog-info__map">
-          ${bodyMapSvg(programmeMuscleLevels(id), { captions: true, label: `Muscles travaillés par ${pm.name}` })}
+          ${bodyMapHtml(programmeMuscleLevels(id), { captions: true, label: `Muscles travaillés par ${pm.name}` })}
         </div>
         <div class="group-title">Séances</div>
         <div class="group">${programmeSessionsHtml(id)}</div>

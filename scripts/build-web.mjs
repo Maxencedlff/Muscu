@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT  = path.join(ROOT, 'dist');
 const ENTRIES = ['index.html', 'manifest.json', 'privacy.html', 'icon.svg', 'apple-touch-icon.png',
-                 'icon-192.png', 'icon-512.png', 'css', 'js'];
+                 'icon-192.png', 'icon-512.png', 'css', 'js', 'img'];
 
 fs.rmSync(OUT, { recursive: true, force: true });
 for (const entry of ENTRIES) {

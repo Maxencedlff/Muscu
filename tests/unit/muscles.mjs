@@ -3,7 +3,10 @@
 //  Chargés par run.mjs (même contexte vm, mêmes outils)
 // ═══════════════════════════════════════════════════════════
 
-export default function muscleTests({ test, app, run, reset, sameJSON, assert }) {
+import fs from 'node:fs';
+import path from 'node:path';
+
+export default function muscleTests({ test, app, run, reset, sameJSON, assert, ROOT }) {
   const DAY = 86_400_000;
   const NOW = Date.UTC(2026, 9, 15, 12);
   const ids = () => run('MUSCLES.map(m => m.id)');
@@ -444,8 +447,24 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     sameJSON(Object.keys(counts), ids(), 'tous les muscles, dans l\'ordre');
   });
 
-  test('séries par muscle : paliers 0 / 1–3 / 4–9 / 10+ par semaine', () => {
-    sameJSON([0, -1, NaN, 0.5, 3.9, 4, 9.9, 10, 25].map(v => app.muscleLevel(v)), [0, 0, 0, 1, 1, 2, 2, 3, 3]);
+  test('séries par muscle : paliers 0 / 1–4 / 5–9 / 10–19 / 20+ par semaine, nommés', () => {
+    sameJSON([0, -1, NaN, 0.5, 4.9, 5, 9.9, 10, 19.9, 20, 35].map(v => app.muscleLevel(v)), [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+    assert.equal(run('MUSCLE_LEVEL_MAX'), 4);
+    sameJSON([0, 1, 2, 3, 4].map(l => app.muscleLevelRange(l)), ['0', '1–4', '5–9', '10–19', '20+']);
+    sameJSON(run('MUSCLE_LEVEL_WORDS'), ['Pas travaillé', 'Entretien', 'Travaillé', 'Objectif atteint', 'Gros volume']);
+  });
+
+  test('repère de la bulle : 10 par semaine pour qui débute, sinon 10 à 20 ; niveau vérifié au chargement', () => {
+    reset();
+    assert.equal(app.trainingLevel(), null);
+    assert.equal(app.muscleTarget(), '10 à 20 par semaine', 'niveau inconnu');
+    run("data.level = 'debutant'");
+    assert.equal(app.muscleTarget(), '10 par semaine');
+    run("data.level = 'confirme'");
+    assert.equal(app.muscleTarget(), '10 à 20 par semaine');
+    const d = run("(() => { const d = makeDefaultData(); d.level = 'expert'; sanitizeData(d); return d; })()");
+    assert.equal(d.level, undefined, 'valeur inconnue retirée');
+    assert.ok(run("SYNC_PROFILE_KEYS.includes('level')"), 'niveau suivi d\'un appareil à l\'autre');
   });
 
   test('muscleLoad : semaine et 4 semaines, intensités, peu travaillés sans les petits groupes', () => {
@@ -456,8 +475,8 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     ];
     const w = app.muscleLoad('week', NOW, h);
     assert.equal(w.sessions, 1);
-    assert.equal(w.levels.chest, 3);
-    assert.equal(w.intensity.chest, 1);
+    assert.equal(w.levels.chest, 3, '12 séries : objectif atteint');
+    assert.equal(w.intensity.chest, 0.75);
     assert.equal(w.levels.quads, 2);
     assert.equal(w.levels.calves, 0);
     assert.equal(w.intensity.calves, 0);
@@ -469,6 +488,9 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.equal(m.sets.chest, 20);
     assert.equal(m.perWeek.chest, 5);
     assert.equal(m.levels.chest, 2);
+    // Palier calculé sur le nombre affiché : 9,5 séries (demi-séries) s'affichent 10, palier objectif
+    const half = app.muscleLoad('week', NOW, [hist(1, [{ name: 'Développé couché haltères', sets: sets(9) }, { name: 'Dips', sets: sets(1) }])]);
+    assert.equal(app.roundSets(half.sets.triceps) >= 10 ? 3 : 2, half.levels.triceps, 'couleur = chiffre lu');
     assert.equal(app.muscleLoad('autre', NOW, h).span, 'week', 'période inconnue → semaine');
     assert.equal(app.muscleLoad('week', NOW, []).sessions, 0);
   });
@@ -499,40 +521,58 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     sameJSON(app.sessionTopMuscles(hist(0, [])), []);
   });
 
-  test('silhouette : une zone par muscle, couleurs par intensité, accessibilité', () => {
-    const svg = app.bodyMapSvg({ chest: 1, biceps: 0.5, inconnu: 1, triceps: 7, abs: -2 }, { view: 'both' });
-    const zones = [...svg.matchAll(/data-muscle="([a-z_]+)"/g)].map(m => m[1]);
-    sameJSON([...new Set(zones)].sort(), ids().slice().sort(), 'chaque muscle dessiné au moins une fois');
-    assert.ok(/data-muscle="chest" d="[^"]+" fill="var\(--body-heat\)" fill-opacity="1"/.test(svg));
-    assert.ok(/data-muscle="triceps" [^>]*fill-opacity="1"/.test(svg), 'intensité bornée à 1');
-    assert.ok(/data-muscle="abs" d="[^"]+" fill="var\(--body-zone\)"\/>/.test(svg), 'intensité négative → neutre');
-    assert.ok(!svg.includes('inconnu'));
-    assert.ok(svg.includes('aria-hidden="true"') && !svg.includes('role="img"'), 'décoratif sans label');
-    const lab = app.bodyMapSvg({}, { label: 'Pecs <b>"fort"</b>', view: 'front' });
+  test('carte des muscles : un calque teinté par muscle coloré, intensité bornée, accessibilité', () => {
+    const html = app.bodyMapHtml({ chest: 1, biceps: 0.5, inconnu: 1, triceps: 7, abs: -2 }, { view: 'both' });
+    const zones = [...new Set([...html.matchAll(/data-muscle="([a-z_]+)"/g)].map(m => m[1]))].sort();
+    sameJSON(zones, ['biceps', 'chest', 'triceps'], 'seuls les muscles colorés ont un calque');
+    assert.ok(/data-muscle="chest" data-heat="1" style="background-image:url\(img\/body\/male\/front\/chest\.webp\);-webkit-mask-image:url\(img\/body\/male\/front\/chest\.webp\);mask-image:[^;]+;opacity:1"/.test(html), 'fond et masque : le même calque');
+    assert.ok(/data-muscle="triceps" data-heat="1"/.test(html), 'intensité bornée à 1');
+    assert.ok(/data-muscle="biceps" data-heat="0.6"/.test(html));
+    assert.ok(!html.includes('inconnu') && !html.includes('data-muscle="abs"'), 'clé inconnue ou intensité négative : rien');
+    assert.ok(html.includes('src="img/body/male/front/base.webp"') && html.includes('src="img/body/male/back/base.webp"'));
+    assert.ok(html.includes('aria-hidden="true"') && !html.includes('role="img"'), 'décoratif sans label');
+    const lab = app.bodyMapHtml({}, { label: 'Pecs <b>"fort"</b>', view: 'front' });
     assert.ok(lab.includes('role="img"') && lab.includes('aria-label="Pecs &lt;b&gt;&quot;fort&quot;&lt;/b&gt;"'));
     assert.ok(!lab.includes('body-map__back'), 'face seule');
-    assert.ok(app.bodyMapSvg({}, { view: 'back' }).includes('data-muscle="glutes"'));
-    assert.ok(!app.bodyMapSvg({}, { view: 'front' }).includes('data-muscle="glutes"'), 'fessiers seulement de dos');
+    assert.ok(app.bodyMapHtml({ glutes: 1 }, { view: 'back' }).includes('data-muscle="glutes"'));
+    assert.ok(!app.bodyMapHtml({ glutes: 1 }, { view: 'front' }).includes('data-muscle="glutes"'), 'fessiers seulement de dos');
+    const cap = app.bodyMapHtml({}, { captions: true });
+    assert.ok(cap.includes('<span>Face</span><span>Dos</span>'));
+    assert.ok(/aspect-ratio:\d+ \/ \d+/.test(cap), 'rapport largeur / hauteur fixé');
   });
 
-  test('silhouette femme : mêmes muscles que l\'homme, vue par vue, et dessin différent', () => {
-    const zones = (body, view) => [...app.bodyMapSvg({}, { body, view }).matchAll(/data-muscle="([a-z_]+)"/g)].map(m => m[1]).sort();
-    for (const view of ['front', 'back']) sameJSON(zones('female', view), zones('male', view), `vue ${view}`);
-    const f = app.bodyMapSvg({ chest: 1 }, { body: 'female' }), m = app.bodyMapSvg({ chest: 1 }, { body: 'male' });
-    assert.ok(f.includes('data-body="female"') && m.includes('data-body="male"'));
-    assert.notEqual(f.replace('female', 'male'), m, 'tracés propres à la silhouette femme');
-    assert.ok(/data-muscle="chest" d="[^"]+" fill="var\(--body-heat\)" fill-opacity="1"/.test(f), 'coloration identique');
-    assert.ok(app.bodyMapSvg({}, { body: 'autre' }).includes('data-body="male"'), 'valeur inconnue : homme');
+  test('carte des muscles : chaque muscle a un calque dans au moins une vue, pour les deux personnages', () => {
+    const img = run('BODY_IMG');
+    for (const body of ['male', 'female']) {
+      const all = new Set([...img.bodies[body].front, ...img.bodies[body].back]);
+      sameJSON([...all].sort(), ids().slice().sort(), body);
+      assert.ok(img.bodies[body].front.includes('chest') && !img.bodies[body].front.includes('glutes'));
+      assert.ok(img.bodies[body].back.includes('lats') && img.bodies[body].back.includes('glutes'));
+    }
+    const f = app.bodyMapHtml({ chest: 1 }, { body: 'female' }), m = app.bodyMapHtml({ chest: 1 }, { body: 'male' });
+    assert.ok(f.includes('data-body="female"') && f.includes('img/body/female/front/chest.webp'));
+    assert.ok(m.includes('data-body="male"') && m.includes('img/body/male/front/chest.webp'));
+    assert.ok(app.bodyMapHtml({}, { body: 'autre' }).includes('data-body="male"'), 'valeur inconnue : homme');
+  });
+
+  test('carte des muscles : images listées pour le cache hors ligne (sw.js)', () => {
+    const urls = run('bodyImageUrls()');
+    const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+    assert.ok(urls.length > 20);
+    for (const u of urls) {
+      assert.ok(sw.includes(`'/${u}'`), `sw.js : ${u}`);
+      assert.ok(fs.existsSync(path.join(ROOT, u)), `fichier ${u}`);
+    }
   });
 
   test('silhouette : suit le réglage (homme si absent), bornée par sanitizeData', () => {
     reset();
     assert.equal(app.bodySilhouette(), 'male', 'données existantes : homme');
-    assert.ok(app.bodyMapSvg({}).includes('data-body="male"'));
+    assert.ok(app.bodyMapHtml({}).includes('data-body="male"'));
     run(`data.silhouette = 'female'`);
     assert.equal(app.bodySilhouette(), 'female');
-    assert.ok(app.bodyMapSvg({}).includes('data-body="female"'), 'par défaut, la carte suit le réglage');
-    assert.ok(app.bodyMapSvg({}, { body: 'male' }).includes('data-body="male"'), 'option explicite prioritaire');
+    assert.ok(app.bodyMapHtml({}).includes('data-body="female"'), 'par défaut, la carte suit le réglage');
+    assert.ok(app.bodyMapHtml({}, { body: 'male' }).includes('data-body="male"'), 'option explicite prioritaire');
     assert.equal(app.sanitizeData({ ...run('data'), silhouette: 'female' }).silhouette, 'female');
     assert.equal(app.sanitizeData({ ...run('data'), silhouette: 'male' }).silhouette, 'male');
     assert.equal(app.sanitizeData({ ...run('data'), silhouette: '<b>' }).silhouette, undefined, 'valeur inconnue retirée');
@@ -540,13 +580,9 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     reset();
   });
 
-  test('silhouette autonome : xmlns, dimensions, couleurs résolues, légendes', () => {
-    const svg = app.bodyMapSvg({ quads: 1 }, { standalone: true, width: 300, captions: true,
-      colors: { skin: '#111111', zone: '#222222', heat: '#FF0000', text: '#999999' } });
-    assert.ok(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"'));
-    assert.ok(/ width="300" height="\d+"/.test(svg));
-    assert.ok(!svg.includes('var(--'), 'aucune variable CSS dans un SVG autonome');
-    assert.ok(svg.includes('fill="#FF0000" fill-opacity="1"') && svg.includes('>Face</text>') && svg.includes('>Dos</text>'));
+  test('carte des muscles : couleur imposée (image partagée), opacité par palier', () => {
+    const html = app.bodyMapHtml({ quads: 1 }, { colors: { heat: '#FF0000' } });
+    assert.ok(html.includes('style="background-color:#FF0000;background-image:'));
     sameJSON([0, 1 / 3, 2 / 3, 1, 2].map(v => app.bodyHeatOpacity(v)), [0, 0.4, 0.7, 1, 1]);
   });
 
@@ -612,6 +648,97 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert })
     assert.ok(values('Développé couché barre').split(',').includes('howto'), 'et « Comment faire »');
     assert.ok(values('Grimpe au mur').split(',').includes('muscles'), 'exercice de la personne : choix proposé');
     assert.ok(values('Curl marteau corde').split(',').includes('muscles'), 'reconnu par les règles : choix proposé');
+  });
+
+  // ── Muscle touché sur le personnage (js/ui/body-tip.js) ──
+  // Carte de 6 × 4 points : muscle 0 à gauche, muscle 1 à droite, recouvrement en colonne 2
+  const W = 6, H = 4;
+  const alpha = fill => Uint8Array.from({ length: W * H }, (_, i) => fill(i % W, Math.floor(i / W)));
+  const left  = alpha(x => (x <= 2 ? 255 : 0));
+  const right = alpha(x => (x === 2 ? 120 : x >= 3 && x <= 4 ? 255 : 0));
+
+  test('bulle muscle : carte d\'étiquettes, muscle le plus opaque, transparent ignoré', () => {
+    const map = app.bodyHitBuild([left, right], W * H);
+    sameJSON([...map.slice(0, W)], [1, 1, 1, 2, 2, 0], 'colonne 2 : le calque le plus opaque (gauche)');
+    // À égalité, le calque posé au-dessus (le dernier) l'emporte ; sous le seuil, rien
+    const tie = app.bodyHitBuild([alpha(() => 200), alpha(() => 200)], W * H);
+    assert.ok([...tie].every(v => v === 2));
+    const faint = app.bodyHitBuild([alpha(() => 30)], W * H);
+    assert.ok([...faint].every(v => v === 0), 'bord antialiasé presque transparent : pas un muscle');
+  });
+
+  test('bulle muscle : point exact, tolérance du doigt, hors muscle', () => {
+    const map = app.bodyHitBuild([left, right], W * H);
+    assert.equal(app.bodyHitAt(map, W, H, 0, 0), 0);
+    assert.equal(app.bodyHitAt(map, W, H, 3.6, 1), 1, 'arrondi au point le plus proche');
+    assert.equal(app.bodyHitAt(map, W, H, 5, 1, 0), -1, 'colonne vide, sans tolérance');
+    assert.equal(app.bodyHitAt(map, W, H, 5, 1, 1.2), 1, 'colonne vide, voisin à 1 point');
+    assert.equal(app.bodyHitAt(map, W, H, 9, 1, 1.5), -1, 'trop loin');
+    assert.equal(app.bodyHitAt(map, W, H, -3, -3, 2), -1, 'hors de la carte');
+    assert.equal(app.bodyHitAt(new Uint8Array(W * H), W, H, 2, 2, 10), -1, 'zone grise seule');
+  });
+
+  test('bulle muscle : à côté du doigt par défaut, jamais sur le sélecteur, le doigt ni hors écran', () => {
+    const base = { w: 180, h: 90, vw: 375, minTop: 100, maxBottom: 754 };
+    const inside = p => p.left >= 8 && p.left + 180 <= 367 && p.top >= 100 && p.top + 90 <= 754;
+    // Sans muscle coloré : à côté du doigt, du côté le plus large, flèche à sa hauteur
+    const r = app.bodyTipPlace({ ...base, x: 140, y: 400 });
+    assert.ok(r.side === 'right' && r.left === 154 && r.top === 355 && r.arrow === 45 && inside(r), JSON.stringify(r));
+    const l = app.bodyTipPlace({ ...base, x: 250, y: 400 });
+    assert.ok(l.side === 'left' && l.left + 180 === 236 && inside(l), JSON.stringify(l));
+    // Pas de place sur les côtés (doigt au centre) : dessous
+    const b = app.bodyTipPlace({ ...base, x: 187, y: 400 });
+    assert.ok(b.side === 'below' && b.top === 414 && inside(b), JSON.stringify(b));
+    // Sélecteur de période : jamais couvert, la bulle descend dessous
+    const sel = { left: 16, right: 359, top: 140, bottom: 172 };
+    const s = app.bodyTipPlace({ ...base, x: 140, y: 200, avoid: [sel] });
+    assert.ok(s.side === 'right' && s.top === 180 && s.arrow === 20, JSON.stringify(s));
+    const a = app.bodyTipPlace({ ...base, x: 187, y: 700, avoid: [sel] });
+    assert.ok(a.side === 'above' && inside(a), JSON.stringify(a));
+    // Rien ne tient (bulle trop haute) : dessous, ramenée dans l'écran
+    const big = app.bodyTipPlace({ ...base, h: 600, x: 187, y: 400 });
+    assert.ok(big.top >= 100 && big.top + 600 <= 754, JSON.stringify(big));
+    // Le doigt n'est jamais sous la bulle
+    for (const x of [20, 140, 187, 250, 360]) for (const y of [110, 400, 740]) {
+      const p = app.bodyTipPlace({ ...base, x, y });
+      assert.ok(!(x > p.left && x < p.left + 180 && y > p.top && y < p.top + 90) || p.top + 90 > 754 - 1, `doigt couvert ${x},${y} ${JSON.stringify(p)}`);
+    }
+  });
+
+  test('bulle muscle : places préférées de l\'écran, sauf si elles couvrent un muscle coloré', () => {
+    const base = { w: 180, h: 90, vw: 375, minTop: 100, maxBottom: 754, x: 140, y: 300 };
+    // Muscle coloré : rectangle 100..280 × 250..450 (le torse) ; coût = surface couverte
+    const torso = { left: 100, right: 280, top: 250, bottom: 450 };
+    const cost = r => Math.max(0, Math.min(r.right, torso.right) - Math.max(r.left, torso.left)) * Math.max(0, Math.min(r.bottom, torso.bottom) - Math.max(r.top, torso.top));
+    const under = { left: 50, top: 470 }, outer = { left: 8, top: 120 };
+    // Place préférée libre : prise, sans flèche si loin du doigt
+    const p1 = app.bodyTipPlace({ ...base, spots: [under, outer], cost });
+    assert.ok(p1.left === 50 && p1.top === 470 && p1.side === 'free', JSON.stringify(p1));
+    sameJSON(app.bodyTipPlace({ ...base, spots: [outer, under], cost }).top, 120, 'ordre de l\'écran respecté');
+    // Place préférée sur le torse : écartée au profit d'une place libre
+    const p2 = app.bodyTipPlace({ ...base, spots: [{ left: 100, top: 300 }], cost });
+    assert.ok(cost({ left: p2.left, top: p2.top, right: p2.left + 180, bottom: p2.top + 90 }) <= 0.02 * 180 * 90, `presque rien couvert ${JSON.stringify(p2)}`);
+    // Tout couvre le torse : la place qui en couvre le moins
+    const all = () => 1000;
+    const p3 = app.bodyTipPlace({ ...base, cost: all });
+    assert.ok(p3.side === 'right', 'à coût égal, l\'ordre de préférence');
+  });
+
+  test('bulle muscle : mise en valeur du muscle touché, calque de sa vue en masque', () => {
+    const html = app.bodyTipMarkHtml('female', 'back', 'lats');
+    assert.ok(html.includes('class="body-map__hl" data-muscle="lats"') && html.includes('aria-hidden="true"'));
+    assert.ok(html.includes('mask-image:url(img/body/female/back/lats.webp)') && html.includes('background-color:#FFFFFF'));
+    assert.ok(app.bodyTipMarkHtml('male', 'front', 'chest', 'red"><b>').includes('red&quot;&gt;&lt;b&gt;'), 'couleur échappée');
+    assert.equal(app.bodyTipMarkHtml('male', 'front', 'glutes'), '', 'muscle absent de la vue : rien');
+    assert.equal(app.bodyTipMarkHtml('male', 'front', '"><b>'), '', 'identifiant inconnu : rien');
+  });
+
+  test('carte : toucher activé sur demande, muscles secondaires dans leur teinte', () => {
+    const html = app.bodyMapHtml({ chest: 1, triceps: 0.8 }, { secondary: ['triceps'], tap: true });
+    assert.ok(html.includes('data-action="body-tap"'));
+    assert.ok(/body-map__m body-map__m--sec" data-muscle="triceps"/.test(html));
+    assert.ok(/class="body-map__m" data-muscle="chest"/.test(html));
+    assert.ok(!app.bodyMapHtml({}).includes('data-action'), 'sans tap : carte inerte (premier lancement)');
   });
 
   // Contexte vm (localStorage) : lu à l'appel, après reset()

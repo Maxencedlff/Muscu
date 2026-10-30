@@ -277,6 +277,8 @@ function sanitizeData(d) {
   if (d.unit !== 'kg' && d.unit !== 'lbs') d.unit = 'kg';
   // Silhouette des muscles (bodySilhouette) : absente = homme ; valeur inconnue retirée
   if (d.silhouette !== undefined && d.silhouette !== 'female' && d.silhouette !== 'male') delete d.silhouette;
+  // Niveau du premier lancement (trainingLevel) : valeur inconnue retirée
+  if (d.level !== undefined && !TRAINING_LEVELS.includes(d.level)) delete d.level;
   // Dernier compte connecté sur l'appareil (cleanLastAccount) : retiré s'il est illisible
   if (d.lastAccount !== undefined) { const a = cleanLastAccount(d.lastAccount); if (a) d.lastAccount = a; else delete d.lastAccount; }
   if (!Array.isArray(d.history)) d.history = [];
@@ -560,6 +562,10 @@ function releaseTimer(entry) {
   if (!p?.timers || p.timers[entry.category] !== entry.date) return;
   p.timers[entry.category] = latestSessionDate(entryProg(entry), entry.category);
 }
+
+// Niveaux possibles du premier lancement (data.level, trainingLevel) : déclarés avant le chargement
+// ci-dessous, qui les vérifie (sanitizeData)
+const TRAINING_LEVELS = ['debutant', 'confirme'];
 
 // Donnée illisible : l'app démarre sur une donnée vide sans rien écrire, puis affiche l'écran de secours
 let loadError = null;

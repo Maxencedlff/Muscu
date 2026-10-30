@@ -127,6 +127,10 @@ function historyTotals(now = Date.now()) {
 const SILHOUETTES = [['female', 'Femme'], ['male', 'Homme']];
 function bodySilhouette() { return data?.silhouette === 'female' ? 'female' : 'male'; }
 
+// Niveau répondu au premier lancement (js/features/onboarding.js) : 'debutant', 'confirme' ou null (inconnu).
+// Ne sert qu'au repère de séries de la bulle des muscles (muscleTarget). Valeurs : TRAINING_LEVELS (store.js)
+function trainingLevel() { return TRAINING_LEVELS.includes(data?.level) ? data.level : null; }
+
 // ── Unités ──────────────────────────────────────────────────
 // Les charges sont toujours stockées en kg (chaîne) ; l'affichage suit data.unit.
 const KG_TO_LBS = 2.20462;

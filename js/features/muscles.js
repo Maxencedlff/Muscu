@@ -4,9 +4,11 @@
 'use strict';
 
 let muscleSpan = 'week';   // période de Progrès : 'week' | 'month' (MUSCLE_SPANS)
+let muscleFocus = null;    // muscle mis en avant dans « Séries par muscle » (ouvert depuis la bulle)
 
-// Intensités d'un exercice pour la mini-silhouette : principaux pleins, secondaires atténués
-const SECONDARY_INTENSITY = 0.4;
+// Intensités d'un exercice pour la silhouette de la fiche : principaux pleins, secondaires presque
+// pleins mais d'une autre teinte (--body-heat-sec), pour rester lisibles et distincts
+const SECONDARY_INTENSITY = 0.8;
 function exerciseIntensity(m) {
   const lv = {};
   m.secondary.forEach(id => { lv[id] = SECONDARY_INTENSITY; });
@@ -18,7 +20,7 @@ function exerciseIntensity(m) {
 
 // « Pectoraux » (principal, teinté) puis « Triceps » (secondaire, gris)
 function musclePillsHtml(m) {
-  const pill = (id, main) => `<li class="mpill ${main ? 'mpill--main' : ''}">${muscleLabel(id)}</li>`;
+  const pill = (id, main) => `<li class="mpill ${main ? 'mpill--main' : 'mpill--sec'}">${muscleLabel(id)}</li>`;
   return `<ul class="mpills" aria-label="Muscles ciblés">${m.primary.map(id => pill(id, true)).join('')}${m.secondary.map(id => pill(id, false)).join('')}</ul>`;
 }
 
@@ -28,7 +30,7 @@ function exMusclesSubHtml(ex, cls = 'cell__sub') {
   return line ? `<span class="${cls} ex-muscles">${line}</span>` : '';
 }
 
-// Mini-silhouette et pastilles d'un exercice (Programme › Exercice, Progrès › Exercice)
+// Silhouette et pastilles d'un exercice (Programme › Exercice, Progrès › Exercice)
 function exMusclesPanelHtml(m) {
   if (!m.primary.length) {
     return `<div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Muscles non reconnus</span>
@@ -36,7 +38,7 @@ function exMusclesPanelHtml(m) {
   }
   return `
     <div class="cell mpanel">
-      ${bodyMapSvg(exerciseIntensity(m), { className: 'mpanel__map' })}
+      ${bodyMapHtml(exerciseIntensity(m), { className: 'mpanel__map', secondary: m.secondary, tap: true })}
       <div class="cell__body">${musclePillsHtml(m)}</div>
     </div>`;
 }
@@ -44,7 +46,7 @@ function exMusclesPanelHtml(m) {
 // ── Muscles vérifiés de la bibliothèque : modifier, rétablir ─
 
 // Exercice de la bibliothèque : muscles vérifiés par défaut, modifiables après confirmation, rétablis d'un toucher
-const VERIFIED_MUSCLES_FOOT = 'Muscles vérifiés de la bibliothèque : principaux en couleur pleine, secondaires atténués.';
+const VERIFIED_MUSCLES_FOOT = 'Muscles vérifiés de la bibliothèque : principaux en orange, secondaires en jaune.';
 const MODIFIED_MUSCLES_FOOT = 'Muscles modifiés par toi : ils remplacent ceux de la bibliothèque dans Progrès et la récupération.';
 const RESET_MUSCLES_LABEL = 'Rétablir les muscles par défaut';
 
@@ -206,7 +208,6 @@ function askMusclesToCheck(name, after = () => render()) {
 
 // ── Progrès : carte « Muscles » ─────────────────────────────
 
-const LEVEL_WORDS = ['non travaillé', 'peu travaillé', 'travaillé', 'bien travaillé'];
 
 function spanSegmentedHtml() {
   return `<div class="segmented seg-full" role="group" aria-label="Période">
@@ -214,13 +215,17 @@ function spanSegmentedHtml() {
   </div>`;
 }
 
-// Légende : un échantillon par palier, bornes en séries par semaine
-function muscleLegendHtml() {
-  const from = MUSCLE_LEVEL_FROM;
-  const labels = ['0', ...from.map((f, i) => i + 1 < from.length ? `${i ? f : 1}–${from[i + 1] - 1}` : `${f}+`)];
+// Pastille de couleur d'un palier (légende, bulle) : la teinte de la carte, la plus forte pour le dernier
+function muscleLevelDot(lvl) {
+  return `<i class="mlegend__dot${lvl >= MUSCLE_LEVEL_MAX ? ' mlegend__dot--peak' : ''}" style="--o:${bodyHeatOpacity(lvl / MUSCLE_LEVEL_MAX)}"></i>`;
+}
+function levelWord(lvl) { return MUSCLE_LEVEL_WORDS[lvl].toLowerCase(); }
+
+// Légende : chaque palier en mots, avec ses bornes ; en « 4 semaines », la couleur suit la moyenne par semaine
+function muscleLegendHtml(span = muscleSpan) {
   return `<div class="mlegend" aria-hidden="true">
-    ${labels.map((l, lvl) => `<span class="mlegend__item"><i class="mlegend__dot" style="--o:${bodyHeatOpacity(lvl / MUSCLE_LEVEL_MAX)}"></i>${l}</span>`).join('')}
-    <span class="mlegend__unit">séries / semaine</span>
+    ${MUSCLE_LEVEL_WORDS.map((w, lvl) => `<span class="mlegend__item">${muscleLevelDot(lvl)}${w}${lvl ? ` <span class="mlegend__n num">${muscleLevelRange(lvl)}</span>` : ''}</span>`).join('')}
+    <span class="mlegend__unit">${span === 'month' ? 'séries en moyenne par semaine' : 'séries par semaine'}</span>
   </div>`;
 }
 
@@ -230,7 +235,7 @@ function setsTxt(n) { return plural(roundSets(n), 'série', 'séries'); }
 // par la couleur existe aussi en texte)
 function muscleSrListHtml(load) {
   return `<ul class="visually-hidden">${MUSCLES.map(({ id, label }) =>
-    `<li>${label} : ${setsTxt(load.sets[id])}, ${LEVEL_WORDS[load.levels[id]]}</li>`).join('')}</ul>`;
+    `<li>${label} : ${setsTxt(load.sets[id])}, ${levelWord(load.levels[id])}</li>`).join('')}</ul>`;
 }
 
 function periodTxt(span = muscleSpan) { return span === 'month' ? 'ces 4 dernières semaines' : 'cette semaine'; }
@@ -249,7 +254,7 @@ function renderMuscleCard() {
     <div class="group mcard">
       <div class="mcard__top">
         ${spanSegmentedHtml()}
-        ${bodyMapSvg(load.intensity, { className: 'mcard__map', captions: true })}
+        ${bodyMapHtml(load.intensity, { className: 'mcard__map', captions: true, peak: true, tap: true })}
         ${muscleLegendHtml()}
         ${muscleSrListHtml(load)}
       </div>
@@ -271,11 +276,11 @@ function renderStatsMuscles() {
   const rows = MUSCLES.slice().sort((a, b) => load.sets[b.id] - load.sets[a.id]).map(({ id, label }) => {
     const pct = Math.round(load.sets[id] / max * 100);
     return `
-      <div class="cell mrow">
+      <div class="cell mrow${id === muscleFocus ? ' mrow--focus' : ''}" data-muscle="${id}">
         <span class="cell__body">
           <span class="mrow__top"><span class="cell__title">${label}</span><span class="cell__value num">${roundSets(load.sets[id])}</span></span>
-          <span class="mrow__bar" aria-hidden="true"><i style="width:${pct}%;--o:${bodyHeatOpacity(load.intensity[id]) || 0}"></i></span>
-          <span class="visually-hidden">${setsTxt(load.sets[id])}, ${LEVEL_WORDS[load.levels[id]]}</span>
+          <span class="mrow__bar" aria-hidden="true"><i${load.levels[id] >= MUSCLE_LEVEL_MAX ? ' class="is-peak"' : ''} style="width:${pct}%;--o:${bodyHeatOpacity(load.intensity[id]) || 0}"></i></span>
+          <span class="visually-hidden">${setsTxt(load.sets[id])}, ${levelWord(load.levels[id])}</span>
         </span>
       </div>`;
   }).join('');
@@ -286,7 +291,7 @@ function renderStatsMuscles() {
         <div class="mdetail__seg">${spanSegmentedHtml()}</div>
         <div class="group-title">Séries ${periodTxt(load.span)}</div>
         <div class="group">${rows}</div>
-        <div class="group-foot">Une série compte entière pour les muscles principaux d'un exercice et pour moitié pour ses muscles secondaires. Repère : une dizaine de séries par semaine et par muscle.</div>
+        <div class="group-foot">Une série compte entière pour les muscles principaux d'un exercice et pour moitié pour ses muscles secondaires. Repère : 10 séries par semaine et par muscle ; jusqu'à 20, les gains continuent, plus lentement.</div>
       </div>
     </div>`;
 }
@@ -333,7 +338,12 @@ registerActions({
     if (!MUSCLE_SPANS[el.dataset.span] || el.dataset.span === muscleSpan) return;
     muscleSpan = el.dataset.span; render();
   },
-  'go-stats-muscles': () => { navigate('stats-muscles'); },
+  // Depuis la bulle d'un muscle (js/features/muscle-tip.js) : sa ligne mise en avant et amenée à l'écran
+  'go-stats-muscles': (e, el) => {
+    muscleFocus = isMuscleId(el.dataset.muscle) ? el.dataset.muscle : null;
+    navigate('stats-muscles');
+    if (muscleFocus) requestAnimationFrame(() => $(`.stats-muscles .mrow[data-muscle="${muscleFocus}"]`)?.scrollIntoView({ block: 'center' }));
+  },
   'go-muscles-unknown': () => { navigate('muscles-unknown'); },
   'pick-ex-muscles': () => pickExMuscles(),
   // Programme › Exercice : brouillon seulement, enregistré par OK (Annuler le défait)

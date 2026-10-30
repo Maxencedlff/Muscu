@@ -12,11 +12,30 @@ const MUSCLE_SPANS = {
 };
 
 
-// Séries par semaine qui ouvrent chaque palier de couleur (1 : entretien, 2 : travaillé,
-// 3 : 10 séries et plus). Repère des 10 séries hebdomadaires par muscle : méta-analyse
-// dose-réponse de Schoenfeld, Ogborn et Krieger (J Sports Sci, 2017).
-const MUSCLE_LEVEL_FROM = [0, 4, 10];
+// Séries par semaine qui ouvrent chaque palier de couleur : 1 à 4 entretien, 5 à 9 travaillé,
+// 10 à 19 objectif atteint, 20 et plus gros volume (0 : pas travaillé). Sources :
+// - Schoenfeld, Ogborn et Krieger (J Sports Sci, 2017), méta-analyse dose-réponse : 10 séries
+//   hebdomadaires et plus par muscle donnent plus d'hypertrophie que moins de 10 (le repère « objectif ») ;
+// - Pelland et al. (SportRxiv, 2024), méta-régression sur 67 études : l'hypertrophie continue de croître
+//   avec le nombre de séries, à rendement décroissant, sans plafond net à 10 (d'où un palier au-delà).
+// Les paliers sont les mêmes pour tous ; seul le repère de la bulle suit le niveau (muscleTarget).
+const MUSCLE_LEVEL_FROM = [0, 5, 10, 20];
 const MUSCLE_LEVEL_MAX  = MUSCLE_LEVEL_FROM.length;
+// Nom de chaque palier (légende, bulle, VoiceOver), du palier 0 au palier MUSCLE_LEVEL_MAX
+const MUSCLE_LEVEL_WORDS = ['Pas travaillé', 'Entretien', 'Travaillé', 'Objectif atteint', 'Gros volume'];
+
+// Bornes d'un palier en séries par semaine, pour la légende : « 0 », « 1–4 », « 5–9 », « 10–19 », « 20+ »
+function muscleLevelRange(lvl) {
+  const from = MUSCLE_LEVEL_FROM;
+  if (lvl <= 0) return '0';
+  if (lvl >= from.length) return `${from.at(-1)}+`;
+  return `${lvl === 1 ? 1 : from[lvl - 1]}–${from[lvl] - 1}`;
+}
+
+// Repère de séries par semaine annoncé par la bulle : 10 pour qui débute (premier lancement), sinon 10 à 20
+function muscleTarget(level = trainingLevel()) {
+  return level === 'debutant' ? '10 par semaine' : '10 à 20 par semaine';
+}
 
 // Une série compte entière pour les muscles principaux de l'exercice, pour moitié pour les secondaires
 const SECONDARY_WEIGHT = 0.5;
@@ -50,15 +69,16 @@ function muscleLevel(perWeek) {
 }
 
 // Charge de la période qui se termine à `now`, par muscle : séries de la période (sets), séries par
-// semaine, palier et intensité 0..1 (celle que reçoit bodyMapSvg) ; muscles peu travaillés
-// (palier ≤ 1, hors petits groupes), du moins au plus travaillé.
+// semaine, palier et intensité 0..1 (celle que reçoit bodyMapHtml) ; muscles peu travaillés
+// (palier ≤ 1, hors petits groupes), du moins au plus travaillé. Le palier se calcule sur le nombre de
+// séries affiché (demi-séries arrondies, roundSets) : la couleur ne contredit jamais le chiffre lu.
 function muscleLoad(spanKey = 'week', now = Date.now(), history = data.history) {
   const span = MUSCLE_SPANS[spanKey] || MUSCLE_SPANS.week;
   const from = span.calendar ? weekStart(now) : now - span.days * 86_400_000;
   const { counts, sessions } = muscleSetCounts(history, from, now + 1);
   const perWeek = {}, levels = {}, intensity = {};
   MUSCLES.forEach(({ id }) => {
-    perWeek[id]   = counts[id] / span.weeks;
+    perWeek[id]   = roundSets(counts[id]) / span.weeks;
     levels[id]    = muscleLevel(perWeek[id]);
     intensity[id] = levels[id] / MUSCLE_LEVEL_MAX;
   });
