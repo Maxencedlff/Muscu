@@ -111,8 +111,9 @@ begin
   if (st ->> 'badge')::int is distinct from 1 then raise 'badge : %', st; end if;
   if st -> 'pending_in' -> 0 ->> 'user_id' is distinct from pg_temp.u('a')::text or st -> 'pending_in' -> 0 ->> 'username' is distinct from 'alice.s1'
      or st -> 'pending_in' -> 0 ->> 'since' is null then raise 'pending_in : %', st; end if;
+  -- activity_new et shown_sessions : ajoutées par 20261031200000_reactions_profil.sql
   if (select array_agg(k order by k) from jsonb_object_keys(st) k)
-     is distinct from array['avatar', 'badge', 'blocked', 'enabled', 'followers', 'following', 'pending_in', 'requested', 'username'] then raise 'clés de social_state : %', st; end if;
+     is distinct from array['activity_new', 'avatar', 'badge', 'blocked', 'enabled', 'followers', 'following', 'pending_in', 'requested', 'shown_sessions', 'username'] then raise 'clés de social_state : %', st; end if;
   perform public.respond_follow(pg_temp.u('a'), true);
   st := public.social_state();
   if (st ->> 'badge')::int is distinct from 0 or jsonb_array_length(st -> 'followers') is distinct from 1 then raise 'après acceptation : %', st; end if;
