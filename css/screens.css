@@ -141,6 +141,10 @@
 }
 .tile__val { font-size: min(22px, 5vw); line-height: 1.647rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile__lbl { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); }
+.tile__delta { font-size: 0.765rem; line-height: 0.941rem; font-weight: 600; color: var(--label2); white-space: nowrap; }
+.tile__delta--up { color: var(--green-text); }
+/* Quatre cases (séance d'un élève, d'un ami) : 2 × 2 partout (sur une rangée, « 45 min » est coupé dès 412 px) */
+.tiles--4 { grid-template-columns: repeat(2, 1fr); }
 
 /* ── Historique ── */
 .hist-tools { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 0; }

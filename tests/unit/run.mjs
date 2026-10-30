@@ -37,6 +37,7 @@ const SCRIPTS = [
   'js/data/muscles.js',
   'js/data/exercise-catalogue.js',
   'js/data/measures.js',
+  'js/data/session-review.js',
   'js/data/health-workouts.js',
   'js/data/effort-clock.js',
   'js/data/exercise-moves.js',
@@ -1428,6 +1429,8 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──
 (await import('./coach.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Relecture de la séance d'un autre : volume, écarts, records, douleur (tests dans review.mjs) ──
+(await import('./review.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Guide de l'app : contenus et libellés (tests dans guide.mjs) ──
 (await import('./guide.mjs')).default({ test, run, assert, ROOT });
 // ── Premier lancement : questions et programme conseillé (tests dans onboarding.mjs) ──

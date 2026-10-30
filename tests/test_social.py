@@ -8,6 +8,7 @@ ne sort. Captures : $PPL_SCRATCH/shots/lotsocial/ (chaque nouvel écran, clair e
 Lancer : PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_social.py (ou run_all.py social).
 """
 import json
+import time
 import os
 import sys
 
@@ -263,6 +264,12 @@ def t_fil(bench, eng, dev, theme):
         page.wait_for_selector('.social-session-view')
         d = page.inner_text('.social-session-view')
         R.check('80 kg × 8 · 7' in d and 'Dips' in d and 'note privée' not in d, f'{t} détail des séries ({d[:120]!r})')
+        # Volume : charge notée × reps, poids du corps non compté (Dips, Pompes) ; ni flèches ni notes
+        vol = page.locator('.social-session-view .tile').first.inner_text()
+        R.check('1,6 t' in vol and 'volume' in vol, f'{t} volume de la séance d\'un ami : 1 560 kg, soit 1,6 t ({vol!r})')
+        R.check(page.locator('.social-session-view .review-trend, .social-session-view .review-notes').count() == 0, f'{t} séance d\'un ami : ni flèches ni notes')
+        R.check(any(c.get('only_user') == ids['lea'] for c in calls(page, 'feed')), f'{t} séances visibles de l\'ami chargées pour les records')
+        R.check(page.locator('.social-session-view .review-rec').count() == 0, f'{t} plus de 20 séances visibles : aucun record annoncé sur une partie seulement')
         R.check(page.locator('[data-action="social-report"][data-ref]').count() == 1, f'{t} « Signaler cette séance »')
         layout(page, t, 'séance d\'un ami')
         shot(page, LOT, f'5-seance-ami-{t}')
@@ -273,6 +280,35 @@ def t_fil(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(page.locator('.tabbar__badge').count() == 0 and page.locator('[data-action="social-accept"]').count() == 0, f'{t} demande acceptée : badge retiré')
         R.check(page.evaluate("__sb.so.follows.some(f => f.followee === __sb.meId() && f.status === 'accepted')"), f'{t} tom abonné')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_record_ami(bench, eng, dev, theme):
+    """Séance d'un ami : volume (sans poids du corps, même avec le mien connu) et un record nommé."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, enable=True)
+        page.evaluate('data.bodyWeightKg = 90; save()')   # mon poids : ne doit jamais compter dans le volume d'un ami
+        now = int(time.time() * 1000)
+        legs = lambda i, d, w: {'id': i, 'date': now - d * DAY, 'duration': 2400_000, 'programme': 'ppl', 'category': 'legs', 'label': 'Legs',
+                                'exercises': [{'name': 'Squat haltère', 'sets': [{'weight': w, 'reps': '12'}] * 4},
+                                              {'name': 'Squat poids du corps', 'sets': [{'weight': '', 'reps': '12'}] * 3}]}
+        sam = page.evaluate("""(s) => { const sam = __sb.addPerson({ username: 'sam', avatar: '🐻', sessions: s }); __sb.follow(__sb.meId(), sam, 'accepted'); return sam; }""",
+                            [legs('s1', 1, '22.5'), legs('s2', 5, '20')])
+        page.evaluate('socialRefresh()')
+        page.wait_for_timeout(300)
+        friends_tab(page)
+        page.wait_for_selector('.feed-card[data-id="s1"]')
+        page.locator('.feed-card[data-id="s1"] .feed-card__main').click()
+        page.wait_for_selector('.social-session-view .review-rec')
+        d = page.inner_text('.social-session-view')
+        R.check(page.locator('.social-session-view .tile').first.inner_text().startswith('1,1 t'), f'{t} volume sans poids du corps : 1 080 kg, soit 1,1 t ({d[:200]!r})')
+        rec = page.inner_text('.social-session-view .review-rec')
+        R.check(page.locator('.social-session-view .review-rec').count() == 1 and 'Squat haltère' in rec and 'Record charge' in rec and '22,5 kg × 12' in rec and 'avant' not in rec, f'{t} un record nommé, sans ancienne valeur ({rec!r})')
+        R.check(page.locator('.social-session-view .review-trend').count() == 0, f'{t} aucune flèche')
+        layout(page, t, 'séance d\'un ami avec record')
+        shot(page, LOT, f'5b-seance-ami-record-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -555,4 +591,4 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_tabbar_sans_compte, t_activation, t_fil, t_profil, t_gerer, t_masquer, t_bilan_visible, t_hors_ligne])
+run_main(R, [t_tabbar_sans_compte, t_activation, t_fil, t_record_ami, t_profil, t_gerer, t_masquer, t_bilan_visible, t_hors_ligne])
