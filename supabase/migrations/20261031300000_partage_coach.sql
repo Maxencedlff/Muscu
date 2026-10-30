@@ -153,6 +153,9 @@ declare
   me uuid := (select auth.uid());
   n int;
 begin
+  -- Un envoi à la fois par élève (deux appareils, ou un cochage et une pesée saisie en même temps) :
+  -- le second attend que le premier soit validé, puis remplace sa liste (jamais de clé en double, 23505)
+  if me is not null then perform pg_advisory_xact_lock(hashtextextended('coach_share_weights:' || me::text, 0)); end if;
   if me is null or not exists (select 1 from public.coach_shares c where c.student_id = me and c.kind = 'weight') then
     raise exception 'not_shared' using errcode = 'P0001';
   end if;
