@@ -101,6 +101,9 @@ def layout(page, t, name):
 
 
 def long_press(page, locator, ms=650):
+    # Au centre de l'écran d'abord : sur un petit écran (iPhone SE), le bouton peut être sous la barre d'onglets
+    locator.evaluate("e => e.scrollIntoView({ block: 'center' })")
+    page.wait_for_timeout(100)
     box = locator.bounding_box()
     page.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
     page.mouse.down()
