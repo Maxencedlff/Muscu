@@ -489,7 +489,37 @@ def t_service_worker(bench):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-TESTS = [t_migration, t_session_pr, t_fix_typo, t_bounds, t_rename, t_import_bad,
+def t_migration_cardio_words(bench, eng, dev, theme):
+    """Schéma 5 → 6 : un exercice perso sans mesure dont le nom ne contient que les mots de cardio appris le 29/10
+    (« Montées d'escaliers lestées », 20 kg × 12) reste en répétitions : historique, programme, persisté, affiché."""
+    t = tag(dev, theme)
+    now = int(time.time() * 1000)
+    d = ppl_v2_today(now_ms=now)
+    d['schema'] = 5
+    d['programmes']['ppl']['exercises']['legs'].append({'id': 'l9esc', 'name': 'Montées d\'escaliers lestées', 'sets': 3})
+    d['history'].insert(0, {'id': 'hesc', 'programme': 'ppl', 'category': 'legs', 'date': now - DAY, 'duration': 40 * 60_000, 'notes': '',
+                            'exercises': [{'exId': 'l9esc', 'name': 'Montées d\'escaliers lestées', 'sets': [{'weight': '20', 'reps': '12'}]},
+                                          {'exId': 'n:stepper', 'name': 'Stepper', 'sets': [{'weight': '', 'reps': '15'}]}]})
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, json.dumps(d, ensure_ascii=False, separators=(',', ':')))
+        info = page.evaluate("""() => { const h = data.history.find(x => x.id === 'hesc'); return {
+            schema: data.schema, hist: h.exercises.map(e => e.measure || null), vol: exVolume(h.exercises[0]),
+            prog: data.programmes.ppl.exercises.legs.find(e => e.id === 'l9esc').measure || null,
+            txt: measureSetTxt(h.exercises[0].sets[0], measureOf(h.exercises[0])) }; }""")
+        R.check(info['schema'] == 6 and info['hist'] == ['reps', None], f'{t} mots de cardio : historique en répétitions, stepper inchangé ({info["hist"]})')
+        R.check(info['prog'] == 'reps', f'{t} mots de cardio : exercice du programme en répétitions')
+        R.check(info['vol'] == 240 and info['txt'].replace('\u202f', ' ') == '20 kg × 12', f'{t} mots de cardio : volume et texte gardés ({info["vol"]}, {info["txt"]!r})')
+        stored = json.loads(ls(page, 'ppl_v2'))
+        R.check(stored['schema'] == 6 and [e.get('measure') for e in next(h for h in stored['history'] if h['id'] == 'hesc')['exercises']] == ['reps', None],
+                f'{t} mots de cardio : measure reps persistée')
+        page.evaluate("navigate(makeRoute('history-detail', 'hesc'))")
+        page.wait_for_selector('.history-detail')
+        detail = page.inner_text('.history-detail').replace('\u202f', ' ').replace('\u00a0', ' ')
+        R.check('20 kg × 12' in detail and '12 min' not in detail, f'{t} mots de cardio : détail « 20 kg × 12 », jamais « 12 min »')
+        R.check(not page.errors, f'{t} mots de cardio : aucune erreur JS {page.errors}')
+
+
+TESTS = [t_migration, t_migration_cardio_words, t_session_pr, t_fix_typo, t_bounds, t_rename, t_import_bad,
          t_storage_full, t_old_session, t_rest_drift, t_rescue, t_custom_delete]
 
 if __name__ == '__main__':
