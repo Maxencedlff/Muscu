@@ -69,8 +69,8 @@ function importPreviewHtml() {
         <li class="sheet-list__row imp-row">
           <button class="imp__switch" data-action="imp-warmups" role="switch" aria-checked="${imp.keepWarmups}">
             <span class="imp-row__body"><span class="imp-row__name">Garder les séries d'échauffement</span>
-              <span class="imp-row__sub">${plural(plan.warmups, 'série', 'séries')} · elles compteraient dans le volume</span></span>
-            <span class="switch ${imp.keepWarmups ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>
+              <span class="imp-row__sub">${plural(plan.warmups, 'série', 'séries')} · marquées échauffement, hors volume et records</span></span>
+            ${switchHtml(imp.keepWarmups)}
           </button>
         </li>
       </ul>` : ''}
