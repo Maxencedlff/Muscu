@@ -80,8 +80,9 @@ function measureSetTxt(s, measure, kind = 'charge') {
 // sinon série par série (« 30 × 10 · 32,5 × 8 ») ; durée ou cardio série par série (measureSetTxt).
 // kind : setKind() de l'exercice. unitEach : unité à chaque série quand la charge change
 // (« 30 kg × 10 · 32,5 kg × 8 », image partagée) ; l'historique (setsLine, échappé) s'en passe.
+// Séries de travail seulement ; l'échauffement a sa ligne (warmupText).
 function setsText(sets, measure = 'reps', kind = 'charge', { unitEach = false } = {}) {
-  const ok = (sets || []).filter(s => String(s.reps ?? '') !== '');
+  const ok = workSets(sets).filter(s => String(s.reps ?? '') !== '');
   if (!ok.length) return '—';
   if (measure !== 'reps') return ok.map(s => measureSetTxt(s, measure, kind)).join(' · ');
   const ws = ok.map(s => parseFloat(s.weight) || 0);
@@ -89,6 +90,11 @@ function setsText(sets, measure = 'reps', kind = 'charge', { unitEach = false } 
   if (ws.every(w => w === ws[0])) return `${fmtW(ok[0].weight)} ${unitLbl()} × ${ok.map(s => s.reps).join(' · ')}`;
   const unit = unitEach ? ` ${unitLbl()}` : '';
   return ok.map(s => `${parseFloat(s.weight) > 0 ? fmtW(s.weight) + unit + ' × ' : ''}${s.reps}`).join(' · ');
+}
+// Séries d'échauffement d'un exercice (js/data/warmup.js) : « Échauffement 20 kg × 8 · 30 kg × 5 », '' sans
+function warmupText(sets) {
+  const ws = (sets || []).filter(isWarmupSet).filter(s => String(s.reps ?? '') !== '');
+  return ws.length ? `Échauffement ${ws.map(s => measureSetTxt(s, 'reps')).join(' · ')}` : '';
 }
 // « 45 s », « 1 min 30 »
 function fmtSeconds(sec) {

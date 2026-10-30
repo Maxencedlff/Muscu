@@ -139,7 +139,6 @@ function friendsBodyHtml(st = friendsState()) {
 function activationHtml() {
   const name = account.profile?.username;
   const ready = !!name && socialAgeOk;
-  const tog = on => `<span class="switch ${on ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>`;
   return `
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
@@ -154,7 +153,7 @@ function activationHtml() {
           </button>
           <button class="cell" data-action="social-age" role="switch" aria-checked="${socialAgeOk}">
             <span class="cell__body"><span class="cell__title">J'ai 15 ans ou plus</span></span>
-            ${tog(socialAgeOk)}
+            ${switchHtml(socialAgeOk)}
           </button>
         </div>
         <div class="group-foot">${name ? 'Tes amis te trouvent avec ce pseudo.' : 'Il faut un pseudo pour que tes amis te trouvent.'} Tes notes, ton poids et tes données Santé ne sont jamais montrés. <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>

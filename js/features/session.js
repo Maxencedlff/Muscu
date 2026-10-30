@@ -20,12 +20,14 @@ function plannedSet(src, prev) {
   };
 }
 
-// Séries d'un exercice pré-remplies série par série avec la dernière séance (sinon la dernière série faite)
+// Séries d'un exercice pré-remplies série par série avec la dernière séance (sinon la dernière série faite).
+// Les séries d'échauffement de la dernière fois ne comptent pas (js/data/warmup.js) : la 1re série de
+// travail se compare à la 1re série de travail
 function buildSets(progKey, cat, exLike, n, fallback = {}) {
-  const prevEx = lastPerf(progKey, cat, exLike)?.ex;
+  const prevSets = workSets(lastPerf(progKey, cat, exLike)?.ex.sets);
   return Array.from({ length: n }, (_, i) => {
-    const src = prevEx?.sets[i] ?? prevEx?.sets.at(-1) ?? { weight: fallback.lastWeight || '', reps: fallback.lastReps || '' };
-    return plannedSet(src, prevEx?.sets[i]);
+    const src = prevSets[i] ?? prevSets.at(-1) ?? { weight: fallback.lastWeight || '', reps: fallback.lastReps || '' };
+    return plannedSet(src, prevSets[i]);
   });
 }
 
@@ -131,8 +133,9 @@ function nextSetText() {
 // Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette
 function bumpReady(ex) {
   if (ex.bumped || ex.sets.every(s => s.done) || measureOf(ex) !== 'reps' || isAssisted(ex)) return false;
-  const prevs = ex.sets.map(s => s.prev).filter(Boolean);
-  if (!prevs.length || prevs.length < Math.min(ex.sets.length, 2)) return false;
+  const work  = workSets(ex.sets);
+  const prevs = work.map(s => s.prev).filter(Boolean);
+  if (!prevs.length || prevs.length < Math.min(work.length, 2)) return false;
   const repMax = sessExData(ex)?.repMax ?? 12;
   return prevs.every(p => (parseInt(p.reps) || 0) >= repMax && (parseFloat(p.weight) || 0) > 0);
 }
@@ -141,10 +144,11 @@ function bumpReady(ex) {
 function doneSummary(ex) {
   const m = measureOf(ex);
   if (m !== 'reps') return ex.sets.map(s => measureSetTxt(s, m, setKind(ex))).join(' · ');
-  const reps = ex.sets.map(s => String(s.reps));
+  const work = workSets(ex.sets);   // l'échauffement ne se résume pas
+  const reps = work.map(s => String(s.reps));
   const same = reps.every(r => r === reps[0]);
-  const maxW = Math.max(0, ...ex.sets.map(s => parseFloat(s.weight) || 0));
-  return `${ex.sets.length} × ${same ? reps[0] : reps.join('/')}${maxW ? ` · ${fmtW(maxW, { plain: true })} ${unitLbl()}` : ''}`;
+  const maxW = Math.max(0, ...work.map(s => parseFloat(s.weight) || 0));
+  return `${work.length} × ${same ? reps[0] : reps.join('/')}${maxW ? ` · ${fmtW(maxW, { plain: true })} ${unitLbl()}` : ''}`;
 }
 
 // ── Rendu de la séance ───────────────────────────────────────
@@ -196,8 +200,8 @@ function renderCollapsedExercise(ex, ei, records) {
 // Seule une hausse s'affiche, en gris tant que l'exercice n'est pas fini, en vert ensuite.
 function exVolumeHtml(ex, allDone) {
   if (measureOf(ex) !== 'reps') return '';
-  const prevSets = lastPerf(activeSession.programme, activeSession.category, ex)?.ex.sets || [];
-  const doneSets = ex.sets.filter(s => s.done);
+  const prevSets = workSets(lastPerf(activeSession.programme, activeSession.category, ex)?.ex.sets);
+  const doneSets = workSets(ex.sets).filter(s => s.done);
   const curVol   = exVolume(ex, doneSets, currentBodyKg());
   const prevVol  = exVolume(ex, prevSets.slice(0, doneSets.length), currentBodyKg());
   const delta    = curVol - prevVol;
@@ -227,7 +231,8 @@ function renderExerciseCard(ex, ei, cur) {
 
   const howTo = !allDone && hasHowTo(ex);
   const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${bumpLabel()}">↑ ${bumpLabel()}</button>` : '';
-  const rows = ex.sets.map((s, si) => renderSetRow(ex, ei, s, si, cur)).join('');
+  // Séries d'échauffement (js/data/warmup.js) : en tête, sous un titre gris
+  const rows = ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${renderSetRow(ex, ei, s, si, cur)}`).join('');
 
   return `
     <div class="exercise-block ex-card ${allDone ? 'ex-card--done' : ''}" data-ei="${ei}">
@@ -335,19 +340,24 @@ function renderGroupCard(members, cur, tags) {
 // (même place que le badge de record, qui ne concerne que les répétitions)
 function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const m      = measureOf(ex), M = MEASURES[m];
-  const record = m === 'reps' ? recordLabel(s, (activeSession.baseline || {})[ex.exId], ex) : '';
+  const warm   = isWarmupSet(s);
+  const record = m === 'reps' && !warm ? recordLabel(s, (activeSession.baseline || {})[ex.exId], ex) : '';
   const first  = setFirstValue(s, m);
   const kind   = m === 'cardio' ? 'charge' : m === 'time' ? 'lest' : loadKind(ex);
   const load   = first ? `${{ charge: '', lest: 'plus ', aide: 'aide de ' }[kind]}${first} ${m === 'cardio' ? 'kilomètres' : data.unit === 'lbs' ? 'livres' : 'kilos'}, ` : '';
   const pk     = m === 'cardio' ? paceKind(ex) : null;
   const pace   = pk ? cardioPace(s.dist, setMinutes(s), pk) : null;
   const mach   = m === 'cardio' ? machineTxt(s.machine) : '';
+  // RIR (js/data/rir.js) : sélecteur sous la dernière série validée, badge « RIR 2 » sur les autres
+  const last   = activeSession.lastDone?.ei === ei && activeSession.lastDone?.si === si;
+  const rir    = m === 'reps' && !warm ? (last && rirShown() ? rirPickerHtml(ei, si, s, ex) : rirBadgeHtml(s)) : '';
+  const rirSpoken = cleanRir(s.rir) !== null ? `, ${rirTxt(s.rir)} en réserve` : '';
   return `
       <div class="set-swipe">
         ${del}
-        <div class="session-set session-set--done" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"
-             aria-label="Série ${si + 1} validée, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
-          ${setNumHtml(si, tag)}
+        <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"
+             aria-label="${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
+          ${setNumHtml(ex, si, tag)}
           <span class="set-prev num">${prev}</span>
           <span class="set-val num">${first || '—'}</span>
           <span class="set-val num">${esc(s.reps)}</span>
@@ -355,7 +365,35 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
           ${record ? `<span class="set-badge"><span class="pr-badge">${record}</span></span>` : ''}
           ${pace || mach ? `<span class="set-badge">${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
         </div>
+        ${rir}
       </div>`;
+}
+
+// « Série 2 », « Échauffement 1 » (VoiceOver, toasts) : les séries d'échauffement ont leur propre compte ;
+// setRefName : la même chose avec son article (« la série 2 », « l'échauffement 1 »)
+function setSpokenName(ex, si) {
+  const s = ex.sets[si];
+  return isWarmupSet(s) ? `Échauffement ${ex.sets.slice(0, si + 1).filter(isWarmupSet).length}` : `Série ${setDisplayNo(ex.sets, si)}`;
+}
+function setRefName(ex, si) {
+  const n = setSpokenName(ex, si);
+  return isWarmupSet(ex.sets[si]) ? `l'${n.toLowerCase()}` : `la ${n.toLowerCase()}`;
+}
+
+// Sélecteur RIR d'une série validée : 0 à 4+, l'équivalent RPE à côté du choix ; un nouveau toucher sur le
+// même bouton efface. Facultatif : rien n'attend ce choix. Placé sous la ligne, hors de son bouton « Modifier »
+// (pas de boutons imbriqués dans un rôle bouton)
+function rirPickerHtml(ei, si, s, ex) {
+  const r = cleanRir(s.rir);
+  return `<div class="rir" role="group" aria-label="Répétitions en réserve, ${setSpokenName(ex, si)}">
+            <span class="rir__lbl">RIR</span>
+            ${RIR_CHOICES.map(c => `<button class="rir__btn num" data-action="set-rir" data-ei="${ei}" data-si="${si}" data-rir="${c}" aria-pressed="${r === c}" aria-label="${rirTxt(c)} en réserve, RPE ${rirToRpe(c)}">${rirTxt(c)}</button>`).join('')}
+            <span class="rir__rpe num" aria-live="polite">${r === null ? '' : `RPE ${rirToRpe(r)}`}</span>
+          </div>`;
+}
+function rirBadgeHtml(s) {
+  const r = cleanRir(s.rir);
+  return r === null ? '' : `<span class="set-badge"><span class="rir-badge num">RIR ${rirTxt(r)}</span></span>`;
 }
 
 // En-tête de la colonne de charge : kg (barre, haltères), +kg (lest ajouté au poids du corps, comme
@@ -384,9 +422,20 @@ function setFirstValue(s, m) {
   return hasLoad(s?.weight) ? fmtW(s.weight, { plain: true }) : '';
 }
 
-// Première colonne : numéro de la série, ou A1, A2… dans un superset (affiché tour par tour)
-function setNumHtml(si, tag) {
-  return tag ? `<span class="set-n"><span class="ss-tag">${tag}</span></span>` : `<span class="set-n num">${si + 1}</span>`;
+// Première colonne : numéro de la série de travail (l'échauffement, « É », ne décale pas la numérotation),
+// ou A1, A2… dans un superset (affiché tour par tour)
+function setNumHtml(ex, si, tag) {
+  if (tag) return `<span class="set-n"><span class="ss-tag">${tag}</span></span>`;
+  if (isWarmupSet(ex.sets[si])) return `<span class="set-n set-n--warm" aria-hidden="true">É</span>`;
+  return `<span class="set-n num">${setDisplayNo(ex.sets, si)}</span>`;
+}
+
+// Disques (js/data/plates.js) : sur la série à faire d'un exercice à barre, le numéro laisse place à un
+// bouton qui ouvre la feuille « Disques » pour la charge de la série (ou celle de la dernière fois)
+function setPlatesHtml(ex, ei, s, si) {
+  const kg = s.weight !== '' ? s.weight : s.prev?.weight;
+  const load = kg !== '' && kg != null ? `${fmtW(kg, { plain: true })} ${unitLbl()}` : '';
+  return `<button class="set-n set-plates" data-action="open-plates" data-ei="${ei}" data-si="${si}" aria-label="Disques à charger${load ? ` pour ${load}` : ''}, ${setSpokenName(ex, si)}, ${esc(ex.name)}">${icon('dumbbell', 18)}</button>`;
 }
 
 // ▶ de la série à faire : chrono d'un maintien, série guidée au tempo, ou chrono d'une machine de cardio
@@ -419,26 +468,32 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
   const rAttr = editing ? 'id="editSetReps"'   : `data-action="set-reps" data-ei="${ei}" data-si="${si}"`;
   const first = ex.sets.findIndex(x => !x.done);
   const waitFor = !editing && first >= 0 && first < si ? first : -1;
+  const name  = setSpokenName(ex, si), ref = setRefName(ex, si), warm = isWarmupSet(s);
   const check = editing
-    ? `<button class="set-check-zone" data-action="save-edit-set" aria-label="Enregistrer la série ${si + 1}, ${esc(ex.name)}"><span class="set-check set-check--edit">${icon('checkmark', 18)}</span></button>`
+    ? `<button class="set-check-zone" data-action="save-edit-set" aria-label="Enregistrer ${ref}, ${esc(ex.name)}"><span class="set-check set-check--edit">${icon('checkmark', 18)}</span></button>`
     : waitFor >= 0
       // Une série plus haut n'est pas faite : on valide dans l'ordre (le ✓ grisé le rappelle au toucher)
-      ? `<button class="set-check-zone set-check-zone--wait" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-disabled="true" aria-label="Série ${si + 1}, ${esc(ex.name)} : valide d'abord la série ${waitFor + 1}"><span class="set-check"></span></button>`
-      : `<button class="set-check-zone" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-label="Valider la série ${si + 1}, ${esc(ex.name)}"><span class="set-check"></span></button>`;
+      ? `<button class="set-check-zone set-check-zone--wait" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-disabled="true" aria-label="${name}, ${esc(ex.name)} : valide d'abord ${setRefName(ex, waitFor)}"><span class="set-check"></span></button>`
+      : `<button class="set-check-zone" data-action="validate-set" data-ei="${ei}" data-si="${si}" aria-label="Valider ${ref}, ${esc(ex.name)}"><span class="set-check"></span></button>`;
+  // Première colonne de la série à faire : ▶ (chrono, tempo, machine), sinon « Disques » sur une barre, sinon le numéro
+  const isNext = !editing && si === first;
+  const play   = isNext && (m === 'time' || (m === 'reps' && parseTempo(ex.tempo) && ex.tempoGuide === true) || hasMachineClock(ex));
+  const firstCol = play ? setPlayHtml(ex, ei, s, si) : isNext && !tag && isBarbellExercise(ex) ? setPlatesHtml(ex, ei, s, si) : setNumHtml(ex, si, tag);
+  // Série validée rouverte : le RIR se corrige là aussi (js/data/rir.js)
+  const rir = editing && m === 'reps' && !warm && rirShown() ? rirPickerHtml(ei, si, s, ex) : '';
   return `
     <div class="set-swipe">
       ${editing ? '' : del}
-      <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
-        ${(m === 'time' || (m === 'reps' && parseTempo(ex.tempo) && ex.tempoGuide === true) || hasMachineClock(ex)) && !editing && si === ex.sets.findIndex(x => !x.done)
-          ? setPlayHtml(ex, ei, s, si)
-          : setNumHtml(si, tag)}
+      <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''} ${warm ? 'session-set--warmup' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
+        ${firstCol}
         <span class="set-prev num">${s.prev ? '<span class="visually-hidden">La dernière fois </span>' : ''}${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
-               value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${loadSpoken(ex)} série ${si + 1}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
+               value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${loadSpoken(ex)} ${name.toLowerCase()}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
-               value="${esc(rVal)}" placeholder="${esc(setGoal(ex, s))}" aria-label="${countSpoken(ex)} série ${si + 1}, ${esc(ex.name)}">
+               value="${esc(rVal)}" placeholder="${esc(setGoal(ex, s))}" aria-label="${countSpoken(ex)} ${name.toLowerCase()}, ${esc(ex.name)}">
         ${check}
       </div>
+      ${rir}
     </div>`;
 }
 
@@ -475,15 +530,17 @@ function validateSet(ei, si, opts = {}) {
   s.reps = String(parseInt(s.reps));
 
   s.done = true;
-  const prevLastEi = activeSession.lastEi;
+  const prevLastEi = activeSession.lastEi, prevLastDone = activeSession.lastDone ?? null;
   const sameAgain  = prevLastEi === ei;   // même exercice deux fois de suite : fait seul
   activeSession.lastEi = ei;
+  activeSession.lastDone = { ei, si };    // le sélecteur RIR se montre sous cette série (js/data/rir.js)
   editingSet = null;
   haptic();
   afterPaint(validationSound);   // la coche verte d'abord : le son natif active la session audio d'iOS (bloquant)
 
   const undo = carryWeightToNextSet(ex, si);
   undo.prevLastEi = prevLastEi;   // « Annuler » puis revalider : le superset enchaîne comme la 1re fois
+  undo.prevLastDone = prevLastDone;
   if (opts.prevReps !== undefined) undo.prevReps = opts.prevReps;
   else if (goalTaken) undo.prevReps = '';
   if ('prevDist' in opts) undo.prevDist = opts.prevDist;
@@ -501,16 +558,17 @@ function validateSet(ei, si, opts = {}) {
   document.activeElement?.blur?.();
   render();
   scrollToCurrent();
-  showToast(chain ? `Enchaîne : ${xs[chain.ei].name}` : `Série ${si + 1} validée`, { action: 'Annuler', duration: 4000, onAction: () => undoValidate(undo) });
+  showToast(chain ? `Enchaîne : ${xs[chain.ei].name}` : `${setSpokenName(ex, si)} validé${isWarmupSet(s) ? '' : 'e'}`, { action: 'Annuler', duration: 4000, onAction: () => undoValidate(undo) });
 }
 
 // La série suivante garde sa valeur prévue, sauf si la charge vient d'être modifiée.
 // Renvoie de quoi annuler la validation (série validée et charge d'origine de la suivante).
+// Une série d'échauffement ne transmet rien : sa charge n'est pas celle du travail.
 function carryWeightToNextSet(ex, si) {
   const s       = ex.sets[si];
   const nextSet = ex.sets[si + 1];
   const undo    = { s, next: null, nextW: null, nextR: null };
-  if (!nextSet || nextSet.done) return undo;
+  if (!nextSet || nextSet.done || isWarmupSet(s)) return undo;
   undo.next = nextSet; undo.nextW = nextSet.weight; undo.nextR = nextSet.reps;
   if ((parseFloat(s.weight) || 0) !== (parseFloat(s.plannedWeight) || 0)) nextSet.weight = s.weight;
   // Reps : reprises seulement si rien n'était prévu (premier essai d'un exercice), jamais un objectif écrasé
@@ -523,6 +581,7 @@ function undoValidate(u) {
   if (!activeSession || !u.s.done) return;
   u.s.done = false;
   if (u.prevLastEi !== undefined) activeSession.lastEi = u.prevLastEi;
+  if (u.prevLastDone !== undefined) activeSession.lastDone = u.prevLastDone;
   if (u.prevReps !== undefined) u.s.reps = u.prevReps;   // chrono ou case vide : la valeur d'avant revient
   // Chrono d'une machine : km et réglages notés d'avant (absents : retirés), comme si rien n'avait été enregistré
   if ('prevDist' in u) { if (u.prevDist == null) delete u.s.dist; else u.s.dist = u.prevDist; }
@@ -595,7 +654,7 @@ registerActions({
     // Séries validées dans l'ordre : une série plus haut reste à faire, on y ramène
     const first = ex ? ex.sets.findIndex(x => !x.done) : -1;
     if (s && !s.done && first >= 0 && first < si) {
-      showToast(`Valide d'abord la série ${first + 1}`);
+      showToast(`Valide d'abord ${setRefName(ex, first)}`);
       document.querySelector(`.session-set[data-ei="${ei}"][data-si="${first}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return;
     }
@@ -626,8 +685,21 @@ registerActions({
     if (ex.sets.length === 1) { closeSwipes(); showToast('Dernière série : retire l\'exercice avec ⋯'); return; }
     if (activeSession.effort?.ei === ei) cancelEffort();   // les positions des séries changent
     ex.sets.splice(si, 1);
+    activeSession.lastDone = null;
     editingSet = null;
     haptic();
+    persistSession();
+    render();
+  },
+  // RIR d'une série validée (js/data/rir.js) : un toucher note, le même toucher efface
+  'set-rir': (e, el) => {
+    const s = activeSession?.exercises[parseInt(el.dataset.ei)]?.sets[parseInt(el.dataset.si)];
+    if (!s) return;
+    const r = cleanRir(el.dataset.rir);
+    if (r === null) return;
+    if (s.rir === r) delete s.rir; else s.rir = r;
+    haptic();
+    persistSession();
     render();
   },
   'add-set': (e, el) => {
@@ -663,7 +735,7 @@ registerActions({
     if (!ex) return;
     const step = data.unit === 'lbs' ? 5 : 2.5;
     ex.sets.forEach(s => {
-      if (s.done) return;
+      if (s.done || isWarmupSet(s)) return;   // l'échauffement garde ses paliers
       const cur = toUnitW(s.weight || s.prev?.weight) || 0;
       s.weight = storeW(String(Math.round((cur + step) * 100) / 100));
       s.plannedWeight = s.weight;

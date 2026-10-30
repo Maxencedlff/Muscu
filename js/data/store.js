@@ -30,7 +30,7 @@ function recomputePRFromHistory(d = data) {
           // ce calcul tourne au chargement, avant js/data/measures.js
           if (!exData || histEx.measure === 'time' || histEx.measure === 'cardio') return;
           if (/assist/i.test(histEx.name) && /machine/i.test(histEx.name)) return;   // aide : pas de record de charge
-          (histEx.sets || []).forEach(s => {
+          workSets(histEx.sets).forEach(s => {   // échauffement (js/data/warmup.js) : ni record ni dernière série
             const w  = parseFloat(s.weight) || 0;
             const r  = parseInt(s.reps)     || 0;
             exData.lastWeight = s.weight;
@@ -86,9 +86,10 @@ function resolveFreeExId(name, d = data) {
   return past ? past.exId : nameKey(name);
 }
 
-// Volume (kg) : Σ charge × reps d'une liste de séries, puis d'une liste d'exercices
+// Volume (kg) : Σ charge × reps d'une liste de séries, puis d'une liste d'exercices.
+// Les séries d'échauffement (warmup: true, js/data/warmup.js) n'en font jamais partie.
 function setsVolume(sets) {
-  return (sets || []).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0);
+  return workSets(sets).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0);
 }
 // Volume d'un exercice : seulement en répétitions (un lest × des secondes n'est pas un tonnage).
 // Au poids du corps, la charge effective compte (poids × part soulevée ± lest) : bodyKg est le poids
@@ -96,7 +97,7 @@ function setsVolume(sets) {
 function exVolume(ex, sets = ex?.sets, bodyKg = null) {
   if (measureOf(ex) !== 'reps') return 0;
   if (!bodyShare(ex)) return setsVolume(sets);
-  return (sets || []).reduce((a, s) => a + effectiveLoad(s, ex, bodyKg) * (parseInt(s.reps) || 0), 0);
+  return workSets(sets).reduce((a, s) => a + effectiveLoad(s, ex, bodyKg) * (parseInt(s.reps) || 0), 0);
 }
 function sessionVolume(exercises, bodyKg = null) {
   return exercises.reduce((total, ex) => total + exVolume(ex, ex.sets, bodyKg), 0);
@@ -132,6 +133,7 @@ function makeDefaultData() {
     bodyWeightKg: null, // app iOS : poids de secours pour les calories
     musicOn: false,    // app iOS : Apple Music
     exEquip: 'all',    // feuille d'ajout d'exercice : filtre de matériel (id d'EQUIPMENT ou 'all')
+    rirOn: true,       // sélecteur RIR après chaque série validée (js/data/rir.js) ; data.plates (barre et disques, js/data/plates.js) absent = jeu standard
     onboarded: false,  // questions du premier lancement répondues (ou « Plus tard ») : js/features/onboarding.js
     healthKgPurged: true, // migration des pesées de Santé (normalizeData) : rien à faire sur une donnée neuve
     history: [],
@@ -278,6 +280,8 @@ function sanitizeData(d) {
   // Objectif de séances par semaine (accueil) : absent = nombre de séances du programme
   if (d.weeklyGoal != null) { const g = num(d.weeklyGoal, 1, 7, true); if (g === null) delete d.weeklyGoal; else d.weeklyGoal = g; }
   if (d.unit !== 'kg' && d.unit !== 'lbs') d.unit = 'kg';
+  // Barre et disques de la personne (js/data/plates.js) : réglage retiré s'il n'en reste rien de valable
+  if (d.plates !== undefined) { const p = cleanPlates(d.plates); if (p) d.plates = p; else delete d.plates; }
   // Silhouette des muscles (bodySilhouette) : absente = homme ; valeur inconnue retirée
   if (d.silhouette !== undefined && d.silhouette !== 'female' && d.silhouette !== 'male') delete d.silhouette;
   // Niveau du premier lancement (trainingLevel) : valeur inconnue retirée
@@ -455,6 +459,9 @@ function cleanHistoryEntry(h) {
       if (st.dist != null) { const km = num(st.dist, 0, 500); if (km === null || km === 0) delete st.dist; else st.dist = String(km); }
       // Réglage d'une machine noté au chrono (js/data/machine-track.js, chargé avant ce fichier)
       if (st.machine !== undefined) { const m = cleanMachine(st.machine); if (m) st.machine = m; else delete st.machine; }
+      // Échauffement (js/data/warmup.js) : true ou absent ; RIR (js/data/rir.js) : entier 0 à 4 ou absent
+      if (st.warmup !== undefined && st.warmup !== true) delete st.warmup;
+      if (st.rir !== undefined) { const r = cleanRir(st.rir); if (r === null) delete st.rir; else st.rir = r; }
     });
     // Charge aberrante (ex. 1e308) : série écartée plutôt que comptée en tonnes
     ex.sets = ex.sets.filter(st => st.weight === '' || num(st.weight, 0, MAX_LOAD_KG) !== null);
@@ -477,6 +484,7 @@ function normalizeData(d, rawJson = null) {
   // Poids de secours (kg) pour estimer les calories quand Santé n'a aucune pesée
   d.bodyWeightKg = Number.isFinite(d.bodyWeightKg) && d.bodyWeightKg >= 25 && d.bodyWeightKg <= 300 ? d.bodyWeightKg : null;
   d.musicOn  = d.musicOn === true;    // app iOS : Apple Music (désactivé par défaut)
+  d.rirOn    = d.rirOn !== false;     // sélecteur RIR montré, sauf refus explicite
   // Liste écrite en dur : muscles.js (EQUIPMENT) est chargé après ce fichier ; concordance vérifiée par les tests
   if (!EQUIP_IDS.includes(d.exEquip)) d.exEquip = 'all';
   d.onboarded = d.onboarded === true;

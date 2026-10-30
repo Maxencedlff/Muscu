@@ -24,6 +24,9 @@ const SCRIPTS = [
   'js/data/tempo.js',
   'js/data/supersets.js',
   'js/data/machine-track.js',
+  'js/data/plates.js',
+  'js/data/warmup.js',
+  'js/data/rir.js',
   'js/data/store.js',
   'js/data/records.js',
   'js/data/accessors.js',
@@ -60,6 +63,7 @@ const SCRIPTS = [
   'js/features/share-canvas.js',
   'js/features/dashboard.js',
   'js/features/session-sheets.js',
+  'js/features/session-tools.js',
   'js/features/summary.js',
   'js/features/settings.js',
   'js/features/progress.js',
@@ -1460,6 +1464,8 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 (await import('./dates.mjs')).default({ test, run, reset, assert, app });
 // ── Séances et exercices : programme, clés, volume, tempo (tests dans entries.mjs) ──
 (await import('./entries.mjs')).default({ test, run, reset, assert, app, sameJSON });
+// ── Outils de la séance (lot 2) : disques, échauffement, RIR et leurs exclusions (tests dans seance-outils.mjs) ──
+(await import('./seance-outils.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Exécution ───────────────────────────────────────────────
 

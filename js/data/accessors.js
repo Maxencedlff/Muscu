@@ -203,7 +203,7 @@ function textOnColor(color) {
 function bestSet(sets, ex = null) {
   let best = null, bestKey = null;
   const sign = ex && isAssisted(ex) ? -1 : 1;
-  (sets || []).forEach(s => {
+  workSets(sets).forEach(s => {   // jamais une série d'échauffement (js/data/warmup.js)
     const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
     if (r <= 0) return;
     const key = sign * w;

@@ -56,6 +56,11 @@ ${renderAccountGroup()}
             </div>
           </div>
           ${renderBodyWeightSetting()}
+          <button class="cell" data-action="setting-rir" role="switch" aria-checked="${rirShown()}">
+            <span class="cell__body"><span class="cell__title">RIR après chaque série</span>
+              <span class="cell__sub">Reps en réserve, facultatif (RIR 0 = RPE 10)</span></span>
+            ${switchHtml(rirShown())}
+          </button>
         </div>
 
         <div class="group-title">Sons et vibrations</div>
@@ -244,6 +249,9 @@ registerActions({
   },
   'setting-vibrate': () => {
     data.vibrateOn = !data.vibrateOn; save(); render();
+  },
+  'setting-rir': () => {
+    data.rirOn = !rirShown(); save(); render();
   },
   'setting-rest': async () => {
     const v = await askNumber({ title: 'Repos par défaut', message: 'Durée entre deux séries, en secondes.', value: data.defaultRest, unit: 's', min: 10, max: 600 });

@@ -8,7 +8,8 @@
 'use strict';
 
 // ── Volume ──────────────────────────────────────────────────
-// Règle affichée au coach : charge notée × reps (exVolume, js/data/store.js), échauffement compris.
+// Règle affichée au coach : charge notée × reps (exVolume, js/data/store.js). Le serveur n'envoyant pas le
+// marquage warmup (docs/SEANCE_OUTILS.md), l'échauffement de l'autre y est compris tant qu'il ne l'enverra pas.
 // Poids du corps inconnu (bodyKg null) : au poids du corps seul le lest compte, une aide compte 0.
 // Le poids de l'autre n'est pas envoyé (liste blanche du serveur) et le nôtre ne doit jamais servir.
 function reviewExVolume(ex) { return exVolume(ex, ex.sets, null); }
@@ -63,7 +64,8 @@ function prevExercise(ex, row, rows) {
   return null;
 }
 // Séries faites : reps notées
-function doneSets(ex) { return (ex?.sets || []).filter(s => (parseInt(s.reps) || 0) > 0); }
+// (le serveur n'envoie pas warmup : chez un autre, l'échauffement compte comme du travail, docs/SEANCE_OUTILS.md)
+function doneSets(ex) { return workSets(ex?.sets).filter(s => (parseInt(s.reps) || 0) > 0); }
 
 // ── Flèche d'un exercice ────────────────────────────────────
 // Comparaison avec la dernière fois : la charge la plus lourde d'abord (machine d'assistance : la plus
