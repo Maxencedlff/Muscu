@@ -252,10 +252,10 @@ const GUIDE_SECTIONS = [
         id: 'cardio', title: 'Course, vélo, rameur', icon: 'flame', color: 'red',
         lead: 'Le cardio se note en distance et en minutes.',
         steps: [
-          'Ajoute-le comme un autre exercice : [Course à pied], [Vélo], [Rameur], [Vélo elliptique], [Corde à sauter], [Marche rapide]…',
+          'Ajoute-le comme un autre exercice : [Course à pied], [Vélo], [Rameur], [Escaliers], [Tapis de course], [Corde à sauter]…',
           'Chaque série a deux cases : [km] et [Durée] en minutes.',
-          'L\'allure se calcule seule : en min/km pour la course et la marche, en km/h pour le vélo. Le rameur, l\'elliptique et la corde n\'en ont pas.',
-          'Dans [Progrès], l\'exercice affiche [Durée], [Distance] et [Allure] (ou [Vitesse]), avec ta [Meilleure allure] et ta [Plus longue distance].',
+          'Escaliers, tapis, vélo d\'appartement, elliptique et rameur : ▶ lance un chrono. Note le niveau ou la vitesse avec − et + à chaque changement, puis [Terminer] ouvre le [Bilan].',
+          'L\'allure se calcule seule : min/km pour la course et la marche, km/h pour le vélo, temps aux 500 m pour le rameur. [Progrès] montre ta [Meilleure allure] et ta [Plus longue distance].',
           'Un exercice que tu as créé peut passer en cardio : fiche de l\'exercice › [Mesure] › [Cardio].',
         ],
         related: ['courses-sante', 'recuperation'],
