@@ -55,6 +55,10 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.equal(app.parseLocalDateTime('2026-03-02 07:05:00'), local(2026, 3, 2, 7, 5));
     assert.equal(app.parseLocalDateTime('2026-03-02'), local(2026, 3, 2));
     assert.equal(app.parseLocalDateTime('02/03/2026'), null);
+    const t0 = Date.now();
+    assert.equal(app.parseStrongDuration('1h' + ' '.repeat(50000) + 'x'), null, 'cellule énorme refusée');
+    assert.equal(app.parseHevyDate('6' + ' '.repeat(50000) + 'x'), null);
+    assert.ok(Date.now() - t0 < 200, 'sans retour arrière coûteux');
     assert.equal(app.parseStrongDuration('1h 5m'), 65 * 60000);
     assert.equal(app.parseStrongDuration('45m'), 45 * 60000);
     assert.equal(app.parseStrongDuration('2h'), 120 * 60000);

@@ -94,10 +94,13 @@ const localMs = (y, mo, d, h = 0, mi = 0, s = 0) => {
   const t = new Date(y, mo - 1, d, h, mi, s).getTime();
   return Number.isFinite(t) ? t : null;
 };
+// Date, heure ou durée : 40 caractères au plus (« 2026-09-06T18:00:00.000+02:00 » en fait 29)
+const IMPORT_MAX_DATE_CHARS = 40;
 // Horodatage Hevy : « 6 Sep 2026, 18:00 » (jour, mois dans la langue de l'app, année, heure locale) ;
 // « 6 9月 2026, 18:00 » (mois en chiffres) accepté. null si illisible.
 function parseHevyDate(str) {
   const s = String(str ?? '').trim();
+  if (s.length > IMPORT_MAX_DATE_CHARS) return null;   // cellule hostile : pas de retour arrière sur une chaîne énorme
   let m = s.match(/^(\d{1,2})\.?\s+([^\s\d,]+)\.?\s+(\d{4}),?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?$/u);
   if (m) { const mo = monthToken(m[2]); return mo ? localMs(+m[3], mo, +m[1], +m[4], +m[5], +(m[6] || 0)) : null; }
   m = s.match(/^(\d{1,2})\s+(\d{1,2})月\s+(\d{4}),?\s*(\d{1,2}):(\d{2})$/u);
@@ -111,6 +114,7 @@ function parseHevyDate(str) {
 // Chrome ne lisent pas « 2026-09-06 18:00:00 » de la même façon.
 function parseLocalDateTime(str) {
   const s = String(str ?? '').trim();
+  if (s.length > IMPORT_MAX_DATE_CHARS) return null;   // cellule hostile : pas de retour arrière sur une chaîne énorme
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/);
   if (!m) return null;
   if (m[7]) { const t = Date.parse(s.replace(' ', 'T')); return Number.isFinite(t) ? t : null; }
@@ -120,6 +124,7 @@ function parseLocalDateTime(str) {
 // de secondes (colonnes « Duration (sec) » et « Workout Duration »). null si illisible ou hors bornes.
 function parseStrongDuration(str) {
   const s = String(str ?? '').trim().toLowerCase();
+  if (s.length > IMPORT_MAX_DATE_CHARS) return null;   // cellule hostile : pas de retour arrière sur une chaîne énorme
   if (!s) return null;
   let ms = null, m;
   if (/^\d+(\.\d+)?$/.test(s)) ms = parseFloat(s) * 1000;

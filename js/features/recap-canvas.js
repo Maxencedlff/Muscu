@@ -78,7 +78,6 @@ function recapRows(ctx, p, rows, y, draw, { medal = false } = {}) {
     if (i) { ctx.fillStyle = rgbaCss(p.sep); ctx.fillRect(SIDE + padX, ry, w - 2 * padX, 2); }
     const x = SIDE + padX + (medal ? 56 : 0);
     if (medal) drawMedal(ctx, p, SIDE + padX - 4, ry + (ROW - 44) / 2, 44);
-    ctx.font = storyFont(700, 36, true, p);
     // Records : nom d'exercice à gauche, série à droite ; résumé : libellé court à gauche, valeur (souvent un nom) à droite
     ctx.font = storyFont(600, 30, false, p);
     const valMax = medal ? (w - 2 * padX) * 0.45 : Math.max((w - 2 * padX) * 0.45, w - 2 * padX - ctx.measureText(r.name).width - 32);

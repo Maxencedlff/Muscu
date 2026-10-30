@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Réglages › Données › Importer depuis une autre app (Hevy, Strong)
+//  Réglages › Données › Sauvegarde › Importer depuis une autre app (Hevy, Strong)
 //  Choix du fichier CSV, aperçu (séances, exercices reconnus ou à créer, liens à la main), import.
 //  Logique dans js/data/import-csv.js ; ici seulement l'écran et l'enregistrement.
 // ═══════════════════════════════════════════════════════════
