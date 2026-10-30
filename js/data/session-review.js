@@ -33,6 +33,15 @@ function durationDelta(cur, prev) {
 // « +6 % », « −12 % » (vrai signe moins)
 function fmtPct(pct) { return `${pct > 0 ? '+' : '−'}${Math.abs(pct)} %`; }
 
+// Ce qui précise une série d'un autre (setKind) : jamais le temps aux 500 m du rameur. Chez soi il vient de
+// la durée exacte du chrono (machine.end, js/data/measures.js : setMinutes) ; le serveur n'envoie pas
+// `machine`, et 2 km en « 8 min » entiers donneraient 2:00 au lieu de 1:53. Les allures au km suivent les
+// minutes saisies, comme pour ses propres séances notées à la main.
+function reviewSetKind(ex) {
+  const k = setKind(ex);
+  return k === 'split' ? null : k;
+}
+
 // ── Références : séances d'avant ────────────────────────────
 
 // Séances strictement antérieures à `row` (même instant : départagées par l'id, jamais elle-même), de la plus récente à la plus ancienne

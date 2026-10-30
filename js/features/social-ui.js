@@ -274,7 +274,7 @@ function renderSocialSession(owner, id) {
             <div class="cell hex">
               <span class="cell__body">
                 <span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>
-                <span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), setKind(e))}</span>
+                <span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>
               </span>
             </div>`).join('') || '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}
         </div>

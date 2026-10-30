@@ -705,8 +705,8 @@ function reviewExerciseCell(x, xs, i) {
             <div class="cell hex review-ex">
               <span class="cell__body">
                 <span class="review-ex__line"><span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>${reviewTrendHtml(x.trend)}</span>
-                <span class="review-ex__line"><span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), setKind(e))}</span>${amount ? `<span class="review-ex__vol num">${esc(amount)}</span>` : ''}</span>
-                ${x.prev ? `<span class="review-ex__prev num">préc. ${setsLine(x.prev.ex.sets, x.prev.ex.measure || measureOf(x.prev.ex), setKind(x.prev.ex))} (${esc(fmtDate(x.prev.doneAt, 'short'))})</span>` : ''}
+                <span class="review-ex__line"><span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>${amount ? `<span class="review-ex__vol num">${esc(amount)}</span>` : ''}</span>
+                ${x.prev ? `<span class="review-ex__prev num">préc. ${setsLine(x.prev.ex.sets, x.prev.ex.measure || measureOf(x.prev.ex), reviewSetKind(x.prev.ex))} (${esc(fmtDate(x.prev.doneAt, 'short'))})</span>` : ''}
               </span>
             </div>`;
 }
@@ -743,7 +743,9 @@ function renderCoachSession(uid, id) {
     reviewTile(plan ? `${plan.done}/${plan.total}` : n, plan ? 'séries prévues' : n > 1 ? 'séries' : 'série'),
     reviewTile(s.exercises.length, s.exercises.length > 1 ? 'exercices' : 'exercice'),
   ].join('');
-  const records = rv.records.length ? `
+  // Records seulement quand toutes ses séances sont chargées (même règle que friendRecord, js/features/social-ui.js) :
+  // sur une page seulement, un « record » pourrait être faux
+  const records = f.end && rv.records.length ? `
         <div class="group-title">${rv.records.length > 1 ? 'Records' : 'Record'}</div>
         <div class="group">${rv.records.map(r => reviewRecordCell(r)).join('')}</div>` : '';
   const missing = (plan?.missing || []).map(name => `
