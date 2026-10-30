@@ -1,5 +1,8 @@
 // Synchronisation du compte (js/data/sync.js) : fusion des séances et du profil, sans réseau
-export default function ({ test, run, assert, sameJSON }) {
+import fs from 'node:fs';
+import path from 'node:path';
+
+export default function ({ test, run, assert, sameJSON, ROOT }) {
   const h = (id, reps, extra = {}) => ({ id, date: 1e12, category: 'push', exercises: [{ name: 'DC', sets: [{ weight: '60', reps }] }], ...extra });
   // Contexte isolé pour chaque test : historique, meta et lignes passés en JSON
   const call = (expr, vars) => run(`(() => { ${Object.entries(vars).map(([k, v]) => `const ${k} = ${JSON.stringify(v)};`).join(' ')} return ${expr}; })()`);
@@ -153,6 +156,25 @@ export default function ({ test, run, assert, sameJSON }) {
     const r = run(`(() => { const d = freshData(); d.weeklyGoal = 3; d.exerciseMuscles = {}; d.exerciseMusclesSecondary = {}; d.lastExport = 1; d.silhouette = 'female';
       return Object.keys(d).filter(k => !SYNC_PROFILE_KEYS.includes(k) && !SYNC_LOCAL_ONLY.includes(k)); })()`);
     sameJSON(r, [], 'clé à ajouter à SYNC_PROFILE_KEYS ou SYNC_LOCAL_ONLY (js/data/sync.js)');
+    // Toutes les clés que le code écrit dans les données (pas seulement celles de freshData) : data.x = …,
+    // data.x ??= …, delete data.x dans js/, et d.x = … dans le nettoyage (store.js, sync.js). « _x » :
+    // anciennes clés techniques, seulement effacées
+    const files = [];
+    const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).forEach(f => {
+      const p = path.join(dir, f.name);
+      if (f.isDirectory()) walk(p); else if (f.name.endsWith('.js')) files.push(p);
+    });
+    walk(path.join(ROOT, 'js'));
+    const keys = new Set();
+    for (const f of files) {
+      const src = fs.readFileSync(f, 'utf8');
+      const obj = /js[\\/]data[\\/](store|sync)\.js$/.test(f) ? '(?:\\bdata|\\bd)' : '\\bdata';
+      for (const m of src.matchAll(new RegExp(`(?:delete\\s+${obj}\\.([A-Za-z_]+))|(?:${obj}\\.([A-Za-z_]+)\\s*(?:=(?!=)|\\?\\?=|\\|\\|=))`, 'g'))) keys.add(m[1] || m[2]);
+    }
+    const written = [...keys].filter(k => !k.startsWith('_'));
+    for (const k of ['bodyMeasures', 'plates', 'recapCardOff', 'rirOn', 'appVersion', 'sessionVisibleDefault']) assert.ok(written.includes(k), `clé ${k} trouvée dans le code`);
+    const unclassified = run(`(${JSON.stringify(written)}).filter(k => !SYNC_PROFILE_KEYS.includes(k) && !SYNC_LOCAL_ONLY.includes(k))`);
+    sameJSON(unclassified, [], 'clé écrite par le code mais ni « compte » ni « appareil »');
     const both = run(`SYNC_PROFILE_KEYS.filter(k => SYNC_LOCAL_ONLY.includes(k))`);
     sameJSON(both, []);
     for (const k of ['bodyWeightKg', 'bodyWeightLog', 'healthOn', 'history']) assert.ok(run(`SYNC_LOCAL_ONLY.includes(${JSON.stringify(k)})`), k);

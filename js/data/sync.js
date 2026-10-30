@@ -36,9 +36,11 @@ const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'c
 // rirOn (sélecteur RIR) et plates (barre et disques de la salle) : préférences d'affichage et de matériel,
 // comme les sons : propres à l'appareil.
 // bodyMeasures : mensurations (js/data/body-measures.js), aussi privées que le poids ; les photos de
-// progression ne sont même pas dans data (IndexedDB, js/data/progress-photos.js)
+// progression ne sont même pas dans data (IndexedDB, js/data/progress-photos.js).
+// recapCardOff (carte « Ta semaine » de l'accueil coupée) : affichage de cet appareil, comme les sons ;
+// sur le compte, son absence (carte rallumée) devrait en plus compter comme un choix (SYNC_ABSENT_IS_CHOICE)
 const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'healthOn', 'musicOn', 'soundOn', 'vibrateOn',
-  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates'];
+  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff'];
 // Clés dont l'absence est un choix fait sur un appareil (objectif « Auto », derniers muscles rétablis) :
 // absentes du compte, elles sont retirées ici aussi. Toutes les versions qui synchronisent les envoient.
 // Les autres clés absentes du compte sont gardées ici : un appareil resté sur une version qui ne les

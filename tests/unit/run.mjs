@@ -1446,7 +1446,7 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 (await import('./body-measures.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Synchronisation du compte (tests dans sync.mjs) ──
-(await import('./sync.mjs')).default({ test, run, assert, sameJSON });
+(await import('./sync.mjs')).default({ test, run, assert, sameJSON, ROOT });
 
 // ── Compte : connexion, pseudo, avatar, identités (tests dans account.mjs) ──
 (await import('./account.mjs')).default({ test, run, assert, sameJSON, nativeContext, ROOT });
