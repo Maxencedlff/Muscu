@@ -524,7 +524,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 /* Bouton « Disques » à la place du numéro de la série à faire (exercice à barre) : 44 px de zone de toucher */
 .set-plates {
   position: relative; width: 32px; height: 32px; justify-self: center; border: 0; border-radius: 50%; cursor: pointer; padding: 0;
-  background: var(--fill); color: var(--tint); display: inline-flex; align-items: center; justify-content: center;
+  background: var(--fill); color: var(--tint-on-fill); display: inline-flex; align-items: center; justify-content: center;
 }
 .set-plates::after { content: ''; position: absolute; inset: -6px; }
 .set-plates:active { opacity: .6; }
