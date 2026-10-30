@@ -67,12 +67,10 @@ obligatoire : valider une série reste un seul toucher sur ✓.
   « Effort » (RPE moyen des séries notées, échelle fixe 6 à 10, sans tendance en %) dès qu'une séance en a,
   et « · RPE 8,5 » dans la liste des séances.
 
-## Ce que le serveur ne transmet pas encore
+## Ce que le serveur transmet (depuis le 31/10/2026)
 
-`private.session_public` (`supabase/migrations/20261026050000_social.sql`, repris par
-`20261027000000_supersets.sql`) ne garde d'une série que `weight`, `reps` et `dist`. Un **coach ou un ami ne
-voit donc ni `warmup` ni `rir`** : chez lui, les séries d'échauffement comptent comme du travail (volume,
-flèches, records de `js/data/session-review.js`) et le RIR est absent. Le serveur n'a pas été modifié dans ce
-lot ; l'ajouter demande une migration qui étend la liste blanche (deux champs scalaires) et un nettoyage côté
-`cleanPublicSession`. Côté app, `session-review.js` applique déjà `workSets` : dès que le serveur enverra
-`warmup`, l'échauffement sera exclu sans autre changement.
+La migration `20261031100000_records_series.sql` étend `private.session_public` (et donc
+`private.session_for_coach`) : chaque série garde `warmup` (`true` seulement) et `rir` (entier 0 à 4), nettoyés
+aussi côté app par `cleanPublicSession`. Chez un ami ou un coach, l'échauffement est donc exclu du volume, des
+séries, des flèches et des records (`workSets`, js/data/session-review.js) ; le coach voit la ligne « RIR » sous
+les séries d'un exercice et la ligne « Échauffement ». Contrat : docs/SOCIAL_V1.md.

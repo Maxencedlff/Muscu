@@ -80,11 +80,6 @@
 .review-ex__vol { flex-shrink: 0; font-size: 0.765rem; color: var(--label2); white-space: nowrap; }
 .review-ex__prev { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; }
 .review-ex--missing .hex__name, .review-ex--missing .review-trend { color: var(--label2); font-weight: 400; }
-.review-rec { gap: 12px; }
-.review-rec .medal { color: var(--yellow); flex-shrink: 0; }
-.review-rec .cell__body { min-width: 0; }
-.review-rec .cell__title { overflow-wrap: anywhere; }
-.review-rec__val { flex-shrink: 0; font-size: var(--fs-subhead); font-weight: 600; white-space: nowrap; }
 .review-rule { margin-top: 8px; }
 
 /* ── Codes d'invitation ── */

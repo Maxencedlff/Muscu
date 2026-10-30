@@ -37,9 +37,15 @@ Hors V1 :
 - **reports** : signalements, écrits uniquement par la fonction Edge `report`.
 
 ## Liste blanche d'une séance vue par un autre (`private.session_public`)
-`{ date, duration, programme, category, label, exercises: [{ name, measure, ss, sets: [{ weight, reps, dist }] }] }`
+`{ date, duration, programme, category, label, records, exercises: [{ name, measure, ss, sets: [{ weight, reps, dist, warmup, rir }] }] }`
 
 `ss` : identifiant du superset de l'exercice (ajouté le 27/10/2026, migration 20261027000000_supersets.sql).
+
+Ajoutés le 31/10/2026 (migration 20261031100000_records_series.sql) :
+- `records` : records battus que l'app a notés dans la séance à son enregistrement (`sessionRecords`, js/data/records.js), revalidés par `private.session_records` : au plus 20 éléments `{ ex, kind, before, after, w?, d? }`, `ex` texte de 80 caractères au plus, `kind` parmi `charge`, `reps`, `lest`, `aide`, `temps`, `duree`, `distance`, `allure`, `before` et `after` nombres de 0 à 100 000, `w` nombre facultatif, `d` distance fixe (0.5, 1, 2, 5 ou 10, obligatoire pour une allure). Tout autre élément ou clé est écarté ; jamais le 1RM estimé. Absent si la séance n'en a pas noté (version d'avant) : l'app les recalcule alors comme avant, seulement quand toutes les séances de la personne sont chargées.
+- par série, `warmup` (`true` seulement) et `rir` (entier 0 à 4) : l'échauffement est exclu du volume et des séries chez l'ami et le coach ; le coach voit le RIR.
+
+Fil : la carte d'une séance qui a des records notés montre le plus marquant (« 🏆 Nouveau record : Squat 100 kg »).
 
 Rien d'autre ne sort : ni `notes`, ni `bodyKg`, ni `healthSaved`, ni `hidden`, ni aucune clé future. Valeurs simples seulement (texte tronqué à 200 caractères, nombre, booléen), 60 exercices et 100 séries au plus.
 

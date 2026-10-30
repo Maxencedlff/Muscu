@@ -639,7 +639,7 @@ def t_recap(bench, eng, dev, theme):
         R.check('+23 %' in tiles[1], f'{t} durée : écart de plus de 20 % dit ({tiles[1]!r})')
         R.check('15' in tiles[2] and '4' in tiles[3], f'{t} séries et exercices ({tiles[2:]!r})')
         recs = page.locator('.coach-session-view .review-rec').all_inner_texts()
-        R.check(len(recs) == 2 and 'Squat haltère' in recs[0] and 'avant 20 kg × 12' in recs[0] and '22,5 kg × 12' in recs[0], f'{t} record de charge nommé avec l\'ancienne valeur ({recs})')
+        R.check(len(recs) == 2 and 'Squat haltère' in recs[0] and 'avant 20 kg' in recs[0] and '22,5 kg' in recs[0], f'{t} record de charge nommé avec l\'ancienne valeur ({recs})')
         R.check(len(recs) == 2 and 'Squat poids du corps' in recs[1] and 'Record reps' in recs[1], f'{t} record de reps au poids du corps ({recs})')
         rows = [x.replace('\u202f', ' ') for x in page.locator('.coach-session-view .review-ex').all_inner_texts()]
         R.check('↑ +2,5 kg' in rows[0] and 'préc. 20 kg × 12 · 12 · 12 · 10' in rows[0] and '1,1 t' in rows[0], f'{t} squat : flèche, volume (1 080 kg), précédent ({rows[0]!r})')
@@ -656,6 +656,37 @@ def t_recap(bench, eng, dev, theme):
         page.click('.coach-sess[data-id="z2"]')
         page.wait_for_selector('.coach-session-view')
         R.check('1re séance Legs' in page.inner_text('.coach-session-view') and page.locator('.review-trend, .review-rec').count() == 0, f'{t} première séance : « 1re séance Legs », ni flèche ni record')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_rir(bench, eng, dev, theme):
+    """Séance d'un élève : RIR noté et échauffement montrés au coach, échauffement hors volume et séries,
+    records notés par l'app de l'élève pris tels quels."""
+    t = tag(dev, theme)
+    now = int(time.time() * 1000)
+    s = [{'id': 'y0', 'date': now - DAY, 'duration': 30 * 60_000, 'programme': 'ppl', 'category': 'legs', 'label': 'Legs',
+          'records': [{'ex': 'Squat haltère', 'kind': 'reps', 'before': 10, 'after': 12, 'w': 20}],
+          'exercises': [{'name': 'Squat haltère', 'sets': [{'weight': '10', 'reps': '8', 'warmup': True}, {'weight': '20', 'reps': '12', 'rir': 2}, {'weight': '20', 'reps': '12'}]}]}]
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, username='max')
+        uid = page.evaluate("""(s) => { const me = __sb.meId(); __sb.makeCoach(me);
+            const id = __sb.addPerson({ username: 'yan', avatar: '🐼', social: false, sessions: s }); __sb.link(me, id); return id; }""", s)
+        page.evaluate('coachRefresh()')
+        page.wait_for_timeout(300)
+        page.evaluate(f"navigate(makeRoute('coach-student', '{uid}'))")
+        page.wait_for_selector('.coach-sess[data-id="y0"]')
+        page.click('.coach-sess[data-id="y0"]')
+        page.wait_for_selector('.coach-session-view .review-rec')
+        d = page.inner_text('.coach-session-view').replace('\u202f', ' ').replace('\u00a0', ' ')
+        R.check('RIR 2 · —' in d, f'{t} RIR noté visible ({d[:400]!r})')
+        R.check('Échauffement 10 kg × 8' in d, f'{t} échauffement à part')
+        tiles = [x.replace('\u202f', ' ') for x in page.locator('.coach-session-view .tile').all_inner_texts()]
+        R.check(tiles[0].startswith('480') and tiles[2].startswith('2'), f'{t} échauffement hors volume et séries ({tiles})')
+        rec = page.inner_text('.coach-session-view .review-rec').replace('\u202f', ' ')
+        R.check('Record reps' in rec and 'avant 20 kg × 10' in rec and '20 kg × 12' in rec, f'{t} record noté ({rec!r})')
+        R.check("sans l'échauffement" in page.inner_text('.review-rule'), f'{t} règle du volume à jour')
+        shot(page, LOT, f'14c-relecture-rir-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -799,4 +830,4 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_eleve, t_coach, t_recap, t_pseudo, t_saisie, t_cache_online, t_hors_ligne])
+run_main(R, [t_eleve, t_coach, t_recap, t_rir, t_pseudo, t_saisie, t_cache_online, t_hors_ligne])

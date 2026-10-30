@@ -1457,6 +1457,8 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──
 (await import('./coach.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Records notés dans la séance : types, règles, nettoyage, textes (tests dans records.mjs) ──
+(await import('./records.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Relecture de la séance d'un autre : volume, écarts, records, douleur (tests dans review.mjs) ──
 (await import('./review.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Guide de l'app : contenus et libellés (tests dans guide.mjs) ──

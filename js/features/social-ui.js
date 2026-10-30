@@ -26,7 +26,7 @@ function personName(p) { return p?.username || 'Compte masqué'; }
 function personAvatar(p, size = 'm') { return avatarHtml(size, p?.avatar, p?.username || '?'); }
 // Couleur d'une séance d'un programme intégré ; séance perso d'un autre : gris neutre
 function publicSessionColor(s) { return PROGRAMMES[s.programme]?.sessions?.[s.category]?.color || 'var(--label3)'; }
-function seriesCount(s) { return s.exercises.reduce((a, e) => a + e.sets.length, 0); }
+function seriesCount(s) { return s.exercises.reduce((a, e) => a + workSets(e.sets).length, 0); }   // sans l'échauffement
 function publicMetaLine(s) {
   const parts = [];
   if (s.duration) parts.push(fmtDuration(s.duration));
@@ -50,6 +50,13 @@ function bravoHtml(row) {
     <span class="bravo__count num">${row.bravos ? plural(row.bravos, 'bravo', 'bravos') : ''}</span>`;
 }
 
+// Record mis en avant sur la carte : le plus marquant de ceux que son app a notés (jamais recalculé ici :
+// le fil ne contient qu'une partie de ses séances). « 🏆 Nouveau record : Squat 100 kg »
+function feedRecordHtml(s) {
+  const r = topNotedRecord(s.records);
+  return r ? `<span class="feed-card__rec"><span aria-hidden="true">🏆 </span>Nouveau record : <span class="num">${esc(notedFeedTxt(r))}</span></span>` : '';
+}
+
 // Carte du fil : qui et quand (vers son profil), la séance (vers le détail des séries), puis Bravo.
 // owner : false sur l'écran du profil (la personne est déjà nommée), la date passe alors sous le nom
 function feedCardHtml(row, { owner = true } = {}) {
@@ -63,6 +70,7 @@ function feedCardHtml(row, { owner = true } = {}) {
         <span class="feed-card__title"><span class="hcell__dot" style="background:${publicSessionColor(s)}" aria-hidden="true"></span><span class="feed-card__label">${esc(s.label)}</span>${owner ? '' : `<span class="feed-card__date">${fmtDate(row.doneAt)}</span>`}</span>
         <span class="feed-card__meta num">${esc(publicMetaLine(s))}</span>
         ${s.exercises.length ? `<span class="feed-card__sum">${esc(feedExercisesLine(s))}</span>` : ''}
+        ${feedRecordHtml(s)}
       </button>
       <div class="feed-card__foot">${bravoHtml(row)}</div>
     </article>`;
@@ -221,25 +229,13 @@ SCREENS.set('friends', { render: () => renderFriends(), enter: () => { friendsEn
 
 // ── Séance d'un ami ─────────────────────────────────────────
 
-// « 22,5 kg × 12 » d'une série, ou « 12 reps · +5 kg » (lest), selon l'exercice
-function reviewSetTxt(set, ex) {
-  return setTxt({ w: parseFloat(set.weight) || 0, r: parseInt(set.reps) || 0, weight: set.weight, reps: set.reps }, ex);
-}
-// Record battu : exercice, type et ancienne valeur (séance d'un élève, js/features/coach-ui.js) ; sans
-// l'ancienne valeur sur la séance d'un ami
-function reviewRecordCell(rec, { before = true } = {}) {
-  return `
-          <div class="cell review-rec">${medalSvg(22)}
-            <span class="cell__body"><span class="cell__title">${esc(rec.ex.name)}</span><span class="cell__sub num">${esc(rec.label)}${before ? ` · avant ${esc(reviewSetTxt(rec.before, rec.ex))}` : ''}</span></span>
-            <span class="review-rec__val num">${esc(reviewSetTxt(rec.s, rec.ex))}</span>
-          </div>`;
-}
 // Record nommé, un seul : encourager, pas relire (ni flèches de baisse, ni notes, que les amis ne reçoivent
-// pas). Seulement quand toutes ses séances visibles sont chargées (fil de son profil complet) : sur une
-// partie seulement, un « record » pourrait être faux. Le poids du corps n'y entre jamais (js/data/session-review.js).
+// pas). Noté par son app : toujours sûr. Séance d'une version d'avant : recalculé, seulement quand toutes ses
+// séances visibles sont chargées (fil de son profil complet) : sur une partie seulement, un « record »
+// pourrait être faux. Le poids du corps n'y entre jamais (js/data/session-review.js).
 function friendRecord(row) {
   const f = socialFeed(row.owner);
-  if (!f.end || !f.loadedAt) return null;
+  if (!reviewRecordsSure(row, f.end && f.loadedAt)) return null;
   return reviewRecords(row, f.rows, 1)[0] || null;
 }
 
@@ -266,7 +262,7 @@ function renderSocialSession(owner, id) {
           <div class="tile"><span class="tile__val num">${n}</span><span class="tile__lbl">${n > 1 ? 'séries' : 'série'}</span></div>
           <div class="tile"><span class="tile__val num">${s.exercises.length}</span><span class="tile__lbl">${s.exercises.length > 1 ? 'exercices' : 'exercice'}</span></div>
         </div>
-        ${rec ? `<div class="group social-session__rec">${reviewRecordCell(rec, { before: false })}</div>` : ''}
+        ${rec ? `<div class="group social-session__rec">${notedRecordCell(rec, { before: false })}</div>` : ''}
         <div class="group-title">Exercices</div>
         <div class="group">
           ${s.exercises.map((e, i, xs) => `
@@ -274,6 +270,7 @@ function renderSocialSession(owner, id) {
               <span class="cell__body">
                 <span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>
                 <span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>
+                ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
               </span>
             </div>`).join('') || '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}
         </div>
@@ -281,7 +278,7 @@ function renderSocialSession(owner, id) {
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="social-report" data-uid="${esc(row.owner)}" data-ref="${esc(row.id)}">Signaler cette séance</button>
         </div>
-        ${vol > 0 ? '<div class="group-foot">Volume = charge notée × reps, poids du corps non compté (lest compris).</div>' : ''}
+        ${vol > 0 ? '<div class="group-foot">Volume = charge notée × reps, sans l\'échauffement, poids du corps non compté (lest compris).</div>' : ''}
       </div>
     </div>`;
 }

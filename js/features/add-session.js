@@ -246,10 +246,11 @@ function storePastSession(exercises) {
   let savedDate = timestamp;
 
   if (!data.history) data.history = [];
+  let entry = null, old = null;
   if (editSessionId) {
     const idx = data.history.findIndex(h => h.id === editSessionId);
     if (idx !== -1) {
-      const old = data.history[idx];
+      old = data.history[idx];
       // Superset et tempo de la séance d'origine : repris par exercice (exId, sinon nom)
       const was = e => (old.exercises || []).find(o => (o.exId && o.exId === e.exId)) || (old.exercises || []).find(o => normName(o.name) === normName(e.name));
       exercises.forEach(e => {
@@ -260,14 +261,22 @@ function storePastSession(exercises) {
       ssNormalize(ssGather(exercises));
       // Même jour : on garde l'heure d'origine
       savedDate = localISO(old.date) === addDate ? old.date : timestamp;
-      data.history[idx] = { ...old, programme: addProg, category: addCat, date: savedDate, notes: addNotes.trim(), exercises };
+      entry = data.history[idx] = { ...old, programme: addProg, category: addCat, date: savedDate, notes: addNotes.trim(), exercises };
     }
   } else {
-    data.history.push({ id: uid(), programme: addProg, category: addCat, date: timestamp, notes: addNotes.trim(), exercises });
+    entry = { id: uid(), programme: addProg, category: addCat, date: timestamp, notes: addNotes.trim(), exercises };
+    data.history.push(entry);
     addNotes = '';
   }
   data.history.sort((a, b) => b.date - a.date);
   editSessionId = null;
+  // Records notés (js/data/records.js) : ceux de cette séance, puis ceux des séances d'après, qui ont pu
+  // en gagner ou en perdre (à l'ancienne place aussi, si la séance a changé de date ou de séance type)
+  if (entry) {
+    entry.records = sessionRecords(entry, data.history);
+    renoteRecords(entry);
+    if (old) renoteRecords(old);
+  }
 
   // Séance libre : aucun programme, donc aucun délai de récupération
   if (addProg === FREE) return;

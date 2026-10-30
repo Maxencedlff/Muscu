@@ -709,6 +709,8 @@ function reviewExerciseCell(x, xs, i) {
               <span class="cell__body">
                 <span class="review-ex__line"><span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>${reviewTrendHtml(x.trend)}</span>
                 <span class="review-ex__line"><span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>${amount ? `<span class="review-ex__vol num">${esc(amount)}</span>` : ''}</span>
+                ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
+                ${rirLine(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(rirLine(e.sets))}</span>` : ''}
                 ${x.prev ? `<span class="review-ex__prev num">préc. ${setsLine(x.prev.ex.sets, x.prev.ex.measure || measureOf(x.prev.ex), reviewSetKind(x.prev.ex))} (${esc(fmtDate(x.prev.doneAt, 'short'))})</span>` : ''}
               </span>
             </div>`;
@@ -721,7 +723,7 @@ function reviewTile(val, lbl, delta = null, up = false) {
 function reviewRuleFoot(rows, complete) {
   const oldest = rows.reduce((m, r) => Math.min(m, r.doneAt), Infinity);
   const scope = complete || !Number.isFinite(oldest) ? 'ses séances reçues' : `ses séances reçues depuis le ${fmtDate(oldest, 'short')}`;
-  return `<div class="group-foot review-rule">Volume = charge notée × reps, échauffement compris, poids du corps non compté (lest compris). Comparaisons avec ${scope}.</div>`;
+  return `<div class="group-foot review-rule">Volume = charge notée × reps, sans l'échauffement, poids du corps non compté (lest compris). Comparaisons avec ${scope}.</div>`;
 }
 
 function renderCoachSession(uid, id) {
@@ -746,11 +748,11 @@ function renderCoachSession(uid, id) {
     reviewTile(plan ? `${plan.done}/${plan.total}` : n, plan ? 'séries prévues' : n > 1 ? 'séries' : 'série'),
     reviewTile(s.exercises.length, s.exercises.length > 1 ? 'exercices' : 'exercice'),
   ].join('');
-  // Records seulement quand toutes ses séances sont chargées (même règle que friendRecord, js/features/social-ui.js) :
-  // sur une page seulement, un « record » pourrait être faux
-  const records = f.end && rv.records.length ? `
+  // Records notés par son app (toujours sûrs) ; séance d'une version d'avant : recalculés, seulement quand
+  // toutes ses séances sont chargées (même règle que friendRecord, js/features/social-ui.js)
+  const records = reviewRecordsSure(row, f.end) && rv.records.length ? `
         <div class="group-title">${rv.records.length > 1 ? 'Records' : 'Record'}</div>
-        <div class="group">${rv.records.map(r => reviewRecordCell(r)).join('')}</div>` : '';
+        <div class="group">${rv.records.map(r => notedRecordCell(r)).join('')}</div>` : '';
   const missing = (plan?.missing || []).map(name => `
             <div class="cell hex review-ex review-ex--missing"><span class="cell__body"><span class="review-ex__line"><span class="hex__name">${esc(name)}</span><span class="review-trend num">pas fait</span></span></span></div>`).join('');
   return `

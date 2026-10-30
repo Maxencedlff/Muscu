@@ -7,8 +7,8 @@
 // Champ de série rir : entier 0 à 4, 4 = « 4 ou plus », absent = non renseigné. Équivalence RPE de l'échelle
 // RIR de Zourdos et al. (J Strength Cond Res, 2016) : RPE 10 = 0 en réserve, 9 = 1, 8 = 2, 7 = 3, 5-6 = 4 à 6.
 // Jamais obligatoire : valider une série reste un seul toucher, le RIR se note après coup (ou pas).
-// Une version précédente de l'app ignore le champ ; le serveur ne l'envoie pas (private.session_public ne
-// garde que weight, reps et dist) : un coach ou un ami ne le voit pas encore (docs/SEANCE_OUTILS.md).
+// Une version précédente de l'app ignore le champ. Le serveur le transmet à un ami ou un coach (private.session_public,
+// migration 20261031100000_records_series.sql) ; seul l'écran du coach l'affiche (js/features/coach-ui.js).
 const RIR_MAX = 4;
 const RIR_CHOICES = [0, 1, 2, 3, 4];
 
