@@ -442,7 +442,7 @@ def t_service_worker(bench):
                 t = tag(dev, theme)
                 with bench.page(eng, dev, theme, service_workers='allow') as page:
                     seed(page, theme, ppl_v2_today_json(), url=url)
-                    page.evaluate("navigator.serviceWorker.ready")
+                    page.evaluate("Promise.race([navigator.serviceWorker.ready, new Promise((_, rej) => setTimeout(() => rej(new Error('service worker jamais prêt (fichier de la liste absent ?)')), 60000))])")  # ready n'a pas de délai : une installation qui échoue figerait le test
                     page.reload(); page.wait_for_selector('.view.dashboard')
                     ctrl = page.evaluate("!!navigator.serviceWorker.controller")
                     R.check(ctrl, f'{t} SW : page contrôlée')
@@ -476,7 +476,7 @@ def t_service_worker(bench):
                 with bench.page(eng, dev, theme, service_workers='allow') as page:
                     # Pendant une séance : pas de bannière
                     seed(page, theme, ppl_v2_today_json(), url=url)
-                    page.evaluate("navigator.serviceWorker.ready")
+                    page.evaluate("Promise.race([navigator.serviceWorker.ready, new Promise((_, rej) => setTimeout(() => rej(new Error('service worker jamais prêt (fichier de la liste absent ?)')), 60000))])")  # ready n'a pas de délai : une installation qui échoue figerait le test
                     page.reload(); page.wait_for_selector('.view.dashboard')
                     start(page)
                     sw = open(os.path.join(tmp, 'sw.js'), encoding='utf-8').read()

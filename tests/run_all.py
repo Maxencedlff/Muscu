@@ -60,11 +60,20 @@ def mem_available_mb():
 
 def run(job):
     f, env, label = job
+    waited = 0
     while mem_available_mb() < 2500:
-        time.sleep(2)
+        time.sleep(2); waited += 2
+        if waited % 60 == 0: print(f'… {label} attend de la mémoire ({mem_available_mb()} Mo libres)', flush=True)
     t = time.time()
-    r = subprocess.run([sys.executable, '-u', f], cwd=here, env={**os.environ, **env},
-                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    # Délai par processus : un test qui se fige (navigateur bloqué sur la CI) devient un échec lisible au
+    # lieu de retenir toute la suite jusqu'au délai du job GitHub (vu le 30/10 : 23 min sans une ligne)
+    try:
+        r = subprocess.run([sys.executable, '-u', f], cwd=here, env={**os.environ, **env},
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                           timeout=int(os.environ.get('PPL_PROC_TIMEOUT', '600')))
+    except subprocess.TimeoutExpired as e:
+        out = (e.stdout.decode() if isinstance(e.stdout, bytes) else e.stdout) or ''
+        return f, label, 124, out + '\n  ÉCHEC : délai de processus dépassé (figé)\n', time.time() - t
     return f, label, r.returncode, r.stdout, time.time() - t
 
 
