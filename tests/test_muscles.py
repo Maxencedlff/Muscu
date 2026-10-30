@@ -498,7 +498,8 @@ def t_tip(bench, eng, dev, theme):
         f, b = (page.locator(f'.mcard__map .body-map__{v}').bounding_box() for v in ('front', 'back'))
         tr = page.locator('.btip').bounding_box()
         gx = (f['x'] + f['width'] + b['x']) / 2
-        gy = next(f['y'] + f['height'] * k for k in (.55, .7, .85, .95, .3)
+        # Écran étroit (Galaxy S9+) : la bulle couvre tout l'entre-deux sous les épaules, le fond entre les têtes reste libre
+        gy = next(f['y'] + f['height'] * k for k in (.55, .7, .85, .95, .3, .2, .12, .06)
                   if not (tr['x'] <= gx <= tr['x'] + tr['width'] and tr['y'] <= f['y'] + f['height'] * k <= tr['y'] + tr['height']))
         page.mouse.click(gx, gy)
         page.wait_for_timeout(300)
