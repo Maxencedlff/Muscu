@@ -278,6 +278,8 @@ function sanitizeData(d) {
   // Objectif de séances par semaine (accueil) : absent = nombre de séances du programme
   if (d.weeklyGoal != null) { const g = num(d.weeklyGoal, 1, 7, true); if (g === null) delete d.weeklyGoal; else d.weeklyGoal = g; }
   if (d.unit !== 'kg' && d.unit !== 'lbs') d.unit = 'kg';
+  // Carte « Ta semaine » de l'accueil coupée (js/features/recap.js) : true ou absent
+  if (d.recapCardOff !== undefined && d.recapCardOff !== true) delete d.recapCardOff;
   // Silhouette des muscles (bodySilhouette) : absente = homme ; valeur inconnue retirée
   if (d.silhouette !== undefined && d.silhouette !== 'female' && d.silhouette !== 'male') delete d.silhouette;
   // Niveau du premier lancement (trainingLevel) : valeur inconnue retirée

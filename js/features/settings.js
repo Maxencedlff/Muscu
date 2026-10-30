@@ -88,6 +88,11 @@ ${renderAppleServicesGroup(tog)}
               <span class="cell__sub">Carte des muscles</span></span>
             ${silhouetteSegmentedHtml()}
           </div>
+          <button class="cell" data-action="setting-recap-card" role="switch" aria-checked="${data.recapCardOff !== true}">
+            <span class="cell__body"><span class="cell__title">Carte « Ta semaine »</span>
+              <span class="cell__sub">Sur l'accueil le dimanche soir et le lundi</span></span>
+            ${tog(data.recapCardOff !== true)}
+          </button>
         </div>
 
 ${renderAppIconGroup()}

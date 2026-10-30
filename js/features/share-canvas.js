@@ -50,6 +50,10 @@ const STORY = {
 // personnage (mise en page en ligne).
 const shareStoryHooks = { muscleMap: null };
 
+// Compte Instagram de l'app, sous le nom dans la signature (« @mdlf.training ») : vide tant que le compte
+// n'existe pas (feuille de route n° 10), la signature garde alors « Suivi de musculation »
+const STORY_INSTAGRAM = '';
+
 // ── Couleurs (logique pure, testée) ─────────────────────────
 
 // « rgb(255, 159, 10) », « rgba(235, 235, 245, 0.6) », « #FF9F0A » → [r, g, b, a]
@@ -384,8 +388,9 @@ function drawSignature(ctx, p, icon, y) {
   const size = STORY.SIGNATURE, gap = 24, cy = y + size / 2;
   ctx.font = storyFont(800, 46, false, p);
   const nameW = ctx.measureText('MDLF Training').width;
+  const sub = STORY_INSTAGRAM ? `@${STORY_INSTAGRAM.replace(/^@/, '')}` : 'Suivi de musculation';
   ctx.font = storyFont(500, 28, false, p);
-  const subW = ctx.measureText('Suivi de musculation').width;
+  const subW = ctx.measureText(sub).width;
   const x = (STORY.W - (size + gap + Math.max(nameW, subW))) / 2;
 
   roundRect(ctx, x, y, size, size, size * .225);   // masque d'icône iOS (≈ 22,5 % du côté)
@@ -395,7 +400,7 @@ function drawSignature(ctx, p, icon, y) {
   ctx.fillStyle = rgbaCss(p.label); ctx.font = storyFont(800, 46, false, p); setTracking(ctx, -.5);
   ctx.fillText('MDLF Training', x + size + gap, cy - 2); setTracking(ctx, 0);
   ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(500, 28, false, p);
-  ctx.fillText('Suivi de musculation', x + size + gap, cy + 36);
+  ctx.fillText(sub, x + size + gap, cy + 36);
 }
 
 // ── Mise en page ────────────────────────────────────────────

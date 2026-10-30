@@ -14,7 +14,7 @@ Mise à jour le 30 octobre 2026, dans l'ordre. OTA = mise à jour à chaud, sans
 | 5  | Lot 2 · OTA     | Import depuis Hevy et Strong                                                  | Claude                         | À faire                                      |
 | 6  | Lot 2 · OTA     | Mensurations + photos de progression (iPhone seul)                            | Claude                         | À faire                                      |
 | 7  | Lot 2 · OTA     | Export vers Strava                                                            | Claude                         | À faire                                      |
-| 8  | Lot 2 · OTA     | Récaps semaine / mois / année façon Replay, en stories                        | Claude                         | À faire                                      |
+| 8  | Lot 2 · OTA     | Récaps semaine / mois / année façon Replay, en stories                        | Claude                         | Construit le 30/10 (branche lot2-recaps)      |
 | 9  | Lot 2 · OTA     | Version de l'app envoyée au serveur                                           | Claude                         | À faire                                      |
 | 10 | Lot 2 · OTA     | @compte Instagram sur la story + « on la repartage »                          | Claude                         | Dès que le compte existe                     |
 | 11 | Lot 3 · Serveur | Records notés dans la séance, visibles par amis et coach                      | Claude                         | Feu vert n° 2                                |

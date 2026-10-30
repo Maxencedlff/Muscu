@@ -185,6 +185,11 @@ function renderStats() {
             <span class="cell__body"><span class="cell__title">Vue d'ensemble</span>${records ? `<span class="cell__sub">${plural(records, 'record', 'records')} cette semaine</span>` : ''}</span>
             ${icon('chevron.right', 16)}
           </button>
+          <button class="cell cell--nav" data-action="go-recaps">
+            ${icon('sparkles', 22)}
+            <span class="cell__body"><span class="cell__title">Récaps</span><span class="cell__sub">Ta semaine, ton mois, ton année</span></span>
+            ${icon('chevron.right', 16)}
+          </button>
         </div>
         ${renderMuscleCard()}
         ${renderWeightGroup()}

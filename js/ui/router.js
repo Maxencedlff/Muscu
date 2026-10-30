@@ -231,6 +231,8 @@ const SCREENS = new Map([
   ['history-detail', { render: id => renderHistoryDetail(id), mount: () => { if (socialEnabled()) socialLoadMyBravos({ minAge: SOCIAL_REFRESH_MS }); coachHistoryMount(); } }],   // bravos reçus (Amis activé)
   ['stats-ex',       { render: exId => renderStatsExercise(exId), mount: () => drawCharts() }],
   ['stats-overview', { render: () => renderStatsOverview() }],
+  ['recaps',         { render: () => renderRecaps() }],                                 // Progrès › Récaps
+  ['recap',          { render: key => renderRecap(key), mount: () => recapMount() }],   // écrans d'un récap (js/features/recap.js)
   ['my-programmes',  { render: () => renderMyProgrammes() }],   // Programme › Mes programmes (et sous-titre de l'accueil)
   ['prog-add',       { render: () => renderProgAdd() }],
   ['prog-info',      { render: id => renderProgInfo(id) }],      // fiche d'un programme de « Tous les programmes »
