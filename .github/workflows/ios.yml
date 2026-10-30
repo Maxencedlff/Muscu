@@ -57,9 +57,9 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: npm
@@ -99,7 +99,7 @@ jobs:
           mkdir -p spm && cp "$RESOLVED" spm/Package.resolved
           grep -E '"identity"|"version"|"revision"' spm/Package.resolved
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: package-resolved
           path: spm/Package.resolved
@@ -191,7 +191,7 @@ jobs:
           xcrun simctl spawn "$DEVICE" launchctl list > shots/launchctl.txt
           grep -q "$BUNDLE" shots/launchctl.txt && echo "L'app tourne"
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: ${{ always() && !inputs.testflight }}
         with:
           name: captures-simulateur

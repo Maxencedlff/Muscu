@@ -1,0 +1,7 @@
+# Actions GitHub épinglées par SHA (chaîne d'approvisionnement) : Dependabot propose les mises à jour
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
