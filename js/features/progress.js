@@ -189,6 +189,7 @@ function renderStats() {
         </div>
         ${renderMuscleCard()}
         ${renderWeightGroup()}
+        ${renderBodyMeasuresGroup()}
         ${idx.size ? list : `<div class="empty-note">Termine des séances pour voir ta progression ici.</div>`}
       </div>
     </div>`;

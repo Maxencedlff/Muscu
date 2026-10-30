@@ -30,8 +30,10 @@ def toast_text(page, timeout=3000):
 
 
 def open_import(page, file):
-    """Depuis l'accueil : Réglages, « Importer depuis une autre app », fichier donné ; attend la feuille d'aperçu."""
+    """Depuis l'accueil : Réglages › Sauvegarde, « Importer depuis une autre app », fichier donné ; attend la feuille d'aperçu."""
     page.click('[data-action="go-settings"]')
+    page.wait_for_selector('[data-action="go-backup"]')
+    page.click('[data-action="go-backup"]')
     page.wait_for_selector('[data-action="import-other-app"]')
     with page.expect_file_chooser() as fc:
         page.click('[data-action="import-other-app"]')
@@ -171,7 +173,8 @@ def t_strong(bench, eng, dev, theme):
         # Fichier qui n'est pas un export connu
         page.wait_for_timeout(300)
         if page.locator('[data-action="import-other-app"]').count() == 0:
-            page.click('[data-action="go-settings"]')
+            page.evaluate("navigate('backup')")
+            page.wait_for_selector('[data-action="import-other-app"]')
         with page.expect_file_chooser() as fc:
             page.click('[data-action="import-other-app"]')
         fc.value.set_files(files=[{'name': 'x.csv', 'mimeType': 'text/csv', 'buffer': b'a,b\n1,2\n'}])

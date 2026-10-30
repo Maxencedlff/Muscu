@@ -22,6 +22,7 @@ function wipeLocalData() {
   data = freshData();
   resetSelections();
   Native.eraseCloudOnNextSave();   // app iOS : la copie iCloud est vidée elle aussi
+  photosWipe();                    // photos de progression (IndexedDB, js/data/progress-photos.js)
   save();
 }
 
@@ -178,7 +179,7 @@ function renderBackup() {
         </div>
         <div class="group-foot">${account.user
           ? 'L\'export te donne en plus un fichier (JSON) à garder où tu veux. Importer un fichier ajoute ses séances à celles de ton compte.'
-          : 'L\'export est un fichier (JSON) à garder où tu veux : Fichiers, iCloud Drive, un e-mail. Importer une sauvegarde remplace les données actuelles.'}</div>
+          : 'L\'export est un fichier (JSON) à garder où tu veux : Fichiers, iCloud Drive, un e-mail. Importer une sauvegarde remplace les données actuelles.'} L'export contient tes mensurations, pas tes photos de progression (trop lourdes) : elles restent sur cet appareil, et « Supprimer toutes les données » les efface aussi.</div>
         <div class="group">
           <button class="cell cell--action" data-action="import-other-app"><span class="cell__body"><span class="cell__title">Importer depuis une autre app</span><span class="cell__sub">Hevy, Strong (fichier CSV)</span></span></button>
         </div>
@@ -274,7 +275,7 @@ registerActions({
     save(); render();
   },
   'wipe-data': async () => {
-    if (!(await confirmSheet('Supprimer toutes les données ?', account.user ? 'Séances, programmes et réglages seront effacés de cet appareil, qui sera déconnecté de ton compte. Ton compte garde tout.' : 'Séances, programmes et réglages seront effacés de cet appareil.', 'Tout supprimer'))) return;
+    if (!(await confirmSheet('Supprimer toutes les données ?', account.user ? 'Séances, programmes, réglages, mensurations et photos seront effacés de cet appareil, qui sera déconnecté de ton compte. Ton compte garde tes séances et programmes.' : 'Séances, programmes, réglages, mensurations et photos seront effacés de cet appareil.', 'Tout supprimer'))) return;
     const n = (data.history || []).length;
     // Compte : dernière sauvegarde tentée avant d'effacer ; on ne promet que ce qui est vraiment dessus
     if (account.user) await syncNow();

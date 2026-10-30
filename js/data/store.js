@@ -184,6 +184,11 @@ function sanitizeData(d) {
     d.bodyWeightLog = cleanBodyWeightLog(d.bodyWeightLog);
     if (!d.bodyWeightLog.length) delete d.bodyWeightLog;
   }
+  // Mensurations (js/data/body-measures.js) : clés connues, valeurs bornées, une par jour
+  if (d.bodyMeasures !== undefined) {
+    d.bodyMeasures = cleanBodyMeasures(d.bodyMeasures);
+    if (!Object.keys(d.bodyMeasures).length) delete d.bodyMeasures;
+  }
   if (!isObj(d.programmes)) d.programmes = {};
   Object.keys(d.programmes).forEach(k => {
     const p = d.programmes[k];

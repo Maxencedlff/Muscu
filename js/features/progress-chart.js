@@ -3,7 +3,9 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-let chartState = null; // { vals, dates, points, mode, unit, color, xLabels, sel }
+// Une courbe d'une autre grandeur (mensurations, js/features/body-measures-ui.js) donne ses propres
+// textes : name (VoiceOver), fmtVal(v), axisFmt(v), bubble(point), fromZero
+let chartState = null; // { vals, dates, points, mode, unit, color, xLabels, sel, name?, fmtVal?, axisFmt?, bubble?, fromZero? }
 
 function metricOf(p, bw) {
   if (statsMode === 'effort') return p.rpe;   // RPE moyen des séries notées (js/data/rir.js)
@@ -15,6 +17,7 @@ function metricOf(p, bw) {
 let chartUnit = 'reps';
 let chartEx   = null;   // { name } de l'exercice affiché : textes des séries (lest, aide)
 function fmtMetricVal(v, bw) {
+  if (chartState?.fmtVal) return chartState.fmtVal(v);   // courbe d'une autre grandeur (mensurations)
   if (chartState?.cardio) return fmtCardioVal(v, chartState.cardio, chartState.paceKind);
   if (chartState?.effort) return `RPE ${fmtNum(v, 1)}`;
   if (bw) return `${Math.round(v)} ${chartUnit}`;
@@ -148,6 +151,7 @@ function resolveColor(el, c) {
 }
 
 function axisFmt(v) {
+  if (chartState.fmtVal) return (chartState.axisFmt || chartState.fmtVal)(v);
   if (chartState.effort) return fmtNum(Math.round(v * 10) / 10);
   if (chartState.cardio === 'pace') return chartState.paceKind === 'speed' ? fmtNum(Math.round(v * 10) / 10) : fmtPace(v, 'pace').replace(' /km', '');   // aussi /500 m (même format m:ss)
   if (chartState.cardio === 'dist') return fmtNum(Math.round(v * 10) / 10);
@@ -184,7 +188,7 @@ function drawCharts() {
 
   // Axe Y : depuis 0 pour le volume, tronqué (mais gradué) pour la charge, le 1RM et l'allure
   const vMax = Math.max(...vals), vMin = Math.min(...vals);
-  const fromZero = st.cardio ? st.cardio !== 'pace' : (st.mode === 'volume' || st.bw);
+  const fromZero = st.fromZero ?? (st.cardio ? st.cardio !== 'pace' : (st.mode === 'volume' || st.bw));
   let lo = fromZero ? 0 : vMin - (vMax - vMin) * 0.15 - (vMax === vMin ? vMax * 0.1 : 0);
   if (lo < 0) lo = 0;
   let hi = vMax + (vMax - lo) * 0.08 || 1;
@@ -250,8 +254,8 @@ function drawCharts() {
   st.xLabels = placed.map(r => ({ x: r.x, w: r.w }));
 
   // Description pour VoiceOver
-  const mName = st.cardio ? cardioModes(st.points, st.paceKind).find(([m]) => m === st.cardio)?.[1]
-    : st.effort ? 'Effort' : st.mode === 'volume' ? 'Volume' : st.mode === 'charge' ? 'Charge max' : '1RM estimé';
+  const mName = st.name || (st.cardio ? cardioModes(st.points, st.paceKind).find(([m]) => m === st.cardio)?.[1]
+    : st.effort ? 'Effort' : st.mode === 'volume' ? 'Volume' : st.mode === 'charge' ? 'Charge max' : '1RM estimé');
   const tp = trendPct(vals);
   const d = i => fmtDate(dates[i], 'short');
   canvas.setAttribute('aria-label', n > 1
@@ -271,8 +275,8 @@ function chartSelect(clientX) {
   const p = st.points[best];
   const b = box.querySelector('.chart-bubble');
   const date = fmtDate(p.date, 'short');
-  const set  = st.bw ? `${p.maxReps} ${chartUnit}` : setTxt(p.best, chartEx);
-  b.textContent = st.cardio ? `${date} · ${cardioPointTxt(p, st.paceKind)}`
+  const set  = st.bubble ? '' : st.bw ? `${p.maxReps} ${chartUnit}` : setTxt(p.best, chartEx);
+  b.textContent = st.bubble ? st.bubble(p) : st.cardio ? `${date} · ${cardioPointTxt(p, st.paceKind)}`
     : st.effort ? `${date} · RPE ${fmtNum(p.rpe, 1)} · ${set}`
     : `${date} · ${set} · ${st.bw ? `${p.totalReps} ${chartUnit}` : fmtVolume(p.volume)}`;
   b.dataset.i = best;
