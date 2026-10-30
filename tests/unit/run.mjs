@@ -1422,7 +1422,7 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 
 // ── Mesures : répétitions, durée, cardio (tests dans measures.mjs) ──
 
-(await import('./measures.mjs')).default({ test, app, run, reset, assert });
+(await import('./measures.mjs')).default({ test, app, run, reset, assert, ROOT });
 
 // ── Comment faire : consignes des exercices (tests dans howto.mjs) ──
 

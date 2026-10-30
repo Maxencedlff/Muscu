@@ -48,6 +48,9 @@ function restoreSession() {
     if (!activeSession.startedAt) activeSession.startedAt = Date.now();
     activeSession.exercises.forEach(ex => {
       if (!Array.isArray(ex.sets)) ex.sets = [];
+      // Exercice sans mesure (la séance écrit la sienne depuis longtemps : startSession, feuille d'ajout) d'une
+      // donnée d'avant le schéma 6 : les mots de cardio appris depuis ne le font pas changer de mesure
+      pinLegacyCardioWords(ex, loadedSchema);
       if (ex.sets.some(st => !('prev' in st))) {
         const last = lastPerf(activeSession.programme, activeSession.category, ex);
         ex.sets.forEach((st, i) => {

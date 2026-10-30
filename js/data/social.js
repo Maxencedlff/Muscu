@@ -79,7 +79,8 @@ function cleanPublicSession(s) {
     .filter(e => e && typeof e === 'object' && typeof e.name === 'string' && e.name.trim())
     .map(e => ({
       name: e.name.slice(0, 80),
-      ...(['reps', 'time', 'cardio'].includes(e.measure) ? { measure: e.measure } : {}),
+      // Mesure absente : son app n'en écrivait pas (version d'avant) ; mots de cardio appris depuis : répétitions
+      ...(['reps', 'time', 'cardio'].includes(e.measure) ? { measure: e.measure } : pinnedLegacyMeasure(e.name)),
       ...(ssId(e) ? { ss: e.ss } : {}),
       sets: (Array.isArray(e.sets) ? e.sets : []).slice(0, 50).filter(st => st && typeof st === 'object')
         .map(st => ({ weight: numStr(st.weight), reps: numStr(st.reps), ...(numStr(st.dist) ? { dist: numStr(st.dist) } : {}) })),
@@ -91,6 +92,8 @@ function cleanPublicSession(s) {
     label: str(o.label, 60).trim() || 'Séance', exercises,
   };
 }
+
+function pinnedLegacyMeasure(name) { const ex = { name }; pinLegacyCardioWords(ex); return ex.measure ? { measure: ex.measure } : {}; }
 
 // Ligne de feed() : { owner, username, avatar, id, doneAt, s, bravos, mine }, null si inutilisable
 function cleanFeedRow(r) {

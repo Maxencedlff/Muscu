@@ -140,7 +140,10 @@ function makeDefaultData() {
 }
 
 const BACKUP_KEY = 'ppl_v2_backup';
-const SCHEMA     = 5;
+const SCHEMA     = 6;
+// Schéma de la donnée lue au lancement (avant migration) : restoreSession (js/data/active-session.js)
+// en déduit si la séance en cours vient d'une version d'avant
+let loadedSchema = SCHEMA;
 
 // Clés des séances perso : celles que crée l'app (uid, push, legs…) passent toutes
 const SESSION_CAT_RE = /^[A-Za-z0-9_-]{1,40}$/;
@@ -362,6 +365,28 @@ function pinLegacyReps(ex, fromSchema = 0) {
   if (pin) ex.measure = 'reps';
 }
 
+// ── Mots de cardio appris le 29/10/2026 (schéma 6) : noms d'avant gardés en répétitions ──
+// CARDIO_RE (js/data/measures.js) reconnaît depuis « escalier », « stair », « stepmill », « step mill »,
+// « climbmill » et « powermill » (chrono des machines, Escaliers). Un exercice perso sans mesure à l'un de
+// ces mots (« Montées d'escaliers lestées », 20 kg × 12) était en répétitions : sans cette règle il
+// deviendrait « 12 min », volume 0, record perdu, et storedMeasure écrirait 'cardio' pour de bon.
+// Copie figée de la règle d'avant : la comparaison ne dépend pas de la bibliothèque (« Escaliers » y est
+// entré le même jour) ni de CARDIO_RE, qui peut encore grandir.
+const LEGACY_CARDIO_RE = /course|courir|footing|jogging|running|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation/;
+function legacyMeasureByRules(name) {
+  const k = ruleKey(name || '');
+  if (LEGACY_CARDIO_RE.test(k) && !NOT_CARDIO_RE.test(k)) return 'cardio';
+  return TIMED_RE.test(k) && !NOT_TIMED_RE.test(k) ? 'time' : 'reps';
+}
+const CARDIO_WORDS_SCHEMA = 6;
+// fromSchema : schéma des données (historique, séance reçue d'un autre : 0, toujours ; programmes : une
+// fois, au passage au schéma 6). Figé seulement si ce sont les nouveaux mots qui rendent le nom cardio.
+function pinLegacyCardioWords(ex, fromSchema = 0) {
+  if (ex.measure != null || fromSchema >= CARDIO_WORDS_SCHEMA) return;
+  const k = ruleKey(ex.name || '');
+  if (!LEGACY_CARDIO_RE.test(k) && CARDIO_RE.test(k) && !NOT_CARDIO_RE.test(k)) ex.measure = 'reps';
+}
+
 // Ordre des séances d'un programme perso : liste explicite up.order. L'ordre des clés d'un objet ne survit
 // pas au serveur (profiles.doc est en jsonb, qui trie les clés) : sans cette liste, un deuxième appareil
 // voyait les séances dans l'ordre alphabétique. Migration douce : absente, elle reprend l'ordre des clés
@@ -416,6 +441,7 @@ function cleanHistoryEntry(h) {
     // d'une version précédente (copie importée, séance reçue d'un autre appareil par la synchro)
     if (!['reps', 'time', 'cardio'].includes(ex.measure)) delete ex.measure;
     pinLegacyReps(ex);
+    pinLegacyCardioWords(ex);
     ex.sets.forEach(st => {
       st.reps = String(num(st.reps, 0, MAX_COUNT, true) ?? 0);
       if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';
@@ -482,6 +508,11 @@ function normalizeData(d, rawJson = null) {
   if (from < 5) {
     Object.values(d.programmes).forEach(p => Object.values(p.exercises).forEach(list => list.forEach(ex => pinLegacyReps(ex, from))));
   }
+  // Schéma 6 (29/10/2026) : mots de cardio appris (pinLegacyCardioWords), même règle pour les programmes.
+  // Les séances perso (customSessions) n'ont que nom et couleur : leurs exercices sont dans d.programmes.custom.
+  if (from < CARDIO_WORDS_SCHEMA) {
+    Object.values(d.programmes).forEach(p => Object.values(p.exercises).forEach(list => list.forEach(ex => pinLegacyCardioWords(ex, from))));
+  }
   d.schema = SCHEMA;
   d.history.sort((a, b) => b.date - a.date);
   return d;
@@ -490,7 +521,11 @@ function normalizeData(d, rawJson = null) {
 // Lève une exception si la donnée stockée est illisible (écran de secours)
 function loadData() {
   const raw = localStorage.getItem(KEY);
-  if (raw) return sanitizeData(normalizeData(JSON.parse(raw), raw));
+  if (raw) {
+    const parsed = JSON.parse(raw);
+    loadedSchema = Number(parsed?.schema) || 2;
+    return sanitizeData(normalizeData(parsed, raw));
+  }
 
   // Migration depuis ppl_v1
   try {
@@ -498,6 +533,7 @@ function loadData() {
     if (rawV1) {
       const old = JSON.parse(rawV1);
       if (old.exercises) {
+        loadedSchema = 0;
         const d = makeDefaultData();
         d.programmes.ppl.exercises = old.exercises;
         d.programmes.ppl.timers   = old.timers || { push: null, pull: null, legs: null };
