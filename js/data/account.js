@@ -804,6 +804,9 @@ async function syncNow() {
       applyingRemote = true;
       try {
         sanitizeData(data);
+        // Records notés des séances reçues ou supprimées ailleurs, et de celles d'après : recalculés avec
+        // l'historique de cet appareil (ils repartiront s'ils changent, sans compter comme « modifiés ici »)
+        renoteRecordsFrom([...merged.applied, ...merged.removed], data.history);
         recomputePRFromHistory(data);
         syncTimersFromHistory();
         saved = save(true);
@@ -824,7 +827,7 @@ async function syncNow() {
         batch.map(u => ({ user_id: userId, id: u.id, data: u.data, client_mod: now, deleted_at: null })), { onConflict: 'user_id,id' });
       if (error) throw error;
       alive();
-      batch.forEach(u => { meta.pushed[u.id] = u.hash; });
+      batch.forEach(u => notePushed(meta, u.id, u.hash, u.core));
       syncSent += batch.length;
       keepMeta();
     }
@@ -834,7 +837,7 @@ async function syncNow() {
         batch.map(id => ({ user_id: userId, id, data: {}, client_mod: now, deleted_at: now })), { onConflict: 'user_id,id' });
       if (error) throw error;
       alive();
-      batch.forEach(id => { meta.pushed[id] = 'deleted'; });
+      batch.forEach(id => notePushed(meta, id, 'deleted'));
       keepMeta();
     }
     const doc = profilePayload(data), docHash = syncHash(doc);

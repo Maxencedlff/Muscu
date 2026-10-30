@@ -68,6 +68,10 @@ export default function ({ test, run, reset, assert, sameJSON }) {
       { ex: 'C', kind: 'allure', before: 300, after: 290 }, { ex: 'C', kind: 'allure', before: 300, after: 290, d: 5 }, { ex: '', kind: 'reps', before: 1, after: 2 }, 'x', { ex: 'S', kind: 'reps', before: '1', after: 2 }])`),
       [{ ex: 'Squat', kind: 'charge', before: 95, after: 100 }, { ex: 'C', kind: 'allure', before: 300, after: 290, d: 5 }]);
     assert.equal(run('cleanNotedRecords(undefined)'), null);
+    // Séance d'un ami : le serveur ne donne pas la valeur d'avant (private.session_records), l'élément reste
+    sameJSON(run(`cleanNotedRecords([{ ex: 'Squat', kind: 'charge', after: 100 }, { ex: 'Squat', kind: 'charge', before: null, after: 100 }])`),
+      [{ ex: 'Squat', kind: 'charge', after: 100 }], 'before absent accepté, before invalide écarté');
+    assert.ok(!run(`notedRecordCell({ ex: 'Squat', kind: 'charge', after: 100 })`).includes('avant'), 'sans before : pas de « avant »');
     assert.equal(run(`notedFeedTxt({ ex: 'Squat', kind: 'charge', before: 95, after: 100 })`), 'Squat 100 kg');
     assert.equal(run(`notedFeedTxt({ ex: 'Course à pied', kind: 'allure', before: 300, after: 290, d: 5 })`), 'Course à pied 5 km à 4:50 /km');
     assert.equal(run(`notedValueTxt({ ex: 'Rameur', kind: 'allure', before: 135, after: 120, d: 2 })`), '2:00 /500 m');
@@ -81,5 +85,43 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     sameJSON(s.exercises[0].sets, [{ weight: '40', reps: '8', warmup: true }, { weight: '100', reps: '5', rir: 2 }, { weight: '100', reps: '5' }]);
     assert.equal(s.records.length, 1);
     assert.equal(run(`'records' in cleanPublicSession({ exercises: [] })`), false, 'séance d\'avant : pas de records notés');
+  });
+
+  test('records notés : entryRecords revalide ceux d\'une sauvegarde importée (records: [null])', () => {
+    reset();
+    const a = h(1, [['Squat barre', [[100, 5]]]], { records: [null, 'x', { ex: 'Squat barre', kind: 'charge', before: 95, after: 100 }] });
+    sameJSON(run(`entryRecords(${JSON.stringify(a)}, [])`), [{ ex: 'Squat barre', kind: 'charge', before: 95, after: 100 }]);
+    sameJSON(run(`entryRecords(${JSON.stringify({ ...a, records: [null] })}, [])`), []);
+    // Le bilan de la séance (summary.js : summaryNotedRecords…) et l'historique lisent entryRecords : plus de plantage
+    assert.doesNotThrow(() => run(`entryRecords(${JSON.stringify({ ...a, records: [null] })}, []).map(r => notedRecordCell(r))`));
+  });
+
+  test('records notés : renoteRecordsFrom, une passe par séance type depuis la plus ancienne', () => {
+    reset();
+    const a = h(1, [['Squat barre', [[100, 5]]]]), b = h(3, [['Squat barre', [[110, 5]]]]), c = h(5, [['Squat barre', [[105, 5]]]]);
+    const p = h(2, [['Squat barre', [[120, 5]]]]), q = h(4, [['Squat barre', [[130, 5]]]]);
+    run(`globalThis.__h = ${JSON.stringify([c, b, a])}; __h.forEach(x => { x.records = sessionRecords(x, __h); })`);
+    assert.equal(run('__h[1].records.length'), 1, 'b bat a');
+    run(`__h.push(${JSON.stringify(p)}, ${JSON.stringify(q)})`);
+    assert.equal(run('renoteRecordsFrom([__h[4], __h[3], null], __h)'), 1, 'b ne bat plus p ; c ne battait déjà rien');
+    sameJSON(run('__h[1].records'), []);
+  });
+
+  test('records notés : renoteRecords incrémental = sessionRecords (identifiants, noms, même date, cardio)', () => {
+    reset();
+    const out = run(`(() => {
+      const exs = ['Squat barre', 'Dips', 'Tractions assistées (machine)', 'Gainage (planche)', 'Course à pied', 'Rameur', 'Vélo'];
+      let seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const H = Array.from({ length: 120 }, (_, i) => ({ id: 'z' + i, programme: 'ppl', category: rnd() < .8 ? 'legs' : 'push',
+        date: 1.7e12 + Math.floor(i / 2) * 86400000, records: [],
+        exercises: exs.filter(() => rnd() < .7).map(n => ({ name: rnd() < .2 ? n.toUpperCase() : n, ...(rnd() < .3 ? { exId: rnd() < .5 ? 'A' : 'B' } : {}),
+          ...(/Course|Rameur|Vélo/.test(n) ? { measure: 'cardio' } : /Gainage/.test(n) ? { measure: 'time' } : {}),
+          sets: Array.from({ length: 1 + Math.floor(rnd() * 3) }, () => ({ weight: rnd() < .2 ? '' : String(Math.round(rnd() * 12) * 5),
+            reps: String(Math.round(rnd() * 30)), dist: String(Math.round(rnd() * 120) / 10), ...(rnd() < .1 ? { warmup: true } : {}) })) })) }));
+      renoteRecordsFrom(H, H);
+      return { same: H.every(h => JSON.stringify(h.records) === JSON.stringify(sessionRecords(h, H))), some: H.filter(h => h.records.length).length };
+    })()`);
+    assert.equal(out.same, true);
+    assert.ok(out.some > 10, 'des records sont bien trouvés');
   });
 }

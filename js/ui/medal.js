@@ -20,12 +20,12 @@ function medalSvg(size = 20) {
 }
 
 // Cellule d'un record noté (js/data/records.js) : médaille, exercice, type (et l'ancienne valeur si
-// before), nouvelle valeur. Historique › Séance, séance d'un ami, séance d'un élève. Textes échappés :
-// le nom d'exercice d'un autre vient du serveur.
+// before et si elle est connue : jamais pour la séance d'un ami), nouvelle valeur. Historique › Séance,
+// séance d'un ami, séance d'un élève. Textes échappés : le nom d'exercice d'un autre vient du serveur.
 function notedRecordCell(r, { before = true } = {}) {
   return `
           <div class="cell review-rec">${medalSvg(22)}
-            <span class="cell__body"><span class="cell__title">${esc(r.ex)}</span><span class="cell__sub num">${esc(notedLabel(r))}${before ? ` · avant ${esc(notedValueTxt(r, 'before'))}` : ''}</span></span>
+            <span class="cell__body"><span class="cell__title">${esc(r.ex)}</span><span class="cell__sub num">${esc(notedLabel(r))}${before && r.before != null ? ` · avant ${esc(notedValueTxt(r, 'before'))}` : ''}</span></span>
             <span class="review-rec__val num">${esc(notedValueTxt(r))}</span>
           </div>`;
 }

@@ -106,10 +106,65 @@ function betterNoted(a, b) {
   return NOTED_RANK[a.kind] > NOTED_RANK[b.kind] || (NOTED_RANK[a.kind] === NOTED_RANK[b.kind] && a.after > b.after);
 }
 
+// ── Séries d'avant résumées ─────────────────────────────────
+// Les règles ne lisent des séries d'avant que des meilleurs (maximums, minimums) : on les résume, et deux
+// résumés se fusionnent sans revoir les séries (renoteRecords tient ainsi un résumé par exercice au fil de
+// l'historique, au lieu de reparcourir toutes les séances d'avant pour chacune).
+//   prW, prR     : charge la plus lourde, puis le plus de reps à cette charge (charge, lest ; maintien :
+//                  lest le plus lourd, puis la durée la plus longue avec)
+//   minA, rAt    : aide la plus petite, puis le plus de reps à cette aide (machine d'assistance)
+//   bestT, lAtT  : maintien le plus long, puis le lest le plus lourd sur cette durée
+//   maxMin, maxDist : cardio le plus long (min), le plus loin (km au centième)
+//   pace[d], split[d] : meilleure allure (s) des séries d'au moins d km, par km ou aux 500 m
+const recDist = s => Math.round((parseFloat(s.dist) || 0) * 100) / 100;
+// Allure d'une série en secondes entières (par km, ou aux 500 m au rameur), null sans allure valable
+function setPaceSec(s, kind) {
+  const v = cardioPace(s.dist, setMinutes(s), kind);
+  return v == null ? null : Math.round(v * 60);
+}
+function emptyPrior() {
+  return { n: 0, prW: 0, prR: 0, minA: Infinity, rAt: 0, bestT: 0, lAtT: 0, maxMin: 0, maxDist: 0, pace: {}, split: {} };
+}
+// Plus grand couple (a, b) dans l'ordre lexicographique ; inv : a le plus petit d'abord
+const lexBetter = (a, b, a0, b0, inv = false) => (inv ? a < a0 : a > a0) || (a === a0 && b > b0);
+function mergeBest(into, from) { for (const [d, v] of Object.entries(from)) if (into[d] == null || v < into[d]) into[d] = v; }
+// Ajoute à P (modifié en place) les séries de travail sets ; allures seulement pour du cardio
+function addPriorSets(P, sets, cardio = true) {
+  sets.forEach(s => {
+    const w = recW(s), r = recR(s), d = recDist(s);
+    P.n++;
+    if (lexBetter(w, r, P.prW, P.prR)) { P.prW = w; P.prR = r; }
+    if (lexBetter(w, r, P.minA, P.rAt, true)) { P.minA = w; P.rAt = r; }
+    if (lexBetter(r, w, P.bestT, P.lAtT)) { P.bestT = r; P.lAtT = w; }
+    if (r > P.maxMin) P.maxMin = r;
+    if (d > P.maxDist) P.maxDist = d;
+    if (!cardio || !(d > 0)) return;
+    for (const [kind, kms] of [['pace', RUN_RECORD_KM], ['split', ROW_RECORD_KM]]) {
+      const v = kms.some(k => d >= k) ? setPaceSec(s, kind) : null;
+      if (v == null) continue;
+      kms.forEach(k => { if (d >= k && (P[kind][k] == null || v < P[kind][k])) P[kind][k] = v; });
+    }
+  });
+  return P;
+}
+// Fusion de deux résumés (nouveau résumé)
+function mergePrior(A, B) {
+  if (!B || !B.n) return A;
+  if (!A || !A.n) return B;
+  const P = { ...A, pace: { ...A.pace }, split: { ...A.split } };
+  P.n += B.n;
+  if (lexBetter(B.prW, B.prR, P.prW, P.prR)) { P.prW = B.prW; P.prR = B.prR; }
+  if (lexBetter(B.minA, B.rAt, P.minA, P.rAt, true)) { P.minA = B.minA; P.rAt = B.rAt; }
+  if (lexBetter(B.bestT, B.lAtT, P.bestT, P.lAtT)) { P.bestT = B.bestT; P.lAtT = B.lAtT; }
+  P.maxMin = Math.max(P.maxMin, B.maxMin);
+  P.maxDist = Math.max(P.maxDist, B.maxDist);
+  mergeBest(P.pace, B.pace); mergeBest(P.split, B.split);
+  return P;
+}
+
 // Répétitions avec charge (ou lest) : charge > reps à la charge record d'avant
-function strengthNoted(ex, cur, prior) {
-  let prW = 0, prR = 0;
-  prior.forEach(s => { const w = recW(s), r = recR(s); if (w > prW || (w === prW && r > prR)) { prW = w; prR = r; } });
+function strengthNoted(ex, cur, P) {
+  const { prW, prR } = P;
   let best = null;
   cur.forEach(s => {
     const w = recW(s), r = recR(s);
@@ -121,9 +176,8 @@ function strengthNoted(ex, cur, prior) {
 }
 // Machine d'assistance : moins d'aide à reps ≥ (celles faites avec la plus petite aide d'avant), sinon
 // plus de reps à cette même aide
-function assistedNoted(cur, prior) {
-  let minA = Infinity, rAt = 0;
-  prior.forEach(s => { const w = recW(s), r = recR(s); if (w < minA || (w === minA && r > rAt)) { minA = w; rAt = r; } });
+function assistedNoted(cur, P) {
+  const { minA, rAt } = P;
   let best = null;
   cur.forEach(s => {
     const w = recW(s), r = recR(s);
@@ -136,13 +190,8 @@ function assistedNoted(cur, prior) {
 }
 // Maintien (gainage, chaise…) : lest plus lourd tenu au moins aussi longtemps qu'avec le lest record
 // d'avant, sinon tenir plus longtemps avec au moins le lest du maintien record d'avant
-function timedNoted(cur, prior) {
-  let maxL = 0, tAtL = 0, bestT = 0, lAtT = 0;
-  prior.forEach(s => {
-    const w = recW(s), t = recR(s);
-    if (w > maxL || (w === maxL && t > tAtL)) { maxL = w; tAtL = t; }
-    if (t > bestT || (t === bestT && w > lAtT)) { bestT = t; lAtT = w; }
-  });
+function timedNoted(cur, P) {
+  const maxL = P.prW, tAtL = P.prR, { bestT, lAtT } = P;
   let best = null;
   cur.forEach(s => {
     const w = recW(s), t = recR(s);
@@ -152,33 +201,22 @@ function timedNoted(cur, prior) {
   });
   return best ? [best] : [];
 }
-// Allure d'une série en secondes entières (par km, ou aux 500 m au rameur), null sans allure valable
-function setPaceSec(s, kind) {
-  const v = cardioPace(s.dist, setMinutes(s), kind);
-  return v == null ? null : Math.round(v * 60);
-}
 // Cardio : durée la plus longue ; distance la plus longue et allure sur distance fixe seulement là où la
 // distance a un sens (course, vélo, rameur : paceKind ; pas l'elliptique ni les escaliers). Plusieurs
 // records possibles pour un même exercice (un par type). Distances comparées au centième de km.
-function cardioNoted(ex, cur, prior) {
+function cardioNoted(ex, cur, P) {
   const out = [];
-  const maxOf = (sets, f) => Math.max(0, ...sets.map(f));
-  const dist = s => Math.round((parseFloat(s.dist) || 0) * 100) / 100;
-  const pMin = maxOf(prior, recR), cMin = maxOf(cur, recR);
+  const C = addPriorSets(emptyPrior(), cur);
+  const pMin = P.maxMin, cMin = C.maxMin;
   if (pMin > 0 && cMin > pMin) out.push({ kind: 'duree', before: pMin, after: cMin });
   const pk = paceKind(ex);
   if (!pk) return out;
-  const pDist = maxOf(prior, dist), cDist = maxOf(cur, dist);
-  if (pDist > 0 && cDist > pDist) out.push({ kind: 'distance', before: pDist, after: cDist });
+  if (P.maxDist > 0 && C.maxDist > P.maxDist) out.push({ kind: 'distance', before: P.maxDist, after: C.maxDist });
   if (pk === 'pace' || pk === 'split') {
     // Plus grande distance fixe dont l'allure est battue : un 10 km rapide dit « 10 km », pas « 1 km »
     const fixed = (pk === 'split' ? ROW_RECORD_KM : RUN_RECORD_KM).slice().reverse();
-    const bestAt = (sets, d) => {
-      const v = sets.filter(s => dist(s) >= d).map(s => setPaceSec(s, pk)).filter(x => x != null);
-      return v.length ? Math.min(...v) : null;
-    };
     for (const d of fixed) {
-      const b = bestAt(prior, d), a = bestAt(cur, d);
+      const b = P[pk][d] ?? null, a = C[pk][d] ?? null;
       if (b != null && a != null && a < b) { out.push({ kind: 'allure', before: b, after: a, d }); break; }
     }
   }
@@ -191,14 +229,19 @@ function sessionRecords(entry, history) {
   const prog = entryProg(entry);
   const before = (history || []).filter(h => h && h !== entry && h.id !== entry.id && h.date < entry.date
     && entryProg(h) === prog && h.category === entry.category);
+  return notedFromPrior(entry, (ex, m) => addPriorSets(emptyPrior(), before.flatMap(h => (h.exercises || [])
+    .filter(he => sameEx(he, ex) && measureOf(he) === m).flatMap(he => workSets(he.sets).filter(s => recR(s) > 0))), m === 'cardio'));
+}
+// Cœur de sessionRecords : priorOf(ex, mesure) donne le résumé des séries de travail d'avant de cet
+// exercice (même exercice au sens de sameEx, même mesure).
+function notedFromPrior(entry, priorOf) {
   const out = [];
   (entry.exercises || []).forEach(ex => {
     const m = measureOf(ex);
     const cur = workSets(ex.sets).filter(s => recR(s) > 0);
     if (!cur.length) return;
-    const prior = before.flatMap(h => (h.exercises || []).filter(he => sameEx(he, ex) && measureOf(he) === m)
-      .flatMap(he => workSets(he.sets).filter(s => recR(s) > 0)));
-    if (!prior.length) return;   // première fois : rien
+    const prior = priorOf(ex, m);
+    if (!prior?.n) return;   // première fois : rien
     const recs = m === 'cardio' ? cardioNoted(ex, cur, prior) : m === 'time' ? timedNoted(cur, prior)
       : isAssisted(ex) ? assistedNoted(cur, prior) : strengthNoted(ex, cur, prior);
     recs.forEach(r => out.push({ ex: String(ex.name || '').slice(0, 80), kind: r.kind, before: round3(r.before), after: round3(r.after),
@@ -206,35 +249,90 @@ function sessionRecords(entry, history) {
   });
   return out.sort((a, b) => NOTED_RANK[b.kind] - NOTED_RANK[a.kind]).slice(0, NOTED_MAX);
 }
+// Résumés des séries d'avant tenus au fil d'un parcours chronologique (renoteRecords) : mêmes réponses
+// que le filtre de sessionRecords, sans reparcourir l'historique à chaque séance. sameEx : par identifiant
+// si les deux exercices en ont un, sinon par nom ; d'où trois index (identifiant ; nom des exercices sans
+// identifiant ; nom de tous).
+function priorSetsIndex() {
+  const byId = new Map(), noIdByName = new Map(), byName = new Map();
+  const add = (map, k, sets, cardio) => { let P = map.get(k); if (!P) map.set(k, P = emptyPrior()); addPriorSets(P, sets, cardio); };
+  return {
+    add(h) {
+      (h.exercises || []).forEach(he => {
+        const sets = workSets(he.sets).filter(s => recR(s) > 0);
+        if (!sets.length) return;
+        const m = measureOf(he), id = exIdOf(he), name = `${m}\u0000${normName(he.name)}`;
+        add(byName, name, sets, m === 'cardio');
+        add(id ? byId : noIdByName, id ? `${m}\u0000${id}` : name, sets, m === 'cardio');
+      });
+    },
+    prior(ex, m) {
+      const id = exIdOf(ex), name = `${m}\u0000${normName(ex.name)}`;
+      return id ? mergePrior(byId.get(`${m}\u0000${id}`), noIdByName.get(name)) : byName.get(name);
+    },
+  };
+}
 
-// Records d'une séance de l'historique : ceux notés, sinon (séance d'avant les records notés) recalculés
+// Records d'une séance de l'historique : ceux notés (revalidés : une sauvegarde importée peut contenir
+// n'importe quoi, records: [null] par exemple), sinon (séance d'avant les records notés) recalculés
 function entryRecords(h, history = data.history) {
-  return Array.isArray(h?.records) ? h.records : sessionRecords(h, history);
+  return Array.isArray(h?.records) ? cleanNotedRecords(h.records) : sessionRecords(h, history);
 }
 
 // Records notés à nouveau pour les séances de la même séance type (programme et séance) que `ref`, à
 // partir de sa date : après une séance passée ajoutée, modifiée ou supprimée, celles d'après peuvent
 // gagner ou perdre un record. Seules les séances qui ont déjà des records notés sont touchées (les
 // anciennes se recalculent à l'affichage). Renvoie le nombre de séances changées.
+// Un seul parcours de la séance type (résumés tenus au fil de l'eau) : 1 000 séances synthétiques, pire
+// cas (renoter depuis la plus ancienne), environ 30 ms en Node contre 4 s en recalculant chaque séance
+// avec sessionRecords (mesure du 31/10/2026).
 function renoteRecords(ref, history = data.history) {
   if (!ref) return 0;
+  const prog = entryProg(ref);
+  // Séances de cette séance type, dans l'ordre chronologique : chacune est comparée aux séries de celles
+  // strictement d'avant (index tenu au fil du parcours ; même date : aucune n'est « d'avant » l'autre)
+  const same = (history || []).filter(h => h && entryProg(h) === prog && h.category === ref.category).sort((a, b) => a.date - b.date);
+  const idx = priorSetsIndex();
   let n = 0;
-  (history || []).forEach(h => {
-    if (!Array.isArray(h.records) || entryProg(h) !== entryProg(ref) || h.category !== ref.category || h.date < ref.date) return;
-    const next = sessionRecords(h, history);
-    if (JSON.stringify(next) !== JSON.stringify(h.records)) { h.records = next; n++; }
+  for (let i = 0; i < same.length;) {
+    let j = i;
+    while (j < same.length && same[j].date === same[i].date) j++;
+    for (let k = i; k < j; k++) {
+      const h = same[k];
+      if (!Array.isArray(h.records) || h.date < ref.date) continue;
+      const next = notedFromPrior(h, (ex, m) => idx.prior(ex, m));
+      if (JSON.stringify(next) !== JSON.stringify(h.records)) { h.records = next; n++; }
+    }
+    for (let k = i; k < j; k++) idx.add(same[k]);
+    i = j;
+  }
+  return n;
+}
+
+// renoteRecords pour plusieurs séances de référence (séances reçues ou supprimées par la synchro) : une
+// seule passe par séance type, à partir de la plus ancienne. Renvoie le nombre de séances changées.
+function renoteRecordsFrom(refs, history = data.history) {
+  const first = new Map();
+  (refs || []).forEach(r => {
+    if (!r || typeof r.category !== 'string') return;
+    const k = `${entryProg(r)}\u0000${r.category}`, cur = first.get(k);
+    if (!cur || r.date < cur.date) first.set(k, r);
   });
+  let n = 0;
+  first.forEach(r => { n += renoteRecords(r, history); });
   return n;
 }
 
 // Records reçus du serveur (séance d'un ami ou d'un élève), revalidés : tableau, ou null si la séance
-// n'en a pas noté (app d'avant) ; élément invalide écarté
+// n'en a pas noté (app d'avant) ; élément invalide écarté. before (valeur d'avant) n'arrive qu'au coach :
+// le serveur ne la donne pas aux amis (private.session_records, migration 20261031100000) ; absente,
+// l'élément reste valable sans elle.
 function cleanNotedRecords(v) {
   if (!Array.isArray(v)) return null;
   const n = x => typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= NOTED_VALUE_MAX;
   return v.slice(0, NOTED_MAX).filter(r => r && typeof r === 'object' && typeof r.ex === 'string' && r.ex.trim()
-    && NOTED_KINDS.includes(r.kind) && n(r.before) && n(r.after) && (r.kind !== 'allure' || RECORD_KM.includes(r.d)))
-    .map(r => ({ ex: r.ex.slice(0, 80), kind: r.kind, before: r.before, after: r.after,
+    && NOTED_KINDS.includes(r.kind) && (r.before === undefined || n(r.before)) && n(r.after) && (r.kind !== 'allure' || RECORD_KM.includes(r.d)))
+    .map(r => ({ ex: r.ex.slice(0, 80), kind: r.kind, ...(n(r.before) ? { before: r.before } : {}), after: r.after,
       ...(n(r.w) ? { w: r.w } : {}), ...(RECORD_KM.includes(r.d) ? { d: r.d } : {}) }));
 }
 

@@ -613,6 +613,65 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     run('SYNC_ABSENT_IS_CHOICE').forEach(k => assert.ok(run('SYNC_PROFILE_KEYS').includes(k), k));
   });
 
+  // Records notés recalculés ici (renoteRecords) : donnée dérivée, jamais « modifiée ici » pour la synchro.
+  // iPhone : S1 (jour 2) synchronisée ; hors ligne, une séance passée plus lourde (jour 1) est ajoutée,
+  // renoteRecords change S1.records ; entre-temps l'iPad a supprimé ou corrigé S1.
+  const renoted = (remote) => call(`(() => {
+    const day = d => d * 86400000;
+    const sq = (id, d, w) => ({ id, programme: 'ppl', category: 'legs', date: day(d), exercises: [{ name: 'Squat barre', sets: [{ weight: String(w), reps: '5' }] }] });
+    const S0 = sq('S0', 0, 90), S1 = sq('S1', 2, 100);
+    let hist = [S1, S0];
+    S1.records = sessionRecords(S1, hist);
+    // Synchro : tout part (comme syncNow, js/data/account.js)
+    const meta = emptySyncMeta('u');
+    const note = (id, hash, core) => (typeof notePushed === 'function' ? notePushed(meta, id, hash, core) : (meta.pushed[id] = hash));
+    planSessionPush(hist, meta).upserts.forEach(u => note(u.id, u.hash, u.core));
+    const synced = JSON.stringify(S1.records);
+    const P = sq('P', 1, 110);
+    hist = [S1, P, S0];
+    renoteRecords(P, hist);
+    const renotedHere = JSON.stringify(S1.records) !== synced;
+    const row = remote === 'delete' ? { id: 'S1', deleted_at: '2026-10-31T10:00:00Z' }
+      : { id: 'S1', data: sessionPayload({ ...S1, records: JSON.parse(synced), notes: 'corrigée sur l\\'iPad' }) };
+    const res = applyRemoteSessions(hist, [row], meta);
+    if (typeof renoteRecordsFrom === 'function') renoteRecordsFrom([...(res.applied || []), ...res.removed], res.history);
+    const s1 = res.history.find(h => h.id === 'S1');
+    return { renotedHere, kept: !!s1, removed: res.removed.map(h => h.id), notes: s1?.notes ?? null, records: s1?.records ?? null,
+      push: planSessionPush(res.history, meta).upserts.map(u => u.id), unchanged: s1 ? sessionUnchangedSince(meta.pushed.S1, s1, meta.pushedCore?.S1) : null };
+  })()`, { remote });
+
+  test('synchro : records renotés ici, une suppression faite ailleurs s\'applique (pas de résurrection)', () => {
+    const r = renoted('delete');
+    assert.equal(r.renotedHere, true, 'la séance passée ajoutée change bien les records de S1');
+    assert.equal(r.kept, false, 'S1 supprimée sur l\'iPad : supprimée ici aussi');
+    sameJSON(r.removed, ['S1'], 'récupérable dans Supprimés récemment');
+    assert.ok(!r.push.includes('S1'), 'S1 ne repart pas');
+  });
+
+  test('synchro : records renotés ici, la correction faite ailleurs gagne et les records sont recalculés', () => {
+    const r = renoted('edit');
+    assert.equal(r.notes, 'corrigée sur l\'iPad', 'version distante appliquée');
+    // Recalculés avec l'historique de cet appareil (P, 110 kg, est passée avant) : S1 ne bat plus rien
+    sameJSON(r.records, [], 'records de S1 recalculés après la version distante');
+    sameJSON(r.push.sort(), ['P', 'S1'], 'S1 repart avec ses records recalculés (P, nouvelle, aussi)');
+    assert.equal(r.unchanged, true, 'records seuls changés : toujours « inchangée ici »');
+  });
+
+  test('synchro : un vrai changement ici reste « modifié ici » malgré pushedCore', () => {
+    const r = call(`(() => {
+      const meta = emptySyncMeta('u');
+      const a = { id: 'a', date: 1e12, category: 'push', records: [], exercises: [{ name: 'DC', sets: [{ weight: '60', reps: '8' }] }] };
+      planSessionPush([a], meta).upserts.forEach(u => notePushed(meta, u.id, u.hash, u.core));
+      a.exercises[0].sets[0].reps = '9';
+      const res = applyRemoteSessions([a], [{ id: 'a', deleted_at: '2026-10-31T10:00:00Z' }], meta);
+      return { ids: res.history.map(h => h.id), core: 'a' in meta.pushedCore };
+    })()`, {});
+    sameJSON(r.ids, ['a'], 'séance corrigée ici : la suppression distante ne l\'emporte pas');
+    // Suppression appliquée : l'empreinte sans records est oubliée
+    const d = call(`(() => { const meta = emptySyncMeta('u'); notePushed(meta, 'x', 'h', 'c'); notePushed(meta, 'x', 'deleted'); return meta; })()`, {});
+    sameJSON([d.pushed.x, 'x' in d.pushedCore], ['deleted', false]);
+  });
+
   test('sanitizeData : séances visibles par défaut, version de l\'app et date vue bornées', () => {
     const clean = extra => run(`(() => { const d = sanitizeData({ ...freshData(), ...${JSON.stringify(extra)} });
       return { v: d.sessionVisibleDefault, a: d.appVersion, s: d.appSeenAt }; })()`);
