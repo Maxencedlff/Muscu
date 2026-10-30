@@ -2,7 +2,9 @@
 //  Relecture de la séance d'un autre (coach : un élève ; Amis : un ami), logique pure
 //  Toutes les comparaisons se font avec les SEULES séances de cette personne reçues du serveur
 //  (lignes { id, doneAt, s } de coachSessions ou du fil), jamais avec data.history, et jamais avec le
-//  poids du corps de la personne qui regarde : currentBodyKg() / entryBodyKg() donneraient le sien.
+//  poids du corps de la personne qui regarde : currentBodyKg() / entryBodyKg() donneraient le sien. Le poids
+//  de la personne relue ne compte que s'il vient avec sa séance (s.bodyKg : un élève qui partage son poids
+//  avec son coach, js/data/coach-share.js) ; jamais dans le fil des amis.
 //  Affichage : renderCoachSession (js/features/coach-ui.js), renderSocialSession (js/features/social-ui.js).
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -11,9 +13,11 @@
 // Règle affichée au coach : charge notée × reps (exVolume, js/data/store.js), sans l'échauffement : le serveur
 // envoie le marquage warmup depuis la migration 20261031100000_records_series.sql (workSets l'écarte).
 // Poids du corps inconnu (bodyKg null) : au poids du corps seul le lest compte, une aide compte 0.
-// Le poids de l'autre n'est pas envoyé (liste blanche du serveur) et le nôtre ne doit jamais servir.
-function reviewExVolume(ex) { return exVolume(ex, ex.sets, null); }
-function reviewVolume(exercises) { return sessionVolume(exercises || [], null); }
+// bodyKg : celui de la personne relue, reçu avec sa séance (partage avec le coach), jamais le nôtre.
+function reviewExVolume(ex, bodyKg = null) { return exVolume(ex, ex.sets, bodyKg || null); }
+function reviewVolume(exercises, bodyKg = null) { return sessionVolume(exercises || [], bodyKg || null); }
+// Poids du corps reçu avec une séance relue, ou null
+function reviewBodyKg(s) { return Number.isFinite(s?.bodyKg) && s.bodyKg >= 25 && s.bodyKg <= 300 ? s.bodyKg : null; }
 
 // Écart en % arrondi à l'unité : 'same' de −3 % à +3 % (affiché « = »), sinon 'up' ou 'down' ; null sans référence
 const VOLUME_SAME_PCT = 3;
@@ -133,19 +137,25 @@ function painInNotes(text) {
 
 // ── Synthèse d'une séance ───────────────────────────────────
 // row : la séance relue ; rows : les autres séances reçues de la même personne (elle-même tolérée).
-// Renvoie { volume, prev, volDelta, durGap, exercises: [{ ex, volume, reps, prev, trend }], records }
+// Renvoie { volume, bodyKg, prev, volDelta, durGap, exercises: [{ ex, volume, reps, prev, trend }], records }.
+// Poids du corps connu (bodyKg) : compté dans le volume. Écart avec la séance d'avant : sous une même règle
+// pour les deux (chacune son poids si les deux en ont un, sinon aucune), jamais un mélange qui gonflerait l'écart.
 function sessionReview(row, rows) {
   const s = row.s;
   const prev = prevSameSession(row, rows);
-  const volume = reviewVolume(s.exercises);
+  const bodyKg = reviewBodyKg(s);
+  const volume = reviewVolume(s.exercises, bodyKg);
+  const prevKg = prev ? reviewBodyKg(prev.s) : null;
+  const both = bodyKg && prevKg;
   return {
     volume,
+    bodyKg,
     prev,
-    volDelta: prev ? volumeDelta(volume, reviewVolume(prev.s.exercises)) : null,
+    volDelta: prev ? volumeDelta(both ? volume : reviewVolume(s.exercises), reviewVolume(prev.s.exercises, both ? prevKg : null)) : null,
     durGap: prev ? durationDelta(s.duration, prev.s.duration) : null,
     exercises: s.exercises.map(ex => {
       const p = prevExercise(ex, row, rows);
-      return { ex, volume: reviewExVolume(ex), reps: doneSets(ex).reduce((a, x) => a + (parseInt(x.reps) || 0), 0), prev: p, trend: p ? exerciseTrend(ex, p.ex) : null };
+      return { ex, volume: reviewExVolume(ex, bodyKg), reps: doneSets(ex).reduce((a, x) => a + (parseInt(x.reps) || 0), 0), prev: p, trend: p ? exerciseTrend(ex, p.ex) : null };
     }),
     records: reviewRecords(row, rows, 5),
   };

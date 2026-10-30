@@ -35,7 +35,12 @@ export default function ({ test, run, reset, assert, sameJSON }) {
   test('coach : séance d\'un élève réduite à sa liste blanche (notes et hidden en plus)', () => {
     const r = run(`cleanCoachSessionRow({ id: 's1', done_at: 5, note: 'Bien', s: { date: 5, label: 'Push', notes: 'dur', hidden: true, bodyKg: 80, healthSaved: true,
       exercises: [{ name: 'DC', sets: [{ weight: 80, reps: 8 }] }] } })`);
-    sameJSON(Object.keys(r.s).sort(), ['category', 'date', 'duration', 'exercises', 'hidden', 'label', 'notes', 'programme']);
+    // bodyKg : le serveur ne l'envoie que si l'élève partage son poids avec ce coach (20261031300000_partage_coach.sql)
+    sameJSON(Object.keys(r.s).sort(), ['bodyKg', 'category', 'date', 'duration', 'exercises', 'hidden', 'label', 'notes', 'programme']);
+    assert.equal(r.s.bodyKg, 80);
+    for (const bad of ['"80"', '10', '400', 'null', '{}']) {
+      assert.equal(run(`cleanCoachSessionRow({ id: 's1', done_at: 5, s: { date: 5, bodyKg: ${bad} } })`).s.bodyKg, undefined, `bodyKg ${bad} écarté`);
+    }
     assert.equal(r.s.notes, 'dur');
     assert.equal(r.s.hidden, true);
     assert.equal(r.note, 'Bien');

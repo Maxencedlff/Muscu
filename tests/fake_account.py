@@ -40,6 +40,13 @@ listé dans removed, ses codes de ce coach répondent invalid_code jusqu'à coac
 students[].sent : programmes que je lui ai envoyés, { id, sent_at, seen }.
 État dans __sb.co ; __sb.makeCoach(id) pose coach_at, __sb.link(coach, élève) relie deux comptes. Appels dans
 __sb.calls sous ['coach', fonction, arguments] ; __sb.fail.coach = 'offline' pour le hors ligne.
+
+Partage avec le coach (supabase/migrations/20261031300000_partage_coach.sql) : student_shares,
+student_set_share (weight seulement : invalid_kind sinon ; not_found sans coach), student_share_weights
+(not_shared sans consentement, remplace la liste), coach_student_weights (not_found si pas mon élève) ;
+coach_student_sessions ajoute bodyKg (dernière pesée partagée au plus tard à la date) seulement avec le
+consentement. Quitter ou être retiré efface consentement et pesées. État dans __sb.co.shares et
+__sb.co.weights ; __sb.share(élève, [{ date, kg }]) coche le poids et dépose des pesées.
 """
 
 FAKE_ACCOUNT = r"""
@@ -415,7 +422,16 @@ FAKE_ACCOUNT = r"""
 
   // ── Coach (docs/COACH_V1.md) ──
   // État dans __sb.co : coachs (coach_at), codes, liens élève → coach (coach_seen_at), programmes envoyés, commentaires
-  const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0, bans: [] };
+  const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0, bans: [], shares: [], weights: {} };
+  // Partage : consentement { student, coach, kind, granted_at } du coach actuel ; pesées par élève (du plus récent)
+  const shareOf = (student, kind = 'weight') => co.shares.find(x => x.student === student && x.kind === kind && x.coach === linkOf(student)?.coach);
+  const dropShares = student => { co.shares = co.shares.filter(x => x.student !== student); delete co.weights[student]; };
+  const sharesState = me => ({ coach: !!linkOf(me), shares: Object.fromEntries(co.shares.filter(x => x.student === me && x.coach === linkOf(me)?.coach)
+    .map(x => [x.kind, { granted_at: x.granted_at, n: (co.weights[me] || []).length, last_at: (co.weights[me] || [])[0]?.date ?? null }])) });
+  sb.share = (student, weights = []) => {
+    if (!shareOf(student)) co.shares.push({ student, coach: linkOf(student).coach, kind: 'weight', granted_at: new Date(now()).toISOString() });
+    co.weights[student] = weights.slice().sort((a, b) => b.date - a.date);
+  };
   sb.makeCoach = id => { co.coachAt[id] = now(); };
   // seen : coach_seen_at (null tant que le coach n'a rien ouvert : new_sessions comptées depuis le lien)
   sb.link = (coachId, student, at = now()) => { co.links.push({ coach: coachId, student, at, seen: null }); };
@@ -450,7 +466,34 @@ FAKE_ACCOUNT = r"""
     (co.tries[me] ||= []).push(now());
     return inv;
   };
+  // private.coach_session_body : bodyKg seulement si l'élève me partage son poids
+  const withBodyKg = (me, student, at, s) => {
+    const sh = shareOf(student);
+    const w = sh && sh.coach === me ? (co.weights[student] || []).find(x => x.date <= at) : null;
+    return w ? { ...s, bodyKg: w.kg } : s;
+  };
   const coachRpc = {
+    student_shares: me => sharesState(me),
+    student_set_share: (me, { kind, enabled }) => {
+      if (kind !== 'weight' || typeof enabled !== 'boolean') return pgErr('invalid_kind');
+      const l = linkOf(me); if (!l) return pgErr('not_found');
+      if (enabled && !shareOf(me)) co.shares.push({ student: me, coach: l.coach, kind, granted_at: new Date(now()).toISOString() });
+      if (!enabled) dropShares(me);
+      return sharesState(me);
+    },
+    student_share_weights: (me, { weights }) => {
+      if (!shareOf(me)) return pgErr('not_shared');
+      if (!Array.isArray(weights)) return pgErr('invalid_data');
+      if (weights.length > 400) return pgErr('too_long');
+      if (weights.some(w => !w || !Number.isInteger(w.date) || typeof w.kg !== 'number' || w.kg < 25 || w.kg > 300)) return pgErr('invalid_data');
+      co.weights[me] = weights.map(w => ({ date: w.date, kg: Math.round(w.kg * 100) / 100 })).sort((a, b) => b.date - a.date);
+      return co.weights[me].length;
+    },
+    coach_student_weights: (me, { student }) => {
+      if (!coachOf(me, student)) return pgErr('not_found');
+      const sh = shareOf(student);
+      return sh ? { shared: true, since: sh.granted_at, weights: co.weights[student] || [] } : { shared: false, since: null, weights: [] };
+    },
     coach_state: me => {
       const l = linkOf(me), isCoach = !!co.coachAt[me];
       const students = isCoach ? co.links.filter(x => x.coach === me).map(x => {
@@ -485,12 +528,13 @@ FAKE_ACCOUNT = r"""
       if (!linkOf(me)) sb.link(r.coach, me);
       return cperson(r.coach, linkOf(me).at);
     },
-    coach_leave: me => { co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
+    coach_leave: me => { dropShares(me); co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
     // Retirer un accès est toujours permis, même si mon rôle de coach a été retiré
     coach_remove_student: (me, { student }) => {
       const l = linkOf(student);
       if (!l || l.coach !== me) return null;
       if (!co.bans.some(b => b.coach === me && b.student === student)) co.bans.push({ coach: me, student, at: now() });
+      dropShares(student);
       co.links = co.links.filter(l => l.student !== student); co.progs = co.progs.filter(p => p.student !== student); co.notes = co.notes.filter(n => n.student !== student); return null;
     },
     coach_student_sessions: (me, { student, before_at = null, before_id = null }) => {
@@ -499,7 +543,7 @@ FAKE_ACCOUNT = r"""
       const cmp = (a, b) => (a[0] - b[0]) || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0);
       return livePosts(student).filter(p => before_at == null || cmp(key(p), [before_at, before_id || '']) < 0)
         .sort((a, b) => cmp(key(b), key(a))).slice(0, 30)
-        .map(p => ({ id: p.id, done_at: p.data.date, s: sessionForCoach(p.id, p.data), note: co.notes.find(n => n.student === student && n.sid === p.id)?.text || null }));
+        .map(p => ({ id: p.id, done_at: p.data.date, s: withBodyKg(me, student, p.data.date, sessionForCoach(p.id, p.data)), note: co.notes.find(n => n.student === student && n.sid === p.id)?.text || null }));
     },
     coach_allow_student: (me, { student }) => { co.bans = co.bans.filter(b => !(b.coach === me && b.student === student)); return null; },
     coach_mark_seen: (me, { student }) => { const l = coachOf(me, student); if (!l) return pgErr('not_found'); l.seen = now(); return null; },
