@@ -241,6 +241,7 @@ const SCREENS = new Map([
 function screenOf(name) { return SCREENS.get(name) || SCREENS.get('dashboard'); }
 
 function paint(scrollY = window.scrollY) {
+  if (typeof closeBodyTip === 'function') closeBodyTip();   // bulle d'un muscle (js/ui/body-tip.js) : jamais d'un écran à l'autre
   const route = currentRoute();
   const name  = routeName(route);
   const screen = screenOf(name);
