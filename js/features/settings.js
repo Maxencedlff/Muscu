@@ -17,7 +17,8 @@ function agoText(ts) {
 // Efface les données de cet appareil (copie de secours locale gardée, copie iCloud vidée aussi). Avec un
 // compte, l'appelant détache d'abord l'appareil (accountForgetDevice) : rien n'est supprimé du compte.
 function wipeLocalData() {
-  try { localStorage.setItem(BACKUP_KEY, JSON.stringify(data)); } catch {}
+  // Copie de secours sans les mensurations : la confirmation promet leur effacement
+  try { const { bodyMeasures, ...rest } = data; localStorage.setItem(BACKUP_KEY, JSON.stringify(rest)); } catch {}
   if (activeSession) endSession();
   data = freshData();
   resetSelections();

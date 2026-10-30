@@ -254,6 +254,7 @@ def t_tout_supprimer(bench):
         page.wait_for_timeout(600)
         R.check(page.evaluate("photosAll().then(l => l.length)") == 0, 'photos effacées d\'IndexedDB')
         R.check('bodyMeasures' not in (ls(page, 'ppl_v2') or ''), 'mensurations effacées')
+        R.check('bodyMeasures' not in (ls(page, 'ppl_v2_backup') or ''), 'copie de secours sans les mensurations')
         page.evaluate("navigate('body-measures')")
         page.wait_for_selector('.view.body-measures')
         page.wait_for_timeout(400)
