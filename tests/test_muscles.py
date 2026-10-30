@@ -11,7 +11,7 @@ LOT = 'muscles'
 R = Results(LOT)
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MUSCLE_IDS = ['chest', 'front_delts', 'side_delts', 'rear_delts', 'traps', 'lats', 'lower_back', 'biceps', 'brachialis',
-              'triceps', 'forearms', 'abs', 'glutes', 'quads', 'hamstrings', 'adductors', 'calves']
+              'triceps', 'forearms', 'abs', 'obliques', 'glutes', 'quads', 'hamstrings', 'adductors', 'calves']
 
 
 def tag(device, theme):
@@ -67,7 +67,7 @@ def t_progress(bench, eng, dev, theme):
         low = page.locator('.mlow').inner_text()
         R.check('Pectoraux' in low and 'Grand dorsal' not in low, f'{t} peu travaillés : « {low} »')
         sr = page.locator('.mcard .visually-hidden li').all_inner_texts()
-        R.check(len(sr) == 17 and any(x.startswith('Grand dorsal : ') and 'série' in x for x in sr), f'{t} liste VoiceOver {sr[:2]}')
+        R.check(len(sr) == 18 and any(x.startswith('Grand dorsal : ') and 'série' in x for x in sr), f'{t} liste VoiceOver {sr[:2]}')
         R.check(page.locator('.mcard__map[aria-hidden="true"]').count() == 1, f'{t} dessin masqué à VoiceOver')
         R.check(no_hscroll(page), f'{t} Progrès : pas de défilement horizontal')
         card.scroll_into_view_if_needed()
@@ -83,7 +83,7 @@ def t_progress(bench, eng, dev, theme):
         page.click('[data-action="go-stats-muscles"]')
         page.wait_for_selector('.view.stats-muscles')
         rows = page.locator('.mrow').count()
-        R.check(rows == 17, f'{t} séries par muscle : 17 lignes ({rows})')
+        R.check(rows == 18, f'{t} séries par muscle : 18 lignes ({rows})')
         vals = [int(v) for v in page.locator('.mrow .cell__value').all_inner_texts()]
         R.check(vals == sorted(vals, reverse=True) and vals[0] > 0, f'{t} lignes triées par séries {vals[:4]}')
         R.check(page.locator('[data-action="muscle-span"][data-span="month"]').get_attribute('aria-pressed') == 'true', f'{t} période gardée')
@@ -507,6 +507,13 @@ def t_tip(bench, eng, dev, theme):
         R.check(page.locator('.body-map__hl').count() == 0, f'{t} bulle fermée : mise en valeur retirée')
         tap_muscle(page, '.mcard__map', 'calves', 'front')
         R.check(tip_text(page).startswith('Mollets'), f'{t} bulle mollets : « {tip_text(page)} »')
+        # Obliques (30/10) : calque à part du grand droit, sur le flanc ; la bulle les nomme
+        tap_muscle(page, '.mcard__map', 'obliques', 'front')
+        R.check(tip_text(page).startswith('Obliques'), f'{t} bulle obliques : « {tip_text(page)} »')
+        R.check(page.locator('.mcard__map .body-map__front .body-map__hl[data-muscle="obliques"]').count() == 1, f'{t} obliques mis en valeur')
+        shot(page, LOT, f'bulle-obliques-{t}')
+        tap_muscle(page, '.mcard__map', 'abs', 'front')
+        R.check(tip_text(page).startswith('Abdominaux'), f'{t} bulle abdominaux (grand droit) : « {tip_text(page)} »')
         page.mouse.click(f['x'] + f['width'] / 2, f['y'] + f['height'] * .04)
         page.wait_for_timeout(300)
         R.check(page.locator('.btip').count() == 0, f'{t} toucher la tête (zone grise) : bulle fermée')

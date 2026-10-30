@@ -10,7 +10,7 @@ const MOVE_MS = 2600;   // aller-retour : 1,3 s par phase, avec un temps d'arrê
 
 // Segments colorés selon les muscles principaux de l'exercice
 const SEG_MUSCLES = {
-  torso: ['chest', 'lats', 'abs', 'lower_back', 'traps'], upperArm: ['biceps', 'triceps', 'front_delts', 'side_delts', 'rear_delts'],
+  torso: ['chest', 'lats', 'abs', 'obliques', 'lower_back', 'traps'], upperArm: ['biceps', 'triceps', 'front_delts', 'side_delts', 'rear_delts'],
   forearm: ['forearms'], thigh: ['quads', 'hamstrings', 'glutes', 'adductors'], shin: ['calves'],
 };
 

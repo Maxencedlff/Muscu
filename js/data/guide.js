@@ -349,7 +349,7 @@ const GUIDE_SECTIONS = [
         steps: [
           'Choisis la période : [Cette semaine] (depuis lundi) ou [4 semaines] (les 28 derniers jours, en moyenne par semaine).',
           'La couleur suit les séries par semaine, 1 par série pour les muscles principaux et ½ pour les secondaires : entretien de 1 à 4, travaillé de 5 à 9, objectif atteint de 10 à 19, gros volume à partir de 20.',
-          'Touche un muscle de la silhouette pour voir ses séries. [Peu travaillés] liste les muscles en retard, [Séries par muscle] donne le détail.',
+          'Touche un muscle pour voir ses séries (Abdominaux = grand droit ; Obliques = flancs : rotations, gainage latéral). [Peu travaillés] liste les muscles en retard, [Séries par muscle] donne le détail.',
           'Les muscles d\'un exercice de la bibliothèque sont vérifiés. ··· › [Muscles ciblés] les modifie, ou choisit ceux d\'un exercice que tu as créé ; [Rétablir les muscles par défaut] revient aux muscles vérifiés.',
           'La silhouette se change dans [Réglages] › [Silhouette].',
         ],

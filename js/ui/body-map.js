@@ -6,7 +6,7 @@
 // Images rendues dans Blender (dépôt mdlf-perso, src/export_app.py), dans img/body/<sexe>/<vue>/ :
 // base.webp, le corps gris sans couleur, et un calque par muscle visible dans la vue (<id>.webp :
 // ombrage du muscle en gris, transparent ailleurs), tous au même cadrage au pixel près. L'app colore
-// des combinaisons quelconques (17 muscles × paliers) : on ne pré-rend pas chaque combinaison, on
+// des combinaisons quelconques (18 muscles × paliers) : on ne pré-rend pas chaque combinaison, on
 // pose sur la base, pour chaque muscle travaillé, sa couleur multipliée par son calque.
 //
 // Composition en CSS (un élément par muscle coloré, aucun script après l'affichage) :
@@ -24,11 +24,11 @@ const BODY_IMG = {
   w: 388, h: 840,
   bodies: {
     male: {
-      front: ['chest', 'front_delts', 'side_delts', 'traps', 'biceps', 'brachialis', 'triceps', 'forearms', 'abs', 'quads', 'adductors', 'calves'],
+      front: ['chest', 'front_delts', 'side_delts', 'traps', 'biceps', 'brachialis', 'triceps', 'forearms', 'abs', 'obliques', 'quads', 'adductors', 'calves'],
       back:  ['side_delts', 'rear_delts', 'traps', 'lats', 'lower_back', 'triceps', 'forearms', 'glutes', 'hamstrings', 'adductors', 'calves'],
     },
     female: {
-      front: ['chest', 'front_delts', 'side_delts', 'traps', 'biceps', 'brachialis', 'triceps', 'forearms', 'abs', 'quads', 'adductors', 'calves'],
+      front: ['chest', 'front_delts', 'side_delts', 'traps', 'biceps', 'brachialis', 'triceps', 'forearms', 'abs', 'obliques', 'quads', 'adductors', 'calves'],
       back:  ['side_delts', 'rear_delts', 'traps', 'lats', 'lower_back', 'triceps', 'forearms', 'glutes', 'hamstrings', 'adductors', 'calves'],
     },
   },

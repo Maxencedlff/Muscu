@@ -18,6 +18,13 @@
 // externe haltère (L-fly), sous-épineux et petit rond rangés avec l'épaule postérieure, faute de groupe pour
 // la coiffe (ExRx, « Dumbbell Lying External Rotation »), comme la rotation externe élastique ; oiseau poulie
 // vis-à-vis, deltoïde postérieur, trapèze moyen en synergiste (ExRx, « Cable Rear Delt Fly »).
+// Abdominaux (abs : grand droit) et obliques (obliques : oblique externe et interne) séparés le 30/10/2026 : la
+// flexion du tronc (crunch, relevés de jambes, roue) reste au grand droit ; la rotation (rotations russes, bûcheron,
+// crunch oblique), la flexion latérale et le gainage sur le côté vont aux obliques, qui sont les premiers en EMG
+// sur le gainage latéral (Ekstrom 2007, JOSPT, « side bridge ») et la cible d'ExRx pour « Cable Twist », « Side
+// Bend » et « Pallof press » (anti-rotation). La planche travaille les deux (Ekstrom 2007 : grand droit et oblique
+// externe élevés, érecteurs du rachis faibles). Le transverse, profond, n'a pas de zone : il est cité dans les
+// fiches « Comment faire » (vacuum, gainage, dead bug).
 // Matériel nécessaire, pour filtrer la bibliothèque quand on s'entraîne sans salle (feuille d'ajout).
 // Chaque exercice a une seule catégorie : celle du matériel le plus lourd qu'il demande.
 // Ordre = ordre des filtres ; les identifiants sont repris tels quels par sanitizeData (store.js).
@@ -84,14 +91,20 @@ const EXERCISE_CATALOGUE = [
   ['Développé couché prise serrée',    'triceps chest',          'front_delts', 'salle', 'close grip bench|close grip bench press|dc serré|développé serré|développé couché serré'],
   ['Kickback triceps',                 'triceps',                '', 'halteres', 'extension triceps buste penché|triceps kickback|kickback haltère'],
   ['Curl poignets',                    'forearms',               '', 'halteres', 'wrist curl'],
-  ['Marche du fermier',                'forearms traps',         'abs', 'halteres', 'farmer walk|farmer carry|farmer\'s carry'],
-  // Abdominaux
+  ['Marche du fermier',                'forearms traps',         'abs obliques', 'halteres', 'farmer walk|farmer carry|farmer\'s carry'],   // gainage du tronc en marchant : grand droit et obliques (McGill 2009, JSCR, « farmer's walk »)
+  // Abdominaux : flexion du tronc = grand droit (abs) ; rotation, flexion latérale et gainage sur le côté = obliques
   ['Crunch',                           'abs',                    '', 'aucun', 'crunches|crunch au sol'],
   ['Crunch poulie',                    'abs',                    '', 'salle', 'cable crunch|crunch câble'],
-  ['Gainage (planche)',                'abs',                    'lower_back', 'aucun', 'planche|plank|planche gainage'],
+  ['Gainage (planche)',                'abs',                    'obliques', 'aucun', 'planche|plank|planche gainage'],   // Ekstrom 2007 : grand droit et oblique externe élevés, érecteurs du rachis faibles
   ['Relevés de jambes',                'abs',                    '', 'aucun', 'leg raise|relevés de jambes au sol|lying leg raise'],
-  ['Roue abdominale',                  'abs',                    'lats', 'salle', 'ab wheel|ab roller|roue abdo|roulette abdo|ab wheel rollout'],
-  ['Rotations russes',                    'abs',                    '', 'aucun', 'russian twist'],
+  ['Roue abdominale',                  'abs',                    'obliques lats', 'salle', 'ab wheel|ab roller|roue abdo|roulette abdo|ab wheel rollout'],   // Escamilla 2006 : rollout, grand droit puis obliques
+  ['Rotations russes',                 'obliques',               'abs', 'aucun', 'russian twist|twist russe'],   // rotation du tronc : obliques, grand droit en gainage
+  ['Crunch oblique',                   'obliques',               'abs', 'aucun', 'crunch croisé|oblique crunch|crunch obliques|crunch latéral|side crunch'],   // flexion avec rotation : obliques d'abord (ExRx, « Twisting Crunch »)
+  ['Crunch vélo',                      'abs obliques',           '', 'aucun', 'bicycle crunch|crunch bicyclette|crunch cycliste|crunch pédalage'],   // flexion + rotation alternées : grand droit et obliques à égalité (ACE 2001, « bicycle maneuver »)
+  ['Bûcheron poulie',                  'obliques',               'abs', 'salle', 'bûcheron|bûcheron à la poulie|woodchop|wood chop|cable woodchop|cable twist|woodchopper'],   // ExRx, « Cable Twist » : cible obliques
+  ['Pallof press',                     'obliques',               'abs', 'salle', 'pallof|press pallof'],   // anti-rotation : obliques (et transverse, sans zone)
+  ['Flexion latérale haltère',         'obliques',               'lower_back', 'halteres', 'side bend|dumbbell side bend|flexion latérale|flexions latérales|inclinaison latérale|flexion latérale haltères'],   // ExRx, « Dumbbell Side Bend » : obliques, carré des lombes en synergiste (rangé avec les lombaires)
+  ['Vacuum',                           'abs',                    '', 'aucun', 'stomach vacuum|vacuum abdominal|aspiration du ventre|rentrer le ventre'],   // transverse (profond, sans zone) : compté avec les abdominaux
   // Jambes
   ['Squat barre',                      'quads glutes',           'adductors lower_back', 'salle', 'back squat|barbell squat|squat arrière'],
   ['Squat avant',                      'quads',                  'glutes abs', 'salle', 'front squat|squat avant barre'],
@@ -136,7 +149,7 @@ const EXERCISE_CATALOGUE = [
   ['Curl nordique',                    'hamstrings',             'glutes calves', 'aucun', 'nordic curl|nordic hamstring curl|nordic'],
   ['Mollets sur une marche',           'calves',                 '',            'aucun'],
   ['Superman',                         'lower_back',             'glutes hamstrings', 'aucun'],
-  ['Gainage latéral',                  'abs',                    'glutes',      'aucun', 'side plank|planche latérale'],
+  ['Gainage latéral',                  'obliques',               'glutes',      'aucun', 'side plank|planche latérale'],   // Ekstrom 2007 : premier exercice pour l'oblique externe, moyen fessier haut
   ['Grimpeur',                'abs',                    'quads front_delts', 'aucun', 'mountain climbers|mountain climber'],
   ['Burpees',                          'quads chest',            'front_delts triceps abs', 'aucun'],
   // Sans matériel : versions faciles et difficiles
@@ -183,7 +196,7 @@ const EXERCISE_CATALOGUE = [
   ['Rowing kettlebell',                'lats traps',             'rear_delts biceps', 'kettlebell', 'kettlebell row'],
   ['Épaulé kettlebell (clean)',        'glutes hamstrings',      'traps lower_back', 'kettlebell', 'kettlebell clean|épaulé kettlebell'],
   ['Arraché kettlebell',               'glutes hamstrings',      'traps side_delts', 'kettlebell', 'kettlebell snatch'],
-  ['Turkish get-up',                   'abs',                    'front_delts glutes', 'kettlebell', 'relevé turc|tgu'],
+  ['Turkish get-up',                   'abs',                    'obliques front_delts glutes', 'kettlebell', 'relevé turc|tgu'],   // le passage sur le coude est une flexion-rotation du tronc
   ['Halo kettlebell',                  'front_delts side_delts', 'traps abs',   'kettlebell', 'kettlebell halo'],
   ['Thruster kettlebell',              'quads front_delts',      'glutes triceps', 'kettlebell', 'kettlebell thruster'],
   ['Développé épaule kettlebell',      'front_delts',            'side_delts triceps', 'kettlebell', 'kettlebell press|kettlebell overhead press'],

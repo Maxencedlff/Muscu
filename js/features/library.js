@@ -10,7 +10,7 @@ let libEquip = 'all';    // filtre de matériel de l'écran (indépendant de la 
 // Sections de la liste, dans l'ordre du corps : rangement par le premier muscle principal
 const LIB_SECTIONS = [
   ['Pectoraux', ['chest']], ['Dos', ['lats', 'traps', 'lower_back']], ['Épaules', ['front_delts', 'side_delts', 'rear_delts']],
-  ['Bras', ['biceps', 'brachialis', 'triceps', 'forearms']], ['Abdominaux', ['abs']], ['Jambes', ['quads', 'hamstrings', 'glutes', 'adductors', 'calves']],
+  ['Bras', ['biceps', 'brachialis', 'triceps', 'forearms']], ['Abdominaux', ['abs', 'obliques']], ['Jambes', ['quads', 'hamstrings', 'glutes', 'adductors', 'calves']],
 ];
 function libSection(e) {
   if (e.equip === 'cardio') return 'Cardio';
