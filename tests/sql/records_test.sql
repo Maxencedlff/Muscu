@@ -65,7 +65,13 @@ begin
   select f.s into s from public.feed(only_user => pg_temp.ru('b')) f where f.id = 'r-1';
   if s is null then raise 'séance absente du fil'; end if;
   if jsonb_array_length(s -> 'records') is distinct from 3 then raise 'records : %', s -> 'records'; end if;
-  if s -> 'records' -> 0 is distinct from '{"ex": "Squat", "kind": "charge", "before": 95, "after": 100}'::jsonb then raise 'record charge : %', s -> 'records' -> 0; end if;
+  -- Sans la valeur d'avant : elle peut venir d'une séance masquée aux abonnés (seul le coach la voit)
+  if s -> 'records' -> 0 is distinct from '{"ex": "Squat", "kind": "charge", "after": 100}'::jsonb then raise 'record charge : %', s -> 'records' -> 0; end if;
+  if exists (select 1 from jsonb_array_elements(s -> 'records') r where r ? 'before') then raise 'before montré à un ami : %', s -> 'records'; end if;
+  -- Mes séances telles que mes abonnés les voient (Mon profil) : pareil
+  perform pg_temp.rlogin('b');
+  if exists (select 1 from public.my_shown_sessions() m, jsonb_array_elements(m.s -> 'records') r where r ? 'before') then raise 'before dans Mon profil'; end if;
+  perform pg_temp.rlogin('a');
   if s -> 'records' -> 1 ->> 'd' is distinct from '5' or s -> 'records' -> 2 ->> 'w' is distinct from '10' then raise 'd, w : %', s -> 'records'; end if;
   if s::text ~ 'secret|fuite|1rm|niveau' then raise 'fuite dans les records : %', s; end if;
   sets := s -> 'exercises' -> 0 -> 'sets';
@@ -80,7 +86,7 @@ begin
   -- Un compte qui ne suit pas B ne voit rien
   perform pg_temp.rlogin('d');
   if exists (select 1 from public.feed(only_user => pg_temp.ru('b'))) then raise 'séances visibles sans abonnement'; end if;
-  if pg_temp.rerr($q$ select private.session_records('[]') $q$) not like 'permission denied%' then raise 'private.session_records appelable'; end if;
+  if pg_temp.rerr($q$ select private.session_records('[]', true) $q$) not like 'permission denied%' then raise 'private.session_records appelable'; end if;
   if pg_temp.rerr($q$ select private.bounded_num('1', 0, 2) $q$) not like 'permission denied%' then raise 'private.bounded_num appelable'; end if;
 end $$;
 
@@ -90,6 +96,8 @@ declare s jsonb;
 begin
   perform pg_temp.rlogin('c');
   select x.s into s from public.coach_student_sessions(pg_temp.ru('b')) x where x.id = 'r-1';
+  -- Le coach garde la valeur d'avant (Relecture › Records : « avant 95 kg »)
+  if s -> 'records' -> 0 is distinct from '{"ex": "Squat", "kind": "charge", "before": 95, "after": 100}'::jsonb then raise 'coach : record charge %', s -> 'records' -> 0; end if;
   if jsonb_array_length(s -> 'records') is distinct from 3 or s -> 'exercises' -> 0 -> 'sets' -> 1 ->> 'rir' is distinct from '2'
      or s -> 'exercises' -> 0 -> 'sets' -> 0 ->> 'warmup' is distinct from 'true' then raise 'coach : %', s; end if;
   -- Un autre compte n'est pas son coach

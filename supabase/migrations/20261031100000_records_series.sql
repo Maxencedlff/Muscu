@@ -7,7 +7,9 @@
 --      { ex: texte (80 caractères au plus), kind: 'charge'|'reps'|'lest'|'aide'|'temps'|'duree'|
 --        'distance'|'allure', before: nombre, after: nombre, w?: nombre, d?: 0.5|1|2|5|10 }.
 --      Un élément invalide (type inconnu, nombre hors bornes, objet à la place d'un nom) est écarté ;
---      une clé inconnue d'un élément ne sort pas. Jamais le 1RM estimé : l'app ne le note pas, et le
+--      une clé inconnue d'un élément ne sort pas. before (la valeur d'avant) ne sort que pour le coach
+--      (private.session_for_coach, redéfinie ici) : elle peut venir d'une séance masquée aux abonnés,
+--      un ami ne la reçoit pas (fil, Mon profil). Jamais le 1RM estimé : l'app ne le note pas, et le
 --      type « 1rm » est refusé ici de toute façon. Champ absent (séance d'avant) : rien ne sort.
 --    - par série, warmup (true seulement, absent sinon) et rir (entier 0 à 4, absent sinon) : un ami
 --      ou un coach exclut l'échauffement du volume et des séries, le coach voit le RIR.
@@ -20,7 +22,8 @@
 --      table) et reports (target_user) (suppression d'un compte signalé) ;
 --    - clé primaire sur private.social_rate (journal sans clé) : colonne id générée.
 --
---  Réversible : remettre private.session_public de 20261027000000_supersets.sql, supprimer les trois
+--  Réversible : remettre private.session_public de 20261027000000_supersets.sql et
+--  private.session_for_coach de 20261027100000_coach.sql, supprimer les trois
 --  index et la colonne private.social_rate.id. Aucune donnée n'est modifiée par cette migration.
 -- ═══════════════════════════════════════════════════════════
 
@@ -31,15 +34,16 @@ $$
   select case when jsonb_typeof(v) = 'number' and (v #>> '{}')::numeric between lo and hi then v end
 $$;
 
--- Records notés d'une séance, revalidés : tableau (vide compris) ou null si le champ n'est pas un tableau
-create function private.session_records(v jsonb) returns jsonb
+-- Records notés d'une séance, revalidés : tableau (vide compris) ou null si le champ n'est pas un tableau.
+-- with_before : garder la valeur d'avant (coach seulement)
+create function private.session_records(v jsonb, with_before boolean) returns jsonb
   language sql immutable set search_path = '' as
 $$
   select case when jsonb_typeof(v) = 'array' then coalesce((
     select jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
       'ex',     to_jsonb(left(r.v ->> 'ex', 80)),
       'kind',   r.v -> 'kind',
-      'before', r.v -> 'before',
+      'before', case when with_before then r.v -> 'before' end,
       'after',  r.v -> 'after',
       'w',      private.bounded_num(r.v -> 'w', 0, 100000),
       'd',      case when r.v -> 'd' in ('0.5', '1', '2', '5', '10') then r.v -> 'd' end
@@ -65,7 +69,7 @@ $$
     'programme', private.scalar(data -> 'programme'),
     'category',  private.scalar(data -> 'category'),
     'label',     private.scalar(data -> 'label'),
-    'records',   private.session_records(data -> 'records'),
+    'records',   private.session_records(data -> 'records', false),
     'exercises', coalesce((
       select jsonb_agg(jsonb_build_object(
         'name',    private.scalar(e.v -> 'name'),
@@ -91,9 +95,23 @@ $$
   ))
 $$;
 
+-- Séance vue par le coach : comme 20261027100000_coach.sql, avec en plus les records notés AVEC leur
+-- valeur d'avant (Relecture › Records : « avant 95 kg »), qui remplacent ceux de session_public
+create or replace function private.session_for_coach(id text, data jsonb) returns jsonb
+  language sql immutable set search_path = '' as
+$$
+  select private.session_public(data) || jsonb_strip_nulls(jsonb_build_object(
+    'id',      id,
+    'notes',   case when jsonb_typeof(data -> 'notes') = 'string' then to_jsonb(left(data ->> 'notes', 2000)) end,
+    'hidden',  case when coalesce(data ->> 'hidden', '') = 'true' then true end,
+    'records', private.session_records(data -> 'records', true)
+  ))
+$$;
+
 -- Droits : fonctions internes, appelées seulement par les RPC SECURITY DEFINER
 revoke all on function private.bounded_num(jsonb, numeric, numeric) from public, anon, authenticated, service_role;
-revoke all on function private.session_records(jsonb) from public, anon, authenticated, service_role;
+revoke all on function private.session_records(jsonb, boolean) from public, anon, authenticated, service_role;
+revoke all on function private.session_for_coach(text, jsonb) from public, anon, authenticated, service_role;
 revoke all on function private.session_public(jsonb) from public, anon, authenticated, service_role;
 
 -- ── Index et clé primaire (controle-supabase) ────────────
