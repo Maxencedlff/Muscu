@@ -40,6 +40,12 @@ Cas qui se croisent :
   rejoindre le même coach ; l'attribution passe par l'adhésion (`coach_links`), quelle que soit la
   façon. Si le payant crée l'adhésion sans `coach_links`, il appelle
   `private.referral_attribute_coach(élève, coach)` (sans effet si l'élève a déjà un parrain).
+- **Élèves déjà liés à un coach avant la migration 20261031400000_parrainage.sql** : **pas de
+  rattrapage rétroactif**, décidé le 31/10/2026. Le déclencheur ne joue qu'aux nouvelles adhésions
+  (`after insert on coach_links`) ; les liens existants ne reçoivent aucune attribution. Raison : le
+  seul coach actuel est le compte de démo, il n'y a aucune commission réelle à rattraper. Si un vrai
+  coach avait des élèves liés avant la mise en ligne, il faudrait une migration de rattrapage
+  explicite (`private.referral_attribute_coach` sur chaque lien, sans effet sur un élève déjà parrainé).
 
 ## Règles réglables
 
