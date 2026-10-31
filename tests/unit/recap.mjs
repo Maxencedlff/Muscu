@@ -269,7 +269,7 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     const st = app.recapStats(week(), hist, NOW);
     const r = st.bestRecord;
     assert.equal(r.w, 57.5);
-    assert.equal(r.before.w, 52.5, 'départ : le record d\'avant la semaine, pas celui du mardi');
+    assert.equal(r.before.value, 52.5, 'départ : le record d\'avant la semaine, pas celui du mardi');
     assert.equal(r.before.date, at(2026, 8, 28, 18), 'date où ce record a été fait');
     sameJSON(r.curve.map(x => x.w), [50, 52.5, 52.5, 55, 57.5]);
     const t = app.recapRecordTexts(r);
@@ -283,6 +283,35 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(tr.from, '8'); assert.equal(tr.to, '10'); assert.equal(tr.unit, 'reps'); assert.equal(tr.sub, 'à 50 kg');
     assert.equal(tr.gain, '+2 répétitions depuis ton record du 5 octobre');
     assert.equal(rr.curve, null, 'record de reps : pas de courbe de charge');
+  }));
+
+  test('recapRecords : records notés (aide, allure, temps), égaler n\'est pas battre, jamais le 1RM estimé', () => inParis(() => {
+    reset();
+    const L = (id, d, exs) => ({ id, programme: 'ppl', category: 'legs', date: d, duration: 0, exercises: exs });
+    const G = sets => ({ name: 'Gainage (planche)', measure: 'time', sets });
+    const C = sets => ({ name: 'Course à pied', measure: 'cardio', sets });
+    const A = sets => ({ name: 'Tractions assistées (machine)', sets });
+    const Q = sets => ({ exId: 'sq', name: 'Squat barre', sets });
+    const hist = () => [
+      L('a', at(2026, 9, 5, 18), [G([s('', '60')]), C([{ weight: '', reps: '30', dist: '6' }]), A([s('30', '8')]), Q([s('100', '5')])]),
+      // Squat : 100 × 5 égalé, 90 × 10 meilleur en 1RM estimé seulement : aucun record
+      L('b', at(2026, 9, 13, 18), [G([s('', '75')]), C([{ weight: '', reps: '31', dist: '6.4' }]), A([s('25', '8')]), Q([s('100', '5'), s('90', '10')])]),
+    ];
+    const st = app.recapStats(week(), hist(), NOW);
+    sameJSON(st.records.map(r => [r.name, r.kind]), [['Tractions assistées (machine)', 'aide'], ['Course à pied', 'allure'], ['Gainage (planche)', 'temps']]);
+    const by = Object.fromEntries(st.records.map(r => [r.kind, r]));
+    assert.equal(by.allure.label, 'Record 5 km');
+    assert.equal(by.allure.value, '5 km à 4:51 /km');
+    sameJSON(app.recapRecordTexts(by.allure), { from: '5:00', to: '4:51', unit: '/km', sub: 'sur 5 km', gain: '−9 secondes au km depuis ton record du 5 octobre' });
+    sameJSON(app.recapRecordTexts(by.temps), { from: '1 min', to: '1 min 15', unit: '', sub: 'tenu', gain: '+15 s depuis ton record du 5 octobre' });
+    sameJSON(app.recapRecordTexts(by.aide), { from: '30', to: '25', unit: 'kg', sub: 'd\'aide × 8 répétitions', gain: `−5\u00a0kg d'aide depuis ton record du 5 octobre` });
+    assert.equal(by.aide.curve, null, 'aide : pas de courbe de charge');
+    // Les records notés dans la séance font foi : aucun noté, aucun record ; un record noté est repris tel quel
+    const none = hist(); none[1].records = [];
+    assert.equal(app.recapStats(week(), none, NOW).records.length, 0);
+    const one = hist(); one[1].records = [{ ex: 'Squat barre', kind: 'charge', before: 95, after: 100 }];
+    const sq = app.recapStats(week(), one, NOW).records;
+    sameJSON(sq.map(r => [r.kind, r.value, r.before.value]), [['charge', '100 kg × 5', 95]]);
   }));
 
   test('recapStats année : mois le plus actif, record le plus marquant, écran du mois, « ton année en chiffres »', () => inParis(() => {

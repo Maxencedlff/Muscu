@@ -89,66 +89,84 @@ function recapTotals(sessions) {
   }, { sessions: 0, duration: 0, volume: 0, sets: 0 });
 }
 
-// Records battus pendant la période, un par exercice (le plus marquant : charge > reps > 1RM, puis le
-// plus lourd), comparés aux séances d'avant chacune (historyBaseline : même programme, même séance),
-// exactement comme le bilan et l'image d'une séance. Du plus marquant au moins marquant.
-// Chaque record garde aussi d'où il part (before : meilleure série d'avant la période, sinon d'avant sa
-// séance) et la courbe de la meilleure série séance après séance (curve), pour l'écran « avant → après ».
-function recapRecords(sessions, history, p = null) {
-  const best = new Map();
+// Records battus pendant la période, un par exercice : les records notés dans chaque séance à
+// l'enregistrement (entryRecords, js/data/records.js : charge, lest, reps, aide, temps, durée, distance,
+// allure ; égaler n'est jamais battre, jamais le 1RM estimé), recalculés avec les mêmes règles pour une
+// séance d'avant les records notés. Ce sont donc exactement ceux du bilan, de l'image de la séance et des
+// badges en direct. Par exercice, le plus marquant (type, puis meilleure valeur) ; du plus marquant au moins.
+// Chaque record garde d'où il part (before : la valeur d'avant du premier record de la même sorte dans la
+// période, sur la même séance type, « 50 → 57,5 kg » sur la semaine) et, en charge ou en lest, la courbe de
+// la meilleure série séance après séance (curve), pour l'écran « avant → après ».
+function recapRecords(sessions, history) {
+  const by = new Map();   // exercice (nom normalisé, comme les records notés) → [{ r, h, ex }] dans l'ordre
   sessions.forEach(h => {
-    const base = historyBaseline(h, history);
-    const periodBase = p ? historyBaseline({ ...h, date: p.start }, history) : {};
-    (h.exercises || []).forEach(ex => {
-      const rec = exerciseRecord(ex, base[recordKey(ex)]);
-      if (!rec) return;
-      const b = bestSet([rec.s], ex);
-      if (!b) return;
-      const key = recordKey(ex);
-      const kind = rec.label === 'Record reps' ? 'reps' : rec.label === 'Record 1RM est.' ? 'e1rm' : 'charge';
-      const e1 = calc1RM(b.w, b.r);
-      // Ligne de base : celle d'avant la période si le record la bat aussi (« 50 → 57,5 kg » sur la semaine),
-      // sinon celle d'avant la séance (record battu deux fois dans la semaine, exercice commencé dans la période)
-      const beats = x => x && (kind === 'charge' ? b.w > x.prW : kind === 'reps' ? x.prW === b.w && b.r > x.prR : e1 > x.e1rm);
-      const pb = beats(periodBase[key]) ? periodBase[key] : base[key];
-      const cut = pb === periodBase[key] && p ? p.start : h.date;
-      const item = { key, name: ex.name, label: rec.label, kind, value: setTxt(b, ex), w: b.w, r: b.r, e1,
-        rank: RECORD_RANK[rec.label] || 0, date: h.date, before: recapBefore(h, ex, history, pb, kind, cut) };
-      const prev = best.get(item.key);
-      if (!prev || recapRecordRank(item) > recapRecordRank(prev)) best.set(item.key, item);
+    entryRecords(h, history).forEach(r => {
+      // L'exercice de la séance qui fait ce record (même nom), avec sa série
+      const ex = (h.exercises || []).find(e => normName(e.name) === normName(r.ex) && notedRecordSet(e, r));
+      if (!ex) return;
+      const k = normName(r.ex);
+      if (!by.has(k)) by.set(k, []);
+      by.get(k).push({ r, h, ex });
     });
   });
-  return [...best.values()].sort((a, b) => recapRecordRank(b) - recapRecordRank(a) || b.date - a.date)
-    .map(r => ({ ...r, curve: recapCurve(history, sessions.find(h => h.date === r.date), r) }));
+  const out = [...by.entries()].map(([key, list]) => {
+    const best = list.reduce((b, x) => (recapBetterRecord(x.r, b.r) ? x : b));
+    const { r, h, ex } = best;
+    const set = notedRecordSet(ex, r);
+    const first = list.find(x => recapSameLine(x, best)) || best;
+    const from = first.r.before;
+    return { key, name: ex.name, kind: r.kind, label: notedLabel(r), rec: r,
+      value: recapRecordValue(r, ex, set), w: parseFloat(set.weight) || 0, r: parseInt(set.reps) || 0,
+      rank: NOTED_RANK[r.kind] || 0, date: h.date,
+      before: from == null ? null : { value: from, date: recapBeforeDate(first.h, first.ex, first.r, history) },
+      curve: recapCurve(history, h, ex, r) };
+  });
+  return out.sort((a, b) => b.rank - a.rank || recapRecordWeight(b) - recapRecordWeight(a) || b.date - a.date);
 }
-function recapRecordRank(r) { return r.rank * 1e9 + r.w * 1e3 + r.r; }
+// Meilleur de deux records du même exercice : type le plus marquant, puis meilleure valeur (moins d'aide,
+// allure la plus rapide sur la plus longue distance fixe, sinon la plus grande valeur)
+function recapBetterRecord(a, b) {
+  if (NOTED_RANK[a.kind] !== NOTED_RANK[b.kind]) return NOTED_RANK[a.kind] > NOTED_RANK[b.kind];
+  if (a.kind !== b.kind) return false;
+  if (a.kind === 'allure') return a.d > b.d || (a.d === b.d && a.after < b.after);
+  return a.kind === 'aide' ? a.after < b.after : a.after > b.after;
+}
+// Même sorte de record sur la même séance type (programme et séance) : même type, même distance fixe,
+// même charge pour un record de reps. Sert à trouver d'où part le record sur la période.
+function recapSameLine(x, best) {
+  return x.r.kind === best.r.kind && x.r.d === best.r.d && x.r.w === best.r.w
+    && entryProg(x.h) === entryProg(best.h) && x.h.category === best.h.category;
+}
+// Ordre des records de même type : les plus lourds d'abord, puis le plus de reps
+function recapRecordWeight(x) { return x.w * 1e3 + x.r; }
+// Texte d'un record dans une liste (« 62,5 kg × 6 », « 5 km à 4:50 /km », « 45 min ») : la série elle-même
+// en force, la valeur du record ailleurs
+function recapRecordValue(r, ex, set) {
+  if (['charge', 'lest', 'reps', 'aide'].includes(r.kind)) return setTxt(bestSet([set], ex), ex);
+  return r.kind === 'allure' ? `${recordDistTxt(r.d)} à ${notedValueTxt(r)}` : notedValueTxt(r);
+}
 
-// Séances d'avant `cut` où l'exercice compte pour ses records (mêmes règles que historyBaseline)
+// Séances d'avant `cut` où l'exercice compte pour ses records (même programme, même séance)
 function recapSameSlot(entry, ex, history, cut) {
   const prog = entryProg(entry);
   return (history || []).filter(h => h && h !== entry && h.date < cut && entryProg(h) === prog && h.category === entry.category
     && (h.exercises || []).some(e => sameEx(e, ex))).sort((a, b) => a.date - b.date);
 }
 
-// D'où part un record : { w, r, e1, date } (date : première séance où ce record d'avant a été fait), null sans ligne de base
-function recapBefore(entry, ex, history, pb, kind, cut) {
-  if (!pb || !pb.prR) return null;
-  const match = s => {
-    const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
-    return kind === 'e1rm' ? calc1RM(s.weight, s.reps) === pb.e1rm : w === pb.prW && r === pb.prR;
-  };
-  const first = recapSameSlot(entry, ex, history, cut)
-    .find(h => (h.exercises || []).some(e => sameEx(e, ex) && workSets(e.sets).some(match)));
-  return { w: pb.prW, r: pb.prR, e1: pb.e1rm || null, date: first ? first.date : null };
+// Date du record d'avant (r.before) : première séance d'avant où une série l'a fait, null sinon
+function recapBeforeDate(entry, ex, r, history) {
+  if (r.before == null) return null;
+  const was = { ...r, after: r.before };
+  const first = recapSameSlot(entry, ex, history, entry.date)
+    .find(h => (h.exercises || []).some(e => sameEx(e, ex) && notedRecordSet(e, was)));
+  return first ? first.date : null;
 }
 
-// Courbe d'un record de charge : meilleure charge de chaque séance de l'exercice jusqu'au record compris
-// (8 dernières), seulement s'il y a au moins 3 points et qu'elle monte
+// Courbe d'un record de charge ou de lest : meilleure charge de chaque séance de l'exercice jusqu'au record
+// compris (8 dernières), seulement s'il y a au moins 3 points et qu'elle monte
 const RECAP_CURVE_MAX = 8;
-function recapCurve(history, entry, rec) {
-  if (!entry || rec.kind !== 'charge' || !(rec.w > 0)) return null;
-  const ex = (entry.exercises || []).find(e => recordKey(e) === rec.key);
-  if (!ex) return null;
+function recapCurve(history, entry, ex, r) {
+  if (!entry || !ex || !['charge', 'lest'].includes(r.kind) || !(r.after > 0)) return null;
   const pts = [...recapSameSlot(entry, ex, history, entry.date), entry].map(h => {
     const b = bestSet((h.exercises || []).filter(e => sameEx(e, ex)).flatMap(e => e.sets || []), ex);
     return b && b.w > 0 ? { date: h.date, w: b.w } : null;
@@ -157,22 +175,46 @@ function recapCurve(history, entry, rec) {
 }
 
 // Textes de l'écran record : { from, to, unit, sub, gain } (« 50 » → « 57,5 » kg, « × 10 répétitions »,
-// « +7,5 kg depuis ton record du 21 septembre »). Sans ligne de base, from et gain sont vides.
+// « +7,5 kg depuis ton record du 21 septembre »). Sans valeur d'avant, from et gain sont vides.
+const recapRound = v => Math.round(v * 100) / 100;
+const recapPaceNum = sec => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
 function recapRecordTexts(rec) {
-  const u = unitLbl(), b = rec.before;
+  const u = unitLbl(), r = rec.rec, b = rec.before?.value ?? null, has = b != null;
   const day = ts => new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-  const since = b?.date ? ` depuis ton record du ${day(b.date)}` : '';
-  if (rec.kind === 'reps') {
-    return { from: b ? String(b.r) : '', to: String(rec.r), unit: 'reps', sub: `à ${fmtW(rec.w)}\u00a0${u}`,
-             gain: b ? `+${plural(rec.r - b.r, 'répétition', 'répétitions')}${since}` : '' };
+  const since = rec.before?.date ? ` depuis ton record du ${day(rec.before.date)}` : '';
+  const reps = `× ${plural(rec.r, 'répétition', 'répétitions')}`;
+  const kg = v => `${fmtW(recapRound(v))} ${u}`;
+  switch (r.kind) {
+    case 'reps': {
+      const k = loadKind({ name: rec.name });
+      const sub = !(r.w > 0) ? 'au poids du corps' : k === 'lest' ? `avec +${kg(r.w)}` : k === 'aide' ? `avec ${kg(r.w)} d'aide` : `à ${kg(r.w)}`;
+      return { from: has ? String(b) : '', to: String(r.after), unit: 'reps', sub,
+               gain: has ? `+${plural(r.after - b, 'répétition', 'répétitions')}${since}` : '' };
+    }
+    case 'lest':
+      return { from: has && b > 0 ? fmtW(b) : '', to: fmtW(r.after), unit: u, sub: `de lest ${reps}`,
+               gain: has ? `+${kg(r.after - b)}${since}` : '' };
+    case 'aide':
+      return { from: has ? fmtW(b) : '', to: fmtW(r.after), unit: u, sub: `d'aide ${reps}`,
+               gain: has ? `−${kg(b - r.after)} d'aide${since}` : '' };
+    case 'temps':
+      return { from: has ? fmtSeconds(b) : '', to: fmtSeconds(r.after), unit: '', sub: r.w > 0 ? `avec +${kg(r.w)}` : 'tenu',
+               gain: has ? `+${fmtSeconds(r.after - b)}${since}` : '' };
+    case 'duree':
+      return { from: has ? fmtNum(b) : '', to: fmtNum(r.after), unit: 'min', sub: '',
+               gain: has ? `+${fmtNum(recapRound(r.after - b))} min${since}` : '' };
+    case 'distance':
+      return { from: has ? fmtNum(b) : '', to: fmtNum(r.after), unit: 'km', sub: '',
+               gain: has ? `+${fmtNum(recapRound(r.after - b))} km${since}` : '' };
+    case 'allure': {
+      const split = ROW_RECORD_KM.includes(r.d);
+      return { from: has ? recapPaceNum(b) : '', to: recapPaceNum(r.after), unit: split ? '/500 m' : '/km', sub: `sur ${recordDistTxt(r.d)}`,
+               gain: has ? `−${plural(b - r.after, 'seconde', 'secondes')} ${split ? 'aux 500 m' : 'au km'}${since}` : '' };
+    }
   }
-  if (rec.kind === 'e1rm' && rec.e1) {
-    return { from: b?.e1 ? fmtW(b.e1) : '', to: fmtW(rec.e1), unit: u, sub: `1RM estimé · ${rec.value}`,
-             gain: b?.e1 && rec.e1 > b.e1 ? `+${fmtW(Math.round((rec.e1 - b.e1) * 10) / 10)}\u00a0${u}${since}` : '' };
-  }
-  if (!(rec.w > 0)) return { from: '', to: rec.value, unit: '', sub: '', gain: '' };
-  return { from: b && b.w > 0 ? fmtW(b.w) : '', to: fmtW(rec.w), unit: u, sub: `× ${plural(rec.r, 'répétition', 'répétitions')}`,
-           gain: b && b.w > 0 ? `+${fmtW(Math.round((rec.w - b.w) * 100) / 100)}\u00a0${u}${since}` : '' };
+  // Charge
+  return { from: has && b > 0 ? fmtW(b) : '', to: fmtW(r.after), unit: u, sub: rec.r ? reps : '',
+           gain: has && b > 0 ? `+${kg(r.after - b)}${since}` : '' };
 }
 
 // Exercice le plus pratiqué : présent (au moins une série faite) dans le plus de séances, puis le plus
@@ -384,7 +426,7 @@ function recapStats(p, history = data.history, now = Date.now()) {
   if (!sessions.length) return null;
   const totals = recapTotals(sessions);
   const prevTotals = recapTotals(recapSessions(history, recapPrevPeriod(p, now)));
-  const records = recapRecords(sessions, history, p);
+  const records = recapRecords(sessions, history);
   const st = {
     period: p, ...totals,
     records, bestRecord: records[0] || null,
