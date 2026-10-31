@@ -51,9 +51,12 @@ function startSession(cat) {
   requestWakeLock();
 }
 
-// Séance en cours enregistrée avec son repos, pour survivre à la fermeture de l'app
+// Séance en cours enregistrée avec son repos, pour survivre à la fermeture de l'app. L'Apple Watch
+// suit chaque sauvegarde (js/features/watch.js : rien n'est envoyé si rien n'a changé).
 function persistSession() {
-  if (writeSession(restSnapshot()) || !activeSession || persistWarned) return;
+  const saved = writeSession(restSnapshot());
+  syncWatch();
+  if (saved || !activeSession || persistWarned) return;
   persistWarned = true;
   showToast('Stockage plein : la séance n\'est plus sauvegardée', { error: true });
 }

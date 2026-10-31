@@ -71,6 +71,9 @@ const SCRIPTS = [
   'js/features/summary.js',
   'js/features/settings.js',
   'js/features/progress.js',
+  'js/features/watch.js',
+  'js/features/home-widget.js',
+  'js/features/siri.js',
 ];
 
 // ── Environnement simulé ────────────────────────────────────
@@ -1477,6 +1480,8 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 (await import('./import-csv.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
 // ── Récaps de la semaine, du mois et de l'année (tests dans recap.mjs) ──
 (await import('./recap.mjs')).default({ test, run, reset, assert, app, sameJSON });
+// ── Apple Watch, widget et Siri (tests dans companions.mjs) ──
+(await import('./companions.mjs')).default({ test, run, reset, assert, app, sameJSON, ctx, nativeContext, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

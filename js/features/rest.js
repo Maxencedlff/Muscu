@@ -219,6 +219,14 @@ function adjustRest(d) {
   syncNativeRest();
 }
 
+// « Passer » : le repos s'arrête et disparaît (bouton du repos, ou Apple Watch : js/features/watch.js)
+function skipRest() {
+  stopRest();
+  closeRestSheet();
+  removeRestUI();
+  persistSession();
+}
+
 // Retour au premier plan : le son est réveillé et le repos recalé sur son heure de fin
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
@@ -231,12 +239,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
-  'skip-rest': () => {
-    stopRest();
-    closeRestSheet();
-    removeRestUI();
-    persistSession();
-  },
+  'skip-rest': () => skipRest(),
   'collapse-rest': () => {
     closeRestSheet();
   },
