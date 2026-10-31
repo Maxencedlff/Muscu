@@ -5,8 +5,12 @@ ce que publie le site :
 
 - `index.html` : « l'app est sur iPhone », avec le téléchargement des données de l'ancienne PWA si ce
   navigateur en garde (clé `ppl_v2`) ;
-- `privacy.html` : copié depuis la racine au moment de la publication (URL déclarée à l'App Store,
-  à garder en ligne) ;
-- `sw.js` : désinstalle l'ancien service worker et vide ses caches.
+- `privacy.html`, `mentions-legales.html`, `cgu.html`, `cgv.html` et leur feuille `legal.css` : pages
+  juridiques copiées depuis la racine au moment de la publication, liées depuis l'app par
+  `js/data/legal-links.js` (contenu et emplacements à compléter : docs/JURIDIQUE.md). L'URL de
+  `privacy.html` est déclarée à l'App Store : à garder en ligne ;
+- `sw.js` : désinstalle l'ancien service worker et vide ses caches ;
+- `strava.html` (Strava en sommeil, liée nulle part : docs/STRAVA.md) : retour de la page d'autorisation de Strava (fonction `strava-connect`),
+  résultat en ancre (`#ok`, `#refuse`, `#droits`, `#expire`, `#erreur`) affiché sans script.
 
 Publication : job `deploy` de `.github/workflows/tests.yml`.

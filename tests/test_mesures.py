@@ -8,7 +8,6 @@ mensurations et photos (IndexedDB).
 Captures : $PPL_SCRATCH/shots/lotmesures/.
 Lancer : PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_mesures.py (ou sans variable : 5 appareils × 2 thèmes).
 """
-import datetime
 import json
 import os
 import struct

@@ -171,6 +171,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ▶ | Abonnements 5,99 €/mois et 41,99 €/an, offre 3 mois gratuits                  | App Store Connect         | Créés · manque la capture de revue     |
 | ▶ | Photos de progression dans l'app iPhone (autorisations caméra et photos)      | Branche nuit-build        | Fusionnée dans la build unique         |
 | ▶ | Build unique : sommeil, séances détaillées dans Santé, notifications push    | Branche build-ios         | TestFlight 31 (avec montre, widget, Siri) · serveur push pas en service |
+| ▶ | Niveau de force (squat, développé couché, soulevé de terre), seuils OpenPowerlifting | Branche nuit-entrainement | Prêt, tests verts · OTA · à valider     |
 | ▶ | Commentaires libres sur les séances (modération) et messages coach ↔ élève   | Branche nuit-social       | Prêt en local, tests verts · feu vert n° 2 |
 
 ---
@@ -193,7 +194,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Écran Mon profil, pastille d'activité, bravos dans l'Historique | Feu vert n° 2                                |
 | ○ | Partage du poids avec le coach (consentement)                   | Feu vert n° 2                                |
 | ○ | Échauffements et RIR visibles par les amis et le coach          | Feu vert n° 2                                |
-| ○ | Export vers Strava (jeton côté serveur)                         | Feu vert n° 2                                |
+| ○ | Export vers Strava (jeton côté serveur), codé : **en sommeil, prévu pour une prochaine mise à jour** (décision du 31/10, interrupteur STRAVA_SWITCH éteint) | Après le lancement · migration 20261031620000_strava.sql à NE PAS appliquer au lancement · rallumage (build soumise à Apple) dans docs/STRAVA.md |
 | ○ | 3 index manquants                                               | Feu vert n° 2                                |
 | ○ | Mise en ligne du payant modèle B, verrou éteint                 | Prêt · attend ta décision carte / sans carte |
 
@@ -269,7 +270,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 |   | Quoi                                                    | Quand / état           |
 |---|---------------------------------------------------------|------------------------|
 | ○ | Compte Google Play (25 $), 12 testeurs pendant 14 jours | Après la sortie iPhone |
-| ○ | Parties natives, paiement Google Play, pré-inscription  | Après la sortie iPhone |
+| ▶ | Parties natives, paiement Google Play, pré-inscription  | Préparé (branche nuit-android, non compilé), plan : docs/ANDROID.md |
 
 ### Après le payant · parrainage et tarifs
 
@@ -278,13 +279,13 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Parrainage entre utilisateurs : 1 mois offert à l'ami et au parrain (quand l'ami paie)    | Après le payant + clé IAP |
 | ○ | Coachs vérifiés (carte pro), code unique, 20 % du net pendant 12 mois sur leurs élèves    | Branche payant (en cours) |
 | ○ | Tarifs : 6,49 €/mois, coach 15,99 à 29,99 € selon les élèves, annuel = 8,5 mois, élève −25 % | Branche payant (en cours) |
+| ○ | Payant plus : accès à vie offerts révocables, TestFlight reconnu, main fusionnée (achat à vie : refusé par Maxence le 31/10) | Branche nuit-payantplus · build |
 
 ### Plus tard
 
 |   | Quoi                                                          | Quand / état          |
 |---|---------------------------------------------------------------|-----------------------|
-| ○ | Newsletter (commentaires et chat coach : branche nuit-social) | Plus tard |
-| ○ | Score de force, périodisation, option à vie, marque INPI      | Plus tard             |
+| ○ | Marque INPI (option à vie : refusée par Maxence le 31/10)     | Plus tard |
 | ○ | Test mini-barre, rôle coach d'un testeur                      | Mini-barre : corrigé (branche nuit-fiabilite) |
 | ○ | Messages tout faits en réaction                               | Plus tard             |
 | ○ | Coach payant selon son nombre d'élèves                        | Plus tard             |

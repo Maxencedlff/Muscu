@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<!-- Manifeste de confidentialité exigé par Apple : aucun suivi. Données collectées seulement avec le compte
-	     facultatif (js/data/account.js), pour synchroniser les appareils : identifiant (dont le pseudo), adresse
+	     facultatif (js/data/account.js), pour synchroniser les appareils (et, sur inscription, pour la lettre d'information) : identifiant (dont le pseudo), adresse
 	     e-mail (comptes e-mail et Google seulement), nom (comptes Google seulement), séances, notes et avatar (un emoji).
 	     Jamais de donnée d'Apple Santé. Poids du corps : seulement les pesées saisies dans l'app, si l'élève
 	     choisit de les partager avec son coach (js/data/coach-share.js), d'où le type Health ci-dessous.
@@ -30,7 +30,10 @@
 		</dict>
 		<dict>
 			<!-- Adresse e-mail : connexion par code e-mail, ou donnée par Google à la connexion avec Google.
-			     Sert seulement à se connecter (envoi du code par Resend) ; jamais de publicité ni de suivi -->
+			     Sert à se connecter (envoi du code par Resend) et, seulement si la personne s'y inscrit elle-même
+			     (Réglages › Compte), à la lettre d'information de l'app (marketing du développeur,
+			     docs/NEWSLETTER.md). Jamais de publicité de tiers ni de suivi. Même déclaration dans App Store
+			     Connect (Adresse e-mail : Fonctionnalité de l'app, Publicité ou marketing du développeur) -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
@@ -40,6 +43,7 @@
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeDeveloperAdvertising</string>
 			</array>
 		</dict>
 		<dict>
@@ -76,6 +80,23 @@
 			<!-- Séances d'entraînement : exercices, séries, charges, répétitions, durées, programmes -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeFitness</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- Abonnement (StorePlugin.swift) : la transaction signée par Apple est envoyée à l'Edge Function
+			     verify-purchase, qui garde le produit acheté, la date de fin et l'identifiant de transaction
+			     avec le compte (table entitlements). Jamais de publicité ni de suivi ; aucun moyen de paiement
+			     ne passe par l'app (Apple encaisse). À reporter dans App Store Connect
+			     (Confidentialité de l'app › Achats › Historique des achats). -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePurchaseHistory</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sauvegarde Google (Android 12+) : seulement la copie des données de l'app (ppl_v2.json, écrite par
+     Native.backup dans le dossier de l'app). Au premier lancement après une réinstallation ou sur un
+     nouveau téléphone, Native.boot la remet en place, comme la copie des Documents sur iOS.
+     Rien d'autre (vue web, mises à jour à chaud, réglages des modules) : relancé proprement. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="file" path="ppl_v2.json" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="file" path="ppl_v2.json" />
+    </device-transfer>
+</data-extraction-rules>

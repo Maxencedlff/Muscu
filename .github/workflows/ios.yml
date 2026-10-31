@@ -203,6 +203,14 @@ jobs:
           path: shots/
 
       # ── Mode TestFlight ───────────────────────────────────────────
+      # Comme pour l'OTA : la version envoyée ouvre les pages de LEGAL_URLS (écran d'abonnement,
+      # règle 3.1.2 d'Apple) ; rien n'est signé ni envoyé tant qu'elles ne sont pas complètes et en ligne
+      - name: Pages juridiques complètes et en ligne
+        if: ${{ inputs.testflight }}
+        run: |
+          node scripts/check-legal-pages.mjs privacy.html mentions-legales.html cgu.html cgv.html
+          node scripts/check-legal-online.mjs
+
       # Signature manuelle : certificat Apple Distribution et profil App Store créés par l'API
       # (aucun appareil enregistré nécessaire), installés dans un trousseau temporaire.
       - name: Certificat et profil de distribution

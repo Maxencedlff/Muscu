@@ -571,7 +571,7 @@ begin
   set role authenticated;
 end $$;
 
--- ── Équipe pleine : 50 élèves ────────────────────────────
+-- ── Équipe pleine : 50 élèves verrou éteint (palier minimal, 20261030 : tier_full) ──
 do $$
 declare c text; i int;
 begin
@@ -582,8 +582,8 @@ begin
     perform public.coach_join(c);
   end loop;
   perform pg_temp.clogin50(51);
-  if pg_temp.cerr(format('select public.coach_preview(%L)', c)) is distinct from 'team_full' then raise 'aperçu équipe pleine'; end if;
-  if pg_temp.cerr(format('select public.coach_join(%L)', c)) is distinct from 'team_full' then raise '51e élève'; end if;
+  if pg_temp.cerr(format('select public.coach_preview(%L)', c)) is distinct from 'tier_full' then raise 'aperçu équipe pleine'; end if;
+  if pg_temp.cerr(format('select public.coach_join(%L)', c)) is distinct from 'tier_full' then raise '51e élève'; end if;
   -- Un élève déjà dans l'équipe rejoue son adhésion sans erreur
   perform pg_temp.clogin50(1);
   if public.coach_join(c) ->> 'username' is distinct from 'laura.c1' then raise 'adhésion rejouée équipe pleine'; end if;

@@ -1,8 +1,13 @@
 'use strict';
 
-// Pont vers les fonctions natives d'iOS quand l'app tourne dans sa coquille Capacitor (App Store).
-// Dans le navigateur (PWA), Native.isNative vaut false et chaque fonction ne fait rien :
-// l'app web garde exactement son comportement.
+// Pont vers les fonctions natives quand l'app tourne dans sa coquille Capacitor : iOS (App Store) ou,
+// en préparation, Android (Google Play, docs/ANDROID.md). Dans le navigateur (PWA), Native.isNative vaut
+// false et chaque fonction ne fait rien : l'app web garde exactement son comportement.
+//
+// Android reprend les mêmes noms de modules qu'iOS quand l'équivalent existe (MdlfHealth : Health Connect,
+// MdlfLiveActivity : notification du repos, MdlfStore : Google Play). Ce qui n'existe que sur iOS
+// (copie iCloud, Apple Music, icônes alternatives, compte Apple) est coupé ici sur Android, d'après
+// Native.platform, sans rien changer pour iOS.
 //
 // Les modules natifs sont joints sans bundler : window.Capacitor (injecté par la coquille iOS)
 // fournit registerPlugin(nom), qui relaie les appels vers le code Swift du module.
@@ -12,6 +17,15 @@ const Native = (() => {
   // Sans le runtime JS de Capacitor (registerPlugin), l'app se comporte comme la version web
   const isNative = !!cap?.isNativePlatform?.() && typeof cap.registerPlugin === 'function';
   const plugin   = name => (isNative ? cap.registerPlugin(name) : null);
+  // 'ios', 'android' ou 'web'. Une coquille sans getPlatform (jamais vu) est une coquille iOS.
+  const platform  = isNative ? (cap.getPlatform?.() === 'android' ? 'android' : 'ios') : 'web';
+  const isAndroid = platform === 'android';
+  // Copie iCloud de l'app : iOS seulement (Android : sauvegarde Google du fichier de copie, voir backup)
+  const hasCloud  = isNative && !isAndroid;
+  // Copie de sécurité ppl_v2.json : Documents de l'app sur iOS ; sur Android, le dossier privé de l'app
+  // (« DATA »), seul inclus dans la sauvegarde Google (android/app/src/main/res/xml/data_extraction_rules.xml).
+  // « DOCUMENTS » y serait le dossier Documents partagé du téléphone, illisible après une réinstallation.
+  const BACKUP_DIR = isAndroid ? 'DATA' : 'DOCUMENTS';
 
   const Haptics            = plugin('Haptics');
   const LocalNotifications = plugin('LocalNotifications');
@@ -27,6 +41,7 @@ const Native = (() => {
   const Cloud              = plugin('MdlfCloudBackup'); // module Swift de l'app (ios/App/App/CloudBackupPlugin.swift)
   const Sound              = plugin('MdlfSound');     // module Swift de l'app (ios/App/App/SoundPlugin.swift), build 22 et suivantes
   const Account            = plugin('MdlfAccount');   // module Swift de l'app (ios/App/App/AccountPlugin.swift), build 25 et suivantes
+  const Store              = plugin('MdlfStore');     // module Swift de l'app (ios/App/App/StorePlugin.swift), abonnements StoreKit 2
   const Push               = plugin('MdlfPush');      // module Swift de l'app (ios/App/App/PushPlugin.swift), build qui suit le 31/10/2026
   const Watch              = plugin('MdlfWatch');     // module Swift de l'app (ios/App/AppExtras/WatchPlugin.swift), build avec l'Apple Watch
   const Widget             = plugin('MdlfWidget');    // module Swift de l'app (ios/App/AppExtras/WidgetPlugin.swift), même build
@@ -73,7 +88,7 @@ const Native = (() => {
   // Copie iCloud : jamais écrasée par une donnée sans séance tant qu'on ne sait pas ce qu'elle
   // contient (réinstallation, iCloud lent ou hors ligne). Ouverte une fois pour toutes quand iCloud
   // a répondu, dès la première séance, ou d'emblée pour qui avait déjà des séances.
-  let cloudReady     = isNative && (getItem(CLOUD_READY) === '1' || sessionCount(localAtStart) > 0);
+  let cloudReady     = hasCloud && (getItem(CLOUD_READY) === '1' || sessionCount(localAtStart) > 0);
   let cloudErase     = false;   // « Supprimer toutes les données » : vider aussi la copie iCloud
   if (cloudReady) setItem(CLOUD_READY, '1');
 
@@ -120,6 +135,7 @@ const Native = (() => {
   // Envoi à iCloud : rien tant que l'écriture est fermée, rien si iCloud a déjà ce JSON (ex.
   // l'enregistrement de chaque démarrage, qui ferait gagner un vieil iPhone juste ouvert)
   const pushCloud = json => {
+    if (!hasCloud) return;
     const sessions = sessionCount(json);
     if (sessions > 0) openCloud();
     if (!cloudReady) return;
@@ -137,6 +153,7 @@ const Native = (() => {
 
   return {
     isNative,
+    platform,
     restoredAtBoot,
 
     // Retour haptique du Taptic Engine : 'light' au toucher, 'success' en fin de repos ou de séance
@@ -200,7 +217,7 @@ const Native = (() => {
       if (!isNative || !backupEnabled) return;
       clearTimeout(backupTimer);
       backupTimer = setTimeout(() => {
-        quiet(Filesystem.writeFile({ path: BACKUP_FILE, data: json, directory: 'DOCUMENTS', encoding: 'utf8' }));
+        quiet(Filesystem.writeFile({ path: BACKUP_FILE, data: json, directory: BACKUP_DIR, encoding: 'utf8' }));
         pushCloud(json);
       }, 800);
     },
@@ -220,7 +237,7 @@ const Native = (() => {
       if (!hadLocalData) {
         const file = await this.readBackup();
         if (file && restore(file)) return true;
-        if (!file) {
+        if (!file && hasCloud) {
           const { json, synced } = await readCloud(CLOUD_WAIT_MS);
           if (json && restore(json)) return true;
           if (synced) openCloud();
@@ -229,6 +246,7 @@ const Native = (() => {
       }
       // Changement venu d'iCloud (autre iPhone, autre compte) : l'empreinte ne dit plus ce
       // qu'iCloud contient, le prochain enregistrement renverra la donnée de cet iPhone
+      if (!hasCloud) return false;
       quiet(Cloud.addListener?.('change', ({ data } = {}) => {
         setItem(CLOUD_SENT, '');
         if (!cloudReady) adoptCloud(data);
@@ -245,17 +263,23 @@ const Native = (() => {
       return false;
     },
 
-    // Apple Santé : autorisation, entraînement « Musculation », pesées (kg), courses et sorties vélo. Hors app : rien.
+    // Apple Santé (iOS) ou Health Connect (Android) : autorisation, entraînement « Musculation », pesées
+    // (kg), courses et sorties vélo. Mêmes réponses sur les deux. Hors app : rien.
     health: {
-      // workouts : false pour ne demander que le poids et l'écriture (sans la lecture des courses et du vélo)
+      // Nom montré dans les Réglages
+      name: isAndroid ? 'Health Connect' : 'Apple Santé',
+      // workouts : false pour ne demander que le poids et l'écriture (sans la lecture des courses et du vélo).
+      // → { available, workouts } (écriture des séances accordée) ; Android ajoute workoutsRead (lecture
+      // des courses et du vélo accordée), qu'iOS ne peut pas dire.
       async authorize({ workouts = true } = {}) {
         if (!isNative) return { available: false, workouts: false };
         try { return await Health.requestAuthorization({ workouts }); } catch { return { available: false, workouts: false }; }
       },
       // Fenêtre d'autorisation encore à montrer pour un type : 'shouldRequest', 'unnecessary' (tout a été
-      // demandé) ou 'unknown' (échec, build antérieure sans la méthode, navigateur). Ne montre rien.
+      // demandé, quelle que soit la réponse, sur iOS comme sur Android) ou 'unknown' (échec, build
+      // antérieure sans la méthode, navigateur). Ne montre rien.
       // which : 'request' (poids, écriture, courses et vélo) ou 'extra' (sommeil et distances du cardio,
-      // build qui suit le 31/10/2026 : 'unknown' sur une build antérieure).
+      // build iOS qui suit le 31/10/2026 : 'unknown' sur une build antérieure et sur Android).
       async requestStatus(which = 'request') {
         if (!isNative) return 'unknown';
         try { return (await Health.authorizationStatus())[which] || 'unknown'; } catch { return 'unknown'; }
@@ -294,7 +318,8 @@ const Native = (() => {
       },
     },
 
-    // Notifications push (APNs). Hors app, ou build antérieure sans le module : available() vaut false et rien
+    // Notifications push (APNs). Hors app, sur Android (pas de module) ou build antérieure sans le module :
+    // available() vaut false et rien
     // ne se passe. permission() : 'prompt' | 'granted' | 'denied' | 'unavailable' (sans rien montrer) ;
     // requestPermission() ouvre la fenêtre d'iOS si elle n'a jamais été montrée (appelé seulement après un
     // toucher sur un interrupteur de Réglages › Notifications). register() : { token, environment } ou null.
@@ -328,8 +353,9 @@ const Native = (() => {
       onReceive(cb) { if (isNative && Push) quiet(Push.addListener('received', cb)); },
     },
 
-    // Apple Music : morceau en cours et commandes du lecteur de l'app Musique. Hors app : rien.
+    // Apple Music : morceau en cours et commandes du lecteur de l'app Musique. Hors app et sur Android : rien.
     music: {
+      available: isNative && !isAndroid,
       async authorize() {
         if (!isNative) return false;
         try { return !!(await Music.requestAuthorization()).granted; } catch { return false; }
@@ -440,6 +466,84 @@ const Native = (() => {
       },
     },
 
+    // Abonnements (StoreKit 2, docs/PAYANT_V1.md). L'app ne décide jamais d'un droit d'accès : elle ne
+    // fait que transmettre au serveur la transaction signée par Apple (JWS), vérifiée par la fonction
+    // Edge verify-purchase. available : faux dans le navigateur et dans une coquille plus ancienne que
+    // le module (une mise à jour à chaud peut arriver avant la nouvelle build) : aucun achat proposé,
+    // l'écran invite alors à utiliser l'app iPhone.
+    store: {
+      available: isNative && !!cap.isPluginAvailable?.('MdlfStore'),
+      // { products: [{ id, displayName, description, displayPrice, price (nombre), currency,
+      // period, introEligible }], missing: [identifiants inconnus d'Apple], canMakePayments }.
+      // Le prix AFFICHABLE est `displayPrice` (déjà formaté par Apple dans la monnaie de la
+      // boutique) ; `price` est un nombre. Tant que le contrat Paid Apps n'est pas signé, products
+      // est VIDE et missing contient les deux identifiants : l'écran le dit, sans prix, sans planter.
+      async products() {
+        if (!this.available) return { products: [], missing: [], canMakePayments: false };
+        try {
+          const r = await Store.products();
+          return { products: r?.products || [], missing: r?.missing || [],
+            canMakePayments: r?.canMakePayments !== false };
+        } catch { return { products: [], missing: [], canMakePayments: true }; }
+      },
+      // Ne rejette jamais sur annulation : { status: 'success' | 'userCancelled' | 'pending' }, avec
+      // { jws, transactionId } quand status vaut 'success'. La transaction n'est PAS terminée ici :
+      // c'est finish() qui le fait, une fois le serveur d'accord (un achat perdu par le réseau
+      // revient au lancement suivant).
+      async purchase(productId, appAccountToken = null) {
+        if (!this.available) return null;
+        try { return await Store.purchase({ productId, ...(appAccountToken ? { appAccountToken } : {}) }); }
+        catch { return null; }
+      },
+      // OBLIGATOIRE après la vérification par le serveur : sans cet appel, Apple réannonce la même
+      // transaction à chaque lancement.
+      async finish(transactionId) {
+        if (!this.available || transactionId == null) return false;
+        try { await Store.finish({ transactionId }); return true; } catch { return false; }
+      },
+      // AppStore.sync() (mot de passe Apple demandé) puis les droits en cours :
+      // { synced, cancelled, entitlements: [{ jws, transactionId, productId, … }], unverified }.
+      // Le JWS est dans CHAQUE droit, jamais à la racine.
+      async restore() {
+        if (!this.available) return null;
+        try { return await Store.restore(); } catch { return null; }
+      },
+      // Droits en cours (Transaction.currentEntitlements), sans rien demander à l'utilisateur :
+      // { entitlements: [...], unverified }
+      async current() {
+        if (!this.available) return null;
+        try { return await Store.current(); } catch { return null; }
+      },
+      // { canMakePayments, subscriptionIds }, sans aucun appel réseau. canMakePayments est
+      // faux quand les achats sont bloqués (Temps d'écran) : l'écran ne doit rien proposer.
+      async status() {
+        if (!this.available) return null;
+        try { return await Store.status(); } catch { return null; }
+      },
+      // Ouvre la feuille de codes d'offre d'ABONNEMENT d'Apple (un code cadeau MDLF, lui, se saisit
+      // dans l'app). Renvoie { presented: true }, ou { presented: false, cancelled: true } si la
+      // fenêtre est fermée : ce n'est PAS un succès. Le code utilisé revient par l'écouteur.
+      async redeemCode() {
+        if (!this.available) return null;
+        try { return await Store.redeemCode(); } catch { return null; }
+      },
+      // Environnement de l'app selon StoreKit (AppTransaction) : 'production' (App Store), 'sandbox'
+      // (TestFlight, ou Xcode avec un compte Sandbox), 'other' ou 'unknown'. null hors app iOS, ou dans
+      // une coquille plus ancienne que la méthode (mise à jour à chaud arrivée avant la build). Sert
+      // seulement à choisir l'environnement d'un code d'offre élève : aucune décision d'accès.
+      async environment() {
+        if (!this.available) return null;
+        try { const r = await Store.environment(); return typeof r?.environment === 'string' ? r.environment : null; }
+        catch { return null; }
+      },
+      // Écouteur permanent Transaction.updates : renouvellement, code utilisé, achat sur un autre
+      // appareil. Le module émet le même événement sous deux noms ('transaction' et 'change') :
+      // on s'abonne à UN SEUL, sinon chaque transaction serait traitée deux fois.
+      onTransaction(cb) {
+        if (this.available) quiet(Store.addListener('transaction', cb));
+      },
+    },
+
     appIcon: {
       async get() {
         if (!isNative) return { supported: false, name: null };
@@ -529,10 +633,25 @@ const Native = (() => {
       catch (e) { return /cancel/i.test(String(e?.message || e)) ? 'cancelled' : 'failed'; }
     },
 
+    // Ouvre une adresse https dans Safari, même APRÈS un appel réseau ou une feuille de confirmation.
+    // window.open ne convient pas alors : WKWebView ne l'accepte que pendant le geste de l'utilisateur
+    // (javaScriptCanOpenWindowsAutomatically, que Capacitor laisse à false sur iOS ; WebKit bloquait aussi
+    // window.open dans un fetch().then() lancé par un clic, bug 302803 corrigé fin 2025, l'app vise iOS 16.4).
+    // Dans l'app, une navigation de premier niveau vers un autre domaine est annulée par Capacitor et
+    // confiée à Safari (WebViewDelegationHandler, decidePolicyFor : UIApplication.shared.open), sans
+    // condition de geste : l'app reste sur sa page. Hors app : nouvel onglet. Adresse non https : rien.
+    openOutside(url) {
+      const u = String(url ?? '');
+      if (!/^https:\/\/[^\s]+$/.test(u)) return false;
+      if (isNative) window.location.assign(u);
+      else window.open(u, '_blank');
+      return true;
+    },
+
     async readBackup() {
       if (!isNative) return null;
       try {
-        const r = await Filesystem.readFile({ path: BACKUP_FILE, directory: 'DOCUMENTS', encoding: 'utf8' });
+        const r = await Filesystem.readFile({ path: BACKUP_FILE, directory: BACKUP_DIR, encoding: 'utf8' });
         return typeof r.data === 'string' && r.data.length > 2 ? r.data : null;
       } catch { return null; }
     },

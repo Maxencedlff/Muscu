@@ -297,6 +297,8 @@ function sanitizeData(d) {
     && /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(d.appSeenAt) && Number.isFinite(Date.parse(d.appSeenAt)))) delete d.appSeenAt;
   // Silhouette des muscles (bodySilhouette) : absente = homme ; valeur inconnue retirée
   if (d.silhouette !== undefined && d.silhouette !== 'female' && d.silhouette !== 'male') delete d.silhouette;
+  // Sexe des repères de force (Réglages › Entraînement, js/data/strength-levels.js) : male, female, none ou absent
+  if (d.strengthSex !== undefined && !STRENGTH_SEXES.includes(d.strengthSex)) delete d.strengthSex;
   // Niveau du premier lancement (trainingLevel) : valeur inconnue retirée
   if (d.level !== undefined && !TRAINING_LEVELS.includes(d.level)) delete d.level;
   // Dernier compte connecté sur l'appareil (cleanLastAccount) : retiré s'il est illisible

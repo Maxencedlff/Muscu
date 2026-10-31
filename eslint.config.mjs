@@ -7,7 +7,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
-  { ignores: ['dist/**', 'ios/**', 'node_modules/**', 'tests/shots/**', 'ota-site/**'] },
+  { ignores: ['dist/**', 'ios/**', 'android/**', 'node_modules/**', 'tests/shots/**', 'ota-site/**'] },
   js.configs.recommended,
   // Espaces insécables voulus dans les textes (typographie française : « 57 min », « 12 % »)
   { rules: { 'no-irregular-whitespace': ['error', { skipStrings: true, skipTemplates: true, skipRegExps: true }] } },
@@ -16,10 +16,11 @@ export default [
     languageOptions: { ecmaVersion: 2023, sourceType: 'script', globals: { ...globals.browser, ...globals.serviceworker } },
     rules: { 'no-undef': 'off', 'no-unused-vars': 'off', 'no-empty': ['error', { allowEmptyCatch: true }] },
   },
-  // Règles pures des fonctions serveur (Deno), aussi chargées par les tests Node : API web communes aux deux
+  // Logique pure des fonctions serveur (Edge) : modules ES tournant sous Deno (production) et Node (tests),
+  // avec les seules interfaces communes aux deux (Web Crypto, encodage de texte, btoa, URLSearchParams)
   {
     files: ['supabase/functions/**/*.js'],
-    languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals['shared-node-browser'] } },
+    languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals['shared-node-browser'], crypto: 'readonly' } },
   },
   {
     files: ['tests/**/*.mjs', 'scripts/**/*.mjs', 'tools/**/*.mjs', 'eslint.config.mjs'],

@@ -1,0 +1,56 @@
+name: Android
+
+# Compilation de contrôle de l'app Android (docs/ANDROID.md) : APK de débogage, rien de signé, rien
+# d'envoyé à Google Play. Sert à vérifier le Kotlin (modules maison) et le projet Gradle, que la machine
+# de développement ne peut pas compiler (pas de SDK Android). Les runners ubuntu-latest ont le SDK
+# Android et ses licences ; Gradle télécharge seul la plateforme 36 si elle manque.
+# Lancé seulement quand Android ou ce qu'il embarque change, ou à la main.
+on:
+  push:
+    paths:
+      - 'android/**'
+      - 'package-lock.json'
+      - 'capacitor.config.json'
+      - 'scripts/build-web.mjs'
+      - 'scripts/runtime-version.mjs'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Contenu web et projet Android à jour
+        run: npm ci && npm run android:sync
+      - name: Compilation (APK de débogage)
+        working-directory: android
+        run: ./gradlew --no-daemon assembleDebug lintDebug
+      - name: APK et rapport de lint
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: android-debug
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/reports/lint-results-debug.html
+          retention-days: 7

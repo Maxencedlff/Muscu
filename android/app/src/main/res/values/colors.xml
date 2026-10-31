@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Noir pur de l'interface (css/base.css) : fond de la fenêtre, de l'écran de démarrage et des barres -->
+    <color name="mdlf_black">#000000</color>
+    <!-- Couleurs exigées par le thème AppCompat de Capacitor (barre d'action jamais montrée) -->
+    <color name="colorPrimary">#000000</color>
+    <color name="colorPrimaryDark">#000000</color>
+    <color name="colorAccent">#FF6A1A</color>
+</resources>

@@ -10,7 +10,28 @@ verify_jwt = false
 # Même choix que delete-account : jeton vérifié dans le code (auth.getUser)
 verify_jwt = false
 
+[functions.verify-purchase]
+# Même choix que delete-account : jeton vérifié dans le code (caller, _shared/auth-guard.js), 401 sinon
+verify_jwt = false
+
 [functions.report]
+# Même choix que delete-account : jeton vérifié dans le code (auth.getUser)
+verify_jwt = false
+
+[functions.coach-request-alert]
+# Même choix que delete-account : jeton vérifié dans le code (caller, _shared/auth-guard.js), 401 sinon
+verify_jwt = false
+
+[functions.strava-connect]
+# POST : jeton vérifié dans le code (auth.getUser). GET : retour de Strava dans Safari, sans jeton de
+# session (c'est l'état OAuth à usage unique qui désigne le compte) : la passerelle ne doit rien exiger
+verify_jwt = false
+
+[functions.strava-export]
+# Même choix que delete-account : jeton vérifié dans le code (auth.getUser)
+verify_jwt = false
+
+[functions.strava-disconnect]
 # Même choix que delete-account : jeton vérifié dans le code (auth.getUser)
 verify_jwt = false
 

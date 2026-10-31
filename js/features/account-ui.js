@@ -182,6 +182,7 @@ ${referralGroupHtml()}
           <button class="cell cell--action" data-action="account-sync" ${account.syncing ? 'disabled' : ''}><span class="cell__title">Sauvegarder maintenant</span></button>
         </div>
         <div class="group-foot">Après chaque séance. Ton poids et tes données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></div>
+${renderNewsletterGroup()}
 
         <div class="group group--gap">
           <button class="cell cell--action" data-action="account-sign-out"><span class="cell__title">Se déconnecter</span></button>
@@ -193,7 +194,7 @@ ${referralGroupHtml()}
       </div>
     </div>`;
 }
-SCREENS.set('account', { render: () => renderAccount() });
+SCREENS.set('account', { render: () => renderAccount(), enter: () => { if (account.user) newsletterRefresh({ minAge: 30_000 }); } });
 
 // Parrainage (js/data/referral.js) : « Parrainé par … », ou la saisie du code pendant les 30 jours qui
 // suivent la création du compte ; rien ensuite. L'état est relu une fois, puis l'écran redessiné.
@@ -565,9 +566,21 @@ registerActions({
   },
   'account-delete': async () => {
     const apple = hasApple(account.user);
-    if (!(await confirmSheet('Supprimer ton compte ?',
-      `Ton compte, ton pseudo et tout ce qui est sauvegardé dessus seront effacés définitivement. Les séances de cet iPhone ne sont pas touchées : tu choisiras ensuite de les garder ou non. Tes autres appareils seront déconnectés et garderont leurs séances. ${apple ? 'Apple te demandera de confirmer ton identité.' : 'Tu confirmeras ton identité en te reconnectant.'}`,
-      'Supprimer mon compte'))) return;
+    const message = `Ton compte, ton pseudo et tout ce qui est sauvegardé dessus seront effacés définitivement. Les séances de cet iPhone ne sont pas touchées : tu choisiras ensuite de les garder ou non. Tes autres appareils seront déconnectés et garderont leurs séances. ${apple ? 'Apple te demandera de confirmer ton identité.' : 'Tu confirmeras ton identité en te reconnectant.'}`;
+    // Abonnement en cours : supprimer le compte ne l'arrête pas, c'est Apple qui facture. On le dit et
+    // on mène à la gestion chez Apple (exigence d'Apple pour la suppression de compte :
+    // https://developer.apple.com/support/offering-account-deletion-in-your-app/)
+    if (typeof accessStatus === 'function' && accessStatus() === 'active') {
+      const choice = await dialog({ type: 'sheet', title: 'Supprimer ton compte ?',
+        message: `Ton abonnement continuera d'être facturé par Apple : supprimer ton compte ne l'arrête pas. Résilie-le d'abord dans « Gérer chez Apple ». ${message}`,
+        actions: [
+          { label: 'Gérer chez Apple', value: 'manage', style: 'preferred' },
+          { label: 'Supprimer mon compte', value: 'delete', style: 'destructive' },
+          { label: 'Annuler', style: 'cancel' },
+        ] });
+      if (choice === 'manage') { window.open(PAY_MANAGE_URL, '_blank'); return; }
+      if (choice !== 'delete') return;
+    } else if (!(await confirmSheet('Supprimer ton compte ?', message, 'Supprimer mon compte'))) return;
     await deleteAccountFlow();
   },
 });

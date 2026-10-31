@@ -6,6 +6,7 @@
   "scripts": {
     "web:build": "node scripts/build-web.mjs",
     "ios:sync": "npm run web:build && cap sync ios",
+    "android:sync": "node scripts/build-web.mjs --android && cap sync android",
     "test:unit": "node tests/unit/run.mjs",
     "lint": "eslint ."
   },
@@ -14,6 +15,7 @@
   },
   "dependencies": {
     "@capacitor-community/keep-awake": "^8.0.1",
+    "@capacitor/android": "8.5.3",
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.3",
     "@capacitor/filesystem": "^8.1.5",

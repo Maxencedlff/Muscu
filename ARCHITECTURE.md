@@ -39,7 +39,13 @@ js/ui/                infrastructure d'écran : thème, navigation, barres, feui
 js/features/          un fichier (ou plusieurs) par écran ou fonctionnalité
 js/app/               mises à jour du service worker, démarrage et écouteurs globaux
 tests/                tests de non-régression Playwright (Python) et tests unitaires (tests/unit/)
-scripts/              construction de l'app iOS (build-web.mjs, empreinte native runtime-version.mjs), mises à jour à chaud, images de la marque (brand-icons.py)
+scripts/              construction de l'app (build-web.mjs, empreinte native par plateforme runtime-version.mjs), mises à jour à chaud, images de la marque (brand-icons.py), seuils du niveau de force (strength-standards.py), gardes des pages juridiques : emplacements à compléter (check-legal-pages.mjs, job deploy, OTA et TestFlight) et pages en ligne avant une OTA ou un envoi TestFlight (check-legal-online.mjs)
+privacy.html, mentions-legales.html, cgu.html, cgv.html, legal.css
+                      pages juridiques publiques (mdlf.app, publiées par le job deploy via web-public/), sans script ; docs/JURIDIQUE.md
+store/                fiche App Store (captures.py) et captures de revue des abonnements (captures_revue.py → docs/revue/)
+js/platform/native.js pont vers les modules natifs (iOS, Android) ; sans effet dans le navigateur
+ios/                  coquille iOS (Capacitor, modules Swift, extension Live Activity) : IOS.md
+android/              coquille Android en préparation (Capacitor, modules Kotlin) : docs/ANDROID.md
 ```
 
 ### css/
@@ -55,9 +61,12 @@ scripts/              construction de l'app iOS (build-web.mjs, empreinte native
 | `muscles.css` | Silhouette musculaire, pastilles de muscles, carte « Muscles » de Progrès, écran Séries par muscle, feuille « Muscles ciblés » |
 | `share.css` | Partage de séance : bouton « Partager ma séance », aperçu de l'image au format 9:16 |
 | `recap.css` | Récaps : carte « Ta semaine » de l'accueil, écrans côte à côte (scroll-snap), chiffre énorme en SF Rounded, listes et tuiles du résumé, points et flèches, arrivée légère (coupée avec prefers-reduced-motion) |
+| `strength-levels.css` | Niveau de force : échelle à cinq segments des fiches d'exercice, « Nouveau palier » du bilan |
 | `account.css` | Compte : calque plein écran (Bienvenue, e-mail, code, pseudo, avatar), boutons de connexion aux chartes Apple et Google (tokens `--siwa-*`, `--gsi-*`), écran Compte, cellule des Réglages, carte de l'accueil |
 | `social.css` | Amis : badge de l'onglet, accueil de l'onglet (sans compte, activation), lignes de personnes et petits boutons arrondis, cartes du fil, bouton de réaction, profil d'un autre |
+| `strava.css` | Strava : bouton officiel « Connect with Strava » (image de Strava, jamais retouchée), cellule d'envoi d'une séance et lien « View on Strava » en gras |
 | `coach.css` | Coach : cellule en haut de l'onglet Amis, pastilles de nouveautés, programmes reçus, consignes (Programme › Séance, séance en cours), séances d'un élève, codes d'invitation, saisie des consignes et du commentaire |
+| `paywall.css` | Abonnement : bandeau discret de l'accueil, écran d'abonnement (formules, prix lus chez StoreKit), Réglages › Abonnement, liens vers les conditions et la confidentialité |
 | `screens.css` | Écrans à fond groupé (`.view--grouped` : Programme, Progrès, Historique, Réglages) et leur composant de liste groupée (`.group` / `.cell`, seul composant de liste), vignettes « Icône de l'app » (`.app-icons`), accessibilité, paysage, Dynamic Type |
 
 Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
@@ -83,6 +92,8 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `plates.js` | Disques (logique pure, chargé avant `store.js`) : exercices à barre, barre et disques de la personne (`data.plates`, propre à l'appareil, `cleanPlates`), répartition par côté. Feuille dans `js/features/session-tools.js` |
 | `warmup.js` | Échauffement (chargé avant `store.js`) : paliers 40 / 60 / 80 %, `isWarmupSet`, `workSets` (séries de travail : volume, records, séries, récaps, muscles excluent `warmup: true`) |
 | `rir.js` | RIR facultatif d'une série validée (`rir` 0 à 4, `cleanRir`, équivalence RPE de Zourdos), réglage `data.rirOn` (appareil), `meanRpe`, `rirLine` |
+| `strength-standards.js` | Seuils du niveau de force (`STRENGTH_STANDARDS` : squat, développé couché, soulevé de terre ; hommes et femmes ; par catégorie de poids), **générés** par `scripts/strength-standards.py` depuis l'export public d'OpenPowerlifting. Ne pas modifier à la main |
+| `strength-levels.js` | Niveau de force, logique pure et locale (chargé avant `store.js` : `STRENGTH_SEXES` sert au nettoyage) : `STRENGTH_LIFTS` (3 exercices à barre), `STRENGTH_SEXES`, `strengthLiftOf`, `strengthSex` (Réglages › Entraînement › Sexe, null sans réponse ou « Ne pas préciser »), `strengthThresholds` (catégorie de poids), `liftBestE1rm` (90 jours), `strengthStanding`, `sessionStrengthLevels` (bilan, palier franchi). Méthode et source : docs/ENTRAINEMENT.md |
 | `import-csv.js` | Import Hevy / Strong, logique pure : lecture CSV, format, dates, correspondance des noms (`matchImportedExercise`, `IMPORT_ALIASES`), conversion (RPE → `rir`, échauffements gardés → `warmup: true`), dédoublonnage, `applyImport`. Formats : docs/IMPORT_CSV.md |
 | `body-measures.js` | Mensurations (`data.bodyMeasures`, LOCAL ONLY dans `SYNC_LOCAL_ONLY`) : mesures, nettoyage, courbes |
 | `progress-photos.js` | Photos de progression dans IndexedDB (`mdlf-photos`, jamais dans `data` ni dans l'export), réduction JPEG 1200 px, `photoGapDays` (écart de la comparaison en jours du calendrier), `photosWipe` appelé par `wipeLocalData` |
@@ -100,14 +111,18 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `backup.js` | `importText` (tout vérifié sur une copie ; renvoie `{ ok, reason }` ou `{ ok, count, skipped, theme, previous }`), `undoImport`, `exportData(theme)` (renvoie `true` une fois le fichier remis), `downloadText` |
 | `sync.js` | Synchro du compte, logique pure : empreintes (`syncHash`), ce qui part (`planSessionPush`, `sessionPayload` sans poids du corps et avec le nom affiché `label` (rawLabel, jamais stocké : `remoteEntry` le retire à la réception), `hidden` tel quel, `profilePayload` par liste autorisée `SYNC_PROFILE_KEYS`, dont `appVersion` / `appSeenAt` posés au démarrage par `noteAppVersion` pour savoir côté serveur qui a quelle version), fusion des séances reçues (`applyRemoteSessions` : modifiée ici → locale gagne ; sans état connu → le compte fait foi ; suppressions reçues → Supprimés récemment) et du profil (`applyRemoteProfile`) |
 | `account-auth.js` | Compte, logique pure : premier écran (`firstScreen` : Bienvenue au tout premier lancement seulement ; `accountCardShown`), pseudo (`normalizeUsername`, `usernameProblem`, `USERNAME_RE` identique à la migration, délai de 30 jours), avatar (`AVATAR_EMOJIS` : 30 emojis sans personnage, liste blanche identique au serveur), identités (`identityOf`, `hasApple`, `canUnlink`, `canAddEmail`, `linkedIdentityHoldUntil` : moyen relié depuis moins de 24 h), connexion récente (`lastAuthAt`, `isRecentAuth` : claim amr), erreurs de Supabase → français (`authErrorKind`, `otpErrorKind`, `AUTH_ERROR_TEXT`) |
-| `account.js` | Compte facultatif (Supabase ; Apple, Google ou code par e-mail, un seul parcours `finishSignIn`) : session dans le Trousseau, profil public (`accountLoadProfile`, `accountSaveProfile`, `accountUsernameAvailable`), moyens de connexion (`accountLink`, `accountLinkEmailStart/Verify` : comptes sans adresse seulement, `accountUnlink` : Apple révoqué au retrait), nouvelle connexion avant suppression ou ajout d'un moyen (`accountReauthApple/Google/Email*`), `syncNow` (réception, fusion, envoi par lots), état de synchro par compte, `accountForgetDevice` / `accountResetSyncState` avant tout effacement ou import local. Aucun affichage : l'écran s'abonne avec `onAccountChange` |
+| `account.js` | Verrou de l'abonnement : le serveur refuse l'INSERT d'une séance nouvelle quand `can_write` est faux (`paywall_locked`) ; `isPaywallLocked`, `pushSessionRows` (lot coupé en deux pour isoler les refusées), `accountLockedCount` / `clearPaywallLock` : rien n'est perdu, rien n'est marqué envoyé, le profil part quand même, et le refus n'est pas une erreur de synchro. Compte facultatif (Supabase ; Apple, Google ou code par e-mail, un seul parcours `finishSignIn`) : session dans le Trousseau, profil public (`accountLoadProfile`, `accountSaveProfile`, `accountUsernameAvailable`), moyens de connexion (`accountLink`, `accountLinkEmailStart/Verify` : comptes sans adresse seulement, `accountUnlink` : Apple révoqué au retrait), nouvelle connexion avant suppression ou ajout d'un moyen (`accountReauthApple/Google/Email*`), `syncNow` (réception, fusion, envoi par lots), état de synchro par compte, `accountForgetDevice` / `accountResetSyncState` avant tout effacement ou import local. Aucun affichage : l'écran s'abonne avec `onAccountChange` |
 | `social.js` | Amis (Social V1, contrat `docs/SOCIAL_V1.md`) : appels RPC (`socialRpc`, `socialRefresh`, `socialEnable/Disable`, `socialSearch`, `socialRequestFollow`, `socialCancelFollow`, `socialRespond`, `socialRemoveFollower`, `socialBlock/Unblock`, `socialLoadFeed` par curseur complet, `socialSetReaction`, `socialLoadMyReactions`, `socialLoadWho`, `socialLoadActivity`, `socialMarkActivitySeen`) et fonction Edge `report` (`socialReport`) ; nettoyage de ce que renvoie le serveur (`cleanSocialState`, `cleanPerson`, `cleanPublicSession` : liste blanche, `cleanFeedRow`), `socialRelation`, `normalizeSocialQuery`, réactions (`REACTIONS`, `cleanReactionCounts`, `reactionsTop`, `withMyReaction`, `tapReaction`), activité (`cleanActivityRow`, `activityText`, `fmtAgo`), erreurs traduites (`socialErrorKind`, `SOCIAL_ERROR_TEXT`). Chargé en arrière-plan (connexion, premier plan, ouverture de l'onglet), état « activé » et badge gardés dans `mdlf_social`. Aucun affichage : l'écran s'abonne avec `onSocialChange` |
 
 | `comments.js` | Commentaires sur une séance (contrat `docs/SOCIAL_V1.md`, « Commentaires ») : appels RPC par `socialRpc` (`commentsLoad` : 30 par page, `before_id`, relecture 30 s au plus et pas en boucle après une erreur ; `commentsAdd`, `commentsDelete` affiché tout de suite et remis si refusé, `commentsReport` : caché ici pour celui qui signale), nettoyage (`cleanComment`), texte nettoyé et compté comme le serveur (`commentClean`, `commentLength` en caractères, `commentProblem` : 500 au plus). Mots interdits : liste côté serveur seulement. Fils par séance (`commentsOf(owner, id)`), remis à zéro au changement de compte ; un bloqué ou un abonné retiré quitte tous les fils (`commentsForget`, appelé par `forgetPersonActivity`). Aucun affichage : l'écran suit `onSocialChange` |
+| `strava.js` | Strava (contrat `docs/STRAVA.md`), **en sommeil pour le lancement** (interrupteur unique `STRAVA_SWITCH.enabled`, livré à `false` : aucune entrée ni aucun appel) : aucun jeton dans l'app ; état par la RPC `strava_status` (`cleanStravaStatus`, cache `mdlf_strava` par compte, vidé à la déconnexion du compte), fonctions Edge `strava-connect` (`stravaConnectUrl` : page d'autorisation ouverte dans Safari par `Native.openOutside`, état relu au retour au premier plan), `strava-export` (`stravaExport`), `strava-disconnect` (`stravaDisconnect`). Logique pure : `stravaExportable` (terminée dans l'app, une série faite, moins de 400 jours, jamais Santé ni une séance importée : `isImportedEntry`), `stravaSport` (type d'activité : `WeightTraining`, ou le cardio d'un seul type, `trainer` sur machine, distance), `stravaDescription` (séries faites, jamais notes, poids du corps ni RIR), `stravaActivity` (corps envoyé). Erreurs → `STRAVA_ERROR_TEXT`. L'écran s'abonne avec `onStravaChange` |
 | `coach.js` | Coach (Coach V1, contrat `docs/COACH_V1.md`) : appels RPC (`coachRefresh`, `coachPreview`, `coachJoin`, `coachLeave`, invitations, `coachLoadSessions` par curseur, `coachMarkSeen`, `coachSetNote`, `coachSendProgramme`, `coachMarkInboxSeen`), nettoyage strict de ce que renvoie le serveur (`cleanCoachState`, `cleanCoachSessionRow`, `cleanSentProgramme`, `cleanInbox`), format d'envoi (`programmeToSent` : consignes et supersets), import et mise à jour d'un programme reçu (`importCoachProgramme` : id `u_c<8 caractères du coach>_<prog_id>` (`coachLocalId` ; un import plus ancien `u_c<prog_id>` du même coach garde sa place), ce qui permet au coach de ne reconnaître que SES programmes (`coachSentIdOf`), `fromCoach`, identifiants d'exercices gardés par nom dans la même séance, séances retirées par le coach gardées avec `retired: true` pour l'historique et exclues de `sessionKeys` ; `coachProgrammeStatus` : nouveau, mise à jour, modifié par l'élève ; `keepMyCoachProgramme`), séances faites avec mon programme (`coachOwnProgrammeName`). Rôle et badge gardés dans `mdlf_coach`. `cleanConsigne` et `cleanFromCoach` sont dans `store.js` (sanitizeData au chargement). Aucun affichage : l'écran s'abonne avec `onCoachChange` |
 | `coach-share.js` | Partage avec le coach (élève → son coach, `docs/COACH_V1.md` « Partage avec le coach ») : consentement par donnée (`COACH_SHARE_KINDS` : poids ouvert ; sommeil, pas, FC au repos prévus, pas affichés), `coachShareSet` (`student_set_share`), envoi des pesées saisies dans l'app seulement (`sharedWeightsPayload` = `bodyWeightLog`, jamais Santé ; `coachShareUpload`, miroir envoyé quand il change, empreinte dans `mdlf_coach_share`), côté coach `coachLoadWeights` (`coach_student_weights`) et `cleanSessionBodyKg` (bodyKg d'une séance, seulement si partagé). Relu après chaque `coachRefresh` |
 | `coach-chat.js` | Messages coach ↔ élève (contrat `docs/COACH_V1.md`, « Messages ») : conversation désignée par une clé (`CHAT_COACH` = avec mon coach, sinon l'identifiant d'un de mes élèves ; `chatArgs`), appels par `coachRpc` (`chatRefresh` après chaque `coachRefresh` : non-lus et derniers messages ; `chatLoad` 50 par page, `chatPoll` : seulement les plus récents que le curseur `c.cursor`, dernier message reçu du serveur, jamais avancé par mon propre envoi ; `chatSend` : écrire ne vaut pas lecture ; `chatMarkRead` jusqu'au curseur, `up_to` ; `chatReport` : `report_chat` puis alerte `socialReportAlert`), nettoyage (`cleanChatMessage`, `cleanChatThreads` : total recalculé), `chatMerge`, `chatDayLabel`, `chatClean` / `chatProblem` (2000 caractères). Total des non-lus gardé dans `mdlf_chat` (badge hors ligne). Serveur sans messagerie (`PGRST202` → `missing`) : `chat.available = false`. Aucun affichage : l'écran suit `onCoachChange` |
 | `referral.js` | Parrainage (contrat `docs/PARRAINAGE.md`) : code d'un coach ou d'un ami saisi par l'utilisateur (`referralApply`), état lu à la demande (`referralLoad`, `referralView` : nom du parrain, saisie possible pendant 30 jours), nettoyage (`normalizeReferralCode`, `cleanReferralState`), messages d'erreur. Nom du parrain gardé dans `mdlf_referral`. Affichage : étape `referral` de `auth-flow.js` (lien sous le pseudo d'un compte neuf) et groupe de l'écran Compte (`account-ui.js`) |
+| `newsletter.js` | Lettre d'information (contrat `docs/NEWSLETTER.md`) : `NEWSLETTER_CONSENT_VERSION` et `NEWSLETTER_CONSENT_TEXT` (texte exact montré, versionné), état relu chez le serveur (`newsletterRefresh`, `newsletter_state`), `newsletterSet(on)` (`newsletter_subscribe` avec la version seule, horodatage par le serveur ; `newsletter_unsubscribe`, jamais limitée), `cleanNewsletterState` (dont `hasEmail` : compte sans adresse, Apple seul, inscription refusée `no_email`), `newsletterNeedsRefresh` (relire quand le compte change l'écran ouvert), erreurs traduites. Rien gardé sur l'appareil. Aucun affichage : l'écran s'abonne avec `onNewsletterChange` |
+| `legal-links.js` | `LEGAL_URLS` : seule liste des adresses des pages juridiques (confidentialité, lettre, mentions, CGU, CGV, remboursement), utilisée par les Réglages, l'écran d'abonnement et la lettre |
+| `access.js` | Accès payant (Payant V1, contrat `docs/PAYANT_V1.md`) : lecture du droit d'accès (`my_access` au premier appel, qui crée la ligne sans rien donner, puis `access_state` ; modèle B : l'essai gratuit est l'offre de lancement d'Apple, exposée par `intro_offer` / `intro_until`), nettoyage strict (`cleanAccess` : liste blanche, `server_now` obligatoire, `can_write` forcé à vrai verrou éteint), décisions sur les dates du **serveur** seulement (`canWrite`, `paywallOn`, `accessStatus`, `accessIntroUntil`, `accessUntil`) ; dernier état gardé par compte (`mdlf_access`, verrouillé par `userId`) et valable **7 jours** hors ligne, ou, pour un abonnement et un cadeau datés, jusqu'à la date de fin **du serveur** plus deux jours (un abonné parti trois semaines sans réseau n'est pas coupé) ; au-delà, un droit d'écriture ne vaut plus et un refus reste : une horloge trafiquée ne peut rien ouvrir ; achats par `Native.store` (StoreKit 2 ; produits vendus `PLAN_IDS` de `js/data/plans.js` : les dix abonnements, aucun achat à vie (refusé le 31/10) ; `accessGiftForever` pour un accès à vie offert (statut `gift` sans date de fin) ; environnement StoreKit lu une fois par `accessStoreEnvironment` (TestFlight = Sandbox) : sous TestFlight, aucun code d'offre élève n'est demandé (`kind: 'testflight'`, non résolu, voir `docs/PAYANT_V1.md`), ailleurs un code de Production ; prix lus sous `displayPrice`, essai lu dans l'offre de lancement par `accessTrialOf` (`introEligible`, `offer.paymentMode = 'freeTrial'`), formule en cours par `accessLoadCurrentPlan`, droits en cours sous `entitlements[]`, achat porteur de `appAccountToken`) et vérification par la fonction Edge `verify-purchase` (`accessVerifyPurchase` : `finish()` chez Apple seulement après l'accord du serveur, jamais sur un 503 ni sur `transaction_taken` ; `accessSyncCurrent` rattrape au lancement un achat qu'Apple connaît et pas le serveur ; `accessBuy`, `accessRestore`, `accessRedeemCode`, `accessOnTransaction`) ; codes cadeaux maison saisis dans l'app (`normalizeGiftCode`, `accessRedeemGiftCode` : un refus de `redeem_gift_code` n'est pas une exception, il est dans `{ ok: false, error }`) ; règles du 28/10 : compte obligatoire verrou allumé (`accessSignInRequired`, `accessAnonRefresh` lit la seule ligne `paywall_on` de `app_config` sans compte, gardée dans `mdlf_paywall_anon` ; verrou éteint ou inconnu : rien ne bloque) ; verrou jamais lu sans compte ouvert 7 jours après la première ouverture, une fois le verrou mis en service (`PAYWALL_LAUNCHED`, livré à `false` : jamais bloqué avant) (`accessUnknownExpired`, date `mdlf_first_seen` dans le Trousseau, `accessLoadFirstSeen`). Aucun affichage : l'écran s'abonne avec `onAccessChange` |
 
 ### js/app/actions.js
 
@@ -160,17 +175,20 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `add-session.js` | Séance passée : saisie, modification d'une séance, brouillon en `sessionStorage` (crochets `enter` / `leave` de l'écran), ajout d'exercice par la feuille de recherche commune |
 | `push-ui.js` | Réglages › Amis et coach › Notifications (`notifications` : trois interrupteurs, iOS refusé → lien vers Réglages de l'iPhone et groupe atténué, build sans le module → « Mets l'app à jour »), cellule des Réglages (`pushSettingsCell`, app iOS et compte seulement), toucher d'une notification (`openPushTarget` : jamais pendant la séance), notification reçue app ouverte → badges relus |
 | `app-icon.js` | Réglages › Icône de l'app (app iOS seulement) : `renderAppIconGroup()` (grille de vignettes, `aria-pressed`, coche), action `set-app-icon` (`Native.appIcon.set`), état lu une fois au démarrage |
-| `settings.js` | Réglages dans l'ordre des Réglages iOS (Compte, Entraînement, Sons et vibrations, Apparence, Amis et coach, Données, Aide ; groupes iOS Services Apple et Icône de l'app à leur suite), sous-écran Données › Sauvegarde (`backup` : où sont les données, export / import, dernier export : `exportStale` orange seulement sans compte), suppression des données, recherche de mise à jour |
+| `settings.js` | Réglages dans l'ordre des Réglages iOS (Compte, Entraînement, Sons et vibrations, Apparence, Amis et coach, Connexions (Strava), Données, Aide ; groupes iOS Services Apple et Icône de l'app à leur suite), sous-écran Données › Sauvegarde (`backup` : où sont les données, export / import, dernier export : `exportStale` orange seulement sans compte), suppression des données, recherche de mise à jour, groupe « Informations légales » (Confidentialité, Conditions d'utilisation, Conditions de vente, Mentions légales, ouvertes dans Safari par `open-legal`) |
 | `import-ui.js` | Réglages › Sauvegarde › Importer depuis une autre app : fichier CSV, aperçu, liens à la main, import annulable |
 | `reactions-ui.js` | Réactions : bouton du fil (toucher : 👏 ; appui long : bulle de choix), rangée de la séance d'un ami, résumé « 🔥👏 3 », qui a réagi à mes séances (`whoListHtml`), « 🔥 2 » de l'Historique (`historyReactionsMark`) et son détail (`historyWhoHtml`, `historyReactionsMount`) |
 | `comments-ui.js` | Commentaires d'une séance : groupe « Commentaires » (`commentsGroupHtml(owner, id, { writable })` : liste du plus ancien au plus récent, « Afficher les commentaires précédents », saisie avec compteur et bouton rond), menu ⋯ (Signaler puis proposer de bloquer sans quitter la séance, Supprimer avec confirmation pour celui d'un autre), placé dans `social-session` et dans Historique › Séance (`historyCommentsHtml`, `historyCommentsMount`). Brouillon par séance (`commentDrafts`) ; pendant la frappe, seule la liste est redessinée (`refreshCommentsList`, appelé par `onSocialChange`) ; `fitCommentInput` (hauteur du champ, aussi pour les messages) |
 | `social-me-ui.js` | Amis › Mon profil (`social-me` : chiffres, activité, mes séances vues par mes abonnés, Gérer) et listes Abonnés / Abonnements (`social-people:followers|following`), bouton avatar de l'onglet avec le point des nouveautés |
 | `social-ui.js` | Onglet Amis (`friends` : sans compte, activation avec pseudo et case « 15 ans ou plus », puis recherche, demandes et fil), séance d'un ami (`social-session:OWNER:ID`), profil d'un autre (`social-profile:ID`), Gérer (`social-manage`), règles (`social-rules`), signalement (feuille de motifs), interrupteur « Visible sur mon profil » du bilan (`summarySocialGroup`) et d'Historique › Séance avec les bravos reçus (`historySocialGroup`), œil barré des séances masquées dans la liste (`historyHiddenMark`) |
+| `paywall-ui.js` | Abonnement : bandeau de l'accueil seulement quand l'écriture est refusée (`accessBannerHtml`), écran d'abonnement (`paywall`, paramètre `offer` ou `end` ; accès à vie offert : « Accès offert à vie », rien d'autre à acheter pour soi) avec l'offre lue chez StoreKit (« 3 mois gratuits, puis <prix> », `payOfferText`) et les mentions de la règle 3.1.2 (`payTermsHtml`), « Essai gratuit jusqu'au <date>, puis <prix> » et « Accès offert par ton coach tant qu'il te suit » dans Réglages › Abonnement (`subscription`, cellule `renderAccessSettingsGroup`), « Restaurer mes achats », « J'ai un code » (champ du code cadeau MDLF) et « J'ai un code d'offre Apple » (feuille d'Apple), conditions et confidentialité ; **porte des écritures** `accessGate()` appelée par `startSessionFlow`, `finish-session` (sauf séance commencée avec le droit d'écrire, `activeSession.writeOk` posé par `startSession`), `go-add-session`, `edit-session` et `save-past-session` (Historique, Progrès, profil et export restent ouverts, rien n'est supprimé) ; sans compte et verrou allumé, elle ouvre la connexion (`accessSignInPrompt`, contexte `paywall` d'`openAuthFlow`) |
+| `strava-ui.js` | Strava : groupe Réglages › Connexions (`renderConnectionsGroup`), écran `strava` (sans compte, pas relié avec le bouton officiel, relié : prénom, séances envoyées, « Déconnecter Strava » qui révoque et efface), groupe « Strava » du bilan et d'Historique › Séance (`stravaSummaryGroup`, `stravaHistoryGroup` : « Envoyer vers Strava », puis « View on Strava ») redessiné seul (`stravaRefreshBox`) pour ne pas couper la saisie des notes |
 | `coach-ui.js` | Coach : Réglages › Coach (`coach`), aperçu avant d'accepter (`coach-join:CODE`), cellule « Mes élèves » / « Mon coach » en haut de l'onglet Amis (`coachCellHtml`, sans avoir activé Amis), Mon coach (`coach-mine`), carte de l'accueil (`coachHomeCard`), consignes dans Programme › Séance et dans la séance (repliables), commentaire dans Historique › Séance (`historyCoachGroup`), Mes élèves (`coach-students` : nouvelles séances, invitations), un élève (`coach-student:UID`), une séance (`coach-session:UID:ID`, « Commenter »), envoi d'un programme avec consignes (`coach-send:UID:PROG`). Badge de l'onglet Amis = social + coach (`updateTabBadge`) |
 | `coach-chat-ui.js` | Messages coach ↔ élève : conversation (`coach-chat:@coach` pour l'élève, `coach-chat:<id de l'élève>` pour le coach : bulles, séparateurs de jour, « Afficher les messages précédents », saisie collée au-dessus de la barre d'onglets, menu ⋯ Signaler : `chatReport`, copie des 50 derniers messages gardée côté serveur), relecture toutes les 15 s tant qu'elle est à l'écran et juste après un envoi (crochets `enter` / `leave`, `chatTick`), marquée lue à l'ouverture et à l'arrivée d'un message ; information unique « Ton coach peut t'écrire » dans Mon coach (`chatIntroHtml`, `mdlf_chat_intro_seen`) ; cellule « Messages » (`chatCellHtml`) de Mon coach et de la fiche d'un élève, pastille 💬 N de Mes élèves (`chatBadgeHtml`). Les non-lus s'ajoutent au badge de l'onglet (`updateTabBadge`) et aux pastilles de la cellule coach |
 | `coach-share-ui.js` | Partage avec le coach : Réglages › Amis et coach › « Partager avec mon coach » (`coach-share`, élève suivi seulement, tout décoché par défaut, ce que le coach voit dit en clair) ; sur la fiche d'un élève qui partage son poids, sa courbe (`coachWeightGroupHtml`, composant de `progress-chart.js`) |
+| `newsletter-ui.js` | Groupe « Lettre d'information » de l'écran Compte (`renderNewsletterGroup`, appelé par `renderAccount`) : interrupteur éteint par défaut, éteint et désactivé tant que l'état du serveur n'est pas connu (« Réessayer » après un échec) ou que le compte n'a pas d'adresse, texte du consentement dessous (`aria-describedby`), lien Confidentialité ; état relu quand le compte change l'écran ouvert (`onAccountChange`) ; actions `newsletter-toggle`, `newsletter-retry`, `newsletter-privacy` |
 | `account-ui.js` | Compte : cellule en tête des Réglages (avatar et pseudo, ou « Se connecter »), écran Réglages › Compte (`account` : pseudo, avatar, moyens de connexion, sauvegarde, déconnexion, suppression avec nouvelle connexion), carte de l'accueil, `maybeShowWelcome()` au démarrage, choix quand un autre compte se connecte |
-| `auth-flow.js` | Calque plein écran du compte (`openAuthFlow({ step, mode })`) : Bienvenue, e-mail, code à 6 chiffres (envoi au 6e chiffre, « Renvoyer » après 60 s), pseudo (« Plus tard » pour un compte neuf), avatar ; modes `signin`, `link`, `reauth`, `profile` |
+| `auth-flow.js` | Calque plein écran du compte (`openAuthFlow({ step, mode })`) : Bienvenue, e-mail, code à 6 chiffres (envoi au 6e chiffre, « Renvoyer » après 60 s), pseudo (« Plus tard » pour un compte neuf), avatar ; modes `signin`, `link`, `reauth`, `profile` ; contexte `paywall` : Bienvenue dit qu'il faut un compte pour enregistrer (verrou allumé), sans « Commencer sans compte » |
 | `progress.js` | Progrès : tuiles et index des exercices tiré de l'historique |
 | `progress-chart.js` | Progrès › Exercice : courbe sur canvas, sélection d'un point au doigt ; cardio : courbes Durée / Distance / Allure (ou Vitesse), meilleure allure et plus longue distance |
 | `progress-overview.js` | Progrès › Vue d'ensemble : calendrier du mois, séances par semaine |
@@ -190,13 +208,14 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `share-canvas.js` | Partage de séance, dessin : `drawStory` (story Instagram 1080 × 1920, Canvas 2D, zones sûres), couleurs des tokens, point d'accroche `shareStoryHooks.muscleMap` pour la carte des muscles |
 | `share.js` | Partage de séance, écran : bouton du bilan et d'Historique › Séance, feuille d'aperçu commune `openStoryPreview(state, draw)` (séance, écran d'un récap), partage (`Native.shareImage` dans l'app iOS, `navigator.share` ou téléchargement dans la PWA) |
 | `recap-canvas.js` | Récaps, dessin : `drawRecapStory` (un écran en story 1080 × 1920, mêmes aides, zones sûres et signature que `share-canvas.js`), `renderRecapStory` |
+| `strength-levels-ui.js` | Niveau de force, écrans : groupe « Niveau de force » (`strengthGroupHtml`, Bibliothèque › Exercice et Progrès › Exercice ; sans sexe indiqué, 1RM estimé sans palier), bilan (`summaryStrengthHtml`), cellule Réglages › Entraînement › Sexe (`strengthSexSettingHtml`), actions `set-strength-sex`, `strength-info` |
 | `recap.js` | Récaps, écrans : carte « Ta semaine » de l'accueil (`recapHomeCard`, vue → `ppl_recap_seen`, réglage `data.recapCardOff`), Progrès › Récaps (`renderRecaps`), écrans qui s'enchaînent (`renderRecap` : défilement horizontal à crans, points, flèches, clavier), « Partager » de chaque écran |
 
 ### js/app/
 
 | Fichier | Rôle |
 |---|---|
-| `updates.js` | Service worker : enregistrement, bannière « Nouvelle version disponible » (jamais pendant une séance), `checkForUpdate` |
+| `updates.js` | Service worker : enregistrement, bannière « Nouvelle version disponible » (jamais pendant une séance), `checkForUpdate` ; version minimale de l'app (`checkMinBuild` : `app_config.min_build` lu au démarrage et au retour au premier plan, écran « Mets à jour l'app » qui ne se ferme pas quand la build native est plus ancienne) |
 | `init.js` | Écouteur de clic global vers le registre, saisie en direct, sauvegarde à la mise en arrière-plan, wake lock, écran de secours, démarrage (`DOMContentLoaded`) |
 
 ## Flux d'une action
@@ -263,6 +282,7 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
   bodyWeightKg: 72.5, bodyWeightLog: [{ date, kg }],   // facultatifs : poids saisi et pesées (une par jour, 400 au plus) ; jamais sur le compte (SYNC_LOCAL_ONLY)
   silhouette: 'female' | 'male',             // facultatif : carte des muscles (absent = homme), synchronisé
   lastExport: 1712345678901,                 // facultatif
+  strengthSex: 'male' | 'female' | 'none',   // facultatif : Réglages › Entraînement › Sexe (repères du niveau de force), appareil seulement
   history: [{ id, programme, category, date, duration?, notes, hidden?,   // hidden : true = masquée aux abonnés (Amis)
               exercises: [{ exId, name, sets: [{ weight, reps }] }] }],   // triée du plus récent au plus ancien
 }
@@ -324,8 +344,11 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
 - `mdlf_coach_seen` (« vu » à renvoyer après un échec hors ligne), `mdlf_coach_sent` (coach : mes envois par élève, pour « pas encore de séance avec »), `mdlf_coach_lost` (élève retiré : « Tu ne suis plus … », dit une fois), `mdlf_coach_send_draft` (brouillon de l'écran Envoyer).
 - `mdlf_chat` : `{ userId, unread }`, dernier total des messages non lus (badge de l'onglet Amis hors ligne).
 - `mdlf_chat_intro_seen` : `'1'` quand l'élève a fermé l'information « Ton coach peut t'écrire » (ou ouvert la conversation).
+- `mdlf_strava` : `{ userId, connected, name, canWrite, exports }` du dernier état de Strava lu (jamais un jeton), dans `CROSS_USER_CACHE_KEYS`.
 - `mdlf_push` : `{ userId, token }`, dernier jeton de notification inscrit sur le compte (pour le retirer à la déconnexion, ou de cet ancien compte à la connexion d'un autre).
 - `mdlf_coach` : `{ userId, isCoach, hasCoach, badge, badgeCoach, badgeStudent }` du dernier état du coach lu (cellule de l'onglet Amis et badges hors ligne) ; `mdlf_coach_inbox` : `{ userId, coach, inbox }`, dernière boîte de l'élève (programmes reçus, commentaires du coach lisibles hors ligne).
+- `mdlf_paywall_anon` : `{ on, at }`, verrou lu sans compte (`js/data/access.js`) ; réglage public, gardé à la déconnexion.
+- `mdlf_access` : `{ userId, state }` du dernier droit d'accès lu (`js/data/access.js`) ; valable 7 jours après son `server_now`, effacé à la déconnexion et par `accountForgetDevice` comme les autres caches de compte.
 - `ppl_welcome_seen` : l'écran Bienvenue a été montré (posé quel que soit le choix) ; `ppl_account_card_closed` :
   carte « Sauvegarde tes séances sur un compte » fermée. `mdlf_profile` : cache du profil public
   (pseudo, avatar) du dernier compte, pour l'afficher hors ligne. Jamais dans `ppl_v2` (ni synchronisés
@@ -369,7 +392,7 @@ Chromium Pixel 7 / Galaxy S8 / S9+) en thèmes clair et sombre, plus des tests u
 `test_compte.py` simule la coquille iOS et Supabase (`tests/fake_account.py` : même forme de réponses et
 mêmes codes d'erreur que supabase-js) pour le compte : Bienvenue, code e-mail, pseudo, avatar, moyens de
 connexion, suppression. `test_social.py` couvre les Amis avec le même faux serveur (RPC du social et fonction `report` selon les
-règles de `docs/SOCIAL_V1.md`). `test_coach.py` couvre le coach (RPC du coach simulées selon `docs/COACH_V1.md`) : parcours de l'élève et du coach. `test_commentaires.py` couvre les commentaires (écrire, mot interdit, Signaler puis Bloquer, Supprimer, Historique, activité, hors ligne) et `test_messages_coach.py` les messages (information unique, non-lus, conversation, relecture pendant la frappe, message de l'autre arrivé juste avant ma réponse, Signaler avec copie et alerte, coach, serveur sans messagerie, lien rompu). `test_parrainage.py` couvre le code de parrainage (création du compte, Réglages › Compte, code inconnu, hors ligne, trop d'essais, compte de plus de 30 jours). `test_icone.py` simule la coquille iOS (faux `window.Capacitor` injecté avant le chargement, faux
+règles de `docs/SOCIAL_V1.md`). `test_coach.py` couvre le coach (RPC du coach simulées selon `docs/COACH_V1.md`) : parcours de l'élève et du coach. `test_strava.py` couvre Strava (RPC et fonctions simulées selon `docs/STRAVA.md`) : liaison, envoi, déconnexion, hors ligne. `test_commentaires.py` couvre les commentaires (écrire, mot interdit, Signaler puis Bloquer, Supprimer, Historique, activité, hors ligne) et `test_messages_coach.py` les messages (information unique, non-lus, conversation, relecture pendant la frappe, message de l'autre arrivé juste avant ma réponse, Signaler avec copie et alerte, coach, serveur sans messagerie, lien rompu). `test_parrainage.py` couvre le code de parrainage (création du compte, Réglages › Compte, code inconnu, hors ligne, trop d'essais, compte de plus de 30 jours). `test_payant.py` couvre l'abonnement (`tests/fake_store.py` : RPC d'accès, fonction `verify-purchase` et module StoreKit `MdlfStore` simulés selon `docs/PAYANT_V1.md`, **copiés clé pour clé sur le vrai Swift** et vérifiés par `tests/unit/store-contract.mjs`, avec une horloge de serveur et une horloge d'appareil séparées) : modèle B (offre de lancement lue chez StoreKit, mentions 3.1.2, essai déjà utilisé = prix normal, pas d'essai maison), mode lecture seule, achat, restauration, codes, ancien « Accès offert » refusé, séance commencée avec le droit d'écrire enregistrée malgré la fin de l'accès (grâce), verrou éteint, horloge de l'appareil trafiquée, hors ligne, compte obligatoire verrou allumé (et rien de changé verrou éteint). `test_juridique.py` couvre la lettre d'information (RPC simulées selon `docs/NEWSLETTER.md` : éteinte par défaut, version seule envoyée, désinscription, hors ligne, changement de compte) et les liens des Réglages › Informations légales ; `tests/unit/juridique.mjs` vérifie les pages juridiques (aucun script, liens et ancres, emplacements à compléter listés dans `docs/JURIDIQUE.md`, prix des CGV identiques au contrat du payant). `test_icone.py` simule la coquille iOS (faux `window.Capacitor` injecté avant le chargement, faux
 module `MdlfAppIcon`) : c'est le modèle à suivre pour tester une fonction réservée à l'app. `test_watch.py`
 fait de même avec de faux modules `MdlfWatch` (gestes gardés jusqu'à l'écoute, comme `retainUntilConsumed`)
 et `MdlfShortcuts` : gestes de la montre et demandes de Siri appliqués à la vraie séance. Voir l'en-tête
@@ -387,7 +410,7 @@ d'hiver du 25 octobre 2026) : `test_coach.py`, `test_cardio.py`, `test_mesures.p
 `node tests/unit/run.mjs` lance les tests unitaires de la logique pure (formats, 1RM, nettoyage et
 migrations, import, délais de récupération, clés de séance, saisie, programmes perso ; muscles
 dans `tests/unit/muscles.mjs`, records et image partagée dans `tests/unit/share.mjs`, allure et entraînements de Santé dans `tests/unit/cardio.mjs`, tempo (notation, sens de départ, phrase d'aide, horloge des phases) dans `tests/unit/tempo.mjs`, icône de l'app
-et cohérence avec le projet Xcode dans `tests/unit/app-icons.mjs`) : les scripts
+et cohérence avec le projet Xcode dans `tests/unit/app-icons.mjs`, droit d'accès dans `tests/unit/access.mjs`, contrat du module natif StoreKit dans `tests/unit/store-contract.mjs` : il lit `ios/App/App/StorePlugin.swift` et vérifie que chaque clé lue par l'app existe vraiment et que le faux StoreKit n'invente rien, offre de lancement (`introEligible`, `offer`) comprise, aucun achat à vie, méthode `environment()` (seul usage d'`AppTransaction.shared`, jamais `refresh()`) ; ni preuve `appTransaction()` ni « Accès offert » ; garde de l'appelant des fonctions Edge dans `tests/unit/auth-guard.mjs`) : les scripts
 de `js/core/` et `js/data/` sont chargés dans un contexte `vm` de Node, sans navigateur, en moins d'une seconde.
 
 ### Partage de séance
@@ -413,6 +436,18 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
    évoluer les tests.
 4. Ensuite seulement : renommer les dernières classes CSS héritées écran par écran (`.set-row2` est devenu `.session-set`, `.color-swatch2` est devenu `.color-swatch`).
 
+
+## Coquilles natives (iOS, Android)
+
+Le même contenu web (`dist/`, `scripts/build-web.mjs`) tourne dans deux coquilles Capacitor. Le web ne
+parle au natif que par `js/platform/native.js` (`Native`), qui expose `Native.platform` (`'ios'`,
+`'android'`, `'web'`) et coupe sur Android ce qui n'existe que sur iOS (iCloud, Apple Music, icônes
+alternatives, compte tant que `MdlfAccount` n'existe pas en Kotlin). Un module qui existe sur les deux
+garde le même nom et les mêmes réponses (`MdlfHealth` : HealthKit / Health Connect ; `MdlfLiveActivity` :
+Live Activity / notification continue ; `MdlfStore` : StoreKit 2 / Google Play Billing) : les écrans
+n'ont pas à connaître le système, sauf pour un libellé (`Native.health.name`). Chaque coquille a son
+empreinte native (`scripts/runtime-version.mjs`) : changer Android ne touche jamais aux mises à jour à chaud des
+iPhone. Détails : IOS.md et docs/ANDROID.md ; cohérence vérifiée par `tests/unit/android.mjs`.
 
 ## Serveur des comptes (Supabase)
 
@@ -462,6 +497,76 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
   (code tout frais, refusée tant qu'Apple est encore relié). `supabase/functions/_shared/` : échange et
   révocation Apple (`apple.ts`), CORS, clés et lecture de l'appelant (`http.ts`). Secrets Apple dans le
   projet Supabase, jamais dans le dépôt.
+- `supabase/migrations/20261028000000_payant.sql` : Payant V1 (contrat `docs/PAYANT_V1.md`). Tables `entitlements`
+  (l'instantané du droit d'accès d'un compte), `entitlement_claims` (registre à vie des transactions Apple :
+  `original_transaction_id` unique, une transaction ne sert qu'à un compte), `app_config` (`paywall_on` livré à
+  **false**, `trial_days` 90, retiré par la migration suivante) et les codes cadeaux maison (`gift_codes`, `gift_redemptions`), toutes sans GRANT
+  client sauf la lecture de `app_config`. Son essai maison (`trial_started_at`, statut `trial`) a été
+  retiré par la migration suivante (modèle B) ; l'état qui fait foi est recalculé à chaque lecture
+  (`private.access_json`, statuts `gift` > `active` > `coach_team` > `expired` > `none`). RPC client :
+  `my_access()`, `access_state()` (ne crée rien), `redeem_gift_code(code)`. Écriture du droit d'accès réservée à
+  la clé serveur : `srv_access_purchase` et `srv_access_event`, noyau dans `private`. Un évènement arrivé dans le
+  désordre ne coupe pas un abonné (`entitlement_claims.event_at`, date de fin qui ne recule que si Apple ferme
+  l'accès, `revoked_at` levé seulement par un évènement plus récent ET d'une période strictement plus lointaine,
+  soit un réabonnement réel), les notifications sont dédoublonnées par `notificationUUID`
+  (`appstore_notifications`), et le verrou est tenu par le serveur : déclencheur `private.sessions_paywall`
+  (`before insert on public.sessions`, erreur `paywall_locked`), `update` et `delete` restant ouverts.
+- `supabase/migrations/20261029000000_payant_modele_b.sql` : modèle B (28/10), la migration du 28/10 étant en
+  production. Essai maison retiré (`trial_started_at`, `trial_days`, statut `trial` remplacé par `none`) :
+  l'essai est l'offre de lancement d'Apple, retenue par transaction (`entitlement_claims.intro_offer`, avec
+  `environment` Production ou Sandbox) et exposée par `intro_offer` / `intro_until` ; « Accès offert » d'Apple
+  supprimé (produit inconnu, instantané de ses anciens détenteurs recalculé) ; élèves gratuits seulement si le
+  coach a encore le rôle et parmi ses 10 plus anciens liens d'élèves sans droit payé propre
+  (`private.access_coach_free`, `private.access_own_paid`, plafond par coach dans `private.coach_free_limits`) ;
+  dans `private.sessions_paywall`, une ligne déjà présente (correction ou corbeille par upsert) passe toujours,
+  et grâce de fin de séance (24 h après la fin à l'heure du serveur, séance commencée dans les 12 h avant la fin,
+  2 au plus, comptées sous verrou consultatif, test d'existence refait sous ce verrou) ; déclencheur
+  `sessions_paywall_upd` (`private.sessions_paywall_update`, before update) : sans droit, ni changement d'id,
+  ni sortie de la corbeille, ni changement de date d'une ligne vivante ; seules les lignes `paywall_on` et
+  `min_build` de `app_config` sont lisibles par `anon`.
+- `supabase/migrations/20261031000000_payant_plus.sql` : payant plus (31/10, contrat `docs/PAYANT_V1.md`,
+  « Payant plus »). Pas d'achat à vie payant (refusé par Maxence le 31/10). Accès à vie offerts révocables et tracés :
+  `gift_redemptions.revoked_at` / `revoke_reason`, `gift_codes.revoked_at`, `private.grant_lifetime`,
+  `private.revoke_lifetime`, `private.revoke_gift_code`, vue `private.lifetime_access` (administrateur
+  seulement). Retour arrière : `supabase/rollback/20261031000000_payant_plus_down.sql`.
+- `supabase/migrations/20261031230000_newsletter.sql` : lettre d'information (contrat `docs/NEWSLETTER.md`).
+  `newsletter_subscriptions` (une ligne seulement pendant l'inscription : `consented_at` du serveur,
+  `consent_version`, `source`, `unsubscribe_token`), RLS sans politique, aucun GRANT ; RPC `newsletter_state`,
+  `newsletter_subscribe` (20 par 24 h, `no_email` pour un compte sans adresse), `newsletter_unsubscribe` (supprime la ligne, jamais limitée) pour
+  `authenticated` ; `newsletter_recipients` et `newsletter_unsubscribe_token` pour `service_role` seulement
+  (envoi pas branché). Retour arrière : `supabase/rollback/20261031230000_newsletter_down.sql` (dossier
+  `supabase/rollback/` : jamais appliqué par Supabase, à lancer à la main), vérifié par
+  `tests/sql/newsletter_rollback_test.sh`.
+- `supabase/migrations/20261031620000_strava.sql` (retour arrière : `supabase/rollback/20261031620000_strava_down.sql`) : Strava
+  (contrat `docs/STRAVA.md`). Tables `private.strava_links` (jetons chiffrés AES-GCM par la fonction Edge, clé
+  `STRAVA_TOKEN_KEY`), `private.strava_states` (empreinte de l'état OAuth, 10 min, usage unique), `private.strava_exports`
+  (séances envoyées, réservation contre le double envoi) ; aucun GRANT. `strava_status()` pour l'app (jamais de jeton) ;
+  `strava_state_*`, `strava_link_*`, `strava_export_*` pour `service_role` seulement. Limites : 10 liaisons par heure,
+  30 envois par 24 h.
+- `supabase/functions/strava-connect/` (POST : adresse d'autorisation ; GET : retour de Strava, échange du code, droit
+  `activity:write` vérifié, `approval_prompt=force`, un athlète par compte (`athlete_taken` → `#deja`, sauf liaison du détenteur périmée chez Strava : libérée par
+  `freeStaleAthlete`), redirection vers
+  `web-public/strava.html#résultat`), `strava-export/`, `strava-disconnect/`.
+  Communs : `_shared/strava.ts` (appels à Strava, renouvellement des jetons, révocation), `_shared/strava-policy.js` et
+  `_shared/strava-crypto.js` (logique pure testée par `tests/unit/strava-server.mjs`). `delete-account` révoque aussi
+  l'accès Strava. Secrets `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_TOKEN_KEY`, jamais dans le dépôt.
+- `supabase/rollback/` : retours arrière des migrations, lancés à la main seulement (Supabase ne les applique
+  jamais), chacun vérifié par un script de `tests/sql/`.
+- `supabase/functions/_shared/auth-guard.js` : garde pure de l'appelant (`requireCaller` : jeton Bearer relu par
+  `auth.getUser`, null sinon), utilisée par `caller()` de `_shared/http.ts` pour toutes les fonctions déployées
+  avec `verify_jwt = false` (delete-account, revoke-apple, report, verify-purchase) ;
+  `tests/unit/auth-guard.mjs` prouve le 401 avant tout travail. `http.ts` porte aussi `bodyJws`.
+- `supabase/functions/verify-purchase/` : un achat StoreKit 2. Signature d'Apple VRAIMENT vérifiée
+  (`_shared/apple-jws.js` : chaîne jusqu'à Apple Root CA G3 épinglée dans le dépôt, dates, contraintes de base,
+  marqueurs d'Apple, trois signatures ECDSA par WebCrypto), décision pure dans `purchase-policy.js`, puis
+  relecture de la transaction auprès de l'App Store Server API (jeton ES256, secrets `APPLE_IAP_*`,
+  `APPLE_ISSUER_ID`) avant d'écrire. Production et Sandbox acceptés (l'examen d'Apple achète en Sandbox),
+  environnement et offre de lancement (`offerType` 1) transmis au serveur.
+- `supabase/functions/appstore-notify/` : App Store Server Notifications V2, à déployer avec `--no-verify-jwt`
+  (Apple n'a pas de jeton Supabase). Signature invalide : 401, rien d'écrit. `notify-policy.js` traite SUBSCRIBED,
+  DID_RENEW, DID_CHANGE_RENEWAL_STATUS, DID_FAIL_TO_RENEW, EXPIRED, GRACE_PERIOD_EXPIRED, REFUND et REVOKE ;
+  lit aussi `signedRenewalInfo` (seule source de `gracePeriodExpiresDate`) et répond 200 pour tout le reste,
+  500 seulement si notre écriture échoue.
 - Réglages d'authentification (SMTP Resend, modèles du code, Google, liaison manuelle, limites, e-mails
   de sécurité : moyen relié ou retiré, adresse changée) : `scripts/supabase-auth-config.py`, lecture
   seule par défaut (`--notifications` : e-mails de sécurité seulement).
@@ -470,6 +575,11 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
   (workflow `ios.yml` : artefact `package-resolved`, puis `-onlyUsePackageVersionsFromResolvedFile`).
 - `tests/sql/run.sh` : applique toutes les migrations sur un Postgres local jetable (socle Supabase imité
   par `supabase_stub.sql`) puis vérifie RLS, GRANT et déclencheurs (`*_test.sql`). Rien n'est envoyé au projet.
+  `tests/sql/upgrade_test.sh` rejoue la montée de version de production (migrations jusqu'à `20261028`, données
+  réalistes de `tests/sql/upgrade/seed_20261028.sql`, puis la suite, vérifiée par `check_modele_b.sql`) ;
+  `tests/sql/grace_race_test.sh` envoie 6 séances de grâce en parallèle et exige qu'il n'en passe que 2 ;
+  `tests/sql/rollback_payant_plus.sh` applique le retour arrière du payant plus sur des données (accès offert
+  gardé, accès offert retiré, code désactivé) puis relance les tests des tarifs. Les quatre tournent dans la CI (`tests.yml`).
 - Google stocke le nom de la personne dans les données d'identité (`identity_data.full_name`) : l'app ne
   le lit jamais.
 - Jamais sur le serveur : données Santé (poids, courses, sommeil), poids du corps, réglages propres à l'appareil

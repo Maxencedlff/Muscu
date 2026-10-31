@@ -346,6 +346,7 @@ function renderDashboard() {
     <div class="view dashboard" style="--cat-color:${color}">
       ${navBar({ title: 'Entraînement', largeTitle: date, right, sub })}
       <div class="home">
+        ${accessBannerHtml()}
         ${hero || emptyCustom}
         ${hero ? '' : accountHomeCard()}
         ${hero ? '' : recapHomeCard()}
@@ -416,6 +417,8 @@ function startTicker() {
 // Démarrer une séance : refusée si elle est vide ; si une autre séance est en cours,
 // on propose de la reprendre ou de l'abandonner
 async function startSessionFlow(cat) {
+  // Mode lecture seule (verrou allumé, plus le droit d'écrire) : l'abonnement est proposé, rien n'est touché
+  if (!(await accessGate())) return;
   if (!(prog().exercises[cat] || []).length) {
     await dialog({ title: 'Aucun exercice', message: 'Ajoute des exercices à cette séance avant de la démarrer.', actions: [{ label: 'OK', style: 'preferred' }] });
     return;

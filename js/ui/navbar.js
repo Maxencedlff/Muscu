@@ -154,9 +154,11 @@ function routeTitle(route, isRoot) {
     'body-measures': 'Mesures', 'body-measure': bodyMeasureLabel(routeParams(route)[0]) || 'Mesure',
     'my-programmes': 'Mes programmes', 'prog-add': 'Ajouter', 'prog-info': 'Programme', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
     friends: 'Amis', 'social-profile': socialPerson(routeParams(route)[0])?.username || 'Profil',
-    'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles', 'social-me': 'Mon profil', notifications: 'Notifications',
+    'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles', 'social-me': 'Mon profil', strava: 'Strava',
+    notifications: 'Notifications',
     'social-people': routeParams(route)[0] === 'followers' ? 'Abonnés' : 'Abonnements',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
+    paywall: 'Abonnement', subscription: 'Abonnement',
   }[name] || 'Retour';
 }
 

@@ -39,6 +39,13 @@ jobs:
           for f in $(find js -name '*.js') sw.js; do node --check "$f"; done
           node tests/unit/run.mjs
 
+      # L'app ouvre les pages de LEGAL_URLS (écran d'abonnement : règle 3.1.2 d'Apple). Elles sont
+      # publiées par le job deploy de tests.yml, pas ici : sans elles en ligne, pas d'OTA (docs/JURIDIQUE.md)
+      - name: Pages juridiques complètes et en ligne (rien n'est publié sinon)
+        run: |
+          node scripts/check-legal-pages.mjs privacy.html mentions-legales.html cgu.html cgv.html
+          node scripts/check-legal-online.mjs
+
       - name: Contenu web et paquet signé (SHA-256)
         run: |
           npm ci

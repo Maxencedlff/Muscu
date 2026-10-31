@@ -1,6 +1,7 @@
-// Prépare le contenu web embarqué dans l'app iOS (dossier dist/, lu par Capacitor).
+// Prépare le contenu web embarqué dans l'app (dossier dist/, lu par Capacitor).
 // La PWA est publiée telle quelle par Vercel ; l'app embarque les mêmes fichiers, sans le service
-// worker (les mises à jour de l'app passent par l'App Store).
+// worker (les mises à jour de l'app passent par l'App Store ou Google Play).
+// `node scripts/build-web.mjs` : app iOS ; `--android` : app Android (seule l'empreinte native change).
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,7 +10,7 @@ import { runtimeVersion } from './runtime-version.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT  = path.join(ROOT, 'dist');
-const ENTRIES = ['index.html', 'manifest.json', 'privacy.html', 'icon.svg', 'apple-touch-icon.png',
+const ENTRIES = ['index.html', 'manifest.json', 'privacy.html', 'legal.css', 'icon.svg', 'apple-touch-icon.png',
                  'icon-192.png', 'icon-512.png', 'css', 'js', 'img'];
 
 fs.rmSync(OUT, { recursive: true, force: true });
@@ -31,10 +32,12 @@ const SUPABASE = path.join(ROOT, 'node_modules', '@supabase', 'supabase-js', 'di
 if (!fs.existsSync(SUPABASE)) throw new Error('@supabase/supabase-js absent : lancer npm ci');
 fs.copyFileSync(SUPABASE, path.join(OUT, 'js', 'vendor', 'supabase.js'));
 // Informations de construction (mises à jour à chaud, voir IOS.md) :
-// - runtime : empreinte de tout ce qui est compilé dans la coquille (scripts/runtime-version.mjs). Une mise
-//   à jour web n'est appliquée que dans une app dont la coquille a la même empreinte.
+// - runtime : empreinte de tout ce qui est compilé dans la coquille, propre à chaque plateforme
+//   (scripts/runtime-version.mjs). Une mise à jour web n'est appliquée que dans une app dont la coquille a
+//   la même empreinte (même principe que le runtimeVersion d'Expo).
 // - seq : date du commit (secondes) ; une mise à jour plus ancienne que le contenu en place est ignorée.
 // - version : identifiant lisible du contenu (date du commit + commit court).
+const PLATFORM = process.argv.includes('--android') ? 'android' : 'ios';
 function gitInfo() {
   try {
     const [sha, ct] = execSync('git log -1 --format=%h%n%ct', { cwd: ROOT }).toString().trim().split('\n');
@@ -45,7 +48,7 @@ function gitInfo() {
 const git  = gitInfo();
 const d    = new Date(git.seq * 1000);
 const BUILD = {
-  runtime: runtimeVersion(ROOT),
+  runtime: runtimeVersion(ROOT, PLATFORM),
   seq: git.seq,
   version: `${d.getUTCFullYear()}.${d.getUTCMonth() + 1}.${d.getUTCDate()}-${git.sha}`,
 };
@@ -64,4 +67,4 @@ const html = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
 const refs = [...html.matchAll(/(?:src|href)="([^"#:]+\.(?:js|css))"/g)].map(m => m[1]);
 const missing = refs.filter(r => !fs.existsSync(path.join(OUT, r)));
 if (missing.length) throw new Error(`Références absentes de dist/ : ${missing.join(', ')}`);
-console.log(`dist/ prêt : ${refs.length} scripts et feuilles de style · contenu ${BUILD.version} · runtime ${BUILD.runtime}`);
+console.log(`dist/ prêt (${PLATFORM}) : ${refs.length} scripts et feuilles de style · contenu ${BUILD.version} · runtime ${BUILD.runtime}`);
