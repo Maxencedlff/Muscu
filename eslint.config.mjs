@@ -16,6 +16,11 @@ export default [
     languageOptions: { ecmaVersion: 2023, sourceType: 'script', globals: { ...globals.browser, ...globals.serviceworker } },
     rules: { 'no-undef': 'off', 'no-unused-vars': 'off', 'no-empty': ['error', { allowEmptyCatch: true }] },
   },
+  // Règles pures des fonctions Edge (Deno), testées aussi sous Node : Web Crypto, btoa, URLSearchParams
+  {
+    files: ['supabase/functions/**/*.js'],
+    languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals['shared-node-browser'], crypto: 'readonly' } },
+  },
   {
     files: ['tests/**/*.mjs', 'scripts/**/*.mjs', 'eslint.config.mjs'],
     languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.node } },

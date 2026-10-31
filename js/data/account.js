@@ -548,7 +548,7 @@ async function accountUsernameAvailable(name) {
 // comme à l'effacement, pour qu'ils ne restent pas en clair sur un appareil partagé. Les séances de
 // la personne (ppl_v2) restent ; ces caches se retéléchargent à la reconnexion.
 const CROSS_USER_CACHE_KEYS = [PROFILE_CACHE_KEY, 'mdlf_social', 'mdlf_coach', 'mdlf_coach_inbox',
-  'mdlf_coach_sent', 'mdlf_coach_seen', 'mdlf_coach_lost', 'mdlf_coach_send_draft'];
+  'mdlf_coach_sent', 'mdlf_coach_seen', 'mdlf_coach_lost', 'mdlf_coach_send_draft', 'mdlf_strava'];
 function clearCrossUserCaches() {
   try { CROSS_USER_CACHE_KEYS.forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
 }

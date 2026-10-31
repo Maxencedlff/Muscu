@@ -145,6 +145,7 @@ function renderSummary() {
                   aria-label="Notes de séance">${esc(h?.notes || '')}</textarea>
         ${coachNotesHint()}
         ${summarySocialGroup(h)}
+        ${stravaSummaryGroup(h)}
         <button class="sum-done" data-action="summary-done">Terminé</button>
       </div>
     </div>`;
