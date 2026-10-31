@@ -91,7 +91,7 @@ const accessInt = (v, max) => (Number.isInteger(v) && v >= 0 && v <= max ? v : n
 
 // my_access() / access_state() nettoyé, ou null si inutilisable :
 // { status, until, paywall_on, days_left, can_write, gift, gift_until, coach_team, intro_offer,
-//   intro_until, lifetime, also_sub, server_now }.
+//   intro_until, lifetime, also_sub, life_test_used, server_now }.
 // Sans `server_now`, rien n'est gardé : l'app ne saurait pas quand cet état a été lu, et l'horloge de
 // l'appareil ne sert jamais à le décider. `can_write` est forcé à vrai quand le verrou est éteint
 // (même règle que le serveur : rien ne bloque tant que `paywall_on` est faux).
@@ -118,6 +118,8 @@ function cleanAccess(raw) {
     // Accès à vie : seulement sur un statut qui donne l'accès (jamais sur « expiré »)
     lifetime: ACCESS_LIFETIME_KINDS.includes(r.lifetime) && ['active', 'gift'].includes(r.status) ? r.lifetime : null,
     also_sub: r.also_sub === true && ['purchase', 'gift'].includes(r.lifetime),
+    // Achat à vie Sandbox (TestFlight, examen d'Apple) déjà fini : le racheter ne rouvre rien
+    life_test_used: r.life_test_used === true && !ACCESS_LIFETIME_KINDS.includes(r.lifetime),
     server_now: serverNow,
   };
 }
@@ -228,6 +230,14 @@ function accessAlsoSub() {
   return !!(st && !st.stale && st.also_sub);
 }
 
+// Achat à vie Sandbox fini (ses 7 jours sont passés) d'après le serveur. StoreKit rend la même
+// transaction à un rachat, dont le serveur garde la fin : l'écran ne propose plus « À vie » et un
+// rachat ou une restauration n'annoncent jamais un accès qui ne s'ouvre pas
+function accessLifeTestUsed() {
+  const st = accessKnown();
+  return !!(st && !st.stale && st.life_test_used);
+}
+
 // Date de fin donnée par le serveur (fin de l'abonnement, essai d'Apple compris, ou du cadeau), ou null
 function accessUntil() {
   const st = accessKnown();
@@ -259,6 +269,8 @@ const ACCESS_ERROR_TEXT = {
   blocked: 'Les achats sont bloqués sur cet iPhone. Regarde dans Réglages, Temps d\'écran.',
   retry: 'Apple ne répond pas pour l\'instant. Ton achat n\'est pas perdu, on réessaiera.',
   rate_limited: 'Trop d\'essais pour l\'instant. Réessaie dans une heure.',
+  life_test_over: 'Achat de test terminé : l\'accès de test (TestFlight) dure 7 jours et ne se rachète pas.',
+  not_open: 'Achat reçu, mais l\'accès ne s\'est pas ouvert. Réessaie « Restaurer mes achats » dans un moment.',
   invalid_code: 'Ce code n\'existe pas. Vérifie les lettres et les chiffres.',
   code_expired: 'Ce code a expiré.',
   code_used_up: 'Ce code a déjà servi au maximum de fois prévu.',
@@ -513,7 +525,8 @@ async function accessLoadProducts({ force = false } = {}) {
 }
 
 // Achat d'une formule : StoreKit rend le JWS de la transaction, que le serveur vérifie.
-// Renvoie { ok: true }, { ok: false, reason: 'cancel' } ou { ok: false, kind }.
+// Renvoie { ok: true }, { ok: false, reason: 'cancel' } ou { ok: false, kind }. Accès à vie : { ok: true }
+// seulement si le serveur l'a vraiment ouvert (accessOutcome : 'life_test_over', 'not_open' sinon).
 async function accessBuy(productId) {
   if (!account.user) return { ok: false, kind: 'signed_out' };
   if (!Native.store.available) return { ok: false, kind: 'no_store' };
@@ -530,11 +543,23 @@ async function accessBuy(productId) {
     if (r?.status === 'userCancelled') return { ok: false, reason: 'cancel' };
     if (r?.status === 'pending') return { ok: false, kind: 'pending' };
     if (r?.status !== 'success' || !r?.jws) return { ok: false, kind: 'server' };
-    return await accessVerifyPurchase(r.jws, r.transactionId);
+    const v = await accessVerifyPurchase(r.jws, r.transactionId);
+    return v.ok && productId === ACCESS_LIFETIME_ID ? accessOutcome({ life: true }) : v;
   } finally {
     access.buying = null;
     notifyAccess();
   }
+}
+
+// Ce que le serveur a vraiment ouvert après un achat ou une restauration acceptés. Le serveur peut
+// accepter une transaction sans rien ouvrir : achat à vie Sandbox racheté après ses 7 jours (même
+// transaction, fin déjà passée). L'app ne dit alors jamais « activé » ni « restauré ».
+// life : achat de l'accès à vie (un abonnement en cours ne le remplace pas) ; sinon restauration.
+// Verrou éteint : rien n'est fermé, rien à signaler.
+function accessOutcome({ life = false } = {}) {
+  if (!paywallOn() || (life ? accessLifetime() : canWrite())) return { ok: true };
+  if (accessLifeTestUsed()) return { ok: false, kind: 'life_test_over' };
+  return canWrite() ? { ok: true } : { ok: false, kind: 'not_open' };
 }
 
 // Droits en cours rendus par le module : [{ jws, transactionId, productId, … }]. Le JWS est dans
@@ -558,7 +583,8 @@ async function accessSendEntitlements(list) {
 }
 
 // « Restaurer mes achats » : AppStore.sync() (qui demande le mot de passe Apple) puis les droits en
-// cours. Renvoie { ok: true }, { ok: false, kind: 'nothing' } (rien sur cet identifiant Apple),
+// cours. Renvoie { ok: true } (accès ouvert, accessOutcome), { ok: false, kind: 'life_test_over' }
+// (seul un achat à vie de test fini), { ok: false, kind: 'nothing' } (rien sur cet identifiant Apple),
 // { ok: false, reason: 'cancel' } (fenêtre d'Apple fermée et rien à restaurer) ou { ok: false, kind }.
 async function accessRestore() {
   if (!account.user) return { ok: false, kind: 'signed_out' };
@@ -566,7 +592,10 @@ async function accessRestore() {
   const r = await Native.store.restore();
   if (!r) return { ok: false, kind: 'server' };
   const list = accessEntitlementsOf(r);
-  if (list.length) return await accessSendEntitlements(list);
+  if (list.length) {
+    const sent = await accessSendEntitlements(list);
+    return sent.ok ? accessOutcome() : sent;
+  }
   // Rien chez Apple : l'état du serveur peut quand même avoir changé (notification Apple reçue)
   await accessRefresh();
   if (canWrite() && paywallOn()) return { ok: true };
@@ -582,7 +611,10 @@ async function accessSyncCurrent() {
   if (!paywallOn() || canWrite() || access.syncing) return false;
   access.syncing = true;
   try {
-    const list = accessEntitlementsOf(await Native.store.current());
+    // Achat à vie Sandbox fini : StoreKit le garde dans les droits en cours, le renvoyer à chaque
+    // lancement ne rouvrirait rien et userait le quota de vérifications
+    const list = accessEntitlementsOf(await Native.store.current())
+      .filter(e => !(e.productId === ACCESS_LIFETIME_ID && accessLifeTestUsed()));
     if (!list.length) return false;
     return (await accessSendEntitlements(list)).ok;
   } finally { access.syncing = false; }

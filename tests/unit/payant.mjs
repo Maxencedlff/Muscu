@@ -538,7 +538,7 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     for (const id of tiers) assert.ok(tarifs().includes(`when '${id}'`) && /coach_product_limit/.test(tarifs()), `${id} sans palier`);
     // Les clés de my_access() (modèle B), côté serveur et côté contrat
     const keys = ['status', 'until', 'paywall_on', 'days_left', 'can_write', 'gift', 'gift_until', 'coach_team', 'intro_offer', 'intro_until',
-      'lifetime', 'also_sub', 'server_now'];
+      'lifetime', 'also_sub', 'life_test_used', 'server_now'];
     const json = bodyOf(plus(), 'create or replace function private.access_json');
     for (const k of keys) {
       assert.ok(new RegExp(`'${k}',`).test(json), `clé ${k} absente de private.access_json`);

@@ -81,6 +81,8 @@ function payToast(r, okText) {
   if (r.reason === 'cancel') return false;   // fenêtre d'Apple fermée : rien à dire
   // Abonnement rattaché à un autre compte MDLF : un toast ne dirait pas quoi faire
   if (r.kind === 'transaction_taken') { payTakenDialog(); return false; }
+  // Achat à vie de test déjà fini : une information (rien n'a échoué), assez longue pour être lue
+  if (r.kind === 'life_test_over') { showToast(accessErrorText(r.kind), { duration: 5000 }); return false; }
   showToast(accessErrorText(r.kind), { error: true });
   return false;
 }
@@ -227,7 +229,10 @@ function payLifetimeTermsHtml(life) {
           <p>Si tu as déjà un abonnement particulier, l'achat à vie ne l'arrête pas : résilie-le dans les réglages de ton identifiant Apple pour ne plus être débité. Un palier coach reste nécessaire pour accueillir des élèves : l'accès à vie n'en donne pas.</p>
         </div>`;
 }
-const payLifetimeOf = list => list.find(p => p.id === ACCESS_LIFETIME_ID) || null;
+// Carte « À vie » : jamais quand l'achat à vie de test (Sandbox) de ce compte est déjà fini. StoreKit
+// rendrait la même transaction, dont le serveur garde la fin : la carte ne donnerait rien
+const payLifetimeOf = list => (accessLifeTestUsed() ? null : list.find(p => p.id === ACCESS_LIFETIME_ID) || null);
+const payLifeTestOverHtml = () => (accessLifeTestUsed() ? `<div class="pay-note" role="status"><p>${esc(accessErrorText('life_test_over'))}</p></div>` : '');
 
 // ── Particulier, coach, élève ───────────────────────────────
 
@@ -277,14 +282,14 @@ function payProHtml(list) {
     ? '<div class="pay-note" role="status"><p>L\'offre élève est réservée à un premier abonnement.</p></div>' : '';
   const life = payLifetimeOf(list);
   return `${notNew}<p class="pay-benefits">${PAY_BENEFITS}</p>
-        <div class="pay-plans">${pro.map(p => payPlanHtml(p, { months: payYearMonths(list, p) })).join('')}${life ? payPlanHtml(life, { label: PAY_PLAN_NAME_LIFE }) : ''}</div>${payTermsHtml(pro)}${payLifetimeTermsHtml(life)}${payLegalHtml()}`;
+        <div class="pay-plans">${pro.map(p => payPlanHtml(p, { months: payYearMonths(list, p) })).join('')}${life ? payPlanHtml(life, { label: PAY_PLAN_NAME_LIFE }) : ''}</div>${payLifeTestOverHtml()}${payTermsHtml(pro)}${payLifetimeTermsHtml(life)}${payLegalHtml()}`;
 }
 
 // Abonné qui passe à l'accès à vie (raison 'life') : la seule carte « À vie », et ce qu'il faut faire de
 // l'abonnement en cours, dit AVANT l'achat
 function payLifetimeOnlyHtml(list) {
   const life = payLifetimeOf(list);
-  if (!life) return payMissingHtml();
+  if (!life) return payLifeTestOverHtml() || payMissingHtml();
   return `<p class="pay-benefits">Un seul paiement, et tu enregistres tes séances sans abonnement, pour toujours.</p>
         <div class="pay-plans">${payPlanHtml(life, { label: PAY_PLAN_NAME_LIFE })}</div>${payLifetimeTermsHtml(life)}${payLegalHtml()}`;
 }
@@ -473,7 +478,9 @@ function renderSubscription() {
   const alsoNote = on && accessAlsoSub() ? `
         <div class="group-foot pay-also-sub" role="note">Ton abonnement Apple continue d'être facturé. Avec l'accès à vie, tu peux le résilier dans « Gérer chez Apple ».</div>` : '';
   const testNote = life === 'test' ? `
-        <div class="group-foot">Achat de test (TestFlight) : il ne vaut que quelques jours.</div>` : '';
+        <div class="group-foot">Achat de test (TestFlight) : il ne vaut que quelques jours.</div>`
+    : on && accessLifeTestUsed() ? `
+        <div class="group-foot" role="note">${esc(accessErrorText('life_test_over'))}</div>` : '';
   const rows = `
         <div class="group">
           <div class="cell">
@@ -488,7 +495,7 @@ function renderSubscription() {
         <div class="group-foot pay-intro-line">${esc(introLine)}.</div>` : ''}${offNote}${alsoNote}${testNote}`;
   // Abonné particulier (pas à vie) : il peut passer à l'accès à vie, si Apple propose le produit. Pas un
   // abonné coach : son palier donne le nombre d'élèves, l'accès à vie ne le remplace pas
-  const toLife = on && st === 'active' && !life && Native.store.available && !planIsCoach(access.currentProduct)
+  const toLife = on && st === 'active' && !life && !accessLifeTestUsed() && Native.store.available && !planIsCoach(access.currentProduct)
     && (!access.products || access.products.some(p => p.id === ACCESS_LIFETIME_ID));
   const actions = `
         <div class="group">

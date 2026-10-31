@@ -41,6 +41,8 @@ Ce qu'il ajoute, selon docs/PAYANT_V1.md (MODÈLE B : l'essai gratuit est l'offr
 Payant plus : accès à vie `com.mdlf.training.lifetime` (non consommable : ni période, ni essai, comme
 le Swift) ; vérifié, il donne `lifetime: 'purchase'` (Production) ou `'test'` (Sandbox, 7 jours), et
 `also_sub` quand un abonnement particulier (pas un palier coach) tourne encore à côté ; `__st.giveGift()` donne `lifetime: 'gift'`.
+Comme StoreKit, racheter l'accès à vie déjà possédé rend la même transaction (même `originalId`) ; le
+serveur garde alors la fin du test Sandbox, et `life_test_used` est vrai une fois ces 7 jours passés.
 `environment()` → `{ environment }` (`__st.environment`, 'production' par défaut ; 'sandbox' = TestFlight).
 
 Deux horloges SÉPARÉES : celle du serveur (`__st.serverShift`) et celle de l'appareil
@@ -154,8 +156,8 @@ FAKE_STORE = r"""
     else if (giftDays && (!paid || giftDays > paid)) { status = 'gift'; until = giftDays; }
     else if (paid) { status = 'active'; until = paid; }
     else if (coach) status = 'coach_team';
-    else if (e.expires_at !== null || e.gift_until !== null || e.ended !== null) {
-      status = 'expired'; until = Math.max(e.expires_at || 0, e.gift_until || 0, e.ended || 0) || null;
+    else if (e.expires_at !== null || e.gift_until !== null || e.ended !== null || typeof e.life === 'number') {
+      status = 'expired'; until = Math.max(e.expires_at || 0, e.gift_until || 0, e.ended || 0, typeof e.life === 'number' ? e.life : 0) || null;
     } else status = 'none';
     const intro = status === 'active' && !!e.intro && !lifePaid && !(lifeTest && lifeTest >= (subPaid || 0));
     const lifetime = lifePaid ? 'purchase' : e.gift ? 'gift' : status === 'active' && lifeTest && lifeTest >= (subPaid || 0) ? 'test' : null;
@@ -166,6 +168,8 @@ FAKE_STORE = r"""
       intro_offer: intro, intro_until: intro ? iso(until) : null,
       // also_sub : abonnement PARTICULIER seulement, jamais un palier coach (il donne le nombre d'élèves)
       lifetime, also_sub: (lifetime === 'purchase' || lifetime === 'gift') && !!subPaid && !/\.coach/.test(e.product_id || ''),
+      // Achat à vie Sandbox déjà fini (7 jours passés) et aucun accès à vie : le racheter ne rouvre rien
+      life_test_used: lifetime === null && typeof e.life === 'number' && e.life <= now,
       server_now: iso(now) };
   };
 
@@ -290,6 +294,9 @@ FAKE_STORE = r"""
   // identifiant Apple : c'est Apple qui le garantit, d'où introEligible qui passe à faux)
   const buy = productId => {
     if (productId === LIFE_ID) {
+      // Non consommable déjà possédé : StoreKit rend la MÊME transaction d'origine (même originalID),
+      // sans nouveau paiement, comme un rachat après la fin du test Sandbox
+      if (st.ownedLife) return st.ownedLife;
       const n = ++st.n;
       st.ownedLife = { productId, originalId: 'apple-' + n, transactionId: 'tx-' + n, expiresAt: null, environment: st.environment };
       return st.ownedLife;

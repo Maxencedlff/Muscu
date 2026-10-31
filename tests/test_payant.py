@@ -1196,6 +1196,34 @@ def t_vie(bench, eng, dev, theme):
         shot(page, LOT, f'44-a-vie-test-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
+        # 3 bis. Rachat après les 7 jours (examen d'Apple renvoyé plus tard, même identifiant Sandbox) :
+        #   StoreKit rend la même transaction, le serveur garde la fin du test. L'app ne dit JAMAIS
+        #   « Accès à vie activé » ni « Achats restaurés » quand rien ne s'ouvre, et ne propose plus la
+        #   carte « À vie » qui ne donnerait rien
+        page.evaluate('__st.serverShift = 8 * 86400000')
+        refresh_access(page)
+        R.check(page.evaluate('accessStatus()') == 'expired' and page.evaluate('accessLifeTestUsed()') is True
+                and page.evaluate('canWrite()') is False, f'{t} test Sandbox fini : accès fermé, test connu')
+        txt = sub_text(page)
+        R.check('Achat de test terminé' in txt and 'Passer à l\'accès à vie' not in txt,
+                f'{t} test Sandbox fini : Réglages le disent ({txt[:160]!r})')
+        txt = paywall(page)
+        pl = plans_text(page)
+        R.check(len(pl) == 2 and all('en une fois' not in p for p in pl) and 'Achat de test terminé' in txt,
+                f'{t} test Sandbox fini : plus de carte « À vie » {pl}')
+        layout(page, t, 'test Sandbox fini')
+        shot(page, LOT, f'46-a-vie-test-fini-{t}')
+        r = page.evaluate(f'accessBuy({json.dumps(LIFE)})')
+        R.check(r == {'ok': False, 'kind': 'life_test_over'} and page.evaluate('canWrite()') is False,
+                f'{t} rachat à vie après le test : pas de succès annoncé {r}')
+        page.evaluate('document.querySelector(".toast")?.remove()')
+        page.click('[data-action="pay-restore"]')
+        page.wait_for_timeout(1200)
+        msg = page.locator('.toast').inner_text() if page.locator('.toast').count() else ''
+        R.check('Achats restaurés' not in msg and 'test' in msg and '7 jours' in msg,
+                f'{t} restaurer après le test : pas de « Achats restaurés » ({msg!r})')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
     # 4. Accès offert à vie (administrateur ou code) : rien à acheter ; App Store : code de Production
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), store={'products': 'all'})

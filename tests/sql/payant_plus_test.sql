@@ -135,6 +135,7 @@ begin
   if st ->> 'status' <> 'active' or st ->> 'lifetime' <> 'test' or (st ->> 'days_left')::int <> 6
      or (st ->> 'until')::timestamptz not between now() + interval '6 days' - interval '1 minute' and now() + interval '6 days' + interval '1 minute'
      then raise 'achat Sandbox : %', st; end if;
+  if (st ->> 'life_test_used')::boolean then raise 'test en cours compté comme fini : %', st; end if;
   -- Une relecture plus tard ne prolonge pas la période de test
   perform pg_temp.vsrv(format('select public.srv_access_purchase(%L, %L, null, %L, false, now(), null, ''Sandbox'')',
     pg_temp.vu('3'), 'com.mdlf.training.lifetime', 'life-sb'));
@@ -146,6 +147,15 @@ begin
   set role authenticated;
   st := public.access_state();
   if st ->> 'status' <> 'expired' or (st ->> 'can_write')::boolean then raise 'test terminé : %', st; end if;
+  -- Le serveur dit à l'app que le test est fini : elle ne propose plus la carte « À vie »
+  if not (st ->> 'life_test_used')::boolean or st ->> 'lifetime' is not null then raise 'test fini non signalé : %', st; end if;
+  -- Rachat après les 7 jours (nouvel examen d'Apple, même identifiant Sandbox) : StoreKit rend la MÊME
+  -- transaction ; elle est acceptée sans erreur mais ne rouvre rien
+  perform pg_temp.vsrv(format('select public.srv_access_purchase(%L, %L, null, %L, false, now(), null, ''Sandbox'')',
+    pg_temp.vu('3'), 'com.mdlf.training.lifetime', 'life-sb'));
+  st := public.my_access();
+  if st ->> 'status' <> 'expired' or (st ->> 'can_write')::boolean or not (st ->> 'life_test_used')::boolean
+     then raise 'rachat après le test : %', st; end if;
 end $$;
 
 -- ── Abonnement ET accès à vie : also_sub, pas d'essai affiché ──

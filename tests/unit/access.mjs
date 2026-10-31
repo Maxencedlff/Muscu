@@ -47,7 +47,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       days_left: 42, can_write: true, gift: false, coach_team: false, intro_offer: true, intro_until: '2027-01-01T00:00:00Z',
       server_now: '2026-10-28T10:00:00Z', user_id: 'secret', original_transaction_id: '1000', evil: '<img src=x>' })`);
     sameJSON(Object.keys(a).sort(), ['also_sub', 'can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until',
-      'lifetime', 'paywall_on', 'server_now', 'status', 'until'],
+      'life_test_used', 'lifetime', 'paywall_on', 'server_now', 'status', 'until'],
       'liste blanche du modèle B et du payant plus (plus de trial_days ni d\'essai maison)');
     assert.equal(a.intro_offer, true);
     assert.equal(a.intro_until, Date.parse('2027-01-01T00:00:00Z'));
@@ -649,6 +649,46 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     // Hors ligne : 7 jours, comme tout accès sans date de fin (rien d'autre ne le borne), puis redemandé
     sameJSON(offline(life(), 6), [true, 'active', null, false]);
     sameJSON(offline(life(), 8), [false, 'unknown', null, true]);
+  });
+
+  test('payant plus : rachat de l\'accès à vie après la fin du test Sandbox, jamais annoncé « activé »', async () => {
+    // État du serveur après les 7 jours : expiré, test connu (life_test_used). StoreKit rend la même
+    // transaction, verify-purchase l'accepte ({ ok: true }) sans rien rouvrir
+    const over = { status: 'expired', paywall_on: true, can_write: false, gift: false, coach_team: false,
+      until: NOW - DAY, intro_offer: false, lifetime: null, also_sub: false, life_test_used: true, server_now: NOW };
+    sameJSON(run(`[cleanAccess(${JSON.stringify(over)}).life_test_used,
+      cleanAccess(${JSON.stringify({ ...over, life_test_used: 'oui' })}).life_test_used,
+      cleanAccess(${JSON.stringify({ ...over, status: 'gift', lifetime: 'gift' })}).life_test_used]`), [true, false, false],
+    'life_test_used : vrai strict, jamais à côté d\'un accès à vie');
+    const r = await run(`(async () => {
+      const u = account.user, saved = { ...access }, realSb = sb, store = Native.store;
+      const sent = [];
+      try {
+        account.user = { id: 'u' }; accessReset('u');
+        access.state = cleanAccess(${JSON.stringify(over)});
+        const life = { jws: 'jws-life', transactionId: 'tx-life', productId: ACCESS_LIFETIME_ID };
+        Native.store = { available: true, finish: async () => true,
+          purchase: async () => ({ status: 'success', jws: life.jws, transactionId: life.transactionId }),
+          restore: async () => ({ synced: true, entitlements: [life] }),
+          current: async () => ({ entitlements: [life] }) };
+        sb = { functions: { invoke: async (fn, { body }) => { sent.push(body.jws);
+          return { data: { ok: true, access: ${JSON.stringify(over)} }, error: null }; } } };
+        const bought = await accessBuy(ACCESS_LIFETIME_ID);
+        const restored = await accessRestore();
+        const before = sent.length;
+        const synced = await accessSyncCurrent();
+        // Un vrai accès à vie (Production) reste annoncé
+        sb = { functions: { invoke: async () => ({ data: { ok: true, access: ${JSON.stringify({ ...over, status: 'active', can_write: true, until: null, lifetime: 'purchase', life_test_used: false })} }, error: null }) } };
+        const paid = await accessBuy(ACCESS_LIFETIME_ID);
+        return [bought, restored, synced, sent.length - before, paid, accessLifeTestUsed()];
+      } finally { account.user = u; Object.assign(access, saved); sb = realSb; Native.store = store; localStorage.removeItem(ACCESS_CACHE_KEY); }
+    })()`);
+    sameJSON(r[0], { ok: false, kind: 'life_test_over' }, 'rachat après le test : pas de « Accès à vie activé »');
+    sameJSON(r[1], { ok: false, kind: 'life_test_over' }, 'restauration après le test : pas de « Achats restaurés »');
+    sameJSON(r.slice(2, 4), [false, 0], 'lancement : le test fini n\'est pas renvoyé à verify-purchase');
+    sameJSON(r[4], { ok: true }, 'achat à vie réel : annoncé');
+    assert.equal(r[5], false);
+    assert.match(run('accessErrorText("life_test_over")'), /7 jours/);
   });
 
   test('payant plus : TestFlight (Sandbox) ne demande AUCUN code d\'offre élève (il ne s\'y utiliserait pas), le reste un code de Production', async () => {

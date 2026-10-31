@@ -19,7 +19,8 @@
 --       l'achat. Sans cette borne, tout testeur TestFlight (Sandbox, sans payer) aurait un accès à vie
 --       réel et définitif sur son compte MDLF. Un abonnement Sandbox s'arrête de lui-même ; un
 --       non consommable, jamais.
---     my_access() gagne deux clés : lifetime ('purchase' | 'gift' | 'test' | null) et also_sub.
+--     my_access() gagne trois clés : lifetime ('purchase' | 'gift' | 'test' | null), also_sub et
+--     life_test_used (achat à vie Sandbox fini : le racheter ne rouvre rien).
 --  2. CODES « GRATUIT À VIE » RÉVOCABLES ET TRACÉS. Le système de codes maison existait
 --     (gift_codes kind 'lifetime', private.make_gift_code, gift_redemptions = trace de qui a utilisé
 --     quel code et quand) mais un accès à vie offert ne se retirait pas. Ajouts :
@@ -246,7 +247,8 @@ $$;
 -- vie Sandbox, 7 jours), null sinon. also_sub : un abonnement PARTICULIER tourne encore à côté d'un
 -- accès à vie (l'app invite à le résilier : Apple ne le fait pas tout seul). Un palier COACH n'y compte
 -- jamais : c'est lui seul qui donne le nombre d'élèves (private.coach_paid_limit), l'accès à vie n'en
--- donne aucun ; le résilier fermerait l'équipe du coach.
+-- donne aucun ; le résilier fermerait l'équipe du coach. life_test_used : un achat à vie Sandbox est
+-- fini et rien ne le remplace (correction 2 du 31/10, rachat lors d'un nouvel examen d'Apple).
 create or replace function private.access_json(uid uuid) returns jsonb
   language plpgsql stable security definer set search_path = '' as
 $$
@@ -258,6 +260,7 @@ declare
   life      boolean;
   life_paid boolean;
   life_kind text;
+  life_test boolean;
   gift_at   timestamptz;
   has_gift  boolean;
   paid      timestamptz;
@@ -308,6 +311,12 @@ begin
     when life then 'gift'
     when st = 'active' and top_kind = 'life' and top_env = 'Sandbox' then 'test'
   end;
+  -- Achat à vie Sandbox déjà fini (ses 7 jours passés, jamais remboursé) et aucun accès à vie : le
+  -- racheter ne rouvre rien (StoreKit rend la même transaction, dont la fin est fixée une fois).
+  -- L'app ne propose plus la carte « À vie » et ne dit jamais « activé » sur ce rachat.
+  life_test := life_kind is null and exists (select 1 from public.entitlement_claims c
+                 where c.user_id = uid and c.kind = 'life' and c.environment = 'Sandbox'
+                   and c.revoked_at is null and c.expires_at <= srv_now);
 
   until_at := case
     when st = 'gift'    then case when life then null else paid end
@@ -329,6 +338,7 @@ begin
     'intro_until', case when intro then intro_end end,
     'lifetime',    life_kind,
     'also_sub',    coalesce(life_kind in ('purchase', 'gift'), false) and also,
+    'life_test_used', life_test,
     'server_now',  srv_now
   );
 end
