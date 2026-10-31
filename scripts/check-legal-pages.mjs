@@ -1,6 +1,7 @@
 // Garde de publication des pages juridiques (docs/JURIDIQUE.md) : échoue si une page contient encore
 // un emplacement à compléter (<span class="a-completer">, « À COMPLÉTER », « À VÉRIFIER »,
-// « TO COMPLETE », « TO CHECK »). Lancé par le job `deploy` de .github/workflows/tests.yml AVANT la
+// « TO COMPLETE », « TO CHECK »). Lancé aussi avant une OTA (ota.yml) et un envoi TestFlight (ios.yml),
+// suivi de check-legal-online.mjs. Lancé par le job `deploy` de .github/workflows/tests.yml AVANT la
 // copie vers web-public/ : tant que Maxence n'a pas rempli SIRET, téléphones, médiateur et dates, rien
 // n'est mis en ligne sur mdlf.app (règle 2.1(a) d'Apple, LCEN art. 1-1, art. L616-1 du Code de la
 // consommation). Testé par tests/unit/juridique.mjs.

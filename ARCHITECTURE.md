@@ -39,7 +39,7 @@ js/ui/                infrastructure d'écran : thème, navigation, barres, feui
 js/features/          un fichier (ou plusieurs) par écran ou fonctionnalité
 js/app/               mises à jour du service worker, démarrage et écouteurs globaux
 tests/                tests de non-régression Playwright (Python) et tests unitaires (tests/unit/)
-scripts/              construction de l'app iOS (build-web.mjs), mises à jour à chaud, images de la marque (brand-icons.py), garde de publication des pages juridiques (check-legal-pages.mjs)
+scripts/              construction de l'app iOS (build-web.mjs), mises à jour à chaud, images de la marque (brand-icons.py), gardes des pages juridiques : emplacements à compléter (check-legal-pages.mjs, job deploy, OTA et TestFlight) et pages en ligne avant une OTA ou un envoi TestFlight (check-legal-online.mjs)
 privacy.html, mentions-legales.html, cgu.html, cgv.html, legal.css
                       pages juridiques publiques (mdlf.app, publiées par le job deploy via web-public/), sans script ; docs/JURIDIQUE.md
 store/                fiche App Store (captures.py) et captures de revue des abonnements (captures_revue.py → docs/revue/)

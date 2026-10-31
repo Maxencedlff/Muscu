@@ -132,6 +132,48 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.ok(guard > ci.indexOf('  deploy:') && guard < copy, 'garde des emplacements avant la publication');
   });
 
+  test('mise à jour à chaud : refusée si une page juridique de l\'app est absente en ligne', async () => {
+    const { legalUrlsFromSource, pagesToCheck, checkLegalOnline } = await import(path.join(ROOT, 'scripts/check-legal-online.mjs'));
+    const urls = legalUrlsFromSource(read('js/data/legal-links.js'));
+    assert.ok(urls.length >= 6 && urls.every(u => u.startsWith('https://mdlf.app/')), 'adresses lues dans legal-links.js');
+    const pages = pagesToCheck(urls);
+    assert.equal(pages.length, 4, 'chaque page téléchargée une seule fois');
+    sameJSON(pages.find(p => p.url.endsWith('/cgv.html')).anchors, ['remboursement']);
+    sameJSON(pages.find(p => p.url.endsWith('/privacy.html')).anchors, ['newsletter']);
+    // Chaque page servie en ligne = la page du dépôt ; aucun réseau
+    const local = Object.fromEntries(PAGES.map(f => [`https://mdlf.app/${f}`, read(f)]));
+    const fakeFetch = (overrides = {}) => async url => {
+      if (url in overrides) { const o = overrides[url]; if (o instanceof Error) throw o; return o; }
+      return url in local ? { ok: true, status: 200, text: async () => local[url] } : { ok: false, status: 404, text: async () => '' };
+    };
+    const opts = f => ({ fetchImpl: f, waitMs: 0 });
+    sameJSON(await checkLegalOnline(urls, opts(fakeFetch())), [], 'pages du dépôt en ligne : publication permise');
+    sameJSON(await checkLegalOnline(urls, opts(fakeFetch({ 'https://mdlf.app/cgu.html': { ok: false, status: 404, text: async () => '' } }))),
+      ['https://mdlf.app/cgu.html : HTTP 404'], 'CGU absentes (état du 31/10) : refus');
+    assert.equal((await checkLegalOnline(urls, opts(fakeFetch({ 'https://mdlf.app/cgv.html': new Error('réseau') })))).length, 1, 'injoignable : refus');
+    sameJSON(await checkLegalOnline(urls, opts(fakeFetch({ 'https://mdlf.app/privacy.html': { ok: true, status: 200, text: async () => '<h2 id="mentions">x</h2>' } }))),
+      ['https://mdlf.app/privacy.html#newsletter : ancre absente de la page en ligne'], 'ancienne politique sans #newsletter : refus');
+    let calls = 0;
+    const flaky = async url => (++calls === 1 ? { ok: false, status: 503, text: async () => '' } : fakeFetch()(url));
+    sameJSON(await checkLegalOnline(urls, opts(flaky)), [], 'erreur passagère : réessayée');
+    assert.throws(() => pagesToCheck(['http://mdlf.app/cgu.html']), /https/);
+    // ota.yml lance les deux gardes AVANT de construire et publier le paquet
+    const ota = read('.github/workflows/ota.yml');
+    const build = ota.indexOf('python3 scripts/ota-bundle.py');
+    for (const cmd of ['node scripts/check-legal-pages.mjs privacy.html mentions-legales.html cgu.html cgv.html', 'node scripts/check-legal-online.mjs']) {
+      const at = ota.indexOf(cmd);
+      assert.ok(at > 0 && at < build, `ota.yml : « ${cmd} » avant la publication`);
+    }
+    // Envoi TestFlight : mêmes gardes, avant la signature (mode testflight seulement)
+    const ios = read('.github/workflows/ios.yml');
+    const sign = ios.indexOf('- name: Certificat et profil de distribution');
+    const step = ios.slice(ios.indexOf('- name: Pages juridiques complètes et en ligne'), sign);
+    assert.ok(sign > 0 && step.includes('if: ${{ inputs.testflight }}'), 'ios.yml : garde en mode testflight, avant la signature');
+    for (const cmd of ['node scripts/check-legal-pages.mjs privacy.html mentions-legales.html cgu.html cgv.html', 'node scripts/check-legal-online.mjs']) {
+      assert.ok(step.includes(cmd), `ios.yml : « ${cmd} »`);
+    }
+  });
+
   test('conditions de vente : prix France identiques au contrat (docs/PAYANT_V1.md) et à l\'offre élève de l\'app', () => {
     const cgv = read('cgv.html'), contract = read('docs/PAYANT_V1.md');
     const rows = [...contract.matchAll(/^\| [^|]+ \| `com\.mdlf\.training\.(\w+)\.(monthly|yearly)` \| \d+ \| \d+ \| ([\d,]+) € \|/gm)];

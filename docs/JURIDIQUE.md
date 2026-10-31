@@ -39,6 +39,16 @@ mentions-legales.html cgu.html cgv.html` **avant** de copier les pages ; s'il re
 rien n'est publié sur mdlf.app (ni ces pages, ni le reste de `web-public/`). À lancer à la main avant la
 fusion pour voir ce qui manque.
 
+**Mise à jour à chaud et TestFlight** : l'app ouvre ces pages (écran d'abonnement : lien vers les
+conditions exigé par la règle 3.1.2 d'Apple), mais ni `ota.yml` ni `ios.yml` ne les publient. Les deux
+lancent donc, avant toute publication (OTA) ou signature (mode testflight), la même garde des
+emplacements puis `node scripts/check-legal-online.mjs` : chaque adresse de `LEGAL_URLS`
+(`js/data/legal-links.js`) doit répondre en ligne (2xx) avec ses ancres (`#newsletter`,
+`#remboursement`). Tant que le job `deploy` n'a pas mis les pages sur mdlf.app (emplacements, panne
+Vercel), aucune OTA ni build ne part vers une page 404. Ordre après la fusion : job `deploy` vert, puis
+OTA ou build. État au 31/10/2026 : `mentions-legales.html`, `cgu.html`, `cgv.html` en 404 et
+`privacy.html` en ligne sans `#newsletter`, donc garde rouge (attendu).
+
 | Emplacement | Pages | Quoi mettre |
 |---|---|---|
 | À COMPLÉTER : nouveau SIRET en cours d'attribution | mentions-legales.html | Le SIRET (14 chiffres) dès qu'il est attribué. |
