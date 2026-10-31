@@ -108,11 +108,16 @@ begin
                            'Situe-toi par rapport à ton max', 'Effectue toi-même', 'Habitue-toi à la charge, ça viendra', 'Constitue-toi un plan',
                            'Youpi ! Nouveau record', 'Youpi nickel', 'Belle salopette', 'Mets un cône', 'Trois cônes', 'Mon therapist dit repos',
                            'physiotherapist', 'chili con carne', 'Week-end à Pornic', 'Quel nigaud', 'Je suis nigérian', 'Un fagot de bois',
-                           'Pain bâtard au petit déj', 'Super retardé ce bus', 'Tapette à mouche', 'Bite-size'] loop
+                           'Pain bâtard au petit déj', 'Super retardé ce bus', 'Tapette à mouche', 'Bite-size',
+                           -- mots voisins courants qui, recollés, forment un mot interdit (crevé + toi, chat + te, bas + tard)
+                           'T''es crevé toi aussi ?', 'Bien joué, crevé toi ?', 'Le chat te regarde', 'Mon chat tes croquettes',
+                           'Courir bas tard le soir', 'La cuisine mongole', 'Les steppes mongoles'] loop
     if private.comment_forbidden(t) then raise 'phrase courante refusée : %', t; end if;
   end loop;
   -- Un mot accepté ne protège que lui-même, mot entier
-  foreach t in array array['cone de merde', 'conne', 'connne', 'niggers', 'Pornographie'] loop
+  foreach t in array array['cone de merde', 'conne', 'connne', 'niggers', 'Pornographie',
+                           -- hors recollage, le mot reste refusé écrit d'un bloc ou lettre à lettre
+                           'crevetoi', 'CRÈVETOI', 'c r e v e t o i', 'sale chatte', 'you bastard', 'b a s t a r d', 'mongol'] loop
     if not private.comment_forbidden(t) then raise 'mot interdit accepté : %', t; end if;
   end loop;
 end $$;

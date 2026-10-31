@@ -91,6 +91,24 @@ export default function ({ test, run, assert, sameJSON }) {
     } finally { teardown(); }
   });
 
+  test('messages : rouvrir une conversation remontée jusqu\'au début rend les anciens messages à nouveau accessibles', async () => {
+    try {
+      setup();
+      run(`__srv.msgs = Array.from({ length: 120 }, (_, i) => ({ id: i + 1, from_coach: i % 2 === 0, body: 'm' + (i + 1), at: '2026-10-31T10:00:00Z' })); __srv.next = 121`);
+      const state = () => run('(c => ({ n: c.rows.length, first: c.rows[0].id, end: c.end }))(chatConv(CHAT_COACH))');
+      await run('chatLoad(CHAT_COACH)');
+      sameJSON(state(), { n: 50, first: 71, end: false });
+      await run('chatLoad(CHAT_COACH, { more: true })');
+      await run('chatLoad(CHAT_COACH, { more: true })');
+      sameJSON(state(), { n: 120, first: 1, end: true }, 'remontée complète');
+      // Retour à la fiche puis réouverture : la première page remplace la liste, le bouton revient
+      await run('chatLoad(CHAT_COACH)');
+      sameJSON(state(), { n: 50, first: 71, end: false }, 'messages plus anciens encore à charger');
+      await run('chatLoad(CHAT_COACH, { more: true })');
+      sameJSON(state(), { n: 100, first: 21, end: false });
+    } finally { teardown(); }
+  });
+
   test('messages : signaler copie les messages côté serveur puis demande l\'alerte', async () => {
     try {
       setup();

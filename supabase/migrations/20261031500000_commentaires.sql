@@ -89,10 +89,13 @@ create index comment_reports_comment on public.comment_reports (comment_id);
 
 -- Mots interdits dans un commentaire (schéma non exposé). word : le mot entier (avec s, e, es ou x
 -- à la fin) ; contains : n'importe où dans un mot. Forme stockée : minuscules sans accents, a-z et 0-9.
+-- joinable : cherché aussi dans deux ou trois mots voisins recollés (« sa lope ») ; false pour un mot qui
+-- est aussi la suite de mots courants (« chat te » → chatte, « bas tard » → bastard, « crevé toi »).
 create table private.comment_words (
   word text primary key check (word ~ '^[a-z0-9]{2,40}$'),
   lang text not null check (lang in ('fr', 'en')),
-  mode text not null check (mode in ('word', 'contains'))
+  mode text not null check (mode in ('word', 'contains')),
+  joinable boolean not null default true
 );
 
 -- Mots et expressions courants acceptés malgré leur ressemblance avec un mot interdit (forme de
@@ -133,14 +136,18 @@ insert into private.comment_words (word, lang, mode) values
   ('faggot', 'en', 'contains'), ('fag', 'en', 'word'), ('retarded', 'en', 'word'), ('rapist', 'en', 'word'),
   ('porn', 'en', 'contains'), ('kys', 'en', 'word'), ('killyourself', 'en', 'contains'), ('bastard', 'en', 'word'),
   ('motherfucker', 'en', 'contains'), ('wanker', 'en', 'contains'), ('twat', 'en', 'word');
+-- Hors recollage : « T'es crevé toi aussi ? », « Le chat te regarde », « bas tard le soir » (sans accents ni
+-- tirets, « crevé toi » et « crève-toi » donnent le même texte : seul le mot écrit d'un bloc reste refusé)
+update private.comment_words set joinable = false where word in ('crevetoi', 'chatte', 'bastard');
 
 -- « cône » (conne), « fagot » (faggot), « nigaud », « Niger » (nigga, nigger), « Pornic » (porn),
--- « chili con carne » (con), « pain bâtard », « tapette à mouche », « bite-size »
+-- « chili con carne » (con), « pain bâtard », « tapette à mouche », « bite-size », « cuisine mongole » (mongol)
 insert into private.comment_allowed (phrase) values
   ('cone'), ('cones'), ('fagot'), ('fagots'), ('nigaud'), ('nigauds'), ('nigaude'), ('nigaudes'),
   ('niger'), ('nigeria'), ('nigerian'), ('nigeriane'), ('nigerians'), ('nigerianes'),
   ('nigerien'), ('nigerienne'), ('nigeriens'), ('nigeriennes'), ('pornic'), ('chili con carne'),
-  ('pain batard'), ('pains batards'), ('tapette a mouche'), ('tapettes a mouches'), ('bite size');
+  ('pain batard'), ('pains batards'), ('tapette a mouche'), ('tapettes a mouches'), ('bite size'),
+  ('mongole'), ('mongoles');
 
 -- ── Briques privées ──────────────────────────────────────
 
@@ -163,8 +170,8 @@ $$ select regexp_replace(t, '(.)\1+', '\1', 'g') $$;
 -- Le commentaire contient-il un mot interdit ? Mots courants acceptés (comment_allowed) retirés
 -- d'abord, mot entier. Mots = suites de a-z et 0-9 ; une suite de lettres isolées (« c o n n a r d »,
 -- « f.u.c.k ») est recollée en un mot. Deux ou trois mots voisins recollés sont refusés seulement
--- s'ils forment exactement un mot interdit de 6 lettres ou plus (« tue-toi », « kill your self »,
--- « sa lope ») : jamais un morceau de mot (« situe-toi », « youpi nouveau » passent).
+-- s'ils forment exactement un mot interdit de 6 lettres ou plus marqué joinable (« tue-toi »,
+-- « kill your self », « sa lope ») : jamais un morceau de mot (« situe-toi », « youpi nouveau » passent).
 create function private.comment_forbidden(body text) returns boolean
   language plpgsql stable security definer set search_path = '' as
 $$
@@ -205,7 +212,7 @@ begin
   ) or exists (
     select 1
     from unnest(joined) as k(v), private.comment_words w
-    where char_length(w.word) >= 6
+    where w.joinable and char_length(w.word) >= 6
       and private.comment_squeeze(k.v) ~ ('^' || private.comment_squeeze(w.word) || '(s|e|es|x)?$')
   );
 end

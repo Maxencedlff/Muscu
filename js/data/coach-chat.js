@@ -183,7 +183,9 @@ async function chatLoad(key, { more = false } = {}) {
   if (!more) c.cursor = 0;
   c.rows = more ? chatMerge(c.rows, page) : chatMerge([], page);
   chatAdvance(c, page);
-  if (more || !c.loadedAt || raw.length < CHAT_PAGE) c.end = raw.length < CHAT_PAGE;
+  // Page incomplète : plus rien avant. Toujours recalculé, la première page remplaçant toute la liste
+  // (sinon une remontée complète puis une réouverture cacherait les anciens messages pour de bon)
+  c.end = raw.length < CHAT_PAGE;
   c.error = null;
   c.loadedAt = Date.now();
   notifyCoach();
