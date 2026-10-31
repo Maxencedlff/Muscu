@@ -8,9 +8,9 @@
 // Une série d'échauffement porte warmup: true (champ de série, à côté de weight et reps). Elle compte dans
 // la séance (coche, repos) mais JAMAIS dans le volume, les records, le 1RM estimé, les courbes de progrès,
 // les séries par muscle, la meilleure série ni la cible de la prochaine séance (workSets). Une version
-// précédente de l'app ignore le champ : elle voit des séries ordinaires. Le serveur n'envoie que weight,
-// reps et dist d'une série (private.session_public, supabase/migrations/20261026050000_social.sql) : un coach
-// ou un ami ne voit pas le marquage et compte ces séries dans son volume (docs/SEANCE_OUTILS.md).
+// précédente de l'app ignore le champ : elle voit des séries ordinaires. Le serveur transmet le marquage à un
+// ami ou un coach (private.session_public, migration 20261031100000_records_series.sql) : son app l'exclut
+// aussi du volume et des séries (js/data/session-review.js).
 function isWarmupSet(s) { return s?.warmup === true; }
 function workSets(sets) { return (sets || []).filter(s => !isWarmupSet(s)); }
 

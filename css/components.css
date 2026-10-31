@@ -130,3 +130,12 @@
 
 /* Badge de record sous la valeur de la série, sans élargir la rangée */
 .set-val .pr-badge { display: table; margin-top: 4px; }
+
+/* Record noté (notedRecordCell, js/ui/medal.js) : Historique › Séance, séance d'un ami, séance d'un élève */
+.review-rec { gap: 12px; }
+.review-rec .medal { color: var(--yellow); flex-shrink: 0; }
+.review-rec .cell__body { min-width: 0; }
+.review-rec .cell__title { overflow-wrap: anywhere; }
+.review-rec__val { flex-shrink: 0; font-size: var(--fs-subhead); font-weight: 600; white-space: nowrap; }
+/* Progrès › Exercice : séance où un record a été battu */
+.stats-rec .medal { color: var(--yellow); vertical-align: -3px; }

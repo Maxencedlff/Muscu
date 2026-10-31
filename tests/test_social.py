@@ -1,6 +1,6 @@
 """Amis (Social V1, app iOS simulée) : onglet Amis et ses trois états, badge, activation, recherche,
 demandes, fil (Bravo, détail, pagination), profil d'un autre (s'abonner, annuler, se désabonner,
-bloquer, signaler), Gérer, Désactiver, Historique › Séance (Visible sur mon profil, bravos reçus),
+bloquer, signaler), Gérer, Désactiver, Historique › Séance (Visible sur mon profil, qui a réagi),
 bilan de fin de séance (Visible sur mon profil, œil barré dans l'Historique), hors ligne.
 
 L'app iOS et Supabase sont simulés (tests/fake_account.py, règles de docs/SOCIAL_V1.md) : aucune requête
@@ -184,7 +184,7 @@ def t_activation(bench, eng, dev, theme):
         page.click('[data-action="social-enable"]')
         page.wait_for_selector('#socialSearch')
         R.check(calls(page, 'social_enable') == [{'age_ok': True}], f'{t} social_enable(age_ok: true) {calls(page, "social_enable")}')
-        R.check(page.locator('[data-action="social-manage"]').count() == 1, f'{t} activé : « Gérer » en haut à droite')
+        R.check(page.locator('.navbar [data-action="social-me"]').count() == 1, f'{t} activé : mon avatar (Mon profil) en haut à droite')
         R.check('Rien pour l\'instant' in page.inner_text('#friendsBody'), f'{t} fil vide expliqué')
         layout(page, t, 'activé vide')
         shot(page, LOT, f'3-active-vide-{t}')
@@ -208,6 +208,7 @@ def setup_friends(page):
         __sb.follow(me, lea, 'accepted');
         __sb.follow(tom, me, 'pending');
         __sb.block(ugo, me);
+        __sb.so.seenAt[me] = Date.now() + 1;   // relations d'avant : rien de nouveau dans l'activité (test_reactions.py)
         return { lea, tom, zoe, ugo, me };
     }""", {'lea': lea + sessions('lh', 1, start_days=0, hidden=True) + sessions('ld', 1, start_days=0, deleted=True)})
 
@@ -247,18 +248,20 @@ def t_fil(bench, eng, dev, theme):
         got = page.evaluate("[...document.querySelectorAll('.feed-card')].map(c => c.dataset.id)")
         R.check(len(got) == 23 and len(set(got)) == 23, f'{t} 23 séances, aucune perdue ni doublée (même milliseconde à la jonction) ({len(got)})')
         R.check(page.locator('[data-action="social-more"]').count() == 0, f'{t} fin du fil : plus de bouton')
-        # Bravo : donné puis retiré
-        bravo = page.locator('.feed-card').first.locator('.bravo')
+        # Réaction (un toucher) : 👏 donné puis retiré (détail des réactions : test_reactions.py)
+        bravo = page.locator('.feed-card').first.locator('.react')
+        R.check(bravo.inner_text().strip() == '👏' and bravo.get_attribute('aria-label') == 'Réagir' and 'bravo' not in page.inner_text('#app').lower(),
+                f'{t} bouton : 👏 seul, sans « Bravo » ({bravo.inner_text()!r})')
         bravo.click()
         page.wait_for_timeout(300)
-        bravo = page.locator('.feed-card').first.locator('.bravo')
-        R.check(bravo.get_attribute('aria-pressed') == 'true' and '1 bravo' in page.locator('.feed-card').first.inner_text(), f'{t} bravo donné')
+        bravo = page.locator('.feed-card').first.locator('.react')
+        R.check(bravo.get_attribute('aria-pressed') == 'true' and '👏 1' in page.locator('.feed-card').first.inner_text(), f'{t} bravo donné')
         R.check(page.evaluate('__sb.so.bravos.length') == 1, f'{t} bravo enregistré')
-        R.check(small_targets(page, '.bravo') == [], f'{t} bravo : 44 pt')
+        R.check(small_targets(page, '.react') == [], f'{t} bravo : 44 pt')
         shot(page, LOT, f'4b-bravo-{t}')
         bravo.click()
         page.wait_for_timeout(300)
-        R.check(page.locator('.feed-card').first.locator('.bravo').get_attribute('aria-pressed') == 'false' and page.evaluate('__sb.so.bravos.length') == 0, f'{t} bravo retiré')
+        R.check(page.locator('.feed-card').first.locator('.react').get_attribute('aria-pressed') == 'false' and page.evaluate('__sb.so.bravos.length') == 0, f'{t} bravo retiré')
         # Détail des séries
         page.locator('.feed-card').first.locator('.feed-card__main').click()
         page.wait_for_selector('.social-session-view')
@@ -305,10 +308,46 @@ def t_record_ami(bench, eng, dev, theme):
         d = page.inner_text('.social-session-view')
         R.check(page.locator('.social-session-view .tile').first.inner_text().startswith('1,1 t'), f'{t} volume sans poids du corps : 1 080 kg, soit 1,1 t ({d[:200]!r})')
         rec = page.inner_text('.social-session-view .review-rec')
-        R.check(page.locator('.social-session-view .review-rec').count() == 1 and 'Squat haltère' in rec and 'Record charge' in rec and '22,5 kg × 12' in rec and 'avant' not in rec, f'{t} un record nommé, sans ancienne valeur ({rec!r})')
+        R.check(page.locator('.social-session-view .review-rec').count() == 1 and 'Squat haltère' in rec and 'Record charge' in rec and '22,5 kg' in rec and 'avant' not in rec, f'{t} un record nommé, sans ancienne valeur ({rec!r})')
         R.check(page.locator('.social-session-view .review-trend').count() == 0, f'{t} aucune flèche')
         layout(page, t, 'séance d\'un ami avec record')
         shot(page, LOT, f'5b-seance-ami-record-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_record_note(bench, eng, dev, theme):
+    """Records notés par l'app de l'ami : sur la carte du fil (« Nouveau record : Squat 100 kg ») et dans sa
+    séance, même quand ses séances ne sont pas toutes chargées ; échauffement hors des séries et du volume."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, enable=True)
+        now = int(time.time() * 1000)
+        top = {'id': 'n0', 'date': now - DAY, 'duration': 2400_000, 'programme': 'ppl', 'category': 'legs', 'label': 'Legs',
+               'records': [{'ex': 'Gainage', 'kind': 'temps', 'before': 60, 'after': 75}, {'ex': 'Squat', 'kind': 'charge', 'before': 95, 'after': 100},
+                           {'ex': 'Squat', 'kind': '1rm', 'before': 110, 'after': 115}],
+               'exercises': [{'name': 'Squat', 'sets': [{'weight': '40', 'reps': '8', 'warmup': True}, {'weight': '100', 'reps': '5', 'rir': 1}]}]}
+        # 25 séances visibles en tout : le fil n'en charge que 20
+        page.evaluate("""(s) => { const id = __sb.addPerson({ username: 'nina', avatar: '🦊', sessions: s }); __sb.follow(__sb.meId(), id, 'accepted'); }""",
+                      [top] + sessions('m', 24, start_days=2))
+        page.evaluate('socialRefresh()')
+        page.wait_for_timeout(300)
+        friends_tab(page)
+        page.wait_for_selector('.feed-card[data-id="n0"]')
+        card = page.inner_text('.feed-card[data-id="n0"]').replace('\u202f', ' ').replace('\u00a0', ' ')
+        R.check('Nouveau record : Squat 100 kg' in card, f'{t} carte : record le plus marquant ({card!r})')
+        R.check(page.locator('.feed-card__rec').count() == 1, f'{t} seule la séance qui a des records notés en montre un')
+        layout(page, t, 'fil avec record')
+        shot(page, LOT, f'4c-fil-record-{t}')
+        page.locator('.feed-card[data-id="n0"] .feed-card__main').click()
+        page.wait_for_selector('.social-session-view .review-rec')
+        rec = page.inner_text('.social-session-view .review-rec')
+        R.check('Squat' in rec and 'Record charge' in rec and '100 kg' in rec, f'{t} séance : record noté sans recalcul ({rec!r})')
+        tiles = page.locator('.social-session-view .tile').all_inner_texts()
+        R.check(tiles[0].startswith('500') and tiles[2].startswith('1'), f'{t} échauffement hors du volume et des séries ({tiles})')
+        d = page.inner_text('.social-session-view')
+        R.check('Échauffement 40 kg × 8' in d.replace('\u202f', ' ').replace('\u00a0', ' ') and 'RIR' not in d, f'{t} échauffement à part, RIR réservé au coach')
+        shot(page, LOT, f'5c-seance-ami-record-note-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -395,7 +434,7 @@ def t_profil(bench, eng, dev, theme):
 
 
 def t_gerer(bench, eng, dev, theme):
-    """Gérer : abonnés (Retirer), abonnements, demandes envoyées (Annuler), bloqués (Débloquer), Désactiver."""
+    """Mon profil › Abonnés (Retirer) et Abonnements ; Gérer : demandes envoyées (Annuler), bloqués (Débloquer), Désactiver."""
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
@@ -403,19 +442,34 @@ def t_gerer(bench, eng, dev, theme):
         ids = setup_friends(page)
         page.evaluate("""(i) => { __sb.follow(i.zoe, i.me, 'accepted'); __sb.follow(i.me, i.tom, 'pending'); __sb.block(i.me, i.ugo); }""", ids)
         friends_tab(page)
-        page.click('[data-action="social-manage"]')
-        page.wait_for_selector('.social-manage-view')
+        page.click('[data-action="social-me"]')
+        page.wait_for_selector('.social-me-view')
         page.wait_for_timeout(300)
-        txt = page.inner_text('.social-manage-view')
-        for title in ['ABONNÉS (1)', 'ABONNEMENTS (1)', 'DEMANDES ENVOYÉES (1)', 'BLOQUÉS (1)']:
-            R.check(title in txt.upper(), f'{t} Gérer : {title}')
-        layout(page, t, 'Gérer')
-        shot(page, LOT, f'10-gerer-{t}')
+        page.click('[data-action="social-people"][data-list="followers"]')
+        page.wait_for_selector('.social-people-view')
+        R.check('zoe' in page.inner_text('.social-people-view'), f'{t} Abonnés : zoe')
         page.click('[data-action="social-remove-follower"]')
         page.wait_for_timeout(300)
         tap_dialog(page, 'Retirer')
         page.wait_for_timeout(400)
         R.check(page.evaluate(f"!__sb.so.follows.some(f => f.follower === '{ids['zoe']}')"), f'{t} abonnée retirée')
+        R.check('Personne ne te suit' in page.inner_text('.social-people-view'), f'{t} Abonnés : liste vide après le retrait')
+        page.click('[data-action="back"]')
+        page.wait_for_selector('.social-me-view')
+        page.click('[data-action="social-people"][data-list="following"]')
+        page.wait_for_selector('.social-people-view')
+        R.check('lea' in page.inner_text('.social-people-view'), f'{t} Abonnements : lea')
+        page.click('[data-action="back"]')
+        page.wait_for_selector('.social-me-view')
+        page.click('[data-action="social-manage"]')
+        page.wait_for_selector('.social-manage-view')
+        page.wait_for_timeout(300)
+        txt = page.inner_text('.social-manage-view')
+        for title in ['DEMANDES ENVOYÉES (1)', 'BLOQUÉS (1)']:
+            R.check(title in txt.upper(), f'{t} Gérer : {title}')
+        R.check('ABONNÉS (' not in txt.upper() and 'ABONNEMENTS (' not in txt.upper(), f'{t} Gérer : abonnés et abonnements passés dans Mon profil')
+        layout(page, t, 'Gérer')
+        shot(page, LOT, f'10-gerer-{t}')
         page.click('.social-manage-view [data-action="social-cancel"]')
         page.wait_for_timeout(400)
         R.check(page.evaluate(f"!__sb.so.follows.some(f => f.followee === '{ids['tom']}')"), f'{t} demande envoyée annulée')
@@ -432,13 +486,14 @@ def t_gerer(bench, eng, dev, theme):
 
 
 def t_masquer(bench, eng, dev, theme):
-    """Historique › Séance : « Visible sur mon profil » éteint (hidden envoyé), « N bravos », label envoyé, jamais bodyKg."""
+    """Historique › Séance : « Visible sur mon profil » éteint (hidden envoyé), qui a réagi, label envoyé, jamais bodyKg."""
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
         signin(page, enable=True)
         sid = page.evaluate('data.history[0].id')
         page.evaluate("""(sid) => { const f = __sb.addPerson({ username: 'lea' }); const g = __sb.addPerson({ username: 'tom' });
+            __sb.follow(f, __sb.meId()); __sb.follow(g, __sb.meId());   // une réaction compte tant que son auteur me suit
             __sb.so.bravos.push({ owner: __sb.meId(), sid, user: f }, { owner: __sb.meId(), sid, user: g }); data.history[0].bodyKg = 80; save(true); }""", sid)
         sent = page.evaluate('__sb.upserted.find(r => r.id === data.history[0].id).data')
         R.check(sent.get('label') and 'bodyKg' not in sent, f'{t} séance envoyée avec son nom, sans poids ({sent.get("label")})')
@@ -446,9 +501,9 @@ def t_masquer(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         page.click(f'[data-action="open-history"][data-id="{sid}"]')
         page.wait_for_selector('[data-action="history-hide"]')
-        page.evaluate('socialLoadMyBravos()')   # bravos reçus depuis la dernière lecture
+        page.evaluate(f'socialLoadMyReactions().then(() => socialLoadWho("{sid}"))')   # réactions reçues depuis la dernière lecture
         page.wait_for_timeout(400)
-        R.check(page.locator('.social-bravos-mine').inner_text().strip() == '2 bravos', f'{t} « 2 bravos »')
+        R.check(page.locator('.who-list .social-row').count() == 2 and 'RÉACTIONS (2)' in page.inner_text('.history-detail').upper(), f'{t} qui a réagi : 2 personnes')
         hide = page.locator('[data-action="history-hide"]')
         R.check(hide.get_attribute('aria-checked') == 'true' and 'Visible sur mon profil' in hide.inner_text(), f'{t} visible par défaut')
         hide.click()
@@ -456,7 +511,7 @@ def t_masquer(bench, eng, dev, theme):
         R.check(page.locator('[data-action="history-hide"]').get_attribute('aria-checked') == 'false' and page.evaluate('data.history[0].hidden') is True, f'{t} masquée')
         foot = page.locator('[data-action="history-hide"]').locator('xpath=../following-sibling::div[contains(@class,"group-foot")][1]').inner_text()
         R.check(foot == 'Tes abonnés ne voient pas cette séance.', f'{t} masquée : note qui le dit ({foot!r})')
-        R.check(page.locator('.social-bravos-mine').inner_text().strip() == '2 bravos reçus avant de la masquer', f'{t} masquée : bravos d\'avant')
+        R.check('REÇUES AVANT DE LA MASQUER' in page.inner_text('.history-detail').upper() and page.locator('.who-list .social-row').count() == 2, f'{t} masquée : réactions d\'avant')
         layout(page, t, 'séance masquée')
         page.evaluate("document.querySelector('[data-action=history-hide]').scrollIntoView({ block: 'center' })")
         shot(page, LOT, f'11-masquer-{t}')
@@ -595,9 +650,9 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(page.locator('.feed-card').count() > 0, f'{t} réseau revenu : fil chargé')
         # Bravo hors ligne : annulé, message traduit
         page.evaluate('__sb.fail.social = "offline"')
-        page.locator('.feed-card').first.locator('.bravo').click()
+        page.locator('.feed-card').first.locator('.react').click()
         page.wait_for_timeout(300)
-        R.check(page.locator('.feed-card').first.locator('.bravo').get_attribute('aria-pressed') == 'false' and 'Pas d\'Internet' in toast(page), f'{t} bravo hors ligne annulé ({toast(page)!r})')
+        R.check(page.locator('.feed-card').first.locator('.react').get_attribute('aria-pressed') == 'false' and 'Pas d\'Internet' in toast(page), f'{t} bravo hors ligne annulé ({toast(page)!r})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
     # Serveur qui ne répond pas : l'app reste utilisable, l'onglet garde l'état connu (cache de l'appareil)
     with bench.page(eng, dev, theme) as page:
@@ -612,4 +667,4 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_tabbar_sans_compte, t_activation, t_fil, t_record_ami, t_profil, t_gerer, t_masquer, t_bilan_visible, t_hors_ligne])
+run_main(R, [t_tabbar_sans_compte, t_activation, t_fil, t_record_ami, t_record_note, t_profil, t_gerer, t_masquer, t_bilan_visible, t_hors_ligne])

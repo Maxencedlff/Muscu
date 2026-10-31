@@ -87,9 +87,11 @@ function renderStatsExercise(exId) {
       </div>`;
   })() : '';
 
+  // Séances où un record de cet exercice a été battu (records notés, js/data/records.js) : médaille
+  const recHids = exerciseRecordSessions(it, pts);
   const sessions = pts.slice().reverse().map(p => `
       <button class="cell cell--nav" data-action="open-history" data-id="${esc(p.hid)}">
-        <span class="cell__body"><span class="cell__title cell__title--reg">${fmtDate(p.date)}</span></span>
+        <span class="cell__body"><span class="cell__title cell__title--reg">${fmtDate(p.date)}${recHids.has(p.hid) ? ` <span class="stats-rec">${medalSvg(16)}<span class="visually-hidden">, record</span></span>` : ''}</span></span>
         <span class="cell__value num">${cardio ? cardioPointTxt(p, pk) : bw ? `${p.sets.map(s => parseInt(s.reps)).join(' · ')} ${chartUnit}` : setTxt(p.best, chartEx)}${p.rpe != null ? ` · RPE ${fmtNum(p.rpe, 1)}` : ''}</span>
         ${icon('chevron.right', 16)}
       </button>`).join('');
@@ -100,13 +102,17 @@ function renderStatsExercise(exId) {
   const paces = it.points.map(p => p.pace).filter(Boolean);
   const bestPace = !paces.length ? null : pk === 'speed' ? Math.max(...paces) : Math.min(...paces);
   const maxDist = Math.max(0, ...it.points.map(p => p.dist || 0));
+  const cell = (title, val) => `<div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">${title}</span></span>
+            <span class="cell__value num">${val}</span></div>`;
+  // Maintien : le plus long (lest le plus lourd à durée égale), pas la série la plus lestée
+  const holdBest = it.measure === 'time' ? longestHold(pts.flatMap(p => p.sets)) : null;
   const recordCells = cardio ? `
-          ${bestPace ? `<div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">${pk === 'speed' ? 'Meilleure vitesse' : 'Meilleure allure'}</span></span>
-            <span class="cell__value num">${fmtPace(bestPace, pk)}</span></div>` : ''}
-          ${maxDist ? `<div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Plus longue distance</span></span>
-            <span class="cell__value num">${fmtNum(maxDist)} km</span></div>` : ''}` : `
-          <div class="cell"><span class="cell__body"><span class="cell__title cell__title--reg">Record</span></span>
-            <span class="cell__value num">${prBest ? setTxt(prBest, chartEx) : '—'}</span></div>`;
+          ${bestPace ? cell(pk === 'speed' ? 'Meilleure vitesse' : 'Meilleure allure', fmtPace(bestPace, pk)) : ''}
+          ${fixedDistancePaces(it.points, pk).map(([d, v]) => cell(`Meilleure allure ${recordDistTxt(d)}`, fmtPace(v / 60, pk))).join('')}
+          ${maxDist ? cell('Plus longue distance', `${fmtNum(maxDist)} km`) : ''}
+          ${cell('Plus longue durée', `${Math.max(0, ...it.points.flatMap(p => p.sets.map(s => parseInt(s.reps) || 0)))} min`)}`
+    : holdBest ? cell('Plus long maintien', setTxt(holdBest, chartEx))
+    : cell('Record', prBest ? setTxt(prBest, chartEx) : '—');
   return `
     <div class="view stats-ex view--grouped">
       ${navBar({ title: '' })}
@@ -140,6 +146,35 @@ function renderStatsExercise(exId) {
         <div class="group">${sessions}</div>
       </div>
     </div>`;
+}
+
+// Série de maintien la plus longue (puis la plus lestée) : { w, r, weight, reps } comme bestSet, null sans
+function longestHold(sets) {
+  return workSets(sets).reduce((b, s) => {
+    const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
+    if (r <= 0) return b;
+    return !b || r > b.r || (r === b.r && w > b.w) ? { w, r, weight: s.weight, reps: s.reps } : b;
+  }, null);
+}
+// Meilleures allures sur les distances fixes des records (course 1, 5, 10 km ; rameur 500 et 2 000 m),
+// en secondes : seules les séries d'au moins cette distance comptent. [[d, sec]], vide sans allure
+function fixedDistancePaces(points, pk) {
+  if (pk !== 'pace' && pk !== 'split') return [];
+  const sets = points.flatMap(p => p.sets);
+  return (pk === 'split' ? ROW_RECORD_KM : RUN_RECORD_KM).map(d => {
+    const v = sets.filter(s => (parseFloat(s.dist) || 0) >= d).map(s => setPaceSec(s, pk)).filter(x => x != null);
+    return [d, v.length ? Math.min(...v) : null];
+  }).filter(([, v]) => v != null);
+}
+// Identifiants des séances (points de la courbe) où cet exercice a battu un record
+function exerciseRecordSessions(it, pts) {
+  const out = new Set(), n = normName(it.name);
+  pts.forEach(p => {
+    const h = (data.history || []).find(x => x.id === p.hid);
+    const ex = h?.exercises?.find(e => exKey(e) === it.exId);
+    if (h && entryRecords(h).some(r => normName(r.ex) === normName(ex?.name ?? n))) out.add(p.hid);
+  });
+  return out;
 }
 
 // Couleur CSS résolue (accepte un hex comme une var(--x))

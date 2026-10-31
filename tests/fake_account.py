@@ -22,7 +22,11 @@ block_user, unblock_user, feed, toggle_bravo, my_bravos et la fonction Edge repo
 du contrat (comptes privés, blocage jamais révélé, limites par jour, liste blanche des séances, mon
 social désactivé → fil et recherche vides). État dans __sb.so ; __sb.addPerson({ username, avatar,
 social, sessions }) crée un autre compte, __sb.follow(a, b, status) une relation, __sb.block(a, b) un
-blocage ; __sb.meId() : compte connecté. Appels dans __sb.calls sous ['social', fonction, arguments].
+blocage ; __sb.meId() : compte connecté. Réactions (supabase/migrations/20261031200000_reactions_profil.sql) :
+__sb.so.bravos = [{ owner, sid, user, kind, at }] (kind 👏 par défaut), __sb.react(user, owner, sid, kind)
+en pose une ; set_reaction, my_reactions, session_reactions, my_activity, mark_activity_seen et
+my_shown_sessions suivent la migration (réaction comptée tant que son auteur voit la séance, activité vue
+dans __sb.so.seenAt). Appels dans __sb.calls sous ['social', fonction, arguments].
 __sb.fail.social = 'offline' : toutes les RPC du social échouent comme supabase-js hors ligne.
 
 Coach (docs/COACH_V1.md) : coach_state, coach_create_invite, coach_revoke_invite, coach_preview, coach_join,
@@ -36,6 +40,20 @@ listé dans removed, ses codes de ce coach répondent invalid_code jusqu'à coac
 students[].sent : programmes que je lui ai envoyés, { id, sent_at, seen }.
 État dans __sb.co ; __sb.makeCoach(id) pose coach_at, __sb.link(coach, élève) relie deux comptes. Appels dans
 __sb.calls sous ['coach', fonction, arguments] ; __sb.fail.coach = 'offline' pour le hors ligne.
+
+Partage avec le coach (supabase/migrations/20261031300000_partage_coach.sql) : student_shares,
+student_set_share (weight seulement : invalid_kind sinon ; not_found sans coach), student_share_weights
+(not_shared sans consentement, remplace la liste), coach_student_weights (not_found si pas mon élève) ;
+coach_student_sessions ajoute bodyKg (dernière pesée partagée au plus tard à la date) seulement avec le
+consentement. Quitter ou être retiré efface consentement et pesées. État dans __sb.co.shares et
+__sb.co.weights ; __sb.share(élève, [{ date, kg }]) coche le poids et dépose des pesées.
+
+Parrainage (docs/PARRAINAGE.md, supabase/migrations/20261031400000_parrainage.sql) : referral_state et
+referral_apply avec les mêmes règles (un parrain par compte, fixé à la première saisie, 30 jours après la
+création du compte, 10 essais par 24 h échecs compris, code inconnu ou inactif → { ok: false, error:
+'invalid_code' }, autres refus en erreur). État dans __sb.rf : codes partners { CODE: { name, active } }
+(LUCAS actif, VIEUX inactif au départ), attributions links { compte: CODE }. Appels dans __sb.calls sous
+['referral', fonction, arguments] ; __sb.fail.referral = 'offline' pour le hors ligne.
 """
 
 FAKE_ACCOUNT = r"""
@@ -209,7 +227,7 @@ FAKE_ACCOUNT = r"""
   };
 
   // ── Amis ──
-  const so = sb.so = { at: {}, follows: [], blocks: [], bravos: [], posts: {}, reports: [], day: {} };
+  const so = sb.so = { at: {}, follows: [], blocks: [], bravos: [], posts: {}, reports: [], day: {}, seenAt: {} };
   sb.meId = () => sb.session?.user.id || null;
   sb.addPerson = ({ username, avatar = null, social = true, sessions = [] } = {}) => {
     const u = newUser({ identities: [] });
@@ -220,6 +238,11 @@ FAKE_ACCOUNT = r"""
   };
   sb.follow = (follower, followee, status = 'accepted') => { so.follows.push({ follower, followee, status, at: now() }); };
   sb.block = (blocker, blocked) => { so.blocks.push({ blocker, blocked, at: now() }); };
+  sb.react = (user, owner, sid, kind = 'clap', at = now()) => {
+    so.bravos = so.bravos.filter(b => !(b.owner === owner && b.sid === sid && b.user === user));
+    so.bravos.push({ owner, sid, user, kind, at });
+  };
+  const KINDS = ['clap', 'fire', 'strong', 'trophy', 'wow'];
   const pgErr = message => ({ data: null, error: { code: 'P0001', message, details: null, hint: null } });
   const blockedBetween = (a, b) => so.blocks.some(k => (k.blocker === a && k.blocked === b) || (k.blocker === b && k.blocked === a));
   const rel = (a, b) => so.follows.find(f => f.follower === a && f.followee === b);
@@ -229,15 +252,44 @@ FAKE_ACCOUNT = r"""
   const myPosts = id => { const m = new Map(); for (const r of sb.upserted || []) m.set(r.id, { id: r.id, data: r.data, deleted_at: r.deleted_at }); return [...m.values()]; };
   const postsOf = id => (id === sb.meId() ? myPosts(id) : so.posts[id] || []);
   const shown = p => !p.deleted_at && p.data && p.data.hidden !== true && Number.isFinite(p.data.date);
-  // private.session_public : liste blanche, rien d'autre ne sort
+  // private.session_public : liste blanche, rien d'autre ne sort. records (private.session_records), warmup et rir
+  // par série : migration 20261031100000_records_series.sql
+  const pubSet = st => {
+    const sc = v => (['string', 'number', 'boolean'].includes(typeof v) ? v : undefined);
+    return { weight: sc(st.weight), reps: sc(st.reps), dist: sc(st.dist), warmup: st.warmup === true ? true : undefined,
+      rir: Number.isInteger(st.rir) && st.rir >= 0 && st.rir <= 4 ? st.rir : undefined };
+  };
+  // withBefore : valeur d'avant gardée pour le coach seulement (private.session_records(v, true))
+  const pubRecords = (v, withBefore = false) => {
+    if (!Array.isArray(v)) return undefined;
+    const n = x => typeof x === 'number' && x >= 0 && x <= 100000, D = [0.5, 1, 2, 5, 10];
+    return v.slice(0, 20).filter(r => r && typeof r === 'object' && typeof r.ex === 'string' && r.ex.trim()
+      && ['charge', 'reps', 'lest', 'aide', 'temps', 'duree', 'distance', 'allure'].includes(r.kind) && n(r.before) && n(r.after)
+      && (r.kind !== 'allure' || D.includes(r.d)))
+      .map(r => ({ ex: r.ex.slice(0, 80), kind: r.kind, before: withBefore ? r.before : undefined, after: r.after, w: n(r.w) ? r.w : undefined, d: D.includes(r.d) ? r.d : undefined }));
+  };
   const sessionPublic = d => {
     const sc = v => (['string', 'number', 'boolean'].includes(typeof v) ? v : undefined);
     const strip = o => JSON.parse(JSON.stringify(o));
     return strip({ date: sc(d.date), duration: sc(d.duration), programme: sc(d.programme), category: sc(d.category), label: sc(d.label),
-      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), sets: (e.sets || []).map(st => ({ weight: sc(st.weight), reps: sc(st.reps), dist: sc(st.dist) })) })) });
+      records: pubRecords(d.records),
+      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), sets: (e.sets || []).map(pubSet) })) });
   };
   const limit = (me, action, max) => { const k = me + action; so.day[k] = (so.day[k] || 0) + 1; return so.day[k] > max; };
   const bravoCount = (owner, sid) => so.bravos.filter(b => b.owner === owner && b.sid === sid).length;
+  // Réactions qui comptent : auteur qui voit encore la séance (private.reaction_counts)
+  const countsOf = (owner, sid) => {
+    const c = {};
+    for (const b of so.bravos) if (b.owner === owner && b.sid === sid && canSee(b.user, owner)) c[b.kind || 'clap'] = (c[b.kind || 'clap'] || 0) + 1;
+    return c;
+  };
+  const total = c => Object.values(c).reduce((a, n) => a + n, 0);
+  const myKind = (owner, sid, me) => so.bravos.find(b => b.owner === owner && b.sid === sid && b.user === me)?.kind || null;
+  const iso = t => new Date(t).toISOString();
+  const seenOf = me => so.seenAt[me] || so.at[me] || 0;
+  const activityNew = me => !so.at[me] ? 0
+    : so.bravos.filter(b => b.owner === me && b.at > seenOf(me) && canSee(b.user, me) && myPosts(me).some(p => p.id === b.sid && !p.deleted_at)).length
+      + so.follows.filter(f => f.follower === me && f.status === 'accepted' && f.at > seenOf(me) && so.at[f.followee] && !blockedBetween(me, f.followee)).length;
   const norm = q => String(q || '').trim().replace(/^@+/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const socialRpc = {
     social_state: me => {
@@ -249,7 +301,8 @@ FAKE_ACCOUNT = r"""
         followers: so.follows.filter(f => f.followee === me && f.status === 'accepted').map(f => person(f.follower, f.at)),
         requested: so.follows.filter(f => f.follower === me && (f.status === 'pending' || f.status === 'ghost')).map(f => person(f.followee, f.at)),
         // Bloqué sans social : pseudo et avatar non renvoyés
-        blocked: so.blocks.filter(k => k.blocker === me).map(k => (so.at[k.blocked] ? person(k.blocked, k.at) : { ...person(k.blocked, k.at), username: null, avatar: null })), badge: pend.length };
+        blocked: so.blocks.filter(k => k.blocker === me).map(k => (so.at[k.blocked] ? person(k.blocked, k.at) : { ...person(k.blocked, k.at), username: null, avatar: null })), badge: pend.length,
+        activity_new: Math.min(99, activityNew(me)), shown_sessions: myPosts(me).filter(shown).length };
     },
     social_enable: (me, { age_ok }) => {
       if (!sb.profiles[me]?.username) return pgErr('username_required');
@@ -307,16 +360,63 @@ FAKE_ACCOUNT = r"""
         .filter(x => !cur || cmp(x.k, cur) < 0)
         .sort((a, b) => cmp(b.k, a.k)).slice(0, 20)
         .map(({ o, p }) => ({ owner: o, username: sb.profiles[o]?.username, avatar: sb.profiles[o]?.avatar_emoji || null, id: p.id, done_at: p.data.date,
-          s: sessionPublic(p.data), bravos: bravoCount(o, p.id), my_bravo: so.bravos.some(b => b.owner === o && b.sid === p.id && b.user === me) }));
+          s: sessionPublic(p.data), bravos: total(countsOf(o, p.id)), my_bravo: !!myKind(o, p.id, me), reactions: countsOf(o, p.id), my_reaction: myKind(o, p.id, me) }));
     },
     toggle_bravo: (me, { owner, session_id }) => {
       const p = postsOf(owner).find(x => x.id === session_id);
       if (owner === me || !so.at[me] || !canSee(me, owner) || !p || !shown(p)) return pgErr('not_found');
       if (limit(me, 'bravo', 200)) return pgErr('rate_limited');
       const i = so.bravos.findIndex(b => b.owner === owner && b.sid === session_id && b.user === me);
-      if (i >= 0) so.bravos.splice(i, 1); else so.bravos.push({ owner, sid: session_id, user: me });
+      if (i >= 0) so.bravos.splice(i, 1); else so.bravos.push({ owner, sid: session_id, user: me, kind: 'clap', at: now() });
       return { bravos: bravoCount(owner, session_id), mine: i < 0 };
     },
+    set_reaction: (me, { owner, session_id, kind }) => {
+      if (kind != null && !KINDS.includes(kind)) return pgErr('invalid_reaction');
+      const p = postsOf(owner).find(x => x.id === session_id);
+      if (owner === me || !so.at[me] || !canSee(me, owner) || !p || !shown(p)) return pgErr('not_found');
+      const cur = myKind(owner, session_id, me);
+      if (kind == null) so.bravos = so.bravos.filter(b => !(b.owner === owner && b.sid === session_id && b.user === me));
+      else if (cur !== kind) { if (limit(me, 'bravo', 200)) return pgErr('rate_limited'); sb.react(me, owner, session_id, kind); }
+      const c = countsOf(owner, session_id);
+      return { bravos: total(c), mine: kind != null, my_reaction: kind ?? null, reactions: c };
+    },
+    my_reactions: me => [...new Set(so.bravos.filter(b => b.owner === me).map(b => b.sid))]
+      .filter(sid => myPosts(me).some(p => p.id === sid && !p.deleted_at))
+      .map(sid => { const c = countsOf(me, sid); const top = Object.keys(c).sort((a, b) => c[b] - c[a] || KINDS.indexOf(a) - KINDS.indexOf(b))[0];
+        return { session_id: sid, total: total(c), top, reactions: c }; })
+      .filter(r => r.total > 0),
+    session_reactions: (me, { session_id }) => so.bravos.filter(b => b.owner === me && b.sid === session_id && canSee(b.user, me))
+      .sort((a, b) => b.at - a.at)
+      .map(b => ({ user_id: b.user, username: sb.profiles[b.user]?.username || null, avatar: sb.profiles[b.user]?.avatar_emoji || null, kind: b.kind, at: iso(b.at) })),
+    my_activity: (me, { before_at = null, before_key = null } = {}) => {
+      if (!so.at[me]) return [];
+      const seen = seenOf(me);
+      const pr = id => ({ user_id: id, username: sb.profiles[id]?.username || null, avatar: sb.profiles[id]?.avatar_emoji || null });
+      const posts = myPosts(me);
+      const rows = [
+        ...so.bravos.filter(b => b.owner === me && canSee(b.user, me)).map(b => ({ b, p: posts.find(x => x.id === b.sid && !x.deleted_at) })).filter(x => x.p)
+          .map(({ b, p }) => ({ kind: 'reaction', ...pr(b.user), at: b.at, reaction: b.kind, session_id: b.sid, session_label: p.data.label || null, session_at: p.data.date, is_new: b.at > seen })),
+        ...so.follows.filter(f => f.followee === me && f.status === 'accepted' && so.at[f.follower] && !blockedBetween(me, f.follower))
+          .map(f => ({ kind: 'follower', ...pr(f.follower), at: f.at, is_new: false })),
+        ...so.follows.filter(f => f.follower === me && f.status === 'accepted' && so.at[f.followee] && !blockedBetween(me, f.followee))
+          .map(f => ({ kind: 'accepted', ...pr(f.followee), at: f.at, is_new: f.at > seen })),
+        ...so.follows.filter(f => f.followee === me && f.status === 'pending' && !blockedBetween(me, f.follower))
+          .map(f => ({ kind: 'request', ...pr(f.follower), at: f.at, is_new: false })),
+      ];
+      // Curseur (at, clé kind:user_id:session_id), comme le serveur : à date égale, clé croissante
+      const key = r => `${r.kind}:${r.user_id}:${r.session_id || ''}`;
+      const before = before_at ? Date.parse(before_at) : Infinity;
+      return rows.filter(r => r.at < before || (before_key != null && r.at === before && key(r) > before_key))
+        .sort((a, b) => b.at - a.at || (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0)).slice(0, 50)
+        .map(r => ({ reaction: null, session_id: null, session_label: null, session_at: null, ...r, at: iso(r.at) }));
+    },
+    mark_activity_seen: me => { so.seenAt[me] = now(); return null; },
+    my_shown_sessions: (me, { before_at = null, before_id = null } = {}) => myPosts(me).filter(shown)
+      .filter(p => before_at == null || p.data.date < before_at || (p.data.date === before_at && before_id != null && p.id < before_id))
+      .sort((a, b) => b.data.date - a.data.date || (a.id < b.id ? 1 : -1)).slice(0, 20)
+      .map(p => { const c = countsOf(me, p.id);
+        return { owner: me, username: sb.profiles[me]?.username || null, avatar: sb.profiles[me]?.avatar_emoji || null, id: p.id, done_at: p.data.date,
+          s: sessionPublic(p.data), bravos: total(c), my_bravo: false, reactions: c, my_reaction: null }; }),
     my_bravos: me => [...new Set(so.bravos.filter(b => b.owner === me).map(b => b.sid))].map(sid => ({ session_id: sid, bravos: bravoCount(me, sid) })),
   };
   const callSocial = async (fn, args = {}) => {
@@ -325,13 +425,24 @@ FAKE_ACCOUNT = r"""
     if (sb.fail.social === 'hang') return new Promise(() => {});
     const me = sb.meId();
     if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };
+    // Bravos posés directement par un test (sans sorte ni date) : 👏 d'à l'instant, comme la valeur par défaut du serveur
+    so.bravos.forEach(b => { b.kind ||= 'clap'; b.at ||= now(); });
     const out = socialRpc[fn](me, args);
     return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
   };
 
   // ── Coach (docs/COACH_V1.md) ──
   // État dans __sb.co : coachs (coach_at), codes, liens élève → coach (coach_seen_at), programmes envoyés, commentaires
-  const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0, bans: [] };
+  const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0, bans: [], shares: [], weights: {} };
+  // Partage : consentement { student, coach, kind, granted_at } du coach actuel ; pesées par élève (du plus récent)
+  const shareOf = (student, kind = 'weight') => co.shares.find(x => x.student === student && x.kind === kind && x.coach === linkOf(student)?.coach);
+  const dropShares = student => { co.shares = co.shares.filter(x => x.student !== student); delete co.weights[student]; };
+  const sharesState = me => ({ coach: !!linkOf(me), shares: Object.fromEntries(co.shares.filter(x => x.student === me && x.coach === linkOf(me)?.coach)
+    .map(x => [x.kind, { granted_at: x.granted_at, n: (co.weights[me] || []).length, last_at: (co.weights[me] || [])[0]?.date ?? null }])) });
+  sb.share = (student, weights = []) => {
+    if (!shareOf(student)) co.shares.push({ student, coach: linkOf(student).coach, kind: 'weight', granted_at: new Date(now()).toISOString() });
+    co.weights[student] = weights.slice().sort((a, b) => b.date - a.date);
+  };
   sb.makeCoach = id => { co.coachAt[id] = now(); };
   // seen : coach_seen_at (null tant que le coach n'a rien ouvert : new_sessions comptées depuis le lien)
   sb.link = (coachId, student, at = now()) => { co.links.push({ coach: coachId, student, at, seen: null }); };
@@ -341,11 +452,11 @@ FAKE_ACCOUNT = r"""
   const cperson = (id, since) => ({ ...person(id, since || 0), since: since == null ? null : new Date(since).toISOString() });
   const validInvite = code => co.invites.find(i => i.code === code && i.expires > now());
   const CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  // private.session_for_coach : liste blanche du social + notes, hidden, id (jamais bodyKg ni healthSaved)
+  // private.session_for_coach : liste blanche du social + notes, hidden, id, records avec before (jamais bodyKg ni healthSaved)
   const sessionForCoach = (id, d) => {
     const sc = v => (['string', 'number', 'boolean'].includes(typeof v) ? v : undefined);
-    return JSON.parse(JSON.stringify({ ...sessionPublic(d), notes: sc(d.notes), hidden: sc(d.hidden), id,
-      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), ss: sc(e.ss), sets: (e.sets || []).map(st => ({ weight: sc(st.weight), reps: sc(st.reps), dist: sc(st.dist) })) })) }));
+    return JSON.parse(JSON.stringify({ ...sessionPublic(d), records: pubRecords(d.records, true), notes: sc(d.notes), hidden: sc(d.hidden), id,
+      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), ss: sc(e.ss), sets: (e.sets || []).map(pubSet) })) }));
   };
   const noteAlive = n => livePosts(n.student).some(p => p.id === n.sid);
   const livePosts = id => postsOf(id).filter(p => !p.deleted_at && p.data && Number.isFinite(p.data.date));
@@ -366,7 +477,34 @@ FAKE_ACCOUNT = r"""
     (co.tries[me] ||= []).push(now());
     return inv;
   };
+  // private.coach_session_body : bodyKg seulement si l'élève me partage son poids
+  const withBodyKg = (me, student, at, s) => {
+    const sh = shareOf(student);
+    const w = sh && sh.coach === me ? (co.weights[student] || []).find(x => x.date <= at) : null;
+    return w ? { ...s, bodyKg: w.kg } : s;
+  };
   const coachRpc = {
+    student_shares: me => sharesState(me),
+    student_set_share: (me, { kind, enabled }) => {
+      if (kind !== 'weight' || typeof enabled !== 'boolean') return pgErr('invalid_kind');
+      const l = linkOf(me); if (!l) return pgErr('not_found');
+      if (enabled && !shareOf(me)) co.shares.push({ student: me, coach: l.coach, kind, granted_at: new Date(now()).toISOString() });
+      if (!enabled) dropShares(me);
+      return sharesState(me);
+    },
+    student_share_weights: (me, { weights }) => {
+      if (!shareOf(me)) return pgErr('not_shared');
+      if (!Array.isArray(weights)) return pgErr('invalid_data');
+      if (weights.length > 400) return pgErr('too_long');
+      if (weights.some(w => !w || !Number.isInteger(w.date) || typeof w.kg !== 'number' || w.kg < 25 || w.kg > 300)) return pgErr('invalid_data');
+      co.weights[me] = weights.map(w => ({ date: w.date, kg: Math.round(w.kg * 100) / 100 })).sort((a, b) => b.date - a.date);
+      return co.weights[me].length;
+    },
+    coach_student_weights: (me, { student }) => {
+      if (!coachOf(me, student)) return pgErr('not_found');
+      const sh = shareOf(student);
+      return sh ? { shared: true, since: sh.granted_at, weights: co.weights[student] || [] } : { shared: false, since: null, weights: [] };
+    },
     coach_state: me => {
       const l = linkOf(me), isCoach = !!co.coachAt[me];
       const students = isCoach ? co.links.filter(x => x.coach === me).map(x => {
@@ -401,12 +539,13 @@ FAKE_ACCOUNT = r"""
       if (!linkOf(me)) sb.link(r.coach, me);
       return cperson(r.coach, linkOf(me).at);
     },
-    coach_leave: me => { co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
+    coach_leave: me => { dropShares(me); co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
     // Retirer un accès est toujours permis, même si mon rôle de coach a été retiré
     coach_remove_student: (me, { student }) => {
       const l = linkOf(student);
       if (!l || l.coach !== me) return null;
       if (!co.bans.some(b => b.coach === me && b.student === student)) co.bans.push({ coach: me, student, at: now() });
+      dropShares(student);
       co.links = co.links.filter(l => l.student !== student); co.progs = co.progs.filter(p => p.student !== student); co.notes = co.notes.filter(n => n.student !== student); return null;
     },
     coach_student_sessions: (me, { student, before_at = null, before_id = null }) => {
@@ -415,7 +554,7 @@ FAKE_ACCOUNT = r"""
       const cmp = (a, b) => (a[0] - b[0]) || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0);
       return livePosts(student).filter(p => before_at == null || cmp(key(p), [before_at, before_id || '']) < 0)
         .sort((a, b) => cmp(key(b), key(a))).slice(0, 30)
-        .map(p => ({ id: p.id, done_at: p.data.date, s: sessionForCoach(p.id, p.data), note: co.notes.find(n => n.student === student && n.sid === p.id)?.text || null }));
+        .map(p => ({ id: p.id, done_at: p.data.date, s: withBodyKg(me, student, p.data.date, sessionForCoach(p.id, p.data)), note: co.notes.find(n => n.student === student && n.sid === p.id)?.text || null }));
     },
     coach_allow_student: (me, { student }) => { co.bans = co.bans.filter(b => !(b.coach === me && b.student === student)); return null; },
     coach_mark_seen: (me, { student }) => { const l = coachOf(me, student); if (!l) return pgErr('not_found'); l.seen = now(); return null; },
@@ -458,6 +597,33 @@ FAKE_ACCOUNT = r"""
     const out = coachRpc[fn](me, args);
     return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
   };
+  // ── Parrainage ──
+  const rf = sb.rf = { partners: { LUCAS: { name: 'Lucas', active: true }, VIEUX: { name: 'Ancien', active: false } }, links: {}, tries: {} };
+  const rfUntil = me => Date.parse(sb.users[me].created_at) + 30 * 86400_000;
+  const rfReferrer = me => { const c = rf.links[me]; return c ? { name: rf.partners[c.code].name, since: new Date(c.at).toISOString() } : null; };
+  const referralRpc = {
+    referral_state: me => ({ referrer: rfReferrer(me), can_enter: !rf.links[me] && now() < rfUntil(me), until: new Date(rfUntil(me)).toISOString() }),
+    referral_apply: (me, { code }) => {
+      const c = String(code || '').toUpperCase().replace(/[\s.\-_]/g, '');
+      if (rf.links[me]) return rf.links[me].code === c ? { ok: true, referrer: rfReferrer(me) } : pgErr('already_referred');
+      if (now() >= rfUntil(me)) return pgErr('too_late');
+      const t = rf.tries[me] = (rf.tries[me] || []).filter(x => x > now() - 86400_000);
+      if (t.length >= 10) return pgErr('rate_limited');
+      t.push(now());
+      const p = rf.partners[c];
+      if (!p || !p.active) return { ok: false, error: 'invalid_code' };
+      rf.links[me] = { code: c, at: now() };
+      return { ok: true, referrer: rfReferrer(me) };
+    },
+  };
+  const callReferral = async (fn, args = {}) => {
+    log('referral', fn, JSON.stringify(args));
+    if (sb.fail.referral === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+    const me = sb.meId();
+    if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };
+    const out = referralRpc[fn](me, args);
+    return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
+  };
   const REPORT_REASONS = ['spam', 'harcelement', 'sexuel', 'violence', 'haine', 'autre'];
 
   window.supabase = {
@@ -465,7 +631,7 @@ FAKE_ACCOUNT = r"""
       sb.storage = o?.auth?.storage; sb.storageKey = o?.auth?.storageKey;
       return {
         auth, from,
-        rpc: async (fn, args) => { if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn]) return callCoach(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
+        rpc: async (fn, args) => { if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
           const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });

@@ -49,7 +49,7 @@ function historyCell(h) {
       <button class="hcell" data-action="open-history" data-id="${esc(h.id)}">
         <span class="hcell__dot" style="background:${meta.color}"></span>
         <span class="hcell__body">
-          <span class="hcell__top"><span class="hcell__title">${meta.label}${coachHistoryMark(h)}${historyHiddenMark(h)}</span><span class="hcell__date">${fmtDate(h.date)}</span></span>
+          <span class="hcell__top"><span class="hcell__title">${meta.label}${coachHistoryMark(h)}${historyHiddenMark(h)}${historyReactionsMark(h)}</span><span class="hcell__date">${fmtDate(h.date)}</span></span>
           <span class="hcell__sub num">${parts.join(' · ')}</span>
         </span>
         ${icon('chevron.right', 16)}
@@ -122,6 +122,14 @@ function setsLine(sets, measure = 'reps', kind = 'charge') {
   return esc(setsText(sets, measure, kind));
 }
 
+// Records battus par la séance : notés à l'enregistrement, sinon recalculés (séance d'avant, js/data/records.js)
+function historyRecordsGroup(h) {
+  const recs = entryRecords(h);
+  if (!recs.length) return '';
+  return `<div class="group-title">${recs.length > 1 ? 'Records' : 'Record'}</div>
+        <div class="group">${recs.map(r => notedRecordCell(r)).join('')}</div>`;
+}
+
 // Historique › Séance : la séance vient de la route (« history-detail:ID »)
 function renderHistoryDetail(id) {
   const h = (data.history || []).find(x => x.id === id);
@@ -159,6 +167,7 @@ function renderHistoryDetail(id) {
               </span>
             </div>`).join('')}
         </div>
+        ${historyRecordsGroup(h)}
         ${h.notes ? `<div class="group-title">Notes</div><div class="group group--pad"><p class="hnotes">${esc(h.notes)}</p></div>` : ''}
         ${historyCoachGroup(h)}
         ${historySocialGroup(h)}
@@ -173,7 +182,7 @@ function renderHistoryDetail(id) {
 // L'historique fait foi : délais de récupération et records en sont recalculés.
 // removed : séance retirée ; si elle fixait le délai de sa catégorie, il recule à la précédente.
 function historyChanged(removed = null) {
-  if (removed) releaseTimer(removed);
+  if (removed) { releaseTimer(removed); renoteRecords(removed); }
   syncTimersFromHistory();
   recomputePRFromHistory();
   save();
