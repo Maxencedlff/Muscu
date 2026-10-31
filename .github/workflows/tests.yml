@@ -22,7 +22,7 @@ concurrency:
 jobs:
   unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -38,6 +38,8 @@ jobs:
       # Postgres local jetable (préinstallé sur ubuntu-latest) : RLS, GRANT et déclencheurs des migrations
       - name: Migrations Supabase (Postgres local, rien d'envoyé au projet)
         run: bash tests/sql/run.sh
+      - name: Retours arrière des migrations (Postgres local)
+        run: bash tests/sql/rollback_lot3_check.sh && bash tests/sql/rollback_check.sh && bash tests/sql/rollback_social_check.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)
