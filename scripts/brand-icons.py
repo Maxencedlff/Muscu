@@ -12,10 +12,14 @@ Produit (et écrase) :
   ios/App/App/Assets.xcassets/AppIcon-*.appiconset                icônes alternatives (1024 opaques)
   ios/App/App/Assets.xcassets/Splash.imageset                     écran de démarrage 2732 × 2732
   ios/App/RestActivity/Assets.xcassets/MDLFMark.imageset          marque de la Live Activity (gabarit)
+  android/app/src/main/res/                                       icône adaptative (premier plan, monochrome,
+                                                                  fond), écran de démarrage, icône des notifications
+  android/store/                                                  icône 512 et image de présentation de la fiche Play
 et met à jour ASSETCATALOG_COMPILER_ALTERNATE_APP_ICON_NAMES dans le projet Xcode.
 
 Déterministe : mêmes entrées, mêmes octets. Dépendances : Node, CairoSVG, Pillow.
-Lancer depuis n'importe où :  python3 scripts/brand-icons.py
+Lancer depuis n'importe où :  python3 scripts/brand-icons.py            (tout)
+                              python3 scripts/brand-icons.py --android  (Android seulement, iOS intact)
 """
 import io
 import json
@@ -33,11 +37,23 @@ CATALOGUE = os.path.join(ROOT, 'js', 'data', 'app-icons.js')
 XCASSETS = os.path.join(ROOT, 'ios', 'App', 'App', 'Assets.xcassets')
 MARK_SET = os.path.join(ROOT, 'ios', 'App', 'RestActivity', 'Assets.xcassets', 'MDLFMark.imageset')
 PBXPROJ = os.path.join(ROOT, 'ios', 'App', 'App.xcodeproj', 'project.pbxproj')
+ANDROID_RES = os.path.join(ROOT, 'android', 'app', 'src', 'main', 'res')
+ANDROID_STORE = os.path.join(ROOT, 'android', 'store')
 
 SPLASH_BG = '#111111'     # fond de l'écran de démarrage (celui de l'icône par défaut)
 SPLASH_SIZE = 2732        # carré qui couvre tous les écrans (contentMode scaleAspectFill)
 SPLASH_SCALE = 0.22       # signe d'environ 520 px de large sur 2732 (≈ 150 pt à l'écran)
 TINTED_GLYPH = '#FFFFFF'  # icône teintée : signe en niveaux de gris (blanc = teinte pleine)
+
+# Android (developer.android.com/develop/ui/views/launch/icon_design_adaptive) : calques de 108 dp dont
+# seuls les 72 dp du centre sont visibles et les 66 dp garantis, quel que soit le masque du fabricant.
+ANDROID_DENSITIES = {'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi': 3, 'xxxhdpi': 4}
+ADAPTIVE_DP = 108
+ADAPTIVE_SCALE = 0.5      # signe d'environ 54 dp de large : dans la zone sûre de 66 dp
+SPLASH_ICON_DP = 288      # icône de l'écran de démarrage d'Android 12 : 288 dp, visible dans un cercle de 192 dp
+SPLASH_ICON_SCALE = 0.42  # signe d'environ 120 dp, dans le cercle visible
+NOTIF_DP = 24             # petite icône des notifications : blanc sur transparent (seul l'alpha compte)
+ANDROID_BLACK = '#000000' # noir pur de l'interface (écran de démarrage, fiche Play)
 
 # Charge le catalogue dans un contexte vm et rend les SVG demandés (liste de { key, id, options })
 NODE_RENDER = r"""
@@ -108,7 +124,75 @@ def update_pbxproj(alternates):
         print('  ios/App/App.xcodeproj/project.pbxproj (icônes alternatives)')
 
 
+def android_assets(svgs, default):
+    """Icône adaptative, écran de démarrage, icône des notifications et images de la fiche Play."""
+    print('Android : icône adaptative (premier plan, monochrome) et icône des notifications')
+    for name in os.listdir(ANDROID_RES):   # images d'exemple de Capacitor remplacées par celles de la marque
+        folder = os.path.join(ANDROID_RES, name)
+        for f in ('ic_launcher.png', 'ic_launcher_round.png', 'splash.png'):
+            if os.path.isfile(os.path.join(folder, f)):
+                os.remove(os.path.join(folder, f))
+        if name.startswith('drawable-land') or name.startswith('drawable-port'):
+            if not os.listdir(folder):
+                os.rmdir(folder)
+    for f in ('drawable/ic_launcher_background.xml', 'drawable-v24/ic_launcher_foreground.xml'):
+        path = os.path.join(ANDROID_RES, f)
+        if os.path.isfile(path):
+            os.remove(path)
+            if not os.listdir(os.path.dirname(path)):
+                os.rmdir(os.path.dirname(path))
+    notif = png(svgs['android-notif'], 1024, 'RGBA')
+    notif = notif.crop(notif.getchannel('A').getbbox())
+    for density, k in ANDROID_DENSITIES.items():
+        size = round(ADAPTIVE_DP * k)
+        save(png(svgs['android-fg'], size, 'RGBA'), os.path.join(ANDROID_RES, f'mipmap-{density}', 'ic_launcher_foreground.png'))
+        save(png(svgs['android-mono'], size, 'RGBA'), os.path.join(ANDROID_RES, f'mipmap-{density}', 'ic_launcher_monochrome.png'))
+        box = round(NOTIF_DP * k)
+        side = max(notif.width, notif.height)
+        square = Image.new('RGBA', (side, side), (0, 0, 0, 0))
+        square.paste(notif, ((side - notif.width) // 2, (side - notif.height) // 2))
+        save(square.resize((box, box), Image.LANCZOS), os.path.join(ANDROID_RES, f'drawable-{density}', 'ic_stat_mdlf.png'))
+    adaptive = ('<?xml version="1.0" encoding="utf-8"?>\n'
+                '<!-- Généré par scripts/brand-icons.py : ne pas modifier -->\n'
+                '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
+                '    <background android:drawable="@color/ic_launcher_background"/>\n'
+                '    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n'
+                '    <monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>\n'
+                '</adaptive-icon>\n')
+    for f in ('ic_launcher.xml', 'ic_launcher_round.xml'):
+        write_text(os.path.join(ANDROID_RES, 'mipmap-anydpi-v26', f), adaptive)
+    write_text(os.path.join(ANDROID_RES, 'values', 'ic_launcher_background.xml'),
+               '<?xml version="1.0" encoding="utf-8"?>\n<!-- Généré par scripts/brand-icons.py : fond de l\'icône par défaut -->\n'
+               f'<resources>\n    <color name="ic_launcher_background">{default["bg"]}</color>\n</resources>\n')
+
+    print('Android : écran de démarrage (fond noir pur, signe au centre)')
+    save(png(svgs['android-splash'], round(SPLASH_ICON_DP * 4), 'RGBA'),
+         os.path.join(ANDROID_RES, 'drawable-xxxhdpi', 'splash_icon.png'))
+    write_text(os.path.join(ANDROID_RES, 'drawable', 'splash.xml'),
+               '<?xml version="1.0" encoding="utf-8"?>\n'
+               '<!-- Généré par scripts/brand-icons.py : écran de démarrage avant Android 12 et fond du thème -->\n'
+               '<layer-list xmlns:android="http://schemas.android.com/apk/res/android">\n'
+               '    <item android:drawable="@color/mdlf_black"/>\n'
+               '    <item android:gravity="center" android:width="288dp" android:height="288dp" android:drawable="@drawable/splash_icon"/>\n'
+               '</layer-list>\n')
+
+    print('Android : fiche Google Play (icône 512 × 512, image de présentation 1024 × 500)')
+    save(png(svgs['default'], 512, 'RGB'), os.path.join(ANDROID_STORE, 'play-icon-512.png'))
+    feature = Image.new('RGB', (1024, 500), ANDROID_BLACK)
+    glyph = png(svgs['android-feature'], 500, 'RGBA')
+    feature.paste(glyph, (262, 0), glyph)
+    save(feature, os.path.join(ANDROID_STORE, 'play-feature-1024x500.png'))
+
+
+def write_text(path, text):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as fh:
+        fh.write(text)
+    print('  ' + os.path.relpath(path, ROOT))
+
+
 def main():
+    android_only = '--android' in sys.argv[1:]
     probe = node_render([])
     icons = probe['icons']
     default = icons[0]
@@ -120,9 +204,19 @@ def main():
         {'key': 'tinted', 'id': default['id'], 'options': {'background': False, 'color': TINTED_GLYPH}},
         {'key': 'splash', 'id': default['id'], 'options': {'background': SPLASH_BG, 'scale': SPLASH_SCALE}},
         {'key': 'mark', 'id': default['id'], 'options': {'background': False, 'color': '#000000', 'scale': 1}},
+        {'key': 'android-fg', 'id': default['id'], 'options': {'background': False, 'scale': ADAPTIVE_SCALE}},
+        {'key': 'android-mono', 'id': default['id'], 'options': {'background': False, 'color': TINTED_GLYPH, 'scale': ADAPTIVE_SCALE}},
+        {'key': 'android-notif', 'id': default['id'], 'options': {'background': False, 'color': '#FFFFFF', 'scale': 1}},
+        {'key': 'android-splash', 'id': default['id'], 'options': {'background': False, 'scale': SPLASH_ICON_SCALE}},
+        {'key': 'android-feature', 'id': default['id'], 'options': {'background': False, 'scale': 0.6}},
     ] + [{'key': 'alt:' + i['id'], 'id': i['id']} for i in icons[1:]]
     res = node_render(spec)
     svgs = res['svgs']
+
+    if os.path.isdir(ANDROID_RES):
+        android_assets(svgs, default)
+    if android_only:
+        return
 
     print('PWA')
     with open(os.path.join(ROOT, 'icon.svg'), 'w', encoding='utf-8') as fh:
