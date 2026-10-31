@@ -111,13 +111,22 @@ begin
                            'Pain bâtard au petit déj', 'Super retardé ce bus', 'Tapette à mouche', 'Bite-size',
                            -- mots voisins courants qui, recollés, forment un mot interdit (crevé + toi, chat + te, bas + tard)
                            'T''es crevé toi aussi ?', 'Bien joué, crevé toi ?', 'Le chat te regarde', 'Mon chat tes croquettes',
-                           'Courir bas tard le soir', 'La cuisine mongole', 'Les steppes mongoles'] loop
+                           'Courir bas tard le soir', 'La cuisine mongole', 'Les steppes mongoles',
+                           -- tape + tes = tapette une fois les lettres doublées ramenées à une
+                           'T''as tapé tes séries comme un chef', 'Allez, tape tes 5 séries !', 'Tape tes records',
+                           -- jamais de recollage à travers une ponctuation de phrase (tue, toi)
+                           'Le squat ça tue, toi tu en fais combien ?', 'Cette séance m''a tué, toi ça va ?',
+                           'Ça tue. Toi aussi ?', 'Ça me tue ! Toi ?',
+                           'On se fait un pique-nique après la séance ?', 'pique-niquer dimanche', 'Bravo Nazim !', 'GG Naziha', 'Mon pote Nazir'] loop
     if private.comment_forbidden(t) then raise 'phrase courante refusée : %', t; end if;
   end loop;
   -- Un mot accepté ne protège que lui-même, mot entier
   foreach t in array array['cone de merde', 'conne', 'connne', 'niggers', 'Pornographie',
                            -- hors recollage, le mot reste refusé écrit d'un bloc ou lettre à lettre
-                           'crevetoi', 'CRÈVETOI', 'c r e v e t o i', 'sale chatte', 'you bastard', 'b a s t a r d', 'mongol'] loop
+                           'crevetoi', 'CRÈVETOI', 'c r e v e t o i', 'sale chatte', 'you bastard', 'b a s t a r d', 'mongol',
+                           'sale tapette', 'TAPETTE', 't a p e t t e',
+                           -- recollage dans un même segment : toujours refusé
+                           'tue-toi', 'Tue toi', 'Franchement, tue toi.', 'Tue-toi !', 'kill your self', 'f.u.c.k'] loop
     if not private.comment_forbidden(t) then raise 'mot interdit accepté : %', t; end if;
   end loop;
 end $$;
@@ -293,8 +302,12 @@ begin
   if pg_temp.err(format('select public.report_comment(%s, %L)', cid, 'spam')) is distinct from 'not_found' then raise 'non abonné signale'; end if;
   perform pg_temp.login('e');
   perform public.report_comment(cid, 'haine');
+  -- Celui qui a signalé ne le reçoit plus (même après redémarrage de l'app) ; les autres si (2 signalements)
   perform pg_temp.login('b');
+  if exists (select 1 from public.list_comments(pg_temp.u('a'), 'a-2') where id = cid) then raise 'B voit encore ce qu''il a signalé'; end if;
+  perform pg_temp.login('a');
   if not exists (select 1 from public.list_comments(pg_temp.u('a'), 'a-2') where id = cid) then raise 'masqué trop tôt'; end if;
+  if not exists (select 1 from public.my_activity() where comment_id = cid) then raise 'activité : pas encore signalé par A'; end if;
   -- 3e personne (le propriétaire) : masqué pour tous sauf l'auteur
   perform pg_temp.login('a');
   perform public.report_comment(cid, 'autre');
@@ -307,6 +320,25 @@ begin
   if r.id is null or not r.masked then raise 'auteur : %', r; end if;
   -- Supprimé par son auteur : le signalement reste, avec la copie du texte
   if not public.delete_comment(cid) then raise 'auteur supprime'; end if;
+end $$;
+-- Le propriétaire signale un commentaire reçu (1 seul signalement, pas masqué) : il sort de son
+-- activité et de sa pastille, pas de la vue des autres
+do $$
+declare cid bigint; n0 int;
+begin
+  perform pg_temp.login('a');
+  n0 := (public.social_state() ->> 'activity_new')::int;
+  perform pg_temp.login('c');
+  cid := (public.add_comment(pg_temp.u('a'), 'a-2', 'Signalé par le propriétaire') ->> 'id')::bigint;
+  perform pg_temp.login('a');
+  if (public.social_state() ->> 'activity_new')::int <> n0 + 1 then raise 'pastille : nouveau commentaire'; end if;
+  if not exists (select 1 from public.my_activity() where comment_id = cid) then raise 'activité : nouveau commentaire'; end if;
+  perform public.report_comment(cid, 'spam');
+  if exists (select 1 from public.my_activity() where comment_id = cid) then raise 'activité : signalé par moi'; end if;
+  if (public.social_state() ->> 'activity_new')::int <> n0 then raise 'pastille : signalé par moi'; end if;
+  if exists (select 1 from public.list_comments(pg_temp.u('a'), 'a-2') where id = cid) then raise 'liste : signalé par moi'; end if;
+  perform pg_temp.login('b');
+  if not exists (select 1 from public.list_comments(pg_temp.u('a'), 'a-2') where id = cid) then raise 'B ne voit plus un commentaire signalé une fois'; end if;
 end $$;
 reset role;
 do $$

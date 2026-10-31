@@ -111,11 +111,12 @@ async function sendComment(owner, id) {
     return;
   }
   haptic();
-  delete commentDrafts[key];
   const el = $('#commentInput');
-  if (el) { el.value = ''; fitCommentInput(el); }
+  const rest = draftAfterSend(el ? el.value : commentDrafts[key] || '', text);
+  if (rest) commentDrafts[key] = rest; else delete commentDrafts[key];
+  if (el) { el.value = rest; fitCommentInput(el); }
   const count = $('#commentCount');
-  if (count) count.textContent = '';
+  if (count) count.textContent = rest ? commentCountHtml(rest) : '';
   announce('Commentaire envoyé');
   if (!refreshCommentsList()) render();
   $('#commentsList .comment:last-child')?.scrollIntoView({ block: 'nearest', behavior: reduceMotion.matches ? 'auto' : 'smooth' });

@@ -91,6 +91,24 @@ export default function ({ test, run, assert, sameJSON }) {
     } finally { teardown(); }
   });
 
+  test('messages : le premier message de l\'autre dans une conversation vide ouverte est marqué lu à la relecture', async () => {
+    try {
+      setup();
+      run('__srv.msgs = []');
+      sameJSON(await run('chatLoad(CHAT_COACH)'), { ok: true });
+      await run('chatMarkRead(CHAT_COACH, { force: true })');
+      assert.equal(run('__srv.read'), 0);
+      coachSends('Salut');
+      const r = await run('chatPoll(CHAT_COACH)');
+      sameJSON(r, { ok: true, added: 1, theirs: 1 }, 'chemin conversation vide : theirs compté');
+      sameJSON(shown(), ['Salut']);
+      // Ce que fait chatTick quand la conversation est à l'écran
+      if (r.theirs) await run('chatMarkRead(CHAT_COACH, { force: true })');
+      assert.equal(run('__srv.read'), 10, 'premier message du coach marqué lu');
+      sameJSON(await run('chatPoll(CHAT_COACH)'), { ok: true, added: 0, theirs: 0 });
+    } finally { teardown(); }
+  });
+
   test('messages : rouvrir une conversation remontée jusqu\'au début rend les anciens messages à nouveau accessibles', async () => {
     try {
       setup();

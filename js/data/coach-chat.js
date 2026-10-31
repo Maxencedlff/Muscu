@@ -198,7 +198,15 @@ async function chatLoad(key, { more = false } = {}) {
 async function chatPoll(key) {
   const c = chatConv(key);
   if (c.loading) return { ok: true };
-  if (!c.loadedAt || (!c.rows.length && !c.cursor)) return chatLoad(key);
+  if (!c.loadedAt || (!c.rows.length && !c.cursor)) {
+    // Même réponse que la relecture par curseur : sans theirs, le premier message de l'autre dans une
+    // conversation vide resterait compté non lu alors qu'il est à l'écran
+    const known = new Set(c.rows.map(m => m.id));
+    const r = await chatLoad(key);
+    if (!r.ok) return r;
+    const fresh = c.rows.filter(m => !known.has(m.id));
+    return { ok: true, added: fresh.length, theirs: fresh.filter(m => !m.mine).length };
+  }
   c.loading = true;
   const seq = chatSeq;
   let added = 0, theirs = 0;

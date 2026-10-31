@@ -14,8 +14,9 @@
 //    comment_forbidden, traduit), jamais copiée dans l'app.
 //  - Fils par séance : { rows (du plus ancien au plus récent), end (rien de plus ancien), loading,
 //    error, loadedAt, triedAt }, clé owner/id. Pas de temps réel : relus à l'ouverture de la séance (30 s au plus).
-//  - Supprimer : affiché tout de suite, remis si le serveur refuse. Signaler : masqué ici pour celui
-//    qui signale (le serveur le masque pour tous au 3e signalement).
+//  - Supprimer : affiché tout de suite, remis si le serveur refuse. Signaler : masqué tout de suite ici
+//    pour celui qui signale ; list_comments ne le lui renvoie plus ensuite (même après redémarrage), et le
+//    serveur le masque pour tous au 3e signalement.
 //  - L'écran (js/features/comments-ui.js) s'abonne par onSocialChange : chaque changement appelle
 //    notifySocial.
 // ═══════════════════════════════════════════════════════════
@@ -26,7 +27,7 @@ const COMMENT_PAGE = 30;           // commentaires par page (comme list_comments
 const COMMENT_WARN = 450;          // compteur affiché à partir de là
 const COMMENTS_REFRESH_MS = 30_000;
 
-// threads : fils par clé owner/id ; reported : commentaires que j'ai signalés (cachés ici jusqu'au changement de compte)
+// threads : fils par clé owner/id ; reported : commentaires que j'ai signalés (cachés ici tout de suite ; le serveur ne me les renvoie plus)
 const comments = { userId: null, threads: {}, reported: new Set(), busy: false };
 let commentsSeq = 0;   // +1 au changement de compte : une réponse arrivée après n'écrit plus rien
 
@@ -43,6 +44,17 @@ function commentLength(t) { return [...commentClean(t)].length; }
 function commentProblem(t) {
   const n = commentLength(t);
   return !n ? 'empty' : n > COMMENT_MAX ? 'too_long' : null;
+}
+
+// Brouillon à garder après un envoi réussi (commentaire ou message) : le champ reste modifiable
+// pendant l'envoi, ce qui a été tapé après le texte envoyé n'est jamais effacé. current : le champ au
+// retour du serveur ; sent : le texte envoyé. Champ inchangé : vide ; texte ajouté à la suite : la suite ;
+// texte envoyé modifié entre-temps : tout le champ (rien de perdu, l'utilisateur choisit).
+function draftAfterSend(current, sent) {
+  const now = String(current ?? ''), was = String(sent ?? '');
+  if (now === was) return '';
+  if (was && now.startsWith(was)) return now.slice(was.length).replace(/^[ \t\n]+/, '');
+  return now;
 }
 
 // Ligne de list_comments (ou réponse d'add_comment) : { id, user_id, username, avatar, body, at, mine,
