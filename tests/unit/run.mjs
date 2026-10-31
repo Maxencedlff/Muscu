@@ -745,7 +745,7 @@ test('esc, normName, sameEx, plural, setsVolume', () => {
 // simule un changement venu d'iCloud, cloud.saved liste les écritures acceptées.
 // storage : stockage web d'un lancement précédent (relance de l'app) ;
 // manualTimers : les minuteries attendent timers.flush() au lieu de partir tout de suite
-function nativeContext({ native = true, localData = null, fileData = null, shareCancelled = false, cloud = {}, storage = new MemoryStorage(), manualTimers = false, plugins: extra = {}, available = [] } = {}) {
+function nativeContext({ native = true, platform = 'ios', localData = null, fileData = null, shareCancelled = false, cloud = {}, storage = new MemoryStorage(), manualTimers = false, plugins: extra = {}, available = [] } = {}) {
   const calls = [];
   const pending = [];
   if (localData !== null) storage.setItem('ppl_v2', localData);
@@ -784,6 +784,7 @@ function nativeContext({ native = true, localData = null, fileData = null, share
     location: { reload() { reloaded = true; } },
     Capacitor: native ? {
       isNativePlatform: () => true,
+      getPlatform: () => platform,   // 'ios' ou 'android' (coquille simulée)
       isPluginAvailable: (name) => available.includes(name),   // modules présents dans la coquille
       registerPlugin: (name) => plugins[name] || new Proxy({}, { get: (_, m) => async () => calls.push([name, m]) }),
     } : undefined,
@@ -1475,6 +1476,8 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 
 // ── Compte : connexion, pseudo, avatar, identités (tests dans account.mjs) ──
 (await import('./account.mjs')).default({ test, run, assert, sameJSON, nativeContext, ROOT });
+// ── Préparation Android : empreintes natives, pont natif sur Android, modules Kotlin (tests dans android.mjs) ──
+(await import('./android.mjs')).default({ test, assert, run, app, reset, nativeContext, ROOT });
 
 // ── Strava : règles et chiffrement des fonctions serveur, export côté app (strava-server.mjs, strava.mjs) ──
 (await import('./strava-server.mjs')).default({ test, assert, sameJSON, ROOT });

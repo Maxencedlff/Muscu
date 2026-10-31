@@ -260,7 +260,10 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     // Plus aucune trace de l'essai maison ni du rattachement à l'identifiant Apple
     for (const f of ['js/data/access.js', 'js/features/paywall-ui.js', 'js/platform/native.js']) {
       const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
-      assert.ok(!/daysLeft\(|trial_days|apple_linked|trial_shared|appTransaction|accessLinkApple|verify-app-transaction|Native\.platform/.test(src), `${f} : reste de l'essai maison`);
+      assert.ok(!/daysLeft\(|trial_days|apple_linked|trial_shared|appTransaction|accessLinkApple|verify-app-transaction/.test(src), `${f} : reste de l'essai maison`);
+      // La plateforme n'est plus jamais déclarée au serveur par l'accès. native.js l'expose (Native.platform)
+      // pour Android (Health Connect, modules iOS coupés), ce qui n'a rien à voir avec l'essai.
+      if (f !== 'js/platform/native.js') assert.ok(!/Native\.platform/.test(src), `${f} : plateforme lue par l'accès`);
     }
   });
 

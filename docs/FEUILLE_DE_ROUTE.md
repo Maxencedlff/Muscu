@@ -270,7 +270,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 |   | Quoi                                                    | Quand / état           |
 |---|---------------------------------------------------------|------------------------|
 | ○ | Compte Google Play (25 $), 12 testeurs pendant 14 jours | Après la sortie iPhone |
-| ○ | Parties natives, paiement Google Play, pré-inscription  | Après la sortie iPhone |
+| ▶ | Parties natives, paiement Google Play, pré-inscription  | Préparé (branche nuit-android, non compilé), plan : docs/ANDROID.md |
 
 ### Après le payant · parrainage et tarifs
 

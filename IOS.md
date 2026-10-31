@@ -344,6 +344,9 @@ TestFlight / App Store, sur le modèle d'Expo Updates.
   Xcode, de capacitor.config.json et des versions des modules natifs. Une mise à jour n'est appliquée
   que si elle a été construite pour la même coquille. Tout changement natif impose donc une version
   TestFlight / App Store ; une coquille plus ancienne ignore les contenus qui ne lui sont pas destinés.
+  Calcul dans `scripts/runtime.mjs` : l'empreinte iOS ignore le dossier `android/` et `@capacitor/android`
+  (préparer Android ne bloque jamais les mises à jour des iPhone) ; celle d'Android est à part
+  (`android-…`, docs/ANDROID.md).
 - **Jamais de retour en arrière** : `seq` (date du commit) doit être plus récent que le contenu en place.
 - **Démarrage confirmé** : `notifyAppReady` n'est appelé qu'après un démarrage réussi (pas sur
   l'écran de secours) ; sinon le module revient seul au contenu précédent au bout de 10 s, et la

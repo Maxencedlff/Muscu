@@ -1,11 +1,12 @@
-// Prépare le contenu web embarqué dans l'app iOS (dossier dist/, lu par Capacitor).
+// Prépare le contenu web embarqué dans l'app (dossier dist/, lu par Capacitor).
 // La PWA est publiée telle quelle par Vercel ; l'app embarque les mêmes fichiers, sans le service
-// worker (les mises à jour de l'app passent par l'App Store).
-import crypto from 'node:crypto';
+// worker (les mises à jour de l'app passent par l'App Store ou Google Play).
+// `node scripts/build-web.mjs` : app iOS ; `--android` : app Android (seule l'empreinte native change).
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runtimeVersion } from './runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT  = path.join(ROOT, 'dist');
@@ -31,30 +32,12 @@ const SUPABASE = path.join(ROOT, 'node_modules', '@supabase', 'supabase-js', 'di
 if (!fs.existsSync(SUPABASE)) throw new Error('@supabase/supabase-js absent : lancer npm ci');
 fs.copyFileSync(SUPABASE, path.join(OUT, 'js', 'vendor', 'supabase.js'));
 // Informations de construction (mises à jour à chaud, voir IOS.md) :
-// - runtime : empreinte de tout ce qui est natif. Une mise à jour web n'est appliquée que dans une app
-//   dont la coquille a la même empreinte (même principe que le runtimeVersion d'Expo).
+// - runtime : empreinte de tout ce qui est natif, propre à chaque plateforme (scripts/runtime.mjs). Une
+//   mise à jour web n'est appliquée que dans une app dont la coquille a la même empreinte (même principe
+//   que le runtimeVersion d'Expo).
 // - seq : date du commit (secondes) ; une mise à jour plus ancienne que le contenu en place est ignorée.
 // - version : identifiant lisible du contenu (date du commit + commit court).
-const RUNTIME_INPUTS = ['capacitor.config.json', 'ios/App/App/Info.plist', 'ios/App/App/App.entitlements',
-  'ios/App/App.xcodeproj/project.pbxproj', 'ios/App/RestActivity/Info.plist'];
-// Code Swift de l'app, partagé, et de l'extension Live Activity (RestActivity)
-const SWIFT_DIRS = ['ios/App/App', 'ios/App/Shared', 'ios/App/RestActivity'];
-function runtimeVersion() {
-  const h = crypto.createHash('sha256');
-  const swift = SWIFT_DIRS.filter(d => fs.existsSync(path.join(ROOT, d))).flatMap(d =>
-    fs.readdirSync(path.join(ROOT, d)).filter(f => f.endsWith('.swift')).sort().map(f => `${d}/${f}`));
-  for (const rel of [...RUNTIME_INPUTS, ...swift]) {
-    const p = path.join(ROOT, rel);
-    if (fs.existsSync(p)) h.update(rel + '\0' + fs.readFileSync(p));
-  }
-  // Modules natifs : versions exactes installées (package-lock)
-  const lock = JSON.parse(fs.readFileSync(path.join(ROOT, 'package-lock.json'), 'utf8'));
-  const natives = Object.entries(lock.packages || {})
-    .filter(([k]) => /node_modules\/@(capacitor|capgo|capacitor-community)\//.test(k) && !k.includes('/cli'))
-    .map(([k, v]) => `${k}@${v.version}`).sort();
-  h.update(natives.join('\n'));
-  return h.digest('hex').slice(0, 16);
-}
+const PLATFORM = process.argv.includes('--android') ? 'android' : 'ios';
 function gitInfo() {
   try {
     const [sha, ct] = execSync('git log -1 --format=%h%n%ct', { cwd: ROOT }).toString().trim().split('\n');
@@ -65,7 +48,7 @@ function gitInfo() {
 const git  = gitInfo();
 const d    = new Date(git.seq * 1000);
 const BUILD = {
-  runtime: runtimeVersion(),
+  runtime: runtimeVersion(ROOT, PLATFORM),
   seq: git.seq,
   version: `${d.getUTCFullYear()}.${d.getUTCMonth() + 1}.${d.getUTCDate()}-${git.sha}`,
 };
@@ -84,4 +67,4 @@ const html = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
 const refs = [...html.matchAll(/(?:src|href)="([^"#:]+\.(?:js|css))"/g)].map(m => m[1]);
 const missing = refs.filter(r => !fs.existsSync(path.join(OUT, r)));
 if (missing.length) throw new Error(`Références absentes de dist/ : ${missing.join(', ')}`);
-console.log(`dist/ prêt : ${refs.length} scripts et feuilles de style · contenu ${BUILD.version} · runtime ${BUILD.runtime}`);
+console.log(`dist/ prêt (${PLATFORM}) : ${refs.length} scripts et feuilles de style · contenu ${BUILD.version} · runtime ${BUILD.runtime}`);

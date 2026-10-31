@@ -39,10 +39,13 @@ js/ui/                infrastructure d'écran : thème, navigation, barres, feui
 js/features/          un fichier (ou plusieurs) par écran ou fonctionnalité
 js/app/               mises à jour du service worker, démarrage et écouteurs globaux
 tests/                tests de non-régression Playwright (Python) et tests unitaires (tests/unit/)
-scripts/              construction de l'app iOS (build-web.mjs), mises à jour à chaud, images de la marque (brand-icons.py), gardes des pages juridiques : emplacements à compléter (check-legal-pages.mjs, job deploy, OTA et TestFlight) et pages en ligne avant une OTA ou un envoi TestFlight (check-legal-online.mjs)
+scripts/              construction de l'app (build-web.mjs, empreinte native par plateforme runtime.mjs), mises à jour à chaud, images de la marque (brand-icons.py), gardes des pages juridiques : emplacements à compléter (check-legal-pages.mjs, job deploy, OTA et TestFlight) et pages en ligne avant une OTA ou un envoi TestFlight (check-legal-online.mjs)
 privacy.html, mentions-legales.html, cgu.html, cgv.html, legal.css
                       pages juridiques publiques (mdlf.app, publiées par le job deploy via web-public/), sans script ; docs/JURIDIQUE.md
 store/                fiche App Store (captures.py) et captures de revue des abonnements (captures_revue.py → docs/revue/)
+js/platform/native.js pont vers les modules natifs (iOS, Android) ; sans effet dans le navigateur
+ios/                  coquille iOS (Capacitor, modules Swift, extension Live Activity) : IOS.md
+android/              coquille Android en préparation (Capacitor, modules Kotlin) : docs/ANDROID.md
 ```
 
 ### css/
@@ -427,6 +430,18 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
    évoluer les tests.
 4. Ensuite seulement : renommer les dernières classes CSS héritées écran par écran (`.set-row2` est devenu `.session-set`, `.color-swatch2` est devenu `.color-swatch`).
 
+
+## Coquilles natives (iOS, Android)
+
+Le même contenu web (`dist/`, `scripts/build-web.mjs`) tourne dans deux coquilles Capacitor. Le web ne
+parle au natif que par `js/platform/native.js` (`Native`), qui expose `Native.platform` (`'ios'`,
+`'android'`, `'web'`) et coupe sur Android ce qui n'existe que sur iOS (iCloud, Apple Music, icônes
+alternatives, compte tant que `MdlfAccount` n'existe pas en Kotlin). Un module qui existe sur les deux
+garde le même nom et les mêmes réponses (`MdlfHealth` : HealthKit / Health Connect ; `MdlfLiveActivity` :
+Live Activity / notification continue ; `MdlfStore` : StoreKit 2 / Google Play Billing) : les écrans
+n'ont pas à connaître le système, sauf pour un libellé (`Native.health.name`). Chaque coquille a son
+empreinte native (`scripts/runtime.mjs`) : changer Android ne touche jamais aux mises à jour à chaud des
+iPhone. Détails : IOS.md et docs/ANDROID.md ; cohérence vérifiée par `tests/unit/android.mjs`.
 
 ## Serveur des comptes (Supabase)
 

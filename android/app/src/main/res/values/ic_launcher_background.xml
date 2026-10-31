@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Généré par scripts/brand-icons.py : fond de l'icône par défaut -->
+<resources>
+    <color name="ic_launcher_background">#111111</color>
+</resources>
