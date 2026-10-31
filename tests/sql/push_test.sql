@@ -31,6 +31,8 @@ do $$ begin
   if pg_temp.perr(format($q$ select public.push_register(%L, 'production') $q$, pg_temp.tok('a'))) not like 'permission denied%' then raise 'anon inscrit un jeton'; end if;
   if pg_temp.perr($q$ select * from public.push_devices $q$) not like 'permission denied%' then raise 'anon lit les jetons'; end if;
   if pg_temp.perr(format($q$ select public.push_release(%L) $q$, pg_temp.tok('a'))) not like 'permission denied%' then raise 'anon retire un jeton'; end if;
+  if pg_temp.perr($q$ select public.push_auth_get() $q$) not like 'permission denied%' then raise 'anon lit le jeton du fournisseur'; end if;
+  if pg_temp.perr($q$ select public.push_auth_swap(null, 'faux.jwt', 1, 'FAKEKEY123') $q$) not like 'permission denied%' then raise 'anon pose le jeton du fournisseur'; end if;
 end $$;
 reset role;
 set role authenticated;
@@ -42,6 +44,9 @@ do $$ begin
   if pg_temp.perr($q$ select * from private.push_outbox $q$) not like 'permission denied%' then raise 'lecture de la file'; end if;
   if pg_temp.perr($q$ select public.push_claim(10) $q$) not like 'permission denied%' then raise 'un compte prend la file'; end if;
   if pg_temp.perr($q$ select public.push_done('{1}', '{}') $q$) not like 'permission denied%' then raise 'un compte solde la file'; end if;
+  if pg_temp.perr($q$ select public.push_auth_get() $q$) not like 'permission denied%' then raise 'un compte lit le jeton du fournisseur'; end if;
+  if pg_temp.perr($q$ select public.push_auth_swap(null, 'faux.jwt', 1, 'FAKEKEY123') $q$) not like 'permission denied%' then raise 'un compte pose le jeton du fournisseur'; end if;
+  if pg_temp.perr($q$ select * from private.push_apns_auth $q$) not like 'permission denied%' then raise 'lecture directe du jeton du fournisseur'; end if;
 end $$;
 
 -- ── Réglages : tout éteint par défaut, jeton validé ──────
@@ -241,6 +246,30 @@ do $$ begin
   alter table private.push_outbox rename to push_outbox_hors_service;
   insert into public.bravos (session_owner, session_id, user_id) values (pg_temp.pu('a'), 'pa-2', pg_temp.pu('c'));
   alter table private.push_outbox_hors_service rename to push_outbox;
+end $$;
+
+-- ── Jeton du fournisseur APNs : une ligne, remplacée seulement si elle porte encore le jeton lu ──
+set role service_role;
+do $$
+declare r jsonb;
+begin
+  if public.push_auth_get() is not null then raise 'jeton du fournisseur avant le premier envoi'; end if;
+  r := public.push_auth_swap(null, 'faux.jwt.1', 1000, 'FAKEKEY123');
+  if r ->> 'token' <> 'faux.jwt.1' or (r ->> 'iat')::bigint <> 1000 or r ->> 'key_id' <> 'FAKEKEY123' then raise 'première pose : %', r; end if;
+  -- Seconde instance qui avait lu « rien » : la première gagne
+  r := public.push_auth_swap(null, 'faux.jwt.2', 1001, 'FAKEKEY123');
+  if r ->> 'token' <> 'faux.jwt.1' then raise 'pose concurrente gagnante : %', r; end if;
+  -- Renouvellement attendu par deux instances : une seule remplace, l'autre reçoit son jeton
+  r := public.push_auth_swap('faux.jwt.1', 'faux.jwt.3', 3400, 'FAKEKEY123');
+  if r ->> 'token' <> 'faux.jwt.3' then raise 'renouvellement : %', r; end if;
+  r := public.push_auth_swap('faux.jwt.1', 'faux.jwt.4', 3401, 'FAKEKEY123');
+  if r ->> 'token' <> 'faux.jwt.3' then raise 'renouvellement concurrent gagnant : %', r; end if;
+  if pg_temp.perr($q$ select public.push_auth_swap('faux.jwt.3', '', 1, 'K') $q$) = 'ok' then raise 'jeton vide accepté'; end if;
+  if pg_temp.perr($q$ select * from private.push_apns_auth $q$) not like 'permission denied%' then raise 'service_role lit la table directement'; end if;
+end $$;
+reset role;
+do $$ begin
+  if (select count(*) from private.push_apns_auth) <> 1 then raise 'plus d''une ligne'; end if;
 end $$;
 
 -- ── Suppression du compte : tout part avec lui ───────────

@@ -13,7 +13,7 @@
 //    restent en file (reprises 5 minutes plus tard, 5 essais au plus).
 // 5. Réponse : { sent, dead, retry, dropped, skipped } ; aucun jeton ni contenu dans les journaux.
 import { adminClient, env, json } from '../_shared/http.ts';
-import { apnsOutcome, apnsRequest, providerToken, pushMessage, PROVIDER_TOKEN_TTL_S, sameSecret, settledIds } from './push-policy.js';
+import { apnsOutcome, apnsRequest, providerToken, providerTokenCache, pushMessage, sameSecret, settledIds } from './push-policy.js';
 
 type ClaimRow = { id: number; kind: string; ref: string; token: string | null; env: string | null; actor_name: string | null; wanted: boolean };
 type Result = { id: number; outcome: 'sent' | 'dead_token' | 'retry' | 'drop' | 'skip'; token?: string };
@@ -22,27 +22,42 @@ const BATCH = 100;
 const ROUNDS = 5;
 const PARALLEL = 10;
 
-// Jeton du fournisseur gardé entre deux appels tant que l'instance vit (Apple : pas plus d'un toutes les 20 min)
-let cached: { token: string; at: number } | null = null;
-async function apnsAuth(): Promise<string> {
-  const now = Date.now() / 1000;
-  if (cached && now - cached.at < PROVIDER_TOKEN_TTL_S) return cached.token;
-  const token = await providerToken({ keyP8: env('APNS_KEY_P8'), keyId: env('APNS_KEY_ID'), teamId: env('APNS_TEAM_ID'), nowS: now });
-  cached = { token, at: now };
-  return token;
+// Jeton du fournisseur : une signature partagée par les envois simultanés et par les instances (gardé dans
+// la base 40 min, règles et raisons dans providerTokenCache)
+let auth: ReturnType<typeof providerTokenCache> | null = null;
+function apnsAuth() {
+  if (auth) return auth;
+  const admin = adminClient();
+  auth = providerTokenCache({
+    keyId: env('APNS_KEY_ID'),
+    now: () => Date.now() / 1000,
+    sign: (iat: number) => providerToken({ keyP8: env('APNS_KEY_P8'), keyId: env('APNS_KEY_ID'), teamId: env('APNS_TEAM_ID'), nowS: iat }),
+    load: async () => {
+      const { data, error } = await admin.rpc('push_auth_get');
+      if (error) throw new Error(error.code);
+      return data;
+    },
+    swap: async (expected: string | null, next: { token: string; iat: number; key_id: string }) => {
+      const { data, error } = await admin.rpc('push_auth_swap', { expected, token: next.token, iat: next.iat, key_id: next.key_id });
+      if (error) throw new Error(error.code);
+      return data;
+    },
+  });
+  return auth;
 }
 
 async function sendOne(row: ClaimRow, topic: string): Promise<Result> {
   const msg = pushMessage(row);
   if ('skip' in msg) return { id: row.id, outcome: 'skip' };
   try {
-    const { url, init } = apnsRequest(row, msg, { topic, providerToken: await apnsAuth(), nowS: Date.now() / 1000 });
+    const jwt = await apnsAuth().get();
+    const { url, init } = apnsRequest(row, msg, { topic, providerToken: jwt, nowS: Date.now() / 1000 });
     const res = await fetch(url, { ...init, signal: AbortSignal.timeout(10_000) });
     let reason = '';
     if (res.status !== 200) { try { reason = String((await res.json())?.reason ?? ''); } catch { /* corps vide */ } }
     else await res.body?.cancel();
     const outcome = apnsOutcome(res.status, reason);
-    if (res.status === 403) cached = null;   // jeton du fournisseur refusé : refait au prochain envoi
+    if (res.status === 403) apnsAuth().refused(jwt, reason);   // écarté une fois, seulement s'il est en cause
     if (outcome === 'drop' || outcome === 'retry') console.error('push-send: APNs', res.status, reason, row.kind);
     return { id: row.id, outcome, token: row.token ?? undefined };
   } catch (e) {

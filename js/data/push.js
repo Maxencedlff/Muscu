@@ -8,8 +8,9 @@
 // Rien n'est envoyé sans accord : chaque type est éteint par défaut sur le serveur (push_prefs), iOS a sa
 // propre autorisation (demandée seulement quand on allume un type), et le jeton n'est inscrit qu'à ce
 // moment-là. Tout éteint, ou déconnexion : le jeton est retiré du compte (push_unregister). Session finie
-// hors de l'app (jeton de rafraîchissement refusé) : impossible de l'appeler sans session, le jeton est
-// donc retiré à la connexion suivante d'un AUTRE compte sur cet iPhone (push_release), avant tout le reste.
+// hors de l'app (jeton de rafraîchissement refusé), ou retrait qui n'a pas abouti (hors ligne, erreur,
+// délai) : le marqueur reste, et le jeton est retiré à la connexion suivante d'un AUTRE compte sur cet
+// iPhone (push_release), avant tout le reste.
 // Ce que le serveur reçoit : le jeton APNs de l'appareil, son environnement (production / sandbox) et les
 // trois interrupteurs. Rien d'autre (pas de modèle d'iPhone, pas de données Santé).
 
@@ -125,19 +126,30 @@ async function pushSessionUserId() {
 }
 
 // Retire le jeton de cet appareil (déconnexion, effacement, tout éteint). Appelé AVANT la fin de session
-// (il faut encore le jeton de session) ; au mieux, 3 s au plus : une déconnexion hors ligne ne doit pas
-// attendre. Le serveur oublie de lui-même un jeton muet depuis 60 jours. Jeton inscrit par un AUTRE compte
-// que celui de la session (sa session a fini hors de l'app, puis la connexion d'un autre compte est
-// annulée au choix de fusion) : push_release, push_unregister ne retirant que les miens.
+// (il faut encore le jeton de session) ; 3 s au plus : une déconnexion hors ligne ne doit pas attendre.
+// Jeton inscrit par un AUTRE compte que celui de la session (sa session a fini hors de l'app, puis la
+// connexion d'un autre compte est annulée au choix de fusion) : push_release, push_unregister ne retirant
+// que les miens.
+// Le marqueur mdlf_push n'est vidé qu'après la réponse sans erreur du serveur. Sans session, hors ligne,
+// erreur ou délai dépassé : il reste, et la connexion suivante d'un autre compte retire le jeton
+// (pushReleaseOther) ; sinon les notifications de ce compte arriveraient chez le suivant.
+let PUSH_FORGET_TIMEOUT_MS = 3000;
 async function pushForgetDevice() {
   const st = pushStored();
-  pushStore(null);
   if (!st || !sb) return;
+  const uid = await pushSessionUserId();
+  if (!uid) return;   // push_unregister ne ferait rien sans session : gardé pour la connexion suivante
+  const fn = uid !== st.userId ? 'push_release' : 'push_unregister';
+  let timer;
   try {
-    const uid = await pushSessionUserId();
-    const fn = uid && uid !== st.userId ? 'push_release' : 'push_unregister';
-    await Promise.race([sb.rpc(fn, { token: st.token }), new Promise(r => setTimeout(r, 3000))]);
-  } catch { /* hors ligne : oublié par le serveur plus tard */ }
+    const res = await Promise.race([
+      sb.rpc(fn, { token: st.token }),
+      new Promise(r => { timer = setTimeout(() => r({ error: 'timeout' }), PUSH_FORGET_TIMEOUT_MS); }),
+    ]);
+    if (res?.error) return;
+  } catch { return; } finally { clearTimeout(timer); }
+  const now = pushStored();   // une inscription faite entre-temps reste
+  if (now?.token === st.token && now.userId === st.userId) pushStore(null);
 }
 
 // Connexion d'un compte alors que cet iPhone garde le jeton inscrit par un autre (session de l'autre finie

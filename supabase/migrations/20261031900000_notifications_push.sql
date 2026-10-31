@@ -58,9 +58,22 @@ create table private.push_outbox (
 create index push_outbox_pending on private.push_outbox (created_at) where sent_at is null;
 create index push_outbox_dedupe on private.push_outbox (recipient, kind, actor, ref, created_at desc);
 
+-- Jeton du fournisseur APNs (JWT signé par la clé .p8, valable une heure) partagé par les instances de
+-- push-send : Apple refuse plus d'un nouveau jeton toutes les 20 min (429 TooManyProviderTokenUpdates).
+-- Une seule ligne ; lue et écrite par push_auth_get / push_auth_swap (service_role) seulement. Ce n'est
+-- pas la clé .p8 (secret de la fonction Edge, jamais en base) : un jeton qui expire seul en une heure.
+create table private.push_apns_auth (
+  id         boolean primary key default true check (id),
+  token      text not null check (char_length(token) between 1 and 1024),
+  iat        bigint not null,
+  key_id     text not null check (char_length(key_id) between 1 and 32),
+  updated_at timestamptz not null default now()
+);
+
 alter table public.push_devices enable row level security;
 alter table public.push_prefs enable row level security;
 alter table private.push_outbox enable row level security;
+alter table private.push_apns_auth enable row level security;
 -- Aucune politique : RLS fermée (défense en profondeur, en plus des GRANT)
 revoke all on public.push_devices, public.push_prefs from public, anon, authenticated, service_role;
 revoke all on private.push_outbox from public, anon, authenticated, service_role;
@@ -283,6 +296,25 @@ $$
   delete from public.push_devices d where d.token = any(coalesce(dead_tokens, '{}'));
 $$;
 
+-- Jeton du fournisseur gardé (null s'il n'y en a pas encore)
+create function public.push_auth_get() returns jsonb
+  language sql stable security definer set search_path = '' as
+$$ select jsonb_build_object('token', a.token, 'iat', a.iat, 'key_id', a.key_id) from private.push_apns_auth a $$;
+
+-- Échange conditionnel : la ligne n'est remplacée que si elle porte encore le jeton attendu (null : pas
+-- encore de ligne). Deux instances qui renouvellent en même temps gardent celui de la première : chacune
+-- reçoit la ligne gagnante.
+create function public.push_auth_swap(expected text, token text, iat bigint, key_id text) returns jsonb
+  language plpgsql security definer set search_path = '' as
+$$
+begin
+  insert into private.push_apns_auth as a (id, token, iat, key_id) values (true, token, iat, key_id)
+    on conflict (id) do update set token = excluded.token, iat = excluded.iat, key_id = excluded.key_id, updated_at = now()
+    where a.token = push_auth_swap.expected;
+  return public.push_auth_get();
+end
+$$;
+
 -- ── Droits ───────────────────────────────────────────────
 
 revoke all on function private.push_wanted(uuid, text) from public, anon, authenticated, service_role;
@@ -299,6 +331,8 @@ revoke all on function public.push_prefs() from public, anon, authenticated, ser
 revoke all on function public.push_set_prefs(boolean, boolean, boolean) from public, anon, authenticated, service_role;
 revoke all on function public.push_claim(int) from public, anon, authenticated, service_role;
 revoke all on function public.push_done(bigint[], text[]) from public, anon, authenticated, service_role;
+revoke all on function public.push_auth_get() from public, anon, authenticated, service_role;
+revoke all on function public.push_auth_swap(text, text, bigint, text) from public, anon, authenticated, service_role;
 
 grant execute on function public.push_register(text, text) to authenticated;
 grant execute on function public.push_unregister(text) to authenticated;
@@ -307,3 +341,5 @@ grant execute on function public.push_prefs() to authenticated;
 grant execute on function public.push_set_prefs(boolean, boolean, boolean) to authenticated;
 grant execute on function public.push_claim(int) to service_role;
 grant execute on function public.push_done(bigint[], text[]) to service_role;
+grant execute on function public.push_auth_get() to service_role;
+grant execute on function public.push_auth_swap(text, text, bigint, text) to service_role;

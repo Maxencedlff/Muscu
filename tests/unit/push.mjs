@@ -73,6 +73,83 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     await assert.rejects(providerToken({ keyP8: '', keyId: 'K', teamId: 'T', nowS: 0 }));
   });
 
+  // Faux magasin partagé (la ligne private.push_apns_auth) et fausse signature : jetons « jwt-1 », « jwt-2 »…
+  const authFakes = ({ stored = null, nowS = 1_800_000_000 } = {}) => {
+    const f = { stored, nowS, signs: 0, loads: 0, swaps: [] };
+    f.deps = {
+      keyId: 'FAKEKEY123',
+      now: () => f.nowS,
+      sign: async (iat) => { f.signs++; await new Promise(r => setTimeout(r, 5)); return `jwt-${f.signs}@${iat}`; },
+      load: async () => { f.loads++; return f.stored; },
+      // Comparer-et-échanger : remplacé seulement si la ligne est encore celle attendue
+      swap: async (expected, next) => { f.swaps.push(expected); if ((f.stored?.token ?? null) === expected) f.stored = next; return f.stored; },
+    };
+    return f;
+  };
+
+  test('push : jeton du fournisseur signé une seule fois pour 10 envois simultanés, puis gardé 40 min', async () => {
+    const { providerTokenCache } = await load();
+    const f = authFakes();
+    const cache = providerTokenCache(f.deps);
+    const tokens = await Promise.all(Array.from({ length: 10 }, () => cache.get()));
+    assert.equal(f.signs, 1, 'une seule signature');
+    assert.equal(new Set(tokens).size, 1);
+    sameJSON(f.stored, { token: 'jwt-1@1800000000', iat: 1_800_000_000, key_id: 'FAKEKEY123' });
+    f.nowS += 39 * 60;
+    assert.equal(await cache.get(), 'jwt-1@1800000000', 'encore valable');
+    assert.equal(f.signs, 1);
+    f.nowS += 2 * 60;
+    assert.equal(await cache.get(), `jwt-2@${1_800_000_000 + 41 * 60}`, 'renouvelé après 40 min');
+  });
+
+  test('push : jeton du fournisseur repris d\'une instance à l\'autre, une seule instance le renouvelle', async () => {
+    const { providerTokenCache } = await load();
+    const f = authFakes({ stored: { token: 'jwt-autre@1800000000', iat: 1_800_000_000 - 600, key_id: 'FAKEKEY123' } });
+    assert.equal(await providerTokenCache(f.deps).get(), 'jwt-autre@1800000000', 'nouvelle instance : pas de signature');
+    assert.equal(f.signs, 0);
+    // Ligne périmée, deux instances en même temps : la seconde prend celui de la première
+    f.stored = { token: 'vieux', iat: f.nowS - 3600, key_id: 'FAKEKEY123' };
+    const [a, b] = await Promise.all([providerTokenCache(f.deps).get(), providerTokenCache(f.deps).get()]);
+    assert.equal(a, b, 'même jeton pour les deux instances');
+    assert.equal(f.stored.token, a);
+    // Autre clé (APNS_KEY_ID changé) : jeton refait
+    f.stored = { token: 'autre-cle', iat: f.nowS, key_id: 'OLDKEY0000' };
+    assert.notEqual(await providerTokenCache(f.deps).get(), 'autre-cle');
+    // Magasin injoignable : signé et gardé en mémoire, l'envoi continue
+    const g = authFakes();
+    g.deps.load = async () => { throw new Error('réseau'); };
+    g.deps.swap = async () => { throw new Error('réseau'); };
+    const c = providerTokenCache(g.deps);
+    assert.equal(await c.get(), 'jwt-1@1800000000');
+    assert.equal(await c.get(), 'jwt-1@1800000000');
+    assert.equal(g.signs, 1);
+  });
+
+  test('push : 403 sur le jeton du fournisseur → refait une seule fois, et seulement pour ces raisons', async () => {
+    const { providerTokenCache } = await load();
+    const f = authFakes();
+    const cache = providerTokenCache(f.deps);
+    const t1 = await cache.get();
+    cache.refused(t1, 'Forbidden');
+    cache.refused(t1, 'BadEnvironmentKeyIdInToken');
+    assert.equal(await cache.get(), t1, 'autre raison : jeton gardé');
+    for (let i = 0; i < 10; i++) cache.refused(t1, 'ExpiredProviderToken');   // 10 envois refusés en même temps
+    const after = await Promise.all(Array.from({ length: 10 }, () => cache.get()));
+    assert.equal(f.signs, 2, 'une seule nouvelle signature');
+    assert.equal(new Set(after).size, 1);
+    assert.notEqual(after[0], t1);
+    cache.refused(t1, 'InvalidProviderToken');   // réponse tardive pour l'ancien jeton : ignorée
+    assert.equal(await cache.get(), after[0]);
+    assert.equal(f.signs, 2);
+    // Le jeton refusé ne revient pas du magasin (une autre instance l'y aurait laissé)
+    const g = authFakes({ stored: { token: 'refuse', iat: 1_800_000_000, key_id: 'FAKEKEY123' } });
+    const c = providerTokenCache(g.deps);
+    assert.equal(await c.get(), 'refuse');
+    c.refused('refuse', 'InvalidProviderToken');
+    assert.notEqual(await c.get(), 'refuse');
+    assert.deepEqual(g.swaps, ['refuse'], 'échange conditionné au jeton refusé');
+  });
+
   test('push : secret de la planification comparé exactement', async () => {
     const { sameSecret } = await load();
     assert.equal(sameSecret('faux-secret-de-test', 'faux-secret-de-test'), true);
@@ -162,6 +239,50 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       run('__calls = []');
       await run('pushForgetDevice()');
       sameJSON(run('__calls'), [], 'rien d\'inscrit : aucun appel');
+    });
+  });
+
+  test('push app : déconnexion hors ligne, refusée ou trop lente → jeton gardé, retiré à la connexion de B', async () => {
+    // Sans ce marqueur, B se connecte, push_release ne part pas et les notifications de A arrivent chez B
+    const failures = {
+      'hors ligne': `async () => ({ data: null, error: { message: 'TypeError: Failed to fetch' } })`,
+      'erreur du serveur': `async () => ({ data: null, error: { code: '57014', message: 'canceling statement' } })`,
+      'exception': `async () => { throw new TypeError('Failed to fetch'); }`,
+      'délai dépassé': `() => new Promise(() => {})`,
+    };
+    for (const [label, unregister] of Object.entries(failures)) {
+      await withFakes({ permission: 'granted' }, async () => {
+        await run(`pushSetPref('reactions', true)`);
+        run(`globalThis.__rpc0 = sb.rpc; sb.rpc = (fn, a) => fn === 'push_unregister' ? (__calls.push(fn), (${unregister})()) : __rpc0(fn, a);
+          __pushTimeoutMs = PUSH_FORGET_TIMEOUT_MS; PUSH_FORGET_TIMEOUT_MS = 20; __calls = []`);
+        try { await run('pushForgetDevice()'); } finally { run('PUSH_FORGET_TIMEOUT_MS = __pushTimeoutMs'); }
+        assert.ok(run('__calls').includes('push_unregister'), label);
+        sameJSON(run(`JSON.parse(localStorage.getItem('mdlf_push'))`), { userId: 'u-test', token: FAKE_TOKEN }, `${label} : marqueur gardé`);
+        // B se connecte sur cet iPhone, sans rien allumer : le jeton de A part d'abord
+        run(`sb.rpc = __rpc0; __prefs = { reactions: false, follows: false, coach: false }; __calls = []; account.user = { id: 'u-b' }; __session = 'u-b'`);
+        await run('pushOnAccount()');
+        assert.equal(run('__calls')[0], `push_release:${JSON.stringify({ token: FAKE_TOKEN })}`, label);
+        assert.equal(run(`localStorage.getItem('mdlf_push')`), null, `${label} : retiré, marqueur vidé`);
+      });
+    }
+  });
+
+  test('push app : « Supprimer les données » déconnecté → jeton gardé pour la connexion suivante, aucun appel sans session', async () => {
+    await withFakes({}, async () => {
+      run(`localStorage.setItem('mdlf_push', JSON.stringify({ userId: 'u-a', token: '${FAKE_TOKEN}' })); account.user = null; __session = null`);
+      await run('pushForgetDevice()');
+      sameJSON(run('__calls'), [], 'push_unregister ne fait rien sans session');
+      sameJSON(run(`JSON.parse(localStorage.getItem('mdlf_push'))`), { userId: 'u-a', token: FAKE_TOKEN });
+    });
+  });
+
+  test('push app : inscription faite pendant le retrait → la nouvelle reste', async () => {
+    const OTHER = 'cd'.repeat(32);
+    await withFakes({ permission: 'granted' }, async () => {
+      await run(`pushSetPref('reactions', true)`);
+      run(`globalThis.__rpc0 = sb.rpc; sb.rpc = async (fn, a) => { if (fn === 'push_unregister') localStorage.setItem('mdlf_push', JSON.stringify({ userId: 'u-test', token: '${OTHER}' })); return __rpc0(fn, a); }`);
+      await run('pushForgetDevice()');
+      assert.equal(run(`JSON.parse(localStorage.getItem('mdlf_push')).token`), OTHER);
     });
   });
 

@@ -25,7 +25,7 @@ psql -c "insert into auth.users (id) values ('00000000-0000-0000-0000-0000000008
   do \$\$ begin if (select count(*) from private.push_outbox) <> 1 then raise 'file vide avant le retour arrière'; end if; end \$\$;"
 psql -f "$root/supabase/rollback/20261031900000_notifications_push_down.sql"
 psql -c "do \$\$ begin
-  if to_regclass('public.push_devices') is not null or to_regclass('public.push_prefs') is not null or to_regclass('private.push_outbox') is not null then raise 'tables restées'; end if;
+  if to_regclass('public.push_devices') is not null or to_regclass('public.push_prefs') is not null or to_regclass('private.push_outbox') is not null or to_regclass('private.push_apns_auth') is not null then raise 'tables restées'; end if;
   if exists (select 1 from pg_proc where proname like 'push\_%') then raise 'fonctions restées'; end if;
   if exists (select 1 from pg_trigger where tgname like '%\_push') then raise 'déclencheurs restés'; end if;
   if (select count(*) from public.bravos) <> 1 then raise 'bravo perdu'; end if;

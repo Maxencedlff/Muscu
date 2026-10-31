@@ -10,7 +10,8 @@
 //    sens). Hôte de production ou de sandbox selon l'environnement du jeton.
 // 3. Jeton du fournisseur : JWT ES256 signé par la clé .p8 (en-tête kid, revendications iss = Team ID et
 //    iat) ; Apple le refuse au-delà d'une heure et demande de ne pas le renouveler plus d'une fois toutes
-//    les 20 minutes : il est gardé 40 minutes.
+//    les 20 minutes : il est gardé 40 minutes, dans la base, et signé une seule fois pour tous les envois
+//    (providerTokenCache).
 // 4. Réponse d'APNs → suite : 200 envoyée ; 410 Unregistered, 400 BadDeviceToken ou
 //    DeviceTokenNotForTopic : jeton mort, retiré ; 403 sur le jeton du fournisseur, 429, 5xx, réseau :
 //    nouvel essai plus tard (la ligne reste en file, 5 essais au plus) ; autre 4xx : abandon (journalisé).
@@ -114,6 +115,44 @@ export async function providerToken({ keyP8, keyId, teamId, nowS, subtle = globa
   const claims = b64urlText(JSON.stringify({ iss: teamId, iat: Math.floor(nowS) }));
   const sig = await subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, new TextEncoder().encode(`${head}.${claims}`));
   return `${head}.${claims}.${b64url(new Uint8Array(sig))}`;
+}
+
+// Jeton du fournisseur partagé par tous les envois. Apple : pas plus d'un nouveau jeton toutes les 20 min
+// (sinon 429 TooManyProviderTokenUpdates), jamais plus d'une heure. Les instances de la fonction Edge vivent
+// peu : le jeton est gardé dans la base (private.push_apns_auth, une ligne, lue et écrite par service_role
+// seulement) et repris par chaque nouvelle instance. Dans une instance, la promesse en cours est partagée :
+// 10 envois simultanés attendent la même signature. Renouvelé après 40 min par un échange conditionnel
+// (swap : remplacé seulement si la ligne est encore celle lue) : deux instances qui renouvellent en même
+// temps gardent toutes deux celui de la première. 403 InvalidProviderToken ou ExpiredProviderToken : ce
+// jeton-là est écarté, une fois (une réponse tardive pour un jeton déjà remplacé ne change rien). Base
+// injoignable : signé et gardé en mémoire, l'envoi continue.
+//   load() → { token, iat, key_id } | null ; swap(attendu, nouveau) → la ligne gagnante ; sign(iat) → JWT
+export const PROVIDER_TOKEN_REFUSED = Object.freeze(['InvalidProviderToken', 'ExpiredProviderToken']);
+export function providerTokenCache({ keyId, now, sign, load, swap, ttlS = PROVIDER_TOKEN_TTL_S }) {
+  let current = null, pending = null, refusedToken = null;
+  const usable = (r) => !!r && typeof r.token === 'string' && r.token !== refusedToken && r.key_id === keyId
+    && Number.isFinite(r.iat) && now() - r.iat < ttlS && now() - r.iat > -60;
+  async function refresh() {
+    let row = null;
+    try { row = await load(); } catch { /* base injoignable : signé ici */ }
+    if (usable(row)) return row;
+    const iat = Math.floor(now());
+    const next = { token: await sign(iat), iat, key_id: keyId };
+    try { const won = await swap(row?.token ?? null, next); if (usable(won)) return won; } catch { /* gardé en mémoire */ }
+    return next;
+  }
+  return {
+    get() {
+      if (usable(current)) return Promise.resolve(current.token);
+      pending ||= refresh().then((r) => { current = r; return r.token; }).finally(() => { pending = null; });
+      return pending;
+    },
+    refused(token, reason) {
+      if (!PROVIDER_TOKEN_REFUSED.includes(reason) || !current || token !== current.token) return;
+      refusedToken = token;
+      current = null;
+    },
+  };
 }
 
 // Comparaison du secret de la planification en temps constant
