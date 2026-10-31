@@ -44,6 +44,9 @@ jobs:
       # Grâce de fin de séance sous concurrence (6 envois simultanés, 2 acceptés)
       - name: Grâce de fin de séance en parallèle
         run: bash tests/sql/grace_race_test.sh
+      # Retour arrière du payant plus (achat à vie, accès à vie révocables), puis les tests des tarifs
+      - name: Retour arrière du payant plus
+        run: bash tests/sql/rollback_payant_plus.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)

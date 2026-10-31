@@ -37,13 +37,22 @@
 //    transaction d'origine, et à défaut par l'appAccountToken de la transaction.
 // 9. Offre de lancement (offerType 1 de la transaction signée) et environnement : remontés au serveur,
 //    qui les enregistre (intro_offer, environment).
+// 10. ACCÈS À VIE (payant plus, achat non consommable) : ONE_TIME_CHARGE à l'achat (et à
+//    l'utilisation d'un code d'offre de ce produit), REFUND au remboursement, REFUND_REVERSED quand
+//    Apple annule un remboursement (litige). Pas de date de fin. REFUND_REVERSED n'est traité QUE pour
+//    l'accès à vie : pour un abonnement il reste ignoré comme avant (la règle 4 du serveur ne rouvre
+//    qu'un vrai réabonnement ; le secours est documenté dans PAYANT_V1.md). Le serveur ne rouvre un
+//    achat à vie remboursé que sur un évènement PLUS RÉCENT que le remboursement.
 
 import { BUNDLE_ID, ENVIRONMENTS, transactionDecision } from '../verify-purchase/purchase-policy.js';
 
 export const HANDLED_TYPES = Object.freeze([
   'SUBSCRIBED', 'DID_RENEW', 'DID_CHANGE_RENEWAL_STATUS', 'DID_FAIL_TO_RENEW',
   'EXPIRED', 'GRACE_PERIOD_EXPIRED', 'REFUND', 'REVOKE',
+  'ONE_TIME_CHARGE', 'REFUND_REVERSED',
 ]);
+// Types propres à l'accès à vie : un abonnement qui les porterait est ignoré (200)
+export const LIFETIME_ONLY_TYPES = Object.freeze(['REFUND_REVERSED']);
 // Types qui ferment l'accès tout de suite
 export const REVOKING_TYPES = Object.freeze(['REFUND', 'REVOKE']);
 // Types où Apple ferme l'accès lui-même : la date de fin peut reculer
@@ -70,12 +79,14 @@ export function notificationDecision({ notification, transaction, renewal = null
   const decided = transactionDecision(transaction, { nowMs });
   if (!decided.ok) return ignore(type, decided.error);
   const v = decided.value;
+  if (LIFETIME_ONLY_TYPES.includes(type) && v.kind !== 'life') return ignore(type, 'type_ignored');
 
   // La période de grâce de facturation ne vit que dans le renewalInfo
   const grace = isObject(renewal) ? msDate(renewal.gracePeriodExpiresDate) : null;
-  let until = Date.parse(v.expires_at);
-  if (grace !== null) until = until === null ? grace : Math.max(until, grace);
-  const force = EXPIRING_TYPES.includes(type);
+  // Achat à vie : aucune date de fin, ni grâce ni expiration
+  let until = v.expires_at === null ? null : Date.parse(v.expires_at);
+  if (until !== null && grace !== null) until = Math.max(until, grace);
+  const force = v.kind === 'sub' && EXPIRING_TYPES.includes(type);
   if (force && until !== null) until = Math.min(until, nowMs);
 
   return {
@@ -85,7 +96,9 @@ export function notificationDecision({ notification, transaction, renewal = null
       original_transaction_id: v.original_transaction_id,
       product_id: v.product_id,
       expires_at: until === null ? null : new Date(until).toISOString(),
-      revoked: v.revoked || REVOKING_TYPES.includes(type),
+      // REFUND_REVERSED : c'est Apple qui dit de rendre l'accès (« reinstate »), même si une copie de la
+      // transaction portait encore la date du remboursement
+      revoked: type === 'REFUND_REVERSED' ? false : v.revoked || REVOKING_TYPES.includes(type),
       force,
       event_at: msDate(notification.signedDate) !== null
         ? new Date(msDate(notification.signedDate)).toISOString()

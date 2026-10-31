@@ -14,8 +14,9 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   const migration = () => fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261028000000_payant.sql'), 'utf8');
   // Définitions en vigueur (modèle B) : la migration du 29/10 remplace plusieurs fonctions du 28/10
   const modelB = () => fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261029000000_payant_modele_b.sql'), 'utf8');
-  // Dernière définition des produits reconnus : 20261030000000_payant_tarifs.sql
   const tarifs = () => fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261030000000_payant_tarifs.sql'), 'utf8');
+  // Dernière définition des produits reconnus et de private.access_json : 20261031000000_payant_plus.sql
+  const plus = () => fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261031000000_payant_plus.sql'), 'utf8');
   const bodyOf = (sql, head) => { const f = sql.slice(sql.indexOf(head)); return f.slice(0, f.indexOf('\n$$;')); };
   const contract = () => fs.readFileSync(path.join(ROOT, 'docs/PAYANT_V1.md'), 'utf8');
   const nowMs = Date.UTC(2026, 9, 28, 12, 0, 0);
@@ -288,7 +289,7 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   test('appstore-notify : les types du contrat sont traités', async () => {
     const { notificationDecision, HANDLED_TYPES } = await notify();
     sameJSON([...HANDLED_TYPES].sort(), ['DID_CHANGE_RENEWAL_STATUS', 'DID_FAIL_TO_RENEW', 'DID_RENEW', 'EXPIRED',
-      'GRACE_PERIOD_EXPIRED', 'REFUND', 'REVOKE', 'SUBSCRIBED']);
+      'GRACE_PERIOD_EXPIRED', 'ONE_TIME_CHARGE', 'REFUND', 'REFUND_REVERSED', 'REVOKE', 'SUBSCRIBED']);
     // Les sept du contrat y sont (DID_FAIL_TO_RENEW est en plus : il porte la période de grâce)
     const doc = contract();
     for (const t of HANDLED_TYPES) assert.ok(doc.includes(t), `${t} absent du contrat`);
@@ -423,34 +424,113 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     assert.equal(sans.value.event_at, new Date(nowMs - 86400_000).toISOString());
   });
 
+  // ── Accès à vie (payant plus) ───────────────────────────
+
+  test('verify-purchase : accès à vie (non consommable), sans date de fin', async () => {
+    const { transactionDecision, PRODUCT_LIFETIME } = await policy();
+    assert.equal(PRODUCT_LIFETIME, 'com.mdlf.training.lifetime');
+    const life = (over) => transactionPayload({ productId: PRODUCT_LIFETIME, type: 'Non-Consumable', expiresDate: undefined, ...over });
+    const r = transactionDecision(life({ purchaseDate: nowMs - 3600_000 }), { nowMs });
+    sameJSON(r, { ok: true, value: {
+      product_id: PRODUCT_LIFETIME, kind: 'life', expires_at: null,
+      original_transaction_id: '2000000900000001', transaction_id: '2000000900000001',
+      revoked: false, environment: 'Production', expired: false,
+      event_at: new Date(nowMs - 3600_000).toISOString(), account_token: null, intro_offer: false,
+    } });
+    // Une date de fin qu'Apple n'envoie pas pour ce produit est ignorée : jamais « expiré » côté app
+    assert.equal(transactionDecision(life({ expiresDate: nowMs - 1000 }), { nowMs }).value.expires_at, null);
+    // Type faux dans les deux sens
+    assert.equal(transactionDecision(life({ type: 'Auto-Renewable Subscription' }), { nowMs }).error, 'bad_type');
+    assert.equal(transactionDecision(life({ type: 'Consumable' }), { nowMs }).error, 'bad_type');
+    // Partage familial refusé, Sandbox accepté (la base le borne à 7 jours), remboursement vu
+    assert.equal(transactionDecision(life({ inAppOwnershipType: 'FAMILY_SHARED' }), { nowMs }).error, 'not_purchased');
+    assert.equal(transactionDecision(life({ environment: 'Sandbox' }), { nowMs }).value.environment, 'Sandbox');
+    assert.equal(transactionDecision(life({ revocationDate: nowMs - 1000 }), { nowMs }).value.revoked, true);
+    // Jamais d'« essai gratuit » pour un achat unique
+    assert.equal(transactionDecision(life({ offerType: 1, offerDiscountType: 'FREE_TRIAL' }), { nowMs }).value.intro_offer, false);
+    // La base borne l'achat à vie Sandbox à 7 jours, et le contrat le dit
+    assert.ok(/when k = 'life' and coalesce\(env, cur\.environment\) = 'Sandbox'/.test(plus()), 'borne Sandbox absente');
+    assert.ok(/select 7 \$\$/.test(plus()) && /7 jours/.test(contract()), 'durée du test Sandbox');
+  });
+
+  test('appstore-notify : accès à vie (ONE_TIME_CHARGE, REFUND, REFUND_REVERSED)', async () => {
+    const { notificationDecision } = await notify();
+    const lifeTx = (over) => transactionPayload({ productId: 'com.mdlf.training.lifetime', type: 'Non-Consumable', expiresDate: undefined, ...over });
+    const decide = (type, tx = lifeTx()) => notificationDecision({ notification: notificationPayload({ notificationType: type, signedDate: nowMs }), transaction: tx, nowMs });
+    const buy = decide('ONE_TIME_CHARGE');
+    assert.equal(buy.handled, true);
+    sameJSON({ e: buy.value.expires_at, r: buy.value.revoked, f: buy.value.force, at: buy.value.event_at },
+      { e: null, r: false, f: false, at: new Date(nowMs).toISOString() });
+    const refund = decide('REFUND', lifeTx({ revocationDate: nowMs - 1000 }));
+    assert.equal(refund.value.revoked, true);
+    assert.equal(refund.value.expires_at, null);
+    // Remboursement annulé : Apple dit de rendre l'accès, même si la copie porte encore la date
+    const back = decide('REFUND_REVERSED', lifeTx({ revocationDate: nowMs - 1000 }));
+    assert.equal(back.handled, true);
+    assert.equal(back.value.revoked, false);
+    // REFUND_REVERSED d'un abonnement : ignoré comme avant (200)
+    sameJSON(decide('REFUND_REVERSED', transactionPayload()), { handled: false, type: 'REFUND_REVERSED', reason: 'type_ignored' });
+    // Expiration d'un achat à vie : rien ne recule, pas de force
+    const exp = decide('EXPIRED');
+    assert.equal(exp.value.expires_at, null);
+    assert.equal(exp.value.force, false);
+    // Partage familial (Apple envoie ONE_TIME_CHARGE au membre de la famille) : ignoré
+    assert.equal(decide('ONE_TIME_CHARGE', lifeTx({ inAppOwnershipType: 'FAMILY_SHARED' })).reason, 'not_purchased');
+    // Les types sont dans le contrat
+    for (const t of ['ONE_TIME_CHARGE', 'REFUND_REVERSED']) assert.ok(contract().includes(t), `${t} absent du contrat`);
+  });
+
+  test('payant plus : accès à vie offerts révocables et tracés, jamais par une RPC', () => {
+    const sql = plus();
+    for (const f of ['grant_lifetime', 'revoke_lifetime', 'revoke_gift_code']) {
+      assert.ok(new RegExp(`create function private\\.${f}\\(`).test(sql), `${f} absente`);
+      assert.ok(new RegExp(`revoke all on function private\\.${f}\\([^)]*\\) from public, anon, authenticated, service_role;`).test(sql), `${f} exécutable par l'API`);
+      assert.ok(contract().includes(`private.${f}`), `${f} absente du contrat`);
+    }
+    assert.ok(!/grant execute on function private\./.test(sql), 'une brique privée ouverte');
+    // Un accès à vie offert retiré ne compte plus, et un code désactivé est refusé
+    assert.ok(/k\.kind = 'lifetime' and r\.revoked_at is null/.test(bodyOf(sql, 'create or replace function private.access_refresh')));
+    assert.ok(/g\.revoked_at is not null or/.test(bodyOf(sql, 'create or replace function public.redeem_gift_code')));
+    // Aucun code écrit en dur dans la migration ni dans son retour arrière (tirés au hasard par la base)
+    const down = fs.readFileSync(path.join(ROOT, 'supabase/rollback/20261031000000_payant_plus_down.sql'), 'utf8');
+    for (const text of [sql, down]) {
+      const strip = text.replace(/'K7M2QX9PR4TD'/g, '');   // exemple du commentaire, jamais créé
+      assert.ok(!/'[A-HJ-NP-Z2-9]{10,24}'/.test(strip.replace(/'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'/g, '')), 'code en dur');
+    }
+  });
+
   // ── Serveur et app disent la même chose ─────────────────
 
   test('payant : mêmes produits, mêmes erreurs et mêmes clés que la migration et le contrat', async () => {
-    const { PRODUCT_KINDS, BUNDLE_ID, COACH_PRODUCTS } = await policy();
+    const { PRODUCT_KINDS, BUNDLE_ID, COACH_PRODUCTS, PRODUCT_LIFETIME } = await policy();
     const sql = modelB();
-    const productSql = tarifs().slice(tarifs().indexOf('function private.access_product_kind'), tarifs().indexOf('function private.coach_product_limit'));
+    const productSql = bodyOf(plus(), 'create or replace function private.access_product_kind');
     // Produits et natures : private.access_product_kind (dernière version) doit dire exactement la même chose
     for (const [product, kind] of Object.entries(PRODUCT_KINDS)) {
       assert.ok(new RegExp(`when '${product.replace(/\./g, '\\.')}'\\s+then '${kind}'`).test(productSql), `${product} absent de la migration`);
     }
-    const inSql = [...productSql.matchAll(/when '(com\.mdlf\.training[^']*)'\s+then '(sub|gift)'/g)].map((m) => m[1]);
+    const inSql = [...productSql.matchAll(/when '(com\.mdlf\.training[^']*)'\s+then '(sub|life|gift)'/g)].map((m) => m[1]);
     sameJSON(inSql.sort(), Object.keys(PRODUCT_KINDS).sort(), 'produits en trop ou en moins côté serveur');
     // Les mêmes identifiants que le contrat
     const doc = contract();
     for (const p of [...Object.keys(PRODUCT_KINDS), BUNDLE_ID]) assert.ok(doc.includes(p), `${p} absent du contrat`);
     const tiers = ['coach10', 'coach20', 'coach30', 'coachmax'].flatMap(t => [`com.mdlf.training.${t}.monthly`, `com.mdlf.training.${t}.yearly`]);
-    sameJSON(Object.keys(PRODUCT_KINDS).sort(), ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly', ...tiers].sort(), 'dix abonnements, rien d\'autre');
+    sameJSON(Object.keys(PRODUCT_KINDS).sort(), ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly', ...tiers,
+      'com.mdlf.training.lifetime'].sort(), 'dix abonnements et l\'accès à vie, rien d\'autre');
+    assert.equal(PRODUCT_KINDS[PRODUCT_LIFETIME], 'life');
     sameJSON([...COACH_PRODUCTS].sort(), [...tiers].sort(), 'paliers coach');
     // Chaque produit coach a son palier côté serveur (private.coach_product_limit)
     for (const id of tiers) assert.ok(tarifs().includes(`when '${id}'`) && /coach_product_limit/.test(tarifs()), `${id} sans palier`);
     // Les clés de my_access() (modèle B), côté serveur et côté contrat
-    const keys = ['status', 'until', 'paywall_on', 'days_left', 'can_write', 'gift', 'gift_until', 'coach_team', 'intro_offer', 'intro_until', 'server_now'];
+    const keys = ['status', 'until', 'paywall_on', 'days_left', 'can_write', 'gift', 'gift_until', 'coach_team', 'intro_offer', 'intro_until',
+      'lifetime', 'also_sub', 'server_now'];
+    const json = bodyOf(plus(), 'create or replace function private.access_json');
     for (const k of keys) {
-      assert.ok(new RegExp(`'${k}',`).test(sql), `clé ${k} absente de private.access_json`);
+      assert.ok(new RegExp(`'${k}',`).test(json), `clé ${k} absente de private.access_json`);
       assert.ok(doc.includes(k), `clé ${k} absente du contrat`);
     }
     // Erreurs levées par la base, toutes connues de purchaseFailure ou documentées
-    const raised = [...new Set([...(migration() + sql).matchAll(/raise exception '([a-z_]+)'/g)].map((m) => m[1]))];
+    const raised = [...new Set([...(migration() + sql + plus()).matchAll(/raise exception '([a-z_]+)'/g)].map((m) => m[1]))];
     for (const e of raised) assert.ok(doc.includes(e), `erreur ${e} absente du contrat`);
     // Le verrou est livré éteint ; l'essai maison a disparu (c'est l'offre de lancement d'Apple)
     assert.ok(/\('paywall_on', 'false'::jsonb\)/.test(migration()), 'paywall_on livré allumé');

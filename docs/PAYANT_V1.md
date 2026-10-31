@@ -10,6 +10,8 @@ Décisions de Maxence (26/10 au 28/10/2026), dont le **modèle B** voté le 28/1
 - codes d'offre d'abonnement d'Apple : **1 an gratuit au maximum** ;
 - ~~élève suivi par un coach gratuit, 10 au plus par coach~~ : **retiré le 30/10** par Maxence. Un élève paie, avec **−25 % pendant 12 mois** grâce au code de son coach, sans essai gratuit. Le **rôle coach** est réservé aux éducateurs sportifs diplômés (demande vérifiée à la main) et le coach paie un abonnement coach à paliers.
 
+**Payant plus (31/10/2026, branche `nuit-payantplus`)** : accès à vie payant `com.mdlf.training.lifetime`, accès à vie offerts révocables et tracés, reconnaissance de TestFlight. Voir « Payant plus » plus bas.
+
 **Le verrou est livré ÉTEINT.** Tant que `app_config.paywall_on` est faux, l'app ne bloque rien. On allume après validation de Maxence.
 
 ## Produits App Store Connect
@@ -28,7 +30,9 @@ Groupe d'abonnement `MDLF Training Acces` (id **22520671**), app id **6823561962
 | MDLF Training mensuel | `com.mdlf.training.pro.monthly` | 6827767578 | 9 | 6,49 € | 6,49 € | 5,00 CHF | 7,99 $ CA | 5,99 $ |
 | MDLF Training annuel | `com.mdlf.training.pro.yearly` | 6827767660 | 10 | 55,00 € | 55,00 € | 40,00 CHF | 69,00 $ CA | 49,00 $ |
 
-- **Essai** : offre de lancement « 3 mois gratuits » (FREE_TRIAL, THREE_MONTHS) sur **les dix** produits, dans les 5 pays.
+| Accès à vie (**proposé, PAS créé**) | `com.mdlf.training.lifetime` | à créer | hors groupe | ≈ 90 € (89,99 € proposé) | équivalence | équivalence | équivalence | équivalence |
+
+- **Essai** : offre de lancement « 3 mois gratuits » (FREE_TRIAL, THREE_MONTHS) sur **les dix** abonnements, dans les 5 pays. L'accès à vie n'a pas d'essai.
 - **Pays** : FRA, BEL, CHE, CAN, USA (disponibilité de chaque produit, `availableInNewTerritories` vrai). Prix France choisis par Maxence ; les 4 autres pays = **équivalence automatique d'Apple** (`equalizations` du prix France), sauf **CHE coachmax mensuel** relevé à **25,00 CHF** (l'équivalence donnait 20,00 CHF, le même prix que coach30). Ces équivalences sont parfois basses (CHE, USA) : à revoir par Maxence s'il veut des prix ronds par pays. Les autres pays qu'Apple ouvrirait plus tard prendront aussi l'équivalence automatique.
 - **Niveaux** (ordre du groupe, 1 = le plus haut) : chaque palier coach est au-dessus du palier inférieur, et tout le coach est au-dessus du particulier. Passer de coach10 à coach20 (ou de particulier à coach) est donc une **montée** : immédiate chez Apple, avec remboursement au prorata de la période en cours ; une **descente** prend effet au renouvellement suivant. Mensuel et annuel d'un même palier sont à deux niveaux voisins (l'API n'en met pas deux au même niveau) : passer du mensuel à l'annuel d'un même palier est une descente, appliquée au renouvellement.
 - **Offre élève** : code d'offre « Eleve de coach -25 pct 12 mois » (id `9a963bbc-d2c8-4478-8ba3-6bc74abc067d`) sur `pro.monthly` : nouveaux abonnés seulement (`NEW`), remplace l'essai (`REPLACE_INTRO_OFFERS`), payé chaque mois (`PAY_AS_YOU_GO`, 1 mois × 12) à **4,89 €** (BEL 4,89 €, CHE 3,00 CHF, CAN 4,99 $ CA, USA 3,99 $), puis prix normal. Voir « Élève : −25 % pendant 12 mois ».
@@ -51,16 +55,16 @@ Groupe d'abonnement `MDLF Training Acces` (id **22520671**), app id **6823561962
   - `gift` : accès **à vie** (code cadeau maison `lifetime`). `gift_until` : fin d'un **cadeau en jours**, cumulée à chaque code. `expires_at` : la plus lointaine des deux dates (abonnement payé, cadeau en jours).
   - Plus de `trial_started_at` (retirée par `20261029000000_payant_modele_b.sql`).
   - RLS fermée sans politique, aucun GRANT : lecture seulement par RPC, écriture seulement par les fonctions du serveur.
-- `entitlement_claims (original_transaction_id pk, user_id, product_id, kind = 'sub', expires_at, revoked_at, event_at, intro_offer, environment, created_at, updated_at)` : registre **à vie** des transactions Apple vérifiées. `intro_offer` : la transaction appliquée en dernier est dans l'offre de lancement. `environment` : `Production` ou `Sandbox`. RLS fermée, aucun GRANT.
+- `entitlement_claims (original_transaction_id pk, user_id, product_id, kind = 'sub' | 'life' (accès à vie, payant plus), expires_at, revoked_at, event_at, intro_offer, environment, created_at, updated_at)` : registre **à vie** des transactions Apple vérifiées. `intro_offer` : la transaction appliquée en dernier est dans l'offre de lancement. `environment` : `Production` ou `Sandbox`. RLS fermée, aucun GRANT.
 - `app_config (key pk, value jsonb)` : `paywall_on` (booléen, défaut **false**) et `min_build` (build native minimale, défaut **0** = aucune). `trial_days` a été retiré. Lisible par `authenticated` ; **anon ne lit que les lignes `paywall_on` et `min_build`** (colonnes `key`, `value`). Écrit seulement par l'administrateur.
 - `private.coach_free_limits` : plus lue depuis le 30/10 (gardée pour revenir en arrière).
 - `coach_requests`, `coach_offer_codes`, `coach_origins`, `private.tarifs_ex_coach_team`, colonne `coach_invites.permanent` : voir « Tarifs du 30/10 ».
-- `gift_codes` et `gift_redemptions` : voir « Codes cadeaux maison ».
+- `gift_codes` et `gift_redemptions` : voir « Codes cadeaux maison » ; colonnes `revoked_at` et `revoke_reason` ajoutées par le payant plus (accès à vie révocables).
 
 ## Fonctions RPC (rôle `authenticated`)
 | Fonction | Renvoie | Règles |
 |---|---|---|
-| `my_access()` | `jsonb` | `{ status, until, paywall_on, days_left, can_write, gift, gift_until, coach_team, intro_offer, intro_until, server_now }`. Crée la ligne `entitlements` (statut `none`) au premier appel, sans rien donner. `can_write` = droit d'enregistrer une séance : **toujours `true` tant que `paywall_on` est faux** ; verrou allumé, vrai seulement pour `active` et `gift` (plus `coach_team` depuis le 30/10). `intro_offer` / `intro_until` : l'abonnement en cours est dans l'offre de lancement d'Apple, et sa fin. |
+| `my_access()` | `jsonb` | `{ status, until, paywall_on, days_left, can_write, gift, gift_until, coach_team, intro_offer, intro_until, lifetime, also_sub, server_now }` (`lifetime` et `also_sub` : payant plus). Crée la ligne `entitlements` (statut `none`) au premier appel, sans rien donner. `can_write` = droit d'enregistrer une séance : **toujours `true` tant que `paywall_on` est faux** ; verrou allumé, vrai seulement pour `active` et `gift` (plus `coach_team` depuis le 30/10). `intro_offer` / `intro_until` : l'abonnement en cours est dans l'offre de lancement d'Apple, et sa fin. |
 | `access_state()` | `jsonb` | Même état, en lecture seule, sans rien créer. |
 | `redeem_gift_code(code text)` | `jsonb` | Code cadeau maison : `{ ok, error, kind, access }`, un refus de code n'est **pas** une exception. |
 | `coach_request_state()` / `coach_request_submit(card_name, card_number, diploma)` | `jsonb` | Demande du rôle coach (« Tarifs du 30/10 »). |
@@ -73,7 +77,7 @@ Aucune RPC d'écriture du droit d'accès venant d'Apple : les écritures d'abonn
 ## Edge Functions
 - **`verify-purchase`** (`verify_jwt = false` dans `supabase/config.toml` : le jeton est vérifié dans le code, `caller()` → `_shared/auth-guard.js` → `auth.getUser`, 401 avant tout travail ; prouvé par `tests/unit/auth-guard.mjs`) : entrée `{ jws }`. Vérifie la chaîne de certificats Apple, le `bundleId`, l'environnement (**Production ou Sandbox, tous deux acceptés**, Xcode refusé), relit la transaction par l'**App Store Server API** (`/inApps/v1/transactions/{id}`, hôte Production ou Sandbox selon la transaction), lit l'**offre de lancement** et écrit `entitlements` par `srv_access_purchase(…, p_intro, p_environment)`. Erreurs : `invalid_jws`, `bad_bundle`, `bad_environment`, `unknown_product`, `bad_type`, `not_purchased`, `invalid_transaction`, `transaction_taken`, `not_found`, `rate_limited`.
 - **`coach-request-alert`** (30/10) : alerte e-mail d'une nouvelle demande du rôle coach, voir « Tarifs du 30/10 ».
-- **`appstore-notify`** (pas de JWT, vérifiée par la signature Apple ; à déployer avec `--no-verify-jwt`) : reçoit les **App Store Server Notifications V2**. Traite `SUBSCRIBED`, `DID_RENEW`, `DID_CHANGE_RENEWAL_STATUS`, `EXPIRED`, `GRACE_PERIOD_EXPIRED`, `REFUND`, `REVOKE` et `DID_FAIL_TO_RENEW` (période de grâce de facturation). Production et Sandbox acceptés ; offre de lancement et environnement remontés par `srv_access_event(…, p_intro, p_environment)`.
+- **`appstore-notify`** (pas de JWT, vérifiée par la signature Apple ; à déployer avec `--no-verify-jwt`) : reçoit les **App Store Server Notifications V2**. Traite `SUBSCRIBED`, `DID_RENEW`, `DID_CHANGE_RENEWAL_STATUS`, `EXPIRED`, `GRACE_PERIOD_EXPIRED`, `REFUND`, `REVOKE` et `DID_FAIL_TO_RENEW` (période de grâce de facturation), plus, pour l'accès à vie (payant plus), `ONE_TIME_CHARGE` et `REFUND_REVERSED`. Production et Sandbox acceptés ; offre de lancement et environnement remontés par `srv_access_event(…, p_intro, p_environment)`.
 
 ## Modèle B : l'essai gratuit est celui d'Apple (28/10/2026)
 - **Ce qui a été retiré** (migration `20261029000000_payant_modele_b.sql`, la migration du 28/10 étant déjà en production) : l'essai maison (`trial_started_at`, `trial_days`, statut `trial`), le rattachement de l'essai à l'identifiant Apple (`verify-app-transaction`, `store_installs`, purge à 2 ans, plafond « sans preuve », plateforme déclarée, `appTransaction()` du Swift et du JS), et l'« Accès offert » d'Apple. Le piège évité : sans ce retrait, un compte aurait eu 3 mois de serveur **puis** 3 mois d'Apple.
@@ -201,7 +205,7 @@ Pour être coach il faut **vraiment** l'être : encadrer contre rémunération e
 - `js/data/plans.js` : les dix produits, palier d'un produit, « soit N mois » **calculé** (prix annuel / prix mensuel StoreKit, arrondi au demi-mois), table de repli du prix de l'offre élève par devise (seul prix écrit dans l'app, vérifié par un test). `js/data/coach-pro.js` : `coach_request_*`, `coach_tier_state`, `coach_my_code`, alerte `coach-request-alert` envoyée sans bloquer. `js/features/coach-pro-ui.js` : écran « Devenir coach », groupe de Réglages › Coach, bandeau « palier plein ».
 - **Écran d'abonnement** : onglets Particulier / Coach **seulement pour un coach validé** (les autres voient « Tu es coach ? », qui mène à la demande ; l'écran appelle `coach_request_state` pour cela) ; particulier : mensuel et annuel « soit 8,5 mois » ; coach : bascule mensuel / annuel, 4 paliers, nombre d'élèves suivis, palier « Conseillé », « Ta formule » ; élève lié et jamais abonné : seulement la carte « Offre élève de <coach> » (4,89 € par mois pendant 12 mois, puis le prix StoreKit, sans essai), bouton qui ouvre la page d'Apple avec le code ; `not_new` : retour aux formules habituelles. Règle 3.1.2 sur les trois parcours. **Verrou éteint : rien n'est achetable** (ni particulier, ni coach, ni offre élève).
 - Réglages › Coach : code permanent `XXXX-XXXX-XXXX` à partager ; bandeau « 10 élèves sur 10 : passe au palier supérieur » → onglet Coach, palier suivant présélectionné. Réglages › Abonnement : « Offert par ton coach » retiré, « Changer de palier coach » ajouté.
-- L'app demande toujours un code élève de **Production** (elle ne reconnaît pas TestFlight) : des codes Sandbox de test passent par un compte de test dédié.
+- ~~L'app demande toujours un code élève de Production (elle ne reconnaît pas TestFlight)~~ : **corrigé le 31/10** (payant plus) : l'app lit l'environnement StoreKit (`environment()` du module natif, `AppTransaction.shared`) et demande un code **Sandbox** sous TestFlight, **Production** sinon.
 - `privacy.html` (FR et EN) : données de la demande coach (nom sur la carte, numéro, diplôme), finalité (vérification sur le site du ministère), destinataire (l'administrateur, alerté par e-mail Resend), durée (tant que le rôle est actif, puis 1 an après un refus ou un retrait ; effacées avec le compte) ; rattachement élève → coach et code d'offre.
 
 ### Ce qui reste réversible
@@ -214,7 +218,7 @@ Pour être coach il faut **vraiment** l'être : encadrer contre rémunération e
 - **Ordre des statuts** : `gift` > `active` > `expired` > `none` (`coach_team` n'est plus produit depuis le 30/10).
 - **`until`** : fin de l'abonnement ou du cadeau en jours (`active`, `gift`) ; pour `expired`, la dernière fin d'accès (fin d'abonnement, remboursement, cadeau en jours) ; `null` sinon. **`days_left`** : jours entiers restants pour `active` et `gift`, `null` sinon.
 - **`app_config`** : une valeur absente ou du mauvais type retombe sur « éteint ». Pour allumer le verrou : `update public.app_config set value = 'true'::jsonb, updated_at = now() where key = 'paywall_on';`
-- **Produits reconnus** en dur (`private.access_product_kind`, dernière version dans `20261030000000_payant_tarifs.sql`, et `PRODUCT_KINDS` de `purchase-policy.js`, comparés par `tests/unit/payant.mjs`) : les **dix** abonnements. Tout autre produit, dont l'ancien « Accès offert », est refusé (`unknown_product`), et l'app termine cette transaction pour qu'elle ne revienne pas.
+- **Produits reconnus** en dur (`private.access_product_kind`, dernière version dans `20261031000000_payant_plus.sql`, et `PRODUCT_KINDS` de `purchase-policy.js`, comparés par `tests/unit/payant.mjs`) : les **dix** abonnements (`sub`) et l'**accès à vie** `com.mdlf.training.lifetime` (`life`). Tout autre produit, dont l'ancien « Accès offert », est refusé (`unknown_product`), et l'app termine cette transaction pour qu'elle ne revienne pas.
 - **Erreurs levées** (message exact, errcode `P0001`) : `not_found`, `transaction_taken`, `unknown_product`, `invalid_transaction`, `rate_limited`, `paywall_locked`, et `invalid_kind` pour l'administrateur qui se trompe de `kind` dans `make_gift_code`.
 - **Débit** : 120 appels de `srv_access_purchase` par compte et par 24 h, 10 essais de code cadeau par heure.
 - **Partage familial refusé** (`not_purchased`) : il n'est pas activé sur ces produits.
@@ -284,6 +288,51 @@ Les utilisateurs sans compte d'une ancienne build ne synchronisent rien : le ver
 9. Trancher la règle 5.1.1(v) (note ci-dessus) et le lien TestFlight public (voir « Sandbox accepté ») ; revoir si besoin les prix des pays hors France (équivalences d'Apple).
 10. Statut de commerçant DSA, mentions légales de professionnel, CGV/CGU, médiateur de la consommation (voir la mémoire du projet) ; fiche Confidentialité d'App Store Connect si elle doit citer la demande coach.
 11. Fabriquer ses premiers codes cadeaux : `select private.make_gift_code('days', 90, 10, 'Beta');`
+
+## Payant plus (31/10/2026, migration `20261031000000_payant_plus.sql`)
+
+Retour arrière : `supabase/rollback/20261031000000_payant_plus_down.sql` (à la main, vérifié par `tests/sql/rollback_payant_plus.sh`). Rien n'est créé dans App Store Connect, rien n'est déployé.
+
+### 1. Accès à vie payant
+- **Produit proposé** : `com.mdlf.training.lifetime`, **achat non consommable** (« Non-Consumable »), prix proposé **89,99 €** (≈ 90 €, point de prix d'Apple), équivalences d'Apple dans les 4 autres pays, **partage familial désactivé** (une transaction `FAMILY_SHARED` est refusée, `not_purchased`). **Rien n'est créé** : c'est à Maxence de le créer dans App Store Connect (voir la liste plus bas).
+- **Hors du groupe d'abonnements** : un non consommable n'appartient à aucun groupe. Acheter l'accès à vie **n'arrête pas** un abonnement en cours ; Apple continue de le facturer. L'app le dit avant l'achat (mentions sous la carte « À vie »), le redit après (feuille « Ton abonnement continue », bouton « Gérer chez Apple ») et dans Réglages › Abonnement tant que le serveur voit les deux (`also_sub`).
+- **Serveur** : nature `life` dans `entitlement_claims` (contrainte `kind in ('sub', 'life')`), même registre, même unicité (`original_transaction_id` : un achat à vie ne sert qu'à un compte, `transaction_taken`), même vérification par `verify-purchase` (type attendu `Non-Consumable`, pas de date de fin) et mêmes notifications par `appstore-notify` :
+  - `ONE_TIME_CHARGE` (achat, ou code d'offre de ce produit) : écrit l'achat ;
+  - `REFUND` : l'accès tombe (`revoked_at`) ;
+  - `REFUND_REVERSED` (Apple annule un remboursement après un litige, et demande de rendre l'accès) : **traité seulement pour l'accès à vie** ; le serveur rouvre l'achat si l'évènement est **plus récent** que le remboursement (règle 4 bis de `private.access_claim`). Une notification rejouée d'avant le remboursement, ou une relecture par `verify-purchase` (date d'achat d'origine), ne rouvre rien. Pour un abonnement, `REFUND_REVERSED` reste ignoré (secours SQL de « Réouverture après un remboursement »).
+  - une transaction ne change jamais de nature (abonnement ↔ à vie) : `invalid_transaction`.
+- **Sandbox (TestFlight, examen d'Apple) : 7 jours seulement.** TestFlight achète toujours en Sandbox, sans payer. Un abonnement Sandbox s'arrête tout seul ; un non consommable, jamais : sans borne, **tout testeur TestFlight aurait un accès à vie réel et définitif** sur son compte MDLF. Un achat à vie Sandbox vaut donc **7 jours après l'achat** (`private.access_life_test_days()`, fin fixée une fois, jamais prolongée par une relecture), affiché « Accès à vie (test) » et « Fin du test ». L'équipe d'examen d'Apple a largement le temps de vérifier l'achat. Les testeurs qui doivent garder l'app reçoivent un **accès à vie offert** (point 2).
+- **`my_access()`** gagne deux clés : **`lifetime`** (`'purchase'` achat payé en Production, `'gift'` accès à vie offert, `'test'` achat Sandbox de 7 jours, `null` sinon) et **`also_sub`** (un abonnement Apple tourne encore à côté d'un accès à vie payé ou offert). Achat à vie payé : `status = 'active'`, `until = null`, `days_left = null`, `can_write` vrai, `intro_offer` faux. Ordre : accès à vie offert > achat à vie > cadeau en jours > abonnement > expiré > aucun. Hors ligne, un accès sans date de fin garde la règle des 7 jours (comme un cadeau à vie).
+- **Offre élève** : un acheteur à vie a une transaction Apple, il n'est donc plus « nouveau » (`not_new`).
+- **App** : `js/data/plans.js` (`PLAN_LIFETIME_ID`, `PLAN_SOLD_IDS`, période `life`), `js/data/access.js` (`accessLifetime`, `accessAlsoSub`, produits lus chez StoreKit, prix jamais écrit), `js/features/paywall-ui.js` : carte « À vie » sous les deux formules du particulier (« <prix> en une fois », « Un seul paiement, sans abonnement »), mentions propres (débité à la confirmation, rien ne se renouvelle, un abonnement en cours n'est pas arrêté), écran `paywall` raison `life` pour un abonné (Réglages › Abonnement › « Passer à l'accès à vie »), états « Accès à vie », « Accès offert à vie », « Accès à vie (test) ». Verrou éteint : rien n'est achetable, comme les abonnements.
+- **Natif** (`StorePlugin.swift`, **non compilé**) : `lifetimeIds`, `soldIds` (lus par `products()`, acceptés par `purchase()`, lus dans `current()` et `restore()`), clé `lifetime` dans une transaction, `lifetimeIds` dans `status()`. Le produit n'a ni `period`, ni `introEligible`, ni `offer` (vérifié par `tests/unit/store-contract.mjs`). **Changement natif : il faut une build** (empreinte native), comme tout le payant.
+
+### 2. Accès « gratuit à vie » : attribués, révocables, tracés
+- **Ce qui existait** : les codes cadeaux maison `lifetime` (`private.make_gift_code('lifetime', …)`, saisis dans « J'ai un code »), tracés par `gift_redemptions` (qui, quel code, quand) et `gift_codes.note`. **Ce qui manquait** : retirer un accès à vie offert, et l'attribuer à un compte sans lui faire saisir un code.
+- **Ajouts** (fonctions `private.*`, exécutables par **aucun** rôle de l'API, seulement dans l'éditeur SQL) :
+  - **`private.grant_lifetime(user_id, note)`** : un code à usage unique est tiré au hasard, noté « attribué : <note> », utilisé aussitôt au nom du compte. Réponse `{ ok, code, user_id }`, ou `{ ok: false, error: 'already_lifetime' }`. Erreurs `not_found` (compte inconnu), `invalid_note` (2 à 200 caractères). Exemple :
+    `select private.grant_lifetime((select user_id from public.user_profiles where username = '<pseudo>'), 'Cyril, coach partenaire');`
+  - **`private.revoke_lifetime(user_id, reason)`** : retire les accès à vie **offerts** du compte (`gift_redemptions.revoked_at`, `revoke_reason`). Un achat à vie **payé** ne se retire pas ainsi (seul un remboursement d'Apple le fait). Erreur `invalid_reason`.
+  - **`private.revoke_gift_code(code, reason)`** : désactive un code (`gift_codes.revoked_at` : refusé ensuite comme un code expiré, `code_expired`) et retire l'accès à vie à ceux qui l'ont utilisé. Les **jours** déjà offerts par un code `days` restent acquis (ils se cumulent et ne se recalculent pas).
+  - **`private.lifetime_access`** (vue) : qui a un accès à vie, d'où il vient (`gift` ou `purchase`), depuis quand, retiré ou non et pourquoi. Les achats Sandbox n'y sont pas.
+  - `select * from private.lifetime_access order by since desc;`
+- Un code retiré ne se réutilise pas (`already_redeemed`) ; une nouvelle attribution reste possible.
+- **Aucun code n'est écrit dans le dépôt** : ils sont tirés par la base (32^12 possibilités). Les tests n'utilisent que des codes tirés au hasard ou des faux évidents.
+
+### 3. Fusion de main
+`main` (lot 1 et lot 2, cache `ppl-v104`) fusionné dans la branche : `sw.js` garde le `CACHE` de `main` (`ppl-v104`, **pas de montée**) et ajoute les fichiers du payant à `ASSETS`.
+
+### 4. TestFlight reconnu
+- **Le problème** : l'app demandait toujours un code d'offre élève de **Production** ; sous TestFlight (toujours Sandbox), un tel code ne passe pas.
+- **Correction** : méthode native **`environment()`** → `{ environment: 'production' | 'sandbox' | 'other' | 'unknown' }`, lue dans **`AppTransaction.shared`** (iOS 16+, propriété `environment`, documentation StoreKit lue par Context7 le 31/10). Elle ne montre **aucune fenêtre** : `AppTransaction.refresh()`, qui demande le mot de passe Apple, n'est jamais appelé. Échec ou signature non vérifiée : `unknown`. `accessStoreEnvironment()` (js/data/access.js) la lit une fois par lancement, et `student_offer_code` reçoit `env = 'Sandbox'` seulement pour `sandbox`, sinon `Production` (navigateur, ancienne coquille sans la méthode, réponse inconnue).
+- **Ce que ça ouvre** : rien. L'environnement n'ouvre aucun accès ; un compte qui mentirait recevrait un code Sandbox, inutilisable sur l'App Store, et userait un de ses 3 codes.
+- Le reçu `sandboxReceipt` (`Bundle.main.appStoreReceiptURL`) n'est pas utilisé : il est déprécié depuis iOS 18.
+
+### Ce que Maxence doit faire (payant plus)
+1. Valider le prix de l'accès à vie (89,99 € proposé) puis **créer le produit** dans App Store Connect : type **Non consommable**, identifiant **`com.mdlf.training.lifetime`**, nom et description fr-FR et en-US, prix France puis équivalences, disponibilité dans les 5 pays, **partage familial désactivé**, capture de revue. Le soumettre avec la build qui le contient.
+2. Dans App Store Connect › App › Informations sur l'app : vérifier que l'URL des notifications V2 est celle d'`appstore-notify` (elle reçoit aussi `ONE_TIME_CHARGE` et `REFUND_REVERSED`).
+3. Ordre de déploiement : migration `20261031000000_payant_plus.sql` **avant** les fonctions Edge `verify-purchase` et `appstore-notify` (sinon la base refuse `com.mdlf.training.lifetime`, `unknown_product`, sans dégât), puis la **build** (le Swift change) avec la mise à jour à chaud.
+4. Attribuer les accès à vie offerts (Maxence, Cyril, testeurs) avec `private.grant_lifetime`, après la migration.
 
 ## Journal App Store Connect
 - **28/10** : `pro.monthly` 5,99 € et `pro.yearly` 41,99 € créés, offre de lancement 3 mois dans les 5 pays ; « Accès offert » supprimé.
