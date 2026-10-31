@@ -170,8 +170,3 @@ function healthWorkoutPlan(h, { kg = null, typicalMs = 60 * 60_000 } = {}) {
   return out.sort((a, b) => a.start - b.start || (a.activity === 'traditionalStrengthTraining' ? -1 : 1))
     .map((w, part) => ({ ...w, part }));
 }
-
-// Durée active d'un entraînement du plan (ms) : de début à fin, moins les pauses
-function healthActiveMs(w) {
-  return (w.end - w.start) - (w.pauses || []).reduce((a, [s, e]) => a + (e - s), 0);
-}

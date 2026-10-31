@@ -17,7 +17,6 @@ const PUSH_TYPES = [
   { id: 'follows', title: 'Demandes d’abonnement', sub: 'Quand quelqu’un veut suivre tes séances' },
   { id: 'coach', title: 'Mon coach', sub: 'Commentaire sur une séance, nouveau programme' },
 ];
-const PUSH_OFF = Object.freeze({ reactions: false, follows: false, coach: false });
 
 // prefs : réglages lus sur le serveur (null tant que non lus) ; permission : celle d'iOS
 // ('prompt' | 'granted' | 'denied' | 'unavailable' : build sans le module, navigateur) ; busy : un
