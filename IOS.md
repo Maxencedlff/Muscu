@@ -42,6 +42,7 @@ Les fichiers de l'app iOS sont exclus de la publication Vercel (`.vercelignore`)
 | `Native.hideSplash()` | démarrage | Écran de démarrage retiré après le premier rendu (filet à 4 s) |
 | `Native.account.*` | `account.js` | Compte : Apple (`signIn`, `credentialState`), Google (`signInGoogle`, `googleAvailable`), session dans le Trousseau (`storage`) ; voir « Compte » |
 | `Native.appIcon.get()` / `set(nom)` | `app-icon.js` | Icône de l'app choisie dans Réglages (voir « Icône de l'app ») |
+| `Native.push.*` | `js/data/push.js`, `js/features/push-ui.js` | Notifications push : autorisation d'iOS au toucher d'un interrupteur, jeton APNs, toucher d'une notification (voir « Notifications push ») |
 | `Native.shareImage(dataUrl, nom)` | `share.js` | Image de la séance écrite dans le cache de l'app (`@capacitor/filesystem`), puis feuille de partage d'iOS (`@capacitor/share` 8.0.3 : Instagram, Messages, Photos…). « Enregistrer l'image » demande l'accès Photos en ajout seul (`NSPhotoLibraryAddUsageDescription`) |
 
 L'autorisation des notifications est demandée au premier repos, au moment où elle a du sens.
@@ -85,13 +86,19 @@ Live Activity du repos, plus bas) :
 
 | Module | Côté web | Rôle |
 |---|---|---|
-| `HealthPlugin.swift` (`MdlfHealth`) | `Native.health.*` | Autorisation (`requestAuthorization`, option `workouts: false` pour ne demander que le poids et l'écriture ; `authorizationStatus` : fenêtre encore à montrer ou non, sans rien afficher), entraînement « Musculation » (HKWorkoutBuilder, énergie active estimée), pesées des 90 derniers jours, courses et sorties vélo des 60 derniers jours (`workouts` : durée, distance, source, intérieur, `own` pour celles écrites par l'app) |
+| `HealthPlugin.swift` (`MdlfHealth`) | `Native.health.*` | Autorisation (`requestAuthorization`, option `workouts: false` pour ne demander que le poids et l'écriture ; `authorizationStatus` : `request` (poids, écriture, courses et vélo) et `extra` (sommeil, distances du cardio), fenêtre encore à montrer ou non, sans rien afficher), séance détaillée (`saveWorkouts` : un HKWorkoutBuilder par entraînement du plan de `js/data/health-export.js`, type d'activité, pauses et reprises datées, énergie et distance réparties sur les intervalles actifs, identifiant de synchro `mdlf:<séance>:<rang>` pour qu'un nouvel envoi remplace au lieu de dupliquer ; `saveWorkout`, une seule « Musculation », reste pour les anciens appels), pesées des 90 derniers jours, courses et sorties vélo des 60 derniers jours (`workouts` : durée, distance, source, intérieur, `own` pour celles écrites par l'app), sommeil des 8 dernières nuits (`sleep` : début, fin, phase) |
 | `MusicPlugin.swift` (`MdlfMusic`) | `Native.music.*` | Morceau en cours du lecteur Musique (titre, artiste, pochette), lecture, pause, suivant, précédent, événement `change` |
 
 - Réglages › Services Apple : interrupteurs `data.healthOn` / `data.musicOn` (désactivés par défaut,
   autorisation demandée à l'activation).
-- Fin de séance : `syncWorkoutToHealth(entry)` envoie l'entraînement sans bloquer le bilan.
-  Calories : MET 5 × dernier poids × durée (aucune estimation sans pesée).
+- Fin de séance : `syncWorkoutToHealth(entry)` envoie les entraînements sans bloquer le bilan (build du
+  31/10/2026 : `saveWorkouts` ; build antérieure : un seul « Musculation », comme avant). Énergie active nette :
+  (MET − 1) × dernier poids × durée active (aucune estimation sans pesée) ; détail et sources dans
+  `js/data/health-export.js`.
+- Sommeil (même build) : ligne « Cette nuit : 7 h 12 de sommeil · moyenne 6 h 58 sur 7 nuits » sous la
+  récupération de l'accueil, seulement s'il y a une nuit qui finit aujourd'hui ; relu au plus toutes les 15 min,
+  jamais gardé ailleurs qu'en mémoire. Demandé avec les distances du cardio : à l'activation de Santé, ou par
+  la ligne « Sommeil et cardio » de Réglages › Services Apple (tant que `extra` répond `shouldRequest`).
 - Progrès : groupe « Poids corporel » (dernière pesée, tendance sur 30 jours, courbe).
 - Courses et sorties vélo (Apple Watch, Strava, Nike Run Club…) : lecture des entraînements `.running` et
   `.cycling` et des distances `distanceWalkingRunning` / `distanceCycling` (build qui suit le 25/10/2026 ; une build
@@ -110,6 +117,23 @@ Live Activity du repos, plus bas) :
 - Séance : barre de lecture en haut, mise à jour par les notifications du lecteur.
 - Capacité HealthKit activée sur `com.mdlf.training` (le profil App Store la contient) ; Apple Music
   passe par MediaPlayer et l'autorisation « Médias et Apple Music », sans capacité ni clé.
+
+### Notifications push (`PushPlugin.swift`)
+
+Contrat complet : `docs/NOTIFICATIONS.md` ; mise en service (capacité, clé .p8, profil, secrets,
+planification) : `docs/BUILD.md`.
+
+- Module `MdlfPush` sans dépendance npm (comme les autres modules de l'app) : il reprend le mécanisme du
+  module officiel `@capacitor/push-notifications` (documentation Capacitor « Push Notifications », iOS) :
+  `AppDelegate` relaie le jeton par `NotificationCenter` (`.capacitorDidRegisterForRemoteNotifications`,
+  `.capacitorDidFailToRegisterForRemoteNotifications`), le module s'inscrit comme
+  `bridge.notificationRouter.pushNotificationHandler`. Le routeur de Capacitor reste le seul délégué de
+  `UNUserNotificationCenter` : les notifications locales (fin du repos) continuent d'aller à LocalNotifications.
+- Toucher d'une notification : événement `tap` gardé jusqu'à l'abonnement du web (`retainUntilConsumed`),
+  pour un lancement à froid par le toucher. App ouverte : bannière, son, et événement `received`.
+- Environnement : `#if DEBUG` → sandbox, sinon production (TestFlight et App Store utilisent APNs de production).
+  `App.entitlements` : `aps-environment = production` (Debug sur la CI : non signé).
+- Changement natif : nouvelle build (les mises à jour à chaud ne le transportent pas).
 
 ### Live Activity du repos (écran verrouillé et Dynamic Island)
 
@@ -374,5 +398,5 @@ cookies ni de pistage, contrastes, écrans de 8 téléphones et des pliables) es
 | Objectif | Ce qu'il faut | Remarques |
 |---|---|---|
 | **Version payante** | Contrat « Paid Applications » + infos fiscales et bancaires (App Store Connect), Small Business Program (15 %) | Abonnement ou achat unique via StoreKit (RevenueCat simplifie la gestion des reçus) ; garder une partie gratuite |
-| **Notifications push** (rappels) | Clé APNs | Les rappels de séance peuvent rester en notifications locales, sans serveur |
+| **Notifications push** | Fait sur la branche `nuit-build` (bravos, demandes, coach) : `docs/BUILD.md` | Les rappels de séance peuvent rester en notifications locales, sans serveur |
 | **Mises à jour sans App Store** | Capacitor Live Updates (Appflow) ou équivalent | Seulement si les corrections web doivent arriver plus vite que la revue d'Apple |

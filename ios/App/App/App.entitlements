@@ -12,6 +12,11 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<!-- Notifications push (PushPlugin.swift) : production pour TestFlight et l'App Store. La capacité
+	     « Push Notifications » doit être activée sur l'identifiant com.mdlf.training et le profil App Store
+	     régénéré avant la build (docs/BUILD.md), sinon la signature échoue. -->
+	<key>aps-environment</key>
+	<string>production</string>
 	<!-- Copie des données dans l'iCloud de l'utilisateur (CloudBackupPlugin.swift) -->
 	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
 	<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>

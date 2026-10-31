@@ -64,6 +64,12 @@ création du compte, 10 essais par 24 h échecs compris, code inconnu ou inactif
 'invalid_code' }, autres refus en erreur). État dans __sb.rf : codes partners { CODE: { name, active } }
 (LUCAS actif, VIEUX inactif au départ), attributions links { compte: CODE }. Appels dans __sb.calls sous
 ['referral', fonction, arguments] ; __sb.fail.referral = 'offline' pour le hors ligne.
+
+Notifications push (docs/NOTIFICATIONS.md) : module MdlfPush (autorisation d'iOS __sb.push.permission :
+'prompt' | 'granted' | 'denied', réponse à la fenêtre __sb.push.answer, faux jeton __sb.push.token, '' :
+inscription refusée par iOS) ; RPC push_prefs, push_set_prefs (null = inchangé), push_register (jeton
+vérifié comme la migration), push_unregister, push_release (jeton d'un autre compte seulement). État dans __sb.push (prefs, devices) ; appels dans __sb.calls
+sous ['push', fonction, arguments] ; __sb.fail.push = 'offline' pour le hors ligne.
 """
 
 FAKE_ACCOUNT = r"""
@@ -75,6 +81,7 @@ FAKE_ACCOUNT = r"""
     google: opts.google, calls: [], users: {}, profiles: {}, taken: ['pris', 'coach'],
     code: '123456', codes: [], session: null, fail: {}, keychain: {}, appleUser: 'apple-sub-1', googleSub: 'google-sub-1',
     appleCodes: {}, appleN: 0, pendingEmail: null,
+    push: Object.assign({ permission: 'prompt', answer: 'granted', token: 'ab'.repeat(32), prefs: {}, devices: {} }, opts.push || {}),
   };
   const log = (...a) => sb.calls.push(a);
   const err = (code, message = code, status = 400) => ({ name: 'AuthApiError', code, message, status });
@@ -96,6 +103,13 @@ FAKE_ACCOUNT = r"""
         getItem: async ({ key }) => ({ value: sb.keychain[key] ?? null }),
         setItem: async ({ key, value }) => { sb.keychain[key] = value; },
         removeItem: async ({ key }) => { delete sb.keychain[key]; },
+      };
+      if (name === 'MdlfPush') return {
+        permission: async () => ({ permission: sb.push.permission }),
+        requestPermission: async () => { log('push', 'request'); if (sb.push.permission === 'prompt') sb.push.permission = sb.push.answer; return { permission: sb.push.permission }; },
+        register: async () => { log('push', 'register'); if (sb.push.permission !== 'granted' || !sb.push.token) { const e = new Error('refusé'); e.code = 'REGISTER_FAILED'; throw e; } return { token: sb.push.token, environment: 'production' }; },
+        openSettings: async () => { log('push', 'openSettings'); return { opened: true }; },
+        addListener: async (ev, cb) => { (sb.push.listeners ||= {})[ev] = cb; return { remove: () => {} }; },
       };
       if (name === 'Filesystem') return {
         readFile: async () => { if (!opts.backup) throw new Error('absent'); return { data: opts.backup }; },
@@ -755,12 +769,30 @@ FAKE_ACCOUNT = r"""
   };
   const REPORT_REASONS = ['spam', 'harcelement', 'sexuel', 'violence', 'haine', 'autre'];
 
+  // ── Notifications push : comme supabase/migrations/20261031900000_notifications_push.sql ──
+  const pushPrefs = id => { const p = sb.push.prefs[id] || {}; return { reactions: p.reactions === true, follows: p.follows === true, coach: p.coach === true }; };
+  const pushRpc = {
+    push_prefs: me => pushPrefs(me),
+    push_set_prefs: (me, a) => { const p = pushPrefs(me); for (const k of ['reactions', 'follows', 'coach']) if (a[k] !== null && a[k] !== undefined) p[k] = !!a[k]; sb.push.prefs[me] = p; return pushPrefs(me); },
+    push_register: (me, a) => { if (!/^[0-9a-f]{64,200}$/.test(a.token || '') || !['production', 'sandbox'].includes(a.env)) return { data: null, error: { code: 'P0001', message: 'invalid_token' } }; sb.push.devices[a.token] = me; return null; },
+    push_unregister: (me, a) => { if (sb.push.devices[a.token] === me) delete sb.push.devices[a.token]; return null; },
+    push_release: (me, a) => { if (sb.push.devices[a.token] && sb.push.devices[a.token] !== me) delete sb.push.devices[a.token]; return null; },
+  };
+  const callPush = async (fn, args) => {
+    log('push', fn, JSON.stringify(args || {}));
+    if (sb.fail.push === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+    const me = sb.meId();
+    if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };
+    const out = pushRpc[fn](me, args || {});
+    return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
+  };
+
   window.supabase = {
     createClient: (url, key, o) => {
       sb.storage = o?.auth?.storage; sb.storageKey = o?.auth?.storageKey;
       return {
         auth, from,
-        rpc: async (fn, args) => { if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
+        rpc: async (fn, args) => { if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); if (pushRpc[fn]) return callPush(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
           const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });

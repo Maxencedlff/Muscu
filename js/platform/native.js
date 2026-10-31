@@ -27,6 +27,7 @@ const Native = (() => {
   const Cloud              = plugin('MdlfCloudBackup'); // module Swift de l'app (ios/App/App/CloudBackupPlugin.swift)
   const Sound              = plugin('MdlfSound');     // module Swift de l'app (ios/App/App/SoundPlugin.swift), build 22 et suivantes
   const Account            = plugin('MdlfAccount');   // module Swift de l'app (ios/App/App/AccountPlugin.swift), build 25 et suivantes
+  const Push               = plugin('MdlfPush');      // module Swift de l'app (ios/App/App/PushPlugin.swift), build qui suit le 31/10/2026
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
   const AppInfo            = plugin('App');              // @capacitor/app : numéro de build installé
 
@@ -245,13 +246,30 @@ const Native = (() => {
       },
       // Fenêtre d'autorisation encore à montrer pour un type : 'shouldRequest', 'unnecessary' (tout a été
       // demandé) ou 'unknown' (échec, build antérieure sans la méthode, navigateur). Ne montre rien.
-      async requestStatus() {
+      // which : 'request' (poids, écriture, courses et vélo) ou 'extra' (sommeil et distances du cardio,
+      // build qui suit le 31/10/2026 : 'unknown' sur une build antérieure).
+      async requestStatus(which = 'request') {
         if (!isNative) return 'unknown';
-        try { return (await Health.authorizationStatus()).request || 'unknown'; } catch { return 'unknown'; }
+        try { return (await Health.authorizationStatus())[which] || 'unknown'; } catch { return 'unknown'; }
       },
       async saveWorkout({ start, end, kcal = 0 }) {
         if (!isNative) return false;
         try { return !!(await Health.saveWorkout({ start, end, kcal })).saved; } catch { return false; }
+      },
+      // Séance détaillée (js/data/health-export.js : un entraînement par type, pauses, énergie, distance).
+      // → { saved, total } ; 'unimplemented' sur une build antérieure (l'appelant écrit alors la séance
+      // comme avant, en un seul entraînement « Musculation ») ; null en cas d'échec.
+      async saveWorkouts(id, workouts) {
+        if (!isNative) return null;
+        try { const r = await Health.saveWorkouts({ id, workouts }); return { saved: r.saved | 0, total: r.total | 0 }; }
+        catch (e) { return e?.code === 'UNIMPLEMENTED' ? 'unimplemented' : null; }
+      },
+      // Sommeil des `days` dernières nuits : [{ start, end, stage }] ; null si la lecture a échoué. Build
+      // antérieure (méthode absente) : liste vide.
+      async sleep(days = 8) {
+        if (!isNative) return [];
+        try { return (await Health.sleep({ days })).samples || []; }
+        catch (e) { return e?.code === 'UNIMPLEMENTED' ? [] : null; }
       },
       // Pesées des `days` derniers jours, la plus récente d'abord ; null si la lecture a échoué
       // (Santé pas encore prête au lancement…) : l'appelant ne doit pas garder ce résultat
@@ -266,6 +284,40 @@ const Native = (() => {
         try { return (await Health.workouts({ days })).workouts || []; }
         catch (e) { return e?.code === 'UNIMPLEMENTED' ? [] : null; }
       },
+    },
+
+    // Notifications push (APNs). Hors app, ou build antérieure sans le module : available() vaut false et rien
+    // ne se passe. permission() : 'prompt' | 'granted' | 'denied' | 'unavailable' (sans rien montrer) ;
+    // requestPermission() ouvre la fenêtre d'iOS si elle n'a jamais été montrée (appelé seulement après un
+    // toucher sur un interrupteur de Réglages › Notifications). register() : { token, environment } ou null.
+    push: {
+      async available() {
+        if (!isNative) return false;
+        try { await Push.permission(); return true; } catch { return false; }
+      },
+      async permission() {
+        if (!isNative) return 'unavailable';
+        try { return (await Push.permission()).permission || 'prompt'; } catch { return 'unavailable'; }
+      },
+      async requestPermission() {
+        if (!isNative) return 'unavailable';
+        try { return (await Push.requestPermission()).permission || 'denied'; } catch { return 'unavailable'; }
+      },
+      async register() {
+        if (!isNative) return null;
+        try {
+          const r = await Push.register();
+          return typeof r?.token === 'string' ? { token: r.token, environment: r.environment === 'sandbox' ? 'sandbox' : 'production' } : null;
+        } catch { return null; }
+      },
+      async openSettings() {
+        if (!isNative) return false;
+        try { return !!(await Push.openSettings()).opened; } catch { return false; }
+      },
+      // Toucher d'une notification ({ kind, ref }) : gardé par iOS jusqu'à cet abonnement (lancement à froid)
+      onTap(cb) { if (isNative && Push) quiet(Push.addListener('tap', cb)); },
+      // Notification reçue app ouverte : l'état (badges) est relu
+      onReceive(cb) { if (isNative && Push) quiet(Push.addListener('received', cb)); },
     },
 
     // Apple Music : morceau en cours et commandes du lecteur de l'app Musique. Hors app : rien.
