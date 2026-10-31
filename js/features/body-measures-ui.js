@@ -194,7 +194,7 @@ function photoCompareHtml(list) {
   const a = byId(photoCmp.a), b = byId(photoCmp.b);
   const options = sel => list.slice().reverse().map(p =>
     `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(fmtDate(p.date, 'short'))} · ${photoPoseLabel(p.pose)}</option>`).join('');
-  const days = Math.round(Math.abs(b.date - a.date) / 86_400_000);
+  const days = photoGapDays(a.date, b.date);
   return `
         <div class="group-title">Comparer</div>
         <div class="group group--pad pcmp">

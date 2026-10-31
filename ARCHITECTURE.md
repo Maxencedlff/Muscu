@@ -85,7 +85,7 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `rir.js` | RIR facultatif d'une série validée (`rir` 0 à 4, `cleanRir`, équivalence RPE de Zourdos), réglage `data.rirOn` (appareil), `meanRpe`, `rirLine` |
 | `import-csv.js` | Import Hevy / Strong, logique pure : lecture CSV, format, dates, correspondance des noms (`matchImportedExercise`, `IMPORT_ALIASES`), conversion (RPE → `rir`, échauffements gardés → `warmup: true`), dédoublonnage, `applyImport`. Formats : docs/IMPORT_CSV.md |
 | `body-measures.js` | Mensurations (`data.bodyMeasures`, LOCAL ONLY dans `SYNC_LOCAL_ONLY`) : mesures, nettoyage, courbes |
-| `progress-photos.js` | Photos de progression dans IndexedDB (`mdlf-photos`, jamais dans `data` ni dans l'export), réduction JPEG 1200 px, `photosWipe` appelé par `wipeLocalData` |
+| `progress-photos.js` | Photos de progression dans IndexedDB (`mdlf-photos`, jamais dans `data` ni dans l'export), réduction JPEG 1200 px, `photoGapDays` (écart de la comparaison en jours du calendrier), `photosWipe` appelé par `wipeLocalData` |
 | `session-review.js` | Relecture de la séance d'un autre (coach, ami), logique pure et comparée à ses seules séances reçues : volume sans poids du corps (`reviewVolume`, `reviewExVolume` : charge notée × reps, lest compris, jamais `currentBodyKg()`), écarts (`volumeDelta` : « = » de −3 à +3 %, `durationDelta` : au-delà de 20 %), références (`prevSameSession` : même programme et même séance, `prevExercise` : dernière fois que l'exercice a été fait, toute séance), `exerciseTrend` (flèche), `reviewRecords` (charge, lest ou reps, ancienne valeur, 3 au plus), `painInNotes` (mots de douleur, sans diagnostic), `reviewSetKind` (jamais le temps aux 500 m : `machine` n'est pas transmis), `sessionReview` |
 | `health-workouts.js` | Courses et sorties vélo lues dans Santé, logique pure : `validHealthWorkout` (activité connue, au moins 1 min, pas écrit par MDLF), `dedupeHealthWorkouts` (même sortie de l'Apple Watch et de Strava), `loggedInHistory` (déjà notée à la main : séance chronométrée qui la recouvre, ou saisie après coup de durée comparable), `healthCountsForRecovery` (20 min au moins pour compter dans la récupération), `healthWorkoutEntry` (ligne au format d'une séance, id `hk:…`, `isHealthEntry`), `healthHistoryEntries`, `healthEntryLine`. **Jamais dans `data.history`** (copie iCloud, compte : règle 5.1.3) ; lecture et cache dans `apple-services.js` (`healthEntries()`), fusion à l'affichage (Historique) et dans la récupération (`muscleLastWorked`) |
 | `exercise-catalogue.js` | `EXERCISE_CATALOGUE` (bibliothèque : nom, muscles principaux et secondaires, matériel `EQUIPMENT`, alias ; tous les exercices de `PROGRAMMES` y figurent), `catalogueEntry(nom)` (nom, alias ou abréviation), `catalogueRank` (mouvement de référence avant ses variantes), `equipmentOf`, `PROGRESSIONS` et `progressionOf` (plus facile / plus dur) |
@@ -359,9 +359,18 @@ règles de `docs/SOCIAL_V1.md`). `test_coach.py` couvre le coach (RPC du coach s
 module `MdlfAppIcon`) : c'est le modèle à suivre pour tester une fonction réservée à l'app. Voir l'en-tête
 de `run_all.py` pour les options.
 
+**Date et heure dans les tests.** Un test dont le résultat dépend du jour ou de l'heure (« hier »,
+« aujourd'hui », « cette semaine », un écart en jours) fige l'horloge de la page :
+`bench.frozen_page(ms, ...)` (`page.clock.install` de Playwright : l'heure part de cet
+instant puis avance normalement, minuteries comprises), et calcule ses données depuis ce même instant en
+jours du calendrier (`local_ms`, `days_back_ms` de `tests/fixtures.py`), jamais en tranches de 24 h ni
+depuis `time.time()`. Les instants choisis sont piégeux exprès (tard le soir, autour du passage à l'heure
+d'hiver du 25 octobre 2026) : `test_coach.py`, `test_cardio.py`, `test_mesures.py`, `test_lot5.py`
+(records de la semaine) et `test_muscles.py` ; `test_recaps.py` remplace `Date` avant le chargement.
+
 `node tests/unit/run.mjs` lance les tests unitaires de la logique pure (formats, 1RM, nettoyage et
 migrations, import, délais de récupération, clés de séance, saisie, programmes perso ; muscles
-dans `tests/unit/muscles.mjs`, records et image partagée dans `tests/unit/share.mjs`, allure et entraînements de Santé dans `tests/unit/cardio.mjs`, icône de l'app
+dans `tests/unit/muscles.mjs`, records et image partagée dans `tests/unit/share.mjs`, allure et entraînements de Santé dans `tests/unit/cardio.mjs`, tempo (notation, sens de départ, phrase d'aide, horloge des phases) dans `tests/unit/tempo.mjs`, icône de l'app
 et cohérence avec le projet Xcode dans `tests/unit/app-icons.mjs`) : les scripts
 de `js/core/` et `js/data/` sont chargés dans un contexte `vm` de Node, sans navigateur, en moins d'une seconde.
 

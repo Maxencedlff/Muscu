@@ -283,7 +283,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 |---|---------------------------------------------------------------|-----------------------|
 | ○ | Newsletter, commentaires libres, chat coach, widgets, Siri    | Plus tard             |
 | ○ | Score de force, périodisation, option à vie, marque INPI      | Plus tard             |
-| ○ | Test mini-barre, rôle coach d'un testeur                      | Plus tard             |
+| ○ | Test mini-barre, rôle coach d'un testeur                      | Mini-barre : corrigé (branche nuit-fiabilite) |
 | ○ | Messages tout faits en réaction                               | Plus tard             |
 | ○ | Coach payant selon son nombre d'élèves                        | Plus tard             |
 | ○ | Programmes envoyés entre amis, programmes publics             | Plus tard             |
@@ -292,7 +292,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Autre app de musique (Spotify fermé ; YouTube, Deezer à voir) | Plus tard             |
 | ○ | Chronomètre de vitesse dans l'app (vrais temps sur iPhone)    | Si l'app paraît lente |
 | ○ | Import des mensurations depuis Hevy                           | Plus tard             |
-| ○ | Tests du tempo à renforcer                                    | Pas urgent            |
+| ▶ | Tests du tempo à renforcer                                    | Faits (branche nuit-fiabilite) |
 
 ---
 

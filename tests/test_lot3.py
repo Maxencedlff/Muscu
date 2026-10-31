@@ -50,6 +50,21 @@ def last_content_bottom(page):
         return b; }""")
 
 
+def heights_while_scrolling(page):
+    """Hauteur du document au départ puis à chaque demi-écran d'un défilement jusqu'en bas (remonte ensuite).
+    Elle ne doit pas bouger : une liste qui grandit en route (sections en content-visibility: auto, rendues
+    à leur arrivée à l'écran avec une hauteur estimée avant) arrête le défilement trop tôt, et le bas de la
+    liste reste caché sous la mini-barre et la tab bar."""
+    return page.evaluate("""async () => {
+        const frames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const root = document.documentElement, hs = [root.scrollHeight];
+        for (let y = innerHeight / 2; y < root.scrollHeight; y += innerHeight / 2) {
+            scrollTo(0, y); await frames(); hs.push(root.scrollHeight);
+        }
+        scrollTo(0, 0); await frames();
+        return hs; }""")
+
+
 # ─────────────────────────────────────────────────────────────
 
 def t_home(bench, eng, dev, theme):
@@ -225,6 +240,9 @@ def t_live(bench, eng, dev, theme):
             R.check(live.is_visible(), f'{t} mini-barre visible dans {name}')
             lb = live.bounding_box(); tt = tabbar_top(page)
             R.check(lb['y'] + lb['height'] <= tt, f'{t} mini-barre au-dessus de la tab bar ({name})')
+            if name == 'history':
+                hs = heights_while_scrolling(page)
+                R.check(len(set(hs)) == 1, f'{t} history : hauteur fixe pendant le défilement, bas jamais caché sous la mini-barre ({sorted(set(hs))})')
             b = last_content_bottom(page)
             R.check(b <= lb['y'] + 0.5, f'{t} {name} : contenu non masqué par la mini-barre ({b:.0f} / {lb["y"]:.0f})')
         live.click(); settle(page)

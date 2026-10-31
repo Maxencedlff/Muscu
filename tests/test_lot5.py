@@ -104,16 +104,23 @@ def t_history(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} historique : erreurs JS {page.errors[:2]}')
 
 
+# Horloge figée le dimanche 25 octobre 2026 à 20 h, heure de Paris (jour du passage à l'heure d'hiver : la
+# semaine depuis lundi dure 169 h). Pull (lundi) et Legs (mercredi) y sont, Push (samedi d'avant) non.
+SUNDAY_EVENING = local_ms(2026, 10, 25, 20, 0, tz=PARIS)
+
+
 def t_progress(bench, eng, dev, theme):
     t = tag(dev, theme)
-    with bench.page(eng, dev, theme) as page:
-        seed(page, theme, ppl_v2_today_json())
+    with bench.frozen_page(SUNDAY_EVENING, eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json(now_ms=SUNDAY_EVENING))
         go(page, 'stats')
         R.check(page.locator('.tile').count() == 0 and page.locator('.stat-pair__item').count() == 2, f'{t} progrès : deux chiffres groupés, plus de tuiles')
-        # Records de la semaine sous « Vue d'ensemble » (le nombre dépend du jour : données datées depuis maintenant)
+        # Records de la semaine sous « Vue d'ensemble » : la dernière semaine des données, seuls les exercices
+        # au rang 0 et 3 de leur séance montent de charge (fixtures.ppl_v2_today) : Rowing, Curl biceps (Pull),
+        # Squat, Leg curl (Legs) ; ceux de la Push du samedi d'avant ne comptent pas
         n = page.evaluate('weekRecordCount(exerciseIndex())')
         subs = page.locator('[data-action="go-stats-overview"] .cell__sub').all_inner_texts()
-        R.check(subs == ([f'{n} record{"s" if n > 1 else ""} cette semaine'] if n else []) and n <= 6, f'{t} progrès : {n} records de la semaine sous « Vue d\'ensemble » {subs}')
+        R.check(n == 4 and subs == ['4 records cette semaine'], f'{t} progrès : {n} records de la semaine sous « Vue d\'ensemble » {subs}')
         R.check(page.locator('[data-action="go-stats-overview"]').count() == 1, f'{t} progrès : ligne Vue d\'ensemble')
         R.check(page.locator('.group-title', has_text='Autres').count() == 1, f'{t} progrès : section Autres (Dips)')
         R.check(no_dot_decimal(page, '.view.stats'), f'{t} progrès : aucun point décimal')

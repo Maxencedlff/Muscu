@@ -144,6 +144,25 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     sameJSON(run(`photoDayGroups([])`), []);
   });
 
+  test('photos : écart en jours du calendrier, juste le soir et au changement d\'heure', () => {
+    const before = process.env.TZ;
+    process.env.TZ = 'Europe/Paris';   // heure d'hiver le dimanche 25 octobre 2026 à 3 h
+    try {
+      const at = (...a) => new Date(...a).getTime();
+      const gap = (a, b) => run(`photoGapDays(${a}, ${b})`);
+      // Photo datée du 1er septembre (midi, comme dateInputToTs) contre une photo du jour prise à 23 h 10 :
+      // 62,5 tranches de 24 h, mais 62 jours du calendrier (le test E2E affichait « 63 jours »)
+      assert.equal(gap(at(2026, 8, 1, 12), at(2026, 10, 2, 23, 10)), 62);
+      assert.equal(gap(at(2026, 10, 2, 23, 10), at(2026, 8, 1, 12)), 62, 'dans les deux sens');
+      assert.equal(gap(at(2026, 9, 24, 23, 30), at(2026, 9, 25, 0, 30)), 1, 'une heure plus tard, le lendemain : 1 jour');
+      assert.equal(gap(at(2026, 9, 25, 0, 10), at(2026, 9, 25, 23, 50)), 0, 'même jour de 25 h : 0 (« Même jour »)');
+      assert.equal(gap(at(2026, 9, 24, 12), at(2026, 9, 26, 12)), 2, 'à cheval sur le passage à l\'heure d\'hiver (47 h) : 2 jours');
+      assert.equal(gap(at(2026, 2, 28, 12), at(2026, 2, 30, 12)), 2, 'heure d\'été (47 h) : 2 jours');
+    } finally {
+      if (before === undefined) delete process.env.TZ; else process.env.TZ = before;
+    }
+  });
+
   test('photos : sans IndexedDB (tests, vieux navigateur), photosWipe ne plante pas et répond false', async () => {
     assert.equal(run(`photosSupported()`), false, 'le bac à sable des tests n\'a pas IndexedDB');
     assert.equal(await run(`photosWipe()`), false);

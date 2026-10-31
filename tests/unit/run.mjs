@@ -1477,8 +1477,10 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 
 // ── Dates du calendrier : semaines, jours écoulés (tests dans dates.mjs) ──
 (await import('./dates.mjs')).default({ test, run, reset, assert, app });
-// ── Séances et exercices : programme, clés, volume, tempo (tests dans entries.mjs) ──
+// ── Séances et exercices : programme, clés, volume (tests dans entries.mjs) ──
 (await import('./entries.mjs')).default({ test, run, reset, assert, app, sameJSON });
+// ── Tempo : notation, préréglages, sens de départ, phrase d'aide, horloge des phases (tests dans tempo.mjs) ──
+(await import('./tempo.mjs')).default({ test, run, assert, app, sameJSON });
 // ── Outils de la séance (lot 2) : disques, échauffement, RIR et leurs exclusions (tests dans seance-outils.mjs) ──
 (await import('./seance-outils.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Import depuis Hevy et Strong (tests dans import-csv.mjs) ──

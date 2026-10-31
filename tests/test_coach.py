@@ -12,7 +12,6 @@ Lancer : PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_coach.py (ou run_all.py
 import json
 import os
 import sys
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
@@ -21,6 +20,11 @@ from fake_account import FAKE_ACCOUNT
 LOT = 'coach'
 R = Results(LOT)
 DAY = 86400_000
+
+# Horloge figée le mercredi 28 octobre 2026 à 23 h 10, heure de Paris (3 jours après le passage à l'heure
+# d'hiver) : « hier », « en 7 jours » et les nouveautés ne dépendent plus de l'heure ni du jour du test.
+# Tard le soir exprès : une séance posée à « maintenant − 1 jour + 1 h » tomberait aujourd'hui.
+NOW = local_ms(2026, 10, 28, 23, 10, tz=PARIS)
 
 
 # Mêmes outils que test_social.py (un import relancerait ses tests)
@@ -44,23 +48,6 @@ def signin(page, username='max', enable=False):
         if (en) await socialEnable(true);
     }""", [username, enable])
     page.wait_for_timeout(200)
-
-
-def sessions(prefix, n, start_days=1, **extra):
-    """Séances d'un ami au format de l'historique (avec ce que la liste blanche doit retirer)."""
-    import time
-    now = int(time.time() * 1000)
-    out = []
-    for i in range(n):
-        out.append({'id': f'{prefix}{i:02d}', 'date': now - (start_days + i) * DAY, 'duration': (45 + i) * 60_000,
-                    'programme': 'ppl', 'category': 'push', 'label': 'Push',
-                    'notes': 'note privée', 'bodyKg': 81, 'healthSaved': True,
-                    'exercises': [{'name': 'Développé couché', 'sets': [{'weight': '80', 'reps': '8'}, {'weight': '80', 'reps': '7'}]},
-                                  {'name': 'Dips', 'sets': [{'weight': '', 'reps': '12'}]},
-                                  {'name': 'Élévations latérales', 'sets': [{'weight': '8', 'reps': '15'}]},
-                                  {'name': 'Pompes', 'sets': [{'weight': '', 'reps': '20'}]},
-                                  {'name': 'Extension triceps', 'sets': [{'weight': '20', 'reps': '12'}]}], **extra})
-    return out
 
 
 def friends_tab(page):
@@ -102,7 +89,6 @@ def last_above_tabbar(page):
 
 def toast(page):
     return page.locator('.toast').inner_text() if page.locator('.toast').count() else ''
-
 
 
 def ccalls(page, fn):
@@ -161,8 +147,8 @@ def setup_student(page):
 
 def t_eleve(bench, eng, dev, theme):
     t = tag(dev, theme)
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json())
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(now_ms=NOW))
         signin(page, username='lea')
         ids = setup_student(page)
         # Sans coach : pas de cellule dans Amis
@@ -403,10 +389,10 @@ def t_eleve(bench, eng, dev, theme):
 
 def setup_coach(page):
     """Je suis coach (max) ; Léa (35 séances dont une masquée, une avec mon programme, notes et poids), Tom (aucune séance)."""
-    now = int(time.time() * 1000)
+    # Une séance par jour du calendrier à 10 h, la plus récente hier ; vues par le coach jusqu'à il y a 3 jours, 9 h
     lea = []
     for i in range(35):
-        lea.append({'id': f'l{i:02d}', 'date': now - (i + 1) * DAY + 3600_000, 'duration': 50 * 60_000, 'programme': 'ppl', 'category': 'push', 'label': 'Push',
+        lea.append({'id': f'l{i:02d}', 'date': days_back_ms(NOW, i + 1, 10, tz=PARIS), 'duration': 50 * 60_000, 'programme': 'ppl', 'category': 'push', 'label': 'Push',
                     'notes': 'Épaule un peu raide' if i == 0 else '', 'bodyKg': 61, 'healthSaved': True,
                     'exercises': [{'name': 'Développé couché', 'sets': [{'weight': '40', 'reps': '8'}, {'weight': '40', 'reps': '7'}]},
                                   {'name': 'Rowing', 'ss': 'g1', 'sets': [{'weight': '20', 'reps': '10'}]},
@@ -414,14 +400,14 @@ def setup_coach(page):
     lea[0].update({'programme': 'u_c00000000_u_force', 'category': 'sA', 'label': 'Haut'})
     lea[0]['exercises'] = lea[0]['exercises'][:2]   # Pompes prévues mais pas faites
     lea[1]['hidden'] = True
-    return page.evaluate("""(s) => {
+    return page.evaluate("""([s, seen]) => {
         const me = __sb.meId();
         __sb.makeCoach(me);
         const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', social: false, sessions: s });
         const tom = __sb.addPerson({ username: 'tom' });
         __sb.link(me, lea, Date.now() - 20 * 86400000);
         __sb.link(me, tom);
-        __sb.co.links.find(l => l.student === lea).seen = Date.now() - 3 * 86400000;
+        __sb.co.links.find(l => l.student === lea).seen = seen;
         // Mon programme Force
         data.userProgrammes.u_force = { name: 'Force', archived: false, sessions: {
           sA: { label: 'Haut', icon: '', desc: '', color: '#FF9500' }, sB: { label: 'Bas', icon: '', desc: '', color: '#34C759' } } };
@@ -430,13 +416,13 @@ def setup_coach(page):
           sB: [{ id: 'e4', name: 'Squat barre', sets: 5 }] } };
         data.myProgrammes.push('u_force'); save();
         return { me, lea, tom };
-    }""", lea)
+    }""", [lea, days_back_ms(NOW, 3, 9, tz=PARIS)])
 
 
 def t_coach(bench, eng, dev, theme):
     t = tag(dev, theme)
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json())
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(now_ms=NOW))
         signin(page, username='max')
         ids = setup_coach(page)
         page.evaluate('coachRefresh()')
@@ -603,7 +589,7 @@ def t_recap(bench, eng, dev, theme):
     poids du corps, même le mien connu ; durée), records nommés, flèches contre la dernière fois que
     l'élève a fait l'exercice (même dans une autre séance), poids du corps en reps, règle du volume."""
     t = tag(dev, theme)
-    now = int(time.time() * 1000)
+    now = NOW
     S = lambda w, r, n: [{'weight': w, 'reps': r}] * n
     zoe = [
         {'id': 'z0', 'date': now - DAY, 'duration': 37 * 60_000, 'programme': 'ppl', 'category': 'legs', 'label': 'Legs',
@@ -616,8 +602,8 @@ def t_recap(bench, eng, dev, theme):
          'exercises': [{'name': 'Squat haltère', 'sets': S('20', '12', 3) + S('20', '10', 1)}, {'name': 'Squat poids du corps', 'sets': S('', '10', 3)},
                        {'name': 'Soulevé de terre roumain', 'sets': S('16', '12', 4)}, {'name': 'Mollets debout haltères', 'sets': S('18', '15', 4)}]},
     ]
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json())
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(now_ms=NOW))
         signin(page, username='max')
         uid = page.evaluate("""(s) => { const me = __sb.meId(); __sb.makeCoach(me);
             const zoe = __sb.addPerson({ username: 'zoe', avatar: '🐼', social: false, sessions: s }); __sb.link(me, zoe);
@@ -693,8 +679,8 @@ def t_rir(bench, eng, dev, theme):
 def t_pseudo(bench, eng, dev, theme):
     """Sans pseudo : l'app le fait choisir avant de rejoindre ; le serveur le demande aussi (username_required)."""
     t = tag(dev, theme)
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json())
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(now_ms=NOW))
         signin(page, username=None)
         ids = setup_student(page)
         # Le serveur refuse sans pseudo (contrat), message traduit
@@ -744,8 +730,8 @@ def t_pseudo(bench, eng, dev, theme):
 def t_saisie(bench, eng, dev, theme):
     """Une relecture du coach ne redessine pas l'écran pendant une saisie (recherche de l'Historique)."""
     t = tag(dev, theme)
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json())
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(now_ms=NOW))
         signin(page, username='lea')
         ids = setup_student(page)
         page.click('.tabbar [data-tab="history"]')
@@ -776,8 +762,8 @@ def t_saisie(bench, eng, dev, theme):
 def t_cache_online(bench, eng, dev, theme):
     """Démarrage depuis le cache en ligne : « Ajouter » relit l'état puis ajoute, sans faux « Pas d'Internet »."""
     t = tag(dev, theme)
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json())
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(now_ms=NOW))
         signin(page, username='lea')
         ids = setup_student(page)
         page.evaluate("""([max, prog]) => { __sb.link(max, __sb.meId());
@@ -801,8 +787,8 @@ def t_cache_online(bench, eng, dev, theme):
 
 def t_hors_ligne(bench, eng, dev, theme):
     t = tag(dev, theme)
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json())
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(now_ms=NOW))
         signin(page, username='lea')
         page.evaluate('__sb.fail.coach = "offline"; coachReset(account.user.id)')
         page.evaluate("navigate('coach')")
@@ -822,8 +808,8 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check('Pas d' in help_ and page.input_value('#coachCode') == 'K7M2QX9P', f'{t} rejoindre hors ligne : message dans la feuille, saisie gardée ({help_!r})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
     # Sans compte : Réglages › Coach explique et propose de se connecter
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json())
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(now_ms=NOW))
         page.evaluate("navigate('coach')")
         page.wait_for_selector('.coach-view [data-action="social-sign-in"]')
         R.check(page.evaluate("__sb.calls.filter(c => c[0] === 'coach').length") == 0, f'{t} sans compte : aucun appel')

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Séances et exercices de l'historique : programme, clés, volume, tempo
+//  Séances et exercices de l'historique : programme, clés, volume (tempo : tempo.mjs)
 // ═══════════════════════════════════════════════════════════
 
 export default function ({ test, run, reset, assert, app, sameJSON }) {
@@ -83,21 +83,5 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     const load = app.effectiveLoad(e.sets[0], e, 80);
     assert.equal(p.best1RM, app.calc1RM(load, 12), '12 reps : 1RM estimé, comme calc1RM');
     assert.equal(app.calc1RM(load, 13), null, 'au-delà de 12 reps : pas de 1RM');
-  });
-
-  // ── Tempo ──
-
-  test('applyTempo : tempo, guidage et préparation posés ou retirés ensemble', () => {
-    const o = { tempo: '2-0-1-0', tempoGuide: true, tempoPrep: 20 };
-    app.applyTempo(o, '3-1-1-0', true);
-    sameJSON(o, { tempo: '3-1-1-0', tempoGuide: true, tempoPrep: 20 }, 'préparation de l\'objet gardée');
-    app.applyTempo(o, '3-1-1-0', true, { tempoPrep: 5 });
-    assert.equal(o.tempoPrep, 5, 'préparation du brouillon');
-    app.applyTempo(o, '3-1-1-0', true, { tempoPrep: 7 });
-    assert.equal(o.tempoPrep, 10, 'préparation hors des choix : par défaut');
-    app.applyTempo(o, '3-1-1-0', false);
-    sameJSON(o, { tempo: '3-1-1-0' }, 'rappel seul : ni guidage ni préparation');
-    app.applyTempo(o, '', false);
-    sameJSON(o, {}, 'tempo retiré');
   });
 }
