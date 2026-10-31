@@ -132,9 +132,10 @@ export default function ({ test, run, reset, assert, sameJSON }) {
       ['Course à pied', [['', 30, { dist: '6' }]], C], [A, [[30, 8]]]])];
     // Séance en cours : même programme et même séance, tout l'historique est « d'avant »
     run(`globalThis.__H = ${JSON.stringify(H)}; globalThis.__P = sessionPriorOf({ programme: 'ppl', category: 'legs', date: 10 * 86400000 }, __H)`);
+    // Exercice d'une seule série validée
     const badge = (name, set, ex = {}) => {
-      const e = JSON.stringify({ name, ...ex });
-      return run(`liveSetBadge(${e}, ${JSON.stringify(set)}, __P(${e}))`);
+      const e = JSON.stringify({ name, ...ex, sets: [{ ...set, done: true }] });
+      return run(`(() => { const e = ${e}; return liveSetBadge(e, e.sets[0], __P(e)); })()`);
     };
     assert.equal(badge('Squat barre', { weight: '102.5', reps: '1' }), 'Record charge');
     assert.equal(badge('Squat barre', { weight: '100', reps: '6' }), 'Record reps');
@@ -157,9 +158,48 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     const cur = h(10, [['Squat barre', [[100, 6]]], ['Gainage (planche)', [['', 75]], T], ['Course à pied', [['', 31, { dist: '6.4' }]], C]]);
     const noted = run(`sessionRecords(${JSON.stringify(cur)}, __H)`).map(r => run(`notedLabel(${JSON.stringify(r)})`));
     run(`globalThis.__P = sessionPriorOf({ programme: 'ppl', category: 'legs', date: 10 * 86400000 }, __H)`);
-    const live = cur.exercises.map(ex => run(`liveSetBadge(${JSON.stringify(ex)}, ${JSON.stringify(ex.sets[0])}, __P(${JSON.stringify(ex)}))`));
+    const live = cur.exercises.map(ex => run(`(() => { const e = ${JSON.stringify({ ...ex, sets: ex.sets.map(x => ({ ...x, done: true })) })};
+      return liveSetBadge(e, e.sets[0], __P(e)); })()`));
     sameJSON(live, ['Record reps', 'Record temps', 'Record 5 km']);
     assert.ok(live.every(l => noted.includes(l)), `badges ${live} notés ${noted}`);
+  });
+
+  test('badges en direct sur plusieurs séries : calculés par exercice, chaque record sur la série qui le fait', () => {
+    reset();
+    const T = { measure: 'time' }, C = { measure: 'cardio' };
+    const H = [h(1, [['Squat barre', [[100, 5]]], ['Gainage (planche)', [['', 60]], T], ['Course à pied', [['', 30, { dist: '6' }]], C]])];
+    run(`globalThis.__H = ${JSON.stringify(H)}; globalThis.__P = sessionPriorOf({ programme: 'ppl', category: 'legs', date: 10 * 86400000 }, __H)`);
+    // Badges des séries d'un exercice (validées sauf { done: false }) et labels des records que l'enregistrement
+    // notera pour ces mêmes séries validées
+    const both = (name, sets, ex = {}) => {
+      const e = { name, ...ex, sets: sets.map(([weight, reps, more = {}]) => ({ weight: String(weight), reps: String(reps), done: true, ...more })) };
+      const live = run(`(() => { const e = ${JSON.stringify(e)}; return e.sets.map(s => liveSetBadge(e, s, __P(e))); })()`);
+      const saved = { ...h(10, []), exercises: [{ ...e, sets: e.sets.filter(s => s.done) }] };
+      const noted = run(`sessionRecords(${JSON.stringify(saved)}, __H)`).map(r => run(`notedLabel(${JSON.stringify(r)})`));
+      // Chaque badge (hors 1RM) est un record noté, sur une seule série ; une série qui en fait deux (cardio)
+      // montre le plus marquant
+      const shown = live.filter(l => l && l !== 'Record 1RM est.');
+      assert.equal(new Set(shown).size, shown.length, `un seul badge par record (${live})`);
+      assert.ok(shown.every(l => noted.includes(l)), `badges ${live} notés ${noted}`);
+      return live;
+    };
+    // Charge puis reps à la charge d'avant : un seul record (charge), la série qui égale la 1re n'a rien
+    sameJSON(both('Squat barre', [[102.5, 2], [100, 6], [102.5, 2]]), ['Record charge', '', '']);
+    // À charge record égale, le plus de reps porte le badge (la série que montrent le récap et l'image)
+    sameJSON(both('Squat barre', [[102.5, 2], [102.5, 3]]), ['', 'Record charge']);
+    // Reps : la 2e série égale la 1re dans la séance, seule la 1re a le badge ; la 3e la dépasse et le prend
+    sameJSON(both('Squat barre', [[100, 6], [100, 6]]), ['Record reps', '']);
+    sameJSON(both('Squat barre', [[100, 6], [100, 6], [100, 7]]), ['', '', 'Record reps']);
+    // Série pas encore validée : ne compte pas
+    sameJSON(both('Squat barre', [[100, 6], [102.5, 3, { done: false }]]), ['Record reps', '']);
+    // 1RM estimé (pour soi) : seulement sans autre record, sur la meilleure série, jamais sur une égale plus tard
+    sameJSON(both('Squat barre', [[90, 10], [90, 10]]), ['Record 1RM est.', '']);
+    sameJSON(both('Squat barre', [[90, 10], [102.5, 1]]), ['', 'Record charge']);
+    // Maintien : le plus long des deux
+    sameJSON(both('Gainage (planche)', [['', 70], ['', 75]], T), ['', 'Record temps']);
+    // Cardio sur 2 séries : la distance (6,4 km) et l'allure viennent de la 1re, la durée (40 min) de la 2e
+    sameJSON(both('Course à pied', [['', 31, { dist: '6.4' }], ['', 40, { dist: '6.1' }]], C), ['Record 5 km', 'Record durée']);
+    sameJSON(both('Course à pied', [['', 29, { dist: '6' }], ['', 33, { dist: '6.5' }]], C), ['Record 5 km', 'Record distance']);
   });
 
   test('records : notedRecordSet (la série qui fait le record) et e1rmRecordSet (bilan, pour soi)', () => {

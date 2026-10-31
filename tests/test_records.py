@@ -96,4 +96,40 @@ def t_records(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_records])
+
+def t_badges_series(bench, eng, dev, theme):
+    """Badges en direct sur plusieurs séries : calculés par exercice comme les records notés, chaque record sur
+    la série qui le fait, jamais sur une série qui en égale une plus tôt dans la séance."""
+    t = tag(dev, theme)
+    d = ppl_v2_today()
+    d['history'] = [h for h in d['history'] if h['category'] != 'legs']
+    d['history'] = [legs('l1', 3, '60', '30', '6', squat='100')] + d['history']
+    now = int(time.time() * 1000)
+    done = lambda w, r, **k: {'weight': w, 'reps': r, 'done': True, **k}
+    active = {'activeSession': {'category': 'legs', 'programme': 'ppl', 'startedAt': now - 30 * 60_000, 'exercises': [
+        # Charge, puis reps à la charge d'avant, puis une série qui égale la 1re : un seul record (charge)
+        {'exId': 'g1squatb', 'name': 'Squat barre', 'sets': [done('102.5', '2'), done('100', '9'), done('102.5', '2')]},
+        # Allure et distance par la 1re série, durée par la 2e
+        {'exId': None, 'name': 'Course à pied', 'measure': 'cardio', 'sets': [done('', '31', dist='6.4'), done('', '40', dist='6.1')]},
+    ]}, 'sessionNotes': '', 'rest': None}
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, json.dumps(d, ensure_ascii=False), active=active, extra={'ppl_welcome_seen': '1'})
+        page.wait_for_selector('.view.session')
+        live = page.evaluate("activeSession.exercises.map(ex => ex.sets.map(s => liveSetBadge(ex, s, livePrior(ex))))")
+        R.check(live == [['Record charge', '', ''], ['Record 5 km', 'Record durée']], f'{t} séries : badges par exercice ({live})')
+        page.locator('.ex-card--collapsed [data-action="toggle-ex"]').first.click(); page.wait_for_timeout(200)
+        badges = page.locator('.session-set .pr-badge').all_inner_texts()
+        R.check(badges == ['Record charge'], f'{t} séries : un seul badge sur le squat ouvert ({badges})')
+        shot(page, LOT, f'4-badges-series-{t}')
+        page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+        tap_dialog(page, 'Enregistrer la séance')
+        page.wait_for_selector('.view.summary')
+        saved = page.evaluate('data.history[0].records')
+        squat = [(r['kind'], r['after']) for r in saved if r['ex'] == 'Squat barre']
+        R.check(squat == [('charge', 102.5)], f'{t} séries : record noté du squat = le badge ({squat})')
+        course = sorted(r['kind'] for r in saved if r['ex'] == 'Course à pied')
+        R.check(course == ['allure', 'distance', 'duree'], f'{t} séries : records de la course ({course})')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_records, t_badges_series])

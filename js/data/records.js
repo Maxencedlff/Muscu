@@ -6,7 +6,7 @@
 'use strict';
 
 // Un seul calcul fait foi : celui des records notés (plus bas : sessionRecords, sessionPriorOf,
-// setNotedRecord). Les badges de la séance en cours (liveSetBadge), le bilan, l'historique, les récaps
+// liveExerciseBadges). Les badges de la séance en cours (liveSetBadge), le bilan, l'historique, les récaps
 // (js/data/recap.js) et l'image de la séance (js/features/share-stats.js) le lisent tous.
 // Le premier bloc (recordLabel, exerciseRecord, historyBaseline) est l'ancien calcul (charge, reps, 1RM
 // estimé contre une ligne de base) : il ne sert plus qu'à js/data/session-review.js, pour les séances
@@ -261,6 +261,11 @@ function exerciseNoted(ex, m, cur, P) {
   return m === 'cardio' ? cardioNoted(ex, cur, P) : m === 'time' ? timedNoted(cur, P)
     : isAssisted(ex) ? assistedNoted(cur, P) : strengthNoted(ex, cur, P);
 }
+// Élément noté (valeurs arrondies au millième) d'un record r de l'exercice ex
+function notedItem(ex, r) {
+  return { ex: String(ex.name || '').slice(0, 80), kind: r.kind, before: round3(r.before), after: round3(r.after),
+    ...(r.w != null ? { w: round3(r.w) } : {}), ...(r.d != null ? { d: r.d } : {}) };
+}
 // Cœur de sessionRecords : priorOf(ex, mesure) donne le résumé des séries de travail d'avant de cet
 // exercice (même exercice au sens de sameEx, même mesure).
 function notedFromPrior(entry, priorOf) {
@@ -271,8 +276,7 @@ function notedFromPrior(entry, priorOf) {
     if (!cur.length) return;
     const prior = priorOf(ex, m);
     if (!prior?.n) return;   // première fois : rien
-    exerciseNoted(ex, m, cur, prior).forEach(r => out.push({ ex: String(ex.name || '').slice(0, 80), kind: r.kind, before: round3(r.before), after: round3(r.after),
-      ...(r.w != null ? { w: round3(r.w) } : {}), ...(r.d != null ? { d: r.d } : {}) }));
+    exerciseNoted(ex, m, cur, prior).forEach(r => out.push(notedItem(ex, r)));
   });
   return out.sort((a, b) => NOTED_RANK[b.kind] - NOTED_RANK[a.kind]).slice(0, NOTED_MAX);
 }
@@ -368,13 +372,34 @@ function topNotedRecord(records) {
   return (records || []).reduce((b, r) => (betterNoted(r, b) ? r : b), null);
 }
 
-// ── Une série à la fois (badges en direct de la séance) ─────
-// Mêmes règles que les records notés, série par série, contre le résumé d'avant la séance (sessionPriorOf) :
-// le badge d'une série annonce exactement le record qui sera noté. Échauffement, série vide, première fois :
-// null. Cardio : le plus marquant des records de la série (allure > distance > durée).
-function setNotedRecord(ex, s, prior) {
-  if (!prior?.n || !s || isWarmupSet(s) || recR(s) <= 0) return null;
-  return exerciseNoted(ex, measureOf(ex), [s], prior).reduce((b, r) => (!b || NOTED_RANK[r.kind] > NOTED_RANK[b.kind] ? r : b), null);
+// ── Badges en direct de la séance ───────────────────────────
+// Même calcul que l'enregistrement : les records d'un exercice sont ceux que ses séries de travail faites
+// battent ensemble (exerciseNoted) contre le résumé d'avant la séance (sessionPriorOf), et chacun va sur la
+// série qui le fait (notedRecordSet : une seule à valeur égale). Ainsi une série qui égale une série plus tôt
+// dans la séance n'a pas de badge, et un « Record reps » battu ensuite par un « Record charge » disparaît
+// (un seul record par exercice en force). Une série qui fait plusieurs records (cardio) montre le plus
+// marquant (allure > distance > durée). Sans record noté pour l'exercice, « Record 1RM est. » sur la série
+// que le bilan montrera (e1rmRecordSet), pour soi. Échauffement, série vide, première fois : rien.
+// Renvoie une Map série → libellé.
+function liveExerciseBadges(ex, prior) {
+  const out = new Map();
+  if (!ex || !prior?.n) return out;
+  const done = workSets(ex.sets).filter(s => s.done && recR(s) > 0);
+  if (!done.length) return out;
+  const noted = exerciseNoted(ex, measureOf(ex), done, prior), top = new Map();
+  noted.forEach(r => {
+    const item = notedItem(ex, r), s = pickRecordSet(done, item);
+    if (s && (!top.has(s) || NOTED_RANK[item.kind] > NOTED_RANK[top.get(s).kind])) top.set(s, item);
+  });
+  top.forEach((r, s) => out.set(s, notedLabel(r)));
+  const e1s = !noted.length && e1rmRecordSet(ex, prior, done);
+  if (e1s) out.set(e1s, 'Record 1RM est.');
+  return out;
+}
+// Badge d'une série validée de l'exercice (liveExerciseBadges) : « Record charge », « Record 5 km »,
+// « Record 1RM est. »…, sinon ''
+function liveSetBadge(ex, s, prior) {
+  return liveExerciseBadges(ex, prior).get(s) || '';
 }
 // 1RM estimé battu par une série (répétitions avec charge ou lest seulement) : pour soi, jamais noté
 function setBeatsE1rm(ex, s, prior) {
@@ -382,15 +407,11 @@ function setBeatsE1rm(ex, s, prior) {
   const e1 = calc1RM(s.weight, s.reps);
   return !!e1 && e1 > (prior.e1 || 0);
 }
-// Badge d'une série validée : « Record charge », « Record 5 km »…, sinon « Record 1RM est. » (pour soi), sinon ''
-function liveSetBadge(ex, s, prior) {
-  const r = setNotedRecord(ex, s, prior);
-  return r ? notedLabel(r) : setBeatsE1rm(ex, s, prior) ? 'Record 1RM est.' : '';
-}
-// Série d'un exercice qui bat le plus son 1RM estimé d'avant, null sans (bilan : « Record 1RM est. »)
-function e1rmRecordSet(ex, prior) {
+// Série (parmi sets, par défaut les séries de travail de l'exercice) qui bat le plus son 1RM estimé d'avant,
+// la première à égalité ; null sans (bilan et badge en direct : « Record 1RM est. »)
+function e1rmRecordSet(ex, prior, sets = workSets(ex.sets)) {
   let best = null, top = 0;
-  workSets(ex.sets).forEach(s => {
+  sets.forEach(s => {
     if (!setBeatsE1rm(ex, s, prior)) return;
     const e1 = calc1RM(s.weight, s.reps);
     if (e1 > top) { top = e1; best = s; }
@@ -403,8 +424,10 @@ function e1rmRecordSet(ex, prior) {
 // même nom, séance modifiée depuis). À valeur égale : le plus de reps (charge, aide), le plus lourd (temps),
 // le plus loin (durée, allure), le plus court (distance).
 function notedRecordSet(ex, r) {
-  if (!ex || !r) return null;
-  const sets = workSets(ex.sets).filter(s => recR(s) > 0);
+  return ex && r ? pickRecordSet(workSets(ex.sets).filter(s => recR(s) > 0), r) : null;
+}
+// Cœur de notedRecordSet : la série de sets (de travail, faites) qui fait le record r, null sans
+function pickRecordSet(sets, r) {
   const W = s => round3(recW(s)), pick = (ok, score) => sets.filter(ok).sort((a, b) => score(b) - score(a))[0] || null;
   switch (r.kind) {
     case 'charge': case 'lest': case 'aide': return pick(s => W(s) === r.after, recR);

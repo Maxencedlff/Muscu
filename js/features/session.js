@@ -223,7 +223,7 @@ function renderExerciseCard(ex, ei, cur) {
   const allDone = ex.sets.length > 0 && doneN === ex.sets.length;
 
   if (allDone && !openDone.has(ex)) {
-    const records = ex.sets.filter(s => s.done && liveSetBadge(ex, s, livePrior(ex))).length;
+    const records = liveExerciseBadges(ex, livePrior(ex)).size;   // js/data/records.js
     return renderCollapsedExercise(ex, ei, records);
   }
 
