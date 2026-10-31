@@ -6,7 +6,7 @@
 // Aucun jeton n'est jamais écrit dans les journaux : seuls les codes HTTP le sont.
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { env } from './http.ts';
-import { needsRefresh, parseTokens } from './strava-policy.js';
+import { holderVerdict, needsRefresh, parseTokens } from './strava-policy.js';
 import { openTokens, sealTokens, tokenKey } from './strava-crypto.js';
 
 const TOKEN_URL = 'https://www.strava.com/api/v3/oauth/token';
@@ -103,6 +103,37 @@ export async function stravaAccess(admin: SupabaseClient, userId: string): Promi
     return { ok: false, error: 'not_connected' };
   }
   return { ok: false, error: 'strava_down' };
+}
+
+// Athlète refusé (athlete_taken) au retour de Strava : la liaison du compte qui le détient vaut-elle
+// encore ? 'free' : plus de détenteur, ou son accès a été retiré chez Strava et sa liaison vient d'être
+// effacée (l'appelant réessaie d'enregistrer) ; 'taken' : accès valable (#deja) ; 'unknown' : base ou
+// Strava injoignable, rien n'est effacé (#erreur). Décision : holderVerdict (strava-policy.js).
+// fresh : jetons reçus à l'instant pour l'autre compte (jamais enregistrés pour le détenteur).
+export async function freeStaleAthlete(admin: SupabaseClient, athleteId: number, fresh: Tokens): Promise<'free' | 'taken' | 'unknown'> {
+  const k = await key();
+  if (!k) return 'unknown';
+  const { data, error } = await admin.rpc('strava_link_holder', { p_athlete_id: athleteId });
+  if (error) { console.error('strava: détenteur illisible', error.code); return 'unknown'; }
+  const row = Array.isArray(data) ? data[0] : null;
+  const holder = row ? { userId: row.user_id as string, tokens: row.tokens as string } : null;
+  const verdict = await holderVerdict(holder, fresh, {
+    open: (uid: string, sealed: string) => openTokens(k, uid, sealed),
+    refresh: refreshTokens,
+    saveTokens: async (uid: string, t: { access: string; refresh: string; expiresAt: number }) => {
+      const sealed = await sealTokens(k, uid, { access: t.access, refresh: t.refresh });
+      const { error: upErr } = await admin.rpc('strava_link_tokens', { p_user: uid, p_tokens: sealed, p_expires_at: new Date(t.expiresAt * 1000).toISOString() });
+      if (upErr) console.error('strava: jetons renouvelés du détenteur non enregistrés', upErr.code);
+    },
+  });
+  if (verdict === 'free') return 'free';
+  if (verdict === 'alive') return 'taken';
+  if (verdict !== 'revoked' || !holder) return 'unknown';
+  // Effacée seulement si rien n'a changé depuis la lecture (un envoi du détenteur qui vient de
+  // renouveler ses jetons prouve que son accès vaut encore : on la garde)
+  const { data: released, error: relErr } = await admin.rpc('strava_link_release', { p_user: holder.userId, p_athlete_id: athleteId, p_tokens: holder.tokens });
+  if (relErr) { console.error('strava: liaison périmée non libérée', relErr.code); return 'unknown'; }
+  return released === true ? 'free' : 'taken';
 }
 
 // Efface la liaison sans révoquer (accès déjà retiré chez Strava)

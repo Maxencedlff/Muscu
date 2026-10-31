@@ -24,6 +24,8 @@ drop function if exists public.strava_link_save(uuid, bigint, text, text, text, 
 drop function if exists public.strava_link_get(uuid);
 drop function if exists public.strava_link_tokens(uuid, text, timestamptz);
 drop function if exists public.strava_link_delete(uuid);
+drop function if exists public.strava_link_holder(bigint);
+drop function if exists public.strava_link_release(uuid, bigint, text);
 drop function if exists public.strava_export_begin(uuid, text);
 drop function if exists public.strava_export_finish(uuid, text, bigint);
 

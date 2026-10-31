@@ -27,7 +27,8 @@
 --    pendant l'envoi répond busy, une séance déjà envoyée répond done avec son activité.
 --  - Suppression du compte : tout part en cascade avec auth.users (la fonction delete-account révoque
 --    d'abord l'accès chez Strava, au mieux).
---  - Un athlète Strava n'est relié qu'à un seul compte MDLF (index unique, erreur athlete_taken).
+--  - Un athlète Strava n'est relié qu'à un seul compte MDLF (index unique, erreur athlete_taken). Une
+--    liaison périmée (accès retiré chez Strava) ne bloque pas : strava_link_holder et strava_link_release.
 --  - Erreurs lisibles (message exact, errcode P0001) : not_connected, rate_limited, invalid, athlete_taken.
 --
 --  Retour arrière : supabase/rollback/20261031620000_strava_down.sql.
@@ -188,6 +189,33 @@ begin
 end
 $$;
 
+-- Athlète refusé (athlete_taken) : compte qui le détient et ses jetons chiffrés (aucune ligne : libre).
+-- La fonction Edge vérifie chez Strava que cet accès vaut encore (docs/STRAVA.md, « Liaison périmée »).
+create function public.strava_link_holder(p_athlete_id bigint)
+  returns table (user_id uuid, tokens text)
+  language sql stable security definer set search_path = '' as
+$$
+  select l.user_id, l.tokens from private.strava_links l where l.athlete_id = p_athlete_id
+$$;
+
+-- Libère un athlète dont l'accès a été retiré chez Strava (renouvellement refusé) : la liaison du
+-- détenteur n'est effacée que si elle n'a pas changé depuis la vérification (même athlète, mêmes
+-- jetons). Un envoi du détenteur qui vient de renouveler ses jetons, ou une nouvelle liaison, la
+-- garde donc. true si effacée. Comme strava_link_delete : envois notés et états en attente aussi.
+create function public.strava_link_release(p_user uuid, p_athlete_id bigint, p_tokens text) returns boolean
+  language plpgsql security definer set search_path = '' as
+$$
+begin
+  perform pg_advisory_xact_lock(hashtextextended('strava:' || p_user::text, 0));
+  delete from private.strava_links l
+    where l.user_id = p_user and l.athlete_id = p_athlete_id and l.tokens = p_tokens;
+  if not found then return false; end if;
+  delete from private.strava_exports e where e.user_id = p_user;
+  delete from private.strava_states s where s.user_id = p_user;
+  return true;
+end
+$$;
+
 -- ── Fonctions Edge (service_role) : envoi d'une séance ──────
 
 -- Réserve l'envoi d'une séance : { status: 'go' } (envoyer), { status: 'done', activity_id } (déjà sur
@@ -244,6 +272,8 @@ revoke all on function public.strava_link_save(uuid, bigint, text, text, text, t
 revoke all on function public.strava_link_get(uuid) from public, anon, authenticated, service_role;
 revoke all on function public.strava_link_tokens(uuid, text, timestamptz) from public, anon, authenticated, service_role;
 revoke all on function public.strava_link_delete(uuid) from public, anon, authenticated, service_role;
+revoke all on function public.strava_link_holder(bigint) from public, anon, authenticated, service_role;
+revoke all on function public.strava_link_release(uuid, bigint, text) from public, anon, authenticated, service_role;
 revoke all on function public.strava_export_begin(uuid, text) from public, anon, authenticated, service_role;
 revoke all on function public.strava_export_finish(uuid, text, bigint) from public, anon, authenticated, service_role;
 
@@ -254,5 +284,7 @@ grant execute on function public.strava_link_save(uuid, bigint, text, text, text
 grant execute on function public.strava_link_get(uuid) to service_role;
 grant execute on function public.strava_link_tokens(uuid, text, timestamptz) to service_role;
 grant execute on function public.strava_link_delete(uuid) to service_role;
+grant execute on function public.strava_link_holder(bigint) to service_role;
+grant execute on function public.strava_link_release(uuid, bigint, text) to service_role;
 grant execute on function public.strava_export_begin(uuid, text) to service_role;
 grant execute on function public.strava_export_finish(uuid, text, bigint) to service_role;

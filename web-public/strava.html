@@ -10,8 +10,8 @@
        arrive en ancre (#ok, #refuse, #droits, #deja, #expire, #erreur) et s'affiche par :target, sans script
        (en-tête Content-Security-Policy de web-public/vercel.json). Aucune donnée n'est lue ni gardée ici. -->
   <style>
-    :root { --bg: #f2f2f7; --cell: #fff; --label: #000; --label2: rgba(60,60,67,.76); --ok: #1f7a35; --warn: #b52e00; color-scheme: light dark; }
-    @media (prefers-color-scheme: dark) { :root { --bg: #000; --cell: #1c1c1e; --label: #fff; --label2: rgba(235,235,245,.6); --ok: #30d158; --warn: #ff9f0a; } }
+    :root { --bg: #f2f2f7; --cell: #fff; --label: #000; --label2: rgba(60,60,67,.76); --ok: #1f7a35; --warn: #b52e00; --link: #0062cc; color-scheme: light dark; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #000; --cell: #1c1c1e; --label: #fff; --label2: rgba(235,235,245,.6); --ok: #30d158; --warn: #ff9f0a; --link: #0a84ff; } }
     * { box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; }
     body { margin: 0; background: var(--bg); color: var(--label); font: 17px/1.5 -apple-system, system-ui, sans-serif; overflow-x: hidden; }
@@ -24,6 +24,7 @@
     .mark { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
     .mark--ok { color: var(--ok); }
     .mark--warn { color: var(--warn); }
+    a { color: var(--link); }
     .back { color: var(--label2); font-size: 15px; }
   </style>
 </head>
@@ -45,7 +46,7 @@
   </section>
   <section class="result" id="deja">
     <p class="mark mark--warn">Strava n'est pas relié</p>
-    <p>Ce compte Strava est déjà relié à un autre compte MDLF Training. Rien n'a changé. Pour le relier à celui-ci, déconnecte-le d'abord depuis l'autre compte (Réglages › Strava). Si tu n'as pas demandé à relier Strava, ignore cette page.</p>
+    <p>Ce compte Strava est déjà relié à un autre compte MDLF Training. Rien n'a changé. Pour le relier à celui-ci, déconnecte-le d'abord depuis l'autre compte (Réglages › Strava). Si tu n'as plus accès à l'autre compte, ou si tu ne l'as jamais relié toi-même, retire MDLF Training dans <a href="https://www.strava.com/settings/apps">strava.com/settings/apps</a>, puis réessaie depuis Réglages › Strava. Si tu n'as pas demandé à relier Strava, ignore cette page.</p>
   </section>
   <section class="result" id="expire">
     <p class="mark mark--warn">Lien expiré</p>

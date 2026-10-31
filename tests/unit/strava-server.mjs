@@ -120,6 +120,49 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     for (const r of RETURN_RESULTS) assert.ok(html.includes(`<section class="result" id="${r}">`), `#${r} sans texte sur strava.html`);
   });
 
+  test('strava serveur : athlète déjà relié, liaison du détenteur périmée ou valable (holderVerdict)', async () => {
+    const { holderVerdict } = await policy();
+    const HOLDER = { userId: 'compte-a', tokens: 'chiffre-factice-a' };
+    const OLD = { access: 'faux-acces-a', refresh: 'faux-renouv-a' };
+    const FRESH = { access: 'faux-acces-b', refresh: 'faux-renouv-b' };
+    // Faux réseau : journal des appels, réponse de Strava au renouvellement choisie par le test
+    const io = (answer, opened = OLD) => {
+      const calls = [];
+      return { calls, open: async (uid, sealed) => { calls.push(['open', uid, sealed]); return opened; },
+        refresh: async (r) => { calls.push(['refresh', r]); return answer; },
+        saveTokens: async (uid, t) => { calls.push(['save', uid, t.refresh]); } };
+    };
+    // MDLF Training retiré dans strava.com/settings/apps : Strava refuse le jeton du détenteur (400 ou 401)
+    let x = io({ revoked: true });
+    assert.equal(await holderVerdict(HOLDER, FRESH, x), 'revoked', 'accès retiré chez Strava : athlète libéré');
+    sameJSON(x.calls, [['open', 'compte-a', 'chiffre-factice-a'], ['refresh', 'faux-renouv-a']], 'testé avec le jeton du détenteur, jamais celui reçu');
+    // Accès toujours valable : refus (#deja), les jetons renouvelés du détenteur sont gardés (l'ancien ne vaut plus)
+    x = io({ tokens: { access: 'faux-acces-a2', refresh: 'faux-renouv-a2', expiresAt: 1793450000 } });
+    assert.equal(await holderVerdict(HOLDER, FRESH, x), 'alive');
+    sameJSON(x.calls.at(-1), ['save', 'compte-a', 'faux-renouv-a2'], 'jeton tourné réenregistré pour le détenteur');
+    // Strava injoignable : on ne sait pas, rien n'est libéré
+    assert.equal(await holderVerdict(HOLDER, FRESH, io({ down: true })), 'unknown');
+    assert.equal(await holderVerdict(HOLDER, FRESH, io(null)), 'unknown');
+    // Même accord que celui reçu à l'instant : valable, sans appel à Strava
+    x = io({ revoked: true }, { access: 'faux-acces-a', refresh: 'faux-renouv-b' });
+    assert.equal(await holderVerdict(HOLDER, FRESH, x), 'alive');
+    assert.ok(!x.calls.some((c) => c[0] === 'refresh'), 'pas de renouvellement inutile');
+    // Jetons du détenteur indéchiffrables (clé changée) : il ne peut plus rien envoyer
+    x = io({ tokens: OLD }, null);
+    assert.equal(await holderVerdict(HOLDER, FRESH, x), 'revoked');
+    assert.ok(!x.calls.some((c) => c[0] === 'refresh'));
+    // Plus de détenteur (déconnecté entre-temps)
+    assert.equal(await holderVerdict(null, FRESH, io({ revoked: true })), 'free');
+  });
+
+  test('strava serveur : la page #deja donne une sortie sans l\'autre compte (strava.com/settings/apps)', () => {
+    const html = fs.readFileSync(path.join(ROOT, 'web-public/strava.html'), 'utf8');
+    const deja = html.slice(html.indexOf('<section class="result" id="deja">'));
+    const section = deja.slice(0, deja.indexOf('</section>'));
+    assert.ok(section.includes('https://www.strava.com/settings/apps'), 'retirer MDLF Training chez Strava, puis réessayer');
+    assert.ok(section.includes('réessaie'));
+  });
+
   test('strava serveur : jetons chiffrés (aller-retour, liés au compte, altération, autre clé)', async () => {
     const { tokenKey, sealTokens, openTokens } = await cryptoLib();
     const key = await tokenKey(FAKE_KEY);

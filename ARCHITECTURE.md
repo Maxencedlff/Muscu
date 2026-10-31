@@ -429,7 +429,8 @@ nomme les trois muscles les plus travaillés (`sessionTopMuscles`).
   `strava_state_*`, `strava_link_*`, `strava_export_*` pour `service_role` seulement. Limites : 10 liaisons par heure,
   30 envois par 24 h.
 - `supabase/functions/strava-connect/` (POST : adresse d'autorisation ; GET : retour de Strava, échange du code, droit
-  `activity:write` vérifié, `approval_prompt=force`, un athlète par compte (`athlete_taken` → `#deja`), redirection vers
+  `activity:write` vérifié, `approval_prompt=force`, un athlète par compte (`athlete_taken` → `#deja`, sauf liaison du détenteur périmée chez Strava : libérée par
+  `freeStaleAthlete`), redirection vers
   `web-public/strava.html#résultat`), `strava-export/`, `strava-disconnect/`.
   Communs : `_shared/strava.ts` (appels à Strava, renouvellement des jetons, révocation), `_shared/strava-policy.js` et
   `_shared/strava-crypto.js` (logique pure testée par `tests/unit/strava-server.mjs`). `delete-account` révoque aussi

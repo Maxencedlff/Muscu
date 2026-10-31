@@ -36,6 +36,8 @@ do $$ begin
   if pg_temp.serr('select public.strava_status()') not like 'permission denied%' then raise 'anon lit strava_status'; end if;
   if pg_temp.serr('select * from private.strava_links') not like 'permission denied%' then raise 'anon lit les liaisons'; end if;
   if pg_temp.serr($q$ select public.strava_link_get('00000000-0000-0000-0000-0000000007b1') $q$) not like 'permission denied%' then raise 'anon lit les jetons'; end if;
+  if pg_temp.serr($q$ select public.strava_link_holder(5151) $q$) not like 'permission denied%' then raise 'anon lit le détenteur d''un athlète'; end if;
+  if pg_temp.serr($q$ select public.strava_link_release('00000000-0000-0000-0000-0000000007b1', 5151, repeat('x', 30)) $q$) not like 'permission denied%' then raise 'anon libère une liaison'; end if;
 end $$;
 reset role;
 
@@ -54,6 +56,8 @@ begin
     $q$ select * from public.strava_link_get('00000000-0000-0000-0000-0000000007b1') $q$,
     $q$ select public.strava_link_tokens('00000000-0000-0000-0000-0000000007b1', repeat('x', 30), now()) $q$,
     $q$ select public.strava_link_delete('00000000-0000-0000-0000-0000000007b1') $q$,
+    $q$ select * from public.strava_link_holder(5151) $q$,
+    $q$ select public.strava_link_release('00000000-0000-0000-0000-0000000007b1', 5151, repeat('x', 30)) $q$,
     $q$ select public.strava_export_begin('00000000-0000-0000-0000-0000000007b1', 's1') $q$,
     $q$ select public.strava_export_finish('00000000-0000-0000-0000-0000000007b1', 's1', 1) $q$] loop
     if pg_temp.serr(f) not like 'permission denied%' then raise 'client appelle une fonction serveur : %', f; end if;
@@ -159,6 +163,28 @@ begin
   end if;
   if (select athlete_id from public.strava_link_get(pg_temp.su('b'))) <> 6262 then raise 'liaison de B changée'; end if;
   perform public.strava_link_delete(pg_temp.su('b'));
+  -- Liaison périmée (docs/STRAVA.md, « Liaison périmée ») : le détenteur de l'athlète est lisible par la
+  -- fonction Edge, qui teste son accès chez Strava ; s'il a été retiré, la liaison est libérée, mais
+  -- seulement si elle n'a pas changé depuis la lecture
+  if (select user_id from public.strava_link_holder(5151)) is distinct from pg_temp.su('a')
+     or (select tokens from public.strava_link_holder(5151)) <> 'chiffre-factice-5-xxxxxxxxxxxx' then raise 'détenteur de l''athlète mal lu'; end if;
+  if exists (select 1 from public.strava_link_holder(999999)) then raise 'détenteur d''un athlète libre'; end if;
+  if public.strava_link_release(pg_temp.su('a'), 5151, 'chiffre-factice-perime-xxxxxxx') then raise 'liaison libérée avec des jetons qui ont changé'; end if;
+  if public.strava_link_release(pg_temp.su('a'), 6262, 'chiffre-factice-5-xxxxxxxxxxxx') then raise 'liaison libérée pour un autre athlète'; end if;
+  if (select tokens from public.strava_link_get(pg_temp.su('a'))) <> 'chiffre-factice-5-xxxxxxxxxxxx' then raise 'liaison de A touchée par un refus de libération'; end if;
+  -- Un état en attente de A, qui doit partir avec la liaison
+  perform public.strava_state_create(pg_temp.su('a'), pg_temp.shash(4));
+  if not public.strava_link_release(pg_temp.su('a'), 5151, 'chiffre-factice-5-xxxxxxxxxxxx') then raise 'liaison périmée non libérée'; end if;
+  if exists (select 1 from public.strava_link_get(pg_temp.su('a'))) then raise 'liaison de A restée'; end if;
+  if public.strava_state_consume(pg_temp.shash(4)) is not null then raise 'état en attente de A gardé après la libération'; end if;
+  -- L'athlète libéré se relie au compte de la personne (B)
+  if pg_temp.serr($q$ select public.strava_link_save('00000000-0000-0000-0000-0000000007b2', 5151, 'Max', 'activity:write', 'chiffre-factice-b4-xxxxxxxxxxx', now()) $q$) <> 'ok' then
+    raise 'athlète libéré refusé après une liaison périmée';
+  end if;
+  if (select user_id from public.strava_link_holder(5151)) is distinct from pg_temp.su('b') then raise 'B ne détient pas l''athlète libéré'; end if;
+  perform public.strava_link_delete(pg_temp.su('b'));
+  -- A relié de nouveau, comme avant (les vérifications suivantes partent de là)
+  perform public.strava_link_save(pg_temp.su('a'), 5151, 'Max', 'read,activity:write', 'chiffre-factice-5-xxxxxxxxxxxx', now());
   -- L'index tient même sans la fonction (deux liaisons simultanées)
   if not exists (select 1 from pg_indexes where schemaname = 'private' and indexname = 'strava_links_athlete' and indexdef like 'CREATE UNIQUE INDEX%(athlete_id)') then
     raise 'index unique sur athlete_id absent';

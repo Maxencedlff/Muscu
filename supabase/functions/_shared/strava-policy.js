@@ -150,3 +150,28 @@ export const RETURN_RESULTS = Object.freeze(['ok', 'refuse', 'droits', 'deja', '
 export function returnUrl(base, result) {
   return `${base}#${RETURN_RESULTS.includes(result) ? result : 'erreur'}`;
 }
+
+// Athlète déjà relié à un autre compte MDLF (athlete_taken) : la liaison de ce compte détenteur
+// vaut-elle encore ? Sans cette vérification, une liaison périmée (MDLF Training retiré dans
+// strava.com/settings/apps, ancien compte MDLF perdu) bloquerait l'athlète pour toujours : seul un envoi
+// du détenteur découvre qu'un accès a été retiré (docs/STRAVA.md, « Liaison périmée »).
+// holder : { userId, tokens } (jetons chiffrés lus par strava_link_holder) ou null ; fresh : jetons reçus
+// à l'instant pour l'autre compte. io (réseau et chiffrement, fournis par _shared/strava.ts) :
+//   open(userId, sealed) → { access, refresh } | null ; refresh(refreshToken) → { tokens } | { revoked } | { down } ;
+//   saveTokens(userId, tokens) : jetons renouvelés du détenteur réenregistrés.
+// Verdict : 'free' (plus de détenteur), 'revoked' (accès retiré : la liaison peut être libérée),
+// 'alive' (accès valable : #deja), 'unknown' (Strava injoignable : on ne libère rien).
+// Le test est un renouvellement, jamais un appel à l'API : il ne demande aucun droit (GET /athlete
+// demanderait read, que l'app ne demande pas) ; Strava répond 400 ou 401 à un jeton invalidé.
+export async function holderVerdict(holder, fresh, io) {
+  if (!holder || !holder.userId) return 'free';
+  const tokens = await io.open(holder.userId, holder.tokens);
+  // Indéchiffrable (clé changée) : le détenteur ne peut plus rien envoyer (stravaAccess l'efface aussi)
+  if (!tokens) return 'revoked';
+  // Même jeton de renouvellement que celui reçu : c'est le même accord, toujours valable
+  if (fresh && fresh.refresh === tokens.refresh) return 'alive';
+  const r = await io.refresh(tokens.refresh);
+  if (r && r.tokens) { await io.saveTokens(holder.userId, r.tokens); return 'alive'; }
+  if (r && r.revoked) return 'revoked';
+  return 'unknown';
+}

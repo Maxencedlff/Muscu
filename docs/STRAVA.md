@@ -92,6 +92,8 @@ Safari → strava.com/oauth/authorize → GET …/functions/v1/strava-connect?co
   répond `athlete_taken` si l'athlète est relié à un autre compte, la page de retour affiche `#deja`.
   Les jetons reçus sont alors oubliés **sans être révoqués** : chez Strava, il n'y a qu'un accord par
   athlète et par application, le révoquer couperait aussi l'accès du compte qui détient la liaison.
+  Avant de refuser, la liaison du détenteur est vérifiée : si elle est périmée, elle est libérée (voir
+  « Liaison périmée » plus bas).
 - **Renouvellement** côté serveur (`_shared/strava.ts`, `stravaAccess`) : 5 minutes avant
   l'expiration (jeton d'accès d'environ 6 h). Strava change le jeton de renouvellement à chaque fois
   et invalide l'ancien aussitôt : le dernier reçu est réenregistré ; si deux envois renouvellent en
@@ -131,10 +133,48 @@ Ce qui le limite aujourd'hui, sans build :
    son Strava à son propre compte ne peut plus être relié à un autre, même en acceptant.
 
 Risque restant : une personne qui n'a pas relié Strava, reçoit le lien et **accepte** l'écran de
-Strava. La vraie correction demande une build : `ASWebAuthenticationSession` (ou un lien universel)
+Strava. Son recours : retirer MDLF Training dans strava.com/settings/apps (les jetons du compte
+malveillant ne valent plus rien), puis relier Strava à son propre compte ; la liaison périmée du compte
+malveillant est alors libérée (« Liaison périmée » ci-dessous). La vraie correction demande une build : `ASWebAuthenticationSession` (ou un lien universel)
 avec un schéma de rappel capté par l'app ; Strava renvoie `code` et `state` à l'app, qui les envoie à
 une fonction authentifiée par son JWT, et le serveur vérifie que l'état appartient à ce compte
 (`state.user_id = auth.uid()`). À faire sur une branche « build ».
+
+### Liaison périmée
+
+Sans sortie, l'index unique bloquerait un athlète pour toujours : la ligne du compte qui le détient ne
+disparaît que si ce compte se déconnecte, est supprimé, ou tente un envoi refusé par Strava. Deux cas
+réels : la victime du scénario CSRF ci-dessus, qui a retiré l'accès chez Strava ; une personne qui a
+perdu l'accès à son ancien compte MDLF (passage d'un e-mail à « Se connecter avec Apple »).
+
+Au retour de Strava, sur `athlete_taken`, `strava-connect` appelle `freeStaleAthlete`
+(`_shared/strava.ts`) avant de répondre `#deja` :
+
+1. `strava_link_holder(athlete)` : compte détenteur et ses jetons chiffrés (`service_role`).
+2. `holderVerdict` (`_shared/strava-policy.js`, logique pure testée) : même jeton de renouvellement que
+   celui reçu à l'instant → même accord, valable ; sinon renouvellement avec le jeton du **détenteur**
+   (aucun droit demandé, contrairement à `GET /athlete` qui exige `read`). Réponse 400 ou 401 : accès
+   retiré (jeton indéchiffrable aussi : clé changée). Réponse valable : jetons tournés réenregistrés pour
+   le détenteur (l'ancien ne vaut plus chez Strava), refus `#deja`. Strava injoignable : `#erreur`, rien
+   n'est effacé.
+3. Accès retiré : `strava_link_release(détenteur, athlète, jetons lus)` efface la liaison (envois notés
+   et états en attente aussi) **seulement si elle n'a pas changé** depuis la lecture : un envoi du
+   détenteur qui vient de renouveler ses jetons prouve que son accès vaut encore. Puis une seule nouvelle
+   tentative de `strava_link_save`.
+
+La page `#deja` dit donc aussi : « si tu n'as plus accès à l'autre compte, ou si tu ne l'as jamais relié
+toi-même, retire MDLF Training dans strava.com/settings/apps, puis réessaie ». Aucun outil de support
+n'est nécessaire.
+
+Ce que le détenteur y perd : rien. Son accès était déjà inutilisable ; son prochain envoi aurait effacé
+la liaison de la même façon (`stravaAccess`). Hypothèse sur Strava (non documentée, à vérifier dans les
+essais à la main) : un nouvel accord pour un athlète déjà autorisé rend le même jeton de renouvellement,
+ou du moins n'invalide pas celui du détenteur. Si ce n'était pas le cas, la vérification verrait le
+détenteur comme révoqué et la protection `athlete_taken` contre le scénario CSRF ne tiendrait plus (la
+page `#ok` s'afficherait pour le nouveau compte, le premier perdrait sa liaison) : il faudrait alors
+garder le refus et passer par le webhook. Le webhook de
+Strava (« athlete update », `authorized=false`) libérerait la liaison dès le retrait ; il demande
+d'enregistrer un abonnement chez Strava : piste pour plus tard.
 
 ### Serveur
 
@@ -144,7 +184,8 @@ une fonction authentifiée par son JWT, et le serveur vérifie que l'état appar
   GRANT). RPC security definer, `search_path = ''` :
   - `strava_status()` : rôle `authenticated`, lit `auth.uid()`, jamais un jeton ni le numéro d'athlète.
   - `strava_state_create`, `strava_state_consume`, `strava_link_save`, `strava_link_get`,
-    `strava_link_tokens`, `strava_link_delete`, `strava_export_begin`, `strava_export_finish` :
+    `strava_link_tokens`, `strava_link_delete`, `strava_link_holder`, `strava_link_release`,
+    `strava_export_begin`, `strava_export_finish` :
     rôle `service_role` seulement (fonctions Edge), le compte vient du jeton vérifié ou de l'état.
   - Limites : 10 débuts de liaison par heure, 30 envois par 24 h et par compte (journal
     `private.social_rate`). Elles protègent aussi le quota de l'app chez Strava, commun à tous.
@@ -162,14 +203,18 @@ une fonction authentifiée par son JWT, et le serveur vérifie que l'état appar
 - `tests/unit/strava-server.mjs` : adresse d'autorisation, droits accordés, jetons reçus,
   renouvellement, identifiant d'activité (jamais arrondi), validation de l'envoi, chiffrement
   (aller-retour, autre compte, altération, autre clé), état OAuth, `approval_prompt=force`, chaque
-  résultat du retour présent sur `web-public/strava.html`.
+  résultat du retour présent sur `web-public/strava.html`, liaison du détenteur périmée ou valable
+  (`holderVerdict` : accès retiré, accès valable avec jetons tournés réenregistrés, Strava injoignable,
+  même accord, jetons indéchiffrables), sortie donnée par la page `#deja` (strava.com/settings/apps).
 - `tests/unit/strava.mjs` : séance envoyable, type d'activité, description (ni notes ni poids),
   corps accepté par la validation du serveur, état nettoyé, cache par compte, séances importées de
   Hevy ou Strong refusées (jusqu'à `applyImport`), `Native.openOutside` (navigation dans l'app, nouvel
   onglet ailleurs, jamais une adresse non https).
 - `tests/sql/strava_test.sql` : anon et client sans accès aux tables ni aux RPC serveur, état sans
   jeton, usage unique de l'état, changement d'athlète, athlète déjà relié à un autre compte
-  (`athlete_taken`, index unique), déconnexion complète, limites, cascade à la
+  (`athlete_taken`, index unique), liaison périmée (`strava_link_holder`, `strava_link_release` :
+jamais avec des jetons qui ont changé ni pour un autre athlète, puis athlète relié au nouveau compte),
+déconnexion complète, limites, cascade à la
   suppression du compte. `tests/sql/strava_rollback_check.sh` : retour arrière (deux fois) puis tous
   les autres tests.
 - `tests/test_strava.py` : écrans dans l'app iOS simulée (Strava simulé par `tests/fake_account.py`) ;
@@ -239,7 +284,10 @@ Strava à nouveau.
 - Un toucher sur « Connect with Strava » ouvre bien Safari (et pas seulement la consigne) ; idem
   « View on Strava » et « Ouvrir Strava » après une déconnexion non confirmée.
 - Relier le même Strava depuis un second compte MDLF de test : page `#deja`, le premier compte reste
-  relié et peut toujours envoyer.
+  relié et peut toujours envoyer (vérifie l'hypothèse de « Liaison périmée » : un nouvel accord
+  n'invalide pas le jeton du premier compte ; à refaire plus de 6 heures après le dernier envoi).
+- Puis retirer MDLF Training dans strava.com/settings/apps et relier depuis le second compte : page
+  `#ok`, le premier compte affiche « pas relié » au prochain chargement de Réglages › Strava.
 - Envoyer une séance de musculation, une course sur tapis, une sortie vélo : type, durée, distance,
   description corrects sur Strava ; « View on Strava » ouvre l'activité.
 - Double toucher sur « Envoyer » : une seule activité.

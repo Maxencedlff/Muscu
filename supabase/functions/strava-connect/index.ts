@@ -11,7 +11,10 @@
 //   jetons chiffrés puis enregistrés (strava_link_save). Une liaison précédente à un autre athlète est
 //   révoquée. Un athlète déjà relié à un AUTRE compte MDLF est refusé (#deja) : les jetons reçus sont
 //   oubliés sans être révoqués, car une révocation chez Strava couperait aussi l'accès du compte qui le
-//   détient déjà (un seul accord par athlète et par application). Réponse : redirection vers la page
+//   détient déjà (un seul accord par athlète et par application). Sauf si la liaison de ce détenteur est
+//   périmée : son jeton de renouvellement est refusé par Strava (MDLF Training retiré dans
+//   strava.com/settings/apps), sa liaison est effacée et la nouvelle enregistrée (freeStaleAthlete) ;
+//   Strava injoignable pendant ce test : #erreur. Réponse : redirection vers la page
 //   publique STRAVA_RETURN_URL (par défaut https://mdlf.app/strava.html) avec le résultat en ancre :
 //   #ok, #refuse, #droits, #deja, #expire, #erreur. La passerelle des fonctions Supabase ne sert pas de
 //   page HTML : d'où la page publique.
@@ -21,7 +24,7 @@
 import { adminClient, caller, CORS, env, json } from '../_shared/http.ts';
 import { authorizeUrl, hasWriteScope, returnUrl } from '../_shared/strava-policy.js';
 import { newState, openTokens, sealTokens, stateHash, stateLooksValid } from '../_shared/strava-crypto.js';
-import { exchangeCode, key, revokeAtStrava, stravaConfigured } from '../_shared/strava.ts';
+import { exchangeCode, freeStaleAthlete, key, revokeAtStrava, stravaConfigured } from '../_shared/strava.ts';
 
 const DEFAULT_RETURN = 'https://mdlf.app/strava.html';
 const redirectUri = () => `${env('SUPABASE_URL').replace(/\/+$/, '')}/functions/v1/strava-connect`;
@@ -67,11 +70,19 @@ async function finish(url: URL) {
   const k = await key();
   if (!k) return back('erreur');
   const sealed = await sealTokens(k, userId, { access: t.access, refresh: t.refresh });
-  const { data: previous, error: saveErr } = await admin.rpc('strava_link_save', {
+  const save = () => admin.rpc('strava_link_save', {
     p_user: userId, p_athlete_id: t.athleteId, p_athlete_name: t.athleteName, p_scope: t.scope ?? url.searchParams.get('scope') ?? '',
     p_tokens: sealed, p_expires_at: new Date(t.expiresAt * 1000).toISOString(),
   });
-  if (saveErr?.message === 'athlete_taken') return back('deja');
+  let { data: previous, error: saveErr } = await save();
+  if (saveErr?.message === 'athlete_taken') {
+    // Liaison du détenteur périmée (accès retiré chez Strava) : libérée, puis une seule nouvelle tentative
+    const holder = await freeStaleAthlete(admin, t.athleteId, { access: t.access, refresh: t.refresh });
+    if (holder === 'unknown') return back('erreur');
+    if (holder === 'taken') return back('deja');
+    ({ data: previous, error: saveErr } = await save());
+    if (saveErr?.message === 'athlete_taken') return back('deja');
+  }
   if (saveErr) {
     console.error('strava-connect: liaison non enregistrée', saveErr.code);
     await revokeAtStrava({ access: t.access, refresh: t.refresh });
