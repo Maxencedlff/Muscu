@@ -641,8 +641,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     // Un code de jours a une fin : pas « à vie »
     sameJSON(forever(gift({ until: NOW + 30 * DAY, gift_until: NOW + 30 * DAY, days_left: 30 })), [false, 'gift']);
     sameJSON(forever(gift({ status: 'active', gift: false, until: NOW + 30 * DAY })), [false, 'active']);
-    // Le libellé « Accès offert à vie » vient de là (paywall-ui.js, non chargé ici)
-    assert.ok(/if \(accessGiftForever\(\)\) return 'Accès offert à vie';/.test(fs.readFileSync(path.join(ROOT, 'js/features/paywall-ui.js'), 'utf8')));
+    // Le libellé « Accès offert à vie » (paywall-ui.js) est vérifié à l'écran par tests/test_payant.py (t_vie)
     // Hors ligne : 7 jours, comme tout accès sans date de fin, puis redemandé
     sameJSON(offline(gift(), 6), [true, 'gift', null, false]);
     sameJSON(offline(gift(), 8), [false, 'unknown', null, true]);

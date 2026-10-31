@@ -39,7 +39,7 @@ import StoreKit
 ///   d'offre d'abonnement** ; la transaction qui en résulte arrive ici par l'écouteur.
 /// - **Environnement** (`environment()`, payant plus) : `AppTransaction.shared` dit si l'app tourne en
 ///   Production (App Store) ou en Sandbox (TestFlight, Xcode avec un compte Sandbox), pour que le web
-///   demande au serveur un code d'offre élève du bon environnement. Lecture sans aucune fenêtre :
+///   sache qu'il tourne sous TestFlight (aucun code d'offre élève n'y est demandé). Lecture sans aucune fenêtre :
 ///   `AppTransaction.refresh()`, qui demande le mot de passe Apple, n'est jamais appelé. Ce n'est pas une
 ///   preuve d'achat et rien ne s'en sert pour ouvrir un accès.
 ///
@@ -301,7 +301,7 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
     // MARK: Environnement
 
     /// → { environment: "production" | "sandbox" | "other" | "unknown" }. TestFlight tourne toujours en
-    /// Sandbox : c'est ainsi que le web reconnaît une build TestFlight (code d'offre élève de Sandbox).
+    /// Sandbox : c'est ainsi que le web reconnaît une build TestFlight (aucun code d'offre élève n'y est demandé).
     /// `AppTransaction.shared` ne montre aucune fenêtre (contrairement à `refresh()`) ; s'il échoue
     /// (hors ligne au tout premier lancement, signature non vérifiée), la réponse est "unknown" et le web
     /// garde la Production. Aucune décision d'accès n'en dépend.

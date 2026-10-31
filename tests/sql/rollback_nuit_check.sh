@@ -212,7 +212,13 @@ do $$ begin
   if (select status from public.entitlements where user_id = '00000000-0000-0000-0000-00000000d003') <> 'active'
      then raise 'abonné : %', (select status from public.entitlements where user_id = '00000000-0000-0000-0000-00000000d003'); end if;
   if (select count(*) from public.sessions where id = 'r1') <> 1 then raise 'séance perdue'; end if;
+  -- Accès à vie offert puis retiré : mis de côté, il ne revit pas
+  if (select count(*) from private.payant_plus_revoked_redemptions) <> 1 then raise 'retrait d''accès offert non mis de côté'; end if;
+  if exists (select 1 from public.gift_redemptions where user_id = '00000000-0000-0000-0000-00000000d004')
+     then raise 'accès offert retiré revenu'; end if;
 end $$;
+-- Les tests de la nouvelle montée comptent sur une table de codes vierge (payant_test.sql)
+delete from public.gift_codes where note = 'attribué : retiré ensuite';
 SQL
 echo "OK : démontage complet avec des données, archives et droits d'accès vérifiés"
 for m in "$mig"/*.sql; do

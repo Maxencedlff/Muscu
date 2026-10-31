@@ -228,7 +228,7 @@ FAKE_STORE = r"""
     try { if (/^jws\..*\.sig$/.test(String(jws))) tx = unb64(String(jws).slice(4, -4)); } catch (e) { tx = null; }
     if (!tx || !tx.productId) return fail(400, { error: 'invalid_jws' });
     if (tx.bundleId !== BUNDLE) return fail(400, { error: 'bad_bundle' });
-    // Deux abonnements seulement : l'ancien « Accès offert » d'Apple est inconnu
+    // Les dix abonnements seulement : l'ancien « Accès offert » d'Apple est inconnu
     if (!SUB_IDS.includes(tx.productId)) return fail(400, { error: 'unknown_product' });
     if (tx.unknown) return fail(404, { error: 'not_found' });
     const taken = st.taken[tx.originalId];

@@ -8,6 +8,7 @@
 --  - les accès à vie offerts RETIRÉS (gift_redemptions.revoked_at) sont mis de côté dans
 --    private.payant_plus_revoked_redemptions puis supprimés : sans cela, la suppression de la colonne
 --    les ferait revivre ;
+--  - refus sans rien changer si un code à vie encore utilisable a un accès retiré (garde ci-dessous) ;
 --  - les codes désactivés (gift_codes.revoked_at) sont expirés (expires_at = maintenant) avant la
 --    suppression de la colonne, pour rester inutilisables ;
 --  - access_refresh et redeem_gift_code reprennent leur texte de 20261030000000_payant_tarifs.sql et
@@ -18,6 +19,19 @@
 -- ═══════════════════════════════════════════════════════════
 
 begin;
+
+-- Garde : un code à vie encore utilisable (plusieurs utilisations, non désactivé) dont un accès a été
+-- retiré redonnerait l'accès à cette personne une fois sa ligne d'utilisation supprimée (plus de
+-- already_redeemed). Le désactiver d'abord : select private.revoke_gift_code('<code>', '<motif>');
+do $garde$
+begin
+  if exists (select 1 from public.gift_redemptions r join public.gift_codes k on k.code = r.code
+              where r.revoked_at is not null and k.revoked_at is null and k.uses < k.max_uses
+                and (k.expires_at is null or k.expires_at > now())) then
+    raise exception 'codes encore utilisables avec un accès retiré : les désactiver d''abord (private.revoke_gift_code)';
+  end if;
+end
+$garde$;
 
 create table private.payant_plus_revoked_redemptions as
   select * from public.gift_redemptions where revoked_at is not null;

@@ -28,6 +28,24 @@ create table public.rb_code as select x as code from private.make_gift_code('lif
 select private.revoke_gift_code((select code from public.rb_code), 'désactivé');
 SQL
 
+# Garde : un code à vie à plusieurs utilisations, encore valable, dont un accès a été retiré
+psql >/dev/null <<'SQL'
+create table public.rb_multi as select x as code from private.make_gift_code('lifetime', null, 1, 'multi', null, 5) x;
+insert into public.gift_redemptions (code, user_id) select code, '00000000-0000-0000-0000-000000000c03' from public.rb_multi;
+update public.gift_codes set uses = 1 where code = (select code from public.rb_multi);
+select private.revoke_lifetime('00000000-0000-0000-0000-000000000c03', 'retiré');
+SQL
+if psql -f "$root/supabase/rollback/20261031000000_payant_plus_down.sql" >/dev/null 2>&1; then
+  echo "ÉCHEC : retour arrière passé avec un code multi-usage encore valable et un accès retiré"; exit 1
+fi
+psql >/dev/null <<'SQL'
+do $$ begin
+  if to_regprocedure('private.grant_lifetime(uuid, text)') is null then raise 'garde : retour arrière à moitié appliqué'; end if;
+end $$;
+select private.revoke_gift_code((select code from public.rb_multi), 'désactivé avant le retour arrière');
+drop table public.rb_multi;
+SQL
+
 psql -f "$root/supabase/rollback/20261031000000_payant_plus_down.sql"
 
 psql >/dev/null <<'SQL'
@@ -41,7 +59,7 @@ begin
   if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from
      array['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until']
      then raise 'clés d''avant : %', st; end if;
-  if (select count(*) from private.payant_plus_revoked_redemptions) <> 1 then raise 'retraits non mis de côté'; end if;
+  if (select count(*) from private.payant_plus_revoked_redemptions) <> 2 then raise 'retraits non mis de côté'; end if;
   if (select expires_at > now() from public.gift_codes where code = (select code from public.rb_code)) then raise 'code désactivé réutilisable'; end if;
   if exists (select 1 from pg_proc where proname in ('grant_lifetime', 'revoke_lifetime', 'revoke_gift_code')) then raise 'fonctions restées'; end if;
   if to_regclass('private.lifetime_access') is not null then raise 'vue restée'; end if;

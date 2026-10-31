@@ -350,10 +350,13 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
   const trial = shown.find(p => p.trial);
   const off = !paywallOn();
   const student = !off && !coachTab && payIsStudentOffer() && Native.store.available && access.products?.length;
-  const title = off ? 'Tout est ouvert' : coachTab ? 'MDLF Training pour coachs' : end ? 'Abonnement nécessaire' : 'MDLF Training, sans limite';
+  // Accès à vie offert, onglet Particulier : rien à acheter, le haut de l'écran le dit aussi
+  const forever = !off && !coachTab && accessGiftForever();
+  const title = off ? 'Tout est ouvert' : coachTab ? 'MDLF Training pour coachs' : forever ? 'Accès offert à vie' : end ? 'Abonnement nécessaire' : 'MDLF Training, sans limite';
   // Formulation exacte : l'abonnement continue tout seul après l'essai, et Apple demande de résilier au
   // moins 24 h avant sa fin (https://support.apple.com/en-us/118428)
   const sub = off ? 'L\'abonnement n\'est pas encore demandé.'
+    : forever ? 'Tu enregistres tes séances sans abonnement.'
     : student ? `Avec le code de ton coach, ton abonnement est à 25 % de moins pendant ${PLAN_STUDENT_MONTHS} mois.`
     : trial
     ? `${esc(payDurationText(trial.trial))} gratuits, puis l'abonnement continue sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
@@ -377,7 +380,7 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
           ${payCodeCellsHtml()}
         </div>
         <div class="group-foot">${PAY_CODE_NOTE}</div>
-        <div class="group-foot">Un identifiant Apple n'a droit qu'à un seul essai gratuit, et un même abonnement ne peut servir qu'à un compte MDLF.</div>
+        ${forever ? '' : '<div class="group-foot">Un identifiant Apple n\'a droit qu\'à un seul essai gratuit, et un même abonnement ne peut servir qu\'à un compte MDLF.</div>'}
         ${coachTab ? '' : payCoachLinkHtml()}
         ${planned ? '' : payLegalHtml()}
       </div>
@@ -423,6 +426,10 @@ function renderSubscription() {
   const introLine = intro ? `Essai gratuit jusqu'au ${fmtDate(intro)}${plan ? `, puis ${plan.price} ${payPer(plan)}` : ''}` : '';
   const offNote = !on ? `
         <div class="group-foot">Tout est ouvert pour l'instant : l'abonnement n'est pas encore demandé.</div>` : '';
+  // Accès à vie offert ET abonnement particulier lu sur cet iPhone : Apple continue de le facturer (un
+  // palier coach, lui, reste utile : il donne le nombre d'élèves)
+  const alsoNote = on && accessGiftForever() && access.currentProduct && !planIsCoach(access.currentProduct) ? `
+        <div class="group-foot" role="note">Ton abonnement Apple continue d'être facturé. Avec l'accès offert à vie, tu peux le résilier dans « Gérer chez Apple ».</div>` : '';
   const rows = `
         <div class="group">
           <div class="cell">
@@ -434,7 +441,7 @@ function renderSubscription() {
             <span class="cell__value">${esc(fmtDate(until))}</span>
           </div>` : ''}
         </div>${introLine ? `
-        <div class="group-foot pay-intro-line">${esc(introLine)}.</div>` : ''}${offNote}`;
+        <div class="group-foot pay-intro-line">${esc(introLine)}.</div>` : ''}${offNote}${alsoNote}`;
   const actions = `
         <div class="group">
           ${on && (st === 'none' || st === 'expired' || st === 'unknown')
@@ -542,7 +549,7 @@ registerActions({
     const res = await payCodeSheet();
     if (!res) return;
     render();
-    showToast(res.kind === 'lifetime' ? 'Accès offert activé' : 'Code accepté : des jours en plus');
+    showToast(res.kind === 'lifetime' ? 'Accès offert à vie activé' : 'Code accepté : des jours en plus');
   },
   // Code d'offre d'abonnement d'Apple : sa propre fenêtre, le code utilisé revient par l'écouteur
   'pay-apple-code': async () => {

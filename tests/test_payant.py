@@ -1146,7 +1146,23 @@ def t_vie(bench, eng, dev, theme):
         R.check('Accès offert à vie' in txt and 'Renouvellement' not in txt, f'{t} accès offert à vie : Réglages ({txt[:120]!r})')
         shot(page, LOT, f'41-offert-a-vie-reglages-{t}')
         txt = paywall(page)
-        R.check(page.locator('.pay-plan').count() == 0 and 'On t\'a offert l\'accès à vie' in txt, f'{t} accès offert à vie : rien à acheter')
+        R.check(page.locator('.pay-plan').count() == 0 and 'On t\'a offert l\'accès à vie' in txt
+                and 'Accès offert à vie' in page.inner_text('.pay-hero') and 'seul essai gratuit' not in txt,
+                f'{t} accès offert à vie : rien à acheter, le haut de l\'écran le dit')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # 3 bis. Abonné particulier qui reçoit un accès offert à vie : Apple continue de facturer, c'est dit
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'products': 'all'})
+        signin(page, username='max')
+        refresh_access(page)
+        paywall(page)
+        page.click(f'[data-action="pay-buy"][data-id="{MONTHLY}"]')
+        page.wait_for_timeout(1200)
+        page.evaluate('__st.giveGift()')
+        refresh_access(page)
+        txt = sub_text(page)
+        R.check('Accès offert à vie' in txt and 'continue d\'être facturé' in txt, f'{t} abonné puis accès offert : abonnement à résilier dit ({txt[:160]!r})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
     # 4. Coach avec un palier puis accès à vie offert (coach partenaire) : le palier reste proposé,
