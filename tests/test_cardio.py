@@ -28,6 +28,7 @@ window.Capacitor = {
       requestAuthorization: async () => ({ available: true, workouts: true }),
       authorizationStatus: async () => ({ available: true, request: 'unnecessary' }),
       saveWorkout: async () => ({ saved: true }),
+      saveWorkouts: async ({ workouts }) => ({ saved: workouts.length, total: workouts.length }),
       bodyMass: async () => ({ samples: [] }),
       workouts: async () => { __hk.calls++; return { workouts: __hk.list }; },
     };
