@@ -170,7 +170,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ▶ | Système payant modèle B : StoreKit, essai 3 mois, codes cadeaux, verrou       | Branche payant            | Prêt, tests verts · attend ta décision |
 | ▶ | Abonnements 5,99 €/mois et 41,99 €/an, offre 3 mois gratuits                  | App Store Connect         | Créés · manque la capture de revue     |
 | ▶ | Photos de progression dans l'app iPhone (autorisations caméra et photos)      | Branche nuit-build        | Fusionnée dans la build unique         |
-| ▶ | Build unique : sommeil, séances détaillées dans Santé, notifications push    | Branche nuit-build        | Écrite, tests verts · non compilée     |
+| ▶ | Build unique : sommeil, séances détaillées dans Santé, notifications push    | Branche build-ios         | TestFlight 31 (avec montre, widget, Siri) · serveur push pas en service |
 | ▶ | Commentaires libres sur les séances (modération) et messages coach ↔ élève   | Branche nuit-social       | Prêt en local, tests verts · feu vert n° 2 |
 
 ---

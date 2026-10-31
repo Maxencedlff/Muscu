@@ -4,7 +4,7 @@ Ce que contient cette build native, et l'ordre exact pour la mettre en service. 
 production** tant que Maxence n'a pas donné son feu vert : la branche n'est pas poussée, la migration
 n'est pas appliquée, la fonction n'est pas déployée, aucun secret n'est posé.
 
-Le Swift n'a **pas été compilé** (pas de Mac) : la première étape est la compilation de contrôle sur la CI.
+Compilée sur la branche `build-ios` (31/10/2026, avec l'Apple Watch, le widget et Siri : docs/WATCH_WIDGETS.md) : contrôle simulateur vert, build TestFlight 31.
 
 ## Contenu
 
