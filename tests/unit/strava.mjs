@@ -117,6 +117,20 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.ok(long.includes('\n…\n'));
   });
 
+  test('strava : en sommeil pour le lancement (interrupteur livré éteint, aucun appel, rien de relié)', async () => {
+    reset();
+    assert.equal(run('STRAVA_SWITCH.enabled'), false, 'Strava doit être livré éteint (décision du 31/10/2026)');
+    const r = await run(`(async () => {
+      const u = account.user, st = strava.state, realSb = sb; let calls = 0;
+      try {
+        account.user = { id: 'u' }; strava.state = { connected: true, name: 'Léa', canWrite: true, exports: {} };
+        sb = { rpc: async () => { calls++; return { data: null, error: null }; }, functions: { invoke: async () => { calls++; return { data: {}, error: null }; } } };
+        return [stravaConnected(), await stravaRefresh(), (await stravaInvoke('strava-export', {})).ok, calls];
+      } finally { account.user = u; strava.state = st; sb = realSb; }
+    })()`);
+    sameJSON(r, [false, false, false, 0]);
+  });
+
   test('strava : corps envoyé à strava-export, accepté tel quel par le serveur', async () => {
     reset();
     const { validateExport } = await import(path.join(ROOT, 'supabase/functions/_shared/strava-policy.js'));

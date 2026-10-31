@@ -193,7 +193,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Écran Mon profil, pastille d'activité, bravos dans l'Historique | Feu vert n° 2                                |
 | ○ | Partage du poids avec le coach (consentement)                   | Feu vert n° 2                                |
 | ○ | Échauffements et RIR visibles par les amis et le coach          | Feu vert n° 2                                |
-| ○ | Export vers Strava (jeton côté serveur), codé : branche nuit-strava | Feu vert n° 2 · app Strava à créer, docs/STRAVA.md |
+| ○ | Export vers Strava (jeton côté serveur), codé : **en sommeil, prévu pour une prochaine mise à jour** (décision du 31/10, interrupteur STRAVA_SWITCH éteint) | Après le lancement · étapes de rallumage dans docs/STRAVA.md |
 | ○ | 3 index manquants                                               | Feu vert n° 2                                |
 | ○ | Mise en ligne du payant modèle B, verrou éteint                 | Prêt · attend ta décision carte / sans carte |
 

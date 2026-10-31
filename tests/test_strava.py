@@ -24,12 +24,19 @@ MIN = 60_000
 def tag(device, theme):
     return f'{device}-{theme}'.replace(' ', '_').replace('+', 'plus')
 
-def open_app(page, theme, ppl_v2=None, opts=None):
+def strava_on(page):
+    """Strava est en sommeil pour le lancement (STRAVA_SWITCH, js/data/strava.js) : ces tests le rallument."""
+    page.evaluate('STRAVA_SWITCH.enabled = true; render()')
+
+
+def open_app(page, theme, ppl_v2=None, opts=None, on=True):
     page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True, **(opts or {})}))
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
     page.wait_for_timeout(300)
+    if on:
+        strava_on(page)
 
 def signin(page, username='max', enable=False):
     """Connexion Apple (compte existant), pseudo, social activé ou non : sans passer par les écrans."""
@@ -267,6 +274,7 @@ def t_bilan(bench, eng, dev, theme):
         page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
         seed(page, theme, ppl_v2_today_json(), active=old_active_session(), extra={'ppl_welcome_seen': '1'})
         page.wait_for_timeout(300)
+        strava_on(page)
         signin(page, username='lea')
         page.evaluate('__sb.stravaAuthorize("Léa")')
         page.evaluate('stravaRefresh()')
@@ -284,4 +292,43 @@ def t_bilan(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_strava, t_bilan])
+def t_eteint(bench, eng, dev, theme):
+    """Strava en sommeil (réglage livré) : aucune entrée visible, aucun appel, même compte déjà relié."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
+        page.add_init_script(FAKE_ACCOUNT)
+        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        seed(page, theme, ppl_v2_today_json(), active=old_active_session(), extra={'ppl_welcome_seen': '1'})
+        page.wait_for_timeout(300)
+        R.check(page.evaluate('stravaEnabled()') is False, f'{t} éteint : interrupteur livré à faux')
+        signin(page, username='lea')
+        page.evaluate('__sb.stravaAuthorize("Léa")')
+        page.evaluate('stravaRefresh()')
+        page.wait_for_timeout(200)
+        # Bilan de la séance qui vient de finir
+        page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+        tap_dialog(page, 'Enregistrer la séance')
+        page.wait_for_selector('.view.summary')
+        page.wait_for_timeout(300)
+        R.check(page.locator('[data-action^="strava-"]').count() == 0 and 'Strava' not in page.inner_text('.view.summary'),
+                f'{t} éteint : rien dans le bilan')
+        add_sessions(page)
+        page.evaluate("navigate('settings')")
+        page.wait_for_timeout(400)
+        R.check(page.locator('[data-action="strava-open-settings"]').count() == 0 and 'Strava' not in page.inner_text('#app')
+                and 'Connexions' not in page.inner_text('#app'), f'{t} éteint : rien dans les Réglages')
+        page.evaluate("navigate(makeRoute('history-detail', 'strv0001'))")
+        page.wait_for_timeout(400)
+        R.check(page.locator('[data-action^="strava-"]').count() == 0 and 'Strava' not in page.inner_text('#app'),
+                f'{t} éteint : rien dans Historique › Séance')
+        page.evaluate("navigate('strava')")
+        page.wait_for_timeout(400)
+        R.check(page.locator('.strava-view').count() == 0 and page.locator('[data-action^="strava-"]').count() == 0,
+                f'{t} éteint : l\'écran Strava n\'existe pas')
+        R.check(page.evaluate("__sb.calls.filter(c => c[0] === 'strava' || /strava/.test(String(c[1]))).length") == 0,
+                f'{t} éteint : aucun appel au serveur')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_strava, t_bilan, t_eteint])
