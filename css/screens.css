@@ -149,7 +149,9 @@
 
 /* ── Historique ── */
 .hist-tools { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 0; }
-.hmonth { content-visibility: auto; contain-intrinsic-size: auto 600px; }
+/* Mois rendus en entier, sans content-visibility: auto : une hauteur estimée (600 px) remplacée par la vraie
+   à l'arrivée à l'écran faisait grandir la page pendant le défilement ; arrivé « en bas », le bas de la liste
+   restait caché sous la mini-barre et la tab bar (WebKit). La liste est déjà chargée par paquets de 3 mois. */
 .hmonth__title {
   position: sticky; top: calc(44px + env(safe-area-inset-top, 0px)); z-index: 2; background: var(--bg);
   font-size: 1.176rem; line-height: 1.471rem; font-weight: 600; padding: 8px 4px 4px; margin: 0;
