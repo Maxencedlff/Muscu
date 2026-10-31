@@ -5,14 +5,16 @@
 'use strict';
 
 // Cellule des Réglages, groupe « Amis et coach » : seulement dans l'app iOS avec un compte (les
-// notifications partent du serveur vers un compte). Valeur : « Activées » / « Désactivées ».
+// notifications partent du serveur vers un compte). Valeur : « Activées » / « Désactivées » / « À réactiver »
+// (réglages du compte allumés, mais pas encore d'accord d'iOS sur cet iPhone : réinstallation, nouvel iPhone).
 function pushSettingsCell() {
   if (!pushPossible()) return '';
   const on = pushAnyOn(push.prefs) && push.permission === 'granted';
+  const value = !push.prefs ? '' : on ? 'Activées' : pushNeedsReactivate() ? 'À réactiver' : 'Désactivées';
   return `
           <button class="cell cell--nav" data-action="push-open">
             <span class="cell__body"><span class="cell__title">Notifications</span></span>
-            <span class="cell__value">${push.prefs ? (on ? 'Activées' : 'Désactivées') : ''}</span>
+            <span class="cell__value">${value}</span>
             ${icon('chevron.right', 16)}
           </button>`;
 }
@@ -31,8 +33,17 @@ function renderPushSettings() {
   }
   const denied = push.permission === 'denied';
   const unavailable = push.permission === 'unavailable';
-  const blocked = denied || unavailable;
-  const warn = denied ? `
+  // Réinstallation ou nouvel iPhone : les réglages du compte sont allumés, mais rien n'arrivera ici avant
+  // l'accord d'iOS et le jeton. Interrupteurs montrés éteints (vrai pour cet iPhone), une ligne pour réactiver.
+  const reactivate = pushNeedsReactivate();
+  const blocked = denied || unavailable || reactivate;
+  const warn = reactivate ? `
+        <div class="group">
+          <button class="cell cell--action" data-action="push-reactivate"${push.busy ? ' aria-disabled="true"' : ''}${push.busy === 'reactivate' ? ' aria-busy="true"' : ''}>
+            <span class="cell__body"><span class="cell__title">Réactiver sur cet iPhone</span>
+              <span class="cell__sub">Tes réglages sont gardés sur ton compte. L'iPhone te demandera ton accord.</span></span>
+          </button>
+        </div>` : denied ? `
         <div class="group">
           <button class="cell cell--nav" data-action="push-open-ios-settings">
             <span class="cell__body"><span class="cell__title">Notifications coupées sur l'iPhone</span>
@@ -82,6 +93,18 @@ Native.push.onTap(p => { try { openPushTarget(p); } catch { /* écran indisponib
 // Reçue app ouverte : badges des Amis et du coach relus sans attendre
 Native.push.onReceive(() => { if (account.user) { socialRefresh({ minAge: 0 }); coachRefresh(); } });
 
+// Échec d'un allumage ou d'une réactivation : refus d'iOS expliqué avec un lien vers Réglages, sinon un message
+async function pushExplainFailure(reason) {
+  if (reason === 'denied') {
+    const v = await dialog({ title: 'Notifications refusées',
+      message: 'Pour les recevoir, autorise MDLF Training dans Réglages › Notifications de l’iPhone.',
+      actions: [{ label: 'Plus tard', style: 'cancel' }, { label: 'Ouvrir Réglages', value: 'open', style: 'preferred' }] });
+    if (v === 'open') Native.push.openSettings();
+    return;
+  }
+  if (reason !== 'busy') showToast(PUSH_FAIL_TEXT[reason] || 'Réglage non enregistré. Réessaie.', { error: true });
+}
+
 const PUSH_FAIL_TEXT = {
   register: 'Inscription aux notifications impossible pour l’instant. Réessaie plus tard.',
   offline: 'Pas d’Internet. Réessaie une fois connecté.',
@@ -91,23 +114,22 @@ registerActions({
   'push-open': () => navigate('notifications'),
   'push-retry': () => { push.error = null; render(); pushLoad(); },
   'push-open-ios-settings': () => { Native.push.openSettings(); },
+  'push-reactivate': async (e, el) => {
+    if (el.getAttribute('aria-disabled') === 'true') return;
+    haptic();
+    const r = await pushReactivate();
+    if (!r.ok) await pushExplainFailure(r.reason);
+  },
   'push-toggle': async (e, el) => {
     if (el.getAttribute('aria-disabled') === 'true') {
       if (push.permission === 'denied') showToast('Rallume les notifications dans les Réglages de l’iPhone');
+      else if (pushNeedsReactivate()) showToast('Touche d’abord « Réactiver sur cet iPhone »');
       return;
     }
     const id = el.dataset.kind;
     const on = !(push.prefs?.[id] === true);
     haptic();
     const r = await pushSetPref(id, on);
-    if (r.ok) return;
-    if (r.reason === 'denied') {
-      await dialog({ title: 'Notifications refusées',
-        message: 'Pour les recevoir, autorise MDLF Training dans Réglages › Notifications de l’iPhone.',
-        actions: [{ label: 'Plus tard', style: 'cancel' }, { label: 'Ouvrir Réglages', value: 'open', style: 'preferred' }] })
-        .then(v => { if (v === 'open') Native.push.openSettings(); });
-      return;
-    }
-    if (r.reason !== 'busy') showToast(PUSH_FAIL_TEXT[r.reason] || 'Réglage non enregistré. Réessaie.', { error: true });
+    if (!r.ok) await pushExplainFailure(r.reason);
   },
 });

@@ -37,6 +37,7 @@ RLS activée sans politique et aucun GRANT de table : tout passe par des fonctio
 |---|---|---|
 | `push_register(token, env)` | authenticated | inscrit ou rafraîchit le jeton de cet appareil pour mon compte ; un jeton d'un autre compte passe au mien ; 10 appareils au plus |
 | `push_unregister(token)` | authenticated | retire ce jeton s'il est à moi |
+| `push_release(token)` | authenticated | retire ce jeton s'il est à un AUTRE compte (laissé sur cet iPhone par une session finie hors de l'app) ; le mien n'est jamais touché |
 | `push_prefs()` | authenticated | `{ reactions, follows, coach }` |
 | `push_set_prefs(reactions, follows, coach)` | authenticated | `null` = inchangé ; un type éteint vide sa file en attente |
 | `push_claim(max_rows)` | service_role | prend la file (une ligne par appareil, `wanted` relu), ménage : file de plus de 7 jours, appareils muets depuis 60 jours |
@@ -45,8 +46,22 @@ RLS activée sans politique et aucun GRANT de table : tout passe par des fonctio
 Suppression d'un jeton : « tout éteint », déconnexion (`pushForgetDevice`, avant la fin de session),
 suppression du compte (cascade), réponse 410 / `BadDeviceToken` d'APNs, 60 jours sans nouvelles.
 
+Session finie hors de l'app (jeton de rafraîchissement refusé ou révoqué : événement `SIGNED_OUT`) : plus
+de session, donc aucune RPC possible à ce moment. `mdlf_push` garde `{ userId, token }` ; à la connexion
+suivante d'un AUTRE compte sur cet iPhone, `pushOnAccount` appelle `push_release` AVANT de relire les
+réglages et de réinscrire le jeton (l'ordre inverse retirerait le jeton du nouveau compte). Même chose si
+cette connexion est annulée au choix de fusion : `pushForgetDevice` voit que la session (lue par
+`sb.auth.getSession`) n'est pas le compte du jeton et appelle `push_release`. Hors ligne : `mdlf_push`
+reste, nouvel essai au prochain lancement. Limite assumée : entre la fin de session et la connexion
+suivante, l'iPhone (celui de ce compte) peut encore recevoir ses notifications, au plus 60 jours.
+
+Réinstallation ou nouvel iPhone : les réglages restent sur le compte, mais iOS n'a rien accordé ici
+(`permission` = `prompt`) et l'iPhone n'a pas de jeton. Réglages › Notifications montre alors les
+interrupteurs éteints (vrai pour cet iPhone) et une ligne « Réactiver sur cet iPhone » (`pushReactivate` :
+fenêtre d'iOS puis jeton) ; la cellule des Réglages dit « À réactiver » (`pushNeedsReactivate`).
+
 Tests : `tests/sql/push_test.sql` (anon, autre compte, défauts, déclencheurs, blocage, fantôme, file,
-reprise, suppression du compte) ; retour arrière : `tests/sql/rollback_push_check.sh`.
+reprise, suppression du compte, `push_release`) ; retour arrière : `tests/sql/rollback_push_check.sh`.
 
 ## Envoi (`supabase/functions/push-send/`)
 

@@ -100,11 +100,13 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       Native.push = { permission: async () => { __calls.push('permission'); return ${JSON.stringify(permission)}; },
         requestPermission: async () => { __calls.push('request'); return ${JSON.stringify(answer)}; },
         register: async () => { __calls.push('register'); return ${JSON.stringify(token)} ? { token: ${JSON.stringify(token)}, environment: 'production' } : null; } };
-      sb = { rpc: async (fn, args) => { __calls.push(fn + ':' + JSON.stringify(args || {}));
+      globalThis.__session = 'u-test';
+      sb = { auth: { getSession: async () => ({ data: { session: __session ? { user: { id: __session } } : null }, error: null }) },
+        rpc: async (fn, args) => { __calls.push(fn + ':' + JSON.stringify(args || {}));
         if (fn === 'push_set_prefs') { for (const k in args) if (args[k] !== null) __prefs[k] = args[k]; return { data: __prefs, error: null }; }
         if (fn === 'push_prefs') return { data: __prefs, error: null };
         return { data: null, error: null }; } };
-      localStorage.removeItem('mdlf_push'); push.prefs = null; push.busy = null;`);
+      localStorage.removeItem('mdlf_push'); push.prefs = null; push.busy = null; push.userId = null; push.permission = null;`);
     try { await fn(); } finally {
       run(`Native.isNative = __saved.isNative; Native.push = __saved.push; accountAvailable = __saved.avail; account.user = __saved.user; sb = __saved.sb;
         localStorage.removeItem('mdlf_push'); push.prefs = null; push.busy = null;`);
@@ -160,6 +162,73 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       run('__calls = []');
       await run('pushForgetDevice()');
       sameJSON(run('__calls'), [], 'rien d\'inscrit : aucun appel');
+    });
+  });
+
+  test('push app : session de A finie hors de l\'app, B se connecte → jeton de A retiré avant tout le reste', async () => {
+    // B n'allume rien : sans ce retrait, les notifications de A continueraient d'arriver ici
+    await withFakes({ permission: 'granted' }, async () => {
+      run(`localStorage.setItem('mdlf_push', JSON.stringify({ userId: 'u-a', token: '${FAKE_TOKEN}' })); account.user = { id: 'u-b' }; __session = 'u-b'`);
+      await run('pushOnAccount()');
+      const calls = run('__calls');
+      assert.equal(calls[0], `push_release:${JSON.stringify({ token: FAKE_TOKEN })}`, `retrait d'abord ${calls}`);
+      assert.ok(!calls.some(c => c.startsWith('push_register')), 'rien d\'allumé pour B : pas d\'inscription');
+      assert.equal(run(`localStorage.getItem('mdlf_push')`), null);
+    });
+    // B a un type allumé : retrait, puis inscription pour B (jamais l'inverse : B garderait le jeton)
+    await withFakes({ permission: 'granted', prefs: { reactions: true, follows: false, coach: false } }, async () => {
+      run(`localStorage.setItem('mdlf_push', JSON.stringify({ userId: 'u-a', token: '${FAKE_TOKEN}' })); account.user = { id: 'u-b' }; __session = 'u-b'`);
+      await run('pushOnAccount()');
+      const calls = run('__calls').filter(c => c.startsWith('push_re'));
+      assert.equal(calls.length, 2, `${calls}`);
+      assert.ok(calls[0].startsWith('push_release') && calls[1].startsWith('push_register'), `ordre ${calls}`);
+      sameJSON(run(`JSON.parse(localStorage.getItem('mdlf_push'))`), { userId: 'u-b', token: FAKE_TOKEN });
+    });
+    // A se reconnecte : son jeton est gardé (rien à retirer)
+    await withFakes({ permission: 'granted' }, async () => {
+      run(`localStorage.setItem('mdlf_push', JSON.stringify({ userId: 'u-test', token: '${FAKE_TOKEN}' }))`);
+      await run('pushOnAccount()');
+      assert.ok(!run('__calls').some(c => c.startsWith('push_release')));
+      assert.notEqual(run(`localStorage.getItem('mdlf_push')`), null);
+    });
+    // Hors ligne : gardé pour un nouvel essai au prochain lancement
+    await withFakes({ permission: 'granted' }, async () => {
+      run(`localStorage.setItem('mdlf_push', JSON.stringify({ userId: 'u-a', token: '${FAKE_TOKEN}' }));
+        const rpc = sb.rpc; sb.rpc = async (fn, a) => fn === 'push_release' ? { data: null, error: { message: 'TypeError: Failed to fetch' } } : rpc(fn, a);`);
+      assert.equal(await run('pushReleaseOther("u-test")'), false);
+      assert.equal(run(`JSON.parse(localStorage.getItem('mdlf_push')).userId`), 'u-a');
+    });
+  });
+
+  test('push app : fusion annulée sous la session de B, jeton laissé par A → push_release (push_unregister ne retire que les miens)', async () => {
+    await withFakes({}, async () => {
+      run(`localStorage.setItem('mdlf_push', JSON.stringify({ userId: 'u-a', token: '${FAKE_TOKEN}' })); __session = 'u-b'`);
+      await run('pushForgetDevice()');
+      sameJSON(run('__calls'), [`push_release:${JSON.stringify({ token: FAKE_TOKEN })}`]);
+    });
+  });
+
+  test('push app : réglages allumés sur le compte, iPhone sans accord (réinstallation) → à réactiver (écran : tests/test_notifications.py)', async () => {
+    await withFakes({ permission: 'prompt', prefs: { reactions: true, follows: false, coach: true } }, async () => {
+      await run('pushOnAccount()');
+      assert.ok(!run('__calls').some(c => c === 'request' || c === 'register'), 'aucune fenêtre d\'iOS sans toucher');
+      assert.equal(run('pushNeedsReactivate()'), true);
+      run('__calls = []');
+      sameJSON(await run('pushReactivate()'), { ok: true });
+      sameJSON(run('__calls'), ['permission', 'request', 'register', `push_register:${JSON.stringify({ token: FAKE_TOKEN, env: 'production' })}`]);
+      assert.equal(run('pushNeedsReactivate()'), false);
+      sameJSON(run('push.prefs'), { reactions: true, follows: false, coach: true }, 'réglages du compte gardés');
+    });
+    // Tout éteint : rien à réactiver
+    await withFakes({ permission: 'prompt' }, async () => {
+      await run('pushLoad()');
+      assert.equal(run('pushNeedsReactivate()'), false);
+    });
+    // Refus d'iOS à la réactivation : rien sur le serveur
+    await withFakes({ permission: 'prompt', answer: 'denied', prefs: { reactions: true, follows: false, coach: false } }, async () => {
+      await run('pushLoad()');
+      sameJSON(await run('pushReactivate()'), { ok: false, reason: 'denied' });
+      assert.ok(!run('__calls').some(c => c.startsWith('push_register')));
     });
   });
 

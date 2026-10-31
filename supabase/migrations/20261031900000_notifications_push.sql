@@ -193,6 +193,21 @@ create function public.push_unregister(token text) returns void
   language sql security definer set search_path = '' as
 $$ delete from public.push_devices d where d.token = push_unregister.token and d.user_id = (select auth.uid()) $$;
 
+-- Jeton de cet appareil laissé sur un AUTRE compte (sa session a fini hors de l'app : jeton de
+-- rafraîchissement refusé, fusion annulée) : retiré à la connexion du compte suivant, pour que les
+-- notifications de l'ancien compte n'arrivent plus sur l'iPhone d'un autre. Le jeton fait foi, comme pour
+-- le déplacement dans push_register (qui le détient pourrait déjà se l'inscrire) ; le mien n'est jamais
+-- touché : une inscription faite entre-temps par ce compte reste.
+create function public.push_release(token text) returns void
+  language plpgsql security definer set search_path = '' as
+$$
+declare me uuid := (select auth.uid());
+begin
+  if me is null then raise exception 'not_signed_in' using errcode = 'P0001'; end if;
+  delete from public.push_devices d where d.token = push_release.token and d.user_id <> me;
+end
+$$;
+
 -- Mes réglages (tout éteint sans ligne)
 create function public.push_prefs() returns jsonb
   language sql stable security definer set search_path = '' as
@@ -279,6 +294,7 @@ revoke all on function private.push_on_coach_programme() from public, anon, auth
 
 revoke all on function public.push_register(text, text) from public, anon, authenticated, service_role;
 revoke all on function public.push_unregister(text) from public, anon, authenticated, service_role;
+revoke all on function public.push_release(text) from public, anon, authenticated, service_role;
 revoke all on function public.push_prefs() from public, anon, authenticated, service_role;
 revoke all on function public.push_set_prefs(boolean, boolean, boolean) from public, anon, authenticated, service_role;
 revoke all on function public.push_claim(int) from public, anon, authenticated, service_role;
@@ -286,6 +302,7 @@ revoke all on function public.push_done(bigint[], text[]) from public, anon, aut
 
 grant execute on function public.push_register(text, text) to authenticated;
 grant execute on function public.push_unregister(text) to authenticated;
+grant execute on function public.push_release(text) to authenticated;
 grant execute on function public.push_prefs() to authenticated;
 grant execute on function public.push_set_prefs(boolean, boolean, boolean) to authenticated;
 grant execute on function public.push_claim(int) to service_role;

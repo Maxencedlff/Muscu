@@ -8,6 +8,7 @@ mensurations et photos (IndexedDB).
 Captures : $PPL_SCRATCH/shots/lotmesures/.
 Lancer : PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_mesures.py (ou sans variable : 5 appareils × 2 thèmes).
 """
+import datetime
 import json
 import os
 import struct
@@ -186,7 +187,9 @@ def t_photos(bench, eng, dev, theme):
                            {'pose': 'back', 'w': 900, 'h': 1200, 'type': 'image/jpeg', 'big': True}], f'{t} IndexedDB : JPEG réduit à 1200 px de haut {photos}')
         days = page.locator('.pgal__date').all_inner_texts()
         R.check(days == ['Aujourd\'hui', 'mar. 1 sept.'], f'{t} galerie par date, la plus récente d\'abord {days}')
-        R.check(page.locator('.pcmp__img').count() == 2 and '59 jours' in page.inner_text('.pcmp__gap'), f'{t} comparaison : deux photos, écart en jours {page.inner_text(".pcmp__gap")!r}')
+        # Écart attendu calculé (jours calendaires depuis le 1er septembre) : jamais figé au jour où le test a été écrit
+        gap = (datetime.date.today() - datetime.date(2026, 9, 1)).days
+        R.check(page.locator('.pcmp__img').count() == 2 and f'{gap} jours' in page.inner_text('.pcmp__gap'), f'{t} comparaison : deux photos, écart en jours {page.inner_text(".pcmp__gap")!r}')
         R.check(page.locator('.view.stats img, .view.body-measures .group-title:has-text("Mensurations") img').count() == 0, f'{t} aucune image hors de la section Photos')
         shot(page, LOT, f'photos-{t}')
         # Changer la photo de droite : la même que la gauche → écart 0

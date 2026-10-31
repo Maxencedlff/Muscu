@@ -1,6 +1,7 @@
 """Réglages › Notifications (app iOS simulée) : tout éteint au départ, fenêtre d'iOS seulement au toucher
 d'un interrupteur, jeton inscrit puis retiré quand tout est éteint ou à la déconnexion, refus d'iOS expliqué
-avec un lien vers Réglages, groupe atténué ; absent de la PWA et sans compte ; toucher d'une notification
+avec un lien vers Réglages, groupe atténué ; réinstallation (réglages du compte allumés, iOS sans accord) :
+ligne « Réactiver sur cet iPhone » ; session finie hors de l'app puis autre compte : jeton de l'ancien retiré ; absent de la PWA et sans compte ; toucher d'une notification
 qui ouvre le bon écran. Sommeil de Santé sur l'accueil (une ligne, seulement avec une nuit aujourd'hui).
 
 L'app iOS et Supabase sont simulés (tests/fake_account.py) : aucune requête ne sort, jetons faux.
@@ -130,6 +131,67 @@ def t_refus(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_reactiver(bench, eng, dev, theme):
+    # App réinstallée (ou nouvel iPhone) : réglages allumés sur le compte, iOS n'a encore rien accordé ici
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page)
+        page.evaluate("__sb.push.prefs[__sb.meId()] = { reactions: true, follows: false, coach: true }; pushLoad()")
+        page.wait_for_timeout(200)
+        page.click('[data-action="go-settings"]')
+        page.wait_for_selector('.settings-view')
+        cell = page.inner_text('[data-action="push-open"]')
+        R.check('À réactiver' in cell, f'{t} cellule : à réactiver ({cell!r})')
+        page.click('[data-action="push-open"]')
+        page.wait_for_selector('[data-action="push-reactivate"]')
+        page.wait_for_timeout(200)
+        R.check(all(v == 'false' for _, v in switches(page)), f"{t} rien d'affiché allumé sans accord d'iOS {switches(page)}")
+        R.check(not any(c in ('request', 'register') for c in push_calls(page)), f"{t} aucune fenêtre d'iOS sans toucher {push_calls(page)}")
+        h = page.evaluate("document.querySelector('[data-action=\"push-reactivate\"]').getBoundingClientRect().height")
+        R.check(h >= 44, f'{t} ligne réactiver : au moins 44 pt ({h})')
+        R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} pas de défilement horizontal')
+        shot(page, LOT, f'notifications-a-reactiver-{t}')
+        btn = page.locator('[data-action="push-reactivate"]')
+        before = page.evaluate("document.querySelector('.push-view').outerHTML")
+        btn.dispatch_event('pointerdown')
+        page.wait_for_timeout(120)
+        R.check(page.evaluate("document.querySelector('.push-view').outerHTML") == before, f'{t} rien ne change au pointerdown')
+        btn.dispatch_event('pointerup')
+        btn.click()
+        page.wait_for_function("document.querySelector('[data-kind=\"coach\"]')?.getAttribute('aria-checked') === 'true'")
+        R.check(switches(page) == [['reactions', 'true'], ['follows', 'false'], ['coach', 'true']], f'{t} réglages du compte retrouvés {switches(page)}')
+        R.check(page.evaluate('__sb.push.devices').get(FAKE_TOKEN) == page.evaluate('__sb.meId()'), f'{t} jeton inscrit pour le compte')
+        R.check(page.locator('[data-action="push-reactivate"]').count() == 0, f'{t} ligne réactiver partie')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_autre_compte(bench, eng, dev, theme):
+    # Session de A finie hors de l'app (jeton refusé) : le jeton de A ne doit pas rester quand B se connecte,
+    # ni quand sa connexion est annulée au choix de fusion
+    t = tag(dev, theme)
+    if dev != 'iPhone 13':
+        return
+    for choice in ('add', None):
+        with bench.page(eng, dev, theme) as page:
+            open_app(page, theme, ppl_v2_today_json())
+            signin(page)
+            open_notifications(page)
+            page.locator('[data-kind="reactions"]').click()
+            page.wait_for_function("document.querySelector('[data-kind=\"reactions\"]').getAttribute('aria-checked') === 'true'")
+            a = page.evaluate('__sb.meId()')
+            R.check(page.evaluate('__sb.push.devices').get(FAKE_TOKEN) == a, f'{t} jeton de A inscrit')
+            page.evaluate('__sb.endSession()')
+            page.wait_for_timeout(300)
+            page.evaluate("async (c) => { __sb.appleUser = 'apple-sub-2'; await accountSignInWith('apple', async () => c); }", choice)
+            page.wait_for_timeout(500)
+            devices = page.evaluate('__sb.push.devices')
+            label = 'B connecté' if choice else 'fusion annulée'
+            R.check(FAKE_TOKEN not in devices, f'{t} {label} : jeton de A retiré {devices}')
+            R.check(any(c.startswith('push_release') for c in push_calls(page)), f'{t} {label} : push_release {push_calls(page)}')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def t_absent(bench, eng, dev, theme):
     t = tag(dev, theme)
     # Navigateur : aucune trace
@@ -197,4 +259,4 @@ def t_sommeil(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_reglages, t_refus, t_absent, t_toucher, t_sommeil])
+run_main(R, [t_reglages, t_refus, t_reactiver, t_autre_compte, t_absent, t_toucher, t_sommeil])

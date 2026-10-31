@@ -30,6 +30,7 @@ do $$ begin
   if pg_temp.perr($q$ select public.push_prefs() $q$) not like 'permission denied%' then raise 'anon lit des réglages'; end if;
   if pg_temp.perr(format($q$ select public.push_register(%L, 'production') $q$, pg_temp.tok('a'))) not like 'permission denied%' then raise 'anon inscrit un jeton'; end if;
   if pg_temp.perr($q$ select * from public.push_devices $q$) not like 'permission denied%' then raise 'anon lit les jetons'; end if;
+  if pg_temp.perr(format($q$ select public.push_release(%L) $q$, pg_temp.tok('a'))) not like 'permission denied%' then raise 'anon retire un jeton'; end if;
 end $$;
 reset role;
 set role authenticated;
@@ -151,6 +152,24 @@ do $$ begin
   if exists (select 1 from public.push_devices where token = pg_temp.tok('a')) then raise 'le plus ancien appareil est resté'; end if;
   -- Retour à un seul appareil pour A
   delete from public.push_devices where user_id = pg_temp.pu('a');
+  insert into public.push_devices (token, user_id, env) values (pg_temp.tok('a'), pg_temp.pu('a'), 'production');
+end $$;
+
+-- ── Session de A finie hors de l'app, B se connecte sur le même iPhone : le jeton de A est retiré ──
+set role authenticated;
+do $$ begin
+  perform pg_temp.plogin(null);
+  if pg_temp.perr(format($q$ select public.push_release(%L) $q$, pg_temp.tok('a'))) not like '%not_signed_in%' then raise 'retrait sans compte'; end if;
+  perform pg_temp.plogin('b');
+  perform public.push_register(pg_temp.tok('b'), 'sandbox');
+  perform public.push_release(pg_temp.tok('b'));   -- le mien (inscrit entre-temps) : gardé
+  perform public.push_release(pg_temp.tok('a'));   -- celui de A laissé sur cet iPhone : retiré
+end $$;
+reset role;
+do $$ begin
+  if exists (select 1 from public.push_devices where token = pg_temp.tok('a')) then raise 'jeton de A resté après la connexion de B'; end if;
+  if (select user_id from public.push_devices where token = pg_temp.tok('b')) is distinct from pg_temp.pu('b') then raise 'push_release a retiré le jeton du compte connecté'; end if;
+  if (select count(*) from public.push_devices where user_id = pg_temp.pu('a')) <> 0 then raise 'autre appareil de A touché'; end if;
   insert into public.push_devices (token, user_id, env) values (pg_temp.tok('a'), pg_temp.pu('a'), 'production');
 end $$;
 

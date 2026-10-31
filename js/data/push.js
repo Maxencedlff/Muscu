@@ -7,7 +7,9 @@
 
 // Rien n'est envoyé sans accord : chaque type est éteint par défaut sur le serveur (push_prefs), iOS a sa
 // propre autorisation (demandée seulement quand on allume un type), et le jeton n'est inscrit qu'à ce
-// moment-là. Tout éteint, ou déconnexion : le jeton est retiré du compte (push_unregister).
+// moment-là. Tout éteint, ou déconnexion : le jeton est retiré du compte (push_unregister). Session finie
+// hors de l'app (jeton de rafraîchissement refusé) : impossible de l'appeler sans session, le jeton est
+// donc retiré à la connexion suivante d'un AUTRE compte sur cet iPhone (push_release), avant tout le reste.
 // Ce que le serveur reçoit : le jeton APNs de l'appareil, son environnement (production / sandbox) et les
 // trois interrupteurs. Rien d'autre (pas de modèle d'iPhone, pas de données Santé).
 
@@ -72,18 +74,40 @@ async function pushRegisterDevice() {
   return r.ok;
 }
 
+// Autorisation d'iOS (fenêtre seulement si jamais demandée, donc après un toucher) puis jeton inscrit.
+// null si tout va bien, sinon la raison : 'denied' | 'unavailable' | 'register'
+async function pushEnsureDevice() {
+  let perm = await Native.push.permission();
+  if (perm === 'prompt') perm = await Native.push.requestPermission();   // fenêtre d'iOS, après ce toucher seulement
+  push.permission = perm;
+  if (perm === 'unavailable') return 'unavailable';
+  if (perm !== 'granted') return 'denied';
+  return (await pushRegisterDevice()) ? null : 'register';
+}
+
+// Réglages allumés sur le compte, mais cet iPhone n'a encore ni l'accord d'iOS ni de jeton (app
+// réinstallée, nouvel iPhone) : rien n'arrivera tant qu'on n'a pas réactivé ici (pushReactivate)
+function pushNeedsReactivate() { return push.permission === 'prompt' && pushAnyOn(push.prefs); }
+
+// « Réactiver sur cet iPhone » : demande à iOS et inscrit le jeton ; les réglages du compte restent.
+// → { ok } ou { ok: false, reason: 'busy' | 'denied' | 'unavailable' | 'register' }
+async function pushReactivate() {
+  if (!pushPossible() || push.busy) return { ok: false, reason: 'busy' };
+  push.busy = 'reactivate'; notifyPush();
+  try {
+    const fail = await pushEnsureDevice();
+    return fail ? { ok: false, reason: fail } : { ok: true };
+  } finally { push.busy = null; notifyPush(); }
+}
+
 // Allume ou éteint un type. → { ok } ou { ok: false, reason: 'denied' | 'unavailable' | 'register' | <erreur> }
 async function pushSetPref(id, on) {
   if (!PUSH_TYPES.some(t => t.id === id) || !pushPossible() || push.busy) return { ok: false, reason: 'busy' };
   push.busy = id; notifyPush();
   try {
     if (on) {
-      let perm = await Native.push.permission();
-      if (perm === 'prompt') perm = await Native.push.requestPermission();   // fenêtre d'iOS, après ce toucher seulement
-      push.permission = perm;
-      if (perm === 'unavailable') return { ok: false, reason: 'unavailable' };
-      if (perm !== 'granted') return { ok: false, reason: 'denied' };
-      if (!(await pushRegisterDevice())) return { ok: false, reason: 'register' };
+      const fail = await pushEnsureDevice();
+      if (fail) return { ok: false, reason: fail };
     }
     const args = { reactions: null, follows: null, coach: null, [id]: on };
     const r = await pushRpc('push_set_prefs', args);
@@ -94,16 +118,39 @@ async function pushSetPref(id, on) {
   } finally { push.busy = null; notifyPush(); }
 }
 
-// Retire le jeton de cet appareil du compte encore connecté (déconnexion, effacement, tout éteint). Appelé
-// AVANT la fin de session (il faut encore le jeton de session) ; au mieux, 3 s au plus : une déconnexion
-// hors ligne ne doit pas attendre. Le serveur oublie de lui-même un jeton muet depuis 60 jours.
+// Compte de la session de supabase-js (lecture locale), même quand account.user est déjà vidé ou pas
+// encore posé (déconnexion en cours, choix de fusion)
+async function pushSessionUserId() {
+  try { const { data: res } = await sb.auth.getSession(); return res?.session?.user?.id || null; } catch { return null; }
+}
+
+// Retire le jeton de cet appareil (déconnexion, effacement, tout éteint). Appelé AVANT la fin de session
+// (il faut encore le jeton de session) ; au mieux, 3 s au plus : une déconnexion hors ligne ne doit pas
+// attendre. Le serveur oublie de lui-même un jeton muet depuis 60 jours. Jeton inscrit par un AUTRE compte
+// que celui de la session (sa session a fini hors de l'app, puis la connexion d'un autre compte est
+// annulée au choix de fusion) : push_release, push_unregister ne retirant que les miens.
 async function pushForgetDevice() {
   const st = pushStored();
   pushStore(null);
   if (!st || !sb) return;
   try {
-    await Promise.race([sb.rpc('push_unregister', { token: st.token }), new Promise(r => setTimeout(r, 3000))]);
+    const uid = await pushSessionUserId();
+    const fn = uid && uid !== st.userId ? 'push_release' : 'push_unregister';
+    await Promise.race([sb.rpc(fn, { token: st.token }), new Promise(r => setTimeout(r, 3000))]);
   } catch { /* hors ligne : oublié par le serveur plus tard */ }
+}
+
+// Connexion d'un compte alors que cet iPhone garde le jeton inscrit par un autre (session de l'autre finie
+// hors de l'app) : le jeton quitte l'autre compte, sinon ses notifications arriveraient ici. Le serveur ne
+// touche jamais à un jeton de ce compte (inscription faite entre-temps). Échec (hors ligne) : gardé en
+// mémoire, réessayé au prochain lancement. true si plus rien n'est à retirer.
+async function pushReleaseOther(uid) {
+  const st = pushStored();
+  if (!st || st.userId === uid) return true;
+  const r = await pushRpc('push_release', { token: st.token });
+  if (!r.ok) return false;
+  if (pushStored()?.userId === st.userId) pushStore(null);   // une inscription de ce compte entre-temps reste
+  return true;
 }
 
 // Écran ouvert par le toucher d'une notification ({ kind, ref } posés par push-send)
@@ -120,14 +167,17 @@ function pushTarget(p, history = []) {
   return null;
 }
 
-// Connexion (ou autre compte) : réglages relus ; un type allumé et iOS d'accord → jeton rafraîchi
-onAccountChange(() => {
+// Connexion (ou autre compte) : jeton laissé par un autre compte retiré, réglages relus ; un type allumé
+// et iOS d'accord → jeton rafraîchi. Rendu pour les tests.
+function pushOnAccount() {
   const id = account.user?.id || null;
-  if (id === push.userId) return;
+  if (id === push.userId) return null;
   push.userId = id; push.prefs = null; push.permission = null; push.error = null;
   notifyPush();
-  if (!id || !pushPossible()) return;
-  pushLoad().then(ok => {
-    if (ok && pushAnyOn(push.prefs) && push.permission === 'granted') pushRegisterDevice().catch(() => {});
-  }).catch(() => {});
-});
+  if (!id || !pushPossible()) return null;
+  return pushReleaseOther(id).then(() => pushLoad()).then(ok => {
+    if (ok && account.user?.id === id && pushAnyOn(push.prefs) && push.permission === 'granted') return pushRegisterDevice();
+    return false;
+  }).catch(() => false);
+}
+onAccountChange(() => { pushOnAccount(); });

@@ -40,7 +40,7 @@ __sb.calls sous ['coach', fonction, arguments] ; __sb.fail.coach = 'offline' pou
 Notifications push (docs/NOTIFICATIONS.md) : module MdlfPush (autorisation d'iOS __sb.push.permission :
 'prompt' | 'granted' | 'denied', réponse à la fenêtre __sb.push.answer, faux jeton __sb.push.token, '' :
 inscription refusée par iOS) ; RPC push_prefs, push_set_prefs (null = inchangé), push_register (jeton
-vérifié comme la migration), push_unregister. État dans __sb.push (prefs, devices) ; appels dans __sb.calls
+vérifié comme la migration), push_unregister, push_release (jeton d'un autre compte seulement). État dans __sb.push (prefs, devices) ; appels dans __sb.calls
 sous ['push', fonction, arguments] ; __sb.fail.push = 'offline' pour le hors ligne.
 """
 
@@ -481,6 +481,7 @@ FAKE_ACCOUNT = r"""
     push_set_prefs: (me, a) => { const p = pushPrefs(me); for (const k of ['reactions', 'follows', 'coach']) if (a[k] !== null && a[k] !== undefined) p[k] = !!a[k]; sb.push.prefs[me] = p; return pushPrefs(me); },
     push_register: (me, a) => { if (!/^[0-9a-f]{64,200}$/.test(a.token || '') || !['production', 'sandbox'].includes(a.env)) return { data: null, error: { code: 'P0001', message: 'invalid_token' } }; sb.push.devices[a.token] = me; return null; },
     push_unregister: (me, a) => { if (sb.push.devices[a.token] === me) delete sb.push.devices[a.token]; return null; },
+    push_release: (me, a) => { if (sb.push.devices[a.token] && sb.push.devices[a.token] !== me) delete sb.push.devices[a.token]; return null; },
   };
   const callPush = async (fn, args) => {
     log('push', fn, JSON.stringify(args || {}));

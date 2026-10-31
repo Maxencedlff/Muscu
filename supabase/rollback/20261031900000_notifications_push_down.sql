@@ -19,6 +19,7 @@ drop trigger if exists coach_programmes_push on public.coach_programmes;
 
 drop function if exists public.push_register(text, text);
 drop function if exists public.push_unregister(text);
+drop function if exists public.push_release(text);
 drop function if exists public.push_set_prefs(boolean, boolean, boolean);
 drop function if exists public.push_prefs();
 drop function if exists public.push_claim(int);
