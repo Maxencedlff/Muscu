@@ -354,7 +354,7 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
       <div class="set-swipe">
         ${del}
         <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"
-             aria-label="${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
+             aria-label="${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier">
           ${setNumHtml(ex, si, tag)}
           <span class="set-prev num">${prev}</span>
           <span class="set-val num">${first || '—'}</span>

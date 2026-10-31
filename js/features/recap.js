@@ -94,8 +94,9 @@ function renderRecaps() {
 // jamais au pointerdown), balayage horizontal à crans (scroll-snap) et flèches pour VoiceOver.
 
 // « 16,1 t » → { num: '16,1', unit: 't' } ; texte sans nombre en tête : { num: '', unit: texte }
+// Allure « 4:51 » : un seul nombre (record d'allure, recapRecordTexts dans js/data/recap.js)
 function recapSplitValue(v) {
-  const m = String(v ?? '').match(/^([−+]?\d[\d ]*(?:,\d+)?)[\s ]?(.*)$/);
+  const m = String(v ?? '').match(/^([−+]?\d[\d ]*(?:[,:]\d+)?)[\s ]?(.*)$/);
   return m ? { num: m[1], unit: m[2] } : { num: '', unit: String(v ?? '') };
 }
 
@@ -241,6 +242,7 @@ function recapAnimate(pageEl) {
   if (!pageEl || reduceMotion.matches) return;
   pageEl.querySelectorAll('[data-count]').forEach(el => {
     const target = el.dataset.count, dec = (target.split(',')[1] || '').length;
+    if (target.includes(':')) return;   // allure « 4:51 » : affichée telle quelle
     const n = parseFloat(target.replace(/[ \s]/g, '').replace(',', '.').replace('−', '-'));
     if (!isFinite(n) || n === 0) return;
     const t0 = performance.now(), dur = 600;

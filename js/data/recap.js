@@ -208,7 +208,8 @@ function recapRecordTexts(rec) {
                gain: has ? `+${fmtNum(recapRound(r.after - b))} km${since}` : '' };
     case 'allure': {
       const split = ROW_RECORD_KM.includes(r.d);
-      return { from: has ? recapPaceNum(b) : '', to: recapPaceNum(r.after), unit: split ? '/500 m' : '/km', sub: `sur ${recordDistTxt(r.d)}`,
+      // Unité en légende : « 5:00 → 4:51 /km » déborde sur un iPhone SE
+      return { from: has ? recapPaceNum(b) : '', to: recapPaceNum(r.after), unit: '', sub: `${split ? 'aux 500\u00a0m' : 'au km'}, sur ${recordDistTxt(r.d)}`,
                gain: has ? `−${plural(b - r.after, 'seconde', 'secondes')} ${split ? 'aux 500 m' : 'au km'}${since}` : '' };
     }
   }

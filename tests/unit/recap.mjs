@@ -302,7 +302,7 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     const by = Object.fromEntries(st.records.map(r => [r.kind, r]));
     assert.equal(by.allure.label, 'Record 5 km');
     assert.equal(by.allure.value, '5 km à 4:51 /km');
-    sameJSON(app.recapRecordTexts(by.allure), { from: '5:00', to: '4:51', unit: '/km', sub: 'sur 5 km', gain: '−9 secondes au km depuis ton record du 5 octobre' });
+    sameJSON(app.recapRecordTexts(by.allure), { from: '5:00', to: '4:51', unit: '', sub: 'au km, sur 5 km', gain: '−9 secondes au km depuis ton record du 5 octobre' });
     sameJSON(app.recapRecordTexts(by.temps), { from: '1 min', to: '1 min 15', unit: '', sub: 'tenu', gain: '+15 s depuis ton record du 5 octobre' });
     sameJSON(app.recapRecordTexts(by.aide), { from: '30', to: '25', unit: 'kg', sub: 'd\'aide × 8 répétitions', gain: `−5\u00a0kg d'aide depuis ton record du 5 octobre` });
     assert.equal(by.aide.curve, null, 'aide : pas de courbe de charge');
