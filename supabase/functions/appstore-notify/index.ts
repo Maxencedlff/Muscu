@@ -84,6 +84,7 @@ Deno.serve(async (req) => {
     p_account_token: decided.value.account_token,
     p_intro: decided.value.intro_offer,
     p_environment: decided.value.environment,
+    p_reinstate: decided.value.reinstate,
   });
   if (error) {
     // Panne de notre côté : 500, Apple réessaiera (la notification n'est pas marquée vue)

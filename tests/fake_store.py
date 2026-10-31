@@ -40,7 +40,7 @@ Ce qu'il ajoute, selon docs/PAYANT_V1.md (MODÈLE B : l'essai gratuit est l'offr
 
 Payant plus : accès à vie `com.mdlf.training.lifetime` (non consommable : ni période, ni essai, comme
 le Swift) ; vérifié, il donne `lifetime: 'purchase'` (Production) ou `'test'` (Sandbox, 7 jours), et
-`also_sub` quand un abonnement tourne encore à côté ; `__st.giveGift()` donne `lifetime: 'gift'`.
+`also_sub` quand un abonnement particulier (pas un palier coach) tourne encore à côté ; `__st.giveGift()` donne `lifetime: 'gift'`.
 `environment()` → `{ environment }` (`__st.environment`, 'production' par défaut ; 'sandbox' = TestFlight).
 
 Deux horloges SÉPARÉES : celle du serveur (`__st.serverShift`) et celle de l'appareil
@@ -164,7 +164,9 @@ FAKE_STORE = r"""
       can_write: !st.paywallOn || ['active', 'gift', 'coach_team'].includes(status),
       gift: !!e.gift || !!giftDays, gift_until: iso(e.gift_until), coach_team: coach,
       intro_offer: intro, intro_until: intro ? iso(until) : null,
-      lifetime, also_sub: (lifetime === 'purchase' || lifetime === 'gift') && !!subPaid, server_now: iso(now) };
+      // also_sub : abonnement PARTICULIER seulement, jamais un palier coach (il donne le nombre d'élèves)
+      lifetime, also_sub: (lifetime === 'purchase' || lifetime === 'gift') && !!subPaid && !/\.coach/.test(e.product_id || ''),
+      server_now: iso(now) };
   };
 
   st.giveGift = () => { const e = row(me(), true); e.gift = true; };

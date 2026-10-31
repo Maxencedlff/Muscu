@@ -2,7 +2,8 @@
 -- et tracés), lancées par tests/sql/run.sh après TOUTES les migrations.
 -- Comptes simulés …000000000b0x : 1 achète l'accès à vie, 2 tente de voler son achat, 3 achète en
 -- Sandbox (TestFlight), 4 reçoit un accès à vie de l'administrateur, 5 utilise un code à vie, 6 a un
--- abonnement ET l'accès à vie, 7 utilise un code de jours. Rien n'est appliqué en production.
+-- abonnement ET l'accès à vie, 7 utilise un code de jours, 8 est remboursé par verify-purchase, 9 est
+-- coach avec un palier ET un accès à vie offert. Rien n'est appliqué en production.
 
 create function pg_temp.verr(stmt text) returns text language plpgsql as
 $$ begin execute stmt; return 'ok'; exception when others then return sqlerrm; end $$;
@@ -24,9 +25,9 @@ $$;
 grant execute on function pg_temp.verr(text), pg_temp.vu(text), pg_temp.vlogin(text), pg_temp.vsrv(text)
   to authenticated, anon, service_role;
 
-insert into auth.users (id) select pg_temp.vu(c) from unnest(array['1', '2', '3', '4', '5', '6', '7']) c;
+insert into auth.users (id) select pg_temp.vu(c) from unnest(array['1', '2', '3', '4', '5', '6', '7', '8', '9']) c;
 insert into public.user_profiles (user_id, username, avatar_emoji)
-  select pg_temp.vu(c), 'vie' || c || '.t1', '🦁' from unnest(array['1', '2', '3', '4', '5', '6', '7']) c;
+  select pg_temp.vu(c), 'vie' || c || '.t1', '🦁' from unnest(array['1', '2', '3', '4', '5', '6', '7', '8', '9']) c;
 update public.app_config set value = 'true'::jsonb where key = 'paywall_on';
 
 -- ── Produit : l'accès à vie est reconnu, les dix abonnements ne changent pas ──
@@ -88,10 +89,39 @@ begin
     pg_temp.vu('1'), 'com.mdlf.training.lifetime', 'life-1'));
   if public.access_state() ->> 'status' <> 'expired' then raise 'relecture ancienne : accès rouvert'; end if;
   -- REFUND_REVERSED, plus récent que le remboursement : l'accès revient
-  perform pg_temp.vsrv(format('select public.srv_access_event(%L, %L, null, false, now(), false, %L, null, null, ''Production'')',
+  perform pg_temp.vsrv(format('select public.srv_access_event(%L, %L, null, false, now(), false, %L, null, null, ''Production'', true)',
     'life-1', 'com.mdlf.training.lifetime', 'n-life-reversed'));
   st := public.access_state();
   if st ->> 'status' <> 'active' or st ->> 'lifetime' <> 'purchase' or st -> 'until' <> 'null'::jsonb then raise 'remboursement annulé : %', st; end if;
+end $$;
+
+-- ── Remboursement appris par verify-purchase (transaction révoquée relue, date d'achat seule), puis
+--    ONE_TIME_CHARGE en retard (Apple réessaie 3 jours) : seul un REFUND_REVERSED explicite rouvre ──
+do $$
+declare st jsonb;
+begin
+  perform pg_temp.vlogin('8');
+  perform pg_temp.vsrv(format('select public.srv_access_purchase(%L, %L, null, %L, false, now() - interval ''2 days'', null, ''Production'')',
+    pg_temp.vu('8'), 'com.mdlf.training.lifetime', 'life-8'));
+  if public.access_state() ->> 'status' <> 'active' then raise 'achat à vie 8'; end if;
+  -- Transaction.updates renvoie la transaction révoquée : event_at reste la date d'achat
+  perform pg_temp.vsrv(format('select public.srv_access_purchase(%L, %L, null, %L, true, now() - interval ''2 days'', null, ''Production'')',
+    pg_temp.vu('8'), 'com.mdlf.training.lifetime', 'life-8'));
+  if public.access_state() ->> 'status' <> 'expired' then raise 'remboursement par verify-purchase'; end if;
+  -- ONE_TIME_CHARGE non révoquée, signée après l'achat, arrivée en retard : ne rouvre rien
+  perform pg_temp.vsrv(format('select public.srv_access_event(%L, %L, null, false, now() - interval ''1 day'', false, %L, null, null, ''Production'')',
+    'life-8', 'com.mdlf.training.lifetime', 'n-life8-late'));
+  st := public.access_state();
+  if st ->> 'status' <> 'expired' or (st ->> 'can_write')::boolean then raise 'achat à vie remboursé rouvert sans REFUND_REVERSED : %', st; end if;
+  -- verify-purchase plus récent mais sans révocation (copie ancienne) : ne rouvre rien non plus
+  perform pg_temp.vsrv(format('select public.srv_access_purchase(%L, %L, null, %L, false, now(), null, ''Production'')',
+    pg_temp.vu('8'), 'com.mdlf.training.lifetime', 'life-8'));
+  if public.access_state() ->> 'status' <> 'expired' then raise 'relecture sans révocation : accès rouvert'; end if;
+  -- REFUND_REVERSED (p_reinstate) plus récent : l'accès revient
+  perform pg_temp.vsrv(format('select public.srv_access_event(%L, %L, null, false, now() + interval ''1 second'', false, %L, null, null, ''Production'', true)',
+    'life-8', 'com.mdlf.training.lifetime', 'n-life8-reversed'));
+  st := public.access_state();
+  if st ->> 'status' <> 'active' or st ->> 'lifetime' <> 'purchase' then raise 'REFUND_REVERSED après verify-purchase : %', st; end if;
 end $$;
 
 -- ── Achat à vie en Sandbox (TestFlight, examen d'Apple) : 7 jours, pas à vie ──
@@ -136,6 +166,26 @@ begin
     'sub-6', 'com.mdlf.training.pro.monthly', 'n-sub6-exp'));
   st := public.access_state();
   if st ->> 'lifetime' <> 'purchase' or (st ->> 'also_sub')::boolean or st ->> 'status' <> 'active' then raise 'fin de l''abonnement : %', st; end if;
+end $$;
+
+-- ── Coach avec un palier ET un accès à vie offert (Cyril) : also_sub reste faux, le palier
+--    coach n'est jamais à résilier (il donne le nombre d'élèves) ──
+do $$
+declare st jsonb;
+begin
+  perform pg_temp.vlogin('9');
+  perform pg_temp.vsrv(format('select public.srv_access_purchase(%L, %L, %L, %L, false, now(), null, ''Production'')',
+    pg_temp.vu('9'), 'com.mdlf.training.coach10.monthly', now() + interval '20 days', 'sub-9-coach'));
+  reset role;
+  if not (private.grant_lifetime(pg_temp.vu('9'), 'Coach partenaire') ->> 'ok')::boolean then raise 'attribution coach'; end if;
+  if private.coach_paid_limit(pg_temp.vu('9')) is distinct from 10 then raise 'palier coach perdu'; end if;
+  set role authenticated;
+  st := public.access_state();
+  if st ->> 'lifetime' <> 'gift' or (st ->> 'also_sub')::boolean then raise 'coach à vie invité à résilier son palier : %', st; end if;
+  -- Un abonnement PARTICULIER à côté, lui, est signalé
+  perform pg_temp.vsrv(format('select public.srv_access_purchase(%L, %L, %L, %L, false, now(), null, ''Production'')',
+    pg_temp.vu('9'), 'com.mdlf.training.pro.yearly', now() + interval '200 days', 'sub-9-pro'));
+  if not (public.access_state() ->> 'also_sub')::boolean then raise 'abonnement particulier à côté non signalé'; end if;
 end $$;
 
 -- ── Accès à vie attribué par l'administrateur : tracé, révocable ──
@@ -241,6 +291,15 @@ begin
              and p.proname in ('access_claim', 'access_refresh', 'access_json') loop
     if not (select p.prosecdef and p.proconfig @> array['search_path=""'] from pg_proc p where p.oid = f) then raise '% : security definer et search_path vide', f; end if;
   end loop;
+  -- srv_access_event (p_reinstate) : clé serveur seulement
+  if has_function_privilege('anon', 'public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text, boolean)', 'execute')
+     or has_function_privilege('authenticated', 'public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text, boolean)', 'execute')
+     or not has_function_privilege('service_role', 'public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text, boolean)', 'execute')
+     then raise 'droits de srv_access_event'; end if;
+  if (select not (p.prosecdef and p.proconfig @> array['search_path=""']) from pg_proc p
+       where p.oid = 'public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text, boolean)'::regprocedure)
+     then raise 'srv_access_event : security definer et search_path vide'; end if;
+  if (select count(*) from pg_proc where proname = 'srv_access_event') <> 1 then raise 'ancienne srv_access_event restée'; end if;
   if has_function_privilege('anon', 'public.redeem_gift_code(text)', 'execute') then raise 'redeem_gift_code pour anon'; end if;
   if not has_function_privilege('authenticated', 'public.redeem_gift_code(text)', 'execute') then raise 'redeem_gift_code fermé'; end if;
   if has_table_privilege('authenticated', 'private.lifetime_access', 'select') or has_table_privilege('service_role', 'private.lifetime_access', 'select')
@@ -251,5 +310,5 @@ end $$;
 update public.app_config set value = 'false'::jsonb where key = 'paywall_on';
 
 -- Ménage : les fichiers suivants (payant_test.sql…) comptent sur des tables de codes vierges
-delete from public.gift_codes where code in (select code from vcodes) or note like 'attribué : Maxence%';
-delete from auth.users where id in (select pg_temp.vu(c) from unnest(array['1', '2', '3', '4', '5', '6', '7']) c);
+delete from public.gift_codes where code in (select code from vcodes) or note like 'attribué : Maxence%' or note = 'attribué : Coach partenaire';
+delete from auth.users where id in (select pg_temp.vu(c) from unnest(array['1', '2', '3', '4', '5', '6', '7', '8', '9']) c);

@@ -12,8 +12,9 @@
 --       achat ne sert qu'à un compte), même vérification (verify-purchase relit chez Apple), mêmes
 --       notifications (appstore-notify : ONE_TIME_CHARGE à l'achat, REFUND, REFUND_REVERSED) ;
 --     - en PRODUCTION : expires_at reste NULL (aucune fin), l'accès tombe seulement sur un
---       remboursement (revoked_at) ; un remboursement annulé par Apple (REFUND_REVERSED, évènement plus
---       récent que le remboursement) le rouvre ;
+--       remboursement (revoked_at) ; seul un remboursement annulé par Apple (REFUND_REVERSED, passé
+--       EXPLICITEMENT par appstore-notify : p_reinstate, et plus récent que le remboursement) le
+--       rouvre. Aucune autre notification ni relecture ne rouvre un achat à vie remboursé ;
 --     - en SANDBOX (TestFlight, examen d'Apple) : un achat à vie de test ne vaut que 7 JOURS après
 --       l'achat. Sans cette borne, tout testeur TestFlight (Sandbox, sans payer) aurait un accès à vie
 --       réel et définitif sur son compte MDLF. Un abonnement Sandbox s'arrête de lui-même ; un
@@ -65,15 +66,21 @@ $$ select 7 $$;
 -- Même noyau que 20261029000000_payant_modele_b.sql (règles 1 à 4 inchangées), plus l'achat à vie :
 --  - nature 'life' : pas de fin en Production ; en Sandbox, fin = achat + 7 jours, fixée une fois ;
 --  - une transaction ne change jamais de nature (abonnement ↔ à vie) : invalid_transaction ;
---  - règle 4 bis : un remboursement d'achat à vie est levé par un évènement non révoqué PLUS RÉCENT
---    que le remboursement (REFUND_REVERSED d'Apple). Une notification rejouée d'avant le remboursement
---    est plus ancienne : elle ne rouvre rien.
-create or replace function private.access_claim(p_user uuid, p_product text, p_expires timestamptz,
-                                                p_original_tx text, p_revoked boolean,
-                                                p_event_at timestamptz default null,
-                                                p_force boolean default false,
-                                                p_intro boolean default null,
-                                                p_environment text default null) returns jsonb
+--  - règle 4 bis : un remboursement d'achat à vie n'est levé QUE par p_reinstate (REFUND_REVERSED
+--    d'Apple, seul cas où appstore-notify le passe), sur un évènement PLUS RÉCENT que le dernier
+--    appliqué. Une ONE_TIME_CHARGE arrivée en retard (Apple réessaie 3 jours), une relecture par
+--    verify-purchase ou une notification rejouée ne rouvrent rien, quelle que soit leur date : la date
+--    enregistrée d'un remboursement appris par verify-purchase peut être celle de l'ACHAT
+--    (purchaseDate), elle ne suffit donc pas à ordonner les évènements.
+-- p_reinstate est sans effet sur un abonnement (la règle 4 ne rouvre qu'un vrai réabonnement).
+drop function private.access_claim(uuid, text, timestamptz, text, boolean, timestamptz, boolean, boolean, text);
+create function private.access_claim(p_user uuid, p_product text, p_expires timestamptz,
+                                     p_original_tx text, p_revoked boolean,
+                                     p_event_at timestamptz default null,
+                                     p_force boolean default false,
+                                     p_intro boolean default null,
+                                     p_environment text default null,
+                                     p_reinstate boolean default false) returns jsonb
   language plpgsql security definer set search_path = '' as
 $$
 declare
@@ -124,8 +131,8 @@ begin
               and (
                 -- Règle 4 : réabonnement réel = évènement plus récent ET période strictement plus lointaine
                 (k = 'sub' and new_end is not null and (cur.expires_at is null or new_end > cur.expires_at))
-                -- Règle 4 bis : remboursement d'un achat à vie annulé par Apple
-                or k = 'life'
+                -- Règle 4 bis : remboursement d'un achat à vie annulé par Apple (REFUND_REVERSED seulement)
+                or (k = 'life' and coalesce(p_reinstate, false))
               );
     update public.entitlement_claims c set
       product_id  = p_product,
@@ -149,6 +156,49 @@ begin
   end if;
   perform private.access_refresh(p_user);
   return private.access_json(p_user);
+end
+$$;
+
+-- Notification d'Apple (appstore-notify) : même texte que 20261029000000_payant_modele_b.sql, plus
+-- p_reinstate (vrai pour REFUND_REVERSED seulement, voir notify-policy.js), transmis à access_claim
+drop function public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text);
+create function public.srv_access_event(p_original_tx text, p_product text, p_expires timestamptz,
+                                        p_revoked boolean default false,
+                                        p_event_at timestamptz default null,
+                                        p_force boolean default false,
+                                        p_uuid text default null,
+                                        p_account_token text default null,
+                                        p_intro boolean default null,
+                                        p_environment text default null,
+                                        p_reinstate boolean default false)
+  returns jsonb
+  language plpgsql security definer set search_path = '' as
+$$
+declare owner uuid;
+begin
+  if p_uuid is not null and char_length(p_uuid) between 1 and 64 then
+    insert into public.appstore_notifications (notification_uuid) values (p_uuid) on conflict do nothing;
+    if not found then
+      return jsonb_build_object('matched', false, 'duplicate', true);
+    end if;
+    delete from public.appstore_notifications n where n.at < now() - interval '30 days';
+  end if;
+  if p_original_tx is null or private.access_product_kind(p_product) is null then
+    return jsonb_build_object('matched', false, 'duplicate', false);
+  end if;
+  select c.user_id into owner from public.entitlement_claims c
+    where c.original_transaction_id = p_original_tx;
+  if owner is null and p_account_token ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    select u.id into owner from auth.users u where u.id = p_account_token::uuid;
+  end if;
+  if owner is null then
+    return jsonb_build_object('matched', false, 'duplicate', false);
+  end if;
+  perform private.access_claim(owner, p_product, p_expires, p_original_tx,
+                               coalesce(p_revoked, false), p_event_at, coalesce(p_force, false),
+                               p_intro, p_environment, coalesce(p_reinstate, false));
+  return jsonb_build_object('matched', true, 'duplicate', false,
+                            'user_id', owner, 'access', private.access_json(owner));
 end
 $$;
 
@@ -193,8 +243,10 @@ $$;
 -- Même calcul que 20261030000000_payant_tarifs.sql, plus l'achat à vie.
 -- Ordre des statuts : gift à vie > achat à vie ('active', sans fin) > gift en jours > active > expired > none.
 -- lifetime : 'purchase' (achat à vie payé, Production), 'gift' (accès à vie offert), 'test' (achat à
--- vie Sandbox, 7 jours), null sinon. also_sub : un abonnement Apple tourne encore à côté d'un accès à
--- vie (l'app invite à le résilier : Apple ne le fait pas tout seul).
+-- vie Sandbox, 7 jours), null sinon. also_sub : un abonnement PARTICULIER tourne encore à côté d'un
+-- accès à vie (l'app invite à le résilier : Apple ne le fait pas tout seul). Un palier COACH n'y compte
+-- jamais : c'est lui seul qui donne le nombre d'élèves (private.coach_paid_limit), l'accès à vie n'en
+-- donne aucun ; le résilier fermerait l'équipe du coach.
 create or replace function private.access_json(uid uuid) returns jsonb
   language plpgsql stable security definer set search_path = '' as
 $$
@@ -232,7 +284,8 @@ begin
   select max(least(c.expires_at, coalesce(c.revoked_at, c.expires_at))) into last_end
     from public.entitlement_claims c where c.user_id = uid;
   also := exists (select 1 from public.entitlement_claims c
-                   where c.user_id = uid and c.kind = 'sub' and c.revoked_at is null and c.expires_at > srv_now);
+                   where c.user_id = uid and c.kind = 'sub' and c.revoked_at is null and c.expires_at > srv_now
+                     and private.coach_product_limit(c.product_id) is null);
 
   if life then st := 'gift';
   elsif life_paid then st := 'active';
@@ -429,8 +482,12 @@ create view private.lifetime_access as
 -- ── Droits ───────────────────────────────────────────────
 
 revoke all on function private.access_life_test_days() from public, anon, authenticated, service_role;
-revoke all on function private.access_claim(uuid, text, timestamptz, text, boolean, timestamptz, boolean, boolean, text)
+revoke all on function private.access_claim(uuid, text, timestamptz, text, boolean, timestamptz, boolean, boolean, text, boolean)
   from public, anon, authenticated, service_role;
+revoke all on function public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text, boolean)
+  from public, anon, authenticated, service_role;
+grant execute on function public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text, boolean)
+  to service_role;
 revoke all on function private.access_refresh(uuid) from public, anon, authenticated, service_role;
 revoke all on function private.access_json(uuid) from public, anon, authenticated, service_role;
 revoke all on function private.grant_lifetime(uuid, text) from public, anon, authenticated, service_role;

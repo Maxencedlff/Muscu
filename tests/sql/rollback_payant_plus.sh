@@ -45,6 +45,14 @@ begin
   if (select count(*) from private.payant_plus_revoked_redemptions) <> 1 then raise 'retraits non mis de côté'; end if;
   if (select expires_at > now() from public.gift_codes where code = (select code from public.rb_code)) then raise 'code désactivé réutilisable'; end if;
   if exists (select 1 from pg_proc where proname in ('grant_lifetime', 'revoke_lifetime', 'revoke_gift_code', 'access_life_test_days')) then raise 'fonctions restées'; end if;
+  -- srv_access_event et access_claim reprennent leur signature d'avant (sans p_reinstate), toujours fermées au client
+  if to_regprocedure('public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text)') is null
+     or to_regprocedure('public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text, boolean)') is not null
+     or to_regprocedure('private.access_claim(uuid, text, timestamptz, text, boolean, timestamptz, boolean, boolean, text)') is null
+     then raise 'signatures d''avant non rendues'; end if;
+  if has_function_privilege('authenticated', 'public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text)', 'execute')
+     or not has_function_privilege('service_role', 'public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text)', 'execute')
+     then raise 'droits de srv_access_event'; end if;
 end $$;
 drop table public.rb_code;
 SQL

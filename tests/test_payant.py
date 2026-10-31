@@ -1170,7 +1170,8 @@ def t_vie(bench, eng, dev, theme):
         R.check('Accès à vie' in txt and 'Ton abonnement Apple continue d\'être facturé' in txt, f'{t} Réglages : abonnement à résilier rappelé')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
-    # 3. TestFlight (Sandbox) : achat à vie de test, 7 jours ; code d'offre élève de Sandbox
+    # 3. TestFlight (Sandbox) : achat à vie de test, 7 jours ; AUCUN code d'offre élève demandé (il ne
+    #    s'utiliserait pas par la page d'Apple et userait un des 3 codes de l'élève)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), store={'products': 'all', 'environment': 'sandbox'})
         signin(page, username='lea')
@@ -1182,7 +1183,9 @@ def t_vie(bench, eng, dev, theme):
         page.click('[data-action="pay-student"]')
         page.wait_for_timeout(700)
         sent = [json.loads(c[2]).get('env') for c in acalls(page, 'student_offer_code')]
-        R.check(sent == ['Sandbox'] and len(store_calls(page, 'environment')) == 1, f'{t} TestFlight : code d\'offre élève de Sandbox {sent}')
+        toast = page.inner_text('.toast') if page.locator('.toast').count() else ''
+        R.check(sent == [] and len(store_calls(page, 'environment')) == 1 and page.evaluate('window.__opened') == []
+                and 'TestFlight' in toast, f'{t} TestFlight : aucun code d\'offre élève demandé ni ouvert {sent} ({toast!r})')
         page.evaluate("__st.everSubscribed = true; access.studentOffer = { error: 'not_new' }")
         paywall(page)
         page.click(f'[data-action="pay-buy"][data-id="{LIFE}"]')
@@ -1203,6 +1206,30 @@ def t_vie(bench, eng, dev, theme):
         R.check('Accès offert à vie' in txt and 'Passer à l\'accès à vie' not in txt, f'{t} accès offert à vie : Réglages')
         txt = paywall(page)
         R.check(page.locator('.pay-plan').count() == 0 and 'On t\'a offert l\'accès à vie' in txt, f'{t} accès offert à vie : rien à acheter')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # 5. Coach avec un palier : pas de « Passer à l'accès à vie » ; puis accès à vie offert (coach
+    #    partenaire) : also_sub faux, aucune invitation à résilier le palier (il donne le nombre d'élèves)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'products': 'all'})
+        signin(page, username='cyril')
+        refresh_access(page)
+        make_me_coach(page)
+        paywall(page, 'coach')
+        page.click(f'[data-action="pay-buy"][data-id="{C10}"]')
+        page.wait_for_timeout(1200)
+        txt = sub_text(page)
+        R.check(page.evaluate('access.currentProduct') == C10 and 'Changer de palier coach' in txt
+                and page.locator('[data-action="pay-open"][data-reason="life"]').count() == 0,
+                f'{t} abonné coach : pas de passage à vie ({txt[:120]!r})')
+        page.evaluate('__st.giveGift()')
+        refresh_access(page)
+        txt = sub_text(page)
+        R.check(page.evaluate('accessLifetime()') == 'gift' and page.evaluate('accessAlsoSub()') is False
+                and 'Accès offert à vie' in txt and 'continue d\'être facturé' not in txt and 'résilier' not in txt,
+                f'{t} coach à vie avec palier : aucune invitation à résilier ({txt[:160]!r})')
+        layout(page, t, 'coach à vie avec palier')
+        shot(page, LOT, f'45-coach-a-vie-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

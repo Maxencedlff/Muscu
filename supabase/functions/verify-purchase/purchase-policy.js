@@ -27,6 +27,11 @@
 //    rien de l'ancienneté de la période. purchaseDate, lui, est stable d'une relecture à l'autre et
 //    croissant d'un renouvellement au suivant, donc une transaction du mois N parcourue après celle du
 //    mois N+1 (Transaction.unfinished, ordre non garanti) est bien reconnue comme la plus ancienne.
+//    Transaction REMBOURSÉE (revocationDate) : event_at = le plus tard des deux (achat, remboursement).
+//    Le remboursement est l'évènement : sans cela, un remboursement appris par cette relecture serait
+//    daté du jour de l'ACHAT, et tout évènement signé entre l'achat et le remboursement (une
+//    ONE_TIME_CHARGE en retard) passerait pour plus récent. Le serveur ne rouvre de toute façon un
+//    achat à vie remboursé que sur REFUND_REVERSED (p_reinstate, appstore-notify).
 // 8. Essai gratuit d'Apple (offre de lancement gratuite) : intro_offer vaut true seulement quand la
 //    transaction signée porte offerType = 1 (INTRODUCTORY_OFFER, App Store Server Library : OfferType)
 //    ET offerDiscountType = 'FREE_TRIAL'. Une offre de lancement PAYANTE (PAY_AS_YOU_GO, PAY_UP_FRONT)
@@ -83,8 +88,10 @@ export function transactionDecision(payload, { nowMs = Date.now() } = {}) {
   // borne seule un achat à vie Sandbox à 7 jours)
   const expires = kind === 'life' ? null : msDate(payload.expiresDate);
   if (kind === 'sub' && expires === null) return { ok: false, error: 'invalid_transaction' };
-  const revoked = msDate(payload.revocationDate) !== null;
-  const eventAt = msDate(payload.purchaseDate) ?? msDate(payload.signedDate);
+  const revokedAt = msDate(payload.revocationDate);
+  const revoked = revokedAt !== null;
+  const boughtAt = msDate(payload.purchaseDate) ?? msDate(payload.signedDate);
+  const eventAt = revoked ? Math.max(boughtAt ?? 0, revokedAt) : boughtAt;
   return {
     ok: true,
     value: {

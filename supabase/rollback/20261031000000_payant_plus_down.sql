@@ -14,7 +14,7 @@
 --    les ferait revivre ;
 --  - les codes désactivés (gift_codes.revoked_at) sont expirés (expires_at = maintenant) avant la
 --    suppression de la colonne, pour rester inutilisables ;
---  - access_product_kind, access_claim, access_refresh, access_json et redeem_gift_code reprennent
+--  - access_product_kind, access_claim, srv_access_event, access_refresh, access_json et redeem_gift_code reprennent
 --    leur texte de 20261030000000_payant_tarifs.sql et 20261029000000_payant_modele_b.sql ;
 --  - grant_lifetime, revoke_lifetime, revoke_gift_code, access_life_test_days et la vue
 --    private.lifetime_access disparaissent. Les instantanés sont recalculés.
@@ -164,8 +164,11 @@ begin
 end
 $$;
 
--- Texte d'origine (20261029000000_payant_modele_b.sql)
-create or replace function private.access_claim(p_user uuid, p_product text, p_expires timestamptz,
+-- Textes d'origine (20261029000000_payant_modele_b.sql) : access_claim et srv_access_event sans
+-- p_reinstate (le payant plus les avait recréées avec ce paramètre en plus)
+drop function public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text, boolean);
+drop function private.access_claim(uuid, text, timestamptz, text, boolean, timestamptz, boolean, boolean, text, boolean);
+create function private.access_claim(p_user uuid, p_product text, p_expires timestamptz,
                                      p_original_tx text, p_revoked boolean,
                                      p_event_at timestamptz default null,
                                      p_force boolean default false,
@@ -234,6 +237,45 @@ begin
 end
 $$;
 
+create function public.srv_access_event(p_original_tx text, p_product text, p_expires timestamptz,
+                                        p_revoked boolean default false,
+                                        p_event_at timestamptz default null,
+                                        p_force boolean default false,
+                                        p_uuid text default null,
+                                        p_account_token text default null,
+                                        p_intro boolean default null,
+                                        p_environment text default null)
+  returns jsonb
+  language plpgsql security definer set search_path = '' as
+$$
+declare owner uuid;
+begin
+  if p_uuid is not null and char_length(p_uuid) between 1 and 64 then
+    insert into public.appstore_notifications (notification_uuid) values (p_uuid) on conflict do nothing;
+    if not found then
+      return jsonb_build_object('matched', false, 'duplicate', true);
+    end if;
+    delete from public.appstore_notifications n where n.at < now() - interval '30 days';
+  end if;
+  if p_original_tx is null or private.access_product_kind(p_product) is null then
+    return jsonb_build_object('matched', false, 'duplicate', false);
+  end if;
+  select c.user_id into owner from public.entitlement_claims c
+    where c.original_transaction_id = p_original_tx;
+  if owner is null and p_account_token ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    select u.id into owner from auth.users u where u.id = p_account_token::uuid;
+  end if;
+  if owner is null then
+    return jsonb_build_object('matched', false, 'duplicate', false);
+  end if;
+  perform private.access_claim(owner, p_product, p_expires, p_original_tx,
+                               coalesce(p_revoked, false), p_event_at, coalesce(p_force, false),
+                               p_intro, p_environment);
+  return jsonb_build_object('matched', true, 'duplicate', false,
+                            'user_id', owner, 'access', private.access_json(owner));
+end
+$$;
+
 create or replace function public.redeem_gift_code(code text) returns jsonb
   language plpgsql security definer set search_path = '' as
 $$
@@ -281,6 +323,9 @@ drop function private.access_life_test_days();
 
 revoke all on function private.access_claim(uuid, text, timestamptz, text, boolean, timestamptz, boolean, boolean, text)
   from public, anon, authenticated, service_role;
+revoke all on function public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text)
+  from public, anon, authenticated, service_role;
+grant execute on function public.srv_access_event(text, text, timestamptz, boolean, timestamptz, boolean, text, text, boolean, text) to service_role;
 revoke all on function private.access_refresh(uuid) from public, anon, authenticated, service_role;
 revoke all on function private.access_json(uuid) from public, anon, authenticated, service_role;
 revoke all on function public.redeem_gift_code(text) from public, anon, authenticated;

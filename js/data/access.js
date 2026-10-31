@@ -33,9 +33,11 @@
 //  - ACCÈS À VIE (payant plus, 31/10/2026) : achat unique non consommable (PLAN_LIFETIME_ID), vérifié
 //    par le serveur comme un abonnement. `lifetime` dit d'où vient un accès à vie : 'purchase' (payé),
 //    'gift' (offert par l'administrateur ou un code à vie), 'test' (achat Sandbox, 7 jours seulement) ;
-//    `also_sub` : un abonnement Apple continue à côté (Apple ne le résilie pas tout seul).
-//  - TESTFLIGHT : l'environnement StoreKit de l'app (accessStoreEnvironment) choisit le code d'offre
-//    élève demandé au serveur (Sandbox sous TestFlight, Production sinon).
+//    `also_sub` : un abonnement PARTICULIER continue à côté (Apple ne le résilie pas tout seul). Un
+//    palier coach n'y compte jamais : il donne le nombre d'élèves, l'accès à vie n'en donne aucun.
+//  - TESTFLIGHT : l'environnement StoreKit de l'app (accessStoreEnvironment) est lu. Sous TestFlight
+//    (Sandbox), AUCUN code d'offre élève n'est demandé : un code ne s'y utilise pas par la page d'Apple
+//    (voir accessStudentOffer). Ailleurs, un code de Production.
 //  - Résultats : { ok: true, data } ou { ok: false, kind }. L'écran s'abonne par onAccessChange.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -219,7 +221,8 @@ function accessLifetime() {
   const st = accessKnown();
   return st && !st.stale ? st.lifetime : null;
 }
-// Un abonnement Apple tourne encore à côté d'un accès à vie : l'app invite à le résilier chez Apple
+// Un abonnement particulier tourne encore à côté d'un accès à vie : l'app invite à le résilier chez
+// Apple (jamais un palier coach : le serveur ne le compte pas dans also_sub)
 function accessAlsoSub() {
   const st = accessKnown();
   return !!(st && !st.stale && st.also_sub);
@@ -264,6 +267,7 @@ const ACCESS_ERROR_TEXT = {
   not_student: 'L\'offre élève est réservée aux élèves d\'un coach vérifié.',
   not_new: 'L\'offre élève est réservée à un premier abonnement. Choisis une formule ci-dessous.',
   no_code: 'Plus d\'offre élève disponible pour l\'instant. Réessaie dans quelques jours.',
+  testflight: 'L\'offre élève n\'est pas disponible dans la version de test (TestFlight). Elle le sera dans l\'app de l\'App Store.',
   pending: 'Ton achat attend une autorisation. L\'accès arrivera dès qu\'Apple l\'aura validé.',
   no_products: 'Les formules ne sont pas encore proposées par Apple. Réessaie plus tard.',
   no_store: 'Les achats se font dans l\'app MDLF Training sur iPhone.',
@@ -608,14 +612,18 @@ async function accessRedeemCode() {
 // pas une exception : { ok: false, error: 'not_student' | 'not_new' | 'no_code' }. Le même code revient
 // tant qu'il n'a pas expiré. L'app ouvre ensuite la page d'Apple, code déjà rempli (planRedeemUrl) ;
 // la transaction revient par l'écouteur permanent, comme tout achat.
-// Environnement : celui de StoreKit (accessStoreEnvironment). Une build TestFlight tourne en Sandbox et
-// demande un code Sandbox (un code de Production n'y passerait pas) ; tout le reste, App Store compris,
-// demande un code de Production. Ce choix n'ouvre rien : un code Sandbox ne sert à rien sur l'App Store.
+// Environnement : celui de StoreKit (accessStoreEnvironment). Sous TestFlight (Sandbox), RIEN n'est
+// demandé au serveur : { ok: false, kind: 'testflight' }. D'après Apple, un code d'offre Sandbox ne
+// s'utilise que dans les réglages du compte Sandbox de l'iPhone (iOS 16.3+), pas par la page
+// apps.apple.com/redeem (codes de Production seulement), et un testeur TestFlight a son vrai
+// identifiant Apple, pas un compte Sandbox. Demander un code userait pour rien un des 3 codes à vie de
+// l'élève (student_offer_code). Non résolu : à revoir après un essai sur un vrai iPhone TestFlight
+// (docs/PAYANT_V1.md). Partout ailleurs (App Store, navigateur, réponse inconnue) : code de Production.
 // Renvoie { ok: true, code, expiresAt } ou { ok: false, kind }. access.studentOffer garde la réponse.
 const ACCESS_STUDENT_ERRORS = ['not_student', 'not_new', 'no_code'];
 async function accessStudentOffer() {
-  const env = await accessStoreEnvironment() === 'sandbox' ? 'Sandbox' : 'Production';
-  const r = await accessRpc('student_offer_code', { env });
+  if (await accessStoreEnvironment() === 'sandbox') return { ok: false, kind: 'testflight' };
+  const r = await accessRpc('student_offer_code', { env: 'Production' });
   if (!r.ok) return r;
   const d = r.data && typeof r.data === 'object' ? r.data : {};
   if (d.ok !== true) {

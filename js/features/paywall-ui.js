@@ -217,13 +217,14 @@ function payTermsHtml(list) {
 }
 
 // Mentions de l'accès à vie : achat unique, débité à la confirmation, sans renouvellement. Un abonnement
-// en cours n'est pas arrêté par cet achat (il est hors du groupe d'abonnements d'Apple).
+// en cours n'est pas arrêté par cet achat (il est hors du groupe d'abonnements d'Apple). Un palier coach
+// ne doit pas être résilié : lui seul donne le nombre d'élèves, l'accès à vie n'en donne aucun.
 function payLifetimeTermsHtml(life) {
   if (!life) return '';
   return `
         <div class="pay-terms" role="note">
           <p>Accès à vie : ${esc(life.price)} en une fois, débité sur ton compte Apple à la confirmation de l'achat. Pas d'abonnement, rien ne se renouvelle.</p>
-          <p>Si tu as déjà un abonnement, l'achat à vie ne l'arrête pas : résilie-le dans les réglages de ton identifiant Apple pour ne plus être débité.</p>
+          <p>Si tu as déjà un abonnement particulier, l'achat à vie ne l'arrête pas : résilie-le dans les réglages de ton identifiant Apple pour ne plus être débité. Un palier coach reste nécessaire pour accueillir des élèves : l'accès à vie n'en donne pas.</p>
         </div>`;
 }
 const payLifetimeOf = list => list.find(p => p.id === ACCESS_LIFETIME_ID) || null;
@@ -467,7 +468,8 @@ function renderSubscription() {
   const introLine = intro ? `Essai gratuit jusqu'au ${fmtDate(intro)}${plan ? `, puis ${plan.price} ${payPer(plan)}` : ''}` : '';
   const offNote = !on ? `
         <div class="group-foot">Tout est ouvert pour l'instant : l'abonnement n'est pas encore demandé.</div>` : '';
-  // Accès à vie ET abonnement Apple qui continue : Apple ne le résilie pas tout seul
+  // Accès à vie ET abonnement PARTICULIER qui continue (also_sub : jamais un palier coach, qui donne le
+  // nombre d'élèves) : Apple ne le résilie pas tout seul
   const alsoNote = on && accessAlsoSub() ? `
         <div class="group-foot pay-also-sub" role="note">Ton abonnement Apple continue d'être facturé. Avec l'accès à vie, tu peux le résilier dans « Gérer chez Apple ».</div>` : '';
   const testNote = life === 'test' ? `
@@ -484,8 +486,9 @@ function renderSubscription() {
           </div>` : ''}
         </div>${introLine ? `
         <div class="group-foot pay-intro-line">${esc(introLine)}.</div>` : ''}${offNote}${alsoNote}${testNote}`;
-  // Abonné (pas à vie) : il peut passer à l'accès à vie, si Apple propose le produit
-  const toLife = on && st === 'active' && !life && Native.store.available
+  // Abonné particulier (pas à vie) : il peut passer à l'accès à vie, si Apple propose le produit. Pas un
+  // abonné coach : son palier donne le nombre d'élèves, l'accès à vie ne le remplace pas
+  const toLife = on && st === 'active' && !life && Native.store.available && !planIsCoach(access.currentProduct)
     && (!access.products || access.products.some(p => p.id === ACCESS_LIFETIME_ID));
   const actions = `
         <div class="group">
@@ -552,13 +555,14 @@ registerActions({
   'pay-open': (e, el) => { openPaywall(el.dataset.reason, el.dataset.tab, el.dataset.id); },
   'pay-tab': (e, el) => { navigate(makeRoute('paywall', 'offer', el.dataset.tab === 'coach' ? 'coach' : 'pro'), { replace: true }); },
   'pay-period': (e, el) => { payCoachPeriod = el.dataset.period === 'year' ? 'year' : 'month'; haptic(); render(); },
-  // Offre élève : le serveur donne un code d'offre d'Apple à usage unique, la page d'Apple l'applique
+  // Offre élève : le serveur donne un code d'offre d'Apple à usage unique (Production), la page d'Apple
+  // l'applique. Sous TestFlight, aucun code n'est demandé (accessStudentOffer) : on le dit, sans erreur
   'pay-student': async () => {
     if (access.studentBusy) return;
     access.studentBusy = true; render();
     try {
       const r = await accessStudentOffer();
-      if (!r.ok) { showToast(accessErrorText(r.kind), { error: true }); return; }
+      if (!r.ok) { showToast(accessErrorText(r.kind), { error: r.kind !== 'testflight', duration: 4000 }); return; }
       window.open(planRedeemUrl(r.code), '_blank');
       showToast('Confirme ton offre élève dans la page d\'Apple');
     } finally { access.studentBusy = false; render(); }

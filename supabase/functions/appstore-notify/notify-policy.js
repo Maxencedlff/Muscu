@@ -41,8 +41,10 @@
 //    l'utilisation d'un code d'offre de ce produit), REFUND au remboursement, REFUND_REVERSED quand
 //    Apple annule un remboursement (litige). Pas de date de fin. REFUND_REVERSED n'est traité QUE pour
 //    l'accès à vie : pour un abonnement il reste ignoré comme avant (la règle 4 du serveur ne rouvre
-//    qu'un vrai réabonnement ; le secours est documenté dans PAYANT_V1.md). Le serveur ne rouvre un
-//    achat à vie remboursé que sur un évènement PLUS RÉCENT que le remboursement.
+//    qu'un vrai réabonnement ; le secours est documenté dans PAYANT_V1.md). REFUND_REVERSED est le SEUL
+//    type qui pose `reinstate` (p_reinstate du serveur) : le serveur ne rouvre un achat à vie remboursé
+//    que sur lui, et seulement s'il est plus récent que le remboursement. Une ONE_TIME_CHARGE arrivée
+//    en retard ne rouvre donc jamais rien.
 
 import { BUNDLE_ID, ENVIRONMENTS, transactionDecision } from '../verify-purchase/purchase-policy.js';
 
@@ -64,7 +66,7 @@ const ignore = (type, reason) => ({ handled: false, type, reason });
 
 // Notification vérifiée (+ sa transaction et son renewalInfo vérifiés) → ce qu'il faut écrire.
 // { handled: true, type, value: { original_transaction_id, product_id, expires_at, revoked, force,
-//   event_at, account_token, intro_offer, environment } } ou { handled: false, type, reason } : accepté et ignoré (200).
+//   event_at, account_token, intro_offer, environment, reinstate } } ou { handled: false, type, reason } : accepté et ignoré (200).
 // Ne renvoie JAMAIS de refus : tout ce qui est signé par Apple repart en 200 (voir la règle 1).
 export function notificationDecision({ notification, transaction, renewal = null, nowMs = Date.now() } = {}) {
   if (!isObject(notification) || typeof notification.notificationType !== 'string') return ignore(null, 'malformed');
@@ -106,6 +108,8 @@ export function notificationDecision({ notification, transaction, renewal = null
       account_token: v.account_token,
       intro_offer: v.intro_offer,
       environment: v.environment,
+      // Seul REFUND_REVERSED rend un achat à vie remboursé (règle 10)
+      reinstate: type === 'REFUND_REVERSED',
     },
   };
 }

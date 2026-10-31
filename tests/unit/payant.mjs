@@ -300,7 +300,7 @@ export default function ({ test, assert, sameJSON, ROOT }) {
       sameJSON(r, { handled: true, type, value: {
         original_transaction_id: '2000000900000001', product_id: 'com.mdlf.training.pro.monthly',
         expires_at: new Date(until).toISOString(), revoked: false, force: false,
-        event_at: new Date(nowMs).toISOString(), account_token: null, intro_offer: false, environment: 'Production',
+        event_at: new Date(nowMs).toISOString(), account_token: null, intro_offer: false, environment: 'Production', reinstate: false,
       } }, type);
     }
   });
@@ -446,6 +446,13 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     assert.equal(transactionDecision(life({ inAppOwnershipType: 'FAMILY_SHARED' }), { nowMs }).error, 'not_purchased');
     assert.equal(transactionDecision(life({ environment: 'Sandbox' }), { nowMs }).value.environment, 'Sandbox');
     assert.equal(transactionDecision(life({ revocationDate: nowMs - 1000 }), { nowMs }).value.revoked, true);
+    // Remboursée : l'évènement est le REMBOURSEMENT, pas l'achat (sinon une ONE_TIME_CHARGE en retard,
+    // signée entre les deux, passerait pour plus récente) ; une date de remboursement absurde, plus
+    // ancienne que l'achat, ne recule pas l'évènement
+    const refunded = life({ purchaseDate: nowMs - 2 * 86400_000, revocationDate: nowMs - 3600_000 });
+    assert.equal(transactionDecision(refunded, { nowMs }).value.event_at, new Date(nowMs - 3600_000).toISOString());
+    const odd = life({ purchaseDate: nowMs - 3600_000, revocationDate: nowMs - 86400_000 });
+    assert.equal(transactionDecision(odd, { nowMs }).value.event_at, new Date(nowMs - 3600_000).toISOString());
     // Jamais d'« essai gratuit » pour un achat unique
     assert.equal(transactionDecision(life({ offerType: 1, offerDiscountType: 'FREE_TRIAL' }), { nowMs }).value.intro_offer, false);
     // La base borne l'achat à vie Sandbox à 7 jours, et le contrat le dit
@@ -468,6 +475,14 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     const back = decide('REFUND_REVERSED', lifeTx({ revocationDate: nowMs - 1000 }));
     assert.equal(back.handled, true);
     assert.equal(back.value.revoked, false);
+    // Seul REFUND_REVERSED demande au serveur de rouvrir un achat à vie remboursé (p_reinstate)
+    assert.equal(back.value.reinstate, true);
+    for (const t of ['ONE_TIME_CHARGE', 'REFUND', 'REVOKE', 'EXPIRED']) assert.equal(decide(t).value.reinstate, false, `${t} rouvre`);
+    assert.equal(decide('SUBSCRIBED', transactionPayload()).value.reinstate, false);
+    // Et le serveur ne rouvre un achat à vie que sur lui : jamais sur la seule nature 'life'
+    assert.ok(/or \(k = 'life' and coalesce\(p_reinstate, false\)\)/.test(plus()), 'réouverture à vie sans p_reinstate');
+    assert.ok(!/or k = 'life'\s*\n/.test(plus()), 'réouverture de tout évènement à vie');
+    assert.ok(/p_reinstate: decided\.value\.reinstate/.test(fs.readFileSync(path.join(ROOT, 'supabase/functions/appstore-notify/index.ts'), 'utf8')), 'p_reinstate non transmis');
     // REFUND_REVERSED d'un abonnement : ignoré comme avant (200)
     sameJSON(decide('REFUND_REVERSED', transactionPayload()), { handled: false, type: 'REFUND_REVERSED', reason: 'type_ignored' });
     // Expiration d'un achat à vie : rien ne recule, pas de force

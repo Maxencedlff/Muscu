@@ -651,7 +651,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(offline(life(), 8), [false, 'unknown', null, true]);
   });
 
-  test('payant plus : TestFlight (Sandbox) demande un code d\'offre élève de Sandbox, le reste de Production', async () => {
+  test('payant plus : TestFlight (Sandbox) ne demande AUCUN code d\'offre élève (il ne s\'y utiliserait pas), le reste un code de Production', async () => {
     const r = await run(`(async () => {
       const u = account.user, saved = { ...access }, realSb = sb, nativeStore = Native.store;
       const out = [];
@@ -663,9 +663,10 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
           Native.store = { ...nativeStore, environment: async () => { asked++; return env; } };
           let sent = null;
           sb = { rpc: async (fn, args) => { sent = args.env; return { data: { ok: false, error: 'no_code' }, error: null }; } };
-          await accessStudentOffer();
+          const first = await accessStudentOffer();
           await accessStudentOffer();
           out.push(sent);
+          if (env === 'sandbox') out.push(first, access.studentOffer);
         }
         // Coquille sans la méthode (mise à jour à chaud avant la build) : Production, sans erreur
         accessReset('u'); access.storeEnv = null;
@@ -678,7 +679,10 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       } finally { account.user = u; Object.assign(access, saved); sb = realSb; Native.store = nativeStore; }
     })()`);
     // L'environnement n'est demandé qu'une fois par lancement quand il est connu
-    sameJSON(r, ['Sandbox', 'Production', 'Production', 'Production', 'Production', 'Production', 'Production', 1 + 1 + 2 + 1 + 2 + 2]);
+    // TestFlight : aucun appel au serveur (aucun des 3 codes de l'élève n'est usé), refus « testflight »
+    sameJSON(r, [null, { ok: false, kind: 'testflight' }, null, 'Production', 'Production', 'Production', 'Production', 'Production', 'Production',
+      1 + 1 + 2 + 1 + 2 + 2]);
+    assert.ok(run(`accessErrorText('testflight')`).includes('TestFlight'));
   });
 
   test('payant plus : catalogue avec l\'accès à vie, et la formule en cours préfère l\'abonnement', async () => {
