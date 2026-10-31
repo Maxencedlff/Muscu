@@ -252,7 +252,14 @@ export default function ({ test, assert, run, app, reset, nativeContext, ROOT })
   const WRITE = ['write:session', 'write:kcal'], WEIGHT = ['read:weight'], WORKOUTS = ['read:session', 'read:distance'];
   const sameWindows = (a, b, msg) => assert.equal(JSON.stringify(a), JSON.stringify(b), msg);
   function healthConnect(choose) {
-    const hc = { granted: new Set(), asked: { base: false, workouts: false }, windows: [] };
+    const hc = { granted: new Set(), asked: { base: false, workouts: false }, windows: [], reads: 0 };
+    // HealthConnectClient.readRecords : SecurityException si la lecture n'est pas accordée (doc Android),
+    // que launchCall transforme en reject. Le module vérifie donc l'autorisation avant de lire.
+    const readRecords = (perm, records) => {
+      hc.reads++;
+      if (!hc.granted.has(perm)) throw Object.assign(new Error('SecurityException'), { code: 'SECURITY' });
+      return records;
+    };
     const answer = () => ({ available: true, workouts: hc.granted.has('write:session'),
       workoutsRead: WORKOUTS.every(p => hc.granted.has(p)) });
     hc.plugin = {
@@ -267,8 +274,9 @@ export default function ({ test, assert, run, app, reset, nativeContext, ROOT })
       },
       authorizationStatus: async () => ({ available: true,
         request: hc.asked.workouts || WORKOUTS.every(p => hc.granted.has(p)) ? 'unnecessary' : 'shouldRequest' }),
-      workouts: async () => ({ workouts: WORKOUTS.every(p => hc.granted.has(p)) ? [{ id: 'run1', activity: 'running', start: 1, end: 2, duration: 1, km: 5, source: 'Strava', productType: '', indoor: false, own: false }] : [] }),
-      bodyMass: async () => ({ samples: hc.granted.has('read:weight') ? [{ date: 1, kg: 80 }] : [] }),
+      workouts: async () => ({ workouts: WORKOUTS.every(p => hc.granted.has(p))
+        ? readRecords('read:session', [{ id: 'run1', activity: 'running', start: 1, end: 2, duration: 1, km: 5, source: 'Strava', productType: '', indoor: false, own: false }]) : [] }),
+      bodyMass: async () => ({ samples: WEIGHT.every(p => hc.granted.has(p)) ? readRecords('read:weight', [{ date: 1, kg: 80 }]) : [] }),
       saveWorkout: async () => ({ saved: hc.granted.has('write:session') }),
     };
     hc.Native = nativeContext({ platform: 'android', plugins: { MdlfHealth: hc.plugin } }).Native;
@@ -305,6 +313,14 @@ export default function ({ test, assert, run, app, reset, nativeContext, ROOT })
       await run('syncWorkoutToHealth(data.history[0])');
       assert.equal(run('data.history[0].healthSaved'), true);
       await run('bodyMassSamples()');
+      // Poids refusé : liste vide comme iOS (« Aucune pesée lue »), jamais « Santé n'a pas répondu »
+      // à réessayer sans fin, et la lecture vide est gardée le temps du cache
+      assert.equal(run('weightCache.failed'), false, 'refus du poids : pas un échec de lecture');
+      assert.doesNotMatch(run('renderBodyWeightCell()'), /retry-body-weight/, 'pas de cellule « réessayer » morte');
+      assert.match(run('renderBodyWeightCell()'), /Aucune pesée|Lecture/);
+      const reads = hc.reads;
+      await run('bodyMassSamples()');
+      assert.equal(hc.reads, reads, 'lecture vide gardée : Health Connect pas relu à chaque appel');
       await run('sendHistoryToHealth()');
       assert.equal(hc.windows.length, 1, 'aucune fenêtre Health Connect en plein bilan ni au lancement');
       assert.equal(app.__dialogs.length, 0);
@@ -335,12 +351,25 @@ export default function ({ test, assert, run, app, reset, nativeContext, ROOT })
     });
   });
 
+  test('android Santé : « Aucune pesée lue » indique le chemin Health Connect, pas les Réglages de l\'iPhone', () => {
+    const src = read('js/features/apple-services.js');
+    const [android, ios] = src.match(/const HEALTH_TEXT = [\s\S]*?\n};/)[0].split(/\n} : \{/);
+    assert.match(android, /noWeight: '[^']*Health Connect › Autorisations des applications[^']*'/);
+    assert.doesNotMatch(android, /iPhone/);
+    assert.match(ios, /noWeight: '[^']*Réglages de l\\'iPhone/);
+    const fill = src.match(/async function fillWeightGroup\(\)[\s\S]*?\n}\n/)[0];
+    assert.match(fill, /Aucune pesée lue[\s\S]*\$\{HEALTH_TEXT\.noWeight\}/);
+  });
+
   test('android Santé : HealthPlugin.kt suit la sémantique simulée ci-dessus', () => {
     const health = kotlin('HealthPlugin.kt');
     const body = name => health.match(new RegExp(`fun ${name}\\([\\s\\S]*?\\n    }\\n`))?.[0] || '';
     const status = body('authorizationStatus');
     assert.match(status, /asked\(KEY_WORKOUTS\)/, '« unnecessary » = déjà demandé, comme iOS');
     assert.doesNotMatch(status, /weightPermissions|writePermissions/, 'le refus du poids ne bloque pas les courses');
+    // readRecords lève une SecurityException sans autorisation : chaque lecture la vérifie d'abord
+    assert.match(body('bodyMass'), /getGrantedPermissions\(\)[\s\S]*containsAll\(weightPermissions\)[\s\S]*readRecords/, 'poids refusé : liste vide, pas un échec');
+    assert.match(body('workouts'), /getGrantedPermissions\(\)[\s\S]*containsAll\(workoutPermissions\)[\s\S]*readRecords/);
     const request = body('requestAuthorization');
     assert.match(request, /asked\(KEY_BASE\)/);
     assert.match(request, /asked\(KEY_WORKOUTS\)/);

@@ -85,7 +85,11 @@ reste celle d'Apple : corrections seulement.
   - `requestAuthorization` rend en plus `workoutsRead` (lecture des courses accordée), qu'iOS ne peut pas
     dire : refusée après « Courses et vélo de Santé », le web affiche où autoriser (Health Connect ›
     Autorisations des applications). Health Connect ne remontre de toute façon plus sa fenêtre après
-    deux refus.
+    deux refus ;
+  - `bodyMass` et `workouts` vérifient l'autorisation avant de lire : `readRecords` lève une
+    `SecurityException` quand elle manque, que le web prendrait pour « Santé n'a pas répondu » (à
+    réessayer sans fin, relu à chaque appel). Refusée, la lecture rend une liste vide, comme HealthKit :
+    Progrès affiche « Aucune pesée lue » avec le chemin Health Connect.
 
 ### 3.2 Repos en cours (`MdlfLiveActivity`)
 

@@ -17,9 +17,11 @@ const healthEnabled = () => Native.isNative && data.healthOn === true;
 const HEALTH_TEXT = Native.platform === 'android' ? {
   unavailable: 'Installe ou mets à jour Health Connect depuis le Play Store, puis réessaie',
   refused: 'Autorise MDLF Training dans Health Connect › Autorisations des applications, puis réessaie.',
+  noWeight: 'Ajoute ton poids dans Health Connect. Si tu en as déjà : Health Connect › Autorisations des applications › MDLF Training › autorise Poids.',
 } : {
   unavailable: 'Santé n\'est pas disponible sur cet appareil',
   refused: 'Autorise MDLF Training dans Réglages › Santé › Accès aux données et appareils, puis réessaie.',
+  noWeight: 'Ajoute ton poids dans Santé. Si tu en as déjà : Réglages de l\'iPhone › Santé › Accès aux données et appareils › MDLF Training › autorise Poids.',
 };
 const musicEnabled  = () => Native.music.available && data.musicOn === true;   // Apple Music : iOS seulement
 
@@ -172,9 +174,9 @@ async function fillWeightGroup() {
     return;
   }
   if (!samples.length) {
-    // iOS ne dit pas si la lecture du poids est refusée : il renvoie juste une liste vide
+    // iOS ne dit pas si la lecture du poids est refusée : il renvoie juste une liste vide (Android pareil)
     box.innerHTML = `<div class="cell"><span class="cell__body"><span class="cell__title">Aucune pesée lue</span>
-      <span class="cell__sub">Ajoute ton poids dans Santé. Si tu en as déjà : Réglages de l'iPhone › Santé › Accès aux données et appareils › MDLF Training › autorise Poids.</span></span></div>`;
+      <span class="cell__sub">${HEALTH_TEXT.noWeight}</span></span></div>`;
     return;
   }
   box.innerHTML = weightCellHtml(samples);

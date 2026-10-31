@@ -202,6 +202,10 @@ class HealthPlugin : Plugin() {
         val hc = client() ?: run { call.reject("Health Connect indisponible"); return }
         val days = (call.getInt("days") ?: 90).coerceIn(1, 3650)
         launchCall(call) {
+            // readRecords lève une SecurityException sans autorisation : le poids refusé donne une liste
+            // vide (comme HealthKit sur iOS), pas un échec que l'app proposerait de réessayer sans fin
+            val granted = hc.permissionController.getGrantedPermissions()
+            if (!granted.containsAll(weightPermissions)) { call.resolve(JSObject().put("samples", JSArray())); return@launchCall }
             val now = Instant.now()
             val response = hc.readRecords(ReadRecordsRequest(
                 WeightRecord::class,
