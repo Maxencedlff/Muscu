@@ -31,21 +31,12 @@ function buildSets(progKey, cat, exLike, n, fallback = {}) {
   });
 }
 
-// { holdLoad: true } quand la charge reste celle d'avant (décharge en cours, ou reprise d'un exercice pas refait
-// depuis : deloadHoldsLoad) : la puce « ↑ +2,5 kg » ne s'affiche pas, comme l'accueil ne propose aucun gain
-function holdLoadOf(progKey, cat, exLike) {
-  const lp = lastPerf(progKey, cat, exLike);
-  return lp && deloadHoldsLoad(deloadPhase(data), lp.h.date) ? { holdLoad: true } : {};
-}
-
 function startSession(cat) {
   sessionNotes  = '';
   persistWarned = false;
   editingSet    = null;
   const progKey = data.activeProgramme;
   const exList  = prog().exercises[cat] || [];
-  // Décharge en cours (js/data/training-insights.js) : la moitié des séries prévues, comme l'accueil
-  const n = ex => deloadPhase(data)?.kind === 'active' ? deloadSetCount(ex.sets) : ex.sets;
   activeSession = {
     category:  cat,
     programme: progKey,
@@ -53,8 +44,7 @@ function startSession(cat) {
     // Commencée avec le droit d'écrire : « Terminer » l'enregistrera même si l'accès prend fin pendant
     // la séance (le serveur l'accepte dans sa grâce bornée, js/features/paywall-ui.js)
     writeOk: typeof canWrite !== 'function' || canWrite(),
-    exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), ...(ex.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(ex) } : {}), ...(ssId(ex) ? { ss: ex.ss } : {}),
-      ...holdLoadOf(progKey, cat, ex), sets: buildSets(progKey, cat, ex, n(ex), ex) })),
+    exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), ...(ex.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(ex) } : {}), ...(ssId(ex) ? { ss: ex.ss } : {}), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
   };
   ssNormalize(activeSession.exercises);
   persistSession();
@@ -145,10 +135,9 @@ function nextSetText() {
   return `${ex.name} · S${cur.si + 1}${s.reps !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}` : ''}`;
 }
 
-// Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette ;
-// jamais pendant la décharge ni à la reprise d'un exercice pas refait depuis (holdLoad, startSession)
+// Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette
 function bumpReady(ex) {
-  if (ex.bumped || ex.holdLoad || ex.sets.every(s => s.done) || measureOf(ex) !== 'reps' || isAssisted(ex)) return false;
+  if (ex.bumped || ex.sets.every(s => s.done) || measureOf(ex) !== 'reps' || isAssisted(ex)) return false;
   const work  = workSets(ex.sets);
   const prevs = work.map(s => s.prev).filter(Boolean);
   if (!prevs.length || prevs.length < Math.min(work.length, 2)) return false;

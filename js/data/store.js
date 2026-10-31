@@ -47,20 +47,14 @@ function recomputePRFromHistory(d = data) {
   });
 }
 
-// Dernière séance (programme + catégorie) qui contient cet exercice : { h, ex } ou null. Les séances de la
-// décharge enregistrée (js/data/training-insights.js) sont passées : séries réduites, efforts retenus, elles ne
-// fixent ni la cible, ni le préremplissage, ni « Avant ». Faute d'autre séance de l'exercice, la plus récente sert.
+// Dernière séance (programme + catégorie) qui contient cet exercice : { h, ex } ou null
 function lastPerf(progKey, cat, exLike, d = data) {
-  const dl = cleanDeload(d.deload);
-  let light = null;
   for (const h of d.history || []) {
     if (entryProg(h) !== progKey || h.category !== cat) continue;
     const ex = (h.exercises || []).find(e => sameEx(e, exLike));
-    if (!ex || !ex.sets?.length) continue;
-    if (!inDeload(h, dl)) return { h, ex };
-    light ??= { h, ex };
+    if (ex && ex.sets?.length) return { h, ex };
   }
-  return light;
+  return null;
 }
 
 // Identifiant stable pour un exercice connu par son seul nom (exercice ajouté en cours de route)
@@ -295,11 +289,6 @@ function sanitizeData(d) {
   if (d.plates !== undefined) { const p = cleanPlates(d.plates); if (p) d.plates = p; else delete d.plates; }
   // Carte « Ta semaine » de l'accueil coupée (js/features/recap.js) : true ou absent
   if (d.recapCardOff !== undefined && d.recapCardOff !== true) delete d.recapCardOff;
-  // Entraînement intelligent (js/data/training-insights.js) : conseils coupés (true ou absent), décharge
-  // enregistrée { start, end, seen? } et « Pas maintenant » (date) ; toute autre valeur est retirée
-  if (d.trainingTipsOff !== undefined && d.trainingTipsOff !== true) delete d.trainingTipsOff;
-  if (d.deload !== undefined) { const dl = cleanDeload(d.deload); if (dl) d.deload = dl; else delete d.deload; }
-  if (d.deloadSnooze !== undefined && !(Number.isFinite(d.deloadSnooze) && d.deloadSnooze > 0)) delete d.deloadSnooze;
   // Séances visibles par défaut (Réglages › Amis et coach, js/data/social.js) : booléen ou absent (= oui)
   if (d.sessionVisibleDefault !== undefined && typeof d.sessionVisibleDefault !== 'boolean') delete d.sessionVisibleDefault;
   // Version de l'app et date où elle a été vue (noteAppVersion, js/data/sync.js) : envoyées au profil, bornées
@@ -308,6 +297,8 @@ function sanitizeData(d) {
     && /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(d.appSeenAt) && Number.isFinite(Date.parse(d.appSeenAt)))) delete d.appSeenAt;
   // Silhouette des muscles (bodySilhouette) : absente = homme ; valeur inconnue retirée
   if (d.silhouette !== undefined && d.silhouette !== 'female' && d.silhouette !== 'male') delete d.silhouette;
+  // Sexe des repères de force (Réglages › Entraînement, js/data/strength-levels.js) : male, female, none ou absent
+  if (d.strengthSex !== undefined && !STRENGTH_SEXES.includes(d.strengthSex)) delete d.strengthSex;
   // Niveau du premier lancement (trainingLevel) : valeur inconnue retirée
   if (d.level !== undefined && !TRAINING_LEVELS.includes(d.level)) delete d.level;
   // Dernier compte connecté sur l'appareil (cleanLastAccount) : retiré s'il est illisible
