@@ -461,9 +461,9 @@ const GUIDE_SECTIONS = [
         lead: 'L\'app iPhone peut enregistrer tes séances dans Apple Santé et y lire ton poids. La connexion est coupée au départ.',
         steps: [
           'Active-la dans [Réglages] › [Services Apple] › [Apple Santé], puis autorise l\'accès.',
-          'Chaque séance terminée devient un entraînement de musculation dans Santé, avec une estimation des calories.',
+          'Chaque séance terminée devient un entraînement de musculation dans Santé, avec sa durée et une estimation des calories. Le cardio fait au chrono d\'une machine y part dans son type : course, vélo, rameur…',
           '[Envoyer l\'historique dans Santé] y ajoute tes anciennes séances.',
-          'L\'app lit aussi ton poids, tes courses et tes sorties vélo.',
+          'L\'app lit aussi ton poids, ton sommeil (ta nuit s\'affiche sur l\'accueil), tes courses et tes sorties vélo.',
           'Ces données restent sur ton iPhone. Elles ne vont ni sur ton compte ni dans la copie iCloud.',
         ],
         related: ['poids-corps', 'courses-sante'],

@@ -37,6 +37,7 @@ const SCRIPTS = [
   'js/data/account.js',
   'js/data/social.js',
   'js/data/coach.js',
+  'js/data/push.js',
   'js/data/prog-share.js',
   'js/data/trash.js',
   'js/data/muscles.js',
@@ -1494,7 +1495,7 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 // ── Santé détaillée : entraînements d'une séance, sommeil (tests dans health.mjs) ──
 (await import('./health.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Notifications push : fonction serveur push-send (tests dans push.mjs) ──
-(await import('./push.mjs')).default({ test, assert, sameJSON, ROOT });
+(await import('./push.mjs')).default({ test, run, assert, sameJSON, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export default function ({ test, assert, sameJSON, ROOT }) {
+export default function ({ test, run, assert, sameJSON, ROOT }) {
   const load = () => import(path.join(ROOT, 'supabase/functions/push-send/push-policy.js'));
   const FAKE_TOKEN = 'ab'.repeat(32);
   const row = (o = {}) => ({ id: 1, kind: 'reaction', ref: 's-1', token: FAKE_TOKEN, env: 'production', actor_name: 'max.dlf', wanted: true, ...o });
@@ -90,5 +90,86 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     assert.equal(validDeviceToken(FAKE_TOKEN), true);
     assert.equal(validDeviceToken('ab'), false);
     assert.equal(validDeviceToken(FAKE_TOKEN.toUpperCase()), false);
+  });
+  // ── App : réglages, autorisation d'iOS, jeton (js/data/push.js) ──
+  // Faux pont natif et faux serveur : chaque appel est noté dans __calls
+  const withFakes = async ({ permission = 'prompt', answer = 'granted', token = FAKE_TOKEN, prefs = { reactions: false, follows: false, coach: false } } = {}, fn) => {
+    run(`__calls = []; __saved = { isNative: Native.isNative, push: Native.push, avail: accountAvailable, user: account.user, sb };
+      Native.isNative = true; accountAvailable = () => true; account.user = { id: 'u-test' };
+      globalThis.__prefs = ${JSON.stringify(prefs)};
+      Native.push = { permission: async () => { __calls.push('permission'); return ${JSON.stringify(permission)}; },
+        requestPermission: async () => { __calls.push('request'); return ${JSON.stringify(answer)}; },
+        register: async () => { __calls.push('register'); return ${JSON.stringify(token)} ? { token: ${JSON.stringify(token)}, environment: 'production' } : null; } };
+      sb = { rpc: async (fn, args) => { __calls.push(fn + ':' + JSON.stringify(args || {}));
+        if (fn === 'push_set_prefs') { for (const k in args) if (args[k] !== null) __prefs[k] = args[k]; return { data: __prefs, error: null }; }
+        if (fn === 'push_prefs') return { data: __prefs, error: null };
+        return { data: null, error: null }; } };
+      localStorage.removeItem('mdlf_push'); push.prefs = null; push.busy = null;`);
+    try { await fn(); } finally {
+      run(`Native.isNative = __saved.isNative; Native.push = __saved.push; accountAvailable = __saved.avail; account.user = __saved.user; sb = __saved.sb;
+        localStorage.removeItem('mdlf_push'); push.prefs = null; push.busy = null;`);
+    }
+  };
+
+  test('push app : réglages nettoyés, tout éteint par défaut', () => {
+    sameJSON(run(`cleanPushPrefs({ reactions: true, follows: 'oui', coach: 1, pub: true })`), { reactions: true, follows: false, coach: false });
+    sameJSON(run(`cleanPushPrefs(null)`), { reactions: false, follows: false, coach: false });
+    assert.equal(run(`pushAnyOn(cleanPushPrefs({}))`), false);
+    assert.equal(run(`pushPossible()`), false, 'navigateur : jamais');
+  });
+
+  test('push app : allumer demande à iOS au toucher, inscrit le jeton, puis le réglage', async () => {
+    await withFakes({}, async () => {
+      sameJSON(await run(`pushSetPref('reactions', true)`), { ok: true });
+      sameJSON(run('__calls'), ['permission', 'request', 'register',
+        `push_register:${JSON.stringify({ token: FAKE_TOKEN, env: 'production' })}`,
+        'push_set_prefs:{"reactions":true,"follows":null,"coach":null}']);
+      sameJSON(run(`JSON.parse(localStorage.getItem('mdlf_push'))`), { userId: 'u-test', token: FAKE_TOKEN });
+      // Tout éteint : le jeton quitte le compte
+      run('__calls = []');
+      sameJSON(await run(`pushSetPref('reactions', false)`), { ok: true });
+      sameJSON(run('__calls'), ['push_set_prefs:{"reactions":false,"follows":null,"coach":null}', `push_unregister:${JSON.stringify({ token: FAKE_TOKEN })}`]);
+      assert.equal(run(`localStorage.getItem('mdlf_push')`), null);
+    });
+  });
+
+  test('push app : refus d\'iOS, jeton impossible, build sans module : rien d\'écrit sur le serveur', async () => {
+    await withFakes({ answer: 'denied' }, async () => {
+      sameJSON(await run(`pushSetPref('follows', true)`), { ok: false, reason: 'denied' });
+      assert.ok(!run('__calls').some(c => c.startsWith('push_')), 'aucun appel au serveur');
+    });
+    await withFakes({ permission: 'granted', token: '' }, async () => {
+      sameJSON(await run(`pushSetPref('coach', true)`), { ok: false, reason: 'register' });
+      assert.ok(!run('__calls').some(c => c.startsWith('push_set_prefs')));
+      assert.ok(!run('__calls').includes('request'), 'déjà autorisé : pas de fenêtre');
+    });
+    await withFakes({ permission: 'unavailable' }, async () => {
+      sameJSON(await run(`pushSetPref('coach', true)`), { ok: false, reason: 'unavailable' });
+    });
+    await withFakes({}, async () => {
+      sameJSON(await run(`pushSetPref('pub', true)`), { ok: false, reason: 'busy' }, 'type inconnu');
+    });
+  });
+
+  test('push app : déconnexion → jeton retiré avant la fin de session', async () => {
+    await withFakes({ permission: 'granted' }, async () => {
+      await run(`pushSetPref('reactions', true)`);
+      run('__calls = []');
+      await run('pushForgetDevice()');
+      sameJSON(run('__calls'), [`push_unregister:${JSON.stringify({ token: FAKE_TOKEN })}`]);
+      run('__calls = []');
+      await run('pushForgetDevice()');
+      sameJSON(run('__calls'), [], 'rien d\'inscrit : aucun appel');
+    });
+  });
+
+  test('push app : écran ouvert au toucher', () => {
+    const t = (p, h = []) => run(`pushTarget(${JSON.stringify(p)}, ${JSON.stringify(h)})`);
+    sameJSON(t({ kind: 'reaction', ref: 's1' }, [{ id: 's1' }]), { tab: 'history', screen: 'history-detail', params: ['s1'] });
+    sameJSON(t({ kind: 'coach_note', ref: 'absente' }, [{ id: 's1' }]), { tab: 'history', screen: null, params: [] }, 'séance pas sur cet appareil');
+    sameJSON(t({ kind: 'follow_request', ref: '' }), { tab: 'friends', screen: null, params: [] });
+    sameJSON(t({ kind: 'coach_programme', ref: 'p1' }), { tab: 'friends', screen: 'coach-mine', params: [] });
+    assert.equal(t({ kind: 'inconnu' }), null);
+    assert.equal(t(null), null);
   });
 }

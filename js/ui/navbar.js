@@ -153,7 +153,7 @@ function routeTitle(route, isRoot) {
     'body-measures': 'Mesures', 'body-measure': bodyMeasureLabel(routeParams(route)[0]) || 'Mesure',
     'my-programmes': 'Mes programmes', 'prog-add': 'Ajouter', 'prog-info': 'Programme', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
     friends: 'Amis', 'social-profile': socialPerson(routeParams(route)[0])?.username || 'Profil',
-    'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles',
+    'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles', notifications: 'Notifications',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
   }[name] || 'Retour';
 }

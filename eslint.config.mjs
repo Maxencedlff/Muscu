@@ -16,6 +16,11 @@ export default [
     languageOptions: { ecmaVersion: 2023, sourceType: 'script', globals: { ...globals.browser, ...globals.serviceworker } },
     rules: { 'no-undef': 'off', 'no-unused-vars': 'off', 'no-empty': ['error', { allowEmptyCatch: true }] },
   },
+  // Règles pures des fonctions serveur (Deno), aussi chargées par les tests Node : API web communes aux deux
+  {
+    files: ['supabase/functions/**/*.js'],
+    languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals['shared-node-browser'] } },
+  },
   {
     files: ['tests/**/*.mjs', 'scripts/**/*.mjs', 'eslint.config.mjs'],
     languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.node } },

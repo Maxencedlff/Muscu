@@ -28,7 +28,7 @@ export const validDeviceToken = (t) => typeof t === 'string' && TOKEN_RE.test(t)
 
 // Pseudo affiché : texte brut, une ligne, borné ; sinon « Quelqu'un »
 function actorName(name) {
-  const s = typeof name === 'string' ? name.replace(/[\u0000-\u001f\u007f]/g, '').trim() : '';
+  const s = typeof name === 'string' ? [...name].filter(c => c.charCodeAt(0) >= 32 && c.charCodeAt(0) !== 127).join('').trim() : '';
   return s ? [...s].slice(0, NAME_MAX).join('') : 'Quelqu’un';
 }
 

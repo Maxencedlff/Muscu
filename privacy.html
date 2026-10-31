@@ -24,7 +24,7 @@
 <body>
 <main>
   <h1>Confidentialité</h1>
-  <p class="sub">MDLF Training · mise à jour le 30 octobre 2026</p>
+  <p class="sub">MDLF Training · mise à jour le 31 octobre 2026</p>
 
   <nav class="toc" aria-label="Sommaire">
     <p><strong>Sommaire</strong> : <a href="#resume">En résumé</a> · <a href="#appareil">Sur ton appareil</a> · <a href="#compte">Compte</a> · <a href="#communaute">Amis</a> · <a href="#coach">Coach</a> · <a href="#sante">Santé</a> · <a href="#contact">Contact</a></p>
@@ -42,7 +42,7 @@
       <li>Réglages de l'application (thème, unité, silhouette de la carte des muscles, sons, vibrations, icône).</li>
       <li>Le poids que tu saisis toi-même dans Réglages › Entraînement › Poids du corps, s'il est renseigné. Il sert uniquement à estimer les calories de tes séances quand Santé n'a aucune pesée.</li>
       <li><strong>Mensurations</strong> (Progrès › Mesures : tour de poitrine, de taille, de bras…), si tu en saisis : sur ton appareil, dans la copie iCloud de l'app décrite ci-dessous et dans l'export ; <strong>jamais sur le serveur</strong>, même avec un compte, et jamais montrées à tes amis ni à ton coach.</li>
-      <li><strong>Photos de progression</strong> (Progrès › Mesures, quand la fonction est disponible sur ton appareil : elle ne l'est pas encore dans l'app iPhone) : réduites et gardées dans l'app, <strong>sur ton appareil seulement</strong> ; ni dans la copie iCloud de l'app, ni dans l'export, ni sur le serveur, ni dans ta pellicule. Elles font partie de la sauvegarde de ton iPhone (iCloud ou ordinateur) comme le reste de l'app. «&nbsp;Supprimer toutes les données&nbsp;» les efface.</li>
+      <li><strong>Photos de progression</strong> (Progrès › Mesures ; dans l'app iPhone, tu choisis de prendre la photo avec l'appareil photo ou de la choisir dans ta photothèque, après l'autorisation d'iOS) : réduites et gardées dans l'app, <strong>sur ton appareil seulement</strong> ; ni dans la copie iCloud de l'app, ni dans l'export, ni sur le serveur, ni dans ta pellicule. Elles font partie de la sauvegarde de ton iPhone (iCloud ou ordinateur) comme le reste de l'app. «&nbsp;Supprimer toutes les données&nbsp;» les efface.</li>
       <li><strong>Import depuis Hevy ou Strong</strong> : le fichier CSV d'export que tu choisis est lu sur ton appareil ; seules les séances qu'il contient sont ajoutées à tes données. Le fichier n'est envoyé nulle part.</li>
     </ul>
     <p>Sans compte, ces données ne sont envoyées à aucun serveur de MDLF Training. Sur iPhone, l'application en garde une copie dans <strong>ton compte iCloud</strong> (stockage iCloud de l'app, géré par Apple), pour que tu les retrouves si tu supprimes l'application ou si tu changes d'iPhone. Seul ton compte Apple y a accès ; cette copie suit tes modifications, y compris «&nbsp;Supprimer toutes les données&nbsp;». Elle est aussi incluse dans la sauvegarde iCloud de ton iPhone si celle-ci est activée. Tu peux enfin les exporter toi-même (Réglages › Données › Sauvegarde : fichier de sauvegarde).</p>
@@ -97,15 +97,17 @@
   <section>
     <h2>Notifications</h2>
     <p>L'application peut programmer une notification locale pour t'indiquer la fin d'un temps de repos. Elle est créée sur ton appareil : aucune donnée n'est envoyée à un serveur.</p>
+    <p><strong>Notifications push (facultatives, avec un compte)</strong> : dans Réglages › Amis et coach › Notifications, tu peux allumer trois types d'avertissement, tous éteints au départ : un bravo reçu sur une séance, une demande d'abonnement, un commentaire ou un programme de ton coach. Quand tu en allumes un, iOS te demande ton accord, puis l'iPhone obtient d'Apple un <strong>jeton de notification</strong> (une suite de caractères qui ne sert qu'à t'envoyer ces notifications). Ce jeton, son type (production ou test) et tes trois choix sont enregistrés sur le serveur de l'app (Supabase, Union européenne), liés à ton compte. Les notifications passent par le service de notifications d'Apple (APNs) et ne montrent que le pseudo de la personne et le type d'événement, jamais le texte d'un commentaire, le contenu d'un programme ni tes données Santé. Le jeton est effacé quand tu éteins tout, quand tu te déconnectes, quand tu supprimes ton compte, quand Apple indique qu'il n'est plus valable, ou après 60 jours sans ouvrir l'app. Tu peux aussi couper les notifications dans Réglages › Notifications de l'iPhone.</p>
   </section>
 
   <section>
     <h2 id="sante">Apple Santé</h2>
     <p>Apple Santé est désactivé par défaut. Si tu l'actives dans les réglages de l'application et que tu l'autorises :</p>
     <ul>
-      <li><strong>Écriture</strong> : tes séances terminées sont enregistrées dans Santé comme entraînements «&nbsp;Musculation&nbsp;», avec une estimation de l'énergie dépensée.</li>
+      <li><strong>Écriture</strong> : tes séances terminées sont enregistrées dans Santé comme entraînements «&nbsp;Musculation&nbsp;», avec leur durée et une estimation de l'énergie dépensée. Le cardio fait au chrono sur une machine (tapis, vélo d'appartement, elliptique, rameur, escaliers) est enregistré à part, dans son type (course, marche, vélo…), avec sa durée, son énergie estimée et, si tu l'as notée, sa distance ; la musculation est alors en pause pendant ce temps.</li>
       <li><strong>Lecture</strong> : l'application lit ta dernière pesée. Ton poids sert à estimer les calories de tes séances et à afficher son évolution dans l'onglet Progrès.</li>
       <li><strong>Lecture des entraînements</strong> : l'application lit tes courses et sorties vélo des 60 derniers jours enregistrées dans Santé (Apple Watch, Strava ou une autre app) : date, durée, distance et nom de l'app ou de l'appareil. Elles s'affichent dans ton historique et comptent pour la récupération de tes jambes. Elles sont relues dans Santé à chaque fois et ne sont jamais copiées dans les données de l'application, ni dans sa sauvegarde iCloud, ni sur ton compte.</li>
+      <li><strong>Lecture du sommeil</strong> : l'application lit tes nuits des 8 derniers jours enregistrées dans Santé (Apple Watch, iPhone ou une app de sommeil) : heures d'endormissement et de réveil, et phases quand elles existent. Elle affiche sur l'accueil la durée de ta dernière nuit et ta moyenne. Comme les courses, le sommeil est relu à chaque fois, n'est jamais copié dans les données de l'application ni sur ton compte, et n'est montré ni à tes amis ni à ton coach.</li>
     </ul>
     <p>Ces informations restent dans Santé, sur ton appareil. Elles ne sont jamais envoyées à un serveur, même avec un compte, et ne servent ni à la publicité ni à des tiers. Tu peux retirer l'autorisation à tout moment dans Réglages › Santé › Accès aux données et appareils.</p>
   </section>
@@ -152,7 +154,7 @@
   <hr>
 
   <h1>Privacy</h1>
-  <p class="sub">MDLF Training · updated October 30, 2026</p>
+  <p class="sub">MDLF Training · updated October 31, 2026</p>
   <section>
     <p>Without an account, MDLF Training does <strong>not collect any personal data</strong>: your workouts, programs and settings stay on your device. The account is <strong>optional</strong>: if you sign in (with Apple, Google or a code sent by email), your workouts and programs are copied to the app's server so you get them on all your devices. No ads, no analytics, no tracking, nothing sold or shared. Your Health data and body weight never leave your iPhone. If you join a coach (optional), they see all your workouts, never your body weight or Health data (see Coach).</p>
   </section>
@@ -160,7 +162,7 @@
   <section>
     <h2>Data stored on your device</h2>
     <p>Programs, workouts, sets, weights, reps, notes and settings, plus the body weight you may enter in Settings › Apple Services (used only to estimate calories when Health has no weigh-in). Rest timer notifications are scheduled locally.</p>
-    <p><strong>Body measurements</strong> (Progress › Measurements: chest, waist, arms…), if you enter any, stay on your device, in the app's iCloud copy described below and in the export; they are <strong>never sent to the server</strong>, even with an account, and never shown to friends or a coach. <strong>Progress photos</strong> (when the feature is available on your device: not yet in the iPhone app) are resized and kept in the app <strong>on your device only</strong>: not in the app's iCloud copy, the export, the server or your camera roll; they are part of your iPhone backup (iCloud or computer) like the rest of the app, and “Delete all data” erases them. <strong>Import from Hevy or Strong</strong>: the CSV export file you pick is read on your device and only its workouts are added; the file is sent nowhere.</p>
+    <p><strong>Body measurements</strong> (Progress › Measurements: chest, waist, arms…), if you enter any, stay on your device, in the app's iCloud copy described below and in the export; they are <strong>never sent to the server</strong>, even with an account, and never shown to friends or a coach. <strong>Progress photos</strong> (Progress › Measurements; in the iPhone app you take them with the camera or pick them from your photo library, after iOS asks for permission) are resized and kept in the app <strong>on your device only</strong>: not in the app's iCloud copy, the export, the server or your camera roll; they are part of your iPhone backup (iCloud or computer) like the rest of the app, and “Delete all data” erases them. <strong>Import from Hevy or Strong</strong>: the CSV export file you pick is read on your device and only its workouts are added; the file is sent nowhere.</p>
     <p>Without an account, this data is never sent to any MDLF Training server. On iPhone, the app keeps a copy in <strong>your iCloud account</strong> (the app's iCloud storage, run by Apple) so you get it back if you delete the app or switch iPhones. Only your Apple account can access it, and it follows your changes, including “Delete all data”.</p>
   </section>
 
@@ -180,8 +182,13 @@
   </section>
 
   <section>
+    <h2>Push notifications</h2>
+    <p>Optional, with an account. In Settings › Friends and coach › Notifications you can turn on three kinds of alerts, all off at first: a “bravo” on one of your workouts, a follow request, a comment or program from your coach. When you turn one on, iOS asks for your permission, then your iPhone gets a <strong>notification token</strong> from Apple (a string used only to send you these notifications). The token, its type (production or test) and your three choices are stored on the app’s server (Supabase, European Union) with your account. Notifications go through Apple’s push service (APNs) and only show the person’s username and the kind of event, never the text of a comment, the content of a program or your Health data. The token is erased when you turn everything off, sign out, delete your account, when Apple reports it is no longer valid, or after 60 days without opening the app. You can also turn notifications off in iPhone Settings › Notifications.</p>
+  </section>
+
+  <section>
     <h2>Apple Health</h2>
-    <p>Off by default. If you turn it on and allow it, finished workouts are saved to Health as “Strength Training” workouts with estimated energy, and the app reads your latest weigh-in to estimate calories and show your weight trend in Progress. It also reads your runs and rides from the last 60 days saved in Health (Apple Watch, Strava or another app: date, duration, distance and the app or device name) to show them in your history and take your legs’ recovery into account; they are read from Health each time and never copied into the app’s data, its iCloud backup or your account. This data stays in Health on your device, is never sent to a server (even with an account), never used for advertising and never shared.</p>
+    <p>Off by default. If you turn it on and allow it, finished workouts are saved to Health as “Strength Training” workouts with their duration and estimated energy; cardio timed on a machine (treadmill, exercise bike, elliptical, rower, stair climber) is saved separately with its own activity type (running, walking, cycling…), duration, estimated energy and, if you noted it, distance, and the strength workout is paused during that time. The app reads your sleep from the last 8 nights saved in Health (bed and wake times, and sleep stages when available) to show last night’s duration and your average on the home screen; like runs, it is read each time, never copied into the app’s data or your account, and never shown to friends or a coach. The app also reads your latest weigh-in to estimate calories and show your weight trend in Progress. It also reads your runs and rides from the last 60 days saved in Health (Apple Watch, Strava or another app: date, duration, distance and the app or device name) to show them in your history and take your legs’ recovery into account; they are read from Health each time and never copied into the app’s data, its iCloud backup or your account. This data stays in Health on your device, is never sent to a server (even with an account), never used for advertising and never shared.</p>
   </section>
 
   <section>

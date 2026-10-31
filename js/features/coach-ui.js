@@ -77,7 +77,7 @@ function renderCoachSettingsGroup() {
             <span class="cell__body"><span class="cell__title">Coach</span></span>
             <span class="cell__value">${value}</span>
             ${icon('chevron.right', 16)}
-          </button>${socialDefaultVisibleCell()}
+          </button>${socialDefaultVisibleCell()}${pushSettingsCell()}
         </div>`;
 }
 
