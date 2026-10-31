@@ -207,7 +207,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ▶ | Écriture des séances dans Apple Santé (cardio, durée) | Branche nuit-build, docs/BUILD.md  |
 | ○ | Vérification de l'âge par Apple pour l'onglet Amis    | À faire                            |
 | ○ | Écran « mets à jour l'app » avant d'allumer le verrou | À faire                            |
-| ○ | Apple Watch (2e build si trop long)                   | À faire                            |
+| ▶ | Apple Watch, widget, Siri (2e build si trop long)     | Code écrit, branche nuit-watch, non compilé · intégration Xcode (docs/WATCH_WIDGETS.md) · sans effet sur les mises à jour à chaud tant que l'intégration Xcode n'est pas faite ; l'intégration ne va dans main qu'avec sa build |
 
 ### Démarches Apple et légales
 
@@ -283,7 +283,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 |   | Quoi                                                          | Quand / état          |
 |---|---------------------------------------------------------------|-----------------------|
-| ○ | Newsletter, widgets, Siri (commentaires et chat coach : branche nuit-social) | Plus tard |
+| ○ | Newsletter (commentaires et chat coach : branche nuit-social) | Plus tard |
 | ○ | Score de force, périodisation, option à vie, marque INPI      | Plus tard             |
 | ○ | Test mini-barre, rôle coach d'un testeur                      | Mini-barre : corrigé (branche nuit-fiabilite) |
 | ○ | Messages tout faits en réaction                               | Plus tard             |
