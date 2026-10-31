@@ -37,8 +37,9 @@ fs.copyFileSync(SUPABASE, path.join(OUT, 'js', 'vendor', 'supabase.js'));
 // - version : identifiant lisible du contenu (date du commit + commit court).
 const RUNTIME_INPUTS = ['capacitor.config.json', 'ios/App/App/Info.plist', 'ios/App/App/App.entitlements',
   'ios/App/App.xcodeproj/project.pbxproj', 'ios/App/RestActivity/Info.plist'];
-// Code Swift de l'app, partagé, et de l'extension Live Activity (RestActivity)
-const SWIFT_DIRS = ['ios/App/App', 'ios/App/Shared', 'ios/App/RestActivity'];
+// Code Swift de l'app, partagé, de l'extension Live Activity (RestActivity), et de l'Apple Watch, du widget
+// et de Siri (AppExtras, Watch, Widgets : docs/WATCH_WIDGETS.md)
+const SWIFT_DIRS = ['ios/App/App', 'ios/App/Shared', 'ios/App/RestActivity', 'ios/App/AppExtras', 'ios/App/Watch', 'ios/App/Widgets'];
 function runtimeVersion() {
   const h = crypto.createHash('sha256');
   const swift = SWIFT_DIRS.filter(d => fs.existsSync(path.join(ROOT, d))).flatMap(d =>

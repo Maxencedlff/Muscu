@@ -36,6 +36,9 @@ Les fichiers de l'app iOS sont exclus de la publication Vercel (`.vercelignore`)
 | `Native.haptic()` | `haptic()`, `timerDone()` | Taptic Engine (toucher, fin de repos) |
 | `Native.scheduleRestEnd()` / `cancelRestEnd()` | `rest.js` | Notification « Repos terminé · Série 3 · Squat » à l'heure de fin, annulée si le repos est passé |
 | `Native.liveActivity.start()` / `update()` / `end()` | `rest-activity.js` | Live Activity du repos sur l'écran verrouillé et dans la Dynamic Island (voir plus bas) |
+| `Native.watch.send()` / `onAction()` / `onRequest()` | `watch.js` | Séance en cours sur l'Apple Watch, gestes de la montre (docs/WATCH_WIDGETS.md, **build à venir**) |
+| `Native.widget.setSnapshot()` | `home-widget.js` | Instantané du widget « Prochaine séance » dans l'App Group (docs/WATCH_WIDGETS.md, **build à venir**) |
+| `Native.shortcuts.takeRequest()` / `onRequest()` | `siri.js` | « Démarrer ma séance » demandé à Siri (docs/WATCH_WIDGETS.md, **build à venir**) |
 | `Native.keepAwake()` | wake lock de `init.js` | Écran allumé pendant la séance |
 | `Native.statusBar()` | `applyTheme()`, démarrage | Texte de la barre d'état adapté au thème |
 | `Native.backup()` / `boot()` | `save()`, démarrage | Deux copies : `ppl_v2.json` dans les Documents de l'app (dans la sauvegarde iCloud de l'iPhone) et la copie iCloud de l'app (voir « Copie iCloud ») ; restaurées si le stockage web est vide, jamais écrasées avant |
@@ -374,5 +377,6 @@ cookies ni de pistage, contrastes, écrans de 8 téléphones et des pliables) es
 | Objectif | Ce qu'il faut | Remarques |
 |---|---|---|
 | **Version payante** | Contrat « Paid Applications » + infos fiscales et bancaires (App Store Connect), Small Business Program (15 %) | Abonnement ou achat unique via StoreKit (RevenueCat simplifie la gestion des reçus) ; garder une partie gratuite |
+| **Apple Watch, widget, Siri** | Intégration Xcode (cibles, App Group, profils) : docs/WATCH_WIDGETS.md | Code écrit sur la branche `nuit-watch`, non compilé |
 | **Notifications push** (rappels) | Clé APNs | Les rappels de séance peuvent rester en notifications locales, sans serveur |
 | **Mises à jour sans App Store** | Capacitor Live Updates (Appflow) ou équivalent | Seulement si les corrections web doivent arriver plus vite que la revue d'Apple |
