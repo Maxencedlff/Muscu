@@ -9,6 +9,8 @@ import json
 import os
 import time
 import contextlib
+import datetime
+from zoneinfo import ZoneInfo
 
 BASE_URL = os.environ.get('PPL_URL', 'http://localhost:8731/')
 SCRATCH = os.environ.get('PPL_SCRATCH', '/tmp/ppl-tests')
@@ -24,6 +26,39 @@ DEVICES = [
 THEMES = ['dark', 'light']
 
 DAY = 86400_000
+
+
+# ─────────────────────────────────────────────────────────────
+#  Dates et horloge figée
+#
+# Un test qui écrit « maintenant − 1 jour + 1 h » et attend « hier » échoue après 23 h ; un
+# test qui attend « 59 jours » depuis une date en dur échoue le lendemain ; « N × 24 h » n'est pas
+# N jours du calendrier autour d'un changement d'heure. Règle : un test dont le résultat dépend
+# de la date ou de l'heure fige l'horloge de la page (bench.frozen_page(ms, ...)) et calcule ses
+# données depuis ce même instant, en jours du calendrier (local_ms, days_back_ms).
+# ─────────────────────────────────────────────────────────────
+
+PARIS = 'Europe/Paris'   # fuseau de référence (heure d'hiver le dimanche 25 octobre 2026 à 3 h)
+
+
+def local_ms(y, mo, d, h=12, mi=0, tz=None):
+    """Horodatage (ms) d'une heure du calendrier : dans le fuseau `tz`, sinon celui de la machine
+    (le même que le navigateur quand le contexte ne fixe pas timezone_id)."""
+    return int(datetime.datetime(y, mo, d, h, mi, tzinfo=ZoneInfo(tz) if tz else None).timestamp() * 1000)
+
+
+def days_back_ms(now_ms, days, h=12, mi=0, tz=None):
+    """Le jour du calendrier `days` jours avant celui de `now_ms`, à h:mi (juste aux changements d'heure)."""
+    zone = ZoneInfo(tz) if tz else None
+    day = datetime.datetime.fromtimestamp(now_ms / 1000, zone).date() - datetime.timedelta(days=days)
+    return local_ms(day.year, day.month, day.day, h, mi, tz)
+
+
+def freeze_clock(page, ms):
+    """Horloge de la page partant de `ms` (puis elle avance normalement, minuteries comprises).
+    À appeler avant la première navigation (seed)."""
+    page.clock.install(time=ms / 1000)
+
 
 # Identifiants fixes des exercices (comme ceux générés par uid() dans l'app)
 PUSH = [('p1dcouch', 'Développé couché haltères', 4, 22.5), ('p2dincli', 'Développé incliné haltères', 3, 18),
@@ -176,16 +211,23 @@ class Bench:
         return self.browsers[engine]
 
     @contextlib.contextmanager
-    def page(self, engine, device, theme, service_workers='block', **extra):
+    def page(self, engine, device, theme, service_workers='block', clock=None, **extra):
+        """clock : instant de départ figé (ms) ; avec timezone_id=PARIS, la même heure partout (CI en UTC)."""
         ctx = self.browser(engine).new_context(**self.p.devices[device], color_scheme=theme,
                                                service_workers=service_workers, **extra)
         page = ctx.new_page()
         page.errors = []
         page.on('pageerror', lambda e: page.errors.append(str(e)))
+        if clock is not None:
+            freeze_clock(page, clock)
         try:
             yield page
         finally:
             ctx.close()
+
+    def frozen_page(self, at, engine, device, theme, **extra):
+        """Page dont l'horloge part de `at` (ms), à l'heure de Paris (voir « Dates et horloge figée »)."""
+        return self.page(engine, device, theme, clock=at, timezone_id=PARIS, **extra)
 
     def close(self):
         for b in self.browsers.values():

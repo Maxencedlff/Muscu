@@ -10,7 +10,6 @@ Lancer : PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_cardio.py (ou sans vari
 import json
 import os
 import sys
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
@@ -18,6 +17,11 @@ from fixtures import *  # noqa
 LOT = 'cardio'
 R = Results(LOT)
 H = 3600_000
+
+# Horloge figée le mercredi 28 octobre 2026 à 19 h, heure de Paris : la course de « il y a 5 h » tombe
+# aujourd'hui quelle que soit l'heure du test (lancé entre minuit et 5 h, elle tombait hier).
+NOW = local_ms(2026, 10, 28, 19, 0, tz=PARIS)
+
 
 FAKE_SHELL = """
 window.__hk = { list: %s, calls: 0 };
@@ -78,8 +82,8 @@ def open_app(page, theme, now, native=True, active=None, health=True):
 
 def t_historique(bench, eng, dev, theme):
     t = tag(dev, theme)
-    now = int(time.time() * 1000)
-    with bench.page(eng, dev, theme) as page:
+    now = NOW
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_app(page, theme, now)
         page.click('.tabbar [data-action="go-history"]')
         page.wait_for_selector('.hrow--health', timeout=4000)
@@ -114,8 +118,8 @@ def t_historique(bench, eng, dev, theme):
 
 def t_accueil(bench, eng, dev, theme):
     t = tag(dev, theme)
-    now = int(time.time() * 1000)
-    with bench.page(eng, dev, theme) as page:
+    now = NOW
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_app(page, theme, now)
         page.wait_for_function('window.__hk.calls > 0 && healthEntries().length > 0', timeout=4000)
         page.wait_for_timeout(300)
@@ -131,7 +135,7 @@ def t_accueil(bench, eng, dev, theme):
 def t_seance(bench, eng, dev, theme):
     """Séance en cours : allure sous la série de course validée ; Progrès › Course à pied : courbe d'allure."""
     t = tag(dev, theme)
-    now = int(time.time() * 1000)
+    now = NOW
     active = {'activeSession': {'category': 'legs', 'programme': 'ppl', 'startedAt': now - 35 * 60_000, 'baseline': {}, 'exercises': [
         {'exId': 'n:course a pied', 'name': 'Course à pied', 'measure': 'cardio', 'sets': [
             {'weight': '', 'reps': '30', 'dist': '5', 'plannedWeight': '', 'prev': {'weight': '', 'reps': '28', 'dist': '4.5'}, 'done': True},
@@ -140,7 +144,7 @@ def t_seance(bench, eng, dev, theme):
             {'weight': '', 'reps': '60', 'dist': '25', 'plannedWeight': '', 'prev': None, 'done': True},
             {'weight': '', 'reps': '', 'plannedWeight': '', 'prev': None, 'done': False}]}]},
         'sessionNotes': '', 'rest': None}
-    with bench.page(eng, dev, theme) as page:
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_app(page, theme, now, native=False, active=active, health=False)
         page.wait_for_selector('.pace-badge', timeout=4000)
         badges = page.locator('.pace-badge').all_inner_texts()
@@ -179,14 +183,14 @@ def t_machines(bench, eng, dev, theme):
     """Machines de cardio : chrono, réglage noté au fil de l'effort (−/+, saisie directe, unité), rechargement en
     pleine séance, bilan (moyenne pondérée, temps à chaque valeur, étages), tapis à deux valeurs, rameur aux 500 m."""
     t = tag(dev, theme)
-    now = int(time.time() * 1000)
+    now = NOW
     active = {'activeSession': {'category': 'legs', 'programme': 'ppl', 'startedAt': now - 10 * 60_000, 'baseline': {}, 'exercises': [
         {'exId': 'n:escaliers', 'name': 'Escaliers', 'measure': 'cardio', 'sets': [
             machine_set({'weight': '', 'reps': '20', 'machine': {'end': 1200, 'lvl': [[0, 7, 'level'], [300, 9, 'level']]}})]},
         {'exId': 'n:tapis', 'name': 'Tapis de course', 'measure': 'cardio', 'sets': [machine_set()]},
         {'exId': 'n:rameur', 'name': 'Rameur', 'measure': 'cardio', 'sets': [machine_set()]}]},
         'sessionNotes': '', 'rest': None}
-    with bench.page(eng, dev, theme) as page:
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_app(page, theme, now, native=False, active=active, health=False)
         plays = page.locator('.set-play')
         R.check(plays.count() == 3, f'{t} ▶ sur les trois machines ({plays.count()})')
@@ -300,8 +304,8 @@ def t_machines(bench, eng, dev, theme):
 def t_alias(bench, eng, dev, theme):
     """« Pec fly » est un alias de « Pec deck » : « = Pec deck » sous le nom (programme, Comment faire)."""
     t = tag(dev, theme)
-    now = int(time.time() * 1000)
-    with bench.page(eng, dev, theme) as page:
+    now = NOW
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_app(page, theme, now, native=False, health=False)
         page.evaluate("navigate(makeRoute('library-ex', 'Pec fly'))")
         page.wait_for_selector('.view.library-ex')
@@ -327,8 +331,8 @@ def t_alias(bench, eng, dev, theme):
 def t_pwa(bench, eng, dev, theme):
     """Dans le navigateur : aucune ligne de Santé, aucune lecture."""
     t = tag(dev, theme)
-    now = int(time.time() * 1000)
-    with bench.page(eng, dev, theme) as page:
+    now = NOW
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_app(page, theme, now, native=False)
         page.click('.tabbar [data-action="go-history"]')
         page.wait_for_selector('.history')
