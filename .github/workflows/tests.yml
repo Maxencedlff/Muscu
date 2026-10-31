@@ -22,7 +22,7 @@ concurrency:
 jobs:
   unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -47,6 +47,9 @@ jobs:
       # Retour arrière du payant plus (achat à vie, accès à vie révocables), puis les tests des tarifs
       - name: Retour arrière du payant plus
         run: bash tests/sql/rollback_payant_plus.sh
+      # Tous les retours arrière depuis le 29/10 : seuls, puis démontage complet, état identique (pg_dump)
+      - name: Retours arrière (démontage complet, état identique)
+        run: bash tests/sql/rollback_nuit_check.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)
