@@ -283,7 +283,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 |   | Quoi                                                          | Quand / état          |
 |---|---------------------------------------------------------------|-----------------------|
 | ○ | Newsletter, commentaires libres, chat coach, widgets, Siri    | Plus tard             |
-| ○ | Score de force, périodisation, option à vie, marque INPI      | Plus tard             |
+| ○ | Option à vie, marque INPI                                     | Plus tard             |
 | ○ | Test mini-barre, rôle coach d'un testeur                      | Plus tard             |
 | ○ | Messages tout faits en réaction                               | Plus tard             |
 | ○ | Coach payant selon son nombre d'élèves                        | Plus tard             |

@@ -23,7 +23,7 @@ const STRENGTH_WINDOW_DAYS = 90;
 // Exercice principal d'un nom (bibliothèque, alias compris : « Développé couché », « bench press ») ou null.
 // Les variantes (haltères, machine, prise serrée, sumo) n'ont pas de repères : elles ne comptent pas.
 function strengthLiftOf(name) {
-  const e = typeof catalogueEntry === 'function' ? catalogueEntry(name) : null;
+  const e = catalogueEntry(name);
   return e ? STRENGTH_LIFTS.find(l => l.name === e.name) || null : null;
 }
 

@@ -10,11 +10,11 @@ const STRENGTH_SEX_LABELS = { male: 'Homme', female: 'Femme', none: 'Non précis
 function strengthScaleHtml(st) {
   const segs = STRENGTH_LEVELS.map((l, i) => {
     const fill = i < st.index ? 1 : i === st.index ? (st.next ? st.progress : 1) : 0;
-    return `<span class="ti-scale__seg"><span class="ti-scale__fill" style="width:${Math.round(fill * 100)}%"></span></span>`;
+    return `<span class="strength-scale__seg"><span class="strength-scale__fill" style="width:${Math.round(fill * 100)}%"></span></span>`;
   }).join('');
   const label = st.next ? `${st.label}, ${Math.round(st.progress * 100)} % du chemin vers ${st.next.label}` : st.label;
-  return `<div class="ti-scale" role="img" aria-label="${esc(label)}">${segs}</div>
-    <div class="ti-scale__ends" aria-hidden="true"><span>${STRENGTH_LEVELS[0]}</span><span>${STRENGTH_LEVELS[STRENGTH_LEVELS.length - 1]}</span></div>`;
+  return `<div class="strength-scale" role="img" aria-label="${esc(label)}">${segs}</div>
+    <div class="strength-scale__ends" aria-hidden="true"><span>${STRENGTH_LEVELS[0]}</span><span>${STRENGTH_LEVELS[STRENGTH_LEVELS.length - 1]}</span></div>`;
 }
 
 // Bibliothèque › Exercice et Progrès › Exercice. Sans repères choisis : le 1RM estimé et le rapport au poids
@@ -49,14 +49,14 @@ function strengthGroupHtml(name) {
         <span class="cell__sub num">${fmtNum(ratio, 2)} × ton poids</span></span>${info}</div>
       ${ask}
     </div>
-    ${ask ? '' : '<div class="group-foot">Pas de palier sans sexe indiqué : Réglages › Entraînement › Sexe.</div>'}`;
+    ${ask || sex ? '' : '<div class="group-foot">Pas de palier sans sexe indiqué : Réglages › Entraînement › Sexe.</div>'}`;
   }
   const next = st.next ? `${st.next.label} à ${fmtW(st.next.kg)} ${unitLbl()}` : 'Plus haut repère atteint';
   return `${title}
     <div class="group">
-      <div class="cell"><span class="cell__body"><span class="cell__title ti-level">${esc(st.label)}</span>
+      <div class="cell"><span class="cell__body"><span class="cell__title strength-level">${esc(st.label)}</span>
         <span class="cell__sub num">1RM est. ~${fmtW(best.e1rm)} ${unitLbl()} · ${fmtNum(st.ratio, 2)} × ton poids</span></span>${info}</div>
-      <div class="cell ti-scale-cell"><div class="ti-scale-box">${strengthScaleHtml(st)}<div class="ti-scale__next num">${esc(next)}</div></div></div>
+      <div class="cell strength-scale-cell"><div class="strength-scale-box">${strengthScaleHtml(st)}<div class="strength-scale__next num">${esc(next)}</div></div></div>
     </div>
     <div class="group-foot">Repères ${sex === 'female' ? 'femmes' : 'hommes'} pour ${fmtW(kg)} ${unitLbl()}. Source : OpenPowerlifting.</div>`;
 }
@@ -71,7 +71,7 @@ function summaryStrengthHtml(h) {
         <div class="sum-list">
           ${rows.map(r => `
             <div class="sum-row">
-              <div class="sum-row__main"><div class="sum-row__name">${esc(r.name)}</div>${r.up ? '<div class="sum-row__sub ti-up">Nouveau palier</div>' : ''}</div>
+              <div class="sum-row__main"><div class="sum-row__name">${esc(r.name)}</div>${r.up ? '<div class="sum-row__sub strength-up">Nouveau palier</div>' : ''}</div>
               <div class="sum-row__val">${esc(r.standing.label)}</div>
             </div>`).join('')}
         </div>`;
@@ -82,7 +82,7 @@ function strengthSexSettingHtml() {
   const v = data.strengthSex;
   return `<button class="cell cell--nav" data-action="set-strength-sex">
             <span class="cell__body"><span class="cell__title">Sexe</span>
-              <span class="cell__sub">Repères du niveau de force, facultatif</span></span>
+              <span class="cell__sub">Niveau de force, facultatif</span></span>
             <span class="cell__value"${v ? '' : ' aria-label="Non renseigné"'}>${v ? STRENGTH_SEX_LABELS[v] : '—'}</span>
             ${icon('chevron.right', 16)}
           </button>`;
@@ -91,7 +91,7 @@ function strengthSexSettingHtml() {
 registerActions({
   'set-strength-sex': async () => {
     const v = await dialog({ type: 'sheet', title: 'Sexe',
-      message: 'Sert seulement à choisir les repères du niveau de force, hommes ou femmes. Reste sur cet appareil.',
+      message: 'Sert seulement à choisir les repères du niveau de force, hommes ou femmes. Jamais envoyé sur ton compte.',
       actions: [
         { label: 'Homme', value: 'male' },
         { label: 'Femme', value: 'female' },

@@ -37,8 +37,9 @@ Il n'est plus déduit de la silhouette des muscles (choix d'affichage, pas une r
 - Pourquoi pas de palier par défaut : les repères hommes et femmes diffèrent d'environ 40 % au développé
   couché ; prendre les repères hommes par défaut sous-classerait une femme, et afficher les deux échelles côte
   à côte serait confus. Ne rien supposer et proposer le choix là où il sert est le plus honnête.
-- **Donnée de l'appareil seulement** : `SYNC_LOCAL_ONLY` (jamais dans le profil du compte, comme le poids du
-  corps), nettoyée par `sanitizeData`. La page de confidentialité n'a donc pas à changer.
+- **Jamais sur le serveur** : `SYNC_LOCAL_ONLY` (jamais dans le profil du compte, comme le poids du corps),
+  nettoyée par `sanitizeData`. Comme toute la donnée locale, elle est dans la copie iCloud de l'app et dans
+  l'export. `privacy.html` (FR et EN) la décrit, et dit que le poids sert aussi au niveau de force.
 
 ## Calcul dans l'app
 
@@ -54,7 +55,9 @@ Il n'est plus déduit de la silhouette des muscles (choix d'affichage, pas une r
 
 **Source** : export CSV officiel d'OpenPowerlifting (https://openpowerlifting.gitlab.io/opl-csv/bulk-csv.html),
 fichier `openpowerlifting-2026-10-31-4a1c65a7.csv` (archive du 31/10/2026, 830 Mo décompressé, 4 059 941 lignes
-annoncées). Les données brutes ne sont pas dans le dépôt ; seul le script et la table résultante le sont.
+annoncées ; SHA-256 de l'archive téléchargée :
+`b71552b1902ce373cc371f81e68fe008f15f63f41d989b958a016f678200bbd3`). Le site ne garde que la dernière archive :
+refaire le calcul plus tard donnera des seuils légèrement différents. Les données brutes ne sont pas dans le dépôt ; seul le script et la table résultante le sont.
 
 **Licence vérifiée** (fichier `LICENSE.txt` de l'archive, et page « Introduction » de la documentation
 officielle, 31/10/2026) : « OpenPowerlifting data is contributed to the public domain. […] To the extent
@@ -69,8 +72,9 @@ structure d'une base de données, ce qui ne concerne pas des seuils recalculés.
 - équipement `Raw` (sans genouillères, combinaison ni bandes : comme en salle) ;
 - fédérations contrôlées antidopage (`Tested = Yes`) : plus proche d'un pratiquant naturel ;
 - âge connu de 18 à 49 ans, ou inconnu ; poids du corps de 35 à 250 kg ; tentative réussie (> 0) ;
-- **première compétition** de la personne dans ce mouvement, pas son record de carrière : on mesure quelqu'un
-  qui se lance en compétition après quelques années de salle ;
+- **première compétition retenue** de la personne dans ce mouvement (la première qui passe les filtres
+  ci-dessus), pas son record de carrière : on mesure quelqu'un qui se lance en compétition après quelques
+  années de salle ;
 - rapport meilleure tentative ÷ pesée officielle, par sexe et catégorie. Effectifs : squat 206 040 hommes et
   99 831 femmes, développé couché 262 397 et 115 167, soulevé de terre 223 340 et 107 394 (au moins 3 051 par
   catégorie). Calcul en 30 s.
@@ -116,6 +120,9 @@ pour Intermédiaire, ce qui valide le choix du 15ᵉ percentile ; van den Hoek e
   compétition » et le 15ᵉ percentile corrigent l'écart, sans l'annuler.
 - Seuils par catégorie (marches) : changer de catégorie déplace un peu les seuils en rapport au poids.
 - La catégorie la plus légère des hommes (≤ 59 kg) a des seuils bas en Novice (beaucoup de jeunes débutants).
+- OpenPowerlifting ne distingue pas le soulevé de terre sumo du classique : les seuils les mélangent, alors
+  que l'app ne reconnaît que le classique (`Soulevé de terre`).
+- Un poids du corps hors de 25 à 300 kg (pesée aberrante) ne donne aucun palier.
 - Les mouvements de compétition suivent des règles (profondeur, pause au couché) plus strictes qu'en salle.
 - Le 1RM est une estimation (Epley), elle-même à quelques pour cent près au-delà de 5 reps.
 

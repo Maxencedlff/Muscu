@@ -13,8 +13,10 @@ Population retenue, une ligne par compétiteur et par mouvement :
   - équipement « Raw » (sans genouillères, combinaison ni bandes), hommes et femmes ;
   - fédérations à contrôle antidopage (Tested = Yes) : plus proche d'un pratiquant naturel ;
   - âge connu de 18 à 49 ans, ou inconnu ;
-  - meilleure tentative réussie de la PREMIÈRE compétition de la personne dans ce mouvement : on mesure
-    quelqu'un qui débute en compétition après quelques années de salle, pas son record de carrière.
+  - meilleure tentative réussie de la PREMIÈRE compétition retenue de la personne dans ce mouvement (la
+    première qui passe les filtres ci-dessus : quelqu'un qui a débuté en équipé ou avant 18 ans est pris à sa
+    première compétition raw d'adulte) : on mesure quelqu'un qui débute en compétition après quelques années
+    de salle, pas son record de carrière.
 Le rapport charge ÷ poids du corps (pesée officielle) est ensuite découpé par sexe et catégorie de poids.
 """
 import csv
@@ -38,25 +40,29 @@ STEP = 0.05                 # rapports arrondis au 0,05 le plus proche
 
 
 def class_of(sex, bw):
-    for i, top in enumerate(CLASSES[sex]):
-        if top is None or bw <= top:
-            return i
-    return None
+    """Indice de la catégorie de poids (la dernière, sans borne, prend tout ce qui dépasse)."""
+    return next(i for i, top in enumerate(CLASSES[sex]) if top is None or bw <= top)
 
 
 def to_float(s):
     try:
         return float(s)
-    except ValueError:
+    except (TypeError, ValueError):   # case vide, illisible ou absente (ligne trop courte)
         return None
+
+
+def csv_name(z):
+    names = [n for n in z.namelist() if n.endswith('.csv')]
+    if not names:
+        raise SystemExit("aucun CSV dans l'archive : est-ce bien l'export OpenPowerlifting ?")
+    return names[0]
 
 
 def first_meets(zip_path):
     """{(lift, sex, classe): [rapport, …]} : première compétition de chaque compétiteur, par mouvement."""
     first = {}   # (lift, nom) -> (date, sexe, poids, charge)
     with zipfile.ZipFile(zip_path) as z:
-        name = next(n for n in z.namelist() if n.endswith('.csv'))
-        with z.open(name) as raw:
+        with z.open(csv_name(z)) as raw:
             for row in csv.DictReader(io.TextIOWrapper(raw, encoding='utf-8', newline='')):
                 if row['Equipment'] != 'Raw' or row['Sex'] not in CLASSES or row['Tested'] != 'Yes':
                     continue
@@ -137,14 +143,15 @@ def js(tab, export_name):
 
 
 def main(argv):
-    if len(argv) < 2:
+    paths = [a for a in argv[1:] if not a.startswith('--')]
+    if len(paths) != 1:
         raise SystemExit(__doc__)
-    groups = first_meets(argv[1])
+    groups = first_meets(paths[0])
     if '--explore' in argv:
         explore(groups)
         return
-    with zipfile.ZipFile(argv[1]) as z:
-        export_name = next(n for n in z.namelist() if n.endswith('.csv')).split('/')[-1]
+    with zipfile.ZipFile(paths[0]) as z:
+        export_name = csv_name(z).split('/')[-1]
     tab = table(groups)
     sys.stdout.write(js(tab, export_name))
     for lift, by_sex in tab.items():

@@ -1,5 +1,5 @@
 """Niveau de force : Bibliothèque › Exercice, Progrès › Exercice, bilan, Réglages › Entraînement › Sexe,
-et absence de toute périodisation (pas de carte « Conseil d'entraînement », séance préremplie normalement).
+et cibles / séance qui partent de la dernière séance faite.
 
 Données : 6 semaines de séances (lundi, mercredi, vendredi) sur trois exercices à barre, 80 kg × 5 à la fin,
 poids du corps 80 kg. L'heure de l'app est figée au lundi 2/11/2026, 10 h.
@@ -81,8 +81,6 @@ def t_niveau(bench, eng, dev, theme):
     tag = f'{dev}-{theme}'
     cm, page = open_app(bench, eng, dev, theme, barbell_data(sex='male'))
     try:
-        # Plus aucune périodisation : pas de carte de conseil, pas de réglage, séance préremplie en entier
-        R.check(page.locator('.ti-card').count() == 0, f'{tag} accueil : pas de carte « Conseil d\'entraînement »')
         # Bibliothèque › Développé couché barre : 80 × 5 → 1RM est. 93,3 kg, 1,17 × 80 kg → Novice, intermédiaire à 96 kg
         open_library(page, 'Développé couché barre')
         txt = page.inner_text('.library-ex')
@@ -90,7 +88,7 @@ def t_niveau(bench, eng, dev, theme):
         R.check('Intermédiaire à 96 kg' in txt, f'{tag} fiche : palier suivant en kg')
         R.check('1,17 × ton poids' in txt, f'{tag} fiche : rapport au poids du corps')
         R.check('Repères hommes pour 80 kg' in txt and 'OpenPowerlifting' in txt, f'{tag} fiche : repères et source')
-        page.locator('.ti-scale').scroll_into_view_if_needed()
+        page.locator('.strength-scale').scroll_into_view_if_needed()
         snap(page, f'fiche-niveau-{dev}-{theme}')
         page.locator('[data-action="strength-info"]').click()
         page.wait_for_selector('.ios-dialog')
@@ -101,28 +99,28 @@ def t_niveau(bench, eng, dev, theme):
             open_library(page, n)
             R.check('niveau de force' not in page.locator('.library-ex').last.inner_text().lower(), f'{tag} {n} : pas de niveau')
 
-        # Progrès › Exercice : niveau, plus de « stagnation »
+        # Progrès › Exercice : niveau
         page.evaluate("switchTab('progress'); navigate(makeRoute('stats-ex', 'sqb'))")
-        page.wait_for_selector('.stats-ex .ti-scale')
+        page.wait_for_selector('.stats-ex .strength-scale')
         txt = page.inner_text('.stats-ex')
         R.check('niveau de force' in txt.lower(), f'{tag} Progrès › Exercice : niveau')
-        R.check('Pas de nouveau 1RM est.' not in txt and 'Conseil d\'entraînement' not in txt, f'{tag} Progrès › Exercice : pas de stagnation')
-        page.locator('.ti-scale').scroll_into_view_if_needed()
+        page.locator('.strength-scale').scroll_into_view_if_needed()
         snap(page, f'progres-niveau-{dev}-{theme}')
 
         # Bilan : niveau des exercices principaux de la séance
         html = page.evaluate('summaryStrengthHtml(data.history[0])')
         R.check('Niveau de force' in html and 'Squat barre' in html and 'Rowing' not in html, f'{tag} bilan : niveaux de la séance')
 
-        # Séance : préremplie avec toutes les séries prévues, depuis la dernière séance faite
+        # Cibles et séance partent de la dernière séance faite (aucune décharge ne les change) : palier de charge
+        # proposé, toutes les séries prévues préremplies
         page.evaluate("""data.programmes.ppl.exercises.push = [['dcb', 'Développé couché barre'], ['sqb', 'Squat barre']]
           .map(([id, name]) => ({ id, name, sets: 3, repMax: 5 })); save(); switchTab('train'); render();""")
         push = page.evaluate("targetsCard('push')")
-        R.check('À battre' in push and '82,5 kg × 5' in push, f'{tag} cibles Push : palier de charge depuis la dernière séance')
+        R.check('À battre' in push and '82,5 kg' in push and 'targets__gain' in push, f'{tag} cibles Push : palier de charge depuis la dernière séance')
         page.evaluate("startSession('push')")
         page.wait_for_selector('.ex-card')
-        sess = page.evaluate("activeSession.exercises.map(e => [e.sets.length, 'holdLoad' in e])")
-        R.check(sess == [[3, False]] * 2, f'{tag} séance : 3 séries préremplies {sess}')
+        sess = page.evaluate("activeSession.exercises.map(e => e.sets.map(s => s.weight + '×' + s.reps).join(' '))")
+        R.check(sess == ['80×5 80×5 80×5'] * 2, f'{tag} séance : 3 séries préremplies depuis la dernière séance {sess}')
         page.evaluate("endSession()")
         R.check(not page.errors, f'{tag} niveau : aucune erreur JS {page.errors}')
     finally:
@@ -133,7 +131,7 @@ def t_niveau(bench, eng, dev, theme):
     try:
         open_library(page, 'Développé couché barre')
         txt = page.inner_text('.library-ex')
-        R.check('1RM est. ~93,3 kg' in txt and page.locator('.library-ex .ti-scale').count() == 0, f'{tag} sans sexe : 1RM sans palier')
+        R.check('1RM est. ~93,3 kg' in txt and page.locator('.library-ex .strength-scale').count() == 0, f'{tag} sans sexe : 1RM sans palier')
         R.check(not any(lvl in txt for lvl in ('Novice', 'Intermédiaire', 'Avancé', 'Élite')), f'{tag} sans sexe : aucun niveau affiché')
         ask = page.locator('.library-ex [data-action="set-strength-sex"]')
         R.check(ask.count() == 1, f'{tag} sans sexe : « Indiquer mon sexe »')
@@ -146,19 +144,18 @@ def t_niveau(bench, eng, dev, theme):
         tap_dialog(page, 'Femme')
         R.check(page.evaluate('data.strengthSex') == 'female' and json.loads(ls(page, 'ppl_v2')).get('strengthSex') == 'female',
                 f'{tag} Femme choisie et gardée')
-        page.wait_for_selector('.library-ex .ti-scale')
+        page.wait_for_selector('.library-ex .strength-scale')
         txt = page.inner_text('.library-ex')
         R.check('Repères femmes pour 60 kg' in txt and 'Élite' in txt, f'{tag} femme 60 kg : 93,3 / 60 = 1,56 → Élite')
         R.check(not page.errors, f'{tag} sans sexe : aucune erreur JS {page.errors}')
     finally:
         cm.__exit__(None, None, None)
 
-    # Réglages › Entraînement › Sexe : « Ne pas préciser », plus de réglage de conseils
+    # Réglages › Entraînement › Sexe : « Ne pas préciser »
     cm, page = open_app(bench, eng, dev, theme, barbell_data())
     try:
         page.evaluate("navigate('settings')")
         page.wait_for_selector('.settings-view')
-        R.check(page.locator('[data-action="setting-training-tips"]').count() == 0, f'{tag} réglages : plus de « Conseils d\'entraînement »')
         cell = page.locator('.settings-view [data-action="set-strength-sex"]')
         R.check(cell.count() == 1 and '—' in cell.inner_text(), f'{tag} réglages : Sexe non renseigné')
         cell.scroll_into_view_if_needed()

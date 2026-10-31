@@ -4,14 +4,14 @@
 ═══════════════════════════════════════════════ */
 
 /* ── Fiches d'exercice : cinq segments (un par niveau) ── */
-.ti-level { font-weight: 600; }
-.ti-scale-cell { padding-top: 12px; padding-bottom: 12px; }
-.ti-scale-box { flex: 1; min-width: 0; }
-.ti-scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
-.ti-scale__seg { height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
-.ti-scale__fill { display: block; height: 100%; background: var(--tint); border-radius: 3px; }
-.ti-scale__ends { display: flex; justify-content: space-between; margin-top: 6px; font-size: var(--fs-caption); color: var(--label2); }
-.ti-scale__next { margin-top: 4px; font-size: var(--fs-footnote); color: var(--label); }
+.strength-level { font-weight: 600; }
+.strength-scale-cell { padding-top: 12px; padding-bottom: 12px; }
+.strength-scale-box { flex: 1; min-width: 0; }
+.strength-scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.strength-scale__seg { height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
+.strength-scale__fill { display: block; height: 100%; background: var(--tint); border-radius: 3px; }
+.strength-scale__ends { display: flex; justify-content: space-between; margin-top: 6px; font-size: var(--fs-caption); color: var(--label2); }
+.strength-scale__next { margin-top: 4px; font-size: var(--fs-footnote); color: var(--label); }
 
 /* ── Bilan ── */
-.ti-up { color: var(--green-text); font-weight: 600; }
+.strength-up { color: var(--green-text); font-weight: 600; }
