@@ -243,6 +243,29 @@ export default function ({ test, run, reset, assert, sameJSON }) {
       'cinq semaines chargées plus tard, la décharge peut revenir');
   });
 
+  test('périodisation : coût borné, chaque séance lue une seule fois par conseil (accueil à chaque rendu)', () => {
+    reset();
+    // 30 semaines à 5 séances de 8 exercices à 5 séries : 150 séances, coût fixe dès 16 semaines regardées
+    const names = ['Développé couché', 'Squat barre', 'Rowing barre', 'Soulevé de terre', 'Développé militaire', 'Curl biceps',
+      'Tractions pronation', 'Gainage (planche)'];
+    const hist = [];
+    for (let w = 30; w >= 1; w--) for (let k = 0; k < 5; k++) {
+      hist.push(entry(`c${w}k${k}`, at(7 * w - k) - 3600_000, names.map(n => ex(n, Array.from({ length: 5 }, () => set(80, 5, { rir: 2 }))))));
+    }
+    run(`globalThis.__ceCalls = 0; globalThis.__ce = catalogueEntry;
+      catalogueEntry = function (n) { globalThis.__ceCalls++; return globalThis.__ce(n); };`);
+    try {
+      const a = advice({ history: hist });
+      assert.equal(a.kind, 'deload', 'même conseil qu\'avant : rien ne progresse depuis 12 semaines');
+      // 16 semaines lues (12 jugées + les 4 d'avant) × 5 séances × 8 exercices = 640 exercices, quelques lectures
+      // de la bibliothèque chacun : avant la correction, 24 passages complets en faisaient plus de 9 000.
+      const calls = run('globalThis.__ceCalls');
+      assert.ok(calls <= 2500, `${calls} lectures de la bibliothèque pour 150 séances`);
+    } finally {
+      run('catalogueEntry = globalThis.__ce; delete globalThis.__ce; delete globalThis.__ceCalls;');
+    }
+  });
+
   test('périodisation : réglages nettoyés au chargement et gardés sur l\'appareil', () => {
     reset();
     const clean = d => run(`(() => { const d = Object.assign(makeDefaultData(), ${js(d)}); sanitizeData(d);

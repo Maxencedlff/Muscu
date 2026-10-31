@@ -89,6 +89,22 @@ Limites, assumées et dites dans l'app (« C'est un repère, pas un examen ») :
 | Silence | Réglage coupé, « Pas maintenant » (7 jours), décharge en cours, et 4 semaines après la fin d'une décharge. |
 | Plan | Moitié des séries de travail habituelles par séance (médiane des 28 derniers jours), mêmes charges, plus loin de l'échec, 7 jours. |
 
+### Coût du calcul (accueil, à chaque rendu)
+
+La carte est recalculée à chaque rendu de l'accueil (retour sur l'onglet, chaque action). `trainingAdvice`
+ne lit donc chaque séance **qu'une fois** : `entryFacts` en tire séries de travail, meilleur 1RM estimé par
+exercice à charge et RPE notés, gardés dans une `Map` propre à l'appel et partagée par les 12 semaines, les
+4 semaines d'avant chacune, les courbes et l'effort. Seules les 16 dernières semaines complètes sont relues.
+
+- Mesuré sous Node (contexte de `tests/unit/run.mjs`, 5 séances de 8 exercices par semaine) : 150 séances,
+  9 000 lectures de la bibliothèque (`catalogueEntry`) et 33 à 50 ms avant ; 1 920 lectures et 9 à 11 ms
+  après. 780 séances : 29 à 43 ms avant, 10 à 14 ms après (le coût ne grandit plus avec l'historique).
+  Sur iPhone : non mesuré.
+- Pas de cache d'un rendu à l'autre, volontairement : `ppl_v2` n'a pas de date de modification, et une
+  séance passée corrigée sur place (séries, charges) doit changer le conseil tout de suite. Une clé
+  « nombre de séances + date de la dernière » laisserait passer cette correction.
+- Test de coût : `tests/unit/training-insights.mjs` (« coût borné »), au plus 2 500 lectures pour 150 séances.
+
 ### Sources
 
 - Bell L., Strafford B.W., Coleman M., Androulakis Korakakis P., Nolan D. *Integrating Deloading into

@@ -118,10 +118,30 @@ const RESUME_DAYS        = 7;     // carte « Reprends tes charges » après la 
 
 const tiMedian = a => { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 
-// Séries de travail d'une séance (échauffement exclu), cardio exclu : la charge d'entraînement en séries
-function entryWorkSets(h) {
-  return (h.exercises || []).reduce((n, ex) => n + (measureOf(ex) === 'cardio' ? 0 : workSets(ex.sets).length), 0);
+// Ce que la périodisation lit d'une séance, calculé en un passage : séries de travail (échauffement et cardio
+// exclus), meilleur 1RM estimé de chaque exercice à charge (lifts : [{ key, name, e1 }]) et effort noté (rpe).
+// memo (Map séance → lecture) : chaque séance n'est lue qu'une fois par conseil, même vue par plusieurs fenêtres
+// (12 semaines et les 4 d'avant chacune, courbes, effort). Mesure et genre de charge passent par la
+// bibliothèque (catalogueEntry) : sans memo, l'accueil la relisait plus de 9 000 fois pour 150 séances.
+// Jamais gardé d'un appel à l'autre : une séance passée corrigée sur place doit compter tout de suite.
+function entryFacts(h, memo) {
+  const known = memo?.get(h);
+  if (known) return known;
+  const f = { sets: 0, lifts: [], rpe: [] };
+  for (const ex of h.exercises || []) {
+    const measure = measureOf(ex), ws = workSets(ex.sets);
+    if (measure !== 'cardio') f.sets += ws.length;
+    if (measure !== 'reps') continue;
+    for (const s of ws) { const r = cleanRir(s.rir); if (r !== null) f.rpe.push(10 - r); }
+    if (loadKind(ex) !== 'charge') continue;
+    f.lifts.push({ key: exKey(ex), name: ex.name, e1: Math.max(0, ...ws.map(s => calc1RM(s.weight, s.reps) || 0)) });
+  }
+  memo?.set(h, f);
+  return f;
 }
+
+// Séries de travail d'une séance (échauffement exclu), cardio exclu : la charge d'entraînement en séries
+function entryWorkSets(h, memo) { return entryFacts(h, memo).sets; }
 
 // Décharge enregistrée : { start, end, seen? } valide ou null
 function cleanDeload(v) {
@@ -131,37 +151,35 @@ function cleanDeload(v) {
 }
 
 // Meilleur 1RM estimé de chaque exercice à charge (clé exKey) des séances de [from, to) : Map clé → kg
-function bestE1ByKey(history, from, to) {
+function bestE1ByKey(history, from, to, memo = new Map()) {
   const m = new Map();
-  (history || []).forEach(h => {
-    if (!h || h.date < from || h.date >= to) return;
-    (h.exercises || []).forEach(ex => {
-      if (measureOf(ex) !== 'reps' || loadKind(ex) !== 'charge') return;
-      const e1 = Math.max(0, ...workSets(ex.sets).map(s => calc1RM(s.weight, s.reps) || 0));
-      if (e1 > (m.get(exKey(ex)) || 0)) m.set(exKey(ex), e1);
-    });
-  });
+  for (const h of history || []) {
+    if (!h || h.date < from || h.date >= to) continue;
+    for (const { key, e1 } of entryFacts(h, memo).lifts) if (e1 > (m.get(key) || 0)) m.set(key, e1);
+  }
   return m;
 }
 
 // Charges d'une semaine face aux 4 semaines d'avant : médiane, exercice par exercice, du rapport des
 // meilleurs 1RM estimés ; null avec moins de deux exercices comparables
-function weekIntensity(history, start, end) {
-  const week = bestE1ByKey(history, start, end), before = bestE1ByKey(history, start - 28 * TI_DAY, start);
+function weekIntensity(history, start, end, memo = new Map()) {
+  const week = bestE1ByKey(history, start, end, memo), before = bestE1ByKey(history, start - 28 * TI_DAY, start, memo);
   const ratios = [...week].filter(([k]) => before.has(k)).map(([k, v]) => v / before.get(k));
   return ratios.length >= 2 ? Math.round(tiMedian(ratios) * 1000) / 1000 : null;
 }
 
 // Semaines complètes (lundi → lundi) avant la semaine en cours, de la plus ancienne à la plus récente :
 // [{ start, sessions, sets, intensity, deload }] ; deload : la semaine recoupe une décharge enregistrée
-function trainingWeeks(history, now = Date.now(), n = TRAIN_WEEKS, deload = null) {
+function trainingWeeks(history, now = Date.now(), n = TRAIN_WEEKS, deload = null, memo = new Map()) {
   const cur = weekStart(now);
+  // Seules les séances de la fenêtre regardée (n semaines et les 4 d'avant) sont relues, semaine par semaine
+  const seen = (history || []).filter(h => h && h.date >= addDays(cur, -7 * n) - 28 * TI_DAY && h.date < cur);
   const weeks = [];
   for (let i = n; i >= 1; i--) {
     const start = addDays(cur, -7 * i), end = addDays(cur, -7 * (i - 1));
-    const hs = (history || []).filter(h => h && h.date >= start && h.date < end);
-    weeks.push({ start, sessions: hs.length, sets: hs.reduce((a, h) => a + entryWorkSets(h), 0),
-      intensity: hs.length ? weekIntensity(history, start, end) : null,
+    const hs = seen.filter(h => h.date >= start && h.date < end);
+    weeks.push({ start, sessions: hs.length, sets: hs.reduce((a, h) => a + entryWorkSets(h, memo), 0),
+      intensity: hs.length ? weekIntensity(seen, start, end, memo) : null,
       deload: !!deload && deload.start < end && deload.end > start });
   }
   return weeks;
@@ -187,20 +205,17 @@ function loadedStreak(weeks) {
 // [{ key, name, status: 'up' | 'flat' | 'down', sessions, sinceBest, best, bestDate, last, lastDate }].
 // flat : STALL_SESSIONS séances et STALL_DAYS jours au moins depuis le dernier meilleur ; down : les deux
 // dernières séances en moyenne sous DROP_RATIO du meilleur d'avant elles.
-function exerciseTrends(history, now = Date.now()) {
+function exerciseTrends(history, now = Date.now(), memo = new Map()) {
   const from = now - TREND_DAYS * TI_DAY;
   const byKey = new Map();
   (history || []).filter(h => h && h.date >= from && h.date <= now).sort((a, b) => a.date - b.date).forEach(h => {
-    (h.exercises || []).forEach(ex => {
-      if (measureOf(ex) !== 'reps' || loadKind(ex) !== 'charge') return;
-      const e1 = Math.max(0, ...workSets(ex.sets).map(s => calc1RM(s.weight, s.reps) || 0));
-      if (!e1) return;
-      const key = exKey(ex);
-      if (!byKey.has(key)) byKey.set(key, { key, name: ex.name, pts: [] });
+    for (const { key, name, e1 } of entryFacts(h, memo).lifts) {
+      if (!e1) continue;
+      if (!byKey.has(key)) byKey.set(key, { key, name, pts: [] });
       const it = byKey.get(key);
-      it.name = ex.name;
+      it.name = name;
       it.pts.push({ date: h.date, e1 });
-    });
+    }
   });
   const out = [];
   for (const it of byKey.values()) {
@@ -222,19 +237,13 @@ function exerciseTrends(history, now = Date.now()) {
 
 // Effort noté : RPE moyen (RIR de js/data/rir.js) des 14 derniers jours contre les 28 d'avant.
 // { recent, prior, rising } ou null quand il y a trop peu de séries notées.
-function effortTrend(history, now = Date.now()) {
+function effortTrend(history, now = Date.now(), memo = new Map()) {
   const cut = now - 14 * TI_DAY, from = now - 42 * TI_DAY;
   const recent = [], prior = [];
-  (history || []).forEach(h => {
-    if (!h || h.date < from || h.date > now) return;
-    (h.exercises || []).forEach(ex => {
-      if (measureOf(ex) !== 'reps') return;
-      workSets(ex.sets).forEach(s => {
-        const r = cleanRir(s.rir);
-        if (r !== null) (h.date >= cut ? recent : prior).push(10 - r);
-      });
-    });
-  });
+  for (const h of history || []) {
+    if (!h || h.date < from || h.date > now) continue;
+    (h.date >= cut ? recent : prior).push(...entryFacts(h, memo).rpe);
+  }
   if (recent.length < EFFORT_MIN_SETS || prior.length < EFFORT_MIN_SETS) return null;
   const avg = a => Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10;
   const r = avg(recent), p = avg(prior);
@@ -242,9 +251,9 @@ function effortTrend(history, now = Date.now()) {
 }
 
 // Séries de travail habituelles par séance : médiane des 28 jours avant `until`
-function usualSetsPerSession(history, until) {
+function usualSetsPerSession(history, until, memo = new Map()) {
   const from = until - 28 * TI_DAY;
-  return Math.round(tiMedian((history || []).filter(h => h && h.date >= from && h.date < until).map(entryWorkSets)));
+  return Math.round(tiMedian((history || []).filter(h => h && h.date >= from && h.date < until).map(h => entryWorkSets(h, memo))));
 }
 
 // Charges d'avant la décharge : meilleure série des exercices à charge de la dernière séance de chacun avant
@@ -283,15 +292,16 @@ function trainingAdvice(d = data, now = Date.now()) {
   // Une décharge faite (même arrêtée en route) : pas de nouveau conseil avant DELOAD_STREAK_MIN semaines
   if (dl && now < dl.end + DELOAD_STREAK_MIN * 7 * TI_DAY) return null;
   if (Number.isFinite(d.deloadSnooze) && d.deloadSnooze > now) return null;
-  const streak = loadedStreak(trainingWeeks(hist, now, TRAIN_WEEKS, dl));
+  const memo = new Map();   // chaque séance lue une fois pour tout le conseil (entryFacts)
+  const streak = loadedStreak(trainingWeeks(hist, now, TRAIN_WEEKS, dl, memo));
   if (streak < DELOAD_STREAK_MIN) return null;
-  const trends = exerciseTrends(hist, now);
+  const trends = exerciseTrends(hist, now, memo);
   const stalled = trends.filter(t => t.status !== 'up');
-  const effort = effortTrend(hist, now);
+  const effort = effortTrend(hist, now, memo);
   const plateau = stalled.length >= 2 && stalled.length * 2 >= trends.length;
   const tired = !!effort?.rising && stalled.length >= 1;
   if (!plateau && !tired && streak < DELOAD_STREAK_MAX) return null;
-  const usual = usualSetsPerSession(hist, now);
+  const usual = usualSetsPerSession(hist, now, memo);
   return { kind: 'deload', streak, stalled: stalled.map(t => t.name), effort: tired ? effort : null,
     usualSets: usual, targetSets: usual ? Math.max(1, Math.round(usual / 2)) : 0 };
 }
