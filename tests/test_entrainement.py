@@ -10,10 +10,11 @@ Lancer : PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_entrainement.py (ou san
 import json
 import os
 import sys
-from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
+# Après fixtures : son « import datetime » (module) passe par l'import * et masquerait la classe
+from datetime import datetime, timedelta  # noqa: E402
 from donnees_realistes import six_mois
 
 LOT = 'entrainement'
