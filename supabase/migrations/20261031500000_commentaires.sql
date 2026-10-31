@@ -22,7 +22,7 @@
 --    entier (pluriel et féminin simples compris) ; mode contains : n'importe où dans un mot (radicaux
 --    qui ne se trouvent dans aucun mot courant). Deux ou trois mots voisins recollés doivent former
 --    exactement un mot interdit de 6 lettres ou plus (« tue-toi », « kill your self ») : « situe-toi »
---    ou « youpi nouveau » passent. Mots courants qui ressemblent à un mot interdit une fois les
+--    ou « youpi nouveau » passent, et jamais à travers une ponctuation de phrase (« ça tue, toi ? »). Mots courants qui ressemblent à un mot interdit une fois les
 --    lettres répétées ramenées à une (« cône », « fagot », « Niger ») : liste private.comment_allowed,
 --    retirés du texte avant la comparaison. Un mot anglais qui est aussi un mot français courant
 --    (« retard ») n'est pas dans la liste. Refus : comment_forbidden (rien n'est écrit).
@@ -31,7 +31,8 @@
 --    commentaire) et une ligne dans public.reports, la file commune, pour l'alerte par e-mail. Au 3e signalement de personnes différentes, le commentaire est masqué
 --    automatiquement (masked_at) : plus personne ne le voit, sauf son auteur (marqué masked). Le
 --    propriétaire de la séance peut supprimer n'importe quel commentaire de sa séance, l'auteur le sien.
---    Signalements gardés 12 mois (purge à chaque nouveau signalement, comme reports).
+--    Signalements gardés 12 mois : purge quotidienne pg_cron (purge-comment-reports-12-mois, comme
+--    reports et chat_reports), plus une purge à chaque nouveau signalement (filet sans pg_cron).
 --  - Activité de Mon profil : my_activity gagne la sorte comment (commentaire d'un autre sur une de
 --    mes séances) et deux colonnes à la fin (comment_id, comment_text : 120 premiers caractères) ;
 --    private.activity_new les compte (pastille de l'onglet). Une ancienne version de l'app ignore les
@@ -136,9 +137,10 @@ insert into private.comment_words (word, lang, mode) values
   ('faggot', 'en', 'contains'), ('fag', 'en', 'word'), ('retarded', 'en', 'word'), ('rapist', 'en', 'word'),
   ('porn', 'en', 'contains'), ('kys', 'en', 'word'), ('killyourself', 'en', 'contains'), ('bastard', 'en', 'word'),
   ('motherfucker', 'en', 'contains'), ('wanker', 'en', 'contains'), ('twat', 'en', 'word');
--- Hors recollage : « T'es crevé toi aussi ? », « Le chat te regarde », « bas tard le soir » (sans accents ni
--- tirets, « crevé toi » et « crève-toi » donnent le même texte : seul le mot écrit d'un bloc reste refusé)
-update private.comment_words set joinable = false where word in ('crevetoi', 'chatte', 'bastard');
+-- Hors recollage : « T'es crevé toi aussi ? », « Le chat te regarde », « bas tard le soir », « Tape tes
+-- séries » (tape + tes = tapette une fois les lettres doublées ramenées à une ; sans accents ni tirets,
+-- « crevé toi » et « crève-toi » donnent le même texte : seul le mot écrit d'un bloc reste refusé)
+update private.comment_words set joinable = false where word in ('crevetoi', 'chatte', 'bastard', 'tapette');
 
 -- « cône » (conne), « fagot » (faggot), « nigaud », « Niger » (nigga, nigger), « Pornic » (porn),
 -- « chili con carne » (con), « pain bâtard », « tapette à mouche », « bite-size », « cuisine mongole » (mongol)
@@ -171,16 +173,22 @@ $$ select regexp_replace(t, '(.)\1+', '\1', 'g') $$;
 -- d'abord, mot entier. Mots = suites de a-z et 0-9 ; une suite de lettres isolées (« c o n n a r d »,
 -- « f.u.c.k ») est recollée en un mot. Deux ou trois mots voisins recollés sont refusés seulement
 -- s'ils forment exactement un mot interdit de 6 lettres ou plus marqué joinable (« tue-toi »,
--- « kill your self », « sa lope ») : jamais un morceau de mot (« situe-toi », « youpi nouveau » passent).
+-- « kill your self », « sa lope ») : jamais un morceau de mot (« situe-toi », « youpi nouveau » passent),
+-- jamais à travers une ponctuation de phrase (« Le squat ça tue, toi tu en fais combien ? » passe).
 create function private.comment_forbidden(body text) returns boolean
   language plpgsql stable security definer set search_path = '' as
 $$
 declare
-  t text := regexp_replace(private.comment_norm(body), '[^a-z0-9]+', ' ', 'g');
+  -- Ponctuation de phrase (, . ; : ! ? …) gardée comme limite « | » : elle coupe le recollage des mots
+  -- voisins (« ça tue, toi ? » n'est pas « tue-toi »), pas celui des lettres isolées (« f.u.c.k »)
+  t text := regexp_replace(regexp_replace(regexp_replace(private.comment_norm(body), '[,.;:!?…]+', '|', 'g'),
+                                          '[^a-z0-9|]+', ' ', 'g'), '\|', ' | ', 'g');
   allowed text;
   tok text;
   run text := '';
+  seg int := 0;
   words text[] := '{}';
+  segs int[] := '{}';
   joined text[] := '{}';
   n int;
   i int;
@@ -188,19 +196,24 @@ begin
   select string_agg(a.phrase, '|' order by char_length(a.phrase) desc) into allowed from private.comment_allowed a;
   if allowed is not null then t := regexp_replace(t, '\m(' || allowed || ')\M', ' ', 'g'); end if;
   foreach tok in array regexp_split_to_array(t, ' +') loop
-    if char_length(tok) = 1 then
+    if tok = '|' then
+      seg := seg + 1;
+    elsif char_length(tok) = 1 then
       run := run || tok;
     else
-      if char_length(run) > 1 then words := words || run; end if;
+      if char_length(run) > 1 then words := words || run; segs := segs || seg; end if;
       run := '';
-      if tok <> '' then words := words || tok; end if;
+      if tok <> '' then words := words || tok; segs := segs || seg; end if;
     end if;
   end loop;
-  if char_length(run) > 1 then words := words || run; end if;
+  if char_length(run) > 1 then words := words || run; segs := segs || seg; end if;
   n := coalesce(array_length(words, 1), 0);
+  -- Recollage seulement entre mots d'un même segment
   for i in 1 .. n - 1 loop
-    joined := joined || (words[i] || words[i + 1]);
-    if i + 2 <= n then joined := joined || (words[i] || words[i + 1] || words[i + 2]); end if;
+    if segs[i] = segs[i + 1] then
+      joined := joined || (words[i] || words[i + 1]);
+      if i + 2 <= n and segs[i + 1] = segs[i + 2] then joined := joined || (words[i] || words[i + 1] || words[i + 2]); end if;
+    end if;
   end loop;
   return exists (
     select 1
@@ -269,7 +282,8 @@ $$
   from (select 1) one left join public.user_profiles p on p.user_id = c.author_id
 $$;
 
--- Signalements de plus de 12 mois purgés à chaque nouveau signalement (durée annoncée dans privacy.html)
+-- Signalements de plus de 12 mois purgés à chaque nouveau signalement (durée annoncée dans privacy.html ;
+-- la tâche pg_cron purge-comment-reports-12-mois, en fin de fichier, purge même sans nouveau signalement)
 create function private.comment_report_before_insert() returns trigger
   language plpgsql security definer set search_path = '' as
 $$
@@ -517,3 +531,16 @@ grant execute on function public.my_activity(timestamptz, text) to authenticated
 --   group by 1, 2, 3 order by n desc, max(r.created_at) desc;
 -- Ajouter un mot : insert into private.comment_words (word, lang, mode) values ('mot', 'fr', 'word');
 -- Accepter un mot courant refusé à tort : insert into private.comment_allowed (phrase) values ('mot');
+
+-- Purge quotidienne des signalements de commentaires de plus de 12 mois (03:23 UTC) avec pg_cron,
+-- comme public.reports (20261026050000_social.sql) et chat_reports : sans nouveau signalement, le
+-- déclencheur ne passe jamais. Sans l'extension (tests locaux), seule la purge du déclencheur reste.
+do $cron$
+begin
+  if exists (select 1 from pg_catalog.pg_available_extensions where name = 'pg_cron') then
+    create extension if not exists pg_cron;
+    perform cron.schedule('purge-comment-reports-12-mois', '23 3 * * *',
+      $job$delete from public.comment_reports where created_at < now() - interval '12 months'$job$);
+  end if;
+end
+$cron$;

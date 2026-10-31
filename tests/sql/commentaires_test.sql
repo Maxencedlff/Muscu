@@ -111,13 +111,21 @@ begin
                            'Pain bâtard au petit déj', 'Super retardé ce bus', 'Tapette à mouche', 'Bite-size',
                            -- mots voisins courants qui, recollés, forment un mot interdit (crevé + toi, chat + te, bas + tard)
                            'T''es crevé toi aussi ?', 'Bien joué, crevé toi ?', 'Le chat te regarde', 'Mon chat tes croquettes',
-                           'Courir bas tard le soir', 'La cuisine mongole', 'Les steppes mongoles'] loop
+                           'Courir bas tard le soir', 'La cuisine mongole', 'Les steppes mongoles',
+                           -- tape + tes = tapette une fois les lettres doublées ramenées à une
+                           'T''as tapé tes séries comme un chef', 'Allez, tape tes 5 séries !', 'Tape tes records',
+                           -- jamais de recollage à travers une ponctuation de phrase (tue, toi)
+                           'Le squat ça tue, toi tu en fais combien ?', 'Cette séance m''a tué, toi ça va ?',
+                           'Ça tue. Toi aussi ?', 'Ça me tue ! Toi ?'] loop
     if private.comment_forbidden(t) then raise 'phrase courante refusée : %', t; end if;
   end loop;
   -- Un mot accepté ne protège que lui-même, mot entier
   foreach t in array array['cone de merde', 'conne', 'connne', 'niggers', 'Pornographie',
                            -- hors recollage, le mot reste refusé écrit d'un bloc ou lettre à lettre
-                           'crevetoi', 'CRÈVETOI', 'c r e v e t o i', 'sale chatte', 'you bastard', 'b a s t a r d', 'mongol'] loop
+                           'crevetoi', 'CRÈVETOI', 'c r e v e t o i', 'sale chatte', 'you bastard', 'b a s t a r d', 'mongol',
+                           'sale tapette', 'TAPETTE', 't a p e t t e',
+                           -- recollage dans un même segment : toujours refusé
+                           'tue-toi', 'Tue toi', 'Franchement, tue toi.', 'Tue-toi !', 'kill your self', 'f.u.c.k'] loop
     if not private.comment_forbidden(t) then raise 'mot interdit accepté : %', t; end if;
   end loop;
 end $$;
