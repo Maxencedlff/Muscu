@@ -1,5 +1,8 @@
 // Synchronisation du compte (js/data/sync.js) : fusion des séances et du profil, sans réseau
-export default function ({ test, run, assert, sameJSON }) {
+import fs from 'node:fs';
+import path from 'node:path';
+
+export default function ({ test, run, assert, sameJSON, ROOT }) {
   const h = (id, reps, extra = {}) => ({ id, date: 1e12, category: 'push', exercises: [{ name: 'DC', sets: [{ weight: '60', reps }] }], ...extra });
   // Contexte isolé pour chaque test : historique, meta et lignes passés en JSON
   const call = (expr, vars) => run(`(() => { ${Object.entries(vars).map(([k, v]) => `const ${k} = ${JSON.stringify(v)};`).join(' ')} return ${expr}; })()`);
@@ -92,6 +95,36 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(dev, false);
   });
 
+  test('synchro : nouvelle version de l\'app notée avant la synchro, les changements faits ailleurs gagnent', () => {
+    // iPhone A synchronisé (repos 90, version 1.0) ; l'iPad B passe le repos à 120 et l'envoie ; A reçoit la
+    // mise à jour 1.1, notée au démarrage (noteAppVersion) avant sa première synchro
+    const two = (withCore) => call(`(() => {
+      // Sans profileCore : appareil synchronisé par la version d'avant (profil encore sans appVersion)
+      const A = { history: [{ id: 'x' }], defaultRest: 90, unit: 'kg', ...(${withCore} ? { appVersion: '1.0', appSeenAt: '2026-10-30T09:00:00.000Z' } : {}) };
+      const meta = { profileHash: syncHash(profilePayload(A)), profileAt: '2026-10-30T10:00:00Z' };
+      if (${withCore}) meta.profileCore = profileCoreHash(profilePayload(A));
+      const remote = { doc: { ...profilePayload(A), defaultRest: 120, appVersion: '1.0-ipad', appSeenAt: '2026-10-30T10:30:00.000Z' }, updated_at: '2026-10-30T11:00:00Z' };
+      noteAppVersion(A, '1.1', new Date('2026-10-30T12:00:00Z'));
+      applyRemoteProfile(A, remote, meta);
+      return { rest: A.defaultRest, version: A.appVersion, push: syncHash(profilePayload(A)) !== meta.profileHash };
+    })()`, {});
+    for (const withCore of [true, false]) {   // false : état de synchro enregistré par la version d'avant
+      const r = two(withCore);
+      assert.equal(r.rest, 120, `repos de l'iPad repris (profileCore ${withCore})`);
+      assert.equal(r.version, '1.1', 'la version de cet appareil est gardée');
+      assert.equal(r.push, true, 'elle part au prochain envoi');
+    }
+    // Témoin : un vrai changement ici (repos 75) reste « modifié des deux côtés » : cet appareil gagne
+    const own = call(`(() => {
+      const A = { history: [{ id: 'x' }], defaultRest: 90, unit: 'kg', appVersion: '1.0' };
+      const meta = { profileHash: syncHash(profilePayload(A)), profileCore: profileCoreHash(profilePayload(A)) };
+      A.defaultRest = 75; noteAppVersion(A, '1.1');
+      applyRemoteProfile(A, { doc: { ...profilePayload({ ...A, defaultRest: 90, appVersion: '1.0' }), defaultRest: 120 }, updated_at: 't9' }, meta);
+      return A.defaultRest;
+    })()`, {});
+    assert.equal(own, 75);
+  });
+
   test('synchro : appareil sans état connu (reconnexion, réinstallation) : le compte fait foi', () => {
     // Compte : X supprimée et Y corrigée à 12 sur un autre iPhone. Cet appareil revient avec X et Y = 8, sans empreintes.
     const r = call(`(() => {
@@ -123,11 +156,45 @@ export default function ({ test, run, assert, sameJSON }) {
     const r = run(`(() => { const d = freshData(); d.weeklyGoal = 3; d.exerciseMuscles = {}; d.exerciseMusclesSecondary = {}; d.lastExport = 1; d.silhouette = 'female';
       return Object.keys(d).filter(k => !SYNC_PROFILE_KEYS.includes(k) && !SYNC_LOCAL_ONLY.includes(k)); })()`);
     sameJSON(r, [], 'clé à ajouter à SYNC_PROFILE_KEYS ou SYNC_LOCAL_ONLY (js/data/sync.js)');
+    // Toutes les clés que le code écrit dans les données (pas seulement celles de freshData) : data.x = …,
+    // data.x ??= …, delete data.x dans js/, et d.x = … dans le nettoyage (store.js, sync.js). « _x » :
+    // anciennes clés techniques, seulement effacées
+    const files = [];
+    const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).forEach(f => {
+      const p = path.join(dir, f.name);
+      if (f.isDirectory()) walk(p); else if (f.name.endsWith('.js')) files.push(p);
+    });
+    walk(path.join(ROOT, 'js'));
+    const keys = new Set();
+    for (const f of files) {
+      const src = fs.readFileSync(f, 'utf8');
+      const obj = /js[\\/]data[\\/](store|sync)\.js$/.test(f) ? '(?:\\bdata|\\bd)' : '\\bdata';
+      for (const m of src.matchAll(new RegExp(`(?:delete\\s+${obj}\\.([A-Za-z_]+))|(?:${obj}\\.([A-Za-z_]+)\\s*(?:=(?!=)|\\?\\?=|\\|\\|=))`, 'g'))) keys.add(m[1] || m[2]);
+    }
+    const written = [...keys].filter(k => !k.startsWith('_'));
+    for (const k of ['bodyMeasures', 'plates', 'recapCardOff', 'rirOn', 'appVersion', 'sessionVisibleDefault']) assert.ok(written.includes(k), `clé ${k} trouvée dans le code`);
+    const unclassified = run(`(${JSON.stringify(written)}).filter(k => !SYNC_PROFILE_KEYS.includes(k) && !SYNC_LOCAL_ONLY.includes(k))`);
+    sameJSON(unclassified, [], 'clé écrite par le code mais ni « compte » ni « appareil »');
     const both = run(`SYNC_PROFILE_KEYS.filter(k => SYNC_LOCAL_ONLY.includes(k))`);
     sameJSON(both, []);
     for (const k of ['bodyWeightKg', 'bodyWeightLog', 'healthOn', 'history']) assert.ok(run(`SYNC_LOCAL_ONLY.includes(${JSON.stringify(k)})`), k);
     // Silhouette : réglage du profil, le même sur tous les appareils du compte
     sameJSON(run(`profilePayload({ unit: 'kg', silhouette: 'female', soundOn: false })`), { unit: 'kg', silhouette: 'female' });
+  });
+
+  test('synchro : version de l\'app notée dans le profil au démarrage (noteAppVersion), une fois par version', () => {
+    const r = run(`(() => { const d = freshData();
+      const a = noteAppVersion(d, '1.4.2', new Date('2026-10-30T08:00:00Z'));
+      const again = noteAppVersion(d, '1.4.2', new Date('2026-10-31T08:00:00Z'));   // même version : rien ne bouge
+      const none = [noteAppVersion(d, null), noteAppVersion(d, ''), noteAppVersion(d, undefined)];   // PWA sans MDLF_BUILD
+      const p = profilePayload(d);
+      const up = noteAppVersion(d, '1.5.0', new Date('2026-11-01T00:00:00Z'));
+      return { a, again, none, v: p.appVersion, at: p.appSeenAt, up, v2: d.appVersion, at2: d.appSeenAt }; })()`);
+    assert.equal(r.a, true); assert.equal(r.again, false); sameJSON(r.none, [false, false, false]);
+    assert.equal(r.v, '1.4.2', 'la version part dans le profil');
+    assert.equal(r.at, '2026-10-30T08:00:00.000Z', 'date ISO du premier lancement de cette version');
+    assert.equal(r.up, true); assert.equal(r.v2, '1.5.0'); assert.equal(r.at2, '2026-11-01T00:00:00.000Z');
+    for (const k of ['appVersion', 'appSeenAt', 'sessionVisibleDefault']) assert.ok(run(`SYNC_PROFILE_KEYS.includes(${JSON.stringify(k)})`), k);
   });
 
   test('synchro : le poids du corps et ses pesées ne partent jamais sur le compte', () => {
@@ -544,5 +611,15 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(r.blankMy, undefined);
     // Toute clé du profil est classée : absence = choix, ou gardée ici
     run('SYNC_ABSENT_IS_CHOICE').forEach(k => assert.ok(run('SYNC_PROFILE_KEYS').includes(k), k));
+  });
+
+  test('sanitizeData : séances visibles par défaut, version de l\'app et date vue bornées', () => {
+    const clean = extra => run(`(() => { const d = sanitizeData({ ...freshData(), ...${JSON.stringify(extra)} });
+      return { v: d.sessionVisibleDefault, a: d.appVersion, s: d.appSeenAt }; })()`);
+    sameJSON(clean({ sessionVisibleDefault: false, appVersion: '2026.10.30-83f98c7', appSeenAt: '2026-10-30T08:00:00.000Z' }),
+      { v: false, a: '2026.10.30-83f98c7', s: '2026-10-30T08:00:00.000Z' });
+    sameJSON(clean({ sessionVisibleDefault: 'non', appVersion: 'x'.repeat(41), appSeenAt: '<script>' }), {});
+    sameJSON(clean({ appVersion: 42, appSeenAt: '2026-10-30T08:00:00.000Z' + 'Z'.repeat(30) }), {});
+    sameJSON(clean({ appVersion: '', appSeenAt: '2026-99-99T99:99:99Z' }), {});
   });
 }

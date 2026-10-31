@@ -14,6 +14,8 @@
 // bien dans le code : un bouton renommé sans mise à jour du guide fait échouer les tests.
 // Ton : tutoiement, phrases courtes, chemin exact pour chaque geste.
 
+// Photos de progression présentes ici (navigateur, ou app iOS dont la build a l'autorisation de l'appareil photo)
+const GUIDE_PHOTOS = photosAllowedHere();
 const GUIDE_SECTIONS = [
   {
     id: 'commencer', title: 'Commencer',
@@ -252,10 +254,10 @@ const GUIDE_SECTIONS = [
         id: 'cardio', title: 'Course, vélo, rameur', icon: 'flame', color: 'red',
         lead: 'Le cardio se note en distance et en minutes.',
         steps: [
-          'Ajoute-le comme un autre exercice : [Course à pied], [Vélo], [Rameur], [Vélo elliptique], [Corde à sauter], [Marche rapide]…',
+          'Ajoute-le comme un autre exercice : [Course à pied], [Vélo], [Rameur], [Escaliers], [Tapis de course], [Corde à sauter]…',
           'Chaque série a deux cases : [km] et [Durée] en minutes.',
-          'L\'allure se calcule seule : en min/km pour la course et la marche, en km/h pour le vélo. Le rameur, l\'elliptique et la corde n\'en ont pas.',
-          'Dans [Progrès], l\'exercice affiche [Durée], [Distance] et [Allure] (ou [Vitesse]), avec ta [Meilleure allure] et ta [Plus longue distance].',
+          'Escaliers, tapis, vélo d\'appartement, elliptique et rameur : ▶ lance un chrono. Note le niveau ou la vitesse avec − et + à chaque changement, puis [Terminer] ouvre le [Bilan].',
+          'L\'allure se calcule seule : min/km pour la course et la marche, km/h pour le vélo, temps aux 500 m pour le rameur. [Progrès] montre ta [Meilleure allure] et ta [Plus longue distance].',
           'Un exercice que tu as créé peut passer en cardio : fiche de l\'exercice › [Mesure] › [Cardio].',
         ],
         related: ['courses-sante', 'recuperation'],
@@ -344,12 +346,32 @@ const GUIDE_SECTIONS = [
         actions: ['go-stats', 'open-stats-ex', 'stats-mode', 'go-stats-overview'],
       },
       {
+        // Photos absentes de l'app iOS tant que sa build n'a pas l'autorisation de l'appareil photo
+        // (photosAllowedHere, js/data/progress-photos.js, chargé avant ce fichier)
+        id: 'mesures', title: GUIDE_PHOTOS ? 'Mensurations et photos' : 'Mensurations', icon: 'ruler', color: 'teal',
+        lead: `Dans [Progrès] › [Mesures], note tes tours de poitrine, de taille, de bras…${GUIDE_PHOTOS ? ' et garde des photos de progression' : ''}. Rien ne part sur nos serveurs.`,
+        steps: [
+          '[Ajouter des mesures] : la date, puis les mesures que tu as prises (laisse vide le reste). Une valeur par jour et par mesure, en cm ou en pouces selon ton unité.',
+          'Touche une mesure pour sa courbe, l\'écart avec la mesure d\'avant et depuis la première.',
+          ...(GUIDE_PHOTOS ? [
+            '[Ajouter une photo] ouvre la caméra ou la pellicule ; choisis [Face], [Profil] ou [Dos]. La photo est réduite et gardée dans l\'app, pas dans ta pellicule. [Comparer] met deux dates côte à côte.',
+            'Tes mensurations restent sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs ; tes photos restent sur ton iPhone seulement. Rien n\'est montré à tes amis ni à ton coach.',
+            'L\'export contient tes mensurations, pas tes photos. [Supprimer toutes les données] efface les deux.',
+          ] : [
+            'Tes mensurations restent sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs. Rien n\'est montré à tes amis ni à ton coach.',
+            'L\'export contient tes mensurations. [Supprimer toutes les données] les efface.',
+          ]),
+        ],
+        related: ['poids-corps', 'export'],
+        actions: ['go-body-measures', 'bm-add', 'open-body-measure', ...(GUIDE_PHOTOS ? ['photo-add'] : [])],
+      },
+      {
         id: 'muscles', title: 'Muscles travaillés', icon: 'chart', color: 'red',
         lead: 'La carte [Muscles] de l\'onglet [Progrès] colore la silhouette selon le nombre de séries reçues par chaque muscle.',
         steps: [
-          'Choisis la période : [Cette semaine] (depuis lundi) ou [4 semaines] (les 28 derniers jours).',
-          'Une série compte pour 1 sur les muscles principaux de l\'exercice et pour ½ sur les secondaires.',
-          '[Peu travaillés] liste les muscles en retard. [Séries par muscle] donne le détail.',
+          'Choisis la période : [Cette semaine] (depuis lundi) ou [4 semaines] (les 28 derniers jours, en moyenne par semaine).',
+          'La couleur suit les séries par semaine, 1 par série pour les muscles principaux et ½ pour les secondaires : entretien de 1 à 4, travaillé de 5 à 9, objectif atteint de 10 à 19, gros volume à partir de 20.',
+          'Touche un muscle pour voir ses séries (Abdominaux = grand droit ; Obliques = flancs : rotations, gainage latéral). [Peu travaillés] liste les muscles en retard, [Séries par muscle] donne le détail.',
           'Les muscles d\'un exercice de la bibliothèque sont vérifiés. ··· › [Muscles ciblés] les modifie, ou choisit ceux d\'un exercice que tu as créé ; [Rétablir les muscles par défaut] revient aux muscles vérifiés.',
           'La silhouette se change dans [Réglages] › [Silhouette].',
         ],
@@ -560,11 +582,11 @@ const GUIDE_SECTIONS = [
         id: 'export', title: 'Exporter et importer', icon: 'square.and.arrow.up', color: 'indigo',
         lead: 'Un export est un fichier avec toutes tes données, à garder où tu veux.',
         steps: [
-          '[Réglages] › [Exporter les données].',
+          `[Réglages] › [Sauvegarde] › [Exporter les données]. Le fichier contient tes mensurations${GUIDE_PHOTOS ? ', pas tes photos de progression' : ''}.`,
           'Sans compte, la ligne [Dernière sauvegarde] passe en orange après 14 jours sans export.',
-          '[Importer une sauvegarde] remplace les données de l\'app par celles du fichier. Avec un compte, les séances du fichier s\'ajoutent aux tiennes.',
-          '[Annuler] reste disponible quelques secondes après l\'import.',
-          '[Supprimer toutes les données] efface tout sur cet appareil.',
+          '[Importer une sauvegarde] remplace les données de l\'app par celles du fichier (avec un compte, ses séances s\'ajoutent aux tiennes) ; [Annuler] reste disponible quelques secondes.',
+          'Tu viens de Hevy ou Strong ? [Importer depuis une autre app] ajoute les séances de leur fichier CSV d\'export, après un aperçu.',
+          `[Supprimer toutes les données] efface tout sur cet appareil${GUIDE_PHOTOS ? ', photos comprises' : ''}.`,
         ],
         related: ['icloud', 'compte', 'corbeille'],
         actions: ['export', 'import', 'wipe-data'],

@@ -139,7 +139,6 @@ function friendsBodyHtml(st = friendsState()) {
 function activationHtml() {
   const name = account.profile?.username;
   const ready = !!name && socialAgeOk;
-  const tog = on => `<span class="switch ${on ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>`;
   return `
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
@@ -154,7 +153,7 @@ function activationHtml() {
           </button>
           <button class="cell" data-action="social-age" role="switch" aria-checked="${socialAgeOk}">
             <span class="cell__body"><span class="cell__title">J'ai 15 ans ou plus</span></span>
-            ${tog(socialAgeOk)}
+            ${switchHtml(socialAgeOk)}
           </button>
         </div>
         <div class="group-foot">${name ? 'Tes amis te trouvent avec ce pseudo.' : 'Il faut un pseudo pour que tes amis te trouvent.'} Tes notes, ton poids et tes données Santé ne sont jamais montrés. <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>
@@ -222,6 +221,28 @@ SCREENS.set('friends', { render: () => renderFriends(), enter: () => { friendsEn
 
 // ── Séance d'un ami ─────────────────────────────────────────
 
+// « 22,5 kg × 12 » d'une série, ou « 12 reps · +5 kg » (lest), selon l'exercice
+function reviewSetTxt(set, ex) {
+  return setTxt({ w: parseFloat(set.weight) || 0, r: parseInt(set.reps) || 0, weight: set.weight, reps: set.reps }, ex);
+}
+// Record battu : exercice, type et ancienne valeur (séance d'un élève, js/features/coach-ui.js) ; sans
+// l'ancienne valeur sur la séance d'un ami
+function reviewRecordCell(rec, { before = true } = {}) {
+  return `
+          <div class="cell review-rec">${medalSvg(22)}
+            <span class="cell__body"><span class="cell__title">${esc(rec.ex.name)}</span><span class="cell__sub num">${esc(rec.label)}${before ? ` · avant ${esc(reviewSetTxt(rec.before, rec.ex))}` : ''}</span></span>
+            <span class="review-rec__val num">${esc(reviewSetTxt(rec.s, rec.ex))}</span>
+          </div>`;
+}
+// Record nommé, un seul : encourager, pas relire (ni flèches de baisse, ni notes, que les amis ne reçoivent
+// pas). Seulement quand toutes ses séances visibles sont chargées (fil de son profil complet) : sur une
+// partie seulement, un « record » pourrait être faux. Le poids du corps n'y entre jamais (js/data/session-review.js).
+function friendRecord(row) {
+  const f = socialFeed(row.owner);
+  if (!f.end || !f.loadedAt) return null;
+  return reviewRecords(row, f.rows, 1)[0] || null;
+}
+
 function renderSocialSession(owner, id) {
   const row = socialSessionOf(owner, id);
   if (!row) {
@@ -231,7 +252,7 @@ function renderSocialSession(owner, id) {
   const s = row.s, p = { username: row.username, avatar: row.avatar };
   let when = capitalize(fmtDate(row.doneAt, 'long'));
   if (s.duration) when += ` · ${fmtTime(row.doneAt)}`;
-  const n = seriesCount(s);
+  const n = seriesCount(s), vol = reviewVolume(s.exercises), rec = friendRecord(row);
   return `
     <div class="view view--grouped social-session-view">
       ${navBar({ title: '' })}
@@ -239,18 +260,20 @@ function renderSocialSession(owner, id) {
         <button class="social-who" data-action="social-open-profile" data-uid="${esc(row.owner)}">${personAvatar(p)}<span class="social-who__name">${esc(personName(p))}</span></button>
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${publicSessionColor(s)}" aria-hidden="true"></span>${esc(s.label)}</h1>
         <p class="scr-sub">${when}</p>
-        <div class="tiles">
+        <div class="tiles tiles--4">
+          <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">volume</span></div>
           <div class="tile"><span class="tile__val num">${s.duration ? fmtDuration(s.duration) : '—'}</span><span class="tile__lbl">durée</span></div>
-          <div class="tile"><span class="tile__val num">${s.exercises.length}</span><span class="tile__lbl">${s.exercises.length > 1 ? 'exercices' : 'exercice'}</span></div>
           <div class="tile"><span class="tile__val num">${n}</span><span class="tile__lbl">${n > 1 ? 'séries' : 'série'}</span></div>
+          <div class="tile"><span class="tile__val num">${s.exercises.length}</span><span class="tile__lbl">${s.exercises.length > 1 ? 'exercices' : 'exercice'}</span></div>
         </div>
+        ${rec ? `<div class="group social-session__rec">${reviewRecordCell(rec, { before: false })}</div>` : ''}
         <div class="group-title">Exercices</div>
         <div class="group">
           ${s.exercises.map((e, i, xs) => `
             <div class="cell hex">
               <span class="cell__body">
                 <span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>
-                <span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), setKind(e))}</span>
+                <span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>
               </span>
             </div>`).join('') || '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}
         </div>
@@ -258,10 +281,18 @@ function renderSocialSession(owner, id) {
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="social-report" data-uid="${esc(row.owner)}" data-ref="${esc(row.id)}">Signaler cette séance</button>
         </div>
+        ${vol > 0 ? '<div class="group-foot">Volume = charge notée × reps, poids du corps non compté (lest compris).</div>' : ''}
       </div>
     </div>`;
 }
-SCREENS.set('social-session', { render: (owner, id) => renderSocialSession(owner, id) });
+SCREENS.set('social-session', {
+  render: (owner, id) => renderSocialSession(owner, id),
+  // Séances visibles de l'ami (fil de son profil) chargées pour savoir si un record est vraiment battu
+  enter: () => {
+    const owner = routeParams(currentRoute())[0];
+    if (owner && socialFeedNeedsLoad(owner)) socialLoadFeed(owner);
+  },
+});
 
 // ── Profil d'un autre ───────────────────────────────────────
 
@@ -375,7 +406,53 @@ function renderSocialRules() {
 }
 SCREENS.set('social-rules', { render: () => renderSocialRules() });
 
-// ── Historique › Séance : masquer aux abonnés, bravos reçus ──
+// ── Visible sur mon profil : bilan, Historique › Séance et liste de l'Historique ──
+// Un seul réglage par séance, le même libellé partout : allumé = visible (champ hidden absent),
+// éteint = hidden: true (docs/SOCIAL_V1.md). La synchro l'envoie tel quel ; le coach voit tout.
+// Réglages › Amis et coach › Séances visibles par défaut (sessionVisibleDefault, js/data/social.js) préremplit
+// l'interrupteur du bilan pour les séances à venir ; les séances déjà faites ne changent pas.
+
+// Cellule des Réglages, seulement quand Amis est activé (sans Amis, rien à montrer à personne)
+function socialDefaultVisibleCell() {
+  if (!socialEnabled()) return '';
+  const on = sessionsVisibleByDefault();
+  return `
+          <button class="cell" data-action="setting-visible-default" role="switch" aria-checked="${on}">
+            <span class="cell__body"><span class="cell__title">Séances visibles par défaut</span>
+              <span class="cell__sub">Préremplit « Visible sur mon profil » au bilan de chaque séance</span></span>
+            ${switchHtml(on)}
+          </button>`;
+}
+
+// Bascule visible ↔ masquée, enregistrée (la synchro part de save, js/data/account.js). Renvoie la séance.
+function toggleSessionHidden(id) {
+  const h = (data.history || []).find(x => x.id === id);
+  if (!h) return null;
+  if (h.hidden) delete h.hidden; else h.hidden = true;
+  haptic();
+  save();
+  return h;
+}
+
+// Bilan de fin de séance (js/features/summary.js) : seulement quand le social est activé
+function summarySocialGroup(h) {
+  if (!h || !socialEnabled()) return '';
+  const on = h.hidden !== true;
+  return `
+        <div class="sum-section-title">Amis</div>
+        <div class="sum-list">
+          <button class="sum-row sum-row--action" data-action="summary-visible" data-id="${esc(h.id)}" role="switch" aria-checked="${on}">
+            <div class="sum-row__main"><div class="sum-row__name">Visible sur mon profil</div><div class="sum-row__sub">Tes abonnés verront cette séance (jamais tes notes ni ton poids).</div></div>
+            ${switchHtml(on)}
+          </button>
+        </div>`;
+}
+
+// Liste de l'Historique : œil barré discret sur une séance masquée (social activé : sinon rien à masquer)
+function historyHiddenMark(h) {
+  if (h.hidden !== true || !socialEnabled()) return '';
+  return `<span class="hidden-mark" role="img" aria-label="Masquée à tes abonnés">${icon('eye.slash', 14)}</span>`;
+}
 
 // Groupe ajouté au détail d'une séance (js/features/history.js) quand le social est activé
 function historySocialGroup(h) {
@@ -385,9 +462,9 @@ function historySocialGroup(h) {
   return `
         <div class="group-title">Amis</div>
         <div class="group">
-          <button class="cell" data-action="history-hide" data-id="${esc(h.id)}" role="switch" aria-checked="${hidden}">
-            <span class="cell__body"><span class="cell__title">Masquer à mes abonnés</span></span>
-            <span class="switch ${hidden ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>
+          <button class="cell" data-action="history-hide" data-id="${esc(h.id)}" role="switch" aria-checked="${!hidden}">
+            <span class="cell__body"><span class="cell__title">Visible sur mon profil</span></span>
+            ${switchHtml(!hidden)}
           </button>
           ${n ? `<div class="cell"><span class="cell__body"><span class="cell__title social-bravos-mine">${plural(n, 'bravo', 'bravos')}${hidden ? ' reçus avant de la masquer' : ''}</span></span></div>` : ''}
         </div>
@@ -519,12 +596,19 @@ registerActions({
   },
   'social-report': async (e, el) => { await reportFlow(el.dataset.uid, el.dataset.ref || null); },
   'history-hide': (e, el) => {
-    const h = (data.history || []).find(x => x.id === el.dataset.id);
+    if (toggleSessionHidden(el.dataset.id)) render();
+  },
+  'setting-visible-default': () => {
+    data.sessionVisibleDefault = !sessionsVisibleByDefault();
+    save(); render();
+  },
+  // Bilan : l'interrupteur change sur place (pas de redessin : les notes en cours et le défilement restent)
+  'summary-visible': (e, el) => {
+    const h = toggleSessionHidden(el.dataset.id);
     if (!h) return;
-    if (h.hidden) delete h.hidden; else h.hidden = true;
-    haptic();
-    save();   // la synchro envoie le changement (js/data/account.js)
-    render();
+    const on = h.hidden !== true;
+    el.setAttribute('aria-checked', String(on));
+    el.querySelector('.switch')?.classList.toggle('switch--on', on);
   },
 });
 

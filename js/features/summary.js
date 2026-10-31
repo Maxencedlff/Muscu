@@ -10,7 +10,7 @@ let lastSummary = null;  // bilan de la séance qui vient d'être enregistrée
 // ex facultatif : avec une machine d'assistance, moins d'aide est meilleur (w comparé en négatif)
 function summaryBestSet(sets, ex = null) {
   const sign = ex && isAssisted(ex) ? -1 : 1;
-  return (sets || []).reduce((b, s) => {
+  return workSets(sets).reduce((b, s) => {   // jamais une série d'échauffement (js/data/warmup.js)
     const w = sign * (parseFloat(s.weight) || 0), r = parseInt(s.reps) || 0;
     if (!b || w > b.w || (w === b.w && r > b.r)) return { w, r, s };
     return b;
@@ -31,18 +31,23 @@ function buildSummary(entry, baseline) {
   entry.exercises.forEach(ex => {
     const pex = prevH?.exercises.find(e => sameEx(e, ex));
     cur  += exVolume(ex, ex.sets, entryBodyKg(entry));
-    prev += pex ? exVolume(pex, pex.sets.slice(0, ex.sets.length), entryBodyKg(prevH)) : 0;
+    // Même nombre de séries de travail des deux côtés (échauffements retirés avant de couper : sinon
+    // l'échauffement d'aujourd'hui ferait entrer une série de travail de plus de la dernière fois, ou
+    // celui de la dernière fois en ferait sortir une)
+    prev += pex ? exVolume(pex, workSets(pex.sets).slice(0, workSets(ex.sets).length), entryBodyKg(prevH)) : 0;
     const rec = exerciseRecord(ex, baseline[ex.exId]);
     if (rec) records.push({ name: ex.name, label: rec.label, weight: rec.s.weight, reps: rec.s.reps });
     const b = summaryBestSet(ex.sets, ex), pb = summaryBestSet(pex?.sets, ex);
-    rows.push({ name: ex.name, weight: b.s.weight, reps: b.s.reps, dist: b.s.dist, measure: measureOf(ex), kind: setKind(ex), trend: bestSetTrend(b, pb) });
+    // Exercice réduit à son échauffement (séries de travail non faites) : la série la plus lourde quand même
+    const bs = b || summaryBestSet(ex.sets.map(s => ({ ...s, warmup: undefined })), ex);
+    rows.push({ name: ex.name, weight: bs.s.weight, reps: bs.s.reps, dist: bs.s.dist, measure: measureOf(ex), kind: setKind(ex), trend: b ? bestSetTrend(b, pb) : null });
   });
   return {
     id: entry.id, programme: entry.programme, category: entry.category, date: entry.date,
-    duration: entry.duration, sets: entry.exercises.reduce((a, e) => a + e.sets.length, 0),
+    duration: entry.duration, sets: entry.exercises.reduce((a, e) => a + workSets(e.sets).length, 0),   // séries de travail
     volume: cur, delta: prevH ? cur - prev : null, records, rows,
     // Sans charge comptée (poids du corps inconnu, gainage…) : le total de reps remplace « 0 kg »
-    reps: entry.exercises.filter(ex => measureOf(ex) === 'reps').reduce((a, ex) => a + ex.sets.reduce((b, s) => b + (parseInt(s.reps) || 0), 0), 0),
+    reps: entry.exercises.filter(ex => measureOf(ex) === 'reps').reduce((a, ex) => a + workSets(ex.sets).reduce((b, s) => b + (parseInt(s.reps) || 0), 0), 0),
     needsBodyKg: !entryBodyKg(entry) && entry.exercises.some(ex => bodyShare(ex) > 0),
     baseline,   // records d'avant la séance : l'image partagée montre les mêmes records que le bilan
   };
@@ -139,6 +144,7 @@ function renderSummary() {
         <textarea id="summaryNotes" class="sum-notes" rows="3" placeholder="Comment s'est passée la séance ?"
                   aria-label="Notes de séance">${esc(h?.notes || '')}</textarea>
         ${coachNotesHint()}
+        ${summarySocialGroup(h)}
         <button class="sum-done" data-action="summary-done">Terminé</button>
       </div>
     </div>`;
@@ -194,6 +200,7 @@ function sessionHistoryEntry(sp, sc) {
     duration:   Date.now() - activeSession.startedAt,
     notes:      sessionNotes.trim(),
     ...(storableBodyKg() ? { bodyKg: storableBodyKg() } : {}),
+    ...(newSessionHidden() ? { hidden: true } : {}),   // Réglages › Amis et coach › Séances visibles par défaut éteint
     exercises:  activeSession.exercises
       .map(ex => ({
         exId: ex.exId || resolveExId(sp, sc, ex.name),
@@ -201,7 +208,9 @@ function sessionHistoryEntry(sp, sc) {
         ...(storedMeasure(ex) ? { measure: storedMeasure(ex) } : {}),
         ...(ex.tempo ? { tempo: ex.tempo } : {}),   // fait au tempo : plus dur, à ne pas comparer sans le savoir
         ...(ssId(ex) ? { ss: ex.ss } : {}),         // superset, affiché comme tel dans Historique et pour les abonnés
-        sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}) })),
+        // warmup (js/data/warmup.js) et rir (js/data/rir.js) : champs facultatifs, ignorés par une version précédente
+        sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}), ...(s.machine ? { machine: s.machine } : {}),
+          ...(isWarmupSet(s) ? { warmup: true } : {}), ...(cleanRir(s.rir) !== null ? { rir: cleanRir(s.rir) } : {}) })),
       }))
       .filter(ex => ex.sets.length),
   };

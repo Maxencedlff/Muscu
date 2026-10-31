@@ -30,7 +30,7 @@ function recomputePRFromHistory(d = data) {
           // ce calcul tourne au chargement, avant js/data/measures.js
           if (!exData || histEx.measure === 'time' || histEx.measure === 'cardio') return;
           if (/assist/i.test(histEx.name) && /machine/i.test(histEx.name)) return;   // aide : pas de record de charge
-          (histEx.sets || []).forEach(s => {
+          workSets(histEx.sets).forEach(s => {   // échauffement (js/data/warmup.js) : ni record ni dernière série
             const w  = parseFloat(s.weight) || 0;
             const r  = parseInt(s.reps)     || 0;
             exData.lastWeight = s.weight;
@@ -86,9 +86,10 @@ function resolveFreeExId(name, d = data) {
   return past ? past.exId : nameKey(name);
 }
 
-// Volume (kg) : Σ charge × reps d'une liste de séries, puis d'une liste d'exercices
+// Volume (kg) : Σ charge × reps d'une liste de séries, puis d'une liste d'exercices.
+// Les séries d'échauffement (warmup: true, js/data/warmup.js) n'en font jamais partie.
 function setsVolume(sets) {
-  return (sets || []).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0);
+  return workSets(sets).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0);
 }
 // Volume d'un exercice : seulement en répétitions (un lest × des secondes n'est pas un tonnage).
 // Au poids du corps, la charge effective compte (poids × part soulevée ± lest) : bodyKg est le poids
@@ -96,7 +97,7 @@ function setsVolume(sets) {
 function exVolume(ex, sets = ex?.sets, bodyKg = null) {
   if (measureOf(ex) !== 'reps') return 0;
   if (!bodyShare(ex)) return setsVolume(sets);
-  return (sets || []).reduce((a, s) => a + effectiveLoad(s, ex, bodyKg) * (parseInt(s.reps) || 0), 0);
+  return workSets(sets).reduce((a, s) => a + effectiveLoad(s, ex, bodyKg) * (parseInt(s.reps) || 0), 0);
 }
 function sessionVolume(exercises, bodyKg = null) {
   return exercises.reduce((total, ex) => total + exVolume(ex, ex.sets, bodyKg), 0);
@@ -132,6 +133,7 @@ function makeDefaultData() {
     bodyWeightKg: null, // app iOS : poids de secours pour les calories
     musicOn: false,    // app iOS : Apple Music
     exEquip: 'all',    // feuille d'ajout d'exercice : filtre de matériel (id d'EQUIPMENT ou 'all')
+    rirOn: true,       // sélecteur RIR après chaque série validée (js/data/rir.js) ; data.plates (barre et disques, js/data/plates.js) absent = jeu standard
     onboarded: false,  // questions du premier lancement répondues (ou « Plus tard ») : js/features/onboarding.js
     healthKgPurged: true, // migration des pesées de Santé (normalizeData) : rien à faire sur une donnée neuve
     history: [],
@@ -140,7 +142,10 @@ function makeDefaultData() {
 }
 
 const BACKUP_KEY = 'ppl_v2_backup';
-const SCHEMA     = 5;
+const SCHEMA     = 6;
+// Schéma de la donnée lue au lancement (avant migration) : restoreSession (js/data/active-session.js)
+// en déduit si la séance en cours vient d'une version d'avant
+let loadedSchema = SCHEMA;
 
 // Clés des séances perso : celles que crée l'app (uid, push, legs…) passent toutes
 const SESSION_CAT_RE = /^[A-Za-z0-9_-]{1,40}$/;
@@ -178,6 +183,11 @@ function sanitizeData(d) {
   if (d.bodyWeightLog !== undefined) {
     d.bodyWeightLog = cleanBodyWeightLog(d.bodyWeightLog);
     if (!d.bodyWeightLog.length) delete d.bodyWeightLog;
+  }
+  // Mensurations (js/data/body-measures.js) : clés connues, valeurs bornées, une par jour
+  if (d.bodyMeasures !== undefined) {
+    d.bodyMeasures = cleanBodyMeasures(d.bodyMeasures);
+    if (!Object.keys(d.bodyMeasures).length) delete d.bodyMeasures;
   }
   if (!isObj(d.programmes)) d.programmes = {};
   Object.keys(d.programmes).forEach(k => {
@@ -275,8 +285,20 @@ function sanitizeData(d) {
   // Objectif de séances par semaine (accueil) : absent = nombre de séances du programme
   if (d.weeklyGoal != null) { const g = num(d.weeklyGoal, 1, 7, true); if (g === null) delete d.weeklyGoal; else d.weeklyGoal = g; }
   if (d.unit !== 'kg' && d.unit !== 'lbs') d.unit = 'kg';
+  // Barre et disques de la personne (js/data/plates.js) : réglage retiré s'il n'en reste rien de valable
+  if (d.plates !== undefined) { const p = cleanPlates(d.plates); if (p) d.plates = p; else delete d.plates; }
+  // Carte « Ta semaine » de l'accueil coupée (js/features/recap.js) : true ou absent
+  if (d.recapCardOff !== undefined && d.recapCardOff !== true) delete d.recapCardOff;
+  // Séances visibles par défaut (Réglages › Amis et coach, js/data/social.js) : booléen ou absent (= oui)
+  if (d.sessionVisibleDefault !== undefined && typeof d.sessionVisibleDefault !== 'boolean') delete d.sessionVisibleDefault;
+  // Version de l'app et date où elle a été vue (noteAppVersion, js/data/sync.js) : envoyées au profil, bornées
+  if (d.appVersion !== undefined && !(typeof d.appVersion === 'string' && d.appVersion && d.appVersion.length <= 40)) delete d.appVersion;
+  if (d.appSeenAt !== undefined && !(typeof d.appSeenAt === 'string' && d.appSeenAt.length <= 40
+    && /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(d.appSeenAt) && Number.isFinite(Date.parse(d.appSeenAt)))) delete d.appSeenAt;
   // Silhouette des muscles (bodySilhouette) : absente = homme ; valeur inconnue retirée
   if (d.silhouette !== undefined && d.silhouette !== 'female' && d.silhouette !== 'male') delete d.silhouette;
+  // Niveau du premier lancement (trainingLevel) : valeur inconnue retirée
+  if (d.level !== undefined && !TRAINING_LEVELS.includes(d.level)) delete d.level;
   // Dernier compte connecté sur l'appareil (cleanLastAccount) : retiré s'il est illisible
   if (d.lastAccount !== undefined) { const a = cleanLastAccount(d.lastAccount); if (a) d.lastAccount = a; else delete d.lastAccount; }
   if (!Array.isArray(d.history)) d.history = [];
@@ -360,6 +382,35 @@ function pinLegacyReps(ex, fromSchema = 0) {
   if (pin) ex.measure = 'reps';
 }
 
+// ── Mots de cardio appris le 29/10/2026 (schéma 6) : noms d'avant gardés en répétitions ──
+// CARDIO_RE (js/data/measures.js) reconnaît depuis « escalier », « stair », « stepmill », « step mill »,
+// « climbmill » et « powermill » (chrono des machines, Escaliers). Un exercice perso sans mesure à l'un de
+// ces mots (« Montées d'escaliers lestées », 20 kg × 12) était en répétitions : sans cette règle il
+// deviendrait « 12 min », volume 0, record perdu, et storedMeasure écrirait 'cardio' pour de bon.
+// Copies figées (règle d'avant, mots ajoutés, exceptions) : la comparaison ne dépend ni de la bibliothèque
+// (« Escaliers » y est entré le même jour) ni de CARDIO_RE, qui peut encore grandir. Tout est autonome : ce
+// fichier nettoie l'historique dès son chargement, avant muscles.js (ruleKey) et measures.js (CARDIO_RE) ;
+// tests/unit/measures.mjs vérifie que les copies et les règles vivantes concordent.
+const LEGACY_CARDIO_RE     = /course|courir|footing|jogging|running|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation/;
+const CARDIO_WORDS_ADDED   = /escalier|stair|stepmill|step mill|climbmill|powermill/;   // ajoutés à CARDIO_RE le 29/10/2026
+const LEGACY_NOT_CARDIO_RE = /crunch|abdo|rowing|tirage|releve|curl|squat|fente|pompe|gainage/;
+// Clé des mots-clés sans les abréviations de salle (ruleKey, muscles.js) : aucune ne contient ces mots
+const legacyRuleKey = name => normName(name).replace(/[-_/.]+/g, ' ').replace(/\s+/g, ' ').trim();
+// Mesure que les mots-clés d'avant donnaient à un nom (tests, hors chargement : ruleKey et TIMED_RE existent)
+function legacyMeasureByRules(name) {
+  const k = ruleKey(name || '');
+  if (LEGACY_CARDIO_RE.test(k) && !LEGACY_NOT_CARDIO_RE.test(k)) return 'cardio';
+  return TIMED_RE.test(k) && !NOT_TIMED_RE.test(k) ? 'time' : 'reps';
+}
+const CARDIO_WORDS_SCHEMA = 6;
+// fromSchema : schéma des données (historique, séance reçue d'un autre : 0, toujours ; programmes : une
+// fois, au passage au schéma 6). Figé seulement si ce sont les mots ajoutés qui rendent le nom cardio.
+function pinLegacyCardioWords(ex, fromSchema = 0) {
+  if (ex.measure != null || fromSchema >= CARDIO_WORDS_SCHEMA) return;
+  const k = legacyRuleKey(ex.name || '');
+  if (!LEGACY_CARDIO_RE.test(k) && CARDIO_WORDS_ADDED.test(k) && !LEGACY_NOT_CARDIO_RE.test(k)) ex.measure = 'reps';
+}
+
 // Ordre des séances d'un programme perso : liste explicite up.order. L'ordre des clés d'un objet ne survit
 // pas au serveur (profiles.doc est en jsonb, qui trie les clés) : sans cette liste, un deuxième appareil
 // voyait les séances dans l'ordre alphabétique. Migration douce : absente, elle reprend l'ordre des clés
@@ -414,10 +465,16 @@ function cleanHistoryEntry(h) {
     // d'une version précédente (copie importée, séance reçue d'un autre appareil par la synchro)
     if (!['reps', 'time', 'cardio'].includes(ex.measure)) delete ex.measure;
     pinLegacyReps(ex);
+    pinLegacyCardioWords(ex);
     ex.sets.forEach(st => {
       st.reps = String(num(st.reps, 0, MAX_COUNT, true) ?? 0);
       if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';
       if (st.dist != null) { const km = num(st.dist, 0, 500); if (km === null || km === 0) delete st.dist; else st.dist = String(km); }
+      // Réglage d'une machine noté au chrono (js/data/machine-track.js, chargé avant ce fichier)
+      if (st.machine !== undefined) { const m = cleanMachine(st.machine); if (m) st.machine = m; else delete st.machine; }
+      // Échauffement (js/data/warmup.js) : true ou absent ; RIR (js/data/rir.js) : entier 0 à 4 ou absent
+      if (st.warmup !== undefined && st.warmup !== true) delete st.warmup;
+      if (st.rir !== undefined) { const r = cleanRir(st.rir); if (r === null) delete st.rir; else st.rir = r; }
     });
     // Charge aberrante (ex. 1e308) : série écartée plutôt que comptée en tonnes
     ex.sets = ex.sets.filter(st => st.weight === '' || num(st.weight, 0, MAX_LOAD_KG) !== null);
@@ -440,6 +497,7 @@ function normalizeData(d, rawJson = null) {
   // Poids de secours (kg) pour estimer les calories quand Santé n'a aucune pesée
   d.bodyWeightKg = Number.isFinite(d.bodyWeightKg) && d.bodyWeightKg >= 25 && d.bodyWeightKg <= 300 ? d.bodyWeightKg : null;
   d.musicOn  = d.musicOn === true;    // app iOS : Apple Music (désactivé par défaut)
+  d.rirOn    = d.rirOn !== false;     // sélecteur RIR montré, sauf refus explicite
   // Liste écrite en dur : muscles.js (EQUIPMENT) est chargé après ce fichier ; concordance vérifiée par les tests
   if (!EQUIP_IDS.includes(d.exEquip)) d.exEquip = 'all';
   d.onboarded = d.onboarded === true;
@@ -478,6 +536,11 @@ function normalizeData(d, rawJson = null) {
   if (from < 5) {
     Object.values(d.programmes).forEach(p => Object.values(p.exercises).forEach(list => list.forEach(ex => pinLegacyReps(ex, from))));
   }
+  // Schéma 6 (29/10/2026) : mots de cardio appris (pinLegacyCardioWords), même règle pour les programmes.
+  // Les séances perso (customSessions) n'ont que nom et couleur : leurs exercices sont dans d.programmes.custom.
+  if (from < CARDIO_WORDS_SCHEMA) {
+    Object.values(d.programmes).forEach(p => Object.values(p.exercises).forEach(list => list.forEach(ex => pinLegacyCardioWords(ex, from))));
+  }
   d.schema = SCHEMA;
   d.history.sort((a, b) => b.date - a.date);
   return d;
@@ -486,7 +549,11 @@ function normalizeData(d, rawJson = null) {
 // Lève une exception si la donnée stockée est illisible (écran de secours)
 function loadData() {
   const raw = localStorage.getItem(KEY);
-  if (raw) return sanitizeData(normalizeData(JSON.parse(raw), raw));
+  if (raw) {
+    const parsed = JSON.parse(raw);
+    loadedSchema = Number(parsed?.schema) || 2;
+    return sanitizeData(normalizeData(parsed, raw));
+  }
 
   // Migration depuis ppl_v1
   try {
@@ -494,6 +561,7 @@ function loadData() {
     if (rawV1) {
       const old = JSON.parse(rawV1);
       if (old.exercises) {
+        loadedSchema = 0;
         const d = makeDefaultData();
         d.programmes.ppl.exercises = old.exercises;
         d.programmes.ppl.timers   = old.timers || { push: null, pull: null, legs: null };
@@ -558,6 +626,10 @@ function releaseTimer(entry) {
   if (!p?.timers || p.timers[entry.category] !== entry.date) return;
   p.timers[entry.category] = latestSessionDate(entryProg(entry), entry.category);
 }
+
+// Niveaux possibles du premier lancement (data.level, trainingLevel) : déclarés avant le chargement
+// ci-dessous, qui les vérifie (sanitizeData)
+const TRAINING_LEVELS = ['debutant', 'confirme'];
 
 // Donnée illisible : l'app démarre sur une donnée vide sans rien écrire, puis affiche l'écran de secours
 let loadError = null;

@@ -18,7 +18,10 @@ const MUSCLES = [
   { id: 'brachialis',  label: 'Brachial', minor: true },   // sous le biceps : curl marteau, curl inversé, tractions
   { id: 'triceps',     label: 'Triceps' },
   { id: 'forearms',    label: 'Avant-bras', minor: true },
-  { id: 'abs',         label: 'Abdominaux' },
+  { id: 'abs',         label: 'Abdominaux' },                 // grand droit (le transverse, profond, n'a pas de zone)
+  // Mineur : travaillés surtout en secondaire (gainage, soulevé de terre, marche du fermier) ; sinon presque
+  // tout le monde les verrait « peu travaillés » dès leur séparation des abdominaux (30/10/2026)
+  { id: 'obliques',    label: 'Obliques', minor: true },      // obliques externe et interne, sur les flancs : rotations, flexions latérales, gainage latéral
   { id: 'glutes',      label: 'Fessiers' },
   { id: 'quads',       label: 'Quadriceps' },
   { id: 'hamstrings',  label: 'Ischio-jambiers' },
@@ -75,7 +78,7 @@ function similarExercises(name, n = 3) {
 const MUSCLE_WORDS = {
   chest: 'pectoraux pecs poitrine', front_delts: 'epaules', side_delts: 'epaules', rear_delts: 'epaules arriere',
   traps: 'trapezes', lats: 'dos dorsaux', lower_back: 'lombaires dos', biceps: 'biceps bras', triceps: 'triceps bras',
-  forearms: 'avant bras', brachialis: 'brachial bras', abs: 'abdos abdominaux ventre', glutes: 'fessiers fesses', quads: 'quadriceps cuisses jambes',
+  forearms: 'avant bras', brachialis: 'brachial bras', abs: 'abdos abdominaux ventre', obliques: 'obliques oblique flancs abdos abdominaux', glutes: 'fessiers fesses', quads: 'quadriceps cuisses jambes',
   hamstrings: 'ischios jambiers jambes', adductors: 'adducteurs', calves: 'mollets',
 };
 const plainWord = w => w.replace(/s$/, '');
@@ -193,7 +196,9 @@ const MUSCLE_RULES = [
   [/frontal|front raise/,                                                                 'front_delts', 'side_delts'],
   [/menton|upright/,                                                                      'side_delts traps', 'front_delts biceps brachialis'],
   [/shrug|haussement|trapeze/,                                                            'traps', 'forearms'],
-  [/crunch|abdo|gainage|planche|plank|\breleve|leg raise|roue|ab wheel|russian|rotations? russes?|oblique|sit ?up|mountain|grimpeur|hollow|pallof|get ?up|turc|dead bug|\bl sit|toes to bar/, 'abs', ''],
+  // Obliques avant les abdominaux : rotations et flexions latérales du buste, gainage sur le côté, anti-rotation
+  [/oblique|russian|rotations? russes?|twist|rotations? (du )?(buste|tronc)|torso rotation|trunk rotation|bucheron|wood ?chop|pallof|anti ?rotation|flexions? laterales?|side bend|inclinaisons? laterales?|gainage lateral|planche laterale|side (plank|bridge)|crunch (croise|lateral|velo|bicyclette)|bicycle crunch|suitcase|valise|windmill|moulin/, 'obliques', 'abs'],
+  [/crunch|abdo|gainage|planche|plank|\breleve|leg raise|roue|ab wheel|sit ?up|mountain|grimpeur|hollow|vacuum|hollowing|get ?up|turc|dead bug|\bl sit|toes to bar/, 'abs', ''],
   [/militaire|military|epaule|arnold|overhead|shoulder press|\bohp\b|push press|\bz press|viking|landmine|developpe nuque|halo/, 'front_delts', 'side_delts triceps traps'],
   [/ecarte|pec deck|\bpecs?\b|butterfly|\bfly\b|vis a vis|crossover|croise/,               'chest', 'front_delts'],
   [/(developpe|press|bench).*incline|incline.*(press|bench)/,                             'chest front_delts', 'triceps'],
@@ -202,6 +207,7 @@ const MUSCLE_RULES = [
   [/rowing|\brow\b|tirage|t ?bar/,                                                        'lats traps', 'rear_delts biceps'],
   [/lombaire|extension (du )?dos|hyperextension|back extension|superman|bird dog/,                 'lower_back', 'glutes hamstrings'],
   // Cardio après les abdos, le dos et les jambes : « Crunch vélo », « Rowing rameur » gardent leurs muscles
+  [/escalier|stair|stepmill|step mill|stepper|climbmill|powermill/,                       'quads glutes', 'calves hamstrings'],
   [/course|courir|footing|jogging|running|trail|tapis|\bvelo\b|bike|spinning|cycl|elliptique|corde a sauter|marche rapide|stepper|rameur|natation|ergometre|jumping jack/, 'quads calves', 'glutes'],
   [/burpee/,                                                                              'quads chest', 'front_delts triceps abs'],
   [/developpe|press/,                                                                     'chest', 'front_delts triceps'],

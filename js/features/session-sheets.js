@@ -285,7 +285,7 @@ function pickExercise(name) {
     target = activeSession.exercises.length - 1;
     showToast(toProg ? 'Ajouté à la séance et au programme' : 'Ajouté à la séance');
   }
-  activeSession.lastEi = null;
+  activeSession.lastEi = null; activeSession.lastDone = null;
   closeSessSheets();
   haptic();
   persistSession();
@@ -300,7 +300,7 @@ function restoreSessionExercises(before) {
   cancelEffort();
   editingSet = null;
   activeSession.exercises = before;
-  activeSession.lastEi = null;
+  activeSession.lastEi = null; activeSession.lastDone = null;
   persistSession();
   render();
 }
@@ -360,6 +360,9 @@ function exerciseMenuActions(xs, ei) {
     ...(xs.length > 1 ? [{ label: inGroup ? 'Modifier le superset' : 'Superset avec…', value: 'superset' }] : []),
     ...(inGroup ? [{ label: 'Retirer du superset', value: 'ss-leave' }] : []),
     { label: 'Remplacer l\'exercice', value: 'replace' },
+    // Échauffement (js/data/warmup.js) : exercice à charge sans série faite, hors superset (les tours s'enchaînent)
+    ...(!inGroup && canWarmup(ex) ? [{ label: 'Ajouter un échauffement', value: 'warmup' }] : []),
+    ...(isBarbellExercise(ex) ? [{ label: 'Disques', value: 'plates' }] : []),
     { label: inGroup ? 'Régler le repos du tour' : 'Régler le repos', value: 'rest' },
     ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
     { label: 'Muscles ciblés', value: 'muscles' },
@@ -378,7 +381,7 @@ async function exerciseMenu(ei) {
   if (choice === 'up' || choice === 'down') {
     const moved = ssMove(xs, ei, choice === 'up' ? -1 : 1);
     if (moved) activeSession.exercises = moved;
-    activeSession.lastEi = null;
+    activeSession.lastEi = null; activeSession.lastDone = null;
     editingSet = null;
     render();
   } else if (choice === 'superset') {
@@ -391,6 +394,10 @@ async function exerciseMenu(ei) {
     openHowTo(ex);
   } else if (choice === 'replace') {
     openAddExSheet({ replaceEi: ei });
+  } else if (choice === 'warmup') {
+    openWarmupSheet(ei);
+  } else if (choice === 'plates') {
+    openPlatesSheet(ei, Math.max(0, ex.sets.findIndex(s => !s.done)));
   } else if (choice === 'muscles') {
     if (await declareMusclesFor(ex.name)) render();
   } else if (choice === 'rest') {
@@ -405,7 +412,7 @@ async function exerciseMenu(ei) {
     const before = clone(xs);
     xs.splice(ei, 1);
     ssNormalize(xs);
-    activeSession.lastEi = null;
+    activeSession.lastEi = null; activeSession.lastDone = null;
     editingSet = null;
     render();
     showToast('Exercice retiré', { action: 'Annuler', duration: 5000, onAction: () => restoreSessionExercises(before) });

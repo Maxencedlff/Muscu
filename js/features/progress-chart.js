@@ -3,9 +3,12 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-let chartState = null; // { vals, dates, points, mode, unit, color, xLabels, sel }
+// Une courbe d'une autre grandeur (mensurations, js/features/body-measures-ui.js) donne ses propres
+// textes : name (VoiceOver), fmtVal(v), axisFmt(v), bubble(point), fromZero
+let chartState = null; // { vals, dates, points, mode, unit, color, xLabels, sel, name?, fmtVal?, axisFmt?, bubble?, fromZero? }
 
 function metricOf(p, bw) {
+  if (statsMode === 'effort') return p.rpe;   // RPE moyen des séries notées (js/data/rir.js)
   if (statsMode === 'charge') return bw ? p.maxReps : toUnitW(p.maxLoad);
   if (statsMode === '1rm')    return bw ? p.maxReps : toUnitW(p.best1RM || p.maxLoad);
   return bw ? p.totalReps : toUnitW(p.volume);
@@ -14,7 +17,9 @@ function metricOf(p, bw) {
 let chartUnit = 'reps';
 let chartEx   = null;   // { name } de l'exercice affiché : textes des séries (lest, aide)
 function fmtMetricVal(v, bw) {
+  if (chartState?.fmtVal) return chartState.fmtVal(v);   // courbe d'une autre grandeur (mensurations)
   if (chartState?.cardio) return fmtCardioVal(v, chartState.cardio, chartState.paceKind);
+  if (chartState?.effort) return `RPE ${fmtNum(v, 1)}`;
   if (bw) return `${Math.round(v)} ${chartUnit}`;
   if (statsMode === 'volume') return fmtVolume(data.unit === 'lbs' ? v / KG_TO_LBS : v);
   return `${statsMode === '1rm' ? '~' : ''}${fmtNum(Math.round(v * 10) / 10)} ${unitLbl()}`;
@@ -49,15 +54,19 @@ function renderStatsExercise(exId) {
   const pk     = cardio ? paceKind(it) : null;
   const cModes = cardio ? cardioModes(it.points, pk) : [];
   if (cardio && !cModes.some(([m]) => m === cardioMode)) cardioMode = 'time';
-  // Courbe d'allure ou de distance : seulement les séances qui en ont une
-  const pts    = !cardio || cardioMode === 'time' ? it.points : it.points.filter(p => cardioMetric(p, cardioMode));
+  // Courbe « Effort » (RPE moyen, js/data/rir.js) : proposée dès qu'une séance a des RIR notés
+  const hasRpe = !cardio && it.points.some(p => p.rpe != null);
+  if (statsMode === 'effort' && !hasRpe) statsMode = 'volume';
+  const effort = !cardio && statsMode === 'effort';
+  // Courbe d'allure, de distance ou d'effort : seulement les séances qui en ont une
+  const pts    = effort ? it.points.filter(p => p.rpe != null) : !cardio || cardioMode === 'time' ? it.points : it.points.filter(p => cardioMetric(p, cardioMode));
   const sec    = exSection(it);
   const color  = sec.cat ? sessionMeta(sec.cat, sec.prog).color : sessionMeta(it.cat, it.prog).color;
   const vals   = pts.map(p => cardio ? cardioMetric(p, cardioMode) : metricOf(p, bw));
   // lowerBetter : allure en min/km, la tendance qui baisse est un progrès
-  const lowerBetter = cardio && cardioMode === 'pace' && pk === 'pace';
+  const lowerBetter = cardio && cardioMode === 'pace' && (pk === 'pace' || pk === 'split');
   chartState   = { vals, dates: pts.map(p => p.date), points: pts, bw, mode: statsMode, color, xLabels: [], sel: null,
-                   cardio: cardio ? cardioMode : null, paceKind: pk, lowerBetter };
+                   cardio: cardio ? cardioMode : null, paceKind: pk, lowerBetter, effort };
 
   // Record charge (poids puis reps) et 1RM estimé : record et dernière séance
   const prBest = bestSet(pts.flatMap(p => p.sets), { name: it.name });
@@ -65,7 +74,7 @@ function renderStatsExercise(exId) {
   const last   = pts[pts.length - 1];
   const progEx = Object.values(data.programmes).flatMap(p => Object.values(p.exercises || {}).flat()).find(x => x.id === it.exId);
   const target = progEx?.target;
-  const tp     = trendPct(vals);
+  const tp     = effort ? null : trendPct(vals);   // un effort qui monte n'est ni un progrès ni un recul
   const better = tp === null ? null : lowerBetter ? -tp : tp;
 
   const targetBar = (statsMode === 'charge' && target && !bw) ? (() => {
@@ -81,11 +90,11 @@ function renderStatsExercise(exId) {
   const sessions = pts.slice().reverse().map(p => `
       <button class="cell cell--nav" data-action="open-history" data-id="${esc(p.hid)}">
         <span class="cell__body"><span class="cell__title cell__title--reg">${fmtDate(p.date)}</span></span>
-        <span class="cell__value num">${cardio ? cardioPointTxt(p, pk) : bw ? `${p.sets.map(s => parseInt(s.reps)).join(' · ')} ${chartUnit}` : setTxt(p.best, chartEx)}</span>
+        <span class="cell__value num">${cardio ? cardioPointTxt(p, pk) : bw ? `${p.sets.map(s => parseInt(s.reps)).join(' · ')} ${chartUnit}` : setTxt(p.best, chartEx)}${p.rpe != null ? ` · RPE ${fmtNum(p.rpe, 1)}` : ''}</span>
         ${icon('chevron.right', 16)}
       </button>`).join('');
 
-  const modes = cardio ? cModes : [['volume', 'Volume'], ['charge', 'Charge max'], ['1rm', '1RM est.']];
+  const modes = cardio ? cModes : [['volume', 'Volume'], ['charge', 'Charge max'], ['1rm', '1RM est.'], ...(hasRpe ? [['effort', 'Effort']] : [])];
   const modeOn = cardio ? cardioMode : statsMode;
   // Cardio : meilleure allure (ou vitesse) et plus longue distance à la place du record de charge
   const paces = it.points.map(p => p.pace).filter(Boolean);
@@ -103,6 +112,7 @@ function renderStatsExercise(exId) {
       ${navBar({ title: '' })}
       <div class="scr">
         <h1 class="scr-title">${esc(it.name)}</h1>
+        ${aliasNoteHtml(it.name, 'scr-sub ex-alias')}
         <div class="segmented seg-full" role="group" aria-label="Mesure affichée">
           ${modes.map(([m, l]) => `<button class="segmented__btn ${modeOn === m ? 'segmented__btn--active' : ''}" aria-pressed="${modeOn === m}" data-action="${cardio ? 'stats-cardio-mode' : 'stats-mode'}" data-mode="${m}">${l}</button>`).join('')}
         </div>
@@ -141,7 +151,9 @@ function resolveColor(el, c) {
 }
 
 function axisFmt(v) {
-  if (chartState.cardio === 'pace') return chartState.paceKind === 'speed' ? fmtNum(Math.round(v * 10) / 10) : fmtPace(v, 'pace').replace(' /km', '');
+  if (chartState.fmtVal) return (chartState.axisFmt || chartState.fmtVal)(v);
+  if (chartState.effort) return fmtNum(Math.round(v * 10) / 10);
+  if (chartState.cardio === 'pace') return chartState.paceKind === 'speed' ? fmtNum(Math.round(v * 10) / 10) : fmtPace(v, 'pace').replace(' /km', '');   // aussi /500 m (même format m:ss)
   if (chartState.cardio === 'dist') return fmtNum(Math.round(v * 10) / 10);
   if (chartState.bw) return String(Math.round(v));
   // Volume : une seule unité pour toutes les graduations (t ou kg selon le maximum)
@@ -176,11 +188,13 @@ function drawCharts() {
 
   // Axe Y : depuis 0 pour le volume, tronqué (mais gradué) pour la charge, le 1RM et l'allure
   const vMax = Math.max(...vals), vMin = Math.min(...vals);
-  const fromZero = st.cardio ? st.cardio !== 'pace' : (st.mode === 'volume' || st.bw);
+  const fromZero = st.fromZero ?? (st.cardio ? st.cardio !== 'pace' : (st.mode === 'volume' || st.bw));
   let lo = fromZero ? 0 : vMin - (vMax - vMin) * 0.15 - (vMax === vMin ? vMax * 0.1 : 0);
   if (lo < 0) lo = 0;
   let hi = vMax + (vMax - lo) * 0.08 || 1;
-  const ticks = [lo, (lo + hi) / 2, hi];
+  // Effort : échelle RPE fixe de 6 (RIR 4 et plus) à 10, lisible d'une séance à l'autre
+  if (st.effort) { lo = 5.8; hi = 10.2; }
+  const ticks = st.effort ? [6, 8, 10] : [lo, (lo + hi) / 2, hi];
   st.axisK = hi >= 1000;
   ctx.font = `11px ${font}`;
   const tickW = Math.max(...ticks.map(t => ctx.measureText(axisFmt(t)).width));
@@ -240,8 +254,8 @@ function drawCharts() {
   st.xLabels = placed.map(r => ({ x: r.x, w: r.w }));
 
   // Description pour VoiceOver
-  const mName = st.cardio ? cardioModes(st.points, st.paceKind).find(([m]) => m === st.cardio)?.[1]
-    : st.mode === 'volume' ? 'Volume' : st.mode === 'charge' ? 'Charge max' : '1RM estimé';
+  const mName = st.name || (st.cardio ? cardioModes(st.points, st.paceKind).find(([m]) => m === st.cardio)?.[1]
+    : st.effort ? 'Effort' : st.mode === 'volume' ? 'Volume' : st.mode === 'charge' ? 'Charge max' : '1RM estimé');
   const tp = trendPct(vals);
   const d = i => fmtDate(dates[i], 'short');
   canvas.setAttribute('aria-label', n > 1
@@ -261,8 +275,9 @@ function chartSelect(clientX) {
   const p = st.points[best];
   const b = box.querySelector('.chart-bubble');
   const date = fmtDate(p.date, 'short');
-  const set  = st.bw ? `${p.maxReps} ${chartUnit}` : setTxt(p.best, chartEx);
-  b.textContent = st.cardio ? `${date} · ${cardioPointTxt(p, st.paceKind)}`
+  const set  = st.bubble ? '' : st.bw ? `${p.maxReps} ${chartUnit}` : setTxt(p.best, chartEx);
+  b.textContent = st.bubble ? st.bubble(p) : st.cardio ? `${date} · ${cardioPointTxt(p, st.paceKind)}`
+    : st.effort ? `${date} · RPE ${fmtNum(p.rpe, 1)} · ${set}`
     : `${date} · ${set} · ${st.bw ? `${p.totalReps} ${chartUnit}` : fmtVolume(p.volume)}`;
   b.dataset.i = best;
   b.hidden = false;

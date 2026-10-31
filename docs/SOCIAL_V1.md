@@ -5,7 +5,7 @@ Décisions de Maxence (26/10/2026) :
 - réaction « Bravo » sans texte ;
 - 13+ déclaré à Apple et case « J'ai 15 ans ou plus » à l'activation ;
 - pseudo obligatoire pour être trouvé ;
-- les abonnés voient tout l'historique, avec « Masquer à mes abonnés » par séance, mais jamais les notes, le poids du corps ni Santé (décision du 25/10) ;
+- les abonnés voient tout l'historique, avec « Visible sur mon profil » par séance (éteint = masquée), mais jamais les notes, le poids du corps ni Santé (décision du 25/10) ;
 - avatar = emoji ou initiale.
 
 Hors V1 :
@@ -75,7 +75,8 @@ Rien d'autre ne sort : ni `notes`, ni `bodyKg`, ni `healthSaved`, ni `hidden`, n
 - **Fil** : chaque carte montre l'avatar et le pseudo, la date, le nom de la séance, la durée et un résumé des exercices, avec un bouton « Bravo » et son compte. Un toucher ouvre le détail des séries.
 - **Profil d'un autre** : ses séances (`feed` avec `only_user`), puis les actions : se désabonner ou annuler la demande, Bloquer, Signaler.
 - **Gestion** : abonnés (avec « Retirer »), abonnements, bloqués (avec « Débloquer »), et « Désactiver le social ».
-- **Historique › séance** : « Masquer à mes abonnés » (le champ `hidden`) et « N bravos » quand il y en a.
+- **Bilan de fin de séance** : interrupteur « Visible sur mon profil », allumé par défaut, seulement si le social est activé ; éteint, la séance est enregistrée avec `hidden: true`.
+- **Historique › séance** : le même interrupteur « Visible sur mon profil » (le champ `hidden`) et « N bravos » quand il y en a. Dans la liste, un œil barré marque une séance masquée (VoiceOver : « Masquée à tes abonnés »).
 - **privacy.html** : section « Communauté », qui contient :
   - ce que voient les abonnés ;
   - les blocages et les signalements (gardés 12 mois) ;

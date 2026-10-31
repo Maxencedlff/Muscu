@@ -297,7 +297,6 @@ function renderAppleServicesGroup(tog) {
               <span class="cell__sub">Enregistre tes séances, lit ton poids, tes courses et sorties vélo</span></span>
             ${tog(data.healthOn === true)}
           </button>
-          ${data.healthOn === true ? renderBodyWeightCell() : ''}
           ${data.healthOn === true ? renderHealthWorkoutsCell() : ''}
           ${data.healthOn === true ? (() => {
             const n = healthBacklog().length;
@@ -314,8 +313,9 @@ function renderAppleServicesGroup(tog) {
         </div>`;
 }
 
-// Poids pour les calories : celui de Santé dès qu'il y a une pesée (affiché, non modifiable ici),
-// sinon le poids saisi dans l'app. Une pesée ajoutée plus tard dans Santé prend le relais.
+// Poids pour les calories (Réglages › Entraînement › Poids du corps, js/features/settings.js) : celui de Santé
+// dès qu'il y a une pesée (affiché, non modifiable ici), sinon le poids saisi dans l'app. Une pesée ajoutée
+// plus tard dans Santé prend le relais.
 // « pesée d'aujourd'hui », « pesée d'hier », « pesée du mar. 21 oct. »
 function weighInWhen(ts) {
   const d = fmtDate(ts);

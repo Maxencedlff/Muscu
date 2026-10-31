@@ -881,7 +881,7 @@ async function syncNow() {
     if (docHash !== meta.profileHash) {
       const { data: up, error } = await sb.from('profiles').upsert({ user_id: userId, doc }, { onConflict: 'user_id' }).select('updated_at').single();
       if (error) throw error;
-      meta.profileHash = docHash; meta.profileAt = up.updated_at;
+      meta.profileHash = docHash; meta.profileCore = profileCoreHash(doc); meta.profileAt = up.updated_at;
       keepMeta();
     }
     alive();

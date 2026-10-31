@@ -1,13 +1,14 @@
 """Amis (Social V1, app iOS simulée) : onglet Amis et ses trois états, badge, activation, recherche,
 demandes, fil (Bravo, détail, pagination), profil d'un autre (s'abonner, annuler, se désabonner,
-bloquer, signaler), Gérer, Désactiver, Historique › Séance (Masquer à mes abonnés, bravos reçus),
-hors ligne.
+bloquer, signaler), Gérer, Désactiver, Historique › Séance (Visible sur mon profil, bravos reçus),
+bilan de fin de séance (Visible sur mon profil, œil barré dans l'Historique), hors ligne.
 
 L'app iOS et Supabase sont simulés (tests/fake_account.py, règles de docs/SOCIAL_V1.md) : aucune requête
 ne sort. Captures : $PPL_SCRATCH/shots/lotsocial/ (chaque nouvel écran, clair et sombre).
 Lancer : PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_social.py (ou run_all.py social).
 """
 import json
+import time
 import os
 import sys
 
@@ -263,6 +264,12 @@ def t_fil(bench, eng, dev, theme):
         page.wait_for_selector('.social-session-view')
         d = page.inner_text('.social-session-view')
         R.check('80 kg × 8 · 7' in d and 'Dips' in d and 'note privée' not in d, f'{t} détail des séries ({d[:120]!r})')
+        # Volume : charge notée × reps, poids du corps non compté (Dips, Pompes) ; ni flèches ni notes
+        vol = page.locator('.social-session-view .tile').first.inner_text()
+        R.check('1,6 t' in vol and 'volume' in vol, f'{t} volume de la séance d\'un ami : 1 560 kg, soit 1,6 t ({vol!r})')
+        R.check(page.locator('.social-session-view .review-trend, .social-session-view .review-notes').count() == 0, f'{t} séance d\'un ami : ni flèches ni notes')
+        R.check(any(c.get('only_user') == ids['lea'] for c in calls(page, 'feed')), f'{t} séances visibles de l\'ami chargées pour les records')
+        R.check(page.locator('.social-session-view .review-rec').count() == 0, f'{t} plus de 20 séances visibles : aucun record annoncé sur une partie seulement')
         R.check(page.locator('[data-action="social-report"][data-ref]').count() == 1, f'{t} « Signaler cette séance »')
         layout(page, t, 'séance d\'un ami')
         shot(page, LOT, f'5-seance-ami-{t}')
@@ -273,6 +280,35 @@ def t_fil(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(page.locator('.tabbar__badge').count() == 0 and page.locator('[data-action="social-accept"]').count() == 0, f'{t} demande acceptée : badge retiré')
         R.check(page.evaluate("__sb.so.follows.some(f => f.followee === __sb.meId() && f.status === 'accepted')"), f'{t} tom abonné')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_record_ami(bench, eng, dev, theme):
+    """Séance d'un ami : volume (sans poids du corps, même avec le mien connu) et un record nommé."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, enable=True)
+        page.evaluate('data.bodyWeightKg = 90; save()')   # mon poids : ne doit jamais compter dans le volume d'un ami
+        now = int(time.time() * 1000)
+        legs = lambda i, d, w: {'id': i, 'date': now - d * DAY, 'duration': 2400_000, 'programme': 'ppl', 'category': 'legs', 'label': 'Legs',
+                                'exercises': [{'name': 'Squat haltère', 'sets': [{'weight': w, 'reps': '12'}] * 4},
+                                              {'name': 'Squat poids du corps', 'sets': [{'weight': '', 'reps': '12'}] * 3}]}
+        sam = page.evaluate("""(s) => { const sam = __sb.addPerson({ username: 'sam', avatar: '🐻', sessions: s }); __sb.follow(__sb.meId(), sam, 'accepted'); return sam; }""",
+                            [legs('s1', 1, '22.5'), legs('s2', 5, '20')])
+        page.evaluate('socialRefresh()')
+        page.wait_for_timeout(300)
+        friends_tab(page)
+        page.wait_for_selector('.feed-card[data-id="s1"]')
+        page.locator('.feed-card[data-id="s1"] .feed-card__main').click()
+        page.wait_for_selector('.social-session-view .review-rec')
+        d = page.inner_text('.social-session-view')
+        R.check(page.locator('.social-session-view .tile').first.inner_text().startswith('1,1 t'), f'{t} volume sans poids du corps : 1 080 kg, soit 1,1 t ({d[:200]!r})')
+        rec = page.inner_text('.social-session-view .review-rec')
+        R.check(page.locator('.social-session-view .review-rec').count() == 1 and 'Squat haltère' in rec and 'Record charge' in rec and '22,5 kg × 12' in rec and 'avant' not in rec, f'{t} un record nommé, sans ancienne valeur ({rec!r})')
+        R.check(page.locator('.social-session-view .review-trend').count() == 0, f'{t} aucune flèche')
+        layout(page, t, 'séance d\'un ami avec record')
+        shot(page, LOT, f'5b-seance-ami-record-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -396,7 +432,7 @@ def t_gerer(bench, eng, dev, theme):
 
 
 def t_masquer(bench, eng, dev, theme):
-    """Historique › Séance : « Masquer à mes abonnés » (hidden envoyé), « N bravos », label envoyé, jamais bodyKg."""
+    """Historique › Séance : « Visible sur mon profil » éteint (hidden envoyé), « N bravos », label envoyé, jamais bodyKg."""
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
@@ -414,10 +450,10 @@ def t_masquer(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(page.locator('.social-bravos-mine').inner_text().strip() == '2 bravos', f'{t} « 2 bravos »')
         hide = page.locator('[data-action="history-hide"]')
-        R.check(hide.get_attribute('aria-checked') == 'false', f'{t} visible par défaut')
+        R.check(hide.get_attribute('aria-checked') == 'true' and 'Visible sur mon profil' in hide.inner_text(), f'{t} visible par défaut')
         hide.click()
         page.wait_for_timeout(200)
-        R.check(page.locator('[data-action="history-hide"]').get_attribute('aria-checked') == 'true' and page.evaluate('data.history[0].hidden') is True, f'{t} masquée')
+        R.check(page.locator('[data-action="history-hide"]').get_attribute('aria-checked') == 'false' and page.evaluate('data.history[0].hidden') is True, f'{t} masquée')
         foot = page.locator('[data-action="history-hide"]').locator('xpath=../following-sibling::div[contains(@class,"group-foot")][1]').inner_text()
         R.check(foot == 'Tes abonnés ne voient pas cette séance.', f'{t} masquée : note qui le dit ({foot!r})')
         R.check(page.locator('.social-bravos-mine').inner_text().strip() == '2 bravos reçus avant de la masquer', f'{t} masquée : bravos d\'avant')
@@ -435,6 +471,108 @@ def t_masquer(bench, eng, dev, theme):
         last = page.evaluate(f"__sb.upserted.filter(r => r.id === '{sid}').pop().data")
         R.check('hidden' not in last and page.evaluate("!('hidden' in data.history[0])"), f'{t} de nouveau visible : champ absent')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def open_with_session(page, theme):
+    """Comme open_app, avec une séance en cours (3 séries validées) reprise au lancement."""
+    page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
+    page.add_init_script(FAKE_ACCOUNT)
+    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+    seed(page, theme, ppl_v2_today_json(), active=old_active_session(), extra={'ppl_welcome_seen': '1'})
+    page.wait_for_timeout(300)
+
+
+def finish_to_summary(page):
+    """Séance en cours (3 séries validées) terminée par « Enregistrer la séance » : bilan affiché."""
+    page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)
+    tap_dialog(page, 'Enregistrer la séance')
+    page.wait_for_selector('.view.summary')
+    page.wait_for_timeout(200)
+
+
+def t_bilan_visible(bench, eng, dev, theme):
+    """Bilan : « Visible sur mon profil » seulement avec Amis activé, allumé par défaut ; éteint → hidden: true
+    envoyé (rien d'autre ne change), œil barré « Masquée à tes abonnés » dans l'Historique, réglage repris
+    dans Historique › Séance. Sans Amis : bilan inchangé."""
+    t = tag(dev, theme)
+    # Sans Amis (connecté, social non activé) : aucun interrupteur
+    with bench.page(eng, dev, theme) as page:
+        open_with_session(page, theme)
+        signin(page, enable=False)
+        page.wait_for_selector('[data-action="finish-session"]')
+        finish_to_summary(page)
+        R.check(page.locator('[data-action="summary-visible"]').count() == 0, f'{t} sans Amis : pas d\'interrupteur au bilan')
+        R.check(not page.errors, f'{t} sans Amis : aucune erreur JS {page.errors}')
+    with bench.page(eng, dev, theme) as page:
+        open_with_session(page, theme)
+        signin(page, enable=True)
+        page.wait_for_selector('[data-action="finish-session"]')
+        finish_to_summary(page)
+        sw = page.locator('[data-action="summary-visible"]')
+        R.check(sw.count() == 1, f'{t} Amis activé : interrupteur au bilan')
+        txt = sw.inner_text()
+        R.check('Visible sur mon profil' in txt and 'Tes abonnés verront cette séance (jamais tes notes ni ton poids).' in txt, f'{t} bilan : libellé et sous-texte ({txt!r})')
+        R.check(sw.get_attribute('aria-checked') == 'true' and sw.get_attribute('role') == 'switch', f'{t} bilan : allumé par défaut')
+        sid = page.evaluate('lastSummary.id')
+        R.check(page.evaluate(f"!('hidden' in data.history.find(h => h.id === '{sid}'))"), f'{t} bilan : séance visible par défaut (hidden absent)')
+        bb = sw.bounding_box()
+        R.check(bb['height'] >= 44, f'{t} bilan : cible de 44 px ({bb["height"]})')
+        page.fill('#summaryNotes', 'note du bilan')
+        page.wait_for_timeout(400)
+        page.evaluate('syncNow()'); page.wait_for_timeout(300)
+        before = page.evaluate(f"__sb.upserted.filter(r => r.id === '{sid}').pop().data")
+        sw.scroll_into_view_if_needed()
+        sw.click(); page.wait_for_timeout(200)
+        R.check(sw.get_attribute('aria-checked') == 'false' and page.locator('[data-action="summary-visible"] .switch--on').count() == 0, f'{t} bilan : éteint d\'un seul tap')
+        R.check(page.evaluate(f"data.history.find(h => h.id === '{sid}').hidden") is True, f'{t} bilan éteint : hidden: true')
+        R.check(page.locator('#summaryNotes').input_value() == 'note du bilan', f'{t} bilan : notes gardées après le tap')
+        R.check(json.loads(ls(page, 'ppl_v2'))['history'][0].get('hidden') is True, f'{t} bilan éteint : hidden enregistré')
+        R.check(no_hscroll(page), f'{t} bilan : pas de défilement horizontal')
+        shot(page, LOT, f'13-bilan-visible-{t}')
+        page.evaluate('syncNow()'); page.wait_for_timeout(300)
+        after = page.evaluate(f"__sb.upserted.filter(r => r.id === '{sid}').pop().data")
+        diff = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
+        R.check(after.get('hidden') is True and diff == ['hidden'] and 'bodyKg' not in after, f'{t} synchro : seul hidden change ({diff})')
+        page.click('.sum-done'); page.wait_for_timeout(250)
+        # Historique : œil barré sur la séance masquée seulement
+        page.click('.tabbar [data-tab="history"]'); page.wait_for_timeout(300)
+        row = page.locator(f'[data-action="open-history"][data-id="{sid}"]')
+        mark = row.locator('.hidden-mark')
+        R.check(mark.count() == 1 and mark.get_attribute('aria-label') == 'Masquée à tes abonnés' and mark.get_attribute('role') == 'img', f'{t} Historique : œil barré et libellé VoiceOver')
+        R.check(mark.locator('use').get_attribute('href') == '#i-eye.slash', f'{t} Historique : icône eye.slash du système d\'icônes')
+        R.check(page.locator('.hidden-mark').count() == 1, f'{t} Historique : œil seulement sur la séance masquée')
+        shot(page, LOT, f'14-historique-masquee-{t}')
+        # Historique › Séance : même réglage, même libellé, éteint
+        row.click()
+        page.wait_for_selector('[data-action="history-hide"]')
+        hs = page.locator('[data-action="history-hide"]')
+        R.check('Visible sur mon profil' in hs.inner_text() and hs.get_attribute('aria-checked') == 'false', f'{t} Historique › Séance : même libellé, éteint')
+        hs.click(); page.wait_for_timeout(200)
+        R.check(page.evaluate(f"!('hidden' in data.history.find(h => h.id === '{sid}'))"), f'{t} Historique › Séance : rallumé, hidden retiré')
+        page.click('[data-action="back"]'); page.wait_for_timeout(300)
+        R.check(page.locator('.hidden-mark').count() == 0, f'{t} Historique : plus d\'œil une fois visible')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+    # Réglages › Amis et coach › Séances visibles par défaut : éteint → la séance suivante naît masquée, bilan éteint
+    with bench.page(eng, dev, theme) as page:
+        open_with_session(page, theme)
+        signin(page, enable=False)
+        page.evaluate("navigate('settings')"); page.wait_for_selector('[data-action="coach-open-settings"]')
+        R.check(page.locator('[data-action="setting-visible-default"]').count() == 0, f'{t} Réglages sans Amis : pas de réglage de visibilité')
+        page.evaluate('socialEnable(true).then(() => render())'); page.wait_for_timeout(300)
+        sw = page.locator('[data-action="setting-visible-default"]')
+        R.check(sw.count() == 1 and sw.get_attribute('aria-checked') == 'true' and sw.get_attribute('role') == 'switch', f'{t} Réglages › Amis et coach : « Séances visibles par défaut » allumé')
+        R.check(page.locator('.view.settings-view .group-title', has_text='Amis et coach').count() == 1, f'{t} Réglages : groupe « Amis et coach »')
+        sw.scroll_into_view_if_needed(); sw.click(); page.wait_for_timeout(200)
+        sw = page.locator('[data-action="setting-visible-default"]')
+        R.check(sw.get_attribute('aria-checked') == 'false' and page.evaluate('data.sessionVisibleDefault') is False, f'{t} Réglages : éteint d\'un tap, enregistré')
+        shot(page, LOT, f'15-reglages-visibles-{t}')
+        page.evaluate("navigate('session')"); page.wait_for_selector('[data-action="finish-session"]')
+        finish_to_summary(page)
+        sw = page.locator('[data-action="summary-visible"]')
+        sid = page.evaluate('lastSummary.id')
+        R.check(sw.count() == 1 and sw.get_attribute('aria-checked') == 'false', f'{t} bilan : « Visible sur mon profil » prérempli éteint')
+        R.check(page.evaluate(f"data.history.find(h => h.id === '{sid}').hidden") is True, f'{t} bilan : séance née masquée (hidden: true)')
+        R.check(not page.errors, f'{t} réglage par défaut : aucune erreur JS {page.errors}')
 
 
 def t_hors_ligne(bench, eng, dev, theme):
@@ -474,4 +612,4 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_tabbar_sans_compte, t_activation, t_fil, t_profil, t_gerer, t_masquer, t_hors_ligne])
+run_main(R, [t_tabbar_sans_compte, t_activation, t_fil, t_record_ami, t_profil, t_gerer, t_masquer, t_bilan_visible, t_hors_ligne])

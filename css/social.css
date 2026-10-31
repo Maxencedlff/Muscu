@@ -126,3 +126,6 @@
 .social-incoming .cell { padding-top: 0; padding-bottom: 0; gap: 8px; }
 .social-profile__locked { padding-top: 32px; }
 .social-results { margin-top: 16px; }
+
+/* Historique : œil barré discret sur une séance masquée aux abonnés (à côté du titre, comme .coach-mark) */
+.hidden-mark { display: inline-flex; vertical-align: -2px; margin-left: 6px; color: var(--label2); }

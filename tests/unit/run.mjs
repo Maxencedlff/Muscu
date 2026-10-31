@@ -23,6 +23,11 @@ const SCRIPTS = [
   'js/data/programmes.js',
   'js/data/tempo.js',
   'js/data/supersets.js',
+  'js/data/machine-track.js',
+  'js/data/plates.js',
+  'js/data/warmup.js',
+  'js/data/rir.js',
+  'js/data/body-measures.js',
   'js/data/store.js',
   'js/data/records.js',
   'js/data/accessors.js',
@@ -40,17 +45,22 @@ const SCRIPTS = [
   'js/data/muscles.js',
   'js/data/exercise-catalogue.js',
   'js/data/measures.js',
+  'js/data/import-csv.js',
+  'js/data/progress-photos.js',
+  'js/data/session-review.js',
   'js/data/health-workouts.js',
   'js/data/effort-clock.js',
   'js/data/exercise-moves.js',
   'js/data/exercise-howto.js',
   'js/data/muscle-load.js',
+  'js/data/recap.js',
   'js/data/app-icons.js',
   'js/data/guide.js',
   'js/data/onboarding.js',
   'js/data/my-programmes.js',
   'js/ui/forms.js',
   'js/ui/body-map.js',
+  'js/ui/body-tip.js',
   'js/ui/medal.js',
   'js/app/actions.js',
   'js/features/rest-activity.js',
@@ -60,6 +70,7 @@ const SCRIPTS = [
   'js/features/share-canvas.js',
   'js/features/dashboard.js',
   'js/features/session-sheets.js',
+  'js/features/session-tools.js',
   'js/features/summary.js',
   'js/features/settings.js',
   'js/features/progress.js',
@@ -1297,6 +1308,9 @@ test('mise à jour à chaud : décision (version, empreinte native, échecs, man
   assert.equal(d(otaManifest(), otaCtx({ build: null })).download, false, 'PWA : jamais');
 });
 
+const OTA_BG   = JSON.stringify([{ kind: 'background', value: '300000' }]);
+const OTA_KILL = JSON.stringify([{ kind: 'kill' }]);
+
 async function otaScenario({ manifest = otaManifest(), session = null, now = false, bundles = [], current = 'builtin' } = {}) {
   const calls = [];
   ctx.__calls = calls; ctx.__manifest = manifest; ctx.__bundles = bundles; ctx.__current = current;
@@ -1310,28 +1324,49 @@ async function otaScenario({ manifest = otaManifest(), session = null, now = fal
          list: async () => __bundles,
          download: async (o) => { __calls.push(['download', o.version, o.checksum]); return { id: 'b1', version: o.version, status: 'success' }; },
          applyNow: async (id) => { __calls.push(['now', id]); return true; },
-         applyAtNextLaunch: async (id) => { __calls.push(['next', id]); return true; },
+         applyAtNextLaunch: async (id, cond) => { __calls.push(['next', id]); __calls.push(['delay', JSON.stringify(cond)]); return true; },
        };`);
   try { return { result: await run(`checkLiveUpdate({ now: ${now} })`), calls }; }
   finally { run('Native.isNative = __ota.isNative; Native.ota = __ota.ota; globalThis.fetch = __ota.fetch; delete window.MDLF_BUILD;'); }
 }
 
-test('mise à jour à chaud : téléchargée (empreinte vérifiée) puis appliquée au prochain lancement', async () => {
+test('mise à jour à chaud : téléchargée (empreinte vérifiée), installée après 5 min en arrière-plan', async () => {
   const { result, calls } = await otaScenario();
   assert.equal(result.status, 'ready');
-  sameJSON(calls, [['download', '2026.10.20-abc1234', OTA_SUM], ['next', 'b1']]);
+  sameJSON(calls, [['download', '2026.10.20-abc1234', OTA_SUM], ['next', 'b1'], ['delay', OTA_BG]]);
+});
+
+test('mise à jour à chaud : jamais installée en arrière-plan pendant une séance en cours', async () => {
+  const { calls } = await otaScenario({ session: { exercises: [] } });
+  sameJSON(calls.at(-1), ['delay', OTA_KILL], 'séance : seulement à la fermeture de l\'app, séance restaurée ensuite');
+});
+
+test('mise à jour à chaud : début et fin de séance rebasculent une mise à jour en file', async () => {
+  const scenario = async ({ pending, session }) => {
+    const calls = [];
+    ctx.__calls = calls; ctx.__pending = pending; ctx.activeSession = session;
+    run(`__ota2 = { isNative: Native.isNative, ota: Native.ota };
+         Native.isNative = true;
+         Native.ota = { pending: async () => __pending, setDelay: async (c) => { __calls.push(JSON.stringify(c)); return true; } };`);
+    try { await run('otaSessionChanged()'); return calls; }
+    finally { run('Native.isNative = __ota2.isNative; Native.ota = __ota2.ota;'); ctx.activeSession = null; }
+  };
+  sameJSON(await scenario({ pending: { id: 'b1' }, session: { exercises: [] } }), [OTA_KILL], 'début de séance');
+  sameJSON(await scenario({ pending: { id: 'b1' }, session: null }), [OTA_BG], 'fin de séance');
+  sameJSON(await scenario({ pending: null, session: { exercises: [] } }), [], 'rien en file : rien à faire');
 });
 
 test('mise à jour à chaud : « maintenant » appliquée tout de suite, sauf pendant une séance', async () => {
   assert.equal((await otaScenario({ now: true })).result.status, 'applied');
   const { result, calls } = await otaScenario({ now: true, session: { exercises: [] } });
-  assert.equal(result.status, 'ready', 'séance en cours : attend le prochain lancement');
-  sameJSON(calls.map(c => c[0]), ['download', 'next']);
+  assert.equal(result.status, 'ready', 'séance en cours : attend la fin de la séance');
+  sameJSON(calls.map(c => c[0]), ['download', 'next', 'delay']);
+  sameJSON(calls.at(-1), ['delay', OTA_KILL], 'jamais en arrière-plan pendant la séance');
 });
 
 test('mise à jour à chaud : déjà téléchargée → pas de nouveau téléchargement ; en échec → jamais retentée', async () => {
   const ok = await otaScenario({ bundles: [{ id: 'b9', version: '2026.10.20-abc1234', status: 'success' }] });
-  sameJSON(ok.calls, [['next', 'b9']]);
+  sameJSON(ok.calls, [['next', 'b9'], ['delay', OTA_BG]]);
   const ko = await otaScenario({ bundles: [{ id: 'b8', version: '2026.10.20-abc1234', status: 'error' }] });
   assert.equal(ko.result.status, 'none'); assert.equal(ko.calls.length, 0);
 });
@@ -1358,9 +1393,22 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
   }
 });
 
+test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light par défaut', () => {
+  const asked = [];
+  const box = { data: { vibrateOn: true }, navigator: {}, document: { addEventListener() {} },
+                Native: { haptic: k => { asked.push(k); return true; } } };
+  const c = vm.createContext(box);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8') + '\nthis.haptic = haptic;', c);
+  c.haptic(); c.haptic('medium'); c.haptic('success'); c.haptic({ type: 'click' }); c.haptic('fort');
+  sameJSON(asked, ['light', 'medium', 'success', 'light', 'light']);
+  box.data.vibrateOn = false;
+  c.haptic('medium');
+  assert.equal(asked.length, 5, 'vibrations coupées dans les Réglages : rien');
+});
+
 // ── Muscles (tests/unit/muscles.mjs) ────────────────────────
 
-(await import('./muscles.mjs')).default({ test, app, run, reset, sameJSON, assert });
+(await import('./muscles.mjs')).default({ test, app, run, reset, sameJSON, assert, ROOT });
 (await import('./supersets.mjs')).default({ test, app, run, reset, sameJSON, assert });
 
 // ── Partage de séance (tests dans share.mjs) ────────────────
@@ -1385,7 +1433,7 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 
 // ── Mesures : répétitions, durée, cardio (tests dans measures.mjs) ──
 
-(await import('./measures.mjs')).default({ test, app, run, reset, assert });
+(await import('./measures.mjs')).default({ test, app, run, reset, assert, ROOT });
 
 // ── Comment faire : consignes des exercices (tests dans howto.mjs) ──
 
@@ -1394,9 +1442,14 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 // ── Course et vélo : allure, entraînements de Santé (tests dans cardio.mjs) ──
 
 (await import('./cardio.mjs')).default({ test, run, reset, assert, sameJSON, nativeContext });
+// ── Machines de cardio : réglage noté au chrono, bilan, rameur, alias affiché (tests dans machines.mjs) ──
+(await import('./machines.mjs')).default({ test, run, reset, assert, sameJSON });
+
+// ── Mensurations et photos de progression (tests dans body-measures.mjs) ──
+(await import('./body-measures.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Synchronisation du compte (tests dans sync.mjs) ──
-(await import('./sync.mjs')).default({ test, run, assert, sameJSON });
+(await import('./sync.mjs')).default({ test, run, assert, sameJSON, ROOT });
 
 // ── Compte : connexion, pseudo, avatar, identités (tests dans account.mjs) ──
 (await import('./account.mjs')).default({ test, run, assert, sameJSON, nativeContext, ROOT });
@@ -1413,6 +1466,8 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──
 (await import('./coach.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Relecture de la séance d'un autre : volume, écarts, records, douleur (tests dans review.mjs) ──
+(await import('./review.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Accès payant : nettoyage, horloge de l'appareil, cache hors ligne, verrou (tests dans access.mjs) ──
 (await import('./access.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Contrat du module natif StoreKit : clés réellement envoyées par le Swift (store-contract.mjs) ──
@@ -1429,6 +1484,12 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 (await import('./dates.mjs')).default({ test, run, reset, assert, app });
 // ── Séances et exercices : programme, clés, volume, tempo (tests dans entries.mjs) ──
 (await import('./entries.mjs')).default({ test, run, reset, assert, app, sameJSON });
+// ── Outils de la séance (lot 2) : disques, échauffement, RIR et leurs exclusions (tests dans seance-outils.mjs) ──
+(await import('./seance-outils.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Import depuis Hevy et Strong (tests dans import-csv.mjs) ──
+(await import('./import-csv.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
+// ── Récaps de la semaine, du mois et de l'année (tests dans recap.mjs) ──
+(await import('./recap.mjs')).default({ test, run, reset, assert, app, sameJSON });
 
 // ── Exécution ───────────────────────────────────────────────
 

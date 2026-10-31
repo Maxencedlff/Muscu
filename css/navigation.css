@@ -332,7 +332,9 @@ html[data-nav-dir="fade"]::view-transition-new(root) { animation-duration: .15s;
   position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
   background: var(--bg); transform: translateX(-30%);
 }
-.edge-current { position: relative; z-index: 1; background: var(--bg); box-shadow: var(--shadow-float); }
+.edge-layer--current { z-index: 1; transform: none; box-shadow: var(--shadow-float); }
+/* Pendant le geste, l'écran réel reste en place (hauteur et défilement inchangés) mais invisible */
+body.edge-swiping #app { visibility: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   .livebar__dot { animation: none; }

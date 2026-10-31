@@ -1,20 +1,34 @@
-const CACHE = 'ppl-v100';
+const CACHE = 'ppl-v104';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
-  '/css/navigation.css', '/css/session.css', '/css/screens.css', '/css/muscles.css', '/css/share.css', '/css/account.css', '/css/social.css', '/css/coach.css', '/css/paywall.css',
+  '/css/navigation.css', '/css/session.css', '/css/screens.css', '/css/muscles.css', '/css/share.css', '/css/recap.css', '/css/account.css', '/css/social.css', '/css/coach.css', '/css/paywall.css',
   '/js/platform/native.js',
   '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
   '/js/data/programmes.js', '/js/data/store.js', '/js/data/records.js', '/js/data/accessors.js', '/js/data/active-session.js',
-  '/js/data/backup.js', '/js/data/sync.js', '/js/data/account-auth.js', '/js/data/account.js', '/js/data/social.js', '/js/data/coach.js', '/js/data/plans.js', '/js/data/access.js', '/js/data/coach-pro.js', '/js/data/prog-share.js', '/js/data/trash.js', '/js/data/muscles.js', '/js/data/exercise-catalogue.js', '/js/data/measures.js', '/js/data/health-workouts.js', '/js/data/effort-clock.js', '/js/data/tempo.js', '/js/data/supersets.js', '/js/data/exercise-moves.js', '/js/data/exercise-howto.js', '/js/data/muscle-load.js', '/js/data/app-icons.js', '/js/data/guide.js', '/js/data/onboarding.js', '/js/data/my-programmes.js',
+  '/js/data/backup.js', '/js/data/sync.js', '/js/data/account-auth.js', '/js/data/account.js', '/js/data/social.js', '/js/data/coach.js', '/js/data/plans.js', '/js/data/access.js', '/js/data/coach-pro.js', '/js/data/prog-share.js', '/js/data/trash.js', '/js/data/muscles.js', '/js/data/exercise-catalogue.js', '/js/data/measures.js', '/js/data/import-csv.js', '/js/data/session-review.js', '/js/data/health-workouts.js', '/js/data/effort-clock.js', '/js/data/machine-track.js', '/js/data/body-measures.js', '/js/data/progress-photos.js', '/js/data/plates.js', '/js/data/warmup.js', '/js/data/rir.js', '/js/data/tempo.js', '/js/data/supersets.js', '/js/data/exercise-moves.js', '/js/data/exercise-howto.js', '/js/data/muscle-load.js', '/js/data/recap.js', '/js/data/app-icons.js', '/js/data/guide.js', '/js/data/onboarding.js', '/js/data/my-programmes.js',
   '/js/ui/theme.js', '/js/ui/router.js', '/js/ui/navbar.js', '/js/ui/sheet.js',
-  '/js/ui/forms.js', '/js/ui/edge-swipe.js', '/js/ui/reorder.js', '/js/ui/body-map.js', '/js/ui/exercise-anim.js', '/js/ui/medal.js',
+  '/js/ui/forms.js', '/js/ui/edge-swipe.js', '/js/ui/reorder.js', '/js/ui/body-map.js', '/js/ui/body-tip.js', '/js/ui/exercise-anim.js', '/js/ui/medal.js',
   '/js/app/actions.js', '/js/app/updates.js', '/js/app/live-update.js', '/js/app/init.js',
   '/js/features/dashboard.js', '/js/features/programme.js', '/js/features/programme-editor.js', '/js/features/custom-session.js',
-  '/js/features/session.js', '/js/features/rest.js', '/js/features/effort.js', '/js/features/effort-tempo.js', '/js/features/rest-activity.js', '/js/features/session-sheets.js', '/js/features/supersets-ui.js', '/js/features/session-gestures.js',
-  '/js/features/summary.js', '/js/features/add-session.js', '/js/features/settings.js', '/js/features/account-ui.js', '/js/features/auth-flow.js', '/js/features/social-ui.js', '/js/features/coach-ui.js', '/js/features/coach-pro-ui.js', '/js/features/paywall-ui.js', '/js/features/apple-services.js', '/js/features/app-icon.js', '/js/features/progress.js',
-  '/js/features/progress-chart.js', '/js/features/progress-overview.js', '/js/features/muscles.js', '/js/features/library.js', '/js/features/history.js', '/js/features/trash.js', '/js/features/guide.js', '/js/features/onboarding.js',
-  '/js/features/share-stats.js', '/js/features/share-canvas.js', '/js/features/share.js',
+  '/js/features/session.js', '/js/features/rest.js', '/js/features/effort.js', '/js/features/effort-tempo.js', '/js/features/effort-machine.js', '/js/features/rest-activity.js', '/js/features/session-sheets.js', '/js/features/session-tools.js', '/js/features/supersets-ui.js', '/js/features/session-gestures.js',
+  '/js/features/summary.js', '/js/features/add-session.js', '/js/features/settings.js', '/js/features/import-ui.js', '/js/features/account-ui.js', '/js/features/auth-flow.js', '/js/features/social-ui.js', '/js/features/coach-ui.js', '/js/features/coach-pro-ui.js', '/js/features/paywall-ui.js', '/js/features/apple-services.js', '/js/features/app-icon.js', '/js/features/progress.js',
+  '/js/features/progress-chart.js', '/js/features/progress-overview.js', '/js/features/body-measures-ui.js', '/js/features/muscles.js', '/js/features/muscle-tip.js', '/js/features/library.js', '/js/features/history.js', '/js/features/trash.js', '/js/features/guide.js', '/js/features/onboarding.js',
+  '/js/features/share-stats.js', '/js/features/share-canvas.js', '/js/features/share.js', '/js/features/recap-canvas.js', '/js/features/recap.js',
+  // Personnage 3D de la carte des muscles (js/ui/body-map.js, BODY_IMG) : base et calques par muscle
+  '/img/body/male/front/base.webp', '/img/body/male/front/chest.webp', '/img/body/male/front/front_delts.webp', '/img/body/male/front/side_delts.webp',
+  '/img/body/male/front/traps.webp', '/img/body/male/front/biceps.webp', '/img/body/male/front/brachialis.webp', '/img/body/male/front/triceps.webp',
+  '/img/body/male/front/forearms.webp', '/img/body/male/front/abs.webp', '/img/body/male/front/obliques.webp', '/img/body/male/front/quads.webp', '/img/body/male/front/adductors.webp',
+  '/img/body/male/front/calves.webp', '/img/body/male/back/base.webp', '/img/body/male/back/side_delts.webp', '/img/body/male/back/rear_delts.webp',
+  '/img/body/male/back/traps.webp', '/img/body/male/back/lats.webp', '/img/body/male/back/lower_back.webp', '/img/body/male/back/triceps.webp',
+  '/img/body/male/back/forearms.webp', '/img/body/male/back/glutes.webp', '/img/body/male/back/hamstrings.webp', '/img/body/male/back/adductors.webp',
+  '/img/body/male/back/calves.webp', '/img/body/female/front/base.webp', '/img/body/female/front/chest.webp', '/img/body/female/front/front_delts.webp',
+  '/img/body/female/front/side_delts.webp', '/img/body/female/front/traps.webp', '/img/body/female/front/biceps.webp', '/img/body/female/front/brachialis.webp',
+  '/img/body/female/front/triceps.webp', '/img/body/female/front/forearms.webp', '/img/body/female/front/abs.webp', '/img/body/female/front/obliques.webp', '/img/body/female/front/quads.webp',
+  '/img/body/female/front/adductors.webp', '/img/body/female/front/calves.webp', '/img/body/female/back/base.webp', '/img/body/female/back/side_delts.webp',
+  '/img/body/female/back/rear_delts.webp', '/img/body/female/back/traps.webp', '/img/body/female/back/lats.webp', '/img/body/female/back/lower_back.webp',
+  '/img/body/female/back/triceps.webp', '/img/body/female/back/forearms.webp', '/img/body/female/back/glutes.webp', '/img/body/female/back/hamstrings.webp',
+  '/img/body/female/back/adductors.webp', '/img/body/female/back/calves.webp',
 ];
 
 // Une version = un cache complet, téléchargé d'un bloc (cache HTTP contourné) :

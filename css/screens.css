@@ -59,6 +59,7 @@
 .cell--flow > .cell__body { flex: 1 0 auto; }
 .cell--flow > .segmented { margin-left: auto; }
 .group-foot + .group { margin-top: 28px; }
+.group-lead { padding-top: 14px; }   /* même texte qu'un pied de groupe, en tête d'un sous-écran (Sauvegarde) */
 .cell--field { padding-top: 0; padding-bottom: 0; }
 .cell__check { width: 22px; color: var(--tint); display: flex; }
 .txt-warn { color: var(--orange-text); }
@@ -141,6 +142,10 @@
 }
 .tile__val { font-size: min(22px, 5vw); line-height: 1.647rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile__lbl { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); }
+.tile__delta { font-size: 0.765rem; line-height: 0.941rem; font-weight: 600; color: var(--label2); white-space: nowrap; }
+.tile__delta--up { color: var(--green-text); }
+/* Quatre cases (séance d'un élève, d'un ami) : 2 × 2 partout (sur une rangée, « 45 min » est coupé dès 412 px) */
+.tiles--4 { grid-template-columns: repeat(2, 1fr); }
 
 /* ── Historique ── */
 .hist-tools { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 0; }
@@ -389,3 +394,71 @@ html.type-xl .segmented__btn { white-space: normal; overflow-wrap: anywhere; lin
 .prog-info__actions { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
 .prog-info__btn { width: 100%; border-radius: var(--r-pill); }
 .prog-info__state { margin: 0; min-height: 44px; display: flex; align-items: center; justify-content: center; color: var(--label2); font-size: var(--fs-body); }
+
+/* ── Importer depuis une autre app (Hevy, Strong) : feuille d'aperçu et feuille de lien ── */
+.imp { color: var(--label); }
+.imp__lead { margin: 4px 0 12px; font-size: var(--fs-body); line-height: 1.38; color: var(--label2); text-wrap: pretty; }
+.imp .sheet-list + .sheet-list, .imp .imp__ctl + .sheet-list { margin-top: 12px; }
+.imp__title { padding: 22px 16px 7px; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); text-transform: uppercase; }
+.imp__ctl { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 6px 16px; margin-top: 12px; background: var(--cell2); border-radius: var(--r-md); }
+body.light .imp__ctl { background: var(--cell); }
+.imp__ctl-label { font-size: 1rem; }
+.imp-row { padding-right: 8px; }
+.imp-row__body { display: flex; flex-direction: column; min-width: 0; flex: 1; text-align: left; }
+.imp-row__name { overflow-wrap: anywhere; }
+.imp-row__sub { font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; }
+.imp-row__btn {
+  flex-shrink: 0; min-height: 44px; min-width: 44px; padding: 0 16px; border: 0; border-radius: var(--r-pill);
+  background: var(--tint-fill); color: #fff; font: inherit; font-size: 0.941rem; font-weight: 600; cursor: pointer;
+}
+.imp-row__btn:active { opacity: .5; }
+/* Rangée-interrupteur : le bouton remplit la rangée (une seule cible de 44 px) */
+.sheet-list__row.imp-row:has(.imp__switch) { padding: 0; }
+.imp__switch {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 11px 16px;
+  border: 0; background: none; color: var(--label); font: inherit; font-size: 1rem; text-align: left; cursor: pointer;
+}
+.imp__switch .switch { flex-shrink: 0; }
+.imp__foot { margin: 14px 0 0; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); text-wrap: pretty; }
+.imp__hint { padding: 10px 16px 0; color: var(--label2); font-size: var(--fs-footnote); }
+.imp-pick-list { margin-top: 12px; }
+.imp-pick {
+  position: relative; display: flex; align-items: center; width: 100%; min-height: 44px; padding: 11px 16px;
+  border: 0; background: none; color: var(--label); font: inherit; font-size: 1rem; text-align: left; cursor: pointer;
+}
+.imp-pick + .imp-pick::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
+.imp-pick:active { background: var(--fill); }
+.imp-pick--keep { color: var(--tint); }
+/* ── Progrès › Mesures : mensurations et photos (js/features/body-measures-ui.js) ── */
+.bm-private { display: flex; align-items: flex-start; gap: 8px; padding: 4px 16px 20px; color: var(--label2); font-size: 0.765rem; line-height: 1.059rem; }
+.bm-private .icon { flex-shrink: 0; margin-top: 1px; }
+.bm-entry { padding-right: 8px; }
+.bm-del {
+  width: 44px; height: 44px; margin: -11px 0; flex-shrink: 0; border: none; background: none; border-radius: var(--r-sm);
+  color: var(--red-text); display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.bm-del:active { background: var(--cell2); }
+.bm-row .field--num { width: 76px; min-height: 44px; }
+.bm-row .field-suffix span { min-width: 24px; }
+.bm-date { padding: 4px 0 12px; }
+.bm-date .date-input { flex: 0 1 190px; }
+/* Galerie par date : trois vignettes par rangée (face, profil, dos), portrait */
+.pgal { display: flex; flex-direction: column; gap: 14px; width: 100%; padding: 2px 0; }
+.pgal__date { display: block; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); margin-bottom: 6px; }
+.pgal__row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pgal__item { position: relative; aspect-ratio: 3 / 4; min-height: 44px; border-radius: var(--r-sm); overflow: hidden; background: var(--cell2); border: none; padding: 0; cursor: pointer; }
+.pgal__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pgal__pose { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: var(--r-pill); background: rgba(0,0,0,.6); color: #fff; font-size: 0.647rem; font-weight: 600; }
+/* Comparaison côte à côte */
+.pcmp__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pcmp__col { min-width: 0; }
+.pcmp__sel {
+  width: 100%; min-height: 44px; border: none; border-radius: var(--r-sm); background: var(--fill2); color: var(--label);
+  padding: 0 10px; font-family: inherit; font-size: var(--fs-input); -webkit-appearance: none; appearance: none;
+}
+.pcmp__img { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--r-sm); margin-top: 8px; background: var(--cell2); }
+.pcmp__gap { text-align: center; color: var(--label2); font-size: 0.765rem; padding-top: 10px; }
+/* Feuilles : nouvelle photo, photo ouverte */
+.pnew__img, .pview__img { display: block; max-width: 100%; max-height: 48vh; margin: 0 auto 12px; border-radius: var(--r-md); object-fit: contain; }
+.pnew__pose { display: flex; margin: 4px 0 14px; }
+.pview__meta { text-align: center; color: var(--label2); font-size: 0.765rem; margin: 0 0 14px; }

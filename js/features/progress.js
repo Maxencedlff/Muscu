@@ -8,8 +8,9 @@ let ovMonth   = null; // { y, m } du calendrier de la vue d'ensemble
 
 // Mesures d'un exercice dans une séance
 function exPoint(h, e) {
-  const sets = (e.sets || []).filter(s => (parseInt(s.reps) || 0) > 0);
+  const sets = workSets(e.sets).filter(s => (parseInt(s.reps) || 0) > 0);   // sans l'échauffement (js/data/warmup.js)
   if (!sets.length) return null;
+  const rpe  = meanRpe(sets);   // effort moyen noté (RIR, js/data/rir.js), null sans note
   const wts = sets.map(s => parseFloat(s.weight) || 0);
   // Durée et cardio se suivent comme le poids du corps : sur le champ reps (secondes, minutes)
   // Aide sans poids du corps : la charge saisie est une aide, suivie en reps (sinon un progrès paraîtrait une baisse)
@@ -22,14 +23,14 @@ function exPoint(h, e) {
     const volume = exVolume(e, sets, bodyKg);
     const best1RM = Math.max(0, ...sets.map((s, i) => calc1RM(loads[i], s.reps)).filter(v => v !== null));
     return { date: h.date, hid: h.id, sets, hasWeight: true, totalReps: sets.reduce((a, s) => a + (parseInt(s.reps) || 0), 0),
-      volume, maxLoad: Math.max(...loads), best1RM, maxReps: Math.max(...sets.map(s => parseInt(s.reps) || 0)), best: bestSet(sets, e), bodyKg };
+      volume, maxLoad: Math.max(...loads), best1RM, maxReps: Math.max(...sets.map(s => parseInt(s.reps) || 0)), best: bestSet(sets, e), bodyKg, rpe };
   }
   const totalReps = sets.reduce((a, s) => a + (parseInt(s.reps) || 0), 0);
   const volume    = hasWeight ? setsVolume(sets) : totalReps;
   const maxLoad   = hasWeight ? Math.max(...wts) : 0;
   const best1RM   = hasWeight ? Math.max(0, ...sets.map(s => calc1RM(s.weight, s.reps)).filter(v => v !== null)) : 0;
   const maxReps   = Math.max(...sets.map(s => parseInt(s.reps) || 0));
-  return { date: h.date, hid: h.id, sets, hasWeight, totalReps, volume, maxLoad, best1RM, maxReps, best: bestSet(sets), ...cardioPoint(e, sets) };
+  return { date: h.date, hid: h.id, sets, hasWeight, totalReps, volume, maxLoad, best1RM, maxReps, best: bestSet(sets), rpe, ...cardioPoint(e, sets) };
 }
 
 // « 5,2 km · 27 min · 5:12 /km » : une séance de cardio en une ligne (séries additionnées)
@@ -42,7 +43,7 @@ function cardioPoint(e, sets) {
   if (measureOf(e) !== 'cardio') return {};
   const dist = sets.reduce((a, s) => a + (parseFloat(s.dist) || 0), 0);
   const timed = sets.filter(s => parseFloat(s.dist) > 0);
-  const pace = cardioPace(dist, timed.reduce((a, s) => a + (parseInt(s.reps) || 0), 0), paceKind(e));
+  const pace = cardioPace(dist, timed.reduce((a, s) => a + setMinutes(s), 0), paceKind(e));
   return { dist: Math.round(dist * 100) / 100, pace };
 }
 
@@ -185,9 +186,15 @@ function renderStats() {
             <span class="cell__body"><span class="cell__title">Vue d'ensemble</span>${records ? `<span class="cell__sub">${plural(records, 'record', 'records')} cette semaine</span>` : ''}</span>
             ${icon('chevron.right', 16)}
           </button>
+          <button class="cell cell--nav" data-action="go-recaps">
+            ${icon('sparkles', 22)}
+            <span class="cell__body"><span class="cell__title">Récaps</span><span class="cell__sub">Ta semaine, ton mois, ton année</span></span>
+            ${icon('chevron.right', 16)}
+          </button>
         </div>
         ${renderMuscleCard()}
         ${renderWeightGroup()}
+        ${renderBodyMeasuresGroup()}
         ${idx.size ? list : `<div class="empty-note">Termine des séances pour voir ta progression ici.</div>`}
       </div>
     </div>`;

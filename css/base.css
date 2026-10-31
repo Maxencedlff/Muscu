@@ -17,6 +17,7 @@
   --fill2:  rgba(120,120,128,.24);
   --tint:   #0A84FF;
   --tint-fill: #0A6CDB;         /* fond des boutons pleins : texte blanc à 5:1 */
+  --tint-on-fill: #64AFFF;      /* texte bleu sur --fill (bouton secondaire) : 4,7:1 sur cellule, 6:1 sur fond */
   --on-tint: #FFFFFF;
   --green:  #30D158; --red: #FF453A; --orange: #FF9F0A;
   --yellow: #FFD60A; --indigo: #5E5CE6; --teal: #40C8E0; --purple: #BF5AF2;
@@ -35,6 +36,12 @@
   --cat-color: var(--green);     /* couleur de séance par défaut, redéfinie par écran */
   /* Silhouette musculaire (js/ui/body-map.js) : corps, muscle au repos, muscle travaillé */
   --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: var(--orange);
+  --body-heat-sec: var(--yellow); /* muscles secondaires d'un exercice (fiche) : autre teinte que les principaux */
+  --body-heat-max: #FF5A1F;      /* palier le plus haut (20 séries et plus) : orange rouge, au bout de l'échelle */
+  --body-base-bright: .78;       /* personnage 3D gris un peu assombri sur le noir, lisible (clair : 1, tel quel) */
+  --tip-bg: #2C2C2E;             /* bulle d'un muscle touché */
+  --body-hl-glow: rgba(255,255,255,.75);  /* halo du muscle touché (clair : bleu, le blanc s'y perd) */
+  --tip-link: #409CFF;           /* son lien : bleu iOS « contraste élevé », 4,5:1 sur la bulle */
   /* Boutons de connexion (css/account.css) : chartes Apple (blanc sur fond sombre, noir sur fond clair)
      et Google Identity (thème sombre #131314, clair #FFFFFF, contour et texte imposés) */
   --siwa-bg: #FFFFFF; --siwa-fg: #000000;
@@ -73,6 +80,7 @@ body.light {
   --fill2:  rgba(120,120,128,.12);
   --tint:   #0066CC;
   --tint-fill: #0066CC;
+  --tint-on-fill: #005BB8;      /* texte bleu sur --fill : 4,7:1 sur fond, 5,2:1 sur cellule */
   --green:  #34C759; --red: #FF3B30; --orange: #FF9500;
   --yellow: #FFCC00; --indigo: #5856D6; --teal: #30B0C7; --purple: #AF52DE;
   --green-text: #1F7A35; --red-text: #D70015; --orange-text: #C93400; --gold-text: #A05A00;
@@ -82,7 +90,8 @@ body.light {
   --dlg-sep: rgba(60,60,67,.29); --dlg-press: rgba(0,0,0,.06);
   --shadow-float: 0 8px 24px rgba(0,0,0,.12);
   --cat-text-mix: 55%; --cat-text-base: #000000;
-  --body-skin: #E5E5EA; --body-zone: #C7C7CC;
+  --body-skin: #E5E5EA; --body-zone: #C7C7CC; --body-base-bright: 1; --body-heat-max: #E03E00; --tip-bg: #FFFFFF; --tip-link: var(--tint);
+  --body-hl-glow: rgba(0,102,204,.7);
   --siwa-bg: #000000; --siwa-fg: #FFFFFF;
   --gsi-bg: #FFFFFF; --gsi-fg: #1F1F1F; --gsi-border: #747775;
 }
@@ -146,7 +155,7 @@ input, textarea, select { font-family: inherit; }
 .btn--primary   { background: var(--tint-fill); color: var(--on-tint); }
 /* Bouton plein désactivé : fond gris et texte atténué plutôt qu'une teinte transparente (illisible sur noir) */
 .btn--primary:disabled { opacity: 1; background: var(--fill); color: var(--label-disabled); }
-.btn--secondary { background: var(--fill); color: var(--tint); }
+.btn--secondary { background: var(--fill); color: var(--tint-on-fill); }
 .btn--danger    { background: var(--fill); color: var(--red-text); }
 .btn--full { width: 100%; }
 

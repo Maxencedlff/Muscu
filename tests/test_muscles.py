@@ -11,7 +11,7 @@ LOT = 'muscles'
 R = Results(LOT)
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MUSCLE_IDS = ['chest', 'front_delts', 'side_delts', 'rear_delts', 'traps', 'lats', 'lower_back', 'biceps', 'brachialis',
-              'triceps', 'forearms', 'abs', 'glutes', 'quads', 'hamstrings', 'adductors', 'calves']
+              'triceps', 'forearms', 'abs', 'obliques', 'glutes', 'quads', 'hamstrings', 'adductors', 'calves']
 
 
 def tag(device, theme):
@@ -35,10 +35,10 @@ def no_hscroll(page):
 
 
 def heat(page, muscle):
-    """Opacité de chaleur d'un muscle dans la carte de Progrès (0 : neutre)."""
+    """Opacité de chaleur d'un muscle dans la carte de Progrès (0 : neutre, aucun calque coloré)."""
     return page.evaluate("""m => {
         const z = document.querySelector(`.mcard__map [data-muscle="${m}"]`);
-        return z ? parseFloat(z.getAttribute('fill-opacity') || '0') : -1;
+        return z ? parseFloat(z.dataset.heat || '0') : 0;
     }""", muscle)
 
 
@@ -61,15 +61,14 @@ def t_progress(bench, eng, dev, theme):
         tab(page, 2)
         card = page.locator('.mcard')
         R.check(card.count() == 1, f'{t} carte « Muscles » dans Progrès')
-        drawn = set(page.evaluate("[...document.querySelectorAll('.mcard__map [data-muscle]')].map(z => z.dataset.muscle)"))
-        R.check(drawn == set(MUSCLE_IDS), f'{t} silhouette : tous les muscles dessinés {set(MUSCLE_IDS) ^ drawn}')
+        R.check(bases_loaded(page, '.mcard__map') == 2, f'{t} personnage : face et dos affichés (images chargées)')
         R.check(heat(page, 'lats') > 0 and heat(page, 'quads') > 0, f'{t} semaine : dos et jambes colorés')
         R.check(heat(page, 'chest') == 0, f'{t} semaine : pectoraux neutres (push il y a 8 jours)')
         low = page.locator('.mlow').inner_text()
         R.check('Pectoraux' in low and 'Grand dorsal' not in low, f'{t} peu travaillés : « {low} »')
         sr = page.locator('.mcard .visually-hidden li').all_inner_texts()
-        R.check(len(sr) == 17 and any(x.startswith('Grand dorsal : ') and 'série' in x for x in sr), f'{t} liste VoiceOver {sr[:2]}')
-        R.check(page.locator('svg.mcard__map[aria-hidden="true"]').count() == 1, f'{t} dessin masqué à VoiceOver')
+        R.check(len(sr) == 18 and any(x.startswith('Grand dorsal : ') and 'série' in x for x in sr), f'{t} liste VoiceOver {sr[:2]}')
+        R.check(page.locator('.mcard__map[aria-hidden="true"]').count() == 1, f'{t} dessin masqué à VoiceOver')
         R.check(no_hscroll(page), f'{t} Progrès : pas de défilement horizontal')
         card.scroll_into_view_if_needed()
         shot(page, LOT, f'progres-semaine-{t}')
@@ -84,7 +83,7 @@ def t_progress(bench, eng, dev, theme):
         page.click('[data-action="go-stats-muscles"]')
         page.wait_for_selector('.view.stats-muscles')
         rows = page.locator('.mrow').count()
-        R.check(rows == 17, f'{t} séries par muscle : 17 lignes ({rows})')
+        R.check(rows == 18, f'{t} séries par muscle : 18 lignes ({rows})')
         vals = [int(v) for v in page.locator('.mrow .cell__value').all_inner_texts()]
         R.check(vals == sorted(vals, reverse=True) and vals[0] > 0, f'{t} lignes triées par séries {vals[:4]}')
         R.check(page.locator('[data-action="muscle-span"][data-span="month"]').get_attribute('aria-pressed') == 'true', f'{t} période gardée')
@@ -340,6 +339,12 @@ def t_add_sheet(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def bases_loaded(page, sel):
+    """Nombre d'images de base (face, dos) chargées et décodées dans la carte sel."""
+    page.wait_for_function("""s => [...document.querySelectorAll(s + ' .body-map__base')].every(i => i.complete)""", arg=sel, timeout=5000)
+    return page.evaluate("""s => [...document.querySelectorAll(s + ' .body-map__base')].filter(i => i.naturalWidth > 0).length""", sel)
+
+
 def body_of(page, sel):
     return page.evaluate('s => document.querySelector(s)?.dataset.body || null', sel)
 
@@ -363,7 +368,7 @@ def t_silhouette(bench, eng, dev, theme):
         R.check(no_hscroll(page), f'{t} premier lancement : pas de défilement horizontal')
         shot(page, LOT, f'silhouette-accueil-{t}')
 
-        # Données existantes : homme ; Réglages › Affichage › Silhouette, puis Progrès, fiche et story suivent.
+        # Données existantes : homme ; Réglages › Apparence › Silhouette, puis Progrès, fiche et story suivent.
         # Horloge figée un dimanche soir : la semaine contient pull et legs, quel que soit le jour du test
         sunday = next_sunday_evening_ms()
         page.clock.install(time=sunday / 1000)
@@ -381,37 +386,215 @@ def t_silhouette(bench, eng, dev, theme):
         shot(page, LOT, f'silhouette-reglages-{t}')
         tab(page, 2)
         R.check(body_of(page, '.mcard__map') == 'female', f'{t} Progrès : silhouette femme')
-        drawn = set(page.evaluate("[...document.querySelectorAll('.mcard__map [data-muscle]')].map(z => z.dataset.muscle)"))
-        R.check(drawn == set(MUSCLE_IDS), f'{t} silhouette femme : tous les muscles dessinés')
+        R.check(bases_loaded(page, '.mcard__map') == 2, f'{t} personnage femme : face et dos affichés')
+        R.check('img/body/female/' in page.evaluate("document.querySelector('.mcard__map .body-map__base').src"), f'{t} images du personnage femme')
         R.check(heat(page, 'lats') > 0, f'{t} silhouette femme : coloration identique')
         page.locator('.mcard').scroll_into_view_if_needed()
         shot(page, LOT, f'silhouette-progres-{t}')
         page.locator('[data-action="open-stats-ex"][data-ex="p1dcouch"]').click()
         page.wait_for_selector('.view.stats-ex')
         R.check(body_of(page, '.mpanel__map') == 'female', f'{t} fiche exercice : silhouette femme')
-        story = page.evaluate("shareStoryHooks.muscleSvg(data.history[0], null, storyPalette('#30D158'))")
-        R.check(story and 'data-body="female"' in story, f'{t} story partagée : silhouette femme')
+        R.check(page.evaluate("bodySilhouette()") == 'female', f'{t} story partagée : personnage femme (bodyMapImage suit le réglage)')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+# Point d'un muscle à l'écran, tiré directement de son calque (pixel opaque le plus proche du centre
+# de sa forme) : indépendant de la détection de l'app (js/ui/body-tip.js), qui est ce qu'on vérifie
+MUSCLE_POINT_JS = """async ([sel, m, view]) => {
+  const map = document.querySelector(sel), fig = map.querySelector('.body-map__' + view);
+  const img = await bodyLoadImage(bodyImgUrl(map.dataset.body, view, m));
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, c.width, c.height).data, W = c.width, N = W * c.height;
+  let sx = 0, sy = 0, n = 0;
+  // Moitié gauche seulement : un muscle pair (bras, jambes) a son centre entre les deux côtés
+  const half = i => i % W < W / 2;
+  for (let i = 0; i < N; i++) if (half(i) && d[i * 4 + 3] > 200) { sx += i % W; sy += (i / W) | 0; n++; }
+  let best = null, bd = Infinity;
+  for (let i = 0; i < N; i++) if (half(i) && d[i * 4 + 3] > 250) {
+    const dd = (i % W - sx / n) ** 2 + (((i / W) | 0) - sy / n) ** 2;
+    if (dd < bd) { bd = dd; best = [i % W, (i / W) | 0]; }
+  }
+  const r = fig.getBoundingClientRect();
+  return [r.left + best[0] / W * r.width, r.top + best[1] / c.height * r.height];
+}"""
+
+
+def tap_muscle(page, sel, muscle, view):
+    x, y = page.evaluate(MUSCLE_POINT_JS, [sel, muscle, view])
+    page.mouse.click(x, y)
+    # Premier toucher d'une vue : cartes d'étiquettes calculées avant l'ouverture (plus long sous charge)
+    try:
+        page.wait_for_selector('.btip', timeout=3000)
+    except Exception:
+        pass
+    page.wait_for_timeout(250)
+
+
+def tip_text(page):
+    tip = page.locator('.btip')
+    return ' '.join(tip.inner_text().split()) if tip.count() else ''
+
+
+def tip_inside(page):
+    """La bulle tient dans l'écran, au-dessus de la barre d'onglets."""
+    return page.evaluate("""() => { const r = document.querySelector('.btip').getBoundingClientRect();
+        const bar = document.querySelector('.tabbar').getBoundingClientRect();
+        return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= bar.top; }""")
+
+
+def tip_rect(page):
+    return page.evaluate("""() => { const r = document.querySelector('.btip').getBoundingClientRect();
+        return [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom), innerWidth,
+                Math.round(document.querySelector('.tabbar').getBoundingClientRect().top)]; }""")
+
+
+def tip_covers_selector(page):
+    return page.evaluate("""() => { const a = document.querySelector('.btip').getBoundingClientRect();
+        const b = document.querySelector('.mcard .segmented').getBoundingClientRect();
+        return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top; }""")
+
+
+def t_tip(bench, eng, dev, theme):
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        tab(page, 2)
+        page.click('[data-action="muscle-span"][data-span="month"]')
+        page.wait_for_timeout(250)
+        # Centrée : « si besoin » s'arrête dès qu'un bout dépasse sous la barre d'onglets fixe (Galaxy S9+)
+        page.evaluate("document.querySelector('.mcard__map').scrollIntoView({ block: 'center' })")
+        page.wait_for_timeout(200)
+        R.check(bases_loaded(page, '.mcard__map') == 2, f'{t} bulle : personnage chargé')
+        tap_muscle(page, '.mcard__map', 'chest', 'front')
+        txt = tip_text(page)
+        R.check(txt.startswith('Pectoraux') and re.search(r'\d+ séries en 4 semaines, soit [\d,]+ par semaine', txt)
+                and 'Repère : 10 à 20 par semaine' in txt, f'{t} bulle pectoraux : « {txt} »')
+        lvl = page.evaluate("muscleLoad('month').levels.chest")
+        R.check(page.evaluate("MUSCLE_LEVEL_WORDS")[lvl] in txt, f'{t} bulle : palier en mots (légende) {lvl}')
+        R.check(not tip_covers_selector(page), f'{t} bulle : sélecteur de période jamais couvert')
+        leg = ' '.join(page.locator('.mcard .mlegend').inner_text().split())
+        R.check(all(w in leg for w in ('Pas travaillé', 'Entretien 1–4', 'Travaillé 5–9', 'Objectif atteint 10–19', 'Gros volume 20+'))
+                and 'en moyenne par semaine' in leg, f'{t} légende 4 semaines : « {leg} »')
+        lines = page.evaluate("new Set([...document.querySelectorAll('.mcard .mlegend__item')].map(e => Math.round(e.getBoundingClientRect().top))).size")
+        R.check(lines <= (3 if page.viewport_size['width'] < 360 else 2), f'{t} légende compacte : {lines} ligne(s) de paliers')
+        R.check(page.locator('.btip[role="dialog"][aria-labelledby="btipTitle"]').count() == 1, f'{t} bulle : rôle et nom')
+        R.check(tip_inside(page), f'{t} bulle dans l\'écran, au-dessus des onglets {tip_rect(page)}')
+        R.check(page.locator('.mcard__map .body-map__front .body-map__hl[data-muscle="chest"]').count() == 1
+                and page.locator('.body-map__hl').count() == 1, f'{t} pectoraux mis en valeur sur la face')
+        anim = lambda: page.evaluate("getComputedStyle(document.querySelector('.body-map__hl > i')).animationName")
+        R.check(anim() == 'body-hl', f'{t} mise en valeur : pulsation douce')
+        page.emulate_media(reduced_motion='reduce')
+        R.check(anim() == 'none', f'{t} réduire les animations : pas de pulsation')
+        page.emulate_media(reduced_motion='no-preference')
+        shot(page, LOT, f'bulle-face-{t}')
+        n_chest = int(re.search(r'(\d+) séries?', txt).group(1))
+        # Un autre muscle, de dos : la bulle suit
+        tap_muscle(page, '.mcard__map', 'lats', 'back')
+        txt = tip_text(page)
+        R.check(txt.startswith('Grand dorsal') and page.locator('.btip').count() == 1, f'{t} bulle grand dorsal : « {txt} »')
+        R.check(not tip_covers_selector(page), f'{t} bulle dos : sélecteur non couvert')
+        n_lats = int(re.search(r'(\d+) séries?', txt).group(1))
+        shot(page, LOT, f'bulle-dos-{t}')
+        # Toucher hors d'un muscle : entre les deux vues (fond), puis sur la tête (zone grise) : fermée
+        f, b = (page.locator(f'.mcard__map .body-map__{v}').bounding_box() for v in ('front', 'back'))
+        tr = page.locator('.btip').bounding_box()
+        gx = (f['x'] + f['width'] + b['x']) / 2
+        # Écran étroit (Galaxy S9+) : la bulle couvre tout l'entre-deux sous les épaules, le fond entre les têtes reste libre
+        gy = next(f['y'] + f['height'] * k for k in (.55, .7, .85, .95, .3, .2, .12, .06)
+                  if not (tr['x'] <= gx <= tr['x'] + tr['width'] and tr['y'] <= f['y'] + f['height'] * k <= tr['y'] + tr['height']))
+        page.mouse.click(gx, gy)
+        page.wait_for_timeout(300)
+        R.check(page.locator('.btip').count() == 0, f'{t} toucher le fond : bulle fermée')
+        R.check(page.locator('.body-map__hl').count() == 0, f'{t} bulle fermée : mise en valeur retirée')
+        tap_muscle(page, '.mcard__map', 'calves', 'front')
+        R.check(tip_text(page).startswith('Mollets'), f'{t} bulle mollets : « {tip_text(page)} »')
+        # Obliques (30/10) : calque à part du grand droit, sur le flanc ; la bulle les nomme
+        tap_muscle(page, '.mcard__map', 'obliques', 'front')
+        R.check(tip_text(page).startswith('Obliques'), f'{t} bulle obliques : « {tip_text(page)} »')
+        R.check(page.locator('.mcard__map .body-map__front .body-map__hl[data-muscle="obliques"]').count() == 1, f'{t} obliques mis en valeur')
+        shot(page, LOT, f'bulle-obliques-{t}')
+        tap_muscle(page, '.mcard__map', 'abs', 'front')
+        R.check(tip_text(page).startswith('Abdominaux'), f'{t} bulle abdominaux (grand droit) : « {tip_text(page)} »')
+        page.mouse.click(f['x'] + f['width'] / 2, f['y'] + f['height'] * .04)
+        page.wait_for_timeout(300)
+        R.check(page.locator('.btip').count() == 0, f'{t} toucher la tête (zone grise) : bulle fermée')
+        tap_muscle(page, '.mcard__map', 'lats', 'back')
+        page.locator('.mlegend').click()
+        page.wait_for_timeout(200)
+        R.check(page.locator('.btip').count() == 0, f'{t} toucher ailleurs : bulle fermée')
+        tap_muscle(page, '.mcard__map', 'lats', 'back')
+        page.click('[data-action="muscle-span"][data-span="week"]')
+        page.wait_for_timeout(250)
+        R.check(page.locator('.btip').count() == 0, f'{t} changement de période : bulle fermée')
+        leg = ' '.join(page.locator('.mcard .mlegend').inner_text().split())
+        R.check(leg.endswith('séries par semaine') and 'moyenne' not in leg, f'{t} légende semaine : « {leg} »')
+        tap_muscle(page, '.mcard__map', 'lats', 'back')
+        txt = tip_text(page)
+        R.check(re.search(r'\d+ séries? depuis lundi', txt), f'{t} bulle semaine : « {txt} »')
+        page.locator('.mlegend').click()
+        page.wait_for_timeout(200)
+        # Niveau débutant (premier lancement) : repère à 10
+        page.evaluate("data.level = 'debutant'")
+        tap_muscle(page, '.mcard__map', 'lats', 'back')
+        R.check('Repère : 10 par semaine' in tip_text(page), f'{t} débutant : « {tip_text(page)} »')
+        page.evaluate("delete data.level")
+        page.locator('.mlegend').click()
+        page.wait_for_timeout(200)
+        page.click('[data-action="muscle-span"][data-span="month"]')
+        page.wait_for_timeout(250)
+        # Lien : « Séries par muscle », mêmes chiffres, ligne du muscle mise en avant
+        tap_muscle(page, '.mcard__map', 'chest', 'front')
+        page.locator('.btip [data-action="go-stats-muscles"]').click()
+        page.wait_for_selector('.view.stats-muscles')
+        page.wait_for_timeout(300)
+        val = lambda m: int(page.locator(f'.mrow[data-muscle="{m}"] .cell__value').inner_text())
+        R.check(val('chest') == n_chest and val('lats') == n_lats, f'{t} bulle = Séries par muscle ({n_chest}, {n_lats})')
+        R.check(page.locator('.mrow--focus[data-muscle="chest"]').count() == 1, f'{t} ligne Pectoraux mise en avant')
+        R.check(page.locator('.btip').count() == 0, f'{t} bulle fermée après le lien')
+        page.click('[data-action="back"]')
+        page.wait_for_selector('.view.stats')
+        # Fiche exercice : principal / secondaire
+        page.locator('[data-action="open-stats-ex"][data-ex="p1dcouch"]').click()
+        page.wait_for_selector('.view.stats-ex .mpanel')
+        page.locator('.mpanel').scroll_into_view_if_needed()
+        bases_loaded(page, '.mpanel__map')
+        w = page.locator('.mpanel__map').bounding_box()['width']
+        R.check(w >= 200, f'{t} fiche : personnage agrandi ({w:.0f} px)')
+        R.check(page.locator('.mpanel__map .body-map__m--sec[data-muscle="triceps"]').count() >= 1, f'{t} fiche : triceps en secondaire')
+        tap_muscle(page, '.mpanel__map', 'chest', 'front')
+        R.check(tip_text(page) == 'Pectoraux Muscle principal', f'{t} fiche : « {tip_text(page)} »')
+        tap_muscle(page, '.mpanel__map', 'triceps', 'back')
+        R.check(tip_text(page) == 'Triceps Muscle secondaire', f'{t} fiche : « {tip_text(page)} »')
+        R.check(page.locator('.mpanel__map .body-map__back .body-map__hl[data-muscle="triceps"]').count() == 1
+                and page.locator('.body-map__hl').count() == 1, f'{t} fiche : triceps mis en valeur, seul')
+        R.check(tip_inside(page), f'{t} fiche : bulle dans l\'écran')
+        shot(page, LOT, f'bulle-fiche-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
 def once_static(bench):
-    files = ['js/data/muscles.js', 'js/data/exercise-catalogue.js', 'js/data/muscle-load.js', 'js/ui/body-map.js', 'js/features/muscles.js', 'css/muscles.css']
+    files = ['js/data/muscles.js', 'js/data/exercise-catalogue.js', 'js/data/muscle-load.js', 'js/ui/body-map.js', 'js/ui/body-tip.js', 'js/features/muscles.js', 'js/features/muscle-tip.js', 'css/muscles.css']
     for f in files:
         n = sum(1 for _ in open(os.path.join(APP_DIR, f), encoding='utf-8'))
         R.check(n <= 400, f'{f} : {n} lignes (400 au plus)')
     css = open(os.path.join(APP_DIR, 'css/muscles.css'), encoding='utf-8').read()
     R.check(not re.findall(r'#[0-9a-fA-F]{3,8}\b|rgba?\(', css), 'muscles.css : couleurs en tokens seulement')
-    # Silhouette autonome (story de partage) : rendue en image sans variable CSS
+    # Carte dessinée dans un canvas (story de partage) : images chargées, muscle teinté de la couleur voulue
     with bench.page('chromium', 'Pixel 7', 'dark') as page:
         seed(page, 'dark', ppl_v2_today_json())
-        ok = page.evaluate("""() => new Promise(res => {
-            const svg = bodyMapSvg({ chest: 1, quads: .5 }, { standalone: true, captions: true, colors: bodyMapColors() });
-            const img = new Image();
-            img.onload = () => res(!svg.includes('var(--') && img.naturalWidth > 0);
-            img.onerror = () => res(false);
-            img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-        })""")
-        R.check(ok, 'bodyMapSvg autonome : chargé comme image, couleurs résolues')
+        px = page.evaluate("""async () => {
+            const c = await bodyMapImage({ chest: 1 }, { view: 'front', body: 'male', colors: { heat: '#FF0000', bright: .5 } });
+            if (!c) return null;
+            const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+            let red = 0, gray = 0;
+            for (let i = 0; i < d.length; i += 4) {
+              if (d[i + 3] < 200) continue;
+              if (d[i] > 80 && d[i + 1] < 40 && d[i + 2] < 40) red++; else if (Math.abs(d[i] - d[i + 2]) < 12) gray++;
+            }
+            return { w: c.width, red, gray };
+        }""")
+        R.check(px and px['red'] > 2000 and px['gray'] > 20000, f'bodyMapImage : base grise et pectoraux teintés en rouge {px}')
 
 
-run_main(R, [t_progress, t_empty, t_editor, t_library_muscles, t_add_sheet, t_silhouette], once=[once_static])
+run_main(R, [t_progress, t_empty, t_editor, t_library_muscles, t_add_sheet, t_silhouette, t_tip], once=[once_static])

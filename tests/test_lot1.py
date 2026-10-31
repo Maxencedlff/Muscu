@@ -74,7 +74,7 @@ def t_migration(bench, eng, dev, theme):
             dips: data.history.flatMap(h => h.exercises).find(e => e.name === 'Dips')?.exId,
             curl: data.programmes.ppl.exercises.pull.find(e => e.id === 'l5curlma').pr,
             flag: '_prRecomputed' in data })""")
-        R.check(info['schema'] == 5, f'{t} migration : schéma 5')
+        R.check(info['schema'] == 6, f'{t} migration : schéma 6')
         R.check(info['n'] == 30, f'{t} migration : nombre de séances conservé ({info["n"]})')
         R.check(info['allIds'], f'{t} migration : 100 % des exercices ont un exId')
         R.check(info['dips'] == 'n:dips', f'{t} migration : exercice hors programme -> n:dips ({info["dips"]})')
@@ -82,7 +82,7 @@ def t_migration(bench, eng, dev, theme):
         R.check(not info['flag'], f'{t} migration : _prRecomputed retiré')
         R.check(ls(page, 'ppl_v2_backup') == raw, f'{t} migration : ppl_v2_backup identique octet pour octet')
         stored = json.loads(ls(page, 'ppl_v2'))
-        R.check(stored.get('schema') == 5, f'{t} migration : schéma 5 persisté')
+        R.check(stored.get('schema') == 6, f'{t} migration : schéma 6 persisté')
         # Idempotence : un 2e chargement ne touche ni la sauvegarde ni les exId
         ids1 = [e['exId'] for h in stored['history'] for e in h['exercises']]
         page.reload(); page.wait_for_selector('.view.dashboard')
@@ -92,6 +92,7 @@ def t_migration(bench, eng, dev, theme):
         # Un ancien export se ré-importe sans perte
         page.click('[data-action="go-settings"]')
         shot(page, LOT, f'reglages-{t}')
+        page.click('[data-action="go-backup"]')   # Réglages › Données › Sauvegarde
         with page.expect_file_chooser() as fc:
             page.click('[data-action="import"]')
             tap_dialog(page, 'Choisir un fichier')
@@ -277,6 +278,7 @@ def t_import_bad(bench, eng, dev, theme):
         before = ls(page, 'ppl_v2')
         bad = '{"activeProgramme":"ppl","programmes":{},"history":[{"id":"x","date":1,"category":"push"}]}'
         page.click('[data-action="go-settings"]')
+        page.click('[data-action="go-backup"]')   # Réglages › Données › Sauvegarde
         with page.expect_file_chooser() as fc:
             page.click('[data-action="import"]')
             tap_dialog(page, 'Choisir un fichier')
@@ -285,6 +287,7 @@ def t_import_bad(bench, eng, dev, theme):
         R.check('Fichier invalide' in txt, f'{t} import corrompu : toast d\'erreur « {txt} »')
         shot(page, LOT, f'import-invalide-{t}')
         R.check(ls(page, 'ppl_v2') == before and page.evaluate('data.history.length') == 30, f'{t} import corrompu : données intactes')
+        page.click('[data-action="back"]'); page.wait_for_timeout(300)   # Sauvegarde → Réglages
         page.click('[data-action="setting-sound"]')  # une écriture après l'échec
         page.reload(); page.wait_for_selector('#app > *')
         R.check(page.locator('.view.dashboard').count() == 1 and page.locator('.rescue').count() == 0, f'{t} import corrompu : pas d\'écran noir au relancement')
@@ -292,6 +295,7 @@ def t_import_bad(bench, eng, dev, theme):
         # Import valide puis « Annuler » : la donnée d'avant revient
         small = ppl_v2_today(); small['history'] = small['history'][:5]
         page.click('[data-action="go-settings"]')
+        page.click('[data-action="go-backup"]')   # Réglages › Données › Sauvegarde
         with page.expect_file_chooser() as fc:
             page.click('[data-action="import"]')
             tap_dialog(page, 'Choisir un fichier')
@@ -442,7 +446,7 @@ def t_service_worker(bench):
                 t = tag(dev, theme)
                 with bench.page(eng, dev, theme, service_workers='allow') as page:
                     seed(page, theme, ppl_v2_today_json(), url=url)
-                    page.evaluate("navigator.serviceWorker.ready")
+                    page.evaluate("Promise.race([navigator.serviceWorker.ready, new Promise((_, rej) => setTimeout(() => rej(new Error('service worker jamais prêt (fichier de la liste absent ?)')), 60000))])")  # ready n'a pas de délai : une installation qui échoue figerait le test
                     page.reload(); page.wait_for_selector('.view.dashboard')
                     ctrl = page.evaluate("!!navigator.serviceWorker.controller")
                     R.check(ctrl, f'{t} SW : page contrôlée')
@@ -476,7 +480,7 @@ def t_service_worker(bench):
                 with bench.page(eng, dev, theme, service_workers='allow') as page:
                     # Pendant une séance : pas de bannière
                     seed(page, theme, ppl_v2_today_json(), url=url)
-                    page.evaluate("navigator.serviceWorker.ready")
+                    page.evaluate("Promise.race([navigator.serviceWorker.ready, new Promise((_, rej) => setTimeout(() => rej(new Error('service worker jamais prêt (fichier de la liste absent ?)')), 60000))])")  # ready n'a pas de délai : une installation qui échoue figerait le test
                     page.reload(); page.wait_for_selector('.view.dashboard')
                     start(page)
                     sw = open(os.path.join(tmp, 'sw.js'), encoding='utf-8').read()
@@ -489,7 +493,37 @@ def t_service_worker(bench):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-TESTS = [t_migration, t_session_pr, t_fix_typo, t_bounds, t_rename, t_import_bad,
+def t_migration_cardio_words(bench, eng, dev, theme):
+    """Schéma 5 → 6 : un exercice perso sans mesure dont le nom ne contient que les mots de cardio appris le 29/10
+    (« Montées d'escaliers lestées », 20 kg × 12) reste en répétitions : historique, programme, persisté, affiché."""
+    t = tag(dev, theme)
+    now = int(time.time() * 1000)
+    d = ppl_v2_today(now_ms=now)
+    d['schema'] = 5
+    d['programmes']['ppl']['exercises']['legs'].append({'id': 'l9esc', 'name': 'Montées d\'escaliers lestées', 'sets': 3})
+    d['history'].insert(0, {'id': 'hesc', 'programme': 'ppl', 'category': 'legs', 'date': now - DAY, 'duration': 40 * 60_000, 'notes': '',
+                            'exercises': [{'exId': 'l9esc', 'name': 'Montées d\'escaliers lestées', 'sets': [{'weight': '20', 'reps': '12'}]},
+                                          {'exId': 'n:stepper', 'name': 'Stepper', 'sets': [{'weight': '', 'reps': '15'}]}]})
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, json.dumps(d, ensure_ascii=False, separators=(',', ':')))
+        info = page.evaluate("""() => { const h = data.history.find(x => x.id === 'hesc'); return {
+            schema: data.schema, hist: h.exercises.map(e => e.measure || null), vol: exVolume(h.exercises[0]),
+            prog: data.programmes.ppl.exercises.legs.find(e => e.id === 'l9esc').measure || null,
+            txt: measureSetTxt(h.exercises[0].sets[0], measureOf(h.exercises[0])) }; }""")
+        R.check(info['schema'] == 6 and info['hist'] == ['reps', None], f'{t} mots de cardio : historique en répétitions, stepper inchangé ({info["hist"]})')
+        R.check(info['prog'] == 'reps', f'{t} mots de cardio : exercice du programme en répétitions')
+        R.check(info['vol'] == 240 and info['txt'].replace('\u202f', ' ') == '20 kg × 12', f'{t} mots de cardio : volume et texte gardés ({info["vol"]}, {info["txt"]!r})')
+        stored = json.loads(ls(page, 'ppl_v2'))
+        R.check(stored['schema'] == 6 and [e.get('measure') for e in next(h for h in stored['history'] if h['id'] == 'hesc')['exercises']] == ['reps', None],
+                f'{t} mots de cardio : measure reps persistée')
+        page.evaluate("navigate(makeRoute('history-detail', 'hesc'))")
+        page.wait_for_selector('.history-detail')
+        detail = page.inner_text('.history-detail').replace('\u202f', ' ').replace('\u00a0', ' ')
+        R.check('20 kg × 12' in detail and '12 min' not in detail, f'{t} mots de cardio : détail « 20 kg × 12 », jamais « 12 min »')
+        R.check(not page.errors, f'{t} mots de cardio : aucune erreur JS {page.errors}')
+
+
+TESTS = [t_migration, t_migration_cardio_words, t_session_pr, t_fix_typo, t_bounds, t_rename, t_import_bad,
          t_storage_full, t_old_session, t_rest_drift, t_rescue, t_custom_delete]
 
 if __name__ == '__main__':

@@ -20,16 +20,27 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Profil partagé entre les appareils du compte. silhouette (carte des muscles) : choix de la personne,
+// Profil partagé entre les appareils du compte. silhouette (carte des muscles), level (niveau du premier
+// lancement, repère de la bulle des muscles) : réponses de la personne,
 // le même sur tous ses appareils comme l'unité ; pas une donnée de santé. myProgrammes (liste ordonnée,
 // remplacée en bloc, pas fusionnée) : un programme créé sur un autre appareil y revient par
-// cleanMyProgrammes (store.js) après la fusion
+// cleanMyProgrammes (store.js) après la fusion. sessionVisibleDefault (Réglages › Amis et coach) :
+// préremplit « Visible sur mon profil » à la fin d'une séance, même choix sur tous les appareils.
+// appVersion / appSeenAt (noteAppVersion) : version du contenu de l'app et date où elle a été vue,
+// pour savoir côté serveur qui a quelle version ; le dernier appareil lancé l'emporte, rien d'autre ne part.
 const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
-  'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'silhouette', 'myProgrammes'];
+  'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'silhouette', 'myProgrammes',
+  'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt'];
 // Restent sur l'appareil (liste tenue pour le test qui oblige à classer toute nouvelle clé).
-// lastAccount : moyen et pseudo du dernier compte connecté ici (reconnexion après une restauration iCloud)
-const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'healthOn', 'musicOn', 'soundOn', 'vibrateOn',
-  'lastExport', 'healthKgPurged', 'schema', 'lastAccount'];
+// lastAccount : moyen et pseudo du dernier compte connecté ici (reconnexion après une restauration iCloud).
+// rirOn (sélecteur RIR) et plates (barre et disques de la salle) : préférences d'affichage et de matériel,
+// comme les sons : propres à l'appareil.
+// bodyMeasures : mensurations (js/data/body-measures.js), aussi privées que le poids ; les photos de
+// progression ne sont même pas dans data (IndexedDB, js/data/progress-photos.js).
+// recapCardOff (carte « Ta semaine » de l'accueil coupée) : affichage de cet appareil, comme les sons ;
+// sur le compte, son absence (carte rallumée) devrait en plus compter comme un choix (SYNC_ABSENT_IS_CHOICE)
+const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'healthOn', 'musicOn', 'soundOn', 'vibrateOn',
+  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff'];
 // Clés dont l'absence est un choix fait sur un appareil (objectif « Auto », derniers muscles rétablis) :
 // absentes du compte, elles sont retirées ici aussi. Toutes les versions qui synchronisent les envoient.
 // Les autres clés absentes du compte sont gardées ici : un appareil resté sur une version qui ne les
@@ -39,7 +50,7 @@ const SYNC_ABSENT_IS_CHOICE = ['weeklyGoal', 'exerciseMuscles', 'exerciseMuscles
 const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary'];
 
 // État de synchro vide d'un compte : curseur serveur, empreintes envoyées, profil
-function emptySyncMeta(userId) { return { userId, cursor: null, pushed: {}, profileHash: null, profileAt: null }; }
+function emptySyncMeta(userId) { return { userId, cursor: null, pushed: {}, profileHash: null, profileCore: null, profileAt: null }; }
 
 // JSON aux clés triées : deux objets égaux donnent la même empreinte, quel que soit l'ordre des clés
 function stableJson(v) {
@@ -76,6 +87,16 @@ function legacySessionHash(h) { const { bodyKg, label, ...rest } = h; return syn
 function sessionUnchangedSince(known, h) { return known === syncHash(sessionPayload(h)) || known === legacySessionHash(h); }
 // Séance reçue du compte : sans son nom (recalculé ici à l'envoi, jamais stocké dans l'historique)
 function remoteEntry(rowData, id) { const { label, ...rest } = rowData; return { ...rest, id }; }
+// Version du contenu de l'app notée dans le profil au démarrage (js/app/init.js). Renvoie true si elle
+// a changé (à enregistrer) : appVersion = version du contenu (window.MDLF_BUILD, absent dans la PWA :
+// rien n'est noté), appSeenAt = date ISO du premier lancement de cette version sur cet appareil.
+function noteAppVersion(d, version, now = new Date()) {
+  if (typeof version !== 'string' || !version || d.appVersion === version) return false;
+  d.appVersion = version;
+  d.appSeenAt  = now.toISOString();
+  return true;
+}
+
 // Profil partagé : seulement les clés autorisées
 function profilePayload(d) {
   const out = {};
@@ -97,6 +118,17 @@ function profileHashBeforeOrder(doc) {
     if (up && typeof up === 'object') { const { order, ...rest } = up; out[k] = rest; } else out[k] = up;
   }
   return syncHash({ ...doc, userProgrammes: out });
+}
+// Clés du profil que l'app change d'elle-même (noteAppVersion) : elles partent sur le compte, mais ne
+// comptent pas comme « modifié ici » ; sinon une mise à jour de l'app, notée avant la première synchro,
+// ferait gagner cet appareil sur les changements faits ailleurs entre-temps
+const SYNC_PROFILE_VOLATILE = ['appVersion', 'appSeenAt'];
+// Empreinte du profil sans ces clés (meta.profileCore). Une empreinte enregistrée avant elles (profil sans
+// appVersion) est égale à celle-ci tant que rien d'autre n'a changé
+function profileCoreHash(doc) {
+  const out = { ...(doc || {}) };
+  for (const k of SYNC_PROFILE_VOLATILE) delete out[k];
+  return syncHash(out);
 }
 // Ordres locaux des séances, gardés quand le profil reçu n'en a pas encore (compte rempli par une version
 // précédente : ses clés arrivent triées par jsonb, l'ordre de cet appareil est le bon)
@@ -185,17 +217,24 @@ function applyRemoteProfile(d, remote, meta) {
   meta.profileAt = remote.updated_at || meta.profileAt;
   const doc = profilePayload(remote.doc);
   const remoteHash = syncHash(doc), localHash = syncHash(profilePayload(d));
-  if (localHash === remoteHash) { meta.profileHash = localHash; return false; }
+  if (localHash === remoteHash) { meta.profileHash = localHash; meta.profileCore = profileCoreHash(doc); return false; }
   const blank = isBlankData(d);
   const before = Object.fromEntries(Object.entries(d.userProgrammes || {}).filter(([, up]) => Array.isArray(up?.order)).map(([k, up]) => [k, up.order.slice()]));
-  // Inchangé ici : empreinte égale, ou égale sans l'ordre des séances ajouté par cette version
-  const unchangedHere = meta.profileHash === localHash || (meta.profileHash != null && meta.profileHash === profileHashBeforeOrder(profilePayload(d)));
+  // Inchangé ici : empreinte égale, ou égale sans l'ordre des séances ajouté par une version précédente,
+  // ou égale sans la version de l'app (SYNC_PROFILE_VOLATILE : notée au démarrage, avant la synchro)
+  const localDoc = profilePayload(d), localCore = profileCoreHash(localDoc);
+  const unchangedHere = meta.profileHash === localHash
+    || (meta.profileHash != null && (meta.profileHash === profileHashBeforeOrder(localDoc) || meta.profileHash === localCore))
+    || (meta.profileCore != null && meta.profileCore === localCore);
   if (blank || unchangedHere) {
     // Appareil vierge : ses clés ne sont que les valeurs par défaut, copie exacte (Mes programmes se
     // reconstruit alors depuis l'historique du compte, cleanMyProgrammes)
+    // La version de l'app reste celle de cet appareil (elle partira au prochain envoi)
+    const ownVersion = Object.fromEntries(SYNC_PROFILE_VOLATILE.filter(k => d[k] !== undefined).map(k => [k, d[k]]));
     for (const k of SYNC_PROFILE_KEYS) { if (k in doc) d[k] = doc[k]; else if (blank || SYNC_ABSENT_IS_CHOICE.includes(k)) delete d[k]; }
+    Object.assign(d, ownVersion);
     keepLocalOrders(d, before);
-    meta.profileHash = remoteHash;
+    meta.profileHash = remoteHash; meta.profileCore = profileCoreHash(doc);
     return true;
   }
   const remoteWins = meta.profileHash == null;
@@ -206,6 +245,6 @@ function applyRemoteProfile(d, remote, meta) {
   }
   keepLocalOrders(d, before);
   // Empreinte du compte : le résultat de la fusion, différent, partira au prochain envoi
-  meta.profileHash = remoteHash;
+  meta.profileHash = remoteHash; meta.profileCore = profileCoreHash(doc);
   return true;
 }

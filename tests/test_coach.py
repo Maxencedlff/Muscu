@@ -494,7 +494,10 @@ def t_coach(bench, eng, dev, theme):
         page.wait_for_selector('.coach-session-view')
         d = page.inner_text('.coach-session-view')
         R.check('Épaule un peu raide' in d and 'Ton programme' in d and 'Force' in d and '40 kg × 8 · 7' in d, f'{t} détail : séries, notes, programme ({d[:160]!r})')
-        R.check('3/11' in d and 'Prévus mais pas faits' in d and 'Pompes' in d.split('Prévus mais pas faits')[1], f'{t} séance de mon programme : séries faites sur prévues, exercices non faits')
+        miss = page.locator('.coach-session-view .review-ex--missing')
+        R.check('3/11' in d and miss.count() == 1 and 'Pompes' in miss.inner_text() and 'pas fait' in miss.inner_text(), f'{t} séance de mon programme : séries faites sur prévues, exercice non fait grisé')
+        R.check(page.locator('.coach-session-view .review-notes').count() == 1 and page.locator('.review-notes--pain').count() == 0, f'{t} notes en haut, sans encadré orange (« raide » n\'est pas un mot de douleur)')
+        R.check('1re séance Haut' in d, f'{t} 35 séances chargées, aucune autre Haut : « 1re séance Haut »')
         layout(page, t, 'séance d\'un élève')
         shot(page, LOT, f'14-seance-eleve-{t}')
         page.click('[data-action="coach-comment"]')
@@ -592,6 +595,67 @@ def t_coach(bench, eng, dev, theme):
         page.click('[data-action="coach-allow"]')
         page.wait_for_timeout(500)
         R.check(page.evaluate('__sb.co.bans.length') == 0 and page.locator('[data-action="coach-allow"]').count() == 0, f'{t} « Autoriser à revenir »')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_recap(bench, eng, dev, theme):
+    """Séance d'un élève relue par le coach : référence, notes avec douleur, cases (volume et écart sans
+    poids du corps, même le mien connu ; durée), records nommés, flèches contre la dernière fois que
+    l'élève a fait l'exercice (même dans une autre séance), poids du corps en reps, règle du volume."""
+    t = tag(dev, theme)
+    now = int(time.time() * 1000)
+    S = lambda w, r, n: [{'weight': w, 'reps': r}] * n
+    zoe = [
+        {'id': 'z0', 'date': now - DAY, 'duration': 37 * 60_000, 'programme': 'ppl', 'category': 'legs', 'label': 'Legs',
+         'notes': 'Genou gauche un peu douloureux sur la fin.', 'bodyKg': 58,
+         'exercises': [{'name': 'Squat haltère', 'sets': S('22.5', '12', 4)}, {'name': 'Squat poids du corps', 'sets': S('', '12', 3)},
+                       {'name': 'Soulevé de terre roumain', 'sets': S('16', '12', 4)}, {'name': 'Mollets debout haltères', 'sets': S('18', '15', 4)}]},
+        {'id': 'z1', 'date': now - 4 * DAY, 'duration': 40 * 60_000, 'programme': 'ppl', 'category': 'push', 'label': 'Push',
+         'exercises': [{'name': 'Développé couché', 'sets': S('40', '8', 3)}, {'name': 'Soulevé de terre roumain', 'sets': S('14', '12', 3)}]},
+        {'id': 'z2', 'date': now - 8 * DAY, 'duration': 30 * 60_000, 'programme': 'ppl', 'category': 'legs', 'label': 'Legs',
+         'exercises': [{'name': 'Squat haltère', 'sets': S('20', '12', 3) + S('20', '10', 1)}, {'name': 'Squat poids du corps', 'sets': S('', '10', 3)},
+                       {'name': 'Soulevé de terre roumain', 'sets': S('16', '12', 4)}, {'name': 'Mollets debout haltères', 'sets': S('18', '15', 4)}]},
+    ]
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, username='max')
+        uid = page.evaluate("""(s) => { const me = __sb.meId(); __sb.makeCoach(me);
+            const zoe = __sb.addPerson({ username: 'zoe', avatar: '🐼', social: false, sessions: s }); __sb.link(me, zoe);
+            data.bodyWeightKg = 90; save(); return zoe; }""", zoe)
+        page.evaluate('coachRefresh()')
+        page.wait_for_timeout(300)
+        page.evaluate(f"navigate(makeRoute('coach-student', '{uid}'))")
+        page.wait_for_selector('.coach-sess[data-id="z0"]')
+        page.click('.coach-sess[data-id="z0"]')
+        page.wait_for_selector('.coach-session-view')
+        d = page.inner_text('.coach-session-view').replace('\u202f', ' ').replace('\u00a0', ' ')
+        R.check('vs Legs du' in page.inner_text('.review-vs'), f'{t} référence : la Legs d\'avant, pas la Push')
+        notes = page.locator('.review-notes--pain')
+        R.check(notes.count() == 1 and 'douloureux' in notes.inner_text() and 'À lire' in notes.inner_text(), f'{t} notes en haut, encadré orange')
+        R.check(page.evaluate("document.querySelector('.review-notes').compareDocumentPosition(document.querySelector('.tiles')) & Node.DOCUMENT_POSITION_FOLLOWING") > 0, f'{t} notes au-dessus des cases')
+        tiles = [x.replace('\u202f', ' ').replace('\n', ' ') for x in page.locator('.coach-session-view .tile').all_inner_texts()]
+        R.check(len(tiles) == 4, f'{t} 4 cases ({tiles})')
+        R.check(tiles[0].startswith('2,9 t') and '+6 %' in tiles[0] and page.locator('.tile__delta--up').count() == 1, f'{t} volume sans poids du corps, +6 % en vert ({tiles[0]!r})')
+        R.check('+23 %' in tiles[1], f'{t} durée : écart de plus de 20 % dit ({tiles[1]!r})')
+        R.check('15' in tiles[2] and '4' in tiles[3], f'{t} séries et exercices ({tiles[2:]!r})')
+        recs = page.locator('.coach-session-view .review-rec').all_inner_texts()
+        R.check(len(recs) == 2 and 'Squat haltère' in recs[0] and 'avant 20 kg × 12' in recs[0] and '22,5 kg × 12' in recs[0], f'{t} record de charge nommé avec l\'ancienne valeur ({recs})')
+        R.check(len(recs) == 2 and 'Squat poids du corps' in recs[1] and 'Record reps' in recs[1], f'{t} record de reps au poids du corps ({recs})')
+        rows = [x.replace('\u202f', ' ') for x in page.locator('.coach-session-view .review-ex').all_inner_texts()]
+        R.check('↑ +2,5 kg' in rows[0] and 'préc. 20 kg × 12 · 12 · 12 · 10' in rows[0] and '1,1 t' in rows[0], f'{t} squat : flèche, volume (1 080 kg), précédent ({rows[0]!r})')
+        R.check('36 reps' in rows[1] and '↑ +6 reps' in rows[1], f'{t} poids du corps : « 36 reps » et +6 ({rows[1]!r})')
+        R.check('↑ +2 kg' in rows[2] and 'préc. 14 kg × 12' in rows[2], f'{t} référence par exercice : la Push du jour 4 ({rows[2]!r})')
+        R.check('=' in rows[3] and '↓' not in d, f'{t} égalité : « = » ({rows[3]!r})')
+        R.check(page.locator('.review-trend--up').count() == 3 and page.locator('.review-trend--same').count() == 1, f'{t} hausses en vert, égalité en gris')
+        R.check('poids du corps non compté' in page.inner_text('.review-rule'), f'{t} règle du volume affichée')
+        layout(page, t, 'relecture d\'une séance')
+        shot(page, LOT, f'14b-relecture-{t}')
+        # Plus ancienne séance : rien à comparer, aucune flèche ni record
+        page.click('[data-action="back"]')
+        page.wait_for_selector('.coach-sess[data-id="z2"]')
+        page.click('.coach-sess[data-id="z2"]')
+        page.wait_for_selector('.coach-session-view')
+        R.check('1re séance Legs' in page.inner_text('.coach-session-view') and page.locator('.review-trend, .review-rec').count() == 0, f'{t} première séance : « 1re séance Legs », ni flèche ni record')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -817,4 +881,4 @@ def formatted(code):
     return f'{code[:4]}-{code[4:8]}-{code[8:]}'
 
 
-run_main(R, [t_demande_coach, t_eleve, t_coach, t_pseudo, t_saisie, t_cache_online, t_hors_ligne])
+run_main(R, [t_demande_coach, t_eleve, t_coach, t_recap, t_pseudo, t_saisie, t_cache_online, t_hors_ligne])

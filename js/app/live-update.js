@@ -13,6 +13,18 @@ const OTA_MANIFEST_URL  = 'https://mdlf-ota.vercel.app/manifest.json';
 const SHELL_RUNTIME_KEY = 'mdlf_shell_runtime';
 const OTA_CHECK_EVERY   = 6 * 3_600_000;   // au retour au premier plan, au plus toutes les 6 h
 const OTA_TIMEOUT       = 8_000;
+// Installée après 5 min passées en arrière-plan : on rouvre l'app plus tard et on est à jour. Avant,
+// seule la fermeture complète de l'app l'installait ; iOS ne ferme presque jamais une app en
+// arrière-plan, donc la mise à jour attendait des jours (il fallait « Rechercher une mise à jour »).
+const OTA_BACKGROUND_MS = 5 * 60_000;
+
+// Conditions d'installation d'une mise à jour en file. Séance en cours : JAMAIS en arrière-plan (un
+// long repos, un appel…), seulement si l'app est fermée puis rouverte, comme quand iOS la ferme de
+// lui-même ; la séance, enregistrée à chaque série, est alors restaurée. Hors séance : après 5 min
+// en arrière-plan. Rebasculées au début et à la fin de chaque séance (otaSessionChanged).
+function otaDelayConditions(sessionActive) {
+  return sessionActive ? [{ kind: 'kill' }] : [{ kind: 'background', value: String(OTA_BACKGROUND_MS) }];
+}
 
 let otaLastCheck = 0;
 let otaBusy      = false;
@@ -83,7 +95,7 @@ async function checkLiveUpdate({ now = false } = {}) {
     if (!bundle?.id) return { status: 'error', reason: 'téléchargement impossible' };
 
     if (now && !activeSession && await Native.ota.applyNow(bundle.id)) return { status: 'applied', reason: manifest.version };
-    return (await Native.ota.applyAtNextLaunch(bundle.id))
+    return (await Native.ota.applyAtNextLaunch(bundle.id, otaDelayConditions(!!activeSession)))
       ? { status: 'ready', reason: manifest.version }
       : { status: 'error', reason: 'mise à jour non programmée' };
   } finally {
@@ -95,10 +107,19 @@ async function checkLiveUpdate({ now = false } = {}) {
 function liveUpdateBoot() {
   if (!Native.isNative) return;
   Native.ota.ready();
+  otaSessionChanged();   // séance restaurée au lancement : une mise à jour en file l'attend
   setTimeout(() => { checkLiveUpdate(); }, 3_000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && Date.now() - otaLastCheck > OTA_CHECK_EVERY) checkLiveUpdate();
   });
+}
+
+// Début ou fin de séance : une mise à jour déjà en file change de conditions (jamais pendant une
+// séance, après 5 min en arrière-plan sinon). Sans mise à jour en file, rien à faire.
+async function otaSessionChanged() {
+  if (!Native.isNative) return;
+  if (!(await Native.ota.pending())) return;
+  await Native.ota.setDelay(otaDelayConditions(!!activeSession));
 }
 
 function liveUpdateLabel() {

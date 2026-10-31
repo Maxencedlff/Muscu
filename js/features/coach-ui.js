@@ -10,8 +10,8 @@
 //    (repliables), commentaire dans Historique (marque dans la liste, détail), notes vues du coach (bilan).
 //  - Coach : Mes élèves (`coach-students` : nouvelles séances, invitations, élèves retirés), un élève
 //    (`coach-student:UID` : séances, séries faites sur prévues, programmes envoyés pas encore utilisés),
-//    une séance (`coach-session:UID:ID` : détail, exercices prévus non faits, « Commenter »), envoi d'un
-//    programme avec consignes (`coach-send:UID:PROG`, brouillon gardé sur l'appareil).
+//    une séance (`coach-session:UID:ID` : relecture comparée à ses séances reçues, exercices prévus non faits,
+//    « Commenter »), envoi d'un programme avec consignes (`coach-send:UID:PROG`, brouillon gardé sur l'appareil).
 //  Tout texte venu du serveur passe par esc() ; les pseudos passent par elide() (« d'essai »). Rien au
 //  pointerdown : actions au clic seulement.
 // ═══════════════════════════════════════════════════════════
@@ -64,17 +64,20 @@ function coachRouteTitle(route) {
 
 // ── Cellules : Réglages et onglet Amis ──────────────────────
 
+// Réglages › Amis et coach : la cellule Coach, puis « Séances visibles par défaut » (js/features/social-ui.js,
+// seulement quand Amis est activé)
 function renderCoachSettingsGroup() {
   if (!accountAvailable()) return '';
   const { isCoach, hasCoach } = coachRole();
   const value = hasCoach ? esc(coachName()) : isCoach ? 'Mes élèves' : account.user ? 'Rejoindre' : '';
   return `
+        <div class="group-title">Amis et coach</div>
         <div class="group">
           <button class="cell cell--nav" data-action="coach-open-settings">
             <span class="cell__body"><span class="cell__title">Coach</span></span>
             <span class="cell__value">${value}</span>
             ${icon('chevron.right', 16)}
-          </button>
+          </button>${socialDefaultVisibleCell()}
         </div>`;
 }
 
@@ -683,13 +686,77 @@ SCREENS.set('coach-student', {
   },
 });
 
+// ── Coach : une séance d'un élève, relue en 20 secondes ─────
+// De haut en bas : référence (« vs Legs du 22 oct. »), notes de l'élève (encadré orange si un mot de
+// douleur), 4 cases (volume et écart, durée, séries, exercices), records battus avec l'ancienne valeur,
+// exercices avec flèche contre la dernière fois que l'élève a fait CET exercice, puis le commentaire.
+// Comparaisons : uniquement ses séances reçues (js/data/session-review.js), jamais les miennes.
+
+const REVIEW_ARROW = { up: '↑', down: '↓', same: '' };
+const REVIEW_SPOKEN = { up: 'en hausse', down: 'en baisse', same: 'identique' };
+
+// Flèche d'un exercice : verte en hausse, grise sinon (jamais rouge)
+function reviewTrendHtml(tr) {
+  if (!tr) return '';
+  const txt = tr.dir === 'same' ? '=' : `${REVIEW_ARROW[tr.dir]} ${tr.text}`;
+  return `<span class="review-trend review-trend--${tr.dir} num" aria-hidden="true">${esc(txt)}</span><span class="visually-hidden">, ${REVIEW_SPOKEN[tr.dir]}${tr.dir === 'same' ? '' : ` : ${esc(tr.text)}`} depuis la dernière fois</span>`;
+}
+// Volume d'un exercice en petit gris ; sans charge comptée (poids du corps, charge non notée) : ses reps
+function reviewExAmount(x) {
+  if (x.volume > 0) return fmtVolume(x.volume);
+  return measureOf(x.ex) === 'reps' && x.reps ? plural(x.reps, 'rep', 'reps') : '';
+}
+function reviewExerciseCell(x, xs, i) {
+  const e = x.ex, amount = reviewExAmount(x);
+  return `
+            <div class="cell hex review-ex">
+              <span class="cell__body">
+                <span class="review-ex__line"><span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>${reviewTrendHtml(x.trend)}</span>
+                <span class="review-ex__line"><span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>${amount ? `<span class="review-ex__vol num">${esc(amount)}</span>` : ''}</span>
+                ${x.prev ? `<span class="review-ex__prev num">préc. ${setsLine(x.prev.ex.sets, x.prev.ex.measure || measureOf(x.prev.ex), reviewSetKind(x.prev.ex))} (${esc(fmtDate(x.prev.doneAt, 'short'))})</span>` : ''}
+              </span>
+            </div>`;
+}
+// Case : valeur, libellé, puis écart éventuel (vert en hausse, gris sinon)
+function reviewTile(val, lbl, delta = null, up = false) {
+  return `<div class="tile"><span class="tile__val num">${val}</span><span class="tile__lbl">${lbl}</span>${delta ? `<span class="tile__delta num ${up ? 'tile__delta--up' : ''}">${delta}</span>` : ''}</div>`;
+}
+// Règle du volume, dite telle qu'elle est (la même chaque semaine), et étendue des comparaisons
+function reviewRuleFoot(rows, complete) {
+  const oldest = rows.reduce((m, r) => Math.min(m, r.doneAt), Infinity);
+  const scope = complete || !Number.isFinite(oldest) ? 'ses séances reçues' : `ses séances reçues depuis le ${fmtDate(oldest, 'short')}`;
+  return `<div class="group-foot review-rule">Volume = charge notée × reps, échauffement compris, poids du corps non compté (lest compris). Comparaisons avec ${scope}.</div>`;
+}
+
 function renderCoachSession(uid, id) {
   const row = coachSessionOf(uid, id), p = coachStudent(uid);
   if (!row) return `<div class="view view--grouped coach-session-view">${navBar({ title: 'Séance' })}<div class="scr"><div class="empty-note">Cette séance n'est plus disponible.</div></div></div>`;
   const s = row.s, n = seriesCount(s), mine = coachOwnProgrammeName(s.programme), plan = coachPlanOf(s);
+  const f = coachSessions(uid), rv = sessionReview(row, f.rows);
   const who = esc(personName(p));
   let when = capitalize(fmtDate(row.doneAt, 'long'));
   if (s.duration) when += ` · ${fmtTime(row.doneAt)}`;
+  const vs = rv.prev ? `vs ${esc(rv.prev.s.label)} du ${esc(fmtDate(rv.prev.doneAt, 'short'))}` : f.end ? `1re séance ${esc(s.label)}` : '';
+  const pain = s.notes && painInNotes(s.notes);
+  const notes = s.notes ? `
+        <div class="review-notes ${pain ? 'review-notes--pain' : ''}">
+          <p class="review-notes__head">Notes ${elide('de', who)}${pain ? '<span class="review-notes__flag">À lire</span>' : ''}</p>
+          <p class="hnotes">${esc(s.notes)}</p>
+        </div>` : '';
+  const vd = rv.volDelta;
+  const tiles = [
+    reviewTile(rv.volume > 0 ? fmtVolume(rv.volume) : '—', 'volume', rv.volume > 0 && vd ? (vd.dir === 'same' ? '=' : fmtPct(vd.pct)) : null, vd?.dir === 'up'),
+    reviewTile(s.duration ? fmtDuration(s.duration) : '—', 'durée', s.duration && rv.durGap !== null ? fmtPct(rv.durGap) : null),
+    reviewTile(plan ? `${plan.done}/${plan.total}` : n, plan ? 'séries prévues' : n > 1 ? 'séries' : 'série'),
+    reviewTile(s.exercises.length, s.exercises.length > 1 ? 'exercices' : 'exercice'),
+  ].join('');
+  // Records seulement quand toutes ses séances sont chargées (même règle que friendRecord, js/features/social-ui.js) :
+  // sur une page seulement, un « record » pourrait être faux
+  const records = f.end && rv.records.length ? `
+        <div class="group-title">${rv.records.length > 1 ? 'Records' : 'Record'}</div>
+        <div class="group">${rv.records.map(r => reviewRecordCell(r)).join('')}</div>` : '';
+  const missing = (plan?.missing || []).map(name => `
+            <div class="cell hex review-ex review-ex--missing"><span class="cell__body"><span class="review-ex__line"><span class="hex__name">${esc(name)}</span><span class="review-trend num">pas fait</span></span></span></div>`).join('');
   return `
     <div class="view view--grouped coach-session-view">
       ${navBar({ title: '' })}
@@ -697,31 +764,24 @@ function renderCoachSession(uid, id) {
         <div class="social-who">${personAvatar(p)}<span class="social-who__name">${who}</span></div>
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${coachSessionColor(s)}" aria-hidden="true"></span>${esc(s.label)}</h1>
         <p class="scr-sub">${when}</p>
+        ${vs ? `<p class="review-vs">${vs}</p>` : ''}
         ${mine ? `<p class="coach-sess__prog"><span class="coach-tag">Ton programme</span> ${esc(mine)}</p>` : ''}
-        <div class="tiles">
-          <div class="tile"><span class="tile__val num">${s.duration ? fmtDuration(s.duration) : '—'}</span><span class="tile__lbl">durée</span></div>
-          <div class="tile"><span class="tile__val num">${s.exercises.length}</span><span class="tile__lbl">${s.exercises.length > 1 ? 'exercices' : 'exercice'}</span></div>
-          <div class="tile"><span class="tile__val num">${plan ? `${plan.done}/${plan.total}` : n}</span><span class="tile__lbl">${plan ? 'séries prévues' : n > 1 ? 'séries' : 'série'}</span></div>
-        </div>
+        ${notes}
+        <div class="tiles tiles--4">${tiles}</div>
+        ${records}
         <div class="group-title">Exercices</div>
         <div class="group">
-          ${s.exercises.map((e, i, xs) => `
-            <div class="cell hex">
-              <span class="cell__body">
-                <span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>
-                <span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), setKind(e))}</span>
-              </span>
-            </div>`).join('') || '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}
+          ${rv.exercises.map((x, i) => reviewExerciseCell(x, s.exercises, i)).join('') || (missing ? '' : '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>')}${missing}
         </div>
-        ${plan?.missing.length ? `<div class="group-foot coach-missing">Prévus mais pas faits : ${esc(plan.missing.join(', '))}.</div>` : ''}
-        ${s.notes ? `${coachTitle(`Notes ${elide('de', who)}`)}<div class="group group--pad"><p class="hnotes">${esc(s.notes)}</p></div>` : ''}
-        ${s.hidden ? '<div class="group-foot">Séance masquée à ses abonnés : tu la vois en tant que coach.</div>' : ''}
+        ${missing ? '<div class="group-foot coach-missing">Exercices grisés : prévus dans ton programme, pas faits.</div>' : ''}
+        ${s.hidden ? '<div class="group-foot">Séance masquée à ses abonnés : tu la vois en tant que coach.</div>' : ''}
         <div class="group-title">Ton commentaire</div>
         <div class="group">
           ${row.note ? `<div class="cell"><p class="hnotes coach-note">${esc(row.note)}</p></div>` : ''}
           <button class="cell cell--action" data-action="coach-comment" data-uid="${esc(uid)}" data-id="${esc(row.id)}">${icon('pencil', 18)}<span>${row.note ? 'Modifier le commentaire' : 'Commenter'}</span></button>
         </div>
         <div class="group-foot">${who} le voit dans son historique et dans Mon coach.</div>
+        ${reviewRuleFoot(f.rows, f.end)}
       </div>
     </div>`;
 }

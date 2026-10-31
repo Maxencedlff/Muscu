@@ -173,7 +173,7 @@ function sessionMinutes(cat) {
 function exerciseTarget(cat, ex) {
   const lp = lastPerf(data.activeProgramme, cat, ex);
   if (!lp) return { text: `${ex.sets} série${ex.sets > 1 ? 's' : ''}`, gain: '' };
-  const sets = lp.ex.sets.filter(s => (parseInt(s.reps) || 0) > 0);
+  const sets = workSets(lp.ex.sets).filter(s => (parseInt(s.reps) || 0) > 0);   // l'échauffement ne fixe pas la cible
   const best = bestSet(sets);
   if (!best) return { text: `${ex.sets} série${ex.sets > 1 ? 's' : ''}`, gain: '' };
   const m = measureOf(ex);
@@ -347,6 +347,7 @@ function renderDashboard() {
         ${accessBannerHtml()}
         ${hero || emptyCustom}
         ${hero ? '' : accountHomeCard()}
+        ${recapHomeCard()}
         ${keys.length ? weekCard(ws) : ''}
         ${others ? `<section class="home-card home-card--list" aria-label="Autres séances"><h2 class="home-card__title">Autres séances</h2>${others}</section>` : ''}
       </div>

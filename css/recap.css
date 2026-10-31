@@ -1,0 +1,100 @@
+/* ═══════════════════════════════════════════════
+   Récaps (semaine, mois, année) : carte de l'accueil, liste, écrans qui s'enchaînent
+   Sobre : fond de l'app (noir pur en sombre), un chiffre énorme en SF Rounded par écran,
+   la couleur de la période (--cat-color) seulement sur le surtitre et la note.
+═══════════════════════════════════════════════ */
+
+/* ── Accueil : carte « Ta semaine » ── */
+.recap-card { position: relative; padding: 0; }
+.recap-card__open {
+  display: block; width: 100%; padding: 14px 44px 14px 16px; border: none; background: none; cursor: pointer;
+  color: var(--label); font: inherit; text-align: left; border-radius: var(--r-lg);
+}
+.recap-card__open:active { opacity: .7; }
+.recap-card .home-card__title { color: color-mix(in srgb, var(--cat-color) var(--cat-text-mix), var(--cat-text-base)); }
+.recap-card__line { display: block; margin-top: 4px; font-size: var(--fs-title2); line-height: 1.2; font-weight: 700; letter-spacing: -.01em; }
+.recap-card__cta { display: flex; align-items: center; gap: 2px; margin-top: 8px; font-size: var(--fs-footnote); color: var(--tint); font-weight: 600; }
+.recap-card__close {
+  position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: none; background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; color: var(--label2); border-radius: 50%;
+}
+.recap-card__close:active { background: var(--fill2); }
+
+/* ── Un récap : écrans côte à côte, défilement horizontal à crans ── */
+.recap { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg); color: var(--label); }
+.recap .navbar { flex-shrink: 0; }
+.recap__track {
+  flex: 1; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.recap__track::-webkit-scrollbar { display: none; }
+.recap-page {
+  flex: 0 0 100%; width: 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always;
+  display: flex; flex-direction: column; gap: 20px;
+  padding: 16px var(--gutter) 24px; overflow-y: auto;
+}
+/* Centré quand il y a de la place, défile quand il n'y en a pas (justify-content: center couperait le haut) */
+.recap-page > :first-child { margin-top: auto; }
+.recap-page > :last-child { margin-bottom: auto; }
+.recap-page__kicker {
+  font-size: var(--fs-footnote); font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--cat-color) var(--cat-text-mix), var(--cat-text-base));
+}
+.recap-page__sub { margin-top: -16px; font-size: var(--fs-subhead); color: var(--label2); font-weight: 600; }
+.recap-page__hero { display: flex; flex-direction: column; gap: 6px; }
+.recap-page__value {
+  font-family: var(--font-rounded); font-weight: 800; letter-spacing: -.04em; line-height: .95;
+  font-size: clamp(72px, 26vw, 128px); overflow-wrap: anywhere;
+}
+.recap-page__value--text { font-family: var(--font); font-size: clamp(30px, 10vw, 46px); letter-spacing: -.02em; line-height: 1.05; }
+.recap-page__caption { font-size: var(--fs-title2); font-weight: 600; color: var(--label2); }
+.recap-page__note {
+  margin-top: 6px; font-size: var(--fs-callout); font-weight: 500;
+  color: color-mix(in srgb, var(--cat-color) var(--cat-text-mix), var(--cat-text-base));
+}
+.recap-page__body { display: flex; flex-direction: column; gap: 12px; }
+
+/* Listes (records, résumé) et tuiles du résumé */
+.recap-list { list-style: none; margin: 0; padding: 0 16px; background: var(--cell); border-radius: var(--r-md); }
+.recap-list__row { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 0; }
+.recap-list__row + .recap-list__row { border-top: .5px solid var(--sep); }
+.recap-list .medal { flex-shrink: 0; color: var(--gold-text); }
+.recap-list__name { flex: 1; min-width: 0; font-size: var(--fs-callout); overflow-wrap: anywhere; }
+.recap-list__val { flex-shrink: 0; font-weight: 700; font-size: var(--fs-callout); text-align: right; max-width: 55%; overflow-wrap: anywhere; }
+.recap-list .medal + .recap-list__name + .recap-list__val { color: var(--gold-text); }
+.recap-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.recap-tile { background: var(--cell); border-radius: var(--r-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.recap-tile__lbl { font-size: var(--fs-caption); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--label2); }
+.recap-tile__val { font-family: var(--font-rounded); font-size: clamp(22px, 6.5vw, 30px); font-weight: 700; letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Pied : flèches, points, Partager */
+.recap__foot { flex-shrink: 0; padding: 4px var(--gutter) 8px; display: flex; flex-direction: column; gap: 4px; }
+.recap__nav { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.recap__arrow {
+  width: 44px; height: 44px; border: none; background: none; color: var(--tint); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; border-radius: 50%;
+}
+.recap__arrow:active:not(:disabled) { background: var(--fill2); }
+.recap__arrow:disabled { color: var(--label3); cursor: default; }
+.recap__dots { display: flex; gap: 6px; align-items: center; justify-content: center; flex: 1; min-height: 44px; }
+.recap__dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--fill); transition: background .2s, transform .2s; }
+.recap__dots i.is-on { background: var(--label); transform: scale(1.33); }
+.recap__share .icon { margin-top: -3px; }
+
+/* Arrivée légère de l'écran affiché (le surtitre, puis le chiffre, puis le reste) */
+@keyframes recapIn { from { opacity: 0; transform: translateY(10px); } }
+.recap-page.is-active > * { animation: recapIn .5s var(--nav-ease) both; }
+.recap-page.is-active > :nth-child(2) { animation-delay: .06s; }
+.recap-page.is-active > :nth-child(3) { animation-delay: .12s; }
+.recap-page.is-active > :nth-child(4) { animation-delay: .2s; }
+@media (prefers-reduced-motion: reduce) {
+  .recap-page.is-active > * { animation: none; }
+  .recap__dots i { transition: none; }
+}
+
+/* Petite hauteur (paysage, iPhone SE avec grands caractères) : le chiffre se fait plus discret */
+@media (max-height: 560px) {
+  .recap-page { gap: 10px; padding-top: 8px; }
+  .recap-page__value { font-size: clamp(56px, 14vh, 96px); }
+}

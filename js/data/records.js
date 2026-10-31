@@ -22,11 +22,11 @@ function recordLabel(s, base, ex = null) {
 }
 
 // Record le plus marquant d'un exercice : charge > reps > 1RM estimé, puis la série la plus lourde.
-// Renvoie { label, s } ou null.
+// Les séries d'échauffement (js/data/warmup.js) ne battent aucun record. Renvoie { label, s } ou null.
 function exerciseRecord(ex, base) {
   const score = s => (parseFloat(s.weight) || 0) * 100 + (+s.reps);
   let rec = null;
-  (ex.sets || []).forEach(s => {
+  workSets(ex.sets).forEach(s => {
     const l = recordLabel(s, base, ex);
     if (!l) return;
     const rank = RECORD_RANK[l], best = rec && RECORD_RANK[rec.label];
@@ -53,7 +53,7 @@ function historyBaseline(entry, history) {
     let prW = 0, prR = 0, e1rm = 0, seen = false;
     before.forEach(h => (h.exercises || []).forEach(he => {
       if (!sameEx(he, ex)) return;
-      (he.sets || []).forEach(s => {
+      workSets(he.sets).forEach(s => {
         const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0;
         seen = true;
         if (w > prW || (w === prW && r > prR)) { prW = w; prR = r; }

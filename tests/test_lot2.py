@@ -116,7 +116,7 @@ def t_screens(bench, eng, dev, theme):
         seg = page.evaluate("""() => [...document.querySelectorAll('.segmented__btn')].map(b => [b.getAttribute('aria-pressed'), b.classList.contains('segmented__btn--active')])""")
         R.check(seg and all((a == 'true') == act for a, act in seg), f'{t} segmenté : aria-pressed cohérent {seg}')
         sw = page.evaluate("""() => [...document.querySelectorAll('[role=switch]')].map(b => { const r = b.querySelector('.switch').getBoundingClientRect(); return [b.getAttribute('aria-checked'), r.width, r.height]; })""")
-        R.check(len(sw) == 2 and all(w == 51 and h == 31 and a in ('true', 'false') for a, w, h in sw), f'{t} interrupteurs 51×31 role=switch {sw}')
+        R.check(len(sw) >= 2 and all(w == 51 and h == 31 and a in ('true', 'false') for a, w, h in sw), f'{t} interrupteurs 51×31 role=switch {sw}')
         rest = page.locator('[data-action="setting-rest"] .cell__value').inner_text().strip()
         R.check(rest == '1:30', f'{t} repos affiché « 1:30 » ({rest})')
         # Basculer le thème depuis les réglages

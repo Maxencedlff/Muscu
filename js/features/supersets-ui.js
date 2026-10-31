@@ -68,7 +68,7 @@ function applySessionSuperset(ei, others) {
   const chosen = (others || []).map(k => xs[k]);
   const before = (ssGroupOf(xs, ei) || []).filter(k => k !== ei).map(k => xs[k]);   // groupe d'avant (retrait)
   activeSession.exercises = others ? ssRegroup(xs, ei, others) : ssLeave(xs, ei);
-  activeSession.lastEi = null;
+  activeSession.lastEi = null; activeSession.lastDone = null;
 
   // Programme : mêmes exercices regroupés (par identifiant), si tous en viennent
   const plist = sessProg().exercises[activeSession.category] || [];

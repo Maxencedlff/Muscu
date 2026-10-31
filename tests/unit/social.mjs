@@ -38,6 +38,28 @@ export default function ({ test, run, assert, sameJSON }) {
     for (const k of kinds) assert.match(run(`socialErrorText(${JSON.stringify(k)})`), /^[A-ZÉ].+\.$/, k);
   });
 
+  test('amis : « Séances visibles par défaut » éteint → la séance qui se termine naît masquée (hidden: true)', () => {
+    const r = run(`(() => {
+      const user = account.user, saved = { ...social }, act = activeSession;
+      globalThis.sessionNotes ??= '';
+      try {
+        data = makeDefaultData(); data.schema = SCHEMA;
+        activeSession = { category: 'push', programme: 'ppl', startedAt: Date.now() - 60000,
+          exercises: [{ exId: 'a', name: 'A', sets: [{ weight: '10', reps: '8', done: true }] }] };
+        const out = {};
+        out.def = sessionsVisibleByDefault();                       // réglage absent : visible
+        out.offNoFriends = (data.sessionVisibleDefault = false, newSessionHidden());   // Amis pas activé : rien à masquer
+        account.user = { id: 'u' }; social.state = cleanSocialState({ enabled: true });
+        out.offFriends = newSessionHidden();
+        out.entryOff = sessionHistoryEntry('ppl', 'push').hidden;
+        data.sessionVisibleDefault = true;
+        out.entryOn = 'hidden' in sessionHistoryEntry('ppl', 'push');
+        return out;
+      } finally { account.user = user; Object.assign(social, saved); activeSession = act; data = makeDefaultData(); data.schema = SCHEMA; }
+    })()`);
+    sameJSON(r, { def: true, offNoFriends: false, offFriends: true, entryOff: true, entryOn: false });
+  });
+
   test('amis : résumé des exercices d\'une carte', () => {
     const line = names => run(`feedExercisesLine({ exercises: ${JSON.stringify(names.map(name => ({ name })))} })`);
     assert.equal(line(['A']), 'A');

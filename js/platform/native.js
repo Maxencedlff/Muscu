@@ -448,14 +448,25 @@ const Native = (() => {
         if (!isNative) return null;
         try { return await Updater.download({ url, version, checksum }); } catch { return null; }
       },
-      // Appliquée au prochain lancement de l'app (jamais pendant qu'on s'en sert)
-      async applyAtNextLaunch(id) {
+      // Mise en file : installée quand les conditions de setMultiDelay sont remplies (voir
+      // otaDelayConditions dans js/app/live-update.js), jamais pendant qu'on s'en sert
+      async applyAtNextLaunch(id, delayConditions) {
         if (!isNative) return false;
         try {
           await Updater.next({ id });
-          await Updater.setMultiDelay({ delayConditions: [{ kind: 'kill' }] });
+          await Updater.setMultiDelay({ delayConditions });
           return true;
         } catch { return false; }
+      },
+      // Change les conditions d'une mise à jour déjà en file (début ou fin de séance)
+      async setDelay(delayConditions) {
+        if (!isNative) return false;
+        try { await Updater.setMultiDelay({ delayConditions }); return true; } catch { return false; }
+      },
+      // Mise à jour en file ? (null sinon)
+      async pending() {
+        if (!isNative) return null;
+        try { return await Updater.getNextBundle(); } catch { return null; }
       },
       // Appliquée tout de suite (l'app se recharge)
       async applyNow(id) {

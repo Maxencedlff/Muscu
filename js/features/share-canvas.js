@@ -44,10 +44,15 @@ const STORY = {
   SIGNATURE: 84,     // icône de la signature
 };
 
-// Point d'accroche de la silhouette des muscles : share.js y place storyMuscleSvg,
-// shareStoryHooks.muscleSvg = (entry, stats, palette) => texte SVG (ou null).
-// Sans fournisseur ou sans muscle reconnu, l'image se dessine sans silhouette (mise en page en ligne).
-const shareStoryHooks = { muscleSvg: null };
+// Point d'accroche de la carte des muscles : share.js y place storyMuscleMap,
+// shareStoryHooks.muscleMap = (entry, stats, palette) => { levels, colors } (ou null), dessinée par
+// bodyMapImage (js/ui/body-map.js). Sans fournisseur ou sans muscle reconnu, l'image se dessine sans
+// personnage (mise en page en ligne).
+const shareStoryHooks = { muscleMap: null };
+
+// Compte Instagram de l'app, sous le nom dans la signature (« @mdlf.training ») : vide tant que le compte
+// n'existe pas (feuille de route n° 10), la signature garde alors « Suivi de musculation »
+const STORY_INSTAGRAM = '';
 
 // ── Couleurs (logique pure, testée) ─────────────────────────
 
@@ -142,7 +147,7 @@ function drawMedal(ctx, p, x, y, size) {
   ctx.restore();
 }
 
-// Silhouette des muscles (image déjà chargée depuis le SVG du fournisseur), contenue dans le cadre
+// Carte des muscles (canvas déjà dessiné par bodyMapImage), contenue dans le cadre
 function drawMuscleMap(ctx, x, y, w, h, image) {
   if (!image?.width) return false;
   const k = Math.min(w / image.width, h / image.height);
@@ -336,19 +341,23 @@ function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW, air = 1) {
     const r = u[0];
     if (r.group != null) drawGroup(ctx, p, u, ry, rowH, nameSize, air);
     else if (compact) {
-      ctx.font = storyFont(700, size, true, p);
-      const vw = ctx.measureText(r.value).width;
+      const valMax = w - 2 * padX - 140;
+      fitSize(ctx, r.value, valMax, size, Math.max(22, size - 14), s2 => storyFont(700, s2, true, p));
+      const vw = Math.min(ctx.measureText(r.value).width, valMax);
       ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label);
-      ctx.textAlign = 'right'; ctx.fillText(r.value, SIDE + w - padX, ry + base); ctx.textAlign = 'left';
+      ctx.textAlign = 'right'; ctx.fillText(fitText(ctx, r.value, valMax), SIDE + w - padX, ry + base); ctx.textAlign = 'left';
       const nameW = w - 2 * padX - vw - 28;
       ctx.font = storyFont(600, nameSize, false, p);
       ctx.fillStyle = rgbaCss(p.label);
       ctx.fillText(fitText(ctx, r.name, nameW), SIDE + padX, ry + base);
     } else {
-      ctx.font = storyFont(700, 46, true, p);
-      const vw = ctx.measureText(r.value).width;
+      // La valeur peut être le détail de toutes les séries (« 6 · 6 · 6 · 7 reps ») : elle rétrécit
+      // puis se tronque, sinon elle déborderait de la carte et écraserait le nom de l'exercice
+      const valMax = w - 2 * padX - 170;
+      fitSize(ctx, r.value, valMax, 46, 26, s2 => storyFont(700, s2, true, p));
+      const vw = Math.min(ctx.measureText(r.value).width, valMax);
       ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label);
-      ctx.textAlign = 'right'; ctx.fillText(r.value, SIDE + w - padX, ry + 72); ctx.textAlign = 'left';
+      ctx.textAlign = 'right'; ctx.fillText(fitText(ctx, r.value, valMax), SIDE + w - padX, ry + 72); ctx.textAlign = 'left';
 
       // Le nom est l'information principale : la police est réduite (40 → 32 px) avant de tronquer
       const nameW = w - 2 * padX - vw - 32;
@@ -362,7 +371,7 @@ function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW, air = 1) {
         ctx.fillText(fitText(ctx, r.record, nameW - 40), SIDE + padX + 38, ry + 93);
       } else {
         ctx.fillStyle = rgbaCss(p.label2);
-        ctx.fillText('Meilleure série', SIDE + padX, ry + 93);
+        ctx.fillText(r.detail ? 'Séries' : 'Meilleure série', SIDE + padX, ry + 93);
       }
     }
     ry += unitHeight(u, rowH, air);
@@ -379,8 +388,9 @@ function drawSignature(ctx, p, icon, y) {
   const size = STORY.SIGNATURE, gap = 24, cy = y + size / 2;
   ctx.font = storyFont(800, 46, false, p);
   const nameW = ctx.measureText('MDLF Training').width;
+  const sub = STORY_INSTAGRAM ? `@${STORY_INSTAGRAM.replace(/^@/, '')}` : 'Suivi de musculation';
   ctx.font = storyFont(500, 28, false, p);
-  const subW = ctx.measureText('Suivi de musculation').width;
+  const subW = ctx.measureText(sub).width;
   const x = (STORY.W - (size + gap + Math.max(nameW, subW))) / 2;
 
   roundRect(ctx, x, y, size, size, size * .225);   // masque d'icône iOS (≈ 22,5 % du côté)
@@ -390,7 +400,7 @@ function drawSignature(ctx, p, icon, y) {
   ctx.fillStyle = rgbaCss(p.label); ctx.font = storyFont(800, 46, false, p); setTracking(ctx, -.5);
   ctx.fillText('MDLF Training', x + size + gap, cy - 2); setTracking(ctx, 0);
   ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(500, 28, false, p);
-  ctx.fillText('Suivi de musculation', x + size + gap, cy + 36);
+  ctx.fillText(sub, x + size + gap, cy + 36);
 }
 
 // ── Mise en page ────────────────────────────────────────────

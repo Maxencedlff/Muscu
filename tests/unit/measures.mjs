@@ -1,7 +1,8 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
 // Mesures des exercices (js/data/measures.js) : répétitions, durée, cardio
-export default function ({ test, run, reset, assert }) {
+export default function ({ test, run, reset, assert, ROOT }) {
   test('mesures : bibliothèque, noms libres et choix enregistré', () => {
     reset();
     const m = n => run(`measureOf({ name: ${JSON.stringify(n)} })`);
@@ -90,7 +91,8 @@ export default function ({ test, run, reset, assert }) {
     // Tout nom de la bibliothèque inconnu de la version d'avant (alias à venir) : avant lui, il suivait les
     // mots-clés (measureByRules) ; s'il en change, un exercice enregistré sans mesure doit garder l'ancienne
     const fresh = run(`EXERCISE_CATALOGUE.flatMap(e => [e.name, ...e.aliases])`).filter(n => !beforeAlias.has(n));
-    const changed = keptMeasure(fresh, run('SCHEMA')).filter(([n, h]) => h !== run(`measureByRules(${JSON.stringify(n)})`));
+    // (mots-clés d'avant les mots de cardio du 29/10, legacyMeasureByRules : « Escaliers » sans mesure était en répétitions)
+    const changed = keptMeasure(fresh, run('SCHEMA')).filter(([n, h]) => h !== run(`legacyMeasureByRules(${JSON.stringify(n)})`));
     assert.deepEqual(changed.map(([n, h]) => `${n} : ${h}`), [], 'nouvel alias qui change la mesure d\'un nom : l\'ajouter à LEGACY_REPS_BY_SCHEMA');
     // Ce qui est enregistré aujourd'hui n'est pas touché : « Rower » choisi depuis la bibliothèque est du cardio
     const now = run(`(() => { const ex = { name: 'Rower', sets: [{ weight: '', reps: '20' }] }; ex.measure = storedMeasure(ex);
@@ -102,6 +104,60 @@ export default function ({ test, run, reset, assert }) {
     // Schéma 4 : « Trail » sans mesure vient de la bibliothèque du 25/10 (cardio) ; « Trails » n'y était
     // reconnu que par son nom exact, il était en répétitions
     assert.deepEqual(keptMeasure(['Trail', 'Trails', 'Rowers'], 4).map(x => x[2]), ['cardio', 'reps', 'reps']);
+  });
+
+  test('mesures : schéma 6, mots de cardio du 29/10 (escalier, stair, stepmill…) : exercices d\'avant gardés en répétitions', () => {
+    reset();
+    const same = (x, y, m) => assert.equal(JSON.stringify(x), JSON.stringify(y), m);   // tableaux d'un autre realm
+    const names = ['Montées d\'escaliers lestées', 'Escaliers', 'StepMill', 'Stair climber', 'Stepper', 'Course à pied'];
+    const kept = ['reps', 'reps', 'reps', 'reps', undefined, undefined];   // stepper et course : déjà cardio avant
+    // Historique (à chaque nettoyage, comme pinLegacyReps) : charge × reps, volume et record gardés
+    const h = run(`(() => { const h = { id: 'o', date: 1, category: 'free', exercises: ${JSON.stringify(names.map(name => ({ name, sets: [{ weight: '20', reps: '12' }] })))} };
+      cleanHistoryEntry(h); return h; })()`);
+    same(h.exercises.map(e => e.measure), kept);
+    assert.equal(run(`measureSetTxt(${JSON.stringify(h.exercises[0].sets[0])}, measureOf(${JSON.stringify(h.exercises[0])}))`), '20 kg × 12');
+    assert.equal(run(`exVolume(${JSON.stringify(h.exercises[0])})`), 240);
+    assert.equal(run(`measureOf(${JSON.stringify(h.exercises[4])})`), 'cardio', 'stepper : cardio avant comme après');
+    // Ce que l'app enregistre aujourd'hui n'est pas touché : « Escaliers » de la bibliothèque a sa mesure écrite
+    assert.equal(run(`storedMeasure({ name: 'Escaliers' })`), 'cardio');
+    // Copies figées de store.js (autonomes : l'historique est nettoyé avant measures.js) et règles vivantes concordent
+    assert.equal(run('LEGACY_NOT_CARDIO_RE.source'), run('NOT_CARDIO_RE.source'), 'NOT_CARDIO_RE a changé : figer l\'ancienne et revoir pinLegacyCardioWords');
+    for (const w of ['escalier', 'stair', 'stepmill', 'step mill', 'climbmill', 'powermill']) {
+      assert.ok(run(`CARDIO_RE.test(${JSON.stringify(w)}) && !LEGACY_CARDIO_RE.test(${JSON.stringify(w)})`), w);
+    }
+    assert.equal(run(`CARDIO_RE.source.replace(CARDIO_WORDS_ADDED.source + '|', '')`), run('LEGACY_CARDIO_RE.source'), 'CARDIO_RE a changé : figer les nouveaux mots (CARDIO_WORDS_ADDED, schéma suivant)');
+    // Chargement : une donnée avec historique se lit dès store.js (avant ruleKey et CARDIO_RE), sans erreur
+    run(`localStorage.setItem(KEY, JSON.stringify({ schema: 5, history: [{ id: 'b', date: 1, category: 'free', exercises: [{ name: 'Escaliers', sets: [{ weight: '20', reps: '12' }] }] }] }))`);
+    assert.equal(run(`(() => { const src = ${JSON.stringify(fs.readFileSync(path.join(ROOT, 'js/data/store.js'), 'utf8'))};
+      const box = { localStorage, console, normName, cleanMachine, uid: () => 'u', showToast: () => {} };
+      try { return new Function('with (this) { ' + src + ' } return loadData().history[0].exercises[0].measure;').call(box); } catch (e) { return String(e); } })()`),
+      'reps', 'chargement de store.js seul, historique « Escaliers » sans mesure');
+    run('localStorage.clear()');
+    // Programmes : une seule fois, au passage au schéma 6 ; une donnée déjà au schéma 6 suit la bibliothèque
+    const prog = () => ({ ppl: { exercises: { legs: names.map((name, i) => ({ id: 'e' + i, name, sets: 3 })) }, timers: {}, cooldowns: {} } });
+    const old = run(`normalizeData(${JSON.stringify({ schema: 5, activeProgramme: 'ppl', programmes: prog(), history: [] })})`);
+    assert.equal(old.schema, 6);
+    same(old.programmes.ppl.exercises.legs.map(e => e.measure), kept);
+    const cur = run(`normalizeData(${JSON.stringify({ schema: 6, activeProgramme: 'ppl', programmes: prog(), history: [] })})`);
+    same(cur.programmes.ppl.exercises.legs.map(e => e.measure), names.map(() => undefined));
+    assert.equal(run(`measureOf({ name: 'Escaliers' })`), 'cardio');
+    // Séance en cours commencée avec la version d'avant (donnée lue au schéma 5) : exercice sans mesure gardé en
+    // répétitions, mesure écrite respectée ; donnée déjà au schéma 6 : rien
+    const saved = JSON.stringify({ activeSession: { programme: 'ppl', category: 'legs', startedAt: 1, exercises: [
+      { exId: 'x', name: 'Montées d\'escaliers lestées', sets: [{ weight: '20', reps: '', prev: null, done: false }] },
+      { exId: 'y', name: 'Escaliers', measure: 'cardio', sets: [{ weight: '', reps: '', prev: null, done: false }] }] }, sessionNotes: '', rest: null });
+    // js/data/active-session.js chargé dans une fonction : son « let activeSession » ne doit pas devenir global
+    // (les tests de mise à jour à chaud posent activeSession sur le contexte)
+    const src = fs.readFileSync(path.join(ROOT, 'js/data/active-session.js'), 'utf8');
+    const restored = schema => run(`(() => { ${src}
+      localStorage.setItem(SESSION_KEY, ${JSON.stringify(saved)}); loadedSchema = ${schema};
+      restoreSession(); const m = activeSession.exercises.map(e => e.measure); loadedSchema = SCHEMA;
+      localStorage.removeItem(SESSION_KEY); return m; })()`);
+    same(restored(5), ['reps', 'cardio']);
+    same(restored(6), [undefined, 'cardio']);
+    // Séance reçue d'un autre (liste blanche) : sans mesure, elle vient de sa version d'avant
+    const pub = run(`cleanPublicSession({ exercises: [{ name: 'Escaliers', sets: [{ weight: '20', reps: '12' }] }, { name: 'Escaliers', measure: 'cardio', sets: [{ weight: '', reps: '15' }] }] })`);
+    same(pub.exercises.map(e => e.measure), ['reps', 'cardio']);
   });
 
   test('mesures : textes des séries', () => {

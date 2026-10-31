@@ -3,6 +3,11 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
+// Interrupteur iOS : le bouton de la rangée porte l'état (role="switch", aria-checked), le dessin est décoratif
+function switchHtml(on) {
+  return `<span class="switch ${on ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>`;
+}
+
 // Signale un champ invalide (contour rouge, aria-invalid) et affiche le message
 function flagInvalid(input, msg) {
   if (input) {
@@ -15,6 +20,11 @@ function flagInvalid(input, msg) {
 
 // Distance (cardio) : '' accepté, sinon 0 à MAX_DIST_KM km, virgule ou point
 function distOk(raw) { return String(raw ?? '').trim() === '' || num(raw, 0, MAX_DIST_KM) !== null; }
+// « = Pec deck » sous un nom qui est un alias d'une fiche de la bibliothèque (catalogueAliasOf) ; '' sinon
+function aliasNoteHtml(name, cls = 'ex-alias') {
+  const own = catalogueAliasOf(name);
+  return own ? `<div class="${cls}"><span class="visually-hidden">Même exercice que </span><span aria-hidden="true">= </span>${esc(own)}</div>` : '';
+}
 function distMsg() { return `Distance entre 0 et ${MAX_DIST_KM} km`; }
 function setDist(s, raw) {
   const km = String(raw ?? '').trim() === '' ? null : num(raw, 0, MAX_DIST_KM);
