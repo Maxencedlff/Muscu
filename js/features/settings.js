@@ -3,8 +3,11 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Confidentialité et mentions légales (page publique, privacy.html) ; _blank l'ouvre dans Safari
-const LEGAL_URL = 'https://mdlf.app/privacy.html#mentions';
+// Pages juridiques publiques (js/data/legal-links.js) : ouvertes dans Safari (_blank)
+const SETTINGS_LEGAL_PAGES = [
+  ['privacy', 'Confidentialité'], ['terms', 'Conditions d\'utilisation'],
+  ['sales', 'Conditions de vente'], ['mentions', 'Mentions légales'],
+];
 
 // « aujourd'hui », « hier », « il y a 3 jours » : jours du calendrier (dernier export, Supprimés récemment)
 function agoText(ts) {
@@ -136,9 +139,14 @@ ${renderCoachSettingsGroup()}
             ? `<button class="cell cell--action" data-action="live-update-check"><span class="cell__body"><span class="cell__title">Rechercher une mise à jour</span>
                  <span class="cell__sub">${esc(liveUpdateLabel())}</span></span></button>`
             : `<button class="cell cell--action" data-action="force-update"><span class="cell__title">Rechercher une mise à jour</span></button>`}
-          <button class="cell cell--action" data-action="open-legal"><span class="cell__body"><span class="cell__title">Mentions légales</span>
-            <span class="cell__sub">Confidentialité, éditeur, hébergeurs</span></span></button>
         </div>
+
+        <div class="group-title">Informations légales</div>
+        <div class="group">
+          ${SETTINGS_LEGAL_PAGES.map(([page, label]) => `<button class="cell cell--nav" data-action="open-legal" data-page="${page}">
+            <span class="cell__body"><span class="cell__title">${label}</span></span>${icon('chevron.right', 16)}</button>`).join('')}
+        </div>
+        <div class="group-foot">Pages du site mdlf.app, ouvertes dans Safari. L'abonnement est vendu et remboursé par Apple.</div>
 
       </div>
     </div>`;
@@ -306,7 +314,7 @@ registerActions({
     wipeLocalData();
     render(); showToast('Données supprimées');
   },
-  'open-legal': () => { window.open(LEGAL_URL, '_blank'); },
+  'open-legal': (e, el) => { window.open(LEGAL_URLS[el?.dataset.page] || LEGAL_URLS.mentions, '_blank'); },
   'force-update': async () => {
     await checkForUpdate();
   },

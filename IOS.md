@@ -313,7 +313,7 @@ TestFlight / App Store, sur le modèle d'Expo Updates.
 | `js/app/live-update.js` | Décision (`liveUpdateDecision`) et parcours (`checkLiveUpdate`) ; vérifie 3 s après le démarrage puis au retour au premier plan (au plus toutes les 6 h) |
 | `scripts/build-web.mjs` | Embarque `window.MDLF_BUILD = { version, seq, runtime }` dans dist/ |
 | `scripts/ota-bundle.py` | dist/ → `ota-site/` : `bundles/<version>.zip` (immuable), `manifest.json` (jamais en cache) |
-| `.github/workflows/ota.yml` | Tests, paquet, publication sur **https://mdlf-ota.vercel.app**, vérification en ligne du SHA-256 |
+| `.github/workflows/ota.yml` | Tests, pages juridiques complètes et en ligne (`check-legal-online.mjs`, docs/JURIDIQUE.md), paquet, publication sur **https://mdlf-ota.vercel.app**, vérification en ligne du SHA-256 |
 
 **Règles de sûreté**
 - **Empreinte native (`runtime`)** : SHA-256 des fichiers Swift, d'Info.plist, des droits, du projet

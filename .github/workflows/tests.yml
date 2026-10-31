@@ -103,7 +103,10 @@ jobs:
         with:
           persist-credentials: false
       # Version web arrêtée le 22/10/2026 : le site ne publie plus que web-public/ (page « l'app est
-      # sur iPhone » et politique de confidentialité, URL déclarée à l'App Store), voir web-public/README.md
+      # sur iPhone », politique de confidentialité, URL déclarée à l'App Store, et pages juridiques), voir web-public/README.md
+      # Garde : aucune page juridique publiée avec un emplacement « À COMPLÉTER » (docs/JURIDIQUE.md)
+      - name: Pages juridiques sans emplacement à compléter
+        run: node scripts/check-legal-pages.mjs privacy.html mentions-legales.html cgu.html cgv.html
       - name: Publication sur muscu-eta.vercel.app
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -111,5 +114,5 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
         # La CLI échoue (code non nul) si la publication échoue ; version figée (pas de @latest)
         run: |
-          cp privacy.html web-public/
+          cp privacy.html mentions-legales.html cgu.html cgv.html legal.css web-public/
           npx --yes vercel@62.0.0 deploy web-public --prod --yes --token "$VERCEL_TOKEN"

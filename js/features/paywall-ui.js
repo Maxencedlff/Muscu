@@ -36,9 +36,11 @@
 'use strict';
 
 const PAYWALL_VIEWS = ['paywall', 'subscription'];
-// Lien obligatoire vers les conditions : contrat type d'Apple (l'app n'a pas de conditions propres)
-const PAY_TERMS_URL   = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
-const PAY_PRIVACY_URL = 'https://mdlf.app/privacy.html';
+// Liens obligatoires (règle 3.1.2) : conditions d'utilisation (cgu.html, qui renvoie en tête au
+// contrat de licence standard d'Apple), conditions de vente et confidentialité (js/data/legal-links.js)
+const PAY_TERMS_URL   = LEGAL_URLS.terms;
+const PAY_SALES_URL   = LEGAL_URLS.sales;
+const PAY_PRIVACY_URL = LEGAL_URLS.privacy;
 const PAY_MANAGE_URL  = 'https://apps.apple.com/account/subscriptions';
 const PAY_PLAN_LABEL  = { [ACCESS_MONTHLY_ID]: 'Mensuel', [ACCESS_YEARLY_ID]: 'Annuel' };
 // Deux sortes de codes, jamais mélangées : le code cadeau MDLF se saisit dans l'app (« J'ai un
@@ -138,11 +140,12 @@ function payCodeSheet() {
   });
 }
 
-// Liens obligatoires (Apple) : conditions et confidentialité, sous les formules
+// Liens obligatoires (Apple) : conditions d'utilisation, de vente et confidentialité, sous les formules
 function payLegalHtml() {
   return `
         <div class="pay-legal">
           <button class="pay-legal__link" data-action="pay-terms">Conditions d'utilisation</button>
+          <button class="pay-legal__link" data-action="pay-sales">Conditions de vente</button>
           <button class="pay-legal__link" data-action="pay-privacy">Confidentialité</button>
         </div>`;
 }
@@ -577,6 +580,7 @@ registerActions({
   'coach-request-open': () => { navigate('coach-request'); },
   'access-open-settings': () => { navigate('subscription'); accessRefresh(); },
   'pay-terms': () => { window.open(PAY_TERMS_URL, '_blank'); },
+  'pay-sales': () => { window.open(PAY_SALES_URL, '_blank'); },
   'pay-privacy': () => { window.open(PAY_PRIVACY_URL, '_blank'); },
   'pay-manage': () => { window.open(PAY_MANAGE_URL, '_blank'); },
   'pay-reload-products': async () => { access.products = null; render(); await accessLoadProducts({ force: true }); render(); },

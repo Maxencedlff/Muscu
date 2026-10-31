@@ -70,6 +70,11 @@ création du compte, 10 essais par 24 h échecs compris, code inconnu ou inactif
 'invalid_code' }, autres refus en erreur). État dans __sb.rf : codes partners { CODE: { name, active } }
 (LUCAS actif, VIEUX inactif au départ), attributions links { compte: CODE }. Appels dans __sb.calls sous
 ['referral', fonction, arguments] ; __sb.fail.referral = 'offline' pour le hors ligne.
+
+Lettre d'information (docs/NEWSLETTER.md, supabase/migrations/20261031230000_newsletter.sql) : newsletter_state,
+newsletter_subscribe(consent_version) (no_email pour un compte sans adresse, comme Apple seul ; invalid_version, rate_limited 20 par 24 h, horodatage du SERVEUR) et
+newsletter_unsubscribe (jamais limitée, la ligne est supprimée) ; l'état dit has_email. État dans __sb.nl.subs (par compte) ; appels dans
+__sb.calls sous ['newsletter', fonction, arguments] ; __sb.fail.newsletter = 'offline' pour le hors ligne.
 """
 
 FAKE_ACCOUNT = r"""
@@ -809,6 +814,32 @@ FAKE_ACCOUNT = r"""
     const out = referralRpc[fn](me, args);
     return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
   };
+  // Lettre d'information : la ligne n'existe que pendant l'inscription
+  const nl = sb.nl = { subs: {}, tries: {} };
+  const nlHasEmail = me => !!String(sb.users[me]?.email || '').trim();
+  const nlJson = me => { const s = nl.subs[me]; return { subscribed: !!s, consented_at: s ? s.at : null, version: s ? s.version : null, has_email: nlHasEmail(me) }; };
+  const nlRpc = {
+    newsletter_state: me => nlJson(me),
+    newsletter_subscribe: (me, { consent_version }) => {
+      if (!nlHasEmail(me)) return pgErr('no_email');
+      const v = String(consent_version ?? '').trim();
+      if (!/^v[0-9]{1,3}$/.test(v)) return pgErr('invalid_version');
+      const tries = (nl.tries[me] || []).filter(t => t > now() - 86400_000);
+      if (tries.length >= 20) return pgErr('rate_limited');
+      nl.tries[me] = [...tries, now()];
+      nl.subs[me] = { at: new Date(now()).toISOString(), version: v };
+      return nlJson(me);
+    },
+    newsletter_unsubscribe: me => { delete nl.subs[me]; return nlJson(me); },
+  };
+  const callNewsletter = async (fn, args = {}) => {
+    log('newsletter', fn, JSON.stringify(args));
+    if (sb.fail.newsletter === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+    const me = sb.meId();
+    if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };
+    const out = nlRpc[fn](me, args);
+    return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
+  };
   const REPORT_REASONS = ['spam', 'harcelement', 'sexuel', 'violence', 'haine', 'autre'];
 
   window.supabase = {
@@ -816,7 +847,7 @@ FAKE_ACCOUNT = r"""
       sb.storage = o?.auth?.storage; sb.storageKey = o?.auth?.storageKey;
       return {
         auth, from,
-        rpc: async (fn, args) => { if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
+        rpc: async (fn, args) => { if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); if (nlRpc[fn]) return callNewsletter(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
           const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });

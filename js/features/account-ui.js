@@ -182,6 +182,7 @@ ${referralGroupHtml()}
           <button class="cell cell--action" data-action="account-sync" ${account.syncing ? 'disabled' : ''}><span class="cell__title">Sauvegarder maintenant</span></button>
         </div>
         <div class="group-foot">Après chaque séance. Ton poids et tes données Santé restent sur l'iPhone. <button class="link-inline" data-action="account-privacy">Confidentialité</button></div>
+${renderNewsletterGroup()}
 
         <div class="group group--gap">
           <button class="cell cell--action" data-action="account-sign-out"><span class="cell__title">Se déconnecter</span></button>
@@ -193,7 +194,7 @@ ${referralGroupHtml()}
       </div>
     </div>`;
 }
-SCREENS.set('account', { render: () => renderAccount() });
+SCREENS.set('account', { render: () => renderAccount(), enter: () => { if (account.user) newsletterRefresh({ minAge: 30_000 }); } });
 
 // Parrainage (js/data/referral.js) : « Parrainé par … », ou la saisie du code pendant les 30 jours qui
 // suivent la création du compte ; rien ensuite. L'état est relu une fois, puis l'écran redessiné.
