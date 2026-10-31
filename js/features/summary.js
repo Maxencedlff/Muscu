@@ -24,12 +24,13 @@ function bestSetTrend(b, pb) {
   return b.w === pb.w && b.r === pb.r ? 'same' : 'down';
 }
 
-function buildSummary(entry, baseline) {
+function buildSummary(entry) {
   const prevH = data.history.find(h => h !== entry && h.category === entry.category && entryProg(h) === entryProg(entry));
   let cur = 0, prev = 0;
   const rows = [], e1rm = [];
   // Records notés dans la séance à l'enregistrement (sessionRecords, js/data/records.js)
   const noted = entryRecords(entry);
+  const priorOf = sessionPriorOf(entry, data.history);   // séries d'avant la séance, pour le 1RM estimé
   entry.exercises.forEach(ex => {
     const pex = prevH?.exercises.find(e => sameEx(e, ex));
     cur  += exVolume(ex, ex.sets, entryBodyKg(entry));
@@ -38,9 +39,8 @@ function buildSummary(entry, baseline) {
     // celui de la dernière fois en ferait sortir une)
     prev += pex ? exVolume(pex, workSets(pex.sets).slice(0, workSets(ex.sets).length), entryBodyKg(prevH)) : 0;
     // 1RM estimé battu sans autre record : pour soi seulement (jamais noté dans la séance ni partagé)
-    const rec = exerciseRecord(ex, baseline[ex.exId]);
-    if (rec?.label === 'Record 1RM est.' && !noted.some(r => normName(r.ex) === normName(ex.name)))
-      e1rm.push({ name: ex.name, label: rec.label, weight: rec.s.weight, reps: rec.s.reps, measure: 'reps', kind: setKind(ex) });
+    const e1s = !noted.some(r => normName(r.ex) === normName(ex.name)) && e1rmRecordSet(ex, priorOf(ex));
+    if (e1s) e1rm.push({ name: ex.name, label: 'Record 1RM est.', weight: e1s.weight, reps: e1s.reps, measure: 'reps', kind: setKind(ex) });
     const b = summaryBestSet(ex.sets, ex), pb = summaryBestSet(pex?.sets, ex);
     // Exercice réduit à son échauffement (séries de travail non faites) : la série la plus lourde quand même
     const bs = b || summaryBestSet(ex.sets.map(s => ({ ...s, warmup: undefined })), ex);
@@ -54,7 +54,6 @@ function buildSummary(entry, baseline) {
     // Sans charge comptée (poids du corps inconnu, gainage…) : le total de reps remplace « 0 kg »
     reps: entry.exercises.filter(ex => measureOf(ex) === 'reps').reduce((a, ex) => a + workSets(ex.sets).reduce((b, s) => b + (parseInt(s.reps) || 0), 0), 0),
     needsBodyKg: !entryBodyKg(entry) && entry.exercises.some(ex => bodyShare(ex) > 0),
-    baseline,   // records d'avant la séance : l'image partagée montre les mêmes records que le bilan
   };
 }
 
@@ -161,7 +160,7 @@ function refreshSummaryBodyKg() {
   const h = lastSummary && data.history.find(x => x.id === lastSummary.id);
   if (!h || h.bodyKg || !currentBodyKg()) return;
   if (storableBodyKg()) h.bodyKg = storableBodyKg();   // pesée de Santé : relue, jamais gardée
-  lastSummary = buildSummary(h, lastSummary.baseline);
+  lastSummary = buildSummary(h);
 }
 
 // Notes du bilan : enregistrées au fil de la frappe
@@ -271,8 +270,8 @@ registerActions({
     const entry = await saveSessionEntry();
     if (!entry) return;
     syncWorkoutToHealth(entry);   // app iOS : entraînement dans Santé, sans attendre
-    // Bilan : records comparés à ceux d'avant la séance
-    lastSummary = buildSummary(entry, activeSession.baseline || {});
+    // Bilan : records notés à l'enregistrement (et 1RM estimé battu, pour soi)
+    lastSummary = buildSummary(entry);
     if (lastSummary.records.length) recordSound(); else finishSound();
     haptic();
     endSession();

@@ -12,6 +12,16 @@ let recapIndex = 0;                         // écran affiché du récap ouvert 
 let recapsShowAll = false;                  // Progrès › Récaps : toutes les semaines (sinon les premières)
 const RECAPS_FIRST_WEEKS = 8;
 
+// Récap ouvert : chiffres et écrans calculés une fois par période (et par état de l'historique)
+let recapCache = null;
+function recapLoad(key) {
+  const h = data.history;
+  if (recapCache && recapCache.key === key && recapCache.h === h && recapCache.n === (h || []).length) return recapCache;
+  const p = recapPeriodFromKey(key), st = p && recapStats(p);
+  recapCache = { key, h, n: (h || []).length, p, st, pages: st ? recapPages(st) : [] };
+  return recapCache;
+}
+
 function recapSeenKey() { try { return localStorage.getItem(RECAP_SEEN_KEY); } catch { return null; } }
 function setRecapSeen(key) { try { localStorage.setItem(RECAP_SEEN_KEY, key); } catch { /* la carte reviendra */ } }
 
@@ -21,19 +31,31 @@ function recapTotalsLine(t) {
 }
 
 // ── Accueil : carte « Ta semaine » (dimanche soir et lundi, jusqu'à ce qu'elle soit ouverte) ──
+// Aplat citron vert (couleur de marque des récaps, texte noir) ; en sombre, carte noire bordée de citron
+// pour ne pas éblouir sur le noir pur. Titre : le fait le plus positif (recapHeadline). Pastilles en
+// nowrap, chiffre et unité insécables. Petit personnage avec les muscles de la semaine. Toute la carte
+// est un seul bouton pour VoiceOver ; « Masquer » a sa colonne à droite, jamais sur le personnage.
 function recapHomeCard() {
   const info = recapCardInfo({ seenKey: recapSeenKey(), off: data.recapCardOff === true });
   if (!info) return '';
-  const { period: p, totals: t } = info;
-  const line = recapTotalsLine(t);
+  const { period: p } = info;
+  const st = recapStats(p);
+  if (!st) return '';
+  const head = recapHeadline(st);
+  const chips = [st.volume > 0 ? recapNb(fmtVolume(st.volume)) : '', st.duration >= 60_000 ? recapNb(fmtDuration(st.duration)) : '',
+    plural(st.sets, 'série', 'séries')].filter(Boolean);
+  const levels = st.profile?.levels || {};
+  const body = Object.keys(levels).length ? bodyMapHtml(levels, { view: 'front', className: 'recap-card__body' }) : '';
   return `
-    <section class="home-card recap-card" style="--cat-color:${RECAP_KINDS.week.color}" aria-label="Ta semaine">
-      <button class="recap-card__open" data-action="open-recap" data-key="${esc(p.key)}" data-from="card" aria-label="${esc(`Ta semaine, ${p.label} : ${line}. Voir le récap`)}">
-        <span class="home-card__title" aria-hidden="true">Ta semaine<span class="home-card__aside">${esc(p.short)}</span></span>
-        <span class="recap-card__line num" aria-hidden="true">${esc(line)}</span>
-        <span class="recap-card__cta" aria-hidden="true">Voir le récap ${icon('chevron.right', 12)}</span>
+    <section class="recap-card${body ? ' recap-card--body' : ''}" aria-label="Ta semaine">
+      <button class="recap-card__open" data-action="open-recap" data-key="${esc(p.key)}" data-from="card">
+        <span class="recap-card__kicker">Ta semaine · ${esc(p.short)}</span>
+        <span class="recap-card__title">${esc(head)}</span>
+        <span class="recap-card__chips">${chips.map(c => `<span class="recap-card__chip num">${esc(c)}</span>`).join('')}</span>
+        <span class="recap-card__cta">Voir mon récap ${icon('chevron.right', 14)}</span>
+        ${body ? `<span class="recap-card__fig" aria-hidden="true">${body}</span>` : ''}
       </button>
-      <button class="recap-card__close" data-action="recap-card-hide" data-key="${esc(p.key)}" aria-label="Masquer la carte">${icon('xmark', 16)}</button>
+      <button class="recap-card__close" data-action="recap-card-hide" data-key="${esc(p.key)}" aria-label="Masquer la carte">${icon('xmark', 14)}</button>
     </section>`;
 }
 
@@ -66,61 +88,110 @@ function renderRecaps() {
     </div>`;
 }
 
-// ── Un récap : écrans qui s'enchaînent ──
+// ── Un récap : écrans qui s'enchaînent, façon story ──
+// Une couleur pleine par écran (tone, js/data/recap.js), un chiffre géant qui monte à l'arrivée, barres de
+// progression en haut, toucher à droite pour avancer et à gauche pour revenir (un seul toucher, au click,
+// jamais au pointerdown), balayage horizontal à crans (scroll-snap) et flèches pour VoiceOver.
+
+// « 16,1 t » → { num: '16,1', unit: 't' } ; texte sans nombre en tête : { num: '', unit: texte }
+// Allure « 4:51 » : un seul nombre (record d'allure, recapRecordTexts dans js/data/recap.js)
+function recapSplitValue(v) {
+  const m = String(v ?? '').match(/^([−+]?\d[\d ]*(?:[,:]\d+)?)[\s ]?(.*)$/);
+  return m ? { num: m[1], unit: m[2] } : { num: '', unit: String(v ?? '') };
+}
+
+function recapCurveSvg(curve) {
+  const W = 320, H = 110, pad = 10;
+  const ws = curve.map(x => x.w), lo = Math.min(...ws), hi = Math.max(...ws), span = hi - lo || 1;
+  const pts = curve.map((x, i) => [pad + i * (W - 2 * pad) / (curve.length - 1), H - pad - (x.w - lo) / span * (H - 2 * pad)]);
+  const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
+  const [lx, ly] = pts.at(-1);
+  return `<div class="rp-curve"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+      <path class="rp-curve__line" d="${d}" pathLength="1"/>
+      ${pts.slice(0, -1).map(([x, y]) => `<circle class="rp-curve__dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5"/>`).join('')}
+      <circle class="rp-curve__last" cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="7"/>
+    </svg><div class="rp-curve__axis"><span>${esc(curve[0].label)}</span><span>${esc(curve.at(-1).label)}</span></div></div>`;
+}
+
+function recapBarsHtml(bars) {
+  const max = Math.max(1, ...bars.values);
+  return `<div class="rp-bars">${bars.values.map((n, m) => `<span class="rp-bars__col${m === bars.top ? ' is-top' : ''}">
+      <i style="height:${Math.max(n ? 8 : 3, Math.round(n / max * 100))}%"></i><b>${esc(RECAP_MONTH_NAME(m).charAt(0).toLocaleUpperCase('fr-FR'))}</b></span>`).join('')}</div>`;
+}
+
 function recapPageHtml(page, i, st) {
-  const value = `<div class="recap-page__value ${page.text ? 'recap-page__value--text' : 'num'}">${esc(page.value)}</div>`;
-  let body = '';
-  if (page.list) {
-    body = `<ul class="recap-list">${page.list.map(x => `<li class="recap-list__row">${medalSvg(20)}<span class="recap-list__name">${esc(x.name)}</span><span class="recap-list__val num">${esc(x.value)}</span></li>`).join('')}</ul>`;
+  const v = page.value ? recapSplitValue(page.value) : null;
+  const unit = page.unit || v?.unit || '';
+  const parts = [];
+  parts.push(`<div class="rp-kicker">${esc(page.kicker)}</div>`);
+  if (page.sub) parts.push(`<div class="rp-sub">${esc(page.sub)}</div>`);
+  if (page.title && page.id !== 'summary') parts.push(`<div class="rp-title${page.value ? ' rp-title--small' : ''}">${esc(page.title)}</div>`);
+  if (v) {
+    parts.push(`<div class="rp-value num">${page.from ? `<span class="rp-from">${esc(page.from)}</span><span class="rp-arrow">→</span>` : ''}`
+      + `<span class="rp-num"${v.num ? ` data-count="${esc(v.num)}"` : ''}>${esc(v.num || v.unit)}</span>${v.num && unit ? `<span class="rp-unit">${esc(unit)}</span>` : ''}</div>`);
   }
-  if (page.tiles) {
-    body = `<div class="recap-tiles">${page.tiles.map(([l, v]) => `<div class="recap-tile"><span class="recap-tile__lbl">${esc(l)}</span><span class="recap-tile__val num">${esc(v)}</span></div>`).join('')}</div>`
-      + (page.lines.length ? `<ul class="recap-list">${page.lines.map(([l, v]) => `<li class="recap-list__row"><span class="recap-list__name">${esc(l)}</span><span class="recap-list__val">${esc(v)}</span></li>`).join('')}</ul>` : '');
+  if (page.caption) parts.push(`<div class="rp-caption">${esc(page.caption)}</div>`);
+  if (page.note) parts.push(`<div class="rp-note">${esc(page.note)}</div>`);
+  if (page.chips?.length) parts.push(`<div class="rp-chips">${page.chips.map(c => `<span class="rp-chip num">${esc(c)}</span>`).join('')}</div>`);
+  if (page.lines?.length && page.id === 'profile') parts.push(`<dl class="rp-lines">${page.lines.map(([l, x]) => `<div><dt>${esc(l)}</dt><dd>${esc(x)}</dd></div>`).join('')}</dl>`);
+  if (page.box) parts.push(`<div class="rp-box">${esc(page.box)}</div>`);
+  if (page.curve) parts.push(recapCurveSvg(page.curve));
+  if (page.strip) parts.push(`<div class="rp-strip">${page.strip.map(w => `<span class="rp-strip__w${w.on ? ' is-on' : ''}"><i></i><b>${esc(w.label)}</b></span>`).join('')}</div>`);
+  if (page.bars) parts.push(recapBarsHtml(page.bars));
+  if (page.body && page.id === 'profile') {
+    parts.push(`<div class="rp-figure">${bodyMapHtml(page.body, { view: 'both', className: 'rp-body', colors: { heat: 'var(--rc-heat)' } })}</div>`);
   }
+  // Ouverture : le personnage de la semaine, à droite du chiffre
+  const side = page.body && page.id === 'sessions'
+    ? `<div class="rp-side">${bodyMapHtml(page.body, { view: 'front', className: 'rp-body', colors: { heat: 'var(--rc-heat)' } })}</div>` : '';
+  if (page.pills?.length) parts.push(`<div class="rp-pills">${page.pills.map(([l, x]) => `<span class="rp-pill"><i></i>${esc(l)} <b class="num">${esc(x)}</b></span>`).join('')}</div>`);
+  if (page.tiles?.length && page.id !== 'summary') parts.push(`<div class="rp-tiles">${page.tiles.map(([l, x]) => `<div class="rp-tile"><b class="num">${esc(x)}</b><span>${esc(l)}</span></div>`).join('')}</div>`);
+  if (page.list?.length) parts.push(`<ul class="rp-list">${page.list.slice(0, page.curve ? 2 : 3).map(x => `<li><span>${esc(x.name)}</span><b class="num">${esc(x.value)}</b></li>`).join('')}</ul>`);
+  const inner = page.id === 'summary'
+    ? `<div class="rp-story"><canvas class="rp-story__img" width="1080" height="1920" aria-hidden="true"></canvas></div>`
+    : `<div class="rp-inner${side ? ' rp-inner--side' : ''}">${side}${parts.join('')}</div>`;
   return `
-      <section class="recap-page${i === recapIndex ? ' is-active' : ''}" data-index="${i}" role="group" aria-roledescription="écran" aria-label="${esc(recapPageAlt(page, st))}">
-        <div class="recap-page__kicker" aria-hidden="true">${esc(page.kicker)}</div>
-        ${page.sub ? `<div class="recap-page__sub" aria-hidden="true">${esc(page.sub)}</div>` : ''}
-        <div class="recap-page__hero" aria-hidden="true">
-          ${value}
-          ${page.caption ? `<div class="recap-page__caption">${esc(page.caption)}</div>` : ''}
-          ${page.note ? `<div class="recap-page__note">${esc(page.note)}</div>` : ''}
-        </div>
-        ${body ? `<div class="recap-page__body" aria-hidden="true">${body}</div>` : ''}
+      <section class="recap-page tone-${page.tone}${page.id === 'summary' ? ' recap-page--summary' : ''}${i === recapIndex ? ' is-active' : ''}" data-index="${i}" data-id="${page.id}" data-tone="${page.tone}"
+        role="group" aria-roledescription="écran" aria-label="${esc(recapPageAlt(page, st))}">
+        <div class="recap-page__body" aria-hidden="true">${inner}</div>
       </section>`;
 }
 
 function renderRecap(key) {
-  const p = recapPeriodFromKey(key);
-  const st = p && recapStats(p);
+  const { p, st, pages } = recapLoad(key);
   if (!st) {
     return `
-    <div class="view recap view--grouped">
+    <div class="view recap recap--empty view--grouped">
       ${navBar({ title: 'Récap' })}
       <div class="scr"><div class="empty-note">Aucune séance sur cette période.</div></div>
     </div>`;
   }
-  const pages = recapPages(st);
   if (recapIndex >= pages.length) recapIndex = 0;
-  const dots = pages.map((pg, i) => `<i class="${i === recapIndex ? 'is-on' : ''}" aria-hidden="true"></i>`).join('');
+  const cur = pages[recapIndex];
+  const bars = pages.map((pg, i) => `<i class="${i < recapIndex ? 'is-done' : i === recapIndex ? 'is-on' : ''}"></i>`).join('');
   return `
-    <div class="view recap" style="--cat-color:${RECAP_KINDS[p.kind].color}" data-key="${esc(p.key)}">
-      ${navBar({ title: p.kind === 'year' ? `Bilan ${p.label}` : p.title, large: false })}
-      <div class="recap__track" id="recapTrack" role="region" aria-label="${esc(`${p.title}, ${p.label} : ${pages.length} écrans`)}">
+    <div class="view recap" data-key="${esc(p.key)}" data-tone="${cur.tone}">
+      <div class="recap__top">
+        <div class="recap__bars" id="recapDots" role="status" aria-label="${esc(`Écran ${recapIndex + 1} sur ${pages.length}`)}">${bars}</div>
+        <div class="recap__head">
+          <span class="recap__brand" aria-hidden="true"><img src="icon-192.png" alt="" width="20" height="20">MDLF Training</span>
+          <span class="recap__period">${esc(p.kind === 'year' ? `Bilan ${p.label}` : p.short)}</span>
+          <button class="recap__close" data-action="back" aria-label="Fermer le récap">${icon('xmark', 16)}</button>
+        </div>
+      </div>
+      <div class="recap__track" id="recapTrack" tabindex="0" role="region" aria-label="${esc(`${p.title}, ${p.label} : ${pages.length} écrans`)}">
         ${pages.map((pg, i) => recapPageHtml(pg, i, st)).join('')}
       </div>
       <div class="recap__foot">
-        <div class="recap__nav">
-          <button class="recap__arrow" data-action="recap-prev" aria-label="Écran précédent" ${recapIndex === 0 ? 'disabled' : ''}>${icon('chevron.left', 22)}</button>
-          <div class="recap__dots" id="recapDots" role="status" aria-label="${esc(`Écran ${recapIndex + 1} sur ${pages.length}`)}">${dots}</div>
-          <button class="recap__arrow" data-action="recap-next" aria-label="Écran suivant" ${recapIndex >= pages.length - 1 ? 'disabled' : ''}>${icon('chevron.right', 22)}</button>
-        </div>
-        <button class="btn btn--secondary btn--full share-btn recap__share" data-action="recap-share" data-key="${esc(p.key)}">${icon('square.and.arrow.up', 22)}<span>Partager</span></button>
+        <button class="recap__arrow" data-action="recap-prev" aria-label="Écran précédent" ${recapIndex === 0 ? 'disabled' : ''}>${icon('chevron.left', 20)}</button>
+        <button class="recap__share" data-action="recap-share" data-key="${esc(p.key)}">${icon('square.and.arrow.up', 20)}<span id="recapShareLbl">${esc(cur.share)}</span></button>
+        <button class="recap__arrow" data-action="recap-next" aria-label="Écran suivant" ${recapIndex >= pages.length - 1 ? 'disabled' : ''}>${icon('chevron.right', 20)}</button>
       </div>
     </div>`;
 }
 
-// Après le dessin : l'écran gardé est remis en place et le défilement met à jour les points
+// Après le dessin : l'écran gardé est remis en place, le défilement suit les barres, un toucher sur
+// l'écran avance (deux tiers droits) ou recule (tiers gauche), le résumé dessine sa story.
 function recapMount() {
   const track = $('#recapTrack');
   if (!track) return;
@@ -128,11 +199,63 @@ function recapMount() {
   let raf = 0;
   track.addEventListener('scroll', () => {
     if (raf) return;
-    raf = requestAnimationFrame(() => { raf = 0; recapSetIndex(Math.round(track.scrollLeft / Math.max(1, track.clientWidth))); });
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      const at = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+      if (recapTarget !== null) { if (at === recapTarget) recapTarget = null; return; }   // défilement lancé par un toucher : on attend qu'il arrive
+      recapSetIndex(at);
+    });
   }, { passive: true });
+  track.addEventListener('click', e => {
+    if (e.target.closest('button, a')) return;
+    const r = track.getBoundingClientRect();
+    recapGo(e.clientX - r.left < r.width / 3 ? -1 : 1);
+  });
+  bodyPreload();   // calques du personnage (déjà chargés au repos, sinon tout de suite)
+  recapStatusBar();
+  recapAnimate(document.querySelector('.recap-page.is-active'));
+  recapDrawSummary();
 }
 
-// Écran courant : points, flèches et animation d'arrivée (classe is-active) suivent, sans redessiner
+// Story du dernier écran : l'image partagée elle-même, dessinée une fois
+async function recapDrawSummary() {
+  const c = document.querySelector('.recap-page--summary canvas');
+  const view = document.querySelector('.view.recap');
+  if (!c || !view) return;
+  const { st, pages } = recapLoad(view.dataset.key);
+  const page = pages.at(-1);
+  if (!page) return;
+  try { await renderRecapStory(page, st, c); } catch { /* l'aperçu reste vide, le partage redessine */ }
+}
+
+// En quittant le récap : barre d'état rendue au thème de l'app
+function recapLeave() { Native.statusBar(!document.body.classList.contains('light')); }
+
+// Barre d'état d'iOS lisible sur la couleur de l'écran (texte blanc sur le violet, noir ailleurs)
+function recapStatusBar() {
+  const tone = document.querySelector('.view.recap')?.dataset.tone;
+  if (tone) Native.statusBar(tone === 'violet');
+}
+
+// Le chiffre géant monte de 0 à sa valeur (0,6 s, format français gardé) ; rien sous prefers-reduced-motion
+function recapAnimate(pageEl) {
+  if (!pageEl || reduceMotion.matches) return;
+  pageEl.querySelectorAll('[data-count]').forEach(el => {
+    const target = el.dataset.count, dec = (target.split(',')[1] || '').length;
+    if (target.includes(':')) return;   // allure « 4:51 » : affichée telle quelle
+    const n = parseFloat(target.replace(/[ \s]/g, '').replace(',', '.').replace('−', '-'));
+    if (!isFinite(n) || n === 0) return;
+    const t0 = performance.now(), dur = 600;
+    const step = now => {
+      const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = k >= 1 ? target : (n * e).toLocaleString('fr-FR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+      if (k < 1 && el.isConnected) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+// Écran courant : barres, flèches, couleur du haut et du bas, libellé du bouton, sans redessiner
 function recapSetIndex(i) {
   const pages = document.querySelectorAll('.recap-page');
   if (!pages.length) return;
@@ -140,20 +263,41 @@ function recapSetIndex(i) {
   if (i === recapIndex && pages[i].classList.contains('is-active')) return;
   recapIndex = i;
   pages.forEach((pg, k) => pg.classList.toggle('is-active', k === i));
-  const dots = $('#recapDots');
-  if (dots) {
-    [...dots.children].forEach((d, k) => d.classList.toggle('is-on', k === i));
-    dots.setAttribute('aria-label', `Écran ${i + 1} sur ${pages.length}`);
+  const view = document.querySelector('.view.recap');
+  if (view) view.dataset.tone = pages[i].dataset.tone;
+  const bars = $('#recapDots');
+  if (bars) {
+    [...bars.children].forEach((d, k) => { d.classList.toggle('is-on', k === i); d.classList.toggle('is-done', k < i); });
+    bars.setAttribute('aria-label', `Écran ${i + 1} sur ${pages.length}`);
   }
   const prev = $('[data-action="recap-prev"]'), next = $('[data-action="recap-next"]');
   if (prev) prev.disabled = i === 0;
   if (next) next.disabled = i >= pages.length - 1;
+  const lbl = $('#recapShareLbl'), key = view?.dataset.key;
+  if (lbl && key) {
+    const pg = recapLoad(key).pages[i];
+    if (pg) lbl.textContent = pg.share;
+  }
+  recapStatusBar();
+  recapAnimate(pages[i]);
 }
 
+// Écran visé par un toucher ou une flèche : tant que le défilement doux n'y est pas arrivé, les positions
+// intermédiaires ne changent pas l'écran courant (plusieurs touchers rapides, crans de WebKit). S'il
+// s'arrête ailleurs (défilement interrompu), il est remis sur l'écran visé.
+let recapTarget = null, recapTargetTimer = 0;
 function recapGo(delta) {
   const track = $('#recapTrack');
   if (!track) return;
   const n = track.children.length, i = Math.max(0, Math.min(n - 1, recapIndex + delta));
+  recapTarget = i;
+  clearTimeout(recapTargetTimer);
+  recapTargetTimer = setTimeout(() => {
+    recapTarget = null;
+    if (track.isConnected && Math.round(track.scrollLeft / Math.max(1, track.clientWidth)) !== recapIndex) {
+      track.scrollTo({ left: recapIndex * track.clientWidth, behavior: 'instant' });
+    }
+  }, 900);
   track.scrollTo({ left: i * track.clientWidth, behavior: reduceMotion.matches ? 'instant' : 'smooth' });
   recapSetIndex(i);
 }
@@ -167,9 +311,8 @@ document.addEventListener('keydown', e => {
 
 // ── Partage : l'écran affiché en image story, même aperçu et même feuille que la séance (share.js) ──
 async function openRecapShare(key, index = recapIndex) {
-  const p = recapPeriodFromKey(key);
-  const st = p && recapStats(p);
-  const page = st && recapPages(st)[index];
+  const { p, st, pages } = recapLoad(key);
+  const page = pages[index];
   if (!page) return;
   await openStoryPreview({ stats: { title: `${p.title} · ${p.label}` }, name: recapFileName(p, page), alt: recapPageAlt(page, st) },
     canvas => renderRecapStory(page, st, canvas));

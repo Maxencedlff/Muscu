@@ -23,16 +23,22 @@ function withSetCount(txt, ex, best, hasRecord = false) {
   return setsText(sets, m, setKind(ex));
 }
 
-// Exercice mis en avant : record marquant, sinon meilleure série (« 32,5 kg × 8 », « 12 reps »)
-function shareExerciseRow(ex, base, index, bodyKg = null) {
-  const rec  = exerciseRecord(ex, base);
-  const best = rec ? bestSet([rec.s], ex) : bestSet(ex.sets, ex);
+// Exercice mis en avant : record marquant, sinon meilleure série (« 32,5 kg × 8 », « 12 reps »).
+// noted : records notés de la séance (entryRecords, js/data/records.js) ; celui de l'exercice, le plus
+// marquant, n'est montré qu'avec la série qui le fait (notedRecordSet). Le 1RM estimé n'y est jamais : il
+// reste pour soi, dans le bilan.
+function shareExerciseRow(ex, noted, index, bodyKg = null) {
+  const top  = topNotedRecord((noted || []).filter(r => normName(r.ex) === normName(ex.name)));
+  const set  = top && notedRecordSet(ex, top);
+  const rec  = set ? { label: notedLabel(top), rank: NOTED_RANK[top.kind] } : null;
+  const best = set ? bestSet([set], ex) : bestSet(ex.sets, ex);
   return {
     index, name: ex.name, exId: ex.exId || null,
     value:  best ? withSetCount(setTxt(best, ex), ex, best, !!rec) : '',
     detail: !!best && !rec && withSetCount(setTxt(best, ex), ex, best, false) !== setTxt(best, ex)
             && !withSetCount(setTxt(best, ex), ex, best, false).startsWith(`${workSets(ex.sets).filter(x => (parseInt(x.reps) || 0) > 0).length} × `),
     record: rec ? rec.label : null,
+    recordRank: rec ? rec.rank : 0,
     volume: exVolume(ex, ex.sets, bodyKg),
   };
 }
@@ -52,7 +58,7 @@ function shareUnits(rows) {
 // un seul bloc (rang de son meilleur exercice) et n'est jamais coupé.
 // Rang d'un bloc (exercice seul ou superset) : record le plus marquant, sinon plus gros volume
 function shareUnitRank(u) {
-  return Math.max(...u.map(r => (r.record ? RECORD_RANK[r.record] * 1e9 : 0) + r.volume));
+  return Math.max(...u.map(r => (r.record ? r.recordRank * 1e9 : 0) + r.volume));
 }
 
 function shareHighlights(rows, max = SHARE_MAX_HIGHLIGHTS) {
@@ -63,11 +69,11 @@ function shareHighlights(rows, max = SHARE_MAX_HIGHLIGHTS) {
     .flat();
 }
 
-// entry : séance de l'historique. baseline : records d'avant la séance ({ [exId]: { prW, prR, e1rm } }) ;
-// absente (séance de l'historique), elle est reconstituée depuis les séances antérieures.
-function shareStoryStats(entry, { history = data.history, baseline = null, max = SHARE_MAX_HIGHLIGHTS } = {}) {
+// entry : séance de l'historique. Records : ceux notés dans la séance à l'enregistrement, ou recalculés
+// avec les mêmes règles pour une séance d'avant les records notés (entryRecords, js/data/records.js).
+function shareStoryStats(entry, { history = data.history, max = SHARE_MAX_HIGHLIGHTS } = {}) {
   const prog      = entryProg(entry);
-  const base      = baseline || historyBaseline(entry, history);
+  const noted     = entryRecords(entry, history);
   const all       = entry.exercises || [];
   // Supersets de la séance complète (ssBlocks) : un exercice sans série n'en coupe pas le groupe
   const groupOf   = {};
@@ -75,7 +81,7 @@ function shareStoryStats(entry, { history = data.history, baseline = null, max =
   const done      = all.map((ex, oi) => ({ ex, oi })).filter(({ ex }) => (ex.sets || []).length);
   const exercises = done.map(d => d.ex);
   const rows      = done.map(({ ex, oi }, i) => {
-    const row = shareExerciseRow(ex, base[recordKey(ex)], i, entryBodyKg(entry));
+    const row = shareExerciseRow(ex, noted, i, entryBodyKg(entry));
     // Exercice d'un superset : son groupe et le détail de ses séries (seulement là : séance sans
     // superset inchangée)
     if (groupOf[oi]) Object.assign(row, { group: groupOf[oi].id, kind: groupOf[oi].kind, sets: setsText(ex.sets, measureOf(ex), setKind(ex), { unitEach: true }) });

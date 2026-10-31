@@ -90,11 +90,11 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     assert.equal(st.exercises.length, 6, 'exercice sans série écarté');
   });
 
-  test('partage : ligne de base fournie (bilan) prioritaire, unité lbs, séance passée sans heure', () => {
+  test('partage : records notés dans la séance prioritaires, unité lbs, séance passée sans heure', () => {
     reset({ unit: 'lbs' });
     const { latest, history } = pushHistory();
-    const st = app.shareStoryStats(latest, { history, baseline: {} });
-    assert.equal(st.records, 0, 'bilan sans ligne de base : aucun record');
+    const st = app.shareStoryStats({ ...latest, records: [] }, { history });
+    assert.equal(st.records, 0, 'séance sans record noté : aucun record');
     // Charges différentes : le détail de toutes les séries (l'unité est portée par les autres lignes
     // et par la tuile Volume ; la répéter à chaque série faisait déborder la carte)
     assert.match(st.highlights[0].value, /^\d[\d,]* × 6 · /, 'détail des séries, la meilleure en tête');
@@ -103,6 +103,28 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     assert.equal(sp.duration, null);
     assert.equal(sp.time, '');
     assert.equal(app.shareStoryStats({ ...latest, exercises: [] }, { history }).volume, null);
+  });
+
+  test('partage : records de l\'image = records notés (reps noté repris, nouveaux types, jamais le 1RM estimé)', () => {
+    reset();
+    const { latest, history } = pushHistory();
+    const noted = app.shareStoryStats({ ...latest, records: [{ ex: 'Développé couché', kind: 'reps', before: 8, after: 9, w: 60 }] }, { history });
+    const dc = noted.highlights.find(h => h.name === 'Développé couché');
+    assert.equal(dc.record, 'Record reps');
+    assert.equal(dc.value, '60 kg × 9', 'la série du record noté');
+    // 1RM estimé meilleur (57,5 × 11 contre 60 × 8) sans record de charge ni de reps : rien sur l'image
+    const e1 = { ...latest, records: undefined, exercises: [{ exId: 'dc', name: 'Développé couché', sets: [{ weight: '57.5', reps: '11' }] }] };
+    assert.ok(app.calc1RM(57.5, 11) > app.calc1RM(60, 8));
+    assert.equal(app.shareStoryStats(e1, { history }).records, 0);
+    // Maintien et course : nouveaux types de records sur l'image
+    const D = 86_400_000, T = Date.now();
+    const g = (id, d, sec, min, km) => ({ id, programme: 'ppl', category: 'legs', date: T - d * D, exercises: [
+      { name: 'Gainage (planche)', measure: 'time', sets: [{ weight: '', reps: sec }] },
+      { name: 'Course à pied', measure: 'cardio', sets: [{ weight: '', reps: min, dist: km }] }] });
+    const cur = g('l2', 0, '75', '31', '6.4'), hist = [cur, g('l1', 3, '60', '30', '6')];
+    const sg = app.shareStoryStats(cur, { history: hist });
+    sameJSON(sg.highlights.map(h => h.record), ['Record temps', 'Record 5 km']);
+    assert.equal(sg.records, 2);
   });
 
   test('partage : texte VoiceOver, nom de fichier', () => {

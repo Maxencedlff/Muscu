@@ -347,7 +347,8 @@ def t_old_session(bench, eng, dev, theme):
         seed(page, theme, ppl_v2_today_json(), active=old_active_session())
         t = tag(dev, theme)
         R.check(page.locator('.view.session').count() == 1, f'{t} ancienne séance restaurée')
-        info = page.evaluate("({ b: !!activeSession.baseline.l1rowing, prev: activeSession.exercises[0].sets.every(s => 'prev' in s), notes: sessionNotes })")
+        # Records d'avant la séance relus dans l'historique (livePrior), plus de ligne de base enregistrée
+        info = page.evaluate("({ b: livePrior(activeSession.exercises.find(e => e.exId === 'l1rowing')).n > 0, prev: activeSession.exercises[0].sets.every(s => 'prev' in s), notes: sessionNotes })")
         R.check(info['b'] and info['prev'] and info['notes'] == 'Bonne forme', f'{t} ancienne séance complétée {info}')
         shot(page, LOT, f'ancienne-seance-{t}')
         page.click('[data-action="finish-session"]'); page.wait_for_timeout(250)

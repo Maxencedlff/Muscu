@@ -71,8 +71,8 @@ async function storyMuscleImage(entry, stats, palette) {
   try { return await bodyMapImage(map.levels, { colors: map.colors }); } catch { return null; }
 }
 
-// Image de la séance dans un canvas 1080 × 1920. baseline : records d'avant la séance (bilan).
-async function renderShareStory(entry, { baseline = null, stats = shareStoryStats(entry, { baseline }),
+// Image de la séance dans un canvas 1080 × 1920 (records : ceux notés dans la séance, comme le bilan)
+async function renderShareStory(entry, { stats = shareStoryStats(entry),
                                          canvas = document.createElement('canvas') } = {}) {
   const palette = storyPalette(stats.color);
   const [icon, muscle] = await Promise.all([loadImage('icon-192.png'), storyMuscleImage(entry, stats, palette)]);
@@ -138,9 +138,8 @@ async function openStoryPreview(state, draw) {
 async function openSharePreview(id) {
   const entry = (data.history || []).find(h => h.id === id);
   if (!entry) return;
-  // Bilan de la séance qui vient de se terminer : mêmes records que ceux affichés
-  const baseline = lastSummary?.id === id ? lastSummary.baseline : null;
-  const stats = shareStoryStats(entry, { baseline });
+  // Records notés dans la séance (entryRecords) : les mêmes que ceux du bilan
+  const stats = shareStoryStats(entry);
   await openStoryPreview({ entry, stats, name: shareFileName(entry), alt: shareStoryAlt(stats) },
     canvas => renderShareStory(entry, { stats, canvas }));
 }

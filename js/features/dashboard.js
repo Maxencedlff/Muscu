@@ -318,6 +318,7 @@ function renderDashboard() {
         ${btn}
         <button class="hero__link" data-action="go-editor" data-cat="${esc(next)}">Modifier les exercices</button>
       </section>
+      ${recapHomeCard()}
       ${accountHomeCard()}
       ${coachHomeCard()}
       ${liveHere ? '' : targetsCard(next)}`;
@@ -357,7 +358,7 @@ function renderDashboard() {
         ${hero || emptyCustom}
         ${hero ? '' : accountHomeCard()}
         ${trainingHomeCard()}
-        ${recapHomeCard()}
+        ${hero ? '' : recapHomeCard()}
         ${keys.length ? weekCard(ws) : ''}
         ${others ? `<section class="home-card home-card--list" aria-label="Autres séances"><h2 class="home-card__title">Autres séances</h2>${others}</section>` : ''}
       </div>

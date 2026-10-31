@@ -1,8 +1,16 @@
 // ═══════════════════════════════════════════════════════════
-//  Records : badge d'une série, record marquant d'un exercice,
-//  records d'avant une séance tirés de l'historique
+//  Records : records notés dans la séance (bilan, historique, récaps,
+//  image partagée, badges en direct) et ancien calcul gardé pour les
+//  séances d'anciennes versions reçues par le coach
 // ═══════════════════════════════════════════════════════════
 'use strict';
+
+// Un seul calcul fait foi : celui des records notés (plus bas : sessionRecords, sessionPriorOf,
+// liveExerciseBadges). Les badges de la séance en cours (liveSetBadge), le bilan, l'historique, les récaps
+// (js/data/recap.js) et l'image de la séance (js/features/share-stats.js) le lisent tous.
+// Le premier bloc (recordLabel, exerciseRecord, historyBaseline) est l'ancien calcul (charge, reps, 1RM
+// estimé contre une ligne de base) : il ne sert plus qu'à js/data/session-review.js, pour les séances
+// d'une app d'avant les records notés reçues par le coach.
 
 // Ordre d'importance des badges : charge > reps > 1RM estimé
 const RECORD_RANK = { 'Record charge': 3, 'Record lest': 3, 'Record reps': 2, 'Record 1RM est.': 1 };
@@ -36,7 +44,7 @@ function exerciseRecord(ex, base) {
 }
 
 // Clé d'un exercice dans une ligne de base (exercice sans exId : son nom normalisé). Pas exKey() :
-// les lignes de base sont rangées par exId (computeBaseline) et l'id d'un exercice du programme
+// les lignes de base sont rangées par exId (historyBaseline) et l'id d'un exercice du programme
 // n'y figure jamais ; une clé de nom retombe au moins sur l'exercice de même nom.
 function recordKey(ex) { return ex.exId || nameKey(ex.name); }
 
@@ -116,6 +124,7 @@ function betterNoted(a, b) {
 //   bestT, lAtT  : maintien le plus long, puis le lest le plus lourd sur cette durée
 //   maxMin, maxDist : cardio le plus long (min), le plus loin (km au centième)
 //   pace[d], split[d] : meilleure allure (s) des séries d'au moins d km, par km ou aux 500 m
+//   e1           : meilleur 1RM estimé (jamais noté ni partagé : badge et bilan pour soi seulement)
 const recDist = s => Math.round((parseFloat(s.dist) || 0) * 100) / 100;
 // Allure d'une série en secondes entières (par km, ou aux 500 m au rameur), null sans allure valable
 function setPaceSec(s, kind) {
@@ -123,7 +132,7 @@ function setPaceSec(s, kind) {
   return v == null ? null : Math.round(v * 60);
 }
 function emptyPrior() {
-  return { n: 0, prW: 0, prR: 0, minA: Infinity, rAt: 0, bestT: 0, lAtT: 0, maxMin: 0, maxDist: 0, pace: {}, split: {} };
+  return { n: 0, prW: 0, prR: 0, minA: Infinity, rAt: 0, bestT: 0, lAtT: 0, maxMin: 0, maxDist: 0, e1: 0, pace: {}, split: {} };
 }
 // Plus grand couple (a, b) dans l'ordre lexicographique ; inv : a le plus petit d'abord
 const lexBetter = (a, b, a0, b0, inv = false) => (inv ? a < a0 : a > a0) || (a === a0 && b > b0);
@@ -138,6 +147,8 @@ function addPriorSets(P, sets, cardio = true) {
     if (lexBetter(r, w, P.bestT, P.lAtT)) { P.bestT = r; P.lAtT = w; }
     if (r > P.maxMin) P.maxMin = r;
     if (d > P.maxDist) P.maxDist = d;
+    const e1 = calc1RM(s.weight, s.reps);
+    if (e1 && e1 > P.e1) P.e1 = e1;
     if (!cardio || !(d > 0)) return;
     for (const [kind, kms] of [['pace', RUN_RECORD_KM], ['split', ROW_RECORD_KM]]) {
       const v = kms.some(k => d >= k) ? setPaceSec(s, kind) : null;
@@ -158,6 +169,7 @@ function mergePrior(A, B) {
   if (lexBetter(B.bestT, B.lAtT, P.bestT, P.lAtT)) { P.bestT = B.bestT; P.lAtT = B.lAtT; }
   P.maxMin = Math.max(P.maxMin, B.maxMin);
   P.maxDist = Math.max(P.maxDist, B.maxDist);
+  P.e1 = Math.max(P.e1 || 0, B.e1 || 0);
   mergeBest(P.pace, B.pace); mergeBest(P.split, B.split);
   return P;
 }
@@ -226,11 +238,33 @@ function cardioNoted(ex, cur, P) {
 // Records battus par une séance (entry) contre les séances d'avant de l'historique (history, la séance
 // elle-même tolérée). Renvoie au plus NOTED_MAX éléments, les plus marquants d'abord.
 function sessionRecords(entry, history) {
+  return notedFromPrior(entry, sessionPriorOf(entry, history));
+}
+// Résumés des séries de travail d'avant une séance (entry : séance de l'historique, ou séance en cours
+// { programme, category, date: début }) : priorOf(ex, mesure), même exercice au sens de sameEx, même
+// mesure, séances du même programme et de la même séance strictement d'avant. Chaque résumé est calculé
+// une fois (les badges en direct le relisent à chaque affichage d'une série).
+function sessionPriorOf(entry, history) {
   const prog = entryProg(entry);
-  const before = (history || []).filter(h => h && h !== entry && h.id !== entry.id && h.date < entry.date
+  const before = (history || []).filter(h => h && h !== entry && (entry.id == null || h.id !== entry.id) && h.date < entry.date
     && entryProg(h) === prog && h.category === entry.category);
-  return notedFromPrior(entry, (ex, m) => addPriorSets(emptyPrior(), before.flatMap(h => (h.exercises || [])
-    .filter(he => sameEx(he, ex) && measureOf(he) === m).flatMap(he => workSets(he.sets).filter(s => recR(s) > 0))), m === 'cardio'));
+  const memo = new Map();
+  return (ex, m = measureOf(ex)) => {
+    const k = `${m}\u0000${exIdOf(ex) || ''}\u0000${normName(ex?.name)}`;
+    if (!memo.has(k)) memo.set(k, addPriorSets(emptyPrior(), before.flatMap(h => (h.exercises || [])
+      .filter(he => sameEx(he, ex) && measureOf(he) === m).flatMap(he => workSets(he.sets).filter(s => recR(s) > 0))), m === 'cardio'));
+    return memo.get(k);
+  };
+}
+// Records que des séries (cur, de travail, faites) battent contre le résumé d'avant P, selon la mesure
+function exerciseNoted(ex, m, cur, P) {
+  return m === 'cardio' ? cardioNoted(ex, cur, P) : m === 'time' ? timedNoted(cur, P)
+    : isAssisted(ex) ? assistedNoted(cur, P) : strengthNoted(ex, cur, P);
+}
+// Élément noté (valeurs arrondies au millième) d'un record r de l'exercice ex
+function notedItem(ex, r) {
+  return { ex: String(ex.name || '').slice(0, 80), kind: r.kind, before: round3(r.before), after: round3(r.after),
+    ...(r.w != null ? { w: round3(r.w) } : {}), ...(r.d != null ? { d: r.d } : {}) };
 }
 // Cœur de sessionRecords : priorOf(ex, mesure) donne le résumé des séries de travail d'avant de cet
 // exercice (même exercice au sens de sameEx, même mesure).
@@ -242,10 +276,7 @@ function notedFromPrior(entry, priorOf) {
     if (!cur.length) return;
     const prior = priorOf(ex, m);
     if (!prior?.n) return;   // première fois : rien
-    const recs = m === 'cardio' ? cardioNoted(ex, cur, prior) : m === 'time' ? timedNoted(cur, prior)
-      : isAssisted(ex) ? assistedNoted(cur, prior) : strengthNoted(ex, cur, prior);
-    recs.forEach(r => out.push({ ex: String(ex.name || '').slice(0, 80), kind: r.kind, before: round3(r.before), after: round3(r.after),
-      ...(r.w != null ? { w: round3(r.w) } : {}), ...(r.d != null ? { d: r.d } : {}) }));
+    exerciseNoted(ex, m, cur, prior).forEach(r => out.push(notedItem(ex, r)));
   });
   return out.sort((a, b) => NOTED_RANK[b.kind] - NOTED_RANK[a.kind]).slice(0, NOTED_MAX);
 }
@@ -339,6 +370,77 @@ function cleanNotedRecords(v) {
 // Le plus marquant d'une liste de records notés, null sans
 function topNotedRecord(records) {
   return (records || []).reduce((b, r) => (betterNoted(r, b) ? r : b), null);
+}
+
+// ── Badges en direct de la séance ───────────────────────────
+// Même calcul que l'enregistrement : les records d'un exercice sont ceux que ses séries de travail faites
+// battent ensemble (exerciseNoted) contre le résumé d'avant la séance (sessionPriorOf), et chacun va sur la
+// série qui le fait (notedRecordSet : une seule à valeur égale). Ainsi une série qui égale une série plus tôt
+// dans la séance n'a pas de badge, et un « Record reps » battu ensuite par un « Record charge » disparaît
+// (un seul record par exercice en force). Une série qui fait plusieurs records (cardio) montre le plus
+// marquant (allure > distance > durée). Sans record noté pour l'exercice, « Record 1RM est. » sur la série
+// que le bilan montrera (e1rmRecordSet), pour soi. Échauffement, série vide, première fois : rien.
+// Renvoie une Map série → libellé.
+function liveExerciseBadges(ex, prior) {
+  const out = new Map();
+  if (!ex || !prior?.n) return out;
+  const done = workSets(ex.sets).filter(s => s.done && recR(s) > 0);
+  if (!done.length) return out;
+  const noted = exerciseNoted(ex, measureOf(ex), done, prior), top = new Map();
+  noted.forEach(r => {
+    const item = notedItem(ex, r), s = pickRecordSet(done, item);
+    if (s && (!top.has(s) || NOTED_RANK[item.kind] > NOTED_RANK[top.get(s).kind])) top.set(s, item);
+  });
+  top.forEach((r, s) => out.set(s, notedLabel(r)));
+  const e1s = !noted.length && e1rmRecordSet(ex, prior, done);
+  if (e1s) out.set(e1s, 'Record 1RM est.');
+  return out;
+}
+// Badge d'une série validée de l'exercice (liveExerciseBadges) : « Record charge », « Record 5 km »,
+// « Record 1RM est. »…, sinon ''
+function liveSetBadge(ex, s, prior) {
+  return liveExerciseBadges(ex, prior).get(s) || '';
+}
+// 1RM estimé battu par une série (répétitions avec charge ou lest seulement) : pour soi, jamais noté
+function setBeatsE1rm(ex, s, prior) {
+  if (!prior?.n || !s || isWarmupSet(s) || measureOf(ex) !== 'reps' || isAssisted(ex)) return false;
+  const e1 = calc1RM(s.weight, s.reps);
+  return !!e1 && e1 > (prior.e1 || 0);
+}
+// Série (parmi sets, par défaut les séries de travail de l'exercice) qui bat le plus son 1RM estimé d'avant,
+// la première à égalité ; null sans (bilan et badge en direct : « Record 1RM est. »)
+function e1rmRecordSet(ex, prior, sets = workSets(ex.sets)) {
+  let best = null, top = 0;
+  sets.forEach(s => {
+    if (!setBeatsE1rm(ex, s, prior)) return;
+    const e1 = calc1RM(s.weight, s.reps);
+    if (e1 > top) { top = e1; best = s; }
+  });
+  return best;
+}
+
+// Série de l'exercice qui fait un record noté (r), pour la montrer telle quelle (« 62,5 kg × 6 » sur l'image,
+// « × 6 répétitions » dans le récap), null si l'exercice n'a pas cette série (record d'un autre exercice du
+// même nom, séance modifiée depuis). À valeur égale : le plus de reps (charge, aide), le plus lourd (temps),
+// le plus loin (durée, allure), le plus court (distance).
+function notedRecordSet(ex, r) {
+  return ex && r ? pickRecordSet(workSets(ex.sets).filter(s => recR(s) > 0), r) : null;
+}
+// Cœur de notedRecordSet : la série de sets (de travail, faites) qui fait le record r, null sans
+function pickRecordSet(sets, r) {
+  const W = s => round3(recW(s)), pick = (ok, score) => sets.filter(ok).sort((a, b) => score(b) - score(a))[0] || null;
+  switch (r.kind) {
+    case 'charge': case 'lest': case 'aide': return pick(s => W(s) === r.after, recR);
+    case 'reps':     return pick(s => W(s) === (r.w ?? 0) && recR(s) === r.after, () => 0);
+    case 'temps':    return pick(s => recR(s) === r.after && W(s) >= (r.w ?? 0), recW);
+    case 'duree':    return pick(s => recR(s) === r.after, recDist);
+    case 'distance': return pick(s => recDist(s) === r.after, s => -recR(s));
+    case 'allure': {
+      const pk = ROW_RECORD_KM.includes(r.d) ? 'split' : 'pace';
+      return pick(s => recDist(s) >= r.d && setPaceSec(s, pk) === r.after, recDist);
+    }
+  }
+  return null;
 }
 
 // ── Textes ──────────────────────────────────────────────────
