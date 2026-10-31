@@ -3,12 +3,12 @@
 Décisions de Maxence (26 et 27/10/2026) :
 - un coach suit des élèves ; il garde toutes les fonctions d'un utilisateur normal ;
 - élèves gratuits tant qu'ils sont suivis ; le coach paiera selon son nombre d'élèves, **mais pas en V1** : le rôle coach est donné à la main par l'administrateur (SQL), le temps de tester ;
-- pas de messagerie ; à la place, des **consignes** (sur un programme ou un exercice) et un **commentaire** du coach sur une séance ;
+- pas de messagerie en V1 ; à la place, des **consignes** (sur un programme ou un exercice) et un **commentaire** du coach sur une séance (31/10/2026 : messages texte ajoutés, voir « Messages ») ;
 - **envoi de programmes** du coach vers l'élève ;
 - les élèves d'un même coach ne se voient pas entre eux ;
 - notifications push : pas en V1 (elles demandent une build). Un badge dans l'app à la place.
 
-Hors V1 : paiement, push, plusieurs coachs pour un élève, groupes d'élèves, messagerie.
+Hors V1 : paiement, push, plusieurs coachs pour un élève, groupes d'élèves (messagerie : ajoutée le 31/10/2026, voir « Messages »).
 
 ## Principes (mêmes règles que docs/SOCIAL_V1.md)
 - **Écritures par fonction seulement** : RPC `security definer`, `set search_path = ''`, utilisateur pris dans `auth.uid()`. Aucune écriture directe sur les nouvelles tables, RLS activée, GRANT explicites (`anon` n'a rien, `authenticated` seulement EXECUTE sur les RPC).
@@ -49,6 +49,40 @@ Décision de Maxence : l'élève choisit, donnée par donnée, ce que son coach 
 | `coach_student_weights(student uuid)` | `jsonb` | Coach de cet élève, encore coach, sinon `not_found`. `{ shared, since, weights: [{ date, kg }] }` du plus récent ; sans partage : `shared: false`, liste vide. |
 
 App : Réglages › Amis et coach › « Partager avec mon coach » (élève suivi seulement ; aussi dans Réglages › Coach) → écran `coach-share` (une case par donnée ouverte, texte de ce que le coach verra). Coach : sur la fiche d'un élève qui partage, groupe « Poids du corps » (dernière pesée, tendance sur 30 jours, courbe de Progrès) ; page séance : pied de page « poids du corps compté (61,4 kg, sa dernière pesée partagée à cette date…) ».
+
+## Messages (31/10/2026, migration `20261031510000_chat_coach.sql`)
+
+Demande de Maxence (feuille de route « Plus tard » : chat coach), choix pris par défaut (à valider) :
+- texte seul (ni photo, ni vocal, ni pièce jointe), 2000 caractères par message ;
+- une conversation par lien coach ↔ élève, **seulement entre un coach et ses élèves liés** ; les élèves d'un même coach ne se voient jamais ;
+- **effacée en cascade** dès que le lien est rompu (l'élève quitte, le coach le retire, un compte est supprimé) : rejoindre de nouveau repart d'une conversation vide ;
+- pas de temps réel : relecture toutes les 15 s tant que la conversation est à l'écran, et avec l'état du coach (ouverture de l'app, premier plan, onglet Amis) ;
+- pas de suppression ni de modification d'un message envoyé en V1 ; pas de liste de mots interdits (conversation privée entre deux personnes qui se sont choisies) ; « Signaler » passe par la fonction Edge `report` (`kind: 'profile'`, `target_ref: 'chat'`), puis quitter ou retirer ;
+- indépendant du social, comme le reste du coach : un blocage social ne coupe pas la conversation (il faut quitter le coach ou retirer l'élève).
+
+### Règles
+- **Conversation désignée par l'élève** : le coach passe `student` (son élève), l'élève passe `null` (« avec mon coach »). Un compte à la fois coach et élève a deux conversations séparées, sans ambiguïté. Chaque appel relit le lien (`private.chat_thread`) et vérifie que le coach a encore le rôle : sinon `not_found`, des deux côtés (rôle retiré : conversation fermée, mais pas effacée tant que le lien existe).
+- **Données** : `coach_messages (id bigint identity, student_id, coach_id, from_coach, body, created_at)`, clé étrangère vers `coach_links (student_id, coach_id)` on delete cascade ; RLS activée, aucun GRANT client. Non-lus : `coach_links.chat_coach_read` et `chat_student_read`, id du dernier message lu par chacun.
+- **Non-lus** : messages de l'autre au-delà de ma marque. Écrire vaut lecture (ma marque avance jusqu'à mon message). Envoi et marque d'une même conversation passent l'un après l'autre (verrou par lien) : un message arrivé pendant la lecture n'est jamais compté lu sans avoir été vu.
+- **Texte** : nettoyé comme les commentaires ; 1 à 2000 caractères (`empty_message`, `too_long`).
+- **Limites** : 60 messages par heure et 500 par 24 h ; `chat_messages` 900 lectures par heure, `chat_threads` et `chat_mark_read` 600.
+- **Erreurs** : `not_found`, `empty_message`, `too_long`, `rate_limited`.
+
+| Fonction | Renvoie | Règles |
+|---|---|---|
+| `chat_threads()` | `jsonb` | `{ coach: { unread, last } \| null, students: [{ student_id, unread, last }], unread }`, `last = { id, mine, body (120 caractères), at } \| null`. `coach` : avec mon coach (s'il a encore le rôle) ; `students` : mes élèves (si je suis coach). |
+| `chat_messages(student uuid default null, before_id bigint default null, after_id bigint default null)` | `table(id bigint, mine boolean, body text, at timestamptz)` | 50 par page. Sans curseur : les plus récents, du plus récent au plus ancien ; `before_id` : plus anciens (même ordre) ; `after_id` : plus récents, du plus ancien au plus récent (relecture). |
+| `chat_send(body text, student uuid default null)` | `jsonb { id, mine, body, at }` | Voir les règles. |
+| `chat_mark_read(student uuid default null)` | `void` | Conversation lue jusqu'au dernier message. |
+
+### App
+- **Entrées** : cellule « Messages » (dernier message, nombre de non-lus) dans Mon coach (élève) et sur la fiche d'un élève (coach) ; pastille bleue 💬 N par élève dans Mes élèves ; les non-lus s'ajoutent aux pastilles « Mon coach » / « Mes élèves » et au badge de l'onglet Amis (gardés sur l'appareil, `mdlf_chat`, pour un badge juste hors ligne).
+- **Conversation** (`coach-chat:@coach` ou `coach-chat:<id de l'élève>`) : bulles façon Messages (les miennes à droite à la teinte, celles de l'autre à gauche en gris), heure, séparateurs « Aujourd'hui », « Hier », date ; « Afficher les messages précédents » ; saisie collée au-dessus de la barre d'onglets ; menu ⋯ « Signaler ». Ouverte : marquée lue ; relue toutes les 15 s (seulement les nouveaux, `after_id`) ; pendant la frappe, seule la liste est redessinée. Lien rompu : « les messages ont été effacés ».
+- **Serveur sans messagerie** (fonction absente, PostgREST `PGRST202`) : la cellule « Messages » n'apparaît pas.
+- **privacy.html** : « Messages » dans Coach (FR et EN).
+
+### Ordre de mise en production
+Migration d'abord, puis l'OTA (une app à jour sur un serveur d'avant cache la cellule). Retour arrière : `supabase/rollback/20261031510000_chat_coach_down.sql`, vérifié par `tests/sql/rollback_social_check.sh`.
 
 ## Fonctions RPC (rôle `authenticated`)
 

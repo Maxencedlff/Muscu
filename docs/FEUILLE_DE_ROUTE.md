@@ -170,6 +170,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ▶ | Système payant modèle B : StoreKit, essai 3 mois, codes cadeaux, verrou       | Branche payant            | Prêt, tests verts · attend ta décision |
 | ▶ | Abonnements 5,99 €/mois et 41,99 €/an, offre 3 mois gratuits                  | App Store Connect         | Créés · manque la capture de revue     |
 | ▶ | Photos de progression dans l'app iPhone (autorisations caméra et photos)      | Branche lot2-build-photos | Part avec la build unique              |
+| ▶ | Commentaires libres sur les séances (modération) et messages coach ↔ élève   | Branche nuit-social       | Prêt en local, tests verts · feu vert n° 2 |
 
 ---
 
@@ -281,7 +282,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 |   | Quoi                                                          | Quand / état          |
 |---|---------------------------------------------------------------|-----------------------|
-| ○ | Newsletter, commentaires libres, chat coach, widgets, Siri    | Plus tard             |
+| ○ | Newsletter, widgets, Siri (commentaires et chat coach : branche nuit-social) | Plus tard |
 | ○ | Score de force, périodisation, option à vie, marque INPI      | Plus tard             |
 | ○ | Test mini-barre, rôle coach d'un testeur                      | Plus tard             |
 | ○ | Messages tout faits en réaction                               | Plus tard             |

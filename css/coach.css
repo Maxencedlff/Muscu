@@ -171,3 +171,37 @@
 /* Programmes envoyés à un élève : état à droite */
 .coach-sent__state { color: var(--label); }
 .coach-sent__state--unseen { color: var(--orange-text); }
+
+/* ── Messages coach ↔ élève (js/features/coach-chat-ui.js) ── */
+.chat-cell__last { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+/* Non-lus d'un élève (Mes élèves) : bulle et nombre, à côté de la pastille des séances */
+.chat-count {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 7px; border-radius: var(--r-pill);
+  background: var(--tint-fill); color: var(--on-tint); font-size: .765rem; font-weight: 600;
+}
+.chat { display: flex; flex-direction: column; min-height: calc(100dvh - 140px); }
+.chat-intro { margin: 12px var(--gutter) 4px; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
+.chat-list { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 8px 12px 12px; }
+.chat-empty { margin: 32px var(--gutter); text-align: center; color: var(--label2); font-size: var(--fs-callout); }
+.chat-more { align-self: center; margin-bottom: 8px; }
+.chat-day { align-self: center; margin: 12px 0 6px; font-size: var(--fs-caption); font-weight: 600; color: var(--label2); }
+.chat-msg { display: flex; align-items: flex-end; gap: 6px; max-width: 82%; }
+.chat-msg--mine { align-self: flex-end; flex-direction: row-reverse; }
+.chat-msg--theirs { align-self: flex-start; }
+.chat-msg__bubble {
+  margin: 0; padding: 8px 12px; border-radius: 18px; font-size: var(--fs-body); line-height: 1.32;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.chat-msg--mine .chat-msg__bubble { background: var(--tint-fill); color: var(--on-tint); border-bottom-right-radius: 6px; }
+.chat-msg--theirs .chat-msg__bubble { background: var(--cell2); color: var(--label); border-bottom-left-radius: 6px; }
+.chat-msg__time { flex-shrink: 0; font-size: var(--fs-caption2); color: var(--label3); margin-bottom: 4px; }
+/* Saisie collée en bas, au-dessus de la barre d'onglets (et de la mini-barre de séance) */
+.chat-compose {
+  position: sticky; bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom, 0px)); z-index: 2;
+  display: flex; align-items: flex-end; gap: 8px; margin: 0 var(--gutter);
+  padding: 6px 6px 6px 14px; background: var(--cell); border: 1px solid var(--sep); border-radius: 22px;
+  box-shadow: 0 -10px 16px var(--bg);
+}
+body.has-tabbar.has-livebar .chat-compose { bottom: calc(var(--tabbar-h) + 72px + env(safe-area-inset-bottom, 0px)); }
+.chat-compose:focus-within { border-color: var(--tint); }
+body.has-tabbar .coach-chat-view { padding-bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom, 0px)); }

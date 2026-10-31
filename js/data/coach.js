@@ -176,7 +176,10 @@ function coachErrorKind(error) {
   if (!error) return null;
   if (isNetworkError(error) || /fetch|network|load failed/i.test(String(error.message || ''))) return 'offline';
   const msg = String(error.message || error.error || '');
-  for (const k of ['not_coach', 'already_coached', 'invalid_code', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required', 'not_shared', 'invalid_kind', 'invalid_data']) if (msg.includes(k)) return k;
+  for (const k of ['not_coach', 'already_coached', 'invalid_code', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required', 'not_shared', 'invalid_kind', 'invalid_data',
+    'empty_message']) if (msg.includes(k)) return k;
+  // Fonction absente du serveur (migration pas encore appliquée) : PostgREST répond PGRST202
+  if (error.code === 'PGRST202' || /could not find the function/i.test(msg)) return 'missing';
   return 'server';
 }
 const COACH_ERROR_TEXT = {
@@ -195,6 +198,10 @@ const COACH_ERROR_TEXT = {
   not_shared: 'Ce partage est coupé : coche-le à nouveau pour l\'envoyer.',
   invalid_kind: 'Ce partage n\'est pas encore disponible.',
   invalid_data: 'Pesées illisibles : rien n\'a été envoyé.',
+  // Messages (js/data/coach-chat.js)
+  empty_message: 'Écris quelque chose avant d\'envoyer.',
+  busy: 'Envoi déjà en cours.',
+  missing: 'Pas encore disponible : réessaie après la prochaine mise à jour.',
   signed_out: 'Connecte-toi d\'abord à ton compte.',
   server: 'Action impossible pour l\'instant, réessaie dans un moment.',
 };
@@ -458,6 +465,8 @@ async function coachRefresh({ minAge = 0 } = {}) {
     writeCoachInbox();
     // Élève : ce qu'il partage avec son coach, et ses pesées si elles ont changé (js/data/coach-share.js)
     if (typeof coachShareRefresh === 'function') coachShareRefresh();
+    // Messages : non-lus et derniers messages (js/data/coach-chat.js)
+    if (typeof chatRefresh === 'function') chatRefresh();
   }
   coach.loading = false;
   notifyCoach();

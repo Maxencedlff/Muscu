@@ -17,7 +17,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send', 'coach-share'];
+const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send', 'coach-share', 'coach-chat'];
 const COACH_SEND_DRAFT_KEY = 'mdlf_coach_send_draft';   // brouillon de l'écran Envoyer (retour arrière, relance)
 const coachTipClosed = new Set();   // séance en cours : consignes repliées (identifiant d'exercice, '' : programme)
 const coachProgOpen = new Set();    // Mon coach : programmes reçus dont les exercices sont dépliés
@@ -59,7 +59,7 @@ function coachTitle(html) { return `<h2 class="group-title coach-title">${html}<
 function coachRouteTitle(route) {
   const name = routeName(route);
   if (name === 'coach-student') return coachStudent(routeParams(route)[0])?.username || 'Élève';
-  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-share': 'Partager' }[name] || null;
+  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-share': 'Partager', 'coach-chat': 'Messages' }[name] || null;
 }
 
 // ── Cellules : Réglages et onglet Amis ──────────────────────
@@ -95,22 +95,23 @@ function coachCellHtml({ place = 'top', friends = null } = {}) {
   const lost = account.user && !hasCoach ? coachLost() : null;
   if (lost) {
     rows.push(`<div class="cell coach-lost" role="status">
-        <span class="cell__body"><span class="cell__title">Tu ne suis plus ${esc(lost)}</span><span class="cell__sub">Ses commentaires sont effacés. Les programmes ajoutés restent chez toi.</span></span>
+        <span class="cell__body"><span class="cell__title">Tu ne suis plus ${esc(lost)}</span><span class="cell__sub">Ses commentaires et vos messages sont effacés. Les programmes ajoutés restent chez toi.</span></span>
         <button class="social-x" data-action="coach-lost-ok" aria-label="OK, fermer">${icon('xmark', 14)}</button>
       </div>`);
   }
   if (isCoach) {
-    const st = coach.state, n = st ? st.students.length : null, badge = coachBadgeCoach();
+    // Pastille : nouvelles séances des élèves + messages non lus (js/data/coach-chat.js)
+    const st = coach.state, n = st ? st.students.length : null, unread = coachChatUnreadStudents(), badge = coachBadgeCoach() + unread;
     const sub = n === null ? '' : n ? plural(n, 'élève', 'élèves') : 'Invite ton premier élève';
     rows.push(`<button class="cell cell--nav coach-cell" data-action="coach-open-students">
         <span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span>
         <span class="cell__body"><span class="cell__title">Mes élèves</span>${sub ? `<span class="cell__sub">${sub}</span>` : ''}</span>
-        ${coachBadgeHtml(badge, plural(badge, 'nouvelle séance', 'nouvelles séances'))}
+        ${coachBadgeHtml(badge, unread ? plural(badge, 'nouveauté', 'nouveautés') : plural(badge, 'nouvelle séance', 'nouvelles séances'))}
         ${icon('chevron.right', 16)}
       </button>`);
   }
   if (hasCoach) {
-    const p = myCoach(), badge = coachBadgeStudent();
+    const p = myCoach(), badge = coachBadgeStudent() + chatUnreadOf(CHAT_COACH);
     const label = ['Mon coach', p ? personName(p) : '', badge ? plural(badge, 'nouveauté', 'nouveautés') : ''].filter(Boolean).join(', ');
     rows.push(`<button class="cell cell--nav coach-cell" data-action="coach-open-mine" aria-label="${esc(label)}">
         ${p ? personAvatar(p) : `<span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span>`}
@@ -132,6 +133,11 @@ function refreshCoachCell() {
   const box = $('#coachCell'), low = $('#coachCellLow');
   if (box) box.innerHTML = coachCellHtml({ place: 'top', friends: st });
   if (low) low.innerHTML = coachCellHtml({ place: 'low', friends: st });
+}
+
+// Messages non lus de tous mes élèves (pastille « Mes élèves »)
+function coachChatUnreadStudents() {
+  return (coach.state?.students || []).reduce((a, s) => a + chatUnreadOf(s.user_id), 0);
 }
 
 // ── Réglages › Coach ────────────────────────────────────────
@@ -345,13 +351,14 @@ function renderCoachMine() {
           ${personAvatar(p, 'l')}
           <span><span class="coach-join__name">${esc(personName(p))}</span><span class="coach-join__sub">Ton coach${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span></span>
         </div>
+        ${chatCellHtml(CHAT_COACH)}
         ${notes}
         <div class="group-title">Programmes reçus</div>
         <div class="coach-progs">${progs}</div>
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
         </div>
-        <div class="group-foot">Si tu le quittes, ton coach ne verra plus tes séances.</div>
+        <div class="group-foot">Si tu le quittes, ton coach ne verra plus tes séances, et vos messages seront effacés.</div>
       </div>
     </div>`;
 }
@@ -554,6 +561,7 @@ function renderCoachStudents() {
               ${s.last_session ? `<span class="cell__sub num">${s.sessions_7d ? `${plural(s.sessions_7d, 'séance', 'séances')} en 7 jours` : 'Aucune séance en 7 jours'}</span>` : ''}
             </span></span>
             ${coachBadgeHtml(s.new_sessions, plural(s.new_sessions, 'nouvelle séance', 'nouvelles séances'))}
+            ${chatBadgeHtml(chatUnreadOf(s.user_id))}${chatUnreadOf(s.user_id) ? `<span class="visually-hidden">, ${plural(chatUnreadOf(s.user_id), 'message non lu', 'messages non lus')}</span>` : ''}
             ${icon('chevron.right', 16)}
           </button>`).join('');
   const invites = st.invites.map(i => `
@@ -658,6 +666,7 @@ function renderCoachStudent(uid) {
           ${personAvatar(p, 'l')}
           <span><span class="coach-join__name">${esc(personName(p))}</span><span class="coach-join__sub">${sinceText(p) ? `Élève depuis le ${esc(sinceText(p))}` : 'Élève'}</span></span>
         </div>
+        ${chatCellHtml(uid)}
         <div class="group">
           <button class="cell cell--action" data-action="coach-send" data-uid="${esc(uid)}">${icon('square.and.arrow.up', 20)}<span>Envoyer un programme</span></button>
         </div>
@@ -924,7 +933,7 @@ registerActions({
     const name = coachName();
     const lost = (coach.inbox?.programmes || []).filter(p => coachStatus(p).status === 'new').map(p => `« ${p.data.name} »`);
     const extra = lost.length ? ` ${lost.length > 1 ? `Les programmes ${lost.join(', ')} que tu n'as pas ajoutés seront perdus.` : `Le programme ${lost[0]} que tu n'as pas ajouté sera perdu.`}` : '';
-    if (!(await confirmSheet(`Quitter ${name} ?`, `${name} ne verra plus tes séances. Ses commentaires sont effacés. Les programmes déjà ajoutés restent dans tes programmes.${extra}`, 'Quitter mon coach'))) return;
+    if (!(await confirmSheet(`Quitter ${name} ?`, `${name} ne verra plus tes séances. Ses commentaires et vos messages sont effacés. Les programmes déjà ajoutés restent dans tes programmes.${extra}`, 'Quitter mon coach'))) return;
     const r = await coachLeave();
     if (!coachToast(r, `Tu ne suis plus ${name}`)) return;
     if (currentView() === 'coach-mine') goBack(); else render();
@@ -962,7 +971,7 @@ registerActions({
   'coach-more': (e, el) => { coachLoadSessions(el.dataset.uid, { more: true }); },
   'coach-remove': async (e, el) => {
     const name = personName(coachStudent(el.dataset.uid));
-    if (!(await confirmSheet(`Retirer ${name} ?`, `${name} ne pourra plus revenir avec tes codes, sauf si tu l'autorises dans Mes élèves. Tu ne verras plus ses séances ; tes commentaires et les programmes pas encore ajoutés sont effacés.`, 'Retirer l\'élève'))) return;
+    if (!(await confirmSheet(`Retirer ${name} ?`, `${name} ne pourra plus revenir avec tes codes, sauf si tu l'autorises dans Mes élèves. Tu ne verras plus ses séances ; tes commentaires, vos messages et les programmes pas encore ajoutés sont effacés.`, 'Retirer l\'élève'))) return;
     const r = await coachRemoveStudent(el.dataset.uid);
     if (!coachToast(r, `${name} ne fait plus partie de tes élèves`)) return;
     routeTo('coach-students');
@@ -1036,7 +1045,7 @@ document.addEventListener('input', e => {
 // des Réglages…) : ils ne sont redessinés que si cette signature change, jamais pendant une saisie
 function coachShownKey() {
   const ib = coach.inbox;
-  return JSON.stringify([account.user?.id || null, coachRole(), coachBadge(), coachBadgeCoach(), coachBadgeStudent(), myCoach()?.user_id || null, myCoach()?.username || null,
+  return JSON.stringify([account.user?.id || null, coachRole(), coachBadge(), coachBadgeCoach(), coachBadgeStudent(), chatUnreadTotal(), chat.available, myCoach()?.user_id || null, myCoach()?.username || null,
     coach.state?.students.length ?? null, account.user ? coachLost() : null, typeof coachShareSummary === 'function' ? coachShareSummary() : null,
     ib ? [ib.programmes.map(p => [p.id, p.sentAt, p.seen, !!p.meta]), ib.notes.map(n => [n.session_id, n.updatedAt, n.seen])] : null]);
 }

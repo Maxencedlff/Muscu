@@ -33,13 +33,14 @@ function mySessionLabel(sessionId) {
   return h ? rawLabel(h.category, entryProg(h)) : '';
 }
 
-// Ligne de l'activité : avatar, « pseudo a réagi 🔥 à ta séance Legs », depuis quand ; point bleu si
-// nouvelle. Réaction : vers ma séance (Historique) si cet appareil l'a, sinon le profil de la personne.
+// Ligne de l'activité : avatar, « pseudo a réagi 🔥 à ta séance Legs » (ou « a commenté ta séance Legs :
+// « … » »), depuis quand ; point bleu si nouvelle. Réaction, commentaire : vers ma séance (Historique,
+// avec ses commentaires) si cet appareil l'a, sinon le profil de la personne.
 // Demande reçue : Accepter et Refuser, comme dans l'onglet.
 function activityRowHtml(a) {
   const name = personName(a);
   const text = activityText(a, mySessionLabel(a.sessionId));
-  const local = a.kind === 'reaction' && (data.history || []).some(h => h.id === a.sessionId);
+  const local = (a.kind === 'reaction' || a.kind === 'comment') && (data.history || []).some(h => h.id === a.sessionId);
   const open = local ? `data-action="social-open-my-session" data-id="${esc(a.sessionId)}"` : `data-action="social-open-profile" data-uid="${esc(a.user_id)}"`;
   const trailing = a.kind === 'request' && socialRelation(a.user_id, social.state).pendingIn
     ? pill('social-accept', a.user_id, 'Accepter', { fill: true, aria: `Accepter ${name}` })
@@ -64,7 +65,7 @@ function meActivityHtml() {
   if (!a.rows.length) {
     if (a.loading || (!a.loadedAt && !a.error)) return '<div class="group"><div class="cell"><span class="cell__sub">Chargement…</span></div></div>';
     if (a.error) return offlineNote(a.error === 'offline' ? 'Pas d\'Internet : l\'activité s\'affichera quand le réseau reviendra.' : socialErrorText(a.error));
-    return '<div class="group"><div class="cell"><span class="cell__sub social-empty">Rien pour l\'instant. Les réactions à tes séances et tes nouveaux abonnés s\'afficheront ici.</span></div></div>';
+    return '<div class="group"><div class="cell"><span class="cell__sub social-empty">Rien pour l\'instant. Les réactions et commentaires sur tes séances et tes nouveaux abonnés s\'afficheront ici.</span></div></div>';
   }
   const rows = meActivityAll ? a.rows : a.rows.slice(0, ME_ACTIVITY_SHOWN);
   const more = (!meActivityAll && a.rows.length > ME_ACTIVITY_SHOWN) || (meActivityAll && !a.end)
