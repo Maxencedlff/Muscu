@@ -60,9 +60,8 @@ function commentsGroupHtml(owner, id, { writable = true } = {}) {
   const busy = comments.busy;
   const composer = writable ? `
         <div class="comment-compose">
-          <label class="visually-hidden" for="commentInput">Ajouter un commentaire</label>
           <textarea id="commentInput" class="comment-compose__input" data-owner="${esc(owner)}" data-id="${esc(id)}" rows="1"
-            placeholder="Ajouter un commentaire…" autocomplete="off" autocapitalize="sentences" aria-describedby="commentCount">${esc(draft)}</textarea>
+            aria-label="Ajouter un commentaire" placeholder="Ajouter un commentaire…" autocomplete="off" autocapitalize="sentences" aria-describedby="commentCount">${esc(draft)}</textarea>
           <button class="comment-compose__send" data-action="comment-send" data-owner="${esc(owner)}" data-id="${esc(id)}"
             aria-label="Envoyer le commentaire" ${busy || commentProblem(draft) ? 'disabled' : ''}>${icon('arrow.up', 18)}</button>
         </div>

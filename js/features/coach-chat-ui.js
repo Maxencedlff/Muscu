@@ -73,9 +73,8 @@ function renderCoachChat(key) {
           Ils sont effacés si le suivi s'arrête.</p>
         <div class="chat-list" id="chatList" role="log" aria-live="polite" aria-relevant="additions">${chatListHtml(key)}</div>
         <div class="chat-compose">
-          <label class="visually-hidden" for="chatInput">Message à ${esc(name)}</label>
           <textarea id="chatInput" class="comment-compose__input chat-compose__input" data-key="${esc(key)}" rows="1"
-            placeholder="Message" autocomplete="off" autocapitalize="sentences" aria-describedby="chatCount">${esc(draft)}</textarea>
+            aria-label="${esc(`Message à ${name}`)}" placeholder="Message" autocomplete="off" autocapitalize="sentences" aria-describedby="chatCount">${esc(draft)}</textarea>
           <button class="comment-compose__send" data-action="chat-send" data-key="${esc(key)}" aria-label="Envoyer le message"
             ${c.sending || chatProblem(draft) ? 'disabled' : ''}>${icon('arrow.up', 18)}</button>
         </div>

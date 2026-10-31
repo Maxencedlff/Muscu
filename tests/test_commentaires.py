@@ -66,7 +66,7 @@ def small_targets(page, sel):
 
 def cut_texts(page):
     return page.evaluate("""() => [...document.querySelectorAll('#app *')].filter(e => e.offsetParent && e.children.length === 0
-        && e.textContent.trim() && !e.matches('input, textarea, svg, use, .icon *') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
+        && e.textContent.trim() && !e.matches('input, textarea, svg, use, .icon *, .visually-hidden') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
         .map(e => e.textContent.trim().slice(0, 30))""")
 
 
@@ -121,7 +121,7 @@ def t_ecrire(bench, eng, dev, theme):
         R.check('paul' in txt and 'Grosse séance 💪' in txt and 'il y a 3 h' in txt, f'{t} commentaire de Paul affiché ({txt!r})')
         send = page.locator('.comment-compose__send')
         R.check(send.is_disabled(), f'{t} Envoyer grisé tant que le champ est vide')
-        R.check(page.get_attribute('#commentInput', 'aria-describedby') == 'commentCount' and page.locator('label[for="commentInput"]').count() == 1, f'{t} champ nommé pour VoiceOver')
+        R.check(page.get_attribute('#commentInput', 'aria-describedby') == 'commentCount' and page.get_attribute('#commentInput', 'aria-label') == 'Ajouter un commentaire', f'{t} champ nommé pour VoiceOver')
         # Compteur près de la limite, bouton grisé au-delà
         page.fill('#commentInput', 'a' * 460)
         R.check(page.inner_text('#commentCount') == '460 / 500' and not send.is_disabled(), f'{t} compteur à 460 ({page.inner_text("#commentCount")!r})')

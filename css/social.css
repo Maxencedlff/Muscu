@@ -204,7 +204,7 @@
 .social-me-view .account-hero { padding-bottom: 16px; }
 
 /* ── Commentaires d'une séance (js/features/comments-ui.js) ── */
-.comment { align-items: flex-start; gap: 10px; padding-top: 10px; padding-bottom: 10px; }
+.cell.comment { align-items: flex-start; gap: 10px; padding-top: 10px; padding-bottom: 10px; }
 .comment .avatar--s { width: 32px; height: 32px; font-size: 1.118rem; flex-shrink: 0; margin-top: 2px; }
 .comment .avatar--s.avatar--initial { font-size: 0.941rem; }
 .comment__main { flex: 1; min-width: 0; }

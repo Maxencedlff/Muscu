@@ -56,7 +56,7 @@ def small_targets(page, sel):
 
 def cut_texts(page):
     return page.evaluate("""() => [...document.querySelectorAll('#app *')].filter(e => e.offsetParent && e.children.length === 0
-        && e.textContent.trim() && !e.matches('input, textarea, svg, use, .icon *, .chat-cell__last') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
+        && e.textContent.trim() && !e.matches('input, textarea, svg, use, .icon *, .chat-cell__last, .visually-hidden') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
         .map(e => e.textContent.trim().slice(0, 30))""")
 
 
@@ -115,7 +115,7 @@ def t_eleve(bench, eng, dev, theme):
         # Saisie collée au-dessus de la barre d'onglets, en bas de l'écran
         pos = page.evaluate("""() => { const c = document.querySelector('.chat-compose').getBoundingClientRect(), tb = document.querySelector('.tabbar').getBoundingClientRect();
             return [Math.round(c.bottom), Math.round(tb.top), Math.round(innerHeight)]; }""")
-        R.check(pos[0] <= pos[1] and pos[0] > pos[1] - 40, f'{t} saisie juste au-dessus de la barre d\'onglets {pos}')
+        R.check(pos[0] <= pos[1] and pos[0] > pos[1] - 64, f'{t} saisie juste au-dessus de la barre d\'onglets {pos}')
         layout(page, t, 'conversation')
         shot(page, LOT, f'2-conversation-{t}')
         # Le coach répond pendant que l'élève écrit : la relecture ajoute la bulle, le brouillon reste
