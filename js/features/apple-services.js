@@ -32,7 +32,9 @@ function estimateKcal(durationMs, kg) {
 }
 
 // Autorisations : iOS n'affiche sa fenêtre que pour les types jamais demandés (et retient la réponse,
-// qu'il ne dit pas pour la lecture). Elle ne doit jamais s'ouvrir sans contexte, au lancement :
+// qu'il ne dit pas pour la lecture). Le module Android (HealthPlugin.kt) imite ce comportement : chaque
+// ensemble n'est demandé qu'une fois, et 'unnecessary' veut dire « déjà demandé », pas « accordé ».
+// Elle ne doit jamais s'ouvrir sans contexte, au lancement :
 //  - ensureHealthAuth : poids et écriture des séances, une fois par lancement, avant le premier accès.
 //    Cas visé : Santé activé dans une donnée restaurée (copie iCloud, nouvel iPhone, réinstallation) alors
 //    qu'iOS n'a jamais posé la question pour cette installation : lecture et écriture refusées, « Lecture
@@ -417,6 +419,13 @@ registerActions({
     resetWorkoutsAuth(); workoutCache = emptyWorkoutCache();
     await workoutsAuthStatus();
     render();
+    // Android seulement (iOS ne dit pas si une lecture est refusée : workoutsRead absent) : refus, ou
+    // fenêtre que Health Connect ne montre plus après deux refus. Le toucher dit alors où autoriser.
+    if (res.workoutsRead === false) {
+      await dialog({ title: 'Accès aux courses refusé', message: HEALTH_TEXT.refused,
+        actions: [{ label: 'OK', style: 'preferred' }] });
+      return;
+    }
     await loadHealthWorkouts();
   },
   'setting-music': async () => {

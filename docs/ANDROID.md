@@ -19,6 +19,7 @@ donc les mises à jour à chaud continuent d'arriver sur les iPhone sans nouvell
 | **MdlfHealth** : Health Connect 1.1.0 | `HealthPlugin.kt` | Mêmes méthodes et réponses que `HealthPlugin.swift` |
 | **MdlfLiveActivity** : repos en cours | `LiveActivityPlugin.kt` | Notification continue avec compte à rebours système |
 | **MdlfStore** : Google Play Billing 9.1.0 | `StorePlugin.kt` | Même contrat que `StorePlugin.swift` (branche payant) ; **non branché au serveur** |
+| Lecture des nombres envoyés par le web (horodatages longs) | `CallArgs.kt` | `optDouble`, jamais `getDouble` / `getLong` (voir 3.4) |
 | Politique de confidentialité pour Health Connect | `PermissionsRationaleActivity.kt`, manifeste | Montre `privacy.html` embarquée (exigée par Health Connect) |
 | Icône adaptative + monochrome (Android 13), icône des notifications, écran de démarrage noir pur | `scripts/brand-icons.py --android` | Générées depuis `js/data/app-icons.js`, comme iOS |
 | Images de la fiche Play (icône 512, image 1024 × 500) | `android/store/` | Non embarquées dans l'app |
@@ -28,7 +29,7 @@ donc les mises à jour à chaud continuent d'arriver sur les iPhone sans nouvell
 | Réglages › « Santé » (Health Connect) sans Apple Music sur Android | `js/features/apple-services.js` | iOS : textes inchangés |
 | Empreinte native par plateforme | `scripts/runtime.mjs` | iOS ignore `android/` et `@capacitor/android` ; Android préfixée `android-` |
 | Compilation de contrôle (APK de débogage + lint) | `.github/workflows/android.yml` | Seulement quand Android change, ou à la main |
-| Tests unitaires | `tests/unit/android.mjs` | Empreintes, pont natif simulé Android et iOS, cohérence Kotlin ↔ Swift ↔ pont ↔ manifeste |
+| Tests unitaires | `tests/unit/android.mjs` | Empreintes, pont natif simulé Android et iOS, cohérence Kotlin ↔ Swift ↔ pont ↔ manifeste, Santé face à Health Connect (refus partiels), lecture des nombres |
 
 ### Modules natifs : iOS → Android
 
@@ -73,8 +74,18 @@ reste celle d'Apple : corrections seulement.
 - **Historique** : sans `READ_HEALTH_DATA_HISTORY` (non demandée), Health Connect ne rend que les
   30 jours précédant la première autorisation, puis tout ce qui suit. Assez pour les pesées et les
   courses récentes ; à revoir si besoin.
-- **Différence avec iOS** : Health Connect dit ce qui est accordé (lecture comprise). Après deux refus,
-  il ne remontre plus sa fenêtre : l'utilisateur passe par Health Connect › Autorisations des applications.
+- **Autorisations, même sens qu'iOS** : le web (`apple-services.js`) a été écrit pour HealthKit, qui ne
+  montre sa fenêtre qu'une fois par type et ne dit pas si une lecture est refusée. Health Connect, lui,
+  remontrerait sa fenêtre tant qu'une autorisation manque. Le module retient donc « déjà demandé » par
+  ensemble (poids et écriture ; courses et vélo) dans des SharedPreferences, hors sauvegarde Google :
+  - `requestAuthorization` n'ouvre la fenêtre que pour un ensemble jamais demandé et pas accordé ; sinon
+    il rend l'état réel sans rien montrer (jamais de fenêtre en plein bilan de séance ou au lancement) ;
+  - `authorizationStatus` ne porte que sur les courses et le vélo : `unnecessary` = déjà demandé
+    (quelle que soit la réponse) ou accordé. Un refus du poids ne bloque pas la lecture des courses ;
+  - `requestAuthorization` rend en plus `workoutsRead` (lecture des courses accordée), qu'iOS ne peut pas
+    dire : refusée après « Courses et vélo de Santé », le web affiche où autoriser (Health Connect ›
+    Autorisations des applications). Health Connect ne remontre de toute façon plus sa fenêtre après
+    deux refus.
 
 ### 3.2 Repos en cours (`MdlfLiveActivity`)
 
@@ -120,6 +131,16 @@ Produits Play à créer (mêmes identifiants qu'App Store Connect) : abonnements
 `com.mdlf.training.pro.monthly` (offre de base `monthly`, P1M) et `com.mdlf.training.pro.yearly`
 (offre de base `yearly`, P1Y), avec l'essai éventuel en offre ; produit ponctuel
 `com.mdlf.training.access.gift` (jamais mis en vente, seulement par code promo).
+
+### 3.4 Nombres reçus du web (`CallArgs.kt`)
+
+Piège de Capacitor 8.5.3 (`PluginCall.java`) : `getDouble` ne convertit que `Double`, `Float` et
+`Integer`, `getLong` que `Long` ; tout le reste donne `null`. Or org.json lit un entier JSON en
+`Integer` s'il tient sur 32 bits, en `Long` sinon : un horodatage `Date.now()` (≈ 1,76 × 10¹²) arrive
+en `Long`, et `getDouble("start")` rendrait `null` (chaque séance refusée par Santé, notification du
+repos jamais affichée). Les modules lisent donc les nombres par `epochMillis(…)` et `number(…)`
+(`JSONObject.optDouble`, qui accepte tout nombre). Un test unitaire interdit `getDouble`, `getLong` et
+`getFloat` dans les fichiers `.kt`, et `getInt` hors des petits nombres (`days`).
 
 ## 4. Reste à faire dans le code (avant les testeurs)
 

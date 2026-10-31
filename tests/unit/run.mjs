@@ -1452,7 +1452,7 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 // ── Compte : connexion, pseudo, avatar, identités (tests dans account.mjs) ──
 (await import('./account.mjs')).default({ test, run, assert, sameJSON, nativeContext, ROOT });
 // ── Préparation Android : empreintes natives, pont natif sur Android, modules Kotlin (tests dans android.mjs) ──
-(await import('./android.mjs')).default({ test, assert, nativeContext, ROOT });
+(await import('./android.mjs')).default({ test, assert, run, app, reset, nativeContext, ROOT });
 
 // ── Social : fonction serveur report (tests dans report.mjs) ──
 (await import('./report.mjs')).default({ test, assert, sameJSON, ROOT });

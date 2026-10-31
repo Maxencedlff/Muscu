@@ -1,5 +1,6 @@
 package com.mdlf.training
 
+import android.content.Context
 import android.content.Intent
 import androidx.activity.result.ActivityResult
 import androidx.health.connect.client.HealthConnectClient
@@ -40,8 +41,15 @@ import java.time.ZoneId
  *   avec leur distance.
  * - Health Connect n'est pas toujours là : intégré au système depuis Android 14, appli à installer
  *   (ou à mettre à jour) avant. [available] est faux tant que getSdkStatus ne dit pas SDK_AVAILABLE.
- * - Contrairement à HealthKit, Health Connect dit quelles autorisations sont accordées, lecture
- *   comprise : [authorizationStatus] et le champ workouts de [requestAuthorization] en profitent.
+ * - Autorisations, même sémantique qu'iOS (le web, js/features/apple-services.js, a été écrit pour elle) :
+ *   la fenêtre n'est montrée qu'une fois par ensemble (poids et écriture ; courses et vélo), puis plus
+ *   jamais, quelle que soit la réponse. Health Connect, lui, remontrerait sa fenêtre tant qu'une
+ *   autorisation manque (jusqu'à deux refus) : sans ce souvenir, chaque lancement l'ouvrirait en plein
+ *   bilan de séance. Le souvenir (« déjà demandé ») est gardé dans les SharedPreferences [PREFS], hors
+ *   sauvegarde Google (data_extraction_rules.xml et backup_rules.xml n'incluent que la copie de la
+ *   donnée) : une réinstallation redemande, comme iOS sur une nouvelle installation.
+ * - Contrairement à HealthKit, Health Connect dit ce qui est accordé, lecture comprise : le champ
+ *   workoutsRead de [requestAuthorization] le dit au web, qui explique alors où autoriser.
  * - Historique : sans la permission READ_HEALTH_DATA_HISTORY (non demandée), Health Connect ne rend que
  *   les 30 jours précédant la première autorisation, puis tout ce qui suit. Le web demande 90 jours de
  *   pesées puis 10 ans s'il n'y a rien : il recevra simplement moins, sans erreur.
@@ -85,68 +93,81 @@ class HealthPlugin : Plugin() {
     }
 
     /**
-     * Ouvre la fenêtre d'autorisation de Health Connect pour ce qui n'est pas encore accordé.
-     * workouts (vrai par défaut) : aussi la lecture des courses et sorties vélo.
-     * → { available, workouts } ; workouts : l'écriture des séances est accordée (comme sur iOS).
+     * Ouvre la fenêtre d'autorisation de Health Connect pour les ensembles jamais demandés et pas déjà
+     * accordés : poids et écriture, plus (workouts, vrai par défaut) la lecture des courses et du vélo.
+     * Tout a déjà été demandé : aucune fenêtre, l'état réel est rendu tout de suite (comme iOS).
+     * → { available, workouts, workoutsRead } ; workouts : l'écriture des séances est accordée (comme
+     * sur iOS) ; workoutsRead (Android seulement) : la lecture des courses et du vélo est accordée.
      */
     @PluginMethod
     fun requestAuthorization(call: PluginCall) {
         val hc = client() ?: run { call.resolve(unavailable()); return }
-        val wanted = writePermissions + weightPermissions +
-            (if (call.getBoolean("workouts", true) == true) workoutPermissions else emptySet())
+        val withWorkouts = call.getBoolean("workouts", true) == true
         launchCall(call) {
             val granted = hc.permissionController.getGrantedPermissions()
-            if (granted.containsAll(wanted)) {
-                call.resolve(JSObject().put("available", true).put("workouts", sessionWrite in granted))
+            val toAsk = (if (asked(KEY_BASE)) emptySet<String>() else writePermissions + weightPermissions) +
+                (if (withWorkouts && !asked(KEY_WORKOUTS)) workoutPermissions else emptySet<String>())
+            if (granted.containsAll(toAsk)) {   // rien de nouveau à demander (ensemble vide compris)
+                call.resolve(answer(granted))
                 return@launchCall
             }
             // Contrat officiel de Health Connect, joué par le mécanisme d'activités de Capacitor
             val intent: Intent = PermissionController.createRequestPermissionResultContract()
-                .createIntent(context, wanted)
+                .createIntent(context, toAsk)
             startActivityForResult(call, intent, "onPermissionsResult")
         }
     }
 
     @ActivityCallback
     private fun onPermissionsResult(call: PluginCall?, result: ActivityResult) {
+        // Fenêtre montrée (ou refusée d'office par Health Connect après deux refus) : demandé, quelle que
+        // soit la réponse. Les deux ensembles ont été proposés ensemble ; ceux déjà demandés restent vrais.
+        val editor = prefs().edit().putBoolean(KEY_BASE, true)
+        if (call?.getBoolean("workouts", true) == true) editor.putBoolean(KEY_WORKOUTS, true)
+        editor.apply()
         call ?: return
         val hc = client() ?: run { call.resolve(unavailable()); return }
         // La réponse de la fenêtre peut être incomplète (fenêtre fermée) : on relit l'état réel
-        launchCall(call) {
-            val granted = hc.permissionController.getGrantedPermissions()
-            call.resolve(JSObject().put("available", true).put("workouts", sessionWrite in granted))
-        }
+        launchCall(call) { call.resolve(answer(hc.permissionController.getGrantedPermissions())) }
     }
 
     /**
-     * La fenêtre d'autorisation reste-t-elle à montrer ? request : "shouldRequest" (au moins une
-     * autorisation manque), "unnecessary" (tout est accordé), "unknown". Ne montre rien.
-     * Différence avec iOS : un refus compte comme « manque » ; Health Connect ne remontre de toute façon
-     * plus sa fenêtre après deux refus (l'utilisateur passe alors par les réglages de Health Connect).
+     * La fenêtre des courses et du vélo reste-t-elle à montrer ? request : "shouldRequest" (jamais
+     * demandée et pas accordée), "unnecessary" (déjà demandée, quelle que soit la réponse, ou accordée),
+     * "unknown". Même sens qu'iOS ; ne porte que sur les courses et le vélo (le poids et l'écriture sont
+     * demandés à l'activation de Santé), et ne montre rien.
      */
     @PluginMethod
     fun authorizationStatus(call: PluginCall) {
         val hc = client() ?: run { call.resolve(JSObject().put("available", false).put("request", "unknown")); return }
         scope.launch {
             val request = try {
-                val granted = hc.permissionController.getGrantedPermissions()
-                if (granted.containsAll(writePermissions + weightPermissions + workoutPermissions)) "unnecessary"
-                else "shouldRequest"
+                if (asked(KEY_WORKOUTS) || hc.permissionController.getGrantedPermissions().containsAll(workoutPermissions))
+                    "unnecessary" else "shouldRequest"
             } catch (e: Exception) { "unknown" }
             call.resolve(JSObject().put("available", true).put("request", request))
         }
     }
 
+    private fun answer(granted: Set<String>) = JSObject()
+        .put("available", true)
+        .put("workouts", sessionWrite in granted)
+        .put("workoutsRead", granted.containsAll(workoutPermissions))
+
+    private fun prefs() = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private fun asked(key: String) = prefs().getBoolean(key, false)
+
     /** start / end : millisecondes depuis 1970 ; kcal facultatif (énergie active estimée). */
     @PluginMethod
     fun saveWorkout(call: PluginCall) {
-        val startMs = call.getDouble("start")
-        val endMs = call.getDouble("end")
+        // Entiers longs côté web (Date.now()) : lus par CallArgs.kt, jamais par getDouble (rendrait null)
+        val startMs = call.epochMillis("start")
+        val endMs = call.epochMillis("end")
         if (startMs == null || endMs == null || endMs <= startMs) { call.reject("Dates de séance invalides"); return }
         val hc = client() ?: run { call.reject("Health Connect indisponible"); return }
-        val start = Instant.ofEpochMilli(startMs.toLong())
-        val end = Instant.ofEpochMilli(endMs.toLong())
-        val kcal = call.getDouble("kcal") ?: 0.0
+        val start = Instant.ofEpochMilli(startMs)
+        val end = Instant.ofEpochMilli(endMs)
+        val kcal = call.number("kcal", 0.0).coerceAtLeast(0.0)
         launchCall(call) {
             val granted = hc.permissionController.getGrantedPermissions()
             if (sessionWrite !in granted) { call.reject("Accès à Santé non autorisé"); return@launchCall }
@@ -159,7 +180,7 @@ class HealthPlugin : Plugin() {
                     title = "Musculation",
                     // Saisie dans l'app (séries notées à la main), pas mesurée par un capteur. clientRecordId :
                     // la même séance renvoyée (historique envoyé deux fois) ne crée pas de doublon dans Health Connect
-                    metadata = Metadata.manualEntry(clientRecordId = "mdlf-session-${startMs.toLong()}"),
+                    metadata = Metadata.manualEntry(clientRecordId = "mdlf-session-$startMs"),
                 ),
             )
             if (kcal > 0 && HealthPermission.getWritePermission(ActiveCaloriesBurnedRecord::class) in granted) {
@@ -167,7 +188,7 @@ class HealthPlugin : Plugin() {
                     startTime = start, startZoneOffset = zone.getOffset(start),
                     endTime = end, endZoneOffset = zone.getOffset(end),
                     energy = Energy.kilocalories(kcal),
-                    metadata = Metadata.manualEntry(clientRecordId = "mdlf-kcal-${startMs.toLong()}"),
+                    metadata = Metadata.manualEntry(clientRecordId = "mdlf-kcal-$startMs"),
                 )
             }
             hc.insertRecords(records)
@@ -252,6 +273,10 @@ class HealthPlugin : Plugin() {
     } catch (e: Exception) { pkg }
 
     private companion object {
+        // « Déjà demandé » par ensemble d'autorisations (voir la note en tête de classe)
+        const val PREFS = "mdlf_health"
+        const val KEY_BASE = "asked_base"          // poids et écriture des séances
+        const val KEY_WORKOUTS = "asked_workouts"  // lecture des courses et du vélo
         val ACTIVITIES = mapOf(
             ExerciseSessionRecord.EXERCISE_TYPE_RUNNING to "running",
             ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL to "running",

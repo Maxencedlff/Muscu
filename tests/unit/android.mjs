@@ -2,7 +2,9 @@
 //  Tests unitaires de la préparation Android (docs/ANDROID.md) :
 //  - empreintes natives par plateforme : l'iOS ne bouge pas quand Android change ;
 //  - pont natif (js/platform/native.js) dans une coquille Android simulée, et iOS inchangé ;
-//  - cohérence des modules Kotlin avec le pont, avec les modules Swift et avec le manifeste.
+//  - cohérence des modules Kotlin avec le pont, avec les modules Swift et avec le manifeste ;
+//  - Santé : le web (écrit pour iOS) face aux réponses de Health Connect, refus partiels compris ;
+//  - lecture des nombres en Kotlin (horodatages longs) : jamais getDouble / getLong.
 //  Chargés par run.mjs (même mini-exécuteur). Rien n'est compilé ici : pas de SDK Android requis.
 // ═══════════════════════════════════════════════════════════
 
@@ -13,7 +15,7 @@ import { runtimeVersion, nativeModules } from '../../scripts/runtime.mjs';
 
 const KOTLIN = 'android/app/src/main/java/com/mdlf/training';
 
-export default function ({ test, assert, nativeContext, ROOT }) {
+export default function ({ test, assert, run, app, reset, nativeContext, ROOT }) {
   const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
   // Petit dépôt jetable : un fichier Swift, un manifeste de modules, et (au besoin) Android
@@ -207,5 +209,145 @@ export default function ({ test, assert, nativeContext, ROOT }) {
     const styles = read(`${res}/values/styles.xml`);
     assert.match(styles, /windowSplashScreenBackground">@color\/mdlf_black/);
     assert.match(styles, /android:windowBackground">@color\/mdlf_black/);
+  });
+
+  // ── Nombres envoyés par le web ────────────────────────────
+  // PluginCall.getDouble (Capacitor 8.5.3) rend null pour un Long, getLong pour tout ce qui n'est pas un
+  // Long : un horodatage Date.now() (Long dans org.json) serait perdu, ou un petit entier pour getLong.
+  // Pas de test instrumenté sur Android : la règle est contrôlée dans le source (CallArgs.kt).
+
+  test('android : nombres lus sans getDouble / getLong / getFloat (horodatages longs perdus)', () => {
+    const files = fs.readdirSync(path.join(ROOT, KOTLIN)).filter(f => f.endsWith('.kt'));
+    for (const f of files) {
+      const text = kotlin(f);
+      assert.doesNotMatch(text, /\.get(Double|Long|Float)\(/, `${f} : lire les nombres avec epochMillis / number (CallArgs.kt)`);
+      // getInt rend null pour un Long : seulement pour de petits nombres (jours)
+      for (const [, key] of text.matchAll(/\.getInt\("(\w+)"/g)) assert.equal(key, 'days', `${f} : getInt("${key}")`);
+    }
+    const args = kotlin('CallArgs.kt');
+    assert.match(args, /fun PluginCall\.epochMillis\(key: String\): Long\?[\s\S]*?data\.optDouble\(key, Double\.NaN\)/);
+    assert.match(args, /fun PluginCall\.number\(key: String, fallback: Double\): Double[\s\S]*?data\.optDouble\(key, Double\.NaN\)/);
+    const health = kotlin('HealthPlugin.kt');
+    assert.match(health, /epochMillis\("start"\)/);
+    assert.match(health, /epochMillis\("end"\)/);
+    assert.match(kotlin('LiveActivityPlugin.kt'), /epochMillis\("endTime"\)/);
+  });
+
+  test('android : le web envoie bien des horodatages entiers longs (cas que getDouble perdait)', async () => {
+    // Ce que reçoit le module : JSON.stringify d'un Date.now() n'a pas de virgule, au-delà de 2^31
+    const sent = [];
+    const { Native } = nativeContext({ platform: 'android', plugins: { MdlfHealth: { saveWorkout: async o => { sent.push(JSON.stringify(o)); return { saved: true }; } } } });
+    const end = new Date(2026, 9, 31, 19).getTime();
+    assert.equal(await Native.health.saveWorkout({ start: end - 3_600_000, end, kcal: 420 }), true);
+    const [json] = sent;
+    assert.match(json, /"start":\d{13},"end":\d{13},"kcal":420/);
+    assert.ok(end > 2 ** 31, 'Long pour org.json');
+  });
+
+  // ── Santé : sémantique des autorisations ──────────────────
+  // Health Connect simulé avec la logique de HealthPlugin.kt : chaque ensemble (poids et écriture ;
+  // courses et vélo) n'est demandé qu'une fois, la fenêtre n'apparaît que pour un ensemble jamais
+  // demandé, authorizationStatus ne porte que sur les courses. choose : ce que l'utilisateur accorde
+  // dans la fenêtre (parmi ce qui est proposé). Branché derrière le vrai pont Android (native.js).
+  const WRITE = ['write:session', 'write:kcal'], WEIGHT = ['read:weight'], WORKOUTS = ['read:session', 'read:distance'];
+  const sameWindows = (a, b, msg) => assert.equal(JSON.stringify(a), JSON.stringify(b), msg);
+  function healthConnect(choose) {
+    const hc = { granted: new Set(), asked: { base: false, workouts: false }, windows: [] };
+    const answer = () => ({ available: true, workouts: hc.granted.has('write:session'),
+      workoutsRead: WORKOUTS.every(p => hc.granted.has(p)) });
+    hc.plugin = {
+      requestAuthorization: async ({ workouts = true } = {}) => {
+        const toAsk = [...(hc.asked.base ? [] : [...WRITE, ...WEIGHT]), ...(workouts && !hc.asked.workouts ? WORKOUTS : [])];
+        if (toAsk.every(p => hc.granted.has(p))) return answer();
+        hc.windows.push(toAsk);
+        for (const p of choose(toAsk)) hc.granted.add(p);
+        hc.asked.base = true;
+        if (workouts) hc.asked.workouts = true;
+        return answer();
+      },
+      authorizationStatus: async () => ({ available: true,
+        request: hc.asked.workouts || WORKOUTS.every(p => hc.granted.has(p)) ? 'unnecessary' : 'shouldRequest' }),
+      workouts: async () => ({ workouts: WORKOUTS.every(p => hc.granted.has(p)) ? [{ id: 'run1', activity: 'running', start: 1, end: 2, duration: 1, km: 5, source: 'Strava', productType: '', indoor: false, own: false }] : [] }),
+      bodyMass: async () => ({ samples: hc.granted.has('read:weight') ? [{ date: 1, kg: 80 }] : [] }),
+      saveWorkout: async () => ({ saved: hc.granted.has('write:session') }),
+    };
+    hc.Native = nativeContext({ platform: 'android', plugins: { MdlfHealth: hc.plugin } }).Native;
+    return hc;
+  }
+  // Le contexte de l'app (apple-services.js) parle au pont Android simulé ; dialogues et dessins notés
+  function withAndroidHealth(hc, fn) {
+    app.__androidHealth = hc.Native.health;
+    app.__dialogs = [];
+    run(`var __savedHealth = Native.health, __savedNative = Native.isNative;
+      Native.health = __androidHealth; Native.isNative = true;
+      globalThis.render = () => {}; globalThis.dialog = async o => { __dialogs.push(o); };
+      healthAuthAsked = null; resetWorkoutsAuth(); workoutCache = emptyWorkoutCache();`);
+    const restore = () => run(`Native.health = __savedHealth; Native.isNative = __savedNative; delete globalThis.render; delete globalThis.dialog;
+      data.healthOn = false; healthAuthAsked = null; resetWorkoutsAuth(); workoutCache = emptyWorkoutCache();
+      weightCache = { at: 0, samples: [], failed: false };`);
+    return Promise.resolve().then(fn).finally(restore);
+  }
+  const launch = () => run('healthAuthAsked = null; resetWorkoutsAuth(); workoutCache = emptyWorkoutCache(); weightCache = { at: 0, samples: [], failed: false }');
+
+  test('android Santé : poids refusé, courses accordées, les courses sont lues et rien n\'est redemandé', async () => {
+    reset();
+    const hc = healthConnect(asked => asked.filter(p => p !== 'read:weight'));
+    await withAndroidHealth(hc, async () => {
+      await run(`actionHandlers.get('setting-health')()`);
+      assert.equal(run('data.healthOn'), true, 'écriture accordée : Santé activé');
+      assert.equal(hc.windows.length, 1, 'une seule fenêtre, tout proposé ensemble');
+      assert.equal(await run('loadHealthWorkouts()'), true, 'courses lues malgré le refus du poids');
+      assert.equal(run('workoutCache.list.length'), 1);
+      assert.doesNotMatch(run('renderHealthWorkoutsCell()'), /data-action/, 'pas de cellule « Autorise » qui ne ferait plus rien');
+      // Lancement suivant : fin de séance, envoi de l'historique, lecture du poids
+      launch();
+      run(`data.history = [{ id: 'h1', date: ${Date.now()}, duration: 3600000, programme: 'ppl', category: 'push', exercises: [{ name: 'Développé couché', sets: [] }] }]`);
+      await run('syncWorkoutToHealth(data.history[0])');
+      assert.equal(run('data.history[0].healthSaved'), true);
+      await run('bodyMassSamples()');
+      await run('sendHistoryToHealth()');
+      assert.equal(hc.windows.length, 1, 'aucune fenêtre Health Connect en plein bilan ni au lancement');
+      assert.equal(app.__dialogs.length, 0);
+    });
+  });
+
+  test('android Santé : courses refusées, un toucher sur « Autorise » explique où autoriser', async () => {
+    reset();
+    const hc = healthConnect(asked => asked.filter(p => !p.startsWith('read:') || p === 'read:weight'));
+    await withAndroidHealth(hc, async () => {
+      // Santé activé dans une donnée restaurée : seuls le poids et l'écriture sont demandés au lancement
+      run('data.healthOn = true');
+      await run('ensureHealthAuth()');
+      sameWindows(hc.windows, [[...WRITE, ...WEIGHT]]);
+      assert.equal(await run('workoutsAuthStatus()'), 'shouldRequest');
+      assert.match(run('renderHealthWorkoutsCell()'), /data-action="health-workouts-auth"/);
+      await run(`actionHandlers.get('health-workouts-auth')()`);
+      sameWindows(hc.windows, [[...WRITE, ...WEIGHT], WORKOUTS], 'courses demandées seules, une fois');
+      assert.equal(app.__dialogs.length, 1, 'refus : le toucher répond par un message');
+      assert.equal(app.__dialogs[0].message, run('HEALTH_TEXT.refused'));
+      assert.doesNotMatch(run('renderHealthWorkoutsCell()'), /data-action/, 'déjà demandé : plus de cellule morte');
+      // Lancement suivant : jamais de fenêtre redemandée
+      launch();
+      await run('ensureHealthAuth()');
+      assert.equal(await run('workoutsAuthStatus()'), 'unnecessary');
+      assert.equal(await run('loadHealthWorkouts()'), false, 'lecture tentée, rien d\'accordé : liste vide');
+      assert.equal(hc.windows.length, 2);
+    });
+  });
+
+  test('android Santé : HealthPlugin.kt suit la sémantique simulée ci-dessus', () => {
+    const health = kotlin('HealthPlugin.kt');
+    const body = name => health.match(new RegExp(`fun ${name}\\([\\s\\S]*?\\n    }\\n`))?.[0] || '';
+    const status = body('authorizationStatus');
+    assert.match(status, /asked\(KEY_WORKOUTS\)/, '« unnecessary » = déjà demandé, comme iOS');
+    assert.doesNotMatch(status, /weightPermissions|writePermissions/, 'le refus du poids ne bloque pas les courses');
+    const request = body('requestAuthorization');
+    assert.match(request, /asked\(KEY_BASE\)/);
+    assert.match(request, /asked\(KEY_WORKOUTS\)/);
+    assert.match(request, /\.put\("workoutsRead"|answer\(granted\)/);
+    const result = body('onPermissionsResult');
+    assert.match(result, /putBoolean\(KEY_BASE, true\)/, 'réponse retenue');
+    assert.match(result, /putBoolean\(KEY_WORKOUTS, true\)/);
+    assert.match(health, /\.put\("workoutsRead", granted\.containsAll\(workoutPermissions\)\)/);
   });
 }

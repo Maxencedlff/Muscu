@@ -258,13 +258,16 @@ const Native = (() => {
     health: {
       // Nom montré dans les Réglages
       name: isAndroid ? 'Health Connect' : 'Apple Santé',
-      // workouts : false pour ne demander que le poids et l'écriture (sans la lecture des courses et du vélo)
+      // workouts : false pour ne demander que le poids et l'écriture (sans la lecture des courses et du vélo).
+      // → { available, workouts } (écriture des séances accordée) ; Android ajoute workoutsRead (lecture
+      // des courses et du vélo accordée), qu'iOS ne peut pas dire.
       async authorize({ workouts = true } = {}) {
         if (!isNative) return { available: false, workouts: false };
         try { return await Health.requestAuthorization({ workouts }); } catch { return { available: false, workouts: false }; }
       },
       // Fenêtre d'autorisation encore à montrer pour un type : 'shouldRequest', 'unnecessary' (tout a été
-      // demandé) ou 'unknown' (échec, build antérieure sans la méthode, navigateur). Ne montre rien.
+      // demandé, quelle que soit la réponse, sur iOS comme sur Android) ou 'unknown' (échec, build
+      // antérieure sans la méthode, navigateur). Ne montre rien.
       async requestStatus() {
         if (!isNative) return 'unknown';
         try { return (await Health.authorizationStatus()).request || 'unknown'; } catch { return 'unknown'; }

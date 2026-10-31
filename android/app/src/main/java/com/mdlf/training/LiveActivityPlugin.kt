@@ -57,9 +57,9 @@ class LiveActivityPlugin : Plugin() {
     }
 
     private fun show(call: PluginCall, key: String) {
-        val endMs = call.getDouble("endTime")
-        if (endMs == null || endMs <= 0) { call.reject("Repos invalide"); return }
-        val remaining = endMs.toLong() - System.currentTimeMillis()
+        // endTime : Date.now() + repos, un entier long (CallArgs.kt : jamais getDouble)
+        val endMs = call.epochMillis("endTime") ?: run { call.reject("Repos invalide"); return }
+        val remaining = endMs - System.currentTimeMillis()
         val manager = NotificationManagerCompat.from(context)
         if (remaining <= 0 || !manager.areNotificationsEnabled()) {
             manager.cancel(NOTIFICATION_ID)
@@ -87,7 +87,7 @@ class LiveActivityPlugin : Plugin() {
             .setOnlyAlertOnce(true)
             .setSilent(true)
             .setShowWhen(true)
-            .setWhen(endMs.toLong())
+            .setWhen(endMs)
             .setUsesChronometer(true)
             .setChronometerCountDown(true)
             .setTimeoutAfter(remaining + 1_000)
