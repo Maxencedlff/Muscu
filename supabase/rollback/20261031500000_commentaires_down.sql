@@ -4,8 +4,10 @@
 --  Supabase ne l'applique jamais de lui-même. Si le chat coach est en place, lancer d'abord
 --  20261031510000_chat_coach_down.sql (ordre inverse des migrations), même s'ils sont indépendants.
 --
---  Effet : commentaires, signalements de commentaires et liste des mots interdits supprimés
---  (définitivement : exporter comment_reports avant si une enquête est en cours) ; my_activity et
+--  Effet : commentaires, signalements de commentaires, listes des mots interdits et acceptés supprimés
+--  (définitivement : exporter comment_reports avant si une enquête est en cours ; les lignes de
+--  public.reports qui les citent, target_ref comment_reports:<id>, restent avec la copie du texte
+--  dans details, et partent avec la purge des 12 mois) ; my_activity et
 --  private.activity_new reprennent exactement leur forme de 20261031200000_reactions_profil.sql.
 --  Vérifié par tests/sql/rollback_social_check.sh (migrations, données, retour arrière, puis tous les
 --  tests d'avant les commentaires et le chat).
@@ -90,6 +92,7 @@ drop function private.comment_row(public.session_comments, uuid);
 drop table public.comment_reports;
 drop table public.session_comments;
 drop table private.comment_words;
+drop table private.comment_allowed;
 drop function private.comment_report_before_insert();
 drop function private.comment_shown(uuid, uuid, uuid, timestamptz);
 drop function private.comments_writable(uuid, uuid, text);

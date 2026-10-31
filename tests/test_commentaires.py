@@ -162,6 +162,11 @@ def t_ecrire(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         rep = page.evaluate("__sb.so.comments.find(c => c.body === 'Grosse séance 💪').reporters")
         R.check(rep == [page.evaluate('__sb.meId()')], f'{t} signalement envoyé {rep}')
+        # Alerte par e-mail : demandée à la fonction Edge report pour la ligne de la file commune
+        alerts = page.evaluate("__sb.calls.filter(c => c[0] === 'invoke' && c[1] === 'report').map(c => JSON.parse(c[2]))")
+        row = page.evaluate("__sb.so.reports.find(r => r.target_ref && r.target_ref.startsWith('comment_reports:'))")
+        R.check(row and alerts[-1:] == [{'report_id': row['id']}] and row['notified'] and row['details'] == 'Grosse séance 💪',
+                f'{t} alerte du signalement demandée {alerts} {row}')
         R.check(page.locator('.ios-dialog').count() == 1 and 'bloquer paul' in page.inner_text('.ios-dialog').lower(), f'{t} proposition de bloquer Paul')
         tap_dialog(page, 'Bloquer')
         page.wait_for_timeout(500)

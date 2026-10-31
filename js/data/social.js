@@ -636,6 +636,18 @@ async function socialReport({ target, kind, ref = null, reason, details = '' }) 
   } catch (e) { return { ok: false, kind: socialErrorKind(e) || 'server' }; }
 }
 
+// Alerte par e-mail d'un signalement déjà enregistré par une RPC (report_comment, report_chat : la
+// copie du commentaire ou des messages est gardée côté serveur) : fonction Edge report, { report_id }.
+// Au mieux, sans attendre : sans réseau, ou avec une fonction report d'avant, le signalement reste
+// enregistré (notified_at nul, rattrapé à la main, docs/SOCIAL_V1.md) et rien n'est dit à l'utilisateur.
+async function socialReportAlert(reportId) {
+  if (!sb || !account.user || !Number.isSafeInteger(reportId) || reportId <= 0) return false;
+  try {
+    const { data: res, error } = await sb.functions.invoke('report', { body: { report_id: reportId } });
+    return !error && res?.ok === true;
+  } catch { return false; }
+}
+
 // ── Déclencheurs : connexion, premier plan, réseau revenu ───
 
 onAccountChange(() => {

@@ -150,13 +150,16 @@ async function commentsDelete(owner, id, commentId) {
   return { ok: true };
 }
 
-// Signaler un commentaire d'un autre : caché ici pour moi tout de suite
+// Signaler un commentaire d'un autre : caché ici pour moi tout de suite. Le serveur garde une copie du
+// texte et renvoie l'id du signalement (null : déjà signalé par moi) ; l'alerte par e-mail est demandée
+// ensuite à la fonction Edge report, au mieux (socialReportAlert)
 async function commentsReport(owner, id, commentId, reason) {
   if (!REPORT_REASONS.some(x => x.reason === reason)) return { ok: false, kind: 'server' };
   const r = await socialRpc('report_comment', { comment_id: commentId, reason });
-  if (!r.ok) return r;
+  if (!r.ok) return r.kind === 'rate_limited' ? { ok: false, kind: 'report_rate' } : r;
   comments.reported.add(commentId);
   notifySocial();
+  if (Number.isSafeInteger(r.data)) socialReportAlert(r.data);
   return { ok: true };
 }
 

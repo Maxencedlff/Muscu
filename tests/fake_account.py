@@ -30,8 +30,8 @@ dans __sb.so.seenAt). Appels dans __sb.calls sous ['social', fonction, arguments
 __sb.fail.social = 'offline' : toutes les RPC du social échouent comme supabase-js hors ligne.
 Commentaires (supabase/migrations/20261031500000_commentaires.sql) : list_comments, add_comment, delete_comment,
 report_comment avec les mêmes règles (propriétaire ou abonné qui voit la séance, auteur qui voit encore la
-séance, blocage, masqué au 3e signalement sauf pour son auteur ; deux mots interdits seulement : connard,
-fuck), lignes « comment » de my_activity et pastille. État dans __sb.so.comments ; __sb.comment(auteur,
+séance, blocage, masqué au 3e signalement sauf pour son auteur, ligne de __sb.so.reports dont l'id est renvoyé
+pour l'alerte { report_id } de la fonction Edge report ; deux mots interdits seulement : connard, fuck), lignes « comment » de my_activity et pastille. État dans __sb.so.comments ; __sb.comment(auteur,
 propriétaire, séance, texte) en pose un.
 
 Coach (docs/COACH_V1.md) : coach_state, coach_create_invite, coach_revoke_invite, coach_preview, coach_join,
@@ -46,8 +46,9 @@ students[].sent : programmes que je lui ai envoyés, { id, sent_at, seen }.
 État dans __sb.co ; __sb.makeCoach(id) pose coach_at, __sb.link(coach, élève) relie deux comptes. Appels dans
 __sb.calls sous ['coach', fonction, arguments] ; __sb.fail.coach = 'offline' pour le hors ligne.
 Messages (supabase/migrations/20261031510000_chat_coach.sql) : chat_threads, chat_messages (before_id, after_id),
-chat_send, chat_mark_read ; une conversation par lien, effacée quand le lien est rompu. État dans __sb.co.msgs et
-__sb.co.reads ; __sb.msg(élève, deCoach, texte) en dépose un ; __sb.fail.chat = 'missing' (PGRST202 : serveur
+chat_send (écrire ne vaut pas lecture), chat_mark_read (up_to), report_chat (copie des 50 derniers messages dans
+__sb.co.chatReports, gardée après la rupture du lien, et ligne de __sb.so.reports) ; une conversation par lien,
+effacée quand le lien est rompu. État dans __sb.co.msgs et __sb.co.reads ; __sb.msg(élève, deCoach, texte) en dépose un ; __sb.fail.chat = 'missing' (PGRST202 : serveur
 sans messagerie) ou 'offline'.
 
 Partage avec le coach (supabase/migrations/20261031300000_partage_coach.sql) : student_shares,
@@ -468,9 +469,13 @@ FAKE_ACCOUNT = r"""
       if (!['spam', 'harcelement', 'sexuel', 'violence', 'haine', 'autre'].includes(reason)) return pgErr('invalid_reason');
       const c = so.comments.find(x => x.id === comment_id);
       if (!c || c.user === me || !commentReadable(me, c.owner, c.sid) || !commentShown(me, c)) return pgErr('not_found');
-      if (!c.reporters.includes(me)) c.reporters.push(me);
+      if (c.reporters.includes(me)) return null;
+      if (so.reports.filter(r => r.by === me).length >= 10) return pgErr('rate_limited');
+      c.reporters.push(me);
       if (c.reporters.length >= 3) c.masked = true;
-      return null;
+      // File commune (public.reports) : l'app en demande l'alerte à la fonction Edge report ({ report_id })
+      so.reports.push({ id: so.reports.length + 1, by: me, target_user: c.user, kind: 'session', target_ref: `comment_reports:${c.id}`, reason, details: c.body.slice(0, 500), notified: false });
+      return so.reports.length;
     },
     mark_activity_seen: me => { so.seenAt[me] = now(); return null; },
     my_shown_sessions: (me, { before_at = null, before_id = null } = {}) => myPosts(me).filter(shown)
@@ -495,7 +500,7 @@ FAKE_ACCOUNT = r"""
 
   // ── Coach (docs/COACH_V1.md) ──
   // État dans __sb.co : coachs (coach_at), codes, liens élève → coach (coach_seen_at), programmes envoyés, commentaires
-  const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0, bans: [], shares: [], weights: {}, msgs: [], reads: {} };
+  const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0, bans: [], shares: [], weights: {}, msgs: [], reads: {}, chatReports: [] };
   // Partage : consentement { student, coach, kind, granted_at } du coach actuel ; pesées par élève (du plus récent)
   const shareOf = (student, kind = 'weight') => co.shares.find(x => x.student === student && x.kind === kind && x.coach === linkOf(student)?.coach);
   const dropShares = student => { co.shares = co.shares.filter(x => x.student !== student); delete co.weights[student]; };
@@ -587,13 +592,23 @@ FAKE_ACCOUNT = r"""
       if (!t) return pgErr('empty_message');
       if ([...t].length > 2000) return pgErr('too_long');
       if (limit(me, 'chat', 500)) return pgErr('rate_limited');
+      // Écrire ne vaut pas lecture (pas de marque)
       const id = sb.msg(th.s, th.asCoach, t);
-      chatMark(th, id);
       return chatRow(th, co.msgs.find(m => m.id === id));
     },
-    chat_mark_read: (me, { student = null } = {}) => {
+    chat_mark_read: (me, { student = null, up_to = null } = {}) => {
       const th = chatThread(me, student); if (!th) return pgErr('not_found');
-      const ms = chatMsgs(th); chatMark(th, ms.length ? ms[ms.length - 1].id : 0); return null;
+      const ms = chatMsgs(th).filter(m => up_to == null || m.id <= up_to); chatMark(th, ms.length ? ms[ms.length - 1].id : 0); return null;
+    },
+    // Copie des 50 derniers messages (co.chatReports, gardée après la rupture du lien) et ligne de la file commune
+    report_chat: (me, { reason, student = null } = {}) => {
+      if (!['spam', 'harcelement', 'sexuel', 'violence', 'haine', 'autre'].includes(reason)) return pgErr('invalid_reason');
+      const th = chatThread(me, student); if (!th) return pgErr('not_found');
+      if (sb.so.reports.filter(r => r.by === me).length >= 10) return pgErr('rate_limited');
+      const other = th.asCoach ? th.s : th.c;
+      co.chatReports.push({ by: me, target: other, reason, messages: chatMsgs(th).slice(-50).map(m => ({ id: m.id, from_coach: m.fromCoach, body: m.body })) });
+      sb.so.reports.push({ id: sb.so.reports.length + 1, by: me, target_user: other, kind: 'profile', target_ref: `chat_reports:${co.chatReports.length}`, reason, notified: false });
+      return sb.so.reports.length;
     },
     student_shares: me => sharesState(me),
     student_set_share: (me, { kind, enabled }) => {
@@ -752,11 +767,18 @@ FAKE_ACCOUNT = r"""
             if (sb.fail.social === 'offline') throw new TypeError('Failed to fetch');
             if (!sb.session) return fail(401, { error: 'auth' });
             const b = body || {};
+            // Alerte d'un signalement déjà enregistré (report_comment, report_chat) : la ligne doit être à moi
+            if ('report_id' in b) {
+              if (!Number.isSafeInteger(b.report_id) || b.report_id <= 0 || Object.keys(b).length !== 1) return fail(400, { error: 'invalid', field: 'report_id' });
+              const row = so.reports.find(r => r.id === b.report_id && r.by === sb.meId());
+              if (row) row.notified = true;
+              return { data: { ok: true }, error: null };
+            }
             if (!sb.users[b.target_user]) return fail(404, { error: 'not_found' });
             if (b.target_user === sb.meId() || !['profile', 'session'].includes(b.kind) || !REPORT_REASONS.includes(b.reason)
               || (b.details != null && String(b.details).length > 500)) return fail(400, { error: 'invalid' });
             if (so.reports.filter(r => r.by === sb.meId()).length >= 10) return fail(429, { error: 'rate_limited' });
-            so.reports.push({ ...b, by: sb.meId() });
+            so.reports.push({ ...b, id: so.reports.length + 1, by: sb.meId(), notified: true });
             return { data: { ok: true }, error: null };
           }
           const u = me(), nowS = now() / 1000;

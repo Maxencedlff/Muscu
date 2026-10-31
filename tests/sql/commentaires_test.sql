@@ -83,7 +83,8 @@ declare t text;
 begin
   perform pg_temp.login('e');
   foreach t in array array['Quel connard', 'espèce d''ENCULÉ', 'c o n n a r d', 'f.u.c.k', 'FUUUUCK this', 'sh1t', 'what a b1tch',
-                           'putaiiiin', 't''es con', 'les cons', 'sale pédé', 'emmerdeur', 'nique ta mère', 'kys', 'n1gger', 'tue-toi', 'sa lope', 'kill your self'] loop
+                           'putaiiiin', 't''es con', 'les cons', 'sale pédé', 'emmerdeur', 'nique ta mère', 'kys', 'n1gger', 'tue-toi', 'sa lope', 'kill your self',
+                           'tuetoi', 'Tue toi', 'salopes', 'gros porc', 'pauvre conne', 'conne', 'faggot', 'nigger du niger', 'you retarded', 'rapist'] loop
     if pg_temp.err(format('select public.add_comment(pg_temp.u(%L), %L, %L)', 'a', 'a-1', t)) is distinct from 'comment_forbidden' then
       raise 'mot interdit accepté : %', t;
     end if;
@@ -97,6 +98,24 @@ begin
   end loop;
 end $$;
 reset role;
+-- Phrases courantes refusées à tort avant (filtre lu directement : add_comment est limité à 30 par
+-- heure) : mot français homographe d'un mot anglais (retard), verbe en -tue suivi de « toi », mots
+-- voisins recollés (youpi + n…), lettres répétées ramenées à une (cône, fagot), radical dans un mot
+do $$
+declare t text;
+begin
+  foreach t in array array['Désolé du retard, grosse séance', 'Je suis en retard sur mon programme', 'J''ai du retard sur mon programme',
+                           'Situe-toi par rapport à ton max', 'Effectue toi-même', 'Habitue-toi à la charge, ça viendra', 'Constitue-toi un plan',
+                           'Youpi ! Nouveau record', 'Youpi nickel', 'Belle salopette', 'Mets un cône', 'Trois cônes', 'Mon therapist dit repos',
+                           'physiotherapist', 'chili con carne', 'Week-end à Pornic', 'Quel nigaud', 'Je suis nigérian', 'Un fagot de bois',
+                           'Pain bâtard au petit déj', 'Super retardé ce bus', 'Tapette à mouche', 'Bite-size'] loop
+    if private.comment_forbidden(t) then raise 'phrase courante refusée : %', t; end if;
+  end loop;
+  -- Un mot accepté ne protège que lui-même, mot entier
+  foreach t in array array['cone de merde', 'conne', 'connne', 'niggers', 'Pornographie'] loop
+    if not private.comment_forbidden(t) then raise 'mot interdit accepté : %', t; end if;
+  end loop;
+end $$;
 -- Liste tenue côté serveur : un mot ajouté (éditeur SQL) est refusé tout de suite, sans migration
 insert into private.comment_words (word, lang, mode) values ('motinterdit', 'fr', 'word');
 set role authenticated;
@@ -252,7 +271,7 @@ end $$;
 
 -- ── Signaler, masquer au 3e ──────────────────────────────
 do $$
-declare cid bigint; r record;
+declare cid bigint; r record; rid bigint;
 begin
   perform pg_temp.login('c');
   cid := (public.add_comment(pg_temp.u('a'), 'a-2', 'Commentaire limite') ->> 'id')::bigint;
@@ -261,8 +280,10 @@ begin
   if pg_temp.err(format('select public.report_comment(%s, %L)', cid, 'insulte')) is distinct from 'invalid_reason' then raise 'motif inconnu'; end if;
   if pg_temp.err(format('select public.report_comment(%s, null)', cid)) is distinct from 'invalid_reason' then raise 'motif nul'; end if;
   if pg_temp.err('select public.report_comment(-1, ''spam'')') is distinct from 'not_found' then raise 'inconnu'; end if;
-  perform public.report_comment(cid, 'harcelement');
-  perform public.report_comment(cid, 'harcelement');   -- deux fois la même personne : un seul compte
+  rid := public.report_comment(cid, 'harcelement');
+  if rid is null then raise 'signalement : id de public.reports attendu'; end if;
+  -- deux fois la même personne : un seul compte, aucune nouvelle alerte
+  if public.report_comment(cid, 'harcelement') is not null then raise 'deuxième signalement : nouvelle ligne'; end if;
   perform pg_temp.login('d');
   if pg_temp.err(format('select public.report_comment(%s, %L)', cid, 'spam')) is distinct from 'not_found' then raise 'non abonné signale'; end if;
   perform pg_temp.login('e');
@@ -283,8 +304,20 @@ begin
   if not public.delete_comment(cid) then raise 'auteur supprime'; end if;
 end $$;
 reset role;
-do $$ begin
+do $$
+declare r record;
+begin
   if (select count(*) from public.comment_reports where body = 'Commentaire limite' and comment_id is null) <> 3 then raise 'preuve perdue'; end if;
+  -- Chaque signalement de commentaire entre dans la file commune (alerte par e-mail de la fonction Edge
+  -- report, rattrapage des notified_at nuls) : auteur visé, pseudo, texte copié, référence de la copie
+  if (select count(*) from public.reports q where q.target_ref like 'comment_reports:%'
+        and q.details = 'Commentaire limite') <> 3 then raise 'file de modération : % lignes',
+     (select count(*) from public.reports q where q.target_ref like 'comment_reports:%'); end if;
+  for r in select x.*, cr.reporter_id as cr_by, cr.reason as cr_reason from public.reports x
+           join public.comment_reports cr on x.target_ref = 'comment_reports:' || cr.id where x.details = 'Commentaire limite' loop
+    if r.kind <> 'session' or r.target_user <> pg_temp.u('c') or r.target_username <> 'kcyr.k' or r.notified_at is not null
+       or r.reporter_id <> r.cr_by or r.reason <> r.cr_reason then raise 'ligne de file : %', r; end if;
+  end loop;
   if (select count(distinct reason) from public.comment_reports where body = 'Commentaire limite') <> 3 then raise 'motifs'; end if;
 end $$;
 -- Signalements de plus de 12 mois purgés au signalement suivant
@@ -315,10 +348,12 @@ begin
   -- Supprimer n'est jamais limité
   select array_agg(id) into ids from public.list_comments(pg_temp.u('a'), 'a-1') where mine;
   for i in 1..array_length(ids, 1) loop perform public.delete_comment(ids[i]); end loop;
-  -- Signalements : 20 par 24 h (les commentaires de A sur a-2)
-  select array_agg(id) into ids from (select id from public.list_comments(pg_temp.u('a'), 'a-2') where user_id = pg_temp.u('a') limit 21) t;
-  for i in 1..20 loop perform public.report_comment(ids[i], 'spam'); end loop;
-  if pg_temp.err(format('select public.report_comment(%s, %L)', ids[21], 'spam')) is distinct from 'rate_limited' then raise '21e signalement'; end if;
+  -- Signalements : ceux de public.reports, 10 par 24 h tous types confondus (les commentaires de A sur a-2)
+  select array_agg(id) into ids from (select id from public.list_comments(pg_temp.u('a'), 'a-2') where user_id = pg_temp.u('a') limit 11) t;
+  for i in 1..10 loop perform public.report_comment(ids[i], 'spam'); end loop;
+  if pg_temp.err(format('select public.report_comment(%s, %L)', ids[11], 'spam')) is distinct from 'rate_limited' then raise '11e signalement'; end if;
+  -- Refusé : rien de gardé (ni copie, ni compte pour le masquage)
+  if exists (select 1 from public.list_comments(pg_temp.u('a'), 'a-2') where id = ids[11] and masked) then raise '11e : masqué'; end if;
 end $$;
 reset role;
 -- 150 par 24 h : la fenêtre d'une heure remise à zéro
@@ -386,7 +421,7 @@ begin
     if has_function_privilege('authenticated', f, 'execute') or has_function_privilege('anon', f, 'execute')
        or has_function_privilege('service_role', f, 'execute') then raise '% : exécutable depuis l''API', f; end if;
   end loop;
-  foreach t in array array['public.session_comments', 'public.comment_reports', 'private.comment_words'] loop
+  foreach t in array array['public.session_comments', 'public.comment_reports', 'private.comment_words', 'private.comment_allowed'] loop
     if has_table_privilege('authenticated', t, 'select') or has_table_privilege('anon', t, 'select')
        or has_table_privilege('authenticated', t, 'insert') or has_table_privilege('service_role', t, 'select') then raise '% : GRANT', t; end if;
     if not (select c.relrowsecurity from pg_class c where c.oid = t::regclass) then raise '% : RLS', t; end if;

@@ -3,7 +3,7 @@
 //
 //  - Contrat : docs/COACH_V1.md, section « Messages » ; serveur :
 //    supabase/migrations/20261031510000_chat_coach.sql. RPC chat_threads, chat_messages, chat_send,
-//    chat_mark_read (coachRpc de js/data/coach.js : même compte, mêmes erreurs traduites).
+//    chat_mark_read, report_chat (coachRpc de js/data/coach.js : même compte, mêmes erreurs traduites).
 //  - Une conversation par lien coach ↔ élève, désignée par une clé : CHAT_COACH (« avec mon coach »,
 //    je suis l'élève) ou l'identifiant d'un de mes élèves (je suis son coach). Le serveur relit le
 //    lien à chaque appel : seuls un coach et ses élèves liés lisent et écrivent ; lien rompu = messages
@@ -11,9 +11,15 @@
 //  - Texte seul, 2000 caractères au plus (CHAT_MAX), nettoyé comme le serveur (chatClean).
 //  - Pas de temps réel : chat_threads est relu avec l'état du coach (coachRefresh : ouverture de l'app,
 //    premier plan, onglet Amis) ; une conversation ouverte est relue toutes les CHAT_POLL_MS (seulement
-//    les messages plus récents que le dernier affiché, after_id).
+//    les messages plus récents que le dernier REÇU du serveur par chat_messages, curseur c.cursor : mon
+//    propre message renvoyé par chat_send n'avance pas le curseur, sinon un message de l'autre arrivé
+//    juste avant ma réponse ne serait jamais relu).
 //  - Non-lus : par conversation (chat_threads), total dans le badge de l'onglet Amis ; gardé sur
-//    l'appareil (CHAT_CACHE_KEY) pour un badge juste hors ligne. Ouvrir la conversation la marque lue.
+//    l'appareil (CHAT_CACHE_KEY) pour un badge juste hors ligne. Ouvrir la conversation la marque lue
+//    jusqu'au curseur (chat_mark_read up_to) : un message arrivé après la lecture reste non lu. Écrire
+//    ne vaut pas lecture (comme le serveur).
+//  - Signaler (chatReport) : le serveur copie les 50 derniers messages (report_chat, preuve gardée même
+//    si le suivi s'arrête ensuite), puis l'alerte par e-mail est demandée (socialReportAlert).
 //  - Serveur sans messagerie (migration pas encore appliquée) : chat.available = false, l'écran cache
 //    la cellule « Messages ».
 //  - L'écran (js/features/coach-chat-ui.js) s'abonne par onCoachChange : chaque changement appelle notifyCoach.
@@ -116,8 +122,13 @@ function chatThreadOf(key) {
   return key === CHAT_COACH ? chat.threads.coach : chat.threads.students[key] || null;
 }
 function chatUnreadOf(key) { return chatThreadOf(key)?.unread || 0; }
+// cursor : id du plus récent message reçu par chat_messages (relecture after_id, marque de lecture up_to)
 function chatConv(key) {
-  return chat.convs[key] ||= { rows: [], end: false, loading: false, error: null, loadedAt: 0, sending: false };
+  return chat.convs[key] ||= { rows: [], cursor: 0, end: false, loading: false, error: null, loadedAt: 0, sending: false };
+}
+// Curseur avancé par une page reçue du serveur (jamais par mon propre envoi)
+function chatAdvance(c, page) {
+  for (const m of page) if (m.id > c.cursor) c.cursor = m.id;
 }
 
 // ── Appels au serveur ───────────────────────────────────────
@@ -169,7 +180,9 @@ async function chatLoad(key, { more = false } = {}) {
   const raw = Array.isArray(r.data) ? r.data : [];
   const page = raw.map(cleanChatMessage).filter(Boolean);
   // Première page : elle remplace la conversation (un lien rompu puis renoué repart à vide)
+  if (!more) c.cursor = 0;
   c.rows = more ? chatMerge(c.rows, page) : chatMerge([], page);
+  chatAdvance(c, page);
   if (more || !c.loadedAt || raw.length < CHAT_PAGE) c.end = raw.length < CHAT_PAGE;
   c.error = null;
   c.loadedAt = Date.now();
@@ -177,24 +190,27 @@ async function chatLoad(key, { more = false } = {}) {
   return { ok: true };
 }
 
-// Relecture d'une conversation ouverte : seulement les messages plus récents que le dernier affiché
-// (trois pages au plus d'un coup). Sans message encore : première page. Renvoie { ok, added, theirs }
-// (theirs : messages de l'autre arrivés, à marquer lus si la conversation est à l'écran).
+// Relecture d'une conversation ouverte : seulement les messages plus récents que le dernier reçu du
+// serveur (curseur ; trois pages au plus d'un coup). Jamais chargée, ou vide : première page. Renvoie
+// { ok, added, theirs } (theirs : messages de l'autre arrivés, à marquer lus si la conversation est à l'écran).
 async function chatPoll(key) {
   const c = chatConv(key);
   if (c.loading) return { ok: true };
-  if (!c.loadedAt || !c.rows.length) return chatLoad(key);
+  if (!c.loadedAt || (!c.rows.length && !c.cursor)) return chatLoad(key);
   c.loading = true;
   const seq = chatSeq;
   let added = 0, theirs = 0;
   for (let i = 0; i < 3; i++) {
-    const r = await coachRpc('chat_messages', { ...chatArgs(key), after_id: c.rows[c.rows.length - 1].id });
+    const r = await coachRpc('chat_messages', { ...chatArgs(key), after_id: c.cursor });
     if (seq !== chatSeq) return { ok: false, kind: 'signed_out' };
     if (!r.ok) { c.loading = false; c.error = r.kind; notifyCoach(); return r; }
     const page = (Array.isArray(r.data) ? r.data : []).map(cleanChatMessage).filter(Boolean);
+    const known = new Set(c.rows.map(m => m.id));
+    const fresh = page.filter(m => !known.has(m.id));
     c.rows = chatMerge(c.rows, page);
-    added += page.length;
-    theirs += page.filter(m => !m.mine).length;
+    chatAdvance(c, page);
+    added += fresh.length;
+    theirs += fresh.filter(m => !m.mine).length;
     if ((Array.isArray(r.data) ? r.data.length : 0) < CHAT_PAGE) break;
   }
   c.loading = false;
@@ -218,27 +234,41 @@ async function chatSend(key, text) {
   c.sending = false;
   if (!r.ok) { notifyCoach(); return r; }
   const m = cleanChatMessage(r.data);
+  // Affiché tout de suite, sans avancer le curseur : la relecture suivante reprend après le dernier
+  // message reçu du serveur et ramène ceux de l'autre arrivés entre-temps. Écrire ne vaut pas lecture.
   if (m) c.rows = chatMerge(c.rows, [m]);
-  // Écrire vaut lecture (comme le serveur)
   const th = chatThreadOf(key);
-  if (th && chat.threads) { chat.threads.unread -= th.unread; th.unread = 0; th.last = m || th.last; writeChatCache(); }
+  if (th && m) th.last = m;
   notifyCoach();
   return m ? { ok: true, data: m } : { ok: false, kind: 'server' };
 }
 
-// Conversation lue (ouverte, ou nouveaux messages affichés) : non-lus remis à zéro ici tout de suite.
-// force : des messages de l'autre viennent d'arriver à l'écran (relecture), même si le dernier résumé
-// lu n'en comptait pas encore
+// Conversation lue (ouverte, ou nouveaux messages affichés) jusqu'au dernier message reçu (curseur) :
+// non-lus remis à zéro ici tout de suite (le serveur garde non lu ce qui est arrivé après ; la
+// relecture suivante de chat_threads le remontera). force : des messages de l'autre viennent d'arriver
+// à l'écran (relecture), même si le dernier résumé lu n'en comptait pas encore
 async function chatMarkRead(key, { force = false } = {}) {
-  const th = chatThreadOf(key);
+  const th = chatThreadOf(key), c = chatConv(key);
   if (!th?.unread && !force) return;
+  if (!c.cursor) return;   // rien reçu : rien à marquer
   if (th?.unread) {
     chat.threads.unread = Math.max(0, chat.threads.unread - th.unread);
     th.unread = 0;
     writeChatCache();
     notifyCoach();
   }
-  await coachRpc('chat_mark_read', chatArgs(key));
+  await coachRpc('chat_mark_read', { ...chatArgs(key), up_to: c.cursor });
+}
+
+// Signaler la conversation : le serveur copie les derniers messages (preuve gardée si le suivi s'arrête),
+// puis l'alerte par e-mail part au mieux. Renvoie { ok } ou { ok: false, kind } (clé de COACH_ERROR_TEXT,
+// ou report_rate : 10 signalements par 24 h, texte de SOCIAL_ERROR_TEXT).
+async function chatReport(key, reason) {
+  if (!REPORT_REASONS.some(x => x.reason === reason)) return { ok: false, kind: 'server' };
+  const r = await coachRpc('report_chat', { reason, ...chatArgs(key) });
+  if (!r.ok) return r.kind === 'rate_limited' ? { ok: false, kind: 'report_rate' } : r;
+  if (Number.isSafeInteger(r.data)) socialReportAlert(r.data);
+  return { ok: true };
 }
 
 // ── Déclencheurs ────────────────────────────────────────────

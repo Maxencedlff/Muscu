@@ -176,7 +176,7 @@ function renderCoachSettings() {
         <div class="social-hero coach-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
-          <p class="social-hero__sub">Ton coach te donne un code. Ton coach verra tes séances, pourra t'envoyer des programmes et commenter tes séances.</p>
+          <p class="social-hero__sub">Ton coach te donne un code. Ton coach verra tes séances, pourra t'envoyer des programmes, commenter tes séances et t'écrire des messages.</p>
         </div>
         <div class="group">
           <button class="cell cell--action" data-action="coach-join"><span class="cell__title">Rejoindre un coach</span></button>
@@ -264,7 +264,8 @@ function renderCoachJoin(code) {
         ${coachTitle(`Ce ${elide('que', name)} verra`)}
         ${list([['Toutes tes séances', 'Y compris celles d\'avant, avec exercices, séries et notes, même les séances masquées à tes abonnés.']])}
         ${coachTitle(`Ce ${elide('que', name)} pourra faire`)}
-        ${list([['Des programmes pour toi', 'Avec ses consignes. Tu choisis de les ajouter.'], ['Ses commentaires', 'Sous tes séances, dans ton historique.']])}
+        ${list([['Des programmes pour toi', 'Avec ses consignes. Tu choisis de les ajouter.'], ['Ses commentaires', 'Sous tes séances, dans ton historique.'],
+          ['Des messages', 'Texte seul, entre vous deux. Effacés quand le suivi s\'arrête. Tu peux signaler un message.']])}
         ${coachTitle('Jamais visible')}
         ${list([['Le reste', 'Ni ton poids, ni tes données Santé, ni tes programmes perso. Tu ne vois pas ses autres élèves, et ils ne te voient pas.']])}
         <div class="coach-join__foot">
@@ -351,6 +352,7 @@ function renderCoachMine() {
           ${personAvatar(p, 'l')}
           <span><span class="coach-join__name">${esc(personName(p))}</span><span class="coach-join__sub">Ton coach${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span></span>
         </div>
+        ${chatIntroHtml()}
         ${chatCellHtml(CHAT_COACH)}
         ${notes}
         <div class="group-title">Programmes reçus</div>

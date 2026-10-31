@@ -2,7 +2,8 @@
 //  Messages coach ↔ élève, écran : conversation (coach-chat:CLÉ, CLÉ = CHAT_COACH pour l'élève, ou
 //  l'identifiant d'un élève pour son coach), bulles façon Messages (les miennes à droite, à la teinte ;
 //  celles de l'autre à gauche, en gris), séparateurs de jour, « Afficher les messages précédents »,
-//  saisie collée en bas au-dessus de la barre d'onglets, menu ⋯ (Signaler).
+//  saisie collée en bas au-dessus de la barre d'onglets, menu ⋯ (Signaler : copie des derniers
+//  messages gardée par le serveur, chatReport).
 //  Entrées : cellule « Messages » de Mon coach (élève) et de la fiche d'un élève (coach), avec le
 //  nombre de non-lus ; pastille dans Mes élèves ; non-lus ajoutés au badge de l'onglet Amis.
 //  Données : js/data/coach-chat.js (contrat : docs/COACH_V1.md, « Messages »). Texte venu du serveur
@@ -14,6 +15,9 @@
 'use strict';
 
 const chatDrafts = {};      // brouillon par conversation
+// Information unique de l'élève (liens créés avant la messagerie : rien dit à l'acceptation) : vue une
+// fois fermée, ou la conversation avec le coach ouverte. Sur l'appareil seulement (confort).
+const CHAT_INTRO_KEY = 'mdlf_chat_intro_seen';
 let chatPollTimer = null;   // relecture de la conversation affichée
 let chatShownLast = null;   // dernier message dessiné (défilement en bas quand il change)
 
@@ -146,22 +150,26 @@ async function sendChat(key) {
   if (count) count.textContent = '';
   announce('Message envoyé');
   if (!refreshChatList(key)) render();
+  // Relu tout de suite : un message de l'autre arrivé juste avant le mien s'affiche sans attendre 15 s
+  chatTick();
 }
 
-// Menu : Signaler (fonction Edge report, profil de l'autre, référence « chat »)
+// Menu : Signaler (report_chat : le serveur copie les 50 derniers messages pour l'équipe, puis l'alerte
+// part par e-mail). Quitter ou retirer ensuite efface la conversation, pas la copie.
 async function chatMenu(key) {
   const p = chatPartner(key);
   if (!p) return;
   const name = personName(p);
   const choice = await dialog({ type: 'sheet', title: name, actions: [{ label: `Signaler ${name}`, value: 'report', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
   if (choice !== 'report') return;
-  const reason = await dialog({ type: 'sheet', title: `Signaler ${name}`, message: `Pourquoi ? ${name} ne saura pas que c'est toi. Tu pourras aussi ${key === CHAT_COACH ? 'quitter ton coach' : 'retirer cet élève'}.`,
+  const reason = await dialog({ type: 'sheet', title: `Signaler ${name}`,
+    message: `Pourquoi ? ${name} ne saura pas que c'est toi. Les 50 derniers messages de la conversation sont joints au signalement pour l'équipe de modération.`,
     actions: [...REPORT_REASONS.map(x => ({ label: x.label, value: x.reason })), { label: 'Annuler', style: 'cancel' }] });
   if (!reason) return;
-  const r = await socialReport({ target: p.user_id, kind: 'profile', ref: 'chat', reason });
-  if (!socialToast(r)) return;
+  const r = await chatReport(key, reason);
+  if (!r.ok) { showToast(r.kind === 'report_rate' ? socialErrorText(r.kind) : coachErrorText(r.kind), { error: true }); return; }
   haptic();
-  await dialog({ title: 'Signalement envoyé', message: `Merci. Il sera traité sous 24 heures. ${key === CHAT_COACH
+  await dialog({ title: 'Signalement envoyé', message: `Merci. Il sera traité sous 24 heures. La copie des messages est gardée même si vous arrêtez le suivi. ${key === CHAT_COACH
     ? 'Pour ne plus échanger avec ce coach, quitte-le dans Mon coach.' : 'Pour ne plus échanger avec cet élève, retire-le depuis sa fiche.'}`,
     actions: [{ label: 'OK', style: 'preferred' }] });
 }
@@ -171,6 +179,7 @@ registerActions({
   'chat-send': (e, el) => { sendChat(el.dataset.key); },
   'chat-more': (e, el) => { chatLoad(el.dataset.key, { more: true }); },
   'chat-menu': (e, el) => { chatMenu(el.dataset.key); },
+  'chat-intro-ok': () => { setChatIntroSeen(); render(); },
 });
 
 SCREENS.set('coach-chat', {
@@ -185,6 +194,7 @@ SCREENS.set('coach-chat', {
     const key = chatKeyShown();
     if (!key) return;
     chatShownLast = null;
+    if (key === CHAT_COACH) setChatIntroSeen();
     chatStartPoll();
     await chatLoad(key);
     if (chatKeyShown() === key) chatMarkRead(key, { force: true });
@@ -200,6 +210,20 @@ onCoachChange(() => {
 });
 
 // ── Cellules d'entrée ───────────────────────────────────────
+
+function chatIntroSeen() { try { return localStorage.getItem(CHAT_INTRO_KEY) === '1'; } catch { return false; } }
+function setChatIntroSeen() { try { localStorage.setItem(CHAT_INTRO_KEY, '1'); } catch { /* redit à la prochaine visite */ } }
+// Mon coach (élève) : ce que la messagerie permet, dit une fois
+function chatIntroHtml() {
+  if (!chatAvailable() || chatIntroSeen()) return '';
+  return `
+        <div class="group">
+          <div class="cell coach-lost chat-intro-note" role="status">
+            <span class="cell__body"><span class="cell__title">Ton coach peut t'écrire</span><span class="cell__sub">Messages texte seul, que vous seuls lisez, effacés quand le suivi s'arrête. Un message te gêne ? Signale-le depuis la conversation, ou quitte ton coach.</span></span>
+            <button class="social-x" data-action="chat-intro-ok" aria-label="OK, fermer">${icon('xmark', 14)}</button>
+          </div>
+        </div>`;
+}
 
 // Pastille des non-lus d'une conversation
 function chatBadgeHtml(n) {

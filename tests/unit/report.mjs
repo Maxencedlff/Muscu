@@ -18,6 +18,23 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     for (const reason of ['spam', 'harcelement', 'sexuel', 'violence', 'haine', 'autre']) assert.equal(validateReport({ ...base, reason }, me).ok, true, reason);
   });
 
+  test('report : demande d\'alerte d\'un signalement déjà enregistré ({ report_id } seul)', async () => {
+    const { validateAlert } = await load();
+    sameJSON(validateAlert({ report_id: 42 }), { ok: true, value: { report_id: 42 } });
+    assert.equal(validateAlert(base), null, 'signalement complet : pas une demande d\'alerte');
+    assert.equal(validateAlert(null), null);
+    assert.equal(validateAlert([1]), null);
+    for (const bad of [{ report_id: 0 }, { report_id: -3 }, { report_id: 1.5 }, { report_id: '42' }, { report_id: 2 ** 60 },
+      { report_id: 42, target_user: target }, { report_id: null }]) {
+      sameJSON(validateAlert(bad), { ok: false, error: 'invalid', field: 'report_id' }, JSON.stringify(bad));
+    }
+    // Les RPC qui écrivent la ligne pointent vers leur copie
+    for (const f of ['20261031500000_commentaires.sql', '20261031510000_chat_coach.sql']) {
+      const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations', f), 'utf8');
+      assert.match(sql, /insert into public\.reports \(reporter_id, target_user, kind, target_ref, reason, details\)/, f);
+    }
+  });
+
   test('report : entrée refusée (champ en cause), soi-même compris', async () => {
     const { validateReport, DETAILS_MAX } = await load();
     const field = (b) => { const r = validateReport(b, me); assert.equal(r.ok, false); assert.equal(r.error, 'invalid'); return r.field; };

@@ -200,6 +200,7 @@ def t_eleve(bench, eng, dev, theme):
         page.wait_for_selector('.coach-join-view')
         txt = page.inner_text('.coach-join-view')
         R.check('max' in txt and 'ce que max verra' in txt.lower() and 'masquées' in txt and 'poids' in txt, f'{t} aperçu : coach et ce qu\'il verra')
+        R.check('Des messages' in txt and 'Effacés quand le suivi s\'arrête' in txt, f'{t} aperçu : le coach pourra écrire des messages')
         R.check(ccalls(page, 'coach_preview')[-1] == {'code': 'K7M2QX9P'} and not ccalls(page, 'coach_join'), f'{t} aperçu sans rien créer')
         layout(page, t, 'aperçu du coach')
         shot(page, LOT, f'2-apercu-{t}')

@@ -20,10 +20,15 @@
 --    retirés, chiffres « leet » lus (0→o, 1→i, 3→e, 4→a, 5→s, 7→t, @→a, $→s), lettres répétées
 --    ramenées à une (« fuuuck »), lettres isolées recollées (« c o n n a r d »). Mode word : le mot
 --    entier (pluriel et féminin simples compris) ; mode contains : n'importe où dans un mot (radicaux
---    qui ne se trouvent dans aucun mot courant). Refus : comment_forbidden (rien n'est écrit).
+--    qui ne se trouvent dans aucun mot courant). Deux ou trois mots voisins recollés doivent former
+--    exactement un mot interdit de 6 lettres ou plus (« tue-toi », « kill your self ») : « situe-toi »
+--    ou « youpi nouveau » passent. Mots courants qui ressemblent à un mot interdit une fois les
+--    lettres répétées ramenées à une (« cône », « fagot », « Niger ») : liste private.comment_allowed,
+--    retirés du texte avant la comparaison. Un mot anglais qui est aussi un mot français courant
+--    (« retard ») n'est pas dans la liste. Refus : comment_forbidden (rien n'est écrit).
 --  - Modération : signalement par report_comment (motifs de la fonction Edge report), une fois par
 --    personne et par commentaire, avec une copie du texte (le signalement survit à la suppression du
---    commentaire). Au 3e signalement de personnes différentes, le commentaire est masqué
+--    commentaire) et une ligne dans public.reports, la file commune, pour l'alerte par e-mail. Au 3e signalement de personnes différentes, le commentaire est masqué
 --    automatiquement (masked_at) : plus personne ne le voit, sauf son auteur (marqué masked). Le
 --    propriétaire de la séance peut supprimer n'importe quel commentaire de sa séance, l'auteur le sien.
 --    Signalements gardés 12 mois (purge à chaque nouveau signalement, comme reports).
@@ -31,7 +36,8 @@
 --    mes séances) et deux colonnes à la fin (comment_id, comment_text : 120 premiers caractères) ;
 --    private.activity_new les compte (pastille de l'onglet). Une ancienne version de l'app ignore les
 --    lignes d'une sorte qu'elle ne connaît pas (cleanActivityRow).
---  - Limites : 30 commentaires par heure et 150 par 24 h, 20 signalements par 24 h ; lectures
+--  - Limites : 30 commentaires par heure et 150 par 24 h ; signalements : ceux de public.reports
+--    (10 par 24 h, tous types confondus) ; lectures
 --    (list_comments) 600 par heure. Supprimer n'est jamais limité.
 --  - Erreurs lisibles (P0001) : empty_comment, too_long, comment_forbidden, social_not_enabled,
 --    not_found, invalid_reason, rate_limited.
@@ -89,17 +95,25 @@ create table private.comment_words (
   mode text not null check (mode in ('word', 'contains'))
 );
 
+-- Mots et expressions courants acceptés malgré leur ressemblance avec un mot interdit (forme de
+-- comment_norm : minuscules sans accents ; mots séparés par une espace). Retirés du texte, mot entier,
+-- avant la comparaison ; complétable sans migration (insert depuis l'éditeur SQL).
+create table private.comment_allowed (
+  phrase text primary key check (phrase ~ '^[a-z0-9]{2,40}( [a-z0-9]{1,40}){0,3}$')
+);
+
 alter table public.session_comments enable row level security;
 alter table public.comment_reports enable row level security;
 alter table private.comment_words enable row level security;
+alter table private.comment_allowed enable row level security;
 -- Aucune politique : RLS fermée (défense en profondeur, en plus des GRANT)
 revoke all on public.session_comments, public.comment_reports from public, anon, authenticated, service_role;
-revoke all on private.comment_words from public, anon, authenticated, service_role;
+revoke all on private.comment_words, private.comment_allowed from public, anon, authenticated, service_role;
 
 insert into private.comment_words (word, lang, mode) values
   -- Français : insultes et injures
   ('connard', 'fr', 'contains'), ('connasse', 'fr', 'contains'), ('encule', 'fr', 'contains'),
-  ('enkule', 'fr', 'contains'), ('salope', 'fr', 'contains'), ('salaud', 'fr', 'word'),
+  ('enkule', 'fr', 'contains'), ('salope', 'fr', 'word'), ('salaud', 'fr', 'word'),
   ('putain', 'fr', 'contains'), ('pute', 'fr', 'word'), ('batard', 'fr', 'contains'),
   ('fdp', 'fr', 'word'), ('ntm', 'fr', 'word'), ('niquer', 'fr', 'word'), ('nique', 'fr', 'word'),
   ('niktamer', 'fr', 'contains'), ('nikta', 'fr', 'word'), ('pede', 'fr', 'word'), ('tapette', 'fr', 'word'),
@@ -108,7 +122,7 @@ insert into private.comment_words (word, lang, mode) values
   ('chatte', 'fr', 'word'), ('merde', 'fr', 'contains'), ('con', 'fr', 'word'), ('conne', 'fr', 'word'),
   ('debile', 'fr', 'word'), ('abruti', 'fr', 'word'), ('mongol', 'fr', 'word'), ('gogol', 'fr', 'word'),
   ('trisomique', 'fr', 'word'), ('grosporc', 'fr', 'contains'), ('grossetruie', 'fr', 'contains'),
-  ('suicidetoi', 'fr', 'contains'), ('crevetoi', 'fr', 'contains'), ('tuetoi', 'fr', 'contains'),
+  ('suicidetoi', 'fr', 'contains'), ('crevetoi', 'fr', 'contains'), ('tuetoi', 'fr', 'word'),
   ('nazi', 'fr', 'contains'), ('hitler', 'fr', 'contains'), ('pedo', 'fr', 'word'), ('pedophile', 'fr', 'contains'),
   ('violeur', 'fr', 'contains'), ('terroriste', 'fr', 'contains'),
   -- Anglais
@@ -116,9 +130,17 @@ insert into private.comment_words (word, lang, mode) values
   ('shit', 'en', 'word'), ('bullshit', 'en', 'word'), ('bitch', 'en', 'contains'), ('cunt', 'en', 'contains'),
   ('asshole', 'en', 'contains'), ('dick', 'en', 'word'), ('dickhead', 'en', 'contains'), ('pussy', 'en', 'contains'),
   ('whore', 'en', 'contains'), ('slut', 'en', 'contains'), ('nigger', 'en', 'contains'), ('nigga', 'en', 'contains'),
-  ('faggot', 'en', 'contains'), ('fag', 'en', 'word'), ('retard', 'en', 'word'), ('rapist', 'en', 'contains'),
+  ('faggot', 'en', 'contains'), ('fag', 'en', 'word'), ('retarded', 'en', 'word'), ('rapist', 'en', 'word'),
   ('porn', 'en', 'contains'), ('kys', 'en', 'word'), ('killyourself', 'en', 'contains'), ('bastard', 'en', 'word'),
   ('motherfucker', 'en', 'contains'), ('wanker', 'en', 'contains'), ('twat', 'en', 'word');
+
+-- « cône » (conne), « fagot » (faggot), « nigaud », « Niger » (nigga, nigger), « Pornic » (porn),
+-- « chili con carne » (con), « pain bâtard », « tapette à mouche », « bite-size »
+insert into private.comment_allowed (phrase) values
+  ('cone'), ('cones'), ('fagot'), ('fagots'), ('nigaud'), ('nigauds'), ('nigaude'), ('nigaudes'),
+  ('niger'), ('nigeria'), ('nigerian'), ('nigeriane'), ('nigerians'), ('nigerianes'),
+  ('nigerien'), ('nigerienne'), ('nigeriens'), ('nigeriennes'), ('pornic'), ('chili con carne'),
+  ('pain batard'), ('pains batards'), ('tapette a mouche'), ('tapettes a mouches'), ('bite size');
 
 -- ── Briques privées ──────────────────────────────────────
 
@@ -138,14 +160,17 @@ create function private.comment_squeeze(t text) returns text
   language sql immutable set search_path = '' as
 $$ select regexp_replace(t, '(.)\1+', '\1', 'g') $$;
 
--- Le commentaire contient-il un mot interdit ? Mots = suites de a-z et 0-9 ; une suite de lettres
--- isolées (« c o n n a r d », « f.u.c.k ») est recollée en un mot. Les radicaux longs (contains, 6
--- lettres et plus) sont aussi cherchés à cheval sur deux ou trois mots voisins (« tue-toi »,
--- « kill your self ») : assez longs pour ne pas naître par hasard de deux mots courants.
+-- Le commentaire contient-il un mot interdit ? Mots courants acceptés (comment_allowed) retirés
+-- d'abord, mot entier. Mots = suites de a-z et 0-9 ; une suite de lettres isolées (« c o n n a r d »,
+-- « f.u.c.k ») est recollée en un mot. Deux ou trois mots voisins recollés sont refusés seulement
+-- s'ils forment exactement un mot interdit de 6 lettres ou plus (« tue-toi », « kill your self »,
+-- « sa lope ») : jamais un morceau de mot (« situe-toi », « youpi nouveau » passent).
 create function private.comment_forbidden(body text) returns boolean
   language plpgsql stable security definer set search_path = '' as
 $$
 declare
+  t text := regexp_replace(private.comment_norm(body), '[^a-z0-9]+', ' ', 'g');
+  allowed text;
   tok text;
   run text := '';
   words text[] := '{}';
@@ -153,7 +178,9 @@ declare
   n int;
   i int;
 begin
-  foreach tok in array regexp_split_to_array(private.comment_norm(body), '[^a-z0-9]+') loop
+  select string_agg(a.phrase, '|' order by char_length(a.phrase) desc) into allowed from private.comment_allowed a;
+  if allowed is not null then t := regexp_replace(t, '\m(' || allowed || ')\M', ' ', 'g'); end if;
+  foreach tok in array regexp_split_to_array(t, ' +') loop
     if char_length(tok) = 1 then
       run := run || tok;
     else
@@ -178,8 +205,8 @@ begin
   ) or exists (
     select 1
     from unnest(joined) as k(v), private.comment_words w
-    where w.mode = 'contains' and char_length(w.word) >= 6
-      and position(private.comment_squeeze(w.word) in private.comment_squeeze(k.v)) > 0
+    where char_length(w.word) >= 6
+      and private.comment_squeeze(k.v) ~ ('^' || private.comment_squeeze(w.word) || '(s|e|es|x)?$')
   );
 end
 $$;
@@ -317,13 +344,21 @@ end
 $$;
 
 -- Signaler un commentaire que je vois (pas le mien) : une fois par commentaire (refaire ne fait
--- rien), 20 par 24 h. Au 3e signalement de personnes différentes, il est masqué pour tous sauf son auteur.
-create function public.report_comment(comment_id bigint, reason text) returns void
+-- rien et renvoie null). Copie du texte dans comment_reports, et une ligne dans public.reports (la
+-- file de modération commune, kind session, target_ref comment_reports:<id>, details : le texte) dont
+-- l'app demande l'alerte par e-mail à la fonction Edge report ({ report_id }) ; sans alerte partie,
+-- notified_at reste nul (requête de rattrapage de 20261026050000_social.sql). Limite : celle de
+-- public.reports, 10 signalements par 24 h et par compte, tous types confondus (rate_limited). Au 3e
+-- signalement de personnes différentes, le commentaire est masqué pour tous sauf son auteur.
+-- Renvoie l'id de la ligne de public.reports.
+create function public.report_comment(comment_id bigint, reason text) returns bigint
   language plpgsql security definer set search_path = '' as
 $$
 declare
   me uuid := (select auth.uid());
   c public.session_comments;
+  cr_id bigint;
+  rep_id bigint;
 begin
   if report_comment.reason is null
      or report_comment.reason not in ('spam', 'harcelement', 'sexuel', 'violence', 'haine', 'autre') then
@@ -335,15 +370,21 @@ begin
      or not private.comment_shown(me, c.session_owner, c.author_id, c.masked_at) then
     raise exception 'not_found' using errcode = 'P0001';
   end if;
-  if exists (select 1 from public.comment_reports r where r.comment_id = c.id and r.reporter_id = me) then return; end if;
-  perform private.rate_limit(me, 'comment_report', 20);
+  if exists (select 1 from public.comment_reports r where r.comment_id = c.id and r.reporter_id = me) then return null; end if;
   insert into public.comment_reports (comment_id, reporter_id, author_id, session_owner, session_id, body, reason)
     values (c.id, me, c.author_id, c.session_owner, c.session_id, c.body, report_comment.reason)
-    on conflict on constraint comment_reports_once do nothing;
+    on conflict on constraint comment_reports_once do nothing
+    returning id into cr_id;
+  if cr_id is null then return null; end if;
+  -- File commune (déclencheur de public.reports : 10 par 24 h, pseudo visé, purge à 12 mois)
+  insert into public.reports (reporter_id, target_user, kind, target_ref, reason, details)
+    values (me, c.author_id, 'session', 'comment_reports:' || cr_id, report_comment.reason, left(c.body, 500))
+    returning id into rep_id;
   if c.masked_at is null
      and (select count(distinct r.reporter_id) from public.comment_reports r where r.comment_id = c.id) >= 3 then
     update public.session_comments x set masked_at = now() where x.id = c.id;
   end if;
+  return rep_id;
 end
 $$;
 
@@ -468,3 +509,4 @@ grant execute on function public.my_activity(timestamptz, text) to authenticated
 --   from public.comment_reports r where r.created_at > now() - interval '7 days'
 --   group by 1, 2, 3 order by n desc, max(r.created_at) desc;
 -- Ajouter un mot : insert into private.comment_words (word, lang, mode) values ('mot', 'fr', 'word');
+-- Accepter un mot courant refusé à tort : insert into private.comment_allowed (phrase) values ('mot');

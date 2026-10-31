@@ -57,32 +57,36 @@ Demande de Maxence (feuille de route « Plus tard » : chat coach), choix pris p
 - une conversation par lien coach ↔ élève, **seulement entre un coach et ses élèves liés** ; les élèves d'un même coach ne se voient jamais ;
 - **effacée en cascade** dès que le lien est rompu (l'élève quitte, le coach le retire, un compte est supprimé) : rejoindre de nouveau repart d'une conversation vide ;
 - pas de temps réel : relecture toutes les 15 s tant que la conversation est à l'écran, et avec l'état du coach (ouverture de l'app, premier plan, onglet Amis) ;
-- pas de suppression ni de modification d'un message envoyé en V1 ; pas de liste de mots interdits (conversation privée entre deux personnes qui se sont choisies) ; « Signaler » passe par la fonction Edge `report` (`kind: 'profile'`, `target_ref: 'chat'`), puis quitter ou retirer ;
+- pas de suppression ni de modification d'un message envoyé en V1 ; pas de liste de mots interdits (conversation privée entre deux personnes qui se sont choisies) ;
+- **« Signaler » garde une preuve** (corrigé le 31/10/2026 après relecture : avant, seul le profil était signalé et quitter effaçait tout) : `report_chat` copie les 50 derniers messages dans `chat_reports`, sans lien vers `coach_links`, puis l'alerte par e-mail part ; quitter ou retirer ensuite n'efface pas la copie ;
+- **consentement** : l'écran « Rejoindre » liste « Des messages » dans « Ce que X pourra faire » ; les élèves liés avant la messagerie voient une fois « Ton coach peut t'écrire » dans Mon coach (fermée, ou conversation ouverte : plus redite, `mdlf_chat_intro_seen` sur l'appareil) ;
 - indépendant du social, comme le reste du coach : un blocage social ne coupe pas la conversation (il faut quitter le coach ou retirer l'élève).
 
 ### Règles
 - **Conversation désignée par l'élève** : le coach passe `student` (son élève), l'élève passe `null` (« avec mon coach »). Un compte à la fois coach et élève a deux conversations séparées, sans ambiguïté. Chaque appel relit le lien (`private.chat_thread`) et vérifie que le coach a encore le rôle : sinon `not_found`, des deux côtés (rôle retiré : conversation fermée, mais pas effacée tant que le lien existe).
 - **Données** : `coach_messages (id bigint identity, student_id, coach_id, from_coach, body, created_at)`, clé étrangère vers `coach_links (student_id, coach_id)` on delete cascade ; RLS activée, aucun GRANT client. Non-lus : `coach_links.chat_coach_read` et `chat_student_read`, id du dernier message lu par chacun.
-- **Non-lus** : messages de l'autre au-delà de ma marque. Écrire vaut lecture (ma marque avance jusqu'à mon message). Envoi et marque d'une même conversation passent l'un après l'autre (verrou par lien) : un message arrivé pendant la lecture n'est jamais compté lu sans avoir été vu.
+- **Non-lus** : messages de l'autre au-delà de ma marque. La marque n'avance que par `chat_mark_read`, jusqu'au dernier message que l'app a reçu (`up_to`) : un message arrivé après la lecture de l'app reste non lu. **Écrire ne vaut pas lecture** (avant le 31/10/2026, `chat_send` marquait lu jusqu'à mon message, donc aussi un message de l'autre arrivé juste avant et jamais affiché). Envoi et marque d'une même conversation passent l'un après l'autre (verrou par lien).
+- **Signalement** (`report_chat(reason, student)`) : copie des 50 derniers messages (`[{ id, from_coach, body, at }]`, du plus ancien au plus récent) dans `chat_reports (reporter_id, target_user, student_id, coach_id, reason, messages, created_at)`. Aucune clé vers `coach_links` ni vers le compte signalé : la copie survit au départ de l'élève, au retrait par le coach et à la suppression du compte signalé ; effacée avec le compte de celui qui signale ; purgée à 12 mois (déclencheur et pg_cron `purge-chat-reports-12-mois`). Une ligne dans `public.reports` (`kind: 'profile'`, `target_ref: 'chat_reports:<id>'`, details : où lire la copie) ; l'app demande ensuite l'alerte par e-mail à la fonction Edge `report` (`{ report_id }`). Limite : celle de `public.reports` (10 par 24 h, tous types confondus). Lire une conversation signalée : requête en bas de la migration.
 - **Texte** : nettoyé comme les commentaires ; 1 à 2000 caractères (`empty_message`, `too_long`).
 - **Limites** : 60 messages par heure et 500 par 24 h ; `chat_messages` 900 lectures par heure, `chat_threads` et `chat_mark_read` 600.
-- **Erreurs** : `not_found`, `empty_message`, `too_long`, `rate_limited`.
+- **Erreurs** : `not_found`, `empty_message`, `too_long`, `invalid_reason`, `rate_limited`.
 
 | Fonction | Renvoie | Règles |
 |---|---|---|
 | `chat_threads()` | `jsonb` | `{ coach: { unread, last } \| null, students: [{ student_id, unread, last }], unread }`, `last = { id, mine, body (120 caractères), at } \| null`. `coach` : avec mon coach (s'il a encore le rôle) ; `students` : mes élèves (si je suis coach). |
 | `chat_messages(student uuid default null, before_id bigint default null, after_id bigint default null)` | `table(id bigint, mine boolean, body text, at timestamptz)` | 50 par page. Sans curseur : les plus récents, du plus récent au plus ancien ; `before_id` : plus anciens (même ordre) ; `after_id` : plus récents, du plus ancien au plus récent (relecture). |
 | `chat_send(body text, student uuid default null)` | `jsonb { id, mine, body, at }` | Voir les règles. |
-| `chat_mark_read(student uuid default null)` | `void` | Conversation lue jusqu'au dernier message. |
+| `chat_mark_read(student uuid default null, up_to bigint default null)` | `void` | Conversation lue jusqu'à `up_to` (dernier message reçu par l'app ; null : jusqu'au dernier). La marque ne recule jamais. |
+| `report_chat(reason text, student uuid default null)` | `bigint` | Id de la ligne de `public.reports`. Voir « Signalement ». |
 
 ### App
 - **Entrées** : cellule « Messages » (dernier message, nombre de non-lus) dans Mon coach (élève) et sur la fiche d'un élève (coach) ; pastille bleue 💬 N par élève dans Mes élèves ; les non-lus s'ajoutent aux pastilles « Mon coach » / « Mes élèves » et au badge de l'onglet Amis (gardés sur l'appareil, `mdlf_chat`, pour un badge juste hors ligne).
-- **Conversation** (`coach-chat:@coach` ou `coach-chat:<id de l'élève>`) : bulles façon Messages (les miennes à droite à la teinte, celles de l'autre à gauche en gris), heure, séparateurs « Aujourd'hui », « Hier », date ; « Afficher les messages précédents » ; saisie collée au-dessus de la barre d'onglets ; menu ⋯ « Signaler ». Ouverte : marquée lue ; relue toutes les 15 s (seulement les nouveaux, `after_id`) ; pendant la frappe, seule la liste est redessinée. Lien rompu : « les messages ont été effacés ».
+- **Conversation** (`coach-chat:@coach` ou `coach-chat:<id de l'élève>`) : bulles façon Messages (les miennes à droite à la teinte, celles de l'autre à gauche en gris), heure, séparateurs « Aujourd'hui », « Hier », date ; « Afficher les messages précédents » ; saisie collée au-dessus de la barre d'onglets ; menu ⋯ « Signaler » (annonce que les 50 derniers messages sont joints, puis que la copie est gardée même si le suivi s'arrête). Ouverte : marquée lue jusqu'au dernier message reçu ; relue toutes les 15 s et juste après chaque envoi (seulement les nouveaux, `after_id` = dernier message reçu du serveur, jamais mon propre envoi) ; pendant la frappe, seule la liste est redessinée. Lien rompu : « les messages ont été effacés ».
 - **Serveur sans messagerie** (fonction absente, PostgREST `PGRST202`) : la cellule « Messages » n'apparaît pas.
-- **privacy.html** : « Messages » dans Coach (FR et EN).
+- **privacy.html** : « Messages » dans Coach (FR et EN), avec la copie gardée 12 mois en cas de signalement.
 
 ### Ordre de mise en production
-Migration d'abord, puis l'OTA (une app à jour sur un serveur d'avant cache la cellule). Retour arrière : `supabase/rollback/20261031510000_chat_coach_down.sql`, vérifié par `tests/sql/rollback_social_check.sh`.
+Migration d'abord, puis la fonction Edge `report` (mode `{ report_id }`), puis l'OTA (une app à jour sur un serveur d'avant cache la cellule ; avec une fonction `report` d'avant, le signalement est enregistré mais l'alerte ne part pas : `notified_at` nul, requête de rattrapage). Retour arrière : `supabase/rollback/20261031510000_chat_coach_down.sql`, vérifié par `tests/sql/rollback_social_check.sh`.
 
 ## Fonctions RPC (rôle `authenticated`)
 
