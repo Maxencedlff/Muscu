@@ -6,7 +6,10 @@
 // séance envoyée), les unités (cm stockés, pouces affichés en lbs), une valeur par jour et par mesure,
 // les écarts, et le calcul de réduction des photos.
 
-export default function ({ test, run, reset, assert, sameJSON }) {
+import fs from 'node:fs';
+import path from 'node:path';
+
+export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
   const DAY = 86_400_000;
   const T0 = 1_760_000_000_000;   // 9 octobre 2026, vers 9 h
 
@@ -152,13 +155,18 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.ok(failed, 'lecture impossible signalée par un rejet (l\'écran affiche une liste vide)');
   });
 
-  test('photos : absentes de l\'app iOS tant que sa build n\'a pas l\'autorisation de l\'appareil photo', () => {
+  test('photos : permises dans l\'app iOS seulement avec la build qui a les autorisations', () => {
     // Navigateur : permises
     assert.equal(run('photosAllowedHere()'), true);
-    // App iOS (PHOTOS_NATIVE_READY = false) : ni permises ni utilisables (écran vérifié par tests/test_mesures.py)
+    // App iOS : PHOTOS_NATIVE_READY passe à true avec la build unique, dont l'Info.plist a les deux clés
+    // (sans NSCameraUsageDescription, iOS tue l'app au toucher « Prendre une photo »)
     sameJSON(run(`(() => {
       const was = Native.isNative; Native.isNative = true;
-      try { return [photosAllowedHere(), photosEnabled(), PHOTOS_NATIVE_READY]; } finally { Native.isNative = was; }
-    })()`), [false, false, false]);
+      try { return [photosAllowedHere(), PHOTOS_NATIVE_READY]; } finally { Native.isNative = was; }
+    })()`), [true, true]);
+    const plist = fs.readFileSync(path.join(ROOT, 'ios/App/App/Info.plist'), 'utf8');
+    for (const k of ['NSCameraUsageDescription', 'NSPhotoLibraryUsageDescription']) {
+      assert.match(plist, new RegExp(`<key>${k}</key>\\s*<string>[^<]{20,}</string>`), `${k} dans Info.plist`);
+    }
   });
 }

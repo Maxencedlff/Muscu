@@ -46,6 +46,8 @@ const SCRIPTS = [
   'js/data/progress-photos.js',
   'js/data/session-review.js',
   'js/data/health-workouts.js',
+  'js/data/health-export.js',
+  'js/data/health-sleep.js',
   'js/data/effort-clock.js',
   'js/data/exercise-moves.js',
   'js/data/exercise-howto.js',
@@ -1003,11 +1005,12 @@ test('live activity : données envoyées (séance, couleur, durée entière, tex
 
 // ── Services Apple (Santé, Apple Music) ─────────────────────
 
-test('santé : énergie estimée = MET 5 × poids × durée, rien sans pesée', () => {
-  assert.equal(app.estimateKcal(3_600_000, 72), 360);
-  assert.equal(app.estimateKcal(45 * 60_000, 80), 300);
-  assert.equal(app.estimateKcal(3_600_000, null), 0);
-  assert.equal(app.estimateKcal(0, 72), 0);
+test('santé : énergie active nette = (MET − 1) × poids × durée, rien sans pesée', () => {
+  assert.equal(app.netKcal(5, 72, 3_600_000), 288, 'musculation : 4 MET au-dessus du repos');
+  assert.equal(app.netKcal(5, 80, 45 * 60_000), 240);
+  assert.equal(app.netKcal(5, null, 3_600_000), 0);
+  assert.equal(app.netKcal(5, 72, 0), 0);
+  assert.equal(app.netKcal(1, 72, 3_600_000), 0, 'repos : aucune énergie active');
 });
 
 test('santé et musique : rien dans le navigateur, même activés', async () => {
@@ -1067,13 +1070,13 @@ test('santé : autorisation demandée à iOS une seule fois par lancement, avant
        __orig = { isNative: Native.isNative, health: Native.health };
        Native.isNative = true;
        Native.health = { authorize: async () => { __auth++; return { available: true, workouts: true }; },
-                         bodyMass: async () => [{ date: 1e12, kg: 71.6 }], saveWorkout: async () => true };
+                         bodyMass: async () => [{ date: 1e12, kg: 71.6 }], saveWorkouts: async (id, w) => ({ saved: w.length, total: w.length }) };
        weightCache = { at: 0, samples: [], failed: false };`);
   try {
     await run('bodyMassSamples()');
     run('retryBodyMass()');
     await run('bodyMassSamples()');
-    await run('syncWorkoutToHealth({ date: 2e12, duration: 3600000 })');
+    await run(`syncWorkoutToHealth({ id: 'x', date: 2e12, duration: 3600000, exercises: [{ name: 'Squat', sets: [{ weight: '80', reps: '5' }] }] })`);
     assert.equal(run('__auth'), 1);
   } finally {
     run('Native.isNative = __orig.isNative; Native.health = __orig.health; healthAuthAsked = null;');
@@ -1109,15 +1112,24 @@ test('santé : séance envoyée avec ses dates et les calories du poids le plus 
   ctx.__sent = sent;
   run(`__orig = { isNative: Native.isNative, health: Native.health };
        Native.isNative = true;
-       Native.health = { saveWorkout: async (w) => { __sent.push(w); return true; },
+       Native.health = { saveWorkouts: async (id, w) => { __sent.push({ id, w }); return { saved: w.length, total: w.length }; },
+                         saveWorkout: async (w) => { __sent.push({ legacy: w }); return true; },
                          bodyMass: async () => [{ date: 1700000000000, kg: 72 }] };
        weightCache = { at: 0, samples: [] };`);
+  const entry = () => ({ id: 's1', date: 1_700_003_600_000, duration: 3_600_000, exercises: [{ name: 'Squat', sets: [{ weight: '100', reps: '5' }] }] });
   try {
-    await app.syncWorkoutToHealth({ date: 1_700_003_600_000, duration: 3_600_000 });
-    sameJSON(sent, [{ start: 1_700_000_000_000, end: 1_700_003_600_000, kcal: 360 }]);
+    const e = entry();
+    await app.syncWorkoutToHealth(e);
+    sameJSON(sent, [{ id: 's1', w: [{ activity: 'traditionalStrengthTraining', start: 1_700_000_000_000, end: 1_700_003_600_000,
+      pauses: [], kcal: 288, km: 0, indoor: true, part: 0 }] }]);
+    assert.equal(e.healthSaved, true);
+    // Build antérieure (saveWorkouts absent) : un seul entraînement « Musculation », comme avant
+    run(`Native.health.saveWorkouts = async () => 'unimplemented'`);
+    await app.syncWorkoutToHealth(entry());
+    sameJSON(sent[1], { legacy: { start: 1_700_000_000_000, end: 1_700_003_600_000, kcal: 288 } });
     run('data.healthOn = false;');
-    await app.syncWorkoutToHealth({ date: 1_700_003_600_000, duration: 3_600_000 });
-    assert.equal(sent.length, 1, 'désactivé : rien envoyé');
+    await app.syncWorkoutToHealth(entry());
+    assert.equal(sent.length, 2, 'désactivé : rien envoyé');
   } finally {
     run('Native.isNative = __orig.isNative; Native.health = __orig.health;');
   }
@@ -1131,9 +1143,9 @@ test('santé historique : durée habituelle = médiane des séances chronométr�
   assert.equal(run('typicalDuration()'), 55 * 60_000, 'médiane de 40, 55, 70 min (30 s et sans durée ignorées)');
 });
 
-test('santé historique : dates d\'une séance chronométrée et d\'une séance saisie après coup', () => {
-  sameJSON(run('workoutOf({ date: 10_000_000, duration: 3_000_000 }, 999, 80)'), { start: 7_000_000, end: 10_000_000, kcal: 333 });
-  sameJSON(run('workoutOf({ date: 10_000_000 }, 3_600_000, null)'), { start: 10_000_000, end: 13_600_000, kcal: 0 });
+test('santé historique : dates d\'une séance chronométrée et d\'une séance saisie après coup (build antérieure)', () => {
+  sameJSON(run('legacyWorkoutOf({ date: 10_000_000, duration: 3_000_000 }, 999, 80)'), { start: 7_000_000, end: 10_000_000, kcal: 267 });
+  sameJSON(run('legacyWorkoutOf({ date: 10_000_000 }, 3_600_000, null)'), { start: 10_000_000, end: 13_600_000, kcal: 0 });
 });
 
 test('santé historique : tout envoyé une seule fois, les échecs restent à envoyer', async () => {
@@ -1142,18 +1154,19 @@ test('santé historique : tout envoyé une seule fois, les échecs restent à en
   ctx.__sent = sent;
   run(`data.healthOn = true;
        data.history = [
-         { id: 'a', date: 3e12, duration: 3600000, category: 'push', exercises: [{}] },
-         { id: 'b', date: 2e12, category: 'pull', exercises: [{}] },
-         { id: 'c', date: 1e12, category: 'legs', exercises: [{}], healthSaved: true },
-         { id: 'd', date: 4e12, category: 'legs', exercises: [] } ];
+         { id: 'a', date: 3e12, duration: 3600000, category: 'push', exercises: [{ name: 'Dips', sets: [{ weight: '', reps: '10' }] }] },
+         { id: 'b', date: 2e12, category: 'pull', exercises: [{ name: 'Rowing barre', sets: [{ weight: '60', reps: '8' }] }] },
+         { id: 'c', date: 1e12, category: 'legs', exercises: [{ name: 'Squat', sets: [{ weight: '80', reps: '5' }] }], healthSaved: true },
+         { id: 'd', date: 4e12, category: 'legs', exercises: [] },
+         { id: 'e', date: 5e12, category: 'legs', exercises: [{ name: 'Squat', sets: [{ weight: '40', reps: '5', warmup: true }] }] } ];
        __orig = { isNative: Native.isNative, health: Native.health };
        Native.isNative = true;
        let __fail = true;
-       Native.health = { saveWorkout: async (w) => { if (w.start === 2e12 && __fail) { __fail = false; return false; } __sent.push(w.start); return true; },
+       Native.health = { saveWorkouts: async (id, ws) => { if (id === 'b' && __fail) { __fail = false; return null; } __sent.push(ws[0].start); return { saved: ws.length, total: ws.length }; },
                          bodyMass: async () => [] };
        weightCache = { at: 0, samples: [] };`);
   try {
-    sameJSON(run('healthBacklog().map(h => h.id)'), ['b', 'a'], 'du plus ancien au plus récent, sans les déjà envoyées ni les vides');
+    sameJSON(run('healthBacklog().map(h => h.id)'), ['b', 'a'], 'du plus ancien au plus récent, sans les déjà envoyées ni les vides (échauffement seul compris)');
     await run('sendHistoryToHealth()');
     sameJSON(run('healthBacklog().map(h => h.id)'), ['b'], 'b a échoué : reste à envoyer');
     await run('sendHistoryToHealth()');
@@ -1443,7 +1456,7 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 (await import('./machines.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Mensurations et photos de progression (tests dans body-measures.mjs) ──
-(await import('./body-measures.mjs')).default({ test, run, reset, assert, sameJSON });
+(await import('./body-measures.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 
 // ── Synchronisation du compte (tests dans sync.mjs) ──
 (await import('./sync.mjs')).default({ test, run, assert, sameJSON, ROOT });
@@ -1477,6 +1490,9 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 (await import('./import-csv.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
 // ── Récaps de la semaine, du mois et de l'année (tests dans recap.mjs) ──
 (await import('./recap.mjs')).default({ test, run, reset, assert, app, sameJSON });
+
+// ── Santé détaillée : entraînements d'une séance, sommeil (tests dans health.mjs) ──
+(await import('./health.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Exécution ───────────────────────────────────────────────
 

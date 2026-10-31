@@ -245,13 +245,30 @@ const Native = (() => {
       },
       // Fenêtre d'autorisation encore à montrer pour un type : 'shouldRequest', 'unnecessary' (tout a été
       // demandé) ou 'unknown' (échec, build antérieure sans la méthode, navigateur). Ne montre rien.
-      async requestStatus() {
+      // which : 'request' (poids, écriture, courses et vélo) ou 'extra' (sommeil et distances du cardio,
+      // build qui suit le 31/10/2026 : 'unknown' sur une build antérieure).
+      async requestStatus(which = 'request') {
         if (!isNative) return 'unknown';
-        try { return (await Health.authorizationStatus()).request || 'unknown'; } catch { return 'unknown'; }
+        try { return (await Health.authorizationStatus())[which] || 'unknown'; } catch { return 'unknown'; }
       },
       async saveWorkout({ start, end, kcal = 0 }) {
         if (!isNative) return false;
         try { return !!(await Health.saveWorkout({ start, end, kcal })).saved; } catch { return false; }
+      },
+      // Séance détaillée (js/data/health-export.js : un entraînement par type, pauses, énergie, distance).
+      // → { saved, total } ; 'unimplemented' sur une build antérieure (l'appelant écrit alors la séance
+      // comme avant, en un seul entraînement « Musculation ») ; null en cas d'échec.
+      async saveWorkouts(id, workouts) {
+        if (!isNative) return null;
+        try { const r = await Health.saveWorkouts({ id, workouts }); return { saved: r.saved | 0, total: r.total | 0 }; }
+        catch (e) { return e?.code === 'UNIMPLEMENTED' ? 'unimplemented' : null; }
+      },
+      // Sommeil des `days` dernières nuits : [{ start, end, stage }] ; null si la lecture a échoué. Build
+      // antérieure (méthode absente) : liste vide.
+      async sleep(days = 8) {
+        if (!isNative) return [];
+        try { return (await Health.sleep({ days })).samples || []; }
+        catch (e) { return e?.code === 'UNIMPLEMENTED' ? [] : null; }
       },
       // Pesées des `days` derniers jours, la plus récente d'abord ; null si la lecture a échoué
       // (Santé pas encore prête au lancement…) : l'appelant ne doit pas garder ce résultat

@@ -6,7 +6,6 @@
 // Réglages data.healthOn / data.musicOn (false par défaut). Dans le navigateur, rien n'est affiché :
 // Native.isNative vaut false et ces fonctions renvoient du vide.
 
-const MET_STRENGTH = 5;          // musculation, effort soutenu (Compendium of Physical Activities)
 const WEIGHT_TTL   = 5 * 60_000; // pesées relues dans Santé au plus toutes les 5 minutes
 
 let weightCache = { at: 0, samples: [], failed: false };   // failed : dernière lecture en échec
@@ -15,12 +14,7 @@ const healthEnabled = () => Native.isNative && data.healthOn === true;
 const musicEnabled  = () => Native.isNative && data.musicOn === true;
 
 // ── Santé : entraînement de fin de séance ───────────────────
-
-// Énergie active estimée (kcal) : MET × poids (kg) × durée (h). Sans pesée connue : pas d'estimation.
-function estimateKcal(durationMs, kg) {
-  if (!(kg > 0) || !(durationMs > 0)) return 0;
-  return Math.round(MET_STRENGTH * kg * (durationMs / 3_600_000));
-}
+// Découpage, durées et énergie : js/data/health-export.js (healthWorkoutPlan).
 
 // Autorisations : iOS n'affiche sa fenêtre que pour les types jamais demandés (et retient la réponse,
 // qu'il ne dit pas pour la lecture). Elle ne doit jamais s'ouvrir sans contexte, au lancement :
@@ -32,6 +26,9 @@ function estimateKcal(durationMs, kg) {
 //    demandés avec le reste à l'activation de Santé, sinon par un toucher dans Réglages › Services Apple
 //    (« Courses et vélo de Santé », action health-workouts-auth). Tant qu'iOS ne les a jamais demandés,
 //    rien n'est lu (workoutsAuthStatus).
+//  - sommeil et distances du cardio (build du 31/10/2026) : de même, demandés à l'activation de Santé ou
+//    par la ligne « Sommeil et distances » de Réglages › Services Apple (extraAuthStatus) ; d'ici là le
+//    sommeil n'est pas lu et les distances ne sont pas écrites (le reste de la séance l'est).
 let healthAuthAsked = null;
 function ensureHealthAuth() {
   return (healthAuthAsked ||= Promise.resolve().then(() => Native.health.authorize({ workouts: false })).catch(() => null));
@@ -44,16 +41,31 @@ let workoutsAuthState = null, workoutsAuthKnown = null;
 function workoutsAuthStatus() {
   return (workoutsAuthState ||= Native.health.requestStatus().catch(() => 'unknown').then(st => (workoutsAuthKnown = st)));
 }
-function resetWorkoutsAuth() { workoutsAuthState = null; workoutsAuthKnown = null; }
+// Même chose pour le sommeil et les distances (extra) ; 'unknown' sur une build antérieure : rien n'est
+// proposé, et la lecture du sommeil répond une liste vide
+let extraAuthState = null, extraAuthKnown = null;
+function extraAuthStatus() {
+  return (extraAuthState ||= Native.health.requestStatus('extra').catch(() => 'unknown').then(st => (extraAuthKnown = st)));
+}
+function resetWorkoutsAuth() { workoutsAuthState = null; workoutsAuthKnown = null; extraAuthState = null; extraAuthKnown = null; }
+
+// Écrit une séance dans Santé : ses entraînements détaillés (musculation en pause pendant le cardio des
+// machines, cardio dans son type), ou, sur une build antérieure qui ne les connaît pas, un seul
+// entraînement « Musculation » comme avant (legacyWorkoutOf). true si tout est écrit.
+async function writeEntryToHealth(h, kg, typicalMs) {
+  const plan = healthWorkoutPlan(h, { kg, typicalMs });
+  if (!plan.length) return false;
+  const r = await Native.health.saveWorkouts(h.id, plan);
+  if (r === 'unimplemented') return Native.health.saveWorkout(legacyWorkoutOf(h, typicalMs, kg));
+  return !!r && r.total === plan.length && r.saved === r.total;
+}
 
 // Appelé après l'enregistrement d'une séance ; un échec ne bloque jamais le bilan
 async function syncWorkoutToHealth(entry) {
   if (!healthEnabled() || !entry?.duration) return;
   await ensureHealthAuth();
-  const kg  = await weightForCalories();
-  const end = entry.date;
-  const ok  = await Native.health.saveWorkout({ start: end - entry.duration, end, kcal: estimateKcal(entry.duration, kg) });
-  if (ok) { entry.healthSaved = true; save(true); }
+  const kg = await weightForCalories();
+  if (await writeEntryToHealth(entry, kg, entry.duration)) { entry.healthSaved = true; save(true); }
   else showToast('Séance non enregistrée dans Santé (autorisation ?)', { error: true });
 }
 
@@ -61,9 +73,10 @@ async function syncWorkoutToHealth(entry) {
 
 const DEFAULT_SESSION_MS = 60 * 60_000;
 
-// Séances pas encore envoyées à Santé, de la plus ancienne à la plus récente
+// Séances pas encore envoyées à Santé (avec au moins une série de travail), de la plus ancienne à la plus récente
 function healthBacklog() {
-  return (data.history || []).filter(h => !h.healthSaved && h.exercises?.length).sort((a, b) => a.date - b.date);
+  return (data.history || []).filter(h => !h.healthSaved && (h.exercises || []).some(ex => workSets(ex.sets || []).length))
+    .sort((a, b) => a.date - b.date);
 }
 
 // Durée retenue pour une séance saisie après coup (sans chrono) : médiane des séances chronométrées
@@ -72,12 +85,13 @@ function typicalDuration() {
   return ds.length ? ds[Math.floor(ds.length / 2)] : DEFAULT_SESSION_MS;
 }
 
-// Entraînement Santé d'une séance : une séance chronométrée se termine à sa date d'enregistrement ;
-// une séance saisie après coup (date à midi, sans durée) commence à cette heure-là
-function workoutOf(h, typical, kg) {
+// Build antérieure (sans saveWorkouts) : un seul entraînement « Musculation ». Une séance chronométrée se
+// termine à sa date d'enregistrement ; une séance saisie après coup (date à midi, sans durée) commence à
+// cette heure-là. Énergie nette, comme healthWorkoutPlan.
+function legacyWorkoutOf(h, typical, kg) {
   const dur = h.duration > 0 ? h.duration : typical;
   const start = h.duration > 0 ? h.date - dur : h.date;
-  return { start, end: start + dur, kcal: estimateKcal(dur, kg) };
+  return { start, end: start + dur, kcal: netKcal(HEALTH_STRENGTH_MET, kg, dur) };
 }
 
 // Envoie les séances pas encore dans Santé ; renvoie { sent, failed } (l'action s'occupe de l'affichage)
@@ -88,7 +102,7 @@ async function sendHistoryToHealth(onProgress = () => {}) {
   const kg = await weightForCalories();
   let sent = 0, failed = 0;
   for (const h of todo) {
-    if (await Native.health.saveWorkout(workoutOf(h, typical, kg))) { h.healthSaved = true; sent++; }
+    if (await writeEntryToHealth(h, kg, typical)) { h.healthSaved = true; sent++; }
     else failed++;
     onProgress(sent + failed, todo.length);
   }
@@ -237,6 +251,40 @@ function mountHealthWorkouts(viewName, refresh) {
   loadHealthWorkouts().then(changed => { if (changed && currentView() === viewName) refresh(); }).catch(() => {});
 }
 
+// ── Santé : sommeil ─────────────────────────────────────────
+
+// Relu dans Santé (8 dernières nuits) au plus toutes les 15 minutes, jamais gardé ailleurs qu'en mémoire
+// (js/data/health-sleep.js). Lecture en échec : dernière lecture gardée, nouvel essai après une minute.
+const SLEEP_TTL = 15 * 60_000;
+let sleepCache = { at: 0, samples: [], failedAt: 0 };
+let sleepLoad = null;
+function loadSleep() {
+  if (!healthEnabled()) return Promise.resolve(false);
+  return (sleepLoad ||= readSleep().finally(() => { sleepLoad = null; }));
+}
+async function readSleep() {
+  const now = Date.now();
+  if (now - sleepCache.at < SLEEP_TTL || now - sleepCache.failedAt < WEIGHT_EMPTY_TTL) return false;
+  if (await extraAuthStatus() !== 'unnecessary') return false;   // jamais demandé (ou build antérieure) : rien à lire
+  const samples = await Native.health.sleep(8);
+  if (!samples) { sleepCache = { ...sleepCache, failedAt: Date.now() }; return false; }
+  const changed = JSON.stringify(samples) !== JSON.stringify(sleepCache.samples);
+  sleepCache = { at: Date.now(), samples, failedAt: 0 };
+  return changed;
+}
+
+// Accueil, sous la récupération de la prochaine séance : une ligne, seulement s'il y a une nuit aujourd'hui
+function sleepHomeHtml() {
+  if (!healthEnabled()) return '';
+  const line = sleepLine(sleepSummary(sleepCache.samples));
+  return line ? `<div class="hero__sleep" id="heroSleep">${icon('moon', 13)}<span>${esc(line)}</span></div>` : '';
+}
+// Après le dessin de l'accueil : lecture en arrière-plan, accueil redessiné si la nuit a changé
+function mountSleep() {
+  if (!healthEnabled()) return;
+  loadSleep().then(changed => { if (changed && currentView() === 'dashboard') render(); }).catch(() => {});
+}
+
 // ── Apple Music : barre de lecture pendant la séance ────────
 
 let musicState = null;
@@ -294,10 +342,11 @@ function renderAppleServicesGroup(tog) {
         <div class="group">
           <button class="cell" data-action="setting-health" role="switch" aria-checked="${data.healthOn === true}">
             <span class="cell__body"><span class="cell__title">Apple Santé</span>
-              <span class="cell__sub">Enregistre tes séances, lit ton poids, tes courses et sorties vélo</span></span>
+              <span class="cell__sub">Enregistre tes séances, lit ton poids, ton sommeil, tes courses et sorties vélo</span></span>
             ${tog(data.healthOn === true)}
           </button>
           ${data.healthOn === true ? renderHealthWorkoutsCell() : ''}
+          ${data.healthOn === true ? renderHealthExtraCell() : ''}
           ${data.healthOn === true ? (() => {
             const n = healthBacklog().length;
             return `<button class="cell cell--nav" data-action="health-backfill">
@@ -365,10 +414,32 @@ function renderHealthWorkoutsCell() {
               <span class="cell__sub">Affichées dans l'Historique ; comptent pour la récupération à partir de 20 min</span></span>
           </div>`;
 }
-// Réglages : l'état de l'autorisation est lu une fois, puis l'écran est redessiné s'il est toujours affiché
+// Sommeil et distances du cardio : à autoriser tant qu'iOS ne les a jamais demandés (Santé activé avant la
+// build qui les lit), puis rappel. Proposé seulement quand les courses n'attendent plus (une seule ligne à
+// la fois : le même toucher demande tout). État pas encore lu ou inconnu (build antérieure) : rien.
+function renderHealthExtraCell() {
+  if (workoutsAuthKnown === 'shouldRequest') return '';
+  const title = '<span class="cell__title">Sommeil et cardio</span>';
+  if (extraAuthKnown === 'shouldRequest') {
+    return `<button class="cell cell--nav" data-action="health-workouts-auth">
+            <span class="cell__body">${title}
+              <span class="cell__sub">Autorise ton sommeil (affiché sur l'accueil) et les distances du tapis, du vélo et du rameur</span></span>
+            ${icon('chevron.right', 16)}
+          </button>`;
+  }
+  if (extraAuthKnown !== 'unnecessary') return '';
+  return `<div class="cell">
+            <span class="cell__body">${title}
+              <span class="cell__sub">Ta nuit s'affiche sur l'accueil ; le cardio des machines part dans Santé avec son type et sa distance</span></span>
+          </div>`;
+}
+
+// Réglages : l'état des autorisations est lu une fois, puis l'écran est redessiné s'il est toujours affiché
 function fillHealthWorkoutsCell() {
-  if (!healthEnabled() || workoutsAuthKnown !== null) return;
-  workoutsAuthStatus().then(st => { if (st !== 'unknown' && currentView() === 'settings') render(); });
+  if (!healthEnabled() || (workoutsAuthKnown !== null && extraAuthKnown !== null)) return;
+  Promise.all([workoutsAuthStatus(), extraAuthStatus()]).then(([a, b]) => {
+    if ((a !== 'unknown' || b !== 'unknown') && currentView() === 'settings') render();
+  });
 }
 
 // Réglages : la cellule est redessinée une fois Santé lue (lecture asynchrone)
@@ -397,15 +468,16 @@ registerActions({
       return;
     }
     data.healthOn = true; weightCache = { at: 0, samples: [], failed: false }; workoutCache = emptyWorkoutCache();
+    sleepCache = { at: 0, samples: [], failedAt: 0 };
     healthAuthAsked = Promise.resolve(res); resetWorkoutsAuth();   // tout vient d'être demandé
     save(); render(); showToast('Apple Santé connecté');
   },
-  // Courses et vélo, demandés ici seulement (jamais au lancement : voir ensureHealthAuth)
+  // Courses et vélo, sommeil et distances, demandés ici seulement (jamais au lancement : voir ensureHealthAuth)
   'health-workouts-auth': async () => {
     const res = await Native.health.authorize();
     if (!res.available) { showToast('Santé n\'est pas disponible sur cet appareil', { error: true }); return; }
-    resetWorkoutsAuth(); workoutCache = emptyWorkoutCache();
-    await workoutsAuthStatus();
+    resetWorkoutsAuth(); workoutCache = emptyWorkoutCache(); sleepCache = { at: 0, samples: [], failedAt: 0 };
+    await Promise.all([workoutsAuthStatus(), extraAuthStatus()]);
     render();
     await loadHealthWorkouts();
   },
@@ -423,7 +495,7 @@ registerActions({
     const n = healthBacklog().length;
     if (!n) { showToast('Tout ton historique est déjà dans Santé'); return; }
     if (!(await confirmSheet(`Envoyer ${plural(n, 'séance', 'séances')} dans Santé ?`,
-      'Chaque séance devient un entraînement « Musculation » à sa date. Une séance saisie sans chrono reçoit ta durée habituelle. Les séances déjà envoyées ne sont pas renvoyées.',
+      'Chaque séance devient un entraînement « Musculation » à sa date, et le cardio fait au chrono d\'une machine un entraînement de son type. Une séance saisie sans chrono reçoit ta durée habituelle. Les séances déjà envoyées ne sont pas renvoyées.',
       'Envoyer', false))) return;
     const { sent, failed } = await sendHistoryToHealth((i, total) => {
       if (i % 5 === 0 && i < total) showToast(`Envoi dans Santé… ${i}/${total}`);

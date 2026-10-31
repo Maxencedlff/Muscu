@@ -287,6 +287,7 @@ function renderDashboard() {
         : `<div class="hero__info">Jamais faite</div>`;
       if (!st.ready) info += `<div class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</div>`;
       if (st.by) info += `<div class="hero__why">${esc(recoveryReason(st.by))}</div>`;
+      info += sleepHomeHtml();   // Santé : la nuit, une ligne (js/features/apple-services.js)
       const passed = passedOverNote(keys, next);
       if (passed) info += `<div class="hero__why hero__why--passed">${esc(passed)}</div>`;
       btn = st.ready

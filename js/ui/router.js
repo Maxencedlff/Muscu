@@ -217,7 +217,7 @@ function render() { paint(); }
 //   mount({ first })  : après chaque dessin (first : l'écran vient d'être ouvert)
 //   enter({ dir })    : à chaque affichage par la navigation ; leave() : quand on le quitte
 const SCREENS = new Map([
-  ['dashboard',      { render: () => renderDashboard(), mount: () => mountHealthWorkouts('dashboard', render) }],   // Santé : récupération
+  ['dashboard',      { render: () => renderDashboard(), mount: () => { mountHealthWorkouts('dashboard', render); mountSleep(); } }],   // Santé : récupération, sommeil
   ['programmes',     { render: () => renderProgrammes() }],
   ['session',        { render: () => activeSession ? renderSession() : renderDashboard(),
                        mount: ({ first }) => { if (activeSession) { afterSessionRender(first); mountMusicBar(); } }, // centre la série courante
