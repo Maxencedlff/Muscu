@@ -35,6 +35,8 @@ const SCRIPTS = [
   'js/data/plans.js',
   'js/data/access.js',
   'js/data/coach-pro.js',
+  'js/data/newsletter.js',
+  'js/data/legal-links.js',
   'js/data/prog-share.js',
   'js/data/trash.js',
   'js/data/muscles.js',
@@ -1405,6 +1407,8 @@ test('son : joué par iOS seulement si la coquille a le module (build 22+), sino
 (await import('./report.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Tarifs du 30/10 : demande du rôle coach (tests dans coach-request.mjs) ──
 (await import('./coach-request.mjs')).default({ test, assert, ROOT });
+// ── Juridique : lettre d'information, pages juridiques, prix des CGV (tests dans juridique.mjs) ──
+(await import('./juridique.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Payant : signature d'Apple, achats et notifications (tests dans payant.mjs) ──
 (await import('./payant.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Fonctions Edge : garde de l'appelant (verify_jwt = false) (auth-guard.mjs) ──

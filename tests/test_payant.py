@@ -997,7 +997,7 @@ def t_tarifs(bench, eng, dev, theme):
                 f'{t} pas coach : aucun palier coach visible')
         R.check('Tu es coach ?' in txt, f'{t} pas coach : lien vers la demande')
         R.check('Essai gratuit de 3 mois, puis 6,49 € par mois ou 55,00 € par an' in txt and 'au moins 24 heures avant la fin de l\'essai' in txt
-                and 'Conditions d\'utilisation' in txt and 'Confidentialité' in txt, f'{t} particulier : mentions 3.1.2')
+                and 'Conditions d\'utilisation' in txt and 'Conditions de vente' in txt and 'Confidentialité' in txt, f'{t} particulier : mentions 3.1.2')
         layout(page, t, 'abonnement particulier')
         shot(page, LOT, f'20-tarifs-particulier-{t}')
         # Le lien mène à la demande, pas à un achat

@@ -2,32 +2,19 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Confidentialité · MDLF Training</title>
   <meta name="description" content="Politique de confidentialité et mentions légales de l'application MDLF Training.">
-  <style>
-    :root { --bg: #f2f2f7; --cell: #fff; --label: #000; --label2: rgba(60,60,67,.6); --tint: #007aff; color-scheme: light dark; }
-    @media (prefers-color-scheme: dark) { :root { --bg: #000; --cell: #1c1c1e; --label: #fff; --label2: rgba(235,235,245,.6); --tint: #0a84ff; } }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--label); font: 17px/1.5 -apple-system, system-ui, sans-serif; }
-    main { max-width: 680px; margin: 0 auto; padding: 32px 16px 64px; }
-    h1 { font-size: 34px; line-height: 41px; margin: 0 0 4px; }
-    .sub { color: var(--label2); margin: 0 0 24px; font-size: 15px; }
-    section { background: var(--cell); border-radius: 12px; padding: 16px; margin: 0 0 16px; }
-    h2 { font-size: 20px; margin: 0 0 8px; }
-    p, li { margin: 0 0 8px; }
-    ul { padding-left: 20px; margin: 0; }
-    a { color: var(--tint); }
-    hr { border: none; height: 1px; background: var(--label2); opacity: .3; margin: 32px 0; }
-  </style>
+  <link rel="stylesheet" href="legal.css">
 </head>
 <body>
 <main>
   <h1>Confidentialité</h1>
-  <p class="sub">MDLF Training · mise à jour le 30 octobre 2026</p>
+  <p class="sub">MDLF Training · mise à jour le 31 octobre 2026</p>
 
   <nav class="toc" aria-label="Sommaire">
-    <p><strong>Sommaire</strong> : <a href="#resume">En résumé</a> · <a href="#appareil">Sur ton appareil</a> · <a href="#compte">Compte</a> · <a href="#communaute">Amis</a> · <a href="#coach">Coach</a> · <a href="#abonnement">Abonnement</a> · <a href="#sante">Santé</a> · <a href="#contact">Contact</a></p>
+    <p><strong>Sommaire</strong> : <a href="#resume">En résumé</a> · <a href="#appareil">Sur ton appareil</a> · <a href="#compte">Compte</a> · <a href="#communaute">Amis</a> · <a href="#coach">Coach</a> · <a href="#abonnement">Abonnement</a> · <a href="#newsletter">Lettre d'information</a> · <a href="#sante">Santé</a> · <a href="#contact">Contact</a></p>
+    <p class="pages"><a href="mentions-legales.html">Mentions légales</a><a href="cgu.html">Conditions d'utilisation</a><a href="cgv.html">Conditions de vente</a></p>
   </nav>
 
   <section>
@@ -52,7 +39,7 @@
     <ul>
       <li><strong>Apple</strong> : l'app ne demande ni ton nom ni ton adresse e-mail ; elle reçoit seulement un identifiant anonyme propre à MDLF Training, fourni par Apple.</li>
       <li><strong>Google</strong> : Google transmet un identifiant de ton compte Google, ton adresse e-mail et, selon ton compte, ton nom et l'adresse (URL) de ta photo de profil Google. Le serveur des comptes les garde avec ton compte (c'est le fonctionnement de Supabase), mais l'app n'utilise ni n'affiche ton nom ni ta photo : seul le pseudo que tu choisis sert de nom.</li>
-      <li><strong>E-mail</strong> : tu saisis ton adresse et tu reçois un code à 6 chiffres, valable 10 minutes. Pas de mot de passe. Ton adresse sert uniquement à te connecter : jamais de lettre d'information ni de publicité.</li>
+      <li><strong>E-mail</strong> : tu saisis ton adresse et tu reçois un code à 6 chiffres, valable 10 minutes. Pas de mot de passe. Ton adresse sert à te connecter, jamais à de la publicité ; tu ne reçois la lettre d'information que si tu t'y inscris toi-même (voir <a href="#newsletter">Lettre d'information</a>).</li>
     </ul>
     <ul>
       <li><strong>Pseudo et avatar</strong> : facultatifs. Tu choisis un pseudo et, si tu veux, un emoji (aucune photo). Sans les Amis ni coach, toi seul les vois ; si tu actives les Amis, ils permettent à d'autres de te trouver (voir Communauté), et un coach que tu rejoins les voit (voir Coach).</li>
@@ -107,6 +94,19 @@
       <li><strong>Coach</strong> : l'abonnement coach (selon le nombre d'élèves suivis) n'est proposé qu'aux comptes dont le rôle coach a été validé. Nous recevons d'Apple les mêmes informations que pour un abonnement particulier.</li>
       <li><strong>Conservation</strong> : tes achats, ton droit d'accès et tes codes utilisés sont effacés avec ton compte, sans exception.</li>
       <li><strong>Gérer ou résilier</strong> : Réglages de l'iPhone › ton nom › Abonnements, ou Réglages › Abonnement dans l'app.</li>
+      <li><strong>Prix, essai, rétractation, résiliation et remboursement</strong> : voir les <a href="cgv.html">Conditions de vente</a>. Les remboursements sont faits par Apple.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 id="newsletter">Lettre d'information</h2>
+    <p>La lettre d'information est <strong>facultative et désactivée par défaut</strong>. Elle demande un compte, et tu t'y inscris toi-même dans Réglages › Compte › Lettre d'information, en activant l'interrupteur, sous le texte qui dit ce que tu acceptes. Rien n'est coché d'avance, ni à la création du compte, ni par un abonnement.</p>
+    <ul>
+      <li><strong>Ce que nous gardons</strong> : que ton compte est inscrit, la date et l'heure de ton inscription (horloge du serveur), la version du texte que tu as accepté, et un identifiant de désinscription. L'adresse utilisée est celle de ton compte : elle n'est pas recopiée ailleurs.</li>
+      <li><strong>Pourquoi</strong> : t'envoyer par e-mail les nouveautés de l'app, au plus une fois par mois. Base légale : ton consentement (article 6.1.a du RGPD et article L34-5 du Code des postes et des communications électroniques).</li>
+      <li><strong>Envoi</strong> : aucun envoi n'a lieu pour l'instant. Quand il commencera, il passera par Resend (voir Compte), qui ne recevra que ton adresse et la lettre.</li>
+      <li><strong>Se désinscrire</strong> : à tout moment, en éteignant l'interrupteur, par le lien présent dans chaque lettre, ou en écrivant à <a href="mailto:contact@mdlf.app">contact@mdlf.app</a>. La désinscription efface aussitôt ton inscription du serveur ; elle ne change rien à ton compte ni à ton abonnement.</li>
+      <li><strong>Combien de temps</strong> : tant que tu restes inscrit ; tout est effacé à la désinscription ou à la suppression du compte.</li>
     </ul>
   </section>
 
@@ -148,26 +148,23 @@
 
   <section>
     <h2 id="contact">Contact</h2>
-    <p>Maxence de La Fouchardière · <a href="mailto:contact@mdlf.app">contact@mdlf.app</a></p>
+    <p>Responsable du traitement : Maxence de La Fouchardière, entrepreneur individuel, 34 rue du Plateau, 78210 Saint-Cyr-l'École · <a href="mailto:contact@mdlf.app">contact@mdlf.app</a>. Pour exercer tes droits (accès, rectification, effacement, opposition, retrait du consentement), écris à cette adresse ; tu peux aussi saisir la CNIL (<a href="https://www.cnil.fr">cnil.fr</a>).</p>
   </section>
 
   <section>
     <h2 id="mentions">Mentions légales</h2>
     <ul>
-      <li><strong>Éditeur et directeur de la publication</strong> : Maxence de La Fouchardière, particulier, à titre non professionnel (article 1-1 de la loi n°&nbsp;2004-575 du 21 juin 2004, LCEN) · <a href="mailto:contact@mdlf.app">contact@mdlf.app</a></li>
-      <li><strong>Hébergement du site et des mises à jour</strong> : Vercel Inc., 440 N Barranca Avenue #4133, Covina, CA 91723, États-Unis · <a href="https://vercel.com">vercel.com</a></li>
-      <li><strong>Hébergement des comptes</strong> : Supabase Pte. Ltd., 65 Chulia Street #38-02/03, OCBC Centre, Singapour 049513 · <a href="https://supabase.com">supabase.com</a>. Données stockées dans l'Union européenne (Irlande).</li>
-      <li><strong>Envoi des codes de connexion</strong> : Resend, Inc., États-Unis · <a href="https://resend.com">resend.com</a></li>
-      <li><strong>Distribution</strong> : Apple, par l'App Store. L'utilisation de l'application est régie par le contrat de licence standard d'Apple (EULA).</li>
-      <li><strong>Santé</strong> : MDLF Training est un carnet d'entraînement, pas un dispositif médical. Les programmes, les estimations (1RM, calories, récupération) et les conseils d'exécution sont donnés à titre indicatif. Demande l'avis d'un professionnel de santé avant de reprendre le sport ou en cas de douleur.</li>
-      <li><strong>Propriété</strong> : le nom, l'icône, les textes et le code de MDLF Training appartiennent à leur auteur. Tes séances et tes programmes t'appartiennent : tu peux les exporter à tout moment.</li>
+      <li><strong>Éditeur et directeur de la publication</strong> : Maxence de La Fouchardière, entrepreneur individuel (EI), micro-entreprise, SIREN 104 499 660, 34 rue du Plateau, 78210 Saint-Cyr-l'École · TVA non applicable, art. 293 B du CGI · <a href="mailto:contact@mdlf.app">contact@mdlf.app</a></li>
+      <li><strong>Hébergement</strong> : Vercel Inc. (site et mises à jour), Supabase Pte. Ltd. (comptes, données dans l'Union européenne), Resend, Inc. (e-mails).</li>
+      <li><strong>Distribution et vente des abonnements</strong> : Apple, par l'App Store.</li>
+      <li>Toutes les mentions : <a href="mentions-legales.html">Mentions légales</a> · <a href="cgu.html">Conditions d'utilisation</a> · <a href="cgv.html">Conditions de vente</a> (prix, essai, rétractation, résiliation, remboursement, médiation).</li>
     </ul>
   </section>
 
   <hr>
 
   <h1>Privacy</h1>
-  <p class="sub">MDLF Training · updated October 30, 2026</p>
+  <p class="sub">MDLF Training · updated October 31, 2026</p>
   <section>
     <p>Without an account, MDLF Training does <strong>not collect any personal data</strong>: your workouts, programs and settings stay on your device. The account is <strong>optional</strong>: if you sign in (with Apple, Google or a code sent by email), your workouts and programs are copied to the app's server so you get them on all your devices. No ads, no analytics, no tracking, nothing sold or shared. Your Health data and body weight never leave your iPhone. If you join a coach (optional), they see all your workouts, never your body weight or Health data (see Coach). The free trial and the subscription go through Apple: we never see your card, and an account will be required to record workouts once the subscription is in place (see Subscription).</p>
   </section>
@@ -181,7 +178,7 @@
 
   <section>
     <h2>Account (optional)</h2>
-    <p>You can create an account on first launch or in Settings › Account, in three ways, and link several of them to the same account. <strong>Apple</strong>: the app asks for neither your name nor your email; it only gets an anonymous identifier specific to MDLF Training. <strong>Google</strong>: Google sends an identifier of your Google account, your email address and, depending on your account, your name and the address (URL) of your Google profile picture; the account server keeps them with your account (this is how Supabase works), but the app never uses or shows your name or picture: only the username you choose is used. <strong>Email</strong>: you enter your address and receive a 6-digit code valid for 10 minutes, with no password; your address is only used to sign in, never for newsletters or ads. Codes are sent by Resend (Resend, Inc., USA), a processor that only receives your address and the message with the code, under the European Commission's standard contractual clauses; Resend keeps a technical log of sent emails for a limited time. An optional username and emoji avatar (no photo) can be set; only you see them unless you turn on Friends (see Community) or join a coach (see Coach). Your workouts, programs, custom exercises and shared settings are then stored with Supabase (database hosting, European Union, Ireland), only to sync your devices. Health data, body weight and device-only settings are never uploaded. Each account can only read its own data, apart from what Friends show to the followers you accepted and what the coach you joined sees. “Sign out” keeps everything; “Delete my account” (after signing in again to confirm it is you) immediately erases the account and all its data from the server, including email address, username and avatar, and normally removes MDLF Training from Sign in with Apple (otherwise the app shows how to do it in iPhone Settings). You can ask for a copy or deletion of your data by email at any time.</p>
+    <p>You can create an account on first launch or in Settings › Account, in three ways, and link several of them to the same account. <strong>Apple</strong>: the app asks for neither your name nor your email; it only gets an anonymous identifier specific to MDLF Training. <strong>Google</strong>: Google sends an identifier of your Google account, your email address and, depending on your account, your name and the address (URL) of your Google profile picture; the account server keeps them with your account (this is how Supabase works), but the app never uses or shows your name or picture: only the username you choose is used. <strong>Email</strong>: you enter your address and receive a 6-digit code valid for 10 minutes, with no password; your address is used to sign in, never for ads; you only get the newsletter if you subscribe yourself (see Newsletter). Codes are sent by Resend (Resend, Inc., USA), a processor that only receives your address and the message with the code, under the European Commission's standard contractual clauses; Resend keeps a technical log of sent emails for a limited time. An optional username and emoji avatar (no photo) can be set; only you see them unless you turn on Friends (see Community) or join a coach (see Coach). Your workouts, programs, custom exercises and shared settings are then stored with Supabase (database hosting, European Union, Ireland), only to sync your devices. Health data, body weight and device-only settings are never uploaded. Each account can only read its own data, apart from what Friends show to the followers you accepted and what the coach you joined sees. “Sign out” keeps everything; “Delete my account” (after signing in again to confirm it is you) immediately erases the account and all its data from the server, including email address, username and avatar, and normally removes MDLF Training from Sign in with Apple (otherwise the app shows how to do it in iPhone Settings). You can ask for a copy or deletion of your data by email at any time.</p>
   </section>
 
   <section>
@@ -196,7 +193,12 @@
 
   <section>
     <h2>Subscription</h2>
-    <p>MDLF Training offers a 3-month free trial, then a monthly or yearly subscription (personal, or coach by number of students). Once the subscription is in place, an account is required to record new workouts, since the subscription is tied to it. Your history, progress and data export always stay available, subscribed or not. Payment is handled entirely by Apple: we never see your card, address or Apple ID. From Apple we receive your purchase identifiers, the chosen plan and their dates (start, end, renewal, refund), signed by Apple and tied to your account, to know whether your access is active; Apple also notifies us of renewals, cancellations and refunds. The free trial is an Apple offer on the subscription (3 months free, then the subscription continues at the price of the chosen plan unless you cancel at least 24 hours before the trial ends); Apple requires a payment method and grants one trial per Apple ID. We receive nothing more than for a subscription: from the transaction signed by Apple, we only know that your subscription is in its trial period and when it ends. Legal basis: performing the subscription you took (knowing whether your access is active). For gift codes, we keep which account used which code. With your coach's code, your monthly subscription is 25% off for 12 months through an Apple offer code (no free trial); we only know that your account received that code (see Coach). Coach subscriptions (by number of students) are only offered to accounts whose coach role was verified; we receive the same information from Apple as for a personal subscription. Your purchases, access and redeemed codes are erased with your account, without exception. Manage or cancel in iPhone Settings › your name › Subscriptions, or in the app under Settings › Subscription.</p>
+    <p>MDLF Training offers a 3-month free trial, then a monthly or yearly subscription (personal, or coach by number of students). Once the subscription is in place, an account is required to record new workouts, since the subscription is tied to it. Your history, progress and data export always stay available, subscribed or not. Payment is handled entirely by Apple: we never see your card, address or Apple ID. From Apple we receive your purchase identifiers, the chosen plan and their dates (start, end, renewal, refund), signed by Apple and tied to your account, to know whether your access is active; Apple also notifies us of renewals, cancellations and refunds. The free trial is an Apple offer on the subscription (3 months free, then the subscription continues at the price of the chosen plan unless you cancel at least 24 hours before the trial ends); Apple requires a payment method and grants one trial per Apple ID. We receive nothing more than for a subscription: from the transaction signed by Apple, we only know that your subscription is in its trial period and when it ends. Legal basis: performing the subscription you took (knowing whether your access is active). For gift codes, we keep which account used which code. With your coach's code, your monthly subscription is 25% off for 12 months through an Apple offer code (no free trial); we only know that your account received that code (see Coach). Coach subscriptions (by number of students) are only offered to accounts whose coach role was verified; we receive the same information from Apple as for a personal subscription. Your purchases, access and redeemed codes are erased with your account, without exception. Manage or cancel in iPhone Settings › your name › Subscriptions, or in the app under Settings › Subscription. Prices, trial, withdrawal, cancellation and refunds (handled by Apple): see the <a href="cgv.html#en">Terms of Sale</a>.</p>
+  </section>
+
+  <section>
+    <h2 id="newsletter-en">Newsletter</h2>
+    <p>The newsletter is <strong>optional and off by default</strong>. It requires an account; you subscribe yourself in Settings › Account › Newsletter by turning on the switch, under the text that says what you agree to. Nothing is pre-ticked, neither when the account is created nor by a subscription. We keep that your account is subscribed, the date and time you subscribed (server clock), the version of the text you accepted, and an unsubscribe identifier; the address used is your account's, not copied elsewhere. Purpose: emailing you app news, at most once a month. Legal basis: your consent (GDPR article 6.1.a). No newsletter is sent yet; when sending starts, it will go through Resend, which only receives your address and the newsletter. Unsubscribe at any time by turning off the switch, through the link in each newsletter, or at <a href="mailto:contact@mdlf.app">contact@mdlf.app</a>: your subscription is erased from the server at once. Everything is erased when you unsubscribe or delete your account.</p>
   </section>
 
   <section>
@@ -226,11 +228,9 @@
   <section>
     <h2>Legal notice</h2>
     <ul>
-      <li><strong>Publisher</strong>: Maxence de La Fouchardière, private individual, non-commercial · <a href="mailto:contact@mdlf.app">contact@mdlf.app</a></li>
-      <li><strong>Website and updates hosting</strong>: Vercel Inc., 440 N Barranca Avenue #4133, Covina, CA 91723, USA</li>
-      <li><strong>Account hosting</strong>: Supabase Pte. Ltd., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513; data stored in the European Union (Ireland).</li>
-      <li><strong>Sign-in codes by email</strong>: Resend, Inc., USA · <a href="https://resend.com">resend.com</a></li>
-      <li><strong>Terms</strong>: the app is distributed on the App Store under Apple's standard license agreement (EULA).</li>
+      <li><strong>Publisher</strong>: Maxence de La Fouchardière, sole trader (EI), SIREN 104 499 660, 34 rue du Plateau, 78210 Saint-Cyr-l'École, France · <a href="mailto:contact@mdlf.app">contact@mdlf.app</a>. Data controller for this policy; you can exercise your rights at this address or complain to the CNIL.</li>
+      <li><strong>Hosting</strong>: Vercel Inc. (website and updates), Supabase Pte. Ltd. (accounts, data in the European Union), Resend, Inc. (emails).</li>
+      <li><strong>Terms</strong>: <a href="mentions-legales.html#en">Legal notice</a> · <a href="cgu.html#en">Terms of Use</a> (supplementing Apple's standard EULA) · <a href="cgv.html#en">Terms of Sale</a> (prices, trial, withdrawal, cancellation, refunds, mediation).</li>
       <li><strong>Health</strong>: MDLF Training is a training log, not a medical device. Programs, estimates (1RM, calories, recovery) and exercise tips are for information only. Ask a health professional before starting to train or if something hurts.</li>
     </ul>
   </section>
