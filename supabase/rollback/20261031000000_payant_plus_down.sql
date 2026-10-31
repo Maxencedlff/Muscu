@@ -25,7 +25,7 @@ begin;
 -- copie et la suppression)
 lock table public.gift_codes, public.gift_redemptions in share row exclusive mode;
 
--- Un code à vie encore utilisable (plusieurs utilisations) dont un accès a été retiré redonnerait
+-- Un code (à vie ou en jours) encore utilisable (plusieurs utilisations) dont un accès a été retiré redonnerait
 -- l'accès à cette personne une fois sa ligne d'utilisation supprimée (plus de already_redeemed). Ces
 -- codes sont expirés : plus personne ne les utilise, ceux qui gardent leur accès le gardent
 -- (access_refresh d'avant ne regarde pas l'expiration).
