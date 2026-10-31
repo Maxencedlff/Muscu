@@ -13,3 +13,8 @@ verify_jwt = false
 [functions.report]
 # Même choix que delete-account : jeton vérifié dans le code (auth.getUser)
 verify_jwt = false
+
+[functions.push-send]
+# Appelée par la planification (pg_cron + pg_net, docs/BUILD.md), jamais par l'app : pas de jeton de
+# session, un secret partagé PUSH_CRON_SECRET vérifié dans le code (en-tête x-push-secret)
+verify_jwt = false

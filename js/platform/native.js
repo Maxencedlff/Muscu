@@ -27,6 +27,7 @@ const Native = (() => {
   const Cloud              = plugin('MdlfCloudBackup'); // module Swift de l'app (ios/App/App/CloudBackupPlugin.swift)
   const Sound              = plugin('MdlfSound');     // module Swift de l'app (ios/App/App/SoundPlugin.swift), build 22 et suivantes
   const Account            = plugin('MdlfAccount');   // module Swift de l'app (ios/App/App/AccountPlugin.swift), build 25 et suivantes
+  const Push               = plugin('MdlfPush');      // module Swift de l'app (ios/App/App/PushPlugin.swift), build qui suit le 31/10/2026
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
   const AppInfo            = plugin('App');              // @capacitor/app : numéro de build installé
 
@@ -283,6 +284,40 @@ const Native = (() => {
         try { return (await Health.workouts({ days })).workouts || []; }
         catch (e) { return e?.code === 'UNIMPLEMENTED' ? [] : null; }
       },
+    },
+
+    // Notifications push (APNs). Hors app, ou build antérieure sans le module : available() vaut false et rien
+    // ne se passe. permission() : 'prompt' | 'granted' | 'denied' | 'unavailable' (sans rien montrer) ;
+    // requestPermission() ouvre la fenêtre d'iOS si elle n'a jamais été montrée (appelé seulement après un
+    // toucher sur un interrupteur de Réglages › Notifications). register() : { token, environment } ou null.
+    push: {
+      async available() {
+        if (!isNative) return false;
+        try { await Push.permission(); return true; } catch { return false; }
+      },
+      async permission() {
+        if (!isNative) return 'unavailable';
+        try { return (await Push.permission()).permission || 'prompt'; } catch { return 'unavailable'; }
+      },
+      async requestPermission() {
+        if (!isNative) return 'unavailable';
+        try { return (await Push.requestPermission()).permission || 'denied'; } catch { return 'unavailable'; }
+      },
+      async register() {
+        if (!isNative) return null;
+        try {
+          const r = await Push.register();
+          return typeof r?.token === 'string' ? { token: r.token, environment: r.environment === 'sandbox' ? 'sandbox' : 'production' } : null;
+        } catch { return null; }
+      },
+      async openSettings() {
+        if (!isNative) return false;
+        try { return !!(await Push.openSettings()).opened; } catch { return false; }
+      },
+      // Toucher d'une notification ({ kind, ref }) : gardé par iOS jusqu'à cet abonnement (lancement à froid)
+      onTap(cb) { if (isNative && Push) quiet(Push.addListener('tap', cb)); },
+      // Notification reçue app ouverte : l'état (badges) est relu
+      onReceive(cb) { if (isNative && Push) quiet(Push.addListener('received', cb)); },
     },
 
     // Apple Music : morceau en cours et commandes du lecteur de l'app Musique. Hors app : rien.

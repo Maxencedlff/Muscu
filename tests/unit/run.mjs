@@ -1493,6 +1493,8 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 
 // ── Santé détaillée : entraînements d'une séance, sommeil (tests dans health.mjs) ──
 (await import('./health.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Notifications push : fonction serveur push-send (tests dans push.mjs) ──
+(await import('./push.mjs')).default({ test, assert, sameJSON, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 
