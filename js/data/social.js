@@ -22,6 +22,8 @@
 //    (session_reactions, seulement les personnes que j'ai acceptées), activité de Mon profil
 //    (my_activity), vue côté serveur (mark_activity_seen : la pastille repart de zéro), et mes séances
 //    telles que mes abonnés les voient (my_shown_sessions, fil SOCIAL_ME).
+//  - Commentaires libres sur une séance : js/data/comments.js (mêmes appels socialRpc, erreurs traduites
+//    ici) ; un commentaire reçu sur une de mes séances est une ligne « comment » de l'activité.
 //  - Résultats : { ok: true, data } ou { ok: false, kind }. L'écran (js/features/social-ui.js)
 //    s'abonne par onSocialChange.
 // ═══════════════════════════════════════════════════════════
@@ -187,20 +189,28 @@ function cleanWhoRow(r) {
 // sessionAt, isNew, cursor }, null si inutilisable. cursor : { at, key } de la page suivante, at tel que
 // le serveur l'a renvoyé (microsecondes : Date.parse les perdrait et sauterait des lignes) et key =
 // kind:user_id:session_id, la clé de départage de my_activity à date égale
-const ACTIVITY_KINDS = ['reaction', 'follower', 'accepted', 'request'];
+// Commentaire (comment, migration 20261031500000_commentaires.sql) : commentId et text (120 caractères
+// au plus) en plus ; sa clé de départage finit par l'identifiant du commentaire (comment:user:séance:id)
+const ACTIVITY_KINDS = ['reaction', 'comment', 'follower', 'accepted', 'request'];
 function cleanActivityRow(r) {
   if (!r || !ACTIVITY_KINDS.includes(r.kind)) return null;
   const p = cleanPerson(r);
   const at = Date.parse(r.at);
   if (!p || !Number.isFinite(at)) return null;
+  const onSession = r.kind === 'reaction' || r.kind === 'comment';
   const reaction = r.kind === 'reaction' ? validReaction(r.reaction) : null;
-  if (r.kind === 'reaction' && (!reaction || typeof r.session_id !== 'string')) return null;
+  if (r.kind === 'reaction' && !reaction) return null;
+  if (onSession && typeof r.session_id !== 'string') return null;
+  const commentId = r.kind === 'comment' ? Number(r.comment_id) : null;
+  if (r.kind === 'comment' && (!Number.isSafeInteger(commentId) || commentId <= 0)) return null;
+  const key = r.kind === 'comment' ? `comment:${r.user_id}:${r.session_id}:${commentId}` : `${r.kind}:${r.user_id}:${r.kind === 'reaction' ? r.session_id : ''}`;
   return { kind: r.kind, user_id: p.user_id, username: p.username, avatar: p.avatar, at, reaction,
-    sessionId: r.kind === 'reaction' ? r.session_id : null,
+    sessionId: onSession ? r.session_id : null,
+    ...(r.kind === 'comment' ? { commentId, text: typeof r.comment_text === 'string' ? [...r.comment_text].slice(0, 120).join('') : '' } : {}),
     label: typeof r.session_label === 'string' ? r.session_label.slice(0, 60) : '',
     sessionAt: Number.isFinite(Number(r.session_at)) && r.session_at != null ? Number(r.session_at) : null,
     isNew: r.is_new === true,
-    cursor: { at: String(r.at), key: `${r.kind}:${r.user_id}:${r.kind === 'reaction' ? r.session_id : ''}` } };
+    cursor: { at: String(r.at), key } };
 }
 
 // Texte d'une ligne de l'activité, sans le pseudo (affiché en gras devant) : « a réagi 🔥 à ta séance
@@ -209,6 +219,10 @@ function activityText(row, sessionLabel = '') {
   if (row.kind === 'reaction') {
     const name = sessionLabel || row.label;
     return `a réagi ${reactionOf(row.reaction).emoji} à ta séance${name ? ` ${name}` : ''}`;
+  }
+  if (row.kind === 'comment') {
+    const name = sessionLabel || row.label;
+    return `a commenté ta séance${name ? ` ${name}` : ''}${row.text ? ` : « ${row.text.replace(/\s+/g, ' ')} »` : ''}`;
   }
   return { follower: 'a commencé à te suivre', accepted: 'a accepté ta demande', request: 'veut voir tes séances' }[row.kind];
 }
@@ -257,7 +271,9 @@ function socialErrorKind(error) {
   if (!error) return null;
   if (isNetworkError(error) || /fetch|network|load failed/i.test(String(error.message || ''))) return 'offline';
   const msg = String(error.message || error.error || '');
-  for (const k of ['social_not_enabled', 'username_required', 'age_required', 'rate_limited', 'not_found']) if (msg.includes(k)) return k;
+  for (const k of ['social_not_enabled', 'username_required', 'age_required', 'rate_limited', 'not_found',
+    // Commentaires (js/data/comments.js)
+    'empty_comment', 'too_long', 'comment_forbidden', 'invalid_reason']) if (msg.includes(k)) return k;
   if (error.status === 429) return 'rate_limited';
   return 'server';
 }
@@ -273,6 +289,12 @@ const SOCIAL_ERROR_TEXT = {
   report_gone: 'Ce compte n\'existe plus.',
   report_auth: 'Ta connexion a expiré. Reconnecte-toi, puis réessaie.',
   report_invalid: 'Signalement refusé. Réessaie, ou écris à contact@mdlf.app.',
+  // Commentaires (js/data/comments.js)
+  empty_comment: 'Écris quelque chose avant d\'envoyer.',
+  too_long: 'Commentaire trop long : 500 caractères au plus.',
+  comment_forbidden: 'Ce commentaire contient un mot interdit par les règles de la communauté.',
+  invalid_reason: 'Choisis un motif pour signaler.',
+  busy: 'Envoi déjà en cours.',
   server: 'Action impossible pour l\'instant, réessaie dans un moment.',
 };
 function socialErrorText(kind) { return SOCIAL_ERROR_TEXT[kind] || SOCIAL_ERROR_TEXT.server; }
@@ -425,6 +447,7 @@ async function socialUnblock(target) {
 // Abonné retiré ou bloqué : ses réactions ne comptent plus (règle du serveur), retirées sans attendre
 // la relecture ; les comptes de mes séances sont relus
 function forgetPersonActivity(uid) {
+  if (typeof commentsForget === 'function') commentsForget(uid);   // js/data/comments.js
   if (social.activity) social.activity.rows = social.activity.rows.filter(a => a.user_id !== uid);
   for (const w of Object.values(social.who)) w.rows = w.rows.filter(x => x.user_id !== uid);
   delete social.feeds[SOCIAL_ME];
@@ -611,6 +634,18 @@ async function socialReport({ target, kind, ref = null, reason, details = '' }) 
     }
     return res?.ok === true ? { ok: true } : { ok: false, kind: 'server' };
   } catch (e) { return { ok: false, kind: socialErrorKind(e) || 'server' }; }
+}
+
+// Alerte par e-mail d'un signalement déjà enregistré par une RPC (report_comment, report_chat : la
+// copie du commentaire ou des messages est gardée côté serveur) : fonction Edge report, { report_id }.
+// Au mieux, sans attendre : sans réseau, ou avec une fonction report d'avant, le signalement reste
+// enregistré (notified_at nul, rattrapé à la main, docs/SOCIAL_V1.md) et rien n'est dit à l'utilisateur.
+async function socialReportAlert(reportId) {
+  if (!sb || !account.user || !Number.isSafeInteger(reportId) || reportId <= 0) return false;
+  try {
+    const { data: res, error } = await sb.functions.invoke('report', { body: { report_id: reportId } });
+    return !error && res?.ok === true;
+  } catch { return false; }
 }
 
 // ── Déclencheurs : connexion, premier plan, réseau revenu ───

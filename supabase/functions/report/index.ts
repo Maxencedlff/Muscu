@@ -14,8 +14,13 @@
 //    (notified_at nul, requête de rattrapage en bas de la migration 20261026050000_social.sql) et
 //    l'app reçoit quand même { ok: true } ; sinon notified_at est posé.
 // 5. Réponse : { ok: true }.
+//
+// Autre entrée : { report_id } (validateAlert), alerte d'un signalement déjà enregistré par une RPC
+// (report_comment, report_chat : la copie du commentaire ou des messages est gardée côté serveur).
+// La ligne doit être à l'appelant et sans alerte partie (notified_at nul) ; sinon { ok: true } sans
+// rien envoyer (rien n'est révélé, redemander ne double pas l'e-mail). Puis étapes 4 et 5.
 import { adminClient, caller, CORS, env, json } from '../_shared/http.ts';
-import { reportEmail, validateReport } from './report-policy.js';
+import { reportEmail, validateAlert, validateReport } from './report-policy.js';
 
 const ALERT_TO = 'contact@mdlf.app';
 const ALERT_FROM = 'MDLF Training <noreply@mdlf.app>';
@@ -53,13 +58,28 @@ Deno.serve(async (req) => {
 
   let body: unknown = null;
   try { body = await req.json(); } catch { /* corps illisible : refusé par la validation */ }
+  const admin = adminClient();
+  const cols = 'id, reporter_id, target_user, target_username, kind, target_ref, reason, details, created_at';
+
+  const alert = validateAlert(body);
+  if (alert) {
+    if (!alert.ok) return json({ error: alert.error, field: alert.field }, 400);
+    const { data: row, error: readErr } = await admin.from('reports').select(cols)
+      .eq('id', alert.value.report_id).eq('reporter_id', who.user.id).is('notified_at', null).maybeSingle();
+    if (readErr) { console.error('report: lecture refusée', readErr.code); return json({ error: 'report' }, 500); }
+    if (row && await sendAlert(row as ReportRow)) {
+      const { error: upErr } = await admin.from('reports').update({ notified_at: new Date().toISOString() }).eq('id', row.id);
+      if (upErr) console.error('report: notified_at non posé', row.id, upErr.code);
+    }
+    return json({ ok: true });
+  }
+
   const input = validateReport(body, who.user.id);
   if (!input.ok) return json({ error: input.error, field: input.field }, 400);
 
-  const admin = adminClient();
   const { data, error } = await admin.from('reports')
     .insert({ reporter_id: who.user.id, ...input.value })
-    .select('id, reporter_id, target_user, target_username, kind, target_ref, reason, details, created_at')
+    .select(cols)
     .single();
   if (error) {
     if (error.message === 'rate_limited') return json({ error: 'rate_limited' }, 429);

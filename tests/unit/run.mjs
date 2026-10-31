@@ -36,8 +36,10 @@ const SCRIPTS = [
   'js/data/account-auth.js',
   'js/data/account.js',
   'js/data/social.js',
+  'js/data/comments.js',
   'js/data/coach.js',
   'js/data/coach-share.js',
+  'js/data/coach-chat.js',
   'js/data/referral.js',
   'js/data/prog-share.js',
   'js/data/trash.js',
@@ -1459,6 +1461,9 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──
 (await import('./coach.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Commentaires et messages coach ↔ élève (tests dans comments.mjs et coach-chat.mjs) ──
+(await import('./comments.mjs')).default({ test, run, assert, sameJSON });
+(await import('./coach-chat.mjs')).default({ test, run, assert, sameJSON });
 // ── Records notés dans la séance : types, règles, nettoyage, textes (tests dans records.mjs) ──
 (await import('./records.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Partage avec le coach : consentement, pesées envoyées, volume relu avec le poids (tests dans coach-share.mjs) ──
