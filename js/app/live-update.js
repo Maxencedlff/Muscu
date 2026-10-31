@@ -45,8 +45,10 @@ function liveUpdateDecision(manifest, { build, shellRuntime, failed = [] }) {
       || !/^https:\/\//.test(manifest.url || '') || !/^[0-9a-f]{64}$/.test(manifest.checksum || '')) {
     return no('manifeste invalide');
   }
-  if (manifest.runtime !== shellRuntime) return no('nécessite une nouvelle version de l\'app');
+  // Avant l'empreinte : une OTA plus ancienne que le contenu en place (faite pour une build
+  // précédente) ne demande rien, l'app est à jour
   if (!(manifest.seq > build.seq)) return no('à jour');
+  if (manifest.runtime !== shellRuntime) return no('nécessite une nouvelle version de l\'app');
   if (failed.includes(manifest.version)) return no('version déjà en échec');
   return { download: true, reason: 'nouvelle version ' + manifest.version };
 }

@@ -1319,6 +1319,8 @@ test('mise à jour à chaud : décision (version, empreinte native, échecs, man
   assert.equal(d(otaManifest({ seq: 1000 }), otaCtx()).reason, 'à jour', 'même contenu');
   assert.equal(d(otaManifest({ seq: 900 }), otaCtx()).download, false, 'jamais de retour en arrière');
   assert.equal(d(otaManifest({ runtime: 'r2' }), otaCtx()).reason, 'nécessite une nouvelle version de l\'app');
+  assert.equal(d(otaManifest({ runtime: 'r2', seq: 900 }), otaCtx()).reason, 'à jour',
+    'OTA faite pour une build précédente, plus ancienne que le contenu en place : rien à demander');
   assert.equal(d(otaManifest(), otaCtx({ failed: ['2026.10.20-abc1234'] })).download, false, 'version en échec jamais retentée');
   assert.equal(d(otaManifest({ url: 'http://x/b.zip' }), otaCtx()).reason, 'manifeste invalide', 'HTTPS obligatoire');
   assert.equal(d(otaManifest({ checksum: 'abc' }), otaCtx()).reason, 'manifeste invalide', 'SHA-256 obligatoire');
