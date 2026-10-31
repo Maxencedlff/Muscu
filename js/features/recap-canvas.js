@@ -63,13 +63,21 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
   const sideFig = page.id !== 'profile' && fig;         // résumé, ouverture : personnage à droite du chiffre
   const heroW = sideFig ? maxW - 330 : maxW;
 
+  // Petit texte sur 1 à 3 lignes (pourquoi ce fait, palier, explications)
+  const para = (str, size, weight, alpha, w, maxLines, extra = {}) => {
+    ctx.font = f(weight, size);
+    const lines = recapWrap(ctx, str, w, maxLines), lh = Math.round(size * 1.3);
+    return { h: lines.length * lh, ...extra, draw: y => lines.forEach((l, i) => text(l, f(weight, size), alpha, y + lh * i + size, SIDE, w)) };
+  };
+  if (page.lead) blocks.push(para(page.lead, R.TEXT, 700, 1, maxW, 2));
+
   // Titre (profil, nom d'exercice) : grand, jusqu'à 3 lignes
   if (page.title) {
     const small = !!page.value && !isSummary;
     // Deux lignes de préférence (à la plus grande taille possible), trois seulement si le texte est long
     const fit = n => recapFitLines(ctx, page.title, maxW, small ? 76 : R.TITLE_MAX, small ? 52 : R.TITLE_MIN, n, s => f(800, s));
-    let { size, lines } = fit(small ? 2 : 2);
-    if (!small && lines.length > 2) ({ size, lines } = fit(3));
+    let { size, lines } = fit(isSummary ? 1 : 2);   // résumé : « Mon mois en bref » sur une ligne
+    if (!small && !isSummary && lines.length > 2) ({ size, lines } = fit(3));
     const lh = Math.round(size * 1.04);
     blocks.push({ h: lines.length * lh, draw: y => {
       ctx.font = f(800, size); setTracking(ctx, -size * .02);
@@ -146,14 +154,23 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
     const b = pills(page.chips, false);
     blocks.push({ ...b, hero: true });
   }
+  // Palier franchi (ouverture) : encart léger sous les pastilles
+  if (page.mention) {
+    ctx.font = f(700, R.SMALL);
+    const lines = recapWrap(ctx, page.mention, heroW - 64, 2), lh = Math.round(R.SMALL * 1.3), h = lines.length * lh + 40;
+    blocks.push({ h, hero: true, draw: y => {
+      ctx.globalAlpha = .12; ctx.fillStyle = c.fg; roundRect(ctx, SIDE, y, heroW, h, 28); ctx.fill(); ctx.globalAlpha = 1;
+      lines.forEach((l, i) => text(l, f(700, R.SMALL), 1, y + 20 + lh * i + R.SMALL * .85, SIDE + 32, heroW - 64));
+    } });
+  }
 
-  // Justifications du profil
+  // Justifications du profil : le libellé, puis sa preuve en dessous (« Plutôt le soir » / « Entre 18 h et 23 h · 8 séances sur 11 »)
   if (page.lines?.length && page.id === 'profile') {
-    const lh = Math.round(R.TEXT * 1.45);
-    blocks.push({ h: page.lines.length * lh, optional: 1, draw: y => page.lines.forEach(([l, v], i) => {
-      ctx.font = f(800, R.TEXT); const lw = ctx.measureText(l).width;
-      text(l, f(800, R.TEXT), 1, y + lh * i + R.TEXT);
-      text(v, f(600, R.TEXT), .85, y + lh * i + R.TEXT, SIDE + lw + 22, maxW - lw - 22);
+    const lh = Math.round(R.TEXT * 1.25), gap = 18;
+    blocks.push({ h: page.lines.length * (2 * lh + gap) - gap, optional: 1, draw: y => page.lines.forEach(([l, v], i) => {
+      const ty = y + i * (2 * lh + gap);
+      text(l, f(800, R.TEXT), 1, ty + R.TEXT);
+      text(v, f(600, R.SMALL), .85, ty + lh + R.SMALL + 4);
     }) });
   }
 
@@ -167,6 +184,7 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
       lines.forEach((l, i) => ctx.fillText(l, SIDE + 44, y + 32 + lh * i + R.TEXT * .9));
     } });
   }
+  if (page.foot) blocks.push(para(page.foot, R.SMALL, 600, .8, maxW, 2, { optional: 1 }));
 
   // Courbe de la meilleure charge
   if (page.curve) {
@@ -187,19 +205,27 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
     } }));
   }
 
-  // Frise des semaines
+  // Frise des semaines : une pastille par semaine avec son nombre de séances (pleine à l'objectif), sa date dessous
   if (page.strip) {
-    const n = page.strip.length, gap = 18, d = Math.min(96, (maxW - (n - 1) * gap) / n), h = d + 64;
+    const n = page.strip.length, gap = 18, d = Math.min(120, (maxW - (n - 1) * gap) / n), h = d + 64, all = n <= 6;
     blocks.push({ h, draw: y => {
       page.strip.forEach((w, i) => {
         const cx = SIDE + d / 2 + i * (d + gap), cy = y + d / 2;
         ctx.beginPath(); ctx.arc(cx, cy, d / 2 - 4, 0, Math.PI * 2);
         if (w.on) { ctx.fillStyle = c.fg; ctx.fill(); }
-        else { ctx.globalAlpha = .4; ctx.strokeStyle = c.fg; ctx.lineWidth = 7; ctx.stroke(); ctx.globalAlpha = 1; }
+        else { ctx.globalAlpha = .45; ctx.strokeStyle = c.fg; ctx.lineWidth = 7; ctx.stroke(); ctx.globalAlpha = 1; }
+        const ns = Math.round(d * .46);
+        ctx.font = storyFont(800, ns, true, c.p); ctx.textAlign = 'center'; ctx.fillStyle = w.on ? c.bg : c.fg;
+        ctx.fillText(String(w.n), cx, cy + ns * .36);
+        if (all) text(w.label, f(700, R.SMALL), .8, y + h - 8, cx, d + gap);
+        ctx.textAlign = 'left';
       });
-      text(page.strip[0].label, f(700, R.SMALL), .75, y + h - 8);
-      ctx.textAlign = 'right'; text(page.strip.at(-1).label, f(700, R.SMALL), .75, y + h - 8, SIDE + maxW); ctx.textAlign = 'left';
+      if (!all) {
+        text(page.strip[0].label, f(700, R.SMALL), .8, y + h - 8);
+        ctx.textAlign = 'right'; text(page.strip.at(-1).label, f(700, R.SMALL), .8, y + h - 8, SIDE + maxW); ctx.textAlign = 'left';
+      }
     } });
+    if (page.stripNote) blocks.push(para(page.stripNote, R.SMALL, 600, .8, maxW, 2, { optional: 1 }));
   }
 
   // Séances par mois (année)
@@ -232,18 +258,38 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
     }) });
   }
 
-  // Liste (autres records, paliers de séances ; lignes du résumé)
-  const rows = page.list?.length ? page.list.map(x => [x.name, x.value]) : isSummary ? page.lines || [] : [];
-  if (rows.length) {
-    const rh = 84, h = rows.length * rh + 24;
+  // Liste (autres records avec leur gain, paliers de séances) : nom à gauche, valeur à droite, gain dessous
+  if (page.list?.length) {
+    if (page.listTitle) blocks.push(para(page.listTitle.toLocaleUpperCase('fr-FR'), R.SMALL, 800, .8, maxW, 1, { optional: 1 }));
+    const rows = page.list.map(x => [x.name, x.value, x.gain || '']).concat(page.more ? [[page.more, '', '']] : []);
+    const rhOf = r => (r[2] ? 120 : 84), h = rows.reduce((a, r) => a + rhOf(r), 0) + 24;
     blocks.push({ h, optional: 1, draw: y => {
       ctx.globalAlpha = .1; ctx.fillStyle = c.fg; roundRect(ctx, SIDE, y, maxW, h, 36); ctx.fill(); ctx.globalAlpha = 1;
-      rows.forEach(([name, val], i) => {
-        const base = y + 12 + rh * i + rh * .62;
-        if (i) { ctx.globalAlpha = .15; ctx.fillStyle = c.fg; ctx.fillRect(SIDE + 40, y + 12 + rh * i, maxW - 80, 2); ctx.globalAlpha = 1; }
-        ctx.font = f(800, R.TEXT); const vw = Math.min(ctx.measureText(val).width, (maxW - 80) * .55);
-        ctx.textAlign = 'right'; text(val, f(800, R.TEXT), 1, base, SIDE + maxW - 40, vw); ctx.textAlign = 'left';
-        text(name, f(600, R.TEXT), .85, base, SIDE + 40, maxW - 80 - vw - 24);
+      let ry = y + 12;
+      rows.forEach(([name, val, gain], i) => {
+        const rh = rhOf([name, val, gain]), base = ry + (gain ? 52 : rh * .62);
+        if (i) { ctx.globalAlpha = .15; ctx.fillStyle = c.fg; ctx.fillRect(SIDE + 40, ry, maxW - 80, 2); ctx.globalAlpha = 1; }
+        ctx.font = f(800, R.TEXT); const vw = val ? Math.min(ctx.measureText(val).width, (maxW - 80) * .55) : 0;
+        if (val) { ctx.textAlign = 'right'; text(val, f(800, R.TEXT), 1, base, SIDE + maxW - 40, vw); ctx.textAlign = 'left'; }
+        text(name, f(val ? 600 : 700, val ? R.TEXT : R.SMALL), val ? .85 : .75, base, SIDE + 40, maxW - 80 - vw - (val ? 24 : 0));
+        if (gain) text(gain, f(700, R.SMALL), .7, base + 46, SIDE + 40, maxW - 80);
+        ry += rh;
+      });
+    } });
+  }
+  // Lignes du résumé : le libellé en petit, la valeur dessous en gras (jamais coupée par la valeur d'à côté)
+  if (isSummary && page.lines?.length) {
+    ctx.font = f(800, R.TEXT);
+    const vl = Math.round(R.TEXT * 1.2), rows = page.lines.map(([label, val]) => ({ label, vals: recapWrap(ctx, val, maxW - 80, 2) }));
+    const rhOf = r => 62 + r.vals.length * vl, h = rows.reduce((a, r) => a + rhOf(r), 0) + 24;
+    blocks.push({ h, optional: 1, draw: y => {
+      ctx.globalAlpha = .1; ctx.fillStyle = c.fg; roundRect(ctx, SIDE, y, maxW, h, 36); ctx.fill(); ctx.globalAlpha = 1;
+      let ry = y + 12;
+      rows.forEach((r, i) => {
+        if (i) { ctx.globalAlpha = .15; ctx.fillStyle = c.fg; ctx.fillRect(SIDE + 40, ry, maxW - 80, 2); ctx.globalAlpha = 1; }
+        text(r.label, f(700, R.SMALL), .7, ry + 44, SIDE + 40, maxW - 80);
+        r.vals.forEach((v, k) => text(v, f(800, R.TEXT), 1, ry + 44 + vl * (k + 1), SIDE + 40, maxW - 80));
+        ry += rhOf(r);
       });
     } });
   }
@@ -278,7 +324,7 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
 
   // En-tête : « MA SEMAINE · 12 – 18 OCTOBRE », puis le surtitre de l'écran (« NOUVEAU RECORD · JEUDI 15 »)
   let y = TOP + 50;
-  const mine = `${RECAP_MINE[st.period.kind]} · ${st.period.label}`.toLocaleUpperCase('fr-FR');
+  const mine = (page.id === 'summary' ? st.period.label : `${RECAP_MINE[st.period.kind]} · ${st.period.label}`).toLocaleUpperCase('fr-FR');
   ctx.fillStyle = c.fg; ctx.font = f(800, R.HEAD); setTracking(ctx, 4);
   ctx.fillText(fitText(ctx, mine, maxW), SIDE, y + R.HEAD * .8); y += R.HEAD + 18;
   const own = page.id !== 'summary' && page.kicker !== st.period.title.toLocaleUpperCase('fr-FR');
