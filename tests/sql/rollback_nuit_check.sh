@@ -13,7 +13,7 @@
 #  3. Démontage complet dans l'ordre inverse (supabase/rollback/ORDRE.md), depuis toutes les migrations :
 #     après chaque retour arrière, état identique à la référence d'avant sa migration.
 #  4. Gardes : tarifs et modèle B refusent (sans rien changer) tant que la migration qui les réécrit est là.
-#  5. Retours arrière indépendants (Strava, chat, commentaires, lettre, records, partage coach, parrainage)
+#  5. Retours arrière indépendants (notifications, Strava, chat, commentaires, lettre, records, partage coach, parrainage)
 #     lancés SEULS sur la pile complète :
 #     les tests des autres lots (*_test.sql) passent encore.
 #  6. Démontage complet AVEC des données (comptes, coach, codes, achats, parrainage, pesées), contrôles
@@ -132,7 +132,8 @@ fi
 echo "OK : tarifs et modèle B refusent tant que la migration du dessus est en place"
 
 # ── 5. Retours arrière indépendants, seuls sur la pile complète ──
-for pair in "20261031620000:strava_test.sql" \
+for pair in "20261031900000:push_test.sql" \
+            "20261031620000:strava_test.sql" \
             "20261031510000:chat_coach_test.sql" \
             "20261031500000:commentaires_test.sql" \
             "20261031230000:newsletter_test.sql" \

@@ -169,7 +169,8 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ▶ | Récaps v2 : refonte façon carnet fun, carte citron vert, record avant → après | Branche recaps-v2         | En réalisation                         |
 | ▶ | Système payant modèle B : StoreKit, essai 3 mois, codes cadeaux, verrou       | Branche payant            | Prêt, tests verts · attend ta décision |
 | ▶ | Abonnements 5,99 €/mois et 41,99 €/an, offre 3 mois gratuits                  | App Store Connect         | Créés · manque la capture de revue     |
-| ▶ | Photos de progression dans l'app iPhone (autorisations caméra et photos)      | Branche lot2-build-photos | Part avec la build unique              |
+| ▶ | Photos de progression dans l'app iPhone (autorisations caméra et photos)      | Branche nuit-build        | Fusionnée dans la build unique         |
+| ▶ | Build unique : sommeil, séances détaillées dans Santé, notifications push    | Branche nuit-build        | Écrite, tests verts · non compilée     |
 | ▶ | Niveau de force par exercice, semaine plus légère conseillée, stagnation      | Branche nuit-entrainement | Prêt, tests verts · OTA · à valider     |
 | ▶ | Commentaires libres sur les séances (modération) et messages coach ↔ élève   | Branche nuit-social       | Prêt en local, tests verts · feu vert n° 2 |
 
@@ -202,9 +203,9 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 |   | Quoi                                                  | Quand / état                       |
 |---|-------------------------------------------------------|------------------------------------|
 | ○ | Paiement Apple (StoreKit)                             | Module écrit sur la branche payant |
-| ○ | Sommeil partagé avec le coach                         | À faire                            |
-| ○ | Notifications (coach, amis, réactions)                | À faire                            |
-| ○ | Écriture des séances dans Apple Santé                 | À faire                            |
+| ▶ | Sommeil affiché sur l'accueil (pas partagé au coach)  | Branche nuit-build, docs/BUILD.md  |
+| ▶ | Notifications (coach, demandes, bravos)               | Branche nuit-build, docs/BUILD.md  |
+| ▶ | Écriture des séances dans Apple Santé (cardio, durée) | Branche nuit-build, docs/BUILD.md  |
 | ○ | Vérification de l'âge par Apple pour l'onglet Amis    | À faire                            |
 | ○ | Écran « mets à jour l'app » avant d'allumer le verrou | À faire                            |
 | ○ | Apple Watch (2e build si trop long)                   | À faire                            |

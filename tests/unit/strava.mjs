@@ -55,7 +55,9 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const calls = [];
     const box = { console, setTimeout, clearTimeout, localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
       location: { assign: (u) => calls.push(['assign', u]) }, open: (u, target) => { calls.push(['open', u, target]); return null; } };
-    if (native) box.Capacitor = { isNativePlatform: () => true, registerPlugin: () => ({}) };
+    // Modules factices dont chaque méthode répond (comme la coquille) : la minuterie de native.js qui cache
+    // l'écran de lancement 4 s après le chargement (SplashScreen.hide) ne doit pas planter la suite
+    if (native) box.Capacitor = { isNativePlatform: () => true, registerPlugin: () => new Proxy({}, { get: () => async () => {} }) };
     box.window = box;
     const c = vm.createContext(box);
     vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8') + '\n;globalThis.N = Native;', c);

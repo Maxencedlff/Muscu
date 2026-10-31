@@ -8,6 +8,8 @@
 
 // Une série cardio faite au chrono garde, en plus de ses champs habituels (dist en km, reps en minutes) :
 //   machine = { end: 1832,                         durée exacte en secondes
+//               at: 1761900000000,                 heure du départ du chrono (ms), facultative : situe le
+//                                                  cardio dans la séance pour Santé (js/data/health-export.js)
 //               lvl: [[0, 8, 'level'], [125, 10, 'level']],   une liste par grandeur suivie :
 //               incl: [[0, 1, 'pct']],                         [seconde du chrono, valeur, unité]
 //               floors: 42, damper: 5 }            saisis en fin d'exercice, facultatifs
@@ -181,6 +183,10 @@ function cleanMachine(m) {
   const end = num(m.end, 1, MACHINE_MAX_SEC, true);
   if (end === null) return null;
   const out = { end };
+  // Heure de départ : un instant plausible (2020 à 2100), en ms entières ; sinon oubliée (Santé ne situe
+  // alors pas ce cardio, rien d'autre ne la lit)
+  const at = num(m.at, 1_577_836_800_000, 4_102_444_800_000, true);
+  if (at !== null) out.at = at;
   const slotIds = new Set(Object.values(MACHINES).flatMap(x => x.slots.map(s => s.id)));
   for (const id of slotIds) {
     if (!Array.isArray(m[id])) continue;

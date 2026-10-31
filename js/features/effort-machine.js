@@ -274,7 +274,7 @@ function saveMachine() {
   const end = Math.max(1, machineElapsed(e)), endAt = e.review, prevReps = s.reps, prevDist = s.dist, prevMachine = s.machine;
   if (distIn) setDist(s, distIn.value);
   s.reps = String(Math.min(MEASURES.cardio.max, Math.max(1, Math.round(end / 60))));
-  const m = cleanMachine({ end, ...e.log, ...extras });
+  const m = cleanMachine({ end, at: e.start, ...e.log, ...extras });   // at : heure du départ (Santé)
   if (m) s.machine = m; else delete s.machine;
   // Champ distance de la ligne : même valeur, sinon validateSet relirait l'ancienne
   const rowDist = document.querySelector(`[data-action="set-dist"][data-ei="${e.ei}"][data-si="${e.si}"]`);

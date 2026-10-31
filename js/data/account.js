@@ -564,6 +564,7 @@ async function accountSignOut({ voluntary = true } = {}) {
   account.user = null;
   account.profile = null;
   clearCrossUserCaches();
+  await pushForgetDevice();   // notifications : le jeton de cet iPhone quitte le compte (session encore valide)
   await localAuthSignOut();
   notifyAccount();
 }
@@ -584,6 +585,7 @@ async function accountForgetDevice() {
   // Caches des Amis et du coach compris (privacy.html : tout est effacé de l'appareil)
   try { [SYNC_OWNER_KEY, SESSION_ENDED_KEY, PENDING_CODE_KEY, ...CROSS_USER_CACHE_KEYS].forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
   rememberLastAccount(null);
+  await pushForgetDevice();   // notifications : le jeton de cet iPhone quitte le compte (session encore valide)
   if (sb) await localAuthSignOut();
   notifyAccount();
 }

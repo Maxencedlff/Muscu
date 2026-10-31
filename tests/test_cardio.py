@@ -32,6 +32,7 @@ window.Capacitor = {
       requestAuthorization: async () => ({ available: true, workouts: true }),
       authorizationStatus: async () => ({ available: true, request: 'unnecessary' }),
       saveWorkout: async () => ({ saved: true }),
+      saveWorkouts: async ({ workouts }) => ({ saved: workouts.length, total: workouts.length }),
       bodyMass: async () => ({ samples: [] }),
       workouts: async () => { __hk.calls++; return { workouts: __hk.list }; },
     };
@@ -293,8 +294,11 @@ def t_machines(bench, eng, dev, theme):
         R.check(badge.count() == 1 and badge.inner_text() == 'résistance 5', f'{t} rameur déplié : pastille du réglage')
         # La séance enregistrée garde les réglages (format de sessions.data)
         entry = page.evaluate("sessionHistoryEntry('ppl', 'legs').exercises.map(e => e.sets[0].machine)")
-        R.check(entry[0]['lvl'][-1][1:] == [80, 'spm'] and entry[1]['speed'] and entry[2] == {'end': 452, 'damper': 5},
+        R.check(entry[0]['lvl'][-1][1:] == [80, 'spm'] and entry[1]['speed'] and {k: v for k, v in entry[2].items() if k != 'at'} == {'end': 452, 'damper': 5},
                 f'{t} séance enregistrée : réglages gardés {entry}')
+        # Heure du départ de chaque chrono (Santé situe le cardio dans la séance) : dans les dernières 24 h
+        now_ms = page.evaluate('Date.now()')
+        R.check(all(isinstance(m.get('at'), int) and now_ms - 86400_000 < m['at'] <= now_ms for m in entry), f'{t} séance enregistrée : heure du chrono gardée')
         page.evaluate("stopRest(); closeSessSheets(); removeRestUI()")
         shot(page, LOT, f'machine-seance-{t}')
 

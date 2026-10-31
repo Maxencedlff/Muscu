@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| 0 | `20261031900000_notifications_push_down.sql` | rien | oui (vérifié) |
 | 1 | `20261031620000_strava_down.sql` | rien | oui (vérifié) |
 | 2 | `20261031510000_chat_coach_down.sql` | rien | oui (vérifié) |
 | 3 | `20261031500000_commentaires_down.sql` | rien (son en-tête conseille quand même le chat avant) | oui (vérifié) |

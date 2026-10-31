@@ -37,7 +37,7 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   test('garde de l\'appelant : chaque fonction sans vérification de la passerelle répond 401 avant tout travail', () => {
     const config = read('supabase/config.toml');
     const open = [...config.matchAll(/\[functions\.([a-z-]+)\]\s*\n(?:#[^\n]*\n)*verify_jwt = false/g)].map(m => m[1]);
-    for (const f of ['delete-account', 'revoke-apple', 'report', 'verify-purchase']) {
+    for (const f of ['delete-account', 'revoke-apple', 'report', 'verify-purchase', 'push-send']) {
       assert.ok(open.includes(f), `${f} : verify_jwt = false absent de config.toml`);
     }
     const GUARD = /const who = await caller\(req\);\s*\n\s*if \(!who\) return json\(\{ error: 'auth' \}, 401\);/;
@@ -46,10 +46,28 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     // est le retour de Strava dans Safari, sans jeton de session : c'est l'état OAuth à usage unique qui désigne
     // le compte, vérifié avant tout travail.
     const OAUTH_RETURN = { 'strava-connect': { post: 'start', get: 'finish', check: 'stateLooksValid(state)' } };
+    // Autre exception : push-send (docs/NOTIFICATIONS.md). Jamais appelée par l'app, seulement par la
+    // planification de la base (pg_cron + pg_net), qui n'a pas de jeton de session : c'est un secret partagé
+    // (PUSH_CRON_SECRET, en-tête x-push-secret, comparé en temps constant par sameSecret) qui ouvre la porte,
+    // vérifié en premier ; secret absent du projet = 401 aussi (jamais une porte ouverte par oubli).
+    const SHARED_SECRET = {
+      'push-send': {
+        read: "const secret = env('PUSH_CRON_SECRET');",
+        check: "if (!secret || !sameSecret(req.headers.get('x-push-secret'), secret)) return json({ error: 'auth' }, 401);",
+      },
+    };
     for (const f of open) {
       const src = read(`supabase/functions/${f}/index.ts`);
       const handler = src.slice(src.indexOf('Deno.serve('));
       assert.ok(handler.length > 20, `${f} : Deno.serve introuvable`);
+      const shared = SHARED_SECRET[f];
+      if (shared) {
+        const at = handler.indexOf(shared.check);
+        assert.ok(handler.includes(shared.read) && at > 0, `${f} : pas de refus 401 par le secret partagé`);
+        assert.ok(!WORK.test(handler.slice(0, at)), `${f} : du travail avant la vérification du secret`);
+        assert.ok(/^import \{[^}]*\bsameSecret\b[^}]*\} from '\.\/push-policy\.js';$/m.test(src), `${f} : sameSecret ne vient pas de push-policy.js`);
+        continue;
+      }
       const ex = OAUTH_RETURN[f];
       if (ex) {
         const serve = handler.slice(0, handler.indexOf('\n});') + 4);
