@@ -3,7 +3,8 @@
 //  séance d'un ami (détail des séries, réactions, Signaler) ou la mienne telle que mes abonnés la
 //  voient (qui a réagi), profil d'un autre (s'abonner, annuler la demande, se désabonner, Bloquer,
 //  Signaler), Gérer (demandes envoyées, bloqués, Désactiver le social), règles de la communauté, et
-//  dans Historique › Séance : « Visible sur mon profil » et qui a réagi.
+//  dans Historique › Séance : « Visible sur mon profil », qui a réagi et les commentaires.
+//  Commentaires : js/features/comments-ui.js.
 //  Réactions : js/features/reactions-ui.js ; Mon profil, Abonnés, Abonnements : js/features/social-me-ui.js.
 //  Données et appels au serveur : js/data/social.js (contrat : docs/SOCIAL_V1.md). Tout texte venu du
 //  serveur (pseudos, noms de séances et d'exercices des autres) passe par esc().
@@ -277,7 +278,9 @@ function renderSocialSession(owner, id) {
         </div>
         ${mine ? mySessionWhoHtml(row) : `
         <div class="group-title">Réagir</div>
-        <div class="group group--pad social-session__react">${reactionRowHtml(row)}</div>
+        <div class="group group--pad social-session__react">${reactionRowHtml(row)}</div>`}
+        ${commentsGroupHtml(row.owner, row.id)}
+        ${mine ? '' : `
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="social-report" data-uid="${esc(row.owner)}" data-ref="${esc(row.id)}">Signaler cette séance</button>
         </div>`}
@@ -295,9 +298,11 @@ function mySessionWhoHtml(row) {
 SCREENS.set('social-session', {
   render: (owner, id) => renderSocialSession(owner, id),
   // Séance d'un ami : ses séances visibles (fil de son profil) chargées pour savoir si un record est
-  // vraiment battu. La mienne : qui a réagi.
+  // vraiment battu. La mienne : qui a réagi. Les deux : commentaires (js/features/comments-ui.js).
+  mount: () => { const el = $('#commentInput'); if (el) fitCommentInput(el); },
   enter: () => {
     const [owner, id] = routeParams(currentRoute());
+    if (owner && id) commentsLoad(owner, id);
     if (owner && owner === social.userId) { if (id) socialLoadWho(id); return; }
     if (owner && socialFeedNeedsLoad(owner)) socialLoadFeed(owner);
   },
@@ -477,7 +482,8 @@ function historySocialGroup(h) {
         </div>
         <div class="group-foot">${hidden ? 'Tes abonnés ne voient pas cette séance.'
           : 'Tes abonnés voient le nom, la date, la durée et les séries. Jamais tes notes ni ton poids.'}</div>
-        ${historyWhoHtml(h)}`;
+        ${historyWhoHtml(h)}
+        ${historyCommentsHtml(h)}`;
 }
 
 // ── Flux d'actions ──────────────────────────────────────────
@@ -639,6 +645,8 @@ onSocialChange(() => {
   if (v === 'history') { if (social.reactions !== historyReactionsShown) { historyReactionsShown = social.reactions; refreshHistoryList(); } return; }
   if (!SOCIAL_VIEWS.includes(v) && v !== 'history-detail') return;
   if (document.activeElement?.matches?.('#socialSearch')) { refreshFriendsBody(); return; }
+  // Commentaire en cours de saisie : la liste seule (js/features/comments-ui.js), le clavier reste
+  if (document.activeElement?.matches?.('#commentInput') && refreshCommentsList()) return;
   render();
 });
 // Pseudo choisi, connexion, déconnexion : la carte d'activation et l'onglet changent de forme

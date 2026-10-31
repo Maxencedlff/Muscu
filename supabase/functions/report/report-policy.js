@@ -6,6 +6,9 @@
 //    sont vérifiées par la table public.reports (contraintes check) : la validation ici donne une
 //    erreur claire (400) avant d'écrire, la base reste la dernière barrière.
 // 2. On ne se signale pas soi-même. Clés inconnues ignorées (jamais recopiées).
+// 2 bis. Alerte d'un signalement déjà enregistré par le serveur (report_comment, report_chat : copie
+//    du commentaire ou des messages gardée côté serveur) : { report_id: entier > 0 } seul
+//    (validateAlert). La ligne doit appartenir à l'appelant (vérifié par index.ts).
 // 3. E-mail d'alerte à l'équipe : texte brut en français, pseudo signalé, motif, référence et rappel
 //    du délai de 24 h. Aucune ligne ne commence par un tiret. Les détails écrits par l'utilisateur
 //    restent dans le corps du texte (jamais dans l'objet) et sont aplatis sur une ligne.
@@ -52,6 +55,16 @@ export function validateReport(body, callerId) {
   const details = optionalText(body.details, DETAILS_MAX);
   if (details === undefined) return { ok: false, error: 'invalid', field: 'details' };
   return { ok: true, value: { target_user: target.toLowerCase(), kind: body.kind, target_ref: targetRef, reason: body.reason, details } };
+}
+
+// Demande d'alerte : { ok: true, value: { report_id } } si body est exactement { report_id: entier > 0 },
+// null si body n'en est pas une (c'est alors un signalement complet, validateReport), sinon
+// { ok: false, error: 'invalid', field: 'report_id' }
+export function validateAlert(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body) || !own(body, 'report_id')) return null;
+  const id = body.report_id;
+  if (!Number.isSafeInteger(id) || id <= 0 || Object.keys(body).length !== 1) return { ok: false, error: 'invalid', field: 'report_id' };
+  return { ok: true, value: { report_id: id } };
 }
 
 // Une ligne : retours à la ligne et caractères de contrôle remplacés par des espaces

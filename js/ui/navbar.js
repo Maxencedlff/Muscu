@@ -26,7 +26,8 @@ function updateTabBadge() {
   const btn = $('.tabbar [data-tab="friends"]');
   if (!btn) return;
   // Demandes reçues (Amis) + nouveautés du coach (js/data/coach.js : nouvelles séances, programmes, commentaires)
-  const social = socialBadge(), fromCoach = coachBadge(), n = social + fromCoach;
+  // + messages non lus (js/data/coach-chat.js)
+  const social = socialBadge(), fromCoach = coachBadge() + chatUnreadTotal(), n = social + fromCoach;
   let badge = btn.querySelector('.tabbar__badge');
   if (!n) { badge?.remove(); btn.removeAttribute('aria-label'); return; }
   if (!badge) { badge = document.createElement('span'); badge.className = 'tabbar__badge num'; badge.setAttribute('aria-hidden', 'true'); btn.append(badge); }

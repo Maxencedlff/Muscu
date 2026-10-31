@@ -202,3 +202,47 @@
 .activity-row__text b { font-weight: 600; }
 .activity-row__new { flex-shrink: 0; width: 9px; height: 9px; margin-left: auto; border-radius: 50%; background: var(--tint); }
 .social-me-view .account-hero { padding-bottom: 16px; }
+
+/* ── Commentaires d'une séance (js/features/comments-ui.js) ── */
+.cell.comment { align-items: flex-start; gap: 10px; padding-top: 10px; padding-bottom: 10px; }
+.comment .avatar--s { width: 32px; height: 32px; font-size: 1.118rem; flex-shrink: 0; margin-top: 2px; }
+.comment .avatar--s.avatar--initial { font-size: 0.941rem; }
+.comment__main { flex: 1; min-width: 0; }
+.comment__head { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: var(--fs-subhead); }
+.comment__name { font-weight: 600; overflow-wrap: anywhere; }
+.comment__at { color: var(--label2); font-size: var(--fs-footnote); flex-shrink: 0; }
+.comment__body { margin: 2px 0 0; font-size: var(--fs-body); line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; }
+.comment__note { margin: 4px 0 0; font-size: var(--fs-footnote); color: var(--orange-text); }
+.comment--masked .comment__body { color: var(--label2); }
+/* ⋯ : zone de toucher de 44 pt, icône discrète */
+.comment__more {
+  flex-shrink: 0; width: 44px; height: 44px; margin: -6px -10px -6px 0; display: grid; place-items: center;
+  background: none; border: none; color: var(--label2); cursor: pointer; border-radius: var(--r-pill);
+}
+.comment__more:active { opacity: .5; }
+.comments__more { color: var(--tint); }
+.comments__error { gap: 12px; justify-content: space-between; }
+
+/* Saisie : champ arrondi façon Messages, bouton rond à la teinte */
+.comment-compose {
+  display: flex; align-items: flex-end; gap: 8px; margin: 10px var(--gutter) 0;
+  padding: 6px 6px 6px 14px; background: var(--cell); border: 1px solid var(--sep); border-radius: 22px;
+}
+.comment-compose__input {
+  flex: 1; min-width: 0; min-height: 30px; max-height: 140px; padding: 5px 0; border: none; outline: none; resize: none;
+  background: transparent; color: var(--label); font: inherit; font-size: var(--fs-input); line-height: 1.3;
+}
+.comment-compose__input::placeholder { color: var(--label3); }
+.comment-compose:focus-within { border-color: var(--tint); }
+.comment-compose__send {
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; border: none; display: grid; place-items: center;
+  background: var(--tint-fill); color: var(--on-tint); cursor: pointer;
+  /* zone de toucher élargie sans grossir le rond */
+  position: relative;
+}
+.comment-compose__send::before { content: ''; position: absolute; inset: -6px; }
+.comment-compose__send:disabled { background: var(--fill); color: var(--label-disabled); cursor: default; }
+.comment-compose__send:not(:disabled):active { opacity: .7; }
+.comment-compose__count { margin: 4px calc(var(--gutter) + 6px) 0; min-height: 0; text-align: right; font-size: var(--fs-footnote); color: var(--label2); }
+.comment-compose__count:empty { display: none; }
+.comment-compose__count.is-over { color: var(--red-text); }

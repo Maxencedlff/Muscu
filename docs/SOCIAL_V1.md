@@ -35,7 +35,7 @@ Hors V1 :
 - **blocks** `(blocker_id, blocked_id, created_at)`.
 - **bravos** `(session_owner, session_id, user_id, created_at, kind, updated_at)`, clé primaire sur les trois premiers champs : c'est la table des réactions (`kind` et `updated_at` ajoutés le 31/10/2026, voir plus bas).
 - **user_profiles.activity_seen_at** (31/10/2026) : date de la dernière consultation de l'activité, écrite seulement par `mark_activity_seen`.
-- **reports** : signalements, écrits uniquement par la fonction Edge `report`.
+- **reports** : signalements, écrits par la fonction Edge `report` et par les RPC `report_comment` et `report_chat` (file de modération commune ; l'alerte par e-mail part toujours de la fonction Edge).
 
 ## Liste blanche d'une séance vue par un autre (`private.session_public`)
 `{ date, duration, programme, category, label, records, exercises: [{ name, measure, ss, sets: [{ weight, reps, dist, warmup, rir }] }] }`
@@ -109,9 +109,56 @@ Décisions de Maxence (30/10/2026) :
 - **Historique** : « 🔥 2 » (la plus fréquente et le total) à côté du titre d'une séance qui a reçu des réactions ; dans le détail, « Réactions (N) » et la liste de qui a réagi.
 - **privacy.html** : « Réactions » remplace « Bravos » (FR et EN), avec qui voit qui a réagi et la date de consultation de l'activité.
 
+## Commentaires (31/10/2026, migration `20261031500000_commentaires.sql`)
+
+Demande de Maxence (feuille de route « Plus tard » : commentaires libres), choix pris par défaut (les plus sûrs et les plus simples, à valider) :
+- commentaire en texte libre sous une séance, **500 caractères** au plus, pas d'image, pas de mention, pas de réponse en fil (une liste à plat) ;
+- **mots interdits** (français et anglais) refusés avant l'écriture, liste **côté serveur** (`private.comment_words`, complétable sans migration) ;
+- **signalement** d'un commentaire (motifs de la fonction `report`), **masqué automatiquement au 3e signalement** de personnes différentes ;
+- le propriétaire de la séance supprime n'importe quel commentaire de sa séance, l'auteur le sien ;
+- notification dans l'activité de Mon profil (pas de push : il faudrait une build).
+
+### Règles
+- **Qui écrit** : le propriétaire de la séance et les personnes qui la voient dans leur fil (`private.can_see`), sur une séance montrable (`private.session_shown` : ni supprimée, ni masquée). Social de l'appelant requis (`social_not_enabled`). Ailleurs : `not_found`.
+- **Qui lit** : les mêmes. Le propriétaire lit aussi les commentaires d'une séance qu'il a masquée ensuite (lecture seule). Séance qu'on ne voit pas : liste vide.
+- **Un commentaire compte tant que son auteur voit la séance** (comme une réaction) : abonné retiré, désabonné, bloqué ou social désactivé → plus montré à personne ; sa ligne reste et revient s'il est de nouveau accepté.
+- **Blocage respecté** entre le lecteur et l'auteur, dans les deux sens : un abonné de A ne voit pas les commentaires de quelqu'un qu'il a bloqué (ou qui l'a bloqué), sur aucune séance. Rien n'est supprimé au blocage (les signalements gardent leur preuve), tout est filtré à la lecture.
+- **Texte** : `\r` retirés, plus de deux retours à la ligne ramenés à deux, espaces autour retirés ; 1 à 500 caractères (`empty_comment`, `too_long`). L'app nettoie de la même façon (`commentClean`, js/data/comments.js) et l'affiche avec `white-space: pre-wrap`, jamais en HTML.
+- **Mots interdits** (`comment_forbidden`) : minuscules, accents retirés, chiffres « leet » lus (0→o, 1→i, 3→e, 4→a, 5→s, 7→t, @→a, $→s), lettres répétées ramenées à une, lettres isolées recollées (« c o n n a r d »). Mode `word` : mot entier (avec s, e, es ou x) ; mode `contains` : n'importe où dans un mot. Deux ou trois mots voisins recollés sont refusés seulement s'ils forment **exactement** un mot interdit de 6 lettres ou plus (« tue-toi », « kill your self », « sa lope ») : « situe-toi », « youpi nouveau » passent. Un mot qui est aussi la suite de mots courants est exclu du recollage (colonne `joinable = false`) : `crevetoi` (« T'es crevé toi aussi ? » : sans accents ni tirets, « crevé toi » et « crève-toi » donnent le même texte, seul « crèvetoi » d'un bloc ou lettre à lettre reste refusé), `chatte` (« le chat te regarde »), `bastard` (« bas tard le soir »). Mots courants qui ressemblent à un mot interdit une fois les lettres répétées ramenées à une (« cône », « fagot », « nigaud », « Niger », « Pornic », « chili con carne », « cuisine mongole ») : liste `private.comment_allowed`, retirés du texte (mot entier) avant la comparaison. Un mot anglais qui est aussi un mot français courant n'est pas dans la liste (« retard » retiré le 31/10/2026 ; « retarded » reste). Faux positifs connus et acceptés : un mot `contains` caché dans un nom propre rare (« Scunthorpe »), « chatte » au sens de l'animal.
+- **Signalement** (`report_comment(comment_id, reason)`) : un commentaire que je vois, pas le mien ; une fois par personne (refaire ne fait rien) ; copie du texte gardée dans `comment_reports` (le signalement survit à la suppression, `comment_id` passe à null) ; au 3e signalant distinct, `masked_at` est posé : plus personne ne le voit, sauf son auteur (`masked: true`, « Masqué après des signalements »). Chaque signalement entre aussi dans `public.reports` (`kind: 'session'`, `target_ref: 'comment_reports:<id>'`, details : le texte) ; la RPC renvoie l'id de cette ligne (null si déjà signalé par moi) et l'app demande l'alerte par e-mail à la fonction Edge `report` (`{ report_id }`), comme pour un profil (corrigé le 31/10/2026 : avant, personne n'était prévenu).
+- **Activité** : `my_activity` gagne la sorte `comment` (commentaire d'un autre sur une de mes séances, visible, non masqué) et deux colonnes à la fin, `comment_id` et `comment_text` (120 caractères) ; clé de départage `comment:user_id:session_id:comment_id`. `private.activity_new` les compte (pastille). Une ancienne version de l'app ignore ces lignes (`cleanActivityRow`).
+- **Limites** : 30 commentaires par heure et 150 par 24 h ; signalements : ceux de `public.reports`, 10 par 24 h tous types confondus ; `list_comments` 600 lectures par heure. Supprimer n'est jamais limité.
+- **Erreurs** : `empty_comment`, `too_long`, `comment_forbidden`, `social_not_enabled`, `not_found`, `invalid_reason`, `rate_limited`.
+
+### Fonctions RPC (rôle `authenticated` seulement)
+
+| Fonction | Renvoie | Règles |
+|---|---|---|
+| `list_comments(owner uuid, session_id text, before_id bigint default null)` | `table(id bigint, user_id, username, avatar, body, at, mine, can_delete, masked)` | Du plus récent au plus ancien, 30 par page ; page suivante : `before_id` = `id` du dernier reçu. `can_delete` : le mien ou ma séance. |
+| `add_comment(owner uuid, session_id text, body text)` | `jsonb` (mêmes champs) | Voir les règles. |
+| `delete_comment(comment_id bigint)` | `boolean` | `true` si supprimé ; `false` sinon (inconnu ou pas à moi : rien n'est révélé). |
+| `report_comment(comment_id bigint, reason text)` | `bigint` | Id de la ligne de `public.reports` (null : déjà signalé par moi). Voir les règles. |
+| `my_activity(…)` | `table(…, comment_id bigint, comment_text text)` | Comme avant, plus la sorte `comment`. Supprimée puis recréée (type de retour changé), droits redonnés. |
+
+### Modération (Maxence, éditeur SQL)
+- Signalements récents : requête en bas de la migration (les plus signalés d'abord). Un commentaire contraire aux règles : `delete from public.session_comments where id = …` (le signalement garde la copie).
+- Ajouter un mot : `insert into private.comment_words (word, lang, mode) values ('mot', 'fr', 'word');` (forme : minuscules sans accents, a-z et 0-9). Mot qui est aussi la suite de deux mots courants : ajouter `joinable` à `false` (sinon refusé dans les mots voisins recollés). Accepter un mot courant refusé à tort : `insert into private.comment_allowed (phrase) values ('mot');`.
+- Alerte e-mail : comme un profil signalé (fonction Edge `report`, mode `{ report_id }`) ; sans alerte partie, la ligne garde `notified_at` nul (requête de rattrapage de `20261026050000_social.sql`).
+
+### App
+- **Séance d'un ami** et **ma séance vue par mes abonnés** (`social-session`) : groupe « Commentaires (N) », du plus ancien au plus récent, « Afficher les commentaires précédents », saisie en bas (compteur à partir de 450 caractères, bouton rond grisé si vide ou trop long), menu ⋯ par commentaire : « Signaler » (puis proposer de bloquer l'auteur, sans quitter la séance) sur celui d'un autre, « Supprimer » sur le mien et sur ma séance (confirmation pour celui d'un autre).
+- **Historique › Séance** (ma séance, Amis activé) : le même groupe ; séance masquée : lecture seule.
+- **Mon profil › Activité** : « lea a commenté ta séance Push : « … » », point bleu si nouveau ; toucher : ma séance dans l'Historique.
+- **Saisie** : brouillon gardé par séance ; un changement reçu pendant la frappe ne redessine que la liste (le clavier reste).
+- **privacy.html** : « Commentaires » dans Communauté (FR et EN).
+
+### Ordre de mise en production
+Migration d'abord, puis l'OTA. Une app à jour sur un serveur d'avant affiche « Commentaires indisponibles pour l'instant » sous chaque séance, sans rien casser. Retour arrière : `supabase/rollback/20261031500000_commentaires_down.sql` (après celui du chat s'il est en place), vérifié par `tests/sql/rollback_social_check.sh`.
+
 ## Fonction Edge `report` (vérifie le JWT)
 - **Entrée** : POST `{ target_user uuid, kind: 'profile'|'session', target_ref?: text, reason: 'spam'|'harcelement'|'sexuel'|'violence'|'haine'|'autre', details?: text (500 caractères max) }`.
 - **Effet** : insère dans `reports`, au plus 10 signalements par jour et par utilisateur.
+- **Autre entrée** : POST `{ report_id }` seul (31/10/2026), alerte d'un signalement déjà écrit par `report_comment` ou `report_chat` : la ligne doit être à l'appelant et sans alerte partie (`notified_at` nul), sinon `{ ok: true }` sans rien envoyer (rien n'est révélé, redemander ne double pas l'e-mail). `report_id` qui n'est pas un entier positif : 400 `invalid`.
 - **Alerte** : envoie un e-mail à contact@mdlf.app par Resend (secret `RESEND_API_KEY`, expéditeur noreply@mdlf.app). Le mail contient le pseudo signalé, le motif, la référence et un rappel du délai de réponse de 24 h.
 - **Réponse** : `{ ok: true }`.
 
@@ -123,6 +170,7 @@ Décisions de Maxence (30/10/2026) :
   - social activé : champ de recherche, demandes reçues, puis le fil.
 - **Fil** : chaque carte montre l'avatar et le pseudo, la date, le nom de la séance, la durée et un résumé des exercices, avec le bouton de réaction et le résumé des réactions (voir « Réactions et Mon profil »). Un toucher ouvre le détail des séries.
 - **Profil d'un autre** : ses séances (`feed` avec `only_user`), puis les actions : se désabonner ou annuler la demande, Bloquer, Signaler.
+- **Commentaires** : voir « Commentaires » ci-dessus.
 - **Gestion** : demandes envoyées, bloqués (avec « Débloquer »), et « Désactiver le social » ; abonnés (avec « Retirer ») et abonnements dans Mon profil.
 - **Bilan de fin de séance** : interrupteur « Visible sur mon profil », allumé par défaut, seulement si le social est activé ; éteint, la séance est enregistrée avec `hidden: true`.
 - **Historique › séance** : le même interrupteur « Visible sur mon profil » (le champ `hidden`) et qui a réagi quand il y en a. Dans la liste, un œil barré marque une séance masquée (VoiceOver : « Masquée à tes abonnés »).
