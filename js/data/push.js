@@ -24,7 +24,7 @@ const PUSH_TYPES = [
 // prefs : réglages lus sur le serveur (null tant que non lus) ; permission : celle d'iOS
 // ('prompt' | 'granted' | 'denied' | 'unavailable' : build sans le module, navigateur) ; busy : un
 // interrupteur en cours d'écriture ; error : dernière erreur de lecture ('offline', 'server').
-const push = { userId: null, prefs: null, permission: null, busy: null, error: null };
+const push = { userId: null, prefs: null, permission: null, busy: null, error: null, retriedAt: null };
 const pushListeners = [];
 function onPushChange(fn) { pushListeners.push(fn); }
 function notifyPush() { for (const fn of pushListeners) { try { fn(); } catch { /* écran absent */ } } }

@@ -27,7 +27,7 @@ function renderPushSettings() {
   }
   if (!push.prefs) {
     const note = push.error
-      ? `<div class="group"><button class="cell cell--action" data-action="push-retry"><span class="cell__body"><span class="cell__title">${push.error === 'offline' ? 'Pas d’Internet' : 'Le serveur n’a pas répondu'}</span><span class="cell__sub">Touche pour réessayer.</span></span></button></div>`
+      ? `<div class="group"><button class="cell cell--action" data-action="push-retry"><span class="cell__body"><span class="cell__title">${push.error === 'offline' ? 'Pas d’Internet' : 'Le serveur n’a pas répondu'}</span><span class="cell__sub">${push.retriedAt ? `Toujours sans réponse (essai à ${new Date(push.retriedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}). Touche pour réessayer.` : 'Touche pour réessayer.'}</span></span></button></div>`
       : '<div class="empty-note">Chargement…</div>';
     return `<div class="view view--grouped push-view">${head}<div class="scr">${note}</div></div>`;
   }
@@ -112,7 +112,9 @@ const PUSH_FAIL_TEXT = {
 
 registerActions({
   'push-open': () => navigate('notifications'),
-  'push-retry': () => { push.error = null; render(); pushLoad(); },
+  // Heure de l'essai affichée si l'échec revient : sinon le message réapparaît identique et on croit
+  // que le toucher n'a rien fait
+  'push-retry': () => { push.error = null; push.retriedAt = Date.now(); render(); pushLoad(); },
   'push-open-ios-settings': () => { Native.push.openSettings(); },
   'push-reactivate': async (e, el) => {
     if (el.getAttribute('aria-disabled') === 'true') return;
