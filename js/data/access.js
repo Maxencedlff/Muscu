@@ -641,7 +641,8 @@ async function accessStoreEnvironment() {
 async function accessLoadCurrentPlan() {
   if (!Native.store.available || !account.user) return null;
   const list = accessEntitlementsOf(await Native.store.current());
-  const sub = list.find(e => ACCESS_PRODUCT_IDS.includes(e.productId));
+  // Partage familial : l'abonnement d'un proche n'est pas « ta formule » (rien n'est facturé à cette personne)
+  const sub = list.find(e => ACCESS_PRODUCT_IDS.includes(e.productId) && !e.familyShared);
   access.currentProduct = sub ? sub.productId : null;
   if (sub && !access.products?.length) await accessLoadProducts();
   notifyAccess();

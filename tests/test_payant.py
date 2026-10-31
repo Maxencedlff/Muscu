@@ -1162,7 +1162,7 @@ def t_vie(bench, eng, dev, theme):
         page.evaluate('__st.giveGift()')
         refresh_access(page)
         txt = sub_text(page)
-        R.check('Accès offert à vie' in txt and 'continue d\'être facturé' in txt, f'{t} abonné puis accès offert : abonnement à résilier dit ({txt[:160]!r})')
+        R.check('Accès offert à vie' in txt and 'se renouvelle encore' in txt, f'{t} abonné puis accès offert : abonnement à résilier dit ({txt[:160]!r})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
     # 4. Coach avec un palier puis accès à vie offert (coach partenaire) : le palier reste proposé,

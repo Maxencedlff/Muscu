@@ -70,7 +70,9 @@ function loadFakeStore(ROOT) {
   const box = {
     console, JSON, Math, Date, Promise, Object, Array, String, Number, Boolean, RegExp, Error, TypeError,
     setTimeout, clearTimeout, atob, btoa, escape, unescape,
-    Capacitor: { isNativePlatform: () => true, isPluginAvailable: () => false, registerPlugin: () => ({}) },
+    // hide : native.js cache l'écran de lancement 4 s après le chargement (minuteur réel ici) ; sans lui,
+    // une suite lente plantait au déclenchement du minuteur
+    Capacitor: { isNativePlatform: () => true, isPluginAvailable: () => false, registerPlugin: () => ({ hide: async () => {} }) },
     supabase: { createClient: () => ({ rpc: async () => ({}), functions: { invoke: async () => ({}) } }) },
     __sb: { meId: () => 'compte-u', calls: [], co: { links: [] }, profiles: {}, users: {} },
     __stOpts: {},

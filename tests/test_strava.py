@@ -29,14 +29,13 @@ def strava_on(page):
     page.evaluate('STRAVA_SWITCH.enabled = true; render()')
 
 
-def open_app(page, theme, ppl_v2=None, opts=None, on=True):
+def open_app(page, theme, ppl_v2=None, opts=None):
     page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True, **(opts or {})}))
     page.add_init_script(FAKE_ACCOUNT)
     page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
     seed(page, theme, ppl_v2, extra={'ppl_welcome_seen': '1'})
     page.wait_for_timeout(300)
-    if on:
-        strava_on(page)
+    strava_on(page)
 
 def signin(page, username='max', enable=False):
     """Connexion Apple (compte existant), pseudo, social activé ou non : sans passer par les écrans."""
@@ -322,11 +321,11 @@ def t_eteint(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(page.locator('[data-action^="strava-"]').count() == 0 and 'Strava' not in page.inner_text('#app'),
                 f'{t} éteint : rien dans Historique › Séance')
-        page.evaluate("navigate('strava')")
-        page.wait_for_timeout(400)
-        R.check(page.locator('.strava-view').count() == 0 and page.locator('[data-action^="strava-"]').count() == 0,
-                f'{t} éteint : l\'écran Strava n\'existe pas')
-        R.check(page.evaluate("__sb.calls.filter(c => c[0] === 'strava' || /strava/.test(String(c[1]))).length") == 0,
+        # Ancien historique de la webview qui contiendrait l'écran Strava : la route est retirée
+        R.check(page.evaluate("navSanitize({ ...nav, stacks: { ...nav.stacks, [nav.tab]: [...nav.stacks[nav.tab], 'strava'] } }).stacks[nav.tab].includes('strava')") is False,
+                f'{t} éteint : l\'écran Strava retiré d\'un ancien historique')
+        R.check(page.evaluate("__sb.calls.filter(c => c[0] === 'strava' || /strava/.test(String(c[1]))).length") == 0
+                and page.evaluate('__sb.st.starts') == 0 and page.evaluate('__sb.st.sent.length') == 0,
                 f'{t} éteint : aucun appel au serveur')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 

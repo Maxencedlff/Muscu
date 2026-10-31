@@ -28,22 +28,13 @@ create table public.rb_code as select x as code from private.make_gift_code('lif
 select private.revoke_gift_code((select code from public.rb_code), 'désactivé');
 SQL
 
-# Garde : un code à vie à plusieurs utilisations, encore valable, dont un accès a été retiré
+# Code à vie à plusieurs utilisations, encore valable : c03 retiré, c01 garde son accès
 psql >/dev/null <<'SQL'
 create table public.rb_multi as select x as code from private.make_gift_code('lifetime', null, 1, 'multi', null, 5) x;
-insert into public.gift_redemptions (code, user_id) select code, '00000000-0000-0000-0000-000000000c03' from public.rb_multi;
-update public.gift_codes set uses = 1 where code = (select code from public.rb_multi);
+insert into public.gift_redemptions (code, user_id) select code, u from public.rb_multi,
+  unnest(array['00000000-0000-0000-0000-000000000c03', '00000000-0000-0000-0000-000000000c01']::uuid[]) u;
+update public.gift_codes set uses = 2 where code = (select code from public.rb_multi);
 select private.revoke_lifetime('00000000-0000-0000-0000-000000000c03', 'retiré');
-SQL
-if psql -f "$root/supabase/rollback/20261031000000_payant_plus_down.sql" >/dev/null 2>&1; then
-  echo "ÉCHEC : retour arrière passé avec un code multi-usage encore valable et un accès retiré"; exit 1
-fi
-psql >/dev/null <<'SQL'
-do $$ begin
-  if to_regprocedure('private.grant_lifetime(uuid, text)') is null then raise 'garde : retour arrière à moitié appliqué'; end if;
-end $$;
-select private.revoke_gift_code((select code from public.rb_multi), 'désactivé avant le retour arrière');
-drop table public.rb_multi;
 SQL
 
 psql -f "$root/supabase/rollback/20261031000000_payant_plus_down.sql"
@@ -63,8 +54,19 @@ begin
   if (select expires_at > now() from public.gift_codes where code = (select code from public.rb_code)) then raise 'code désactivé réutilisable'; end if;
   if exists (select 1 from pg_proc where proname in ('grant_lifetime', 'revoke_lifetime', 'revoke_gift_code')) then raise 'fonctions restées'; end if;
   if to_regclass('private.lifetime_access') is not null then raise 'vue restée'; end if;
+  -- Code multi-usage : expiré (c03 ne le ressaisit pas), c01 garde son accès
+  if (select expires_at > now() from public.gift_codes where code = (select code from public.rb_multi)) then raise 'code multi-usage encore valable'; end if;
+  if private.access_json('00000000-0000-0000-0000-000000000c03') ->> 'status' <> 'none' then raise 'retiré : accès revenu'; end if;
+  if private.access_json('00000000-0000-0000-0000-000000000c01') ->> 'status' <> 'gift' then raise 'utilisateur légitime : accès perdu'; end if;
 end $$;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-000000000c03';
+set role authenticated;
+do $$ begin
+  if (public.redeem_gift_code((select code from public.rb_multi)) ->> 'ok')::boolean then raise 'retiré : code ressaisi'; end if;
+end $$;
+reset role;
 drop table public.rb_code;
+drop table public.rb_multi;
 SQL
 psql -f "$here/tarifs_test.sql"
 echo "OK : retour arrière de 20261031000000_payant_plus.sql"

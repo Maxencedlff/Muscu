@@ -21,7 +21,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Interrupteur unique de Strava. Les tests le mettent à vrai (tests/test_strava.py, tests/unit/strava.mjs)
+// Interrupteur unique de Strava. tests/test_strava.py le met à vrai ; tests/unit/strava.mjs vérifie qu'il est livré éteint
 const STRAVA_SWITCH = { enabled: false };
 function stravaEnabled() { return STRAVA_SWITCH.enabled === true; }
 

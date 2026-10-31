@@ -426,10 +426,11 @@ function renderSubscription() {
   const introLine = intro ? `Essai gratuit jusqu'au ${fmtDate(intro)}${plan ? `, puis ${plan.price} ${payPer(plan)}` : ''}` : '';
   const offNote = !on ? `
         <div class="group-foot">Tout est ouvert pour l'instant : l'abonnement n'est pas encore demandé.</div>` : '';
-  // Accès à vie offert ET abonnement particulier lu sur cet iPhone : Apple continue de le facturer (un
-  // palier coach, lui, reste utile : il donne le nombre d'élèves)
+  // Accès à vie offert ET abonnement particulier lu sur cet iPhone : peut-être encore facturé (le
+  // renouvellement automatique n'est pas lu, d'où le conditionnel). Un palier coach, lui, reste utile :
+  // il donne le nombre d'élèves
   const alsoNote = on && accessGiftForever() && access.currentProduct && !planIsCoach(access.currentProduct) ? `
-        <div class="group-foot" role="note">Ton abonnement Apple continue d'être facturé. Avec l'accès offert à vie, tu peux le résilier dans « Gérer chez Apple ».</div>` : '';
+        <div class="group-foot" role="note">Si ton abonnement Apple se renouvelle encore, tu peux le résilier dans « Gérer chez Apple » : l'accès offert à vie suffit.</div>` : '';
   const rows = `
         <div class="group">
           <div class="cell">

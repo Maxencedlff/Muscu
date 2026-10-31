@@ -17,16 +17,21 @@ Documentation Strava lue le 31/10/2026 :
 migration `20261031620000_strava.sql`, son retour arrière et les fonctions Edge restent dans le dépôt,
 mais :
 
+- **migration** : `supabase/migrations/20261031620000_strava.sql` reste dans le dossier (la plus
+  récente). À la mise en ligne du serveur, **appliquer toutes les migrations SAUF celle-ci** (elle ne
+  crée que des tables vides et fermées, mais la doc dit « non appliquée ») ; si elle a été appliquée
+  quand même, rien n'est collecté, et `supabase/rollback/20261031620000_strava_down.sql` la retire ;
 - l'app est livrée avec **`STRAVA_SWITCH.enabled = false`** (`js/data/strava.js`, seul interrupteur) :
   aucun groupe « Connexions » dans les Réglages, aucune cellule « Envoyer vers Strava » dans le bilan ou
-  Historique › Séance, l'écran `strava` montre les Réglages à sa place, et aucun appel au serveur
+  Historique › Séance, la route `strava` est retirée d'un ancien historique (`navSanitize`), et aucun appel au serveur
   (`stravaRefresh`, `stravaInvoke`) ;
 - les fonctions `strava-connect`, `strava-export` et `strava-disconnect` **ne sont pas déployées**,
   aucun secret Strava n'est posé, l'application Strava n'est pas créée ;
 - la confidentialité (`privacy.html`, FR et EN) ne parle plus de Strava (texte gardé plus bas) ;
 - `delete-account` appelle toujours `disconnectStrava` dans un `try` : sans liaison (ou sans les tables
   si la migration n'est pas appliquée), la suppression du compte continue ;
-- `web-public/strava.html` (page de retour de Strava) reste dans le dépôt et n'est liée nulle part.
+- `web-public/strava.html` (page de retour de Strava) est publiée avec le site (`tests.yml` publie tout
+  `web-public/`) mais liée nulle part ; elle ne lit que l'ancre de l'adresse, sans script.
 
 Tests : `tests/unit/strava.mjs` vérifie l'interrupteur livré éteint et l'absence d'appel ;
 `tests/test_strava.py` rallume l'interrupteur pour ses parcours (`strava_on`) et `t_eteint` vérifie
@@ -35,18 +40,23 @@ qu'aucune entrée n'est visible ni aucun appel fait quand il est éteint.
 ### Rallumage (dans l'ordre)
 
 1. Faire les étapes de « Ce que Maxence doit faire avant la mise en production » plus bas (application
-   Strava, capacité d'athlètes, secrets, migration, fonctions Edge, essais à la main).
+   Strava, capacité d'athlètes, secrets, **migration 20261031620000_strava.sql** si elle avait été
+   sautée, fonctions Edge, essais à la main).
 2. Remettre le texte de confidentialité ci-dessous dans `privacy.html` (FR après « Lettre
    d'information », EN après « Newsletter »), avec le lien `<a href="#strava">Strava</a>` du sommaire
-   et la phrase du résumé, et changer la date de mise à jour. Mettre à jour la fiche Confidentialité
-   d'App Store Connect si besoin.
+   et la phrase du résumé, et changer la date de mise à jour. Fiche Confidentialité d'App Store Connect :
+   déclarer le contenu des séances envoyé à un tiers (Strava) à la demande de la personne et
+   l'identifiant Strava lié au compte.
 3. Passer `STRAVA_SWITCH.enabled` à `true` dans `js/data/strava.js`. Adapter les deux tests qui
    lisent la valeur livrée : « en sommeil » de `tests/unit/strava.mjs` et `t_eteint` de
    `tests/test_strava.py` (forcer l'interrupteur à faux au début du test au lieu de vérifier qu'il
    est livré éteint) ; `strava_on` devient inutile.
-4. Lancer `node tests/unit/run.mjs`, `bash tests/sql/run.sh`, `python3 tests/test_strava.py`, puis la
-   mise à jour à chaud (aucune build : rien de natif).
-5. Feuille de route : retirer « en sommeil ».
+4. Lancer `node tests/unit/run.mjs`, `bash tests/sql/run.sh`, `python3 tests/test_strava.py`.
+5. **Nouvelle build soumise à Apple**, pas une mise à jour à chaud : rallumer Strava ajoute une
+   fonction (règle 2.5.2, voir IOS.md « toute nouvelle fonctionnalité passe par une version soumise à
+   Apple »). Décrire Strava dans les Notes for Review (`docs/REVUE_APPLE.md` : section Strava, compte
+   Strava de test si Apple le demande).
+6. Feuille de route et `web-public/README.md` : retirer « en sommeil ».
 
 Phrase du résumé (FR, après la phrase sur le coach) : « Si tu relies Strava (facultatif), seules les
 séances que tu choisis d'envoyer y partent (voir Strava). »
