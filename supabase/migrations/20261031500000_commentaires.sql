@@ -86,7 +86,6 @@ create table public.comment_reports (
   constraint comment_reports_not_self check (reporter_id <> author_id)
 );
 create index comment_reports_at on public.comment_reports (created_at);
-create index comment_reports_comment on public.comment_reports (comment_id, reporter_id);
 
 -- Mots interdits dans un commentaire (schéma non exposé). word : le mot entier (avec s, e, es ou x
 -- à la fin) ; contains : n'importe où dans un mot. Forme stockée : minuscules sans accents, a-z et 0-9.
@@ -430,7 +429,8 @@ $$
     + (select count(*)::int from seen, public.session_comments c
        join public.sessions x on x.user_id = c.session_owner and x.id = c.session_id and x.deleted_at is null
      where c.session_owner = uid and c.author_id <> uid and c.created_at > seen.at and c.masked_at is null
-       and private.can_see(c.author_id, uid))
+       and private.can_see(c.author_id, uid)
+       and not exists (select 1 from public.comment_reports r where r.comment_id = c.id and r.reporter_id = uid))
   ) end
 $$;
 

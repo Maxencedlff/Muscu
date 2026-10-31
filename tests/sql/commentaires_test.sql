@@ -321,6 +321,25 @@ begin
   -- Supprimé par son auteur : le signalement reste, avec la copie du texte
   if not public.delete_comment(cid) then raise 'auteur supprime'; end if;
 end $$;
+-- Le propriétaire signale un commentaire reçu (1 seul signalement, pas masqué) : il sort de son
+-- activité et de sa pastille, pas de la vue des autres
+do $$
+declare cid bigint; n0 int;
+begin
+  perform pg_temp.login('a');
+  n0 := (public.social_state() ->> 'activity_new')::int;
+  perform pg_temp.login('c');
+  cid := (public.add_comment(pg_temp.u('a'), 'a-2', 'Signalé par le propriétaire') ->> 'id')::bigint;
+  perform pg_temp.login('a');
+  if (public.social_state() ->> 'activity_new')::int <> n0 + 1 then raise 'pastille : nouveau commentaire'; end if;
+  if not exists (select 1 from public.my_activity() where comment_id = cid) then raise 'activité : nouveau commentaire'; end if;
+  perform public.report_comment(cid, 'spam');
+  if exists (select 1 from public.my_activity() where comment_id = cid) then raise 'activité : signalé par moi'; end if;
+  if (public.social_state() ->> 'activity_new')::int <> n0 then raise 'pastille : signalé par moi'; end if;
+  if exists (select 1 from public.list_comments(pg_temp.u('a'), 'a-2') where id = cid) then raise 'liste : signalé par moi'; end if;
+  perform pg_temp.login('b');
+  if not exists (select 1 from public.list_comments(pg_temp.u('a'), 'a-2') where id = cid) then raise 'B ne voit plus un commentaire signalé une fois'; end if;
+end $$;
 reset role;
 do $$
 declare r record;
