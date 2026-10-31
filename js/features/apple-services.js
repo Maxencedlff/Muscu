@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Services Apple (app iOS uniquement) : Santé et Apple Music
+//  Services Apple (app iOS) : Santé et Apple Music ; sur Android, Health Connect seul
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -12,7 +12,16 @@ const WEIGHT_TTL   = 5 * 60_000; // pesées relues dans Santé au plus toutes le
 let weightCache = { at: 0, samples: [], failed: false };   // failed : dernière lecture en échec
 
 const healthEnabled = () => Native.isNative && data.healthOn === true;
-const musicEnabled  = () => Native.isNative && data.musicOn === true;
+
+// Textes qui dépendent du système : Apple Santé sur iOS, Health Connect sur Android (Native.health.name)
+const HEALTH_TEXT = Native.platform === 'android' ? {
+  unavailable: 'Installe ou mets à jour Health Connect depuis le Play Store, puis réessaie',
+  refused: 'Autorise MDLF Training dans Health Connect › Autorisations des applications, puis réessaie.',
+} : {
+  unavailable: 'Santé n\'est pas disponible sur cet appareil',
+  refused: 'Autorise MDLF Training dans Réglages › Santé › Accès aux données et appareils, puis réessaie.',
+};
+const musicEnabled  = () => Native.music.available && data.musicOn === true;   // Apple Music : iOS seulement
 
 // ── Santé : entraînement de fin de séance ───────────────────
 
@@ -289,11 +298,12 @@ async function mountMusicBar() {
 
 function renderAppleServicesGroup(tog) {
   if (!Native.isNative) return '';
+  // Android : pas d'Apple Music, la santé passe par Health Connect (Native.health.name)
   return `
-        <div class="group-title">Services Apple</div>
+        <div class="group-title">${Native.music.available ? 'Services Apple' : 'Santé'}</div>
         <div class="group">
           <button class="cell" data-action="setting-health" role="switch" aria-checked="${data.healthOn === true}">
-            <span class="cell__body"><span class="cell__title">Apple Santé</span>
+            <span class="cell__body"><span class="cell__title">${Native.health.name}</span>
               <span class="cell__sub">Enregistre tes séances, lit ton poids, tes courses et sorties vélo</span></span>
             ${tog(data.healthOn === true)}
           </button>
@@ -305,11 +315,11 @@ function renderAppleServicesGroup(tog) {
               <span class="cell__sub">${n ? plural(n, 'séance pas encore envoyée', 'séances pas encore envoyées') : 'Tout est déjà dans Santé'}</span></span>
             ${icon('chevron.right', 16)}
           </button>`; })() : ''}
-          <button class="cell" data-action="setting-music" role="switch" aria-checked="${data.musicOn === true}">
+          ${Native.music.available ? `<button class="cell" data-action="setting-music" role="switch" aria-checked="${data.musicOn === true}">
             <span class="cell__body"><span class="cell__title">Apple Music</span>
               <span class="cell__sub">Pilote l'app Musique d'Apple pendant la séance (pas Spotify ni Deezer)</span></span>
             ${tog(data.musicOn === true)}
-          </button>
+          </button>` : ''}
         </div>`;
 }
 
@@ -389,21 +399,21 @@ registerActions({
   'setting-health': async () => {
     if (data.healthOn) { data.healthOn = false; save(); render(); return; }
     const res = await Native.health.authorize();
-    if (!res.available) { showToast('Santé n\'est pas disponible sur cet appareil', { error: true }); return; }
+    if (!res.available) { showToast(HEALTH_TEXT.unavailable, { error: true }); return; }
     if (!res.workouts) {
       await dialog({ title: 'Accès à Santé refusé',
-        message: 'Autorise MDLF Training dans Réglages › Santé › Accès aux données et appareils, puis réessaie.',
+        message: HEALTH_TEXT.refused,
         actions: [{ label: 'OK', style: 'preferred' }] });
       return;
     }
     data.healthOn = true; weightCache = { at: 0, samples: [], failed: false }; workoutCache = emptyWorkoutCache();
     healthAuthAsked = Promise.resolve(res); resetWorkoutsAuth();   // tout vient d'être demandé
-    save(); render(); showToast('Apple Santé connecté');
+    save(); render(); showToast(`${Native.health.name} connecté`);
   },
   // Courses et vélo, demandés ici seulement (jamais au lancement : voir ensureHealthAuth)
   'health-workouts-auth': async () => {
     const res = await Native.health.authorize();
-    if (!res.available) { showToast('Santé n\'est pas disponible sur cet appareil', { error: true }); return; }
+    if (!res.available) { showToast(HEALTH_TEXT.unavailable, { error: true }); return; }
     resetWorkoutsAuth(); workoutCache = emptyWorkoutCache();
     await workoutsAuthStatus();
     render();

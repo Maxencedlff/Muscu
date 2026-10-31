@@ -1,8 +1,13 @@
 'use strict';
 
-// Pont vers les fonctions natives d'iOS quand l'app tourne dans sa coquille Capacitor (App Store).
-// Dans le navigateur (PWA), Native.isNative vaut false et chaque fonction ne fait rien :
-// l'app web garde exactement son comportement.
+// Pont vers les fonctions natives quand l'app tourne dans sa coquille Capacitor : iOS (App Store) ou,
+// en préparation, Android (Google Play, docs/ANDROID.md). Dans le navigateur (PWA), Native.isNative vaut
+// false et chaque fonction ne fait rien : l'app web garde exactement son comportement.
+//
+// Android reprend les mêmes noms de modules qu'iOS quand l'équivalent existe (MdlfHealth : Health Connect,
+// MdlfLiveActivity : notification du repos, MdlfStore : Google Play). Ce qui n'existe que sur iOS
+// (copie iCloud, Apple Music, icônes alternatives, compte Apple) est coupé ici sur Android, d'après
+// Native.platform, sans rien changer pour iOS.
 //
 // Les modules natifs sont joints sans bundler : window.Capacitor (injecté par la coquille iOS)
 // fournit registerPlugin(nom), qui relaie les appels vers le code Swift du module.
@@ -12,6 +17,15 @@ const Native = (() => {
   // Sans le runtime JS de Capacitor (registerPlugin), l'app se comporte comme la version web
   const isNative = !!cap?.isNativePlatform?.() && typeof cap.registerPlugin === 'function';
   const plugin   = name => (isNative ? cap.registerPlugin(name) : null);
+  // 'ios', 'android' ou 'web'. Une coquille sans getPlatform (jamais vu) est une coquille iOS.
+  const platform  = isNative ? (cap.getPlatform?.() === 'android' ? 'android' : 'ios') : 'web';
+  const isAndroid = platform === 'android';
+  // Copie iCloud de l'app : iOS seulement (Android : sauvegarde Google du fichier de copie, voir backup)
+  const hasCloud  = isNative && !isAndroid;
+  // Copie de sécurité ppl_v2.json : Documents de l'app sur iOS ; sur Android, le dossier privé de l'app
+  // (« DATA »), seul inclus dans la sauvegarde Google (android/app/src/main/res/xml/data_extraction_rules.xml).
+  // « DOCUMENTS » y serait le dossier Documents partagé du téléphone, illisible après une réinstallation.
+  const BACKUP_DIR = isAndroid ? 'DATA' : 'DOCUMENTS';
 
   const Haptics            = plugin('Haptics');
   const LocalNotifications = plugin('LocalNotifications');
@@ -64,7 +78,7 @@ const Native = (() => {
   // Copie iCloud : jamais écrasée par une donnée sans séance tant qu'on ne sait pas ce qu'elle
   // contient (réinstallation, iCloud lent ou hors ligne). Ouverte une fois pour toutes quand iCloud
   // a répondu, dès la première séance, ou d'emblée pour qui avait déjà des séances.
-  let cloudReady     = isNative && (getItem(CLOUD_READY) === '1' || sessionCount(localAtStart) > 0);
+  let cloudReady     = hasCloud && (getItem(CLOUD_READY) === '1' || sessionCount(localAtStart) > 0);
   let cloudErase     = false;   // « Supprimer toutes les données » : vider aussi la copie iCloud
   if (cloudReady) setItem(CLOUD_READY, '1');
 
@@ -111,6 +125,7 @@ const Native = (() => {
   // Envoi à iCloud : rien tant que l'écriture est fermée, rien si iCloud a déjà ce JSON (ex.
   // l'enregistrement de chaque démarrage, qui ferait gagner un vieil iPhone juste ouvert)
   const pushCloud = json => {
+    if (!hasCloud) return;
     const sessions = sessionCount(json);
     if (sessions > 0) openCloud();
     if (!cloudReady) return;
@@ -128,6 +143,7 @@ const Native = (() => {
 
   return {
     isNative,
+    platform,
     restoredAtBoot,
 
     // Retour haptique du Taptic Engine : 'light' au toucher, 'success' en fin de repos ou de séance
@@ -191,7 +207,7 @@ const Native = (() => {
       if (!isNative || !backupEnabled) return;
       clearTimeout(backupTimer);
       backupTimer = setTimeout(() => {
-        quiet(Filesystem.writeFile({ path: BACKUP_FILE, data: json, directory: 'DOCUMENTS', encoding: 'utf8' }));
+        quiet(Filesystem.writeFile({ path: BACKUP_FILE, data: json, directory: BACKUP_DIR, encoding: 'utf8' }));
         pushCloud(json);
       }, 800);
     },
@@ -211,7 +227,7 @@ const Native = (() => {
       if (!hadLocalData) {
         const file = await this.readBackup();
         if (file && restore(file)) return true;
-        if (!file) {
+        if (!file && hasCloud) {
           const { json, synced } = await readCloud(CLOUD_WAIT_MS);
           if (json && restore(json)) return true;
           if (synced) openCloud();
@@ -220,6 +236,7 @@ const Native = (() => {
       }
       // Changement venu d'iCloud (autre iPhone, autre compte) : l'empreinte ne dit plus ce
       // qu'iCloud contient, le prochain enregistrement renverra la donnée de cet iPhone
+      if (!hasCloud) return false;
       quiet(Cloud.addListener?.('change', ({ data } = {}) => {
         setItem(CLOUD_SENT, '');
         if (!cloudReady) adoptCloud(data);
@@ -236,8 +253,11 @@ const Native = (() => {
       return false;
     },
 
-    // Apple Santé : autorisation, entraînement « Musculation », pesées (kg), courses et sorties vélo. Hors app : rien.
+    // Apple Santé (iOS) ou Health Connect (Android) : autorisation, entraînement « Musculation », pesées
+    // (kg), courses et sorties vélo. Mêmes réponses sur les deux. Hors app : rien.
     health: {
+      // Nom montré dans les Réglages
+      name: isAndroid ? 'Health Connect' : 'Apple Santé',
       // workouts : false pour ne demander que le poids et l'écriture (sans la lecture des courses et du vélo)
       async authorize({ workouts = true } = {}) {
         if (!isNative) return { available: false, workouts: false };
@@ -268,8 +288,9 @@ const Native = (() => {
       },
     },
 
-    // Apple Music : morceau en cours et commandes du lecteur de l'app Musique. Hors app : rien.
+    // Apple Music : morceau en cours et commandes du lecteur de l'app Musique. Hors app et sur Android : rien.
     music: {
+      available: isNative && !isAndroid,
       async authorize() {
         if (!isNative) return false;
         try { return !!(await Music.requestAuthorization()).granted; } catch { return false; }
@@ -434,7 +455,7 @@ const Native = (() => {
     async readBackup() {
       if (!isNative) return null;
       try {
-        const r = await Filesystem.readFile({ path: BACKUP_FILE, directory: 'DOCUMENTS', encoding: 'utf8' });
+        const r = await Filesystem.readFile({ path: BACKUP_FILE, directory: BACKUP_DIR, encoding: 'utf8' });
         return typeof r.data === 'string' && r.data.length > 2 ? r.data : null;
       } catch { return null; }
     },
