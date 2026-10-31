@@ -16,7 +16,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 | 6 | `20261031230000_newsletter_down.sql` | rien | oui (vérifié) |
 | 7 | `20261031200000_reactions_profil_down.sql` | commentaires (3) | non |
 | 8 | `20261031100000_records_series_down.sql` | rien | oui (vérifié) |
-| 9 | `20261031000000_payant_plus_down.sql` | rien | oui (non vérifié seul : payant_test.sql teste aussi l'accès à vie) |
+| 9 | `20261031000000_payant_plus_down.sql` | rien | oui (vérifié) |
 | 10 | `20261030000000_payant_tarifs_down.sql` | payant plus (9) | non, refuse sans rien changer |
 | 11 | `20261029000000_payant_modele_b_down.sql` | tarifs (10) | non, refuse sans rien changer |
 
@@ -29,7 +29,7 @@ Les retours arrière marqués « oui (vérifié) » ont été lancés seuls sur 
 - `private.parrainage_archive_*` (parrainage : partenaires, conditions des coachs, attributions, virements) ;
 - `private.tarifs_archive_*` (demandes de rôle coach, attributions élève → coach, codes d'offre Apple) ;
 - `private.modele_b_archive_*` (offre de lancement et environnement de chaque transaction, plafonds d'élèves gratuits) ;
-- `private.payant_plus_*` (achats à vie, accès à vie retirés).
+- `private.payant_plus_*` (accès à vie offerts puis retirés).
 
 Aucun rôle de l'API n'y a accès. Les effacer à la main quand ils ne servent plus. Une nouvelle montée de la migration ne les relit pas.
 

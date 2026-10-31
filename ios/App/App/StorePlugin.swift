@@ -30,11 +30,11 @@ import StoreKit
 ///   est parcouru une fois en plus, pour rattraper ce qui n'a pas pu être envoyé la fois précédente.
 ///   L'événement s'appelle `transaction`, doublé en `change` (nom utilisé par les autres modules MDLF) ;
 ///   `retainUntilConsumed` le garde si le web n'est pas encore abonné (lancement, rechargement de la vue).
-/// - **Produits vendus** : les dix abonnements (particulier et paliers coach, même groupe) et, depuis le
-///   payant plus (31/10/2026), l'**accès à vie** `com.mdlf.training.lifetime`, achat non consommable hors
-///   du groupe. `purchase()` refuse tout autre identifiant, et seuls ces produits sont lus dans les droits
-///   en cours. L'ancien « Accès offert » (non consommable) a été supprimé (modèle B) et n'y revient pas. L'essai gratuit de 3 mois est l'**offre de lancement d'Apple** sur ces
-///   abonnements : `products()` rend `introEligible` et `offer` (lus chez StoreKit), et c'est Apple qui
+/// - **Produits vendus** : les dix abonnements seulement (particulier et paliers coach, même groupe).
+///   `purchase()` refuse tout autre identifiant, et seuls ces produits sont lus dans les droits en cours.
+///   Aucun achat non consommable : l'ancien « Accès offert » a été supprimé (modèle B) et l'achat « à
+///   vie » refusé par Maxence le 31/10/2026. L'essai gratuit de 3 mois est l'**offre de lancement
+///   d'Apple** sur ces abonnements : `products()` rend `introEligible` et `offer` (lus chez StoreKit), et c'est Apple qui
 ///   garantit un seul essai par identifiant Apple. La feuille de `redeemCode()` est celle des **codes
 ///   d'offre d'abonnement** ; la transaction qui en résulte arrive ici par l'écouteur.
 /// - **Environnement** (`environment()`, payant plus) : `AppTransaction.shared` dit si l'app tourne en
@@ -75,11 +75,6 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
                                           "com.mdlf.training.coach30.yearly",
                                           "com.mdlf.training.coachmax.monthly",
                                           "com.mdlf.training.coachmax.yearly"]
-    /// Accès à vie (payant plus) : achat non consommable, hors du groupe d'abonnements, sans date de fin.
-    /// Le serveur le reconnaît (nature `life`) ; un achat Sandbox (TestFlight) n'y vaut que 7 jours.
-    private static let lifetimeIds = ["com.mdlf.training.lifetime"]
-    /// Tout ce que l'app vend, dans l'ordre d'affichage
-    private static let soldIds = subscriptionIds + lifetimeIds
 
     /// Protège le cache des produits, les transactions à finir et les identifiants déjà annoncés.
     /// Ces trois tables sont touchées depuis l'écouteur, depuis le fil principal (achat) et depuis les
@@ -146,15 +141,15 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func products(_ call: CAPPluginCall) {
         Task {
             do {
-                let fetched = try await Product.products(for: Self.soldIds)
+                let fetched = try await Product.products(for: Self.subscriptionIds)
                 self.cache(fetched)
                 // L'ordre d'Apple n'est pas garanti : on garde celui de PAYANT_V1.md (mensuel, annuel)
                 var list: [[String: Any]] = []
-                for id in Self.soldIds {
+                for id in Self.subscriptionIds {
                     guard let product = fetched.first(where: { $0.id == id }) else { continue }
                     list.append(await Self.describe(product))
                 }
-                let missing = Self.soldIds.filter { id in !fetched.contains { $0.id == id } }
+                let missing = Self.subscriptionIds.filter { id in !fetched.contains { $0.id == id } }
                 call.resolve(["products": list,
                               "missing": missing,
                               "canMakePayments": AppStore.canMakePayments])
@@ -168,8 +163,7 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
     /// quand les achats sont bloqués (Temps d'écran, profil de gestion) : l'écran ne doit rien proposer.
     @objc func status(_ call: CAPPluginCall) {
         call.resolve(["canMakePayments": AppStore.canMakePayments,
-                      "subscriptionIds": Self.subscriptionIds,
-                      "lifetimeIds": Self.lifetimeIds])
+                      "subscriptionIds": Self.subscriptionIds])
     }
 
     // MARK: Achat
@@ -188,8 +182,8 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
         guard let productId = call.getString("productId"), !productId.isEmpty else {
             call.reject("Identifiant de produit manquant", "BAD_PRODUCT"); return
         }
-        // Rien d'autre que les abonnements et l'accès à vie n'est vendu
-        guard Self.soldIds.contains(productId) else {
+        // Rien d'autre que les abonnements n'est vendu
+        guard Self.subscriptionIds.contains(productId) else {
             call.reject("Produit non vendu dans l'app", "BAD_PRODUCT"); return
         }
         var options: Set<Product.PurchaseOption> = []
@@ -291,14 +285,14 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    /// Droits en cours : abonnement actif (ou en période de grâce) et accès à vie acheté. Les droits
+    /// Droits en cours : abonnement actif (ou en période de grâce). Les droits
     /// révoqués (remboursement, retrait du partage familial) et les produits inconnus sont écartés.
     private static func entitlements() async -> (list: [[String: Any]], unverified: Int) {
         var list: [[String: Any]] = []
         var refused = 0
         for await result in StoreKit.Transaction.currentEntitlements {
             guard let transaction = verified(result) else { refused += 1; continue }
-            guard soldIds.contains(transaction.productID), transaction.revocationDate == nil else { continue }
+            guard subscriptionIds.contains(transaction.productID), transaction.revocationDate == nil else { continue }
             list.append(describe(transaction, jws: result.jwsRepresentation))
         }
         return (list, refused)
@@ -384,9 +378,8 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
         return fetched.first { $0.id == id }
     }
 
-    /// Un produit pour le web : prix et nom **localisés par Apple**, et pour un abonnement la période et
-    /// l'offre d'essai s'il y en a une et que l'utilisateur y a droit. L'accès à vie (non consommable)
-    /// n'a ni période ni essai. Aucun prix n'est écrit dans le code.
+    /// Un abonnement pour le web : prix et nom **localisés par Apple**, période, offre d'essai s'il y en
+    /// a une et que l'utilisateur y a droit. Aucun prix n'est écrit dans le code.
     private static func describe(_ product: Product) async -> [String: Any] {
         var out: [String: Any] = [
             "id": product.id,
@@ -451,7 +444,6 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
             "familyShared": transaction.ownershipType == .familyShared,
             "environment": name(transaction.environment),
             "subscription": subscriptionIds.contains(transaction.productID),
-            "lifetime": lifetimeIds.contains(transaction.productID),
         ]
         // Renouvellement automatique ou achat : indisponible avant iOS 17, le web s'en passe
         if #available(iOS 17.0, *) {

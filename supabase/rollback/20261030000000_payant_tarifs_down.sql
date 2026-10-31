@@ -4,9 +4,9 @@
 --  gratuits, rôle coach donné à la main, pas de paliers). Pas dans migrations/ : Supabase ne
 --  l'applique jamais de lui-même.
 --
---  ORDRE : 20261031000000_payant_plus_down.sql D'ABORD (le payant plus réécrit access_json,
---  access_refresh et access_product_kind par-dessus ce fichier). Ce script s'arrête sans rien changer
---  si le payant plus est encore en place. Aucune autre migration postérieure ne lit ce que ce fichier
+--  ORDRE : 20261031000000_payant_plus_down.sql D'ABORD (le payant plus réécrit access_refresh
+--  par-dessus ce fichier). Ce script s'arrête sans rien changer si le payant plus est encore en
+--  place. Aucune autre migration postérieure ne lit ce que ce fichier
 --  retire (vérifié par tests/sql/rollback_nuit_check.sh, démontage complet dans l'ordre inverse).
 --
 --  Avant : revenir à une version de l'app sans écran de demande de rôle coach, sans palier ni code

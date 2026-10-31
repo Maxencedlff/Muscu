@@ -278,14 +278,14 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Parrainage entre utilisateurs : 1 mois offert à l'ami et au parrain (quand l'ami paie)    | Après le payant + clé IAP |
 | ○ | Coachs vérifiés (carte pro), code unique, 20 % du net pendant 12 mois sur leurs élèves    | Branche payant (en cours) |
 | ○ | Tarifs : 6,49 €/mois, coach 15,99 à 29,99 € selon les élèves, annuel = 8,5 mois, élève −25 % | Branche payant (en cours) |
-| ○ | Payant plus : accès à vie (≈ 90 €), accès à vie offerts révocables, TestFlight reconnu, main fusionnée | Branche nuit-payantplus · produit à créer dans App Store Connect, build |
+| ○ | Payant plus : accès à vie offerts révocables, TestFlight reconnu, main fusionnée (achat à vie : refusé par Maxence le 31/10) | Branche nuit-payantplus · build |
 
 ### Plus tard
 
 |   | Quoi                                                          | Quand / état          |
 |---|---------------------------------------------------------------|-----------------------|
 | ○ | Newsletter, widgets, Siri (commentaires et chat coach : branche nuit-social) | Plus tard |
-| ○ | Score de force, périodisation, option à vie, marque INPI      | Plus tard             |
+| ○ | Score de force, périodisation, marque INPI (option à vie : refusée par Maxence le 31/10) | Plus tard |
 | ○ | Test mini-barre, rôle coach d'un testeur                      | Mini-barre : corrigé (branche nuit-fiabilite) |
 | ○ | Messages tout faits en réaction                               | Plus tard             |
 | ○ | Coach payant selon son nombre d'élèves                        | Plus tard             |

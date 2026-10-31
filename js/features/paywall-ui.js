@@ -25,11 +25,8 @@
 //  - Sans compte et verrou allumé (règle du 28/10/2026) : la même porte ouvre l'écran de connexion
 //    (Apple en premier, puis Google et e-mail), avec un texte qui dit pourquoi. Verrou éteint : rien
 //    ne change.
-//  - ACCÈS À VIE (payant plus) : sous les deux formules du particulier, une carte « À vie » (prix lu
-//    chez StoreKit, achat unique, mentions propres : pas de renouvellement). Un abonné peut y passer
-//    depuis Réglages › Abonnement (« Passer à l'accès à vie », écran `paywall` avec la raison `life`) :
-//    Apple ne résilie pas l'abonnement tout seul, l'écran le dit avant l'achat et propose « Gérer chez
-//    Apple » après (also_sub du serveur).
+//  - Accès à vie : seulement offert (code cadeau à vie), jamais vendu (refusé le 31/10/2026). L'écran
+//    le dit (« Accès offert à vie ») et ne propose rien de plus à acheter pour soi.
 //  - Hors app iOS (navigateur) : aucun achat possible, l'écran invite à utiliser l'app.
 //  Rien au pointerdown : actions au clic seulement. Zones de 44 px, textes en français sans tirets.
 // ═══════════════════════════════════════════════════════════
@@ -56,11 +53,9 @@ const ACCESS_STATUS_TEXT = {
   none: 'Sans abonnement', active: 'Abonné', expired: 'Abonnement terminé',
   gift: 'Accès offert', unknown: 'Pas à jour',
 };
-const ACCESS_LIFETIME_TEXT = { purchase: 'Accès à vie', gift: 'Accès offert à vie', test: 'Accès à vie (test)' };
 function accessStatusText() {
   const st = accessStatus();
-  const life = accessLifetime();
-  if (life) return ACCESS_LIFETIME_TEXT[life];
+  if (accessGiftForever()) return 'Accès offert à vie';
   if (st === 'active' && accessIntroUntil()) return 'Essai gratuit';
   return ACCESS_STATUS_TEXT[st] || ACCESS_STATUS_TEXT.unknown;
 }
@@ -83,20 +78,8 @@ function payToast(r, okText) {
   if (r.reason === 'cancel') return false;   // fenêtre d'Apple fermée : rien à dire
   // Abonnement rattaché à un autre compte MDLF : un toast ne dirait pas quoi faire
   if (r.kind === 'transaction_taken') { payTakenDialog(); return false; }
-  // Achat à vie de test déjà fini : une information (rien n'a échoué), assez longue pour être lue
-  if (r.kind === 'life_test_over') { showToast(accessErrorText(r.kind), { duration: 5000 }); return false; }
   showToast(accessErrorText(r.kind), { error: true });
   return false;
-}
-
-// Accès à vie acheté alors qu'un abonnement Apple tourne encore : Apple ne le résilie pas tout seul
-async function payAlsoSubDialog() {
-  const choice = await dialog({
-    title: 'Ton abonnement continue',
-    message: 'L\'accès à vie est actif. Ton abonnement Apple, lui, continue d\'être facturé : résilie-le pour ne plus être débité.',
-    actions: [{ label: 'Gérer chez Apple', value: 'manage', style: 'preferred' },
-      { label: 'Plus tard', style: 'cancel' }] });
-  if (choice === 'manage') window.open(PAY_MANAGE_URL, '_blank');
 }
 
 // Cet abonnement appartient à un autre compte MDLF : on explique et on mène au bon endroit
@@ -179,11 +162,9 @@ function accessBannerHtml() {
 function payPlanHtml(p, opts = {}) {
   const label = opts.label || PAY_PLAN_LABEL[p.id] || 'Abonnement';
   const tag = opts.current ? 'Ta formule' : opts.tag || (p.id === ACCESS_YEARLY_ID ? 'Le plus avantageux' : '');
-  // Accès à vie : ni essai ni « soit N mois », un paiement unique
-  const once = p.period === 'life' ? 'Un seul paiement, sans abonnement' : '';
   const trial = p.trial ? `${payDurationText(p.trial)} ${p.trial.value > 1 || p.trial.unit === 'month' ? 'gratuits' : 'gratuit'}` : '';
   const months = opts.months ? `soit ${planMonthsText(opts.months)}` : '';
-  const sub = [months, trial, once].filter(Boolean).join(', ');
+  const sub = [months, trial].filter(Boolean).join(', ');
   return `
           <button class="pay-plan${opts.current ? ' pay-plan--current' : ''}" data-action="pay-buy" data-id="${esc(p.id)}" ${access.buying || opts.current ? 'disabled' : ''}>
             <span class="pay-plan__name">${esc(label)}${tag ? `<span class="pay-plan__tag">${esc(tag)}</span>` : ''}</span>
@@ -191,8 +172,7 @@ function payPlanHtml(p, opts = {}) {
             ${sub ? `<span class="pay-plan__trial">${esc(sub)}</span>` : ''}
           </button>`;
 }
-const payPer = p => (p.period === 'life' ? 'en une fois' : p.period === 'year' ? 'par an' : 'par mois');
-const PAY_PLAN_NAME_LIFE = 'À vie';
+const payPer = p => (p.period === 'year' ? 'par an' : 'par mois');
 // Mois de la formule mensuelle que paie l'annuelle du même palier (« soit 8,5 mois »), calculé
 function payYearMonths(list, p) {
   const plan = planOf(p.id);
@@ -208,7 +188,6 @@ const PAY_COACH_BENEFITS = 'L\'abonnement coach comprend ton propre accès compl
 // période après l'essai, renouvellement automatique, résiliation à tout moment. Tout est lu chez
 // StoreKit ; les liens Conditions et Confidentialité suivent (payLegalHtml).
 function payTermsHtml(list) {
-  if (!list.length) return '';
   const trial = list.find(p => p.trial);
   const prices = list.map(p => `${esc(p.price)} ${payPer(p)}`).join(' ou ');
   const first = trial
@@ -220,22 +199,6 @@ function payTermsHtml(list) {
           <p>L'abonnement se renouvelle automatiquement pour la même période, sauf si tu le résilies au moins 24 heures avant la fin de la période en cours. Tu peux le résilier à tout moment dans les réglages de ton identifiant Apple.</p>
         </div>`;
 }
-
-// Mentions de l'accès à vie : achat unique, débité à la confirmation, sans renouvellement. Un abonnement
-// en cours n'est pas arrêté par cet achat (il est hors du groupe d'abonnements d'Apple). Un palier coach
-// ne doit pas être résilié : lui seul donne le nombre d'élèves, l'accès à vie n'en donne aucun.
-function payLifetimeTermsHtml(life) {
-  if (!life) return '';
-  return `
-        <div class="pay-terms" role="note">
-          <p>Accès à vie : ${esc(life.price)} en une fois, débité sur ton compte Apple à la confirmation de l'achat. Pas d'abonnement, rien ne se renouvelle.</p>
-          <p>Si tu as déjà un abonnement particulier, l'achat à vie ne l'arrête pas : résilie-le dans les réglages de ton identifiant Apple pour ne plus être débité. Un palier coach reste nécessaire pour accueillir des élèves : l'accès à vie n'en donne pas.</p>
-        </div>`;
-}
-// Carte « À vie » : jamais quand l'achat à vie de test (Sandbox) de ce compte est déjà fini. StoreKit
-// rendrait la même transaction, dont le serveur garde la fin : la carte ne donnerait rien
-const payLifetimeOf = list => (accessLifeTestUsed() ? null : list.find(p => p.id === ACCESS_LIFETIME_ID) || null);
-const payLifeTestOverHtml = () => (accessLifeTestUsed() ? `<div class="pay-note" role="status"><p>${esc(accessErrorText('life_test_over'))}</p></div>` : '');
 
 // ── Particulier, coach, élève ───────────────────────────────
 
@@ -283,18 +246,8 @@ function payProHtml(list) {
   if (!pro.length) return payMissingHtml();
   const notNew = access.studentOffer?.error === 'not_new' && coachRole().hasCoach
     ? '<div class="pay-note" role="status"><p>L\'offre élève est réservée à un premier abonnement.</p></div>' : '';
-  const life = payLifetimeOf(list);
   return `${notNew}<p class="pay-benefits">${PAY_BENEFITS}</p>
-        <div class="pay-plans">${pro.map(p => payPlanHtml(p, { months: payYearMonths(list, p) })).join('')}${life ? payPlanHtml(life, { label: PAY_PLAN_NAME_LIFE }) : ''}</div>${payLifeTestOverHtml()}${payTermsHtml(pro)}${payLifetimeTermsHtml(life)}${payLegalHtml()}`;
-}
-
-// Abonné qui passe à l'accès à vie (raison 'life') : la seule carte « À vie », et ce qu'il faut faire de
-// l'abonnement en cours, dit AVANT l'achat
-function payLifetimeOnlyHtml(list) {
-  const life = payLifetimeOf(list);
-  if (!life) return payLifeTestOverHtml() || payMissingHtml();
-  return `<p class="pay-benefits">Un seul paiement, et tu enregistres tes séances sans abonnement, pour toujours.</p>
-        <div class="pay-plans">${payPlanHtml(life, { label: PAY_PLAN_NAME_LIFE })}</div>${payLifetimeTermsHtml(life)}${payLegalHtml()}`;
+        <div class="pay-plans">${pro.map(p => payPlanHtml(p, { months: payYearMonths(list, p) })).join('')}</div>${payTermsHtml(pro)}${payLegalHtml()}`;
 }
 
 // Paliers coach, réservés à un coach validé : 4 formules pour la période choisie, nombre d'élèves suivis,
@@ -334,9 +287,8 @@ function payMissingHtml() {
           <button class="pay-note__btn" data-action="pay-reload-products">Réessayer</button></div>`;
 }
 
-// Ce qui peut s'acheter, ou pourquoi rien ne peut l'être. tab : 'pro' ou 'coach' ; reason 'life' :
-// seulement l'accès à vie (abonné qui y passe).
-function payPlansHtml(tab = 'pro', pre = null, reason = 'offer') {
+// Ce qui peut s'acheter, ou pourquoi rien ne peut l'être. tab : 'pro' ou 'coach'.
+function payPlansHtml(tab = 'pro', pre = null) {
   // Verrou éteint : rien à vendre. Proposer une formule ferait commencer l'essai d'Apple pour rien, et la
   // personne serait débitée 3 mois plus tard (relecture du 28/10). Vaut aussi pour les paliers coach et
   // l'offre élève. Restaurer et les codes restent.
@@ -355,12 +307,10 @@ function payPlansHtml(tab = 'pro', pre = null, reason = 'offer') {
   if (list === null) return '<div class="pay-note" role="status"><p>Chargement des formules…</p></div>';
   if (!list.length) return payMissingHtml();
   if (tab === 'coach' && coachRole().isCoach) return payCoachHtml(list, pre);
-  // Accès à vie déjà là (payé ou offert) : rien de plus à acheter pour soi
-  const life = accessLifetime();
-  if (life === 'purchase' || life === 'gift') {
-    return `<div class="pay-note" role="status"><p>${life === 'gift' ? 'On t\'a offert l\'accès à vie' : 'Tu as l\'accès à vie'} : rien d'autre à acheter.</p></div>`;
+  // Accès à vie offert : rien de plus à acheter pour soi
+  if (accessGiftForever()) {
+    return '<div class="pay-note" role="status"><p>On t\'a offert l\'accès à vie : rien d\'autre à acheter.</p></div>';
   }
-  if (reason === 'life') return payLifetimeOnlyHtml(list);
   if (payIsStudentOffer()) return payStudentHtml(list);
   return payProHtml(list);
 }
@@ -390,22 +340,20 @@ function payCoachLinkHtml() {
         </div>`;
 }
 
-// reason : 'end' (écriture refusée), 'offer' (depuis les Réglages ou un bandeau) ou 'life' (abonné qui
-// passe à l'accès à vie) ; tab : 'pro' ou 'coach' ; pre : formule à mettre en avant (montée de palier)
+// reason : 'end' (écriture refusée) ou 'offer' (depuis les Réglages ou un bandeau) ; tab : 'pro' ou
+// 'coach' ; pre : formule à mettre en avant (montée de palier)
 function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
   const head = navBar({ title: 'Abonnement', large: false });
   const end = reason === 'end';
-  const lifeOnly = reason === 'life' && tab !== 'coach';
   const coachTab = tab === 'coach' && coachRole().isCoach;
   const shown = (access.products || []).filter(p => planIsCoach(p.id) === coachTab);
   const trial = shown.find(p => p.trial);
   const off = !paywallOn();
   const student = !off && !coachTab && payIsStudentOffer() && Native.store.available && access.products?.length;
-  const title = off ? 'Tout est ouvert' : coachTab ? 'MDLF Training pour coachs' : lifeOnly ? 'Accès à vie' : end ? 'Abonnement nécessaire' : 'MDLF Training, sans limite';
+  const title = off ? 'Tout est ouvert' : coachTab ? 'MDLF Training pour coachs' : end ? 'Abonnement nécessaire' : 'MDLF Training, sans limite';
   // Formulation exacte : l'abonnement continue tout seul après l'essai, et Apple demande de résilier au
   // moins 24 h avant sa fin (https://support.apple.com/en-us/118428)
   const sub = off ? 'L\'abonnement n\'est pas encore demandé.'
-    : lifeOnly ? 'Paie une fois, garde MDLF Training pour toujours.'
     : student ? `Avec le code de ton coach, ton abonnement est à 25 % de moins pendant ${PLAN_STUDENT_MONTHS} mois.`
     : trial
     ? `${esc(payDurationText(trial.trial))} gratuits, puis l'abonnement continue sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
@@ -423,7 +371,7 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
           <p class="social-hero__sub">${sub}</p>
         </div>
         ${payTabsHtml(coachTab ? 'coach' : 'pro')}
-        ${payPlansHtml(coachTab ? 'coach' : 'pro', pre, lifeOnly ? 'life' : reason)}
+        ${payPlansHtml(coachTab ? 'coach' : 'pro', pre)}
         <div class="group">
           <button class="cell cell--action" data-action="pay-restore"><span class="cell__title">Restaurer mes achats</span></button>
           ${payCodeCellsHtml()}
@@ -436,7 +384,7 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
     </div>`;
 }
 SCREENS.set('paywall', {
-  render: (reason, tab, pre) => renderPaywall(['end', 'life'].includes(reason) ? reason : 'offer', tab === 'coach' ? 'coach' : 'pro', pre || null),
+  render: (reason, tab, pre) => renderPaywall(reason || 'offer', tab === 'coach' ? 'coach' : 'pro', pre || null),
   enter: () => {
     accessRefresh(); accessLoadStoreStatus(); accessLoadProducts();
     if (account.user) coachProRefresh({ minAge: 30_000 });
@@ -468,22 +416,13 @@ function renderSubscription() {
   const until = on ? accessUntil() : null;
   const st = accessStatus();
   const intro = on ? accessIntroUntil() : null;
-  const life = on ? accessLifetime() : null;
-  const endLabel = life === 'test' ? 'Fin du test' : st === 'active' ? 'Renouvellement' : 'Fin';
+  const endLabel = st === 'active' ? 'Renouvellement' : 'Fin';
   // Essai gratuit d'Apple en cours : « Essai gratuit jusqu'au <date>, puis <prix> » (formule lue sur
   // l'iPhone, prix lu chez StoreKit ; sans eux, la date seule)
   const plan = intro ? (access.products || []).find(p => p.id === access.currentProduct) : null;
   const introLine = intro ? `Essai gratuit jusqu'au ${fmtDate(intro)}${plan ? `, puis ${plan.price} ${payPer(plan)}` : ''}` : '';
   const offNote = !on ? `
         <div class="group-foot">Tout est ouvert pour l'instant : l'abonnement n'est pas encore demandé.</div>` : '';
-  // Accès à vie ET abonnement PARTICULIER qui continue (also_sub : jamais un palier coach, qui donne le
-  // nombre d'élèves) : Apple ne le résilie pas tout seul
-  const alsoNote = on && accessAlsoSub() ? `
-        <div class="group-foot pay-also-sub" role="note">Ton abonnement Apple continue d'être facturé. Avec l'accès à vie, tu peux le résilier dans « Gérer chez Apple ».</div>` : '';
-  const testNote = life === 'test' ? `
-        <div class="group-foot">Achat de test (TestFlight) : il ne vaut que quelques jours.</div>`
-    : on && accessLifeTestUsed() ? `
-        <div class="group-foot" role="note">${esc(accessErrorText('life_test_over'))}</div>` : '';
   const rows = `
         <div class="group">
           <div class="cell">
@@ -495,16 +434,11 @@ function renderSubscription() {
             <span class="cell__value">${esc(fmtDate(until))}</span>
           </div>` : ''}
         </div>${introLine ? `
-        <div class="group-foot pay-intro-line">${esc(introLine)}.</div>` : ''}${offNote}${alsoNote}${testNote}`;
-  // Abonné particulier (pas à vie) : il peut passer à l'accès à vie, si Apple propose le produit. Pas un
-  // abonné coach : son palier donne le nombre d'élèves, l'accès à vie ne le remplace pas
-  const toLife = on && st === 'active' && !life && !accessLifeTestUsed() && Native.store.available && !planIsCoach(access.currentProduct)
-    && (!access.products || access.products.some(p => p.id === ACCESS_LIFETIME_ID));
+        <div class="group-foot pay-intro-line">${esc(introLine)}.</div>` : ''}${offNote}`;
   const actions = `
         <div class="group">
           ${on && (st === 'none' || st === 'expired' || st === 'unknown')
             ? '<button class="cell cell--action" data-action="pay-open" data-reason="offer"><span class="cell__title">Voir les formules</span></button>' : ''}
-          ${toLife ? '<button class="cell cell--action" data-action="pay-open" data-reason="life"><span class="cell__title">Passer à l\'accès à vie</span></button>' : ''}
           ${on && coachRole().isCoach ? `<button class="cell cell--action" data-action="pay-open" data-reason="offer" data-tab="coach"><span class="cell__title">${planIsCoach(access.currentProduct) ? 'Changer de palier coach' : 'Voir les formules coach'}</span></button>` : ''}
           ${Native.store.available ? '<button class="cell cell--action" data-action="pay-manage"><span class="cell__title">Gérer chez Apple</span></button>' : ''}
           <button class="cell cell--action" data-action="pay-restore"><span class="cell__title">Restaurer mes achats</span></button>
@@ -519,14 +453,14 @@ function renderSubscription() {
       <div class="scr">${stale}${rows}${actions}${payLegalHtml()}</div>
     </div>`;
 }
-SCREENS.set('subscription', { render: () => renderSubscription(), enter: () => { accessRefresh(); accessLoadCurrentPlan(); accessLoadProducts(); } });
+SCREENS.set('subscription', { render: () => renderSubscription(), enter: () => { accessRefresh(); accessLoadCurrentPlan(); } });
 
 // ── Mode lecture seule : la porte des écritures ─────────────
 
 // Ouvre l'écran d'abonnement (depuis un bandeau, une cellule ou un refus d'écriture)
 // tab 'coach' (coach validé seulement) et pre : formule à mettre en avant (montée de palier)
 function openPaywall(reason = 'offer', tab = null, pre = null) {
-  const r = ['end', 'life'].includes(reason) ? reason : 'offer';
+  const r = reason === 'end' ? 'end' : 'offer';
   navigate(tab === 'coach' ? makeRoute('paywall', r, 'coach', ...(pre ? [pre] : [])) : makeRoute('paywall', r));
 }
 
@@ -588,13 +522,8 @@ registerActions({
     if (payBusy) return;
     payBusy = true;
     try {
-      const life = el.dataset.id === ACCESS_LIFETIME_ID;
       const r = await accessBuy(el.dataset.id);
-      if (payToast(r, life ? 'Accès à vie activé' : 'Abonnement actif')) {
-        if (currentView() === 'paywall') goBack(); else render();
-        if (life && accessAlsoSub()) payAlsoSubDialog();
-        return;
-      }
+      if (payToast(r, 'Abonnement actif')) { if (currentView() === 'paywall') goBack(); else render(); return; }
       render();
     } finally { payBusy = false; }
   },
@@ -630,7 +559,7 @@ registerActions({
 // ils ne sont redessinés que si cette signature change, jamais pendant une saisie
 function accessShownKey() {
   return JSON.stringify([account.user?.id || null, paywallOn(), accessStatus(), accessIntroUntil(), canWrite(),
-    accessUntil(), accountLockedCount(), accessLifetime()]);
+    accessUntil(), accountLockedCount()]);
 }
 let accessShown = null;
 const PAY_WATCH_VIEWS = ['dashboard', 'settings'];

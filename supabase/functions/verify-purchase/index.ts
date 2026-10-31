@@ -9,10 +9,9 @@
 // 2. La signature d'Apple est VRAIMENT vérifiée (_shared/apple-jws.js) : chaîne de certificats jusqu'à
 //    Apple Root CA G3 épinglée dans le dépôt, dates, contraintes, marqueurs d'Apple, puis les trois
 //    signatures ECDSA. Décoder la charge utile ne prouverait rien.
-// 3. La charge utile est jugée par purchase-policy.js : bundleId com.mdlf.training, un de nos dix
-//    abonnements ou l'accès à vie (non consommable, payant plus), type cohérent, achat personnel,
-//    environnement Production ou Sandbox (accepté et enregistré : l'équipe d'examen d'Apple achète en
-//    Sandbox ; un achat à vie Sandbox ne vaut que 7 jours, règle de la base), offre de lancement.
+// 3. La charge utile est jugée par purchase-policy.js : bundleId com.mdlf.training, un de nos deux
+//    abonnements, type cohérent, achat personnel, environnement Production ou Sandbox (accepté et
+//    enregistré : l'équipe d'examen d'Apple achète en Sandbox), offre de lancement (offerType 1).
 // 4. La transaction est RELUE auprès de l'App Store Server API
 //    (GET /inApps/v1/transactions/{id}, jeton ES256 signé avec la clé In-App Purchase), et c'est cette
 //    relecture qui fait foi : un JWS valable mais vieux, remboursé ou révoqué entre-temps ne passe pas.

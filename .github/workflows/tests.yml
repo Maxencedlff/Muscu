@@ -44,7 +44,7 @@ jobs:
       # Grâce de fin de séance sous concurrence (6 envois simultanés, 2 acceptés)
       - name: Grâce de fin de séance en parallèle
         run: bash tests/sql/grace_race_test.sh
-      # Retour arrière du payant plus (achat à vie, accès à vie révocables), puis les tests des tarifs
+      # Retour arrière du payant plus (accès à vie offerts révocables), puis les tests des tarifs
       - name: Retour arrière du payant plus
         run: bash tests/sql/rollback_payant_plus.sh
       # Tous les retours arrière depuis le 29/10 : seuls, puis démontage complet, état identique (pg_dump)

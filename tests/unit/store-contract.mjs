@@ -57,7 +57,7 @@ const READS = {
   current:     ['entitlements'],
   status:      ['canMakePayments'],
   redeemCode:  ['presented', 'cancelled'],
-  // Payant plus : environnement de l'app (TestFlight = Sandbox), lu par accessStoreEnvironment
+  // Environnement de l'app (TestFlight = Sandbox), lu par accessStoreEnvironment
   environment: ['environment'],
   // Transaction rendue par purchase(), par restore()/current() et par l'écouteur
   transaction: ['jws', 'transactionId'],
@@ -92,7 +92,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       assert.ok(swiftBlock(src, m), `méthode ${m} sans implémentation`);
     }
     assert.ok(/jsName = "MdlfStore"/.test(src), 'le module ne s\'appelle plus MdlfStore');
-    // Modèle B : plus de preuve AppTransaction ni d'« Accès offert » dans le module. Payant plus :
+    // Modèle B : plus de preuve AppTransaction ni d'« Accès offert » dans le module.
     // AppTransaction.shared sert SEULEMENT à lire l'environnement (environment()), jamais refresh()
     // (fenêtre du mot de passe Apple), jamais de JWS d'AppTransaction envoyé au web
     const outsideEnv = src.replace(swiftBlock(src, 'environment'), '');
@@ -202,11 +202,6 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       productItem, transaction,
       offer: swiftKeys(swiftBetween(src, 'let described: [String: Any] = [', 'out["offer"] = described')),
     };
-    // L'accès à vie (non consommable) n'a ni période ni essai, dans le Swift comme dans le faux
-    const life = products.products.find(p => p.id === 'com.mdlf.training.lifetime');
-    assert.ok(life, 'accès à vie absent des produits du faux StoreKit');
-    for (const k of ['period', 'introEligible', 'offer']) assert.ok(!(k in life), `accès à vie : ${k} inventé`);
-    for (const k of Object.keys(life)) assert.ok(productItem.has(k), `accès à vie : clé ${k} absente du Swift`);
     // Rien d'inventé par le faux : un faux plus généreux que le vrai cacherait le bogue
     const invented = [];
     for (const [where, keys] of Object.entries(fake)) {
@@ -241,13 +236,10 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.ok(block, 'liste subscriptionIds introuvable dans le Swift');
     const swiftIds = [...block[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
     assert.equal(swiftIds.length, 10, 'particulier + 4 paliers coach, mensuel et annuel');
-    const lifeBlock = /lifetimeIds = \[([^\]]+)\]/.exec(swiftSrc);
-    assert.ok(lifeBlock, 'liste lifetimeIds introuvable dans le Swift');
-    const lifeIds = [...lifeBlock[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
-    sameJSON(lifeIds, ['com.mdlf.training.lifetime']);
-    sameJSON(status, { canMakePayments: true, subscriptionIds: swiftIds, lifetimeIds: lifeIds });
+    sameJSON(status, { canMakePayments: true, subscriptionIds: swiftIds });
     sameJSON(run('PLAN_IDS'), swiftIds, 'catalogue de l\'app différent du Swift');
-    sameJSON(run('PLAN_SOLD_IDS'), [...swiftIds, ...lifeIds], 'produits vendus par l\'app différents du Swift');
+    // Aucun achat non consommable (« Accès offert » supprimé le 28/10, achat à vie refusé le 31/10)
+    assert.ok(!/lifetime|Non-Consumable|nonConsumable/.test(swiftSrc), 'achat à vie resté dans le Swift');
     // Valeurs de l'environnement : celles de name(_ environment:), lues telles quelles par l'app
     for (const v of ['production', 'sandbox', 'other']) assert.ok(swiftSrc.includes(`return "${v}"`), `environnement ${v}`);
     assert.ok(/"environment": "unknown"/.test(swiftBlock(swiftSrc, 'environment')), 'environnement inconnu');
@@ -286,8 +278,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       } finally { account.user = u; Object.assign(access, saved); sb = realSb; Native.store = nativeStore;
         localStorage.removeItem(ACCESS_CACHE_KEY); }
     })()`);
-    assert.equal(r[0].length, 11, 'aucune formule lue : l\'écran d\'abonnement serait vide');
-    assert.equal(r[0][10][1], '89,99 €', 'accès à vie lu chez StoreKit');
+    assert.equal(r[0].length, 10, 'aucune formule lue : l\'écran d\'abonnement serait vide');
     assert.equal(r[0][0][1], '6,49 €', 'le prix affiché doit être displayPrice, pas le nombre');
     assert.equal(r[0][1][1], '55,00 €');
     assert.equal(r[0][2][1], '15,99 €', 'palier coach 10 élèves');
@@ -296,7 +287,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(r[2], 1, 'le droit en cours (abonnement) doit partir');
     sameJSON(r[3], ['tx-1'], 'chaque transaction vérifiée doit être terminée chez Apple');
     // L'essai gratuit est lu chez StoreKit (offre de lancement), jamais écrit dans l'app
-    sameJSON(r[5], [...Array(10).fill({ unit: 'month', value: 3 }), null], 'essai lu dans offer (StoreKit), pas inventé ; aucun pour l\'accès à vie');
+    sameJSON(r[5], Array(10).fill({ unit: 'month', value: 3 }), 'essai lu dans offer (StoreKit), pas inventé');
     assert.equal(r[4], true, 'accès rendu après la restauration');
   });
 

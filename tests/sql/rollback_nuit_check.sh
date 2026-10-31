@@ -138,7 +138,8 @@ for pair in "20261031620000:strava_test.sql" \
             "20261031230000:newsletter_test.sql" \
             "20261031100000:records_test.sql" \
             "20261031300000:partage_coach_test.sql partage_coach_concurrence_test.sql" \
-            "20261031400000:parrainage_test.sql"; do
+            "20261031400000:parrainage_test.sql" \
+            "20261031000000:payant_plus_test.sql"; do
   t=${pair%%:*}; skip=" ${pair#*:} "
   clone ref "seul_$t"
   psql "seul_$t" -f "$(ls "$down/${t}"_*_down.sql)"
@@ -173,7 +174,7 @@ select public.student_share_weights('[{"date": 1780000000000, "kg": 80.5}]'::jso
 insert into public.sessions (id, data) values ('r1', '{"date": 1780000000000, "duration": 60, "exercises": [],
   "records": [{"ex": "Squat", "kind": "charge", "before": 100, "after": 105}]}');
 reset role;
--- Un partenaire et un abonné qui a saisi son code ; un achat d'abonnement et un achat à vie
+-- Un partenaire et un abonné qui a saisi son code ; un achat d'abonnement ; un accès à vie offert puis retiré
 select private.make_partner_code('LUCAS', 'Lucas', 0.25, 12);
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000d003', false);
 set role authenticated;
@@ -181,8 +182,8 @@ select public.referral_apply('lucas');
 reset role;
 select public.srv_access_purchase('00000000-0000-0000-0000-00000000d003', 'com.mdlf.training.pro.monthly',
   now() + interval '20 days', 'rb-sub', false, now(), true, 'Sandbox');
-select public.srv_access_purchase('00000000-0000-0000-0000-00000000d004', 'com.mdlf.training.lifetime',
-  null, 'rb-life', false, now(), null, 'Production');
+select private.grant_lifetime('00000000-0000-0000-0000-00000000d004', 'retiré ensuite');
+select private.revoke_lifetime('00000000-0000-0000-0000-00000000d004', 'retiré');
 insert into public.coach_offer_codes (code, environment, expires_at, batch)
   values ('FAUXCODE0001', 'Sandbox', now() + interval '30 days', 'lot factice');
 drop table public.rb_code;
