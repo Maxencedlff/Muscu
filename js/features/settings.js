@@ -66,6 +66,11 @@ ${renderAccountGroup()}
               <span class="cell__sub">Reps en réserve après chaque série, facultatif</span></span>
             ${switchHtml(rirShown())}
           </button>
+          <button class="cell" data-action="setting-training-tips" role="switch" aria-checked="${data.trainingTipsOff !== true}">
+            <span class="cell__body"><span class="cell__title">Conseils d'entraînement</span>
+              <span class="cell__sub">Semaine plus légère, progrès qui stagnent</span></span>
+            ${switchHtml(data.trainingTipsOff !== true)}
+          </button>
         </div>
 
         <div class="group-title">Sons et vibrations</div>

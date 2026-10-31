@@ -170,13 +170,23 @@ function sessionMinutes(cat) {
 // Cible du jour d'un exercice, même règle que la puce de la séance (bumpReady) :
 // toutes les séries de la dernière fois en haut de la fourchette → charge + 2,5 kg (5 lb) ;
 // sinon la meilleure série de la dernière fois + 1 rep ; jamais fait → nombre de séries prévu.
-function exerciseTarget(cat, ex) {
+// Décharge (deloadPhase, js/data/training-insights.js) : en cours, la moitié des séries à la même charge, sans
+// gain ; à la reprise, la série d'avant la décharge sans gain tant que l'exercice n'a pas été refait (hold: true).
+function exerciseTarget(cat, ex, now = Date.now()) {
+  const phase = deloadPhase(data, now);
+  const n = phase?.kind === 'active' ? deloadSetCount(ex.sets) : ex.sets;
+  const plan = `${n} série${n > 1 ? 's' : ''}`;
   const lp = lastPerf(data.activeProgramme, cat, ex);
-  if (!lp) return { text: `${ex.sets} série${ex.sets > 1 ? 's' : ''}`, gain: '' };
+  if (!lp) return { text: plan, gain: '' };
   const sets = workSets(lp.ex.sets).filter(s => (parseInt(s.reps) || 0) > 0);   // l'échauffement ne fixe pas la cible
   const best = bestSet(sets);
-  if (!best) return { text: `${ex.sets} série${ex.sets > 1 ? 's' : ''}`, gain: '' };
+  if (!best) return { text: plan, gain: '' };
   const m = measureOf(ex);
+  if (deloadHoldsLoad(phase, lp.h.date)) {
+    if (phase.kind === 'resume') return { text: setTxt(best, ex), gain: '', hold: true };
+    const load = m === 'reps' && loadKind(ex) === 'charge' && best.w > 0 ? ` · ${fmtW(best.w)} ${unitLbl()}` : '';
+    return { text: plan + load, gain: '', hold: true };
+  }
   if (m !== 'reps' || isAssisted(ex)) return { text: setTxt(best, ex), gain: '' };
   if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: best.r + 1, reps: String(best.r + 1) }, ex), gain: '+1 rep' };   // durée, cardio : on rappelle la dernière fois
   const repMax = ex.repMax ?? 12;
@@ -187,21 +197,21 @@ function exerciseTarget(cat, ex) {
   return { text: setTxt({ ...best, r: best.r + 1 }), gain: '+1 rep' };
 }
 
-// « À battre aujourd'hui » : les premiers exercices de la séance et leur cible
+// « À battre aujourd'hui » : les premiers exercices de la séance et leur cible. Pendant la décharge, ou à la
+// reprise tant qu'une cible garde la charge d'avant, rien n'est « à battre » : « Au programme ».
 const HERO_TARGETS = 3;
-function targetsCard(cat) {
+function targetsCard(cat, now = Date.now()) {
   const exs = prog().exercises[cat] || [];
   if (!exs.length) return '';
-  const rows = exs.slice(0, HERO_TARGETS).map(ex => {
-    const t = exerciseTarget(cat, ex);
-    return `<li class="targets__row"><span class="targets__name">${esc(ex.name)}</span>`
-      + `<span class="targets__val num">${esc(t.text)}${t.gain ? `<span class="targets__gain">${esc(t.gain)}</span>` : ''}</span></li>`;
-  }).join('');
+  const targets = exs.slice(0, HERO_TARGETS).map(ex => ({ ex, t: exerciseTarget(cat, ex, now) }));
+  const rows = targets.map(({ ex, t }) => `<li class="targets__row"><span class="targets__name">${esc(ex.name)}</span>`
+    + `<span class="targets__val num">${esc(t.text)}${t.gain ? `<span class="targets__gain">${esc(t.gain)}</span>` : ''}</span></li>`).join('');
   const more = exs.length - HERO_TARGETS;
-  const anyHistory = exs.some(ex => lastPerf(data.activeProgramme, cat, ex));
+  const toBeat = !targets.some(x => x.t.hold) && exs.some(ex => lastPerf(data.activeProgramme, cat, ex));
+  const title = toBeat ? 'À battre aujourd\'hui' : 'Au programme';
   return `
-    <section class="home-card targets" aria-label="${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}">
-      <h2 class="home-card__title">${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}${more > 0 ? `<span class="home-card__aside">+ ${more}<span class="home-card__aside-more"> exercice${more > 1 ? 's' : ''}</span></span>` : ''}</h2>
+    <section class="home-card targets" aria-label="${title}">
+      <h2 class="home-card__title">${title}${more > 0 ? `<span class="home-card__aside">+ ${more}<span class="home-card__aside-more"> exercice${more > 1 ? 's' : ''}</span></span>` : ''}</h2>
       <ul class="targets__list">${rows}</ul>
     </section>`;
 }
@@ -346,6 +356,7 @@ function renderDashboard() {
       <div class="home">
         ${hero || emptyCustom}
         ${hero ? '' : accountHomeCard()}
+        ${trainingHomeCard()}
         ${recapHomeCard()}
         ${keys.length ? weekCard(ws) : ''}
         ${others ? `<section class="home-card home-card--list" aria-label="Autres séances"><h2 class="home-card__title">Autres séances</h2>${others}</section>` : ''}

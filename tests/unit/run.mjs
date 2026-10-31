@@ -27,6 +27,7 @@ const SCRIPTS = [
   'js/data/plates.js',
   'js/data/warmup.js',
   'js/data/rir.js',
+  'js/data/training-insights.js',
   'js/data/body-measures.js',
   'js/data/store.js',
   'js/data/records.js',
@@ -1487,6 +1488,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./import-csv.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
 // ── Récaps de la semaine, du mois et de l'année (tests dans recap.mjs) ──
 (await import('./recap.mjs')).default({ test, run, reset, assert, app, sameJSON });
+// ── Entraînement intelligent : niveau de force, semaine plus légère, stagnation (tests dans training-insights.mjs) ──
+(await import('./training-insights.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Exécution ───────────────────────────────────────────────
 

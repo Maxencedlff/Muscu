@@ -87,6 +87,7 @@ function renderLibraryEx(name) {
             <span class="cell__value num">≈ ${Math.round(share * 100)} %</span></div>` : ''}
         </div>
         ${easier || harder ? `<div class="group-title">Progression</div><div class="group">${link(easier, 'Plus facile')}${link(harder, 'Plus dur')}</div>` : ''}
+        ${strengthGroupHtml(e.name)}
         ${done ? `<div class="group"><button class="cell cell--nav" data-action="open-stats-ex" data-ex="${esc(done.exId)}">
             <span class="cell__body"><span class="cell__title">Voir mes progrès</span></span>${icon('chevron.right', 16)}</button></div>` : ''}
         ${e.aliases.length ? `<div class="group-foot">Aussi appelé : ${esc(e.aliases.join(', '))}</div>` : ''}

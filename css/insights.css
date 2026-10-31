@@ -1,0 +1,42 @@
+/* ═══════════════════════════════════════════════
+   Entraînement intelligent (js/features/training-insights-ui.js) : carte « Conseil d'entraînement »
+   de l'accueil, échelle du niveau de force (fiches d'exercice), palier franchi du bilan.
+   Sobre : couleurs des tokens seulement, aucune couleur propre ; textes en rem (Dynamic Type).
+═══════════════════════════════════════════════ */
+
+/* ── Accueil ── */
+.ti-card .home-card__title { align-items: center; }
+/* Lien sous le texte (comme « Modifier les exercices ») : zone de toucher de 44 pt, alignée sur le texte */
+.ti-card__why {
+  display: block; min-height: 44px; margin: 0 0 -6px -8px; padding: 0 8px; border: 0; background: none; cursor: pointer;
+  color: var(--tint); font: inherit; font-size: var(--fs-subhead); font-weight: 400; text-align: left;
+}
+.ti-card__why:active, .ti-card__btn:active, .ti-card__close:active { opacity: .5; }
+.ti-card__close {
+  width: 44px; height: 44px; margin: -14px -12px -14px 0; border: 0; border-radius: 50%; background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; color: var(--label2);
+}
+.ti-card__head { margin: 2px 0 0; font-size: var(--fs-title3); line-height: 1.25; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; }
+.ti-card__reasons { margin: 6px 0 0; padding: 0; list-style: none; font-size: var(--fs-subhead); line-height: 1.35; color: var(--label2); }
+.ti-card__reasons li { overflow-wrap: anywhere; }
+.ti-card__plan { margin: 8px 0 0; font-size: var(--fs-subhead); line-height: 1.35; color: var(--label); }
+.ti-card__btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ti-card__btn {
+  flex: 1 1 auto; min-height: 44px; padding: 0 16px; border: 0; border-radius: var(--r-pill); background: var(--fill2); cursor: pointer;
+  color: var(--tint-on-fill); font: inherit; font-size: var(--fs-subhead); font-weight: 600;
+}
+.ti-card__btn--primary { background: var(--tint-fill); color: var(--on-tint); }
+.ti-card .targets__list { margin-top: 4px; }
+
+/* ── Niveau de force : cinq segments (un par niveau) ── */
+.ti-level { font-weight: 600; }
+.ti-scale-cell { padding-top: 12px; padding-bottom: 12px; }
+.ti-scale-box { flex: 1; min-width: 0; }
+.ti-scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.ti-scale__seg { height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
+.ti-scale__fill { display: block; height: 100%; background: var(--tint); border-radius: 3px; }
+.ti-scale__ends { display: flex; justify-content: space-between; margin-top: 6px; font-size: var(--fs-caption); color: var(--label2); }
+.ti-scale__next { margin-top: 4px; font-size: var(--fs-footnote); color: var(--label); }
+
+/* ── Bilan ── */
+.ti-up { color: var(--green-text); font-weight: 600; }

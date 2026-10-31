@@ -47,14 +47,20 @@ function recomputePRFromHistory(d = data) {
   });
 }
 
-// Dernière séance (programme + catégorie) qui contient cet exercice : { h, ex } ou null
+// Dernière séance (programme + catégorie) qui contient cet exercice : { h, ex } ou null. Les séances de la
+// décharge enregistrée (js/data/training-insights.js) sont passées : séries réduites, efforts retenus, elles ne
+// fixent ni la cible, ni le préremplissage, ni « Avant ». Faute d'autre séance de l'exercice, la plus récente sert.
 function lastPerf(progKey, cat, exLike, d = data) {
+  const dl = cleanDeload(d.deload);
+  let light = null;
   for (const h of d.history || []) {
     if (entryProg(h) !== progKey || h.category !== cat) continue;
     const ex = (h.exercises || []).find(e => sameEx(e, exLike));
-    if (ex && ex.sets?.length) return { h, ex };
+    if (!ex || !ex.sets?.length) continue;
+    if (!inDeload(h, dl)) return { h, ex };
+    light ??= { h, ex };
   }
-  return null;
+  return light;
 }
 
 // Identifiant stable pour un exercice connu par son seul nom (exercice ajouté en cours de route)
@@ -289,6 +295,11 @@ function sanitizeData(d) {
   if (d.plates !== undefined) { const p = cleanPlates(d.plates); if (p) d.plates = p; else delete d.plates; }
   // Carte « Ta semaine » de l'accueil coupée (js/features/recap.js) : true ou absent
   if (d.recapCardOff !== undefined && d.recapCardOff !== true) delete d.recapCardOff;
+  // Entraînement intelligent (js/data/training-insights.js) : conseils coupés (true ou absent), décharge
+  // enregistrée { start, end, seen? } et « Pas maintenant » (date) ; toute autre valeur est retirée
+  if (d.trainingTipsOff !== undefined && d.trainingTipsOff !== true) delete d.trainingTipsOff;
+  if (d.deload !== undefined) { const dl = cleanDeload(d.deload); if (dl) d.deload = dl; else delete d.deload; }
+  if (d.deloadSnooze !== undefined && !(Number.isFinite(d.deloadSnooze) && d.deloadSnooze > 0)) delete d.deloadSnooze;
   // Séances visibles par défaut (Réglages › Amis et coach, js/data/social.js) : booléen ou absent (= oui)
   if (d.sessionVisibleDefault !== undefined && typeof d.sessionVisibleDefault !== 'boolean') delete d.sessionVisibleDefault;
   // Version de l'app et date où elle a été vue (noteAppVersion, js/data/sync.js) : envoyées au profil, bornées
