@@ -37,8 +37,8 @@ Les fichiers de l'app iOS sont exclus de la publication Vercel (`.vercelignore`)
 | `Native.scheduleRestEnd()` / `cancelRestEnd()` | `rest.js` | Notification « Repos terminé · Série 3 · Squat » à l'heure de fin, annulée si le repos est passé |
 | `Native.liveActivity.start()` / `update()` / `end()` | `rest-activity.js` | Live Activity du repos sur l'écran verrouillé et dans la Dynamic Island (voir plus bas) |
 | `Native.watch.send()` / `onAction()` / `onRequest()` | `watch.js` | Séance en cours sur l'Apple Watch, gestes de la montre (docs/WATCH_WIDGETS.md, build de la branche `build-ios`) |
-| `Native.widget.setSnapshot()` | `home-widget.js` | Instantané du widget « Prochaine séance » dans l'App Group (docs/WATCH_WIDGETS.md, **build à venir**) |
-| `Native.shortcuts.takeRequest()` / `onRequest()` | `siri.js` | « Démarrer ma séance » demandé à Siri (docs/WATCH_WIDGETS.md, **build à venir**) |
+| `Native.widget.setSnapshot()` | `home-widget.js` | Instantané du widget « Prochaine séance » dans le trousseau partagé avec l'extension (docs/WATCH_WIDGETS.md, build de la branche `build-ios`) |
+| `Native.shortcuts.takeRequest()` / `onRequest()` | `siri.js` | « Démarrer ma séance » demandé à Siri (docs/WATCH_WIDGETS.md, build de la branche `build-ios`) |
 | `Native.keepAwake()` | wake lock de `init.js` | Écran allumé pendant la séance |
 | `Native.statusBar()` | `applyTheme()`, démarrage | Texte de la barre d'état adapté au thème |
 | `Native.backup()` / `boot()` | `save()`, démarrage | Deux copies : `ppl_v2.json` dans les Documents de l'app (dans la sauvegarde iCloud de l'iPhone) et la copie iCloud de l'app (voir « Copie iCloud ») ; restaurées si le stockage web est vide, jamais écrasées avant |

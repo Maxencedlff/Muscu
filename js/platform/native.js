@@ -372,7 +372,7 @@ const Native = (() => {
       },
     },
 
-    // Widget (écran d'accueil, écran verrouillé) : instantané JSON laissé dans l'App Group (js/features/home-widget.js)
+    // Widget (écran d'accueil, écran verrouillé) : instantané JSON laissé dans le trousseau partagé (js/features/home-widget.js)
     widget: {
       available: hasWidget,
       setSnapshot(json) { if (hasWidget) quiet(Widget.setSnapshot({ snapshot: json })); },

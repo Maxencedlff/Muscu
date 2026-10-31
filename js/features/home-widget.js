@@ -4,7 +4,7 @@
 'use strict';
 
 // Le widget n'exécute pas l'app : il lit un petit instantané qu'elle lui laisse dans un espace partagé
-// (App Group), puis iOS le redessine seul aux heures prévues. Côté natif : ios/App/AppExtras/WidgetPlugin.swift
+// (trousseau partagé), puis iOS le redessine seul aux heures prévues. Côté natif : ios/App/AppExtras/WidgetPlugin.swift
 // (écriture) et ios/App/Widgets/ (dessin). Rien ne part au serveur.
 //
 // L'instantané est écrit quand l'app passe en arrière-plan (c'est là que l'écran d'accueil réapparaît)

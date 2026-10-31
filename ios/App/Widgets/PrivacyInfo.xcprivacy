@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<!-- Manifeste de confidentialité de l'extension RestActivity (Live Activity du repos et widget
-	     « Prochaine séance »), à ajouter à cette cible (docs/WATCH_WIDGETS.md). Aucun suivi, aucune
+	     « Prochaine séance », docs/WATCH_WIDGETS.md). Aucun suivi, aucune
 	     donnée collectée : le widget lit seulement l'instantané laissé par l'app sur l'iPhone. -->
 	<key>NSPrivacyTracking</key>
 	<false/>
@@ -11,17 +11,9 @@
 	<array/>
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array/>
+	<!-- Aucune API « à raison déclarée » : l'instantané est lu dans le trousseau partagé
+	     (CompanionShared.swift, SharedKeychain), pas dans UserDefaults -->
 	<key>NSPrivacyAccessedAPITypes</key>
-	<array>
-		<dict>
-			<!-- Instantané du widget lu dans l'App Group partagé avec l'app (CompanionShared.swift) -->
-			<key>NSPrivacyAccessedAPIType</key>
-			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
-			<key>NSPrivacyAccessedAPITypeReasons</key>
-			<array>
-				<string>1C8F.1</string>
-			</array>
-		</dict>
-	</array>
+	<array/>
 </dict>
 </plist>
