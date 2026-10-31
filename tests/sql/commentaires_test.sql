@@ -116,7 +116,8 @@ begin
                            'T''as tapé tes séries comme un chef', 'Allez, tape tes 5 séries !', 'Tape tes records',
                            -- jamais de recollage à travers une ponctuation de phrase (tue, toi)
                            'Le squat ça tue, toi tu en fais combien ?', 'Cette séance m''a tué, toi ça va ?',
-                           'Ça tue. Toi aussi ?', 'Ça me tue ! Toi ?'] loop
+                           'Ça tue. Toi aussi ?', 'Ça me tue ! Toi ?',
+                           'On se fait un pique-nique après la séance ?', 'pique-niquer dimanche', 'Bravo Nazim !', 'GG Naziha', 'Mon pote Nazir'] loop
     if private.comment_forbidden(t) then raise 'phrase courante refusée : %', t; end if;
   end loop;
   -- Un mot accepté ne protège que lui-même, mot entier
@@ -301,8 +302,12 @@ begin
   if pg_temp.err(format('select public.report_comment(%s, %L)', cid, 'spam')) is distinct from 'not_found' then raise 'non abonné signale'; end if;
   perform pg_temp.login('e');
   perform public.report_comment(cid, 'haine');
+  -- Celui qui a signalé ne le reçoit plus (même après redémarrage de l'app) ; les autres si (2 signalements)
   perform pg_temp.login('b');
+  if exists (select 1 from public.list_comments(pg_temp.u('a'), 'a-2') where id = cid) then raise 'B voit encore ce qu''il a signalé'; end if;
+  perform pg_temp.login('a');
   if not exists (select 1 from public.list_comments(pg_temp.u('a'), 'a-2') where id = cid) then raise 'masqué trop tôt'; end if;
+  if not exists (select 1 from public.my_activity() where comment_id = cid) then raise 'activité : pas encore signalé par A'; end if;
   -- 3e personne (le propriétaire) : masqué pour tous sauf l'auteur
   perform pg_temp.login('a');
   perform public.report_comment(cid, 'autre');

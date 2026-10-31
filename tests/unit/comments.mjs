@@ -11,6 +11,15 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(run(`commentLength('  é  ')`), 1);
   });
 
+  test('commentaires et messages : le texte tapé pendant un envoi est gardé', () => {
+    assert.equal(run(`draftAfterSend('Salut', 'Salut')`), '', 'rien tapé pendant l\'envoi : champ vidé');
+    assert.equal(run(`draftAfterSend("Salut t'as fait ta séance ?", 'Salut')`), "t'as fait ta séance ?");
+    assert.equal(run(`draftAfterSend('Salut\\nça va ?', 'Salut')`), 'ça va ?');
+    assert.equal(run(`draftAfterSend('Bonjour', 'Salut')`), 'Bonjour', 'texte envoyé remplacé : rien de perdu');
+    assert.equal(run(`draftAfterSend('', 'Salut')`), '', 'champ vidé à la main');
+    assert.equal(run(`draftAfterSend(null, 'Salut')`), '');
+  });
+
   test('commentaires : ligne du serveur nettoyée, inutilisable écartée', () => {
     const c = run(`cleanComment({ id: 12, user_id: 'u1', username: 'lea', avatar: '🦁', body: 'Top', at: '2026-10-31T10:00:00Z', mine: false, can_delete: true, masked: false, extra: 1 })`);
     sameJSON(Object.keys(c).sort(), ['at', 'avatar', 'body', 'canDelete', 'id', 'masked', 'mine', 'user_id', 'username']);

@@ -86,7 +86,7 @@ create table public.comment_reports (
   constraint comment_reports_not_self check (reporter_id <> author_id)
 );
 create index comment_reports_at on public.comment_reports (created_at);
-create index comment_reports_comment on public.comment_reports (comment_id);
+create index comment_reports_comment on public.comment_reports (comment_id, reporter_id);
 
 -- Mots interdits dans un commentaire (schéma non exposé). word : le mot entier (avec s, e, es ou x
 -- à la fin) ; contains : n'importe où dans un mot. Forme stockée : minuscules sans accents, a-z et 0-9.
@@ -143,13 +143,15 @@ insert into private.comment_words (word, lang, mode) values
 update private.comment_words set joinable = false where word in ('crevetoi', 'chatte', 'bastard', 'tapette');
 
 -- « cône » (conne), « fagot » (faggot), « nigaud », « Niger » (nigga, nigger), « Pornic » (porn),
--- « chili con carne » (con), « pain bâtard », « tapette à mouche », « bite-size », « cuisine mongole » (mongol)
+-- « chili con carne » (con), « pain bâtard », « tapette à mouche », « bite-size », « cuisine mongole » (mongol),
+-- « pique-nique » (nique), prénoms Nazim, Nazir, Naziha (nazi)
 insert into private.comment_allowed (phrase) values
   ('cone'), ('cones'), ('fagot'), ('fagots'), ('nigaud'), ('nigauds'), ('nigaude'), ('nigaudes'),
   ('niger'), ('nigeria'), ('nigerian'), ('nigeriane'), ('nigerians'), ('nigerianes'),
   ('nigerien'), ('nigerienne'), ('nigeriens'), ('nigeriennes'), ('pornic'), ('chili con carne'),
   ('pain batard'), ('pains batards'), ('tapette a mouche'), ('tapettes a mouches'), ('bite size'),
-  ('mongole'), ('mongoles');
+  ('mongole'), ('mongoles'), ('pique nique'), ('pique niques'), ('pique niquer'), ('pique niquent'),
+  ('nazim'), ('nazir'), ('naziha');
 
 -- ── Briques privées ──────────────────────────────────────
 
@@ -319,6 +321,8 @@ begin
     where c.session_owner = list_comments.owner and c.session_id = list_comments.session_id
       and (list_comments.before_id is null or c.id < list_comments.before_id)
       and private.comment_shown(me, c.session_owner, c.author_id, c.masked_at)
+      -- Un commentaire que j'ai signalé ne m'est plus renvoyé (« masqué pour toi », même après redémarrage)
+      and not exists (select 1 from public.comment_reports r where r.comment_id = c.id and r.reporter_id = me)
     order by c.id desc
     limit 30;
 end
@@ -470,6 +474,7 @@ begin
       from public.session_comments c
       join public.sessions x on x.user_id = c.session_owner and x.id = c.session_id and x.deleted_at is null
       where c.session_owner = me and c.author_id <> me and c.masked_at is null and private.can_see(c.author_id, me)
+        and not exists (select 1 from public.comment_reports r where r.comment_id = c.id and r.reporter_id = me)
       union all
       select 'follower', f.follower_id, f.responded_at, null, null, null, null, null, null,
         'follower:' || f.follower_id::text || ':'
