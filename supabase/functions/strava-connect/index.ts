@@ -9,9 +9,15 @@
 //   ?code&scope&state ou ?error=access_denied&state. L'état est consommé (une seule fois) ; le code est
 //   échangé contre les jetons, le droit activity:write vérifié (décoché : accès révoqué aussitôt), les
 //   jetons chiffrés puis enregistrés (strava_link_save). Une liaison précédente à un autre athlète est
-//   révoquée. Réponse : redirection vers la page publique STRAVA_RETURN_URL (par défaut
-//   https://mdlf.app/strava.html) avec le résultat en ancre : #ok, #refuse, #droits, #expire, #erreur.
-//   La passerelle des fonctions Supabase ne sert pas de page HTML : d'où la page publique.
+//   révoquée. Un athlète déjà relié à un AUTRE compte MDLF est refusé (#deja) : les jetons reçus sont
+//   oubliés sans être révoqués, car une révocation chez Strava couperait aussi l'accès du compte qui le
+//   détient déjà (un seul accord par athlète et par application). Réponse : redirection vers la page
+//   publique STRAVA_RETURN_URL (par défaut https://mdlf.app/strava.html) avec le résultat en ancre :
+//   #ok, #refuse, #droits, #deja, #expire, #erreur. La passerelle des fonctions Supabase ne sert pas de
+//   page HTML : d'où la page publique.
+//   Limite connue (docs/STRAVA.md, « Liaison et CSRF ») : rien ne lie l'état au téléphone qui l'a tiré.
+//   approval_prompt=force montre toujours l'écran d'accord de Strava ; la vraie correction (code rendu à
+//   l'app, envoyé avec sa session) demande une build.
 import { adminClient, caller, CORS, env, json } from '../_shared/http.ts';
 import { authorizeUrl, hasWriteScope, returnUrl } from '../_shared/strava-policy.js';
 import { newState, openTokens, sealTokens, stateHash, stateLooksValid } from '../_shared/strava-crypto.js';
@@ -65,6 +71,7 @@ async function finish(url: URL) {
     p_user: userId, p_athlete_id: t.athleteId, p_athlete_name: t.athleteName, p_scope: t.scope ?? url.searchParams.get('scope') ?? '',
     p_tokens: sealed, p_expires_at: new Date(t.expiresAt * 1000).toISOString(),
   });
+  if (saveErr?.message === 'athlete_taken') return back('deja');
   if (saveErr) {
     console.error('strava-connect: liaison non enregistrée', saveErr.code);
     await revokeAtStrava({ access: t.access, refresh: t.refresh });

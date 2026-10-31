@@ -9,7 +9,8 @@
 //    distance d'une séance de cardio, et une description tirée des exercices et des séries. Jamais les
 //    notes, le poids du corps, le RIR, ni Santé.
 //  - Séance envoyable (stravaExportable) : terminée dans l'app (durée mesurée d'au moins une minute), au
-//    moins une série faite, de moins de 400 jours ; jamais une sortie lue dans Santé.
+//    moins une série faite, de moins de 400 jours ; jamais une sortie lue dans Santé, jamais une séance
+//    importée de Hevy ou Strong (isImportedEntry : heure de début et non de fin, souvent déjà sur Strava).
 //  - Retour de Safari : l'état est relu au retour au premier plan (pas de schéma d'URL natif : aucune
 //    build nécessaire).
 //  - Résultats : { ok: true, … } ou { ok: false, kind } ; textes dans STRAVA_ERROR_TEXT. L'écran
@@ -104,7 +105,7 @@ function stravaDescription(h) {
 
 // Séance qu'on peut envoyer : voir l'en-tête
 function stravaExportable(h, nowMs = Date.now()) {
-  if (!h || typeof h !== 'object' || isHealthEntry(h) || !STRAVA_ID_RE.test(String(h.id || ''))) return false;
+  if (!h || typeof h !== 'object' || isHealthEntry(h) || isImportedEntry(h) || !STRAVA_ID_RE.test(String(h.id || ''))) return false;
   if (!(h.duration >= 60_000) || !Number.isFinite(h.date)) return false;
   const start = h.date - h.duration;
   if (start < nowMs - STRAVA_PAST_DAYS * 86400_000 || start > nowMs + 3600_000) return false;

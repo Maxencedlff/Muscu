@@ -1,5 +1,6 @@
 // Strava côté serveur : règles pures (supabase/functions/_shared/strava-policy.js) et chiffrement des
 // jetons (strava-crypto.js), chargés tels quels par les fonctions Edge. Jetons et clés : faux évidents.
+import fs from 'node:fs';
 import path from 'node:path';
 
 export default function ({ test, assert, sameJSON, ROOT }) {
@@ -11,12 +12,14 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   const FAKE_KEY = Buffer.alloc(32, 7).toString('base64');
   const FAKE_TOKENS = { access: 'faux-jeton-acces-0000', refresh: 'faux-jeton-renouvellement-0000' };
 
-  test('strava serveur : adresse d\'autorisation (droit activity:write seul, état, retour)', async () => {
+  test('strava serveur : adresse d\'autorisation (droit activity:write seul, état, retour, écran d\'accord toujours montré)', async () => {
     const { authorizeUrl } = await policy();
     const u = new URL(authorizeUrl({ clientId: '12345', redirectUri: 'https://exemple.supabase.co/functions/v1/strava-connect', state: 'etat-factice' }));
     assert.equal(u.origin + u.pathname, 'https://www.strava.com/oauth/authorize');
     sameJSON(Object.fromEntries(u.searchParams), { client_id: '12345', redirect_uri: 'https://exemple.supabase.co/functions/v1/strava-connect',
-      response_type: 'code', approval_prompt: 'auto', scope: 'activity:write', state: 'etat-factice' });
+      response_type: 'code', approval_prompt: 'force', scope: 'activity:write', state: 'etat-factice' });
+    // auto sauterait l'écran d'accord de Strava : un lien tiré par un autre compte relierait sans rien montrer
+    assert.equal(u.searchParams.get('approval_prompt'), 'force', 'jamais auto (CSRF OAuth, docs/STRAVA.md)');
   });
 
   test('strava serveur : droit accordé lu exactement (virgules ou espaces, jamais un nom voisin)', async () => {
@@ -107,7 +110,14 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     const { returnUrl } = await policy();
     assert.equal(returnUrl('https://mdlf.app/strava.html', 'ok'), 'https://mdlf.app/strava.html#ok');
     assert.equal(returnUrl('https://mdlf.app/strava.html', 'droits'), 'https://mdlf.app/strava.html#droits');
+    assert.equal(returnUrl('https://mdlf.app/strava.html', 'deja'), 'https://mdlf.app/strava.html#deja', 'athlète relié à un autre compte');
     assert.equal(returnUrl('https://mdlf.app/strava.html', '<script>'), 'https://mdlf.app/strava.html#erreur');
+  });
+
+  test('strava serveur : chaque résultat du retour a son texte sur la page publique', async () => {
+    const { RETURN_RESULTS } = await policy();
+    const html = fs.readFileSync(path.join(ROOT, 'web-public/strava.html'), 'utf8');
+    for (const r of RETURN_RESULTS) assert.ok(html.includes(`<section class="result" id="${r}">`), `#${r} sans texte sur strava.html`);
   });
 
   test('strava serveur : jetons chiffrés (aller-retour, liés au compte, altération, autre clé)', async () => {

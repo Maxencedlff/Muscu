@@ -1,6 +1,8 @@
 // Strava côté app (js/data/strava.js) : séance envoyable, type d'activité, description (jamais les notes ni
 // le poids), corps envoyé à strava-export (accepté par la validation du serveur), état nettoyé.
+import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 
 export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
   const NOW = Date.now();
@@ -29,6 +31,49 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(call('stravaExportable', session({ exercises: [{ name: 'Squat', sets: [{ weight: '100', reps: '' }] }] })), false, 'aucune série faite');
     assert.equal(call('stravaExportable', session({ exercises: [{ name: 'Squat', sets: [{ weight: '60', reps: '5', warmup: true }] }] })), false, 'échauffement seul');
     assert.equal(run('stravaExportable(null)'), false);
+  });
+
+  test('strava : séance importée de Hevy ou Strong jamais envoyable (heure de début, souvent déjà sur Strava)', () => {
+    reset();
+    // Comme applyImport : date = DÉBUT de la séance dans le fichier, durée lue dans le fichier
+    for (const programme of ['u_hevy', 'u_strong']) {
+      assert.equal(call('stravaExportable', session({ programme })), false, programme);
+      assert.equal(call('stravaActivity', session({ programme })), null, programme);
+    }
+    // Même identifiants que l'import (IMPORT_PROGRAMME), pas une liste recopiée
+    assert.equal(run('Object.values(IMPORT_PROGRAMME).every(p => isImportedEntry({ programme: p.id }))'), true);
+    assert.equal(run('isImportedEntry({ programme: "ppl" }) || isImportedEntry({ programme: "u_abc" }) || isImportedEntry(null)'), false);
+    // Bout en bout : une séance importée par applyImport n'est pas envoyable
+    const csv = 'title,start_time,end_time,description,exercise_title,superset_id,exercise_notes,set_index,set_type,weight_kg,reps,distance_km,duration_seconds,rpe\n'
+      + `"Push","${new Date(NOW - 2 * 3600_000).toISOString()}","${new Date(NOW - 3600_000).toISOString()}","","Bench Press (Barbell)","","",0,normal,80,8,,,\n`;
+    const added = run(`(() => { const plan = readImportCsv(${JSON.stringify(csv)}); if (!plan.ok) return plan; applyImport(plan); return data.history.filter(h => h.programme === 'u_hevy').map(h => stravaExportable(h)); })()`);
+    sameJSON(added, [false]);
+  });
+
+  // js/platform/native.js chargé seul, dans l'app iOS (Capacitor factice) ou dans un navigateur
+  const nativeIn = (native) => {
+    const calls = [];
+    const box = { console, setTimeout, clearTimeout, localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+      location: { assign: (u) => calls.push(['assign', u]) }, open: (u, target) => { calls.push(['open', u, target]); return null; } };
+    if (native) box.Capacitor = { isNativePlatform: () => true, registerPlugin: () => ({}) };
+    box.window = box;
+    const c = vm.createContext(box);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8') + '\n;globalThis.N = Native;', c);
+    return { N: c.N, calls };
+  };
+
+  test('strava : liens vers Strava ouverts dans Safari même après un appel réseau (Native.openOutside)', () => {
+    // App iOS : navigation (Capacitor la confie à Safari), jamais window.open (bloqué par WKWebView sans geste)
+    const app = nativeIn(true);
+    assert.equal(app.N.openOutside('https://www.strava.com/oauth/authorize?state=etat-factice'), true);
+    sameJSON(app.calls, [['assign', 'https://www.strava.com/oauth/authorize?state=etat-factice']]);
+    // Navigateur : nouvel onglet
+    const web = nativeIn(false);
+    assert.equal(web.N.openOutside('https://www.strava.com/settings/apps'), true);
+    sameJSON(web.calls, [['open', 'https://www.strava.com/settings/apps', '_blank']]);
+    // Jamais une adresse qui ne soit pas https (javascript:, données, relative)
+    for (const u of ['javascript:alert(1)', 'http://www.strava.com/', '/strava', '', null, 'https://a b']) assert.equal(app.N.openOutside(u), false, String(u));
+    assert.equal(app.calls.length, 1);
   });
 
   test('strava : type d\'activité (musculation, cardio d\'un seul type, mélange, machines)', () => {

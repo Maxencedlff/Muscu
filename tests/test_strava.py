@@ -80,6 +80,18 @@ def layout(page, t, name, tabbar=True):
 OPENED = 'window.__opened = []; window.open = (u) => { window.__opened.push(String(u)); return null; };'
 
 
+def catch_outside(page):
+    """Adresses ouvertes dans Safari par Native.openOutside (location.assign dans l'app iOS : Capacitor
+    annule la navigation et la confie à Safari ; testé par tests/unit/strava.mjs). Remplacé ici après le
+    chargement de l'app : une vraie navigation ferait recharger la page par le navigateur de test.
+    window.open, bloqué par WKWebView après un appel réseau, ne doit jamais servir à ces liens."""
+    page.evaluate("() => { window.__outside = []; Native.openOutside = (u) => { window.__outside.push(String(u)); return true; }; }")
+
+
+def outside(page):
+    return page.evaluate('window.__outside')
+
+
 def add_sessions(page):
     """Une séance terminée dans l'app (durée), une séance passée saisie à la main (sans durée)."""
     now = int(time.time() * 1000)
@@ -112,6 +124,7 @@ def t_strava(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         page.add_init_script(OPENED)
         open_app(page, theme, ppl_v2_today_json())
+        catch_outside(page)
         # Sans compte : il en faut un, aucun appel
         open_strava_settings(page)
         R.check(page.locator('.strava-view [data-action="social-sign-in"]').count() == 1, f'{t} sans compte : « Se connecter »')
@@ -133,9 +146,11 @@ def t_strava(bench, eng, dev, theme):
         # Relier : Safari s'ouvre sur la page d'autorisation, puis retour dans l'app
         btn.click()
         page.wait_for_timeout(400)
-        opened = page.evaluate('window.__opened')
-        R.check(len(opened) == 1 and opened[0].startswith('https://www.strava.com/oauth/authorize?') and 'scope=activity%3Awrite' in opened[0],
-                f'{t} relier : page d\'autorisation ouverte ({opened})')
+        o = outside(page)
+        R.check(len(o) == 1 and o[0].startswith('https://www.strava.com/oauth/authorize?') and 'scope=activity%3Awrite' in o[0]
+                and 'approval_prompt=force' in o[0], f'{t} relier : page d\'autorisation ouverte dans Safari ({o})')
+        R.check(page.evaluate('window.__opened') == [], f'{t} relier : jamais window.open après l\'appel réseau (bloqué par WKWebView)')
+        R.check(page.locator('.strava-view').count() == 1, f'{t} relier : l\'app reste sur son écran')
         R.check('reviens ici' in page.inner_text('.strava-view'), f'{t} relier : consigne pendant Safari')
         shot(page, LOT, f'2-dans-safari-{t}')
         page.evaluate('__sb.stravaAuthorize("Léa")')
@@ -174,7 +189,8 @@ def t_strava(bench, eng, dev, theme):
         shot(page, LOT, f'5-envoyee-{t}')
         link.click()
         page.wait_for_timeout(200)
-        R.check(page.evaluate('window.__opened.at(-1)') == 'https://www.strava.com/activities/16000000001', f'{t} « View on Strava » ouvre l\'activité')
+        R.check(outside(page)[-1:] == ['https://www.strava.com/activities/16000000001'] and page.evaluate('window.__opened') == [],
+                f'{t} « View on Strava » ouvre l\'activité dans Safari ({outside(page)})')
         # Une seule activité même si on relance l'envoi (autre appareil, cache vidé)
         r = page.evaluate("stravaExport(data.history.find(h => h.id === 'strv0001'))")
         R.check(r.get('ok') and r.get('already') and len(page.evaluate('__sb.st.sent')) == 1, f'{t} second envoi : déjà sur Strava ({r})')
@@ -193,6 +209,7 @@ def t_strava(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         page.add_init_script(OPENED)
         open_app(page, theme, ppl_v2_today_json())
+        catch_outside(page)
         signin(page, username='lea')
         page.evaluate('__sb.stravaAuthorize("Léa")')
         page.evaluate('stravaRefresh()')
@@ -213,7 +230,9 @@ def t_strava(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         R.check('applications autorisées' in page.inner_text('body'), f'{t} révocation non confirmée : explication')
         tap_dialog(page, 'Ouvrir Strava')
-        R.check(page.evaluate('window.__opened.at(-1)') == 'https://www.strava.com/settings/apps', f'{t} révocation non confirmée : strava.com/settings/apps')
+        page.wait_for_timeout(200)
+        R.check(outside(page)[-1:] == ['https://www.strava.com/settings/apps'] and page.evaluate('window.__opened') == [],
+                f'{t} révocation non confirmée : strava.com/settings/apps dans Safari ({outside(page)})')
         # Hors ligne : écran et relecture
         # Dernier état gardé sur l'appareil : affiché, « pas à jour »
         page.evaluate('__sb.fail.strava = "offline"; stravaReset(account.user.id); stravaRefresh()')

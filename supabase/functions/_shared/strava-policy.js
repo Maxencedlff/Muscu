@@ -4,9 +4,13 @@
 // https://developers.strava.com/docs/authentication/ et https://developers.strava.com/docs/reference/
 //
 // 1. Autorisation : page web https://www.strava.com/oauth/authorize (ouverte dans Safari par l'app),
-//    response_type=code, approval_prompt=auto, scope=activity:write (seul droit demandé : créer des
+//    response_type=code, approval_prompt=force, scope=activity:write (seul droit demandé : créer des
 //    activités ; rien n'est lu chez Strava), state = 32 octets aléatoires à usage unique. Retour sur la
 //    fonction strava-connect elle-même (redirect_uri dans le domaine de rappel déclaré chez Strava).
+//    force et jamais auto : au retour, c'est l'état seul qui désigne le compte MDLF (Safari n'a pas la
+//    session de l'app). Avec auto, Strava sauterait l'écran d'accord pour quelqu'un qui a déjà autorisé
+//    MDLF Training : un lien d'autorisation tiré par un autre compte, ouvert par cette personne, relierait
+//    son Strava à cet autre compte sans rien lui montrer (CSRF OAuth, RFC 9700 §4.7). Voir docs/STRAVA.md.
 // 2. La personne peut décocher le droit demandé : le droit accordé est relu (hasWriteScope) avant de
 //    garder la liaison.
 // 3. Envoi : POST /api/v3/activities (activité manuelle) : name, sport_type, start_date_local (heure
@@ -39,7 +43,7 @@ const CONTROL_RE = /[\u0000-\u0008\u000b-\u001f\u007f\u2028\u2029]/g;
 // URL de la page d'autorisation de Strava
 export function authorizeUrl({ clientId, redirectUri, state }) {
   const q = new URLSearchParams({ client_id: String(clientId), redirect_uri: redirectUri, response_type: 'code',
-    approval_prompt: 'auto', scope: SCOPE, state });
+    approval_prompt: 'force', scope: SCOPE, state });
   return `${AUTHORIZE_URL}?${q}`;
 }
 
@@ -140,9 +144,9 @@ export function validateExport(body, nowMs = Date.now()) {
 }
 
 // Retour dans Safari après Strava : page publique de l'app (la passerelle des fonctions Supabase ne
-// sert pas de HTML), le résultat en ancre (#ok, #refuse, #droits, #expire, #erreur) pour qu'aucun
-// code ni état ne reste dans l'adresse
-export const RETURN_RESULTS = Object.freeze(['ok', 'refuse', 'droits', 'expire', 'erreur']);
+// sert pas de HTML), le résultat en ancre (#ok, #refuse, #droits, #deja, #expire, #erreur) pour qu'aucun
+// code ni état ne reste dans l'adresse. #deja : ce compte Strava est déjà relié à un autre compte MDLF.
+export const RETURN_RESULTS = Object.freeze(['ok', 'refuse', 'droits', 'deja', 'expire', 'erreur']);
 export function returnUrl(base, result) {
   return `${base}#${RETURN_RESULTS.includes(result) ? result : 'erreur'}`;
 }

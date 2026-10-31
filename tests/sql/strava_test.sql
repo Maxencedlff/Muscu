@@ -145,11 +145,34 @@ begin
   if (public.strava_export_begin(pg_temp.su('a'), 's1'))->>'status' <> 'go' then raise 'envois de l''ancien athlète gardés'; end if;
   -- Même athlète reconnecté : rien à révoquer
   if public.strava_link_save(pg_temp.su('a'), 5151, 'Max', 'read,activity:write', 'chiffre-factice-5-xxxxxxxxxxxx', now()) is not null then raise 'même athlète : rien à révoquer'; end if;
+  -- Athlète déjà relié à A : B ne peut pas le relier à son compte (lien d'autorisation tiré par B et
+  -- ouvert par la personne de A), A garde sa liaison et ses jetons
+  if pg_temp.serr($q$ select public.strava_link_save('00000000-0000-0000-0000-0000000007b2', 5151, 'Max', 'activity:write', 'chiffre-factice-b-xxxxxxxxxxxx', now()) $q$) <> 'athlete_taken' then
+    raise 'athlète de A relié aussi à B';
+  end if;
+  if (select count(*) from public.strava_link_get(pg_temp.su('b'))) <> 0 then raise 'liaison créée pour B'; end if;
+  if (select tokens from public.strava_link_get(pg_temp.su('a'))) <> 'chiffre-factice-5-xxxxxxxxxxxx' then raise 'jetons de A touchés par B'; end if;
+  -- Même refus quand B est déjà relié à un autre athlète : il garde le sien
+  perform public.strava_link_save(pg_temp.su('b'), 6262, 'Bob', 'activity:write', 'chiffre-factice-b-xxxxxxxxxxxx', now());
+  if pg_temp.serr($q$ select public.strava_link_save('00000000-0000-0000-0000-0000000007b2', 5151, 'Max', 'activity:write', 'chiffre-factice-b2-xxxxxxxxxxx', now()) $q$) <> 'athlete_taken' then
+    raise 'B passe à l''athlète de A';
+  end if;
+  if (select athlete_id from public.strava_link_get(pg_temp.su('b'))) <> 6262 then raise 'liaison de B changée'; end if;
+  perform public.strava_link_delete(pg_temp.su('b'));
+  -- L'index tient même sans la fonction (deux liaisons simultanées)
+  if not exists (select 1 from pg_indexes where schemaname = 'private' and indexname = 'strava_links_athlete' and indexdef like 'CREATE UNIQUE INDEX%(athlete_id)') then
+    raise 'index unique sur athlete_id absent';
+  end if;
   perform public.strava_state_create(pg_temp.su('a'), pg_temp.shash(3));
   -- Déconnexion : les jetons sont rendus pour la révocation
   if public.strava_link_delete(pg_temp.su('a')) is distinct from 'chiffre-factice-5-xxxxxxxxxxxx' then raise 'jetons non rendus à la déconnexion'; end if;
   if public.strava_link_delete(pg_temp.su('a')) is not null then raise 'seconde déconnexion'; end if;
   if public.strava_state_consume(pg_temp.shash(3)) is not null then raise 'état en attente gardé après la déconnexion'; end if;
+  -- Une fois A déconnecté, cet athlète peut être relié à un autre compte
+  if pg_temp.serr($q$ select public.strava_link_save('00000000-0000-0000-0000-0000000007b2', 5151, 'Max', 'activity:write', 'chiffre-factice-b3-xxxxxxxxxxx', now()) $q$) <> 'ok' then
+    raise 'athlète libéré refusé';
+  end if;
+  perform public.strava_link_delete(pg_temp.su('b'));
 
   -- Limites : 10 débuts de liaison par heure, 30 envois par 24 h
   for i in 1..10 loop perform public.strava_state_create(pg_temp.su('c'), pg_temp.shash(100 + i)); end loop;

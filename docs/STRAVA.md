@@ -28,7 +28,10 @@ Documentation Strava lue le 31/10/2026 :
 
 Séance envoyable (`stravaExportable`) : terminée dans l'app (durée mesurée d'au moins une minute), au
 moins une série faite (hors échauffement), début il y a moins de 400 jours. Jamais une sortie lue dans
-Santé (`hk:…`), jamais une séance passée saisie à la main (pas de durée ni d'heure réelles).
+Santé (`hk:…`), jamais une séance passée saisie à la main (pas de durée ni d'heure réelles), jamais une
+séance importée de Hevy ou Strong (`isImportedEntry`, programmes `u_hevy` / `u_strong` de
+`js/data/import-csv.js`) : sa `date` est l'heure de DÉBUT lue dans le fichier (dans l'app, c'est la fin),
+elle partirait donc avec une heure d'avance, et elle est souvent déjà sur Strava par Hevy ou Strong.
 
 ## Ce qui part vers Strava
 
@@ -71,7 +74,7 @@ virtuels ; une séance en salle est `Run` ou `Ride` avec `trainer`.
 ```
 App (js/data/strava.js, js/features/strava-ui.js)
   ├─ rpc strava_status()                     → { connected, athlete_name, can_write, exports }
-  ├─ functions.invoke('strava-connect')       → { url }  → window.open(url) : Safari
+  ├─ functions.invoke('strava-connect')       → { url }  → Native.openOutside(url) : Safari
   ├─ functions.invoke('strava-export', corps) → { ok, activity_id }
   └─ functions.invoke('strava-disconnect')    → { ok, revoked }
 
@@ -83,7 +86,12 @@ Safari → strava.com/oauth/authorize → GET …/functions/v1/strava-connect?co
   (AES-GCM 256, `_shared/strava-crypto.js`, clé `STRAVA_TOKEN_KEY`, identifiant du compte en données
   associées) avant d'entrer en base. Une copie de la base seule ne donne aucun accès Strava.
 - **État OAuth** : 32 octets aléatoires, empreinte SHA-256 seule en base, 10 minutes, usage unique.
-  C'est lui qui désigne le compte au retour (le navigateur n'a pas le jeton de session de l'app).
+  C'est lui qui désigne le compte au retour (le navigateur n'a pas le jeton de session de l'app) : voir
+  « Liaison et CSRF » plus bas.
+- **Un athlète Strava, un seul compte MDLF** : index unique `strava_links_athlete` ; `strava_link_save`
+  répond `athlete_taken` si l'athlète est relié à un autre compte, la page de retour affiche `#deja`.
+  Les jetons reçus sont alors oubliés **sans être révoqués** : chez Strava, il n'y a qu'un accord par
+  athlète et par application, le révoquer couperait aussi l'accès du compte qui détient la liaison.
 - **Renouvellement** côté serveur (`_shared/strava.ts`, `stravaAccess`) : 5 minutes avant
   l'expiration (jeton d'accès d'environ 6 h). Strava change le jeton de renouvellement à chaque fois
   et invalide l'ancien aussitôt : le dernier reçu est réenregistré ; si deux envois renouvellent en
@@ -92,10 +100,41 @@ Safari → strava.com/oauth/authorize → GET …/functions/v1/strava-connect?co
   « Strava n'est plus relié ».
 - **Double envoi** : `strava_export_begin` réserve la séance (verrou par compte) ; un second toucher
   pendant l'envoi répond `busy`, une séance déjà envoyée renvoie son activité (`already`).
-- **Pas de schéma d'URL natif** : la page d'autorisation s'ouvre dans Safari (`window.open`, comme
-  les mentions légales) et l'app relit l'état quand elle revient au premier plan. **Aucune build
-  nécessaire.** Amélioration possible plus tard (build) : `ASWebAuthenticationSession` ou un schéma
+- **Pas de schéma d'URL natif** : la page d'autorisation s'ouvre dans Safari et l'app relit l'état
+  quand elle revient au premier plan. **Aucune build nécessaire.** Ouverture par
+  `Native.openOutside(url)` (`js/platform/native.js`), jamais `window.open` : l'adresse n'arrive
+  qu'après un appel réseau, le geste du toucher est alors terminé, et WKWebView refuse `window.open`
+  sans geste (`javaScriptCanOpenWindowsAutomatically`, que Capacitor laisse à `false` ; WebKit bloquait
+  aussi `window.open` dans un `fetch().then()`, bug 302803, corrigé fin 2025, alors que l'app vise
+  iOS 16.4). Dans l'app, `openOutside` fait `location.assign(url)` : Capacitor annule cette navigation
+  vers un autre domaine et la confie à Safari (`WebViewDelegationHandler`, `decidePolicyFor` :
+  `UIApplication.shared.open`), sans condition de geste ; l'app reste sur son écran. Même chose pour
+  « View on Strava » et « Ouvrir Strava » (après la feuille de confirmation). Amélioration possible plus tard (build) : `ASWebAuthenticationSession` ou un schéma
   `mdlf://` pour revenir dans l'app sans toucher « ◀ MDLF Training ».
+
+### Liaison et CSRF (limite connue)
+
+Au retour de Strava, Safari n'a pas la session de l'app : c'est l'état seul qui désigne le compte MDLF.
+Rien ne lie donc cet état au téléphone qui l'a tiré (CSRF OAuth, RFC 9700 §2.1 et §4.7). Scénario : une
+personne malveillante tire un lien d'autorisation avec SON compte (POST `strava-connect`, valable 10
+minutes) et l'envoie à quelqu'un ; si ce quelqu'un l'ouvre et accepte, son Strava est relié au compte de
+la personne malveillante, qui peut alors publier des activités sur son fil (nom et description choisis)
+et voit son prénom.
+
+Ce qui le limite aujourd'hui, sans build :
+
+1. `approval_prompt=force` : Strava montre **toujours** son écran d'accord (« MDLF Training veut créer
+   des activités »). Avec `auto`, une personne ayant déjà autorisé MDLF Training ne verrait rien et le
+   lien relierait en un seul toucher (documentation Strava : « the authorization prompt is skipped if
+   the user has already authorized the app »). Testé par `tests/unit/strava-server.mjs`.
+2. Un athlète n'est relié qu'à un seul compte (`athlete_taken`, `#deja`) : quelqu'un qui a déjà relié
+   son Strava à son propre compte ne peut plus être relié à un autre, même en acceptant.
+
+Risque restant : une personne qui n'a pas relié Strava, reçoit le lien et **accepte** l'écran de
+Strava. La vraie correction demande une build : `ASWebAuthenticationSession` (ou un lien universel)
+avec un schéma de rappel capté par l'app ; Strava renvoie `code` et `state` à l'app, qui les envoie à
+une fonction authentifiée par son JWT, et le serveur vérifie que l'état appartient à ce compte
+(`state.user_id = auth.uid()`). À faire sur une branche « build ».
 
 ### Serveur
 
@@ -112,6 +151,8 @@ Safari → strava.com/oauth/authorize → GET …/functions/v1/strava-connect?co
 - Fonctions Edge (`verify_jwt = false`, jeton vérifié dans le code comme les autres) :
   `strava-connect` (POST : début ; GET : retour de Strava), `strava-export`, `strava-disconnect`.
   `delete-account` révoque aussi l'accès Strava avant de supprimer le compte.
+- Retour de Strava (ancre de `web-public/strava.html`) : `#ok`, `#refuse`, `#droits`, `#deja`
+  (athlète relié à un autre compte), `#expire`, `#erreur`.
 - Erreurs (`error` du corps) : `auth` 401, `invalid` 400, `not_connected` 409, `busy` 409, `scope` 403,
   `rate_limited` 429, `strava_busy` 503 (quota de Strava), `strava_down` 503, `not_configured` 503,
   `strava` 502, `server` 500. Textes dans `STRAVA_ERROR_TEXT`.
@@ -120,14 +161,20 @@ Safari → strava.com/oauth/authorize → GET …/functions/v1/strava-connect?co
 
 - `tests/unit/strava-server.mjs` : adresse d'autorisation, droits accordés, jetons reçus,
   renouvellement, identifiant d'activité (jamais arrondi), validation de l'envoi, chiffrement
-  (aller-retour, autre compte, altération, autre clé), état OAuth.
+  (aller-retour, autre compte, altération, autre clé), état OAuth, `approval_prompt=force`, chaque
+  résultat du retour présent sur `web-public/strava.html`.
 - `tests/unit/strava.mjs` : séance envoyable, type d'activité, description (ni notes ni poids),
-  corps accepté par la validation du serveur, état nettoyé, cache par compte.
+  corps accepté par la validation du serveur, état nettoyé, cache par compte, séances importées de
+  Hevy ou Strong refusées (jusqu'à `applyImport`), `Native.openOutside` (navigation dans l'app, nouvel
+  onglet ailleurs, jamais une adresse non https).
 - `tests/sql/strava_test.sql` : anon et client sans accès aux tables ni aux RPC serveur, état sans
-  jeton, usage unique de l'état, changement d'athlète, déconnexion complète, limites, cascade à la
+  jeton, usage unique de l'état, changement d'athlète, athlète déjà relié à un autre compte
+  (`athlete_taken`, index unique), déconnexion complète, limites, cascade à la
   suppression du compte. `tests/sql/strava_rollback_check.sh` : retour arrière (deux fois) puis tous
   les autres tests.
-- `tests/test_strava.py` : écrans dans l'app iOS simulée (Strava simulé par `tests/fake_account.py`).
+- `tests/test_strava.py` : écrans dans l'app iOS simulée (Strava simulé par `tests/fake_account.py`) ;
+  les liens vers Strava passent par `Native.openOutside`, jamais `window.open`. Que Safari s'ouvre
+  vraiment ne se vérifie que sur un iPhone (liste plus bas).
 
 Les fonctions Edge (TypeScript, Deno) ne sont pas lancées par les tests : leur logique pure l'est ;
 le reste est à essayer une fois déployé (liste plus bas).
@@ -187,6 +234,12 @@ Strava à nouveau.
 
 - Relier : Safari s'ouvre, autoriser, page « Strava est relié », retour dans l'app : « Compte Strava : … ».
 - Refuser, puis décocher « Créer des activités » : pages `#refuse` et `#droits`, rien de relié.
+- L'écran d'accord de Strava s'affiche **à chaque** liaison, même après une première autorisation
+  (`approval_prompt=force`).
+- Un toucher sur « Connect with Strava » ouvre bien Safari (et pas seulement la consigne) ; idem
+  « View on Strava » et « Ouvrir Strava » après une déconnexion non confirmée.
+- Relier le même Strava depuis un second compte MDLF de test : page `#deja`, le premier compte reste
+  relié et peut toujours envoyer.
 - Envoyer une séance de musculation, une course sur tapis, une sortie vélo : type, durée, distance,
   description corrects sur Strava ; « View on Strava » ouvre l'activité.
 - Double toucher sur « Envoyer » : une seule activité.
@@ -206,7 +259,10 @@ un tiers à la demande de la personne : vérifier la déclaration « Données ut
 1. Envoi **manuel** seulement (un toucher par séance), pas d'envoi automatique : plus simple et plus
    sûr (pas d'envoi par surprise, pas de doublon avec Santé si la personne relie aussi Santé à Strava).
 2. **Notes jamais envoyées** : souvent personnelles (douleurs, ressenti).
-3. Séances passées saisies à la main **non envoyables** : pas d'heure ni de durée réelles.
+3. Séances passées saisies à la main **non envoyables** : pas d'heure ni de durée réelles. Séances
+   importées de Hevy ou Strong non plus (heure de début, souvent déjà sur Strava). Choisi plutôt qu'un
+   marqueur « terminée dans l'app » posé à la fin de séance : un marqueur rendrait non envoyables
+   toutes les séances faites avant cette version.
 4. Droit demandé : `activity:write` seul (Strava montre la plus petite demande possible).
 5. Page web `/oauth/authorize` dans Safari plutôt que l'app Strava (`strava://oauth/mobile/authorize`,
    qui demanderait `LSApplicationQueriesSchemes` et un schéma de retour natifs, donc une build).

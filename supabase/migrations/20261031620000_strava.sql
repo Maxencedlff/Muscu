@@ -27,7 +27,8 @@
 --    pendant l'envoi répond busy, une séance déjà envoyée répond done avec son activité.
 --  - Suppression du compte : tout part en cascade avec auth.users (la fonction delete-account révoque
 --    d'abord l'accès chez Strava, au mieux).
---  - Erreurs lisibles (message exact, errcode P0001) : not_connected, rate_limited, invalid.
+--  - Un athlète Strava n'est relié qu'à un seul compte MDLF (index unique, erreur athlete_taken).
+--  - Erreurs lisibles (message exact, errcode P0001) : not_connected, rate_limited, invalid, athlete_taken.
 --
 --  Retour arrière : supabase/rollback/20261031620000_strava_down.sql.
 -- ═══════════════════════════════════════════════════════════
@@ -42,6 +43,10 @@ create table private.strava_links (
   connected_at timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
+-- Un compte Strava n'est relié qu'à un seul compte MDLF (strava_link_save : athlete_taken). Sans cela, un
+-- lien d'autorisation tiré par un autre compte et ouvert par la personne relierait son Strava à ce compte
+-- aussi (docs/STRAVA.md, « Liaison et CSRF »), et les deux comptes se couperaient l'accès l'un l'autre.
+create unique index strava_links_athlete on private.strava_links (athlete_id);
 
 create table private.strava_states (
   state_hash text primary key check (state_hash ~ '^[0-9a-f]{64}$'),
@@ -121,7 +126,8 @@ $$;
 
 -- Liaison enregistrée (nouvelle ou remplacée). Renvoie les jetons chiffrés d'une liaison PRÉCÉDENTE
 -- à un autre athlète (la fonction Edge les révoque), null sinon. Changement d'athlète : les envois
--- notés pour l'ancien sont oubliés.
+-- notés pour l'ancien sont oubliés. Athlète déjà relié à un autre compte : athlete_taken, rien n'est
+-- changé (l'index unique strava_links_athlete tient aussi deux liaisons simultanées).
 create function public.strava_link_save(p_user uuid, p_athlete_id bigint, p_athlete_name text, p_scope text,
                                         p_tokens text, p_expires_at timestamptz) returns text
   language plpgsql security definer set search_path = '' as
@@ -129,15 +135,23 @@ $$
 declare old private.strava_links;
 begin
   perform pg_advisory_xact_lock(hashtextextended('strava:' || p_user::text, 0));
+  if exists (select 1 from private.strava_links l where l.athlete_id = p_athlete_id and l.user_id <> p_user) then
+    raise exception 'athlete_taken' using errcode = 'P0001';
+  end if;
   select * into old from private.strava_links l where l.user_id = p_user;
+  begin
+    insert into private.strava_links (user_id, athlete_id, athlete_name, scope, tokens, expires_at)
+      values (p_user, p_athlete_id, nullif(left(btrim(coalesce(p_athlete_name, '')), 40), ''), left(coalesce(p_scope, ''), 200), p_tokens, p_expires_at)
+    on conflict (user_id) do update set
+      athlete_id = excluded.athlete_id, athlete_name = excluded.athlete_name, scope = excluded.scope,
+      tokens = excluded.tokens, expires_at = excluded.expires_at, connected_at = now(), updated_at = now();
+  exception when unique_violation then
+    -- Même athlète relié au même moment par un autre compte (verrou par compte : pas par athlète)
+    raise exception 'athlete_taken' using errcode = 'P0001';
+  end;
   if old.user_id is not null and old.athlete_id <> p_athlete_id then
     delete from private.strava_exports e where e.user_id = p_user;
   end if;
-  insert into private.strava_links (user_id, athlete_id, athlete_name, scope, tokens, expires_at)
-    values (p_user, p_athlete_id, nullif(left(btrim(coalesce(p_athlete_name, '')), 40), ''), left(coalesce(p_scope, ''), 200), p_tokens, p_expires_at)
-  on conflict (user_id) do update set
-    athlete_id = excluded.athlete_id, athlete_name = excluded.athlete_name, scope = excluded.scope,
-    tokens = excluded.tokens, expires_at = excluded.expires_at, connected_at = now(), updated_at = now();
   return case when old.user_id is not null and old.athlete_id <> p_athlete_id then old.tokens end;
 end
 $$;

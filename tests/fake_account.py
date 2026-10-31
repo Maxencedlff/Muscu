@@ -493,7 +493,7 @@ FAKE_ACCOUNT = r"""
             if (sb.fail.strava === 'offline') throw new TypeError('Failed to fetch');
             if (!sb.session) return fail(401, { error: 'auth' });
             const b = body || {};
-            if (fn === 'strava-connect') { st.starts++; return { data: { url: 'https://www.strava.com/oauth/authorize?client_id=12345&redirect_uri=https%3A%2F%2Fexemple.supabase.co%2Ffunctions%2Fv1%2Fstrava-connect&response_type=code&approval_prompt=auto&scope=activity%3Awrite&state=etat-factice' }, error: null }; }
+            if (fn === 'strava-connect') { st.starts++; return { data: { url: 'https://www.strava.com/oauth/authorize?client_id=12345&redirect_uri=https%3A%2F%2Fexemple.supabase.co%2Ffunctions%2Fv1%2Fstrava-connect&response_type=code&approval_prompt=force&scope=activity%3Awrite&state=etat-factice' }, error: null }; }
             if (fn === 'strava-disconnect') { const was = st.connected; st.connected = false; st.exports = {}; st.name = null; return { data: { ok: true, revoked: !was || !st.revokeFails }, error: null }; }
             // strava-export
             if (typeof b.session_id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(b.session_id) || !SPORTS.includes(b.sport_type)

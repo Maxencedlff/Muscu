@@ -150,7 +150,8 @@ registerActions({
     if (!r.ok) { strava.connecting = false; render(); stravaToast(r); return; }
     strava.connecting = true;
     render();
-    window.open(r.url, '_blank');   // Safari (app iOS) ; nouvel onglet ailleurs
+    // Après un appel réseau : plus de geste en cours, window.open serait bloqué dans l'app (Native.openOutside)
+    Native.openOutside(r.url);
   },
   'strava-export': async (e, el) => {
     const h = (data.history || []).find(x => x.id === el?.dataset.id);
@@ -162,7 +163,7 @@ registerActions({
   },
   'strava-view': (e, el) => {
     const url = stravaActivityUrl(stravaActivityOf(el?.dataset.id));
-    if (url) window.open(url, '_blank');
+    if (url) Native.openOutside(url);
   },
   'strava-disconnect': async () => {
     const ok = await confirmSheet('Déconnecter Strava ?', 'MDLF Training n\'aura plus accès à ton compte Strava. Les activités déjà envoyées restent sur Strava.', 'Déconnecter');
@@ -173,7 +174,7 @@ registerActions({
     // Strava n'a pas confirmé : la liaison est effacée ici, l'accès reste à retirer chez Strava
     const open = await dialog({ title: 'Strava déconnecté', message: 'Strava n\'a pas répondu. Pour être sûr que l\'accès est retiré, ouvre tes applications autorisées sur Strava et retire MDLF Training.',
       actions: [{ label: 'Plus tard', style: 'cancel' }, { label: 'Ouvrir Strava', value: true, style: 'preferred' }] });
-    if (open === true) window.open(STRAVA_APPS_URL, '_blank');
+    if (open === true) Native.openOutside(STRAVA_APPS_URL);   // après la feuille : plus de geste en cours
   },
 });
 
