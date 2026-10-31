@@ -2,18 +2,22 @@
 //  Relecture de la séance d'un autre (coach : un élève ; Amis : un ami), logique pure
 //  Toutes les comparaisons se font avec les SEULES séances de cette personne reçues du serveur
 //  (lignes { id, doneAt, s } de coachSessions ou du fil), jamais avec data.history, et jamais avec le
-//  poids du corps de la personne qui regarde : currentBodyKg() / entryBodyKg() donneraient le sien.
+//  poids du corps de la personne qui regarde : currentBodyKg() / entryBodyKg() donneraient le sien. Le poids
+//  de la personne relue ne compte que s'il vient avec sa séance (s.bodyKg : un élève qui partage son poids
+//  avec son coach, js/data/coach-share.js) ; jamais dans le fil des amis.
 //  Affichage : renderCoachSession (js/features/coach-ui.js), renderSocialSession (js/features/social-ui.js).
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
 // ── Volume ──────────────────────────────────────────────────
-// Règle affichée au coach : charge notée × reps (exVolume, js/data/store.js). Le serveur n'envoyant pas le
-// marquage warmup (docs/SEANCE_OUTILS.md), l'échauffement de l'autre y est compris tant qu'il ne l'enverra pas.
+// Règle affichée au coach : charge notée × reps (exVolume, js/data/store.js), sans l'échauffement : le serveur
+// envoie le marquage warmup depuis la migration 20261031100000_records_series.sql (workSets l'écarte).
 // Poids du corps inconnu (bodyKg null) : au poids du corps seul le lest compte, une aide compte 0.
-// Le poids de l'autre n'est pas envoyé (liste blanche du serveur) et le nôtre ne doit jamais servir.
-function reviewExVolume(ex) { return exVolume(ex, ex.sets, null); }
-function reviewVolume(exercises) { return sessionVolume(exercises || [], null); }
+// bodyKg : celui de la personne relue, reçu avec sa séance (partage avec le coach), jamais le nôtre.
+function reviewExVolume(ex, bodyKg = null) { return exVolume(ex, ex.sets, bodyKg || null); }
+function reviewVolume(exercises, bodyKg = null) { return sessionVolume(exercises || [], bodyKg || null); }
+// Poids du corps reçu avec une séance relue, ou null
+function reviewBodyKg(s) { return Number.isFinite(s?.bodyKg) && s.bodyKg >= 25 && s.bodyKg <= 300 ? s.bodyKg : null; }
 
 // Écart en % arrondi à l'unité : 'same' de −3 % à +3 % (affiché « = »), sinon 'up' ou 'down' ; null sans référence
 const VOLUME_SAME_PCT = 3;
@@ -63,8 +67,7 @@ function prevExercise(ex, row, rows) {
   }
   return null;
 }
-// Séries faites : reps notées
-// (le serveur n'envoie pas warmup : chez un autre, l'échauffement compte comme du travail, docs/SEANCE_OUTILS.md)
+// Séries de travail faites : reps notées, sans l'échauffement (warmup, envoyé par le serveur)
 function doneSets(ex) { return workSets(ex?.sets).filter(s => (parseInt(s.reps) || 0) > 0); }
 
 // ── Flèche d'un exercice ────────────────────────────────────
@@ -90,11 +93,15 @@ function exerciseTrend(ex, prevEx) {
 }
 
 // ── Records ─────────────────────────────────────────────────
-// Records battus (charge, lest ou reps à charge égale ; jamais le 1RM estimé, imprécis à 12 reps), au plus
-// `max`, avec l'ancienne valeur : mêmes règles que le bilan (historyBaseline : même programme, même séance).
-// Renvoie [{ ex, label, s, before: { w, r, weight, reps } }], charge d'abord.
-const REVIEW_RECORDS = ['Record charge', 'Record lest', 'Record reps'];
+// Records notés par son app à l'enregistrement (s.records, js/data/records.js : sessionRecords, avec tout
+// son historique), les plus marquants d'abord, au plus `max`. Séance d'une version d'avant (sans records
+// notés) : recalculés sur ses seules séances reçues (historyBaseline : même programme, même séance ;
+// charge, lest ou reps à charge égale, jamais le 1RM estimé), justes seulement si toutes sont chargées.
+// Renvoie [{ ex, kind, before, after, w? , d? }] (format noté).
+const LEGACY_KIND = { 'Record charge': 'charge', 'Record lest': 'lest', 'Record reps': 'reps' };
 function reviewRecords(row, rows, max = 3) {
+  const byRank = list => list.slice().sort((a, b) => NOTED_RANK[b.kind] - NOTED_RANK[a.kind]).slice(0, max);
+  if (Array.isArray(row.s.records)) return byRank(row.s.records);
   const entry = r => ({ id: r.id, date: r.doneAt, programme: r.s.programme, category: r.s.category, exercises: r.s.exercises });
   const me = entry(row);
   const base = historyBaseline(me, rowsBefore(row, rows).map(entry));
@@ -102,11 +109,15 @@ function reviewRecords(row, rows, max = 3) {
   (row.s.exercises || []).forEach(ex => {
     const b = base[recordKey(ex)];
     const rec = b && exerciseRecord(ex, b);
-    if (!rec || !REVIEW_RECORDS.includes(rec.label)) return;
-    out.push({ ex, label: rec.label, s: rec.s, before: { w: b.prW, r: b.prR, weight: String(b.prW), reps: String(b.prR) } });
+    const kind = rec && LEGACY_KIND[rec.label];
+    if (!kind) return;
+    const w = parseFloat(rec.s.weight) || 0, r = parseInt(rec.s.reps) || 0;
+    out.push(kind === 'reps' ? { ex: ex.name, kind, before: b.prR, after: r, w } : { ex: ex.name, kind, before: b.prW, after: w });
   });
-  return out.sort((a, b) => RECORD_RANK[b.label] - RECORD_RANK[a.label]).slice(0, max);
+  return byRank(out);
 }
+// Records de la séance sûrs ? Notés par son app : oui ; recalculés : seulement si toutes ses séances sont là
+function reviewRecordsSure(row, complete) { return Array.isArray(row.s.records) || !!complete; }
 
 // ── Notes : mots de douleur ─────────────────────────────────
 // Mise en avant seulement (encadré orange), aucun diagnostic. Vocabulaire courant de la douleur et de la
@@ -126,20 +137,26 @@ function painInNotes(text) {
 
 // ── Synthèse d'une séance ───────────────────────────────────
 // row : la séance relue ; rows : les autres séances reçues de la même personne (elle-même tolérée).
-// Renvoie { volume, prev, volDelta, durGap, exercises: [{ ex, volume, reps, prev, trend }], records }
+// Renvoie { volume, bodyKg, prev, volDelta, durGap, exercises: [{ ex, volume, reps, prev, trend }], records }.
+// Poids du corps connu (bodyKg) : compté dans le volume. Écart avec la séance d'avant : sous une même règle
+// pour les deux (chacune son poids si les deux en ont un, sinon aucune), jamais un mélange qui gonflerait l'écart.
 function sessionReview(row, rows) {
   const s = row.s;
   const prev = prevSameSession(row, rows);
-  const volume = reviewVolume(s.exercises);
+  const bodyKg = reviewBodyKg(s);
+  const volume = reviewVolume(s.exercises, bodyKg);
+  const prevKg = prev ? reviewBodyKg(prev.s) : null;
+  const both = bodyKg && prevKg;
   return {
     volume,
+    bodyKg,
     prev,
-    volDelta: prev ? volumeDelta(volume, reviewVolume(prev.s.exercises)) : null,
+    volDelta: prev ? volumeDelta(both ? volume : reviewVolume(s.exercises), reviewVolume(prev.s.exercises, both ? prevKg : null)) : null,
     durGap: prev ? durationDelta(s.duration, prev.s.duration) : null,
     exercises: s.exercises.map(ex => {
       const p = prevExercise(ex, row, rows);
-      return { ex, volume: reviewExVolume(ex), reps: doneSets(ex).reduce((a, x) => a + (parseInt(x.reps) || 0), 0), prev: p, trend: p ? exerciseTrend(ex, p.ex) : null };
+      return { ex, volume: reviewExVolume(ex, bodyKg), reps: doneSets(ex).reduce((a, x) => a + (parseInt(x.reps) || 0), 0), prev: p, trend: p ? exerciseTrend(ex, p.ex) : null };
     }),
-    records: reviewRecords(row, rows),
+    records: reviewRecords(row, rows, 5),
   };
 }

@@ -16,16 +16,34 @@
 //    autres : l'app l'affiche comme une demande envoyée, sans rien de particulier.
 //  - Fil paginé par curseur complet (done_at, owner, id de la dernière carte), paramètres nommés.
 //  - Erreurs : message court en snake_case du serveur (socialErrorKind) → SOCIAL_ERROR_TEXT.
+//  - Réactions (liste fermée REACTIONS, comme le serveur : rien à modérer) : une par personne et par
+//    séance, posée, changée ou retirée par set_reaction, affichée tout de suite et corrigée par la
+//    réponse. Mes séances : réactions reçues (my_reactions, Historique), qui a réagi
+//    (session_reactions, seulement les personnes que j'ai acceptées), activité de Mon profil
+//    (my_activity), vue côté serveur (mark_activity_seen : la pastille repart de zéro), et mes séances
+//    telles que mes abonnés les voient (my_shown_sessions, fil SOCIAL_ME).
 //  - Résultats : { ok: true, data } ou { ok: false, kind }. L'écran (js/features/social-ui.js)
 //    s'abonne par onSocialChange.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const SOCIAL_CACHE_KEY  = 'mdlf_social';   // { userId, enabled, badge } du dernier état lu
+const SOCIAL_CACHE_KEY  = 'mdlf_social';   // { userId, enabled, badge, activityNew } du dernier état lu
 const SOCIAL_QUERY_MIN  = 2;               // recherche : 2 caractères au moins (comme le serveur)
 const SOCIAL_PAGE       = 20;              // séances par page du fil (comme le serveur)
 const SOCIAL_REFRESH_MS = 30_000;          // retour au premier plan : une relecture toutes les 30 s au plus
 const REPORT_DETAILS_MAX = 500;
+const SOCIAL_ME = '@me';                   // clé du fil de mes séances telles que les autres les voient
+const ACTIVITY_PAGE = 50;                  // lignes par page de l'activité (comme le serveur)
+// Réactions, dans l'ordre du choix (liste fermée, la même que la contrainte bravos_kind du serveur).
+// La première est celle d'un simple toucher.
+const REACTIONS = [
+  { kind: 'clap', emoji: '👏', label: 'Applaudissements' },
+  { kind: 'fire', emoji: '🔥', label: 'Chaud' },
+  { kind: 'strong', emoji: '💪', label: 'Costaud' },
+  { kind: 'trophy', emoji: '🏆', label: 'Record' },
+  { kind: 'wow', emoji: '😮', label: 'Impressionnant' },
+];
+const REACTION_DEFAULT = REACTIONS[0].kind;
 // Motifs de la fonction report, dans l'ordre de la feuille « Signaler »
 const REPORT_REASONS = [
   { reason: 'spam', label: 'Spam ou publicité' },
@@ -37,10 +55,11 @@ const REPORT_REASONS = [
 ];
 
 // state : dernier social_state nettoyé (null : pas encore lu) ; feeds : fil ('') et séances d'un profil
-// (clé : identifiant) ; people : pseudo et avatar connus par identifiant (écran d'un profil) ; bravos :
-// bravos reçus sur mes séances (my_bravos), par identifiant de séance
+// (clé : identifiant ; SOCIAL_ME : les miennes) ; people : pseudo et avatar connus par identifiant ;
+// reactions : réactions reçues sur mes séances (my_reactions), par identifiant de séance ; who : qui a
+// réagi à une de mes séances (session_reactions) ; activity : activité de Mon profil (my_activity)
 const social = { userId: null, state: null, cached: null, loading: false, error: null, loadedAt: 0,
-  feeds: {}, people: {}, bravos: {}, bravosAt: 0 };
+  feeds: {}, people: {}, reactions: {}, reactionsAt: 0, who: {}, activity: null, seenAt: 0 };
 const socialListeners = [];
 let socialSeq = 0;   // +1 à chaque changement de compte : une réponse arrivée après n'écrit plus rien
 
@@ -58,15 +77,55 @@ function cleanPerson(p) {
 }
 function cleanPeople(list) { return Array.isArray(list) ? list.map(cleanPerson).filter(Boolean) : []; }
 
-// social_state() nettoyé : { enabled, username, avatar, pending_in, following, followers, requested, blocked, badge }
+// social_state() nettoyé : { enabled, username, avatar, pending_in, following, followers, requested, blocked,
+// badge, activity_new, shown_sessions } (shown_sessions : null si le serveur ne le donne pas encore)
 function cleanSocialState(raw) {
   const r = raw && typeof raw === 'object' ? raw : {};
   const pendingIn = cleanPeople(r.pending_in);
-  const badge = Number.isInteger(r.badge) && r.badge >= 0 ? r.badge : pendingIn.length;
+  const nat = v => (Number.isInteger(v) && v >= 0 ? v : null);
   return { enabled: r.enabled === true, username: typeof r.username === 'string' ? r.username : null, avatar: validAvatar(r.avatar),
     pending_in: pendingIn, following: cleanPeople(r.following), followers: cleanPeople(r.followers),
-    requested: cleanPeople(r.requested), blocked: cleanPeople(r.blocked), badge };
+    requested: cleanPeople(r.requested), blocked: cleanPeople(r.blocked), badge: nat(r.badge) ?? pendingIn.length,
+    activity_new: nat(r.activity_new) ?? 0, shown_sessions: nat(r.shown_sessions) };
 }
+
+// ── Réactions (logique pure) ──
+
+function reactionOf(kind) { return REACTIONS.find(r => r.kind === kind) || null; }
+function validReaction(kind) { return reactionOf(kind) ? kind : null; }
+// Comptes par sorte reçus du serveur : sortes connues et entiers positifs seulement
+function cleanReactionCounts(raw) {
+  const out = {};
+  if (raw && typeof raw === 'object') for (const r of REACTIONS) if (Number.isInteger(raw[r.kind]) && raw[r.kind] > 0) out[r.kind] = raw[r.kind];
+  return out;
+}
+function reactionTotal(counts) { return Object.values(counts || {}).reduce((a, n) => a + n, 0); }
+// Sortes reçues, la plus fréquente d'abord (égalité : ordre de REACTIONS, comme le serveur) ; max premières
+function reactionsTop(counts, max = REACTIONS.length) {
+  return REACTIONS.filter(r => counts?.[r.kind] > 0)
+    .sort((a, b) => counts[b.kind] - counts[a.kind] || REACTIONS.indexOf(a) - REACTIONS.indexOf(b))
+    .slice(0, max).map(r => r.kind);
+}
+// Résumé court : « 🔥👏 3 », '' sans réaction
+function reactionsSummary(counts, max = 3) {
+  const n = reactionTotal(counts);
+  return n ? `${reactionsTop(counts, max).map(k => reactionOf(k).emoji).join('')} ${n}` : '';
+}
+// Pour VoiceOver : « 3 réactions : 2 Chaud, 1 Applaudissements »
+function reactionsSpoken(counts) {
+  const n = reactionTotal(counts);
+  if (!n) return 'Aucune réaction';
+  return `${plural(n, 'réaction', 'réactions')} : ${reactionsTop(counts).map(k => `${counts[k]} ${reactionOf(k).label}`).join(', ')}`;
+}
+// Ma réaction remplacée par kind (null : retirée) : nouveaux comptes, sans toucher à ceux d'entrée
+function withMyReaction(counts, mine, kind) {
+  const out = { ...counts };
+  if (mine && out[mine]) { out[mine] -= 1; if (!out[mine]) delete out[mine]; }
+  if (kind) out[kind] = (out[kind] || 0) + 1;
+  return out;
+}
+// Ce que fait un toucher sur le bouton : réaction par défaut, ou retirer la mienne
+function tapReaction(mine) { return mine ? null : REACTION_DEFAULT; }
 
 // Séance d'un autre, telle que la liste blanche du serveur la décrit : { date, duration, programme,
 // category, label, exercises: [{ name, measure, ss, sets: [{ weight, reps, dist }] }] }. Rien d'autre n'est
@@ -83,19 +142,26 @@ function cleanPublicSession(s) {
       ...(['reps', 'time', 'cardio'].includes(e.measure) ? { measure: e.measure } : pinnedLegacyMeasure(e.name)),
       ...(ssId(e) ? { ss: e.ss } : {}),
       sets: (Array.isArray(e.sets) ? e.sets : []).slice(0, 50).filter(st => st && typeof st === 'object')
-        .map(st => ({ weight: numStr(st.weight), reps: numStr(st.reps), ...(numStr(st.dist) ? { dist: numStr(st.dist) } : {}) })),
+        .map(st => ({ weight: numStr(st.weight), reps: numStr(st.reps), ...(numStr(st.dist) ? { dist: numStr(st.dist) } : {}),
+          // Échauffement (true seulement) et RIR (entier 0 à 4), envoyés depuis la migration 20261031100000_records_series.sql
+          ...(st.warmup === true ? { warmup: true } : {}), ...(typeof st.rir === 'number' && cleanRir(st.rir) !== null ? { rir: cleanRir(st.rir) } : {}) })),
     }));
+  // Records notés par son app (js/data/records.js) ; absents : séance d'une version d'avant, recalculés
+  const records = cleanNotedRecords(o.records);
   return {
     date: Number.isFinite(o.date) ? o.date : null,
     duration: Number.isFinite(o.duration) && o.duration > 0 ? o.duration : null,
     programme: str(o.programme, 40), category: str(o.category, 40),
     label: str(o.label, 60).trim() || 'Séance', exercises,
+    ...(records ? { records } : {}),
   };
 }
 
 function pinnedLegacyMeasure(name) { const ex = { name }; pinLegacyCardioWords(ex); return ex.measure ? { measure: ex.measure } : {}; }
 
-// Ligne de feed() : { owner, username, avatar, id, doneAt, s, bravos, mine }, null si inutilisable
+// Ligne de feed() ou de my_shown_sessions() : { owner, username, avatar, id, doneAt, s, reactions, my,
+// bravos, mine }, null si inutilisable. reactions : comptes par sorte, my : ma réaction (ou null).
+// Serveur d'avant les réactions (bravos et my_bravo seulement) : tout est compté en 👏.
 function cleanFeedRow(r) {
   if (!r || typeof r !== 'object' || typeof r.owner !== 'string' || typeof r.id !== 'string') return null;
   const p = cleanPerson({ user_id: r.owner, username: r.username, avatar: r.avatar });
@@ -103,8 +169,60 @@ function cleanFeedRow(r) {
   const s = cleanPublicSession(r.s);
   const doneAt = Number.isFinite(Number(r.done_at)) ? Number(r.done_at) : s.date;
   if (!Number.isFinite(doneAt)) return null;
-  return { owner: r.owner, username: p.username, avatar: p.avatar, id: r.id, doneAt, s,
-    bravos: Number.isInteger(r.bravos) && r.bravos > 0 ? r.bravos : 0, mine: r.my_bravo === true };
+  const bravos = Number.isInteger(r.bravos) && r.bravos > 0 ? r.bravos : 0;
+  const reactions = r.reactions && typeof r.reactions === 'object' ? cleanReactionCounts(r.reactions) : (bravos ? { [REACTION_DEFAULT]: bravos } : {});
+  const my = 'my_reaction' in r ? validReaction(r.my_reaction) : (r.my_bravo === true ? REACTION_DEFAULT : null);
+  return { owner: r.owner, username: p.username, avatar: p.avatar, id: r.id, doneAt, s, reactions, my,
+    bravos: reactionTotal(reactions), mine: !!my };
+}
+
+// Personne qui a réagi à ma séance (session_reactions) : { user_id, username, avatar, kind, at }
+function cleanWhoRow(r) {
+  const p = cleanPerson(r);
+  const kind = validReaction(r?.kind);
+  return p && kind ? { user_id: p.user_id, username: p.username, avatar: p.avatar, kind, at: Date.parse(r.at) || null } : null;
+}
+
+// Ligne de l'activité (my_activity) : { kind, user_id, username, avatar, at, reaction, sessionId, label,
+// sessionAt, isNew, cursor }, null si inutilisable. cursor : { at, key } de la page suivante, at tel que
+// le serveur l'a renvoyé (microsecondes : Date.parse les perdrait et sauterait des lignes) et key =
+// kind:user_id:session_id, la clé de départage de my_activity à date égale
+const ACTIVITY_KINDS = ['reaction', 'follower', 'accepted', 'request'];
+function cleanActivityRow(r) {
+  if (!r || !ACTIVITY_KINDS.includes(r.kind)) return null;
+  const p = cleanPerson(r);
+  const at = Date.parse(r.at);
+  if (!p || !Number.isFinite(at)) return null;
+  const reaction = r.kind === 'reaction' ? validReaction(r.reaction) : null;
+  if (r.kind === 'reaction' && (!reaction || typeof r.session_id !== 'string')) return null;
+  return { kind: r.kind, user_id: p.user_id, username: p.username, avatar: p.avatar, at, reaction,
+    sessionId: r.kind === 'reaction' ? r.session_id : null,
+    label: typeof r.session_label === 'string' ? r.session_label.slice(0, 60) : '',
+    sessionAt: Number.isFinite(Number(r.session_at)) && r.session_at != null ? Number(r.session_at) : null,
+    isNew: r.is_new === true,
+    cursor: { at: String(r.at), key: `${r.kind}:${r.user_id}:${r.kind === 'reaction' ? r.session_id : ''}` } };
+}
+
+// Texte d'une ligne de l'activité, sans le pseudo (affiché en gras devant) : « a réagi 🔥 à ta séance
+// Legs ». sessionLabel : nom de la séance sur cet appareil, s'il est connu (sinon celui du serveur).
+function activityText(row, sessionLabel = '') {
+  if (row.kind === 'reaction') {
+    const name = sessionLabel || row.label;
+    return `a réagi ${reactionOf(row.reaction).emoji} à ta séance${name ? ` ${name}` : ''}`;
+  }
+  return { follower: 'a commencé à te suivre', accepted: 'a accepté ta demande', request: 'veut voir tes séances' }[row.kind];
+}
+
+// « à l'instant », « il y a 5 min », « il y a 2 h », « hier », « il y a 3 j », puis la date
+function fmtAgo(at, now = Date.now()) {
+  const s = Math.max(0, Math.round((now - at) / 1000));
+  if (s < 60) return 'à l\'instant';
+  if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
+  const d = Math.floor(s / 86400);
+  if (d === 1) return 'hier';
+  if (d < 7) return `il y a ${d} j`;
+  return fmtDate(at);
 }
 
 // Recherche : même normalisation que le serveur (minuscules, sans accent, sans @), '' sous 2 caractères
@@ -164,12 +282,14 @@ function socialErrorText(kind) { return SOCIAL_ERROR_TEXT[kind] || SOCIAL_ERROR_
 function readSocialCache(userId) {
   try {
     const c = JSON.parse(localStorage.getItem(SOCIAL_CACHE_KEY));
-    return c && c.userId === userId ? { enabled: c.enabled === true, badge: Number.isInteger(c.badge) ? c.badge : 0 } : null;
+    const n = v => (Number.isInteger(v) && v >= 0 ? v : 0);
+    return c && c.userId === userId ? { enabled: c.enabled === true, badge: n(c.badge), activityNew: n(c.activityNew) } : null;
   } catch { return null; }
 }
 function writeSocialCache() {
   if (!social.userId || !social.state) return;
-  try { localStorage.setItem(SOCIAL_CACHE_KEY, JSON.stringify({ userId: social.userId, enabled: social.state.enabled, badge: social.state.badge })); }
+  const st = social.state;
+  try { localStorage.setItem(SOCIAL_CACHE_KEY, JSON.stringify({ userId: social.userId, enabled: st.enabled, badge: st.badge, activityNew: st.activity_new })); }
   catch { /* cache facultatif */ }
 }
 
@@ -180,10 +300,16 @@ function socialEnabled() { return !!account.user && !!(social.state ? social.sta
 function sessionsVisibleByDefault(d = data) { return d.sessionVisibleDefault !== false; }
 // Une séance qui se termine maintenant naît masquée (hidden: true) : Amis activé et réglage éteint
 function newSessionHidden(d = data) { return socialEnabled() && !sessionsVisibleByDefault(d); }
-// Badge de l'onglet : demandes reçues en attente
-function socialBadge() {
+// Badge de l'onglet : demandes reçues en attente, plus les nouveautés de l'activité (réactions à mes
+// séances, demandes acceptées) jusqu'à l'ouverture de Mon profil
+function socialBadge() { return socialPending() + socialActivityNew(); }
+function socialPending() {
   if (!account.user) return 0;
   return social.state ? (social.state.enabled ? social.state.badge : 0) : (social.cached?.enabled ? social.cached.badge : 0);
+}
+function socialActivityNew() {
+  if (!account.user) return 0;
+  return social.state ? (social.state.enabled ? social.state.activity_new : 0) : (social.cached?.enabled ? social.cached.activityNew : 0);
 }
 
 function rememberPeople(list) {
@@ -195,7 +321,7 @@ function socialPerson(userId) { return social.people[userId] || null; }
 function socialReset(userId) {
   socialSeq++;
   Object.assign(social, { userId, state: null, cached: userId ? readSocialCache(userId) : null, loading: false, error: null, loadedAt: 0,
-    feeds: {}, people: {}, bravos: {}, bravosAt: 0 });
+    feeds: {}, people: {}, reactions: {}, reactionsAt: 0, who: {}, activity: null, seenAt: 0 });
 }
 
 // ── Appels au serveur ───────────────────────────────────────
@@ -213,25 +339,27 @@ async function socialRpc(fn, args) {
   }
 }
 
-// Relit social_state (et les bravos reçus si le social est activé). minAge : pas de relecture si le
+// Relit social_state (et les réactions reçues si le social est activé). minAge : pas de relecture si le
 // dernier état a moins de minAge ms. Renvoie true si l'état a pu être lu.
 async function socialRefresh({ minAge = 0 } = {}) {
   if (!sb || !account.user || social.loading) return false;
   if (minAge && social.state && Date.now() - social.loadedAt < minAge) return true;
   social.loading = true;
-  const seq = socialSeq;
+  const seq = socialSeq, askedAt = Date.now();
   const r = await socialRpc('social_state');
   if (seq !== socialSeq) return false;
   social.loading = false;
   if (!r.ok) { social.error = r.kind; notifySocial(); return false; }
   social.state = cleanSocialState(r.data);
+  // Activité vue pendant la lecture : la réponse, partie avant, ne rallume pas la pastille
+  if (social.seenAt >= askedAt) social.state.activity_new = 0;
   social.error = null;
   social.loadedAt = Date.now();
   const st = social.state;
   rememberPeople([...st.pending_in, ...st.following, ...st.followers, ...st.requested, ...st.blocked]);
   writeSocialCache();
   notifySocial();
-  if (st.enabled) socialLoadMyBravos();
+  if (st.enabled) socialLoadMyReactions();
   return true;
 }
 
@@ -242,7 +370,7 @@ async function socialEnable(ageOk) {
 }
 async function socialDisable() {
   const r = await socialRpc('social_disable');
-  if (r.ok) { social.feeds = {}; await socialRefresh(); }
+  if (r.ok) { social.feeds = {}; social.activity = null; social.who = {}; social.reactions = {}; await socialRefresh(); }
   return r;
 }
 
@@ -280,12 +408,12 @@ async function socialRespond(follower, accept) {
 }
 async function socialRemoveFollower(follower) {
   const r = await socialRpc('remove_follower', { follower });
-  if (r.ok) await socialRefresh();
+  if (r.ok) { forgetPersonActivity(follower); await socialRefresh(); }
   return r;
 }
 async function socialBlock(target) {
   const r = await socialRpc('block_user', { target });
-  if (r.ok) { dropFromFeeds(target); await socialRefresh(); }
+  if (r.ok) { dropFromFeeds(target); forgetPersonActivity(target); await socialRefresh(); }
   return r;
 }
 async function socialUnblock(target) {
@@ -294,9 +422,20 @@ async function socialUnblock(target) {
   return r;
 }
 
+// Abonné retiré ou bloqué : ses réactions ne comptent plus (règle du serveur), retirées sans attendre
+// la relecture ; les comptes de mes séances sont relus
+function forgetPersonActivity(uid) {
+  if (social.activity) social.activity.rows = social.activity.rows.filter(a => a.user_id !== uid);
+  for (const w of Object.values(social.who)) w.rows = w.rows.filter(x => x.user_id !== uid);
+  delete social.feeds[SOCIAL_ME];
+  social.reactionsAt = 0;
+  socialLoadMyReactions();
+}
+
 // ── Fil ─────────────────────────────────────────────────────
 
-// Fil ('') ou séances d'un profil (identifiant) : { rows, end, loading, error, loadedAt, triedAt }
+// Fil (''), séances d'un profil (identifiant) ou les miennes vues par les autres (SOCIAL_ME) :
+// { rows, end, loading, error, loadedAt, triedAt }
 function socialFeed(key = '') {
   return social.feeds[key] ||= { rows: [], end: false, loading: false, error: null, loadedAt: 0 };
 }
@@ -317,9 +456,15 @@ async function socialLoadFeed(key = '', { more = false } = {}) {
   const seq = socialSeq;
   notifySocial();
   const last = more ? f.rows[f.rows.length - 1] : null;
-  const args = last ? { before_at: last.doneAt, before_owner: last.owner, before_id: last.id } : {};
-  if (key) args.only_user = key;
-  const r = await socialRpc('feed', args);
+  let r;
+  if (key === SOCIAL_ME) {
+    // Curseur (done_at, id) : toutes les séances sont à moi
+    r = await socialRpc('my_shown_sessions', last ? { before_at: last.doneAt, before_id: last.id } : {});
+  } else {
+    const args = last ? { before_at: last.doneAt, before_owner: last.owner, before_id: last.id } : {};
+    if (key) args.only_user = key;
+    r = await socialRpc('feed', args);
+  }
   if (seq !== socialSeq) return { ok: false, kind: 'signed_out' };
   f.loading = false;
   if (!r.ok) { f.error = r.kind; notifySocial(); return r; }
@@ -353,33 +498,92 @@ function socialSessionOf(owner, id) {
   return null;
 }
 
-// Bravo donné ou retiré : affiché tout de suite, corrigé par la réponse du serveur (ou annulé)
-async function socialToggleBravo(owner, id) {
+// Ma réaction posée, changée ou retirée (kind null) : affichée tout de suite sur chaque copie de la
+// séance (fil et profil), corrigée par la réponse du serveur, ou annulée s'il refuse
+async function socialSetReaction(owner, id, kind) {
+  kind = kind == null ? null : validReaction(kind);
   const copies = Object.values(social.feeds).map(f => f.rows.find(r => r.owner === owner && r.id === id)).filter(Boolean);
   if (!copies.length) return { ok: false, kind: 'not_found' };
-  const before = { bravos: copies[0].bravos, mine: copies[0].mine };
-  const set = (bravos, mine) => copies.forEach(c => { c.bravos = Math.max(0, bravos); c.mine = mine; });
-  set(before.bravos + (before.mine ? -1 : 1), !before.mine);
+  if (copies[0].my === kind) return { ok: true };
+  const before = { reactions: copies[0].reactions, my: copies[0].my };
+  const set = (reactions, my) => copies.forEach(c => { c.reactions = reactions; c.my = my; c.bravos = reactionTotal(reactions); c.mine = !!my; });
+  set(withMyReaction(before.reactions, before.my, kind), kind);
   notifySocial();
-  const r = await socialRpc('toggle_bravo', { owner, session_id: id });
-  if (!r.ok) { set(before.bravos, before.mine); notifySocial(); return r; }
-  if (Number.isInteger(r.data?.bravos) && typeof r.data?.mine === 'boolean') { set(r.data.bravos, r.data.mine); notifySocial(); }
+  const r = await socialRpc('set_reaction', { owner, session_id: id, kind });
+  if (!r.ok) { set(before.reactions, before.my); notifySocial(); return r; }
+  if (r.data && typeof r.data === 'object' && r.data.reactions) { set(cleanReactionCounts(r.data.reactions), validReaction(r.data.my_reaction)); notifySocial(); }
   return { ok: true };
 }
 
-// Bravos reçus sur mes séances (Historique) ; minAge comme socialRefresh
-async function socialLoadMyBravos({ minAge = 0 } = {}) {
-  if (minAge && Date.now() - social.bravosAt < minAge) return;
-  social.bravosAt = Date.now();
-  const r = await socialRpc('my_bravos');
+// Réactions reçues sur mes séances (Historique) : { total, top, counts } par séance ; minAge comme socialRefresh
+async function socialLoadMyReactions({ minAge = 0 } = {}) {
+  if (minAge && Date.now() - social.reactionsAt < minAge) return;
+  social.reactionsAt = Date.now();
+  const r = await socialRpc('my_reactions');
   if (!r.ok) return;
   const next = {};
-  for (const x of Array.isArray(r.data) ? r.data : []) if (typeof x?.session_id === 'string' && Number.isInteger(x.bravos) && x.bravos > 0) next[x.session_id] = x.bravos;
-  if (JSON.stringify(next) === JSON.stringify(social.bravos)) return;
-  social.bravos = next;
+  for (const x of Array.isArray(r.data) ? r.data : []) {
+    if (typeof x?.session_id !== 'string') continue;
+    const counts = cleanReactionCounts(x.reactions);
+    if (reactionTotal(counts)) next[x.session_id] = { total: reactionTotal(counts), top: reactionsTop(counts, 1)[0], counts };
+  }
+  if (JSON.stringify(next) === JSON.stringify(social.reactions)) return;
+  social.reactions = next;
   notifySocial();
 }
-function myBravos(sessionId) { return social.bravos[sessionId] || 0; }
+function myReactions(sessionId) { return social.reactions[sessionId] || null; }
+
+// Qui a réagi à ma séance : { rows, loading, error, loadedAt } ; relu à chaque ouverture (minAge)
+function sessionWho(sessionId) { return social.who[sessionId] || null; }
+async function socialLoadWho(sessionId, { minAge = 0 } = {}) {
+  const w = social.who[sessionId] ||= { rows: [], loading: false, error: null, loadedAt: 0 };
+  if (w.loading || (minAge && Date.now() - w.loadedAt < minAge)) return;
+  w.loading = true;
+  const seq = socialSeq;
+  const r = await socialRpc('session_reactions', { session_id: sessionId });
+  if (seq !== socialSeq) return;
+  w.loading = false;
+  if (!r.ok) { w.error = r.kind; notifySocial(); return; }
+  w.rows = (Array.isArray(r.data) ? r.data : []).map(cleanWhoRow).filter(Boolean);
+  w.error = null;
+  w.loadedAt = Date.now();
+  rememberPeople(w.rows);
+  notifySocial();
+}
+
+// Activité de Mon profil : { rows, end, loading, error, loadedAt }. Première page (more : false) ou la
+// suivante (après la dernière ligne : son curseur, cleanActivityRow)
+function socialActivity() { return social.activity ||= { rows: [], end: false, loading: false, error: null, loadedAt: 0 }; }
+async function socialLoadActivity({ more = false } = {}) {
+  const a = socialActivity();
+  if (a.loading || (more && a.end)) return;
+  a.loading = true;
+  const seq = socialSeq;
+  notifySocial();
+  const last = more ? a.rows[a.rows.length - 1] : null;
+  const r = await socialRpc('my_activity', last ? { before_at: last.cursor.at, before_key: last.cursor.key } : {});
+  if (seq !== socialSeq) return;
+  a.loading = false;
+  if (!r.ok) { a.error = r.kind; notifySocial(); return; }
+  const rows = (Array.isArray(r.data) ? r.data : []).map(cleanActivityRow).filter(Boolean);
+  rememberPeople(rows);
+  a.rows = [...(more ? a.rows : []), ...rows];
+  a.end = (Array.isArray(r.data) ? r.data.length : 0) < ACTIVITY_PAGE;
+  a.error = null;
+  a.loadedAt = Date.now();
+  notifySocial();
+}
+
+// Activité vue (Mon profil ouvert) : la pastille s'éteint tout de suite, le serveur le note
+async function socialMarkActivitySeen() {
+  if (!socialActivityNew()) return;
+  if (social.state) social.state.activity_new = 0;
+  if (social.cached) social.cached.activityNew = 0;
+  social.seenAt = Date.now();
+  writeSocialCache();
+  notifySocial();
+  await socialRpc('mark_activity_seen');
+}
 
 // ── Signalement (fonction Edge report) ──────────────────────
 

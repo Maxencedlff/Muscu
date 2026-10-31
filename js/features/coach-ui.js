@@ -17,7 +17,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send'];
+const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send', 'coach-share'];
 const COACH_SEND_DRAFT_KEY = 'mdlf_coach_send_draft';   // brouillon de l'écran Envoyer (retour arrière, relance)
 const coachTipClosed = new Set();   // séance en cours : consignes repliées (identifiant d'exercice, '' : programme)
 const coachProgOpen = new Set();    // Mon coach : programmes reçus dont les exercices sont dépliés
@@ -59,13 +59,13 @@ function coachTitle(html) { return `<h2 class="group-title coach-title">${html}<
 function coachRouteTitle(route) {
   const name = routeName(route);
   if (name === 'coach-student') return coachStudent(routeParams(route)[0])?.username || 'Élève';
-  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer' }[name] || null;
+  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-share': 'Partager' }[name] || null;
 }
 
 // ── Cellules : Réglages et onglet Amis ──────────────────────
 
-// Réglages › Amis et coach : la cellule Coach, puis « Séances visibles par défaut » (js/features/social-ui.js,
-// seulement quand Amis est activé)
+// Réglages › Amis et coach : la cellule Coach, « Partager avec mon coach » (élève suivi, js/features/coach-share-ui.js),
+// puis « Séances visibles par défaut » (js/features/social-ui.js, seulement quand Amis est activé)
 function renderCoachSettingsGroup() {
   if (!accountAvailable()) return '';
   const { isCoach, hasCoach } = coachRole();
@@ -77,7 +77,7 @@ function renderCoachSettingsGroup() {
             <span class="cell__body"><span class="cell__title">Coach</span></span>
             <span class="cell__value">${value}</span>
             ${icon('chevron.right', 16)}
-          </button>${socialDefaultVisibleCell()}
+          </button>${coachShareSettingsCell()}${socialDefaultVisibleCell()}
         </div>`;
 }
 
@@ -161,7 +161,7 @@ function renderCoachSettings() {
           <button class="cell cell--nav social-row coach-row" data-action="coach-open-mine">
             <span class="social-row__main">${personAvatar(me)}<span class="social-row__text"><span class="social-row__name">${esc(personName(me))}</span>${sinceText(me) ? `<span class="cell__sub">Depuis le ${esc(sinceText(me))}</span>` : ''}</span></span>
             ${icon('chevron.right', 16)}
-          </button>
+          </button>${coachShareSettingsCell()}
         </div>
         <div class="group">
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
@@ -662,6 +662,7 @@ function renderCoachStudent(uid) {
           <button class="cell cell--action" data-action="coach-send" data-uid="${esc(uid)}">${icon('square.and.arrow.up', 20)}<span>Envoyer un programme</span></button>
         </div>
         ${sent}
+        ${coachWeightGroupHtml(uid, esc(personName(p)))}
         <div class="group-title">Séances</div>
         ${list}
         <div class="group group--gap">
@@ -672,12 +673,14 @@ function renderCoachStudent(uid) {
     </div>`;
 }
 SCREENS.set('coach-student', {
-  render: uid => renderCoachStudent(uid),
-  // Séances relues à chaque arrivée, puis vues (pastille et badge retirés)
+  render: uid => { chartState = null; return renderCoachStudent(uid); },
+  mount: () => { if ($('#exChart')) drawCharts(); },   // courbe du poids (élève qui le partage)
+  // Séances et pesées partagées relues à chaque arrivée, puis séances vues (pastille et badge retirés)
   enter: () => {
     const uid = routeParams(currentRoute())[0];
     if (!uid) return;
     coachLoadSessions(uid);
+    coachLoadWeights(uid);
     coachMarkSeen(uid);
   },
 });
@@ -709,6 +712,8 @@ function reviewExerciseCell(x, xs, i) {
               <span class="cell__body">
                 <span class="review-ex__line"><span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>${reviewTrendHtml(x.trend)}</span>
                 <span class="review-ex__line"><span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>${amount ? `<span class="review-ex__vol num">${esc(amount)}</span>` : ''}</span>
+                ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
+                ${rirLine(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(rirLine(e.sets))}</span>` : ''}
                 ${x.prev ? `<span class="review-ex__prev num">préc. ${setsLine(x.prev.ex.sets, x.prev.ex.measure || measureOf(x.prev.ex), reviewSetKind(x.prev.ex))} (${esc(fmtDate(x.prev.doneAt, 'short'))})</span>` : ''}
               </span>
             </div>`;
@@ -717,11 +722,15 @@ function reviewExerciseCell(x, xs, i) {
 function reviewTile(val, lbl, delta = null, up = false) {
   return `<div class="tile"><span class="tile__val num">${val}</span><span class="tile__lbl">${lbl}</span>${delta ? `<span class="tile__delta num ${up ? 'tile__delta--up' : ''}">${delta}</span>` : ''}</div>`;
 }
-// Règle du volume, dite telle qu'elle est (la même chaque semaine), et étendue des comparaisons
-function reviewRuleFoot(rows, complete) {
+// Règle du volume, dite telle qu'elle est (la même chaque semaine), et étendue des comparaisons. bodyKg :
+// poids du corps de l'élève à la date de la séance (il me le partage), compté dans le volume
+function reviewRuleFoot(rows, complete, bodyKg = null) {
   const oldest = rows.reduce((m, r) => Math.min(m, r.doneAt), Infinity);
   const scope = complete || !Number.isFinite(oldest) ? 'ses séances reçues' : `ses séances reçues depuis le ${fmtDate(oldest, 'short')}`;
-  return `<div class="group-foot review-rule">Volume = charge notée × reps, échauffement compris, poids du corps non compté (lest compris). Comparaisons avec ${scope}.</div>`;
+  const body = bodyKg
+    ? `poids du corps compté (${fmtNum(toUnitW(bodyKg), 1)} ${unitLbl()}, sa dernière pesée partagée à cette date ; lest ajouté, aide déduite)`
+    : 'poids du corps non compté (lest compris)';
+  return `<div class="group-foot review-rule">Volume = charge notée × reps, sans l'échauffement, ${body}. Comparaisons avec ${scope}.</div>`;
 }
 
 function renderCoachSession(uid, id) {
@@ -746,11 +755,11 @@ function renderCoachSession(uid, id) {
     reviewTile(plan ? `${plan.done}/${plan.total}` : n, plan ? 'séries prévues' : n > 1 ? 'séries' : 'série'),
     reviewTile(s.exercises.length, s.exercises.length > 1 ? 'exercices' : 'exercice'),
   ].join('');
-  // Records seulement quand toutes ses séances sont chargées (même règle que friendRecord, js/features/social-ui.js) :
-  // sur une page seulement, un « record » pourrait être faux
-  const records = f.end && rv.records.length ? `
+  // Records notés par son app (toujours sûrs) ; séance d'une version d'avant : recalculés, seulement quand
+  // toutes ses séances sont chargées (même règle que friendRecord, js/features/social-ui.js)
+  const records = reviewRecordsSure(row, f.end) && rv.records.length ? `
         <div class="group-title">${rv.records.length > 1 ? 'Records' : 'Record'}</div>
-        <div class="group">${rv.records.map(r => reviewRecordCell(r)).join('')}</div>` : '';
+        <div class="group">${rv.records.map(r => notedRecordCell(r)).join('')}</div>` : '';
   const missing = (plan?.missing || []).map(name => `
             <div class="cell hex review-ex review-ex--missing"><span class="cell__body"><span class="review-ex__line"><span class="hex__name">${esc(name)}</span><span class="review-trend num">pas fait</span></span></span></div>`).join('');
   return `
@@ -777,7 +786,7 @@ function renderCoachSession(uid, id) {
           <button class="cell cell--action" data-action="coach-comment" data-uid="${esc(uid)}" data-id="${esc(row.id)}">${icon('pencil', 18)}<span>${row.note ? 'Modifier le commentaire' : 'Commenter'}</span></button>
         </div>
         <div class="group-foot">${who} le voit dans son historique et dans Mon coach.</div>
-        ${reviewRuleFoot(f.rows, f.end)}
+        ${reviewRuleFoot(f.rows, f.end, rv.bodyKg)}
       </div>
     </div>`;
 }
@@ -1028,7 +1037,7 @@ document.addEventListener('input', e => {
 function coachShownKey() {
   const ib = coach.inbox;
   return JSON.stringify([account.user?.id || null, coachRole(), coachBadge(), coachBadgeCoach(), coachBadgeStudent(), myCoach()?.user_id || null, myCoach()?.username || null,
-    coach.state?.students.length ?? null, account.user ? coachLost() : null,
+    coach.state?.students.length ?? null, account.user ? coachLost() : null, typeof coachShareSummary === 'function' ? coachShareSummary() : null,
     ib ? [ib.programmes.map(p => [p.id, p.sentAt, p.seen, !!p.meta]), ib.notes.map(n => [n.session_id, n.updatedAt, n.seen])] : null]);
 }
 let coachShown = null;

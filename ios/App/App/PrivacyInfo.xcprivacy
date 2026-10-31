@@ -5,7 +5,9 @@
 	<!-- Manifeste de confidentialité exigé par Apple : aucun suivi. Données collectées seulement avec le compte
 	     facultatif (js/data/account.js), pour synchroniser les appareils : identifiant (dont le pseudo), adresse
 	     e-mail (comptes e-mail et Google seulement), nom (comptes Google seulement), séances, notes et avatar (un emoji).
-	     Jamais de donnée de Santé ni de poids du corps. Même déclaration dans App Store Connect et privacy.html. -->
+	     Jamais de donnée d'Apple Santé. Poids du corps : seulement les pesées saisies dans l'app, si l'élève
+	     choisit de les partager avec son coach (js/data/coach-share.js), d'où le type Health ci-dessous.
+	     Même déclaration dans App Store Connect et privacy.html. -->
 	<key>NSPrivacyTracking</key>
 	<false/>
 	<key>NSPrivacyTrackingDomains</key>
@@ -46,6 +48,21 @@
 			     l'utilise : seul le pseudo sert de nom. Déclaré parce qu'il est stocké avec le compte -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeName</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- Santé : pesées (date et poids) saisies dans l'app, envoyées seulement si l'élève coche « Poids du
+			     corps » dans Réglages › Partager avec mon coach, vues seulement par ce coach, effacées au retrait
+			     (supabase/migrations/20261031300000_partage_coach.sql). Jamais une donnée lue dans Apple Santé -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeHealth</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>

@@ -24,7 +24,7 @@ Hors V1 : paiement, push, plusieurs coachs pour un élève, groupes d'élèves, 
 - `coach_notes (coach_id, student_id, session_id text, text, updated_at, seen_at)`, clé `(student_id, session_id)` : commentaire du coach sur une séance de l'élève, 1000 caractères au plus, `seen_at` pour le badge.
 
 ## Ce que le coach voit d'un élève
-Ses séances complètes, notes de séance comprises, **sans** `bodyKg` ni `healthSaved` : liste blanche `private.session_for_coach` = celle de `private.session_public` + `notes` + `hidden` + `id`. Les séances masquées aux abonnés restent visibles du coach (il est là pour ça), et l'écran d'acceptation le dit.
+Ses séances complètes, notes de séance comprises, **sans** `healthSaved` ni le `bodyKg` de `sessions.data` : liste blanche `private.session_for_coach` = celle de `private.session_public` + `notes` + `hidden` + `id` (donc, depuis la migration 20261031100000_records_series.sql, les records notés, l'échauffement et le RIR de chaque série : voir docs/SOCIAL_V1.md). `bodyKg` n'apparaît que si l'élève partage son poids avec ce coach (voir « Partage avec le coach »). Les séances masquées aux abonnés restent visibles du coach (il est là pour ça), et l'écran d'acceptation le dit.
 Ses programmes perso : non en V1 (le coach envoie les siens).
 
 ## Séances faites avec le programme du coach (ajout du 27/10)
@@ -32,6 +32,23 @@ Ses programmes perso : non en V1 (le coach envoie les siens).
 - `coach_links.coach_seen_at timestamptz` : dernière fois que le coach a ouvert les séances de cet élève. `coach_state().students[]` ajoute `new_sessions` (séances terminées après `coach_seen_at`) et `last_session: { done_at, label, programme }`. `badge` côté coach = nombre total de `new_sessions`.
 - `coach_mark_seen(student uuid)` : pose `coach_seen_at = now()` (appelé à l'ouverture des séances de l'élève).
 - App : dans « Mes élèves », pastille du nombre de nouvelles séances et ligne « Push · ton programme · hier » ; dans les séances d'un élève, les séances faites avec un programme du coach portent la mention « Ton programme ». Badge de l'onglet Amis = social + coach (élève ou coach).
+
+## Partage avec le coach (ajout du 30/10, migration 20261031300000_partage_coach.sql)
+Décision de Maxence : l'élève choisit, donnée par donnée, ce que son coach voit en plus de ses séances. Tout est décoché par défaut, révocable à tout moment.
+- **Données** : `weight` (poids du corps) ouverte. `sleep`, `steps`, `resting_hr` prévues dans le modèle (contrainte de `coach_shares.kind`, `COACH_SHARE_KINDS` de js/data/coach-share.js) mais refusées (`invalid_kind`) et non affichées tant que la build HealthKit n'est pas là (`private.share_kind_open`).
+- **Consentement** : `coach_shares (student_id, coach_id, kind, granted_at)`, clé `(student_id, kind)`, clé étrangère vers `coach_links (student_id, coach_id)` on delete cascade : quitter, être retiré, supprimer un des comptes efface le consentement.
+- **Pesées** : `coach_shared_weights (student_id, at bigint ms, kg numeric(5,2))`, séparées des séances (jamais dans `sessions.data`, `bodyWeightLog` reste dans `SYNC_LOCAL_ONLY`), clé étrangère vers `coach_shares (student_id, 'weight')` on delete cascade : décocher efface toutes les pesées envoyées, historique compris ; le coach n'en garde aucune copie côté serveur. Seules les pesées **saisies dans l'app** (`data.bodyWeightLog`) partent, jamais une pesée de Santé.
+- **bodyKg d'une séance** (vue du coach) : `private.coach_session_body(coach, élève, done_at)` vérifie le consentement poids à chaque appel et donne la dernière pesée partagée au plus tard à `done_at` (aucune avant la 1re pesée). L'app compte alors le poids du corps dans le volume (js/data/session-review.js) ; l'écart avec la séance d'avant est calculé sous une même règle (les deux avec leur poids, sinon aucune). Rien pour les amis : `private.session_public` et le fil ne changent pas.
+- **Envoi** : miroir des pesées de l'appareil (date ramenée au début du jour : l'heure de la pesée ne part pas), au cochage et à chaque pesée saisie ; à la relecture (`coachRefresh`), seulement si cet appareil a déjà envoyé pour ce coach et que ses pesées ont changé (empreinte locale `mdlf_coach_share`). Un second appareil sans pesées n'écrase donc rien à la connexion ; une pesée saisie sur un appareil qui en a moins remplace la liste (les pesées ne se synchronisent pas entre appareils). Décocher n'est jamais limité ; cocher : 60 par heure.
+
+| Fonction | Renvoie | Règles |
+|---|---|---|
+| `student_shares()` | `jsonb` | `{ coach: bool, shares: { weight: { granted_at, n, last_at } } }` : seulement les données cochées pour le coach actuel. |
+| `student_set_share(kind text, enabled boolean)` | `jsonb` (= `student_shares()`) | Sans coach : `not_found` ; donnée inconnue ou pas ouverte : `invalid_kind`. Recocher garde `granted_at`. Décocher efface les pesées, jamais limité ; cocher : 60 par heure. |
+| `student_share_weights(weights jsonb)` | `int` (pesées gardées) | `[{ date, kg }]` : sans consentement `not_shared` ; pas une liste ou élément hors bornes (date entière après 2000 et au plus 24 h dans le futur, kg 25 à 300) `invalid_data` ; plus de 400 ou plus de 64 Ko `too_long`. Remplace toute la liste ; même instant : la dernière. 60 envois par heure. |
+| `coach_student_weights(student uuid)` | `jsonb` | Coach de cet élève, encore coach, sinon `not_found`. `{ shared, since, weights: [{ date, kg }] }` du plus récent ; sans partage : `shared: false`, liste vide. |
+
+App : Réglages › Amis et coach › « Partager avec mon coach » (élève suivi seulement ; aussi dans Réglages › Coach) → écran `coach-share` (une case par donnée ouverte, texte de ce que le coach verra). Coach : sur la fiche d'un élève qui partage, groupe « Poids du corps » (dernière pesée, tendance sur 30 jours, courbe de Progrès) ; page séance : pied de page « poids du corps compté (61,4 kg, sa dernière pesée partagée à cette date…) ».
 
 ## Fonctions RPC (rôle `authenticated`)
 

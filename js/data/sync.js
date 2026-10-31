@@ -50,7 +50,7 @@ const SYNC_ABSENT_IS_CHOICE = ['weeklyGoal', 'exerciseMuscles', 'exerciseMuscles
 const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary'];
 
 // État de synchro vide d'un compte : curseur serveur, empreintes envoyées, profil
-function emptySyncMeta(userId) { return { userId, cursor: null, pushed: {}, profileHash: null, profileCore: null, profileAt: null }; }
+function emptySyncMeta(userId) { return { userId, cursor: null, pushed: {}, pushedCore: {}, profileHash: null, profileCore: null, profileAt: null }; }
 
 // JSON aux clés triées : deux objets égaux donnent la même empreinte, quel que soit l'ordre des clés
 function stableJson(v) {
@@ -84,7 +84,38 @@ function legacySessionHash(h) { const { bodyKg, label, ...rest } = h; return syn
 // Séance inchangée ici depuis la dernière synchro : son empreinte enregistrée est celle de son payload
 // actuel, ou celle de l'ancien format (appareil mis à jour depuis : la séance n'a pas changé pour autant ;
 // elle repartira une fois avec son nom, planSessionPush, si le compte ne l'a pas modifiée entre-temps)
-function sessionUnchangedSince(known, h) { return known === syncHash(sessionPayload(h)) || known === legacySessionHash(h); }
+//
+// Records notés (h.records) : donnée dérivée, recalculée ici par renoteRecords (js/data/records.js) quand
+// une séance passée est ajoutée, modifiée ou supprimée. Ce recalcul ne compte pas comme « modifié ici » :
+// meta.pushedCore[id] garde l'empreinte de la séance sans ses records (sessionCoreHash), et une séance
+// dont seuls les records ont changé reste « inchangée ici ». Sinon une suppression faite ailleurs serait
+// ignorée (séance ressuscitée) ou une correction faite ailleurs écrasée. Les records repartent quand même
+// (planSessionPush compare l'empreinte complète) ; après une version distante appliquée, ils sont
+// recalculés ici (renoteMerged). État de synchro d'avant ce champ (pas de pushedCore) : repris à la
+// première synchro (applyRemoteSessions) pour les séances inchangées ici ; seuls des records renotés
+// avant cette première synchro comptent encore comme « modifiés ici ». core : knownCore(meta, id).
+function sessionUnchangedSince(known, h, core) {
+  return known === syncHash(sessionPayload(h)) || known === legacySessionHash(h)
+    || (core != null && core === sessionCoreHash(sessionPayload(h)));
+}
+// Empreinte d'une séance telle qu'elle part (payload), sans ses records notés
+function sessionCoreHash(payload) { const { records, ...rest } = payload || {}; return syncHash(rest); }
+// Empreintes de la séance telle qu'elle est sur le serveur (hash : complète, core : sans les records),
+// ou 'deleted' (core oublié). pushedCore[id] garde la paire { hash, core } : core ne vaut que pour
+// l'empreinte qu'il accompagne (knownCore)
+function notePushed(meta, id, hash, core) {
+  meta.pushed[id] = hash;
+  meta.pushedCore ||= {};
+  if (hash === 'deleted' || core == null) delete meta.pushedCore[id]; else meta.pushedCore[id] = { hash, core };
+}
+// Empreinte sans records de la séance sur le serveur, ou null si elle n'est pas sûre : une version
+// d'avant pushedCore (retour arrière de l'app) écrit meta.pushed[id] sans toucher pushedCore, et une
+// valeur seule (format du 31/10/2026, jamais publié) ne dit pas pour quelle empreinte elle a été notée
+function knownCore(meta, id) {
+  const known = meta.pushed?.[id], c = meta.pushedCore?.[id];
+  if (known === undefined || known === 'deleted' || !c || typeof c !== 'object') return null;
+  return c.hash === known && typeof c.core === 'string' ? c.core : null;
+}
 // Séance reçue du compte : sans son nom (recalculé ici à l'envoi, jamais stocké dans l'historique)
 function remoteEntry(rowData, id) { const { label, ...rest } = rowData; return { ...rest, id }; }
 // Version du contenu de l'app notée dans le profil au démarrage (js/app/init.js). Renvoie true si elle
@@ -147,50 +178,71 @@ function planSessionPush(history, meta) {
   const upserts = [];
   for (const h of history) {
     const data = sessionPayload(h), hash = syncHash(data);
-    if (meta.pushed[h.id] !== hash) upserts.push({ id: h.id, data, hash });
+    if (meta.pushed[h.id] !== hash) upserts.push({ id: h.id, data, hash, core: sessionCoreHash(data) });
   }
   const deletes = Object.keys(meta.pushed).filter(id => meta.pushed[id] !== 'deleted' && !local.has(id));
   return { upserts, deletes };
 }
 
 // Séances reçues du serveur appliquées à l'historique local. Renvoie { history (trié, plus récente
-// d'abord), changed, removed (séances retirées ici, pour « Supprimés récemment ») } ; meta.pushed est
-// tenu à jour. Règles :
+// d'abord), changed, removed (séances retirées ici, pour « Supprimés récemment »), applied (séances
+// ajoutées ou remplacées par leur version distante : leurs records et ceux d'après sont à renoter),
+// recordsOnly (identifiants des séances remplacées par une version distante qui ne diffère de la
+// dernière connue que par ses records : records gardés tels quels, renoteMerged) } ;
+// meta.pushed et meta.pushedCore sont tenus à jour. Règles :
 // - séance modifiée ici depuis la dernière synchro : la version locale gagne (elle partira) ;
 // - inchangée ici, ou sans empreinte connue : la version distante remplace la locale (poids du corps
-//   local gardé) ;
+//   local gardé) ; une séance dont seuls les records notés ont changé ici compte comme inchangée ;
 // - suppression distante : appliquée sauf si la séance a changé ici depuis la dernière synchro ;
 // - séance supprimée ici (encore à envoyer) : pas de résurrection, sauf si elle a changé ailleurs.
 function applyRemoteSessions(history, rows, meta) {
   const byId = new Map(history.map((h, i) => [h.id, i]));
   const out = history.slice();
   const removedIds = new Set();
+  const applied = [], recordsOnly = [];
   let changed = false;
+  // État de synchro d'avant pushedCore, ou empreinte sans records qui n'accompagne plus l'empreinte connue
+  // (knownCore) : reprise des séances inchangées ici, pour que les records renotés ensuite ne comptent
+  // plus comme « modifiés ici » ; sinon oubliée (la séance compte comme modifiée ici si elle a changé)
+  meta.pushedCore ||= {};
+  for (const h of history) {
+    const known = meta.pushed[h.id];
+    if (known === undefined || known === 'deleted' || knownCore(meta, h.id) != null) continue;
+    const payload = sessionPayload(h);
+    if (known === syncHash(payload)) meta.pushedCore[h.id] = { hash: known, core: sessionCoreHash(payload) };
+    else delete meta.pushedCore[h.id];
+  }
   for (const row of rows) {
     if (!row || typeof row.id !== 'string') continue;
     const i = byId.get(row.id), local = i === undefined ? null : out[i];
     const known = meta.pushed[row.id];
-    const changedHere = !!local && known !== undefined && !sessionUnchangedSince(known, local);
+    const core = knownCore(meta, row.id);
+    const changedHere = !!local && known !== undefined && !sessionUnchangedSince(known, local, core);
     if (row.deleted_at) {
       if (local && !changedHere) { removedIds.add(row.id); changed = true; }
-      if (!changedHere) meta.pushed[row.id] = 'deleted';
+      if (!changedHere) notePushed(meta, row.id, 'deleted');
       continue;
     }
     if (!row.data || typeof row.data !== 'object') continue;
-    const remoteHash = syncHash(row.data);
+    const remoteHash = syncHash(row.data), remoteCore = sessionCoreHash(row.data);
     if (!local) {
       // supprimée ici, suppression encore à envoyer (empreinte de l'ancien format : même séance renvoyée
       // avec son nom par un appareil à jour)
       if (known === remoteHash || known === legacySessionHash(row.data)) continue;
       out.push(remoteEntry(row.data, row.id));
       byId.set(row.id, out.length - 1);
-      meta.pushed[row.id] = remoteHash;
+      applied.push(out[out.length - 1]);
+      notePushed(meta, row.id, remoteHash, remoteCore);
       changed = true;
     } else if (syncHash(sessionPayload(local)) === remoteHash) {
-      meta.pushed[row.id] = remoteHash;
+      notePushed(meta, row.id, remoteHash, remoteCore);
     } else if (!changedHere) {
       out[i] = { ...remoteEntry(row.data, row.id), ...(local.bodyKg !== undefined ? { bodyKg: local.bodyKg } : {}) };
-      meta.pushed[row.id] = remoteHash;
+      // Seuls ses records ont changé ailleurs (renotés par l'appareil qui a fait le geste) : pas à renoter
+      // ici, sinon deux appareils qui les calculent autrement (versions différentes) se les renverraient
+      // sans fin. Sans empreinte sûre (core null) : version réellement modifiée ailleurs
+      if (core != null && core === remoteCore) recordsOnly.push(row.id); else applied.push(out[i]);
+      notePushed(meta, row.id, remoteHash, remoteCore);
       changed = true;
     }
     // sinon : modifiée ici depuis la dernière synchro, la version locale partira au prochain envoi
@@ -198,7 +250,22 @@ function applyRemoteSessions(history, rows, meta) {
   const removed = out.filter(h => removedIds.has(h.id));
   const kept = removed.length ? out.filter(h => !removedIds.has(h.id)) : out;
   if (changed) kept.sort((a, b) => b.date - a.date);
-  return { history: kept, changed, removed };
+  return { history: kept, changed, removed, applied: applied.filter(h => !removedIds.has(h.id)),
+    recordsOnly: recordsOnly.filter(id => !removedIds.has(id)) };
+}
+
+// Records notés après une fusion (merged : applyRemoteSessions), recalculés dans history (modifié en
+// place) avec la bibliothèque de cet appareil : séances reçues ou supprimées ailleurs, et celles d'après
+// (elles repartiront si leurs records changent, sans compter comme « modifiées ici »). Les séances dont
+// seuls les records ont changé ailleurs (merged.recordsOnly) gardent ceux reçus : l'appareil qui a fait
+// le geste publie les records dérivés, les autres ne les contestent pas. Une séance reçue en même temps
+// qu'une autre réellement modifiée ailleurs a été renotée là-bas avec elle : ses records reçus valent.
+function renoteMerged(merged, history) {
+  const ids = new Set(merged.recordsOnly || []);
+  const keep = history.filter(h => ids.has(h.id)).map(h => [h, h.records]);
+  const n = renoteRecordsFrom([...(merged.applied || []), ...(merged.removed || [])], history);
+  for (const [h, records] of keep) { if (records === undefined) delete h.records; else h.records = records; }
+  return n;
 }
 
 // Profil reçu (doc, updated_at) appliqué aux données locales (modifiées en place). Renvoie true si

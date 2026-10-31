@@ -20,8 +20,8 @@ function ensureChrome() {
   document.body.append(live, bar);
 }
 
-// Badge de l'onglet Amis : demandes reçues en attente (socialBadge, js/data/social.js), annoncé par
-// VoiceOver avec le nom de l'onglet
+// Badge de l'onglet Amis : demandes reçues en attente et nouveautés de l'activité (socialBadge,
+// js/data/social.js : réactions à mes séances, demandes acceptées), annoncé par VoiceOver avec le nom de l'onglet
 function updateTabBadge() {
   const btn = $('.tabbar [data-tab="friends"]');
   if (!btn) return;
@@ -31,7 +31,7 @@ function updateTabBadge() {
   if (!n) { badge?.remove(); btn.removeAttribute('aria-label'); return; }
   if (!badge) { badge = document.createElement('span'); badge.className = 'tabbar__badge num'; badge.setAttribute('aria-hidden', 'true'); btn.append(badge); }
   badge.textContent = n > 99 ? '99+' : String(n);
-  btn.setAttribute('aria-label', `${TABS.friends.label}, ${fromCoach ? plural(n, 'nouveauté', 'nouveautés') : plural(n, 'demande', 'demandes')}`);
+  btn.setAttribute('aria-label', `${TABS.friends.label}, ${fromCoach || socialActivityNew() ? plural(n, 'nouveauté', 'nouveautés') : plural(n, 'demande', 'demandes')}`);
 }
 
 function sessionCounts(sess = activeSession) {
@@ -153,7 +153,8 @@ function routeTitle(route, isRoot) {
     'body-measures': 'Mesures', 'body-measure': bodyMeasureLabel(routeParams(route)[0]) || 'Mesure',
     'my-programmes': 'Mes programmes', 'prog-add': 'Ajouter', 'prog-info': 'Programme', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
     friends: 'Amis', 'social-profile': socialPerson(routeParams(route)[0])?.username || 'Profil',
-    'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles',
+    'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles', 'social-me': 'Mon profil',
+    'social-people': routeParams(route)[0] === 'followers' ? 'Abonnés' : 'Abonnements',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
   }[name] || 'Retour';
 }

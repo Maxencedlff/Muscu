@@ -165,6 +165,7 @@ function renderAccount() {
           </button>
         </div>
         <div class="group-foot">Ton pseudo et ton avatar te représentent auprès de tes amis, une fois les Amis activés. Sans cela, toi seul les vois.</div>
+${referralGroupHtml()}
 
         <div class="group-title">Moyens de connexion</div>
         <div class="group">${methods.map(methodCellHtml).join('')}</div>
@@ -193,6 +194,32 @@ function renderAccount() {
     </div>`;
 }
 SCREENS.set('account', { render: () => renderAccount() });
+
+// Parrainage (js/data/referral.js) : « Parrainé par … », ou la saisie du code pendant les 30 jours qui
+// suivent la création du compte ; rien ensuite. L'état est relu une fois, puis l'écran redessiné.
+function referralGroupHtml() {
+  const v = referralView();
+  if (!v.known) referralLoad().then(changed => { if (changed && currentView() === 'account' && !document.activeElement?.matches?.(EDITABLE)) render(); });
+  if (v.referrer) return `
+        <div class="group">
+          <div class="cell referral-cell">
+            <span class="cell__body"><span class="cell__title">${esc(`Parrainé par ${v.referrer}`)}</span></span>
+          </div>
+        </div>
+        <div class="group-foot">Ce parrainage ne donne accès ni à ton compte ni à tes séances.</div>
+`;
+  if (!v.canEnter) return '';
+  const until = v.until ? ` Jusqu'au ${fmtDate(v.until, 'day')}.` : '';
+  return `
+        <div class="group">
+          <button class="cell cell--nav" data-action="account-referral">
+            <span class="cell__body"><span class="cell__title">Code d'un coach ou d'un ami</span></span>
+            ${icon('chevron.right', 16)}
+          </button>
+        </div>
+        <div class="group-foot">${esc(`Facultatif : si quelqu'un t'a fait découvrir l'app.${until}`)}</div>
+`;
+}
 
 // ── Accueil : carte unique pour qui n'a pas vu l'écran Bienvenue ─────
 
@@ -508,6 +535,7 @@ function signOutMessage() {
 
 registerActions({
   'go-account': () => navigate('account'),
+  'account-referral': () => { openAuthFlow({ step: 'referral', mode: 'referral' }); },
   'account-privacy': () => { window.open(PRIVACY_URL, '_blank'); },
   'account-card-close': () => { setLsFlag(ACCOUNT_CARD_KEY); haptic(); render(); },
   'account-reconnect-close': () => { accountDismissReconnect(); haptic(); render(); },

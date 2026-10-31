@@ -27,7 +27,9 @@ function bestSetTrend(b, pb) {
 function buildSummary(entry, baseline) {
   const prevH = data.history.find(h => h !== entry && h.category === entry.category && entryProg(h) === entryProg(entry));
   let cur = 0, prev = 0;
-  const records = [], rows = [];
+  const rows = [], e1rm = [];
+  // Records notés dans la séance à l'enregistrement (sessionRecords, js/data/records.js)
+  const noted = entryRecords(entry);
   entry.exercises.forEach(ex => {
     const pex = prevH?.exercises.find(e => sameEx(e, ex));
     cur  += exVolume(ex, ex.sets, entryBodyKg(entry));
@@ -35,13 +37,16 @@ function buildSummary(entry, baseline) {
     // l'échauffement d'aujourd'hui ferait entrer une série de travail de plus de la dernière fois, ou
     // celui de la dernière fois en ferait sortir une)
     prev += pex ? exVolume(pex, workSets(pex.sets).slice(0, workSets(ex.sets).length), entryBodyKg(prevH)) : 0;
+    // 1RM estimé battu sans autre record : pour soi seulement (jamais noté dans la séance ni partagé)
     const rec = exerciseRecord(ex, baseline[ex.exId]);
-    if (rec) records.push({ name: ex.name, label: rec.label, weight: rec.s.weight, reps: rec.s.reps });
+    if (rec?.label === 'Record 1RM est.' && !noted.some(r => normName(r.ex) === normName(ex.name)))
+      e1rm.push({ name: ex.name, label: rec.label, weight: rec.s.weight, reps: rec.s.reps, measure: 'reps', kind: setKind(ex) });
     const b = summaryBestSet(ex.sets, ex), pb = summaryBestSet(pex?.sets, ex);
     // Exercice réduit à son échauffement (séries de travail non faites) : la série la plus lourde quand même
     const bs = b || summaryBestSet(ex.sets.map(s => ({ ...s, warmup: undefined })), ex);
     rows.push({ name: ex.name, weight: bs.s.weight, reps: bs.s.reps, dist: bs.s.dist, measure: measureOf(ex), kind: setKind(ex), trend: b ? bestSetTrend(b, pb) : null });
   });
+  const records = [...noted.map(r => ({ name: r.ex, label: notedLabel(r), txt: notedValueTxt(r) })), ...e1rm];
   return {
     id: entry.id, programme: entry.programme, category: entry.category, date: entry.date,
     duration: entry.duration, sets: entry.exercises.reduce((a, e) => a + workSets(e.sets).length, 0),   // séries de travail
@@ -81,7 +86,7 @@ function summaryRecordsHtml(records) {
             <div class="sum-row sum-record">
               ${medalSvg(24)}
               <div class="sum-row__main"><div class="sum-row__name">${esc(r.name)}</div><div class="sum-row__sub">${r.label}</div></div>
-              <div class="sum-row__val num">${summarySetTxt(r)}</div>
+              <div class="sum-row__val num">${r.txt != null ? esc(r.txt) : summarySetTxt(r)}</div>
             </div>`).join('')}
         </div>`;
 }
@@ -226,6 +231,8 @@ async function saveSessionEntry() {
   const timers    = data.programmes[sp].timers;
   const prevTimer = timers[sc] ?? null;
   const entry     = sessionHistoryEntry(sp, sc);
+  // Records battus, notés dans la séance (partagés avec elle : amis, coach) ; tableau vide sans record
+  entry.records   = sessionRecords(entry, data.history);
   timers[sc] = entry.date;
   data.history.unshift(entry);
   recomputePRFromHistory();

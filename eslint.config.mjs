@@ -17,7 +17,7 @@ export default [
     rules: { 'no-undef': 'off', 'no-unused-vars': 'off', 'no-empty': ['error', { allowEmptyCatch: true }] },
   },
   {
-    files: ['tests/**/*.mjs', 'scripts/**/*.mjs', 'eslint.config.mjs'],
+    files: ['tests/**/*.mjs', 'scripts/**/*.mjs', 'tools/**/*.mjs', 'eslint.config.mjs'],
     languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.node } },
     rules: { 'no-empty': ['error', { allowEmptyCatch: true }] },
   },
