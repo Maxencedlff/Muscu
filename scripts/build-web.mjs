@@ -6,7 +6,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runtimeVersion } from './runtime.mjs';
+import { runtimeVersion } from './runtime-version.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT  = path.join(ROOT, 'dist');
@@ -32,9 +32,9 @@ const SUPABASE = path.join(ROOT, 'node_modules', '@supabase', 'supabase-js', 'di
 if (!fs.existsSync(SUPABASE)) throw new Error('@supabase/supabase-js absent : lancer npm ci');
 fs.copyFileSync(SUPABASE, path.join(OUT, 'js', 'vendor', 'supabase.js'));
 // Informations de construction (mises à jour à chaud, voir IOS.md) :
-// - runtime : empreinte de tout ce qui est natif, propre à chaque plateforme (scripts/runtime.mjs). Une
-//   mise à jour web n'est appliquée que dans une app dont la coquille a la même empreinte (même principe
-//   que le runtimeVersion d'Expo).
+// - runtime : empreinte de tout ce qui est compilé dans la coquille, propre à chaque plateforme
+//   (scripts/runtime-version.mjs). Une mise à jour web n'est appliquée que dans une app dont la coquille a
+//   la même empreinte (même principe que le runtimeVersion d'Expo).
 // - seq : date du commit (secondes) ; une mise à jour plus ancienne que le contenu en place est ignorée.
 // - version : identifiant lisible du contenu (date du commit + commit court).
 const PLATFORM = process.argv.includes('--android') ? 'android' : 'ios';

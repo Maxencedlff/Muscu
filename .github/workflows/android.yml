@@ -12,7 +12,7 @@ on:
       - 'package-lock.json'
       - 'capacitor.config.json'
       - 'scripts/build-web.mjs'
-      - 'scripts/runtime.mjs'
+      - 'scripts/runtime-version.mjs'
       - '.github/workflows/android.yml'
   workflow_dispatch:
 

@@ -43,6 +43,14 @@ const Native = (() => {
   const Account            = plugin('MdlfAccount');   // module Swift de l'app (ios/App/App/AccountPlugin.swift), build 25 et suivantes
   const Store              = plugin('MdlfStore');     // module Swift de l'app (ios/App/App/StorePlugin.swift), abonnements StoreKit 2
   const Push               = plugin('MdlfPush');      // module Swift de l'app (ios/App/App/PushPlugin.swift), build qui suit le 31/10/2026
+  const Watch              = plugin('MdlfWatch');     // module Swift de l'app (ios/App/AppExtras/WatchPlugin.swift), build avec l'Apple Watch
+  const Widget             = plugin('MdlfWidget');    // module Swift de l'app (ios/App/AppExtras/WidgetPlugin.swift), même build
+  const Shortcuts          = plugin('MdlfShortcuts'); // module Swift de l'app (ios/App/AppExtras/ShortcutsPlugin.swift), même build
+  // Module présent dans la coquille installée (une mise à jour à chaud peut arriver avant la build qui l'apporte)
+  const has          = name => isNative && !!cap.isPluginAvailable?.(name);
+  const hasWatch     = has('MdlfWatch');
+  const hasWidget    = has('MdlfWidget');
+  const hasShortcuts = has('MdlfShortcuts');
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
   const AppInfo            = plugin('App');              // @capacitor/app : numéro de build installé
 
@@ -371,6 +379,44 @@ const Native = (() => {
       start(state)  { if (!isNative) return false; quiet(LiveActivity.start(state)); return true; },
       update(state) { if (!isNative) return false; quiet(LiveActivity.update(state)); return true; },
       end()         { if (!isNative) return false; quiet(LiveActivity.end()); return true; },
+    },
+
+    // Apple Watch (WatchConnectivity) : la séance en cours part vers la montre, ses gestes reviennent.
+    // available : faux dans le navigateur et dans une coquille plus ancienne que le module (une mise à
+    // jour à chaud peut arriver avant la build) : rien n'est alors envoyé ni écouté.
+    //   send(json)   : état de la séance (JSON de watchState, js/features/watch.js)
+    //   onAction(cb) : geste de la montre { type, at, ei?, si?, d? } ; onRequest(cb) : la montre redemande l'état
+  //   (écoutés seulement une fois la séance restaurée : watchBoot, js/features/watch.js)
+    watch: {
+      available: hasWatch,
+      send(json) { if (hasWatch) quiet(Watch.send({ state: json })); },
+      onAction(cb) {
+        if (hasWatch) quiet(Watch.addListener('action', a => { try { cb(a); } catch { /* geste ignoré */ } }));
+      },
+      onRequest(cb) {
+        if (hasWatch) quiet(Watch.addListener('request', () => { try { cb(); } catch { /* rien à renvoyer */ } }));
+      },
+    },
+
+    // Widget (écran d'accueil, écran verrouillé) : instantané JSON laissé dans l'App Group (js/features/home-widget.js)
+    widget: {
+      available: hasWidget,
+      setSnapshot(json) { if (hasWidget) quiet(Widget.setSnapshot({ snapshot: json })); },
+    },
+
+    // Siri et Raccourcis : demande laissée par « Démarrer ma séance » (js/features/siri.js).
+    //   takeRequest() : { action, at } une seule fois, puis null ; null aussi hors app ou sans le module
+    //   onRequest(cb) : une demande vient d'arriver, app déjà ouverte
+    shortcuts: {
+      available: hasShortcuts,
+      async takeRequest() {
+        if (!hasShortcuts) return null;
+        try { const r = await Shortcuts.takeRequest(); return r?.action ? { action: String(r.action), at: Number(r.at) } : null; }
+        catch { return null; }
+      },
+      onRequest(cb) {
+        if (hasShortcuts) quiet(Shortcuts.addListener('request', () => { try { cb(); } catch { /* app ouverte simplement */ } }));
+      },
     },
 
     // Icône de l'app (icônes alternatives d'iOS). Nom natif d'un jeu d'icônes ; null = icône par défaut.

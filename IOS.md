@@ -36,6 +36,9 @@ Les fichiers de l'app iOS sont exclus de la publication Vercel (`.vercelignore`)
 | `Native.haptic()` | `haptic()`, `timerDone()` | Taptic Engine (toucher, fin de repos) |
 | `Native.scheduleRestEnd()` / `cancelRestEnd()` | `rest.js` | Notification « Repos terminé · Série 3 · Squat » à l'heure de fin, annulée si le repos est passé |
 | `Native.liveActivity.start()` / `update()` / `end()` | `rest-activity.js` | Live Activity du repos sur l'écran verrouillé et dans la Dynamic Island (voir plus bas) |
+| `Native.watch.send()` / `onAction()` / `onRequest()` | `watch.js` | Séance en cours sur l'Apple Watch, gestes de la montre (docs/WATCH_WIDGETS.md, **build à venir**) |
+| `Native.widget.setSnapshot()` | `home-widget.js` | Instantané du widget « Prochaine séance » dans l'App Group (docs/WATCH_WIDGETS.md, **build à venir**) |
+| `Native.shortcuts.takeRequest()` / `onRequest()` | `siri.js` | « Démarrer ma séance » demandé à Siri (docs/WATCH_WIDGETS.md, **build à venir**) |
 | `Native.keepAwake()` | wake lock de `init.js` | Écran allumé pendant la séance |
 | `Native.statusBar()` | `applyTheme()`, démarrage | Texte de la barre d'état adapté au thème |
 | `Native.backup()` / `boot()` | `save()`, démarrage | Deux copies : `ppl_v2.json` dans les Documents de l'app (dans la sauvegarde iCloud de l'iPhone) et la copie iCloud de l'app (voir « Copie iCloud ») ; restaurées si le stockage web est vide, jamais écrasées avant |
@@ -336,15 +339,18 @@ TestFlight / App Store, sur le modèle d'Expo Updates.
 | `@capgo/capacitor-updater` 8.53.0 (MPL-2.0) | Module natif : télécharge un zip, vérifie son SHA-256, l'installe, revient au contenu précédent si le nouveau ne démarre pas. **Mode manuel** (`autoUpdate: false`), **statistiques Capgo coupées** (`statsUrl: ""`) : aucun serveur tiers |
 | `js/app/live-update.js` | Décision (`liveUpdateDecision`) et parcours (`checkLiveUpdate`) ; vérifie 3 s après le démarrage puis au retour au premier plan (au plus toutes les 6 h) |
 | `scripts/build-web.mjs` | Embarque `window.MDLF_BUILD = { version, seq, runtime }` dans dist/ |
+| `scripts/runtime-version.mjs` | Calcule l'empreinte native `runtime`, une par plateforme (testée dans `tests/unit/companions.mjs` et `tests/unit/android.mjs`) |
 | `scripts/ota-bundle.py` | dist/ → `ota-site/` : `bundles/<version>.zip` (immuable), `manifest.json` (jamais en cache) |
 | `.github/workflows/ota.yml` | Tests, pages juridiques complètes et en ligne (`check-legal-online.mjs`, docs/JURIDIQUE.md), paquet, publication sur **https://mdlf-ota.vercel.app**, vérification en ligne du SHA-256 |
 
 **Règles de sûreté**
-- **Empreinte native (`runtime`)** : SHA-256 des fichiers Swift, d'Info.plist, des droits, du projet
+- **Empreinte native (`runtime`)** : SHA-256 des fichiers Swift compilés (référencés dans une phase
+  « Sources » du projet Xcode : du Swift préparé sur une branche mais pas encore ajouté au projet ne
+  compte pas), d'Info.plist, des droits, du projet
   Xcode, de capacitor.config.json et des versions des modules natifs. Une mise à jour n'est appliquée
   que si elle a été construite pour la même coquille. Tout changement natif impose donc une version
   TestFlight / App Store ; une coquille plus ancienne ignore les contenus qui ne lui sont pas destinés.
-  Calcul dans `scripts/runtime.mjs` : l'empreinte iOS ignore le dossier `android/` et `@capacitor/android`
+  Calcul dans `scripts/runtime-version.mjs` : l'empreinte iOS ignore le dossier `android/` et `@capacitor/android`
   (préparer Android ne bloque jamais les mises à jour des iPhone) ; celle d'Android est à part
   (`android-…`, docs/ANDROID.md).
 - **Jamais de retour en arrière** : `seq` (date du commit) doit être plus récent que le contenu en place.
@@ -442,5 +448,6 @@ cookies ni de pistage, contrastes, écrans de 8 téléphones et des pliables) es
 | Objectif | Ce qu'il faut | Remarques |
 |---|---|---|
 | **Version payante** | Contrat « Paid Applications » + infos fiscales et bancaires (App Store Connect), Small Business Program (15 %) | Abonnement ou achat unique via StoreKit (RevenueCat simplifie la gestion des reçus) ; garder une partie gratuite |
+| **Apple Watch, widget, Siri** | Intégration Xcode (cibles, App Group, profils) : docs/WATCH_WIDGETS.md | Code écrit sur la branche `nuit-watch`, non compilé |
 | **Notifications push** | Fait sur la branche `nuit-build` (bravos, demandes, coach) : `docs/BUILD.md` | Les rappels de séance peuvent rester en notifications locales, sans serveur |
 | **Mises à jour sans App Store** | Capacitor Live Updates (Appflow) ou équivalent | Seulement si les corrections web doivent arriver plus vite que la revue d'Apple |

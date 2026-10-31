@@ -142,6 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     Native.hideSplash();
     return;
   }
+  watchBoot();   // app iOS : Apple Watch, une fois la séance restaurée (js/features/watch.js)
   // App iOS, tout premier lancement : écran Bienvenue (jamais un mur : « Commencer sans compte »)
   let welcome;
   try { welcome = await maybeShowWelcome(); } catch { /* l'app reste utilisable sans */ }
@@ -158,6 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (noteAppVersion(data, currentBuild()?.version)) save(true);   // version du contenu notée dans le profil (js/data/sync.js)
   accountInit().catch(() => {}); // app iOS : compte (session du Trousseau, synchro) ; sans compte, rien
   maybeShowNativeUpdate();   // app iOS : nouvelle build dans TestFlight
+  siriBoot().catch(() => {});   // app iOS : « Démarrer ma séance » demandé à Siri avant le lancement (js/features/siri.js)
   liveUpdateBoot();   // app iOS : confirme ce contenu (sinon retour au précédent) et cherche une mise à jour
   // Demande au navigateur de ne pas effacer les données en cas de manque d'espace
   try { navigator.storage?.persisted?.().then(p => { if (!p) navigator.storage.persist?.(); }).catch(() => {}); } catch {}

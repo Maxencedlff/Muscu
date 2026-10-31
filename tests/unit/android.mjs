@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { runtimeVersion, nativeModules } from '../../scripts/runtime.mjs';
+import { runtimeVersion, nativeModules } from '../../scripts/runtime-version.mjs';
 
 const KOTLIN = 'android/app/src/main/java/com/mdlf/training';
 

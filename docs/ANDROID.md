@@ -27,7 +27,7 @@ donc les mises à jour à chaud continuent d'arriver sur les iPhone sans nouvell
 | Portrait seulement, comme sur iPhone | manifeste | |
 | Pont natif conscient de la plateforme | `js/platform/native.js` | `Native.platform` : `'ios'`, `'android'`, `'web'` |
 | Réglages › « Santé » (Health Connect) sans Apple Music sur Android | `js/features/apple-services.js` | iOS : textes inchangés |
-| Empreinte native par plateforme | `scripts/runtime.mjs` | iOS ignore `android/` et `@capacitor/android` ; Android préfixée `android-` |
+| Empreinte native par plateforme | `scripts/runtime-version.mjs` | iOS ignore `android/` et `@capacitor/android` ; Android préfixée `android-` |
 | Compilation de contrôle (APK de débogage + lint) | `.github/workflows/android.yml` | Seulement quand Android change, ou à la main |
 | Tests unitaires | `tests/unit/android.mjs` | Empreintes, pont natif simulé Android et iOS, cohérence Kotlin ↔ Swift ↔ pont ↔ manifeste, Santé face à Health Connect (refus partiels), lecture des nombres |
 
@@ -49,7 +49,7 @@ Modules Capacitor officiels déjà compatibles Android sans rien faire : haptiqu
 
 ## 2. Mises à jour à chaud
 
-`scripts/runtime.mjs` calcule une empreinte par plateforme. Le manifeste publié par `ota.yml` porte
+`scripts/runtime-version.mjs` calcule une empreinte par plateforme. Le manifeste publié par `ota.yml` porte
 l'empreinte **iOS** : une app Android (empreinte `android-…`) le refuse toujours (« nécessite une
 nouvelle version de l'app »). Aucune mise à jour à chaud n'arrive donc sur Android tant qu'un canal
 Android n'existe pas. Quand il le faudra : un second manifeste (`manifest-android.json`) construit avec

@@ -39,7 +39,7 @@ js/ui/                infrastructure d'écran : thème, navigation, barres, feui
 js/features/          un fichier (ou plusieurs) par écran ou fonctionnalité
 js/app/               mises à jour du service worker, démarrage et écouteurs globaux
 tests/                tests de non-régression Playwright (Python) et tests unitaires (tests/unit/)
-scripts/              construction de l'app (build-web.mjs, empreinte native par plateforme runtime.mjs), mises à jour à chaud, images de la marque (brand-icons.py), gardes des pages juridiques : emplacements à compléter (check-legal-pages.mjs, job deploy, OTA et TestFlight) et pages en ligne avant une OTA ou un envoi TestFlight (check-legal-online.mjs)
+scripts/              construction de l'app (build-web.mjs, empreinte native par plateforme runtime-version.mjs), mises à jour à chaud, images de la marque (brand-icons.py), gardes des pages juridiques : emplacements à compléter (check-legal-pages.mjs, job deploy, OTA et TestFlight) et pages en ligne avant une OTA ou un envoi TestFlight (check-legal-online.mjs)
 privacy.html, mentions-legales.html, cgu.html, cgv.html, legal.css
                       pages juridiques publiques (mdlf.app, publiées par le job deploy via web-public/), sans script ; docs/JURIDIQUE.md
 store/                fiche App Store (captures.py) et captures de revue des abonnements (captures_revue.py → docs/revue/)
@@ -164,6 +164,9 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `session.js` | Séance en cours : démarrage / fin, `persistSession()` (séance et repos, avertissement « stockage plein »), tableau des séries (colonnes Série, Avant, kg / +kg / Aide, Reps / Durée), objectif en gris d'une case vide (`setGoal`, pris à la validation), badges de record (`liveSetBadge` contre `livePrior`, js/data/active-session.js : ceux qui seront notés), validation et « Annuler » |
 | `rest.js` | Repos : mini-barre, feuille détaillée, chrono calé sur une heure de fin, jalons annoncés, `restSnapshot()` / `resumeRest()` pour la séance enregistrée |
 | `rest-activity.js` | Live Activity du repos (app iOS) : données envoyées au module natif (`restActivityPayload`, couleur, série suivante), `syncRestActivity()` (via `syncNativeRest()`) / `endRestActivity()` appelés par `rest.js` |
+| `watch.js` | Apple Watch (app iOS) : état envoyé à la montre (`watchState`, `watchBlockReason`) et gestes acceptés (`watchActionFor`), logique pure ; `watchBoot()` appelé par `init.js` une fois la séance restaurée (écouteurs puis premier état ; rien n'est écouté ni envoyé avant), `syncWatch()` appelé par `persistSession()` (rien n'est renvoyé si l'état n'a pas changé), `handleWatchAction()` valide la série, passe le repos ou fait ±15 s comme les boutons de l'iPhone (geste de plus de 30 s refusé). Voir docs/WATCH_WIDGETS.md |
+| `home-widget.js` | Widget de l'écran d'accueil et de l'écran verrouillé (app iOS) : instantané `widgetSnapshot()` (prochaine séance, semaine, séance en cours), écrit au démarrage et au passage en arrière-plan s'il a changé |
+| `siri.js` | « Démarrer ma séance » (Siri, Raccourcis) : `siriDecision()` (logique pure) puis `startSessionFlow()` ; `siriBoot()` appelé par `init.js` après la restauration de la séance et Bienvenue : il pose l'écouteur (aucune demande suivie avant) et prend la demande laissée au lancement |
 | `session-sheets.js` | Feuilles de la séance (`openSessSheet`), repos d'un exercice, feuille d'ajout / remplacement d'exercice (`openAddExSheet({ target })` : séance en cours, Programme › Séance ou séance passée), menu ⋯, « Comment faire » (`hasHowTo`, `openHowTo` : menu ⋯ ou nom de l'exercice touché sur sa carte) |
 | `session-tools.js` | Feuilles « Disques » et « Échauffement » de la séance (`js/data/plates.js`, `js/data/warmup.js`) |
 | `session-gestures.js` | Balayage d'une série (« Supprimer »), clavier (Entrée, champ actif), recherche de la feuille d'ajout |
@@ -389,7 +392,9 @@ Chromium Pixel 7 / Galaxy S8 / S9+) en thèmes clair et sombre, plus des tests u
 mêmes codes d'erreur que supabase-js) pour le compte : Bienvenue, code e-mail, pseudo, avatar, moyens de
 connexion, suppression. `test_social.py` couvre les Amis avec le même faux serveur (RPC du social et fonction `report` selon les
 règles de `docs/SOCIAL_V1.md`). `test_coach.py` couvre le coach (RPC du coach simulées selon `docs/COACH_V1.md`) : parcours de l'élève et du coach. `test_strava.py` couvre Strava (RPC et fonctions simulées selon `docs/STRAVA.md`) : liaison, envoi, déconnexion, hors ligne. `test_commentaires.py` couvre les commentaires (écrire, mot interdit, Signaler puis Bloquer, Supprimer, Historique, activité, hors ligne) et `test_messages_coach.py` les messages (information unique, non-lus, conversation, relecture pendant la frappe, message de l'autre arrivé juste avant ma réponse, Signaler avec copie et alerte, coach, serveur sans messagerie, lien rompu). `test_parrainage.py` couvre le code de parrainage (création du compte, Réglages › Compte, code inconnu, hors ligne, trop d'essais, compte de plus de 30 jours). `test_payant.py` couvre l'abonnement (`tests/fake_store.py` : RPC d'accès, fonction `verify-purchase` et module StoreKit `MdlfStore` simulés selon `docs/PAYANT_V1.md`, **copiés clé pour clé sur le vrai Swift** et vérifiés par `tests/unit/store-contract.mjs`, avec une horloge de serveur et une horloge d'appareil séparées) : modèle B (offre de lancement lue chez StoreKit, mentions 3.1.2, essai déjà utilisé = prix normal, pas d'essai maison), mode lecture seule, achat, restauration, codes, ancien « Accès offert » refusé, séance commencée avec le droit d'écrire enregistrée malgré la fin de l'accès (grâce), verrou éteint, horloge de l'appareil trafiquée, hors ligne, compte obligatoire verrou allumé (et rien de changé verrou éteint). `test_juridique.py` couvre la lettre d'information (RPC simulées selon `docs/NEWSLETTER.md` : éteinte par défaut, version seule envoyée, désinscription, hors ligne, changement de compte) et les liens des Réglages › Informations légales ; `tests/unit/juridique.mjs` vérifie les pages juridiques (aucun script, liens et ancres, emplacements à compléter listés dans `docs/JURIDIQUE.md`, prix des CGV identiques au contrat du payant). `test_icone.py` simule la coquille iOS (faux `window.Capacitor` injecté avant le chargement, faux
-module `MdlfAppIcon`) : c'est le modèle à suivre pour tester une fonction réservée à l'app. Voir l'en-tête
+module `MdlfAppIcon`) : c'est le modèle à suivre pour tester une fonction réservée à l'app. `test_watch.py`
+fait de même avec de faux modules `MdlfWatch` (gestes gardés jusqu'à l'écoute, comme `retainUntilConsumed`)
+et `MdlfShortcuts` : gestes de la montre et demandes de Siri appliqués à la vraie séance. Voir l'en-tête
 de `run_all.py` pour les options.
 
 **Date et heure dans les tests.** Un test dont le résultat dépend du jour ou de l'heure (« hier »,
@@ -440,7 +445,7 @@ alternatives, compte tant que `MdlfAccount` n'existe pas en Kotlin). Un module q
 garde le même nom et les mêmes réponses (`MdlfHealth` : HealthKit / Health Connect ; `MdlfLiveActivity` :
 Live Activity / notification continue ; `MdlfStore` : StoreKit 2 / Google Play Billing) : les écrans
 n'ont pas à connaître le système, sauf pour un libellé (`Native.health.name`). Chaque coquille a son
-empreinte native (`scripts/runtime.mjs`) : changer Android ne touche jamais aux mises à jour à chaud des
+empreinte native (`scripts/runtime-version.mjs`) : changer Android ne touche jamais aux mises à jour à chaud des
 iPhone. Détails : IOS.md et docs/ANDROID.md ; cohérence vérifiée par `tests/unit/android.mjs`.
 
 ## Serveur des comptes (Supabase)
