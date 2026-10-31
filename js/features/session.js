@@ -44,7 +44,6 @@ function startSession(cat) {
     exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), ...(ex.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(ex) } : {}), ...(ssId(ex) ? { ss: ex.ss } : {}), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
   };
   ssNormalize(activeSession.exercises);
-  activeSession.baseline = computeBaseline(activeSession);
   persistSession();
   otaSessionChanged();   // une mise à jour en file attend la fin de la séance (js/app/live-update.js)
   routeTo('session');
@@ -224,8 +223,7 @@ function renderExerciseCard(ex, ei, cur) {
   const allDone = ex.sets.length > 0 && doneN === ex.sets.length;
 
   if (allDone && !openDone.has(ex)) {
-    const base    = (activeSession.baseline || {})[ex.exId];
-    const records = ex.sets.filter(s => s.done && recordLabel(s, base, ex)).length;
+    const records = liveExerciseBadges(ex, livePrior(ex)).size;   // js/data/records.js
     return renderCollapsedExercise(ex, ei, records);
   }
 
@@ -336,12 +334,12 @@ function renderGroupCard(members, cur, tags) {
     </div>`;
 }
 
-// Série validée : ligne en lecture seule, rouverte en édition au tap ; allure sous la ligne en cardio
-// (même place que le badge de record, qui ne concerne que les répétitions)
+// Série validée : ligne en lecture seule, rouverte en édition au tap ; sous la ligne, dans une même rangée :
+// le badge de record (liveSetBadge, js/data/records.js : toutes les mesures), l'allure et le niveau en cardio
 function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const m      = measureOf(ex), M = MEASURES[m];
   const warm   = isWarmupSet(s);
-  const record = m === 'reps' && !warm ? recordLabel(s, (activeSession.baseline || {})[ex.exId], ex) : '';
+  const record = warm ? '' : liveSetBadge(ex, s, livePrior(ex));   // js/data/records.js
   const first  = setFirstValue(s, m);
   const kind   = m === 'cardio' ? 'charge' : m === 'time' ? 'lest' : loadKind(ex);
   const load   = first ? `${{ charge: '', lest: 'plus ', aide: 'aide de ' }[kind]}${first} ${m === 'cardio' ? 'kilomètres' : data.unit === 'lbs' ? 'livres' : 'kilos'}, ` : '';
@@ -356,14 +354,13 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
       <div class="set-swipe">
         ${del}
         <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"
-             aria-label="${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}, ${esc(ex.name)}${record ? ', record' : ''}. Modifier">
+             aria-label="${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier">
           ${setNumHtml(ex, si, tag)}
           <span class="set-prev num">${prev}</span>
           <span class="set-val num">${first || '—'}</span>
           <span class="set-val num">${esc(s.reps)}</span>
           <span class="set-check-zone"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
-          ${record ? `<span class="set-badge"><span class="pr-badge">${record}</span></span>` : ''}
-          ${pace || mach ? `<span class="set-badge">${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
+          ${record || pace || mach ? `<span class="set-badge">${record ? `<span class="pr-badge">${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
         </div>
         ${rir}
       </div>`;

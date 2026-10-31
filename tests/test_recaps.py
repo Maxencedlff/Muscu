@@ -74,9 +74,12 @@ def recap_state(page):
                active: active ? +active.dataset.index : -1,
                dots: document.querySelectorAll('#recapDots i').length,
                onIdx: [...document.querySelectorAll('#recapDots i')].findIndex(d => d.classList.contains('is-on')),
-               kicker: active?.querySelector('.recap-page__kicker')?.textContent,
-               value: active?.querySelector('.recap-page__value')?.textContent,
-               caption: active?.querySelector('.recap-page__caption')?.textContent,
+               id: active?.dataset.id, tone: active?.dataset.tone,
+               kicker: active?.querySelector('.rp-kicker')?.textContent,
+               value: active?.querySelector('.rp-num')?.dataset.count || active?.querySelector('.rp-num')?.textContent,
+               caption: active?.querySelector('.rp-caption')?.textContent,
+               share: document.querySelector('#recapShareLbl')?.textContent,
+               tabbar: !!document.querySelector('.tabbar') && !document.querySelector('.tabbar').hidden,
                scroll: track ? Math.round(track.scrollLeft / Math.max(1, track.clientWidth)) : -1,
                sw: document.documentElement.scrollWidth, vw: innerWidth,
                prevOff: document.querySelector('[data-action="recap-prev"]')?.disabled,
@@ -110,34 +113,66 @@ def share_current(page, t, where, name):
 
 
 def t_semaine(bench, eng, dev, theme):
-    """Lundi : carte « Ta semaine » sur l'accueil → récap de la semaine passée, écrans, partage, carte vue."""
+    """Dimanche 20 h : carte « Ta semaine » sous la séance du jour → récap de la semaine, écrans, partage, carte vue."""
     t = tag(dev, theme)
-    cm, page = open_page(bench, eng, dev, theme, (2026, 10, 19, 10))
+    cm, page = open_page(bench, eng, dev, theme, (2026, 10, 18, 20))
     try:
         card = page.locator('.recap-card')
-        R.check(card.count() == 1 and card.is_visible(), f'{t} lundi : carte « Ta semaine » sur l\'accueil')
+        R.check(card.count() == 1 and card.is_visible(), f'{t} dimanche 20 h : carte « Ta semaine » sur l\'accueil')
+        # Record d'allure : « 4:51 » reste un seul nombre géant (l'unité « /km » de l'écran ne l'ampute pas)
+        sv = page.evaluate("[recapSplitValue('4:51'), recapSplitValue('16,1\u00a0t'), recapSplitValue('1 min 15')]")
+        R.check(sv[0]['num'] == '4:51' and sv[1]['num'] == '16,1' and sv[2]['num'] == '1', f'{t} chiffre géant : allure entière ({sv})')
         txt = card.inner_text()
-        R.check('ta semaine' in txt.lower() and '2 séances' in txt and '12 – 18 oct.' in txt, f'{t} carte : titre, semaine et chiffres réels ({txt.split(chr(10))[:3]})')
-        m = page.evaluate("""() => { const c = document.querySelector('.recap-card__close').getBoundingClientRect(); return { w: c.width, h: c.height }; }""")
+        R.check('ta semaine' in txt.lower() and '2 séances' in txt and '12 – 18 oct.' in txt.lower(), f'{t} carte : titre, semaine et chiffres réels ({txt.split(chr(10))[:3]})')
+        m = page.evaluate("""() => {
+          const card = document.querySelector('.recap-card'), c = document.querySelector('.recap-card__close').getBoundingClientRect();
+          const chips = [...card.querySelectorAll('.recap-card__chip')].map(e => ({ t: e.textContent, h: e.getBoundingClientRect().height, lh: parseFloat(getComputedStyle(e).lineHeight) || 20 }));
+          const fig = card.querySelector('.recap-card__fig')?.getBoundingClientRect(), title = card.querySelector('.recap-card__title').getBoundingClientRect();
+          return { w: c.width, h: c.height, prev: card.previousElementSibling?.className || '', chips,
+                   overlap: fig ? (c.bottom > fig.top && c.left < fig.right && fig.top < c.bottom - 30) : false,
+                   titleClear: title.right <= c.left + 4 || title.top >= c.bottom - 4,
+                   bg: getComputedStyle(card).backgroundColor, label: card.querySelector('.recap-card__open').textContent.replace(/\s+/g, ' ').trim(),
+                   hasAria: card.querySelector('.recap-card__open').hasAttribute('aria-label') };
+        }""")
         R.check(m['w'] >= 44 and m['h'] >= 44, f'{t} carte : bouton Masquer ≥ 44 pt ({m["w"]:.0f}×{m["h"]:.0f})')
+        R.check(m['prev'].startswith('hero'), f'{t} carte : juste sous la séance du jour ({m["prev"]})')
+        R.check(any(c['t'] == '16,1\u00a0t' for c in m['chips']) and all(c['h'] < 2 * c['lh'] for c in m['chips']), f'{t} carte : « 16,1 t » insécable, pastilles sur une ligne {m["chips"]}')
+        R.check(m['titleClear'], f'{t} carte : le titre ne passe pas sous le bouton Masquer')
+        R.check(m['label'].startswith('Ta semaine · 12 – 18 oct. 2 séances') and m['label'].endswith('Voir mon récap') and not m['hasAria'], f'{t} carte : un seul bouton, lu comme il est écrit ({m["label"][:70]})')
+        black = m['bg'] in ('rgb(0, 0, 0)',)
+        R.check(black == (theme == 'dark'), f'{t} carte : noir pur en sombre, citron vert en clair ({m["bg"]})')
         shot(page, LOT, f'accueil-carte-{t}')
 
         page.click('.recap-card__open')
         page.wait_for_selector('.view.recap')
         page.wait_for_timeout(300)
         st = recap_state(page)
-        R.check(st['n'] >= 5 and st['dots'] == st['n'], f'{t} récap semaine : {st["n"]} écrans et autant de points')
+        R.check(st['n'] >= 5 and st['dots'] == st['n'], f'{t} récap semaine : {st["n"]} écrans et autant de barres')
         R.check(st['active'] == 0 and st['onIdx'] == 0 and st['prevOff'] and not st['nextOff'], f'{t} récap semaine : premier écran actif, flèche gauche inactive')
-        R.check(st['kicker'] == 'TA SEMAINE' and st['value'] == '2' and st['caption'] == 'séances', f'{t} récap semaine : « 2 séances » ({st["kicker"]}, {st["value"]} {st["caption"]})')
+        R.check(st['kicker'] == 'TA SEMAINE' and st['value'] == '2' and st['caption'] == 'séances' and st['tone'] == 'lime', f'{t} récap semaine : « 2 séances » ({st["kicker"]}, {st["value"]} {st["caption"]}, {st["tone"]})')
         R.check(st['sw'] <= st['vw'], f'{t} récap semaine : pas de défilement horizontal de la page ({st["sw"]} > {st["vw"]})')
-        page.wait_for_timeout(600)   # fin de l'animation d'arrivée
+        R.check(not st['tabbar'], f'{t} récap semaine : plein écran, sans barre d\'onglets')
+        page.wait_for_timeout(700)   # fin de l'animation d'arrivée et du compteur
+        R.check(page.evaluate("document.querySelector('.recap-page.is-active .rp-num').textContent") == '2', f'{t} récap semaine : le compteur s\'arrête sur la vraie valeur')
         shot(page, LOT, f'recap-semaine-1-{t}')
 
-        # Flèche suivante : deuxième écran, points et flèches suivent ; retour en arrière
-        page.click('[data-action="recap-next"]')
-        page.wait_for_timeout(700)
+        # Toucher sur la droite de l'écran : écran suivant ; petite semaine : le record d'abord, avec son bouton
+        box = page.locator('.recap-page.is-active').bounding_box()
+        page.mouse.click(box['x'] + box['width'] * .8, box['y'] + box['height'] * .5)
+        page.wait_for_timeout(800)
         st = recap_state(page)
-        R.check(st['active'] == 1 and st['onIdx'] == 1 and st['scroll'] == 1 and not st['prevOff'], f'{t} récap semaine : flèche → deuxième écran ({st["active"]}, point {st["onIdx"]}, défilement {st["scroll"]})')
+        R.check(st['active'] == 1 and st['onIdx'] == 1 and st['scroll'] == 1 and not st['prevOff'], f'{t} récap semaine : toucher à droite → deuxième écran ({st["active"]}, barre {st["onIdx"]}, défilement {st["scroll"]})')
+        R.check(st['id'] == 'records' and st['tone'] == 'orange' and st['share'] == 'Partager ce record', f'{t} petite semaine : le record en deuxième ({st["id"]}, {st["tone"]}, {st["share"]})')
+        rec = page.evaluate("""() => { const p = document.querySelector('.recap-page.is-active');
+          return { from: p.querySelector('.rp-from')?.textContent, box: p.querySelector('.rp-box')?.textContent, label: p.getAttribute('aria-label') }; }""")
+        R.check(rec['from'] and rec['box'] and 'depuis ton record du' in rec['box'] and '→' in rec['label'], f'{t} écran record : avant → après et gain réels ({rec["from"]}, {rec["box"]})')
+        # Toucher à gauche : retour
+        page.mouse.click(box['x'] + box['width'] * .1, box['y'] + box['height'] * .5)
+        page.wait_for_timeout(800)
+        R.check(recap_state(page)['active'] == 0, f'{t} récap semaine : toucher à gauche → retour')
+        page.click('[data-action="recap-next"]')
+        page.wait_for_timeout(800)
+        st = recap_state(page)
         shot(page, LOT, f'recap-semaine-2-{t}')
         path, name = share_current(page, t, 'écran 2', f'story-semaine-{st["active"]}-{t}')
         R.check(name.startswith('mdlf-training-recap-w2026-10-12-'), f'{t} récap semaine : nom du fichier {name}')
@@ -148,9 +183,10 @@ def t_semaine(bench, eng, dev, theme):
         page.evaluate("() => { const tr = document.querySelector('#recapTrack'); tr.scrollTo({ left: tr.scrollWidth, behavior: 'instant' }); }")
         page.wait_for_timeout(500)
         st = recap_state(page)
-        R.check(st['active'] == st['n'] - 1 and st['nextOff'] and 'EN CHIFFRES' in (st['kicker'] or ''), f'{t} récap semaine : balayage jusqu\'au résumé ({st["active"]}/{st["n"] - 1}, {st["kicker"]})')
-        tiles = page.evaluate("[...document.querySelectorAll('.recap-page.is-active .recap-tile__lbl')].map(e => e.textContent)")
-        R.check(tiles[:1] == ['Séances'] and 'Séries' in tiles, f'{t} résumé : tuiles {tiles}')
+        R.check(st['active'] == st['n'] - 1 and st['nextOff'] and st['id'] == 'summary' and st['share'] == 'Partager ma semaine', f'{t} récap semaine : balayage jusqu\'au résumé ({st["active"]}/{st["n"] - 1}, {st["id"]}, {st["share"]})')
+        page.wait_for_function("(() => { const c = document.querySelector('.recap-page--summary canvas'); return c && c.toDataURL('image/png').length > 60000; })()", timeout=8000)
+        lbl = page.evaluate("document.querySelector('.recap-page.is-active').getAttribute('aria-label')")
+        R.check('Séries 42' in lbl and 'Durée' in lbl, f'{t} résumé : la story elle-même, décrite pour VoiceOver ({lbl[:90]})')
         shot(page, LOT, f'recap-semaine-resume-{t}')
         share_current(page, t, 'résumé', f'story-semaine-resume-{t}')
 
@@ -177,7 +213,7 @@ def t_semaine(bench, eng, dev, theme):
         page.wait_for_timeout(600)
         st = recap_state(page)
         R.check(st['kicker'] == 'TON MOIS' and st['caption'] == 'séances' and st['n'] >= 6, f'{t} récap mois : {st["value"]} séances, {st["n"]} écrans')
-        sub = page.evaluate("document.querySelector('.recap-page.is-active .recap-page__sub')?.textContent")
+        sub = page.evaluate("document.querySelector('.recap-page.is-active .rp-sub')?.textContent")
         R.check(sub == 'Septembre 2026', f'{t} récap mois : période ({sub})')
         shot(page, LOT, f'recap-mois-{t}')
         R.check(not page.errors, f'{t} semaine : aucune erreur JS {page.errors}')
@@ -203,16 +239,16 @@ def t_annee(bench, eng, dev, theme):
         st = recap_state(page)
         R.check(st['kicker'] == 'TON ANNÉE' and st['value'] == '78', f'{t} bilan : 78 séances ({st["kicker"]} {st["value"]})')
         labels = page.evaluate("[...document.querySelectorAll('.recap-page')].map(p => p.getAttribute('aria-label'))")
-        R.check(any('mois le plus actif' in l for l in labels), f'{t} bilan : écran du mois le plus actif')
-        R.check(labels[-1].startswith('Ton année, 2026 en chiffres : Séances 78'), f'{t} bilan : résumé « en chiffres » ({labels[-1][:70]})')
+        R.check(any('mois le plus actif' in l for l in labels), f'{t} bilan : mois le plus actif (écran régularité)')
+        R.check(any('ton année en un corps' in l for l in labels), f'{t} bilan : « ton année en un corps »')
+        R.check(labels[-1].startswith('Ton année, 2026 en chiffres : ') and 'soulevées en 78 séances' in labels[-1], f'{t} bilan : résumé ({labels[-1][:90]})')
         R.check(any('record' in l for l in labels), f'{t} bilan : des records sur l\'année')
         shot(page, LOT, f'bilan-annee-{t}')
         page.evaluate("() => { const tr = document.querySelector('#recapTrack'); tr.scrollTo({ left: tr.scrollWidth, behavior: 'instant' }); }")
         page.wait_for_timeout(500)
-        kick = page.evaluate("document.querySelector('.recap-page.is-active .recap-page__kicker')?.textContent")
-        R.check(kick == 'TON ANNÉE EN CHIFFRES', f'{t} bilan : résumé ({kick})')
-        lines = page.evaluate("[...document.querySelectorAll('.recap-page.is-active .recap-list__name')].map(e => e.textContent)")
-        R.check(lines == ['Exercice n° 1', 'Record le plus marquant', 'Mois le plus actif'], f'{t} bilan : lignes {lines}')
+        st = recap_state(page)
+        R.check(st['id'] == 'summary' and st['share'] == 'Partager mon année', f'{t} bilan : résumé ({st["id"]}, {st["share"]})')
+        R.check(all(k in labels[-1] for k in ('Exercice n° 1 :', 'Record le plus marquant :', 'Mois le plus actif :')), f'{t} bilan : lignes du résumé')
         shot(page, LOT, f'bilan-annee-resume-{t}')
         share_current(page, t, 'bilan résumé', f'story-annee-resume-{t}')
         R.check(not page.errors, f'{t} année : aucune erreur JS {page.errors}')
@@ -281,8 +317,10 @@ def t_moments(bench):
     try:
         page.click('.recap-card__open')
         page.wait_for_selector('.view.recap')
-        anim = page.evaluate("getComputedStyle(document.querySelector('.recap-page.is-active .recap-page__hero')).animationName")
+        anim = page.evaluate("getComputedStyle(document.querySelector('.recap-page.is-active .rp-value')).animationName")
         R.check(anim == 'none', f'prefers-reduced-motion : pas d\'animation ({anim})')
+        num = page.evaluate("document.querySelector('.recap-page.is-active .rp-num').textContent")
+        R.check(num == '2', f'prefers-reduced-motion : chiffre final affiché d\'emblée ({num})')
     finally:
         cm.__exit__(None, None, None)
 

@@ -18,20 +18,22 @@ function writeSession(rest = null) {
   } catch { return false; }
 }
 
-// Records de chaque exercice au démarrage de la séance : les badges s'y comparent
-function computeBaseline(sess) {
-  const baseline = {};
-  const list = data.programmes[sess.programme]?.exercises?.[sess.category] || [];
-  sess.exercises.forEach(ex => {
-    const exData = ex.exId && list.find(e => e.id === ex.exId);
-    if (!exData || measureOf(ex) !== 'reps' || isAssisted(ex)) return;   // durée, cardio : pas de record de charge ni de reps
-    baseline[ex.exId] = {
-      prW:  parseFloat(exData.pr?.weight) || 0,
-      prR:  parseInt(exData.pr?.reps)     || 0,
-      e1rm: exData.est1RM || 0,
-    };
-  });
-  return baseline;
+// Séries d'avant la séance en cours, résumées par exercice (sessionPriorOf, js/data/records.js) : les badges
+// de record s'y comparent avec les règles des records notés à l'enregistrement, donc annoncent exactement ce
+// qui sera noté (charge, lest, reps, aide, temps, durée, distance, allure ; égaler n'est jamais battre).
+// Toute la séance est « d'après » l'historique (séances passées seulement : jamais de date future), d'où
+// date: maintenant. Recalculé quand la séance ou l'historique change (séance reçue par la synchro, séance
+// passée ajoutée ou supprimée) ; une séance passée corrigée sur place pendant la séance n'est relue qu'au
+// prochain changement de l'historique (rare, et l'enregistrement recalcule tout).
+let livePriorCache = null;
+function livePrior(ex) {
+  if (!activeSession) return null;
+  const h = data.history || [], c = livePriorCache;
+  if (!c || c.sess !== activeSession || c.hist !== h || c.n !== h.length) {
+    livePriorCache = { sess: activeSession, hist: h, n: h.length,
+      of: sessionPriorOf({ programme: activeSession.programme, category: activeSession.category, date: Date.now() }, h) };
+  }
+  return livePriorCache.of(ex);
 }
 
 // Reprend la séance enregistrée : null s'il n'y en a pas, sinon { rest } (repos à relancer, ou null)
@@ -58,7 +60,6 @@ function restoreSession() {
         });
       }
     });
-    if (!activeSession.baseline) activeSession.baseline = computeBaseline(activeSession);
     return { rest: saved.rest || null };
   } catch { activeSession = null; return null; }
 }
