@@ -106,11 +106,31 @@ def t_carte(bench, eng, dev, theme):
         page.locator('.ti-card').scroll_into_view_if_needed()
         snap(page, f'carte-en-cours-{dev}-{theme}')
         R.check(json.loads(ls(page, 'ppl_v2')).get('deload') == dl, f'{tag} décharge gardée dans ppl_v2')
+        # Même conseil partout : la carte des cibles ne propose aucun gain, la séance a moitié moins de séries
+        # et pas de puce « ↑ +2,5 kg ». La séance Push reçoit les trois exercices suivis, en 3 séries, avec le haut
+        # de fourchette à 5 reps : hors décharge, la puce et le palier de charge seraient proposés.
+        tg = page.locator('.targets')
+        R.check(tg.count() == 1 and tg.locator('.targets__gain').count() == 0 and 'À battre' not in tg.inner_text(),
+                f'{tag} décharge : carte des cibles sans gain ({tg.inner_text()[:80]!r})')
+        page.evaluate("""data.programmes.ppl.exercises.push = [['dcb', 'Développé couché barre'], ['sqb', 'Squat barre'], ['rwb', 'Rowing barre']]
+          .map(([id, name]) => ({ id, name, sets: 3, repMax: 5 })); save(); render();""")
+        push = page.evaluate("targetsCard('push')")
+        R.check('2 séries · 80 kg' in push and 'targets__gain' not in push and 'Au programme' in push,
+                f'{tag} décharge : cibles Push « 2 séries · 80 kg », sans gain')
+        page.evaluate("startSession('push')")
+        page.wait_for_selector('.ex-card')
+        sess = page.evaluate("activeSession.exercises.map(e => [e.sets.length, e.holdLoad === true])")
+        R.check(sess == [[2, True]] * 3, f'{tag} décharge : séance préremplie en 2 séries, charge gardée {sess}')
+        R.check(page.locator('.bump-chip').count() == 0, f'{tag} décharge : pas de puce de palier de charge')
+        page.evaluate("endSession(); switchTab('train')")
+        page.wait_for_selector('.ti-card')
 
         page.locator('[data-action="deload-stop"]').click()
         page.wait_for_timeout(300)
         txt = page.locator('.ti-card').inner_text()
         R.check('Reprends tes charges d\'avant' in txt and '80 kg × 5' in txt, f'{tag} reprise : charges d\'avant ({txt[:120]!r})')
+        push = page.evaluate("targetsCard('push')")
+        R.check(push.count('80 kg × 5') == 3 and 'targets__gain' not in push, f'{tag} reprise : cibles Push = charges d\'avant, sans gain')
         page.locator('.ti-card').scroll_into_view_if_needed()
         snap(page, f'carte-reprise-{dev}-{theme}')
         page.locator('[data-action="deload-resume-hide"]').click()

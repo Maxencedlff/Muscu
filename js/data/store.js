@@ -47,14 +47,20 @@ function recomputePRFromHistory(d = data) {
   });
 }
 
-// Dernière séance (programme + catégorie) qui contient cet exercice : { h, ex } ou null
+// Dernière séance (programme + catégorie) qui contient cet exercice : { h, ex } ou null. Les séances de la
+// décharge enregistrée (js/data/training-insights.js) sont passées : séries réduites, efforts retenus, elles ne
+// fixent ni la cible, ni le préremplissage, ni « Avant ». Faute d'autre séance de l'exercice, la plus récente sert.
 function lastPerf(progKey, cat, exLike, d = data) {
+  const dl = cleanDeload(d.deload);
+  let light = null;
   for (const h of d.history || []) {
     if (entryProg(h) !== progKey || h.category !== cat) continue;
     const ex = (h.exercises || []).find(e => sameEx(e, exLike));
-    if (ex && ex.sets?.length) return { h, ex };
+    if (!ex || !ex.sets?.length) continue;
+    if (!inDeload(h, dl)) return { h, ex };
+    light ??= { h, ex };
   }
-  return null;
+  return light;
 }
 
 // Identifiant stable pour un exercice connu par son seul nom (exercice ajouté en cours de route)

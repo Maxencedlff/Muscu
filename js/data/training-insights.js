@@ -115,6 +115,7 @@ const EFFORT_RISE        = 0.5;   // effort qui monte : RPE moyen des 2 dernièr
 const EFFORT_MIN_SETS    = 6;     // séries notées de chaque côté pour comparer
 const SNOOZE_DAYS        = 7;     // « Pas maintenant »
 const RESUME_DAYS        = 7;     // carte « Reprends tes charges » après la décharge
+const DELOAD_SET_RATIO   = 0.5;   // décharge : la moitié des séries (Bell et al. 2023 : volume baissé, charge gardée)
 
 const tiMedian = a => { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 
@@ -148,6 +149,33 @@ function cleanDeload(v) {
   if (!v || typeof v !== 'object' || !Number.isFinite(v.start) || !Number.isFinite(v.end)) return null;
   if (v.start <= 0 || v.end <= v.start || v.end - v.start > 2 * DELOAD_DAYS * TI_DAY) return null;
   return { start: v.start, end: v.end, ...(v.seen === true ? { seen: true } : {}) };
+}
+
+// Séries d'une séance ou d'un exercice pendant la décharge : la moitié, une au moins (3 → 2, 4 → 2, 5 → 3)
+function deloadSetCount(n) { return n > 0 ? Math.max(1, Math.round(n * DELOAD_SET_RATIO)) : 0; }
+
+// Séance faite pendant la décharge enregistrée (dl nettoyée par cleanDeload) : elle ne sert pas de « dernière
+// fois » (lastPerf), sinon la séance allégée deviendrait la référence des cibles et du préremplissage
+function inDeload(h, dl) { return !!dl && !!h && h.date >= dl.start && h.date < dl.end; }
+
+// Où en est la décharge pour les cibles de l'accueil et la séance, ou null (réglage coupé, aucune décharge) :
+//   { kind: 'active', start, end }   décharge en cours : moitié des séries, mêmes charges, aucun gain proposé
+//   { kind: 'resume', start, end }   les RESUME_DAYS jours d'après : tant qu'un exercice n'a pas été refait depuis,
+//                                    sa cible est la série d'avant la décharge, sans gain (comme la carte de reprise)
+// La carte de reprise fermée (seen) ne change rien ici : elle masque une carte, pas le conseil.
+function deloadPhase(d = data, now = Date.now()) {
+  if (!d || d.trainingTipsOff === true) return null;
+  const dl = cleanDeload(d.deload);
+  if (!dl || now < dl.start) return null;
+  if (now < dl.end) return { kind: 'active', start: dl.start, end: dl.end };
+  if (now < dl.end + RESUME_DAYS * TI_DAY) return { kind: 'resume', start: dl.start, end: dl.end };
+  return null;
+}
+
+// Charge à garder telle quelle pour un exercice dont la dernière fois (lastPerf) date de lastDate : décharge en
+// cours, ou reprise sans séance de cet exercice depuis le début de la décharge. Pas de « + 1 rep » ni de « + 2,5 kg ».
+function deloadHoldsLoad(phase, lastDate) {
+  return !!phase && (phase.kind === 'active' || !(lastDate >= phase.start));
 }
 
 // Meilleur 1RM estimé de chaque exercice à charge (clé exKey) des séances de [from, to) : Map clé → kg
@@ -283,7 +311,7 @@ function trainingAdvice(d = data, now = Date.now()) {
   const dl = cleanDeload(d.deload);
   if (dl && now >= dl.start && now < dl.end) {
     const usual = usualSetsPerSession(hist, dl.start);
-    return { kind: 'deload-active', start: dl.start, end: dl.end, usualSets: usual, targetSets: usual ? Math.max(1, Math.round(usual / 2)) : 0 };
+    return { kind: 'deload-active', start: dl.start, end: dl.end, usualSets: usual, targetSets: deloadSetCount(usual) };
   }
   if (dl && !dl.seen && now >= dl.end && now < dl.end + RESUME_DAYS * TI_DAY) {
     const sets = preDeloadSets(hist, dl.start);
@@ -303,7 +331,7 @@ function trainingAdvice(d = data, now = Date.now()) {
   if (!plateau && !tired && streak < DELOAD_STREAK_MAX) return null;
   const usual = usualSetsPerSession(hist, now, memo);
   return { kind: 'deload', streak, stalled: stalled.map(t => t.name), effort: tired ? effort : null,
-    usualSets: usual, targetSets: usual ? Math.max(1, Math.round(usual / 2)) : 0 };
+    usualSets: usual, targetSets: deloadSetCount(usual) };
 }
 
 // Stagnation d'un exercice (Progrès › Exercice) : sa courbe si elle stagne ou recule, sinon null

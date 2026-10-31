@@ -257,7 +257,7 @@ function pickExercise(name) {
   }
   let exId = inProg ? inProg.id : resolveExId(sp, sc, name);
   if (exId?.startsWith('n:')) exId = null; // résolu à l'enregistrement, comme avant
-  const exObj = { exId, name: inProg ? inProg.name : name, measure: measureOf(inProg || { name }), ...(inProg?.tempo ? { tempo: inProg.tempo } : {}), ...(inProg?.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(inProg) } : {}), sets: buildSets(sp, sc, { exId, name }, axSets, inProg || {}) };
+  const exObj = { exId, name: inProg ? inProg.name : name, measure: measureOf(inProg || { name }), ...(inProg?.tempo ? { tempo: inProg.tempo } : {}), ...(inProg?.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(inProg) } : {}), ...holdLoadOf(sp, sc, { exId, name }), sets: buildSets(sp, sc, { exId, name }, axSets, inProg || {}) };
   if (exObj.exId && !activeSession.baseline?.[exObj.exId]) {
     activeSession.baseline = { ...(activeSession.baseline || {}), ...computeBaseline({ ...activeSession, exercises: [exObj] }) };
   }

@@ -243,6 +243,69 @@ export default function ({ test, run, reset, assert, sameJSON }) {
       'cinq semaines chargées plus tard, la décharge peut revenir');
   });
 
+  // ── Décharge : cibles de l'accueil et « dernière fois » cohérentes avec la carte ──
+  // Rowing prévu en 3 séries ; avant la décharge 3 × 12 à 32 kg (haut de la fourchette : palier de charge proposé),
+  // pendant la décharge 2 × 8 à 32 kg
+  const DL = { start: NOW - 2 * DAY, end: NOW + 5 * DAY };
+  function seedDeload({ deload = DL, extra = [], tipsOff = false } = {}) {
+    const row = sets => [{ exId: 'row', name: 'Rowing', sets }];
+    const hist = [
+      ...extra,
+      { id: 'light', programme: 'ppl', category: 'pull', date: NOW - DAY, exercises: row([set(32, 8), set(32, 8)]) },
+      { id: 'before', programme: 'ppl', category: 'pull', date: NOW - 3 * DAY, exercises: row([set(32, 12), set(32, 12), set(32, 12)]) },
+    ];
+    run(`data.activeProgramme = 'ppl'; data.programmes.ppl.exercises.pull = [{ id: 'row', name: 'Rowing', sets: 3 }];
+      data.history = ${js(hist)}; data.deload = ${js(deload)}; ${tipsOff ? 'data.trainingTipsOff = true;' : 'delete data.trainingTipsOff;'}`);
+    return run('data.programmes.ppl.exercises.pull[0]');
+  }
+  const target = (exo, now) => run(`exerciseTarget('pull', data.programmes.ppl.exercises.pull[0], ${now})`);
+
+  test('décharge : moitié des séries, une au moins', () => {
+    reset();
+    sameJSON([0, 1, 2, 3, 4, 5, 9].map(n => run(`deloadSetCount(${n})`)), [0, 1, 1, 2, 2, 3, 5]);
+  });
+
+  test('décharge : la « dernière fois » (lastPerf) passe les séances de la décharge, sauf s\'il n\'y a qu\'elles', () => {
+    reset();
+    seedDeload();
+    assert.equal(run(`lastPerf('ppl', 'pull', { exId: 'row', name: 'Rowing' }).h.id`), 'before');
+    run(`data.history = data.history.filter(h => h.id === 'light')`);
+    assert.equal(run(`lastPerf('ppl', 'pull', { exId: 'row', name: 'Rowing' }).h.id`), 'light', 'seule séance de l\'exercice');
+    seedDeload({ deload: null });
+    run('delete data.deload');
+    assert.equal(run(`lastPerf('ppl', 'pull', { exId: 'row', name: 'Rowing' }).h.id`), 'light', 'sans décharge enregistrée : la plus récente');
+  });
+
+  test('décharge en cours : cible « 2 séries · 32 kg » sans gain, carte « Au programme »', () => {
+    reset();
+    const exo = seedDeload();
+    sameJSON(target(exo, NOW - 4 * DAY), { text: '34,5 kg', gain: '+2,5 kg' }, 'avant la décharge : palier de charge');
+    sameJSON(target(exo, NOW), { text: '2 séries · 32 kg', gain: '', hold: true });
+    const card = run(`targetsCard('pull', ${NOW})`);
+    assert.ok(card.includes('Au programme') && !card.includes('À battre'), 'rien « à battre » pendant la décharge');
+    assert.ok(!card.includes('targets__gain'), 'aucun gain affiché');
+    // Conseils coupés : la carte de décharge disparaît, les cibles redeviennent normales
+    seedDeload({ tipsOff: true });
+    sameJSON(target(exo, NOW), { text: '34,5 kg', gain: '+2,5 kg' });
+  });
+
+  test('décharge, reprise : charges d\'avant sans gain tant que l\'exercice n\'est pas refait, puis progression', () => {
+    reset();
+    const exo = seedDeload();
+    const back = DL.end + DAY;
+    // Comme la carte « Reprends tes charges d'avant » : 32 kg × 12, pas la séance allégée « + 1 rep »
+    sameJSON(target(exo, back), { text: '32 kg × 12', gain: '', hold: true });
+    assert.ok(run(`targetsCard('pull', ${back})`).includes('Au programme'));
+    // Refait depuis la fin de la décharge : la progression reprend sur cette séance
+    seedDeload({ extra: [{ id: 'again', programme: 'ppl', category: 'pull', date: DL.end + 3600_000,
+      exercises: [{ exId: 'row', name: 'Rowing', sets: [set(32, 10), set(32, 10), set(32, 10)] }] }] });
+    sameJSON(target(exo, back), { text: '32 kg × 11', gain: '+1 rep' });
+    assert.ok(run(`targetsCard('pull', ${back})`).includes('À battre aujourd'));
+    // Semaine de reprise passée sans refaire l'exercice : progression sur la dernière séance d'avant la décharge
+    seedDeload();
+    sameJSON(target(exo, DL.end + 8 * DAY), { text: '34,5 kg', gain: '+2,5 kg' });
+  });
+
   test('périodisation : coût borné, chaque séance lue une seule fois par conseil (accueil à chaque rendu)', () => {
     reset();
     // 30 semaines à 5 séances de 8 exercices à 5 séries : 150 séances, coût fixe dès 16 semaines regardées

@@ -70,8 +70,17 @@ Limites, assumées et dites dans l'app (« C'est un repère, pas un examen ») :
   RPE 8,2 → 10 »), le plan (« Environ 5 séries par séance au lieu de 9, mêmes charges, arrête-toi plus loin
   de l'échec. Pendant 7 jours. »), « Pourquoi ce conseil ? », **Commencer** et **Pas maintenant** (7 jours).
 - Pendant la décharge : « Semaine plus légère », séries visées, date de fin, « Terminer la décharge ».
+  Le reste de l'app suit le même conseil : la carte des cibles devient « Au programme » avec « 2 séries ·
+  80 kg » (moitié des séries prévues, même charge, aucun « + 1 rep » ni « + 2,5 kg ») ; une séance démarrée
+  est préremplie avec la moitié des séries de chaque exercice (une au moins) et n'affiche pas la puce
+  « ↑ + 2,5 kg ».
 - La semaine d'après : « Reprise · Reprends tes charges d'avant » avec les 3 exercices les plus lourds et
-  leur meilleure série d'avant la décharge ; croix pour masquer.
+  leur meilleure série d'avant la décharge ; croix pour masquer. Tant qu'un exercice n'a pas été refait
+  depuis le début de la décharge, sa cible est cette série d'avant, sans gain (« Au programme »), et la
+  séance ne propose pas de palier de charge ; une fois refait, la progression habituelle reprend.
+- Partout (cibles, préremplissage, colonne « Avant », « dernier … » de l'éditeur), la « dernière fois »
+  (`lastPerf`) passe les séances faites pendant la décharge enregistrée : la séance allégée ne devient
+  jamais la référence. S'il n'y a qu'elle pour un exercice, elle sert quand même.
 - **Progrès › Exercice** : « Pas de nouveau 1RM est. depuis N séances » ou « 1RM est. en baisse sur les 2
   dernières séances », avec le meilleur et sa date.
 - **Réglages › Entraînement › Conseils d'entraînement** : coupe la carte et la stagnation (le niveau de
@@ -87,7 +96,8 @@ Limites, assumées et dites dans l'app (« C'est un repère, pas un examen ») :
 | Effort qui monte | RPE moyen (RIR noté) des 14 derniers jours supérieur d'au moins 0,5 à celui des 28 jours d'avant, avec 6 séries notées au moins de chaque côté. |
 | Décharge conseillée | 4 semaines chargées d'affilée ou plus **et** (au moins la moitié des exercices suivis, deux au moins, stagnent ou reculent **ou** l'effort monte avec au moins un exercice qui stagne) ; ou 8 semaines chargées d'affilée sans aucun signe. |
 | Silence | Réglage coupé, « Pas maintenant » (7 jours), décharge en cours, et 4 semaines après la fin d'une décharge. |
-| Plan | Moitié des séries de travail habituelles par séance (médiane des 28 derniers jours), mêmes charges, plus loin de l'échec, 7 jours. |
+| Plan | Moitié des séries de travail habituelles par séance (médiane des 28 derniers jours), mêmes charges, plus loin de l'échec, 7 jours. Par exercice : moitié des séries prévues arrondie, une au moins (`deloadSetCount` : 3 → 2, 4 → 2, 5 → 3). |
+| Cibles et séance | Décharge en cours : aucun gain, moitié des séries. Les 7 jours d'après : aucun gain pour un exercice pas refait depuis le début de la décharge. Conseils coupés : cibles et séance normales (la carte disparaît aussi). La carte de reprise fermée ne change rien aux cibles. |
 
 ### Coût du calcul (accueil, à chaque rendu)
 
