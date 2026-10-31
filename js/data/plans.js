@@ -13,6 +13,8 @@
 //  - « soit 8,5 mois » est CALCULÉ (prix annuel / prix mensuel lus chez StoreKit, au demi-mois près).
 //  - Paliers coach : limite d'élèves suivis (10, 20, 30, illimité). Le serveur fait foi
 //    (coach_tier_state, refus tier_full) ; ici on ne fait que choisir quoi montrer.
+//  - ACCÈS À VIE (payant plus) : achat unique NON CONSOMMABLE, hors du groupe d'abonnements (il ne
+//    remplace pas un abonnement en cours chez Apple). Son prix est lu chez StoreKit comme les autres.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -27,8 +29,13 @@ const PLAN_TIERS = Object.freeze([
 ]);
 const PLAN_COACH_TIERS = PLAN_TIERS.filter(t => t.coach);
 const planId = (key, period) => `${PLAN_PREFIX}${key}.${period === 'year' ? 'yearly' : 'monthly'}`;
-// Tous les identifiants, dans l'ordre d'affichage (le même que ios/App/App/StorePlugin.swift)
+// Tous les abonnements, dans l'ordre d'affichage (le même que ios/App/App/StorePlugin.swift)
 const PLAN_IDS = Object.freeze(PLAN_TIERS.flatMap(t => [planId(t.key, 'month'), planId(t.key, 'year')]));
+// Accès à vie : produit à part, sans période ni palier (period 'life')
+const PLAN_LIFETIME = Object.freeze({ key: 'lifetime', coach: false, limit: null, label: 'À vie' });
+const PLAN_LIFETIME_ID = `${PLAN_PREFIX}lifetime`;
+// Tout ce que l'app vend : les abonnements puis l'accès à vie (soldIds du Swift)
+const PLAN_SOLD_IDS = Object.freeze([...PLAN_IDS, PLAN_LIFETIME_ID]);
 
 // Offre élève : code d'offre d'Apple sur le mensuel particulier (App Store Connect, offre « Eleve de
 // coach -25 pct 12 mois »), 12 mois, nouveaux abonnés seulement, sans essai gratuit
@@ -40,8 +47,9 @@ function planRedeemUrl(code) {
   return `https://apps.apple.com/redeem?ctx=offercodes&id=${PLAN_APP_STORE_ID}&code=${encodeURIComponent(code)}`;
 }
 
-// Identifiant → { tier, period: 'month' | 'year' }, null si ce n'est pas une de nos formules
+// Identifiant → { tier, period: 'month' | 'year' | 'life' }, null si ce n'est pas une de nos formules
 function planOf(id) {
+  if (id === PLAN_LIFETIME_ID) return { tier: PLAN_LIFETIME, period: 'life' };
   if (typeof id !== 'string' || !PLAN_IDS.includes(id)) return null;
   const [key, per] = id.slice(PLAN_PREFIX.length).split('.');
   return { tier: PLAN_TIERS.find(t => t.key === key), period: per === 'yearly' ? 'year' : 'month' };

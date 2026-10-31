@@ -46,8 +46,9 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     const a = run(`cleanAccess({ status: 'active', until: '2027-01-01T00:00:00Z', paywall_on: true, trial_days: 90,
       days_left: 42, can_write: true, gift: false, coach_team: false, intro_offer: true, intro_until: '2027-01-01T00:00:00Z',
       server_now: '2026-10-28T10:00:00Z', user_id: 'secret', original_transaction_id: '1000', evil: '<img src=x>' })`);
-    sameJSON(Object.keys(a).sort(), ['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until'],
-      'liste blanche du modèle B (plus de trial_days ni d\'essai maison)');
+    sameJSON(Object.keys(a).sort(), ['also_sub', 'can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until',
+      'lifetime', 'paywall_on', 'server_now', 'status', 'until'],
+      'liste blanche du modèle B et du payant plus (plus de trial_days ni d\'essai maison)');
     assert.equal(a.intro_offer, true);
     assert.equal(a.intro_until, Date.parse('2027-01-01T00:00:00Z'));
     // L'offre de lancement n'a de sens que pour un abonnement actif ; une date illisible n'est pas gardée
@@ -237,8 +238,9 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
   test('accès : aucun prix ni durée d\'essai écrits en dur dans l\'app', () => {
     const files = ['js/data/access.js', 'js/features/paywall-ui.js', 'css/paywall.css', 'js/data/coach-pro.js', 'js/features/coach-pro-ui.js']
       .map(f => [f, fs.readFileSync(path.join(ROOT, f), 'utf8')]);
-    // Prix des formules (tarifs du 30/10, et les anciens) : jamais écrits, toujours lus chez StoreKit
-    const PRICES = /5[,.]99|41[,.]99|6[,.]49|55[,.]00|15[,.]99|134[,.]99|19[,.]99|169[,.]00|24[,.]99|209[,.]99|29[,.]99|250[,.]00/;
+    // Prix des formules (tarifs du 30/10, les anciens, et les prix envisagés pour l'accès à vie) :
+    // jamais écrits, toujours lus chez StoreKit
+    const PRICES = /5[,.]99|41[,.]99|6[,.]49|55[,.]00|15[,.]99|134[,.]99|19[,.]99|169[,.]00|24[,.]99|209[,.]99|29[,.]99|250[,.]00|89[,.]99|90[,.]00|99[,.]99/;
     for (const [f, src] of files) {
       assert.ok(!PRICES.test(src), `${f} : un prix est écrit en dur (les prix viennent de StoreKit)`);
       assert.ok(!/€/.test(src), `${f} : une devise est écrite en dur`);
@@ -252,7 +254,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.ok(/^const PLAN_STUDENT_PRICE = /.test(euros[0]));
     // Les identifiants de produits, eux, sont bien ceux du contrat
     sameJSON([MONTHLY, YEARLY, run('ACCESS_PRODUCT_IDS.slice(0, 2)'), run('ACCESS_PRODUCT_IDS.length')],
-      ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly', ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly'], 10]);
+      ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly', ['com.mdlf.training.pro.monthly', 'com.mdlf.training.pro.yearly'], 11]);
     // L'ancien « Accès offert » d'Apple n'existe plus nulle part dans l'app
     for (const [f, src] of files) assert.ok(!/access\.gift|ACCESS_GIFT_ID|giftId/.test(src), `${f} : accès offert d'Apple resté`);
     // Plus aucune trace de l'essai maison ni du rattachement à l'identifiant Apple
@@ -628,6 +630,74 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       assert.match(txt, /^[A-ZÉÀ].+\.$/, k);
       assert.ok(!/ - | – /.test(txt), `${k} : sans tiret`);
     }
+  });
+
+  test('payant plus : accès à vie nettoyé, jamais sur un accès fini, et gardé hors ligne comme un cadeau à vie', () => {
+    const life = (extra = {}) => ({ status: 'active', paywall_on: true, can_write: true, gift: false, coach_team: false,
+      until: null, days_left: null, intro_offer: false, lifetime: 'purchase', also_sub: false, server_now: NOW, ...extra });
+    sameJSON(run(`[cleanAccess(${JSON.stringify(life())}).lifetime, cleanAccess(${JSON.stringify(life({ lifetime: 'à vie' }))}).lifetime,
+      cleanAccess(${JSON.stringify(life({ status: 'expired', lifetime: 'purchase' }))}).lifetime,
+      cleanAccess(${JSON.stringify(life({ status: 'gift', lifetime: 'gift', also_sub: true }))}).also_sub,
+      cleanAccess(${JSON.stringify(life({ lifetime: 'test', also_sub: true }))}).also_sub,
+      cleanAccess(${JSON.stringify(life({ also_sub: 'oui' }))}).also_sub]`), ['purchase', null, null, true, false, false]);
+    // Droit d'écrire, statut, pas de date de fin
+    sameJSON(decide(life()), [true, true, 'active', null, null, false]);
+    sameJSON(run(`(() => { const u = account.user, saved = { ...access };
+      try { account.user = { id: 'u' }; accessReset('u'); access.state = cleanAccess(${JSON.stringify(life({ also_sub: true }))});
+        return [accessLifetime(), accessAlsoSub()]; }
+      finally { account.user = u; Object.assign(access, saved); } })()`), ['purchase', true]);
+    // Hors ligne : 7 jours, comme tout accès sans date de fin (rien d'autre ne le borne), puis redemandé
+    sameJSON(offline(life(), 6), [true, 'active', null, false]);
+    sameJSON(offline(life(), 8), [false, 'unknown', null, true]);
+  });
+
+  test('payant plus : TestFlight (Sandbox) demande un code d\'offre élève de Sandbox, le reste de Production', async () => {
+    const r = await run(`(async () => {
+      const u = account.user, saved = { ...access }, realSb = sb, nativeStore = Native.store;
+      const out = [];
+      try {
+        account.user = { id: 'u' };
+        let asked = 0;
+        for (const env of ['sandbox', 'production', 'unknown', 'other', null, undefined]) {
+          accessReset('u'); access.storeEnv = null;
+          Native.store = { ...nativeStore, environment: async () => { asked++; return env; } };
+          let sent = null;
+          sb = { rpc: async (fn, args) => { sent = args.env; return { data: { ok: false, error: 'no_code' }, error: null }; } };
+          await accessStudentOffer();
+          await accessStudentOffer();
+          out.push(sent);
+        }
+        // Coquille sans la méthode (mise à jour à chaud avant la build) : Production, sans erreur
+        accessReset('u'); access.storeEnv = null;
+        Native.store = { ...nativeStore, environment: undefined };
+        let sent = null;
+        sb = { rpc: async (fn, args) => { sent = args.env; return { data: { ok: false, error: 'no_code' }, error: null }; } };
+        await accessStudentOffer();
+        out.push(sent, asked);
+        return out;
+      } finally { account.user = u; Object.assign(access, saved); sb = realSb; Native.store = nativeStore; }
+    })()`);
+    // L'environnement n'est demandé qu'une fois par lancement quand il est connu
+    sameJSON(r, ['Sandbox', 'Production', 'Production', 'Production', 'Production', 'Production', 'Production', 1 + 1 + 2 + 1 + 2 + 2]);
+  });
+
+  test('payant plus : catalogue avec l\'accès à vie, et la formule en cours préfère l\'abonnement', async () => {
+    sameJSON(run(`[planOf(PLAN_LIFETIME_ID).period, planOf(PLAN_LIFETIME_ID).tier.coach, planIsCoach(PLAN_LIFETIME_ID),
+      PLAN_SOLD_IDS.length, PLAN_SOLD_IDS[PLAN_SOLD_IDS.length - 1], PLAN_IDS.includes(PLAN_LIFETIME_ID)]`),
+      ['life', false, false, 11, 'com.mdlf.training.lifetime', false]);
+    const r = await run(`(async () => {
+      const u = account.user, saved = { ...access }, nativeStore = Native.store;
+      try {
+        account.user = { id: 'u' }; accessReset('u');
+        Native.store = { ...nativeStore, available: true, products: async () => ({ products: [] }),
+          current: async () => ({ entitlements: [{ jws: 'a', productId: PLAN_LIFETIME_ID }, { jws: 'b', productId: ${JSON.stringify(YEARLY)} }] }) };
+        const both = await accessLoadCurrentPlan();
+        Native.store.current = async () => ({ entitlements: [{ jws: 'a', productId: PLAN_LIFETIME_ID }] });
+        const life = await accessLoadCurrentPlan();
+        return [both, life];
+      } finally { account.user = u; Object.assign(access, saved); Native.store = nativeStore; }
+    })()`);
+    sameJSON(r, [YEARLY, 'com.mdlf.training.lifetime']);
   });
 
   test('offre élève : un refus du serveur n\'est pas une exception, le code est gardé', async () => {

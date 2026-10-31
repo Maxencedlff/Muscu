@@ -38,6 +38,11 @@ Ce qu'il ajoute, selon docs/PAYANT_V1.md (MODÈLE B : l'essai gratuit est l'offr
 - `from('app_config')` : lignes `paywall_on` et `min_build` (`__st.minBuild`), avec ou sans compte ;
   appels sous `['app_config', 'anon' | 'auth']` ; `__st.fail.config = 'offline'` : injoignable.
 
+Payant plus : accès à vie `com.mdlf.training.lifetime` (non consommable : ni période, ni essai, comme
+le Swift) ; vérifié, il donne `lifetime: 'purchase'` (Production) ou `'test'` (Sandbox, 7 jours), et
+`also_sub` quand un abonnement tourne encore à côté ; `__st.giveGift()` donne `lifetime: 'gift'`.
+`environment()` → `{ environment }` (`__st.environment`, 'production' par défaut ; 'sandbox' = TestFlight).
+
 Deux horloges SÉPARÉES : celle du serveur (`__st.serverShift`) et celle de l'appareil
 (`__st.deviceShift`, qui décale `Date.now()` dans la page).
 
@@ -75,12 +80,17 @@ FAKE_STORE = r"""
         { id: `com.mdlf.training.${k}.yearly`, displayName: `Coach ${l}`, description: 'Coach, annuel',
           displayPrice: y.toFixed(2).replace('.', ',') + ' €', price: y, currency: 'EUR', period: { unit: 'year', value: 1 }, introEligible: true }]),
     ],
+    // Accès à vie (payant plus) : non consommable, décrit comme le Swift (ni période, ni essai)
+    lifetimeProduct: { id: 'com.mdlf.training.lifetime', displayName: 'MDLF Training à vie', description: 'Accès à vie',
+      displayPrice: '89,99 €', price: 89.99, currency: 'EUR' },
+    environment: 'production', ownedLife: null,
     // Offre élève : codes d'offre d'Apple à usage unique distribués par student_offer_code
     offerCodes: ['STUDENTCODE01', 'STUDENTCODE02', 'STUDENTCODE03'], offerGiven: {},
   }, window.__stOpts || {});
   const DAY = 86400000, HOUR = 3600000;
   const BUNDLE = 'com.mdlf.training';
   const SUB_IDS = ['pro', 'coach10', 'coach20', 'coach30', 'coachmax'].flatMap(k => [`com.mdlf.training.${k}.monthly`, `com.mdlf.training.${k}.yearly`]);
+  const LIFE_ID = 'com.mdlf.training.lifetime';
   const TRIAL = { unit: 'month', value: 3 };
   const OFFER = { displayPrice: '0,00 €', price: 0, paymentMode: 'freeTrial', period: { unit: 'month', value: 3 }, periodCount: 1 };
 
@@ -109,6 +119,7 @@ FAKE_STORE = r"""
     familyShared: !!tx.familyShared,
     environment: tx.environment || 'production',
     subscription: SUB_IDS.includes(tx.productId),
+    lifetime: tx.productId === LIFE_ID,
     reason: tx.reason || 'purchase',
   });
 
@@ -119,7 +130,7 @@ FAKE_STORE = r"""
     let e = st.ents[uid];
     if (!e && create) {
       e = st.ents[uid] = { status: 'none', product_id: null, expires_at: null, original_transaction_id: null,
-        gift: false, gift_until: null, intro: false, ended: null, env: null };
+        gift: false, gift_until: null, intro: false, ended: null, env: null, life: null };
     }
     return e || null;
   };
@@ -127,26 +138,33 @@ FAKE_STORE = r"""
   const coachOf = uid => (window.__sb && __sb.co ? (__sb.co.links.find(l => l.student === uid) || {}).coach || null : null);
 
   // Ce que my_access() / access_state() renvoient, calculé à l'heure du SERVEUR
-  // gift > active > expired > none ; aucun essai maison, plus d'élève gratuit (coach_team toujours faux)
+  // gift à vie > achat à vie > gift en jours > active > expired > none ; aucun essai maison, plus
+  // d'élève gratuit (coach_team toujours faux). e.life : 'Production' (à vie) ou une date de fin (Sandbox)
   const stateOf = (uid, e) => {
     const now = serverNow();
     const coach = false;
     const giftDays = e.gift_until !== null && e.gift_until > now ? e.gift_until : null;
-    const paid = e.expires_at !== null && e.expires_at > now ? e.expires_at : null;
+    const lifePaid = e.life === 'Production';
+    const lifeTest = typeof e.life === 'number' && e.life > now ? e.life : null;
+    const subPaid = e.expires_at !== null && e.expires_at > now ? e.expires_at : null;
+    const paid = Math.max(subPaid || 0, lifeTest || 0) || null;
     let status, until = null;
     if (e.gift) status = 'gift';
+    else if (lifePaid) status = 'active';
     else if (giftDays && (!paid || giftDays > paid)) { status = 'gift'; until = giftDays; }
     else if (paid) { status = 'active'; until = paid; }
     else if (coach) status = 'coach_team';
     else if (e.expires_at !== null || e.gift_until !== null || e.ended !== null) {
       status = 'expired'; until = Math.max(e.expires_at || 0, e.gift_until || 0, e.ended || 0) || null;
     } else status = 'none';
-    const intro = status === 'active' && !!e.intro;
+    const intro = status === 'active' && !!e.intro && !lifePaid && !(lifeTest && lifeTest >= (subPaid || 0));
+    const lifetime = lifePaid ? 'purchase' : e.gift ? 'gift' : status === 'active' && lifeTest && lifeTest >= (subPaid || 0) ? 'test' : null;
     const days = (status === 'active' || status === 'gift') && until !== null ? Math.max(0, Math.ceil((until - now) / DAY)) : null;
     return { status, until: iso(until), paywall_on: !!st.paywallOn, days_left: days,
       can_write: !st.paywallOn || ['active', 'gift', 'coach_team'].includes(status),
       gift: !!e.gift || !!giftDays, gift_until: iso(e.gift_until), coach_team: coach,
-      intro_offer: intro, intro_until: intro ? iso(until) : null, server_now: iso(now) };
+      intro_offer: intro, intro_until: intro ? iso(until) : null,
+      lifetime, also_sub: (lifetime === 'purchase' || lifetime === 'gift') && !!subPaid, server_now: iso(now) };
   };
 
   st.giveGift = () => { const e = row(me(), true); e.gift = true; };
@@ -225,13 +243,18 @@ FAKE_STORE = r"""
     try { if (/^jws\..*\.sig$/.test(String(jws))) tx = unb64(String(jws).slice(4, -4)); } catch (e) { tx = null; }
     if (!tx || !tx.productId) return fail(400, { error: 'invalid_jws' });
     if (tx.bundleId !== BUNDLE) return fail(400, { error: 'bad_bundle' });
-    // Deux abonnements seulement : l'ancien « Accès offert » d'Apple est inconnu
-    if (!SUB_IDS.includes(tx.productId)) return fail(400, { error: 'unknown_product' });
+    // Abonnements et accès à vie : l'ancien « Accès offert » d'Apple est inconnu
+    if (!SUB_IDS.includes(tx.productId) && tx.productId !== LIFE_ID) return fail(400, { error: 'unknown_product' });
     if (tx.unknown) return fail(404, { error: 'not_found' });
     const taken = st.taken[tx.originalId];
     if (taken && taken !== uid) return fail(409, { error: 'transaction_taken' });
     st.taken[tx.originalId] = uid;
     const e = row(uid, true);
+    if (tx.productId === LIFE_ID) {
+      // Achat à vie : sans fin en Production, 7 jours en Sandbox (TestFlight)
+      e.life = tx.environment === 'sandbox' ? (typeof e.life === 'number' ? e.life : serverNow() + 7 * DAY) : 'Production';
+      return { data: { ok: true, access: stateOf(uid, e) }, error: null };
+    }
     e.original_transaction_id = tx.originalId;
     e.product_id = tx.productId;
     e.expires_at = tx.expiresAt;
@@ -264,6 +287,11 @@ FAKE_STORE = r"""
   // Achat : avec l'offre de lancement si la personne y a droit (3 mois gratuits, une seule fois par
   // identifiant Apple : c'est Apple qui le garantit, d'où introEligible qui passe à faux)
   const buy = productId => {
+    if (productId === LIFE_ID) {
+      const n = ++st.n;
+      st.ownedLife = { productId, originalId: 'apple-' + n, transactionId: 'tx-' + n, expiresAt: null, environment: st.environment };
+      return st.ownedLife;
+    }
     const p = st.products.find(x => x.id === productId);
     if (!p) throw new Error('produit inconnu');
     const n = ++st.n;
@@ -275,7 +303,7 @@ FAKE_STORE = r"""
   };
   const openTx = tx => { if (!st.open.includes(tx.transactionId)) st.open.push(tx.transactionId); return tx; };
   const entitlements = () => {
-    const list = [st.owned].filter(Boolean).map(tx => { openTx(tx); return describeTx(tx); });
+    const list = [st.owned, st.ownedLife].filter(Boolean).map(tx => { openTx(tx); return describeTx(tx); });
     return { entitlements: list, unverified: st.unverified || 0 };
   };
   const describeProduct = p => {
@@ -289,7 +317,8 @@ FAKE_STORE = r"""
     products: async () => {
       log('products');
       const miss = st.missing || [];
-      return { products: st.products.filter(p => !miss.includes(p.id)).map(describeProduct),
+      const life = st.lifetimeProduct && !miss.includes(LIFE_ID) ? [{ ...st.lifetimeProduct }] : [];
+      return { products: [...st.products.filter(p => !miss.includes(p.id)).map(describeProduct), ...life],
         missing: [...miss], canMakePayments: st.canMakePayments !== false };
     },
     purchase: async ({ productId, appAccountToken }) => {
@@ -313,7 +342,8 @@ FAKE_STORE = r"""
       return { synced: !cancelled, cancelled, ...entitlements() };
     },
     current: async () => { log('current'); return entitlements(); },
-    status: async () => ({ canMakePayments: st.canMakePayments !== false, subscriptionIds: [...SUB_IDS] }),
+    status: async () => ({ canMakePayments: st.canMakePayments !== false, subscriptionIds: [...SUB_IDS], lifetimeIds: [LIFE_ID] }),
+    environment: async () => { log('environment'); return { environment: st.environment || 'production' }; },
     redeemCode: async () => {
       log('redeemCode');
       return st.fail.redeem === 'cancel' ? { presented: false, cancelled: true } : { presented: true };

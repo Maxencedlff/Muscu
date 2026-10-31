@@ -30,6 +30,12 @@
 //    la première ouverture de l'app, date gardée dans le
 //    Trousseau (elle survit à une réinstallation) ; ensuite une lecture réussie est nécessaire. Sans
 //    cette borne, réinstaller l'app et bloquer le serveur suffirait à tout garder ouvert pour toujours.
+//  - ACCÈS À VIE (payant plus, 31/10/2026) : achat unique non consommable (PLAN_LIFETIME_ID), vérifié
+//    par le serveur comme un abonnement. `lifetime` dit d'où vient un accès à vie : 'purchase' (payé),
+//    'gift' (offert par l'administrateur ou un code à vie), 'test' (achat Sandbox, 7 jours seulement) ;
+//    `also_sub` : un abonnement Apple continue à côté (Apple ne le résilie pas tout seul).
+//  - TESTFLIGHT : l'environnement StoreKit de l'app (accessStoreEnvironment) choisit le code d'offre
+//    élève demandé au serveur (Sandbox sous TestFlight, Production sinon).
 //  - Résultats : { ok: true, data } ou { ok: false, kind }. L'écran s'abonne par onAccessChange.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -53,7 +59,9 @@ const ACCESS_STATUSES    = ['none', 'active', 'expired', 'gift', 'coach_team'];
 // Formules : catalogue dans js/data/plans.js (chargé avant), particulier puis paliers coach
 const ACCESS_MONTHLY_ID  = planId('pro', 'month');
 const ACCESS_YEARLY_ID   = planId('pro', 'year');
-const ACCESS_PRODUCT_IDS = PLAN_IDS;
+const ACCESS_PRODUCT_IDS = PLAN_SOLD_IDS;   // abonnements et accès à vie
+const ACCESS_LIFETIME_ID = PLAN_LIFETIME_ID;
+const ACCESS_LIFETIME_KINDS = ['purchase', 'gift', 'test'];
 // Code cadeau maison : 10 à 24 caractères parmi les 32 symboles lisibles (sans 0, O, 1 ni I),
 // même alphabet que la contrainte de gift_codes côté serveur
 const ACCESS_GIFT_CODE_RE = /^[A-HJ-NP-Z2-9]{10,24}$/;
@@ -61,7 +69,7 @@ const ACCESS_GIFT_CODE_RE = /^[A-HJ-NP-Z2-9]{10,24}$/;
 // state : dernier état lu pendant ce lancement ; cached : dernier état gardé sur l'appareil
 const access = { userId: null, state: null, cached: null, loading: false, again: false, error: null, loadedAt: 0,
   products: null, missing: null, productsAt: 0, buying: null, verifying: false, syncing: false,
-  canPay: true, refused: new Set(), currentProduct: null, studentOffer: null,
+  canPay: true, refused: new Set(), currentProduct: null, studentOffer: null, storeEnv: null,
   // Sans compte : verrou lu dans app_config (true, false, ou null tant qu'il n'a jamais été lu)
   anon: readAnonPaywall(), anonAt: 0, anonLoading: false, firstSeen: null };
 const accessListeners = [];
@@ -81,7 +89,7 @@ const accessInt = (v, max) => (Number.isInteger(v) && v >= 0 && v <= max ? v : n
 
 // my_access() / access_state() nettoyé, ou null si inutilisable :
 // { status, until, paywall_on, days_left, can_write, gift, gift_until, coach_team, intro_offer,
-//   intro_until, server_now }.
+//   intro_until, lifetime, also_sub, server_now }.
 // Sans `server_now`, rien n'est gardé : l'app ne saurait pas quand cet état a été lu, et l'horloge de
 // l'appareil ne sert jamais à le décider. `can_write` est forcé à vrai quand le verrou est éteint
 // (même règle que le serveur : rien ne bloque tant que `paywall_on` est faux).
@@ -105,6 +113,9 @@ function cleanAccess(raw) {
     // Abonnement dans son offre de lancement (essai gratuit d'Apple) et fin de cette offre
     intro_offer: r.intro_offer === true && r.status === 'active',
     intro_until: r.intro_offer === true && r.status === 'active' ? accessTime(r.intro_until) : null,
+    // Accès à vie : seulement sur un statut qui donne l'accès (jamais sur « expiré »)
+    lifetime: ACCESS_LIFETIME_KINDS.includes(r.lifetime) && ['active', 'gift'].includes(r.status) ? r.lifetime : null,
+    also_sub: r.also_sub === true && ['purchase', 'gift'].includes(r.lifetime),
     server_now: serverNow,
   };
 }
@@ -200,6 +211,18 @@ function accessStatus() {
 function accessIntroUntil() {
   const st = accessKnown();
   return st && !st.stale && st.intro_offer ? st.intro_until : null;
+}
+
+// Accès à vie d'après le serveur : 'purchase' | 'gift' | 'test' | null (null aussi quand l'état n'est
+// plus sûr : hors ligne trop longtemps)
+function accessLifetime() {
+  const st = accessKnown();
+  return st && !st.stale ? st.lifetime : null;
+}
+// Un abonnement Apple tourne encore à côté d'un accès à vie : l'app invite à le résilier chez Apple
+function accessAlsoSub() {
+  const st = accessKnown();
+  return !!(st && !st.stale && st.also_sub);
 }
 
 // Date de fin donnée par le serveur (fin de l'abonnement, essai d'Apple compris, ou du cadeau), ou null
@@ -585,11 +608,14 @@ async function accessRedeemCode() {
 // pas une exception : { ok: false, error: 'not_student' | 'not_new' | 'no_code' }. Le même code revient
 // tant qu'il n'a pas expiré. L'app ouvre ensuite la page d'Apple, code déjà rempli (planRedeemUrl) ;
 // la transaction revient par l'écouteur permanent, comme tout achat.
-// Environnement : l'app ne sait pas reconnaître TestFlight, elle demande toujours un code de Production.
+// Environnement : celui de StoreKit (accessStoreEnvironment). Une build TestFlight tourne en Sandbox et
+// demande un code Sandbox (un code de Production n'y passerait pas) ; tout le reste, App Store compris,
+// demande un code de Production. Ce choix n'ouvre rien : un code Sandbox ne sert à rien sur l'App Store.
 // Renvoie { ok: true, code, expiresAt } ou { ok: false, kind }. access.studentOffer garde la réponse.
 const ACCESS_STUDENT_ERRORS = ['not_student', 'not_new', 'no_code'];
 async function accessStudentOffer() {
-  const r = await accessRpc('student_offer_code', { env: 'Production' });
+  const env = await accessStoreEnvironment() === 'sandbox' ? 'Sandbox' : 'Production';
+  const r = await accessRpc('student_offer_code', { env });
   if (!r.ok) return r;
   const d = r.data && typeof r.data === 'object' ? r.data : {};
   if (d.ok !== true) {
@@ -605,13 +631,23 @@ async function accessStudentOffer() {
   return { ok: true, code, expiresAt: access.studentOffer.expiresAt };
 }
 
+// Environnement StoreKit de l'app, lu une fois par lancement : 'production', 'sandbox' (TestFlight),
+// 'other', 'unknown', ou null (navigateur, ancienne coquille). Faute de réponse : Production.
+async function accessStoreEnvironment() {
+  if (access.storeEnv) return access.storeEnv;
+  const v = await Native.store.environment?.();
+  access.storeEnv = ['production', 'sandbox', 'other'].includes(v) ? v : null;
+  return access.storeEnv;
+}
+
 // Formule de l'abonnement en cours sur cet iPhone (pour « Essai gratuit jusqu'au …, puis <prix> ») :
 // lue dans les droits en cours de StoreKit, sans rien demander, et les prix chez StoreKit. Aucune
 // décision n'en dépend : c'est du texte.
 async function accessLoadCurrentPlan() {
   if (!Native.store.available || !account.user) return null;
   const list = accessEntitlementsOf(await Native.store.current());
-  const sub = list.find(e => ACCESS_PRODUCT_IDS.includes(e.productId));
+  // L'abonnement d'abord : c'est lui dont on affiche le prix après l'essai (l'accès à vie n'en a pas)
+  const sub = list.find(e => PLAN_IDS.includes(e.productId)) || list.find(e => e.productId === ACCESS_LIFETIME_ID);
   access.currentProduct = sub ? sub.productId : null;
   if (sub && !access.products?.length) await accessLoadProducts();
   notifyAccess();

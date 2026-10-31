@@ -404,6 +404,15 @@ const Native = (() => {
         if (!this.available) return null;
         try { return await Store.redeemCode(); } catch { return null; }
       },
+      // Environnement de l'app selon StoreKit (AppTransaction) : 'production' (App Store), 'sandbox'
+      // (TestFlight, ou Xcode avec un compte Sandbox), 'other' ou 'unknown'. null hors app iOS, ou dans
+      // une coquille plus ancienne que la méthode (mise à jour à chaud arrivée avant la build). Sert
+      // seulement à choisir l'environnement d'un code d'offre élève : aucune décision d'accès.
+      async environment() {
+        if (!this.available) return null;
+        try { const r = await Store.environment(); return typeof r?.environment === 'string' ? r.environment : null; }
+        catch { return null; }
+      },
       // Écouteur permanent Transaction.updates : renouvellement, code utilisé, achat sur un autre
       // appareil. Le module émet le même événement sous deux noms ('transaction' et 'change') :
       // on s'abonne à UN SEUL, sinon chaque transaction serait traitée deux fois.

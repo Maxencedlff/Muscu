@@ -43,7 +43,9 @@ def open_app(page, theme, ppl_v2=None, store=None, opts=None):
     """App lancée avec la coquille iOS, Supabase et StoreKit simulés. store : réglages de __st."""
     st_opts = {'paywallOn': True, 'products': PRICES, **(store or {})}
     if st_opts.get('products') == 'all':
-        del st_opts['products']   # les 10 formules du faux StoreKit (tarifs du 30/10)
+        del st_opts['products']   # le catalogue complet du faux StoreKit : 10 abonnements et l'accès à vie
+    else:
+        st_opts.setdefault('lifetimeProduct', None)   # deux formules seulement (prix inhabituels)
     page.add_init_script('window.__fakeOpts = %s; window.__stOpts = %s;'
                          % (json.dumps({'oldAccounts': True, **(opts or {})}), json.dumps(st_opts)))
     page.add_init_script(FAKE_ACCOUNT)
@@ -991,8 +993,8 @@ def t_tarifs(bench, eng, dev, theme):
         refresh_access(page)
         txt = paywall(page)
         pl = plans_text(page)
-        R.check(len(pl) == 2 and '6,49 € par mois' in pl[0] and '55,00 € par an' in pl[1] and 'soit 8,5 mois' in pl[1]
-                and 'soit' not in pl[0], f'{t} particulier : mensuel, annuel « soit 8,5 mois » {pl}')
+        R.check(len(pl) == 3 and '6,49 € par mois' in pl[0] and '55,00 € par an' in pl[1] and 'soit 8,5 mois' in pl[1]
+                and 'soit' not in pl[0] and 'À vie' in pl[2], f'{t} particulier : mensuel, annuel « soit 8,5 mois », à vie {pl}')
         R.check(page.locator('.pay-tabs').count() == 0 and '15,99' not in txt and 'élèves' not in ' '.join(pl),
                 f'{t} pas coach : aucun palier coach visible')
         R.check('Tu es coach ?' in txt, f'{t} pas coach : lien vers la demande')
@@ -1024,7 +1026,7 @@ def t_tarifs(bench, eng, dev, theme):
         # Onglet Particulier toujours là pour un coach
         page.click('[data-action="pay-tab"][data-tab="pro"]')
         page.wait_for_timeout(400)
-        R.check(len(plans_text(page)) == 2 and 'Tu es coach ?' not in page.inner_text('.pay-view'), f'{t} coach : onglet Particulier')
+        R.check(len(plans_text(page)) == 3 and 'Tu es coach ?' not in page.inner_text('.pay-view'), f'{t} coach : onglet Particulier')
         # 3. Palier plein : 10 élèves sur 10 → bandeau, palier suivant mis en avant, formule en cours marquée
         page.evaluate("""async (p) => { const me = __sb.meId(); __sb.setTier(me, p);
             for (let i = 0; i < 10; i++) __sb.link(me, __sb.addPerson({ username: 'eleve' + i, social: false }));
@@ -1076,7 +1078,7 @@ def t_tarifs(bench, eng, dev, theme):
         page.evaluate("__st.everSubscribed = true; access.studentOffer = null; delete __st.offerGiven[__sb.meId()]")
         page.click('[data-action="pay-student"]')
         page.wait_for_timeout(700)
-        R.check(page.locator('.pay-plan').count() == 2 and 'premier abonnement' in page.inner_text('.pay-view'), f'{t} élève déjà abonné : formules habituelles')
+        R.check(page.locator('.pay-plan').count() == 3 and 'premier abonnement' in page.inner_text('.pay-view'), f'{t} élève déjà abonné : formules habituelles')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
     # 5. Verrou éteint (TestFlight) : rien d'achetable, ni paliers coach ni offre élève
@@ -1094,5 +1096,115 @@ def t_tarifs(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_tarifs, t_essai, t_lecture_seule, t_achat, t_achats_bloques, t_rattrapage, t_verrou_serveur,
+# ─────────────────────────────────────────────────────────────
+#  Payant plus : accès à vie (achat unique), abonné qui y passe, TestFlight, accès offert à vie
+# ─────────────────────────────────────────────────────────────
+
+LIFE = 'com.mdlf.training.lifetime'
+
+
+def sub_text(page):
+    page.evaluate("navigate('subscription')")
+    page.wait_for_selector('.pay-settings-view')
+    page.wait_for_timeout(500)
+    return page.inner_text('.pay-settings-view')
+
+
+def t_vie(bench, eng, dev, theme):
+    t = tag(dev, theme)
+    # 1. Sans abonnement : carte « À vie » sous les deux formules, mentions propres, achat
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'products': 'all'})
+        signin(page, username='max')
+        refresh_access(page)
+        txt = paywall(page)
+        pl = plans_text(page)
+        R.check(len(pl) == 3 and '89,99 € en une fois' in pl[2] and 'Un seul paiement, sans abonnement' in pl[2]
+                and 'mois gratuits' not in pl[2] and 'soit' not in pl[2], f'{t} à vie : carte sous les formules {pl}')
+        R.check('Accès à vie : 89,99 € en une fois, débité sur ton compte Apple à la confirmation de l\'achat. Pas d\'abonnement, rien ne se renouvelle.' in txt
+                and 'l\'achat à vie ne l\'arrête pas' in txt, f'{t} à vie : mentions (achat unique, abonnement en cours)')
+        R.check('Essai gratuit de 3 mois, puis 6,49 € par mois ou 55,00 € par an' in txt, f'{t} à vie : mentions des abonnements sans le prix à vie')
+        layout(page, t, 'abonnement avec accès à vie')
+        shot(page, LOT, f'40-a-vie-formules-{t}')
+        page.click(f'[data-action="pay-buy"][data-id="{LIFE}"]')
+        page.wait_for_timeout(1200)
+        R.check(page.evaluate('accessLifetime()') == 'purchase' and page.evaluate('canWrite()') is True
+                and page.evaluate('accessUntil()') is None, f'{t} à vie acheté : accès sans fin')
+        R.check(len(store_calls(page, 'finish')) == 1 and page.locator('.ios-dialog').count() == 0,
+                f'{t} à vie acheté : transaction terminée, pas d\'abonnement à résilier')
+        txt = sub_text(page)
+        R.check('Accès à vie' in txt and 'Renouvellement' not in txt and 'Passer à l\'accès à vie' not in txt
+                and 'Voir les formules' not in txt and 'continue d\'être facturé' not in txt, f'{t} Réglages › Abonnement : accès à vie ({txt[:120]!r})')
+        layout(page, t, 'Abonnement à vie')
+        shot(page, LOT, f'41-a-vie-reglages-{t}')
+        txt = paywall(page)
+        R.check(page.locator('.pay-plan').count() == 0 and 'Tu as l\'accès à vie' in txt, f'{t} à vie : rien d\'autre à acheter')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # 2. Abonné qui passe à l'accès à vie : prévenu avant, « Gérer chez Apple » après
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'products': 'all'})
+        signin(page, username='max')
+        subscribed(page, 300)
+        page.evaluate("() => { window.__opened = []; window.open = u => { window.__opened.push(String(u)); return null; }; }")
+        txt = sub_text(page)
+        cell = page.locator('[data-action="pay-open"][data-reason="life"]')
+        R.check(cell.count() == 1 and 'Passer à l\'accès à vie' in txt, f'{t} abonné : « Passer à l\'accès à vie »')
+        cell.click()
+        page.wait_for_selector('.pay-view')
+        page.wait_for_timeout(600)
+        txt = page.inner_text('.pay-view')
+        pl = plans_text(page)
+        R.check(len(pl) == 1 and '89,99 € en une fois' in pl[0] and 'Accès à vie' in txt and 'l\'achat à vie ne l\'arrête pas' in txt,
+                f'{t} passage à vie : seule la carte à vie, abonnement en cours signalé {pl}')
+        layout(page, t, 'passage à vie')
+        shot(page, LOT, f'42-passage-a-vie-{t}')
+        page.click(f'[data-action="pay-buy"][data-id="{LIFE}"]')
+        page.wait_for_selector('.ios-dialog')
+        dlg = page.inner_text('.ios-dialog')
+        R.check('Ton abonnement continue' in dlg and 'continue d\'être facturé' in dlg, f'{t} passage à vie : abonnement à résilier ({dlg[:100]!r})')
+        shot(page, LOT, f'43-abonnement-continue-{t}')
+        tap_dialog(page, 'Gérer chez Apple')
+        R.check(page.evaluate('window.__opened') == ['https://apps.apple.com/account/subscriptions'], f'{t} « Gérer chez Apple » ouvert')
+        txt = sub_text(page)
+        R.check('Accès à vie' in txt and 'Ton abonnement Apple continue d\'être facturé' in txt, f'{t} Réglages : abonnement à résilier rappelé')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # 3. TestFlight (Sandbox) : achat à vie de test, 7 jours ; code d'offre élève de Sandbox
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'products': 'all', 'environment': 'sandbox'})
+        signin(page, username='lea')
+        page.evaluate("""async () => { const c = __sb.addPerson({ username: 'lucas', social: false }); __sb.makeCoach(c);
+            __sb.link(c, __sb.meId()); window.__opened = []; window.open = u => { __opened.push(String(u)); return null; };
+            await coachRefresh(); }""")
+        refresh_access(page)
+        paywall(page)
+        page.click('[data-action="pay-student"]')
+        page.wait_for_timeout(700)
+        sent = [json.loads(c[2]).get('env') for c in acalls(page, 'student_offer_code')]
+        R.check(sent == ['Sandbox'] and len(store_calls(page, 'environment')) == 1, f'{t} TestFlight : code d\'offre élève de Sandbox {sent}')
+        page.evaluate("__st.everSubscribed = true; access.studentOffer = { error: 'not_new' }")
+        paywall(page)
+        page.click(f'[data-action="pay-buy"][data-id="{LIFE}"]')
+        page.wait_for_timeout(1200)
+        txt = sub_text(page)
+        R.check(page.evaluate('accessLifetime()') == 'test' and 'Accès à vie (test)' in txt and 'Fin du test' in txt
+                and 'quelques jours' in txt, f'{t} TestFlight : achat à vie de test ({txt[:140]!r})')
+        shot(page, LOT, f'44-a-vie-test-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+    # 4. Accès offert à vie (administrateur ou code) : rien à acheter ; App Store : code de Production
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), store={'products': 'all'})
+        signin(page, username='max')
+        page.evaluate('__st.giveGift()')
+        refresh_access(page)
+        txt = sub_text(page)
+        R.check('Accès offert à vie' in txt and 'Passer à l\'accès à vie' not in txt, f'{t} accès offert à vie : Réglages')
+        txt = paywall(page)
+        R.check(page.locator('.pay-plan').count() == 0 and 'On t\'a offert l\'accès à vie' in txt, f'{t} accès offert à vie : rien à acheter')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_vie, t_tarifs, t_essai, t_lecture_seule, t_achat, t_achats_bloques, t_rattrapage, t_verrou_serveur,
              t_verrou_eteint, t_compte_obligatoire, t_version_min, t_horloge, t_grace, t_hors_ligne])

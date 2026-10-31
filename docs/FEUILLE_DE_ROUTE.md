@@ -276,6 +276,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Parrainage entre utilisateurs : 1 mois offert à l'ami et au parrain (quand l'ami paie)    | Après le payant + clé IAP |
 | ○ | Coachs vérifiés (carte pro), code unique, 20 % du net pendant 12 mois sur leurs élèves    | Branche payant (en cours) |
 | ○ | Tarifs : 6,49 €/mois, coach 15,99 à 29,99 € selon les élèves, annuel = 8,5 mois, élève −25 % | Branche payant (en cours) |
+| ○ | Payant plus : accès à vie (≈ 90 €), accès à vie offerts révocables, TestFlight reconnu, main fusionnée | Branche nuit-payantplus · produit à créer dans App Store Connect, build |
 
 ### Plus tard
 
