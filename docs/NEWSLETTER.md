@@ -11,6 +11,12 @@ d'envoi décrit à la fin.
   coché d'avance, ni à la création du compte, ni par un achat, ni par le coach. Aucune autre entrée.
 - **Compte obligatoire** : l'adresse utilisée est celle du compte (`auth.users.email`), lue au moment
   de l'envoi, jamais recopiée. Pas de collecte d'adresse sans compte.
+- **Compte sans adresse** (créé seulement avec Apple : l'app ne demande pas l'e-mail à Apple,
+  `requestedScopes = []` dans `AccountPlugin.swift`) : **inscription refusée** (`no_email`), pour ne
+  jamais enregistrer un consentement qu'on ne pourrait pas honorer. L'écran Compte le dit, interrupteur
+  éteint et désactivé : « Ajoute une connexion Google ou e-mail à ton compte pour recevoir la lettre. »
+  Dès qu'une adresse est reliée (Google ou e-mail), l'état est relu et l'inscription devient possible.
+  Une inscription existante reste toujours retirable.
 - **Horodatage par le serveur** : `consented_at = now()` ; l'appareil n'envoie que la **version du texte**
   (`consent_version`), jamais de date.
 - **Désinscription toujours possible et immédiate** : l'interrupteur, le lien de chaque e-mail (prévu)
@@ -36,29 +42,42 @@ monter `NEWSLETTER_CONSENT_VERSION` (`tests/unit/juridique.mjs` vérifie que le 
 
 | Fonction | Renvoie | Règles |
 |---|---|---|
-| `newsletter_state()` | `{ subscribed, consented_at, version }` | `not_found` sans session. |
-| `newsletter_subscribe(consent_version)` | même forme | `invalid_version` (format `v` + 1 à 3 chiffres), `rate_limited` (20 / 24 h), `not_found`. Réinscription : nouvel horodatage, même ligne. |
+| `newsletter_state()` | `{ subscribed, consented_at, version, has_email }` | `not_found` sans session. `has_email` : le compte a une adresse non vide (`private.newsletter_has_email`). |
+| `newsletter_subscribe(consent_version)` | même forme | `no_email` (compte sans adresse), `invalid_version` (format `v` + 1 à 3 chiffres), `rate_limited` (20 / 24 h), `not_found`. Réinscription : nouvel horodatage, même ligne. |
 | `newsletter_unsubscribe()` | même forme | Supprime la ligne. Jamais limitée. |
 
 - Préparé pour le service d'envoi (`service_role` seulement, jamais l'app) :
   - `newsletter_recipients()` → `(user_id, email, consent_version, unsubscribe_token)` : inscrits ayant une
-    adresse (un compte sans adresse reste inscrit mais n'est jamais destinataire) ;
+    adresse (une ligne d'un compte qui n'a plus d'adresse n'est jamais destinataire) ;
   - `newsletter_unsubscribe_token(token)` → `boolean` : lien de désinscription en un clic ; un jeton
     inconnu (déjà désinscrit, compte supprimé) rend faux sans dire s'il a existé.
-- Tests : `tests/sql/newsletter_test.sql` (rien coché d'avance, horodatage serveur, autre compte, anon,
-  clé serveur, débit, cascade, droits) ; retour arrière : `supabase/rollback/20261031230000_newsletter_down.sql`,
+- Tests : `tests/sql/newsletter_test.sql` (rien coché d'avance, horodatage serveur, compte sans adresse,
+  autre compte, anon, clé serveur, débit, cascade, droits) ; retour arrière : `supabase/rollback/20261031230000_newsletter_down.sql`,
   vérifié par `tests/sql/newsletter_rollback_test.sh`.
 
 ## App
 - `js/data/newsletter.js` : état (`newsletter`), `newsletterRefresh()` à l'ouverture de l'écran Compte
-  (pas plus d'une fois par 30 s), `newsletterSet(on)`. Rien n'est gardé sur l'appareil.
+  (pas plus d'une fois par 30 s) et quand le compte change l'écran ouvert (`newsletterNeedsRefresh` :
+  connexion faite sur l'écran Compte, session restaurée après son ouverture, adresse ajoutée),
+  `newsletterSet(on)`. Rien n'est gardé sur l'appareil.
 - `js/features/newsletter-ui.js` : groupe « Lettre d'information » de l'écran Compte. État inconnu
   (chargement, hors ligne) : interrupteur **éteint et désactivé**, raison écrite (« Lettre d'information
-  indisponible. Pas de connexion… »). Toast « Inscription enregistrée » / « Tu es désinscrit ».
+  indisponible. Pas de connexion… ») et bouton « Réessayer » après un échec. Compte sans adresse :
+  éteint et désactivé, avec ce qu'il faut ajouter. Toast « Inscription enregistrée » / « Tu es désinscrit ».
 - Tests : `tests/test_juridique.py` (E2E : éteint par défaut, seul l'état est lu à l'ouverture, version
-  seule envoyée, désinscription, hors ligne, changement de compte), `tests/unit/juridique.mjs`.
+  seule envoyée, désinscription, hors ligne et « Réessayer », changement de compte, connexion faite sur
+  l'écran Compte, compte Apple seul puis adresse ajoutée), `tests/unit/juridique.mjs`.
 - `privacy.html#newsletter` (FR et EN) décrit les données, la finalité, la base légale, l'envoi par
   Resend (à venir), la désinscription et la durée.
+
+## Confidentialité chez Apple (avec la build qui propose l'inscription)
+L'adresse e-mail sert désormais aussi à la lettre (marketing du développeur), en plus de la connexion :
+- **Manifeste** `ios/App/App/PrivacyInfo.xcprivacy` : finalité `NSPrivacyCollectedDataTypePurposeDeveloperAdvertising`
+  ajoutée à `NSPrivacyCollectedDataTypeEmailAddress` (fait sur cette branche ; part avec la prochaine build,
+  ce fichier n'entre pas dans l'empreinte native des OTA).
+- **App Store Connect › Confidentialité de l'app** (Maxence) : Coordonnées › Adresse e-mail, cocher
+  « Publicité ou marketing du développeur » en plus de « Fonctionnalité de l'app » ; toujours liée à
+  l'identité, jamais de suivi. À faire **avant** d'envoyer à l'examen la version qui contient l'interrupteur.
 
 ## Brancher l'envoi plus tard (à faire, avec le feu vert de Maxence)
 1. Appliquer la migration (ordre habituel, après les migrations du payant).

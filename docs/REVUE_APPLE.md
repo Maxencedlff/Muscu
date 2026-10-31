@@ -99,3 +99,9 @@ Note de revue de chaque abonnement coach (champ « Review Notes » du produit), 
    être publiées (fusion, puis job `deploy`) et **sans emplacement « À COMPLÉTER »** (règle 2.1(a)).
 4. **Statut de commerçant (DSA)** déclaré dans App Store Connect, cohérent avec les mentions légales.
 5. **Lien TestFlight public** : jamais une fois le verrou allumé (docs/PAYANT_V1.md, « Sandbox accepté »).
+6. **Confidentialité de l'app (étiquettes) et manifeste** : la lettre d'information fait servir l'adresse
+   e-mail au marketing du développeur. Dans App Store Connect › Confidentialité de l'app › Adresse e-mail,
+   cocher **« Publicité ou marketing du développeur »** (Developer's Advertising or Marketing) en plus de
+   « Fonctionnalité de l'app », liée à l'identité, sans suivi. Le manifeste `PrivacyInfo.xcprivacy` le
+   déclare déjà sur cette branche (`NSPrivacyCollectedDataTypePurposeDeveloperAdvertising`) ; il part avec
+   la build d'examen (docs/NEWSLETTER.md, « Confidentialité chez Apple »).

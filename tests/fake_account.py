@@ -44,8 +44,8 @@ __sb.link(coach, élève) relie deux comptes. Appels dans
 __sb.calls sous ['coach', fonction, arguments] ; __sb.fail.coach = 'offline' pour le hors ligne.
 
 Lettre d'information (docs/NEWSLETTER.md, supabase/migrations/20261031230000_newsletter.sql) : newsletter_state,
-newsletter_subscribe(consent_version) (invalid_version, rate_limited 20 par 24 h, horodatage du SERVEUR) et
-newsletter_unsubscribe (jamais limitée, la ligne est supprimée). État dans __sb.nl.subs (par compte) ; appels dans
+newsletter_subscribe(consent_version) (no_email pour un compte sans adresse, comme Apple seul ; invalid_version, rate_limited 20 par 24 h, horodatage du SERVEUR) et
+newsletter_unsubscribe (jamais limitée, la ligne est supprimée) ; l'état dit has_email. État dans __sb.nl.subs (par compte) ; appels dans
 __sb.calls sous ['newsletter', fonction, arguments] ; __sb.fail.newsletter = 'offline' pour le hors ligne.
 """
 
@@ -522,10 +522,12 @@ FAKE_ACCOUNT = r"""
   };
   // Lettre d'information : la ligne n'existe que pendant l'inscription
   const nl = sb.nl = { subs: {}, tries: {} };
-  const nlJson = me => { const s = nl.subs[me]; return { subscribed: !!s, consented_at: s ? s.at : null, version: s ? s.version : null }; };
+  const nlHasEmail = me => !!String(sb.users[me]?.email || '').trim();
+  const nlJson = me => { const s = nl.subs[me]; return { subscribed: !!s, consented_at: s ? s.at : null, version: s ? s.version : null, has_email: nlHasEmail(me) }; };
   const nlRpc = {
     newsletter_state: me => nlJson(me),
     newsletter_subscribe: (me, { consent_version }) => {
+      if (!nlHasEmail(me)) return pgErr('no_email');
       const v = String(consent_version ?? '').trim();
       if (!/^v[0-9]{1,3}$/.test(v)) return pgErr('invalid_version');
       const tries = (nl.tries[me] || []).filter(t => t > now() - 86400_000);

@@ -32,6 +32,13 @@ Une seule liste d'adresses : `js/data/legal-links.js` (`LEGAL_URLS`).
 Marqués en jaune dans les pages (`<span class="a-completer">`). `tests/unit/juridique.mjs` vérifie que
 chacun est listé ici.
 
+**Ne pas fusionner `nuit-legal` dans `main` tant que ces emplacements ne sont pas remplis.** Garde
+automatique en plus : le job `deploy` lance `node scripts/check-legal-pages.mjs privacy.html
+mentions-legales.html cgu.html cgv.html` **avant** de copier les pages ; s'il reste un emplacement
+(`class="a-completer"`, « À COMPLÉTER », « À VÉRIFIER », « TO COMPLETE », « TO CHECK »), le job échoue et
+rien n'est publié sur mdlf.app (ni ces pages, ni le reste de `web-public/`). À lancer à la main avant la
+fusion pour voir ce qui manque.
+
 | Emplacement | Pages | Quoi mettre |
 |---|---|---|
 | À COMPLÉTER : nouveau SIRET en cours d'attribution | mentions-legales.html | Le SIRET (14 chiffres) dès qu'il est attribué. |
@@ -62,4 +69,6 @@ chacun est listé ici.
   commerçant) : adresse, téléphone et e-mail affichés sur la fiche de l'App Store dans l'UE ; les mêmes
   que dans les mentions légales.
 - Adhésion au médiateur (`docs/MEDIATEUR.md`).
-- Relecture des quatre pages, puis fusion et publication (le job `deploy` les met en ligne avec le site).
+- Remplir les emplacements (tableau ci-dessus), relire les quatre pages, vérifier
+  `node scripts/check-legal-pages.mjs privacy.html mentions-legales.html cgu.html cgv.html`, puis fusion et
+  publication (le job `deploy` les met en ligne avec le site).

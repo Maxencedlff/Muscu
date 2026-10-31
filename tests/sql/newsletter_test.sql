@@ -1,7 +1,7 @@
 -- Vérifications de 20261031230000_newsletter.sql (lettre d'information : consentement explicite
 -- horodaté par le serveur, désinscription toujours possible, rien pour un autre compte ni pour anon),
 -- lancées par tests/sql/run.sh. Comptes simulés …00000000a0xx : A s'inscrit, B est un autre compte,
--- C n'a pas d'adresse. Rien n'est appliqué en production : Postgres local jetable.
+-- C n'a pas d'adresse (compte créé avec Apple seul), D une adresse vide. Rien n'est appliqué en production : Postgres local jetable.
 
 create function pg_temp.terr(stmt text) returns text language plpgsql as
 $$ begin execute stmt; return 'ok'; exception when others then return sqlerrm; end $$;
@@ -12,7 +12,7 @@ $$ select set_config('request.jwt.claim.sub', coalesce(u::text, ''), false) $$;
 grant execute on function pg_temp.terr(text), pg_temp.tu(text), pg_temp.tlogin(uuid) to authenticated, anon, service_role;
 
 insert into auth.users (id, email) values
-  (pg_temp.tu('10'), 'alice@example.test'), (pg_temp.tu('11'), 'bruno@example.test'), (pg_temp.tu('12'), null);
+  (pg_temp.tu('10'), 'alice@example.test'), (pg_temp.tu('11'), 'bruno@example.test'), (pg_temp.tu('12'), null), (pg_temp.tu('13'), '  ');
 
 -- ── Rien n'est coché d'avance ; inscription horodatée par le serveur ──
 set role authenticated;
@@ -22,6 +22,7 @@ begin
   perform pg_temp.tlogin(pg_temp.tu('10'));
   st := public.newsletter_state();
   if (st ->> 'subscribed')::boolean or st ->> 'consented_at' is not null then raise 'inscrit sans geste : %', st; end if;
+  if (st -> 'has_email') is distinct from 'true'::jsonb then raise 'adresse du compte non signalée : %', st; end if;
   if pg_temp.terr($q$ select public.newsletter_subscribe('') $q$) is distinct from 'invalid_version' then raise 'version vide'; end if;
   if pg_temp.terr($q$ select public.newsletter_subscribe('2026') $q$) is distinct from 'invalid_version' then raise 'version mal formée'; end if;
   if pg_temp.terr($q$ select public.newsletter_subscribe(null) $q$) is distinct from 'invalid_version' then raise 'version nulle'; end if;
@@ -72,13 +73,28 @@ do $$ begin
 end $$;
 reset role;
 
--- ── Service d'envoi (clé serveur) : destinataires avec adresse, lien de désinscription ──
+-- ── Compte sans adresse (Apple seul) : l'app le sait, l'inscription est refusée ──
 set role authenticated;
-do $$ begin
-  perform pg_temp.tlogin(pg_temp.tu('12'));
-  perform public.newsletter_subscribe('v1');   -- compte sans adresse : inscrit, mais jamais destinataire
+do $$
+declare st jsonb;
+begin
+  foreach st in array array[to_jsonb(pg_temp.tu('12')), to_jsonb(pg_temp.tu('13'))] loop
+    perform pg_temp.tlogin((st #>> '{}')::uuid);
+    if (public.newsletter_state() -> 'has_email') is distinct from 'false'::jsonb then raise 'compte sans adresse : has_email'; end if;
+    if pg_temp.terr($q$ select public.newsletter_subscribe('v1') $q$) is distinct from 'no_email' then raise 'inscription sans adresse acceptée'; end if;
+    if (public.newsletter_state() ->> 'subscribed')::boolean then raise 'inscrit sans adresse'; end if;
+    -- La désinscription reste toujours possible
+    if (public.newsletter_unsubscribe() ->> 'subscribed')::boolean then raise 'désinscription sans adresse'; end if;
+  end loop;
 end $$;
 reset role;
+do $$ begin
+  if exists (select 1 from public.newsletter_subscriptions where user_id in (pg_temp.tu('12'), pg_temp.tu('13'))) then raise 'ligne créée sans adresse'; end if;
+end $$;
+-- Ligne ancienne d'un compte qui a perdu son adresse : jamais destinataire
+insert into public.newsletter_subscriptions (user_id, consent_version) values (pg_temp.tu('12'), 'v1');
+
+-- ── Service d'envoi (clé serveur) : destinataires avec adresse, lien de désinscription ──
 set role service_role;
 do $$
 declare tok uuid;
@@ -137,6 +153,7 @@ begin
     if not (select p.prosecdef and p.proconfig @> array['search_path=""'] from pg_proc p where p.oid = f) then raise '% : security definer et search_path vide', f; end if;
   end loop;
   if has_function_privilege('authenticated', 'private.newsletter_json(uuid)', 'execute') then raise 'newsletter_json exécutable'; end if;
+  if has_function_privilege('authenticated', 'private.newsletter_has_email(uuid)', 'execute') then raise 'newsletter_has_email exécutable'; end if;
   if not (select relrowsecurity from pg_class where oid = 'public.newsletter_subscriptions'::regclass) then raise 'RLS'; end if;
   if has_table_privilege('authenticated', 'public.newsletter_subscriptions', 'select') or has_table_privilege('anon', 'public.newsletter_subscriptions', 'select')
      or has_table_privilege('service_role', 'public.newsletter_subscriptions', 'select') then raise 'table lisible'; end if;

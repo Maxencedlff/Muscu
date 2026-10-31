@@ -10,22 +10,38 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
   const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
   test('lettre : état du serveur nettoyé, inscrit seulement si le serveur le dit', () => {
-    sameJSON(run('cleanNewsletterState({ subscribed: true, consented_at: "2026-10-31T10:00:00Z", version: "v1" })'),
-      { subscribed: true, consentedAt: Date.parse('2026-10-31T10:00:00Z'), version: 'v1' });
-    for (const raw of ['null', '"oui"', '[]', '{ subscribed: "true" }', '{ subscribed: 1 }', '{}']) {
-      sameJSON(run(`cleanNewsletterState(${raw})`), { subscribed: false, consentedAt: null, version: null }, raw);
+    sameJSON(run('cleanNewsletterState({ subscribed: true, consented_at: "2026-10-31T10:00:00Z", version: "v1", has_email: true })'),
+      { subscribed: true, consentedAt: Date.parse('2026-10-31T10:00:00Z'), version: 'v1', hasEmail: true });
+    for (const raw of ['null', '"oui"', '[]', '{ subscribed: "true" }', '{ subscribed: 1 }', '{}', '{ has_email: "true" }', '{ has_email: 1 }']) {
+      sameJSON(run(`cleanNewsletterState(${raw})`), { subscribed: false, consentedAt: null, version: null, hasEmail: false }, raw);
     }
     sameJSON(run('cleanNewsletterState({ subscribed: true, consented_at: "pas une date", version: "<b>" })'),
-      { subscribed: true, consentedAt: null, version: null }, 'date et version invalides écartées');
+      { subscribed: true, consentedAt: null, version: null, hasEmail: false }, 'date et version invalides écartées, adresse non supposée');
+  });
+
+  test('lettre : état relu quand le compte change l\'écran Compte ouvert, sans relance en boucle', () => {
+    const nr = (nl, user) => run(`newsletterNeedsRefresh(${JSON.stringify(nl)}, ${JSON.stringify(user)})`);
+    const base = { userId: 'u1', state: null, loading: false, error: null };
+    const st = (hasEmail) => ({ subscribed: false, consentedAt: null, version: null, hasEmail });
+    assert.equal(nr(base, null), false, 'déconnecté');
+    assert.equal(nr(base, { id: 'u1' }), true, 'connexion faite sur l\'écran : état inconnu');
+    assert.equal(nr({ ...base, userId: null }, { id: 'u1' }), true, 'autre compte');
+    assert.equal(nr({ ...base, loading: true }, { id: 'u1' }), false, 'lecture en cours');
+    assert.equal(nr({ ...base, error: 'offline' }, { id: 'u1' }), false, 'après un échec : « Réessayer »');
+    assert.equal(nr({ ...base, state: st(true) }, { id: 'u1', email: 'a@example.test' }), false, 'état connu');
+    assert.equal(nr({ ...base, state: st(false) }, { id: 'u1', email: null }), false, 'Apple seul, rien de neuf');
+    assert.equal(nr({ ...base, state: st(false) }, { id: 'u1', email: 'a@example.test' }), true, 'adresse ajoutée au compte');
   });
 
   test('lettre : erreurs du serveur et hors ligne reconnues, texte pour chacune', () => {
     assert.equal(run('newsletterErrorKind({ message: "rate_limited" })'), 'rate_limited');
     assert.equal(run('newsletterErrorKind({ message: "invalid_version" })'), 'invalid_version');
+    assert.equal(run('newsletterErrorKind({ message: "no_email" })'), 'no_email');
+    assert.match(run('newsletterErrorText("no_email")'), /Ajoute une connexion Google ou e-mail/);
     assert.equal(run('newsletterErrorKind({ message: "TypeError: Failed to fetch" })'), 'offline');
     assert.equal(run('newsletterErrorKind({ message: "boom" })'), 'server');
     assert.equal(run('newsletterErrorKind(null)'), null);
-    for (const k of ['offline', 'rate_limited', 'not_found', 'signed_out', 'invalid_version', 'server', 'inconnu']) {
+    for (const k of ['offline', 'rate_limited', 'not_found', 'signed_out', 'invalid_version', 'no_email', 'server', 'inconnu']) {
       assert.ok(run(`newsletterErrorText(${JSON.stringify(k)})`).length > 10, k);
     }
   });
@@ -54,6 +70,9 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     for (const f of ['newsletter_recipients', 'newsletter_unsubscribe_token']) {
       assert.ok(new RegExp(`grant execute on function public\\.${f}\\([^)]*\\) to service_role;`).test(sql), `${f} : serveur seulement`);
       assert.ok(doc.includes(f), `${f} absent du contrat`);
+    }
+    for (const [name, src] of [['migration', sql], ['faux serveur', fake], ['app', app], ['contrat', doc]]) {
+      assert.ok(src.includes('no_email') && src.includes('has_email'), `compte sans adresse (no_email, has_email) absent : ${name}`);
     }
     assert.ok(!/to anon/.test(sql), 'rien pour anon');
     assert.ok(fs.existsSync(path.join(ROOT, 'supabase/rollback/20261031230000_newsletter_down.sql')), 'retour arrière');
@@ -96,6 +115,21 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     for (const f of PAGES) for (const [, t] of read(f).matchAll(/<span class="a-completer">\[([^\]]+)\]<\/span>/g)) todos.add(t);
     assert.ok(todos.size >= 4, 'emplacements attendus (SIRET, téléphone, médiateur, date)');
     for (const t of todos) assert.ok(doc.includes(t), `emplacement non listé : ${t}`);
+  });
+
+  test('pages juridiques : la publication refuse toute page avec un emplacement à compléter', async () => {
+    const { legalPlaceholders } = await import(path.join(ROOT, 'scripts/check-legal-pages.mjs'));
+    sameJSON(legalPlaceholders('<p>SIRET : 123</p>\n<p>Médiateur : CM2C</p>'), [], 'page remplie');
+    for (const bad of ['<span class="a-completer">[x]</span>', '<span class="note a-completer">x</span>', '[À COMPLÉTER : date]',
+      '[À VÉRIFIER : RCS]', '[TO COMPLETE: phone]', '[TO CHECK: RCS]']) {
+      assert.equal(legalPlaceholders(`<p>ok</p>\n<p>${bad}</p>`).length, 1, bad);
+      assert.equal(legalPlaceholders(`<p>${bad}</p>`)[0].line, 1, `${bad} : ligne`);
+    }
+    // Le job deploy lance la garde AVANT la copie, sur exactement les pages copiées
+    const ci = read('.github/workflows/tests.yml');
+    const guard = ci.indexOf('node scripts/check-legal-pages.mjs privacy.html mentions-legales.html cgu.html cgv.html');
+    const copy = ci.indexOf('cp privacy.html mentions-legales.html cgu.html cgv.html legal.css web-public/');
+    assert.ok(guard > ci.indexOf('  deploy:') && guard < copy, 'garde des emplacements avant la publication');
   });
 
   test('conditions de vente : prix France identiques au contrat (docs/PAYANT_V1.md) et à l\'offre élève de l\'app', () => {

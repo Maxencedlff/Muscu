@@ -195,6 +195,8 @@ input, textarea, select { font-family: inherit; }
   transition: transform .25s;
 }
 .switch--on .switch__thumb { transform: translateX(20px); }
+/* Interrupteur inactif (état inconnu, compte sans adresse) : estompé comme un UISwitch désactivé ; le texte reste lisible */
+.cell:disabled .switch { opacity: .45; }
 
 /* Stepper « − | + » */
 .stepper {

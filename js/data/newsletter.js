@@ -9,8 +9,11 @@
 //  - Se désinscrire est toujours possible (newsletter_unsubscribe, jamais limité) : le serveur
 //    supprime la ligne.
 //  - L'adresse est celle du compte, lue par le serveur au moment d'un envoi. L'ENVOI N'EST PAS BRANCHÉ.
-//  - Rien n'est gardé sur l'appareil : l'état est relu à l'ouverture de l'écran Compte. Tant qu'il
-//    n'est pas connu, l'interrupteur est éteint et désactivé (aucune inscription supposée).
+//    Un compte sans adresse (Apple seul : l'app ne demande pas l'e-mail à Apple) ne peut pas s'inscrire :
+//    le serveur le dit (has_email) et refuse l'inscription (no_email) ; l'écran l'explique.
+//  - Rien n'est gardé sur l'appareil : l'état est relu à l'ouverture de l'écran Compte, et quand le
+//    compte change pendant que l'écran est ouvert (newsletterNeedsRefresh, appelé par l'écran). Tant
+//    qu'il n'est pas connu, l'interrupteur est éteint et désactivé (aucune inscription supposée).
 //  - Résultats : { ok: true, data } ou { ok: false, kind } ; l'écran s'abonne par onNewsletterChange.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -18,6 +21,7 @@
 // Version du texte de consentement. Tout changement de NEWSLETTER_CONSENT_TEXT demande une nouvelle
 // version (v2…), notée dans docs/NEWSLETTER.md : le serveur garde la version acceptée.
 const NEWSLETTER_CONSENT_VERSION = 'v1';
+const NEWSLETTER_NO_EMAIL_TEXT = 'Ajoute une connexion Google ou e-mail à ton compte pour recevoir la lettre.';
 const NEWSLETTER_CONSENT_TEXT = 'Je veux recevoir par e-mail la lettre d\'information de MDLF Training (nouveautés de l\'app, au plus une par mois). Je peux me désinscrire à tout moment, ici ou par le lien de chaque e-mail.';
 
 const newsletter = { userId: null, state: null, loading: false, busy: false, error: null, loadedAt: 0 };
@@ -27,7 +31,7 @@ function notifyNewsletter() { for (const fn of newsletterListeners) { try { fn()
 
 // ── Logique pure ────────────────────────────────────────────
 
-// newsletter_state() nettoyé : inscrit seulement si le serveur le dit exactement
+// newsletter_state() nettoyé : inscrit, ou avec une adresse, seulement si le serveur le dit exactement
 function cleanNewsletterState(raw) {
   const r = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
   const at = Date.parse(r.consented_at);
@@ -36,16 +40,29 @@ function cleanNewsletterState(raw) {
     subscribed,
     consentedAt: subscribed && Number.isFinite(at) ? at : null,
     version: subscribed && typeof r.version === 'string' && /^v\d{1,3}$/.test(r.version) ? r.version : null,
+    hasEmail: r.has_email === true,
   };
 }
 
-const NEWSLETTER_ERRORS = ['invalid_version', 'rate_limited', 'not_found'];
+// Faut-il relire l'état, l'écran Compte étant ouvert ? Oui pour un compte connecté dont l'état est
+// inconnu (connexion faite sur l'écran, session restaurée après son ouverture), sauf pendant une
+// lecture ou après un échec (le bouton « Réessayer » relance) ; oui aussi quand une adresse vient
+// d'être ajoutée au compte (Google ou e-mail relié) alors que le serveur disait qu'il n'en avait pas.
+function newsletterNeedsRefresh(nl, user) {
+  if (!user || nl.loading) return false;
+  if (nl.userId !== user.id) return true;
+  if (!nl.state) return !nl.error;
+  return !nl.state.hasEmail && !!String(user.email || '').trim();
+}
+
+const NEWSLETTER_ERRORS = ['invalid_version', 'rate_limited', 'not_found', 'no_email'];
 const NEWSLETTER_TEXT = {
   offline: 'Pas de connexion. Réessaie avec du réseau.',
   rate_limited: 'Trop de changements aujourd\'hui. Réessaie demain.',
   not_found: 'Connecte-toi d\'abord à ton compte.',
   signed_out: 'Connecte-toi d\'abord à ton compte.',
   invalid_version: 'Mets l\'app à jour, puis réessaie.',
+  no_email: NEWSLETTER_NO_EMAIL_TEXT,
   server: 'Le serveur ne répond pas. Réessaie plus tard.',
 };
 function newsletterErrorKind(error) {

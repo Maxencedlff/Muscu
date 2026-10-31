@@ -18,6 +18,7 @@ drop function if exists public.newsletter_unsubscribe();
 drop function if exists public.newsletter_subscribe(text);
 drop function if exists public.newsletter_state();
 drop function if exists private.newsletter_json(uuid);
+drop function if exists private.newsletter_has_email(uuid);
 drop table if exists public.newsletter_subscriptions;
 delete from private.social_rate r where r.action = 'newsletter_subscribe';
 

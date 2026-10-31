@@ -1,5 +1,6 @@
 """Juridique (app iOS simulée) : lettre d'information (inscription par consentement explicite, jamais
-cochée d'avance, désinscription, hors ligne, changement de compte) et liens vers les pages juridiques
+cochée d'avance, désinscription, hors ligne et « Réessayer », changement de compte, connexion faite sur
+l'écran Compte, compte Apple seul sans adresse) et liens vers les pages juridiques
 (Réglages › Informations légales).
 
 L'app iOS et Supabase sont simulés (tests/fake_account.py) : aucune requête ne sort, aucun e-mail.
@@ -34,11 +35,12 @@ def open_app(page, theme):
     page.wait_for_timeout(300)
 
 
-def signin(page, username='max'):
-    page.evaluate("""async (u) => {
-        await accountSignInWith('apple', async () => 'add');
+def signin(page, username='max', provider='google'):
+    """Google : le compte a une adresse (celle de Google). Apple : aucune adresse (comme dans l'app)."""
+    page.evaluate("""async ([u, p]) => {
+        await accountSignInWith(p, async () => 'add');
         if (u) await accountSaveProfile({ username: u });
-    }""", username)
+    }""", [username, provider])
     page.wait_for_timeout(200)
 
 
@@ -117,7 +119,15 @@ def t_newsletter(bench, eng, dev, theme):
         open_account(page)
         R.check(page.locator(SWITCH).is_disabled() and checked(page) == 'false'
                 and 'indisponible' in page.inner_text('#newsletterSub'), f'{t} état inconnu : désactivé, raison dite')
+        # 6 bis. « Réessayer » sur place, le réseau revenu : l'état est relu, l'interrupteur revient
         page.evaluate("__sb.fail.newsletter = null")
+        retry = page.locator('[data-action="newsletter-retry"]')
+        R.check(retry.count() == 1, f'{t} bouton « Réessayer » après l\'échec')
+        if retry.count():
+            retry.click()
+            page.wait_for_timeout(400)
+        R.check(not page.locator(SWITCH).is_disabled() and page.locator('[data-action="newsletter-retry"]').count() == 0,
+                f'{t} « Réessayer » : interrupteur de nouveau actif')
         # 7. Lien Confidentialité de la lettre
         page.click('[data-action="newsletter-privacy"]')
         R.check(page.evaluate('__opened.at(-1)') == 'https://mdlf.app/privacy.html#newsletter', f'{t} lien vers la confidentialité de la lettre')
@@ -136,10 +146,57 @@ def t_changement_compte(bench, eng, dev, theme):
         R.check(checked(page) == 'true', f'{t} premier compte inscrit')
         page.evaluate("async () => { await accountSignOut(); }")
         page.wait_for_timeout(300)
-        page.evaluate("__sb.appleUser = 'apple-sub-2'")
+        page.evaluate("__sb.googleSub = 'google-sub-2'")
         signin(page, 'lea')
         open_account(page)
         R.check(checked(page) == 'false', f'{t} second compte : pas inscrit ({checked(page)})')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_connexion_sur_compte(bench, eng, dev, theme):
+    """Première connexion faite depuis l'écran Compte (ouvert déconnecté) : l'état est lu sans quitter l'écran."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme)
+        open_account(page)
+        R.check(page.locator('.account-view--out').count() == 1 and page.locator(SWITCH).count() == 0, f'{t} écran Compte déconnecté')
+        signin(page)   # même appel que le bouton « Continuer avec Google » de cet écran, sans navigation
+        page.wait_for_timeout(400)
+        R.check(page.locator(SWITCH).count() == 1 and not page.locator(SWITCH).is_disabled(), f'{t} interrupteur actif sans quitter l\'écran')
+        R.check('Désactivée' in page.inner_text('#newsletterSub'), f'{t} état lu, plus « Chargement… »')
+        R.check(len(nl_calls(page, 'newsletter_state')) == 1, f'{t} état lu une seule fois {nl_calls(page)}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_apple_seul(bench, eng, dev, theme):
+    """Compte créé avec Apple seul (aucune adresse) : inscription impossible et expliquée, possible dès
+    qu'une adresse e-mail est reliée au compte."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme)
+        signin(page, 'max', 'apple')
+        open_account(page)
+        sw = page.locator(SWITCH)
+        R.check(sw.is_disabled() and checked(page) == 'false', f'{t} Apple seul : interrupteur éteint et désactivé')
+        R.check('Ajoute une connexion Google ou e-mail à ton compte pour recevoir la lettre.' in page.inner_text('#newsletterSub'),
+                f'{t} Apple seul : ce qu\'il faut ajouter est dit')
+        sw.click(force=True)
+        page.wait_for_timeout(300)
+        R.check(not nl_calls(page, 'newsletter_subscribe') and checked(page) == 'false', f'{t} Apple seul : aucune inscription envoyée')
+        # Le serveur refuse aussi (appel direct, comme une ancienne version de l'app)
+        r = page.evaluate("newsletterSet(true)")
+        R.check(r == {'ok': False, 'kind': 'no_email'}, f'{t} serveur : no_email {r}')
+        sw.scroll_into_view_if_needed()
+        shot(page, LOT, f'4-newsletter-apple-seul-{t}')
+        # Adresse e-mail reliée au compte, l'écran ouvert : l'état est relu, l'inscription devient possible
+        page.evaluate("""async () => { const at = Date.now(); await accountLinkEmailStart('max@example.test');
+            return accountLinkEmailVerify('max@example.test', __sb.code, at); }""")
+        page.wait_for_timeout(400)
+        R.check(not page.locator(SWITCH).is_disabled() and 'Désactivée' in page.inner_text('#newsletterSub'),
+                f'{t} adresse ajoutée : interrupteur actif')
+        page.locator(SWITCH).click()
+        page.wait_for_timeout(400)
+        R.check(checked(page) == 'true', f'{t} adresse ajoutée : inscription possible')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -164,4 +221,4 @@ def t_liens(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_newsletter, t_changement_compte, t_liens])
+run_main(R, [t_newsletter, t_changement_compte, t_connexion_sur_compte, t_apple_seul, t_liens])

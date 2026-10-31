@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<!-- Manifeste de confidentialité exigé par Apple : aucun suivi. Données collectées seulement avec le compte
-	     facultatif (js/data/account.js), pour synchroniser les appareils : identifiant (dont le pseudo), adresse
+	     facultatif (js/data/account.js), pour synchroniser les appareils (et, sur inscription, pour la lettre d'information) : identifiant (dont le pseudo), adresse
 	     e-mail (comptes e-mail et Google seulement), nom (comptes Google seulement), séances, notes et avatar (un emoji).
 	     Jamais de donnée de Santé ni de poids du corps. Même déclaration dans App Store Connect et privacy.html. -->
 	<key>NSPrivacyTracking</key>
@@ -28,7 +28,10 @@
 		</dict>
 		<dict>
 			<!-- Adresse e-mail : connexion par code e-mail, ou donnée par Google à la connexion avec Google.
-			     Sert seulement à se connecter (envoi du code par Resend) ; jamais de publicité ni de suivi -->
+			     Sert à se connecter (envoi du code par Resend) et, seulement si la personne s'y inscrit elle-même
+			     (Réglages › Compte), à la lettre d'information de l'app (marketing du développeur,
+			     docs/NEWSLETTER.md). Jamais de publicité de tiers ni de suivi. Même déclaration dans App Store
+			     Connect (Adresse e-mail : Fonctionnalité de l'app, Publicité ou marketing du développeur) -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
@@ -38,6 +41,7 @@
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeDeveloperAdvertising</string>
 			</array>
 		</dict>
 		<dict>

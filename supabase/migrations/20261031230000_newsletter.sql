@@ -12,6 +12,9 @@
 --  3. Se désinscrire est toujours possible, sans limite d'appels : la ligne est SUPPRIMÉE (plus rien
 --     n'est gardé, on n'envoie plus rien). Supprimer le compte la supprime aussi (on delete cascade).
 --  4. L'adresse n'est pas recopiée : c'est celle du compte (auth.users.email), lue au moment de l'envoi.
+--     Un compte sans adresse (créé seulement avec Apple : l'app ne demande pas l'e-mail à Apple) ne peut
+--     pas s'inscrire (no_email) : on n'enregistre pas un consentement qu'on ne pourrait pas honorer.
+--     newsletter_json dit has_email pour que l'app l'explique au lieu d'afficher l'interrupteur.
 --  5. L'ENVOI N'EST PAS BRANCHÉ. Deux fonctions sont prêtes pour le futur service d'envoi, clé serveur
 --     seulement : newsletter_recipients() (la liste) et newsletter_unsubscribe_token(token) (lien de
 --     désinscription en un clic de chaque e-mail, RFC 8058). Aucune n'est appelable par l'app.
@@ -31,6 +34,13 @@ create table public.newsletter_subscriptions (
 alter table public.newsletter_subscriptions enable row level security;
 revoke all on public.newsletter_subscriptions from public, anon, authenticated, service_role;
 
+-- Le compte a-t-il une adresse où envoyer la lettre ?
+create function private.newsletter_has_email(uid uuid) returns boolean
+  language sql stable security definer set search_path = '' as
+$$
+  select exists (select 1 from auth.users u where u.id = uid and coalesce(btrim(u.email), '') <> '')
+$$;
+
 -- État de l'inscription du compte connecté
 create function private.newsletter_json(uid uuid) returns jsonb
   language sql stable security definer set search_path = '' as
@@ -38,7 +48,8 @@ $$
   select jsonb_build_object(
     'subscribed',   n.user_id is not null,
     'consented_at', n.consented_at,
-    'version',      n.consent_version
+    'version',      n.consent_version,
+    'has_email',    private.newsletter_has_email(me.id)
   )
   from (select uid as id) me
   left join public.newsletter_subscriptions n on n.user_id = me.id
@@ -66,6 +77,7 @@ begin
   if me is null or not exists (select 1 from auth.users u where u.id = me) then
     raise exception 'not_found' using errcode = 'P0001';
   end if;
+  if not private.newsletter_has_email(me) then raise exception 'no_email' using errcode = 'P0001'; end if;
   if v !~ '^v[0-9]{1,3}$' then raise exception 'invalid_version' using errcode = 'P0001'; end if;
   perform private.rate_limit_window(me, 'newsletter_subscribe', 20, interval '24 hours');
   insert into public.newsletter_subscriptions as n (user_id, consented_at, consent_version, source)
@@ -98,7 +110,7 @@ $$
   select n.user_id, u.email, n.consent_version, n.unsubscribe_token
   from public.newsletter_subscriptions n
   join auth.users u on u.id = n.user_id
-  where u.email is not null and u.email <> ''
+  where private.newsletter_has_email(n.user_id)
   order by n.consented_at
 $$;
 
@@ -113,6 +125,7 @@ begin
 end
 $$;
 
+revoke all on function private.newsletter_has_email(uuid) from public, anon, authenticated, service_role;
 revoke all on function private.newsletter_json(uuid) from public, anon, authenticated, service_role;
 revoke all on function public.newsletter_state() from public, anon, authenticated, service_role;
 revoke all on function public.newsletter_subscribe(text) from public, anon, authenticated, service_role;
