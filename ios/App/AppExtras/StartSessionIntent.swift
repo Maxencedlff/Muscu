@@ -4,14 +4,12 @@ import AppIntents
 /// L'intent ouvre l'app et lui laisse la demande (ShortcutInbox) ; la séance démarre ensuite dans le JS
 /// exactement comme par le bouton de l'accueil (js/features/siri.js : séance en cours reprise,
 /// séance vide refusée, rien pendant Bienvenue ou un dialogue ouvert).
-/// À ajouter à la cible App (docs/WATCH_WIDGETS.md). iOS 16 et suivants, comme l'app (16.4).
+/// Cible App (docs/WATCH_WIDGETS.md). iOS 16 et suivants, comme l'app (16.4).
 ///
 /// Apple (App Intents, « App Shortcuts ») : un AppShortcutsProvider dans la cible de l'app rend le
 /// raccourci disponible dès l'installation, sans réglage ; chaque phrase doit contenir le nom de l'app
 /// (\(.applicationName)). Les phrases sont en français, langue de développement de l'app
 /// (CFBundleDevelopmentRegion = fr).
-///
-/// NON COMPILÉ au moment de l'écriture (pas de Xcode sur la machine de développement).
 struct StartSessionIntent: AppIntent {
     static let title: LocalizedStringResource = "Démarrer ma séance"
     static let description = IntentDescription("Ouvre MDLF Training sur la prochaine séance de ton programme, ou sur la séance en cours.")

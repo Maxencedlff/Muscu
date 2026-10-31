@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { runtimeVersion } from '../../scripts/runtime-version.mjs';
+import { runtimeVersion, RUNTIME_INPUTS } from '../../scripts/runtime-version.mjs';
 
 export default function ({ test, run, reset, assert, app, sameJSON, ctx, nativeContext, ROOT }) {
   const H = 3_600_000, D = 24 * H;
@@ -296,16 +296,37 @@ export default function ({ test, run, reset, assert, app, sameJSON, ctx, nativeC
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 
-  test('empreinte : ce dépôt n\'a aucun Swift de la montre, du widget ou de Siri dans le projet Xcode', () => {
-    // Tant que l'intégration Xcode (docs/WATCH_WIDGETS.md) n'est pas faite, l'empreinte reste celle de la
-    // build installée : les mises à jour à chaud continuent de partir.
+  test('empreinte : la montre, le widget et Siri sont dans le projet Xcode et dans l\'empreinte', () => {
+    // Build iOS avec l'Apple Watch (docs/WATCH_WIDGETS.md) : leur Swift est compilé, donc compté ; leurs
+    // Info.plist et droits aussi. Les mises à jour à chaud de cette base ne vont qu'aux builds qui l'ont.
     const pbx = swift('App.xcodeproj/project.pbxproj');
     for (const d of ['AppExtras', 'Watch', 'Widgets']) {
       for (const f of fs.readdirSync(path.join(ROOT, 'ios/App', d)).filter(f => f.endsWith('.swift'))) {
-        assert.ok(!pbx.includes(`${f} in Sources`), `${d}/${f} pas encore compilé`);
+        assert.ok(pbx.includes(`${f} in Sources`), `${d}/${f} compilé`);
       }
     }
-    assert.ok(!pbx.includes('CompanionShared.swift in Sources'));
+    assert.equal(pbx.split('CompanionShared.swift in Sources */ = {').length - 1, 3, 'types partagés dans App, RestActivity et MDLFWatch');
+    assert.match(pbx, /PrivacyInfo\.xcprivacy in Resources \*\/ = \{isa = PBXBuildFile; fileRef = (\w+) \/\* PrivacyInfo/);
+    assert.match(pbx, /CODE_SIGN_ENTITLEMENTS = RestActivity\/RestActivity\.entitlements;/);
+    assert.match(pbx, /PRODUCT_BUNDLE_IDENTIFIER = com\.mdlf\.training\.watchkitapp;/);
+    assert.match(pbx, /PROVISIONING_PROFILE_SPECIFIER = "MDLF Training Watch App Store";/);
+    assert.match(pbx, /MDLFWatch\.app in Embed Watch Content/);
+    assert.match(pbx, /dstPath = "\$\(CONTENTS_FOLDER_PATH\)\/Watch";/);
+    for (const f of ['ios/App/RestActivity/RestActivity.entitlements', 'ios/App/Watch/Info.plist']) {
+      assert.ok(RUNTIME_INPUTS.includes(f), `${f} dans l'empreinte`);
+      assert.ok(fs.existsSync(path.join(ROOT, f)), `${f} présent`);
+    }
+    const watchPlist = fs.readFileSync(path.join(ROOT, 'ios/App/Watch/Info.plist'), 'utf8');
+    assert.match(watchPlist, /<key>WKCompanionAppBundleIdentifier<\/key>\s*<string>com\.mdlf\.training<\/string>/);
+    assert.match(watchPlist, /<string>\$\(CURRENT_PROJECT_VERSION\)<\/string>/, 'même numéro de build que l\'app');
+  });
+
+  test('signature : un profil App Store pour la montre, à l\'export et sur la CI', () => {
+    const exportOptions = fs.readFileSync(path.join(ROOT, 'ios/ExportOptions.plist'), 'utf8');
+    assert.match(exportOptions, /<key>com\.mdlf\.training\.watchkitapp<\/key>\s*<string>MDLF Training Watch App Store<\/string>/);
+    const ci = fs.readFileSync(path.join(ROOT, '.github/workflows/ios.yml'), 'utf8');
+    assert.match(ci, /for name in APPSTORE_PROFILE APPSTORE_PROFILE_REST_ACTIVITY APPSTORE_PROFILE_WATCH; do/);
+    assert.doesNotMatch(ci, /-sdk iphonesimulator/, 'le SDK iPhone imposé casserait la compilation de la montre');
   });
 
   // ── Noms partagés avec le Swift (non compilé ici) ───────────
@@ -320,14 +341,25 @@ export default function ({ test, run, reset, assert, app, sameJSON, ctx, nativeC
     assert.match(swift('AppExtras/ShortcutsPlugin.swift'), /notifyListeners\("request"/);
     assert.match(swift('AppExtras/StartSessionIntent.swift'), /"startSession"/);
     const shared = swift('Shared/CompanionShared.swift');
-    assert.match(shared, /appGroup = "group\.com\.mdlf\.training"/);
+    // Widget : instantané dans un groupe de trousseau de l'équipe, présent dans les droits des deux cibles
+    assert.match(shared, /keychainGroup = "NMK739Z59B\.com\.mdlf\.training\.shared"/);
+    for (const f of ['App/App.entitlements', 'RestActivity/RestActivity.entitlements']) {
+      assert.match(swift(f), /<string>\$\(AppIdentifierPrefix\)com\.mdlf\.training\.shared<\/string>/, f);
+    }
+    // Groupe par défaut des éléments de l'app inchangé (le premier de la liste) : la connexion Google reste
+    assert.match(swift('App/App.entitlements'), /<key>keychain-access-groups<\/key>\s*<array>\s*<string>\$\(AppIdentifierPrefix\)com\.mdlf\.training<\/string>/);
     assert.match(shared, new RegExp(`actionMaxAge: TimeInterval = ${run('WATCH_ACTION_MAX_AGE_MS') / 1000}\\b`), 'même âge maximal d\'un geste');
     // Gestes de la montre : ceux que watchActionFor accepte, rien d'autre
     for (const type of ['validate', 'skipRest', 'restAdjust']) assert.match(shared, new RegExp(`case ${type}\\b`));
     // Version de l'état et de l'instantané : la même des deux côtés
     assert.match(shared, new RegExp(`watchStateVersion = ${run('WATCH_VERSION')}\\b`));
     assert.match(shared, new RegExp(`widgetSnapshotVersion = ${run('WIDGET_VERSION')}\\b`));
-    // Pas encore dans le projet Xcode : la build actuelle ne change pas (docs/WATCH_WIDGETS.md)
-    assert.doesNotMatch(swift('App.xcodeproj/project.pbxproj'), /WatchPlugin\.swift|NextSessionWidget\.swift/);
+    // Branchés : modules enregistrés (sinon « not implemented on ios »), session de la montre active dès
+    // le lancement, widget déclaré dans l'extension
+    for (const p of ['WatchPlugin', 'WidgetPlugin', 'ShortcutsPlugin']) {
+      assert.match(swift('App/MainViewController.swift'), new RegExp(`registerPluginInstance\\(${p}\\(\\)\\)`), p);
+    }
+    assert.match(swift('App/AppDelegate.swift'), /WatchLink\.shared\.activate\(\)/);
+    assert.match(swift('RestActivity/RestActivityBundle.swift'), /NextSessionWidget\(\)/);
   });
 }

@@ -4,7 +4,7 @@ import WatchConnectivity
 
 /// Apple Watch : la séance en cours part vers la montre, ses gestes reviennent vers le JS.
 /// Côté web : Capacitor.registerPlugin('MdlfWatch') (js/platform/native.js), appelé par js/features/watch.js.
-/// À ajouter à la cible App, puis à enregistrer dans MainViewController (docs/WATCH_WIDGETS.md).
+/// Cible App, enregistré dans MainViewController (docs/WATCH_WIDGETS.md).
 ///
 /// Apple (WatchConnectivity, WCSession) :
 /// - la session s'active le plus tôt possible, une seule fois, avec un délégué ; WatchLink.shared.activate()
@@ -14,8 +14,6 @@ import WatchConnectivity
 ///   joignable : c'est le bon outil pour « l'état actuel » ; sendMessage n'arrive que si elle l'est,
 ///   tout de suite (l'app de la montre ouverte) ;
 /// - sur iPhone, sessionDidDeactivate impose de réactiver la session (changement de montre).
-///
-/// NON COMPILÉ au moment de l'écriture (pas de Xcode sur la machine de développement).
 @objc(WatchPlugin)
 public final class WatchPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "WatchPlugin"

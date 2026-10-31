@@ -8,13 +8,15 @@
 
 /* Begin PBXBuildFile section */
 		1929B4E7A9B047D508F13F5C /* LiveActivityPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E876B3DED5CCC9B407DC6390 /* LiveActivityPlugin.swift */; };
+		2120D05A89BFBB37BEC14289 /* CompanionShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B0F3EC13B2DA975FD1B205E /* CompanionShared.swift */; };
 		25BC4D509FE18810E28BB5D3 /* RestActivityViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C706736A17C1B719DD16B34A /* RestActivityViews.swift */; };
 		2722C1427BD8D7610737345D /* RestActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99EBA0E2961F9C726384A953 /* RestActivityAttributes.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		37083D98ACC82037C2C459B8 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9CC6A7CB51122052008EA66C /* WidgetKit.framework */; };
+		404CB127C1B9B18A060A30C6 /* WatchViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1082265A0360801F5365DC4 /* WatchViews.swift */; };
 		42C7924237682274960B2A38 /* RestActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 44CCB2E0DE50D49AF99CA770 /* RestActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		43968133455602901DD884D0 /* CompanionShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B0F3EC13B2DA975FD1B205E /* CompanionShared.swift */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
-		B10000000000000000006A01 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = B10000000000000000006A02 /* GoogleSignIn */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
@@ -23,24 +25,44 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		524547E6CF1EE1472D423F1E /* RestActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 324DA767E27DBC9693DE9F7F /* RestActivityBundle.swift */; };
 		547AA2F560CE2D96CBB0238B /* RestActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99EBA0E2961F9C726384A953 /* RestActivityAttributes.swift */; };
+		5921A419084D537CD08103BB /* MDLFWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 6271F7B6B44767EF7856F841 /* MDLFWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		5A3A9BE3354272ADB1319F25 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E2CD389F33D46691183BC084 /* PrivacyInfo.xcprivacy */; };
+		5B5A05C94D9B64997F359E9F /* StartSessionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA83B56034BC5391CCB71B6F /* StartSessionIntent.swift */; };
+		5E8D98EDCE31A08E1F84645D /* NextSessionWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0B677D96388F9DCD0507BF8 /* NextSessionWidget.swift */; };
+		6F30D11182EED861E6FB0FAA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9DEA051F6549A4A84E4318D7 /* Assets.xcassets */; };
 		74F036B7A176E8A51082A374 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D54180B0B544EF0CC2D63A9C /* SwiftUI.framework */; };
+		7A68F6B8C15AF8F566C0BA7E /* MDLFWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 488E3B437F17B8AC17223705 /* MDLFWatchApp.swift */; };
 		81434FBB821C6590F4A3F192 /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9FDA060A278E54AE375D231A /* ActivityKit.framework */; };
 		82A03853CBB714A2BDC6FE83 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 91FA0C5DD0F7570C8C2EB887 /* Foundation.framework */; };
+		90D007012167BD9ABCFD65F2 /* ShortcutsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B69D4B953E388474506FFE76 /* ShortcutsPlugin.swift */; };
+		9329E909C31194606D976737 /* WidgetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 380261A382D30FC4A8037DA5 /* WidgetPlugin.swift */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		A1B2C3D4E5F6A7B8C9D0E1F2 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F3 /* PrivacyInfo.xcprivacy */; };
 		B10000000000000000000001 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000002 /* MainViewController.swift */; };
 		B10000000000000000000003 /* HealthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000004 /* HealthPlugin.swift */; };
 		B10000000000000000000005 /* MusicPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000006 /* MusicPlugin.swift */; };
 		B10000000000000000000008 /* AppIconPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* AppIconPlugin.swift */; };
+		B1000000000000000000501A /* SoundPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000501B /* SoundPlugin.swift */; };
+		B10000000000000000006A01 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = B10000000000000000006A02 /* GoogleSignIn */; };
 		B1000000000000000000C10A /* CloudBackupPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000C10B /* CloudBackupPlugin.swift */; };
 		B1000000000000000000C20A /* AccountPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000C20B /* AccountPlugin.swift */; };
-		B1000000000000000000501A /* SoundPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000501B /* SoundPlugin.swift */; };
 		B1000000000000000000D30A /* PushPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000D30B /* PushPlugin.swift */; };
+		B5F057F9F70E268F2F8AADE7 /* WatchSessionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4502694C744A54123579FDF /* WatchSessionModel.swift */; };
+		BA98E951F42DED995D4A12D8 /* WatchTint.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7B7D3DFD8615A70A591B3D8 /* WatchTint.swift */; };
 		BCB5A990ECCE955DA4011742 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9B49EA045B93D6084B21944C /* Assets.xcassets */; };
+		E8EEA32628817C65CD185B91 /* WatchPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5136D92C55861369974D95F /* WatchPlugin.swift */; };
+		F3CB7C60C606CE86B510410B /* CompanionShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B0F3EC13B2DA975FD1B205E /* CompanionShared.swift */; };
 		FF5442B63583AF1472A8F120 /* RestLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC8D3E16B4C6AF6633DBB14 /* RestLiveActivity.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		724111E8CF8893DF6F76E884 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 444CF2D4466CC990AF1D3557;
+			remoteInfo = MDLFWatch;
+		};
 		F6E447953CDDC84895AA5DDF /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
@@ -51,6 +73,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		5B768533468763358665DC6C /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				5921A419084D537CD08103BB /* MDLFWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		FD4D5D75657C70864491F8A1 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -67,7 +100,10 @@
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		324DA767E27DBC9693DE9F7F /* RestActivityBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RestActivityBundle.swift; sourceTree = "<group>"; };
+		380261A382D30FC4A8037DA5 /* WidgetPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetPlugin.swift; sourceTree = "<group>"; };
+		3B0F3EC13B2DA975FD1B205E /* CompanionShared.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CompanionShared.swift; sourceTree = "<group>"; };
 		44CCB2E0DE50D49AF99CA770 /* RestActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RestActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		488E3B437F17B8AC17223705 /* MDLFWatchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MDLFWatchApp.swift; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -76,6 +112,8 @@
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
+		6271F7B6B44767EF7856F841 /* MDLFWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MDLFWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		796BA47F75AA972AD0EEAAB5 /* RestActivity.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = RestActivity.entitlements; sourceTree = "<group>"; };
 		91FA0C5DD0F7570C8C2EB887 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		934AFC2E46274BD54184BC2A /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -83,21 +121,31 @@
 		99EBA0E2961F9C726384A953 /* RestActivityAttributes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RestActivityAttributes.swift; sourceTree = "<group>"; };
 		9B49EA045B93D6084B21944C /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9CC6A7CB51122052008EA66C /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		9DEA051F6549A4A84E4318D7 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9FDA060A278E54AE375D231A /* ActivityKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ActivityKit.framework; path = System/Library/Frameworks/ActivityKit.framework; sourceTree = SDKROOT; };
 		A1B2C3D4E5F6A7B8C9D0E1F3 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		ACC8D3E16B4C6AF6633DBB14 /* RestLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RestLiveActivity.swift; sourceTree = "<group>"; };
+		ACE5E6A38245D63E1B439390 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10000000000000000000002 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		B10000000000000000000004 /* HealthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthPlugin.swift; sourceTree = "<group>"; };
 		B10000000000000000000006 /* MusicPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicPlugin.swift; sourceTree = "<group>"; };
+		B10000000000000000000007 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		B10000000000000000000009 /* AppIconPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconPlugin.swift; sourceTree = "<group>"; };
+		B1000000000000000000501B /* SoundPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundPlugin.swift; sourceTree = "<group>"; };
 		B1000000000000000000C10B /* CloudBackupPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudBackupPlugin.swift; sourceTree = "<group>"; };
 		B1000000000000000000C20B /* AccountPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountPlugin.swift; sourceTree = "<group>"; };
-		B1000000000000000000501B /* SoundPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundPlugin.swift; sourceTree = "<group>"; };
 		B1000000000000000000D30B /* PushPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushPlugin.swift; sourceTree = "<group>"; };
-		B10000000000000000000007 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		B1082265A0360801F5365DC4 /* WatchViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchViews.swift; sourceTree = "<group>"; };
+		B69D4B953E388474506FFE76 /* ShortcutsPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShortcutsPlugin.swift; sourceTree = "<group>"; };
 		C706736A17C1B719DD16B34A /* RestActivityViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RestActivityViews.swift; sourceTree = "<group>"; };
+		CA83B56034BC5391CCB71B6F /* StartSessionIntent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StartSessionIntent.swift; sourceTree = "<group>"; };
+		D0B677D96388F9DCD0507BF8 /* NextSessionWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NextSessionWidget.swift; sourceTree = "<group>"; };
+		D5136D92C55861369974D95F /* WatchPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchPlugin.swift; sourceTree = "<group>"; };
 		D54180B0B544EF0CC2D63A9C /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		D7B7D3DFD8615A70A591B3D8 /* WatchTint.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchTint.swift; sourceTree = "<group>"; };
+		E2CD389F33D46691183BC084 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		E876B3DED5CCC9B407DC6390 /* LiveActivityPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LiveActivityPlugin.swift; sourceTree = "<group>"; };
+		F4502694C744A54123579FDF /* WatchSessionModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchSessionModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -107,6 +155,13 @@
 			files = (
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
 				B10000000000000000006A01 /* GoogleSignIn in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6F63B0188091B6AF058395D7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -124,6 +179,28 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		2109E76FF3C090250EADD753 /* AppExtras */ = {
+			isa = PBXGroup;
+			children = (
+				D5136D92C55861369974D95F /* WatchPlugin.swift */,
+				380261A382D30FC4A8037DA5 /* WidgetPlugin.swift */,
+				B69D4B953E388474506FFE76 /* ShortcutsPlugin.swift */,
+				CA83B56034BC5391CCB71B6F /* StartSessionIntent.swift */,
+			);
+			name = AppExtras;
+			path = AppExtras;
+			sourceTree = "<group>";
+		};
+		2A421FA3695FC9993C72F7A1 /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				D0B677D96388F9DCD0507BF8 /* NextSessionWidget.swift */,
+				E2CD389F33D46691183BC084 /* PrivacyInfo.xcprivacy */,
+			);
+			name = Widgets;
+			path = Widgets;
+			sourceTree = "<group>";
+		};
 		504EC2FB1FED79650016851F = {
 			isa = PBXGroup;
 			children = (
@@ -133,6 +210,9 @@
 				B8E462145EF9E43F34EE40C4 /* Shared */,
 				CCAA7223CECAC5684056284A /* RestActivity */,
 				CAFAF5B1509BE7A234F03DDA /* Frameworks */,
+				2109E76FF3C090250EADD753 /* AppExtras */,
+				2A421FA3695FC9993C72F7A1 /* Widgets */,
+				686A42AC53A68CF883A89C28 /* Watch */,
 			);
 			sourceTree = "<group>";
 		};
@@ -141,6 +221,7 @@
 			children = (
 				504EC3041FED79650016851F /* App.app */,
 				44CCB2E0DE50D49AF99CA770 /* RestActivity.appex */,
+				6271F7B6B44767EF7856F841 /* MDLFWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -172,10 +253,25 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		686A42AC53A68CF883A89C28 /* Watch */ = {
+			isa = PBXGroup;
+			children = (
+				488E3B437F17B8AC17223705 /* MDLFWatchApp.swift */,
+				F4502694C744A54123579FDF /* WatchSessionModel.swift */,
+				D7B7D3DFD8615A70A591B3D8 /* WatchTint.swift */,
+				B1082265A0360801F5365DC4 /* WatchViews.swift */,
+				9DEA051F6549A4A84E4318D7 /* Assets.xcassets */,
+				ACE5E6A38245D63E1B439390 /* Info.plist */,
+			);
+			name = Watch;
+			path = Watch;
+			sourceTree = "<group>";
+		};
 		B8E462145EF9E43F34EE40C4 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
 				99EBA0E2961F9C726384A953 /* RestActivityAttributes.swift */,
+				3B0F3EC13B2DA975FD1B205E /* CompanionShared.swift */,
 			);
 			name = Shared;
 			path = Shared;
@@ -197,6 +293,7 @@
 				C706736A17C1B719DD16B34A /* RestActivityViews.swift */,
 				9B49EA045B93D6084B21944C /* Assets.xcassets */,
 				934AFC2E46274BD54184BC2A /* Info.plist */,
+				796BA47F75AA972AD0EEAAB5 /* RestActivity.entitlements */,
 			);
 			name = RestActivity;
 			path = RestActivity;
@@ -216,6 +313,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		444CF2D4466CC990AF1D3557 /* MDLFWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 36343383F44F3F7B85E24D11 /* Build configuration list for PBXNativeTarget "MDLFWatch" */;
+			buildPhases = (
+				AC3F917B9B94FFF0934FD5DA /* Sources */,
+				6F63B0188091B6AF058395D7 /* Frameworks */,
+				F339BA857CD465DE999534D1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MDLFWatch;
+			productName = MDLFWatch;
+			productReference = 6271F7B6B44767EF7856F841 /* MDLFWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
 		504EC3031FED79650016851F /* App */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 504EC3161FED79650016851F /* Build configuration list for PBXNativeTarget "App" */;
@@ -224,11 +338,13 @@
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
 				FD4D5D75657C70864491F8A1 /* Embed Foundation Extensions */,
+				5B768533468763358665DC6C /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				BAD9344B3FD8DCBB4362FA3A /* PBXTargetDependency */,
+				0BEEE98E89F8D6E9C1E92548 /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -291,6 +407,7 @@
 			targets = (
 				504EC3031FED79650016851F /* App */,
 				B0D3BE1CFAD3FD6E23A881D6 /* RestActivity */,
+				444CF2D4466CC990AF1D3557 /* MDLFWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -315,6 +432,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				BCB5A990ECCE955DA4011742 /* Assets.xcassets in Resources */,
+				5A3A9BE3354272ADB1319F25 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F339BA857CD465DE999534D1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6F30D11182EED861E6FB0FAA /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -337,6 +463,11 @@
 				B1000000000000000000D30A /* PushPlugin.swift in Sources */,
 				2722C1427BD8D7610737345D /* RestActivityAttributes.swift in Sources */,
 				1929B4E7A9B047D508F13F5C /* LiveActivityPlugin.swift in Sources */,
+				E8EEA32628817C65CD185B91 /* WatchPlugin.swift in Sources */,
+				9329E909C31194606D976737 /* WidgetPlugin.swift in Sources */,
+				90D007012167BD9ABCFD65F2 /* ShortcutsPlugin.swift in Sources */,
+				5B5A05C94D9B64997F359E9F /* StartSessionIntent.swift in Sources */,
+				2120D05A89BFBB37BEC14289 /* CompanionShared.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -348,12 +479,32 @@
 				FF5442B63583AF1472A8F120 /* RestLiveActivity.swift in Sources */,
 				25BC4D509FE18810E28BB5D3 /* RestActivityViews.swift in Sources */,
 				547AA2F560CE2D96CBB0238B /* RestActivityAttributes.swift in Sources */,
+				43968133455602901DD884D0 /* CompanionShared.swift in Sources */,
+				5E8D98EDCE31A08E1F84645D /* NextSessionWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC3F917B9B94FFF0934FD5DA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7A68F6B8C15AF8F566C0BA7E /* MDLFWatchApp.swift in Sources */,
+				B5F057F9F70E268F2F8AADE7 /* WatchSessionModel.swift in Sources */,
+				BA98E951F42DED995D4A12D8 /* WatchTint.swift in Sources */,
+				404CB127C1B9B18A060A30C6 /* WatchViews.swift in Sources */,
+				F3CB7C60C606CE86B510410B /* CompanionShared.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		0BEEE98E89F8D6E9C1E92548 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = MDLFWatch;
+			target = 444CF2D4466CC990AF1D3557 /* MDLFWatch */;
+			targetProxy = 724111E8CF8893DF6F76E884 /* PBXContainerItemProxy */;
+		};
 		BAD9344B3FD8DCBB4362FA3A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = RestActivity;
@@ -382,6 +533,55 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		1126396B96EBF725445587A4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = NMK739Z59B;
+				ENABLE_PREVIEWS = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Watch/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mdlf.training.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "MDLF Training Watch App Store";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		397D94FC7ADB548B9F4A5E1A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = NMK739Z59B;
+				ENABLE_PREVIEWS = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Watch/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mdlf.training.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
 		504EC3141FED79650016851F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
@@ -551,6 +751,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = NO;
 				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = RestActivity/RestActivity.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = NMK739Z59B;
@@ -579,6 +780,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = NO;
 				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = RestActivity/RestActivity.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = NMK739Z59B;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -601,6 +803,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		36343383F44F3F7B85E24D11 /* Build configuration list for PBXNativeTarget "MDLFWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1126396B96EBF725445587A4 /* Release */,
+				397D94FC7ADB548B9F4A5E1A /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		504EC2FF1FED79650016851F /* Build configuration list for PBXProject "App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

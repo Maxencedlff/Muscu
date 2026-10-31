@@ -4,8 +4,9 @@
 <dict>
 	<!-- Export pour App Store Connect, envoyé directement (TestFlight puis App Store).
 	     Signature manuelle : certificat Apple Distribution + profil App Store créés par l'API
-	     (secrets DIST_CERT_P12, APPSTORE_PROFILE et APPSTORE_PROFILE_REST_ACTIVITY), sans appareil
-	     enregistré. Un profil par identifiant : l'app et son extension Live Activity. -->
+	     (secrets DIST_CERT_P12, APPSTORE_PROFILE, APPSTORE_PROFILE_REST_ACTIVITY et APPSTORE_PROFILE_WATCH),
+	     sans appareil enregistré. Un profil par identifiant : l'app, son extension (Live Activity et
+	     widget) et l'app Apple Watch. -->
 	<key>method</key>
 	<string>app-store-connect</string>
 	<key>destination</key>
@@ -22,6 +23,8 @@
 		<string>MDLF Training App Store</string>
 		<key>com.mdlf.training.RestActivity</key>
 		<string>MDLF Training Rest Activity App Store</string>
+		<key>com.mdlf.training.watchkitapp</key>
+		<string>MDLF Training Watch App Store</string>
 	</dict>
 	<key>manageAppVersionAndBuildNumber</key>
 	<false/>

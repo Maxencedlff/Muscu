@@ -12,8 +12,6 @@ import WatchKit
 /// Un geste n'est envoyé que si l'iPhone est joignable : il porte la série visée et son heure, et
 /// l'iPhone ignore un geste périmé. Après un geste, la montre attend le nouvel état de l'iPhone
 /// (pending) au lieu de deviner : la séance n'a qu'une vérité, celle de l'iPhone.
-///
-/// NON COMPILÉ au moment de l'écriture (pas de Xcode sur la machine de développement).
 @MainActor
 final class WatchSessionModel: NSObject, ObservableObject {
     @Published private(set) var state: WatchSessionState?

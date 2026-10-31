@@ -7,7 +7,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Un geste de la montre peut réveiller l'app en arrière-plan sans charger la vue web : la session
+        // WatchConnectivity s'active dès le lancement (AppExtras/WatchPlugin.swift, WatchLink)
+        WatchLink.shared.activate()
         return true
     }
 

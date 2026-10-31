@@ -8,7 +8,9 @@ import path from 'node:path';
 
 const PBXPROJ = 'ios/App/App.xcodeproj/project.pbxproj';
 export const RUNTIME_INPUTS = ['capacitor.config.json', 'ios/App/App/Info.plist', 'ios/App/App/App.entitlements',
-  PBXPROJ, 'ios/App/RestActivity/Info.plist'];
+  PBXPROJ, 'ios/App/RestActivity/Info.plist', 'ios/App/RestActivity/RestActivity.entitlements',
+  // App Apple Watch (cible MDLFWatch) : pas de droits à elle ; son Info.plist et son icône sont dans le binaire
+  'ios/App/Watch/Info.plist', 'ios/App/Watch/Assets.xcassets/AppIcon.appiconset/AppIcon.png'];
 // Dossiers du code Swift : app, partagé, Live Activity (RestActivity), et Apple Watch, widget et Siri
 // (AppExtras, Watch, Widgets : docs/WATCH_WIDGETS.md)
 export const SWIFT_DIRS = ['ios/App/App', 'ios/App/Shared', 'ios/App/RestActivity', 'ios/App/AppExtras', 'ios/App/Watch', 'ios/App/Widgets'];

@@ -12,6 +12,7 @@ Produit (et écrase) :
   ios/App/App/Assets.xcassets/AppIcon-*.appiconset                icônes alternatives (1024 opaques)
   ios/App/App/Assets.xcassets/Splash.imageset                     écran de démarrage 2732 × 2732
   ios/App/RestActivity/Assets.xcassets/MDLFMark.imageset          marque de la Live Activity (gabarit)
+  ios/App/Watch/Assets.xcassets/AppIcon.appiconset                icône de l'app Apple Watch (1024 opaque)
 et met à jour ASSETCATALOG_COMPILER_ALTERNATE_APP_ICON_NAMES dans le projet Xcode.
 
 Déterministe : mêmes entrées, mêmes octets. Dépendances : Node, CairoSVG, Pillow.
@@ -32,6 +33,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CATALOGUE = os.path.join(ROOT, 'js', 'data', 'app-icons.js')
 XCASSETS = os.path.join(ROOT, 'ios', 'App', 'App', 'Assets.xcassets')
 MARK_SET = os.path.join(ROOT, 'ios', 'App', 'RestActivity', 'Assets.xcassets', 'MDLFMark.imageset')
+WATCH_ICON_SET = os.path.join(ROOT, 'ios', 'App', 'Watch', 'Assets.xcassets', 'AppIcon.appiconset')
 PBXPROJ = os.path.join(ROOT, 'ios', 'App', 'App.xcodeproj', 'project.pbxproj')
 
 SPLASH_BG = '#111111'     # fond de l'écran de démarrage (celui de l'icône par défaut)
@@ -137,6 +139,12 @@ def main():
         ('AppIcon-dark.png', png(svgs['dark'], 1024, 'RGBA'), 'dark'),
         ('AppIcon-tinted.png', png(svgs['tinted'], 1024, 'RGBA'), 'tinted'),
     ])
+
+    print('watchOS : icône de l\'app de la montre (la même, opaque : watchOS la découpe en rond)')
+    save(png(svgs['default'], 1024, 'RGB'), os.path.join(WATCH_ICON_SET, 'AppIcon.png'))
+    write_json(os.path.join(WATCH_ICON_SET, 'Contents.json'), {'images': [
+        {'filename': 'AppIcon.png', 'idiom': 'universal', 'platform': 'watchos', 'size': '1024x1024'}],
+        'info': {'author': 'xcode', 'version': 1}})
 
     print('iOS : icônes alternatives')
     keep = {'AppIcon.appiconset'} | {f"{i['asset']}.appiconset" for i in icons}

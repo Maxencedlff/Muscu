@@ -6,16 +6,14 @@ import WidgetKit
 /// (WidgetSnapshot, js/features/home-widget.js) et ne fait que deux choses avec l'heure :
 /// « prête » quand les muscles sont reposés, semaine remise à zéro le lundi.
 ///
-/// À ajouter à la cible RestActivity (l'extension WidgetKit existante, qui dessine déjà la Live
-/// Activity du repos) et à déclarer dans RestActivityBundle (docs/WATCH_WIDGETS.md). Il réutilise
+/// Cible RestActivity (l'extension WidgetKit existante, qui dessine déjà la Live
+/// Activity du repos), déclaré dans RestActivityBundle (docs/WATCH_WIDGETS.md). Il réutilise
 /// RestTint et MDLFBrand de RestActivityViews.swift. Toucher le widget ouvre l'app.
 ///
 /// Apple (WidgetKit) : TimelineProvider fournit des entrées datées ; iOS les affiche à leur heure,
 /// puis redemande une frise selon la politique (.after). containerBackground est exigé à partir
 /// d'iOS 17 (sinon le widget s'affiche en « adopte containerBackground ») : il est appliqué via
 /// widgetBackground() selon la version.
-///
-/// NON COMPILÉ au moment de l'écriture (pas de Xcode sur la machine de développement).
 struct NextSessionWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: Companion.widgetKind, provider: NextSessionProvider()) { entry in
@@ -31,7 +29,7 @@ struct NextSessionWidget: Widget {
 
 struct NextSessionEntry: TimelineEntry {
     let date: Date
-    /// nil : l'app n'a encore rien laissé (jamais ouverte, ou App Group absent)
+    /// nil : l'app n'a encore rien laissé (jamais ouverte, ou trousseau partagé illisible)
     let snapshot: WidgetSnapshot?
 
     /// Semaine de l'instantané terminée : on repart de zéro sans attendre l'app

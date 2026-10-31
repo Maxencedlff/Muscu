@@ -36,7 +36,7 @@ Les fichiers de l'app iOS sont exclus de la publication Vercel (`.vercelignore`)
 | `Native.haptic()` | `haptic()`, `timerDone()` | Taptic Engine (toucher, fin de repos) |
 | `Native.scheduleRestEnd()` / `cancelRestEnd()` | `rest.js` | Notification « Repos terminé · Série 3 · Squat » à l'heure de fin, annulée si le repos est passé |
 | `Native.liveActivity.start()` / `update()` / `end()` | `rest-activity.js` | Live Activity du repos sur l'écran verrouillé et dans la Dynamic Island (voir plus bas) |
-| `Native.watch.send()` / `onAction()` / `onRequest()` | `watch.js` | Séance en cours sur l'Apple Watch, gestes de la montre (docs/WATCH_WIDGETS.md, **build à venir**) |
+| `Native.watch.send()` / `onAction()` / `onRequest()` | `watch.js` | Séance en cours sur l'Apple Watch, gestes de la montre (docs/WATCH_WIDGETS.md, build de la branche `build-ios`) |
 | `Native.widget.setSnapshot()` | `home-widget.js` | Instantané du widget « Prochaine séance » dans l'App Group (docs/WATCH_WIDGETS.md, **build à venir**) |
 | `Native.shortcuts.takeRequest()` / `onRequest()` | `siri.js` | « Démarrer ma séance » demandé à Siri (docs/WATCH_WIDGETS.md, **build à venir**) |
 | `Native.keepAwake()` | wake lock de `init.js` | Écran allumé pendant la séance |
@@ -364,13 +364,14 @@ gh workflow run ios.yml -R Maxencedlff/Muscu --ref main -f testflight=true      
 | `DIST_CERT_P12` / `DIST_CERT_PASSWORD` | Certificat « Apple Distribution » (expire le 16/10/2027) et sa clé, en base64 |
 | `APPSTORE_PROFILE` | Profil « MDLF Training App Store » (IOS_APP_STORE, expire le 16/10/2027), en base64 |
 | `APPSTORE_PROFILE_REST_ACTIVITY` | Profil « MDLF Training Rest Activity App Store » de l'extension `com.mdlf.training.RestActivity` (IOS_APP_STORE, même certificat, expire le 16/10/2027), en base64 |
+| `APPSTORE_PROFILE_WATCH` | Profil « MDLF Training Watch App Store » de l'app Apple Watch `com.mdlf.training.watchkitapp` (IOS_APP_STORE, même certificat, créé le 31/10/2026), en base64 |
 
 La signature est **manuelle** pour la configuration Release : la signature automatique d'Xcode
 exige un appareil enregistré pour créer d'abord un profil de développement. Le certificat et le
 profil ont été créés par l'API App Store Connect depuis le PC (clé privée générée localement,
 copie dans `~/.config/apple/`). **À renouveler avant octobre 2027** : nouveau certificat
-(`POST /v1/certificates`, type DISTRIBUTION), deux nouveaux profils (app et extension), puis mise à jour
-des quatre secrets.
+(`POST /v1/certificates`, type DISTRIBUTION), trois nouveaux profils (app, extension, montre), puis mise à jour
+des cinq secrets. Le profil de l'app a été recréé le 31/10/2026 (capacité Push Notifications, `aps-environment`).
 
 ## Publier une version
 
@@ -404,6 +405,6 @@ cookies ni de pistage, contrastes, écrans de 8 téléphones et des pliables) es
 | Objectif | Ce qu'il faut | Remarques |
 |---|---|---|
 | **Version payante** | Contrat « Paid Applications » + infos fiscales et bancaires (App Store Connect), Small Business Program (15 %) | Abonnement ou achat unique via StoreKit (RevenueCat simplifie la gestion des reçus) ; garder une partie gratuite |
-| **Apple Watch, widget, Siri** | Intégration Xcode (cibles, App Group, profils) : docs/WATCH_WIDGETS.md | Code écrit sur la branche `nuit-watch`, non compilé |
+| **Apple Watch, widget, Siri** | Fait sur la branche `build-ios` (cible MDLFWatch, widget dans RestActivity, profils) : docs/WATCH_WIDGETS.md | À essayer sur un vrai iPhone et une vraie montre |
 | **Notifications push** | Fait sur la branche `nuit-build` (bravos, demandes, coach) : `docs/BUILD.md` | Les rappels de séance peuvent rester en notifications locales, sans serveur |
 | **Mises à jour sans App Store** | Capacitor Live Updates (Appflow) ou équivalent | Seulement si les corrections web doivent arriver plus vite que la revue d'Apple |

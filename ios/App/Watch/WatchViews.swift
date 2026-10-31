@@ -5,8 +5,6 @@ import WatchKit
 /// bouton), textes courts, couleur de la séance comme accent, fond noir du système.
 /// Le compte à rebours est dessiné par le système à partir de l'heure de fin (Text(timerInterval:),
 /// ProgressView(timerInterval:)) : rien n'est recalculé chaque seconde.
-///
-/// NON COMPILÉ au moment de l'écriture (pas de Xcode sur la machine de développement).
 struct WatchRootView: View {
     @EnvironmentObject private var model: WatchSessionModel
     /// Heure du dernier dessin : avancée à la fin du repos pour revenir à la série sans attendre l'iPhone

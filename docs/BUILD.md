@@ -35,16 +35,15 @@ pas la capacité push.
 
 ### 2. Apple Developer (Maxence, developer.apple.com)
 
-1. Certificates, Identifiers & Profiles › Identifiers › `com.mdlf.training` : cocher **Push
-   Notifications** (pas besoin de certificat : la clé du point 2 suffit). HealthKit est déjà coché ; le
-   sommeil ne demande aucune capacité de plus.
+1. ~~Capacité **Push Notifications** sur `com.mdlf.training`~~ : **faite par l'API le 31/10/2026** (pas
+   besoin de certificat : la clé du point 2 suffit). HealthKit était déjà coché ; le sommeil ne demande
+   aucune capacité de plus.
 2. Keys › « + » › **Apple Push Notifications service (APNs)**, environnement « Sandbox & Production » :
    télécharger `AuthKey_XXXXXXXXXX.p8` (téléchargeable une seule fois), noter le **Key ID**. Ranger le
    fichier dans `~/.config/apple/`, jamais dans le dépôt.
-3. Profiles › « MDLF Training App Store » : le régénérer (Edit › Save) pour qu'il contienne
-   `aps-environment`, le télécharger, puis remplacer le secret GitHub `APPSTORE_PROFILE` (base64).
-   Sans ça, l'archive Release échoue : « Provisioning profile doesn't include the aps-environment
-   entitlement ». Le profil de l'extension RestActivity ne change pas.
+3. ~~Profil « MDLF Training App Store » régénéré avec `aps-environment`~~ : **fait par l'API le 31/10/2026**
+   (profil recréé, secret GitHub `APPSTORE_PROFILE` remplacé), avec le profil de l'Apple Watch
+   (docs/WATCH_WIDGETS.md). Le profil de l'extension RestActivity ne change pas.
 
 ### 3. Serveur (après le feu vert n° 2)
 

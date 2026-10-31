@@ -1,20 +1,22 @@
 import Foundation
+import Security
 
 // Données échangées entre l'app iPhone et ses compagnons : l'app Apple Watch (WatchConnectivity)
-// et le widget de l'écran d'accueil (App Group). Ce fichier appartient à trois cibles : App,
-// MDLFWatch et RestActivity (voir docs/WATCH_WIDGETS.md). Foundation seulement : il compile pour
-// iOS, watchOS et l'extension WidgetKit.
+// et le widget de l'écran d'accueil (trousseau partagé). Ce fichier appartient à trois cibles : App,
+// MDLFWatch et RestActivity (voir docs/WATCH_WIDGETS.md). Foundation et Security seulement : il compile
+// pour iOS, watchOS et l'extension WidgetKit.
 //
 // Le contenu est produit par le JS de l'app (js/features/watch.js, js/features/home-widget.js) : les
 // noms des champs ci-dessous sont ceux de watchState() et de widgetSnapshot(). Les versions doivent
 // rester égales à WATCH_VERSION et WIDGET_VERSION (vérifié par tests/unit/companions.mjs).
-//
-// NON COMPILÉ au moment de l'écriture (pas de Xcode sur la machine de développement).
 
 enum Companion {
-    /// App Group partagé par l'app et l'extension RestActivity (capacité à ajouter aux deux cibles)
-    static let appGroup = "group.com.mdlf.training"
-    /// Clé de l'instantané du widget dans UserDefaults(suiteName: appGroup)
+    /// Groupe de trousseau partagé par l'app et l'extension RestActivity (droit keychain-access-groups
+    /// des deux cibles, préfixe d'équipe compris). Pas d'App Group : un App Group doit être enregistré à
+    /// la main sur developer.apple.com (l'API App Store Connect ne sait pas le faire), alors qu'un groupe
+    /// de trousseau de l'équipe est accepté par tout profil (« NMK739Z59B.* »).
+    static let keychainGroup = "NMK739Z59B.com.mdlf.training.shared"
+    /// Élément du trousseau qui porte l'instantané du widget
     static let widgetSnapshotKey = "widget.snapshot"
     /// Nom du widget pour WidgetCenter.reloadTimelines(ofKind:)
     static let widgetKind = "NextSessionWidget"
@@ -173,8 +175,45 @@ struct WidgetSnapshot: Codable, Equatable {
     }
 
     /// Dernier instantané écrit par l'app (nil : app jamais ouverte depuis l'installation du widget,
-    /// ou App Group absent de la cible)
+    /// ou droit de trousseau absent de la cible)
     static func load() -> WidgetSnapshot? {
-        decode(UserDefaults(suiteName: Companion.appGroup)?.string(forKey: Companion.widgetSnapshotKey))
+        decode(SharedKeychain.read(Companion.widgetSnapshotKey))
+    }
+}
+
+// MARK: - Trousseau partagé
+
+/// Petites chaînes partagées entre l'app et son extension (Apple, « Sharing access to keychain items
+/// among a collection of apps »). Lisibles après le premier déverrouillage (le widget se redessine
+/// iPhone verrouillé), jamais sauvegardées ni migrées : c'est un cache que l'app réécrit.
+enum SharedKeychain {
+    private static let service = "com.mdlf.training.companion"
+
+    private static func query(_ key: String) -> [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword,
+         kSecAttrService as String: service,
+         kSecAttrAccount as String: key,
+         kSecAttrAccessGroup as String: Companion.keychainGroup]
+    }
+
+    @discardableResult
+    static func write(_ value: String, for key: String) -> Bool {
+        let attributes: [String: Any] = [
+            kSecValueData as String: Data(value.utf8),
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ]
+        let status = SecItemUpdate(query(key) as CFDictionary, attributes as CFDictionary)
+        guard status == errSecItemNotFound else { return status == errSecSuccess }
+        return SecItemAdd(query(key).merging(attributes) { $1 } as CFDictionary, nil) == errSecSuccess
+    }
+
+    static func read(_ key: String) -> String? {
+        var request = query(key)
+        request[kSecReturnData as String] = true
+        request[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(request as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 }

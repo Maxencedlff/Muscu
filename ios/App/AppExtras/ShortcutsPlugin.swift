@@ -3,13 +3,11 @@ import Capacitor
 
 /// Demandes de Siri et de l'app Raccourcis (« Démarrer ma séance », StartSessionIntent.swift) remises au JS.
 /// Côté web : Capacitor.registerPlugin('MdlfShortcuts') (js/platform/native.js), appelé par js/features/siri.js.
-/// À ajouter à la cible App, puis à enregistrer dans MainViewController (docs/WATCH_WIDGETS.md).
+/// Cible App, enregistré dans MainViewController (docs/WATCH_WIDGETS.md).
 ///
 /// Le raccourci s'exécute dans le processus de l'app, parfois avant que la vue web soit chargée : la
 /// demande est donc gardée (ShortcutInbox) et le JS vient la prendre une fois prêt (takeRequest), au
 /// démarrage ou à l'évènement « request » si l'app était déjà ouverte.
-///
-/// NON COMPILÉ au moment de l'écriture (pas de Xcode sur la machine de développement).
 @objc(ShortcutsPlugin)
 public final class ShortcutsPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "ShortcutsPlugin"

@@ -1297,7 +1297,7 @@ test('iOS : extension RestActivity déclarée, embarquée et signée comme l\'ap
   // App Store Connect exige la même version pour l'app et l'extension : une seule source (le projet)
   const targetConfigs = pbx.split('/* Begin XCBuildConfiguration section */')[1].split(/\n\t\t[0-9A-F]{24} \/\* (?:Debug|Release) \*\/ = /)
     .filter(c => /PRODUCT_BUNDLE_IDENTIFIER/.test(c));
-  assert.equal(targetConfigs.length, 4, 'Debug et Release des deux cibles');
+  assert.equal(targetConfigs.length, 6, 'Debug et Release des trois cibles (app, RestActivity, montre)');
   for (const c of targetConfigs) assert.doesNotMatch(c, /MARKETING_VERSION|CURRENT_PROJECT_VERSION/);
   assert.match(pbx, /PROVISIONING_PROFILE_SPECIFIER = "MDLF Training Rest Activity App Store";/);
   // Export et CI : un profil par identifiant

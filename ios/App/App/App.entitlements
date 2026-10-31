@@ -18,6 +18,13 @@
 	<key>aps-environment</key>
 	<string>production</string>
 	<!-- Copie des données dans l'iCloud de l'utilisateur (CloudBackupPlugin.swift) -->
+	<!-- Trousseau : le groupe de l'app d'abord (groupe par défaut de ses éléments, comme avant), puis le
+	     groupe partagé avec l'extension RestActivity (instantané du widget, Shared/CompanionShared.swift) -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.mdlf.training</string>
+		<string>$(AppIdentifierPrefix)com.mdlf.training.shared</string>
+	</array>
 	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
 	<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>
 </dict>

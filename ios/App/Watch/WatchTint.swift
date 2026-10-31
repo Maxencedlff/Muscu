@@ -2,8 +2,6 @@ import SwiftUI
 
 /// Couleur de la séance sur la montre : mêmes noms que l'iPhone (restActivityTint, js/features/rest-activity.js),
 /// couleurs système de SwiftUI (watchOS n'a pas les couleurs système d'UIKit), ou « #RRGGBB ».
-///
-/// NON COMPILÉ au moment de l'écriture (pas de Xcode sur la machine de développement).
 enum WatchTint {
     static func color(_ value: String?) -> Color {
         switch value ?? "indigo" {

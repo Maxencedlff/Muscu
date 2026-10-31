@@ -230,6 +230,21 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     });
   });
 
+  // Build avec le module MdlfPush avant la mise en service du serveur (migration 20261031900000 pas
+  // appliquée : PostgREST répond PGRST202 « fonction introuvable ») : rien ne casse, rien n'est gardé
+  test('push app : serveur sans les fonctions push → échec propre, aucun jeton gardé', async () => {
+    await withFakes({ permission: 'granted' }, async () => {
+      run(`sb.rpc = async fn => { __calls.push(fn); return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.' + fn } }; }`);
+      assert.equal(await run('pushLoad()'), false, 'réglages illisibles');
+      assert.ok(run('push.error'), 'erreur notée pour l\'écran');
+      assert.equal(run('push.prefs'), null, 'aucun réglage inventé');
+      sameJSON(await run(`pushSetPref('reactions', true)`), { ok: false, reason: 'register' });
+      assert.equal(run(`localStorage.getItem('mdlf_push')`), null, 'jeton refusé par le serveur : pas gardé');
+      await run('pushForgetDevice()');   // déconnexion : rien à retirer, aucune exception
+      assert.equal(run('push.busy'), null);
+    });
+  });
+
   test('push app : déconnexion → jeton retiré avant la fin de session', async () => {
     await withFakes({ permission: 'granted' }, async () => {
       await run(`pushSetPref('reactions', true)`);
