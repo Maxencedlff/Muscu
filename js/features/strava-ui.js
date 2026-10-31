@@ -8,6 +8,8 @@
 //  - Bilan et Historique › Séance (`stravaSummaryGroup`, `stravaHistoryGroup`) : « Envoyer vers Strava »
 //    pour une séance envoyable, puis « View on Strava » (libellé imposé par la charte de Strava, en gras).
 //    Rien n'est envoyé automatiquement : chaque séance part sur un toucher.
+//  Strava éteint (stravaEnabled, js/data/strava.js) : ni groupe Connexions, ni écran (route retirée
+//  par navSanitize), ni cellule d'envoi, ni appel au serveur.
 //  Tout texte venu du serveur passe par esc(). Rien au pointerdown : actions au clic seulement.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -17,7 +19,7 @@ const STRAVA_BUTTON_IMG = 'img/strava/connect-with-strava.svg';
 // ── Réglages › Connexions ───────────────────────────────────
 
 function renderConnectionsGroup() {
-  if (!accountAvailable()) return '';
+  if (!stravaEnabled() || !accountAvailable()) return '';
   const value = stravaConnected() ? 'Relié' : '';
   return `
         <div class="group-title">Connexions</div>
@@ -82,6 +84,7 @@ function renderStravaSettings() {
         <div class="group-foot">MDLF Training perd l'accès à ton compte Strava et oublie ce qu'il en savait. Les activités déjà envoyées restent sur Strava.</div>
       </div></div>`;
 }
+// Éteint : aucune entrée n'y mène, et navSanitize (js/ui/router.js) retire la route d'un ancien historique
 SCREENS.set('strava', { render: () => renderStravaSettings(), enter: () => { stravaRefresh({ minAge: 5000 }); } });
 
 // ── Bilan et Historique › Séance ────────────────────────────

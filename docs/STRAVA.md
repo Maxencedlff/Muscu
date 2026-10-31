@@ -1,14 +1,89 @@
 # Strava : export des séances
 
 Envoyer une séance terminée vers Strava, en un toucher, depuis le bilan ou Historique › Séance.
-Branche `nuit-strava` (31/10/2026). **Rien n'est en production** : migration non appliquée, fonctions
-non déployées, secrets non posés, application Strava pas encore créée.
+Branche `nuit-strava` (31/10/2026). **En sommeil pour le lancement** (voir la section suivante) : rien
+n'est en production, migration non appliquée, fonctions non déployées, secrets non posés, application
+Strava pas encore créée.
 
 Documentation Strava lue le 31/10/2026 :
 [authentification](https://developers.strava.com/docs/authentication/),
 [référence de l'API](https://developers.strava.com/docs/reference/) (création d'activité, `SportType`),
 [limites](https://developers.strava.com/docs/rate-limits/),
 [charte](https://developers.strava.com/guidelines/).
+
+## En sommeil : prévu pour une prochaine mise à jour
+
+**Décision de Maxence (31/10/2026) : Strava n'est pas dans la version de lancement.** Le code, la
+migration `20261031620000_strava.sql`, son retour arrière et les fonctions Edge restent dans le dépôt,
+mais :
+
+- **migration** : `supabase/migrations/20261031620000_strava.sql` reste dans le dossier (la plus
+  récente). À la mise en ligne du serveur, **appliquer toutes les migrations SAUF celle-ci** (elle ne
+  crée que des tables vides et fermées, mais la doc dit « non appliquée ») ; si elle a été appliquée
+  quand même, rien n'est collecté, et `supabase/rollback/20261031620000_strava_down.sql` la retire ;
+- l'app est livrée avec **`STRAVA_SWITCH.enabled = false`** (`js/data/strava.js`, seul interrupteur) :
+  aucun groupe « Connexions » dans les Réglages, aucune cellule « Envoyer vers Strava » dans le bilan ou
+  Historique › Séance, la route `strava` est retirée d'un ancien historique (`navSanitize`), et aucun appel au serveur
+  (`stravaRefresh`, `stravaInvoke`) ;
+- les fonctions `strava-connect`, `strava-export` et `strava-disconnect` **ne sont pas déployées**,
+  aucun secret Strava n'est posé, l'application Strava n'est pas créée ;
+- la confidentialité (`privacy.html`, FR et EN) ne parle plus de Strava (texte gardé plus bas) ;
+- `delete-account` appelle toujours `disconnectStrava` dans un `try` : sans liaison (ou sans les tables
+  si la migration n'est pas appliquée), la suppression du compte continue ;
+- `web-public/strava.html` (page de retour de Strava) est publiée avec le site (`tests.yml` publie tout
+  `web-public/`) mais liée nulle part ; elle ne lit que l'ancre de l'adresse, sans script.
+
+Tests : `tests/unit/strava.mjs` vérifie l'interrupteur livré éteint et l'absence d'appel ;
+`tests/test_strava.py` rallume l'interrupteur pour ses parcours (`strava_on`) et `t_eteint` vérifie
+qu'aucune entrée n'est visible ni aucun appel fait quand il est éteint.
+
+### Rallumage (dans l'ordre)
+
+1. Faire les étapes de « Ce que Maxence doit faire avant la mise en production » plus bas (application
+   Strava, capacité d'athlètes, secrets, **migration 20261031620000_strava.sql** si elle avait été
+   sautée, fonctions Edge, essais à la main).
+2. Remettre le texte de confidentialité ci-dessous dans `privacy.html` (FR après « Lettre
+   d'information », EN après « Newsletter »), avec le lien `<a href="#strava">Strava</a>` du sommaire
+   et la phrase du résumé, et changer la date de mise à jour. Fiche Confidentialité d'App Store Connect :
+   déclarer le contenu des séances envoyé à un tiers (Strava) à la demande de la personne et
+   l'identifiant Strava lié au compte.
+3. Passer `STRAVA_SWITCH.enabled` à `true` dans `js/data/strava.js`. Adapter les deux tests qui
+   lisent la valeur livrée : « en sommeil » de `tests/unit/strava.mjs` et `t_eteint` de
+   `tests/test_strava.py` (forcer l'interrupteur à faux au début du test au lieu de vérifier qu'il
+   est livré éteint) ; `strava_on` devient inutile.
+4. Lancer `node tests/unit/run.mjs`, `bash tests/sql/run.sh`, `python3 tests/test_strava.py`.
+5. **Nouvelle build soumise à Apple**, pas une mise à jour à chaud : rallumer Strava ajoute une
+   fonction (règle 2.5.2, voir IOS.md « toute nouvelle fonctionnalité passe par une version soumise à
+   Apple »). Décrire Strava dans les Notes for Review (`docs/REVUE_APPLE.md` : section Strava, compte
+   Strava de test si Apple le demande).
+6. Feuille de route et `web-public/README.md` : retirer « en sommeil ».
+
+Phrase du résumé (FR, après la phrase sur le coach) : « Si tu relies Strava (facultatif), seules les
+séances que tu choisis d'envoyer y partent (voir Strava). »
+
+Texte de confidentialité gardé pour le rallumage (FR) :
+
+```html
+  <section>
+    <h2 id="strava">Strava (facultatif)</h2>
+    <p>Tu peux relier ton compte Strava pour y envoyer tes séances terminées. C'est facultatif et il faut un compte MDLF. La liaison se fait sur le site de Strava (Réglages › Strava) : MDLF Training demande seulement le droit de <strong>créer des activités</strong> et ne lit rien sur ton compte Strava (ni tes activités, ni tes abonnés, ni ta position).</p>
+    <ul>
+      <li><strong>Ce qui part vers Strava</strong>, seulement quand tu touches «&nbsp;Envoyer vers Strava&nbsp;» : le nom de la séance, son heure de début, sa durée, le type d'activité (musculation, course, vélo…), la distance d'une séance de cardio et la liste des exercices avec leurs séries. Jamais tes notes de séance, ton poids du corps ni tes données Apple Santé. Une fois sur Strava, l'activité est soumise aux règles et à la confidentialité de Strava (strava.com/legal/privacy) ; tu peux la modifier ou la supprimer chez Strava.</li>
+      <li><strong>Ce que garde le serveur de l'app</strong> : l'accès donné par Strava (jetons), <strong>chiffré</strong> et jamais envoyé à ton téléphone, ton numéro d'athlète et ton prénom Strava (pour t'afficher «&nbsp;Compte Strava&nbsp;: Léa&nbsp;»), les droits accordés, et la liste des séances déjà envoyées (numéro de séance et numéro d'activité Strava, pour ne pas l'envoyer deux fois). Le contenu des séances envoyées n'y est pas recopié.</li>
+      <li><strong>Déconnecter</strong> : Réglages › Strava › Déconnecter Strava, à tout moment. L'accès est retiré chez Strava et tout ce qui précède est effacé du serveur. Tu peux aussi retirer MDLF Training dans strava.com/settings/apps. Les activités déjà envoyées restent sur Strava : elles t'appartiennent.</li>
+      <li><strong>Suppression</strong> : supprimer ton compte MDLF retire aussi l'accès chez Strava et efface la liaison.</li>
+    </ul>
+  </section>
+```
+
+Texte de confidentialité gardé pour le rallumage (EN) :
+
+```html
+  <section>
+    <h2>Strava (optional)</h2>
+    <p>You can link your Strava account to send your finished workouts there. It is optional and requires an MDLF account. Linking happens on Strava’s website (Settings › Strava): MDLF Training only asks for permission to <strong>create activities</strong> and reads nothing from your Strava account. When you tap “Envoyer vers Strava”, the workout’s name, start time, duration, activity type, distance (cardio) and its exercises with their sets are sent to Strava; never your workout notes, body weight or Apple Health data. Once on Strava, the activity is governed by Strava’s terms and privacy policy. The app’s server keeps the access granted by Strava (tokens), <strong>encrypted</strong> and never sent to your phone, your Strava athlete number and first name, the granted permissions and the list of workouts already sent (workout and activity numbers, to avoid duplicates). Disconnect at any time in Settings › Strava: access is revoked at Strava and all of this is erased; activities already sent stay on Strava. Deleting your MDLF account also revokes Strava access.</p>
+  </section>
+```
 
 ## Ce que voit la personne
 

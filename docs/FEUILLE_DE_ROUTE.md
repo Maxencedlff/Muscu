@@ -194,7 +194,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Écran Mon profil, pastille d'activité, bravos dans l'Historique | Feu vert n° 2                                |
 | ○ | Partage du poids avec le coach (consentement)                   | Feu vert n° 2                                |
 | ○ | Échauffements et RIR visibles par les amis et le coach          | Feu vert n° 2                                |
-| ○ | Export vers Strava (jeton côté serveur), codé : branche nuit-strava | Feu vert n° 2 · app Strava à créer, docs/STRAVA.md |
+| ○ | Export vers Strava (jeton côté serveur), codé : **en sommeil, prévu pour une prochaine mise à jour** (décision du 31/10, interrupteur STRAVA_SWITCH éteint) | Après le lancement · migration 20261031620000_strava.sql à NE PAS appliquer au lancement · rallumage (build soumise à Apple) dans docs/STRAVA.md |
 | ○ | 3 index manquants                                               | Feu vert n° 2                                |
 | ○ | Mise en ligne du payant modèle B, verrou éteint                 | Prêt · attend ta décision carte / sans carte |
 
@@ -279,14 +279,14 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Parrainage entre utilisateurs : 1 mois offert à l'ami et au parrain (quand l'ami paie)    | Après le payant + clé IAP |
 | ○ | Coachs vérifiés (carte pro), code unique, 20 % du net pendant 12 mois sur leurs élèves    | Branche payant (en cours) |
 | ○ | Tarifs : 6,49 €/mois, coach 15,99 à 29,99 € selon les élèves, annuel = 8,5 mois, élève −25 % | Branche payant (en cours) |
-| ○ | Payant plus : accès à vie (≈ 90 €), accès à vie offerts révocables, TestFlight reconnu, main fusionnée | Branche nuit-payantplus · produit à créer dans App Store Connect, build |
+| ○ | Payant plus : accès à vie offerts révocables, TestFlight reconnu, main fusionnée (achat à vie : refusé par Maxence le 31/10) | Branche nuit-payantplus · build |
 
 ### Plus tard
 
 |   | Quoi                                                          | Quand / état          |
 |---|---------------------------------------------------------------|-----------------------|
 | ○ | Newsletter (commentaires et chat coach : branche nuit-social ; montre, widget, Siri : branche nuit-watch) | Plus tard |
-| ○ | Score de force, périodisation, option à vie, marque INPI      | Plus tard             |
+| ○ | Score de force, périodisation, marque INPI (option à vie : refusée par Maxence le 31/10) | Plus tard |
 | ○ | Test mini-barre, rôle coach d'un testeur                      | Mini-barre : corrigé (branche nuit-fiabilite) |
 | ○ | Messages tout faits en réaction                               | Plus tard             |
 | ○ | Coach payant selon son nombre d'élèves                        | Plus tard             |

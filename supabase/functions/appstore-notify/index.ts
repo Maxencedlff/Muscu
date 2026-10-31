@@ -1,7 +1,6 @@
 // App Store Server Notifications V2 (Payant V1, docs/PAYANT_V1.md) : Apple prévient le serveur des
 // renouvellements, coupures de renouvellement, échecs de paiement, expirations, remboursements et
-// révocations, ainsi que de l'achat à vie (ONE_TIME_CHARGE, REFUND, REFUND_REVERSED). L'accès tombe
-// donc tout seul, même si l'app n'est jamais rouverte.
+// révocations. L'accès tombe donc tout seul, même si l'app n'est jamais rouverte.
 //
 // ⚠ Cette fonction est appelée par Apple, PAS par l'app : elle doit être déployée sans vérification de
 // jeton (supabase functions deploy appstore-notify --no-verify-jwt). Sa seule preuve d'identité est la
@@ -84,7 +83,6 @@ Deno.serve(async (req) => {
     p_account_token: decided.value.account_token,
     p_intro: decided.value.intro_offer,
     p_environment: decided.value.environment,
-    p_reinstate: decided.value.reinstate,
   });
   if (error) {
     // Panne de notre côté : 500, Apple réessaiera (la notification n'est pas marquée vue)

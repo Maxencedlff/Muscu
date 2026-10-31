@@ -15,8 +15,15 @@
 //    build nécessaire).
 //  - Résultats : { ok: true, … } ou { ok: false, kind } ; textes dans STRAVA_ERROR_TEXT. L'écran
 //    (js/features/strava-ui.js) s'abonne par onStravaChange.
+//  - EN SOMMEIL pour le lancement (décision de Maxence, 31/10/2026 : Strava dans une prochaine mise à
+//    jour). Un seul interrupteur, STRAVA_SWITCH.enabled : éteint, aucune entrée Strava n'est affichée
+//    (Réglages, bilan, Historique) et aucun appel au serveur n'est fait. Rallumage : docs/STRAVA.md.
 // ═══════════════════════════════════════════════════════════
 'use strict';
+
+// Interrupteur unique de Strava. tests/test_strava.py le met à vrai ; tests/unit/strava.mjs vérifie qu'il est livré éteint
+const STRAVA_SWITCH = { enabled: false };
+function stravaEnabled() { return STRAVA_SWITCH.enabled === true; }
 
 const STRAVA_CACHE_KEY   = 'mdlf_strava';   // { userId, connected, name, canWrite, exports } du dernier état lu
 const STRAVA_REFRESH_MS  = 30_000;
@@ -187,12 +194,13 @@ function stravaReset(userId) {
   if (!userId) stravaCacheWrite();
 }
 
-function stravaConnected() { return !!(account.user && strava.state?.connected); }
+function stravaConnected() { return !!(stravaEnabled() && account.user && strava.state?.connected); }
 function stravaActivityOf(sessionId) { return strava.state?.exports?.[sessionId] || null; }
 
 // ── Appels au serveur ───────────────────────────────────────
 
 async function stravaInvoke(fn, body = {}) {
+  if (!stravaEnabled()) return { ok: false, kind: 'server' };
   if (!sb || !account.user) return { ok: false, kind: 'signed_out' };
   const seq = stravaSeq;
   try {
@@ -212,7 +220,7 @@ async function stravaInvoke(fn, body = {}) {
 
 // Relit strava_status. minAge : pas de relecture si le dernier état a moins de minAge ms. true si lu.
 async function stravaRefresh({ minAge = 0 } = {}) {
-  if (!sb || !account.user || strava.loading) return false;
+  if (!stravaEnabled() || !sb || !account.user || strava.loading) return false;
   if (minAge && strava.state && Date.now() - strava.loadedAt < minAge) return true;
   strava.loading = true;
   const seq = stravaSeq;

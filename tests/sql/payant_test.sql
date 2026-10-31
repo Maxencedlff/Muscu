@@ -71,9 +71,9 @@ begin
      or (st ->> 'paywall_on')::boolean or (st ->> 'gift')::boolean or (st ->> 'coach_team')::boolean
      or (st ->> 'intro_offer')::boolean or st -> 'intro_until' is distinct from 'null'::jsonb then raise 'access_state sans rien : %', st; end if;
   if (st ->> 'server_now')::timestamptz not between now() - interval '1 minute' and now() + interval '1 minute' then raise 'server_now : %', st; end if;
-  -- Les clés du contrat (modèle B, plus lifetime, also_sub et life_test_used de 20261031000000_payant_plus.sql), exactement
+  -- Les clés du contrat (modèle B), exactement
   if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from
-     array['also_sub', 'can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'life_test_used', 'lifetime', 'paywall_on', 'server_now', 'status', 'until']
+     array['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until']
      then raise 'clés de access_state : %', st; end if;
   reset role;
   if exists (select 1 from public.entitlements where user_id = pg_temp.pu('a')) then raise 'access_state a créé une ligne'; end if;
@@ -81,7 +81,7 @@ begin
   -- my_access crée la ligne, sans rien démarrer
   st := public.my_access();
   if (select array_agg(k order by k) from jsonb_object_keys(st) k) is distinct from
-     array['also_sub', 'can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'life_test_used', 'lifetime', 'paywall_on', 'server_now', 'status', 'until']
+     array['can_write', 'coach_team', 'days_left', 'gift', 'gift_until', 'intro_offer', 'intro_until', 'paywall_on', 'server_now', 'status', 'until']
      then raise 'clés de my_access : %', st; end if;
   if st ->> 'status' is distinct from 'none' or not (st ->> 'can_write')::boolean then raise 'my_access : %', st; end if;
   reset role;
