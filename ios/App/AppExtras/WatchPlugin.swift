@@ -33,8 +33,12 @@ public final class WatchPlugin: CAPPlugin, CAPBridgedPlugin {
                 if let ei = action.ei { data["ei"] = ei }
                 if let si = action.si { data["si"] = si }
                 if let d = action.d { data["d"] = d }
+                // Heure du geste : le JS le refuse s'il a plus de 30 s quand il l'applique (vue web suspendue
+                // pendant que l'iPhone est verrouillé, geste traité au déverrouillage)
+                data["at"] = action.at
                 // retainUntilConsumed : un geste arrivé avant que le JS n'écoute lui est remis à son
-                // addListener (Capacitor, CAPPlugin.notifyListeners). Le JS revérifie la série visée.
+                // addListener (Capacitor, CAPPlugin.notifyListeners). Le JS n'écoute qu'une fois la séance
+                // restaurée (watchBoot) et revérifie la série visée et l'âge du geste.
                 DispatchQueue.main.async { self?.notifyListeners("action", data: data, retainUntilConsumed: true) }
             },
             onRequest: { [weak self] in

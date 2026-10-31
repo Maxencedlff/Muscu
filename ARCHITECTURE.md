@@ -39,7 +39,7 @@ js/ui/                infrastructure d'écran : thème, navigation, barres, feui
 js/features/          un fichier (ou plusieurs) par écran ou fonctionnalité
 js/app/               mises à jour du service worker, démarrage et écouteurs globaux
 tests/                tests de non-régression Playwright (Python) et tests unitaires (tests/unit/)
-scripts/              construction de l'app iOS (build-web.mjs), mises à jour à chaud, images de la marque (brand-icons.py)
+scripts/              construction de l'app iOS (build-web.mjs, empreinte native runtime-version.mjs), mises à jour à chaud, images de la marque (brand-icons.py)
 ```
 
 ### css/
@@ -143,9 +143,9 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `session.js` | Séance en cours : démarrage / fin, `persistSession()` (séance et repos, avertissement « stockage plein »), tableau des séries (colonnes Série, Avant, kg / +kg / Aide, Reps / Durée), objectif en gris d'une case vide (`setGoal`, pris à la validation), badges de record, validation et « Annuler » |
 | `rest.js` | Repos : mini-barre, feuille détaillée, chrono calé sur une heure de fin, jalons annoncés, `restSnapshot()` / `resumeRest()` pour la séance enregistrée |
 | `rest-activity.js` | Live Activity du repos (app iOS) : données envoyées au module natif (`restActivityPayload`, couleur, série suivante), `syncRestActivity()` (via `syncNativeRest()`) / `endRestActivity()` appelés par `rest.js` |
-| `watch.js` | Apple Watch (app iOS) : état envoyé à la montre (`watchState`, `watchBlockReason`) et gestes acceptés (`watchActionFor`), logique pure ; `syncWatch()` appelé par `persistSession()` (rien n'est renvoyé si l'état n'a pas changé), `handleWatchAction()` valide la série, passe le repos ou fait ±15 s comme les boutons de l'iPhone. Voir docs/WATCH_WIDGETS.md |
+| `watch.js` | Apple Watch (app iOS) : état envoyé à la montre (`watchState`, `watchBlockReason`) et gestes acceptés (`watchActionFor`), logique pure ; `watchBoot()` appelé par `init.js` une fois la séance restaurée (écouteurs puis premier état ; rien n'est écouté ni envoyé avant), `syncWatch()` appelé par `persistSession()` (rien n'est renvoyé si l'état n'a pas changé), `handleWatchAction()` valide la série, passe le repos ou fait ±15 s comme les boutons de l'iPhone (geste de plus de 30 s refusé). Voir docs/WATCH_WIDGETS.md |
 | `home-widget.js` | Widget de l'écran d'accueil et de l'écran verrouillé (app iOS) : instantané `widgetSnapshot()` (prochaine séance, semaine, séance en cours), écrit au démarrage et au passage en arrière-plan s'il a changé |
-| `siri.js` | « Démarrer ma séance » (Siri, Raccourcis) : `siriDecision()` (logique pure) puis `startSessionFlow()` ; `siriBoot()` appelé par `init.js` après Bienvenue |
+| `siri.js` | « Démarrer ma séance » (Siri, Raccourcis) : `siriDecision()` (logique pure) puis `startSessionFlow()` ; `siriBoot()` appelé par `init.js` après la restauration de la séance et Bienvenue : il pose l'écouteur (aucune demande suivie avant) et prend la demande laissée au lancement |
 | `session-sheets.js` | Feuilles de la séance (`openSessSheet`), repos d'un exercice, feuille d'ajout / remplacement d'exercice (`openAddExSheet({ target })` : séance en cours, Programme › Séance ou séance passée), menu ⋯, « Comment faire » (`hasHowTo`, `openHowTo` : menu ⋯ ou nom de l'exercice touché sur sa carte) |
 | `session-tools.js` | Feuilles « Disques » et « Échauffement » de la séance (`js/data/plates.js`, `js/data/warmup.js`) |
 | `session-gestures.js` | Balayage d'une série (« Supprimer »), clavier (Entrée, champ actif), recherche de la feuille d'ajout |
@@ -354,7 +354,9 @@ Chromium Pixel 7 / Galaxy S8 / S9+) en thèmes clair et sombre, plus des tests u
 mêmes codes d'erreur que supabase-js) pour le compte : Bienvenue, code e-mail, pseudo, avatar, moyens de
 connexion, suppression. `test_social.py` couvre les Amis avec le même faux serveur (RPC du social et fonction `report` selon les
 règles de `docs/SOCIAL_V1.md`). `test_coach.py` couvre le coach (RPC du coach simulées selon `docs/COACH_V1.md`) : parcours de l'élève et du coach. `test_icone.py` simule la coquille iOS (faux `window.Capacitor` injecté avant le chargement, faux
-module `MdlfAppIcon`) : c'est le modèle à suivre pour tester une fonction réservée à l'app. Voir l'en-tête
+module `MdlfAppIcon`) : c'est le modèle à suivre pour tester une fonction réservée à l'app. `test_watch.py`
+fait de même avec de faux modules `MdlfWatch` (gestes gardés jusqu'à l'écoute, comme `retainUntilConsumed`)
+et `MdlfShortcuts` : gestes de la montre et demandes de Siri appliqués à la vraie séance. Voir l'en-tête
 de `run_all.py` pour les options.
 
 `node tests/unit/run.mjs` lance les tests unitaires de la logique pure (formats, 1RM, nettoyage et

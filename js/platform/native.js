@@ -307,7 +307,8 @@ const Native = (() => {
     // available : faux dans le navigateur et dans une coquille plus ancienne que le module (une mise à
     // jour à chaud peut arriver avant la build) : rien n'est alors envoyé ni écouté.
     //   send(json)   : état de la séance (JSON de watchState, js/features/watch.js)
-    //   onAction(cb) : geste de la montre { type, ei?, si?, d? } ; onRequest(cb) : la montre redemande l'état
+    //   onAction(cb) : geste de la montre { type, at, ei?, si?, d? } ; onRequest(cb) : la montre redemande l'état
+  //   (écoutés seulement une fois la séance restaurée : watchBoot, js/features/watch.js)
     watch: {
       available: hasWatch,
       send(json) { if (hasWatch) quiet(Watch.send({ state: json })); },

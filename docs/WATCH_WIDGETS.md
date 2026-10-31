@@ -3,7 +3,17 @@
 Branche `nuit-watch`. **Code natif écrit mais NON COMPILÉ** (pas de Xcode sur la machine où il a été
 écrit) et **pas encore branché dans le projet Xcode** : la build actuelle ne change pas tant que les
 étapes ci-dessous ne sont pas faites. Le JS, lui, est prêt et testé : il ne fait rien tant que la
-coquille installée n'a pas les nouveaux modules (une mise à jour à chaud peut donc partir avant la build).
+coquille installée n'a pas les nouveaux modules.
+
+**Mises à jour à chaud** : l'empreinte native (`runtime`, `scripts/runtime-version.mjs`) ne compte que
+le Swift référencé dans une phase « Sources » du projet Xcode. Tant que ces fichiers n'y sont pas, la
+branche a donc **la même empreinte que main** (`117834dea8c35add` au 31/10) et une mise à jour à chaud
+faite depuis elle, ou depuis main après fusion, est acceptée par les builds installées ; le JS de la
+montre, du widget et de Siri y reste muet. C'est vérifié par deux tests de `tests/unit/companions.mjs`.
+Dès que l'intégration Xcode est faite (étapes plus bas), l'empreinte change : à partir de là, plus
+aucune mise à jour à chaud n'atteint les anciennes builds, comme pour tout changement natif. **Fusionner
+l'intégration Xcode dans main seulement avec la build qui l'apporte** (branche « build »), jamais avant
+une mise à jour à chaud encore attendue par les builds installées.
 
 ## Ce que ça fait
 
@@ -45,9 +55,16 @@ Siri ──▶ StartSessionIntent (ouvre l'app) ──▶ ShortcutInbox ──�
 
 Règles de sûreté :
 
-- **Geste de la montre** : il porte la série visée (`ei`, `si`) et son heure. L'iPhone ignore un geste
-  de plus de 30 s (resté en file) et le JS ne valide que si c'est toujours la série en cours et qu'elle
-  est validable depuis la montre (`watchActionFor`). Sinon la montre reçoit l'état réel.
+- **Geste de la montre** : il porte la série visée (`ei`, `si`) et son heure (`at`). Un geste de plus
+  de 30 s est ignoré deux fois : à l'arrivée côté natif (`WatchAction.isFresh`) et au moment où le JS
+  l'applique (`watchActionFor`), car la vue web, suspendue pendant que l'iPhone est verrouillé, ne le
+  traite qu'au déverrouillage. Le JS ne valide que si c'est toujours la série en cours et qu'elle est
+  validable depuis la montre. Sinon la montre reçoit l'état réel.
+- **Rien avant la fin du démarrage** : la montre et Siri ne sont écoutés qu'une fois la séance restaurée
+  (`watchBoot()` et `siriBoot()`, appelés par `init.js`). Un geste gardé par le natif
+  (`retainUntilConsumed`) est donc jugé sur la vraie séance, jamais sur « pas de séance » ; une demande
+  de Siri arrivée pendant le chargement reste dans `ShortcutInbox` et ne peut pas démarrer une séance
+  neuve par-dessus celle enregistrée. Vérifié de bout en bout par `tests/test_watch.py` (coquille factice).
 - **Ce qui ne se valide pas au poignet** (le bouton est remplacé par une phrase) : série en durée ou
   cardio, chrono d'effort en cours, série rouverte sur l'iPhone, valeur inhabituelle à confirmer.
 - **La montre n'envoie un geste que si l'iPhone est joignable**, puis attend le nouvel état (5 s au plus,
@@ -62,8 +79,9 @@ Règles de sûreté :
 
 ## Étapes pour l'intégrer (Xcode sur un Mac)
 
-À faire sur une branche « build » : tout ceci change l'empreinte native (`runtime` de
-`scripts/build-web.mjs`, qui couvre déjà `AppExtras/`, `Watch/` et `Widgets/`).
+À faire sur une branche « build » : tout ceci change l'empreinte native (`runtime`,
+`scripts/runtime-version.mjs`). Ses dossiers Swift couvrent déjà `AppExtras/`, `Watch/` et `Widgets/` ;
+chaque fichier y compte dès qu'il est ajouté à une phase « Sources » du projet Xcode.
 
 ### 1. Identifiants et App Group (developer.apple.com)
 
@@ -125,10 +143,12 @@ Règles de sûreté :
 1. `ios/ExportOptions.plist › provisioningProfiles` : ajouter
    `com.mdlf.training.watchkitapp` → `MDLF Training Watch App Store`.
 2. `.github/workflows/ios.yml` : ajouter `APPSTORE_PROFILE_WATCH` à la boucle des profils.
-3. `scripts/build-web.mjs › RUNTIME_INPUTS` : ajouter le nouveau `RestActivity/RestActivity.entitlements`.
+3. `scripts/runtime-version.mjs › RUNTIME_INPUTS` : ajouter le nouveau `RestActivity/RestActivity.entitlements`,
+   ainsi que l'Info.plist et les droits de la cible MDLFWatch.
 4. Tests : `tests/unit/companions.mjs` vérifie aujourd'hui que le projet Xcode **ne** référence **pas**
-   encore ces fichiers ; inverser ce test (comme celui de `CloudBackupPlugin`) une fois l'intégration
-   faite : `WatchPlugin.swift in Sources`, `registerPluginInstance(WatchPlugin())`, entitlements de l'App Group.
+   encore ces fichiers (deux tests : noms partagés, et « aucun Swift de la montre dans le projet ») ;
+   les inverser (comme celui de `CloudBackupPlugin`) une fois l'intégration faite : `WatchPlugin.swift in
+   Sources`, `registerPluginInstance(WatchPlugin())`, entitlements de l'App Group.
 
 Sans Mac : la même chose peut se faire sur la CI macOS avec la gemme Ruby `xcodeproj` (ajout de cibles,
 fichiers et réglages par script), mais ce script serait lui aussi écrit à l'aveugle. Xcode est plus sûr

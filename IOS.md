@@ -274,11 +274,14 @@ TestFlight / App Store, sur le modèle d'Expo Updates.
 | `@capgo/capacitor-updater` 8.53.0 (MPL-2.0) | Module natif : télécharge un zip, vérifie son SHA-256, l'installe, revient au contenu précédent si le nouveau ne démarre pas. **Mode manuel** (`autoUpdate: false`), **statistiques Capgo coupées** (`statsUrl: ""`) : aucun serveur tiers |
 | `js/app/live-update.js` | Décision (`liveUpdateDecision`) et parcours (`checkLiveUpdate`) ; vérifie 3 s après le démarrage puis au retour au premier plan (au plus toutes les 6 h) |
 | `scripts/build-web.mjs` | Embarque `window.MDLF_BUILD = { version, seq, runtime }` dans dist/ |
+| `scripts/runtime-version.mjs` | Calcule l'empreinte native `runtime` (testée dans `tests/unit/companions.mjs`) |
 | `scripts/ota-bundle.py` | dist/ → `ota-site/` : `bundles/<version>.zip` (immuable), `manifest.json` (jamais en cache) |
 | `.github/workflows/ota.yml` | Tests, paquet, publication sur **https://mdlf-ota.vercel.app**, vérification en ligne du SHA-256 |
 
 **Règles de sûreté**
-- **Empreinte native (`runtime`)** : SHA-256 des fichiers Swift, d'Info.plist, des droits, du projet
+- **Empreinte native (`runtime`)** : SHA-256 des fichiers Swift compilés (référencés dans une phase
+  « Sources » du projet Xcode : du Swift préparé sur une branche mais pas encore ajouté au projet ne
+  compte pas), d'Info.plist, des droits, du projet
   Xcode, de capacitor.config.json et des versions des modules natifs. Une mise à jour n'est appliquée
   que si elle a été construite pour la même coquille. Tout changement natif impose donc une version
   TestFlight / App Store ; une coquille plus ancienne ignore les contenus qui ne lui sont pas destinés.

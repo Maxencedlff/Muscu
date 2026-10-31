@@ -36,14 +36,20 @@ async function handleSiriRequest(req) {
   else if (what === 'start') await startSessionFlow(next);
 }
 
-// Appelé par init.js une fois l'app démarrée (après Bienvenue) : demande laissée avant le lancement
+// Avant la fin du démarrage, aucune demande n'est suivie : la séance en cours n'est pas encore restaurée
+// (siriDecision répondrait « démarrer » et la nouvelle séance écraserait celle enregistrée). La demande
+// reste alors dans ShortcutInbox (ShortcutsPlugin.swift) et siriBoot la prend.
+let siriReady = false;
+
+// Appelé par init.js une fois l'app démarrée (séance restaurée, après Bienvenue) : demande laissée avant
+// le lancement, puis celles qui arrivent app ouverte (évènement, puis la demande est consommée)
 async function siriBoot() {
+  if (siriReady) return;
+  siriReady = true;
+  Native.shortcuts.onRequest(async () => {
+    const req = await Native.shortcuts.takeRequest();
+    if (req) await handleSiriRequest(req);
+  });
   const req = await Native.shortcuts.takeRequest();
   if (req) await handleSiriRequest(req);
 }
-
-// App déjà ouverte : la demande arrive par un évènement, puis elle est consommée
-Native.shortcuts.onRequest(async () => {
-  const req = await Native.shortcuts.takeRequest();
-  if (req) await handleSiriRequest(req);
-});

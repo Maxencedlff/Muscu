@@ -10,11 +10,18 @@
 // Tout reste entre l'iPhone et la montre : rien ne part au serveur.
 //
 // Un geste de la montre peut arriver en retard (iPhone en veille, message mis en file) : il porte la
-// série qu'il visait (ei, si) et n'est appliqué que si c'est toujours la série en cours.
+// série qu'il visait (ei, si) et son heure (at) ; il n'est appliqué que si c'est toujours la série en
+// cours et s'il a moins de 30 s au moment où le JS l'applique (la vue web suspendue pendant que
+// l'iPhone est verrouillé ne le traite qu'au déverrouillage : la vérification du natif ne suffit pas).
+//
+// Rien n'est écouté ni envoyé avant la fin du démarrage (watchBoot, appelé par init.js une fois la
+// séance restaurée) : un geste gardé par le natif serait sinon jugé sur « pas de séance ».
 
 const WATCH_VERSION = 1;
 const WATCH_MAX = { title: 40, exercise: 60, load: 30, next: 90 };
 const WATCH_ADJUST = 15;   // secondes, comme les boutons −15 / +15 du repos
+const WATCH_ACTION_MAX_AGE_MS = 30_000;   // même âge maximal que côté natif (Companion.actionMaxAge)
+const WATCH_CLOCK_SKEW_MS = 5_000;        // horloge de la montre un peu en avance : toléré
 
 // Pourquoi la série en cours ne se valide pas depuis la montre ('' : elle se valide).
 //   effort  : chrono d'une série en durée en cours (gainage, tapis…), il se pilote sur l'iPhone
@@ -73,12 +80,15 @@ function watchState(session, cur, { rest = null, block = '', next = null } = {})
   };
 }
 
-// Geste reçu de la montre, vérifié avant d'y toucher : { type, ei?, si?, d? } → action propre, ou null.
+// Geste reçu de la montre, vérifié avant d'y toucher : { type, at, ei?, si?, d? } → action propre, ou null.
+//   at         : heure du geste (ms) ; plus de 30 s, dans le futur ou absente : ignoré
 //   validate   : la série visée doit être la série en cours, validable depuis la montre
 //   skipRest   : seulement pendant un repos
 //   restAdjust : ±15 s seulement, pendant un repos
-function watchActionFor(msg, state) {
+function watchActionFor(msg, state, now = Date.now()) {
   if (!msg || typeof msg !== 'object' || !state?.active) return null;
+  const at = Number(msg.at);
+  if (!(now - at <= WATCH_ACTION_MAX_AGE_MS) || at > now + WATCH_CLOCK_SKEW_MS) return null;
   if (msg.type === 'validate') {
     const ok = state.canValidate && state.cur && msg.ei === state.cur.ei && msg.si === state.cur.si;
     return ok ? { type: 'validate', ei: msg.ei, si: msg.si } : null;
@@ -94,6 +104,7 @@ function watchActionFor(msg, state) {
 // ── Branchement à l'app ──────────────────────────────────────
 
 let watchLastSent = '';   // dernier état envoyé (JSON) : rien n'est renvoyé s'il n'a pas changé
+let watchReady    = false; // démarrage fini (watchBoot) : avant, la séance n'est pas encore restaurée
 
 function currentWatchState() {
   const cur = activeSession ? currentSet() : null;
@@ -113,7 +124,7 @@ function currentWatchState() {
 // Appelé à chaque sauvegarde de la séance (persistSession) : début, série validée, repos, fin.
 // Il est appelé à chaque frappe dans un champ, d'où la comparaison avec le dernier envoi.
 function syncWatch() {
-  if (!Native.watch.available) return;
+  if (!watchReady || !Native.watch.available) return;
   let json;
   try { json = JSON.stringify(currentWatchState()); }
   catch { return; }   // la montre ne doit jamais empêcher la sauvegarde de la séance
@@ -133,8 +144,15 @@ function handleWatchAction(msg) {
   persistSession();   // sauvegarde, et l'état suivant part vers la montre
 }
 
-Native.watch.onAction(handleWatchAction);
-// Premier état après le chargement de tous les scripts (sans séance en cours, rien d'autre ne l'enverrait)
-setTimeout(syncWatch, 0);
-// La montre vient d'ouvrir son app : elle redemande l'état (le dernier envoi a pu se perdre)
-Native.watch.onRequest(() => { watchLastSent = ''; syncWatch(); });
+// Appelé par init.js une fois la séance restaurée (avec son repos et son chrono d'effort). Les gestes
+// et demandes arrivés avant sont gardés par le natif (retainUntilConsumed, WatchPlugin.swift) et remis
+// ici, à l'addListener : ils sont donc jugés sur la vraie séance. Puis le premier état part (sans séance
+// en cours, rien d'autre ne l'enverrait).
+function watchBoot() {
+  if (watchReady) return;
+  watchReady = true;
+  Native.watch.onAction(handleWatchAction);
+  // La montre vient d'ouvrir son app : elle redemande l'état (le dernier envoi a pu se perdre)
+  Native.watch.onRequest(() => { watchLastSent = ''; syncWatch(); });
+  syncWatch();
+}

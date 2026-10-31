@@ -142,6 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     Native.hideSplash();
     return;
   }
+  watchBoot();   // app iOS : Apple Watch, une fois la séance restaurée (js/features/watch.js)
   // App iOS, tout premier lancement : écran Bienvenue (jamais un mur : « Commencer sans compte »)
   let welcome;
   try { welcome = await maybeShowWelcome(); } catch { /* l'app reste utilisable sans */ }

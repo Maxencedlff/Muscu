@@ -205,7 +205,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Écriture des séances dans Apple Santé                 | À faire                            |
 | ○ | Vérification de l'âge par Apple pour l'onglet Amis    | À faire                            |
 | ○ | Écran « mets à jour l'app » avant d'allumer le verrou | À faire                            |
-| ▶ | Apple Watch, widget, Siri (2e build si trop long)     | Code écrit, branche nuit-watch, non compilé · intégration Xcode (docs/WATCH_WIDGETS.md) |
+| ▶ | Apple Watch, widget, Siri (2e build si trop long)     | Code écrit, branche nuit-watch, non compilé · intégration Xcode (docs/WATCH_WIDGETS.md) · sans effet sur les mises à jour à chaud tant que l'intégration Xcode n'est pas faite ; l'intégration ne va dans main qu'avec sa build |
 
 ### Démarches Apple et légales
 
