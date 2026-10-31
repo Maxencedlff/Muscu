@@ -86,6 +86,23 @@
 			</array>
 		</dict>
 		<dict>
+			<!-- Abonnement (StorePlugin.swift) : la transaction signée par Apple est envoyée à l'Edge Function
+			     verify-purchase, qui garde le produit acheté, la date de fin et l'identifiant de transaction
+			     avec le compte (table entitlements). Jamais de publicité ni de suivi ; aucun moyen de paiement
+			     ne passe par l'app (Apple encaisse). À reporter dans App Store Connect
+			     (Confidentialité de l'app › Achats › Historique des achats). -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePurchaseHistory</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
 			<!-- Notes de séance, noms d'exercices ou de programmes saisis, avatar (emoji) du compte -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>

@@ -264,6 +264,12 @@ registerActions({
       return;
     }
     if (choice !== 'save') return;
+    // Mode lecture seule (verrou allumé, plus le droit d'écrire) : l'abonnement est proposé et la
+    // séance en cours reste en cours, avec toutes ses séries. Rien n'est supprimé.
+    // Séance COMMENCÉE avec le droit d'écrire (writeOk) : elle s'enregistre même si l'accès a pris fin
+    // pendant la séance ; le serveur l'accepte dans sa grâce bornée (24 h après la fin de l'accès,
+    // 2 séances au plus), et s'il la refuse quand même, elle reste sur l'iPhone sans rien perdre.
+    if (!activeSession.writeOk && !(await accessGate())) return;
 
     // La séance a pu disparaître entre-temps (séance perso supprimée, import) : elle est
     // enregistrée quand même : l'historique sait afficher une catégorie inconnue (sessionMeta)

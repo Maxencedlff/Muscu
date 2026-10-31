@@ -27,6 +27,7 @@ const Native = (() => {
   const Cloud              = plugin('MdlfCloudBackup'); // module Swift de l'app (ios/App/App/CloudBackupPlugin.swift)
   const Sound              = plugin('MdlfSound');     // module Swift de l'app (ios/App/App/SoundPlugin.swift), build 22 et suivantes
   const Account            = plugin('MdlfAccount');   // module Swift de l'app (ios/App/App/AccountPlugin.swift), build 25 et suivantes
+  const Store              = plugin('MdlfStore');     // module Swift de l'app (ios/App/App/StorePlugin.swift), abonnements StoreKit 2
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
   const AppInfo            = plugin('App');              // @capacitor/app : numéro de build installé
 
@@ -339,6 +340,84 @@ const Native = (() => {
         async getItem(key) { try { return (await Account.getItem({ key })).value ?? null; } catch { return null; } },
         async setItem(key, value) { try { await Account.setItem({ key, value }); } catch { /* session gardée en mémoire */ } },
         async removeItem(key) { try { await Account.removeItem({ key }); } catch { /* déjà absente */ } },
+      },
+    },
+
+    // Abonnements (StoreKit 2, docs/PAYANT_V1.md). L'app ne décide jamais d'un droit d'accès : elle ne
+    // fait que transmettre au serveur la transaction signée par Apple (JWS), vérifiée par la fonction
+    // Edge verify-purchase. available : faux dans le navigateur et dans une coquille plus ancienne que
+    // le module (une mise à jour à chaud peut arriver avant la nouvelle build) : aucun achat proposé,
+    // l'écran invite alors à utiliser l'app iPhone.
+    store: {
+      available: isNative && !!cap.isPluginAvailable?.('MdlfStore'),
+      // { products: [{ id, displayName, description, displayPrice, price (nombre), currency,
+      // period, introEligible }], missing: [identifiants inconnus d'Apple], canMakePayments }.
+      // Le prix AFFICHABLE est `displayPrice` (déjà formaté par Apple dans la monnaie de la
+      // boutique) ; `price` est un nombre. Tant que le contrat Paid Apps n'est pas signé, products
+      // est VIDE et missing contient les deux identifiants : l'écran le dit, sans prix, sans planter.
+      async products() {
+        if (!this.available) return { products: [], missing: [], canMakePayments: false };
+        try {
+          const r = await Store.products();
+          return { products: r?.products || [], missing: r?.missing || [],
+            canMakePayments: r?.canMakePayments !== false };
+        } catch { return { products: [], missing: [], canMakePayments: true }; }
+      },
+      // Ne rejette jamais sur annulation : { status: 'success' | 'userCancelled' | 'pending' }, avec
+      // { jws, transactionId } quand status vaut 'success'. La transaction n'est PAS terminée ici :
+      // c'est finish() qui le fait, une fois le serveur d'accord (un achat perdu par le réseau
+      // revient au lancement suivant).
+      async purchase(productId, appAccountToken = null) {
+        if (!this.available) return null;
+        try { return await Store.purchase({ productId, ...(appAccountToken ? { appAccountToken } : {}) }); }
+        catch { return null; }
+      },
+      // OBLIGATOIRE après la vérification par le serveur : sans cet appel, Apple réannonce la même
+      // transaction à chaque lancement.
+      async finish(transactionId) {
+        if (!this.available || transactionId == null) return false;
+        try { await Store.finish({ transactionId }); return true; } catch { return false; }
+      },
+      // AppStore.sync() (mot de passe Apple demandé) puis les droits en cours :
+      // { synced, cancelled, entitlements: [{ jws, transactionId, productId, … }], unverified }.
+      // Le JWS est dans CHAQUE droit, jamais à la racine.
+      async restore() {
+        if (!this.available) return null;
+        try { return await Store.restore(); } catch { return null; }
+      },
+      // Droits en cours (Transaction.currentEntitlements), sans rien demander à l'utilisateur :
+      // { entitlements: [...], unverified }
+      async current() {
+        if (!this.available) return null;
+        try { return await Store.current(); } catch { return null; }
+      },
+      // { canMakePayments, subscriptionIds }, sans aucun appel réseau. canMakePayments est
+      // faux quand les achats sont bloqués (Temps d'écran) : l'écran ne doit rien proposer.
+      async status() {
+        if (!this.available) return null;
+        try { return await Store.status(); } catch { return null; }
+      },
+      // Ouvre la feuille de codes d'offre d'ABONNEMENT d'Apple (un code cadeau MDLF, lui, se saisit
+      // dans l'app). Renvoie { presented: true }, ou { presented: false, cancelled: true } si la
+      // fenêtre est fermée : ce n'est PAS un succès. Le code utilisé revient par l'écouteur.
+      async redeemCode() {
+        if (!this.available) return null;
+        try { return await Store.redeemCode(); } catch { return null; }
+      },
+      // Environnement de l'app selon StoreKit (AppTransaction) : 'production' (App Store), 'sandbox'
+      // (TestFlight, ou Xcode avec un compte Sandbox), 'other' ou 'unknown'. null hors app iOS, ou dans
+      // une coquille plus ancienne que la méthode (mise à jour à chaud arrivée avant la build). Sert
+      // seulement à choisir l'environnement d'un code d'offre élève : aucune décision d'accès.
+      async environment() {
+        if (!this.available) return null;
+        try { const r = await Store.environment(); return typeof r?.environment === 'string' ? r.environment : null; }
+        catch { return null; }
+      },
+      // Écouteur permanent Transaction.updates : renouvellement, code utilisé, achat sur un autre
+      // appareil. Le module émet le même événement sous deux noms ('transaction' et 'change') :
+      // on s'abonne à UN SEUL, sinon chaque transaction serait traitée deux fois.
+      onTransaction(cb) {
+        if (this.available) quiet(Store.addListener('transaction', cb));
       },
     },
 

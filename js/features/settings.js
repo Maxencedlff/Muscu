@@ -40,6 +40,7 @@ function renderSettings() {
       ${navBar({ title: 'Réglages' })}
       <div class="scr">
 ${renderAccountGroup()}
+${renderAccessSettingsGroup()}
 
         <div class="group-title">Entraînement</div>
         <div class="group">

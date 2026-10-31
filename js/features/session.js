@@ -50,6 +50,9 @@ function startSession(cat) {
     category:  cat,
     programme: progKey,
     startedAt: Date.now(),
+    // Commencée avec le droit d'écrire : « Terminer » l'enregistrera même si l'accès prend fin pendant
+    // la séance (le serveur l'accepte dans sa grâce bornée, js/features/paywall-ui.js)
+    writeOk: typeof canWrite !== 'function' || canWrite(),
     exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), ...(ex.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(ex) } : {}), ...(ssId(ex) ? { ss: ex.ss } : {}),
       ...holdLoadOf(progKey, cat, ex), sets: buildSets(progKey, cat, ex, n(ex), ex) })),
   };

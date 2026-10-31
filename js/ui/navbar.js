@@ -157,6 +157,7 @@ function routeTitle(route, isRoot) {
     'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles', 'social-me': 'Mon profil',
     'social-people': routeParams(route)[0] === 'followers' ? 'Abonnés' : 'Abonnements',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
+    paywall: 'Abonnement', subscription: 'Abonnement',
   }[name] || 'Retour';
 }
 

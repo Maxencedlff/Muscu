@@ -302,7 +302,8 @@ function addPastExercise(name, sets) {
 
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
-  'go-add-session': () => {
+  'go-add-session': async () => {
+    if (!(await accessGate())) return;   // mode lecture seule : l'abonnement est proposé
     addProg       = data.activeProgramme;
     addProgFresh  = null;
     addCat        = firstSession();
@@ -312,9 +313,10 @@ registerActions({
     initAddSets(addCat);
     navigate('add-session');
   },
-  'edit-session': (e, el) => {
+  'edit-session': async (e, el) => {
     const session = (data.history || []).find(h => h.id === el.dataset.id);
     if (!session) return;
+    if (!(await accessGate())) return;   // mode lecture seule : l'abonnement est proposé
     editSessionId = session.id;
     addProg = entryProg(session);
     addCat  = session.category;
@@ -386,7 +388,8 @@ registerActions({
     if (addSets[exid]?.length > 1) addSets[exid].pop();
     render();
   },
-  'save-past-session': () => {
+  'save-past-session': async () => {
+    if (!(await accessGate())) return;   // mode lecture seule : la saisie reste, rien n'est supprimé
     const dateEl = $('#addDate');
     if (dateEl) addDate = dateEl.value;
     const notesEl = $('.session-notes-input');

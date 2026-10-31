@@ -261,6 +261,47 @@ fonctionnement de l'app) ajouté pour les comptes e-mail et Google ; à reporter
 réelle, remplissage automatique du code depuis Mail (`autocomplete="one-time-code"`), clavier
 numérique, Face ID du trousseau.
 
+### Abonnement (`StorePlugin.swift`, StoreKit 2)
+
+Module `MdlfStore`, côté web `Native.store.*`. Le contrat complet (produits, prix, essai, serveur) est
+dans `docs/PAYANT_V1.md` ; ici, seulement le natif.
+
+| Appel | Rend |
+|---|---|
+| `status()` | `{ canMakePayments, subscriptionIds }`, sans réseau. `canMakePayments` est faux quand les achats sont bloqués (Temps d'écran, profil de gestion) : ne rien proposer |
+| `products()` | Les deux abonnements avec le **prix localisé par Apple** (`displayPrice`), la période, et l'offre de lancement (l'essai gratuit de 3 mois, modèle B : `introEligible`, `offer`) si l'utilisateur y a droit. `missing` liste les produits qu'Apple n'a pas rendus (produit pas « Prêt à être envoyé », contrat Paid Apps non signé) : afficher un message, jamais un prix de secours |
+| `purchase({ productId, appAccountToken? })` | `{ status: "success" \| "userCancelled" \| "pending" }` ; avec `"success"`, la transaction vérifiée et son `jws`. `"pending"` = « Demander la permission d'acheter » ou validation bancaire : la transaction arrivera par l'écouteur. Seuls les deux abonnements sont achetables, tout autre identifiant est refusé (`BAD_PRODUCT`) |
+| `finish({ transactionId })` | À appeler **seulement après** que `verify-purchase` a accepté le JWS |
+| `restore()` | `AppStore.sync()` (demande le mot de passe Apple : réservé au bouton « Restaurer mes achats »), puis les droits en cours |
+| `current()` | `Transaction.currentEntitlements` avec le JWS de chacun, sans réseau ni fenêtre |
+| `redeemCode()` | Feuille de codes d'offre d'abonnement d'iOS (`AppStore.presentOfferCodeRedeemSheet`) |
+| Événement `transaction` (doublé en `change`) | Écouteur **permanent** `Transaction.updates` démarré au lancement : renouvellement, code utilisé, achat sur un autre iPhone, remboursement. Sans lui, un renouvellement passerait inaperçu |
+
+- **Rien n'est cru sur parole** : toute transaction passe par `VerificationResult` ; une transaction
+  `.unverified` est refusée, jamais transmise au web, jamais finie. Le JWS est vérifié une seconde fois
+  par le serveur contre les certificats d'Apple.
+- **`finish()` est à la main du web**, après le serveur : une transaction non finie est redonnée par
+  StoreKit au lancement suivant (`Transaction.unfinished`, parcouru une fois au démarrage), donc un achat
+  encaissé mais perdu par le réseau finit toujours par arriver. Le serveur est idempotent
+  (`original_transaction_id` unique) : un renvoi ne crée rien en double.
+- **Codes** : la feuille d'iOS est celle des **codes d'offre d'abonnement** (1 an gratuit au maximum,
+  PAYANT_V1.md) ; la transaction arrive ensuite dans l'app par l'écouteur. Les codes cadeaux MDLF se
+  saisissent dans un champ de l'app. L'« Accès offert » (non consommable) a été supprimé le 28/10.
+- **iOS 16.4 minimum** (cible du projet) : `AppStore.presentOfferCodeRedeemSheet(in:)` suffit, le repli
+  `SKPaymentQueue.presentCodeRedemptionSheet()` (déprécié depuis iOS 18) n'a pas lieu d'être.
+  `Transaction.reason` (iOS 17+) est le seul champ protégé par une disponibilité.
+- **Rien à ajouter au projet Xcode** : StoreKit est lié automatiquement par Swift (`import StoreKit`),
+  sans capacité, sans entitlement et sans clé Info.plist. Le contrat **Paid Apps** et les coordonnées
+  bancaires et fiscales, eux, sont indispensables, sinon `products()` ne rend rien.
+- **Manifeste de confidentialité** : `NSPrivacyCollectedDataTypePurchaseHistory` (lié, sans suivi,
+  fonctionnement de l'app), à reporter dans App Store Connect (Confidentialité de l'app › Achats) et
+  dans `privacy.html`.
+- **Essai de 15 minutes dans Xcode** (facultatif, demande un Mac) : un fichier de configuration
+  StoreKit (`Configuration.storekit`) permet d'acheter dans le simulateur sans testeur Sandbox ; il
+  faut l'ajouter au schéma (Run › Options › StoreKit Configuration). `environment` vaut alors `other`.
+- **Non vérifiable sans Mac ni iPhone** : compilation du Swift (la CI `ios.yml` compile), feuille de
+  paiement, feuille de codes, renouvellement réel, « Demander la permission d'acheter ».
+
 ## Mises à jour à chaud (sans repasser par Apple)
 
 Le contenu web de l'app (js/, css/, index.html) peut être mis à jour sans nouvelle version

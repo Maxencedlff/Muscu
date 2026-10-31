@@ -1,0 +1,139 @@
+// Règles de verify-purchase (logique pure, sans réseau), appliquées par index.ts (Deno) et testées par
+// tests/unit/payant.mjs (Node). Contrat : docs/PAYANT_V1.md, Edge Function verify-purchase.
+//
+// La signature d'Apple est vérifiée avant (../_shared/apple-jws.js) : ici on décide seulement ce que la
+// transaction donne comme droit d'accès.
+//
+// 1. Le bundleId doit être le nôtre (bad_bundle) : un JWS signé par Apple pour une AUTRE app est
+//    parfaitement valable, il ne doit simplement rien ouvrir chez nous.
+// 2. Le produit doit être un des dix abonnements d'App Store Connect (unknown_product) : particulier
+//    mensuel et annuel, et les quatre paliers coach (20261030, tarifs), et son type
+//    doit être « Auto-Renewable Subscription » (bad_type) ; ou l'ACCÈS À VIE (payant plus, 20261031),
+//    achat non consommable de type « Non-Consumable », sans date de fin. L'ancien « Accès offert »
+//    (non consommable, supprimé le 28/10, modèle B) reste inconnu, donc refusé.
+// 3. inAppOwnershipType : PURCHASED seulement. Le partage familial n'est pas activé sur ces produits
+//    (App Store Connect) : une transaction FAMILY_SHARED est refusée (not_purchased) plutôt que crue.
+// 4. Production ET Sandbox sont acceptés (modèle B, 28/10), l'environnement est renvoyé pour être
+//    enregistré. L'équipe d'examen d'Apple achète en Sandbox sur la version de production : refuser le
+//    Sandbox serait un refus quasi certain. Ce que ça ouvre (TestFlight tourne toujours en Sandbox) est
+//    dans docs/PAYANT_V1.md. Xcode (fichier StoreKit local) et tout le reste : bad_environment.
+// 5. Une période déjà échue est acceptée (c'est une vraie transaction) : elle écrit un droit d'accès
+//    qui est tout de suite « expiré ». C'est le serveur qui compare les dates, jamais l'app.
+// 6. Remboursée ou révoquée (revocationDate) : la transaction est écrite comme révoquée, donc sans
+//    accès. On ne l'ignore pas : si elle était connue, son accès doit tomber.
+// 7. event_at = date de l'évènement, pour que le serveur ignore ce qui arrive en retard : on prend
+//    purchaseDate (la date d'achat de CETTE période), pas signedDate. signedDate d'une relecture par
+//    l'App Store Server API est l'heure de notre appel, donc toujours la plus récente : elle ne dirait
+//    rien de l'ancienneté de la période. purchaseDate, lui, est stable d'une relecture à l'autre et
+//    croissant d'un renouvellement au suivant, donc une transaction du mois N parcourue après celle du
+//    mois N+1 (Transaction.unfinished, ordre non garanti) est bien reconnue comme la plus ancienne.
+//    Transaction REMBOURSÉE (revocationDate) : event_at = le plus tard des deux (achat, remboursement).
+//    Le remboursement est l'évènement : sans cela, un remboursement appris par cette relecture serait
+//    daté du jour de l'ACHAT, et tout évènement signé entre l'achat et le remboursement (une
+//    ONE_TIME_CHARGE en retard) passerait pour plus récent. Le serveur ne rouvre de toute façon un
+//    achat à vie remboursé que sur REFUND_REVERSED (p_reinstate, appstore-notify).
+// 8. Essai gratuit d'Apple (offre de lancement gratuite) : intro_offer vaut true seulement quand la
+//    transaction signée porte offerType = 1 (INTRODUCTORY_OFFER, App Store Server Library : OfferType)
+//    ET offerDiscountType = 'FREE_TRIAL'. Une offre de lancement PAYANTE (PAY_AS_YOU_GO, PAY_UP_FRONT)
+//    ne s'affiche donc jamais comme « Essai gratuit ». Champ absent : false (renouvellement payé, achat
+//    sans offre).
+
+export const BUNDLE_ID = 'com.mdlf.training';
+export const PRODUCT_MONTHLY = 'com.mdlf.training.pro.monthly';
+export const PRODUCT_YEARLY = 'com.mdlf.training.pro.yearly';
+// Accès à vie (payant plus) : achat non consommable, hors du groupe d'abonnements
+export const PRODUCT_LIFETIME = 'com.mdlf.training.lifetime';
+// Offre de lancement chez Apple (OfferType.INTRODUCTORY_OFFER) et remise « essai gratuit »
+export const OFFER_INTRODUCTORY = 1;
+export const OFFER_FREE_TRIAL = 'FREE_TRIAL';
+
+// Paliers coach (20261030000000_payant_tarifs.sql) : accès complet, et nombre d'élèves du coach si son
+// rôle a été validé à la main. L'achat ne donne jamais le rôle coach.
+export const COACH_TIERS = Object.freeze(['coach10', 'coach20', 'coach30', 'coachmax']);
+export const COACH_PRODUCTS = Object.freeze(COACH_TIERS.flatMap(t => [`com.mdlf.training.${t}.monthly`, `com.mdlf.training.${t}.yearly`]));
+
+// Mêmes produits et mêmes natures que private.access_product_kind (20261031000000_payant_plus.sql)
+export const PRODUCT_KINDS = Object.freeze({
+  ...Object.fromEntries([PRODUCT_MONTHLY, PRODUCT_YEARLY, ...COACH_PRODUCTS].map(id => [id, 'sub'])),
+  [PRODUCT_LIFETIME]: 'life',
+});
+// Type de transaction attendu par nature de produit (champ « type » d'Apple, JWSTransactionDecodedPayload)
+export const EXPECTED_TYPES = Object.freeze({ sub: 'Auto-Renewable Subscription', life: 'Non-Consumable' });
+export const ENVIRONMENTS = Object.freeze(['Production', 'Sandbox']);
+export const TRANSACTION_ID_MAX = 64;
+
+const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+const isObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+// Identifiant de transaction : Apple envoie des nombres sous forme de texte ; la base accepte 64 caractères
+const txId = (v) => (typeof v === 'string' && v.length >= 1 && v.length <= TRANSACTION_ID_MAX && /^[A-Za-z0-9._-]+$/.test(v) ? v : null);
+const msDate = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 && v < 1e15 ? Math.floor(v) : null);
+
+// Charge utile d'une transaction vérifiée → droit d'accès à écrire, ou refus.
+// { ok: true, value: { product_id, kind ('sub' | 'life'), expires_at (ISO, null pour un achat à vie), original_transaction_id,
+//   transaction_id, revoked, environment, expired, event_at, account_token, intro_offer } } ou
+// { ok: false, error }.
+export function transactionDecision(payload, { nowMs = Date.now() } = {}) {
+  if (!isObject(payload)) return { ok: false, error: 'invalid_jws' };
+  if (payload.bundleId !== BUNDLE_ID) return { ok: false, error: 'bad_bundle' };
+  if (!ENVIRONMENTS.includes(payload.environment)) return { ok: false, error: 'bad_environment' };
+  if (typeof payload.productId !== 'string' || !own(PRODUCT_KINDS, payload.productId)) return { ok: false, error: 'unknown_product' };
+  const kind = PRODUCT_KINDS[payload.productId];
+  if (payload.type !== EXPECTED_TYPES[kind]) return { ok: false, error: 'bad_type' };
+  // Absent sur de vieilles transactions : on ne refuse que ce qui est explicitement partagé
+  if (payload.inAppOwnershipType !== undefined && payload.inAppOwnershipType !== 'PURCHASED') return { ok: false, error: 'not_purchased' };
+  const original = txId(payload.originalTransactionId);
+  const transaction = txId(payload.transactionId) ?? original;
+  if (!original || !transaction) return { ok: false, error: 'invalid_transaction' };
+  // Un abonnement sans date de fin n'est pas exploitable ; un achat à vie n'en a jamais (la base
+  // borne seule un achat à vie Sandbox à 7 jours)
+  const expires = kind === 'life' ? null : msDate(payload.expiresDate);
+  if (kind === 'sub' && expires === null) return { ok: false, error: 'invalid_transaction' };
+  const revokedAt = msDate(payload.revocationDate);
+  const revoked = revokedAt !== null;
+  const boughtAt = msDate(payload.purchaseDate) ?? msDate(payload.signedDate);
+  const eventAt = revoked ? Math.max(boughtAt ?? 0, revokedAt) : boughtAt;
+  return {
+    ok: true,
+    value: {
+      product_id: payload.productId,
+      kind,
+      expires_at: expires === null ? null : new Date(expires).toISOString(),
+      original_transaction_id: original,
+      transaction_id: transaction,
+      revoked,
+      environment: payload.environment,
+      expired: expires !== null && expires <= nowMs,
+      event_at: eventAt === null ? null : new Date(eventAt).toISOString(),
+      account_token: typeof payload.appAccountToken === 'string' ? payload.appAccountToken.slice(0, 64) : null,
+      intro_offer: kind === 'sub' && payload.offerType === OFFER_INTRODUCTORY && payload.offerDiscountType === OFFER_FREE_TRIAL,
+    },
+  };
+}
+
+// Refus de la validation → réponse HTTP. invalid_jws est le seul code que l'app voit pour tout ce qui
+// touche à la signature : rien n'est appris à qui cherche à fabriquer un JWS.
+const STATUS = Object.freeze({
+  invalid_jws: 400,
+  bad_bundle: 400,
+  bad_environment: 400,
+  unknown_product: 400,
+  bad_type: 400,
+  not_purchased: 400,
+  invalid_transaction: 400,
+  not_found: 404,
+  transaction_taken: 409,
+  rate_limited: 429,
+  apple_unreachable: 503,
+  apple_api_unconfigured: 503,
+});
+export function httpStatus(error) {
+  return own(STATUS, error) ? STATUS[error] : 500;
+}
+
+// Erreur rendue par la base (message exact de la migration) → réponse HTTP.
+// Un message inconnu ne doit jamais passer pour un succès : 500 { error: 'write' }.
+export function purchaseFailure(message) {
+  const known = ['transaction_taken', 'unknown_product', 'invalid_transaction', 'not_found', 'rate_limited'];
+  const m = typeof message === 'string' ? message.trim() : '';
+  return known.includes(m) ? { status: httpStatus(m), error: m } : { status: 500, error: 'write' };
+}

@@ -42,6 +42,9 @@ const SCRIPTS = [
   'js/data/coach-share.js',
   'js/data/coach-chat.js',
   'js/data/referral.js',
+  'js/data/plans.js',
+  'js/data/access.js',
+  'js/data/coach-pro.js',
   'js/data/prog-share.js',
   'js/data/trash.js',
   'js/data/muscles.js',
@@ -1458,6 +1461,12 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 
 // ── Social : fonction serveur report (tests dans report.mjs) ──
 (await import('./report.mjs')).default({ test, assert, sameJSON, ROOT });
+// ── Tarifs du 30/10 : demande du rôle coach (tests dans coach-request.mjs) ──
+(await import('./coach-request.mjs')).default({ test, assert, ROOT });
+// ── Payant : signature d'Apple, achats et notifications (tests dans payant.mjs) ──
+(await import('./payant.mjs')).default({ test, assert, sameJSON, ROOT });
+// ── Fonctions Edge : garde de l'appelant (verify_jwt = false) (auth-guard.mjs) ──
+(await import('./auth-guard.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Amis : logique pure du social (tests dans social.mjs) ──
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──
@@ -1473,6 +1482,10 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Relecture de la séance d'un autre : volume, écarts, records, douleur (tests dans review.mjs) ──
 (await import('./review.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Accès payant : nettoyage, horloge de l'appareil, cache hors ligne, verrou (tests dans access.mjs) ──
+(await import('./access.mjs')).default({ test, run, assert, sameJSON, ROOT });
+// ── Contrat du module natif StoreKit : clés réellement envoyées par le Swift (store-contract.mjs) ──
+(await import('./store-contract.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Guide de l'app : contenus et libellés (tests dans guide.mjs) ──
 (await import('./guide.mjs')).default({ test, run, assert, ROOT });
 // ── Premier lancement : questions et programme conseillé (tests dans onboarding.mjs) ──

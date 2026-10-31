@@ -55,7 +55,9 @@ let sb = null;   // client supabase unique (deux clients se voleraient le jeton 
 // error : null | 'offline' (réseau) | 'server' (refus du serveur ou stockage plein)
 // profile : { username, avatar, changedAt, stored } | null (pas encore de profil) ; google : connexion
 // Google proposée (module natif présent et client Google configuré dans Info.plist)
-const account = { user: null, syncing: false, lastSync: null, error: null, ready: false, profile: null, google: false };
+// locked : séances que le compte refuse tant que l'abonnement manque (verrou allumé) ; ce n'est pas
+// une erreur de synchro, elles restent sur l'iPhone
+const account = { user: null, syncing: false, lastSync: null, error: null, ready: false, profile: null, google: false, locked: 0 };
 let syncTimer = null;
 let applyingRemote = false;   // fusion en cours : son propre enregistrement ne relance pas de synchro
 let syncHeld = false;         // connexion en cours (choix du compte pas encore fait) : aucune synchro
@@ -106,6 +108,7 @@ function saveSyncMeta(m) { try { localStorage.setItem(SYNC_META_PREFIX + m.userI
 // dernier compte connu (SYNC_OWNER_KEY) n'est pas un état de synchro et reste
 function clearSyncMetas() {
   syncGeneration++;
+  clearPaywallLock();
   try {
     const keys = [];
     for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
@@ -544,11 +547,12 @@ async function accountUsernameAvailable(name) {
 // Déconnexion de cet appareil : les données restent sur l'iPhone et sur le compte. L'état de synchro
 // est gardé : une reconnexion au même compte reprend où elle en était. voluntary : « Se déconnecter »
 // (pas de carte de reconnexion ensuite) ; false quand la connexion d'un autre compte est annulée.
-// Caches qui contiennent des données d'autrui (Amis, coach) ou le profil : effacés à la déconnexion
+// Caches qui contiennent des données d'autrui (Amis, coach), le profil ou le droit d'accès
+// (js/data/access.js) : effacés à la déconnexion
 // comme à l'effacement, pour qu'ils ne restent pas en clair sur un appareil partagé. Les séances de
 // la personne (ppl_v2) restent ; ces caches se retéléchargent à la reconnexion.
 const CROSS_USER_CACHE_KEYS = [PROFILE_CACHE_KEY, 'mdlf_social', 'mdlf_coach', 'mdlf_coach_inbox',
-  'mdlf_coach_sent', 'mdlf_coach_seen', 'mdlf_coach_lost', 'mdlf_coach_send_draft'];
+  'mdlf_coach_sent', 'mdlf_coach_seen', 'mdlf_coach_lost', 'mdlf_coach_send_draft', 'mdlf_access'];
 function clearCrossUserCaches() {
   try { CROSS_USER_CACHE_KEYS.forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
 }
@@ -770,6 +774,35 @@ async function pullSessions(cursor) {
   }
 }
 
+// ── Verrou de l'abonnement (docs/PAYANT_V1.md) ──────────────
+// Le serveur refuse l'INSERT d'une séance NOUVELLE quand le verrou est allumé et `can_write` faux
+// (déclencheur `before insert on sessions`, erreur P0001 `paywall_locked`). Les corrections de
+// séances déjà sur le compte et les suppressions, elles, passent.
+// Ce refus n'est ni une panne ni un problème de réseau : les séances restent sur l'iPhone, rien
+// n'est perdu, rien n'est marqué « envoyé », le reste de la synchro (profil, programmes) continue,
+// et on ne rejoue pas l'envoi à chaque enregistrement : les identifiants refusés sont retenus et
+// plus renvoyés tant que le droit d'écrire n'est pas revenu (ou pendant une heure).
+const SYNC_LOCKED_RETRY_MS = 60 * 60_000;
+let syncLockedIds = new Set();   // séances refusées par le verrou, jamais marquées envoyées
+let syncLockedAt = 0;
+function isPaywallLocked(e) { return /paywall_locked/.test(String(e?.message || e?.error || '')); }
+// Nombre de séances que le compte refuse tant que l'abonnement manque (l'écran le dit)
+function accountLockedCount() { return syncLockedIds.size; }
+function clearPaywallLock() { syncLockedIds = new Set(); syncLockedAt = 0; }
+
+// Envoie un lot de lignes de séances. Le verrou ne refuse qu'une partie du lot : on le coupe en deux
+// pour isoler les refusées, tout le reste passe. Renvoie les lignes acceptées.
+async function pushSessionRows(rows, rowOf) {
+  if (!rows.length) return [];
+  const { error } = await sb.from('sessions').upsert(rows.map(rowOf), { onConflict: 'user_id,id' });
+  if (!error) return rows;
+  if (!isPaywallLocked(error)) throw error;
+  if (rows.length === 1) { syncLockedAt = Date.now(); return []; }
+  const half = Math.ceil(rows.length / 2);
+  const left = await pushSessionRows(rows.slice(0, half), rowOf);
+  return [...left, ...await pushSessionRows(rows.slice(half), rowOf)];
+}
+
 // Erreur de réseau (hors ligne) ou refus du serveur : l'écran ne dit pas la même chose
 function syncErrorKind(e) {
   if (!navigator.onLine || e instanceof TypeError || /fetch|network|load failed/i.test(e?.message || '')) return 'offline';
@@ -821,23 +854,30 @@ async function syncNow() {
     // 2. Envoi des séances (par lots) puis du profil
     const plan = planSessionPush(data.history || [], meta);
     const now = new Date().toISOString();
-    for (let i = 0; i < plan.upserts.length; i += SYNC_BATCH) {
-      const batch = plan.upserts.slice(i, i + SYNC_BATCH);
-      const { error } = await sb.from('sessions').upsert(
-        batch.map(u => ({ user_id: userId, id: u.id, data: u.data, client_mod: now, deleted_at: null })), { onConflict: 'user_id,id' });
-      if (error) throw error;
+    // Droit d'écrire retrouvé (abonnement pris, code utilisé), ou une heure passée : on retente
+    if ((typeof canWrite !== 'function' || canWrite()) || Date.now() - syncLockedAt > SYNC_LOCKED_RETRY_MS) clearPaywallLock();
+    // Séances déjà refusées par le verrou : pas même renvoyées, elles restent en attente ici
+    const toPush = plan.upserts.filter(u => !syncLockedIds.has(u.id));
+    for (let i = 0; i < toPush.length; i += SYNC_BATCH) {
+      const batch = toPush.slice(i, i + SYNC_BATCH);
+      const sent = await pushSessionRows(batch,
+        u => ({ user_id: userId, id: u.id, data: u.data, client_mod: now, deleted_at: null }));
       alive();
-      batch.forEach(u => notePushed(meta, u.id, u.hash, u.core));
-      syncSent += batch.length;
+      // Seules les séances VRAIMENT acceptées sont marquées envoyées : une refusée reste à envoyer
+      sent.forEach(u => notePushed(meta, u.id, u.hash, u.core));
+      const kept = new Set(sent.map(u => u.id));
+      batch.forEach(u => { if (!kept.has(u.id)) syncLockedIds.add(u.id); });
+      syncSent += sent.length;
       keepMeta();
     }
     for (let i = 0; i < plan.deletes.length; i += SYNC_BATCH) {
       const batch = plan.deletes.slice(i, i + SYNC_BATCH);
-      const { error } = await sb.from('sessions').upsert(
-        batch.map(id => ({ user_id: userId, id, data: {}, client_mod: now, deleted_at: now })), { onConflict: 'user_id,id' });
-      if (error) throw error;
+      // Une suppression refusée (séance jamais arrivée sur le compte) n'a rien à supprimer : sans
+      // objet, elle est oubliée au lieu de bloquer les autres
+      const sent = await pushSessionRows(batch,
+        id => ({ user_id: userId, id, data: {}, client_mod: now, deleted_at: now }));
       alive();
-      batch.forEach(id => notePushed(meta, id, 'deleted'));
+      sent.forEach(id => notePushed(meta, id, 'deleted'));
       keepMeta();
     }
     const doc = profilePayload(data), docHash = syncHash(doc);
@@ -851,6 +891,7 @@ async function syncNow() {
     // Déjà posé à la connexion ; reposé ici pour une session reprise du Trousseau (installation d'avant)
     try { localStorage.setItem(SYNC_OWNER_KEY, userId); } catch { /* redemandé au prochain changement de compte */ }
     account.lastSync = Date.now();
+    account.locked = syncLockedIds.size;   // séances refusées par le verrou : ni erreur, ni perte
     return true;
   } catch (e) {
     if (e?.message === 'reset') return false;   // état oublié entre-temps : rien à signaler
