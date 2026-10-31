@@ -39,8 +39,10 @@ const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'c
 // progression ne sont même pas dans data (IndexedDB, js/data/progress-photos.js).
 // recapCardOff (carte « Ta semaine » de l'accueil coupée) : affichage de cet appareil, comme les sons ;
 // sur le compte, son absence (carte rallumée) devrait en plus compter comme un choix (SYNC_ABSENT_IS_CHOICE)
+// trainingTipsOff, deload, deloadSnooze (js/data/training-insights.js) : conseils de cet appareil, tirés de
+// l'historique qui lui-même ne part pas dans le profil ; rien de nouveau n'est envoyé au serveur
 const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'healthOn', 'musicOn', 'soundOn', 'vibrateOn',
-  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff'];
+  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff', 'trainingTipsOff', 'deload', 'deloadSnooze'];
 // Clés dont l'absence est un choix fait sur un appareil (objectif « Auto », derniers muscles rétablis) :
 // absentes du compte, elles sont retirées ici aussi. Toutes les versions qui synchronisent les envoient.
 // Les autres clés absentes du compte sont gardées ici : un appareil resté sur une version qui ne les

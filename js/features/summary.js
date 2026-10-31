@@ -135,6 +135,7 @@ function renderSummary() {
         ${sm.needsBodyKg ? `<button class="sum-hint" data-action="set-body-weight">Ajoute ton poids pour compter le volume des exercices au poids du corps ${icon('chevron.right', 14)}</button>` : ''}
         ${shareStoryButton(sm.id, 'sum-share')}
         ${summaryRecordsHtml(sm.records)}
+        ${summaryStrengthHtml(h)}
         <div class="sum-section-title">Exercices</div>
         <div class="sum-list">
           ${summaryRowsHtml(sm.rows)}

@@ -55,6 +55,7 @@ scripts/              construction de l'app iOS (build-web.mjs), mises à jour �
 | `muscles.css` | Silhouette musculaire, pastilles de muscles, carte « Muscles » de Progrès, écran Séries par muscle, feuille « Muscles ciblés » |
 | `share.css` | Partage de séance : bouton « Partager ma séance », aperçu de l'image au format 9:16 |
 | `recap.css` | Récaps : carte « Ta semaine » de l'accueil, écrans côte à côte (scroll-snap), chiffre énorme en SF Rounded, listes et tuiles du résumé, points et flèches, arrivée légère (coupée avec prefers-reduced-motion) |
+| `insights.css` | Entraînement intelligent : carte « Conseil d'entraînement » de l'accueil (boutons de 44 pt, lien « Pourquoi ce conseil ? »), échelle à cinq segments du niveau de force, « Nouveau palier » du bilan |
 | `account.css` | Compte : calque plein écran (Bienvenue, e-mail, code, pseudo, avatar), boutons de connexion aux chartes Apple et Google (tokens `--siwa-*`, `--gsi-*`), écran Compte, cellule des Réglages, carte de l'accueil |
 | `social.css` | Amis : badge de l'onglet, accueil de l'onglet (sans compte, activation), lignes de personnes et petits boutons arrondis, cartes du fil, bouton Bravo, profil d'un autre |
 | `coach.css` | Coach : cellule en haut de l'onglet Amis, pastilles de nouveautés, programmes reçus, consignes (Programme › Séance, séance en cours), séances d'un élève, codes d'invitation, saisie des consignes et du commentaire |
@@ -83,6 +84,7 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `plates.js` | Disques (logique pure, chargé avant `store.js`) : exercices à barre, barre et disques de la personne (`data.plates`, propre à l'appareil, `cleanPlates`), répartition par côté. Feuille dans `js/features/session-tools.js` |
 | `warmup.js` | Échauffement (chargé avant `store.js`) : paliers 40 / 60 / 80 %, `isWarmupSet`, `workSets` (séries de travail : volume, records, séries, récaps, muscles excluent `warmup: true`) |
 | `rir.js` | RIR facultatif d'une série validée (`rir` 0 à 4, `cleanRir`, équivalence RPE de Zourdos), réglage `data.rirOn` (appareil), `meanRpe`, `rirLine` |
+| `training-insights.js` | Entraînement intelligent, logique pure et locale (chargé avant `store.js` : `cleanDeload` sert au nettoyage). Niveau de force : `STRENGTH_LIFTS` (5 exercices à barre, seuils 1RM ÷ poids du corps de Strength Level, hommes et femmes), `strengthLiftOf`, `strengthSex` (silhouette), `liftBestE1rm` (90 jours), `strengthStanding`, `strengthStandings`, `sessionStrengthLevels` (bilan, palier franchi). Périodisation : `trainingWeeks` / `weekIntensity` / `loadedStreak` (semaines chargées d'affilée), `exerciseTrends` / `exerciseStall` (stagnation, recul du 1RM estimé), `effortTrend` (RIR), `preDeloadSets`, `trainingAdvice` (`deload`, `deload-active`, `resume` ou null). Règles et sources : docs/ENTRAINEMENT.md |
 | `import-csv.js` | Import Hevy / Strong, logique pure : lecture CSV, format, dates, correspondance des noms (`matchImportedExercise`, `IMPORT_ALIASES`), conversion (RPE → `rir`, échauffements gardés → `warmup: true`), dédoublonnage, `applyImport`. Formats : docs/IMPORT_CSV.md |
 | `body-measures.js` | Mensurations (`data.bodyMeasures`, LOCAL ONLY dans `SYNC_LOCAL_ONLY`) : mesures, nettoyage, courbes |
 | `progress-photos.js` | Photos de progression dans IndexedDB (`mdlf-photos`, jamais dans `data` ni dans l'export), réduction JPEG 1200 px, `photosWipe` appelé par `wipeLocalData` |
@@ -174,6 +176,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `share-canvas.js` | Partage de séance, dessin : `drawStory` (story Instagram 1080 × 1920, Canvas 2D, zones sûres), couleurs des tokens, point d'accroche `shareStoryHooks.muscleMap` pour la carte des muscles |
 | `share.js` | Partage de séance, écran : bouton du bilan et d'Historique › Séance, feuille d'aperçu commune `openStoryPreview(state, draw)` (séance, écran d'un récap), partage (`Native.shareImage` dans l'app iOS, `navigator.share` ou téléchargement dans la PWA) |
 | `recap-canvas.js` | Récaps, dessin : `drawRecapStory` (un écran en story 1080 × 1920, mêmes aides, zones sûres et signature que `share-canvas.js`), `renderRecapStory` |
+| `training-insights-ui.js` | Entraînement intelligent, écrans : carte de l'accueil (`trainingHomeCard` : semaine plus légère conseillée, en cours, reprise des charges), groupe « Niveau de force » (`strengthGroupHtml`, Bibliothèque › Exercice et Progrès › Exercice), stagnation (`stallGroupHtml`, Progrès › Exercice), bilan (`summaryStrengthHtml`), actions `deload-start` / `deload-later` / `deload-stop` / `deload-resume-hide`, `training-why`, `strength-info`, réglage `setting-training-tips` |
 | `recap.js` | Récaps, écrans : carte « Ta semaine » de l'accueil (`recapHomeCard`, vue → `ppl_recap_seen`, réglage `data.recapCardOff`), Progrès › Récaps (`renderRecaps`), écrans qui s'enchaînent (`renderRecap` : défilement horizontal à crans, points, flèches, clavier), « Partager » de chaque écran |
 
 ### js/app/
@@ -247,6 +250,7 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
   bodyWeightKg: 72.5, bodyWeightLog: [{ date, kg }],   // facultatifs : poids saisi et pesées (une par jour, 400 au plus) ; jamais sur le compte (SYNC_LOCAL_ONLY)
   silhouette: 'female' | 'male',             // facultatif : carte des muscles (absent = homme), synchronisé
   lastExport: 1712345678901,                 // facultatif
+  trainingTipsOff: true, deload: { start, end, seen? }, deloadSnooze: 1712345678901,   // facultatifs, appareil seulement (docs/ENTRAINEMENT.md)
   history: [{ id, programme, category, date, duration?, notes, hidden?,   // hidden : true = masquée aux abonnés (Amis)
               exercises: [{ exId, name, sets: [{ weight, reps }] }] }],   // triée du plus récent au plus ancien
 }

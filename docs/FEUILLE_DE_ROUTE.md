@@ -170,6 +170,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ▶ | Système payant modèle B : StoreKit, essai 3 mois, codes cadeaux, verrou       | Branche payant            | Prêt, tests verts · attend ta décision |
 | ▶ | Abonnements 5,99 €/mois et 41,99 €/an, offre 3 mois gratuits                  | App Store Connect         | Créés · manque la capture de revue     |
 | ▶ | Photos de progression dans l'app iPhone (autorisations caméra et photos)      | Branche lot2-build-photos | Part avec la build unique              |
+| ▶ | Niveau de force par exercice, semaine plus légère conseillée, stagnation      | Branche nuit-entrainement | Prêt, tests verts · OTA · à valider     |
 
 ---
 

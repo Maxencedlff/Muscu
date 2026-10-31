@@ -289,6 +289,11 @@ function sanitizeData(d) {
   if (d.plates !== undefined) { const p = cleanPlates(d.plates); if (p) d.plates = p; else delete d.plates; }
   // Carte « Ta semaine » de l'accueil coupée (js/features/recap.js) : true ou absent
   if (d.recapCardOff !== undefined && d.recapCardOff !== true) delete d.recapCardOff;
+  // Entraînement intelligent (js/data/training-insights.js) : conseils coupés (true ou absent), décharge
+  // enregistrée { start, end, seen? } et « Pas maintenant » (date) ; toute autre valeur est retirée
+  if (d.trainingTipsOff !== undefined && d.trainingTipsOff !== true) delete d.trainingTipsOff;
+  if (d.deload !== undefined) { const dl = cleanDeload(d.deload); if (dl) d.deload = dl; else delete d.deload; }
+  if (d.deloadSnooze !== undefined && !(Number.isFinite(d.deloadSnooze) && d.deloadSnooze > 0)) delete d.deloadSnooze;
   // Séances visibles par défaut (Réglages › Amis et coach, js/data/social.js) : booléen ou absent (= oui)
   if (d.sessionVisibleDefault !== undefined && typeof d.sessionVisibleDefault !== 'boolean') delete d.sessionVisibleDefault;
   // Version de l'app et date où elle a été vue (noteAppVersion, js/data/sync.js) : envoyées au profil, bornées
