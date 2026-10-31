@@ -34,7 +34,7 @@ function wipeLocalData() {
 function wipedExtras() { return photosAllowedHere() ? 'mensurations et photos' : 'mensurations'; }
 
 // Écran Réglages, sur le modèle des Réglages d'iOS : Compte, Entraînement, Sons et vibrations, Apparence,
-// Amis et coach, Données, Aide. Les groupes propres à l'app iOS (Services Apple, Icône de l'app) suivent
+// Amis et coach, Connexions (Strava, js/features/strava-ui.js), Données, Aide. Les groupes propres à l'app iOS (Services Apple, Icône de l'app) suivent
 // la section la plus proche ; absents dans le navigateur.
 function renderSettings() {
   const nSess = (data.history || []).length;
@@ -112,6 +112,7 @@ ${renderAppleServicesGroup(switchHtml)}
         </div>
 ${renderAppIconGroup()}
 ${renderCoachSettingsGroup()}
+${renderConnectionsGroup()}
 
         <div class="group-title">Données</div>
         <div class="group">

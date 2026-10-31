@@ -15,10 +15,14 @@
 //    de « Se connecter avec Apple ». Impossible (code périmé, Apple injoignable) : le compte est
 //    supprimé quand même et la réponse le dit (revoked: false) ; l'app explique alors comment retirer
 //    l'accès à la main.
-// 5. L'utilisateur est supprimé ; ses séances, son profil et son pseudo partent avec lui (on delete cascade).
+// 5. Accès Strava révoqué au mieux (docs/STRAVA.md) : sinon MDLF resterait dans les applications
+//    autorisées de la personne chez Strava. Strava injoignable : la suppression continue.
+// 6. L'utilisateur est supprimé ; ses séances, son profil, son pseudo et sa liaison Strava partent avec lui
+//    (on delete cascade).
 import { adminClient, bodyCode, caller, CORS, json } from '../_shared/http.ts';
 import { exchangeAppleCode, revokeAppleToken } from '../_shared/apple.ts';
 import { deleteDecision, LINKED_IDENTITY_MIN_AGE_S } from './delete-policy.js';
+import { disconnectStrava } from '../_shared/strava.ts';
 
 // Dernier ajout ou retrait d'un moyen de connexion dans les 24 h : date ISO, null si aucun,
 // undefined si le journal est injoignable (la décision refuse alors).
@@ -44,6 +48,7 @@ Deno.serve(async (req) => {
   if (!decision.ok) return json({ error: decision.error, ...(decision.retryAt ? { retry_at: decision.retryAt } : {}) }, decision.status);
 
   const revoked = grant ? await revokeAppleToken(grant) : false;
+  try { await disconnectStrava(adminClient(), user.id); } catch { console.error('delete-account: Strava non révoqué'); }
   const { error: delErr } = await adminClient().auth.admin.deleteUser(user.id);
   if (delErr) return json({ error: 'delete' }, 500);
   return json({ deleted: true, revoked });

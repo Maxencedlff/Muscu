@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Strava · MDLF Training</title>
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  <!-- Retour de la page d'autorisation de Strava (fonction strava-connect, docs/STRAVA.md). Le résultat
+       arrive en ancre (#ok, #refuse, #droits, #deja, #expire, #erreur) et s'affiche par :target, sans script
+       (en-tête Content-Security-Policy de web-public/vercel.json). Aucune donnée n'est lue ni gardée ici. -->
+  <style>
+    :root { --bg: #f2f2f7; --cell: #fff; --label: #000; --label2: rgba(60,60,67,.76); --ok: #1f7a35; --warn: #b52e00; --link: #0062cc; color-scheme: light dark; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #000; --cell: #1c1c1e; --label: #fff; --label2: rgba(235,235,245,.6); --ok: #30d158; --warn: #ff9f0a; --link: #0a84ff; } }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--label); font: 17px/1.5 -apple-system, system-ui, sans-serif; overflow-x: hidden; }
+    main { max-width: 560px; margin: 0 auto; padding: calc(48px + env(safe-area-inset-top)) 16px calc(48px + env(safe-area-inset-bottom)); }
+    h1 { font-size: 28px; line-height: 34px; margin: 0 0 8px; }
+    p { margin: 0 0 8px; }
+    .result { display: none; background: var(--cell); border-radius: 12px; padding: 16px; margin: 0 0 16px; }
+    .result:target, .result--default { display: block; }
+    .result:target ~ .result--default { display: none; }
+    .mark { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+    .mark--ok { color: var(--ok); }
+    .mark--warn { color: var(--warn); }
+    a { color: var(--link); }
+    .back { color: var(--label2); font-size: 15px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>MDLF Training</h1>
+  <!-- L'ordre compte : chaque résultat précède le texte par défaut (sélecteur ~) -->
+  <section class="result" id="ok">
+    <p class="mark mark--ok">Strava est relié</p>
+    <p>Reviens dans MDLF Training : touche «&nbsp;◀&#xFE0E; MDLF Training&nbsp;» en haut à gauche de l'écran. Tu pourras envoyer une séance depuis son bilan ou l'historique.</p>
+  </section>
+  <section class="result" id="refuse">
+    <p class="mark mark--warn">Strava n'est pas relié</p>
+    <p>Tu as refusé l'accès. Rien n'a été enregistré. Tu peux réessayer depuis Réglages › Strava.</p>
+  </section>
+  <section class="result" id="droits">
+    <p class="mark mark--warn">Strava n'est pas relié</p>
+    <p>La case qui permet de créer des activités était décochée : sans elle, l'app ne peut rien envoyer. L'accès a été retiré aussitôt. Réessaie depuis Réglages › Strava en la laissant cochée.</p>
+  </section>
+  <section class="result" id="deja">
+    <p class="mark mark--warn">Strava n'est pas relié</p>
+    <p>Ce compte Strava est déjà relié à un autre compte MDLF Training. Rien n'a changé. Pour le relier à celui-ci, déconnecte-le d'abord depuis l'autre compte (Réglages › Strava). Si tu n'as plus accès à l'autre compte, ou si tu ne l'as jamais relié toi-même, retire MDLF Training dans <a href="https://www.strava.com/settings/apps">strava.com/settings/apps</a>, puis réessaie depuis Réglages › Strava. Si tu n'as pas demandé à relier Strava, ignore cette page.</p>
+  </section>
+  <section class="result" id="expire">
+    <p class="mark mark--warn">Lien expiré</p>
+    <p>Ce lien n'est valable que 10 minutes, une seule fois. Recommence depuis Réglages › Strava dans l'app.</p>
+  </section>
+  <section class="result" id="erreur">
+    <p class="mark mark--warn">Strava n'est pas relié</p>
+    <p>Quelque chose n'a pas marché. Réessaie dans un moment depuis Réglages › Strava. Si ça continue, écris à <a href="mailto:contact@mdlf.app">contact@mdlf.app</a>.</p>
+  </section>
+  <section class="result result--default">
+    <p>Cette page s'affiche au retour de Strava. Reviens dans MDLF Training pour continuer.</p>
+  </section>
+  <p class="back">Tu peux fermer cette page.</p>
+</main>
+</body>
+</html>

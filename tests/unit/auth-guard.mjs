@@ -40,15 +40,34 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     for (const f of ['delete-account', 'revoke-apple', 'report', 'verify-purchase']) {
       assert.ok(open.includes(f), `${f} : verify_jwt = false absent de config.toml`);
     }
+    const GUARD = /const who = await caller\(req\);\s*\n\s*if \(!who\) return json\(\{ error: 'auth' \}, 401\);/;
+    const WORK = /req\.json|bodyJws|bodyCode|verifyAppleJws|adminClient|rpc\(|fetch\(/;
+    // Seule exception : strava-connect (docs/STRAVA.md). Son POST (start) passe par la garde ; son GET (finish)
+    // est le retour de Strava dans Safari, sans jeton de session : c'est l'état OAuth à usage unique qui désigne
+    // le compte, vérifié avant tout travail.
+    const OAUTH_RETURN = { 'strava-connect': { post: 'start', get: 'finish', check: 'stateLooksValid(state)' } };
     for (const f of open) {
       const src = read(`supabase/functions/${f}/index.ts`);
       const handler = src.slice(src.indexOf('Deno.serve('));
       assert.ok(handler.length > 20, `${f} : Deno.serve introuvable`);
-      const guardAt = handler.search(/const who = await caller\(req\);\s*\n\s*if \(!who\) return json\(\{ error: 'auth' \}, 401\);/);
+      const ex = OAUTH_RETURN[f];
+      if (ex) {
+        const serve = handler.slice(0, handler.indexOf('\n});') + 4);
+        assert.ok(serve.includes(`if (req.method === 'POST') return ${ex.post}(req);`)
+          && serve.includes(`if (req.method === 'GET') return ${ex.get}(new URL(req.url));`), `${f} : aiguillage POST / GET inattendu`);
+        assert.ok(!WORK.test(serve), `${f} : du travail dans Deno.serve`);
+        const post = src.slice(src.indexOf(`async function ${ex.post}(req: Request)`));
+        const at = post.search(GUARD);
+        assert.ok(at > 0 && !WORK.test(post.slice(0, at)), `${f} : ${ex.post} sans refus 401 par caller() en premier`);
+        const get = src.slice(src.indexOf(`async function ${ex.get}(url: URL)`));
+        const checkAt = get.indexOf(ex.check);
+        assert.ok(checkAt > 0 && !WORK.test(get.slice(0, checkAt)), `${f} : ${ex.get} travaille avant de vérifier l'état OAuth`);
+        continue;
+      }
+      const guardAt = handler.search(GUARD);
       assert.ok(guardAt > 0, `${f} : pas de refus 401 par caller()`);
       // Rien avant la garde, sauf OPTIONS (CORS) et la méthode
-      const before = handler.slice(0, guardAt);
-      assert.ok(!/req\.json|bodyJws|bodyCode|verifyAppleJws|adminClient|rpc\(|fetch\(/.test(before), `${f} : du travail avant la garde`);
+      assert.ok(!WORK.test(handler.slice(0, guardAt)), `${f} : du travail avant la garde`);
     }
     // caller() délègue à la garde, avec auth.getUser (vérification par le serveur d'authentification)
     const http = read('supabase/functions/_shared/http.ts');

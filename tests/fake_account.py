@@ -75,6 +75,12 @@ Lettre d'information (docs/NEWSLETTER.md, supabase/migrations/20261031230000_new
 newsletter_subscribe(consent_version) (no_email pour un compte sans adresse, comme Apple seul ; invalid_version, rate_limited 20 par 24 h, horodatage du SERVEUR) et
 newsletter_unsubscribe (jamais limitée, la ligne est supprimée) ; l'état dit has_email. État dans __sb.nl.subs (par compte) ; appels dans
 __sb.calls sous ['newsletter', fonction, arguments] ; __sb.fail.newsletter = 'offline' pour le hors ligne.
+
+Strava (docs/STRAVA.md) : RPC strava_status et fonctions Edge strava-connect (adresse d'autorisation factice),
+strava-export (validation de supabase/functions/_shared/strava-policy.js résumée, une activité par séance,
+already au second envoi, not_connected sans liaison) et strava-disconnect (revoked selon __sb.st.revokeFails).
+État dans __sb.st ; __sb.stravaAuthorize() simule l'accord donné dans Safari (prénom Léa), __sb.stravaRevokeAtStrava()
+l'accès retiré chez Strava. Corps reçus dans __sb.st.sent. __sb.fail.strava = 'offline' pour le hors ligne.
 """
 
 FAKE_ACCOUNT = r"""
@@ -842,12 +848,26 @@ FAKE_ACCOUNT = r"""
   };
   const REPORT_REASONS = ['spam', 'harcelement', 'sexuel', 'violence', 'haine', 'autre'];
 
+  // ── Strava ──
+  const st = sb.st = { connected: false, name: null, canWrite: true, exports: {}, sent: [], nextId: 16000000001, revokeFails: false, starts: 0 };
+  sb.stravaAuthorize = (name = 'Léa') => { st.connected = true; st.name = name; st.canWrite = true; };
+  sb.stravaRevokeAtStrava = () => { st.revokedAtStrava = true; };
+  const SPORTS = ['WeightTraining', 'Workout', 'Run', 'TrailRun', 'Walk', 'Ride', 'Rowing', 'Elliptical', 'StairStepper'];
+  const stravaStatus = () => ({ connected: st.connected, athlete_name: st.connected ? st.name : null, connected_at: null,
+    can_write: st.connected && st.canWrite, exports: st.connected ? Object.entries(st.exports).map(([session_id, activity_id]) => ({ session_id, activity_id })) : [] });
+
   window.supabase = {
     createClient: (url, key, o) => {
       sb.storage = o?.auth?.storage; sb.storageKey = o?.auth?.storageKey;
       return {
         auth, from,
-        rpc: async (fn, args) => { if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); if (nlRpc[fn]) return callNewsletter(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
+        rpc: async (fn, args) => {
+          if (fn === 'strava_status') {
+            log('strava', fn, '{}');
+            if (sb.fail.strava === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+            return sb.session ? { data: stravaStatus(), error: null } : { data: null, error: { code: '42501', message: 'permission denied' } };
+          }
+          if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); if (nlRpc[fn]) return callNewsletter(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
           const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });
@@ -855,6 +875,24 @@ FAKE_ACCOUNT = r"""
             if (!sb.session) return fail(401, { error: 'auth' });
             co.alerts++;
             return { data: { ok: true, notified: true }, error: null };
+          }
+          if (fn.startsWith('strava-')) {
+            if (sb.fail.strava === 'offline') throw new TypeError('Failed to fetch');
+            if (!sb.session) return fail(401, { error: 'auth' });
+            const b = body || {};
+            if (fn === 'strava-connect') { st.starts++; return { data: { url: 'https://www.strava.com/oauth/authorize?client_id=12345&redirect_uri=https%3A%2F%2Fexemple.supabase.co%2Ffunctions%2Fv1%2Fstrava-connect&response_type=code&approval_prompt=force&scope=activity%3Awrite&state=etat-factice' }, error: null }; }
+            if (fn === 'strava-disconnect') { const was = st.connected; st.connected = false; st.exports = {}; st.name = null; return { data: { ok: true, revoked: !was || !st.revokeFails }, error: null }; }
+            // strava-export
+            if (typeof b.session_id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(b.session_id) || !SPORTS.includes(b.sport_type)
+              || !Number.isInteger(b.elapsed_time) || b.elapsed_time < 60 || b.elapsed_time > 86400 || typeof b.name !== 'string' || !b.name.trim()
+              || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d$/.test(b.start_date_local || '')) return fail(400, { error: 'invalid' });
+            if (!st.connected) return fail(409, { error: 'not_connected' });
+            if (st.revokedAtStrava) { st.connected = false; st.exports = {}; st.revokedAtStrava = false; return fail(409, { error: 'not_connected' }); }
+            if (st.exports[b.session_id]) return { data: { ok: true, activity_id: st.exports[b.session_id], already: true }, error: null };
+            st.sent.push(b);
+            const id = String(st.nextId++);
+            st.exports[b.session_id] = id;
+            return { data: { ok: true, activity_id: id }, error: null };
           }
           if (fn === 'report') {
             if (sb.fail.social === 'offline') throw new TypeError('Failed to fetch');

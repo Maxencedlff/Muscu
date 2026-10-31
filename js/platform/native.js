@@ -510,6 +510,21 @@ const Native = (() => {
       catch (e) { return /cancel/i.test(String(e?.message || e)) ? 'cancelled' : 'failed'; }
     },
 
+    // Ouvre une adresse https dans Safari, même APRÈS un appel réseau ou une feuille de confirmation.
+    // window.open ne convient pas alors : WKWebView ne l'accepte que pendant le geste de l'utilisateur
+    // (javaScriptCanOpenWindowsAutomatically, que Capacitor laisse à false sur iOS ; WebKit bloquait aussi
+    // window.open dans un fetch().then() lancé par un clic, bug 302803 corrigé fin 2025, l'app vise iOS 16.4).
+    // Dans l'app, une navigation de premier niveau vers un autre domaine est annulée par Capacitor et
+    // confiée à Safari (WebViewDelegationHandler, decidePolicyFor : UIApplication.shared.open), sans
+    // condition de geste : l'app reste sur sa page. Hors app : nouvel onglet. Adresse non https : rien.
+    openOutside(url) {
+      const u = String(url ?? '');
+      if (!/^https:\/\/[^\s]+$/.test(u)) return false;
+      if (isNative) window.location.assign(u);
+      else window.open(u, '_blank');
+      return true;
+    },
+
     async readBackup() {
       if (!isNative) return null;
       try {

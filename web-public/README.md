@@ -9,6 +9,8 @@ ce que publie le site :
   juridiques copiées depuis la racine au moment de la publication, liées depuis l'app par
   `js/data/legal-links.js` (contenu et emplacements à compléter : docs/JURIDIQUE.md). L'URL de
   `privacy.html` est déclarée à l'App Store : à garder en ligne ;
-- `sw.js` : désinstalle l'ancien service worker et vide ses caches.
+- `sw.js` : désinstalle l'ancien service worker et vide ses caches ;
+- `strava.html` : retour de la page d'autorisation de Strava (fonction `strava-connect`, docs/STRAVA.md),
+  résultat en ancre (`#ok`, `#refuse`, `#droits`, `#expire`, `#erreur`) affiché sans script.
 
 Publication : job `deploy` de `.github/workflows/tests.yml`.

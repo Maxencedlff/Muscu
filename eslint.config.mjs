@@ -16,15 +16,11 @@ export default [
     languageOptions: { ecmaVersion: 2023, sourceType: 'script', globals: { ...globals.browser, ...globals.serviceworker } },
     rules: { 'no-undef': 'off', 'no-unused-vars': 'off', 'no-empty': ['error', { allowEmptyCatch: true }] },
   },
-  // Logique pure des fonctions serveur : modules ES tournant sous Deno (production) et Node (tests),
-  // avec les seules interfaces communes aux deux (WebCrypto, encodage de texte)
+  // Logique pure des fonctions serveur (Edge) : modules ES tournant sous Deno (production) et Node (tests),
+  // avec les seules interfaces communes aux deux (Web Crypto, encodage de texte, btoa, URLSearchParams)
   {
     files: ['supabase/functions/**/*.js'],
-    languageOptions: {
-      ecmaVersion: 2023,
-      sourceType: 'module',
-      globals: { crypto: 'readonly', TextEncoder: 'readonly', TextDecoder: 'readonly' },
-    },
+    languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals['shared-node-browser'], crypto: 'readonly' } },
   },
   {
     files: ['tests/**/*.mjs', 'scripts/**/*.mjs', 'tools/**/*.mjs', 'eslint.config.mjs'],

@@ -47,6 +47,7 @@ const SCRIPTS = [
   'js/data/coach-pro.js',
   'js/data/newsletter.js',
   'js/data/legal-links.js',
+  'js/data/strava.js',
   'js/data/prog-share.js',
   'js/data/trash.js',
   'js/data/muscles.js',
@@ -1461,6 +1462,9 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 // ── Compte : connexion, pseudo, avatar, identités (tests dans account.mjs) ──
 (await import('./account.mjs')).default({ test, run, assert, sameJSON, nativeContext, ROOT });
 
+// ── Strava : règles et chiffrement des fonctions serveur, export côté app (strava-server.mjs, strava.mjs) ──
+(await import('./strava-server.mjs')).default({ test, assert, sameJSON, ROOT });
+(await import('./strava.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // ── Social : fonction serveur report (tests dans report.mjs) ──
 (await import('./report.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Tarifs du 30/10 : demande du rôle coach (tests dans coach-request.mjs) ──
