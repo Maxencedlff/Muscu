@@ -143,11 +143,12 @@ async function sendChat(key) {
   const r = await chatSend(key, text);
   if (!r.ok) { if (r.kind !== 'busy') showToast(coachErrorText(r.kind), { error: true }); return; }
   haptic();
-  delete chatDrafts[key];
   const el = $('#chatInput');
-  if (el) { el.value = ''; fitCommentInput(el); }
+  const rest = draftAfterSend(el ? el.value : chatDrafts[key] || '', text);
+  if (rest) chatDrafts[key] = rest; else delete chatDrafts[key];
+  if (el) { el.value = rest; fitCommentInput(el); }
   const count = $('#chatCount');
-  if (count) count.textContent = '';
+  if (count) count.textContent = rest ? chatCountText(rest) : '';
   announce('Message envoyé');
   if (!refreshChatList(key)) render();
   // Relu tout de suite : un message de l'autre arrivé juste avant le mien s'affiche sans attendre 15 s

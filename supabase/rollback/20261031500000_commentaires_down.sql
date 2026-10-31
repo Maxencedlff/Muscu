@@ -7,7 +7,8 @@
 --  Effet : commentaires, signalements de commentaires, listes des mots interdits et acceptés supprimés
 --  (définitivement : exporter comment_reports avant si une enquête est en cours ; les lignes de
 --  public.reports qui les citent, target_ref comment_reports:<id>, restent avec la copie du texte
---  dans details, et partent avec la purge des 12 mois) ; my_activity et
+--  dans details, et partent avec la purge des 12 mois), tâche pg_cron purge-comment-reports-12-mois
+--  retirée ; my_activity et
 --  private.activity_new reprennent exactement leur forme de 20261031200000_reactions_profil.sql.
 --  Vérifié par tests/sql/rollback_social_check.sh (migrations, données, retour arrière, puis tous les
 --  tests d'avant les commentaires et le chat).
@@ -16,6 +17,17 @@
 -- ═══════════════════════════════════════════════════════════
 
 begin;
+
+do $cron$
+begin
+  -- Deux tests séparés : cron.job n'existe pas sans l'extension (Postgres local des tests)
+  if exists (select 1 from pg_catalog.pg_extension where extname = 'pg_cron') then
+    if exists (select 1 from cron.job where jobname = 'purge-comment-reports-12-mois') then
+      perform cron.unschedule('purge-comment-reports-12-mois');
+    end if;
+  end if;
+end
+$cron$;
 
 drop function public.list_comments(uuid, text, bigint);
 drop function public.add_comment(uuid, text, text);

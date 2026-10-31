@@ -444,7 +444,7 @@ FAKE_ACCOUNT = r"""
       const rows = [
         ...so.bravos.filter(b => b.owner === me && canSee(b.user, me)).map(b => ({ b, p: posts.find(x => x.id === b.sid && !x.deleted_at) })).filter(x => x.p)
           .map(({ b, p }) => ({ kind: 'reaction', ...pr(b.user), at: b.at, reaction: b.kind, session_id: b.sid, session_label: p.data.label || null, session_at: p.data.date, is_new: b.at > seen })),
-        ...so.comments.filter(c => c.owner === me && c.user !== me && !c.masked && canSee(c.user, me)).map(c => ({ c, p: posts.find(x => x.id === c.sid && !x.deleted_at) })).filter(x => x.p)
+        ...so.comments.filter(c => c.owner === me && c.user !== me && !c.masked && !c.reporters.includes(me) && canSee(c.user, me)).map(c => ({ c, p: posts.find(x => x.id === c.sid && !x.deleted_at) })).filter(x => x.p)
           .map(({ c, p }) => ({ kind: 'comment', ...pr(c.user), at: c.at, session_id: c.sid, session_label: p.data.label || null, session_at: p.data.date,
             comment_id: c.id, comment_text: c.body.slice(0, 120), is_new: c.at > seen })),
         ...so.follows.filter(f => f.followee === me && f.status === 'accepted' && so.at[f.follower] && !blockedBetween(me, f.follower))
@@ -463,7 +463,8 @@ FAKE_ACCOUNT = r"""
     },
     list_comments: (me, { owner, session_id, before_id = null }) => {
       if (!commentReadable(me, owner, session_id)) return [];
-      return so.comments.filter(c => c.owner === owner && c.sid === session_id && (before_id == null || c.id < before_id) && commentShown(me, c))
+      return so.comments.filter(c => c.owner === owner && c.sid === session_id && (before_id == null || c.id < before_id) && commentShown(me, c)
+        && !c.reporters.includes(me))
         .sort((a, b) => b.id - a.id).slice(0, 30).map(c => commentRow(me, c));
     },
     add_comment: (me, { owner, session_id, body }) => {
