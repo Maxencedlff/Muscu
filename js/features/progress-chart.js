@@ -141,7 +141,7 @@ function renderStatsExercise(exId) {
             <span class="cell__value num">${pts.length}</span></div>
         </div>
         ${targetBar}
-        ${cardio ? '' : stallGroupHtml(it.exId) + strengthGroupHtml(it.name)}
+        ${cardio ? '' : strengthGroupHtml(it.name)}
         ${exMusclesGroupHtml({ exId: it.exId, name: it.name })}
         <div class="group-title">Séances</div>
         <div class="group">${sessions}</div>

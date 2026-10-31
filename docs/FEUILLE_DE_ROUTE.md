@@ -170,7 +170,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ▶ | Système payant modèle B : StoreKit, essai 3 mois, codes cadeaux, verrou       | Branche payant            | Prêt, tests verts · attend ta décision |
 | ▶ | Abonnements 5,99 €/mois et 41,99 €/an, offre 3 mois gratuits                  | App Store Connect         | Créés · manque la capture de revue     |
 | ▶ | Photos de progression dans l'app iPhone (autorisations caméra et photos)      | Branche lot2-build-photos | Part avec la build unique              |
-| ▶ | Niveau de force par exercice, semaine plus légère conseillée, stagnation      | Branche nuit-entrainement | Prêt, tests verts · OTA · à valider     |
+| ▶ | Niveau de force (squat, développé couché, soulevé de terre), seuils OpenPowerlifting | Branche nuit-entrainement | Prêt, tests verts · OTA · à valider     |
 | ▶ | Commentaires libres sur les séances (modération) et messages coach ↔ élève   | Branche nuit-social       | Prêt en local, tests verts · feu vert n° 2 |
 
 ---
@@ -285,7 +285,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 |   | Quoi                                                          | Quand / état          |
 |---|---------------------------------------------------------------|-----------------------|
 | ○ | Newsletter, widgets, Siri (commentaires et chat coach : branche nuit-social) | Plus tard |
-| ○ | Score de force, périodisation, marque INPI (option à vie : refusée par Maxence le 31/10) | Plus tard |
+| ○ | Marque INPI (option à vie : refusée par Maxence le 31/10)     | Plus tard |
 | ○ | Test mini-barre, rôle coach d'un testeur                      | Mini-barre : corrigé (branche nuit-fiabilite) |
 | ○ | Messages tout faits en réaction                               | Plus tard             |
 | ○ | Coach payant selon son nombre d'élèves                        | Plus tard             |
