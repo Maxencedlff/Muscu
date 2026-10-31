@@ -12,7 +12,6 @@ import json
 import os
 import struct
 import sys
-import time
 import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -20,6 +19,12 @@ from fixtures import *  # noqa
 
 LOT = 'mesures'
 R = Results(LOT)
+
+# Horloge figée le lundi 2 novembre 2026 à 23 h 10, heure de Paris : après le passage à l'heure d'hiver
+# et tard le soir, là où un écart compté en tranches de 24 h se trompe d'un jour (du 1er septembre à midi :
+# 62 jours du calendrier, mais 62,5 « jours » de 24 h). Toutes les dates du test partent de cet instant.
+NOW = local_ms(2026, 11, 2, 23, 10, tz=PARIS)
+TODAY = '2026-11-02'
 
 
 def tag(device, theme):
@@ -43,8 +48,9 @@ def png_file(name, w, h, rgb):
 def measures_data(now, unit='kg'):
     d = ppl_v2_today(now_ms=now)
     d['unit'] = unit
-    d['bodyMeasures'] = {'waist': [{'date': now - i * 7 * DAY, 'cm': 82 - i * 0.5} for i in range(6)],
-                         'chest': [{'date': now - 14 * DAY, 'cm': 95.5}]}
+    # Une mesure par semaine à 9 h (jours du calendrier), la plus récente aujourd'hui
+    d['bodyMeasures'] = {'waist': [{'date': days_back_ms(now, i * 7, 9, tz=PARIS), 'cm': 82 - i * 0.5} for i in range(6)],
+                         'chest': [{'date': days_back_ms(now, 14, 9, tz=PARIS), 'cm': 95.5}]}
     return json.dumps(d, ensure_ascii=False, separators=(',', ':'))
 
 
@@ -59,8 +65,8 @@ def open_measures(page, theme, now, unit='kg'):
 
 def t_mensurations(bench, eng, dev, theme):
     t = tag(dev, theme)
-    now = int(time.time() * 1000)
-    with bench.page(eng, dev, theme) as page:
+    now = NOW
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
         seed(page, theme, measures_data(now))
         page.click('.tabbar [data-action="go-stats"]')
         page.wait_for_selector('.view.stats')
@@ -81,7 +87,7 @@ def t_mensurations(bench, eng, dev, theme):
         page.click('[data-action="bm-add"]')
         page.wait_for_selector('.sheet-root .bm-in')
         page.wait_for_timeout(300)
-        R.check(page.locator('.bm-in').count() == 10 and page.input_value('#bmDate') == time.strftime('%Y-%m-%d'), f'{t} feuille : 10 champs, date du jour')
+        R.check(page.locator('.bm-in').count() == 10 and page.input_value('#bmDate') == TODAY, f'{t} feuille : 10 champs, date du jour')
         page.fill('.bm-in[data-key="chest"]', '96,2')
         page.fill('.bm-in[data-key="hips"]', '5')
         page.click('.sheet__btn--confirm')
@@ -151,10 +157,10 @@ def t_mensurations(bench, eng, dev, theme):
 
 def t_photos(bench, eng, dev, theme):
     t = tag(dev, theme)
-    now = int(time.time() * 1000)
+    now = NOW
     face = png_file('photo-face.png', 300, 400, (200, 80, 80))
     back = png_file('photo-dos.png', 1500, 2000, (80, 80, 200))
-    with bench.page(eng, dev, theme) as page:
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_measures(page, theme, now)
         R.check(page.evaluate("photosAll().then(l => l.length)") == 0 and page.locator('.pgal__item').count() == 0, f'{t} aucune photo au départ')
         R.check(page.locator('[data-action="photo-add"]').count() == 1, f'{t} bouton Ajouter une photo')
@@ -186,7 +192,7 @@ def t_photos(bench, eng, dev, theme):
                            {'pose': 'back', 'w': 900, 'h': 1200, 'type': 'image/jpeg', 'big': True}], f'{t} IndexedDB : JPEG réduit à 1200 px de haut {photos}')
         days = page.locator('.pgal__date').all_inner_texts()
         R.check(days == ['Aujourd\'hui', 'mar. 1 sept.'], f'{t} galerie par date, la plus récente d\'abord {days}')
-        R.check(page.locator('.pcmp__img').count() == 2 and '59 jours' in page.inner_text('.pcmp__gap'), f'{t} comparaison : deux photos, écart en jours {page.inner_text(".pcmp__gap")!r}')
+        R.check(page.locator('.pcmp__img').count() == 2 and '62 jours d\'écart' in page.inner_text('.pcmp__gap'), f'{t} comparaison : deux photos, écart en jours du calendrier (1er sept. → 2 nov.) {page.inner_text(".pcmp__gap")!r}')
         R.check(page.locator('.view.stats img, .view.body-measures .group-title:has-text("Mensurations") img').count() == 0, f'{t} aucune image hors de la section Photos')
         shot(page, LOT, f'photos-{t}')
         # Changer la photo de droite : la même que la gauche → écart 0
@@ -210,8 +216,8 @@ def t_photos(bench, eng, dev, theme):
 
 def t_unite_pouces(bench, eng, dev, theme):
     t = tag(dev, theme)
-    now = int(time.time() * 1000)
-    with bench.page(eng, dev, theme) as page:
+    now = NOW
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_measures(page, theme, now, unit='lbs')
         waist = page.locator('.bm-cell[data-key="waist"]').inner_text()
         R.check('32,3 in' in waist and '+0,2 in' in waist, f'{t} lbs : taille en pouces {waist!r}')
@@ -230,9 +236,9 @@ def t_unite_pouces(bench, eng, dev, theme):
 
 def t_tout_supprimer(bench):
     """« Supprimer toutes les données » efface les mensurations et les photos (IndexedDB)."""
-    now = int(time.time() * 1000)
+    now = NOW
     face = png_file('photo-face.png', 300, 400, (200, 80, 80))
-    with bench.page('webkit', 'iPhone 13', 'dark') as page:
+    with bench.frozen_page(NOW, 'webkit', 'iPhone 13', 'dark') as page:
         open_measures(page, 'dark', now)
         page.set_input_files('#photoFile', face)
         page.wait_for_selector('.sheet-root .pnew__img')
@@ -264,8 +270,8 @@ def t_tout_supprimer(bench):
 
 def t_export_inclut_mesures(bench):
     """L'export JSON contient les mensurations (pas les photos : elles ne sont pas dans data)."""
-    now = int(time.time() * 1000)
-    with bench.page('chromium', 'Pixel 7', 'light') as page:
+    now = NOW
+    with bench.frozen_page(NOW, 'chromium', 'Pixel 7', 'light') as page:
         open_measures(page, 'light', now)
         payload = page.evaluate("JSON.stringify({ ...data, _theme: 'auto' })")
         R.check('"bodyMeasures"' in payload and '"waist"' in payload, 'export : mensurations présentes')
@@ -285,8 +291,8 @@ def t_natif_sans_photos(bench, eng, dev, theme):
     """App iOS dont la build n'a pas l'autorisation de l'appareil photo : aucune photo nulle part (le champ
     « image/* » proposerait « Prendre une photo » et iOS tuerait l'app), mensurations intactes."""
     t = tag(dev, theme)
-    now = int(time.time() * 1000)
-    with bench.page(eng, dev, theme) as page:
+    now = NOW
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
         page.add_init_script(FAKE_SHELL)
         page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
         seed(page, theme, measures_data(now))

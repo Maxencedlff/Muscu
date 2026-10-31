@@ -61,6 +61,9 @@ function photoDayGroups(list) {
   return [...map.values()].sort((a, b) => b.date - a.date)
     .map(g => ({ ...g, photos: g.photos.slice().sort((a, b) => order(a) - order(b) || b.date - a.date) }));
 }
+// Écart entre deux photos en jours du calendrier (« 62 jours d'écart ») : compter des tranches de 24 h se
+// trompait d'un jour le soir (photo du jour contre une date passée, posée à midi) et au changement d'heure
+function photoGapDays(a, b) { return Math.abs(daysAgo(a, b)); }
 function photosTotalBytes(list) { return (list || []).reduce((a, p) => a + (p.bytes || 0), 0); }
 
 // ── Disponibilité ───────────────────────────────────────────
