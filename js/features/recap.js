@@ -146,12 +146,14 @@ function recapPageHtml(page, i, st) {
   }
   if (page.bars) parts.push(recapBarsHtml(page.bars));
   if (page.body && page.id === 'profile') {
-    parts.push(`<div class="rp-figure">${bodyMapHtml(page.body, { view: 'both', className: 'rp-body', colors: { heat: 'var(--rc-heat)' } })}</div>`);
+    // Couleurs de Progrès (orange, palier le plus haut orange rouge) et sa légende par paliers
+    parts.push(`<div class="rp-figure">${bodyMapHtml(page.body, { view: 'both', className: 'rp-body', peak: true })}</div>`);
+    if (page.scale) parts.push(`<div class="rp-scale" aria-hidden="true">${MUSCLE_LEVEL_WORDS.slice(1).map((w, i) => `<span><i${i + 1 >= MUSCLE_LEVEL_MAX ? ' class="is-peak"' : ''} style="--o:${bodyHeatOpacity((i + 1) / MUSCLE_LEVEL_MAX)}"></i>${esc(w)} <b class="num">${muscleLevelRange(i + 1)}</b></span>`).join('')}<small>${esc(page.scale)}</small></div>`);
   }
   // Ouverture : le personnage de la semaine, à droite du chiffre
   const side = page.body && page.id === 'sessions'
     ? `<div class="rp-side">${bodyMapHtml(page.body, { view: 'front', className: 'rp-body', colors: { heat: 'var(--rc-heat)' } })}</div>` : '';
-  if (page.pills?.length) parts.push(`<div class="rp-pills">${page.pills.map(([l, x]) => `<span class="rp-pill"><i></i>${esc(l)} <b class="num">${esc(x)}</b></span>`).join('')}</div>`);
+  if (page.pills?.length) parts.push(`<div class="rp-pills">${page.pills.map(([l, x], i) => `<span class="rp-pill"><i class="num" aria-hidden="true">${i + 1}</i>${esc(l)} <b class="num">${esc(x)}</b></span>`).join('')}</div>`);
   if (page.tiles?.length && page.id !== 'summary') parts.push(`<div class="rp-tiles">${page.tiles.map(([l, x]) => `<div class="rp-tile"><b class="num">${esc(x)}</b><span>${esc(l)}</span></div>`).join('')}</div>`);
   if (page.list?.length) {
     if (page.listTitle) parts.push(`<div class="rp-list-title">${esc(page.listTitle)}</div>`);

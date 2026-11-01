@@ -238,6 +238,11 @@ def t_semaine(bench, eng, dev, theme):
             page.evaluate(f"() => {{ const tr = document.querySelector('#recapTrack'); tr.scrollTo({{ left: {i} * tr.clientWidth, behavior: 'instant' }}); }}")
             page.wait_for_timeout(900)
             shot(page, LOT, f'recap-mois-{i + 1:02d}-{ids[i]}-{t}')
+            if ids[i] == 'profile':
+                # Profil : couleurs et légende par paliers de Progrès, à l'écran et dans l'image partagée
+                leg = page.evaluate("[...document.querySelectorAll('.recap-page.is-active .rp-scale span')].map(s => s.textContent.trim())")
+                R.check(leg[:1] == ['Entretien 1–4'] and leg[-1:] == ['Gros volume 20+'], f'{t} profil : légende des paliers de Progrès {leg}')
+                share_current(page, t, 'profil', f'story-mois-profil-{t}')
         R.check(not page.errors, f'{t} semaine : aucune erreur JS {page.errors}')
     finally:
         cm.__exit__(None, None, None)

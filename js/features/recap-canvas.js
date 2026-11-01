@@ -15,6 +15,8 @@ const RECAP_TONE_COLORS = {
   orange: { bg: '#FF7A3D', fg: '#000000', heat: '#5B3BF0', box: '#000000', boxText: '#FFFFFF' },
   pink:   { bg: '#FF6FA5', fg: '#000000', heat: '#5B3BF0', box: '#000000', boxText: '#FFFFFF' },
 };
+// Personnage du profil : couleurs de Progrès (thème sombre de l'app), palier le plus haut orange rouge
+const RECAP_BODY = { heat: '#FF9F0A', peak: '#FF5A1F' };
 const RECAP_STORY = {
   HEAD: 40,          // « MA SEMAINE · 12 – 18 OCTOBRE »
   NUM_MAX: 300, NUM_MIN: 140,
@@ -135,17 +137,22 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
     const ph = 76, gap = 16, rows = [[]];
     let rowW = 0;
     items.forEach(t => {
-      const w = ctx.measureText(t).width + 56 + (dot ? 32 : 0);
+      const w = ctx.measureText(t).width + 56 + (dot ? 52 : 0);
       if (rowW + w > maxW && rows.at(-1).length) { rows.push([]); rowW = 0; }
-      rows.at(-1).push([t, w]); rowW += w + gap;
+      rows.at(-1).push([t, w, rows.flat().length]); rowW += w + gap;
     });
     return { h: rows.length * ph + (rows.length - 1) * gap, draw: y => rows.forEach((row, ri) => {
       let x = SIDE;
-      row.forEach(([t, w]) => {
+      row.forEach(([t, w, idx]) => {
         const ty = y + ri * (ph + gap);
         ctx.globalAlpha = .12; ctx.fillStyle = c.fg; roundRect(ctx, x, ty, w, ph, ph / 2); ctx.fill(); ctx.globalAlpha = 1;
-        if (dot) { ctx.fillStyle = c.heat; ctx.beginPath(); ctx.arc(x + 38, ty + ph / 2, 11, 0, Math.PI * 2); ctx.fill(); }
-        text(t, f(700, R.TEXT), 1, ty + ph / 2 + R.TEXT * .36, x + 28 + (dot ? 32 : 0), w);
+        if (dot) {
+          // Rang (1, 2, 3) dans une pastille de la couleur des muscles
+          ctx.fillStyle = c.heat; ctx.beginPath(); ctx.arc(x + 44, ty + ph / 2, 22, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = c.bg; ctx.font = f(800, 26); ctx.textAlign = 'center';
+          ctx.fillText(String(idx + 1), x + 44, ty + ph / 2 + 9); ctx.textAlign = 'left';
+        }
+        text(t, f(700, R.TEXT), 1, ty + ph / 2 + R.TEXT * .36, x + 28 + (dot ? 52 : 0), w);
         x += w + gap;
       });
     }) };
@@ -248,6 +255,28 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
 
   // Personnage : grand et centré (profil), à droite du haut (résumé)
   if (fig && !sideFig) blocks.push({ h: 0, flex: true, figure: fig });
+  // Légende du personnage du profil : paliers de Progrès (pastille, nom, bornes), puis l'unité (comme .rp-scale)
+  if (fig && !sideFig && page.scale) {
+    const items = MUSCLE_LEVEL_WORDS.slice(1).map((w, i) => ({ lvl: i + 1, t: `${w} ${muscleLevelRange(i + 1)}` }));
+    blocks.push({ h: 160, draw: y => {
+      ctx.font = f(700, 30);
+      const sq = 24, gap = 40;
+      // Deux paliers par ligne (quatre sur une seule ligne déborderaient du 1080 px)
+      [items.slice(0, 2), items.slice(2)].forEach((row, r) => {
+        const ws = row.map(it => sq + 12 + ctx.measureText(it.t).width), ry = y + r * 50;
+        let x = SIDE + maxW / 2 - (ws.reduce((a, b) => a + b, 0) + gap * (row.length - 1)) / 2;
+        row.forEach((it, k) => {
+          ctx.fillStyle = 'rgba(255,255,255,.35)'; roundRect(ctx, x, ry + 6, sq, sq, 6); ctx.fill();
+          ctx.globalAlpha = it.lvl >= MUSCLE_LEVEL_MAX ? 1 : bodyHeatOpacity(it.lvl / MUSCLE_LEVEL_MAX);
+          ctx.fillStyle = it.lvl >= MUSCLE_LEVEL_MAX ? RECAP_BODY.peak : RECAP_BODY.heat; roundRect(ctx, x, ry + 6, sq, sq, 6); ctx.fill();
+          ctx.globalAlpha = 1;
+          text(it.t, f(700, 30), 1, ry + 29, x + sq + 12, ws[k]);
+          x += ws[k] + gap;
+        });
+      });
+      ctx.textAlign = 'center'; text(page.scale, f(600, 30), .8, y + 134, SIDE + maxW / 2, maxW); ctx.textAlign = 'left';
+    } });
+  }
   // Profil : les pastilles partent avant les lignes de preuve (le personnage montre déjà les muscles)
   if (page.pills?.length) blocks.push({ ...pills(page.pills.map(([l, v]) => `${l} ${v}`), true), ...(page.id === 'profile' ? { optional: 1 } : {}) });
 
@@ -396,7 +425,7 @@ async function renderRecapStory(page, st, canvas = document.createElement('canva
   const wantBody = page.body && Object.keys(page.body).length && ['profile', 'sessions'].includes(page.id);
   const [icon, body] = await Promise.all([
     loadImage('icon-192.png'),
-    wantBody ? bodyMapImage(page.body, { view: page.id === 'profile' ? 'both' : 'front', colors: { heat: tone.heat, bright: 1 } }).catch(() => null) : null,
+    wantBody ? bodyMapImage(page.body, { view: page.id === 'profile' ? 'both' : 'front', colors: page.id === 'profile' ? { ...RECAP_BODY, bright: 1 } : { heat: tone.heat, bright: 1 } }).catch(() => null) : null,
   ]);
   drawRecapStory(canvas, page, st, palette, { icon, body });
   return { canvas };

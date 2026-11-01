@@ -146,7 +146,18 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
   display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; padding: 6px 12px; border-radius: 999px;
   background: color-mix(in srgb, var(--rc-fg) 12%, transparent); font-size: var(--fs-subhead); font-weight: 700;
 }
-.rp-pill i { width: 9px; height: 9px; border-radius: 50%; background: var(--rc-heat); }
+.rp-pill i {
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--rc-heat); color: var(--rc-bg); font-style: normal; font-size: 13px; font-weight: 800;
+}
+/* Légende du personnage du profil : les paliers de Progrès (.mlegend), en blanc sur la couleur du récap */
+.rp-scale { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 12px; font-size: var(--fs-caption); font-weight: 700; }
+.rp-scale span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.rp-scale b { font-weight: 600; opacity: .8; }
+.rp-scale small { flex-basis: 100%; text-align: center; font-size: var(--fs-caption); font-weight: 600; opacity: .8; }
+.rp-scale i { width: 11px; height: 11px; border-radius: 3px; position: relative; overflow: hidden; background: rgba(255, 255, 255, .35); }
+.rp-scale i::after { content: ''; position: absolute; inset: 0; background: var(--body-heat); opacity: var(--o, 0); }
+.rp-scale i.is-peak::after { background: var(--body-heat-max); opacity: 1; }
 .rp-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .rp-box {
   margin-top: 6px; padding: 14px 16px; border-radius: var(--r-md);

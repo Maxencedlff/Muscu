@@ -375,7 +375,8 @@ const RECAP_EARLY_HOUR = 8;       // « Lève-tôt » : toutes les séances chro
 // title : ce qui a été travaillé (« Jambes d'abord », « Tout le corps », « Quadriceps en tête »), jamais une
 // formule à décoder ; le moment et le jour viennent en lignes, chacune avec sa preuve (« Plutôt le soir ·
 // Entre 18 h et 23 h · 8 séances sur 11 », « Le jeudi le plus souvent · 3 séances sur 11 ») ; levels :
-// intensité 0..1 par muscle (personnage) ; muscles : les 3 plus travaillés { id, label, sets }.
+// intensité 0..1 par muscle (personnage de l'ouverture) ; muscles : les 3 plus travaillés { id, label, sets } ;
+// tiers : palier de Progrès / MUSCLE_LEVEL_MAX par muscle (personnage du profil) ; perWeekAvg : moyenne par semaine.
 // null sans muscle ni moment favori.
 function recapProfile(history, p, sessions, favSlot, favDay) {
   const { counts } = muscleSetCounts(history, p.start, p.end);
@@ -407,7 +408,10 @@ function recapProfile(history, p, sessions, favSlot, favDay) {
   if (!parts.length && !muscles.length) return null;
   const title = parts.length ? parts[0] : `${muscles[0].label} en tête`;
   if (!parts.length) lines.unshift([muscles[0].label, plural(muscles[0].sets, 'série', 'séries')]);
-  return { title, lines, levels, muscles };
+  // Personnage du profil : paliers de Progrès (muscleLevel) sur la moyenne de séries par semaine de la période
+  const weeks = Math.max(1, (p.end - p.start) / (7 * 86400000));
+  const tiers = Object.fromEntries(Object.entries(counts).map(([id, n]) => [id, muscleLevel(n / weeks) / MUSCLE_LEVEL_MAX]).filter(([, v]) => v > 0));
+  return { title, lines, levels, muscles, tiers, perWeekAvg: weeks > 1.5 };
 }
 
 const RECAP_STRIP_WEEKS = 8;   // frise de régularité de la semaine : les 8 dernières semaines
@@ -643,10 +647,11 @@ function recapPages(st) {
     body: st.profile && Object.keys(st.profile.levels).length ? st.profile.levels : null, share: 'Partager' });
 
   // Profil (année : « ton année en un corps »)
+
   const pr = st.profile;
   const profile = pr && {
     id: 'profile', tone: 'violet', kicker: kind === 'year' ? 'TON ANNÉE EN UN CORPS' : `TON PROFIL ${SPAN}`,
-    title: pr.title, lines: pr.lines, body: pr.levels, pills: pr.muscles.map(m => [m.label, plural(m.sets, 'série', 'séries')]), share: 'Partager mon profil' };
+    title: pr.title, lines: pr.lines, body: pr.tiers, scale: pr.perWeekAvg ? 'séries en moyenne par semaine' : 'séries par semaine', pills: pr.muscles.map(m => [m.label, plural(m.sets, 'série', 'séries')]), share: 'Partager mon profil' };
 
   // Volume (ou les séries quand rien n'est chargé), séries et durée en tuiles
   const gain = recapVolumeGain(st);
