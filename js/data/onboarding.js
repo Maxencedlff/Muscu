@@ -12,7 +12,7 @@ const ONB_PLACES = {
   halteres: { label: 'Chez moi, avec des haltères', sub: 'Haltères, et un banc si possible', equip: 'halteres' },
   rien:     { label: 'Chez moi, sans matériel',     sub: 'Poids du corps',                equip: 'aucun' },
 };
-// Séances par semaine : la réponse devient aussi l'objectif de l'anneau de l'accueil (data.weeklyGoal)
+// Séances par semaine : la réponse devient aussi l'objectif de la carte « Cette semaine » de l'accueil (data.weeklyGoal)
 const ONB_FREQS = [
   { n: 2, label: '2 fois' },
   { n: 3, label: '3 fois' },

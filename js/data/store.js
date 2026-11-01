@@ -586,7 +586,12 @@ function freshData() {
 // Renvoie false si l'écriture échoue (stockage plein) ; quiet = pas de toast
 const EQUIP_IDS = ['all', 'aucun', 'halteres', 'barre', 'elastique', 'kettlebell', 'cardio', 'salle'];
 let dataBroken = false;
+// Version des données : +1 à chaque save(). Les caches calculés sur l'historique (legacyRecords,
+// js/data/records.js) l'intègrent à leur empreinte : une séance passée modifiée ou un exercice renommé
+// dans l'historique ne changent ni le nombre de séances ni la plus récente, mais passent par save().
+let dataVersion = 0;
 function save(quiet = false) {
+  dataVersion++;
   if (dataBroken) return false;
   try {
     Object.values(data.userProgrammes || {}).forEach(up => { if (up && typeof up === 'object') up.order = userSessionOrder(up); });

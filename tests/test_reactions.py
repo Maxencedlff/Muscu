@@ -9,6 +9,7 @@ Captures : $PPL_SCRATCH/shots/lotreactions/.
 Lancer : PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_reactions.py (ou run_all.py reactions).
 """
 import json
+import re
 import os
 import sys
 
@@ -83,7 +84,7 @@ def small_targets(page, sel='#app button, .tabbar button'):
 def cut_texts(page):
     """Textes coupés ou qui débordent de leur boîte (hors champs de saisie)."""
     return page.evaluate("""() => [...document.querySelectorAll('#app *, .tabbar *')].filter(e => e.offsetParent && e.children.length === 0
-        && e.textContent.trim() && !e.matches('input, svg, use, .icon *') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
+        && e.textContent.trim() && !e.matches('input, svg, use, .icon *, .visually-hidden, .sr-text') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
         .map(e => e.textContent.trim().slice(0, 30))""")
 
 
@@ -229,26 +230,42 @@ def t_mon_profil(bench, eng, dev, theme):
         txt = page.inner_text('.social-me-view')
         stats = page.evaluate("[...document.querySelectorAll('.me-stat')].map(b => b.innerText.replace(/\\s+/g, ' ').trim())")
         R.check(stats[1] == '2 abonnés' and stats[2] == '2 abonnements' and stats[0].endswith('séances visibles'), f'{t} chiffres {stats}')
-        R.check('lea a réagi 🔥 à ta séance' in txt and 'il y a 2 h' in txt, f'{t} activité : réaction de Léa')
-        R.check('paul a réagi 👏' in txt and 'hier' in txt, f'{t} activité : réaction de Paul, hier')
+        # Carte d'athlète : membre depuis, régularité lue par VoiceOver ; grands titres de section
+        R.check(page.locator('.athlete__sub').inner_text().startswith('Membre depuis '), f'{t} « {page.locator(".athlete__sub").inner_text()} »')
+        reg = page.locator('.reg[role="img"]')
+        R.check(reg.count() == 1 and 'par semaine en moyenne sur' in reg.get_attribute('aria-label') and 'cette semaine' in reg.get_attribute('aria-label'), f'{t} régularité : résumé VoiceOver {reg.get_attribute("aria-label") if reg.count() else None!r}')
+        R.check(page.locator('.reg__bar').count() == 12 and page.locator('.reg__bar--now').count() == 1, f'{t} régularité : 12 barres, la semaine en cours marquée')
+        titles = page.locator('.social-me-view h2.group-title--large').all_inner_texts()
+        R.check(titles[0] == 'Mes séances' and titles[-1] == 'Activité', f'{t} grands titres {titles}')
+        # Activité groupée : les réactions de Léa et Paul à la même séance tiennent en une ligne
+        group = page.locator('.activity-row--group')
+        gtxt = group.locator('.social-row__text').inner_text() if group.count() == 1 else ''
+        R.check(group.count() == 1 and gtxt.startswith('2 réactions sur ') and 'lea, paul' in gtxt and re.search(r'il y a [12] h', gtxt), f'{t} activité : réactions groupées ({gtxt!r})')
         R.check('zoe a accepté ta demande' in txt, f'{t} activité : demande acceptée')
-        R.check('lea a commencé à te suivre' in txt, f'{t} activité : abonnée')
-        R.check('tom veut voir tes séances' in txt and page.locator('.activity [data-action="social-accept"]').count() == 1, f'{t} activité : demande reçue avec « Accepter »')
         order = page.evaluate("[...document.querySelectorAll('.activity-row__text')].map(e => e.innerText.split(' ')[0])")
-        R.check(order[:2] == ['zoe', 'lea'], f'{t} activité : du plus récent au plus ancien {order}')
-        R.check(page.locator('.activity-row__new').count() == 3, f'{t} nouveautés marquées ({page.locator(".activity-row__new").count()})')
+        R.check(order[:2] == ['zoe', '2'], f'{t} activité : du plus récent au plus ancien {order}')
+        R.check(page.locator('.activity .social-row').count() == 3, f'{t} activité : 3 lignes avant « Tout voir »')
+        R.check(page.locator('.activity-row__new').count() == 2, f'{t} nouveautés marquées : Zoé et le groupe ({page.locator(".activity-row__new").count()})')
+        # « Tout voir » : la suite, dont la demande de Tom avec « Accepter »
+        page.click('[data-action="social-activity-more"]')
+        page.wait_for_timeout(300)
+        txt = page.inner_text('.social-me-view')
+        R.check('tom veut voir tes séances' in txt and page.locator('.activity [data-action="social-accept"]').count() == 1, f'{t} activité : demande reçue avec « Accepter »')
+        R.check('lea a commencé à te suivre' in txt, f'{t} activité : abonnée')
         # Vu : pastille éteinte (reste la demande de Tom), serveur prévenu
         R.check(len(calls(page, 'mark_activity_seen')) == 1, f'{t} mark_activity_seen appelé')
         R.check(badge.inner_text() == '1' and me_btn.count() == 0, f'{t} pastille : la demande seule ({badge.inner_text()})')
-        # Mes séances vues par mes abonnés, avec leurs réactions
-        own = page.locator('.social-me-view .feed-card').first
-        R.check(own.locator('.react').count() == 0 and '👏🔥 2' in own.inner_text(), f'{t} ma séance : réactions sans bouton ({own.inner_text()!r})')
-        R.check('note' not in page.inner_text('.social-me-view .feed'), f'{t} mes séances : liste blanche')
+        # Mes séances : la dernière en grand, avec ses réactions (sans bouton) et qui a réagi
+        own = page.locator('.social-me-view .last')
+        R.check(own.count() == 1 and own.locator('.react').count() == 0 and '👏🔥 2' in own.inner_text() and 'lea +1' in own.inner_text(), f'{t} ma dernière séance : réactions sans bouton ({own.inner_text()!r})')
+        R.check('note' not in own.inner_text() and 'note' not in page.inner_text('.social-me-view .mysess-list'), f'{t} mes séances : liste blanche')
+        n_own = page.evaluate('socialFeed(SOCIAL_ME).rows.length')
+        R.check(n_own >= 2 and page.locator('.mysess').count() == min(3, n_own - 1), f'{t} mes séances : la suite en aperçu, 3 au plus ({n_own} visibles)')
         layout(page, t, 'Mon profil')
         shot(page, LOT, f'3-mon-profil-{t}')
         page.evaluate("document.getElementById('meSessions').scrollIntoView()")
         shot(page, LOT, f'3b-mon-profil-seances-{t}')
-        own.locator('.feed-card__main').click()
+        own.locator('.last__main').click()
         page.wait_for_selector('.social-session-view')
         page.wait_for_timeout(400)
         who = page.evaluate("[...document.querySelectorAll('.who-list .social-row')].map(r => r.innerText.replace(/\\s+/g, ' ').trim())")
@@ -258,8 +275,8 @@ def t_mon_profil(bench, eng, dev, theme):
         shot(page, LOT, f'4-ma-seance-{t}')
         page.click('[data-action="back"]')
         page.wait_for_selector('.social-me-view')
-        # Ligne de réaction : vers ma séance (Historique › Séance), avec qui a réagi
-        page.locator('.activity [data-action="social-open-my-session"]').first.click()
+        # Ligne des réactions groupées : vers ma séance (Historique › Séance), avec qui a réagi
+        page.locator('.activity-row--group [data-action="social-open-my-session"]').click()
         page.wait_for_selector('.history-detail')
         page.wait_for_timeout(500)
         R.check(page.locator('.history-detail .who-list .social-row').count() == 2 and 'RÉACTIONS (2)' in page.inner_text('.history-detail').upper(), f'{t} Historique › Séance : qui a réagi')
@@ -269,6 +286,58 @@ def t_mon_profil(bench, eng, dev, theme):
         page.evaluate(f"socialRemoveFollower('{ids['paul']}')")
         page.wait_for_timeout(500)
         R.check(page.locator('.history-detail .who-list .social-row').count() == 1, f'{t} abonné retiré : plus dans la liste')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_mon_profil_suite(bench, eng, dev, theme):
+    """Mon profil : section Records (records récents de l'historique), « Tout voir » des séances, aperçu gardé hors ligne."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, enable=True)
+        setup(page)
+        page.evaluate('socialRefresh()')
+        page.wait_for_timeout(300)
+        friends_tab(page)
+        page.click('.navbar [data-action="social-me"]')
+        page.wait_for_selector('.social-me-view .last')
+        page.wait_for_timeout(300)
+        # Records : valeurs fixées par l'historique de test (ppl_v2_today, tests/fixtures.py), pas relues dans
+        # l'app. Charge +2,5 kg toutes les deux semaines, plafonnée à +10 kg : à la dernière semaine (k = 8),
+        # seuls les exercices j % 3 == 0 montent encore. Séances les plus récentes : Legs (il y a 4 j : Squat
+        # barre 60 → 70 kg, Leg curl 30 → 40 kg), Bras (6 j : charges égales, pas de record), Pull (6 j 3 h :
+        # Rowing 24 → 34 kg). Trois records au plus, un par exercice, du plus récent.
+        want = [('Squat barre', '70 kg'), ('Leg curl machine', '40 kg'), ('Rowing haltère unilatéral', '34 kg')]
+        titles = page.locator('.social-me-view h2.group-title--large').all_inner_texts()
+        got = list(zip(page.locator('.rec-row .cell__title').all_inner_texts(),
+                       [v.strip() for v in page.locator('.rec-row .rec-row__val').all_inner_texts()]))
+        R.check('Records' in titles and got == want, f'{t} records : {got} (attendu {want}, titres {titles})')
+        subs = page.locator('.rec-row .cell__sub').all_inner_texts()
+        R.check(len(subs) == 3 and all('2,5 kg' in x for x in subs), f'{t} records : date et gain ↑ 2,5 kg ({subs})')
+        # Dernière séance : VoiceOver lit le titre visible puis les chiffres, libellé avant valeur
+        spoken = page.locator('.last__main .sr-text').inner_text() if page.locator('.last__main .sr-text').count() else ''
+        R.check(re.search(r'\d+ séries?', spoken) and 'volume ' in spoken, f'{t} dernière séance : chiffres lus ({spoken!r})')
+        # « Tout voir » des séances : toutes, en cartes du fil
+        n_own = page.evaluate('socialFeed(SOCIAL_ME).rows.length')
+        btn = page.locator('[data-action="social-me-sessions-all"]')
+        R.check(btn.count() == 1 and btn.inner_text().strip().startswith('Tout voir'), f'{t} mes séances : « Tout voir » ({n_own} visibles)')
+        if btn.count():
+            btn.click()
+            page.wait_for_timeout(300)
+            R.check(page.locator('.social-me-view .last').count() == 0 and page.locator('.social-me-view .feed-card').count() == n_own,
+                    f'{t} « Tout voir » : {page.locator(".social-me-view .feed-card").count()} cartes sur {n_own}')
+            layout(page, t, 'Mon profil, toutes mes séances')
+        # Hors ligne : l'aperçu reste, avec la note du fil
+        page.click('[data-action="back"]')
+        page.wait_for_timeout(300)
+        page.evaluate('__sb.fail.social = "offline"')
+        page.click('.navbar [data-action="social-me"]')
+        page.wait_for_selector('.social-me-view .last')
+        page.wait_for_timeout(500)
+        note = page.locator('.social-me-view .social-inline-error')
+        R.check(note.count() == 1 and 'Pas d\'Internet' in note.inner_text() and page.locator('.mysess').count() >= 1,
+                f'{t} hors ligne : aperçu gardé avec la note ({note.inner_text() if note.count() else None!r})')
+        shot(page, LOT, f'3c-mon-profil-hors-ligne-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -293,4 +362,4 @@ def t_historique(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_reagir, t_mon_profil, t_historique])
+run_main(R, [t_reagir, t_mon_profil, t_mon_profil_suite, t_historique])
