@@ -476,10 +476,14 @@ def t_interruptions(bench):
 
 
 def t_hauteur_se(bench):
-    """iPhone SE : clavier du code entier entre la barre et la tab bar, en clair et en sombre."""
+    """iPhone SE : présentation et clavier du code entiers entre la barre et la tab bar, en clair et en sombre."""
     for theme in ('light', 'dark'):
         with bench.frozen_page(NOW, 'webkit', 'iPhone SE', theme) as page:
             open_vault(page, theme)
+            tab = page.locator('.tabbar').bounding_box()
+            cta = page.locator('.pv-cta').bounding_box()
+            R.check(cta['y'] + cta['height'] <= tab['y'] + 1, f'SE {theme} : « Créer mon code » au-dessus de la tab bar {cta} {tab}')
+            shot(page, LOT, f'intro-iPhone_SE-{theme}')
             create_vault(page)
             page.click('[data-action="pv-lock"]')
             page.wait_for_selector('.pv-lock')

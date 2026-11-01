@@ -64,7 +64,7 @@ function renderPhotoVault() {
   else body = pvPadHtml();
   return `
     <div class="view photo-vault ${open ? 'view--grouped' : 'pv-locked'}">
-      ${navBar({ title: '', right })}
+      ${navBar({ title: open ? 'Coffre à photos' : '', right })}
       <div class="scr">${body}</div>
       <input type="file" id="photoFile" class="visually-hidden" accept="image/*" aria-hidden="true" tabindex="-1">
     </div>`;
@@ -77,9 +77,9 @@ function pvIntroHtml() {
         <div class="pv-intro">
           <div class="pv-glyph" aria-hidden="true">${icon('lock', 34)}</div>
           <h1 class="pv-title" id="pvTitle" tabindex="-1">Coffre à photos</h1>
-          <p class="pv-lead">Tes photos de progression, à l'abri des regards. Elles ne s'ouvrent qu'avec ton code.</p>
+          <p class="pv-lead">Tes photos de progression, à l'abri des regards.</p>
           <ul class="pv-feats">
-            ${feat('lock', 'Chiffrées sur ton iPhone', 'Jusque dans les sauvegardes de ton iPhone.')}
+            ${feat('lock', 'Ouvert avec ton code seulement', 'Chiffrées sur ton iPhone, jusque dans ses sauvegardes.')}
             ${feat('timer', 'Refermé dès que tu pars', 'Quand tu quittes l\'app, ou après une minute sans toucher l\'écran.')}
             ${feat('eye.slash', 'Rien ne sort du coffre', 'Ni dans ta pellicule, ni dans l\'export, ni sur nos serveurs, ni chez ton coach.')}
             ${feat('info.circle', 'Un code que toi seul connais', 'Oublié, personne ne peut rouvrir le coffre, pas même nous : il ne restera qu\'à le vider.')}
@@ -472,7 +472,10 @@ async function newPhotoSheet(file) {
       return { pose: photoNewPose, date };
     } });
   URL.revokeObjectURL(url);
-  if (res === 'locked' || (res && !vaultIsOpen())) { pvPendingFile = file; pvPaint(); return; }   // refermé pendant la feuille : rangée après le code
+  if (res === 'locked' || (res && !vaultIsOpen())) {   // refermé pendant la feuille : rangée après le code, si on est resté dans le coffre
+    if (currentView() === 'photo-vault') { pvPendingFile = file; pvPaint(); }
+    return;
+  }   // refermé pendant la feuille : rangée après le code
   if (!res) return;
   try {
     const rec = await photoFromFile(file, res);
@@ -480,7 +483,7 @@ async function newPhotoSheet(file) {
     await pvLoadPhotos();
     showToast(`Photo rangée dans le coffre · ${fmtBytes(rec.bytes)}`);
   } catch {
-    if (!vaultIsOpen()) { pvPendingFile = file; pvPaint(); return; }   // refermé pendant la préparation : rangée après le code
+    if (!vaultIsOpen()) { if (currentView() === 'photo-vault') { pvPendingFile = file; pvPaint(); } return; }   // refermé pendant la préparation
     showToast('Photo illisible ou stockage indisponible', { error: true });
   }
 }

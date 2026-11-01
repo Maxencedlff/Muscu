@@ -455,7 +455,7 @@ body.light .imp__ctl { background: var(--cell); }
 .pgal__pose { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: var(--r-pill); background: var(--scrim); color: var(--white); font-size: var(--fs-caption2); font-weight: 600; }
 /* Avant / après : deux photos superposées, un curseur découvre celle d'avant (js/features/photo-vault-ui.js) */
 .pcmp__frame {
-  position: relative; aspect-ratio: 3 / 4; max-height: 62dvh; max-width: 100%; margin: 0 auto; border-radius: var(--r-md); overflow: hidden;
+  position: relative; aspect-ratio: 3 / 4; max-height: 54dvh; max-width: 100%; margin: 0 auto; border-radius: var(--r-md); overflow: hidden;
   background: var(--cell2); touch-action: pan-y; cursor: ew-resize; -webkit-user-select: none; user-select: none;
 }
 .pcmp__frame .pcmp__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
@@ -495,22 +495,24 @@ body.light .imp__ctl { background: var(--cell); }
   display: flex; align-items: center; justify-content: center; margin-bottom: 18px;
 }
 .pv-glyph--sm { width: 56px; height: 56px; margin-bottom: 14px; }
+.photo-vault #pvTitle:focus { outline: none; }   /* focus posé par le code pour VoiceOver, pas d'anneau à l'écran */
 .pv-title { font-size: var(--fs-title2); line-height: 1.6rem; font-weight: 600; letter-spacing: -.01em; }
 .pv-sub { min-height: 2.4em; margin-top: 6px; padding: 0 var(--gutter); font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); }
 .pv-sub--err { color: var(--red-text); }
 .pv-wait { margin: -2px 0 6px; font-size: var(--fs-footnote); color: var(--label); font-weight: 600; }
 /* Présentation (premier accès) */
-.pv-intro { padding: 28px var(--gutter) 24px; max-width: 420px; margin: 0 auto; width: 100%; }
+.pv-intro { padding: 16px var(--gutter) 24px; max-width: 420px; margin: 0 auto; width: 100%; }
 .pv-intro .pv-title { font-size: var(--fs-title1); line-height: 2rem; font-weight: 700; }
 .pv-lead { margin-top: 8px; color: var(--label2); font-size: var(--fs-callout); line-height: 1.3rem; }
-.pv-feats { list-style: none; margin: 28px 0 8px; display: flex; flex-direction: column; gap: 18px; text-align: left; width: 100%; }
+.pv-feats { list-style: none; margin: 22px 0 4px; display: flex; flex-direction: column; gap: 14px; text-align: left; width: 100%; }
 .pv-feat { display: flex; gap: 14px; align-items: flex-start; }
 .pv-feat__icon { flex-shrink: 0; width: 28px; color: var(--tint); display: flex; justify-content: center; padding-top: 1px; }
 .pv-feat__body { display: flex; flex-direction: column; gap: 2px; }
 .pv-feat__title { font-weight: 600; font-size: var(--fs-subhead); }
 .pv-feat__sub { color: var(--label2); font-size: var(--fs-footnote); line-height: 1.059rem; }
 .pv-note { margin-top: 14px; font-size: var(--fs-footnote); color: var(--label); background: var(--fill2); border-radius: var(--r-sm); padding: 10px 14px; width: 100%; }
-.pv-cta { margin-top: 28px; min-height: 50px; }
+.pv-cta { margin-top: 22px; min-height: 50px; }
+.pv-intro .pv-glyph { width: 64px; height: 64px; margin-bottom: 12px; }
 /* Clavier du code, sur le modèle de l'écran de code d'iOS */
 /* Touches : la hauteur qui reste une fois le titre, les points et le lien placés, entre barre et tab bar */
 .pv-lock {
@@ -522,6 +524,10 @@ body.light .imp__ctl { background: var(--cell); }
   .pv-lock .pv-glyph--sm { display: none; }
   .pv-lock .pv-link { margin-top: 8px; }
   .pv-pad { row-gap: 10px; }
+  .pv-intro { padding-top: 4px; }
+  .pv-intro .pv-glyph { display: none; }
+  .pv-feats { margin: 16px 0 0; gap: 10px; }
+  .pv-cta { margin-top: 16px; }
 }
 .pv-dots { display: flex; gap: 16px; margin: 6px 0 26px; }
 .pv-dot { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--label); transition: background-color .12s; }
