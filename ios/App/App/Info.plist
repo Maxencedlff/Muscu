@@ -53,6 +53,8 @@
 	<string>MDLF Training ouvre ta photothèque pour choisir une photo de progression, qui reste sur ton iPhone.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>MDLF Training enregistre l'image de ta séance dans Photos quand tu choisis « Enregistrer l'image ».</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>MDLF Training utilise Face ID pour ouvrir ton coffre à photos de progression, sans taper ton code.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>MDLF Training lit ton poids dans Santé pour suivre ta prise de masse à côté de tes charges, tes courses et sorties vélo (Apple Watch, Strava…) pour les afficher dans ton historique et tenir compte de la fatigue de tes jambes, et ton sommeil pour afficher ta nuit à côté de ta récupération. Ces données restent sur ton iPhone.</string>
 	<key>NSHealthUpdateUsageDescription</key>
