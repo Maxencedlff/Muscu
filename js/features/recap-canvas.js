@@ -248,7 +248,8 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
 
   // Personnage : grand et centré (profil), à droite du haut (résumé)
   if (fig && !sideFig) blocks.push({ h: 0, flex: true, figure: fig });
-  if (page.pills?.length) blocks.push(pills(page.pills.map(([l, v]) => `${l} ${v}`), true));
+  // Profil : les pastilles partent avant les lignes de preuve (le personnage montre déjà les muscles)
+  if (page.pills?.length) blocks.push({ ...pills(page.pills.map(([l, v]) => `${l} ${v}`), true), ...(page.id === 'profile' ? { optional: 1 } : {}) });
 
   // Tuiles 2 × 2
   if (page.tiles?.length) {
@@ -265,10 +266,12 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
 
   // Liste (autres records avec leur gain, paliers de séances) : nom à gauche, valeur à droite, gain dessous
   if (page.list?.length) {
-    if (page.listTitle) blocks.push(para(page.listTitle.toLocaleUpperCase('fr-FR'), R.SMALL, 800, .8, maxW, 1, { optional: 1 }));
-    const rows = page.list.map(x => [x.name, x.value, x.gain || '']).concat(page.more ? [[page.more, '', '']] : []);
-    const rhOf = r => (r[2] ? 120 : 84), h = rows.reduce((a, r) => a + rhOf(r), 0) + 24;
-    blocks.push({ h, optional: 1, draw: y => {
+    // Faute de place, la liste perd ses dernières lignes (fewer) ; son titre ne reste jamais seul (needs)
+    const all = page.list.map(x => [x.name, x.value, x.gain || '']).concat(page.more ? [[page.more, '', '']] : []);
+    const rhOf = r => (r[2] ? 120 : 84);
+    const listBlock = rows => {
+      const h = rows.reduce((a, r) => a + rhOf(r), 0) + 24;
+      return { h, optional: 1, fewer: rows.length > 1 ? () => listBlock(rows.slice(0, -1)) : null, draw: y => {
       ctx.globalAlpha = .1; ctx.fillStyle = c.fg; roundRect(ctx, SIDE, y, maxW, h, 36); ctx.fill(); ctx.globalAlpha = 1;
       let ry = y + 12;
       rows.forEach(([name, val, gain], i) => {
@@ -280,7 +283,11 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
         if (gain) text(gain, f(700, R.SMALL), .7, base + 46, SIDE + 40, maxW - 80);
         ry += rh;
       });
-    } });
+    } };
+    };
+    const list = listBlock(all);
+    if (page.listTitle) blocks.push(para(page.listTitle.toLocaleUpperCase('fr-FR'), R.SMALL, 800, .8, maxW, 1, { optional: 1, needs: 'list' }));
+    blocks.push({ ...list, role: 'list' });
   }
   // Lignes du résumé : le libellé en petit, la valeur dessous en gras (jamais coupée par la valeur d'à côté).
   // Faute de place, les lignes partent une à une depuis la dernière (fewer), pas tout l'encart.
@@ -344,9 +351,8 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
 
   const { blocks, sideFig } = recapBlocks(ctx, page, st, c, f, assets, maxW);
   const total = list => list.reduce((a, b) => a + b.h, 0) + Math.max(0, list.length - 1) * R.GAP;
-  // Trop haut : on retire d'abord la liste, puis la courbe
   let shown = blocks;
-  const FIG_MIN = 460;   // personnage du profil : jamais plus petit (on retire d'abord les lignes facultatives)
+  const FIG_MIN = 340;   // personnage du profil : jamais plus petit ; assez bas pour garder les lignes de preuve (moment, groupes)
   const need = list => total(list) + (list.some(b => b.flex) ? FIG_MIN : 0);
   // Trop haut : les blocs facultatifs partent un à un depuis le bas (niveau 1, puis 2) ; un bloc qui sait
   // se raccourcir (fewer : lignes du résumé) perd d'abord ses dernières lignes
@@ -355,9 +361,10 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
       const i = shown.findLastIndex(b => b.optional === level);
       if (i < 0) break;
       const b = shown[i];
-      if (b.fewer) shown[i] = b.fewer(); else shown.splice(i, 1);
+      if (b.fewer) shown[i] = { ...b.fewer(), role: b.role }; else shown.splice(i, 1);
     }
   }
+  shown = shown.filter(b => !b.needs || shown.some(x => x.role === b.needs));   // titre sans sa liste : retiré
   // Encore trop haut : courbe et barres se tassent (jamais sous minH)
   let over = need(shown) - (bottom - top);
   for (const b of shown) if (over > 0 && b.minH) { const cut = Math.min(over, b.h - b.minH); b.h -= cut; over -= cut; }
