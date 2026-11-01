@@ -54,14 +54,14 @@ do $$
 declare p jsonb;
 begin
   perform pg_temp.plogin('a');
-  if public.push_prefs() is distinct from '{"reactions": false, "follows": false, "coach": false}'::jsonb then raise 'défaut : %', public.push_prefs(); end if;
+  if public.push_prefs() is distinct from '{"reactions": false, "follows": false, "coach": false, "comments": false, "messages": false}'::jsonb then raise 'défaut : %', public.push_prefs(); end if;
   if pg_temp.perr($q$ select public.push_register('pas-un-jeton', 'production') $q$) is distinct from 'invalid_token' then raise 'jeton invalide accepté'; end if;
   if pg_temp.perr(format($q$ select public.push_register(%L, 'production') $q$, upper(pg_temp.tok('a')))) is distinct from 'invalid_token' then raise 'majuscules acceptées'; end if;
   if pg_temp.perr(format($q$ select public.push_register(%L, 'beta') $q$, pg_temp.tok('a'))) is distinct from 'invalid_token' then raise 'environnement inconnu accepté'; end if;
   perform public.push_register(pg_temp.tok('a'), 'production');
   perform public.push_register(pg_temp.tok('a'), 'production');   -- relancé à chaque démarrage : une seule ligne
   p := public.push_set_prefs(true, null, null);
-  if p is distinct from '{"reactions": true, "follows": false, "coach": false}'::jsonb then raise 'réglage : %', p; end if;
+  if p is distinct from '{"reactions": true, "follows": false, "coach": false, "comments": false, "messages": false}'::jsonb then raise 'réglage : %', p; end if;
   -- B : un appareil, rien d'allumé ; D : tout allumé, aucun appareil
   perform pg_temp.plogin('b');
   perform public.push_register(pg_temp.tok('b'), 'sandbox');

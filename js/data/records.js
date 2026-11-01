@@ -306,8 +306,9 @@ function priorSetsIndex() {
 
 // Records d'une séance de l'historique : ceux notés (revalidés : une sauvegarde importée peut contenir
 // n'importe quoi, records: [null] par exemple), sinon (séance d'avant les records notés) recalculés
+// (legacyRecords, gardés en cache tant que l'historique ne change pas)
 function entryRecords(h, history = data.history) {
-  return Array.isArray(h?.records) ? cleanNotedRecords(h.records) : sessionRecords(h, history);
+  return Array.isArray(h?.records) ? cleanNotedRecords(h.records) : legacyRecords(h, history);
 }
 
 // Records notés à nouveau pour les séances de la même séance type (programme et séance) que `ref`, à
@@ -370,6 +371,58 @@ function cleanNotedRecords(v) {
 // Le plus marquant d'une liste de records notés, null sans
 function topNotedRecord(records) {
   return (records || []).reduce((b, r) => (betterNoted(r, b) ? r : b), null);
+}
+
+// Records récents de Mon profil : les `max` derniers records notés (entryRecords), un par exercice (le plus
+// récent), du plus récent au plus ancien ; dans une même séance, le plus marquant d'abord. Seules les `scan`
+// dernières séances sont lues. Une séance notée (h.records) se lit telle quelle ; une séance d'avant les
+// records notés se recalcule sur l'historique (sessionRecords relit toute la séance type), une fois tant que
+// l'historique garde la même empreinte (legacyRecords) : Mon profil se redessine sans tout recalculer.
+// [{ ex, date, r }] (r : élément noté, ex : nom de l'exercice)
+function recentRecords(history = data.history, max = 3, scan = 60) {
+  const out = [], seen = new Set();
+  const latest = (history || []).filter(h => h && Number.isFinite(h.date)).sort((a, b) => b.date - a.date).slice(0, scan);
+  for (const h of latest) {
+    const recs = entryRecords(h, history).slice().sort((a, b) => NOTED_RANK[b.kind] - NOTED_RANK[a.kind]);
+    for (const r of recs) {
+      const k = normName(r.ex);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({ ex: r.ex, date: h.date, r });
+      if (out.length >= max) return out;
+    }
+  }
+  return out;
+}
+
+// Records recalculés d'une séance d'avant les records notés, gardés par séance tant que l'historique a la
+// même empreinte : même tableau, nombre de séances, plus récente, unité et version des données (dataVersion,
+// +1 à chaque save(), js/data/store.js : séance passée modifiée, exercice renommé). Le résultat est partagé : les appelants le copient avant de le trier.
+const legacyRecordsCache = new WeakMap();
+function legacyRecords(h, history) {
+  if (!h || !Array.isArray(history)) return sessionRecords(h, history);
+  const key = `${dataVersion}:${history.length}:${history[0]?.id}:${history[0]?.date}:${data.unit}`;
+  const hit = legacyRecordsCache.get(h);
+  if (hit?.history === history && hit.key === key) return hit.recs;
+  const recs = sessionRecords(h, history);
+  legacyRecordsCache.set(h, { history, key, recs });
+  return recs;
+}
+
+// Gain d'un record sur la valeur d'avant, sans signe (la flèche ↑ est dessinée à côté) : « 2,5 kg »,
+// « 1 rep », « 15 s », « 5 min », « 1,2 km ». '' sans valeur d'avant, et quand mieux veut dire moins
+// (aide, allure) : une flèche montante y tromperait.
+function recordGainTxt(r) {
+  if (r?.before == null || !(r.after > r.before)) return '';
+  const d = round3(r.after - r.before);
+  switch (r.kind) {
+    case 'charge': case 'lest': return `${fmtW(d)} ${unitLbl()}`;
+    case 'reps':     return plural(d, 'rep', 'reps');
+    case 'temps':    return fmtSeconds(d);
+    case 'duree':    return `${fmtNum(d)} min`;
+    case 'distance': return `${fmtNum(d)} km`;
+  }
+  return '';
 }
 
 // ── Badges en direct de la séance ───────────────────────────

@@ -15,6 +15,11 @@
   font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); text-transform: uppercase;
   padding: 22px 16px 7px;
 }
+/* Grand titre de section, façon iOS (Mon profil : « Mes séances », « Records », « Activité ») */
+.group-title--large {
+  margin: 0; padding: 28px 4px 8px; font-size: var(--fs-title2); line-height: 1.25; font-weight: 700;
+  color: var(--label); text-transform: none;
+}
 .group-title--row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .group-title__btn {
   border: none; background: none; color: var(--tint); font: inherit; font-size: 0.882rem; text-transform: none;
@@ -284,6 +289,13 @@ html.type-xl .chart-bubble { white-space: normal; }
 .visually-hidden {
   position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
   overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+/* Phrase pour VoiceOver seule, en texte brut (sans élément dedans) : comme .visually-hidden mais le texte
+   revient à la ligne (white-space: normal, même sous un parent en nowrap). Une ligne forcée dans 1 px
+   passerait pour un texte coupé aux contrôles (verif_ui --ux) ; VoiceOver lit le texte tel quel. */
+.sr-text {
+  position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: normal;
 }
 
 /* Cibles tactiles : 44 pt au moins, zone de tap agrandie sans changer le visuel */

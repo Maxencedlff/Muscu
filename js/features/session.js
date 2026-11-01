@@ -339,6 +339,8 @@ function renderGroupCard(members, cur, tags) {
 
 // Série validée : ligne en lecture seule, rouverte en édition au tap ; sous la ligne, dans une même rangée :
 // le badge de record (liveSetBadge, js/data/records.js : toutes les mesures), l'allure et le niveau en cardio
+// VoiceOver : la phrase (texte masqué) est l'intitulé, les cases affichées sont cachées aux lecteurs d'écran
+// (un aria-label qui ne reprend pas « 60 », « 10 »… échoue à WCAG 2.5.3)
 function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const m      = measureOf(ex), M = MEASURES[m];
   const warm   = isWarmupSet(s);
@@ -356,14 +358,14 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   return `
       <div class="set-swipe">
         ${del}
-        <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"
-             aria-label="${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier">
-          ${setNumHtml(ex, si, tag)}
-          <span class="set-prev num">${prev}</span>
-          <span class="set-val num">${first || '—'}</span>
-          <span class="set-val num">${esc(s.reps)}</span>
-          <span class="set-check-zone"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
-          ${record || pace || mach ? `<span class="set-badge">${record ? `<span class="pr-badge">${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
+        <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0">
+          <span class="sr-text">${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
+          ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}
+          <span class="set-prev num" aria-hidden="true">${prev}</span>
+          <span class="set-val num" aria-hidden="true">${first || '—'}</span>
+          <span class="set-val num" aria-hidden="true">${esc(s.reps)}</span>
+          <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
+          ${record || pace || mach ? `<span class="set-badge" aria-hidden="true">${record ? `<span class="pr-badge">${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
         </div>
         ${rir}
       </div>`;
@@ -744,6 +746,6 @@ registerActions({
     ex.bumped = true;
     haptic();
     render();
-    showToast(`Charge augmentée : ${bumpLabel()}`);
+    showToast(`Charge augmentée de ${bumpLabel()}`);
   },
 });

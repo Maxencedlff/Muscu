@@ -227,6 +227,43 @@ function activityText(row, sessionLabel = '') {
   return { follower: 'a commencé à te suivre', accepted: 'a accepté ta demande', request: 'veut voir tes séances' }[row.kind];
 }
 
+// Activité de Mon profil, groupée : les réactions à une même séance tiennent en une ligne dès qu'il y en a
+// deux (« 3 réactions sur Push de vendredi ») ; une réaction seule, un commentaire (son texte compte), un
+// abonné ou une demande restent des lignes à part. Ordre d'arrivée gardé (du plus récent au plus ancien),
+// un groupe à la place de sa réaction la plus récente.
+// [{ kind: 'single', row } | { kind: 'reactions', sessionId, rows }]
+function groupActivity(rows) {
+  const out = [], bySession = new Map();
+  (rows || []).forEach(a => {
+    if (a.kind !== 'reaction' || !a.sessionId) { out.push({ kind: 'single', row: a }); return; }
+    let g = bySession.get(a.sessionId);
+    if (!g) { g = { kind: 'reactions', sessionId: a.sessionId, rows: [] }; bySession.set(a.sessionId, g); out.push(g); }
+    g.rows.push(a);
+  });
+  return out.map(g => (g.kind === 'reactions' && g.rows.length === 1 ? { kind: 'single', row: g.rows[0] } : g));
+}
+// Jour d'une séance dans une phrase : « d'aujourd'hui », « d'hier », « de vendredi » (cette semaine
+// glissante), puis « du 28 oct. » ; '' sans date
+function sessionDayTxt(ts, now = Date.now()) {
+  if (!Number.isFinite(ts)) return '';
+  const d = daysAgo(ts, now);
+  if (d <= 0) return 'd\'aujourd\'hui';
+  if (d === 1) return 'd\'hier';
+  if (d < 7) return `de ${new Date(ts).toLocaleDateString('fr-FR', { weekday: 'long' })}`;
+  return `du ${fmtDate(ts, 'short')}`;
+}
+// Phrase d'un groupe de réactions : « 3 réactions sur Push de vendredi » (texte brut). label : nom de la
+// séance (cet appareil, sinon le serveur) ; at : sa date, si elle est connue
+function reactionsGroupText(count, label, at, now = Date.now()) {
+  const day = sessionDayTxt(at, now);
+  return `${plural(count, 'réaction', 'réactions')} sur ${label || 'ta séance'}${day ? ` ${day}` : ''}`;
+}
+// Qui a réagi, en une ligne courte : « lea, paul +1 » (deux pseudos au plus, puis le reste en nombre)
+function reactorsLine(names, shown = 2) {
+  const uniq = [...new Set(names)];
+  return uniq.length > shown ? `${uniq.slice(0, shown).join(', ')} +${uniq.length - shown}` : uniq.join(', ');
+}
+
 // « à l'instant », « il y a 5 min », « il y a 2 h », « hier », « il y a 3 j », puis la date
 function fmtAgo(at, now = Date.now()) {
   const s = Math.max(0, Math.round((now - at) / 1000));

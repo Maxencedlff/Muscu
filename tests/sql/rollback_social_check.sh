@@ -2,7 +2,7 @@
 # Retours arrière des commentaires et du chat coach (supabase/rollback/20261031510000_chat_coach_down.sql
 # puis 20261031500000_commentaires_down.sql), sur un Postgres local jetable comme run.sh : toutes les
 # migrations, un commentaire, un signalement et un message, les deux retours arrière, puis vérification
-# que tout est parti et que les tests d'avant (*_test.sql sauf commentaires et chat) passent encore.
+# que tout est parti et que les tests d'avant (*_test.sql sauf commentaires, chat et leurs notifications push_messages) passent encore.
 # Lancer : bash tests/sql/rollback_social_check.sh
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -44,7 +44,7 @@ psql -c "do \$\$ begin
      or (select array_length(proallargtypes, 1) from pg_proc where proname = 'my_activity') <> 12 then raise 'my_activity : forme'; end if;
 end \$\$;"
 for t in "$here"/*_test.sql; do
-  case "$(basename "$t")" in commentaires_test.sql|chat_coach_test.sql) continue ;; esac
+  case "$(basename "$t")" in commentaires_test.sql|chat_coach_test.sql|push_messages_test.sql) continue ;; esac
   psql -f "$t"
 done
 echo "OK : retours arrière des commentaires et du chat, tests d'avant verts"

@@ -86,8 +86,14 @@ function feedListHtml(key, { owner = true, empty }) {
     return `<div class="empty-note">${empty}</div>`;
   }
   const more = !f.end ? `<button class="btn-more" data-action="social-more" data-key="${esc(key)}" ${f.loading ? 'disabled' : ''}>${f.loading ? 'Chargement…' : 'Afficher plus'}</button>` : '';
-  const err = f.error ? `<p class="social-inline-error" role="status">${esc(f.error === 'offline' ? 'Pas d\'Internet : fil pas à jour.' : socialErrorText(f.error))}</p>` : '';
-  return `${err}<div class="feed">${cards}</div>${more}`;
+  return `${feedErrorNote(f.error)}<div class="feed">${cards}</div>${more}`;
+}
+
+// Note au-dessus d'un fil déjà affiché quand le rafraîchissement échoue (hors ligne ou erreur) : le fil et
+// l'aperçu des séances de Mon profil (meSessionsHtml, js/features/social-me-ui.js) ; '' sans erreur
+function feedErrorNote(error) {
+  if (!error) return '';
+  return `<p class="social-inline-error" role="status">${esc(error === 'offline' ? 'Pas d\'Internet : fil pas à jour.' : socialErrorText(error))}</p>`;
 }
 
 // Ligne d'une personne : avatar et pseudo (vers son profil), puis une action à droite

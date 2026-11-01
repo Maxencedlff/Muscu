@@ -164,8 +164,9 @@
 }
 /* Allure d'une série cardio validée (« 5:12 /km », « 24,5 km/h ») : même gabarit que le record, sans or ;
    réglage de la machine noté au chrono (« niveau moy. 9,4 ») à côté */
+/* Texte en --label : --label2 sur --fill ne fait que 4,42:1 en sombre (WCAG AA : 4,5:1 à cette taille) */
 .session-set .pace-badge, .session-set .mach-badge {
-  display: inline-block; background: var(--fill); color: var(--label2);
+  display: inline-block; background: var(--fill); color: var(--label);
   font-size: 0.706rem; font-weight: 600; padding: 2px 8px; border-radius: var(--r-xs);
 }
 .session-set .set-badge { display: flex; flex-wrap: wrap; gap: 4px; }

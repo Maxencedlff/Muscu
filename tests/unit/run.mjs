@@ -27,6 +27,8 @@ const SCRIPTS = [
   'js/data/plates.js',
   'js/data/warmup.js',
   'js/data/rir.js',
+  'js/data/strength-standards.js',
+  'js/data/strength-levels.js',
   'js/data/body-measures.js',
   'js/data/store.js',
   'js/data/records.js',
@@ -233,22 +235,22 @@ function seedPull(sets, extra = {}) {
 test('exerciseTarget : +1 rep sous le haut de la fourchette, palier de charge au-dessus', () => {
   reset();
   let ex = seedPull([{ weight: '30', reps: '10' }, { weight: '32', reps: '9' }, { weight: '32', reps: '8' }]);
-  sameJSON(app.exerciseTarget('pull', ex), { text: '32 kg × 10', gain: '+1 rep' });
+  sameJSON(app.exerciseTarget('pull', ex), { text: '32 kg × 10', gain: '1 rep', before: '32 kg × 9' }, 'dernière fois : la meilleure série');
   ex = seedPull([{ weight: '32', reps: '12' }, { weight: '32', reps: '12' }, { weight: '32', reps: '12' }]);
-  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg', gain: '+2,5 kg' });
+  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg', gain: '2,5 kg', before: '32 kg × 12' });
   ex = seedPull([{ weight: '32', reps: '8' }, { weight: '32', reps: '8' }], { repMax: 8 });
-  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg', gain: '+2,5 kg' }, 'fourchette réglée sur l\'exercice');
+  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg', gain: '2,5 kg', before: '32 kg × 8' }, 'fourchette réglée sur l\'exercice');
   ex = seedPull([{ weight: '', reps: '15' }]);
-  sameJSON(app.exerciseTarget('pull', ex), { text: '16 reps', gain: '+1 rep' }, 'poids du corps : jamais de palier de charge');
+  sameJSON(app.exerciseTarget('pull', ex), { text: '16 reps', gain: '1 rep', before: '15 reps' }, 'poids du corps : jamais de palier de charge');
   run('data.history = []');
-  sameJSON(app.exerciseTarget('pull', ex), { text: '3 séries', gain: '' }, 'jamais fait');
+  sameJSON(app.exerciseTarget('pull', ex), { text: '3 séries', gain: '', before: '' }, 'jamais fait');
 });
 
 test('exerciseTarget en lbs : palier de 5 lb', () => {
   reset({ unit: 'lbs' });
   const ex = seedPull([{ weight: '20', reps: '12' }, { weight: '20', reps: '12' }]);
   const t = app.exerciseTarget('pull', ex);
-  assert.equal(t.gain, '+5 lb');
+  assert.equal(t.gain, '5 lb');
   assert.equal(t.text, '49,1 lbs');
 });
 
@@ -1519,10 +1521,15 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 // ── Coffre à photos : code, chiffrement, essais, verrouillage (tests dans photo-vault.mjs) ──
 (await import('./photo-vault.mjs')).default({ test, run, assert, app });
 
+// ── Accueil et Mon profil : régularité, membre depuis, records récents, activité groupée (tests dans profile.mjs) ──
+(await import('./profile.mjs')).default({ test, run, reset, assert, app, sameJSON });
+
 // ── Santé détaillée : entraînements d'une séance, sommeil (tests dans health.mjs) ──
 (await import('./health.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Notifications push : fonction serveur push-send (tests dans push.mjs) ──
 (await import('./push.mjs')).default({ test, run, assert, sameJSON, ROOT });
+// ── Niveau de force (tests dans strength-levels.mjs) ──
+(await import('./strength-levels.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Exécution ───────────────────────────────────────────────
 

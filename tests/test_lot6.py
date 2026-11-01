@@ -140,7 +140,7 @@ def t_views(bench, eng, dev, theme):
         page.locator('[data-action="validate-set"][data-ei="0"][data-si="0"]').click()
         page.wait_for_timeout(500)
         R.check(page.locator('[data-action="validate-set"][data-ei="0"][data-si="1"]').get_attribute('aria-label') == 'Valider la série 2, Développé couché haltères', f'{t} série 1 faite : la 2 se valide')
-        lbl = page.locator('.session-set--done').first.get_attribute('aria-label') or ''
+        lbl = page.locator('.session-set--done .sr-text').first.text_content() or ''
         R.check(lbl.startswith('Série 1 validée, 32,5 kilos, 10 répétitions'), f'{t} libellé série validée ({lbl})')
         R.check(page.locator('[role="timer"][aria-live="off"]').count() >= 1, f'{t} chrono role=timer aria-live=off')
         R.check(page.locator('.rest-mini [aria-label="Moins 15 secondes"]').count() == 1 and page.locator('.rest-mini [aria-label="Passer le repos"]').count() == 1, f'{t} libellés du repos')
@@ -233,6 +233,13 @@ def t_landscape(bench):
         page.locator('[data-action="validate-set"][data-ei="0"][data-si="0"]').click()
         page.wait_for_timeout(400)
         page.click('[data-action="expand-rest"]'); page.wait_for_timeout(500)
+        # La feuille monte en glissant : sur la CI (lente), 500 ms ne suffisent pas toujours. On attend
+        # qu'elle soit arrivée (au plus 3 s) ; si elle ne tient jamais dans l'écran, la vérification échoue
+        try:
+            page.wait_for_function("""() => { const p = document.querySelector('.sess-sheet__panel');
+                return p && p.getAnimations({ subtree: true }).every(a => a.playState !== 'running') && p.getBoundingClientRect().bottom <= innerHeight + 1; }""", timeout=3000)
+        except Exception:
+            pass
         g = page.evaluate("""() => { const p = document.querySelector('.sess-sheet__panel').getBoundingClientRect();
             const b = document.querySelector('.sess-sheet--rest [data-action="collapse-rest"]');
             const br = b && b.getBoundingClientRect(); const t = document.querySelector('.rs__time');
