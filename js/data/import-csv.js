@@ -512,6 +512,9 @@ function matchImportedExercise(raw) {
 function importFingerprint(date, names) {
   return `${Math.floor(date / 60000)}|${[...new Set(names.map(normName))].sort().join('|')}`;
 }
+// Débuts possibles d'une séance de l'historique : date − durée (date = fin, comme une séance faite dans
+// l'app), et la date elle-même (séances importées avant le 01/11/2026, datées de leur début)
+const importStartsOf = h => (h.duration > 0 ? [h.date - h.duration, h.date] : [h.date]);
 
 // Charge du fichier → charge stockée (kg, chaîne) ; '' si absente
 function importWeight(w, unit) {
@@ -570,10 +573,11 @@ function applyImport(plan, { links = {}, keepWarmups = false, unit = null } = {}
     const linked = typeof links[raw] === 'string' ? catalogueEntry(links[raw])?.name : null;
     finalName.set(raw, linked || match || raw);
   }
-  const seen = new Set((d.history || []).map(h => importFingerprint(h.date, (h.exercises || []).map(e => e.name))));
+  // Comparaison sur la minute de début (celle du fichier)
+  const seen = new Set((d.history || []).flatMap(h => importStartsOf(h).map(t => importFingerprint(t, (h.exercises || []).map(e => e.name)))));
   // Séances déjà importées de cette app : même minute et même nombre d'exercices suffit (les noms ont pu
   // changer par un lien posé à la main lors d'un import précédent)
-  const sameApp = new Set((d.history || []).filter(h => h.programme === pm.id).map(h => `${Math.floor(h.date / 60000)}|${(h.exercises || []).length}`));
+  const sameApp = new Set((d.history || []).filter(h => h.programme === pm.id).flatMap(h => importStartsOf(h).map(t => `${Math.floor(t / 60000)}|${(h.exercises || []).length}`)));
   // Programme d'accueil : créé s'il n'existe pas ; ses séances existantes ne sont pas touchées
   const up = d.userProgrammes[pm.id] || (d.userProgrammes[pm.id] = { name: pm.name, sessions: {}, archived: false });
   if (up.archived) up.archived = false;   // réimport après une suppression du programme : il revient
@@ -607,7 +611,8 @@ function applyImport(plan, { links = {}, keepWarmups = false, unit = null } = {}
       up.sessions[cat] = { label: s.title.slice(0, IMPORT_MAX_LABEL), icon: '', desc: '', color: IMPORT_COLORS[Object.keys(up.sessions).length % IMPORT_COLORS.length] };
       newCats.add(cat);
     }
-    const entry = { id: uid(), programme: pm.id, category: cat, date: s.date, exercises };
+    // Date = fin de la séance, comme une séance faite dans l'app (récaps, Santé : début = date − durée)
+    const entry = { id: uid(), programme: pm.id, category: cat, date: s.date + (s.duration || 0), exercises };
     if (s.duration) entry.duration = s.duration;
     if (s.notes) entry.notes = s.notes;
     entries.push(entry);
