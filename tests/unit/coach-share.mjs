@@ -22,7 +22,10 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     } };
   })()`);
   const teardown = () => run('sb = null; account.user = null; coach.state = null; coachShareReset(null); delete globalThis.__calls; delete globalThis.__answers;');
-  const calls = () => run('__calls').map(c => c[0]);
+  // Seulement les appels du partage : un autre module peut lire le serveur au même moment (my_access du
+  // payant, déclenché par un minuteur), ce n'est pas l'objet de ces tests
+  const shareLog = () => run('__calls').filter(c => c[0].startsWith('student_'));
+  const calls = () => shareLog().map(c => c[0]);
 
   test('partage coach : données prévues dans le modèle, seul le poids affiché ; mêmes données que le serveur', () => {
     sameJSON(run('COACH_SHARE_KINDS.map(k => k.kind)'), ['weight', 'sleep', 'steps', 'resting_hr']);
@@ -89,7 +92,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       run(`__answers.student_set_share = a => a.enabled ? ${JSON.stringify(on)} : { coach: true, shares: {} }`);
       run(`__answers.student_share_weights = a => a.weights.length`);
       sameJSON((await run(`coachShareSet('weight', true)`)).ok, true);
-      sameJSON(run('__calls'), [['student_set_share', { kind: 'weight', enabled: true }], ['student_share_weights', { weights: run('sharedWeightsPayload()') }]]);
+      sameJSON(shareLog(), [['student_set_share', { kind: 'weight', enabled: true }], ['student_share_weights', { weights: run('sharedWeightsPayload()') }]]);
       assert.equal(run('coachShareSummary()'), 'Poids du corps');
       assert.equal(run('coachShare.state.shares.weight.n'), 1);
       // Relecture sans changement : rien de renvoyé
@@ -101,10 +104,10 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       run('coachShareWeightsChanged()');
       await run('Promise.resolve()'); await new Promise(r => setTimeout(r, 0));
       assert.equal(calls().at(-1), 'student_share_weights');
-      assert.equal(run('__calls').at(-1)[1].weights.length, 2);
+      assert.equal(shareLog().at(-1)[1].weights.length, 2);
       // Décocher : appel au serveur (qui efface tout), empreinte locale oubliée
       await run(`coachShareSet('weight', false)`);
-      sameJSON(run('__calls').at(-1), ['student_set_share', { kind: 'weight', enabled: false }]);
+      sameJSON(shareLog().at(-1), ['student_set_share', { kind: 'weight', enabled: false }]);
       assert.equal(run('localStorage.getItem(COACH_SHARE_KEY)'), null);
       assert.equal(run('coachShareOn("weight")'), false);
       run('coachShareWeightsChanged()');

@@ -150,7 +150,8 @@ for (( i=${#to_apply[@]}-1; i>=0; i-- )); do
     same apres schema "$(sed 's/\.sql$/.schema/' "$tmp/P_$t")" "retour arrière du modèle B : schéma d'avant"
     snap apres full > "$tmp/now.sql"
     extra=$(diff "$(cat "$tmp/P_$t")" "$tmp/now.sql" | /usr/bin/grep '^[<>]' \
-            | /usr/bin/grep -v 'com\.mdlf\.training\.access\.gift' | /usr/bin/grep -v 'trial.*00000000-0000-0000-0000-000000000902$' || true)
+            | /usr/bin/grep -v -P '^< .*\tG-902\tcom\.mdlf\.training\.access\.gift\t' \
+            | /usr/bin/grep -v -P '^> \\N\tf\t\\N\tf\t\\N\t\\N\ttrial\tTS\tTS\t00000000-0000-0000-0000-000000000902$' || true)
     [ -z "$extra" ] || { echo "ÉCHEC : retour arrière du modèle B, données inattendues :"; echo "$extra" | head -20; exit 1; }
   else
     same apres full "$(cat "$tmp/P_$t")" "retour arrière $(basename "$(file "$down" "$t")") : état d'avant"

@@ -9,6 +9,9 @@ export default async function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(run(`normalizeReferralCode(' lu-cas ')`), 'LUCAS');
     assert.equal(run(`normalizeReferralCode('coach.paul_2')`), 'COACHPAUL2');
     assert.equal(run(`normalizeReferralCode('ＬＵＣＡＳ')`), 'LUCAS', 'pleine chasse (clavier asiatique)');
+    // Code permanent d'un coach (12 caractères sans 0, O, 1, I) : reconnu pour le rappel « rejoins-le aussi »
+    assert.equal(run(`looksLikeCoachCode('abcd-efgh-jklm')`), true);
+    for (const c of ['LUCAS', 'ABCDEFGHJKL', 'ABCDEFGHJKLO', 'ABCDEFGHJKL1', 'ABCDEFGHJKLMN']) assert.equal(run(`looksLikeCoachCode('${c}')`), false, c);
     for (const bad of ['', 'AB', 'LUCAS!', 'élodie', 'X'.repeat(21), null, undefined, 42]) {
       assert.equal(run(`normalizeReferralCode(${JSON.stringify(bad ?? null)})`), '', `refusé : ${bad}`);
     }

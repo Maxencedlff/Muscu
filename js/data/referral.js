@@ -15,11 +15,17 @@ const REFERRAL_CACHE_KEY = 'mdlf_referral';            // { userId, name } : par
 const REFERRAL_WINDOW_MS = 30 * 86400_000;             // même règle que private.referral_window() (affichage seulement)
 const REFERRAL_CODE_RE   = /^[A-Z0-9]{3,20}$/;         // forme stockée côté serveur
 const REFERRAL_NAME_MAX  = 40;
+// Forme du code permanent d'un coach (private.coach_new_code12) : saisi ici, il parraine sans faire
+// rejoindre le coach (Amis › Rejoindre un coach) : l'app le rappelle
+const COACH_CODE_SHAPE_RE = /^[A-HJ-NP-Z2-9]{12}$/;
 
 const referral = { userId: null, state: null, loading: null, cachedName: null };
 let referralSeq = 0;   // +1 à chaque changement de compte : une réponse arrivée après n'écrit plus rien
 
 // ── Logique pure ────────────────────────────────────────────
+
+// Code saisi qui a la forme d'un code permanent de coach (12 caractères sans 0, O, 1 ni I)
+const looksLikeCoachCode = c => COACH_CODE_SHAPE_RE.test(normalizeReferralCode(c));
 
 // Saisie → forme stockée (majuscules, sans espaces, tirets, points ni soulignés), ou '' si impossible
 function normalizeReferralCode(c) {
@@ -132,7 +138,8 @@ function referralLoad() {
   return referral.loading;
 }
 
-// Saisie d'un code → { ok: true, data: { name } } ou { ok: false, kind }
+// Saisie d'un code → { ok: true, data: { name, coachCode } } ou { ok: false, kind }. coachCode : le code a
+// la forme d'un code de coach (le rappel « rejoins-le aussi » est alors utile)
 async function referralApply(code) {
   referralSync();
   const c = normalizeReferralCode(code);
@@ -145,5 +152,5 @@ async function referralApply(code) {
   if (!referrer) return { ok: false, kind: 'server' };
   referral.state = { referrer, canEnter: false, until: referral.state?.until ?? null };
   writeReferralCache();
-  return { ok: true, data: { name: referrer.name } };
+  return { ok: true, data: { name: referrer.name, coachCode: looksLikeCoachCode(c) } };
 }

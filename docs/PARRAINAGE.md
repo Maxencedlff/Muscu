@@ -138,27 +138,53 @@ sa mise en production : `coach_join` crée la ligne de `coach_links`, et le déc
 `coach_links_referral` attribue l'élève (au coach, ou au code partenaire d'un coach partenaire).
 
 **Paiements** : `public.subscription_payments`, une ligne par transaction d'Apple (achat, renouvellement,
-changement de palier), écrite par `verify-purchase` (après l'écriture de l'accès, jamais bloquant) et
-`appstore-notify` (avant l'accès : une écriture qui échoue répond 500 et Apple réessaie) par
-`public.srv_subscription_payment` (clé serveur). Prix payé en millièmes de la devise, devise, pays de la
-boutique (`storefront`), essai gratuit, environnement, date de remboursement. Compte et attribution
-rattachés par la base quel que soit l'ordre d'arrivée (paiement avant la validation de l'app, code saisi
-après le premier paiement). RLS fermée, aucun GRANT. Compte supprimé : paiements sans parrain effacés,
-ceux d'un compte parrainé gardés anonymes (sans compte ni identifiant d'Apple).
+changement de palier), écrite par `public.srv_subscription_payment` (clé serveur) depuis `verify-purchase`
+(après l'écriture de l'accès, jamais bloquant) et `appstore-notify` (après le droit d'accès : un échec
+répond 500, Apple réessaie, l'accès est déjà à jour). Prix payé en millièmes de la devise, devise, pays de
+la boutique (`storefront`), essai gratuit, environnement, date de remboursement. Noté seulement pour un
+compte retrouvé (transaction d'origine connue ou `appAccountToken` d'un compte existant) : rien pour un
+compte supprimé. Le parrain est rattaché par la base, même quand le code est saisi après le premier
+paiement. RLS fermée, aucun GRANT. Compte supprimé : paiements sans parrain effacés, ceux d'un compte
+parrainé gardés anonymes (sans compte ni identifiant d'Apple).
 
 | Accroche | Version branchée |
 | --- | --- |
 | `private.referral_resolve_coach_code(code)` | code **permanent** d'un coach validé → son compte (les codes de 7 jours servent seulement à rejoindre) |
-| `private.referral_subscribers(kind, code, coach, mois)` | comptes attribués dont une période **payée**, prise dans leurs N premiers mois d'abonnement payé, couvre une partie du mois |
-| `private.referral_net_cents(kind, code, coach, mois, months)` | Σ revenu net des paiements datés du mois − revenu net des paiements remboursés dans le mois, dans les N premiers mois de chaque compte |
+| `private.referral_subscribers(kind, code, coach, mois)` | comptes attribués dont une période comptée (ci-dessous) couvre une partie du mois |
+| `private.referral_net_cents(kind, code, coach, mois, months)` | Σ revenu net des périodes comptées achetées dans le mois − celui des périodes remboursées dans le mois ; coach : seulement ce qui a été acheté un mois où son abonnement coach était actif |
 | `private.referral_coach_active(coach, mois)` | une période d'abonnement coach de Production, non remboursée, couvre une partie du mois (essai gratuit d'Apple compris) |
 
-- Revenu net d'un paiement = prix TTC ÷ (1 + TVA du pays) × (1 − `private.referral_apple_rate()`, 15 %).
+Règles du calcul :
+
+- **12 premiers mois d'abonnement payé** : les périodes payées du compte s'additionnent dans l'ordre
+  (mois = 1, an = 12) depuis son premier paiement de Production ; une période qui dépasse la durée ne
+  compte que pour sa part (6 mensualités puis un annuel : la moitié de l'annuel). Une période remboursée
+  garde sa place (les relevés passés ne bougent pas).
+- **Pas de commission rétroactive** : une période payée avant l'adhésion à un coach consomme ses mois,
+  mais ne rapporte rien au coach. Un code saisi (30 jours après la création du compte) compte depuis le
+  début.
+- **Coach inactif** : rien sur ce qui est acheté un mois sans abonnement coach actif, et un remboursement
+  n'est repris que sur ce qui a été versé (achat d'un mois actif), même s'il tombe un mois inactif.
+  `public.referral_report` est réécrit en conséquence (il ne met plus lui-même la commission d'un coach
+  inactif à 0).
+- **Revenu net** d'un paiement = prix TTC ÷ (1 + TVA du pays) × (1 − part d'Apple). Part d'Apple : **30 %**,
+  ou 15 % pour les paiements faits depuis l'adhésion au Small Business Program, à noter le jour où Apple
+  la confirme :
+
+  ```sql
+  create or replace function private.referral_apple_small_business_since() returns timestamptz
+    language sql immutable set search_path = '' as $f$ select '2026-12-01 00:00+00'::timestamptz $f$;
+  ```
+
   TVA : taux normaux de la zone euro (`private.referral_vat_rate`). **Autre devise ou pays hors liste :
-  inconnu** (case vide dans le rapport, et le cumul du parrain devient inconnu) : le relevé d'App Store
-  Connect fait foi. C'est une estimation : contrôler chaque mois avec le relevé d'Apple avant de verser.
-- Jamais comptés : Sandbox (TestFlight, équipe d'examen d'Apple), essai gratuit, prix nul.
-- Mois découpés en UTC. « N premiers mois » : depuis le premier paiement de Production du compte.
+  inconnu** (case vide, et le cumul du parrain devient inconnu) : le relevé d'App Store Connect fait foi.
+  C'est une estimation : contrôler chaque mois avec le relevé d'Apple avant de verser.
+- Jamais comptés : Sandbox (TestFlight, équipe d'examen d'Apple), essai gratuit, prix nul. Mois en UTC.
+- Limites connues : un remboursement annulé par Apple (`REFUND_REVERSED`) n'est pas suivi ; un
+  remboursement arrivé après la suppression du compte n'est plus retrouvé.
+- **Code de coach saisi dans « Code d'un coach ou d'un ami »** : il parraine (le coach touche sa part),
+  mais ne fait pas rejoindre le coach ; l'app le rappelle (« rejoins-le aussi : Amis › Rejoindre un
+  coach »), pour le suivi des séances et l'offre élève.
 - À la validation d'un abonnement Apple, `public.referral_for_user(uid)` donne toujours le parrain.
 - Vérifié par `tests/sql/parrainage_payant_test.sql` (et `tests/sql/prod_order_test.sh` pour l'ordre de
   mise en production).

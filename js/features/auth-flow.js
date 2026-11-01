@@ -301,7 +301,8 @@ async function submitReferral() {
   if (!flow.root) return;
   if (!r.ok) { authError(referralErrorText(r.kind)); flow.root.querySelector('#authReferral')?.focus(); return; }
   haptic('success');
-  const text = `Parrainé par ${r.data.name}`;
+  // Code d'un coach : il parraine, mais ne fait pas rejoindre le coach (suivi des séances, offre élève)
+  const text = `Parrainé par ${r.data.name}` + (r.data.coachCode ? `. Pour que ${r.data.name} suive tes séances, rejoins-le aussi : Amis › Rejoindre un coach` : '');
   if (flow.mode === 'referral') { closeAuthFlow('saved'); render(); showToast(text); return; }
   announce(text);
   authBack();

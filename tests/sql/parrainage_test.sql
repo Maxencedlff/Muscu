@@ -202,11 +202,14 @@ reset role;
 
 -- ── Argent : commission, coach sans abonnement coach, report sous 20 €, virements ─
 -- Accroches du payant remplacées le temps du test (transaction annulée ensuite) : 100 € net par mois
--- pour le coach kevin.p1 (taux 15 % posé plus haut), abonnement coach inactif le mois dernier.
+-- pour le coach kevin.p1 (taux 15 % posé plus haut), abonnement coach inactif le mois dernier (net 0 ce
+-- mois-là, comme l'accroche branchée ; le rapport d'avant le branchement le mettait aussi à 0).
 begin;
 create or replace function private.referral_net_cents(kind text, code text, coach uuid, month date, months int) returns bigint
   language sql stable security definer set search_path = '' as
-$$ select case when coach = '00000000-0000-0000-0000-000000000709' then 10000::bigint end $$;
+$$ select case when coach = '00000000-0000-0000-0000-000000000709'
+              -- comme l'accroche branchée : rien d'acheté un mois où le coach était inactif
+              then case when month <> (date_trunc('month', now()) - interval '1 month')::date then 10000 else 0 end::bigint end $$;
 create or replace function private.referral_coach_active(coach uuid, month date) returns boolean
   language sql stable security definer set search_path = '' as
 $$ select month <> (date_trunc('month', now()) - interval '1 month')::date $$;

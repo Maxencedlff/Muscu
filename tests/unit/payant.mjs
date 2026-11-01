@@ -232,8 +232,8 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     const notify = fs.readFileSync(path.join(ROOT, 'supabase/functions/appstore-notify/index.ts'), 'utf8');
     const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261101000000_parrainage_payant.sql'), 'utf8');
     for (const src of [verify, notify]) assert.ok(src.includes("rpc('srv_subscription_payment', payment)"), 'appel absent');
-    // Le paiement passe AVANT la mise à jour du droit d'accès dans appstore-notify (réessai d'Apple utile)
-    assert.ok(notify.indexOf("'srv_subscription_payment'") < notify.indexOf("'srv_access_event'"), 'ordre des écritures');
+    // Le droit d'accès passe AVANT le paiement dans appstore-notify : le parrainage ne retarde jamais l'accès
+    assert.ok(notify.indexOf("rpc('srv_access_event'") < notify.indexOf("rpc('srv_subscription_payment'"), 'ordre des écritures');
     // Mêmes paramètres côté JS et côté SQL
     const m = sql.match(/create function public\.srv_subscription_payment\(([\s\S]*?)\)\s*returns jsonb/);
     const params = [...m[1].matchAll(/(p_\w+)/g)].map(x => x[1]);
