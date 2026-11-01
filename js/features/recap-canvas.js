@@ -59,17 +59,25 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
     ctx.fillText(fitText(ctx, str, w), x, y); ctx.globalAlpha = 1;
   };
   const isSummary = page.id === 'summary';
-  const fig = assets.body && (isSummary || page.id === 'profile' || page.id === 'sessions') ? assets.body : null;
-  const sideFig = page.id !== 'profile' && fig;         // résumé, ouverture : personnage à droite du chiffre
+  const fig = assets.body && (page.id === 'profile' || page.id === 'sessions') ? assets.body : null;
+  const sideFig = page.id !== 'profile' && fig;         // ouverture : personnage à droite du chiffre
   const heroW = sideFig ? maxW - 330 : maxW;
+
+  // Petit texte sur 1 à 3 lignes (pourquoi ce fait, palier, explications)
+  const para = (str, size, weight, alpha, w, maxLines, extra = {}) => {
+    ctx.font = f(weight, size);
+    const lines = recapWrap(ctx, str, w, maxLines), lh = Math.round(size * 1.3);
+    return { h: lines.length * lh, ...extra, draw: y => lines.forEach((l, i) => text(l, f(weight, size), alpha, y + lh * i + size, SIDE, w)) };
+  };
+  if (page.lead) blocks.push(para(page.lead, R.TEXT, 700, 1, maxW, 2));
 
   // Titre (profil, nom d'exercice) : grand, jusqu'à 3 lignes
   if (page.title) {
     const small = !!page.value && !isSummary;
     // Deux lignes de préférence (à la plus grande taille possible), trois seulement si le texte est long
     const fit = n => recapFitLines(ctx, page.title, maxW, small ? 76 : R.TITLE_MAX, small ? 52 : R.TITLE_MIN, n, s => f(800, s));
-    let { size, lines } = fit(small ? 2 : 2);
-    if (!small && lines.length > 2) ({ size, lines } = fit(3));
+    let { size, lines } = fit(isSummary ? 1 : 2);   // résumé : « Mon mois en bref » sur une ligne
+    if (!small && !isSummary && lines.length > 2) ({ size, lines } = fit(3));
     const lh = Math.round(size * 1.04);
     blocks.push({ h: lines.length * lh, draw: y => {
       ctx.font = f(800, size); setTracking(ctx, -size * .02);
@@ -81,7 +89,7 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
   // Chiffre géant (avec « avant → » barré, et son unité)
   if (page.value) {
     const v = recapSplitValue(page.value), unit = page.unit || v.unit, num = v.num || v.unit;
-    const max = isSummary ? 250 : R.NUM_MAX;
+    const max = R.NUM_MAX;
     const measure = s => {
       ctx.font = storyFont(800, s, true, c.p); const nw = ctx.measureText(num).width;
       ctx.font = storyFont(800, Math.round(s * .38), true, c.p); const uw = v.num && unit ? ctx.measureText(unit).width + s * .08 : 0;
@@ -146,15 +154,29 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
     const b = pills(page.chips, false);
     blocks.push({ ...b, hero: true });
   }
+  // Palier franchi (ouverture) : encart léger sous les pastilles
+  if (page.mention) {
+    ctx.font = f(700, R.SMALL);
+    const lines = recapWrap(ctx, page.mention, heroW - 64, 2), lh = Math.round(R.SMALL * 1.3), h = lines.length * lh + 40;
+    blocks.push({ h, hero: true, draw: y => {
+      ctx.globalAlpha = .12; ctx.fillStyle = c.fg; roundRect(ctx, SIDE, y, heroW, h, 28); ctx.fill(); ctx.globalAlpha = 1;
+      lines.forEach((l, i) => text(l, f(700, R.SMALL), 1, y + 20 + lh * i + R.SMALL * .85, SIDE + 32, heroW - 64));
+    } });
+  }
 
-  // Justifications du profil
+  // Justifications du profil : le libellé, puis sa preuve en dessous, sur 2 lignes au plus (« Plutôt le soir » /
+  // « Entre 18 h et 23 h · 8 séances sur 11 »). Un bloc par ligne : faute de place, elles partent une à une
+  // en partant de la dernière, jamais toutes d'un coup.
   if (page.lines?.length && page.id === 'profile') {
-    const lh = Math.round(R.TEXT * 1.45);
-    blocks.push({ h: page.lines.length * lh, optional: 1, draw: y => page.lines.forEach(([l, v], i) => {
-      ctx.font = f(800, R.TEXT); const lw = ctx.measureText(l).width;
-      text(l, f(800, R.TEXT), 1, y + lh * i + R.TEXT);
-      text(v, f(600, R.TEXT), .85, y + lh * i + R.TEXT, SIDE + lw + 22, maxW - lw - 22);
-    }) });
+    const lh = Math.round(R.TEXT * 1.25), sl = Math.round(R.SMALL * 1.25);
+    page.lines.forEach(([l, v]) => {
+      ctx.font = f(600, R.SMALL);
+      const vals = recapWrap(ctx, v, maxW, 2);
+      blocks.push({ h: lh + vals.length * sl, optional: 1, draw: y => {
+        text(l, f(800, R.TEXT), 1, y + R.TEXT);
+        vals.forEach((x, k) => text(x, f(600, R.SMALL), .85, y + lh + sl * k + R.SMALL));
+      } });
+    });
   }
 
   // Encart (gain d'un record, progression, mois le plus actif)
@@ -167,6 +189,7 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
       lines.forEach((l, i) => ctx.fillText(l, SIDE + 44, y + 32 + lh * i + R.TEXT * .9));
     } });
   }
+  if (page.foot) blocks.push(para(page.foot, R.SMALL, 600, .8, maxW, 2, { optional: 1 }));
 
   // Courbe de la meilleure charge
   if (page.curve) {
@@ -187,19 +210,27 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
     } }));
   }
 
-  // Frise des semaines
+  // Frise des semaines : une pastille par semaine avec son nombre de séances (pleine à l'objectif), sa date dessous
   if (page.strip) {
-    const n = page.strip.length, gap = 18, d = Math.min(96, (maxW - (n - 1) * gap) / n), h = d + 64;
+    const n = page.strip.length, gap = 18, d = Math.min(120, (maxW - (n - 1) * gap) / n), h = d + 64, all = n <= 6;
     blocks.push({ h, draw: y => {
       page.strip.forEach((w, i) => {
         const cx = SIDE + d / 2 + i * (d + gap), cy = y + d / 2;
         ctx.beginPath(); ctx.arc(cx, cy, d / 2 - 4, 0, Math.PI * 2);
         if (w.on) { ctx.fillStyle = c.fg; ctx.fill(); }
-        else { ctx.globalAlpha = .4; ctx.strokeStyle = c.fg; ctx.lineWidth = 7; ctx.stroke(); ctx.globalAlpha = 1; }
+        else { ctx.globalAlpha = .45; ctx.strokeStyle = c.fg; ctx.lineWidth = 7; ctx.stroke(); ctx.globalAlpha = 1; }
+        const ns = Math.round(d * .46);
+        ctx.font = storyFont(800, ns, true, c.p); ctx.textAlign = 'center'; ctx.fillStyle = w.on ? c.bg : c.fg;
+        ctx.fillText(String(w.n), cx, cy + ns * .36);
+        if (all) text(w.label, f(700, R.SMALL), .8, y + h - 8, cx, d + gap);
+        ctx.textAlign = 'left';
       });
-      text(page.strip[0].label, f(700, R.SMALL), .75, y + h - 8);
-      ctx.textAlign = 'right'; text(page.strip.at(-1).label, f(700, R.SMALL), .75, y + h - 8, SIDE + maxW); ctx.textAlign = 'left';
+      if (!all) {
+        text(page.strip[0].label, f(700, R.SMALL), .8, y + h - 8);
+        ctx.textAlign = 'right'; text(page.strip.at(-1).label, f(700, R.SMALL), .8, y + h - 8, SIDE + maxW); ctx.textAlign = 'left';
+      }
     } });
+    if (page.stripNote) blocks.push(para(page.stripNote, R.SMALL, 600, .8, maxW, 2, { optional: 1 }));
   }
 
   // Séances par mois (année)
@@ -217,7 +248,8 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
 
   // Personnage : grand et centré (profil), à droite du haut (résumé)
   if (fig && !sideFig) blocks.push({ h: 0, flex: true, figure: fig });
-  if (page.pills?.length) blocks.push(pills(page.pills.map(([l, v]) => `${l} ${v}`), true));
+  // Profil : les pastilles partent avant les lignes de preuve (le personnage montre déjà les muscles)
+  if (page.pills?.length) blocks.push({ ...pills(page.pills.map(([l, v]) => `${l} ${v}`), true), ...(page.id === 'profile' ? { optional: 1 } : {}) });
 
   // Tuiles 2 × 2
   if (page.tiles?.length) {
@@ -232,20 +264,51 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
     }) });
   }
 
-  // Liste (autres records, paliers de séances ; lignes du résumé)
-  const rows = page.list?.length ? page.list.map(x => [x.name, x.value]) : isSummary ? page.lines || [] : [];
-  if (rows.length) {
-    const rh = 84, h = rows.length * rh + 24;
-    blocks.push({ h, optional: 1, draw: y => {
+  // Liste (autres records avec leur gain, paliers de séances) : nom à gauche, valeur à droite, gain dessous
+  if (page.list?.length) {
+    // Faute de place, la liste perd ses dernières lignes (fewer) ; son titre ne reste jamais seul (needs)
+    const all = page.list.map(x => [x.name, x.value, x.gain || '']).concat(page.more ? [[page.more, '', '']] : []);
+    const rhOf = r => (r[2] ? 120 : 84);
+    const listBlock = rows => {
+      const h = rows.reduce((a, r) => a + rhOf(r), 0) + 24;
+      return { h, optional: 1, fewer: rows.length > 1 ? () => listBlock(rows.slice(0, -1)) : null, draw: y => {
       ctx.globalAlpha = .1; ctx.fillStyle = c.fg; roundRect(ctx, SIDE, y, maxW, h, 36); ctx.fill(); ctx.globalAlpha = 1;
-      rows.forEach(([name, val], i) => {
-        const base = y + 12 + rh * i + rh * .62;
-        if (i) { ctx.globalAlpha = .15; ctx.fillStyle = c.fg; ctx.fillRect(SIDE + 40, y + 12 + rh * i, maxW - 80, 2); ctx.globalAlpha = 1; }
-        ctx.font = f(800, R.TEXT); const vw = Math.min(ctx.measureText(val).width, (maxW - 80) * .55);
-        ctx.textAlign = 'right'; text(val, f(800, R.TEXT), 1, base, SIDE + maxW - 40, vw); ctx.textAlign = 'left';
-        text(name, f(600, R.TEXT), .85, base, SIDE + 40, maxW - 80 - vw - 24);
+      let ry = y + 12;
+      rows.forEach(([name, val, gain], i) => {
+        const rh = rhOf([name, val, gain]), base = ry + (gain ? 52 : rh * .62);
+        if (i) { ctx.globalAlpha = .15; ctx.fillStyle = c.fg; ctx.fillRect(SIDE + 40, ry, maxW - 80, 2); ctx.globalAlpha = 1; }
+        ctx.font = f(800, R.TEXT); const vw = val ? Math.min(ctx.measureText(val).width, (maxW - 80) * .55) : 0;
+        if (val) { ctx.textAlign = 'right'; text(val, f(800, R.TEXT), 1, base, SIDE + maxW - 40, vw); ctx.textAlign = 'left'; }
+        text(name, f(val ? 600 : 700, val ? R.TEXT : R.SMALL), val ? .85 : .75, base, SIDE + 40, maxW - 80 - vw - (val ? 24 : 0));
+        if (gain) text(gain, f(700, R.SMALL), .7, base + 46, SIDE + 40, maxW - 80);
+        ry += rh;
       });
-    } });
+    } };
+    };
+    const list = listBlock(all);
+    if (page.listTitle) blocks.push(para(page.listTitle.toLocaleUpperCase('fr-FR'), R.SMALL, 800, .8, maxW, 1, { optional: 1, needs: 'list' }));
+    blocks.push({ ...list, role: 'list' });
+  }
+  // Lignes du résumé : le libellé en petit, la valeur dessous en gras (jamais coupée par la valeur d'à côté).
+  // Faute de place, les lignes partent une à une depuis la dernière (fewer), pas tout l'encart.
+  if (isSummary && page.lines?.length) {
+    ctx.font = f(800, R.TEXT);
+    const vl = Math.round(R.TEXT * 1.2), all = page.lines.map(([label, val]) => ({ label, vals: recapWrap(ctx, val, maxW - 80, 2) }));
+    const rhOf = r => 62 + r.vals.length * vl;
+    const linesBlock = rows => {
+      const h = rows.reduce((a, r) => a + rhOf(r), 0) + 24;
+      return { h, optional: 1, fewer: rows.length > 1 ? () => linesBlock(rows.slice(0, -1)) : null, draw: y => {
+      ctx.globalAlpha = .1; ctx.fillStyle = c.fg; roundRect(ctx, SIDE, y, maxW, h, 36); ctx.fill(); ctx.globalAlpha = 1;
+      let ry = y + 12;
+      rows.forEach((r, i) => {
+        if (i) { ctx.globalAlpha = .15; ctx.fillStyle = c.fg; ctx.fillRect(SIDE + 40, ry, maxW - 80, 2); ctx.globalAlpha = 1; }
+        text(r.label, f(700, R.SMALL), .7, ry + 44, SIDE + 40, maxW - 80);
+        r.vals.forEach((v, k) => text(v, f(800, R.TEXT), 1, ry + 44 + vl * (k + 1), SIDE + 40, maxW - 80));
+        ry += rhOf(r);
+      });
+    } };
+    };
+    blocks.push(linesBlock(all));
   }
   return { blocks, sideFig };
 }
@@ -278,7 +341,7 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
 
   // En-tête : « MA SEMAINE · 12 – 18 OCTOBRE », puis le surtitre de l'écran (« NOUVEAU RECORD · JEUDI 15 »)
   let y = TOP + 50;
-  const mine = `${RECAP_MINE[st.period.kind]} · ${st.period.label}`.toLocaleUpperCase('fr-FR');
+  const mine = (page.id === 'summary' ? st.period.label : `${RECAP_MINE[st.period.kind]} · ${st.period.label}`).toLocaleUpperCase('fr-FR');
   ctx.fillStyle = c.fg; ctx.font = f(800, R.HEAD); setTracking(ctx, 4);
   ctx.fillText(fitText(ctx, mine, maxW), SIDE, y + R.HEAD * .8); y += R.HEAD + 18;
   const own = page.id !== 'summary' && page.kicker !== st.period.title.toLocaleUpperCase('fr-FR');
@@ -288,11 +351,20 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
 
   const { blocks, sideFig } = recapBlocks(ctx, page, st, c, f, assets, maxW);
   const total = list => list.reduce((a, b) => a + b.h, 0) + Math.max(0, list.length - 1) * R.GAP;
-  // Trop haut : on retire d'abord la liste, puis la courbe
   let shown = blocks;
-  const FIG_MIN = 460;   // personnage du profil : jamais plus petit (on retire d'abord les lignes facultatives)
+  const FIG_MIN = 340;   // personnage du profil : jamais plus petit ; assez bas pour garder les lignes de preuve (moment, groupes)
   const need = list => total(list) + (list.some(b => b.flex) ? FIG_MIN : 0);
-  for (const level of [1, 2]) if (need(shown) > bottom - top) shown = shown.filter(b => b.optional !== level);
+  // Trop haut : les blocs facultatifs partent un à un depuis le bas (niveau 1, puis 2) ; un bloc qui sait
+  // se raccourcir (fewer : lignes du résumé) perd d'abord ses dernières lignes
+  for (const level of [1, 2]) {
+    while (need(shown) > bottom - top) {
+      const i = shown.findLastIndex(b => b.optional === level);
+      if (i < 0) break;
+      const b = shown[i];
+      if (b.fewer) shown[i] = { ...b.fewer(), role: b.role }; else shown.splice(i, 1);
+    }
+  }
+  shown = shown.filter(b => !b.needs || shown.some(x => x.role === b.needs));   // titre sans sa liste : retiré
   // Encore trop haut : courbe et barres se tassent (jamais sous minH)
   let over = need(shown) - (bottom - top);
   for (const b of shown) if (over > 0 && b.minH) { const cut = Math.min(over, b.h - b.minH); b.h -= cut; over -= cut; }
@@ -306,7 +378,7 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
     else b.draw(by);
     by += b.h + R.GAP;
   });
-  // Résumé : personnage à droite du titre et du chiffre
+  // Ouverture : personnage à droite du titre et du chiffre
   if (sideFig) {
     let fy = heroTop, k = 0;
     for (const b of shown) { if (b.hero) break; fy += b.h + R.GAP; k++; }
@@ -321,7 +393,7 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
 async function renderRecapStory(page, st, canvas = document.createElement('canvas')) {
   const palette = storyPalette('var(--green)');
   const tone = RECAP_TONE_COLORS[page.tone] || RECAP_TONE_COLORS.lime;
-  const wantBody = page.body && Object.keys(page.body).length && ['summary', 'profile', 'sessions'].includes(page.id);
+  const wantBody = page.body && Object.keys(page.body).length && ['profile', 'sessions'].includes(page.id);
   const [icon, body] = await Promise.all([
     loadImage('icon-192.png'),
     wantBody ? bodyMapImage(page.body, { view: page.id === 'profile' ? 'both' : 'front', colors: { heat: tone.heat, bright: 1 } }).catch(() => null) : null,
