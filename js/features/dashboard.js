@@ -287,18 +287,38 @@ function heroHtml(keys, next, liveHere) {
       : `<button class="hero__btn hero__btn--gray" data-action="start-session" data-cat="${esc(next)}">Démarrer quand même</button>`;
   }
   const desc = meta.desc || coachSessionDesc(data.activeProgramme, next);
+  // « Modifier les exercices » vit dans l'en-tête des cibles ; sans cibles (séance en cours, séance
+  // vide), un lien sous le bouton le remplace, comme avant la refonte
+  const targets = liveHere ? '' : targetsHtml(next);
+  const edit = targets ? '' : `<button class="hero__edit" data-action="go-editor" data-cat="${esc(next)}">Modifier les exercices</button>`;
+  const spot = heroBtnSpot();
   // Grand titre : plus petit pour un nom long (« Bras & épaules »)
   const size = rawLabel(next).length <= 9 ? 'l' : 'm';
   return `
     <section class="hero" aria-label="${liveHere ? 'Séance en cours' : 'Prochaine séance'}">
       <p class="hero__eyebrow">${liveHere ? 'Séance en cours' : 'Prochaine séance'}</p>
       <h2 class="hero__name hero__name--${size}">${meta.label}</h2>
+      ${spot === 'top' ? btn : ''}
       ${desc ? `<p class="hero__desc">${desc}</p>` : ''}
       ${info}
-      ${liveHere ? '' : targetsHtml(next)}
-      ${btn}
+      ${spot === 'mid' ? btn : ''}${targets}${spot === 'end' ? btn : ''}
+      ${edit}
     </section>`;
 }
+
+// Place de Démarrer dans la carte. Ordre de lecture = ordre affiché (WCAG 1.3.2) : c'est le HTML qui la
+// fixe, jamais CSS order (VoiceOver suit le DOM). Un seul ordre ne peut pas servir tous les écrans, d'où
+// un choix au rendu, refait quand l'écran change (écouteur ci-dessous, checkTypeSize de js/ui/theme.js) :
+//   'end' : grand écran, après les cibles ;
+//   'mid' : très petite hauteur (< 600 pt, iPhone SE 1re génération), avant les cibles, visible sans défiler ;
+//   'top' : très grands caractères (type-xl), juste sous le nom : la description, les infos et l'attente
+//           remplissent déjà l'écran, Démarrer resterait sous la tab bar.
+const SHORT_SCREEN = window.matchMedia?.('(max-height: 600px)');
+function heroBtnSpot() {
+  if (document.documentElement.classList.contains('type-xl')) return 'top';
+  return SHORT_SCREEN?.matches ? 'mid' : 'end';
+}
+SHORT_SCREEN?.addEventListener?.('change', () => { if (currentView() === 'dashboard') render(); });
 
 // « Ensuite » : les autres séances du programme, sans couleur de séance, leur état à droite
 function otherSessionHtml(cat) {

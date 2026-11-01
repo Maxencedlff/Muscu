@@ -306,8 +306,9 @@ function priorSetsIndex() {
 
 // Records d'une séance de l'historique : ceux notés (revalidés : une sauvegarde importée peut contenir
 // n'importe quoi, records: [null] par exemple), sinon (séance d'avant les records notés) recalculés
+// (legacyRecords, gardés en cache tant que l'historique ne change pas)
 function entryRecords(h, history = data.history) {
-  return Array.isArray(h?.records) ? cleanNotedRecords(h.records) : sessionRecords(h, history);
+  return Array.isArray(h?.records) ? cleanNotedRecords(h.records) : legacyRecords(h, history);
 }
 
 // Records notés à nouveau pour les séances de la même séance type (programme et séance) que `ref`, à
@@ -382,8 +383,7 @@ function recentRecords(history = data.history, max = 3, scan = 60) {
   const out = [], seen = new Set();
   const latest = (history || []).filter(h => h && Number.isFinite(h.date)).sort((a, b) => b.date - a.date).slice(0, scan);
   for (const h of latest) {
-    const recs = (Array.isArray(h.records) ? cleanNotedRecords(h.records) : legacyRecords(h, history))
-      .slice().sort((a, b) => NOTED_RANK[b.kind] - NOTED_RANK[a.kind]);
+    const recs = entryRecords(h, history).slice().sort((a, b) => NOTED_RANK[b.kind] - NOTED_RANK[a.kind]);
     for (const r of recs) {
       const k = normName(r.ex);
       if (seen.has(k)) continue;
@@ -396,10 +396,13 @@ function recentRecords(history = data.history, max = 3, scan = 60) {
 }
 
 // Records recalculés d'une séance d'avant les records notés, gardés par séance tant que l'historique a la
-// même empreinte (nombre de séances, plus récente, unité), même principe que muscleLastCache (accueil)
+// même empreinte : même tableau, nombre de séances, plus récente, unité et version des données (dataVersion,
+// +1 à chaque save(), js/data/store.js : séance passée modifiée, exercice renommé). Même principe que
+// muscleLastCache (accueil). Le résultat est partagé : les appelants le copient avant de le trier.
 const legacyRecordsCache = new WeakMap();
 function legacyRecords(h, history) {
-  const key = `${history.length}:${history[0]?.id}:${history[0]?.date}:${data.unit}`;
+  if (!h || !Array.isArray(history)) return sessionRecords(h, history);
+  const key = `${dataVersion}:${history.length}:${history[0]?.id}:${history[0]?.date}:${data.unit}`;
   const hit = legacyRecordsCache.get(h);
   if (hit?.history === history && hit.key === key) return hit.recs;
   const recs = sessionRecords(h, history);

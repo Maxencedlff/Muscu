@@ -118,6 +118,14 @@ def t_home(bench, eng, dev, theme):
         R.check(gain.locator('.icon--arrow-up').count() == 1 and '+' not in gain.inner_text() and ('rep' in gain.inner_text() or 'kg' in gain.inner_text()), f'{t} gain « {gain.inner_text()} »')
         R.check(before.inner_text().startswith('avant ') and before.evaluate('e => getComputedStyle(e).color') != row.locator('.targets__target').evaluate('e => getComputedStyle(e).color'), f'{t} dernière fois en gris « {before.inner_text()} »')
         edit = page.locator('.hero [data-action="go-editor"]')
+        R.check(edit.count() == 1, f'{t} « Modifier » une seule fois dans la carte ({edit.count()})')
+        # Ordre de lecture = ordre affiché (WCAG 1.3.2) : grand écran, les cibles avant Démarrer dans le HTML
+        order = page.evaluate("""() => { const b = document.querySelector('.hero__btn'), g = document.querySelector('.hero .targets');
+            const ty = g.getBoundingClientRect().top, by = b.getBoundingClientRect().top;
+            return { dom: !!(g.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING), seen: ty < by,
+                     css: getComputedStyle(b).order + '/' + getComputedStyle(g).order, h: innerHeight }; }""")
+        if order['h'] > 600:
+            R.check(order['dom'] and order['seen'] and order['css'] == '0/0', f'{t} cibles puis Démarrer, dans le HTML comme à l\'écran {order}')
         eb = edit.bounding_box()
         R.check(edit.inner_text().strip() == 'Modifier' and eb['width'] >= 44 and eb['height'] >= 44, f'{t} « Modifier » : 44 pt {eb}')
         # Noms coupés seulement entre deux mots, titre entier (iPhone SE compris)
@@ -254,6 +262,10 @@ def t_live(bench, eng, dev, theme):
         R.check(page.locator('.view.dashboard').count() == 1 and live.is_visible(), f'{t} mini-barre sur l\'accueil')
         R.check('Push' in live.inner_text() and '1/21' in live.inner_text(), f'{t} mini-barre « {live.inner_text()} »')
         R.check(page.locator('.hero__btn').inner_text().strip() == 'Reprendre' and 'En cours' in page.locator('.hero__info').inner_text(), f'{t} accueil : « Reprendre »')
+        # Séance en cours : pas de cibles, « Modifier les exercices » reste accessible sous le bouton
+        ed = page.locator('.hero [data-action="go-editor"]')
+        R.check(page.locator('.hero .targets').count() == 0 and ed.count() == 1 and ed.inner_text().strip() == 'Modifier les exercices'
+                and ed.bounding_box()['height'] >= 44, f'{t} séance en cours : « Modifier les exercices » ({ed.count()})')
         R.check(live.bounding_box()['height'] == 56, f'{t} mini-barre 56 px')
         shot(page, LOT, f'minibarre-{t}')
         for name in ('history', 'progress', 'program'):
@@ -372,7 +384,47 @@ def o_edge_swipe(bench):
             R.check(not page.errors, f'{dev} geste : aucune erreur JS {page.errors}')
 
 
+def o_home_type_xl(bench):
+    """Très grands caractères (type-xl) sur iPhone SE, séance pas prête : « Démarrer quand même » avant les cibles
+    dans le HTML (ordre de lecture = ordre affiché) et visible sans défiler ; séance vide : lien vers l'éditeur."""
+    with bench.page('webkit', 'iPhone SE', 'dark') as page:
+        d = ppl_v2_today()
+        page.goto(BASE_URL + 'manifest.json')
+        now = page.evaluate('Date.now()')
+        for k in ('push', 'pull', 'legs'):
+            d['programmes']['ppl']['timers'][k] = now - 3600_000 * {'push': 58, 'pull': 30, 'legs': 2}[k]
+        seed(page, 'dark', json.dumps(d, ensure_ascii=False))
+        # Taille normale, 568 pt de haut (< 600) : Démarrer avant les cibles, après les infos
+        R.check(page.evaluate("""() => { const b = document.querySelector('.hero__btn');
+            return !!(b.compareDocumentPosition(document.querySelector('.hero .targets')) & Node.DOCUMENT_POSITION_FOLLOWING)
+                && !!(document.querySelector('.hero__info').compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING); }"""),
+            'petite hauteur : Démarrer entre les infos et les cibles')
+        page.add_style_tag(content='html { font-size: 28px !important; }')
+        page.evaluate("window.dispatchEvent(new Event('resize'))")
+        settle(page, 300)
+        btn = page.locator('.hero__btn')
+        g = page.evaluate("""() => { const b = document.querySelector('.hero__btn'), t = document.querySelector('.hero .targets');
+            const r = b.getBoundingClientRect();
+            return { xl: document.documentElement.classList.contains('type-xl'), top: r.top, bottom: r.bottom, scroll: scrollY,
+                     tabbar: document.querySelector('.tabbar').getBoundingClientRect().top,
+                     first: !!t && !!(b.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING), css: getComputedStyle(b).order,
+                     underName: b.previousElementSibling?.classList.contains('hero__name'),
+                     fits: (() => { const g = document.createRange(); g.selectNodeContents(b); const t = g.getBoundingClientRect();
+                                    return t.top >= r.top - 1 && t.bottom <= r.bottom + 1; })() }; }""")
+        R.check(g['xl'] and btn.inner_text().strip() == 'Démarrer quand même', f'type-xl : « Démarrer quand même » ({btn.inner_text()!r}, {g})')
+        R.check(g['scroll'] == 0 and g['top'] >= 0 and g['bottom'] <= g['tabbar'] and g['fits'], f'type-xl iPhone SE : « Démarrer quand même » visible sans défiler {g}')
+        R.check(g['first'] and g['underName'] and g['css'] == '0', f'type-xl : Démarrer sous le nom dans le HTML, sans CSS order {g}')
+        shot(page, LOT, 'accueil-type-xl-recup-iPhone_SE')
+        # Séance sans exercice : pas de cibles, le lien vers l'éditeur reste
+        c = page.evaluate("(() => { const c = nextSessionCat(sessionKeys()); prog().exercises[c] = []; save(); render(); return c; })()")
+        settle(page, 200)
+        ed = page.locator('.hero [data-action="go-editor"]')
+        R.check(page.evaluate("nextSessionCat(sessionKeys())") == c and page.locator('.hero .targets').count() == 0
+                and ed.count() == 1 and ed.get_attribute('data-cat') == c, f'séance vide ({c}) : « Modifier les exercices » ({ed.count()})')
+        R.check(not page.errors, f'type-xl : aucune erreur JS {page.errors[:2]}')
+
+
 TESTS = [t_home, t_back_stack, t_scroll, t_live, t_dirty, t_motion]
 
 if __name__ == '__main__':
-    run_main(R, TESTS, once=[o_restore, o_edge_swipe])
+    run_main(R, TESTS, once=[o_restore, o_edge_swipe, o_home_type_xl])

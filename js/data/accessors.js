@@ -168,7 +168,8 @@ function storeW(val) {
 }
 
 // Volume (kg) : « 850 kg », « 12,4 t », « 1 874 lbs », « 27,3 k lbs »
-// Palier de charge de la double progression (cibles de l'accueil), sans signe : « 2,5 kg », « 5 lb »
+// Palier de charge de la double progression, sans signe : « 2,5 kg », « 5 lb » (puce de la séance après
+// une flèche ↑, cibles de l'accueil, toast « Charge augmentée de 2,5 kg »)
 function bumpLabel() { return data.unit === 'lbs' ? '5 lb' : '2,5 kg'; }
 function bumpStepKg() { return data.unit === 'lbs' ? 5 / KG_TO_LBS : 2.5; }
 
@@ -257,14 +258,15 @@ function weeklySessionCounts(n, now = Date.now()) {
   });
 }
 
-// Régularité de Mon profil : les `n` dernières semaines (weeklySessionCounts) et la moyenne de séances par
-// semaine, au dixième. La moyenne ne compte que les semaines depuis celle de la première séance (deux semaines
-// d'historique ne sont pas divisées par 12), semaine en cours comprise comme sur le graphique ; span : le
-// nombre de semaines comptées, affiché à côté de la moyenne. Sans séance : avg et span à 0.
 // Date de la plus ancienne séance de l'historique (Infinity sans séance)
 function firstHistoryDate() {
   return (data.history || []).reduce((m, h) => (h && h.date < m ? h.date : m), Infinity);
 }
+
+// Régularité de Mon profil : les `n` dernières semaines (weeklySessionCounts) et la moyenne de séances par
+// semaine, au dixième. La moyenne ne compte que les semaines depuis celle de la première séance (deux semaines
+// d'historique ne sont pas divisées par 12), semaine en cours comprise comme sur le graphique ; span : le
+// nombre de semaines comptées, affiché à côté de la moyenne. Sans séance : avg et span à 0.
 
 function regularity(n = 12, now = Date.now()) {
   const weeks = weeklySessionCounts(n, now);

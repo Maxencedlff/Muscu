@@ -43,8 +43,8 @@
 
 /* Seul élément plein en accent de l'écran */
 .hero__btn {
-  margin-top: 14px; height: 54px; border: 0; border-radius: 16px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 14px; min-height: 54px; padding: 8px 16px; border: 0; border-radius: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.2; text-align: center;
   background: var(--tint-fill); color: var(--on-tint); font: inherit; font-size: 1.059rem; font-weight: 700;
 }
 .hero__btn--gray { background: var(--fill); color: var(--label); font-weight: 600; }
@@ -58,6 +58,12 @@
   font: inherit; font-size: var(--fs-subhead); color: var(--tint-on-fill);
 }
 .targets__edit:active { opacity: .5; }
+/* Sans cibles (séance en cours, séance vide) : le lien vers l'éditeur, sous le bouton */
+.hero__edit {
+  align-self: center; min-height: 44px; margin-top: 4px; padding: 0 12px; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: var(--fs-subhead); color: var(--tint-on-fill);
+}
+.hero__edit:active { opacity: .5; }
 .targets__list { list-style: none; margin: 0; padding: 0; }
 .targets__row { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; padding: 7px 0; }
 .targets__row + .targets__row { border-top: .5px solid var(--sep); }
@@ -133,15 +139,10 @@ html.type-xl .week__text { overflow: visible; }
   .hero__name--l { font-size: 2.1rem; }
   .targets { margin-top: 10px; }
   .targets__row { padding: 5px 0; }
-  .hero__btn { margin-top: 10px; height: 50px; }
+  .hero__btn { margin-top: 10px; min-height: 50px; }
 }
-/* Très petite hauteur (iPhone SE de 1re génération, 568 pt), ou très grands caractères : Démarrer passe
-   avant les cibles et reste visible sans défiler */
-@media (max-height: 600px) {
-  .hero__btn { order: 1; }
-  .targets { order: 2; }
-}
-html.type-xl .hero__btn { order: 1; }
-html.type-xl .targets { order: 2; }
+/* Très petite hauteur (< 600 pt) : Démarrer passe avant les cibles ; très grands caractères : sous le nom.
+   C'est le HTML qui le place (heroBtnSpot, js/features/dashboard.js), jamais CSS order : VoiceOver lit dans
+   l'ordre affiché */
 /* Très grands caractères : la date reste un surtitre (la règle de css/navigation.css en ferait un grand titre) */
 html.type-xl .dashboard .navbar__large { font-size: var(--fs-footnote); line-height: 1.3; }

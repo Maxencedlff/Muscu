@@ -105,6 +105,32 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     sameJSON(again, ['b', 'a'], 'historique changé : recalculées à nouveau');
   });
 
+  test('recentRecords : séance passée modifiée ou exercice renommé puis save() : cache invalidé', () => {
+    reset();
+    const ex = (name, w) => [{ name, sets: [{ weight: String(w), reps: '5' }] }];
+    setHistory([
+      entry('b', at(2026, 9, 28), { exercises: ex('Squat', 105) }),
+      entry('a', at(2026, 9, 21), { exercises: ex('Squat', 100) }),
+    ]);
+    const top = () => run('(() => { const r = recentRecords(data.history, 3)[0]; return r ? `${r.ex}/${r.r.after}` : null; })()');
+    assert.equal(top(), 'Squat/105');
+    // Séance passée modifiée : même nombre de séances, même plus récente ; seule la version des données change
+    run(`data.history[1].exercises[0].sets[0].weight = '110'; save(true)`);
+    assert.equal(top(), null, 'séance d\'avant plus lourde : plus de record');
+    run(`data.history[1].exercises[0].sets[0].weight = '100'; save(true)`);
+    assert.equal(top(), 'Squat/105');
+    run(`data.history.forEach(h => { h.exercises[0].name = 'Squat barre'; }); save(true)`);
+    assert.equal(top(), 'Squat barre/105', 'exercice renommé dans l\'historique');
+    // Sans save(), la même empreinte : le cache sert (rien n'est recalculé)
+    const calls = run(`(() => {
+      const orig = sessionRecords; let n = 0;
+      sessionRecords = (h, hist) => { n++; return orig(h, hist); };
+      try { recentRecords(data.history, 3); entryRecords(data.history[0]); } finally { sessionRecords = orig; }
+      return n;
+    })()`);
+    assert.equal(calls, 0, 'entryRecords et recentRecords partagent le cache');
+  });
+
   test('recordGainTxt : sans signe, flèche dessinée à côté ; rien quand mieux veut dire moins', () => {
     reset();
     const g = r => run(`recordGainTxt(${JSON.stringify(r)})`);

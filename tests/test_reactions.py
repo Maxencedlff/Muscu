@@ -302,12 +302,18 @@ def t_mon_profil_suite(bench, eng, dev, theme):
         page.click('.navbar [data-action="social-me"]')
         page.wait_for_selector('.social-me-view .last')
         page.wait_for_timeout(300)
-        # Records : les records récents de l'app (recentRecords), un par exercice, avec date et valeur
-        want = page.evaluate('recentRecords().map(x => x.ex)')
+        # Records : valeurs fixées par l'historique de test (ppl_v2_today, tests/fixtures.py), pas relues dans
+        # l'app. Charge +2,5 kg toutes les deux semaines, plafonnée à +10 kg : à la dernière semaine (k = 8),
+        # seuls les exercices j % 3 == 0 montent encore. Séances les plus récentes : Legs (il y a 4 j : Squat
+        # barre 60 → 70 kg, Leg curl 30 → 40 kg), Bras (6 j : charges égales, pas de record), Pull (6 j 3 h :
+        # Rowing 24 → 34 kg). Trois records au plus, un par exercice, du plus récent.
+        want = [('Squat barre', '70 kg'), ('Leg curl machine', '40 kg'), ('Rowing haltère unilatéral', '34 kg')]
         titles = page.locator('.social-me-view h2.group-title--large').all_inner_texts()
-        got = page.locator('.rec-row .cell__title').all_inner_texts()
-        R.check(len(want) >= 1 and 'Records' in titles and got == want, f'{t} records : {got} (attendu {want}, titres {titles})')
-        R.check(all(page.locator('.rec-row .rec-row__val').nth(i).inner_text().strip() for i in range(len(got))), f'{t} records : valeur à droite')
+        got = list(zip(page.locator('.rec-row .cell__title').all_inner_texts(),
+                       [v.strip() for v in page.locator('.rec-row .rec-row__val').all_inner_texts()]))
+        R.check('Records' in titles and got == want, f'{t} records : {got} (attendu {want}, titres {titles})')
+        subs = page.locator('.rec-row .cell__sub').all_inner_texts()
+        R.check(len(subs) == 3 and all('2,5 kg' in x for x in subs), f'{t} records : date et gain ↑ 2,5 kg ({subs})')
         # Dernière séance : VoiceOver lit le titre visible puis les chiffres, libellé avant valeur
         spoken = page.locator('.last__main .sr-text').inner_text() if page.locator('.last__main .sr-text').count() else ''
         R.check(re.search(r'\d+ séries?', spoken) and 'volume ' in spoken, f'{t} dernière séance : chiffres lus ({spoken!r})')

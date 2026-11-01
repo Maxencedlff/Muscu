@@ -104,7 +104,7 @@ function meActivityHtml() {
   const shown = meActivityAll ? groups : groups.slice(0, ME_ACTIVITY_SHOWN);
   // Tout voir : des lignes masquées ici, ou d'autres encore sur le serveur (!a.end)
   const more = (meActivityAll ? !a.end : groups.length > ME_ACTIVITY_SHOWN || !a.end)
-    ? `<button class="see-all" data-action="social-activity-more" ${a.loading ? 'disabled' : ''}>${a.loading ? 'Chargement…' : meActivityAll ? 'Afficher plus' : 'Tout voir<span class="sr-text"> l\'activité</span>'}${icon('chevron.right', 12)}</button>` : '';
+    ? `<button class="see-all" data-action="social-activity-more" ${a.loading ? 'disabled' : ''}>${a.loading ? 'Chargement…' : meActivityAll ? 'Afficher plus<span class="sr-text"> d\'activité</span>' : 'Tout voir<span class="sr-text"> l\'activité</span>'}${icon('chevron.right', 12)}</button>` : '';
   return `<div class="group activity">${shown.map(g => (g.kind === 'single' ? activityRowHtml(g.row) : reactionsGroupHtml(g))).join('')}</div>${more}`;
 }
 
@@ -181,8 +181,8 @@ function meSessionsHtml(st) {
   }
   const rest = f.rows.slice(1, 1 + ME_SESSIONS_SHOWN);
   const total = Math.max(st.shown_sessions ?? 0, f.rows.length);
-  // Hors ligne ou erreur : l'aperçu reste, avec la même note que le fil (feedListHtml)
-  const err = f.error ? `<p class="social-inline-error" role="status">${esc(f.error === 'offline' ? 'Pas d\'Internet : fil pas à jour.' : socialErrorText(f.error))}</p>` : '';
+  // Hors ligne ou erreur : l'aperçu reste, avec la même note que le fil (feedErrorNote, js/features/social-ui.js)
+  const err = feedErrorNote(f.error);
   // Tout voir : des séances masquées ici, ou d'autres encore sur le serveur (!f.end)
   const all = total > 1 + rest.length || !f.end
     ? `<button class="see-all" data-action="social-me-sessions-all">Tout voir · ${plural(total, 'séance', 'séances')}${icon('chevron.right', 12)}</button>` : '';
@@ -287,8 +287,14 @@ registerActions({
     $('#meSessions')?.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
   },
   'social-me-sessions-all': () => { meSessionsAll = true; render(); },
+  // Tout voir : déplie les lignes masquées ; s'il n'y en a pas mais que le serveur a d'autres pages, le
+  // même tap charge aussi la suite (sinon il ne ferait que changer le libellé en « Afficher plus »)
   'social-activity-more': () => {
-    if (!meActivityAll) { meActivityAll = true; render(); return; }
+    const a = socialActivity();
+    if (!meActivityAll) {
+      meActivityAll = true; render();
+      if (a.end || groupActivity(a.rows).length > ME_ACTIVITY_SHOWN) return;
+    }
     socialLoadActivity({ more: true });
   },
   // Ma séance (Historique › séance), empilée dans l'onglet Amis
