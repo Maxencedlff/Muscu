@@ -4,7 +4,7 @@
 // 1. Contenu : un titre et une phrase en français, avec le seul pseudo de l'auteur (jamais le texte d'un
 //    commentaire, d'un message ni le nom d'un programme : l'écran verrouillé est visible par d'autres ; la
 //    file n'en a d'ailleurs pas copie). Pseudo absent : « Quelqu'un ». Clé « mdlf » : { kind, ref } pour
-//    ouvrir le bon écran au toucher (PushPlugin.swift) ; ref : séance, programme, ou élève de la conversation.
+//    ouvrir le bon écran au toucher (PushPlugin.swift) ; ref : séance, programme, ou conversation ('@coach' ou id de l'élève).
 // 2. Requête APNs (documentation Apple « Sending notification requests to APNs ») : HTTP/2, POST
 //    /3/device/<jeton>, en-têtes authorization (jeton du fournisseur), apns-push-type alert, apns-topic
 //    (identifiant de l'app), apns-priority 10, apns-expiration (24 h : après, la notification n'a plus de

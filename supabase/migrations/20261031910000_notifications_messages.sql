@@ -10,10 +10,14 @@
 --     ne touche pas aux deux nouveaux).
 --  2. Jamais le texte : la file ne garde que l'id du message ou du commentaire (ref), relu à l'envoi pour
 --     vérifier qu'il compte encore ; la notification ne porte que le pseudo et l'écran à ouvrir (ref
---     rendu par push_claim : id de la séance pour un commentaire, id de l'élève pour un message).
+--     rendu par push_claim : id de la séance pour un commentaire ; pour un message, '@coach' si je suis
+--     l'élève, sinon l'id de l'élève : l'app n'a pas besoin de savoir quel compte est connecté, ce qui
+--     n'est pas encore le cas quand on touche la notification app fermée).
 --  3. Anti-rafale : une salve d'un même auteur ne sonne qu'une fois. Une nouvelle notification
---     (destinataire, type, auteur) n'est pas créée si celle des 15 dernières minutes compte encore
---     (message pas encore lu ; commentaire toujours visible). Pourquoi 15 min : un chat s'écrit en
+--     (destinataire, type, auteur) n'est pas créée s'il y en a déjà une de moins de 15 minutes ; pour
+--     un message, seulement si elle compte encore (pas encore lu). Un commentaire, lui, se supprime sans
+--     limite : supprimé ou masqué, il compte quand même (sinon « publier, supprimer, republier » sonnerait
+--     à chaque fois, et un auteur masqué sonnerait aussitôt de nouveau). Pourquoi 15 min : un chat s'écrit en
 --     salves de quelques messages en quelques minutes, et plusieurs commentaires d'affilée sont courants ;
 --     15 min les regroupent, plafonnent à 4 notifications par heure et par auteur même si on ne lit pas
 --     (60 messages et 30 commentaires par heure sont permis), et un oubli est rappelé au bout d'un quart
@@ -28,7 +32,8 @@
 --       inutile de sonner) ;
 --     - blocage entre les deux comptes (private.blocked_between, déjà dans push_enqueue et push_claim) :
 --       le chat ne regarde pas les blocages, ses notifications si.
---  5. Les déclencheurs ne font jamais échouer l'envoi du message ou du commentaire (exception avalée).
+--  5. Les déclencheurs ne font jamais échouer l'envoi du message ou du commentaire : une erreur est
+--     écrite dans le journal de Postgres (raise warning), jamais renvoyée.
 --  6. Les briques sont en plpgsql et ne lisent session_comments ou coach_messages que pour leur type :
 --     un retour arrière du chat ou des commentaires fait avant celui-ci ne casse pas les autres types.
 -- ═══════════════════════════════════════════════════════════
@@ -97,9 +102,10 @@ begin
 end
 $$;
 
--- Écran à ouvrir au toucher (ref envoyé à l'app) : séance du commentaire, élève de la conversation
--- (l'app ouvre « mon coach » si c'est elle-même). Autres types : ref tel quel. Disparu : ''.
-create function private.push_open_ref(kind text, ref text) returns text
+-- Écran à ouvrir au toucher (ref envoyé à l'app) : séance du commentaire ; conversation : '@coach' si le
+-- destinataire est l'élève (CHAT_COACH de l'app), sinon l'id de l'élève. Autres types : ref tel quel.
+-- Disparu : ''.
+create function private.push_open_ref(kind text, ref text, recipient uuid) returns text
   language plpgsql stable security definer set search_path = '' as
 $$
 declare r text;
@@ -109,7 +115,8 @@ begin
   if kind = 'comment' then
     select c.session_id into r from public.session_comments c where c.id = ref::bigint;
   else
-    select m.student_id::text into r from public.coach_messages m where m.id = ref::bigint;
+    select case when m.student_id = recipient then '@coach' else m.student_id::text end into r
+      from public.coach_messages m where m.id = ref::bigint;
   end if;
   return coalesce(r, '');
 end
@@ -134,7 +141,7 @@ begin
     if exists (select 1 from private.push_outbox o
                where o.recipient = push_enqueue.recipient and o.kind = push_enqueue.kind and o.actor = push_enqueue.actor
                  and o.created_at > now() - interval '15 minutes'
-                 and private.push_valid(o.kind, o.recipient, o.actor, o.ref)) then
+                 and (o.kind = 'comment' or private.push_valid(o.kind, o.recipient, o.actor, o.ref))) then
       return;
     end if;
   elsif exists (select 1 from private.push_outbox o
@@ -173,7 +180,7 @@ begin
   )
   select coalesce(jsonb_agg(jsonb_build_object(
            'id', c.id, 'kind', c.kind,
-           'ref', case when c.ok then private.push_open_ref(c.kind, c.ref) else '' end,
+           'ref', case when c.ok then private.push_open_ref(c.kind, c.ref, c.recipient) else '' end,
            'token', d.token, 'env', d.env,
            'actor_name', up.username,
            'wanted', c.ok)
@@ -194,7 +201,7 @@ $$
 begin
   begin
     perform private.push_enqueue(new.session_owner, 'comment', new.author_id, new.id::text);
-  exception when others then null;
+  exception when others then raise warning 'push_on_comment: % %', sqlstate, sqlerrm;
   end;
   return null;
 end
@@ -207,7 +214,7 @@ begin
   begin
     perform private.push_enqueue(case when new.from_coach then new.student_id else new.coach_id end, 'chat_message',
                                  case when new.from_coach then new.coach_id else new.student_id end, new.id::text);
-  exception when others then null;
+  exception when others then raise warning 'push_on_chat_message: % %', sqlstate, sqlerrm;
   end;
   return null;
 end
@@ -257,7 +264,7 @@ $$;
 -- ── Droits ───────────────────────────────────────────────
 
 revoke all on function private.push_valid(text, uuid, uuid, text) from public, anon, authenticated, service_role;
-revoke all on function private.push_open_ref(text, text) from public, anon, authenticated, service_role;
+revoke all on function private.push_open_ref(text, text, uuid) from public, anon, authenticated, service_role;
 revoke all on function private.push_on_comment() from public, anon, authenticated, service_role;
 revoke all on function private.push_on_chat_message() from public, anon, authenticated, service_role;
 revoke all on function public.push_set_prefs(boolean, boolean, boolean, boolean, boolean) from public, anon, authenticated, service_role;

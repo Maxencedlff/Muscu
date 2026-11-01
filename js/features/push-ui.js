@@ -81,7 +81,7 @@ onPushChange(() => {
 
 // Toucher d'une notification (lancement à froid compris : iOS la garde jusqu'à cet abonnement)
 function openPushTarget(p) {
-  const t = pushTarget(p, data.history || [], account.user?.id || null);
+  const t = pushTarget(p, data.history || []);
   if (!t) return;
   if (activeSession && currentView() === 'session') return;   // jamais arraché d'une séance en cours
   closeTransientUI();   // feuille ou dialogue ouvert : fermé avant de changer d'écran

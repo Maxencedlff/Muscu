@@ -170,7 +170,9 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     const all = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort().map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
     const sql = fs.readFileSync(path.join(dir, '20261031900000_notifications_push.sql'), 'utf8');
     // Dernière contrainte posée sur push_outbox.kind (la plus récente migration qui l'a changée)
-    const checks = [...all.matchAll(/check \(kind in \(([^)]+)\)\)/g)];
+    const checks = [...all.matchAll(/push_outbox_kind_check\s+check \(kind in \(([^)]+)\)\)|create table private\.push_outbox[\s\S]*?kind\s+text not null check \(kind in \(([^)]+)\)\)/g)]
+      .map(m => [null, m[1] || m[2]]);
+    assert.ok(checks.length >= 2, 'contrainte de push_outbox.kind introuvable');
     const kinds = checks.at(-1)[1].match(/'([a-z_]+)'/g).map(k => k.slice(1, -1));
     assert.ok(kinds.includes('comment') && kinds.includes('chat_message'));
     sameJSON(Object.keys(PUSH_KINDS).sort(), kinds.sort());
@@ -411,12 +413,13 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(t({ kind: 'coach_programme', ref: 'p1' }), { tab: 'friends', screen: 'coach-mine', params: [] });
     sameJSON(t({ kind: 'comment', ref: 's1' }, [{ id: 's1' }]), { tab: 'history', screen: 'history-detail', params: ['s1'] });
     sameJSON(t({ kind: 'comment', ref: '' }, [{ id: 's1' }]), { tab: 'history', screen: null, params: [] }, 'commentaire disparu');
-    const me = '00000000-0000-0000-0000-0000000000a1', student = '00000000-0000-0000-0000-0000000000b2';
-    const tm = (p) => run(`pushTarget(${JSON.stringify(p)}, [], ${JSON.stringify(me)})`);
-    sameJSON(tm({ kind: 'chat_message', ref: me }), { tab: 'friends', screen: 'coach-chat', params: [run('CHAT_COACH')] }, 'élève : avec mon coach');
-    sameJSON(tm({ kind: 'chat_message', ref: student }), { tab: 'friends', screen: 'coach-chat', params: [student] }, 'coach : avec cet élève');
-    sameJSON(tm({ kind: 'chat_message', ref: '../x' }), { tab: 'friends', screen: null, params: [] }, 'ref inattendu : onglet Amis');
-    sameJSON(tm({ kind: 'chat_message', ref: '' }), { tab: 'friends', screen: null, params: [] });
+    const student = '00000000-0000-0000-0000-0000000000b2';
+    // Clé décidée par le serveur (push_open_ref) : rien ne dépend du compte connecté
+    assert.equal(run('CHAT_COACH'), '@coach', 'même clé que push_open_ref');
+    sameJSON(t({ kind: 'chat_message', ref: '@coach' }), { tab: 'friends', screen: 'coach-chat', params: ['@coach'] }, 'élève : avec mon coach');
+    sameJSON(t({ kind: 'chat_message', ref: student }), { tab: 'friends', screen: 'coach-chat', params: [student] }, 'coach : avec cet élève');
+    sameJSON(t({ kind: 'chat_message', ref: '../x' }), { tab: 'friends', screen: null, params: [] }, 'ref inattendu : onglet Amis');
+    sameJSON(t({ kind: 'chat_message', ref: '' }), { tab: 'friends', screen: null, params: [] });
     assert.equal(t({ kind: 'inconnu' }), null);
     assert.equal(t(null), null);
   });

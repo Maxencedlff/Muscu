@@ -769,7 +769,7 @@ FAKE_ACCOUNT = r"""
   };
   const REPORT_REASONS = ['spam', 'harcelement', 'sexuel', 'violence', 'haine', 'autre'];
 
-  // ── Notifications push : comme supabase/migrations/20261031900000_notifications_push.sql ──
+  // ── Notifications push : comme supabase/migrations/20261031900000_notifications_push.sql et 20261031910000_notifications_messages.sql ──
   // Serveur à jour : 5 types (20261031910000) ; __fakeOpts.pushOldServer : les 3 d'avant
   const PUSH_PREF_KEYS = opts.pushOldServer ? ['reactions', 'follows', 'coach'] : ['reactions', 'follows', 'coach', 'comments', 'messages'];
   const pushPrefs = id => { const p = sb.push.prefs[id] || {}; return Object.fromEntries(PUSH_PREF_KEYS.map(k => [k, p[k] === true])); };

@@ -10,7 +10,7 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
 | Demandes d'abonnement | ligne `follows` en `pending` (jamais `ghost`) | « Nouvelle demande » · « max.dlf veut suivre tes séances » | Onglet Amis |
 | Commentaires | ligne ajoutée dans `session_comments` par un autre sur une séance à moi | « Nouveau commentaire » · « max.dlf a commenté ta séance » | Historique › la séance (Historique si elle n'est pas sur l'iPhone) |
 | Mon coach | `coach_notes` ajouté ou texte changé ; `coach_programmes` ajouté ou contenu changé | « Ton coach » · « kevin a commenté ta séance » / « kevin t'a envoyé un programme » | Historique › la séance ; Amis › Mon coach |
-| Messages | ligne ajoutée dans `coach_messages` par l'autre personne (mon coach, ou un de mes élèves) | « Nouveau message » · « kevin t'a envoyé un message » | Amis › la conversation (avec mon coach, ou avec cet élève) |
+| Messages | ligne ajoutée dans `coach_messages` par l'autre personne (mon coach, ou un de mes élèves) | « Nouveau message » · « kevin t'a envoyé un message » | Amis › la conversation (avec mon coach, ou avec cet élève), même app fermée |
 
 - **Rien sans accord** : les cinq types sont éteints par défaut (pas de ligne `push_prefs` = tout
   éteint). La fenêtre d'autorisation d'iOS ne s'ouvre qu'au toucher d'un interrupteur ; le jeton de
@@ -20,8 +20,9 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
 - **Pas de doublon** : la même notification (destinataire, type, auteur, objet) n'est pas recréée pendant
   24 h (bravo retiré puis remis, commentaire retouché).
 - **Anti-rafale (commentaires, messages)** : une salve d'un même auteur sonne une fois. Pas de nouvelle
-  notification (destinataire, type, auteur) si celle des 15 dernières minutes compte encore (message pas
-  encore lu, commentaire toujours visible) ; lu entre-temps, le message suivant sonne. 15 min : regroupe
+  notification (destinataire, type, auteur) s'il y en a une de moins de 15 minutes ; pour un message,
+  seulement si elle n'est pas encore lue (lu entre-temps, le message suivant sonne). Un commentaire
+  supprimé ou masqué compte quand même (« publier, supprimer, republier » ne sonne qu'une fois). 15 min : regroupe
   une salve (un chat s'écrit en quelques messages en quelques minutes), plafonne à 4 notifications par
   heure et par auteur alors que 60 messages et 30 commentaires par heure sont permis, et rappelle un oubli
   au bout d'un quart d'heure. Plusieurs séances commentées d'affilée par la même personne : une seule
@@ -55,7 +56,7 @@ RLS activée sans politique et aucun GRANT de table : tout passe par des fonctio
 | `push_release(token)` | authenticated | retire ce jeton s'il est à un AUTRE compte (laissé sur cet iPhone par une session finie hors de l'app) ; le mien n'est jamais touché |
 | `push_prefs()` | authenticated | `{ reactions, follows, coach, comments, messages }` |
 | `push_set_prefs(reactions, follows, coach, comments, messages)` | authenticated | `null` = inchangé ; un type éteint vide sa file en attente. La version à 3 arguments reste (app d'avant) et ne touche pas aux deux autres |
-| `push_claim(max_rows)` | service_role | prend la file (une ligne par appareil, `wanted` relu avec la modération), `ref` = écran à ouvrir (séance du commentaire, élève de la conversation), ménage : file de plus de 7 jours, appareils muets depuis 60 jours |
+| `push_claim(max_rows)` | service_role | prend la file (une ligne par appareil, `wanted` relu avec la modération), `ref` = écran à ouvrir (séance du commentaire ; conversation : `@coach` pour l'élève, id de l'élève pour le coach, sans dépendre du compte chargé dans l'app), ménage : file de plus de 7 jours, appareils muets depuis 60 jours |
 | `push_done(ids, dead_tokens)` | service_role | solde les notifications traitées, retire les jetons morts |
 | `push_auth_get()` | service_role | jeton du fournisseur APNs gardé `{ token, iat, key_id }`, ou `null` |
 | `push_auth_swap(expected, token, iat, key_id)` | service_role | le remplace seulement s'il porte encore `expected` (`null` : pas encore de ligne) ; rend la ligne gagnante |

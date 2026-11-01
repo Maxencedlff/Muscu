@@ -244,6 +244,10 @@ def t_toucher(bench, eng, dev, theme):
         data = json.loads(ppl_v2_today_json())
         sid = data['history'][0]['id']
         open_app(page, theme, json.dumps(data))
+        # App fermée : le toucher arrive avant que le compte soit chargé ; la clé vient du serveur
+        page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'chat_message', 'ref': '@coach'})
+        page.wait_for_function("() => currentRoute() === 'coach-chat:' + encodeURIComponent(CHAT_COACH)", timeout=3000)
+        R.check(page.evaluate('nav.tab') == 'friends', f'{t} toucher avant le compte : conversation avec mon coach')
         signin(page)
         page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'reaction', 'ref': sid})
         page.wait_for_timeout(400)
@@ -254,15 +258,14 @@ def t_toucher(bench, eng, dev, theme):
         page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'comment', 'ref': sid})
         page.wait_for_timeout(400)
         R.check(page.evaluate('nav.tab') == 'history' and page.evaluate('currentView()') == 'history-detail', f'{t} commentaire → la séance ({page.evaluate("currentView()")})')
-        me = page.evaluate('__sb.meId()')
-        page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'chat_message', 'ref': me})
-        page.wait_for_timeout(400)
-        R.check(page.evaluate('nav.tab') == 'friends' and page.evaluate('currentRoute()') == 'coach-chat:' + page.evaluate("encodeURIComponent(CHAT_COACH)"),
-                f'{t} message du coach → la conversation ({page.evaluate("currentRoute()")})')
+        coach_route = 'coach-chat:' + page.evaluate("encodeURIComponent(CHAT_COACH)")
+        page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'chat_message', 'ref': '@coach'})
+        page.wait_for_function("r => currentRoute() === r", arg=coach_route, timeout=3000)
+        R.check(page.evaluate('nav.tab') == 'friends', f'{t} message du coach → la conversation ({page.evaluate("currentRoute()")})')
         other = '00000000-0000-0000-0000-0000000000b2'
         page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'chat_message', 'ref': other})
-        page.wait_for_timeout(400)
-        R.check(page.evaluate('currentRoute()') == 'coach-chat:' + other, f'{t} message d\'un élève → sa conversation ({page.evaluate("currentRoute()")})')
+        page.wait_for_function("r => currentRoute() === r", arg='coach-chat:' + other, timeout=3000)
+        R.check(page.evaluate('currentRoute()') == 'coach-chat:' + other, f'{t} message d\'un élève → sa conversation')
         page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'pub', 'ref': 'x'})
         page.wait_for_timeout(200)
         R.check(page.evaluate('nav.tab') == 'friends', f'{t} type inconnu : rien ne bouge')

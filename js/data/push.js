@@ -177,14 +177,15 @@ async function pushReleaseOther(uid) {
 
 // Écran ouvert par le toucher d'une notification ({ kind, ref } posés par push-send)
 //   → { tab, screen, params } (screen null : racine de l'onglet) ; inconnu : null (l'app s'ouvre simplement).
-// Une séance qui n'est pas (ou plus) sur cet appareil : l'Historique. Message : ref = l'élève de la
-// conversation (moi : celle avec mon coach, CHAT_COACH ; un autre : celle avec cet élève).
+// Une séance qui n'est pas (ou plus) sur cet appareil : l'Historique. Message : ref = clé de la
+// conversation, décidée par le serveur ('@coach' = CHAT_COACH : avec mon coach ; l'id d'un élève : avec
+// lui), sans dépendre du compte connecté (pas encore chargé quand on touche la notification app fermée).
 const PUSH_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-function pushTarget(p, history = [], me = null) {
+function pushTarget(p, history = []) {
   const kind = p?.kind, ref = typeof p?.ref === 'string' ? p.ref : '';
   if (kind === 'chat_message') {
-    if (!PUSH_UUID_RE.test(ref)) return { tab: 'friends', screen: null, params: [] };
-    return { tab: 'friends', screen: 'coach-chat', params: [ref === me ? CHAT_COACH : ref] };
+    if (ref !== CHAT_COACH && !PUSH_UUID_RE.test(ref)) return { tab: 'friends', screen: null, params: [] };
+    return { tab: 'friends', screen: 'coach-chat', params: [ref] };
   }
   if (kind === 'reaction' || kind === 'coach_note' || kind === 'comment') {
     return ref && history.some(h => h.id === ref)

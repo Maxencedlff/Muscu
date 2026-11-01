@@ -7,9 +7,10 @@
 --  encore en file effacées ; réglages comments et messages effacés ; push_wanted, push_enqueue, push_claim
 --  et push_prefs reprennent leur texte de 20261031900000 ; push_set_prefs à 5 arguments supprimé (celui
 --  à 3 reste). Messages, commentaires et autres notifications : aucune ligne touchée.
---  Avant : publier une version de l'app qui n'envoie plus les 5 réglages (sinon « Réglage non
---  enregistré » sur les deux nouveaux interrupteurs ; l'app d'avant cette migration n'en a que 3). La
---  fonction push-send n'a pas besoin d'être redéployée (types inconnus de la file : il n'y en a plus).
+--  L'app s'adapte seule : elle ne montre que les types que push_prefs renvoie (3 après ce retour
+--  arrière) et écrit alors avec push_set_prefs à 3 arguments (seul un écran Notifications resté ouvert
+--  pendant le retour arrière dit « Réglage non enregistré » au premier toucher). La fonction push-send
+--  n'a pas besoin d'être redéployée (types inconnus de la file : il n'y en a plus).
 --  À démonter AVANT 20261031900000_notifications_push_down.sql (supabase/rollback/ORDRE.md).
 --  Vérifié par tests/sql/rollback_push_messages_check.sh (pg_dump identique à la base d'avant).
 -- ═══════════════════════════════════════════════════════════
@@ -96,7 +97,7 @@ $$;
 
 drop function if exists public.push_set_prefs(boolean, boolean, boolean, boolean, boolean);
 drop function if exists private.push_valid(text, uuid, uuid, text);
-drop function if exists private.push_open_ref(text, text);
+drop function if exists private.push_open_ref(text, text, uuid);
 
 delete from private.push_outbox where kind in ('comment', 'chat_message');
 alter table private.push_outbox drop constraint push_outbox_kind_check;

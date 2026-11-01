@@ -84,10 +84,21 @@ do $$ begin
   -- Le propriétaire qui répond sur sa séance : rien pour lui
   insert into public.session_comments (session_owner, session_id, author_id, body) values (pg_temp.u('o'), 'o-1', pg_temp.u('o'), 'merci');
   if pg_temp.n('comment', 'o') <> 2 then raise 'notifié de son propre commentaire'; end if;
-  -- Le commentaire notifié est masqué (3 signalements) : sa notification ne compte plus, le suivant de P sonne
+  -- Le commentaire notifié est masqué (3 signalements) : l'auteur ne sonne pas de nouveau pour autant
   update public.session_comments set masked_at = now() where id = current_setting('pmt.c1')::bigint;
   insert into public.session_comments (session_owner, session_id, author_id, body) values (pg_temp.u('o'), 'o-2', pg_temp.u('p'), 'nouveau');
-  if pg_temp.n('comment', 'o') <> 3 then raise 'notification d''avant masquée : le nouveau commentaire doit sonner'; end if;
+  if pg_temp.n('comment', 'o') <> 2 then raise 'auteur masqué : nouvelle sonnerie dans les 15 min'; end if;
+  -- Publier, supprimer, republier : une seule sonnerie (supprimer n'est jamais limité)
+  delete from public.session_comments where author_id = pg_temp.u('p') and masked_at is null;
+  insert into public.session_comments (session_owner, session_id, author_id, body) values (pg_temp.u('o'), 'o-2', pg_temp.u('p'), 'republié');
+  if pg_temp.n('comment', 'o') <> 2 then raise 'supprimer puis republier : nouvelle sonnerie'; end if;
+  -- Fenêtre passée (15 min) : P sonne de nouveau
+  update private.push_outbox set created_at = now() - interval '16 minutes' where actor = pg_temp.u('p');
+  insert into public.session_comments (session_owner, session_id, author_id, body) values (pg_temp.u('o'), 'o-2', pg_temp.u('p'), 'plus tard');
+  if pg_temp.n('comment', 'o') <> 3 then raise 'après 15 min : pas de nouvelle notification'; end if;
+  update private.push_outbox set created_at = now() - interval '14 minutes' where actor = pg_temp.u('p') and created_at > now() - interval '1 minute';
+  insert into public.session_comments (session_owner, session_id, author_id, body) values (pg_temp.u('o'), 'o-2', pg_temp.u('p'), 'encore');
+  if pg_temp.n('comment', 'o') <> 3 then raise 'à 14 min : déjà une nouvelle notification'; end if;
   -- Bloqué : rien
   insert into public.blocks (blocker_id, blocked_id) values (pg_temp.u('o'), pg_temp.u('q'));
   delete from private.push_outbox where actor = pg_temp.u('q');
@@ -145,12 +156,13 @@ begin
       if (r ->> 'wanted')::boolean is distinct from (r ->> 'ref' <> '') then raise 'commentaire : wanted et ref %', r; end if;
       if r ->> 'wanted' = 'true' and (r ->> 'ref' <> 'o-2' or r ->> 'actor_name' <> 'npia.n') then raise 'commentaire : séance à ouvrir %', r; end if;
     elsif r ->> 'kind' = 'chat_message' then
-      if r ->> 'ref' <> (case when r ->> 'wanted' = 'true' then pg_temp.u('o')::text else '' end) then raise 'message : élève de la conversation attendu %', r; end if;
+      -- Clé de la conversation décidée par le serveur : '@coach' pour l'élève, l'id de l'élève pour le coach
+      if r ->> 'ref' <> (case when r ->> 'wanted' <> 'true' then '' when r ->> 'token' = repeat('1', 64) then '@coach' else pg_temp.u('o')::text end) then raise 'message : conversation à ouvrir %', r; end if;
       if r ->> 'token' = repeat('1', 64) and r ->> 'actor_name' <> 'nkev.n' then raise 'message : pseudo %', r; end if;
     end if;
     if r ? 'body' or r::text like '%privé%' or r::text like '%quatrième%' then raise 'texte dans la ligne d''envoi %', r; end if;
   end loop;
-  -- Le premier message (lu depuis) et le commentaire masqué : plus voulus ; les autres oui
+  -- Le premier message (lu depuis) et le commentaire masqué : plus voulus ; les autres oui (« plus tard », « quatrième », « réponse »)
   if (select count(*) from jsonb_array_elements(rows) x where x ->> 'wanted' = 'true') <> 3 then raise 'voulues : %', rows; end if;
   if (select count(*) from jsonb_array_elements(rows) x where x ->> 'wanted' = 'false') <> 2 then raise 'écartées : %', rows; end if;
   perform public.push_done(array(select (x ->> 'id')::bigint from jsonb_array_elements(rows) x), '{}');
@@ -205,10 +217,45 @@ do $$ begin
   insert into public.coach_links (student_id, coach_id) values (pg_temp.u('o'), pg_temp.u('k'));
   -- ref inattendu : jamais valide, jamais d'erreur
   if private.push_valid('comment', pg_temp.u('o'), pg_temp.u('p'), 'x;drop') or private.push_valid('chat_message', pg_temp.u('o'), pg_temp.u('k'), '') then raise 'ref invalide accepté'; end if;
-  if private.push_open_ref('comment', '99999999') <> '' then raise 'commentaire inconnu : écran'; end if;
+  if private.push_open_ref('comment', '99999999', pg_temp.u('o')) <> '' then raise 'commentaire inconnu : écran'; end if;
+end $$;
+
+-- Commentaire qui ne compte plus : signalé par moi, mon social coupé, l'auteur désabonné ; message d'un
+-- coach qui n'a plus le rôle
+do $$
+declare cid text; mid text;
+begin
+  delete from private.push_outbox where recipient = pg_temp.u('o') and kind = 'comment';
+  insert into public.session_comments (session_owner, session_id, author_id, body) values (pg_temp.u('o'), 'o-1', pg_temp.u('q'), 'à vérifier')
+    returning id::text into cid;
+  if not private.push_valid('comment', pg_temp.u('o'), pg_temp.u('q'), cid) then raise 'commentaire valide refusé'; end if;
+  insert into public.comment_reports (comment_id, reporter_id, author_id, session_owner, session_id, body, reason)
+    values (cid::bigint, pg_temp.u('o'), pg_temp.u('q'), pg_temp.u('o'), 'o-1', 'à vérifier', 'spam');
+  if private.push_valid('comment', pg_temp.u('o'), pg_temp.u('q'), cid) then raise 'commentaire signalé par moi : compte encore'; end if;
+  delete from public.comment_reports where reporter_id = pg_temp.u('o');
+  update public.user_profiles set social_at = null where user_id = pg_temp.u('o');
+  if private.push_valid('comment', pg_temp.u('o'), pg_temp.u('q'), cid) then raise 'mon social coupé : compte encore'; end if;
+  update public.user_profiles set social_at = now() where user_id = pg_temp.u('o');
+  delete from public.follows where follower_id = pg_temp.u('q');
+  if private.push_valid('comment', pg_temp.u('o'), pg_temp.u('q'), cid) then raise 'auteur désabonné : compte encore'; end if;
+  insert into public.follows (follower_id, followee_id, status, responded_at) values (pg_temp.u('q'), pg_temp.u('o'), 'accepted', now());
+  if not private.push_valid('comment', pg_temp.u('o'), pg_temp.u('q'), cid) then raise 'réabonné : ne compte plus'; end if;
+  insert into public.coach_messages (student_id, coach_id, from_coach, body) values (pg_temp.u('o'), pg_temp.u('k'), true, 'rôle')
+    returning id::text into mid;
+  if private.push_open_ref('chat_message', mid, pg_temp.u('o')) <> '@coach' or private.push_open_ref('chat_message', mid, pg_temp.u('k')) <> pg_temp.u('o')::text then
+    raise 'clé de la conversation';
+  end if;
+  update public.user_profiles set coach_at = null where user_id = pg_temp.u('k');
+  if private.push_valid('chat_message', pg_temp.u('o'), pg_temp.u('k'), mid) then raise 'coach sans le rôle : compte encore'; end if;
+  update public.user_profiles set coach_at = now() where user_id = pg_temp.u('k');
+  delete from public.session_comments where id = cid::bigint;
+  delete from private.push_outbox where recipient = pg_temp.u('o') and kind = 'comment';
 end $$;
 
 -- ── Type éteint : la file en attente est vidée ───────────
+do $$ begin
+  if pg_temp.n('chat_message', 'o') < 1 then raise 'précondition : un message en attente pour O'; end if;
+end $$;
 set role authenticated;
 do $$ begin
   perform pg_temp.login('o');
