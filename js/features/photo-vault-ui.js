@@ -59,7 +59,6 @@ function renderPhotoVault() {
     <div class="view photo-vault ${open ? 'view--grouped' : 'pv-locked'}">
       ${navBar({ title: '', right })}
       <div class="scr">${body}</div>
-      <input type="file" id="photoFile" class="visually-hidden" accept="image/*" aria-hidden="true" tabindex="-1">
     </div>`;
 }
 
@@ -195,6 +194,7 @@ const pvCurrent = epoch => epoch === vaultEpoch && currentView() === 'photo-vaul
 // Ouverture de l'écran : état du coffre lu dans IndexedDB et le trousseau, Face ID demandé d'emblée
 async function mountPhotoVault({ first } = {}) {
   if (!first) return;
+  if (photosEnabled()) photoInput();
   await null;   // le routeur note l'écran comme ouvert après mount : un dessin synchrone ici le remonterait (first) sans fin
   const epoch = vaultEpoch;
   if (!photosEnabled() || !vaultAvailable()) { pv = { ...pv, phase: 'unavailable' }; pvPaint(); return; }
@@ -375,16 +375,28 @@ function pvSetComparePos(v) {
   frame?.querySelector('.pcmp__range')?.setAttribute('aria-valuetext', `${photoCmp.pos} % de la photo d'avant`);
 }
 
-document.addEventListener('change', e => {
-  const el = e.target;
-  if (el.id === 'photoFile') {
-    const file = el.files?.[0];
-    el.value = '';   // la même photo choisie deux fois de suite déclenche bien un nouveau change
-    if (!file) return;
+// Champ fichier des photos : dans <body>, hors de #app (comme sur main, b62fca7). Dans l'écran, un redessin
+// pendant que la photothèque d'iOS est ouverte le remplaçait, et la photo choisie arrivait sur un champ
+// sorti de la page.
+function photoInput() {
+  let inp = document.getElementById('photoFile');
+  if (inp) return inp;
+  inp = document.createElement('input');
+  Object.assign(inp, { type: 'file', id: 'photoFile', accept: 'image/*', tabIndex: -1, className: 'visually-hidden' });
+  inp.setAttribute('aria-hidden', 'true');
+  inp.addEventListener('change', () => {
+    const file = inp.files?.[0];
+    inp.value = '';   // la même photo choisie deux fois de suite déclenche bien un nouveau change
+    if (!file || currentView() !== 'photo-vault') return;
     if (vaultIsOpen()) newPhotoSheet(file);
     else { pvPendingFile = file; pvPaint(); }
-    return;
-  }
+  });
+  document.body.appendChild(inp);
+  return inp;
+}
+
+document.addEventListener('change', e => {
+  const el = e.target;
   if (el.classList?.contains('pcmp__sel')) {
     photoCmp = { ...photoCmp, [el.dataset.side]: el.value };
     pvPaint();
@@ -427,8 +439,7 @@ registerActions({
   // Un seul tap : le sélecteur de fichier s'ouvre dans le geste (caméra ou pellicule, au choix d'iOS)
   'photo-add': (e, el) => {
     photoAddPose = PHOTO_POSE_KEYS.includes(el?.dataset?.pose) ? el.dataset.pose : 'face';
-    const inp = $('#photoFile');
-    if (!inp) return;
+    const inp = photoInput();
     inp.value = '';
     inp.click();
   },
