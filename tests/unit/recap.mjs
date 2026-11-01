@@ -374,6 +374,7 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
   test('recapCardWeek / recapCardInfo : tout le dimanche (semaine en cours), lundi jusqu\'à midi (semaine passée), sinon rien', () => inParis(() => {
     reset();
     const hist = weekHistory();
+    const MON = at(2026, 9, 19, 9);   // lundi 9 h, calculé à l'heure de Paris (NOW, pris hors de inParis, peut tomber après midi en UTC)
     assert.equal(app.recapCardWeek(at(2026, 9, 17, 23, 59)), null, 'samedi 23 h 59');
     assert.equal(app.recapCardWeek(at(2026, 9, 18, 0, 0)).key, 'w2026-10-12', 'dimanche 0 h : la semaine qui se termine');
     assert.equal(app.recapCardWeek(at(2026, 9, 18, 17, 59)).key, 'w2026-10-12', 'dimanche après-midi');
@@ -381,11 +382,11 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(app.recapCardWeek(at(2026, 9, 19, 11, 59)).key, 'w2026-10-12', 'lundi 11 h 59');
     assert.equal(app.recapCardWeek(at(2026, 9, 19, 12, 0)), null, 'lundi midi : plus de carte');
     for (const d of [20, 21, 22, 23, 24]) assert.equal(app.recapCardWeek(at(2026, 9, d, 20)), null, `jour ${d}`);
-    const info = app.recapCardInfo({ history: hist, now: NOW });
+    const info = app.recapCardInfo({ history: hist, now: MON });
     assert.equal(info.period.key, 'w2026-10-12');
     sameJSON(info.totals, { sessions: 3, duration: 170 * 60_000, volume: app.recapTotals(hist.slice(1)).volume, sets: 10 });
-    assert.equal(app.recapCardInfo({ history: hist, now: NOW, seenKey: 'w2026-10-12' }), null, 'masquée par la croix');
-    assert.equal(app.recapCardInfo({ history: hist, now: NOW, off: true }), null, 'réglage coupé');
+    assert.equal(app.recapCardInfo({ history: hist, now: MON, seenKey: 'w2026-10-12' }), null, 'masquée par la croix');
+    assert.equal(app.recapCardInfo({ history: hist, now: MON, off: true }), null, 'réglage coupé');
     assert.equal(app.recapCardInfo({ history: hist, now: at(2026, 9, 26, 9) }), null, 'semaine du 19 sans séance');
     assert.equal(app.recapCardInfo({ history: hist, now: at(2026, 9, 21, 9) }), null, 'mercredi');
   }));
