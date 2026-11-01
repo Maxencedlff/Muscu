@@ -32,7 +32,7 @@ function recapTotalsLine(t) {
   return [plural(t.sessions, 'séance', 'séances'), t.duration >= 60_000 ? fmtDuration(t.duration) : '', t.volume > 0 ? fmtVolume(t.volume) : ''].filter(Boolean).join(' · ');
 }
 
-// ── Accueil : carte « Ta semaine » (dimanche soir et lundi, jusqu'à ce qu'elle soit ouverte) ──
+// ── Accueil : carte « Ta semaine » (tout le dimanche et le lundi avant midi ; seule la croix la masque) ──
 // Aplat citron vert (couleur de marque des récaps, texte noir) ; en sombre, carte noire bordée de citron
 // pour ne pas éblouir sur le noir pur. Titre : le fait le plus positif (recapHeadline). Pastilles en
 // nowrap, chiffre et unité insécables. Petit personnage avec les muscles de la semaine. Toute la carte

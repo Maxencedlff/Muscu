@@ -253,6 +253,25 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(app.recapProfile([], p, [], null, null), null, 'rien à dire : pas de profil');
   }));
 
+  test('recapProfile : paliers du personnage sur la moyenne par semaine (changement d\'heure, année commencée en cours, séries arrondies)', () => inParis(() => {
+    reset();
+    const sq = (d, mo, n) => ({ id: 'q' + mo + d, programme: 'ppl', category: 'legs', date: at(2026, mo, d, 19), duration: 3600_000,
+      exercises: [{ exId: 'sq', name: 'Squat barre', sets: Array.from({ length: n }, () => s('80', '5')) }] });
+    const lvl = perWeek => app.muscleLevel(perWeek) / 4;   // MUSCLE_LEVEL_MAX (const, hors de app)
+    // Semaine du 19 au 26 octobre (169 h, passage à l'heure d'hiver) : 10 séries restent « Objectif atteint »
+    const dst = app.recapPeriod('week', at(2026, 9, 21, 12), at(2026, 9, 27, 12));
+    const wk = [sq(20, 9, 5), sq(22, 9, 5)];
+    let pr = app.recapProfile(wk, dst, wk, null, null, at(2026, 9, 27, 12));
+    assert.equal(pr.tiers.quads, lvl(10), 'semaine de 169 h : comptée comme une semaine');
+    assert.equal(pr.perWeekAvg, false);
+    // Année 2026 commencée le 5 octobre : 20 séries par semaine pendant 4 semaines → moyenne sur 4 semaines, pas 52
+    const yr = app.recapPeriod('year', at(2026, 9, 10, 12), at(2026, 11, 5, 12));
+    const oct = [sq(5, 9, 20), sq(12, 9, 20), sq(19, 9, 20), sq(26, 9, 20)];
+    pr = app.recapProfile(oct, yr, oct, null, null, at(2026, 10, 1, 12));
+    assert.equal(pr.tiers.quads, lvl(20), 'semaines couvertes seulement (du 5 octobre au 1er novembre)');
+    assert.equal(pr.perWeekAvg, true);
+  }));
+
   test('recapMilestones / recapExerciseProgress / recapHeadline', () => inParis(() => {
     reset();
     const one = (i, d) => ({ id: 'x' + i, programme: 'ppl', category: 'push', date: d, duration: 0, exercises: [{ exId: 'dc', name: 'Développé couché haltères', sets: [s(String(40 + i), '8')] }] });

@@ -64,7 +64,6 @@ function bodyHeatOpacity(i) {
 
 const BODY_COLORS = { heat: 'var(--body-heat)', text: 'var(--label2)' };
 
-
 // Couleurs résolues depuis les tokens du thème affiché : pour l'image partagée (canvas), où var(--x)
 // n'a pas de sens. bright : luminosité de la base (sombre : corps assombri sur le noir)
 function bodyMapColors(el = document.body) {

@@ -247,7 +247,8 @@ function setsTxt(n) { return plural(roundSets(n), 'série', 'séries'); }
 // Liste lue par VoiceOver à la place du dessin (Apple HIG, « Accessibility » : l'information portée
 // par la couleur existe aussi en texte)
 function muscleSrListHtml(load) {
-  return `<ul class="visually-hidden">${MUSCLES.map(({ id, label }) =>
+  const you = muscleLegendYou(load);   // la légende visible est aria-hidden : VoiceOver lit la synthèse ici
+  return `${you ? `<p class="visually-hidden">${esc(you)}</p>` : ''}<ul class="visually-hidden">${MUSCLES.map(({ id, label }) =>
     `<li>${label} : ${setsTxt(load.sets[id])}, ${levelWord(load.levels[id])}</li>`).join('')}</ul>`;
 }
 

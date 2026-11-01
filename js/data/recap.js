@@ -378,7 +378,7 @@ const RECAP_EARLY_HOUR = 8;       // « Lève-tôt » : toutes les séances chro
 // intensité 0..1 par muscle (personnage de l'ouverture) ; muscles : les 3 plus travaillés { id, label, sets } ;
 // tiers : palier de Progrès / MUSCLE_LEVEL_MAX par muscle (personnage du profil) ; perWeekAvg : moyenne par semaine.
 // null sans muscle ni moment favori.
-function recapProfile(history, p, sessions, favSlot, favDay) {
+function recapProfile(history, p, sessions, favSlot, favDay, now = Date.now()) {
   const { counts } = muscleSetCounts(history, p.start, p.end);
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const max = Math.max(0, ...Object.values(counts));
@@ -408,9 +408,15 @@ function recapProfile(history, p, sessions, favSlot, favDay) {
   if (!parts.length && !muscles.length) return null;
   const title = parts.length ? parts[0] : `${muscles[0].label} en tête`;
   if (!parts.length) lines.unshift([muscles[0].label, plural(muscles[0].sets, 'série', 'séries')]);
-  // Personnage du profil : paliers de Progrès (muscleLevel) sur la moyenne de séries par semaine de la période
-  const weeks = Math.max(1, (p.end - p.start) / (7 * 86400000));
-  const tiers = Object.fromEntries(Object.entries(counts).map(([id, n]) => [id, muscleLevel(n / weeks) / MUSCLE_LEVEL_MAX]).filter(([, v]) => v > 0));
+  // Personnage du profil : paliers de Progrès (muscleLevel) sur la moyenne de séries par semaine, comptée en
+  // jours de calendrier (la semaine du passage à l'heure d'hiver dure 169 h, pas 168) et seulement sur les
+  // semaines couvertes : depuis la semaine de la première séance de la période, jusqu'à aujourd'hui au plus tard
+  // (un bilan 2026 commencé en octobre ne se divise pas par 52). Séries arrondies d'abord, comme muscleLoad :
+  // la couleur ne contredit jamais le chiffre lu sur les pastilles.
+  const first = sessions.length ? Math.min(...sessions.map(recapStartOf)) : p.start;
+  const from = Math.max(p.start, weekStart(first)), to = Math.min(p.end, now);
+  const weeks = Math.max(1, Math.round((to - from) / 86400000) / 7);
+  const tiers = Object.fromEntries(Object.entries(counts).map(([id, n]) => [id, muscleLevel(roundSets(n) / weeks) / MUSCLE_LEVEL_MAX]).filter(([, v]) => v > 0));
   return { title, lines, levels, muscles, tiers, perWeekAvg: weeks > 1.5 };
 }
 
@@ -520,7 +526,7 @@ function recapStats(p, history = data.history, now = Date.now()) {
   };
   if (p.kind === 'year') Object.assign(st, recapMonths(sessions));
   else st.regularity = recapRegularity(history, p);
-  st.profile  = recapProfile(history, p, sessions, st.favSlot, st.favDay);
+  st.profile  = recapProfile(history, p, sessions, st.favSlot, st.favDay, now);
   st.activeWeeks = recapActiveWeeks(sessions);
   st.milestones = recapMilestones(history, p);
   st.progress = p.kind === 'week' ? null : recapExerciseProgress(sessions, st.topExercise);
@@ -647,7 +653,6 @@ function recapPages(st) {
     body: st.profile && Object.keys(st.profile.levels).length ? st.profile.levels : null, share: 'Partager' });
 
   // Profil (année : « ton année en un corps »)
-
   const pr = st.profile;
   const profile = pr && {
     id: 'profile', tone: 'violet', kicker: kind === 'year' ? 'TON ANNÉE EN UN CORPS' : `TON PROFIL ${SPAN}`,
