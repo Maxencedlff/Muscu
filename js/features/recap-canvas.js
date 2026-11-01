@@ -59,8 +59,8 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
     ctx.fillText(fitText(ctx, str, w), x, y); ctx.globalAlpha = 1;
   };
   const isSummary = page.id === 'summary';
-  const fig = assets.body && (isSummary || page.id === 'profile' || page.id === 'sessions') ? assets.body : null;
-  const sideFig = page.id !== 'profile' && fig;         // résumé, ouverture : personnage à droite du chiffre
+  const fig = assets.body && (page.id === 'profile' || page.id === 'sessions') ? assets.body : null;
+  const sideFig = page.id !== 'profile' && fig;         // ouverture : personnage à droite du chiffre
   const heroW = sideFig ? maxW - 330 : maxW;
 
   // Petit texte sur 1 à 3 lignes (pourquoi ce fait, palier, explications)
@@ -89,7 +89,7 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
   // Chiffre géant (avec « avant → » barré, et son unité)
   if (page.value) {
     const v = recapSplitValue(page.value), unit = page.unit || v.unit, num = v.num || v.unit;
-    const max = isSummary ? 250 : R.NUM_MAX;
+    const max = R.NUM_MAX;
     const measure = s => {
       ctx.font = storyFont(800, s, true, c.p); const nw = ctx.measureText(num).width;
       ctx.font = storyFont(800, Math.round(s * .38), true, c.p); const uw = v.num && unit ? ctx.measureText(unit).width + s * .08 : 0;
@@ -164,14 +164,19 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
     } });
   }
 
-  // Justifications du profil : le libellé, puis sa preuve en dessous (« Plutôt le soir » / « Entre 18 h et 23 h · 8 séances sur 11 »)
+  // Justifications du profil : le libellé, puis sa preuve en dessous, sur 2 lignes au plus (« Plutôt le soir » /
+  // « Entre 18 h et 23 h · 8 séances sur 11 »). Un bloc par ligne : faute de place, elles partent une à une
+  // en partant de la dernière, jamais toutes d'un coup.
   if (page.lines?.length && page.id === 'profile') {
-    const lh = Math.round(R.TEXT * 1.25), gap = 18;
-    blocks.push({ h: page.lines.length * (2 * lh + gap) - gap, optional: 1, draw: y => page.lines.forEach(([l, v], i) => {
-      const ty = y + i * (2 * lh + gap);
-      text(l, f(800, R.TEXT), 1, ty + R.TEXT);
-      text(v, f(600, R.SMALL), .85, ty + lh + R.SMALL + 4);
-    }) });
+    const lh = Math.round(R.TEXT * 1.25), sl = Math.round(R.SMALL * 1.25);
+    page.lines.forEach(([l, v]) => {
+      ctx.font = f(600, R.SMALL);
+      const vals = recapWrap(ctx, v, maxW, 2);
+      blocks.push({ h: lh + vals.length * sl, optional: 1, draw: y => {
+        text(l, f(800, R.TEXT), 1, y + R.TEXT);
+        vals.forEach((x, k) => text(x, f(600, R.SMALL), .85, y + lh + sl * k + R.SMALL));
+      } });
+    });
   }
 
   // Encart (gain d'un record, progression, mois le plus actif)
@@ -277,12 +282,15 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
       });
     } });
   }
-  // Lignes du résumé : le libellé en petit, la valeur dessous en gras (jamais coupée par la valeur d'à côté)
+  // Lignes du résumé : le libellé en petit, la valeur dessous en gras (jamais coupée par la valeur d'à côté).
+  // Faute de place, les lignes partent une à une depuis la dernière (fewer), pas tout l'encart.
   if (isSummary && page.lines?.length) {
     ctx.font = f(800, R.TEXT);
-    const vl = Math.round(R.TEXT * 1.2), rows = page.lines.map(([label, val]) => ({ label, vals: recapWrap(ctx, val, maxW - 80, 2) }));
-    const rhOf = r => 62 + r.vals.length * vl, h = rows.reduce((a, r) => a + rhOf(r), 0) + 24;
-    blocks.push({ h, optional: 1, draw: y => {
+    const vl = Math.round(R.TEXT * 1.2), all = page.lines.map(([label, val]) => ({ label, vals: recapWrap(ctx, val, maxW - 80, 2) }));
+    const rhOf = r => 62 + r.vals.length * vl;
+    const linesBlock = rows => {
+      const h = rows.reduce((a, r) => a + rhOf(r), 0) + 24;
+      return { h, optional: 1, fewer: rows.length > 1 ? () => linesBlock(rows.slice(0, -1)) : null, draw: y => {
       ctx.globalAlpha = .1; ctx.fillStyle = c.fg; roundRect(ctx, SIDE, y, maxW, h, 36); ctx.fill(); ctx.globalAlpha = 1;
       let ry = y + 12;
       rows.forEach((r, i) => {
@@ -291,7 +299,9 @@ function recapBlocks(ctx, page, st, c, f, assets, maxW) {
         r.vals.forEach((v, k) => text(v, f(800, R.TEXT), 1, ry + 44 + vl * (k + 1), SIDE + 40, maxW - 80));
         ry += rhOf(r);
       });
-    } });
+    } };
+    };
+    blocks.push(linesBlock(all));
   }
   return { blocks, sideFig };
 }
@@ -338,7 +348,16 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
   let shown = blocks;
   const FIG_MIN = 460;   // personnage du profil : jamais plus petit (on retire d'abord les lignes facultatives)
   const need = list => total(list) + (list.some(b => b.flex) ? FIG_MIN : 0);
-  for (const level of [1, 2]) if (need(shown) > bottom - top) shown = shown.filter(b => b.optional !== level);
+  // Trop haut : les blocs facultatifs partent un à un depuis le bas (niveau 1, puis 2) ; un bloc qui sait
+  // se raccourcir (fewer : lignes du résumé) perd d'abord ses dernières lignes
+  for (const level of [1, 2]) {
+    while (need(shown) > bottom - top) {
+      const i = shown.findLastIndex(b => b.optional === level);
+      if (i < 0) break;
+      const b = shown[i];
+      if (b.fewer) shown[i] = b.fewer(); else shown.splice(i, 1);
+    }
+  }
   // Encore trop haut : courbe et barres se tassent (jamais sous minH)
   let over = need(shown) - (bottom - top);
   for (const b of shown) if (over > 0 && b.minH) { const cut = Math.min(over, b.h - b.minH); b.h -= cut; over -= cut; }
@@ -352,7 +371,7 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
     else b.draw(by);
     by += b.h + R.GAP;
   });
-  // Résumé : personnage à droite du titre et du chiffre
+  // Ouverture : personnage à droite du titre et du chiffre
   if (sideFig) {
     let fy = heroTop, k = 0;
     for (const b of shown) { if (b.hero) break; fy += b.h + R.GAP; k++; }
@@ -367,7 +386,7 @@ function drawRecapStory(canvas, page, st, palette, assets = {}) {
 async function renderRecapStory(page, st, canvas = document.createElement('canvas')) {
   const palette = storyPalette('var(--green)');
   const tone = RECAP_TONE_COLORS[page.tone] || RECAP_TONE_COLORS.lime;
-  const wantBody = page.body && Object.keys(page.body).length && ['summary', 'profile', 'sessions'].includes(page.id);
+  const wantBody = page.body && Object.keys(page.body).length && ['profile', 'sessions'].includes(page.id);
   const [icon, body] = await Promise.all([
     loadImage('icon-192.png'),
     wantBody ? bodyMapImage(page.body, { view: page.id === 'profile' ? 'both' : 'front', colors: { heat: tone.heat, bright: 1 } }).catch(() => null) : null,

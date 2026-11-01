@@ -258,6 +258,12 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
 
 /* Petite hauteur (iPhone SE, paysage) : tout se resserre */
 @media (max-height: 760px) { .rp-curve ~ .rp-list { display: none; } }
+/* iPhone SE : l'écran tient sans défiler sous les boutons. Records : les 2 premiers autres (le titre ne
+   promet pas de nombre) ; profil : le personnage dit déjà les muscles, VoiceOver lit les pastilles */
+@media (max-height: 700px) {
+  .rp-list li:nth-child(n+3) { display: none; }
+  [data-id="profile"] .rp-pills { display: none; }
+}
 @media (max-height: 700px) {
   .recap-page { padding-top: calc(env(safe-area-inset-top, 0px) + 64px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
   .rp-inner { gap: 6px; }

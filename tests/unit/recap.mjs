@@ -92,7 +92,8 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     sameJSON(st.topExercise, { key: 'dc', name: 'Développé couché haltères', sessions: 2, sets: 4 });
     assert.equal(st.topMuscle.id, 'chest'); assert.equal(st.topMuscle.label, 'Pectoraux'); assert.ok(st.topMuscle.sets >= 4);
     assert.equal(st.favDay, null, 'trois jours différents : pas de jour favori');
-    sameJSON(st.favSlot, { slot: 'soir', label: 'le soir', from: 18, to: 23, count: 2, of: 3 });
+    // Séances enregistrées vers 18 h après 50 à 60 min : commencées l'après-midi (date = fin de séance)
+    sameJSON(st.favSlot, { slot: 'apres-midi', label: 'l\'après-midi', from: 14, to: 18, count: 2, of: 3, all: 3 });
     sameJSON(st.streak, { current: 2, longest: 1 });
     sameJSON(st.prev, { sessions: 1, duration: 50 * 60_000, volume: 960, sets: 2 });
     assert.equal(st.deltas.sessions, 2);
@@ -152,7 +153,12 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(app.recapFavDay([e(at(2026, 9, 13)), e(at(2026, 9, 15))]), null, 'deux jours différents');
     assert.equal(app.recapFavDay([e(at(2026, 9, 13)), e(at(2026, 9, 20)), e(at(2026, 9, 15)), e(at(2026, 9, 22))]), null, 'égalité mardi / jeudi');
     sameJSON(app.recapFavDay([e(at(2026, 9, 13)), e(at(2026, 9, 20)), e(at(2026, 9, 15))]), { index: 1, label: 'mardi', count: 2 });
-    sameJSON(app.recapFavSlot([e(at(2026, 9, 13, 7)), e(at(2026, 9, 14, 8)), e(at(2026, 9, 15, 19))]), { slot: 'matin', label: 'le matin', from: 5, to: 12, count: 2, of: 3 });
+    sameJSON(app.recapFavSlot([e(at(2026, 9, 13, 7)), e(at(2026, 9, 14, 8)), e(at(2026, 9, 15, 19))]), { slot: 'matin', label: 'le matin', from: 5, to: 12, count: 2, of: 3, all: 3 });
+    // L'heure qui compte est le début (date − durée) : fini à 18 h 15 après 1 h 05, commencé l'après-midi
+    sameJSON(app.recapFavSlot([e(at(2026, 9, 13, 18, 15), 65 * 60_000), e(at(2026, 9, 14, 18, 15), 65 * 60_000)]).slot, 'apres-midi');
+    // Une séance sans heure : le compte le dit (« sur 2 chronométrées »), pour ne pas contredire « 2 séances sur 3 » du jour
+    const mixed = [e(at(2026, 9, 13, 19)), e(at(2026, 9, 14, 19)), e(at(2026, 9, 15, 19), 0)];
+    sameJSON(app.recapSlotLine(app.recapFavSlot(mixed)), ['Plutôt le soir', 'Entre 18 h et 23 h · 2 séances sur 2 chronométrées']);
     assert.equal(app.recapSlotRange({ from: 18, to: 23 }), 'Entre 18 h et 23 h');
     assert.equal(app.recapFavSlot([e(at(2026, 9, 13, 7), 0), e(at(2026, 9, 14, 8), 0)]), null, 'sans durée, pas d\'heure connue');
     assert.equal(app.recapSlotOf(at(2026, 9, 13, 2)), 'nuit');
@@ -227,12 +233,12 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     let pr = app.recapProfile([leg(13, 19), leg(15, 19)], p, [leg(13, 19), leg(15, 19)], soir, null);
     assert.equal(pr.title, 'Jambes d\'abord', 'le titre dit ce qui a été travaillé, sans moment à décoder');
     assert.equal(pr.lines[0][0], 'Jambes'); assert.match(pr.lines[0][1], /^\d+ % de tes séries$/);
-    sameJSON(pr.lines[1], ['Plutôt le soir', 'Entre 18 h et 23 h · 2 séances sur 2'], 'moment toujours avec sa plage et son compte');
+    sameJSON(pr.lines[1], ['Plutôt le soir', 'Entre 18 h et 23 h · 2 séances sur 2'], 'moment toujours avec sa plage et son compte');
     assert.ok(['quads', 'glutes'].includes(pr.muscles[0].id)); assert.ok(pr.levels[pr.muscles[0].id] === 1, 'muscle le plus travaillé à pleine intensité');
     const early = [leg(13, 6), leg(15, 7)];
     pr = app.recapProfile(early, p, early, app.recapFavSlot(early), null);
     assert.equal(pr.title, 'Jambes d\'abord');
-    sameJSON(pr.lines[1], ['Lève-tôt', 'Toujours avant 8 h · 2 séances sur 2']);
+    sameJSON(pr.lines[1], ['Lève-tôt', 'Toujours commencé avant 8 h · 2 séances sur 2']);
     pr = app.recapProfile(early, p, early, null, { index: 1, label: 'mardi', count: 2 });
     sameJSON(pr.lines.at(-1), ['Le mardi le plus souvent', '2 séances sur 2'], 'jour favori : une phrase avec son compte');
     // Sans heure ni groupe dominant : « Tout le corps » si 4 groupes à 12 % ou plus
@@ -247,7 +253,7 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(app.recapProfile([], p, [], null, null), null, 'rien à dire : pas de profil');
   }));
 
-  test('recapMilestones / recapWeekStrip / recapExerciseProgress / recapHeadline', () => inParis(() => {
+  test('recapMilestones / recapExerciseProgress / recapHeadline', () => inParis(() => {
     reset();
     const one = (i, d) => ({ id: 'x' + i, programme: 'ppl', category: 'push', date: d, duration: 0, exercises: [{ exId: 'dc', name: 'Développé couché haltères', sets: [s(String(40 + i), '8')] }] });
     const hist = Array.from({ length: 10 }, (_, i) => one(i, at(2026, 8, 1 + i * 4, 18)));   // 10 séances, la 10e le 6 octobre
@@ -257,12 +263,12 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     // Semaine et mois : plus d'écran palier, une mention à l'ouverture et une ligne du résumé
     const wp = app.recapPages(app.recapStats(wk, hist, NOW));
     assert.ok(!wp.some(p => p.id === 'milestone'), 'semaine : pas d\'écran palier');
-    assert.equal(wp[0].mention, 'Cette semaine : ta 10e séance, le mercredi 7 octobre');
+    assert.equal(wp[0].mention, 'Cette semaine : ta 10e séance depuis tes débuts, le mercredi 7 octobre', '« depuis tes débuts » : pas « 10e séance du mois »');
     assert.ok(!wp.at(-1).lines.some(([l]) => /palier/i.test(l)), 'semaine : le palier n\'encombre pas le résumé (dit à l\'ouverture)');
     const mst = app.recapStats(app.recapPeriod('month', at(2026, 9, 6), NOW), hist, NOW), mp = app.recapPages(mst);
     assert.ok(!mp.some(p => p.id === 'milestone'), 'mois : pas d\'écran palier');
-    assert.equal(mp[0].mention, 'Ce mois-ci : ta 10e séance, le 7 octobre');
-    assert.match(app.recapPageAlt(mp[0], mst), /Ce mois-ci : ta 10e séance, le 7 octobre\./, 'lu par VoiceOver');
+    assert.equal(mp[0].mention, 'Ce mois-ci : ta 10e séance depuis tes débuts, le 7 octobre');
+    assert.match(app.recapPageAlt(mp[0], mst), /Ce mois-ci : ta 10e séance depuis tes débuts, le 7 octobre\./, 'lu par VoiceOver');
     // Année : l'écran palier reste
     const yp = app.recapPages(app.recapStats(app.recapPeriod('year', at(2026, 9, 6), at(2027, 0, 5)), hist, at(2027, 0, 5)));
     const ms = yp.find(p => p.id === 'milestone');
@@ -318,9 +324,9 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     const by = Object.fromEntries(st.records.map(r => [r.kind, r]));
     assert.equal(by.allure.label, 'Record 5 km');
     assert.equal(by.allure.value, '5 km à 4:51 /km');
-    sameJSON(app.recapRecordTexts(by.allure), { from: '5:00', to: '4:51', unit: '', sub: 'au km, sur 5 km', gain: '−9 secondes au km depuis ton record du 5 octobre' });
-    sameJSON(app.recapRecordTexts(by.temps), { from: '1 min', to: '1 min 15', unit: '', sub: 'tenu', gain: '+15 s depuis ton record du 5 octobre' });
-    sameJSON(app.recapRecordTexts(by.aide), { from: '30', to: '25', unit: 'kg', sub: 'd\'aide × 8 répétitions', gain: `−5\u00a0kg d'aide depuis ton record du 5 octobre` });
+    sameJSON(app.recapRecordTexts(by.allure), { from: '5:00', to: '4:51', unit: '', sub: 'au km, sur 5 km', gain: '−9 secondes au km depuis ton record du 5 octobre', since: ' depuis ton record du 5 octobre' });
+    sameJSON(app.recapRecordTexts(by.temps), { from: '1 min', to: '1 min 15', unit: '', sub: 'tenu', gain: '+15 s depuis ton record du 5 octobre', since: ' depuis ton record du 5 octobre' });
+    sameJSON(app.recapRecordTexts(by.aide), { from: '30', to: '25', unit: 'kg', sub: 'd\'aide × 8 répétitions', gain: `−5\u00a0kg d'aide depuis ton record du 5 octobre`, since: ' depuis ton record du 5 octobre' });
     assert.equal(by.aide.curve, null, 'aide : pas de courbe de charge');
     // Les records notés dans la séance font foi : aucun noté, aucun record ; un record noté est repris tel quel
     const none = hist(); none[1].records = [];
@@ -360,8 +366,8 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.match(by.exercise.box, /^Force estimée : 63,3 → 77,1\u00a0kg$/, 'force estimée, en mots simples');
     assert.match(by.exercise.foot, /soulever une seule fois/, 'force estimée expliquée');
     assert.equal(by.summary.kicker, '2026'); assert.equal(by.summary.title, 'Mon année en bref');
-    sameJSON(by.summary.lines, [['Exercice le plus fait', 'Développé couché haltères'], ['Plus forte progression · +22,5 kg (+56 %)', 'Développé couché haltères'],
-      ['Mois le plus actif', 'Mars · 5 séances'], ['Moment préféré', 'Le soir, entre 18 h et 23 h']]);
+    sameJSON(by.summary.lines, [['Exercice le plus fait', 'Développé couché haltères'], ['Plus forte progression', 'Développé couché haltères · +22,5 kg (+56 %)'],
+      ['Mois le plus actif', 'Mars · 5 séances'], ['Moment préféré', 'L\'après-midi, entre 14 h et 18 h']]);
     assert.ok(!JSON.stringify(pages).includes('n° 1'), 'plus de « n° 1 » nulle part');
   }));
 
@@ -417,7 +423,7 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.ok(Math.abs(st.bestRecord.rel - 0.1) < 1e-9);
     const pg = app.recapPages(st).find(p => p.id === 'records');
     assert.equal(pg.kicker, '6 RECORDS CE MOIS-CI');
-    assert.equal(pg.lead, 'Ta plus forte hausse de charge', 'dit pourquoi celui-là (la période est dans le surtitre)');
+    assert.equal(pg.lead, 'Ta plus forte progression', 'dit pourquoi celui-là (la période est dans le surtitre)');
     assert.equal(pg.box, '+1\u00a0kg (+10\u00a0%) depuis ton record du 1 octobre');
     assert.equal(pg.listTitle, 'Tes autres records');
     sameJSON(pg.list.map(x => [x.name, x.gain]), [['Leg curl machine', '+2,5\u00a0kg (+6\u00a0%)'], ['Squat barre', '+5\u00a0kg (+5\u00a0%)'], ['Extension quadriceps', '+2,5\u00a0kg (+5\u00a0%)']]);
@@ -450,13 +456,22 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(pg.note, 'Ton rythme habituel les 2 mois d\'avant : 3 séances par semaine');
     sameJSON(pg.strip.map(w => w.n), [3, 1, 4, 0, 3], 'le nombre de séances de chaque semaine, pas juste coché ou vide');
     assert.ok(!/au moins une séance/.test(JSON.stringify(app.recapPages(st))), 'plus de « au moins une séance par semaine »');
-    assert.equal(app.recapPages(st)[0].note, 'Objectif tenu 3 semaines sur 5 : 3 séances ou plus');
+    assert.equal(app.recapPages(st)[0].note, '3 semaines sur 5 à 3 séances ou plus, ton rythme habituel');
     // Une séance par semaine d'habitude : l'objectif reste 2, et l'écran dit que c'est un minimum (pas « ton rythme habituel : 2 »)
     const low = [1, 2, 3, 4].map(k => one(2026, 8, 28 - 7 * k, 0));
     const lr = app.recapRegularity([...low, ...oct], month);
     assert.equal(lr.target, 2); assert.equal(lr.usual, 1);
     const lpg = app.recapPages(app.recapStats(month, [...low, ...oct], NOW)).find(p => p.id === 'streak');
-    assert.equal(lpg.note, 'Objectif minimum : 2 séances par semaine (ton rythme habituel les 2 mois d\'avant : 1)');
+    assert.equal(lpg.note, 'Objectif : 2 séances par semaine (ton rythme habituel les 2 mois d\'avant : 1)');
+    assert.ok(!/rythme habituel/.test(app.recapPages(app.recapStats(month, [...low, ...oct], NOW))[0].note), 'ouverture : pas « ton rythme habituel » quand il est de 1');
+    // Médiane non entière (2, 3, 2, 3 → 2,5) : objectif 2, jamais « ton rythme habituel : 2 »
+    const half = [...week(2026, 7, 31, 2), ...week(2026, 8, 7, 3), ...week(2026, 8, 14, 2), ...week(2026, 8, 21, 3)];
+    const hr = app.recapRegularity([...half, ...oct], month);
+    assert.equal(hr.target, 2); assert.equal(hr.usual, 2.5);
+    assert.equal(app.recapPages(app.recapStats(month, [...half, ...oct], NOW)).find(p => p.id === 'streak').note, 'Objectif : 2 séances par semaine (ton rythme habituel les 2 mois d\'avant : 2,5)');
+    // Semaine : la phrase d'ouverture suit la même règle
+    const wk = app.recapPeriod('week', at(2026, 9, 12), NOW);
+    assert.equal(app.recapPages(app.recapStats(wk, [...half, ...oct], NOW))[0].note.endsWith('ton objectif') || app.recapPages(app.recapStats(wk, [...half, ...oct], NOW))[0].note.startsWith('+'), true);
     // Objectif tenu moins d'une semaine sur deux : pas d'écran ni de note (rien de bon à dire)
     const rare = [...before, ...week(2026, 8, 28, 3), ...week(2026, 9, 5, 1), ...week(2026, 9, 12, 2), ...week(2026, 9, 26, 1)];
     assert.equal(app.recapRegularity(rare, month).hit, 1);
@@ -474,6 +489,29 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     sameJSON(sept.weeks.map(w => new Date(w.start).getDate()), [31, 7, 14, 21]);
     // Semaine : les 8 dernières
     assert.equal(app.recapRegularity([...before, ...oct], app.recapPeriod('week', at(2026, 9, 27), NOW)).total, 8);
+  }));
+
+  test('recapBestWhy / recapExerciseProgress : « plus forte progression » toujours vraie, force estimée seulement en charge', () => inParis(() => {
+    reset();
+    const ses = (id, d, exs) => ({ id, programme: 'ppl', category: 'pull', date: at(2026, 9, d, 18), duration: 0, exercises: exs });
+    // Squat +4 % (charge) et curl 8 → 12 reps à charge égale (+50 %) : le squat passe devant (type charge),
+    // mais il n'a pas la plus forte progression → « Ta plus forte hausse de charge », jamais « progression »
+    const hist = [ses('a', 1, [{ exId: 'sq', name: 'Squat barre', sets: [s('100', '5')] }, { exId: 'cu', name: 'Curl biceps haltères', sets: [s('12', '8')] }]),
+      ses('b', 15, [{ exId: 'sq', name: 'Squat barre', sets: [s('104', '5')] }, { exId: 'cu', name: 'Curl biceps haltères', sets: [s('12', '12')] }])];
+    const st = app.recapStats(app.recapPeriod('month', at(2026, 9, 15), NOW), hist, NOW);
+    assert.equal(st.bestRecord.name, 'Squat barre');
+    assert.ok(st.records.some(r => r.kind === 'reps' && r.rel > st.bestRecord.rel), 'le curl a bien progressé plus en %');
+    assert.equal(app.recapBestWhy(st.records), 'Ta plus forte hausse de charge');
+    const pages = app.recapPages(st);
+    assert.equal(pages.find(p => p.id === 'records').lead, 'Ta plus forte hausse de charge');
+    assert.ok(pages.at(-1).lines.some(([l]) => l === 'Plus forte hausse de charge'), 'le résumé dit la même chose');
+    assert.ok(!JSON.stringify(pages).includes('forte progression'), 'jamais « plus forte progression » ici');
+    // Plus d'aide du tout : +100 %
+    assert.equal(app.recapRecordRel({ kind: 'aide', rec: { after: 0 }, before: { value: 20 } }), 1);
+    // Force estimée : jamais sur une machine assistée (plus d'aide = moins fort)
+    const as = (id, d, w) => ses(id, d, [{ exId: 'ta', name: 'Tractions assistées machine', sets: [s(String(w), '8')] }]);
+    const assisted = [as('x', 2, 20), as('y', 9, 30), as('z', 16, 40)];
+    assert.equal(app.recapExerciseProgress(assisted, app.recapTopExercise(assisted)), null);
   }));
 
   test('sanitizeData : recapCardOff gardé seulement à true', () => {
