@@ -11,8 +11,8 @@
 // (classe pv-shield, et écran natif dans une build qui a le module).
 'use strict';
 
-// Phases : loading, nocrypto, intro, create, confirm, unlock, change-old, change-new, change-confirm, open
-let pv = { phase: 'loading', msg: '', err: false, legacy: 0, bio: false, bioType: 'none', bioStored: false, count: 0 };
+// Phases : loading, nocrypto, error, intro, create, confirm, unlock, change-old, change-new, change-confirm, open
+let pv = { phase: 'loading', msg: '', err: false, legacy: 0, bio: false, bioType: 'none', bioStored: false };
 let pvCode = '';               // chiffres tapés, jamais gardés au-delà de l'essai
 let pvFirst = '';              // création ou changement : premier code, en attente de confirmation
 let pvOld = '';                // changement : code actuel, le temps de saisir le nouveau
@@ -24,6 +24,7 @@ let photoCache = null;         // photos déchiffrées, seulement coffre ouvert
 const photoUrls = new Map();   // id → URL d'objet, révoquées à la fermeture
 let photoCmp = { a: null, b: null, pos: 50 };
 let photoNewPose = 'face';
+let photoAddPose = 'face';     // pose proposée par la case touchée (coffre vide : Face, Profil, Dos)
 
 const PV_PAD_PHASES = ['create', 'confirm', 'unlock', 'change-old', 'change-new', 'change-confirm'];
 const bioLabel = () => (pv.bioType === 'touchID' ? 'Touch ID' : pv.bioType === 'opticID' ? 'Optic ID' : 'Face ID');
@@ -53,16 +54,17 @@ function photoVaultCellHtml() {
 function renderPhotoVault() {
   const open = pv.phase === 'open';
   const right = open ? `<button class="navbar__icon" data-action="pv-lock" aria-label="Verrouiller le coffre">${icon('lock', 22)}</button>`
-    : PV_PAD_PHASES.includes(pv.phase) && pv.phase.startsWith('change') ? `<button class="navbar__text" data-action="pv-change-cancel">Annuler</button>` : '';
+    : PV_PAD_PHASES.includes(pv.phase) && pv.phase.startsWith('change') ? `<button class="navbar__text" data-action="pv-change-cancel" ${pvBusy ? 'disabled' : ''}>Annuler</button>` : '';
   let body;
   if (pv.phase === 'loading') body = `<div class="pv-center"><p class="pv-sub">Ouverture…</p></div>`;
   else if (pv.phase === 'nocrypto') body = `<div class="pv-center"><p class="pv-sub">Le coffre demande un navigateur récent : les photos ne sont pas disponibles ici.</p></div>`;
+  else if (pv.phase === 'error') body = `<div class="pv-center"><p class="pv-sub">Le coffre ne s'ouvre pas pour l'instant.</p><button class="btn btn--secondary" data-action="pv-retry">Réessayer</button></div>`;
   else if (pv.phase === 'intro') body = pvIntroHtml();
   else if (open) body = pvOpenHtml();
   else body = pvPadHtml();
   return `
     <div class="view photo-vault ${open ? 'view--grouped' : 'pv-locked'}">
-      ${navBar({ title: open ? 'Photos' : '', right })}
+      ${navBar({ title: '', right })}
       <div class="scr">${body}</div>
       <input type="file" id="photoFile" class="visually-hidden" accept="image/*" aria-hidden="true" tabindex="-1">
     </div>`;
@@ -74,16 +76,16 @@ function pvIntroHtml() {
   return `
         <div class="pv-intro">
           <div class="pv-glyph" aria-hidden="true">${icon('lock', 34)}</div>
-          <h1 class="pv-title">Coffre à photos</h1>
+          <h1 class="pv-title" id="pvTitle" tabindex="-1">Coffre à photos</h1>
           <p class="pv-lead">Tes photos de progression, à l'abri des regards. Elles ne s'ouvrent qu'avec ton code.</p>
           <ul class="pv-feats">
-            ${feat('lock', 'Chiffrées sur ton iPhone', 'Elles ne s\'affichent qu\'avec ton code, et restent chiffrées dans les sauvegardes.')}
-            ${feat('eye.slash', 'Refermé dès que tu pars', 'Quand tu quittes l\'app, ou après une minute sans toucher l\'écran.')}
-            ${feat('camera', 'Rien ne sort du coffre', 'Ni dans ta pellicule, ni dans l\'export, ni sur nos serveurs, ni chez ton coach.')}
+            ${feat('lock', 'Chiffrées sur ton iPhone', 'Jusque dans les sauvegardes de ton iPhone.')}
+            ${feat('timer', 'Refermé dès que tu pars', 'Quand tu quittes l\'app, ou après une minute sans toucher l\'écran.')}
+            ${feat('eye.slash', 'Rien ne sort du coffre', 'Ni dans ta pellicule, ni dans l\'export, ni sur nos serveurs, ni chez ton coach.')}
+            ${feat('info.circle', 'Un code que toi seul connais', 'Oublié, personne ne peut rouvrir le coffre, pas même nous : il ne restera qu\'à le vider.')}
           </ul>
           ${pv.legacy ? `<p class="pv-note">${plural(pv.legacy, 'photo déjà prise y sera rangée', 'photos déjà prises y seront rangées')}.</p>` : ''}
           <button class="btn btn--primary btn--full pv-cta" data-action="pv-start">Créer mon code</button>
-          <p class="pv-foot">Garde-le bien : si tu l'oublies, personne ne peut rouvrir le coffre, pas même nous. Tu pourras seulement le vider pour repartir de zéro.</p>
         </div>`;
 }
 
@@ -103,26 +105,27 @@ function pvWaitText(ms) {
 
 function pvPadHtml() {
   const wait = Math.max(0, pvWaitUntil - Date.now());
-  const msg = wait > 0 ? `Trop d'essais. Réessaie dans ${pvWaitText(wait)}` : (pv.msg || pvDefaultMsg());
-  const locked = wait > 0 || pvBusy;
-  const key = (d) => `<button class="pv-key num" data-action="pv-digit" data-d="${d}" ${locked ? 'disabled' : ''}>${d}</button>`;
+  const msg = wait > 0 ? 'Trop d\'essais : coffre bloqué un moment' : (pv.msg || pvDefaultMsg());
+  // Attente : touches désactivées ; calcul en cours : touches inertes sans changer d'aspect (pas de clignotement)
+  const key = (d) => `<button class="pv-key num" data-action="pv-digit" data-d="${d}" ${wait > 0 ? 'disabled' : ''}>${d}</button>`;
   const bio = pv.phase === 'unlock' && pvBioReady()
-    ? `<button class="pv-key pv-key--fn" data-action="pv-bio" aria-label="Ouvrir avec ${bioLabel()}" ${wait > 0 ? '' : ''}>${icon('faceid', 30)}</button>`
+    ? `<button class="pv-key pv-key--fn" data-action="pv-bio" aria-label="Ouvrir avec ${bioLabel()}">${icon('faceid', 30)}</button>`
     : '<span class="pv-key pv-key--void" aria-hidden="true"></span>';
   return `
         <div class="pv-lock">
           <div class="pv-glyph pv-glyph--sm" aria-hidden="true">${icon('lock', 26)}</div>
-          <h1 class="pv-title" id="pvTitle">${pvPadTitle()}</h1>
+          <h1 class="pv-title" id="pvTitle" tabindex="-1">${pvPadTitle()}</h1>
           <p class="pv-sub ${pv.err && !wait ? 'pv-sub--err' : ''}" id="pvMsg" role="status" aria-live="polite">${esc(msg)}</p>
+          ${wait > 0 ? `<p class="pv-wait">Réessaie dans <span id="pvCount" class="num">${pvWaitText(wait)}</span></p>` : ''}
           <div class="pv-dots ${pvBusy ? 'pv-dots--busy' : ''}" role="img" aria-label="${pvCode.length} chiffre${pvCode.length > 1 ? 's' : ''} sur ${VAULT_CODE_LEN}">
             ${Array.from({ length: VAULT_CODE_LEN }, (_, i) => `<span class="pv-dot ${i < pvCode.length ? 'pv-dot--on' : ''}"></span>`).join('')}
           </div>
-          <div class="pv-pad" role="group" aria-labelledby="pvTitle">
+          <div class="pv-pad ${pvBusy ? 'pv-pad--busy' : ''}" role="group" aria-labelledby="pvTitle" ${pvBusy ? 'aria-busy="true"' : ''}>
             ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(key).join('')}
             ${bio}${key(0)}
-            <button class="pv-key pv-key--fn" data-action="pv-erase" aria-label="Effacer le dernier chiffre" ${pvCode ? '' : 'disabled'}>${icon('delete.left', 26)}</button>
+            <button class="pv-key pv-key--fn" data-action="pv-erase" aria-label="Effacer le dernier chiffre" ${pvCode && !pvBusy ? '' : 'disabled'}>${icon('delete.left', 26)}</button>
           </div>
-          ${pv.phase === 'unlock' ? '<button class="pv-link" data-action="pv-forgot">Code oublié ?</button>' : '<span class="pv-link pv-link--void" aria-hidden="true"></span>'}
+          ${pv.phase === 'unlock' ? `<button class="pv-link" data-action="pv-forgot" ${pvBusy ? 'disabled' : ''}>Code oublié ?</button>` : '<span class="pv-link pv-link--void" aria-hidden="true"></span>'}
         </div>`;
 }
 
@@ -146,17 +149,19 @@ function pvOpenHtml() {
             ${switchHtml(pv.bio)}
           </button>` : '';
   return `
-        <h1 class="scr-title">Photos</h1>
+        <h1 class="scr-title" id="pvTitle" tabindex="-1">Coffre à photos</h1>
         <p class="pv-summary">${icon('lock', 14)}<span>${summary}</span></p>
         ${photoCompareHtml(list)}
         <div class="group">${add}
-          ${list.length ? `<div class="cell"><div class="pgal">${days}</div></div>` : `<div class="cell"><span class="cell__body"><span class="cell__sub">Face, profil, dos : une photo de temps en temps, pour voir ce que la balance ne dit pas.</span></span></div>`}
+          ${list.length ? `<div class="cell"><div class="pgal">${days}</div></div>` : `<div class="cell pv-empty">
+            <div class="pgal__row">${PHOTO_POSES.map(([k, l]) => `<button class="pv-slot" data-action="photo-add" data-pose="${k}" aria-label="Ajouter une photo : ${l}">${icon('plus', 22)}<span>${l}</span></button>`).join('')}</div>
+            <p class="cell__sub">Une photo de temps en temps, pour voir ce que la balance ne dit pas.</p></div>`}
         </div>
         <div class="group-title">Coffre</div>
         <div class="group">${bioCell}
           <button class="cell cell--nav" data-action="pv-change"><span class="cell__body"><span class="cell__title">Changer le code</span></span>${icon('chevron.right', 16)}</button>
         </div>
-        <div class="group-foot">${list.length ? `${fmtBytes(photosTotalBytes(list))}, chiffrées sur cet appareil. ` : ''}Hors de l'export et de la copie iCloud de l'app ; chiffrées dans la sauvegarde de l'iPhone. Rien n'est montré à tes amis ni à ton coach.</div>`;
+        <div class="group-foot">${list.length ? `${fmtBytes(photosTotalBytes(list))}, chiffrées sur ton iPhone. ` : ''}Hors de l'export et de la copie iCloud de l'app ; chiffrées dans la sauvegarde de l'iPhone. Rien n'est montré à tes amis ni à ton coach.</div>`;
 }
 
 // Avant / après : les deux photos superposées, un curseur découvre l'une sur l'autre.
@@ -195,25 +200,39 @@ function photoCompareHtml(list) {
 }
 
 // ── Cycle de vie ────────────────────────────────────────────
-function pvPaint() { if (currentView() === 'photo-vault') render(); }
+let pvShownPhase = null;   // phase du dernier dessin : le focus va au titre quand elle change (VoiceOver)
+function pvPaint() {
+  if (currentView() !== 'photo-vault') return;
+  render();
+  if (pv.phase !== pvShownPhase) {   // nouvelle étape : en haut de l'écran, focus sur son titre
+    pvShownPhase = pv.phase;
+    window.scrollTo(0, 0);
+    $('#pvTitle')?.focus({ preventScroll: true });
+  }
+}
+// Toujours sur le coffre, et rien n'a été refermé depuis `epoch` ? (sinon un résultat tardif est ignoré)
+const pvCurrent = epoch => epoch === vaultEpoch && currentView() === 'photo-vault';
+// Résultat arrivé après un verrouillage : écran remis sur le clavier, rien d'autre
+function pvStale() {
+  pvBusy = false; pvCode = ''; pvFirst = ''; pvOld = '';
+  if (pv.phase !== 'loading') { pv = { ...pv, phase: vaultIsOpen() ? 'open' : 'unlock', msg: '', err: false }; pvPaint(); }
+}
 
 // Ouverture de l'écran : état du coffre lu dans IndexedDB, Face ID proposé d'emblée s'il est en place
 async function mountPhotoVault({ first } = {}) {
   if (!first) return;
+  const epoch = vaultEpoch;
   if (!photosEnabled() || !vaultCryptoOk()) { pv = { ...pv, phase: 'nocrypto' }; pvPaint(); return; }
   if (vaultIsOpen()) { pv.phase = 'open'; await pvLoadPhotos(); return; }
   let st;
-  try { st = await vaultState(); } catch { pv = { ...pv, phase: 'nocrypto' }; pvPaint(); return; }
+  try { st = await vaultState(); } catch { if (pvCurrent(epoch)) { pv = { ...pv, phase: 'error' }; pvPaint(); } return; }
   const bio = await Native.vault.status();
-  pv = { ...pv, msg: '', err: false, bio: !!st.meta?.bio, bioType: bio.biometry, bioStored: bio.stored };
+  const legacy = st.meta ? 0 : await vaultLegacyCount();
+  if (!pvCurrent(epoch)) return;   // écran quitté pendant la lecture
+  pv = { ...pv, msg: '', err: false, bio: !!st.meta?.bio, bioType: bio.biometry, bioStored: bio.stored, legacy };
   pvCode = ''; pvFirst = ''; pvOld = '';
-  if (!st.meta) {
-    pv.legacy = await vaultLegacyCount();
-    pv.phase = 'intro';
-  } else {
-    pv.phase = 'unlock';
-    pvSetWait(vaultWaitMs(st.tries));
-  }
+  pv.phase = st.meta ? 'unlock' : 'intro';
+  if (st.meta) pvSetWait(vaultWaitMs(st.tries));
   pvPaint();
   if (pv.phase === 'unlock' && pvBioReady() && !(pvWaitUntil > Date.now())) pvTryBio();
 }
@@ -221,7 +240,9 @@ function leavePhotoVault() {
   vaultLock('leave');
   pvPendingFile = null;
   pv.phase = 'loading';
+  pvShownPhase = null;
   pvCode = ''; pvFirst = ''; pvOld = '';
+  clearTimeout(pvSubmitTimer);
 }
 
 async function pvLoadPhotos() {
@@ -229,16 +250,19 @@ async function pvLoadPhotos() {
   try { res = await vaultPhotos(); } catch { res = null; }
   if (!vaultIsOpen()) return;   // refermé pendant la lecture : aucune photo gardée en mémoire
   photoCache = res ? res.photos : [];
-  if (res?.broken) showToast(plural(res.broken, 'photo illisible ignorée', 'photos illisibles ignorées'), { error: true });
+  if (!res) showToast('Lecture du coffre impossible, réessaie', { error: true });
+  else if (res.broken) showToast(plural(res.broken, 'photo illisible ignorée', 'photos illisibles ignorées'), { error: true });
   pvPaint();
   if (pvPendingFile) { const f = pvPendingFile; pvPendingFile = null; newPhotoSheet(f); }
 }
 
-// Coffre refermé (js/data/photo-vault.js) : images libérées, feuilles de photo retirées sur-le-champ
+// Coffre refermé (js/data/photo-vault.js) : images libérées, feuilles de photo retirées sur-le-champ,
+// dialogues ouverts fermés (une confirmation « Supprimer cette photo ? » ne doit pas survivre au code)
 onVaultLock(reason => {
   Native.vault.shield(false);
   document.body.classList.remove('pv-shield');
-  document.querySelectorAll('.sheet-root').forEach(el => { if (el.querySelector('.pnew__img, .pview__img')) { el._close?.(null); el.remove(); } });
+  document.querySelectorAll('.sheet-root').forEach(el => { if (el.querySelector('.pnew__img, .pview__img')) { el._close?.('locked'); el.remove(); } });
+  if (reason !== 'reset') closeTransientUI();
   revokePhotoUrls();
   photoCache = null;
   photoCmp = { a: null, b: null, pos: 50 };
@@ -256,19 +280,21 @@ Native.onActiveChange(active => { document.body.classList.toggle('pv-shield', !a
 ['pointerdown', 'keydown', 'input'].forEach(t => document.addEventListener(t, () => vaultTouch(), { passive: true, capture: true }));
 window.addEventListener('scroll', () => vaultTouch(), { passive: true });
 
+// Attente après trop d'erreurs : annoncée une fois (zone #pvMsg), décompte affiché hors de la zone annoncée
 function pvSetWait(ms) {
   clearInterval(pvTick);
   pvWaitUntil = ms > 0 ? Date.now() + ms : 0;
   if (!pvWaitUntil) return;
   pvTick = setInterval(() => {
     const left = pvWaitUntil - Date.now();
-    const msg = $('#pvMsg');
-    if (left <= 0) { clearInterval(pvTick); pvWaitUntil = 0; pv.msg = ''; pv.err = false; pvPaint(); return; }
-    if (msg) msg.textContent = `Trop d'essais. Réessaie dans ${pvWaitText(left)}`;
+    if (left <= 0) { clearInterval(pvTick); pvWaitUntil = 0; pv.msg = 'Tu peux réessayer'; pv.err = false; pvPaint(); return; }
+    const count = $('#pvCount');
+    if (count) count.textContent = pvWaitText(left);
   }, 1000);
 }
 
 // ── Saisie du code ──────────────────────────────────────────
+let pvSubmitTimer = null;
 function pvSyncDots() {
   const dots = document.querySelectorAll('.pv-dot');
   dots.forEach((d, i) => d.classList.toggle('pv-dot--on', i < pvCode.length));
@@ -289,12 +315,25 @@ function pvType(d) {
   pvCode += d;
   if (pv.err) { pv.err = false; pv.msg = ''; const m = $('#pvMsg'); if (m) { m.textContent = pvDefaultMsg(); m.classList.remove('pv-sub--err'); } }
   pvSyncDots();
-  if (pvCode.length === VAULT_CODE_LEN) setTimeout(pvSubmit, 120);   // le dernier point se voit avant la suite
+  clearTimeout(pvSubmitTimer);
+  if (pvCode.length === VAULT_CODE_LEN) pvSubmitTimer = setTimeout(pvSubmit, 120);   // le dernier point se voit avant la suite
+}
+function pvEraseOne() {
+  if (pvBusy || !pvCode) return;
+  clearTimeout(pvSubmitTimer);
+  pvCode = pvCode.slice(0, -1);
+  pvSyncDots();
+}
+// Code de nouveau à saisir après une erreur d'essai (faux code, attente)
+function pvTryFailed(r) {
+  pvSetWait(r.wait);
+  if (r.failed) { pvFail('Coffre illisible pour l\'instant, réessaie'); return; }
+  pvFail(r.wait > 0 ? 'Trop d\'essais : coffre bloqué un moment' : r.left > 0 && r.left <= 2 ? `Code incorrect · ${plural(r.left, 'essai', 'essais')} avant une attente` : 'Code incorrect');
 }
 
 async function pvSubmit() {
   const code = pvCode;
-  if (code.length !== VAULT_CODE_LEN) return;
+  if (pvBusy || code.length !== VAULT_CODE_LEN) return;
   const ph = pv.phase;
   if (ph === 'create' || ph === 'change-new') {
     if (vaultCodeTooSimple(code)) { pvFail('Code trop facile à deviner, choisis-en un autre'); return; }
@@ -304,94 +343,83 @@ async function pvSubmit() {
     pvPaint();
     return;
   }
-  if (ph === 'confirm' || ph === 'change-confirm') {
-    if (code !== pvFirst) {
-      pvFirst = '';
-      pv.phase = ph === 'confirm' ? 'create' : 'change-new';
-      pvFail('Les deux codes ne correspondent pas, recommence');
-      return;
-    }
-    pvBusy = true; pvPaint();
-    try {
-      if (ph === 'confirm') {
-        const { migrated, stale } = await vaultSetup(code);
-        pvBusy = false; pvCode = ''; pvFirst = '';
-        if (stale) return;   // écran quitté pendant le calcul : le coffre est créé, et fermé
-        pv = { ...pv, phase: 'open', msg: '', err: false };
-        Native.vault.shield(true);
-        await pvLoadPhotos();
-        showToast(migrated ? `Coffre créé · ${plural(migrated, 'photo rangée', 'photos rangées')}` : 'Coffre créé');
-        await pvOfferBio();
-      } else {
-        const r = await vaultChangeCode(pvOld, code);
-        pvBusy = false; pvCode = ''; pvFirst = '';
-        if (!r.ok) {   // ancien code devenu faux entre-temps (essai compté)
-          pvOld = '';
-          pv.phase = 'change-old';
-          pvSetWait(r.wait);
-          pvFail('Code actuel incorrect');
-          return;
-        }
-        pvOld = '';
-        pv = { ...pv, phase: 'open', msg: '', err: false };
-        pvPaint();
-        showToast('Code changé');
-      }
-    } catch {
-      pvBusy = false;
-      pvFail('Enregistrement impossible, réessaie');
-    }
+  if ((ph === 'confirm' || ph === 'change-confirm') && code !== pvFirst) {
+    pvFirst = '';
+    pv.phase = ph === 'confirm' ? 'create' : 'change-new';
+    pvFail('Les deux codes ne correspondent pas, recommence');
     return;
   }
-  if (ph === 'unlock' || ph === 'change-old') {
-    pvBusy = true; pvPaint();
-    let r;
-    try { r = ph === 'unlock' ? await vaultUnlockWithCode(code) : await vaultTryCode(code); }
-    catch { r = { ok: false, wait: 0, left: 1, failed: true }; }
-    pvBusy = false;
-    if (r.stale) return;   // refermé (écran quitté, arrière-plan) pendant le calcul
-    if (!r.ok) {
-      pvSetWait(r.wait);
-      if (r.failed) { pvFail('Coffre illisible pour l\'instant, réessaie'); return; }
-      pvFail(r.wait > 0 ? '' : r.left > 0 && r.left <= 2 ? `Code incorrect · ${plural(r.left, 'essai', 'essais')} avant une attente` : 'Code incorrect');
-      return;
-    }
-    pvCode = '';
-    if (ph === 'change-old') { pvOld = code; pv = { ...pv, phase: 'change-new', msg: '', err: false }; pvPaint(); return; }
+  const epoch = vaultEpoch;
+  pvBusy = true; pvPaint();
+  let r;
+  try {
+    r = ph === 'confirm' ? await vaultSetup(code)
+      : ph === 'change-confirm' ? await vaultChangeCode(pvOld, code)
+      : ph === 'unlock' ? await vaultUnlockWithCode(code)
+      : await vaultTryCode(code);   // change-old
+  } catch { r = { ok: false, wait: 0, left: 1, failed: true }; }
+  pvBusy = false;
+  // Refermé (écran quitté, arrière-plan) pendant le calcul : rien n'est appliqué à l'écran
+  if (r.stale || !pvCurrent(epoch)) { pvStale(); return; }
+  pvCode = '';
+  if (ph === 'confirm') {
+    if (r.failed) { pvFail('Enregistrement impossible, réessaie'); return; }
+    pvFirst = '';
     pv = { ...pv, phase: 'open', msg: '', err: false };
-    haptic('success');
     Native.vault.shield(true);
     await pvLoadPhotos();
+    showToast(r.migrated ? `Coffre créé · ${plural(r.migrated, 'photo rangée', 'photos rangées')}` : 'Coffre créé');
     await pvOfferBio();
+    return;
   }
+  if (ph === 'change-confirm') {
+    pvFirst = '';
+    if (!r.ok) { pvOld = ''; pv.phase = 'change-old'; pvTryFailed(r); return; }   // ancien code faux entre-temps (essai compté)
+    pvOld = '';
+    pv = { ...pv, phase: vaultIsOpen() ? 'open' : 'unlock', msg: '', err: false };
+    pvPaint();
+    showToast('Code changé');
+    return;
+  }
+  if (!r.ok) { pvTryFailed(r); return; }
+  if (ph === 'change-old') { pvOld = code; pv = { ...pv, phase: 'change-new', msg: '', err: false }; pvPaint(); return; }
+  pv = { ...pv, phase: 'open', msg: '', err: false };
+  haptic('success');
+  Native.vault.shield(true);
+  await pvLoadPhotos();
+  await pvOfferBio();
 }
 
 // ── Face ID ─────────────────────────────────────────────────
+let pvBioBusy = false;
 async function pvTryBio() {
-  if (!pvBioReady() || pvBusy) return;
-  const epoch = vaultEpoch;
-  const r = await Native.vault.unlock('Ouvrir le coffre à photos');
-  if (!r || r.canceled) return;
-  if (r.failed) { pv.msg = `${bioLabel()} n'a pas reconnu ton visage : entre ton code`; pv.err = false; pvPaint(); return; }
-  if (r.gone) {   // visages modifiés dans Réglages : iOS a retiré la clé, retour au code
-    pv.bioStored = false;
-    await vaultSetBio(false); pv.bio = false;
-    pv.msg = `${bioLabel()} a changé sur cet iPhone : entre ton code`; pv.err = false;
-    pvPaint();
-    return;
-  }
-  if (!r.key) return;
-  const ok = await vaultUnlockWithKey(r.key, epoch);
-  if (ok.stale) return;
-  if (!ok.ok) { pv.msg = 'Entre ton code'; pvPaint(); return; }
-  pvCode = '';
-  pv = { ...pv, phase: 'open', msg: '', err: false };
-  Native.vault.shield(true);
-  await pvLoadPhotos();
+  if (!pvBioReady() || pvBusy || pvBioBusy) return;
+  pvBioBusy = true;
+  try {
+    const epoch = vaultEpoch;
+    const r = await Native.vault.unlock('Ouvrir le coffre à photos');
+    if (!pvCurrent(epoch) || !r || r.canceled) return;
+    if (r.failed) { pv.msg = `${bioLabel()} n'a pas fonctionné : entre ton code`; pv.err = false; pvPaint(); return; }
+    if (r.gone) {   // visages modifiés dans Réglages : iOS a retiré la clé, retour au code
+      pv.bioStored = false;
+      await vaultSetBio(false); pv.bio = false;
+      pv.msg = `${bioLabel()} a été modifié dans Réglages : entre ton code`; pv.err = false;
+      pvPaint();
+      return;
+    }
+    if (!r.key) return;
+    const ok = await vaultUnlockWithKey(r.key, epoch);
+    if (ok.stale || !pvCurrent(epoch)) return;
+    if (!ok.ok) { pv.msg = 'Entre ton code'; pvPaint(); return; }
+    pvCode = '';
+    pv = { ...pv, phase: 'open', msg: '', err: false };
+    Native.vault.shield(true);
+    await pvLoadPhotos();
+  } finally { pvBioBusy = false; }
 }
 async function pvEnableBio() {
   if (!vaultIsOpen()) return false;
-  const ok = await Native.vault.remember(await vaultDekB64(vaultKey), `Ouvrir le coffre avec ${bioLabel()}`);
+  const ok = await Native.vault.remember(await vaultExportKey(), `Ouvrir le coffre avec ${bioLabel()}`);
   if (!ok) return false;
   await vaultSetBio(true);
   pv.bio = true; pv.bioStored = true;
@@ -400,9 +428,7 @@ async function pvEnableBio() {
 // Proposé une fois, juste après le premier code (création ou premier déverrouillage dans une build qui l'a)
 async function pvOfferBio() {
   if (!Native.vault.available || pv.bioType === 'none' || pv.bio) return;
-  const meta = await vaultMeta();
-  if (!meta || meta.bioAsked) return;
-  await photoMetaPut({ ...meta, bioAsked: true });
+  if (!(await vaultMarkBioAsked())) return;   // déjà proposé
   const yes = await dialog({ title: `Ouvrir avec ${bioLabel()} ?`, message: `Ton code reste nécessaire si ${bioLabel()} échoue.`, actions: [
     { label: 'Plus tard', style: 'cancel' },
     { label: `Utiliser ${bioLabel()}`, value: true, style: 'preferred' },
@@ -421,17 +447,17 @@ async function pvForgot() {
     message: 'Elles seront supprimées définitivement de cet iPhone. Impossible de revenir en arrière.',
     actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Effacer', value: true, style: 'destructive' }] });
   if (!step2) return;
-  await vaultReset();
+  const ok = await vaultReset();
   pvSetWait(0);
   pv = { ...pv, phase: 'intro', legacy: 0, bio: false, bioStored: false, msg: '', err: false };
   pvPaint();
-  showToast('Coffre vidé');
+  showToast(ok ? 'Coffre vidé' : 'Effacement incomplet, réessaie', { error: !ok });
 }
 
 // ── Photos : ajout, ouverture, suppression ─────────────────
 async function newPhotoSheet(file) {
   const url = URL.createObjectURL(file), today = localISO();
-  photoNewPose = 'face';
+  photoNewPose = photoAddPose;
   const res = await sheet({ title: 'Nouvelle photo', confirm: 'OK', body: `
     <img class="pnew__img" src="${url}" alt="Aperçu de la photo choisie">
     <div class="segmented seg-full pnew__pose" role="radiogroup" aria-label="Pose">
@@ -446,8 +472,8 @@ async function newPhotoSheet(file) {
       return { pose: photoNewPose, date };
     } });
   URL.revokeObjectURL(url);
+  if (res === 'locked' || (res && !vaultIsOpen())) { pvPendingFile = file; pvPaint(); return; }   // refermé pendant la feuille : rangée après le code
   if (!res) return;
-  if (!vaultIsOpen()) { pvPendingFile = file; pvPaint(); return; }   // refermé pendant la feuille
   try {
     const rec = await photoFromFile(file, res);
     await vaultAddPhoto(rec);
@@ -519,26 +545,28 @@ document.addEventListener('pointercancel', () => { pcmpDrag = null; });
 document.addEventListener('keydown', e => {
   if (currentView() !== 'photo-vault' || !PV_PAD_PHASES.includes(pv.phase) || document.querySelector(MODAL_SEL)) return;
   if (/^[0-9]$/.test(e.key)) { e.preventDefault(); pvType(e.key); }
-  else if (e.key === 'Backspace' && pvCode) { e.preventDefault(); pvCode = pvCode.slice(0, -1); pvSyncDots(); }
+  else if (e.key === 'Backspace' && pvCode) { e.preventDefault(); pvEraseOne(); }
 });
 
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
   'go-photo-vault': () => { navigate('photo-vault'); },
+  'pv-retry':  () => { pv.phase = 'loading'; pvPaint(); mountPhotoVault({ first: true }); },
   'pv-start':  () => { pvCode = ''; pvFirst = ''; pv = { ...pv, phase: 'create', msg: '', err: false }; pvPaint(); },
   'pv-digit':  (e, el) => { haptic('light'); pvType(el.dataset.d); },
-  'pv-erase':  () => { if (!pvCode) return; pvCode = pvCode.slice(0, -1); pvSyncDots(); },
+  'pv-erase':  () => pvEraseOne(),
   'pv-bio':    () => pvTryBio(),
-  'pv-forgot': () => pvForgot(),
-  'pv-lock':   () => { vaultLock('manual'); showToast('Coffre verrouillé'); },
+  'pv-forgot': () => { if (!pvBusy) pvForgot(); },
+  'pv-lock':   () => { vaultLock('manual'); },
   'pv-change': () => { pvCode = ''; pvOld = ''; pvFirst = ''; pv = { ...pv, phase: 'change-old', msg: '', err: false }; pvPaint(); },
-  'pv-change-cancel': () => { pvCode = ''; pvOld = ''; pvFirst = ''; pv = { ...pv, phase: vaultIsOpen() ? 'open' : 'unlock', msg: '', err: false }; pvPaint(); },
+  'pv-change-cancel': () => { if (pvBusy) return; clearTimeout(pvSubmitTimer); pvCode = ''; pvOld = ''; pvFirst = ''; pv = { ...pv, phase: vaultIsOpen() ? 'open' : 'unlock', msg: '', err: false }; pvPaint(); },
   'pv-bio-toggle': async () => {
     if (pv.bio) { await Native.vault.forget(); await vaultSetBio(false); pv.bio = false; pv.bioStored = false; pvPaint(); return; }
     if (await pvEnableBio()) pvPaint();
   },
   // Un seul tap : le sélecteur de fichier s'ouvre dans le geste (caméra ou pellicule, au choix d'iOS)
-  'photo-add': () => {
+  'photo-add': (e, el) => {
+    photoAddPose = PHOTO_POSE_KEYS.includes(el?.dataset?.pose) ? el.dataset.pose : 'face';
     const inp = $('#photoFile');
     if (!inp) return;
     inp.value = '';
@@ -556,6 +584,7 @@ registerActions({
   'photo-delete': async (e, el) => {
     const id = el.dataset.id;
     if (!(await confirmSheet('Supprimer cette photo ?', 'Elle n\'est nulle part ailleurs : pas de corbeille.', 'Supprimer'))) return;
+    if (!vaultIsOpen()) return;   // refermé pendant la confirmation : rien sans le code
     try { await photoDelete(id); } catch { showToast('Suppression impossible', { error: true }); return; }
     if (photoUrls.has(id)) { URL.revokeObjectURL(photoUrls.get(id)); photoUrls.delete(id); }
     el.closest('.sheet-root')?._close?.(null);

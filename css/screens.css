@@ -452,10 +452,10 @@ body.light .imp__ctl { background: var(--cell); }
 .pgal__row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .pgal__item { position: relative; aspect-ratio: 3 / 4; min-height: 44px; border-radius: var(--r-sm); overflow: hidden; background: var(--cell2); border: none; padding: 0; cursor: pointer; }
 .pgal__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pgal__pose { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: var(--r-pill); background: var(--scrim); color: var(--white); font-size: 0.647rem; font-weight: 600; }
+.pgal__pose { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: var(--r-pill); background: var(--scrim); color: var(--white); font-size: var(--fs-caption2); font-weight: 600; }
 /* Avant / après : deux photos superposées, un curseur découvre celle d'avant (js/features/photo-vault-ui.js) */
 .pcmp__frame {
-  position: relative; aspect-ratio: 3 / 4; max-height: 62vh; margin: 0 auto; border-radius: var(--r-md); overflow: hidden;
+  position: relative; aspect-ratio: 3 / 4; max-height: 62dvh; max-width: 100%; margin: 0 auto; border-radius: var(--r-md); overflow: hidden;
   background: var(--cell2); touch-action: pan-y; cursor: ew-resize; -webkit-user-select: none; user-select: none;
 }
 .pcmp__frame .pcmp__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
@@ -498,6 +498,7 @@ body.light .imp__ctl { background: var(--cell); }
 .pv-title { font-size: var(--fs-title2); line-height: 1.6rem; font-weight: 600; letter-spacing: -.01em; }
 .pv-sub { min-height: 2.4em; margin-top: 6px; padding: 0 var(--gutter); font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); }
 .pv-sub--err { color: var(--red-text); }
+.pv-wait { margin: -2px 0 6px; font-size: var(--fs-footnote); color: var(--label); font-weight: 600; }
 /* Présentation (premier accès) */
 .pv-intro { padding: 28px var(--gutter) 24px; max-width: 420px; margin: 0 auto; width: 100%; }
 .pv-intro .pv-title { font-size: var(--fs-title1); line-height: 2rem; font-weight: 700; }
@@ -509,11 +510,19 @@ body.light .imp__ctl { background: var(--cell); }
 .pv-feat__title { font-weight: 600; font-size: var(--fs-subhead); }
 .pv-feat__sub { color: var(--label2); font-size: var(--fs-footnote); line-height: 1.059rem; }
 .pv-note { margin-top: 14px; font-size: var(--fs-footnote); color: var(--label); background: var(--fill2); border-radius: var(--r-sm); padding: 10px 14px; width: 100%; }
-.pv-cta { margin-top: auto; min-height: 50px; }
-.pv-intro .pv-cta { margin-top: 28px; }
-.pv-foot { margin-top: 14px; font-size: var(--fs-caption); line-height: 1rem; color: var(--label2); }
+.pv-cta { margin-top: 28px; min-height: 50px; }
 /* Clavier du code, sur le modèle de l'écran de code d'iOS */
-.pv-lock { --pv-key: clamp(64px, min(21vw, 10.5dvh), 80px); padding: 20px 0 12px; justify-content: center; }
+/* Touches : la hauteur qui reste une fois le titre, les points et le lien placés, entre barre et tab bar */
+.pv-lock {
+  --pv-key: clamp(52px, min(21vw, calc((100dvh - 410px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 4)), 80px);
+  padding: 20px 0 12px; justify-content: center;
+}
+@media (max-height: 700px) {
+  .pv-lock { --pv-key: clamp(52px, min(21vw, calc((100dvh - 330px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 4)), 80px); padding-top: 8px; }
+  .pv-lock .pv-glyph--sm { display: none; }
+  .pv-lock .pv-link { margin-top: 8px; }
+  .pv-pad { row-gap: 10px; }
+}
 .pv-dots { display: flex; gap: 16px; margin: 6px 0 26px; }
 .pv-dot { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--label); transition: background-color .12s; }
 .pv-dot--on { background: var(--label); }
@@ -534,9 +543,17 @@ body.light .imp__ctl { background: var(--cell); }
 .pv-key--fn:active { background: var(--fill2); }
 .pv-key--fn:disabled { opacity: 0; }
 .pv-key--void { visibility: hidden; }
+.pv-pad--busy { pointer-events: none; }
 .pv-link { margin-top: 18px; min-height: 44px; min-width: 44px; padding: 0 12px; border: none; background: none; color: var(--tint-on-fill); font-size: var(--fs-subhead); cursor: pointer; }
 .pv-link--void { visibility: hidden; display: block; }
 /* Coffre ouvert */
+.pv-empty { flex-direction: column; align-items: stretch; gap: 10px; padding-top: 12px; padding-bottom: 12px; }
+.pv-slot {
+  aspect-ratio: 3 / 4; min-height: 44px; border-radius: var(--r-sm); border: 1.5px dashed var(--label3); background: none;
+  color: var(--tint-on-fill); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  font-size: var(--fs-footnote); font-weight: 600; cursor: pointer;
+}
+.pv-slot:active { background: var(--fill2); }
 .pv-summary { display: flex; align-items: center; gap: 6px; margin: 0 0 18px; color: var(--label2); font-size: var(--fs-footnote); }
 /* Sélecteur d'apps, Centre de contrôle : rien du coffre ne reste visible */
 body.pv-shield .photo-vault .scr { filter: blur(30px); }

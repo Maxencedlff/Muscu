@@ -251,7 +251,7 @@ def t_verrouillages(bench):
         # 5 erreurs : attente de 30 s
         for _ in range(5):
             type_code(page, WRONG)
-        msg = page.inner_text('#pvMsg')
+        msg = page.inner_text('.pv-lock')
         R.check('Réessaie dans' in msg and page.locator('.pv-key[data-d="1"]').is_disabled(), f'5 erreurs : clavier bloqué {msg!r}')
         shot(page, LOT, 'attente-iPhone_13-dark')
         page.reload()
@@ -259,7 +259,7 @@ def t_verrouillages(bench):
         page.evaluate("navigate('photo-vault')")
         page.wait_for_selector('.pv-lock')
         page.wait_for_timeout(300)
-        R.check('Réessaie dans' in page.inner_text('#pvMsg'), 'attente gardée après un rechargement')
+        R.check('Réessaie dans' in page.inner_text('.pv-lock'), 'attente gardée après un rechargement')
         page.clock.run_for(31_000)
         page.wait_for_timeout(300)
         type_code(page, FAKE_CODE)
@@ -420,4 +420,75 @@ def t_tout_supprimer(bench):
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
 
 
-run_main(R, [t_coffre], once=[t_verrouillages, t_migration_et_oubli, t_face_id, t_sans_module, t_tout_supprimer])
+HIDE = "Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange'))"
+SHOW = "Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })"
+
+
+def t_interruptions(bench):
+    """Arrière-plan pendant le calcul du code, pendant la feuille « Nouvelle photo », pendant une confirmation."""
+    face = png_file('coffre-face.png', 300, 400, (200, 80, 80))
+    with bench.frozen_page(NOW, 'webkit', 'iPhone 13', 'dark') as page:
+        open_vault(page, 'dark')
+        create_vault(page)
+        page.click('[data-action="pv-lock"]')
+        page.wait_for_selector('.pv-lock')
+        # Code tapé, arrière-plan avant la fin du calcul : coffre fermé, clavier de nouveau utilisable
+        type_code(page, FAKE_CODE, wait_after=False)
+        page.wait_for_timeout(140)
+        page.evaluate(HIDE)
+        page.evaluate(SHOW)
+        page.wait_for_function("!document.querySelector('.pv-dots--busy')", timeout=15000)
+        page.wait_for_timeout(300)
+        R.check(not page.evaluate('vaultIsOpen()'), 'arrière-plan pendant le calcul : coffre resté fermé')
+        R.check(page.locator('.pv-pad--busy').count() == 0 and not page.locator('.pv-key[data-d="1"]').is_disabled() and page.locator('.pv-dot--on').count() == 0,
+                'arrière-plan pendant le calcul : clavier vide et utilisable')
+        type_code(page, FAKE_CODE)
+        page.wait_for_selector('[data-action="photo-add"]', timeout=15000)
+        # Feuille « Nouvelle photo » ouverte, arrière-plan : la photo attend le code, puis la feuille revient
+        page.set_input_files('#photoFile', face)
+        page.wait_for_selector('.sheet-root .pnew__img')
+        page.evaluate(HIDE)
+        page.evaluate(SHOW)
+        page.wait_for_timeout(300)
+        R.check(page.locator('.sheet-root').count() == 0 and page.locator('.view.photo-vault img').count() == 0, 'verrouillé : feuille et image retirées')
+        R.check('ranger ta photo' in page.inner_text('#pvMsg'), f'verrouillé : la photo attend le code {page.inner_text("#pvMsg")!r}')
+        type_code(page, FAKE_CODE)
+        page.wait_for_selector('.sheet-root .pnew__img', timeout=15000)
+        page.wait_for_timeout(300)
+        page.click('.sheet__btn--confirm')
+        page.wait_for_selector('.pgal__item', timeout=8000)
+        R.check(page.locator('.pgal__item').count() == 1, 'photo rangée après le code')
+        # Confirmation de suppression ouverte, inactivité : fermée, la photo reste
+        page.locator('.pgal__item').first.click()
+        page.wait_for_selector('[data-action="photo-delete"]')
+        page.wait_for_timeout(300)
+        page.click('[data-action="photo-delete"]')
+        page.wait_for_selector('.ios-dialog')
+        page.clock.run_for(61_000)
+        page.wait_for_timeout(400)
+        R.check(page.locator('.ios-dialog').count() == 0 and not page.evaluate('vaultIsOpen()'), 'inactivité : confirmation fermée, coffre fermé')
+        R.check(len(page.evaluate(RAW_ROWS)['rows']) == 1, 'la photo n\'a pas été supprimée sans code')
+        # Touches de 44 pt au moins et lien « Code oublié » au-dessus de la tab bar
+        tab = page.locator('.tabbar').bounding_box()
+        link = page.locator('[data-action="pv-forgot"]').bounding_box()
+        R.check(link and tab and link['y'] + link['height'] <= tab['y'] + 1, f'« Code oublié ? » au-dessus de la tab bar {link} {tab}')
+        R.check(not page.errors, f'aucune erreur JS : {page.errors}')
+
+
+def t_hauteur_se(bench):
+    """iPhone SE : clavier du code entier entre la barre et la tab bar, en clair et en sombre."""
+    for theme in ('light', 'dark'):
+        with bench.frozen_page(NOW, 'webkit', 'iPhone SE', theme) as page:
+            open_vault(page, theme)
+            create_vault(page)
+            page.click('[data-action="pv-lock"]')
+            page.wait_for_selector('.pv-lock')
+            tab = page.locator('.tabbar').bounding_box()
+            link = page.locator('[data-action="pv-forgot"]').bounding_box()
+            keys = page.locator('.pv-key[data-d]')
+            ok44 = all(keys.nth(i).bounding_box()['height'] >= 44 for i in range(keys.count()))
+            R.check(link['y'] + link['height'] <= tab['y'] + 1 and ok44, f'SE {theme} : clavier entier au-dessus de la tab bar, touches ≥ 44 {link} {tab}')
+            shot(page, LOT, f'clavier-iPhone_SE-{theme}')
+
+
+run_main(R, [t_coffre], once=[t_interruptions, t_hauteur_se, t_verrouillages, t_migration_et_oubli, t_face_id, t_sans_module, t_tout_supprimer])

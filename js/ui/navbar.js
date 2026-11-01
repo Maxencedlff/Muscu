@@ -151,7 +151,7 @@ function routeTitle(route, isRoot) {
     dashboard: 'Entraînement', history: 'Historique', stats: 'Progrès',
     programmes: 'Programme', settings: 'Réglages', guide: 'Guide', account: 'Compte', session: 'Séance', summary: 'Bilan',
     'history-detail': 'Séance', 'stats-ex': 'Exercice', 'stats-overview': 'Vue d\'ensemble', recaps: 'Récaps', recap: 'Récap',
-    'body-measures': 'Mesures', 'photo-vault': 'Photos', 'body-measure': bodyMeasureLabel(routeParams(route)[0]) || 'Mesure',
+    'body-measures': 'Mesures', 'photo-vault': 'Coffre', 'body-measure': bodyMeasureLabel(routeParams(route)[0]) || 'Mesure',
     'my-programmes': 'Mes programmes', 'prog-add': 'Ajouter', 'prog-info': 'Programme', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
     friends: 'Amis', 'social-profile': socialPerson(routeParams(route)[0])?.username || 'Profil',
     'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles', 'social-me': 'Mon profil', notifications: 'Notifications',

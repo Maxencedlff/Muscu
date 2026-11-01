@@ -223,13 +223,13 @@ async function vaultSetup(code) {
 // Vérifie un code en comptant l'essai : { ok, dek? , wait (ms), left (erreurs libres restantes) }
 async function vaultTryCode(code, now = Date.now()) {
   const { meta, tries } = await vaultState();
-  if (!meta) return { ok: false, wait: 0, left: 0, missing: true };
+  if (!meta) return { ok: false, wait: 0, left: 0 };
   const wait = vaultWaitMs(tries, now);
   if (wait > 0) return { ok: false, wait, left: 0 };
   const failed = vaultAfterFail(tries, now);
   await photoMetaPut(failed);                    // compté avant le calcul
   const dek = await vaultOpen(meta, code);
-  if (!dek) return { ok: false, wait: vaultWaitMs(failed, now), left: vaultFreeLeft(failed), n: failed.n };
+  if (!dek) return { ok: false, wait: vaultWaitMs(failed, now), left: vaultFreeLeft(failed) };
   await photoMetaPut({ k: VAULT_TRIES_KEY, n: 0, at: 0, until: 0 });
   return { ok: true, dek, meta };
 }
@@ -262,6 +262,15 @@ async function vaultChangeCode(oldCode, newCode) {
   if (!r.ok) return r;
   await photoMetaPut(await vaultRewrap(r.meta, r.dek, newCode));
   return { ok: true };
+}
+// Clé du coffre ouvert en base64, pour la confier au trousseau (Face ID) ; null coffre fermé
+async function vaultExportKey() { return vaultKey ? vaultDekB64(vaultKey) : null; }
+// Face ID proposé une seule fois : true la première fois (et c'est noté), false ensuite
+async function vaultMarkBioAsked() {
+  const meta = await vaultMeta();
+  if (!meta || meta.bioAsked) return false;
+  await photoMetaPut({ ...meta, bioAsked: true });
+  return true;
 }
 async function vaultSetBio(on) {
   const meta = await vaultMeta();
