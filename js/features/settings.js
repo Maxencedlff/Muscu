@@ -23,7 +23,7 @@ function wipeLocalData() {
   data = freshData();
   resetSelections();
   Native.eraseCloudOnNextSave();   // app iOS : la copie iCloud est vidée elle aussi
-  vaultReset();                    // coffre à photos refermé et vidé, clé Face ID oubliée (js/data/photo-vault.js)
+  vaultReset();                    // coffre à photos refermé et vidé, clé retirée du trousseau (js/data/photo-vault.js)
   save();
 }
 

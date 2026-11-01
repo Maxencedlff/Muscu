@@ -44,6 +44,16 @@ const Native = (() => {
   // Un module natif indisponible ou en erreur ne doit jamais casser l'app web
   const quiet = promise => { promise?.catch?.(() => {}); };
 
+  // Coffre à photos : appel au module, réponse réduite à { key } ou à la raison de l'échec
+  const VAULT_ERRORS = { CANCELED: 'canceled', NOT_FOUND: 'missing', NO_PASSCODE: 'nopasscode' };
+  const vaultCall = async (method, reason) => {
+    if (!hasVault) return { failed: true };
+    try {
+      const r = await Vault[method]({ reason });
+      return typeof r?.key === 'string' && r.key ? { key: r.key } : { failed: true };
+    } catch (e) { return { [VAULT_ERRORS[e?.code] || 'failed']: true }; }
+  };
+
   const getItem = key => { try { return localStorage.getItem(key); } catch { return null; } };
   const setItem = (key, value) => { try { localStorage.setItem(key, value); return true; } catch { return false; } };
 
@@ -442,34 +452,23 @@ const Native = (() => {
       },
     },
 
-    // Coffre à photos (js/data/photo-vault.js) : Face ID et écran de confidentialité. available : faux
-    // dans le navigateur et dans une coquille sans le module (mise à jour à chaud arrivée avant la build
-    // qui l'apporte) : le coffre marche alors au code seul.
+    // Coffre à photos (js/data/photo-vault.js) : clé du coffre dans le trousseau d'iOS, rendue après Face ID
+    // ou le code de l'iPhone, et écran de confidentialité. available : faux dans le navigateur et dans une
+    // coquille sans le module ; le coffre est alors indisponible (aucune clé ailleurs que dans le trousseau).
     vault: {
       available: hasVault,
-      // { biometry: 'faceID' | 'touchID' | 'opticID' | 'none', stored: clé présente dans le trousseau }
+      // { biometry: 'faceID' | 'touchID' | 'opticID' | 'none', passcode: code de l'iPhone en place } ; en cas
+      // d'erreur, passcode vrai : l'ouverture dira elle-même ce qui manque
       async status() {
-        if (!hasVault) return { biometry: 'none', stored: false };
-        try { const r = await Vault.status(); return { biometry: r?.biometry || 'none', stored: !!r?.stored }; }
-        catch { return { biometry: 'none', stored: false }; }
+        if (!hasVault) return { biometry: 'none', passcode: false };
+        try { const r = await Vault.status(); return { biometry: r?.biometry || 'none', passcode: r?.passcode !== false }; }
+        catch { return { biometry: 'none', passcode: true }; }
       },
-      // Confie la clé du coffre au trousseau après un Face ID réussi : true, ou false (refus, annulation)
-      async remember(key, reason) {
-        if (!hasVault) return false;
-        try { await Vault.remember({ key, reason }); return true; } catch { return false; }
-      },
-      // Face ID puis clé : { key } ; { canceled } si l'utilisateur annule ; { gone } si la clé n'est plus
-      // là (visages enregistrés modifiés : iOS l'invalide) ; { failed } si Face ID n'a pas reconnu ; null sinon
-      async unlock(reason) {
-        if (!hasVault) return null;
-        try { const r = await Vault.unlock({ reason }); return r?.key ? { key: r.key } : null; }
-        catch (e) {
-          if (e?.code === 'CANCELED') return { canceled: true };
-          if (e?.code === 'NOT_FOUND') return { gone: true };
-          if (e?.code === 'FAILED') return { failed: true };
-          return null;
-        }
-      },
+      // Création (create) ou ouverture (unlock) : { key } (base64, 32 octets) ; sinon { canceled } (annulé,
+      // app quittée), { missing } (pas de clé sur cet iPhone), { nopasscode } (aucun code sur l'iPhone),
+      // { failed } (le reste, module absent compris)
+      async create(reason) { return vaultCall('create', reason); },
+      async unlock(reason) { return vaultCall('unlock', reason); },
       async forget() { if (hasVault) { try { await Vault.forget(); } catch { /* déjà absente */ } } },
       // Écran de confidentialité natif (flou posé par iOS avant la capture du sélecteur d'apps)
       shield(on) { if (hasVault) quiet(Vault.shield({ on: !!on })); },

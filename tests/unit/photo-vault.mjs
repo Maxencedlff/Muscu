@@ -1,65 +1,79 @@
 // ═══════════════════════════════════════════════════════════
-//  Coffre à photos (js/data/photo-vault.js) : code, chiffrement, essais, verrouillage
+//  Coffre à photos (js/data/photo-vault.js) : clé du trousseau, chiffrement, verrouillage
 // ═══════════════════════════════════════════════════════════
 //
-// Codes de test fictifs (jamais un vrai code). Les calculs de clé utilisent le vrai nombre de tours
-// (600 000) quand c'est le comportement testé, sinon 1 000 pour garder la suite rapide.
-// IndexedDB n'existe pas sous Node : photoMetaGet / photoMetaPut sont remplacés par une table en mémoire.
-
-const FAKE_CODE = '480213';
-const FAKE_OTHER = '975318';
-const FAST = { iter: 1000 };
+// Le trousseau d'iOS n'existe pas ici : Native.vault est remplacé par un faux module qui tire une clé de
+// test au hasard à chaque création (jamais une vraie clé). IndexedDB n'existe pas sous Node non plus :
+// photoMetaGet / photoMetaPut / photoPutRow / photoRowsAll sont remplacés par des tables en mémoire.
 
 export default function ({ test, run, assert, app }) {
-  test('coffre : forme du code et codes trop simples refusés', () => {
-    assert.equal(app.vaultCodeShape(FAKE_CODE), true);
-    for (const bad of ['12345', '1234567', '12a456', '', null, 123456]) assert.equal(app.vaultCodeShape(bad), false, `forme refusée : ${bad}`);
-    for (const weak of ['000000', '111111', '123456', '654321', '123123', '121212', '345678']) assert.equal(app.vaultCodeTooSimple(weak), true, `trop simple : ${weak}`);
-    for (const ok of [FAKE_CODE, FAKE_OTHER, '102938']) assert.equal(app.vaultCodeTooSimple(ok), false, `accepté : ${ok}`);
+  const randomKeyB64 = () => app.bytesToB64(app.vaultRandom(32));
+  const plain = o => JSON.parse(JSON.stringify(o));   // objet né dans le contexte de l'app → comparable ici
+
+  // Faux module natif : réponses programmables ({ key } ou un refus), appels notés
+  function fakeVault({ create, unlock } = {}) {
+    app.__fakeCreate = create || (async () => ({ key: app.__fakeKey }));
+    app.__fakeUnlock = unlock || (async () => (app.__fakeKey ? { key: app.__fakeKey } : { missing: true }));
+    app.__fakeKey = randomKeyB64();
+    app.__calls = [];
+    run(`(() => {
+      Native.vault.available = true;
+      Native.vault.create = async reason => { __calls.push('create'); return __fakeCreate(reason); };
+      Native.vault.unlock = async reason => { __calls.push('unlock'); return __fakeUnlock(reason); };
+      Native.vault.forget = async () => { __calls.push('forget'); __fakeKey = null; };
+      Native.vault.shield = () => {};
+    })()`);
+  }
+  // Tables en mémoire à la place d'IndexedDB
+  function fakeStore({ legacy = [] } = {}) {
+    app.__legacy = legacy;
+    run(`(() => {
+      const meta = new Map(), rows = new Map();
+      globalThis.__meta = meta; globalThis.__rows = rows;
+      photoMetaGet = async k => meta.get(k) || null;
+      photoMetaPut = async r => { meta.set(r.k, JSON.parse(JSON.stringify(r))); };
+      photoPutRow = async r => { rows.set(r.id, r); };
+      photoRowsAll = async () => [...rows.values()];
+      photoRowsCount = async () => rows.size;
+      photosWipe = async ({ legacy = true } = {}) => { meta.clear(); rows.clear(); if (legacy) __legacy = []; return true; };
+      legacyPhotosAll = async () => __legacy;
+      legacyPhotosDrop = async () => { __legacy = []; return true; };
+    })()`);
+  }
+
+  test('coffre : plus de code propre à l\'app, ni PBKDF2 ni délais', () => {
+    const src = run('[vaultSetup, vaultUnlock, vaultReset, vaultImportKey].map(String).join("\\n")');
+    assert.ok(!/PBKDF2|iterations|VAULT_CODE_LEN|tries/.test(src), 'aucune trace du code à 6 chiffres');
+    for (const gone of ['vaultTryCode', 'vaultCodeTooSimple', 'vaultRewrap', 'vaultDelayFor']) {
+      assert.equal(run(`typeof ${gone}`), 'undefined', `${gone} retiré`);
+    }
   });
 
-  test('coffre : délais croissants après 4 erreurs, plafond à 1 h, horloge reculée', () => {
-    assert.deepEqual([1, 2, 3, 4].map(n => app.vaultDelayFor(n)), [0, 0, 0, 0], '4 erreurs libres');
-    assert.deepEqual([5, 6, 7, 8, 9, 12].map(n => app.vaultDelayFor(n)), [30_000, 60_000, 300_000, 900_000, 3_600_000, 3_600_000]);
-    const T = 1_760_000_000_000;
-    let t = null;
-    for (let i = 0; i < 5; i++) t = app.vaultAfterFail(t, T);
-    assert.equal(t.n, 5);
-    assert.equal(app.vaultWaitMs(t, T), 30_000, '5e erreur : 30 s');
-    assert.equal(app.vaultWaitMs(t, T + 10_000), 20_000);
-    assert.equal(app.vaultWaitMs(t, T + 31_000), 0, 'attente finie');
-    assert.equal(app.vaultWaitMs(t, T - 3_600_000), 30_000, 'heure reculée : l\'attente repart en entier, pas à zéro');
-    assert.equal(app.vaultFreeLeft({ n: 3 }), 1);
-    assert.equal(app.vaultFreeLeft({ n: 7 }), 0);
-    assert.equal(app.vaultWaitMs(null, T), 0);
-  });
-
-  test('coffre : 600 000 tours PBKDF2 par défaut, code jamais stocké, bon code ouvre, faux code non', async () => {
-    const { meta, dek } = await run(`vaultCreate('${FAKE_CODE}')`);
-    assert.equal(meta.iter, 600_000);
-    const json = JSON.stringify(meta);
-    assert.ok(!json.includes(FAKE_CODE), 'le code n\'apparaît pas dans les réglages');
-    assert.equal(app.b64ToBytes(meta.salt).length, 16, 'sel de 128 bits');
-    assert.equal(app.b64ToBytes(meta.wrapIv).length, 12, 'IV de 96 bits');
-    assert.equal(app.b64ToBytes(meta.wrapped).length, 32 + 16, 'clé de 256 bits emballée + étiquette GCM');
+  test('coffre : clé de 32 octets importée non extractible, autre taille refusée', async () => {
+    app.__k = randomKeyB64();
+    const dek = await run('vaultImportKey(__k)');
     assert.equal(dek.algorithm.name, 'AES-GCM');
-    app.__meta = meta;
-    assert.ok(await run(`vaultOpen(__meta, '${FAKE_CODE}')`), 'bon code');
-    assert.equal(await run(`vaultOpen(__meta, '${FAKE_OTHER}')`), null, 'faux code');
-    assert.equal(await run(`vaultOpen(__meta, 'abc')`), null, 'code mal formé');
-    assert.equal(await run(`vaultOpen({ ...__meta, wrapped: __meta.wrapped.slice(0, -4) + 'AAAA' }, '${FAKE_CODE}')`), null, 'réglages abîmés');
+    assert.equal(dek.extractable, false, 'clé jamais ré-exportable depuis le JS');
+    assert.equal(await run(`vaultImportKey(${JSON.stringify(app.bytesToB64(new Uint8Array(16)))})`), null, '16 octets refusés');
+    assert.equal(await run('vaultImportKey("pas du base64 !")'), null, 'texte illisible refusé');
+    assert.equal(await run('vaultImportKey(null)'), null);
   });
 
-  test('coffre : deux coffres du même code ont des sels et des clés différents', async () => {
-    const a = await run(`vaultCreate('${FAKE_CODE}', { iter: 1000 })`);
-    const b = await run(`vaultCreate('${FAKE_CODE}', { iter: 1000 })`);
-    assert.notEqual(a.meta.salt, b.meta.salt);
-    assert.notEqual(await app.vaultDekB64(a.dek), await app.vaultDekB64(b.dek));
+  test('coffre : réglages sans aucune clé, témoin qui reconnaît la bonne clé seulement', async () => {
+    app.__k1 = randomKeyB64(); app.__k2 = randomKeyB64();
+    const dek = await run('vaultImportKey(__k1)');
+    app.__dek = dek;
+    const meta = await run('vaultCreateMeta(__dek, 1760000000000)');
+    assert.deepEqual(Object.keys(meta).sort(), ['check', 'checkIv', 'created', 'k', 'v']);
+    assert.ok(!JSON.stringify(meta).includes(app.__k1), 'la clé n\'est pas dans les réglages');
+    app.__meta = meta;
+    assert.equal(await run('vaultCheckKey(__meta, __dek)'), true);
+    assert.equal(await run('vaultImportKey(__k2).then(k => vaultCheckKey(__meta, k))'), false, 'clé d\'un autre coffre refusée');
   });
 
   test('coffre : photo chiffrée puis rendue à l\'identique, liée à son identifiant et à sa date', async () => {
-    const { dek } = await app.vaultCreate(FAKE_CODE, FAST);
-    app.__dek = dek;
+    app.__k = randomKeyB64();
+    app.__dek = await run('vaultImportKey(__k)');
     const jpeg = new Uint8Array(5000).map((_, i) => (i * 7) & 255);
     app.__rec = { id: 'phA', date: 1_760_000_000_000, pose: 'side', bytes: jpeg.length, w: 900, h: 1200, type: 'image/jpeg', buf: jpeg.buffer };
     const row = await run('photoSeal(__dek, __rec)');
@@ -73,71 +87,84 @@ export default function ({ test, run, assert, app }) {
     assert.deepEqual(new Uint8Array(await back.blob.arrayBuffer()), jpeg);
     assert.equal(await run(`photoUnseal(__dek, { ...__row, id: 'phB' })`), null, 'ligne recopiée sous un autre identifiant');
     assert.equal(await run(`photoUnseal(__dek, { ...__row, date: __row.date + 1 })`), null, 'date modifiée');
-    const other = await app.vaultCreate(FAKE_CODE, FAST);
-    app.__dek2 = other.dek;
-    assert.equal(await run('photoUnseal(__dek2, __row)'), null, 'clé d\'un autre coffre');
+    app.__k2 = randomKeyB64();
+    assert.equal(await run('vaultImportKey(__k2).then(k => photoUnseal(k, __row))'), null, 'clé d\'un autre coffre');
     const row2 = await run('photoSeal(__dek, __rec)');
     assert.notEqual(row2.iv, row.iv, 'IV neuf à chaque chiffrement');
   });
 
-  test('coffre : changer de code garde la clé (photos lisibles), l\'ancien code ne marche plus', async () => {
-    const { meta, dek } = await app.vaultCreate(FAKE_CODE, FAST);
-    app.__meta = meta; app.__dek = dek;
-    const meta2 = await run(`vaultRewrap(__meta, __dek, '${FAKE_OTHER}', { iter: 1000 })`);
-    app.__meta2 = meta2;
-    assert.equal(meta2.check, meta.check, 'même témoin : même clé');
-    assert.notEqual(meta2.salt, meta.salt, 'nouveau sel');
-    assert.equal(await run(`vaultOpen(__meta2, '${FAKE_CODE}')`), null, 'ancien code refusé');
-    const k = await run(`vaultOpen(__meta2, '${FAKE_OTHER}')`);
-    assert.equal(await app.vaultDekB64(k), await app.vaultDekB64(dek), 'nouveau code : même clé du coffre');
+  test('coffre : création par le trousseau, photos en clair rangées puis ancienne base supprimée', async () => {
+    const jpeg = new Uint8Array(300).fill(0xAB);
+    fakeStore({ legacy: [{ id: 'phold1', date: 1_750_000_000_000, pose: 'face', bytes: 300, w: 30, h: 40, type: 'image/jpeg', buf: jpeg.buffer }] });
+    fakeVault();
+    run('vaultLock("manual")');
+    const r = await run('vaultSetup()');
+    assert.deepEqual({ ok: r.ok, migrated: r.migrated }, { ok: true, migrated: 1 });
+    assert.deepEqual(app.__calls, ['create']);
+    assert.equal(run('vaultIsOpen()'), true);
+    assert.equal(run('__legacy.length'), 0, 'ancienne base supprimée après la migration');
+    const { photos } = await run('vaultPhotos()');
+    assert.equal(photos.length, 1);
+    assert.equal(photos[0].id, 'phold1');
+    await assert.rejects(run('vaultSetup()'), /déjà créé/, 'jamais un second coffre par-dessus le premier');
+    run('vaultLock("manual")');
   });
 
-  test('coffre : clé rendue par Face ID vérifiée par le témoin', async () => {
-    const { meta, dek } = await app.vaultCreate(FAKE_CODE, FAST);
-    const other = await app.vaultCreate(FAKE_CODE, FAST);
-    assert.equal(await app.vaultCheckKey(meta, dek), true);
-    assert.equal(await app.vaultCheckKey(meta, other.dek), false, 'clé d\'un autre coffre refusée');
+  test('coffre : création refusée par iOS, rien n\'est écrit et les photos en clair restent', async () => {
+    const jpeg = new Uint8Array(10).fill(1);
+    fakeStore({ legacy: [{ id: 'phold1', date: 1, pose: 'face', bytes: 10, w: 1, h: 1, type: 'image/jpeg', buf: jpeg.buffer }] });
+    for (const refusal of [{ canceled: true }, { nopasscode: true }, { failed: true }, null]) {
+      fakeVault({ create: async () => refusal });
+      const r = await run('vaultSetup()');
+      assert.equal(r.ok, false);
+      if (refusal) assert.equal(r[Object.keys(refusal)[0]], true, `raison gardée : ${JSON.stringify(refusal)}`);
+      else assert.equal(r.failed, true);
+      assert.equal(await run('vaultMeta()'), null, 'aucun réglage écrit');
+      assert.equal(run('__legacy.length'), 1, 'photos en clair gardées');
+      assert.equal(run('vaultIsOpen()'), false);
+    }
   });
 
-  // Table en mémoire à la place d'IndexedDB pour les opérations du coffre
-  function fakeStore() {
-    run(`(() => {
-      const t = new Map();
-      globalThis.__store = t;
-      photoMetaGet = async k => t.get(k) || null;
-      photoMetaPut = async r => { t.set(r.k, JSON.parse(JSON.stringify(r))); };
-      legacyPhotosAll = async () => [];
-      legacyPhotosDrop = async () => true;
-    })()`);
-  }
-
-  test('coffre : erreur comptée avant le calcul, remise à zéro après un succès, attente respectée', async () => {
+  test('coffre : ouverture par le trousseau, clé absente ou d\'un autre coffre = « illisible »', async () => {
     fakeStore();
-    const { meta } = await app.vaultCreate(FAKE_CODE, FAST);
-    app.__meta = meta;
-    await run(`photoMetaPut(__meta)`);
-    const T = 1_760_000_000_000;
-    // Pendant le calcul, l'erreur est déjà enregistrée
-    run(`(() => { const put = photoMetaPut; globalThis.__seen = []; photoMetaPut = async r => { if (r.k === 'tries') __seen.push(r.n); return put(r); }; })()`);
-    let r = await run(`vaultTryCode('${FAKE_OTHER}', ${T})`);
-    assert.equal(r.ok, false);
-    assert.deepEqual([...run('__seen')], [1], 'erreur écrite avant le résultat');
-    for (let i = 0; i < 3; i++) r = await run(`vaultTryCode('${FAKE_OTHER}', ${T + i + 1})`);
-    assert.equal(r.left, 0);
-    assert.equal(r.wait, 0, '4 erreurs : pas encore d\'attente');
-    r = await run(`vaultTryCode('${FAKE_OTHER}', ${T + 10})`);
-    assert.equal(r.wait, 30_000, '5e erreur : 30 s');
-    r = await run(`vaultTryCode('${FAKE_CODE}', ${T + 20})`);
-    assert.equal(r.ok, false, 'bon code refusé pendant l\'attente');
-    assert.ok(r.wait > 0);
-    r = await run(`vaultTryCode('${FAKE_CODE}', ${T + 40_000})`);
-    assert.equal(r.ok, true, 'bon code après l\'attente');
-    assert.equal(run(`__store.get('tries').n`), 0, 'compteur remis à zéro');
+    fakeVault();
+    await run('vaultSetup()');
+    run('vaultLock("manual")');
+    let r = await run('vaultUnlock()');
+    assert.equal(r.ok, true, 'même clé : ouvert');
+    run('vaultLock("manual")');
+    app.__fakeUnlock = async () => ({ canceled: true });
+    r = await run('vaultUnlock()');
+    assert.deepEqual(plain(r), { ok: false, canceled: true }, 'Face ID annulé : fermé, sans message d\'erreur');
+    app.__fakeUnlock = async () => ({ missing: true });
+    r = await run('vaultUnlock()');
+    assert.deepEqual(plain(r), { ok: false, missing: true }, 'clé absente du trousseau (nouvel iPhone)');
+    app.__other = randomKeyB64();
+    app.__fakeUnlock = async () => ({ key: app.__other });
+    r = await run('vaultUnlock()');
+    assert.deepEqual(plain(r), { ok: false, missing: true }, 'clé d\'un autre coffre : illisible aussi');
+    assert.equal(run('vaultIsOpen()'), false);
+  });
+
+  test('coffre : vidé quand il est illisible, les photos en clair pas encore rangées sont gardées', async () => {
+    const jpeg = new Uint8Array(10).fill(2);
+    fakeStore();
+    fakeVault();
+    await run('vaultSetup()');
+    app.__legacy = [{ id: 'phold9', date: 2, pose: 'back', bytes: 10, w: 1, h: 1, type: 'image/jpeg', buf: jpeg.buffer }];
+    run('vaultLock("manual")');
+    assert.equal(await run('vaultReset({ keepLegacy: true })'), true);
+    assert.equal(await run('vaultMeta()'), null);
+    assert.equal(run('__rows.size'), 0);
+    assert.equal(run('__legacy.length'), 1, 'photo en clair gardée pour le prochain coffre');
+    assert.ok(app.__calls.includes('forget'), 'clé retirée du trousseau');
+    await run('vaultReset()');
+    assert.equal(run('__legacy.length'), 0, '« Supprimer toutes les données » : tout part');
   });
 
   test('coffre : verrouillage manuel et après une minute d\'inactivité, clé effacée', async () => {
-    const { dek } = await app.vaultCreate(FAKE_CODE, FAST);
-    app.__dek = dek;
+    app.__k = randomKeyB64();
+    app.__dek = await run('vaultImportKey(__k)');
     const reasons = [];
     app.__onLock = r => reasons.push(r);
     run('onVaultLock(r => __onLock(r))');
@@ -148,29 +175,38 @@ export default function ({ test, run, assert, app }) {
     assert.equal(run('vaultLock("manual")'), false, 'déjà fermé : rien');
     await assert.rejects(run('vaultPhotos()'), /coffre fermé/, 'aucune lecture coffre fermé');
     // Inactivité : minuteur réel raccourci le temps du test
-    const saved = run('VAULT_IDLE_MS');
-    assert.equal(saved, 60_000, 'une minute');
+    assert.equal(run('VAULT_IDLE_MS'), 60_000, 'une minute');
     run(`globalThis.__st = setTimeout; globalThis.setTimeout = (fn, ms) => __st(fn, ms === VAULT_IDLE_MS ? 20 : ms);`);
     run('vaultSetOpen(__dek)');
     await new Promise(res => setTimeout(res, 60));
     assert.equal(run('vaultIsOpen()'), false, 'refermé après l\'inactivité');
-    assert.deepEqual(reasons, ['manual', 'idle']);
+    assert.deepEqual(reasons.slice(-2), ['manual', 'idle']);
     run('globalThis.setTimeout = __st');
   });
-  test('coffre : verrouillé pendant le calcul du code, il reste fermé', async () => {
+
+  test('coffre : verrouillé pendant la feuille de Face ID, il reste fermé', async () => {
     fakeStore();
-    const { meta } = await app.vaultCreate(FAKE_CODE, FAST);
-    app.__meta = meta;
-    await run('photoMetaPut(__meta)');
+    fakeVault();
+    await run('vaultSetup()');
     run('vaultLock("manual")');
-    const pending = run(`vaultUnlockWithCode('${FAKE_CODE}')`);
-    run('vaultLock("background")');   // l'app part en arrière-plan avant la fin du calcul
+    let release;
+    app.__fakeUnlock = () => new Promise(res => { release = () => res({ key: app.__fakeKey }); });
+    const pending = run('vaultUnlock()');
+    await new Promise(res => setImmediate(res));
+    run('vaultLock("background")');   // l'app part en arrière-plan pendant la feuille d'iOS
+    release();
     const r = await pending;
-    assert.equal(r.ok, false);
-    assert.equal(r.stale, true);
+    assert.deepEqual(plain(r), { ok: false, stale: true });
     assert.equal(run('vaultIsOpen()'), false, 'aucune clé en mémoire');
-    const r2 = await run(`vaultUnlockWithCode('${FAKE_CODE}')`);
-    assert.equal(r2.ok, true, 'essai suivant : ouvert');
+    app.__fakeUnlock = async () => ({ key: app.__fakeKey });
+    assert.equal((await run('vaultUnlock()')).ok, true, 'essai suivant : ouvert');
     run('vaultLock("manual")');
+  });
+
+  test('coffre : indisponible sans le module natif', () => {
+    run('Native.vault.available = false');
+    assert.equal(run('vaultAvailable()'), false);
+    run('Native.vault.available = true');
+    assert.equal(run('vaultAvailable()'), true);
   });
 }

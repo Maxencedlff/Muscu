@@ -1,13 +1,14 @@
-"""Progrès › Mesures › Coffre à photos : code, chiffrement, verrouillage, avant / après.
+"""Progrès › Mesures › Coffre à photos : Face ID (ou code de l'iPhone), chiffrement, verrouillage, avant / après.
 
-Vérifie : aucune vignette hors du coffre ; présentation puis création du code (deux saisies, code trop
-simple refusé, codes différents refusés) ; photo ajoutée chiffrée dans IndexedDB (aucun octet JPEG en
-clair) ; grille par date ; curseur avant / après (glissé, clavier) ; reverrouillage en quittant l'écran, en
-arrière-plan et après une minute sans activité ; faux code, attente après 5 erreurs ; changement de code ;
-migration des photos en clair de l'ancienne base (supprimée ensuite) ; code oublié = coffre vidé après
-double confirmation ; Face ID avec un module natif simulé ; écran de confidentialité (app inactive) ;
-« Supprimer toutes les données » vide le coffre.
-Codes de test fictifs uniquement.
+Le trousseau d'iOS est simulé par un faux module MdlfVault (FAKE_SHELL) : une clé de test tirée au hasard
+dans la page, gardée dans sessionStorage le temps du test (jamais une vraie clé). Vérifie : aucune vignette
+hors du coffre ; présentation puis création (Face ID demandé, coffre ouvert) ; photo ajoutée chiffrée dans
+IndexedDB (aucun octet JPEG en clair, aucune clé dans les réglages) ; grille par date ; curseur avant / après
+(glissé, clavier) ; reverrouillage en quittant l'écran, en arrière-plan et après une minute sans activité ;
+Face ID demandé en entrant, annulé, refermé pendant la feuille d'iOS ; migration des photos en clair (gardées
+si la création est annulée) ; coffre illisible sur un autre iPhone (clé absente ou autre clé) puis vidé ;
+iPhone sans code ; coquille sans le module et navigateur : coffre indisponible, photos en clair intactes ;
+écran de confidentialité (app inactive) ; « Supprimer toutes les données » vide le coffre et retire la clé.
 Captures : $PPL_SCRATCH/shots/lotcoffre/.
 Lancer : PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_coffre.py (ou sans variable : 5 appareils × 2 thèmes).
 """
@@ -24,9 +25,48 @@ LOT = 'coffre'
 R = Results(LOT)
 
 NOW = local_ms(2026, 11, 2, 21, 0, tz=PARIS)
-FAKE_CODE = '480213'      # code fictif de test
-FAKE_OTHER = '975318'     # autre code fictif
-WRONG = '111000'
+# Coquille iOS factice avec le module du coffre. Trousseau factice : clé de test aléatoire dans sessionStorage
+# (survit à un rechargement, comme le trousseau ; retirée pour simuler un autre iPhone). __vaultMode règle la
+# réponse de la feuille d'iOS : 'ok', 'cancel', 'hold' (attend __vaultRelease()), 'fail'.
+FAKE_SHELL = """
+window.__vaultCalls = [];
+window.__vaultMode = 'ok';
+window.__vaultBio = 'faceID';
+window.__vaultPasscode = true;
+const KC = '__fakeKeychain';
+const kc = { get: () => sessionStorage.getItem(KC), set: v => sessionStorage.setItem(KC, v), del: () => sessionStorage.removeItem(KC) };
+const fakeKey = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
+const err = code => { const e = new Error(code); e.code = code; return e; };
+const sheetOfIos = () => new Promise((res, rej) => {
+  if (__vaultMode === 'cancel') return rej(err('CANCELED'));
+  if (__vaultMode === 'fail') return rej(err('FAILED'));
+  if (__vaultMode === 'hold') { window.__vaultRelease = res; return; }
+  res();
+});
+const vault = {
+  status: async () => ({ biometry: __vaultBio, passcode: __vaultPasscode }),
+  create: async () => { __vaultCalls.push('create');
+    if (!__vaultPasscode) throw err('NO_PASSCODE');
+    await sheetOfIos(); if (!kc.get()) kc.set(fakeKey()); return { key: kc.get() }; },
+  unlock: async () => { __vaultCalls.push('unlock');
+    if (!__vaultPasscode) throw err('NO_PASSCODE');
+    if (!kc.get()) throw err('NOT_FOUND');
+    await sheetOfIos(); return { key: kc.get() }; },
+  forget: async () => { __vaultCalls.push('forget'); kc.del(); return {}; },
+  shield: async ({ on }) => { __vaultCalls.push('shield:' + on); return {}; },
+};
+window.__fakeKeychain = kc;
+window.__fakeKey = fakeKey;
+const listeners = {};
+window.__fireActive = a => (listeners.appStateChange || []).forEach(cb => cb({ isActive: a }));
+window.Capacitor = {
+  isNativePlatform: () => true,
+  isPluginAvailable: n => n === 'MdlfVault',
+  registerPlugin: name => name === 'MdlfVault' ? vault
+    : name === 'App' ? { addListener: async (ev, cb) => { (listeners[ev] ||= []).push(cb); return { remove() {} }; }, getInfo: async () => ({ build: '32' }) }
+    : new Proxy({}, { get: (_, m) => (m === 'then' ? undefined : async () => ({})) }),
+};
+"""
 
 
 def tag(device, theme):
@@ -57,7 +97,13 @@ def data_json(now):
     return json.dumps(d, ensure_ascii=False, separators=(',', ':'))
 
 
-def open_vault(page, theme, init=None, legacy=False):
+def shell(page, script=FAKE_SHELL):
+    """Coquille iOS factice (et pas de mise à jour à chaud depuis le réseau)."""
+    page.add_init_script(script)
+    page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+
+
+def open_vault(page, theme, legacy=False):
     seed(page, theme, data_json(NOW))
     if legacy:
         add_legacy(page)
@@ -68,25 +114,22 @@ def open_vault(page, theme, init=None, legacy=False):
     page.click('[data-action="go-body-measures"]')
     page.wait_for_selector('.view.body-measures')
     page.click('[data-action="go-photo-vault"]')
-    page.wait_for_selector('.view.photo-vault .pv-intro, .view.photo-vault .pv-lock, .view.photo-vault .pgal, .view.photo-vault [data-action="photo-add"]')
+    page.wait_for_selector('.view.photo-vault .pv-intro, .view.photo-vault .pv-lock, .view.photo-vault .pv-center h1, .view.photo-vault [data-action="photo-add"]')
     page.wait_for_timeout(200)
 
 
-def type_code(page, code, wait_after=True):
-    for d in code:
-        page.click(f'.pv-key[data-d="{d}"]')
-    if wait_after:
-        page.wait_for_timeout(250)
-        page.wait_for_function("!document.querySelector('.pv-dots--busy')", timeout=15000)
-        page.wait_for_timeout(150)
-
-
-def create_vault(page, code=FAKE_CODE):
+def create_vault(page):
     page.click('[data-action="pv-start"]')
-    page.wait_for_selector('.pv-lock')
-    type_code(page, code)
-    type_code(page, code)
     page.wait_for_selector('.view.photo-vault [data-action="photo-add"]', timeout=15000)
+    page.wait_for_timeout(300)
+
+
+def reenter(page):
+    """Ressort du coffre puis y revient (Face ID demandé d'emblée)."""
+    page.click('.view.photo-vault [data-action="back"]')
+    page.wait_for_selector('.view.body-measures')
+    page.click('[data-action="go-photo-vault"]')
+    page.wait_for_selector('.view.photo-vault .pv-intro, .view.photo-vault .pv-lock, .view.photo-vault .pv-center h1, .view.photo-vault [data-action="photo-add"]', timeout=8000)
     page.wait_for_timeout(300)
 
 
@@ -100,7 +143,7 @@ def add_photo(page, path, pose=None, date=None):
     if date:
         page.fill('#phDate', date)
     page.click('.sheet__btn--confirm')
-    page.wait_for_function(f"document.querySelectorAll('.pgal__item').length > {n}", timeout=8000)
+    page.wait_for_function(f"document.querySelectorAll('.pgal__item').length > {n}", timeout=15000)
     page.wait_for_timeout(300)
 
 
@@ -134,12 +177,17 @@ def add_legacy(page):
     })""" % (days_back_ms(NOW, 60, 9, tz=PARIS), days_back_ms(NOW, 2, 9, tz=PARIS)))
 
 
+def calls(page, name):
+    return page.evaluate('__vaultCalls').count(name)
+
+
 def t_coffre(bench, eng, dev, theme):
     """Parcours complet sur chaque appareil et thème."""
     t = tag(dev, theme)
     face = png_file('coffre-face.png', 300, 400, (200, 80, 80))
     back = png_file('coffre-dos.png', 600, 800, (80, 80, 200), band=(230, 230, 230))
     with bench.frozen_page(NOW, eng, dev, theme) as page:
+        shell(page)
         seed(page, theme, data_json(NOW))
         page.click('.tabbar [data-action="go-stats"]')
         page.wait_for_selector('.view.stats')
@@ -147,33 +195,20 @@ def t_coffre(bench, eng, dev, theme):
         page.wait_for_selector('.view.body-measures')
         R.check(page.locator('.view.body-measures img').count() == 0, f'{t} Mesures : aucune image hors du coffre')
         entry = page.locator('[data-action="go-photo-vault"]')
-        R.check(entry.count() == 1 and 'Coffre à photos' in entry.inner_text(), f'{t} Mesures : entrée du coffre')
+        R.check(entry.count() == 1 and 'Coffre à photos' in entry.inner_text() and 'Face ID' in entry.inner_text(), f'{t} Mesures : entrée du coffre')
         entry.click()
         page.wait_for_selector('.pv-intro')
         shot(page, LOT, f'intro-{t}')
-        R.check(page.locator('[data-action="pv-start"]').count() == 1 and 'pas même nous' in page.inner_text('.pv-intro'), f'{t} présentation : créer le code, mise en garde sur l\'oubli')
+        intro = page.inner_text('.pv-intro')
+        R.check('Face ID ou le code de ton iPhone' in intro and 'nouvel iPhone' in intro and 'code à 6' not in intro,
+                f'{t} présentation : Face ID ou code de l\'iPhone, lié à cet iPhone {intro[:300]!r}')
         R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} présentation : pas de défilement horizontal')
 
-        # Création : code trop simple, puis deux codes différents, puis le bon
-        page.click('[data-action="pv-start"]')
-        page.wait_for_selector('.pv-lock')
-        keys = page.locator('.pv-key[data-d]')
-        sizes = [keys.nth(i).bounding_box() for i in range(keys.count())]
-        R.check(keys.count() == 10 and all(b['width'] >= 44 and b['height'] >= 44 for b in sizes), f'{t} clavier : 10 touches d\'au moins 44 pt')
-        R.check(page.locator('[data-action="pv-forgot"]').count() == 0, f'{t} création : pas de « Code oublié »')
-        shot(page, LOT, f'creation-{t}')
-        type_code(page, '123456')
-        R.check('trop facile' in page.inner_text('#pvMsg') and page.inner_text('#pvTitle') == 'Choisis un code', f'{t} 123456 refusé : {page.inner_text("#pvMsg")!r}')
-        type_code(page, FAKE_CODE)
-        R.check(page.inner_text('#pvTitle') == 'Confirme ton code', f'{t} confirmation demandée')
-        type_code(page, FAKE_OTHER)
-        R.check('ne correspondent pas' in page.inner_text('#pvMsg') and page.inner_text('#pvTitle') == 'Choisis un code', f'{t} codes différents : on recommence')
-        type_code(page, FAKE_CODE)
-        type_code(page, FAKE_CODE)
-        page.wait_for_selector('[data-action="photo-add"]', timeout=15000)
-        page.wait_for_timeout(300)
+        create_vault(page)
+        R.check(calls(page, 'create') == 1 and page.evaluate('vaultIsOpen()'), f'{t} création : clé demandée au trousseau, coffre ouvert')
         meta = page.evaluate(RAW_ROWS)['meta']
-        R.check(FAKE_CODE not in meta and '"iter":600000' in meta, f'{t} réglages : jamais le code, 600 000 tours')
+        key = page.evaluate('__fakeKeychain.get()')
+        R.check(key and key not in meta and '"v":2' in meta and 'salt' not in meta, f'{t} réglages : aucune clé, seulement le témoin')
 
         # Deux photos : face aujourd'hui, dos le 1er septembre
         add_photo(page, face)
@@ -185,6 +220,7 @@ def t_coffre(bench, eng, dev, theme):
         days = page.locator('.pgal__date').all_inner_texts()
         R.check(days == ['Aujourd\'hui', 'mar. 1 sept.'], f'{t} grille par date {days}')
         R.check('2 photos' in page.inner_text('.pv-summary'), f'{t} résumé {page.inner_text(".pv-summary")!r}')
+        R.check(page.locator('[data-action="pv-change"], [data-action="pv-bio-toggle"]').count() == 0, f'{t} ouvert : plus de réglage de code')
         R.check(page.locator('.pcmp__frame .pcmp__img').count() == 2 and '62 jours' in page.inner_text('.pcmp__gap'), f'{t} avant / après : 2 photos, 62 jours')
         # Curseur : glissé du doigt (souris), puis clavier
         f = page.locator('.pcmp__frame').bounding_box()
@@ -202,19 +238,19 @@ def t_coffre(bench, eng, dev, theme):
         page.evaluate('scrollTo(0, 0)')
         shot(page, LOT, f'ouvert-{t}')
 
-        # Verrouillage manuel : plus d'image, plus d'URL d'objet
+        # Verrouillage manuel : plus d'image, bouton Face ID
         page.click('[data-action="pv-lock"]')
         page.wait_for_selector('.pv-lock')
         R.check(page.locator('.view.photo-vault img').count() == 0 and not page.evaluate('vaultIsOpen()'), f'{t} verrouillé : aucune image, clé effacée')
-        R.check(page.locator('[data-action="pv-forgot"]').count() == 1, f'{t} verrouillé : « Code oublié ? »')
-        type_code(page, WRONG)
-        R.check('Code incorrect' in page.inner_text('#pvMsg'), f'{t} faux code refusé')
-        shot(page, LOT, f'faux-code-{t}')
-        type_code(page, FAKE_CODE)
+        btn = page.locator('[data-action="pv-open"]')
+        box = btn.bounding_box()
+        R.check(btn.count() == 1 and 'Ouvrir avec Face ID' in btn.inner_text() and box['height'] >= 44, f'{t} verrouillé : bouton « Ouvrir avec Face ID »')
+        shot(page, LOT, f'verrouille-{t}')
+        btn.click()
         page.wait_for_selector('.pgal__item', timeout=15000)
-        R.check(page.locator('.pgal__item').count() == 2, f'{t} bon code : photos rendues')
+        R.check(page.locator('.pgal__item').count() == 2, f'{t} Face ID : photos rendues')
 
-        # Ouvrir une photo, puis quitter l'écran : refermé
+        # Ouvrir une photo, puis quitter l'écran : refermé ; revenir : Face ID d'emblée
         page.locator('.pgal__item').first.click()
         page.wait_for_selector('.sheet-root .pview__img')
         page.wait_for_timeout(300)
@@ -224,22 +260,38 @@ def t_coffre(bench, eng, dev, theme):
         page.click('.view.photo-vault [data-action="back"]')
         page.wait_for_selector('.view.body-measures')
         R.check(not page.evaluate('vaultIsOpen()'), f'{t} quitter l\'écran referme le coffre')
+        page.click('[data-action="go-photo-vault"]')
+        page.wait_for_selector('.pgal__item', timeout=8000)
+        R.check(page.evaluate('vaultIsOpen()') and calls(page, 'unlock') == 2, f'{t} en entrant : Face ID demandé d\'emblée, coffre ouvert')
         R.check(not page.errors, f'{t} aucune erreur JS : {page.errors}')
 
 
+HIDE = "Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange'))"
+SHOW = "Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })"
+
+
 def t_verrouillages(bench):
-    """Arrière-plan, inactivité, attente après 5 erreurs, changement de code."""
+    """Arrière-plan, inactivité, Face ID annulé ou en échec, refermé pendant la feuille d'iOS, écran de confidentialité."""
     with bench.frozen_page(NOW, 'webkit', 'iPhone 13', 'dark') as page:
+        shell(page)
         open_vault(page, 'dark')
         create_vault(page)
+        R.check('shield:true' in page.evaluate('__vaultCalls'), 'écran de confidentialité natif armé coffre ouvert')
+        page.evaluate('__fireActive(false)')
+        R.check(page.evaluate("document.body.classList.contains('pv-shield')"), 'app inactive : contenu masqué')
+        shot(page, LOT, 'selecteur-apps-iPhone_13-dark')
+        page.evaluate('__fireActive(true)')
+        R.check(not page.evaluate("document.body.classList.contains('pv-shield')"), 'app active : contenu rendu')
         # Arrière-plan
-        page.evaluate("Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange'))")
+        page.evaluate(HIDE)
         page.wait_for_timeout(200)
         R.check(not page.evaluate('vaultIsOpen()') and page.locator('.pv-lock').count() == 1, 'arrière-plan : refermé sur-le-champ')
-        page.evaluate("Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })")
-        type_code(page, FAKE_CODE)
+        R.check('shield:false' in page.evaluate('__vaultCalls'), 'écran natif désarmé coffre fermé')
+        page.evaluate(SHOW)
+        page.click('[data-action="pv-open"]')
         page.wait_for_selector('[data-action="photo-add"]', timeout=15000)
-        # Inactivité : 59 s ouvert, 61 s refermé
+        # Inactivité : 59 s ouvert, 61 s refermé, sans redemander Face ID tout seul
+        n = calls(page, 'unlock')
         page.clock.run_for(59_000)
         R.check(page.evaluate('vaultIsOpen()'), 'inactif 59 s : encore ouvert')
         page.mouse.click(5, 300)
@@ -248,161 +300,146 @@ def t_verrouillages(bench):
         page.clock.run_for(2_000)
         page.wait_for_timeout(200)
         R.check(not page.evaluate('vaultIsOpen()') and 'une minute' in page.inner_text('#pvMsg'), 'inactif 1 min : refermé, message')
-        # 5 erreurs : attente de 30 s
-        for _ in range(5):
-            type_code(page, WRONG)
-        msg = page.inner_text('.pv-lock')
-        R.check('Réessaie dans' in msg and page.locator('.pv-key[data-d="1"]').is_disabled(), f'5 erreurs : clavier bloqué {msg!r}')
-        shot(page, LOT, 'attente-iPhone_13-dark')
+        R.check(calls(page, 'unlock') == n, 'après l\'inactivité : Face ID pas redemandé tout seul')
+        # Face ID annulé : fermé, sans message d'erreur ; en échec : message
+        page.evaluate("__vaultMode = 'cancel'")
+        page.click('[data-action="pv-open"]')
+        page.wait_for_timeout(300)
+        R.check(not page.evaluate('vaultIsOpen()') and page.locator('.pv-sub--err').count() == 0 and page.locator('[data-action="pv-open"]').is_enabled(),
+                'Face ID annulé : fermé, sans erreur, bouton prêt')
+        page.evaluate("__vaultMode = 'fail'")
+        page.click('[data-action="pv-open"]')
+        page.wait_for_timeout(300)
+        R.check('Ouverture impossible' in page.inner_text('#pvMsg') and page.locator('.pv-sub--err').count() == 1, 'Face ID en échec : message')
+        shot(page, LOT, 'echec-iPhone_13-dark')
+        # Feuille d'iOS ouverte, l'app part en arrière-plan, puis la clé arrive : rien ne s'ouvre
+        page.evaluate("__vaultMode = 'hold'")
+        page.click('[data-action="pv-open"]')
+        page.wait_for_timeout(200)
+        R.check(page.locator('[data-action="pv-open"]').is_disabled(), 'feuille d\'iOS ouverte : bouton inactif')
+        page.evaluate(HIDE)
+        page.evaluate(SHOW)
+        page.evaluate('__vaultRelease()')
+        page.wait_for_timeout(400)
+        R.check(not page.evaluate('vaultIsOpen()') and page.locator('[data-action="pv-open"]').is_enabled(), 'refermé pendant la feuille : resté fermé, bouton prêt')
+        page.evaluate("__vaultMode = 'ok'")
+        page.click('[data-action="pv-open"]')
+        page.wait_for_selector('[data-action="photo-add"]', timeout=15000)
+        R.check(page.evaluate('vaultIsOpen()'), 'essai suivant : ouvert')
+        # Rechargement (relance de l'app) : même clé dans le trousseau, Face ID d'emblée
         page.reload()
         page.wait_for_selector('#app > *')
         page.evaluate("navigate('photo-vault')")
-        page.wait_for_selector('.pv-lock')
-        page.wait_for_timeout(300)
-        R.check('Réessaie dans' in page.inner_text('.pv-lock'), 'attente gardée après un rechargement')
-        page.clock.run_for(31_000)
-        page.wait_for_timeout(300)
-        type_code(page, FAKE_CODE)
         page.wait_for_selector('[data-action="photo-add"]', timeout=15000)
-        R.check(page.evaluate('vaultIsOpen()'), 'après l\'attente : bon code accepté')
-        # Changer de code
-        page.click('[data-action="pv-change"]')
-        page.wait_for_selector('.pv-lock')
-        type_code(page, FAKE_CODE)
-        R.check(page.inner_text('#pvTitle') == 'Nouveau code', 'changement : nouveau code demandé')
-        type_code(page, FAKE_OTHER)
-        type_code(page, FAKE_OTHER)
-        page.wait_for_selector('[data-action="photo-add"]', timeout=15000)
-        page.click('[data-action="pv-lock"]')
-        page.wait_for_selector('.pv-lock')
-        type_code(page, FAKE_CODE)
-        R.check(not page.evaluate('vaultIsOpen()'), 'ancien code refusé après le changement')
-        type_code(page, FAKE_OTHER)
-        page.wait_for_selector('[data-action="photo-add"]', timeout=15000)
-        R.check(page.evaluate('vaultIsOpen()'), 'nouveau code accepté')
+        R.check(page.evaluate('vaultIsOpen()'), 'après une relance : ouvert par la même clé')
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
 
 
-def t_migration_et_oubli(bench):
-    """Photos en clair d'avant le coffre : rangées et chiffrées, ancienne base supprimée ; puis code oublié."""
+def t_migration(bench):
+    """Photos en clair d'avant le coffre : gardées si la création est annulée, puis rangées et chiffrées."""
     with bench.frozen_page(NOW, 'webkit', 'iPhone 13', 'light') as page:
+        shell(page)
         open_vault(page, 'light', legacy=True)
         R.check('2 photos déjà prises' in page.inner_text('.pv-intro'), f'présentation : photos existantes annoncées {page.inner_text(".pv-intro")[:300]!r}')
+        page.evaluate("__vaultMode = 'cancel'")
+        page.click('[data-action="pv-start"]')
+        page.wait_for_timeout(400)
+        R.check(page.locator('.pv-intro').count() == 1 and page.evaluate(LEGACY_EXISTS) is True and page.evaluate(RAW_ROWS)['meta'] == '[]',
+                'création annulée : présentation, photos en clair intactes, aucun réglage')
+        page.evaluate("__vaultMode = 'ok'")
         create_vault(page)
         page.wait_for_selector('.pgal__item', timeout=8000)
         raw = page.evaluate(RAW_ROWS)
         R.check(len(raw['rows']) == 2 and not any(r['jpeg'] for r in raw['rows']), f'migration : 2 photos chiffrées {raw["rows"]}')
         R.check(page.evaluate(LEGACY_EXISTS) is False, 'migration : ancienne base en clair supprimée')
         R.check(page.locator('.pcmp').count() == 1 and '58 jours' in page.inner_text('.pcmp__gap'), 'migration : avant / après des deux photos')
-        page.click('[data-action="pv-lock"]')
-        page.wait_for_selector('.pv-lock')
-        # Code oublié : deux confirmations, puis coffre vide
-        page.click('[data-action="pv-forgot"]')
-        page.wait_for_selector('.ios-dialog')
-        R.check('personne ne peut rouvrir' in page.inner_text('.ios-dialog'), 'oubli : explication')
-        tap_dialog(page, 'Vider le coffre')
-        page.wait_for_selector('.ios-dialog')
-        R.check('Effacer 2 photos' in page.inner_text('.ios-dialog'), f'oubli : 2e confirmation chiffrée {page.inner_text(".ios-dialog")!r}')
-        shot(page, LOT, 'oubli-iPhone_13-light')
-        tap_dialog(page, 'Annuler')
-        R.check(len(page.evaluate(RAW_ROWS)['rows']) == 2, 'oubli annulé : photos gardées')
-        page.click('[data-action="pv-forgot"]')
-        tap_dialog(page, 'Vider le coffre')
-        tap_dialog(page, 'Effacer')
-        page.wait_for_selector('.pv-intro')
-        raw = page.evaluate(RAW_ROWS)
-        R.check(raw['rows'] == [] and raw['meta'] == '[]', 'oubli confirmé : coffre vide, plus de réglages')
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
 
 
-# Coquille iOS factice avec le module du coffre (Face ID simulé, trousseau en mémoire)
-FAKE_SHELL_VAULT = """
-window.__vaultCalls = [];
-window.__bioResult = 'ok';
-const store = {};
-const vault = {
-  status: async () => ({ biometry: 'faceID', stored: !!store.key }),
-  remember: async ({ key }) => { __vaultCalls.push('remember'); store.key = key; return {}; },
-  unlock: async () => { __vaultCalls.push('unlock');
-    if (__bioResult === 'cancel') { const e = new Error('annulé'); e.code = 'CANCELED'; throw e; }
-    if (!store.key) { const e = new Error('absente'); e.code = 'NOT_FOUND'; throw e; }
-    return { key: store.key }; },
-  forget: async () => { __vaultCalls.push('forget'); delete store.key; return {}; },
-  shield: async ({ on }) => { __vaultCalls.push('shield:' + on); return {}; },
-};
-const listeners = {};
-window.__fireActive = a => (listeners.appStateChange || []).forEach(cb => cb({ isActive: a }));
-window.Capacitor = {
-  isNativePlatform: () => true,
-  isPluginAvailable: n => n === 'MdlfVault',
-  registerPlugin: name => name === 'MdlfVault' ? vault
-    : name === 'App' ? { addListener: async (ev, cb) => { (listeners[ev] ||= []).push(cb); return { remove() {} }; }, getInfo: async () => ({ build: '32' }) }
-    : new Proxy({}, { get: (_, m) => (m === 'then' ? undefined : async () => ({})) }),
-};
-"""
-
-
-def t_face_id(bench):
+def t_illisible(bench):
+    """Sauvegarde restaurée sur un autre iPhone : clé absente (ou une autre), coffre illisible, puis vidé."""
+    face = png_file('coffre-face.png', 300, 400, (200, 80, 80))
     with bench.frozen_page(NOW, 'webkit', 'iPhone 13', 'dark') as page:
-        page.add_init_script(FAKE_SHELL_VAULT)
-        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        shell(page)
         open_vault(page, 'dark')
-        R.check(page.evaluate('Native.vault.available') is True, 'module du coffre détecté')
         create_vault(page)
+        add_photo(page, face)
+        page.evaluate('__fakeKeychain.del()')   # autre iPhone : la sauvegarde a les photos, pas la clé
+        reenter(page)
+        R.check(page.inner_text('#pvTitle') == 'Coffre illisible sur cet iPhone' and '1 photo ne peut pas s\'ouvrir ici' in page.inner_text('.pv-center'),
+                f'clé absente : coffre illisible, nombre de photos {page.inner_text(".view.photo-vault")[:300]!r}')
+        R.check(not page.evaluate('vaultIsOpen()') and page.locator('.view.photo-vault img').count() == 0, 'clé absente : rien d\'ouvert')
+        shot(page, LOT, 'illisible-iPhone_13-dark')
+        page.click('[data-action="pv-reset"]')
         page.wait_for_selector('.ios-dialog')
-        R.check('Face ID' in page.inner_text('.ios-dialog'), 'Face ID proposé après la création')
-        tap_dialog(page, 'Utiliser Face ID')
-        page.wait_for_timeout(300)
-        R.check('remember' in page.evaluate('__vaultCalls') and page.locator('[data-action="pv-bio-toggle"][aria-checked="true"]').count() == 1, 'Face ID activé, réglage coché')
-        R.check('shield:true' in page.evaluate('__vaultCalls'), 'écran de confidentialité natif armé coffre ouvert')
-        # App inactive (sélecteur d'apps) : contenu masqué ; de nouveau active : visible
-        page.evaluate('__fireActive(false)')
-        R.check(page.evaluate("document.body.classList.contains('pv-shield')"), 'app inactive : contenu masqué')
-        shot(page, LOT, 'selecteur-apps-iPhone_13-dark')
-        page.evaluate('__fireActive(true)')
-        R.check(not page.evaluate("document.body.classList.contains('pv-shield')"), 'app active : contenu rendu')
-        # Ressortir puis revenir : Face ID d'emblée
-        page.click('.view.photo-vault [data-action="back"]')
-        page.wait_for_selector('.view.body-measures')
-        R.check('shield:false' in page.evaluate('__vaultCalls'), 'écran natif désarmé coffre fermé')
-        page.click('[data-action="go-photo-vault"]')
-        page.wait_for_selector('.pgal, [data-action="photo-add"]', timeout=8000)
-        R.check(page.evaluate('vaultIsOpen()') and page.evaluate('__vaultCalls').count('unlock') == 1, 'Face ID ouvre le coffre en entrant')
-        # Face ID annulé : clavier du code, touche Face ID pour réessayer
+        R.check('Effacer 1 photo' in page.inner_text('.ios-dialog'), f'vider : confirmation chiffrée {page.inner_text(".ios-dialog")!r}')
+        tap_dialog(page, 'Annuler')
+        R.check(len(page.evaluate(RAW_ROWS)['rows']) == 1, 'vider annulé : photo gardée')
+        page.click('[data-action="pv-reset"]')
+        tap_dialog(page, 'Effacer')
+        page.wait_for_selector('.pv-intro')
+        raw = page.evaluate(RAW_ROWS)
+        R.check(raw['rows'] == [] and raw['meta'] == '[]' and calls(page, 'forget') >= 1, 'vidé : plus de photo, plus de réglage, clé retirée')
+        # Une autre clé que celle du coffre : illisible aussi
+        create_vault(page)
+        add_photo(page, face)
+        page.evaluate('__fakeKeychain.set(__fakeKey())')
+        reenter(page)
+        R.check(page.inner_text('#pvTitle') == 'Coffre illisible sur cet iPhone', 'clé d\'un autre coffre : illisible')
+        page.click('[data-action="pv-reset"]')
+        tap_dialog(page, 'Effacer')
+        page.wait_for_selector('.pv-intro')
+        # Coffre vide sur un autre iPhone : rien à perdre, retour direct à la présentation
+        create_vault(page)
+        page.evaluate('__fakeKeychain.del()')
+        reenter(page)
+        R.check(page.locator('.pv-intro').count() == 1 and page.evaluate(RAW_ROWS)['meta'] == '[]', 'coffre vide et clé absente : présentation directement')
+        R.check(not page.errors, f'aucune erreur JS : {page.errors}')
+
+
+def t_sans_code_ni_biometrie(bench):
+    """iPhone sans code : coffre fermé, explication ; iPhone sans Face ID : ouvert par le code de l'iPhone."""
+    with bench.frozen_page(NOW, 'webkit', 'iPhone 13', 'light') as page:
+        shell(page)
+        page.add_init_script("window.__vaultPasscode = false; window.__vaultBio = 'none';")
+        open_vault(page, 'light')
+        R.check(page.inner_text('#pvTitle') == 'Code de l\'iPhone requis' and 'Réglages' in page.inner_text('.pv-center'), 'iPhone sans code : explication')
+        shot(page, LOT, 'sans-code-iPhone_13-light')
+        page.evaluate('__vaultPasscode = true')
+        page.click('[data-action="pv-retry"]')
+        page.wait_for_selector('.pv-intro')
+        R.check('Ouvert avec le code de ton iPhone' in page.inner_text('.pv-intro'), 'sans Face ID : « le code de ton iPhone »')
+        create_vault(page)
         page.click('[data-action="pv-lock"]')
-        page.evaluate("__bioResult = 'cancel'")
-        page.click('.pv-key[data-action="pv-bio"]')
-        page.wait_for_timeout(300)
-        R.check(not page.evaluate('vaultIsOpen()') and page.locator('.pv-key[data-d]').count() == 10, 'Face ID annulé : le code reste possible')
-        shot(page, LOT, 'faceid-iPhone_13-dark')
-        # Désactiver Face ID : clé retirée du trousseau
-        type_code(page, FAKE_CODE)
-        page.wait_for_selector('[data-action="pv-bio-toggle"]', timeout=15000)
-        page.click('[data-action="pv-bio-toggle"]')
-        page.wait_for_timeout(300)
-        R.check('forget' in page.evaluate('__vaultCalls') and page.locator('[data-action="pv-bio-toggle"][aria-checked="false"]').count() == 1, 'Face ID désactivé : clé oubliée')
+        page.wait_for_selector('.pv-lock')
+        R.check(page.inner_text('[data-action="pv-open"]').strip() == 'Ouvrir avec le code de l\'iPhone', f'sans Face ID : bouton {page.inner_text("[data-action=pv-open]")!r}')
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
 
 
 def t_sans_module(bench):
-    """Build installée sans le module natif (OTA avant la build) : code seul, aucune mention de Face ID."""
-    shell = """window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: () => false,
+    """Coquille sans le module natif, et navigateur : coffre indisponible, photos en clair jamais touchées."""
+    bare = """window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: () => false,
       registerPlugin: () => new Proxy({}, { get: (_, m) => (m === 'then' ? undefined : async () => ({})) }) };"""
     with bench.frozen_page(NOW, 'webkit', 'iPhone 13', 'light') as page:
-        page.add_init_script(shell)
-        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
-        open_vault(page, 'light')
+        shell(page, bare)
+        open_vault(page, 'light', legacy=True)
         R.check(page.evaluate('Native.isNative') is True and page.evaluate('Native.vault.available') is False, 'coquille sans module')
-        create_vault(page)
-        R.check(page.locator('.ios-dialog').count() == 0 and page.locator('[data-action="pv-bio-toggle"]').count() == 0, 'pas de Face ID proposé')
-        page.click('[data-action="pv-lock"]')
-        R.check(page.locator('[data-action="pv-bio"]').count() == 0, 'pas de touche Face ID')
+        txt = page.inner_text('.view.photo-vault')
+        R.check('Coffre indisponible' in txt and 'prochaine version' in txt and page.locator('[data-action="pv-start"]').count() == 0, f'sans module : indisponible {txt[:200]!r}')
+        R.check(page.evaluate(LEGACY_EXISTS) is True, 'sans module : photos en clair intactes')
+        shot(page, LOT, 'indisponible-iPhone_13-light')
+        R.check(not page.errors, f'aucune erreur JS : {page.errors}')
+    with bench.frozen_page(NOW, 'chromium', 'Pixel 7', 'dark') as page:
+        open_vault(page, 'dark')
+        txt = page.inner_text('.view.photo-vault')
+        R.check(page.evaluate('Native.isNative') is False and 'Coffre indisponible' in txt and 'app iPhone' in txt, f'navigateur : indisponible {txt[:200]!r}')
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
 
 
 def t_tout_supprimer(bench):
     face = png_file('coffre-face.png', 300, 400, (200, 80, 80))
     with bench.frozen_page(NOW, 'chromium', 'Pixel 7', 'dark') as page:
+        shell(page)
         open_vault(page, 'dark')
         create_vault(page)
         add_photo(page, face)
@@ -417,47 +454,31 @@ def t_tout_supprimer(bench):
         page.wait_for_timeout(800)
         raw = page.evaluate(RAW_ROWS)
         R.check(raw['rows'] == [] and raw['meta'] == '[]', 'Supprimer toutes les données : coffre vidé')
+        R.check(calls(page, 'forget') >= 1 and page.evaluate('__fakeKeychain.get()') is None, 'Supprimer toutes les données : clé retirée du trousseau')
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
 
 
-HIDE = "Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange'))"
-SHOW = "Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })"
-
-
 def t_interruptions(bench):
-    """Arrière-plan pendant le calcul du code, pendant la feuille « Nouvelle photo », pendant une confirmation."""
+    """Arrière-plan pendant la feuille « Nouvelle photo », inactivité pendant une confirmation."""
     face = png_file('coffre-face.png', 300, 400, (200, 80, 80))
     with bench.frozen_page(NOW, 'webkit', 'iPhone 13', 'dark') as page:
+        shell(page)
         open_vault(page, 'dark')
         create_vault(page)
-        page.click('[data-action="pv-lock"]')
-        page.wait_for_selector('.pv-lock')
-        # Code tapé, arrière-plan avant la fin du calcul : coffre fermé, clavier de nouveau utilisable
-        type_code(page, FAKE_CODE, wait_after=False)
-        page.wait_for_timeout(140)
-        page.evaluate(HIDE)
-        page.evaluate(SHOW)
-        page.wait_for_function("!document.querySelector('.pv-dots--busy')", timeout=15000)
-        page.wait_for_timeout(300)
-        R.check(not page.evaluate('vaultIsOpen()'), 'arrière-plan pendant le calcul : coffre resté fermé')
-        R.check(page.locator('.pv-pad--busy').count() == 0 and not page.locator('.pv-key[data-d="1"]').is_disabled() and page.locator('.pv-dot--on').count() == 0,
-                'arrière-plan pendant le calcul : clavier vide et utilisable')
-        type_code(page, FAKE_CODE)
-        page.wait_for_selector('[data-action="photo-add"]', timeout=15000)
-        # Feuille « Nouvelle photo » ouverte, arrière-plan : la photo attend le code, puis la feuille revient
+        # Feuille « Nouvelle photo » ouverte, arrière-plan : la photo attend l'ouverture, puis la feuille revient
         page.set_input_files('#photoFile', face)
         page.wait_for_selector('.sheet-root .pnew__img')
         page.evaluate(HIDE)
         page.evaluate(SHOW)
         page.wait_for_timeout(300)
         R.check(page.locator('.sheet-root').count() == 0 and page.locator('.view.photo-vault img').count() == 0, 'verrouillé : feuille et image retirées')
-        R.check('ranger ta photo' in page.inner_text('#pvMsg'), f'verrouillé : la photo attend le code {page.inner_text("#pvMsg")!r}')
-        type_code(page, FAKE_CODE)
+        R.check('ranger ta photo' in page.inner_text('#pvMsg'), f'verrouillé : la photo attend l\'ouverture {page.inner_text("#pvMsg")!r}')
+        page.click('[data-action="pv-open"]')
         page.wait_for_selector('.sheet-root .pnew__img', timeout=15000)
         page.wait_for_timeout(300)
         page.click('.sheet__btn--confirm')
         page.wait_for_selector('.pgal__item', timeout=8000)
-        R.check(page.locator('.pgal__item').count() == 1, 'photo rangée après le code')
+        R.check(page.locator('.pgal__item').count() == 1, 'photo rangée après l\'ouverture')
         # Confirmation de suppression ouverte, inactivité : fermée, la photo reste
         page.locator('.pgal__item').first.click()
         page.wait_for_selector('[data-action="photo-delete"]')
@@ -467,32 +488,27 @@ def t_interruptions(bench):
         page.clock.run_for(61_000)
         page.wait_for_timeout(400)
         R.check(page.locator('.ios-dialog').count() == 0 and not page.evaluate('vaultIsOpen()'), 'inactivité : confirmation fermée, coffre fermé')
-        R.check(len(page.evaluate(RAW_ROWS)['rows']) == 1, 'la photo n\'a pas été supprimée sans code')
-        # Touches de 44 pt au moins et lien « Code oublié » au-dessus de la tab bar
-        tab = page.locator('.tabbar').bounding_box()
-        link = page.locator('[data-action="pv-forgot"]').bounding_box()
-        R.check(link and tab and link['y'] + link['height'] <= tab['y'] + 1, f'« Code oublié ? » au-dessus de la tab bar {link} {tab}')
+        R.check(len(page.evaluate(RAW_ROWS)['rows']) == 1, 'la photo n\'a pas été supprimée sans rouvrir le coffre')
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
 
 
 def t_hauteur_se(bench):
-    """iPhone SE : présentation et clavier du code entiers entre la barre et la tab bar, en clair et en sombre."""
+    """iPhone SE : présentation et écran verrouillé entiers entre la barre et la tab bar, en clair et en sombre."""
     for theme in ('light', 'dark'):
         with bench.frozen_page(NOW, 'webkit', 'iPhone SE', theme) as page:
+            shell(page)
             open_vault(page, theme)
             tab = page.locator('.tabbar').bounding_box()
             cta = page.locator('.pv-cta').bounding_box()
-            R.check(cta['y'] + cta['height'] <= tab['y'] + 1, f'SE {theme} : « Créer mon code » au-dessus de la tab bar {cta} {tab}')
+            R.check(cta['y'] + cta['height'] <= tab['y'] + 1, f'SE {theme} : « Créer le coffre » au-dessus de la tab bar {cta} {tab}')
             shot(page, LOT, f'intro-iPhone_SE-{theme}')
             create_vault(page)
             page.click('[data-action="pv-lock"]')
             page.wait_for_selector('.pv-lock')
             tab = page.locator('.tabbar').bounding_box()
-            link = page.locator('[data-action="pv-forgot"]').bounding_box()
-            keys = page.locator('.pv-key[data-d]')
-            ok44 = all(keys.nth(i).bounding_box()['height'] >= 44 for i in range(keys.count()))
-            R.check(link['y'] + link['height'] <= tab['y'] + 1 and ok44, f'SE {theme} : clavier entier au-dessus de la tab bar, touches ≥ 44 {link} {tab}')
-            shot(page, LOT, f'clavier-iPhone_SE-{theme}')
+            btn = page.locator('[data-action="pv-open"]').bounding_box()
+            R.check(btn['y'] + btn['height'] <= tab['y'] + 1 and btn['height'] >= 44, f'SE {theme} : bouton d\'ouverture au-dessus de la tab bar {btn} {tab}')
+            shot(page, LOT, f'verrouille-iPhone_SE-{theme}')
 
 
-run_main(R, [t_coffre], once=[t_interruptions, t_hauteur_se, t_verrouillages, t_migration_et_oubli, t_face_id, t_sans_module, t_tout_supprimer])
+run_main(R, [t_coffre], once=[t_interruptions, t_hauteur_se, t_verrouillages, t_migration, t_illisible, t_sans_code_ni_biometrie, t_sans_module, t_tout_supprimer])

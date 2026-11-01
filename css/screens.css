@@ -496,14 +496,14 @@ body.light .imp__ctl { background: var(--cell); }
 .pnew__pose { display: flex; margin: 4px 0 14px; }
 .pview__meta { text-align: center; color: var(--label2); font-size: 0.765rem; margin: 0 0 14px; }
 
-/* ── Coffre à photos (js/features/photo-vault-ui.js) : entrée, présentation, clavier du code ── */
+/* ── Coffre à photos (js/features/photo-vault-ui.js) : entrée, présentation, écran verrouillé ── */
 .pv-entry__glyph {
   width: 30px; height: 30px; flex-shrink: 0; border-radius: 7px; background: var(--tint-fill); color: var(--on-tint);
   display: flex; align-items: center; justify-content: center;
 }
 .pv-locked .scr { display: flex; flex-direction: column; min-height: calc(100dvh - 44px - var(--tabbar-h) - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
 .pv-center, .pv-lock, .pv-intro { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
-.pv-center { justify-content: center; padding: 40px var(--gutter); }
+.pv-center, .pv-lock { justify-content: center; padding: 32px var(--gutter); }
 .pv-glyph {
   width: 76px; height: 76px; border-radius: 50%; background: var(--fill2); color: var(--tint);
   display: flex; align-items: center; justify-content: center; margin-bottom: 18px;
@@ -511,12 +511,12 @@ body.light .imp__ctl { background: var(--cell); }
 .pv-glyph--sm { width: 56px; height: 56px; margin-bottom: 14px; }
 .photo-vault #pvTitle:focus { outline: none; }   /* focus posé par le code pour VoiceOver, pas d'anneau à l'écran */
 .pv-title { font-size: var(--fs-title2); line-height: 1.6rem; font-weight: 600; letter-spacing: -.01em; }
-.pv-sub { min-height: 2.4em; margin-top: 6px; padding: 0 var(--gutter); font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); }
+.pv-sub { min-height: 2.4em; margin-top: 6px; max-width: 360px; font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); }
 .pv-sub--err { color: var(--red-text); }
-.pv-wait { margin: -2px 0 6px; font-size: var(--fs-footnote); color: var(--label); font-weight: 600; }
 /* Présentation (premier accès) */
 .pv-intro { padding: 16px var(--gutter) 24px; max-width: 420px; margin: 0 auto; width: 100%; }
 .pv-intro .pv-title { font-size: var(--fs-title1); line-height: 2rem; font-weight: 700; }
+.pv-intro .pv-sub { min-height: 0; margin-top: 14px; }
 .pv-lead { margin-top: 8px; color: var(--label2); font-size: var(--fs-callout); line-height: 1.3rem; }
 .pv-feats { list-style: none; margin: 22px 0 4px; display: flex; flex-direction: column; gap: 14px; text-align: left; width: 100%; }
 .pv-feat { display: flex; gap: 14px; align-items: flex-start; }
@@ -527,17 +527,7 @@ body.light .imp__ctl { background: var(--cell); }
 .pv-note { margin-top: 14px; font-size: var(--fs-footnote); color: var(--label); background: var(--fill2); border-radius: var(--r-sm); padding: 10px 14px; width: 100%; }
 .pv-cta { margin-top: 22px; min-height: 50px; }
 .pv-intro .pv-glyph { width: 64px; height: 64px; margin-bottom: 12px; }
-/* Clavier du code, sur le modèle de l'écran de code d'iOS */
-/* Touches : la hauteur qui reste une fois le titre, les points et le lien placés, entre barre et tab bar */
-.pv-lock {
-  --pv-key: clamp(52px, min(21vw, calc((100dvh - 410px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 4)), 80px);
-  padding: 20px 0 12px; justify-content: center;
-}
 @media (max-height: 700px) {
-  .pv-lock { --pv-key: clamp(52px, min(21vw, calc((100dvh - 330px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 4)), 80px); padding-top: 8px; }
-  .pv-lock .pv-glyph--sm { display: none; }
-  .pv-lock .pv-link { margin-top: 8px; }
-  .pv-pad { row-gap: 10px; }
   .pv-intro { padding-top: 4px; }
   .pv-intro .pv-glyph { display: none; }
   .pv-feats { margin: 16px 0 0; gap: 10px; }
@@ -545,29 +535,10 @@ body.light .imp__ctl { background: var(--cell); }
 }
 /* Écrans de 4 pouces : le bouton reste visible sans défiler */
 @media (max-height: 600px) { .pv-intro .pv-lead { display: none; } }
-.pv-dots { display: flex; gap: 16px; margin: 6px 0 26px; }
-.pv-dot { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--label); transition: background-color .12s; }
-.pv-dot--on { background: var(--label); }
-.pv-dots--busy .pv-dot { animation: pv-pulse .9s ease-in-out infinite; }
-.pv-dots--shake { animation: pv-shake .38s; }
-@keyframes pv-pulse { 50% { opacity: .35; } }
-@keyframes pv-shake { 20%, 60% { transform: translateX(-9px); } 40%, 80% { transform: translateX(9px); } }
-@media (prefers-reduced-motion: reduce) { .pv-dots--shake, .pv-dots--busy .pv-dot { animation: none; } }
-.pv-pad { display: grid; grid-template-columns: repeat(3, var(--pv-key)); gap: 14px clamp(18px, 7vw, 28px); }
-.pv-key {
-  width: var(--pv-key); height: var(--pv-key); border-radius: 50%; border: none; background: var(--fill2); color: var(--label);
-  font-size: calc(var(--pv-key) * .42); font-weight: 400; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer;
-  transition: background-color .15s;
-}
-.pv-key:active { background: var(--label3); transition: none; }
-.pv-key:disabled { opacity: .35; cursor: default; }
-.pv-key--fn { background: none; }
-.pv-key--fn:active { background: var(--fill2); }
-.pv-key--fn:disabled { opacity: 0; }
-.pv-key--void { visibility: hidden; }
-.pv-pad--busy { pointer-events: none; }
-.pv-link { margin-top: 18px; min-height: 44px; min-width: 44px; padding: 0 12px; border: none; background: none; color: var(--tint-on-fill); font-size: var(--fs-subhead); cursor: pointer; }
-.pv-link--void { visibility: hidden; display: block; }
+/* Écran verrouillé : un bouton, comme l'album « Masqués » de Photos */
+.pv-open { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 240px; padding: 0 22px; }
+.pv-link { margin-top: 12px; min-height: 44px; min-width: 44px; padding: 0 12px; border: none; background: none; color: var(--tint-on-fill); font-size: var(--fs-subhead); cursor: pointer; }
+.pv-link--danger { color: var(--red-text); }
 /* Coffre ouvert */
 .pv-empty { flex-direction: column; align-items: stretch; gap: 10px; padding-top: 12px; padding-bottom: 12px; }
 .pv-slot {
