@@ -83,8 +83,11 @@ begin
   if r ->> 'error' is distinct from 'invalid_code' then raise 'code de 7 jours : %', r; end if;
   r := public.referral_apply('abcd efgh jklm');
   if (r ->> 'ok')::boolean is not true or r #>> '{referrer,name}' is distinct from 'coach.pp' then raise 'code permanent : %', r; end if;
+  -- Parrain coach dit à l'app (proposition « Rejoindre ce coach »), partenaire non
+  if r #>> '{referrer,coach}' is distinct from 'true' or public.referral_state() #>> '{referrer,coach}' is distinct from 'true' then raise 'parrain coach : %', r; end if;
   perform set_config('request.jwt.claim.sub', pg_temp.pu('u')::text, true);
-  if (public.referral_apply('LUCAS') ->> 'ok')::boolean is not true then raise 'code partenaire'; end if;
+  r := public.referral_apply('LUCAS');
+  if (r ->> 'ok')::boolean is not true or r #>> '{referrer,coach}' is distinct from 'false' then raise 'code partenaire : %', r; end if;
   perform set_config('request.jwt.claim.sub', pg_temp.pu('p')::text, true);
   if (public.referral_apply('ANNUEL') ->> 'ok')::boolean is not true then raise 'code ANNUEL'; end if;
   -- Le coach ne se parraine pas avec son propre code
@@ -275,6 +278,15 @@ begin
      or r.active_subscribers is distinct from 2 then raise 'rapport du coach actif : %', r; end if;
 end $$;
 reset role;
+-- Exception de durée pour K (6 mois) : le rapport la lit (private.referral_months)
+select private.set_coach_terms(pg_temp.pu('k'), 0.20, 6);
+set role service_role;
+do $$ begin
+  if (select commission_months from public.referral_report(date_trunc('month', now())::date, date_trunc('month', now())::date)
+       where kind = 'coach' and coach_id = pg_temp.pu('k')) is distinct from 6 then raise 'durée du coach dans le rapport'; end if;
+end $$;
+reset role;
+delete from public.referral_coach_terms;
 
 -- ── Suppression d'un compte ──────────────────────────────
 do $$

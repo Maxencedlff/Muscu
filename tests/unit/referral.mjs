@@ -20,6 +20,11 @@ export default async function ({ test, run, assert, sameJSON, ROOT }) {
     // Parrain coach, dit par le serveur (jamais déduit de la forme du code)
     assert.equal(run(`cleanReferralState({ referrer: { name: 'k', since: null, coach: true } }).referrer.coach`), true);
     assert.equal(run(`cleanReferralState({ referrer: { name: 'k', since: null, coach: 'oui' } }).referrer.coach`), false);
+    // « Rejoindre ce coach » : parrain coach et pas encore de coach, jamais sinon
+    assert.equal(run(`referralSuggestJoin({ referrer: 'k', referrerCoach: true })`), !run('coach.state?.coach'));
+    assert.equal(run(`referralSuggestJoin({ referrer: 'Lucas', referrerCoach: false })`), false);
+    assert.equal(run(`referralSuggestJoin({ referrer: null, referrerCoach: true })`), false);
+    assert.equal(run(`(() => { const s = coach.state; coach.state = { coach: { user_id: 'c1' } }; try { return referralSuggestJoin({ referrer: 'k', referrerCoach: true }); } finally { coach.state = s; } })()`), false);
     sameJSON(run(`cleanReferralState({ referrer: null, can_enter: true, until: 'x' })`), { referrer: null, canEnter: true, until: null });
     sameJSON(run(`cleanReferralState(null)`), { referrer: null, canEnter: false, until: null });
     assert.equal(run(`cleanReferralState({ referrer: { name: 7 } }).referrer`), null);

@@ -242,7 +242,8 @@ $$;
 
 -- Périodes PAYÉES des comptes attribués à un parrain, comptées dans les `months` premiers mois
 -- d'abonnement payé de chaque compte (en-tête, point 3), avec leur part (weight) et leur revenu net
--- pondéré. Une période d'avant l'adhésion à un coach consomme ses mois mais n'est pas rendue.
+-- pondéré. Une période d'avant le rattachement à un coach (adhésion ou code du coach saisi) consomme
+-- ses mois mais n'est pas rendue ; un code partenaire compte depuis le premier paiement.
 create function private.referral_paid(kind text, code text, coach uuid, months int)
   returns table (attribution_id bigint, purchased_at timestamptz, expires_at timestamptz,
                  revoked_at timestamptz, net numeric)
@@ -391,14 +392,14 @@ $$
   order by x.m, x.k desc, x.c, x.n
 $$;
 
--- Parrain montré à l'utilisateur : texte de 20261031400000_parrainage.sql, plus « coach » (le parrain est
--- un coach, ou le code partenaire d'un coach) : saisir le code d'un coach parraine sans faire rejoindre
+-- Parrain montré à l'utilisateur : texte de 20261031400000_parrainage.sql, plus « coach » (le parrain, ou le
+-- compte relié à son code partenaire, a le rôle coach) : saisir le code d'un coach parraine sans faire rejoindre
 -- ce coach, l'app propose alors de le rejoindre (Amis › Rejoindre un coach)
 create or replace function private.referral_referrer_of(me uuid) returns jsonb
   language sql stable security definer set search_path = '' as
 $$
   select jsonb_build_object('name', coalesce(p.display_name, up.username), 'since', a.created_at,
-                            'coach', a.referrer_coach is not null or p.partner_user is not null)
+                            'coach', coalesce(private.is_coach(coalesce(a.referrer_coach, p.partner_user)), false))
   from public.referral_attributions a
   left join public.referral_partners p on p.code = a.partner_code
   left join public.user_profiles up on up.user_id = a.referrer_coach

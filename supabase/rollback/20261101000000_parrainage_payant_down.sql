@@ -23,13 +23,14 @@
 begin;
 
 -- Relançable : une archive d'un premier retour arrière est complétée, pas recréée
+-- (archived_at distingue deux passages : les id de la table recréée repartent de 1)
 create table if not exists private.parrainage_payant_archive_payments as
   select id, attribution_id, product_id, environment, purchased_at, expires_at, price_milli, currency,
-         storefront, free_trial, revoked_at, created_at
+         storefront, free_trial, revoked_at, created_at, now() as archived_at
     from public.subscription_payments where false;
 insert into private.parrainage_payant_archive_payments
   select id, attribution_id, product_id, environment, purchased_at, expires_at, price_milli, currency,
-         storefront, free_trial, revoked_at, created_at
+         storefront, free_trial, revoked_at, created_at, now()
     from public.subscription_payments;
 revoke all on private.parrainage_payant_archive_payments from public, anon, authenticated, service_role;
 
