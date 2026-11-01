@@ -113,7 +113,7 @@ def cut_texts(page):
     """Textes coupés, hors « ... exercices » de la carte d'accueil : ce repli existe avant ce lot
     (visible sur iPhone SE même sans compte et sans bandeau), il ne vient pas de l'abonnement."""
     return page.evaluate("""() => [...document.querySelectorAll('#app *, .tabbar *')].filter(e => e.offsetParent && e.children.length === 0
-        && e.textContent.trim() && !e.matches('input, textarea, svg, use, .icon *, .visually-hidden, .home-card__aside-more') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
+        && e.textContent.trim() && !e.matches('input, textarea, svg, use, .icon *, .visually-hidden, .sr-text, .home-card__aside-more') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
         .map(e => e.textContent.trim().slice(0, 30))""")
 
 
