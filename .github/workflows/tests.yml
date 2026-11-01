@@ -47,7 +47,8 @@ jobs:
         run: npm run lint
 
   e2e:
-    runs-on: ubuntu-latest
+    # ubuntu-24.04 fixé : sur ubuntu-26.04 (ubuntu-latest depuis le 01/11/2026), les navigateurs de Playwright 1.62 ne démarrent pas
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
       PLAYWRIGHT_VERSION: 1.62.0
