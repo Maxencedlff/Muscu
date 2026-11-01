@@ -4,14 +4,22 @@ import LocalAuthentication
 import Security
 import Capacitor
 
-/// Coffre à photos (Progrès › Mesures › Photos) : Face ID et écran de confidentialité.
+/// Coffre à photos (Progrès › Mesures › Photos) : clé du coffre dans le trousseau, ouverte par Face ID ou le
+/// code de l'iPhone, et écran de confidentialité.
 /// Côté web : Capacitor.registerPlugin('MdlfVault') (js/platform/native.js, Native.vault) ; logique du
-/// coffre dans js/data/photo-vault.js, choix détaillés dans docs/COFFRE_PHOTOS.md.
+/// coffre dans js/data/photo-vault.js, choix et sources dans docs/COFFRE_PHOTOS.md.
 ///
-/// - La clé du coffre (256 bits, base64) est confiée au trousseau avec un contrôle d'accès
-///   `.biometryCurrentSet` et `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` : lisible seulement après
-///   Face ID (ou Touch ID) sur CET iPhone, jamais sauvegardée ni copiée sur un autre appareil, invalidée par
-///   iOS si les visages enregistrés changent, effacée si le code de l'iPhone est retiré.
+/// - Clé du coffre : 32 octets tirés par SecRandomCopyBytes à la création, rangés dans le trousseau avec un
+///   contrôle d'accès `.userPresence` (Face ID, Touch ID ou Optic ID, avec repli sur le code de l'iPhone ; garde
+///   la clé si les visages enregistrés changent) et `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` : lisible
+///   seulement iPhone déverrouillé, restaurée par une sauvegarde sur CE iPhone, jamais sur un autre.
+/// - La clé n'est rendue au JS qu'après authentification (le contrôle d'accès est évalué par la Secure
+///   Enclave). Le JS chiffre et déchiffre les photos lui-même (WebCrypto, AES-GCM) : les images doivent de
+///   toute façon être déchiffrées dans la vue web pour s'afficher, et faire passer chaque photo en base64
+///   par le pont coûterait plus que ce que ça protège.
+/// - Jamais écrasée : `create` reprend une clé déjà présente (le trousseau survit à la suppression de l'app).
+/// - Erreurs rendues au JS : CANCELED (annulé, app passée en arrière-plan), NOT_FOUND (pas de clé sur cet
+///   iPhone), NO_PASSCODE (aucun code sur l'iPhone), FAILED (le reste).
 /// - Écran de confidentialité : tant que le coffre est ouvert (`shield(on: true)`), un flou est posé sur la
 ///   fenêtre dès que l'app cesse d'être active, donc avant la capture du sélecteur d'apps, et retiré au retour.
 @objc(VaultPlugin)
@@ -20,7 +28,7 @@ public class VaultPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "MdlfVault"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "remember", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "create", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "unlock", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "forget", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "shield", returnType: CAPPluginReturnPromise),
@@ -28,6 +36,7 @@ public class VaultPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private let service = "com.mdlf.training.photo-vault"
     private let account = "vault-key"
+    private let keyLength = 32
     private var shieldOn = false
     private var shieldView: UIView?
 
@@ -44,8 +53,30 @@ public class VaultPlugin: CAPPlugin, CAPBridgedPlugin {
          kSecAttrAccount as String: account]
     }
 
-    private func biometryName(_ ctx: LAContext) -> String {
+    // MARK: - Authentification
+
+    /// Erreur de LocalAuthentication → code rendu au JS
+    private func code(for error: Error?) -> String {
+        guard let error = error as NSError?, error.domain == LAErrorDomain,
+              let code = LAError.Code(rawValue: error.code) else { return "FAILED" }
+        switch code {
+        case .passcodeNotSet: return "NO_PASSCODE"
+        case .userCancel, .appCancel, .systemCancel, .userFallback: return "CANCELED"
+        default: return "FAILED"
+        }
+    }
+
+    /// Code de l'iPhone en place ? (sans lui, ni Face ID ni le contrôle d'accès `.userPresence` ne marchent)
+    private func passcodeMissing(_ ctx: LAContext) -> Bool {
         var error: NSError?
+        if ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) { return false }
+        return error?.domain == LAErrorDomain && error?.code == LAError.Code.passcodeNotSet.rawValue
+    }
+
+    private func biometryName() -> String {
+        let ctx = LAContext()
+        var error: NSError?
+        // biometryType n'est renseigné qu'après canEvaluatePolicy
         guard ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else { return "none" }
         switch ctx.biometryType {
         case .faceID: return "faceID"
@@ -56,86 +87,96 @@ public class VaultPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    /// Clé présente sans déclencher Face ID (lecture interdite d'interaction)
-    private func keyStored() -> Bool {
-        let ctx = LAContext()
-        ctx.interactionNotAllowed = true
+    // MARK: - Trousseau
+
+    /// Lecture de la clé ; avec un contexte déjà authentifié, iOS ne redemande rien (kSecUseAuthenticationContext)
+    private func readKey(_ ctx: LAContext) -> (status: OSStatus, key: Data?) {
         var q = baseQuery()
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
         q[kSecUseAuthenticationContext as String] = ctx
-        q[kSecReturnData as String] = false
-        let status = SecItemCopyMatching(q as CFDictionary, nil)
-        return status == errSecSuccess || status == errSecInteractionNotAllowed
+        var out: CFTypeRef?
+        let status = SecItemCopyMatching(q as CFDictionary, &out)
+        return (status, out as? Data)
     }
 
-    /// { biometry: 'faceID' | 'touchID' | 'opticID' | 'none', stored }
+    /// Statut du trousseau → réponse au JS : { key } ou rejet avec un code
+    private func answer(_ call: CAPPluginCall, _ status: OSStatus, _ key: Data?) {
+        switch status {
+        case errSecSuccess:
+            if let key = key, key.count == keyLength { call.resolve(["key": key.base64EncodedString()]) }
+            else { call.reject("Clé illisible", "FAILED") }
+        case errSecUserCanceled, errSecInteractionNotAllowed: call.reject("Annulé", "CANCELED")
+        case errSecItemNotFound: call.reject("Clé absente de cet iPhone", "NOT_FOUND")
+        case errSecAuthFailed: call.reject("Authentification refusée", "FAILED")
+        default: call.reject("Trousseau indisponible (\(status))", "FAILED")
+        }
+    }
+
+    // MARK: - Méthodes
+
+    /// { biometry: 'faceID' | 'touchID' | 'opticID' | 'none', passcode: code de l'iPhone en place }. Rien sur la
+    /// clé : son absence est dite par `unlock` (NOT_FOUND, sans feuille d'iOS quand il n'y a rien à lire).
     @objc func status(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .userInitiated).async {
-            let name = self.biometryName(LAContext())
-            call.resolve(["biometry": name, "stored": self.keyStored()])
+            call.resolve(["biometry": self.biometryName(), "passcode": !self.passcodeMissing(LAContext())])
         }
     }
 
-    /// { key (base64, 32 octets), reason } : Face ID, puis clé rangée dans le trousseau
-    @objc func remember(_ call: CAPPluginCall) {
-        guard let b64 = call.getString("key"), let key = Data(base64Encoded: b64), key.count == 32 else {
-            call.reject("Clé invalide", "INVALID")
-            return
-        }
-        let reason = call.getString("reason") ?? "Ouvrir le coffre à photos"
+    /// { reason } → { key } : Face ID (ou code de l'iPhone), puis clé tirée et rangée dans le trousseau. Une clé
+    /// déjà présente est rendue telle quelle, jamais remplacée.
+    @objc func create(_ call: CAPPluginCall) {
+        let reason = call.getString("reason") ?? "Créer ton coffre à photos"
         let ctx = LAContext()
-        var error: NSError?
-        guard ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
-            call.reject("Face ID indisponible", "UNAVAILABLE")
-            return
-        }
-        ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { ok, err in
-            guard ok else {
-                let canceled = (err as? LAError)?.code == .userCancel || (err as? LAError)?.code == .appCancel || (err as? LAError)?.code == .systemCancel
-                call.reject(canceled ? "Annulé" : "Face ID refusé", canceled ? "CANCELED" : "FAILED")
-                return
-            }
-            var acErr: Unmanaged<CFError>?
-            guard let access = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .biometryCurrentSet, &acErr) else {
+        if passcodeMissing(ctx) { call.reject("Aucun code sur cet iPhone", "NO_PASSCODE"); return }
+        ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { ok, error in
+            // Réponse sur une file privée de LocalAuthentication : le trousseau peut y être appelé
+            guard ok else { call.reject("Authentification refusée", self.code(for: error)); return }
+            let existing = self.readKey(ctx)
+            if existing.status != errSecItemNotFound { self.answer(call, existing.status, existing.key); return }
+
+            var key = Data(count: self.keyLength)
+            let rc = key.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, self.keyLength, $0.baseAddress!) }
+            guard rc == errSecSuccess else { call.reject("Tirage de la clé impossible", "FAILED"); return }
+            var acError: Unmanaged<CFError>?
+            guard let access = SecAccessControlCreateWithFlags(kCFAllocatorDefault, kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+                                                               .userPresence, &acError) else {
                 call.reject("Trousseau indisponible", "FAILED")
                 return
             }
-            SecItemDelete(self.baseQuery() as CFDictionary)
             var add = self.baseQuery()
             add[kSecValueData as String] = key
             add[kSecAttrAccessControl as String] = access
             add[kSecUseAuthenticationContext as String] = ctx
             let status = SecItemAdd(add as CFDictionary, nil)
-            if status == errSecSuccess { call.resolve() } else { call.reject("Écriture refusée (\(status))", "FAILED") }
-        }
-    }
-
-    /// { reason } → { key } après Face ID ; CANCELED si annulé, NOT_FOUND si la clé n'est plus là
-    @objc func unlock(_ call: CAPPluginCall) {
-        let ctx = LAContext()
-        ctx.localizedReason = call.getString("reason") ?? "Ouvrir le coffre à photos"
-        ctx.localizedFallbackTitle = "Entrer le code"
-        var q = baseQuery()
-        q[kSecReturnData as String] = true
-        q[kSecMatchLimit as String] = kSecMatchLimitOne
-        q[kSecUseAuthenticationContext as String] = ctx
-        DispatchQueue.global(qos: .userInitiated).async {
-            var out: CFTypeRef?
-            let status = SecItemCopyMatching(q as CFDictionary, &out)
-            switch status {
-            case errSecSuccess:
-                if let data = out as? Data { call.resolve(["key": data.base64EncodedString()]) }
-                else { call.reject("Clé illisible", "FAILED") }
-            case errSecUserCanceled: call.reject("Annulé", "CANCELED")
-            case errSecItemNotFound: call.reject("Clé absente", "NOT_FOUND")
-            case errSecAuthFailed: call.reject("Face ID n'a pas reconnu", "FAILED")
-            default: call.reject("Face ID refusé (\(status))", "FAILED")
+            if status == errSecSuccess { call.resolve(["key": key.base64EncodedString()]); return }
+            if status == errSecDuplicateItem {   // rangée entre-temps par un autre appel : c'est elle qui compte
+                let again = self.readKey(ctx)
+                self.answer(call, again.status, again.key)
+                return
             }
+            call.reject("Écriture refusée (\(status))", "FAILED")
         }
     }
 
+    /// { reason } → { key } après Face ID ou le code de l'iPhone (feuille d'iOS déclenchée par la lecture)
+    @objc func unlock(_ call: CAPPluginCall) {
+        let reason = call.getString("reason") ?? "Ouvrir ton coffre à photos"
+        DispatchQueue.global(qos: .userInitiated).async {
+            let ctx = LAContext()
+            if self.passcodeMissing(ctx) { call.reject("Aucun code sur cet iPhone", "NO_PASSCODE"); return }
+            ctx.localizedReason = reason
+            let read = self.readKey(ctx)
+            self.answer(call, read.status, read.key)
+        }
+    }
+
+    /// Clé retirée du trousseau (« Supprimer toutes les données », coffre vidé). Ne demande rien : effacer ne
+    /// révèle rien.
     @objc func forget(_ call: CAPPluginCall) {
-        SecItemDelete(baseQuery() as CFDictionary)
-        call.resolve()
+        let status = SecItemDelete(baseQuery() as CFDictionary)
+        if status == errSecSuccess || status == errSecItemNotFound { call.resolve() }
+        else { call.reject("Suppression refusée (\(status))", "FAILED") }
     }
 
     /// { on } : écran de confidentialité armé (coffre ouvert) ou non
@@ -149,6 +190,8 @@ public class VaultPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve()
         }
     }
+
+    // MARK: - Écran de confidentialité
 
     /// Notification reçue sur le fil principal : le flou est posé tout de suite, avant la capture d'iOS
     @objc private func appWillResign() {
