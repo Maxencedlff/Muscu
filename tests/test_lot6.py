@@ -233,6 +233,13 @@ def t_landscape(bench):
         page.locator('[data-action="validate-set"][data-ei="0"][data-si="0"]').click()
         page.wait_for_timeout(400)
         page.click('[data-action="expand-rest"]'); page.wait_for_timeout(500)
+        # La feuille monte en glissant : sur la CI (lente), 500 ms ne suffisent pas toujours. On attend
+        # qu'elle soit arrivée (au plus 3 s) ; si elle ne tient jamais dans l'écran, la vérification échoue
+        try:
+            page.wait_for_function("""() => { const p = document.querySelector('.sess-sheet__panel');
+                return p && p.getAnimations({ subtree: true }).every(a => a.playState !== 'running') && p.getBoundingClientRect().bottom <= innerHeight + 1; }""", timeout=3000)
+        except Exception:
+            pass
         g = page.evaluate("""() => { const p = document.querySelector('.sess-sheet__panel').getBoundingClientRect();
             const b = document.querySelector('.sess-sheet--rest [data-action="collapse-rest"]');
             const br = b && b.getBoundingClientRect(); const t = document.querySelector('.rs__time');
