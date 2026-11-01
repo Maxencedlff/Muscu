@@ -1,8 +1,8 @@
-const CACHE = 'ppl-v108';
+const CACHE = 'ppl-v109';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
-  '/css/navigation.css', '/css/session.css', '/css/screens.css', '/css/muscles.css', '/css/share.css', '/css/recap.css', '/css/account.css', '/css/social.css', '/css/coach.css',
+  '/css/navigation.css', '/css/home.css', '/css/session.css', '/css/screens.css', '/css/muscles.css', '/css/share.css', '/css/recap.css', '/css/account.css', '/css/social.css', '/css/coach.css',
   '/js/platform/native.js',
   '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
   '/js/data/programmes.js', '/js/data/store.js', '/js/data/records.js', '/js/data/accessors.js', '/js/data/active-session.js',

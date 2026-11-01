@@ -187,21 +187,91 @@
   position: absolute; top: 5px; right: 3px; width: 11px; height: 11px; border-radius: 50%;
   background: var(--red); box-shadow: 0 0 0 2px var(--bg);
 }
-.me-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 4px; }
-.me-stat {
-  min-height: 64px; padding: 10px 6px; border: 0; border-radius: var(--r-md); background: var(--cell); cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--label); font: inherit;
-}
-.me-stat:active { background: var(--cell2); }
-.me-stat__val { font-size: var(--fs-title3); font-weight: 700; line-height: 1.2; }
-.me-stat__lbl { font-size: var(--fs-footnote); line-height: 1.2; color: var(--label2); text-align: center; }
 /* Ligne d'activité : texte entier (court : pseudo, action, nom de séance de 60 caractères au plus), point bleu des nouveautés à droite */
 .activity-row__text {
   font-size: var(--fs-subhead); line-height: 1.35; color: var(--label); overflow-wrap: anywhere; text-wrap: pretty;
 }
 .activity-row__text b { font-weight: 600; }
 .activity-row__new { flex-shrink: 0; width: 9px; height: 9px; margin-left: auto; border-radius: 50%; background: var(--tint); }
-.social-me-view .account-hero { padding-bottom: 16px; }
+.activity-row--group .stack { min-width: 44px; }
+
+/* Carte d'athlète : avatar, pseudo, membre depuis, trois chiffres touchables, régularité */
+.social-me-view .scr { padding-top: 12px; }
+.athlete { background: var(--cell); border-radius: 20px; padding: 18px 16px 16px; }
+.athlete__id { display: flex; align-items: center; gap: 14px; }
+.athlete__text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.athlete__name { margin: 0; font-size: var(--fs-title2); font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.athlete__sub { font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); }
+.me-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 16px; border-top: .5px solid var(--sep); }
+.me-stat {
+  position: relative; min-height: 64px; padding: 12px 4px 6px; border: 0; background: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; color: var(--label); font: inherit; text-align: left;
+}
+.me-stat + .me-stat { padding-left: 14px; }
+.me-stat + .me-stat::before { content: ''; position: absolute; left: 0; top: 16px; bottom: 10px; width: .5px; background: var(--sep); }
+.me-stat:active { opacity: .6; }
+.me-stat__val { font-size: var(--fs-title2); font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.me-stat__lbl { font-size: var(--fs-footnote); line-height: 1.2; color: var(--label2); }
+
+/* Régularité : 12 semaines, barres grises, la semaine en cours en accent, repères dessous */
+.reg { margin-top: 10px; padding-top: 12px; border-top: .5px solid var(--sep); }
+.reg p { margin: 0; }
+.reg__head { display: flex; align-items: baseline; gap: 6px; }
+.reg__val { font-size: var(--fs-title3); font-weight: 700; }
+.reg__lbl { font-size: var(--fs-subhead); color: var(--label); }
+.reg__period { font-size: var(--fs-footnote); color: var(--label2); }
+.reg__bars { margin-top: 10px; height: 44px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 5px; align-items: end; }
+.reg__bar { display: block; border-radius: 3px; background: var(--fill); min-height: 3px; }
+.reg__bar--now { background: var(--tint); }
+.reg__axis { display: flex; justify-content: space-between; margin-top: 4px; font-size: var(--fs-caption); color: var(--label2); }
+
+/* Dernière séance : carte riche */
+.last { background: var(--cell); border-radius: var(--r-lg); overflow: hidden; }
+.last__main {
+  width: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 16px 16px 12px;
+  border: 0; background: none; color: var(--label); font: inherit; text-align: left; cursor: pointer;
+}
+.last__main:active { background: var(--cell2); }
+.last__eyebrow { font-size: var(--fs-footnote); color: var(--label2); }
+.last__title { font-size: var(--fs-title1); font-weight: 800; letter-spacing: -.02em; line-height: 1.15; overflow-wrap: anywhere; }
+.last__facts { display: flex; gap: 24px; margin: 10px 0 6px; }
+.last__fact { display: flex; flex-direction: column; }
+.last__fact-val { font-size: var(--fs-title3); font-weight: 700; line-height: 1.2; }
+.last__fact-lbl { font-size: var(--fs-caption); color: var(--label2); }
+.last__sum { font-size: var(--fs-subhead); line-height: 1.35; color: var(--label2); }
+.last .feed-card__rec { color: var(--label); }
+.last__foot { display: flex; align-items: center; gap: 10px; min-height: 52px; margin: 0 16px; border-top: .5px solid var(--sep); }
+.last__who { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+.last__who-text { font-size: var(--fs-subhead); color: var(--label2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.last__who-text b { color: var(--label); font-weight: 600; }
+.last__count { flex-shrink: 0; font-size: var(--fs-subhead); color: var(--label2); }
+.last__comment {
+  margin: 0 16px 14px; padding: 10px 12px; border-radius: var(--r-md); background: var(--fill2);
+  font-size: var(--fs-subhead); line-height: 1.35; color: var(--label); overflow-wrap: anywhere;
+}
+.last__comment b { font-weight: 600; }
+
+/* Avatars empilés (activité groupée, qui a réagi) */
+.stack { display: inline-flex; flex-shrink: 0; }
+.stack .avatar--s { width: 28px; height: 28px; font-size: .941rem; box-shadow: 0 0 0 2px var(--cell); }
+.stack .avatar--s.avatar--initial { font-size: .765rem; }
+.stack .avatar--s + .avatar--s { margin-left: -8px; }
+
+/* Aperçu des séances, records, « Tout voir » */
+.mysess-list { margin-top: 12px; }
+.mysess { min-height: 56px; }
+.mysess__count { flex-shrink: 0; margin-left: auto; font-size: var(--fs-subhead); color: var(--label2); white-space: nowrap; }
+.rec-row { min-height: 56px; }
+.rec-row .cell__sub .icon { vertical-align: -1px; margin-right: 1px; }
+.rec-row__val { flex-shrink: 0; margin-left: auto; font-size: var(--fs-callout); font-weight: 700; white-space: nowrap; }
+.see-all {
+  display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 44px; margin-top: 8px;
+  border: 0; border-radius: var(--r-md); background: var(--cell); cursor: pointer;
+  font: inherit; font-size: var(--fs-subhead); font-weight: 600; color: var(--label);
+}
+.see-all .icon { color: var(--label3); }
+.see-all:active { background: var(--cell2); }
+.see-all:disabled { color: var(--label-disabled); }
 
 /* ── Commentaires d'une séance (js/features/comments-ui.js) ── */
 .cell.comment { align-items: flex-start; gap: 10px; padding-top: 10px; padding-bottom: 10px; }

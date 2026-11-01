@@ -86,22 +86,42 @@ def t_home(bench, eng, dev, theme):
         box = btn.bounding_box()
         R.check(box['y'] + box['height'] <= tabbar_top(page), f'{t} « Démarrer » visible sans défiler')
         info = page.locator('.hero__info').inner_text()
-        R.check(info.startswith('Dernière fois : '), f'{t} « {info} »')
+        R.check('exercices' in info and 'Dernière fois : ' in info, f'{t} « {info} »')
+        R.check(page.locator('.hero .hc__badge, .hero [class*="badge"]').count() == 0, f'{t} pas de pastille « Prête » en double avec « Ensuite »')
+        R.check(page.locator('#app .hero__btn, #app .btn--primary').count() == 1, f'{t} Démarrer : seul bouton plein')
         cells = page.locator('.home-cell[data-action="session-actions"]')
-        R.check(cells.count() == 2, f'{t} 2 autres séances en cellules')
-        R.check(all(cells.nth(i).bounding_box()['height'] >= 60 for i in range(cells.count())), f'{t} cellules de 60 px')
+        R.check(cells.count() == 2 and page.inner_text('.home-list__title').strip().upper() == 'ENSUITE', f'{t} 2 autres séances dans « Ensuite »')
+        R.check(all(cells.nth(i).bounding_box()['height'] >= 44 for i in range(cells.count())), f'{t} cellules de 44 pt au moins')
         week = page.locator('.week')
         R.check(page.locator('.rings').count() == 0 and week.count() == 1, f'{t} une seule carte « Cette semaine », plus d\'anneaux')
         R.check(page.locator('.week__day').count() == 7 and page.locator('.week__letter').all_inner_texts() == list('LMMJVSD'), f'{t} 7 jours')
         R.check(page.locator('.week__dot').evaluate_all('ds => ds.every(d => !d.textContent.trim())'), f'{t} pastilles sans lettre')
-        R.check(page.locator('.week__ring .aring').count() == 1 and '/' in page.inner_text('.week__ring-val') and any(w in page.inner_text('.week__line') for w in ('ce mois', 'cette année')) and 'affil' not in page.inner_text('.week'), f'{t} un seul anneau (séances) et les cumuls du mois et de l\'année')
+        # Jours faits : pastille pleine avec une coche (le sens ne tient pas à la couleur seule) ; aujourd'hui : contour
+        dots = page.evaluate("""() => [...document.querySelectorAll('.week__dot')].map(d => ({ done: d.classList.contains('week__dot--done'),
+            today: d.classList.contains('week__dot--today'), check: !!d.querySelector('.icon--checkmark'), w: d.getBoundingClientRect().width }))""")
+        ws = page.evaluate('weekStats()')
+        R.check([d['done'] for d in dots] == [len(x) > 0 for x in ws['days']] and all(d['check'] == d['done'] for d in dots) and sum(d['today'] for d in dots) == 1 and min(d['w'] for d in dots) >= 20, f'{t} pastilles : faites cochées, aujourd\'hui marqué, 20 px au moins {dots}')
+        count = page.inner_text('.week__count').replace('\u00a0', ' ')
+        R.check(count == f"{ws['count']} sur {page.evaluate('weeklyGoal()')}", f'{t} « {count} »')
+        line = page.locator('.week__line')
+        R.check(any(w in line.inner_text() for w in ('ce mois', 'cette année')) and 'affil' not in page.inner_text('.week') and line.bounding_box()['height'] < 24, f'{t} cumuls du mois et de l\'année sur une ligne')
         # Intitulé VoiceOver lu dans le contenu (titre affiché + détail masqué), sans aria-label (WCAG 2.5.3)
-        aria = week.evaluate("b => [...b.querySelectorAll(':scope > :not([aria-hidden=true])')].map(e => e.textContent).join('')")
+        aria = week.evaluate("b => [...b.querySelectorAll('.home-card__title, .sr-text')].map(e => e.textContent).join('')")
         R.check(week.get_attribute('aria-label') is None and aria.startswith('Cette semaine : ') and 'sur' in aria, f'{t} VoiceOver : {aria!r}')
         R.check(page.locator('.dashboard .navbar [data-action="go-settings"] .icon').count() == 1, f'{t} sans compte : la roue des Réglages')
-        R.check(page.locator('.targets__row').count() == 3, f'{t} carte « À battre aujourd\'hui » : 3 exercices')
-        # Noms coupés seulement entre deux mots, titre et « + N » entiers (iPhone SE compris)
-        tg = page.evaluate("""() => { const t = document.querySelector('.targets .home-card__title');
+        R.check(page.locator('.hero .targets__row').count() == 3, f'{t} « À battre aujourd\'hui » dans la carte : 3 exercices')
+        n_more = page.evaluate("prog().exercises.push.length") - 3
+        R.check(f'et {n_more} autres exercices' in page.inner_text('.targets__more'), f'{t} « et {n_more} autres exercices »')
+        # Cible en gras, gain « ↑ 1 rep » (flèche et texte, sans « + »), dernière fois en gris dessous
+        row = page.locator('.targets__row').first
+        gain, before = row.locator('.targets__gain'), row.locator('.targets__before')
+        R.check(gain.locator('.icon--arrow-up').count() == 1 and '+' not in gain.inner_text() and ('rep' in gain.inner_text() or 'kg' in gain.inner_text()), f'{t} gain « {gain.inner_text()} »')
+        R.check(before.inner_text().startswith('avant ') and before.evaluate('e => getComputedStyle(e).color') != row.locator('.targets__target').evaluate('e => getComputedStyle(e).color'), f'{t} dernière fois en gris « {before.inner_text()} »')
+        edit = page.locator('.hero [data-action="go-editor"]')
+        eb = edit.bounding_box()
+        R.check(edit.inner_text().strip() == 'Modifier' and eb['width'] >= 44 and eb['height'] >= 44, f'{t} « Modifier » : 44 pt {eb}')
+        # Noms coupés seulement entre deux mots, titre entier (iPhone SE compris)
+        tg = page.evaluate("""() => { const t = document.querySelector('.targets__title');
             const names = [...document.querySelectorAll('.targets__name')];
             return { wrap: names.map(e => getComputedStyle(e).overflowWrap + '/' + getComputedStyle(e).wordBreak),
                      narrow: names.filter(e => e.getBoundingClientRect().width < 100).length,

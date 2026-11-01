@@ -20,7 +20,6 @@
   position: relative; margin-top: 12px; border-radius: var(--r-lg); overflow: hidden;
   background: var(--rc-lime); color: #000;
 }
-.hero + .recap-card { margin-top: 4px; }
 .recap-card__open {
   position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 0;
   width: 100%; min-height: 172px; padding: 14px 16px 16px; border: none; background: none; cursor: pointer;

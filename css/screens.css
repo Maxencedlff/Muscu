@@ -15,6 +15,11 @@
   font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); text-transform: uppercase;
   padding: 22px 16px 7px;
 }
+/* Grand titre de section, façon iOS (Mon profil : « Mes séances », « Records », « Activité ») */
+.group-title--large {
+  margin: 0; padding: 28px 4px 8px; font-size: var(--fs-title2); line-height: 1.25; font-weight: 700;
+  color: var(--label); text-transform: none;
+}
 .group-title--row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .group-title__btn {
   border: none; background: none; color: var(--tint); font: inherit; font-size: 0.882rem; text-transform: none;

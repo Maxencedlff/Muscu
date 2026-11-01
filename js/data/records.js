@@ -372,6 +372,42 @@ function topNotedRecord(records) {
   return (records || []).reduce((b, r) => (betterNoted(r, b) ? r : b), null);
 }
 
+// Records récents de Mon profil : les `max` derniers records notés (entryRecords), un par exercice (le plus
+// récent), du plus récent au plus ancien ; dans une même séance, le plus marquant d'abord. Seules les `scan`
+// dernières séances sont lues (une séance d'avant les records notés se recalcule sur l'historique).
+// [{ ex, date, r }] (r : élément noté, ex : nom de l'exercice)
+function recentRecords(history = data.history, max = 3, scan = 60) {
+  const out = [], seen = new Set();
+  const latest = (history || []).filter(h => h && Number.isFinite(h.date)).sort((a, b) => b.date - a.date).slice(0, scan);
+  for (const h of latest) {
+    const recs = entryRecords(h, history).slice().sort((a, b) => NOTED_RANK[b.kind] - NOTED_RANK[a.kind]);
+    for (const r of recs) {
+      const k = normName(r.ex);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({ ex: r.ex, date: h.date, r });
+      if (out.length >= max) return out;
+    }
+  }
+  return out;
+}
+
+// Gain d'un record sur la valeur d'avant, sans signe (la flèche ↑ est dessinée à côté) : « 2,5 kg »,
+// « 1 rep », « 15 s », « 5 min », « 1,2 km ». '' sans valeur d'avant, et quand mieux veut dire moins
+// (aide, allure) : une flèche montante y tromperait.
+function recordGainTxt(r) {
+  if (r?.before == null || !(r.after > r.before)) return '';
+  const d = round3(r.after - r.before);
+  switch (r.kind) {
+    case 'charge': case 'lest': return `${fmtW(d)} ${unitLbl()}`;
+    case 'reps':     return plural(d, 'rep', 'reps');
+    case 'temps':    return fmtSeconds(d);
+    case 'duree':    return `${fmtNum(d)} min`;
+    case 'distance': return `${fmtNum(d)} km`;
+  }
+  return '';
+}
+
 // ── Badges en direct de la séance ───────────────────────────
 // Même calcul que l'enregistrement : les records d'un exercice sont ceux que ses séries de travail faites
 // battent ensemble (exerciseNoted) contre le résumé d'avant la séance (sessionPriorOf), et chacun va sur la
