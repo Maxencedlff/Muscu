@@ -12,8 +12,8 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 | 0a | `20261031910000_notifications_messages_down.sql` | rien | oui (vérifié) |
 | 0 | `20261031900000_notifications_push_down.sql` | notifications des messages et commentaires (0a) : elles remplacent ses fonctions | non |
 | 1 | `20261031620000_strava_down.sql` (Strava en sommeil : migration à ne pas appliquer au lancement, docs/STRAVA.md) | rien | oui (vérifié) |
-| 2 | `20261031510000_chat_coach_down.sql` | rien | oui (vérifié) |
-| 3 | `20261031500000_commentaires_down.sql` | rien (son en-tête conseille quand même le chat avant) | oui (vérifié) |
+| 2 | `20261031510000_chat_coach_down.sql` | notifications des messages (0a) : son déclencheur lit coach_messages | non |
+| 3 | `20261031500000_commentaires_down.sql` | notifications des messages (0a) : elles s'appuient sur les commentaires ; le chat (2) avant, conseillé par son en-tête | non |
 | 4 | `20261031400000_parrainage_down.sql` | parrainage du payant (−1) : la table des paiements référence les attributions | non, refuse sans rien changer |
 | 5 | `20261031300000_partage_coach_down.sql` | rien | oui (vérifié) |
 | 6 | `20261031230000_newsletter_down.sql` | rien | oui (vérifié) |
