@@ -2,8 +2,9 @@
 // testées par tests/unit/push.mjs (Node). Contrat : docs/NOTIFICATIONS.md.
 //
 // 1. Contenu : un titre et une phrase en français, avec le seul pseudo de l'auteur (jamais le texte d'un
-//    commentaire ni le nom d'un programme : l'écran verrouillé est visible par d'autres). Pseudo absent :
-//    « Quelqu'un ». Clé « mdlf » : { kind, ref } pour ouvrir le bon écran au toucher (PushPlugin.swift).
+//    commentaire, d'un message ni le nom d'un programme : l'écran verrouillé est visible par d'autres ; la
+//    file n'en a d'ailleurs pas copie). Pseudo absent : « Quelqu'un ». Clé « mdlf » : { kind, ref } pour
+//    ouvrir le bon écran au toucher (PushPlugin.swift) ; ref : séance, programme, ou conversation ('@coach' ou id de l'élève).
 // 2. Requête APNs (documentation Apple « Sending notification requests to APNs ») : HTTP/2, POST
 //    /3/device/<jeton>, en-têtes authorization (jeton du fournisseur), apns-push-type alert, apns-topic
 //    (identifiant de l'app), apns-priority 10, apns-expiration (24 h : après, la notification n'a plus de
@@ -38,6 +39,8 @@ export const PUSH_KINDS = Object.freeze({
   follow_request:  (who) => ({ title: 'Nouvelle demande', body: `${who} veut suivre tes séances` }),
   coach_note:      (who) => ({ title: 'Ton coach', body: `${who} a commenté ta séance` }),
   coach_programme: (who) => ({ title: 'Ton coach', body: `${who} t’a envoyé un programme` }),
+  comment:         (who) => ({ title: 'Nouveau commentaire', body: `${who} a commenté ta séance` }),
+  chat_message:    (who) => ({ title: 'Nouveau message', body: `${who} t’a envoyé un message` }),
 });
 
 // Ligne de push_claim → { skip } ou { title, body, kind, ref }

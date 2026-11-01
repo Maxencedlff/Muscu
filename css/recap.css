@@ -131,6 +131,17 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
 .rp-arrow { font-size: clamp(26px, 7vw, 36px); opacity: .7; }
 .rp-caption { font-size: clamp(20px, 5.8vw, 26px); font-weight: 700; letter-spacing: -.01em; line-height: 1.2; }
 .rp-note { font-size: var(--fs-callout); font-weight: 600; opacity: .8; }
+/* Pourquoi ce fait est mis en avant (« Ta plus forte hausse de charge ce mois-ci ») */
+.rp-lead { font-size: var(--fs-callout); font-weight: 700; line-height: 1.25; }
+/* Palier franchi, dit en une phrase sur l'écran d'ouverture */
+.rp-mention {
+  display: flex; align-items: center; gap: 8px; align-self: flex-start; margin-top: 4px; padding: 8px 12px;
+  border-radius: var(--r-md); background: color-mix(in srgb, var(--rc-fg) 12%, transparent);
+  font-size: var(--fs-subhead); font-weight: 700; line-height: 1.25;
+}
+.rp-mention .icon { flex-shrink: 0; }
+/* Explication sous un bloc (force estimée, frise) */
+.rp-foot { font-size: var(--fs-footnote); font-weight: 600; line-height: 1.3; opacity: .8; }
 .rp-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .rp-chip, .rp-pill {
   display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; padding: 6px 12px; border-radius: 999px;
@@ -143,10 +154,10 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
   background: #000; color: #FFF; font-size: var(--fs-callout); font-weight: 700; line-height: 1.3;
 }
 .tone-violet .rp-box { background: #FFF; color: #000; }
-.rp-lines { margin: 2px 0 0; display: flex; flex-direction: column; gap: 4px; }
-.rp-lines div { display: flex; gap: 10px; font-size: var(--fs-callout); }
+.rp-lines { margin: 2px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.rp-lines div { display: flex; flex-direction: column; gap: 1px; font-size: var(--fs-callout); line-height: 1.25; }
 .rp-lines dt { font-weight: 800; }
-.rp-lines dd { margin: 0; opacity: .85; font-weight: 600; }
+.rp-lines dd { margin: 0; opacity: .85; font-weight: 600; font-size: var(--fs-subhead); }
 .rp-figure { display: flex; justify-content: center; margin-top: 4px; }
 .rp-figure .body-map { --body-base-bright: 1; width: min(78%, 300px); max-height: 38vh; }
 .rp-figure .body-map__row { max-height: 38vh; margin: 0 auto; }
@@ -160,8 +171,11 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
 .rp-list { list-style: none; margin: 4px 0 0; padding: 0 14px; border-radius: var(--r-md); background: color-mix(in srgb, var(--rc-fg) 9%, transparent); }
 .rp-list li { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 0; font-size: var(--fs-callout); }
 .rp-list li + li { border-top: 1px solid color-mix(in srgb, var(--rc-fg) 14%, transparent); }
-.rp-list li span { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.rp-list li span { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; line-height: 1.2; }
+.rp-list li small { display: block; margin-top: 2px; font-size: var(--fs-footnote); font-weight: 700; opacity: .75; }
 .rp-list li b { flex-shrink: 0; white-space: nowrap; font-weight: 800; }
+.rp-list li.rp-list__more { min-height: 36px; font-size: var(--fs-footnote); font-weight: 700; opacity: .75; }
+.rp-list-title { margin-top: 6px; font-size: var(--fs-footnote); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
 
 /* Ouverture : personnage à droite, le texte garde sa colonne */
 .rp-inner--side { position: relative; padding-right: 34%; }
@@ -180,10 +194,16 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
 /* Frise des semaines (régularité) et séances par mois (année) */
 .rp-strip { display: flex; gap: 6px; margin-top: 8px; }
 .rp-strip__w { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.rp-strip__w i { width: 100%; max-width: 34px; aspect-ratio: 1; border-radius: 50%; border: 2.5px solid currentColor; opacity: .4; }
-.rp-strip__w.is-on i { background: currentColor; opacity: 1; }
-.rp-strip__w b { font-size: 10px; font-weight: 700; opacity: .75; white-space: nowrap; }
-.rp-strip__w:not(:first-child):not(:last-child) b { visibility: hidden; }
+/* Une pastille par semaine avec son nombre de séances : pleine à l'objectif, cerclée en dessous */
+.rp-strip__w i {
+  width: 100%; max-width: 40px; aspect-ratio: 1; border-radius: 50%; border: 2.5px solid currentColor;
+  display: flex; align-items: center; justify-content: center;
+  font-style: normal; font-family: var(--font-rounded); font-size: 17px; font-weight: 800;
+}
+.rp-strip__w.is-on i { background: var(--rc-fg); color: var(--rc-bg); }
+.rp-strip__w:not(.is-on) i { border-color: color-mix(in srgb, var(--rc-fg) 45%, transparent); }
+.rp-strip__w b { font-size: 11px; font-weight: 700; opacity: .8; white-space: nowrap; }
+.rp-strip:not(.rp-strip--all) .rp-strip__w:not(:first-child):not(:last-child) b { visibility: hidden; }
 .rp-bars { display: flex; align-items: flex-end; gap: 5px; height: 120px; margin-top: 8px; }
 .rp-bars__col { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
 .rp-bars__col i { width: 100%; border-radius: 4px; background: currentColor; opacity: .35; }
@@ -237,12 +257,16 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
 }
 
 /* Petite hauteur (iPhone SE, paysage) : tout se resserre */
-@media (max-height: 760px) { .rp-list li:nth-child(n+3) { display: none; } .rp-curve ~ .rp-list { display: none; } }
+@media (max-height: 760px) { .rp-curve ~ .rp-list { display: none; } }
+/* iPhone SE : l'écran tient sans défiler sous les boutons. Records : les 2 premiers autres (le titre ne
+   promet pas de nombre) ; profil : le personnage dit déjà les muscles, VoiceOver lit les pastilles */
 @media (max-height: 700px) {
+  .rp-list li:nth-child(n+3) { display: none; }
+  [data-id="profile"] .rp-pills { display: none; }
   .recap-page { padding-top: calc(env(safe-area-inset-top, 0px) + 64px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
   .rp-inner { gap: 6px; }
   .rp-num { font-size: clamp(64px, 20vw, 100px); }
-  .rp-title { font-size: clamp(32px, 10vw, 46px); }
+  .rp-title:not(.rp-title--small) { font-size: clamp(32px, 10vw, 46px); }
   .rp-figure .body-map, .rp-figure .body-map__row { max-height: 30vh; }
   .rp-bars { height: 90px; }
 }

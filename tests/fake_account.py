@@ -870,11 +870,17 @@ FAKE_ACCOUNT = r"""
   const SPORTS = ['WeightTraining', 'Workout', 'Run', 'TrailRun', 'Walk', 'Ride', 'Rowing', 'Elliptical', 'StairStepper'];
   const stravaStatus = () => ({ connected: st.connected, athlete_name: st.connected ? st.name : null, connected_at: null,
     can_write: st.connected && st.canWrite, exports: st.connected ? Object.entries(st.exports).map(([session_id, activity_id]) => ({ session_id, activity_id })) : [] });
-  // ── Notifications push : comme supabase/migrations/20261031900000_notifications_push.sql ──
-  const pushPrefs = id => { const p = sb.push.prefs[id] || {}; return { reactions: p.reactions === true, follows: p.follows === true, coach: p.coach === true }; };
+  // ── Notifications push : comme supabase/migrations/20261031900000_notifications_push.sql et 20261031910000_notifications_messages.sql ──
+  // Serveur à jour : 5 types (20261031910000) ; __fakeOpts.pushOldServer : les 3 d'avant
+  const PUSH_PREF_KEYS = opts.pushOldServer ? ['reactions', 'follows', 'coach'] : ['reactions', 'follows', 'coach', 'comments', 'messages'];
+  const pushPrefs = id => { const p = sb.push.prefs[id] || {}; return Object.fromEntries(PUSH_PREF_KEYS.map(k => [k, p[k] === true])); };
   const pushRpc = {
     push_prefs: me => pushPrefs(me),
-    push_set_prefs: (me, a) => { const p = pushPrefs(me); for (const k of ['reactions', 'follows', 'coach']) if (a[k] !== null && a[k] !== undefined) p[k] = !!a[k]; sb.push.prefs[me] = p; return pushPrefs(me); },
+    push_set_prefs: (me, a) => {
+      // PostgREST : la version dont les noms d'arguments sont exactement ceux envoyés, sinon 404 (PGRST202)
+      if (Object.keys(a).sort().join() !== [...PUSH_PREF_KEYS].sort().join()) return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.push_set_prefs' } };
+      const p = pushPrefs(me); for (const k of PUSH_PREF_KEYS) if (a[k] !== null && a[k] !== undefined) p[k] = !!a[k]; sb.push.prefs[me] = p; return pushPrefs(me);
+    },
     push_register: (me, a) => { if (!/^[0-9a-f]{64,200}$/.test(a.token || '') || !['production', 'sandbox'].includes(a.env)) return { data: null, error: { code: 'P0001', message: 'invalid_token' } }; sb.push.devices[a.token] = me; return null; },
     push_unregister: (me, a) => { if (sb.push.devices[a.token] === me) delete sb.push.devices[a.token]; return null; },
     push_release: (me, a) => { if (sb.push.devices[a.token] && sb.push.devices[a.token] !== me) delete sb.push.devices[a.token]; return null; },

@@ -125,6 +125,7 @@ function recapPageHtml(page, i, st) {
   const parts = [];
   parts.push(`<div class="rp-kicker">${esc(page.kicker)}</div>`);
   if (page.sub) parts.push(`<div class="rp-sub">${esc(page.sub)}</div>`);
+  if (page.lead) parts.push(`<div class="rp-lead">${esc(page.lead)}</div>`);
   if (page.title && page.id !== 'summary') parts.push(`<div class="rp-title${page.value ? ' rp-title--small' : ''}">${esc(page.title)}</div>`);
   if (v) {
     parts.push(`<div class="rp-value num">${page.from ? `<span class="rp-from">${esc(page.from)}</span><span class="rp-arrow">→</span>` : ''}`
@@ -132,11 +133,17 @@ function recapPageHtml(page, i, st) {
   }
   if (page.caption) parts.push(`<div class="rp-caption">${esc(page.caption)}</div>`);
   if (page.note) parts.push(`<div class="rp-note">${esc(page.note)}</div>`);
+  if (page.mention) parts.push(`<div class="rp-mention">${icon('sparkles', 16)}<span>${esc(page.mention)}</span></div>`);
   if (page.chips?.length) parts.push(`<div class="rp-chips">${page.chips.map(c => `<span class="rp-chip num">${esc(c)}</span>`).join('')}</div>`);
   if (page.lines?.length && page.id === 'profile') parts.push(`<dl class="rp-lines">${page.lines.map(([l, x]) => `<div><dt>${esc(l)}</dt><dd>${esc(x)}</dd></div>`).join('')}</dl>`);
   if (page.box) parts.push(`<div class="rp-box">${esc(page.box)}</div>`);
+  if (page.foot) parts.push(`<div class="rp-foot">${esc(page.foot)}</div>`);
   if (page.curve) parts.push(recapCurveSvg(page.curve));
-  if (page.strip) parts.push(`<div class="rp-strip">${page.strip.map(w => `<span class="rp-strip__w${w.on ? ' is-on' : ''}"><i></i><b>${esc(w.label)}</b></span>`).join('')}</div>`);
+  if (page.strip) {
+    const all = page.strip.length <= 6;   // mois : chaque semaine a sa date ; 8 semaines : la première et la dernière
+    parts.push(`<div class="rp-strip${all ? ' rp-strip--all' : ''}">${page.strip.map(w => `<span class="rp-strip__w${w.on ? ' is-on' : ''}"><i class="num">${w.n}</i><b>${esc(w.label)}</b></span>`).join('')}</div>`);
+    if (page.stripNote) parts.push(`<div class="rp-foot">${esc(page.stripNote)}</div>`);
+  }
   if (page.bars) parts.push(recapBarsHtml(page.bars));
   if (page.body && page.id === 'profile') {
     parts.push(`<div class="rp-figure">${bodyMapHtml(page.body, { view: 'both', className: 'rp-body', colors: { heat: 'var(--rc-heat)' } })}</div>`);
@@ -146,7 +153,11 @@ function recapPageHtml(page, i, st) {
     ? `<div class="rp-side">${bodyMapHtml(page.body, { view: 'front', className: 'rp-body', colors: { heat: 'var(--rc-heat)' } })}</div>` : '';
   if (page.pills?.length) parts.push(`<div class="rp-pills">${page.pills.map(([l, x]) => `<span class="rp-pill"><i></i>${esc(l)} <b class="num">${esc(x)}</b></span>`).join('')}</div>`);
   if (page.tiles?.length && page.id !== 'summary') parts.push(`<div class="rp-tiles">${page.tiles.map(([l, x]) => `<div class="rp-tile"><b class="num">${esc(x)}</b><span>${esc(l)}</span></div>`).join('')}</div>`);
-  if (page.list?.length) parts.push(`<ul class="rp-list">${page.list.slice(0, page.curve ? 2 : 3).map(x => `<li><span>${esc(x.name)}</span><b class="num">${esc(x.value)}</b></li>`).join('')}</ul>`);
+  if (page.list?.length) {
+    if (page.listTitle) parts.push(`<div class="rp-list-title">${esc(page.listTitle)}</div>`);
+    parts.push(`<ul class="rp-list">${page.list.map(x => `<li><span>${esc(x.name)}${x.gain ? `<small class="num">${esc(x.gain)}</small>` : ''}</span><b class="num">${esc(x.value)}</b></li>`).join('')}`
+      + `${page.more ? `<li class="rp-list__more">${esc(page.more)}</li>` : ''}</ul>`);
+  }
   const inner = page.id === 'summary'
     ? `<div class="rp-story"><canvas class="rp-story__img" width="1080" height="1920" aria-hidden="true"></canvas></div>`
     : `<div class="rp-inner${side ? ' rp-inner--side' : ''}">${side}${parts.join('')}</div>`;

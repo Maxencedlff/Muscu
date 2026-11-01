@@ -6,7 +6,7 @@ Décisions de Maxence (26 et 27/10/2026) :
 - pas de messagerie en V1 ; à la place, des **consignes** (sur un programme ou un exercice) et un **commentaire** du coach sur une séance (31/10/2026 : messages texte ajoutés, voir « Messages ») ;
 - **envoi de programmes** du coach vers l'élève ;
 - les élèves d'un même coach ne se voient pas entre eux ;
-- notifications push : pas en V1 (elles demandent une build). Un badge dans l'app à la place.
+- notifications push : pas en V1 (elles demandent une build). Un badge dans l'app à la place. Depuis la build 31 : « Mon coach » et, le 01/11/2026, « Messages » (docs/NOTIFICATIONS.md).
 
 Hors V1 : paiement, push, plusieurs coachs pour un élève, groupes d'élèves (messagerie : ajoutée le 31/10/2026, voir « Messages »).
 

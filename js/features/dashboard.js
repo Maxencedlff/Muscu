@@ -255,10 +255,12 @@ function weekCard(ws) {
   }).join('');
   const done = ws.days.map((d, i) => d[0] ? `${WEEK_NAMES[i]} ${rawLabel(d[0].category, entryProg(d[0]))}` : '').filter(Boolean);
   const line = weekLine();
-  const aria = `Cette semaine : ${ws.count} séance${ws.count > 1 ? 's' : ''} sur ${goal}${done.length ? ` (${done.join(', ')})` : ''}.${line ? ` ${line.replace(/ · /g, ', ')}.` : ''}`;
+  // Intitulé VoiceOver = le titre affiché suivi du détail (texte masqué) : pas d'aria-label qui ne
+  // reprendrait pas « Cette semaine » (WCAG 2.5.3, le nom doit contenir le texte visible)
+  const spoken = ` : ${ws.count} séance${ws.count > 1 ? 's' : ''} sur ${goal}${done.length ? ` (${done.join(', ')})` : ''}.${line ? ` ${line.replace(/ · /g, ', ')}.` : ''}`;
   return `
-    <button class="home-card week" data-action="go-stats" aria-label="${esc(aria)}" aria-description="Voir les progrès">
-      <span class="home-card__title" aria-hidden="true">Cette semaine</span>
+    <button class="home-card week" data-action="go-stats" aria-description="Voir les progrès">
+      <span class="home-card__title">Cette semaine</span><span class="sr-text">${esc(spoken)}</span>
       <span class="week__body" aria-hidden="true">${weekRing(ws.count, goal)}<span class="week__days">${days}</span></span>
       ${line ? `<span class="week__line" aria-hidden="true">${esc(line)}${icon('chevron.right', 12)}</span>` : ''}
     </button>`;

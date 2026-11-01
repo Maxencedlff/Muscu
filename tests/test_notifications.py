@@ -65,9 +65,9 @@ def t_reglages(bench, eng, dev, theme):
         open_app(page, theme, ppl_v2_today_json())
         signin(page)
         open_notifications(page)
-        R.check(switches(page) == [['reactions', 'false'], ['follows', 'false'], ['coach', 'false']], f'{t} tout éteint au départ {switches(page)}')
+        R.check(switches(page) == [['reactions', 'false'], ['comments', 'false'], ['follows', 'false'], ['coach', 'false'], ['messages', 'false']], f'{t} tout éteint au départ {switches(page)}')
         R.check(not any('request' in c or 'register' in c for c in push_calls(page)), f'{t} aucune fenêtre d\'iOS ni jeton sans toucher {push_calls(page)}')
-        R.check('jamais le texte' in page.inner_text('.push-view'), f'{t} pied : ce que montre la notification')
+        R.check("jamais le texte d'un commentaire ou d'un message" in page.inner_text('.push-view'), f'{t} pied : ce que montre la notification')
         sizes = page.evaluate("[...document.querySelectorAll('[data-action=\"push-toggle\"]')].map(b => b.getBoundingClientRect().height)")
         R.check(all(h >= 44 for h in sizes), f'{t} cibles d\'au moins 44 pt {sizes}')
         R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} pas de défilement horizontal')
@@ -90,7 +90,12 @@ def t_reglages(bench, eng, dev, theme):
         page.locator('[data-kind="coach"]').click()
         page.wait_for_function("document.querySelector('[data-kind=\"coach\"]').getAttribute('aria-checked') === 'true'")
         R.check(push_calls(page).count('request') == 1, f'{t} fenêtre d\'iOS montrée une seule fois')
+        page.locator('[data-kind="messages"]').click()
+        page.wait_for_function("document.querySelector('[data-kind=\"messages\"]').getAttribute('aria-checked') === 'true'")
+        R.check(page.evaluate('__sb.push.prefs[__sb.meId()].messages') is True, f'{t} messages allumés sur le compte')
         shot(page, LOT, f'notifications-allumees-{t}')
+        page.locator('[data-kind="messages"]').click()
+        page.wait_for_function("document.querySelector('[data-kind=\"messages\"]').getAttribute('aria-checked') === 'false'")
 
         # Tout éteint : le jeton quitte le compte
         page.locator('[data-kind="reactions"]').click()
@@ -137,7 +142,7 @@ def t_reactiver(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
         signin(page)
-        page.evaluate("__sb.push.prefs[__sb.meId()] = { reactions: true, follows: false, coach: true }; pushLoad()")
+        page.evaluate("__sb.push.prefs[__sb.meId()] = { reactions: true, follows: false, coach: true, comments: false, messages: true }; pushLoad()")
         page.wait_for_timeout(200)
         page.click('[data-action="go-settings"]')
         page.wait_for_selector('.settings-view')
@@ -160,7 +165,7 @@ def t_reactiver(bench, eng, dev, theme):
         btn.dispatch_event('pointerup')
         btn.click()
         page.wait_for_function("document.querySelector('[data-kind=\"coach\"]')?.getAttribute('aria-checked') === 'true'")
-        R.check(switches(page) == [['reactions', 'true'], ['follows', 'false'], ['coach', 'true']], f'{t} réglages du compte retrouvés {switches(page)}')
+        R.check(switches(page) == [['reactions', 'true'], ['comments', 'false'], ['follows', 'false'], ['coach', 'true'], ['messages', 'true']], f'{t} réglages du compte retrouvés {switches(page)}')
         R.check(page.evaluate('__sb.push.devices').get(FAKE_TOKEN) == page.evaluate('__sb.meId()'), f'{t} jeton inscrit pour le compte')
         R.check(page.locator('[data-action="push-reactivate"]').count() == 0, f'{t} ligne réactiver partie')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -192,6 +197,25 @@ def t_autre_compte(bench, eng, dev, theme):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_ancien_serveur(bench, eng, dev, theme):
+    # App à jour, serveur d'avant 20261031910000 (3 types) : les deux nouveaux interrupteurs n'apparaissent pas,
+    # les trois d'avant marchent (push_set_prefs à 3 arguments)
+    t = tag(dev, theme)
+    if dev != 'iPhone 13':
+        return
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), {'pushOldServer': True})
+        signin(page)
+        open_notifications(page)
+        R.check(switches(page) == [['reactions', 'false'], ['follows', 'false'], ['coach', 'false']], f'{t} serveur d\'avant : 3 interrupteurs {switches(page)}')
+        page.locator('[data-kind="follows"]').click()
+        page.wait_for_function("document.querySelector('[data-kind=\"follows\"]').getAttribute('aria-checked') === 'true'")
+        R.check(page.locator('.toast').count() == 0, f'{t} serveur d\'avant : pas de message d\'erreur')
+        R.check(any(c.startswith('push_set_prefs') for c in push_calls(page)) and page.evaluate('__sb.push.prefs[__sb.meId()].follows') is True,
+                f'{t} serveur d\'avant : réglage enregistré {push_calls(page)}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def t_absent(bench, eng, dev, theme):
     t = tag(dev, theme)
     # Navigateur : aucune trace
@@ -220,13 +244,28 @@ def t_toucher(bench, eng, dev, theme):
         data = json.loads(ppl_v2_today_json())
         sid = data['history'][0]['id']
         open_app(page, theme, json.dumps(data))
+        # App fermée : le toucher arrive avant que le compte soit chargé ; la clé vient du serveur
+        page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'chat_message', 'ref': '@coach'})
+        page.wait_for_function("() => currentRoute() === 'coach-chat:' + encodeURIComponent(CHAT_COACH)", timeout=3000)
+        R.check(page.evaluate('nav.tab') == 'friends', f'{t} toucher avant le compte : conversation avec mon coach')
         signin(page)
         page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'reaction', 'ref': sid})
-        page.wait_for_timeout(400)
+        page.wait_for_function("() => nav.tab === 'history' && currentView() === 'history-detail'", timeout=3000)
         R.check(page.evaluate('nav.tab') == 'history' and page.evaluate('currentView()') == 'history-detail', f'{t} bravo → la séance ({page.evaluate("currentView()")})')
         page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'follow_request', 'ref': ''})
-        page.wait_for_timeout(400)
+        page.wait_for_function("() => nav.tab === 'friends'", timeout=3000)
         R.check(page.evaluate('nav.tab') == 'friends', f'{t} demande → onglet Amis')
+        page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'comment', 'ref': sid})
+        page.wait_for_function("() => nav.tab === 'history' && currentView() === 'history-detail'", timeout=3000)
+        R.check(page.evaluate('nav.tab') == 'history' and page.evaluate('currentView()') == 'history-detail', f'{t} commentaire → la séance ({page.evaluate("currentView()")})')
+        coach_route = 'coach-chat:' + page.evaluate("encodeURIComponent(CHAT_COACH)")
+        page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'chat_message', 'ref': '@coach'})
+        page.wait_for_function("r => currentRoute() === r", arg=coach_route, timeout=3000)
+        R.check(page.evaluate('nav.tab') == 'friends', f'{t} message du coach → la conversation ({page.evaluate("currentRoute()")})')
+        other = '00000000-0000-0000-0000-0000000000b2'
+        page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'chat_message', 'ref': other})
+        page.wait_for_function("r => currentRoute() === r", arg='coach-chat:' + other, timeout=3000)
+        R.check(page.evaluate('currentRoute()') == 'coach-chat:' + other, f'{t} message d\'un élève → sa conversation')
         page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'pub', 'ref': 'x'})
         page.wait_for_timeout(200)
         R.check(page.evaluate('nav.tab') == 'friends', f'{t} type inconnu : rien ne bouge')
@@ -259,4 +298,4 @@ def t_sommeil(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_reglages, t_refus, t_reactiver, t_autre_compte, t_absent, t_toucher, t_sommeil])
+run_main(R, [t_reglages, t_refus, t_reactiver, t_autre_compte, t_ancien_serveur, t_absent, t_toucher, t_sommeil])

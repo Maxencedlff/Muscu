@@ -186,7 +186,7 @@ def t_semaine(bench, eng, dev, theme):
         R.check(st['active'] == st['n'] - 1 and st['nextOff'] and st['id'] == 'summary' and st['share'] == 'Partager ma semaine', f'{t} récap semaine : balayage jusqu\'au résumé ({st["active"]}/{st["n"] - 1}, {st["id"]}, {st["share"]})')
         page.wait_for_function("(() => { const c = document.querySelector('.recap-page--summary canvas'); return c && c.toDataURL('image/png').length > 60000; })()", timeout=8000)
         lbl = page.evaluate("document.querySelector('.recap-page.is-active').getAttribute('aria-label')")
-        R.check('Séries 42' in lbl and 'Durée' in lbl, f'{t} résumé : la story elle-même, décrite pour VoiceOver ({lbl[:90]})')
+        R.check(lbl.startswith('Ta semaine, 12 – 18 octobre en bref : ') and 'Séances 2' in lbl and 'Durée' in lbl, f'{t} résumé : la story elle-même, décrite pour VoiceOver ({lbl[:90]})')
         shot(page, LOT, f'recap-semaine-resume-{t}')
         share_current(page, t, 'résumé', f'story-semaine-resume-{t}')
 
@@ -216,6 +216,28 @@ def t_semaine(bench, eng, dev, theme):
         sub = page.evaluate("document.querySelector('.recap-page.is-active .rp-sub')?.textContent")
         R.check(sub == 'Septembre 2026', f'{t} récap mois : période ({sub})')
         shot(page, LOT, f'recap-mois-{t}')
+        # Chaque écran du mois se comprend seul : pas d'écran palier, moment avec sa plage, exercice et records expliqués
+        mo = page.evaluate("[...document.querySelectorAll('.recap-page')].map(p => ({ id: p.dataset.id, l: p.getAttribute('aria-label') }))")
+        ids = [x['id'] for x in mo]
+        lab = {x['id']: x['l'] for x in mo}
+        R.check('milestone' not in ids and ids[-1] == 'summary', f'{t} récap mois : pas d\'écran palier, résumé en dernier {ids}')
+        R.check(lab['summary'].startswith('Ton mois, Septembre 2026 en bref : '), f'{t} récap mois : « en bref » ({lab["summary"][:60]})')
+        R.check(not any(k in x['l'] for x in mo for k in ('n° 1', '1RM', 'en chiffres')), f'{t} récap mois : ni « n° 1 », ni « 1RM », ni « en chiffres »')
+        if 'exercise' in lab:
+            R.check('ton exercice le plus fait' in lab['exercise'] and ' séances sur ' in lab['exercise'], f'{t} récap mois : exercice le plus fait expliqué ({lab["exercise"][:110]})')
+        if 'profile' in lab:
+            R.check(not any(w in lab['profile'] for w in ('le soir', 'le matin', 'le midi')) or 'Entre ' in lab['profile'],
+                    f'{t} récap mois : moment de la journée avec sa plage ({lab["profile"][:140]})')
+        if 'records' in lab and 'RECORDS' in page.evaluate("document.querySelector('.recap-page[data-id=records] .rp-kicker').textContent"):
+            R.check(any(k in lab['records'] for k in ('Ta plus forte', 'Ton record le plus')) and ('Tes autres records' in lab['records'] or 'Ton autre record' in lab['records']),
+                    f'{t} récap mois : pourquoi ce record, et les autres listés ({lab["records"][:140]})')
+        if 'streak' in lab:
+            R.check('séances ou plus' in lab['streak'] and 'Séances par semaine' in lab['streak'], f'{t} récap mois : régularité à son rythme ({lab["streak"][:120]})')
+        # Tous les écrans du mois en capture (planche avant / après)
+        for i in range(len(ids)):
+            page.evaluate(f"() => {{ const tr = document.querySelector('#recapTrack'); tr.scrollTo({{ left: {i} * tr.clientWidth, behavior: 'instant' }}); }}")
+            page.wait_for_timeout(900)
+            shot(page, LOT, f'recap-mois-{i + 1:02d}-{ids[i]}-{t}')
         R.check(not page.errors, f'{t} semaine : aucune erreur JS {page.errors}')
     finally:
         cm.__exit__(None, None, None)
@@ -241,14 +263,14 @@ def t_annee(bench, eng, dev, theme):
         labels = page.evaluate("[...document.querySelectorAll('.recap-page')].map(p => p.getAttribute('aria-label'))")
         R.check(any('mois le plus actif' in l for l in labels), f'{t} bilan : mois le plus actif (écran régularité)')
         R.check(any('ton année en un corps' in l for l in labels), f'{t} bilan : « ton année en un corps »')
-        R.check(labels[-1].startswith('Ton année, 2026 en chiffres : ') and 'soulevées en 78 séances' in labels[-1], f'{t} bilan : résumé ({labels[-1][:90]})')
+        R.check(labels[-1].startswith('Ton année, 2026 en bref : ') and 'Séances 78' in labels[-1], f'{t} bilan : résumé ({labels[-1][:90]})')
         R.check(any('record' in l for l in labels), f'{t} bilan : des records sur l\'année')
         shot(page, LOT, f'bilan-annee-{t}')
         page.evaluate("() => { const tr = document.querySelector('#recapTrack'); tr.scrollTo({ left: tr.scrollWidth, behavior: 'instant' }); }")
         page.wait_for_timeout(500)
         st = recap_state(page)
         R.check(st['id'] == 'summary' and st['share'] == 'Partager mon année', f'{t} bilan : résumé ({st["id"]}, {st["share"]})')
-        R.check(all(k in labels[-1] for k in ('Exercice n° 1 :', 'Record le plus marquant :', 'Mois le plus actif :')), f'{t} bilan : lignes du résumé')
+        R.check(all(k in labels[-1] for k in ('Exercice le plus fait :', 'Mois le plus actif :')), f'{t} bilan : lignes du résumé')
         shot(page, LOT, f'bilan-annee-resume-{t}')
         share_current(page, t, 'bilan résumé', f'story-annee-resume-{t}')
         R.check(not page.errors, f'{t} année : aucune erreur JS {page.errors}')

@@ -9,7 +9,8 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
 | −1 | `20261101000000_parrainage_payant_down.sql` | rien | oui (vérifié) |
-| 0 | `20261031900000_notifications_push_down.sql` | rien | oui (vérifié) |
+| 0a | `20261031910000_notifications_messages_down.sql` | rien | oui (vérifié) |
+| 0 | `20261031900000_notifications_push_down.sql` | notifications des messages et commentaires (0a) : elles remplacent ses fonctions | non |
 | 1 | `20261031620000_strava_down.sql` (Strava en sommeil : migration à ne pas appliquer au lancement, docs/STRAVA.md) | rien | oui (vérifié) |
 | 2 | `20261031510000_chat_coach_down.sql` | rien | oui (vérifié) |
 | 3 | `20261031500000_commentaires_down.sql` | rien (son en-tête conseille quand même le chat avant) | oui (vérifié) |
@@ -28,7 +29,7 @@ Les retours arrière marqués « oui (vérifié) » ont été lancés seuls sur 
 
 ## En production : ordre de la mise en production, et son inverse
 
-La production a reçu toutes les migrations de `main` (lot 3 et notifications push compris) et `20261028000000_payant.sql`. Les migrations du payant datées d'avant le lot 3 y arrivent donc **après** des migrations plus récentes qu'elles. Ordre de mise en production, vérifié par `tests/sql/prod_order_test.sh` (production simulée avec des données, schéma obtenu identique à une base neuve, tests de tous les lots, puis retours arrière dans l'ordre inverse, état d'avant retrouvé à chaque marche) :
+La production a reçu toutes les migrations de `main` (lot 3, notifications push et notifications des messages compris) et `20261028000000_payant.sql`. Les migrations du payant datées d'avant le lot 3 y arrivent donc **après** des migrations plus récentes qu'elles. Ordre de mise en production, vérifié par `tests/sql/prod_order_test.sh` (production simulée avec des données, schéma obtenu identique à une base neuve, tests de tous les lots, puis retours arrière dans l'ordre inverse, état d'avant retrouvé à chaque marche) :
 
 1. `20261029000000_payant_modele_b.sql`
 2. `20261030000000_payant_tarifs.sql`

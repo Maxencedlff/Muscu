@@ -53,7 +53,7 @@ function renderPushSettings() {
         </div>` : unavailable ? `
         <div class="group"><div class="cell"><span class="cell__body"><span class="cell__title">Mets l'app à jour</span>
           <span class="cell__sub">Cette version de l'app ne reçoit pas encore de notifications.</span></span></div></div>` : '';
-  const rows = PUSH_TYPES.map(t => {
+  const rows = pushShownTypes().map(t => {
     const on = !blocked && push.prefs[t.id] === true;
     const busy = push.busy === t.id;
     return `
@@ -67,7 +67,7 @@ function renderPushSettings() {
         <div class="group-title">M'avertir</div>
         <div class="group${blocked ? ' group--disabled' : ''}">${rows}
         </div>
-        <div class="group-foot">Tout est éteint au départ. La notification montre le pseudo de la personne, jamais le texte d'un commentaire. Les rappels de fin de repos ne changent pas.</div>
+        <div class="group-foot">Tout est éteint au départ. La notification montre le pseudo de la personne, jamais le texte d'un commentaire ou d'un message. Les rappels de fin de repos ne changent pas.</div>
       </div></div>`;
 }
 

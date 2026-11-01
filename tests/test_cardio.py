@@ -150,7 +150,7 @@ def t_seance(bench, eng, dev, theme):
         page.wait_for_selector('.pace-badge', timeout=4000)
         badges = page.locator('.pace-badge').all_inner_texts()
         R.check(badges == ['6:00 /km', '25 km/h'], f'{t} allure des séries validées : {badges}')
-        label = page.locator('.session-set--done').first.get_attribute('aria-label')
+        label = page.locator('.session-set--done .sr-text').first.text_content() or ''
         R.check('6 minutes au kilomètre' in label, f'{t} VoiceOver : {label!r}')
         page.locator('.pace-badge').first.scroll_into_view_if_needed()
         shot(page, LOT, f'seance-{t}')
