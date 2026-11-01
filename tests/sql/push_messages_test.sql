@@ -56,9 +56,25 @@ set role authenticated;
 do $$ begin
   perform pg_temp.login('o');
   if pg_temp.err($q$ select private.push_valid('comment', auth.uid(), auth.uid(), '1') $q$) not like 'permission denied%' then raise 'push_valid ouvert à l''API'; end if;
-  if pg_temp.err($q$ select private.push_open_ref('comment', '1') $q$) not like 'permission denied%' then raise 'push_open_ref ouvert à l''API'; end if;
+  if pg_temp.err($q$ select private.push_open_ref('comment', '1', auth.uid()) $q$) not like 'permission denied%' then raise 'push_open_ref ouvert à l''API'; end if;
 end $$;
 reset role;
+
+-- Droit sur les fonctions elles-mêmes (le schéma private fermé ne suffit pas à le prouver)
+do $$
+declare r text; f text;
+begin
+  foreach r in array array['anon', 'authenticated', 'service_role'] loop
+    foreach f in array array['private.push_valid(text,uuid,uuid,text)', 'private.push_open_ref(text,text,uuid)',
+                             'private.push_on_comment()', 'private.push_on_chat_message()'] loop
+      if has_function_privilege(r, f, 'execute') then raise '% peut exécuter %', r, f; end if;
+    end loop;
+  end loop;
+  if has_function_privilege('anon', 'public.push_set_prefs(boolean,boolean,boolean,boolean,boolean)', 'execute')
+     or not has_function_privilege('authenticated', 'public.push_set_prefs(boolean,boolean,boolean,boolean,boolean)', 'execute') then
+    raise 'droits de push_set_prefs à 5 arguments';
+  end if;
+end $$;
 
 -- ── Commentaire sur ma séance ────────────────────────────
 set role authenticated;
@@ -252,6 +268,29 @@ begin
   delete from private.push_outbox where recipient = pg_temp.u('o') and kind = 'comment';
 end $$;
 
+-- Compte à la fois coach (de Q) et élève (de K) : chaque message ouvre la bonne conversation ; rafale du chat
+-- qui tient après un lien rompu puis renoué
+do $$
+declare m_from_k text; m_from_q text;
+begin
+  update public.user_profiles set coach_at = now() where user_id = pg_temp.u('o');
+  insert into public.coach_links (student_id, coach_id) values (pg_temp.u('q'), pg_temp.u('o'));
+  insert into public.coach_messages (student_id, coach_id, from_coach, body) values (pg_temp.u('o'), pg_temp.u('k'), true, 'de K') returning id::text into m_from_k;
+  insert into public.coach_messages (student_id, coach_id, from_coach, body) values (pg_temp.u('q'), pg_temp.u('o'), false, 'de Q') returning id::text into m_from_q;
+  if private.push_open_ref('chat_message', m_from_k, pg_temp.u('o')) <> '@coach' then raise 'double rôle : message du coach'; end if;
+  if private.push_open_ref('chat_message', m_from_q, pg_temp.u('o')) <> pg_temp.u('q')::text then raise 'double rôle : message de l''élève'; end if;
+  delete from public.coach_links where student_id = pg_temp.u('q');
+  update public.user_profiles set coach_at = null where user_id = pg_temp.u('o');
+  -- K écrit (une notification), O quitte et rejoint K : le message suivant ne sonne pas dans les 15 min
+  delete from private.push_outbox where recipient = pg_temp.u('o');
+  insert into public.coach_messages (student_id, coach_id, from_coach, body) values (pg_temp.u('o'), pg_temp.u('k'), true, 'avant');
+  if pg_temp.n('chat_message', 'o') <> 1 then raise 'précondition : message de K en file'; end if;
+  delete from public.coach_links where student_id = pg_temp.u('o');
+  insert into public.coach_links (student_id, coach_id) values (pg_temp.u('o'), pg_temp.u('k'));
+  insert into public.coach_messages (student_id, coach_id, from_coach, body) values (pg_temp.u('o'), pg_temp.u('k'), true, 'après');
+  if pg_temp.n('chat_message', 'o') <> 1 then raise 'lien renoué : nouvelle sonnerie dans les 15 min'; end if;
+end $$;
+
 -- ── Type éteint : la file en attente est vidée ───────────
 do $$ begin
   if pg_temp.n('chat_message', 'o') < 1 then raise 'précondition : un message en attente pour O'; end if;
@@ -273,6 +312,8 @@ do $$ begin
   perform public.push_set_prefs(null, null, null, true, true);
 end $$;
 reset role;
+-- Les deux avertissements attendus (raise warning des déclencheurs) ne sont pas affichés : ce bloc passe
+set client_min_messages = error;
 alter table private.push_outbox rename to push_outbox_hors_service;
 set role authenticated;
 do $$ begin
@@ -283,6 +324,7 @@ do $$ begin
 end $$;
 reset role;
 alter table private.push_outbox_hors_service rename to push_outbox;
+reset client_min_messages;
 
 -- ── Ménage : comptes supprimés, tout part avec eux ───────
 do $$ begin

@@ -21,7 +21,8 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
   24 h (bravo retiré puis remis, commentaire retouché).
 - **Anti-rafale (commentaires, messages)** : une salve d'un même auteur sonne une fois. Pas de nouvelle
   notification (destinataire, type, auteur) s'il y en a une de moins de 15 minutes ; pour un message,
-  seulement si elle n'est pas encore lue (lu entre-temps, le message suivant sonne). Un commentaire
+  sauf si ce message a été lu depuis (lu entre-temps, le suivant sonne ; un message effacé, lien rompu
+  puis renoué, compte quand même). Un commentaire
   supprimé ou masqué compte quand même (« publier, supprimer, republier » ne sonne qu'une fois). 15 min : regroupe
   une salve (un chat s'écrit en quelques messages en quelques minutes), plafonne à 4 notifications par
   heure et par auteur alors que 60 messages et 30 commentaires par heure sont permis, et rappelle un oubli

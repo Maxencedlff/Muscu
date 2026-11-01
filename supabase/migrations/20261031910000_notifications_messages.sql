@@ -15,7 +15,7 @@
 --     n'est pas encore le cas quand on touche la notification app fermée).
 --  3. Anti-rafale : une salve d'un même auteur ne sonne qu'une fois. Une nouvelle notification
 --     (destinataire, type, auteur) n'est pas créée s'il y en a déjà une de moins de 15 minutes ; pour
---     un message, seulement si elle compte encore (pas encore lu). Un commentaire, lui, se supprime sans
+--     un message, sauf si celui-ci a été lu depuis (un message effacé, lien rompu puis renoué, compte). Un commentaire, lui, se supprime sans
 --     limite : supprimé ou masqué, il compte quand même (sinon « publier, supprimer, republier » sonnerait
 --     à chaque fois, et un auteur masqué sonnerait aussitôt de nouveau). Pourquoi 15 min : un chat s'écrit en
 --     salves de quelques messages en quelques minutes, et plusieurs commentaires d'affilée sont courants ;
@@ -141,7 +141,13 @@ begin
     if exists (select 1 from private.push_outbox o
                where o.recipient = push_enqueue.recipient and o.kind = push_enqueue.kind and o.actor = push_enqueue.actor
                  and o.created_at > now() - interval '15 minutes'
-                 and (o.kind = 'comment' or private.push_valid(o.kind, o.recipient, o.actor, o.ref))) then
+                 -- Message : la précédente ne cède que si elle a été LUE (message encore là, marque de
+                 -- lecture au-delà) ; effacé (lien rompu puis renoué), elle compte quand même
+                 and (push_enqueue.kind = 'comment' or not exists (
+                       select 1 from public.coach_messages m
+                       join public.coach_links l on l.student_id = m.student_id and l.coach_id = m.coach_id
+                       where o.ref ~ '^[0-9]{1,18}$' and m.id = o.ref::bigint
+                         and m.id <= case when m.from_coach then l.chat_student_read else l.chat_coach_read end))) then
       return;
     end if;
   elsif exists (select 1 from private.push_outbox o
