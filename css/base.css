@@ -22,7 +22,8 @@
   --green:  #30D158; --red: #FF453A; --orange: #FF9F0A;
   --yellow: #FFD60A; --indigo: #5E5CE6; --teal: #40C8E0; --purple: #BF5AF2;
   --green-text: #30D158; --red-text: #FF453A; --orange-text: #FF9F0A; --gold-text: #FFD60A;
-  --white: #FFFFFF;
+  --white: #FFFFFF; --black: #000000;
+  --scrim: rgba(0,0,0,.55);      /* pastille de texte blanc posée sur une photo */
   --segment-on: #636366;
   --dimmer: rgba(0,0,0,.5);      /* voile des surcouches */
   --dlg-bg: rgba(44,44,46,.94); --dlg-solid: #2C2C2E;   /* feuilles, alertes, toasts : lisibles même si le flou est faible */

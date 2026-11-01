@@ -231,7 +231,8 @@ const SCREENS = new Map([
   ['history-detail', { render: id => renderHistoryDetail(id), mount: () => { historyReactionsMount(routeParams(currentRoute())[0]); historyCommentsMount(routeParams(currentRoute())[0]); coachHistoryMount(); } }],   // qui a réagi, commentaires (Amis activé)
   ['stats-ex',       { render: exId => renderStatsExercise(exId), mount: () => drawCharts() }],
   ['stats-overview', { render: () => renderStatsOverview() }],
-  ['body-measures',  { render: () => renderBodyMeasures(), mount: () => mountBodyMeasures(), leave: () => leaveBodyMeasures() }],   // Progrès › Mesures (js/features/body-measures-ui.js)
+  ['body-measures',  { render: () => renderBodyMeasures() }],   // Progrès › Mesures (js/features/body-measures-ui.js)
+  ['photo-vault',    { render: () => renderPhotoVault(), mount: o => mountPhotoVault(o), leave: () => leavePhotoVault() }],   // Mesures › coffre à photos (js/features/photo-vault-ui.js), refermé en le quittant
   ['body-measure',   { render: key => renderBodyMeasure(key), mount: () => drawCharts() }],   // courbe d'une mensuration
   ['recaps',         { render: () => renderRecaps() }],                                 // Progrès › Récaps
   ['recap',          { render: key => renderRecap(key), mount: () => recapMount(), leave: () => recapLeave() }],   // écrans d'un récap (js/features/recap.js)
@@ -262,7 +263,8 @@ function paint(scrollY = window.scrollY) {
 // Affiche l'écran courant après un changement de navigation, avec la transition qui va avec
 let shownName = null;   // nom du dernier écran affiché par show(), pour son crochet leave()
 function show(dir = 'none') {
-  if (shownKey && dir === 'push') snapMem[shownKey] = $('#app').innerHTML;
+  // Image de l'écran quitté, pour le geste de retour ; jamais celle du coffre à photos (dates, poses, URL d'images)
+  if (shownKey && dir === 'push' && shownName !== 'photo-vault') snapMem[shownKey] = $('#app').innerHTML;
   const key = navKey();
   shownKey = key;
   const target = (dir === 'pop' || dir === 'down' || dir === 'fade') ? (scrollMem[key] || 0) : 0;

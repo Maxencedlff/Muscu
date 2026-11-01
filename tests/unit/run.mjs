@@ -49,6 +49,7 @@ const SCRIPTS = [
   'js/data/measures.js',
   'js/data/import-csv.js',
   'js/data/progress-photos.js',
+  'js/data/photo-vault.js',
   'js/data/session-review.js',
   'js/data/health-workouts.js',
   'js/data/health-export.js',
@@ -100,6 +101,7 @@ const sandbox = {
   console,
   AbortController, setTimeout, clearTimeout,   // vérification des mises à jour à chaud
   atob,                                        // lecture des jetons du compte (jwtPayload)
+  btoa, TextEncoder, TextDecoder, Blob, crypto: globalThis.crypto,   // coffre à photos (js/data/photo-vault.js)
   localStorage: new MemoryStorage(),
   navigator: {},
   document: { querySelector: () => null, getElementById: () => null },
@@ -1513,6 +1515,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./recap.mjs')).default({ test, run, reset, assert, app, sameJSON });
 // ── Apple Watch, widget et Siri (tests dans companions.mjs) ──
 (await import('./companions.mjs')).default({ test, run, reset, assert, app, sameJSON, ctx, nativeContext, ROOT });
+
+// ── Coffre à photos : code, chiffrement, essais, verrouillage (tests dans photo-vault.mjs) ──
+(await import('./photo-vault.mjs')).default({ test, run, assert, app });
 
 // ── Santé détaillée : entraînements d'une séance, sommeil (tests dans health.mjs) ──
 (await import('./health.mjs')).default({ test, run, reset, assert, sameJSON });

@@ -351,19 +351,18 @@ const GUIDE_SECTIONS = [
         id: 'mesures', title: GUIDE_PHOTOS ? 'Mensurations et photos' : 'Mensurations', icon: 'ruler', color: 'teal',
         lead: `Dans [Progrès] › [Mesures], note tes tours de poitrine, de taille, de bras…${GUIDE_PHOTOS ? ' et garde des photos de progression' : ''}. Rien ne part sur nos serveurs.`,
         steps: [
-          '[Ajouter des mesures] : la date, puis les mesures que tu as prises (laisse vide le reste). Une valeur par jour et par mesure, en cm ou en pouces selon ton unité.',
-          'Touche une mesure pour sa courbe, l\'écart avec la mesure d\'avant et depuis la première.',
+          '[Ajouter des mesures] : la date, puis les mesures que tu as prises (laisse vide le reste), en cm ou en pouces selon ton unité. Touche une mesure pour sa courbe et ses écarts.',
           ...(GUIDE_PHOTOS ? [
-            '[Ajouter une photo] ouvre la caméra ou la pellicule ; choisis [Face], [Profil] ou [Dos]. La photo est réduite et gardée dans l\'app, pas dans ta pellicule. [Comparer] met deux dates côte à côte.',
-            'Tes mensurations restent sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs ; tes photos restent sur ton iPhone seulement. Rien n\'est montré à tes amis ni à ton coach.',
-            'L\'export contient tes mensurations, pas tes photos. [Supprimer toutes les données] efface les deux.',
+            'Tes photos sont dans le [Coffre à photos], fermé par un code à 6 chiffres (ou Face ID) et refermé dès que tu quittes l\'app. Code oublié : personne ne peut le rouvrir ; tu peux seulement le vider.',
+            '[Ajouter une photo] ouvre la caméra ou la pellicule ; choisis [Face], [Profil] ou [Dos]. Elle est chiffrée dans le coffre, pas dans ta pellicule. [Avant / après] superpose deux dates sous un curseur.',
+            'Tes mensurations restent sur ton iPhone et dans ta copie iCloud ; tes photos sur ton iPhone seulement, hors de l\'export. Rien n\'est montré à tes amis ni à ton coach. [Supprimer toutes les données] efface les deux.',
           ] : [
             'Tes mensurations restent sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs. Rien n\'est montré à tes amis ni à ton coach.',
             'L\'export contient tes mensurations. [Supprimer toutes les données] les efface.',
           ]),
         ],
         related: ['poids-corps', 'export'],
-        actions: ['go-body-measures', 'bm-add', 'open-body-measure', ...(GUIDE_PHOTOS ? ['photo-add'] : [])],
+        actions: ['go-body-measures', 'bm-add', 'open-body-measure', ...(GUIDE_PHOTOS ? ['go-photo-vault', 'photo-add'] : [])],
       },
       {
         id: 'muscles', title: 'Muscles travaillés', icon: 'chart', color: 'red',

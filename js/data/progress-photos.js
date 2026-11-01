@@ -3,9 +3,10 @@
 // ═══════════════════════════════════════════════════════════
 //
 // Où vont les photos, et pourquoi :
-//  - Dans IndexedDB, base « mdlf-photos », une entrée par photo { id, date, pose, bytes, w, h, type, buf }
-//    (buf : octets JPEG en ArrayBuffer ; un Blob stocké tel quel échoue dans certains WebKit, le tableau
-//    d'octets passe partout ; photosAll() rend un blob prêt pour les vignettes).
+//  - Dans IndexedDB, base « mdlf-vault », une entrée chiffrée par photo (coffre à photos, AES-GCM :
+//    js/data/photo-vault.js) ; en clair, seulement { id, date } (tri) ; pose, taille et octets JPEG sont
+//    chiffrés. photoFromFile() rend l'entrée en clair { id, date, pose, bytes, w, h, type, buf } (buf :
+//    octets JPEG en ArrayBuffer ; un Blob stocké tel quel échoue dans certains WebKit), chiffrée avant écriture.
 //    Dans l'app iPhone, IndexedDB vit dans le bac à sable de l'app (Library/WebKit), au même endroit que
 //    le stockage web qui porte déjà toutes les séances (ppl_v2 dans localStorage) : rien ne va dans la
 //    pellicule, rien dans iCloud Photos, rien sur le serveur. Pas dans localStorage : quelques photos
@@ -18,13 +19,12 @@
 //    tests) vaut mieux que deux : IndexedDB se teste sous Playwright, Directory.Data non.
 //  - Hors de l'export (trop lourd) et de la copie iCloud de l'app : « Supprimer toutes les données »
 //    les efface (photosWipe, js/features/settings.js). Elles font partie de la sauvegarde iPhone
-//    (iCloud ou ordinateur) comme le reste du bac à sable de l'app.
+//    (iCloud ou ordinateur) comme le reste du bac à sable de l'app, mais chiffrées par le code (sa limite
+//    face à un attaquant outillé qui a la sauvegarde : docs/COFFRE_PHOTOS.md).
 // Images réduites avant stockage : côté le plus long à PHOTO_MAX_PX, JPEG qualité PHOTO_QUALITY
 // (une photo d'iPhone de 4 Mo tombe vers 150 à 300 ko).
 'use strict';
 
-const PHOTO_DB      = 'mdlf-photos';
-const PHOTO_STORE   = 'photos';
 const PHOTO_MAX_PX  = 1200;
 const PHOTO_QUALITY = 0.8;
 const PHOTO_POSES   = [['face', 'Face'], ['side', 'Profil'], ['back', 'Dos']];
@@ -80,6 +80,17 @@ function photosAllowedHere() { return !Native.isNative || PHOTOS_NATIVE_READY; }
 function photosEnabled() { return photosAllowedHere() && photosSupported(); }
 
 // ── IndexedDB ───────────────────────────────────────────────
+// Base « mdlf-vault » : magasin « photos » (une ligne chiffrée par photo, js/data/photo-vault.js) et
+// magasin « meta » (réglages du coffre : sel, clé emballée, essais). Les deux vivent et meurent ensemble :
+// une clé perdue sans ses photos (ou l'inverse) rendrait tout illisible.
+// Ancienne base « mdlf-photos » (builds 30 et 31, photos en clair) : lue seulement pour la migration,
+// puis supprimée en entier (deleteDatabase efface le fichier, donc les octets en clair, là où vider le
+// magasin laisserait des pages libres dans le fichier SQLite de WebKit).
+const PHOTO_DB        = 'mdlf-vault';
+const PHOTO_STORE     = 'photos';
+const PHOTO_META      = 'meta';
+const LEGACY_PHOTO_DB = 'mdlf-photos';
+
 function photosSupported() { return typeof indexedDB !== 'undefined' && indexedDB !== null; }
 
 let photoDbPromise = null;
@@ -90,6 +101,7 @@ function photosDb() {
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(PHOTO_STORE)) db.createObjectStore(PHOTO_STORE, { keyPath: 'id' }).createIndex('date', 'date');
+      if (!db.objectStoreNames.contains(PHOTO_META)) db.createObjectStore(PHOTO_META, { keyPath: 'k' });
     };
     req.onsuccess = () => { req.result.onclose = () => { photoDbPromise = null; }; resolve(req.result); };
     req.onerror   = () => { photoDbPromise = null; reject(req.error); };
@@ -98,30 +110,70 @@ function photosDb() {
   return photoDbPromise;
 }
 // Une transaction, une opération : la promesse rend le résultat de la requête
-async function photoTx(mode, op) {
-  const db = await photosDb();
+function idbTx(db, store, mode, op) {
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(PHOTO_STORE, mode);
-    const req = op(tx.objectStore(PHOTO_STORE));
+    const tx = db.transaction(store, mode);
+    const req = op(tx.objectStore(store));
     tx.oncomplete = () => resolve(req?.result);
     tx.onerror = () => reject(tx.error || req?.error || new Error('écriture refusée'));
     tx.onabort = () => reject(tx.error || req?.error || new Error('transaction interrompue'));
   });
 }
+async function photoTx(mode, op, store = PHOTO_STORE) { return idbTx(await photosDb(), store, mode, op); }
 
-// Toutes les photos, de la plus récente à la plus ancienne, avec un blob prêt pour les vignettes
-async function photosAll() {
-  const rows = (await photoTx('readonly', s => s.getAll())) || [];
-  return rows.filter(p => p && p.buf).sort((a, b) => b.date - a.date)
-    .map(p => ({ ...p, blob: new Blob([p.buf], { type: p.type || 'image/jpeg' }) }));
+// Lignes chiffrées telles quelles (pas de clé ici : le déchiffrement est dans js/data/photo-vault.js)
+async function photoRowsAll() { return ((await photoTx('readonly', s => s.getAll())) || []).filter(r => r && r.id); }
+function photoRowsCount()    { return photoTx('readonly', s => s.count()); }
+function photoPutRow(row)    { return photoTx('readwrite', s => s.put(row)); }
+function photoDelete(id)     { return photoTx('readwrite', s => s.delete(id)); }
+async function photoMetaGet(k) { return (await photoTx('readonly', s => s.get(k), PHOTO_META)) || null; }
+function photoMetaPut(rec)     { return photoTx('readwrite', s => s.put(rec), PHOTO_META); }
+
+// ── Ancienne base (photos en clair) ─────────────────────────
+// Ouverte sans jamais la créer : si elle n'existe pas, la montée de version est annulée (null)
+function legacyPhotosDb() {
+  if (!photosSupported()) return Promise.resolve(null);
+  return new Promise(resolve => {
+    const req = indexedDB.open(LEGACY_PHOTO_DB, 1);
+    req.onupgradeneeded = () => { req.transaction.abort(); };
+    req.onsuccess = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(PHOTO_STORE)) { db.close(); resolve(null); return; }
+      resolve(db);
+    };
+    req.onerror = () => resolve(null);
+    req.onblocked = () => resolve(null);
+  });
 }
-function photoPut(rec)   { return photoTx('readwrite', s => s.put(rec)); }
-function photoDelete(id) { return photoTx('readwrite', s => s.delete(id)); }
-// « Supprimer toutes les données » : la base entière, sans erreur si elle n'existe pas (ou si IndexedDB manque)
+// Photos en clair de l'ancienne base, avec leurs octets (buf) ; [] s'il n'y en a pas
+async function legacyPhotosAll() {
+  const db = await legacyPhotosDb();
+  if (!db) return [];
+  try { return ((await idbTx(db, PHOTO_STORE, 'readonly', s => s.getAll())) || []).filter(p => p && p.id && p.buf); }
+  finally { db.close(); }
+}
+// Supprime l'ancienne base en entier (le fichier, pas seulement son contenu)
+function legacyPhotosDrop() {
+  if (!photosSupported()) return Promise.resolve(false);
+  return new Promise(resolve => {
+    const req = indexedDB.deleteDatabase(LEGACY_PHOTO_DB);
+    req.onsuccess = () => resolve(true);
+    req.onerror = () => resolve(false);
+    req.onblocked = () => resolve(false);
+  });
+}
+
+// « Supprimer toutes les données » et « Réinitialiser le coffre » : photos, réglages du coffre et
+// ancienne base ; sans erreur si rien n'existe (ou si IndexedDB manque)
 async function photosWipe() {
   if (!photosSupported()) return false;
-  try { await photoTx('readwrite', s => s.clear()); return true; }
-  catch { return false; }
+  try {
+    const db = await photosDb();
+    await idbTx(db, PHOTO_STORE, 'readwrite', s => s.clear());
+    await idbTx(db, PHOTO_META, 'readwrite', s => s.clear());
+    await legacyPhotosDrop();
+    return true;
+  } catch { return false; }
 }
 
 // ── Réduction d'une image ───────────────────────────────────

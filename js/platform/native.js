@@ -31,11 +31,13 @@ const Native = (() => {
   const Watch              = plugin('MdlfWatch');     // module Swift de l'app (ios/App/AppExtras/WatchPlugin.swift), build avec l'Apple Watch
   const Widget             = plugin('MdlfWidget');    // module Swift de l'app (ios/App/AppExtras/WidgetPlugin.swift), même build
   const Shortcuts          = plugin('MdlfShortcuts'); // module Swift de l'app (ios/App/AppExtras/ShortcutsPlugin.swift), même build
+  const Vault              = plugin('MdlfVault');     // module Swift de l'app (ios/App/App/VaultPlugin.swift), build qui suit la 31
   // Module présent dans la coquille installée (une mise à jour à chaud peut arriver avant la build qui l'apporte)
   const has          = name => isNative && !!cap.isPluginAvailable?.(name);
   const hasWatch     = has('MdlfWatch');
   const hasWidget    = has('MdlfWidget');
   const hasShortcuts = has('MdlfShortcuts');
+  const hasVault     = has('MdlfVault');
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
   const AppInfo            = plugin('App');              // @capacitor/app : numéro de build installé
 
@@ -438,6 +440,45 @@ const Native = (() => {
         async setItem(key, value) { try { await Account.setItem({ key, value }); } catch { /* session gardée en mémoire */ } },
         async removeItem(key) { try { await Account.removeItem({ key }); } catch { /* déjà absente */ } },
       },
+    },
+
+    // Coffre à photos (js/data/photo-vault.js) : Face ID et écran de confidentialité. available : faux
+    // dans le navigateur et dans une coquille sans le module (mise à jour à chaud arrivée avant la build
+    // qui l'apporte) : le coffre marche alors au code seul.
+    vault: {
+      available: hasVault,
+      // { biometry: 'faceID' | 'touchID' | 'opticID' | 'none', stored: clé présente dans le trousseau }
+      async status() {
+        if (!hasVault) return { biometry: 'none', stored: false };
+        try { const r = await Vault.status(); return { biometry: r?.biometry || 'none', stored: !!r?.stored }; }
+        catch { return { biometry: 'none', stored: false }; }
+      },
+      // Confie la clé du coffre au trousseau après un Face ID réussi : true, ou false (refus, annulation)
+      async remember(key, reason) {
+        if (!hasVault) return false;
+        try { await Vault.remember({ key, reason }); return true; } catch { return false; }
+      },
+      // Face ID puis clé : { key } ; { canceled } si l'utilisateur annule ; { gone } si la clé n'est plus
+      // là (visages enregistrés modifiés : iOS l'invalide) ; { failed } si Face ID n'a pas reconnu ; null sinon
+      async unlock(reason) {
+        if (!hasVault) return null;
+        try { const r = await Vault.unlock({ reason }); return r?.key ? { key: r.key } : null; }
+        catch (e) {
+          if (e?.code === 'CANCELED') return { canceled: true };
+          if (e?.code === 'NOT_FOUND') return { gone: true };
+          if (e?.code === 'FAILED') return { failed: true };
+          return null;
+        }
+      },
+      async forget() { if (hasVault) { try { await Vault.forget(); } catch { /* déjà absente */ } } },
+      // Écran de confidentialité natif (flou posé par iOS avant la capture du sélecteur d'apps)
+      shield(on) { if (hasVault) quiet(Vault.shield({ on: !!on })); },
+    },
+
+    // App active ou non (@capacitor/app, appStateChange : false dès le sélecteur d'apps ou le Centre de
+    // contrôle, avant l'arrière-plan). Hors app : rien (le navigateur a visibilitychange).
+    onActiveChange(cb) {
+      if (isNative && AppInfo) quiet(AppInfo.addListener('appStateChange', s => { try { cb(!!s?.isActive); } catch { /* écran redessiné ensuite */ } }));
     },
 
     appIcon: {

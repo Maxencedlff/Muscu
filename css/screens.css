@@ -452,17 +452,92 @@ body.light .imp__ctl { background: var(--cell); }
 .pgal__row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .pgal__item { position: relative; aspect-ratio: 3 / 4; min-height: 44px; border-radius: var(--r-sm); overflow: hidden; background: var(--cell2); border: none; padding: 0; cursor: pointer; }
 .pgal__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pgal__pose { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: var(--r-pill); background: rgba(0,0,0,.6); color: #fff; font-size: 0.647rem; font-weight: 600; }
-/* Comparaison côte à côte */
-.pcmp__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.pcmp__col { min-width: 0; }
+.pgal__pose { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: var(--r-pill); background: var(--scrim); color: var(--white); font-size: 0.647rem; font-weight: 600; }
+/* Avant / après : deux photos superposées, un curseur découvre celle d'avant (js/features/photo-vault-ui.js) */
+.pcmp__frame {
+  position: relative; aspect-ratio: 3 / 4; max-height: 62vh; margin: 0 auto; border-radius: var(--r-md); overflow: hidden;
+  background: var(--cell2); touch-action: pan-y; cursor: ew-resize; -webkit-user-select: none; user-select: none;
+}
+.pcmp__frame .pcmp__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.pcmp__before { position: absolute; inset: 0; clip-path: inset(0 calc(100% - var(--pos, 50%)) 0 0); }
+.pcmp__handle { position: absolute; top: 0; bottom: 0; left: var(--pos, 50%); width: 2px; margin-left: -1px; background: var(--white); box-shadow: 0 0 6px var(--scrim); pointer-events: none; }
+.pcmp__knob {
+  position: absolute; top: 50%; left: 50%; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%;
+  background: var(--white); color: var(--black); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-float);
+}
+.pcmp__knob .icon { margin: 0 -2px; }
+.pcmp__tag { position: absolute; top: 10px; padding: 3px 9px; border-radius: var(--r-pill); background: var(--scrim); color: var(--white); font-size: var(--fs-caption); font-weight: 600; pointer-events: none; }
+.pcmp__tag--a { left: 10px; }
+.pcmp__tag--b { right: 10px; }
+.pcmp__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.pcmp__col { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pcmp__lbl { font-size: var(--fs-footnote); color: var(--label2); padding-left: 2px; }
 .pcmp__sel {
   width: 100%; min-height: 44px; border: none; border-radius: var(--r-sm); background: var(--fill2); color: var(--label);
   padding: 0 10px; font-family: inherit; font-size: var(--fs-input); -webkit-appearance: none; appearance: none;
 }
-.pcmp__img { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--r-sm); margin-top: 8px; background: var(--cell2); }
-.pcmp__gap { text-align: center; color: var(--label2); font-size: 0.765rem; padding-top: 10px; }
+.pcmp__gap { text-align: center; color: var(--label2); font-size: var(--fs-footnote); padding-top: 10px; }
 /* Feuilles : nouvelle photo, photo ouverte */
 .pnew__img, .pview__img { display: block; max-width: 100%; max-height: 48vh; margin: 0 auto 12px; border-radius: var(--r-md); object-fit: contain; }
 .pnew__pose { display: flex; margin: 4px 0 14px; }
 .pview__meta { text-align: center; color: var(--label2); font-size: 0.765rem; margin: 0 0 14px; }
+
+/* ── Coffre à photos (js/features/photo-vault-ui.js) : entrée, présentation, clavier du code ── */
+.pv-entry__glyph {
+  width: 30px; height: 30px; flex-shrink: 0; border-radius: 7px; background: var(--tint-fill); color: var(--on-tint);
+  display: flex; align-items: center; justify-content: center;
+}
+.pv-locked .scr { display: flex; flex-direction: column; min-height: calc(100dvh - 44px - var(--tabbar-h) - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+.pv-center, .pv-lock, .pv-intro { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.pv-center { justify-content: center; padding: 40px var(--gutter); }
+.pv-glyph {
+  width: 76px; height: 76px; border-radius: 50%; background: var(--fill2); color: var(--tint);
+  display: flex; align-items: center; justify-content: center; margin-bottom: 18px;
+}
+.pv-glyph--sm { width: 56px; height: 56px; margin-bottom: 14px; }
+.pv-title { font-size: var(--fs-title2); line-height: 1.6rem; font-weight: 600; letter-spacing: -.01em; }
+.pv-sub { min-height: 2.4em; margin-top: 6px; padding: 0 var(--gutter); font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); }
+.pv-sub--err { color: var(--red-text); }
+/* Présentation (premier accès) */
+.pv-intro { padding: 28px var(--gutter) 24px; max-width: 420px; margin: 0 auto; width: 100%; }
+.pv-intro .pv-title { font-size: var(--fs-title1); line-height: 2rem; font-weight: 700; }
+.pv-lead { margin-top: 8px; color: var(--label2); font-size: var(--fs-callout); line-height: 1.3rem; }
+.pv-feats { list-style: none; margin: 28px 0 8px; display: flex; flex-direction: column; gap: 18px; text-align: left; width: 100%; }
+.pv-feat { display: flex; gap: 14px; align-items: flex-start; }
+.pv-feat__icon { flex-shrink: 0; width: 28px; color: var(--tint); display: flex; justify-content: center; padding-top: 1px; }
+.pv-feat__body { display: flex; flex-direction: column; gap: 2px; }
+.pv-feat__title { font-weight: 600; font-size: var(--fs-subhead); }
+.pv-feat__sub { color: var(--label2); font-size: var(--fs-footnote); line-height: 1.059rem; }
+.pv-note { margin-top: 14px; font-size: var(--fs-footnote); color: var(--label); background: var(--fill2); border-radius: var(--r-sm); padding: 10px 14px; width: 100%; }
+.pv-cta { margin-top: auto; min-height: 50px; }
+.pv-intro .pv-cta { margin-top: 28px; }
+.pv-foot { margin-top: 14px; font-size: var(--fs-caption); line-height: 1rem; color: var(--label2); }
+/* Clavier du code, sur le modèle de l'écran de code d'iOS */
+.pv-lock { --pv-key: clamp(64px, min(21vw, 10.5dvh), 80px); padding: 20px 0 12px; justify-content: center; }
+.pv-dots { display: flex; gap: 16px; margin: 6px 0 26px; }
+.pv-dot { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--label); transition: background-color .12s; }
+.pv-dot--on { background: var(--label); }
+.pv-dots--busy .pv-dot { animation: pv-pulse .9s ease-in-out infinite; }
+.pv-dots--shake { animation: pv-shake .38s; }
+@keyframes pv-pulse { 50% { opacity: .35; } }
+@keyframes pv-shake { 20%, 60% { transform: translateX(-9px); } 40%, 80% { transform: translateX(9px); } }
+@media (prefers-reduced-motion: reduce) { .pv-dots--shake, .pv-dots--busy .pv-dot { animation: none; } }
+.pv-pad { display: grid; grid-template-columns: repeat(3, var(--pv-key)); gap: 14px clamp(18px, 7vw, 28px); }
+.pv-key {
+  width: var(--pv-key); height: var(--pv-key); border-radius: 50%; border: none; background: var(--fill2); color: var(--label);
+  font-size: calc(var(--pv-key) * .42); font-weight: 400; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background-color .15s;
+}
+.pv-key:active { background: var(--label3); transition: none; }
+.pv-key:disabled { opacity: .35; cursor: default; }
+.pv-key--fn { background: none; }
+.pv-key--fn:active { background: var(--fill2); }
+.pv-key--fn:disabled { opacity: 0; }
+.pv-key--void { visibility: hidden; }
+.pv-link { margin-top: 18px; min-height: 44px; min-width: 44px; padding: 0 12px; border: none; background: none; color: var(--tint-on-fill); font-size: var(--fs-subhead); cursor: pointer; }
+.pv-link--void { visibility: hidden; display: block; }
+/* Coffre ouvert */
+.pv-summary { display: flex; align-items: center; gap: 6px; margin: 0 0 18px; color: var(--label2); font-size: var(--fs-footnote); }
+/* Sélecteur d'apps, Centre de contrôle : rien du coffre ne reste visible */
+body.pv-shield .photo-vault .scr { filter: blur(30px); }
+body.pv-shield::after { content: ''; position: fixed; inset: 0; z-index: 10000; background: var(--bg); }
