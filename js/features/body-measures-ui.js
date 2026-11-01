@@ -53,8 +53,7 @@ function renderBodyMeasures() {
           ${rows}
         </div>
         <div class="group-foot">En ${unit === 'in' ? 'pouces, comme tes charges en lbs' : 'centimètres'}. Tes mensurations sont dans l'export de l'app${photosAllowedHere() ? ' ; pas tes photos, trop lourdes' : ''}.</div>
-        ${photosAllowedHere() ? `<div id="photosBox">${photosSectionHtml()}</div>
-        <input type="file" id="photoFile" class="visually-hidden" accept="image/*" aria-hidden="true" tabindex="-1">` : ''}
+        ${photosAllowedHere() ? `<div id="photosBox">${photosSectionHtml()}</div>` : ''}
       </div>
     </div>`;
 }
@@ -218,7 +217,25 @@ async function refreshPhotos(force = false) {
   const box = $('#photosBox');
   if (box) box.innerHTML = photosSectionHtml();
 }
-function mountBodyMeasures() { refreshPhotos(); }
+function mountBodyMeasures() { if (photosEnabled()) photoInput(); refreshPhotos(); }
+
+// Champ fichier de l'ajout de photo : un seul, dans <body> hors de #app. Dans l'écran, un redessin
+// pendant que la photothèque d'iOS est ouverte (synchro, retour au premier plan) le remplaçait, et la
+// photo choisie arrivait sur un champ qui n'était plus dans la page : rien ne se passait
+function photoInput() {
+  let inp = document.getElementById('photoFile');
+  if (inp) return inp;
+  inp = document.createElement('input');
+  Object.assign(inp, { type: 'file', id: 'photoFile', accept: 'image/*', tabIndex: -1, className: 'visually-hidden' });
+  inp.setAttribute('aria-hidden', 'true');
+  inp.addEventListener('change', () => {
+    const file = inp.files?.[0];
+    inp.value = '';   // la même photo choisie deux fois de suite déclenche bien un nouveau change
+    if (file) newPhotoSheet(file);
+  });
+  document.body.appendChild(inp);
+  return inp;
+}
 // Les vignettes restent en mémoire d'un écran de Mesures à l'autre ; libérées en quittant la section
 function leaveBodyMeasures() {
   if (currentView() === 'body-measure' || currentView() === 'body-measures') return;
@@ -266,12 +283,6 @@ async function openPhotoSheet(id) {
 
 document.addEventListener('change', e => {
   const el = e.target;
-  if (el.id === 'photoFile') {
-    const file = el.files?.[0];
-    el.value = '';   // la même photo choisie deux fois de suite déclenche bien un nouveau change
-    if (file) newPhotoSheet(file);
-    return;
-  }
   if (el.classList?.contains('pcmp__sel')) {
     photoCmp = { ...photoCmp, [el.dataset.side]: el.value };
     const box = $('#photosBox');
@@ -293,8 +304,7 @@ registerActions({
   },
   // Un seul tap : le sélecteur de fichier s'ouvre dans le geste (caméra ou pellicule, au choix d'iOS)
   'photo-add': () => {
-    const inp = $('#photoFile');
-    if (!inp) return;
+    const inp = photoInput();
     inp.value = '';
     inp.click();
   },
