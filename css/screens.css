@@ -531,6 +531,8 @@ body.light .imp__ctl { background: var(--cell); }
   .pv-feats { margin: 16px 0 0; gap: 10px; }
   .pv-cta { margin-top: 16px; }
 }
+/* Écrans de 4 pouces : le bouton reste visible sans défiler */
+@media (max-height: 600px) { .pv-intro .pv-lead { display: none; } }
 .pv-dots { display: flex; gap: 16px; margin: 6px 0 26px; }
 .pv-dot { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--label); transition: background-color .12s; }
 .pv-dot--on { background: var(--label); }

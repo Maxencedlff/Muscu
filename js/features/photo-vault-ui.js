@@ -51,6 +51,7 @@ function photoVaultCellHtml() {
 }
 
 // ── Écran ───────────────────────────────────────────────────
+// Barre sans titre : le grand titre est dans l'écran (comme Mesures › une mesure), pas de doublon
 function renderPhotoVault() {
   const open = pv.phase === 'open';
   const right = open ? `<button class="navbar__icon" data-action="pv-lock" aria-label="Verrouiller le coffre">${icon('lock', 22)}</button>`
@@ -64,7 +65,7 @@ function renderPhotoVault() {
   else body = pvPadHtml();
   return `
     <div class="view photo-vault ${open ? 'view--grouped' : 'pv-locked'}">
-      ${navBar({ title: open ? 'Coffre à photos' : '', right })}
+      ${navBar({ title: '', right })}
       <div class="scr">${body}</div>
       <input type="file" id="photoFile" class="visually-hidden" accept="image/*" aria-hidden="true" tabindex="-1">
     </div>`;
