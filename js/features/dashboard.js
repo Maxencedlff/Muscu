@@ -183,7 +183,7 @@ const HERO_TARGETS = 3;
 function targetRowHtml(cat, ex) {
   const t = exerciseTarget(cat, ex);
   const gain = t.gain
-    ? `<span class="targets__gain num">${icon('arrow.up', 11)}${esc(t.gain)}<span class="visually-hidden"> de plus</span></span>` : '';
+    ? `<span class="targets__gain num">${icon('arrow.up', 11)}${esc(t.gain)}<span class="sr-text"> de plus</span></span>` : '';
   const before = t.gain && t.before ? `<span class="targets__before num">avant ${esc(t.before)}</span>` : '';
   return `<li class="targets__row"><span class="targets__name">${esc(ex.name)}</span>`
     + `<span class="targets__val"><span class="targets__now"><span class="targets__target num">${esc(t.text)}</span>${gain}</span>${before}</span></li>`;

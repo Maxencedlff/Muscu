@@ -116,7 +116,7 @@ def t_niveau(bench, eng, dev, theme):
         # proposé, toutes les séries prévues préremplies
         page.evaluate("""data.programmes.ppl.exercises.push = [['dcb', 'Développé couché barre'], ['sqb', 'Squat barre']]
           .map(([id, name]) => ({ id, name, sets: 3, repMax: 5 })); save(); switchTab('train'); render();""")
-        push = page.evaluate("targetsCard('push')")
+        push = page.evaluate("targetsHtml('push')")
         R.check('À battre' in push and '82,5 kg' in push and 'targets__gain' in push, f'{tag} cibles Push : palier de charge depuis la dernière séance')
         page.evaluate("startSession('push')")
         page.wait_for_selector('.ex-card')
