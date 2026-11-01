@@ -15,7 +15,8 @@
 .pay-banner__text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .pay-banner__more {
   flex-shrink: 0; display: inline-flex; align-items: center; gap: 2px;
-  color: var(--tint); font-size: var(--fs-footnote); font-weight: 600;
+  /* label et non tint : le bleu sur fill2 n'atteint pas 4,5:1 (verif_ui --ux) */
+  color: var(--label); font-size: var(--fs-footnote); font-weight: 600;
 }
 /* Après l'essai : un peu plus présent, jamais alarmant */
 .pay-banner--off { background: var(--fill); color: var(--label); }
