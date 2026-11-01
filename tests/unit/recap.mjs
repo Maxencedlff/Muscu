@@ -150,9 +150,9 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
 
   test('recapFavDay / recapFavSlot : favori seulement s\'il revient deux fois et seul en tête', () => inParis(() => {
     const e = (date, duration = 60_000) => ({ date, duration, exercises: [] });
-    assert.equal(app.recapFavDay([e(at(2026, 9, 13)), e(at(2026, 9, 15))]), null, 'deux jours différents');
-    assert.equal(app.recapFavDay([e(at(2026, 9, 13)), e(at(2026, 9, 20)), e(at(2026, 9, 15)), e(at(2026, 9, 22))]), null, 'égalité mardi / jeudi');
-    sameJSON(app.recapFavDay([e(at(2026, 9, 13)), e(at(2026, 9, 20)), e(at(2026, 9, 15))]), { index: 1, label: 'mardi', count: 2 });
+    assert.equal(app.recapFavDay([e(at(2026, 9, 13, 12)), e(at(2026, 9, 15, 12))]), null, 'deux jours différents');
+    assert.equal(app.recapFavDay([e(at(2026, 9, 13, 12)), e(at(2026, 9, 20, 12)), e(at(2026, 9, 15, 12)), e(at(2026, 9, 22, 12))]), null, 'égalité mardi / jeudi');
+    sameJSON(app.recapFavDay([e(at(2026, 9, 13, 12)), e(at(2026, 9, 20, 12)), e(at(2026, 9, 15, 12))]), { index: 1, label: 'mardi', count: 2 });
     sameJSON(app.recapFavSlot([e(at(2026, 9, 13, 7)), e(at(2026, 9, 14, 8)), e(at(2026, 9, 15, 19))]), { slot: 'matin', label: 'le matin', from: 5, to: 12, count: 2, of: 3, all: 3 });
     // L'heure qui compte est le début (date − durée) : fini à 18 h 15 après 1 h 05, commencé l'après-midi
     sameJSON(app.recapFavSlot([e(at(2026, 9, 13, 18, 15), 65 * 60_000), e(at(2026, 9, 14, 18, 15), 65 * 60_000)]).slot, 'apres-midi');
@@ -471,7 +471,8 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(app.recapPages(app.recapStats(month, [...half, ...oct], NOW)).find(p => p.id === 'streak').note, 'Objectif : 2 séances par semaine (ton rythme habituel les 2 mois d\'avant : 2,5)');
     // Semaine : la phrase d'ouverture suit la même règle
     const wk = app.recapPeriod('week', at(2026, 9, 12), NOW);
-    assert.equal(app.recapPages(app.recapStats(wk, [...half, ...oct], NOW))[0].note.endsWith('ton objectif') || app.recapPages(app.recapStats(wk, [...half, ...oct], NOW))[0].note.startsWith('+'), true);
+    const wn = app.recapPages(app.recapStats(wk, [...half, ...oct], NOW))[0].note;
+    assert.ok(!/rythme habituel|objectif/.test(wn), `semaine : ni « rythme habituel » faux ni « objectif » jamais fixé (${wn})`);
     // Objectif tenu moins d'une semaine sur deux : pas d'écran ni de note (rien de bon à dire)
     const rare = [...before, ...week(2026, 8, 28, 3), ...week(2026, 9, 5, 1), ...week(2026, 9, 12, 2), ...week(2026, 9, 26, 1)];
     assert.equal(app.recapRegularity(rare, month).hit, 1);

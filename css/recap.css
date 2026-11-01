@@ -263,8 +263,6 @@ body:not(.light) .recap-card__close::before { background: rgba(255, 255, 255, .1
 @media (max-height: 700px) {
   .rp-list li:nth-child(n+3) { display: none; }
   [data-id="profile"] .rp-pills { display: none; }
-}
-@media (max-height: 700px) {
   .recap-page { padding-top: calc(env(safe-area-inset-top, 0px) + 64px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
   .rp-inner { gap: 6px; }
   .rp-num { font-size: clamp(64px, 20vw, 100px); }

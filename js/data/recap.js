@@ -290,7 +290,7 @@ function recapFavourite(counts) {
 // Jour de la semaine favori : { index (lundi 0), label (« mardi »), count } ou null
 function recapFavDay(sessions) {
   const counts = {};
-  sessions.forEach(h => { const i = dayIndexInWeek(h.date); counts[i] = (counts[i] || 0) + 1; });
+  sessions.forEach(h => { const i = dayIndexInWeek(recapStartOf(h)); counts[i] = (counts[i] || 0) + 1; });   // jour du début, comme le moment
   const fav = recapFavourite(counts);
   return fav ? { index: +fav.key, label: RECAP_DAY_NAME(+fav.key), count: fav.count } : null;
 }
@@ -634,7 +634,7 @@ function recapPages(st) {
   let note = deltas && deltas.sessions > 0 ? recapDeltaText(kind, 'sessions', deltas.sessions) : '';
   if (!note && recapRegShown(reg)) {
     note = kind === 'week'
-      ? (reg.weeks.at(-1).hit ? `${reg.target} séances ou plus, ${recapRegIsUsual(reg) ? 'ton rythme habituel' : 'ton objectif'}` : '')
+      ? (reg.weeks.at(-1).hit ? `${reg.target} séances ou plus${recapRegIsUsual(reg) ? ', ton rythme habituel' : ' cette semaine'}` : '')
       : `${reg.hit} semaines sur ${reg.total} à ${reg.target} séances ou plus${recapRegIsUsual(reg) ? ', ton rythme habituel' : ''}`;
   }
   pages.push({ id: 'sessions', tone: 'lime', kicker, sub: p.label, value: n, caption: nLbl, note,
