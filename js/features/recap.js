@@ -7,7 +7,9 @@
 // js/features/recap-canvas.js. Un récap = des écrans qui s'enchaînent au doigt (défilement horizontal
 // à crans, CSS scroll-snap) ou aux flèches, un chiffre fort par écran, et « Partager » sur chacun.
 
-const RECAP_SEEN_KEY = 'ppl_recap_seen';   // clé de la dernière semaine masquée (croix de la carte de l'accueil)
+const RECAP_SEEN_KEY = 'ppl_recap_hidden';   // clé de la dernière semaine masquée (croix de la carte de l'accueil)
+// Ancienne clé (avant le 01/11/2026) : posée aussi en ouvrant le récap, elle cachait la carte ; ignorée et retirée
+try { localStorage.removeItem('ppl_recap_seen'); } catch { /* stockage indisponible : rien à retirer */ }
 let recapIndex = 0;                         // écran affiché du récap ouvert (gardé entre deux render())
 let recapsShowAll = false;                  // Progrès › Récaps : toutes les semaines (sinon les premières)
 const RECAPS_FIRST_WEEKS = 8;
