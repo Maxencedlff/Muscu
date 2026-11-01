@@ -8,12 +8,14 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) |
 |---|---|---|
-| 1 | `20261031510000_chat_coach_down.sql` | rien |
-| 2 | `20261031500000_commentaires_down.sql` | rien (son en-tête conseille quand même le chat avant) |
-| 3 | `20261031400000_parrainage_down.sql` | rien |
-| 4 | `20261031300000_partage_coach_down.sql` | rien |
-| 5 | `20261031200000_reactions_profil_down.sql` | commentaires (2) : ils réécrivent my_activity et utilisent mark_activity_seen et my_shown_sessions |
-| 6 | `20261031100000_records_series_down.sql` | rien |
+| 1 | `20261031910000_notifications_messages_down.sql` | rien |
+| 2 | `20261031900000_notifications_push_down.sql` | notifications des messages et commentaires (1) : elles remplacent ses fonctions |
+| 3 | `20261031510000_chat_coach_down.sql` | rien |
+| 4 | `20261031500000_commentaires_down.sql` | rien (son en-tête conseille quand même le chat avant) |
+| 5 | `20261031400000_parrainage_down.sql` | rien |
+| 6 | `20261031300000_partage_coach_down.sql` | rien |
+| 7 | `20261031200000_reactions_profil_down.sql` | commentaires (4) : ils réécrivent my_activity et utilisent mark_activity_seen et my_shown_sessions |
+| 8 | `20261031100000_records_series_down.sql` | rien |
 
 ## Ce qui est mis de côté, pas effacé
 
@@ -25,6 +27,8 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 bash tests/sql/rollback_lot3_check.sh     # démontage complet et chaque marche seule
 bash tests/sql/rollback_check.sh          # réactions, avec données
 bash tests/sql/rollback_social_check.sh   # commentaires et chat, avec données
+bash tests/sql/rollback_push_check.sh     # notifications push (après celles des messages)
+bash tests/sql/rollback_push_messages_check.sh   # notifications des messages et commentaires, pg_dump identique
 ```
 
 Postgres local jetable, rien n'est envoyé au projet Supabase.

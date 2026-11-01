@@ -40,7 +40,7 @@ jobs:
       - name: Migrations Supabase (Postgres local, rien d'envoyé au projet)
         run: bash tests/sql/run.sh
       - name: Retours arrière des migrations (Postgres local)
-        run: bash tests/sql/rollback_lot3_check.sh && bash tests/sql/rollback_check.sh && bash tests/sql/rollback_social_check.sh
+        run: bash tests/sql/rollback_lot3_check.sh && bash tests/sql/rollback_check.sh && bash tests/sql/rollback_social_check.sh && bash tests/sql/rollback_push_check.sh && bash tests/sql/rollback_push_messages_check.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)

@@ -115,12 +115,30 @@ Arrêt : `select cron.unschedule('push-send');`.
 
 - App : la build précédente reste dans TestFlight ; les mises à jour à chaud de la build précédente ne
   sont pas touchées (empreinte différente).
-- Serveur : `cron.unschedule('push-send')`, puis `supabase/rollback/20261031900000_notifications_push_down.sql`
+- Serveur : `cron.unschedule('push-send')`, puis `supabase/rollback/20261031910000_notifications_messages_down.sql`
+  s'il est en place, puis `supabase/rollback/20261031900000_notifications_push_down.sql`
   (tables, fonctions et déclencheurs retirés ; bravos, demandes et commentaires intacts).
+
+## Messages du chat et commentaires (branche `nuit2-notifs`, 01/11/2026)
+
+Deux types de plus, « Commentaires » et « Messages », éteints par défaut (contrat : docs/NOTIFICATIONS.md).
+Ordre (le serveur d'abord ; chaque étape seule ne casse rien) :
+
+1. `bash tests/sql/run.sh && bash tests/sql/rollback_push_messages_check.sh`, puis la migration
+   `20261031910000_notifications_messages.sql` (éditeur SQL ou `supabase db push`). L'app d'avant continue
+   de marcher (`push_set_prefs` à 3 arguments gardé ; les deux nouvelles clés de `push_prefs` sont ignorées).
+2. `supabase functions deploy push-send --project-ref yopptmdjtnezmccdvaxf` : textes des deux types
+   (`PUSH_KINDS`). Avant ce déploiement, une notification de ces types serait soldée sans partir
+   (`unknown_kind`) ; personne ne peut encore les allumer tant que l'OTA n'est pas publiée.
+3. OTA de l'app : deux interrupteurs de plus, toucher → la séance commentée ou la conversation. Une app à
+   jour sur un serveur d'avant ne montre pas les deux interrupteurs.
+
+Aucun changement natif : pas de build. Retour arrière : `supabase/rollback/20261031910000_notifications_messages_down.sql`
+(avant celui de `20261031900000`, `supabase/rollback/ORDRE.md`).
 
 ## À brancher plus tard
 
-- Réactions emoji (`lot3-reactions`) et chat du coach (`nuit-social`) : un déclencheur de plus chacun,
-  qui appelle `private.push_enqueue(destinataire, type, auteur, objet)` ; ajouter le type dans la
-  contrainte de `push_outbox.kind`, dans `PUSH_KINDS` (`push-policy.js`) et dans `pushTarget`.
+- Réactions emoji (`lot3-reactions`) : une réaction ajoutée est une ligne `bravos` (déclencheur
+  `bravos_push`, texte « bravo ») ; changer de réaction (mise à jour) ne notifie pas. Un texte par
+  emoji demanderait un type de plus (contrainte de `push_outbox.kind`, `PUSH_KINDS`, `pushTarget`).
 - Badge de l'icône (nombre de non-lus) : non envoyé aujourd'hui.

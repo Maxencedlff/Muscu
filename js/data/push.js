@@ -12,13 +12,17 @@
 // délai) : le marqueur reste, et le jeton est retiré à la connexion suivante d'un AUTRE compte sur cet
 // iPhone (push_release), avant tout le reste.
 // Ce que le serveur reçoit : le jeton APNs de l'appareil, son environnement (production / sandbox) et les
-// trois interrupteurs. Rien d'autre (pas de modèle d'iPhone, pas de données Santé).
+// interrupteurs. Rien d'autre (pas de modèle d'iPhone, pas de données Santé).
 
 const PUSH_KEY = 'mdlf_push';   // { userId, token } : dernier jeton inscrit, pour le retirer à la déconnexion
+// later : types arrivés avec 20261031910000_notifications_messages.sql. Un serveur d'avant ne les renvoie
+// pas dans push_prefs : leurs interrupteurs ne sont pas montrés, et push_set_prefs part avec 3 arguments.
 const PUSH_TYPES = [
   { id: 'reactions', title: 'Bravos', sub: 'Quand quelqu’un dit bravo pour une de tes séances' },
+  { id: 'comments', title: 'Commentaires', sub: 'Quand quelqu’un commente une de tes séances', later: true },
   { id: 'follows', title: 'Demandes d’abonnement', sub: 'Quand quelqu’un veut suivre tes séances' },
   { id: 'coach', title: 'Mon coach', sub: 'Commentaire sur une séance, nouveau programme' },
+  { id: 'messages', title: 'Messages', sub: 'Quand ton coach ou un de tes élèves t’écrit', later: true },
 ];
 
 // prefs : réglages lus sur le serveur (null tant que non lus) ; permission : celle d'iOS
@@ -29,11 +33,16 @@ const pushListeners = [];
 function onPushChange(fn) { pushListeners.push(fn); }
 function notifyPush() { for (const fn of pushListeners) { try { fn(); } catch { /* écran absent */ } } }
 
-// Réponse du serveur → trois booléens (tout ce qui n'est pas exactement true est éteint)
+// Réponse du serveur → un booléen par type (tout ce qui n'est pas exactement true est éteint). Un type
+// « later » n'y est que si le serveur le connaît (il le renvoie en booléen).
 function cleanPushPrefs(raw) {
   const r = raw && typeof raw === 'object' ? raw : {};
-  return { reactions: r.reactions === true, follows: r.follows === true, coach: r.coach === true };
+  const out = {};
+  for (const t of PUSH_TYPES) if (!t.later || typeof r[t.id] === 'boolean') out[t.id] = r[t.id] === true;
+  return out;
 }
+// Types que le serveur connaît (interrupteurs montrés) ; réglages pas encore lus : ceux d'avant
+function pushShownTypes(prefs = push.prefs) { return PUSH_TYPES.filter(t => prefs ? t.id in prefs : !t.later); }
 function pushAnyOn(prefs) { return !!prefs && PUSH_TYPES.some(t => prefs[t.id] === true); }
 
 function pushStored() {
@@ -103,14 +112,15 @@ async function pushReactivate() {
 
 // Allume ou éteint un type. → { ok } ou { ok: false, reason: 'denied' | 'unavailable' | 'register' | <erreur> }
 async function pushSetPref(id, on) {
-  if (!PUSH_TYPES.some(t => t.id === id) || !pushPossible() || push.busy) return { ok: false, reason: 'busy' };
+  if (!pushShownTypes().some(t => t.id === id) || !pushPossible() || push.busy) return { ok: false, reason: 'busy' };
   push.busy = id; notifyPush();
   try {
     if (on) {
       const fail = await pushEnsureDevice();
       if (fail) return { ok: false, reason: fail };
     }
-    const args = { reactions: null, follows: null, coach: null, [id]: on };
+    // null = inchangé ; seulement les types que le serveur connaît (3 ou 5 : PostgREST choisit la version)
+    const args = { ...Object.fromEntries(pushShownTypes().map(t => [t.id, null])), [id]: on };
     const r = await pushRpc('push_set_prefs', args);
     if (!r.ok) return { ok: false, reason: r.kind };
     push.prefs = cleanPushPrefs(r.data);
@@ -167,10 +177,16 @@ async function pushReleaseOther(uid) {
 
 // Écran ouvert par le toucher d'une notification ({ kind, ref } posés par push-send)
 //   → { tab, screen, params } (screen null : racine de l'onglet) ; inconnu : null (l'app s'ouvre simplement).
-// Une séance qui n'est pas (ou plus) sur cet appareil : l'Historique.
-function pushTarget(p, history = []) {
+// Une séance qui n'est pas (ou plus) sur cet appareil : l'Historique. Message : ref = l'élève de la
+// conversation (moi : celle avec mon coach, CHAT_COACH ; un autre : celle avec cet élève).
+const PUSH_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+function pushTarget(p, history = [], me = null) {
   const kind = p?.kind, ref = typeof p?.ref === 'string' ? p.ref : '';
-  if (kind === 'reaction' || kind === 'coach_note') {
+  if (kind === 'chat_message') {
+    if (!PUSH_UUID_RE.test(ref)) return { tab: 'friends', screen: null, params: [] };
+    return { tab: 'friends', screen: 'coach-chat', params: [ref === me ? CHAT_COACH : ref] };
+  }
+  if (kind === 'reaction' || kind === 'coach_note' || kind === 'comment') {
     return ref && history.some(h => h.id === ref)
       ? { tab: 'history', screen: 'history-detail', params: [ref] } : { tab: 'history', screen: null, params: [] };
   }

@@ -16,6 +16,12 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(pushMessage(row({ kind: 'follow_request', ref: '' })).body, 'max.dlf veut suivre tes séances');
     assert.equal(pushMessage(row({ kind: 'coach_note' })).body, 'max.dlf a commenté ta séance');
     assert.equal(pushMessage(row({ kind: 'coach_programme', ref: 'prog1' })).body, 'max.dlf t’a envoyé un programme');
+    sameJSON(pushMessage(row({ kind: 'comment', ref: 's-2' })), { title: 'Nouveau commentaire', body: 'max.dlf a commenté ta séance', kind: 'comment', ref: 's-2' });
+    const uid = '00000000-0000-0000-0000-0000000000aa';
+    sameJSON(pushMessage(row({ kind: 'chat_message', ref: uid })), { title: 'Nouveau message', body: 'max.dlf t’a envoyé un message', kind: 'chat_message', ref: uid });
+    // La ligne de push_claim n'a jamais de texte saisi ; même si elle en avait, il ne partirait pas
+    const sneaky = pushMessage(row({ kind: 'chat_message', ref: uid, body: 'texte privé', text: 'texte privé' }));
+    assert.ok(!JSON.stringify(sneaky).includes('privé'), 'texte saisi dans la notification');
     assert.equal(pushMessage(row({ actor_name: null })).body, 'Quelqu’un t’a dit bravo pour ta séance');
     assert.equal(pushMessage(row({ actor_name: 'a\nb\u0007' })).body.startsWith('ab '), true, 'caractères de contrôle retirés');
     assert.equal([...pushMessage(row({ actor_name: 'x'.repeat(200) })).body].length < 80, true, 'pseudo borné');
@@ -160,8 +166,13 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
 
   test('push : mêmes types et même format de jeton que la migration', async () => {
     const { PUSH_KINDS, validDeviceToken } = await load();
-    const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261031900000_notifications_push.sql'), 'utf8');
-    const kinds = sql.match(/kind in \(([^)]+)\)/)[1].match(/'([a-z_]+)'/g).map(k => k.slice(1, -1));
+    const dir = path.join(ROOT, 'supabase/migrations');
+    const all = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort().map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+    const sql = fs.readFileSync(path.join(dir, '20261031900000_notifications_push.sql'), 'utf8');
+    // Dernière contrainte posée sur push_outbox.kind (la plus récente migration qui l'a changée)
+    const checks = [...all.matchAll(/check \(kind in \(([^)]+)\)\)/g)];
+    const kinds = checks.at(-1)[1].match(/'([a-z_]+)'/g).map(k => k.slice(1, -1));
+    assert.ok(kinds.includes('comment') && kinds.includes('chat_message'));
     sameJSON(Object.keys(PUSH_KINDS).sort(), kinds.sort());
     assert.ok(sql.includes("'^[0-9a-f]{64,200}$'"));
     assert.equal(validDeviceToken(FAKE_TOKEN), true);
@@ -193,6 +204,13 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
   test('push app : réglages nettoyés, tout éteint par défaut', () => {
     sameJSON(run(`cleanPushPrefs({ reactions: true, follows: 'oui', coach: 1, pub: true })`), { reactions: true, follows: false, coach: false });
     sameJSON(run(`cleanPushPrefs(null)`), { reactions: false, follows: false, coach: false });
+    // Serveur à jour : les 5 types ; serveur d'avant (3 clés) : les nouveaux ne sont pas montrés
+    sameJSON(run(`cleanPushPrefs({ reactions: false, follows: false, coach: false, comments: true, messages: false })`),
+      { reactions: false, comments: true, follows: false, coach: false, messages: false });
+    sameJSON(run(`pushShownTypes(cleanPushPrefs({ reactions: true, follows: false, coach: false })).map(t => t.id)`), ['reactions', 'follows', 'coach']);
+    sameJSON(run(`pushShownTypes(cleanPushPrefs({ reactions: true, follows: false, coach: false, comments: false, messages: false })).map(t => t.id)`),
+      ['reactions', 'comments', 'follows', 'coach', 'messages']);
+    assert.equal(run(`pushAnyOn(cleanPushPrefs({ reactions: false, follows: false, coach: false, comments: false, messages: true }))`), true);
     assert.equal(run(`pushAnyOn(cleanPushPrefs({}))`), false);
     assert.equal(run(`pushPossible()`), false, 'navigateur : jamais');
   });
@@ -209,6 +227,23 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       sameJSON(await run(`pushSetPref('reactions', false)`), { ok: true });
       sameJSON(run('__calls'), ['push_set_prefs:{"reactions":false,"follows":null,"coach":null}', `push_unregister:${JSON.stringify({ token: FAKE_TOKEN })}`]);
       assert.equal(run(`localStorage.getItem('mdlf_push')`), null);
+    });
+  });
+
+  test('push app : serveur à jour, les 5 types envoyés (null = inchangé)', async () => {
+    await withFakes({ permission: 'granted', prefs: { reactions: false, follows: false, coach: false, comments: false, messages: false } }, async () => {
+      await run('pushLoad()');
+      run('__calls = []');
+      sameJSON(await run(`pushSetPref('messages', true)`), { ok: true });
+      assert.ok(run('__calls').includes('push_set_prefs:{"reactions":null,"comments":null,"follows":null,"coach":null,"messages":true}'), run('__calls').join(' | '));
+      assert.equal(run('push.prefs.messages'), true);
+    });
+    // Serveur d'avant : un type nouveau ne s'allume pas (aucun appel)
+    await withFakes({ permission: 'granted' }, async () => {
+      await run('pushLoad()');
+      run('__calls = []');
+      sameJSON(await run(`pushSetPref('comments', true)`), { ok: false, reason: 'busy' });
+      assert.ok(!run('__calls').some(c => c.startsWith('push_set_prefs')));
     });
   });
 
@@ -374,6 +409,14 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON(t({ kind: 'coach_note', ref: 'absente' }, [{ id: 's1' }]), { tab: 'history', screen: null, params: [] }, 'séance pas sur cet appareil');
     sameJSON(t({ kind: 'follow_request', ref: '' }), { tab: 'friends', screen: null, params: [] });
     sameJSON(t({ kind: 'coach_programme', ref: 'p1' }), { tab: 'friends', screen: 'coach-mine', params: [] });
+    sameJSON(t({ kind: 'comment', ref: 's1' }, [{ id: 's1' }]), { tab: 'history', screen: 'history-detail', params: ['s1'] });
+    sameJSON(t({ kind: 'comment', ref: '' }, [{ id: 's1' }]), { tab: 'history', screen: null, params: [] }, 'commentaire disparu');
+    const me = '00000000-0000-0000-0000-0000000000a1', student = '00000000-0000-0000-0000-0000000000b2';
+    const tm = (p) => run(`pushTarget(${JSON.stringify(p)}, [], ${JSON.stringify(me)})`);
+    sameJSON(tm({ kind: 'chat_message', ref: me }), { tab: 'friends', screen: 'coach-chat', params: [run('CHAT_COACH')] }, 'élève : avec mon coach');
+    sameJSON(tm({ kind: 'chat_message', ref: student }), { tab: 'friends', screen: 'coach-chat', params: [student] }, 'coach : avec cet élève');
+    sameJSON(tm({ kind: 'chat_message', ref: '../x' }), { tab: 'friends', screen: null, params: [] }, 'ref inattendu : onglet Amis');
+    sameJSON(tm({ kind: 'chat_message', ref: '' }), { tab: 'friends', screen: null, params: [] });
     assert.equal(t({ kind: 'inconnu' }), null);
     assert.equal(t(null), null);
   });

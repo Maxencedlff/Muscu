@@ -116,7 +116,7 @@ Demande de Maxence (feuille de route « Plus tard » : commentaires libres), cho
 - **mots interdits** (français et anglais) refusés avant l'écriture, liste **côté serveur** (`private.comment_words`, complétable sans migration) ;
 - **signalement** d'un commentaire (motifs de la fonction `report`), **masqué automatiquement au 3e signalement** de personnes différentes ;
 - le propriétaire de la séance supprime n'importe quel commentaire de sa séance, l'auteur le sien ;
-- notification dans l'activité de Mon profil (pas de push : il faudrait une build).
+- notification dans l'activité de Mon profil ; push « Commentaires » (facultatif, éteint par défaut) depuis le 01/11/2026 : docs/NOTIFICATIONS.md.
 
 ### Règles
 - **Qui écrit** : le propriétaire de la séance et les personnes qui la voient dans leur fil (`private.can_see`), sur une séance montrable (`private.session_shown` : ni supprimée, ni masquée). Social de l'appelant requis (`social_not_enabled`). Ailleurs : `not_found`.
