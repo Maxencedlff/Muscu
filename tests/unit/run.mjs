@@ -27,6 +27,8 @@ const SCRIPTS = [
   'js/data/plates.js',
   'js/data/warmup.js',
   'js/data/rir.js',
+  'js/data/strength-standards.js',
+  'js/data/strength-levels.js',
   'js/data/body-measures.js',
   'js/data/store.js',
   'js/data/records.js',
@@ -1521,6 +1523,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./health.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Notifications push : fonction serveur push-send (tests dans push.mjs) ──
 (await import('./push.mjs')).default({ test, run, assert, sameJSON, ROOT });
+// ── Niveau de force (tests dans strength-levels.mjs) ──
+(await import('./strength-levels.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Exécution ───────────────────────────────────────────────
 

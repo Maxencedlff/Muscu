@@ -61,6 +61,7 @@ ${renderAccountGroup()}
             </div>
           </div>
           ${renderBodyWeightSetting()}
+          ${strengthSexSettingHtml()}
           <button class="cell" data-action="setting-rir" role="switch" aria-checked="${rirShown()}">
             <span class="cell__body"><span class="cell__title">Noter le RIR</span>
               <span class="cell__sub">Reps en réserve après chaque série, facultatif</span></span>

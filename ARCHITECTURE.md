@@ -39,7 +39,7 @@ js/ui/                infrastructure d'écran : thème, navigation, barres, feui
 js/features/          un fichier (ou plusieurs) par écran ou fonctionnalité
 js/app/               mises à jour du service worker, démarrage et écouteurs globaux
 tests/                tests de non-régression Playwright (Python) et tests unitaires (tests/unit/)
-scripts/              construction de l'app iOS (build-web.mjs, empreinte native runtime-version.mjs), mises à jour à chaud, images de la marque (brand-icons.py)
+scripts/              construction de l'app iOS (build-web.mjs, empreinte native runtime-version.mjs), mises à jour à chaud, images de la marque (brand-icons.py), seuils du niveau de force (strength-standards.py)
 ```
 
 ### css/
@@ -56,6 +56,7 @@ scripts/              construction de l'app iOS (build-web.mjs, empreinte native
 | `muscles.css` | Silhouette musculaire, pastilles de muscles, carte « Muscles » de Progrès, écran Séries par muscle, feuille « Muscles ciblés » |
 | `share.css` | Partage de séance : bouton « Partager ma séance », aperçu de l'image au format 9:16 |
 | `recap.css` | Récaps : carte « Ta semaine » de l'accueil, écrans côte à côte (scroll-snap), chiffre énorme en SF Rounded, listes et tuiles du résumé, points et flèches, arrivée légère (coupée avec prefers-reduced-motion) |
+| `strength-levels.css` | Niveau de force : échelle à cinq segments des fiches d'exercice, « Nouveau palier » du bilan |
 | `account.css` | Compte : calque plein écran (Bienvenue, e-mail, code, pseudo, avatar), boutons de connexion aux chartes Apple et Google (tokens `--siwa-*`, `--gsi-*`), écran Compte, cellule des Réglages, carte de l'accueil |
 | `social.css` | Amis : badge de l'onglet, accueil de l'onglet (sans compte, activation), lignes de personnes et petits boutons arrondis, cartes du fil, bouton de réaction, profil d'un autre, Mon profil (carte d'athlète, régularité sur 12 semaines, dernière séance, aperçu des séances, records, activité groupée, « Tout voir ») |
 | `coach.css` | Coach : cellule en haut de l'onglet Amis, pastilles de nouveautés, programmes reçus, consignes (Programme › Séance, séance en cours), séances d'un élève, codes d'invitation, saisie des consignes et du commentaire |
@@ -84,6 +85,8 @@ Un renommage de classe touche CSS, gabarits HTML et tests ensemble.
 | `plates.js` | Disques (logique pure, chargé avant `store.js`) : exercices à barre, barre et disques de la personne (`data.plates`, propre à l'appareil, `cleanPlates`), répartition par côté. Feuille dans `js/features/session-tools.js` |
 | `warmup.js` | Échauffement (chargé avant `store.js`) : paliers 40 / 60 / 80 %, `isWarmupSet`, `workSets` (séries de travail : volume, records, séries, récaps, muscles excluent `warmup: true`) |
 | `rir.js` | RIR facultatif d'une série validée (`rir` 0 à 4, `cleanRir`, équivalence RPE de Zourdos), réglage `data.rirOn` (appareil), `meanRpe`, `rirLine` |
+| `strength-standards.js` | Seuils du niveau de force (`STRENGTH_STANDARDS` : squat, développé couché, soulevé de terre ; hommes et femmes ; par catégorie de poids), **générés** par `scripts/strength-standards.py` depuis l'export public d'OpenPowerlifting. Ne pas modifier à la main |
+| `strength-levels.js` | Niveau de force, logique pure et locale (chargé avant `store.js` : `STRENGTH_SEXES` sert au nettoyage) : `STRENGTH_LIFTS` (3 exercices à barre), `STRENGTH_SEXES`, `strengthLiftOf`, `strengthSex` (Réglages › Entraînement › Sexe, null sans réponse ou « Ne pas préciser »), `strengthThresholds` (catégorie de poids), `liftBestE1rm` (90 jours), `strengthStanding`, `sessionStrengthLevels` (bilan, palier franchi). Méthode et source : docs/ENTRAINEMENT.md |
 | `import-csv.js` | Import Hevy / Strong, logique pure : lecture CSV, format, dates, correspondance des noms (`matchImportedExercise`, `IMPORT_ALIASES`), conversion (RPE → `rir`, échauffements gardés → `warmup: true`), dédoublonnage, `applyImport`. Formats : docs/IMPORT_CSV.md |
 | `body-measures.js` | Mensurations (`data.bodyMeasures`, LOCAL ONLY dans `SYNC_LOCAL_ONLY`) : mesures, nettoyage, courbes |
 | `progress-photos.js` | Photos de progression dans IndexedDB (`mdlf-photos`, jamais dans `data` ni dans l'export), réduction JPEG 1200 px, `photoGapDays` (écart de la comparaison en jours du calendrier), `photosWipe` appelé par `wipeLocalData` |
@@ -191,6 +194,7 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | `share-canvas.js` | Partage de séance, dessin : `drawStory` (story Instagram 1080 × 1920, Canvas 2D, zones sûres), couleurs des tokens, point d'accroche `shareStoryHooks.muscleMap` pour la carte des muscles |
 | `share.js` | Partage de séance, écran : bouton du bilan et d'Historique › Séance, feuille d'aperçu commune `openStoryPreview(state, draw)` (séance, écran d'un récap), partage (`Native.shareImage` dans l'app iOS, `navigator.share` ou téléchargement dans la PWA) |
 | `recap-canvas.js` | Récaps, dessin : `drawRecapStory` (un écran en story 1080 × 1920, mêmes aides, zones sûres et signature que `share-canvas.js`), `renderRecapStory` |
+| `strength-levels-ui.js` | Niveau de force, écrans : groupe « Niveau de force » (`strengthGroupHtml`, Bibliothèque › Exercice et Progrès › Exercice ; sans sexe indiqué, 1RM estimé sans palier), bilan (`summaryStrengthHtml`), cellule Réglages › Entraînement › Sexe (`strengthSexSettingHtml`), actions `set-strength-sex`, `strength-info` |
 | `recap.js` | Récaps, écrans : carte « Ta semaine » de l'accueil (`recapHomeCard`, vue → `ppl_recap_seen`, réglage `data.recapCardOff`), Progrès › Récaps (`renderRecaps`), écrans qui s'enchaînent (`renderRecap` : défilement horizontal à crans, points, flèches, clavier), « Partager » de chaque écran |
 
 ### js/app/
@@ -264,6 +268,7 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
   bodyWeightKg: 72.5, bodyWeightLog: [{ date, kg }],   // facultatifs : poids saisi et pesées (une par jour, 400 au plus) ; jamais sur le compte (SYNC_LOCAL_ONLY)
   silhouette: 'female' | 'male',             // facultatif : carte des muscles (absent = homme), synchronisé
   lastExport: 1712345678901,                 // facultatif
+  strengthSex: 'male' | 'female' | 'none',   // facultatif : Réglages › Entraînement › Sexe (repères du niveau de force), appareil seulement
   history: [{ id, programme, category, date, duration?, notes, hidden?,   // hidden : true = masquée aux abonnés (Amis)
               exercises: [{ exId, name, sets: [{ weight, reps }] }] }],   // triée du plus récent au plus ancien
 }
