@@ -18,7 +18,7 @@ const RECAP_KINDS = {
   year:  { title: 'Ton année',   prevTo: 'à l\'année d\'avant',   prev: 'l\'année d\'avant',   color: 'var(--orange)' },
 };
 const RECAP_KEY_RE = /^(w\d{4}-\d{2}-\d{2}|m\d{4}-\d{2}|y\d{4})$/;
-const RECAP_CARD_SUNDAY_HOUR = 18;   // la carte « Ta semaine » apparaît le dimanche à partir de 18 h
+const RECAP_CARD_MONDAY_UNTIL = 12;   // la carte « Ta semaine » reste le lundi jusqu'à midi
 const RECAP_YEAR_FROM_MONTH  = 11;   // « Bilan de l'année » de l'année en cours : à partir du 1er décembre
 const RECAP_OTHER_RECORDS    = 3;    // autres records listés sous le plus marquant (écran et image), puis « et N autres »
 
@@ -529,17 +529,17 @@ function recapStats(p, history = data.history, now = Date.now()) {
 
 // ── Quand montrer quoi ──────────────────────────────────────
 
-// Semaine que la carte de l'accueil propose : la semaine en cours le dimanche à partir de 18 h, la
-// semaine passée le lundi ; null le reste du temps
+// Semaine que la carte de l'accueil propose : la semaine en cours tout le dimanche, la semaine passée le
+// lundi jusqu'à midi ; null le reste du temps
 function recapCardWeek(now = Date.now()) {
   const day = dayIndexInWeek(now);
-  if (day === 6 && new Date(now).getHours() >= RECAP_CARD_SUNDAY_HOUR) return recapPeriod('week', now, now);
-  if (day === 0) return recapPeriod('week', addDays(now, -7), now);
+  if (day === 6) return recapPeriod('week', now, now);
+  if (day === 0 && new Date(now).getHours() < RECAP_CARD_MONDAY_UNTIL) return recapPeriod('week', addDays(now, -7), now);
   return null;
 }
 
 // Carte « Ta semaine » à afficher : { period, totals } ou null (réglage coupé, pas le moment, semaine
-// sans séance, ou récap déjà vu : seenKey est la clé de la dernière semaine ouverte)
+// sans séance, ou carte masquée : seenKey est la clé de la dernière semaine masquée par la croix)
 function recapCardInfo({ history = data.history, now = Date.now(), seenKey = null, off = false } = {}) {
   if (off) return null;
   const p = recapCardWeek(now);
@@ -549,7 +549,7 @@ function recapCardInfo({ history = data.history, now = Date.now(), seenKey = nul
 }
 
 // Listes de Progrès › Récaps, de la plus récente à la plus ancienne, chacune avec ses totaux :
-// semaines terminées (et celle de la carte le dimanche soir), mois terminés, années (les précédentes,
+// semaines terminées (et celle de la carte le dimanche), mois terminés, années (les précédentes,
 // et celle en cours à partir du 1er décembre). Seulement celles qui ont au moins une séance.
 function recapList({ history = data.history, now = Date.now() } = {}) {
   const hist = (history || []).filter(h => h && h.date < now);

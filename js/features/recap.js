@@ -7,7 +7,7 @@
 // js/features/recap-canvas.js. Un récap = des écrans qui s'enchaînent au doigt (défilement horizontal
 // à crans, CSS scroll-snap) ou aux flèches, un chiffre fort par écran, et « Partager » sur chacun.
 
-const RECAP_SEEN_KEY = 'ppl_recap_seen';   // clé de la dernière semaine ouverte depuis la carte de l'accueil
+const RECAP_SEEN_KEY = 'ppl_recap_seen';   // clé de la dernière semaine masquée (croix de la carte de l'accueil)
 let recapIndex = 0;                         // écran affiché du récap ouvert (gardé entre deux render())
 let recapsShowAll = false;                  // Progrès › Récaps : toutes les semaines (sinon les premières)
 const RECAPS_FIRST_WEEKS = 8;
@@ -48,7 +48,7 @@ function recapHomeCard() {
   const body = Object.keys(levels).length ? bodyMapHtml(levels, { view: 'front', className: 'recap-card__body' }) : '';
   return `
     <section class="recap-card${body ? ' recap-card--body' : ''}" aria-label="Ta semaine">
-      <button class="recap-card__open" data-action="open-recap" data-key="${esc(p.key)}" data-from="card">
+      <button class="recap-card__open" data-action="open-recap" data-key="${esc(p.key)}">
         <span class="recap-card__kicker">Ta semaine · ${esc(p.short)}</span>
         <span class="recap-card__title">${esc(head)}</span>
         <span class="recap-card__chips">${chips.map(c => `<span class="recap-card__chip num">${esc(c)}</span>`).join('')}</span>
@@ -331,15 +331,14 @@ async function openRecapShare(key, index = recapIndex) {
     canvas => renderRecapStory(page, st, canvas));
 }
 
-function openRecap(key, from = null) {
+function openRecap(key) {
   if (!recapPeriodFromKey(key)) return;
   recapIndex = 0;
-  if (from === 'card') setRecapSeen(key);
   navigate(makeRoute('recap', key));
 }
 
 registerActions({
-  'open-recap':      (e, el) => { openRecap(el.dataset.key, el.dataset.from); },
+  'open-recap':      (e, el) => { openRecap(el.dataset.key); },
   'recap-card-hide': (e, el) => { setRecapSeen(el.dataset.key); render(); showToast('Le récap reste dans Progrès › Récaps'); },
   'go-recaps':       () => { recapsShowAll = false; navigate('recaps'); },
   'recaps-more':     () => { recapsShowAll = true; render(); },
