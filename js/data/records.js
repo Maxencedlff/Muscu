@@ -397,8 +397,7 @@ function recentRecords(history = data.history, max = 3, scan = 60) {
 
 // Records recalculés d'une séance d'avant les records notés, gardés par séance tant que l'historique a la
 // même empreinte : même tableau, nombre de séances, plus récente, unité et version des données (dataVersion,
-// +1 à chaque save(), js/data/store.js : séance passée modifiée, exercice renommé). Même principe que
-// muscleLastCache (accueil). Le résultat est partagé : les appelants le copient avant de le trier.
+// +1 à chaque save(), js/data/store.js : séance passée modifiée, exercice renommé). Le résultat est partagé : les appelants le copient avant de le trier.
 const legacyRecordsCache = new WeakMap();
 function legacyRecords(h, history) {
   if (!h || !Array.isArray(history)) return sessionRecords(h, history);
