@@ -2,8 +2,8 @@
 //  Coffre à photos (js/data/photo-vault.js) : clé du trousseau, chiffrement, verrouillage
 // ═══════════════════════════════════════════════════════════
 //
-// Le trousseau d'iOS n'existe pas ici : Native.vault est remplacé par un faux module qui tire une clé de
-// test au hasard à chaque création (jamais une vraie clé). IndexedDB n'existe pas sous Node non plus :
+// Le trousseau iCloud n'existe pas ici : Native.vault est remplacé par un faux module, une clé de test tirée
+// au hasard par identifiant de coffre (jamais une vraie clé). IndexedDB n'existe pas sous Node non plus :
 // photoMetaGet / photoMetaPut / photoPutRow / photoRowsAll sont remplacés par des tables en mémoire.
 
 export default function ({ test, run, assert, app }) {
@@ -16,11 +16,12 @@ export default function ({ test, run, assert, app }) {
     app.__fakeUnlock = unlock || (async () => (app.__fakeKey ? { key: app.__fakeKey } : { missing: true }));
     app.__fakeKey = randomKeyB64();
     app.__calls = [];
+    app.__ids = [];
     run(`(() => {
       Native.vault.available = true;
-      Native.vault.create = async reason => { __calls.push('create'); return __fakeCreate(reason); };
-      Native.vault.unlock = async reason => { __calls.push('unlock'); return __fakeUnlock(reason); };
-      Native.vault.forget = async () => { __calls.push('forget'); __fakeKey = null; };
+      Native.vault.create = async (reason, id) => { __calls.push('create'); __ids.push(id); return __fakeCreate(reason, id); };
+      Native.vault.unlock = async (reason, id) => { __calls.push('unlock'); __ids.push(id); return __fakeUnlock(reason, id); };
+      Native.vault.forget = async id => { __calls.push('forget:' + id); __fakeKey = null; };
       Native.vault.shield = () => {};
     })()`);
   }
@@ -63,8 +64,9 @@ export default function ({ test, run, assert, app }) {
     app.__k1 = randomKeyB64(); app.__k2 = randomKeyB64();
     const dek = await run('vaultImportKey(__k1)');
     app.__dek = dek;
-    const meta = await run('vaultCreateMeta(__dek, 1760000000000)');
-    assert.deepEqual(Object.keys(meta).sort(), ['check', 'checkIv', 'created', 'k', 'v']);
+    const meta = await run('vaultCreateMeta(__dek, "0123456789abcdef0123456789abcdef", 1760000000000)');
+    assert.deepEqual(Object.keys(meta).sort(), ['check', 'checkIv', 'created', 'id', 'k', 'v']);
+    assert.equal(meta.id, '0123456789abcdef0123456789abcdef');
     assert.ok(!JSON.stringify(meta).includes(app.__k1), 'la clé n\'est pas dans les réglages');
     app.__meta = meta;
     assert.equal(await run('vaultCheckKey(__meta, __dek)'), true);
@@ -102,6 +104,10 @@ export default function ({ test, run, assert, app }) {
     assert.deepEqual({ ok: r.ok, migrated: r.migrated }, { ok: true, migrated: 1 });
     assert.deepEqual(app.__calls, ['create']);
     assert.equal(run('vaultIsOpen()'), true);
+    const meta = run('__meta.get("vault")');
+    assert.match(meta.id, /^[0-9a-f]{32}$/, 'identifiant de clé de 128 bits');
+    assert.equal(app.__ids[0], meta.id, 'clé demandée sous l\'identifiant du coffre');
+    assert.ok(!meta.pending && meta.check, 'réglages complets');
     assert.equal(run('__legacy.length'), 0, 'ancienne base supprimée après la migration');
     const { photos } = await run('vaultPhotos()');
     assert.equal(photos.length, 1);
@@ -110,19 +116,29 @@ export default function ({ test, run, assert, app }) {
     run('vaultLock("manual")');
   });
 
-  test('coffre : création refusée par iOS, rien n\'est écrit et les photos en clair restent', async () => {
+  test('coffre : création refusée par iOS, seul l\'identifiant est écrit, photos en clair gardées, même clé au nouvel essai', async () => {
     const jpeg = new Uint8Array(10).fill(1);
     fakeStore({ legacy: [{ id: 'phold1', date: 1, pose: 'face', bytes: 10, w: 1, h: 1, type: 'image/jpeg', buf: jpeg.buffer }] });
+    let firstId = null;
     for (const refusal of [{ canceled: true }, { nopasscode: true }, { failed: true }, null]) {
       fakeVault({ create: async () => refusal });
       const r = await run('vaultSetup()');
       assert.equal(r.ok, false);
       if (refusal) assert.equal(r[Object.keys(refusal)[0]], true, `raison gardée : ${JSON.stringify(refusal)}`);
       else assert.equal(r.failed, true);
-      assert.equal(await run('vaultMeta()'), null, 'aucun réglage écrit');
+      const m = await run('vaultMeta()');
+      assert.ok(m.pending && !m.check, 'seulement l\'identifiant, sans témoin');
+      app.__m = m;
+      assert.equal(run('vaultReady(__m)'), false, 'coffre pas créé');
+      firstId ||= m.id;
+      assert.equal(app.__ids[0], firstId, 'chaque essai demande la même clé : jamais une 2e clé orpheline');
       assert.equal(run('__legacy.length'), 1, 'photos en clair gardées');
       assert.equal(run('vaultIsOpen()'), false);
     }
+    fakeVault();
+    assert.equal((await run('vaultSetup()')).ok, true, 'essai réussi');
+    assert.equal(app.__ids[0], firstId, 'avec l\'identifiant écrit au premier essai');
+    run('vaultLock("manual")');
   });
 
   test('coffre : ouverture par le trousseau, clé absente ou d\'un autre coffre = « illisible »', async () => {
@@ -146,19 +162,24 @@ export default function ({ test, run, assert, app }) {
     assert.equal(run('vaultIsOpen()'), false);
   });
 
-  test('coffre : vidé quand il est illisible, les photos en clair pas encore rangées sont gardées', async () => {
+  test('coffre : vidé quand il est illisible, sans toucher à la clé ni aux photos en clair ; tout supprimer retire la clé', async () => {
     const jpeg = new Uint8Array(10).fill(2);
     fakeStore();
     fakeVault();
     await run('vaultSetup()');
+    const id = run('__meta.get("vault").id');
     app.__legacy = [{ id: 'phold9', date: 2, pose: 'back', bytes: 10, w: 1, h: 1, type: 'image/jpeg', buf: jpeg.buffer }];
     run('vaultLock("manual")');
-    assert.equal(await run('vaultReset({ keepLegacy: true })'), true);
+    assert.equal(await run('vaultReset({ keep: true })'), true);
     assert.equal(await run('vaultMeta()'), null);
     assert.equal(run('__rows.size'), 0);
     assert.equal(run('__legacy.length'), 1, 'photo en clair gardée pour le prochain coffre');
-    assert.ok(app.__calls.includes('forget'), 'clé retirée du trousseau');
+    assert.ok(!app.__calls.some(c => c.startsWith('forget')), 'clé laissée : elle peut encore servir à un autre iPhone');
+    await run('vaultSetup()');
+    const id2 = run('__meta.get("vault").id');
+    assert.notEqual(id2, id, 'nouveau coffre, nouvelle clé : aucun conflit avec l\'ancienne dans le trousseau iCloud');
     await run('vaultReset()');
+    assert.ok(app.__calls.includes(`forget:${id2}`), '« Supprimer toutes les données » : clé de ce coffre retirée');
     assert.equal(run('__legacy.length'), 0, '« Supprimer toutes les données » : tout part');
   });
 

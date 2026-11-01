@@ -46,10 +46,10 @@ const Native = (() => {
 
   // Coffre à photos : appel au module, réponse réduite à { key } ou à la raison de l'échec
   const VAULT_ERRORS = { CANCELED: 'canceled', NOT_FOUND: 'missing', NO_PASSCODE: 'nopasscode' };
-  const vaultCall = async (method, reason) => {
+  const vaultCall = async (method, reason, id) => {
     if (!hasVault) return { failed: true };
     try {
-      const r = await Vault[method]({ reason });
+      const r = await Vault[method]({ reason, id });
       return typeof r?.key === 'string' && r.key ? { key: r.key } : { failed: true };
     } catch (e) { return { [VAULT_ERRORS[e?.code] || 'failed']: true }; }
   };
@@ -452,9 +452,9 @@ const Native = (() => {
       },
     },
 
-    // Coffre à photos (js/data/photo-vault.js) : clé du coffre dans le trousseau d'iOS, rendue après Face ID
-    // ou le code de l'iPhone, et écran de confidentialité. available : faux dans le navigateur et dans une
-    // coquille sans le module ; le coffre est alors indisponible (aucune clé ailleurs que dans le trousseau).
+    // Coffre à photos (js/data/photo-vault.js) : clé du coffre dans le trousseau iCloud (une par coffre, id),
+    // rendue après Face ID ou le code de l'iPhone, et écran de confidentialité. available : faux dans le
+    // navigateur et dans une coquille sans le module ; le coffre est alors indisponible.
     vault: {
       available: hasVault,
       // { biometry: 'faceID' | 'touchID' | 'opticID' | 'none', passcode: code de l'iPhone en place } ; en cas
@@ -467,9 +467,10 @@ const Native = (() => {
       // Création (create) ou ouverture (unlock) : { key } (base64, 32 octets) ; sinon { canceled } (annulé,
       // app quittée), { missing } (pas de clé sur cet iPhone), { nopasscode } (aucun code sur l'iPhone),
       // { failed } (le reste, module absent compris)
-      async create(reason) { return vaultCall('create', reason); },
-      async unlock(reason) { return vaultCall('unlock', reason); },
-      async forget() { if (hasVault) { try { await Vault.forget(); } catch { /* déjà absente */ } } },
+      async create(reason, id) { return vaultCall('create', reason, id); },
+      async unlock(reason, id) { return vaultCall('unlock', reason, id); },
+      // Clé retirée du trousseau, donc de tous les appareils du trousseau iCloud
+      async forget(id) { if (hasVault && id) { try { await Vault.forget({ id }); } catch { /* déjà absente */ } } },
       // Écran de confidentialité natif (flou posé par iOS avant la capture du sélecteur d'apps)
       shield(on) { if (hasVault) quiet(Vault.shield({ on: !!on })); },
     },

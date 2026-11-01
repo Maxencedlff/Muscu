@@ -7,7 +7,8 @@
 //    d'emblée en entrant, et par le bouton « Ouvrir ».
 //  - ouvert : résumé, curseur avant / après, grille par date.
 //  - à part : coffre indisponible (navigateur, coquille sans le module), iPhone sans code, coffre illisible
-//    (clé absente de cet iPhone : sauvegarde restaurée sur un autre iPhone).
+//    pour l'instant (clé pas encore arrivée par le trousseau iCloud sur un nouvel iPhone, ou restée sur
+//    l'ancien) : réessayer d'abord, vider seulement en dernier recours.
 // Refermé en quittant l'écran (leave), quand l'app passe en arrière-plan (visibilitychange) et après
 // une minute sans toucher l'écran (vaultTouch). Dans le sélecteur d'apps, le contenu est masqué
 // (classe pv-shield, et flou natif posé par le module).
@@ -72,14 +73,14 @@ function pvCenterHtml() {
       : 'Le coffre s\'ouvre avec Face ID ou le code de l\'iPhone : il n\'existe que dans l\'app iPhone.' },
     error: { title: 'Coffre à photos', text: 'Le coffre ne s\'ouvre pas pour l\'instant.', retry: 'Réessayer' },
     nopasscode: { title: 'Code de l\'iPhone requis', text: 'Le coffre s\'ouvre avec Face ID ou le code de ton iPhone. Active un code dans Réglages › Face ID et code, puis reviens ici.', retry: 'Réessayer' },
-    missing: { title: 'Coffre illisible sur cet iPhone', text: `La clé du coffre est restée sur l'iPhone où il a été créé : ${pv.count ? plural(pv.count, 'photo ne peut', 'photos ne peuvent') + ' pas s\'ouvrir ici' : 'son contenu ne peut pas s\'ouvrir ici'}. Tu peux le vider pour en créer un nouveau.`, retry: 'Réessayer', reset: true },
+    missing: { title: 'Coffre illisible pour l\'instant', text: `La clé de ton coffre n'est pas encore sur cet iPhone${pv.count ? ` (${plural(pv.count, 'photo', 'photos')})` : ''}. Sur un nouvel iPhone, elle arrive avec le trousseau iCloud, parfois après un moment : réessaie plus tard. Si le trousseau iCloud était désactivé sur l'ancien iPhone, la clé y est restée.`, retry: 'Réessayer', reset: true },
   }[ph] || { title: 'Coffre à photos', text: '' };
   return `
         <div class="pv-center">
           <div class="pv-glyph pv-glyph--sm" aria-hidden="true">${icon('lock', 26)}</div>
           <h1 class="pv-title" id="pvTitle" tabindex="-1">${view.title}</h1>
           <p class="pv-sub">${esc(view.text)}</p>
-          ${view.retry ? `<button class="btn btn--secondary pv-cta" data-action="pv-retry">${view.retry}</button>` : ''}
+          ${view.retry ? `<button class="btn ${view.reset ? 'btn--primary' : 'btn--secondary'} pv-cta" data-action="pv-retry">${view.retry}</button>` : ''}
           ${view.reset ? `<button class="pv-link pv-link--danger" data-action="pv-reset">Vider le coffre…</button>` : ''}
         </div>`;
 }
@@ -96,7 +97,7 @@ function pvIntroHtml() {
             ${feat('lock', `Ouvert avec ${esc(pvHowText())}`, 'Pas de code en plus à retenir. Chiffrées sur ton iPhone, jusque dans ses sauvegardes.')}
             ${feat('timer', 'Refermé dès que tu pars', 'Quand tu quittes l\'app, ou après une minute sans toucher l\'écran.')}
             ${feat('eye.slash', 'Rien ne sort du coffre', 'Ni dans ta pellicule, ni dans l\'export, ni sur nos serveurs, ni chez ton coach.')}
-            ${feat('info.circle', 'Lié à cet iPhone', 'La clé ne quitte jamais cet iPhone : sur un nouvel iPhone, les photos du coffre ne suivent pas.')}
+            ${feat('info.circle', 'Te suit sur un nouvel iPhone', 'La clé du coffre est dans ton trousseau iCloud, chiffré de bout en bout. Active-le pour retrouver ton coffre sur un nouvel iPhone.')}
           </ul>
           ${pv.legacy ? `<p class="pv-note">${plural(pv.legacy, 'photo déjà prise y sera rangée', 'photos déjà prises y seront rangées')}.</p>` : ''}
           ${pv.err ? `<p class="pv-sub pv-sub--err" id="pvMsg" role="alert">${esc(pv.msg)}</p>` : ''}
@@ -139,7 +140,7 @@ function pvOpenHtml() {
             <div class="pgal__row">${PHOTO_POSES.map(([k, l]) => `<button class="pv-slot" data-action="photo-add" data-pose="${k}" aria-label="Ajouter une photo : ${l}">${icon('plus', 22)}<span>${l}</span></button>`).join('')}</div>
             <p class="cell__sub">Une photo de temps en temps, pour voir ce que la balance ne dit pas.</p></div>`}
         </div>
-        <div class="group-foot">${list.length ? `${fmtBytes(photosTotalBytes(list))}, chiffrées sur ton iPhone. ` : ''}Hors de l'export et de la copie iCloud de l'app. La sauvegarde de l'iPhone les garde chiffrées et ne les rouvre que sur cet iPhone : sur un nouvel iPhone, elles ne suivent pas. Rien n'est montré à tes amis ni à ton coach.</div>`;
+        <div class="group-foot">${list.length ? `${fmtBytes(photosTotalBytes(list))}, chiffrées sur ton iPhone. ` : ''}Hors de l'export et de la copie iCloud de l'app ; chiffrées dans la sauvegarde de l'iPhone. Sur un nouvel iPhone, elles se rouvrent grâce au trousseau iCloud. Rien n'est montré à tes amis ni à ton coach.</div>`;
 }
 
 // Avant / après : les deux photos superposées, un curseur découvre l'une sur l'autre.
@@ -202,12 +203,12 @@ async function mountPhotoVault({ first } = {}) {
   let meta, st, legacy = 0;
   try {
     [meta, st] = await Promise.all([vaultMeta(), Native.vault.status()]);
-    if (!meta) legacy = await vaultLegacyCount();
+    if (!vaultReady(meta)) legacy = await vaultLegacyCount();
   } catch { if (pvCurrent(epoch)) { pv = { ...pv, phase: 'error' }; pvPaint(); } return; }
   if (!pvCurrent(epoch)) return;   // écran quitté pendant la lecture
   pv = { ...pv, msg: '', err: false, bioType: st.biometry, legacy, count: 0 };
   if (!st.passcode) { pv.phase = 'nopasscode'; pvPaint(); return; }
-  if (!meta) { pv.phase = 'intro'; pvPaint(); return; }
+  if (!vaultReady(meta)) { pv.phase = 'intro'; pvPaint(); return; }   // rien, ou création pas aboutie
   // Clé absente de cet iPhone : la lecture répond « absente » sans rien demander (écran « illisible »)
   pv.phase = 'locked';
   pvPaint();
@@ -219,12 +220,12 @@ function leavePhotoVault() {
   pv.phase = 'loading';
   pvShownPhase = null;
 }
-// Coffre illisible ici (clé absente, ou clé d'un autre coffre) : nombre de photos concernées, puis l'écran
+// Coffre illisible ici (clé pas encore arrivée, ou qui ne correspond pas) : nombre de photos, puis l'écran
 async function pvMissing(epoch) {
   const count = await photoRowsCount().catch(() => -1);
   if (!pvCurrent(epoch)) return;
-  if (count === 0) {   // coffre vide : rien à perdre, on repart directement de la présentation
-    await vaultReset({ keepLegacy: true });
+  if (count === 0) {   // coffre vide : rien à perdre, on repart directement de la présentation (nouvelle clé)
+    await vaultReset({ keep: true });
     const legacy = await vaultLegacyCount();
     if (currentView() === 'photo-vault') { pv = { ...pv, phase: 'intro', legacy, count: 0, msg: '', err: false }; pvPaint(); }
     return;
@@ -311,14 +312,14 @@ async function pvOpenVault() {
   await pvLoadPhotos();
 }
 
-// ── Coffre illisible : le vider pour repartir de zéro ──────
+// ── Coffre illisible : le vider en dernier recours (la clé peut encore arriver par le trousseau iCloud) ──
 async function pvReset() {
   const n = pv.count || await photoRowsCount().catch(() => 0);
   const ok1 = await dialog({ title: n ? `Effacer ${plural(n, 'photo', 'photos')} ?` : 'Vider le coffre ?',
-    message: 'Leur clé n\'est pas sur cet iPhone : personne ne peut plus les ouvrir ici, pas même nous. Elles seront supprimées de cet iPhone, et tu pourras créer un nouveau coffre.',
+    message: 'Si la clé arrive plus tard par le trousseau iCloud, il sera trop tard : ces photos seront supprimées de cet iPhone. Tu pourras ensuite créer un nouveau coffre.',
     actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Effacer', value: true, style: 'destructive' }] });
   if (!ok1) return;
-  const ok = await vaultReset({ keepLegacy: true });
+  const ok = await vaultReset({ keep: true });
   const legacy = await vaultLegacyCount();
   pv = { ...pv, phase: 'intro', legacy, count: 0, msg: '', err: false };
   pvPaint();

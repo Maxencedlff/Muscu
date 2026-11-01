@@ -4,10 +4,13 @@
 //
 // Les photos de progression (js/data/progress-photos.js) ne s'ouvrent qu'avec Face ID, ou à défaut le code
 // de l'iPhone, comme l'album « Masqués » de Photos. Choix, limites et sources : docs/COFFRE_PHOTOS.md ; en bref :
-//  - Clé du coffre : 256 bits tirés par iOS à la création et gardés dans son trousseau (module natif
-//    MdlfVault, ios/App/App/VaultPlugin.swift) avec un contrôle d'accès « présence de l'utilisateur » : iOS
-//    ne la rend qu'après Face ID ou le code de l'iPhone. Elle ne quitte jamais cet iPhone : une sauvegarde
-//    la restaure sur le même iPhone, pas sur un autre (les photos du coffre n'y seraient pas lisibles).
+//  - Clé du coffre : 256 bits tirés par iOS à la création et gardés dans le trousseau iCloud (module natif
+//    MdlfVault, ios/App/App/VaultPlugin.swift), chiffré de bout en bout : elle suit sur un nouvel iPhone.
+//    Le module ne la rend qu'après Face ID ou le code de l'iPhone. Une clé par coffre : son identifiant (id)
+//    est dans les réglages, écrit AVANT la demande de clé (une création interrompue reprend la même clé).
+//  - Clé absente alors que le coffre existe (nouvel iPhone dont le trousseau iCloud n'est pas encore
+//    arrivé, ou trousseau iCloud désactivé sur l'ancien) : jamais de nouvelle clé pour ce coffre ; « illisible
+//    pour l'instant », à réessayer.
 //  - Pas de code propre à l'app : rien à oublier, rien à deviner hors de l'iPhone. Les essais sont limités
 //    par iOS lui-même (Face ID, puis code de l'iPhone et ses délais).
 //  - Photos chiffrées ici, en AES-GCM (un IV de 96 bits neuf par photo, identifiant et date liés en données
@@ -23,6 +26,7 @@ const VAULT_IDLE_MS     = 60_000;
 const VAULT_META_KEY    = 'vault';
 const VAULT_CHECK_TEXT  = 'mdlf-vault-check-v1';
 const VAULT_KEY_BYTES   = 32;
+const VAULT_META_V      = 3;
 
 // ── Octets ──────────────────────────────────────────────────
 const vaultEnc = new TextEncoder();
@@ -53,12 +57,16 @@ async function vaultImportKey(b64) {
   catch { return null; }
   finally { raw.fill(0); }
 }
-// Réglages d'un nouveau coffre : seulement un témoin chiffré par la clé (aucune clé, même emballée)
-async function vaultCreateMeta(dek, now = Date.now()) {
+// Identifiant d'un coffre (nom de sa clé dans le trousseau) : 128 bits en hexadécimal
+function vaultNewId() { return [...vaultRandom(16)].map(b => b.toString(16).padStart(2, '0')).join(''); }
+// Réglages d'un coffre créé : son identifiant et un témoin chiffré par la clé (aucune clé, même emballée)
+async function vaultCreateMeta(dek, id, now = Date.now()) {
   const checkIv = vaultRandom(12);
   const check = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: checkIv }, dek, vaultEnc.encode(VAULT_CHECK_TEXT));
-  return { k: VAULT_META_KEY, v: 2, checkIv: bytesToB64(checkIv), check: bytesToB64(new Uint8Array(check)), created: now };
+  return { k: VAULT_META_KEY, v: VAULT_META_V, id, checkIv: bytesToB64(checkIv), check: bytesToB64(new Uint8Array(check)), created: now };
 }
+// Coffre créé (témoin écrit) ; une création commencée sans aboutir n'a que { id, pending }
+function vaultReady(meta) { return !!(meta && meta.id && meta.check); }
 // Clé rendue par le trousseau : vraie clé de ce coffre ?
 async function vaultCheckKey(meta, dek) {
   try {
@@ -139,28 +147,32 @@ async function vaultMigrate(dek) {
 // Échec d'iOS ({ canceled }, { missing }, { nopasscode }, { failed }) rendu tel quel, avec ok: false
 const vaultRefused = r => ({ ok: false, ...(r && !r.key ? r : { failed: true }) });
 
-// Création : clé tirée par iOS après Face ID (ou le code), réglages écrits, puis migration (une coupure
-// entre les deux est rattrapée à l'ouverture suivante). { ok, migrated } ou l'échec d'iOS.
+// Création : identifiant écrit d'abord (une création interrompue reprend la même clé au lieu d'en laisser une
+// orpheline dans le trousseau iCloud), clé tirée par iOS après Face ID (ou le code), réglages complétés, puis
+// migration (une coupure est rattrapée à l'ouverture suivante). { ok, migrated } ou l'échec d'iOS.
 async function vaultSetup(reason = 'Créer ton coffre à photos') {
-  if (await vaultMeta()) throw new Error('coffre déjà créé');
+  const prev = await vaultMeta();
+  if (vaultReady(prev)) throw new Error('coffre déjà créé');
   const epoch = vaultEpoch;
-  const r = await Native.vault.create(reason);
+  const id = prev?.id || vaultNewId();
+  if (!prev?.id) await photoMetaPut({ k: VAULT_META_KEY, v: VAULT_META_V, id, pending: true });
+  const r = await Native.vault.create(reason, id);
   if (!r?.key) return vaultRefused(r);
   const dek = await vaultImportKey(r.key);
   if (!dek) return { ok: false, failed: true };
-  await photoMetaPut(await vaultCreateMeta(dek));
+  await photoMetaPut(await vaultCreateMeta(dek, id));
   const migrated = await vaultMigrate(dek).catch(() => 0);   // échec (stockage plein) : reprise à l'ouverture
   if (epoch !== vaultEpoch) return { ok: false, stale: true, migrated };   // refermé pendant Face ID : créé, resté fermé
   vaultSetOpen(dek);
   return { ok: true, migrated };
 }
 // Ouverture : Face ID (ou le code) puis clé du trousseau, vérifiée par le témoin. { ok } ou l'échec d'iOS ;
-// { missing } aussi quand la clé de l'iPhone n'est pas celle de ce coffre (sauvegarde venue d'un autre iPhone).
+// { missing } : clé pas (encore) sur cet iPhone, ou qui ne correspond pas au témoin. Jamais de nouvelle clé ici.
 // epoch : relevé AVANT la feuille d'iOS (un verrouillage pendant la feuille doit annuler l'ouverture).
 async function vaultUnlock(reason = 'Ouvrir ton coffre à photos', epoch = vaultEpoch) {
   const meta = await vaultMeta();
-  if (!meta) return { ok: false, failed: true };
-  const r = await Native.vault.unlock(reason);
+  if (!vaultReady(meta)) return { ok: false, failed: true };
+  const r = await Native.vault.unlock(reason, meta.id);
   if (!r?.key) return vaultRefused(r);
   const dek = await vaultImportKey(r.key);
   if (!dek || !(await vaultCheckKey(meta, dek))) return { ok: false, missing: true };
@@ -183,12 +195,14 @@ async function vaultAddPhoto(rec) {
   if (!vaultKey) throw new Error('coffre fermé');
   await photoPutRow(await photoSeal(vaultKey, rec));
 }
-// Coffre vidé : photos, réglages et clé du trousseau ; ancienne base aussi, sauf keepLegacy (coffre illisible
-// sur cet iPhone : des photos en clair pas encore rangées iront dans le prochain coffre)
-async function vaultReset({ keepLegacy = false } = {}) {
+// Coffre vidé : photos, réglages et clé du trousseau (donc de tous les appareils du trousseau iCloud).
+// Coffre illisible ici (keep) : la clé n'est pas touchée (absente ici ; un autre iPhone peut encore en avoir
+// besoin) et des photos en clair pas encore rangées iront dans le prochain coffre.
+async function vaultReset({ keep = false } = {}) {
   vaultLock('reset');
-  const ok = await photosWipe({ legacy: !keepLegacy });
-  await Native.vault.forget();
+  const id = (await vaultMeta().catch(() => null))?.id;
+  const ok = await photosWipe({ legacy: !keep });
+  if (!keep) await Native.vault.forget(id);
   return ok;
 }
 // Photos en attente de migration (présentation : « tes 4 photos y seront rangées »)

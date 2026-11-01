@@ -1,12 +1,13 @@
 """Progrès › Mesures › Coffre à photos : Face ID (ou code de l'iPhone), chiffrement, verrouillage, avant / après.
 
-Le trousseau d'iOS est simulé par un faux module MdlfVault (FAKE_SHELL) : une clé de test tirée au hasard
-dans la page, gardée dans sessionStorage le temps du test (jamais une vraie clé). Vérifie : aucune vignette
+Le trousseau iCloud est simulé par un faux module MdlfVault (FAKE_SHELL) : une clé de test tirée au hasard
+dans la page par identifiant de coffre, gardée dans sessionStorage le temps du test (jamais une vraie clé). Vérifie : aucune vignette
 hors du coffre ; présentation puis création (Face ID demandé, coffre ouvert) ; photo ajoutée chiffrée dans
 IndexedDB (aucun octet JPEG en clair, aucune clé dans les réglages) ; grille par date ; curseur avant / après
 (glissé, clavier) ; reverrouillage en quittant l'écran, en arrière-plan et après une minute sans activité ;
 Face ID demandé en entrant, annulé, refermé pendant la feuille d'iOS ; migration des photos en clair (gardées
-si la création est annulée) ; coffre illisible sur un autre iPhone (clé absente ou autre clé) puis vidé ;
+si la création est annulée) ; nouvel iPhone : coffre illisible pour l'instant puis rouvert quand la clé arrive
+par le trousseau iCloud, ou vidé en dernier recours sans toucher à la clé (autre clé : illisible aussi) ;
 iPhone sans code ; coquille sans le module et navigateur : coffre indisponible, photos en clair intactes ;
 écran de confidentialité (app inactive) ; « Supprimer toutes les données » vide le coffre et retire la clé.
 Captures : $PPL_SCRATCH/shots/lotcoffre/.
@@ -25,16 +26,20 @@ LOT = 'coffre'
 R = Results(LOT)
 
 NOW = local_ms(2026, 11, 2, 21, 0, tz=PARIS)
-# Coquille iOS factice avec le module du coffre. Trousseau factice : clé de test aléatoire dans sessionStorage
-# (survit à un rechargement, comme le trousseau ; retirée pour simuler un autre iPhone). __vaultMode règle la
-# réponse de la feuille d'iOS : 'ok', 'cancel', 'hold' (attend __vaultRelease()), 'fail'.
+# Coquille iOS factice avec le module du coffre. Trousseau factice : { id du coffre: clé de test aléatoire } dans
+# sessionStorage (survit à un rechargement, comme le trousseau ; une clé retirée simule un nouvel iPhone où le
+# trousseau iCloud n'est pas encore arrivé). __vaultMode règle la réponse de la feuille d'iOS : 'ok', 'cancel',
+# 'hold' (attend __vaultRelease()), 'fail'. Comme le module : clé absente = NOT_FOUND sans feuille d'iOS.
 FAKE_SHELL = """
 window.__vaultCalls = [];
 window.__vaultMode = 'ok';
 window.__vaultBio = 'faceID';
 window.__vaultPasscode = true;
 const KC = '__fakeKeychain';
-const kc = { get: () => sessionStorage.getItem(KC), set: v => sessionStorage.setItem(KC, v), del: () => sessionStorage.removeItem(KC) };
+const all = () => JSON.parse(sessionStorage.getItem(KC) || '{}');
+const save = o => sessionStorage.setItem(KC, JSON.stringify(o));
+const kc = { all, get: id => all()[id] || null, set: (id, v) => save({ ...all(), [id]: v }),
+  del: id => { const o = all(); delete o[id]; save(o); } };
 const fakeKey = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
 const err = code => { const e = new Error(code); e.code = code; return e; };
 const sheetOfIos = () => new Promise((res, rej) => {
@@ -45,14 +50,15 @@ const sheetOfIos = () => new Promise((res, rej) => {
 });
 const vault = {
   status: async () => ({ biometry: __vaultBio, passcode: __vaultPasscode }),
-  create: async () => { __vaultCalls.push('create');
+  create: async ({ id }) => { __vaultCalls.push('create');
+    if (!/^[0-9a-f]{16,64}$/.test(id || '')) throw err('FAILED');
     if (!__vaultPasscode) throw err('NO_PASSCODE');
-    await sheetOfIos(); if (!kc.get()) kc.set(fakeKey()); return { key: kc.get() }; },
-  unlock: async () => { __vaultCalls.push('unlock');
+    await sheetOfIos(); if (!kc.get(id)) kc.set(id, fakeKey()); return { key: kc.get(id) }; },
+  unlock: async ({ id }) => { __vaultCalls.push('unlock');
+    if (!kc.get(id)) throw err('NOT_FOUND');
     if (!__vaultPasscode) throw err('NO_PASSCODE');
-    if (!kc.get()) throw err('NOT_FOUND');
-    await sheetOfIos(); return { key: kc.get() }; },
-  forget: async () => { __vaultCalls.push('forget'); kc.del(); return {}; },
+    await sheetOfIos(); return { key: kc.get(id) }; },
+  forget: async ({ id }) => { __vaultCalls.push('forget'); kc.del(id); return {}; },
   shield: async ({ on }) => { __vaultCalls.push('shield:' + on); return {}; },
 };
 window.__fakeKeychain = kc;
@@ -181,6 +187,10 @@ def calls(page, name):
     return page.evaluate('__vaultCalls').count(name)
 
 
+def vault_id(page):
+    return page.evaluate("vaultMeta().then(m => m && m.id)")
+
+
 def t_coffre(bench, eng, dev, theme):
     """Parcours complet sur chaque appareil et thème."""
     t = tag(dev, theme)
@@ -200,15 +210,16 @@ def t_coffre(bench, eng, dev, theme):
         page.wait_for_selector('.pv-intro')
         shot(page, LOT, f'intro-{t}')
         intro = page.inner_text('.pv-intro')
-        R.check('Face ID ou le code de ton iPhone' in intro and 'nouvel iPhone' in intro and 'code à 6' not in intro,
-                f'{t} présentation : Face ID ou code de l\'iPhone, lié à cet iPhone {intro[:300]!r}')
+        R.check('Face ID ou le code de ton iPhone' in intro and 'trousseau iCloud' in intro and 'nouvel iPhone' in intro and 'code à 6' not in intro,
+                f'{t} présentation : Face ID ou code de l\'iPhone, suit par le trousseau iCloud {intro[:300]!r}')
         R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} présentation : pas de défilement horizontal')
 
         create_vault(page)
         R.check(calls(page, 'create') == 1 and page.evaluate('vaultIsOpen()'), f'{t} création : clé demandée au trousseau, coffre ouvert')
         meta = page.evaluate(RAW_ROWS)['meta']
-        key = page.evaluate('__fakeKeychain.get()')
-        R.check(key and key not in meta and '"v":2' in meta and 'salt' not in meta, f'{t} réglages : aucune clé, seulement le témoin')
+        vid = vault_id(page)
+        key = page.evaluate('id => __fakeKeychain.get(id)', vid)
+        R.check(key and key not in meta and '"v":3' in meta and vid in meta and 'salt' not in meta, f'{t} réglages : identifiant et témoin, aucune clé')
 
         # Deux photos : face aujourd'hui, dos le 1er septembre
         add_photo(page, face)
@@ -344,10 +355,13 @@ def t_migration(bench):
         page.evaluate("__vaultMode = 'cancel'")
         page.click('[data-action="pv-start"]')
         page.wait_for_timeout(400)
-        R.check(page.locator('.pv-intro').count() == 1 and page.evaluate(LEGACY_EXISTS) is True and page.evaluate(RAW_ROWS)['meta'] == '[]',
-                'création annulée : présentation, photos en clair intactes, aucun réglage')
+        meta = page.evaluate(RAW_ROWS)['meta']
+        R.check(page.locator('.pv-intro').count() == 1 and page.evaluate(LEGACY_EXISTS) is True and '"pending":true' in meta and 'check' not in meta,
+                f'création annulée : présentation, photos en clair intactes, seulement l\'identifiant de clé {meta}')
+        vid = vault_id(page)
         page.evaluate("__vaultMode = 'ok'")
         create_vault(page)
+        R.check(vault_id(page) == vid, 'nouvel essai : même identifiant, donc même clé')
         page.wait_for_selector('.pgal__item', timeout=8000)
         raw = page.evaluate(RAW_ROWS)
         R.check(len(raw['rows']) == 2 and not any(r['jpeg'] for r in raw['rows']), f'migration : 2 photos chiffrées {raw["rows"]}')
@@ -357,41 +371,60 @@ def t_migration(bench):
 
 
 def t_illisible(bench):
-    """Sauvegarde restaurée sur un autre iPhone : clé absente (ou une autre), coffre illisible, puis vidé."""
+    """Nouvel iPhone : clé pas encore arrivée par le trousseau iCloud, puis arrivée ; vidé en dernier recours."""
     face = png_file('coffre-face.png', 300, 400, (200, 80, 80))
     with bench.frozen_page(NOW, 'webkit', 'iPhone 13', 'dark') as page:
         shell(page)
         open_vault(page, 'dark')
         create_vault(page)
         add_photo(page, face)
-        page.evaluate('__fakeKeychain.del()')   # autre iPhone : la sauvegarde a les photos, pas la clé
+        vid = vault_id(page)
+        key = page.evaluate('id => __fakeKeychain.get(id)', vid)
+        page.evaluate('id => __fakeKeychain.del(id)', vid)   # nouvel iPhone : photos restaurées, trousseau iCloud pas encore là
+        n_create, n_unlock = calls(page, 'create'), calls(page, 'unlock')
         reenter(page)
-        R.check(page.inner_text('#pvTitle') == 'Coffre illisible sur cet iPhone' and '1 photo ne peut pas s\'ouvrir ici' in page.inner_text('.pv-center'),
-                f'clé absente : coffre illisible, nombre de photos {page.inner_text(".view.photo-vault")[:300]!r}')
+        txt = page.inner_text('.view.photo-vault')
+        R.check(page.inner_text('#pvTitle') == 'Coffre illisible pour l\'instant' and 'trousseau iCloud' in txt and '1 photo' in txt and 'réessaie plus tard' in txt,
+                f'clé absente : illisible pour l\'instant, trousseau iCloud expliqué {txt[:400]!r}')
+        R.check(calls(page, 'create') == n_create, 'clé absente : aucune nouvelle clé créée pour ce coffre')
         R.check(not page.evaluate('vaultIsOpen()') and page.locator('.view.photo-vault img').count() == 0, 'clé absente : rien d\'ouvert')
+        first = page.locator('.pv-center button').first
+        R.check(first.get_attribute('data-action') == 'pv-retry' and 'btn--primary' in first.get_attribute('class'), '« Réessayer » proposé en premier, « Vider » en second')
         shot(page, LOT, 'illisible-iPhone_13-dark')
+        # La clé arrive par le trousseau iCloud : « Réessayer » rouvre le coffre et ses photos
+        page.evaluate('([id, k]) => __fakeKeychain.set(id, k)', [vid, key])
+        page.click('[data-action="pv-retry"]')
+        page.wait_for_selector('.pgal__item', timeout=15000)
+        R.check(page.evaluate('vaultIsOpen()') and page.locator('.pgal__item').count() == 1 and calls(page, 'unlock') > n_unlock,
+                'clé arrivée : coffre rouvert avec ses photos')
+        # Vider en dernier recours : confirmation, photos effacées, clé jamais touchée
+        page.evaluate('id => __fakeKeychain.del(id)', vid)
+        reenter(page)
         page.click('[data-action="pv-reset"]')
         page.wait_for_selector('.ios-dialog')
-        R.check('Effacer 1 photo' in page.inner_text('.ios-dialog'), f'vider : confirmation chiffrée {page.inner_text(".ios-dialog")!r}')
+        R.check('Effacer 1 photo' in page.inner_text('.ios-dialog') and 'trop tard' in page.inner_text('.ios-dialog'), f'vider : confirmation {page.inner_text(".ios-dialog")!r}')
         tap_dialog(page, 'Annuler')
         R.check(len(page.evaluate(RAW_ROWS)['rows']) == 1, 'vider annulé : photo gardée')
         page.click('[data-action="pv-reset"]')
         tap_dialog(page, 'Effacer')
         page.wait_for_selector('.pv-intro')
         raw = page.evaluate(RAW_ROWS)
-        R.check(raw['rows'] == [] and raw['meta'] == '[]' and calls(page, 'forget') >= 1, 'vidé : plus de photo, plus de réglage, clé retirée')
-        # Une autre clé que celle du coffre : illisible aussi
+        R.check(raw['rows'] == [] and raw['meta'] == '[]' and calls(page, 'forget') == 0, 'vidé : plus de photo ni de réglage, clé jamais effacée')
+        # Nouveau coffre : nouvel identifiant, donc nouvelle clé sans conflit avec l'ancienne
         create_vault(page)
+        vid2 = vault_id(page)
+        R.check(vid2 and vid2 != vid, f'nouveau coffre : nouvel identifiant de clé {vid} → {vid2}')
+        # Une clé qui ne correspond pas au témoin : illisible aussi
         add_photo(page, face)
-        page.evaluate('__fakeKeychain.set(__fakeKey())')
+        page.evaluate('id => __fakeKeychain.set(id, __fakeKey())', vid2)
         reenter(page)
-        R.check(page.inner_text('#pvTitle') == 'Coffre illisible sur cet iPhone', 'clé d\'un autre coffre : illisible')
+        R.check(page.inner_text('#pvTitle') == 'Coffre illisible pour l\'instant', 'clé qui ne correspond pas : illisible')
         page.click('[data-action="pv-reset"]')
         tap_dialog(page, 'Effacer')
         page.wait_for_selector('.pv-intro')
-        # Coffre vide sur un autre iPhone : rien à perdre, retour direct à la présentation
+        # Coffre vide et clé absente : rien à perdre, retour direct à la présentation
         create_vault(page)
-        page.evaluate('__fakeKeychain.del()')
+        page.evaluate('id => __fakeKeychain.del(id)', vault_id(page))
         reenter(page)
         R.check(page.locator('.pv-intro').count() == 1 and page.evaluate(RAW_ROWS)['meta'] == '[]', 'coffre vide et clé absente : présentation directement')
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
@@ -454,7 +487,7 @@ def t_tout_supprimer(bench):
         page.wait_for_timeout(800)
         raw = page.evaluate(RAW_ROWS)
         R.check(raw['rows'] == [] and raw['meta'] == '[]', 'Supprimer toutes les données : coffre vidé')
-        R.check(calls(page, 'forget') >= 1 and page.evaluate('__fakeKeychain.get()') is None, 'Supprimer toutes les données : clé retirée du trousseau')
+        R.check(calls(page, 'forget') == 1 and page.evaluate('__fakeKeychain.all()') == {}, 'Supprimer toutes les données : clé retirée du trousseau')
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
 
 

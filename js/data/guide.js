@@ -353,7 +353,7 @@ const GUIDE_SECTIONS = [
         steps: [
           '[Ajouter des mesures] : la date, puis les mesures que tu as prises (laisse vide le reste), en cm ou en pouces selon ton unité. Touche une mesure pour sa courbe et ses écarts.',
           ...(GUIDE_PHOTOS ? [
-            'Tes photos sont dans le [Coffre à photos], ouvert avec Face ID ou le code de ton iPhone et refermé dès que tu quittes l\'app. Sa clé reste sur cet iPhone : sur un nouvel iPhone, les photos du coffre ne suivent pas.',
+            'Tes photos sont dans le [Coffre à photos], ouvert avec Face ID ou le code de ton iPhone et refermé dès que tu quittes l\'app. Sa clé est dans ton trousseau iCloud : le coffre te suit sur un nouvel iPhone.',
             '[Ajouter une photo] ouvre la caméra ou la pellicule ; choisis [Face], [Profil] ou [Dos]. Elle est chiffrée dans le coffre, pas dans ta pellicule. [Avant / après] superpose deux dates sous un curseur.',
             'Tes mensurations restent sur ton iPhone et dans ta copie iCloud ; tes photos sur ton iPhone seulement, hors de l\'export. Rien n\'est montré à tes amis ni à ton coach. [Supprimer toutes les données] efface les deux.',
           ] : [

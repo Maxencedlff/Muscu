@@ -19,9 +19,9 @@
 //    tests) vaut mieux que deux : IndexedDB se teste sous Playwright, Directory.Data non.
 //  - Hors de l'export (trop lourd) et de la copie iCloud de l'app : « Supprimer toutes les données »
 //    les efface (photosWipe, js/features/settings.js). Elles font partie de la sauvegarde iPhone
-//    (iCloud ou ordinateur) comme le reste du bac à sable de l'app, mais chiffrées par une clé qui reste
-//    dans le trousseau de cet iPhone : lisibles après une restauration sur le même iPhone, pas sur un
-//    autre (docs/COFFRE_PHOTOS.md).
+//    (iCloud ou ordinateur) comme le reste du bac à sable de l'app, mais chiffrées par une clé gardée
+//    dans le trousseau iCloud : lisibles sur un nouvel iPhone quand le trousseau iCloud y est arrivé
+//    (docs/COFFRE_PHOTOS.md).
 // Images réduites avant stockage : côté le plus long à PHOTO_MAX_PX, JPEG qualité PHOTO_QUALITY
 // (une photo d'iPhone de 4 Mo tombe vers 150 à 300 ko).
 'use strict';
@@ -82,7 +82,7 @@ function photosEnabled() { return photosAllowedHere() && photosSupported(); }
 
 // ── IndexedDB ───────────────────────────────────────────────
 // Base « mdlf-vault » : magasin « photos » (une ligne chiffrée par photo, js/data/photo-vault.js) et
-// magasin « meta » (réglages du coffre : témoin de la clé, qui est dans le trousseau d'iOS). Les deux vivent et meurent ensemble :
+// magasin « meta » (réglages du coffre : identifiant et témoin de la clé, qui est dans le trousseau iCloud). Les deux vivent et meurent ensemble :
 // une clé perdue sans ses photos (ou l'inverse) rendrait tout illisible.
 // Ancienne base « mdlf-photos » (builds 30 et 31, photos en clair) : lue seulement pour la migration,
 // puis supprimée en entier (deleteDatabase efface le fichier, donc les octets en clair, là où vider le
