@@ -206,7 +206,7 @@ body.light .hero__chip { background: color-mix(in srgb, var(--cell) 80%, transpa
 .home-card__aside { flex-shrink: 0; font-weight: 600; letter-spacing: 0; text-transform: none; }
 /* iPhone SE : « + 3 » seul à côté du titre (« exercices » reste lu par VoiceOver), jamais « + 3 e… » */
 @media (max-width: 374px) {
-  .home-card__aside-more { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .home-card__aside-more { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: normal; }
 }
 .targets__list { list-style: none; margin: 0; padding: 0; }
 .targets__row { display: flex; align-items: baseline; gap: 12px; padding: 8px 0; font-size: 0.941rem; }

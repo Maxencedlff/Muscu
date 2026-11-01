@@ -285,6 +285,13 @@ html.type-xl .chart-bubble { white-space: normal; }
   position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
   overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }
+/* Phrase pour VoiceOver seule, en texte brut (sans élément dedans) : comme .visually-hidden mais le texte
+   revient à la ligne (white-space: normal, même sous un parent en nowrap). Une ligne forcée dans 1 px
+   passerait pour un texte coupé aux contrôles (verif_ui --ux) ; VoiceOver lit le texte tel quel. */
+.sr-text {
+  position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: normal;
+}
 
 /* Cibles tactiles : 44 pt au moins, zone de tap agrandie sans changer le visuel */
 .search { height: 44px; }
