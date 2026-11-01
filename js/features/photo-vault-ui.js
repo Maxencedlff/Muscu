@@ -188,7 +188,7 @@ function photoCompareHtml(list) {
             <div class="pcmp__before"><img class="pcmp__img" src="${photoUrl(a)}" alt="Avant : ${photoPoseLabel(a.pose)}, ${esc(fmtDate(a.date))}"></div>
             <span class="pcmp__handle" aria-hidden="true"><span class="pcmp__knob">${icon('chevron.left', 12)}${icon('chevron.right', 12)}</span></span>
             <span class="pcmp__tag pcmp__tag--a" aria-hidden="true">Avant</span><span class="pcmp__tag pcmp__tag--b" aria-hidden="true">Après</span>
-            <input type="range" class="pcmp__range visually-hidden" min="0" max="100" step="1" value="${pos}" aria-label="Curseur avant / après" aria-valuetext="${pos} % de la photo d'avant">
+            <input type="range" class="pcmp__range" min="0" max="100" step="1" value="${pos}" aria-label="Curseur avant / après" aria-valuetext="${pos} % de la photo d'avant">
           </div>
           <div class="pcmp__cols">${[['a', a, 'Avant'], ['b', b, 'Après']].map(([side, p, lbl]) => `
             <label class="pcmp__col"><span class="pcmp__lbl">${lbl}</span>
