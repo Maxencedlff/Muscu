@@ -616,6 +616,10 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       ['K7M2QX9PR4TD', 'K7M2QX9P', null, 'K7M2QX9PR4TD', 'K7M2QX9P']);
     assert.equal(run(`formatCoachCode('K7M2QX9PR4TD')`), 'K7M2-QX9P-R4TD');
     assert.ok(/K7M2-QX9P-R4TD/.test(run(`coachInviteText('K7M2QX9PR4TD')`)) && !/7 jours/.test(run(`coachInviteText('K7M2QX9PR4TD')`)));
+    // Verrou éteint (aucun compte, rien lu) : pas de remise annoncée, tout est ouvert
+    assert.ok(run('paywallOn()') === false && !/25 %/.test(run(`coachInviteText('K7M2QX9PR4TD')`)), 'remise annoncée verrou éteint');
+    // Verrou allumé : la remise de l'élève est annoncée
+    assert.ok(/25 %/.test(run(`(() => { const p = paywallOn; paywallOn = () => true; try { return coachInviteText('K7M2QX9PR4TD'); } finally { paywallOn = p; } })()`)), 'remise verrou allumé');
     assert.equal(run(`coachErrorKind({ code: 'P0001', message: 'tier_full' })`), 'tier_full');
     sameJSON(run(`[normalizeCardNumber(' 049 12-ed0123 '), normalizeCardNumber('ab12'), normalizeCardNumber('A'.repeat(21))]`), ['04912ED0123', null, null]);
     const t = run(`cleanCoachTier({ is_coach: true, product_id: 'com.mdlf.training.coach10.monthly', limit: 10, students: 10, next_product: 'com.mdlf.training.coach20.monthly' })`);

@@ -9,9 +9,6 @@ export default async function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(run(`normalizeReferralCode(' lu-cas ')`), 'LUCAS');
     assert.equal(run(`normalizeReferralCode('coach.paul_2')`), 'COACHPAUL2');
     assert.equal(run(`normalizeReferralCode('ＬＵＣＡＳ')`), 'LUCAS', 'pleine chasse (clavier asiatique)');
-    // Code permanent d'un coach (12 caractères sans 0, O, 1, I) : reconnu pour le rappel « rejoins-le aussi »
-    assert.equal(run(`looksLikeCoachCode('abcd-efgh-jklm')`), true);
-    for (const c of ['LUCAS', 'ABCDEFGHJKL', 'ABCDEFGHJKLO', 'ABCDEFGHJKL1', 'ABCDEFGHJKLMN']) assert.equal(run(`looksLikeCoachCode('${c}')`), false, c);
     for (const bad of ['', 'AB', 'LUCAS!', 'élodie', 'X'.repeat(21), null, undefined, 42]) {
       assert.equal(run(`normalizeReferralCode(${JSON.stringify(bad ?? null)})`), '', `refusé : ${bad}`);
     }
@@ -19,7 +16,10 @@ export default async function ({ test, run, assert, sameJSON, ROOT }) {
 
   test('parrainage : état du serveur nettoyé (nom borné, saisie fermée une fois parrainé)', () => {
     sameJSON(run(`cleanReferralState({ referrer: { name: '  Lucas ', since: '2026-10-30T10:00:00Z', code: 'LUCAS', rate: 0.2 }, can_enter: true, until: '2026-11-29T10:00:00Z' })`),
-      { referrer: { name: 'Lucas', since: Date.parse('2026-10-30T10:00:00Z') }, canEnter: false, until: Date.parse('2026-11-29T10:00:00Z') });
+      { referrer: { name: 'Lucas', since: Date.parse('2026-10-30T10:00:00Z'), coach: false }, canEnter: false, until: Date.parse('2026-11-29T10:00:00Z') });
+    // Parrain coach, dit par le serveur (jamais déduit de la forme du code)
+    assert.equal(run(`cleanReferralState({ referrer: { name: 'k', since: null, coach: true } }).referrer.coach`), true);
+    assert.equal(run(`cleanReferralState({ referrer: { name: 'k', since: null, coach: 'oui' } }).referrer.coach`), false);
     sameJSON(run(`cleanReferralState({ referrer: null, can_enter: true, until: 'x' })`), { referrer: null, canEnter: true, until: null });
     sameJSON(run(`cleanReferralState(null)`), { referrer: null, canEnter: false, until: null });
     assert.equal(run(`cleanReferralState({ referrer: { name: 7 } }).referrer`), null);

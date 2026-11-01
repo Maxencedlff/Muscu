@@ -8,9 +8,10 @@
 --  (select * from public.referral_report();).
 --
 --  Effet :
---  - les paiements d'Apple notés sont MIS DE CÔTÉ, sans compte ni identifiant d'Apple (attribution,
---    produit, dates, prix, devise, pays), dans private.parrainage_payant_archive_payments (aucun rôle de
---    l'API n'y a accès), puis public.subscription_payments est supprimée ;
+--  - les paiements d'Apple notés sont MIS DE CÔTÉ, sans compte ni identifiant d'Apple mais avec leur
+--    attribution (pseudonyme : elle renvoie au compte tant qu'il existe), produit, dates, prix, devise et
+--    pays, dans private.parrainage_payant_archive_payments (aucun rôle de l'API n'y a accès ; complétée,
+--    pas recréée, si un retour arrière a déjà eu lieu), puis public.subscription_payments est supprimée ;
 --  - les quatre accroches du parrainage reprennent leur version vide et le rapport son texte de
 --    20261031400000_parrainage.sql (null : « inconnu ») ; les déclencheurs et fonctions ajoutés
 --    disparaissent.
@@ -21,7 +22,12 @@
 
 begin;
 
-create table private.parrainage_payant_archive_payments as
+-- Relançable : une archive d'un premier retour arrière est complétée, pas recréée
+create table if not exists private.parrainage_payant_archive_payments as
+  select id, attribution_id, product_id, environment, purchased_at, expires_at, price_milli, currency,
+         storefront, free_trial, revoked_at, created_at
+    from public.subscription_payments where false;
+insert into private.parrainage_payant_archive_payments
   select id, attribution_id, product_id, environment, purchased_at, expires_at, price_milli, currency,
          storefront, free_trial, revoked_at, created_at
     from public.subscription_payments;
@@ -34,7 +40,17 @@ drop function private.payment_link();
 drop function private.payment_forget();
 drop function private.payment_from_attribution();
 
--- Accroches et rapport : texte exact de 20261031400000_parrainage.sql
+-- Accroches, parrain montré et rapport : texte exact de 20261031400000_parrainage.sql
+create or replace function private.referral_referrer_of(me uuid) returns jsonb
+  language sql stable security definer set search_path = '' as
+$$
+  select jsonb_build_object('name', coalesce(p.display_name, up.username), 'since', a.created_at)
+  from public.referral_attributions a
+  left join public.referral_partners p on p.code = a.partner_code
+  left join public.user_profiles up on up.user_id = a.referrer_coach
+  where a.user_id = me
+$$;
+
 create or replace function private.referral_resolve_coach_code(code text) returns uuid
   language sql stable security definer set search_path = '' as
 $$ select null::uuid $$;

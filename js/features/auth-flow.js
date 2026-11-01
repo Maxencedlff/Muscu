@@ -32,7 +32,9 @@ const flow = {
 // Masqué hors délai (compte de plus de 30 jours, d'après le serveur s'il a répondu).
 function referralLinkHtml() {
   const v = referralView();
-  if (v.referrer) return `<p class="auth__referral-done">${icon('checkmark', 16)}<span>${esc(`Parrainé par ${v.referrer}`)}</span></p>`;
+  // Parrain coach : le code parraine sans faire rejoindre ce coach, on le dit (Amis › Rejoindre un coach)
+  if (v.referrer) return `<p class="auth__referral-done">${icon('checkmark', 16)}<span>${esc(`Parrainé par ${v.referrer}`)}</span></p>`
+    + (referralSuggestJoin(v) ? `<p class="auth__referral-join">${esc(`Pour que ${v.referrer} suive tes séances, rejoins ce coach ensuite dans Amis › Rejoindre un coach.`)}</p>` : '');
   return v.canEnter ? '<button class="auth__link auth__referral-link" data-action="auth-referral">J\'ai un code d\'un coach ou d\'un ami</button>' : '';
 }
 
@@ -301,8 +303,8 @@ async function submitReferral() {
   if (!flow.root) return;
   if (!r.ok) { authError(referralErrorText(r.kind)); flow.root.querySelector('#authReferral')?.focus(); return; }
   haptic('success');
-  // Code d'un coach : il parraine, mais ne fait pas rejoindre le coach (suivi des séances, offre élève)
-  const text = `Parrainé par ${r.data.name}` + (r.data.coachCode ? `. Pour que ${r.data.name} suive tes séances, rejoins-le aussi : Amis › Rejoindre un coach` : '');
+  // Parrain coach : rappel affiché sous « Parrainé par » (pseudo, Réglages › Compte), pas dans le toast
+  const text = `Parrainé par ${r.data.name}`;
   if (flow.mode === 'referral') { closeAuthFlow('saved'); render(); showToast(text); return; }
   announce(text);
   authBack();

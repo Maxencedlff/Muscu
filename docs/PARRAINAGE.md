@@ -90,7 +90,7 @@ insert into public.referral_payouts (kind, partner_code, amount_cents, reference
 
 | Fonction | Rôle | Réponse |
 | --- | --- | --- |
-| `referral_state()` | authenticated | `{ referrer: { name, since } \| null, can_enter, until }` |
+| `referral_state()` | authenticated | `{ referrer: { name, since, coach } \| null, can_enter, until }` (`coach` depuis le branchement sur le payant) |
 | `referral_apply(code)` | authenticated | `{ ok: true, referrer }` ; `{ ok: false, error: 'invalid_code' }` (inconnu, inactif, le sien) ; erreurs P0001 `already_referred`, `too_late`, `rate_limited`, `not_found`. Même parrain redonné : `ok: true`. |
 | `referral_report(from_month, to_month)` | service_role | une ligne par mois et par parrain, voir ci-dessous |
 | `referral_for_user(uid)` | service_role | `{ kind, code, coach_id, name, rate, months, since }` ou null |
@@ -160,9 +160,9 @@ Règles du calcul :
   (mois = 1, an = 12) depuis son premier paiement de Production ; une période qui dépasse la durée ne
   compte que pour sa part (6 mensualités puis un annuel : la moitié de l'annuel). Une période remboursée
   garde sa place (les relevés passés ne bougent pas).
-- **Pas de commission rétroactive** : une période payée avant l'adhésion à un coach consomme ses mois,
-  mais ne rapporte rien au coach. Un code saisi (30 jours après la création du compte) compte depuis le
-  début.
+- **Pas de commission rétroactive pour un coach** : une période payée avant le rattachement (adhésion,
+  ou code du coach saisi) consomme ses mois, mais ne lui rapporte rien. Un **code partenaire** saisi
+  (30 jours au plus après la création du compte) compte depuis le premier paiement.
 - **Coach inactif** : rien sur ce qui est acheté un mois sans abonnement coach actif, et un remboursement
   n'est repris que sur ce qui a été versé (achat d'un mois actif), même s'il tombe un mois inactif.
   `public.referral_report` est réécrit en conséquence (il ne met plus lui-même la commission d'un coach
@@ -181,10 +181,14 @@ Règles du calcul :
   C'est une estimation : contrôler chaque mois avec le relevé d'Apple avant de verser.
 - Jamais comptés : Sandbox (TestFlight, équipe d'examen d'Apple), essai gratuit, prix nul. Mois en UTC.
 - Limites connues : un remboursement annulé par Apple (`REFUND_REVERSED`) n'est pas suivi ; un
-  remboursement arrivé après la suppression du compte n'est plus retrouvé.
+  remboursement arrivé après la suppression du compte n'est plus retrouvé ; un coach remboursé de son
+  propre abonnement voit les mois concernés réécrits (commission à 0, relevé déjà versé compris : le
+  cumul « reste dû » le reprend).
+- `referral_state()` et `referral_apply()` disent aussi si le parrain est un coach (`referrer.coach`) :
+  l'app propose alors « Rejoindre ce coach » (Réglages › Compte) et le rappelle sous le pseudo.
 - **Code de coach saisi dans « Code d'un coach ou d'un ami »** : il parraine (le coach touche sa part),
-  mais ne fait pas rejoindre le coach ; l'app le rappelle (« rejoins-le aussi : Amis › Rejoindre un
-  coach »), pour le suivi des séances et l'offre élève.
+  mais ne fait pas rejoindre le coach ; l'app le dit et propose de le rejoindre (suivi des séances,
+  offre élève).
 - À la validation d'un abonnement Apple, `public.referral_for_user(uid)` donne toujours le parrain.
 - Vérifié par `tests/sql/parrainage_payant_test.sql` (et `tests/sql/prod_order_test.sh` pour l'ordre de
   mise en production).

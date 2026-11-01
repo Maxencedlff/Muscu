@@ -74,7 +74,9 @@ begin
   r := public.referral_state();
   if r #>> '{referrer,name}' is distinct from 'Lucas' or (r ->> 'can_enter')::boolean then raise 'état après saisie : %', r; end if;
   -- Ce que voit l'utilisateur : nom et date seulement (ni code, ni taux, ni notes)
-  if (select array_agg(k order by k) from jsonb_object_keys(r -> 'referrer') k) is distinct from array['name', 'since'] then raise 'champs du parrain : %', r; end if;
+  -- (plus « coach », vrai ou faux, quand le payant est branché : rappel « rejoins ce coach » de l'app)
+  if (select array_agg(k order by k) from jsonb_object_keys(r -> 'referrer') k)
+     is distinct from (case when pg_temp.wired() then array['coach', 'name', 'since'] else array['name', 'since'] end) then raise 'champs du parrain : %', r; end if;
 
   -- Délai de 30 jours passé
   perform pg_temp.rlogin('c');

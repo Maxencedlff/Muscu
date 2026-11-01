@@ -21,8 +21,9 @@
 --     - « N premiers mois d'abonnement payé » (docs/CONDITIONS_COACH.md) : les périodes payées du compte
 --       sont additionnées dans l'ordre (un mois = 1, un an = 12) depuis son premier paiement de
 --       Production ; une période qui dépasse N n'est comptée que pour sa part (6 mois payés puis un
---       annuel : la moitié de l'annuel). Un paiement d'AVANT l'adhésion à un coach consomme ses mois
---       mais ne rapporte rien au coach (pas de commission rétroactive) ;
+--       annuel : la moitié de l'annuel). Un paiement d'AVANT le rattachement à un coach (adhésion ou
+--       code du coach saisi) consomme ses mois mais ne lui rapporte rien (pas de commission
+--       rétroactive) ; un code partenaire saisi compte depuis le premier paiement ;
 --     - referral_subscribers : comptes attribués dont une période ainsi comptée couvre une partie du mois ;
 --     - referral_net_cents : Σ revenu net des périodes comptées achetées dans le mois, moins celui des
 --       périodes remboursées dans le mois (« un remboursement fait après coup est retiré du relevé du
@@ -32,6 +33,8 @@
 --       remboursée, couvre une partie du mois (essai gratuit d'Apple compris : c'est un abonnement actif).
 --     public.referral_report ne remet plus la commission d'un coach inactif à zéro lui-même : c'est
 --     referral_net_cents qui applique la règle, achat et remboursement compris.
+--     private.referral_referrer_of dit en plus si le parrain est un coach (rappel « rejoins-le » de l'app).
+--     Limite : un remboursement du propre abonnement coach réécrit les mois concernés (commission à 0).
 --  4. Revenu net d'un paiement = prix TTC ÷ (1 + TVA du pays de la boutique) × (1 − part d'Apple). Part
 --     d'Apple : 30 %, ou 15 % pour les paiements faits depuis la date d'adhésion au Small Business
 --     Program (private.referral_apple_small_business_since(), null tant qu'Apple ne l'a pas confirmée) :
@@ -265,7 +268,8 @@ $$
          o.net * least(1, (greatest(coalesce(referral_paid.months, 0), 0) - o.before)::numeric / o.len)
     from ordered o
    where o.before < greatest(coalesce(referral_paid.months, 0), 0)
-     and (o.source = 'code' or o.purchased_at >= o.attributed_at)
+     -- Pas de rétroactif pour un coach (adhésion ou code saisi) ; un code partenaire compte depuis le début
+     and (o.purchased_at >= o.attributed_at or (o.source = 'code' and referral_paid.kind = 'partner'))
 $$;
 
 -- ── Accroches (mêmes signatures que 20261031400000_parrainage.sql) ──
@@ -330,7 +334,8 @@ $$
 $$;
 
 -- Rapport : texte de 20261031400000_parrainage.sql, sauf la commission d'un coach inactif, que
--- referral_net_cents met déjà à zéro (achat et remboursement compris)
+-- referral_net_cents met déjà à zéro (achat et remboursement compris), et la durée d'un coach, lue dans
+-- private.referral_months comme pour les abonnés
 create or replace function public.referral_report(from_month date default null, to_month date default null)
   returns table (month date, kind text, code text, coach_id uuid, display_name text, active boolean,
                  commission_rate numeric, commission_months int, new_accounts int, total_accounts int,
@@ -349,7 +354,7 @@ $$
     union all
     select 'coach', null, x.co, up.username, private.is_coach(x.co),
            coalesce(t.commission_rate, private.referral_coach_rate()),
-           coalesce(t.commission_months, private.referral_coach_months()),
+           private.referral_months('coach', null, x.co),
            least((select min(a.created_at) from public.referral_attributions a where a.referrer_coach = x.co),
                  (select min(py.paid_at) from public.referral_payouts py where py.coach_id = x.co), t.updated_at)
     from (select a.referrer_coach as co from public.referral_attributions a where a.referrer_coach is not null
@@ -384,6 +389,20 @@ $$
              from monthly y where y.k = x.k and y.c is not distinct from x.c and y.co is not distinct from x.co and y.m <= x.m) bal
   where x.m >= bounds.f
   order by x.m, x.k desc, x.c, x.n
+$$;
+
+-- Parrain montré à l'utilisateur : texte de 20261031400000_parrainage.sql, plus « coach » (le parrain est
+-- un coach, ou le code partenaire d'un coach) : saisir le code d'un coach parraine sans faire rejoindre
+-- ce coach, l'app propose alors de le rejoindre (Amis › Rejoindre un coach)
+create or replace function private.referral_referrer_of(me uuid) returns jsonb
+  language sql stable security definer set search_path = '' as
+$$
+  select jsonb_build_object('name', coalesce(p.display_name, up.username), 'since', a.created_at,
+                            'coach', a.referrer_coach is not null or p.partner_user is not null)
+  from public.referral_attributions a
+  left join public.referral_partners p on p.code = a.partner_code
+  left join public.user_profiles up on up.user_id = a.referrer_coach
+  where a.user_id = me
 $$;
 
 -- ── Droits ───────────────────────────────────────────────

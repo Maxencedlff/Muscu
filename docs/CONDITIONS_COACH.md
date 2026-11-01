@@ -64,8 +64,9 @@ TTC, vendus par Apple) :
 
   Avec une part d'Apple de 30 %, ces montants baissent d'environ 18 %. Les montants exacts sont ceux du
   relevé d'Apple du mois.
-- **Rien sur les mois payés avant que l'abonné te soit rattaché** : ils comptent dans ses 12 premiers mois,
-  sans commission.
+- **Rien sur les mois payés avant que l'abonné te soit rattaché** (qu'il te rejoigne ou saisisse ton code) :
+  ils comptent dans ses 12 premiers mois, sans commission. Un annuel payé après quelques mensualités ne
+  compte que pour les mois qui restent sur les 12 (après 6 mensualités, la moitié de l'annuel).
 - **Rien sur l'essai gratuit, ni sur un mois non payé ou remboursé.** Un remboursement fait après coup est
   retiré du relevé du mois où il a lieu.
 - **Seulement les mois où ton propre abonnement coach est actif.** Un mois sans abonnement coach actif ne

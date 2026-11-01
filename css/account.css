@@ -146,6 +146,8 @@
   font-size: var(--fs-subhead); color: var(--label2);
 }
 .auth__referral-done svg { color: var(--green, #34c759); flex: none; }
+/* Parrain coach : le code parraine sans faire rejoindre le coach, dit sous « Parrainé par » */
+.auth__referral-join { margin: 0 0 4px; font-size: var(--fs-footnote); color: var(--label2); text-align: center; text-wrap: pretty; }
 .auth__referral { text-transform: uppercase; letter-spacing: .06em; }
 .auth__referral::placeholder { letter-spacing: .06em; }
 

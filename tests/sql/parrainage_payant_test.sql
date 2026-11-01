@@ -5,7 +5,8 @@
 -- Comptes simulés (pg_temp.pu('k') → …00000000080a ; s → b, t → c, u → d, v → e, w → f, r → 9, p → 8) :
 -- K coach validé (code permanent ABCDEFGHJKLM), S élève qui rejoint K, T saisit le code permanent de K,
 -- U saisit le code partenaire LUCAS (25 %, 12 mois), V paie avant d'avoir un parrain, W sans parrain,
--- R paie 3 mois puis rejoint K (pas de commission rétroactive), P (code ANNUEL) paie 6 mois puis un an.
+-- R paie 10 mois puis rejoint K (pas de commission rétroactive, 2 mois restants), P (code ANNUEL) paie
+-- 6 mois puis un an. T saisit le code de K « le 01/01/2025 » (date de l'attribution reculée).
 -- Small Business Program d'Apple noté au 01/02/2025 : 30 % avant, 15 % après.
 -- Données saisies en UTC (comme le serveur Supabase) ; les accroches sont ensuite lues depuis une
 -- session en Europe/Paris : elles découpent les mois en UTC quel que soit le fuseau de la session.
@@ -99,6 +100,9 @@ reset role;
 do $$ begin
   if (select referrer_coach from public.referral_attributions where user_id = pg_temp.pu('t') and source = 'code') is distinct from pg_temp.pu('k')
     then raise 'attribution par le code permanent'; end if;
+  -- Dates d'attribution fixées (pas deux now() de transactions différentes) : T le 01/01/2025, S il y a une minute
+  update public.referral_attributions set created_at = '2025-01-01 00:00+00' where user_id = pg_temp.pu('t');
+  update public.referral_attributions set created_at = now() - interval '1 minute' where user_id = pg_temp.pu('s');
 end $$;
 set role anon;
 do $$ begin
@@ -126,8 +130,11 @@ begin
   -- Produit inconnu, environnement inconnu : ignorés
   if (pg_temp.pay('x-1', 'x-orig', now(), product => 'com.mdlf.training.lifetime', token => pg_temp.pu('w')::text) ->> 'recorded')::boolean then raise 'produit inconnu noté'; end if;
   if (pg_temp.pay('x-2', 'x-orig', now(), env => 'Xcode', token => pg_temp.pu('w')::text) ->> 'recorded')::boolean then raise 'environnement inconnu noté'; end if;
-  -- T (code permanent du coach) : mars en dollars (K actif) ; avril en Belgique (K actif), dont un remboursé en
+  -- T (code permanent du coach, saisi le 01/01/2025) : décembre 2024, avant le code (rien pour K) ;
+  -- février (K inactif) remboursé en avril (K actif) : rien n'est repris ; mars en dollars (K actif) ; avril en Belgique (K actif), dont un remboursé en
   -- mai (K inactif) ; mai en Belgique (K inactif)
+  perform pg_temp.pay('t-0', 't-orig', '2024-12-15', token => pg_temp.pu('t')::text);
+  perform pg_temp.pay('t-5', 't-orig3', '2025-02-10', token => pg_temp.pu('t')::text, revoked => '2025-04-25');
   perform pg_temp.pay('t-1', 't-orig', '2025-03-03', 3990, 'USD', 'USA', token => pg_temp.pu('t')::text);
   perform pg_temp.pay('t-2', 't-orig', '2025-04-03', 6490, 'EUR', 'bel', token => pg_temp.pu('t')::text);
   perform pg_temp.pay('t-3', 't-orig2', '2025-04-20', 6490, 'EUR', 'BEL', token => pg_temp.pu('t')::text, revoked => '2025-05-15');
@@ -140,9 +147,9 @@ begin
   perform pg_temp.pay('k-2', 'k-orig', '2025-04-01', 15990, product => 'com.mdlf.training.coach10.monthly', token => pg_temp.pu('k')::text);
   perform pg_temp.pay('k-3', 'k-orig', '2025-05-01', 15990, product => 'com.mdlf.training.coach10.monthly', token => pg_temp.pu('k')::text, revoked => '2025-05-03');
   perform pg_temp.pay('k-4', 'k-sbx', '2025-06-01', 15990, env => 'Sandbox', product => 'com.mdlf.training.coach10.monthly', token => pg_temp.pu('k')::text);
-  -- R : 3 mois payés sans parrain (janvier à mars 2025)
-  for i in 0..2 loop
-    perform pg_temp.pay('r-' || i, 'r-orig', ('2025-01-10'::timestamptz + make_interval(months => i)), token => pg_temp.pu('r')::text);
+  -- R : 10 mois payés sans parrain (juillet 2024 à avril 2025 : le dernier, un mois où K est actif)
+  for i in 0..9 loop
+    perform pg_temp.pay('r-' || i, 'r-orig', ('2024-07-10'::timestamptz + make_interval(months => i)), token => pg_temp.pu('r')::text);
   end loop;
   -- P (ANNUEL) : premier mois payé le 31 janvier à 23 h 30 UTC (déjà le 1er février à Paris), 5 autres mois,
   -- puis un abonnement annuel à 55 € le 15 juillet : il ne reste que 6 des 12 mois, la moitié compte
@@ -168,7 +175,8 @@ begin
   if (select attribution_id from public.subscription_payments where transaction_id = 'v-1') is not null then raise 'attribution sans parrain'; end if;
   -- R rejoint K maintenant : ses paiements passés lui sont rattachés, sans rien rapporter au coach
   insert into public.coach_links (student_id, coach_id) values (pg_temp.pu('r'), pg_temp.pu('k'));
-  if (select count(*) from public.subscription_payments where user_id = pg_temp.pu('r') and attribution_id is not null) is distinct from 3::bigint
+  update public.referral_attributions set created_at = now() - interval '1 minute' where user_id = pg_temp.pu('r');
+  if (select count(*) from public.subscription_payments where user_id = pg_temp.pu('r') and attribution_id is not null) is distinct from 10::bigint
     then raise 'paiements de R non rattachés'; end if;
 end $$;
 -- V saisit ensuite LUCAS : ses paiements déjà faits lui sont rattachés
@@ -219,13 +227,17 @@ begin
   -- T en dollars (mars, K actif) : inconnu, jamais inventé ; février (K inactif, aucun paiement) : 0
   if pg_temp.net('coach', null, pg_temp.pu('k'), '2025-02-01') is distinct from 0::bigint then raise 'février du coach'; end if;
   if pg_temp.net('coach', null, pg_temp.pu('k'), '2025-03-01') is not null then raise 'dollars : revenu net inventé'; end if;
-  -- Avril (K actif) : deux paiements en Belgique → 912 ; mai (K inactif) : le paiement de mai ne rapporte
-  -- rien, mais le remboursement d'un paiement d'avril (versé) est repris : −456
+  -- Avril (K actif) : deux paiements de T en Belgique → 912 ; ni le paiement d'avril de R (d'avant son
+  -- adhésion) ni le remboursement de février de T (acheté K inactif, jamais versé) n'y changent rien.
+  -- Mai (K inactif) : le paiement de mai ne rapporte rien, mais le remboursement d'un paiement d'avril
+  -- (versé) est repris : −456
   if pg_temp.net('coach', null, pg_temp.pu('k'), '2025-04-01') is distinct from 912::bigint then raise 'net avril du coach : %', pg_temp.net('coach', null, pg_temp.pu('k'), '2025-04-01'); end if;
   if pg_temp.net('coach', null, pg_temp.pu('k'), '2025-05-01') is distinct from -456::bigint then raise 'net mai du coach : %', pg_temp.net('coach', null, pg_temp.pu('k'), '2025-05-01'); end if;
   if pg_temp.net('coach', null, pg_temp.pu('k'), '2025-06-01') is distinct from 0::bigint then raise 'coach sans paiement ce mois'; end if;
-  -- R : paiements d'avant l'adhésion, jamais rapportés au coach (pas de commission rétroactive)
-  if pg_temp.net('coach', null, pg_temp.pu('k'), '2025-01-01') is distinct from 0::bigint then raise 'commission rétroactive : %', pg_temp.net('coach', null, pg_temp.pu('k'), '2025-01-01'); end if;
+  -- Pas de rétroactif : ni les paiements de R d'avant son adhésion, ni celui de T d'avant la saisie du code
+  if exists (select 1 from private.referral_paid('coach', null, pg_temp.pu('k'), 12) x
+              where x.purchased_at < '2025-01-01 00:00+00' or x.attribution_id = (select id from public.referral_attributions where user_id = pg_temp.pu('r')))
+    then raise 'commission rétroactive'; end if;
   if private.referral_subscribers('coach', null, pg_temp.pu('k'), '2025-04-01') is distinct from 1 then raise 'abonnés du coach en avril'; end if;
 end $$;
 set timezone = 'UTC';
@@ -245,7 +257,13 @@ end $$;
 reset role;
 do $$ begin
   perform pg_temp.pay('k-5', 'k-orig', now(), 15990, product => 'com.mdlf.training.coach10.monthly', token => pg_temp.pu('k')::text);
-  perform pg_temp.pay('r-3', 'r-orig', now(), token => pg_temp.pu('r')::text);   -- R : 4e mois payé, après l'adhésion
+  -- R : 11e et 12e mois payés après l'adhésion (comptés), 13e (plus rien) : ses 10 premiers mois sont consommés
+  perform pg_temp.pay('r-10', 'r-orig', now(), token => pg_temp.pu('r')::text);
+  perform pg_temp.pay('r-11', 'r-orig', now() + interval '1 month', token => pg_temp.pu('r')::text);
+  perform pg_temp.pay('r-12', 'r-orig', now() + interval '2 months', token => pg_temp.pu('r')::text);
+  if (select count(*) from private.referral_paid('coach', null, pg_temp.pu('k'), 12) x
+       where x.attribution_id = (select id from public.referral_attributions where user_id = pg_temp.pu('r'))) is distinct from 2::bigint
+    then raise 'R : 2 mois restants sur 12'; end if;
 end $$;
 set role service_role;
 do $$

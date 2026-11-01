@@ -206,8 +206,11 @@ function referralGroupHtml() {
           <div class="cell referral-cell">
             <span class="cell__body"><span class="cell__title">${esc(`Parrainé par ${v.referrer}`)}</span></span>
           </div>
+          ${referralSuggestJoin(v) ? `<button class="cell cell--action" data-action="coach-join">
+            <span class="cell__body"><span class="cell__title">Rejoindre ce coach</span><span class="cell__sub">${esc(`Pour que ${v.referrer} suive tes séances (avec son code)`)}</span></span>
+          </button>` : ''}
         </div>
-        <div class="group-foot">Ce parrainage ne donne accès ni à ton compte ni à tes séances.</div>
+        <div class="group-foot">Ce parrainage ne donne accès ni à ton compte ni à tes séances${referralSuggestJoin(v) ? ' : seul le rejoindre comme coach lui montre tes séances' : ''}.</div>
 `;
   if (!v.canEnter) return '';
   const until = v.until ? ` Jusqu'au ${fmtDate(v.until, 'day')}.` : '';
