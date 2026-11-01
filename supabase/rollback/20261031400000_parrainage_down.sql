@@ -17,11 +17,20 @@
 --    un coach n'attribue plus rien. Aucune colonne d'une autre table n'avait changé.
 --  - les lignes « referral_try » du journal private.social_rate sont retirées.
 --
---  Ordre : indépendant des migrations postérieures (aucune ne lit ces tables ni n'appelle ces
---  fonctions). Peut être lancé avec ou sans elles en place (vérifié par tests/sql/rollback_nuit_check.sh).
+--  Ordre : APRÈS 20261101000000_parrainage_payant_down.sql (la table des paiements référence
+--  referral_attributions) ; ce script s'arrête sans rien changer tant qu'elle est en place. Indépendant
+--  des autres migrations postérieures (vérifié par tests/sql/rollback_nuit_check.sh).
 -- ═══════════════════════════════════════════════════════════
 
 begin;
+
+do $garde$
+begin
+  if to_regclass('public.subscription_payments') is not null then
+    raise exception 'parrainage du payant encore en place : lancer d''abord supabase/rollback/20261101000000_parrainage_payant_down.sql';
+  end if;
+end
+$garde$;
 
 create table private.parrainage_archive_partners as select * from public.referral_partners;
 create table private.parrainage_archive_coach_terms as select * from public.referral_coach_terms;

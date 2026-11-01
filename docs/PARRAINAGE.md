@@ -23,7 +23,7 @@ l'utilisateur n'a aucun accès direct). Pas de double attribution, donc pas de d
 | --- | --- | --- | --- |
 | Saisie d'un code partenaire (« Code d'un coach ou d'un ami ») | `partner`, source `code` | 30 jours après la création du compte | `referral_apply` |
 | Adhésion à un coach (code d'invitation `coach_invites`, puis code unique du payant) | `coach`, source `coach` | aucun : l'élève s'abonne grâce au code du coach (−25 %) | déclencheur sur `coach_links` → `private.referral_attribute_coach` |
-| Saisie du code unique d'un coach dans « Code d'un coach ou d'un ami » | `coach`, source `code` | 30 jours | `referral_apply` → `private.referral_resolve_coach_code` (accroche du payant) |
+| Saisie du code permanent d'un coach dans « Code d'un coach ou d'un ami » | `coach`, source `code` | 30 jours | `referral_apply` → `private.referral_resolve_coach_code` |
 
 Cas qui se croisent :
 
@@ -108,9 +108,8 @@ d'abonné. À garder chaque mois avec le relevé Apple du même mois : c'est la 
 
 Colonnes : mois, type (coach ou partenaire), code, coach_id, nom, actif, taux, durée, nouveaux comptes,
 comptes au total, abonnés actifs, revenu net, abonnement coach actif, commission du mois, déjà versé,
-reste dû, à verser (« oui » dès 20 € cumulés, sinon « non, reporté »). Les colonnes d'argent restent
-vides tant que le payant n'est pas branché (accroches ci-dessous) : une case vide veut dire « inconnu »,
-jamais « 0 € ».
+reste dû, à verser (« oui » dès 20 € cumulés, sinon « non, reporté »). Une case vide veut dire
+« inconnu » (paiement dans une autre devise, voir « Branchement sur le payant »), jamais « 0 € ».
 
 ## Formule
 
@@ -131,21 +130,38 @@ reste dû = Σ commissions depuis le début − Σ virements faits ; versé dès
   environ 29 abonnés-mois pour atteindre le seuil de 20 €.
 - « 12 premiers mois » : comptés depuis le premier paiement de l'abonné (pas depuis l'attribution).
 
-## Accroches du payant (quand la branche `payant` sera sur main)
+## Branchement sur le payant (`20261101000000_parrainage_payant.sql`)
 
-Le parrainage ne lit aucune table du payant. Fonctions à réécrire (`create or replace`, mêmes
-signatures) :
+**Une seule source de vérité** pour « qui a amené ce compte » : `referral_attributions`. Le
+rattachement élève → coach que les tarifs du payant avaient prévu (`coach_origins`) a été retiré avant
+sa mise en production : `coach_join` crée la ligne de `coach_links`, et le déclencheur
+`coach_links_referral` attribue l'élève (au coach, ou au code partenaire d'un coach partenaire).
 
-| Fonction | Aujourd'hui | À faire |
-| --- | --- | --- |
-| `private.referral_resolve_coach_code(code)` | null | code unique d'un coach → son compte |
-| `private.referral_subscribers(kind, code, coach, mois)` | null | abonnés attribués, payés ce mois, dans leurs 12 premiers mois |
-| `private.referral_net_cents(kind, code, coach, mois, months)` | null | Σ proceeds (centimes) des mois payés et non remboursés de ces abonnés |
-| `private.referral_coach_active(coach, mois)` | null | le coach avait-il un abonnement coach actif ce mois-là |
+**Paiements** : `public.subscription_payments`, une ligne par transaction d'Apple (achat, renouvellement,
+changement de palier), écrite par `verify-purchase` (après l'écriture de l'accès, jamais bloquant) et
+`appstore-notify` (avant l'accès : une écriture qui échoue répond 500 et Apple réessaie) par
+`public.srv_subscription_payment` (clé serveur). Prix payé en millièmes de la devise, devise, pays de la
+boutique (`storefront`), essai gratuit, environnement, date de remboursement. Compte et attribution
+rattachés par la base quel que soit l'ordre d'arrivée (paiement avant la validation de l'app, code saisi
+après le premier paiement). RLS fermée, aucun GRANT. Compte supprimé : paiements sans parrain effacés,
+ceux d'un compte parrainé gardés anonymes (sans compte ni identifiant d'Apple).
 
-À la validation d'un abonnement Apple (fonction Edge), `public.referral_for_user(uid)` donne le parrain
-du compte. Si l'adhésion par le code unique du coach ne passe pas par `coach_links`, appeler
-`private.referral_attribute_coach(élève, coach)`.
+| Accroche | Version branchée |
+| --- | --- |
+| `private.referral_resolve_coach_code(code)` | code **permanent** d'un coach validé → son compte (les codes de 7 jours servent seulement à rejoindre) |
+| `private.referral_subscribers(kind, code, coach, mois)` | comptes attribués dont une période **payée**, prise dans leurs N premiers mois d'abonnement payé, couvre une partie du mois |
+| `private.referral_net_cents(kind, code, coach, mois, months)` | Σ revenu net des paiements datés du mois − revenu net des paiements remboursés dans le mois, dans les N premiers mois de chaque compte |
+| `private.referral_coach_active(coach, mois)` | une période d'abonnement coach de Production, non remboursée, couvre une partie du mois (essai gratuit d'Apple compris) |
+
+- Revenu net d'un paiement = prix TTC ÷ (1 + TVA du pays) × (1 − `private.referral_apple_rate()`, 15 %).
+  TVA : taux normaux de la zone euro (`private.referral_vat_rate`). **Autre devise ou pays hors liste :
+  inconnu** (case vide dans le rapport, et le cumul du parrain devient inconnu) : le relevé d'App Store
+  Connect fait foi. C'est une estimation : contrôler chaque mois avec le relevé d'Apple avant de verser.
+- Jamais comptés : Sandbox (TestFlight, équipe d'examen d'Apple), essai gratuit, prix nul.
+- Mois découpés en UTC. « N premiers mois » : depuis le premier paiement de Production du compte.
+- À la validation d'un abonnement Apple, `public.referral_for_user(uid)` donne toujours le parrain.
+- Vérifié par `tests/sql/parrainage_payant_test.sql` (et `tests/sql/prod_order_test.sh` pour l'ordre de
+  mise en production).
 
 ## Lien profond (plus tard)
 

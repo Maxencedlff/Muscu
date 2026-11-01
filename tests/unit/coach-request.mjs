@@ -33,7 +33,7 @@ export default function ({ test, assert, ROOT }) {
   test('tarifs : RPC, erreurs et fonctions d\'administration documentées dans le contrat', () => {
     const s = sql(), d = doc();
     for (const f of ['coach_request_state', 'coach_request_submit', 'coach_my_code', 'coach_tier_state', 'student_offer_code',
-      'approve_coach', 'reject_coach', 'revoke_coach', 'coach_requests_pending', 'coach_origin_for_user', 'coach_offer_codes', 'coach_origins']) {
+      'approve_coach', 'reject_coach', 'revoke_coach', 'coach_requests_pending', 'coach_offer_codes']) {
       assert.ok(s.includes(f), `${f} absent de la migration`);
       assert.ok(d.includes(f), `${f} absent du contrat`);
     }

@@ -18,12 +18,14 @@
 //    Apple injoignable ou clé absente : 503, aucun droit écrit (l'app réessaiera).
 // 5. Écriture par public.srv_access_purchase (clé serveur, seul rôle qui peut l'exécuter). La base
 //    refuse une transaction déjà au nom d'un autre compte : 409 { error: 'transaction_taken' }.
+// 6. Le paiement de la période (prix, devise, pays) est noté par public.srv_subscription_payment pour
+//    les commissions du parrainage (docs/PARRAINAGE.md). Un échec n'empêche pas l'accès (journalisé).
 //
 // Secrets (Management API, jamais dans le dépôt) : APPLE_IAP_KEY_ID, APPLE_IAP_PRIVATE_KEY (contenu du
 // .p8 « In-App Purchase »), APPLE_ISSUER_ID (App Store Connect › Clés › Issuer ID).
 import { adminClient, bodyJws, caller, CORS, env, json } from '../_shared/http.ts';
 import { verifyAppleJws } from '../_shared/apple-jws.js';
-import { BUNDLE_ID, httpStatus, purchaseFailure, transactionDecision } from './purchase-policy.js';
+import { BUNDLE_ID, httpStatus, paymentRecord, purchaseFailure, transactionDecision } from './purchase-policy.js';
 import { importPKCS8, SignJWT } from 'npm:jose@5.9.6';
 
 const HOSTS: Record<string, string> = {
@@ -130,6 +132,13 @@ Deno.serve(async (req) => {
     const f = purchaseFailure(error.message);
     if (f.error === 'write') console.error('verify-purchase: écriture refusée', error.code, error.message);
     return json({ error: f.error }, f.status);
+  }
+  // 6. Paiement noté pour le parrainage (20261101000000_parrainage_payant.sql), d'après la relecture :
+  //    jamais bloquant, l'accès est déjà écrit ; appstore-notify note aussi chaque renouvellement.
+  const payment = paymentRecord(fresh.payload, sure.value);
+  if (payment) {
+    const { error: payError } = await adminClient().rpc('srv_subscription_payment', payment);
+    if (payError) console.error('verify-purchase: paiement non noté', payError.code);
   }
   return json({ ok: true, access: data });
 });

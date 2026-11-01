@@ -20,12 +20,14 @@
 //    propre chaîne de certificats Apple). Le renewalInfo porte gracePeriodExpiresDate, la seule source
 //    de la période de grâce de facturation. Les champs ne sont jamais crus sur parole.
 // 3. notify-policy.js décide : type traité, bundleId, environnement, date de fin, révocation.
-// 4. public.srv_access_event (clé serveur) dédoublonne par notificationUUID, retrouve le compte par la
+// 4. public.srv_subscription_payment note le paiement de la période (prix, devise, pays) pour les
+//    commissions du parrainage (docs/PARRAINAGE.md), puis public.srv_access_event (clé serveur) dédoublonne par notificationUUID, retrouve le compte par la
 //    transaction d'origine (ou par appAccountToken), et met le droit d'accès à jour. Le tout dans une
 //    seule transaction de base de données : une écriture qui échoue ne consomme pas la notification.
 import { adminClient, CORS, json } from '../_shared/http.ts';
 import { verifyAppleJws } from '../_shared/apple-jws.js';
 import { notificationDecision } from './notify-policy.js';
+import { paymentRecord, transactionDecision } from '../verify-purchase/purchase-policy.js';
 
 
 // Corps JSON { signedPayload }, '' s'il est absent ou illisible
@@ -71,7 +73,22 @@ Deno.serve(async (req) => {
     return json({ ok: true, handled: false, type: decided.type, reason: decided.reason });
   }
 
-  // 4. Déduplication et mise à jour du droit d'accès, dans une seule transaction
+  // 4a. Paiement de la période noté pour le parrainage (idempotent : la même transaction réécrit la même
+  //     ligne). AVANT la mise à jour du droit d'accès : si l'écriture échoue, 500 et Apple réessaie, la
+  //     notification n'étant pas encore marquée vue. Fonction absente (migration du parrainage du payant
+  //     pas encore appliquée) : on continue, l'accès passe avant tout.
+  const tx = transactionDecision(inner.signedTransactionInfo ?? null, { nowMs });
+  const payment = tx.ok ? paymentRecord(inner.signedTransactionInfo, tx.value) : null;
+  if (payment) {
+    const { error: payError } = await adminClient().rpc('srv_subscription_payment', payment);
+    if (payError && payError.code !== 'PGRST202') {
+      console.error('appstore-notify: paiement non noté', decided.type, payError.code);
+      return json({ error: 'write' }, 500);
+    }
+    if (payError) console.error('appstore-notify: srv_subscription_payment absente', decided.type);
+  }
+
+  // 4b. Déduplication et mise à jour du droit d'accès, dans une seule transaction
   const { data: res, error } = await adminClient().rpc('srv_access_event', {
     p_original_tx: decided.value.original_transaction_id,
     p_product: decided.value.product_id,

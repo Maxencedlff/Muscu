@@ -195,6 +195,54 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     assert.equal(renew.value.transaction_id, '2000000900000009');
   });
 
+  test('verify-purchase : paiement noté pour le parrainage (prix, devise, pays, essai, remboursement)', async () => {
+    const { transactionDecision, paymentRecord } = await policy();
+    const rec = (over) => {
+      const p = transactionPayload({ purchaseDate: nowMs - 86400_000, expiresDate: nowMs + 29 * 86400_000, price: 6490, currency: 'EUR', storefront: 'FRA', ...over });
+      return paymentRecord(p, transactionDecision(p, { nowMs }).value);
+    };
+    sameJSON(rec({ transactionId: '2000000900000009', appAccountToken: '00000000-0000-4000-8000-000000000123' }), {
+      p_transaction_id: '2000000900000009', p_original_tx: '2000000900000001', p_product: 'com.mdlf.training.pro.monthly',
+      p_environment: 'Production', p_purchased_at: new Date(nowMs - 86400_000).toISOString(),
+      p_expires_at: new Date(nowMs + 29 * 86400_000).toISOString(), p_price_milli: 6490, p_currency: 'EUR',
+      p_storefront: 'FRA', p_free_trial: false, p_revoked_at: null, p_account_token: '00000000-0000-4000-8000-000000000123',
+    });
+    // Essai gratuit d'Apple : prix 0, jamais compté comme payé
+    const trial = rec({ offerType: 1, offerDiscountType: 'FREE_TRIAL', price: 6490 });
+    assert.equal(trial.p_free_trial, true);
+    assert.equal(trial.p_price_milli, 0);
+    // Champs absents ou mal formés : null (la base laisse le revenu net « inconnu »), jamais inventés
+    const bad = rec({ price: '6490', currency: 'EURO', storefront: 12 });
+    assert.equal(bad.p_price_milli, null);
+    assert.equal(bad.p_currency, null);
+    assert.equal(bad.p_storefront, null);
+    assert.equal(rec({ price: -1 }).p_price_milli, null);
+    assert.equal(rec({ price: 64.9 }).p_price_milli, null);
+    assert.equal(rec({ currency: 'eur', storefront: 'bel' }).p_storefront, 'BEL');
+    // Remboursement : date d'Apple gardée
+    assert.equal(rec({ revocationDate: nowMs - 3600_000 }).p_revoked_at, new Date(nowMs - 3600_000).toISOString());
+    // Sans date d'achat, ou transaction refusée : rien à noter
+    const noDate = transactionPayload({ purchaseDate: undefined, signedDate: nowMs });
+    assert.equal(paymentRecord(noDate, transactionDecision(noDate, { nowMs }).value), null);
+    assert.equal(paymentRecord(transactionPayload(), undefined), null);
+  });
+
+  test('parrainage du payant : les deux fonctions Edge notent le paiement, la base sait le lire', () => {
+    const verify = fs.readFileSync(path.join(ROOT, 'supabase/functions/verify-purchase/index.ts'), 'utf8');
+    const notify = fs.readFileSync(path.join(ROOT, 'supabase/functions/appstore-notify/index.ts'), 'utf8');
+    const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261101000000_parrainage_payant.sql'), 'utf8');
+    for (const src of [verify, notify]) assert.ok(src.includes("rpc('srv_subscription_payment', payment)"), 'appel absent');
+    // Le paiement passe AVANT la mise à jour du droit d'accès dans appstore-notify (réessai d'Apple utile)
+    assert.ok(notify.indexOf("'srv_subscription_payment'") < notify.indexOf("'srv_access_event'"), 'ordre des écritures');
+    // Mêmes paramètres côté JS et côté SQL
+    const m = sql.match(/create function public\.srv_subscription_payment\(([\s\S]*?)\)\s*returns jsonb/);
+    const params = [...m[1].matchAll(/(p_\w+)/g)].map(x => x[1]);
+    return policy().then(({ paymentRecord, transactionDecision }) => {
+      const p = transactionPayload({ price: 6490, currency: 'EUR', storefront: 'FRA' });
+      assert.deepEqual(Object.keys(paymentRecord(p, transactionDecision(p, { nowMs }).value)).sort(), [...params].sort());
+    });
+  });
+
   test('verify-purchase : bundleId faux, produit inconnu, type faux, partage familial', async () => {
     const { transactionDecision } = await policy();
     const err = (over) => transactionDecision(transactionPayload(over), { nowMs }).error;

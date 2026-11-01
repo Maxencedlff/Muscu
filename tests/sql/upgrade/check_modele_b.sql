@@ -25,8 +25,8 @@ begin
   if private.access_json('00000000-0000-0000-0000-000000000905') ->> 'status' is distinct from 'none' then raise '905 encore gratuit'; end if;
   if not exists (select 1 from private.tarifs_ex_coach_team where user_id = '00000000-0000-0000-0000-000000000905') then raise '905 non noté'; end if;
   if (select status from public.entitlements where user_id = '00000000-0000-0000-0000-000000000905') = 'coach_team' then raise 'instantané de 905'; end if;
-  if not exists (select 1 from public.coach_origins o join public.coach_links l on l.student_id = o.student_id and l.coach_id = o.coach_id
-                  where o.student_id = '00000000-0000-0000-0000-000000000905') then raise 'attribution de 905'; end if;
+  -- Lien d'avant le parrainage : aucune attribution rétroactive (décision du 31/10, docs/PARRAINAGE.md)
+  if not exists (select 1 from public.coach_links l where l.student_id = '00000000-0000-0000-0000-000000000905') then raise 'lien de 905'; end if;
   if not exists (select 1 from public.coach_invites i join public.coach_links l on l.coach_id = i.coach_id
                   where l.student_id = '00000000-0000-0000-0000-000000000905' and i.permanent) then raise 'code permanent du coach'; end if;
   -- 906 (code cadeau maison à vie) : intact

@@ -97,6 +97,35 @@ export function transactionDecision(payload, { nowMs = Date.now() } = {}) {
   };
 }
 
+// Paiement à noter pour le parrainage (20261101000000_parrainage_payant.sql, srv_subscription_payment) :
+// la période de CETTE transaction (achat, renouvellement, changement de palier), son prix et son pays.
+// À n'appeler que sur une transaction déjà acceptée par transactionDecision. price est en millièmes de la
+// devise (6,49 € → 6490), storefront le pays de la boutique (ISO 3166-1 alpha-3) : absents ou mal formés,
+// ils valent null et la base laisse le revenu net « inconnu » au lieu d'inventer un montant.
+// Essai gratuit d'Apple (intro_offer) : noté, jamais compté comme payé.
+const iso3 = (v) => (typeof v === 'string' && /^[A-Za-z]{3}$/.test(v) ? v.toUpperCase() : null);
+export function paymentRecord(payload, decided) {
+  const purchased = msDate(payload?.purchaseDate);
+  if (!decided || purchased === null) return null;
+  const price = typeof payload.price === 'number' && Number.isInteger(payload.price) && payload.price >= 0 && payload.price <= 1e8
+    ? payload.price : null;
+  const revokedMs = msDate(payload.revocationDate);
+  return {
+    p_transaction_id: decided.transaction_id,
+    p_original_tx: decided.original_transaction_id,
+    p_product: decided.product_id,
+    p_environment: decided.environment,
+    p_purchased_at: new Date(purchased).toISOString(),
+    p_expires_at: decided.expires_at,
+    p_price_milli: decided.intro_offer ? 0 : price,
+    p_currency: iso3(payload.currency),
+    p_storefront: iso3(payload.storefront),
+    p_free_trial: decided.intro_offer,
+    p_revoked_at: revokedMs === null ? null : new Date(revokedMs).toISOString(),
+    p_account_token: decided.account_token,
+  };
+}
+
 // Refus de la validation → réponse HTTP. invalid_jws est le seul code que l'app voit pour tout ce qui
 // touche à la signature : rien n'est appris à qui cherche à fabriquer un JWS.
 const STATUS = Object.freeze({

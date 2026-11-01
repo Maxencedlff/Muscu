@@ -13,7 +13,8 @@
 #  3. Démontage complet dans l'ordre inverse (supabase/rollback/ORDRE.md), depuis toutes les migrations :
 #     après chaque retour arrière, état identique à la référence d'avant sa migration.
 #  4. Gardes : tarifs et modèle B refusent (sans rien changer) tant que la migration qui les réécrit est là.
-#  5. Retours arrière indépendants (notifications, Strava, chat, commentaires, lettre, records, partage coach, parrainage)
+#  5. Retours arrière indépendants (parrainage du payant, notifications, Strava, chat, commentaires, lettre, records,
+#     partage coach)
 #     lancés SEULS sur la pile complète :
 #     les tests des autres lots (*_test.sql) passent encore.
 #  6. Démontage complet AVEC des données (comptes, coach, codes, achats, parrainage, pesées), contrôles
@@ -129,7 +130,10 @@ psql garde -f "$down/20261031000000_payant_plus_down.sql"
 if psql garde -f "$down/20261029000000_payant_modele_b_down.sql" >/dev/null 2>&1; then
   echo "ÉCHEC : modèle B démonté avant les tarifs"; exit 1
 fi
-echo "OK : tarifs et modèle B refusent tant que la migration du dessus est en place"
+if psql garde -f "$down/20261031400000_parrainage_down.sql" >/dev/null 2>&1; then
+  echo "ÉCHEC : parrainage démonté avant le parrainage du payant"; exit 1
+fi
+echo "OK : tarifs, modèle B et parrainage refusent tant que la migration du dessus est en place"
 
 # ── 5. Retours arrière indépendants, seuls sur la pile complète ──
 for pair in "20261031900000:push_test.sql" \
@@ -139,7 +143,7 @@ for pair in "20261031900000:push_test.sql" \
             "20261031230000:newsletter_test.sql" \
             "20261031100000:records_test.sql" \
             "20261031300000:partage_coach_test.sql partage_coach_concurrence_test.sql" \
-            "20261031400000:parrainage_test.sql" \
+            "20261101000000:parrainage_payant_test.sql" \
             "20261031000000:payant_plus_test.sql"; do
   t=${pair%%:*}; skip=" ${pair#*:} "
   clone ref "seul_$t"
@@ -183,6 +187,8 @@ select public.referral_apply('lucas');
 reset role;
 select public.srv_access_purchase('00000000-0000-0000-0000-00000000d003', 'com.mdlf.training.pro.monthly',
   now() + interval '20 days', 'rb-sub', false, now(), true, 'Sandbox');
+select public.srv_subscription_payment('rb-sub-1', 'rb-sub', 'com.mdlf.training.pro.monthly', 'Production', now(),
+  now() + interval '1 month', 6490, 'EUR', 'FRA');
 select private.grant_lifetime('00000000-0000-0000-0000-00000000d004', 'retiré ensuite');
 select private.revoke_lifetime('00000000-0000-0000-0000-00000000d004', 'retiré');
 insert into public.coach_offer_codes (code, environment, expires_at, batch)
@@ -197,10 +203,11 @@ SQL
 for d in "${order[@]}"; do psql data -f "$d" >/dev/null; done
 psql data >/dev/null <<'SQL'
 do $$ begin
+  if (select count(*) from private.parrainage_payant_archive_payments where attribution_id is not null) <> 1
+    then raise 'paiements non archivés'; end if;
   if (select count(*) from private.parrainage_archive_attributions) <> 2
      or (select count(*) from private.parrainage_archive_partners) <> 1 then raise 'parrainage non archivé'; end if;
   if (select count(*) from private.tarifs_archive_coach_requests where status = 'approved') <> 1
-     or (select count(*) from private.tarifs_archive_coach_origins) <> 1
      or (select count(*) from private.tarifs_archive_coach_offer_codes) <> 1 then raise 'tarifs non archivés'; end if;
   if (select intro_offer from private.modele_b_archive_claims where original_transaction_id = 'rb-sub') is not true
      then raise 'offre de lancement non archivée'; end if;

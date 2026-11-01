@@ -13,6 +13,13 @@ $$ select ('00000000-0000-0000-0000-00000000070' || c)::uuid $$;
 create function pg_temp.rlogin(c text) returns void language sql as
 $$ select set_config('request.jwt.claim.sub', case when c is null then '' else pg_temp.ru(c)::text end, false) $$;
 grant execute on function pg_temp.rerr(text), pg_temp.ru(text), pg_temp.rlogin(text) to authenticated, anon, service_role;
+-- Accroches du payant branchées (20261101000000_parrainage_payant.sql) : l'argent sans paiement vaut 0 ;
+-- sans elles (retour arrière de ce seul fichier), il reste inconnu (null)
+create function pg_temp.wired() returns boolean language sql stable as
+$$ select to_regclass('public.subscription_payments') is not null $$;
+create function pg_temp.money(v numeric) returns boolean language sql stable as
+$$ select case when pg_temp.wired() then v = 0 else v is null end $$;
+grant execute on function pg_temp.wired(), pg_temp.money(numeric) to authenticated, anon, service_role;
 
 insert into auth.users (id, created_at) values
   (pg_temp.ru('a'), now() - interval '1 day'), (pg_temp.ru('b'), now()), (pg_temp.ru('c'), now() - interval '40 days'),
@@ -110,7 +117,7 @@ do $$
 declare r record; n int;
 begin
   select * into r from public.referral_report(date_trunc('month', now())::date, date_trunc('month', now())::date) where code = 'LUCAS';
-  if r.new_accounts <> 1 or r.total_accounts <> 1 or r.commission_rate <> 0.25 or r.active_subscribers is not null then raise 'rapport LUCAS : %', r; end if;
+  if r.new_accounts <> 1 or r.total_accounts <> 1 or r.commission_rate <> 0.25 or not pg_temp.money(r.active_subscribers) then raise 'rapport LUCAS : %', r; end if;
   select count(*) into n from public.referral_report();
   if n <> 3 then raise 'rapport des 12 derniers mois : % lignes (codes créés ce mois-ci seulement)', n; end if;
   if public.referral_for_user(pg_temp.ru('a')) ->> 'code' is distinct from 'LUCAS' then raise 'referral_for_user'; end if;
@@ -171,8 +178,9 @@ begin
   set local role service_role;
   select count(*) into n from public.referral_report() where kind = 'coach' and coach_id = k
     and month = date_trunc('month', now())::date and new_accounts = 2 and commission_rate = 0.20 and commission_months = 12
-    and display_name = 'kevin.p1' and net_cents is null and commission_cents is null and balance_cents is null and payable is null;
-  if n <> 1 then raise 'rapport coach : règle commune 20 %% / 12 mois, argent inconnu sans le payant'; end if;
+    and display_name = 'kevin.p1' and pg_temp.money(net_cents) and pg_temp.money(commission_cents) and pg_temp.money(balance_cents)
+    and payable is not distinct from case when pg_temp.wired() then false end;
+  if n <> 1 then raise 'rapport coach : règle commune 20 %% / 12 mois, argent nul (payant branché) ou inconnu'; end if;
   if public.referral_for_user(pg_temp.ru('7')) ->> 'kind' is distinct from 'coach' or (public.referral_for_user(pg_temp.ru('7')) ->> 'rate')::numeric <> 0.20 then raise 'referral_for_user coach'; end if;
   reset role;
   perform private.set_coach_terms(k, 0.15, 12);
@@ -214,9 +222,9 @@ begin
   insert into public.referral_payouts (kind, coach_id, amount_cents, reference) values ('coach', k, 3000, 'Facture 2026-001');
   select * into r from public.referral_report(m0, m0) where coach_id = k;
   if r.paid_cents <> 3000 or r.balance_cents <> 0 or r.payable then raise 'après virement : %', r; end if;
-  -- Partenaire sans revenu connu : argent nul (pas de faux zéro)
+  -- Partenaire : accroches du payant branchées, aucun paiement → 0 ; sans elles, inconnu (pas de faux zéro)
   select * into r from public.referral_report(m0, m0) where code = 'LUCAS';
-  if r.commission_cents is not null or r.balance_cents is not null then raise 'partenaire sans revenu : %', r; end if;
+  if not pg_temp.money(r.commission_cents) or not pg_temp.money(r.balance_cents) then raise 'partenaire sans paiement : %', r; end if;
 end $$;
 rollback;
 

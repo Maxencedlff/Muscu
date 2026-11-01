@@ -230,18 +230,18 @@ begin
   if public.my_access() ->> 'status' <> 'active' then raise 'élève abonné : %', public.my_access(); end if;
   -- Personne ne lit le stock ni les attributions
   if pg_temp.terr($q$ select * from public.coach_offer_codes $q$) not like 'permission denied%' then raise 'stock lisible'; end if;
-  if pg_temp.terr($q$ select * from public.coach_origins $q$) not like 'permission denied%' then raise 'attributions lisibles'; end if;
-  if pg_temp.terr(format('select public.coach_origin_for_user(%L)', pg_temp.tn(1))) not like 'permission denied%' then raise 'accroche appelable par un client'; end if;
-  if pg_temp.tsrv(format('select public.coach_origin_for_user(%L)', pg_temp.tn(1))) is distinct from 'ok' then raise 'accroche du parrainage'; end if;
+  if pg_temp.terr($q$ select * from public.referral_attributions $q$) not like 'permission denied%' then raise 'attributions lisibles'; end if;
 end $$;
 reset role;
 
--- ── Attribution : gardée quand l'élève part, pas changée par un autre coach ──
+-- ── Attribution (une seule source : referral_attributions du parrainage) : gardée quand l'élève part,
+--    pas changée par un autre coach ──
 do $$
 declare c2 text;
 begin
-  if (select coach_id from public.coach_origins where student_id = pg_temp.tn(1)) <> pg_temp.tu('10') then raise 'attribution'; end if;
-  if (select code from public.coach_origins where student_id = pg_temp.tn(1)) !~ '^[A-HJ-NP-Z2-9]{12}$' then raise 'code de l''attribution'; end if;
+  if to_regclass('public.coach_origins') is not null then raise 'seconde table d''attribution'; end if;
+  if (select referrer_coach from public.referral_attributions where user_id = pg_temp.tn(1) and kind = 'coach' and source = 'coach')
+     is distinct from pg_temp.tu('10') then raise 'attribution'; end if;
   delete from public.coach_links where student_id = pg_temp.tn(1);
   update public.app_config set value = 'false'::jsonb where key = 'paywall_on';   -- N n'a pas d'abonnement coach
   -- Un second coach (N, validé à la main) : l'élève le rejoint, l'attribution reste à M
@@ -252,10 +252,10 @@ begin
   perform pg_temp.tlogin(pg_temp.tn(1));
   perform public.coach_join(c2);
   reset role;
-  if (select coach_id from public.coach_origins where student_id = pg_temp.tn(1)) <> pg_temp.tu('10') then raise 'attribution changée'; end if;
+  if (select referrer_coach from public.referral_attributions where user_id = pg_temp.tn(1)) is distinct from pg_temp.tu('10') then raise 'attribution changée'; end if;
   -- Compte de l'élève supprimé : la ligne reste, anonyme
   delete from auth.users where id = pg_temp.tn(31);
-  if not exists (select 1 from public.coach_origins where student_id is null and coach_id = pg_temp.tu('10')) then raise 'attribution anonymisée'; end if;
+  if not exists (select 1 from public.referral_attributions where user_id is null and referrer_coach = pg_temp.tu('10')) then raise 'attribution anonymisée'; end if;
 end $$;
 
 -- ── Retrait du rôle : élèves gardés, ajout bloqué ────────
@@ -309,7 +309,7 @@ begin
     if not has_function_privilege('authenticated', f, 'execute') or has_function_privilege('anon', f, 'execute') then raise '% : droits', f; end if;
     if not (select p.prosecdef and p.proconfig @> array['search_path=""'] from pg_proc p where p.oid = f) then raise '% : security definer et search_path vide', f; end if;
   end loop;
-  if has_table_privilege('authenticated', 'public.coach_offer_codes', 'select') or has_table_privilege('anon', 'public.coach_origins', 'select')
+  if has_table_privilege('authenticated', 'public.coach_offer_codes', 'select') or has_table_privilege('anon', 'public.referral_attributions', 'select')
      or has_table_privilege('service_role', 'public.coach_offer_codes', 'select') then raise 'tables lisibles'; end if;
   -- Anciens élèves gratuits notés, plus de fonction de gratuité
   if exists (select 1 from pg_proc where proname in ('access_coach_free', 'access_own_paid')) then raise 'gratuité élève restée'; end if;

@@ -24,9 +24,9 @@ export const COLUMNS = [
   ['duree_mois', r => r.commission_months ?? ''],
   ['nouveaux_comptes', r => r.new_accounts],
   ['comptes_total', r => r.total_accounts],
-  // null tant que le payant n'est pas branché (private.referral_subscribers)
+  // null : inconnu (private.referral_subscribers)
   ['abonnes_actifs', r => (r.active_subscribers == null ? '' : r.active_subscribers)],
-  // Argent (euros) : vide tant que le payant n'est pas branché
+  // Argent (euros) : vide quand c'est inconnu (paiement dans une autre devise, docs/PARRAINAGE.md)
   ['revenu_net_eur', r => euros(r.net_cents)],
   ['abonnement_coach_actif', r => (r.coach_active == null ? '' : r.coach_active ? 'oui' : 'non')],
   ['commission_mois_eur', r => euros(r.commission_cents)],

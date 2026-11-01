@@ -14,9 +14,8 @@
 --  plus) et couper la fonction Edge coach-request-alert (elle lit public.coach_requests).
 --
 --  Effet :
---  - les demandes de rôle coach, les attributions élève → coach et le stock de codes d'offre Apple
---    sont MIS DE CÔTÉ dans private.tarifs_archive_coach_requests, private.tarifs_archive_coach_origins
---    et private.tarifs_archive_coach_offer_codes (aucun rôle de l'API n'y a accès), puis les tables
+--  - les demandes de rôle coach et le stock de codes d'offre Apple sont MIS DE CÔTÉ dans
+--    private.tarifs_archive_coach_requests et private.tarifs_archive_coach_offer_codes (aucun rôle de l'API n'y a accès), puis les tables
 --    sont supprimées. Archives à effacer à la main quand elles ne servent plus (les demandes
 --    contiennent des numéros de carte professionnelle) ;
 --  - les coachs validés gardent leur rôle (user_profiles.coach_at reste posé), les rôles retirés le
@@ -44,9 +43,8 @@ $garde$;
 
 -- ── Archives ─────────────────────────────────────────────
 create table private.tarifs_archive_coach_requests as select * from public.coach_requests;
-create table private.tarifs_archive_coach_origins as select * from public.coach_origins;
 create table private.tarifs_archive_coach_offer_codes as select * from public.coach_offer_codes;
-revoke all on private.tarifs_archive_coach_requests, private.tarifs_archive_coach_origins,
+revoke all on private.tarifs_archive_coach_requests,
   private.tarifs_archive_coach_offer_codes from public, anon, authenticated, service_role;
 
 -- ── Textes d'origine (20261029000000_payant_modele_b.sql) ─
@@ -302,7 +300,6 @@ $$;
 
 -- ── Ce que les tarifs ajoutaient ─────────────────────────
 drop function public.student_offer_code(text);
-drop function public.coach_origin_for_user(uuid);
 drop function public.coach_tier_state();
 drop function public.coach_my_code();
 drop function public.coach_request_submit(text, text, text);
@@ -318,7 +315,6 @@ drop function private.coach_request_json(uuid);
 drop function private.coach_product_limit(text);
 
 drop table public.coach_offer_codes;
-drop table public.coach_origins;
 drop view private.coach_requests_pending;
 drop table public.coach_requests;
 

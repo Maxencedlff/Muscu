@@ -52,11 +52,11 @@
 --     verrou éteint, au moins 50 (comportement d'avant, TestFlight) ; verrou allumé sans abonnement
 --     coach : 0. team_full (50 fixe) disparaît. Les élèves déjà là au-delà du palier (descente de
 --     palier) restent ; seul l'ajout est bloqué. coach_tier_state() le dit au coach.
---  7. ATTRIBUTION ÉLÈVE → COACH CONSERVÉE (public.coach_origins) : le premier coach rejoint par code,
---     jamais modifiée ensuite, gardée quand l'élève quitte son coach ou que le coach perd son rôle.
---     Elle servira aux commissions des coachs, gérées par le parrainage (branche lot3-parrainage,
---     docs/PARRAINAGE.md) : accroche public.coach_origin_for_user(uid), clé serveur seulement. Rien du
---     parrainage n'est dupliqué ici.
+--  7. ATTRIBUTION ÉLÈVE → COACH : une seule source de vérité, public.referral_attributions du
+--     parrainage (20261031400000_parrainage.sql, docs/PARRAINAGE.md). coach_join crée la ligne de
+--     coach_links, et c'est le déclencheur coach_links_referral du parrainage qui attribue l'élève à son
+--     coach, une seule fois, gardée quand l'élève quitte son coach. Les commissions y sont calculées
+--     (20261101000000_parrainage_payant.sql). Rien n'est dupliqué ici.
 -- ═══════════════════════════════════════════════════════════
 
 -- ── 1. Produits ──────────────────────────────────────────
@@ -546,25 +546,9 @@ begin
 end
 $$;
 
--- ── 7. Attribution élève → coach ─────────────────────────
+-- ── 7. Adhésion (attribution : déclencheur du parrainage) ──
 
-create table public.coach_origins (
-  id         bigint generated always as identity primary key,
-  -- null : compte supprimé depuis (la ligne reste, anonyme, comme referral_attributions)
-  student_id uuid unique references auth.users(id) on delete set null,
-  coach_id   uuid references auth.users(id) on delete set null,
-  code       text,                -- code saisi (7 jours ou permanent)
-  joined_at  timestamptz not null default now()
-);
-create index coach_origins_coach on public.coach_origins (coach_id, joined_at);
-alter table public.coach_origins enable row level security;
-revoke all on public.coach_origins from public, anon, authenticated, service_role;
--- Élèves déjà liés : leur coach actuel, à la date du lien
-insert into public.coach_origins (student_id, coach_id, code, joined_at)
-  select l.student_id, l.coach_id, null, l.created_at from public.coach_links l
-  on conflict (student_id) do nothing;
-
--- Comme 20261027100000_coach.sql, plus l'attribution (premier coach seulement)
+-- Comme 20261027100000_coach.sql, avec la limite du palier relue sous le verrou par coach
 create or replace function public.coach_join(code text) returns jsonb
   language plpgsql security definer set search_path = '' as
 $$
@@ -588,19 +572,8 @@ begin
   if since is null then
     raise exception 'already_coached' using errcode = 'P0001';
   end if;
-  insert into public.coach_origins (student_id, coach_id, code, joined_at)
-    values (me, coach, private.coach_code_norm(code), since)
-  on conflict (student_id) do nothing;
   return private.person(coach, since);
 end
-$$;
-
--- Accroche du parrainage (commissions) : coach d'origine d'un compte. Clé serveur seulement.
-create function public.coach_origin_for_user(uid uuid) returns jsonb
-  language sql stable security definer set search_path = '' as
-$$
-  select jsonb_build_object('coach_id', o.coach_id, 'joined_at', o.joined_at)
-    from public.coach_origins o where o.student_id = uid
 $$;
 
 -- ── 5. Codes d'offre Apple des élèves ────────────────────
@@ -693,7 +666,6 @@ revoke all on function public.coach_tier_state() from public, anon, authenticate
 revoke all on function public.coach_create_invite() from public, anon, authenticated;
 revoke all on function public.coach_join(text) from public, anon, authenticated;
 revoke all on function public.student_offer_code(text) from public, anon, authenticated;
-revoke all on function public.coach_origin_for_user(uuid) from public, anon, authenticated, service_role;
 
 grant execute on function public.my_access() to authenticated;
 grant execute on function public.coach_request_state() to authenticated;
@@ -703,11 +675,9 @@ grant execute on function public.coach_tier_state() to authenticated;
 grant execute on function public.coach_create_invite() to authenticated;
 grant execute on function public.coach_join(text) to authenticated;
 grant execute on function public.student_offer_code(text) to authenticated;
-grant execute on function public.coach_origin_for_user(uuid) to service_role;
 
 -- Administration :
 --   select * from private.coach_requests_pending;
 --   select user_id, coach_id, noted_at from private.tarifs_ex_coach_team;   -- anciens élèves gratuits
---   select o.coach_id, count(*) from public.coach_origins o group by 1;     -- élèves apportés par coach
 --   select environment, count(*) filter (where assigned_at is null) as libres, min(expires_at)
 --     from public.coach_offer_codes group by 1;                             -- stock de codes élève
