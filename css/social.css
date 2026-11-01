@@ -221,7 +221,7 @@
 .reg__lbl { font-size: var(--fs-subhead); color: var(--label); }
 .reg__period { font-size: var(--fs-footnote); color: var(--label2); }
 .reg__bars { margin-top: 10px; height: 44px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 5px; align-items: end; }
-.reg__bar { display: block; border-radius: 3px; background: var(--fill); min-height: 3px; }
+.reg__bar { display: block; border-radius: 3px; background: var(--chart-bar); min-height: 3px; }
 .reg__bar--now { background: var(--tint); }
 .reg__axis { display: flex; justify-content: space-between; margin-top: 4px; font-size: var(--fs-caption); color: var(--label2); }
 

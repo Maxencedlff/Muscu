@@ -99,6 +99,10 @@
   font-size: var(--fs-footnote); color: var(--label2); white-space: nowrap;
 }
 .week__line .icon { margin-left: auto; flex-shrink: 0; color: var(--label3); }
+/* Jamais de débord : coupée en « … » si l'écran est trop étroit, sur deux lignes en très grands caractères */
+.week__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+html.type-xl .week__line { white-space: normal; }
+html.type-xl .week__text { overflow: visible; }
 
 /* Ensuite : les autres séances, liste sobre */
 .home-list { margin-top: 20px; }
@@ -131,8 +135,13 @@
   .targets__row { padding: 5px 0; }
   .hero__btn { margin-top: 10px; height: 50px; }
 }
-/* Très petite hauteur (iPhone SE de 1re génération, 568 pt) : Démarrer passe avant les cibles */
+/* Très petite hauteur (iPhone SE de 1re génération, 568 pt), ou très grands caractères : Démarrer passe
+   avant les cibles et reste visible sans défiler */
 @media (max-height: 600px) {
   .hero__btn { order: 1; }
   .targets { order: 2; }
 }
+html.type-xl .hero__btn { order: 1; }
+html.type-xl .targets { order: 2; }
+/* Très grands caractères : la date reste un surtitre (la règle de css/navigation.css en ferait un grand titre) */
+html.type-xl .dashboard .navbar__large { font-size: var(--fs-footnote); line-height: 1.3; }

@@ -231,13 +231,13 @@ function seedPull(sets, extra = {}) {
 test('exerciseTarget : +1 rep sous le haut de la fourchette, palier de charge au-dessus', () => {
   reset();
   let ex = seedPull([{ weight: '30', reps: '10' }, { weight: '32', reps: '9' }, { weight: '32', reps: '8' }]);
-  sameJSON(app.exerciseTarget('pull', ex), { text: '32 kg × 10', gain: '+1 rep', before: '32 kg × 9' }, 'dernière fois : la meilleure série');
+  sameJSON(app.exerciseTarget('pull', ex), { text: '32 kg × 10', gain: '1 rep', before: '32 kg × 9' }, 'dernière fois : la meilleure série');
   ex = seedPull([{ weight: '32', reps: '12' }, { weight: '32', reps: '12' }, { weight: '32', reps: '12' }]);
-  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg', gain: '+2,5 kg', before: '32 kg × 12' });
+  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg', gain: '2,5 kg', before: '32 kg × 12' });
   ex = seedPull([{ weight: '32', reps: '8' }, { weight: '32', reps: '8' }], { repMax: 8 });
-  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg', gain: '+2,5 kg', before: '32 kg × 8' }, 'fourchette réglée sur l\'exercice');
+  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg', gain: '2,5 kg', before: '32 kg × 8' }, 'fourchette réglée sur l\'exercice');
   ex = seedPull([{ weight: '', reps: '15' }]);
-  sameJSON(app.exerciseTarget('pull', ex), { text: '16 reps', gain: '+1 rep', before: '15 reps' }, 'poids du corps : jamais de palier de charge');
+  sameJSON(app.exerciseTarget('pull', ex), { text: '16 reps', gain: '1 rep', before: '15 reps' }, 'poids du corps : jamais de palier de charge');
   run('data.history = []');
   sameJSON(app.exerciseTarget('pull', ex), { text: '3 séries', gain: '', before: '' }, 'jamais fait');
 });
@@ -246,7 +246,7 @@ test('exerciseTarget en lbs : palier de 5 lb', () => {
   reset({ unit: 'lbs' });
   const ex = seedPull([{ weight: '20', reps: '12' }, { weight: '20', reps: '12' }]);
   const t = app.exerciseTarget('pull', ex);
-  assert.equal(t.gain, '+5 lb');
+  assert.equal(t.gain, '5 lb');
   assert.equal(t.text, '49,1 lbs');
 });
 

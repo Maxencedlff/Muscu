@@ -16,6 +16,7 @@
   --fill:   rgba(120,120,128,.36);
   --fill2:  rgba(120,120,128,.24);
   --tint:   #0A84FF;
+  --chart-bar: #6E6E73;         /* barres neutres d'un graphique : 3,4:1 sur cellule (1.4.11) */
   --tint-fill: #0A6CDB;         /* fond des boutons pleins : texte blanc à 5:1 */
   --tint-on-fill: #64AFFF;      /* texte bleu sur --fill (bouton secondaire) : 4,7:1 sur cellule, 6:1 sur fond */
   --on-tint: #FFFFFF;
@@ -80,6 +81,7 @@ body.light {
   --fill:   rgba(120,120,128,.2);
   --fill2:  rgba(120,120,128,.12);
   --tint:   #0066CC;
+  --chart-bar: #86868B;         /* 3,6:1 sur cellule blanche */
   --tint-fill: #0066CC;
   --tint-on-fill: #005BB8;      /* texte bleu sur --fill : 4,7:1 sur fond, 5,2:1 sur cellule */
   --green:  #34C759; --red: #FF3B30; --orange: #FF9500;

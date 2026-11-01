@@ -374,13 +374,16 @@ function topNotedRecord(records) {
 
 // Records récents de Mon profil : les `max` derniers records notés (entryRecords), un par exercice (le plus
 // récent), du plus récent au plus ancien ; dans une même séance, le plus marquant d'abord. Seules les `scan`
-// dernières séances sont lues (une séance d'avant les records notés se recalcule sur l'historique).
+// dernières séances sont lues. Une séance notée (h.records) se lit telle quelle ; une séance d'avant les
+// records notés se recalcule sur l'historique (sessionRecords relit toute la séance type), une fois tant que
+// l'historique garde la même empreinte (legacyRecords) : Mon profil se redessine sans tout recalculer.
 // [{ ex, date, r }] (r : élément noté, ex : nom de l'exercice)
 function recentRecords(history = data.history, max = 3, scan = 60) {
   const out = [], seen = new Set();
   const latest = (history || []).filter(h => h && Number.isFinite(h.date)).sort((a, b) => b.date - a.date).slice(0, scan);
   for (const h of latest) {
-    const recs = entryRecords(h, history).slice().sort((a, b) => NOTED_RANK[b.kind] - NOTED_RANK[a.kind]);
+    const recs = (Array.isArray(h.records) ? cleanNotedRecords(h.records) : legacyRecords(h, history))
+      .slice().sort((a, b) => NOTED_RANK[b.kind] - NOTED_RANK[a.kind]);
     for (const r of recs) {
       const k = normName(r.ex);
       if (seen.has(k)) continue;
@@ -390,6 +393,18 @@ function recentRecords(history = data.history, max = 3, scan = 60) {
     }
   }
   return out;
+}
+
+// Records recalculés d'une séance d'avant les records notés, gardés par séance tant que l'historique a la
+// même empreinte (nombre de séances, plus récente, unité), même principe que muscleLastCache (accueil)
+const legacyRecordsCache = new WeakMap();
+function legacyRecords(h, history) {
+  const key = `${history.length}:${history[0]?.id}:${history[0]?.date}:${data.unit}`;
+  const hit = legacyRecordsCache.get(h);
+  if (hit?.history === history && hit.key === key) return hit.recs;
+  const recs = sessionRecords(h, history);
+  legacyRecordsCache.set(h, { history, key, recs });
+  return recs;
 }
 
 // Gain d'un record sur la valeur d'avant, sans signe (la flèche ↑ est dessinée à côté) : « 2,5 kg »,

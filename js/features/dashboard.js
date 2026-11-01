@@ -5,11 +5,6 @@
 
 let ticker = null;
 
-// Pastille de séance : point de la couleur de la séance
-function catDot(cat, progId) {
-  return catBadge(sessionMeta(cat, progId || data.activeProgramme).color);
-}
-
 // « dans 1 j 18 h », « dans 14 h », « dans 35 min » (jamais de secondes)
 function fmtWait(ms) {
   const min = Math.max(1, Math.ceil(ms / 60000));
@@ -43,9 +38,8 @@ function catStatus(cat, now = Date.now()) {
     best = { date: rec.date, readyAt: rec.readyAt, by: mine ? null : rec };
   }
   const last = best?.date ?? null, readyAt = best?.readyAt || 0;
-  const remaining = last ? readyAt - now : 0, span = readyAt - last;
-  return { last, readyAt, remaining, ready: remaining <= 0, progress: last && span > 0 ? Math.min(1, 1 - remaining / span) : 1,
-    by: remaining > 0 ? best.by : null };
+  const remaining = last ? readyAt - now : 0;
+  return { last, readyAt, remaining, ready: remaining <= 0, by: remaining > 0 ? best.by : null };
 }
 
 // Dernier entraînement (muscle principal, au moins une série) de chaque muscle, sur tout l'historique
@@ -161,6 +155,7 @@ function sessionMinutes(cat) {
 // Cible du jour d'un exercice, même règle que la puce de la séance (bumpReady) :
 // toutes les séries de la dernière fois en haut de la fourchette → charge + 2,5 kg (5 lb) ;
 // sinon la meilleure série de la dernière fois + 1 rep ; jamais fait → nombre de séries prévu.
+// gain : sans signe (« 1 rep », « 2,5 kg ») : l'accueil le précède d'une flèche ↑.
 // before : la meilleure série de la dernière fois (« 32 kg × 9 »), '' si l'exercice n'a jamais été fait.
 function exerciseTarget(cat, ex) {
   const lp = lastPerf(data.activeProgramme, cat, ex);
@@ -172,13 +167,13 @@ function exerciseTarget(cat, ex) {
   const before = setTxt(best, ex);
   const m = measureOf(ex);
   if (m !== 'reps' || isAssisted(ex)) return { text: setTxt(best, ex), gain: '', before };   // durée, cardio : on rappelle la dernière fois
-  if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: best.r + 1, reps: String(best.r + 1) }, ex), gain: '+1 rep', before };
+  if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: best.r + 1, reps: String(best.r + 1) }, ex), gain: '1 rep', before };
   const repMax = ex.repMax ?? 12;
   const bump = best.w > 0 && sets.length >= Math.min(ex.sets, 2) && sets.every(s => (parseInt(s.reps) || 0) >= repMax);
   if (bump) {
     return { text: `${fmtW(best.w + bumpStepKg())} ${unitLbl()}`, gain: bumpLabel(), before };
   }
-  return { text: setTxt({ ...best, r: best.r + 1 }), gain: '+1 rep', before };
+  return { text: setTxt({ ...best, r: best.r + 1 }), gain: '1 rep', before };
 }
 
 // « À battre aujourd'hui », dans la carte de la prochaine séance : les premiers exercices, la cible en
@@ -188,7 +183,7 @@ const HERO_TARGETS = 3;
 function targetRowHtml(cat, ex) {
   const t = exerciseTarget(cat, ex);
   const gain = t.gain
-    ? `<span class="targets__gain num">${icon('arrow.up', 11)}${esc(t.gain.replace(/^\+\s?/, ''))}<span class="visually-hidden"> de plus</span></span>` : '';
+    ? `<span class="targets__gain num">${icon('arrow.up', 11)}${esc(t.gain)}<span class="visually-hidden"> de plus</span></span>` : '';
   const before = t.gain && t.before ? `<span class="targets__before num">avant ${esc(t.before)}</span>` : '';
   return `<li class="targets__row"><span class="targets__name">${esc(ex.name)}</span>`
     + `<span class="targets__val"><span class="targets__now"><span class="targets__target num">${esc(t.text)}</span>${gain}</span>${before}</span></li>`;
@@ -259,7 +254,7 @@ function weekCard(ws) {
     <button class="home-card week" data-action="go-stats" aria-description="Voir les progrès">
       <span class="week__head"><span class="home-card__title">Cette semaine</span><span class="sr-text">${esc(spoken)}</span><span class="week__count num" aria-hidden="true"><b>${ws.count}</b> sur ${goal}</span></span>
       <span class="week__days" aria-hidden="true">${days}</span>
-      ${line ? `<span class="week__line" aria-hidden="true">${esc(line)}${icon('chevron.right', 12)}</span>` : ''}
+      ${line ? `<span class="week__line" aria-hidden="true"><span class="week__text">${esc(line)}</span>${icon('chevron.right', 12)}</span>` : ''}
     </button>`;
 }
 
@@ -300,7 +295,7 @@ function heroHtml(keys, next, liveHere) {
       <h2 class="hero__name hero__name--${size}">${meta.label}</h2>
       ${desc ? `<p class="hero__desc">${desc}</p>` : ''}
       ${info}
-      ${targetsHtml(next)}
+      ${liveHere ? '' : targetsHtml(next)}
       ${btn}
     </section>`;
 }
@@ -348,7 +343,7 @@ function renderDashboard() {
         ${hero ? '' : accountHomeCard()}
         ${hero ? '' : recapHomeCard()}
         ${keys.length ? weekCard(weekStats()) : ''}
-        ${others ? `<section class="home-list" aria-labelledby="homeNext"><h2 class="home-list__title" id="homeNext">Ensuite</h2><div class="home-card home-card--list">${others}</div></section>` : ''}
+        ${others ? `<section class="home-list" aria-labelledby="homeNext"><h2 class="home-list__title" id="homeNext">Ensuite</h2><div class="home-card">${others}</div></section>` : ''}
       </div>
     </div>`;
 }

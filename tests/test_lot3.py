@@ -87,7 +87,7 @@ def t_home(bench, eng, dev, theme):
         R.check(box['y'] + box['height'] <= tabbar_top(page), f'{t} « Démarrer » visible sans défiler')
         info = page.locator('.hero__info').inner_text()
         R.check('exercices' in info and 'Dernière fois : ' in info, f'{t} « {info} »')
-        R.check(page.locator('.hero .hc__badge, .hero [class*="badge"]').count() == 0, f'{t} pas de pastille « Prête » en double avec « Ensuite »')
+        R.check(page.locator('.hero [class*="badge"]').count() == 0, f'{t} pas de pastille « Prête » en double avec « Ensuite »')
         R.check(page.locator('#app .hero__btn, #app .btn--primary').count() == 1, f'{t} Démarrer : seul bouton plein')
         cells = page.locator('.home-cell[data-action="session-actions"]')
         R.check(cells.count() == 2 and page.inner_text('.home-list__title').strip().upper() == 'ENSUITE', f'{t} 2 autres séances dans « Ensuite »')

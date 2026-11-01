@@ -30,9 +30,13 @@ function refreshMeButton() {
   if (btn) btn.outerHTML = meButtonHtml();
 }
 
+// Une de mes séances, si cet appareil l'a (null sinon)
+function myHistoryEntry(sessionId) {
+  return (sessionId && (data.history || []).find(h => h.id === sessionId)) || null;
+}
 // Nom d'une de mes séances : celui de cet appareil s'il la connaît (le serveur n'a que son libellé)
 function mySessionLabel(sessionId) {
-  const h = sessionId && (data.history || []).find(x => x.id === sessionId);
+  const h = myHistoryEntry(sessionId);
   return h ? rawLabel(h.category, entryProg(h)) : '';
 }
 
@@ -43,7 +47,7 @@ function mySessionLabel(sessionId) {
 function activityRowHtml(a) {
   const name = personName(a);
   const text = activityText(a, mySessionLabel(a.sessionId));
-  const local = (a.kind === 'reaction' || a.kind === 'comment') && (data.history || []).some(h => h.id === a.sessionId);
+  const local = (a.kind === 'reaction' || a.kind === 'comment') && !!myHistoryEntry(a.sessionId);
   const open = local ? `data-action="social-open-my-session" data-id="${esc(a.sessionId)}"` : `data-action="social-open-profile" data-uid="${esc(a.user_id)}"`;
   const trailing = a.kind === 'request' && socialRelation(a.user_id, social.state).pendingIn
     ? pill('social-accept', a.user_id, 'Accepter', { fill: true, aria: `Accepter ${name}` })
@@ -71,7 +75,7 @@ function stackHtml(people) {
 // Ligne de plusieurs réactions à une même séance (groupActivity, js/data/social.js) :
 // « 3 réactions sur Push de vendredi », puis qui et depuis quand. Vers ma séance si cet appareil l'a.
 function reactionsGroupHtml(g) {
-  const first = g.rows[0], local = (data.history || []).find(h => h.id === g.sessionId);
+  const first = g.rows[0], local = myHistoryEntry(g.sessionId);
   const label = mySessionLabel(g.sessionId) || first.label;
   const text = reactionsGroupText(g.rows.length, label, local ? local.date : first.sessionAt);
   const open = local ? `data-action="social-open-my-session" data-id="${esc(g.sessionId)}"` : `data-action="social-open-profile" data-uid="${esc(first.user_id)}"`;
@@ -98,8 +102,9 @@ function meActivityHtml() {
   }
   const groups = groupActivity(a.rows);
   const shown = meActivityAll ? groups : groups.slice(0, ME_ACTIVITY_SHOWN);
-  const more = (!meActivityAll && groups.length > ME_ACTIVITY_SHOWN) || (meActivityAll && !a.end)
-    ? `<button class="see-all" data-action="social-activity-more" ${a.loading ? 'disabled' : ''}>${a.loading ? 'Chargement…' : meActivityAll ? 'Afficher plus' : 'Tout voir'}${icon('chevron.right', 12)}</button>` : '';
+  // Tout voir : des lignes masquées ici, ou d'autres encore sur le serveur (!a.end)
+  const more = (meActivityAll ? !a.end : groups.length > ME_ACTIVITY_SHOWN || !a.end)
+    ? `<button class="see-all" data-action="social-activity-more" ${a.loading ? 'disabled' : ''}>${a.loading ? 'Chargement…' : meActivityAll ? 'Afficher plus' : 'Tout voir<span class="sr-text"> l\'activité</span>'}${icon('chevron.right', 12)}</button>` : '';
   return `<div class="group activity">${shown.map(g => (g.kind === 'single' ? activityRowHtml(g.row) : reactionsGroupHtml(g))).join('')}</div>${more}`;
 }
 
@@ -110,12 +115,18 @@ function regularityHtml() {
   if (!span) return '';
   const max = Math.max(1, ...weeks.map(w => w.n)), cur = weeks[weeks.length - 1].n;
   const avgTxt = fmtNum(avg, 1), period = plural(span, 'semaine', 'semaines');
+  const unit = avg >= 2 ? 'séances' : 'séance';   // « 1,5 séance », « 2 séances » (pluriel français dès 2)
   const bars = weeks.map((w, i) => `<span class="reg__bar${i === weeks.length - 1 ? ' reg__bar--now' : ''}" style="height:${w.n ? Math.max(12, Math.round(w.n / max * 100)) : 6}%"></span>`).join('');
-  const spoken = `${avgTxt} séance${avg >= 2 ? 's' : ''} par semaine en moyenne sur ${period}, ${plural(cur, 'séance', 'séances')} cette semaine`;
+  // Aucune séance dans la fenêtre (historique plus ancien) : un constat neutre plutôt qu'un « 0 » en grand
+  const none = `Aucune séance ces ${span} dernières semaines`;
+  const spoken = avg ? `${avgTxt} ${unit} par semaine en moyenne sur ${period}, ${plural(cur, 'séance', 'séances')} cette semaine` : none;
+  const head = avg
+    ? `<p class="reg__head" aria-hidden="true"><span class="reg__val num">${avgTxt}</span><span class="reg__lbl">${unit} par semaine</span></p>
+      <p class="reg__period" aria-hidden="true">en moyenne sur ${period}</p>`
+    : `<p class="reg__period" aria-hidden="true">${none}</p>`;
   return `
     <div class="reg" role="img" aria-label="${esc(spoken)}">
-      <p class="reg__head" aria-hidden="true"><span class="reg__val num">${avgTxt}</span><span class="reg__lbl">séance${avg >= 2 ? 's' : ''} par semaine</span></p>
-      <p class="reg__period" aria-hidden="true">en moyenne sur ${period}</p>
+      ${head}
       <div class="reg__bars" aria-hidden="true">${bars}</div>
       <p class="reg__axis" aria-hidden="true"><span>${esc(fmtDate(weeks[0].start, 'short'))}</span><span>cette semaine</span></p>
     </div>`;
@@ -123,11 +134,14 @@ function regularityHtml() {
 
 // Dernière séance visible, mise en avant : durée, séries, volume, qui a réagi, le dernier commentaire
 function lastSessionHtml(row) {
-  const s = row.s, local = (data.history || []).find(h => h.id === row.id);
+  const s = row.s, local = myHistoryEntry(row.id);
   const acts = socialActivity().rows.filter(a => a.sessionId === row.id);
   const reacts = acts.filter(a => a.kind === 'reaction'), comment = acts.find(a => a.kind === 'comment' && a.text);
-  const facts = [s.duration ? ['Durée', fmtDuration(s.duration)] : null, ['Séries', String(seriesCount(s))],
-    local ? ['Volume', fmtVolume(sessionVolume(local.exercises, entryBodyKg(local)))] : ['Exercices', String(s.exercises.length)]].filter(Boolean);
+  // [libellé affiché, valeur, phrase lue par VoiceOver]
+  const n = seriesCount(s), vol = local ? fmtVolume(sessionVolume(local.exercises, entryBodyKg(local))) : '';
+  const facts = [s.duration ? ['Durée', fmtDuration(s.duration), `durée ${fmtDuration(s.duration)}`] : null,
+    ['Séries', String(n), plural(n, 'série', 'séries')],
+    local ? ['Volume', vol, `volume ${vol}`] : ['Exercices', String(s.exercises.length), plural(s.exercises.length, 'exercice', 'exercices')]].filter(Boolean);
   const who = reacts.length ? `${stackHtml(reacts)}<span class="last__who-text"><b>${esc(reactorsLine(reacts.map(personName), 1))}</b></span>`
     : '<span class="last__who-text">Aucune réaction pour l\'instant</span>';
   return `
@@ -135,7 +149,8 @@ function lastSessionHtml(row) {
       <button class="last__main" data-action="social-open-session" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}">
         <span class="last__eyebrow">Dernière séance · ${esc(fmtDate(row.doneAt))}</span>
         <span class="last__title">${esc(s.label)}</span>
-        <span class="last__facts">${facts.map(([l, v]) => `<span class="last__fact"><span class="last__fact-val num">${esc(v)}</span><span class="last__fact-lbl">${l}</span></span>`).join('')}</span>
+        <span class="sr-text">${esc(`, ${facts.map(f => f[2]).join(', ')}.`)}</span>
+        <span class="last__facts" aria-hidden="true">${facts.map(([l, v]) => `<span class="last__fact"><span class="last__fact-val num">${esc(v)}</span><span class="last__fact-lbl">${l}</span></span>`).join('')}</span>
         ${s.exercises.length ? `<span class="last__sum">${esc(feedExercisesLine(s))}</span>` : ''}
         ${feedRecordHtml(s)}
       </button>
@@ -166,9 +181,14 @@ function meSessionsHtml(st) {
   }
   const rest = f.rows.slice(1, 1 + ME_SESSIONS_SHOWN);
   const total = Math.max(st.shown_sessions ?? 0, f.rows.length);
-  return `${lastSessionHtml(f.rows[0])}
+  // Hors ligne ou erreur : l'aperçu reste, avec la même note que le fil (feedListHtml)
+  const err = f.error ? `<p class="social-inline-error" role="status">${esc(f.error === 'offline' ? 'Pas d\'Internet : fil pas à jour.' : socialErrorText(f.error))}</p>` : '';
+  // Tout voir : des séances masquées ici, ou d'autres encore sur le serveur (!f.end)
+  const all = total > 1 + rest.length || !f.end
+    ? `<button class="see-all" data-action="social-me-sessions-all">Tout voir · ${plural(total, 'séance', 'séances')}${icon('chevron.right', 12)}</button>` : '';
+  return `${err}${lastSessionHtml(f.rows[0])}
     ${rest.length ? `<div class="group mysess-list">${rest.map(mySessionRowHtml).join('')}</div>` : ''}
-    ${total > 1 + rest.length ? `<button class="see-all" data-action="social-me-sessions-all">Tout voir · ${plural(total, 'séance', 'séances')}${icon('chevron.right', 12)}</button>` : ''}`;
+    ${all}`;
 }
 
 // Records récents (recentRecords, js/data/records.js) : exercice, date et gain à gauche, valeur à droite

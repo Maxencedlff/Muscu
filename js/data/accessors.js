@@ -79,6 +79,10 @@ function sessionKeys(progId) {
 function catBadge(color) {
   return `<span class="cat-badge" style="--cat-color:${color}" aria-hidden="true"></span>`;
 }
+// Pastille d'une séance d'un programme (onglet Programme)
+function catDot(cat, progId) {
+  return catBadge(sessionMeta(cat, progId || data.activeProgramme).color);
+}
 
 function sessionMeta(cat, progId) {
   progId = progId || data.activeProgramme;
@@ -164,8 +168,8 @@ function storeW(val) {
 }
 
 // Volume (kg) : « 850 kg », « 12,4 t », « 1 874 lbs », « 27,3 k lbs »
-// Palier de charge de la double progression (puce de la séance, cibles de l'accueil)
-function bumpLabel() { return data.unit === 'lbs' ? '+5 lb' : '+2,5 kg'; }
+// Palier de charge de la double progression (cibles de l'accueil), sans signe : « 2,5 kg », « 5 lb »
+function bumpLabel() { return data.unit === 'lbs' ? '5 lb' : '2,5 kg'; }
 function bumpStepKg() { return data.unit === 'lbs' ? 5 / KG_TO_LBS : 2.5; }
 
 function fmtVolume(kg) {
@@ -257,9 +261,14 @@ function weeklySessionCounts(n, now = Date.now()) {
 // semaine, au dixième. La moyenne ne compte que les semaines depuis celle de la première séance (deux semaines
 // d'historique ne sont pas divisées par 12), semaine en cours comprise comme sur le graphique ; span : le
 // nombre de semaines comptées, affiché à côté de la moyenne. Sans séance : avg et span à 0.
+// Date de la plus ancienne séance de l'historique (Infinity sans séance)
+function firstHistoryDate() {
+  return (data.history || []).reduce((m, h) => (h && h.date < m ? h.date : m), Infinity);
+}
+
 function regularity(n = 12, now = Date.now()) {
   const weeks = weeklySessionCounts(n, now);
-  const first = (data.history || []).reduce((m, h) => (h && h.date < m ? h.date : m), Infinity);
+  const first = firstHistoryDate();
   if (!Number.isFinite(first) || first >= addDays(weeks[n - 1].start, 7)) return { weeks, avg: 0, span: 0 };
   const from = Math.max(0, weeks.findIndex(w => addDays(w.start, 7) > first));
   const counted = weeks.slice(from), total = counted.reduce((a, w) => a + w.n, 0);
@@ -270,6 +279,6 @@ function regularity(n = 12, now = Date.now()) {
 // création du compte (created_at du serveur, texte ISO, s'il est connu) ; null sans l'une ni l'autre
 function memberSince(createdAt) {
   const created = Date.parse(createdAt || '');
-  const first = (data.history || []).reduce((m, h) => (h && h.date < m ? h.date : m), Number.isFinite(created) ? created : Infinity);
+  const first = Math.min(firstHistoryDate(), Number.isFinite(created) ? created : Infinity);
   return Number.isFinite(first) ? first : null;
 }

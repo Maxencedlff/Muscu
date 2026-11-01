@@ -84,7 +84,7 @@ def small_targets(page, sel='#app button, .tabbar button'):
 def cut_texts(page):
     """Textes coupés ou qui débordent de leur boîte (hors champs de saisie)."""
     return page.evaluate("""() => [...document.querySelectorAll('#app *, .tabbar *')].filter(e => e.offsetParent && e.children.length === 0
-        && e.textContent.trim() && !e.matches('input, svg, use, .icon *, .visually-hidden') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
+        && e.textContent.trim() && !e.matches('input, svg, use, .icon *, .visually-hidden, .sr-text') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
         .map(e => e.textContent.trim().slice(0, 30))""")
 
 
@@ -289,6 +289,52 @@ def t_mon_profil(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_mon_profil_suite(bench, eng, dev, theme):
+    """Mon profil : section Records (records récents de l'historique), « Tout voir » des séances, aperçu gardé hors ligne."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, enable=True)
+        setup(page)
+        page.evaluate('socialRefresh()')
+        page.wait_for_timeout(300)
+        friends_tab(page)
+        page.click('.navbar [data-action="social-me"]')
+        page.wait_for_selector('.social-me-view .last')
+        page.wait_for_timeout(300)
+        # Records : les records récents de l'app (recentRecords), un par exercice, avec date et valeur
+        want = page.evaluate('recentRecords().map(x => x.ex)')
+        titles = page.locator('.social-me-view h2.group-title--large').all_inner_texts()
+        got = page.locator('.rec-row .cell__title').all_inner_texts()
+        R.check(len(want) >= 1 and 'Records' in titles and got == want, f'{t} records : {got} (attendu {want}, titres {titles})')
+        R.check(all(page.locator('.rec-row .rec-row__val').nth(i).inner_text().strip() for i in range(len(got))), f'{t} records : valeur à droite')
+        # Dernière séance : VoiceOver lit le titre visible puis les chiffres, libellé avant valeur
+        spoken = page.locator('.last__main .sr-text').inner_text() if page.locator('.last__main .sr-text').count() else ''
+        R.check(re.search(r'\d+ séries?', spoken) and 'volume ' in spoken, f'{t} dernière séance : chiffres lus ({spoken!r})')
+        # « Tout voir » des séances : toutes, en cartes du fil
+        n_own = page.evaluate('socialFeed(SOCIAL_ME).rows.length')
+        btn = page.locator('[data-action="social-me-sessions-all"]')
+        R.check(btn.count() == 1 and btn.inner_text().strip().startswith('Tout voir'), f'{t} mes séances : « Tout voir » ({n_own} visibles)')
+        if btn.count():
+            btn.click()
+            page.wait_for_timeout(300)
+            R.check(page.locator('.social-me-view .last').count() == 0 and page.locator('.social-me-view .feed-card').count() == n_own,
+                    f'{t} « Tout voir » : {page.locator(".social-me-view .feed-card").count()} cartes sur {n_own}')
+            layout(page, t, 'Mon profil, toutes mes séances')
+        # Hors ligne : l'aperçu reste, avec la note du fil
+        page.click('[data-action="back"]')
+        page.wait_for_timeout(300)
+        page.evaluate('__sb.fail.social = "offline"')
+        page.click('.navbar [data-action="social-me"]')
+        page.wait_for_selector('.social-me-view .last')
+        page.wait_for_timeout(500)
+        note = page.locator('.social-me-view .social-inline-error')
+        R.check(note.count() == 1 and 'Pas d\'Internet' in note.inner_text() and page.locator('.mysess').count() >= 1,
+                f'{t} hors ligne : aperçu gardé avec la note ({note.inner_text() if note.count() else None!r})')
+        shot(page, LOT, f'3c-mon-profil-hors-ligne-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def t_historique(bench, eng, dev, theme):
     """Historique : « 🔥 2 » sur une séance qui a reçu des réactions (la plus fréquente + total), rien sinon."""
     t = tag(dev, theme)
@@ -310,4 +356,4 @@ def t_historique(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_reagir, t_mon_profil, t_historique])
+run_main(R, [t_reagir, t_mon_profil, t_mon_profil_suite, t_historique])

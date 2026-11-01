@@ -80,6 +80,31 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(run('recordGainTxt(recentRecords(data.history, 3)[0].r)'), '2,5 kg');
   });
 
+  test('recentRecords : séances notées lues telles quelles, anciennes recalculées une fois par historique', () => {
+    reset();
+    const ex = (w, r) => [{ exId: 'sq', name: 'Squat', sets: [{ weight: String(w), reps: String(r) }] }];
+    setHistory([
+      entry('n', at(2026, 9, 30), { exercises: ex(105, 5), records: [{ ex: 'Squat', kind: 'charge', before: 102.5, after: 105 }] }),
+      entry('b', at(2026, 9, 28), { exercises: ex(102.5, 5) }),
+      entry('a', at(2026, 9, 21), { exercises: ex(100, 5) }),
+    ]);
+    const calls = run(`(() => {
+      const orig = sessionRecords, seen = [];
+      sessionRecords = (h, hist) => { seen.push(h.id); return orig(h, hist); };
+      try { recentRecords(data.history, 3); recentRecords(data.history, 3); } finally { sessionRecords = orig; }
+      return seen;
+    })()`);
+    sameJSON(calls, ['b', 'a'], 'séance notée jamais recalculée ; anciennes une seule fois pour deux affichages');
+    const again = run(`(() => {
+      const orig = sessionRecords, seen = [];
+      sessionRecords = (h, hist) => { seen.push(h.id); return orig(h, hist); };
+      try { data.history.unshift({ id: 'z', programme: 'ppl', category: 'push', date: ${at(2026, 9, 31)}, exercises: [], records: [] });
+        recentRecords(data.history, 3); } finally { sessionRecords = orig; }
+      return seen;
+    })()`);
+    sameJSON(again, ['b', 'a'], 'historique changé : recalculées à nouveau');
+  });
+
   test('recordGainTxt : sans signe, flèche dessinée à côté ; rien quand mieux veut dire moins', () => {
     reset();
     const g = r => run(`recordGainTxt(${JSON.stringify(r)})`);
