@@ -18,20 +18,31 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         // Notifications de la scène plutôt que les méthodes du délégué : rien à relayer à Capacitor.
         let center = NotificationCenter.default
-        center.addObserver(forName: UIScene.didEnterBackgroundNotification, object: scene, queue: .main) { [weak self] _ in
-            self?.shareSheetLeft = self?.presentedShareSheet() != nil
-        }
-        center.addObserver(forName: UIScene.didActivateNotification, object: scene, queue: .main) { [weak self] _ in
-            self?.closeShareSheetAfterLeaving()
-        }
+        sceneObservers = [
+            center.addObserver(forName: UIScene.didEnterBackgroundNotification, object: scene, queue: .main) { [weak self] _ in
+                self?.shareSheetLeft = self?.presentedShareSheet() != nil
+            },
+            center.addObserver(forName: UIScene.didActivateNotification, object: scene, queue: .main) { [weak self] _ in
+                self?.closeShareSheetAfterLeaving()
+            },
+        ]
     }
+
+    func sceneDidDisconnect(_ scene: UIScene) {
+        sceneObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        sceneObservers = []
+    }
+
+    private var sceneObservers: [NSObjectProtocol] = []
 
     // Feuille de partage d'iOS (UIActivityViewController, présentée par @capacitor/share) restée
     // ouverte pendant un départ vers une autre app : Instagram « Story » ouvre Instagram sans
     // prévenir la feuille, qu'on retrouvait affichée au retour. Elle est refermée quand l'app
-    // redevient active, et le partage est rapporté comme fait au module (completed = true), qui
-    // répond 'shared' au JS. Le passage en arrière-plan seul compte : une demande d'autorisation
-    // (« Enregistrer l'image ») rend l'app inactive sans la mettre en arrière-plan.
+    // redevient active, et rapportée comme ANNULÉE au module (completed = false) : le départ peut
+    // aussi être un verrouillage ou un appel sans rien partager, et un faux « partagé » ferait par
+    // exemple noter une sauvegarde jamais écrite (exportData). L'aperçu de la story se ferme de son
+    // côté (visibilitychange dans share.js). Le passage en arrière-plan seul compte : une demande
+    // d'autorisation (« Enregistrer l'image ») rend l'app inactive sans la mettre en arrière-plan.
     private var shareSheetLeft = false
 
     private func presentedShareSheet() -> UIActivityViewController? {
@@ -49,7 +60,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let sheet = presentedShareSheet(), sheet.presentedViewController == nil else { return }
         let done = sheet.completionWithItemsHandler
         sheet.completionWithItemsHandler = nil
-        sheet.dismiss(animated: true) { done?(nil, true, nil, nil) }
+        sheet.dismiss(animated: true) { done?(nil, false, nil, nil) }
     }
 
     // L'app a une scène (UIApplicationSceneManifest) : iOS remet les URL ouvertes ici, jamais à

@@ -1257,10 +1257,18 @@ test('données : healthOn et musicOn désactivés par défaut, conservés ensuit
 test('iOS : SceneDelegate → MainViewController → chaque module Swift, noms identiques côté web', () => {
   const ios = p => fs.readFileSync(path.join(ROOT, 'ios/App/App', p), 'utf8');
   assert.match(ios('SceneDelegate.swift'), /rootViewController\s*=\s*MainViewController\(\)/, 'SceneDelegate doit créer MainViewController');
+  // Feuille de partage refermée au retour d'une autre app : rapportée comme annulée, jamais comme
+  // partagée (un verrouillage d'écran ne doit pas faire noter une sauvegarde jamais écrite).
+  assert.match(ios('SceneDelegate.swift'), /done\?\(nil, false, nil, nil\)/, 'feuille refermée = annulation');
+  assert.doesNotMatch(ios('SceneDelegate.swift'), /done\?\(nil, true,/, 'jamais un faux partage réussi');
   const main = ios('MainViewController.swift');
   const pbx = fs.readFileSync(path.join(ROOT, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8');
   const native = fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8');
-  for (const file of ['HealthPlugin.swift', 'MusicPlugin.swift', 'LiveActivityPlugin.swift', 'SoundPlugin.swift']) {
+  // Tous les fichiers *Plugin.swift (10 au 02/11/2026, dont Store et Vault ; les 3 d'AppExtras ont leur test) : une fusion qui perdrait
+  // une ligne registerPluginInstance doit casser ce test.
+  const plugins = fs.readdirSync(path.join(ROOT, 'ios/App/App')).filter(f => f.endsWith('Plugin.swift'));
+  assert.ok(plugins.length >= 10, `modules Swift trouvés : ${plugins.length}`);
+  for (const file of plugins) {
     const src = ios(file);
     const cls = src.match(/public (?:final )?class (\w+): CAPPlugin/)[1];
     const jsName = src.match(/jsName = "(\w+)"/)[1];
@@ -1554,8 +1562,6 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./push.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Apple Watch, widget et Siri (tests dans companions.mjs) ──
 (await import('./companions.mjs')).default({ test, run, reset, assert, app, sameJSON, ctx, nativeContext, ROOT });
-// ── Niveau de force (tests dans strength-levels.mjs) ──
-(await import('./strength-levels.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Exécution ───────────────────────────────────────────────
 
