@@ -12,6 +12,10 @@ on:
         description: Envoyer une version signée sur TestFlight
         type: boolean
         default: false
+      sortie:
+        description: Build destinée à la soumission App Store (pages juridiques complètes exigées)
+        type: boolean
+        default: false
 
 concurrency:
   group: ios-${{ github.ref }}-${{ inputs.testflight }}
@@ -205,11 +209,22 @@ jobs:
       # ── Mode TestFlight ───────────────────────────────────────────
       # Comme pour l'OTA : la version envoyée ouvre les pages de LEGAL_URLS (écran d'abonnement,
       # règle 3.1.2 d'Apple) ; rien n'est signé ni envoyé tant qu'elles ne sont pas complètes et en ligne
+      # Bloquant pour une build de sortie (soumission App Store). Pour une build de test, les
+      # testeurs ne paient rien (verrou éteint) : les emplacements restants sont signalés sans
+      # bloquer, et les pages se mettent à jour par OTA (décision du 03/11/2026, docs/JURIDIQUE.md).
       - name: Pages juridiques complètes et en ligne
         if: ${{ inputs.testflight }}
+        env:
+          SORTIE: ${{ inputs.sortie }}
         run: |
-          node scripts/check-legal-pages.mjs privacy.html mentions-legales.html cgu.html cgv.html
-          node scripts/check-legal-online.mjs
+          if node scripts/check-legal-pages.mjs privacy.html mentions-legales.html cgu.html cgv.html \
+             && node scripts/check-legal-online.mjs; then
+            echo "Pages juridiques complètes et en ligne."
+          elif [ "$SORTIE" = "true" ]; then
+            echo "Build de sortie : pages juridiques incomplètes, rien n'est envoyé."; exit 1
+          else
+            echo "::warning::Pages juridiques incomplètes : acceptable pour TestFlight, bloquant pour une build de sortie (sortie=true)."
+          fi
 
       # Signature manuelle : certificat Apple Distribution et profil App Store créés par l'API
       # (aucun appareil enregistré nécessaire), installés dans un trousseau temporaire.

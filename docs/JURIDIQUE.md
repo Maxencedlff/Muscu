@@ -43,6 +43,11 @@ fusion pour voir ce qui manque.
 conditions exigé par la règle 3.1.2 d'Apple), mais ni `ota.yml` ni `ios.yml` ne les publient. Les deux
 lancent donc, avant toute publication (OTA) ou signature (mode testflight), la même garde des
 emplacements puis `node scripts/check-legal-online.mjs` : chaque adresse de `LEGAL_URLS`
+
+**TestFlight ou sortie (03/11/2026).** Dans `ios.yml`, la garde ne bloque qu'une build lancée avec
+`sortie=true`, celle qu'on soumet à l'App Store. Une build TestFlight ordinaire passe avec un
+avertissement : les testeurs ne paient rien tant que le verrou est éteint. Avant de soumettre ou
+d'allumer le verrou : relancer avec `-f testflight=true -f sortie=true`.
 (`js/data/legal-links.js`) doit répondre en ligne (2xx) avec ses ancres (`#newsletter`,
 `#remboursement`). Tant que le job `deploy` n'a pas mis les pages sur mdlf.app (emplacements, panne
 Vercel), aucune OTA ni build ne part vers une page 404. Ordre après la fusion : job `deploy` vert, puis
