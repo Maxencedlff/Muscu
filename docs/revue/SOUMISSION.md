@@ -143,7 +143,7 @@ non collecté au sens d'Apple (« You are not responsible for disclosing data co
 1. **Fiche Confidentialité à republier** : celle publiée le 25/10 (3 types, store/FICHE_APP_STORE.md) est
    dépassée ; la section 5 ajoute E-mail, Nom, Santé, Achats, E-mails ou SMS, Identifiant de l'appareil,
    Autres données de diagnostic, Autres types de données.
-2. **Manifeste `PrivacyInfo.xcprivacy` incomplet** par rapport à la section 5 : il lui manque
+2. **Manifeste `PrivacyInfo.xcprivacy` : complété le 03/11 (11 types, achats + Autres finalités), part avec la prochaine build.** Ancien constat : par rapport à la section 5 : il lui manque
    `EmailsOrTextMessages`, `DeviceID`, `OtherDiagnosticData`, `OtherDataTypes`. À ajouter dans la build
    de soumission (non modifié ici : code natif, nouvelle build).
 3. **Achats › Autres finalités** : les prix payés servent aussi à calculer la commission des parrains
