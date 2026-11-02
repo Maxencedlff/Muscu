@@ -344,7 +344,9 @@ FAKE_STORE = r"""
   const register = cap.registerPlugin, avail = cap.isPluginAvailable;
   // @capacitor/app : numéro de build natif simulé par __st.appBuild (version minimale, js/app/updates.js)
   cap.registerPlugin = name => (name === 'MdlfStore' ? storePlugin
-    : name === 'App' && st.appBuild ? { getInfo: async () => ({ build: String(st.appBuild) }) } : register(name));
+    : name === 'App' && st.appBuild ? { getInfo: async () => ({ build: String(st.appBuild) }),
+        // appStateChange (Native.onActiveChange, écran de confidentialité du coffre) : jamais émis ici
+        addListener: async () => ({ remove() {} }) } : register(name));
   cap.isPluginAvailable = name => (name === 'MdlfStore' ? !!st.store : avail(name));
 
   // Verrou du serveur : déclencheur `before insert on public.sessions`, avec la grâce de fin de séance.
