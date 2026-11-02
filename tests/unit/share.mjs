@@ -348,6 +348,12 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
 
     const c = nativeContext({ localData: '{}', shareCancelled: true });
     assert.equal(await c.Native.shareImage('data:image/png;base64,AA', 'a.png'), 'cancelled');
+    // Instagram « Story » : l'extension renvoie une erreur en ouvrant Instagram, le partage a lieu
+    const ig = nativeContext({ localData: '{}', shareCancelled: 'Error sharing item' });
+    assert.equal(await ig.Native.shareImage('data:image/png;base64,AA', 'a.png'), 'handed');
+    assert.equal(await ig.Native.shareText('x', 'y'), 'handed');
+    const ko = nativeContext({ localData: '{}', shareCancelled: "Can't share while sharing is in progress" });
+    assert.equal(await ko.Native.shareImage('data:image/png;base64,AA', 'a.png'), 'failed');
   });
 
   test('partage : nombre de séries affiché pour les exercices sans charge', () => {

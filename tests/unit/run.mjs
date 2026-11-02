@@ -762,7 +762,7 @@ function nativeContext({ native = true, localData = null, fileData = null, share
       cancel:   async () => { calls.push(['cancel']); },
     },
     Share: {
-      share: async (o) => { calls.push(['share', o.files]); if (shareCancelled) throw new Error('Share canceled'); },
+      share: async (o) => { calls.push(['share', o.files]); if (shareCancelled) throw new Error(shareCancelled === true ? 'Share canceled' : shareCancelled); },
     },
     MdlfCloudBackup: {
       load: async (o) => { calls.push(['cloudLoad', o.waitMs]); return { synced: !!cloud.synced, ...(cloud.data ? { data: cloud.data } : {}) }; },

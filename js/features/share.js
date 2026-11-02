@@ -167,8 +167,9 @@ registerActions({
       el.disabled = false;
     }
     if (SHARE_MESSAGES[result]) showToast(SHARE_MESSAGES[result]);
-    // Feuille de partage refermée : l'aperçu se ferme aussi. Instagram (« Story ») ouvre sa propre app
-    // et iOS le rapporte comme une annulation : on ne peut pas distinguer, l'aperçu ne reste qu'en cas d'échec.
+    // Feuille de partage refermée : l'aperçu se ferme aussi, y compris 'handed' (Instagram « Story »
+    // ouvre sa propre app et iOS le rapporte comme une erreur : Native.shareOutcome). L'aperçu ne
+    // reste ouvert qu'en cas d'échec réel, pour pouvoir réessayer.
     if (result !== 'failed') st.close?.(true);
   },
 });

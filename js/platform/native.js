@@ -38,6 +38,18 @@ const Native = (() => {
   const hasWidget    = has('MdlfWidget');
   const hasShortcuts = has('MdlfShortcuts');
   const hasVault     = has('MdlfVault');
+
+  // Rejet de Share.share (@capacitor/share, SharePlugin.swift : completionWithItemsHandler) traduit
+  // en résultat. « Share canceled » : feuille fermée sans choisir d'app. « Error sharing item » :
+  // une app a été choisie mais son extension a renvoyé une erreur ; Instagram (« Story ») le fait en
+  // ouvrant sa propre app, alors que le partage a bien lieu. On le traite comme un partage remis à
+  // l'app ('handed') : l'aperçu se ferme, sans toast. 'failed' reste pour l'échec avant la feuille.
+  function shareOutcome(e) {
+    const msg = String(e?.message || e);
+    if (/cancel/i.test(msg)) return 'cancelled';
+    if (/error sharing item/i.test(msg)) return 'handed';
+    return 'failed';
+  }
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
   const AppInfo            = plugin('App');              // @capacitor/app : numéro de build installé
 
@@ -548,7 +560,8 @@ const Native = (() => {
     // Messages, Photos… L'image est écrite dans le dossier cache de l'app, puis son URL file://
     // est passée à Share.share({ files }) (capacitorjs.com/docs/apis/share : « Array of file://
     // URLs of the files to be shared » ; Filesystem.writeFile sans encoding attend du base64).
-    // Renvoie 'shared', 'cancelled' (feuille fermée) ou 'failed' ; hors app : false, sans effet.
+    // Renvoie 'shared', 'handed' (app choisie, voir shareOutcome), 'cancelled' (feuille fermée)
+    // ou 'failed' ; hors app : false, sans effet.
     async shareImage(dataUrl, fileName) {
       if (!isNative) return false;
       try {
@@ -557,17 +570,16 @@ const Native = (() => {
         await Share.share({ files: [uri] });
         return 'shared';
       } catch (e) {
-        // Fermeture de la feuille sans choisir d'app : rejet « Share canceled » du module
-        return /cancel/i.test(String(e?.message || e)) ? 'cancelled' : 'failed';
+        return shareOutcome(e);
       }
     },
 
     // Partage d'un texte (programme envoyé à un ami) par la feuille de partage d'iOS.
-    // Mêmes retours que shareImage : 'shared', 'cancelled' ou 'failed' ; hors app : false.
+    // Mêmes retours que shareImage : 'shared', 'handed', 'cancelled' ou 'failed' ; hors app : false.
     async shareText(text, title) {
       if (!isNative) return false;
       try { await Share.share({ text, title }); return 'shared'; }
-      catch (e) { return /cancel/i.test(String(e?.message || e)) ? 'cancelled' : 'failed'; }
+      catch (e) { return shareOutcome(e); }
     },
 
     async readBackup() {
