@@ -1,6 +1,6 @@
 # MDLF Training · feuille de route complète
 
-Mise à jour le 1er novembre 2026. De la PWA « PPL Training » d'avril 2026 à l'app iPhone MDLF Training, puis la suite, dans l'ordre.
+Mise à jour le 2 novembre 2026. De la PWA « PPL Training » d'avril 2026 à l'app iPhone MDLF Training, puis la suite, dans l'ordre.
 
 Légende : ✓ = fait, ▶ = en cours, ○ = à faire. OTA = mise à jour à chaud (sans passer par l'App Store).
 Build = nouvelle version de l'app compilée (TestFlight, puis App Store). Les codes comme 2b0a3fd sont les repères Git de la publication.
@@ -175,6 +175,23 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ✓ | 01/11 | Récaps v3 corrigés selon tes retours, « Mon mois en bref »                   | OTA 384390b, ppl-v108       |
 | ✓ | 01/11 | Accessibilité (VoiceOver, contraste sombre), bouton « réessayer » daté        | OTA 384390b                 |
 | ✓ | 01/11 | Dépendances de dev mises à jour (alerte glob)                                | Interne                     |
+| ✓ | 01/11 | Nouveau design de l'accueil et de Mon profil, niveaux de force               | OTA a484b5a, ppl-v109       |
+| ✓ | 01/11 | Coffre à photos : Face ID ou code de l'iPhone, clé dans le trousseau iCloud  | Build 33 (testeurs externes) |
+| ✓ | 01/11 | Import CSV : séance datée de sa fin ; CI sur ubuntu-24.04                    | OTA 1a23120, ppl-v112       |
+| ✓ | 01/11 | « @mdlftraining » sur la story et les récaps                                 | OTA d127b26, ppl-v113       |
+| ✓ | 01/11 | Récap profil : paliers de Progrès, légende, top 3                             | OTA f39e3a5, ppl-v114       |
+| ✓ | 01/11 | « Toi : N muscles à l'objectif », carte « Ta semaine » le dimanche et lundi matin | OTA be1785b, ppl-v115  |
+| ✓ | 01/11 | Carte « Ta semaine » revenue (masquée seulement par la croix), relecture du récap | OTA 053bcd0, ppl-v117  |
+
+### 2 novembre
+
+|   | Date  | Quoi                                                                         | Comment publié              |
+|---|-------|------------------------------------------------------------------------------|-----------------------------|
+| ✓ | 02/11 | Partage en story : l'aperçu se ferme quand on part dans Instagram            | OTA d51b58d, ppl-v120       |
+| ✓ | 02/11 | Partage en story : la feuille d'iOS se referme au retour (code natif)        | Branche natif-feuille-partage · build 34 |
+| ✓ | 02/11 | Page de confidentialité version store (abonnement, lettre, devenir coach)    | Branche confidentialite-store · pas en ligne |
+| ✓ | 02/11 | Carrousel Instagram « version coach » (7 images)                              | Bureau › MDLF Instagram › post2_coach |
+| ✓ | 02/11 | fitby_dylan passé coach                                                       | Serveur                     |
 
 ---
 
@@ -182,10 +199,10 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 |   | Quoi                                                                     | Où                     | État                                   |
 |---|--------------------------------------------------------------------------|------------------------|----------------------------------------|
-| ▶ | Nouveau design de l'accueil et de Mon profil (« carte de séance »)        | Branche design-v2      | Prêt, 3 votes OK · attend ton choix    |
-| ▶ | Coffre photos « My Eyes Only » (code, chiffrement, Face ID à la build)   | Branche coffre-photos  | Prêt, 3 votes OK · attend ton accord   |
-| ▶ | Niveaux de force (squat, couché, soulevé de terre), sexe facultatif      | Branche nuit-entrainement | Prêt · attend ton feu vert          |
-| ▶ | Payant complet, parrainage relié aux vrais paiements, newsletter         | Branche payant-final   | Prêt, à jour sur main · attend les papiers (SIRET, médiateur, téléphone) |
+| ▶ | Payant complet, parrainage relié aux vrais paiements, newsletter         | Branche payant-final   | Prêt, à remettre à jour sur main (77 commits d'écart) · attend les papiers (SIRET, médiateur, téléphone) |
+| ▶ | Page de confidentialité « store » + mentions légales, CGU, CGV          | Branche confidentialite-store + payant-final | Prête · attend SIRET, téléphone, médiateur, et ton choix : adresse perso ou domiciliation |
+| ▶ | Feuille d'iOS refermée au retour d'Instagram                             | Branche natif-feuille-partage | Compilée en CI · part avec la build 34 |
+| ▶ | Apple Watch, widgets, Siri (projet iOS)                                  | Branche nuit-integration-build | À regrouper et fusionner pour la build 34 |
 | ▶ | Strava                                                                    | Branche nuit-integration | En sommeil, rallumé par une build    |
 
 ---
@@ -196,7 +213,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 |   | Quoi                                                 | Quand / état             |
 |---|------------------------------------------------------|--------------------------|
-| ○ | @compte Instagram sur la story + « on la repartage » | Dès que le compte existe |
+| ✓ | @mdlftraining sur la story et les récaps            | OTA d127b26 (01/11)      |
 
 ### Lot 3 · Serveur
 
@@ -206,13 +223,14 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Export vers Strava                              | En sommeil                       |
 | ○ | Mise en ligne du payant                         | Prêt · après les papiers         |
 
-### Build 32 (TestFlight, puis App Store)
+### Build 34 (TestFlight, puis App Store)
 
 |   | Quoi                                                  | Quand / état                        |
 |---|-------------------------------------------------------|-------------------------------------|
 | ✓ | Sommeil, séances dans Santé, notifications, montre    | Build 31                            |
 | ○ | Paiement Apple (StoreKit)                             | Branche payant-final                |
-| ○ | Face ID du coffre photos                              | Branche coffre-photos (natif)       |
+| ✓ | Face ID du coffre photos                              | Build 33                            |
+| ○ | Feuille de partage refermée au retour d'Instagram     | Branche natif-feuille-partage       |
 | ○ | Vérification de l'âge par Apple pour l'onglet Amis    | À faire                             |
 | ○ | Écran « mets à jour l'app » avant d'allumer le verrou | À faire                             |
 
@@ -257,8 +275,12 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 |   | Quoi                                       | Quand / état           |
 |---|--------------------------------------------|------------------------|
-| ○ | Compte dédié pro, app Meta, autorisation   | À faire                |
-| ○ | 3 Reels prêts, puis 3 ou 4 par semaine     | Reels prêts            |
+| ✓ | Compte @mdlftraining (Créateur), photo, bio | Créé le 01/11         |
+| ✓ | Premier carrousel (6 images)               | Publié le 01/11        |
+| ○ | Carrousel « version coach » (7 images)     | Prêt · tu le gardes pour plus tard |
+| ○ | Publication automatique (Buffer)           | Attend ton compte Buffer |
+| ○ | Page mdlf.app de présentation (lien en bio) | À faire               |
+| ○ | Reels, 3 ou 4 par semaine                  | À faire                |
 | ○ | 5 à 10 petits créateurs contre codes à vie | Dès la précommande     |
 | ○ | Pub payante sur un Reel qui a déjà marché  | Jamais avant la sortie |
 
