@@ -157,7 +157,7 @@ registerActions({
     el.disabled = true;
     // Départ vers une autre app pendant le partage (Instagram « Story » ouvre la sienne) : l'aperçu
     // se ferme tout de suite. La feuille d'iOS, elle, reste affichée tant qu'iOS n'a pas de réponse ;
-    // la coquille native la refermera au retour (branche natif-feuille-partage, build 34).
+    // la coquille native la referme au retour (SceneDelegate.closeShareSheetAfterLeaving).
     const onLeave = () => { if (document.visibilityState === 'hidden') st.close?.(true); };
     document.addEventListener('visibilitychange', onLeave);
     let result = 'failed';
