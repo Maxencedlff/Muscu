@@ -476,6 +476,8 @@ def t_tip(bench, eng, dev, theme):
         leg = ' '.join(page.locator('.mcard .mlegend').inner_text().split())
         R.check(all(w in leg for w in ('Pas travaillé', 'Entretien 1–4', 'Travaillé 5–9', 'Objectif atteint 10–19', 'Gros volume 20+'))
                 and 'en moyenne par semaine' in leg, f'{t} légende 4 semaines : « {leg} »')
+        you = page.locator('.mcard .mlegend__you')
+        R.check(you.count() == 1 and you.inner_text().startswith('Toi : ') and 'muscle' in you.inner_text(), f'{t} légende : tes muscles par palier ({you.all_inner_texts()})')
         lines = page.evaluate("new Set([...document.querySelectorAll('.mcard .mlegend__item')].map(e => Math.round(e.getBoundingClientRect().top))).size")
         R.check(lines <= (3 if page.viewport_size['width'] < 360 else 2), f'{t} légende compacte : {lines} ligne(s) de paliers')
         R.check(page.locator('.btip[role="dialog"][aria-labelledby="btipTitle"]').count() == 1, f'{t} bulle : rôle et nom')

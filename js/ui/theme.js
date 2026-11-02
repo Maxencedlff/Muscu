@@ -23,13 +23,17 @@ function applyTheme(theme) {
 applyTheme(themePref());
 
 // Dynamic Type : au-delà de 1,3 × la taille par défaut (17 px), les séries passent sur 2 lignes
+// L'accueil se redessine quand la classe change : Démarrer y passe avant les cibles dans le HTML (heroBtnSpot)
 function checkTypeSize() {
   const html = document.documentElement;
-  html.classList.toggle('type-xl', parseFloat(getComputedStyle(html).fontSize) > 17 * 1.3);
+  const was = html.classList.contains('type-xl');
+  const xl = html.classList.toggle('type-xl', parseFloat(getComputedStyle(html).fontSize) > 17 * 1.3);
+  return xl !== was;
 }
 checkTypeSize();
-window.addEventListener('resize', checkTypeSize);
-document.addEventListener('visibilitychange', checkTypeSize);
+const onTypeSize = () => { if (checkTypeSize() && currentView() === 'dashboard') render(); };
+window.addEventListener('resize', onTypeSize);
+document.addEventListener('visibilitychange', onTypeSize);
 
 // Mode Auto : pas de bascule de thème en pleine séance, on attend la fin de la séance
 let themePending = false;

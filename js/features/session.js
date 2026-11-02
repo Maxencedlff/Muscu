@@ -749,6 +749,6 @@ registerActions({
     ex.bumped = true;
     haptic();
     render();
-    showToast(`Charge augmentée : ${bumpLabel()}`);
+    showToast(`Charge augmentée de ${bumpLabel()}`);
   },
 });

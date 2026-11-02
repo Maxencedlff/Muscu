@@ -111,6 +111,15 @@ def t_bilan(bench, eng, dev, theme):
                 and sh[0]['size'] > 40_000, f'{t} bilan : fichier PNG remis au partage {sh}')
         R.check(page.locator('.sheet-root').count() == 0, f'{t} bilan : aperçu fermé après le partage')
         R.check(page.locator('.view.summary').count() == 1, f'{t} bilan : retour au bilan')
+        # Départ vers une autre app pendant le partage (Instagram « Story ») : l'aperçu se ferme
+        # sans attendre la réponse de la feuille de partage, restée ouverte
+        page.evaluate("() => { window.__hold = new Promise(() => {}); navigator.share = () => window.__hold; }")
+        page.locator('[data-action="share-story"]').first.click()
+        page.wait_for_selector('.share-preview__send:not([disabled])')
+        page.click('[data-action="share-story-send"]')
+        page.evaluate("() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); delete document.visibilityState; }")
+        page.wait_for_timeout(500)
+        R.check(page.locator('.sheet-root').count() == 0, f'{t} bilan : aperçu fermé au départ vers Instagram')
         R.check(not page.errors, f'{t} bilan : aucune erreur JS {page.errors}')
 
 

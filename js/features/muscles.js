@@ -221,12 +221,25 @@ function muscleLevelDot(lvl) {
 }
 function levelWord(lvl) { return MUSCLE_LEVEL_WORDS[lvl].toLowerCase(); }
 
-// Légende : chaque palier en mots, avec ses bornes ; en « 4 semaines », la couleur suit la moyenne par semaine
-function muscleLegendHtml(span = muscleSpan) {
+// Légende : chaque palier en mots, avec ses bornes ; en « 4 semaines », la couleur suit la moyenne par semaine.
+// load : avec la charge de la période, une ligne dit où en sont TES muscles (muscleLegendYou)
+function muscleLegendHtml(span = muscleSpan, load = null) {
+  const you = load ? muscleLegendYou(load) : '';
   return `<div class="mlegend" aria-hidden="true">
     ${MUSCLE_LEVEL_WORDS.map((w, lvl) => `<span class="mlegend__item">${muscleLevelDot(lvl)}${w}${lvl ? ` <span class="mlegend__n num">${muscleLevelRange(lvl)}</span>` : ''}</span>`).join('')}
+    ${you ? `<span class="mlegend__you num">${esc(you)}</span>` : ''}
     <span class="mlegend__unit">${span === 'month' ? 'séries en moyenne par semaine' : 'séries par semaine'}</span>
   </div>`;
+}
+
+// Tes muscles dans les deux paliers du haut (« Toi : 4 muscles à l'objectif · 2 en gros volume ») ; sans
+// aucun, le nombre au palier du dessous (« Toi : 3 muscles travaillés ») ; '' sans séance
+function muscleLegendYou(load) {
+  if (!load.sessions) return '';
+  const n = lvl => MUSCLES.filter(m => load.levels[m.id] === lvl).length;
+  const parts = [[3, 'à l\'objectif'], [4, 'en gros volume']].filter(([l]) => n(l)).map(([l, w]) => `${plural(n(l), 'muscle', 'muscles')} ${w}`);
+  if (!parts.length && n(2)) parts.push(`${plural(n(2), 'muscle travaillé', 'muscles travaillés')}`);
+  return parts.length ? `Toi : ${parts.join(' · ')}` : '';
 }
 
 function setsTxt(n) { return plural(roundSets(n), 'série', 'séries'); }
@@ -234,7 +247,8 @@ function setsTxt(n) { return plural(roundSets(n), 'série', 'séries'); }
 // Liste lue par VoiceOver à la place du dessin (Apple HIG, « Accessibility » : l'information portée
 // par la couleur existe aussi en texte)
 function muscleSrListHtml(load) {
-  return `<ul class="visually-hidden">${MUSCLES.map(({ id, label }) =>
+  const you = muscleLegendYou(load);   // la légende visible est aria-hidden : VoiceOver lit la synthèse ici
+  return `${you ? `<p class="visually-hidden">${esc(you)}</p>` : ''}<ul class="visually-hidden">${MUSCLES.map(({ id, label }) =>
     `<li>${label} : ${setsTxt(load.sets[id])}, ${levelWord(load.levels[id])}</li>`).join('')}</ul>`;
 }
 
@@ -255,7 +269,7 @@ function renderMuscleCard() {
       <div class="mcard__top">
         ${spanSegmentedHtml()}
         ${bodyMapHtml(load.intensity, { className: 'mcard__map', captions: true, peak: true, tap: true })}
-        ${muscleLegendHtml()}
+        ${muscleLegendHtml(muscleSpan, load)}
         ${muscleSrListHtml(load)}
       </div>
       ${lowCell}

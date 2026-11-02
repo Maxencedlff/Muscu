@@ -150,7 +150,8 @@ function bodyTintLayer(img, heat) {
 }
 
 // Même carte dans un canvas (face et dos côte à côte, sans légende), pour l'image partagée.
-// colors : { heat, bright } résolus (bodyMapColors()). null si une image manque.
+// colors : { heat, bright, peak? } résolus (bodyMapColors()) ; peak : teinte des muscles à l'intensité 1
+// (palier le plus haut, comme peak de bodyMapHtml). null si une image manque.
 async function bodyMapImage(levels = {}, { view = 'both', body = bodySilhouette(), colors = {} } = {}) {
   const c = { ...bodyMapColors(), ...colors };
   const kind = bodyKind(body), views = bodyViews(view);
@@ -177,7 +178,8 @@ async function bodyMapImage(levels = {}, { view = 'both', body = bodySilhouette(
       const img = await bodyLoadImage(bodyImgUrl(kind, v, m));
       if (!img) return null;
       f.globalAlpha = op;
-      f.drawImage(bodyTintLayer(img, c.heat), 0, 0, w, h);
+      f.drawImage(bodyTintLayer(img, c.peak && levels[m] >= 1 ? c.peak : c.heat), 0, 0, w, h);
+      f.globalAlpha = 1;
     }
     ctx.drawImage(fig, dx, 0);
   }

@@ -1,4 +1,4 @@
-"""Récaps de la semaine, du mois et de l'année : carte « Ta semaine » de l'accueil (dimanche soir, lundi),
+"""Récaps de la semaine, du mois et de l'année : carte « Ta semaine » de l'accueil (dimanche, lundi matin),
 Progrès › Récaps, écrans qui s'enchaînent, partage d'un écran en image story 1080 × 1920, réglage.
 
 Données : tests/donnees_realistes.py (6 mois, dernière séance le 15/10/2026). L'heure de l'app est figée
@@ -55,12 +55,12 @@ def save_png(raw, name):
     return path
 
 
-def open_page(bench, eng, dev, theme, when, **extra):
-    """Page prête : heure figée, données réalistes, faux partage."""
+def open_page(bench, eng, dev, theme, when, storage=None, **extra):
+    """Page prête : heure figée, données réalistes, faux partage ; storage : clés localStorage en plus."""
     cm = bench.page(eng, dev, theme, **extra)
     page = cm.__enter__()
     page.add_init_script(frozen(*when))
-    seed(page, theme, six_mois_json())
+    seed(page, theme, six_mois_json(), extra=storage)
     page.evaluate(FAKE_SHARE)
     return cm, page
 
@@ -190,11 +190,11 @@ def t_semaine(bench, eng, dev, theme):
         shot(page, LOT, f'recap-semaine-resume-{t}')
         share_current(page, t, 'résumé', f'story-semaine-resume-{t}')
 
-        # Retour à l'accueil : la carte a été vue, elle a disparu ; le récap reste dans Progrès › Récaps
+        # Retour à l'accueil : la carte reste tant que c'est le moment (seule la croix la masque)
         page.evaluate("switchTab('train')")
         page.wait_for_timeout(300)
-        R.check(page.locator('.recap-card').count() == 0, f'{t} carte vue : disparue de l\'accueil')
-        R.check(ls(page, 'ppl_recap_seen') == 'w2026-10-12', f'{t} carte vue : semaine mémorisée ({ls(page, "ppl_recap_seen")})')
+        R.check(page.locator('.recap-card').count() == 1, f'{t} carte ouverte : toujours sur l\'accueil')
+        R.check(ls(page, 'ppl_recap_hidden') is None, f'{t} carte ouverte : rien de mémorisé ({ls(page, "ppl_recap_hidden")})')
         page.evaluate("switchTab('progress')")
         page.wait_for_timeout(300)
         cell = page.locator('[data-action="go-recaps"]')
@@ -238,6 +238,11 @@ def t_semaine(bench, eng, dev, theme):
             page.evaluate(f"() => {{ const tr = document.querySelector('#recapTrack'); tr.scrollTo({{ left: {i} * tr.clientWidth, behavior: 'instant' }}); }}")
             page.wait_for_timeout(900)
             shot(page, LOT, f'recap-mois-{i + 1:02d}-{ids[i]}-{t}')
+            if ids[i] == 'profile':
+                # Profil : couleurs et légende par paliers de Progrès, à l'écran et dans l'image partagée
+                leg = page.evaluate("[...document.querySelectorAll('.recap-page.is-active .rp-scale span')].map(s => s.textContent.trim())")
+                R.check(leg[:1] == ['Entretien 1–4'] and leg[-1:] == ['Gros volume 20+'], f'{t} profil : légende des paliers de Progrès {leg}')
+                share_current(page, t, 'profil', f'story-mois-profil-{t}')
         R.check(not page.errors, f'{t} semaine : aucune erreur JS {page.errors}')
     finally:
         cm.__exit__(None, None, None)
@@ -279,9 +284,16 @@ def t_annee(bench, eng, dev, theme):
 
 
 def t_moments(bench):
-    """Quand la carte apparaît : dimanche 20 h oui, dimanche 17 h non, mercredi non ; Masquer ; réglage ; sans données."""
+    """Quand la carte apparaît : tout le dimanche, lundi jusqu'à midi, mercredi non ; Masquer ; réglage ; sans données."""
     eng, dev, theme = 'webkit', 'iPhone 13', 'dark'
-    for when, expect, label in (((2026, 10, 18, 20), True, 'dimanche 20 h'), ((2026, 10, 18, 17), False, 'dimanche 17 h'),
+    # Ancienne clé « vue » (posée en ouvrant le récap avant le 01/11/2026) : ignorée, la carte revient, la clé part
+    cm, page = open_page(bench, eng, dev, theme, (2026, 10, 18, 20), storage={'ppl_recap_seen': 'w2026-10-12'})
+    try:
+        R.check(page.locator('.recap-card').count() == 1 and ls(page, 'ppl_recap_seen') is None, 'ancienne clé « vue » : carte affichée, clé retirée')
+    finally:
+        cm.__exit__(None, None, None)
+    for when, expect, label in (((2026, 10, 18, 20), True, 'dimanche 20 h'), ((2026, 10, 18, 10), True, 'dimanche 10 h'),
+                                ((2026, 10, 19, 14), False, 'lundi 14 h'),
                                 ((2026, 10, 21, 20), False, 'mercredi'), ((2026, 10, 26, 10), False, 'lundi 26 : semaine du 19 sans séance')):
         cm, page = open_page(bench, eng, dev, theme, when)
         try:

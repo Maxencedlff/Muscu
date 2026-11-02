@@ -1,6 +1,6 @@
 # MDLF Training · feuille de route complète
 
-Mise à jour le 30 octobre 2026. De la PWA « PPL Training » d'avril 2026 à l'app iPhone MDLF Training, puis la suite, dans l'ordre.
+Mise à jour le 2 novembre 2026. De la PWA « PPL Training » d'avril 2026 à l'app iPhone MDLF Training, puis la suite, dans l'ordre.
 
 Légende : ✓ = fait, ▶ = en cours, ○ = à faire. OTA = mise à jour à chaud (sans passer par l'App Store).
 Build = nouvelle version de l'app compilée (TestFlight, puis App Store). Les codes comme 2b0a3fd sont les repères Git de la publication.
@@ -160,19 +160,50 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ✓ | 30/10 | Version de l'app envoyée au serveur, corrections de la synchro | OTA 2b0a3fd                 |
 | ✓ | 30/10 | Assemblage, suite complète des tests, relecture                | OTA 2b0a3fd                 |
 
+### 31 octobre → 1er novembre · Lot 3, build 31 et notifications
+
+|   | Date  | Quoi                                                                         | Comment publié              |
+|---|-------|------------------------------------------------------------------------------|-----------------------------|
+| ✓ | 31/10 | Fiabilité : mini-barre, tempo, synchro                                       | OTA 2a7d297, ppl-v105       |
+| ✓ | 31/10 | Lot 3 : records dans la séance, réactions emoji, Mon profil, partage du poids | 6 migrations + OTA 7f729da  |
+| ✓ | 31/10 | Lot 3 : commentaires sur les séances, chat coach ↔ élève, signalements       | Serveur + OTA 7f729da       |
+| ✓ | 31/10 | Build 31 : notifications, sommeil, séances dans Santé, photos                | TestFlight 31               |
+| ✓ | 31/10 | Build 31 : Apple Watch, widget, Siri                                         | TestFlight 31               |
+| ✓ | 31/10 | Correctif des mises à jour à chaud (« à jour » au lieu de « en attente »)    | OTA eef8b5e, ppl-v107       |
+| ✓ | 31/10 | Serveur de notifications push en service (APNs, envoi chaque minute)         | Serveur                     |
+| ✓ | 01/11 | Notifications des messages et des commentaires (éteintes au départ)          | Serveur + OTA 384390b       |
+| ✓ | 01/11 | Récaps v3 corrigés selon tes retours, « Mon mois en bref »                   | OTA 384390b, ppl-v108       |
+| ✓ | 01/11 | Accessibilité (VoiceOver, contraste sombre), bouton « réessayer » daté        | OTA 384390b                 |
+| ✓ | 01/11 | Dépendances de dev mises à jour (alerte glob)                                | Interne                     |
+| ✓ | 01/11 | Nouveau design de l'accueil et de Mon profil, niveaux de force               | OTA a484b5a, ppl-v109       |
+| ✓ | 01/11 | Coffre à photos : Face ID ou code de l'iPhone, clé dans le trousseau iCloud  | Build 33 (testeurs externes) |
+| ✓ | 01/11 | Import CSV : séance datée de sa fin ; CI sur ubuntu-24.04                    | OTA 1a23120, ppl-v112       |
+| ✓ | 01/11 | « @mdlftraining » sur la story et les récaps                                 | OTA d127b26, ppl-v113       |
+| ✓ | 01/11 | Récap profil : paliers de Progrès, légende, top 3                             | OTA f39e3a5, ppl-v114       |
+| ✓ | 01/11 | « Toi : N muscles à l'objectif », carte « Ta semaine » le dimanche et lundi matin | OTA be1785b, ppl-v115  |
+| ✓ | 01/11 | Carte « Ta semaine » revenue (masquée seulement par la croix), relecture du récap | OTA 053bcd0, ppl-v117  |
+
+### 2 novembre
+
+|   | Date  | Quoi                                                                         | Comment publié              |
+|---|-------|------------------------------------------------------------------------------|-----------------------------|
+| ✓ | 02/11 | Partage en story : l'aperçu se ferme quand on part dans Instagram            | OTA d51b58d, ppl-v120       |
+| ✓ | 02/11 | Partage en story : la feuille d'iOS se referme au retour (code natif)        | Branche natif-feuille-partage · build 34 |
+| ✓ | 02/11 | Page de confidentialité version store (abonnement, lettre, devenir coach)    | Branche confidentialite-store · pas en ligne |
+| ✓ | 02/11 | Carrousel Instagram « version coach » (7 images)                              | Bureau › MDLF Instagram › post2_coach |
+| ✓ | 02/11 | fitby_dylan passé coach                                                       | Serveur                     |
+
 ---
 
 ## 2. En cours
 
-|   | Quoi                                                                          | Où                        | État                                   |
-|---|-------------------------------------------------------------------------------|---------------------------|----------------------------------------|
-| ▶ | Récaps v2 : refonte façon carnet fun, carte citron vert, record avant → après | Branche recaps-v2         | En réalisation                         |
-| ▶ | Système payant modèle B : StoreKit, essai 3 mois, codes cadeaux, verrou       | Branche payant            | Prêt, tests verts · attend ta décision |
-| ▶ | Abonnements 5,99 €/mois et 41,99 €/an, offre 3 mois gratuits                  | App Store Connect         | Créés · manque la capture de revue     |
-| ▶ | Photos de progression dans l'app iPhone (autorisations caméra et photos)      | Branche nuit-build        | Fusionnée dans la build unique         |
-| ▶ | Build unique : sommeil, séances détaillées dans Santé, notifications push    | Branche build-ios         | TestFlight 31 (avec montre, widget, Siri) · serveur push pas en service |
-| ▶ | Niveau de force (squat, développé couché, soulevé de terre), seuils OpenPowerlifting | Branche nuit-entrainement | Prêt, tests verts · OTA · à valider     |
-| ▶ | Commentaires libres sur les séances (modération) et messages coach ↔ élève   | Branche nuit-social       | Prêt en local, tests verts · feu vert n° 2 |
+|   | Quoi                                                                     | Où                     | État                                   |
+|---|--------------------------------------------------------------------------|------------------------|----------------------------------------|
+| ▶ | Payant complet, parrainage relié aux vrais paiements, newsletter         | Branche payant-final   | Prêt, à remettre à jour sur main (77 commits d'écart) · attend les papiers (SIRET, médiateur, téléphone) |
+| ▶ | Page de confidentialité « store » + mentions légales, CGU, CGV          | Branche confidentialite-store + payant-final | Prête · attend SIRET, téléphone, médiateur, et ton choix : adresse perso ou domiciliation |
+| ▶ | Feuille d'iOS refermée au retour d'Instagram                             | Branche natif-feuille-partage | Compilée en CI · part avec la build 34 |
+| ▶ | Apple Watch, widgets, Siri (projet iOS)                                  | Branche nuit-integration-build | À regrouper et fusionner pour la build 34 |
+| ▶ | Strava                                                                    | Branche nuit-integration | En sommeil, rallumé par une build    |
 
 ---
 
@@ -182,46 +213,38 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 |   | Quoi                                                 | Quand / état             |
 |---|------------------------------------------------------|--------------------------|
-| ○ | @compte Instagram sur la story + « on la repartage » | Dès que le compte existe |
+| ✓ | @mdlftraining sur la story et les récaps            | OTA d127b26 (01/11)      |
 
-### Lot 3 · Serveur (feu vert n° 2 : montré avant la mise en ligne)
+### Lot 3 · Serveur
 
-|   | Quoi                                                            | Quand / état                                 |
-|---|-----------------------------------------------------------------|----------------------------------------------|
-| ○ | Records notés dans la séance, visibles par amis et coach        | Feu vert n° 2                                |
-| ○ | Nouveaux records : temps, distance, allure, assistés            | Feu vert n° 2                                |
-| ○ | Plusieurs réactions emoji + qui a réagi                         | Feu vert n° 2                                |
-| ○ | Écran Mon profil, pastille d'activité, bravos dans l'Historique | Feu vert n° 2                                |
-| ○ | Partage du poids avec le coach (consentement)                   | Feu vert n° 2                                |
-| ○ | Échauffements et RIR visibles par les amis et le coach          | Feu vert n° 2                                |
-| ○ | Export vers Strava (jeton côté serveur), codé : **en sommeil, prévu pour une prochaine mise à jour** (décision du 31/10, interrupteur STRAVA_SWITCH éteint) | Après le lancement · migration 20261031620000_strava.sql à NE PAS appliquer au lancement · rallumage (build soumise à Apple) dans docs/STRAVA.md |
-| ○ | 3 index manquants                                               | Feu vert n° 2                                |
-| ○ | Mise en ligne du payant modèle B, verrou éteint                 | Prêt · attend ta décision carte / sans carte |
+|   | Quoi                                            | Quand / état                     |
+|---|-------------------------------------------------|----------------------------------|
+| ✓ | Records, réactions, Mon profil, partage du poids | Publié le 31/10                 |
+| ○ | Export vers Strava                              | En sommeil                       |
+| ○ | Mise en ligne du payant                         | Prêt · après les papiers         |
 
-### Build unique (TestFlight, puis App Store)
+### Build 34 (TestFlight, puis App Store)
 
-|   | Quoi                                                  | Quand / état                       |
-|---|-------------------------------------------------------|------------------------------------|
-| ○ | Paiement Apple (StoreKit)                             | Module écrit sur la branche payant |
-| ▶ | Sommeil affiché sur l'accueil (pas partagé au coach)  | Branche nuit-build, docs/BUILD.md  |
-| ▶ | Notifications (coach, demandes, bravos)               | Branche nuit-build, docs/BUILD.md  |
-| ▶ | Écriture des séances dans Apple Santé (cardio, durée) | Branche nuit-build, docs/BUILD.md  |
-| ○ | Vérification de l'âge par Apple pour l'onglet Amis    | À faire                            |
-| ○ | Écran « mets à jour l'app » avant d'allumer le verrou | À faire                            |
-| ▶ | Apple Watch, widget, Siri (2e build si trop long)     | Code écrit, branche nuit-watch, non compilé · intégration Xcode (docs/WATCH_WIDGETS.md) · sans effet sur les mises à jour à chaud tant que l'intégration Xcode n'est pas faite ; l'intégration ne va dans main qu'avec sa build |
+|   | Quoi                                                  | Quand / état                        |
+|---|-------------------------------------------------------|-------------------------------------|
+| ✓ | Sommeil, séances dans Santé, notifications, montre    | Build 31                            |
+| ○ | Paiement Apple (StoreKit)                             | Branche payant-final                |
+| ✓ | Face ID du coffre photos                              | Build 33                            |
+| ○ | Feuille de partage refermée au retour d'Instagram     | Branche natif-feuille-partage       |
+| ○ | Vérification de l'âge par Apple pour l'onglet Amis    | À faire                             |
+| ○ | Écran « mets à jour l'app » avant d'allumer le verrou | À faire                             |
 
 ### Démarches Apple et légales
 
 |   | Quoi                                                                 | Quand / état     |
 |---|----------------------------------------------------------------------|------------------|
-| ○ | Décider : essai avec ou sans carte bancaire                          | En attente       |
 | ○ | Vérifier que la micro-entreprise couvre la vente d'apps              | À faire          |
 | ○ | Contrat Paid Apps (RIB, fiscal)                                      | À faire          |
-| ○ | Clé In-App Purchase (.p8) → secrets                                  | À faire          |
+| ✓ | Clé In-App Purchase (.p8)                                            | Créée            |
 | ○ | Testeur Sandbox                                                      | À faire          |
 | ○ | Small Business Program (15 % au lieu de 30 %)                        | À faire          |
 | ○ | Statut de commerçant (DSA) + domiciliation                           | À faire          |
-| ○ | Mentions légales pro, CGU, CGV, médiateur (SIREN)                    | À faire          |
+| ○ | Mentions légales pro, CGU, CGV, médiateur (SIRET)                    | Textes prêts · manquent SIRET, téléphone, médiateur |
 | ○ | Fiche Confidentialité de l'app (Santé partagée)                      | À faire          |
 | ○ | URL de confidentialité de la fiche → mdlf.app/privacy.html           | À la publication |
 | ○ | Âge 13+, prix et pays, mode de publication                           | À la soumission  |
@@ -252,8 +275,12 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 |   | Quoi                                       | Quand / état           |
 |---|--------------------------------------------|------------------------|
-| ○ | Compte dédié pro, app Meta, autorisation   | À faire                |
-| ○ | 3 Reels prêts, puis 3 ou 4 par semaine     | Reels prêts            |
+| ✓ | Compte @mdlftraining (Créateur), photo, bio | Créé le 01/11         |
+| ✓ | Premier carrousel (6 images)               | Publié le 01/11        |
+| ○ | Carrousel « version coach » (7 images)     | Prêt · tu le gardes pour plus tard |
+| ○ | Publication automatique (Buffer)           | Attend ton compte Buffer |
+| ○ | Page mdlf.app de présentation (lien en bio) | À faire               |
+| ○ | Reels, 3 ou 4 par semaine                  | À faire                |
 | ○ | 5 à 10 petits créateurs contre codes à vie | Dès la précommande     |
 | ○ | Pub payante sur un Reel qui a déjà marché  | Jamais avant la sortie |
 
@@ -285,8 +312,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 |   | Quoi                                                          | Quand / état          |
 |---|---------------------------------------------------------------|-----------------------|
-| ○ | Marque INPI (option à vie : refusée par Maxence le 31/10)     | Plus tard |
-| ○ | Test mini-barre, rôle coach d'un testeur                      | Mini-barre : corrigé (branche nuit-fiabilite) |
+| ○ | Marque INPI                                                   | Formalité J00296666944 à signer |
 | ○ | Messages tout faits en réaction                               | Plus tard             |
 | ○ | Coach payant selon son nombre d'élèves                        | Plus tard             |
 | ○ | Programmes envoyés entre amis, programmes publics             | Plus tard             |
@@ -295,11 +321,10 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Autre app de musique (Spotify fermé ; YouTube, Deezer à voir) | Plus tard             |
 | ○ | Chronomètre de vitesse dans l'app (vrais temps sur iPhone)    | Si l'app paraît lente |
 | ○ | Import des mensurations depuis Hevy                           | Plus tard             |
-| ▶ | Tests du tempo à renforcer                                    | Faits (branche nuit-fiabilite) |
 
 ---
 
-## 4. En chiffres (au 30 octobre 2026, vérifiés dans le dépôt)
+## 4. En chiffres (au 30 octobre 2026, vérifiés dans le dépôt ; en ligne mis à jour le 1er novembre)
 
 - 393 commits en tout, dont 373 sur la branche principale, du 15 avril au 30 octobre 2026, sur 22 jours de travail.
 - Rythme : 65 commits en avril, 1 en septembre, 307 en octobre. Jours les plus chargés : 25 octobre (65) et 30 octobre (57).
@@ -310,4 +335,4 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 - Bibliothèque : 183 exercices, chacun avec sa fiche « Comment faire ».
 - Code de l'app : environ 23 100 lignes de JavaScript (95 fichiers) et 2 800 lignes de CSS.
 - Serveur : 10 migrations et 3 fonctions sur la branche principale (le payant attend sur sa branche).
-- En ligne aujourd'hui : OTA 2026.10.30-2b0a3fd (cache ppl-v104), sur la build TestFlight 28.
+- En ligne le 1er novembre : OTA 2026.11.1-384390b (cache ppl-v108), sur la build TestFlight 31. Les builds 28 et avant ne reçoivent plus les mises à jour.

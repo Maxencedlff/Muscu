@@ -18,7 +18,7 @@ const RECAP_KINDS = {
   year:  { title: 'Ton année',   prevTo: 'à l\'année d\'avant',   prev: 'l\'année d\'avant',   color: 'var(--orange)' },
 };
 const RECAP_KEY_RE = /^(w\d{4}-\d{2}-\d{2}|m\d{4}-\d{2}|y\d{4})$/;
-const RECAP_CARD_SUNDAY_HOUR = 18;   // la carte « Ta semaine » apparaît le dimanche à partir de 18 h
+const RECAP_CARD_MONDAY_UNTIL = 12;   // la carte « Ta semaine » reste le lundi jusqu'à midi
 const RECAP_YEAR_FROM_MONTH  = 11;   // « Bilan de l'année » de l'année en cours : à partir du 1er décembre
 const RECAP_OTHER_RECORDS    = 3;    // autres records listés sous le plus marquant (écran et image), puis « et N autres »
 
@@ -375,9 +375,10 @@ const RECAP_EARLY_HOUR = 8;       // « Lève-tôt » : toutes les séances chro
 // title : ce qui a été travaillé (« Jambes d'abord », « Tout le corps », « Quadriceps en tête »), jamais une
 // formule à décoder ; le moment et le jour viennent en lignes, chacune avec sa preuve (« Plutôt le soir ·
 // Entre 18 h et 23 h · 8 séances sur 11 », « Le jeudi le plus souvent · 3 séances sur 11 ») ; levels :
-// intensité 0..1 par muscle (personnage) ; muscles : les 3 plus travaillés { id, label, sets }.
+// intensité 0..1 par muscle (personnage de l'ouverture) ; muscles : les 3 plus travaillés { id, label, sets } ;
+// tiers : palier de Progrès / MUSCLE_LEVEL_MAX par muscle (personnage du profil) ; perWeekAvg : moyenne par semaine.
 // null sans muscle ni moment favori.
-function recapProfile(history, p, sessions, favSlot, favDay) {
+function recapProfile(history, p, sessions, favSlot, favDay, now = Date.now()) {
   const { counts } = muscleSetCounts(history, p.start, p.end);
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const max = Math.max(0, ...Object.values(counts));
@@ -407,7 +408,16 @@ function recapProfile(history, p, sessions, favSlot, favDay) {
   if (!parts.length && !muscles.length) return null;
   const title = parts.length ? parts[0] : `${muscles[0].label} en tête`;
   if (!parts.length) lines.unshift([muscles[0].label, plural(muscles[0].sets, 'série', 'séries')]);
-  return { title, lines, levels, muscles };
+  // Personnage du profil : paliers de Progrès (muscleLevel) sur la moyenne de séries par semaine, comptée en
+  // jours de calendrier (la semaine du passage à l'heure d'hiver dure 169 h, pas 168) et seulement sur les
+  // semaines couvertes : depuis la semaine de la première séance de la période, jusqu'à aujourd'hui au plus tard
+  // (un bilan 2026 commencé en octobre ne se divise pas par 52). Séries arrondies d'abord, comme muscleLoad :
+  // la couleur ne contredit jamais le chiffre lu sur les pastilles.
+  const first = sessions.length ? Math.min(...sessions.map(recapStartOf)) : p.start;
+  const from = Math.max(p.start, weekStart(first)), to = Math.min(p.end, now);
+  const weeks = Math.max(1, Math.round((to - from) / 86400000) / 7);
+  const tiers = Object.fromEntries(Object.entries(counts).map(([id, n]) => [id, muscleLevel(roundSets(n) / weeks) / MUSCLE_LEVEL_MAX]).filter(([, v]) => v > 0));
+  return { title, lines, levels, muscles, tiers, perWeekAvg: weeks > 1.5 };
 }
 
 const RECAP_STRIP_WEEKS = 8;   // frise de régularité de la semaine : les 8 dernières semaines
@@ -516,7 +526,7 @@ function recapStats(p, history = data.history, now = Date.now()) {
   };
   if (p.kind === 'year') Object.assign(st, recapMonths(sessions));
   else st.regularity = recapRegularity(history, p);
-  st.profile  = recapProfile(history, p, sessions, st.favSlot, st.favDay);
+  st.profile  = recapProfile(history, p, sessions, st.favSlot, st.favDay, now);
   st.activeWeeks = recapActiveWeeks(sessions);
   st.milestones = recapMilestones(history, p);
   st.progress = p.kind === 'week' ? null : recapExerciseProgress(sessions, st.topExercise);
@@ -525,17 +535,17 @@ function recapStats(p, history = data.history, now = Date.now()) {
 
 // ── Quand montrer quoi ──────────────────────────────────────
 
-// Semaine que la carte de l'accueil propose : la semaine en cours le dimanche à partir de 18 h, la
-// semaine passée le lundi ; null le reste du temps
+// Semaine que la carte de l'accueil propose : la semaine en cours tout le dimanche, la semaine passée le
+// lundi jusqu'à midi ; null le reste du temps
 function recapCardWeek(now = Date.now()) {
   const day = dayIndexInWeek(now);
-  if (day === 6 && new Date(now).getHours() >= RECAP_CARD_SUNDAY_HOUR) return recapPeriod('week', now, now);
-  if (day === 0) return recapPeriod('week', addDays(now, -7), now);
+  if (day === 6) return recapPeriod('week', now, now);
+  if (day === 0 && new Date(now).getHours() < RECAP_CARD_MONDAY_UNTIL) return recapPeriod('week', addDays(now, -7), now);
   return null;
 }
 
 // Carte « Ta semaine » à afficher : { period, totals } ou null (réglage coupé, pas le moment, semaine
-// sans séance, ou récap déjà vu : seenKey est la clé de la dernière semaine ouverte)
+// sans séance, ou carte masquée : seenKey est la clé de la dernière semaine masquée par la croix)
 function recapCardInfo({ history = data.history, now = Date.now(), seenKey = null, off = false } = {}) {
   if (off) return null;
   const p = recapCardWeek(now);
@@ -545,7 +555,7 @@ function recapCardInfo({ history = data.history, now = Date.now(), seenKey = nul
 }
 
 // Listes de Progrès › Récaps, de la plus récente à la plus ancienne, chacune avec ses totaux :
-// semaines terminées (et celle de la carte le dimanche soir), mois terminés, années (les précédentes,
+// semaines terminées (et celle de la carte le dimanche), mois terminés, années (les précédentes,
 // et celle en cours à partir du 1er décembre). Seulement celles qui ont au moins une séance.
 function recapList({ history = data.history, now = Date.now() } = {}) {
   const hist = (history || []).filter(h => h && h.date < now);
@@ -646,7 +656,7 @@ function recapPages(st) {
   const pr = st.profile;
   const profile = pr && {
     id: 'profile', tone: 'violet', kicker: kind === 'year' ? 'TON ANNÉE EN UN CORPS' : `TON PROFIL ${SPAN}`,
-    title: pr.title, lines: pr.lines, body: pr.levels, pills: pr.muscles.map(m => [m.label, plural(m.sets, 'série', 'séries')]), share: 'Partager mon profil' };
+    title: pr.title, lines: pr.lines, body: pr.tiers, scale: pr.perWeekAvg ? 'séries en moyenne par semaine' : 'séries par semaine', pills: pr.muscles.map(m => [m.label, plural(m.sets, 'série', 'séries')]), share: 'Partager mon profil' };
 
   // Volume (ou les séries quand rien n'est chargé), séries et durée en tuiles
   const gain = recapVolumeGain(st);

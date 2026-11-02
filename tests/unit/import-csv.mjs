@@ -221,8 +221,9 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     const push = d.history.filter(h => d.userProgrammes.u_hevy.sessions[h.category].label === 'Push Day');
     assert.equal(push.length, 2);
     const first = push.at(-1);   // la plus ancienne
-    assert.equal(first.date, local(2026, 1, 14, 18, 2));
+    assert.equal(first.date, local(2026, 1, 14, 18, 2) + 69 * 60000, 'date = fin, comme une séance de l\'app');
     assert.equal(first.duration, 69 * 60000);
+    assert.equal(first.date - first.duration, local(2026, 1, 14, 18, 2), 'début (récaps, Santé) = début du fichier');
     assert.ok(first.notes.includes('Bench Press (Barbell) : Pause 1 s en bas'));
     const bench = first.exercises[0];
     assert.equal(bench.name, 'Développé couché barre');
@@ -235,7 +236,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     const lat = first.exercises.find(e => e.name === 'Élévations latérales');
     assert.equal(lat.ss, first.exercises.find(e => e.name === 'Extension triceps poulie').ss, 'superset gardé');
     assert.equal(lat.sets.length, 3, 'série dégressive gardée comme une série');
-    const legs = d.history.find(h => d.userProgrammes.u_hevy.sessions[h.category].label === 'Leg Day' && h.date === local(2026, 1, 18, 10, 0));
+    const legs = d.history.find(h => d.userProgrammes.u_hevy.sessions[h.category].label === 'Leg Day' && h.date - (h.duration || 0) === local(2026, 1, 18, 10, 0));
     const plank = legs.exercises.find(e => e.name === 'Gainage (planche)');
     assert.equal(plank.measure, 'time', 'mesure écrite hors répétitions, comme storedMeasure');
     assert.equal(app.measureOf(plank), 'time');
@@ -332,6 +333,18 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     call('applyImport(readImportCsv(t), { links: { "Svend Press (Plate)": "Rotations russes" } })', { t: HEVY });
     r = call('applyImport(readImportCsv(t), {})', { t: HEVY });
     sameJSON([r.added, r.duplicates], [0, 7], 'lien posé au premier import : réimport sans doublon');
+    // Séances importées avant le 01/11/2026 (date = début) : reconnues, pas importées une seconde fois
+    reset();
+    call('applyImport(readImportCsv(t), {})', { t: HEVY });
+    run('data.history.forEach(h => { if (h.duration > 0) h.date -= h.duration; });');
+    r = call('applyImport(readImportCsv(t), {})', { t: HEVY });
+    sameJSON([r.added, r.duplicates], [0, 7], 'ancien import daté du début : réimport sans doublon');
+    // Séance faite dans l'app (date = fin, autre programme) puis retrouvée dans le fichier : doublon par l'empreinte
+    reset();
+    call('applyImport(readImportCsv(t), {})', { t: HEVY });
+    run(`data.history = data.history.filter(h => h.date - h.duration === ${local(2026, 1, 14, 18, 2)}).map(h => ({ ...h, id: 'app', programme: 'ppl' }));`);
+    r = call('applyImport(readImportCsv(t), {})', { t: HEVY });
+    sameJSON([r.added, r.duplicates], [6, 1], 'séance de l\'app datée de sa fin : reconnue par son début');
     // Un fichier qui répète une séance : comptée une fois
     const twice = HEVY + HEVY.split('\n').slice(1, 5).join('\n') + '\n';
     reset();

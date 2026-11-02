@@ -7,7 +7,9 @@
 // js/features/recap-canvas.js. Un récap = des écrans qui s'enchaînent au doigt (défilement horizontal
 // à crans, CSS scroll-snap) ou aux flèches, un chiffre fort par écran, et « Partager » sur chacun.
 
-const RECAP_SEEN_KEY = 'ppl_recap_seen';   // clé de la dernière semaine ouverte depuis la carte de l'accueil
+const RECAP_SEEN_KEY = 'ppl_recap_hidden';   // clé de la dernière semaine masquée (croix de la carte de l'accueil)
+// Ancienne clé (avant le 01/11/2026) : posée aussi en ouvrant le récap, elle cachait la carte ; ignorée et retirée
+try { localStorage.removeItem('ppl_recap_seen'); } catch { /* stockage indisponible : rien à retirer */ }
 let recapIndex = 0;                         // écran affiché du récap ouvert (gardé entre deux render())
 let recapsShowAll = false;                  // Progrès › Récaps : toutes les semaines (sinon les premières)
 const RECAPS_FIRST_WEEKS = 8;
@@ -30,7 +32,7 @@ function recapTotalsLine(t) {
   return [plural(t.sessions, 'séance', 'séances'), t.duration >= 60_000 ? fmtDuration(t.duration) : '', t.volume > 0 ? fmtVolume(t.volume) : ''].filter(Boolean).join(' · ');
 }
 
-// ── Accueil : carte « Ta semaine » (dimanche soir et lundi, jusqu'à ce qu'elle soit ouverte) ──
+// ── Accueil : carte « Ta semaine » (tout le dimanche et le lundi avant midi ; seule la croix la masque) ──
 // Aplat citron vert (couleur de marque des récaps, texte noir) ; en sombre, carte noire bordée de citron
 // pour ne pas éblouir sur le noir pur. Titre : le fait le plus positif (recapHeadline). Pastilles en
 // nowrap, chiffre et unité insécables. Petit personnage avec les muscles de la semaine. Toute la carte
@@ -48,7 +50,7 @@ function recapHomeCard() {
   const body = Object.keys(levels).length ? bodyMapHtml(levels, { view: 'front', className: 'recap-card__body' }) : '';
   return `
     <section class="recap-card${body ? ' recap-card--body' : ''}" aria-label="Ta semaine">
-      <button class="recap-card__open" data-action="open-recap" data-key="${esc(p.key)}" data-from="card">
+      <button class="recap-card__open" data-action="open-recap" data-key="${esc(p.key)}">
         <span class="recap-card__kicker">Ta semaine · ${esc(p.short)}</span>
         <span class="recap-card__title">${esc(head)}</span>
         <span class="recap-card__chips">${chips.map(c => `<span class="recap-card__chip num">${esc(c)}</span>`).join('')}</span>
@@ -146,12 +148,14 @@ function recapPageHtml(page, i, st) {
   }
   if (page.bars) parts.push(recapBarsHtml(page.bars));
   if (page.body && page.id === 'profile') {
-    parts.push(`<div class="rp-figure">${bodyMapHtml(page.body, { view: 'both', className: 'rp-body', colors: { heat: 'var(--rc-heat)' } })}</div>`);
+    // Couleurs de Progrès (orange, palier le plus haut orange rouge) et sa légende par paliers
+    parts.push(`<div class="rp-figure">${bodyMapHtml(page.body, { view: 'both', className: 'rp-body', peak: true })}</div>`);
+    if (page.scale) parts.push(`<div class="rp-scale" aria-hidden="true">${MUSCLE_LEVEL_WORDS.slice(1).map((w, i) => `<span><i${i + 1 >= MUSCLE_LEVEL_MAX ? ' class="is-peak"' : ''} style="--o:${bodyHeatOpacity((i + 1) / MUSCLE_LEVEL_MAX)}"></i>${esc(w)} <b class="num">${muscleLevelRange(i + 1)}</b></span>`).join('')}<small>${esc(page.scale)}</small></div>`);
   }
   // Ouverture : le personnage de la semaine, à droite du chiffre
   const side = page.body && page.id === 'sessions'
     ? `<div class="rp-side">${bodyMapHtml(page.body, { view: 'front', className: 'rp-body', colors: { heat: 'var(--rc-heat)' } })}</div>` : '';
-  if (page.pills?.length) parts.push(`<div class="rp-pills">${page.pills.map(([l, x]) => `<span class="rp-pill"><i></i>${esc(l)} <b class="num">${esc(x)}</b></span>`).join('')}</div>`);
+  if (page.pills?.length) parts.push(`<div class="rp-pills">${page.pills.map(([l, x], i) => `<span class="rp-pill"><i class="num" aria-hidden="true">${i + 1}</i>${esc(l)} <b class="num">${esc(x)}</b></span>`).join('')}</div>`);
   if (page.tiles?.length && page.id !== 'summary') parts.push(`<div class="rp-tiles">${page.tiles.map(([l, x]) => `<div class="rp-tile"><b class="num">${esc(x)}</b><span>${esc(l)}</span></div>`).join('')}</div>`);
   if (page.list?.length) {
     if (page.listTitle) parts.push(`<div class="rp-list-title">${esc(page.listTitle)}</div>`);
@@ -329,15 +333,14 @@ async function openRecapShare(key, index = recapIndex) {
     canvas => renderRecapStory(page, st, canvas));
 }
 
-function openRecap(key, from = null) {
+function openRecap(key) {
   if (!recapPeriodFromKey(key)) return;
   recapIndex = 0;
-  if (from === 'card') setRecapSeen(key);
   navigate(makeRoute('recap', key));
 }
 
 registerActions({
-  'open-recap':      (e, el) => { openRecap(el.dataset.key, el.dataset.from); },
+  'open-recap':      (e, el) => { openRecap(el.dataset.key); },
   'recap-card-hide': (e, el) => { setRecapSeen(el.dataset.key); render(); showToast('Le récap reste dans Progrès › Récaps'); },
   'go-recaps':       () => { recapsShowAll = false; navigate('recaps'); },
   'recaps-more':     () => { recapsShowAll = true; render(); },

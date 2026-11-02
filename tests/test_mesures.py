@@ -1,18 +1,15 @@
 """Progrès › Mesures : mensurations et photos de progression, 100 % sur l'appareil.
 
 Vérifie : l'écran Progrès mène à Mesures sans montrer de photo ; saisie datée de plusieurs mesures ;
-courbe d'une mesure, dernière valeur et écart ; suppression d'une mesure ; ajout d'une photo par le
-champ fichier (image générée ici), galerie par date, comparaison de deux dates, suppression ;
-pouces avec l'unité lbs ; rien dans le profil synchronisé ; « Supprimer toutes les données » efface
-mensurations et photos (IndexedDB).
+courbe d'une mesure, dernière valeur et écart ; suppression d'une mesure ; entrée du coffre à photos
+(les photos elles-mêmes : test_coffre.py) ; pouces avec l'unité lbs ; rien dans le profil synchronisé ;
+« Supprimer toutes les données » efface les mensurations.
 Captures : $PPL_SCRATCH/shots/lotmesures/.
 Lancer : PPL_DEV="iPhone 13" PPL_THEME=dark python3 test_mesures.py (ou sans variable : 5 appareils × 2 thèmes).
 """
 import json
 import os
-import struct
 import sys
-import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
@@ -29,20 +26,6 @@ TODAY = '2026-11-02'
 
 def tag(device, theme):
     return f'{device}-{theme}'.replace(' ', '_').replace('+', 'plus')
-
-
-def png_file(name, w, h, rgb):
-    """Petite image PNG unie (sans dépendance), écrite dans le dossier de travail des tests."""
-    os.makedirs(SCRATCH, exist_ok=True)
-    path = os.path.join(SCRATCH, name)
-    raw = b''.join(b'\x00' + bytes(rgb) * w for _ in range(h))
-
-    def chunk(t, d):
-        return struct.pack('>I', len(d)) + t + d + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
-    with open(path, 'wb') as fh:
-        fh.write(b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0))
-                 + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b''))
-    return path
 
 
 def measures_data(now, unit='kg'):
@@ -155,65 +138,6 @@ def t_mensurations(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS : {page.errors}')
 
 
-def t_photos(bench, eng, dev, theme):
-    t = tag(dev, theme)
-    now = NOW
-    face = png_file('photo-face.png', 300, 400, (200, 80, 80))
-    back = png_file('photo-dos.png', 1500, 2000, (80, 80, 200))
-    with bench.frozen_page(NOW, eng, dev, theme) as page:
-        open_measures(page, theme, now)
-        R.check(page.evaluate("photosAll().then(l => l.length)") == 0 and page.locator('.pgal__item').count() == 0, f'{t} aucune photo au départ')
-        R.check(page.locator('[data-action="photo-add"]').count() == 1, f'{t} bouton Ajouter une photo')
-        R.check(page.locator('#photoFile').get_attribute('accept') == 'image/*', f'{t} champ fichier : images seulement')
-
-        # Première photo : face, aujourd'hui
-        page.set_input_files('#photoFile', face)
-        page.wait_for_selector('.sheet-root .pnew__img')
-        page.wait_for_timeout(300)
-        R.check(page.locator('.pnew__pose [aria-checked="true"]').inner_text() == 'Face', f'{t} pose Face par défaut')
-        page.click('.sheet__btn--confirm')
-        page.wait_for_selector('.pgal__item', timeout=5000)
-        page.wait_for_timeout(300)
-        R.check(page.locator('.pgal__item').count() == 1 and 'Face' in page.locator('.pgal__item').first.inner_text(), f'{t} galerie : une photo Face')
-        R.check('1 photo' in page.inner_text('#photosBox') and 'sur l\'appareil' in page.inner_text('#photosBox'), f'{t} poids total affiché')
-        R.check(page.locator('.pcmp').count() == 0, f'{t} pas de comparaison avec une seule photo')
-
-        # Deuxième photo : dos, grande image (réduite à 1200 px), datée du 1er septembre
-        page.set_input_files('#photoFile', back)
-        page.wait_for_selector('.sheet-root .pnew__img')
-        page.wait_for_timeout(300)
-        page.click('.pnew__pose [data-pose="back"]')
-        page.fill('#phDate', '2026-09-01')
-        page.click('.sheet__btn--confirm')
-        page.wait_for_selector('.pcmp', timeout=8000)
-        page.wait_for_timeout(300)
-        photos = page.evaluate("photosAll().then(l => l.map(p => ({ pose: p.pose, w: p.w, h: p.h, type: p.type, big: p.bytes > 0 && p.bytes < 400000 })))")
-        R.check(photos == [{'pose': 'face', 'w': 300, 'h': 400, 'type': 'image/jpeg', 'big': True},
-                           {'pose': 'back', 'w': 900, 'h': 1200, 'type': 'image/jpeg', 'big': True}], f'{t} IndexedDB : JPEG réduit à 1200 px de haut {photos}')
-        days = page.locator('.pgal__date').all_inner_texts()
-        R.check(days == ['Aujourd\'hui', 'mar. 1 sept.'], f'{t} galerie par date, la plus récente d\'abord {days}')
-        R.check(page.locator('.pcmp__img').count() == 2 and '62 jours d\'écart' in page.inner_text('.pcmp__gap'), f'{t} comparaison : deux photos, écart en jours du calendrier (1er sept. → 2 nov.) {page.inner_text(".pcmp__gap")!r}')
-        R.check(page.locator('.view.stats img, .view.body-measures .group-title:has-text("Mensurations") img').count() == 0, f'{t} aucune image hors de la section Photos')
-        shot(page, LOT, f'photos-{t}')
-        # Changer la photo de droite : la même que la gauche → écart 0
-        left = page.locator('#pcmp-a').input_value()
-        page.select_option('#pcmp-b', left)
-        page.wait_for_timeout(200)
-        R.check('Même jour' in page.inner_text('.pcmp__gap'), f'{t} comparaison recalculée après le changement')
-
-        # Ouvrir puis supprimer la photo de face
-        page.locator('.pgal__item').first.click()
-        page.wait_for_selector('.sheet-root .pview__img')
-        page.wait_for_timeout(300)
-        R.check('300 × 400 px' in page.inner_text('.sheet-root'), f'{t} photo ouverte avec ses dimensions')
-        page.click('[data-action="photo-delete"]')
-        tap_dialog(page, 'Supprimer')
-        page.wait_for_selector('.sheet-root', state='detached', timeout=4000)
-        page.wait_for_timeout(400)
-        R.check(page.locator('.pgal__item').count() == 1 and page.evaluate("photosAll().then(l => l.length)") == 1, f'{t} photo supprimée de la galerie et d\'IndexedDB')
-        R.check(not page.errors, f'{t} aucune erreur JS : {page.errors}')
-
-
 def t_unite_pouces(bench, eng, dev, theme):
     t = tag(dev, theme)
     now = NOW
@@ -235,17 +159,10 @@ def t_unite_pouces(bench, eng, dev, theme):
 
 
 def t_tout_supprimer(bench):
-    """« Supprimer toutes les données » efface les mensurations et les photos (IndexedDB)."""
+    """« Supprimer toutes les données » efface les mensurations (le coffre à photos : test_coffre.py)."""
     now = NOW
-    face = png_file('photo-face.png', 300, 400, (200, 80, 80))
     with bench.frozen_page(NOW, 'webkit', 'iPhone 13', 'dark') as page:
         open_measures(page, 'dark', now)
-        page.set_input_files('#photoFile', face)
-        page.wait_for_selector('.sheet-root .pnew__img')
-        page.wait_for_timeout(300)
-        page.click('.sheet__btn--confirm')
-        page.wait_for_selector('.pgal__item', timeout=5000)
-        R.check(page.evaluate("photosAll().then(l => l.length)") == 1, 'photo en place avant la suppression')
         page.evaluate("navigate('backup')")
         page.wait_for_selector('.backup-view [data-action="export"]')
         R.check('pas tes photos' in page.inner_text('.backup-view'), 'Réglages › Sauvegarde : l\'export n\'inclut pas les photos, dit sous le groupe')
@@ -258,13 +175,12 @@ def t_tout_supprimer(bench):
         page.wait_for_selector('.ios-dialog')
         tap_dialog(page, 'Supprimer')
         page.wait_for_timeout(600)
-        R.check(page.evaluate("photosAll().then(l => l.length)") == 0, 'photos effacées d\'IndexedDB')
         R.check('bodyMeasures' not in (ls(page, 'ppl_v2') or ''), 'mensurations effacées')
         R.check('bodyMeasures' not in (ls(page, 'ppl_v2_backup') or ''), 'copie de secours sans les mensurations')
         page.evaluate("navigate('body-measures')")
         page.wait_for_selector('.view.body-measures')
         page.wait_for_timeout(400)
-        R.check(page.locator('.pgal__item').count() == 0 and page.locator('.bm-cell .cell__sub').count() == 0, 'écran Mesures vide après la suppression')
+        R.check(page.locator('.bm-cell .cell__sub').count() == 0, 'écran Mesures vide après la suppression')
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
 
 
@@ -305,7 +221,7 @@ def t_natif_avec_photos(bench, eng, dev, theme):
         cell.click()
         page.wait_for_selector('.view.body-measures')
         page.wait_for_timeout(400)
-        R.check(page.locator('#photosBox').count() == 1 and page.locator('.bm-cell').count() == 10, f'{t} natif : photos et mensurations')
+        R.check(page.locator('[data-action="go-photo-vault"]').count() == 1 and page.locator('.bm-cell').count() == 10, f'{t} natif : coffre à photos et mensurations')
         shot(page, LOT, f'natif-{t}')
         page.evaluate("navigate('settings')"); page.wait_for_selector('[data-action="wipe-data"]')
         page.click('[data-action="wipe-data"]'); page.wait_for_selector('.ios-dialog')
@@ -313,4 +229,4 @@ def t_natif_avec_photos(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} natif : aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_mensurations, t_photos, t_unite_pouces, t_natif_avec_photos], once=[t_tout_supprimer, t_export_inclut_mesures])
+run_main(R, [t_mensurations, t_unite_pouces, t_natif_avec_photos], once=[t_tout_supprimer, t_export_inclut_mesures])

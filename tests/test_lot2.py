@@ -167,21 +167,19 @@ def t_custom_colors(bench, eng, dev, theme):
         d['activeProgramme'] = 'custom'
         seed(page, theme, json.dumps(d, ensure_ascii=False))
         t = f'{dev}-{theme}'
-        c = page.evaluate("""() => { const card = document.querySelector('[style*="--cat-color"]');
-            return card ? getComputedStyle(card).getPropertyValue('--cat-color').trim() : null; }""")
+        # L'accueil n'affiche plus de couleur de séance : la couleur d'origine reste dans les données
+        c = page.evaluate("sessionMeta(firstSession()).color")
         R.check(c and c.lower() == '#ec4899', f'{t} séance Perso : couleur d\'origine conservée ({c})')
         R.check(page.locator('.cat-badge', has_text='💥').count() == 0 and page.locator('.hero__emoji').count() == 0, f'{t} séance Perso : icône gardée dans les données, plus affichée')
         shot(page, LOT, f'accueil-perso-{t}')
         page.evaluate("data.activeProgramme = 'ppl'; render()")
         page.wait_for_timeout(150)
-        badges = page.evaluate("""() => [...document.querySelectorAll('.view.dashboard .cat-badge')  /* Fusion : accueil du lot 3 */].map(b => {
-            const r = b.getBoundingClientRect(); return [b.textContent, r.width, r.height, getComputedStyle(b).backgroundColor]; })""")
-        # Push est la prochaine séance (grand titre, sans pastille) ; Pull et Legs dans « Autres séances »
-        R.check([b[0] for b in badges] == ['', ''] and all(b[1] == 10 and b[2] == 10 for b in badges), f'{t} pastilles : point de couleur de 10 px, sans lettre {badges}')
-        cols = [b[3] for b in badges]
-        R.check(cols == ['rgb(94, 92, 230)', 'rgb(64, 200, 224)'], f'{t} Pull indigo, Legs teal {cols}')
-        glow = page.evaluate("getComputedStyle(document.querySelector('.hero__eyebrow')).color")
-        R.check(glow != page.evaluate("getComputedStyle(document.querySelector('.hero__desc')).color"), f'{t} surtitre teinté de la couleur de Push ({glow})')
+        # Push est la prochaine séance ; Pull et Legs dans « Ensuite ». Une seule couleur d'accent sur
+        # l'accueil : ni pastille de séance, ni surtitre teinté
+        R.check(page.locator('.view.dashboard .cat-badge').count() == 0 and page.locator('.home-cell').count() == 2, f'{t} accueil : aucune pastille de couleur de séance')
+        neutral = page.evaluate("""() => { const c = s => getComputedStyle(document.querySelector(s)).color;
+            return [c('.hero__eyebrow'), c('.targets__title'), c('.home-list__title')]; }""")
+        R.check(len(set(neutral)) == 1, f'{t} surtitres du même gris, sans couleur de Push {neutral}')
         R.check(not page.errors, f'{t} perso : aucune erreur JS {page.errors}')
 
 

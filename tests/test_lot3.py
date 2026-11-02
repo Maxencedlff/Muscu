@@ -86,22 +86,50 @@ def t_home(bench, eng, dev, theme):
         box = btn.bounding_box()
         R.check(box['y'] + box['height'] <= tabbar_top(page), f'{t} « Démarrer » visible sans défiler')
         info = page.locator('.hero__info').inner_text()
-        R.check(info.startswith('Dernière fois : '), f'{t} « {info} »')
+        R.check('exercices' in info and 'Dernière fois : ' in info, f'{t} « {info} »')
+        R.check(page.locator('.hero [class*="badge"]').count() == 0, f'{t} pas de pastille « Prête » en double avec « Ensuite »')
+        R.check(page.locator('#app .hero__btn, #app .btn--primary').count() == 1, f'{t} Démarrer : seul bouton plein')
         cells = page.locator('.home-cell[data-action="session-actions"]')
-        R.check(cells.count() == 2, f'{t} 2 autres séances en cellules')
-        R.check(all(cells.nth(i).bounding_box()['height'] >= 60 for i in range(cells.count())), f'{t} cellules de 60 px')
+        R.check(cells.count() == 2 and page.inner_text('.home-list__title').strip().upper() == 'ENSUITE', f'{t} 2 autres séances dans « Ensuite »')
+        R.check(all(cells.nth(i).bounding_box()['height'] >= 44 for i in range(cells.count())), f'{t} cellules de 44 pt au moins')
         week = page.locator('.week')
         R.check(page.locator('.rings').count() == 0 and week.count() == 1, f'{t} une seule carte « Cette semaine », plus d\'anneaux')
         R.check(page.locator('.week__day').count() == 7 and page.locator('.week__letter').all_inner_texts() == list('LMMJVSD'), f'{t} 7 jours')
         R.check(page.locator('.week__dot').evaluate_all('ds => ds.every(d => !d.textContent.trim())'), f'{t} pastilles sans lettre')
-        R.check(page.locator('.week__ring .aring').count() == 1 and '/' in page.inner_text('.week__ring-val') and any(w in page.inner_text('.week__line') for w in ('ce mois', 'cette année')) and 'affil' not in page.inner_text('.week'), f'{t} un seul anneau (séances) et les cumuls du mois et de l\'année')
+        # Jours faits : pastille pleine avec une coche (le sens ne tient pas à la couleur seule) ; aujourd'hui : contour
+        dots = page.evaluate("""() => [...document.querySelectorAll('.week__dot')].map(d => ({ done: d.classList.contains('week__dot--done'),
+            today: d.classList.contains('week__dot--today'), check: !!d.querySelector('.icon--checkmark'), w: d.getBoundingClientRect().width }))""")
+        ws = page.evaluate('weekStats()')
+        R.check([d['done'] for d in dots] == [len(x) > 0 for x in ws['days']] and all(d['check'] == d['done'] for d in dots) and sum(d['today'] for d in dots) == 1 and min(d['w'] for d in dots) >= 20, f'{t} pastilles : faites cochées, aujourd\'hui marqué, 20 px au moins {dots}')
+        count = page.inner_text('.week__count').replace('\u00a0', ' ')
+        R.check(count == f"{ws['count']} sur {page.evaluate('weeklyGoal()')}", f'{t} « {count} »')
+        line = page.locator('.week__line')
+        R.check(any(w in line.inner_text() for w in ('ce mois', 'cette année')) and 'affil' not in page.inner_text('.week') and line.bounding_box()['height'] < 24, f'{t} cumuls du mois et de l\'année sur une ligne')
         # Intitulé VoiceOver lu dans le contenu (titre affiché + détail masqué), sans aria-label (WCAG 2.5.3)
-        aria = week.evaluate("b => [...b.querySelectorAll(':scope > :not([aria-hidden=true])')].map(e => e.textContent).join('')")
+        aria = week.evaluate("b => [...b.querySelectorAll('.home-card__title, .sr-text')].map(e => e.textContent).join('')")
         R.check(week.get_attribute('aria-label') is None and aria.startswith('Cette semaine : ') and 'sur' in aria, f'{t} VoiceOver : {aria!r}')
         R.check(page.locator('.dashboard .navbar [data-action="go-settings"] .icon').count() == 1, f'{t} sans compte : la roue des Réglages')
-        R.check(page.locator('.targets__row').count() == 3, f'{t} carte « À battre aujourd\'hui » : 3 exercices')
-        # Noms coupés seulement entre deux mots, titre et « + N » entiers (iPhone SE compris)
-        tg = page.evaluate("""() => { const t = document.querySelector('.targets .home-card__title');
+        R.check(page.locator('.hero .targets__row').count() == 3, f'{t} « À battre aujourd\'hui » dans la carte : 3 exercices')
+        n_more = page.evaluate("prog().exercises.push.length") - 3
+        R.check(f'et {n_more} autres exercices' in page.inner_text('.targets__more'), f'{t} « et {n_more} autres exercices »')
+        # Cible en gras, gain « ↑ 1 rep » (flèche et texte, sans « + »), dernière fois en gris dessous
+        row = page.locator('.targets__row').first
+        gain, before = row.locator('.targets__gain'), row.locator('.targets__before')
+        R.check(gain.locator('.icon--arrow-up').count() == 1 and '+' not in gain.inner_text() and ('rep' in gain.inner_text() or 'kg' in gain.inner_text()), f'{t} gain « {gain.inner_text()} »')
+        R.check(before.inner_text().startswith('avant ') and before.evaluate('e => getComputedStyle(e).color') != row.locator('.targets__target').evaluate('e => getComputedStyle(e).color'), f'{t} dernière fois en gris « {before.inner_text()} »')
+        edit = page.locator('.hero [data-action="go-editor"]')
+        R.check(edit.count() == 1, f'{t} « Modifier » une seule fois dans la carte ({edit.count()})')
+        # Ordre de lecture = ordre affiché (WCAG 1.3.2) : grand écran, les cibles avant Démarrer dans le HTML
+        order = page.evaluate("""() => { const b = document.querySelector('.hero__btn'), g = document.querySelector('.hero .targets');
+            const ty = g.getBoundingClientRect().top, by = b.getBoundingClientRect().top;
+            return { dom: !!(g.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING), seen: ty < by,
+                     css: getComputedStyle(b).order + '/' + getComputedStyle(g).order, h: innerHeight }; }""")
+        if order['h'] > 600:
+            R.check(order['dom'] and order['seen'] and order['css'] == '0/0', f'{t} cibles puis Démarrer, dans le HTML comme à l\'écran {order}')
+        eb = edit.bounding_box()
+        R.check(edit.inner_text().strip() == 'Modifier' and eb['width'] >= 44 and eb['height'] >= 44, f'{t} « Modifier » : 44 pt {eb}')
+        # Noms coupés seulement entre deux mots, titre entier (iPhone SE compris)
+        tg = page.evaluate("""() => { const t = document.querySelector('.targets__title');
             const names = [...document.querySelectorAll('.targets__name')];
             return { wrap: names.map(e => getComputedStyle(e).overflowWrap + '/' + getComputedStyle(e).wordBreak),
                      narrow: names.filter(e => e.getBoundingClientRect().width < 100).length,
@@ -234,6 +262,10 @@ def t_live(bench, eng, dev, theme):
         R.check(page.locator('.view.dashboard').count() == 1 and live.is_visible(), f'{t} mini-barre sur l\'accueil')
         R.check('Push' in live.inner_text() and '1/21' in live.inner_text(), f'{t} mini-barre « {live.inner_text()} »')
         R.check(page.locator('.hero__btn').inner_text().strip() == 'Reprendre' and 'En cours' in page.locator('.hero__info').inner_text(), f'{t} accueil : « Reprendre »')
+        # Séance en cours : pas de cibles, « Modifier les exercices » reste accessible sous le bouton
+        ed = page.locator('.hero [data-action="go-editor"]')
+        R.check(page.locator('.hero .targets').count() == 0 and ed.count() == 1 and ed.inner_text().strip() == 'Modifier les exercices'
+                and ed.bounding_box()['height'] >= 44, f'{t} séance en cours : « Modifier les exercices » ({ed.count()})')
         R.check(live.bounding_box()['height'] == 56, f'{t} mini-barre 56 px')
         shot(page, LOT, f'minibarre-{t}')
         for name in ('history', 'progress', 'program'):
@@ -352,7 +384,47 @@ def o_edge_swipe(bench):
             R.check(not page.errors, f'{dev} geste : aucune erreur JS {page.errors}')
 
 
+def o_home_type_xl(bench):
+    """Très grands caractères (type-xl) sur iPhone SE, séance pas prête : « Démarrer quand même » avant les cibles
+    dans le HTML (ordre de lecture = ordre affiché) et visible sans défiler ; séance vide : lien vers l'éditeur."""
+    with bench.page('webkit', 'iPhone SE', 'dark') as page:
+        d = ppl_v2_today()
+        page.goto(BASE_URL + 'manifest.json')
+        now = page.evaluate('Date.now()')
+        for k in ('push', 'pull', 'legs'):
+            d['programmes']['ppl']['timers'][k] = now - 3600_000 * {'push': 58, 'pull': 30, 'legs': 2}[k]
+        seed(page, 'dark', json.dumps(d, ensure_ascii=False))
+        # Taille normale, 568 pt de haut (< 600) : Démarrer avant les cibles, après les infos
+        R.check(page.evaluate("""() => { const b = document.querySelector('.hero__btn');
+            return !!(b.compareDocumentPosition(document.querySelector('.hero .targets')) & Node.DOCUMENT_POSITION_FOLLOWING)
+                && !!(document.querySelector('.hero__info').compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING); }"""),
+            'petite hauteur : Démarrer entre les infos et les cibles')
+        page.add_style_tag(content='html { font-size: 28px !important; }')
+        page.evaluate("window.dispatchEvent(new Event('resize'))")
+        settle(page, 300)
+        btn = page.locator('.hero__btn')
+        g = page.evaluate("""() => { const b = document.querySelector('.hero__btn'), t = document.querySelector('.hero .targets');
+            const r = b.getBoundingClientRect();
+            return { xl: document.documentElement.classList.contains('type-xl'), top: r.top, bottom: r.bottom, scroll: scrollY,
+                     tabbar: document.querySelector('.tabbar').getBoundingClientRect().top,
+                     first: !!t && !!(b.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING), css: getComputedStyle(b).order,
+                     underName: b.previousElementSibling?.classList.contains('hero__name'),
+                     fits: (() => { const g = document.createRange(); g.selectNodeContents(b); const t = g.getBoundingClientRect();
+                                    return t.top >= r.top - 1 && t.bottom <= r.bottom + 1; })() }; }""")
+        R.check(g['xl'] and btn.inner_text().strip() == 'Démarrer quand même', f'type-xl : « Démarrer quand même » ({btn.inner_text()!r}, {g})')
+        R.check(g['scroll'] == 0 and g['top'] >= 0 and g['bottom'] <= g['tabbar'] and g['fits'], f'type-xl iPhone SE : « Démarrer quand même » visible sans défiler {g}')
+        R.check(g['first'] and g['underName'] and g['css'] == '0', f'type-xl : Démarrer sous le nom dans le HTML, sans CSS order {g}')
+        shot(page, LOT, 'accueil-type-xl-recup-iPhone_SE')
+        # Séance sans exercice : pas de cibles, le lien vers l'éditeur reste
+        c = page.evaluate("(() => { const c = nextSessionCat(sessionKeys()); prog().exercises[c] = []; save(); render(); return c; })()")
+        settle(page, 200)
+        ed = page.locator('.hero [data-action="go-editor"]')
+        R.check(page.evaluate("nextSessionCat(sessionKeys())") == c and page.locator('.hero .targets').count() == 0
+                and ed.count() == 1 and ed.get_attribute('data-cat') == c, f'séance vide ({c}) : « Modifier les exercices » ({ed.count()})')
+        R.check(not page.errors, f'type-xl : aucune erreur JS {page.errors[:2]}')
+
+
 TESTS = [t_home, t_back_stack, t_scroll, t_live, t_dirty, t_motion]
 
 if __name__ == '__main__':
-    run_main(R, TESTS, once=[o_restore, o_edge_swipe])
+    run_main(R, TESTS, once=[o_restore, o_edge_swipe, o_home_type_xl])

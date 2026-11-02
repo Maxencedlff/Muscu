@@ -5,11 +5,6 @@
 
 let ticker = null;
 
-// Pastille de séance : point de la couleur de la séance
-function catDot(cat, progId) {
-  return catBadge(sessionMeta(cat, progId || data.activeProgramme).color);
-}
-
 // « dans 1 j 18 h », « dans 14 h », « dans 35 min » (jamais de secondes)
 function fmtWait(ms) {
   const min = Math.max(1, Math.ceil(ms / 60000));
@@ -43,9 +38,8 @@ function catStatus(cat, now = Date.now()) {
     best = { date: rec.date, readyAt: rec.readyAt, by: mine ? null : rec };
   }
   const last = best?.date ?? null, readyAt = best?.readyAt || 0;
-  const remaining = last ? readyAt - now : 0, span = readyAt - last;
-  return { last, readyAt, remaining, ready: remaining <= 0, progress: last && span > 0 ? Math.min(1, 1 - remaining / span) : 1,
-    by: remaining > 0 ? best.by : null };
+  const remaining = last ? readyAt - now : 0;
+  return { last, readyAt, remaining, ready: remaining <= 0, by: remaining > 0 ? best.by : null };
 }
 
 // Dernier entraînement (muscle principal, au moins une série) de chaque muscle, sur tout l'historique
@@ -100,15 +94,6 @@ function recoveryReason(by) {
   return `${muscleLabel(by.muscle)} : ${when}, ${where}`;   // texte brut : échappé à l'affichage
 }
 
-// Anneau de récupération (28 px)
-function recoveryRing(p) {
-  const c = 2 * Math.PI * 11;
-  return `<svg class="ring" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
-    <circle cx="14" cy="14" r="11" class="ring__track"/>
-    <circle cx="14" cy="14" r="11" class="ring__fill" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - p)).toFixed(2)}"/>
-  </svg>`;
-}
-
 // Prochaine séance : la séance prête dont les muscles se reposent depuis le plus longtemps (ou jamais
 // faite), sinon celle qui sera prête la première. À égalité, la séance faite il y a le plus longtemps :
 // juste après Haut du corps, Bas du corps (bloquée par les abdos du même entraînement) passe devant
@@ -152,7 +137,7 @@ function cellStatusHtml(cat) {
   }
   return st.ready
     ? `<span class="home-cell__status home-cell__status--ready">Prête</span>`
-    : `<span class="home-cell__status">dans ${fmtWait(st.remaining)}</span>${recoveryRing(st.progress)}`;
+    : `<span class="home-cell__status">dans ${fmtWait(st.remaining)}</span>`;
 }
 
 // Durée habituelle d'une séance (minutes, arrondies à 5) : médiane de ses 5 dernières,
@@ -170,40 +155,53 @@ function sessionMinutes(cat) {
 // Cible du jour d'un exercice, même règle que la puce de la séance (bumpReady) :
 // toutes les séries de la dernière fois en haut de la fourchette → charge + 2,5 kg (5 lb) ;
 // sinon la meilleure série de la dernière fois + 1 rep ; jamais fait → nombre de séries prévu.
+// gain : sans signe (« 1 rep », « 2,5 kg ») : l'accueil le précède d'une flèche ↑.
+// before : la meilleure série de la dernière fois (« 32 kg × 9 »), '' si l'exercice n'a jamais été fait.
 function exerciseTarget(cat, ex) {
   const lp = lastPerf(data.activeProgramme, cat, ex);
-  if (!lp) return { text: `${ex.sets} série${ex.sets > 1 ? 's' : ''}`, gain: '' };
+  const planned = { text: `${ex.sets} série${ex.sets > 1 ? 's' : ''}`, gain: '', before: '' };
+  if (!lp) return planned;
   const sets = workSets(lp.ex.sets).filter(s => (parseInt(s.reps) || 0) > 0);   // l'échauffement ne fixe pas la cible
   const best = bestSet(sets);
-  if (!best) return { text: `${ex.sets} série${ex.sets > 1 ? 's' : ''}`, gain: '' };
+  if (!best) return planned;
+  const before = setTxt(best, ex);
   const m = measureOf(ex);
-  if (m !== 'reps' || isAssisted(ex)) return { text: setTxt(best, ex), gain: '' };
-  if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: best.r + 1, reps: String(best.r + 1) }, ex), gain: '+1 rep' };   // durée, cardio : on rappelle la dernière fois
+  if (m !== 'reps' || isAssisted(ex)) return { text: setTxt(best, ex), gain: '', before };   // durée, cardio : on rappelle la dernière fois
+  if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: best.r + 1, reps: String(best.r + 1) }, ex), gain: '1 rep', before };
   const repMax = ex.repMax ?? 12;
   const bump = best.w > 0 && sets.length >= Math.min(ex.sets, 2) && sets.every(s => (parseInt(s.reps) || 0) >= repMax);
   if (bump) {
-    return { text: `${fmtW(best.w + bumpStepKg())} ${unitLbl()}`, gain: bumpLabel() };
+    return { text: `${fmtW(best.w + bumpStepKg())} ${unitLbl()}`, gain: bumpLabel(), before };
   }
-  return { text: setTxt({ ...best, r: best.r + 1 }), gain: '+1 rep' };
+  return { text: setTxt({ ...best, r: best.r + 1 }), gain: '1 rep', before };
 }
 
-// « À battre aujourd'hui » : les premiers exercices de la séance et leur cible
+// « À battre aujourd'hui », dans la carte de la prochaine séance : les premiers exercices, la cible en
+// gras, le gain avec une flèche ↑ (jamais la couleur seule : « ↑ 1 rep », sans « + »), la dernière fois
+// en gris dessous. Jamais fait : « Au programme » et le nombre de séries prévu.
 const HERO_TARGETS = 3;
-function targetsCard(cat) {
+function targetRowHtml(cat, ex) {
+  const t = exerciseTarget(cat, ex);
+  const gain = t.gain
+    ? `<span class="targets__gain num">${icon('arrow.up', 11)}${esc(t.gain)}<span class="sr-text"> de plus</span></span>` : '';
+  const before = t.gain && t.before ? `<span class="targets__before num">avant ${esc(t.before)}</span>` : '';
+  return `<li class="targets__row"><span class="targets__name">${esc(ex.name)}</span>`
+    + `<span class="targets__val"><span class="targets__now"><span class="targets__target num">${esc(t.text)}</span>${gain}</span>${before}</span></li>`;
+}
+function targetsHtml(cat) {
   const exs = prog().exercises[cat] || [];
   if (!exs.length) return '';
-  const rows = exs.slice(0, HERO_TARGETS).map(ex => {
-    const t = exerciseTarget(cat, ex);
-    return `<li class="targets__row"><span class="targets__name">${esc(ex.name)}</span>`
-      + `<span class="targets__val num">${esc(t.text)}${t.gain ? `<span class="targets__gain">${esc(t.gain)}</span>` : ''}</span></li>`;
-  }).join('');
   const more = exs.length - HERO_TARGETS;
   const anyHistory = exs.some(ex => lastPerf(data.activeProgramme, cat, ex));
   return `
-    <section class="home-card targets" aria-label="${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}">
-      <h2 class="home-card__title">${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}${more > 0 ? `<span class="home-card__aside">+ ${more}<span class="home-card__aside-more"> exercice${more > 1 ? 's' : ''}</span></span>` : ''}</h2>
-      <ul class="targets__list">${rows}</ul>
-    </section>`;
+    <div class="targets">
+      <div class="targets__head">
+        <h3 class="targets__title">${anyHistory ? 'À battre aujourd\'hui' : 'Au programme'}</h3>
+        <button class="targets__edit" data-action="go-editor" data-cat="${esc(cat)}" aria-label="Modifier les exercices">Modifier</button>
+      </div>
+      <ul class="targets__list">${exs.slice(0, HERO_TARGETS).map(ex => targetRowHtml(cat, ex)).join('')}</ul>
+      ${more > 0 ? `<p class="targets__more">et ${plural(more, 'autre exercice', 'autres exercices')}</p>` : ''}
+    </div>`;
 }
 
 // Semaine en cours (lundi → dimanche) : séances par jour, nombre
@@ -223,9 +221,8 @@ function weeklyGoal() {
   return data.weeklyGoal || Math.min(7, Math.max(1, sessionKeys().length)) || 3;
 }
 
-// Cette semaine, en une carte : l'anneau des séances face à l'objectif, une pastille par jour (couleur
-// de la séance faite), puis les séances du mois et de l'année en une ligne. Toute la carte mène aux
-// progrès.
+// Cette semaine, en une carte : le compte face à l'objectif (« 2 sur 3 »), une pastille par jour, puis
+// les séances du mois et de l'année en une ligne. Toute la carte mène aux progrès.
 const WEEK_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const WEEK_NAMES = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 // Des cumuls, jamais décourageants : « 9 séances ce mois · 87 cette année ». En janvier, l'année
@@ -238,21 +235,16 @@ function weekLine(totals = historyTotals()) {
   if (year > month) parts.push(month ? `${year} cette année` : `${plural(year, 'séance', 'séances')} cette année`);
   return parts.join(' · ');
 }
-// Anneau des séances de la semaine (52 px, comme l'anneau Bouger d'Apple) : le compte au centre
-function weekRing(count, goal) {
-  const r = 22, c = 2 * Math.PI * r, p = Math.min(1, count / goal);
-  return `<span class="week__ring"><svg class="aring" width="52" height="52" viewBox="0 0 52 52" aria-hidden="true">
-    <circle cx="26" cy="26" r="${r}" class="aring__track"/>
-    <circle cx="26" cy="26" r="${r}" class="aring__fill" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - p)).toFixed(2)}"/>
-  </svg><span class="week__ring-val num">${count}/${goal}</span></span>`;
+// Pastille d'un jour : faite = pleine en accent avec une coche (le sens ne tient jamais à la couleur
+// seule), aujourd'hui = contour en accent, les autres jours = neutres
+function weekDayHtml(letter, done, today) {
+  const cls = `week__dot${done ? ' week__dot--done' : ''}${today ? ' week__dot--today' : ''}`;
+  return `<span class="week__day${today ? ' week__day--today' : ''}"><span class="week__letter">${letter}</span>`
+    + `<span class="${cls}">${done ? icon('checkmark', 14) : ''}</span></span>`;
 }
 function weekCard(ws) {
   const goal = weeklyGoal();
-  const days = WEEK_DAYS.map((l, i) => {
-    const h = ws.days[i][0], today = i === ws.today;
-    const dot = h ? ` week__dot--done" style="--cat-color:${historyColor(h)}` : today ? ' week__dot--today' : '';
-    return `<span class="week__day${today ? ' week__day--today' : ''}"><span class="week__letter">${l}</span><span class="week__dot${dot}"></span></span>`;
-  }).join('');
+  const days = WEEK_DAYS.map((l, i) => weekDayHtml(l, !!ws.days[i][0], i === ws.today)).join('');
   const done = ws.days.map((d, i) => d[0] ? `${WEEK_NAMES[i]} ${rawLabel(d[0].category, entryProg(d[0]))}` : '').filter(Boolean);
   const line = weekLine();
   // Intitulé VoiceOver = le titre affiché suivi du détail (texte masqué) : pas d'aria-label qui ne
@@ -260,10 +252,83 @@ function weekCard(ws) {
   const spoken = ` : ${ws.count} séance${ws.count > 1 ? 's' : ''} sur ${goal}${done.length ? ` (${done.join(', ')})` : ''}.${line ? ` ${line.replace(/ · /g, ', ')}.` : ''}`;
   return `
     <button class="home-card week" data-action="go-stats" aria-description="Voir les progrès">
-      <span class="home-card__title">Cette semaine</span><span class="sr-text">${esc(spoken)}</span>
-      <span class="week__body" aria-hidden="true">${weekRing(ws.count, goal)}<span class="week__days">${days}</span></span>
-      ${line ? `<span class="week__line" aria-hidden="true">${esc(line)}${icon('chevron.right', 12)}</span>` : ''}
+      <span class="week__head"><span class="home-card__title">Cette semaine</span><span class="sr-text">${esc(spoken)}</span><span class="week__count num" aria-hidden="true"><b>${ws.count}</b> sur ${goal}</span></span>
+      <span class="week__days" aria-hidden="true">${days}</span>
+      ${line ? `<span class="week__line" aria-hidden="true"><span class="week__text">${esc(line)}</span>${icon('chevron.right', 12)}</span>` : ''}
     </button>`;
+}
+
+// Infos de la carte : « 5 exercices · ≈ 60 min », puis « Dernière fois : ven. 30 oct. » sur sa propre ligne
+// (sur une seule, elle passait à la ligne au milieu, même sur un grand iPhone)
+function heroFactsHtml(cat, last) {
+  const nEx = (prog().exercises[cat] || []).length, mins = sessionMinutes(cat);
+  const facts = [nEx ? plural(nEx, 'exercice', 'exercices') : '', mins ? `≈ ${mins} min` : ''].filter(Boolean).join(' · ');
+  const when = last ? `Dernière fois : ${fmtDate(last.date)}` : 'Jamais faite';
+  return `<p class="hero__info num">${facts ? `<span class="hero__fact">${facts}</span>` : ''}<span class="hero__fact">${when}</span></p>`;
+}
+
+// Prochaine séance (ou séance en cours) : une seule carte, avec Démarrer comme seul bouton plein.
+// Pas prête : l'attente, ce qui la fixe et « Démarrer quand même » en gris.
+function heroHtml(keys, next, liveHere) {
+  const meta = sessionMeta(next), st = catStatus(next);
+  let info, btn;
+  if (liveHere) {
+    info = `<p class="hero__info hero__info--live">En cours · <span class="num" id="hero-elapsed">${fmtClock(Date.now() - activeSession.startedAt)}</span></p>`;
+    btn  = `<button class="hero__btn" data-action="resume-session">${icon('play', 18)}Reprendre</button>`;
+  } else {
+    info = heroFactsHtml(next, lastEntryOf(next));
+    if (!st.ready) info += `<p class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</p>`;
+    if (st.by) info += `<p class="hero__why">${esc(recoveryReason(st.by))}</p>`;
+    info += sleepHomeHtml();   // Santé : la nuit, une ligne (js/features/apple-services.js)
+    const passed = passedOverNote(keys, next);
+    if (passed) info += `<p class="hero__why hero__why--passed">${esc(passed)}</p>`;
+    btn = st.ready
+      ? `<button class="hero__btn" data-action="start-session" data-cat="${esc(next)}" aria-label="Démarrer ${meta.label}">${icon('play', 18)}Démarrer</button>`
+      : `<button class="hero__btn hero__btn--gray" data-action="start-session" data-cat="${esc(next)}">Démarrer quand même</button>`;
+  }
+  const desc = meta.desc || coachSessionDesc(data.activeProgramme, next);
+  // « Modifier les exercices » vit dans l'en-tête des cibles ; sans cibles (séance en cours, séance
+  // vide), un lien sous le bouton le remplace, comme avant la refonte
+  const targets = liveHere ? '' : targetsHtml(next);
+  const edit = targets ? '' : `<button class="hero__edit" data-action="go-editor" data-cat="${esc(next)}">Modifier les exercices</button>`;
+  const spot = heroBtnSpot();
+  // Grand titre : plus petit pour un nom long (« Bras & épaules »)
+  const size = rawLabel(next).length <= 9 ? 'l' : 'm';
+  return `
+    <section class="hero" aria-label="${liveHere ? 'Séance en cours' : 'Prochaine séance'}">
+      <p class="hero__eyebrow">${liveHere ? 'Séance en cours' : 'Prochaine séance'}</p>
+      <h2 class="hero__name hero__name--${size}">${meta.label}</h2>
+      ${spot === 'top' ? btn : ''}
+      ${desc ? `<p class="hero__desc">${desc}</p>` : ''}
+      ${info}
+      ${spot === 'mid' ? btn : ''}${targets}${spot === 'end' ? btn : ''}
+      ${edit}
+    </section>`;
+}
+
+// Place de Démarrer dans la carte. Ordre de lecture = ordre affiché (WCAG 1.3.2) : c'est le HTML qui la
+// fixe, jamais CSS order (VoiceOver suit le DOM). Un seul ordre ne peut pas servir tous les écrans, d'où
+// un choix au rendu, refait quand l'écran change (écouteur ci-dessous, checkTypeSize de js/ui/theme.js) :
+//   'end' : grand écran, après les cibles ;
+//   'mid' : très petite hauteur (< 600 pt, iPhone SE 1re génération), avant les cibles, visible sans défiler ;
+//   'top' : très grands caractères (type-xl), juste sous le nom : la description, les infos et l'attente
+//           remplissent déjà l'écran, Démarrer resterait sous la tab bar.
+const SHORT_SCREEN = window.matchMedia?.('(max-height: 600px)');
+function heroBtnSpot() {
+  if (document.documentElement.classList.contains('type-xl')) return 'top';
+  return SHORT_SCREEN?.matches ? 'mid' : 'end';
+}
+SHORT_SCREEN?.addEventListener?.('change', () => { if (currentView() === 'dashboard') render(); });
+
+// « Ensuite » : les autres séances du programme, sans couleur de séance, leur état à droite
+function otherSessionHtml(cat) {
+  const n = (prog().exercises[cat] || []).length;
+  return `
+      <button class="home-cell" data-action="session-actions" data-cat="${esc(cat)}">
+        <span class="home-cell__text"><span class="home-cell__name">${sessionMeta(cat).label}</span><span class="home-cell__sub num">${plural(n, 'exercice', 'exercices')}</span></span>
+        <span class="home-cell__right" data-status-cat="${esc(cat)}">${cellStatusHtml(cat)}</span>
+        ${icon('chevron.right', 14)}
+      </button>`;
 }
 
 function renderDashboard() {
@@ -272,60 +337,8 @@ function renderDashboard() {
   const liveHere = activeSession && activeSession.programme === data.activeProgramme && keys.includes(activeSession.category);
   const next = liveHere ? activeSession.category : nextSessionCat(keys);
 
-  let hero = '';
-  if (next) {
-    const meta = sessionMeta(next);
-    const st   = catStatus(next);
-    const last = lastEntryOf(next);
-    const nEx  = (prog().exercises[next] || []).length;
-    const mins = sessionMinutes(next);
-    let info, btn;
-    if (liveHere) {
-      info = `<div class="hero__info hero__info--live">En cours · <span class="num" id="hero-elapsed">${fmtClock(Date.now() - activeSession.startedAt)}</span></div>`;
-      btn  = `<button class="hero__btn" data-action="resume-session">${icon('play', 18)}Reprendre</button>`;
-    } else {
-      info = last
-        ? `<div class="hero__info">Dernière fois : ${fmtDate(last.date)} · ${fmtVolume(sessionVolume(last.exercises, entryBodyKg(last)))}</div>`
-        : `<div class="hero__info">Jamais faite</div>`;
-      if (!st.ready) info += `<div class="hero__wait" id="hero-wait">Prochaine séance prête dans ${fmtWait(st.remaining)}</div>`;
-      if (st.by) info += `<div class="hero__why">${esc(recoveryReason(st.by))}</div>`;
-      info += sleepHomeHtml();   // Santé : la nuit, une ligne (js/features/apple-services.js)
-      const passed = passedOverNote(keys, next);
-      if (passed) info += `<div class="hero__why hero__why--passed">${esc(passed)}</div>`;
-      btn = st.ready
-        ? `<button class="hero__btn" data-action="start-session" data-cat="${esc(next)}" aria-label="Démarrer ${meta.label}">${icon('play', 18)}Démarrer</button>`
-        : `<button class="hero__btn hero__btn--gray" data-action="start-session" data-cat="${esc(next)}">Démarrer quand même</button>`;
-    }
-    const chips = [nEx ? `${nEx} exercice${nEx > 1 ? 's' : ''}` : '', mins ? `≈ ${mins} min` : '']
-      .filter(Boolean).map(c => `<span class="hero__chip num">${c}</span>`).join('');
-    // Grand titre : la taille suit la longueur du nom (« PULL » comme « Bras & épaules »)
-    const len = rawLabel(next).length;
-    const size = len <= 5 ? 'xl' : len <= 9 ? 'l' : 'm';
-    hero = `
-      <section class="hero" aria-label="${liveHere ? 'Séance en cours' : 'Prochaine séance'}">
-        <div class="hero__eyebrow">${liveHere ? 'Séance en cours' : 'Prochaine séance'}</div>
-        <div class="hero__name hero__name--${size}">${meta.label}</div>
-        ${meta.desc || coachSessionDesc(data.activeProgramme, next) ? `<div class="hero__desc">${meta.desc || coachSessionDesc(data.activeProgramme, next)}</div>` : ''}
-        ${info}
-        ${chips ? `<div class="hero__chips">${chips}</div>` : ''}
-        ${btn}
-        <button class="hero__link" data-action="go-editor" data-cat="${esc(next)}">Modifier les exercices</button>
-      </section>
-      ${recapHomeCard()}
-      ${accountHomeCard()}
-      ${coachHomeCard()}
-      ${liveHere ? '' : targetsCard(next)}`;
-  }
-
-  const others = keys.filter(k => k !== next).map(cat => {
-    const meta = sessionMeta(cat);
-    return `
-      <button class="home-cell" data-action="session-actions" data-cat="${esc(cat)}">
-        ${catDot(cat)}
-        <span class="home-cell__name">${meta.label}</span>
-        <span class="home-cell__right" data-status-cat="${esc(cat)}">${cellStatusHtml(cat)}</span>
-      </button>`;
-  }).join('');
+  const hero = next ? `${heroHtml(keys, next, liveHere)}${recapHomeCard()}${accountHomeCard()}${coachHomeCard()}` : '';
+  const others = keys.filter(k => k !== next).map(otherSessionHtml).join('');
 
   const emptyCustom = isUserProg(data.activeProgramme) && keys.length === 0
     ? `<div class="empty-state">
@@ -334,8 +347,6 @@ function renderDashboard() {
        </div>`
     : '';
 
-  const ws = weekStats();
-  const color = next ? sessionMeta(next).color : 'var(--tint)';
   const date = fmtDate(Date.now(), 'day');
   // Connecté : l'avatar remplace la roue (comme l'App Store) ; il mène aux Réglages, Compte en tête
   const right = account.user
@@ -345,15 +356,15 @@ function renderDashboard() {
   const sub = `<button class="navbar__sub" data-action="go-my-programmes" aria-label="Programme ${esc(pm.name)}${from ? `, ${from}` : ''}, mes programmes">Programme ${esc(pm.name)} ${icon('chevron.right', 12)}</button>${from ? `<p class="coach-from coach-from--home">${from}</p>` : ''}`;
 
   return `
-    <div class="view dashboard" style="--cat-color:${color}">
+    <div class="view dashboard">
       ${navBar({ title: 'Entraînement', largeTitle: date, right, sub })}
       <div class="home">
         ${accessBannerHtml()}
         ${hero || emptyCustom}
         ${hero ? '' : accountHomeCard()}
         ${hero ? '' : recapHomeCard()}
-        ${keys.length ? weekCard(ws) : ''}
-        ${others ? `<section class="home-card home-card--list" aria-label="Autres séances"><h2 class="home-card__title">Autres séances</h2>${others}</section>` : ''}
+        ${keys.length ? weekCard(weekStats()) : ''}
+        ${others ? `<section class="home-list" aria-labelledby="homeNext"><h2 class="home-list__title" id="homeNext">Ensuite</h2><div class="home-card">${others}</div></section>` : ''}
       </div>
     </div>`;
 }

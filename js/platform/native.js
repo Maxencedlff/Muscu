@@ -46,16 +46,40 @@ const Native = (() => {
   const Watch              = plugin('MdlfWatch');     // module Swift de l'app (ios/App/AppExtras/WatchPlugin.swift), build avec l'Apple Watch
   const Widget             = plugin('MdlfWidget');    // module Swift de l'app (ios/App/AppExtras/WidgetPlugin.swift), même build
   const Shortcuts          = plugin('MdlfShortcuts'); // module Swift de l'app (ios/App/AppExtras/ShortcutsPlugin.swift), même build
+  const Vault              = plugin('MdlfVault');     // module Swift de l'app (ios/App/App/VaultPlugin.swift), build qui suit la 31
   // Module présent dans la coquille installée (une mise à jour à chaud peut arriver avant la build qui l'apporte)
   const has          = name => isNative && !!cap.isPluginAvailable?.(name);
   const hasWatch     = has('MdlfWatch');
   const hasWidget    = has('MdlfWidget');
   const hasShortcuts = has('MdlfShortcuts');
+  const hasVault     = has('MdlfVault');
+
+  // Rejet de Share.share (@capacitor/share, SharePlugin.swift : completionWithItemsHandler) traduit
+  // en résultat. « Share canceled » : feuille fermée sans choisir d'app. « Error sharing item » :
+  // une app a été choisie mais son extension a renvoyé une erreur après coup. On le traite comme un
+  // partage remis à l'app ('handed') : l'aperçu se ferme, sans toast. 'failed' reste pour l'échec
+  // avant la feuille (fichier non écrit, feuille déjà ouverte).
+  function shareOutcome(e) {
+    const msg = String(e?.message || e);
+    if (/cancel/i.test(msg)) return 'cancelled';
+    if (/error sharing item/i.test(msg)) return 'handed';
+    return 'failed';
+  }
   const Updater            = plugin('CapacitorUpdater'); // @capgo/capacitor-updater (mises à jour à chaud)
   const AppInfo            = plugin('App');              // @capacitor/app : numéro de build installé
 
   // Un module natif indisponible ou en erreur ne doit jamais casser l'app web
   const quiet = promise => { promise?.catch?.(() => {}); };
+
+  // Coffre à photos : appel au module, réponse réduite à { key } ou à la raison de l'échec
+  const VAULT_ERRORS = { CANCELED: 'canceled', NOT_FOUND: 'missing', NO_PASSCODE: 'nopasscode' };
+  const vaultCall = async (method, reason, id) => {
+    if (!hasVault) return { failed: true };
+    try {
+      const r = await Vault[method]({ reason, id });
+      return typeof r?.key === 'string' && r.key ? { key: r.key } : { failed: true };
+    } catch (e) { return { [VAULT_ERRORS[e?.code] || 'failed']: true }; }
+  };
 
   const getItem = key => { try { return localStorage.getItem(key); } catch { return null; } };
   const setItem = (key, value) => { try { localStorage.setItem(key, value); return true; } catch { return false; } };
@@ -544,6 +568,35 @@ const Native = (() => {
       },
     },
 
+    // Coffre à photos (js/data/photo-vault.js) : clé du coffre dans le trousseau iCloud (une par coffre, id),
+    // rendue après Face ID ou le code de l'iPhone, et écran de confidentialité. available : faux dans le
+    // navigateur et dans une coquille sans le module ; le coffre est alors indisponible.
+    vault: {
+      available: hasVault,
+      // { biometry: 'faceID' | 'touchID' | 'opticID' | 'none', passcode: code de l'iPhone en place } ; en cas
+      // d'erreur, passcode vrai : l'ouverture dira elle-même ce qui manque
+      async status() {
+        if (!hasVault) return { biometry: 'none', passcode: false };
+        try { const r = await Vault.status(); return { biometry: r?.biometry || 'none', passcode: r?.passcode !== false }; }
+        catch { return { biometry: 'none', passcode: true }; }
+      },
+      // Création (create) ou ouverture (unlock) : { key } (base64, 32 octets) ; sinon { canceled } (annulé,
+      // app quittée), { missing } (pas de clé sur cet iPhone), { nopasscode } (aucun code sur l'iPhone),
+      // { failed } (le reste, module absent compris)
+      async create(reason, id) { return vaultCall('create', reason, id); },
+      async unlock(reason, id) { return vaultCall('unlock', reason, id); },
+      // Clé retirée du trousseau, donc de tous les appareils du trousseau iCloud
+      async forget(id) { if (hasVault && id) { try { await Vault.forget({ id }); } catch { /* déjà absente */ } } },
+      // Écran de confidentialité natif (flou posé par iOS avant la capture du sélecteur d'apps)
+      shield(on) { if (hasVault) quiet(Vault.shield({ on: !!on })); },
+    },
+
+    // App active ou non (@capacitor/app, appStateChange : false dès le sélecteur d'apps ou le Centre de
+    // contrôle, avant l'arrière-plan). Hors app : rien (le navigateur a visibilitychange).
+    onActiveChange(cb) {
+      if (isNative && AppInfo) quiet(AppInfo.addListener('appStateChange', s => { try { cb(!!s?.isActive); } catch { /* écran redessiné ensuite */ } }));
+    },
+
     appIcon: {
       async get() {
         if (!isNative) return { supported: false, name: null };
@@ -611,7 +664,8 @@ const Native = (() => {
     // Messages, Photos… L'image est écrite dans le dossier cache de l'app, puis son URL file://
     // est passée à Share.share({ files }) (capacitorjs.com/docs/apis/share : « Array of file://
     // URLs of the files to be shared » ; Filesystem.writeFile sans encoding attend du base64).
-    // Renvoie 'shared', 'cancelled' (feuille fermée) ou 'failed' ; hors app : false, sans effet.
+    // Renvoie 'shared', 'handed' (app choisie, voir shareOutcome), 'cancelled' (feuille fermée)
+    // ou 'failed' ; hors app : false, sans effet.
     async shareImage(dataUrl, fileName) {
       if (!isNative) return false;
       try {
@@ -620,17 +674,16 @@ const Native = (() => {
         await Share.share({ files: [uri] });
         return 'shared';
       } catch (e) {
-        // Fermeture de la feuille sans choisir d'app : rejet « Share canceled » du module
-        return /cancel/i.test(String(e?.message || e)) ? 'cancelled' : 'failed';
+        return shareOutcome(e);
       }
     },
 
     // Partage d'un texte (programme envoyé à un ami) par la feuille de partage d'iOS.
-    // Mêmes retours que shareImage : 'shared', 'cancelled' ou 'failed' ; hors app : false.
+    // Mêmes retours que shareImage : 'shared', 'handed', 'cancelled' ou 'failed' ; hors app : false.
     async shareText(text, title) {
       if (!isNative) return false;
       try { await Share.share({ text, title }); return 'shared'; }
-      catch (e) { return /cancel/i.test(String(e?.message || e)) ? 'cancelled' : 'failed'; }
+      catch (e) { return shareOutcome(e); }
     },
 
     // Ouvre une adresse https dans Safari, même APRÈS un appel réseau ou une feuille de confirmation.

@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════
    Navigation : barre de navigation, tab bar, mini-barre
-   de séance, accueil, feuilles modales, transitions
+   de séance, feuilles modales, transitions
 ═══════════════════════════════════════════════ */
 
 /* ── Défilement du document (pas de conteneur de défilement interne) ── */
@@ -140,133 +140,10 @@ body.light .livebar { background: var(--cell); }
 .livebar__rest[hidden] { display: none; }
 .livebar__chev { color: var(--label3); display: flex; }
 
-/* ── Accueil ── */
-/* Grand titre de l'accueil : la date, en surtitre (le titre compact reste « Entraînement ») */
-.dashboard .navbar__large {
-  font-size: 0.765rem; line-height: 1.059rem; font-weight: 700; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--label2);
-}
-.dashboard .navbar__sub { color: var(--label); font-weight: 600; font-size: 0.941rem; }
-/* Roue des réglages : même couleur que le titre de l'accueil */
-.dashboard .navbar__icon { color: var(--label); }
-/* Avatar du compte à la place de la roue : même zone de tap de 44 px */
+/* ── Avatar du compte dans la barre (accueil, onglet Amis) : à la place de la roue, même zone de tap de 44 px ── */
+/* Le reste de l'accueil : css/home.css */
 .navbar__avatar .avatar--s { width: 32px; height: 32px; font-size: 1.118rem; }
 .navbar__avatar .avatar--s.avatar--initial { font-size: 0.941rem; }
-
-.home { padding: 4px 16px 0; }
-
-/* Prochaine séance : nom en très grand, étiquettes, gros bouton */
-.hero { display: flex; flex-direction: column; padding: 16px 4px 0; }
-.hero__eyebrow {
-  font-size: 0.765rem; line-height: 1.059rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
-  color: color-mix(in srgb, var(--cat-color) var(--cat-text-mix), var(--cat-text-base));
-}
-.hero__name {
-  font-weight: 900; color: var(--label); text-transform: uppercase; letter-spacing: -.03em;
-  line-height: .95; margin-top: 6px; overflow-wrap: anywhere;
-}
-/* Plafond selon la largeur : « UPPER » sur une ligne sur un iPhone SE (320 pt), jamais « UPPE / R » */
-.hero__name--xl { font-size: min(4.7rem, 21vw); }
-.hero__name--l  { font-size: min(3.4rem, 15vw); }
-.hero__name--m  { font-size: 2.3rem; line-height: 1.05; }
-.hero__desc { font-size: 1rem; line-height: 1.3rem; color: var(--label2); margin-top: 8px; }
-.hero__info { font-size: 0.882rem; line-height: 1.176rem; color: var(--label2); margin-top: 4px; }
-.hero__info--live { color: var(--label); font-weight: 600; }
-.hero__wait { font-size: 0.882rem; line-height: 1.176rem; color: var(--label); margin-top: 4px; }
-.hero__why { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); margin-top: 2px; }
-/* Sommeil lu dans Santé (app iOS) : une ligne discrète sous la récupération */
-.hero__sleep { display: flex; align-items: center; gap: 5px; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); margin-top: 4px; }
-.hero__sleep .icon { flex: none; color: var(--label2); }
-.hero__chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.hero__chip {
-  white-space: nowrap; padding: 6px 12px; border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--label) 12%, transparent); font-size: 0.882rem; font-weight: 600;
-}
-body.light .hero__chip { background: color-mix(in srgb, var(--cell) 80%, transparent); }
-.hero__btn {
-  margin-top: 20px; height: 58px; border: none; border-radius: var(--r-pill);
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  background: var(--label); color: var(--bg); font: inherit; font-size: 1.118rem; font-weight: 800; cursor: pointer;
-}
-.hero__btn--gray { background: var(--fill); color: var(--label); font-weight: 600; }
-.hero__btn:active { opacity: .6; }
-.hero__link {
-  margin-top: 2px; min-height: 44px; border: none; background: none; cursor: pointer;
-  color: var(--tint); font: inherit; font-size: 0.882rem;
-}
-.hero__link:active { opacity: .5; }
-
-/* Cartes de l'accueil */
-.home-card { background: var(--cell); border-radius: var(--r-lg); padding: 14px 16px; margin-top: 12px; }
-.hero + .home-card { margin-top: 4px; }
-.home-card__title {
-  display: flex; justify-content: space-between; gap: 8px; margin: 0 0 4px; white-space: nowrap;
-  font-size: 0.765rem; line-height: 1.059rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--label2);
-}
-.home-card__aside { flex-shrink: 0; font-weight: 600; letter-spacing: 0; text-transform: none; }
-/* iPhone SE : « + 3 » seul à côté du titre (« exercices » reste lu par VoiceOver), jamais « + 3 e… » */
-@media (max-width: 374px) {
-  .home-card__aside-more { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: normal; }
-}
-.targets__list { list-style: none; margin: 0; padding: 0; }
-.targets__row { display: flex; align-items: baseline; gap: 12px; padding: 8px 0; font-size: 0.941rem; }
-.targets__row + .targets__row { border-top: 0.5px solid var(--sep); }
-/* Nom d'exercice en entier, coupé seulement entre deux mots. Il garde au moins 9 em : sinon la charge
-   passe sous le nom, alignée à droite (iPhone SE, grands caractères) */
-.targets__row { flex-wrap: wrap; row-gap: 0; }
-.targets__name { flex: 1 1 9em; min-width: 0; overflow-wrap: break-word; }
-.targets__val { flex-shrink: 0; margin-left: auto; font-weight: 700; }
-.targets__gain { margin-left: 6px; font-size: 0.765rem; color: var(--green-text); }
-
-/* Grands caractères : les lignes passent à la ligne au lieu de se couper */
-html.type-xl .home-card__title { flex-wrap: wrap; white-space: normal; }
-html.type-xl .targets__row { flex-wrap: wrap; }
-
-/* Cette semaine : carte-bouton (mène aux progrès), une pastille ronde par jour */
-.week { display: block; width: 100%; border: none; font: inherit; color: var(--label); text-align: left; cursor: pointer; }
-.week:active { opacity: .7; }
-.week__body { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-.week__ring { position: relative; flex-shrink: 0; width: 52px; height: 52px; }
-.week__ring-val {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-size: 0.824rem; font-weight: 800; color: var(--label);
-}
-.aring { transform: rotate(-90deg); --ring: var(--red); }
-.aring__track { fill: none; stroke: color-mix(in srgb, var(--ring) 25%, transparent); stroke-width: 6; }
-.aring__fill  { fill: none; stroke: var(--ring); stroke-width: 6; stroke-linecap: round; }
-.week__days { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(7, 1fr); justify-items: center; }
-.week__day { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.week__letter { font-size: 0.706rem; font-weight: 600; color: var(--label3); }
-.week__day--today .week__letter { color: var(--tint); }
-.week__dot { width: 26px; height: 26px; border-radius: 50%; background: var(--fill2); }
-.week__dot--done { background: var(--cat-color); }
-.week__dot--today { background: none; box-shadow: inset 0 0 0 2px var(--tint); }
-.week__line {
-  display: flex; align-items: center; gap: 4px; margin-top: 12px;
-  font-size: var(--fs-footnote); color: var(--label2);
-}
-.week__line .icon { margin-left: auto; flex-shrink: 0; color: var(--label3); }
-
-/* Autres séances */
-.home-card--list { padding-bottom: 4px; }
-.home-cell {
-  position: relative; width: 100%; min-height: 60px; border: none; background: none; cursor: pointer;
-  display: flex; align-items: center; gap: 12px; padding: 8px 0;
-  color: var(--label); font: inherit; text-align: left;
-}
-.home-cell + .home-cell::before {
-  content: ''; position: absolute; top: 0; right: 0; left: 22px;
-  height: 0.5px; background: var(--sep);
-}
-.home-cell:active { opacity: .6; }
-.home-cell__name { flex: 1; font-size: 1rem; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.home-cell__right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.home-cell__status { font-size: 0.882rem; color: var(--label2); }
-.home-cell__status--ready { color: var(--green-text); font-weight: 600; }
-.home-cell__status--live { color: var(--tint); font-weight: 600; }
-.ring { transform: rotate(-90deg); flex-shrink: 0; }
-.ring__track { fill: none; stroke: var(--fill); stroke-width: 3; }
-.ring__fill { fill: none; stroke: var(--tint); stroke-width: 3; stroke-linecap: round; }
 
 /* ── Feuille modale ── */
 .sheet-root { position: fixed; inset: 0; z-index: 900; display: flex; align-items: flex-end; justify-content: center; }

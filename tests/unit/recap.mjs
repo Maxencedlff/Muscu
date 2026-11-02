@@ -253,6 +253,25 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.equal(app.recapProfile([], p, [], null, null), null, 'rien à dire : pas de profil');
   }));
 
+  test('recapProfile : paliers du personnage sur la moyenne par semaine (changement d\'heure, année commencée en cours, séries arrondies)', () => inParis(() => {
+    reset();
+    const sq = (d, mo, n) => ({ id: 'q' + mo + d, programme: 'ppl', category: 'legs', date: at(2026, mo, d, 19), duration: 3600_000,
+      exercises: [{ exId: 'sq', name: 'Squat barre', sets: Array.from({ length: n }, () => s('80', '5')) }] });
+    const lvl = perWeek => app.muscleLevel(perWeek) / 4;   // MUSCLE_LEVEL_MAX (const, hors de app)
+    // Semaine du 19 au 26 octobre (169 h, passage à l'heure d'hiver) : 10 séries restent « Objectif atteint »
+    const dst = app.recapPeriod('week', at(2026, 9, 21, 12), at(2026, 9, 27, 12));
+    const wk = [sq(20, 9, 5), sq(22, 9, 5)];
+    let pr = app.recapProfile(wk, dst, wk, null, null, at(2026, 9, 27, 12));
+    assert.equal(pr.tiers.quads, lvl(10), 'semaine de 169 h : comptée comme une semaine');
+    assert.equal(pr.perWeekAvg, false);
+    // Année 2026 commencée le 5 octobre : 20 séries par semaine pendant 4 semaines → moyenne sur 4 semaines, pas 52
+    const yr = app.recapPeriod('year', at(2026, 9, 10, 12), at(2026, 11, 5, 12));
+    const oct = [sq(5, 9, 20), sq(12, 9, 20), sq(19, 9, 20), sq(26, 9, 20)];
+    pr = app.recapProfile(oct, yr, oct, null, null, at(2026, 10, 1, 12));
+    assert.equal(pr.tiers.quads, lvl(20), 'semaines couvertes seulement (du 5 octobre au 1er novembre)');
+    assert.equal(pr.perWeekAvg, true);
+  }));
+
   test('recapMilestones / recapExerciseProgress / recapHeadline', () => inParis(() => {
     reset();
     const one = (i, d) => ({ id: 'x' + i, programme: 'ppl', category: 'push', date: d, duration: 0, exercises: [{ exId: 'dc', name: 'Développé couché haltères', sets: [s(String(40 + i), '8')] }] });
@@ -371,19 +390,22 @@ export default function ({ test, run, reset, assert, app, sameJSON }) {
     assert.ok(!JSON.stringify(pages).includes('n° 1'), 'plus de « n° 1 » nulle part');
   }));
 
-  test('recapCardWeek / recapCardInfo : dimanche à partir de 18 h (semaine en cours), lundi (semaine passée), sinon rien', () => inParis(() => {
+  test('recapCardWeek / recapCardInfo : tout le dimanche (semaine en cours), lundi jusqu\'à midi (semaine passée), sinon rien', () => inParis(() => {
     reset();
     const hist = weekHistory();
-    assert.equal(app.recapCardWeek(at(2026, 9, 18, 17, 59)), null, 'dimanche 17 h 59');
-    assert.equal(app.recapCardWeek(at(2026, 9, 18, 18, 0)).key, 'w2026-10-12', 'dimanche 18 h : la semaine qui se termine');
-    assert.equal(app.recapCardWeek(at(2026, 9, 19, 9)).key, 'w2026-10-12', 'lundi : la semaine passée');
-    assert.equal(app.recapCardWeek(at(2026, 9, 19, 23, 59)).key, 'w2026-10-12');
+    const MON = at(2026, 9, 19, 9);   // lundi 9 h, calculé à l'heure de Paris (NOW, pris hors de inParis, peut tomber après midi en UTC)
+    assert.equal(app.recapCardWeek(at(2026, 9, 17, 23, 59)), null, 'samedi 23 h 59');
+    assert.equal(app.recapCardWeek(at(2026, 9, 18, 0, 0)).key, 'w2026-10-12', 'dimanche 0 h : la semaine qui se termine');
+    assert.equal(app.recapCardWeek(at(2026, 9, 18, 17, 59)).key, 'w2026-10-12', 'dimanche après-midi');
+    assert.equal(app.recapCardWeek(at(2026, 9, 19, 9)).key, 'w2026-10-12', 'lundi matin : la semaine passée');
+    assert.equal(app.recapCardWeek(at(2026, 9, 19, 11, 59)).key, 'w2026-10-12', 'lundi 11 h 59');
+    assert.equal(app.recapCardWeek(at(2026, 9, 19, 12, 0)), null, 'lundi midi : plus de carte');
     for (const d of [20, 21, 22, 23, 24]) assert.equal(app.recapCardWeek(at(2026, 9, d, 20)), null, `jour ${d}`);
-    const info = app.recapCardInfo({ history: hist, now: NOW });
+    const info = app.recapCardInfo({ history: hist, now: MON });
     assert.equal(info.period.key, 'w2026-10-12');
     sameJSON(info.totals, { sessions: 3, duration: 170 * 60_000, volume: app.recapTotals(hist.slice(1)).volume, sets: 10 });
-    assert.equal(app.recapCardInfo({ history: hist, now: NOW, seenKey: 'w2026-10-12' }), null, 'déjà vue');
-    assert.equal(app.recapCardInfo({ history: hist, now: NOW, off: true }), null, 'réglage coupé');
+    assert.equal(app.recapCardInfo({ history: hist, now: MON, seenKey: 'w2026-10-12' }), null, 'masquée par la croix');
+    assert.equal(app.recapCardInfo({ history: hist, now: MON, off: true }), null, 'réglage coupé');
     assert.equal(app.recapCardInfo({ history: hist, now: at(2026, 9, 26, 9) }), null, 'semaine du 19 sans séance');
     assert.equal(app.recapCardInfo({ history: hist, now: at(2026, 9, 21, 9) }), null, 'mercredi');
   }));

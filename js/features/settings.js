@@ -26,7 +26,7 @@ function wipeLocalData() {
   data = freshData();
   resetSelections();
   Native.eraseCloudOnNextSave();   // app iOS : la copie iCloud est vidée elle aussi
-  photosWipe();                    // photos de progression (IndexedDB, js/data/progress-photos.js)
+  vaultReset();                    // coffre à photos refermé et vidé, clé retirée du trousseau iCloud (js/data/photo-vault.js)
   save();
 }
 
@@ -282,10 +282,10 @@ registerActions({
     const v = await askNumber({ title: 'Repos par défaut', message: 'Durée entre deux séries, en secondes.', value: data.defaultRest, unit: 's', min: 10, max: 600 });
     if (v !== null) { data.defaultRest = v; save(); render(); }
   },
-  // Objectif de séances par semaine (anneau de l'accueil) : « Auto » suit le nombre de séances du programme
+  // Objectif de séances par semaine (carte « Cette semaine » de l'accueil) : « Auto » suit le nombre de séances du programme
   'setting-weekly-goal': async () => {
     const auto = Math.min(7, Math.max(1, sessionKeys().length));
-    const choice = await dialog({ type: 'sheet', title: 'Objectif par semaine', message: 'Séances visées chaque semaine, pour l\'anneau de l\'accueil.', actions: [
+    const choice = await dialog({ type: 'sheet', title: 'Objectif par semaine', message: 'Séances visées chaque semaine, comptées sur l\'accueil.', actions: [
       { label: `Auto : ${auto} séance${auto > 1 ? 's' : ''} (le programme)`, value: 'auto', style: data.weeklyGoal ? '' : 'preferred' },
       ...[2, 3, 4, 5, 6].map(n => ({ label: `${n} séances`, value: String(n), style: data.weeklyGoal === n ? 'preferred' : '' })),
       { label: 'Annuler', style: 'cancel' },

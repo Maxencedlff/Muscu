@@ -130,7 +130,6 @@ export default function ({ test, run, reset, assert, sameJSON, nativeContext }) 
     const st = run(`catStatus('legs')`);
     assert.equal(st.ready, false);
     assert.ok(Math.abs(st.remaining - 19 * H) < 60_000, `reste ${st.remaining / H} h`);
-    assert.ok(st.progress > 0.2 && st.progress < 0.21, 'anneau sur 24 h');
     withHealth([workout({ id: 'R30', start: now - 30 * H - 30 * 60_000, end: now - 30 * H, duration: 30 * 60 })]);
     assert.equal(run(`catStatus('legs').ready`), true, 'il y a 30 h : prête');
     withoutHealth();

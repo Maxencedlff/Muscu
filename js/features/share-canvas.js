@@ -50,9 +50,9 @@ const STORY = {
 // personnage (mise en page en ligne).
 const shareStoryHooks = { muscleMap: null };
 
-// Compte Instagram de l'app, sous le nom dans la signature (« @mdlf.training ») : vide tant que le compte
-// n'existe pas (feuille de route n° 10), la signature garde alors « Suivi de musculation »
-const STORY_INSTAGRAM = '';
+// Compte Instagram de l'app, sous le nom dans la signature (« @mdlftraining », créé le 01/11/2026) ;
+// vide, la signature garde « Suivi de musculation »
+const STORY_INSTAGRAM = 'mdlftraining';
 
 // ── Couleurs (logique pure, testée) ─────────────────────────
 

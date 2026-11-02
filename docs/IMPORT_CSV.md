@@ -73,7 +73,8 @@ sources. Une colonne absente est tolérée (valeur vide), une colonne inconnue e
 ## Conversion vers la séance de l'app
 - Les séances arrivent dans un **programme créé** « Hevy » (`u_hevy`) ou « Strong » (`u_strong`), **une séance par nom
   de séance du fichier** (clé `s` + empreinte du nom, stable d'un import à l'autre, couleur par rang). Historique :
-  `{ id, programme, category, date, duration?, notes?, exercises }`. Les exercices de chaque séance du programme sont
+  `{ id, programme, category, date, duration?, notes?, exercises }`, `date` = **fin** de la séance (début du fichier +
+  durée), comme une séance faite dans l'app : récaps et Santé en déduisent le début (`date − duration`). Les exercices de chaque séance du programme sont
   ceux de la dernière séance importée à ce nom (la routine telle qu'elle est faite), avec leur nombre de séries :
   la personne peut continuer son programme tel quel. Les séances du programme déjà présentes (réimport) ne sont pas
   touchées ; un programme archivé (supprimé) revient.
@@ -98,7 +99,7 @@ sources. Une colonne absente est tolérée (valeur vide), une colonne inconnue e
   borné 0 à 4, js/data/rir.js) ; pas de champ `rpe` séparé. **Superset** Hevy : `ss` = `i` + numéro, normalisé par `ssNormalize`.
 - **Notes** : notes de séance, puis « Nom : note » pour chaque note d'exercice, 2 000 caractères au plus.
 - **Dédoublonnage** : empreinte = minute de début + noms d'exercices normalisés triés, calculée pareil sur l'historique
-  et sur le fichier. Réimporter le même fichier n'ajoute rien ; une séance répétée dans un fichier compte une fois.
+  (début = `date − duration`, et aussi `date` seule : les imports d'avant le 01/11/2026 étaient datés du début) et sur le fichier. Réimporter le même fichier n'ajoute rien ; une séance répétée dans un fichier compte une fois.
 - Chaque séance passe par `cleanHistoryEntry` (bornes de l'app) avant d'entrer dans l'historique ; les séances existantes
   ne sont jamais modifiées.
 - **Compte** : les séances importées n'ont pas d'empreinte de synchro, elles partent comme toute séance créée
