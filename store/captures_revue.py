@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.join(HERE, '..', 'tests'))
 from fixtures import ppl_v2_today_json, seed  # noqa: E402
 from fake_account import FAKE_ACCOUNT  # noqa: E402
 from fake_store import FAKE_STORE  # noqa: E402
+from PIL import Image  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
 URL = os.environ.get('PPL_URL', 'http://127.0.0.1:8843/')
@@ -55,9 +56,10 @@ def open_app(page):
     page.wait_for_timeout(400)
 
 
-def show(page, product, tab, period):
+def show(page, product, tab, period, first):
     route = "makeRoute('paywall', 'offer', 'coach')" if tab == 'coach' else "makeRoute('paywall', 'offer')"
-    page.evaluate(f"navigate({route})")
+    # Après la 1re formule, on remplace l'écran au lieu d'empiler (sinon le bouton retour dit « Abonnement »)
+    page.evaluate(f"navigate({route}, {{ replace: {'false' if first else 'true'} }})")
     page.wait_for_selector('.pay-view')
     page.wait_for_timeout(500)
     if tab == 'pro' and page.locator('[data-action="pay-tab"][data-tab="pro"]').count():
@@ -69,7 +71,20 @@ def show(page, product, tab, period):
     btn = page.locator(f'[data-action="pay-buy"][data-id="{product}"]')
     if btn.count() != 1:
         raise SystemExit(f'{product} : formule absente de l\'écran')
-    btn.evaluate("e => e.scrollIntoView({ block: 'center' })")
+    # Seule retouche de l'écran réel : un liseré de la couleur d'accent autour de la formule concernée,
+    # pour que l'examinateur voie laquelle des formules affichées est le produit de la capture. Posé par
+    # une feuille de style (et non sur l'élément) : il survit aux nouveaux rendus de l'écran.
+    page.evaluate("""id => {
+        let st = document.getElementById('revue-lisere');
+        if (!st) { st = document.createElement('style'); st.id = 'revue-lisere'; document.head.appendChild(st); }
+        st.textContent = `[data-action="pay-buy"][data-id="${id}"] { box-shadow: inset 0 0 0 3px var(--tint); }`;
+    }""", product)
+    if tab == 'coach':
+        # Titre « pour coachs », onglet Coach, Mensuel/Annuel et les 4 paliers sur le même écran
+        page.locator('[data-action="pay-tab"]').first.evaluate(
+            "e => { e.style.scrollMarginTop = '330px'; e.scrollIntoView({ block: 'start' }); }")
+    else:
+        btn.evaluate("e => e.scrollIntoView({ block: 'center' })")
     page.evaluate("document.querySelectorAll('.toast').forEach(t => t.remove())")
     page.wait_for_timeout(500)
 
@@ -77,15 +92,17 @@ def show(page, product, tab, period):
 def main():
     os.makedirs(OUT, exist_ok=True)
     with sync_playwright() as p:
-        browser = p.webkit.launch()
+        browser = p.webkit.launch()  # WebKit : pas d'audio (--mute-audio est propre à Chromium)
         page = browser.new_context(**DEVICE).new_page()
         errors = []
         page.on('pageerror', lambda e: errors.append(str(e)))
         open_app(page)
         for i, (product, tab, period) in enumerate(PRODUCTS, 1):
-            show(page, product, tab, period)
+            show(page, product, tab, period, i == 1)
             path = os.path.join(OUT, f'{i:02d}-{product}.png')
             page.screenshot(path=path)
+            # App Store Connect refuse les captures avec couche alpha : PNG remis en RGB opaque
+            Image.open(path).convert('RGB').save(path, optimize=True)
             print(path)
         browser.close()
         if errors:
