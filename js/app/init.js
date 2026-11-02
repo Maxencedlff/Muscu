@@ -161,6 +161,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   maybeShowNativeUpdate();   // app iOS : nouvelle build dans TestFlight
   siriBoot().catch(() => {});   // app iOS : « Démarrer ma séance » demandé à Siri avant le lancement (js/features/siri.js)
   liveUpdateBoot();   // app iOS : confirme ce contenu (sinon retour au précédent) et cherche une mise à jour
+  // Vidéos d'exercices des coachs (data/exercise-videos.json) : seuls les écrans qui les montrent sont redessinés
+  loadExerciseVideos(() => { if (['library-ex', 'coach-mine'].includes(currentView())) render(); });
   // Demande au navigateur de ne pas effacer les données en cas de manque d'espace
   try { navigator.storage?.persisted?.().then(p => { if (!p) navigator.storage.persist?.(); }).catch(() => {}); } catch {}
   registerServiceWorker();

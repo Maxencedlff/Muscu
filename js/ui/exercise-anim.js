@@ -76,15 +76,17 @@ function workingSegments(name) {
   return new Set(Object.entries(SEG_MUSCLES).filter(([, ids]) => ids.some(id => primary.includes(id))).map(([seg]) => seg));
 }
 
-// Carte « Comment faire » : animation si le mouvement est prêt (ou deux positions superposées quand les
-// animations sont réduites), puis consignes et erreur fréquente ; '' si l'exercice n'en a pas
+// Carte « Comment faire » : vidéo d'un coach s'il y en a une (js/ui/exercise-video.js), sinon animation si
+// le mouvement est prêt (ou deux positions superposées quand les animations sont réduites), puis consignes
+// et erreur fréquente ; '' si l'exercice n'en a pas
 function howToHtml(name) {
-  const how = exerciseHowTo(name), move = exerciseMove(name);
-  if (!how && !move) return '';
+  const how = exerciseHowTo(name), video = exerciseVideoHtml(name), move = video ? null : exerciseMove(name);
+  if (!how && !move && !video) return '';
   const working = move ? workingSegments(name) : null;
   return `
     <div class="group-title">Comment faire</div>
     <div class="group howto">
+      ${video}
       ${move ? `<svg class="howto__anim" viewBox="${moveViewBox(move)}" role="img" aria-label="Animation du mouvement : ${esc(name)}" data-move="${esc(name)}">
         <g class="mv-ghost">${moveSvgInner(move, movePose(move, 1), working)}</g>
         <g class="mv-live">${moveSvgInner(move, movePose(move, 0), working)}</g>
@@ -96,6 +98,7 @@ function howToHtml(name) {
 
 // Lance l'animation des cartes affichées ; s'arrête d'elle-même quand l'écran change
 function mountHowTo() {
+  mountExerciseVideo();
   const svg = document.querySelector('.howto__anim[data-move]');
   if (!svg || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   svg.classList.add('howto__anim--live');

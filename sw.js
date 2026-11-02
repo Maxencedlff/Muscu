@@ -1,14 +1,14 @@
-const CACHE = 'ppl-v120';
+const CACHE = 'ppl-v121';
 const ASSETS = [
-  '/', '/index.html', '/manifest.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
+  '/', '/index.html', '/manifest.json', '/data/exercise-videos.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
   '/css/navigation.css', '/css/home.css', '/css/session.css', '/css/screens.css', '/css/muscles.css', '/css/share.css', '/css/recap.css', '/css/strength-levels.css', '/css/account.css', '/css/social.css', '/css/coach.css',
   '/js/platform/native.js',
   '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
   '/js/data/programmes.js', '/js/data/store.js', '/js/data/records.js', '/js/data/accessors.js', '/js/data/active-session.js',
-  '/js/data/backup.js', '/js/data/sync.js', '/js/data/account-auth.js', '/js/data/account.js', '/js/data/social.js', '/js/data/comments.js', '/js/data/coach.js', '/js/data/coach-share.js', '/js/data/coach-chat.js', '/js/data/referral.js', '/js/data/prog-share.js', '/js/data/trash.js', '/js/data/muscles.js', '/js/data/exercise-catalogue.js', '/js/data/measures.js', '/js/data/import-csv.js', '/js/data/session-review.js', '/js/data/health-workouts.js', '/js/data/health-export.js', '/js/data/health-sleep.js', '/js/data/push.js', '/js/data/effort-clock.js', '/js/data/machine-track.js', '/js/data/body-measures.js', '/js/data/progress-photos.js', '/js/data/photo-vault.js', '/js/data/plates.js', '/js/data/warmup.js', '/js/data/rir.js', '/js/data/strength-standards.js', '/js/data/strength-levels.js', '/js/data/tempo.js', '/js/data/supersets.js', '/js/data/exercise-moves.js', '/js/data/exercise-howto.js', '/js/data/muscle-load.js', '/js/data/recap.js', '/js/data/app-icons.js', '/js/data/guide.js', '/js/data/onboarding.js', '/js/data/my-programmes.js',
+  '/js/data/backup.js', '/js/data/sync.js', '/js/data/account-auth.js', '/js/data/account.js', '/js/data/social.js', '/js/data/comments.js', '/js/data/coach.js', '/js/data/coach-share.js', '/js/data/coach-chat.js', '/js/data/referral.js', '/js/data/prog-share.js', '/js/data/trash.js', '/js/data/muscles.js', '/js/data/exercise-catalogue.js', '/js/data/measures.js', '/js/data/import-csv.js', '/js/data/session-review.js', '/js/data/health-workouts.js', '/js/data/health-export.js', '/js/data/health-sleep.js', '/js/data/push.js', '/js/data/effort-clock.js', '/js/data/machine-track.js', '/js/data/body-measures.js', '/js/data/progress-photos.js', '/js/data/photo-vault.js', '/js/data/plates.js', '/js/data/warmup.js', '/js/data/rir.js', '/js/data/strength-standards.js', '/js/data/strength-levels.js', '/js/data/tempo.js', '/js/data/supersets.js', '/js/data/exercise-moves.js', '/js/data/exercise-howto.js', '/js/data/exercise-videos.js', '/js/data/muscle-load.js', '/js/data/recap.js', '/js/data/app-icons.js', '/js/data/guide.js', '/js/data/onboarding.js', '/js/data/my-programmes.js',
   '/js/ui/theme.js', '/js/ui/router.js', '/js/ui/navbar.js', '/js/ui/sheet.js',
-  '/js/ui/forms.js', '/js/ui/edge-swipe.js', '/js/ui/reorder.js', '/js/ui/body-map.js', '/js/ui/body-tip.js', '/js/ui/exercise-anim.js', '/js/ui/medal.js',
+  '/js/ui/forms.js', '/js/ui/edge-swipe.js', '/js/ui/reorder.js', '/js/ui/body-map.js', '/js/ui/body-tip.js', '/js/ui/exercise-anim.js', '/js/ui/exercise-video.js', '/js/ui/medal.js',
   '/js/app/actions.js', '/js/app/updates.js', '/js/app/live-update.js', '/js/app/init.js',
   '/js/features/dashboard.js', '/js/features/programme.js', '/js/features/programme-editor.js', '/js/features/custom-session.js',
   '/js/features/session.js', '/js/features/rest.js', '/js/features/effort.js', '/js/features/effort-tempo.js', '/js/features/effort-machine.js', '/js/features/rest-activity.js', '/js/features/watch.js', '/js/features/home-widget.js', '/js/features/siri.js', '/js/features/session-sheets.js', '/js/features/session-tools.js', '/js/features/supersets-ui.js', '/js/features/session-gestures.js',
@@ -55,6 +55,8 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  // Vidéos d'exercices (docs/VIDEOS_EXERCICES.md) : jamais en cache, lues par plages (Range) depuis le réseau
+  if (e.request.destination === 'video' || e.request.headers.has('range') || /\.(mp4|m4v|mov|webm)$/i.test(url.pathname)) return;
   const key = e.request.mode === 'navigate' ? '/index.html' : e.request;
 
   e.respondWith((async () => {
