@@ -106,7 +106,8 @@ FAKE_ACCOUNT = r"""
   // ── Coquille iOS ──
   window.Capacitor = {
     isNativePlatform: () => true,
-    isPluginAvailable: name => name === 'MdlfAccount',
+    // MdlfAgeRange seulement avec __fakeOpts.ageRange (réponse d'AgeRangePlugin.swift) : sinon build sans le module
+    isPluginAvailable: name => name === 'MdlfAccount' || (name === 'MdlfAgeRange' && !!opts.ageRange),
     registerPlugin: name => {
       if (name === 'MdlfAccount') return {
         signIn: async ({ nonce }) => { log('apple', nonce); if (sb.fail.apple === 'cancel') { const e = new Error('annulée'); e.code = 'CANCELED'; throw e; }
@@ -128,6 +129,7 @@ FAKE_ACCOUNT = r"""
         openSettings: async () => { log('push', 'openSettings'); return { opened: true }; },
         addListener: async (ev, cb) => { (sb.push.listeners ||= {})[ev] = cb; return { remove: () => {} }; },
       };
+      if (name === 'MdlfAgeRange') return { request: async () => { log('age', 'request'); return opts.ageRange; } };
       if (name === 'Filesystem') return {
         readFile: async () => { if (!opts.backup) throw new Error('absent'); return { data: opts.backup }; },
         writeFile: async () => ({ uri: 'file:///x' }),

@@ -86,8 +86,9 @@ function openPushTarget(p) {
   if (activeSession && currentView() === 'session') return;   // jamais arraché d'une séance en cours
   closeTransientUI();   // feuille ou dialogue ouvert : fermé avant de changer d'écran
   switchTab(t.tab, { reset: true });
-  if (t.screen) navigate(makeRoute(t.screen, ...t.params));
-  if (t.tab === 'friends') { socialRefresh(); coachRefresh(); }
+  // Amis masqué par la tranche d'âge (js/data/age-range.js) : l'onglet seul, jamais un écran des Amis
+  if (t.screen && !(socialHiddenByAge() && String(t.screen).startsWith('social-'))) navigate(makeRoute(t.screen, ...t.params));
+  if (t.tab === 'friends') { if (!socialHiddenByAge()) socialRefresh(); coachRefresh(); }
 }
 Native.push.onTap(p => { try { openPushTarget(p); } catch { /* écran indisponible : l'app s'ouvre simplement */ } });
 // Reçue app ouverte : badges des Amis et du coach relus sans attendre

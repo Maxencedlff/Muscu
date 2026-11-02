@@ -35,9 +35,11 @@ function publicMetaLine(s) {
   parts.push(plural(s.exercises.length, 'exercice', 'exercices'));
   return parts.join(' · ');
 }
-// État de l'onglet : 'unavailable' (navigateur), 'out' (sans compte), 'loading', 'error', 'off', 'on'
+// État de l'onglet : 'unavailable' (navigateur), 'age' (masqué par la tranche d'âge partagée par Apple,
+// js/data/age-range.js), 'out' (sans compte), 'loading', 'error', 'off', 'on'
 function friendsState() {
   if (!accountAvailable()) return 'unavailable';
+  if (socialHiddenByAge()) return 'age';
   if (!account.ready) return 'loading';
   if (!account.user) return 'out';
   if (social.state) return social.state.enabled ? 'on' : 'off';
@@ -142,11 +144,26 @@ function friendsBodyHtml(st = friendsState()) {
           <p class="social-hero__sub">Suis les séances de tes amis et encourage-les d'une réaction. Il faut un compte, gratuit et facultatif.</p>
         </div>
         <button class="btn btn--primary btn--full" data-action="social-sign-in">Se connecter</button>`;
+  if (st === 'age') return ageHiddenHtml();
   if (st === 'loading') return '<div class="empty-note">Chargement…</div>';
   if (st === 'error') return offlineNote(social.error === 'offline' ? 'Pas d\'Internet. Reconnecte-toi au réseau pour voir tes amis.' : socialErrorText(social.error));
   // Carte d'activation : « Rejoindre un coach » passe dessous, pour que « Activer » reste visible sans défiler
   if (st === 'off') return `${activationHtml()}<div id="coachCellLow">${coachCellHtml({ place: 'low', friends: st })}</div>`;
   return enabledBodyHtml();
+}
+
+// Amis masqué par la tranche d'âge : explication sobre, sans bouton (le coach reste au-dessus)
+function ageHiddenHtml() {
+  const why = currentAgeBand() === 'limited'
+    ? 'Le contrôle parental de cet iPhone limite les échanges : les amis ne sont pas disponibles.'
+    : 'Les amis sont réservés aux 15 ans et plus, d\'après la tranche d\'âge partagée avec Apple.';
+  return `
+        <div class="social-hero">
+          <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
+          <h2 class="social-hero__title">Amis indisponibles</h2>
+          <p class="social-hero__sub">${why} Le reste de l'app fonctionne normalement.</p>
+        </div>
+        <div class="group-foot">Si ta tranche d'âge a changé, mets-la à jour dans les Réglages de l'iPhone, à ton nom.</div>`;
 }
 
 // Carte d'activation : pseudo obligatoire, âge déclaré, règles, puis « Activer »
@@ -170,7 +187,7 @@ function activationHtml() {
             ${switchHtml(socialAgeOk)}
           </button>
         </div>
-        <div class="group-foot">${name ? 'Tes amis te trouvent avec ce pseudo.' : 'Il faut un pseudo pour que tes amis te trouvent.'} Tes notes, ton poids et tes données Santé ne sont jamais montrés. <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>
+        <div class="group-foot">${name ? 'Tes amis te trouvent avec ce pseudo.' : 'Il faut un pseudo pour que tes amis te trouvent.'}${socialTeenByAge() ? ' Tes séances restent masquées par défaut : tu choisis celles que tes amis voient.' : ''} Tes notes, ton poids et tes données Santé ne sont jamais montrés. <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>
         <button class="btn btn--primary btn--full social-enable" data-action="social-enable" ${ready ? '' : 'disabled'}>Activer</button>`;
 }
 
@@ -227,6 +244,10 @@ function runSocialSearch() {
 // Ouverture de l'onglet : état relu (badge), puis le fil s'il a plus de 30 s
 async function friendsEnter() {
   if (!account.user) return;
+  // Fenêtre d'iOS 26 au premier passage avec un compte (sans compte, rien à protéger) ; la réponse redessine
+  // l'onglet (onAgeRangeChange)
+  ageRangeCheck();
+  if (socialHiddenByAge()) return;
   coachRefresh({ minAge: SOCIAL_REFRESH_MS });   // cellule Mes élèves / Mon coach (js/features/coach-ui.js), indépendante d'Amis
   await socialRefresh();
   if (socialEnabled() && Date.now() - socialFeed('').loadedAt > SOCIAL_REFRESH_MS) socialLoadFeed('');
@@ -644,7 +665,7 @@ onSocialChange(() => {
   const v = currentView();
   // Fil affiché jamais chargé (hors ligne au premier passage, ou Amis activé connu après l'ouverture) :
   // chargé maintenant ; son début de chargement notifie et redessine l'écran
-  const feedKey = v === 'friends' ? '' : v === 'social-profile' ? followedProfileShown() : v === 'social-me' ? SOCIAL_ME : null;
+  const feedKey = socialHiddenByAge() ? null : v === 'friends' ? '' : v === 'social-profile' ? followedProfileShown() : v === 'social-me' ? SOCIAL_ME : null;
   if (feedKey != null && socialFeedNeedsLoad(feedKey)) { socialLoadFeed(feedKey); return; }
   if (v === 'friends' && friendsState() === friendsShown) { refreshFriendsBody(); refreshMeButton(); return; }
   // Liste de l'Historique : redessinée seulement si les réactions reçues ont changé (« 👏 2 »)
@@ -654,6 +675,11 @@ onSocialChange(() => {
   // Commentaire en cours de saisie : la liste seule (js/features/comments-ui.js), le clavier reste
   if (document.activeElement?.matches?.('#commentInput') && refreshCommentsList()) return;
   render();
+});
+// Tranche d'âge connue ou changée : badge et écrans des Amis redessinés
+onAgeRangeChange(() => {
+  updateTabBadge();
+  if (SOCIAL_VIEWS.includes(currentView())) render();
 });
 // Pseudo choisi, connexion, déconnexion : la carte d'activation et l'onglet changent de forme
 let socialAccountKey = null;

@@ -1,4 +1,4 @@
-const CACHE = 'ppl-v121';
+const CACHE = 'ppl-v122';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
@@ -7,7 +7,7 @@ const ASSETS = [
   '/js/platform/native.js',
   '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
   '/js/data/programmes.js', '/js/data/store.js', '/js/data/records.js', '/js/data/accessors.js', '/js/data/active-session.js',
-  '/js/data/backup.js', '/js/data/sync.js', '/js/data/account-auth.js', '/js/data/account.js', '/js/data/social.js', '/js/data/comments.js', '/js/data/coach.js', '/js/data/strava.js',
+  '/js/data/backup.js', '/js/data/sync.js', '/js/data/account-auth.js', '/js/data/account.js', '/js/data/age-range.js', '/js/data/social.js', '/js/data/comments.js', '/js/data/coach.js', '/js/data/strava.js',
   '/js/data/plans.js', '/js/data/access.js', '/js/data/coach-pro.js', '/js/data/newsletter.js', '/js/data/legal-links.js', '/js/data/coach-share.js', '/js/data/coach-chat.js', '/js/data/referral.js',
   '/js/data/prog-share.js', '/js/data/trash.js', '/js/data/muscles.js', '/js/data/exercise-catalogue.js', '/js/data/measures.js', '/js/data/import-csv.js', '/js/data/session-review.js',
   '/js/data/health-workouts.js', '/js/data/health-export.js', '/js/data/health-sleep.js', '/js/data/push.js', '/js/data/effort-clock.js', '/js/data/machine-track.js', '/js/data/body-measures.js',

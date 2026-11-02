@@ -45,6 +45,10 @@ pas la capacité push.
    (profil recréé, secret GitHub `APPSTORE_PROFILE` remplacé), avec le profil de l'Apple Watch
    (docs/WATCH_WIDGETS.md). Le profil de l'extension RestActivity ne change pas.
 
+4. Capacité **Declared Age Range** sur `com.mdlf.training` (entitlement `com.apple.developer.declared-age-range`,
+   `AgeRangePlugin.swift`), puis profil « MDLF Training App Store » régénéré et secret `APPSTORE_PROFILE`
+   remplacé : **à faire avant la première build qui contient le module** (IOS.md, « Tranche d'âge »).
+
 ### 3. Serveur (après le feu vert n° 2)
 
 ```bash
