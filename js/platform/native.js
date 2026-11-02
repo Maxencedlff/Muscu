@@ -41,9 +41,9 @@ const Native = (() => {
 
   // Rejet de Share.share (@capacitor/share, SharePlugin.swift : completionWithItemsHandler) traduit
   // en résultat. « Share canceled » : feuille fermée sans choisir d'app. « Error sharing item » :
-  // une app a été choisie mais son extension a renvoyé une erreur ; Instagram (« Story ») le fait en
-  // ouvrant sa propre app, alors que le partage a bien lieu. On le traite comme un partage remis à
-  // l'app ('handed') : l'aperçu se ferme, sans toast. 'failed' reste pour l'échec avant la feuille.
+  // une app a été choisie mais son extension a renvoyé une erreur après coup. On le traite comme un
+  // partage remis à l'app ('handed') : l'aperçu se ferme, sans toast. 'failed' reste pour l'échec
+  // avant la feuille (fichier non écrit, feuille déjà ouverte).
   function shareOutcome(e) {
     const msg = String(e?.message || e);
     if (/cancel/i.test(msg)) return 'cancelled';

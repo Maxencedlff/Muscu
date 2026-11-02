@@ -155,6 +155,11 @@ registerActions({
     if (!st?.blob || st.busy) return;
     st.busy = true;
     el.disabled = true;
+    // Départ vers une autre app pendant le partage (Instagram « Story » ouvre la sienne) : l'aperçu
+    // se ferme tout de suite. La feuille d'iOS, elle, reste affichée tant qu'iOS n'a pas de réponse ;
+    // la coquille native la referme au retour (SceneDelegate.closeShareSheetAfterLeaving).
+    const onLeave = () => { if (document.visibilityState === 'hidden') st.close?.(true); };
+    document.addEventListener('visibilitychange', onLeave);
     let result = 'failed';
     try {
       result = Native.isNative
@@ -163,13 +168,14 @@ registerActions({
     } catch {
       result = 'failed';
     } finally {
+      document.removeEventListener('visibilitychange', onLeave);
       st.busy = false;
       el.disabled = false;
     }
     if (SHARE_MESSAGES[result]) showToast(SHARE_MESSAGES[result]);
-    // Feuille de partage refermée : l'aperçu se ferme aussi, y compris 'handed' (Instagram « Story »
-    // ouvre sa propre app et iOS le rapporte comme une erreur : Native.shareOutcome). L'aperçu ne
-    // reste ouvert qu'en cas d'échec réel, pour pouvoir réessayer.
+    // Feuille de partage refermée : l'aperçu se ferme aussi, y compris 'handed' (une app choisie qui
+    // renvoie une erreur : Native.shareOutcome). L'aperçu ne reste ouvert qu'en cas d'échec réel,
+    // pour pouvoir réessayer.
     if (result !== 'failed') st.close?.(true);
   },
 });
