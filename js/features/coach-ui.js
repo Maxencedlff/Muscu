@@ -288,12 +288,17 @@ SCREENS.set('coach-join', { render: code => renderCoachJoin(code) });
 
 // ── Élève : Mon coach ───────────────────────────────────────
 
+// Exercice filmé par un coach partenaire : ouvre sa fiche, où la vidéo est lue (js/ui/exercise-video.js)
+function coachExVideoBtn(name) {
+  return `<button class="coach-prog__video" data-action="open-library-ex" data-name="${esc(name)}" aria-label="Voir la vidéo : ${esc(name)}">${icon('play', 11)}<span>Vidéo</span></button>`;
+}
+
 // Aperçu des exercices d'un programme reçu (avant de l'ajouter)
 function coachProgPreviewHtml(item) {
   return `<div class="coach-prog__preview">${item.data.sessions.map(s => `
           <div class="coach-prog__sess">
             <div class="coach-prog__sess-name"><span class="hcell__dot" style="background:${esc(s.color)}" aria-hidden="true"></span>${esc(s.label)}</div>
-            <ul class="coach-prog__ex">${s.exercises.map(e => `<li><span class="coach-prog__ex-name">${esc(e.name)}</span> <span class="num">· ${plural(e.sets, 'série', 'séries')}</span>${e.consigne ? `<span class="coach-prog__ex-tip">${esc(e.consigne)}</span>` : ''}</li>`).join('') || '<li>Aucun exercice</li>'}</ul>
+            <ul class="coach-prog__ex">${s.exercises.map(e => `<li><span class="coach-prog__ex-name">${esc(e.name)}</span> <span class="num">· ${plural(e.sets, 'série', 'séries')}</span>${exerciseVideo(e.name) ? coachExVideoBtn(e.name) : ''}${e.consigne ? `<span class="coach-prog__ex-tip">${esc(e.consigne)}</span>` : ''}</li>`).join('') || '<li>Aucun exercice</li>'}</ul>
           </div>`).join('')}</div>`;
 }
 

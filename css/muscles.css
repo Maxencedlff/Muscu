@@ -149,3 +149,27 @@ body.light .mpick__auto { background: var(--cell); }
 .howto__cues { margin: 0; padding-left: 20px; font-size: 0.941rem; line-height: 1.4; color: var(--label); }
 .howto__cues li + li { margin-top: 4px; }
 .howto__mistake { margin: 10px 0 0; font-size: var(--fs-footnote); color: var(--label2); line-height: 1.4; }
+/* Vidéo d'un coach partenaire (js/ui/exercise-video.js) : à la place du mannequin, proportions du fichier
+   (--ar = largeur / hauteur), jamais plus haute que 60 % de l'écran ; bouton ▶ sur l'affiche à l'arrêt */
+.exvideo { margin: 0 0 12px; }
+.exvideo__frame {
+  position: relative; width: min(100%, calc(60vh * var(--ar, 1.7778))); aspect-ratio: var(--ar, 1.7778);
+  margin: 0 auto; border-radius: 10px; overflow: hidden; background: var(--black);
+}
+.exvideo__media { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--black); }
+.exvideo__play {
+  position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: none; background: transparent;
+  display: flex; align-items: center; justify-content: center; color: var(--white); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.exvideo__btn {
+  display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%;
+  background: var(--scrim); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  transition: opacity .2s;
+}
+.exvideo__btn .icon { margin-left: 3px; }   /* triangle centré à l'œil */
+.exvideo--playing .exvideo__btn { opacity: 0; }
+.exvideo--error .exvideo__btn { display: none; }
+.exvideo--error .exvideo__play { cursor: default; }
+.exvideo__credit { margin: 6px 0 0; text-align: center; font-size: var(--fs-footnote); color: var(--label2); }
+@media (prefers-reduced-motion: reduce) { .exvideo__btn { transition: none; } }

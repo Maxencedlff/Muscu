@@ -68,6 +68,7 @@ const SCRIPTS = [
   'js/data/effort-clock.js',
   'js/data/exercise-moves.js',
   'js/data/exercise-howto.js',
+  'js/data/exercise-videos.js',
   'js/data/muscle-load.js',
   'js/data/recap.js',
   'js/data/app-icons.js',
@@ -1571,6 +1572,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./push.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Apple Watch, widget et Siri (tests dans companions.mjs) ──
 (await import('./companions.mjs')).default({ test, run, reset, assert, app, sameJSON, ctx, nativeContext, ROOT });
+
+// ── Vidéos d'exercices des coachs (tests dans exercise-videos.mjs) ──
+(await import('./exercise-videos.mjs')).default({ test, run, assert, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 
