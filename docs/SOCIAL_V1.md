@@ -4,6 +4,7 @@ Décisions de Maxence (26/10/2026) :
 - 5e onglet « Amis » ;
 - réaction « Bravo » sans texte (31/10/2026 : cinq réactions, voir « Réactions et Mon profil ») ;
 - 13+ déclaré à Apple et case « J'ai 15 ans ou plus » à l'activation ;
+- tranche d'âge partagée par Apple (Declared Age Range, iOS 26, IOS.md « Tranche d'âge ») : moins de 15 ans → onglet masqué ; 15-17 ans → séances masquées par défaut ; refus ou indisponible → rien ne change (côté app seulement, le serveur n'en sait rien) ;
 - pseudo obligatoire pour être trouvé ;
 - les abonnés voient tout l'historique, avec « Visible sur mon profil » par séance (éteint = masquée), mais jamais les notes, le poids du corps ni Santé (décision du 25/10) ;
 - avatar = emoji ou initiale.

@@ -355,19 +355,21 @@ function writeSocialCache() {
 // Social activé : état lu, sinon dernier état connu sur l'appareil
 function socialEnabled() { return !!account.user && !!(social.state ? social.state.enabled : social.cached?.enabled); }
 // Réglages › Amis et coach › Séances visibles par défaut : absent = oui (toute séance visible des abonnés
-// tant qu'on n'éteint pas « Visible sur mon profil » à la fin)
-function sessionsVisibleByDefault(d = data) { return d.sessionVisibleDefault !== false; }
-// Une séance qui se termine maintenant naît masquée (hidden: true) : Amis activé et réglage éteint
-function newSessionHidden(d = data) { return socialEnabled() && !sessionsVisibleByDefault(d); }
+// tant qu'on n'éteint pas « Visible sur mon profil » à la fin). Tranche de 15 à 17 ans partagée par Apple
+// (js/data/age-range.js) : absent = non, seul un choix explicite les rend visibles par défaut.
+function sessionsVisibleByDefault(d = data) { return socialTeenByAge() ? d.sessionVisibleDefault === true : d.sessionVisibleDefault !== false; }
+// Une séance qui se termine maintenant naît masquée (hidden: true) : Amis activé et réglage éteint, ou Amis
+// masqué par la tranche d'âge (activé avant : rien de neuf n'est montré)
+function newSessionHidden(d = data) { return socialEnabled() && (socialHiddenByAge() || !sessionsVisibleByDefault(d)); }
 // Badge de l'onglet : demandes reçues en attente, plus les nouveautés de l'activité (réactions à mes
 // séances, demandes acceptées) jusqu'à l'ouverture de Mon profil
 function socialBadge() { return socialPending() + socialActivityNew(); }
 function socialPending() {
-  if (!account.user) return 0;
+  if (!account.user || socialHiddenByAge()) return 0;
   return social.state ? (social.state.enabled ? social.state.badge : 0) : (social.cached?.enabled ? social.cached.badge : 0);
 }
 function socialActivityNew() {
-  if (!account.user) return 0;
+  if (!account.user || socialHiddenByAge()) return 0;
   return social.state ? (social.state.enabled ? social.state.activity_new : 0) : (social.cached?.enabled ? social.cached.activityNew : 0);
 }
 

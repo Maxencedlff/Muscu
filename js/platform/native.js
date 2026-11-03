@@ -47,12 +47,14 @@ const Native = (() => {
   const Widget             = plugin('MdlfWidget');    // module Swift de l'app (ios/App/AppExtras/WidgetPlugin.swift), même build
   const Shortcuts          = plugin('MdlfShortcuts'); // module Swift de l'app (ios/App/AppExtras/ShortcutsPlugin.swift), même build
   const Vault              = plugin('MdlfVault');     // module Swift de l'app (ios/App/App/VaultPlugin.swift), build qui suit la 31
+  const AgeRange           = plugin('MdlfAgeRange');  // module Swift de l'app (ios/App/App/AgeRangePlugin.swift), build qui suit la 37
   // Module présent dans la coquille installée (une mise à jour à chaud peut arriver avant la build qui l'apporte)
   const has          = name => isNative && !!cap.isPluginAvailable?.(name);
   const hasWatch     = has('MdlfWatch');
   const hasWidget    = has('MdlfWidget');
   const hasShortcuts = has('MdlfShortcuts');
   const hasVault     = has('MdlfVault');
+  const hasAgeRange  = has('MdlfAgeRange');
 
   // Rejet de Share.share (@capacitor/share, SharePlugin.swift : completionWithItemsHandler) traduit
   // en résultat. « Share canceled » : feuille fermée sans choisir d'app. « Error sharing item » :
@@ -589,6 +591,18 @@ const Native = (() => {
       async forget(id) { if (hasVault && id) { try { await Vault.forget({ id }); } catch { /* déjà absente */ } } },
       // Écran de confidentialité natif (flou posé par iOS avant la capture du sélecteur d'apps)
       shield(on) { if (hasVault) quiet(Vault.shield({ on: !!on })); },
+    },
+
+    // Tranche d'âge partagée par Apple (Declared Age Range, js/data/age-range.js). request() montre la fenêtre
+    // d'iOS (iOS 26 et suivants) et répond { status: 'sharing', lowerBound?, upperBound?, communicationLimits }
+    // ou { status: 'declined' | 'unavailable' } ; jamais d'exception. available : faux dans le navigateur,
+    // sur Android et dans une coquille sans le module.
+    ageRange: {
+      available: hasAgeRange,
+      async request() {
+        if (!hasAgeRange) return { status: 'unavailable' };
+        try { return (await AgeRange.request()) || { status: 'unavailable' }; } catch { return { status: 'unavailable' }; }
+      },
     },
 
     // App active ou non (@capacitor/app, appStateChange : false dès le sélecteur d'apps ou le Centre de

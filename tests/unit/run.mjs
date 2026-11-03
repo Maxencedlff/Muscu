@@ -37,6 +37,7 @@ const SCRIPTS = [
   'js/data/sync.js',
   'js/data/account-auth.js',
   'js/data/account.js',
+  'js/data/age-range.js',
   'js/data/social.js',
   'js/data/comments.js',
   'js/data/coach.js',
@@ -1510,6 +1511,8 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 (await import('./auth-guard.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Amis : logique pure du social (tests dans social.mjs) ──
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
+// ── Tranche d'âge partagée par Apple, effets sur les Amis (tests dans age-range.mjs) ──
+(await import('./age-range.mjs')).default({ test, run, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──
 (await import('./coach.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Commentaires et messages coach ↔ élève (tests dans comments.mjs et coach-chat.mjs) ──

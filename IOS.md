@@ -45,6 +45,7 @@ Les fichiers de l'app iOS sont exclus de la publication Vercel (`.vercelignore`)
 | `Native.hideSplash()` | démarrage | Écran de démarrage retiré après le premier rendu (filet à 4 s) |
 | `Native.account.*` | `account.js` | Compte : Apple (`signIn`, `credentialState`), Google (`signInGoogle`, `googleAvailable`), session dans le Trousseau (`storage`) ; voir « Compte » |
 | `Native.appIcon.get()` / `set(nom)` | `app-icon.js` | Icône de l'app choisie dans Réglages (voir « Icône de l'app ») |
+| `Native.ageRange.request()` | `js/data/age-range.js` | Tranche d'âge partagée par Apple (iOS 26), demandée à l'ouverture de l'onglet Amis (voir « Tranche d'âge ») |
 | `Native.push.*` | `js/data/push.js`, `js/features/push-ui.js` | Notifications push : autorisation d'iOS au toucher d'un interrupteur, jeton APNs, toucher d'une notification (voir « Notifications push ») |
 | `Native.shareImage(dataUrl, nom)` | `share.js` | Image de la séance écrite dans le cache de l'app (`@capacitor/filesystem`), puis feuille de partage d'iOS (`@capacitor/share` 8.0.3 : Instagram, Messages, Photos…). « Enregistrer l'image » demande l'accès Photos en ajout seul (`NSPhotoLibraryAddUsageDescription`) |
 
@@ -328,6 +329,35 @@ dans `docs/PAYANT_V1.md` ; ici, seulement le natif.
   faut l'ajouter au schéma (Run › Options › StoreKit Configuration). `environment` vaut alors `other`.
 - **Non vérifiable sans Mac ni iPhone** : compilation du Swift (la CI `ios.yml` compile), feuille de
   paiement, feuille de codes, renouvellement réel, « Demander la permission d'acheter ».
+
+### Tranche d'âge (`AgeRangePlugin.swift`, Declared Age Range)
+
+Module `MdlfAgeRange`, côté web `Native.ageRange.request()`, décisions dans `js/data/age-range.js`.
+
+| Élément | Rôle |
+|---|---|
+| `ios/App/App/AgeRangePlugin.swift` | `request()` : `AgeRangeService.shared.requestAgeRange(ageGates: 13, 15, 18, in: bridge.viewController)` sur le fil principal ; répond `{ status: "sharing", lowerBound?, upperBound?, communicationLimits }` (`activeParentalControls.contains(.communicationLimits)`), `{ status: "declined" }` (`.declinedSharing`) ou `{ status: "unavailable" }` (toute erreur `AgeRangeService.Error`, iOS antérieur au 26, SDK sans le framework). Ne rejette jamais. Protégé par `#if canImport(DeclaredAgeRange)` et `#available(iOS 26.0, *)` ; `isEligibleForAgeFeatures` (iOS 26.2) n'est pas utilisé |
+| `App.entitlements` | `com.apple.developer.declared-age-range = true` |
+| `js/data/age-range.js` | Catégorie (`ageBand`) : moins de 15 ans ou mineur avec « Limites de communication » → onglet Amis masqué avec une explication (coach gardé, badge éteint, aucun écran des Amis ouvert par une notification, nouvelles séances masquées) ; 15-17 ans → séances masquées aux abonnés par défaut (« Séances visibles par défaut » éteint tant qu'on ne l'allume pas) ; 18 ans ou plus, refus, indisponible, navigateur, Android → rien ne change |
+
+- **Quand** : à l'ouverture de l'onglet Amis, jamais au lancement (la fenêtre d'iOS arrive avec son
+  contexte). Une fois par lancement au plus ; réponse gardée dans `mdlf_age_range` (appareil seulement,
+  rien n'est envoyé au serveur) : tranche 30 jours, indisponible 7 jours, refus jamais redemandé. Apple
+  garde lui-même la réponse et ne change de tranche qu'à la date anniversaire de la déclaration.
+- **Seuils** : au plus trois, tranches de deux ans au moins ; la région peut imposer les siens
+  (`ageBand` raisonne sur les bornes, pas sur nos seuils). Bornes absentes : `lowerBound` nil = sous le
+  plus petit seuil, `upperBound` nil = au-dessus du plus grand.
+- **Avant la build** : capacité « Declared Age Range » à activer sur `com.mdlf.training` et profil
+  « MDLF Training App Store » à régénérer (secret `APPSTORE_PROFILE`), sinon la signature Release échoue
+  (la CI Debug compile sans signer et ne le voit pas). Framework introduit en iOS 26 alors que l'app vise
+  16.4 : vérifier qu'il est lié en faible (`otool -l` : `LC_LOAD_WEAK_DYLIB` pour DeclaredAgeRange), sinon
+  ajouter `-weak_framework DeclaredAgeRange` aux réglages de la cible App.
+- **Essai** : Apple fournit des cas de test en Sandbox (moins de 13 ans, 13-15, 16-17, 18 et plus ;
+  Réglages › Développeur), voir « Testing age assurance in sandbox ».
+
+Références Apple : « Requesting people's age range information in your app »,
+`AgeRangeService.requestAgeRange(ageGates:_:_:in:)`, `AgeRangeService.Response`, `AgeRangeService.AgeRange`,
+`AgeRangeService.Error`, entitlement `com.apple.developer.declared-age-range`.
 
 ## Mises à jour à chaud (sans repasser par Apple)
 
