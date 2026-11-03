@@ -349,9 +349,12 @@ Module `MdlfAgeRange`, côté web `Native.ageRange.request()`, décisions dans `
   plus petit seuil, `upperBound` nil = au-dessus du plus grand.
 - **Avant la build** : capacité « Declared Age Range » à activer sur `com.mdlf.training` et profil
   « MDLF Training App Store » à régénérer (secret `APPSTORE_PROFILE`), sinon la signature Release échoue
-  (la CI Debug compile sans signer et ne le voit pas). Framework introduit en iOS 26 alors que l'app vise
-  16.4 : vérifier qu'il est lié en faible (`otool -l` : `LC_LOAD_WEAK_DYLIB` pour DeclaredAgeRange), sinon
-  ajouter `-weak_framework DeclaredAgeRange` aux réglages de la cible App.
+  (la CI Debug compile sans signer et ne le voit pas).
+- **Lien faible** : framework introduit en iOS 26 alors que l'app vise 16.4. Lié en fort, dyld refuse de
+  lancer l'app sur iOS 16 à 18. `OTHER_LDFLAGS = ("$(inherited)", "-weak_framework", DeclaredAgeRange)`
+  dans les configurations Debug et Release de la cible App ; la CI le vérifie après chaque compilation
+  (simulateur et archive TestFlight, avant l'envoi) avec `scripts/ios/check-weak-frameworks.sh`
+  (`otool -l` : `LC_LOAD_WEAK_DYLIB` attendu, l'exécutable et `App.debug.dylib` en Debug).
 - **Essai** : Apple fournit des cas de test en Sandbox (moins de 13 ans, 13-15, 16-17, 18 et plus ;
   Réglages › Développeur), voir « Testing age assurance in sandbox ».
 

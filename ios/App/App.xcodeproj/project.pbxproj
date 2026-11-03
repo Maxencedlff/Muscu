@@ -723,6 +723,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					DeclaredAgeRange,
+				);
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mdlf.training;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -747,6 +752,11 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					DeclaredAgeRange,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.mdlf.training;
 				PRODUCT_NAME = "$(TARGET_NAME)";
