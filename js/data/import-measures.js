@@ -107,36 +107,48 @@ function readMeasuresCsv(text) {
   return { ok: true, format: 'hevy_measures', days, ignored: [...ignored], skippedRows, outOfRange };
 }
 
-// Ajoute les mesures lues à d (data par défaut ; une copie pour l'aperçu). Un jour déjà noté garde sa
-// valeur. Renvoie { weights, measures (valeurs ajoutées), kept (valeurs déjà notées ce jour-là),
-// dropped (au-delà des 400 gardées par mesure) }.
+// Ajoute les mesures lues à d (data par défaut ; une copie pour l'aperçu). Un import ne fait JAMAIS
+// disparaître une valeur déjà là : un jour déjà noté garde sa valeur, et chaque mesure ne reçoit que la
+// place libre sous sa limite (BODY_LOG_MAX, BODY_MEASURE_MAX), en gardant les valeurs les plus récentes du
+// fichier. Renvoie { weights, measures (valeurs ajoutées), kept (valeurs déjà notées ce jour-là),
+// dropped (valeurs du fichier non importées faute de place) }.
 function applyMeasuresImport(plan, d = data) {
   const out = { weights: 0, measures: 0, kept: 0, dropped: 0 };
+  // Valeurs à ajouter dans un journal qui en a déjà `have` : les plus récentes d'abord, dans la place libre
+  const fit = (list, have, max) => {
+    const sorted = [...list].sort((a, b) => b.date - a.date);
+    const room = Math.max(0, max - have);
+    out.dropped += Math.max(0, sorted.length - room);
+    return sorted.slice(0, room);
+  };
   // Pesées
   const log = cleanBodyWeightLog(d.bodyWeightLog);
   const known = new Set(log.map(p => dayKey(p.date)));
-  const added = plan.days.filter(x => x.kg !== undefined).filter(x => { if (known.has(dayKey(x.date))) { out.kept++; return false; } return true; });
+  const fresh = plan.days.filter(x => x.kg !== undefined).filter(x => { if (known.has(dayKey(x.date))) { out.kept++; return false; } return true; });
+  const added = fit(fresh, log.length, BODY_LOG_MAX);
   if (added.length) {
     const next = cleanBodyWeightLog([...log, ...added.map(x => ({ date: x.date, kg: x.kg }))]);
     const mine = new Set(added.map(x => x.date));
     out.weights = next.filter(p => mine.has(p.date)).length;
-    out.dropped += added.length - out.weights;
     d.bodyWeightLog = next;
-    // Pesée la plus récente venue du fichier : elle devient le poids du corps (volume au poids du corps, calories)
-    if (next.length && mine.has(next[0].date)) d.bodyWeightKg = next[0].kg;
+    // Poids du corps (volume au poids du corps, calories) : pris dans le fichier s'il est vide, ou si la
+    // personne notait déjà ses pesées et que celle du fichier est plus récente que sa dernière. Sans
+    // historique, une vieille pesée Hevy ne remplace pas le poids saisi dans les réglages.
+    const newest = next[0];
+    const empty = !Number.isFinite(d.bodyWeightKg);
+    if (mine.has(newest.date) && (empty || (log.length && newest.date > log[0].date))) d.bodyWeightKg = newest.kg;
   }
   // Mensurations
   const cur = cleanBodyMeasures(d.bodyMeasures);
   for (const key of BODY_MEASURE_KEYS) {
     const have = cur[key] || [];
     const seen = new Set(have.map(p => bodyDayKey(p.date)));
-    const add = plan.days.filter(x => x.cm[key] !== undefined).filter(x => { if (seen.has(bodyDayKey(x.date))) { out.kept++; return false; } return true; });
+    const fresh = plan.days.filter(x => x.cm[key] !== undefined).filter(x => { if (seen.has(bodyDayKey(x.date))) { out.kept++; return false; } return true; });
+    const add = fit(fresh, have.length, BODY_MEASURE_MAX);
     if (!add.length) continue;
     const next = cleanBodyMeasures({ [key]: [...have, ...add.map(x => ({ date: x.date, cm: x.cm[key] }))] })[key] || [];
     const mine = new Set(add.map(x => x.date));
-    const n = next.filter(p => mine.has(p.date)).length;
-    out.measures += n;
-    out.dropped += add.length - n;
+    out.measures += next.filter(p => mine.has(p.date)).length;
     cur[key] = next;
   }
   if (out.measures) d.bodyMeasures = cur;
