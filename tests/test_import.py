@@ -296,7 +296,7 @@ def t_mesures_limite(bench):
                 data.bodyMeasures = { waist: Array.from({ length: 398 }, (_, i) => ({ date: s + i * 86400000, cm: 90 })) }; save(); render(); }""")
             open_import(page, csv_file('hevy_mesures_exemple.csv'))
             rw = rows(page)
-            R.check(rw.get('Mensurations à ajouter') == '28', f'{theme} limite : aperçu {rw}')
+            R.check(rw.get('Mensurations à ajouter') == '29' and rw.get('Pesées à ajouter') == '4', f'{theme} limite : aperçu {rw}')
             foot = page.locator('#impSheet').inner_text()
             R.check('2 mesures anciennes non importées : limite de 400 par mesure' in foot, f'{theme} limite : non importées nommées « {foot} »')
             R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{theme} limite : pas de défilement horizontal')
