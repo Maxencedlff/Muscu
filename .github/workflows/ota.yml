@@ -40,11 +40,22 @@ jobs:
           node tests/unit/run.mjs
 
       # L'app ouvre les pages de LEGAL_URLS (écran d'abonnement : règle 3.1.2 d'Apple). Elles sont
-      # publiées par le job deploy de tests.yml, pas ici : sans elles en ligne, pas d'OTA (docs/JURIDIQUE.md)
-      - name: Pages juridiques complètes et en ligne (rien n'est publié sinon)
+      # publiées par le job deploy de tests.yml, pas ici (docs/JURIDIQUE.md). Bloquant dès que la
+      # variable du dépôt MDLF_SORTIE vaut true (app sur l'App Store ou verrou allumé). Avant, l'app
+      # n'est que sur TestFlight, verrou éteint : les emplacements restants sont signalés sans bloquer
+      # (décision du 03/11/2026).
+      - name: Pages juridiques complètes et en ligne
+        env:
+          SORTIE: ${{ vars.MDLF_SORTIE }}
         run: |
-          node scripts/check-legal-pages.mjs privacy.html mentions-legales.html cgu.html cgv.html
-          node scripts/check-legal-online.mjs
+          if node scripts/check-legal-pages.mjs privacy.html mentions-legales.html cgu.html cgv.html \
+             && node scripts/check-legal-online.mjs; then
+            echo "Pages juridiques complètes et en ligne."
+          elif [ "$SORTIE" = "true" ]; then
+            echo "App sortie (MDLF_SORTIE=true) : pages juridiques incomplètes, rien n'est publié."; exit 1
+          else
+            echo "::warning::Pages juridiques incomplètes : acceptable sur TestFlight, bloquant dès MDLF_SORTIE=true."
+          fi
 
       - name: Contenu web et paquet signé (SHA-256)
         run: |

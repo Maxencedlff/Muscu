@@ -36,23 +36,27 @@ chacun est listé ici.
 automatique en plus : le job `deploy` lance `node scripts/check-legal-pages.mjs privacy.html
 mentions-legales.html cgu.html cgv.html` **avant** de copier les pages ; s'il reste un emplacement
 (`class="a-completer"`, « À COMPLÉTER », « À VÉRIFIER », « TO COMPLETE », « TO CHECK »), le job échoue et
-rien n'est publié sur mdlf.app (ni ces pages, ni le reste de `web-public/`). À lancer à la main avant la
+rien n'est publié sur mdlf.app une fois l'app sortie (voir « TestFlight ou sortie » plus bas) (ni ces pages, ni le reste de `web-public/`). À lancer à la main avant la
 fusion pour voir ce qui manque.
 
 **Mise à jour à chaud et TestFlight** : l'app ouvre ces pages (écran d'abonnement : lien vers les
 conditions exigé par la règle 3.1.2 d'Apple), mais ni `ota.yml` ni `ios.yml` ne les publient. Les deux
 lancent donc, avant toute publication (OTA) ou signature (mode testflight), la même garde des
 emplacements puis `node scripts/check-legal-online.mjs` : chaque adresse de `LEGAL_URLS`
-
-**TestFlight ou sortie (03/11/2026).** Dans `ios.yml`, la garde ne bloque qu'une build lancée avec
-`sortie=true`, celle qu'on soumet à l'App Store. Une build TestFlight ordinaire passe avec un
-avertissement : les testeurs ne paient rien tant que le verrou est éteint. Avant de soumettre ou
-d'allumer le verrou : relancer avec `-f testflight=true -f sortie=true`.
 (`js/data/legal-links.js`) doit répondre en ligne (2xx) avec ses ancres (`#newsletter`,
 `#remboursement`). Tant que le job `deploy` n'a pas mis les pages sur mdlf.app (emplacements, panne
 Vercel), aucune OTA ni build ne part vers une page 404. Ordre après la fusion : job `deploy` vert, puis
 OTA ou build. État au 31/10/2026 : `mentions-legales.html`, `cgu.html`, `cgv.html` en 404 et
 `privacy.html` en ligne sans `#newsletter`, donc garde rouge (attendu).
+
+**TestFlight ou sortie (03/11/2026).** Tant que l'app n'est que sur TestFlight, verrou éteint, les
+gardes signalent les emplacements restants sans bloquer : les testeurs ne paient rien, et les pages
+se mettent à jour par OTA. Elles redeviennent bloquantes :
+- `ios.yml` : build lancée avec `sortie=true`, celle qu'on soumet à l'App Store ;
+- `ota.yml` et le job `deploy` de `tests.yml` : variable du dépôt `MDLF_SORTIE` à `true`.
+
+Avant de soumettre ou d'allumer le verrou : `gh variable set MDLF_SORTIE -R Maxencedlff/Muscu -b true`,
+puis la build avec `-f testflight=true -f sortie=true`.
 
 | Emplacement | Pages | Quoi mettre |
 |---|---|---|
