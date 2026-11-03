@@ -147,6 +147,7 @@ Demande de Maxence (feuille de route « Plus tard » : commentaires libres), cho
 
 ### App
 - **Séance d'un ami** et **ma séance vue par mes abonnés** (`social-session`) : groupe « Commentaires (N) », du plus ancien au plus récent, « Afficher les commentaires précédents », saisie en bas (compteur à partir de 450 caractères, bouton rond grisé si vide ou trop long), menu ⋯ par commentaire : « Signaler » (puis proposer de bloquer l'auteur, sans quitter la séance) sur celui d'un autre, « Supprimer » sur le mien et sur ma séance (confirmation pour celui d'un autre).
+- **Réponses rapides** (03/11/2026, séance d'un ami seulement) : une rangée « Belle séance 💪 », « Régulier 🔥 », « Respect », « Lâche rien », précédée de « Gros record ! » quand la séance bat un record. Un toucher envoie un commentaire ordinaire par `add_comment` (aucun changement du serveur : mêmes mots interdits, limites, blocage) ; une réponse déjà laissée sur la séance n'est plus proposée. Liste dans `COMMENT_QUICK` (js/data/comments.js), vérifiée contre le filtre du serveur par `tests/sql/commentaires_test.sql`.
 - **Historique › Séance** (ma séance, Amis activé) : le même groupe ; séance masquée : lecture seule.
 - **Mon profil › Activité** : « lea a commenté ta séance Push : « … » », point bleu si nouveau ; toucher : ma séance dans l'Historique.
 - **Saisie** : brouillon gardé par séance ; un changement reçu pendant la frappe ne redessine que la liste (le clavier reste).

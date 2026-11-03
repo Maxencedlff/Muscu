@@ -285,7 +285,7 @@ function renderSocialSession(owner, id) {
         ${mine ? mySessionWhoHtml(row) : `
         <div class="group-title">Réagir</div>
         <div class="group group--pad social-session__react">${reactionRowHtml(row)}</div>`}
-        ${commentsGroupHtml(row.owner, row.id)}
+        ${commentsGroupHtml(row.owner, row.id, { quick: !mine, record: !!rec })}
         ${mine ? '' : `
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="social-report" data-uid="${esc(row.owner)}" data-ref="${esc(row.id)}">Signaler cette séance</button>
