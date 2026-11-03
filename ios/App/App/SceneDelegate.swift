@@ -54,13 +54,22 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         return nil
     }
 
+    // Le panneau d'une extension de partage peut rester posé sur la feuille : Instagram ouvre
+    // d'abord le sien (Story, Fil, Message), puis son app depuis ce panneau. On referme donc depuis
+    // le contrôleur qui a présenté la feuille, ce qui retire la feuille ET tout ce qui est au-dessus
+    // (build 40 : la feuille restait affichée parce qu'un panneau la couvrait au retour).
     private func closeShareSheetAfterLeaving() {
         guard shareSheetLeft else { return }
         shareSheetLeft = false
-        guard let sheet = presentedShareSheet(), sheet.presentedViewController == nil else { return }
+        guard let sheet = presentedShareSheet() else { return }
         let done = sheet.completionWithItemsHandler
         sheet.completionWithItemsHandler = nil
-        sheet.dismiss(animated: true) { done?(nil, false, nil, nil) }
+        let finish = { done?(nil, false, nil, nil) }
+        if let host = sheet.presentingViewController {
+            host.dismiss(animated: true, completion: finish)
+        } else {
+            sheet.dismiss(animated: true, completion: finish)
+        }
     }
 
     // L'app a une scène (UIApplicationSceneManifest) : iOS remet les URL ouvertes ici, jamais à

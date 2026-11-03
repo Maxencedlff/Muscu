@@ -1265,6 +1265,9 @@ test('iOS : SceneDelegate → MainViewController → chaque module Swift, noms i
   // partagée (un verrouillage d'écran ne doit pas faire noter une sauvegarde jamais écrite).
   assert.match(ios('SceneDelegate.swift'), /done\?\(nil, false, nil, nil\)/, 'feuille refermée = annulation');
   assert.doesNotMatch(ios('SceneDelegate.swift'), /done\?\(nil, true,/, 'jamais un faux partage réussi');
+  // Build 40 : un panneau d'extension (Instagram) posé sur la feuille ne doit pas empêcher de la refermer
+  assert.doesNotMatch(ios('SceneDelegate.swift'), /presentedViewController == nil/, 'feuille refermée même sous un panneau d\'extension');
+  assert.match(ios('SceneDelegate.swift'), /presentingViewController/, 'fermeture depuis le contrôleur qui présente la feuille');
   const main = ios('MainViewController.swift');
   const pbx = fs.readFileSync(path.join(ROOT, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8');
   const native = fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8');
