@@ -64,7 +64,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let sheet = presentedShareSheet() else { return }
         let done = sheet.completionWithItemsHandler
         sheet.completionWithItemsHandler = nil
-        let finish = { done?(nil, false, nil, nil) }
+        let finish: () -> Void = { done?(nil, false, nil, nil) }
         if let host = sheet.presentingViewController {
             host.dismiss(animated: true, completion: finish)
         } else {

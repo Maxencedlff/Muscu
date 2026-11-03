@@ -279,7 +279,9 @@ jobs:
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
             -destination 'generic/platform=iOS' -archivePath build/App.xcarchive $SPM_FLAGS archive \
-            CURRENT_PROJECT_VERSION=${{ github.run_number }} | tail -40
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} > archive.log 2>&1 \
+            || { grep -E -A4 'error:|ARCHIVE FAILED' archive.log | head -120; exit 1; }
+          tail -40 archive.log
 
       # Même contrôle sur la version signée : rien n'est envoyé à Apple si le lien n'est pas faible
       - name: Frameworks récents liés en faible (archive)
