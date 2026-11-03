@@ -30,8 +30,7 @@ function registerServiceWorker() {
 // Le code natif ne change que par une build : quand une build plus récente que celle installée est
 // disponible, une bannière (publiée par mise à jour à chaud, donc lue par l'ancienne build) envoie
 // vers TestFlight. LATEST_NATIVE_BUILD n'est relevé qu'une fois la build installable.
-const LATEST_NATIVE_BUILD = 24;
-const TESTFLIGHT_URL      = 'https://testflight.apple.com/join/qxpdFN6Z';
+const LATEST_NATIVE_BUILD = 24;            // lien TestFlight : TESTFLIGHT_URL (js/data/min-build.js)
 const NATIVE_BANNER_KEY   = 'ppl_native_update_dismissed';   // build pour laquelle « Plus tard » a été touché
 
 async function maybeShowNativeUpdate() {
@@ -50,6 +49,52 @@ async function maybeShowNativeUpdate() {
   el.querySelector('.update-banner__btn').addEventListener('click', () => { close(); window.open(TESTFLIGHT_URL, '_blank'); });
   document.body.appendChild(el);
 }
+
+// ── Version minimale de l'app (app_config.min_build) ────────
+// Écran plein « Mets à jour l'app », qui ne se ferme pas, quand le serveur annonce une build native
+// minimale plus récente que celle installée (règles dans js/data/min-build.js). Rien n'est perdu : les
+// séances restent sur l'iPhone. Serveur injoignable : rien n'est affiché (hors ligne, jamais bloqué).
+// Jamais pendant une séance : l'écran attend le retour suivant au premier plan. Si le serveur abaisse
+// ensuite le minimum (valeur réglée par erreur), l'écran s'en va à la vérification suivante.
+// Les builds publiées AVANT ce code ne le lisent pas : voir docs/PAYANT_V1.md, « Ordre de déploiement ».
+async function checkMinBuild() {
+  const build = await Native.appBuild();
+  if (!build) return false;                        // navigateur : jamais
+  const r = await minBuildFetch();
+  if (!r.ok) return !!$('.min-build');             // injoignable : rien ne change
+  const shown = $('.min-build');
+  if (!minBuildBlocks(build, r.min)) { shown?.remove(); return false; }
+  if (shown) return true;
+  if (activeSession) return false;
+  const url = minBuildUpdateUrl(await accessStoreEnvironment());
+  const store = url.includes('testflight') ? 'TestFlight' : 'l\'App Store';
+  const el = document.createElement('div');
+  el.className = 'min-build';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-labelledby', 'minBuildTitle');
+  el.setAttribute('aria-describedby', 'minBuildText');
+  el.innerHTML = `<div class="min-build__box">
+      <img class="min-build__icon" src="apple-touch-icon.png" alt="" width="96" height="96">
+      <h1 class="min-build__title" id="minBuildTitle" tabindex="-1">Mets à jour l'app</h1>
+      <p class="min-build__text" id="minBuildText">Une nouvelle version de MDLF Training est nécessaire pour continuer. Tes séances restent enregistrées sur cet iPhone.</p>
+    </div>
+    <div class="min-build__foot">
+      <button class="btn btn--primary min-build__btn" type="button">Ouvrir ${store}</button>
+      <p class="min-build__note">Version installée : ${build} · requise : ${r.min}</p>
+    </div>`;
+  el.querySelector('.min-build__btn').addEventListener('click', () => window.open(url, '_blank'));
+  if ($('.min-build') || activeSession) return !!$('.min-build');   // vérification concurrente
+  document.body.appendChild(el);
+  el.querySelector('#minBuildTitle')?.focus({ preventScroll: true });
+  return true;
+}
+// Au démarrage, une fois le compte relu (le client Supabase existe alors), au retour au premier plan
+// et au retour du réseau
+let minBuildChecked = false;
+onAccountChange(() => { if (account.ready && !minBuildChecked) { minBuildChecked = true; checkMinBuild(); } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && account.ready) checkMinBuild(); });
+window.addEventListener('online', () => { if (account.ready) checkMinBuild(); });
 
 // Bannière « Nouvelle version disponible », jamais pendant une séance
 function maybeShowUpdateBanner() {

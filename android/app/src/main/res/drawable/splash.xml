@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Généré par scripts/brand-icons.py : écran de démarrage avant Android 12 et fond du thème -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/mdlf_black"/>
+    <item android:gravity="center" android:width="288dp" android:height="288dp" android:drawable="@drawable/splash_icon"/>
+</layer-list>

@@ -340,8 +340,8 @@ async function chooseSessionTempo(ei) {
   showToast(tempo ? `Tempo ${shortTempo(tempo)}${guide ? ', guidé au son' : ''}` : 'Tempo retiré');
 }
 
-// ── « Comment faire » d'un exercice : fiche de la bibliothèque, s'il y a des consignes ou une animation ──
-function hasHowTo(ex) { return !!(exerciseHowTo(ex.name) || exerciseMove(ex.name)); }
+// ── « Comment faire » d'un exercice : fiche de la bibliothèque, s'il y a des consignes, une animation ou une vidéo ──
+function hasHowTo(ex) { return !!(exerciseHowTo(ex.name) || exerciseMove(ex.name) || exerciseVideo(ex.name)); }
 // Nom tel que tapé : la fiche montre les muscles choisis pour lui (alias compris)
 function openHowTo(ex) { navigate(makeRoute('library-ex', ex.name)); }
 

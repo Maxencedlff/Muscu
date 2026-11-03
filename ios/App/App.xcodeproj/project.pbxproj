@@ -46,8 +46,10 @@
 		B10000000000000000006A01 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = B10000000000000000006A02 /* GoogleSignIn */; };
 		B1000000000000000000C10A /* CloudBackupPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000C10B /* CloudBackupPlugin.swift */; };
 		B1000000000000000000C20A /* AccountPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000C20B /* AccountPlugin.swift */; };
+		B1000000000000000000701A /* StorePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000701B /* StorePlugin.swift */; };
 		B1000000000000000000D30A /* PushPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000D30B /* PushPlugin.swift */; };
 		B1000000000000000000E40A /* VaultPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000E40B /* VaultPlugin.swift */; };
+		B1000000000000000000F50A /* AgeRangePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000F50B /* AgeRangePlugin.swift */; };
 		B5F057F9F70E268F2F8AADE7 /* WatchSessionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4502694C744A54123579FDF /* WatchSessionModel.swift */; };
 		BA98E951F42DED995D4A12D8 /* WatchTint.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7B7D3DFD8615A70A591B3D8 /* WatchTint.swift */; };
 		BCB5A990ECCE955DA4011742 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9B49EA045B93D6084B21944C /* Assets.xcassets */; };
@@ -135,8 +137,10 @@
 		B1000000000000000000501B /* SoundPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundPlugin.swift; sourceTree = "<group>"; };
 		B1000000000000000000C10B /* CloudBackupPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudBackupPlugin.swift; sourceTree = "<group>"; };
 		B1000000000000000000C20B /* AccountPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountPlugin.swift; sourceTree = "<group>"; };
+		B1000000000000000000701B /* StorePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorePlugin.swift; sourceTree = "<group>"; };
 		B1000000000000000000D30B /* PushPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushPlugin.swift; sourceTree = "<group>"; };
 		B1000000000000000000E40B /* VaultPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultPlugin.swift; sourceTree = "<group>"; };
+		B1000000000000000000F50B /* AgeRangePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgeRangePlugin.swift; sourceTree = "<group>"; };
 		B1082265A0360801F5365DC4 /* WatchViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchViews.swift; sourceTree = "<group>"; };
 		B69D4B953E388474506FFE76 /* ShortcutsPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShortcutsPlugin.swift; sourceTree = "<group>"; };
 		C706736A17C1B719DD16B34A /* RestActivityViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RestActivityViews.swift; sourceTree = "<group>"; };
@@ -245,8 +249,10 @@
 				B1000000000000000000C10B /* CloudBackupPlugin.swift */,
 				B1000000000000000000C20B /* AccountPlugin.swift */,
 				B1000000000000000000501B /* SoundPlugin.swift */,
+				B1000000000000000000701B /* StorePlugin.swift */,
 				B1000000000000000000D30B /* PushPlugin.swift */,
 				B1000000000000000000E40B /* VaultPlugin.swift */,
+				B1000000000000000000F50B /* AgeRangePlugin.swift */,
 				B10000000000000000000007 /* App.entitlements */,
 				A1B2C3D4E5F6A7B8C9D0E1F3 /* PrivacyInfo.xcprivacy */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
@@ -463,8 +469,10 @@
 				B1000000000000000000C10A /* CloudBackupPlugin.swift in Sources */,
 				B1000000000000000000C20A /* AccountPlugin.swift in Sources */,
 				B1000000000000000000501A /* SoundPlugin.swift in Sources */,
+				B1000000000000000000701A /* StorePlugin.swift in Sources */,
 				B1000000000000000000D30A /* PushPlugin.swift in Sources */,
 				B1000000000000000000E40A /* VaultPlugin.swift in Sources */,
+				B1000000000000000000F50A /* AgeRangePlugin.swift in Sources */,
 				2722C1427BD8D7610737345D /* RestActivityAttributes.swift in Sources */,
 				1929B4E7A9B047D508F13F5C /* LiveActivityPlugin.swift in Sources */,
 				E8EEA32628817C65CD185B91 /* WatchPlugin.swift in Sources */,
@@ -715,6 +723,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					DeclaredAgeRange,
+				);
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mdlf.training;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -739,6 +752,11 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					DeclaredAgeRange,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.mdlf.training;
 				PRODUCT_NAME = "$(TARGET_NAME)";

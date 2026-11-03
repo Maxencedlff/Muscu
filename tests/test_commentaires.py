@@ -1,7 +1,8 @@
 """Commentaires sur une séance (app iOS simulée) : écrire sur la séance d'un ami (compteur, mot interdit
 refusé, brouillon gardé), menu ⋯ d'un commentaire (Signaler puis Bloquer, Supprimer le mien), ma séance
 dans l'Historique (supprimer celui d'un ami, séance masquée en lecture seule), ligne « a commenté » dans
-l'activité de Mon profil et pastille, hors ligne, saisie qui garde le clavier quand l'état change.
+l'activité de Mon profil et pastille, hors ligne, saisie qui garde le clavier quand l'état change,
+réponses rapides (un toucher = un commentaire).
 
 L'app iOS et Supabase sont simulés (tests/fake_account.py, règles de
 supabase/migrations/20261031500000_commentaires.sql) : aucune requête ne sort.
@@ -253,4 +254,59 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_ecrire, t_ma_seance, t_hors_ligne])
+def t_rapides(bench, eng, dev, theme):
+    """Réponses rapides sous la séance d'un ami : un toucher = un commentaire ordinaire (même RPC), brouillon
+    du champ intact, réponse envoyée retirée de la rangée, erreur du serveur dite ; jamais sur ma séance."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page)
+        ids = setup(page)
+        open_friend_session(page)
+        quick = page.locator('#commentQuick .comment-quick__btn')
+        texts = quick.all_inner_texts()
+        base = ['Belle séance 💪', 'Régulier 🔥', 'Respect', 'Lâche rien']
+        R.check(texts in (base, ['Gros record !'] + base), f'{t} rangée proposée {texts}')
+        R.check(page.get_attribute('#commentQuick', 'aria-label') == 'Réponses rapides'
+                and quick.nth(0).get_attribute('aria-label').startswith('Envoyer : '), f'{t} rangée nommée pour VoiceOver')
+        st = small_targets(page, '.comment-quick button')
+        R.check(not st, f'{t} réponses rapides : cibles de 44 pt {st}')
+        # Brouillon en cours : jamais touché par une réponse rapide
+        page.fill('#commentInput', 'Mon brouillon')
+        page.evaluate("document.activeElement.blur()")
+        page.locator('#commentQuick .comment-quick__btn', has_text='Respect').click()
+        page.wait_for_timeout(500)
+        mine = page.evaluate("__sb.so.comments.filter(c => c.user === __sb.meId()).map(c => [c.owner, c.sid, c.body])")
+        R.check(mine == [[ids['lea'], ids['leaSid'], 'Respect']], f'{t} un toucher : commentaire envoyé {mine}')
+        R.check(page.evaluate("__sb.calls.filter(c => c[1] === 'add_comment').length") == 1, f'{t} un seul envoi')
+        R.check('Respect' in page.locator('.comments .comment').last.inner_text(), f'{t} affiché en bas de la liste')
+        R.check('Respect' not in page.locator('#commentQuick').inner_text() and page.input_value('#commentInput') == 'Mon brouillon',
+                f'{t} réponse retirée de la rangée, brouillon intact')
+        layout(page, t, 'réponses rapides')
+        # Serveur qui refuse (hors ligne) : erreur dite, rien d'écrit, la réponse reste proposée
+        page.evaluate('__sb.fail.social = "offline"')
+        page.locator('#commentQuick .comment-quick__btn', has_text='Lâche rien').click()
+        page.wait_for_timeout(500)
+        R.check(toast(page) != '' and page.evaluate("__sb.so.comments.filter(c => c.user === __sb.meId()).length") == 1, f'{t} hors ligne : erreur dite ({toast(page)!r})')
+        R.check('Lâche rien' in page.locator('#commentQuick').inner_text(), f'{t} hors ligne : réponse toujours proposée')
+        page.evaluate('__sb.fail.social = null')
+        # Ma séance : pas de réponses rapides
+        R.check(not page.evaluate(f"commentsGroupHtml('{ids['me']}', '{ids['sid']}').includes('comment-quick')"), f'{t} ma séance : pas de rangée')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_capture_rapides(bench):
+    """Captures iPhone 15 Pro, clair et sombre : séance d'un ami avec la rangée de réponses rapides."""
+    for theme in ('light', 'dark'):
+        with bench.page('webkit', 'iPhone 15 Pro', theme) as page:
+            open_app(page, theme, ppl_v2_today_json())
+            signin(page)
+            setup(page)
+            open_friend_session(page)
+            page.evaluate("document.querySelector('#commentQuick').scrollIntoView({ block: 'center' })")
+            R.check(page.locator('#commentQuick .comment-quick__btn').count() >= 4, f'iPhone 15 Pro {theme} : rangée affichée')
+            shot(page, LOT, f'4-reponses-rapides-iPhone_15_Pro-{theme}')
+            R.check(not page.errors, f'iPhone 15 Pro {theme} : aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_ecrire, t_ma_seance, t_hors_ligne, t_rapides], once=[t_capture_rapides])

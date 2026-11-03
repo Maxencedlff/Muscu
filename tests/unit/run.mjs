@@ -37,12 +37,20 @@ const SCRIPTS = [
   'js/data/sync.js',
   'js/data/account-auth.js',
   'js/data/account.js',
+  'js/data/age-range.js',
   'js/data/social.js',
   'js/data/comments.js',
   'js/data/coach.js',
   'js/data/coach-share.js',
   'js/data/coach-chat.js',
   'js/data/referral.js',
+  'js/data/plans.js',
+  'js/data/min-build.js',
+  'js/data/access.js',
+  'js/data/coach-pro.js',
+  'js/data/newsletter.js',
+  'js/data/legal-links.js',
+  'js/data/strava.js',
   'js/data/push.js',
   'js/data/prog-share.js',
   'js/data/trash.js',
@@ -50,6 +58,7 @@ const SCRIPTS = [
   'js/data/exercise-catalogue.js',
   'js/data/measures.js',
   'js/data/import-csv.js',
+  'js/data/import-measures.js',
   'js/data/progress-photos.js',
   'js/data/photo-vault.js',
   'js/data/session-review.js',
@@ -59,6 +68,7 @@ const SCRIPTS = [
   'js/data/effort-clock.js',
   'js/data/exercise-moves.js',
   'js/data/exercise-howto.js',
+  'js/data/exercise-videos.js',
   'js/data/muscle-load.js',
   'js/data/recap.js',
   'js/data/app-icons.js',
@@ -745,7 +755,7 @@ test('esc, normName, sameEx, plural, setsVolume', () => {
 // simule un changement venu d'iCloud, cloud.saved liste les écritures acceptées.
 // storage : stockage web d'un lancement précédent (relance de l'app) ;
 // manualTimers : les minuteries attendent timers.flush() au lieu de partir tout de suite
-function nativeContext({ native = true, localData = null, fileData = null, shareCancelled = false, cloud = {}, storage = new MemoryStorage(), manualTimers = false, plugins: extra = {}, available = [] } = {}) {
+function nativeContext({ native = true, platform = 'ios', localData = null, fileData = null, shareCancelled = false, cloud = {}, storage = new MemoryStorage(), manualTimers = false, plugins: extra = {}, available = [] } = {}) {
   const calls = [];
   const pending = [];
   if (localData !== null) storage.setItem('ppl_v2', localData);
@@ -784,6 +794,7 @@ function nativeContext({ native = true, localData = null, fileData = null, share
     location: { reload() { reloaded = true; } },
     Capacitor: native ? {
       isNativePlatform: () => true,
+      getPlatform: () => platform,   // 'ios' ou 'android' (coquille simulée)
       isPluginAvailable: (name) => available.includes(name),   // modules présents dans la coquille
       registerPlugin: (name) => plugins[name] || new Proxy({}, { get: (_, m) => async () => calls.push([name, m]) }),
     } : undefined,
@@ -1250,10 +1261,21 @@ test('données : healthOn et musicOn désactivés par défaut, conservés ensuit
 test('iOS : SceneDelegate → MainViewController → chaque module Swift, noms identiques côté web', () => {
   const ios = p => fs.readFileSync(path.join(ROOT, 'ios/App/App', p), 'utf8');
   assert.match(ios('SceneDelegate.swift'), /rootViewController\s*=\s*MainViewController\(\)/, 'SceneDelegate doit créer MainViewController');
+  // Feuille de partage refermée au retour d'une autre app : rapportée comme annulée, jamais comme
+  // partagée (un verrouillage d'écran ne doit pas faire noter une sauvegarde jamais écrite).
+  assert.match(ios('SceneDelegate.swift'), /done\?\(nil, false, nil, nil\)/, 'feuille refermée = annulation');
+  assert.doesNotMatch(ios('SceneDelegate.swift'), /done\?\(nil, true,/, 'jamais un faux partage réussi');
+  // Build 40 : un panneau d'extension (Instagram) posé sur la feuille ne doit pas empêcher de la refermer
+  assert.doesNotMatch(ios('SceneDelegate.swift'), /presentedViewController == nil/, 'feuille refermée même sous un panneau d\'extension');
+  assert.match(ios('SceneDelegate.swift'), /presentingViewController/, 'fermeture depuis le contrôleur qui présente la feuille');
   const main = ios('MainViewController.swift');
   const pbx = fs.readFileSync(path.join(ROOT, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8');
   const native = fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8');
-  for (const file of ['HealthPlugin.swift', 'MusicPlugin.swift', 'LiveActivityPlugin.swift', 'SoundPlugin.swift']) {
+  // Tous les fichiers *Plugin.swift (10 au 02/11/2026, dont Store et Vault ; les 3 d'AppExtras ont leur test) : une fusion qui perdrait
+  // une ligne registerPluginInstance doit casser ce test.
+  const plugins = fs.readdirSync(path.join(ROOT, 'ios/App/App')).filter(f => f.endsWith('Plugin.swift'));
+  assert.ok(plugins.length >= 10, `modules Swift trouvés : ${plugins.length}`);
+  for (const file of plugins) {
     const src = ios(file);
     const cls = src.match(/public (?:final )?class (\w+): CAPPlugin/)[1];
     const jsName = src.match(/jsName = "(\w+)"/)[1];
@@ -1477,15 +1499,30 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 
 // ── Compte : connexion, pseudo, avatar, identités (tests dans account.mjs) ──
 (await import('./account.mjs')).default({ test, run, assert, sameJSON, nativeContext, ROOT });
+// ── Préparation Android : empreintes natives, pont natif sur Android, modules Kotlin (tests dans android.mjs) ──
+(await import('./android.mjs')).default({ test, assert, run, app, reset, nativeContext, ROOT });
 
+// ── Strava : règles et chiffrement des fonctions serveur, export côté app (strava-server.mjs, strava.mjs) ──
+(await import('./strava-server.mjs')).default({ test, assert, sameJSON, ROOT });
+(await import('./strava.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // ── Social : fonction serveur report (tests dans report.mjs) ──
 (await import('./report.mjs')).default({ test, assert, sameJSON, ROOT });
+// ── Tarifs du 30/10 : demande du rôle coach (tests dans coach-request.mjs) ──
+(await import('./coach-request.mjs')).default({ test, assert, ROOT });
+// ── Juridique : lettre d'information, pages juridiques, prix des CGV (tests dans juridique.mjs) ──
+(await import('./juridique.mjs')).default({ test, run, assert, sameJSON, ROOT });
+// ── Payant : signature d'Apple, achats et notifications (tests dans payant.mjs) ──
+(await import('./payant.mjs')).default({ test, assert, sameJSON, ROOT });
+// ── Fonctions Edge : garde de l'appelant (verify_jwt = false) (auth-guard.mjs) ──
+(await import('./auth-guard.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Amis : logique pure du social (tests dans social.mjs) ──
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
+// ── Tranche d'âge partagée par Apple, effets sur les Amis (tests dans age-range.mjs) ──
+(await import('./age-range.mjs')).default({ test, run, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──
 (await import('./coach.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Commentaires et messages coach ↔ élève (tests dans comments.mjs et coach-chat.mjs) ──
-(await import('./comments.mjs')).default({ test, run, assert, sameJSON });
+(await import('./comments.mjs')).default({ test, run, assert, sameJSON, ROOT });
 (await import('./coach-chat.mjs')).default({ test, run, assert, sameJSON });
 // ── Records notés dans la séance : types, règles, nettoyage, textes (tests dans records.mjs) ──
 (await import('./records.mjs')).default({ test, run, reset, assert, sameJSON });
@@ -1495,6 +1532,12 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Relecture de la séance d'un autre : volume, écarts, records, douleur (tests dans review.mjs) ──
 (await import('./review.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Accès payant : nettoyage, horloge de l'appareil, cache hors ligne, verrou (tests dans access.mjs) ──
+(await import('./access.mjs')).default({ test, run, assert, sameJSON, ROOT });
+// ── Contrat du module natif StoreKit : clés réellement envoyées par le Swift (store-contract.mjs) ──
+(await import('./store-contract.mjs')).default({ test, run, assert, sameJSON, ROOT });
+// ── Version minimale de l'app : app_config.min_build, lien App Store ou TestFlight (min-build.mjs) ──
+(await import('./min-build.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Guide de l'app : contenus et libellés (tests dans guide.mjs) ──
 (await import('./guide.mjs')).default({ test, run, assert, ROOT });
 // ── Premier lancement : questions et programme conseillé (tests dans onboarding.mjs) ──
@@ -1513,10 +1556,12 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./seance-outils.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Import depuis Hevy et Strong (tests dans import-csv.mjs) ──
 (await import('./import-csv.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
+// ── Import des mesures Hevy (tests dans import-measures.mjs) ──
+(await import('./import-measures.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // ── Récaps de la semaine, du mois et de l'année (tests dans recap.mjs) ──
 (await import('./recap.mjs')).default({ test, run, reset, assert, app, sameJSON });
-// ── Apple Watch, widget et Siri (tests dans companions.mjs) ──
-(await import('./companions.mjs')).default({ test, run, reset, assert, app, sameJSON, ctx, nativeContext, ROOT });
+// ── Niveau de force (tests dans strength-levels.mjs) ──
+(await import('./strength-levels.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Coffre à photos : code, chiffrement, essais, verrouillage (tests dans photo-vault.mjs) ──
 (await import('./photo-vault.mjs')).default({ test, run, assert, app });
@@ -1528,8 +1573,11 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./health.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Notifications push : fonction serveur push-send (tests dans push.mjs) ──
 (await import('./push.mjs')).default({ test, run, assert, sameJSON, ROOT });
-// ── Niveau de force (tests dans strength-levels.mjs) ──
-(await import('./strength-levels.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Apple Watch, widget et Siri (tests dans companions.mjs) ──
+(await import('./companions.mjs')).default({ test, run, reset, assert, app, sameJSON, ctx, nativeContext, ROOT });
+
+// ── Vidéos d'exercices des coachs (tests dans exercise-videos.mjs) ──
+(await import('./exercise-videos.mjs')).default({ test, run, assert, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

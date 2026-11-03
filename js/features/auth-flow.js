@@ -32,11 +32,15 @@ const flow = {
 // Masqué hors délai (compte de plus de 30 jours, d'après le serveur s'il a répondu).
 function referralLinkHtml() {
   const v = referralView();
-  if (v.referrer) return `<p class="auth__referral-done">${icon('checkmark', 16)}<span>${esc(`Parrainé par ${v.referrer}`)}</span></p>`;
+  // Parrain coach : le code parraine sans faire rejoindre ce coach, on le dit (Amis › Rejoindre un coach)
+  if (v.referrer) return `<p class="auth__referral-done">${icon('checkmark', 16)}<span>${esc(`Parrainé par ${v.referrer}`)}</span></p>`
+    + (referralSuggestJoin(v) ? `<p class="auth__referral-join">${esc(`Pour que ${v.referrer} suive tes séances, rejoins ce coach ensuite dans Amis › Rejoindre un coach.`)}</p>` : '');
   return v.canEnter ? '<button class="auth__link auth__referral-link" data-action="auth-referral">J\'ai un code d\'un coach ou d\'un ami</button>' : '';
 }
 
-// context : 'coach' quand le pseudo est demandé pour rejoindre un coach (texte du pseudo adapté)
+// context : 'coach' quand le pseudo est demandé pour rejoindre un coach (texte du pseudo adapté) ;
+// 'paywall' quand le verrou est allumé et qu'il faut un compte pour enregistrer (texte de Bienvenue
+// adapté, sans « Commencer sans compte » : on ferme avec « Annuler »)
 function openAuthFlow({ step = 'welcome', mode = 'signin', closable = true, email = '', sentAt = 0, resume = null, context = null } = {}) {
   if (flow.root) closeAuthFlow(null);
   if (resume) ({ email, sentAt } = resume);
@@ -119,7 +123,16 @@ function flowUsername() { return normalizeUsername(flow.username) || account.pro
 function flowAvatarHtml() { return avatarHtml('xl', flow.avatar, flowUsername()); }
 
 const AUTH_STEPS = {
-  welcome: () => `
+  welcome: () => flow.context === 'paywall' ? `
+      <div class="auth__hero">
+        <div class="auth__logo">${appIconSvg(DEFAULT_APP_ICON, { attrs: 'aria-hidden="true" focusable="false"' })}</div>
+        <h1 class="auth__title auth__title--welcome" id="authTitle" tabindex="-1">Un compte pour enregistrer</h1>
+        <p class="auth__lead">Connecte-toi ou crée un compte pour enregistrer tes séances. Ton abonnement, et son essai gratuit, y seront rattachés.</p>
+      </div>
+      <div class="auth-buttons">${signInButtonsHtml()}</div>
+      <p class="auth__again">Déjà un compte ? Utilise le même moyen qu'avant.</p>
+      <p class="auth__foot">Tes séances déjà faites restent sur cet iPhone, avec l'historique, les progrès et l'export. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
+      <p class="auth__error" id="authError" role="alert"></p>` : `
       <div class="auth__hero">
         <div class="auth__logo">${appIconSvg(DEFAULT_APP_ICON, { attrs: 'aria-hidden="true" focusable="false"' })}</div>
         <h1 class="auth__title auth__title--welcome" id="authTitle" tabindex="-1">Bienvenue dans MDLF&nbsp;Training</h1>
@@ -290,6 +303,7 @@ async function submitReferral() {
   if (!flow.root) return;
   if (!r.ok) { authError(referralErrorText(r.kind)); flow.root.querySelector('#authReferral')?.focus(); return; }
   haptic('success');
+  // Parrain coach : rappel affiché sous « Parrainé par » (pseudo, Réglages › Compte), pas dans le toast
   const text = `Parrainé par ${r.data.name}`;
   if (flow.mode === 'referral') { closeAuthFlow('saved'); render(); showToast(text); return; }
   announce(text);

@@ -1,7 +1,9 @@
 """Amis (Social V1, app iOS simulée) : onglet Amis et ses trois états, badge, activation, recherche,
 demandes, fil (Bravo, détail, pagination), profil d'un autre (s'abonner, annuler, se désabonner,
 bloquer, signaler), Gérer, Désactiver, Historique › Séance (Visible sur mon profil, qui a réagi),
-bilan de fin de séance (Visible sur mon profil, œil barré dans l'Historique), hors ligne.
+bilan de fin de séance (Visible sur mon profil, œil barré dans l'Historique), hors ligne, tranche d'âge
+partagée par Apple (moins de 15 ans : Amis masqué, désactivé sur le serveur, Historique › Séance sans Amis ni
+commentaires, « Rejoindre un coach » masqué ; 15-17 ans : séances masquées par défaut ; refus : rien ne change).
 
 L'app iOS et Supabase sont simulés (tests/fake_account.py, règles de docs/SOCIAL_V1.md) : aucune requête
 ne sort. Captures : $PPL_SCRATCH/shots/lotsocial/ (chaque nouvel écran, clair et sombre).
@@ -667,4 +669,87 @@ def t_hors_ligne(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_tabbar_sans_compte, t_activation, t_fil, t_record_ami, t_record_note, t_profil, t_gerer, t_masquer, t_bilan_visible, t_hors_ligne])
+def t_age(bench, eng, dev, theme):
+    """Tranche d'âge partagée par Apple (MdlfAgeRange simulé, js/data/age-range.js)."""
+    t = tag(dev, theme)
+    # Moins de 13 ans, Amis déjà activé : onglet masqué avec une explication, coach gardé, badge éteint
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), {'ageRange': {'status': 'sharing', 'upperBound': 12, 'communicationLimits': False}})
+        signin(page, enable=True)
+        setup_friends(page)
+        friends_tab(page)
+        page.wait_for_selector('#friendsBody :text("Amis indisponibles")')
+        body = page.inner_text('#friendsBody')
+        R.check('réservés aux 15 ans et plus' in body and 'Le reste de l\'app fonctionne normalement' in body, f'{t} moins de 13 ans : explication ({body!r})')
+        R.check(page.locator('#socialSearch, .feed-card, [data-action="social-enable"], .navbar [data-action="social-me"]').count() == 0, f'{t} moins de 13 ans : ni recherche, ni fil, ni Mon profil')
+        R.check(page.locator('#coachCell').count() == 1, f'{t} cellule du coach gardée')
+        R.check(page.locator('.tabbar__badge').count() == 0, f'{t} badge des Amis éteint')
+        R.check(page.evaluate('newSessionHidden()') is True, f'{t} nouvelle séance masquée aux abonnés')
+        layout(page, t, 'âge masqué')
+        shot(page, LOT, f'13-age-masque-{t}')
+        page.click('.tabbar [data-tab="history"]')
+        friends_tab(page)
+        R.check(len([c for c in page.evaluate('__sb.calls') if c[0] == 'age']) == 1, f'{t} fenêtre d\'Apple demandée une seule fois')
+        R.check(json.loads(ls(page, 'mdlf_age_range'))['status'] == 'sharing', f'{t} tranche gardée sur l\'appareil')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+    # 15-17 ans : activation possible, séances masquées par défaut, dit sur la carte
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), {'ageRange': {'status': 'sharing', 'lowerBound': 15, 'upperBound': 17, 'communicationLimits': False}})
+        signin(page)
+        friends_tab(page)
+        page.wait_for_selector('#friendsBody :text("masquées par défaut")')
+        R.check(page.locator('[data-action="social-enable"]').count() == 1, f'{t} 15-17 ans : carte d\'activation')
+        R.check(page.evaluate('sessionsVisibleByDefault()') is False, f'{t} 15-17 ans : séances masquées par défaut')
+        layout(page, t, 'âge 15-17')
+        shot(page, LOT, f'13-age-15-17-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+    # Refus : comportement actuel
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), {'ageRange': {'status': 'declined'}})
+        signin(page)
+        friends_tab(page)
+        page.wait_for_selector('[data-action="social-enable"]')
+        page.wait_for_timeout(300)
+        body = page.inner_text('#friendsBody')
+        R.check('masquées par défaut' not in body and 'indisponibles' not in body, f'{t} refus : carte habituelle')
+        R.check(page.evaluate('sessionsVisibleByDefault()') is True, f'{t} refus : réglage par défaut inchangé')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_age_historique(bench, eng, dev, theme):
+    """Tranche 'young' (13-15, seuils du Texas) sur un compte où Amis était activé : social_disable une fois,
+    Historique › Séance sans « Visible sur mon profil » ni commentaires des autres, « Rejoindre un coach » masqué."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), {'ageRange': {'status': 'sharing', 'lowerBound': 13, 'upperBound': 15, 'communicationLimits': False}})
+        signin(page, enable=True)
+        sid = page.evaluate("""() => { const lea = __sb.addPerson({ username: 'lea' }), me = __sb.meId(), sid = data.history[0].id;
+            __sb.follow(lea, me); __sb.comment(lea, me, sid, 'Bravo pour le développé !', Date.now() - 3600e3); return sid; }""")
+        R.check(page.evaluate('socialEnabled()') is True, f'{t} avant la réponse d\'Apple : Amis activé')
+        friends_tab(page)
+        page.wait_for_selector('#friendsBody :text("Amis indisponibles")')
+        page.wait_for_timeout(300)
+        disables = page.evaluate('__sb.calls.filter(c => c[0] === "social" && c[1] === "social_disable").length')
+        R.check(disables == 1, f'{t} Amis désactivé sur le serveur une fois ({disables})')
+        R.check(page.evaluate('socialEnabled() === false && socialActivated() === false'), f'{t} Amis éteint, compte compris')
+        R.check(page.locator('[data-action="coach-join-start"]').count() == 0, f'{t} « Rejoindre un coach » masqué (moins de 15 ans possible)')
+        page.click('.tabbar [data-tab="history"]')
+        page.wait_for_timeout(300)
+        R.check(page.locator('.hidden-mark').count() == 0, f'{t} liste : pas d\'œil barré')
+        page.click(f'[data-action="open-history"][data-id="{sid}"]')
+        page.wait_for_selector('.history-detail')
+        page.wait_for_timeout(400)
+        txt = page.inner_text('.history-detail')
+        R.check(page.locator('[data-action="history-hide"]').count() == 0 and 'Visible sur mon profil' not in txt, f'{t} séance : pas de « Visible sur mon profil »')
+        R.check(page.locator('#commentsList, #commentInput').count() == 0 and 'Bravo pour le développé' not in txt, f'{t} séance : pas de commentaires des autres')
+        R.check(len(calls(page, 'list_comments')) == 0, f'{t} commentaires jamais demandés')
+        R.check(page.evaluate('newSessionHidden()') is True, f'{t} nouvelle séance masquée')
+        layout(page, t, 'âge historique')
+        shot(page, LOT, f'13-age-historique-{t}')
+        page.evaluate("navigate('coach')")
+        page.wait_for_selector('.coach-view :text("Coach indisponible")')
+        R.check(page.locator('[data-action="coach-join"]').count() == 0, f'{t} Réglages › Coach : pas de « Rejoindre un coach »')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_tabbar_sans_compte, t_activation, t_fil, t_record_ami, t_record_note, t_profil, t_gerer, t_masquer, t_bilan_visible, t_hors_ligne, t_age, t_age_historique])

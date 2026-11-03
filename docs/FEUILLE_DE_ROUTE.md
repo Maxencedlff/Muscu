@@ -199,8 +199,8 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 |   | Quoi                                                                     | Où                     | État                                   |
 |---|--------------------------------------------------------------------------|------------------------|----------------------------------------|
-| ▶ | Payant complet, parrainage relié aux vrais paiements, newsletter         | Branche payant-final   | **Build 40 sur TestFlight (03/11)** · nuit du 3/11 : 7 chantiers intégrés, relus, E2E 482/484 (S9+ connu), compilation iOS OK · attend le SIRET puis le médiateur |
-| ⚠ | OTA : les mises à jour à chaud partent de main (empreinte de la build 33) | ota.yml | La build 40 a une autre empreinte : elle ne reçoit plus les OTA de main tant que payant-final n'y est pas fusionnée (décision à prendre) |
+| ▶ | Payant complet, parrainage relié aux vrais paiements, newsletter         | Branche payant-final   | **Build 45 sur TestFlight (03/11)**, revue bêta externe en cours · 7 chantiers de la nuit + story corrigée · fusionnée dans main le 03/11 · attend le SIRET puis le médiateur |
+| ✓ | OTA : payant-final fusionnée dans main le 03/11 (verrou éteint) | ota.yml | main a l'empreinte native de la build 45 : les OTA l'atteignent. Gardes juridiques en avertissement tant que MDLF_SORTIE n'est pas à true |
 | ▶ | Page de confidentialité « store » + mentions légales, CGU, CGV          | payant-final           | Prête · adresse perso et téléphone mis · attend SIRET, médiateur, dates d'entrée en vigueur |
 | ▶ | Strava                                                                    | Branche nuit-integration | En sommeil, rallumé par une build    |
 
@@ -222,16 +222,16 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Export vers Strava                              | En sommeil                       |
 | ○ | Mise en ligne du payant                         | Prêt · après les papiers         |
 
-### Build 41 (TestFlight, puis App Store) · build 40 publiée le 03/11
+### Build 45 (TestFlight, puis App Store) · publiée le 03/11
 
 |   | Quoi                                                  | Quand / état                        |
 |---|-------------------------------------------------------|-------------------------------------|
 | ✓ | Sommeil, séances dans Santé, notifications, montre    | Build 31                            |
 | ✓ | Paiement Apple (StoreKit)                             | Build 40                            |
 | ✓ | Face ID du coffre photos                              | Build 33                            |
-| ✓ | Feuille de partage refermée au retour d'Instagram     | Build 40                            |
-| ✓ | Vérification de l'âge par Apple pour l'onglet Amis    | payant-final (03/11), build 41 · capacité Declared Age Range + profil à refaire avant |
-| ✓ | Écran « mets à jour l'app » avant d'allumer le verrou | payant-final (03/11), réglé par app_config.min_build |
+| ✓ | Feuille de partage refermée au retour d'Instagram     | Build 45 (corrigée : la build 40 la laissait sous le panneau d'Instagram) |
+| ✓ | Vérification de l'âge par Apple pour l'onglet Amis    | Build 45 · capacité Declared Age Range activée et profil régénéré le 03/11 |
+| ✓ | Écran « mets à jour l'app » avant d'allumer le verrou | Build 45, réglé par app_config.min_build (laissé à 0) |
 
 ### Démarches Apple et légales
 
@@ -296,7 +296,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 |   | Quoi                                                    | Quand / état           |
 |---|---------------------------------------------------------|------------------------|
 | ○ | Compte Google Play (25 $), 12 testeurs pendant 14 jours | Après la sortie iPhone |
-| ○ | Parties natives, paiement Google Play, pré-inscription  | Après la sortie iPhone |
+| ▶ | Parties natives, paiement Google Play, pré-inscription  | Préparé (branche nuit-android, non compilé), plan : docs/ANDROID.md |
 
 ### Après le payant · parrainage et tarifs
 
@@ -305,6 +305,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Parrainage entre utilisateurs : 1 mois offert à l'ami et au parrain (quand l'ami paie)    | Après le payant + clé IAP |
 | ○ | Coachs vérifiés (carte pro), code unique, 20 % du net pendant 12 mois sur leurs élèves    | Branche payant (en cours) |
 | ○ | Tarifs : 6,49 €/mois, coach 15,99 à 29,99 € selon les élèves, annuel = 8,5 mois, élève −25 % | Branche payant (en cours) |
+| ○ | Payant plus : accès à vie offerts révocables, TestFlight reconnu, main fusionnée (achat à vie : refusé par Maxence le 31/10) | Branche nuit-payantplus · build |
 
 ### Plus tard
 

@@ -1,0 +1,28 @@
+/* ═══════════════════════════════════════════════
+   Strava (js/features/strava-ui.js) : bouton officiel « Connect with Strava », envoi d'une séance
+   depuis le bilan et Historique › Séance, lien « View on Strava ».
+   Charte de Strava (developers.strava.com/guidelines) : image du bouton fournie par Strava, jamais
+   retouchée ni recolorée (48 px de haut) ; « View on Strava » reconnaissable comme un lien (en gras).
+═══════════════════════════════════════════════ */
+.strava-connect-wrap { display: flex; justify-content: center; padding: 4px 0 8px; }
+.strava-connect {
+  display: block; padding: 0; border: 0; background: none; border-radius: 6px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; line-height: 0;
+}
+.strava-connect img { display: block; width: 237px; height: 48px; }
+.strava-connect:active { opacity: .7; }
+.strava-connect:disabled { opacity: .5; cursor: default; }
+.strava-connect:focus-visible { outline: 2px solid var(--tint); outline-offset: 3px; }
+.strava-hint { margin: 8px 16px 0; text-align: center; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label2); }
+.strava-foot { text-align: center; padding-top: 16px; }
+.strava-warn { color: var(--orange-text); }
+
+/* Envoi d'une séance : la cellule entière est le bouton ; envoyée, le lien vers l'activité à droite */
+.strava-send:disabled { opacity: .55; cursor: default; }
+.strava-sent { justify-content: space-between; padding-top: 0; padding-bottom: 0; }
+.strava-sent .cell__title, .strava-sent .sum-row__name { white-space: nowrap; }
+.strava-view-link {
+  flex: none; min-height: 44px; padding: 0 0 0 12px; border: 0; background: none; cursor: pointer;
+  color: var(--tint); font: inherit; font-weight: 700; font-size: var(--fs-body);
+}
+.strava-view-link:active { opacity: .6; }

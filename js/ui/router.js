@@ -55,7 +55,7 @@ function navSanitize(n) {
   for (const t of Object.keys(TABS)) {
     let s = Array.isArray(out.stacks[t]) ? out.stacks[t] : [];
     s = s.filter((r, i) => i === 0 || (r !== TABS[t].root && (r !== 'session' || activeSession)
-      && (r !== 'summary' || (t === 'train' && lastSummary))));
+      && (r !== 'summary' || (t === 'train' && lastSummary)) && (r !== 'strava' || stravaEnabled())));
     if (s[0] !== TABS[t].root) s.unshift(TABS[t].root);
     out.stacks[t] = s;
   }

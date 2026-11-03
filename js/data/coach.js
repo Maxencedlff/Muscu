@@ -28,7 +28,9 @@ const COACH_IDLE_REFRESH_MS = 5 * 60_000;   // premier plan, compte ni coach ni 
 const COACH_PAGE        = 30;             // séances d'un élève par page (comme le serveur)
 const COACH_NOTE_MAX    = 1000;           // commentaire d'une séance
 const COACH_PROG_BYTES  = 200 * 1024;     // programme envoyé : 200 Ko au plus
-const COACH_CODE_RE     = /^[A-HJ-NP-Z2-9]{8}$/;   // 8 caractères lisibles, sans 0, O, 1 ni I
+// Code d'invitation : 8 caractères (codes de 7 jours) ou 12 (code permanent du coach, créé à la
+// validation de son rôle), lisibles, sans 0, O, 1 ni I
+const COACH_CODE_RE     = /^(?:[A-HJ-NP-Z2-9]{8}|[A-HJ-NP-Z2-9]{12})$/;
 const COACH_PROG_ID_RE  = /^[A-Za-z0-9_-]{1,40}$/;
 const COACH_LOCAL_PREFIX = 'u_c';         // programme reçu : u_c<8 caractères du coach>_<prog_id>
 
@@ -160,14 +162,29 @@ function normalizeCoachCode(raw) {
 }
 // Message d'invitation partagé par le coach : dit où aller dans l'app (pas de lien : app en TestFlight)
 function coachInviteText(code) {
-  return `Je te propose de te suivre sur MDLF Training. Dans l'app MDLF Training : onglet Amis › Rejoindre un coach, puis saisis le code ${code}. Il est valable 7 jours.`;
+  const c = String(code || '');
+  // Code permanent (12 caractères) : écrit en trois groupes, sans date de fin
+  const shown = c.length === 12 ? formatCoachCode(c) : c;
+  // La remise de 25 % n'existe que verrou allumé (tout est ouvert sinon) : pas de promesse avant
+  const end = c.length !== 12 ? 'Il est valable 7 jours.'
+    : paywallOn() ? 'Avec ce code, ton abonnement est à 25 % de moins pendant 12 mois.' : 'Ce code n\'expire pas.';
+  return `Je te propose de te suivre sur MDLF Training. Dans l'app MDLF Training : onglet Amis › Rejoindre un coach, puis saisis le code ${shown}. ${end}`;
+}
+// Code permanent : K7M2QX9PR4TD → K7M2-QX9P-R4TD (les tirets sont ignorés à la saisie)
+function formatCoachCode(code) {
+  const c = String(code || '');
+  return c.length === 12 ? `${c.slice(0, 4)}-${c.slice(4, 8)}-${c.slice(8)}` : c;
 }
 // Code trouvé dans ce qui a été saisi ou collé : le code seul (« k7m2-qx9p »), ou le message d'invitation
 // entier, où il est écrit en capitales et isolé des autres mots
 function extractCoachCode(raw) {
   const whole = normalizeCoachCode(raw);
   if (whole) return whole;
-  const m = String(raw ?? '').match(/(?:^|[^A-Za-z0-9])([A-HJ-NP-Z2-9]{8})(?![A-Za-z0-9])/);
+  const txt = String(raw ?? '');
+  // Code permanent écrit en trois groupes (K7M2-QX9P-R4TD), ou d'un seul bloc ; sinon code de 8
+  const long = txt.match(/(?:^|[^A-Za-z0-9-])([A-HJ-NP-Z2-9]{4})-?([A-HJ-NP-Z2-9]{4})-?([A-HJ-NP-Z2-9]{4})(?![A-Za-z0-9-])/);
+  if (long) return long[1] + long[2] + long[3];
+  const m = txt.match(/(?:^|[^A-Za-z0-9])([A-HJ-NP-Z2-9]{8})(?![A-Za-z0-9])/);
   return m ? m[1] : null;
 }
 
@@ -176,7 +193,7 @@ function coachErrorKind(error) {
   if (!error) return null;
   if (isNetworkError(error) || /fetch|network|load failed/i.test(String(error.message || ''))) return 'offline';
   const msg = String(error.message || error.error || '');
-  for (const k of ['not_coach', 'already_coached', 'invalid_code', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required', 'not_shared', 'invalid_kind', 'invalid_data',
+  for (const k of ['not_coach', 'already_coached', 'invalid_code', 'tier_full', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required', 'not_shared', 'invalid_kind', 'invalid_data',
     'empty_message']) if (msg.includes(k)) return k;
   // Fonction absente du serveur (migration pas encore appliquée) : PostgREST répond PGRST202
   if (error.code === 'PGRST202' || /could not find the function/i.test(msg)) return 'missing';
@@ -188,6 +205,7 @@ const COACH_ERROR_TEXT = {
   already_coached: 'Tu as déjà un coach. Quitte-le d\'abord dans Réglages › Coach.',
   invalid_code: 'Ce code n\'existe pas ou a expiré. Demande un nouveau code à ton coach.',
   team_full: 'Ce coach suit déjà 50 élèves.',
+  tier_full: 'Ton coach a atteint la limite de son abonnement : il doit passer au palier supérieur.',
   not_found: 'Introuvable : ce code est peut-être le tien, ou l\'élève ne te suit plus.',
   rate_limited: 'Trop d\'essais pour l\'instant. Réessaie dans une heure.',
   too_long: 'Texte trop long.',
@@ -202,6 +220,7 @@ const COACH_ERROR_TEXT = {
   empty_message: 'Écris quelque chose avant d\'envoyer.',
   busy: 'Envoi déjà en cours.',
   missing: 'Pas encore disponible : réessaie après la prochaine mise à jour.',
+  age_limited: 'Le contrôle parental de cet iPhone limite les échanges : les messages ne sont pas disponibles.',
   signed_out: 'Connecte-toi d\'abord à ton compte.',
   server: 'Action impossible pour l\'instant, réessaie dans un moment.',
 };

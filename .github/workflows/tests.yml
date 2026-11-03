@@ -15,14 +15,16 @@ permissions:
   contents: read
 
 concurrency:
-  group: tests-${{ github.ref }}
-  # Sur main, une publication ne s'interrompt jamais ; ailleurs, un envoi plus récent remplace l'ancien
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  # Jamais interrompus : la build TestFlight (ios.yml, job gate) attend les tests de SON commit, et
+  # un envoi plus récent qui les annulait faisait échouer la build (03/11/2026, build 41). Sur main,
+  # un seul groupe : les publications du site passent l'une après l'autre, dans l'ordre.
+  group: ${{ github.ref == 'refs/heads/main' && format('tests-{0}', github.ref) || format('tests-{0}-{1}', github.ref, github.sha) }}
+  cancel-in-progress: false
 
 jobs:
   unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -41,6 +43,21 @@ jobs:
         run: bash tests/sql/run.sh
       - name: Retours arrière des migrations (Postgres local)
         run: bash tests/sql/rollback_lot3_check.sh && bash tests/sql/rollback_check.sh && bash tests/sql/rollback_social_check.sh && bash tests/sql/rollback_push_check.sh && bash tests/sql/rollback_push_messages_check.sh
+      # Montée de version de production : migrations jusqu'à 20261028, données réalistes, puis la suite
+      - name: Montée de version des migrations (données de production simulées)
+        run: bash tests/sql/upgrade_test.sh
+      # Grâce de fin de séance sous concurrence (6 envois simultanés, 2 acceptés)
+      - name: Grâce de fin de séance en parallèle
+        run: bash tests/sql/grace_race_test.sh
+      # Retour arrière du payant plus (accès à vie offerts révocables), puis les tests des tarifs
+      - name: Retour arrière du payant plus
+        run: bash tests/sql/rollback_payant_plus.sh
+      # Tous les retours arrière depuis le 29/10 : seuls, puis démontage complet, état identique (pg_dump)
+      - name: Retours arrière (démontage complet, état identique)
+        run: bash tests/sql/rollback_nuit_check.sh
+      # Mise en production dans l'ordre réel (migrations du payant après le lot 3), puis retours arrière
+      - name: Mise en production dans l'ordre réel
+        run: bash tests/sql/prod_order_test.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)
@@ -98,7 +115,21 @@ jobs:
         with:
           persist-credentials: false
       # Version web arrêtée le 22/10/2026 : le site ne publie plus que web-public/ (page « l'app est
-      # sur iPhone » et politique de confidentialité, URL déclarée à l'App Store), voir web-public/README.md
+      # sur iPhone », politique de confidentialité, URL déclarée à l'App Store, et pages juridiques), voir web-public/README.md
+      # Garde : aucune page juridique publiée avec un emplacement « À COMPLÉTER » une fois l'app sortie
+      # (variable du dépôt MDLF_SORTIE=true). Avant, TestFlight seul et verrou éteint : signalé sans
+      # bloquer, pour que le site et les pages restent à jour (décision du 03/11/2026, docs/JURIDIQUE.md)
+      - name: Pages juridiques sans emplacement à compléter
+        env:
+          SORTIE: ${{ vars.MDLF_SORTIE }}
+        run: |
+          if node scripts/check-legal-pages.mjs privacy.html mentions-legales.html cgu.html cgv.html; then
+            echo "Pages juridiques complètes."
+          elif [ "$SORTIE" = "true" ]; then
+            echo "App sortie (MDLF_SORTIE=true) : pages juridiques incomplètes, rien n'est publié."; exit 1
+          else
+            echo "::warning::Pages juridiques incomplètes : acceptable sur TestFlight, bloquant dès MDLF_SORTIE=true."
+          fi
       - name: Publication sur muscu-eta.vercel.app
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -106,5 +137,5 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
         # La CLI échoue (code non nul) si la publication échoue ; version figée (pas de @latest)
         run: |
-          cp privacy.html web-public/
+          cp privacy.html mentions-legales.html cgu.html cgv.html legal.css web-public/
           npx --yes vercel@62.0.0 deploy web-public --prod --yes --token "$VERCEL_TOKEN"

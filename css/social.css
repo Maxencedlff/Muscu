@@ -293,6 +293,17 @@
 .comments__more { color: var(--tint); }
 .comments__error { gap: 12px; justify-content: space-between; }
 
+/* Réponses rapides : pastilles teintées, retour à la ligne (rien de caché à droite), 44 pt de haut réels (les lots reactions et social mesurent la boîte, pas une zone élargie) */
+.comment-quick { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px var(--gutter) 0; }
+.comment-quick:empty { display: none; }
+.comment-quick__btn {
+  position: relative; min-height: 44px; min-width: 44px; padding: 6px 14px; border: none; border-radius: var(--r-pill);
+  background: var(--fill); color: var(--tint-on-fill); font: inherit; font-size: var(--fs-subhead); font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.comment-quick__btn:not(:disabled):active { opacity: .6; }
+.comment-quick__btn:disabled { color: var(--label-disabled); cursor: default; }
+
 /* Saisie : champ arrondi façon Messages, bouton rond à la teinte */
 .comment-compose {
   display: flex; align-items: flex-end; gap: 8px; margin: 10px var(--gutter) 0;

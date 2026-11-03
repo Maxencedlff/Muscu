@@ -27,5 +27,10 @@
 	</array>
 	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
 	<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>
+	<!-- Tranche d'âge partagée par Apple (AgeRangePlugin.swift, onglet Amis). La capacité « Declared Age
+	     Range » doit être activée sur l'identifiant com.mdlf.training et le profil App Store régénéré avant
+	     la build (docs/BUILD.md), sinon la signature échoue. -->
+	<key>com.apple.developer.declared-age-range</key>
+	<true/>
 </dict>
 </plist>

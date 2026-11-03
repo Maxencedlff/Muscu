@@ -4,6 +4,7 @@ Décisions de Maxence (26/10/2026) :
 - 5e onglet « Amis » ;
 - réaction « Bravo » sans texte (31/10/2026 : cinq réactions, voir « Réactions et Mon profil ») ;
 - 13+ déclaré à Apple et case « J'ai 15 ans ou plus » à l'activation ;
+- tranche d'âge partagée par Apple (Declared Age Range, iOS 26, IOS.md « Tranche d'âge ») : tranche qui n'exclut pas moins de 15 ans, ou mineur avec « Limites de communication » → Amis masqué partout (`socialEnabled`, point unique : onglet, bilan, Historique › Séance, commentaires, Réglages ; nouvelles séances masquées), et `social_disable` appelé si Amis était activé ; moins de 15 ans → « Rejoindre un coach » masqué aussi ; « Limites de communication » → messages du coach coupés ; 15-17 ans → séances masquées par défaut ; refus ou indisponible → rien ne change (la tranche reste sur l'appareil, le serveur n'en sait rien) ;
 - pseudo obligatoire pour être trouvé ;
 - les abonnés voient tout l'historique, avec « Visible sur mon profil » par séance (éteint = masquée), mais jamais les notes, le poids du corps ni Santé (décision du 25/10) ;
 - avatar = emoji ou initiale.
@@ -147,6 +148,7 @@ Demande de Maxence (feuille de route « Plus tard » : commentaires libres), cho
 
 ### App
 - **Séance d'un ami** et **ma séance vue par mes abonnés** (`social-session`) : groupe « Commentaires (N) », du plus ancien au plus récent, « Afficher les commentaires précédents », saisie en bas (compteur à partir de 450 caractères, bouton rond grisé si vide ou trop long), menu ⋯ par commentaire : « Signaler » (puis proposer de bloquer l'auteur, sans quitter la séance) sur celui d'un autre, « Supprimer » sur le mien et sur ma séance (confirmation pour celui d'un autre).
+- **Réponses rapides** (03/11/2026, séance d'un ami seulement) : une rangée « Belle séance 💪 », « Régulier 🔥 », « Respect », « Lâche rien », précédée de « Gros record ! » quand la séance bat un record. Un toucher envoie un commentaire ordinaire par `add_comment` (aucun changement du serveur : mêmes mots interdits, limites, blocage) ; une réponse déjà laissée sur la séance n'est plus proposée. Liste dans `COMMENT_QUICK` (js/data/comments.js), vérifiée contre le filtre du serveur par `tests/sql/commentaires_test.sql`.
 - **Historique › Séance** (ma séance, Amis activé) : le même groupe ; séance masquée : lecture seule.
 - **Mon profil › Activité** : « lea a commenté ta séance Push : « … » », point bleu si nouveau ; toucher : ma séance dans l'Historique.
 - **Saisie** : brouillon gardé par séance ; un changement reçu pendant la frappe ne redessine que la liste (le clavier reste).

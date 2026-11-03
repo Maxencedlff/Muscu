@@ -110,15 +110,17 @@ function chatReset(userId) {
     loading: false, error: null, loadedAt: 0, convs: {} });
 }
 
-// Messagerie possible avec cette conversation : lien connu (coach_state) et serveur à jour
-function chatAvailable() { return !!account.user && chat.available !== false; }
+// Messagerie possible avec cette conversation : lien connu (coach_state) et serveur à jour, et pas de
+// contrôle parental « Limites de communication » partagé par Apple (js/data/age-range.js) : point unique
+// des cellules « Messages », de la conversation, des non-lus et des relectures
+function chatAvailable() { return !!account.user && chat.available !== false && !chatHiddenByAge(); }
 // Non-lus : total (badge de l'onglet), ou d'une conversation
 function chatUnreadTotal() {
-  if (!account.user || chat.available === false) return 0;
+  if (!chatAvailable()) return 0;
   return chat.threads ? chat.threads.unread : chat.cachedUnread;
 }
 function chatThreadOf(key) {
-  if (!chat.threads) return null;
+  if (!chat.threads || chatHiddenByAge()) return null;
   return key === CHAT_COACH ? chat.threads.coach : chat.threads.students[key] || null;
 }
 function chatUnreadOf(key) { return chatThreadOf(key)?.unread || 0; }
@@ -135,7 +137,7 @@ function chatAdvance(c, page) {
 
 // Résumés de mes conversations (non-lus, dernier message). Appelée après chaque coachRefresh.
 async function chatRefresh() {
-  if (!sb || !account.user || chat.loading) return false;
+  if (!sb || !account.user || chat.loading || chatHiddenByAge()) return false;
   const { isCoach, hasCoach } = coachRole();
   if (!isCoach && !hasCoach) {
     if (chat.threads?.unread || chat.cachedUnread) { chat.threads = cleanChatThreads({}); chat.cachedUnread = 0; writeChatCache(); notifyCoach(); }
@@ -163,6 +165,7 @@ async function chatRefresh() {
 
 // Première page (les plus récents) ou les plus anciens (more). Renvoie { ok } ou { ok: false, kind }.
 async function chatLoad(key, { more = false } = {}) {
+  if (chatHiddenByAge()) return { ok: false, kind: 'age_limited' };
   const c = chatConv(key);
   if (c.loading || (more && c.end)) return { ok: true };
   c.loading = true;
@@ -196,6 +199,7 @@ async function chatLoad(key, { more = false } = {}) {
 // serveur (curseur ; trois pages au plus d'un coup). Jamais chargée, ou vide : première page. Renvoie
 // { ok, added, theirs } (theirs : messages de l'autre arrivés, à marquer lus si la conversation est à l'écran).
 async function chatPoll(key) {
+  if (chatHiddenByAge()) return { ok: false, kind: 'age_limited' };
   const c = chatConv(key);
   if (c.loading) return { ok: true };
   if (!c.loadedAt || (!c.rows.length && !c.cursor)) {
@@ -232,6 +236,7 @@ async function chatPoll(key) {
 
 // Envoyer. Renvoie { ok, data: message } ou { ok: false, kind } (le brouillon reste à l'écran).
 async function chatSend(key, text) {
+  if (chatHiddenByAge()) return { ok: false, kind: 'age_limited' };
   const problem = chatProblem(text);
   if (problem) return { ok: false, kind: problem === 'empty' ? 'empty_message' : 'too_long' };
   const c = chatConv(key);

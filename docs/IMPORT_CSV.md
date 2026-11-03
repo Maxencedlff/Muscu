@@ -70,6 +70,39 @@ iPhone), [aimarchirico/gymruntohevy](https://github.com/aimarchirico/gymruntohev
 Aucune des deux apps ne publie de spécification officielle : les colonnes viennent de fichiers réels cités par ces
 sources. Une colonne absente est tolérée (valeur vide), une colonne inconnue est ignorée.
 
+### Mesures Hevy (Profil › Settings › Export & Import Data › Export Measurements)
+Fichier séparé de celui des séances (3 novembre 2026, `js/data/import-measures.js`, tests `tests/unit/import-measures.mjs`,
+jeu d'essai inventé `tests/donnees/hevy_mesures_exemple.csv`). Même bouton « Importer depuis une autre app » : le fichier
+est reconnu à son en-tête (colonne `date`, poids ou mensuration, pas de colonne `exercise_title`).
+
+```
+"date","weight_kg","fat_percent","neck_cm","shoulder_cm","chest_cm","left_bicep_cm","right_bicep_cm",…
+"23 Oct 2023, 00:00",64.5,12.3,,,,…
+```
+
+- **Une ligne par jour**, date `d MMM yyyy, HH:mm` (même lecture que les séances, mois dans la langue de l'app). Cellule
+  vide = pas de mesure ce jour-là.
+- **Unité dans le nom de la colonne** : `weight_kg` ou `weight_lbs`, `<partie>_cm` ou `<partie>_in` (sans suffixe : cm).
+  Converties en kg et en cm, au dixième.
+- **Correspondance** : `neck` → Cou, `shoulder` → Épaules, `chest` → Poitrine, `left_bicep` / `right_bicep` → Bras
+  gauche / droit, `waist` → Taille, `hips` → Hanches, `left_thigh` / `right_thigh` → Cuisse gauche / droite,
+  `left_calf` → Mollet (à défaut `right_calf` : l'app n'a qu'un mollet). **Ignorés et nommés dans l'aperçu** :
+  `fat_percent` (masse grasse), `lean_mass_*`, avant-bras, `abdomen`.
+- **Destination** : pesées dans `bodyWeightLog`, mensurations dans `bodyMeasures` (Progrès › Mesures), sur l'appareil
+  seulement (`SYNC_LOCAL_ONLY`). La pesée la plus récente du fichier devient le poids du corps si aucune pesée de l'app
+  n'est plus récente. Pesées partagées avec le coach si la case est cochée (comme une pesée saisie).
+- **Sans doublon** : un jour déjà noté dans l'app garde sa valeur ; réimporter n'ajoute rien. Deux lignes du même jour dans
+  le fichier : la plus tardive l'emporte, champ par champ. Bornes de la saisie (25 à 300 kg, 10 à 250 cm), dates futures
+  écartées, 400 valeurs par mesure au plus (les plus récentes). « Annuler » pendant 6 s, copie d'avant dans `ppl_v2_backup`.
+
+Sources : [200ok-ch/hevy_measurements_visualizer](https://github.com/200ok-ch/hevy_measurements_visualizer) (en-tête
+réel `"date","weight_kg","fat_percent","neck_cm","shoulder_cm","chest_cm",…`, lignes d'exemple, date « 23 Oct 2023, 00:00 »),
+[gymlog.info](https://gymlog.info/analyze/hevy-workout-data/) (export des mesures séparé, unités selon le réglage de l'app),
+[help.hevyapp.com](https://help.hevyapp.com/hc/en-us/articles/38001424401943) (chemin de l'export), outils de l'API Hevy
+(champs `leftBicepCm`, `leanMassKg`, `abdomen`…, [hevy-mcp](https://glama.ai/mcp/servers/chrisdoc/hevy-mcp)).
+**Non vérifié sur un vrai fichier** : les colonnes après `chest_cm` sont déduites des champs de l'API (`left_bicep_cm`…) ;
+le lecteur accepte les variantes (`biceps`, `shoulders`, `calf`, sans suffixe). À confirmer avec un export réel.
+
 ## Conversion vers la séance de l'app
 - Les séances arrivent dans un **programme créé** « Hevy » (`u_hevy`) ou « Strong » (`u_strong`), **une séance par nom
   de séance du fichier** (clé `s` + empreinte du nom, stable d'un import à l'autre, couleur par rang). Historique :

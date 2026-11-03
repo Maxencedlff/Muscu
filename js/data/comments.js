@@ -71,6 +71,18 @@ function cleanComment(r) {
 
 function commentKey(owner, id) { return `${owner}/${id}`; }
 
+// Réponses rapides sous la séance d'un ami : un toucher envoie un commentaire ordinaire (add_comment :
+// mêmes règles, mots interdits, limites et blocage que le texte tapé). « Gros record ! » seulement quand
+// la séance bat un record. Une réponse que j'ai déjà laissée sur cette séance n'est plus proposée.
+// Toute phrase ajoutée ici entre aussi dans tests/sql/commentaires_test.sql (acceptée par le filtre du
+// serveur ; tests/unit/comments.mjs le vérifie).
+const COMMENT_QUICK = ['Belle séance 💪', 'Régulier 🔥', 'Respect', 'Lâche rien'];
+const COMMENT_QUICK_RECORD = 'Gros record !';
+function quickComments(rows, { record = false } = {}) {
+  const said = new Set((rows || []).filter(c => c?.mine).map(c => commentClean(c.body)));
+  return [...(record ? [COMMENT_QUICK_RECORD] : []), ...COMMENT_QUICK].filter(t => !said.has(t));
+}
+
 // ── Fils ────────────────────────────────────────────────────
 
 function commentsOf(owner, id) {

@@ -16,7 +16,7 @@ const REFERRAL_WINDOW_MS = 30 * 86400_000;             // même règle que priva
 const REFERRAL_CODE_RE   = /^[A-Z0-9]{3,20}$/;         // forme stockée côté serveur
 const REFERRAL_NAME_MAX  = 40;
 
-const referral = { userId: null, state: null, loading: null, cachedName: null };
+const referral = { userId: null, state: null, loading: null, cached: null };
 let referralSeq = 0;   // +1 à chaque changement de compte : une réponse arrivée après n'écrit plus rien
 
 // ── Logique pure ────────────────────────────────────────────
@@ -32,9 +32,11 @@ function cleanReferrer(raw) {
   const name = raw && typeof raw === 'object' ? cleanReferrerName(raw.name) : '';
   if (!name) return null;
   const t = Date.parse(raw.since);
-  return { name, since: Number.isFinite(t) ? t : null };
+  // coach : le parrain est un coach (le serveur le dit, 20261101000000_parrainage_payant.sql). Un code de
+  // coach saisi ici parraine sans faire rejoindre ce coach : l'app propose de le rejoindre aussi
+  return { name, since: Number.isFinite(t) ? t : null, coach: raw.coach === true };
 }
-// referral_state() nettoyé : { referrer: { name, since } | null, canEnter, until (ms) | null }
+// referral_state() nettoyé : { referrer: { name, since, coach } | null, canEnter, until (ms) | null }
 function cleanReferralState(raw) {
   const r = raw && typeof raw === 'object' ? raw : {};
   const referrer = cleanReferrer(r.referrer);
@@ -72,13 +74,14 @@ function referralErrorText(kind) { return REFERRAL_ERROR_TEXT[kind] || REFERRAL_
 function readReferralCache(userId) {
   try {
     const c = JSON.parse(localStorage.getItem(REFERRAL_CACHE_KEY));
-    return c && c.userId === userId ? cleanReferrerName(c.name) || null : null;
+    const name = c && c.userId === userId ? cleanReferrerName(c.name) : '';
+    return name ? { name, coach: c.coach === true } : null;
   } catch { return null; }
 }
 function writeReferralCache() {
   try {
-    const name = referral.state?.referrer?.name;
-    if (name) localStorage.setItem(REFERRAL_CACHE_KEY, JSON.stringify({ userId: referral.userId, name }));
+    const r = referral.state?.referrer;
+    if (r?.name) localStorage.setItem(REFERRAL_CACHE_KEY, JSON.stringify({ userId: referral.userId, name: r.name, coach: r.coach }));
     else localStorage.removeItem(REFERRAL_CACHE_KEY);
   } catch { /* cache facultatif */ }
 }
@@ -87,19 +90,26 @@ function referralSync() {
   const id = account.user?.id || null;
   if (id === referral.userId) return;
   referralSeq++;
-  Object.assign(referral, { userId: id, state: null, loading: null, cachedName: id ? readReferralCache(id) : null });
+  Object.assign(referral, { userId: id, state: null, loading: null, cached: id ? readReferralCache(id) : null });
 }
 
-// Ce que l'écran montre : { referrer: nom | null, canEnter, until }. Sans réponse du serveur : le nom
+// Faut-il proposer de rejoindre le parrain comme coach ? Parrain coach, pas encore de coach, et pas de tranche
+// d'âge de moins de 15 ans partagée par Apple (js/data/age-range.js)
+function referralSuggestJoin(v = referralView()) {
+  return !!(v.referrer && v.referrerCoach && !coach.state?.coach) && !coachJoinHiddenByAge();
+}
+
+// Ce que l'écran montre : { referrer: nom | null, referrerCoach, canEnter, until }. Sans réponse du serveur : le nom
 // gardé sur l'appareil, et la saisie proposée si le compte a moins de 30 jours (le serveur tranche).
 function referralView() {
   referralSync();
-  if (!account.user) return { referrer: null, canEnter: false, until: null, known: false };
+  if (!account.user) return { referrer: null, referrerCoach: false, canEnter: false, until: null, known: false };
   const st = referral.state;
-  if (st) return { referrer: st.referrer?.name || null, canEnter: st.canEnter, until: st.until, known: true };
-  const name = referral.cachedName;
+  if (st) return { referrer: st.referrer?.name || null, referrerCoach: !!st.referrer?.coach, canEnter: st.canEnter, until: st.until, known: true };
+  const c = referral.cached;
   const t = Date.parse(account.user.created_at);
-  return { referrer: name, canEnter: !name && referralOpenFor(account.user), until: Number.isFinite(t) ? t + REFERRAL_WINDOW_MS : null, known: false };
+  return { referrer: c?.name || null, referrerCoach: !!c?.coach, canEnter: !c && referralOpenFor(account.user),
+           until: Number.isFinite(t) ? t + REFERRAL_WINDOW_MS : null, known: false };
 }
 
 async function referralRpc(fn, args) {
@@ -132,7 +142,7 @@ function referralLoad() {
   return referral.loading;
 }
 
-// Saisie d'un code → { ok: true, data: { name } } ou { ok: false, kind }
+// Saisie d'un code → { ok: true, data: { name, coach } } ou { ok: false, kind }. coach : le parrain est un coach
 async function referralApply(code) {
   referralSync();
   const c = normalizeReferralCode(code);
@@ -145,5 +155,5 @@ async function referralApply(code) {
   if (!referrer) return { ok: false, kind: 'server' };
   referral.state = { referrer, canEnter: false, until: referral.state?.until ?? null };
   writeReferralCache();
-  return { ok: true, data: { name: referrer.name } };
+  return { ok: true, data: { name: referrer.name, coach: referrer.coach } };
 }

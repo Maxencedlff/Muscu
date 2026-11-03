@@ -2,7 +2,7 @@
 
 Décisions de Maxence (26 et 27/10/2026) :
 - un coach suit des élèves ; il garde toutes les fonctions d'un utilisateur normal ;
-- élèves gratuits tant qu'ils sont suivis ; le coach paiera selon son nombre d'élèves, **mais pas en V1** : le rôle coach est donné à la main par l'administrateur (SQL), le temps de tester ;
+- **depuis le 30/10** (docs/PAYANT_V1.md, « Tarifs du 30/10 ») : plus d'élève gratuit (un élève a −25 % pendant 12 mois avec le code de son coach) ; le rôle coach est une **demande vérifiée à la main** (carte professionnelle d'éducateur sportif) ; le coach paie un **abonnement à paliers** (10, 20, 30 élèves, illimité), refus `tier_full` au-delà ; chaque coach a un **code permanent** de 12 caractères ;
 - pas de messagerie en V1 ; à la place, des **consignes** (sur un programme ou un exercice) et un **commentaire** du coach sur une séance (31/10/2026 : messages texte ajoutés, voir « Messages ») ;
 - **envoi de programmes** du coach vers l'élève ;
 - les élèves d'un même coach ne se voient pas entre eux ;
@@ -14,14 +14,24 @@ Hors V1 : paiement, push, plusieurs coachs pour un élève, groupes d'élèves (
 - **Écritures par fonction seulement** : RPC `security definer`, `set search_path = ''`, utilisateur pris dans `auth.uid()`. Aucune écriture directe sur les nouvelles tables, RLS activée, GRANT explicites (`anon` n'a rien, `authenticated` seulement EXECUTE sur les RPC).
 - **Erreurs** en snake_case : `not_coach`, `already_coached`, `invalid_code`, `team_full`, `not_found`, `rate_limited`, `too_long`, `invalid_programme` et `username_required` (ajoutés par le serveur, voir « Précisions du serveur »).
 - **Indépendant du social** : être coach ou élève ne demande pas d'avoir activé Amis, et ne rend visible dans aucune recherche. Un blocage social entre deux comptes n'empêche pas une relation coach (c'est l'élève qui l'a choisie avec un code) ; l'élève peut quitter à tout moment.
+- **Tranche d'âge partagée par Apple** (app iOS seulement, `js/data/age-range.js`) : moins de 15 ans possible → « Rejoindre un coach » masqué (Amis, Réglages › Coach, parrainage ; un coach déjà suivi reste) ; mineur avec « Limites de communication » → messages coupés côté app (`chatAvailable`, erreur `age_limited`). Le serveur n'en sait rien.
 - **Suppression du compte** : tout part en cascade avec `auth.users`.
 
 ## Données
 - `user_profiles.coach_at timestamptz` : non nul = coach. Écrit seulement par l'administrateur (aucune RPC ne le pose). La migration ne touche aucun compte : Maxence est déclaré coach par une commande SQL lancée à part.
 - `coach_invites (code text primary key, coach_id, created_at, expires_at)` : code d'invitation de 8 caractères lisibles (sans 0/O/1/I), valable 7 jours, au plus 5 codes actifs par coach.
-- `coach_links (coach_id, student_id unique, created_at)` : un élève a au plus UN coach. Au plus 50 élèves par coach (`team_full`).
+- `coach_links (coach_id, student_id unique, created_at)` : un élève a au plus UN coach. Limite d'élèves = palier de l'abonnement coach (`tier_full`, 20261030), au moins 50 verrou éteint ; `team_full` ne sort plus.
 - `coach_programmes (coach_id, student_id, id text, data jsonb, sent_at, seen_at)`, clé `(student_id, id)` : programmes envoyés. `data` = programme complet (voir plus bas), 200 Ko au plus.
 - `coach_notes (coach_id, student_id, session_id text, text, updated_at, seen_at)`, clé `(student_id, session_id)` : commentaire du coach sur une séance de l'élève, 1000 caractères au plus, `seen_at` pour le badge.
+
+## Accès gratuit des élèves (Payant V1, 28/10/2026) : RETIRÉ le 30/10, voir docs/PAYANT_V1.md
+Calculé par `private.access_coach_free(uid)` (migration `20261029000000_payant_modele_b.sql`), lu par `my_access()` (`status: 'coach_team'`, `coach_team: true`) et par le verrou des séances. Contrat complet : `docs/PAYANT_V1.md`, « Élèves de coach ».
+- **Le coach doit avoir encore le rôle** (`user_profiles.coach_at` non nul). Retirer le rôle à un coach retire l'accès gratuit de ses élèves au prochain calcul (avant le 28/10, ils restaient gratuits pour toujours : bogue corrigé).
+- **Au plus 10 élèves gratuits par coach**, dans l'ordre des liens (`coach_links.created_at`, les plus anciens d'abord). Au-delà, l'élève reste suivi (le coach voit ses séances, lui envoie des programmes et des commentaires) mais il lui faut son propre abonnement ou un code cadeau. Quand un ancien élève part, le suivant entre dans les 10.
+- Plafond propre à un coach : `private.coach_free_limits (coach_id, max_free)`, hors de l'API (absent : 10). Pour le relever :
+  `insert into private.coach_free_limits (coach_id, max_free) values ('<uuid>', 25) on conflict (coach_id) do update set max_free = excluded.max_free, updated_at = now();`
+- Le plafond de 50 élèves suivis (`team_full`) ne change pas : il borne le suivi, pas la gratuité.
+- Côté élève, Réglages › Abonnement dit : « Accès offert par ton coach tant qu'il te suit ».
 
 ## Ce que le coach voit d'un élève
 Ses séances complètes, notes de séance comprises, **sans** `healthSaved` ni le `bodyKg` de `sessions.data` : liste blanche `private.session_for_coach` = celle de `private.session_public` + `notes` + `hidden` + `id` (donc, depuis la migration 20261031100000_records_series.sql, les records notés, l'échauffement et le RIR de chaque série : voir docs/SOCIAL_V1.md). `bodyKg` n'apparaît que si l'élève partage son poids avec ce coach (voir « Partage avec le coach »). Les séances masquées aux abonnés restent visibles du coach (il est là pour ça), et l'écran d'acceptation le dit.

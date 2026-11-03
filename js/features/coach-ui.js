@@ -17,7 +17,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send', 'coach-share', 'coach-chat'];
+const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send', 'coach-share', 'coach-chat', 'coach-request'];
 const COACH_SEND_DRAFT_KEY = 'mdlf_coach_send_draft';   // brouillon de l'écran Envoyer (retour arrière, relance)
 const coachTipClosed = new Set();   // séance en cours : consignes repliées (identifiant d'exercice, '' : programme)
 const coachProgOpen = new Set();    // Mon coach : programmes reçus dont les exercices sont dépliés
@@ -59,7 +59,7 @@ function coachTitle(html) { return `<h2 class="group-title coach-title">${html}<
 function coachRouteTitle(route) {
   const name = routeName(route);
   if (name === 'coach-student') return coachStudent(routeParams(route)[0])?.username || 'Élève';
-  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-share': 'Partager', 'coach-chat': 'Messages' }[name] || null;
+  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-share': 'Partager', 'coach-chat': 'Messages', 'coach-request': 'Devenir coach' }[name] || null;
 }
 
 // ── Cellules : Réglages et onglet Amis ──────────────────────
@@ -119,14 +119,14 @@ function coachCellHtml({ place = 'top', friends = null } = {}) {
         ${badge ? `<span class="coach-count num" aria-hidden="true">${badge > 99 ? '99+' : badge}</span>` : ''}
         ${icon('chevron.right', 16)}
       </button>`);
-  } else if (!isCoach) {
+  } else if (!isCoach && !coachJoinHiddenByAge()) {   // moins de 15 ans possible (js/data/age-range.js) : rien
     rows.push(`<button class="cell cell--nav coach-cell coach-cell--join" data-action="coach-join-start">
         <span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span>
         <span class="cell__body"><span class="cell__title">Rejoindre un coach</span><span class="cell__sub">Tu as un code de ton coach ?</span></span>
         ${icon('chevron.right', 16)}
       </button>`);
   }
-  return `<div class="group coach-head">${rows.join('')}</div>`;
+  return rows.length ? `<div class="group coach-head">${rows.join('')}</div>` : '';
 }
 function refreshCoachCell() {
   const st = typeof friendsState === 'function' ? friendsState() : null;
@@ -172,7 +172,7 @@ function renderCoachSettings() {
         <div class="group">
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
         </div>
-        <div class="group-foot">Si tu le quittes, ton coach ne verra plus tes séances. Les programmes déjà ajoutés restent dans tes programmes.</div>` : `
+        <div class="group-foot">Si tu le quittes, ton coach ne verra plus tes séances. Les programmes déjà ajoutés restent dans tes programmes.</div>` : coachJoinHiddenByAge() ? coachJoinAgeHtml() : `
         <div class="social-hero coach-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
@@ -191,9 +191,12 @@ function renderCoachSettings() {
             ${icon('chevron.right', 16)}
           </button>
         </div>` : '';
-  return `<div class="view view--grouped coach-view">${head}<div class="scr">${stale}${students}${mine}</div></div>`;
+  // Rôle coach (js/features/coach-pro-ui.js) : code permanent et palier sous Mes élèves, ou la demande
+  // « Devenir coach » en bas pour qui n'est pas coach
+  const pro = renderCoachProGroup();
+  return `<div class="view view--grouped coach-view">${head}<div class="scr">${stale}${isCoach ? students + pro + mine : mine + pro}</div></div>`;
 }
-SCREENS.set('coach', { render: () => renderCoachSettings(), enter: () => { coachRefresh(); } });
+SCREENS.set('coach', { render: () => renderCoachSettings(), enter: () => { coachRefresh(); coachProRefresh(); } });
 
 // ── Rejoindre : code, aperçu, âge, accepter ─────────────────
 
@@ -205,15 +208,15 @@ function coachCodeSheet() {
     body: `<div class="coach-sheet">
         <label class="coach-sheet__label" for="coachCode">Code reçu de ton coach</label>
         <input class="coach-code-input" id="coachCode" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off"
-               spellcheck="false" enterkeyhint="go" placeholder="Ex : K7M2QX9P" aria-describedby="coachCodeHelp">
-        <p class="coach-sheet__hint" id="coachCodeHelp" aria-live="polite">8 lettres et chiffres. Tu peux coller tout le message d'invitation.</p>
+               spellcheck="false" enterkeyhint="go" placeholder="Ex : K7M2-QX9P-R4TD" aria-describedby="coachCodeHelp">
+        <p class="coach-sheet__hint" id="coachCodeHelp" aria-live="polite">8 ou 12 lettres et chiffres. Tu peux coller tout le message d'invitation.</p>
       </div>`,
     onConfirm: async panel => {
       const input = panel.querySelector('#coachCode'), help = panel.querySelector('#coachCodeHelp');
       const btn = panel.querySelector('.sheet__btn--confirm');
       const fail = msg => { help.textContent = msg; help.classList.add('coach-sheet__hint--bad'); input.setAttribute('aria-invalid', 'true'); haptic('medium'); return false; };
       const code = extractCoachCode(input.value);
-      if (!code) return fail('Code introuvable : il fait 8 lettres et chiffres, comme K7M2QX9P.');
+      if (!code) return fail('Code introuvable : il fait 8 ou 12 lettres et chiffres, comme K7M2-QX9P-R4TD.');
       btn.disabled = true; btn.textContent = 'Vérification…';
       let r = await coachPreview(code);
       if (!r.ok && r.kind === 'username_required') {
@@ -227,9 +230,21 @@ function coachCodeSheet() {
   });
 }
 
+// Rejoindre un coach masqué par la tranche d'âge partagée par Apple (moins de 15 ans possible,
+// js/data/age-range.js) : la règle des 15 ans (privacy.html), dite sans bouton
+function coachJoinAgeHtml() {
+  return `
+        <div class="social-hero coach-hero">
+          <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
+          <h2 class="social-hero__title">Coach indisponible</h2>
+          <p class="social-hero__sub">Suivre un coach est réservé aux 15 ans et plus, d'après la tranche d'âge partagée avec Apple. Le reste de l'app fonctionne normalement.</p>
+        </div>`;
+}
+
 // Parcours commun : onglet Amis, Réglages › Coach
 async function coachJoinFlow() {
   if (!account.user) { navigate('coach'); return; }
+  if (coachJoinHiddenByAge()) { navigate('coach'); return; }   // l'écran dit pourquoi
   if (!(await coachEnsureUsername())) return;
   let res = await coachCodeSheet();
   if (!res) return;
@@ -248,6 +263,7 @@ async function coachJoinFlow() {
 function renderCoachJoin(code) {
   const pv = coach.preview?.code === code ? coach.preview.person : null;
   const head = navBar({ title: 'Rejoindre', large: false });
+  if (coachJoinHiddenByAge()) return `<div class="view view--grouped coach-join-view">${head}<div class="scr">${coachJoinAgeHtml()}</div></div>`;
   if (!pv) return `<div class="view view--grouped coach-join-view">${head}<div class="scr"><div class="empty-note">Saisis de nouveau le code dans l'onglet Amis.</div></div></div>`;
   const name = esc(personName(pv));
   const list = items => `<div class="group">${items.map(([t, d]) => `
@@ -285,12 +301,17 @@ SCREENS.set('coach-join', { render: code => renderCoachJoin(code) });
 
 // ── Élève : Mon coach ───────────────────────────────────────
 
+// Exercice filmé par un coach partenaire : ouvre sa fiche, où la vidéo est lue (js/ui/exercise-video.js)
+function coachExVideoBtn(name) {
+  return `<button class="coach-prog__video" data-action="open-library-ex" data-name="${esc(name)}" aria-label="Voir la vidéo : ${esc(name)}">${icon('play', 11)}<span>Vidéo</span></button>`;
+}
+
 // Aperçu des exercices d'un programme reçu (avant de l'ajouter)
 function coachProgPreviewHtml(item) {
   return `<div class="coach-prog__preview">${item.data.sessions.map(s => `
           <div class="coach-prog__sess">
             <div class="coach-prog__sess-name"><span class="hcell__dot" style="background:${esc(s.color)}" aria-hidden="true"></span>${esc(s.label)}</div>
-            <ul class="coach-prog__ex">${s.exercises.map(e => `<li><span class="coach-prog__ex-name">${esc(e.name)}</span> <span class="num">· ${plural(e.sets, 'série', 'séries')}</span>${e.consigne ? `<span class="coach-prog__ex-tip">${esc(e.consigne)}</span>` : ''}</li>`).join('') || '<li>Aucun exercice</li>'}</ul>
+            <ul class="coach-prog__ex">${s.exercises.map(e => `<li><span class="coach-prog__ex-name">${esc(e.name)}</span> <span class="num">· ${plural(e.sets, 'série', 'séries')}</span>${exerciseVideo(e.name) ? coachExVideoBtn(e.name) : ''}${e.consigne ? `<span class="coach-prog__ex-tip">${esc(e.consigne)}</span>` : ''}</li>`).join('') || '<li>Aucun exercice</li>'}</ul>
           </div>`).join('')}</div>`;
 }
 
@@ -582,6 +603,7 @@ function renderCoachStudents() {
       ${head}
       <div class="scr">
         ${coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : liste pas à jour.' : coachErrorText(coach.error))}</p>` : ''}
+        ${coachTierBannerHtml()}
         <div class="group-title">Élèves${st.students.length ? ` (${st.students.length})` : ''}</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub social-empty">Aucun élève pour l\'instant</span></div>'}</div>
         <div class="group-foot">Tes élèves ne se voient pas entre eux.</div>
@@ -590,12 +612,12 @@ function renderCoachStudents() {
           ${invites}
           <button class="cell cell--action" data-action="coach-invite" ${coachInviteBusy ? 'disabled' : ''}>${icon('plus', 20)}<span>Inviter un élève</span></button>
         </div>
-        <div class="group-foot">Chaque code est valable 7 jours et sert à plusieurs élèves. L'élève le saisit dans l'onglet Amis › Rejoindre un coach.</div>
+        <div class="group-foot">Ces codes sont valables 7 jours et servent à plusieurs élèves. Ton code coach, dans Réglages › Coach, n'expire pas. L'élève le saisit dans l'onglet Amis › Rejoindre un coach.</div>
         ${removed}
       </div>
     </div>`;
 }
-SCREENS.set('coach-students', { render: () => renderCoachStudents(), enter: () => { coachRefresh(); } });
+SCREENS.set('coach-students', { render: () => renderCoachStudents(), enter: () => { coachRefresh(); coachProRefresh({ minAge: 30_000 }); } });
 
 // ── Coach : un élève et ses séances ─────────────────────────
 
@@ -921,7 +943,7 @@ registerActions({
   'coach-join-start': async () => { await coachJoinFlow(); },
   'coach-age': () => { socialAgeOk = !socialAgeOk; haptic(); render(); },
   'coach-accept': async (e, el) => {
-    if (!socialAgeOk) return;
+    if (!socialAgeOk || coachJoinHiddenByAge()) return;
     el.disabled = true;
     const name = personName(coach.preview?.person);
     const r = await coachJoin(el.dataset.code);

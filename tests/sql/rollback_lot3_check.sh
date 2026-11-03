@@ -31,7 +31,7 @@ dump() {
 base() {
   psql -f "$here/supabase_stub.sql"
   for m in "$root"/supabase/migrations/*.sql; do
-    case "$(basename "$m" .sql)" in 2026103*) ;; *) psql -f "$m" ;; esac
+    case "$(basename "$m" .sql)" in 2026103*|202611*) ;; *) psql -f "$m" ;; esac
   done
 }
 up() { psql -f "$root/supabase/migrations/$1.sql"; }

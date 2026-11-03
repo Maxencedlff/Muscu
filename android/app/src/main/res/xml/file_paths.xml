@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fichiers que l'app peut confier à une autre app (feuille de partage) : seulement son cache, où
+     Native.shareImage écrit l'image de la séance. Le stockage partagé du téléphone n'est pas exposé. -->
+<paths>
+    <cache-path name="my_cache_images" path="." />
+</paths>

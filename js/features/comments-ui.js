@@ -8,6 +8,7 @@
 //  serveur passe par esc() ; retours à la ligne gardés par le CSS (white-space: pre-wrap), jamais en HTML.
 //  Saisie : le brouillon est gardé par séance pendant la frappe (sans redessiner) ; un changement reçu
 //  pendant que le champ a le focus ne redessine que la liste (refreshCommentsList), le clavier reste.
+//  Réponses rapides (séance d'un ami) : « Belle séance 💪 »… envoyées en un toucher comme un commentaire tapé.
 //  iOS : rien au pointerdown, un seul toucher sur chaque bouton.
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -53,12 +54,24 @@ function commentCountHtml(text) {
   return n >= COMMENT_WARN ? `${n} / ${COMMENT_MAX}` : '';
 }
 
+// Réponses rapides (séance d'un ami) : une rangée de boutons, un toucher = un commentaire envoyé.
+// Proposées une fois le fil lu (pour retirer celles que j'ai déjà laissées) ; vide sinon.
+function commentQuickHtml(owner, id, record) {
+  const t = commentsOf(owner, id);
+  const list = t.loadedAt ? quickComments(t.rows, { record }) : [];
+  return list.map(text => `<button class="comment-quick__btn" data-action="comment-quick" data-owner="${esc(owner)}" data-id="${esc(id)}"
+            data-text="${esc(text)}" aria-label="${esc(`Envoyer : ${text}`)}" ${comments.busy ? 'disabled' : ''}>${esc(text)}</button>`).join('');
+}
+
 // Groupe complet : titre, liste, saisie (writable : séance visible, où l'on peut encore écrire)
-function commentsGroupHtml(owner, id, { writable = true } = {}) {
+// quick : réponses rapides proposées (séance d'un ami) ; record : la séance bat un record
+function commentsGroupHtml(owner, id, { writable = true, quick = false, record = false } = {}) {
   const key = commentKey(owner, id), draft = commentDrafts[key] || '';
   const n = commentsShown(owner, id).length, t = commentsOf(owner, id);
   const busy = comments.busy;
-  const composer = writable ? `
+  const quickRow = writable && quick ? `
+        <div class="comment-quick" id="commentQuick" role="group" aria-label="Réponses rapides" data-record="${record ? '1' : ''}">${commentQuickHtml(owner, id, record)}</div>` : '';
+  const composer = writable ? `${quickRow}
         <div class="comment-compose">
           <textarea id="commentInput" class="comment-compose__input" data-owner="${esc(owner)}" data-id="${esc(id)}" rows="1"
             aria-label="Ajouter un commentaire" placeholder="Ajouter un commentaire…" autocomplete="off" autocapitalize="sentences" aria-describedby="commentCount">${esc(draft)}</textarea>
@@ -79,6 +92,8 @@ function refreshCommentsList() {
   const box = $('#commentsList'), input = $('#commentInput');
   if (!box || !input) return false;
   box.innerHTML = commentsListHtml(input.dataset.owner, input.dataset.id);
+  const quick = $('#commentQuick');
+  if (quick) quick.innerHTML = commentQuickHtml(input.dataset.owner, input.dataset.id, quick.dataset.record === '1');
   const send = $('.comment-compose__send');
   if (send) send.disabled = comments.busy || !!commentProblem(input.value);
   return true;
@@ -122,6 +137,20 @@ async function sendComment(owner, id) {
   $('#commentsList .comment:last-child')?.scrollIntoView({ block: 'nearest', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
 }
 
+// Réponse rapide : envoyée telle quelle par le même chemin qu'un commentaire tapé (commentsAdd), sans
+// toucher au brouillon du champ. Le fil redessiné retire la réponse envoyée de la rangée.
+async function sendQuickComment(owner, id, text) {
+  if (!quickComments([], { record: true }).includes(text)) return;
+  const r = await commentsAdd(owner, id, text);
+  if (!r.ok) {
+    if (r.kind !== 'busy') showToast(socialErrorText(r.kind), { error: true });
+    return;
+  }
+  haptic();
+  announce('Commentaire envoyé');
+  if (!refreshCommentsList()) render();
+}
+
 // Menu ⋯ d'un commentaire : Supprimer, Signaler
 async function commentMenu(owner, id, cid) {
   const c = commentsOf(owner, id).rows.find(x => x.id === cid);
@@ -157,6 +186,7 @@ async function commentMenu(owner, id, cid) {
 
 registerActions({
   'comment-send': (e, el) => { sendComment(el.dataset.owner, el.dataset.id); },
+  'comment-quick': (e, el) => { sendQuickComment(el.dataset.owner, el.dataset.id, el.dataset.text); },
   'comment-menu': (e, el) => { commentMenu(el.dataset.owner, el.dataset.id, Number(el.dataset.cid)); },
   'comments-more': (e, el) => { commentsLoad(el.dataset.owner, el.dataset.id, { more: true }); },
   'comments-retry': (e, el) => { commentsLoad(el.dataset.owner, el.dataset.id); },

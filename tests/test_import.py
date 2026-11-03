@@ -208,4 +208,106 @@ def t_merge_existing(bench):
         R.check(not page.errors, f'fusion : aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_hevy, t_strong], once=[t_merge_existing])
+def t_mesures_hevy(bench, eng, dev, theme):
+    """Mesures Hevy (Export Measurements) : même bouton, aperçu propre, import dans les pesées et Progrès › Mesures,
+    jour déjà noté gardé, Annuler, réimport sans doublon."""
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, None)
+        skip_questions(page)
+        t = tag(dev, theme)
+        page.evaluate("""() => { const d = new Date(2026, 0, 19, 9).getTime();
+            data.bodyWeightLog = [{ date: d, kg: 75 }]; data.bodyMeasures = { waist: [{ date: d, cm: 90 }] }; save(); render(); }""")
+        open_import(page, csv_file('hevy_mesures_exemple.csv'))
+        R.check(page.locator('.sheet__title').inner_text() == 'Mesures Hevy', f'{t} mesures : titre')
+        lead = page.locator('#impSheet .imp__lead').inner_text()
+        R.check(lead == '4 jours de mesures du 5 janv. au 1 mars 2026.', f'{t} mesures : « {lead} »')
+        rw = rows(page)
+        R.check(rw == {'Pesées à ajouter': '3', 'Mensurations à ajouter': '30', 'Déjà notées ce jour-là': '2', 'Valeurs ou lignes ignorées': '2'}, f'{t} mesures : aperçu {rw}')
+        foot = page.locator('#impSheet').inner_text()
+        R.check("Pas suivis dans l'app : masse grasse, avant-bras, abdomen." in foot and 'jamais sur nos serveurs' in foot, f'{t} mesures : colonnes ignorées nommées')
+        small = page.evaluate("""[...document.querySelectorAll('.sheet-root button')].filter(b => { const r = b.getBoundingClientRect(); return r.width && r.height && (r.height < 44 || r.width < 44); }).map(b => b.className)""")
+        R.check(not small, f'{t} mesures : boutons < 44 px {small}')
+        R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} mesures : pas de défilement horizontal')
+        page.click('.sheet__btn--confirm')
+        txt = toast_text(page)
+        R.check(txt.startswith('Import réussi : 3 pesées, 30 mensurations') and 'Annuler' in txt, f'{t} mesures : toast « {txt} »')
+        d = json.loads(ls(page, 'ppl_v2'))
+        R.check([p['kg'] for p in d['bodyWeightLog']] == [73.1, 73.9, 75, 74.2] and d['bodyWeightKg'] == 73.1, f'{t} mesures : pesées {d.get("bodyWeightLog")}')
+        R.check([p['cm'] for p in d['bodyMeasures']['waist']] == [82, 83, 90, 84] and len(d['bodyMeasures']) == 10, f'{t} mesures : mensurations {list(d["bodyMeasures"])}')
+        R.check(d['history'] == [], f'{t} mesures : aucune séance créée')
+        # Progrès › Mesures : valeurs importées affichées
+        page.wait_for_timeout(300)
+        page.evaluate("navigate('body-measures')")
+        page.wait_for_selector('.view.body-measures')
+        cell = page.locator('[data-action="open-body-measure"][data-key="waist"]').inner_text()
+        R.check('82' in cell and '1 mars' in cell, f'{t} mesures : Taille dans Progrès « {cell} »')
+        # Réimport : rien de plus
+        page.evaluate("navigate('backup')")
+        page.wait_for_selector('[data-action="import-other-app"]')
+        with page.expect_file_chooser() as fc:
+            page.click('[data-action="import-other-app"]')
+        fc.value.set_files(files=[csv_file('hevy_mesures_exemple.csv')])
+        page.wait_for_selector('.sheet-root:not(.sheet-root--out) .imp', timeout=5000)
+        page.wait_for_timeout(400)
+        rw = rows(page)
+        R.check(rw.get('Pesées à ajouter') == '0' and rw.get('Mensurations à ajouter') == '0' and rw.get('Déjà notées ce jour-là') == '35', f'{t} réimport mesures : {rw}')
+        page.click('.sheet__btn--confirm')
+        txt = toast_text(page)
+        R.check(txt.startswith('Rien à importer : ces mesures sont déjà notées'), f'{t} réimport mesures : « {txt} »')
+        R.check(len(json.loads(ls(page, 'ppl_v2'))['bodyWeightLog']) == 4, f'{t} réimport mesures : toujours 4 pesées')
+        R.check(not page.errors, f'{t} mesures : aucune erreur JS {page.errors}')
+
+
+def t_mesures_annuler(bench):
+    """Mesures Hevy : « Annuler » remet la donnée d'avant."""
+    with bench.page('chromium', 'Pixel 7', 'light') as page:
+        seed(page, 'light', None)
+        skip_questions(page)
+        open_import(page, csv_file('hevy_mesures_exemple.csv'))
+        page.click('.sheet__btn--confirm')
+        page.wait_for_selector('.toast__action', timeout=3000)
+        page.locator('.toast__action').first.click()
+        page.wait_for_timeout(400)
+        d = json.loads(ls(page, 'ppl_v2'))
+        R.check(not d.get('bodyWeightLog') and not d.get('bodyMeasures'), f'mesures : Annuler remet la donnée d\'avant {list(d.get("bodyMeasures") or {})}')
+        R.check(not page.errors, f'mesures annuler : aucune erreur JS {page.errors}')
+
+
+def t_capture_mesures(bench):
+    """Captures iPhone 15 Pro, clair et sombre : aperçu de l'import des mesures Hevy."""
+    for theme in ('light', 'dark'):
+        with bench.page('webkit', 'iPhone 15 Pro', theme) as page:
+            seed(page, theme, None)
+            skip_questions(page)
+            open_import(page, csv_file('hevy_mesures_exemple.csv'))
+            shot(page, LOT, f'apercu-mesures-iPhone_15_Pro-{theme}')
+            R.check(not page.errors, f'iPhone 15 Pro {theme} : aucune erreur JS {page.errors}')
+
+
+def t_mesures_limite(bench):
+    """Mesures Hevy : journal presque plein (400 par mesure), les valeurs déjà notées restent toutes, l'aperçu
+    nomme celles du fichier qui n'entrent pas ; captures iPhone 15 Pro clair et sombre."""
+    for theme in ('light', 'dark'):
+        with bench.page('webkit', 'iPhone 15 Pro', theme) as page:
+            seed(page, theme, None)
+            skip_questions(page)
+            # 398 tailles notées en 2019-2020 : 2 places libres pour les 4 tailles (plus récentes) du fichier
+            page.evaluate("""() => { const s = new Date(2019, 0, 1, 12).getTime();
+                data.bodyMeasures = { waist: Array.from({ length: 398 }, (_, i) => ({ date: s + i * 86400000, cm: 90 })) }; save(); render(); }""")
+            open_import(page, csv_file('hevy_mesures_exemple.csv'))
+            rw = rows(page)
+            R.check(rw.get('Mensurations à ajouter') == '29' and rw.get('Pesées à ajouter') == '4', f'{theme} limite : aperçu {rw}')
+            foot = page.locator('#impSheet').inner_text()
+            R.check('2 mesures anciennes non importées : limite de 400 par mesure' in foot, f'{theme} limite : non importées nommées « {foot} »')
+            R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{theme} limite : pas de défilement horizontal')
+            shot(page, LOT, f'apercu-mesures-limite-iPhone_15_Pro-{theme}')
+            page.click('.sheet__btn--confirm')
+            page.wait_for_selector('.toast', timeout=3000)
+            d = json.loads(ls(page, 'ppl_v2'))
+            waist = d['bodyMeasures']['waist']
+            R.check(len(waist) == 400 and sum(1 for p in waist if p['cm'] == 90) == 398, f'{theme} limite : les 398 tailles notées restent ({len(waist)})')
+            R.check([p['cm'] for p in waist[:2]] == [82, 83], f'{theme} limite : les 2 plus récentes du fichier {waist[:2]}')
+            R.check(not page.errors, f'{theme} limite : aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_hevy, t_strong, t_mesures_hevy], once=[t_merge_existing, t_mesures_annuler, t_mesures_limite, t_capture_mesures])

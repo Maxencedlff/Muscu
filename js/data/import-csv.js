@@ -555,6 +555,11 @@ const withSetMeta = (out, s) => {
 
 // Programme créé pour les séances importées : un par app d'origine, ses séances = les noms de séance du fichier
 const IMPORT_PROGRAMME = { hevy: { id: 'u_hevy', name: 'Hevy' }, strong: { id: 'u_strong', name: 'Strong' } };
+// Séance venue d'un import (Hevy, Strong) : date = DÉBUT lu dans le fichier (dans l'app, date = fin de séance)
+// et durée lue dans le fichier, pas mesurée par l'app. Jamais envoyée à Strava (js/data/strava.js).
+function isImportedEntry(h) {
+  return !!h && Object.values(IMPORT_PROGRAMME).some(p => p.id === h.programme);
+}
 const IMPORT_COLORS = ['#FF9F0A', '#40C8E0', '#30D158', '#BF5AF2', '#FFD60A', '#5E5CE6', '#FF453A'];
 const importSessionKey = title => 's' + syncHash(normName(title));
 
