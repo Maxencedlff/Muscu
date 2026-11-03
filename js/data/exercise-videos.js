@@ -31,7 +31,9 @@ function videoFileUrl(base, file, re) {
 function cleanVideoManifest(raw) {
   const out = new Map();
   if (!raw || typeof raw !== 'object' || raw.version !== 1 || !raw.videos || typeof raw.videos !== 'object') return out;
-  const base = typeof raw.base === 'string' && /^(https:\/\/[^/\s"'<>]+\/[^\s"'<>]*)?$/i.test(raw.base) ? raw.base : '';
+  // Base fournie mais invalide (ex. http://) : tout le manifeste est refusé plutôt que des adresses locales muettes
+  if (raw.base !== undefined && (typeof raw.base !== 'string' || !/^(https:\/\/[^/\s"'<>]+\/[^\s"'<>]*)?$/i.test(raw.base))) return out;
+  const base = raw.base || '';
   for (const [key, v] of Object.entries(raw.videos)) {
     const name = catalogueEntry(key)?.name;
     if (!name || !v || typeof v !== 'object' || out.has(name)) continue;
@@ -39,7 +41,7 @@ function cleanVideoManifest(raw) {
     const poster = videoFileUrl(base, v.poster, POSTER_FILE_RE);
     const coach = typeof v.coach === 'string' ? v.coach.replace(/^@/, '') : '';
     const duration = Number(v.duration);
-    if (!src || !poster || !VIDEO_COACH_RE.test(coach) || !(duration >= 1 && duration <= 300)) continue;
+    if (!src || !poster || !VIDEO_COACH_RE.test(coach) || !(duration >= 1 && duration <= 60)) continue;
     const w = Number(v.width), h = Number(v.height);
     const sized = Number.isInteger(w) && Number.isInteger(h) && w >= 100 && h >= 100 && w <= 4000 && h <= 4000;
     out.set(name, { src, poster, duration: Math.round(duration), coach, width: sized ? w : 1280, height: sized ? h : 720 });

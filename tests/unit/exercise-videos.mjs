@@ -34,8 +34,11 @@ export default function ({ test, run, assert, ROOT }) {
     assert.equal(clean({ version: 1, videos: { 'Mon exercice inventé': entry() } }).length, 0, 'exercice hors bibliothèque');
     // Une entrée invalide n'emporte pas les autres
     assert.equal(clean({ version: 1, videos: { 'Squat barre': entry({ coach: '' }), 'Pull-ups': entry() } }).length, 1);
-    // Base http ou douteuse : ignorée (les chemins restent relatifs à l'app)
-    assert.equal(clean({ version: 1, base: 'http://exemple.com/', videos: { 'Squat barre': entry() } })[0][1].src, 'squat.mp4');
+    // Base http ou douteuse : tout le manifeste est refusé (jamais d'adresses locales muettes)
+    assert.equal(clean({ version: 1, base: 'http://exemple.com/', videos: { 'Squat barre': entry() } }).length, 0);
+    assert.equal(clean({ version: 1, base: 42, videos: { 'Squat barre': entry() } }).length, 0);
+    // Durée : 60 s au plus, comme scripts/prepare-exercise-video.py
+    assert.equal(clean({ version: 1, base: BASE, videos: { 'Squat barre': entry({ duration: 61 }) } }).length, 0);
     // Taille absente ou absurde : 16/9 par défaut
     const [, v] = clean({ version: 1, videos: { 'Squat barre': entry({ width: 'x', height: 99999 }) } })[0];
     assert.equal(`${v.width}x${v.height}`, '1280x720');
