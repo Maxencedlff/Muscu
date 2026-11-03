@@ -433,6 +433,18 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 /* Bibliothèque : pastilles de matériel sous la recherche */
 .lib__equip { margin: 10px 0 0; }
 
+/* Filtre par muscle (js/features/muscles.js, muscleFilterHtml) : groupes puis muscles du groupe choisi,
+   chaque ligne défile de côté pour garder la hauteur de la liste. Feuille d'ajout : même marge que le matériel. */
+.mf { display: flex; flex-direction: column; gap: 6px; margin: 8px 16px 0; }
+.mf__row {
+  display: flex; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  margin: 0 -16px; padding: 0 16px; scroll-padding-inline: 16px;
+}
+.mf__row::-webkit-scrollbar { display: none; }
+.mf__row .ax__chip { flex-shrink: 0; white-space: nowrap; }
+.mf__row--sub .ax__chip:not([aria-pressed="true"]) { background: transparent; box-shadow: inset 0 0 0 1px var(--sep); }
+.hist-tools .mf { margin: 0; }
+
 /* Chrono d'effort (js/features/effort.js) : ▶ à la place du numéro de la série en cours */
 .set-play {
   width: 32px; height: 32px; justify-self: center; border: 0; border-radius: 50%; cursor: pointer;

@@ -751,7 +751,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     // Recherche de la feuille d'ajout : « obliques » et « flancs » trouvent les rotations russes, « abdos » aussi
     for (const q of ['obliques', 'flancs', 'abdos']) assert.ok(app.exerciseMatches('Rotations russes', q), q);
     assert.ok(!app.exerciseMatches('Crunch', 'obliques'));
-    assert.ok(fs.readFileSync(path.join(ROOT, 'js/features/library.js'), 'utf8').includes("['Abdominaux', ['abs', 'obliques']]"), 'bibliothèque : même groupe « Abdominaux »');
+    sameJSON(run("MUSCLE_GROUP_BY_ID.get('abdominaux').muscles"), ['abs', 'obliques'], 'bibliothèque et filtre : même groupe « Abdominaux »');
   });
 
   test('obliques : règles des noms libres (rotations, flexions latérales, gainage sur le côté, anti-rotation)', () => {
@@ -842,6 +842,40 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     const html = app.bodyMapHtml({ obliques: 1 }, { view: 'front' });
     assert.ok(html.includes('data-muscle="obliques"') && !html.includes('data-muscle="abs"'), 'les obliques seuls colorent leur calque');
     assert.ok(fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8').includes("'/img/body/female/front/obliques.webp'"));
+  });
+
+  test('filtre par muscle : chaque muscle dans un seul groupe, logique des pastilles', () => {
+    const all = run('MUSCLE_GROUPS.flatMap(g => g.muscles)');
+    sameJSON(all.slice().sort(), ids().slice().sort());
+    assert.equal(new Set(all).size, all.length, 'muscle dans deux groupes');
+    run('MUSCLE_GROUPS').forEach(g => assert.ok(g.muscles.length === 1 || g.all, `${g.id} : libellé « Tout » manquant`));
+    const none = run('NO_MUSCLE_FILTER');
+    assert.equal(app.muscleFilterTargets(none), null);
+    sameJSON(app.muscleFilterTargets({ group: 'bras', muscle: null }), ['biceps', 'brachialis', 'triceps', 'forearms']);
+    sameJSON(app.muscleFilterTargets({ group: 'bras', muscle: 'biceps' }), ['biceps']);
+    sameJSON(app.muscleFilterTargets({ group: 'bras', muscle: 'quads' }), ['biceps', 'brachialis', 'triceps', 'forearms'], 'muscle hors du groupe ignoré');
+    // Muscles principaux seulement : les tractions ne sortent pas sous « Biceps », un curl oui
+    assert.ok(app.muscleFilterMatch({ primary: ['biceps'], secondary: [] }, { group: 'bras', muscle: 'biceps' }));
+    assert.ok(!app.muscleFilterMatch({ primary: ['lats'], secondary: ['biceps'] }, { group: 'bras', muscle: 'biceps' }));
+    assert.ok(!app.muscleFilterMatch({ primary: [], secondary: [] }, { group: 'dos', muscle: null }), 'muscles inconnus : caché quand on filtre');
+    assert.ok(app.muscleFilterMatch({ primary: [], secondary: [] }, none), 'sans filtre : tout passe');
+    // Pastilles : re-toucher le groupe le désélectionne, un muscle se choisit, « Tout » revient au groupe
+    sameJSON(app.muscleFilterNext(none, 'dos'), { group: 'dos', muscle: null });
+    sameJSON(app.muscleFilterNext({ group: 'dos', muscle: null }, 'dos'), none);
+    sameJSON(app.muscleFilterNext({ group: 'dos', muscle: null }, 'dos', 'lats'), { group: 'dos', muscle: 'lats' });
+    sameJSON(app.muscleFilterNext({ group: 'dos', muscle: 'lats' }, 'dos'), { group: 'dos', muscle: null });
+    sameJSON(app.muscleFilterNext({ group: 'dos', muscle: 'lats' }, 'dos', ''), { group: 'dos', muscle: null });
+    sameJSON(app.muscleFilterNext({ group: 'dos', muscle: null }, ''), none, '« Tous les muscles »');
+    // Chaque groupe trouve au moins un exercice de la bibliothèque
+    run('MUSCLE_GROUPS').forEach(g => assert.ok(run('EXERCISE_CATALOGUE').some(e => app.muscleFilterMatch(e, { group: g.id, muscle: null })), g.id));
+  });
+
+  test('filtre par muscle : pastilles de la feuille et de la Bibliothèque', () => {
+    const html = app.muscleFilterHtml('ax-muscle', { group: 'dos', muscle: 'lats' });
+    assert.ok(html.includes('data-action="ax-muscle"') && html.includes('Tout le dos') && html.includes('Grand dorsal'));
+    assert.ok(/aria-pressed="true"[^>]*data-muscle="lats"/.test(html), 'muscle choisi marqué');
+    assert.ok(!app.muscleFilterHtml('lib-muscle', { group: 'pectoraux', muscle: null }).includes('mf__row--sub'), 'groupe d\'un seul muscle : pas de seconde ligne');
+    assert.ok(!app.muscleFilterHtml('lib-muscle', run('NO_MUSCLE_FILTER')).includes('mf__row--sub'));
   });
 
   // Contexte vm (localStorage) : lu à l'appel, après reset()

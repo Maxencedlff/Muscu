@@ -361,3 +361,39 @@ function musclesLine(m, max = 2) {
   const names = [...new Set(m.primary.map(id => MUSCLE_BY_ID.get(id).short || muscleLabel(id)))];
   return names.slice(0, max).join(' · ');
 }
+
+// ── Filtre par muscle (Bibliothèque, feuille « Ajouter un exercice ») ─
+// Grands groupes, dans l'ordre du corps. Un groupe d'un seul muscle (Pectoraux) n'a pas de sous-choix.
+// Sert aussi aux sections de la Bibliothèque (rangement par le premier muscle principal).
+const MUSCLE_GROUPS = [
+  { id: 'pectoraux',  label: 'Pectoraux',  muscles: ['chest'] },
+  { id: 'dos',        label: 'Dos',        muscles: ['lats', 'traps', 'lower_back'], all: 'Tout le dos' },
+  { id: 'epaules',    label: 'Épaules',    muscles: ['front_delts', 'side_delts', 'rear_delts'], all: 'Toutes les épaules' },
+  { id: 'bras',       label: 'Bras',       muscles: ['biceps', 'brachialis', 'triceps', 'forearms'], all: 'Tous les bras' },
+  { id: 'abdominaux', label: 'Abdominaux', muscles: ['abs', 'obliques'], all: 'Tous les abdos' },
+  { id: 'jambes',     label: 'Jambes',     muscles: ['quads', 'hamstrings', 'glutes', 'adductors', 'calves'], all: 'Toutes les jambes' },
+];
+const MUSCLE_GROUP_BY_ID = new Map(MUSCLE_GROUPS.map(g => [g.id, g]));
+const NO_MUSCLE_FILTER = Object.freeze({ group: null, muscle: null });
+
+// Muscles visés par un filtre { group, muscle } ; null = aucun filtre. Un muscle hors de son groupe est ignoré.
+function muscleFilterTargets(f) {
+  const g = MUSCLE_GROUP_BY_ID.get(f?.group);
+  if (!g) return null;
+  return f.muscle && g.muscles.includes(f.muscle) ? [f.muscle] : g.muscles;
+}
+
+// L'exercice passe si l'un de ses muscles PRINCIPAUX est visé : « Biceps » montre les curls, pas les
+// tractions (biceps en secondaire), pour une liste courte et utile. Muscles inconnus : jamais montré filtré.
+function muscleFilterMatch(m, f) {
+  const t = muscleFilterTargets(f);
+  return !t || (m?.primary || []).some(id => t.includes(id));
+}
+
+// Toucher une pastille : le groupe déjà choisi (sans muscle précis) se désélectionne ; un muscle précis
+// du groupe en cours se choisit, « Tout » (muscle vide) revient au groupe entier
+function muscleFilterNext(f, group, muscle) {
+  if (!MUSCLE_GROUP_BY_ID.has(group)) return NO_MUSCLE_FILTER;
+  if (muscle !== undefined) return { group, muscle: muscle || null };
+  return f?.group === group && !f.muscle ? NO_MUSCLE_FILTER : { group, muscle: null };
+}

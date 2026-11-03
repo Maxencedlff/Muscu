@@ -575,6 +575,52 @@ def t_tip(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_muscle_filter(bench, eng, dev, theme):
+    """Filtre par muscle : feuille d'ajout (groupe puis muscle précis) et Bibliothèque (sections du groupe)."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        tab(page, 3)
+        page.click('[data-action="open-prog-session"][data-cat="push"]')
+        page.wait_for_selector('.view.editor')
+        page.click('[data-action="add-ex"]')
+        page.wait_for_selector('#axSearch')
+        page.click('.mf__row:not(.mf__row--sub) [data-action="ax-muscle"][data-group="bras"]')
+        page.wait_for_timeout(150)
+        R.check(page.locator('.mf__row--sub [data-muscle="biceps"]').count() == 1, f'{t} feuille : muscles du groupe Bras proposés')
+        page.click('[data-action="ax-muscle"][data-muscle="biceps"]')
+        page.wait_for_timeout(150)
+        subs = page.locator('#axList .ax__item .ax__sub').all_inner_texts()
+        R.check(len(subs) >= 3 and all('Biceps' in x for x in subs), f'{t} feuille : uniquement des exercices biceps ({len(subs)}) {subs[:3]}')
+        R.check(page.locator('[data-action="ax-muscle"][data-muscle="biceps"]').get_attribute('aria-pressed') == 'true', f'{t} pastille Biceps marquée')
+        box = page.locator('.mf__row').first.bounding_box()
+        R.check(box and box['height'] < 50, f'{t} une seule ligne de groupes (défile de côté) {box}')
+        shot(page, LOT, f'filtre-feuille-{t}')
+        # Re-toucher le groupe : d'abord tout le groupe, puis plus de filtre
+        page.click('.mf__row:not(.mf__row--sub) [data-action="ax-muscle"][data-group="bras"]')
+        page.wait_for_timeout(150)
+        R.check(page.locator('.mf__row--sub [data-muscle=""]').get_attribute('aria-pressed') == 'true', f'{t} feuille : retour à tout le groupe')
+        page.click('.mf__row:not(.mf__row--sub) [data-action="ax-muscle"][data-group="bras"]')
+        page.wait_for_timeout(150)
+        R.check(page.locator('.mf__row--sub').count() == 0, f'{t} feuille : groupe désélectionné')
+        page.click('[data-action="sheet-done"]')
+        page.wait_for_timeout(400)
+
+        page.evaluate("navigate('library')")
+        page.wait_for_selector('#libList')
+        page.click('.mf__row:not(.mf__row--sub) [data-action="lib-muscle"][data-group="dos"]')
+        page.wait_for_timeout(150)
+        titles = page.locator('#libList .group-title').all_inner_texts()
+        R.check(len(titles) == 1 and titles[0].lower().startswith('dos'), f'{t} Bibliothèque : seulement la section Dos {titles}')
+        page.click('[data-action="lib-muscle"][data-muscle="lats"]')
+        page.wait_for_timeout(150)
+        subs = page.locator('#libList .cell__sub').all_inner_texts()
+        R.check(subs and all('Grand dorsal' in x for x in subs), f'{t} Bibliothèque : grand dorsal seulement ({len(subs)})')
+        R.check(no_hscroll(page), f'{t} pas de défilement horizontal de la page')
+        shot(page, LOT, f'filtre-biblio-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def once_static(bench):
     files = ['js/data/muscles.js', 'js/data/exercise-catalogue.js', 'js/data/muscle-load.js', 'js/ui/body-map.js', 'js/ui/body-tip.js', 'js/features/muscles.js', 'js/features/muscle-tip.js', 'css/muscles.css']
     for f in files:
@@ -599,4 +645,4 @@ def once_static(bench):
         R.check(px and px['red'] > 2000 and px['gray'] > 20000, f'bodyMapImage : base grise et pectoraux teintés en rouge {px}')
 
 
-run_main(R, [t_progress, t_empty, t_editor, t_library_muscles, t_add_sheet, t_silhouette, t_tip], once=[once_static])
+run_main(R, [t_progress, t_empty, t_editor, t_library_muscles, t_add_sheet, t_muscle_filter, t_silhouette, t_tip], once=[once_static])

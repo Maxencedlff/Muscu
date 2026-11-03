@@ -143,14 +143,14 @@ const GUIDE_SECTIONS = [
         id: 'ajouter-exercice', title: 'Ajouter ou remplacer un exercice', icon: 'plus', color: 'blue',
         lead: '[Ajouter un exercice], en bas de la séance, ouvre la recherche dans la bibliothèque.',
         steps: [
-          'Tape un nom ou un muscle. Le filtre de matériel ([Tout], [Haltères et banc]…) réduit la liste.',
+          'Tape un nom ou un muscle. Les pastilles de matériel ([Haltères et banc]…) et de muscles ([Bras], puis [Biceps]…) réduisent la liste.',
           'Choisis le nombre de [Séries]. Active [Ajouter au programme] pour le retrouver la prochaine fois.',
           'Un exercice introuvable ? [Créer] l\'ajoute avec le nom tapé.',
           'Pour remplacer : ··· › [Remplacer l\'exercice]. Ceux qui travaillent les mêmes muscles sont en tête, avec une version [Plus facile] ou [Plus dur].',
           'Les séries déjà validées restent sur l\'ancien exercice.',
         ],
         related: ['bibliotheque', 'menu-exercice'],
-        actions: ['add-session-ex', 'ax-pick', 'ax-equip', 'ax-sets'],
+        actions: ['add-session-ex', 'ax-pick', 'ax-equip', 'ax-muscle', 'ax-sets'],
       },
       {
         id: 'comment-faire', title: 'Comment faire un exercice', icon: 'info.circle', color: 'teal',
@@ -224,14 +224,14 @@ const GUIDE_SECTIONS = [
         id: 'bibliotheque', title: 'La bibliothèque d\'exercices', icon: 'dumbbell', color: 'teal',
         lead: '[Programme] › [Bibliothèque d\'exercices] liste tous les exercices connus de l\'app, rangés par zone du corps.',
         steps: [
-          'Cherche par nom, muscle ou matériel, ou filtre par matériel.',
+          'Cherche par nom, muscle ou matériel, ou filtre par matériel et par groupe de muscles ([Dos], puis [Grand dorsal]…).',
           'Chaque fiche montre [Comment faire], les [Muscles], le [Matériel] et la [Mesure].',
           'Pour un exercice au poids du corps, [Poids du corps soulevé] indique la part de ton poids que tu soulèves.',
           '[Plus facile] et [Plus dur] mènent aux variantes du mouvement.',
           '[Voir mes progrès] apparaît si tu as déjà fait l\'exercice.',
         ],
         related: ['comment-faire', 'ajouter-exercice'],
-        actions: ['go-library', 'lib-equip', 'open-library-ex', 'open-stats-ex'],
+        actions: ['go-library', 'lib-equip', 'lib-muscle', 'open-library-ex', 'open-stats-ex'],
       },
       {
         id: 'partager-programme', title: 'Envoyer un programme', icon: 'square.and.arrow.up', color: 'indigo',

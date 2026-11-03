@@ -106,6 +106,7 @@ function setExRest(ei, secs) {
 // ('programme') et la séance passée ('past', qui reçoit le choix par onPick(name, sets)).
 let ax = { target: 'session', replaceEi: null, exclude: new Set(), onPick: null };
 let axSets = 3;
+let axMuscle = NO_MUSCLE_FILTER;   // filtre par muscle de la feuille, remis à zéro à chaque ouverture
 
 const axItemHtml = n => `<button class="ax__item" data-action="ax-pick" data-name="${esc(n)}"><span class="ax__body"><span>${esc(n)}</span>${exMusclesSubHtml({ name: n }, 'ax__sub')}</span></button>`;
 const axHintHtml = txt => `<div class="ax__hint">${txt}</div>`;
@@ -118,13 +119,15 @@ function axListHtml(q) {
   const eq    = data.exEquip;
   // Toute la bibliothèque (pas de coupure : un exercice ne doit jamais être introuvable sans le chercher)
   // Les exercices créés par la personne (sans matériel connu) restent visibles quel que soit le filtre
-  const names = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && (eq === 'all' || [eq, null].includes(equipmentOf(n))));
+  const names = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && (eq === 'all' || [eq, null].includes(equipmentOf(n)))
+    && muscleFilterMatch(exerciseMuscles({ name: n }), axMuscle));
   // « Créer » reste toujours proposé (en dernier) dès que le nom exact n'existe pas, même quand un alias
   // ou un exercice proche correspond : une variante comme « Tractions lestées » doit avoir son propre suivi
   const create = query && !names.some(n => normName(n) === nq) ? axCreateHtml(query) : '';
   if (!query) {
     if (ax.replaceEi !== null) return axReplaceListHtml(names);
-    return names.length ? names.map(axItemHtml).join('') : '<div class="ax__empty">Aucun exercice</div>';
+    return names.length ? names.map(axItemHtml).join('')
+      : `<div class="ax__empty">Aucun exercice${muscleFilterTargets(axMuscle) ? ' pour ce muscle' : ''}</div>`;
   }
   // Recherche : le nom qui commence par le texte tapé d'abord, les correspondances avec une faute en dernier
   const scored = names.map(n => ({ n, score: exerciseMatchScore(n, q) })).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
@@ -175,11 +178,37 @@ function axEquipHtml() {
   </div>`;
 }
 
+// Pastilles du filtre par muscle, partagées avec la Bibliothèque (js/features/library.js)
+// action : nom de l'action (« lib-muscle », « ax-muscle ») ; f : filtre en cours { group, muscle }.
+// Première ligne : les grands groupes ; seconde, une fois un groupe choisi : ses muscles. Lignes qui
+// défilent de côté, pour ne pas manger la hauteur de la liste.
+function muscleFilterHtml(action, f) {
+  const chip = (label, attrs, on) => `<button class="ax__chip" aria-pressed="${on}" data-action="${action}" ${attrs}>${esc(label)}</button>`;
+  const g = MUSCLE_GROUP_BY_ID.get(f?.group);
+  const groups = [chip('Tous les muscles', 'data-group=""', !g),
+    ...MUSCLE_GROUPS.map(x => chip(x.label, `data-group="${x.id}"`, g?.id === x.id))].join('');
+  const sub = g && g.muscles.length > 1
+    ? `<div class="mf__row mf__row--sub" role="group" aria-label="Muscles : ${esc(g.label)}">${[chip(g.all, `data-group="${g.id}" data-muscle=""`, !f.muscle),
+        ...g.muscles.map(id => chip(muscleLabel(id), `data-group="${g.id}" data-muscle="${id}"`, f.muscle === id))].join('')}</div>`
+    : '';
+  return `<div class="mf" data-mf="${action}"><div class="mf__row" role="group" aria-label="Groupes de muscles">${groups}</div>${sub}</div>`;
+}
+
+// Toucher une pastille : nouveau filtre, pastilles redessinées en place
+function muscleFilterTap(el, f) {
+  const next = muscleFilterNext(f, el.dataset.group, 'muscle' in el.dataset ? el.dataset.muscle : undefined);
+  const box = el.closest('.mf');
+  if (box) box.outerHTML = muscleFilterHtml(box.dataset.mf, next);
+  haptic();
+  return next;
+}
+
 // exclude : noms à ne pas proposer (par défaut, les exercices de la séance en cours)
 function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick = null } = {}) {
   const names = exclude ?? (activeSession?.exercises || []).map(e => e.name);
   ax = { target, replaceEi: target === 'session' ? replaceEi : null, exclude: new Set(names.map(normName)), onPick };
   const rep   = ax.replaceEi !== null ? activeSession.exercises[ax.replaceEi] : null;
+  axMuscle    = NO_MUSCLE_FILTER;
   axSets      = rep ? Math.max(1, rep.sets.filter(s => !s.done).length) : 3;   // les séries qui restent à faire
   const html = `
     <div class="ax">
@@ -192,6 +221,7 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
       <input type="search" id="axSearch" class="ax__search" placeholder="Rechercher ou créer" autocomplete="off"
              autocapitalize="sentences" enterkeyhint="done" aria-label="Rechercher un exercice">
       ${axEquipHtml()}
+      ${muscleFilterHtml('ax-muscle', axMuscle)}
       <div class="ax__opts">
         <div class="ax__opt">
           <span>Séries</span>
@@ -450,6 +480,11 @@ registerActions({
     data.exEquip = el.dataset.equip;
     save();
     document.querySelectorAll('[data-action="ax-equip"]').forEach(b => b.setAttribute('aria-pressed', String(b === el)));
+    const list = $('#axList');
+    if (list) { list.innerHTML = axListHtml($('#axSearch')?.value || ''); list.scrollTop = 0; }
+  },
+  'ax-muscle': (e, el) => {
+    axMuscle = muscleFilterTap(el, axMuscle);
     const list = $('#axList');
     if (list) { list.innerHTML = axListHtml($('#axSearch')?.value || ''); list.scrollTop = 0; }
   },
