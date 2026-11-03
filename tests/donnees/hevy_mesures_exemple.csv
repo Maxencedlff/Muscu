@@ -1,0 +1,7 @@
+"date","weight_kg","fat_percent","neck_cm","shoulder_cm","chest_cm","left_bicep_cm","right_bicep_cm","left_forearm_cm","right_forearm_cm","abdomen_cm","waist_cm","hips_cm","left_thigh_cm","right_thigh_cm","left_calf_cm","right_calf_cm"
+"5 Jan 2026, 00:00",74.2,16.5,38,118,101,35.5,36,29,29.5,,84,96,58,58.5,37,37.5
+"19 Jan 2026, 00:00",73.6,16.1,,,,,,,,,83.5,,,,,
+"2 Feb 2026, 00:00",73.9,,38,118.5,101.5,36,36,,,,83,95.5,58.5,58.5,,37.5
+"16 Feb 2026, 00:00",,,,,,,,,,,,,,,,
+"bad date",80,,,,,,,,,,,,,,,
+"1 Mar 2026, 00:00",73.1,15.4,37.5,119,102,36.5,36.5,29.5,30,81,82,95,59,59,37.5,38

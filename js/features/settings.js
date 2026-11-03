@@ -191,7 +191,7 @@ function renderBackup() {
           ? 'L\'export te donne en plus un fichier (JSON) à garder où tu veux. Importer un fichier ajoute ses séances à celles de ton compte.'
           : 'L\'export est un fichier (JSON) à garder où tu veux : Fichiers, iCloud Drive, un e-mail. Importer une sauvegarde remplace les données actuelles.'} ${photosAllowedHere() ? 'L\'export contient tes mensurations, pas tes photos de progression (trop lourdes) : elles restent sur cet appareil, et « Supprimer toutes les données » les efface aussi.' : 'L\'export contient aussi tes mensurations.'}</div>
         <div class="group">
-          <button class="cell cell--action" data-action="import-other-app"><span class="cell__body"><span class="cell__title">Importer depuis une autre app</span><span class="cell__sub">Hevy, Strong (fichier CSV)</span></span></button>
+          <button class="cell cell--action" data-action="import-other-app"><span class="cell__body"><span class="cell__title">Importer depuis une autre app</span><span class="cell__sub">Hevy (séances ou mesures), Strong : fichier CSV</span></span></button>
         </div>
         <div class="group-foot">Ajoute les séances d'un export Hevy ou Strong à ton historique, après un aperçu.</div>
       </div>
