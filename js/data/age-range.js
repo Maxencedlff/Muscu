@@ -4,11 +4,13 @@
 //    arrive avec son contexte. Module natif MdlfAgeRange (ios/App/App/AgeRangePlugin.swift), seuils
 //    13, 15 et 18 ans (au plus trois seuils, tranches de deux ans au moins : doc Apple).
 //  - Réponse ramenée à une catégorie (ageBand) : 'adult' (18 ans ou plus), 'teen' (15-17 ans : prudence,
-//    séances masquées par défaut), 'young' (moins de 15 ans : Amis masqué, comme la règle des 15 ans),
-//    'limited' (mineur avec le contrôle parental « Limites de communication » : Amis masqué), null
-//    (refus, indisponible, navigateur, Android, iOS antérieur au 26 : comportement inchangé).
+//    séances masquées par défaut), 'young' (tranche qui n'exclut pas moins de 15 ans : Amis et « Rejoindre
+//    un coach » masqués, comme la règle des 15 ans), 'limited' (mineur avec le contrôle parental « Limites
+//    de communication » : Amis et messages du coach masqués), null (refus, indisponible, navigateur,
+//    Android, iOS antérieur au 26 : comportement inchangé).
 //  - Gardée sur l'appareil (mdlf_age_range), pas dans le compte : Apple répond pour le compte iCloud de
-//    l'iPhone. Rien n'est envoyé au serveur. Tranche partagée relue au bout de 30 jours (un anniversaire
+//    l'iPhone. La tranche n'est jamais envoyée au serveur (Amis activé puis masqué : seul social_disable part,
+//    js/features/social-ui.js). Tranche partagée relue au bout de 30 jours (un anniversaire
 //    peut changer la tranche), indisponible au bout de 7 jours, refus jamais redemandé.
 //  - Ne bloque jamais l'app : sans réponse, rien ne change ; l'écran suit onAgeRangeChange.
 // ═══════════════════════════════════════════════════════════
@@ -28,13 +30,14 @@ function cleanAgeRange(r) {
 
 // Catégorie de la tranche (voir l'en-tête). Bornes : lowerBound absent = sous le plus petit seuil,
 // upperBound absent = au-dessus du plus grand. La région peut imposer d'autres seuils (Texas : 13, 16, 18),
-// d'où un calcul sur les bornes plutôt que sur nos seuils.
+// d'où un calcul sur les bornes plutôt que sur nos seuils. Mineur dont la tranche n'exclut pas un âge sous
+// 15 ans (13-15 au Texas, moins de 13 ans) : 'young', par prudence ; 'teen' seulement si 15 ans est sûr.
 function ageBand(r) {
   if (r?.status !== 'sharing') return null;
   const lo = r.lowerBound ?? null, up = r.upperBound ?? null;
   if (lo === null && up === null) return null;               // réponse incohérente : rien ne change
   if (lo !== null && lo >= 18) return 'adult';
-  if (up !== null && up < 15) return 'young';                 // moins de 13 ans, ou 13-14 ans
+  if ((lo === null || lo < 15) && up !== null && up <= 17) return 'young';
   if (r.communicationLimits) return 'limited';
   return 'teen';
 }
@@ -63,7 +66,12 @@ function ageRangeFresh(r, now = Date.now()) {
 // Catégorie connue sur cet appareil, null sinon
 function currentAgeBand() { return ageBand(ageRange.stored); }
 // Amis masqué : tranche partagée de moins de 15 ans, ou contrôle parental qui limite les échanges
+// (js/data/social.js, socialEnabled : point unique pour les écrans des Amis, bilan et Historique compris)
 function socialHiddenByAge() { const b = currentAgeBand(); return b === 'young' || b === 'limited'; }
+// Rejoindre un coach : 15 ans ou plus (privacy.html) ; un coach déjà suivi reste
+function coachJoinHiddenByAge() { return currentAgeBand() === 'young'; }
+// Messages avec le coach : coupés par le contrôle parental « Limites de communication »
+function chatHiddenByAge() { return currentAgeBand() === 'limited'; }
 // 15-17 ans : séances masquées aux abonnés par défaut (js/data/social.js, sessionsVisibleByDefault)
 function socialTeenByAge() { return currentAgeBand() === 'teen'; }
 

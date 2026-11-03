@@ -119,14 +119,14 @@ function coachCellHtml({ place = 'top', friends = null } = {}) {
         ${badge ? `<span class="coach-count num" aria-hidden="true">${badge > 99 ? '99+' : badge}</span>` : ''}
         ${icon('chevron.right', 16)}
       </button>`);
-  } else if (!isCoach) {
+  } else if (!isCoach && !coachJoinHiddenByAge()) {   // moins de 15 ans possible (js/data/age-range.js) : rien
     rows.push(`<button class="cell cell--nav coach-cell coach-cell--join" data-action="coach-join-start">
         <span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span>
         <span class="cell__body"><span class="cell__title">Rejoindre un coach</span><span class="cell__sub">Tu as un code de ton coach ?</span></span>
         ${icon('chevron.right', 16)}
       </button>`);
   }
-  return `<div class="group coach-head">${rows.join('')}</div>`;
+  return rows.length ? `<div class="group coach-head">${rows.join('')}</div>` : '';
 }
 function refreshCoachCell() {
   const st = typeof friendsState === 'function' ? friendsState() : null;
@@ -172,7 +172,7 @@ function renderCoachSettings() {
         <div class="group">
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
         </div>
-        <div class="group-foot">Si tu le quittes, ton coach ne verra plus tes séances. Les programmes déjà ajoutés restent dans tes programmes.</div>` : `
+        <div class="group-foot">Si tu le quittes, ton coach ne verra plus tes séances. Les programmes déjà ajoutés restent dans tes programmes.</div>` : coachJoinHiddenByAge() ? coachJoinAgeHtml() : `
         <div class="social-hero coach-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
@@ -230,9 +230,21 @@ function coachCodeSheet() {
   });
 }
 
+// Rejoindre un coach masqué par la tranche d'âge partagée par Apple (moins de 15 ans possible,
+// js/data/age-range.js) : la règle des 15 ans (privacy.html), dite sans bouton
+function coachJoinAgeHtml() {
+  return `
+        <div class="social-hero coach-hero">
+          <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
+          <h2 class="social-hero__title">Coach indisponible</h2>
+          <p class="social-hero__sub">Suivre un coach est réservé aux 15 ans et plus, d'après la tranche d'âge partagée avec Apple. Le reste de l'app fonctionne normalement.</p>
+        </div>`;
+}
+
 // Parcours commun : onglet Amis, Réglages › Coach
 async function coachJoinFlow() {
   if (!account.user) { navigate('coach'); return; }
+  if (coachJoinHiddenByAge()) { navigate('coach'); return; }   // l'écran dit pourquoi
   if (!(await coachEnsureUsername())) return;
   let res = await coachCodeSheet();
   if (!res) return;
@@ -251,6 +263,7 @@ async function coachJoinFlow() {
 function renderCoachJoin(code) {
   const pv = coach.preview?.code === code ? coach.preview.person : null;
   const head = navBar({ title: 'Rejoindre', large: false });
+  if (coachJoinHiddenByAge()) return `<div class="view view--grouped coach-join-view">${head}<div class="scr">${coachJoinAgeHtml()}</div></div>`;
   if (!pv) return `<div class="view view--grouped coach-join-view">${head}<div class="scr"><div class="empty-note">Saisis de nouveau le code dans l'onglet Amis.</div></div></div>`;
   const name = esc(personName(pv));
   const list = items => `<div class="group">${items.map(([t, d]) => `
@@ -925,7 +938,7 @@ registerActions({
   'coach-join-start': async () => { await coachJoinFlow(); },
   'coach-age': () => { socialAgeOk = !socialAgeOk; haptic(); render(); },
   'coach-accept': async (e, el) => {
-    if (!socialAgeOk) return;
+    if (!socialAgeOk || coachJoinHiddenByAge()) return;
     el.disabled = true;
     const name = personName(coach.preview?.person);
     const r = await coachJoin(el.dataset.code);

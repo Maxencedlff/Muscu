@@ -661,6 +661,7 @@ let historyReactionsShown = null;   // réactions reçues au dernier dessin de l
 // État reçu, fil chargé, réaction : badge, puis l'écran affiché. Onglet Amis au même état : seule la zone
 // sous la recherche est redessinée (le champ garde le clavier) ; sinon redessin complet
 onSocialChange(() => {
+  socialDisableForAge();   // Amis activé lu alors que la tranche d'âge le masque
   updateTabBadge();
   const v = currentView();
   // Fil affiché jamais chargé (hors ligne au premier passage, ou Amis activé connu après l'ouverture) :
@@ -676,8 +677,10 @@ onSocialChange(() => {
   if (document.activeElement?.matches?.('#commentInput') && refreshCommentsList()) return;
   render();
 });
-// Tranche d'âge connue ou changée : badge et écrans des Amis redessinés
+// Tranche d'âge connue ou changée : Amis désactivé sur le serveur s'il est désormais masqué, badge et
+// écrans des Amis redessinés
 onAgeRangeChange(() => {
+  socialDisableForAge();
   updateTabBadge();
   if (SOCIAL_VIEWS.includes(currentView())) render();
 });

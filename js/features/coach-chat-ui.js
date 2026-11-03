@@ -62,7 +62,9 @@ function renderCoachChat(key) {
   const p = chatPartner(key);
   const name = p ? personName(p) : 'Messages';
   const menu = p ? `<button class="navbar__icon" data-action="chat-menu" data-key="${esc(key)}" aria-label="Options de la conversation">${icon('ellipsis', 22)}</button>` : '';
-  const head = navBar({ title: esc(name), large: false, right: menu });
+  const head = navBar({ title: esc(name), large: false, right: chatHiddenByAge() ? '' : menu });
+  // Contrôle parental « Limites de communication » (js/data/age-range.js) : conversation fermée, dit sans bouton
+  if (chatHiddenByAge()) return `<div class="view view--grouped coach-chat-view">${head}<div class="scr"><div class="empty-note">${coachErrorText('age_limited')}</div></div></div>`;
   if (!p) {
     return `<div class="view view--grouped coach-chat-view">${head}<div class="scr"><div class="empty-note">${coach.state
       ? (key === CHAT_COACH ? 'Tu n\'as plus de coach : les messages ont été effacés.' : 'Cette personne ne fait plus partie de tes élèves : les messages ont été effacés.')
@@ -193,7 +195,7 @@ SCREENS.set('coach-chat', {
   // Ouverture : messages relus, conversation marquée lue, relecture régulière ; départ : relecture arrêtée
   enter: async () => {
     const key = chatKeyShown();
-    if (!key) return;
+    if (!key || chatHiddenByAge()) return;
     chatShownLast = null;
     if (key === CHAT_COACH) setChatIntroSeen();
     chatStartPoll();

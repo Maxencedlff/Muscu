@@ -93,9 +93,10 @@ function referralSync() {
   Object.assign(referral, { userId: id, state: null, loading: null, cached: id ? readReferralCache(id) : null });
 }
 
-// Faut-il proposer de rejoindre le parrain comme coach ? Parrain coach, et pas encore de coach
+// Faut-il proposer de rejoindre le parrain comme coach ? Parrain coach, pas encore de coach, et pas de tranche
+// d'âge de moins de 15 ans partagée par Apple (js/data/age-range.js)
 function referralSuggestJoin(v = referralView()) {
-  return !!(v.referrer && v.referrerCoach && !coach.state?.coach);
+  return !!(v.referrer && v.referrerCoach && !coach.state?.coach) && !coachJoinHiddenByAge();
 }
 
 // Ce que l'écran montre : { referrer: nom | null, referrerCoach, canEnter, until }. Sans réponse du serveur : le nom

@@ -18,9 +18,14 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(band({ status: 'sharing', lowerBound: 18, communicationLimits: true }), 'adult', 'majeur : contrôle parental sans effet');
     assert.equal(band({ status: 'sharing', lowerBound: 15, upperBound: 17, communicationLimits: true }), 'limited');
     assert.equal(band({ status: 'sharing', upperBound: 12, communicationLimits: true }), 'young');
-    // Seuils imposés par la région (ex. 13, 16, 18) : tranche 13-15, mineur sans certitude sous 15 ans
-    assert.equal(band({ status: 'sharing', lowerBound: 13, upperBound: 15 }), 'teen');
+    // Seuils imposés par la région (ex. Texas : 13, 16, 18) : une tranche qui n'exclut pas moins de 15 ans
+    // compte comme moins de 15 ans ; 'teen' seulement si 15 ans est sûr
+    assert.equal(band({ status: 'sharing', lowerBound: 13, upperBound: 15 }), 'young', 'Texas 13-15 : 13 ou 14 ans possible');
+    assert.equal(band({ status: 'sharing', lowerBound: 13, upperBound: 15, communicationLimits: true }), 'young');
+    assert.equal(band({ status: 'sharing', upperBound: 15 }), 'young', 'moins de 16 ans : moins de 15 possible');
+    assert.equal(band({ status: 'sharing', lowerBound: 14, upperBound: 17 }), 'young', '14-17 ans : 14 possible');
     assert.equal(band({ status: 'sharing', lowerBound: 16, upperBound: 17 }), 'teen');
+    assert.equal(band({ status: 'sharing', lowerBound: 15, upperBound: 16 }), 'teen', 'borne basse 15 : 15 ans sûr');
     // Refus, indisponible, réponse incohérente ou inconnue : comportement inchangé
     for (const r of [{ status: 'declined' }, { status: 'unavailable' }, { status: 'sharing' }, { status: 'autre', lowerBound: 3 }, null]) {
       assert.equal(band(r), null, JSON.stringify(r));
@@ -85,7 +90,7 @@ export default function ({ test, run, assert, sameJSON }) {
     sameJSON(r, { b: 'teen', fresh: true, later: false });
   });
 
-  test('âge : 15-17 ans → séances masquées par défaut ; moins de 15 ans → badge éteint, rien de neuf montré', () => {
+  test('âge : 15-17 ans → séances masquées par défaut ; moins de 15 ans → Amis éteint partout, rien de neuf montré', () => {
     const r = run(`(() => {
       const user = account.user, saved = { ...social }, stored = ageRange.stored;
       try {
@@ -102,12 +107,72 @@ export default function ({ test, run, assert, sameJSON }) {
         ageRange.stored = { status: 'sharing', lowerBound: null, upperBound: 12, communicationLimits: false, at: Date.now() };
         out.youngHidden = newSessionHidden();
         out.youngBadge = socialBadge();
-        out.youngEnabled = socialEnabled();   // activé avant : le serveur n'est pas touché
+        out.youngEnabled = socialEnabled();       // point unique : bilan, Historique, Réglages, relectures
+        out.youngActivated = socialActivated();   // le compte, lui, reste activé jusqu'à social_disable
+        social.state = cleanSocialState({ enabled: false });
+        data.sessionVisibleDefault = true;
+        out.youngOffHidden = newSessionHidden();  // jamais activé : masquée quand même, rien de neuf plus tard
+        ageRange.stored = { status: 'sharing', lowerBound: 15, upperBound: 17, communicationLimits: true, at: Date.now() };
+        social.state = cleanSocialState({ enabled: true });
+        out.limitedEnabled = socialEnabled();
+        out.limitedHidden = newSessionHidden();
         return out;
       } finally { account.user = user; Object.assign(social, saved); ageRange.stored = stored; data = makeDefaultData(); data.schema = SCHEMA; }
     })()`);
     sameJSON(r, { adultDefault: true, teenDefault: false, teenHidden: true, teenChosen: false, teenBadge: 3,
-      youngHidden: true, youngBadge: 0, youngEnabled: true });
+      youngHidden: true, youngBadge: 0, youngEnabled: false, youngActivated: true,
+      youngOffHidden: true, limitedEnabled: false, limitedHidden: true });
+  });
+
+  // Amis activé sur le compte, puis tranche qui le masque : social_disable une fois par compte et par lancement
+  const disableScenario = (stored, enabled, rpcOk = true) => run(`(async () => {
+    const user = account.user, saved = { ...social }, st = ageRange.stored, sbSaved = sb, calls = [];
+    try {
+      account.user = { id: 'u-age' }; socialAgeDisabledFor = null;
+      social.state = cleanSocialState({ enabled: ${enabled} }); social.cached = null; social.loading = false;
+      ageRange.stored = ${JSON.stringify(stored)};
+      sb = { rpc: async fn => { calls.push(fn); if (fn === 'social_disable' && !${rpcOk}) return { data: null, error: { message: 'Failed to fetch' } };
+        if (fn === 'social_disable') social.state.enabled = false; return { data: fn === 'social_state' ? { enabled: false } : null, error: null }; } };
+      socialDisableForAge(); socialDisableForAge();
+      await new Promise(r => setTimeout(r, 0)); await new Promise(r => setTimeout(r, 0));
+      return { disables: calls.filter(c => c === 'social_disable').length, done: socialAgeDisabledFor === 'u-age' };
+    } finally { account.user = user; Object.assign(social, saved); ageRange.stored = st; sb = sbSaved; socialAgeDisabledFor = null; }
+  })()`);
+
+  test('âge : Amis activé puis masqué → désactivé sur le serveur une fois ; 15-17 ans, majeur ou déjà éteint → rien', async () => {
+    const at = Date.now();
+    const young = { status: 'sharing', upperBound: 12, communicationLimits: false, at };
+    const limited = { status: 'sharing', lowerBound: 15, upperBound: 17, communicationLimits: true, at };
+    sameJSON(await disableScenario(young, true), { disables: 1, done: true });
+    sameJSON(await disableScenario(limited, true), { disables: 1, done: true });
+    sameJSON(await disableScenario(young, true, false), { disables: 1, done: false }, 'hors ligne : redemandé au prochain état');
+    sameJSON(await disableScenario(young, false), { disables: 0, done: false }, 'jamais activé : rien');
+    sameJSON(await disableScenario({ status: 'sharing', lowerBound: 15, upperBound: 17, communicationLimits: false, at }, true), { disables: 0, done: false });
+    sameJSON(await disableScenario({ status: 'declined', at }, true), { disables: 0, done: false });
+  });
+
+  test('âge : moins de 15 ans → « Rejoindre un coach » masqué ; Limites de communication → messages du coach coupés', async () => {
+    const r = await run(`(async () => {
+      const user = account.user, st = ageRange.stored, chatSaved = { ...chat }, coachState = coach.state;
+      try {
+        account.user = { id: 'u-age' };
+        chat.available = true; chat.threads = cleanChatThreads({ coach: { unread: 2 } }); chat.cachedUnread = 0;
+        const at = Date.now(), out = {};
+        const snap = name => { out[name] = { join: coachJoinHiddenByAge(), chat: chatAvailable(), unread: chatUnreadTotal(),
+          suggest: referralSuggestJoin({ referrer: 'Coach', referrerCoach: true }) }; };
+        ageRange.stored = null; snap('none');
+        ageRange.stored = { status: 'sharing', lowerBound: 13, upperBound: 15, communicationLimits: false, at }; snap('young');
+        ageRange.stored = { status: 'sharing', lowerBound: 15, upperBound: 17, communicationLimits: true, at }; snap('limited');
+        ageRange.stored = { status: 'sharing', lowerBound: 15, upperBound: 17, communicationLimits: false, at }; snap('teen');
+        ageRange.stored = { status: 'sharing', lowerBound: 15, upperBound: 17, communicationLimits: true, at };
+        out.limitedCalls = [await chatSend(CHAT_COACH, 'salut'), await chatLoad(CHAT_COACH), await chatPoll(CHAT_COACH)].map(x => x.kind);
+        return out;
+      } finally { account.user = user; ageRange.stored = st; Object.assign(chat, chatSaved); coach.state = coachState; }
+    })()`);
+    const v = (join, chat, unread, suggest) => ({ join, chat, unread, suggest });
+    sameJSON({ none: r.none, young: r.young, limited: r.limited, teen: r.teen },
+      { none: v(false, true, 2, true), young: v(true, true, 2, false), limited: v(false, false, 0, true), teen: v(false, true, 2, true) });
+    sameJSON(r.limitedCalls, ['age_limited', 'age_limited', 'age_limited']);
   });
 
   test('âge : module Swift, entitlement et pont JS concordent', () => {
@@ -125,6 +190,15 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(pbx.split('/* AgeRangePlugin.swift in Sources */').length - 1, 2, 'PBXBuildFile et phase Sources');
     assert.equal(pbx.split('/* AgeRangePlugin.swift */').length - 1, 3, 'PBXBuildFile, PBXFileReference et groupe App');
     assert.match(pbx, /path = AgeRangePlugin\.swift; sourceTree = "<group>";/);
+    // iOS 26 seulement, app à partir de 16.4 : lien faible dans Debug et Release de la cible App, vérifié en CI
+    for (const id of ['504EC3171FED79650016851F /* Debug */', '504EC3181FED79650016851F /* Release */']) {
+      const block = pbx.slice(pbx.indexOf(`${id} = {`), pbx.indexOf('name = ', pbx.indexOf(`${id} = {`)));
+      assert.match(block, /OTHER_LDFLAGS = \(\s*"\$\(inherited\)",\s*"-weak_framework",\s*DeclaredAgeRange,\s*\);/, id);
+    }
+    const ios = read('.github/workflows/ios.yml');
+    for (const app of ['build/Build/Products/Debug-iphonesimulator/App.app', 'build/App.xcarchive/Products/Applications/App.app']) {
+      assert.ok(ios.includes(`bash scripts/ios/check-weak-frameworks.sh ${app}`), app);
+    }
     assert.match(read('js/platform/native.js'), /AgeRange\.request\(\)/);
     for (const f of ['index.html', 'sw.js']) assert.ok(read(f).includes('js/data/age-range.js'), f);
   });

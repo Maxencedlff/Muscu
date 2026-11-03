@@ -14,6 +14,7 @@ Hors V1 : paiement, push, plusieurs coachs pour un élève, groupes d'élèves (
 - **Écritures par fonction seulement** : RPC `security definer`, `set search_path = ''`, utilisateur pris dans `auth.uid()`. Aucune écriture directe sur les nouvelles tables, RLS activée, GRANT explicites (`anon` n'a rien, `authenticated` seulement EXECUTE sur les RPC).
 - **Erreurs** en snake_case : `not_coach`, `already_coached`, `invalid_code`, `team_full`, `not_found`, `rate_limited`, `too_long`, `invalid_programme` et `username_required` (ajoutés par le serveur, voir « Précisions du serveur »).
 - **Indépendant du social** : être coach ou élève ne demande pas d'avoir activé Amis, et ne rend visible dans aucune recherche. Un blocage social entre deux comptes n'empêche pas une relation coach (c'est l'élève qui l'a choisie avec un code) ; l'élève peut quitter à tout moment.
+- **Tranche d'âge partagée par Apple** (app iOS seulement, `js/data/age-range.js`) : moins de 15 ans possible → « Rejoindre un coach » masqué (Amis, Réglages › Coach, parrainage ; un coach déjà suivi reste) ; mineur avec « Limites de communication » → messages coupés côté app (`chatAvailable`, erreur `age_limited`). Le serveur n'en sait rien.
 - **Suppression du compte** : tout part en cascade avec `auth.users`.
 
 ## Données

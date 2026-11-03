@@ -220,6 +220,7 @@ const COACH_ERROR_TEXT = {
   empty_message: 'Écris quelque chose avant d\'envoyer.',
   busy: 'Envoi déjà en cours.',
   missing: 'Pas encore disponible : réessaie après la prochaine mise à jour.',
+  age_limited: 'Le contrôle parental de cet iPhone limite les échanges : les messages ne sont pas disponibles.',
   signed_out: 'Connecte-toi d\'abord à ton compte.',
   server: 'Action impossible pour l\'instant, réessaie dans un moment.',
 };
