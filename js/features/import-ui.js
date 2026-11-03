@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Réglages › Données › Sauvegarde › Importer depuis une autre app (Hevy, Strong)
+//  Réglages › Données › Sauvegarde › Importer depuis une autre app (Hevy, Strong ; mesures Hevy)
 //  Choix du fichier CSV, aperçu (séances, exercices reconnus ou à créer, liens à la main), import.
 //  Logique dans js/data/import-csv.js ; ici seulement l'écran et l'enregistrement.
 // ═══════════════════════════════════════════════════════════
@@ -12,11 +12,18 @@ const IMP_SOURCE = { hevy: 'Hevy', strong: 'Strong' };
 
 // Fichier choisi : lu, reconnu, puis l'aperçu s'ouvre ; sinon un message dit quoi exporter
 function importOtherAppText(text) {
+  // Mesures Hevy (Export Measurements) : leur propre aperçu
+  const measures = readMeasuresCsv(text);
+  if (measures.reason !== 'format') {
+    if (measures.ok) openMeasuresImport(measures);
+    else showToast(measures.reason === 'size' ? 'Fichier trop gros (25 Mo au plus)' : 'Aucune mesure lisible dans ce fichier', { error: true, duration: 6000 });
+    return;
+  }
   const plan = readImportCsv(text);
   if (!plan.ok) {
     const msg = plan.reason === 'size' ? 'Fichier trop gros (25 Mo au plus)'
       : plan.reason === 'empty' ? 'Aucune séance lisible dans ce fichier'
-      : 'Fichier non reconnu. Exporte tes séances depuis Hevy (Export Workouts) ou Strong (Export Data), au format CSV.';
+      : 'Fichier non reconnu. Exporte tes séances depuis Hevy (Export Workouts) ou Strong (Export Data), ou tes mesures depuis Hevy (Export Measurements), au format CSV.';
     showToast(msg, { error: true, duration: 6000 });
     return;
   }
@@ -117,6 +124,55 @@ function runImport() {
   showToast(`Import réussi : ${plural(r.added, 'séance', 'séances')}${extra.length ? ` (${extra.join(', ')})` : ''}`, {
     action: 'Annuler', duration: IMPORT_UNDO_MS,
     onAction: () => { undoImport(previous); render(); showToast('Import annulé'); },
+  });
+}
+
+// ── Mesures Hevy : pesées et mensurations (js/data/import-measures.js) ──
+// Aperçu calculé sur une copie, puis import avec « Annuler » comme pour les séances. Rien ne part sur le
+// compte (pesées et mensurations restent sur l'appareil) : pas d'attente de synchro.
+function measuresPreviewHtml(plan) {
+  const r = applyMeasuresImport(plan, clone(data));
+  const first = plan.days[0].date, last = plan.days.at(-1).date;
+  const y = ts => new Date(ts).getFullYear();
+  const day = ts => `${fmtDate(ts, 'short')}${y(ts) !== y(last) || ts === last ? ` ${y(ts)}` : ''}`;
+  const range = plan.days.length === 1 ? `le ${day(first)}` : `du ${day(first)} au ${day(last)}`;
+  const row = (label, value) => `<li class="sheet-list__row"><span>${label}</span><span class="sheet-list__meta num">${value}</span></li>`;
+  const skipped = plan.skippedRows + plan.outOfRange;
+  return `
+    <div class="imp" id="impSheet">
+      <p class="imp__lead">${plural(plan.days.length, 'jour de mesures', 'jours de mesures')} ${esc(range)}.</p>
+      <ul class="sheet-list">
+        ${row('Pesées à ajouter', r.weights)}
+        ${row('Mensurations à ajouter', r.measures)}
+        ${r.kept ? row('Déjà notées ce jour-là', r.kept) : ''}
+        ${skipped ? row('Valeurs ou lignes ignorées', skipped) : ''}
+      </ul>
+      ${plan.ignored.length ? `<p class="imp__foot">Pas suivis dans l'app : ${esc(plan.ignored.join(', '))}.</p>` : ''}
+      <p class="imp__foot">Une mesure déjà notée le même jour garde ta valeur. ${healthEnabled() ? 'Ton poids affiché reste celui de Santé. ' : ''}Privé : reste sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs.</p>
+    </div>`;
+}
+
+async function openMeasuresImport(plan) {
+  await sheet({ title: 'Mesures Hevy', cancel: 'Annuler', confirm: 'Importer',
+    body: measuresPreviewHtml(plan), onConfirm: () => { runMeasuresImport(plan); return true; } });
+}
+
+function runMeasuresImport(plan) {
+  const previous = JSON.stringify(data);
+  const r = applyMeasuresImport(plan);
+  if (!r.weights && !r.measures) {
+    data = JSON.parse(previous);
+    showToast(r.kept ? 'Rien à importer : ces mesures sont déjà notées' : 'Rien à importer');
+    return;
+  }
+  try { localStorage.setItem(BACKUP_KEY, previous); } catch { /* copie de secours facultative */ }
+  if (!save()) { data = JSON.parse(previous); showToast('Stockage plein : rien n\'a été importé', { error: true }); return; }
+  if (r.weights) coachShareWeightsChanged();   // pesées partagées avec le coach (case cochée) : la liste repart
+  render();
+  const parts = [r.weights ? plural(r.weights, 'pesée', 'pesées') : '', r.measures ? plural(r.measures, 'mensuration', 'mensurations') : ''].filter(Boolean);
+  showToast(`Import réussi : ${parts.join(', ')}`, {
+    action: 'Annuler', duration: IMPORT_UNDO_MS,
+    onAction: () => { undoImport(previous); if (r.weights) coachShareWeightsChanged(); render(); showToast('Import annulé'); },
   });
 }
 

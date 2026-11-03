@@ -1,4 +1,4 @@
-const CACHE = 'ppl-v122';
+const CACHE = 'ppl-v123';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
@@ -14,6 +14,7 @@ const ASSETS = [
   '/js/data/progress-photos.js', '/js/data/photo-vault.js', '/js/data/plates.js', '/js/data/warmup.js', '/js/data/rir.js', '/js/data/strength-standards.js', '/js/data/strength-levels.js',
   '/js/data/tempo.js', '/js/data/supersets.js', '/js/data/exercise-moves.js', '/js/data/exercise-howto.js', '/js/data/muscle-load.js', '/js/data/recap.js', '/js/data/app-icons.js',
   '/js/data/guide.js', '/js/data/onboarding.js', '/js/data/my-programmes.js',
+  '/js/data/import-measures.js',
   '/js/ui/theme.js', '/js/ui/router.js', '/js/ui/navbar.js', '/js/ui/sheet.js',
   '/js/ui/forms.js', '/js/ui/edge-swipe.js', '/js/ui/reorder.js', '/js/ui/body-map.js', '/js/ui/body-tip.js', '/js/ui/exercise-anim.js', '/js/ui/medal.js',
   '/js/app/actions.js', '/js/app/updates.js', '/js/app/live-update.js', '/js/app/init.js',

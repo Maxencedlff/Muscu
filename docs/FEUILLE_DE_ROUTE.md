@@ -199,10 +199,8 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 |   | Quoi                                                                     | Où                     | État                                   |
 |---|--------------------------------------------------------------------------|------------------------|----------------------------------------|
-| ▶ | Payant complet, parrainage relié aux vrais paiements, newsletter         | Branche payant-final   | Prêt, à remettre à jour sur main (77 commits d'écart) · attend les papiers (SIRET, médiateur, téléphone) |
-| ▶ | Page de confidentialité « store » + mentions légales, CGU, CGV          | Branche confidentialite-store + payant-final | Prête · attend SIRET, téléphone, médiateur, et ton choix : adresse perso ou domiciliation |
-| ▶ | Feuille d'iOS refermée au retour d'Instagram                             | Branche natif-feuille-partage | Compilée en CI · part avec la build 34 |
-| ▶ | Apple Watch, widgets, Siri (projet iOS)                                  | Branche nuit-integration-build | À regrouper et fusionner pour la build 34 |
+| ▶ | Payant complet, parrainage relié aux vrais paiements, newsletter         | Branche payant-final   | main fusionnée et relue le 02/11 · build 38 en route vers TestFlight · attend le SIRET puis le médiateur |
+| ▶ | Page de confidentialité « store » + mentions légales, CGU, CGV          | payant-final           | Prête · adresse perso et téléphone mis · attend SIRET, médiateur, dates d'entrée en vigueur |
 | ▶ | Strava                                                                    | Branche nuit-integration | En sommeil, rallumé par une build    |
 
 ---
@@ -223,14 +221,14 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Export vers Strava                              | En sommeil                       |
 | ○ | Mise en ligne du payant                         | Prêt · après les papiers         |
 
-### Build 34 (TestFlight, puis App Store)
+### Build 38 (TestFlight, puis App Store)
 
 |   | Quoi                                                  | Quand / état                        |
 |---|-------------------------------------------------------|-------------------------------------|
 | ✓ | Sommeil, séances dans Santé, notifications, montre    | Build 31                            |
-| ○ | Paiement Apple (StoreKit)                             | Branche payant-final                |
+| ✓ | Paiement Apple (StoreKit)                             | Build 38 (payant-final)             |
 | ✓ | Face ID du coffre photos                              | Build 33                            |
-| ○ | Feuille de partage refermée au retour d'Instagram     | Branche natif-feuille-partage       |
+| ✓ | Feuille de partage refermée au retour d'Instagram     | Build 38                            |
 | ○ | Vérification de l'âge par Apple pour l'onglet Amis    | À faire                             |
 | ○ | Écran « mets à jour l'app » avant d'allumer le verrou | Branche maj-obligatoire             |
 
@@ -239,12 +237,12 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 |   | Quoi                                                                 | Quand / état     |
 |---|----------------------------------------------------------------------|------------------|
 | ○ | Vérifier que la micro-entreprise couvre la vente d'apps              | À faire          |
-| ○ | Contrat Paid Apps (RIB, fiscal)                                      | À faire          |
+| ✓ | Contrat Paid Apps (RIB, fiscal, DAC7)                                | Actif le 30/10   |
 | ✓ | Clé In-App Purchase (.p8)                                            | Créée            |
-| ○ | Testeur Sandbox                                                      | À faire          |
-| ○ | Small Business Program (15 % au lieu de 30 %)                        | À faire          |
-| ○ | Statut de commerçant (DSA) + domiciliation                           | À faire          |
-| ○ | Mentions légales pro, CGU, CGV, médiateur (SIRET)                    | Textes prêts · manquent SIRET, téléphone, médiateur |
+| ✓ | Testeur Sandbox                                                      | Inutile : achats TestFlight gratuits avec ton identifiant |
+| ✓ | Small Business Program (15 % au lieu de 30 %)                        | Demandé le 02/11 · réponse d'Apple attendue |
+| ○ | Statut de commerçant (DSA), adresse perso                            | INPI signée le 02/11 · attend l'extrait RNE à Saint-Cyr |
+| ○ | Mentions légales pro, CGU, CGV, médiateur (SIRET)                    | Textes prêts · manquent SIRET et médiateur |
 | ○ | Fiche Confidentialité de l'app (Santé partagée)                      | À faire          |
 | ○ | URL de confidentialité de la fiche → mdlf.app/privacy.html           | À la publication |
 | ○ | Âge 13+, prix et pays, mode de publication                           | À la soumission  |
@@ -277,7 +275,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 |---|--------------------------------------------|------------------------|
 | ✓ | Compte @mdlftraining (Créateur), photo, bio | Créé le 01/11         |
 | ✓ | Premier carrousel (6 images)               | Publié le 01/11        |
-| ○ | Carrousel « version coach » (7 images)     | Prêt · tu le gardes pour plus tard |
+| ○ | Carrousel « version coach » (7 images)     | Prêt · à publier par toi |
 | ○ | Publication automatique (Buffer)           | Attend ton compte Buffer |
 | ○ | Page mdlf.app de présentation (lien en bio) | À faire               |
 | ○ | Reels, 3 ou 4 par semaine                  | À faire                |
@@ -312,7 +310,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 |   | Quoi                                                          | Quand / état          |
 |---|---------------------------------------------------------------|-----------------------|
-| ○ | Marque INPI                                                   | Formalité J00296666944 à signer |
+| ○ | Marque INPI                                                   | Plus tard (J00296666944 était le transfert d'adresse, signé le 02/11) |
 | ○ | Messages tout faits en réaction                               | Plus tard             |
 | ○ | Coach payant selon son nombre d'élèves                        | Plus tard             |
 | ○ | Programmes envoyés entre amis, programmes publics             | Plus tard             |

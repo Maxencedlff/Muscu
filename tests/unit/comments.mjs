@@ -1,6 +1,9 @@
 // Commentaires (js/data/comments.js) et leur ligne d'activité (js/data/social.js) : logique pure,
 // sans réseau. Mêmes règles que supabase/migrations/20261031500000_commentaires.sql.
-export default function ({ test, run, assert, sameJSON }) {
+import fs from 'node:fs';
+import path from 'node:path';
+
+export default function ({ test, run, assert, sameJSON, ROOT }) {
   test('commentaires : texte nettoyé et compté comme le serveur', () => {
     assert.equal(run(`commentClean('  Bravo\\r\\n\\n\\n\\nla perf  ')`), 'Bravo\n\nla perf');
     assert.equal(run(`commentClean(null)`), '');
@@ -61,5 +64,18 @@ export default function ({ test, run, assert, sameJSON }) {
     assert.equal(run(`cleanActivityRow({ kind: 'reaction', user_id: 'u1', at: '2026-10-31T10:00:00Z', session_id: 's1', reaction: 'fire' }).cursor.key`), 'reaction:u1:s1');
     assert.equal(run(`cleanActivityRow({ kind: 'follower', user_id: 'u1', at: '2026-10-31T10:00:00Z' }).cursor.key`), 'follower:u1:');
     assert.equal(run(`cleanActivityRow({ kind: 'poke', user_id: 'u1', at: '2026-10-31T10:00:00Z' })`), null, 'sorte inconnue : écartée');
+  });
+  test('commentaires : réponses rapides (record seulement s\'il y en a un, déjà laissée retirée, acceptées par le serveur)', () => {
+    sameJSON(run('quickComments([])'), ['Belle séance 💪', 'Régulier 🔥', 'Respect', 'Lâche rien']);
+    assert.equal(run('quickComments([], { record: true })[0]'), 'Gros record !');
+    const rows = [{ mine: true, body: 'Respect' }, { mine: false, body: 'Belle séance 💪' }, null];
+    sameJSON(run(`quickComments(${JSON.stringify(rows)})`), ['Belle séance 💪', 'Régulier 🔥', 'Lâche rien'], 'celle d\'un autre reste proposée');
+    // Chaque phrase : un commentaire valable, et dans la liste vérifiée contre le filtre du serveur
+    const sql = fs.readFileSync(path.join(ROOT, 'tests/sql/commentaires_test.sql'), 'utf8');
+    for (const t of run('quickComments([], { record: true })')) {
+      assert.equal(run(`commentProblem(${JSON.stringify(t)})`), null, t);
+      assert.equal(run(`commentClean(${JSON.stringify(t)})`), t, `${t} : déjà propre`);
+      assert.ok(sql.includes(`'${t.replace(/'/g, "''")}'`), `${t} absente de tests/sql/commentaires_test.sql`);
+    }
   });
 }

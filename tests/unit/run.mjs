@@ -58,6 +58,7 @@ const SCRIPTS = [
   'js/data/exercise-catalogue.js',
   'js/data/measures.js',
   'js/data/import-csv.js',
+  'js/data/import-measures.js',
   'js/data/progress-photos.js',
   'js/data/photo-vault.js',
   'js/data/session-review.js',
@@ -1517,7 +1518,7 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──
 (await import('./coach.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Commentaires et messages coach ↔ élève (tests dans comments.mjs et coach-chat.mjs) ──
-(await import('./comments.mjs')).default({ test, run, assert, sameJSON });
+(await import('./comments.mjs')).default({ test, run, assert, sameJSON, ROOT });
 (await import('./coach-chat.mjs')).default({ test, run, assert, sameJSON });
 // ── Records notés dans la séance : types, règles, nettoyage, textes (tests dans records.mjs) ──
 (await import('./records.mjs')).default({ test, run, reset, assert, sameJSON });
@@ -1551,6 +1552,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./seance-outils.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Import depuis Hevy et Strong (tests dans import-csv.mjs) ──
 (await import('./import-csv.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
+// ── Import des mesures Hevy (tests dans import-measures.mjs) ──
+(await import('./import-measures.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // ── Récaps de la semaine, du mois et de l'année (tests dans recap.mjs) ──
 (await import('./recap.mjs')).default({ test, run, reset, assert, app, sameJSON });
 // ── Niveau de force (tests dans strength-levels.mjs) ──
