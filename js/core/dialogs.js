@@ -117,7 +117,8 @@ const MODAL_SEL = '.auth, .onb, .ios-dialog, .sheet-root, .sess-sheet, .min-buil
 let modalOpener = null;
 let modalOpen   = false;
 function syncModal() {
-  const top = [...document.querySelectorAll(MODAL_SEL)].pop();
+  // L'écran « Mets à jour l'app » passe devant tout (z-index) : il reste la fenêtre active même si une feuille s'ouvre après lui
+  const top = document.querySelector('.min-build') || [...document.querySelectorAll(MODAL_SEL)].pop();
   const outside = [$('#app'), $('.tabbar'), $('.livebar')].filter(Boolean);
   if (top) {
     if (!modalOpen) { modalOpen = true; modalOpener = document.activeElement; }
