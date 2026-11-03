@@ -199,7 +199,8 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 
 |   | Quoi                                                                     | Où                     | État                                   |
 |---|--------------------------------------------------------------------------|------------------------|----------------------------------------|
-| ▶ | Payant complet, parrainage relié aux vrais paiements, newsletter         | Branche payant-final   | main fusionnée et relue le 02/11 · build 38 en route vers TestFlight · attend le SIRET puis le médiateur |
+| ▶ | Payant complet, parrainage relié aux vrais paiements, newsletter         | Branche payant-final   | **Build 40 sur TestFlight (03/11)** · nuit du 3/11 : 7 chantiers intégrés, relus, E2E 482/484 (S9+ connu), compilation iOS OK · attend le SIRET puis le médiateur |
+| ⚠ | OTA : les mises à jour à chaud partent de main (empreinte de la build 33) | ota.yml | La build 40 a une autre empreinte : elle ne reçoit plus les OTA de main tant que payant-final n'y est pas fusionnée (décision à prendre) |
 | ▶ | Page de confidentialité « store » + mentions légales, CGU, CGV          | payant-final           | Prête · adresse perso et téléphone mis · attend SIRET, médiateur, dates d'entrée en vigueur |
 | ▶ | Strava                                                                    | Branche nuit-integration | En sommeil, rallumé par une build    |
 
@@ -221,32 +222,32 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ○ | Export vers Strava                              | En sommeil                       |
 | ○ | Mise en ligne du payant                         | Prêt · après les papiers         |
 
-### Build 38 (TestFlight, puis App Store)
+### Build 41 (TestFlight, puis App Store) · build 40 publiée le 03/11
 
 |   | Quoi                                                  | Quand / état                        |
 |---|-------------------------------------------------------|-------------------------------------|
 | ✓ | Sommeil, séances dans Santé, notifications, montre    | Build 31                            |
-| ✓ | Paiement Apple (StoreKit)                             | Build 38 (payant-final)             |
+| ✓ | Paiement Apple (StoreKit)                             | Build 40                            |
 | ✓ | Face ID du coffre photos                              | Build 33                            |
-| ✓ | Feuille de partage refermée au retour d'Instagram     | Build 38                            |
-| ○ | Vérification de l'âge par Apple pour l'onglet Amis    | À faire                             |
-| ○ | Écran « mets à jour l'app » avant d'allumer le verrou | À faire                             |
+| ✓ | Feuille de partage refermée au retour d'Instagram     | Build 40                            |
+| ✓ | Vérification de l'âge par Apple pour l'onglet Amis    | payant-final (03/11), build 41 · capacité Declared Age Range + profil à refaire avant |
+| ✓ | Écran « mets à jour l'app » avant d'allumer le verrou | payant-final (03/11), réglé par app_config.min_build |
 
 ### Démarches Apple et légales
 
 |   | Quoi                                                                 | Quand / état     |
 |---|----------------------------------------------------------------------|------------------|
-| ○ | Vérifier que la micro-entreprise couvre la vente d'apps              | À faire          |
+| ○ | Micro-entreprise : ajouter l'activité « édition d'apps » (APE 62.01Z → 58.29C), RCS, n° TVA intracom | Recherche faite le 03/11 (docs/juridique) · après la validation INPI |
 | ✓ | Contrat Paid Apps (RIB, fiscal, DAC7)                                | Actif le 30/10   |
 | ✓ | Clé In-App Purchase (.p8)                                            | Créée            |
 | ✓ | Testeur Sandbox                                                      | Inutile : achats TestFlight gratuits avec ton identifiant |
 | ✓ | Small Business Program (15 % au lieu de 30 %)                        | Demandé le 02/11 · réponse d'Apple attendue |
 | ○ | Statut de commerçant (DSA), adresse perso                            | INPI signée le 02/11 · attend l'extrait RNE à Saint-Cyr |
 | ○ | Mentions légales pro, CGU, CGV, médiateur (SIRET)                    | Textes prêts · manquent SIRET et médiateur |
-| ○ | Fiche Confidentialité de l'app (Santé partagée)                      | À faire          |
+| ○ | Fiche Confidentialité de l'app (11 types)                            | Réponses prêtes dans docs/revue/SOUMISSION.md · manifeste complété |
 | ○ | URL de confidentialité de la fiche → mdlf.app/privacy.html           | À la publication |
 | ○ | Âge 13+, prix et pays, mode de publication                           | À la soumission  |
-| ○ | Capture de revue, note d'examen, compte de test, URL de notification | À faire          |
+| ○ | Capture de revue, note d'examen, compte de test, URL de notification | 20 captures et textes prêts (docs/revue) · reste le compte de test |
 
 ### Sortie App Store
 
@@ -261,13 +262,13 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 |   | Quoi                                                      | Quand / état         |
 |---|-----------------------------------------------------------|----------------------|
 | ○ | Décider du partenariat avec les deux coachs               | En attente           |
-| ○ | Contrat vidéos : cession de droits + droit à l'image      | Quand tu le demandes |
-| ○ | Contrat d'influence (mention « Publicité » obligatoire)   | Quand tu le demandes |
-| ○ | Commission : proposition 20 à 25 % du net pendant 12 mois | À décider            |
+| ○ | Contrat vidéos : cession de droits + droit à l'image      | Projet prêt (docs/juridique/contrats/A) · à faire relire |
+| ○ | Contrat d'influence (mention « Publicité » obligatoire)   | Projet prêt (contrats/B) · à faire relire |
+| ○ | Commission : proposition 20 à 25 % du net pendant 12 mois | Projet de contrat prêt (contrats/C) · taux à décider |
 | ○ | Vérifier leur carte pro et leur statut pour facturer      | À faire              |
 | ○ | Code par coach : compter les abonnés qu'il apporte        | Avec le lot 3        |
-| ○ | Vidéos hébergées en ligne, 20 à 30 exercices d'abord      | Quand elles arrivent |
-| ○ | Vidéos aussi dans le mode coach, pour leurs élèves        | Quand elles arrivent |
+| ○ | Vidéos hébergées en ligne, 20 à 30 exercices d'abord      | Chaîne prête (payant-final, docs/VIDEOS_EXERCICES.md), Supabase Storage recommandé · attend les vidéos |
+| ✓ | Vidéos aussi dans le mode coach, pour leurs élèves        | Prêt (03/11)         |
 
 ### Instagram
 
@@ -277,7 +278,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ✓ | Premier carrousel (6 images)               | Publié le 01/11        |
 | ○ | Carrousel « version coach » (7 images)     | Prêt · à publier par toi |
 | ○ | Publication automatique (Buffer)           | Attend ton compte Buffer |
-| ○ | Page mdlf.app de présentation (lien en bio) | À faire               |
+| ○ | Page mdlf.app de présentation (lien en bio) | Prête (branche vitrine) · captures à refaire au nouveau design, en ligne avec le payant |
 | ○ | Reels, 3 ou 4 par semaine                  | À faire                |
 | ○ | 5 à 10 petits créateurs contre codes à vie | Dès la précommande     |
 | ○ | Pub payante sur un Reel qui a déjà marché  | Jamais avant la sortie |
@@ -310,14 +311,14 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 |   | Quoi                                                          | Quand / état          |
 |---|---------------------------------------------------------------|-----------------------|
 | ○ | Marque INPI                                                   | Plus tard (J00296666944 était le transfert d'adresse, signé le 02/11) |
-| ○ | Messages tout faits en réaction                               | Plus tard             |
+| ✓ | Messages tout faits en réaction                               | payant-final (03/11)  |
 | ○ | Coach payant selon son nombre d'élèves                        | Plus tard             |
 | ○ | Programmes envoyés entre amis, programmes publics             | Plus tard             |
 | ○ | Liens de profil mdlf.app/u/… (demandent une build)            | Plus tard             |
 | ○ | Vraie version anglaise                                        | Plus tard             |
 | ○ | Autre app de musique (Spotify fermé ; YouTube, Deezer à voir) | Plus tard             |
 | ○ | Chronomètre de vitesse dans l'app (vrais temps sur iPhone)    | Si l'app paraît lente |
-| ○ | Import des mensurations depuis Hevy                           | Plus tard             |
+| ✓ | Import des mensurations depuis Hevy                           | payant-final (03/11) · format à confirmer avec un vrai export |
 
 ---
 
