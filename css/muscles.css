@@ -154,17 +154,17 @@ body.light .mpick__auto { background: var(--cell); }
 .exvideo { margin: 0 0 12px; }
 .exvideo__frame {
   position: relative; width: min(100%, calc(60vh * var(--ar, 1.7778))); aspect-ratio: var(--ar, 1.7778);
-  margin: 0 auto; border-radius: 10px; overflow: hidden; background: #000;
+  margin: 0 auto; border-radius: 10px; overflow: hidden; background: var(--black);
 }
-.exvideo__media { display: block; width: 100%; height: 100%; object-fit: cover; background: #000; }
+.exvideo__media { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--black); }
 .exvideo__play {
   position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: none; background: transparent;
-  display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; color: var(--white); cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 .exvideo__btn {
   display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%;
-  background: rgba(0, 0, 0, .55); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  background: var(--scrim); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   transition: opacity .2s;
 }
 .exvideo__btn .icon { margin-left: 3px; }   /* triangle centré à l'œil */
