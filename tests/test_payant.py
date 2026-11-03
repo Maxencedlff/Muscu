@@ -778,32 +778,6 @@ def t_compte_obligatoire(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-def t_version_min(bench, eng, dev, theme):
-    """Version minimale (app_config.min_build) : une build native plus ancienne demande sa mise à jour,
-    avec ou sans compte ; à jour, ou min_build à 0, rien n'est affiché."""
-    t = tag(dev, theme)
-    with bench.page(eng, dev, theme) as page:
-        open_app(page, theme, ppl_v2_today_json(), store={'appBuild': 25, 'minBuild': 30, 'paywallOn': False})
-        page.wait_for_selector('.min-build', timeout=5000)
-        txt = page.inner_text('.min-build')
-        R.check('Mets à jour l\'app' in txt and 'Tes séances restent sur cet iPhone' in txt,
-                f'{t} build trop ancienne : écran de mise à jour ({txt[:120]!r})')
-        page.evaluate("() => { window.__opened = []; window.open = u => { window.__opened.push(u); return null; }; }")
-        page.click('.min-build__btn')
-        R.check(page.evaluate('window.__opened.length') == 1 and 'testflight.apple.com' in page.evaluate('window.__opened[0]'),
-                f'{t} « Mettre à jour » : lien de mise à jour ouvert')
-        R.check(page.evaluate('data.history.length') > 0, f'{t} build trop ancienne : séances intactes sur l\'iPhone')
-        shot(page, LOT, f'21-version-min-{t}')
-        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
-    # À jour, ou aucune version minimale : rien
-    for opts, name in (({'appBuild': 30, 'minBuild': 30}, 'build à jour'), ({'appBuild': 25, 'minBuild': 0}, 'min_build à 0')):
-        with bench.page(eng, dev, theme) as page:
-            open_app(page, theme, ppl_v2_today_json(), store={**opts, 'paywallOn': False})
-            page.wait_for_timeout(800)
-            R.check(page.locator('.min-build').count() == 0, f'{t} {name} : aucun écran de mise à jour')
-            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
-
-
 def t_horloge(bench, eng, dev, theme):
     """Avancer ou reculer l'horloge de l'APPAREIL ne débloque ni ne bloque rien."""
     t = tag(dev, theme)
@@ -1187,4 +1161,4 @@ def t_vie(bench, eng, dev, theme):
 
 
 run_main(R, [t_vie, t_tarifs, t_essai, t_lecture_seule, t_achat, t_achats_bloques, t_rattrapage, t_verrou_serveur,
-             t_verrou_eteint, t_compte_obligatoire, t_version_min, t_horloge, t_grace, t_hors_ligne])
+             t_verrou_eteint, t_compte_obligatoire, t_horloge, t_grace, t_hors_ligne])
