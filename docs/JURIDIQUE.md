@@ -58,7 +58,7 @@ OTA ou build. État au 31/10/2026 : `mentions-legales.html`, `cgu.html`, `cgv.ht
 |---|---|---|
 | À COMPLÉTER : nouveau SIRET en cours d'attribution | mentions-legales.html | Le SIRET (14 chiffres) dès qu'il est attribué. |
 | TO COMPLETE: new SIRET being assigned | mentions-legales.html (EN) | Même SIRET. |
-| À VÉRIFIER : numéro RCS si l'activité y est inscrite | mentions-legales.html | Vérifier sur l'avis de situation (INSEE) ou le guichet unique : si l'activité est commerciale et inscrite au RCS, mettre « RCS Versailles … » ; sinon retirer la mention. |
+| À VÉRIFIER : numéro RCS si l'activité y est inscrite | mentions-legales.html | Voir `docs/juridique/MICRO_ENTREPRISE_APPS.md` : l'activité déclarée (APE 62.01Z) ne couvre pas l'édition ; après la déclaration de modification, mettre le numéro du Kbis (« RCS Versailles … ») si le guichet classe l'activité en commerciale, sinon retirer la mention. |
 | À COMPLÉTER : numéro de téléphone | mentions-legales.html | Un numéro joignable (exigé pour un professionnel : LCEN et article L221-5 du Code de la consommation). Une ligne dédiée (seconde ligne, numéro virtuel) évite de publier le numéro personnel. |
 | TO COMPLETE: phone number | mentions-legales.html (EN) | Même numéro. |
 | À COMPLÉTER : téléphone de l'hébergeur | mentions-legales.html | Téléphone de Vercel Inc. tel que Vercel le publie (non trouvé sur une source officielle le 31/10/2026 ; un numéro circule sur des sites tiers, non vérifié). |
@@ -87,3 +87,12 @@ OTA ou build. État au 31/10/2026 : `mentions-legales.html`, `cgu.html`, `cgv.ht
 - Remplir les emplacements (tableau ci-dessus), relire les quatre pages, vérifier
   `node scripts/check-legal-pages.mjs privacy.html mentions-legales.html cgu.html cgv.html`, puis fusion et
   publication (le job `deploy` les met en ligne avec le site).
+
+## Micro-entreprise et contrats des coachs (03/11/2026)
+- `docs/juridique/MICRO_ENTREPRISE_APPS.md` : la micro-entreprise couvre la vente d'abonnements, mais
+  l'activité déclarée est à modifier (édition d'applications), avec RCS, taux de 21,2 % et numéro de TVA
+  intracommunautaire. Sources officielles en fin de note.
+- `docs/juridique/contrats/` : trois projets à faire relire, pour les coachs partenaires :
+  `A_CESSION_DROITS_VIDEOS_ET_IMAGE.md` (vidéos d'exercices), `B_INFLUENCE_COMMERCIALE.md` (publications
+  Instagram, loi du 9 juin 2023), `C_APPORT_AFFAIRES_COMMISSION.md` (code et commission). Les choix à faire
+  sont listés à la fin de chacun.
