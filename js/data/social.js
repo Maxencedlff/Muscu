@@ -352,15 +352,20 @@ function writeSocialCache() {
   catch { /* cache facultatif */ }
 }
 
-// Social activé : état lu, sinon dernier état connu sur l'appareil
-function socialEnabled() { return !!account.user && !!(social.state ? social.state.enabled : social.cached?.enabled); }
+// Amis activé sur le compte (serveur) : état lu, sinon dernier état connu sur l'appareil
+function socialActivated() { return !!account.user && !!(social.state ? social.state.enabled : social.cached?.enabled); }
+// Amis utilisables sur cet appareil : activé, et pas masqué par la tranche d'âge partagée par Apple
+// (js/data/age-range.js). Point unique : onglet, bilan et Historique (Visible sur mon profil, réactions,
+// commentaires), Réglages, relectures ; tout écran des Amis passe par là.
+function socialEnabled() { return !socialHiddenByAge() && socialActivated(); }
 // Réglages › Amis et coach › Séances visibles par défaut : absent = oui (toute séance visible des abonnés
 // tant qu'on n'éteint pas « Visible sur mon profil » à la fin). Tranche de 15 à 17 ans partagée par Apple
 // (js/data/age-range.js) : absent = non, seul un choix explicite les rend visibles par défaut.
 function sessionsVisibleByDefault(d = data) { return socialTeenByAge() ? d.sessionVisibleDefault === true : d.sessionVisibleDefault !== false; }
 // Une séance qui se termine maintenant naît masquée (hidden: true) : Amis activé et réglage éteint, ou Amis
-// masqué par la tranche d'âge (activé avant : rien de neuf n'est montré)
-function newSessionHidden(d = data) { return socialEnabled() && (socialHiddenByAge() || !sessionsVisibleByDefault(d)); }
+// masqué par la tranche d'âge, activé ou non (rien de neuf n'est montré, ni plus tard si Amis est rallumé :
+// la séance se rend visible à la main, Historique › Séance)
+function newSessionHidden(d = data) { return socialHiddenByAge() || (socialEnabled() && !sessionsVisibleByDefault(d)); }
 // Badge de l'onglet : demandes reçues en attente, plus les nouveautés de l'activité (réactions à mes
 // séances, demandes acceptées) jusqu'à l'ouverture de Mon profil
 function socialBadge() { return socialPending() + socialActivityNew(); }
@@ -433,6 +438,18 @@ async function socialDisable() {
   const r = await socialRpc('social_disable');
   if (r.ok) { social.feeds = {}; social.activity = null; social.who = {}; social.reactions = {}; await socialRefresh(); }
   return r;
+}
+
+// Amis activé sur le compte puis masqué par la tranche d'âge (js/data/age-range.js) : désactivé sur le serveur
+// (social_disable : invisible dans la recherche, séances invisibles des abonnés, relations gardées), pour que
+// le profil ne reste pas visible des autres. Une fois par compte et par lancement ; redemandé après un échec
+// (hors ligne) au prochain état reçu. Appelée par js/features/social-ui.js (tranche ou état changé).
+let socialAgeDisabledFor = null;
+function socialDisableForAge() {
+  const id = account.user?.id;
+  if (!id || !socialHiddenByAge() || !socialActivated() || socialAgeDisabledFor === id) return;
+  socialAgeDisabledFor = id;
+  socialDisable().then(r => { if (!r.ok && socialAgeDisabledFor === id) socialAgeDisabledFor = null; });
 }
 
 // Recherche par début de pseudo : { ok, data: [{ user_id, username, avatar, relation }] }

@@ -123,6 +123,11 @@ jobs:
           grep -E 'warning: .*(RestActivity|LiveActivity|Shared/|AppExtras/|Watch/|Widgets/)' xcodebuild.log | sort -u | head -40 || true
           tail -5 xcodebuild.log
 
+      # DeclaredAgeRange (iOS 26) lié en faible : sinon plantage au lancement avant iOS 26 (scripts/ios/check-weak-frameworks.sh)
+      - name: Frameworks récents liés en faible (simulateur)
+        if: ${{ !inputs.testflight }}
+        run: bash scripts/ios/check-weak-frameworks.sh build/Build/Products/Debug-iphonesimulator/App.app
+
       - name: Lancement sur un iPhone virtuel et captures
         if: ${{ !inputs.testflight }}
         run: |
@@ -275,6 +280,11 @@ jobs:
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
             -destination 'generic/platform=iOS' -archivePath build/App.xcarchive $SPM_FLAGS archive \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} | tail -40
+
+      # Même contrôle sur la version signée : rien n'est envoyé à Apple si le lien n'est pas faible
+      - name: Frameworks récents liés en faible (archive)
+        if: ${{ inputs.testflight }}
+        run: bash scripts/ios/check-weak-frameworks.sh build/App.xcarchive/Products/Applications/App.app
 
       - name: Export et envoi sur App Store Connect
         if: ${{ inputs.testflight }}

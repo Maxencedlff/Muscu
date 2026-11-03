@@ -2,7 +2,8 @@
 demandes, fil (Bravo, détail, pagination), profil d'un autre (s'abonner, annuler, se désabonner,
 bloquer, signaler), Gérer, Désactiver, Historique › Séance (Visible sur mon profil, qui a réagi),
 bilan de fin de séance (Visible sur mon profil, œil barré dans l'Historique), hors ligne, tranche d'âge
-partagée par Apple (moins de 15 ans : Amis masqué ; 15-17 ans : séances masquées par défaut ; refus : rien ne change).
+partagée par Apple (moins de 15 ans : Amis masqué, désactivé sur le serveur, Historique › Séance sans Amis ni
+commentaires, « Rejoindre un coach » masqué ; 15-17 ans : séances masquées par défaut ; refus : rien ne change).
 
 L'app iOS et Supabase sont simulés (tests/fake_account.py, règles de docs/SOCIAL_V1.md) : aucune requête
 ne sort. Captures : $PPL_SCRATCH/shots/lotsocial/ (chaque nouvel écran, clair et sombre).
@@ -715,4 +716,40 @@ def t_age(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_tabbar_sans_compte, t_activation, t_fil, t_record_ami, t_record_note, t_profil, t_gerer, t_masquer, t_bilan_visible, t_hors_ligne, t_age])
+def t_age_historique(bench, eng, dev, theme):
+    """Tranche 'young' (13-15, seuils du Texas) sur un compte où Amis était activé : social_disable une fois,
+    Historique › Séance sans « Visible sur mon profil » ni commentaires des autres, « Rejoindre un coach » masqué."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json(), {'ageRange': {'status': 'sharing', 'lowerBound': 13, 'upperBound': 15, 'communicationLimits': False}})
+        signin(page, enable=True)
+        sid = page.evaluate("""() => { const lea = __sb.addPerson({ username: 'lea' }), me = __sb.meId(), sid = data.history[0].id;
+            __sb.follow(lea, me); __sb.comment(lea, me, sid, 'Bravo pour le développé !', Date.now() - 3600e3); return sid; }""")
+        R.check(page.evaluate('socialEnabled()') is True, f'{t} avant la réponse d\'Apple : Amis activé')
+        friends_tab(page)
+        page.wait_for_selector('#friendsBody :text("Amis indisponibles")')
+        page.wait_for_timeout(300)
+        disables = page.evaluate('__sb.calls.filter(c => c[0] === "social" && c[1] === "social_disable").length')
+        R.check(disables == 1, f'{t} Amis désactivé sur le serveur une fois ({disables})')
+        R.check(page.evaluate('socialEnabled() === false && socialActivated() === false'), f'{t} Amis éteint, compte compris')
+        R.check(page.locator('[data-action="coach-join-start"]').count() == 0, f'{t} « Rejoindre un coach » masqué (moins de 15 ans possible)')
+        page.click('.tabbar [data-tab="history"]')
+        page.wait_for_timeout(300)
+        R.check(page.locator('.hidden-mark').count() == 0, f'{t} liste : pas d\'œil barré')
+        page.click(f'[data-action="open-history"][data-id="{sid}"]')
+        page.wait_for_selector('.history-detail')
+        page.wait_for_timeout(400)
+        txt = page.inner_text('.history-detail')
+        R.check(page.locator('[data-action="history-hide"]').count() == 0 and 'Visible sur mon profil' not in txt, f'{t} séance : pas de « Visible sur mon profil »')
+        R.check(page.locator('#commentsList, #commentInput').count() == 0 and 'Bravo pour le développé' not in txt, f'{t} séance : pas de commentaires des autres')
+        R.check(len(calls(page, 'list_comments')) == 0, f'{t} commentaires jamais demandés')
+        R.check(page.evaluate('newSessionHidden()') is True, f'{t} nouvelle séance masquée')
+        layout(page, t, 'âge historique')
+        shot(page, LOT, f'13-age-historique-{t}')
+        page.evaluate("navigate('coach')")
+        page.wait_for_selector('.coach-view :text("Coach indisponible")')
+        R.check(page.locator('[data-action="coach-join"]').count() == 0, f'{t} Réglages › Coach : pas de « Rejoindre un coach »')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_tabbar_sans_compte, t_activation, t_fil, t_record_ami, t_record_note, t_profil, t_gerer, t_masquer, t_bilan_visible, t_hors_ligne, t_age, t_age_historique])

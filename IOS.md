@@ -338,7 +338,7 @@ Module `MdlfAgeRange`, côté web `Native.ageRange.request()`, décisions dans `
 |---|---|
 | `ios/App/App/AgeRangePlugin.swift` | `request()` : `AgeRangeService.shared.requestAgeRange(ageGates: 13, 15, 18, in: bridge.viewController)` sur le fil principal ; répond `{ status: "sharing", lowerBound?, upperBound?, communicationLimits }` (`activeParentalControls.contains(.communicationLimits)`), `{ status: "declined" }` (`.declinedSharing`) ou `{ status: "unavailable" }` (toute erreur `AgeRangeService.Error`, iOS antérieur au 26, SDK sans le framework). Ne rejette jamais. Protégé par `#if canImport(DeclaredAgeRange)` et `#available(iOS 26.0, *)` ; `isEligibleForAgeFeatures` (iOS 26.2) n'est pas utilisé |
 | `App.entitlements` | `com.apple.developer.declared-age-range = true` |
-| `js/data/age-range.js` | Catégorie (`ageBand`) : moins de 15 ans ou mineur avec « Limites de communication » → onglet Amis masqué avec une explication (coach gardé, badge éteint, aucun écran des Amis ouvert par une notification, nouvelles séances masquées) ; 15-17 ans → séances masquées aux abonnés par défaut (« Séances visibles par défaut » éteint tant qu'on ne l'allume pas) ; 18 ans ou plus, refus, indisponible, navigateur, Android → rien ne change |
+| `js/data/age-range.js` | Catégorie (`ageBand`) : tranche qui n'exclut pas moins de 15 ans (13-15 au Texas compris) ou mineur avec « Limites de communication » → Amis masqué partout (`socialEnabled` : onglet avec une explication, bilan et Historique › Séance sans « Visible sur mon profil » ni commentaires, badge éteint, aucun écran des Amis ouvert par une notification, nouvelles séances masquées) et `social_disable` si Amis était activé ; moins de 15 ans → « Rejoindre un coach » masqué (coach déjà suivi gardé) ; « Limites de communication » → messages du coach coupés (`chatAvailable`) ; 15-17 ans → séances masquées aux abonnés par défaut (« Séances visibles par défaut » éteint tant qu'on ne l'allume pas) ; 18 ans ou plus, refus, indisponible, navigateur, Android → rien ne change |
 
 - **Quand** : à l'ouverture de l'onglet Amis, jamais au lancement (la fenêtre d'iOS arrive avec son
   contexte). Une fois par lancement au plus ; réponse gardée dans `mdlf_age_range` (appareil seulement,
@@ -349,9 +349,12 @@ Module `MdlfAgeRange`, côté web `Native.ageRange.request()`, décisions dans `
   plus petit seuil, `upperBound` nil = au-dessus du plus grand.
 - **Avant la build** : capacité « Declared Age Range » à activer sur `com.mdlf.training` et profil
   « MDLF Training App Store » à régénérer (secret `APPSTORE_PROFILE`), sinon la signature Release échoue
-  (la CI Debug compile sans signer et ne le voit pas). Framework introduit en iOS 26 alors que l'app vise
-  16.4 : vérifier qu'il est lié en faible (`otool -l` : `LC_LOAD_WEAK_DYLIB` pour DeclaredAgeRange), sinon
-  ajouter `-weak_framework DeclaredAgeRange` aux réglages de la cible App.
+  (la CI Debug compile sans signer et ne le voit pas).
+- **Lien faible** : framework introduit en iOS 26 alors que l'app vise 16.4. Lié en fort, dyld refuse de
+  lancer l'app sur iOS 16 à 18. `OTHER_LDFLAGS = ("$(inherited)", "-weak_framework", DeclaredAgeRange)`
+  dans les configurations Debug et Release de la cible App ; la CI le vérifie après chaque compilation
+  (simulateur et archive TestFlight, avant l'envoi) avec `scripts/ios/check-weak-frameworks.sh`
+  (`otool -l` : `LC_LOAD_WEAK_DYLIB` attendu, l'exécutable et `App.debug.dylib` en Debug).
 - **Essai** : Apple fournit des cas de test en Sandbox (moins de 13 ans, 13-15, 16-17, 18 et plus ;
   Réglages › Développeur), voir « Testing age assurance in sandbox ».
 
