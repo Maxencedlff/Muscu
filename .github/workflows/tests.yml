@@ -15,9 +15,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: tests-${{ github.ref }}
-  # Sur main, une publication ne s'interrompt jamais ; ailleurs, un envoi plus récent remplace l'ancien
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  # Jamais interrompus : la build TestFlight (ios.yml, job gate) attend les tests de SON commit, et
+  # un envoi plus récent qui les annulait faisait échouer la build (03/11/2026, build 41). Sur main,
+  # un seul groupe : les publications du site passent l'une après l'autre, dans l'ordre.
+  group: ${{ github.ref == 'refs/heads/main' && format('tests-{0}', github.ref) || format('tests-{0}-{1}', github.ref, github.sha) }}
+  cancel-in-progress: false
 
 jobs:
   unit:

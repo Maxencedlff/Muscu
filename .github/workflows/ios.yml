@@ -1,11 +1,23 @@
 name: iOS
 
-# Deux modes, lancés à la main depuis l'onglet Actions (ou gh workflow run ios.yml) :
+# Deux modes :
 #  - contrôle (par défaut) : compile pour le simulateur, lance l'app sur un iPhone virtuel et
-#    joint des captures d'écran. Ne demande aucun secret Apple.
-#  - testflight : compile la version signée et l'envoie sur App Store Connect (TestFlight).
-#    Demande les secrets ASC_KEY_ID, ASC_ISSUER_ID et ASC_KEY_P8 (clé d'API au rôle Admin).
+#    joint des captures d'écran. Ne demande aucun secret Apple. Lancé TOUT SEUL à chaque envoi qui
+#    touche au code natif (chemins ci-dessous), sur n'importe quelle branche : une erreur de
+#    compilation Swift se voit avant la build TestFlight (le 03/11/2026, la build 41 a échoué sur une
+#    fermeture Swift non typée, que rien ne vérifiait dans WSL).
+#  - testflight (à la main : gh workflow run ios.yml -f testflight=true) : compile la version signée
+#    et l'envoie sur App Store Connect (TestFlight). Demande les secrets ASC_KEY_ID, ASC_ISSUER_ID et
+#    ASC_KEY_P8 (clé d'API au rôle Admin).
 on:
+  push:
+    paths:
+      - 'ios/**'
+      - 'capacitor.config.*'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/ios/**'
+      - '.github/workflows/ios.yml'
   workflow_dispatch:
     inputs:
       testflight:
