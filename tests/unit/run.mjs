@@ -45,6 +45,7 @@ const SCRIPTS = [
   'js/data/coach-chat.js',
   'js/data/referral.js',
   'js/data/plans.js',
+  'js/data/min-build.js',
   'js/data/access.js',
   'js/data/coach-pro.js',
   'js/data/newsletter.js',
@@ -1530,6 +1531,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./access.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Contrat du module natif StoreKit : clés réellement envoyées par le Swift (store-contract.mjs) ──
 (await import('./store-contract.mjs')).default({ test, run, assert, sameJSON, ROOT });
+// ── Version minimale de l'app : app_config.min_build, lien App Store ou TestFlight (min-build.mjs) ──
+(await import('./min-build.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Guide de l'app : contenus et libellés (tests dans guide.mjs) ──
 (await import('./guide.mjs')).default({ test, run, assert, ROOT });
 // ── Premier lancement : questions et programme conseillé (tests dans onboarding.mjs) ──

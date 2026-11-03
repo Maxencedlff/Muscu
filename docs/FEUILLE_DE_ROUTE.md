@@ -232,7 +232,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ✓ | Face ID du coffre photos                              | Build 33                            |
 | ○ | Feuille de partage refermée au retour d'Instagram     | Branche natif-feuille-partage       |
 | ○ | Vérification de l'âge par Apple pour l'onglet Amis    | À faire                             |
-| ○ | Écran « mets à jour l'app » avant d'allumer le verrou | À faire                             |
+| ○ | Écran « mets à jour l'app » avant d'allumer le verrou | Branche maj-obligatoire             |
 
 ### Démarches Apple et légales
 

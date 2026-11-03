@@ -113,7 +113,7 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
 
 // Dialogues, feuilles et feuilles de séance : tant qu'une est ouverte, le reste de l'app est inerte
 // (VoiceOver et clavier restent dans la fenêtre). À la fermeture, le focus revient au déclencheur.
-const MODAL_SEL = '.auth, .onb, .ios-dialog, .sheet-root, .sess-sheet';
+const MODAL_SEL = '.auth, .onb, .ios-dialog, .sheet-root, .sess-sheet, .min-build';
 let modalOpener = null;
 let modalOpen   = false;
 function syncModal() {
@@ -123,7 +123,7 @@ function syncModal() {
     if (!modalOpen) { modalOpen = true; modalOpener = document.activeElement; }
     outside.forEach(el => { el.inert = true; });
     if (!top.contains(document.activeElement)) {
-      const tgt = top.querySelector('.ios-dialog__title, .sheet__title, .rs__title, .sess-sheet__body [tabindex="-1"], .auth__title') || top.querySelector('.sess-sheet__panel, .ios-dialog__panel, .sheet');
+      const tgt = top.querySelector('.ios-dialog__title, .sheet__title, .rs__title, .sess-sheet__body [tabindex="-1"], .auth__title, .min-build__title') || top.querySelector('.sess-sheet__panel, .ios-dialog__panel, .sheet');
       if (tgt) { if (!tgt.hasAttribute('tabindex')) tgt.setAttribute('tabindex', '-1'); tgt.focus({ preventScroll: true }); }
     }
   } else if (modalOpen) {
