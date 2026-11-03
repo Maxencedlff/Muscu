@@ -131,7 +131,10 @@ def t_fiche(bench, eng, dev, theme):
         R.check(attrs['playsinline'] and attrs['muted'] and attrs['loop'], f'{t} playsinline, muet, en boucle {attrs}')
         R.check(attrs['poster'] == HOST + 'squat-barre.jpg', f'{t} affiche')
         R.check(COACH in (attrs['label'] or '') and EX in attrs['label'], f'{t} VoiceOver : exercice et coach')
-        R.check(page.inner_text('.exvideo__credit').strip() == f'Vidéo : @{COACH}', f'{t} crédit « Vidéo : @coach »')
+        # Crédit vérifié avant tout chargement : sans ffmpeg (CI), la lecture échoue vite et le crédit devient
+        # « Vidéo indisponible… · @coach », testé plus bas
+        credit = page.inner_text('.exvideo__credit').strip()
+        R.check(credit == f'Vidéo : @{COACH}' or ('indisponible' in credit and COACH in credit), f'{t} crédit « Vidéo : @coach » ({credit})')
         R.check(abs(page.evaluate("(() => { const r = document.querySelector('.exvideo__frame').getBoundingClientRect(); return r.width / r.height; })()") - 16 / 9) < 0.02, f'{t} proportions 16/9')
         # Wi-Fi (ou rien de détectable) : lecture automatique une fois à l'écran
         page.wait_for_function("document.querySelector('.exvideo video').getAttribute('src')", timeout=5000)
