@@ -284,4 +284,30 @@ def t_capture_mesures(bench):
             R.check(not page.errors, f'iPhone 15 Pro {theme} : aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_hevy, t_strong, t_mesures_hevy], once=[t_merge_existing, t_mesures_annuler, t_capture_mesures])
+def t_mesures_limite(bench):
+    """Mesures Hevy : journal presque plein (400 par mesure), les valeurs déjà notées restent toutes, l'aperçu
+    nomme celles du fichier qui n'entrent pas ; captures iPhone 15 Pro clair et sombre."""
+    for theme in ('light', 'dark'):
+        with bench.page('webkit', 'iPhone 15 Pro', theme) as page:
+            seed(page, theme, None)
+            skip_questions(page)
+            # 398 tailles notées en 2019-2020 : 2 places libres pour les 4 tailles (plus récentes) du fichier
+            page.evaluate("""() => { const s = new Date(2019, 0, 1, 12).getTime();
+                data.bodyMeasures = { waist: Array.from({ length: 398 }, (_, i) => ({ date: s + i * 86400000, cm: 90 })) }; save(); render(); }""")
+            open_import(page, csv_file('hevy_mesures_exemple.csv'))
+            rw = rows(page)
+            R.check(rw.get('Mensurations à ajouter') == '29' and rw.get('Pesées à ajouter') == '4', f'{theme} limite : aperçu {rw}')
+            foot = page.locator('#impSheet').inner_text()
+            R.check('2 mesures anciennes non importées : limite de 400 par mesure' in foot, f'{theme} limite : non importées nommées « {foot} »')
+            R.check(page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{theme} limite : pas de défilement horizontal')
+            shot(page, LOT, f'apercu-mesures-limite-iPhone_15_Pro-{theme}')
+            page.click('.sheet__btn--confirm')
+            page.wait_for_selector('.toast', timeout=3000)
+            d = json.loads(ls(page, 'ppl_v2'))
+            waist = d['bodyMeasures']['waist']
+            R.check(len(waist) == 400 and sum(1 for p in waist if p['cm'] == 90) == 398, f'{theme} limite : les 398 tailles notées restent ({len(waist)})')
+            R.check([p['cm'] for p in waist[:2]] == [82, 83], f'{theme} limite : les 2 plus récentes du fichier {waist[:2]}')
+            R.check(not page.errors, f'{theme} limite : aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_hevy, t_strong, t_mesures_hevy], once=[t_merge_existing, t_mesures_annuler, t_mesures_limite, t_capture_mesures])

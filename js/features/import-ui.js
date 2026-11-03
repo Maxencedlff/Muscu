@@ -147,6 +147,7 @@ function measuresPreviewHtml(plan) {
         ${r.kept ? row('Déjà notées ce jour-là', r.kept) : ''}
         ${skipped ? row('Valeurs ou lignes ignorées', skipped) : ''}
       </ul>
+      ${r.dropped ? `<p class="imp__foot">${plural(r.dropped, 'mesure ancienne non importée', 'mesures anciennes non importées')} : limite de ${BODY_MEASURE_MAX} par mesure, tes valeurs déjà notées sont gardées.</p>` : ''}
       ${plan.ignored.length ? `<p class="imp__foot">Pas suivis dans l'app : ${esc(plan.ignored.join(', '))}.</p>` : ''}
       <p class="imp__foot">Une mesure déjà notée le même jour garde ta valeur. ${healthEnabled() ? 'Ton poids affiché reste celui de Santé. ' : ''}Privé : reste sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs.</p>
     </div>`;

@@ -88,4 +88,68 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run('data.bodyWeightKg'), 70);
     assert.equal(run('data.bodyWeightLog[0].kg'), 70);
   });
+
+  // Plan de n jours consécutifs à partir de start (midi), pesée et taille chaque jour
+  const planOf = (start, n, kg = 80, cm = 85) => ({ ok: true, format: 'hevy_measures', ignored: [], skippedRows: 0, outOfRange: 0,
+    days: Array.from({ length: n }, (_, i) => ({ date: start + i * DAY, kg, cm: { waist: cm } })) });
+  const DAY = 86400000;
+  const journal = (start, n, field, v) => `Array.from({ length: ${n} }, (_, i) => ({ date: ${start} + i * ${DAY}, ${field}: ${v} }))`;
+
+  test('mesures Hevy : limite de 400, aucune pesée déjà notée ne disparaît', () => {
+    reset();
+    // 300 pesées dans l'app (2019-2020), fichier de 400 jours plus récents (2021-2022) : 100 places libres.
+    // Avant : les 400 plus récentes gardées, donc 300 pesées de la personne effacées sans un mot.
+    const mineStart = noon(2019, 1, 1), fileStart = noon(2021, 1, 1);
+    run(`data.bodyWeightLog = ${journal(mineStart, 300, 'kg', 70)};`);
+    const before = run('data.bodyWeightLog.map(p => p.date)');
+    const r = run(`applyMeasuresImport(${JSON.stringify(planOf(fileStart, 400))})`);
+    assert.equal(r.weights, 100, 'place libre seulement');
+    assert.equal(run('data.bodyWeightLog.length'), 400);
+    const after = new Set(run('data.bodyWeightLog.map(p => p.date)'));
+    assert.ok(before.every(t => after.has(t)), 'les 300 pesées de la personne sont toutes là');
+    const imported = run(`data.bodyWeightLog.filter(p => p.kg === 80).map(p => p.date)`);
+    assert.equal(Math.min(...imported), fileStart + 300 * DAY, 'les plus récentes du fichier sont gardées');
+    assert.equal(r.dropped, 300, '300 pesées anciennes comptées, pas perdues en silence');
+    assert.equal(r.measures, 400, 'taille vide : les 400 entrent');
+  });
+
+  test('mesures Hevy : limite de 400, aucune mensuration déjà notée ne disparaît', () => {
+    reset();
+    const mineStart = noon(2019, 1, 1), fileStart = noon(2021, 1, 1);   // fichier plus récent que la saisie
+    run(`data.bodyMeasures = { waist: ${journal(mineStart, 350, 'cm', 90)} };`);
+    const before = run('data.bodyMeasures.waist.map(p => p.date)');
+    const plan = planOf(fileStart, 120);
+    plan.days.forEach(x => { delete x.kg; });
+    const r = run(`applyMeasuresImport(${JSON.stringify(plan)})`);
+    sameJSON(r, { weights: 0, measures: 50, kept: 0, dropped: 70 });
+    assert.equal(run('data.bodyMeasures.waist.length'), 400);
+    const after = new Set(run('data.bodyMeasures.waist.map(p => p.date)'));
+    assert.ok(before.every(t => after.has(t)), 'les 350 tailles de la personne sont toutes là');
+    assert.equal(run('Math.min(...data.bodyMeasures.waist.filter(p => p.cm === 85).map(p => p.date))'), fileStart + 70 * DAY, 'les 50 plus récentes du fichier');
+    // Journal déjà plein : rien n'entre, rien ne sort
+    reset();
+    run(`data.bodyMeasures = { waist: ${journal(mineStart, 400, 'cm', 90)} };`);
+    const full = run(`applyMeasuresImport(${JSON.stringify(plan)})`);
+    sameJSON(full, { weights: 0, measures: 0, kept: 0, dropped: 120 });
+    assert.equal(run('data.bodyMeasures.waist.every(p => p.cm === 90)'), true);
+  });
+
+  test('mesures Hevy : poids du corps saisi sans historique, gardé face à une vieille pesée', () => {
+    reset();
+    run('data.bodyWeightKg = 80; delete data.bodyWeightLog;');
+    const old = planOf(noon(2024, 3, 1), 1, 65);
+    run(`applyMeasuresImport(${JSON.stringify(old)})`);
+    assert.equal(run('data.bodyWeightKg'), 80, 'poids saisi gardé');
+    assert.equal(run('data.bodyWeightLog[0].kg'), 65, 'la pesée entre quand même dans l\'historique');
+    // Poids vide : la pesée du fichier le remplit
+    reset();
+    run('data.bodyWeightKg = null; delete data.bodyWeightLog;');
+    run(`applyMeasuresImport(${JSON.stringify(old)})`);
+    assert.equal(run('data.bodyWeightKg'), 65);
+    // Historique déjà là et pesée du fichier plus récente : elle devient le poids
+    reset();
+    run(`data.bodyWeightKg = 80; data.bodyWeightLog = [{ date: ${noon(2024, 1, 1)}, kg: 80 }];`);
+    run(`applyMeasuresImport(${JSON.stringify(old)})`);
+    assert.equal(run('data.bodyWeightKg'), 65);
+  });
 }
