@@ -251,6 +251,7 @@ function renderExerciseCard(ex, ei, cur) {
         <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
       </div>
       <div class="ex-card__sub">${exSubHtml(ex, ei, allDone)}</div>
+      ${bandPickerHtml(ex, ei)}
       ${coachSessionTipHtml(ex)}
       <div class="sets" role="group" aria-label="Séries de ${esc(ex.name)}">
         <div class="sets__head" aria-hidden="true">

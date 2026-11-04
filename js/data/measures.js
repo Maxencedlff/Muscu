@@ -174,7 +174,7 @@ function paceTxt(s, kind) { return fmtPace(cardioPace(s?.dist, setMinutes(s), ki
 const BODYWEIGHT_SHARE = {
   'Tractions pronation': 0.95, 'Tractions supination': 0.95, 'Tractions prise serrée': 0.95, 'Tractions archer': 0.95,
   'Tractions négatives': 0.95, 'Muscle-up': 0.95, 'Dips': 0.95, 'Dips négatifs': 0.95,
-  'Tractions assistées (machine)': 0.95, 'Dips assistés (machine)': 0.95,
+  'Tractions assistées (machine)': 0.95, 'Dips assistés (machine)': 0.95, 'Tractions avec élastique': 0.95,
   'Pompes': 0.65, 'Pompes diamant': 0.65, 'Pompes sur les genoux': 0.5, 'Pompes inclinées': 0.45, 'Pompes déclinées': 0.72,
   'Squat poids du corps': 0.88, 'Squat sauté': 0.88, 'Squat sur chaise': 0.88, 'Pistol squat': 0.94, 'Shrimp squat': 0.94,
   'Fentes': 0.85, 'Fentes sautées': 0.85, 'Tractions australiennes': 0.6, 'Rowing sous une table': 0.6,
@@ -182,17 +182,28 @@ const BODYWEIGHT_SHARE = {
 // Noms saisis librement (« Tractions lestées », « Dips lestés ») : mêmes familles reconnues par le nom
 const BODYWEIGHT_RULES = [[/traction|pull up|chin up|muscle up/, 0.95], [/^dips?\b(?!.*(chaise|banc|machine))/, 0.95], [/^pompes?\b|push up/, 0.65]];
 const ASSISTED_RE = /assist(e|ee|es|ees)?\b.*machine|machine.*assist/;
+// Élastique d'assistance sous les pieds ou les genoux : tractions et dips (pas les pompes « avec
+// élastique », où il ajoute de la résistance)
+const BAND_ASSIST_RE = /(traction|pull up|chin up|\bdips?\b).*(elastique|band)|(elastique|band).*(traction|pull up|chin up|\bdips?\b)/;
+// Élastiques proposés en un toucher (aide en kg) : le lot Domyos de Decathlon, vert 10, jaune 20 et
+// orange 30 kg (couleurs du produit). Toute autre aide se saisit dans la colonne « Aide ».
+const ASSIST_BANDS = [
+  { id: 'vert', label: 'Vert', kg: 10, color: '#8FD3A8' },
+  { id: 'jaune', label: 'Jaune', kg: 20, color: '#F2C94C' },
+  { id: 'orange', label: 'Orange', kg: 30, color: '#FF7A45' },
+];
 
 function bodyShare(ex) {
   if (measureOf(ex) !== 'reps') return 0;
   const entry = catalogueEntry(ex?.name || '');
   if (entry) return BODYWEIGHT_SHARE[entry.name] || 0;
   const k = ruleKey(ex?.name || '');
-  if (/machine|poulie|elastique/.test(k) && !ASSISTED_RE.test(k)) return 0;
+  if (/machine|poulie|elastique/.test(k) && !ASSISTED_RE.test(k) && !BAND_ASSIST_RE.test(k)) return 0;
   return BODYWEIGHT_RULES.find(([re]) => re.test(k))?.[1] || 0;
 }
-// Machine d'assistance : le kg saisi est une aide, retirée du poids du corps (moins d'aide = progrès)
-function isAssisted(ex) { return bodyShare(ex) > 0 && ASSISTED_RE.test(ruleKey(ex?.name || '')); }
+// Machine ou élastique d'assistance : le kg saisi est une aide, retirée du poids du corps (moins d'aide = progrès)
+function isBandAssisted(ex) { return bodyShare(ex) > 0 && BAND_ASSIST_RE.test(ruleKey(ex?.name || '')); }
+function isAssisted(ex) { return bodyShare(ex) > 0 && (ASSISTED_RE.test(ruleKey(ex?.name || '')) || isBandAssisted(ex)); }
 // Ce que contient la colonne de charge : 'charge' (barre, haltères), 'lest' ou 'aide'
 function loadKind(ex) { return !bodyShare(ex) ? 'charge' : isAssisted(ex) ? 'aide' : 'lest'; }
 

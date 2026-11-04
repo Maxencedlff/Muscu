@@ -3,6 +3,27 @@ import path from 'node:path';
 
 // Mesures des exercices (js/data/measures.js) : répétitions, durée, cardio
 export default function ({ test, run, reset, assert, ROOT }) {
+  const sameJSONLike = (a, b) => assert.equal(JSON.stringify(a), JSON.stringify(b));
+  test('élastique d\'assistance : aide retirée du poids du corps, pastilles des élastiques', () => {
+    reset();
+    for (const name of ['Tractions avec élastique', 'Tractions élastique gros', 'Dips avec élastique', 'Band assisted pull up']) {
+      assert.equal(run(`loadKind({ name: ${JSON.stringify(name)} })`), 'aide', name);
+    }
+    for (const name of ['Pompes avec élastique', 'Curl élastique', 'Squat élastique']) {
+      assert.notEqual(run(`loadKind({ name: ${JSON.stringify(name)} })`), 'aide', `${name} : l'élastique ajoute de la résistance`);
+    }
+    // 74 kg, élastique orange (30 kg) : 74 × 0,95 − 30 ≈ 40,3 kg soulevés
+    const eff = run(`effectiveLoad({ weight: '30', reps: '7' }, { name: 'Tractions avec élastique' }, 74)`);
+    assert.ok(Math.abs(eff - (74 * 0.95 - 30)) < 0.01, String(eff));
+    sameJSONLike(run('ASSIST_BANDS.map(b => b.kg)'), [10, 20, 30]);
+    // Pastilles : choisie si toutes les séries restantes ont cette aide ; rien pour un exercice ordinaire
+    const ex = { name: 'Tractions avec élastique', sets: [{ weight: '30', reps: '7', done: true }, { weight: '20', reps: '7' }, { weight: '20', reps: '' }] };
+    const html = run(`bandPickerHtml(${JSON.stringify(ex)}, 0)`);
+    assert.match(html, /data-kg="20" aria-pressed="true"/);
+    assert.match(html, /data-kg="30" aria-pressed="false"/);
+    assert.equal(run(`bandPickerHtml({ name: 'Curl marteau', sets: [{ weight: '14', reps: '' }] }, 0)`), '');
+  });
+
   test('mesures : bibliothèque, noms libres et choix enregistré', () => {
     reset();
     const m = n => run(`measureOf({ name: ${JSON.stringify(n)} })`);

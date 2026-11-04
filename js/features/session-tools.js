@@ -175,7 +175,29 @@ function addWarmup(ei) {
 }
 
 // ── Actions ─────────────────────────────────────────────────
+// ── Élastique d'assistance (tractions, dips) ────────────────
+// Pastilles sous le nom de l'exercice : un toucher met l'aide de l'élastique dans les séries restantes
+// (pas l'échauffement ni les séries déjà validées). Choisie si toutes les séries restantes l'ont.
+function bandPickerHtml(ex, ei) {
+  if (!isBandAssisted(ex)) return '';
+  const left = ex.sets.filter(s => !s.done && !isWarmupSet(s));
+  if (!left.length) return '';
+  const on = b => left.every(s => (parseFloat(s.weight) || 0) === b.kg);
+  return `<div class="band-pick" role="group" aria-label="Élastique">
+      ${ASSIST_BANDS.map(b => `<button class="band-pick__btn" data-action="set-band" data-ei="${ei}" data-kg="${b.kg}" aria-pressed="${on(b)}"
+        aria-label="Élastique ${b.label.toLowerCase()}, aide de ${b.kg} kg"><span class="band-pick__dot" style="background:${b.color}" aria-hidden="true"></span><span class="num">${fmtW(String(b.kg), { plain: true })} ${unitLbl()}</span></button>`).join('')}
+    </div>`;
+}
+
 registerActions({
+  'set-band': (e, el) => {
+    const ex = activeSession?.exercises[parseInt(el.dataset.ei)];
+    if (!ex) return;
+    const kg = el.dataset.kg;
+    ex.sets.forEach(s => { if (!s.done && !isWarmupSet(s)) { s.weight = kg; s.plannedWeight = kg; } });
+    haptic();
+    render();
+  },
   'open-plates': (e, el) => {
     openPlatesSheet(parseInt(el.dataset.ei), parseInt(el.dataset.si));
   },

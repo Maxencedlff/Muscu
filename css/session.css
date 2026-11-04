@@ -608,3 +608,13 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .wu__set { font-weight: 600; }
 .wu__note, .wu__empty { margin: 0; padding: 0 8px; font-size: var(--fs-footnote); line-height: 1.059rem; color: var(--label2); text-align: center; max-width: 360px; }
 .rs__done--primary { background: var(--tint-fill); color: var(--on-tint); min-width: 200px; }
+
+/* Élastique d'assistance (js/features/session-tools.js, bandPickerHtml) : pastilles colorées sous le nom */
+.band-pick { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; flex-wrap: wrap; }
+.band-pick__btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; padding: 0 14px;
+  border: 0; border-radius: 22px; background: var(--fill); color: var(--label); font: inherit;
+  font-size: var(--fs-subhead, 15px); font-weight: 600; cursor: pointer;
+}
+.band-pick__btn[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--tint); }
+.band-pick__dot { width: 14px; height: 14px; border-radius: 50%; }
