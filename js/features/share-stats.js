@@ -82,9 +82,12 @@ function shareStoryStats(entry, { history = data.history, max = SHARE_MAX_HIGHLI
   const exercises = done.map(d => d.ex);
   const rows      = done.map(({ ex, oi }, i) => {
     const row = shareExerciseRow(ex, noted, i, entryBodyKg(entry));
-    // Exercice d'un superset : son groupe et le détail de ses séries (seulement là : séance sans
-    // superset inchangée)
-    if (groupOf[oi]) Object.assign(row, { group: groupOf[oi].id, kind: groupOf[oi].kind, sets: setsText(ex.sets, measureOf(ex), setKind(ex), { unitEach: true }) });
+    // Détail de TOUTES les séries de travail (« 24 kg × 12 · 12 · 10 · 10 ») sous le nom de chaque
+    // exercice : la meilleure série seule faisait croire à une séance plus régulière qu'elle ne l'était
+    // (demande de Maxence du 04/11/2026). Exercice d'un superset : son groupe en plus.
+    const sets = setsText(ex.sets, measureOf(ex), setKind(ex), { unitEach: true });
+    if (sets && sets !== '—') row.sets = sets;
+    if (groupOf[oi]) Object.assign(row, { group: groupOf[oi].id, kind: groupOf[oi].kind });
     return row;
   });
   const volume    = sessionVolume(exercises, entryBodyKg(entry));

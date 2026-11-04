@@ -230,11 +230,32 @@ export default function shareTests({ test, app, run, reset, sameJSON, nativeCont
     assert.equal(txt([]), '—');
   });
 
+  test('partage : chaque exercice montre toutes ses séries, la silhouette reste quand elle tient', () => {
+    reset();
+    const entry = { id: 'p', date: Date.now(), category: 'push', programme: 'ppl', duration: 2_999_000, exercises: [
+      { name: 'Développé couché haltères', sets: [{ weight: '24', reps: '12' }, { weight: '24', reps: '12' }, { weight: '24', reps: '10' }, { weight: '24', reps: '10' }] },
+      { name: 'Développé incliné haltères', sets: [0, 1, 2, 3].map(() => ({ weight: '24', reps: '10' })) },
+      { name: 'Dips', sets: [{ weight: '5', reps: '10' }, { weight: '5', reps: '10' }, { weight: '5', reps: '10' }, { weight: '5', reps: '8' }] },
+      { name: 'Extension triceps couché haltères', sets: [0, 1, 2].map(() => ({ weight: '6.5', reps: '12' })) },
+    ] };
+    const st = app.shareStoryStats(entry, { history: [entry] });
+    sameJSON(st.highlights.map(h => h.sets), ['24 kg × 12 · 12 · 10 · 10', '24 kg × 10 · 10 · 10 · 10', '5 kg × 10 · 10 · 10 · 8', '6,5 kg × 12 · 12 · 12']);
+    const out = app.storyLayout(fakeCanvas2d(), { font: 'f', fontRounded: 'r' }, { ...st, records: 3 }, true);
+    assert.equal(out.rows, 4, 'les 4 exercices');
+    assert.ok(!out.more, 'aucun « + N autres »');
+    assert.ok(out.map, 'silhouette gardée (en-tête plus compact)');
+    const total = out.blocks.reduce((a, [, h, gap]) => a + h + gap, 0);
+    const Z = run('STORY');
+    assert.ok(total <= Z.H - Z.TOP - Z.BOTTOM, `tient dans la zone sûre (${total})`);
+  });
+
   test('partage : séance sans superset inchangée (lignes, alt)', () => {
     reset();
     const { latest, history } = pushHistory();
     const st = app.shareStoryStats(latest, { history });
-    assert.ok(st.highlights.every(h => !('group' in h) && !('sets' in h) && !('kind' in h)));
+    assert.ok(st.highlights.every(h => !('group' in h) && !('kind' in h)));
+    // Détail de toutes les séries sous chaque exercice (04/11/2026), superset ou non
+    assert.ok(st.highlights.every(h => typeof h.sets === 'string' && h.sets.includes('·') || /×|reps/.test(h.sets)), 'détail des séries');
     sameJSON(st.supersets, []);
     assert.equal(app.shareUnits(st.highlights).length, st.highlights.length, 'un bloc par exercice');
     assert.doesNotMatch(app.shareStoryAlt(st), /Superset|Tri-set|Circuit/);

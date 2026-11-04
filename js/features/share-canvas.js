@@ -262,12 +262,29 @@ function groupMetrics(rowH, air = 1) {
   };
 }
 
-// Hauteur d'un bloc de la liste : une ligne pour un exercice seul, titre + deux lignes par exercice
-// pour un superset
+// Exercice seul avec le détail de ses séries : marge du haut (pas de titre « SUPERSET »)
+function soloPad(air = 1) { return Math.round(10 + 6 * air); }
+
+// Hauteur d'un bloc de la liste : exercice seul avec ses séries (nom + détail), titre + deux lignes
+// par exercice pour un superset ; exercice sans détail (ancienne ligne) : une ligne
 function unitHeight(u, rowH, air = 1) {
-  if (u[0].group == null) return rowH;
   const g = groupMetrics(rowH, air);
+  if (u[0].group == null) return u[0].sets ? soloPad(air) + g.member : rowH;
   return g.head + u.length * g.member + g.foot;
+}
+
+// Exercice seul : le nom, puis le détail de toutes ses séries (en or s'il y a un record), comme un
+// exercice de superset mais sans crochet ni titre
+function drawSolo(ctx, p, r, ry, rowH, nameSize = null, air = 1) {
+  const { SIDE, W } = STORY, padX = 44, g = groupMetrics(rowH, air), pad = soloPad(air);
+  const x = SIDE + padX, maxW = W - 2 * SIDE - 2 * padX;
+  if (nameSize) ctx.font = storyFont(600, nameSize, false, p);
+  else fitSize(ctx, r.name, maxW, g.name, g.nameMin, s => storyFont(600, s, false, p));
+  ctx.fillStyle = rgbaCss(p.label);
+  ctx.fillText(fitText(ctx, r.name, maxW), x, ry + pad + g.nameBase);
+  fitSize(ctx, r.sets, maxW, g.detail + 4, Math.max(STORY.DETAIL_MIN, g.detail - 4), s => storyFont(700, s, true, p));
+  ctx.fillStyle = rgbaCss(r.record ? p.goldText : p.label2);
+  ctx.fillText(fitText(ctx, r.sets, maxW), x, ry + pad + g.detailBase + 4);
 }
 
 // list : exercices montrés (st.highlights, début de la liste coupé entre deux blocs)
@@ -318,7 +335,7 @@ function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW, air = 1) {
   const CARD_HEAD = air > 0 ? STORY.CARD_HEAD : STORY.CARD_HEAD_TIGHT;
   const list = st.highlights.slice(0, rows);
   // Avec des supersets, un nom n'est jamais réduit sous NAME_MIN (il est tronqué au-delà)
-  const nameFloor = list.some(r => r.group != null) ? STORY.NAME_MIN : 24;
+  const nameFloor = list.some(r => r.group != null || r.sets) ? STORY.NAME_MIN : 24;
   drawCard(ctx, p, SIDE, y, w, highlightsHeight(list, more, rowH, air));
   ctx.fillStyle = rgbaCss(p.label2); ctx.font = storyFont(600, 30, false, p); setTracking(ctx, 3);
   ctx.fillText('EXERCICES', SIDE + padX, y + CARD_HEAD - 20); setTracking(ctx, 0);
@@ -327,8 +344,9 @@ function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW, air = 1) {
   const size = Math.round(Math.min(40, rowH * 0.6)), base = Math.round(rowH * 0.66);
   // Lignes compactes : une seule taille pour tous les noms (la plus petite nécessaire), la liste se lit d'un bloc
   const nameSize = compact ? Math.min(...list.map(r => {
-    if (r.group != null) {
-      return fitSize(ctx, r.name, w - 2 * padX - groupMetrics(rowH, air).indent, size, Math.max(nameFloor, size - 8), s2 => storyFont(600, s2, false, p));
+    if (r.group != null || r.sets) {
+      const indent = r.group != null ? groupMetrics(rowH, air).indent : 0;
+      return fitSize(ctx, r.name, w - 2 * padX - indent, size, Math.max(nameFloor, size - 8), s2 => storyFont(600, s2, false, p));
     }
     ctx.font = storyFont(700, size, true, p);
     const nameW = w - 2 * padX - ctx.measureText(r.value).width - 28;
@@ -340,6 +358,7 @@ function drawHighlights(ctx, p, st, y, rows, more, rowH = STORY.ROW, air = 1) {
     if (i) { ctx.fillStyle = rgbaCss(p.sep); ctx.fillRect(SIDE + padX, ry, w - 2 * padX, 2); }
     const r = u[0];
     if (r.group != null) drawGroup(ctx, p, u, ry, rowH, nameSize, air);
+    else if (r.sets) drawSolo(ctx, p, r, ry, rowH, nameSize, air);
     else if (compact) {
       const valMax = w - 2 * padX - 140;
       fitSize(ctx, r.value, valMax, size, Math.max(22, size - 14), s2 => storyFont(700, s2, true, p));
@@ -411,7 +430,8 @@ function drawSignature(ctx, p, icon, y) {
 // seulement au-delà, les derniers passent dans « + N autres exercices ».
 function storyLayout(ctx, p, st, hasMap) {
   const units = shareUnits(st.highlights);
-  if (units.some(u => u[0].group != null)) return storyLayoutGrouped(ctx, p, st, hasMap, units);
+  // Détail des séries ou supersets : blocs de hauteur variable, mise en page qui garde tout le détail
+  if (units.some(u => u[0].group != null || u[0].sets)) return storyLayoutGrouped(ctx, p, st, hasMap, units);
   const { W, H, TOP, BOTTOM, SIDE, ROW, ROW_COMPACT, ROW_MIN } = STORY;
   const titleSize = fitSize(ctx, st.title, W - 2 * SIDE, 150, 96, s => storyFont(800, s, false, p));
   const n = st.highlights.length;
@@ -471,9 +491,14 @@ const STORY_SS_ULTRA = { titleMax: 96, headerGap: 16, chipH: 52, chipGap: 12, ti
 function storySsPresets(hasMap) {
   const { ROW, ROW_COMPACT, ROW_MIN_SS } = STORY;
   const airy = STORY_SS_AIRY, ultra = { ...airy, ...STORY_SS_ULTRA, map: false };
+  const tightMap = { ...airy, ...STORY_SS_TIGHT, map: hasMap };
   const out = [
     { ...airy, map: hasMap, rowH: ROW },
     { ...airy, map: hasMap, rowH: ROW_COMPACT },
+    // La silhouette reste tant qu'un en-tête plus compact suffit à la garder
+    { ...tightMap, rowH: ROW },
+    { ...tightMap, rowH: ROW, air: 0.5 },
+    { ...tightMap, rowH: ROW_COMPACT, air: 0.5 },
     { ...airy, map: false, rowH: ROW },
     { ...airy, map: false, rowH: ROW_COMPACT },
     { ...airy, ...STORY_SS_TIGHT, map: false, rowH: ROW_COMPACT },
