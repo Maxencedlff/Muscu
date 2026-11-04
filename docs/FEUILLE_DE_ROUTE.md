@@ -232,6 +232,7 @@ ppl-v104 = numéro de version du cache de l'app (il monte à chaque changement d
 | ✓ | Feuille de partage refermée au retour d'Instagram     | Build 45 (corrigée : la build 40 la laissait sous le panneau d'Instagram) |
 | ✓ | Vérification de l'âge par Apple pour l'onglet Amis    | Build 45 · capacité Declared Age Range activée et profil régénéré le 03/11 |
 | ✓ | Écran « mets à jour l'app » avant d'allumer le verrou | Build 45, réglé par app_config.min_build (laissé à 0) |
+| ○ | Bips : musique baissée le temps du bip de fin de repos (.duckOthers, session rendue avec notifyOthersOnDeactivation à la fin réelle du son), interrupteur dans Réglages | Prochaine build (décidé le 04/11, pas avant : Maxence a d'autres choses à faire) · recherche du 04/11 : Strava, NRC, Runna, Seconds le font ; piège n°1 = musique qui reste baissée |
 
 ### Démarches Apple et légales
 
