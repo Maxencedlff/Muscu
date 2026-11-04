@@ -50,6 +50,12 @@ function beep(freq, dur = .15, vol = .35) {
   } catch {}
 }
 
+// Volume des bips (Réglages › Sons) : amplitude de chaque note. « Fort » par défaut depuis le 04/11/2026 :
+// à 0,35 (l'ancien réglage, devenu « Bas ») le bip disparaissait sous la musique. La musique n'est pas
+// baissée (session .mixWithOthers, ios/App/App/SoundPlugin.swift) : le bip doit porter seul.
+const SOUND_LEVELS = { fort: 0.9, normal: 0.6, bas: 0.35 };
+function soundVol() { return SOUND_LEVELS[data.soundLevel] ?? SOUND_LEVELS.fort; }
+
 // Mélodies : notes { freq (Hz), start (s depuis le début), dur (s) }. Jouées par iOS dans l'app
 // (Native.sound : audibles en mode silencieux, par-dessus la musique), sinon en Web Audio.
 const MELODIES = {
@@ -58,7 +64,7 @@ const MELODIES = {
   finish:     [[880, 0, .1], [1320, .16, .25]],
   record:     [[660, 0, .12], [880, .12, .12], [1100, .24, .12], [1320, .36, .35]],
   tick:       [[440, 0, .08]],
-  restCount:  [[700, 0, .11]],                               // repos : chaque bip du decompte 3-2-1 (sec, moyen)
+  restCount:  [[880, 0, .11]],                               // repos : chaque bip du decompte 3-2-1 (aigu : ressort de la musique)
   restGo:     [[1050, 0, .1], [1400, .12, .1], [1750, .26, .33]],  // repos : GO, montee nette, differente du decompte
   tempoDown:  [[392, 0, .12]],                  // tempo : début de la descente (grave)
   tempoUp:    [[659, 0, .12]],                  // tempo : début de la montée (aigu)
@@ -68,9 +74,10 @@ const MELODIES = {
 
 function playMelody(name) {
   if (data.soundOn === false) return;
-  const notes = MELODIES[name].map(([freq, start, dur]) => ({ freq, start, dur }));
+  const vol = soundVol();
+  const notes = MELODIES[name].map(([freq, start, dur]) => ({ freq, start, dur, vol }));
   if (Native.sound.available) { Native.sound.play(notes); return; }
-  notes.forEach(n => setTimeout(() => beep(n.freq, n.dur), n.start * 1000));
+  notes.forEach(n => setTimeout(() => beep(n.freq, n.dur, n.vol), n.start * 1000));
 }
 
 // Voix de synthèse (Web Speech API, MDN : speechSynthesis) : compte des répétitions du tempo.

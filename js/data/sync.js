@@ -41,7 +41,7 @@ const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'c
 // sur le compte, son absence (carte rallumée) devrait en plus compter comme un choix (SYNC_ABSENT_IS_CHOICE)
 // strengthSex (Réglages › Entraînement › Sexe, repères du niveau de force) : donnée personnelle facultative,
 // gardée sur l'appareil comme le poids du corps ; jamais envoyée au serveur
-const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'healthOn', 'musicOn', 'soundOn', 'vibrateOn',
+const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'healthOn', 'musicOn', 'soundOn', 'soundLevel', 'vibrateOn',
   'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff', 'strengthSex'];
 // Clés dont l'absence est un choix fait sur un appareil (objectif « Auto », derniers muscles rétablis) :
 // absentes du compte, elles sont retirées ici aussi. Toutes les versions qui synchronisent les envoient.

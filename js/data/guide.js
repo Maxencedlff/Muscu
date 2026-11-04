@@ -52,7 +52,7 @@ const GUIDE_SECTIONS = [
         steps: [
           '[Repos par défaut] : le repos entre deux séries, pour les exercices qui n\'ont pas le leur.',
           '[Unité] : kg ou lbs. Tout l\'affichage suit, tes séances ne changent pas.',
-          '[Sons] et [Vibrations] : bips du repos et retour au toucher.',
+          '[Sons] et [Vibrations] : bips du repos et retour au toucher. [Volume des bips] : [Fort] pour les entendre par-dessus la musique.',
           '[Thème] : [Auto], [Clair] ou [Sombre].',
           '[Silhouette] : la carte des muscles en version [Femme] ou [Homme].',
         ],

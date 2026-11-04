@@ -24,6 +24,12 @@ export default function ({ test, run, reset, assert, ROOT }) {
     assert.equal(run(`bandPickerHtml({ name: 'Curl marteau', sets: [{ weight: '14', reps: '' }] }, 0)`), '');
   });
 
+  test('volume des bips : « Fort » par défaut, valeur inconnue remise à « Fort » au chargement', () => {
+    reset();
+    assert.equal(run('data.soundLevel'), 'fort');
+    assert.equal(run("(() => { const d = { soundLevel: 'xx' }; normalizeData(d); return d.soundLevel; })()"), 'fort');
+  });
+
   test('mesures : bibliothèque, noms libres et choix enregistré', () => {
     reset();
     const m = n => run(`measureOf({ name: ${JSON.stringify(n)} })`);

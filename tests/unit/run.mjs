@@ -1452,6 +1452,22 @@ test('haptic : le type demandé (medium, success) arrive au Taptic Engine, light
   assert.equal(asked.length, 5, 'vibrations coupées dans les Réglages : rien');
 });
 
+test('sons : le volume choisi (Fort, Normal, Bas) part avec chaque note, Fort par défaut', () => {
+  let sent = null;
+  const box = { data: { soundOn: true }, navigator: {}, document: { addEventListener() {} },
+                Native: { haptic: () => true, sound: { available: true, play: n => { sent = n; } } } };
+  const c = vm.createContext(box);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8') + '\nthis.playMelody = playMelody;', c);
+  c.playMelody('restGo');
+  assert.ok(sent.every(n => n.vol === 0.9), 'Fort par défaut');
+  for (const [lvl, v] of [['normal', 0.6], ['bas', 0.35], ['inconnu', 0.9]]) {
+    box.data.soundLevel = lvl; c.playMelody('restGo');
+    assert.ok(sent.every(n => n.vol === v), lvl);
+  }
+  box.data.soundOn = false; sent = null; c.playMelody('restGo');
+  assert.equal(sent, null, 'sons coupés : rien');
+});
+
 // ── Muscles (tests/unit/muscles.mjs) ────────────────────────
 
 (await import('./muscles.mjs')).default({ test, app, run, reset, sameJSON, assert, ROOT });
