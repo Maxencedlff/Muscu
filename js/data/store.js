@@ -54,6 +54,14 @@ function lastPerf(progKey, cat, exLike, d = data) {
     const ex = (h.exercises || []).find(e => sameEx(e, exLike));
     if (ex && ex.sets?.length) return { h, ex };
   }
+  // Jamais fait dans cette séance : sa dernière fois ailleurs, par le nom (nouveau programme créé avec des
+  // exercices déjà faits, séance libre, autre jour). Avant le 05/11/2026, la colonne « Avant » restait vide.
+  const key = normName(exLike?.name);
+  if (!key) return null;
+  for (const h of d.history || []) {
+    const ex = (h.exercises || []).find(e => normName(e.name) === key);
+    if (ex && ex.sets?.length) return { h, ex };
+  }
   return null;
 }
 
