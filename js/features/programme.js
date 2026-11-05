@@ -80,6 +80,7 @@ function renderProgrammes() {
             ${icon('chevron.right', 16)}
           </button>
         </div>
+        ${dietProgrammeGroupHtml()}
         <div class="group-title">Partager</div>
         <div class="group">
           <button class="cell cell--action" data-action="share-programme">${icon('square.and.arrow.up', 20)}<span>Envoyer ce programme</span></button>

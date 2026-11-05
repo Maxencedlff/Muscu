@@ -98,6 +98,9 @@ Demande de Maxence (feuille de route « Plus tard » : chat coach), choix pris p
 ### Ordre de mise en production
 Migration d'abord, puis la fonction Edge `report` (mode `{ report_id }`), puis l'OTA (une app à jour sur un serveur d'avant cache la cellule ; avec une fonction `report` d'avant, le signalement est enregistré mais l'alerte ne part pas : `notified_at` nul, requête de rattrapage). Retour arrière : `supabase/rollback/20261031510000_chat_coach_down.sql`, vérifié par `tests/sql/rollback_social_check.sh`.
 
+## Plan diète (05/11/2026, sans migration)
+Le coach envoie un plan diète par le même canal que les programmes : `coach_send_programme(student, 'diet_<plan>', { kind: 'diet', v: 1, diet })`. Sans `name` au premier niveau, une app d'avant la nutrition l'écarte ; l'app actuelle le range dans `inbox.diets` et le retire des « Programmes envoyés ». Contrat complet : `docs/NUTRITION_V1.md`, « Coach : envoi sans migration ».
+
 ## Fonctions RPC (rôle `authenticated`)
 
 | Fonction | Renvoie | Règles |

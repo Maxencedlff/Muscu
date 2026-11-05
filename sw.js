@@ -1,9 +1,9 @@
 const CACHE = 'ppl-v128';
 const ASSETS = [
-  '/', '/index.html', '/manifest.json', '/data/exercise-videos.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
+  '/', '/index.html', '/manifest.json', '/data/exercise-videos.json', '/data/foods.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
   '/css/navigation.css', '/css/home.css', '/css/session.css', '/css/screens.css', '/css/muscles.css', '/css/share.css', '/css/recap.css', '/css/strength-levels.css', '/css/account.css',
-  '/css/social.css', '/css/coach.css', '/css/paywall.css', '/css/strava.css',
+  '/css/social.css', '/css/coach.css', '/css/paywall.css', '/css/strava.css', '/css/nutrition.css',
   '/js/platform/native.js',
   '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
   '/js/data/programmes.js', '/js/data/store.js', '/js/data/records.js', '/js/data/accessors.js', '/js/data/active-session.js',
@@ -16,6 +16,7 @@ const ASSETS = [
   '/js/data/guide.js', '/js/data/onboarding.js', '/js/data/my-programmes.js',
   '/js/data/import-measures.js',
   '/js/data/exercise-videos.js',
+  '/js/data/nutrition.js', '/js/data/food-swap.js', '/js/data/coach-diet.js',
   '/js/ui/theme.js', '/js/ui/router.js', '/js/ui/navbar.js', '/js/ui/sheet.js',
   '/js/ui/forms.js', '/js/ui/edge-swipe.js', '/js/ui/reorder.js', '/js/ui/body-map.js', '/js/ui/body-tip.js', '/js/ui/exercise-anim.js', '/js/ui/exercise-video.js', '/js/ui/medal.js',
   '/js/app/actions.js', '/js/app/updates.js', '/js/app/live-update.js', '/js/app/init.js',
@@ -27,7 +28,7 @@ const ASSETS = [
   '/js/features/apple-services.js', '/js/features/app-icon.js', '/js/features/progress.js', '/js/features/progress-chart.js', '/js/features/progress-overview.js', '/js/features/body-measures-ui.js',
   '/js/features/photo-vault-ui.js', '/js/features/muscles.js', '/js/features/muscle-tip.js', '/js/features/library.js', '/js/features/history.js', '/js/features/trash.js', '/js/features/guide.js',
   '/js/features/onboarding.js', '/js/features/share-stats.js', '/js/features/share-canvas.js', '/js/features/share.js', '/js/features/recap-canvas.js', '/js/features/recap.js',
-  '/js/features/strength-levels-ui.js', '/img/strava/connect-with-strava.svg',
+  '/js/features/strength-levels-ui.js', '/js/features/nutrition-ui.js', '/js/features/diet-editor.js', '/img/strava/connect-with-strava.svg',
   // Personnage 3D de la carte des muscles (js/ui/body-map.js, BODY_IMG) : base et calques par muscle
   '/img/body/male/front/base.webp', '/img/body/male/front/chest.webp', '/img/body/male/front/front_delts.webp', '/img/body/male/front/side_delts.webp',
   '/img/body/male/front/traps.webp', '/img/body/male/front/biceps.webp', '/img/body/male/front/brachialis.webp', '/img/body/male/front/triceps.webp',

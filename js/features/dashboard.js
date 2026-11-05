@@ -363,6 +363,7 @@ function renderDashboard() {
         ${hero || emptyCustom}
         ${hero ? '' : accountHomeCard()}
         ${hero ? '' : recapHomeCard()}
+        ${nutritionHomeCard()}
         ${keys.length ? weekCard(weekStats()) : ''}
         ${others ? `<section class="home-list" aria-labelledby="homeNext"><h2 class="home-list__title" id="homeNext">Ensuite</h2><div class="home-card">${others}</div></section>` : ''}
       </div>

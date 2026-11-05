@@ -378,6 +378,7 @@ function renderCoachMine() {
         ${notes}
         <div class="group-title">Programmes reçus</div>
         <div class="coach-progs">${progs}</div>
+        ${dietInboxHtml()}
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
         </div>
@@ -695,6 +696,7 @@ function renderCoachStudent(uid) {
           <button class="cell cell--action" data-action="coach-send" data-uid="${esc(uid)}">${icon('square.and.arrow.up', 20)}<span>Envoyer un programme</span></button>
         </div>
         ${sent}
+        ${coachDietGroupHtml(uid)}
         ${coachWeightGroupHtml(uid, esc(personName(p)))}
         <div class="group-title">Séances</div>
         ${list}
@@ -1071,13 +1073,13 @@ function coachShownKey() {
   const ib = coach.inbox;
   return JSON.stringify([account.user?.id || null, coachRole(), coachBadge(), coachBadgeCoach(), coachBadgeStudent(), chatUnreadTotal(), chat.available, myCoach()?.user_id || null, myCoach()?.username || null,
     coach.state?.students.length ?? null, account.user ? coachLost() : null, typeof coachShareSummary === 'function' ? coachShareSummary() : null,
-    ib ? [ib.programmes.map(p => [p.id, p.sentAt, p.seen, !!p.meta]), ib.notes.map(n => [n.session_id, n.updatedAt, n.seen])] : null]);
+    ib ? [ib.programmes.map(p => [p.id, p.sentAt, p.seen, !!p.meta]), (ib.diets || []).map(p => [p.id, p.sentAt, p.seen, !!p.meta]), ib.notes.map(n => [n.session_id, n.updatedAt, n.seen])] : null]);
 }
 let coachShown = null;
 function coachTyping() { return !!document.activeElement?.matches?.('input, textarea, select, [contenteditable="true"]'); }
 // coachShown n'avance QUE lorsque l'écran a été redessiné (ou n'avait rien à redessiner) : un changement
 // arrivé pendant une saisie reste « non affiché » et sera repris au focusout, pas marqué « déjà vu »
-const COACH_WATCH_VIEWS = ['settings', 'dashboard', 'history', 'history-detail', 'editor', 'programmes', 'my-programmes', 'summary'];
+const COACH_WATCH_VIEWS = ['settings', 'dashboard', 'history', 'history-detail', 'editor', 'programmes', 'my-programmes', 'summary', 'nutrition', 'diet-plans'];
 function coachApplyChange() {
   const v = currentView(), key = coachShownKey();
   if (v === 'friends') { if (key !== coachShown) { refreshCoachCell(); coachShown = key; } return; }

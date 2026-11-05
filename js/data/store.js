@@ -326,6 +326,8 @@ function sanitizeData(d) {
   d.trash = d.trash.filter(t => isObj(t) && Number.isFinite(t.deletedAt) && t.deletedAt > limit
     && cleanHistoryEntry(t.entry) && !kept.has(t.entry.id));
   d.myProgrammes = cleanMyProgrammes(d);   // après l'historique : la migration le lit
+  // Nutrition (js/data/nutrition.js, chargé avant) : plans, plan suivi, aliments perso, repas cochés
+  sanitizeDiet(d);
   return d;
 }
 

@@ -30,6 +30,7 @@ const SCRIPTS = [
   'js/data/strength-standards.js',
   'js/data/strength-levels.js',
   'js/data/body-measures.js',
+  'js/data/nutrition.js',
   'js/data/store.js',
   'js/data/records.js',
   'js/data/accessors.js',
@@ -43,6 +44,7 @@ const SCRIPTS = [
   'js/data/coach.js',
   'js/data/coach-share.js',
   'js/data/coach-chat.js',
+  'js/data/coach-diet.js',
   'js/data/referral.js',
   'js/data/plans.js',
   'js/data/min-build.js',
@@ -75,6 +77,7 @@ const SCRIPTS = [
   'js/data/guide.js',
   'js/data/onboarding.js',
   'js/data/my-programmes.js',
+  'js/data/food-swap.js',
   'js/ui/forms.js',
   'js/ui/body-map.js',
   'js/ui/body-tip.js',
@@ -1607,6 +1610,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 
 // ── Vidéos d'exercices des coachs (tests dans exercise-videos.mjs) ──
 (await import('./exercise-videos.mjs')).default({ test, run, assert, ROOT });
+// Nutrition : plans bornés, macros, repas cochés, équivalences sur la vraie base Ciqual, plan du coach
+(await import('./nutrition.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

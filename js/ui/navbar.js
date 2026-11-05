@@ -159,6 +159,7 @@ function routeTitle(route, isRoot) {
     'social-people': routeParams(route)[0] === 'followers' ? 'Abonnés' : 'Abonnements',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
     paywall: 'Abonnement', subscription: 'Abonnement',
+    nutrition: 'Nutrition', 'diet-plans': 'Plans diète', 'diet-plan': data.dietPlans?.[routeParams(route)[0]]?.name || 'Plan',
   }[name] || 'Retour';
 }
 

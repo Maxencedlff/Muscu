@@ -141,11 +141,21 @@ function cleanSentProgramme(raw) {
   return out;
 }
 
-// student_inbox() nettoyé : { programmes: [{ id, data, sentAt, seen }], notes: [{ session_id, text, updatedAt, seen }] }
+// student_inbox() nettoyé : { programmes: [{ id, data, sentAt, seen }], diets: [{ id, data, sentAt, seen }],
+// notes: [{ session_id, text, updatedAt, seen }] }. Un plan diète arrive par le canal des programmes (id
+// diet_<…>, data.kind 'diet' : js/data/nutrition.js) ; il n'est jamais lu comme un programme
 function cleanInbox(raw) {
   const r = raw && typeof raw === 'object' ? raw : {};
-  const programmes = (Array.isArray(r.programmes) ? r.programmes : []).map(p => {
-    if (!p || typeof p.id !== 'string' || !COACH_PROG_ID_RE.test(p.id)) return null;
+  const rows = Array.isArray(r.programmes) ? r.programmes : [];
+  // diets : plans gardés sur l'appareil (writeCoachInbox), à part pour qu'une version précédente ne les lise pas
+  const diets = [...rows, ...(Array.isArray(r.diets) ? r.diets : [])].map(p => {
+    if (!p || !isDietSentId(p.id) || !COACH_PROG_ID_RE.test(p.id)) return null;
+    // Plan gardé hors ligne : son nom seul (meta), le contenu se relit sur le serveur
+    const d = p.meta === true && p.data?.kind === 'diet' && typeof p.data.name === 'string' ? { name: p.data.name.slice(0, DIET_NAME_MAX), meals: [] } : cleanSentDiet(p.data);
+    return d ? { id: p.id, data: d, sentAt: coachTime(p.sent_at) ?? 0, seen: p.seen === true, ...(p.meta === true ? { meta: true } : {}) } : null;
+  }).filter(Boolean).sort((a, b) => b.sentAt - a.sentAt);
+  const programmes = rows.map(p => {
+    if (!p || typeof p.id !== 'string' || !COACH_PROG_ID_RE.test(p.id) || isDietSentId(p.id)) return null;
     const d = cleanSentProgramme(p.data);
     return d ? { id: p.id, data: d, sentAt: coachTime(p.sent_at) ?? 0, seen: p.seen === true, ...(p.meta === true ? { meta: true } : {}) } : null;
   }).filter(Boolean).sort((a, b) => b.sentAt - a.sentAt);
@@ -154,7 +164,7 @@ function cleanInbox(raw) {
     const text = coachStr(n.text, COACH_NOTE_MAX).trim();
     return text ? { session_id: n.session_id, text, updatedAt: coachTime(n.updated_at) ?? 0, seen: n.seen === true } : null;
   }).filter(Boolean).sort((a, b) => b.updatedAt - a.updatedAt);
-  return { programmes, notes };
+  return { programmes, diets, notes };
 }
 
 // Code saisi : majuscules, sans espaces ni tirets ; null s'il n'a pas la forme d'un code
@@ -214,6 +224,8 @@ const COACH_ERROR_TEXT = {
   invalid_programme: 'Ce programme ne peut pas être envoyé.',
   username_required: 'Choisis d\'abord un pseudo : ton coach te reconnaîtra avec.',
   too_big: 'Programme trop gros pour être envoyé.',
+  // Plan diète (js/data/coach-diet.js)
+  empty_diet: 'Ajoute au moins un aliment à ce plan avant de l\'envoyer.',
   // Partage avec le coach (js/data/coach-share.js)
   not_shared: 'Ce partage est coupé : coche-le à nouveau pour l\'envoyer.',
   invalid_kind: 'Ce partage n\'est pas encore disponible.',
@@ -416,6 +428,7 @@ function writeCoachInbox() {
     localStorage.setItem(COACH_INBOX_KEY, JSON.stringify({ userId: coach.userId, coach: coach.state.coach,
       // Programmes : métadonnées seulement (nom, date, vu) ; le contenu se relit sur le serveur
       inbox: { programmes: ib.programmes.slice(0, 30).map(p => ({ id: p.id, data: { name: p.data.name, sessions: [] }, sent_at: p.sentAt, seen: p.seen, meta: true })),
+        diets: (ib.diets || []).slice(0, 10).map(p => ({ id: p.id, data: { kind: 'diet', name: p.data.name }, sent_at: p.sentAt, seen: p.seen, meta: true })),
         notes: ib.notes.slice(0, 200).map(x => ({ session_id: x.session_id, text: x.text, updated_at: x.updatedAt, seen: x.seen })) } }));
   } catch { /* cache facultatif */ }
 }
@@ -608,7 +621,8 @@ async function coachSendProgramme(student, progId, over = null) {
 
 // Élève : programme ou commentaire vu (badge)
 async function coachMarkInboxSeen(kind, ref) {
-  const list = kind === 'programme' ? coach.inbox?.programmes : coach.inbox?.notes;
+  // Plan diète : « programme » pour le serveur (même table coach_programmes)
+  const list = kind === 'programme' ? [...(coach.inbox?.programmes || []), ...(coach.inbox?.diets || [])] : coach.inbox?.notes;
   const item = (list || []).find(x => (kind === 'programme' ? x.id : x.session_id) === ref);
   if (!item || item.seen) return { ok: true };
   item.seen = true;
@@ -697,7 +711,8 @@ function coachSentStatus(student, sessions) {
   const me = account.user?.id;
   const used = (progId, at) => sessions.some(r => coachSentIdOf(r.s.programme, me) === progId && r.doneAt >= at);
   if (Array.isArray(st?.sent)) {
-    return st.sent.slice().sort((a, b) => b.sentAt - a.sentAt)
+    // Plans diète envoyés : listés à part (js/data/coach-diet.js)
+    return st.sent.filter(x => !isDietSentId(x.id)).sort((a, b) => b.sentAt - a.sentAt)
       .map(x => ({ progId: x.id, sentAt: x.sentAt, state: !x.seen ? 'unseen' : used(x.id, x.sentAt) ? 'used' : 'unused' }));
   }
   return coachUnusedSent(student, sessions).map(x => ({ ...x, state: 'unused' }));

@@ -26,11 +26,13 @@
 // remplacée en bloc, pas fusionnée) : un programme créé sur un autre appareil y revient par
 // cleanMyProgrammes (store.js) après la fusion. sessionVisibleDefault (Réglages › Amis et coach) :
 // préremplit « Visible sur mon profil » à la fin d'une séance, même choix sur tous les appareils.
+// dietPlans, dietActive, dietFoods (js/data/nutrition.js) : plans diète (les miens et ceux reçus d'un coach),
+// plan suivi et aliments perso, comme les programmes : le même sur tous les appareils.
 // appVersion / appSeenAt (noteAppVersion) : version du contenu de l'app et date où elle a été vue,
 // pour savoir côté serveur qui a quelle version ; le dernier appareil lancé l'emporte, rien d'autre ne part.
 const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
   'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'silhouette', 'myProgrammes',
-  'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt'];
+  'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt', 'dietPlans', 'dietActive', 'dietFoods'];
 // Restent sur l'appareil (liste tenue pour le test qui oblige à classer toute nouvelle clé).
 // lastAccount : moyen et pseudo du dernier compte connecté ici (reconnexion après une restauration iCloud).
 // rirOn (sélecteur RIR) et plates (barre et disques de la salle) : préférences d'affichage et de matériel,
@@ -41,15 +43,17 @@ const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'c
 // sur le compte, son absence (carte rallumée) devrait en plus compter comme un choix (SYNC_ABSENT_IS_CHOICE)
 // strengthSex (Réglages › Entraînement › Sexe, repères du niveau de force) : donnée personnelle facultative,
 // gardée sur l'appareil comme le poids du corps ; jamais envoyée au serveur
+// dietLog (repas cochés et aliments remplacés, js/data/nutrition.js) : ce que la personne a mangé, jour par
+// jour ; sur l'appareil seulement en V1 (le montrer au coach demandera son accord, docs/NUTRITION_V1.md)
 const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'healthOn', 'musicOn', 'soundOn', 'soundLevel', 'vibrateOn',
-  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff', 'strengthSex'];
+  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff', 'strengthSex', 'dietLog'];
 // Clés dont l'absence est un choix fait sur un appareil (objectif « Auto », derniers muscles rétablis) :
 // absentes du compte, elles sont retirées ici aussi. Toutes les versions qui synchronisent les envoient.
 // Les autres clés absentes du compte sont gardées ici : un appareil resté sur une version qui ne les
 // connaît pas encore (myProgrammes, silhouette) renvoie un profil sans elles, il ne les a pas effacées.
 const SYNC_ABSENT_IS_CHOICE = ['weeklyGoal', 'exerciseMuscles', 'exerciseMusclesSecondary'];
 // Dictionnaires du profil fusionnés élément par élément (programmes, exercices perso…) : rien n'est perdu
-const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary'];
+const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary', 'dietPlans'];
 
 // État de synchro vide d'un compte : curseur serveur, empreintes envoyées, profil
 function emptySyncMeta(userId) { return { userId, cursor: null, pushed: {}, pushedCore: {}, profileHash: null, profileCore: null, profileAt: null }; }
