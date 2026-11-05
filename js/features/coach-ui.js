@@ -311,7 +311,7 @@ function coachProgPreviewHtml(item) {
   return `<div class="coach-prog__preview">${item.data.sessions.map(s => `
           <div class="coach-prog__sess">
             <div class="coach-prog__sess-name"><span class="hcell__dot" style="background:${esc(s.color)}" aria-hidden="true"></span>${esc(s.label)}</div>
-            <ul class="coach-prog__ex">${s.exercises.map(e => `<li><span class="coach-prog__ex-name">${esc(e.name)}</span> <span class="num">· ${plural(e.sets, 'série', 'séries')}</span>${exerciseVideo(e.name) ? coachExVideoBtn(e.name) : ''}${e.consigne ? `<span class="coach-prog__ex-tip">${esc(e.consigne)}</span>` : ''}</li>`).join('') || '<li>Aucun exercice</li>'}</ul>
+            <ul class="coach-prog__ex">${s.exercises.map(e => `<li><span class="coach-prog__ex-name">${esc(e.name)}</span> <span class="num">· ${plural(e.sets, 'série', 'séries')}</span>${gripText(e.grip, e) ? ` <span class="coach-prog__ex-grip">· ${gripText(e.grip, e)}</span>` : ''}${exerciseVideo(e.name) ? coachExVideoBtn(e.name) : ''}${e.consigne ? `<span class="coach-prog__ex-tip">${esc(e.consigne)}</span>` : ''}</li>`).join('') || '<li>Aucun exercice</li>'}</ul>
           </div>`).join('')}</div>`;
 }
 
@@ -879,6 +879,7 @@ function renderCoachSend(uid, progId) {
             <span class="cell__body">
               <span class="cell__title">${ssTagHtml(xs, i)}${esc(e.name)}</span>
               <span class="cell__sub num">${plural(e.sets, 'série', 'séries')}${e.rest ? ` · repos ${fmtRest(e.rest)}` : ''}${e.tempo ? ` · tempo ${esc(shortTempo(e.tempo))}` : ''}</span>
+              ${gripSubHtml(e)}
               ${ta(`data-cat="${esc(s.key)}" data-ex="${esc(e.id)}"`, dr.ex[s.key]?.[e.id] || '', `Consigne pour ${e.name}`, 'Consigne (facultatif)')}
             </span>
           </div>`).join('') : '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}

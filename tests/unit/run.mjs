@@ -22,6 +22,8 @@ const SCRIPTS = [
   'js/core/util.js',
   'js/data/programmes.js',
   'js/data/tempo.js',
+  'js/data/grips.js',
+  'js/data/session-order.js',
   'js/data/supersets.js',
   'js/data/machine-track.js',
   'js/data/plates.js',
@@ -1548,6 +1550,8 @@ test('sons : le volume choisi (Fort, Normal, Bas) part avec chaque note, Fort pa
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
 // ── Tranche d'âge partagée par Apple, effets sur les Amis (tests dans age-range.mjs) ──
 (await import('./age-range.mjs')).default({ test, run, assert, sameJSON });
+// ── Prise d'un exercice et ordre de la séance (tests dans grips.mjs) ──
+(await import('./grips.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──
 (await import('./coach.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Commentaires et messages coach ↔ élève (tests dans comments.mjs et coach-chat.mjs) ──

@@ -44,7 +44,7 @@ function startSession(cat) {
     // Commencée avec le droit d'écrire : « Terminer » l'enregistrera même si l'accès prend fin pendant
     // la séance (le serveur l'accepte dans sa grâce bornée, js/features/paywall-ui.js)
     writeOk: typeof canWrite !== 'function' || canWrite(),
-    exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), ...(ex.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(ex) } : {}), ...(ssId(ex) ? { ss: ex.ss } : {}), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
+    exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), ...(ex.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(ex) } : {}), ...(ssId(ex) ? { ss: ex.ss } : {}), ...(cleanGrip(ex.grip) ? { grip: cleanGrip(ex.grip) } : {}), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
   };
   ssNormalize(activeSession.exercises);
   persistSession();
@@ -257,6 +257,7 @@ function renderExerciseCard(ex, ei, cur) {
         <span class="ex-card__count num"><span aria-hidden="true">${doneN}/${ex.sets.length}</span><span class="visually-hidden">${doneN} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
         <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
       </div>
+      ${gripLineHtml(ex, ei)}
       <div class="ex-card__sub">${exSubHtml(ex, ei, allDone)}</div>
       ${bandPickerHtml(ex, ei)}
       ${coachSessionTipHtml(ex)}
@@ -268,7 +269,10 @@ function renderExerciseCard(ex, ei, cur) {
         </div>
         ${rows}
       </div>
-      <button class="add-set-link" data-action="add-set" data-ei="${ei}">${icon('plus', 16)} Série</button>
+      <div class="ex-card__foot">
+        <button class="add-set-link" data-action="add-set" data-ei="${ei}">${icon('plus', 16)} Série</button>
+        ${orderBtnHtml(ei, cur)}
+      </div>
     </div>`;
 }
 
@@ -335,6 +339,7 @@ function renderGroupCard(members, cur, tags) {
       </div>
       <div class="ex-card__sub"><button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${members.at(-1)}" aria-label="Repos ${rest} après chaque tour, modifier">Repos ${rest} après chaque tour</button></div>
       <div class="ss-members">${legend}</div>
+      ${members.map(ei => gripLineHtml(xs[ei], ei, tags[ei])).join('')}
       ${members.map(ei => coachSessionTipHtml(xs[ei], tags[ei])).join('')}
       <div class="sets" role="group" aria-label="Séries du ${kind.toLowerCase()}">
         <div class="sets__head" aria-hidden="true">
@@ -344,7 +349,10 @@ function renderGroupCard(members, cur, tags) {
         </div>
         ${rounds}
       </div>
-      <button class="add-set-link" data-action="add-round" data-ei="${head}">${icon('plus', 16)} Tour</button>
+      <div class="ex-card__foot">
+        <button class="add-set-link" data-action="add-round" data-ei="${head}">${icon('plus', 16)} Tour</button>
+        ${orderBtnHtml(head, cur)}
+      </div>
     </div>`;
 }
 
