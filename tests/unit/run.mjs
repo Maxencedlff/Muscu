@@ -43,6 +43,7 @@ const SCRIPTS = [
   'js/data/coach.js',
   'js/data/coach-share.js',
   'js/data/coach-chat.js',
+  'js/data/coach-plan.js',
   'js/data/referral.js',
   'js/data/plans.js',
   'js/data/min-build.js',
@@ -1557,6 +1558,8 @@ test('sons : le volume choisi (Fort, Normal, Bas) part avec chaque note, Fort pa
 (await import('./records.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Partage avec le coach : consentement, pesées envoyées, volume relu avec le poids (tests dans coach-share.mjs) ──
 (await import('./coach-share.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+// ── Planification du coach : phases, semaines, chevauchement, nettoyage (tests dans coach-plan.mjs) ──
+(await import('./coach-plan.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // ── Parrainage : code saisi, état du serveur, rapport CSV (tests dans referral.mjs) ──
 await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Relecture de la séance d'un autre : volume, écarts, records, douleur (tests dans review.mjs) ──

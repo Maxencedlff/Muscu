@@ -28,11 +28,19 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
   const calls = () => shareLog().map(c => c[0]);
 
   test('partage coach : données prévues dans le modèle, seul le poids affiché ; mêmes données que le serveur', () => {
-    sameJSON(run('COACH_SHARE_KINDS.map(k => k.kind)'), ['weight', 'sleep', 'steps', 'resting_hr']);
-    sameJSON(run('coachShareKindsShown().map(k => k.kind)'), ['weight'], 'sommeil, pas, FC : pas avant la build HealthKit');
+    sameJSON(run('COACH_SHARE_KINDS.map(k => k.kind)'), ['weight', 'sleep', 'steps', 'resting_hr', 'measures']);
+    sameJSON(run('coachShareKindsShown().map(k => k.kind)'), ['weight'], 'sommeil, pas, FC : pas avant la build HealthKit ; mensurations : pas sans l\'accord du serveur');
     const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261031300000_partage_coach.sql'), 'utf8');
-    assert.match(sql, /kind in \('weight', 'sleep', 'steps', 'resting_hr'\)/, 'liste du serveur = COACH_SHARE_KINDS');
-    assert.match(sql, /\$\$ select kind = 'weight' \$\$/, 'seul le poids est ouvert côté serveur');
+    assert.match(sql, /\$\$ select kind = 'weight' \$\$/, 'partage du poids : seul le poids ouvert');
+    // Mensurations (20261105010000) : même liste que COACH_SHARE_KINDS, poids et mensurations ouverts
+    const sqlM = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261105010000_partage_mensurations.sql'), 'utf8');
+    assert.match(sqlM, /kind in \('weight', 'sleep', 'steps', 'resting_hr', 'measures'\)/, 'liste du serveur = COACH_SHARE_KINDS');
+    assert.match(sqlM, /\$\$ select kind in \('weight', 'measures'\) \$\$/, 'ouvertes côté serveur = ouvertes dans l\'app');
+    sameJSON(run('COACH_SHARE_KINDS.filter(k => k.open).map(k => k.kind)'), ['weight', 'measures']);
+    // Serveur à jour : il annonce ce qu'il accepte (kinds) ; inconnu de l'app : ignoré
+    run(`coachShare.state = cleanShareState({ coach: true, kinds: ['weight', 'measures', 'photos'], shares: {} })`);
+    sameJSON(run('coachShareKindsShown().map(k => k.kind)'), ['weight', 'measures']);
+    run('coachShare.state = null');
   });
 
   test('partage coach : seules les pesées saisies dans l\'app partent, nettoyées et bornées', () => {
@@ -56,7 +64,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(st.coach, true);
     sameJSON(Object.keys(st.shares), ['weight']);
     sameJSON(st.shares.weight, { grantedAt: Date.parse('2026-10-30T10:00:00Z'), n: 3, lastAt: 1780000000000 });
-    sameJSON(run('cleanShareState(null)'), { coach: false, shares: {} });
+    sameJSON(run('cleanShareState(null)'), { coach: false, shares: {}, kinds: ['weight'] }, 'serveur d\'avant les mensurations : le poids seul');
     sameJSON(run(`cleanShareState({ shares: [1] })`).shares, {});
   });
 
@@ -166,6 +174,53 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       run('__calls.length = 0');
       await run('coachShareRefresh()');
       sameJSON(calls(), ['student_shares'], 'ensuite : rien de renvoyé sans changement');
+    } finally { teardown(); }
+  });
+
+  test('mensurations : seules les mesures connues partent, au début du jour, rien d\'autre', () => {
+    reset();
+    const t = Date.UTC(2026, 10, 3, 18, 42);
+    run(`data.bodyMeasures = { waist: [{ date: ${t}, cm: 81.46 }], biceps: [{ date: ${t}, cm: 40 }], armL: [{ date: ${t}, cm: 5 }] }`);
+    run(`data.bodyWeightLog = [{ date: ${t}, kg: 80 }]`);
+    const m = run('sharedMeasuresPayload()');
+    sameJSON(Object.keys(m), ['waist'], 'clé inconnue et valeur hors bornes retirées');
+    sameJSON(m.waist, [{ date: new Date(t).setHours(0, 0, 0, 0), cm: 81.5 }]);
+    sameJSON(run('sharedMeasuresPayload({})'), {});
+    const c = run(`cleanCoachMeasures({ shared: true, since: '2026-11-05T10:00:00Z', measures: { waist: [{ date: 1, cm: 80 }, { date: 3, cm: '79.5' }, { date: 2, cm: 400 }], photos: [{ date: 1, cm: 50 }] } })`);
+    sameJSON(c.measures, { waist: [{ date: 3, cm: 79.5 }, { date: 1, cm: 80 }] });
+    sameJSON(run(`cleanCoachMeasures({ shared: false, measures: { waist: [{ date: 1, cm: 80 }] } })`), { shared: false, since: null, measures: {} });
+  });
+
+  test('mensurations : case montrée et cochable seulement si le serveur l\'accepte, puis envoi comme le poids', async () => {
+    reset();
+    try {
+      setup();
+      run(`data.bodyMeasures = { waist: [{ date: ${5 * DAY}, cm: 80 }] }`);
+      // Serveur d'avant les mensurations : pas de kinds, le poids seul ; cocher les mensurations est refusé sans appel
+      run(`__answers.student_shares = { coach: true, shares: {} }`);
+      await run('coachShareRefresh()');
+      sameJSON(run('coachShareKindsShown().map(k => k.kind)'), ['weight']);
+      assert.equal((await run(`coachShareSet('measures', true)`)).kind, 'invalid_kind');
+      sameJSON(calls(), ['student_shares']);
+      // Serveur à jour
+      const on = { coach: true, kinds: ['weight', 'measures'], shares: { measures: { granted_at: '2026-11-05T10:00:00Z', n: 0, last_at: null } } };
+      run(`__answers.student_shares = { coach: true, kinds: ['weight', 'measures'], shares: {} }`);
+      await run('coachShareRefresh()');
+      run(`__answers.student_set_share = a => a.enabled ? ${JSON.stringify(on)} : { coach: true, kinds: ['weight', 'measures'], shares: {} }`);
+      run(`__answers.student_share_measures = a => Object.values(a.measures).reduce((n, l) => n + l.length, 0)`);
+      assert.equal((await run(`coachShareSet('measures', true)`)).ok, true);
+      sameJSON(shareLog().slice(-2), [['student_set_share', { kind: 'measures', enabled: true }], ['student_share_measures', { measures: run('sharedMeasuresPayload()') }]]);
+      assert.equal(run('coachShareSummary()'), 'Mensurations');
+      assert.equal(run('coachShare.state.shares.measures.n'), 1);
+      assert.ok(!calls().includes('student_share_weights'), 'poids pas coché : aucune pesée envoyée');
+      // Nouvelle mesure saisie ici : la liste repart ; décocher : empreinte oubliée, plus rien ne part
+      run(`logBodyMeasure('waist', 79, ${6 * DAY}); coachShareMeasuresChanged()`);
+      await new Promise(r => setTimeout(r, 0));
+      assert.equal(calls().at(-1), 'student_share_measures');
+      await run(`coachShareSet('measures', false)`);
+      assert.equal(run('localStorage.getItem(COACH_SHARE_M_KEY)'), null);
+      run('coachShareMeasuresChanged()');
+      assert.equal(calls().at(-1), 'student_set_share');
     } finally { teardown(); }
   });
 

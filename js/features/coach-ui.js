@@ -17,7 +17,8 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send', 'coach-share', 'coach-chat', 'coach-request'];
+const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send', 'coach-share', 'coach-chat', 'coach-request',
+  'coach-plan', 'coach-planning', 'coach-measures', 'coach-measure'];
 const COACH_SEND_DRAFT_KEY = 'mdlf_coach_send_draft';   // brouillon de l'écran Envoyer (retour arrière, relance)
 const coachTipClosed = new Set();   // séance en cours : consignes repliées (identifiant d'exercice, '' : programme)
 const coachProgOpen = new Set();    // Mon coach : programmes reçus dont les exercices sont dépliés
@@ -59,7 +60,8 @@ function coachTitle(html) { return `<h2 class="group-title coach-title">${html}<
 function coachRouteTitle(route) {
   const name = routeName(route);
   if (name === 'coach-student') return coachStudent(routeParams(route)[0])?.username || 'Élève';
-  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-share': 'Partager', 'coach-chat': 'Messages', 'coach-request': 'Devenir coach' }[name] || null;
+  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-share': 'Partager', 'coach-chat': 'Messages', 'coach-request': 'Devenir coach',
+    'coach-plan': 'Planning', 'coach-planning': 'Planning', 'coach-measures': 'Mensurations', 'coach-measure': 'Mesure' }[name] || null;
 }
 
 // ── Cellules : Réglages et onglet Amis ──────────────────────
@@ -115,7 +117,7 @@ function coachCellHtml({ place = 'top', friends = null } = {}) {
     const label = ['Mon coach', p ? personName(p) : '', badge ? plural(badge, 'nouveauté', 'nouveautés') : ''].filter(Boolean).join(', ');
     rows.push(`<button class="cell cell--nav coach-cell" data-action="coach-open-mine" aria-label="${esc(label)}">
         ${p ? personAvatar(p) : `<span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span>`}
-        <span class="cell__body"><span class="cell__title">Mon coach</span>${p ? `<span class="cell__sub">${esc(personName(p))}</span>` : ''}</span>
+        <span class="cell__body"><span class="cell__title">Mon coach</span>${p ? `<span class="cell__sub">${esc([personName(p), studentPlanSub()].filter(Boolean).join(' · '))}</span>` : ''}</span>
         ${badge ? `<span class="coach-count num" aria-hidden="true">${badge > 99 ? '99+' : badge}</span>` : ''}
         ${icon('chevron.right', 16)}
       </button>`);
@@ -375,6 +377,7 @@ function renderCoachMine() {
         </div>
         ${chatIntroHtml()}
         ${chatCellHtml(CHAT_COACH)}
+        ${studentPlanHtml()}
         ${notes}
         <div class="group-title">Programmes reçus</div>
         <div class="coach-progs">${progs}</div>
@@ -582,6 +585,7 @@ function renderCoachStudents() {
               <span class="social-row__name">${esc(personName(s))}</span>
               <span class="cell__sub">${esc(studentLastLine(s))}</span>
               ${s.last_session ? `<span class="cell__sub num">${s.sessions_7d ? `${plural(s.sessions_7d, 'séance', 'séances')} en 7 jours` : 'Aucune séance en 7 jours'}</span>` : ''}
+              ${coachStudentPlanLine(s.user_id)}
             </span></span>
             ${coachBadgeHtml(s.new_sessions, plural(s.new_sessions, 'nouvelle séance', 'nouvelles séances'))}
             ${chatBadgeHtml(chatUnreadOf(s.user_id))}${chatUnreadOf(s.user_id) ? `<span class="visually-hidden">, ${plural(chatUnreadOf(s.user_id), 'message non lu', 'messages non lus')}</span>` : ''}
@@ -604,6 +608,7 @@ function renderCoachStudents() {
       <div class="scr">
         ${coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : liste pas à jour.' : coachErrorText(coach.error))}</p>` : ''}
         ${coachTierBannerHtml()}
+        ${coachPlanningCellHtml()}
         <div class="group-title">Élèves${st.students.length ? ` (${st.students.length})` : ''}</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub social-empty">Aucun élève pour l\'instant</span></div>'}</div>
         <div class="group-foot">Tes élèves ne se voient pas entre eux.</div>
@@ -691,11 +696,12 @@ function renderCoachStudent(uid) {
           <span><span class="coach-join__name">${esc(personName(p))}</span><span class="coach-join__sub">${sinceText(p) ? `Élève depuis le ${esc(sinceText(p))}` : 'Élève'}</span></span>
         </div>
         ${chatCellHtml(uid)}
+        ${coachPlanGroupHtml(uid)}
         <div class="group">
           <button class="cell cell--action" data-action="coach-send" data-uid="${esc(uid)}">${icon('square.and.arrow.up', 20)}<span>Envoyer un programme</span></button>
         </div>
         ${sent}
-        ${coachWeightGroupHtml(uid, esc(personName(p)))}
+        ${coachBilanHtml(uid, esc(personName(p)))}
         <div class="group-title">Séances</div>
         ${list}
         <div class="group group--gap">
@@ -714,6 +720,8 @@ SCREENS.set('coach-student', {
     if (!uid) return;
     coachLoadSessions(uid);
     coachLoadWeights(uid);
+    coachLoadMeasures(uid);
+    if (!plan.coach && plan.available !== false) coachPlanRefresh();   // planning (serveur sans planification : rien)
     coachMarkSeen(uid);
   },
 });
@@ -1071,6 +1079,7 @@ function coachShownKey() {
   const ib = coach.inbox;
   return JSON.stringify([account.user?.id || null, coachRole(), coachBadge(), coachBadgeCoach(), coachBadgeStudent(), chatUnreadTotal(), chat.available, myCoach()?.user_id || null, myCoach()?.username || null,
     coach.state?.students.length ?? null, account.user ? coachLost() : null, typeof coachShareSummary === 'function' ? coachShareSummary() : null,
+    typeof studentPlanSub === 'function' ? studentPlanSub() : null,
     ib ? [ib.programmes.map(p => [p.id, p.sentAt, p.seen, !!p.meta]), ib.notes.map(n => [n.session_id, n.updatedAt, n.seen])] : null]);
 }
 let coachShown = null;

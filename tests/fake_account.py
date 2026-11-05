@@ -63,6 +63,15 @@ student_set_share (weight seulement : invalid_kind sinon ; not_found sans coach)
 coach_student_sessions ajoute bodyKg (dernière pesée partagée au plus tard à la date) seulement avec le
 consentement. Quitter ou être retiré efface consentement et pesées. État dans __sb.co.shares et
 __sb.co.weights ; __sb.share(élève, [{ date, kg }]) coche le poids et dépose des pesées.
+Mensurations (supabase/migrations/20261105010000_partage_mensurations.sql) : student_shares annonce kinds
+(['weight', 'measures']), student_set_share accepte 'measures', student_share_measures (not_shared sans
+consentement, remplace tout, mesures connues seulement), coach_student_measures ; état dans __sb.co.measures ;
+__sb.shareMeasures(élève, { waist: [{ date, cm }] }) coche et dépose ; __sb.fail.measures = 'missing' : serveur
+d'avant (pas de kinds, invalid_kind, PGRST202).
+Planification (supabase/migrations/20261105000000_coach_planning.sql) : coach_plans, student_plan (sans la
+note), coach_plan_save (invalid_phase, too_long, overlap, too_many à 30, not_found), coach_plan_delete ; effacée
+avec le lien. État dans __sb.co.phases ; __sb.addPhase(élève, { goal, start, weeks, name?, prog_name?, note? })
+en pose une ; __sb.fail.plan = 'missing' (PGRST202 : serveur sans planification) ou 'offline'.
 
 Parrainage (docs/PARRAINAGE.md, supabase/migrations/20261031400000_parrainage.sql) : referral_state et
 referral_apply avec les mêmes règles (un parrain par compte, fixé à la première saisie, 30 jours après la
@@ -534,13 +543,33 @@ FAKE_ACCOUNT = r"""
 
   // ── Coach (docs/COACH_V1.md) ──
   // État dans __sb.co : coachs (coach_at), codes, liens élève → coach (coach_seen_at), programmes envoyés, commentaires
-  const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0, bans: [], shares: [], weights: {}, msgs: [], reads: {}, chatReports: [],
+  const co = sb.co = { coachAt: {}, invites: [], links: [], progs: [], notes: [], tries: {}, sends: {}, codeN: 0, bans: [], shares: [], weights: {}, measures: {}, phases: [], phaseN: 0, msgs: [], reads: {}, chatReports: [],
     requests: {}, reqTries: {}, tierProduct: {}, permCode: {}, alerts: 0 };
   // Partage : consentement { student, coach, kind, granted_at } du coach actuel ; pesées par élève (du plus récent)
   const shareOf = (student, kind = 'weight') => co.shares.find(x => x.student === student && x.kind === kind && x.coach === linkOf(student)?.coach);
-  const dropShares = student => { co.shares = co.shares.filter(x => x.student !== student); delete co.weights[student]; };
-  const sharesState = me => ({ coach: !!linkOf(me), shares: Object.fromEntries(co.shares.filter(x => x.student === me && x.coach === linkOf(me)?.coach)
-    .map(x => [x.kind, { granted_at: x.granted_at, n: (co.weights[me] || []).length, last_at: (co.weights[me] || [])[0]?.date ?? null }])) });
+  const dropShares = student => { co.shares = co.shares.filter(x => x.student !== student); delete co.weights[student]; delete co.measures[student]; };
+  const mCount = m => Object.values(m || {}).reduce((a, l) => a + l.length, 0);
+  const mLast = m => Math.max(0, ...Object.values(m || {}).map(l => l[0]?.date || 0)) || null;
+  const sharesState = me => ({ coach: !!linkOf(me), ...(sb.fail.measures === 'missing' ? {} : { kinds: ['weight', 'measures'] }),
+    shares: Object.fromEntries(co.shares.filter(x => x.student === me && x.coach === linkOf(me)?.coach)
+    .map(x => [x.kind, x.kind === 'measures' ? { granted_at: x.granted_at, n: mCount(co.measures[me]), last_at: mLast(co.measures[me]) }
+      : { granted_at: x.granted_at, n: (co.weights[me] || []).length, last_at: (co.weights[me] || [])[0]?.date ?? null }])) });
+  const MEASURE_KEYS = ['chest', 'waist', 'hips', 'shoulders', 'neck', 'armL', 'armR', 'thighL', 'thighR', 'calf'];
+  sb.shareMeasures = (student, measures = {}) => {
+    if (!shareOf(student, 'measures')) co.shares.push({ student, coach: linkOf(student).coach, kind: 'measures', granted_at: new Date(now()).toISOString() });
+    co.measures[student] = Object.fromEntries(Object.entries(measures).map(([k, l]) => [k, l.slice().sort((a, b) => b.date - a.date)]));
+  };
+  // Planification : phases { id, student, coach, name, goal, start, weeks, prog_name, note } du lien actuel
+  const PLAN_GOALS = ['bulk', 'cut', 'mini_cut', 'maintain', 'comeback', 'strength', 'prep', 'deload', 'other'];
+  const dayN = iso => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 86400_000;
+  const phaseJson = (p, note) => ({ id: p.id, name: p.name, goal: p.goal, start: p.start, weeks: p.weeks, prog_name: p.prog_name, ...(note ? { note: p.note, updated_at: p.updated_at } : {}) });
+  const planOf = (coachId, student) => co.phases.filter(p => p.coach === coachId && p.student === student)
+    .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.id - b.id)).map(p => phaseJson(p, true));
+  sb.addPhase = (student, ph) => {
+    const p = { id: ++co.phaseN, student, coach: linkOf(student).coach, name: '', prog_name: null, note: '', updated_at: new Date(now()).toISOString(), ...ph };
+    co.phases.push(p); return p.id;
+  };
+  const dropPhases = student => { co.phases = co.phases.filter(p => p.student !== student); };
   sb.share = (student, weights = []) => {
     if (!shareOf(student)) co.shares.push({ student, coach: linkOf(student).coach, kind: 'weight', granted_at: new Date(now()).toISOString() });
     co.weights[student] = weights.slice().sort((a, b) => b.date - a.date);
@@ -674,11 +703,54 @@ FAKE_ACCOUNT = r"""
     },
     student_shares: me => sharesState(me),
     student_set_share: (me, { kind, enabled }) => {
-      if (kind !== 'weight' || typeof enabled !== 'boolean') return pgErr('invalid_kind');
+      const open = sb.fail.measures === 'missing' ? ['weight'] : ['weight', 'measures'];
+      if (!open.includes(kind) || typeof enabled !== 'boolean') return pgErr('invalid_kind');
       const l = linkOf(me); if (!l) return pgErr('not_found');
-      if (enabled && !shareOf(me)) co.shares.push({ student: me, coach: l.coach, kind, granted_at: new Date(now()).toISOString() });
-      if (!enabled) dropShares(me);
+      if (enabled && !shareOf(me, kind)) co.shares.push({ student: me, coach: l.coach, kind, granted_at: new Date(now()).toISOString() });
+      if (!enabled) {
+        co.shares = co.shares.filter(x => !(x.student === me && x.kind === kind));
+        if (kind === 'weight') delete co.weights[me]; else delete co.measures[me];
+      }
       return sharesState(me);
+    },
+    student_share_measures: (me, { measures }) => {
+      if (!shareOf(me, 'measures')) return pgErr('not_shared');
+      if (!measures || typeof measures !== 'object' || Array.isArray(measures)) return pgErr('invalid_data');
+      const es = Object.entries(measures);
+      if (es.some(([k, l]) => !MEASURE_KEYS.includes(k) || !Array.isArray(l))) return pgErr('invalid_data');
+      if (es.some(([, l]) => l.length > 400)) return pgErr('too_long');
+      if (es.some(([, l]) => l.some(v => !v || !Number.isInteger(v.date) || typeof v.cm !== 'number' || v.cm < 10 || v.cm > 250))) return pgErr('invalid_data');
+      co.measures[me] = Object.fromEntries(es.filter(([, l]) => l.length).map(([k, l]) => [k, l.map(v => ({ date: v.date, cm: Math.round(v.cm * 10) / 10 })).sort((a, b) => b.date - a.date)]));
+      return mCount(co.measures[me]);
+    },
+    coach_student_measures: (me, { student }) => {
+      if (!coachOf(me, student)) return pgErr('not_found');
+      const sh = shareOf(student, 'measures');
+      return sh ? { shared: true, since: sh.granted_at, measures: co.measures[student] || {} } : { shared: false, since: null, measures: {} };
+    },
+    coach_plans: me => ({ students: co.coachAt[me] ? co.links.filter(l => l.coach === me).map(l => ({ student_id: l.student, phases: planOf(me, l.student) })) : [] }),
+    student_plan: me => { const l = linkOf(me); return { coach: !!l, phases: l ? planOf(l.coach, me).map(p => phaseJson(p, false)) : [] }; },
+    coach_plan_save: (me, { student, phase_id = null, name = '', goal, start_date, weeks, programme = null, note = '' }) => {
+      if (!coachOf(me, student)) return pgErr('not_found');
+      if (!PLAN_GOALS.includes(goal) || !/^\d{4}-\d{2}-\d{2}$/.test(start_date || '') || !Number.isInteger(weeks) || weeks < 1 || weeks > 52) return pgErr('invalid_phase');
+      const n = String(name || '').trim().replace(/\s+/g, ' '), pg = String(programme || '').trim() || null, nt = String(note || '').trim();
+      if (n.length > 40 || (pg || '').length > 40 || nt.length > 500) return pgErr('too_long');
+      const s0 = dayN(start_date), e0 = s0 + weeks * 7;
+      const mine = co.phases.filter(p => p.coach === me && p.student === student);
+      if (mine.some(p => p.id !== phase_id && dayN(p.start) < e0 && s0 < dayN(p.start) + p.weeks * 7)) return pgErr('overlap');
+      if (phase_id == null) {
+        if (mine.length >= 30) return pgErr('too_many');
+        co.phases.push({ id: ++co.phaseN, student, coach: me, name: n, goal, start: start_date, weeks, prog_name: pg, note: nt, updated_at: new Date(now()).toISOString() });
+      } else {
+        const p = mine.find(x => x.id === phase_id); if (!p) return pgErr('not_found');
+        Object.assign(p, { name: n, goal, start: start_date, weeks, prog_name: pg, note: nt, updated_at: new Date(now()).toISOString() });
+      }
+      return planOf(me, student);
+    },
+    coach_plan_delete: (me, { student, phase_id }) => {
+      if (!coachOf(me, student)) return pgErr('not_found');
+      co.phases = co.phases.filter(p => !(p.coach === me && p.student === student && p.id === phase_id));
+      return planOf(me, student);
     },
     student_share_weights: (me, { weights }) => {
       if (!shareOf(me)) return pgErr('not_shared');
@@ -750,13 +822,13 @@ FAKE_ACCOUNT = r"""
       if (!linkOf(me)) sb.link(r.coach, me);
       return cperson(r.coach, linkOf(me).at);
     },
-    coach_leave: me => { dropShares(me); dropChat(me); co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
+    coach_leave: me => { dropShares(me); dropChat(me); dropPhases(me); co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
     // Retirer un accès est toujours permis, même si mon rôle de coach a été retiré
     coach_remove_student: (me, { student }) => {
       const l = linkOf(student);
       if (!l || l.coach !== me) return null;
       if (!co.bans.some(b => b.coach === me && b.student === student)) co.bans.push({ coach: me, student, at: now() });
-      dropShares(student); dropChat(student);
+      dropShares(student); dropChat(student); dropPhases(student);
       co.links = co.links.filter(l => l.student !== student); co.progs = co.progs.filter(p => p.student !== student); co.notes = co.notes.filter(n => n.student !== student); return null;
     },
     coach_student_sessions: (me, { student, before_at = null, before_id = null }) => {
@@ -805,6 +877,10 @@ FAKE_ACCOUNT = r"""
     if (sb.fail.coach === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
     if (fn.startsWith('chat_') && sb.fail.chat === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     if (fn.startsWith('chat_') && sb.fail.chat === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+    const planFn = ['coach_plans', 'student_plan', 'coach_plan_save', 'coach_plan_delete'].includes(fn);
+    const measFn = ['student_share_measures', 'coach_student_measures'].includes(fn);
+    if ((planFn && sb.fail.plan === 'missing') || (measFn && sb.fail.measures === 'missing')) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
+    if (planFn && sb.fail.plan === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
     const me = sb.meId();
     if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };
     const out = coachRpc[fn](me, args);

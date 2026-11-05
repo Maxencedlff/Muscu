@@ -5,9 +5,10 @@
 // data.bodyMeasures = { chest: [{ date, cm }], waist: [...], … } : par mesure, du plus récent au plus
 // ancien, une valeur par jour au plus (la dernière saisie du jour), BODY_MEASURE_MAX au plus.
 // Toujours stockées en cm (comme les charges en kg) ; affichées en cm ou en pouces selon l'unité de
-// l'app (lbs → in). Donnée privée : jamais sur le serveur (SYNC_LOCAL_ONLY, js/data/sync.js), jamais
-// montrée aux amis ni au coach ; gardée dans l'export et, dans l'app iPhone, dans la copie iCloud, comme
-// le poids du corps. Chargé avant store.js : sanitizeData() nettoie la donnée dès le lancement.
+// l'app (lbs → in). Donnée privée : jamais synchronisée (SYNC_LOCAL_ONLY, js/data/sync.js), jamais
+// montrée aux amis ; montrée au coach seulement si l'élève coche « Mensurations » (copie dédiée,
+// js/data/coach-share.js, effacée en décochant) ; gardée dans l'export et, dans l'app iPhone, dans la
+// copie iCloud, comme le poids du corps. Chargé avant store.js : sanitizeData() nettoie la donnée dès le lancement.
 'use strict';
 
 const BODY_MEASURES = [
