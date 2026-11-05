@@ -39,8 +39,11 @@ def visible_count(page, sel):
 
 def t_history(bench, eng, dev, theme):
     t = tag(dev, theme)
-    with bench.page(eng, dev, theme) as page:
-        seed(page, theme, ppl_v2_today_json(weeks=14))
+    # Date figée en milieu de mois : en début de mois, l'en-tête du nouveau mois prend la place d'une
+    # ligne et le nombre de cellules visibles dépendait du jour où la suite tournait (échec du 05/11/2026)
+    at = local_ms(2026, 10, 15, 18)
+    with bench.frozen_page(at, eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json(now_ms=at, weeks=14))
         n0 = page.evaluate('data.history.length')
         R.check(n0 >= 44, f'{t} historique : jeu de {n0} séances')
         go(page, 'history')
