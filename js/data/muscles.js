@@ -192,7 +192,7 @@ const MUSCLE_RULES = [
   [/\bdips?\b/,                                                                           'chest triceps', 'front_delts'],
   [/oiseau|arriere|reverse (fly|pec)|(pec deck|butterfly|fly|ecarte) invers|face pull|rear delt|pull ?apart|rotation (externe|interne)/, 'rear_delts', 'traps'],
   [/pull ?over/,                                                                          'lats', 'chest triceps'],
-  [/elevations? .*lateral|lateral raise|^laterales?\b|y raise/,                           'side_delts', 'traps'],
+  [/elevations? .*lateral|lateral raise|^laterales?\b|y raise|crucifix|^elevations? y\b/,                           'side_delts', 'traps'],
   [/frontal|front raise/,                                                                 'front_delts', 'side_delts'],
   [/menton|upright/,                                                                      'side_delts traps', 'front_delts biceps brachialis'],
   [/shrug|haussement|trapeze/,                                                            'traps', 'forearms'],
