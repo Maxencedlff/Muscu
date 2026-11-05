@@ -24,8 +24,8 @@ function exDraftFor(route) {
   const i  = editExIdxOf(route);
   const ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
   exDraft = ex
-    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false, ssLeave: false }
-    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null, musclesReset: false };
+    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, repMin: ex.repMin ?? null, measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false, ssLeave: false }
+    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, repMin: null, measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null, musclesReset: false };
   exDraft._init = exDraftSnapshot(exDraft);
   return exDraft;
 }
@@ -186,6 +186,7 @@ function exProgressionHtml(d) {
   if (m !== 'reps') return '';
   const target = d.targetText ?? (d.target ? fmtW(d.target) : '');
   const repMax = d.repMaxText ?? String(d.repMax ?? 12);
+  const repMin = d.repMinText ?? (d.repMin ? String(d.repMin) : '');
   return `
         <div class="group-title">Progression</div>
         <div class="group">
@@ -198,7 +199,15 @@ function exProgressionHtml(d) {
             </span>
           </label>
           <label class="cell cell--ctl">
-            <span class="cell__body"><span class="cell__title">Haut de fourchette de reps</span></span>
+            <span class="cell__body"><span class="cell__title">Bas de fourchette</span></span>
+            <span class="field-suffix">
+              <input type="text" inputmode="numeric" id="exRepMin" class="field field--num" autocomplete="off"
+                     value="${esc(repMin)}" placeholder="—" aria-label="Bas de fourchette de reps">
+              <span>reps</span>
+            </span>
+          </label>
+          <label class="cell cell--ctl">
+            <span class="cell__body"><span class="cell__title">Haut de fourchette</span></span>
             <span class="field-suffix">
               <input type="text" inputmode="numeric" id="exRepMax" class="field field--num" autocomplete="off"
                      value="${esc(repMax)}" aria-label="Haut de fourchette de reps">
@@ -206,15 +215,16 @@ function exProgressionHtml(d) {
             </span>
           </label>
         </div>
-        <div class="group-foot">Quand toutes tes séries atteignent ce nombre de reps, l'app te propose d'augmenter la charge.</div>`;
+        <div class="group-foot">Quand toutes tes séries atteignent le haut, l'app te propose d'augmenter la charge. Avec un bas (par exemple de 8 à 12), elle repart du bas avec la nouvelle charge.</div>`;
 }
 function refreshExProgression() {
   const box = $('#exProg');
   if (!box || !exDraft) return;
   // Saisie en cours gardée si la rubrique disparaît puis revient (Répétitions → Durée → Répétitions)
-  const t = $('#exTarget'), r = $('#exRepMax');
+  const t = $('#exTarget'), r = $('#exRepMax'), rn = $('#exRepMin');
   if (t) exDraft.targetText = t.value;
   if (r) exDraft.repMaxText = r.value;
+  if (rn) exDraft.repMinText = rn.value;
   box.innerHTML = exProgressionHtml(exDraft);
 }
 
@@ -467,13 +477,13 @@ registerActions({
   'save-ex': async () => {
     const route = currentRoute(), editorCat = editorCatOf(route), editExIdx = editExIdxOf(route);
     exDraftFor(route);
-    const nameIn = $('#exName'), targetIn = $('#exTarget'), repIn = $('#exRepMax');
+    const nameIn = $('#exName'), targetIn = $('#exTarget'), repIn = $('#exRepMax'), repMinIn = $('#exRepMin');
     const name = nameIn?.value.trim();
     if (!name) { flagInvalid(nameIn, 'Entre un nom'); return; }
     const sets = exDraft?.sets ?? 3;
     const rest = exDraft?.rest ?? null;
     // Hors répétitions, la rubrique n'est pas affichée : objectif et fourchette gardent leur valeur
-    let target = exDraft?.target ?? null, repMax = exDraft?.repMax ?? 12;
+    let target = exDraft?.target ?? null, repMax = exDraft?.repMax ?? 12, repMin = exDraft?.repMin ?? null;
     if (targetIn) {
       const targetRaw = targetIn.value.trim();
       if (targetRaw && (!weightOk(targetRaw) || !(parseFloat(storeW(targetRaw)) > 0))) { flagInvalid(targetIn, weightMsg()); return; }
@@ -483,6 +493,11 @@ registerActions({
       const repRaw = repIn.value.trim();
       repMax = repRaw ? num(repRaw, 1, 100, true) : 12;
       if (repMax === null) { flagInvalid(repIn, 'Reps entre 1 et 100'); return; }
+    }
+    if (repMinIn) {
+      const raw = repMinIn.value.trim();
+      repMin = raw ? num(raw, 1, 99, true) : null;
+      if (raw && (repMin === null || repMin >= repMax)) { flagInvalid(repMinIn, `Bas de fourchette sous ${repMax}`); return; }
     }
     const tempoIn = $('#exTempoIn');
     if (tempoIn && exDraft) {
@@ -511,6 +526,7 @@ registerActions({
       ex.target = target;
       ex.rest   = rest;
       ex.repMax = repMax;
+      if (repMin) ex.repMin = repMin; else delete ex.repMin;
       applyDraftMeasure(ex, exDraft);
       applyDraftMuscles(ex, exDraft);
       if (exDraft?.ssLeave) editorSupersetLeave(editorCat, editExIdx);
@@ -522,6 +538,7 @@ registerActions({
       ex.target = target;
       ex.rest   = rest;
       ex.repMax = repMax;
+      if (repMin) ex.repMin = repMin; else delete ex.repMin;
       applyDraftMeasure(ex, exDraft);
       applyDraftMuscles(ex, exDraft);
       list.push(ex);

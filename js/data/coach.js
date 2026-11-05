@@ -124,6 +124,8 @@ function cleanSentProgramme(raw) {
           if (t) o.tempo = formatTempo(t);
           const rm = e.repMax == null ? null : num(e.repMax, 1, 100, true);
           if (rm !== null) o.repMax = rm;
+          const rn = e.repMin == null ? null : num(e.repMin, 1, 99, true);
+          if (rn !== null && rn < (o.repMax ?? 12)) o.repMin = rn;
           if (ssId(e)) o.ss = e.ss;
           const c = cleanConsigne(e.consigne);
           if (c) o.consigne = c;
@@ -278,6 +280,7 @@ function programmeToSent(d, progId, over = null) {
         if (e.measure) o.measure = e.measure;
         if (e.tempo) o.tempo = e.tempo;
         if (e.repMax) o.repMax = e.repMax;
+        if (e.repMin) o.repMin = e.repMin;
         if (ssId(e)) o.ss = e.ss;
         const c = cleanConsigne(over?.ex?.[s.key]?.[e.id] !== undefined ? over.ex[s.key][e.id] : e.consigne);
         if (c) o.consigne = c;
@@ -335,7 +338,7 @@ function importCoachProgramme(d, item, coachPerson) {
     if (hit) used.add(hit.ex);
     return hit?.ex || null;
   };
-  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'ss', 'consigne'];
+  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'ss', 'consigne'];
   const sessions = {}, exercises = {};
   sent.sessions.forEach(s => {
     sessions[s.key] = { label: s.label, icon: '', desc: prevUp?.sessions?.[s.key]?.desc || '', color: s.color };
