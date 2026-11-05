@@ -214,7 +214,7 @@ const GUIDE_SECTIONS = [
           '[Séries] et [Repos] : le nombre de séries et un repos propre à cet exercice.',
           '[Mesure] : [Répétitions], [Durée] pour les maintiens comme le gainage, ou [Cardio] pour la distance et les minutes.',
           '[Tempo] : la vitesse de chaque répétition.',
-          '[Progression] : un [Objectif] de charge et le [Haut de fourchette de reps].',
+          '[Progression] : un [Objectif] de charge et la fourchette de reps ([Bas de fourchette], [Haut de fourchette]), par exemple de 8 à 12.',
           'Renommer un exercice garde son historique. L\'app propose de renommer aussi tes anciennes séances.',
         ],
         related: ['tempo', 'augmenter-charge', 'duree'],
@@ -326,7 +326,7 @@ const GUIDE_SECTIONS = [
         steps: [
           'Si toutes tes séries de la dernière fois ont atteint le haut de ta fourchette, une pastille « ↑ +2,5 kg » apparaît à côté du nom de l\'exercice.',
           'Touche-la : les séries qui restent prennent 2,5 kg de plus (5 lbs en livres).',
-          'Le haut de fourchette se règle dans la fiche de l\'exercice : [Haut de fourchette de reps], 12 par défaut.',
+          'La fourchette se règle dans la fiche de l\'exercice : [Haut de fourchette], 12 par défaut, et un [Bas de fourchette] facultatif. Avec un bas, la nouvelle charge repart du bas : de 8 à 12, puis 8 avec plus lourd.',
           'Sur l\'accueil, [À battre aujourd\'hui] propose la même hausse, ou une répétition de plus.',
         ],
         related: ['regler-exercice', 'records'],

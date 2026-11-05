@@ -150,6 +150,19 @@ const NBSP  = ' ';
 
 // ── Formats : nombres et charges ────────────────────────────
 
+test('lastPerf : exercice déjà fait dans un autre programme, « Avant » repris par le nom', () => {
+  const d = { history: [
+    { id: 'b', date: 2, programme: 'ppl', category: 'pull', exercises: [{ exId: 'x1', name: 'Curl marteau', sets: [{ weight: '16', reps: '10' }] }] },
+    { id: 'a', date: 1, programme: 'ppl', category: 'push', exercises: [{ exId: 'x2', name: 'Dips', sets: [{ weight: '5', reps: '8' }] }] },
+  ] };
+  // Même séance : la règle d'avant
+  assert.equal(app.lastPerf('ppl', 'push', { exId: 'x2', name: 'Dips' }, d).h.id, 'a');
+  // Nouveau programme, autre identifiant, même nom (casse et accents ignorés) : la dernière fois ailleurs
+  const r = app.lastPerf('u_mon_prog', 'jour1', { exId: 'neuf', name: 'curl MARTEAU' }, d);
+  assert.equal(r?.ex.sets[0].weight, '16');
+  assert.equal(app.lastPerf('u_mon_prog', 'jour1', { exId: 'neuf', name: 'Squat' }, d), null, 'jamais fait : rien');
+});
+
 test('fmtNum : virgule décimale, milliers, entrée texte', () => {
   assert.equal(app.fmtNum(32.5), '32,5');
   assert.equal(app.fmtNum('32.5'), '32,5');

@@ -44,7 +44,7 @@ const EXERCISE_CATALOGUE = [
   ['Développé incliné barre',          'chest front_delts',      'triceps', 'salle', 'incline bench press|incline barbell press|incline bench|développé incliné'],
   ['Développé incliné haltères',       'chest front_delts',      'triceps', 'halteres', 'incline dumbbell press|incline dumbbell bench press|incline db press'],
   ['Développé décliné',                'chest',                  'front_delts triceps', 'salle', 'decline bench press|decline press'],
-  ['Développé couché machine',         'chest',                  'front_delts triceps', 'salle', 'chest press|chest press machine|machine chest press'],
+  ['Développé couché machine',         'chest',                  'front_delts triceps', 'salle', 'chest press|chest press machine|machine chest press|chest press assis|presse pectorale|presse à pectoraux'],
   ['Écarté haltères plat',             'chest',                  'front_delts', 'halteres', 'écarté haltères|écarté couché|dumbbell fly|dumbbell flyes|dumbbell flies'],
   ['Écarté poulie vis-à-vis',          'chest',                  'front_delts', 'salle', 'cable fly|crossover|écarté poulie|cable crossover|cable flyes|cable flies|écarté câble|écarté câbles'],
   ['Pec deck',                         'chest',                  'front_delts', 'salle', 'écarté machine|butterfly|peck deck|pec fly|pec dec|pec deck machine|machine fly|pec flyes'],
@@ -238,6 +238,12 @@ const EXERCISE_CATALOGUE = [
   ['Curl araignée',                    'biceps',                 'brachialis',            'salle', 'spider curl'],
   ['Tractions assistées (machine)',    'lats',                   'biceps rear_delts', 'salle', 'assisted pull-up|machine à tractions'],
   ['Dips assistés (machine)',          'chest triceps',          'front_delts', 'salle', 'assisted dips|dips assistés'],
+  // Demandés par les coachs partenaires (05/11/2026)
+  ['Élévations crucifix',              'side_delts',             'traps',       'salle', 'crucifix|élévations crucifix poulie|cable crucifix|cable y raise croisé|élévation latérale poulie croisée'],
+  ['Élévations Y',                     'side_delts',             'traps rear_delts', 'halteres', 'y raise|y-raise|élévation en y|élévations en y|y raise incliné'],
+  ['Kelso shrug',                      'traps',                  'rear_delts',  'halteres', 'kelso|kelso shrugs|shrug kelso|shrug buste penché'],
+  ['Développé décliné smith',          'chest',                  'front_delts triceps', 'salle', 'decline smith press|développé décliné multipower|dd smith'],
+  ['Belt squat',                       'quads glutes',           'adductors',   'salle', 'belt squat machine|squat ceinture|squat à la ceinture'],
   ['Mollets à la presse',              'calves',                 '',            'salle', 'leg press calf raise|mollets presse'],
   ['Crunch machine',                   'abs',                    '',            'salle', 'machine crunch|ab crunch machine'],
 ].map(([name, primary, secondary, equip, aliases = '']) => Object.freeze({

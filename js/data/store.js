@@ -54,6 +54,14 @@ function lastPerf(progKey, cat, exLike, d = data) {
     const ex = (h.exercises || []).find(e => sameEx(e, exLike));
     if (ex && ex.sets?.length) return { h, ex };
   }
+  // Jamais fait dans cette séance : sa dernière fois ailleurs, par le nom (nouveau programme créé avec des
+  // exercices déjà faits, séance libre, autre jour). Avant le 05/11/2026, la colonne « Avant » restait vide.
+  const key = normName(exLike?.name);
+  if (!key) return null;
+  for (const h of d.history || []) {
+    const ex = (h.exercises || []).find(e => normName(e.name) === key);
+    if (ex && ex.sets?.length) return { h, ex };
+  }
   return null;
 }
 
@@ -206,6 +214,8 @@ function sanitizeData(d) {
         ex.sets = sets >= 1 && sets <= 10 ? sets : 3;
         // Champs facultatifs : bornés comme à la saisie (ils sont réinjectés dans les formulaires)
         if (ex.repMax !== undefined) { const r = num(ex.repMax, 1, 100, true); if (r === null) delete ex.repMax; else ex.repMax = r; }
+        // Bas de fourchette (« 8 à 12 ») : facultatif, toujours sous le haut
+        if (ex.repMin !== undefined) { const r = num(ex.repMin, 1, 99, true); if (r === null || r >= (ex.repMax ?? 12)) delete ex.repMin; else ex.repMin = r; }
         if (ex.rest   != null) ex.rest   = num(ex.rest, 10, 600, true);
         if (ex.target != null) ex.target = num(ex.target, 0, 1000);
         // Identifiants de muscles : leur validité exacte est vérifiée à la lecture (chosenMuscles)

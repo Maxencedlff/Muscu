@@ -102,7 +102,13 @@ function sessExData(ex) {
 // Objectif de reps (ou de durée) d'une série : la même série la dernière fois, sinon l'objectif par
 // défaut de l'exercice (premier essai). Montré en gris dans la case vide, pris si elle le reste.
 function setGoal(ex, s) {
-  return String(s?.prev?.reps || defaultGoal(measureOf(ex), sessExData(ex)?.repMax));
+  const d = sessExData(ex);
+  return String(s?.prev?.reps || defaultGoal(measureOf(ex), d?.repMin ?? d?.repMax));
+}
+// Fourchette de reps du programme (« 8–12 ») si un bas est réglé, sinon ''
+function repRangeText(ex) {
+  const d = sessExData(ex);
+  return measureOf(ex) === 'reps' && d?.repMin ? `${d.repMin}–${d.repMax ?? 12} reps` : '';
 }
 
 function exRest(ex) {
@@ -221,7 +227,8 @@ function exSubHtml(ex, ei, allDone) {
   const tempo = parseTempo(ex.tempo) && measureOf(ex) === 'reps'
     ? `<span class="tempo-pill num" aria-label="Tempo ${esc(shortTempo(ex.tempo))}${ex.tempoGuide === true ? ', guidé au son' : ''}">${ex.tempoGuide === true ? icon('music', 12) : ''}Tempo ${esc(shortTempo(ex.tempo))}</span> `
     : '';
-  return `${tempo}${pr ? `<span class="num">Record ${fmtW(pr.weight, { plain: true })} × ${esc(pr.reps)}</span> · ` : ''}<button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${ei}" aria-label="Repos ${rest}, modifier">Repos ${rest}</button>${exVolumeHtml(ex, allDone)}`;
+  const range = repRangeText(ex);
+  return `${tempo}${range ? `<span class="num">${range}</span> · ` : ''}${pr ? `<span class="num">Record ${fmtW(pr.weight, { plain: true })} × ${esc(pr.reps)}</span> · ` : ''}<button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${ei}" aria-label="Repos ${rest}, modifier">Repos ${rest}</button>${exVolumeHtml(ex, allDone)}`;
 }
 
 function renderExerciseCard(ex, ei, cur) {
@@ -741,15 +748,18 @@ registerActions({
     const ex = activeSession?.exercises[parseInt(el.dataset.ei)];
     if (!ex) return;
     const step = data.unit === 'lbs' ? 5 : 2.5;
+    // Fourchette (« 8 à 12 ») : la nouvelle charge repart du bas (progression double)
+    const lo = measureOf(ex) === 'reps' ? sessExData(ex)?.repMin : null;
     ex.sets.forEach(s => {
       if (s.done || isWarmupSet(s)) return;   // l'échauffement garde ses paliers
       const cur = toUnitW(s.weight || s.prev?.weight) || 0;
       s.weight = storeW(String(Math.round((cur + step) * 100) / 100));
       s.plannedWeight = s.weight;
+      if (lo) s.reps = String(lo);
     });
     ex.bumped = true;
     haptic();
     render();
-    showToast(`Charge augmentée de ${bumpLabel()}`);
+    showToast(lo ? `Charge augmentée de ${bumpLabel()}, retour à ${lo} reps` : `Charge augmentée de ${bumpLabel()}`);
   },
 });

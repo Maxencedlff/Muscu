@@ -30,6 +30,16 @@ export default function ({ test, run, reset, assert, ROOT }) {
     assert.equal(run("(() => { const d = { soundLevel: 'xx' }; normalizeData(d); return d.soundLevel; })()"), 'fort');
   });
 
+  test('fourchette de reps : bas facultatif, toujours sous le haut, gardé dans un programme de coach', () => {
+    const clean = ex => run(`(() => { const d = { programmes: { ppl: { exercises: { push: [${JSON.stringify(ex)}] } } } }; sanitizeData(d); return d.programmes.ppl.exercises.push[0]; })()`);
+    assert.equal(clean({ id: 'a', name: 'DC', sets: 3, repMax: 12, repMin: 8 }).repMin, 8);
+    assert.equal(clean({ id: 'a', name: 'DC', sets: 3, repMax: 10, repMin: 12 }).repMin, undefined, 'bas au-dessus du haut : retiré');
+    assert.equal(clean({ id: 'a', name: 'DC', sets: 3, repMin: 'x' }).repMin, undefined);
+    const sent = run(`cleanSentProgramme({ name: 'Prise de masse', sessions: [{ key: 'push', label: 'Push', exercises: [{ name: 'DC', sets: 3, repMax: 12, repMin: 8 }, { name: 'Dips', sets: 3, repMax: 8, repMin: 9 }] }] })`);
+    assert.equal(sent.sessions[0].exercises[0].repMin, 8);
+    assert.equal(sent.sessions[0].exercises[1].repMin, undefined, 'bas incohérent ignoré');
+  });
+
   test('mesures : bibliothèque, noms libres et choix enregistré', () => {
     reset();
     const m = n => run(`measureOf({ name: ${JSON.stringify(n)} })`);
