@@ -207,6 +207,18 @@ html[data-nav-dir="fade"]::view-transition-new(root) { animation-duration: .15s;
 @keyframes navInUp     { from { transform: translateY(100%); } }
 @keyframes navOutDown  { to   { transform: translateY(100%); } }
 
+/* ── Grand écran (iPhone Duo ouvert en paysage, iPad) : colonne de lecture centrée ──
+   Au-delà de 720 px, cartes, listes et paragraphes ne s'étalent plus sur tout l'écran : l'écran garde
+   au plus la largeur de --col-max et se centre ; barre d'onglets et mini-barre suivent la colonne (repos et feuilles de la séance : fin de session.css).
+   Rien ne change jusqu'à 720 px (iPhone, Duo fermé ou ouvert en portrait). Vérifié par tests/test_ecrans_recents.py. */
+@media (min-width: 721px) {
+  :root { --col-max: 640px; }
+  #app > .view, .edge-layer > .view { max-width: var(--col-max); margin-inline: auto; }
+  .tabbar { justify-content: center; }
+  .tabbar__btn { flex: 0 1 calc(var(--col-max) / 5); }
+  .livebar { left: max(8px, calc(50% - var(--col-max) / 2 + 8px)); right: max(8px, calc(50% - var(--col-max) / 2 + 8px)); }
+}
+
 /* ── Geste de retour depuis le bord ── */
 .edge-layer {
   position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
