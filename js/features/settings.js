@@ -67,7 +67,7 @@ ${renderAccessSettingsGroup()}
           ${renderBodyWeightSetting()}
           ${strengthSexSettingHtml()}
           <button class="cell" data-action="setting-rir" role="switch" aria-checked="${rirShown()}">
-            <span class="cell__body"><span class="cell__title">Noter les reps en réserve</span>
+            <span class="cell__body"><span class="cell__title">Reps en réserve</span>
               <span class="cell__sub">Après chaque série, facultatif</span></span>
             ${switchHtml(rirShown())}
           </button>
@@ -80,7 +80,7 @@ ${renderAccessSettingsGroup()}
             ${switchHtml(data.soundOn !== false)}
           </button>
           ${data.soundOn !== false ? `<div class="cell cell--ctl">
-            <span class="cell__body"><span class="cell__title">Volume des bips</span></span>
+            <span class="cell__body"><span class="cell__title">Volume</span></span>
             <div class="segmented seg-sm" role="group" aria-label="Volume des bips">
               ${[['bas', 'Bas'], ['normal', 'Normal'], ['fort', 'Fort']].map(([v, l]) =>
                 `<button class="segmented__btn ${data.soundLevel === v ? 'segmented__btn--active' : ''}" aria-pressed="${data.soundLevel === v}" data-action="setting-sound-level" data-val="${v}">${l}</button>`).join('')}
