@@ -7,6 +7,7 @@
 """
 import json
 import os
+import re
 import time
 import contextlib
 import datetime
@@ -24,6 +25,95 @@ DEVICES = [
     ('chromium', 'Galaxy S9+'),
 ]
 THEMES = ['dark', 'light']
+
+# ─────────────────────────────────────────────────────────────
+#  Appareils récents (iPhone 16 à 18, iPhone Air, iPhone Duo pliable)
+#
+# Hors de DEVICES : la suite par défaut reste raisonnable. PPL_DEVICES=recents (ou « tous », ou une liste de
+# noms) les fait tourner dans n'importe quel lot (run_all.py, run_main, test_ecrans_recents.py).
+# Profils faits main : ceux de Playwright du même nom ont la fenêtre de Safari (barres comprises, 402 × 681),
+# alors que l'app iOS (Capacitor, WKWebView plein écran, viewport-fit=cover) a tout l'écran (402 × 874) avec
+# des marges de sécurité (encoche / Dynamic Island en haut, barre d'accueil en bas). Ces marges sont simulées :
+# le navigateur rend env(safe-area-inset-*) à 0, simulate_safe_area() les remplace par les vraies valeurs.
+#
+# Tailles en points (vérifiées le 06/11/2026) :
+#   iPhone 16 Pro / 17 / 17 Pro / 18 Pro : 402 × 874, @3x, marges 62 haut / 34 bas (useyourloaf.com, iPhone 17 Screen Sizes)
+#   iPhone 16 Pro Max / 17 Pro Max / 18 Pro Max : 440 × 956, @3x, marges 62 / 34
+#   iPhone Air : 420 × 912, @3x, marges 68 / 34 (même source)
+#   iPhone Duo (sorti en septembre 2026, iOS 27.1) : Apple n'a publié que les pixels (gigazine, tidbits,
+#     iphoneincanada) : extérieur 5,4 po 1398 × 2034, intérieur 7,6 po 1878 × 2670, environ 430 à 460 ppp,
+#     donc @3x comme les iPhone (l'iPad mini, à 326 ppp, est en @2x). Hypothèse : extérieur 466 × 678 points,
+#     intérieur 626 × 890 (paysage 890 × 626). Marges supposées : fermé comme un iPhone à poinçon (59 / 34),
+#     ouvert comme un iPad sans encoche (24 / 20). En plus, un pire cas « grand » façon iPad mini paysage
+#     (1133 × 744, @2x) si l'écran ouvert se révélait en @2x (939 × 1335) : contenu étalé sur plus de 1100 px.
+#   L'app ne déclare que le portrait (Info.plist) : en paysage sur le Duo ouvert, iOS peut la laisser en
+#   portrait ; le paysage est testé comme pire cas (Split View, rotation forcée par le système).
+# ─────────────────────────────────────────────────────────────
+# Safari 26 fige la version d'iOS du user agent (18_x), comme les profils iPhone 17 de Playwright
+IOS_UA = ('Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 '
+          '(KHTML, like Gecko) Version/26.1 Mobile/15E148 Safari/604.1')
+
+
+def _ios(w, h, safe, dpr=3):
+    """Profil Playwright d'un iPhone récent (app plein écran) et ses marges (haut, droite, bas, gauche)."""
+    return {'viewport': {'width': w, 'height': h}, 'screen': {'width': w, 'height': h}, 'device_scale_factor': dpr,
+            'is_mobile': True, 'has_touch': True, 'user_agent': IOS_UA, 'default_browser_type': 'webkit'}, safe
+
+
+RECENT_PROFILES = {
+    'iPhone 17': _ios(402, 874, (62, 0, 34, 0)),             # aussi 16 Pro, 17 Pro, 18 Pro
+    'iPhone 17 Pro Max': _ios(440, 956, (62, 0, 34, 0)),     # aussi 16 Pro Max, 18 Pro Max
+    'iPhone Air': _ios(420, 912, (68, 0, 34, 0)),
+    'iPhone Duo ferme': _ios(466, 678, (59, 0, 34, 0)),
+    'iPhone Duo ouvert': _ios(626, 890, (24, 0, 20, 0)),
+    'iPhone Duo paysage': _ios(890, 626, (24, 0, 20, 0)),
+    'iPhone Duo grand paysage': _ios(1133, 744, (24, 0, 20, 0), dpr=2),
+}
+RECENT_DEVICES = [('webkit', n) for n in RECENT_PROFILES]
+ALL_DEVICES = DEVICES + RECENT_DEVICES
+
+
+def device_profile(p, name):
+    """Profil d'un appareil : les nôtres d'abord (même nom qu'un profil Safari de Playwright), sinon p.devices."""
+    return RECENT_PROFILES[name][0] if name in RECENT_PROFILES else p.devices[name]
+
+
+def safe_insets(name):
+    """Marges de sécurité simulées (haut, droite, bas, gauche) en points ; None hors appareils récents."""
+    return RECENT_PROFILES[name][1] if name in RECENT_PROFILES else None
+
+
+def selected_devices(env=None):
+    """Appareils choisis par PPL_DEVICES : vide → DEVICES ; « recents » → RECENT_DEVICES ; « tous » → les deux ;
+    sinon des noms séparés par des virgules (« recents » permis dans la liste). Un nom inconnu arrête tout."""
+    raw = os.environ.get('PPL_DEVICES', '') if env is None else env
+    asked = [x.strip() for x in raw.split(',') if x.strip()]
+    if not asked:
+        return list(DEVICES)
+    known = dict((d, e) for e, d in ALL_DEVICES)
+    out = []
+    for a in asked:
+        group = RECENT_DEVICES if a == 'recents' else ALL_DEVICES if a == 'tous' else None
+        if group is None:
+            if a not in known:
+                raise SystemExit(f'Appareil inconnu : {a} ; connus : recents, tous, {", ".join(known)}')
+            group = [(known[a], a)]
+        out += [x for x in group if x not in out]
+    return out
+
+
+def simulate_safe_area(ctx, insets):
+    """Marges de sécurité de l'app iOS dans le navigateur : chaque env(safe-area-inset-*) des feuilles de style
+    devient var(--sim-sai-*), fixé aux valeurs de l'appareil (même valeur de repli). Sur le contexte, avant la page."""
+    top, right, bottom, left = insets
+    def css(route):
+        resp = route.fetch()
+        body = resp.text().replace('env(safe-area-inset-', 'var(--sim-sai-')
+        route.fulfill(response=resp, body=body, headers={**resp.headers, 'content-type': 'text/css; charset=utf-8'})
+    ctx.route(re.compile(r'^https?://(127\.0\.0\.1|localhost)[:/].*\.css(\?.*)?$'), css)
+    ctx.add_init_script(f"""(() => {{ const put = () => document.documentElement.style.cssText +=
+        ';--sim-sai-top:{top}px;--sim-sai-right:{right}px;--sim-sai-bottom:{bottom}px;--sim-sai-left:{left}px';
+        if (document.documentElement) put(); else addEventListener('DOMContentLoaded', put); }})();""")
 
 DAY = 86400_000
 
@@ -213,8 +303,10 @@ class Bench:
     @contextlib.contextmanager
     def page(self, engine, device, theme, service_workers='block', clock=None, **extra):
         """clock : instant de départ figé (ms) ; avec timezone_id=PARIS, la même heure partout (CI en UTC)."""
-        ctx = self.browser(engine).new_context(**self.p.devices[device], color_scheme=theme,
+        ctx = self.browser(engine).new_context(**device_profile(self.p, device), color_scheme=theme,
                                                service_workers=service_workers, **extra)
+        if safe_insets(device):
+            simulate_safe_area(ctx, safe_insets(device))
         page = ctx.new_page()
         page.errors = []
         page.on('pageerror', lambda e: page.errors.append(str(e)))
@@ -308,7 +400,8 @@ def run_main(R, tests, once=()):
     with sync_playwright() as p:
         bench = Bench(p)
         if not once_only:
-            for eng, dev in DEVICES:
+            # PPL_DEV (un processus de run_all.py) peut viser un appareil récent ; sinon PPL_DEVICES choisit
+            for eng, dev in (ALL_DEVICES if dev_f else selected_devices()):
                 if dev_f and dev != dev_f:
                     continue
                 for theme in THEMES:

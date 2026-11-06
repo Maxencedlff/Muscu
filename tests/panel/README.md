@@ -13,6 +13,7 @@ PPL_URL=http://localhost:8768/ flock /tmp/ppl-e2e.lock python3 tests/panel/captu
 |---|---|
 | (aucune) | complet : iPhone 13 et iPhone SE en clair et en sombre, puis Pixel 7 sombre |
 | `--rapide` | iPhone 13 sombre + iPhone SE clair |
+| `--recents` | iPhone 17 (= 16 Pro à 18 Pro), 17 Pro Max, Air et iPhone Duo fermé, ouvert, paysage et « grand paysage » en sombre, plus iPhone 17 et Duo ouvert en clair ; écran entier de l'app et marges de sécurité simulées (tailles et hypothèses : `tests/fixtures.py`, RECENT_PROFILES) |
 | `--parcours seance,coach` | seulement ces parcours (`python3 tests/panel/parcours.py` les liste) |
 | `--sans-axe` | sans l'audit d'accessibilité axe-core (fait sur le premier appareil seulement) |
 | `--debug` | pile complète quand une étape échoue |
