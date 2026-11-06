@@ -74,11 +74,19 @@ Aucune n'a cluster, top set ni back-off : ce sont pourtant les mots des coachs, 
   20 s entre deux blocs de cluster (barre de repos réduite) ; après la dernière sous-série, le repos habituel, ou
   dans un superset l'exercice suivant du tour (« Enchaîne », sans repos, comme après une série). Le minuteur ne
   bouge que si la sous-série suit la dernière série validée : rattraper un drop oublié ou le corriger pendant un
-  autre repos le laisse tel quel, et « Annuler » rend le repos d'avant.
+  autre repos le laisse tel quel, et « Annuler » rend le repos d'avant. Pendant la pause, la barre annonce
+  « Ensuite : Reprise 1 · 32 kg × 4 » sans le nom de l'exercice (celui qu'on vient de faire, dit aux lecteurs
+  d'écran) : la ligne tient entière sur iPhone SE. Le toast « Puis rest-pause · Annuler » (4 s, comme après chaque
+  série) se pose au-dessus de la barre : il peut cacher les séries suivantes, jamais la reprise à faire, que
+  l'écran centre.
+- **Une seule chose en cours** : pendant la pause (ou avant un drop), la sous-série qui suit est seule mise en avant
+  (`session-set--subcur`, `aria-current`) ; la série suivante ne l'est qu'une fois la sous-série faite.
 - **Sous-série sautée** : seule la sous-série de la série qu'on vient de valider est mise en avant, retient la carte
   dépliée et attire l'écran ; dès qu'une autre série est validée, elle reste à remplir (✓ gris) sans rien retenir.
 - Une sous-série se valide après sa série et dans l'ordre ; toucher une sous-série validée la rouvre. « + drop »
-  en ajoute une (6 au plus). Rien au pointerdown ; zones de toucher de 44 px ; iOS : un seul toucher.
+  en ajoute une (6 au plus). Rien au pointerdown ; zones de toucher de 44 px ; iOS : un seul toucher. « + reprise »
+  et × sont dessinés en 32 px de haut mais touchables sur 44 (`::after` à −6 px, contigus sans se chevaucher :
+  test_intensif.py le vérifie avec elementFromPoint) ; un outil qui mesure la boîte du bouton lit 32.
 - **Enregistrement** : seules les sous-séries validées sont gardées ; un drop set sans drop validé perd sa marque.
 - **Supersets** : possible (menu ⋯ du membre) ; l'enchaînement du tour prime sur la pause de la technique.
 - **Séance fermée puis rouverte** : tout est dans `ppl_active_session` (techniques, sous-séries, `auto`).

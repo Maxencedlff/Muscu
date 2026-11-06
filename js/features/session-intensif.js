@@ -78,7 +78,7 @@ function subRowHtml(ex, ei, s, si, x, k) {
   const wait = !s.done || first < k;
   const kg = subWeightKg(s, k, techOpts(ex));
   return `
-      <div class="session-set session-set--sub ${cur ? 'session-set--subcur' : ''}" ${at}>
+      <div class="session-set session-set--sub ${cur ? 'session-set--subcur' : ''}" ${cur ? 'aria-current="step" ' : ''}${at}>
         <span class="set-n tech-tag" aria-hidden="true">${tag}</span>
         <span class="set-prev num">${x.prev ? '<span class="visually-hidden">La dernière fois </span>' : ''}${prev}</span>
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" data-action="sub-weight" ${at}

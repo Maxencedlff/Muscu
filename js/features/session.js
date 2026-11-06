@@ -137,7 +137,8 @@ function currentSet() {
 
 // Série suivante en deux morceaux : { name: « Développé incliné », tail: « S1 · 30 kg × 10 » } (tail = step + load), null sans.
 // Pendant la pause d'un rest-pause ou d'un cluster, c'est la sous-série qui suit : « Reprise 1 · 70 kg × 4 »
-// (js/features/session-intensif.js). La barre de repos coupe le nom, jamais la série (js/features/rest.js)
+// (js/features/session-intensif.js), sub: true. La barre de repos coupe le nom, jamais la série ; pendant une
+// pause de technique, elle tait le nom (l'exercice qu'on vient de faire) : « Ensuite : Reprise 1 · 32 kg × 4 »
 function nextSetParts() {
   const sub = techNextSub();
   const cur = sub || currentSet();
@@ -148,7 +149,7 @@ function nextSetParts() {
   const load = String(s.reps ?? '') !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}`
     : sub && hasLoad(s.weight) ? ` · ${fmtW(s.weight, { plain: true })} ${unitLbl()}` : '';
   const step = sub ? sub.label : `S${cur.si + 1}`;
-  return { name: ex.name, step, load, tail: step + load };
+  return { name: ex.name, step, load, tail: step + load, sub: !!sub };
 }
 // « Développé incliné · S1 · 30 kg × 10 »
 function nextSetText() {
@@ -510,7 +511,9 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
 
   if (s.done && !editing) return renderDoneSetRow(ex, ei, s, si, prev, del, tag);
 
-  const isCur = !editing && cur && cur.ei === ei && cur.si === si;
+  // Pendant la pause d'un rest-pause ou d'un cluster (ou entre deux drops), la sous-série qui suit est seule
+  // mise en avant (session-set--subcur, js/features/session-intensif.js) : une seule chose en cours
+  const isCur = !editing && cur && cur.ei === ei && cur.si === si && !techCurrentSub(activeSession.exercises, activeSession.lastDone);
   // Série rouverte : la saisie en cours (editingSet) prime, sinon un re-rendu la remettrait à l'ancienne valeur
   const wVal = editing && editingSet.weight !== undefined ? editingSet.weight : (m === 'cardio' ? (s.dist ? fmtNum(s.dist) : '') : fmtW(s.weight, { plain: true }));
   const rVal = editing && editingSet.reps   !== undefined ? editingSet.reps   : s.reps;

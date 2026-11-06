@@ -350,9 +350,29 @@ def t_pause_annonce(bench, eng, dev, theme):
         kg0 = page.evaluate("fmtW(subWeightKg(activeSession.exercises[0].sets[0], 0), { plain: true })")
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(400)
         R.check(page.evaluate("restActive && restTotal === 15"), f'{t} rest-pause : pause de 15 s')
-        nxt = ' '.join(page.locator('.rest-mini__next').text_content().replace('\u00a0', ' ').split())
-        R.check(f'Ensuite : {name0} · Reprise 1 · {kg0} kg' in nxt and 'S2' not in nxt, f'{t} rest-pause : « Ensuite » annonce la reprise ({nxt})')
+        # Panel du 06/11 : « Ensuite : Rowing haltère u… » coupé sur iPhone. Pendant la pause, la barre tait le nom
+        # (l'exercice qu'on vient de faire, dit aux lecteurs d'écran) et montre la reprise entière
+        vis = ' '.join(page.evaluate("[...document.querySelectorAll('.rest-mini__next > :not(.sr-text)')].map(e => e.textContent).join('')").replace(' ', ' ').split())
+        R.check(vis.startswith(f'Ensuite : Reprise 1 · {kg0} kg') and name0 not in vis and 'S2' not in vis, f'{t} rest-pause : « Ensuite » annonce la reprise, sans le nom ({vis})')
+        R.check(page.locator('.rest-mini__next .sr-text').text_content().strip(', ') == name0, f'{t} rest-pause : nom de l\'exercice dit au lecteur d\'écran')
+        R.check(page.evaluate("""(() => { const n = document.querySelector('.rest-mini__next'), r = n.getBoundingClientRect();
+            return [...n.children].filter(e => !e.matches('.sr-text')).every(e => e.scrollWidth <= e.clientWidth + 1 && e.getBoundingClientRect().right <= r.right + 1); })()"""),
+            f'{t} rest-pause : ligne « Ensuite » jamais coupée')
+        # Une seule chose en cours : la reprise, pas la série 2
+        R.check(page.locator('.session-set--subcur').count() == 1 and page.locator('.session-set--current').count() == 0
+                and page.locator('[aria-current="step"]').count() == 1, f'{t} rest-pause : seule la reprise est mise en avant')
+        # Toast « Puis rest-pause · Annuler » : jamais sur la reprise à faire
+        R.check(page.evaluate("""(() => { const r = document.querySelector('.session-set--subcur').getBoundingClientRect(), t = document.querySelector('.toast');
+            return !!t && r.bottom <= t.getBoundingClientRect().top && r.top >= document.querySelector('.navbar').getBoundingClientRect().bottom; })()"""),
+            f'{t} rest-pause : la reprise reste visible au-dessus du toast')
         shot(page, LOT, f'{t}-11-pause-reprise')
+        # « + reprise » et × : 32 px dessinés, 44 px réellement touchables (::after), sans empiéter l'un sur l'autre
+        center(page, '.ex-card[data-ei="0"] .tech__cap')
+        hits = page.evaluate("""() => ['.tech__add', '.tech__x'].map(sel => { const b = document.querySelector('.ex-card[data-ei="0"] ' + sel), r = b.getBoundingClientRect();
+            const cx = r.left + r.width / 2, cy = r.top + r.height / 2, h = 21, w = r.width / 2 + 5;   // 44 px à l'arrondi au pixel près (elementFromPoint)
+            return [[cx - w, cy], [cx + w, cy], [cx, cy - h], [cx, cy + h]].every(([x, y]) => document.elementFromPoint(x, y)?.closest(sel) === b)
+                && Math.round(r.height) + 12 >= 44; })""")
+        R.check(hits == [True, True], f'{t} « + reprise » et × : zone de toucher réelle de 44 px ({hits})')
         nat = native_rest(page)
         R.check(nat.get('body', '').startswith(f'Reprise 1 · {name0} · {kg0} kg'), f'{t} rest-pause : notification « {nat.get("body")} »')
         R.check(nat.get('next', {}).get('exercise') == f'{name0} · Reprise 1' and nat['next'].get('load', '').startswith(f'{kg0} kg') and nat['next'].get('set') == 1,
@@ -366,7 +386,7 @@ def t_pause_annonce(bench, eng, dev, theme):
         page.evaluate("activeSession.lastEi = 1; persistSession(); render()")
         page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); page.wait_for_timeout(400)
         nxt = ' '.join(page.locator('.rest-mini__next').text_content().replace('\u00a0', ' ').split())
-        R.check(f'{name1} · Bloc 1' in nxt, f'{t} cluster : « Ensuite » annonce le bloc ({nxt})')
+        R.check('Ensuite : Bloc 1' in nxt and page.locator('.session-set--current').count() == 0, f'{t} cluster : « Ensuite » annonce le bloc, seul mis en avant ({nxt})')
         nat = native_rest(page)
         R.check(nat.get('body', '').startswith(f'Bloc 1 · {name1}') and nat.get('next', {}).get('exercise') == f'{name1} · Bloc 1', f'{t} cluster : notification et Live Activity {nat}')
         R.check(no_hscroll(page), f'{t} pause : pas de défilement horizontal')
