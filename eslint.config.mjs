@@ -22,6 +22,11 @@ export default [
     files: ['supabase/functions/**/*.js'],
     languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals['shared-node-browser'], crypto: 'readonly' } },
   },
+  // Contrôles injectés dans la page par l'outil du panel (tests/panel) : script de navigateur
+  {
+    files: ['tests/panel/*.js'],
+    languageOptions: { ecmaVersion: 2023, sourceType: 'script', globals: { ...globals.browser } },
+  },
   {
     files: ['tests/**/*.mjs', 'scripts/**/*.mjs', 'tools/**/*.mjs', 'eslint.config.mjs'],
     languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.node } },
