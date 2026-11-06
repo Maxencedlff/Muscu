@@ -6,7 +6,8 @@ pour qu'un panel (pratiquants, coachs) juge l'ergonomie sans relancer de navigat
         [--parcours nom1,nom2] [--sans-axe]
 
 - rapide : iPhone 13 sombre + iPhone SE clair ; complet (défaut) : iPhone 13 et iPhone SE, clair et sombre,
-  plus Pixel 7 sombre. Un seul navigateur à la fois (WebKit, puis Chromium).
+  plus Pixel 7 sombre ; recents (--recents) : iPhone 17, 17 Pro Max, Air et les quatre tailles du Duo pliable
+  (fixtures.RECENT_PROFILES, marges de sécurité simulées), en sombre, plus iPhone 17 et Duo ouvert en clair. Un seul navigateur à la fois (WebKit, puis Chromium).
 - Les parcours sont déclarés dans parcours.py (registre PARCOURS) ; chaque étape fait une capture
   <NN>-<parcours>-<étape>-<appareil>-<thème>.png et une ligne de index.md ; resume.md regroupe les touchers
   des parcours clés, les problèmes automatiques par écran et les étapes absentes.
@@ -30,7 +31,7 @@ TESTS = os.path.dirname(ICI)
 sys.path.insert(0, TESTS)
 sys.path.insert(0, ICI)
 
-from fixtures import BASE_URL, PARIS, seed  # noqa: E402
+from fixtures import BASE_URL, PARIS, RECENT_DEVICES, device_profile, safe_insets, seed, simulate_safe_area  # noqa: E402
 from fake_account import FAKE_ACCOUNT  # noqa: E402
 from commun import NOW, Absent  # noqa: E402
 
@@ -39,6 +40,8 @@ COMBOS = {
     'complet': [('webkit', 'iPhone 13', 'light'), ('webkit', 'iPhone 13', 'dark'),
                 ('webkit', 'iPhone SE', 'light'), ('webkit', 'iPhone SE', 'dark'),
                 ('chromium', 'Pixel 7', 'dark')],
+    # Écrans récents : chaque appareil en sombre, le clair sur un iPhone et le Duo ouvert (même mise en page)
+    'recents': [(e, d, 'dark') for e, d in RECENT_DEVICES] + [('webkit', 'iPhone 17', 'light'), ('webkit', 'iPhone Duo ouvert', 'light')],
 }
 THEME_FR = {'dark': 'sombre', 'light': 'clair'}
 CIBLE_MINI = 44
@@ -66,7 +69,7 @@ with open(os.path.join(ICI, 'controles.js'), encoding='utf-8') as _f:
 # sinon chacun compte pour un « texte coupé »
 MASQUER_JS = """on => {
   if (!on) { document.querySelectorAll('[data-panel-masque]').forEach(e => { e.style.display = e.dataset.panelMasque; delete e.dataset.panelMasque; }); return; }
-  for (const e of document.body.querySelectorAll('.visually-hidden, [class*="sr-only"]')) {
+  for (const e of document.body.querySelectorAll('.visually-hidden, .sr-text, [class*="sr-only"]')) {
     e.dataset.panelMasque = e.style.display; e.style.display = 'none';
   }
 }"""
@@ -339,8 +342,10 @@ class Run:
 
     def page(self, browser, p, combo):
         _, device, theme = combo
-        ctx = browser.new_context(**p.devices[device], color_scheme=theme, service_workers='block',
+        ctx = browser.new_context(**device_profile(p, device), color_scheme=theme, service_workers='block',
                                   timezone_id=PARIS, locale='fr-FR')
+        if safe_insets(device):   # appareils récents : encoche et barre d'accueil de l'app plein écran
+            simulate_safe_area(ctx, safe_insets(device))
         page = ctx.new_page()
         page.errors = []
         page.on('pageerror', lambda e: page.errors.append(str(e).splitlines()[0][:200]))
@@ -516,6 +521,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     ap.add_argument('sortie', help='dossier de sortie (créé ; les anciennes captures y sont remplacées)')
     ap.add_argument('--rapide', action='store_true', help='iPhone 13 sombre + iPhone SE clair')
+    ap.add_argument('--recents', action='store_true', help='iPhone 17, 17 Pro Max, Air et iPhone Duo (fermé, ouvert, paysage)')
     ap.add_argument('--parcours', default='', help='noms séparés par des virgules (défaut : tous)')
     ap.add_argument('--sans-axe', action='store_true', help='sans axe-core (accessibilité) sur le premier appareil')
     ap.add_argument('--debug', action='store_true', help='pile complète des erreurs')
@@ -529,7 +535,7 @@ def main(argv=None):
     for f in os.listdir(a.sortie):
         if f.endswith('.png') or f in ('index.md', 'resume.md', 'etapes.json'):
             os.remove(os.path.join(a.sortie, f))
-    mode = 'rapide' if a.rapide else 'complet'
+    mode = 'recents' if a.recents else 'rapide' if a.rapide else 'complet'
     url = BASE_URL if BASE_URL.endswith('/') else BASE_URL + '/'
     run = Run(os.path.abspath(a.sortie), COMBOS[mode], url, axe=not a.sans_axe, debug=a.debug)
     t0 = time.time()

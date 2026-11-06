@@ -13,6 +13,7 @@ PPL_URL=http://localhost:8768/ flock /tmp/ppl-e2e.lock python3 tests/panel/captu
 |---|---|
 | (aucune) | complet : iPhone 13 et iPhone SE en clair et en sombre, puis Pixel 7 sombre |
 | `--rapide` | iPhone 13 sombre + iPhone SE clair |
+| `--recents` | iPhone 17 (= 16 Pro à 18 Pro), 17 Pro Max, Air et iPhone Duo fermé, ouvert, paysage et « grand paysage » en sombre, plus iPhone 17 et Duo ouvert en clair ; écran entier de l'app et marges de sécurité simulées (tailles et hypothèses : `tests/fixtures.py`, RECENT_PROFILES) |
 | `--parcours seance,coach` | seulement ces parcours (`python3 tests/panel/parcours.py` les liste) |
 | `--sans-axe` | sans l'audit d'accessibilité axe-core (fait sur le premier appareil seulement) |
 | `--debug` | pile complète quand une étape échoue |
@@ -42,7 +43,7 @@ importable (zones de toucher sous 44 px, textes coupés « … », icônes peu c
 axe-core sur le premier appareil), plus `controles.js` : police sous 12 px (hors libellés de la barre
 d'onglets, 10 pt comme iOS), débordement horizontal, élément fixe (barre de saisie, bouton collé en bas)
 recouvert par la barre d'onglets, fin d'écran qui reste sous la barre même tout en bas, texte plus large
-que sa boîte. Les textes réservés à VoiceOver (`.visually-hidden`) sont masqués le temps des contrôles.
+que sa boîte. Les textes réservés à VoiceOver (`.visually-hidden`, `.sr-text`) sont masqués le temps des contrôles.
 Sans verif-ui, `controles.js` fait aussi les zones de toucher.
 
 ## Ajouter un parcours ou une étape

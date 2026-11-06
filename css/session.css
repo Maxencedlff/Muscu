@@ -712,3 +712,10 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
   white-space: nowrap; -webkit-tap-highlight-color: transparent;
 }
 .order-link:active { opacity: .5; }
+
+/* Grand écran : la barre de repos et les feuilles de la séance suivent la colonne de lecture (--col-max,
+   navigation.css) au lieu de s'étaler sur tout l'écran */
+@media (min-width: 721px) {
+  .rest-mini { left: max(16px, calc(50% - var(--col-max) / 2 + 16px)); right: max(16px, calc(50% - var(--col-max) / 2 + 16px)); }
+  .sess-sheet__panel { left: max(0px, calc(50% - var(--col-max) / 2)); right: max(0px, calc(50% - var(--col-max) / 2)); }
+}

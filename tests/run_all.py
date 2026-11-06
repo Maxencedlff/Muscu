@@ -2,7 +2,8 @@
 plus un processus par lot pour les tests uniques. Code de sortie non nul si un test échoue.
 
 Options : python3 run_all.py [lot ...]   ex. `run_all.py 3 4 muscles` ne lance que les lots 3, 4 et muscles.
-PPL_DEVICES (« iPhone 13,Pixel 7 ») et PPL_THEMES (« dark ») restreignent les appareils et thèmes (CI).
+PPL_DEVICES (« iPhone 13,Pixel 7 ») et PPL_THEMES (« dark ») restreignent les appareils et thèmes (CI) ;
+PPL_DEVICES=recents lance les iPhone récents et le Duo pliable (fixtures.RECENT_DEVICES), « tous » les deux listes.
 Un processus en échec est relancé une fois (PPL_RETRY=0 pour l'éviter) : s'il passe, il est signalé
 « INSTABLE » sans faire échouer la suite ; sinon, échec.
 PPL_JOBS (défaut 6) règle le nombre de processus simultanés. Garde-fou mémoire : aucun
@@ -16,7 +17,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from fixtures import DEVICES, THEMES
+from fixtures import THEMES, selected_devices
 
 here = os.path.dirname(os.path.abspath(__file__))
 # Lots numérotés (test_lotN*.py) puis tests par domaine (test_muscles.py…), désignés par leur nom
@@ -39,7 +40,7 @@ if sys.argv[1:]:
     pick(sys.argv[1:], [lot_of(f) for f in files], 'Lot')
     files = [f for f in files if lot_of(f) in sys.argv[1:]]
 env_list = lambda k: [x.strip() for x in os.environ.get(k, '').split(',') if x.strip()]
-devices = pick(env_list('PPL_DEVICES'), [d for _, d in DEVICES], 'Appareil') or [d for _, d in DEVICES]
+devices = [d for _, d in selected_devices()]   # noms inconnus refusés (fixtures.selected_devices)
 themes = pick(env_list('PPL_THEMES'), THEMES, 'Thème') or THEMES
 
 jobs = []
