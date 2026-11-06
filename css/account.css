@@ -105,9 +105,10 @@
 }
 /* iPhone SE (568 pt) : encore un cran, la mention du bas comprise */
 @media (max-height: 600px) {
-  .auth__page--welcome .auth__hero { gap: 6px; padding: 0 0 12px; }
-  .auth__page--welcome .auth__logo svg { width: 56px; height: 56px; }
-  .auth__page--welcome .auth__lead { font-size: var(--fs-footnote); }
+  .auth__page--welcome .auth__hero { gap: 4px; padding: 0 0 8px; }
+  .auth__page--welcome .auth__logo svg { width: 44px; height: 44px; }
+  .auth__page--welcome .auth__tagline { font-size: var(--fs-footnote); }
+  .auth__page--welcome .auth__lead { font-size: var(--fs-caption); line-height: 1.3; }
   .auth__page--welcome .auth-btn { min-height: 44px; padding-top: 8px; padding-bottom: 8px; }
   .auth__page--welcome .auth__again { margin-top: 6px; }
   .auth__page--welcome .auth__foot { margin-top: 4px; }

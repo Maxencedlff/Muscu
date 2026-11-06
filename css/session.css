@@ -100,8 +100,9 @@
 /* « Avant » plus large que Reps (2 chiffres) pour tenir « 32,5 × 10 » sur une ligne */
 .sets { --set-cols: 34px minmax(0,1.3fr) minmax(0,1fr) minmax(44px,.8fr) 52px; --set-gap: 6px; }
 @media (max-width: 374px) { /* Android de 360 px compris */
-  /* 1re colonne de 34 px : « Série » tient en entier à 12 px */
-  .sets { --set-cols: 34px minmax(0,1.2fr) minmax(0,1.1fr) minmax(44px,.8fr) 48px; --set-gap: 3px; }
+  .sets { --set-cols: 30px minmax(0,1.2fr) minmax(0,1.1fr) minmax(44px,.8fr) 48px; --set-gap: 3px; }
+  /* « Série » à 12 px : son en-tête déborde sur l'écart et le bord, la colonne garde 30 px (place des charges) */
+  .sets__head > span:first-child { margin-left: -3px; margin-right: calc(-1 * var(--set-gap)); }
 }
 .sets__head, .session-set { display: grid; grid-template-columns: var(--set-cols); column-gap: var(--set-gap); align-items: center; }
 .sets__head {
