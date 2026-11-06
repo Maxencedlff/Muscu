@@ -159,7 +159,7 @@ FAKE_ACCOUNT = r"""
   // ── Supabase ──
   const listeners = [];
   const emit = (ev, s) => listeners.forEach(fn => fn(ev, s));
-  let uid = 0;
+  let uid = opts.uidStart || 0;   // __fakeOpts.uidStart : premiers identifiants sautés (deux pages qui doivent avoir les mêmes comptes)
   // Identités du compte créées avec lui (même date), celles reliées ensuite datées du moment
   const newUser = (fields) => {
     const id = '00000000-0000-0000-0000-' + String(++uid).padStart(12, '0');

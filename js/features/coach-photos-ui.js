@@ -70,7 +70,8 @@ async function cphSendSheet(day) {
   };
   const lead = single ? '<p class="cphs__lead">Ton coach verra cette photo. Tu peux la retirer quand tu veux.</p>'
     : `<p class="cphs__lead">Choisis chaque photo à envoyer${free < unsent.length ? ` (${free} au plus)` : ''}.</p>`;
-  await sheet({ title: `${fmtDate(cphDayTs(day))}`, cancel: 'Annuler', confirm: '', body: `
+  await sheet({ title: 'Envoyer', cancel: 'Annuler', confirm: '', body: `
+    <p class="cphs__day">${esc(fmtDate(cphDayTs(day)))}</p>
     ${lead}
     <div class="cphs__list">${list.map(item).join('')}</div>
     <button class="btn btn--primary btn--full cphs__go" data-action="cph-send-go" data-day="${esc(day)}" ${single ? `data-one="${unsent[0].id}"` : 'disabled'}>${single ? 'Envoyer cette photo' : 'Envoyer'}</button>
@@ -144,7 +145,7 @@ function cphMineCellHtml() {
           <button class="cell cell--nav" data-action="cph-open-mine">
             ${icon('lock', 20)}
             <span class="cell__body"><span class="cell__title">Photos de bilan</span>
-              <span class="cell__sub">${n ? plural(n, 'photo envoyée', 'photos envoyées') : cph.state.ready ? 'Envoie-les depuis ton coffre' : 'Pas encore activées par ton coach'}</span></span>
+              <span class="cell__sub">${n ? plural(n, 'photo envoyée', 'photos envoyées') : cph.state.ready ? 'Envoie-les depuis ton coffre' : 'Ton coach ne les reçoit pas encore'}</span></span>
             ${icon('chevron.right', 16)}
           </button>
         </div>`;
@@ -250,11 +251,12 @@ function renderCphCoach(uid) {
     return view(`<h1 class="scr-title" id="cphTitle" tabindex="-1">Photos de bilan</h1><p class="scr-sub">${who}</p><div class="empty-note">${msg}</div>${foot}`);
   }
   const dayKeys = days.map(d => d.day);
-  if (!dayKeys.includes(cphView.a)) cphView.a = dayKeys[dayKeys.length - 1];
-  if (!dayKeys.includes(cphView.b)) cphView.b = dayKeys[0];
+  // Par défaut (tant que le coach n'a rien choisi) : la date la plus ancienne contre la plus récente, recalculées pendant
+  // que les photos s'ouvrent une à une
+  const sel = { a: dayKeys.includes(cphView.a) ? cphView.a : dayKeys[dayKeys.length - 1], b: dayKeys.includes(cphView.b) ? cphView.b : dayKeys[0] };
   const opts = sel => dayKeys.slice().reverse().map(d => `<option value="${d}" ${d === sel ? 'selected' : ''}>${esc(fmtDate(cphDayTs(d), 'short'))}</option>`).join('');
   const byDay = d => days.find(x => x.day === d)?.photos || [];
-  const poses = PHOTO_POSE_KEYS.filter(k => byDay(cphView.a).some(x => x.pose === k) || byDay(cphView.b).some(x => x.pose === k));
+  const poses = PHOTO_POSE_KEYS.filter(k => byDay(sel.a).some(x => x.pose === k) || byDay(sel.b).some(x => x.pose === k));
   const cellImg = (d, k) => { const x = byDay(d).find(y => y.pose === k);
     return x ? `<button class="cph-shot" data-action="cph-view" data-id="${x.id}" aria-label="${photoPoseLabel(k)}, ${esc(fmtDate(cphDayTs(d)))}"><img src="${cphPhotoUrl(x)}" alt="" draggable="false"></button>`
       : '<span class="cph-shot cph-shot--none">Pas de photo</span>'; };
@@ -262,12 +264,12 @@ function renderCphCoach(uid) {
         <div class="group-title">Comparer</div>
         <div class="group group--pad">
           <div class="pcmp__cols">${[['a', 'Avant'], ['b', 'Après']].map(([s, l]) => `
-            <label class="pcmp__col"><span class="pcmp__lbl">${l}</span><select class="pcmp__sel cph-sel" data-side="${s}" id="cph-${s}">${opts(cphView[s])}</select></label>`).join('')}
+            <label class="pcmp__col"><span class="pcmp__lbl">${l}</span><select class="pcmp__sel cph-sel" data-side="${s}" id="cph-${s}">${opts(sel[s])}</select></label>`).join('')}
           </div>
           ${poses.map(k => `
           <div class="cph-pair"><span class="cph-pair__pose">${photoPoseLabel(k)}</span>
-            <div class="cph-pair__row">${cellImg(cphView.a, k)}${cellImg(cphView.b, k)}</div></div>`).join('')}
-          <div class="pcmp__gap">${(() => { const g = Math.abs(daysAgo(cphDayTs(cphView.a), cphDayTs(cphView.b))); return g ? `${plural(g, 'jour', 'jours')} d'écart` : 'Même jour'; })()}</div>
+            <div class="cph-pair__row">${cellImg(sel.a, k)}${cellImg(sel.b, k)}</div></div>`).join('')}
+          <div class="pcmp__gap">${(() => { const g = Math.abs(daysAgo(cphDayTs(sel.a), cphDayTs(sel.b))); return g ? `${plural(g, 'jour', 'jours')} d'écart` : 'Même jour'; })()}</div>
         </div>` : '';
   const grid = days.map(d => `
             <div class="pgal__day"><span class="pgal__date">${esc(fmtDate(cphDayTs(d.day)))}</span>

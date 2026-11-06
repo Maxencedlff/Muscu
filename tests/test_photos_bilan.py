@@ -96,10 +96,12 @@ def signin(page, username):
 
 
 def coach_page(page, theme, **kw):
-    """Je suis max, coach ; lea est mon élève. max …0001, lea …0002 (mêmes identifiants que student_page)."""
+    """Je suis max, coach ; lea est mon élève. max …0002 (…0001 : son identité Apple), un autre compte …0003, lea …0004 :
+    mêmes identifiants que student_page."""
     open_app(page, theme, **kw)
     signin(page, 'max')
     ids = page.evaluate("""() => { const me = __sb.meId(); __sb.makeCoach(me);
+        __sb.addPerson({ username: 'tom', avatar: '🐼', social: false });
         const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', social: false });
         __sb.link(me, lea, Date.now() - 40 * 86400000); return { max: me, lea }; }""")
     page.evaluate('coachRefresh()')
@@ -108,8 +110,8 @@ def coach_page(page, theme, **kw):
 
 
 def student_page(page, theme, **kw):
-    """Je suis lea, élève de max (créé d'abord : …0001), moi …0002."""
-    open_app(page, theme, **kw)
+    """Je suis lea, élève de max : max …0002, moi …0004 (…0003 : mon identité Apple)."""
+    open_app(page, theme, opts={'uidStart': 1}, **kw)
     mx = page.evaluate("() => __sb.addPerson({ username: 'max', avatar: '🦁', social: false })")
     signin(page, 'lea')
     ids = page.evaluate("""mx => { const me = __sb.meId(); __sb.makeCoach(mx); __sb.link(mx, me, Date.now() - 40 * 86400000); return { max: mx, lea: me }; }""", mx)
@@ -130,6 +132,7 @@ def no_hscroll(page):
 
 def small_targets(page, sel='#app button, .tabbar button, .sheet button'):
     return page.evaluate("""s => [...document.querySelectorAll(s)].filter(e => e.offsetParent && !e.disabled)
+        .filter(e => getComputedStyle(e).visibility !== 'hidden')
         .filter(e => { const r = e.getBoundingClientRect(); return r.width < 44 || r.height < 44; })
         .map(e => (e.getAttribute('aria-label') || e.textContent).trim().slice(0, 30))""", sel)
 
@@ -275,6 +278,9 @@ def t_envoi_complet(bench, eng, dev, theme):
         signed = cp.evaluate('__sb.signed')
         R.check(signed and all(s[1] == 60 for s in signed), f'{t} URL signées de 60 s ({signed})')
         R.check(cp.locator('.coach-photos-view .cph-pair').count() >= 1 and cp.locator('#cph-a').count() == 1, f'{t} comparer deux dates côte à côte')
+        sel = cp.evaluate("() => [document.querySelector('#cph-a').value, document.querySelector('#cph-b').value]")
+        old_day = cp.evaluate('() => localISO(Date.now() - 14 * 86400000)')
+        R.check(sel == [old_day, cp.evaluate('() => localISO()')], f'{t} comparer : la plus ancienne contre la plus récente ({sel})')
         body = cp.inner_text('.coach-photos-view')
         R.check('Enregistrer' not in body and 'Télécharger' not in body, f'{t} aucun bouton pour enregistrer')
         prot = cp.evaluate("""() => { const s = getComputedStyle(document.querySelector('.coach-photos-view .pgal__item img'));

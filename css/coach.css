@@ -242,14 +242,15 @@ select.coach-req-field__input:invalid { color: var(--label2); }
 
 /* ── Photos de bilan (js/features/coach-photos-ui.js) ── */
 /* Coffre de l'élève : la date d'un jour et son bouton « Envoyer à mon coach » sur une ligne */
-.pgal__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; min-width: 0; }
-.pgal__head .pgal__date { margin-bottom: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pgal__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: 8px; margin-bottom: 4px; }
+.pgal__head .pgal__date { margin-bottom: 0; }
 .cph-daybtn {
   flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 4px 0 10px; border: none;
   background: none; color: var(--tint-on-fill); font-size: var(--fs-footnote); font-weight: 600; cursor: pointer;
 }
 .cph-daybtn:active { opacity: .6; }
 /* Feuille d'envoi : une carte par photo, cochée une à une */
+.cphs__day { margin: 0 0 4px; text-align: center; font-weight: 600; font-size: var(--fs-body); }
 .cphs__lead { margin: 0 0 12px; font-size: var(--fs-subhead); color: var(--label); text-align: center; }
 .cphs__list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
 .cphs__item {
