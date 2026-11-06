@@ -41,7 +41,7 @@ function effortSheetHtml() {
         </div>
       </div>
       <div class="rs__adj">
-        <button class="rs__skip rs__done" data-action="stop-effort" id="effortStop">Terminer</button>
+        <button class="rs__skip rs__done" data-action="stop-effort" id="effortStop">Arrêter</button>
       </div>
       ${e.kind === 'tempo' ? `<div class="rs__next">Tempo ${shortTempo(formatTempo(e.tempo))} · ${esc(tempoSentence(e.tempo, ex.name))}</div>`
         : ex.sets[e.si].prev?.reps ? `<div class="rs__next">Dernière fois : ${fmtSeconds(ex.sets[e.si].prev.reps)}</div>` : ''}

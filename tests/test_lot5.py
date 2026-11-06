@@ -80,7 +80,7 @@ def t_history(bench, eng, dev, theme):
         R.check(page.locator('.hrow.is-open').count() == 1, f'{t} historique : balayage révèle Supprimer')
         page.click('.hrow.is-open .hrow__del')
         page.wait_for_timeout(250)
-        # Confirmation obligatoire : rien ne part avant « Supprimer la séance »
+        # Confirmation obligatoire : rien ne part avant « Supprimer de l'historique »
         R.check(page.evaluate(f'data.history.some(h => h.id === "{hid}")') and page.locator('.ios-dialog__btn--destructive').count() == 1,
                 f'{t} historique : balayage demande confirmation')
         page.click('.ios-dialog__btn--destructive')
@@ -99,7 +99,7 @@ def t_history(bench, eng, dev, theme):
         trunc = page.evaluate("""() => [...document.querySelectorAll('.hex__name, .hex__sets')].filter(e => e.scrollWidth > e.clientWidth + 1).length""")
         R.check(trunc == 0, f'{t} détail : aucun nom tronqué ({trunc})')
         R.check(no_dot_decimal(page, '.view.history-detail'), f'{t} détail : aucun point décimal')
-        R.check(page.locator('[data-action="edit-session"]').count() == 1 and page.locator('.cell--destructive', has_text='Supprimer la séance').count() == 1,
+        R.check(page.locator('[data-action="edit-session"]').count() == 1 and page.locator('.cell--destructive', has_text='Supprimer de l\'historique').count() == 1,
                 f'{t} détail : Modifier et Supprimer')
         shot(page, LOT, f'history_detail_{dev}_{theme}')
         page.click('.navbar__back')  # Fusion : barre de navigation du lot 3
@@ -230,7 +230,7 @@ def t_programme(bench, eng, dev, theme):
         # Programme intégré : séances fixes ; on compose les siennes en créant un programme (lot 8)
         R.check(page.locator('.cell--action', has_text='Ajouter une séance').count() == 0
                 and page.locator('[data-action="new-programme"]').count() >= 1, f'{t} programme intégré : « Créer un programme » proposé')
-        R.check(page.locator('[data-action="go-settings"]').count() == 1, f'{t} programme : bouton Réglages')
+        R.check(page.locator('[data-action="go-settings"]').count() == 1 and page.locator('[data-action="go-settings"] .icon--gear').count() == 1, f'{t} programme : la roue des Réglages, comme sur l\'accueil')
         shot(page, LOT, f'programme_{dev}_{theme}')
         page.click('[data-action="open-prog-session"][data-cat="push"]')
         widths = page.evaluate("[...document.querySelectorAll('.ed-row')].map(r => r.querySelector('.ed-name').getBoundingClientRect().width / r.getBoundingClientRect().width)")

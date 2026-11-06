@@ -65,7 +65,7 @@ function machineSheetHtml(e) {
       </div>
       ${machine.slots.map(slot => machineSlotHtml(e, slot)).join('')}
       <div class="rs__adj">
-        <button class="rs__skip rs__done" data-action="stop-effort" id="effortStop">Terminer</button>
+        <button class="rs__skip rs__done" data-action="stop-effort" id="effortStop">Arrêter</button>
       </div>
       ${machine.slots.length ? '' : `<div class="rs__next">La durée exacte sert au calcul du temps aux 500 m</div>`}
     </div>`;

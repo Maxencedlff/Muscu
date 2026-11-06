@@ -35,7 +35,7 @@ function coachShareStatusText(st) {
 }
 
 function renderCoachShare() {
-  const head = navBar({ title: 'Partager', large: false });
+  const head = navBar({ title: 'Partager avec mon coach', large: false });   // même mot que la ligne qui y mène
   const view = body => `<div class="view view--grouped coach-share-view">${head}<div class="scr">${body}</div></div>`;
   if (!account.user || !coachRole().hasCoach) {
     return view('<div class="empty-note">Rejoins d\'abord un coach dans Réglages › Coach.</div>');

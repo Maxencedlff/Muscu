@@ -104,7 +104,7 @@ function setExRest(ei, secs) {
 // ── Ajouter (ou remplacer) un exercice : recherche dans la bibliothèque ──
 // Une seule feuille pour trois cibles : la séance en cours ('session'), Programme › Séance
 // ('programme') et la séance passée ('past', qui reçoit le choix par onPick(name, sets)).
-let ax = { target: 'session', replaceEi: null, exclude: new Set(), onPick: null };
+let ax = { target: 'session', replaceEi: null, exclude: new Set(), around: [], onPick: null };
 let axSets = 3;
 let axMuscle = NO_MUSCLE_FILTER;   // filtre par muscle de la feuille, remis à zéro à chaque ouverture
 
@@ -112,6 +112,39 @@ const axItemHtml = n => `<button class="ax__item" data-action="ax-pick" data-nam
 const axHintHtml = txt => `<div class="ax__hint">${txt}</div>`;
 // Recherche approchée : au plus 3 exercices, pour que « Créer » reste à portée de pouce, juste dessous
 const AX_PARTIAL_MAX = 3;
+
+// Recherche vide, sans filtre de muscle : les 5 exercices faits le plus récemment d'abord (un toucher pour
+// les reprendre), puis ceux qui travaillent les mêmes muscles que la séance (around : ses exercices), puis
+// le reste par ordre alphabétique. names : bibliothèque déjà filtrée (matériel, exclusions), dans l'ordre
+// d'exerciseLibrary. Renvoie { recent, same, rest } (noms tels que dans names).
+const AX_RECENT_MAX = 5, AX_SAME_MAX = 8;   // 5 récents : « Mêmes muscles » commence dans le premier écran
+function axSections(names, around = [], history = data.history) {
+  const byKey = new Map(names.map(n => [normName(n), n]));
+  const recent = [], taken = new Set();
+  for (const h of (history || []).slice().sort((a, b) => b.date - a.date)) {
+    for (const e of h.exercises || []) {
+      const k = normName(e.name);
+      if (!byKey.has(k) || taken.has(k)) continue;
+      taken.add(k); recent.push(byKey.get(k));
+      if (recent.length >= AX_RECENT_MAX) break;
+    }
+    if (recent.length >= AX_RECENT_MAX) break;
+  }
+  const index = chosenMusclesIndex();
+  const target = new Set(around.flatMap(n => exerciseMuscles({ name: n }, index).primary));
+  const same = target.size ? names.filter(n => !taken.has(normName(n)))
+    .map(n => ({ n, common: exerciseMuscles({ name: n }, index).primary.filter(id => target.has(id)).length }))
+    .filter(x => x.common).sort((a, b) => b.common - a.common || catalogueRank(a.n) - catalogueRank(b.n)).slice(0, AX_SAME_MAX).map(x => x.n) : [];   // à égalité : les plus courants
+  same.forEach(n => taken.add(normName(n)));
+  const rest = names.filter(n => !taken.has(normName(n))).sort((a, b) => a.localeCompare(b, 'fr'));
+  return { recent, same, rest };
+}
+function axSectionsHtml(names) {
+  const { recent, same, rest } = axSections(names, ax.around);
+  if (!recent.length && !same.length) return names.map(axItemHtml).join('');
+  const part = (title, list) => (list.length ? axHintHtml(title) + list.map(axItemHtml).join('') : '');
+  return part('Récents', recent) + part('Mêmes muscles que ta séance', same) + part('Tous les exercices', rest);
+}
 
 function axListHtml(q) {
   const nq    = normName(q);
@@ -126,6 +159,7 @@ function axListHtml(q) {
   const create = query && !names.some(n => normName(n) === nq) ? axCreateHtml(query) : '';
   if (!query) {
     if (ax.replaceEi !== null) return axReplaceListHtml(names);
+    if (names.length && !muscleFilterTargets(axMuscle)) return axSectionsHtml(names);
     return names.length ? names.map(axItemHtml).join('')
       : `<div class="ax__empty">Aucun exercice${muscleFilterTargets(axMuscle) ? ' pour ce muscle' : ''}</div>`;
   }
@@ -206,7 +240,7 @@ function muscleFilterTap(el, f) {
 // exclude : noms à ne pas proposer (par défaut, les exercices de la séance en cours)
 function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick = null } = {}) {
   const names = exclude ?? (activeSession?.exercises || []).map(e => e.name);
-  ax = { target, replaceEi: target === 'session' ? replaceEi : null, exclude: new Set(names.map(normName)), onPick };
+  ax = { target, replaceEi: target === 'session' ? replaceEi : null, exclude: new Set(names.map(normName)), around: names, onPick };
   const rep   = ax.replaceEi !== null ? activeSession.exercises[ax.replaceEi] : null;
   axMuscle    = NO_MUSCLE_FILTER;
   axSets      = rep ? Math.max(1, rep.sets.filter(s => !s.done).length) : 3;   // les séries qui restent à faire

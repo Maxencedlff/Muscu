@@ -61,7 +61,7 @@ function renderProgrammes() {
 
   return `
     <div class="view programmes view--grouped">
-      ${navBar({ title: 'Programme', right: `<button class="navbar__text" data-action="go-settings">Réglages</button>` })}
+      ${navBar({ title: 'Programme', right: settingsButtonHtml() })}
       <div class="scr">
         <div class="group">
           <button class="cell cell--nav" data-action="go-my-programmes">

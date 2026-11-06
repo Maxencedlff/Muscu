@@ -298,10 +298,11 @@ def t_code(bench, eng, dev, theme):
         R.check(page.locator('.onb .onb__page--place').count() == 1, f'{t} nouveau compte : questions du premier lancement')
         skip_questions(page)
         R.check(page.evaluate("document.getElementById('app').inert") is False, f'{t} app de nouveau utilisable')
-        # Accueil : l'avatar choisi remplace la roue, et mène aux Réglages (Compte en tête)
-        nav = page.locator('.dashboard .navbar__avatar')
-        R.check(nav.count() == 1 and '🦊' in nav.inner_text() and nav.get_attribute('aria-label') == 'Compte et réglages', f'{t} accueil : avatar à la place de la roue')
-        R.check(small_targets(page, '.dashboard .navbar__avatar') == 0, f'{t} avatar : cible de 44 pt')
+        # Accueil : connecté aussi, la roue des Réglages (une icône = un sens : l'avatar mène à Mon profil, sur Amis)
+        nav = page.locator('.dashboard .navbar [data-action="go-settings"]')
+        R.check(nav.count() == 1 and nav.locator('.icon--gear').count() == 1 and nav.get_attribute('aria-label') == 'Réglages', f'{t} accueil : la roue, même connecté')
+        R.check(page.locator('.dashboard .navbar__avatar').count() == 0, f'{t} accueil : pas d\'avatar')
+        R.check(small_targets(page, '.dashboard .navbar [data-action="go-settings"]') == 0, f'{t} roue : cible de 44 pt')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
