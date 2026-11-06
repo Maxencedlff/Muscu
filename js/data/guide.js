@@ -28,7 +28,7 @@ const GUIDE_SECTIONS = [
           '[À battre aujourd\'hui] rappelle ta dernière performance sur les premiers exercices, avec un petit objectif en plus.',
           '[Cette semaine] compte tes séances face à ton objectif. Touche la carte pour ouvrir [Progrès].',
           '[Ensuite] liste le reste du programme et le temps de récupération qu\'il leur reste.',
-          'Le bouton en haut à droite (roue ou avatar) ouvre les [Réglages].',
+          'La roue en haut à droite ouvre les [Réglages], ton compte compris.',
         ],
         related: ['lancer-seance', 'recuperation', 'objectif'],
         actions: ['start-session', 'session-actions', 'go-settings'],
@@ -48,7 +48,7 @@ const GUIDE_SECTIONS = [
       },
       {
         id: 'reglages', title: 'Réglages de base', icon: 'gear', color: 'blue',
-        lead: 'Ouvre les [Réglages] depuis le bouton en haut à droite de l\'accueil, ou depuis l\'onglet [Programme].',
+        lead: 'Ouvre les [Réglages] avec la roue en haut à droite de l\'accueil ou de l\'onglet [Programme].',
         steps: [
           '[Repos par défaut] : le repos entre deux séries, pour les exercices qui n\'ont pas le leur.',
           '[Unité] : kg ou lbs. Tout l\'affichage suit, tes séances ne changent pas.',
@@ -70,7 +70,7 @@ const GUIDE_SECTIONS = [
         steps: [
           'Touche [Démarrer] sur la prochaine séance. Pour une autre, touche-la dans [Ensuite], puis [Démarrer].',
           'Si la récupération n\'est pas finie, le bouton devient [Démarrer quand même].',
-          'Les séries sont déjà remplies avec ce que tu as fait la dernière fois. L\'écran reste allumé.',
+          'Les séries sont déjà remplies avec ce que tu as fait la dernière fois. Sous le nom de l\'exercice, [Objectif] rappelle la série à battre : il passe au vert quand tu l\'atteins. L\'écran reste allumé.',
           'La flèche en haut à gauche réduit la séance sans l\'arrêter. Une barre en bas de l\'écran permet d\'y revenir.',
         ],
         related: ['noter-serie', 'terminer', 'recuperation'],
@@ -256,7 +256,7 @@ const GUIDE_SECTIONS = [
         steps: [
           'Ajoute-le comme un autre exercice : [Course à pied], [Vélo], [Rameur], [Escaliers], [Tapis de course], [Corde à sauter]…',
           'Chaque série a deux cases : [km] et [Durée] en minutes.',
-          'Escaliers, tapis, vélo d\'appartement, elliptique et rameur : ▶ lance un chrono. Note le niveau ou la vitesse avec − et + à chaque changement, puis [Terminer] ouvre le [Bilan].',
+          'Escaliers, tapis, vélo d\'appartement, elliptique et rameur : ▶ lance un chrono. Note le niveau ou la vitesse avec − et + à chaque changement, puis [Arrêter] ouvre le [Bilan].',
           'L\'allure se calcule seule : min/km pour la course et la marche, km/h pour le vélo, temps aux 500 m pour le rameur. [Progrès] montre ta [Meilleure allure] et ta [Plus longue distance].',
           'Un exercice que tu as créé peut passer en cardio : fiche de l\'exercice › [Mesure] › [Cardio].',
         ],
@@ -270,7 +270,7 @@ const GUIDE_SECTIONS = [
           'Touche ▶ à la place du numéro de la série en cours.',
           'Tu as 5 secondes pour te mettre en position, puis le chrono compte jusqu\'à ton temps de la dernière fois.',
           'Pour un exercice à faire des deux côtés, comme le gainage latéral : côté 1, 5 secondes pour changer, puis côté 2.',
-          'À la fin, la série est validée et le repos démarre. [Terminer] arrête plus tôt et garde le temps tenu.',
+          'À la fin, la série est validée et le repos démarre. [Arrêter] termine plus tôt et garde le temps tenu.',
           'Pour porter du poids, remplis la colonne « +kg ».',
         ],
         related: ['ecran-verrouille', 'regler-exercice'],
@@ -315,7 +315,7 @@ const GUIDE_SECTIONS = [
           '[Record reps] : plus de répétitions à ta charge record.',
           '[Record 1RM est.] : ta meilleure estimation de charge maximale sur une seule répétition.',
           'Le bilan de fin de séance les regroupe sous [Nouveaux records], avec une médaille.',
-          'Dans [Progrès], chaque exercice garde son [Record].',
+          'En tête de [Progrès], [Derniers records] montre les trois plus récents ; chaque exercice garde son [Record].',
         ],
         related: ['progres', 'augmenter-charge'],
         actions: ['info-1rm'],
@@ -368,7 +368,7 @@ const GUIDE_SECTIONS = [
         id: 'muscles', title: 'Muscles travaillés', icon: 'chart', color: 'red',
         lead: 'La carte [Muscles] de l\'onglet [Progrès] colore la silhouette selon le nombre de séries reçues par chaque muscle.',
         steps: [
-          'Choisis la période : [Cette semaine] (depuis lundi) ou [4 semaines] (les 28 derniers jours, en moyenne par semaine).',
+          'Choisis la période : [4 semaines] (les 28 derniers jours, en moyenne par semaine, montrée d\'abord) ou [Cette semaine] (depuis lundi).',
           'La couleur suit les séries par semaine, 1 par série pour les muscles principaux et ½ pour les secondaires : entretien de 1 à 4, travaillé de 5 à 9, objectif atteint de 10 à 19, gros volume à partir de 20.',
           'Touche un muscle pour voir ses séries (Abdominaux = grand droit ; Obliques = flancs : rotations, gainage latéral). [Peu travaillés] liste les muscles en retard, [Séries par muscle] donne le détail.',
           'Les muscles d\'un exercice de la bibliothèque sont vérifiés. ··· › [Muscles ciblés] les modifie, ou choisit ceux d\'un exercice que tu as créé ; [Rétablir les muscles par défaut] revient aux muscles vérifiés.',

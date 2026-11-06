@@ -1607,6 +1607,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 
 // ── Vidéos d'exercices des coachs (tests dans exercise-videos.mjs) ──
 (await import('./exercise-videos.mjs')).default({ test, run, assert, ROOT });
+// ── Ergonomie : objectif en séance, ligne du bilan, derniers records (tests dans ergo.mjs) ──
+(await import('./ergo.mjs')).default({ test, run, reset, assert, sameJSON });
 
 // ── Exécution ───────────────────────────────────────────────
 
