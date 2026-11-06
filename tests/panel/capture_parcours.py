@@ -69,7 +69,7 @@ with open(os.path.join(ICI, 'controles.js'), encoding='utf-8') as _f:
 # sinon chacun compte pour un « texte coupé »
 MASQUER_JS = """on => {
   if (!on) { document.querySelectorAll('[data-panel-masque]').forEach(e => { e.style.display = e.dataset.panelMasque; delete e.dataset.panelMasque; }); return; }
-  for (const e of document.body.querySelectorAll('.visually-hidden, [class*="sr-only"]')) {
+  for (const e of document.body.querySelectorAll('.visually-hidden, .sr-text, [class*="sr-only"]')) {
     e.dataset.panelMasque = e.style.display; e.style.display = 'none';
   }
 }"""

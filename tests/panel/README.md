@@ -43,7 +43,7 @@ importable (zones de toucher sous 44 px, textes coupés « … », icônes peu c
 axe-core sur le premier appareil), plus `controles.js` : police sous 12 px (hors libellés de la barre
 d'onglets, 10 pt comme iOS), débordement horizontal, élément fixe (barre de saisie, bouton collé en bas)
 recouvert par la barre d'onglets, fin d'écran qui reste sous la barre même tout en bas, texte plus large
-que sa boîte. Les textes réservés à VoiceOver (`.visually-hidden`) sont masqués le temps des contrôles.
+que sa boîte. Les textes réservés à VoiceOver (`.visually-hidden`, `.sr-text`) sont masqués le temps des contrôles.
 Sans verif-ui, `controles.js` fait aussi les zones de toucher.
 
 ## Ajouter un parcours ou une étape
