@@ -307,6 +307,10 @@ def t_coach_eleve(bench, eng, dev, theme):
         page.evaluate("switchTab('program', { reset: true }); navigate(makeRoute('diet-plan', 'd_lea00001'))")
         page.wait_for_selector('[data-action="diet-duplicate"]')
         R.check(page.locator('[data-action="diet-send-student"]').count() == 1, f'{t} coach : « Envoyer à un élève » sur le plan')
+        R.check(page.locator('[data-action="diet-duplicate"] .icon--doc-on-doc').count() == 1 and page.locator('[data-action="diet-duplicate"] .icon--plus').count() == 0,
+                f'{t} « Dupliquer le plan » : icône de copie, pas « + » (réservé à l\'ajout)')
+        page.locator('[data-action="diet-duplicate"]').scroll_into_view_if_needed()
+        shot(page, LOT, f'10b-dupliquer-icone-{t}')
         page.click('[data-action="diet-duplicate"]')
         page.wait_for_timeout(400)
         nid = page.evaluate("routeParams(currentRoute())[0]")

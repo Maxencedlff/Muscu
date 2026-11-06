@@ -14,6 +14,9 @@ Une même icône ou un même mot mène toujours à la même chose, partout.
 | Avatar seul | Mon profil | En haut à droite d'Amis seulement (`meButtonHtml`) |
 | `+` | Ajouter l'objet de l'écran (série, exercice, séance, mesure, photo) | Jamais pour autre chose |
 | `⋯` | Menu des actions de l'objet à côté | Exercice en séance, conversation |
+| Chevron vers le bas (`chevron.down`) | Replier ou déplier : réduire la séance en cours (en haut à gauche), montrer la suite d'une carte (« Voir les exercices ») | Jamais pour déplacer quelque chose (« Plus tard » a sa flèche) |
+| Flèche vers une ligne (`arrow.down.to.line`) | Plus tard : repousser l'exercice en cours en fin de séance | Séance seulement |
+| Deux feuilles (`doc.on.doc`) | Dupliquer (faire une copie à modifier) | « Dupliquer le plan » ; jamais `+`, réservé à l'ajout |
 | `ⓘ` | Comment faire (explication) | Après un nom d'exercice |
 | Chevron `›` | Ouvre l'écran détaillé de la ligne | Fin de ligne |
 | `✕` | Fermer, écarter ou retirer d'une liste en cours (carte, feuille, suggestion, technique d'une série) | Jamais pour effacer une séance ou une donnée enregistrée (« Supprimer », en rouge) |
