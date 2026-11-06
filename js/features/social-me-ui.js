@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════════════════════
-//  Amis › Mon profil (mon avatar en haut à droite de l'onglet) : carte d'athlète (avatar, pseudo, membre
+//  Social › Mon profil (mon avatar en haut à droite de l'onglet) : carte d'athlète (avatar, pseudo, membre
 //  depuis, chiffres : séances visibles, abonnés, abonnements ; régularité sur 12 semaines), Mes séances
 //  (la dernière en grand avec ses réactions, trois en aperçu, « Tout voir »), Records récents, Activité
 //  (réactions groupées par séance, commentaires, nouveaux abonnés, demandes, du plus récent au plus
-//  ancien ; trois lignes puis « Tout voir »), puis Gérer (demandes envoyées, bloqués, désactivation).
+//  ancien ; trois lignes puis « Tout voir »), Inviter un ami, puis Gérer (demandes envoyées, bloqués, désactivation).
 //  Abonnés et Abonnements : écrans à part (social-people), ouverts depuis les chiffres.
 //  Ouvrir Mon profil vaut « activité vue » (mark_activity_seen) : la pastille de l'onglet s'éteint, les
 //  nouveautés gardent leur point bleu jusqu'à la prochaine ouverture.
@@ -17,7 +17,7 @@ const ME_SESSIONS_SHOWN = 3;   // séances en aperçu sous la dernière, avant �
 let meActivityAll = false;     // « Tout voir » touché (jusqu'à la sortie de Mon profil)
 let meSessionsAll = false;     // idem pour Mes séances
 
-// Bouton de l'onglet Amis (en haut à droite) : mon avatar, avec un point s'il y a du nouveau
+// Bouton de l'onglet Social (en haut à droite) : mon avatar, avec un point s'il y a du nouveau
 function meButtonHtml() {
   const n = socialActivityNew();
   return `<button class="navbar__icon navbar__avatar me-btn" data-action="social-me" aria-label="${esc(n ? `Mon profil, ${plural(n, 'nouveauté', 'nouveautés')}` : 'Mon profil')}">
@@ -215,6 +215,7 @@ function renderSocialMe() {
           <div class="athlete__id">
             ${avatarHtml('l')}
             <span class="athlete__text"><h2 class="athlete__name">${esc(name)}</h2>${since ? `<span class="athlete__sub">Membre depuis ${esc(fmtDate(since, 'month'))}</span>` : ''}</span>
+            <button class="social-pill athlete__edit" data-action="social-edit-profile" aria-label="Modifier mon pseudo et mon avatar">Modifier</button>
           </div>
           <div class="me-stats">
             ${stat(st.shown_sessions, 'séance visible', 'séances visibles', 'social-me-sessions')}
@@ -230,6 +231,9 @@ function renderSocialMe() {
         <h2 class="group-title group-title--large">Activité</h2>
         ${meActivityHtml()}
         <div class="group group--gap">
+          <button class="cell cell--action" data-action="social-invite">${icon('square.and.arrow.up', 20)}<span>Inviter un ami</span></button>
+        </div>
+        <div class="group">
           <button class="cell cell--nav" data-action="social-manage">
             <span class="cell__body"><span class="cell__title">Gérer</span><span class="cell__sub">Demandes envoyées, comptes bloqués, désactiver</span></span>
             ${icon('chevron.right', 16)}
@@ -273,6 +277,8 @@ SCREENS.set('social-people', { render: list => renderSocialPeople(list), enter: 
 
 registerActions({
   'social-me': () => navigate('social-me'),
+  // Pseudo et avatar : l'écran du compte, empilé dans l'onglet (retour : Mon profil)
+  'social-edit-profile': () => navigate('account'),
   'social-people': (e, el) => navigate(makeRoute('social-people', el.dataset.list)),
   'social-me-sessions': () => {
     $('#meSessions')?.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
@@ -288,6 +294,6 @@ registerActions({
     }
     socialLoadActivity({ more: true });
   },
-  // Ma séance (Historique › séance), empilée dans l'onglet Amis
+  // Ma séance (Historique › séance), empilée dans l'onglet Social
   'social-open-my-session': (e, el) => navigate(makeRoute('history-detail', el.dataset.id)),
 });

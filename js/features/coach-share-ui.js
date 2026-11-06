@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 //  Partage avec le coach, écrans. Données et appels : js/data/coach-share.js.
 //
-//  - Élève : Réglages › Amis et coach › « Partager avec mon coach » (seulement s'il a un coach) →
+//  - Élève : Réglages › Social et coach › « Partager avec mon coach » (seulement s'il a un coach) →
 //    écran `coach-share` : une case par donnée ouverte (Poids du corps ; Mensurations si le serveur les
 //    accepte), toutes décochées par défaut, et ce que le coach verra, dit en clair.
 //  - Coach : sur la fiche d'un élève qui partage son poids, la courbe de ses pesées (composant de
@@ -17,7 +17,7 @@ const COACH_WEIGHT_CHART_MAX = 90;   // pesées sur la courbe du coach (les plus
 
 // ── Élève : Réglages › Partager avec mon coach ──────────────
 
-// Cellule de Réglages › Amis et coach (élève suivi seulement)
+// Cellule de Réglages › Social et coach (élève suivi seulement)
 function coachShareSettingsCell() {
   if (!account.user || !coachRole().hasCoach) return '';
   const value = coachShareSummary();

@@ -297,6 +297,7 @@ def t_ami_coach(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         # Ami : détail de la séance
         page.click('.tabbar [data-tab="friends"]'); page.wait_for_timeout(500)
+        page.click('.social-seg [data-seg="friends"]')   # compte coach : l'onglet Coach s'ouvre sur ses élèves
         page.wait_for_selector('.feed-card[data-id="f1"]')
         page.locator('.feed-card[data-id="f1"] .feed-card__main').click()
         page.wait_for_selector('.social-session-view')
@@ -310,7 +311,7 @@ def t_ami_coach(bench, eng, dev, theme):
         shot(page, LOT, f'{t}-09-seance-ami')
         # Coach : séance de l'élève
         page.click('[data-action="back"]'); page.wait_for_timeout(400)
-        page.click('[data-action="coach-open-students"]'); page.wait_for_selector('.coach-students-view')
+        page.click('.social-seg [data-seg="students"]'); page.wait_for_selector('.coach-team .coach-student-row')
         page.locator('.coach-student-row', has_text='tom').click(); page.wait_for_selector('.coach-sess')
         page.click('.coach-sess[data-id="c1"]'); page.wait_for_selector('.coach-session-view')
         notes = page.locator('.coach-session-view .hex__sets--note').all_inner_texts()

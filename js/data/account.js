@@ -547,7 +547,7 @@ async function accountUsernameAvailable(name) {
 // Déconnexion de cet appareil : les données restent sur l'iPhone et sur le compte. L'état de synchro
 // est gardé : une reconnexion au même compte reprend où elle en était. voluntary : « Se déconnecter »
 // (pas de carte de reconnexion ensuite) ; false quand la connexion d'un autre compte est annulée.
-// Caches qui contiennent des données d'autrui (Amis, coach), le profil ou le droit d'accès
+// Caches qui contiennent des données d'autrui (social, coach), le profil ou le droit d'accès
 // (js/data/access.js) : effacés à la déconnexion
 // comme à l'effacement, pour qu'ils ne restent pas en clair sur un appareil partagé. Les séances de
 // la personne (ppl_v2) restent ; ces caches se retéléchargent à la reconnexion.
@@ -584,7 +584,7 @@ async function accountForgetDevice() {
   account.user = null;   // synchrone : le save() qui suit ne programme plus rien
   account.profile = null;
   clearSyncMetas();
-  // Caches des Amis et du coach compris (privacy.html : tout est effacé de l'appareil)
+  // Caches du social et du coach compris (privacy.html : tout est effacé de l'appareil)
   try { [SYNC_OWNER_KEY, SESSION_ENDED_KEY, PENDING_CODE_KEY, ...CROSS_USER_CACHE_KEYS].forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
   rememberLastAccount(null);
   await pushForgetDevice();   // notifications : le jeton de cet iPhone quitte le compte (session encore valide)

@@ -1,4 +1,4 @@
-"""Messages coach ↔ élève (app iOS simulée) : non-lus dans le badge de l'onglet Amis et sur « Mon coach »,
+"""Messages coach ↔ élève (app iOS simulée) : non-lus dans le badge de l'onglet Social (Coach pour un coach) et sur « Mon coach »,
 cellule « Messages », conversation (bulles, séparateur de jour, envoi, marquée lue, relecture des nouveaux
 messages), côté coach (pastille dans Mes élèves, fiche de l'élève), serveur sans messagerie (cellule
 cachée), lien rompu (conversation effacée), saisie collée au-dessus de la barre d'onglets.
@@ -185,9 +185,7 @@ def t_coach(bench, eng, dev, theme):
         page.wait_for_timeout(500)
         R.check(badge(page) == '1', f'{t} badge de l\'onglet : 1 message ({badge(page)!r})')
         page.click('.tabbar [data-tab="friends"]')
-        page.wait_for_selector('[data-action="coach-open-students"]')
-        page.click('[data-action="coach-open-students"]')
-        page.wait_for_selector('.coach-student-row')
+        page.wait_for_selector('.coach-team .coach-student-row')   # onglet Coach : ses élèves d'abord
         lea_row = page.locator(f'.coach-student-row[data-uid="{ids["lea"]}"]')
         R.check(lea_row.locator('.chat-count').count() == 1 and '1 message non lu' in lea_row.inner_text(), f'{t} Mes élèves : pastille des messages de Léa')
         R.check(page.locator(f'.coach-student-row[data-uid="{ids["tom"]}"] .chat-count').count() == 0, f'{t} Tom : rien')

@@ -300,7 +300,7 @@ def t_programme(bench, eng, dev, theme):
         # Ordre des Réglages iOS (Amis et coach seulement avec le module du compte ; Services Apple et Icône : app iOS ;
         # Informations légales en dernier, nuit-legal)
         titles = page.evaluate("[...document.querySelectorAll('.view.settings-view .group-title')].map(e => e.textContent.trim())")
-        want = ['Entraînement', 'Sons et vibrations', 'Apparence'] + (['Amis et coach'] if page.evaluate('accountAvailable()') else []) + ['Données', 'Aide', 'Informations légales']
+        want = ['Entraînement', 'Sons et vibrations', 'Apparence'] + (['Social et coach'] if page.evaluate('accountAvailable()') else []) + ['Données', 'Aide', 'Informations légales']
         R.check(titles == want, f'{t} réglages : ordre des groupes {titles}')
         R.check(page.locator('.view.settings-view [data-action="export"], .view.settings-view #lastExportTxt').count() == 0, f'{t} réglages : export déplacé dans Sauvegarde')
         bk = page.locator('[data-action="go-backup"] .cell__value.txt-warn')

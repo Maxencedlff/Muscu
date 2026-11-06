@@ -3,7 +3,7 @@
 //  saisie en bas (compteur près de la limite, bouton Envoyer), et sur chaque commentaire un menu ⋯ :
 //  Supprimer (le mien, ou tout commentaire sur ma séance), Signaler puis proposer de bloquer (celui
 //  d'un autre). Placé dans la séance d'un ami (js/features/social-ui.js, social-session), dans ma
-//  séance vue par mes abonnés, et dans Historique › Séance (ma séance, Amis activé).
+//  séance vue par mes abonnés, et dans Historique › Séance (ma séance, social activé).
 //  Données : js/data/comments.js (contrat : docs/SOCIAL_V1.md, « Commentaires »). Tout texte venu du
 //  serveur passe par esc() ; retours à la ligne gardés par le CSS (white-space: pre-wrap), jamais en HTML.
 //  Saisie : le brouillon est gardé par séance pendant la frappe (sans redessiner) ; un changement reçu
@@ -194,7 +194,7 @@ registerActions({
 
 // ── Historique › Séance (ma séance) ─────────────────────────
 
-// Groupe des commentaires de ma séance : Amis activé ; masquée : lecture seule (ceux d'avant restent)
+// Groupe des commentaires de ma séance : social activé ; masquée : lecture seule (ceux d'avant restent)
 function historyCommentsHtml(h) {
   if (!socialEnabled() || !account.user) return '';
   return commentsGroupHtml(account.user.id, h.id, { writable: h.hidden !== true });

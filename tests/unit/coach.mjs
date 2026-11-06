@@ -389,7 +389,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(ex('ABCDEFGH1'), null, '9 caractères : pas un code');
     sameJSON(['max', 'essai', 'hugo', 'Yann', 'Élise', '3pm'].map(n => run(`elide('de', ${JSON.stringify(n)})`)), ['de max', 'd\'essai', 'd\'hugo', 'de Yann', 'd\'Élise', 'de 3pm']);
     assert.equal(run(`'Ce ' + elide('que', 'essai') + ' verra'`), 'Ce qu\'essai verra');
-    assert.match(run(`coachInviteText('HXFZMB3V')`), /onglet Amis › Rejoindre un coach/);
+    assert.match(run(`coachInviteText('HXFZMB3V')`), /onglet Social › Rejoindre un coach/);
   });
 
   test('coach : élèves retirés, « vu » renvoyé plus tard, consigne d\'un programme intégré gardée', () => {

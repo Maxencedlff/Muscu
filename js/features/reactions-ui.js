@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Réactions (Amis) : bouton du fil (un toucher : 👏 ou retirer la mienne ; appui long : le choix),
+//  Réactions (social) : bouton du fil (un toucher : 👏 ou retirer la mienne ; appui long : le choix),
 //  bulle de choix façon iMessage, rangée de choix sur la séance d'un ami, résumé « 🔥👏 3 », liste
 //  « qui a réagi » de mes séances, et ce que l'Historique en montre (« 👏 2 » dans la liste, la liste
 //  des personnes dans le détail).
@@ -75,7 +75,7 @@ function historyReactionsMark(h) {
   if (!r) return '';
   return `<span class="react-mark num" role="img" aria-label="${esc(reactionsSpoken(r.counts))}">${reactionOf(r.top).emoji} ${r.total}</span>`;
 }
-// Détail : qui a réagi (cellules ajoutées au groupe Amis de js/features/social-ui.js)
+// Détail : qui a réagi (cellules ajoutées au groupe Social de js/features/social-ui.js)
 function historyWhoHtml(h) {
   const r = myReactions(h.id);
   const list = whoListHtml(h.id, r?.total || 0);

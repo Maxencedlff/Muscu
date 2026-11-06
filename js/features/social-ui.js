@@ -1,11 +1,13 @@
 // ═══════════════════════════════════════════════════════════
-//  Amis (Social V1), écrans : onglet Amis (sans compte, activation, puis recherche, demandes et fil),
-//  séance d'un ami (détail des séries, réactions, Signaler) ou la mienne telle que mes abonnés la
-//  voient (qui a réagi), profil d'un autre (s'abonner, annuler la demande, se désabonner, Bloquer,
-//  Signaler), Gérer (demandes envoyées, bloqués, Désactiver le social), règles de la communauté, et
-//  dans Historique › Séance : « Visible sur mon profil », qui a réagi et les commentaires.
+//  Social (Social V1, refait en V2 : docs/SOCIAL_V2.md), écrans : onglet Social (sans compte, activation,
+//  puis recherche, demandes et fil ; compte coach : onglet « Coach » à deux segments, Élèves et Social), séance
+//  d'un ami (détail des séries, réactions, Signaler) ou la mienne telle que mes abonnés la voient (qui a réagi),
+//  profil d'un autre (s'abonner, annuler la demande, se désabonner, Bloquer, Signaler), Gérer (demandes
+//  envoyées, bloqués, Désactiver le social), règles de la communauté, et dans Historique › Séance : « Visible
+//  sur mon profil », qui a réagi et les commentaires.
 //  Commentaires : js/features/comments-ui.js.
 //  Réactions : js/features/reactions-ui.js ; Mon profil, Abonnés, Abonnements : js/features/social-me-ui.js.
+//  Élèves du coach : js/features/coach-ui.js (coachTeamHtml).
 //  Données et appels au serveur : js/data/social.js (contrat : docs/SOCIAL_V1.md). Tout texte venu du
 //  serveur (pseudos, noms de séances et d'exercices des autres) passe par esc().
 //  Rien ne bloque : l'état se charge en arrière-plan, l'écran se redessine quand il arrive.
@@ -20,6 +22,9 @@ let socialQuery = '';          // recherche saisie
 let socialResults = null;      // { q, rows } ou { q, error } de la dernière recherche
 let socialSearchTimer = null, socialSearchSeq = 0;
 let friendsShown = null;       // état de l'onglet au dernier dessin complet (friendsState)
+let friendsLayout = null;      // forme de l'onglet au dernier dessin complet (friendsLayoutKey)
+let socialSeg = 'students';    // compte coach : segment affiché, Élèves (à l'ouverture de l'app) ou Social
+let socialScrollComments = false;   // « Commenter » d'une carte : la séance s'ouvre sur ses commentaires
 
 // ── Petits gabarits ─────────────────────────────────────────
 
@@ -50,31 +55,48 @@ function offlineNote(what) {
   return `<div class="social-note" role="status"><p>${what}</p><button class="social-note__btn" data-action="social-retry">Réessayer</button></div>`;
 }
 // Record mis en avant sur la carte : le plus marquant de ceux que son app a notés (jamais recalculé ici :
-// le fil ne contient qu'une partie de ses séances). « 🏆 Nouveau record : Squat 100 kg »
+// le fil ne contient qu'une partie de ses séances), en or, et combien d'autres. « 🏆 Record · Squat 125 kg +1 »
 function feedRecordHtml(s) {
   const r = topNotedRecord(s.records);
-  return r ? `<span class="feed-card__rec"><span aria-hidden="true">🏆 </span>Nouveau record : <span class="num">${esc(notedFeedTxt(r))}</span></span>` : '';
+  if (!r) return '';
+  const more = (s.records?.length || 0) - 1;
+  return `<span class="feed-card__rec"><span aria-hidden="true">🏆 </span>Record · <span class="num">${esc(notedFeedTxt(r))}</span>${more > 0 ? `<span class="feed-card__rec-more num" aria-hidden="true"> +${more}</span><span class="sr-text"> et ${plural(more, 'autre record', 'autres records')}</span>` : ''}</span>`;
+}
+// Les trois chiffres de la carte : durée, volume, séries (sans l'échauffement) ; un chiffre absent est omis
+function feedStatsHtml(s) {
+  const vol = reviewVolume(s.exercises), n = seriesCount(s);
+  const stats = [s.duration ? [fmtDuration(s.duration), 'Durée'] : null, vol > 0 ? [fmtVolume(vol), 'Volume'] : null,
+    [String(n), n > 1 ? 'Séries' : 'Série']].filter(Boolean);
+  return `<span class="feed-card__stats">${stats.map(([v, l]) => `<span class="feed-card__stat"><span class="feed-card__stat-val num">${esc(v)}</span><span class="feed-card__stat-lbl">${l}</span></span>`).join('')}</span>`;
+}
+function feedMusclesHtml(s) {
+  const m = feedMuscles(s);
+  return m.length ? `<span class="feed-card__muscles" aria-label="${esc(`Muscles : ${m.join(', ')}`)}">${m.map(x => `<span class="feed-card__chip" aria-hidden="true">${esc(x)}</span>`).join('')}</span>` : '';
 }
 
-// Carte du fil : qui et quand (vers son profil), la séance (vers le détail des séries), puis la
-// réaction (js/features/reactions-ui.js). Ma séance (Mon profil) : le résumé des réactions seulement.
-// owner : false sur l'écran du profil (la personne est déjà nommée), la date passe alors sous le nom
+// Carte du fil : qui et quand (vers son profil), la séance (vers le détail des séries : nom, chiffres, record
+// en or, muscles), puis réagir (js/features/reactions-ui.js) et Commenter (la séance, sur ses commentaires).
+// Ma séance (Mon profil) : le résumé des réactions seulement.
+// owner : false sur l'écran du profil (la personne est déjà nommée), la date passe alors à côté du nom de séance
 function feedCardHtml(row, { owner = true } = {}) {
   const s = row.s, p = { username: row.username, avatar: row.avatar };
+  const mine = row.owner === social.userId;
   return `
     <article class="feed-card" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}">
       ${owner ? `<button class="feed-card__who" data-action="social-open-profile" data-uid="${esc(row.owner)}">
-        ${personAvatar(p)}<span class="feed-card__who-text"><span class="feed-card__name">${esc(personName(p))}</span><span class="feed-card__date">${fmtDate(row.doneAt)}</span></span>
+        ${personAvatar(p)}<span class="feed-card__who-text"><span class="feed-card__name">${esc(personName(p))}</span><span class="feed-card__date">${esc(fmtAgo(row.doneAt))}</span></span>
       </button>` : ''}
       <button class="feed-card__main" data-action="social-open-session" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}">
         <span class="feed-card__title"><span class="hcell__dot" style="background:${publicSessionColor(s)}" aria-hidden="true"></span><span class="feed-card__label">${esc(s.label)}</span>${owner ? '' : `<span class="feed-card__date">${fmtDate(row.doneAt)}</span>`}</span>
-        <span class="feed-card__meta num">${esc(publicMetaLine(s))}</span>
-        ${s.exercises.length ? `<span class="feed-card__sum">${esc(feedExercisesLine(s))}</span>` : ''}
+        ${feedStatsHtml(s)}
         ${feedRecordHtml(s)}
+        ${feedMusclesHtml(s)}
       </button>
-      <div class="feed-card__foot">${row.owner === social.userId
+      <div class="feed-card__foot">${mine
         ? `<span class="react-own">${reactionsSummary(row.reactions) ? reactionsSummaryHtml(row.reactions) : '<span class="react-own__none">Aucune réaction</span>'}</span>`
-        : reactionBarHtml(row)}</div>
+        : reactionBarHtml(row)}
+        <button class="feed-card__comment" data-action="social-open-comments" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}" aria-label="${esc(`Commenter la séance ${s.label} de ${personName(p)}`)}">${icon('text.bubble', 20)}<span aria-hidden="true">Commenter</span></button>
+      </div>
     </article>`;
 }
 
@@ -85,7 +107,7 @@ function feedListHtml(key, { owner = true, empty }) {
   if (!f.rows.length) {
     if (f.loading || (!f.loadedAt && !f.error)) return '<div class="empty-note">Chargement…</div>';
     if (f.error) return offlineNote(f.error === 'offline' ? 'Pas d\'Internet. Les séances s\'afficheront quand le réseau reviendra.' : socialErrorText(f.error));
-    return `<div class="empty-note">${empty}</div>`;
+    return typeof empty === 'function' ? empty() : `<div class="empty-note">${empty}</div>`;
   }
   const more = !f.end ? `<button class="btn-more" data-action="social-more" data-key="${esc(key)}" ${f.loading ? 'disabled' : ''}>${f.loading ? 'Chargement…' : 'Afficher plus'}</button>` : '';
   return `${feedErrorNote(f.error)}<div class="feed">${cards}</div>${more}`;
@@ -112,22 +134,46 @@ function pill(action, uid, label, { fill = false, aria = '' } = {}) {
   return `<button class="social-pill ${fill ? 'social-pill--fill' : ''}" data-action="${action}" data-uid="${esc(uid)}"${aria ? ` aria-label="${esc(aria)}"` : ''}>${label}</button>`;
 }
 
-// ── Onglet Amis ─────────────────────────────────────────────
+// ── Onglet Social (Coach pour un compte coach) ──────────────
+
+// Compte coach : l'onglet s'appelle Coach et s'ouvre sur ses élèves (docs/SOCIAL_V2.md). Rôle connu par
+// coach_state, sinon le dernier de l'appareil (coachRole) : le bon libellé dès le lancement.
+function coachTabOn() { return accountAvailable() && !!account.user && coachRole().isCoach; }
+function friendsTabMeta() { return coachTabOn() ? { label: 'Coach', icon: 'coach' } : { label: 'Social', icon: 'person.2' }; }
+function friendsSeg() { return coachTabOn() ? socialSeg : 'friends'; }
+// Forme de l'onglet : un changement (rôle, segment, état du social) demande un redessin complet
+function friendsLayoutKey() { return `${coachTabOn()}:${friendsSeg()}:${friendsState()}`; }
+function friendsLayoutChanged() { return friendsLayout !== friendsLayoutKey(); }
 
 function renderFriends() {
-  const st = friendsState();
+  const st = friendsState(), seg = friendsSeg(), coachTab = coachTabOn();
   friendsShown = st;
+  friendsLayout = friendsLayoutKey();
   const right = st === 'on' ? meButtonHtml() : '';
-  const search = st === 'on' ? `
-        <div class="hist-tools">
-          <input type="search" id="socialSearch" class="search" placeholder="Rechercher un pseudo" value="${esc(socialQuery)}"
-                 autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Rechercher un ami par son pseudo">
+  const segs = coachTab ? `
+        <div class="segmented seg-full social-seg" role="group" aria-label="Afficher">
+          ${[['students', 'Élèves'], ['friends', 'Social']].map(([k, l]) => `<button class="segmented__btn ${seg === k ? 'segmented__btn--active' : ''}" data-action="social-seg" data-seg="${k}" aria-pressed="${seg === k}">${l}</button>`).join('')}
         </div>` : '';
+  const body = seg === 'students'
+    ? `<div id="studentsBody" class="coach-team">${coachTeamHtml()}</div>`
+    : `${reactHintHtml()}<div id="coachCell">${coachCellHtml({ place: 'top' })}</div>${st === 'on' ? searchHtml() : ''}<div id="friendsBody">${friendsBodyHtml(st)}</div><div id="coachJoin">${coachCellHtml({ place: 'join' })}</div>`;
   return `
-    <div class="view view--grouped friends-view">
-      ${navBar({ title: 'Amis', right })}
-      <div class="scr">${reactHintHtml()}<div id="coachCell">${coachCellHtml({ place: 'top', friends: st })}</div>${search}<div id="friendsBody">${friendsBodyHtml(st)}</div></div>
+    <div class="view view--grouped friends-view${coachTab ? ' friends-view--coach' : ''}">
+      ${navBar({ title: tabMeta('friends').label, right })}
+      <div class="scr">${segs}${body}</div>
     </div>`;
+}
+// Segment montré à la prochaine ouverture de l'onglet (compte coach) : Élèves après avoir retiré un élève,
+// Social pour une demande d'abonnement reçue en notification
+function setSocialSeg(seg) { socialSeg = seg === 'friends' ? 'friends' : 'students'; }
+function routeToStudents() { setSocialSeg('students'); routeTo('friends'); }
+function searchHtml() {
+  return `
+        <div class="social-search">
+          <span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span>
+          <input type="search" id="socialSearch" class="search social-search__input" placeholder="Rechercher un pseudo" value="${esc(socialQuery)}"
+                 autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Rechercher un ami par son pseudo">
+        </div>`;
 }
 
 function friendsBodyHtml(st = friendsState()) {
@@ -135,7 +181,7 @@ function friendsBodyHtml(st = friendsState()) {
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec tes amis</h2>
-          <p class="social-hero__sub">Les amis demandent un compte MDLF, dans l'app iPhone.</p>
+          <p class="social-hero__sub">Le social demande un compte MDLF, dans l'app iPhone.</p>
         </div>`;
   if (st === 'out') return `
         <div class="social-hero">
@@ -147,20 +193,19 @@ function friendsBodyHtml(st = friendsState()) {
   if (st === 'age') return ageHiddenHtml();
   if (st === 'loading') return '<div class="empty-note">Chargement…</div>';
   if (st === 'error') return offlineNote(social.error === 'offline' ? 'Pas d\'Internet. Reconnecte-toi au réseau pour voir tes amis.' : socialErrorText(social.error));
-  // Carte d'activation : « Rejoindre un coach » passe dessous, pour que « Activer » reste visible sans défiler
-  if (st === 'off') return `${activationHtml()}<div id="coachCellLow">${coachCellHtml({ place: 'low', friends: st })}</div>`;
+  if (st === 'off') return activationHtml();
   return enabledBodyHtml();
 }
 
-// Amis masqué par la tranche d'âge : explication sobre, sans bouton (le coach reste au-dessus)
+// Social masqué par la tranche d'âge : explication sobre, sans bouton (le coach reste au-dessus)
 function ageHiddenHtml() {
   const why = currentAgeBand() === 'limited'
-    ? 'Le contrôle parental de cet iPhone limite les échanges : les amis ne sont pas disponibles.'
-    : 'Les amis sont réservés aux 15 ans et plus, d\'après la tranche d\'âge partagée avec Apple.';
+    ? 'Le contrôle parental de cet iPhone limite les échanges : le social n\'est pas disponible.'
+    : 'Le social est réservé aux 15 ans et plus, d\'après la tranche d\'âge partagée avec Apple.';
   return `
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
-          <h2 class="social-hero__title">Amis indisponibles</h2>
+          <h2 class="social-hero__title">Social indisponible</h2>
           <p class="social-hero__sub">${why} Le reste de l'app fonctionne normalement.</p>
         </div>
         <div class="group-foot">Si ta tranche d'âge a changé, mets-la à jour dans les Réglages de l'iPhone, à ton nom.</div>`;
@@ -204,8 +249,24 @@ function enabledBodyHtml() {
           '')).join('')}</div>` : '';
   const stale = social.error && st ? `<p class="social-inline-error" role="status">${esc(social.error === 'offline' ? 'Pas d\'Internet : demandes pas à jour.' : socialErrorText(social.error))}</p>` : '';
   return `${stale}${requests}
-        <div class="group-title">Séances de tes amis</div>
-        ${feedListHtml('', { empty: 'Rien pour l\'instant. Cherche un ami par son pseudo pour suivre ses séances.' })}`;
+        ${socialFeed('').rows.length ? '<div class="group-title">Séances de tes amis</div>' : ''}
+        ${feedListHtml('', { empty: feedEmptyHtml })}`;
+}
+
+// Fil vide : accueil chaleureux, l'action qui le remplit (inviter un ami) et la recherche juste au-dessus
+function feedEmptyHtml() {
+  const following = social.state?.following?.length || 0;
+  const name = account.profile?.username;
+  return `
+        <div class="social-hero social-hero--empty">
+          <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
+          <h2 class="social-hero__title">${following ? 'Pas encore de séance' : 'Ton fil t\'attend'}</h2>
+          <p class="social-hero__sub">${following
+            ? 'Les séances des personnes que tu suis s\'afficheront ici, avec leurs records.'
+            : `Invite un ami : il te trouve avec ton pseudo${name ? ` <b>${esc(name)}</b>` : ''}. Vous verrez vos séances et pourrez vous encourager.`}</p>
+        </div>
+        <button class="btn btn--primary btn--full" data-action="social-invite">${icon('square.and.arrow.up', 20)}<span>Inviter un ami</span></button>
+        <button class="btn btn--full social-find" data-action="social-find">Rechercher un pseudo</button>`;
 }
 
 function searchResultsHtml(q) {
@@ -248,7 +309,9 @@ async function friendsEnter() {
   // l'onglet (onAgeRangeChange)
   ageRangeCheck();
   if (socialHiddenByAge()) return;
-  coachRefresh({ minAge: SOCIAL_REFRESH_MS });   // cellule Mes élèves / Mon coach (js/features/coach-ui.js), indépendante d'Amis
+  // Segment Élèves (compte coach) : état, progression et palier ; sinon la cellule Mon coach (js/features/coach-ui.js),
+  // indépendante du social
+  if (friendsSeg() === 'students') coachTeamEnter(); else coachRefresh({ minAge: SOCIAL_REFRESH_MS });
   await socialRefresh();
   if (socialEnabled() && Date.now() - socialFeed('').loadedAt > SOCIAL_REFRESH_MS) socialLoadFeed('');
 }
@@ -328,7 +391,14 @@ SCREENS.set('social-session', {
   render: (owner, id) => renderSocialSession(owner, id),
   // Séance d'un ami : ses séances visibles (fil de son profil) chargées pour savoir si un record est
   // vraiment battu. La mienne : qui a réagi. Les deux : commentaires (js/features/comments-ui.js).
-  mount: () => { const el = $('#commentInput'); if (el) fitCommentInput(el); },
+  mount: () => {
+    const el = $('#commentInput');
+    if (el) fitCommentInput(el);
+    // Ouverte par « Commenter » : les commentaires sous la barre de navigation
+    const title = socialScrollComments && $('#commentsList')?.previousElementSibling;
+    socialScrollComments = false;
+    if (title) window.scrollTo(0, Math.max(0, title.getBoundingClientRect().top + window.scrollY - ($('.navbar')?.offsetHeight || 0) - 8));
+  },
   enter: () => {
     const [owner, id] = routeParams(currentRoute());
     if (owner && id) commentsLoad(owner, id);
@@ -432,7 +502,7 @@ function renderSocialRules() {
     ['Rien de choquant', 'Pas de contenu sexuel, violent ou haineux, pseudos et noms de séances compris.'],
     ['Pas de spam', 'Ni publicité, ni demandes en masse.'],
     ['Sois toi-même', 'Un compte par personne, sans te faire passer pour quelqu\'un d\'autre.'],
-    ['15 ans ou plus', 'Les amis sont réservés aux 15 ans et plus.'],
+    ['15 ans ou plus', 'Le social est réservé aux 15 ans et plus.'],
   ];
   return `
     <div class="view view--grouped social-rules-view">
@@ -451,10 +521,10 @@ SCREENS.set('social-rules', { render: () => renderSocialRules() });
 // ── Visible sur mon profil : bilan, Historique › Séance et liste de l'Historique ──
 // Un seul réglage par séance, le même libellé partout : allumé = visible (champ hidden absent),
 // éteint = hidden: true (docs/SOCIAL_V1.md). La synchro l'envoie tel quel ; le coach voit tout.
-// Réglages › Amis et coach › Séances visibles par défaut (sessionVisibleDefault, js/data/social.js) préremplit
+// Réglages › Social et coach › Séances visibles par défaut (sessionVisibleDefault, js/data/social.js) préremplit
 // l'interrupteur du bilan pour les séances à venir ; les séances déjà faites ne changent pas.
 
-// Cellule des Réglages, seulement quand Amis est activé (sans Amis, rien à montrer à personne)
+// Cellule des Réglages, seulement quand le social est activé (sinon, rien à montrer à personne)
 function socialDefaultVisibleCell() {
   if (!socialEnabled()) return '';
   const on = sessionsVisibleByDefault();
@@ -481,7 +551,7 @@ function summarySocialGroup(h) {
   if (!h || !socialEnabled()) return '';
   const on = h.hidden !== true;
   return `
-        <div class="sum-section-title">Amis</div>
+        <div class="sum-section-title">Social</div>
         <div class="sum-list">
           <button class="sum-row sum-row--action" data-action="summary-visible" data-id="${esc(h.id)}" role="switch" aria-checked="${on}">
             <div class="sum-row__main"><div class="sum-row__name">Visible sur mon profil</div><div class="sum-row__sub">Tes abonnés verront cette séance (jamais tes notes ni ton poids).</div></div>
@@ -502,7 +572,7 @@ function historySocialGroup(h) {
   // Masquée : les réactions déjà reçues restent, mais plus personne ne la voit (le serveur refuse les nouvelles)
   const hidden = h.hidden === true;
   return `
-        <div class="group-title">Amis</div>
+        <div class="group-title">Social</div>
         <div class="group">
           <button class="cell" data-action="history-hide" data-id="${esc(h.id)}" role="switch" aria-checked="${!hidden}">
             <span class="cell__body"><span class="cell__title">Visible sur mon profil</span></span>
@@ -589,6 +659,29 @@ registerActions({
     if (currentRoute() !== route) navigate(route);
   },
   'social-open-session': (e, el) => navigate(makeRoute('social-session', el.dataset.owner, el.dataset.id)),
+  // Commenter : la séance s'ouvre directement sur ses commentaires (le champ se touche ensuite : iOS n'ouvre
+  // pas le clavier sur un focus hors du geste)
+  'social-open-comments': (e, el) => { socialScrollComments = true; navigate(makeRoute('social-session', el.dataset.owner, el.dataset.id)); },
+  // Compte coach : Élèves ou Social, en haut de l'onglet Coach ; chaque segment se recharge à l'arrivée
+  'social-seg': (e, el) => {
+    const seg = el.dataset.seg === 'friends' ? 'friends' : 'students';
+    if (seg === socialSeg) return;
+    socialSeg = seg;
+    haptic();
+    render();
+    window.scrollTo(0, 0);
+    friendsEnter();
+  },
+  // Inviter un ami : feuille de partage d'iOS avec où me trouver ; hors app, partage du navigateur ou copie
+  'social-invite': async () => {
+    const text = friendInviteText(account.profile?.username || '');
+    if (Native.isNative) { if ((await Native.shareText(text, 'Invitation')) === 'failed') showToast('Partage impossible', { error: true }); return; }
+    if (navigator.share) { try { await navigator.share({ text }); } catch {} return; }
+    try { await navigator.clipboard.writeText(text); showToast('Invitation copiée, colle-la dans un message'); }
+    catch { showToast('Partage impossible', { error: true }); }
+  },
+  // Fil vide : le champ de recherche, juste au-dessus (focus dans le geste : le clavier s'ouvre)
+  'social-find': () => { const el = $('#socialSearch'); if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); } },
   'social-more': (e, el) => { socialLoadFeed(el.dataset.key || '', { more: true }); },
   'social-follow': async (e, el) => {
     el.disabled = true;
@@ -660,17 +753,17 @@ document.addEventListener('input', e => {
 // ── Mises à jour de l'écran ─────────────────────────────────
 
 let historyReactionsShown = null;   // réactions reçues au dernier dessin de la liste de l'Historique
-// État reçu, fil chargé, réaction : badge, puis l'écran affiché. Onglet Amis au même état : seule la zone
+// État reçu, fil chargé, réaction : badge, puis l'écran affiché. Onglet Social de même forme : seule la zone
 // sous la recherche est redessinée (le champ garde le clavier) ; sinon redessin complet
 onSocialChange(() => {
-  socialDisableForAge();   // Amis activé lu alors que la tranche d'âge le masque
+  socialDisableForAge();   // social activé lu alors que la tranche d'âge le masque
   updateTabBadge();
   const v = currentView();
-  // Fil affiché jamais chargé (hors ligne au premier passage, ou Amis activé connu après l'ouverture) :
+  // Fil affiché jamais chargé (hors ligne au premier passage, ou social activé connu après l'ouverture) :
   // chargé maintenant ; son début de chargement notifie et redessine l'écran
   const feedKey = socialHiddenByAge() ? null : v === 'friends' ? '' : v === 'social-profile' ? followedProfileShown() : v === 'social-me' ? SOCIAL_ME : null;
   if (feedKey != null && socialFeedNeedsLoad(feedKey)) { socialLoadFeed(feedKey); return; }
-  if (v === 'friends' && friendsState() === friendsShown) { refreshFriendsBody(); refreshMeButton(); return; }
+  if (v === 'friends' && !friendsLayoutChanged()) { refreshFriendsBody(); refreshMeButton(); return; }
   // Liste de l'Historique : redessinée seulement si les réactions reçues ont changé (« 👏 2 »)
   if (v === 'history') { if (social.reactions !== historyReactionsShown) { historyReactionsShown = social.reactions; refreshHistoryList(); } return; }
   if (!SOCIAL_VIEWS.includes(v) && v !== 'history-detail') return;
@@ -679,8 +772,8 @@ onSocialChange(() => {
   if (document.activeElement?.matches?.('#commentInput') && refreshCommentsList()) return;
   render();
 });
-// Tranche d'âge connue ou changée : Amis désactivé sur le serveur s'il est désormais masqué, badge et
-// écrans des Amis redessinés
+// Tranche d'âge connue ou changée : social désactivé sur le serveur s'il est désormais masqué, badge et
+// écrans du social redessinés
 onAgeRangeChange(() => {
   socialDisableForAge();
   updateTabBadge();

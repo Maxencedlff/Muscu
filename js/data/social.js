@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Amis (Social V1) : appels au serveur et logique pure, sans affichage
+//  Social (Social V1) : appels au serveur et logique pure, sans affichage
 //
 //  - Contrat serveur / app : docs/SOCIAL_V1.md (noms des fonctions RPC, retours, erreurs). Tout passe
 //    par des fonctions RPC (security definer, rôle authenticated) et par la fonction Edge report ;
@@ -8,7 +8,7 @@
 //    serveur filtre chaque séance (liste blanche private.session_public) ; l'app nettoie quand même ce
 //    qu'elle reçoit (cleanPublicSession, cleanPerson) et l'écran échappe tout texte venu du serveur.
 //  - Rien ne bloque le démarrage : l'état (social_state) est relu en arrière-plan à l'ouverture de
-//    l'app (connexion reprise), au retour au premier plan et à l'ouverture de l'onglet Amis. Le dernier
+//    l'app (connexion reprise), au retour au premier plan et à l'ouverture de l'onglet Social. Le dernier
 //    état lu est gardé sur l'appareil (SOCIAL_CACHE_KEY : activé et badge seulement) pour que l'onglet
 //    et le badge restent justes hors ligne.
 //  - Blocage jamais révélé : une demande vers quelqu'un qui t'a bloqué (ou sans social) répond
@@ -306,6 +306,33 @@ function feedExercisesLine(s, max = 3) {
   return `${names.slice(0, max).join(', ')} et ${names.length - max} autres`;
 }
 
+// Muscles d'une séance d'un autre, pour sa carte du fil : les `max` plus travaillés (séries de travail par
+// muscle principal, d'après le nom de l'exercice : bibliothèque puis règles, jamais les choix de muscles de
+// celui qui regarde), en libellés courts sans doublon (« Épaules » une fois). Aucun muscle connu : []
+function feedMuscles(s, max = 3) {
+  const count = new Map();
+  (s?.exercises || []).forEach(e => {
+    const n = workSets(e.sets).length;
+    if (!n) return;
+    musclesOf(e.name).primary.forEach(id => count.set(id, (count.get(id) || 0) + n));
+  });
+  const order = MUSCLES.map(m => m.id);
+  const out = [];
+  [...count.entries()].sort((a, b) => (b[1] - a[1]) || (order.indexOf(a[0]) - order.indexOf(b[0]))).forEach(([id]) => {
+    const m = MUSCLES.find(x => x.id === id);
+    const label = m?.short || m?.label;
+    if (label && !out.includes(label) && out.length < max) out.push(label);
+  });
+  return out;
+}
+
+// Message d'invitation d'un ami (feuille de partage) : où me trouver dans l'app, sans lien (app en TestFlight)
+function friendInviteText(username) {
+  return username
+    ? `Je m'entraîne avec MDLF Training. Ajoute-moi dans l'onglet Social : mon pseudo est ${username}.`
+    : 'Je m\'entraîne avec MDLF Training. Rejoins-moi dans l\'onglet Social pour suivre nos séances.';
+}
+
 // Erreur du serveur → clé de SOCIAL_ERROR_TEXT. Exceptions des RPC : message en snake_case (code P0001) ;
 // fonction report : corps { error } de la réponse, ou statut 429
 function socialErrorKind(error) {
@@ -320,7 +347,7 @@ function socialErrorKind(error) {
 }
 const SOCIAL_ERROR_TEXT = {
   offline: 'Pas d\'Internet : réessaie avec du réseau.',
-  social_not_enabled: 'Active d\'abord les amis dans l\'onglet Amis.',
+  social_not_enabled: 'Active d\'abord le social dans l\'onglet Social.',
   username_required: 'Choisis d\'abord un pseudo.',
   age_required: 'Confirme que tu as 15 ans ou plus.',
   rate_limited: 'Trop d\'actions aujourd\'hui. Réessaie demain.',
@@ -356,18 +383,18 @@ function writeSocialCache() {
   catch { /* cache facultatif */ }
 }
 
-// Amis activé sur le compte (serveur) : état lu, sinon dernier état connu sur l'appareil
+// social activé sur le compte (serveur) : état lu, sinon dernier état connu sur l'appareil
 function socialActivated() { return !!account.user && !!(social.state ? social.state.enabled : social.cached?.enabled); }
-// Amis utilisables sur cet appareil : activé, et pas masqué par la tranche d'âge partagée par Apple
+// Social utilisable sur cet appareil : activé, et pas masqué par la tranche d'âge partagée par Apple
 // (js/data/age-range.js). Point unique : onglet, bilan et Historique (Visible sur mon profil, réactions,
-// commentaires), Réglages, relectures ; tout écran des Amis passe par là.
+// commentaires), Réglages, relectures ; tout écran du social passe par là.
 function socialEnabled() { return !socialHiddenByAge() && socialActivated(); }
-// Réglages › Amis et coach › Séances visibles par défaut : absent = oui (toute séance visible des abonnés
+// Réglages › Social et coach › Séances visibles par défaut : absent = oui (toute séance visible des abonnés
 // tant qu'on n'éteint pas « Visible sur mon profil » à la fin). Tranche de 15 à 17 ans partagée par Apple
 // (js/data/age-range.js) : absent = non, seul un choix explicite les rend visibles par défaut.
 function sessionsVisibleByDefault(d = data) { return socialTeenByAge() ? d.sessionVisibleDefault === true : d.sessionVisibleDefault !== false; }
-// Une séance qui se termine maintenant naît masquée (hidden: true) : Amis activé et réglage éteint, ou Amis
-// masqué par la tranche d'âge, activé ou non (rien de neuf n'est montré, ni plus tard si Amis est rallumé :
+// Une séance qui se termine maintenant naît masquée (hidden: true) : social activé et réglage éteint, ou social
+// masqué par la tranche d'âge, activé ou non (rien de neuf n'est montré, ni plus tard si le social est rallumé :
 // la séance se rend visible à la main, Historique › Séance)
 function newSessionHidden(d = data) { return socialHiddenByAge() || (socialEnabled() && !sessionsVisibleByDefault(d)); }
 // Badge de l'onglet : demandes reçues en attente, plus les nouveautés de l'activité (réactions à mes
@@ -444,7 +471,7 @@ async function socialDisable() {
   return r;
 }
 
-// Amis activé sur le compte puis masqué par la tranche d'âge (js/data/age-range.js) : désactivé sur le serveur
+// social activé sur le compte puis masqué par la tranche d'âge (js/data/age-range.js) : désactivé sur le serveur
 // (social_disable : invisible dans la recherche, séances invisibles des abonnés, relations gardées), pour que
 // le profil ne reste pas visible des autres. Une fois par compte et par lancement ; redemandé après un échec
 // (hors ligne) au prochain état reçu. Appelée par js/features/social-ui.js (tranche ou état changé).
@@ -562,9 +589,9 @@ async function socialLoadFeed(key = '', { more = false } = {}) {
   return { ok: true };
 }
 
-// Fil affiché à charger d'office : Amis activé, jamais chargé, pas en cours, et pas déjà essayé avec
-// l'état social actuel. Cas : premier passage sur Amis hors ligne puis réseau revenu (l'état relu
-// relance le fil), onglet ouvert pendant la première lecture de l'état (Amis activé connu après).
+// Fil affiché à charger d'office : social activé, jamais chargé, pas en cours, et pas déjà essayé avec
+// l'état social actuel. Cas : premier passage sur Social hors ligne puis réseau revenu (l'état relu
+// relance le fil), onglet ouvert pendant la première lecture de l'état (social activé connu après).
 // Une seule tentative par lecture de l'état : un fil en erreur ne boucle pas sur ses propres notifications.
 function socialFeedNeedsLoad(key = '') {
   if (!socialEnabled()) return false;

@@ -27,7 +27,7 @@ function ssOtherSub(xs, k, tags, mine) {
   return g && !g.includes(mine) ? `Dans le ${ssKind(g.length).toLowerCase()} ${tags[k][0]}` : '';
 }
 
-// Pastille « A1 » devant un exercice d'un superset (Historique, Amis, Programme), avec son nom pour VoiceOver
+// Pastille « A1 » devant un exercice d'un superset (Historique, Social, Programme), avec son nom pour VoiceOver
 function ssTagHtml(xs, i) {
   const g = ssGroupOf(xs, i);
   if (!g) return '';

@@ -1,5 +1,5 @@
 // Tranche d'âge partagée par Apple (js/data/age-range.js) : catégorie, conservation, demande au module
-// natif simulé, effets sur les Amis (js/data/social.js). Le Swift (AgeRangePlugin.swift) n'est pas compilé
+// natif simulé, effets sur le social (js/data/social.js). Le Swift (AgeRangePlugin.swift) n'est pas compilé
 // ici : ses noms sont vérifiés par le test « chaque module Swift » de run.mjs et par le dernier test.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -90,7 +90,7 @@ export default function ({ test, run, assert, sameJSON }) {
     sameJSON(r, { b: 'teen', fresh: true, later: false });
   });
 
-  test('âge : 15-17 ans → séances masquées par défaut ; moins de 15 ans → Amis éteint partout, rien de neuf montré', () => {
+  test('âge : 15-17 ans → séances masquées par défaut ; moins de 15 ans → social éteint partout, rien de neuf montré', () => {
     const r = run(`(() => {
       const user = account.user, saved = { ...social }, stored = ageRange.stored;
       try {
@@ -124,7 +124,7 @@ export default function ({ test, run, assert, sameJSON }) {
       youngOffHidden: true, limitedEnabled: false, limitedHidden: true });
   });
 
-  // Amis activé sur le compte, puis tranche qui le masque : social_disable une fois par compte et par lancement
+  // social activé sur le compte, puis tranche qui le masque : social_disable une fois par compte et par lancement
   const disableScenario = (stored, enabled, rpcOk = true) => run(`(async () => {
     const user = account.user, saved = { ...social }, st = ageRange.stored, sbSaved = sb, calls = [];
     try {
@@ -139,7 +139,7 @@ export default function ({ test, run, assert, sameJSON }) {
     } finally { account.user = user; Object.assign(social, saved); ageRange.stored = st; sb = sbSaved; socialAgeDisabledFor = null; }
   })()`);
 
-  test('âge : Amis activé puis masqué → désactivé sur le serveur une fois ; 15-17 ans, majeur ou déjà éteint → rien', async () => {
+  test('âge : social activé puis masqué → désactivé sur le serveur une fois ; 15-17 ans, majeur ou déjà éteint → rien', async () => {
     const at = Date.now();
     const young = { status: 'sharing', upperBound: 12, communicationLimits: false, at };
     const limited = { status: 'sharing', lowerBound: 15, upperBound: 17, communicationLimits: true, at };

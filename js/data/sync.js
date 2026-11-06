@@ -24,7 +24,7 @@
 // lancement, repère de la bulle des muscles) : réponses de la personne,
 // le même sur tous ses appareils comme l'unité ; pas une donnée de santé. myProgrammes (liste ordonnée,
 // remplacée en bloc, pas fusionnée) : un programme créé sur un autre appareil y revient par
-// cleanMyProgrammes (store.js) après la fusion. sessionVisibleDefault (Réglages › Amis et coach) :
+// cleanMyProgrammes (store.js) après la fusion. sessionVisibleDefault (Réglages › Social et coach) :
 // préremplit « Visible sur mon profil » à la fin d'une séance, même choix sur tous les appareils.
 // dietPlans, dietActive, dietFoods (js/data/nutrition.js) : plans diète (les miens et ceux reçus d'un coach),
 // plan suivi et aliments perso : seulement avec l'accord (SYNC_DIET_CONSENT_KEYS) ; dietConsent : cet accord daté.

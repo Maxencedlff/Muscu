@@ -206,6 +206,19 @@ function sortStudentsByProgress(students, prOf, unreadOf = () => 0) {
   return rows;
 }
 
+// Résumé de la semaine en tête de Mes élèves : records battus (tous élèves), élèves à relancer (orange),
+// nouveautés à lire (séances pas vues et messages non lus). prOf, unreadOf : comme sortStudentsByProgress.
+function teamWeekSummary(students, prOf, unreadOf = () => 0) {
+  let records = 0, warn = 0, fresh = 0;
+  (students || []).forEach(st => {
+    const pr = prOf(st);
+    records += pr.records.length;
+    if (pr.tone === 'warn') warn++;
+    fresh += (st.new_sessions || 0) + unreadOf(st);
+  });
+  return { records, warn, fresh };
+}
+
 // ── État et lecture du serveur ──────────────────────────────
 
 function progressReset(userId) {

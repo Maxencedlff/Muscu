@@ -11,7 +11,7 @@ const TABS = {
   history:  { root: 'history',   label: 'Historique',   icon: 'clock.history', action: 'go-history' },
   progress: { root: 'stats',     label: 'Progrès',      icon: 'chart',         action: 'go-stats' },
   program:  { root: 'programmes', label: 'Programme',    icon: 'list.bullet',   action: 'go-program' },
-  friends:  { root: 'friends',   label: 'Amis',         icon: 'person.2',      action: 'go-friends' },   // js/features/social-ui.js
+  friends:  { root: 'friends',   label: 'Social',       icon: 'person.2',      action: 'go-friends' },   // js/features/social-ui.js ; « Coach » pour un compte coach (friendsTabMeta)
 };
 const TAB_OF_ROOT = Object.fromEntries(Object.entries(TABS).map(([t, v]) => [v.root, t]));
 
@@ -223,12 +223,12 @@ const SCREENS = new Map([
                        mount: ({ first }) => { if (activeSession) { afterSessionRender(first); mountMusicBar(); } }, // centre la série courante
                        enter: () => requestWakeLock(), leave: () => releaseWakeLock() }],
   ['editor',         { render: () => renderEditor() }],
-  ['history',        { render: () => renderHistory(), mount: () => { mountHealthWorkouts('history', refreshHistoryList); if (socialEnabled()) socialLoadMyReactions({ minAge: SOCIAL_REFRESH_MS }); } }],   // « 👏 2 » (Amis activé)
+  ['history',        { render: () => renderHistory(), mount: () => { mountHealthWorkouts('history', refreshHistoryList); if (socialEnabled()) socialLoadMyReactions({ minAge: SOCIAL_REFRESH_MS }); } }],   // « 👏 2 » (Social activé)
   ['stats',          { render: () => renderStats(), mount: () => fillWeightGroup() }],
   ['settings',       { render: () => renderSettings(), mount: () => { fillAppVersion(); fillBodyWeightCell(); fillHealthWorkoutsCell(); } }],
   ['add-session',    { render: () => renderAddSession(), enter: ({ dir }) => addSessionEnter(dir), leave: () => addSessionLeave() }],
   ['summary',        { render: () => renderSummary() }],          // Entraînement › Bilan
-  ['history-detail', { render: id => renderHistoryDetail(id), mount: () => { historyReactionsMount(routeParams(currentRoute())[0]); historyCommentsMount(routeParams(currentRoute())[0]); coachHistoryMount(); } }],   // qui a réagi, commentaires (Amis activé)
+  ['history-detail', { render: id => renderHistoryDetail(id), mount: () => { historyReactionsMount(routeParams(currentRoute())[0]); historyCommentsMount(routeParams(currentRoute())[0]); coachHistoryMount(); } }],   // qui a réagi, commentaires (Social activé)
   ['stats-ex',       { render: exId => renderStatsExercise(exId), mount: () => drawCharts() }],
   ['stats-overview', { render: () => renderStatsOverview() }],
   ['body-measures',  { render: () => renderBodyMeasures() }],   // Progrès › Mesures (js/features/body-measures-ui.js)

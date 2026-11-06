@@ -5,7 +5,7 @@
 //  saisie collée en bas au-dessus de la barre d'onglets, menu ⋯ (Signaler : copie des derniers
 //  messages gardée par le serveur, chatReport).
 //  Entrées : cellule « Messages » de Mon coach (élève) et de la fiche d'un élève (coach), avec le
-//  nombre de non-lus ; pastille dans Mes élèves ; non-lus ajoutés au badge de l'onglet Amis.
+//  nombre de non-lus ; pastille dans Mes élèves ; non-lus ajoutés au badge de l'onglet Social.
 //  Données : js/data/coach-chat.js (contrat : docs/COACH_V1.md, « Messages »). Texte venu du serveur
 //  passé par esc() ; retours à la ligne gardés par le CSS (pre-wrap).
 //  Relecture : toutes les CHAT_POLL_MS tant que la conversation est à l'écran et l'app au premier

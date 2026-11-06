@@ -406,7 +406,7 @@ registerActions({
     showToast(`Plan suivi : ${it.data.name}`);
     render();
   },
-  'diet-dismiss': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast('Il reste dans Amis › Mon coach'); },
+  'diet-dismiss': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },
   'coach-send-diet': async (e, el) => {
     const uid = el.dataset.uid, ids = coachSendableDiets();
     if (!ids.length) {

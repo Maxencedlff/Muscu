@@ -32,9 +32,9 @@ const flow = {
 // Masqué hors délai (compte de plus de 30 jours, d'après le serveur s'il a répondu).
 function referralLinkHtml() {
   const v = referralView();
-  // Parrain coach : le code parraine sans faire rejoindre ce coach, on le dit (Amis › Rejoindre un coach)
+  // Parrain coach : le code parraine sans faire rejoindre ce coach, on le dit (Social › Rejoindre un coach)
   if (v.referrer) return `<p class="auth__referral-done">${icon('checkmark', 16)}<span>${esc(`Parrainé par ${v.referrer}`)}</span></p>`
-    + (referralSuggestJoin(v) ? `<p class="auth__referral-join">${esc(`Pour que ${v.referrer} suive tes séances, rejoins ce coach ensuite dans Amis › Rejoindre un coach.`)}</p>` : '');
+    + (referralSuggestJoin(v) ? `<p class="auth__referral-join">${esc(`Pour que ${v.referrer} suive tes séances, rejoins ce coach ensuite dans Social › Rejoindre un coach.`)}</p>` : '');
   return v.canEnter ? '<button class="auth__link auth__referral-link" data-action="auth-referral">J\'ai un code d\'un coach ou d\'un ami</button>' : '';
 }
 
@@ -180,7 +180,7 @@ const AUTH_STEPS = {
         ${flowAvatarHtml()}<span class="auth__avatar-edit" aria-hidden="true">Modifier</span>
       </button>
       <h1 class="auth__title" id="authTitle" tabindex="-1">${flow.first ? 'Choisis ton pseudo' : 'Pseudo'}</h1>
-      <p class="auth__lead">${flow.context === 'coach' ? 'Ton coach te reconnaîtra avec ce pseudo.' : 'Tes amis te trouveront avec ce pseudo, une fois les Amis activés.'}</p>
+      <p class="auth__lead">${flow.context === 'coach' ? 'Ton coach te reconnaîtra avec ce pseudo.' : 'Tes amis te trouveront avec ce pseudo, une fois le social activé.'}</p>
       ${flow.first && flow.cancelExpired ? cancelExpiredHtml()
         : flow.first && flow.notice ? `<div class="auth__notice" role="note"><p>${esc(flow.notice)}</p>
         <button class="auth__notice-btn" data-action="auth-cancel-account">Me reconnecter autrement</button></div>` : ''}

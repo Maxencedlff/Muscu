@@ -1,4 +1,4 @@
-"""Partage avec le coach (app iOS simulée) : côté élève, Réglages › Amis et coach › « Partager avec mon coach »
+"""Partage avec le coach (app iOS simulée) : côté élève, Réglages › Social et coach › « Partager avec mon coach »
 (seulement avec un coach, tout décoché par défaut, texte de ce que le coach verra, cocher envoie les pesées
 saisies, une nouvelle pesée suit, décocher efface, quitter le coach arrête, hors ligne) ; côté coach, la courbe
 du poids sur la fiche d'un élève qui le partage et le volume de ses séances qui compte son poids du corps
@@ -130,7 +130,7 @@ def t_eleve(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         page.evaluate('render()')
         cell = page.locator('.settings-view [data-action="coach-open-share"]')
-        R.check(cell.count() == 1 and 'Rien' in cell.inner_text(), f'{t} Réglages › Amis et coach : « Partager avec mon coach · Rien » ({cell.inner_text() if cell.count() else ""!r})')
+        R.check(cell.count() == 1 and 'Rien' in cell.inner_text(), f'{t} Réglages › Social et coach : « Partager avec mon coach · Rien » ({cell.inner_text() if cell.count() else ""!r})')
         R.check(ccalls(page, 'student_share_weights') == [], f'{t} par défaut : aucune pesée envoyée')
         R.check(page.evaluate(f"__sb.co.weights['{ids['me']}']") is None, f'{t} par défaut : rien sur le serveur')
         cell.click()

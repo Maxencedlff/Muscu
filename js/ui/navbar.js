@@ -3,6 +3,22 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
+// Libellé et icône d'un onglet : ceux de TABS, sauf le 5e, « Social » ou « Coach » pour un compte coach
+// (friendsTabMeta, js/features/social-ui.js ; docs/SOCIAL_V2.md)
+function tabMeta(t) {
+  return t === 'friends' && typeof friendsTabMeta === 'function' ? { ...TABS[t], ...friendsTabMeta() } : TABS[t];
+}
+function tabBtnInner(t) { const v = tabMeta(t); return `${icon(v.icon, 25)}<span class="tabbar__label">${v.label}</span>`; }
+// Rôle connu ou changé (coach validé, déconnexion) : le 5e onglet suit, son badge est remis par updateTabBadge
+function syncTabMeta() {
+  const btn = $('.tabbar [data-tab="friends"]');
+  if (!btn || btn.dataset.label === tabMeta('friends').label) return;
+  const badge = btn.querySelector('.tabbar__badge');
+  btn.innerHTML = tabBtnInner('friends');
+  btn.dataset.label = tabMeta('friends').label;
+  if (badge) btn.append(badge);
+}
+
 function ensureChrome() {
   if ($('.tabbar')) return;
   const bar = document.createElement('nav');
@@ -10,8 +26,8 @@ function ensureChrome() {
   bar.setAttribute('role', 'tablist');
   bar.setAttribute('aria-label', 'Sections');
   bar.innerHTML = Object.entries(TABS).map(([t, v]) => `
-    <button class="tabbar__btn" role="tab" data-action="${v.action}" data-tab="${t}" aria-selected="false">
-      ${icon(v.icon, 25)}<span class="tabbar__label">${v.label}</span>
+    <button class="tabbar__btn" role="tab" data-action="${v.action}" data-tab="${t}" data-label="${tabMeta(t).label}" aria-selected="false">
+      ${tabBtnInner(t)}
     </button>`).join('');
   const live = document.createElement('button');
   live.className = 'livebar';
@@ -20,19 +36,20 @@ function ensureChrome() {
   document.body.append(live, bar);
 }
 
-// Badge de l'onglet Amis : demandes reçues en attente et nouveautés de l'activité (socialBadge,
+// Badge de l'onglet Social (ou Coach) : demandes reçues en attente et nouveautés de l'activité (socialBadge,
 // js/data/social.js : réactions à mes séances, demandes acceptées), annoncé par VoiceOver avec le nom de l'onglet
 function updateTabBadge() {
+  syncTabMeta();
   const btn = $('.tabbar [data-tab="friends"]');
   if (!btn) return;
-  // Demandes reçues (Amis) + nouveautés du coach (js/data/coach.js : nouvelles séances, programmes, commentaires)
+  // Demandes reçues (Social) + nouveautés du coach (js/data/coach.js : nouvelles séances, programmes, commentaires)
   // + messages non lus (js/data/coach-chat.js)
   const social = socialBadge(), fromCoach = coachBadge() + chatUnreadTotal(), n = social + fromCoach;
   let badge = btn.querySelector('.tabbar__badge');
   if (!n) { badge?.remove(); btn.removeAttribute('aria-label'); return; }
   if (!badge) { badge = document.createElement('span'); badge.className = 'tabbar__badge num'; badge.setAttribute('aria-hidden', 'true'); btn.append(badge); }
   badge.textContent = n > 99 ? '99+' : String(n);
-  btn.setAttribute('aria-label', `${TABS.friends.label}, ${fromCoach || socialActivityNew() ? plural(n, 'nouveauté', 'nouveautés') : plural(n, 'demande', 'demandes')}`);
+  btn.setAttribute('aria-label', `${tabMeta('friends').label}, ${fromCoach || socialActivityNew() ? plural(n, 'nouveauté', 'nouveautés') : plural(n, 'demande', 'demandes')}`);
 }
 
 function sessionCounts(sess = activeSession) {
@@ -143,7 +160,7 @@ document.fonts?.ready.then(() => fitBackLabel());
 
 // Libellé du bouton retour vers une route de la pile
 function routeTitle(route, isRoot) {
-  if (isRoot && TAB_OF_ROOT[route]) return TABS[TAB_OF_ROOT[route]].label;
+  if (isRoot && TAB_OF_ROOT[route]) return tabMeta(TAB_OF_ROOT[route]).label;
   const name = routeName(route);
   if (name === 'editor') { const cat = editorCatOf(route); return cat ? rawLabel(cat) : 'Séance'; }
   if (name.startsWith('coach')) return coachRouteTitle(route) || 'Retour';
@@ -153,7 +170,7 @@ function routeTitle(route, isRoot) {
     'history-detail': 'Séance', 'stats-ex': 'Exercice', 'stats-overview': 'Vue d\'ensemble', recaps: 'Récaps', recap: 'Récap',
     'body-measures': 'Mesures', 'photo-vault': 'Coffre', 'body-measure': bodyMeasureLabel(routeParams(route)[0]) || 'Mesure',
     'my-programmes': 'Mes programmes', 'prog-add': 'Ajouter', 'prog-info': 'Programme', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
-    friends: 'Amis', 'social-profile': socialPerson(routeParams(route)[0])?.username || 'Profil',
+    friends: tabMeta('friends').label, 'social-profile': socialPerson(routeParams(route)[0])?.username || 'Profil',
     'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles', 'social-me': 'Mon profil', strava: 'Strava',
     notifications: 'Notifications',
     'social-people': routeParams(route)[0] === 'followers' ? 'Abonnés' : 'Abonnements',

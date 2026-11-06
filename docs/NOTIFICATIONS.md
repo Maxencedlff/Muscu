@@ -9,8 +9,8 @@ Contrat des notifications push de l'app iPhone (APNs). Ordre de mise en service 
 | Bravos | ligne ajoutée dans `bravos` (séance à moi) | « Bravo ! » · « max.dlf t'a dit bravo pour ta séance » | Historique › la séance (Historique si elle n'est pas sur l'iPhone) |
 | Demandes d'abonnement | ligne `follows` en `pending` (jamais `ghost`) | « Nouvelle demande » · « max.dlf veut suivre tes séances » | Onglet Amis |
 | Commentaires | ligne ajoutée dans `session_comments` par un autre sur une séance à moi | « Nouveau commentaire » · « max.dlf a commenté ta séance » | Historique › la séance (Historique si elle n'est pas sur l'iPhone) |
-| Mon coach | `coach_notes` ajouté ou texte changé ; `coach_programmes` ajouté ou contenu changé | « Ton coach » · « kevin a commenté ta séance » / « kevin t'a envoyé un programme » | Historique › la séance ; Amis › Mon coach |
-| Messages | ligne ajoutée dans `coach_messages` par l'autre personne (mon coach, ou un de mes élèves) | « Nouveau message » · « kevin t'a envoyé un message » | Amis › la conversation (avec mon coach, ou avec cet élève), même app fermée |
+| Mon coach | `coach_notes` ajouté ou texte changé ; `coach_programmes` ajouté ou contenu changé | « Ton coach » · « kevin a commenté ta séance » / « kevin t'a envoyé un programme » | Historique › la séance ; Social › Mon coach |
+| Messages | ligne ajoutée dans `coach_messages` par l'autre personne (mon coach, ou un de mes élèves) | « Nouveau message » · « kevin t'a envoyé un message » | Social (ou Coach) › la conversation (avec mon coach, ou avec cet élève), même app fermée |
 
 - **Rien sans accord** : les cinq types sont éteints par défaut (pas de ligne `push_prefs` = tout
   éteint). La fenêtre d'autorisation d'iOS ne s'ouvre qu'au toucher d'un interrupteur ; le jeton de

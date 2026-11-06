@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Cellule des Réglages, groupe « Amis et coach » : seulement dans l'app iOS avec un compte (les
+// Cellule des Réglages, groupe « Social et coach » : seulement dans l'app iOS avec un compte (les
 // notifications partent du serveur vers un compte). Valeur : « Activées » / « Désactivées » / « À réactiver »
 // (réglages du compte allumés, mais pas encore d'accord d'iOS sur cet iPhone : réinstallation, nouvel iPhone).
 function pushSettingsCell() {
@@ -85,13 +85,15 @@ function openPushTarget(p) {
   if (!t) return;
   if (activeSession && currentView() === 'session') return;   // jamais arraché d'une séance en cours
   closeTransientUI();   // feuille ou dialogue ouvert : fermé avant de changer d'écran
+  // Compte coach (onglet Coach à deux segments) : une demande d'abonnement s'ouvre sur Social, le reste sur Élèves
+  if (t.tab === 'friends') setSocialSeg(p?.kind === 'follow_request' ? 'friends' : 'students');
   switchTab(t.tab, { reset: true });
-  // Amis masqué par la tranche d'âge (js/data/age-range.js) : l'onglet seul, jamais un écran des Amis
+  // Social masqué par la tranche d'âge (js/data/age-range.js) : l'onglet seul, jamais un écran du social
   if (t.screen && !(socialHiddenByAge() && String(t.screen).startsWith('social-'))) navigate(makeRoute(t.screen, ...t.params));
   if (t.tab === 'friends') { if (!socialHiddenByAge()) socialRefresh(); coachRefresh(); }
 }
 Native.push.onTap(p => { try { openPushTarget(p); } catch { /* écran indisponible : l'app s'ouvre simplement */ } });
-// Reçue app ouverte : badges des Amis et du coach relus sans attendre
+// Reçue app ouverte : badges du social et du coach relus sans attendre
 Native.push.onReceive(() => { if (account.user) { socialRefresh({ minAge: 0 }); coachRefresh(); } });
 
 // Échec d'un allumage ou d'une réactivation : refus d'iOS expliqué avec un lien vers Réglages, sinon un message

@@ -1,10 +1,10 @@
 /* ═══════════════════════════════════════════════
-   Coach (js/features/coach-ui.js) : cellule en haut de l'onglet Amis, pastilles de nouveautés,
+   Coach (js/features/coach-ui.js) : cellules de l'onglet Social (Mon coach, Rejoindre), résumé de la semaine, pastilles de nouveautés,
    programmes reçus, consignes (Programme › Séance et séance en cours), séances d'un élève, codes
    d'invitation, saisie des consignes et du commentaire. Couleurs : tokens de css/base.css seulement.
 ═══════════════════════════════════════════════ */
 
-/* ── Cellule de l'onglet Amis et lignes d'élèves ── */
+/* ── Cellules de l'onglet Social et lignes d'élèves ── */
 .coach-head { margin-bottom: 20px; }
 .coach-cell { gap: 12px; }
 .coach-cell__icon {
@@ -172,9 +172,25 @@
 .coach-sheet__count { margin-left: auto; flex-shrink: 0; }
 /* « Ajouter à mes programmes » sur une ligne, même sur iPhone SE */
 .coach-prog__btn { white-space: nowrap; }
-/* Onglet Amis : cellule du coach en haut, ou sous la carte d'activation des amis (#coachCellLow) */
-#coachCell .coach-head { margin-bottom: 12px; }
-#coachCellLow .coach-head { margin: 24px 0 0; }
+/* Onglet Social : Mon coach en haut, carte arrondie et un peu plus haute ; Rejoindre un coach en bas, discret */
+#coachCell .coach-head { margin-bottom: 12px; border-radius: var(--r-lg); }
+.coach-cell--mine { min-height: 64px; }
+#coachJoin .coach-head { margin: 28px 0 0; }
+#coachJoin .coach-cell__icon { color: var(--label2); }
+
+/* Mes élèves, « Cette semaine » : trois chiffres, couleur seulement s'ils comptent (vert ↑, orange, teinte) */
+.team-week { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.team-week__tile {
+  min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 12px 12px 10px;
+  border-radius: var(--r-md); background: var(--cell);
+}
+.team-week__val { font-size: var(--fs-title2); font-weight: 700; line-height: 1.2; color: var(--label2); white-space: nowrap; }
+.team-week__lbl { font-size: var(--fs-footnote); line-height: 1.25; color: var(--label2); overflow-wrap: anywhere; }
+.team-week__tile--up .team-week__val { color: var(--green-text); }
+.team-week__tile--warn .team-week__val { color: var(--orange-text); }
+.team-week__tile--new .team-week__val { color: var(--label); }
+/* Segments Élèves | Social de l'onglet Coach : sous le grand titre, pleine largeur */
+.social-seg { margin: 2px 0 16px; }
 /* Programmes envoyés à un élève : état à droite */
 .coach-sent__state { color: var(--label); }
 .coach-sent__state--unseen { color: var(--orange-text); }

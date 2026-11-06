@@ -1,9 +1,10 @@
 """Coach (Coach V1, app iOS simulée) : parcours de l'élève (Réglages › Coach, code, aperçu, Accepter,
-cellule « Mon coach » de l'onglet Amis sans avoir activé Amis, badge, carte de l'accueil, programme reçu
+cellule « Mon coach » de l'onglet Social sans avoir activé le social, badge, carte de l'accueil, programme reçu
 ajouté, consignes dans Programme › Séance et dans la séance, commentaire dans Historique, mise à jour
 d'un programme modifié avec la question avant d'écraser, Quitter mon coach) et du coach (Mes élèves,
 nouvelles séances, « Ton programme », invitation partagée et retirée, séances d'un élève sans poids du
-corps, commentaire, envoi d'un programme avec consignes, Retirer l'élève), hors ligne.
+corps, commentaire, envoi d'un programme avec consignes, Retirer l'élève ; onglet « Coach » ouvert sur
+ses élèves, docs/SOCIAL_V2.md), hors ligne.
 
 L'app iOS et Supabase sont simulés (tests/fake_account.py, règles de docs/COACH_V1.md) : aucune requête ne
 sort. Captures : $PPL_SCRATCH/shots/lotcoach/ (chaque écran, clair et sombre).
@@ -136,7 +137,7 @@ COACH_PROG = {
 
 
 def setup_student(page):
-    """Max est coach avec un code actif ; je suis connectée (lea), sans Amis activé."""
+    """Max est coach avec un code actif ; je suis connectée (lea), sans le social activé."""
     return page.evaluate("""() => {
         const max = __sb.addPerson({ username: 'max', avatar: '🦁', social: false });
         __sb.makeCoach(max);
@@ -151,13 +152,15 @@ def t_eleve(bench, eng, dev, theme):
         open_app(page, theme, ppl_v2_today_json(now_ms=NOW))
         signin(page, username='lea')
         ids = setup_student(page)
-        # Sans coach : pas de cellule dans Amis
+        # Sans coach : « Rejoindre un coach » discret, sous la carte d'activation (pas de bruit coach en tête)
         friends_tab(page)
         join = page.locator('[data-action="coach-join-start"]')
         R.check(join.count() == 1 and 'Tu as un code de ton coach' in join.inner_text() and page.locator('[data-action="coach-open-mine"]').count() == 0, f'{t} sans coach : cellule « Rejoindre un coach »')
-        layout(page, t, 'Amis sans coach')
+        R.check(page.locator('#coachJoin [data-action="coach-join-start"]').count() == 1 and page.locator('#coachCell .coach-cell').count() == 0, f'{t} sans coach : rien en tête, « Rejoindre » en bas')
+        R.check(page.inner_text('.tabbar [data-tab="friends"] .tabbar__label') == 'Social', f'{t} élève : onglet « Social »')
+        layout(page, t, 'Social sans coach')
         shot(page, LOT, f'0-amis-rejoindre-{t}')
-        # Réglages › Coach (depuis l'onglet Entraînement : l'onglet Amis garde sa racine)
+        # Réglages › Coach (depuis l'onglet Entraînement : l'onglet Social garde sa racine)
         page.click('.tabbar [data-tab="train"]')
         page.wait_for_timeout(300)
         page.evaluate("navigate('settings')")
@@ -200,27 +203,27 @@ def t_eleve(bench, eng, dev, theme):
         page.click('[data-action="coach-accept"]')
         page.wait_for_selector('.coach-view [data-action="coach-leave"]')
         R.check(page.evaluate(f"__sb.co.links.some(l => l.coach === '{ids['max']}' && l.student === __sb.meId())"), f'{t} lien créé')
-        R.check("C'est fait" in page.inner_text('.ios-dialog') and 'Amis › Mon coach' in page.inner_text('.ios-dialog'), f'{t} message de bienvenue')
+        R.check("C'est fait" in page.inner_text('.ios-dialog') and 'Social › Mon coach' in page.inner_text('.ios-dialog'), f'{t} message de bienvenue')
         tap_dialog(page, 'OK')
         shot(page, LOT, f'3-reglages-suivi-{t}')
         # Le coach envoie un programme : badge et carte de l'accueil
         page.evaluate("""([max, prog]) => { __sb.co.progs.push({ coach: max, student: __sb.meId(), id: 'u_force', data: prog, sent_at: new Date().toISOString(), seen: false }); }""", [ids['max'], COACH_PROG])
         page.evaluate('coachRefresh()')
         page.wait_for_timeout(300)
-        R.check(tab_badge(page) == '1', f'{t} badge de l\'onglet Amis : 1 programme ({tab_badge(page)!r})')
+        R.check(tab_badge(page) == '1', f'{t} badge de l\'onglet Social : 1 programme ({tab_badge(page)!r})')
         page.click('.tabbar [data-tab="train"]')
         page.wait_for_timeout(400)
         page.wait_for_selector('.coach-home')
         R.check('Nouveau programme de max' in page.inner_text('.coach-home') and 'Force' in page.inner_text('.coach-home'), f'{t} carte de l\'accueil')
         R.check(small_targets(page, '.coach-home button') == [], f'{t} carte : 44 pt')
         shot(page, LOT, f'4-accueil-carte-{t}')
-        # Onglet Amis sans Amis activé : cellule « Mon coach » en haut, carte d'activation dessous
+        # Onglet Social sans le social activé : cellule « Mon coach » en haut, carte d'activation dessous
         friends_tab(page)
         cell = page.locator('[data-action="coach-open-mine"]')
-        R.check(cell.count() == 1 and 'max' in cell.inner_text(), f'{t} Amis : cellule Mon coach')
-        R.check(page.locator('[data-action="social-enable"]').count() == 1, f'{t} Amis pas activé : carte d\'activation dessous')
+        R.check(cell.count() == 1 and 'max' in cell.inner_text(), f'{t} Social : cellule Mon coach')
+        R.check(page.locator('[data-action="social-enable"]').count() == 1, f'{t} social pas activé : carte d\'activation dessous')
         R.check(page.evaluate("document.querySelector('.coach-cell').getBoundingClientRect().top < document.querySelector('.social-hero').getBoundingClientRect().top"), f'{t} cellule en haut')
-        layout(page, t, 'Amis avec coach')
+        layout(page, t, 'Social avec coach')
         shot(page, LOT, f'5-amis-cellule-{t}')
         cell.click()
         page.wait_for_selector('.coach-mine-view .coach-prog')
@@ -430,11 +433,12 @@ def t_coach(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         R.check(tab_badge(page) == '3', f'{t} badge : 3 nouvelles séances de Léa ({tab_badge(page)!r})')
         R.check('nouveauté' in (page.get_attribute('.tabbar [data-tab="friends"]', 'aria-label') or ''), f'{t} badge annoncé par VoiceOver')
+        # Compte coach : l'onglet s'appelle Coach et s'ouvre sur ses élèves (segment Élèves), sans toucher de plus
+        R.check(page.inner_text('.tabbar [data-tab="friends"] .tabbar__label') == 'Coach', f'{t} coach : onglet « Coach »')
         friends_tab(page)
-        cell = page.locator('[data-action="coach-open-students"]')
-        R.check(cell.count() == 1 and '2 élèves' in cell.inner_text() and cell.locator('.coach-count').inner_text() == '3', f'{t} Amis : cellule Mes élèves et pastille')
-        cell.click()
-        page.wait_for_selector('.coach-students-view')
+        page.wait_for_selector('.friends-view .coach-team .coach-student-row')
+        R.check(page.locator('.social-seg [data-seg="students"]').get_attribute('aria-pressed') == 'true', f'{t} coach : segment Élèves ouvert')
+        R.check(page.locator('[data-action="coach-open-students"]').count() == 0, f'{t} plus de cellule « Mes élèves » à toucher')
         row = page.locator('.coach-student-row', has_text='lea')
         rt = row.inner_text()
         R.check('Haut · ton programme · hier' in rt, f'{t} dernière séance « Haut · ton programme · hier » ({rt!r})')
@@ -448,7 +452,7 @@ def t_coach(bench, eng, dev, theme):
         codes = page.evaluate('coach.state.invites.map(i => i.code)')
         R.check(len(codes) == 1 and page.locator('.coach-invite').count() == 1, f'{t} code d\'invitation créé ({codes})')
         R.check(len(ccalls(page, 'coach_create_invite')) == 1, f'{t} double toucher : un seul code créé ({len(ccalls(page, "coach_create_invite"))})')
-        R.check('onglet Amis › Rejoindre un coach' in page.evaluate(f"coachInviteText('{codes[0]}')") if codes else False, f'{t} invitation : dit où aller')
+        R.check('onglet Social › Rejoindre un coach' in page.evaluate(f"coachInviteText('{codes[0]}')") if codes else False, f'{t} invitation : dit où aller')
         layout(page, t, 'Mes élèves avec code')
         shot(page, LOT, f'12-invitation-{t}')
         R.check(page.evaluate(f"coachInviteText('{codes[0]}')").count(codes[0]) == 1 and ' - ' not in page.evaluate(f"coachInviteText('{codes[0]}')"), f'{t} texte d\'invitation')
@@ -574,9 +578,9 @@ def t_coach(bench, eng, dev, theme):
         tap_dialog(page, "Retirer l'élève")
         page.wait_for_timeout(500)
         R.check('ne fait plus partie de tes élèves' in toast(page), f'{t} toast neutre ({toast(page)!r})')
-        R.check(page.evaluate(f"!__sb.co.links.some(l => l.student === '{ids['tom']}')") and page.evaluate('view') == 'coach-students', f'{t} élève retiré')
+        R.check(page.evaluate(f"!__sb.co.links.some(l => l.student === '{ids['tom']}')") and page.evaluate('view') == 'friends', f'{t} élève retiré : retour au segment Élèves')
         R.check(page.locator('.coach-student-row').count() == 1, f'{t} plus qu\'un élève')
-        R.check(page.locator('[data-action="coach-allow"]').count() == 1 and 'tom' in page.inner_text('.coach-students-view'), f'{t} liste « Retirés »')
+        R.check(page.locator('[data-action="coach-allow"]').count() == 1 and 'tom' in page.inner_text('.coach-team'), f'{t} liste « Retirés »')
         layout(page, t, 'Mes élèves avec retirés')
         shot(page, LOT, f'19-retires-{t}')
         page.click('[data-action="coach-allow"]')
@@ -711,14 +715,14 @@ def t_pseudo(bench, eng, dev, theme):
         # Rejoindre une seconde fois le même coach (coupure réseau) : renvoie le coach, sans erreur
         r = page.evaluate("coachJoin('K7M2QX9P')")
         R.check(r['ok'] is True and r['data']['username'] == 'max' and page.evaluate('__sb.co.links.length') == 1, f'{t} adhésion rejouée : sans erreur ni doublon')
-        # Retirée par le coach : une ligne le dit dans l'onglet Amis, une fois ; ses codes ne marchent plus
+        # Retirée par le coach : une ligne le dit dans l'onglet Social, une fois ; ses codes ne marchent plus
         page.evaluate("__sb.session.user.id = __sb.co.links[0].coach")
         page.evaluate("(me) => coachRpc('coach_remove_student', { student: me })", ids['me'])
         page.wait_for_timeout(200)
         page.evaluate("__sb.session.user.id = '%s'" % ids['me'])
         page.evaluate("routeTo('friends'); coachRefresh()")
         page.wait_for_timeout(500)
-        R.check('Tu ne suis plus max' in page.inner_text('#coachCell') and page.locator('[data-action="coach-join-start"]').count() == 1, f'{t} coach perdu : dit dans l\'onglet Amis')
+        R.check('Tu ne suis plus max' in page.inner_text('#coachCell') and page.locator('[data-action="coach-join-start"]').count() == 1, f'{t} coach perdu : dit dans l\'onglet Social')
         shot(page, LOT, f'18-coach-perdu-{t}')
         page.click('[data-action="coach-lost-ok"]')
         page.wait_for_timeout(200)

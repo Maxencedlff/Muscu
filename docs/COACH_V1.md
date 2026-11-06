@@ -41,7 +41,7 @@ Ses programmes perso : non en V1 (le coach envoie les siens).
 - Une séance faite avec un programme reçu a pour `programme` l'id local `u_c<8 caractères du coach>_<prog_id>` (voir plus bas) : le coach la reconnaît à son propre préfixe et l'affiche « Ton programme : <nom> ». Une séance faite avec le programme d'un ancien coach n'est pas attribuée au nouveau.
 - `coach_links.coach_seen_at timestamptz` : dernière fois que le coach a ouvert les séances de cet élève. `coach_state().students[]` ajoute `new_sessions` (séances terminées après `coach_seen_at`) et `last_session: { done_at, label, programme }`. `badge` côté coach = nombre total de `new_sessions`.
 - `coach_mark_seen(student uuid)` : pose `coach_seen_at = now()` (appelé à l'ouverture des séances de l'élève).
-- App : dans « Mes élèves », pastille du nombre de nouvelles séances et ligne « Push · ton programme · hier » ; dans les séances d'un élève, les séances faites avec un programme du coach portent la mention « Ton programme ». Badge de l'onglet Amis = social + coach (élève ou coach).
+- App : dans « Mes élèves », pastille du nombre de nouvelles séances et ligne « Push · ton programme · hier » ; dans les séances d'un élève, les séances faites avec un programme du coach portent la mention « Ton programme ». Badge de l'onglet Social (Coach pour un coach) = social + coach (élève ou coach).
 
 ## Partage avec le coach (ajout du 30/10, migration 20261031300000_partage_coach.sql)
 Décision de Maxence : l'élève choisit, donnée par donnée, ce que son coach voit en plus de ses séances. Tout est décoché par défaut, révocable à tout moment.
@@ -68,7 +68,7 @@ Demande de Maxence (feuille de route « Plus tard » : chat coach), choix pris p
 - texte seul (ni photo, ni vocal, ni pièce jointe), 2000 caractères par message ;
 - une conversation par lien coach ↔ élève, **seulement entre un coach et ses élèves liés** ; les élèves d'un même coach ne se voient jamais ;
 - **effacée en cascade** dès que le lien est rompu (l'élève quitte, le coach le retire, un compte est supprimé) : rejoindre de nouveau repart d'une conversation vide ;
-- pas de temps réel : relecture toutes les 15 s tant que la conversation est à l'écran, et avec l'état du coach (ouverture de l'app, premier plan, onglet Amis) ;
+- pas de temps réel : relecture toutes les 15 s tant que la conversation est à l'écran, et avec l'état du coach (ouverture de l'app, premier plan, onglet Social ou Coach) ;
 - pas de suppression ni de modification d'un message envoyé en V1 ; pas de liste de mots interdits (conversation privée entre deux personnes qui se sont choisies) ;
 - **« Signaler » garde une preuve** (corrigé le 31/10/2026 après relecture : avant, seul le profil était signalé et quitter effaçait tout) : `report_chat` copie les 50 derniers messages dans `chat_reports`, sans lien vers `coach_links`, puis l'alerte par e-mail part ; quitter ou retirer ensuite n'efface pas la copie ;
 - **consentement** : l'écran « Rejoindre » liste « Des messages » dans « Ce que X pourra faire » ; les élèves liés avant la messagerie voient une fois « Ton coach peut t'écrire » dans Mon coach (fermée, ou conversation ouverte : plus redite, `mdlf_chat_intro_seen` sur l'appareil) ;
@@ -92,7 +92,7 @@ Demande de Maxence (feuille de route « Plus tard » : chat coach), choix pris p
 | `report_chat(reason text, student uuid default null)` | `bigint` | Id de la ligne de `public.reports`. Voir « Signalement ». |
 
 ### App
-- **Entrées** : cellule « Messages » (dernier message, nombre de non-lus) dans Mon coach (élève) et sur la fiche d'un élève (coach) ; pastille bleue 💬 N par élève dans Mes élèves ; les non-lus s'ajoutent aux pastilles « Mon coach » / « Mes élèves » et au badge de l'onglet Amis (gardés sur l'appareil, `mdlf_chat`, pour un badge juste hors ligne).
+- **Entrées** : cellule « Messages » (dernier message, nombre de non-lus) dans Mon coach (élève) et sur la fiche d'un élève (coach) ; pastille bleue 💬 N par élève dans Mes élèves ; les non-lus s'ajoutent aux pastilles « Mon coach » / « Mes élèves » et au badge de l'onglet Social ou Coach (gardés sur l'appareil, `mdlf_chat`, pour un badge juste hors ligne).
 - **Conversation** (`coach-chat:@coach` ou `coach-chat:<id de l'élève>`) : bulles façon Messages (les miennes à droite à la teinte, celles de l'autre à gauche en gris), heure, séparateurs « Aujourd'hui », « Hier », date ; « Afficher les messages précédents » ; saisie collée au-dessus de la barre d'onglets ; menu ⋯ « Signaler » (annonce que les 50 derniers messages sont joints, puis que la copie est gardée même si le suivi s'arrête). Ouverte : marquée lue jusqu'au dernier message reçu ; relue toutes les 15 s et juste après chaque envoi (seulement les nouveaux, `after_id` = dernier message reçu du serveur, jamais mon propre envoi) ; pendant la frappe, seule la liste est redessinée. Lien rompu : « les messages ont été effacés ».
 - **Serveur sans messagerie** (fonction absente, PostgREST `PGRST202`) : la cellule « Messages » n'apparaît pas.
 - **privacy.html** : « Messages » dans Coach (FR et EN), avec la copie gardée 12 mois en cas de signalement.
@@ -153,8 +153,8 @@ Format de js/data/prog-share.js étendu, validé par l'app à la réception :
 
 ## App
 - **Réglages › Coach** (tout le monde) : « Rejoindre un coach » (saisie du code, puis aperçu du coach et de ce qu'il verra, puis « Accepter ») ; si suivi : le coach, « Quitter mon coach ».
-- **Onglet Amis** : en haut, une cellule « Mes élèves » (coach) ou « Mon coach » (élève), avec le badge. L'onglet reste utilisable sans avoir activé Amis pour cette partie.
+- **Onglet Social** (06/11/2026, docs/SOCIAL_V2.md) : « Mon coach » en tête (élève), avec le badge ; « Rejoindre un coach » en bas pour qui n'a pas de coach. Compte coach : l'onglet s'appelle « Coach » et s'ouvre sur le segment Élèves (Mes élèves), le segment Social garde ses amis. Utilisable sans avoir activé le social pour cette partie.
 - **Coach › Mes élèves** : liste (dernière séance, séances sur 7 jours), « Inviter un élève » (code + partage du texte d'invitation avec la feuille de partage), codes actifs ; un élève → ses séances (détail comme Historique, notes comprises) avec « Commenter », « Envoyer un programme » (choisir un de mes programmes, ajouter des consignes au programme et par exercice), « Retirer l'élève ».
 - **Élève** : programme reçu → carte « Nouveau programme de <coach> » (Mon coach et accueil) avec « Ajouter à mes programmes » ; consignes visibles dans Programme › Séance, dans la séance (sous le nom de l'exercice, repliable) ; commentaire du coach dans Historique › Séance.
-- **Badge** : sur l'onglet Amis = badge social + badge coach.
+- **Badge** : sur l'onglet Social (ou Coach) = badge social + badge coach.
 - Hors ligne : messages clairs, rien de perdu.

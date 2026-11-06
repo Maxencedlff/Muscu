@@ -2,7 +2,7 @@
 - planification : côté coach, Mes élèves › Planning (une ligne par élève), « Mini cut · sem. 3/6 » dans la liste,
   groupe Planification de la fiche, planning d'un élève (frise, en cours, à venir, terminées), feuille d'une phase
   (ajout, chevauchement refusé, modification, suppression) ; côté élève, « Ta phase » dans Mon coach sans la note du
-  coach, et la phase discrète sous le nom du coach dans l'onglet Amis ;
+  coach, et la phase discrète sous le nom du coach dans l'onglet Social ;
 - bilan : l'élève coche « Mensurations » (tout décoché par défaut, envoi, nouvelle mesure renvoyée, textes de
   Progrès › Mesures adaptés, décocher efface) ; le coach voit le poids (courbe) et les mensurations (liste, courbe) ;
 - serveur pas encore à jour (planification ou mensurations absentes, PGRST202) : rien ne s'affiche, aucune erreur ;
@@ -234,7 +234,7 @@ def t_planning_eleve(bench, eng, dev, theme):
         page.click('.tabbar [data-tab="friends"]')
         page.wait_for_timeout(500)
         sub = page.locator('[data-action="coach-open-mine"] .cell__sub').inner_text()
-        R.check('max · Mini cut, semaine 3 sur 6' in sub, f'{t} Amis : phase discrète sous le coach ({sub!r})')
+        R.check('max · Mini cut, semaine 3 sur 6' in sub, f'{t} Social : phase discrète sous le coach ({sub!r})')
         shot(page, LOT, f'7-amis-eleve-{t}')
         page.click('[data-action="coach-open-mine"]')
         page.wait_for_selector('.coach-mine-view .plan-card')
