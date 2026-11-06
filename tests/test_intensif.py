@@ -78,7 +78,7 @@ def t_seance(bench, eng, dev, theme):
         for si in range(3):
             page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); page.wait_for_timeout(150); skip_rest(page)
         page.click('[data-action="validate-set"][data-ei="0"][data-si="3"]'); page.wait_for_timeout(300)
-        R.check('enchaîne : drop set' in page.locator('.toast').inner_text(), f'{t} toast : enchaîne le drop set ({page.locator(".toast").inner_text()})')
+        R.check('Puis drop set' in page.locator('.toast').inner_text(), f'{t} toast « Puis drop set » ({page.locator(".toast").inner_text()})')
         R.check(page.evaluate("restActive") is False, f'{t} drop set : pas de repos avant le drop')
         R.check(page.locator('.session-set--subcur').count() == 1, f'{t} sous-ligne en cours mise en avant')
         # Reps du drop tapées, puis ✓ : charge proposée figée (plus « auto »)
@@ -173,12 +173,93 @@ def t_programme(bench, eng, dev, theme):
         R.check(sent == 'drop-last', f'{t} programme envoyé : intens gardé ({sent})')
         start(page, 'push')
         s = page.evaluate("activeSession.exercises[0].sets.at(-1)")
-        R.check(s.get('tech') == 'drop' and s['sub'][0]['prev'] == {'weight': '20', 'reps': '7'} and s['sub'][0]['weight'] == '20', f'{t} séance : drop posé, « Avant » 20 × 7 repris {s.get("sub")}')
+        sub_w = page.locator('[data-action="sub-weight"][data-ei="0"]').last.input_value()
+        R.check(s.get('tech') == 'drop' and s['sub'][0]['prev'] == {'weight': '20', 'reps': '7'} and sub_w == '20', f'{t} séance : drop posé, « Avant » 20 × 7, charge 20 reprise ({sub_w}) {s.get("sub")}')
         prev = page.locator('.ex-card[data-ei="0"] .session-set--sub .set-prev').inner_text()
         R.check('20' in prev and '7' in prev, f'{t} colonne Avant de la sous-ligne ({prev})')
         R.check(page.evaluate("activeSession.exercises[1].sets.some(s => s.tech)") is False, f'{t} autres exercices sans technique')
         center(page, '.ex-card[data-ei="0"] .tech')
         shot(page, LOT, f'{t}-06-seance-prescrite')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def in_view(page, sel):
+    return page.evaluate("""s => { const e = document.querySelector(s); if (!e) return false; const r = e.getBoundingClientRect();
+        return r.bottom > 60 && r.top < innerHeight - 60; }""", sel)
+
+
+def t_saute(bench, eng, dev, theme):
+    """Drop sauté : ni la carte ni l'écran ne s'y arrêtent ; rattrapé pendant un repos : le repos ne bouge pas."""
+    t = f'{dev}-{theme}'
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        start(page, 'legs')
+        page.evaluate("setTechOn(0, 0, 'drop')"); page.wait_for_timeout(150)
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
+        R.check(page.locator('.session-set--subcur').count() == 1, f'{t} drop en cours juste après sa série')
+        for si in (1, 2, 3):   # le drop est sauté : on enchaîne les séries
+            page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); page.wait_for_timeout(700)
+            R.check(page.locator('.session-set--subcur').count() == 0 and in_view(page, '.session-set--current'),
+                    f'{t} après la série {si + 1} : plus de drop mis en avant, série en cours visible')
+            skip_rest(page)
+        R.check(page.locator('.ex-card--collapsed[data-ei="0"]').count() == 1, f'{t} fin de l\'exercice : carte repliée malgré le drop sauté')
+        # Rattrapage pendant le repos de la presse
+        page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); page.wait_for_timeout(300)
+        end0 = page.evaluate('restActive && restEndTime')
+        page.click('.ex-card[data-ei="0"] [data-action="toggle-ex"]'); page.wait_for_timeout(200)
+        page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"]', '6')
+        page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); page.wait_for_timeout(300)
+        R.check(bool(end0) and page.evaluate('restActive && restEndTime') == end0, f'{t} rattrapage : repos en cours intact')
+        R.check(page.evaluate('activeSession.exercises[0].sets[0].sub[0].done') is True, f'{t} rattrapage : drop noté')
+        page.locator('.toast button', has_text='Annuler').last.click(); page.wait_for_timeout(300)
+        R.check(page.evaluate('restActive && restEndTime') == end0 and page.evaluate('activeSession.exercises[0].sets[0].sub[0].done') is False,
+                f'{t} Annuler : drop à refaire, repos d\'avant gardé')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_superset(bench, eng, dev, theme):
+    """Drop set dans un superset : drop juste après A1 (sans repos), puis l'exercice B du tour, repos en fin de tour."""
+    t = f'{dev}-{theme}'
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        start(page, 'push')
+        page.evaluate("activeSession.exercises[0].ss = 'a1'; activeSession.exercises[1].ss = 'a1'; ssNormalize(activeSession.exercises); persistSession(); render()")
+        page.evaluate("setTechOn(0, 0, 'drop')"); page.wait_for_timeout(200)
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
+        R.check('Puis drop set' in page.locator('.toast').inner_text() and page.evaluate('restActive') is False, f'{t} A1 : le drop suit, sans repos')
+        R.check(page.locator('.ss-card .session-set--subcur').count() == 1, f'{t} drop mis en avant dans le tour')
+        page.evaluate("document.querySelector('.ss-card .tech').scrollIntoView({ block: 'center' })")
+        shot(page, LOT, f'{t}-11-superset-drop')
+        page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"]', '6')
+        page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); page.wait_for_timeout(300)
+        name1 = page.evaluate('activeSession.exercises[1].name')
+        R.check(f'Enchaîne : {name1}' in page.locator('.toast').inner_text() and page.evaluate('restActive') is False, f'{t} après le drop : « Enchaîne : {name1} », pas de repos')
+        page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); page.wait_for_timeout(300)
+        R.check(page.evaluate('restActive') is True, f'{t} fin du tour : repos')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_record_force(bench, eng, dev, theme):
+    """Sous-série forgée 500 kg × 20 dans l'historique : records, meilleure série, 1RM, niveau de force inchangés."""
+    if theme != 'dark' or dev not in ('iPhone 13', 'Pixel 7'):
+        return
+    t = f'{dev}-{theme}'
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        r = page.evaluate("""() => {
+            const lift = strengthLiftOf('Squat barre');
+            const snap = () => { const h = data.history.find(h => h.category === 'legs'), ex = h.exercises[0];
+              return JSON.stringify([data.programmes.ppl.exercises.legs[0].pr, data.programmes.ppl.exercises.legs[0].est1RM,
+                entryRecords(h, data.history), bestSet(ex.sets, ex), exPoint(h, ex).best1RM, exPoint(h, ex).maxLoad,
+                lift ? liftBestE1rm(data.history, lift) : 'pas de repère']); };
+            const before = snap();
+            const h = data.history.find(h => h.category === 'legs');
+            h.exercises[0].sets.at(-1).tech = 'drop'; h.exercises[0].sets.at(-1).sub = [{ weight: '500', reps: '20' }];
+            recomputePRFromHistory(); dataVersion++;
+            return { before, after: snap(), vol: exPoint(h, h.exercises[0]).volume };
+        }""")
+        R.check(r['before'] == r['after'] and 'pas de repère' not in r['before'], f'{t} sous-série forgée : records, 1RM et niveau de force inchangés {r}')
+        R.check(r['vol'] > 10000, f'{t} mais elle compte dans le volume ({r["vol"]})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -254,4 +335,4 @@ def once_static(bench):
         R.check(f in html and '/' + f in sw, f'{f} chargé par index.html et mis en cache par sw.js')
 
 
-run_main(R, [t_seance, t_programme, t_ami_coach], once=[once_static])
+run_main(R, [t_seance, t_programme, t_saute, t_superset, t_record_force, t_ami_coach], once=[once_static])

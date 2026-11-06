@@ -16,10 +16,10 @@ function techSubAt(ds) {
 }
 
 // Numéro d'une série de travail à faire (ou rouverte) : bouton qui ouvre le choix d'une technique.
-// Même aspect que le numéro ; zone de toucher de 44 px (session.css)
+// Même aspect que le numéro, avec un point discret dessous (indice qu'il se touche) ; zone de 44 px (session.css)
 function setTechNumHtml(ex, ei, si) {
   const t = setTech(ex.sets[si]);
-  return `<button class="set-n set-tech-n num" data-action="tech-set" data-ei="${ei}" data-si="${si}" aria-label="${setSpokenName(ex, si)}, ${esc(ex.name)} : technique d'intensification${t ? `, ${TECHS[t].label}` : ''}">${setDisplayNo(ex.sets, si)}</button>`;
+  return `<button class="set-n set-tech-n num" data-action="tech-set" data-ei="${ei}" data-si="${si}" aria-label="${setSpokenName(ex, si)}, ${esc(ex.name)} : technique d'intensification${t ? `, ${TECHS[t].label}` : ''}">${setDisplayNo(ex.sets, si)}<span class="set-tech-n__dot" aria-hidden="true"></span></button>`;
 }
 
 // Sous la série : titre de la technique (+ une sous-série, retirer), puis une ligne par sous-série,
@@ -59,8 +59,10 @@ function subRowHtml(ex, ei, s, si, x, k) {
         <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
       </div>`;
   }
+  // Mise en avant : seulement la sous-série qui suit la dernière série validée (une sautée reste à remplir, en gris)
   const first = (s.sub || []).findIndex(y => !y.done);
-  const cur = s.done && first === k;
+  const c = techCurrentSub(activeSession.exercises, activeSession.lastDone);
+  const cur = c?.ei === ei && c.si === si && c.k === k;
   const wait = !s.done || first < k;
   const kg = subWeightKg(s, k, techOpts(ex));
   return `
@@ -131,26 +133,40 @@ function validateSub(ds) {
   const reps = num(String(x.reps ?? '').trim() || x.prev?.reps || '', 1, MEASURES.reps.max, true);
   if (reps === null) { flagInvalid(rIn, 'Note tes répétitions'); return; }
   const wasAuto = !!x.auto, wasReps = x.reps;
+  // Repos : seulement si la sous-série suit la dernière validation ; un rattrapage ou une correction
+  // laisse le repos en cours tel quel
+  const xs = activeSession.exercises;
+  const follows = techCurrentSub(xs, activeSession.lastDone)?.ei === ei && activeSession.lastDone.si === si;
+  const restBefore = restSnapshot();
   x.weight = wIn ? storeW(wIn.value) : subWeightKg(s, k, techOpts(ex));
   delete x.auto;
   x.reps = String(reps);
   x.done = true;
   haptic();
   afterPaint(validationSound);
-  const xs = activeSession.exercises;
   const more = s.sub.some(y => !y.done);
-  // Sous-série suivante : la courte pause de la technique ; dernière : le repos habituel de l'exercice
-  if (more) { if (T.pause) openRest(T.pause, false); else stopRest(); }
-  else if (xs.every(e => e.sets.every(st => st.done))) stopRest();
-  else openRest(exRest(xs[restEi(ei)]), false);
+  // Sous-série suivante : la courte pause de la technique ; dernière : comme après une série (validateSet),
+  // l'exercice suivant d'un superset s'enchaîne sans repos, sinon le repos habituel de l'exercice
+  const group = ssGroupOf(xs, ei);
+  const allDone = xs.every(e => e.sets.every(st => st.done));
+  const chain = follows && !more && !allDone && group ? ssChainAfter(xs, group, ei) : null;
+  if (follows) {
+    if (more) { if (T.pause) openRest(T.pause, false); else stopRest(); }
+    else if (allDone || chain) stopRest();
+    else openRest(exRest(xs[restEi(ei)]), false);
+  }
   document.activeElement?.blur?.();
   persistSession();
   render();
-  showToast(`${capitalize(T.subName)} ${k + 1} validé${T.fem ? 'e' : ''}`, { action: 'Annuler', duration: 4000, onAction: () => {
+  if (follows) scrollToCurrent();
+  const done = `${capitalize(T.subName)} ${k + 1} validé${T.fem ? 'e' : ''}`;
+  showToast(chain ? `Enchaîne : ${xs[chain.ei].name}` : done, { action: 'Annuler', duration: 4000, onAction: () => {
     if (!activeSession || !x.done) return;
     x.done = false; x.reps = wasReps;
     if (wasAuto) x.auto = true;
-    stopRest(); persistSession(); render();
+    // Le repos d'avant revient (rien n'a changé s'il s'agissait d'un rattrapage)
+    if (follows) { stopRest(); if (restBefore) resumeRest(restBefore); }
+    persistSession(); render();
   } });
 }
 

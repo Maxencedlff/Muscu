@@ -237,7 +237,7 @@ function exSubHtml(ex, ei, allDone) {
 function renderExerciseCard(ex, ei, cur) {
   const doneN   = ex.sets.filter(s => s.done).length;
   // Sous-série d'un drop set encore à faire (js/data/intensif.js) : la carte reste dépliée
-  const allDone = ex.sets.length > 0 && doneN === ex.sets.length && !techPending(ex);
+  const allDone = ex.sets.length > 0 && doneN === ex.sets.length && !techPending(activeSession.exercises, activeSession.lastDone, ei);
 
   if (allDone && !openDone.has(ex)) {
     const records = liveExerciseBadges(ex, livePrior(ex)).size;   // js/data/records.js
@@ -290,7 +290,7 @@ function renderGroupCard(members, cur, tags) {
   const exs     = members.map(ei => xs[ei]);
   const total   = exs.reduce((a, ex) => a + ex.sets.length, 0);
   const doneN   = exs.reduce((a, ex) => a + ex.sets.filter(s => s.done).length, 0);
-  const allDone = total > 0 && doneN === total && !exs.some(techPending);
+  const allDone = total > 0 && doneN === total && !members.some(ei => techPending(xs, activeSession.lastDone, ei));
   const head    = members[0], kind = ssKind(members.length);
 
   if (allDone && !openDone.has(exs[0])) {
@@ -570,9 +570,10 @@ function validateSet(ei, si, opts = {}) {
   // Superset : pas de repos avant la fin du tour, on enchaîne sur l'exercice suivant du groupe.
   // Le même exercice validé deux fois de suite (l'autre est pris) : repos comme d'habitude.
   const group   = ssGroupOf(xs, ei);
-  const chain   = !allDone && group && !sameAgain ? ssChainAfter(xs, group, ei) : null;
-  // Drop set, rest-pause, cluster (js/data/intensif.js) : la sous-série suit, sans repos ou après sa courte pause
-  const techPause = chain ? null : techPauseAfter(s);
+  // Drop set, rest-pause, cluster (js/data/intensif.js) : la sous-série suit, sans repos ou après sa courte
+  // pause ; dans un superset, l'exercice suivant du tour vient après elle (validateSub)
+  const techPause = techPauseAfter(s);
+  const chain   = techPause === null && !allDone && group && !sameAgain ? ssChainAfter(xs, group, ei) : null;
   if (allDone && techPause === null) { stopRest(); closeSessSheets(); }
   else if (chain) stopRest();
   else if (techPause !== null) { if (techPause) openRest(techPause, false, opts.restFrom); else stopRest(); }
@@ -582,7 +583,7 @@ function validateSet(ei, si, opts = {}) {
   render();
   scrollToCurrent();
   const doneTxt = `${setSpokenName(ex, si)} validé${isWarmupSet(s) ? '' : 'e'}`;
-  showToast(chain ? `Enchaîne : ${xs[chain.ei].name}` : techPause !== null ? `${doneTxt}, enchaîne : ${TECHS[setTech(s)].label.toLowerCase()}` : doneTxt,
+  showToast(chain ? `Enchaîne : ${xs[chain.ei].name}` : techPause !== null ? `Puis ${TECHS[setTech(s)].label.toLowerCase()}` : doneTxt,
     { action: 'Annuler', duration: 4000, onAction: () => undoValidate(undo) });
 }
 

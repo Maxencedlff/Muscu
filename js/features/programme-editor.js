@@ -368,6 +368,8 @@ registerActions({
     if (box) box.innerHTML = exMeasureBtns(exDraft);
     refreshExTempo();
     refreshExProgression();
+    const intens = $('#exIntens');   // technique : répétitions seulement (js/features/session-intensif.js)
+    if (intens) intens.innerHTML = exIntensHtml(exDraft);
     haptic();
   },
 });
@@ -529,8 +531,9 @@ registerActions({
       ex.rest   = rest;
       ex.repMax = repMax;
       if (repMin) ex.repMin = repMin; else delete ex.repMin;
-      if (exDraft?.intens) ex.intens = exDraft.intens; else delete ex.intens;   // js/data/intensif.js
       applyDraftMeasure(ex, exDraft);
+      // Technique (js/data/intensif.js) : gardée en répétitions seulement, mesure tout juste appliquée
+      if (exDraft?.intens && canTech(ex)) ex.intens = exDraft.intens; else delete ex.intens;
       applyDraftMuscles(ex, exDraft);
       if (exDraft?.ssLeave) editorSupersetLeave(editorCat, editExIdx);
     } else {
@@ -542,8 +545,9 @@ registerActions({
       ex.rest   = rest;
       ex.repMax = repMax;
       if (repMin) ex.repMin = repMin; else delete ex.repMin;
-      if (exDraft?.intens) ex.intens = exDraft.intens; else delete ex.intens;   // js/data/intensif.js
       applyDraftMeasure(ex, exDraft);
+      // Technique (js/data/intensif.js) : gardée en répétitions seulement, mesure tout juste appliquée
+      if (exDraft?.intens && canTech(ex)) ex.intens = exDraft.intens; else delete ex.intens;
       applyDraftMuscles(ex, exDraft);
       list.push(ex);
       recomputePRFromHistory();

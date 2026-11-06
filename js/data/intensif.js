@@ -89,10 +89,11 @@ function cleanIntens(v) { return typeof v === 'string' && Object.hasOwn(INTENS_P
 function intensLabel(v) { return INTENS_PLANS[cleanIntens(v)]?.label || ''; }
 
 // ── Séance en cours ──────────────────────────────────────────
-// Charge proposée (kg stockés, texte) pour la sous-série k de s : la précédente (la série pour k = 0),
-// allégée de 20 % pour un drop set et arrondie au matériel (round : unité affichée → unité affichée),
-// la même pour un rest-pause ou un cluster. Machine d'assistance : la même aide (alléger voudrait dire
-// plus d'aide, à régler soi-même). '' sans charge.
+// Charge proposée (kg stockés, texte) pour la sous-série k de s, tant que la personne n'y a pas touché :
+// la même pour un rest-pause ou un cluster ; pour un drop set, celle de la dernière fois si elle est plus
+// légère que la charge d'avant (la série pour k = 0, le drop précédent sinon), sinon cette charge allégée
+// de 20 % et arrondie au matériel (round : unité affichée → unité affichée). Machine d'assistance : la même
+// aide (alléger voudrait dire plus d'aide, à régler soi-même). '' sans charge.
 function subAutoKg(s, k, { round = v => v, assisted = false } = {}) {
   const t = setTech(s);
   if (!techHasSub(t)) return '';
@@ -100,21 +101,25 @@ function subAutoKg(s, k, { round = v => v, assisted = false } = {}) {
   const v = toUnitW(base);
   if (!(v > 0)) return '';
   if (TECHS[t].ratio === 1 || assisted) return storeW(String(v));
+  // La dernière fois, plus léger que la charge d'avant : repris (même charge que d'habitude) ; plus lourd
+  // ou égal (la série a baissé depuis) : ce ne serait plus un drop, la règle des 20 % reprend
+  const p = toUnitW(s.sub?.[k]?.prev?.weight);
+  if (p > 0 && p < v) return storeW(String(p));
   let w = Math.round(round(v * TECHS[t].ratio) * 100) / 100;
   if (!(w < v)) w = v;   // arrondi au matériel : jamais plus lourd que la charge d'avant
   return storeW(String(w));
 }
-// Charge d'une sous-série (kg stockés) : saisie ou celle de la dernière fois, sinon calculée (subAutoKg)
+// Charge d'une sous-série (kg stockés) : saisie, sinon proposée (subAutoKg)
 function subWeightKg(s, k, opts = {}) {
   const x = s?.sub?.[k];
   if (!x) return '';
   return x.auto ? subAutoKg(s, k, opts) : (x.weight ?? '');
 }
-// Nouvelle sous-série k de s : la même la dernière fois (même technique sur la série de même rang) donne
-// la charge et l'objectif ; sinon la charge suit la série (auto)
+// Nouvelle sous-série k de s, charge proposée (auto) ; la même la dernière fois (même technique sur la série
+// de même rang) donne l'objectif de reps et la charge habituelle d'un drop (subAutoKg)
 function newSubSet(s, k) {
   const p = s?.prev && s.prev.tech === s.tech && Array.isArray(s.prev.sub) ? cleanSubSet(s.prev.sub[k]) : null;
-  return p ? { weight: p.weight, reps: '', done: false, prev: p } : { weight: '', reps: '', done: false, auto: true, prev: null };
+  return { weight: '', reps: '', done: false, auto: true, prev: p };
 }
 // Pose la technique t sur la série s (séance en cours) ; t null la retire. Même technique : rien ne change.
 function applyTech(s, t) {
@@ -165,10 +170,17 @@ function techPauseAfter(s) {
   return TECHS[t].pause;
 }
 
-// Exercice dont une série validée attend encore une sous-série (sa carte ne se replie pas)
-function techPending(ex) {
-  return (ex?.sets || []).some(s => s.done && techHasSub(setTech(s)) && (s.sub || []).some(x => !x.done));
+// Sous-série à faire maintenant : celle de la série qu'on vient de valider (last : activeSession.lastDone,
+// { ei, si }), la première non faite ; null sinon. Une sous-série sautée (une autre série validée depuis)
+// n'est plus « à faire » : elle reste à remplir, mais ni la carte ni l'écran ne s'y arrêtent.
+function techCurrentSub(xs, last) {
+  const s = last ? xs?.[last.ei]?.sets?.[last.si] : null;
+  if (!s?.done || !techHasSub(setTech(s))) return null;
+  const k = (s.sub || []).findIndex(x => !x.done);
+  return k >= 0 ? { ei: last.ei, si: last.si, k } : null;
 }
+// L'exercice ei attend sa sous-série en cours (sa carte ne se replie pas)
+function techPending(xs, last, ei) { return techCurrentSub(xs, last)?.ei === ei; }
 
 // ── Textes ───────────────────────────────────────────────────
 // « 46 kg × 5 · 40 kg × 4 » : sous-séries d'une série (kind : loadKind de l'exercice)

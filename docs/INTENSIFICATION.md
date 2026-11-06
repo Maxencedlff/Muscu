@@ -45,7 +45,8 @@ Aucune n'a cluster, top set ni back-off : ce sont pourtant les mots des coachs, 
    lieu de prendre un drop de 46 kg pour une vraie série (record « reps à charge égale », pré-remplissage de
    la séance suivante faussés).
 3. **Volume** : les sous-séries comptent (`volumeSets`, utilisé par `setsVolume` et `exVolume` : bilan, historique,
-   récaps, partage, coach). C'est du travail réellement soulevé.
+   récaps, partage, coach), et leurs reps dans le total de reps (bilan, Progrès au poids du corps). C'est du travail
+   réellement soulevé.
 4. **Records** : une sous-série ne bat **aucun** record (charge, reps à charge égale, 1RM estimé, meilleure
    série). Elle se fait sans repos ou après 15 à 20 s, sur des muscles déjà fatigués : ce n'est pas un effort
    comparable à une série reposée, et compter « 5 reps à 46 kg » comme record à 46 kg récompenserait le
@@ -60,16 +61,22 @@ Aucune n'a cluster, top set ni back-off : ce sont pourtant les mots des coachs, 
 ## En séance
 
 - **Poser** : toucher le numéro d'une série à faire (ou rouverte) ouvre la feuille des cinq techniques (2 touchers,
-  comme Hevy). Menu ⋯ : « Dernière série en drop set » (2 touchers) et « Technique d'intensification… » (choix
-  de la série, utile pour une série déjà validée ou la série en cours d'une barre, où le numéro laisse la place
-  au bouton Disques). Retirer : × du titre, ou « Retirer la technique » ; « Annuler » dans le toast.
+  comme Hevy). Un petit point sous le numéro l'indique, discret, en clair comme en sombre. Menu ⋯ : « Dernière série en drop set » (2 touchers) et « Technique d'intensification… » (choix
+  de la série) : c'est le chemin pour une série déjà validée et pour la série en cours d'un exercice à barre, au
+  tempo ou en superset, où le numéro laisse la place à Disques, ▶ ou A1. Le guide le dit ainsi. Retirer : × du titre, ou « Retirer la technique » ; « Annuler » dans le toast.
 - **Sous-ligne** : remplie comme une série. Charge pré-remplie : drop set 80 % de la série d'avant (ou du drop
   d'avant) arrondi au matériel (`roundLoad`, js/data/plates.js : barre + paires de disques, sinon pas de 2,5 kg
   ou 5 lb), jamais plus lourd ; rest-pause et cluster : la même charge. Tant qu'on n'y touche pas, elle suit la
-  charge de la série (`auto`). La dernière fois, même technique sur la série de même rang : sa charge est reprise
-  et ses reps sont l'objectif en gris (« Avant » de la sous-ligne). Sans dernière fois : reps à taper.
+  charge de la série (`auto`). La dernière fois, même technique sur la série de même rang : ses reps sont l'objectif
+  en gris (« Avant » de la sous-ligne), et sa charge est reprise pour un drop seulement si elle est plus légère que
+  la charge d'avant (sinon la règle des 80 % : un drop n'est jamais plus lourd). Sans dernière fois : reps à taper.
 - **Repos** : après la série, pas de repos avant un drop (comme Hevy) ; 15 s avant une reprise de rest-pause,
-  20 s entre deux blocs de cluster (barre de repos réduite) ; après la dernière sous-série, le repos habituel.
+  20 s entre deux blocs de cluster (barre de repos réduite) ; après la dernière sous-série, le repos habituel, ou
+  dans un superset l'exercice suivant du tour (« Enchaîne », sans repos, comme après une série). Le minuteur ne
+  bouge que si la sous-série suit la dernière série validée : rattraper un drop oublié ou le corriger pendant un
+  autre repos le laisse tel quel, et « Annuler » rend le repos d'avant.
+- **Sous-série sautée** : seule la sous-série de la série qu'on vient de valider est mise en avant, retient la carte
+  dépliée et attire l'écran ; dès qu'une autre série est validée, elle reste à remplir (✓ gris) sans rien retenir.
 - Une sous-série se valide après sa série et dans l'ordre ; toucher une sous-série validée la rouvre. « + drop »
   en ajoute une (6 au plus). Rien au pointerdown ; zones de toucher de 44 px ; iOS : un seul toucher.
 - **Enregistrement** : seules les sous-séries validées sont gardées ; un drop set sans drop validé perd sa marque.

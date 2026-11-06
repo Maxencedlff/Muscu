@@ -52,7 +52,7 @@ function buildSummary(entry) {
     duration: entry.duration, sets: entry.exercises.reduce((a, e) => a + workSets(e.sets).length, 0),   // séries de travail
     volume: cur, delta: prevH ? cur - prev : null, records, rows,
     // Sans charge comptée (poids du corps inconnu, gainage…) : le total de reps remplace « 0 kg »
-    reps: entry.exercises.filter(ex => measureOf(ex) === 'reps').reduce((a, ex) => a + workSets(ex.sets).reduce((b, s) => b + (parseInt(s.reps) || 0), 0), 0),
+    reps: entry.exercises.filter(ex => measureOf(ex) === 'reps').reduce((a, ex) => a + volumeSets(ex.sets).reduce((b, s) => b + (parseInt(s.reps) || 0), 0), 0),   // sous-séries comprises
     needsBodyKg: !entryBodyKg(entry) && entry.exercises.some(ex => bodyShare(ex) > 0),
   };
 }

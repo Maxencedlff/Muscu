@@ -46,9 +46,27 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(run(`applyTech({ warmup: true }, 'drop')`), false);
     // Dernière fois : même technique sur la même série → charge et objectif repris
     const p = run(`(() => { const s = { weight: '60', prev: { weight: '60', reps: '12', tech: 'drop', sub: [{ weight: '46', reps: '5' }] } }; applyTech(s, 'drop'); addSubSet(s); return s.sub; })()`);
-    sameJSON(p[0], { weight: '46', reps: '', done: false, prev: { weight: '46', reps: '5' } });
-    assert.equal(p[1].auto, true, '2e drop jamais fait : charge automatique');
+    sameJSON(p[0], { weight: '', reps: '', done: false, auto: true, prev: { weight: '46', reps: '5' } });
+    assert.equal(p[1].prev, null, '2e drop jamais fait : pas de dernière fois');
+    // Charge proposée : celle de la dernière fois si plus légère que la série, sinon 80 % (jamais un drop plus lourd)
+    const drop = (w, prevW) => run(`subAutoKg({ weight: '${w}', tech: 'drop', sub: [{ auto: true, prev: { weight: '${prevW}', reps: '5' } }] }, 0)`);
+    assert.equal(drop('60', '46'), '46', 'dernière fois 46 sous 60 : repris');
+    assert.equal(drop('50', '50'), '40', 'dernière fois 50 = série 50 : 80 %');
+    assert.equal(drop('40', '46'), '32', 'série descendue à 40 : 46 serait plus lourd, 80 %');
+    assert.equal(run(`subAutoKg({ weight: '80', tech: 'rp', sub: [{ auto: true, prev: { weight: '60', reps: '3' } }] }, 0)`), '80', 'rest-pause : toujours la charge de la série');
     assert.equal(run(`(() => { const s = { tech: 'drop', sub: [] }; for (let i = 0; i < 9; i++) addSubSet(s); return s.sub.length; })()`), 6, '6 au plus');
+  });
+
+  test('intensif : sous-série en cours seulement après sa série (une sautée ne retient ni la carte ni l\'écran)', () => {
+    const xs = [{ name: 'Squat barre', sets: [
+      { weight: '60', reps: '10', done: true, tech: 'drop', sub: [{ done: true }, { done: false }] },
+      { weight: '60', reps: '10', done: true },
+      { weight: '60', reps: '10', done: false }] }];
+    sameJSON(run(`techCurrentSub(${S(xs)}, { ei: 0, si: 0 })`), { ei: 0, si: 0, k: 1 });
+    assert.equal(run(`techCurrentSub(${S(xs)}, { ei: 0, si: 1 })`), null, 'autre série validée depuis : drop sauté');
+    assert.equal(run(`techCurrentSub(${S(xs)}, null)`), null);
+    assert.equal(run(`techPending(${S(xs)}, { ei: 0, si: 0 }, 0)`), true);
+    assert.equal(run(`techPending(${S(xs)}, { ei: 0, si: 1 }, 0)`), false);
   });
 
   test('intensif : pause après la série (drop 0, rest-pause 15, cluster 20, rien sinon)', () => {
