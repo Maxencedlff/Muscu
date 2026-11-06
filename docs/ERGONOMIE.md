@@ -16,8 +16,9 @@ Une même icône ou un même mot mène toujours à la même chose, partout.
 | `⋯` | Menu des actions de l'objet à côté | Exercice en séance, conversation |
 | `ⓘ` | Comment faire (explication) | Après un nom d'exercice |
 | Chevron `›` | Ouvre l'écran détaillé de la ligne | Fin de ligne |
-| `✕` | Fermer ou écarter (carte, feuille, suggestion) | Jamais pour supprimer une donnée |
-| Partager (carré et flèche) | Partager vers une autre app | |
+| `✕` | Fermer, écarter ou retirer d'une liste en cours (carte, feuille, suggestion, technique d'une série) | Jamais pour effacer une séance ou une donnée enregistrée (« Supprimer », en rouge) |
+| Partager (carré et flèche) | Envoyer à quelqu'un : une autre app (programme, récap, code coach) ou un élève (programme, plan diète) | Fiche d'un élève : « Envoyer un programme » et « Envoyer un plan diète » ont la même icône |
+| Coche | Choisir ou valider (série, programme actif, « Suivre ce plan ») | |
 
 Exception admise : l'avatar *dans une ligne qui porte son libellé* (ligne « Compte et sauvegarde » des
 Réglages, auteur d'un commentaire) illustre la ligne ; c'est le texte qui dit où elle mène.
