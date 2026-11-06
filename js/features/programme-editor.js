@@ -24,8 +24,8 @@ function exDraftFor(route) {
   const i  = editExIdxOf(route);
   const ex = i === null ? null : (prog().exercises[editorCatOf(route)] || [])[i];
   exDraft = ex
-    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, repMin: ex.repMin ?? null, measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false, ssLeave: false }
-    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, repMin: null, measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null, musclesReset: false };
+    ? { route, name: ex.name, sets: ex.sets, rest: ex.rest ?? null, target: ex.target ?? null, repMax: ex.repMax ?? 12, repMin: ex.repMin ?? null, measure: ex.measure ?? null, tempo: ex.tempo ?? null, tempoGuide: ex.tempoGuide === true, tempoPrep: tempoPrepOf(ex), muscles: draftMuscles(ex), musclesSecondary: draftSecondary(ex), musclesReset: false, ssLeave: false, grip: cleanGrip(ex.grip) }
+    : { route, name: '', sets: 3, rest: null, target: null, repMax: 12, repMin: null, measure: null, tempo: null, tempoGuide: false, tempoPrep: TEMPO_PREP_DEFAULT, muscles: null, musclesSecondary: null, musclesReset: false, grip: null };
   exDraft._init = exDraftSnapshot(exDraft);
   return exDraft;
 }
@@ -56,6 +56,7 @@ function renderEditor() {
           <span class="cell__body">
             <span class="cell__title ed-name">${tag}${esc(ex.name)}</span>
             ${exMusclesSubHtml(ex)}
+            ${gripSubHtml(ex)}
             <span class="cell__sub">${sub}</span>
             ${coachExConsigneSub(data.activeProgramme, ex)}
           </span>
@@ -68,6 +69,7 @@ function renderEditor() {
         <span class="cell__body">
           <span class="cell__title ed-name">${tag}${esc(ex.name)}</span>
           ${exMusclesSubHtml(ex)}
+          ${gripSubHtml(ex)}
           <span class="cell__sub">${sub}</span>
           ${coachExConsigneSub(data.activeProgramme, ex)}
         </span>
@@ -301,6 +303,7 @@ function renderExEdit() {
           </div>
         </div>
         <div class="group-foot">Durée pour les maintiens (gainage, chaise), cardio pour la distance et les minutes. Choisie d'après le nom si tu n'y touches pas.</div>
+        <div id="exGrip">${exGripHtml(d)}</div>
         <div id="exTempo">${exTempoHtml(d)}</div>
         <div id="exProg">${exProgressionHtml(d)}</div>
         ${isEdit ? exSupersetHtml(editExIdx, d) : ''}
@@ -341,6 +344,7 @@ document.addEventListener('input', e => {
   const alias = $('#exAlias');
   if (alias) alias.innerHTML = aliasNoteHtml(exDraft.name, 'group-foot ex-alias');
   refreshExEditMuscles();
+  refreshExGrip();   // la prise proposée dépend du nom (js/features/grip-ui.js)
 });
 
 // ── Actions ─────────────────────────────────────────────────
@@ -366,6 +370,7 @@ registerActions({
     if (box) box.innerHTML = exMeasureBtns(exDraft);
     refreshExTempo();
     refreshExProgression();
+    refreshExGrip();
     haptic();
   },
 });
@@ -529,6 +534,7 @@ registerActions({
       if (repMin) ex.repMin = repMin; else delete ex.repMin;
       applyDraftMeasure(ex, exDraft);
       applyDraftMuscles(ex, exDraft);
+      applyDraftGrip(ex, exDraft);
       if (exDraft?.ssLeave) editorSupersetLeave(editorCat, editExIdx);
     } else {
       const ex = makeExercise(name, sets);
@@ -541,6 +547,7 @@ registerActions({
       if (repMin) ex.repMin = repMin; else delete ex.repMin;
       applyDraftMeasure(ex, exDraft);
       applyDraftMuscles(ex, exDraft);
+      applyDraftGrip(ex, exDraft);
       list.push(ex);
       recomputePRFromHistory();
     }

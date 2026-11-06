@@ -100,7 +100,7 @@ function cleanCoachSessionRow(r) {
 }
 
 // Programme envoyé, tel que l'app l'accepte : { name, consigne?, sessions: [{ key, label, color,
-// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, ss?, consigne? }] }] }, null s'il est
+// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, ss?, grip?, consigne? }] }] }, null s'il est
 // inutilisable. Mêmes bornes que la saisie (sanitizeData) ; clés de séance de SESSION_CAT_RE, uniques.
 function cleanSentProgramme(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -127,6 +127,9 @@ function cleanSentProgramme(raw) {
           const rn = e.repMin == null ? null : num(e.repMin, 1, 99, true);
           if (rn !== null && rn < (o.repMax ?? 12)) o.repMin = rn;
           if (ssId(e)) o.ss = e.ss;
+          // Prise (js/data/grips.js) : seulement ce qui a du sens pour ce nom
+          const g = cleanGrip(e.grip, o);
+          if (g) o.grip = g;
           const c = cleanConsigne(e.consigne);
           if (c) o.consigne = c;
           return o;
@@ -287,6 +290,7 @@ function programmeToSent(d, progId, over = null) {
         if (e.repMax) o.repMax = e.repMax;
         if (e.repMin) o.repMin = e.repMin;
         if (ssId(e)) o.ss = e.ss;
+        if (cleanGrip(e.grip)) o.grip = cleanGrip(e.grip);
         const c = cleanConsigne(over?.ex?.[s.key]?.[e.id] !== undefined ? over.ex[s.key][e.id] : e.consigne);
         if (c) o.consigne = c;
         return o;
@@ -325,7 +329,7 @@ function coachProgrammeStatus(d, item, coachId = null) {
 // Exercices : celui de même nom DANS LA MÊME séance garde son identifiant et ses réglages propres à
 // l'élève (records, muscles choisis, objectif) ; un exercice qui change de séance repart d'un nouvel
 // identifiant (les records se calculent par séance du programme). Ce que le coach décide (séries,
-// repos, mesure, tempo, fourchette, superset, consigne) est remplacé.
+// repos, mesure, tempo, fourchette, superset, prise, consigne) est remplacé.
 // Séance retirée par le coach : gardée avec retired: true (nom et couleur des séances déjà faites dans
 // l'historique, rawLabel), mais absente de toutes les listes (sessionKeys). Renvoie l'identifiant local.
 function importCoachProgramme(d, item, coachPerson) {
@@ -343,7 +347,7 @@ function importCoachProgramme(d, item, coachPerson) {
     if (hit) used.add(hit.ex);
     return hit?.ex || null;
   };
-  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'ss', 'consigne'];
+  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'ss', 'grip', 'consigne'];
   const sessions = {}, exercises = {};
   sent.sessions.forEach(s => {
     sessions[s.key] = { label: s.label, icon: '', desc: prevUp?.sessions?.[s.key]?.desc || '', color: s.color };
