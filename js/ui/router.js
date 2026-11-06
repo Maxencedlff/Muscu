@@ -216,6 +216,7 @@ function render() { paint(); }
 //                       lisent eux-mêmes : editorCatOf, editExIdxOf)
 //   mount({ first })  : après chaque dessin (first : l'écran vient d'être ouvert)
 //   enter({ dir })    : à chaque affichage par la navigation ; leave() : quand on le quitte
+//   shown()           : juste après le dessin de la navigation (défilement voulu, au lieu du haut de page)
 const SCREENS = new Map([
   ['dashboard',      { render: () => renderDashboard(), mount: () => { mountHealthWorkouts('dashboard', render); mountSleep(); } }],   // Santé : récupération, sommeil
   ['programmes',     { render: () => renderProgrammes() }],
@@ -274,7 +275,8 @@ function show(dir = 'none') {
   shownName = name;
   screenOf(name).enter?.({ dir });
 
-  const update = () => { paint(target); startTicker(); };
+  // shown() : après le dessin de la navigation (pas après un redessin lancé par enter), ex. défiler jusqu'à une partie
+  const update = () => { paint(target); screenOf(name).shown?.(); startTicker(); };
   const animate = dir !== 'none' && !skipTransition && !transitionsOff() && !reduceMotion.matches && typeof document.startViewTransition === 'function' && !document.hidden;
   if (!animate) { update(); return; }
   document.documentElement.dataset.navDir = dir;

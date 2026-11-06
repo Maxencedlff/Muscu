@@ -179,16 +179,21 @@
 #coachJoin .coach-cell__icon { color: var(--label2); }
 
 /* Mes élèves, « Cette semaine » : trois chiffres, couleur seulement s'ils comptent (vert ↑, orange, teinte) */
-.team-week { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.team-week { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 20px; }
 .team-week__tile {
   min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 12px 12px 10px;
   border-radius: var(--r-md); background: var(--cell);
 }
 .team-week__val { font-size: var(--fs-title2); font-weight: 700; line-height: 1.2; color: var(--label2); white-space: nowrap; }
-.team-week__lbl { font-size: var(--fs-footnote); line-height: 1.25; color: var(--label2); overflow-wrap: anywhere; }
+.team-week__lbl { font-size: var(--fs-footnote); line-height: 1.25; color: var(--label2); overflow-wrap: break-word; }
 .team-week__tile--up .team-week__val { color: var(--green-text); }
 .team-week__tile--warn .team-week__val { color: var(--orange-text); }
 .team-week__tile--new .team-week__val { color: var(--label); }
+/* 320 pt : « nouveautés » entier sur sa ligne (jamais coupé au milieu du mot) */
+@media (max-width: 340px) {
+  .team-week__tile { padding: 10px 8px 8px; }
+  .team-week__lbl { font-size: var(--fs-caption); }
+}
 /* Segments Élèves | Social de l'onglet Coach : sous le grand titre, pleine largeur */
 .social-seg { margin: 2px 0 16px; }
 /* Programmes envoyés à un élève : état à droite */

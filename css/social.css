@@ -126,8 +126,12 @@
   color: var(--label2); font: inherit; font-size: var(--fs-subhead); font-weight: 600;
 }
 .feed-card__comment:active { opacity: .6; }
-/* iPhone SE : « Commenter » devient l'icône seule (le nom reste pour VoiceOver) */
-@media (max-width: 340px) { .feed-card__comment span { display: none; } }
+/* 320 pt (iPhone SE 1re génération) : chiffres un cran plus petits, « Commenter » en icône seule (nom gardé pour VoiceOver) */
+@media (max-width: 340px) {
+  .feed-card__stat-val { font-size: var(--fs-body); }
+  .feed-card__stat + .feed-card__stat { padding-left: 8px; }
+  .feed-card__comment span { display: none; }
+}
 
 /* Réaction (js/features/reactions-ui.js) : bouton sobre, emoji seul (👏 ou ma réaction), plein à la teinte une fois donnée.
    Appui long : pas de loupe ni de menu d'iOS, pas de sélection de texte. */

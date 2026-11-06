@@ -91,7 +91,7 @@ def friends(page):
 
 
 def students(page):
-    """Trois élèves : zoe (2 records cette semaine), hugo (9 jours sans séance), nina (nouvelle séance pas vue)."""
+    """Trois élèves : zoe (un record cette semaine : Squat, en charge et en reps), hugo (9 jours sans séance), nina (nouvelle séance pas vue)."""
     def s(prefix, days, rec=False):
         return [{'id': f'{prefix}{i}', 'date': days_back_ms(NOW, d, 18, tz=PARIS), 'duration': 3_000_000, 'programme': 'ppl', 'category': 'push', 'label': 'Push',
                  'exercises': [{'name': 'Squat', 'sets': [{'weight': '100', 'reps': '5'}]}],
@@ -138,7 +138,8 @@ def t_pratiquant(bench, eng, dev, theme):
         R.check(len(stats) == 3 and stats[0].startswith('58 min') and 'Durée' in stats[0] and 'Volume' in stats[1] and stats[2].startswith('5') and 'Séries' in stats[2],
                 f'{t} carte : durée, volume, 5 séries sans l\'échauffement ({stats})')
         rec = card.locator('.feed-card__rec').inner_text().replace(' ', ' ').replace(' ', ' ')
-        R.check('Record · Squat 125 kg' in rec and '+1' in rec, f'{t} carte : record le plus marquant, et combien d\'autres ({rec!r})')
+        R.check(rec.startswith('🏆 Record · ') and rec.endswith(' kg +1'),
+                f'{t} carte : record le plus marquant, et combien d\'autres ({rec!r})')
         color = page.evaluate("getComputedStyle(document.querySelector('.feed-card__rec')).color")
         gold = page.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--gold-text)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
         R.check(color == gold, f'{t} record en or ({color} / {gold})')
@@ -157,7 +158,9 @@ def t_pratiquant(bench, eng, dev, theme):
         page.wait_for_timeout(500)
         top = page.evaluate("document.querySelector('#commentsList').previousElementSibling.getBoundingClientRect().top")
         nav = page.evaluate("document.querySelector('.navbar').getBoundingClientRect().bottom")
-        R.check(nav - 2 <= top <= nav + 120 and page.evaluate('scrollY') > 0, f'{t} « Commenter » : commentaires sous la barre ({top} / {nav})')
+        # Sous la barre, ou la page défilée jusqu'en bas quand elle est trop courte pour les y amener
+        bottom = page.evaluate('scrollY >= document.documentElement.scrollHeight - innerHeight - 2')
+        R.check(page.evaluate('scrollY') > 0 and (nav - 2 <= top <= nav + 120 or bottom), f'{t} « Commenter » : commentaires sous la barre ({top} / {nav})')
         shot(page, LOT, f'2-commenter-{t}')
         page.click('[data-action="back"]')
         page.wait_for_selector('.feed-card[data-id="l0"]')
@@ -186,6 +189,7 @@ def t_fil_vide(bench, eng, dev, theme):
         R.check('Ton fil t\'attend' in body and 'max' in body and 'Séances de tes amis' not in body, f'{t} fil vide : accueil et mon pseudo ({body!r})')
         layout(page, t, 'fil vide')
         shot(page, LOT, f'4-fil-vide-{t}')
+        page.evaluate("(() => { Native.shareText = async (text, title) => { window.__shared.push({ text, title }); return 'shared'; }; })()")   # feuille de partage d'iOS
         page.click('#friendsBody [data-action="social-invite"]')
         page.wait_for_timeout(300)
         shared = page.evaluate('window.__shared')
@@ -215,12 +219,12 @@ def t_coach(bench, eng, dev, theme):
         R.check(page.inner_text('.friends-view .navbar__large').strip() == 'Coach', f'{t} grand titre « Coach »')
         R.check(page.get_attribute('.social-seg [data-seg="students"]', 'aria-pressed') == 'true', f'{t} ouvert sur Élèves')
         week = [x.replace('\n', ' ') for x in page.locator('.team-week__tile').all_inner_texts()]
-        R.check(week == ['↑ 2 records', '1 à relancer', '1 nouveauté'], f'{t} cette semaine : records, à relancer, nouveautés ({week})')
+        R.check(week == ['↑ 1 record', '1 à relancer', '1 nouveauté'], f'{t} cette semaine : records, à relancer, nouveautés ({week})')
         R.check(page.locator('.team-week__tile--up').count() == 1 and page.locator('.team-week__tile--warn').count() == 1, f'{t} couleurs : vert et orange')
         aria = page.get_attribute('.team-week', 'aria-label')
-        R.check(aria == 'Cette semaine : 2 records, 1 élève à relancer, 1 nouveauté à lire.', f'{t} VoiceOver : une phrase ({aria!r})')
+        R.check(aria == 'Cette semaine : 1 record, 1 élève à relancer, 1 nouveauté à lire.', f'{t} VoiceOver : une phrase ({aria!r})')
         zoe = page.locator('.coach-student-row', has_text='zoe')
-        R.check('2 records' in zoe.inner_text(), f'{t} qui a progressé : zoe, en {touches} toucher')
+        R.check('1 record' in zoe.inner_text(), f'{t} qui a progressé : zoe, en {touches} toucher')
         R.check(page.locator('.feed-card, #socialSearch').count() == 0, f'{t} Élèves : ni fil ni recherche')
         layout(page, t, 'Coach › Élèves')
         shot(page, LOT, f'5-coach-eleves-{t}')

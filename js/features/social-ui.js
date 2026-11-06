@@ -55,12 +55,13 @@ function offlineNote(what) {
   return `<div class="social-note" role="status"><p>${what}</p><button class="social-note__btn" data-action="social-retry">Réessayer</button></div>`;
 }
 // Record mis en avant sur la carte : le plus marquant de ceux que son app a notés (jamais recalculé ici :
-// le fil ne contient qu'une partie de ses séances), en or, et combien d'autres. « 🏆 Record · Squat 125 kg +1 »
+// le fil ne contient qu'une partie de ses séances), en or, et combien d'autres (« +1 », lu « plus 1 »).
+// « 🏆 Record · Squat 125 kg +1 »
 function feedRecordHtml(s) {
   const r = topNotedRecord(s.records);
   if (!r) return '';
   const more = (s.records?.length || 0) - 1;
-  return `<span class="feed-card__rec"><span aria-hidden="true">🏆 </span>Record · <span class="num">${esc(notedFeedTxt(r))}</span>${more > 0 ? `<span class="feed-card__rec-more num" aria-hidden="true"> +${more}</span><span class="sr-text"> et ${plural(more, 'autre record', 'autres records')}</span>` : ''}</span>`;
+  return `<span class="feed-card__rec"><span aria-hidden="true">🏆 </span>Record · <span class="num">${esc(notedFeedTxt(r))}</span>${more > 0 ? `<span class="feed-card__rec-more num"> +${more}</span>` : ''}</span>`;
 }
 // Les trois chiffres de la carte : durée, volume, séries (sans l'échauffement) ; un chiffre absent est omis
 function feedStatsHtml(s) {
@@ -387,18 +388,28 @@ function mySessionWhoHtml(row) {
         <div class="group-title">Réactions${row.bravos ? ` (${row.bravos})` : ''}</div>
         <div class="group who-list">${list || '<div class="cell"><span class="cell__sub social-empty">Aucune réaction pour l\'instant.</span></div>'}</div>`;
 }
+const COMMENTS_ANCHOR_MS = 2000;
+let commentsAnchorUntil = 0;
+function scrollToComments() {
+  const title = $('#commentsList')?.previousElementSibling;
+  if (title) window.scrollTo(0, Math.max(0, title.getBoundingClientRect().top + window.scrollY - ($('.navbar')?.offsetHeight || 0) - 8));
+}
+['touchstart', 'wheel', 'keydown'].forEach(t => window.addEventListener(t, () => { commentsAnchorUntil = 0; }, { passive: true }));
 SCREENS.set('social-session', {
   render: (owner, id) => renderSocialSession(owner, id),
   // Séance d'un ami : ses séances visibles (fil de son profil) chargées pour savoir si un record est
   // vraiment battu. La mienne : qui a réagi. Les deux : commentaires (js/features/comments-ui.js).
-  mount: () => {
-    const el = $('#commentInput');
-    if (el) fitCommentInput(el);
-    // Ouverte par « Commenter » : les commentaires sous la barre de navigation
-    const title = socialScrollComments && $('#commentsList')?.previousElementSibling;
+  // Ouverte par « Commenter » : les commentaires sous la barre de navigation, et ils y restent pendant que la
+  // séance finit de se charger (record, réactions, commentaires : la page grandit au-dessus), jusqu'au
+  // premier geste de défilement
+  mount: () => { const el = $('#commentInput'); if (el) fitCommentInput(el); if (Date.now() < commentsAnchorUntil) scrollToComments(); },
+  shown: () => {
+    if (!socialScrollComments) return;
     socialScrollComments = false;
-    if (title) window.scrollTo(0, Math.max(0, title.getBoundingClientRect().top + window.scrollY - ($('.navbar')?.offsetHeight || 0) - 8));
+    commentsAnchorUntil = Date.now() + COMMENTS_ANCHOR_MS;
+    scrollToComments();
   },
+  leave: () => { commentsAnchorUntil = 0; },
   enter: () => {
     const [owner, id] = routeParams(currentRoute());
     if (owner && id) commentsLoad(owner, id);
