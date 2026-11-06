@@ -66,7 +66,7 @@ jobs:
   e2e:
     # ubuntu-24.04 fixé : sur ubuntu-26.04 (ubuntu-latest depuis le 01/11/2026), les navigateurs de Playwright 1.62 ne démarrent pas
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 40   # 153 processus en ~25 min au 06/11 : marge pour la suite qui grandit
     env:
       PLAYWRIGHT_VERSION: 1.62.0
     steps:
