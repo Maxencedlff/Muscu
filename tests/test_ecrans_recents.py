@@ -16,6 +16,7 @@ suite par défaut reste aussi longue). Captures : $PPL_SCRATCH/shots/lotecrans_r
 Lancer : PPL_URL=http://localhost:8783/ python3 test_ecrans_recents.py
          PPL_DEV="iPhone Duo paysage" PPL_THEME=dark python3 test_ecrans_recents.py
 """
+import contextlib
 import json
 import os
 import sys
@@ -199,6 +200,10 @@ LAYOUT_JS = r"""({ sat, sab, maxw, cible }) => {
 }"""
 
 
+FIN_ANIMATIONS_JS = """() => document.getAnimations().every(a => a.playState !== 'running'
+    || (a.effect && a.effect.getTiming().iterations === Infinity))"""
+
+
 def audit(page, t, ecran, insets):
     """Contrôles de mise en page de l'écran affiché, une vérification par règle."""
     sat, _, sab, _ = insets
@@ -243,6 +248,10 @@ def t_ecrans(bench, eng, dev, theme):
                 if attendre:
                     page.wait_for_selector(attendre, state='visible', timeout=4000)
                 page.wait_for_timeout(350)
+                # Feuille encore en train de monter (sous charge, plus de 350 ms) : on attend la fin des
+                # animations finies, sinon elle « sort par le bas » à la mesure
+                with contextlib.suppress(Exception):
+                    page.wait_for_function(FIN_ANIMATIONS_JS, timeout=3000)
             except Exception as e:
                 R.check(False, f'{t} {nom} : écran inaccessible ({str(e).splitlines()[0][:120]})')
                 shot(page, LOT, f'{t}-{n[0]:02d}-{nom}-ECHEC')
@@ -252,16 +261,17 @@ def t_ecrans(bench, eng, dev, theme):
             return True
 
         def tap(sel):
-            """Toucher ; si Playwright attend en vain la fin du geste (vu le 06/11 sous charge, l'écran était
-            pourtant ouvert), le toucher est rejoué par un clic DOM sur l'élément s'il est au premier plan."""
+            """Toucher, sans attendre la « navigation » qui suit : WebKit laisse parfois click() en attente
+            après le changement d'adresse (#nutrition) alors que l'écran est déjà ouvert (vu le 06/11, 1 fois sur
+            5 sous charge). Si le geste lui-même échoue et que l'élément est toujours là, clic DOM. L'écran
+            attendu est ensuite vérifié par ecran(attendre=...)."""
             loc = page.locator(sel).filter(visible=True).first
             try:
-                loc.click(timeout=8000)
+                loc.click(timeout=8000, no_wait_after=True)
             except Exception:
-                if loc.count():
-                    loc.dispatch_event('click')
-                else:
+                if not loc.count():
                     raise
+                loc.dispatch_event('click', timeout=3000)
             page.wait_for_timeout(350)
         onglet = lambda tab: tap(f'.tabbar [data-tab="{tab}"]')
 
