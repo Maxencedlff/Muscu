@@ -68,9 +68,13 @@ Un nom inconnu (exercice créé par la personne) est reconnu par les mêmes mots
   second toucher sur la pastille choisie la retire. Appliquée par OK, comme le reste de la fiche.
 - Programme › Séance : « Prise serrée neutre · Deux poignées » sous le nom.
 - Séance : la même phrase dans une pastille sous le nom, touchable pour la changer (feuille
-  **Prise**, aussi dans ··· › Prise). Un changement en séance va aussi dans le programme : la
-  prochaine fois, la même prise. Dans un superset, une ligne par exercice, avec sa lettre.
-- Historique › Séance : la prise faite ce jour-là sous le nom.
+  **Prise**, aussi dans ··· › Prise). Dans un programme perso, un changement en séance va aussi dans
+  le programme : la prochaine fois, la même prise. Dans un **programme reçu d'un coach**, il ne change
+  que la séance : le programme du coach reste tel qu'il l'a envoyé (sinon l'élève serait marqué
+  « modifié » et la prochaine mise à jour du coach lui demanderait s'il veut garder sa version) ; la
+  feuille le dit. Dans un superset, une ligne par exercice, avec sa lettre. Les pastilles se mettent à
+  jour sur place (VoiceOver garde la pastille touchée et annonce son nouvel état).
+- Historique › Séance : la prise faite ce jour-là sous le nom ; gardée quand on modifie la séance passée.
 - Coach : la prise part avec le programme envoyé (`cleanSentProgramme`, `programmeToSent`,
   `COACH_FIELDS` de `importCoachProgramme`), se voit dans l'aperçu « Mon coach » et dans l'écran
   Envoyer. Un nouvel envoi sans prise la retire chez l'élève (champ décidé par le coach, comme le tempo).
@@ -120,15 +124,17 @@ les images dans `ASSETS` de `sw.js`.
 ## 2. L'ordre des exercices en séance
 
 On pouvait déjà valider n'importe quelle série et monter ou descendre un exercice par ···, mais
-personne ne le trouvait. Désormais, en un toucher, en bas de chaque carte, à droite de « + Série » :
+personne ne le trouvait. Une action, un mot :
 
-- sur l'exercice en cours : **Plus tard**, qui le met en dernier ; l'exercice suivant devient celui
-  en cours ;
-- sur un autre exercice qui reste à faire : **Faire maintenant**, qui le passe juste avant
-  l'exercice en cours et en fait la série en cours.
+- **Plus tard**, en bas de la carte de l'exercice en cours (le seul bouton ajouté aux cartes) et dans
+  son menu ··· : il passe en dernier et **l'exercice qui le suivait** devient celui en cours (un
+  exercice sauté plus haut reste sauté ; s'il n'y a rien après, on repart du premier qui reste).
+- **Faire maintenant**, dans le menu ··· d'un autre exercice : il passe juste avant l'exercice en
+  cours et devient celui en cours. Pas de bouton sur les cartes : toucher une série d'un autre
+  exercice suffit déjà à le commencer.
 
-Les deux sont aussi en tête du menu ··· (« Faire plus tard », « Faire maintenant »), à côté de
-Monter et Descendre. Un toast propose **Annuler** pendant 4 secondes.
+Un message propose **Annuler** pendant 4 secondes (« Mis en dernier », « Mis en cours » :
+courts, pour tenir sur la largeur d'un iPhone SE).
 
 Le menu ··· d'un exercice est devenu plus haut que l'écran d'un iPhone SE : il était coupé en haut
 (titre, Faire maintenant et Monter introuvables). Les menus de ce type défilent désormais, Annuler
@@ -136,13 +142,16 @@ restant en bas (`css/components.css`, toutes les feuilles d'actions de l'app).
 
 Règles :
 
-- Un **bloc** se déplace toujours en entier : un exercice seul, ou tout son superset. Un superset n'a
-  qu'un bouton, celui de la carte ; le menu d'un membre déplace tout le groupe.
+- Un **bloc** se déplace toujours en entier : un exercice seul, ou tout son superset. Le bouton d'un
+  superset est annoncé avec ses membres (VoiceOver) ; le menu d'un membre déplace tout le groupe.
+- Superset déjà commencé : la série en cours devient celle du membre le moins avancé (`ssNextSet`
+  sans dernier exercice) et `lastEi` est posé sur le membre qui le précède, pour que le tour
+  continue sans être cassé (`orderFocusEi`).
 - Rien sur un exercice fini, ni « Plus tard » quand il ne reste rien d'autre à faire.
-- La série en cours suit (`lastEi` : l'exercice lui-même, ou le dernier membre d'un superset pour
-  que le tour reparte du premier qui a une série à faire). Les positions gardées ailleurs suivent
-  leur exercice : chrono en cours, série rouverte, sélecteur RIR (`remapSessionOrder`). Les séries
-  déjà validées restent où elles sont.
+- Les positions gardées ailleurs suivent leur exercice : chrono en cours, série rouverte, sélecteur
+  RIR (`remapSessionOrder`). Les séries déjà validées restent où elles sont.
+- Pendant un repos, la notification de fin et la Live Activity annoncent le nouvel exercice suivant
+  (`syncNativeRest`, aussi après Monter et Descendre).
 - La séance est enregistrée tout de suite (`persistSession`) : l'ordre survit à la fermeture de l'app,
   et la montre suit.
 - Le programme ne change pas : c'est l'ordre de cette séance. Pour changer l'ordre du programme :
@@ -150,8 +159,8 @@ Règles :
 
 **Pas de glisser pour réordonner en séance.** Les séries se balaient déjà de côté pour « Supprimer »
 (`js/features/session-gestures.js`) et la page défile verticalement ; un appui long ou une poignée
-sur des cartes hautes de plusieurs écrans se gère mal au pouce, en salle, avec une main. Deux boutons
-d'un toucher couvrent le besoin du coach (« je fais une autre machine avant ») sans risque de geste
+sur des cartes hautes de plusieurs écrans se gère mal au pouce, en salle, avec une main. « Plus tard » en un
+toucher et « Faire maintenant » dans ··· couvrent le besoin du coach (« je fais une autre machine avant ») sans risque de geste
 raté.
 
 ## Limites et suite

@@ -25,6 +25,12 @@ function gripChipsHtml(opts, grip, action, extra = '') {
       </div>`).join('');
 }
 
+// Pastilles mises à jour sur place (aria-pressed) : la feuille n'est pas reconstruite, VoiceOver garde
+// la pastille touchée et annonce son nouvel état
+function gripSyncChips(root, grip) {
+  root?.querySelectorAll('.grip__chip').forEach(b => b.setAttribute('aria-pressed', String(grip?.[b.dataset.dim] === b.dataset.v)));
+}
+
 // Prise choisie après un toucher : la pastille déjà choisie se retire, une autre la remplace
 function gripToggled(grip, dim, v) {
   const g = { ...(grip || {}) };
@@ -57,7 +63,7 @@ function gripSheetHtml(ei) {
       <div class="rs__title">Prise · ${esc(ex.name)}</div>
       <div class="grip__now" aria-live="polite">${g ? gripText(g, ex) : 'Aucune prise précisée'}</div>
       ${gripChipsHtml(opts, g, 'sess-grip')}
-      <div class="grip__help">${GRIP_HELP} Elle reste dans le programme pour la prochaine fois.</div>
+      <div class="grip__help">${GRIP_HELP} ${sessionGripStaysInSession() ? 'Pour cette séance seulement : le programme de ton coach ne change pas.' : 'Elle reste dans le programme pour la prochaine fois.'}</div>
       <button class="rs__done" data-action="sheet-done">OK</button>
     </div>`;
 }
@@ -68,13 +74,17 @@ function openGripSheet(ei) {
   openSessSheet({ cls: 'sess-sheet--grip', label: 'Prise', html: gripSheetHtml(ei), onClose: () => { gripEditEi = null; render(); } });
 }
 
-// Prise de l'exercice ei de la séance : appliquée à la séance et au programme (la prochaine fois aussi)
+// Programme reçu d'un coach : la prise changée en séance reste dans la séance (le programme du coach ne
+// change pas, l'élève n'est pas marqué « modifié » ; js/data/coach.js, coachProgrammeStatus)
+function sessionGripStaysInSession() { return !!data.userProgrammes?.[activeSession?.programme]?.fromCoach; }
+
+// Prise de l'exercice ei de la séance : appliquée à la séance, et au programme perso (la prochaine fois aussi)
 function setSessionGrip(ei, grip) {
   const ex = activeSession?.exercises[ei];
   if (!ex) return;
   const g = cleanGrip(grip, ex);
   ex.grip = g;   // null : prise retirée (ne reprend pas celle du programme)
-  const inProg = sessExData(ex);
+  const inProg = sessionGripStaysInSession() ? null : sessExData(ex);
   if (inProg) { if (g) inProg.grip = g; else delete inProg.grip; save(); }
   persistSession();
 }
@@ -87,8 +97,10 @@ function exGripHtml(d) {
   return `
         <div class="group-title">Prise</div>
         <div class="group"><div class="cell cell--ctl cell--wrap grip grip--cell">${gripChipsHtml(opts, g, 'ex-grip-pick')}</div></div>
-        <div class="group-foot">${g ? `${gripText(g, ex)}. ` : ''}${GRIP_HELP} Montrée pendant la séance, sous le nom.</div>`;
+        <div class="group-foot">${exGripFootText(g, ex)}</div>`;
 }
+function exGripFootText(g, ex) { return `${g ? `${gripText(g, ex)}. ` : ''}${GRIP_HELP} Montrée pendant la séance, sous le nom.`; }
+// Nom ou mesure changés : la rubrique est redessinée (les réglages proposés en dépendent)
 function refreshExGrip() { const box = $('#exGrip'); if (box && exDraft) box.innerHTML = exGripHtml(exDraft); }
 
 // Prise du brouillon enregistrée sur l'exercice ex du programme, et sur la séance en cours qui le contient
@@ -112,13 +124,20 @@ registerActions({
     const ex = activeSession.exercises[gripEditEi];
     setSessionGrip(gripEditEi, gripToggled(sessGripOf(ex), el.dataset.dim, el.dataset.v));
     haptic();
-    const body = el.closest('.sess-sheet__body');
-    if (body) body.innerHTML = gripSheetHtml(gripEditEi);
+    const sheet = el.closest('.grip'), g = sessGripOf(ex);
+    gripSyncChips(sheet, g);
+    const now = sheet?.querySelector('.grip__now');
+    if (now) now.textContent = g ? gripText(g, ex) : 'Aucune prise précisée';
   },
   'ex-grip-pick': (e, el) => {
     if (!exDraft) return;
-    exDraft.grip = gripToggled(cleanGrip(exDraft.grip, { name: exDraft.name, measure: exDraft.measure }), el.dataset.dim, el.dataset.v);
-    refreshExGrip();
+    const ex = { name: exDraft.name, measure: exDraft.measure };
+    exDraft.grip = gripToggled(cleanGrip(exDraft.grip, ex), el.dataset.dim, el.dataset.v);
+    // Sur place : la pastille touchée garde le focus de VoiceOver
+    const box = $('#exGrip');
+    gripSyncChips(box, cleanGrip(exDraft.grip, ex));
+    const foot = box?.querySelector('.group-foot');
+    if (foot) foot.textContent = exGripFootText(cleanGrip(exDraft.grip, ex), ex);
     haptic();
   },
 });

@@ -377,13 +377,13 @@ function openHowTo(ex) { navigate(makeRoute('library-ex', ex.name)); }
 
 // ── Menu ⋯ d'un exercice ──
 // Choix proposés pour l'exercice ei de la liste xs de la séance (curEi : exercice de la série en cours).
-// Faire maintenant, Faire plus tard (js/data/session-order.js), Monter et Descendre gardent les
+// Faire maintenant, Plus tard (js/data/session-order.js), Monter et Descendre gardent les
 // supersets entiers (js/data/supersets.js) ; dans un groupe, le repos réglé est celui du tour.
 function exerciseMenuActions(xs, ei, curEi = null) {
   const ex = xs[ei], inGroup = !!ssGroupOf(xs, ei), order = orderChoiceFor(xs, ei, curEi);
   return [
     ...(order === 'now' ? [{ label: 'Faire maintenant', value: 'now' }] : []),
-    ...(order === 'later' ? [{ label: 'Faire plus tard', value: 'later' }] : []),
+    ...(order === 'later' ? [{ label: 'Plus tard', value: 'later' }] : []),
     ...(ssCanMove(xs, ei, -1) ? [{ label: 'Monter', value: 'up' }] : []),
     ...(ssCanMove(xs, ei, 1)  ? [{ label: 'Descendre', value: 'down' }] : []),
     ...(hasHowTo(ex) ? [{ label: 'Comment faire', value: 'howto' }] : []),
@@ -420,6 +420,7 @@ async function exerciseMenu(ei) {
     if (moved) activeSession.exercises = moved;
     activeSession.lastEi = null; activeSession.lastDone = null;
     editingSet = null;
+    syncNativeRest();   // pendant un repos : notification et Live Activity annoncent le nouvel exercice suivant
     render();
   } else if (choice === 'superset') {
     await sessionSupersetPick(ei);

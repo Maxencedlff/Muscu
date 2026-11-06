@@ -130,7 +130,7 @@ const GUIDE_SECTIONS = [
         id: 'menu-exercice', title: 'Le menu ··· d\'un exercice', icon: 'ellipsis', color: 'indigo',
         lead: 'Le bouton ··· à droite du nom d\'un exercice regroupe ses options pendant la séance.',
         steps: [
-          '[Faire maintenant] passe l\'exercice avant celui en cours, [Faire plus tard] le met en dernier. [Monter] et [Descendre] le déplacent d\'un cran.',
+          '[Plus tard] met l\'exercice en dernier, [Faire maintenant] le passe avant celui en cours. [Monter] et [Descendre] le déplacent d\'un cran.',
           '[Comment faire] ouvre les consignes du mouvement.',
           '[Remplacer l\'exercice], [Régler le repos] et [Tempo] agissent sur cet exercice.',
           '[Relancer le repos] redémarre le chrono.',
@@ -143,14 +143,14 @@ const GUIDE_SECTIONS = [
         id: 'ordre-seance', title: 'Une machine est prise', icon: 'list.bullet', color: 'orange',
         lead: 'Tu n\'es pas obligé de suivre l\'ordre du programme. Fais un autre exercice avant, en un toucher.',
         steps: [
-          'En bas de l\'exercice en cours, touche Plus tard : il passe en dernier et le suivant devient l\'exercice en cours.',
-          'En bas d\'un autre exercice, touche [Faire maintenant] : il passe tout de suite, avant celui en cours.',
-          'Les mêmes choix sont dans le menu ···, à côté de [Monter] et [Descendre].',
+          'En bas de l\'exercice en cours, touche [Plus tard] : il passe en dernier et l\'exercice qui le suivait devient celui en cours.',
+          'Pour faire un autre exercice, touche simplement une de ses séries. Ou, dans son menu ···, touche [Faire maintenant] pour le passer avant.',
+          '[Monter] et [Descendre], dans le même menu, le déplacent d\'un cran.',
           'Un superset se déplace toujours en entier. Les séries déjà validées sont gardées.',
           'Tu t\'es trompé ? Touche [Annuler] dans le message qui s\'affiche.',
         ],
         related: ['menu-exercice', 'noter-serie'],
-        actions: ['ex-now', 'ex-later'],
+        actions: ['ex-later', 'ex-menu'],
       },
       {
         id: 'ajouter-exercice', title: 'Ajouter ou remplacer un exercice', icon: 'plus', color: 'blue',

@@ -23,21 +23,24 @@ const GRIP_TOOL = [
 const GRIP_DIMS = { hand: GRIP_HAND, width: GRIP_WIDTH, tool: GRIP_TOOL };
 
 // Familles, dans l'ordre de reconnaissance (sur ruleKey : minuscules, sans accents). La première qui
-// correspond l'emporte ; NO_GRIP_RE écarte d'abord les mouvements dont le nom trompe (curl ischios,
-// tirage bras tendus, rowing menton, rameur…).
-const NO_GRIP_RE = /bras tendus|straight arm|pull ?over|rowing menton|upright row|face pull|rameur|\bleg curl|curl (ischio|jambe|femoral|nordique|poignet)|nordic|wrist|lombaire|arnold/;
+// correspond l'emporte : triceps et curl AVANT les tirages (« Extension triceps poulie haute », « Curl
+// poulie basse » ne sont pas des tirages). NO_GRIP_RE écarte d'abord les mouvements dont le nom trompe
+// (curl ischios, tirage bras tendus, rowing menton, écartés et élévations à la poulie, rameur…).
+// « Poulie haute » ou « poulie basse » seuls (alias courants) : tirage vertical ou horizontal, seulement
+// sans autre mot de mouvement.
+const NO_GRIP_RE = /bras tendus|straight arm|pull ?over|rowing menton|upright row|face pull|rameur|\bleg curl|curl (ischio|jambe|femoral|nordique|poignet)|nordic|wrist|lombaire|arnold|ecarte|\bfly|flye|crossover|elevation|kickback|oiseau|pec deck|butterfly/;
 const GRIP_FAMILIES = [
-  { id: 'pulldown', re: /tirage vertical|pulldown|pull down|tirage (poitrine|nuque)|poulie haute/,
+  { id: 'triceps', re: /pushdown|push down|(triceps|extension).*(poulie|corde|cable)/, hand: ['pronation', 'supination'], tool: ['barre', 'v', 'corde'] },
+  { id: 'curl', re: /\bcurl/, hand: ['supination', 'neutre', 'pronation'], width: ['serree', 'large'], tool: ['barre', 'ez', 'corde', 'poignees'] },
+  { id: 'pulldown', re: /tirage vertical|pulldown|pull down|tirage (poitrine|nuque)|^(tirage )?poulie haute$/,
     hand: ['pronation', 'supination', 'neutre'], width: ['serree', 'moyenne', 'large'], tool: ['barre', 'triangle', 'poignees'] },
   { id: 'pullup', re: /traction|pull ?ups?\b|chin ?ups?\b/,
     hand: ['pronation', 'supination', 'neutre'], width: ['serree', 'moyenne', 'large'] },
-  { id: 'cable-row', re: /tirage horizontal|seated row|cable row|poulie basse|rowing (assis|poulie)|tirage assis/,
+  { id: 'cable-row', re: /tirage horizontal|seated row|cable row|rowing (assis|poulie)|tirage assis|^(tirage )?poulie basse$/,
     hand: ['neutre', 'pronation', 'supination'], width: ['serree', 'large'], tool: ['triangle', 'barre', 'poignees', 'corde'] },
   { id: 'row', re: /rowing|\brows?\b/, hand: ['pronation', 'supination', 'neutre'], width: ['serree', 'large'] },
   { id: 'press', re: /developpe|bench press|chest press|overhead press|\bohp\b|shoulder press/,
     hand: ['pronation', 'neutre'], width: ['serree', 'moyenne', 'large'] },
-  { id: 'triceps', re: /pushdown|push down|(triceps|extension).*(poulie|corde|cable)/, hand: ['pronation', 'supination'], tool: ['barre', 'v', 'corde'] },
-  { id: 'curl', re: /\bcurl/, hand: ['supination', 'neutre', 'pronation'], width: ['serree', 'large'], tool: ['barre', 'ez', 'corde', 'poignees'] },
   { id: 'deadlift', re: /souleve de terre|deadlift|rack pull/, hand: ['pronation', 'mixte', 'crochet'] },
 ];
 // Ce que le nom fixe déjà, ou ce qui n'a pas de sens avec ce matériel
@@ -68,6 +71,7 @@ function gripOptionsFor(exLike) {
     else { delete o.tool; delete o.width; }
   }
   if (f.id === 'press' && !ONE_HAND_RE.test(k) && !/machine|chest press/.test(k)) delete o.hand;
+  if (f.id === 'press' && /machine|chest press/.test(k)) delete o.width;   // poignées fixes de la machine
   if (f.id === 'deadlift' && ONE_HAND_RE.test(k)) delete o.hand;
   if (f.id === 'triceps' && /corde|rope/.test(k)) delete o.hand;
   return o.hand || o.width || o.tool ? o : null;

@@ -55,10 +55,18 @@ def skip_rest(page):
     page.wait_for_timeout(200)
 
 
+def data_with_past_grip():
+    """Données de démo où la dernière séance Pull a fait le tirage vertical en pronation."""
+    d = ppl_v2_today()
+    h = next(x for x in d['history'] if x['id'] == 'hpu08')
+    next(e for e in h['exercises'] if e['name'] == 'Tirage vertical prise large')['grip'] = {'hand': 'pronation'}
+    return json.dumps(d, ensure_ascii=False)
+
+
 def t_prise(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
-        seed(page, theme, ppl_v2_today_json())
+        seed(page, theme, data_with_past_grip())
         # Programme › Exercice : « Tirage vertical prise large » → sens des mains et poignée, pas la largeur
         page.evaluate("navigate('editor:pull')")
         page.wait_for_selector('[data-action="edit-ex"][data-i="1"]')
@@ -110,8 +118,7 @@ def t_prise(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         R.check(page.locator('.ios-dialog__btn', has_text='Prise').count() == 0, f'{t} menu : pas de Prise au curl marteau')
         tap_dialog(page, 'Annuler')
-        # La dernière fois, autre prise : rappelée sous la ligne
-        page.evaluate("lastPerf(activeSession.programme, activeSession.category, activeSession.exercises[1]).ex.grip = { hand: 'pronation' }; render()")
+        # La dernière fois (vraie séance de l'historique), autre prise : rappelée sous la ligne
         before = page.locator('.ex-card[data-ei="1"] .ex-grip__before')
         R.check(before.count() == 1 and before.inner_text() == 'Avant : prise en pronation', f'{t} séance : « Avant » de la prise')
         # Reprise après fermeture puis enregistrement : la prise suit l'historique
@@ -125,15 +132,30 @@ def t_prise(bench, eng, dev, theme):
         g = page.evaluate("sessionHistoryEntry(activeSession.programme, activeSession.category).exercises.find(e => e.name.startsWith('Tirage vertical'))?.grip")
         R.check(g == {'hand': 'supination', 'tool': 'poignees'}, f'{t} historique : prise enregistrée {g}')
         R.check(no_hscroll(page), f'{t} séance : pas de défilement de côté')
-        # Historique › Séance : la prise sous le nom
-        hid = page.evaluate("""(() => { const h = data.history[0]; h.exercises[0].grip = { hand: 'neutre', width: 'serree' };
-            h.exercises[0].name = 'Tirage vertical'; save(); return h.id; })()""")
+        # Historique › Séance : la prise faite ce jour-là sous le nom
         page.evaluate("endSession()")
-        page.evaluate(f"navigate(makeRoute('history-detail', '{hid}'))")
+        page.evaluate("navigate(makeRoute('history-detail', 'hpu08'))")
         page.wait_for_selector('.hex')
-        R.check('Prise serrée neutre' in page.locator('.hex').first.inner_text(), f'{t} historique : prise affichée')
+        cell = page.locator('.hex', has_text='Tirage vertical prise large')
+        R.check('Prise en pronation' in cell.inner_text(), f'{t} historique : prise affichée')
+        cell.scroll_into_view_if_needed()
         shot(page, LOT, f'{t}-5-historique')
+        # Séance passée modifiée (les champs de l'écran ne portent pas la prise) : la prise est gardée
+        g = page.evaluate("""(() => {
+            const h = data.history.find(x => x.id === 'hpu08');
+            editSessionId = h.id; addProg = 'ppl'; addCat = 'pull'; addDate = localISO(h.date);
+            storePastSession(h.exercises.map(e => ({ exId: e.exId, name: e.name, sets: e.sets.map(st => ({ ...st })) })));
+            return data.history.find(x => x.id === 'hpu08').exercises.find(e => e.name === 'Tirage vertical prise large').grip;
+        })()""")
+        R.check(g == {'hand': 'pronation'}, f'{t} séance passée modifiée : prise gardée {g}')
         R.check(not page.errors, f'{t} erreurs JS {page.errors}')
+
+
+def menu_pick(page, ei, label):
+    page.click(f'.ex-card__more[data-ei="{ei}"]')
+    page.wait_for_timeout(300)
+    tap_dialog(page, label)
+    page.wait_for_timeout(400)
 
 
 def t_ordre(bench, eng, dev, theme):
@@ -143,26 +165,32 @@ def t_ordre(bench, eng, dev, theme):
         page.evaluate("startSession('pull')")
         page.wait_for_selector('.view.session')
         start = names(page)
-        R.check(page.locator('.ex-card[data-ei="0"] [data-action="ex-later"]').count() == 1, f'{t} « Plus tard » sur l\'exercice en cours')
-        R.check(page.locator('[data-action="ex-now"]').count() == len(start) - 1, f'{t} « Faire maintenant » sur les autres')
-        R.check(not small(page, '.order-link'), f'{t} boutons de 44 px {small(page, ".order-link")}')
+        R.check(page.locator('[data-action="ex-later"]').count() == 1, f'{t} « Plus tard » seulement sur l\'exercice en cours')
+        R.check(page.locator('.ex-card[data-ei="0"] [data-action="ex-later"]').inner_text().strip() == 'Plus tard', f'{t} libellé « Plus tard »')
+        R.check(page.locator('[data-action="ex-now"]').count() == 0, f'{t} pas de « Faire maintenant » en bas des cartes')
+        R.check(not small(page, '.order-link'), f'{t} bouton de 44 px {small(page, ".order-link")}')
         R.check(no_hscroll(page), f'{t} pas de défilement de côté')
-        page.locator('.ex-card[data-ei="3"]').scroll_into_view_if_needed()
-        shot(page, LOT, f'{t}-6-ordre-boutons')
+        shot(page, LOT, f'{t}-6-ordre-bouton')
 
-        # Faire maintenant : le 4e passe en tête et devient l'exercice en cours, en un toucher
-        page.click('.ex-card[data-ei="3"] [data-action="ex-now"]')
+        # Menu ⋯ › Faire maintenant : le 4e passe avant l'exercice en cours et devient celui en cours
+        page.click('.ex-card__more[data-ei="3"]')
+        page.wait_for_timeout(300)
+        first = page.locator('.ios-dialog__btn').first.inner_text().strip()
+        R.check(first == 'Faire maintenant', f'{t} menu : « {first} » en tête')
+        top = page.evaluate("document.querySelector('.ios-dialog__btn').getBoundingClientRect().top")
+        R.check(top >= 0, f'{t} menu : premier choix visible, pas coupé en haut ({top})')
+        shot(page, LOT, f'{t}-7-ordre-menu')
+        tap_dialog(page, 'Faire maintenant')
         page.wait_for_timeout(400)
         R.check(names(page) == [start[3], start[0], start[1], start[2], start[4]], f'{t} maintenant : ordre {names(page)}')
         R.check(cur_name(page) == start[3] and current(page) == [0, 0], f'{t} maintenant : série en cours suivie ({cur_name(page)})')
-        R.check('Exercice avancé' in page.locator('.toast').last.inner_text(), f'{t} maintenant : toast')
+        R.check('Mis en cours' in page.locator('.toast').last.inner_text(), f'{t} maintenant : message')
         R.check(page.evaluate("(r => r && r.top > 60 && r.bottom < innerHeight)(document.querySelector('.session-set--current')?.getBoundingClientRect())"), f'{t} maintenant : série en cours visible')
-        shot(page, LOT, f'{t}-7-ordre-maintenant')
         page.locator('.toast button', has_text='Annuler').last.click()
         page.wait_for_timeout(300)
         R.check(names(page) == start and cur_name(page) == start[0], f'{t} Annuler : ordre d\'avant')
 
-        # Une série faite, puis Plus tard : l'exercice passe en dernier avec sa série validée
+        # Une série faite, puis Plus tard : l'exercice passe en dernier avec sa série validée, le suivant prend la main
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]')
         page.wait_for_timeout(300)
         skip_rest(page)
@@ -170,18 +198,22 @@ def t_ordre(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(names(page) == start[1:] + [start[0]], f'{t} plus tard : en dernier {names(page)}')
         R.check(cur_name(page) == start[1], f'{t} plus tard : le suivant est en cours ({cur_name(page)})')
+        R.check(page.locator('.toast').last.inner_text().startswith('Mis en dernier'), f'{t} plus tard : message')
         R.check(page.evaluate('activeSession.exercises.at(-1).sets[0].done'), f'{t} plus tard : série validée gardée')
+        shot(page, LOT, f'{t}-8-ordre-plus-tard')
 
-        # Superset : déplacé en entier, jamais coupé
-        page.evaluate("activeSession.exercises[2].ss = 'g'; activeSession.exercises[3].ss = 'g'; persistSession(); render()")
+        # Superset déjà commencé : « Faire maintenant » reprend le membre le moins avancé, le tour n'est pas cassé
+        page.evaluate("activeSession.exercises[2].ss = 'g'; activeSession.exercises[3].ss = 'g'; activeSession.exercises[2].sets[0].done = true; persistSession(); render()")
         sup = [names(page)[2], names(page)[3]]
-        R.check(page.locator('.ss-card [data-action="ex-now"]').count() == 1, f'{t} superset : un seul bouton pour le groupe')
-        page.click('.ss-card [data-action="ex-now"]')
-        page.wait_for_timeout(400)
+        later = page.locator('.ss-card [data-action="ex-later"]')
+        R.check(later.count() == 0, f'{t} superset pas en cours : pas de bouton')
+        menu_pick(page, 3, 'Faire maintenant')
         xs = page.evaluate('activeSession.exercises.map(e => [e.name, e.ss || null])')
         R.check([x[0] for x in xs[:2]] == sup and xs[0][1] == 'g' and xs[1][1] == 'g', f'{t} superset : en tête, entier {xs}')
-        R.check(cur_name(page) == sup[0], f'{t} superset : 1er membre en cours ({cur_name(page)})')
-        shot(page, LOT, f'{t}-8-ordre-superset')
+        R.check(cur_name(page) == sup[1], f'{t} superset commencé : 2e membre en cours ({cur_name(page)})')
+        lbl = page.locator('.ss-card [data-action="ex-later"]').get_attribute('aria-label')
+        R.check(sup[0] in lbl and sup[1] in lbl, f'{t} superset : bouton annoncé avec ses membres « {lbl} »')
+        shot(page, LOT, f'{t}-9-ordre-superset')
 
         # Fermeture de l'app : ordre et série en cours gardés
         page.reload()
@@ -189,20 +221,7 @@ def t_ordre(bench, eng, dev, theme):
         page.evaluate("navigate('session')")
         page.wait_for_selector('.view.session')
         R.check([x[0] for x in page.evaluate('activeSession.exercises.map(e => [e.name])')] == [x[0] for x in xs], f'{t} reprise : ordre gardé')
-        R.check(cur_name(page) == sup[0], f'{t} reprise : série en cours gardée')
-
-        # Menu ⋯ : « Faire maintenant » en tête du menu d'un autre exercice
-        last = len(xs) - 1
-        page.click(f'.ex-card__more[data-ei="{last}"]')
-        page.wait_for_timeout(300)
-        first = page.locator('.ios-dialog__btn').first.inner_text().strip()
-        R.check(first == 'Faire maintenant', f'{t} menu : « {first} » en tête')
-        top = page.evaluate("document.querySelector('.ios-dialog__btn').getBoundingClientRect().top")
-        R.check(top >= 0, f'{t} menu : premier choix visible, pas coupé en haut ({top})')
-        shot(page, LOT, f'{t}-9-ordre-menu')
-        tap_dialog(page, 'Faire maintenant')
-        page.wait_for_timeout(400)
-        R.check(cur_name(page) == xs[last][0], f'{t} menu : exercice en cours ({cur_name(page)})')
+        R.check(cur_name(page) == sup[1], f'{t} reprise : série en cours gardée')
         R.check(not page.errors, f'{t} erreurs JS {page.errors}')
 
 

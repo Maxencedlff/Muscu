@@ -1,19 +1,17 @@
 // ═══════════════════════════════════════════════════════════
-//  Séance : « Faire maintenant » et « Faire plus tard » en un toucher (machine prise)
-//  Logique : js/data/session-order.js ; aussi dans le menu ⋯ (js/features/session-sheets.js)
+//  Séance : « Plus tard » en un toucher (machine prise), « Faire maintenant » dans le menu ⋯
+//  Logique : js/data/session-order.js ; menu ⋯ : js/features/session-sheets.js
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Bouton en bas de la carte : « Plus tard » sur l'exercice en cours, « Faire maintenant » sur les autres
-// qui restent à faire. Rien sur un exercice fini, ni quand il ne reste qu'un exercice à faire.
+// « Plus tard » en bas de la carte de l'exercice en cours (ou de son superset), quand il reste autre
+// chose à faire. Les autres exercices n'ont pas de bouton : toucher une de leurs séries suffit.
 function orderBtnHtml(ei, cur) {
   const xs = activeSession.exercises;
-  const choice = orderChoiceFor(xs, ei, cur?.ei);
-  if (!choice) return '';
-  const g = ssGroupOf(xs, ei), what = g ? ssKind(g.length).toLowerCase() : esc(xs[ei].name);
-  return choice === 'later'
-    ? `<button class="order-link" data-action="ex-later" data-ei="${ei}" aria-label="Faire plus tard : ${what}, passe en dernier">${icon('chevron.down', 14)}Plus tard</button>`
-    : `<button class="order-link" data-action="ex-now" data-ei="${ei}" aria-label="Faire maintenant : ${what}">${icon('arrow.up', 14)}Faire maintenant</button>`;
+  if (orderChoiceFor(xs, ei, cur?.ei) !== 'later') return '';
+  const g = ssGroupOf(xs, ei);
+  const what = g ? `${ssKind(g.length).toLowerCase()} ${g.map(k => esc(xs[k].name)).join(' et ')}` : esc(xs[ei].name);
+  return `<button class="order-link" data-action="ex-later" data-ei="${ei}" aria-label="Plus tard : ${what}, passe en dernier">${icon('chevron.down', 14)}Plus tard</button>`;
 }
 
 // Nouvelle liste de la séance (mêmes objets, autre ordre) : les positions (ei) gardées ailleurs suivent
@@ -27,7 +25,8 @@ function remapSessionOrder(next) {
   s.exercises = next;
 }
 
-// focus : exercice à faire tout de suite (Faire maintenant), null : le premier qui reste (Plus tard)
+// focus : exercice du bloc qui devient celui en cours (null : le premier qui reste à faire).
+// Pendant un repos, la notification de fin et la Live Activity annoncent le nouvel exercice suivant.
 function applySessionOrder(next, focus, toast) {
   const s = activeSession;
   const undo = { xs: s.exercises, lastEi: s.lastEi ?? null, lastDone: s.lastDone ?? null };
@@ -35,6 +34,7 @@ function applySessionOrder(next, focus, toast) {
   s.lastEi = focus ? orderFocusEi(next, next.indexOf(focus)) : null;
   haptic();
   persistSession();
+  syncNativeRest();
   render();
   scrollToCurrent();   // la série en cours, au centre (sous la barre, jamais cachée par elle)
   showToast(toast, { action: 'Annuler', duration: 4000, onAction: () => undoSessionOrder(undo, next) });
@@ -48,6 +48,7 @@ function undoSessionOrder(u, applied) {
   s.lastEi = u.lastEi;
   s.lastDone = u.lastDone;
   persistSession();
+  syncNativeRest();
   render();
   scrollToCurrent();
 }
@@ -59,20 +60,18 @@ function sessionDoNow(ei) {
   const next = orderDoNow(xs, ei, cur.ei);
   if (!next) return;
   const g = ssGroupOf(xs, ei), first = xs[g ? g[0] : ei];
-  applySessionOrder(next, first, `${g ? ssKind(g.length) : 'Exercice'} avancé`);
+  applySessionOrder(next, first, 'Mis en cours');
 }
 
-// Faire plus tard : le bloc de ei passe en dernier ; l'exercice suivant devient celui en cours
+// Plus tard : le bloc de ei passe en dernier ; le bloc qui le suivait devient celui en cours
 function sessionDoLater(ei) {
   const xs = activeSession?.exercises;
   if (!xs?.[ei]) return;
   const next = orderDoLater(xs, ei);
   if (!next) return;
-  const g = ssGroupOf(xs, ei);
-  applySessionOrder(next, null, `${g ? ssKind(g.length) : 'Exercice'} repoussé à la fin`);
+  applySessionOrder(next, orderLaterFocus(xs, ei), 'Mis en dernier');
 }
 
 registerActions({
-  'ex-now':   (e, el) => sessionDoNow(parseInt(el.dataset.ei)),
   'ex-later': (e, el) => sessionDoLater(parseInt(el.dataset.ei)),
 });
