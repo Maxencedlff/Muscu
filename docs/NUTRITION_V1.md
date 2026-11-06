@@ -103,8 +103,13 @@ d'escalope de dinde rôtie, 145 g d'escalope de veau…
 ## Santé : précautions
 
 - **Aucun calcul de besoins.** Pas de formule de métabolisme, pas de « tu devrais manger ». Les objectifs
-  sont fixés par le coach ou par la personne ; sans objectif, le total prévu par le plan sert de repère, et
+  sont fixés par le coach ou par la personne ; sans objectif, le total prévu par le plan ce jour-là
+  (remplacements du jour compris : un équivalent ne donne jamais « 217 sur 215 kcal ») sert de repère, et
   l'écran le dit (« Repère : le total prévu par ton plan »).
+- **Repas vides** (plan neuf pas encore rempli) : ni cochables, ni comptés dans « n repas cochés sur N » ou la
+  journée complète, jamais proposés comme prochain repas ; sans aucun repas rempli, pas de carte à l'accueil.
+- **Frise d'aujourd'hui** : jugée avec le plan suivi (après un changement de plan dans la journée, les coches
+  de l'ancien ne la mettent plus en vert) ; les jours passés gardent le plan de ce jour-là.
 - **Pas d'alerte de « trop peu »**, pas de rouge quand on dépasse : la barre se remplit, c'est tout. Les
   études sur les applis de comptage et les troubles du comportement alimentaire (Levinson et al., *Eating
   Behaviors* 2017, [PMC5700836](https://pmc.ncbi.nlm.nih.gov/articles/PMC5700836/) ;

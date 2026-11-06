@@ -259,40 +259,51 @@ function dietSetSwap(d, planId, itemId, newItem, day = dietDayKey()) {
   dietWriteDay(d, day, { ...e, swaps });
   return !!c;
 }
-// Bilan d'une journée : mangé (repas cochés, remplacements compris), prévu, repère, repas
+// Bilan d'une journée : mangé (repas cochés, remplacements compris), prévu, repère, repas.
+// Un repas sans aliment (plan neuf, repas pas encore rempli) ne se coche pas : il ne compte ni dans
+// « n repas cochés sur N » (nMeals), ni pour la journée complète, et n'est jamais proposé comme prochain repas.
+// Repère sans objectif fixé : le total prévu ce jour-là, remplacements compris (un équivalent de 217 kcal
+// pour 215 prévues ne fait pas « 217 sur 215 »)
 function dietDayProgress(d, planId, day = dietDayKey()) {
   const plan = d.dietPlans?.[planId];
   if (!plan) return null;
   const e = dietDay(d, planId, day);
-  const meals = plan.meals.map(m => ({ meal: m, macros: dietMealMacros(m, e.swaps), done: e.done.includes(m.id) }));
+  const meals = plan.meals.map(m => ({ meal: m, macros: dietMealMacros(m, e.swaps), done: m.items.length > 0 && e.done.includes(m.id) }));
+  const toEat = meals.filter(x => x.meal.items.length);
   const eaten = meals.filter(x => x.done).reduce((a, x) => dietAdd(a, x.macros), DIET_ZERO());
   const planned = meals.reduce((a, x) => dietAdd(a, x.macros), DIET_ZERO());
-  const nDone = meals.filter(x => x.done).length;
-  return { plan, day, swaps: e.swaps, meals, eaten, planned, ...dietGoal(plan), nDone,
-    complete: meals.length > 0 && nDone === meals.length, next: meals.find(x => !x.done) || null };
+  const nDone = toEat.filter(x => x.done).length;
+  const { goal, own } = dietGoal(plan);
+  for (const k of DIET_TARGET_KEYS) if (!own[k]) goal[k] = Math.round(planned[k]);
+  return { plan, day, swaps: e.swaps, meals, eaten, planned, goal, own, nDone, nMeals: toEat.length,
+    complete: toEat.length > 0 && nDone === toEat.length, next: toEat.find(x => !x.done) || null };
 }
-// Jour complet : tous les repas du plan suivi ce jour-là cochés
-function dietDayComplete(d, day) {
+// Jour complet : tous les repas du plan suivi ce jour-là cochés. planId : seulement si ce jour a été coché
+// avec ce plan (aujourd'hui après un changement de plan : les coches de l'ancien ne comptent plus, comme à l'écran)
+function dietDayComplete(d, day, planId = null) {
   const e = d.dietLog?.[day];
-  if (!e) return false;
+  if (!e || (planId && e.plan !== planId)) return false;
   // Instantané du jour (repas qui avaient des aliments) ; journal d'avant l'instantané : le plan actuel
-  const ids = Array.isArray(e.meals) ? e.meals : (d.dietPlans?.[e.plan]?.meals || []).map(m => m.id);
+  const ids = Array.isArray(e.meals) ? e.meals : (d.dietPlans?.[e.plan]?.meals || []).filter(m => m.items.length).map(m => m.id);
   return ids.length > 0 && ids.every(id => e.done.includes(id));
 }
-// Jours complets d'affilée jusqu'à aujourd'hui (aujourd'hui pas encore fini : la série court jusqu'à hier)
+// Jours complets d'affilée jusqu'à aujourd'hui (aujourd'hui pas encore fini : la série court jusqu'à hier).
+// Aujourd'hui est jugé avec le plan suivi ; les jours passés, avec le plan de ce jour-là
 function dietStreak(d, now = Date.now()) {
   let n = 0;
   const day = i => { const t = new Date(now); t.setHours(12, 0, 0, 0); t.setDate(t.getDate() - i); return dietDayKey(t.getTime()); };
-  let i = dietDayComplete(d, day(0)) ? 0 : 1;
+  let i = dietDayComplete(d, day(0), d.dietActive || null) ? 0 : 1;
   while (i <= DIET_LOG_DAYS && dietDayComplete(d, day(i))) { n++; i++; }
   return n;
 }
-// Les 7 derniers jours (le plus ancien d'abord) : { day, complete, some } pour la frise de l'écran
+// Les 7 derniers jours (le plus ancien d'abord) : { day, complete, some } pour la frise de l'écran.
+// Aujourd'hui : coches du plan suivi seulement (celles d'un plan quitté dans la journée ne s'affichent plus)
 function dietWeek(d, now = Date.now()) {
   return Array.from({ length: 7 }, (_, j) => {
     const t = new Date(now); t.setHours(12, 0, 0, 0); t.setDate(t.getDate() - (6 - j));
-    const day = dietDayKey(t.getTime());
-    return { day, ts: t.getTime(), complete: dietDayComplete(d, day), some: (d.dietLog?.[day]?.done.length || 0) > 0 };
+    const day = dietDayKey(t.getTime()), only = j === 6 ? d.dietActive || null : null;
+    const e = d.dietLog?.[day], mine = !!e && (!only || e.plan === only);
+    return { day, ts: t.getTime(), complete: dietDayComplete(d, day, only), some: mine && e.done.length > 0 };
   });
 }
 

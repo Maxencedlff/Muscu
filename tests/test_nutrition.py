@@ -410,6 +410,49 @@ def t_ancienne_coche(bench):
         R.check(not page.errors, f'aucune erreur JS {page.errors[:2]}')
 
 
+def t_plan_neuf_puis_coach(bench):
+    """Panel du 06/11 : plan neuf (un seul repas rempli sur quatre) coché avec un équivalent, puis plan du coach
+    suivi le même jour. Accueil : jamais « Déjeuner · 0 kcal » ni « 217 sur 215 kcal » ; frise d'aujourd'hui
+    jamais verte pour les coches de l'ancien plan."""
+    for dev, theme, eng in (('iPhone 13', 'light', 'webkit'), ('iPhone SE', 'dark', 'webkit')):
+        t = tag(dev, theme)
+        with bench.frozen_page(NOW, eng, dev, theme) as page:
+            d = ppl_v2_today(now_ms=NOW)
+            mine = {'name': 'Ma prise de masse', 'meals': [{'id': 'p1', 'name': 'Petit-déjeuner', 'items': [food_item(RIZ, 150, 'r1')]}]
+                    + [{'id': f'p{i}', 'name': n, 'items': []} for i, n in ((2, 'Déjeuner'), (3, 'Collation'), (4, 'Dîner'))]}
+            d['dietPlans'] = {'d_neuf0001': mine, 'dc_max_lea00001': {**PLAN, 'name': 'Sèche Léa'}}
+            d['dietActive'] = 'd_neuf0001'
+            open_app(page, theme, json.dumps(d, ensure_ascii=False))
+            page.click('.diet-home [data-action="diet-check"]')
+            page.wait_for_timeout(250)
+            # Équivalent du riz pour la journée (quelques kcal de plus ou de moins que prévu)
+            page.evaluate("""async () => { await loadFoods(); const it = data.dietPlans.d_neuf0001.meals[0].items[0];
+                const c = swapCandidates(it).find(x => Math.round(x.macros.kcal) !== Math.round(dietItemMacros(it).kcal));
+                dietSetSwap(data, 'd_neuf0001', 'r1', foodToItem(c.food, c.g)); save(); render(); }""")
+            page.wait_for_timeout(250)
+            home = page.inner_text('.diet-home').replace('\u202f', ' ').replace('\xa0', ' ')
+            pr = page.evaluate("dietDayProgress(data, data.dietActive)")
+            R.check('Journée complète' in home and 'Déjeuner' not in home, f'{t} accueil : seul repas rempli coché, journée complète ({home!r})')
+            R.check(pr['goal']['kcal'] == round(pr['eaten']['kcal']), f'{t} accueil : repère = prévu du jour ({round(pr["eaten"]["kcal"])} sur {pr["goal"]["kcal"]})')
+            page.locator('.diet-home').scroll_into_view_if_needed()
+            page.wait_for_timeout(2600)   # toast « Journée complète, bravo » parti
+            shot(page, LOT, f'16-plan-neuf-accueil-{t}')
+            page.click('.diet-home__open')
+            page.wait_for_selector('.nutrition-view .diet-sum')
+            R.check('Journée complète' in page.inner_text('.diet-sum') and page.locator('.diet-meal--next').count() == 0, f'{t} Nutrition : journée complète, aucun repas vide « Ensuite »')
+            R.check(page.locator('.diet-week__day[data-day="2026-11-05"] .diet-week__dot--done').count() == 1, f'{t} frise : aujourd\'hui vert, comme le bilan')
+            # Plan du coach suivi le même jour : 0 coché, la frise d'aujourd'hui ne garde pas la coche de l'ancien plan
+            page.evaluate("data.dietActive = 'dc_max_lea00001'; save(); render()")
+            page.wait_for_timeout(250)
+            txt = page.inner_text('.diet-sum')
+            R.check('0 repas coché sur 4' in txt, f'{t} plan du coach : 0 repas coché sur 4 ({txt[-60:]!r})')
+            today = page.locator('.diet-week__day[data-day="2026-11-05"]')
+            R.check(today.locator('.diet-week__dot--done, .diet-week__dot--some').count() == 0 and 'complète' not in (today.get_attribute('aria-label') or ''),
+                    f'{t} frise : aujourd\'hui pas coché pour l\'ancien plan')
+            layout(page, t, 'Nutrition plan du coach')
+            shot(page, LOT, f'17-plan-coach-frise-{t}')
+
+
 def t_invitation(bench):
     """Serveur pas encore à jour (le coach a pu envoyer sans accord) : l'élève voit une invitation SANS le
     contenu du plan ; accepter (gardé sur l'appareil) puis le plan s'affiche."""
@@ -443,4 +486,4 @@ def t_invitation(bench):
             R.check(not page.errors, f'{theme} invitation : aucune erreur JS {page.errors[:2]}')
 
 
-run_main(R, [t_journee, t_creer_plan, t_coach_eleve], once=[t_sans_base, t_ancienne_coche, t_invitation])
+run_main(R, [t_journee, t_creer_plan, t_coach_eleve], once=[t_sans_base, t_ancienne_coche, t_invitation, t_plan_neuf_puis_coach])

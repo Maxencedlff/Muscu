@@ -59,7 +59,7 @@ function dietSummaryHtml(pr) {
             <div class="diet-bar__track"><span class="diet-bar__fill" style="width:${(dietRatio(eaten[k], goal[k]) * 100).toFixed(1)}%"></span></div>
           </div>`).join('');
   const streak = data.dietStreakOff ? 0 : dietStreak(data);
-  const n = pr.meals.length;
+  const n = pr.nMeals;   // repas à cocher (ceux qui ont des aliments)
   const status = pr.complete ? `<span class="diet-sum__done">${icon('checkmark', 14)}Journée complète</span>`
     : `<span>${pr.nDone} ${pr.nDone > 1 ? 'repas cochés' : 'repas coché'} sur ${n}</span>`;
   const line = `<p class="diet-sum__line">${status}${streak >= 2 ? `<span class="diet-sum__streak">${icon('flame', 14)}${streak} jours complets d'affilée</span>` : ''}</p>`;
@@ -75,7 +75,7 @@ function dietSummaryHtml(pr) {
           <div class="diet-sum__bars">${bars}</div>
         </div>
         ${line}
-        ${own.kcal || own.p || own.c || own.f ? '' : '<p class="diet-sum__hint">Repère : le total prévu par ton plan.</p>'}
+        ${own.kcal || own.p || own.c || own.f ? '' : `<p class="diet-sum__hint">Repère : le total prévu par ton plan${Object.keys(pr.swaps).length ? ', remplacements du jour compris' : ''}.</p>`}
         ${dietLowKcal(pr.plan) ? dietLowNoteHtml() : ''}
       </section>`;
 }
@@ -266,16 +266,17 @@ function nutritionHomeCard() {
       <button class="account-card__close" data-action="diet-dismiss" data-id="${esc(pending.id)}" aria-label="Plus tard">${icon('xmark', 16)}</button>
     </section>` : '';
   const plan = dietActivePlan(data);
-  if (!plan || !plan.meals.length) return card;
+  if (!plan) return card;
   const day = dietDayKey(), pr = dietDayProgress(data, data.dietActive, day);
+  if (!pr.nMeals) return card;   // aucun repas rempli : rien à suivre aujourd'hui (pas de « 0 sur 0 kcal »)
   const next = pr.next;
   const hide = data.dietHideNumbers === true;
   const line = pr.complete ? 'Journée complète' : next ? `${esc(next.meal.name)}${hide ? '' : ` · ${dietN(next.macros.kcal)} kcal`}` : '';
-  const head = hide ? `${pr.nDone} sur ${plural(pr.meals.length, 'repas', 'repas')}` : `<b>${dietN(pr.eaten.kcal)}</b> sur ${dietN(pr.goal.kcal)} kcal`;
+  const head = hide ? `${pr.nDone} sur ${plural(pr.nMeals, 'repas', 'repas')}` : `<b>${dietN(pr.eaten.kcal)}</b> sur ${dietN(pr.goal.kcal)} kcal`;
   return `${card}
     <section class="home-card diet-home${pr.complete ? ' diet-home--complete' : ''}">
-      <button class="diet-home__open" data-action="go-nutrition" aria-label="Nutrition : ${hide ? `${pr.nDone} repas cochés sur ${pr.meals.length}` : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? ', journée complète' : next ? `, ensuite ${esc(next.meal.name)}` : ''}. Ouvrir">
-        <span class="diet-home__ring" aria-hidden="true">${dietRingSvg(hide ? pr.nDone / Math.max(1, pr.meals.length) : dietRatio(pr.eaten.kcal, pr.goal.kcal), 44, 6)}</span>
+      <button class="diet-home__open" data-action="go-nutrition" aria-label="Nutrition : ${hide ? `${pr.nDone} repas cochés sur ${pr.nMeals}` : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? ', journée complète' : next ? `, ensuite ${esc(next.meal.name)}` : ''}. Ouvrir">
+        <span class="diet-home__ring" aria-hidden="true">${dietRingSvg(hide ? pr.nDone / Math.max(1, pr.nMeals) : dietRatio(pr.eaten.kcal, pr.goal.kcal), 44, 6)}</span>
         <span class="diet-home__text" aria-hidden="true">
           <span class="home-card__title">Nutrition</span>
           <span class="diet-home__kcal num">${head}</span>

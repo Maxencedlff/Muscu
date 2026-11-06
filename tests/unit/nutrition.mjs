@@ -361,6 +361,56 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run(`foodState('Polenta ou semoule de maïs, précuite, à cuire')`), 'cru');
   });
 
+  test('plan neuf, repas vides : ni comptés, ni proposés comme prochain repas ; repère = prévu du jour, remplacements compris', () => {
+    reset();
+    loadDb();
+    const riz = { ...item(RIZ_CUIT, 150), id: 'it1' };
+    run(`data.dietPlans = { d_a: { name: 'Ma prise de masse', meals: [{ id: 'm1', name: 'Petit-déjeuner', items: [${JSON.stringify(riz)}] },
+      { id: 'm2', name: 'Déjeuner', items: [] }, { id: 'm3', name: 'Collation', items: [] }, { id: 'm4', name: 'Dîner', items: [] }] } }; data.dietActive = 'd_a';`);
+    let pr = run(`dietDayProgress(data, 'd_a', '2026-11-04')`);
+    assert.equal(pr.nMeals, 1, 'un seul repas à cocher');
+    assert.equal(pr.next.meal.id, 'm1');
+    run(`dietToggleMeal(data, 'd_a', 'm1', '2026-11-04')`);
+    pr = run(`dietDayProgress(data, 'd_a', '2026-11-04')`);
+    assert.equal(pr.next, null, 'jamais « Déjeuner · 0 kcal »');
+    assert.equal(pr.complete, true, 'journée complète, comme la frise');
+    assert.equal(run(`dietDayComplete(data, '2026-11-04')`), true);
+    // Équivalent choisi (quelques kcal de plus) : le repère suit le prévu du jour, jamais « 217 sur 215 »
+    const c = run(`swapCandidates(data.dietPlans.d_a.meals[0].items[0]).find(x => Math.round(x.macros.kcal) !== Math.round(${155 * 1.5}))`);
+    run(`dietSetSwap(data, 'd_a', 'it1', { name: ${JSON.stringify(c.food.name)}, food: ${c.food.code}, fam: 'f', g: ${c.g}, per: ${JSON.stringify(c.food.per)} }, '2026-11-04')`);
+    pr = run(`dietDayProgress(data, 'd_a', '2026-11-04')`);
+    assert.equal(pr.goal.kcal, Math.round(pr.eaten.kcal), `repère ${pr.goal.kcal} = mangé ${Math.round(pr.eaten.kcal)}`);
+    assert.equal(pr.goal.p, Math.round(pr.planned.p));
+    // Objectif fixé : gardé tel quel, remplacement ou pas
+    run(`data.dietPlans.d_a.targets = { kcal: 2000 }`);
+    pr = run(`dietDayProgress(data, 'd_a', '2026-11-04')`);
+    assert.equal(pr.goal.kcal, 2000);
+    assert.equal(pr.goal.c, Math.round(pr.planned.c), 'les autres repères suivent le prévu du jour');
+  });
+
+  test('changement de plan dans la journée : la frise et la série d\'aujourd\'hui suivent le plan suivi', () => {
+    reset();
+    const NOW = new Date(2026, 10, 4, 18, 30).getTime();   // mercredi 4 novembre 2026
+    const it = id => ({ id, name: 'Riz', g: 100, per: { k: 155, p: 3, c: 33, f: 1 } });
+    run(`data.dietPlans = { d_a: { name: 'Mon plan', meals: [{ id: 'm1', name: 'A', items: [${JSON.stringify(it('i1'))}] }, { id: 'm2', name: 'B', items: [] }] },
+      dc_x_1: { name: 'Sèche Léa', meals: [{ id: 'c1', name: 'A', items: [${JSON.stringify(it('j1'))}] }, { id: 'c2', name: 'B', items: [${JSON.stringify(it('j2'))}] }] } };
+      data.dietActive = 'd_a'; dietToggleMeal(data, 'd_a', 'm1', '2026-11-04'); dietToggleMeal(data, 'd_a', 'm1', '2026-11-03');`);
+    let week = run(`dietWeek(data, ${NOW})`);
+    assert.equal(week[6].complete, true, 'ancien plan : aujourd\'hui complet');
+    assert.equal(run(`dietStreak(data, ${NOW})`), 2);
+    // Plan du coach suivi : 0 repas coché à l'écran, donc aujourd'hui ni coché ni « en partie » dans la frise
+    run(`data.dietActive = 'dc_x_1'`);
+    week = run(`dietWeek(data, ${NOW})`);
+    assert.equal(week[6].complete, false, 'pas de coche verte pour l\'ancien plan');
+    assert.equal(week[6].some, false);
+    assert.equal(run(`dietDayProgress(data, 'dc_x_1', '2026-11-04').nDone`), 0);
+    assert.equal(week[5].complete, true, 'hier : jugé avec le plan de ce jour-là');
+    assert.equal(run(`dietStreak(data, ${NOW})`), 1, 'la série court jusqu\'à hier');
+    run(`dietToggleMeal(data, 'dc_x_1', 'c1', '2026-11-04')`);
+    week = run(`dietWeek(data, ${NOW})`);
+    assert.ok(!week[6].complete && week[6].some, 'nouveau plan : en partie');
+  });
+
   test('remplacement du jour : gardé pour ce jour seulement, compté dans les macros, remis', () => {
     reset();
     loadDb();
