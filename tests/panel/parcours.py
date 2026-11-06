@@ -196,6 +196,7 @@ def p_seance(r):
         r.attendre('.sess-sheet--addex', 'feuille de remplacement')
     with r.etape('remplacer-choisi', 'Remplaçant choisi', cle='Remplacer un exercice'):
         r.toucher('.sess-sheet--addex [data-action="ax-pick"]', '1re suggestion')
+        r.defiler('.view.session [data-action="ex-menu"][data-ei="1"]', 'l\'exercice remplacé')
 
     with r.etape('plus-tard', 'Faire un exercice plus tard (menu ⋯ du 3e)', cle='Faire un exercice plus tard'):
         menu_ex(r, 2)
@@ -230,11 +231,11 @@ def p_seance(r):
         fermer_feuille(r)
 
     r.raccourci("""() => { activeSession.startedAt = Date.now() - 52 * 60000;
-        activeSession.exercises.slice(0, 3).forEach(ex => ex.sets.forEach(s => {
+        activeSession.exercises.forEach(ex => ex.sets.forEach(s => {
           if (s.done || s.warmup) return;
           if (String(s.reps ?? '').trim() === '') s.reps = String(setGoal(ex, s));
           if (String(s.weight ?? '').trim() !== '') s.done = true; }));
-        persistSession(); render(); }""", 'séries des 3 premiers exercices faites, 52 min écoulées')
+        persistSession(); render(); }""", 'séries chargées toutes faites, 52 min écoulées')
     with r.etape('terminer', 'Terminer la séance : confirmation', cle='Terminer et voir le bilan'):
         r.toucher('.view.session [data-action="finish-session"]', 'Terminer')
     with r.etape('bilan', 'Bilan de la séance', cle='Terminer et voir le bilan'):
@@ -339,10 +340,10 @@ def p_reglages(r):
     r.lancer(REALISTE)
     with r.etape('haut', 'Réglages, haut de l\'écran', cle='Ouvrir les réglages'):
         reglages(r)
-    titres = r.page.evaluate("[...document.querySelectorAll('.view.settings .group-title')].map(e => e.textContent.trim())")
+    titres = r.page.evaluate("[...document.querySelectorAll('.settings-view .group-title')].map(e => e.textContent.trim())")
     for i, t in enumerate(titres[1:], 1):
         with r.etape(f'groupe-{t}', f'Groupe « {t} »'):
-            r.defiler(f'.view.settings .group-title >> nth={i}', f'« {t} »')
+            r.defiler(f'.settings-view .group-title >> nth={i}', f'« {t} »')
 
 
 @parcours('guide', 'Guide', 'pratiquant')

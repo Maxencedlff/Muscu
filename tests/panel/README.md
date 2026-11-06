@@ -17,7 +17,8 @@ PPL_URL=http://localhost:8768/ flock /tmp/ppl-e2e.lock python3 tests/panel/captu
 | `--sans-axe` | sans l'audit d'accessibilité axe-core (fait sur le premier appareil seulement) |
 | `--debug` | pile complète quand une étape échoue |
 
-Un seul navigateur à la fois (WebKit pour les iPhone, puis Chromium pour le Pixel). App iOS et Supabase
+Un seul navigateur à la fois (WebKit pour les iPhone, puis Chromium pour le Pixel). Durée mesurée le
+06/11/2026 : 12 min en complet (520 étapes), environ 5 min en rapide, sans compter l'attente du verrou. App iOS et Supabase
 simulés par `tests/fake_account.py` : aucune requête ne sort du poste (tout ce qui n'est pas l'adresse
 locale est coupé). Horloge de l'app figée au mercredi 4 novembre 2026, 18 h 30 (Paris) ; données :
 6 mois d'entraînement réalistes (`tests/donnees_realistes.py`).

@@ -204,7 +204,7 @@ class Pilote:
         loc = self.page.locator(sel).first
         if not loc.count():
             raise Absent(f'introuvable : {quoi}')
-        loc.evaluate("e => e.scrollIntoView({ block: 'start' })")
+        loc.evaluate("e => e.scrollIntoView({ block: 'center' })")
         self.page.wait_for_timeout(200)
         self._note(f'défile jusqu\'à {quoi}', touche=False)
 
@@ -300,7 +300,7 @@ class Pilote:
             self.ecran_txt = '?'
         with contextlib.suppress(Exception):
             page.evaluate(MASQUER_JS, False)
-        return out
+        return [x for x in map(sans_arrondis, out) if x]
 
     def _icones(self, icones, capture):
         """Contraste des icônes cliquables mesuré sur la capture (même règle que verif_ui --ux)."""
@@ -430,6 +430,17 @@ def decouper(pb):
         return pb.splitlines()[0][:160], []
     ex = re.sub(r' … et \d+ autre\(s\)$', '', m.group(2))
     return m.group(1), [x.strip() for x in ex.split(' ; ') if x.strip()]
+
+
+def sans_arrondis(pb):
+    """Zones de toucher : retire les éléments à 44 px une fois arrondis (43,9 px mesurés), faux positifs."""
+    if not pb.startswith('zones de toucher'):
+        return pb
+    titre, ex = decouper(pb)
+    garde = [x for x in ex if not ((m := re.search(r'(\d+)×(\d+)$', x)) and min(int(m[1]), int(m[2])) >= CIBLE_MINI)]
+    if not garde:
+        return None
+    return f'{titre} ({len(garde)}) : ' + ' ; '.join(garde)
 
 
 def ecrire_resume(run, registre, duree, mode):
