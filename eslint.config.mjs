@@ -26,6 +26,7 @@ export default [
   {
     files: ['tests/panel/*.js'],
     languageOptions: { ecmaVersion: 2023, sourceType: 'script', globals: { ...globals.browser } },
+    rules: { 'no-empty': ['error', { allowEmptyCatch: true }] },
   },
   {
     files: ['tests/**/*.mjs', 'scripts/**/*.mjs', 'tools/**/*.mjs', 'eslint.config.mjs'],
