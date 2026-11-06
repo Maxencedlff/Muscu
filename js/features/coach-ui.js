@@ -8,8 +8,9 @@
 //  - Élève : Mon coach (`coach-mine` : commentaires, programmes reçus avec aperçu des exercices), cartes de
 //    l'accueil (programme reçu, commentaire), consignes dans Programme, Programme › Séance et la séance
 //    (repliables), commentaire dans Historique (marque dans la liste, détail), notes vues du coach (bilan).
-//  - Coach : Mes élèves (`coach-students` : nouvelles séances, invitations, élèves retirés), un élève
-//    (`coach-student:UID` : séances, séries faites sur prévues, programmes envoyés pas encore utilisés),
+//  - Coach : Mes élèves (`coach-students` : signal de progression et tri, js/features/coach-progress-ui.js ;
+//    nouvelles séances, invitations, élèves retirés), un élève (`coach-student:UID` : « Cette semaine » en tête,
+//    séances, séries faites sur prévues, programmes envoyés pas encore utilisés),
 //    une séance (`coach-session:UID:ID` : relecture comparée à ses séances reçues, exercices prévus non faits,
 //    « Commenter »), envoi d'un programme avec consignes (`coach-send:UID:PROG`, brouillon gardé sur l'appareil).
 //  Tout texte venu du serveur passe par esc() ; les pseudos passent par elide() (« d'essai »). Rien au
@@ -579,18 +580,8 @@ function renderCoachStudents() {
   if (!st) return `<div class="view view--grouped coach-students-view">${head}<div class="scr">${coach.error
     ? coachOfflineNote(coach.error, 'Pas d\'Internet. Tes élèves s\'afficheront quand le réseau reviendra.') : '<div class="empty-note">Chargement…</div>'}</div></div>`;
   if (!st.is_coach) return `<div class="view view--grouped coach-students-view">${head}<div class="scr"><div class="empty-note">${esc(coachErrorText('not_coach'))}</div></div></div>`;
-  const rows = st.students.map(s => `
-          <button class="cell cell--nav social-row coach-student-row" data-action="coach-open-student" data-uid="${esc(s.user_id)}">
-            <span class="social-row__main">${personAvatar(s)}<span class="social-row__text">
-              <span class="social-row__name">${esc(personName(s))}</span>
-              <span class="cell__sub">${esc(studentLastLine(s))}</span>
-              ${s.last_session ? `<span class="cell__sub num">${s.sessions_7d ? `${plural(s.sessions_7d, 'séance', 'séances')} en 7 jours` : 'Aucune séance en 7 jours'}</span>` : ''}
-              ${coachStudentPlanLine(s.user_id)}
-            </span></span>
-            ${coachBadgeHtml(s.new_sessions, plural(s.new_sessions, 'nouvelle séance', 'nouvelles séances'))}
-            ${chatBadgeHtml(chatUnreadOf(s.user_id))}${chatUnreadOf(s.user_id) ? `<span class="visually-hidden">, ${plural(chatUnreadOf(s.user_id), 'message non lu', 'messages non lus')}</span>` : ''}
-            ${icon('chevron.right', 16)}
-          </button>`).join('');
+  // Lignes triées, avec le signal de progression de chaque élève (js/features/coach-progress-ui.js)
+  const rows = coachStudentRowsHtml(st.students);
   const invites = st.invites.map(i => `
           <div class="cell coach-invite">
             <span class="cell__body"><span class="cell__title coach-code num">${esc(i.code)}</span><span class="cell__sub">Jusqu'au ${esc(fmtDate(i.expires_at, 'short'))}</span></span>
@@ -611,7 +602,7 @@ function renderCoachStudents() {
         ${coachPlanningCellHtml()}
         <div class="group-title">Élèves${st.students.length ? ` (${st.students.length})` : ''}</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub social-empty">Aucun élève pour l\'instant</span></div>'}</div>
-        <div class="group-foot">Tes élèves ne se voient pas entre eux.</div>
+        <div class="group-foot">${st.students.length > 1 ? PROGRESS_SORT_FOOT : 'Tes élèves ne se voient pas entre eux.'}</div>
         <div class="group-title">Invitations</div>
         <div class="group">
           ${invites}
@@ -622,7 +613,7 @@ function renderCoachStudents() {
       </div>
     </div>`;
 }
-SCREENS.set('coach-students', { render: () => renderCoachStudents(), enter: () => { coachRefresh(); coachProRefresh({ minAge: 30_000 }); } });
+SCREENS.set('coach-students', { render: () => renderCoachStudents(), enter: () => { coachRefresh().then(() => coachProgressRefresh({ minAge: 30_000 })); coachProRefresh({ minAge: 30_000 }); } });
 
 // ── Coach : un élève et ses séances ─────────────────────────
 
@@ -695,6 +686,7 @@ function renderCoachStudent(uid) {
           ${personAvatar(p, 'l')}
           <span><span class="coach-join__name">${esc(personName(p))}</span><span class="coach-join__sub">${sinceText(p) ? `Élève depuis le ${esc(sinceText(p))}` : 'Élève'}</span></span>
         </div>
+        ${coachWeekSummaryHtml(uid)}
         ${chatCellHtml(uid)}
         ${coachPlanGroupHtml(uid)}
         <div class="group">
@@ -722,6 +714,7 @@ SCREENS.set('coach-student', {
     coachLoadWeights(uid);
     coachLoadMeasures(uid);
     if (!plan.coach && plan.available !== false) coachPlanRefresh();   // planning (serveur sans planification : rien)
+    coachProgressRefresh();   // résumé « Cette semaine » (5 min au plus entre deux lectures)
     coachMarkSeen(uid);
   },
 });

@@ -72,6 +72,9 @@ Planification (supabase/migrations/20261105000000_coach_planning.sql) : coach_pl
 note ni l'identifiant des phases), coach_plan_save (invalid_phase, too_long, overlap, too_many à 30, not_found), coach_plan_delete ; effacée
 avec le lien. État dans __sb.co.phases ; __sb.addPhase(élève, { goal, start, weeks, name?, prog_name?, note? })
 en pose une ; __sb.fail.plan = 'missing' (PGRST202 : serveur sans planification) ou 'offline'.
+Progression (supabase/migrations/20261106000000_coach_progression.sql) : coach_progress (séances des 35 derniers
+jours avec leurs records notés, first_at, last_record_at, unnoted_at sur 182 jours, mes élèves seulement, encore
+coach) ; __sb.fail.progress = 'missing' (PGRST202 : serveur sans la fonction, l'app lit les séances page par page).
 
 Parrainage (docs/PARRAINAGE.md, supabase/migrations/20261031400000_parrainage.sql) : referral_state et
 referral_apply avec les mêmes règles (un parrain par compte, fixé à la première saisie, 30 jours après la
@@ -729,6 +732,19 @@ FAKE_ACCOUNT = r"""
       const sh = shareOf(student, 'measures');
       return sh ? { shared: true, since: sh.granted_at, measures: co.measures[student] || {} } : { shared: false, since: null, measures: {} };
     },
+    // Même règles que supabase/migrations/20261106000000_coach_progression.sql
+    coach_progress: me => {
+      if (!co.coachAt[me]) return { students: [] };
+      const D = 86400_000, maxAt = now() + D, from = now() - 35 * D, hz = now() - 182 * D;
+      return { students: co.links.filter(l => l.coach === me).map(l => {
+        const ps = livePosts(l.student).filter(p => p.data.date <= maxAt && p.data.date >= hz).sort((a, b) => (b.data.date - a.data.date) || (a.id < b.id ? 1 : -1));
+        return { student_id: l.student,
+          sessions: ps.filter(p => p.data.date >= from).slice(0, 80).map(p => ({ at: p.data.date, records: Array.isArray(p.data.records) ? JSON.parse(JSON.stringify(pubRecords(p.data.records, true))) : null })),
+          first_at: ps.length ? ps[ps.length - 1].data.date : null,
+          last_record_at: ps.find(p => (pubRecords(p.data.records) || []).length)?.data.date ?? null,
+          unnoted_at: ps.find(p => !Array.isArray(p.data.records))?.data.date ?? null };
+      }) };
+    },
     coach_plans: me => ({ students: co.coachAt[me] ? co.links.filter(l => l.coach === me).map(l => ({ student_id: l.student, phases: planOf(me, l.student) })) : [] }),
     student_plan: me => { const l = linkOf(me); return { coach: !!l, phases: l ? co.phases.filter(p => p.coach === l.coach && p.student === me)
       .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.id - b.id)).map(p => phaseJson(p, false)) : [] }; },
@@ -879,6 +895,7 @@ FAKE_ACCOUNT = r"""
     if (sb.fail.coach === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
     if (fn.startsWith('chat_') && sb.fail.chat === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     if (fn.startsWith('chat_') && sb.fail.chat === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+    if (fn === 'coach_progress' && sb.fail.progress === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     const planFn = ['coach_plans', 'student_plan', 'coach_plan_save', 'coach_plan_delete'].includes(fn);
     const measFn = ['student_share_measures', 'coach_student_measures'].includes(fn);
     if ((planFn && sb.fail.plan === 'missing') || (measFn && sb.fail.measures === 'missing')) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };

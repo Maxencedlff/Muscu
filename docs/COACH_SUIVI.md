@@ -163,17 +163,93 @@ points ne sont pas réglés :
 À faire dans un chantier dédié (une build native est sans doute nécessaire pour la clé du coach dans le trousseau),
 avec une relecture sécurité avant toute mise en ligne.
 
+## Progression des élèves (06/11/2026, migration 20261106000000_coach_progression.sql)
+
+Audit d'ergonomie, point bloquant : « le coach voit quel élève a progressé en 2 secondes ». Avant, la liste Mes
+élèves donnait la dernière séance et « 6 séances en 7 jours » ; les records ne se voyaient qu'en ouvrant une séance
+(4 touchers).
+
+Code : `js/data/coach-progress.js` (règles pures et lecture), `js/features/coach-progress-ui.js` (écrans),
+`css/coach.css`. Tests : `tests/unit/coach-progress.mjs`, `tests/sql/coach_progress_test.sql`,
+`tests/test_coach_progression.py`.
+
+### Ce que le serveur donnait déjà, ce qui manquait
+
+Vérifié avant d'écrire du code : les records notés de chaque séance arrivent au coach depuis le 31/10 (liste blanche
+`private.session_for_coach`, valeur d'avant comprise), mais seulement séance par séance (`coach_student_sessions`,
+30 par page et par élève) ; `coach_state()` ne donne que la dernière séance et le nombre de séances sur 7 jours.
+D'où une fonction de lecture, sans table ni écriture :
+
+| Fonction | Qui | Renvoie | Règles |
+|---|---|---|---|
+| `coach_progress()` | coach | `{ students: [{ student_id, sessions: [{ at, records }], first_at, last_record_at, unnoted_at }] }` | Mes élèves seulement, encore coach (sinon `students: []`). `sessions` : 35 derniers jours, 80 au plus, du plus récent ; `records` = `private.session_records(…, true)` (comme `coach_student_sessions`), `null` pour une séance d'une app d'avant les records notés. `first_at`, `last_record_at` (séance avec au moins un record valable), `unnoted_at` (séance sans records notés) : sur 182 jours. Rien d'autre (ni exercices, ni notes, ni poids). `security definer`, `search_path = ''`, `authenticated` seulement. |
+
+**Serveur sans la fonction** (`PGRST202`) : l'app lit la première page de séances de chaque élève actif ces 35 jours
+(30 au plus, l'un après l'autre, pas relue avant 5 min) et applique les mêmes règles. Rien de lu : le signal ne
+s'appuie que sur `coach_state` (inactivité, séances de la semaine). Une app d'avant n'appelle jamais la fonction.
+
+### Règles du signal (un par élève, le premier qui s'applique)
+
+« Cette semaine » = aujourd'hui et les 6 jours d'avant, en jours du calendrier : un lundi matin ne remet pas tout le
+monde à zéro, et c'est la même fenêtre que « séances sur 7 jours ». Chaque signal tient en 22 caractères, une ligne
+sur un iPhone SE (« sem. » comme dans « Mini cut · sem. 3/6 ») ; un test unitaire le vérifie.
+
+| # | Signal | Couleur | Règle | Pourquoi |
+|---|---|---|---|---|
+| 1 | « 9 jours sans séance » ; « Pas encore de séance » | orange | 8 jours du calendrier ou plus sans séance (au-delà de 4 semaines : « 5 sem. sans séance ») ; jamais venu, lié depuis 8 jours (avant : même texte, en gris) | Une semaine entière sautée, même par un élève à 1 séance par semaine. Vrai aussi en décharge : une décharge s'entraîne, plus léger. |
+| 2 | « 1 séance au lieu de 3 » | orange | Habitude = médiane des 3 semaines d'avant, au moins 2 ; cette semaine au moins 2 de moins. Seulement si ces 3 semaines sont connues (fenêtre du serveur, ou toutes ses séances reçues). **Jamais** si une phase Décharge ou Reprise touche cette semaine (en cours ou finie depuis moins de 7 jours) | Une séance ratée n'est pas une baisse ; la médiane ignore une semaine à part (malade, vacances) ; en décharge ou en reprise, on s'entraîne moins exprès. |
+| 3 | « ↑ 2 records cette sem. » | vert | Records notés cette semaine, un par exercice (casse et accents ignorés) | Le nombre d'exercices qui progressent, pas le nombre de lignes (charge et reps du même squat = 1). |
+| 4 | « Stable depuis 3 sem. » (au-delà de l'horizon de 182 jours : « 6 mois ») | gris | Aucun record depuis 14 jours ou plus (depuis le dernier record, sinon la première séance connue), cette semaine au moins une séance, et toutes les séances de la période ont des records notés (`unnoted_at` plus ancien). **Jamais** pendant une phase Sèche, Mini cut, Maintien, Décharge ou Reprise | Ne pas dire « stable » sur des séances que l'app ne sait pas juger (app d'avant) ; en sèche, ne pas battre de record est normal, « stable » y serait lu comme un reproche. |
+| 5 | « 3 séances cette sem. » | gris | Le reste | Toujours une information utile, jamais une alerte. |
+
+La baisse passe avant les records : un élève qui bat un record sur sa seule séance de la semaine, au lieu de trois,
+doit quand même être relancé. Une couleur, un sens : vert avec ↑ = record, orange = à relancer, gris = rien à faire ;
+le texte dit toujours la même chose que la couleur.
+
+### Tri de Mes élèves
+
+1. **Nouveautés à lire** (nouvelles séances ou messages non lus), la séance la plus récente d'abord ;
+2. **à relancer** (orange), le plus ancien sans séance d'abord ;
+3. **records cette semaine**, le plus de records d'abord ;
+4. **les autres**, la séance la plus récente d'abord.
+
+À égalité, le pseudo. Sous la liste (dès 2 élèves) : « En haut, les nouveautés à lire, puis les élèves à relancer,
+puis ceux qui ont battu un record cette semaine, puis les autres. »
+
+### Écrans
+
+- **Ligne d'un élève** : 3 lignes au plus : pseudo ; signal ; sa phase (« Mini cut · sem. 3/6 ») ou, sans planning,
+  sa dernière séance (« Push · ton programme · hier »). Pastilles (nouvelles séances, messages) inchangées. Élève sans
+  séance arrivé il y a moins de 8 jours, sans planning : pas de signal, la 3e ligne dit « Aucune séance pour l'instant ».
+- **Fiche d'un élève, en tête** : groupe « Cette semaine » : le signal s'il est orange ou « stable » (les autres se
+  lisent dans les lignes du dessous) ; « Séances » : « 3 sur 4 » et « Prévues : Sèche 4 jours » quand sa phase en cours
+  suit un de mes programmes (nombre de séances du programme, retrouvé par son nom), sinon « 2 » et « 3 d'habitude » ; un record
+  par exercice (3 au plus, puis « Et 2 autres records ») avec l'exercice, la valeur et celle d'avant ; « Records :
+  Aucun » ; « Dernière séance », qui s'ouvre (2e toucher depuis la liste) quand elle est chargée.
+
+### Limites
+
+- Les records d'une séance faite avec une app d'avant les records notés (avant le 31/10) ne comptent pas, et
+  empêchent de dire « stable » sur cette période.
+- « Prévues » ne se calcule que si la phase en cours suit un programme de cet appareil, retrouvé par son nom ; un
+  programme renommé depuis n'est plus reconnu (la ligne n'affiche alors que les séances faites).
+- Serveur sans la fonction : 30 élèves actifs au plus sont lus, et 30 séances par élève (environ 10 semaines à 3
+  séances) ; au-delà, « stable depuis » est une borne basse, toujours vraie.
+- Pas de notification au coach : le signal se lit à l'ouverture de Mes élèves.
+
 ## Mise en production (à faire par Maxence, rien n'a été appliqué)
 
 1. `supabase/migrations/20261105000000_coach_planning.sql`
 2. `supabase/migrations/20261105010000_partage_mensurations.sql`
-3. Puis l'OTA (une app à jour sur un serveur d'avant cache simplement ces fonctions ; une app d'avant sur un serveur
+3. `supabase/migrations/20261106000000_coach_progression.sql` (progression des élèves : lecture seule, aucune donnée)
+4. Puis l'OTA (une app à jour sur un serveur d'avant cache simplement ces fonctions ; une app d'avant sur un serveur
    à jour continue de marcher : `student_shares()` garde sa forme, `kinds` en plus).
 
-Les deux sont dans `tests/sql/prod_order_test.sh` (ordre réel de la production, après les cinq du payant) et
-`supabase/rollback/ORDRE.md`. Retours arrière : `supabase/rollback/20261105010000_partage_mensurations_down.sql`
-puis `20261105000000_coach_planning_down.sql` ; celui des mensurations doit passer **avant** celui du partage du
-poids (`20261031300000_partage_coach_down.sql`), qui supprime la table des consentements.
+Les trois sont dans `tests/sql/prod_order_test.sh` (ordre réel de la production, après les cinq du payant) et
+`supabase/rollback/ORDRE.md`. Retours arrière : `supabase/rollback/20261106000000_coach_progression_down.sql`, puis
+`20261105010000_partage_mensurations_down.sql`, puis `20261105000000_coach_planning_down.sql` ; celui des mensurations doit passer **avant** celui du partage du
+poids (`20261031300000_partage_coach_down.sql`), qui supprime la table des consentements, et celui de la progression
+**avant** celui des records notés (`20261031100000_records_series_down.sql`), dont il lit `private.session_records`.
 
 ## Limites de la V1
 
