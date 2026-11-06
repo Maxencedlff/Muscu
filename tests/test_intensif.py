@@ -321,6 +321,58 @@ def t_ami_coach(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def native_rest(page):
+    """Appel natif simulé : texte de la notification de fin de repos et données de la Live Activity."""
+    return page.evaluate("""() => {
+        const keep = { isNative: Native.isNative, schedule: Native.scheduleRestEnd, live: Native.liveActivity };
+        const got = {};
+        Native.isNative = true;
+        Native.scheduleRestEnd = (end, body) => { got.body = body; };
+        Native.liveActivity = { start: p => { got.next = p.next; }, update: p => { got.next = p.next; }, end() {} };
+        try { syncNativeRest(); } finally {
+            Native.isNative = keep.isNative; Native.scheduleRestEnd = keep.schedule; Native.liveActivity = keep.live;
+            restActivityLive = false;
+        }
+        return got;
+    }""")
+
+
+def t_pause_annonce(bench, eng, dev, theme):
+    """Pause d'un rest-pause ou d'un cluster : « Ensuite », la notification et la Live Activity annoncent
+    la reprise (ou le bloc) avec sa charge, pas la série suivante."""
+    t = f'{dev}-{theme}'
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        start(page, 'legs')
+        page.evaluate("setTechOn(0, 0, 'rp'); setTechOn(1, 0, 'cluster')")
+        page.wait_for_timeout(200)
+        name0, name1 = page.evaluate("activeSession.exercises.slice(0, 2).map(e => e.name)")
+        kg0 = page.evaluate("fmtW(subWeightKg(activeSession.exercises[0].sets[0], 0), { plain: true })")
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(400)
+        R.check(page.evaluate("restActive && restTotal === 15"), f'{t} rest-pause : pause de 15 s')
+        nxt = ' '.join(page.locator('.rest-mini__next').text_content().replace('\u00a0', ' ').split())
+        R.check(f'Ensuite : {name0} · Reprise 1 · {kg0} kg' in nxt and 'S2' not in nxt, f'{t} rest-pause : « Ensuite » annonce la reprise ({nxt})')
+        shot(page, LOT, f'{t}-11-pause-reprise')
+        nat = native_rest(page)
+        R.check(nat.get('body', '').startswith(f'Reprise 1 · {name0} · {kg0} kg'), f'{t} rest-pause : notification « {nat.get("body")} »')
+        R.check(nat.get('next', {}).get('exercise') == f'{name0} · Reprise 1' and nat['next'].get('load', '').startswith(f'{kg0} kg') and nat['next'].get('set') == 1,
+                f'{t} rest-pause : Live Activity {nat.get("next")}')
+        # Reprise validée (aucune autre à faire) : retour au repos habituel, la série 2 est annoncée
+        page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"]', '4')
+        page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); page.wait_for_timeout(400)
+        R.check('S2' in page.locator('.rest-mini__next').inner_text() and native_rest(page).get('body', '').startswith(f'Série 2 · {name0}'), f'{t} reprise faite : la série 2 est annoncée')
+        # Cluster : « Bloc 1 »
+        skip_rest(page)
+        page.evaluate("activeSession.lastEi = 1; persistSession(); render()")
+        page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); page.wait_for_timeout(400)
+        nxt = ' '.join(page.locator('.rest-mini__next').text_content().replace('\u00a0', ' ').split())
+        R.check(f'{name1} · Bloc 1' in nxt, f'{t} cluster : « Ensuite » annonce le bloc ({nxt})')
+        nat = native_rest(page)
+        R.check(nat.get('body', '').startswith(f'Bloc 1 · {name1}') and nat.get('next', {}).get('exercise') == f'{name1} · Bloc 1', f'{t} cluster : notification et Live Activity {nat}')
+        R.check(no_hscroll(page), f'{t} pause : pas de défilement horizontal')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def once_static(bench):
     for f in ['js/data/intensif.js', 'js/features/session-intensif.js']:
         n = sum(1 for _ in open(os.path.join(APP_DIR, f), encoding='utf-8'))
@@ -331,4 +383,4 @@ def once_static(bench):
         R.check(f in html and '/' + f in sw, f'{f} chargé par index.html et mis en cache par sw.js')
 
 
-run_main(R, [t_seance, t_programme, t_saute, t_superset, t_record_force, t_ami_coach], once=[once_static])
+run_main(R, [t_seance, t_programme, t_saute, t_superset, t_record_force, t_ami_coach, t_pause_annonce], once=[once_static])

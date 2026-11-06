@@ -15,6 +15,18 @@ function techSubAt(ds) {
   return s && setTech(s) ? { s, x: s.sub?.[parseInt(ds.k)] || null, k: parseInt(ds.k) } : null;
 }
 
+// Sous-série qui suit la dernière validation (pause d'un rest-pause ou d'un cluster, ou entre deux drops) :
+// { ei, si, k, label: « Reprise 1 », set: { weight, reps } } avec la charge proposée et l'objectif de reps ;
+// null sinon. La barre de repos, la notification de fin et la Live Activity l'annoncent (js/features/rest.js)
+function techNextSub() {
+  const xs = activeSession?.exercises;
+  const c = xs && techCurrentSub(xs, activeSession.lastDone);
+  if (!c) return null;
+  const ex = xs[c.ei], s = ex.sets[c.si], x = s.sub[c.k];
+  return { ...c, label: `${capitalize(TECHS[setTech(s)].subName)} ${c.k + 1}`,
+    set: { weight: subWeightKg(s, c.k, techOpts(ex)), reps: String(x.reps ?? '').trim() || x.prev?.reps || '' } };
+}
+
 // Numéro d'une série de travail à faire (ou rouverte) : bouton qui ouvre le choix d'une technique.
 // Même aspect que le numéro, avec un point discret dessous (indice qu'il se touche) ; zone de 44 px (session.css)
 function setTechNumHtml(ex, ei, si) {

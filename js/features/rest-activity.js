@@ -24,17 +24,20 @@ function restActivityTint(color) {
 }
 
 // Série suivante : { exercise, set, load } avec load = « 80 kg × 8 », « 12 reps » au poids du
-// corps, '' sans reps prévues. null quand toutes les séries sont faites.
+// corps, '' sans reps prévues. null quand toutes les séries sont faites. cur peut être la sous-série
+// qui suit (techNextSub : { ei, si, label, set }) : « Squat · Reprise 1 », sa charge (l'écran iOS
+// écrit ensuite « série N », celle qu'elle prolonge)
 function restActivityNext(session, cur) {
   const ex = cur && session?.exercises?.[cur.ei];
-  const s  = ex?.sets?.[cur.si];
-  if (!s) return null;
+  const s  = cur?.label ? cur.set : ex?.sets?.[cur.si];
+  if (!ex || !s) return null;
   const reps = String(s.reps ?? '').trim();
   const w    = fmtW(s.weight);
   const m    = measureOf(ex);
   const kind = loadKind(ex);
-  const load = !reps ? '' : m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : w ? `${w} ${unitLbl()} × ${reps}` : `${reps} reps`;
-  return { exercise: String(ex.name).slice(0, REST_ACTIVITY_MAX.exercise), set: cur.si + 1, load };
+  const load = !reps ? (cur.label && w ? `${w} ${unitLbl()}` : '') : m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : w ? `${w} ${unitLbl()} × ${reps}` : `${reps} reps`;
+  const name = cur.label ? `${ex.name} · ${cur.label}` : String(ex.name);
+  return { exercise: name.slice(0, REST_ACTIVITY_MAX.exercise), set: cur.si + 1, load };
 }
 
 // Données envoyées au module natif (logique pure, testée dans tests/unit/run.mjs)
@@ -53,7 +56,7 @@ let restActivityLive = false;   // une Live Activity a été demandée pour le r
 // Début du repos, ±15 s, autre durée, reprise d'une séance restaurée
 function syncRestActivity() {
   if (!Native.isNative || !restActive || !activeSession) return;
-  const payload = restActivityPayload(activeSession, currentSet(), { endTime: restEndTime, total: restTotal });
+  const payload = restActivityPayload(activeSession, techNextSub() || currentSet(), { endTime: restEndTime, total: restTotal });
   if (restActivityLive) Native.liveActivity.update(payload);
   else Native.liveActivity.start(payload);
   restActivityLive = true;

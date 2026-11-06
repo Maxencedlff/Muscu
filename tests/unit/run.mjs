@@ -1028,6 +1028,8 @@ test('live activity : série suivante (charge en kg ou lbs, poids du corps, sans
   sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 2 })`), { exercise: 'Squat', set: 3, load: '' });
   assert.equal(run(`restActivityNext(${JSON.stringify(session)}, null)`), null, 'toutes les séries faites');
   assert.equal(run(`restActivityNext(${JSON.stringify(session)}, { ei: 4, si: 0 })`), null);
+  // Pause d'un rest-pause : la reprise qui suit, sa charge, la série qu'elle prolonge
+  sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 0, k: 0, label: 'Reprise 1', set: { weight: '80', reps: '4' } })`), { exercise: 'Squat · Reprise 1', set: 1, load: '80 kg × 4' });
   reset({ unit: 'lbs' });
   assert.equal(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 0 })`).load, '176,4 lbs × 8');
 });

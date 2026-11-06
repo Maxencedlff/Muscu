@@ -135,14 +135,20 @@ function currentSet() {
   return null;
 }
 
-// Série suivante en deux morceaux : { name: « Développé incliné », tail: « S1 · 30 kg × 10 » }, null sans.
-// La barre de repos coupe le nom, jamais la série (js/features/rest.js)
+// Série suivante en deux morceaux : { name: « Développé incliné », tail: « S1 · 30 kg × 10 » } (tail = step + load), null sans.
+// Pendant la pause d'un rest-pause ou d'un cluster, c'est la sous-série qui suit : « Reprise 1 · 70 kg × 4 »
+// (js/features/session-intensif.js). La barre de repos coupe le nom, jamais la série (js/features/rest.js)
 function nextSetParts() {
-  const cur = currentSet();
+  const sub = techNextSub();
+  const cur = sub || currentSet();
   if (!cur) return null;
-  const ex = activeSession.exercises[cur.ei], s = ex.sets[cur.si];
+  const ex = activeSession.exercises[cur.ei], s = sub ? sub.set : ex.sets[cur.si];
   const m = measureOf(ex), kind = loadKind(ex);
-  return { name: ex.name, tail: `S${cur.si + 1}${s.reps !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}` : ''}` };
+  // Sous-série sans objectif de reps (pas faite la dernière fois) : sa charge seule, « Reprise 1 · 70 kg »
+  const load = String(s.reps ?? '') !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}`
+    : sub && hasLoad(s.weight) ? ` · ${fmtW(s.weight, { plain: true })} ${unitLbl()}` : '';
+  const step = sub ? sub.label : `S${cur.si + 1}`;
+  return { name: ex.name, step, load, tail: step + load };
 }
 // « Développé incliné · S1 · 30 kg × 10 »
 function nextSetText() {

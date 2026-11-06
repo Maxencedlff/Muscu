@@ -111,9 +111,16 @@ function startRestCountdown() {
 function syncNativeRest() {
   if (!Native.isNative || !restActive) return;
   syncRestActivity();
+  Native.scheduleRestEnd(restEndTime, restEndBody());
+}
+
+// Texte de la notification de fin de repos : « Série 4 · Squat barre », pendant la pause d'un rest-pause
+// ou d'un cluster la sous-série qui suit avec sa charge : « Reprise 1 · Squat barre · 70 kg × 4 »
+function restEndBody() {
+  const sub = activeSession && techNextSub();
+  if (sub) { const p = nextSetParts(); return `${p.step} · ${p.name}${p.load}`; }
   const nx = activeSession && currentSet();
-  const body = nx ? `Série ${nx.si + 1} · ${activeSession.exercises[nx.ei].name}` : 'C\'est reparti';
-  Native.scheduleRestEnd(restEndTime, body);
+  return nx ? `Série ${nx.si + 1} · ${activeSession.exercises[nx.ei].name}` : 'C\'est reparti';
 }
 
 // Relance l'affichage du chrono sans toucher à l'heure de fin (retour au premier plan, restauration)
@@ -143,8 +150,8 @@ function restFinished() {
   persistSession();
   timerDone();
   closeRestSheet();
-  const nx = currentSet();
-  announce(nx ? `Repos terminé, série ${nx.si + 1} de ${activeSession.exercises[nx.ei].name}` : 'Repos terminé');
+  const sub = techNextSub(), nx = sub || currentSet();
+  announce(nx ? `Repos terminé, ${sub ? sub.label.toLowerCase() : `série ${nx.si + 1}`} de ${activeSession.exercises[nx.ei].name}` : 'Repos terminé');
   const bar = $('.rest-mini');
   if (bar) {
     bar.classList.add('rest-mini--done');
