@@ -166,7 +166,7 @@ consentement explicite). Deux accords séparés, chacun daté et retirable :
   l'iPhone (`data.dietCoachConsent`, SYNC_LOCAL_ONLY) et sert de garde-fou côté app ; le coach peut encore
   envoyer (serveur d'avant).
 - Ordre de mise en production : l'OTA qui sait accepter, PUIS la migration (sinon aucun coach ne peut plus
-  envoyer tant que ses élèves n'ont pas la version) ; supabase/rollback/ORDRE.md, étape 6.
+  envoyer tant que ses élèves n'ont pas la version) ; supabase/rollback/ORDRE.md, étape 10.
 
 ## Où ça vit dans l'app, et pourquoi
 

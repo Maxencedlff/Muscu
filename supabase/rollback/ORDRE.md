@@ -47,7 +47,11 @@ La production a reçu toutes les migrations de `main` (lot 3, notifications push
 9. `20261106100000_seance_publique_intensif_prise.sql` (séance vue par un ami ou un coach : techniques d'intensification et prise ; indépendante, peut aussi passer seule)
 10. `20261106200000_plans_diete_coach.sql` (après l'OTA qui demande l'accord de l'élève : sinon les coachs ne peuvent plus envoyer de plan diète tant que leurs élèves n'ont pas la version qui sait accepter ; et après les mensurations, dont il garde la donnée)
 
-Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md). Avec la CLI Supabase, `supabase db push` refuse des migrations plus anciennes que la dernière appliquée : `supabase db push --include-all` (après `supabase migration list` pour vérifier qu'il ne reste QUE ces dix fichiers, Strava retiré du dossier le temps de la commande), ou chaque fichier collé dans l'éditeur SQL dans cet ordre.
+Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md).
+
+**En deux temps : les neuf fichiers 1 à 9 AVANT l'OTA, le 10e (`20261106200000_plans_diete_coach.sql`) APRÈS l'OTA**, une fois la version qui sait demander l'accord des plans diète installée chez les élèves.
+
+Chaque fichier se colle dans l'éditeur SQL, dans cet ordre, l'un après l'autre. Pas de `supabase db push` : il refuse ces fichiers, plus anciens que la dernière migration appliquée ; et **jamais `supabase db push --include-all`**, qui pousserait d'un coup tout ce qui manque, le 10e fichier compris (et Strava), avant l'OTA.
 
 Pour défaire en production : l'ordre inverse de cette liste (10 → 1), avant tout retour arrière plus ancien.
 
