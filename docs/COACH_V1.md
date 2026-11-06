@@ -60,6 +60,8 @@ Décision de Maxence : l'élève choisit, donnée par donnée, ce que son coach 
 
 App : Réglages › Amis et coach › « Partager avec mon coach » (élève suivi seulement ; aussi dans Réglages › Coach) → écran `coach-share` (une case par donnée ouverte, texte de ce que le coach verra). Coach : sur la fiche d'un élève qui partage, groupe « Poids du corps » (dernière pesée, tendance sur 30 jours, courbe de Progrès) ; page séance : pied de page « poids du corps compté (61,4 kg, sa dernière pesée partagée à cette date…) ».
 
+Mensurations partagées (05/11/2026) : même modèle, case « Mensurations », contrat dans `docs/COACH_SUIVI.md` (« Bilan »). Planification des phases par élève : même document.
+
 ## Messages (31/10/2026, migration `20261031510000_chat_coach.sql`)
 
 Demande de Maxence (feuille de route « Plus tard » : chat coach), choix pris par défaut (à valider) :
@@ -97,6 +99,9 @@ Demande de Maxence (feuille de route « Plus tard » : chat coach), choix pris p
 
 ### Ordre de mise en production
 Migration d'abord, puis la fonction Edge `report` (mode `{ report_id }`), puis l'OTA (une app à jour sur un serveur d'avant cache la cellule ; avec une fonction `report` d'avant, le signalement est enregistré mais l'alerte ne part pas : `notified_at` nul, requête de rattrapage). Retour arrière : `supabase/rollback/20261031510000_chat_coach_down.sql`, vérifié par `tests/sql/rollback_social_check.sh`.
+
+## Plan diète (05/11/2026, sans migration)
+Le coach envoie un plan diète par le même canal que les programmes : `coach_send_programme(student, 'diet_<plan>', { kind: 'diet', v: 1, diet })`. Sans `name` au premier niveau, une app d'avant la nutrition l'écarte ; l'app actuelle le range dans `inbox.diets` et le retire des « Programmes envoyés ». Contrat complet : `docs/NUTRITION_V1.md`, « Coach : envoi sans migration ».
 
 ## Fonctions RPC (rôle `authenticated`)
 

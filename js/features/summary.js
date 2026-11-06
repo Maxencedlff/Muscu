@@ -56,7 +56,7 @@ function buildSummary(entry) {
     volume: cur, delta: prevH ? cur - prev : null, records, rows,
     recordCount: noted.length,   // « N records battus » : la règle de l'historique et de Progrès (recordCount), sans le 1RM estimé
     // Sans charge comptée (poids du corps inconnu, gainage…) : le total de reps remplace « 0 kg »
-    reps: entry.exercises.filter(ex => measureOf(ex) === 'reps').reduce((a, ex) => a + workSets(ex.sets).reduce((b, s) => b + (parseInt(s.reps) || 0), 0), 0),
+    reps: entry.exercises.filter(ex => measureOf(ex) === 'reps').reduce((a, ex) => a + volumeSets(ex.sets).reduce((b, s) => b + (parseInt(s.reps) || 0), 0), 0),   // sous-séries comprises
     needsBodyKg: !entryBodyKg(entry) && entry.exercises.some(ex => bodyShare(ex) > 0),
   };
 }
@@ -239,9 +239,11 @@ function sessionHistoryEntry(sp, sc) {
         ...(storedMeasure(ex) ? { measure: storedMeasure(ex) } : {}),
         ...(ex.tempo ? { tempo: ex.tempo } : {}),   // fait au tempo : plus dur, à ne pas comparer sans le savoir
         ...(ssId(ex) ? { ss: ex.ss } : {}),         // superset, affiché comme tel dans Historique et pour les abonnés
+        ...(cleanGrip(ex.grip, ex) ? { grip: cleanGrip(ex.grip, ex) } : {}),   // prise (js/data/grips.js), même exercice pour les records
         // warmup (js/data/warmup.js) et rir (js/data/rir.js) : champs facultatifs, ignorés par une version précédente
         sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}), ...(s.machine ? { machine: s.machine } : {}),
-          ...(isWarmupSet(s) ? { warmup: true } : {}), ...(cleanRir(s.rir) !== null ? { rir: cleanRir(s.rir) } : {}) })),
+          ...(isWarmupSet(s) ? { warmup: true } : {}), ...(cleanRir(s.rir) !== null ? { rir: cleanRir(s.rir) } : {}),
+          ...techFields(s, { doneOnly: true }) })),   // technique et sous-séries validées (js/data/intensif.js)
       }))
       .filter(ex => ex.sets.length),
   };

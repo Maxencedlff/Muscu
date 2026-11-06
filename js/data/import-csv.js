@@ -178,7 +178,7 @@ const cleanText = raw => String(raw ?? '').replace(/\r/g, '').trim().slice(0, IM
 
 // Série lue : { kind: 'reps' | 'time' | 'cardio', weight, reps, seconds, km, rpe, warmup }, ou null si vide.
 // Répétitions dès qu'il y en a ; sinon distance + durée = cardio ; sinon durée seule = maintien (secondes).
-function makeImportSet({ weight, reps, seconds, km, rpe, warmup }) {
+function makeImportSet({ weight, reps, seconds, km, rpe, warmup, drop }) {
   const r = Number.isFinite(reps) && reps > 0 ? Math.round(reps) : 0;
   const sec = Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds) : 0;
   const d = Number.isFinite(km) && km > 0 ? Math.round(km * 1000) / 1000 : 0;
@@ -190,7 +190,8 @@ function makeImportSet({ weight, reps, seconds, km, rpe, warmup }) {
   else if (w) kind = 'reps';   // charge sans répétitions (série notée à moitié) : gardée, 0 rep
   else return null;
   const e = Number.isFinite(rpe) && rpe >= 1 && rpe <= 10 ? Math.round(rpe * 2) / 2 : null;
-  return { kind, weight: w, reps: r, seconds: sec, km: d, rpe: e, warmup: !!warmup };
+  // drop : série dégressive (Hevy « dropset », Strong « D »), rangée sous la série d'avant à l'import (foldImportDrops)
+  return { kind, weight: w, reps: r, seconds: sec, km: d, rpe: e, warmup: !!warmup, ...(drop && !warmup ? { drop: true } : {}) };
 }
 
 // Colonnes d'un en-tête : indice de la première variante présente, -1 sinon
@@ -253,7 +254,7 @@ function readHevyRows(header, rows) {
     const st = makeImportSet({
       weight: weightUnit === 'kg' ? cellNum(row, c.kg) : cellNum(row, c.lbs), reps: cellNum(row, c.reps), seconds: cellNum(row, c.sec),
       km: c.km >= 0 ? cellNum(row, c.km) : miles === null ? null : miles * IMPORT_KM_PER_MILE,
-      rpe: cellNum(row, c.rpe), warmup: /^warm/i.test(cell(row, c.type)),
+      rpe: cellNum(row, c.rpe), warmup: /^warm/i.test(cell(row, c.type)), drop: /^drop/i.test(cell(row, c.type)),
     });
     if (st) ex.sets.push(st); else skippedRows++;
   }
@@ -300,7 +301,7 @@ function readStrongRows(header, rows) {
     else if (c.miles >= 0) { const v = cellNum(row, c.miles); km = v === null ? null : v * IMPORT_KM_PER_MILE; }
     else if (c.dist >= 0) { const v = cellNum(row, c.dist); km = v === null ? null : v >= 50 ? v / 1000 : v; }   // unité inconnue : au-delà de 50, des mètres
     const st = makeImportSet({ weight: cellNum(row, wCol), reps: cellNum(row, c.reps), seconds: cellNum(row, c.sec), km,
-      rpe: cellNum(row, c.rpe), warmup: /^w$/i.test(order) });
+      rpe: cellNum(row, c.rpe), warmup: /^w$/i.test(order), drop: /^d$/i.test(order) });
     if (st) ex.sets.push(st); else skippedRows++;
   }
   return { weightUnit, sessions: finishNotes(sessions), skippedRows };
@@ -553,6 +554,24 @@ const withSetMeta = (out, s) => {
   return { ...out, ...(rir !== null ? { rir } : {}), ...(s.warmup ? { warmup: true } : {}) };
 };
 
+// Séries dégressives d'un fichier (une ligne par charge, marquée dropset ou D) : sous-séries du drop set
+// de la série de travail qui les précède (js/data/intensif.js), comme l'app les note. Sans série avant
+// (première ligne, après un échauffement) ou en durée et cardio : séries ordinaires. pairs : [{ st, o }]
+function foldImportDrops(pairs, measure) {
+  const out = [];
+  let parent = null;
+  for (const { st, o } of pairs) {
+    if (st.drop && measure === 'reps' && parent && (parent.sub?.length ?? 0) < TECH_SUB_MAX) {
+      parent.tech = 'drop';
+      (parent.sub ||= []).push({ weight: o.weight, reps: o.reps });
+      continue;
+    }
+    out.push(o);
+    parent = st.warmup ? null : o;
+  }
+  return out;
+}
+
 // Programme créé pour les séances importées : un par app d'origine, ses séances = les noms de séance du fichier
 const IMPORT_PROGRAMME = { hevy: { id: 'u_hevy', name: 'Hevy' }, strong: { id: 'u_strong', name: 'Strong' } };
 // Séance venue d'un import (Hevy, Strong) : date = DÉBUT lu dans le fichier (dans l'app, date = fin de séance)
@@ -599,7 +618,7 @@ function applyImport(plan, { links = {}, keepWarmups = false, unit = null } = {}
       const sets = ex.sets.filter(st => keepWarmups || !st.warmup);
       if (!sets.length) continue;
       const measure = importMeasure(sets);
-      const out = sets.map(st => importSetFor(st, measure, weightUnit)).filter(Boolean);
+      const out = foldImportDrops(sets.map(st => ({ st, o: importSetFor(st, measure, weightUnit) })).filter(x => x.o), measure);
       if (!out.length) continue;
       const e = { exId: null, name, sets: out };
       // Mesure enregistrée hors répétitions, et en répétitions seulement si le nom dirait autre chose (storedMeasure)

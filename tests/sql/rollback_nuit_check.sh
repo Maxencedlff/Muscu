@@ -13,8 +13,10 @@
 #  3. Démontage complet dans l'ordre inverse (supabase/rollback/ORDRE.md), depuis toutes les migrations :
 #     après chaque retour arrière, état identique à la référence d'avant sa migration.
 #  4. Gardes : tarifs et modèle B refusent (sans rien changer) tant que la migration qui les réécrit est là.
-#  5. Retours arrière indépendants (parrainage du payant, notifications, Strava, chat, commentaires, lettre, records,
-#     partage coach)
+#  5. Retours arrière indépendants (plans diète du coach, séance publique : intensification et prise, parrainage du
+#     payant, notifications, Strava, lettre, records, planification du coach, mensurations partagées, progression des
+#     élèves ; le partage du poids n'est plus seul depuis les mensurations, qui s'y appuient ; les mensurations seules :
+#     tests des plans diète écartés, ils s'y appuient)
 #     lancés SEULS sur la pile complète :
 #     les tests des autres lots (*_test.sql) passent encore.
 #  6. Démontage complet AVEC des données (comptes, coach, codes, achats, parrainage, pesées), contrôles
@@ -136,12 +138,16 @@ fi
 echo "OK : tarifs, modèle B et parrainage refusent tant que la migration du dessus est en place"
 
 # ── 5. Retours arrière indépendants, seuls sur la pile complète ──
-for pair in "20261031910000:push_messages_test.sql push_test.sql" \
+for pair in "20261106100000:intensif_prise_test.sql" \
+            "20261031910000:push_messages_test.sql push_test.sql" \
             "20261031620000:strava_test.sql" \
             "20261031230000:newsletter_test.sql" \
-            "20261031100000:records_test.sql" \
-            "20261031300000:partage_coach_test.sql partage_coach_concurrence_test.sql" \
+            "20261031100000:records_test.sql coach_progress_test.sql intensif_prise_test.sql" \
+            "20261105000000:coach_planning_test.sql coach_planning_concurrence_test.sql" \
+            "20261105010000:partage_mensurations_test.sql plans_diete_test.sql" \
+            "20261106000000:coach_progress_test.sql" \
             "20261101000000:parrainage_payant_test.sql" \
+            "20261106200000:plans_diete_test.sql" \
             "20261031000000:payant_plus_test.sql"; do
   t=${pair%%:*}; skip=" ${pair#*:} "
   clone ref "seul_$t"

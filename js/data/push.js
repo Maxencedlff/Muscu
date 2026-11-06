@@ -192,6 +192,8 @@ function pushTarget(p, history = []) {
       ? { tab: 'history', screen: 'history-detail', params: [ref] } : { tab: 'history', screen: null, params: [] };
   }
   if (kind === 'follow_request') return { tab: 'friends', screen: null, params: [] };
+  // Plan diète (ref diet_<…>, js/data/nutrition.js) : écran Nutrition, où il se prend d'un toucher
+  if (kind === 'coach_programme' && ref.startsWith('diet_')) return { tab: 'train', screen: 'nutrition', params: [] };
   if (kind === 'coach_programme') return { tab: 'friends', screen: 'coach-mine', params: [] };
   return null;
 }

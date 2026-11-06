@@ -95,9 +95,10 @@ function resolveFreeExId(name, d = data) {
 }
 
 // Volume (kg) : Σ charge × reps d'une liste de séries, puis d'une liste d'exercices.
-// Les séries d'échauffement (warmup: true, js/data/warmup.js) n'en font jamais partie.
+// Les séries d'échauffement (warmup: true, js/data/warmup.js) n'en font jamais partie ; les sous-séries
+// d'un drop set, d'un rest-pause ou d'un cluster en font partie (volumeSets, js/data/intensif.js).
 function setsVolume(sets) {
-  return workSets(sets).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0);
+  return volumeSets(sets).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0);
 }
 // Volume d'un exercice : seulement en répétitions (un lest × des secondes n'est pas un tonnage).
 // Au poids du corps, la charge effective compte (poids × part soulevée ± lest) : bodyKg est le poids
@@ -105,7 +106,7 @@ function setsVolume(sets) {
 function exVolume(ex, sets = ex?.sets, bodyKg = null) {
   if (measureOf(ex) !== 'reps') return 0;
   if (!bodyShare(ex)) return setsVolume(sets);
-  return workSets(sets).reduce((a, s) => a + effectiveLoad(s, ex, bodyKg) * (parseInt(s.reps) || 0), 0);
+  return volumeSets(sets).reduce((a, s) => a + effectiveLoad(s, ex, bodyKg) * (parseInt(s.reps) || 0), 0);
 }
 function sessionVolume(exercises, bodyKg = null) {
   return exercises.reduce((total, ex) => total + exVolume(ex, ex.sets, bodyKg), 0);
@@ -216,6 +217,8 @@ function sanitizeData(d) {
         if (ex.repMax !== undefined) { const r = num(ex.repMax, 1, 100, true); if (r === null) delete ex.repMax; else ex.repMax = r; }
         // Bas de fourchette (« 8 à 12 ») : facultatif, toujours sous le haut
         if (ex.repMin !== undefined) { const r = num(ex.repMin, 1, 99, true); if (r === null || r >= (ex.repMax ?? 12)) delete ex.repMin; else ex.repMin = r; }
+        // Technique prescrite (js/data/intensif.js) : une clé connue ou rien
+        if (ex.intens !== undefined) { const v = cleanIntens(ex.intens); if (v) ex.intens = v; else delete ex.intens; }
         if (ex.rest   != null) ex.rest   = num(ex.rest, 10, 600, true);
         if (ex.target != null) ex.target = num(ex.target, 0, 1000);
         // Identifiants de muscles : leur validité exacte est vérifiée à la lecture (chosenMuscles)
@@ -230,6 +233,8 @@ function sanitizeData(d) {
         if (ex.tempoGuide !== undefined && (ex.tempoGuide !== true || !ex.tempo)) delete ex.tempoGuide;
         if (ex.tempoPrep !== undefined && (!ex.tempoGuide || !TEMPO_PREP_CHOICES.includes(ex.tempoPrep))) delete ex.tempoPrep;
         if (ex.ss !== undefined && !ssId(ex)) delete ex.ss;   // superset (js/data/supersets.js)
+        // Prise (js/data/grips.js) : valeurs connues seulement, retirée s'il n'en reste aucune
+        if (ex.grip !== undefined) { const g = cleanGrip(ex.grip); if (g) ex.grip = g; else delete ex.grip; }
         // Consigne du coach (js/data/coach.js) : texte court, retirée si vide
         if (ex.consigne !== undefined) { const c = cleanConsigne(ex.consigne); if (c) ex.consigne = c; else delete ex.consigne; }
         if (ex.musclesSecondary != null) {
@@ -326,6 +331,8 @@ function sanitizeData(d) {
   d.trash = d.trash.filter(t => isObj(t) && Number.isFinite(t.deletedAt) && t.deletedAt > limit
     && cleanHistoryEntry(t.entry) && !kept.has(t.entry.id));
   d.myProgrammes = cleanMyProgrammes(d);   // après l'historique : la migration le lit
+  // Nutrition (js/data/nutrition.js, chargé avant) : plans, plan suivi, aliments perso, repas cochés
+  sanitizeDiet(d);
   return d;
 }
 
@@ -479,6 +486,8 @@ function cleanHistoryEntry(h) {
     if (!['reps', 'time', 'cardio'].includes(ex.measure)) delete ex.measure;
     pinLegacyReps(ex);
     pinLegacyCardioWords(ex);
+    // Prise faite ce jour-là (js/data/grips.js) : indication, ne change ni records ni « Avant »
+    if (ex.grip !== undefined) { const g = cleanGrip(ex.grip); if (g) ex.grip = g; else delete ex.grip; }
     ex.sets.forEach(st => {
       st.reps = String(num(st.reps, 0, MAX_COUNT, true) ?? 0);
       if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';
@@ -488,6 +497,8 @@ function cleanHistoryEntry(h) {
       // Échauffement (js/data/warmup.js) : true ou absent ; RIR (js/data/rir.js) : entier 0 à 4 ou absent
       if (st.warmup !== undefined && st.warmup !== true) delete st.warmup;
       if (st.rir !== undefined) { const r = cleanRir(st.rir); if (r === null) delete st.rir; else st.rir = r; }
+      // Technique d'intensification et sous-séries (js/data/intensif.js) : bornées, absentes sinon
+      cleanTechSet(st);
     });
     // Charge aberrante (ex. 1e308) : série écartée plutôt que comptée en tonnes
     ex.sets = ex.sets.filter(st => st.weight === '' || num(st.weight, 0, MAX_LOAD_KG) !== null);

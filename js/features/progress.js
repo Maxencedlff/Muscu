@@ -22,10 +22,11 @@ function exPoint(h, e) {
     const loads = sets.map(s => effectiveLoad(s, e, bodyKg));
     const volume = exVolume(e, sets, bodyKg);
     const best1RM = Math.max(0, ...sets.map((s, i) => calc1RM(loads[i], s.reps)).filter(v => v !== null));
-    return { date: h.date, hid: h.id, sets, hasWeight: true, totalReps: sets.reduce((a, s) => a + (parseInt(s.reps) || 0), 0),
+    return { date: h.date, hid: h.id, sets, hasWeight: true, totalReps: volumeSets(sets).reduce((a, s) => a + (parseInt(s.reps) || 0), 0),
       volume, maxLoad: Math.max(...loads), best1RM, maxReps: Math.max(...sets.map(s => parseInt(s.reps) || 0)), best: bestSet(sets, e), bodyKg, rpe };
   }
-  const totalReps = sets.reduce((a, s) => a + (parseInt(s.reps) || 0), 0);
+  // Reps des sous-séries d'un drop set comprises, comme le volume (js/data/intensif.js)
+  const totalReps = volumeSets(sets).reduce((a, s) => a + (parseInt(s.reps) || 0), 0);
   const volume    = hasWeight ? setsVolume(sets) : totalReps;
   const maxLoad   = hasWeight ? Math.max(...wts) : 0;
   const best1RM   = hasWeight ? Math.max(0, ...sets.map(s => calc1RM(s.weight, s.reps)).filter(v => v !== null)) : 0;

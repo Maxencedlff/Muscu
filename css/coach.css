@@ -229,3 +229,13 @@ select.coach-req-field__input:invalid { color: var(--label2); }
 .coach-req-reason { color: var(--label); }
 .pay-banner.coach-tier-banner { margin-bottom: 16px; background: var(--cell); }   /* « Voir » en bleu lisible (contraste 4,5:1) */
 .coach-code-cell .coach-code { letter-spacing: 1px; }
+
+/* ── Progression des élèves (js/features/coach-progress-ui.js) ──
+   Une couleur, un sens : vert avec ↑ = record, orange = à relancer, gris = rien à faire */
+.progress-sig { font-weight: 500; }
+.progress-sig--up { color: var(--green-text); }
+.progress-sig--warn { color: var(--orange-text); }
+.progress-sig__arrow { margin-right: 4px; font-weight: 700; }
+.progress-week__sig { min-height: 44px; }
+.progress-week__sig .progress-sig { font-size: var(--fs-body); }
+.progress-week__row .cell__value { color: var(--label); }

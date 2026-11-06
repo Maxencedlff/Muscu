@@ -3,13 +3,21 @@
 // ═══════════════════════════════════════════════════════════
 //
 // Rien sur le serveur : mensurations dans data.bodyMeasures (js/data/body-measures.js, jamais
-// synchronisées, mais dans la copie iCloud de l'app et dans l'export), photos dans IndexedDB
+// synchronisées, mais dans la copie iCloud de l'app et dans l'export), sauf si l'élève coche
+// « Mensurations » pour son coach (js/data/coach-share.js : copie dédiée, effacée en décochant ;
+// textes de cet écran adaptés, bmSharedWithCoach), photos dans IndexedDB
 // (js/data/progress-photos.js, sur l'appareil seulement), rangées dans le coffre à photos
 // (js/features/photo-vault-ui.js) : ici, une seule ligne qui y mène, sans vignette. Rien n'apparaît sur
 // l'écran Progrès lui-même (l'app s'ouvre en salle), seulement une ligne qui mène ici.
 'use strict';
 
 const BM_PRIVATE = 'Privé : reste sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs';
+const BM_SHARED = 'Partagées avec ton coach, qui voit leurs valeurs et leurs dates. Tes amis ne voient rien, et tes photos restent sur ton iPhone';
+// Mensurations cochées dans Réglages › Partager avec mon coach (js/data/coach-share.js)
+function bmSharedWithCoach() { return !!account.user && coachShareOn('measures'); }
+function bmPrivacyText() { return bmSharedWithCoach() ? BM_SHARED : BM_PRIVATE; }
+// Une mensuration change sur cet appareil : enregistrée, puis renvoyée au coach si la case est cochée
+function bmSaved() { save(); coachShareMeasuresChanged(); render(); }
 
 // ── Progrès : ligne d'entrée ────────────────────────────────
 function renderBodyMeasuresGroup() {
@@ -20,7 +28,7 @@ function renderBodyMeasuresGroup() {
           <button class="cell cell--nav" data-action="go-body-measures">
             ${icon('ruler', 22)}
             <span class="cell__body"><span class="cell__title">${photosAllowedHere() ? 'Mensurations et photos' : 'Mensurations'}</span>
-              <span class="cell__sub">Privé${s.latest ? ` · ${esc(fmtDate(s.latest))}` : ''}</span></span>
+              <span class="cell__sub">${bmSharedWithCoach() ? 'Partagé avec ton coach' : 'Privé'}${s.latest ? ` · ${esc(fmtDate(s.latest))}` : ''}</span></span>
             ${icon('chevron.right', 16)}
           </button>
         </div>`;
@@ -46,7 +54,8 @@ function renderBodyMeasures() {
     <div class="view body-measures view--grouped">
       ${navBar({ title: 'Mesures' })}
       <div class="scr">
-        <div class="bm-private">${icon('eye.slash', 16)}<span>${BM_PRIVATE}. Rien n'est montré à tes amis ni à ton coach.</span></div>
+        <div class="bm-private">${bmSharedWithCoach() ? `${icon('person.2', 16)}<span>${BM_SHARED}. Pour arrêter : Réglages › Partager avec mon coach.</span>`
+          : `${icon('eye.slash', 16)}<span>${BM_PRIVATE}. Rien n'est montré à tes amis ni à ton coach.</span>`}</div>
         <div class="group-title">Mensurations</div>
         <div class="group">
           <button class="cell cell--action" data-action="bm-add">${icon('plus', 22)}<span class="cell__title">Ajouter des mesures</span></button>
@@ -70,9 +79,9 @@ async function addMeasuresSheet(keys = BODY_MEASURE_KEYS) {
       </label>`;
   }).join('');
   const res = await sheet({ title: keys.length === 1 ? bodyMeasureLabel(keys[0]) : 'Mesures', confirm: 'OK', focus: keys.length === 1 ? '.bm-in' : null, body: `
-    <div class="date-row bm-date"><label class="date-label" for="bmDate">Date</label><input type="date" id="bmDate" class="date-input" value="${today}" max="${today}"></div>
+    <div class="date-row bm-date"><label class="date-label" for="bmDate">Date</label><input type="date" id="bmDate" class="date-input" value="${today}" min="2000-01-01" max="${today}"></div>
     <div class="sheet-list">${rows}</div>
-    <p class="mpick__foot">${keys.length > 1 ? 'Laisse vide ce que tu n\'as pas mesuré. ' : ''}Mesure détendu, au même endroit à chaque fois. ${BM_PRIVATE}.</p>`,
+    <p class="mpick__foot">${keys.length > 1 ? 'Laisse vide ce que tu n\'as pas mesuré. ' : ''}Mesure détendu, au même endroit à chaque fois. ${bmPrivacyText()}.</p>`,
     onConfirm: panel => {
       const dateIn = $('#bmDate', panel);
       const date = dateInputToTs(dateIn.value);
@@ -89,7 +98,7 @@ async function addMeasuresSheet(keys = BODY_MEASURE_KEYS) {
     } });
   if (!res) return;
   res.out.forEach(({ key, cm }) => logBodyMeasure(key, cm, res.date));
-  save(); render();
+  bmSaved();
   showToast(plural(res.out.length, 'mesure enregistrée', 'mesures enregistrées'));
 }
 
@@ -138,7 +147,7 @@ function renderBodyMeasure(key) {
           <button class="cell cell--action" data-action="bm-add-one" data-key="${key}">${icon('plus', 22)}<span class="cell__title">Ajouter une mesure</span></button>
         </div>
         ${entries ? `<div class="group-title">Historique</div><div class="group">${entries}</div>` : ''}
-        <div class="group-foot">${BM_PRIVATE}.</div>
+        <div class="group-foot">${bmPrivacyText()}.</div>
       </div>
     </div>`;
 }
@@ -153,6 +162,6 @@ registerActions({
     const key = el.dataset.key, date = parseInt(el.dataset.date, 10);
     if (!(await confirmSheet('Supprimer cette mesure ?', `${bodyMeasureLabel(key)} du ${fmtDate(date)}.`, 'Supprimer'))) return;
     removeBodyMeasure(key, date);
-    save(); render(); showToast('Mesure supprimée');
+    bmSaved(); showToast('Mesure supprimée');
   },
 });

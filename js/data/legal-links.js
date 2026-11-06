@@ -10,6 +10,7 @@ const LEGAL_SITE = 'https://mdlf.app';
 const LEGAL_URLS = Object.freeze({
   privacy:    `${LEGAL_SITE}/privacy.html`,
   newsletter: `${LEGAL_SITE}/privacy.html#newsletter`,
+  nutrition:  `${LEGAL_SITE}/privacy.html#nutrition`,
   mentions:   `${LEGAL_SITE}/mentions-legales.html`,
   terms:      `${LEGAL_SITE}/cgu.html`,
   sales:      `${LEGAL_SITE}/cgv.html`,

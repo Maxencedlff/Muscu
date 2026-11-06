@@ -100,7 +100,7 @@ function cleanCoachSessionRow(r) {
 }
 
 // Programme envoyé, tel que l'app l'accepte : { name, consigne?, sessions: [{ key, label, color,
-// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, ss?, consigne? }] }] }, null s'il est
+// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, intens?, ss?, grip?, consigne? }] }] }, null s'il est
 // inutilisable. Mêmes bornes que la saisie (sanitizeData) ; clés de séance de SESSION_CAT_RE, uniques.
 function cleanSentProgramme(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -127,6 +127,11 @@ function cleanSentProgramme(raw) {
           const rn = e.repMin == null ? null : num(e.repMin, 1, 99, true);
           if (rn !== null && rn < (o.repMax ?? 12)) o.repMin = rn;
           if (ssId(e)) o.ss = e.ss;
+          const it = cleanIntens(e.intens);   // technique prescrite (js/data/intensif.js)
+          if (it) o.intens = it;
+          // Prise (js/data/grips.js) : seulement ce qui a du sens pour ce nom
+          const g = cleanGrip(e.grip, o);
+          if (g) o.grip = g;
           const c = cleanConsigne(e.consigne);
           if (c) o.consigne = c;
           return o;
@@ -141,11 +146,24 @@ function cleanSentProgramme(raw) {
   return out;
 }
 
-// student_inbox() nettoyé : { programmes: [{ id, data, sentAt, seen }], notes: [{ session_id, text, updatedAt, seen }] }
+// student_inbox() nettoyé : { programmes: [{ id, data, sentAt, seen }], diets: [{ id, data, sentAt, seen }],
+// notes: [{ session_id, text, updatedAt, seen }] }. Un plan diète arrive par le canal des programmes (id
+// diet_<…>, data.kind 'diet' : js/data/nutrition.js) ; il n'est jamais lu comme un programme
 function cleanInbox(raw) {
   const r = raw && typeof raw === 'object' ? raw : {};
-  const programmes = (Array.isArray(r.programmes) ? r.programmes : []).map(p => {
-    if (!p || typeof p.id !== 'string' || !COACH_PROG_ID_RE.test(p.id)) return null;
+  const rows = Array.isArray(r.programmes) ? r.programmes : [];
+  // diets : plans gardés sur l'appareil (writeCoachInbox), à part pour qu'une version précédente ne les lise pas
+  const diets = [...rows, ...(Array.isArray(r.diets) ? r.diets : [])].map(p => {
+    if (!p || !isDietSentId(p.id) || !COACH_PROG_ID_RE.test(p.id)) return null;
+    // Plan gardé hors ligne : son nom seul (meta), le contenu se relit sur le serveur
+    // Format plus récent que cette app : nom seul, « Mets l'app à jour » (tooNew)
+    const tooNew = dietSentTooNew(p.data);
+    const d = p.meta === true && p.data?.kind === 'diet' && typeof p.data.name === 'string' ? { name: p.data.name.slice(0, DIET_NAME_MAX), meals: [] }
+      : tooNew ? { name: dietText(p.data.diet?.name, DIET_NAME_MAX) || 'Plan diète', meals: [] } : cleanSentDiet(p.data);
+    return d ? { id: p.id, data: d, sentAt: coachTime(p.sent_at) ?? 0, seen: p.seen === true, ...(p.meta === true ? { meta: true } : {}), ...(tooNew ? { tooNew: true } : {}) } : null;
+  }).filter(Boolean).sort((a, b) => b.sentAt - a.sentAt);
+  const programmes = rows.map(p => {
+    if (!p || typeof p.id !== 'string' || !COACH_PROG_ID_RE.test(p.id) || isDietSentId(p.id)) return null;
     const d = cleanSentProgramme(p.data);
     return d ? { id: p.id, data: d, sentAt: coachTime(p.sent_at) ?? 0, seen: p.seen === true, ...(p.meta === true ? { meta: true } : {}) } : null;
   }).filter(Boolean).sort((a, b) => b.sentAt - a.sentAt);
@@ -154,7 +172,7 @@ function cleanInbox(raw) {
     const text = coachStr(n.text, COACH_NOTE_MAX).trim();
     return text ? { session_id: n.session_id, text, updatedAt: coachTime(n.updated_at) ?? 0, seen: n.seen === true } : null;
   }).filter(Boolean).sort((a, b) => b.updatedAt - a.updatedAt);
-  return { programmes, notes };
+  return { programmes, diets, notes };
 }
 
 // Code saisi : majuscules, sans espaces ni tirets ; null s'il n'a pas la forme d'un code
@@ -195,8 +213,8 @@ function coachErrorKind(error) {
   if (!error) return null;
   if (isNetworkError(error) || /fetch|network|load failed/i.test(String(error.message || ''))) return 'offline';
   const msg = String(error.message || error.error || '');
-  for (const k of ['not_coach', 'already_coached', 'invalid_code', 'tier_full', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required', 'not_shared', 'invalid_kind', 'invalid_data',
-    'empty_message']) if (msg.includes(k)) return k;
+  for (const k of ['diet_not_accepted', 'not_coach', 'already_coached', 'invalid_code', 'tier_full', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required', 'not_shared', 'invalid_kind', 'invalid_data',
+    'empty_message', 'invalid_phase', 'overlap', 'too_many']) if (msg.includes(k)) return k;
   // Fonction absente du serveur (migration pas encore appliquée) : PostgREST répond PGRST202
   if (error.code === 'PGRST202' || /could not find the function/i.test(msg)) return 'missing';
   return 'server';
@@ -214,10 +232,18 @@ const COACH_ERROR_TEXT = {
   invalid_programme: 'Ce programme ne peut pas être envoyé.',
   username_required: 'Choisis d\'abord un pseudo : ton coach te reconnaîtra avec.',
   too_big: 'Programme trop gros pour être envoyé.',
+  // Plan diète (js/data/coach-diet.js)
+  empty_diet: 'Ajoute au moins un aliment à ce plan avant de l\'envoyer.',
+  diet_not_accepted: 'Ton élève doit d\'abord accepter les plans diète dans son app.',
   // Partage avec le coach (js/data/coach-share.js)
   not_shared: 'Ce partage est coupé : coche-le à nouveau pour l\'envoyer.',
   invalid_kind: 'Ce partage n\'est pas encore disponible.',
   invalid_data: 'Pesées illisibles : rien n\'a été envoyé.',
+  invalid_measures: 'Mensurations illisibles : rien n\'a été envoyé.',
+  // Planification (js/data/coach-plan.js)
+  invalid_phase: 'Vérifie l\'objectif, la date de début et la durée (1 à 52 semaines).',
+  overlap: 'Cette phase chevauche une autre phase de cet élève : change sa date ou sa durée.',
+  too_many: 'Cet élève a déjà 30 phases : supprime d\'anciennes phases d\'abord.',
   // Messages (js/data/coach-chat.js)
   empty_message: 'Écris quelque chose avant d\'envoyer.',
   busy: 'Envoi déjà en cours.',
@@ -281,7 +307,9 @@ function programmeToSent(d, progId, over = null) {
         if (e.tempo) o.tempo = e.tempo;
         if (e.repMax) o.repMax = e.repMax;
         if (e.repMin) o.repMin = e.repMin;
+        if (cleanIntens(e.intens)) o.intens = e.intens;
         if (ssId(e)) o.ss = e.ss;
+        if (cleanGrip(e.grip)) o.grip = cleanGrip(e.grip);
         const c = cleanConsigne(over?.ex?.[s.key]?.[e.id] !== undefined ? over.ex[s.key][e.id] : e.consigne);
         if (c) o.consigne = c;
         return o;
@@ -320,7 +348,7 @@ function coachProgrammeStatus(d, item, coachId = null) {
 // Exercices : celui de même nom DANS LA MÊME séance garde son identifiant et ses réglages propres à
 // l'élève (records, muscles choisis, objectif) ; un exercice qui change de séance repart d'un nouvel
 // identifiant (les records se calculent par séance du programme). Ce que le coach décide (séries,
-// repos, mesure, tempo, fourchette, superset, consigne) est remplacé.
+// repos, mesure, tempo, fourchette, superset, prise, consigne) est remplacé.
 // Séance retirée par le coach : gardée avec retired: true (nom et couleur des séances déjà faites dans
 // l'historique, rawLabel), mais absente de toutes les listes (sessionKeys). Renvoie l'identifiant local.
 function importCoachProgramme(d, item, coachPerson) {
@@ -338,7 +366,7 @@ function importCoachProgramme(d, item, coachPerson) {
     if (hit) used.add(hit.ex);
     return hit?.ex || null;
   };
-  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'ss', 'consigne'];
+  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'intens', 'ss', 'grip', 'consigne'];
   const sessions = {}, exercises = {};
   sent.sessions.forEach(s => {
     sessions[s.key] = { label: s.label, icon: '', desc: prevUp?.sessions?.[s.key]?.desc || '', color: s.color };
@@ -416,6 +444,7 @@ function writeCoachInbox() {
     localStorage.setItem(COACH_INBOX_KEY, JSON.stringify({ userId: coach.userId, coach: coach.state.coach,
       // Programmes : métadonnées seulement (nom, date, vu) ; le contenu se relit sur le serveur
       inbox: { programmes: ib.programmes.slice(0, 30).map(p => ({ id: p.id, data: { name: p.data.name, sessions: [] }, sent_at: p.sentAt, seen: p.seen, meta: true })),
+        diets: (ib.diets || []).slice(0, 10).map(p => ({ id: p.id, data: { kind: 'diet', name: p.data.name }, sent_at: p.sentAt, seen: p.seen, meta: true })),
         notes: ib.notes.slice(0, 200).map(x => ({ session_id: x.session_id, text: x.text, updated_at: x.updatedAt, seen: x.seen })) } }));
   } catch { /* cache facultatif */ }
 }
@@ -489,6 +518,8 @@ async function coachRefresh({ minAge = 0 } = {}) {
     if (typeof coachShareRefresh === 'function') coachShareRefresh();
     // Messages : non-lus et derniers messages (js/data/coach-chat.js)
     if (typeof chatRefresh === 'function') chatRefresh();
+    // Planification : phases de mes élèves (coach), ma phase (élève) (js/data/coach-plan.js)
+    if (typeof coachPlanRefresh === 'function') coachPlanRefresh();
   }
   coach.loading = false;
   notifyCoach();
@@ -608,7 +639,8 @@ async function coachSendProgramme(student, progId, over = null) {
 
 // Élève : programme ou commentaire vu (badge)
 async function coachMarkInboxSeen(kind, ref) {
-  const list = kind === 'programme' ? coach.inbox?.programmes : coach.inbox?.notes;
+  // Plan diète : « programme » pour le serveur (même table coach_programmes)
+  const list = kind === 'programme' ? [...(coach.inbox?.programmes || []), ...(coach.inbox?.diets || [])] : coach.inbox?.notes;
   const item = (list || []).find(x => (kind === 'programme' ? x.id : x.session_id) === ref);
   if (!item || item.seen) return { ok: true };
   item.seen = true;
@@ -697,7 +729,8 @@ function coachSentStatus(student, sessions) {
   const me = account.user?.id;
   const used = (progId, at) => sessions.some(r => coachSentIdOf(r.s.programme, me) === progId && r.doneAt >= at);
   if (Array.isArray(st?.sent)) {
-    return st.sent.slice().sort((a, b) => b.sentAt - a.sentAt)
+    // Plans diète envoyés : listés à part (js/data/coach-diet.js)
+    return st.sent.filter(x => !isDietSentId(x.id)).sort((a, b) => b.sentAt - a.sentAt)
       .map(x => ({ progId: x.id, sentAt: x.sentAt, state: !x.seen ? 'unseen' : used(x.id, x.sentAt) ? 'used' : 'unused' }));
   }
   return coachUnusedSent(student, sessions).map(x => ({ ...x, state: 'unused' }));

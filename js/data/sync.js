@@ -26,11 +26,17 @@
 // remplacée en bloc, pas fusionnée) : un programme créé sur un autre appareil y revient par
 // cleanMyProgrammes (store.js) après la fusion. sessionVisibleDefault (Réglages › Amis et coach) :
 // préremplit « Visible sur mon profil » à la fin d'une séance, même choix sur tous les appareils.
+// dietPlans, dietActive, dietFoods (js/data/nutrition.js) : plans diète (les miens et ceux reçus d'un coach),
+// plan suivi et aliments perso : seulement avec l'accord (SYNC_DIET_CONSENT_KEYS) ; dietConsent : cet accord daté.
 // appVersion / appSeenAt (noteAppVersion) : version du contenu de l'app et date où elle a été vue,
 // pour savoir côté serveur qui a quelle version ; le dernier appareil lancé l'emporte, rien d'autre ne part.
 const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
   'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'silhouette', 'myProgrammes',
-  'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt'];
+  'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt', 'dietPlans', 'dietActive', 'dietFoods', 'dietConsent'];
+// Clés de nutrition copiées seulement avec l'accord de la personne (dietConsent.on, js/data/nutrition.js) :
+// sans accord, ou accord retiré, elles ne partent pas et le profil envoyé les efface du serveur. L'accord
+// lui-même ({ on, at }) part toujours : un refus fait sur un appareil vaut pour les autres.
+const SYNC_DIET_CONSENT_KEYS = ['dietPlans', 'dietActive', 'dietFoods'];
 // Restent sur l'appareil (liste tenue pour le test qui oblige à classer toute nouvelle clé).
 // lastAccount : moyen et pseudo du dernier compte connecté ici (reconnexion après une restauration iCloud).
 // rirOn (sélecteur RIR) et plates (barre et disques de la salle) : préférences d'affichage et de matériel,
@@ -41,15 +47,18 @@ const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'c
 // sur le compte, son absence (carte rallumée) devrait en plus compter comme un choix (SYNC_ABSENT_IS_CHOICE)
 // strengthSex (Réglages › Entraînement › Sexe, repères du niveau de force) : donnée personnelle facultative,
 // gardée sur l'appareil comme le poids du corps ; jamais envoyée au serveur
+// dietLog (repas cochés et aliments remplacés, js/data/nutrition.js) : ce que la personne a mangé, jour par
+// jour ; sur l'appareil seulement en V1 (le montrer au coach demandera son accord, docs/NUTRITION_V1.md)
 const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'healthOn', 'musicOn', 'soundOn', 'soundLevel', 'vibrateOn',
-  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff', 'strengthSex'];
+  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff', 'strengthSex', 'dietLog',
+  'dietConsentAsked', 'dietHideNumbers', 'dietStreakOff', 'dietCoachConsent'];
 // Clés dont l'absence est un choix fait sur un appareil (objectif « Auto », derniers muscles rétablis) :
 // absentes du compte, elles sont retirées ici aussi. Toutes les versions qui synchronisent les envoient.
 // Les autres clés absentes du compte sont gardées ici : un appareil resté sur une version qui ne les
 // connaît pas encore (myProgrammes, silhouette) renvoie un profil sans elles, il ne les a pas effacées.
 const SYNC_ABSENT_IS_CHOICE = ['weeklyGoal', 'exerciseMuscles', 'exerciseMusclesSecondary'];
 // Dictionnaires du profil fusionnés élément par élément (programmes, exercices perso…) : rien n'est perdu
-const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary'];
+const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary'];   // nutrition : mergeDietProfile
 
 // État de synchro vide d'un compte : curseur serveur, empreintes envoyées, profil
 function emptySyncMeta(userId) { return { userId, cursor: null, pushed: {}, pushedCore: {}, profileHash: null, profileCore: null, profileAt: null }; }
@@ -130,10 +139,24 @@ function noteAppVersion(d, version, now = new Date()) {
   return true;
 }
 
+// Profil tel qu'il part sur le serveur : au-delà de SYNC_PROFILE_MAX_BYTES (le serveur refuserait tout le
+// document, et la synchro de tout le profil serait bloquée), les plans diète restent sur l'iPhone et le reste
+// part ; dietDropped le dit à l'écran (Réglages de la nutrition)
+const SYNC_PROFILE_MAX_BYTES = 900 * 1024;
+function profileBytes(doc) { return new TextEncoder().encode(JSON.stringify(doc)).length; }
+function profilePayloadForServer(d) {
+  const doc = profilePayload(d);
+  if (profileBytes(doc) <= SYNC_PROFILE_MAX_BYTES) return { doc, dietDropped: false };
+  const slim = { ...doc };
+  for (const k of SYNC_DIET_CONSENT_KEYS) delete slim[k];
+  return { doc: slim, dietDropped: SYNC_DIET_CONSENT_KEYS.some(k => k in doc) };
+}
+
 // Profil partagé : seulement les clés autorisées
 function profilePayload(d) {
   const out = {};
-  for (const k of SYNC_PROFILE_KEYS) if (d[k] !== undefined) out[k] = d[k];
+  const diet = d.dietConsent?.on === true;
+  for (const k of SYNC_PROFILE_KEYS) if (d[k] !== undefined && (diet || !SYNC_DIET_CONSENT_KEYS.includes(k))) out[k] = d[k];
   return out;
 }
 
@@ -280,6 +303,41 @@ function renoteMerged(merged, history) {
 // - modifié des deux côtés : cet appareil gagne, ce qui n'existe que sur le compte est ajouté.
 //   Limite connue : sans tombstone de programme, un programme supprimé ailleurs revient dans ce cas
 //   (les programmes perso supprimés sont archivés, pas effacés : cas rare et sans perte).
+// Nutrition (plans, plan suivi, aliments perso, accord), règle à part, appliquée après les autres dans toutes
+// les branches de applyRemoteProfile :
+// - accord : la décision la plus récente (at) gagne, d'où qu'elle vienne ; un retrait fait ailleurs n'est
+//   jamais annulé par un appareil qui avait encore l'ancien accord, et réciproquement ;
+// - accord retenu refusé : rien n'est pris du compte, les plans de l'iPhone restent tels quels ;
+// - accord donné : union des plans (aucun plan de l'iPhone n'est perdu, même sur un appareil sans séance ou
+//   quand l'accord arrive d'un autre appareil) ; en cas de même plan des deux côtés, le compte gagne si rien
+//   n'a changé ici (un plan supprimé, donc archivé, ailleurs le reste ici), sinon cet appareil gagne ;
+// - plan suivi : celui de l'iPhone s'il existe encore, sinon celui du compte.
+// local : valeurs d'avant la fusion ; remoteDoc : document brut du compte ; remoteFirst : le compte gagne par plan
+function dietConsentTime(c) {
+  const t = c && typeof c === 'object' && typeof c.on === 'boolean' && typeof c.at === 'string' ? Date.parse(c.at) : NaN;
+  return Number.isFinite(t) ? t : null;
+}
+function mergeDietProfile(d, local, remoteDoc, remoteFirst) {
+  const isObj = o => !!o && typeof o === 'object' && !Array.isArray(o);
+  const lt = dietConsentTime(local.dietConsent), rt = dietConsentTime(remoteDoc.dietConsent);
+  const consent = rt != null && (lt == null || rt > lt) ? { on: remoteDoc.dietConsent.on, at: remoteDoc.dietConsent.at }
+    : lt != null ? local.dietConsent : undefined;
+  const set = (k, v) => { if (v === undefined) delete d[k]; else d[k] = v; };
+  set('dietConsent', consent);
+  const take = consent?.on === true && remoteDoc.dietConsent?.on === true;   // le compte n'a des plans qu'avec accord
+  const lp = isObj(local.dietPlans) ? local.dietPlans : null;
+  const rp = take && isObj(remoteDoc.dietPlans) ? cleanDietPlans(remoteDoc.dietPlans) : null;
+  const plans = lp && rp ? (remoteFirst ? { ...lp, ...rp } : { ...rp, ...lp }) : lp || rp || undefined;
+  set('dietPlans', plans && Object.keys(plans).length ? plans : undefined);
+  const lf = Array.isArray(local.dietFoods) ? local.dietFoods : [];
+  const rf = take && Array.isArray(remoteDoc.dietFoods) ? remoteDoc.dietFoods : [];
+  const foods = cleanDietFoods(remoteFirst ? [...rf, ...lf] : [...lf, ...rf]);
+  set('dietFoods', foods.length ? foods : undefined);
+  const alive = id => typeof id === 'string' && plans?.[id] && !plans[id].archived;
+  set('dietActive', alive(local.dietActive) ? local.dietActive : take && alive(remoteDoc.dietActive) ? remoteDoc.dietActive : undefined);
+}
+const SYNC_DIET_ALL_KEYS = [...SYNC_DIET_CONSENT_KEYS, 'dietConsent'];
+
 function applyRemoteProfile(d, remote, meta) {
   if (!remote?.doc || typeof remote.doc !== 'object') return false;
   if (meta.profileAt && remote.updated_at && remote.updated_at <= meta.profileAt) return false;
@@ -287,6 +345,7 @@ function applyRemoteProfile(d, remote, meta) {
   const doc = profilePayload(remote.doc);
   const remoteHash = syncHash(doc), localHash = syncHash(profilePayload(d));
   if (localHash === remoteHash) { meta.profileHash = localHash; meta.profileCore = profileCoreHash(doc); return false; }
+  const localDiet = Object.fromEntries(SYNC_DIET_ALL_KEYS.map(k => [k, d[k]]));
   const blank = isBlankData(d);
   const before = Object.fromEntries(Object.entries(d.userProgrammes || {}).filter(([, up]) => Array.isArray(up?.order)).map(([k, up]) => [k, up.order.slice()]));
   // Inchangé ici : empreinte égale, ou égale sans l'ordre des séances ajouté par une version précédente,
@@ -300,19 +359,26 @@ function applyRemoteProfile(d, remote, meta) {
     // reconstruit alors depuis l'historique du compte, cleanMyProgrammes)
     // La version de l'app reste celle de cet appareil (elle partira au prochain envoi)
     const ownVersion = Object.fromEntries(SYNC_PROFILE_VOLATILE.filter(k => d[k] !== undefined).map(k => [k, d[k]]));
-    for (const k of SYNC_PROFILE_KEYS) { if (k in doc) d[k] = doc[k]; else if (blank || SYNC_ABSENT_IS_CHOICE.includes(k)) delete d[k]; }
+    // Nutrition : jamais recopiée telle quelle (ni effacée parce que le compte ne l'a pas) : mergeDietProfile
+    for (const k of SYNC_PROFILE_KEYS) {
+      if (SYNC_DIET_ALL_KEYS.includes(k)) continue;
+      if (k in doc) d[k] = doc[k]; else if (blank || SYNC_ABSENT_IS_CHOICE.includes(k)) delete d[k];
+    }
     Object.assign(d, ownVersion);
     keepLocalOrders(d, before);
+    mergeDietProfile(d, localDiet, remote.doc, true);
     meta.profileHash = remoteHash; meta.profileCore = profileCoreHash(doc);
     return true;
   }
   const remoteWins = meta.profileHash == null;
   for (const [k, v] of Object.entries(doc)) {
+    if (SYNC_DIET_ALL_KEYS.includes(k)) continue;
     const both = SYNC_UNION_KEYS.includes(k) && v && typeof v === 'object' && d[k] && typeof d[k] === 'object';
     if (both) d[k] = remoteWins ? { ...d[k], ...v } : { ...v, ...d[k] };
     else if (remoteWins || d[k] === undefined) d[k] = v;
   }
   keepLocalOrders(d, before);
+  mergeDietProfile(d, localDiet, remote.doc, remoteWins);
   // Empreinte du compte : le résultat de la fusion, différent, partira au prochain envoi
   meta.profileHash = remoteHash; meta.profileCore = profileCoreHash(doc);
   return true;
