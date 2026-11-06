@@ -126,7 +126,8 @@ COACH_PROG = {
     'name': 'Force', 'consigne': 'Trois séances par semaine, un jour de repos entre deux.',
     'sessions': [
         {'key': 'sA', 'label': 'Haut', 'color': '#FF9500', 'exercises': [
-            {'name': 'Développé couché', 'sets': 4, 'rest': 120, 'tempo': '3-1-1-0', 'consigne': 'Coudes serrés, descends en 3 secondes.'},
+            {'name': 'Développé couché', 'sets': 4, 'rest': 120, 'tempo': '3-1-1-0', 'repMin': 8, 'repMax': 12, 'intens': 'drop-last',
+             'grip': {'width': 'serree'}, 'consigne': 'Coudes serrés, descends en 3 secondes.'},
             {'name': 'Rowing haltère unilatéral', 'sets': 4, 'ss': 'g1'},
             {'name': 'Pompes', 'sets': 3, 'ss': 'g1', 'consigne': 'Gainage serré.'}]},
         {'key': 'sB', 'label': 'Bas', 'color': '#34C759', 'exercises': [
@@ -229,6 +230,8 @@ def t_eleve(bench, eng, dev, theme):
         page.click('[data-action="coach-prog-toggle"]')
         page.wait_for_selector('.coach-prog__preview')
         R.check('Squat barre' in page.inner_text('.coach-prog__preview') and 'Coudes serrés' in page.inner_text('.coach-prog__preview'), f'{t} aperçu des exercices avant d\'ajouter')
+        pv = page.locator('.coach-prog__preview li').first.inner_text().replace('\u00a0', ' ')
+        R.check('8 à 12 reps' in pv and 'dernière en drop set' in pv and 'Prise serrée' in pv, f'{t} aperçu : fourchette, technique et prise ({pv!r})')
         R.check(page.evaluate("document.querySelector('.coach-prog__btn').getBoundingClientRect().height") < 60, f'{t} « Ajouter à mes programmes » sur une ligne')
         R.check(page.get_attribute('.coach-prog [data-action="coach-add-prog"]', 'aria-label') == 'Ajouter Force à mes programmes', f'{t} VoiceOver : bouton Ajouter nommé')
         layout(page, t, 'Mon coach')
@@ -413,7 +416,7 @@ def setup_coach(page):
         data.userProgrammes.u_force = { name: 'Force', archived: false, sessions: {
           sA: { label: 'Haut', icon: '', desc: '', color: '#FF9500' }, sB: { label: 'Bas', icon: '', desc: '', color: '#34C759' } } };
         data.programmes.u_force = { timers: {}, cooldowns: {}, exercises: {
-          sA: [{ id: 'e1', name: 'Développé couché', sets: 4, rest: 120, lastWeight: '80' }, { id: 'e2', name: 'Rowing', sets: 4, ss: 'g1' }, { id: 'e3', name: 'Pompes', sets: 3, ss: 'g1' }],
+          sA: [{ id: 'e1', name: 'Développé couché', sets: 4, rest: 120, lastWeight: '80', repMin: 8, repMax: 12, intens: 'rp-last', grip: { width: 'large' } }, { id: 'e2', name: 'Rowing', sets: 4, ss: 'g1' }, { id: 'e3', name: 'Pompes', sets: 3, ss: 'g1' }],
           sB: [{ id: 'e4', name: 'Squat barre', sets: 5 }] } };
         data.myProgrammes.push('u_force'); save();
         return { me, lea, tom };
@@ -528,6 +531,8 @@ def t_coach(bench, eng, dev, theme):
         page.evaluate(f"navigate(makeRoute('coach-send', '{ids['lea']}', 'u_force'))")
         page.wait_for_selector('.coach-send-view')
         R.check(page.input_value('.coach-textarea[data-prog]') == 'Trois séances par semaine.' and page.input_value('.coach-textarea[data-ex="e1"]') == 'Coudes serrés.', f'{t} brouillon des consignes gardé')
+        sub = page.locator('.coach-send-ex').first.inner_text().replace('\u00a0', ' ')
+        R.check('4 séries · 8 à 12 reps · dernière en rest-pause · repos' in sub and 'Prise large' in sub, f'{t} envoi : fourchette, technique et prise ({sub!r})')
         layout(page, t, 'envoi d\'un programme')
         shot(page, LOT, f'16-envoi-{t}')
         page.click('[data-action="coach-send-go"]')
