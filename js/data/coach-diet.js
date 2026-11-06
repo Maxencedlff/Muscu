@@ -60,6 +60,24 @@ async function dietCoachSetAccept(on, d = data) {
   const r = await coachShareSet('diet', !!on);
   if (!r.ok && (r.kind === 'invalid_kind' || r.kind === 'missing')) dietCoachServerless = true;
   else if (!r.ok) return r;
-  d.dietCoachConsent = { on: !!on, at: new Date().toISOString() };
+  // local : accord donné quand le serveur ne le connaissait pas, à reposer sur le serveur une fois migré
+  d.dietCoachConsent = { on: !!on, at: new Date().toISOString(), ...(dietCoachServerless ? { local: true } : {}) };
   return { ok: true, serverless: dietCoachServerless };
+}
+// Appelé après chaque student_shares() relu (coachShareRefresh). Premier serveur qui annonce 'diet' : l'accord
+// donné sur cet appareil avant la migration (local) y est reposé, sinon les envois du coach seraient refusés
+// alors que l'élève a dit oui. Une seule fois : ensuite le serveur fait foi (un retrait fait sur un autre
+// appareil n'est jamais annulé par l'accord resté ici).
+async function dietCoachCarryOver(d = data) {
+  const c = d.dietCoachConsent, st = coachShare.state;
+  if (!st || !(st.kinds || []).includes('diet')) return false;
+  dietCoachServerless = false;
+  if (!c?.local) return false;
+  if (c.on && !coachShareOn('diet')) {
+    const r = await coachShareSet('diet', true);
+    if (!r.ok) return false;   // retenté à la prochaine relecture
+  }
+  d.dietCoachConsent = { on: c.on, at: c.at };
+  save(true);
+  return c.on;
 }

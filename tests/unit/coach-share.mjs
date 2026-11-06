@@ -318,4 +318,37 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(rv3.volume, 500);
     R([]);
   });
+  test('plans diète : accord donné avant la migration, reposé une fois sur le serveur migré, jamais après un retrait', async () => {
+    reset();
+    try {
+      setup();
+      // Serveur d'avant : student_set_share('diet') refusé, l'accord reste sur l'iPhone (marqué local)
+      run(`__answers.student_set_share = { error: { message: 'invalid_kind' } }`);
+      const r0 = await run(`dietCoachSetAccept(true)`);
+      sameJSON([r0.ok, r0.serverless, run('data.dietCoachConsent.on'), run('data.dietCoachConsent.local')], [true, true, true, true]);
+      run('sanitizeDiet(data)');
+      assert.equal(run('data.dietCoachConsent.local'), true, 'la marque survit au nettoyage des données (relance de l\'app)');
+      // Serveur pas encore migré : la relecture ne repose rien
+      run(`__answers.student_shares = { coach: true, kinds: ['weight', 'measures'], shares: {} }; __calls.length = 0`);
+      await run('coachShareRefresh()');
+      sameJSON(calls(), ['student_shares']);
+      assert.equal(run('data.dietCoachConsent.local'), true, 'toujours à reposer');
+      // Serveur migré, sans l'accord : reposé, puis plus marqué local
+      const on = { coach: true, kinds: ['weight', 'measures', 'diet'], shares: { diet: { granted_at: '2026-11-06T10:00:00Z', n: 0 } } };
+      run(`__answers.student_shares = { coach: true, kinds: ['weight', 'measures', 'diet'], shares: {} }; __answers.student_set_share = ${JSON.stringify(on)}; __calls.length = 0`);
+      await run('coachShareRefresh()');
+      sameJSON(shareLog(), [['student_shares', null], ['student_set_share', { kind: 'diet', enabled: true }]]);
+      sameJSON([run('coachShareOn("diet")'), run('dietCoachAccepted()'), run('"local" in data.dietCoachConsent')], [true, true, false]);
+      // Retrait fait sur un autre appareil : l'accord resté ici n'est jamais reposé
+      run(`__answers.student_shares = { coach: true, kinds: ['weight', 'measures', 'diet'], shares: {} }; __calls.length = 0`);
+      await run('coachShareRefresh()');
+      sameJSON(calls(), ['student_shares']);
+      assert.equal(run('dietCoachAccepted()'), false, 'le serveur fait foi');
+      // Accord local « non » : rien de reposé, marque retirée
+      run(`data.dietCoachConsent = { on: false, at: '2026-11-05T10:00:00Z', local: true }; __calls.length = 0`);
+      await run('coachShareRefresh()');
+      sameJSON(calls(), ['student_shares']);
+      assert.equal(run('"local" in data.dietCoachConsent'), false);
+    } finally { run('dietCoachServerless = false; delete data.dietCoachConsent'); teardown(); }
+  });
 }

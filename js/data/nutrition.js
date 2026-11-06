@@ -182,7 +182,7 @@ function sanitizeDiet(d, now = Date.now()) {
   // Accord « recevoir les plans de mon coach » gardé sur l'appareil (serveur pas encore à jour) : même forme
   if (d.dietCoachConsent !== undefined) {
     const c = d.dietCoachConsent;
-    if (dietIsObj(c) && typeof c.on === 'boolean' && typeof c.at === 'string' && c.at.length <= 40 && Number.isFinite(Date.parse(c.at))) d.dietCoachConsent = { on: c.on, at: c.at };
+    if (dietIsObj(c) && typeof c.on === 'boolean' && typeof c.at === 'string' && c.at.length <= 40 && Number.isFinite(Date.parse(c.at))) d.dietCoachConsent = { on: c.on, at: c.at, ...(c.local === true ? { local: true } : {}) };
     else delete d.dietCoachConsent;
   }
   return d;

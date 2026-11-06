@@ -184,7 +184,7 @@ async function coachShareRefresh() {
   coachShare.state = cleanShareState(r.data);
   coachShare.error = null;
   notifyCoach();
-  await Promise.all([coachShareUpload(), coachShareUploadKind('measures')]);
+  await Promise.all([coachShareUpload(), coachShareUploadKind('measures'), dietCoachCarryOver()]);
   return true;
 }
 
