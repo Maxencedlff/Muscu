@@ -400,4 +400,35 @@ def t_bilan_coach(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_planning_coach, t_planning_eleve, t_echappement, t_serveur_ancien, t_mesures_eleve, t_bilan_coach])
+def t_apercu_message(bench, eng, dev, theme):
+    """Panel du 06/11 : message de Léa « coupé » sur la fiche (iPhone SE). Voulu : la cellule Messages montre un
+    aperçu de deux lignes au plus (comme Messages d'iOS), le message entier est dans la conversation."""
+    t = tag(dev, theme)
+    body = "J'ai senti mon épaule sur le développé, je baisse la charge ?"
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme)
+        signin(page, 'max')
+        ids = setup_coach(page, phases=False, measures=False)
+        page.evaluate("([lea, b]) => { __sb.msg(lea, false, b, Date.now() - 3 * 3600e3); }", [ids['lea'], body])
+        page.evaluate('coachRefresh()')
+        page.wait_for_timeout(400)
+        go(page, f"makeRoute('coach-student', '{ids['lea']}')", '.coach-student-view .chat-cell')
+        page.wait_for_timeout(300)
+        last = page.locator('.chat-cell__last')
+        R.check(last.text_content() == body, f'{t} fiche : aperçu tiré du dernier message ({last.text_content()!r})')
+        lines = page.evaluate("""() => { const e = document.querySelector('.chat-cell__last'), cs = getComputedStyle(e);
+            return [cs.webkitLineClamp, Math.round(e.getBoundingClientRect().height / parseFloat(cs.lineHeight))]; }""")
+        R.check(lines[0] == '2' and lines[1] <= 2, f'{t} fiche : aperçu sur deux lignes au plus {lines}')
+        page.locator('.chat-cell').scroll_into_view_if_needed()
+        shot(page, LOT, f'15-fiche-message-{t}')
+        page.click('.chat-cell')
+        page.wait_for_selector('.coach-chat-view .chat-msg')
+        page.wait_for_timeout(300)
+        bubble = page.locator('.chat-msg--theirs .chat-msg__bubble').last
+        R.check(body in bubble.inner_text() and page.evaluate("(() => { const b = [...document.querySelectorAll('.chat-msg--theirs .chat-msg__bubble')].pop(); return b.scrollWidth <= b.clientWidth + 1 && b.scrollHeight <= b.clientHeight + 1; })()"),
+                f'{t} conversation : message entier, jamais coupé')
+        shot(page, LOT, f'16-conversation-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_planning_coach, t_planning_eleve, t_echappement, t_serveur_ancien, t_mesures_eleve, t_bilan_coach, t_apercu_message])
