@@ -49,7 +49,6 @@ async function dietAskConsent() {
   dietSyncSoon();
   return v;
 }
-async function dietEnsureConsent() { return dietConsentOn(data) || dietAskConsent(); }
 // À l'ouverture de Nutrition ou des plans : une fois, avec un compte, quand un plan existe
 function dietMaybeAskConsent() {
   if (!account.user || data.dietConsentAsked || data.dietConsent || !dietPlanIds(data).length) return;
