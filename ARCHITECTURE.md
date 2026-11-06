@@ -351,7 +351,7 @@ relue par `num()`), `fmtClock` / `fmtRest` / `fmtDuration` pour les durées, `fm
 
 ### Autres clés
 
-- Nutrition (`docs/NUTRITION_V1.md`), clés de `ppl_v2` absentes tant qu'on ne s'en sert pas : `dietPlans`, `dietActive`, `dietFoods` (profil, **seulement avec l'accord** `dietConsent = { on, at }`, qui part toujours : `profilePayload`, `SYNC_DIET_CONSENT_KEYS` ; `dietPlans` fusionné par union) ; `dietLog` (repas cochés et remplacements du jour), `dietConsentAsked`, `dietHideNumbers`, `dietStreakOff` (`SYNC_LOCAL_ONLY`).
+- Nutrition (`docs/NUTRITION_V1.md`), clés de `ppl_v2` absentes tant qu'on ne s'en sert pas : `dietPlans`, `dietActive`, `dietFoods` (profil, **seulement avec l'accord** `dietConsent = { on, at }`, qui part toujours : `profilePayload`, `SYNC_DIET_CONSENT_KEYS` ; `dietPlans` fusionné par union) ; `dietLog` (repas cochés et remplacements du jour, instantané des repas du jour), `dietConsentAsked`, `dietHideNumbers`, `dietStreakOff`, `dietCoachConsent` (`SYNC_LOCAL_ONLY`). Fusion à part : `mergeDietProfile` (accord le plus récent, union des plans) ; garde de taille `profilePayloadForServer`.
 - `ppl_theme` : `'auto'`, `'light'` ou `'dark'` (lu aussi par le script en tête d'`index.html`).
 - `ppl_v2_backup` : copie brute de `ppl_v2` avant une migration, un import ou une suppression totale
   (proposée par l'écran de secours).
@@ -567,6 +567,7 @@ iPhone. Détails : IOS.md et docs/ANDROID.md ; cohérence vérifiée par `tests/
   Communs : `_shared/strava.ts` (appels à Strava, renouvellement des jetons, révocation), `_shared/strava-policy.js` et
   `_shared/strava-crypto.js` (logique pure testée par `tests/unit/strava-server.mjs`). `delete-account` révoque aussi
   l'accès Strava. Secrets `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_TOKEN_KEY`, jamais dans le dépôt.
+- `supabase/migrations/20261106200000_plans_diete_coach.sql` (écrite, pas appliquée) : accord de l'élève pour recevoir les plans diète de son coach (`coach_shares` kind `'diet'`, `private.share_kind_open('diet')`), `coach_send_programme` refuse un `diet_…` sans cet accord (`diet_not_accepted`), déclencheur `coach_shares_diet_revoked` qui efface les plans diète de l'élève au retrait. Contrat : `docs/NUTRITION_V1.md`, « Accords ». Retour arrière : `supabase/rollback/20261106200000_plans_diete_coach_down.sql`.
 - `supabase/rollback/` : retours arrière des migrations, lancés à la main seulement (Supabase ne les applique
   jamais), chacun vérifié par un script de `tests/sql/`.
 - `supabase/functions/_shared/auth-guard.js` : garde pure de l'appelant (`requireCaller` : jeton Bearer relu par

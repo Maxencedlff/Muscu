@@ -91,6 +91,10 @@ def layout(page, t, name, scope='#app'):
     R.check(not page.errors, f'{t} {name} : aucune erreur JS {page.errors[:2]}')
 
 
+def toast(page):
+    return page.locator('.toast').inner_text() if page.locator('.toast').count() else ''
+
+
 def kcal_eaten(page):
     return page.evaluate("Math.round(dietDayProgress(data, data.dietActive).eaten.kcal)")
 
@@ -265,7 +269,8 @@ def t_creer_plan(bench, eng, dev, theme):
 
 
 def t_coach_eleve(bench, eng, dev, theme):
-    """Le coach envoie un plan (fiche de l'élève) ; l'élève le reçoit, le suit, le voit dans Mon coach."""
+    """Coach : refus tant que l'élève n'a pas accepté, puis envoi depuis la fiche et depuis le plan, dupliquer.
+    Élève : accepte les plans de son coach (Mon coach), reçoit, suit ; accord « copier sur mon compte » à part."""
     t = tag(dev, theme)
     with bench.frozen_page(NOW, eng, dev, theme) as page:
         d = ppl_v2_today(now_ms=NOW)
@@ -273,11 +278,19 @@ def t_coach_eleve(bench, eng, dev, theme):
         open_app(page, theme, json.dumps(d, ensure_ascii=False), account=True)
         signin(page, 'max')
         uid = page.evaluate("""() => { const me = __sb.meId(); __sb.makeCoach(me);
-            const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', social: false }); __sb.link(me, lea); return lea; }""")
+            const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', social: false }); __sb.link(me, lea);
+            const tom = __sb.addPerson({ username: 'tom', avatar: '🐼', social: false }); __sb.link(me, tom); return lea; }""")
         page.evaluate('coachRefresh()')
         page.wait_for_timeout(300)
         page.evaluate(f"switchTab('friends'); navigate(makeRoute('coach-student', '{uid}'))")
         page.wait_for_selector('[data-action="coach-send-diet"]')
+        # Élève qui n'a pas accepté : refus clair, rien d'écrit
+        page.click('[data-action="coach-send-diet"]')
+        page.wait_for_selector('.ios-dialog')
+        tap_dialog(page, 'Sèche Léa')
+        page.wait_for_timeout(500)
+        R.check("Ton élève doit d'abord accepter les plans diète dans son app." in toast(page) and not page.evaluate("__sb.co.progs.length"), f'{t} coach : refus clair sans l\'accord de l\'élève')
+        page.evaluate(f"__sb.co.shares.push({{ student: '{uid}', coach: __sb.meId(), kind: 'diet', granted_at: new Date().toISOString() }})")
         page.click('[data-action="coach-send-diet"]')
         page.wait_for_selector('.ios-dialog')
         tap_dialog(page, 'Sèche Léa')
@@ -290,40 +303,65 @@ def t_coach_eleve(bench, eng, dev, theme):
         R.check('diet_' not in g and 'Programme supprimé' not in g, f'{t} fiche : le plan n\'est pas listé comme un programme')
         layout(page, t, 'fiche de l\'élève')
         shot(page, LOT, f'10-coach-fiche-{t}')
-    # Élève : reçoit le plan
+        # Préparer le plan d'un 2e élève : dupliquer puis « Envoyer à un élève », depuis le plan
+        page.evaluate("switchTab('program', { reset: true }); navigate(makeRoute('diet-plan', 'd_lea00001'))")
+        page.wait_for_selector('[data-action="diet-duplicate"]')
+        R.check(page.locator('[data-action="diet-send-student"]').count() == 1, f'{t} coach : « Envoyer à un élève » sur le plan')
+        page.click('[data-action="diet-duplicate"]')
+        page.wait_for_timeout(400)
+        nid = page.evaluate("routeParams(currentRoute())[0]")
+        R.check(nid != 'd_lea00001' and 'Sèche Léa (copie)' in page.inner_text('.diet-plan-view'), f'{t} dupliquer : nouvelle copie ouverte')
+        layout(page, t, 'plan dupliqué')
+        shot(page, LOT, f'10b-dupliquer-{t}')
+        page.evaluate(f"__sb.co.shares.push({{ student: __sb.co.links.find(l => l.student !== '{uid}').student, coach: __sb.meId(), kind: 'diet', granted_at: new Date().toISOString() }})")
+        page.click('[data-action="diet-send-student"]')
+        page.wait_for_selector('.ios-dialog')
+        shot(page, LOT, f'10c-envoyer-{t}')
+        tap_dialog(page, 'tom')
+        page.wait_for_timeout(500)
+        R.check(page.evaluate(f"__sb.co.progs.some(p => p.id === dietSentId('{nid}') && p.student !== '{uid}')"), f'{t} plan envoyé au 2e élève depuis le plan')
+    # Élève : accepte les plans de son coach, reçoit, suit
     with bench.frozen_page(NOW, eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(now_ms=NOW), account=True)
         signin(page, 'lea')
-        payload = {'kind': 'diet', 'v': 1, 'diet': {**PLAN, 'name': 'Sèche Léa', 'consigne': 'Bois 2 L par jour.'}}
-        page.evaluate("""p => { const max = __sb.addPerson({ username: 'max', avatar: '🦁', social: false }); __sb.makeCoach(max); __sb.link(max, __sb.meId());
-            __sb.co.progs.push({ coach: max, student: __sb.meId(), id: 'diet_lea00001', data: p, sent_at: new Date().toISOString(), seen: false }); }""", payload)
+        page.evaluate("""() => { const max = __sb.addPerson({ username: 'max', avatar: '🦁', social: false }); __sb.makeCoach(max); __sb.link(max, __sb.meId()); window.__max = max; }""")
         page.evaluate('coachRefresh()')
         page.wait_for_timeout(500)
-        page.evaluate("routeTo('dashboard')")
+        page.evaluate("switchTab('friends'); navigate('coach-mine')")
+        page.wait_for_selector('[data-action="diet-coach-toggle"]')
+        R.check(page.get_attribute('[data-action="diet-coach-toggle"]', 'aria-checked') == 'false', f'{t} élève : plans du coach pas acceptés au départ')
+        page.click('[data-action="diet-coach-toggle"]')
+        page.wait_for_selector('.ios-dialog')
+        dlg = page.inner_text('.ios-dialog')
+        R.check('Recevoir les plans diète de max' in dlg and 'En savoir plus' in dlg and dlg.count('.') <= 4, f'{t} accord du coach : court, « En savoir plus »')
+        shot(page, LOT, f'11a-accord-coach-{t}')
+        tap_dialog(page, 'Accepter')
+        page.wait_for_timeout(500)
+        R.check(page.evaluate("__sb.co.shares.some(x => x.kind === 'diet' && x.student === __sb.meId())"), f'{t} accord enregistré sur le serveur')
+        payload = {'kind': 'diet', 'v': 1, 'diet': {**PLAN, 'name': 'Sèche Léa', 'consigne': 'Bois 2 L par jour.'}}
+        page.evaluate("p => { __sb.co.progs.push({ coach: window.__max, student: __sb.meId(), id: 'diet_lea00001', data: p, sent_at: new Date().toISOString(), seen: false }); }", payload)
+        page.evaluate('coachRefresh()')
+        page.wait_for_timeout(500)
+        page.evaluate("switchTab('train', { reset: true })")
         page.wait_for_timeout(300)
         home = page.locator('.coach-home', has_text='plan diète')
         R.check(home.count() == 1 and 'Nouveau plan diète de max' in home.inner_text() and 'Sèche Léa' in home.inner_text(), f'{t} élève : carte « Nouveau plan diète de max »')
         R.check(page.locator('.coach-home', has_text='Nouveau programme').count() == 0, f'{t} élève : pas pris pour un programme')
         shot(page, LOT, f'11-eleve-accueil-{t}')
         home.locator('[data-action="diet-take"]').click()
+        page.wait_for_timeout(500)
+        R.check(page.evaluate("(data.dietActive || '').startsWith('dc_')"), f'{t} élève : plan suivi ({page.evaluate("data.dietActive")})')
+        R.check(page.evaluate("__sb.co.progs[0].seen") is True, f'{t} élève : plan marqué vu')
+        R.check(page.locator('.diet-home').count() == 1, f'{t} élève : carte Nutrition')
+        # Accord « copier sur mon compte » : à part, demandé une fois à l'ouverture de Nutrition
+        page.click('.diet-home__open')
         page.wait_for_selector('.ios-dialog')
         dlg = page.inner_text('.ios-dialog')
-        R.check('peuvent renseigner sur ta santé' in dlg and "J'accepte" in dlg and 'Garder sur cet iPhone' in dlg, f'{t} élève : accord demandé avant de recevoir le plan')
+        R.check('Copier tes plans sur ton compte' in dlg and 'Garder sur cet iPhone' in dlg and 'En savoir plus' in dlg, f'{t} accord du compte : court, deux choix et « En savoir plus »')
         shot(page, LOT, f'11b-accord-{t}')
         tap_dialog(page, 'Garder sur cet iPhone')
         page.wait_for_timeout(300)
-        R.check(page.evaluate("data.dietActive") is None and page.evaluate("data.dietConsent.on") is False, f'{t} refus : plan non reçu, refus daté')
-        R.check(page.evaluate("Object.keys(profilePayload(data)).filter(k => k.startsWith('diet'))") == ['dietConsent'], f'{t} refus : aucun plan vers le serveur')
-        home.locator('[data-action="diet-take"]').click()
-        page.wait_for_selector('.ios-dialog')
-        tap_dialog(page, "J'accepte")
-        page.wait_for_timeout(500)
-        R.check(page.evaluate("data.dietConsent.on") is True, f'{t} accord donné')
-        R.check(page.evaluate("data.dietActive") == 'dc_00000000_lea00001' or page.evaluate("data.dietActive or ''").startswith('dc_'), f'{t} élève : plan suivi ({page.evaluate("data.dietActive")})')
-        R.check(page.evaluate("__sb.co.progs[0].seen") is True, f'{t} élève : plan marqué vu')
-        R.check(page.evaluate("['dietPlans', 'dietActive', 'dietConsent'].every(k => k in profilePayload(data))"), f'{t} accord : plans dans le profil envoyé')
-        R.check(page.locator('.diet-home').count() == 1, f'{t} élève : carte Nutrition')
-        page.click('.diet-home__open')
+        R.check(page.evaluate("data.dietConsent.on") is False and page.evaluate("Object.keys(profilePayload(data)).filter(k => k.startsWith('diet'))") == ['dietConsent'], f'{t} refus daté : aucun plan vers le serveur')
         page.wait_for_selector('.nutrition-view .diet-sum')
         R.check('de max' in page.inner_text('.diet-plan-from') and 'Bois 2 L par jour.' in page.inner_text('.nutrition-view'), f'{t} élève : plan du coach et sa consigne')
         shot(page, LOT, f'12-eleve-nutrition-{t}')
@@ -368,4 +406,37 @@ def t_ancienne_coche(bench):
         R.check(not page.errors, f'aucune erreur JS {page.errors[:2]}')
 
 
-run_main(R, [t_journee, t_creer_plan, t_coach_eleve], once=[t_sans_base, t_ancienne_coche])
+def t_invitation(bench):
+    """Serveur pas encore à jour (le coach a pu envoyer sans accord) : l'élève voit une invitation SANS le
+    contenu du plan ; accepter (gardé sur l'appareil) puis le plan s'affiche."""
+    for theme in THEMES:
+        with bench.frozen_page(NOW, 'webkit', 'iPhone 13', theme) as page:
+            page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True, 'dietServerless': True}))
+            page.add_init_script(FAKE_ACCOUNT)
+            page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+            seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
+            page.wait_for_timeout(300)
+            signin(page, 'lea')
+            payload = {'kind': 'diet', 'v': 1, 'diet': {**PLAN, 'name': 'Plan secret'}}
+            page.evaluate("""p => { const max = __sb.addPerson({ username: 'max', avatar: '🦁', social: false }); __sb.makeCoach(max); __sb.link(max, __sb.meId());
+                __sb.co.progs.push({ coach: max, student: __sb.meId(), id: 'diet_sec00001', data: p, sent_at: new Date().toISOString(), seen: false }); }""", payload)
+            page.evaluate('coachRefresh()')
+            page.wait_for_timeout(500)
+            page.evaluate("routeTo('dashboard')")
+            page.wait_for_timeout(300)
+            home = page.locator('.coach-home', has_text='plan diète')
+            txt = home.inner_text() if home.count() else ''
+            R.check('max veut t\'envoyer un plan diète' in txt and 'Plan secret' not in txt, f'{theme} invitation sans le contenu du plan ({txt!r})')
+            page.evaluate("switchTab('friends'); navigate('coach-mine')")
+            page.wait_for_selector('.diet-invite')
+            R.check('Plan secret' not in page.inner_text('#app'), f'{theme} Mon coach : rien du plan sans accord')
+            shot(page, LOT, f'15-invitation-iPhone_13-{theme}')
+            page.click('.diet-invite [data-action="diet-coach-accept"]')
+            page.wait_for_selector('.ios-dialog')
+            tap_dialog(page, 'Accepter')
+            page.wait_for_timeout(500)
+            R.check(page.evaluate("data.dietCoachConsent.on") is True and 'Plan secret' in page.inner_text('#app'), f'{theme} serveur d\'avant : accord gardé sur l\'appareil, plan affiché')
+            R.check(not page.errors, f'{theme} invitation : aucune erreur JS {page.errors[:2]}')
+
+
+run_main(R, [t_journee, t_creer_plan, t_coach_eleve], once=[t_sans_base, t_ancienne_coche, t_invitation])

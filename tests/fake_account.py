@@ -673,11 +673,15 @@ FAKE_ACCOUNT = r"""
       return sb.so.reports.length;
     },
     student_shares: me => sharesState(me),
+    // 'diet' : plans diète du coach (20261106200000) ; opts.dietServerless simule un serveur d'avant
     student_set_share: (me, { kind, enabled }) => {
-      if (kind !== 'weight' || typeof enabled !== 'boolean') return pgErr('invalid_kind');
+      const open = kind === 'weight' || (kind === 'diet' && !opts.dietServerless);
+      if (!open || typeof enabled !== 'boolean') return pgErr('invalid_kind');
       const l = linkOf(me); if (!l) return pgErr('not_found');
-      if (enabled && !shareOf(me)) co.shares.push({ student: me, coach: l.coach, kind, granted_at: new Date(now()).toISOString() });
-      if (!enabled) dropShares(me);
+      if (enabled && !shareOf(me, kind)) co.shares.push({ student: me, coach: l.coach, kind, granted_at: new Date(now()).toISOString() });
+      if (!enabled && kind === 'weight') { co.shares = co.shares.filter(x => !(x.student === me && x.kind === 'weight')); delete co.weights[me]; }
+      // Retrait de l'accord diète : les plans diète gardés pour l'élève sont effacés (déclencheur)
+      if (!enabled && kind === 'diet') { co.shares = co.shares.filter(x => !(x.student === me && x.kind === 'diet')); co.progs = co.progs.filter(p => !(p.student === me && p.id.startsWith('diet_'))); }
       return sharesState(me);
     },
     student_share_weights: (me, { weights }) => {
@@ -774,6 +778,7 @@ FAKE_ACCOUNT = r"""
       if (!coachOf(me, student)) return pgErr('not_found');
       if (typeof prog_id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(prog_id) || !data || typeof data !== 'object' || Array.isArray(data)) return pgErr('invalid_programme');
       if (JSON.stringify(data).length > 200 * 1024) return pgErr('too_long');
+      if (prog_id.startsWith('diet_') && !opts.dietServerless && !shareOf(student, 'diet')) return pgErr('diet_not_accepted');
       co.sends[me] = (co.sends[me] || 0) + 1;
       if (co.sends[me] > 30) return pgErr('rate_limited');
       co.progs = co.progs.filter(p => !(p.student === student && p.id === prog_id));

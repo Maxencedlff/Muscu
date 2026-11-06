@@ -70,6 +70,124 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run('data.dietConsent'), undefined);
   });
 
+  test('synchro : retrait fait ailleurs jamais annulé par un conflit ; plans de l\'iPhone jamais perdus ; plan suivi gardé', () => {
+    const plan = n => ({ name: n, meals: [{ id: 'm1', name: 'Déj', items: [{ id: 'i1', name: 'Riz', food: 9104, fam: 'f', g: 150, per: { k: 155, p: 3.3, c: 33.2, f: 0.7 }, src: 'ciqual-2025' }] }] });
+    const synced = (d, at = '2026-11-01') => { const m = run('emptySyncMeta')('u'); const doc = run('profilePayload')(d); m.profileHash = run('syncHash')(doc); m.profileCore = run('profileCoreHash')(doc); m.profileAt = at; return m; };
+    const apply = (d, doc, m, at) => run('applyRemoteProfile')(d, { doc, updated_at: at }, m);
+    const dietKeys = d => Object.keys(run('profilePayload')(d)).filter(k => SYNC.includes(k));
+    const SYNC = ['dietPlans', 'dietActive', 'dietFoods'];
+    // 1. Retrait sur A, conflit sur B (B a modifié un plan hors ligne) : B retient le retrait, sa charge n'a aucune clé diète
+    const B = run('(x => x)')({ history: [{ id: 'h1', date: 1 }], unit: 'kg', dietConsent: { on: true, at: '2026-11-01T10:00:00Z' }, dietPlans: { d_b: plan('Plan B') }, dietActive: 'd_b' });
+    const mB = synced(B);
+    B.dietPlans.d_b.name = 'Plan B modifié hors ligne';
+    B.unit = 'lbs';   // autre changement ici : vrai conflit
+    apply(B, { unit: 'kg', dietConsent: { on: false, at: '2026-11-03T10:00:00Z' } }, mB, '2026-11-03');
+    assert.equal(B.dietConsent.on, false, 'la décision la plus récente gagne');
+    sameJSON(dietKeys(B), [], 'aucune clé diète renvoyée');
+    assert.equal(B.dietPlans.d_b.name, 'Plan B modifié hors ligne', 'plans gardés sur l\'iPhone');
+    // Accord plus ancien reçu : ne remplace pas un retrait plus récent fait ici
+    apply(B, { unit: 'kg', dietConsent: { on: true, at: '2026-10-01T10:00:00Z' }, dietPlans: { d_x: plan('X') } }, mB, '2026-11-04');
+    assert.ok(B.dietConsent.on === false && !B.dietPlans.d_x, 'ancien accord ignoré, rien pris du compte');
+    // 2. L'accord arrive d'un autre appareil : les plans locaux restent (union), le plan suivi local aussi
+    const A = run('(x => x)')({ history: [{ id: 'h1', date: 1 }], unit: 'kg', dietPlans: { d_local: plan('Plan local') }, dietActive: 'd_local' });
+    const mA = synced(A);
+    apply(A, { unit: 'kg', dietConsent: { on: true, at: '2026-11-02T10:00:00Z' }, dietPlans: { d_r: plan('Plan du compte') }, dietActive: 'd_r' }, mA, '2026-11-02');
+    sameJSON(Object.keys(A.dietPlans).sort(), ['d_local', 'd_r']);
+    assert.equal(A.dietActive, 'd_local', 'plan suivi de l\'iPhone gardé');
+    // 3. Appareil sans séance (coach, nutrition seule) : jamais recopié tel quel
+    const C = run('(x => x)')({ history: [], unit: 'kg', dietConsent: { on: true, at: '2026-11-01T10:00:00Z' }, dietPlans: { d_c: plan('C') } });
+    const mC = synced(C);
+    C.dietPlans.d_c2 = plan('Créé sur C');
+    apply(C, { unit: 'lbs', dietConsent: { on: true, at: '2026-11-01T10:00:00Z' }, dietPlans: { d_c: plan('C') } }, mC, '2026-11-02');
+    sameJSON(Object.keys(C.dietPlans).sort(), ['d_c', 'd_c2']);
+    // Plan supprimé (archivé) ailleurs, rien de changé ici : archivé ici aussi
+    const D = run('(x => x)')({ history: [{ id: 'h', date: 1 }], unit: 'kg', dietConsent: { on: true, at: '2026-11-01T10:00:00Z' }, dietPlans: { d_d: plan('D') }, dietActive: 'd_d' });
+    const mD = synced(D);
+    apply(D, { unit: 'kg', dietConsent: { on: true, at: '2026-11-01T10:00:00Z' }, dietPlans: { d_d: { ...plan('D'), archived: true, meals: [] } } }, mD, '2026-11-02');
+    assert.ok(D.dietPlans.d_d.archived === true && D.dietActive === undefined, 'suppression propagée, plus suivi');
+    // 4. Profil renvoyé par une ancienne app (sans nutrition) : rien de la nutrition n'est perdu ici
+    const E = run('(x => x)')({ history: [{ id: 'h', date: 1 }], unit: 'kg', dietConsent: { on: true, at: '2026-11-01T10:00:00Z' }, dietPlans: { d_e: plan('E') }, dietActive: 'd_e' });
+    const mE = synced(E);
+    apply(E, { unit: 'lbs' }, mE, '2026-11-02');
+    assert.ok(E.dietConsent.on && E.dietPlans.d_e && E.dietActive === 'd_e', 'gardé, et renvoyé au prochain envoi');
+    sameJSON(dietKeys(E), ['dietPlans', 'dietActive']);
+  });
+
+  test('profil trop lourd : les plans restent sur l\'iPhone, le reste part', () => {
+    reset();
+    const big = Array.from({ length: 90 }, (_, i) => [`d_big${i}`, { name: 'P' + i, meals: Array.from({ length: 8 }, (_, j) => ({ id: 'm' + j, name: 'Repas', items: Array.from({ length: 25 }, (_, k) => ({ id: `i${k}`, name: 'Aliment au nom assez long pour peser '.repeat(2), food: 9104, fam: 'f', g: 150, per: { k: 155, p: 3.3, c: 33.2, f: 0.7 }, src: 'ciqual-2025' })) })) }]);
+    run(`data.dietPlans = ${JSON.stringify(Object.fromEntries(big))}; data.dietConsent = { on: true, at: '2026-11-05T10:00:00Z' }; sanitizeData(data)`);
+    const r = run('profilePayloadForServer(data)');
+    assert.equal(r.dietDropped, true);
+    assert.ok(!('dietPlans' in r.doc) && 'unit' in r.doc && 'dietConsent' in r.doc, 'plans retirés, reste du profil gardé');
+    assert.ok(run('profileBytes')(r.doc) <= run('SYNC_PROFILE_MAX_BYTES'));
+    run(`data.dietPlans = { d_a: { name: 'A', meals: [] } }`);
+    assert.equal(run('profilePayloadForServer(data).dietDropped'), false);
+  });
+
+  test('plans : limite annoncée (jamais un plan retiré en silence), archivés à part, dupliquer, copier un repas', () => {
+    reset();
+    const alive = Object.fromEntries(Array.from({ length: 21 }, (_, i) => [`d_p${i}`, { name: 'P' + i, meals: [] }]));
+    const arch = Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`d_a${i}`, { name: 'A' + i, meals: [], archived: true, updatedAt: i }]));
+    run(`data.dietPlans = ${JSON.stringify({ ...alive, ...arch })}; sanitizeData(data)`);
+    const ks = run('Object.keys(data.dietPlans)');
+    assert.equal(ks.filter(k => k.startsWith('d_p')).length, 21, 'aucun plan vivant retiré');
+    assert.equal(ks.filter(k => k.startsWith('d_a')).length, 50, 'archivés : les 50 plus récents');
+    assert.ok(ks.includes('d_a59') && !ks.includes('d_a0'));
+    assert.equal(run('dietCanCreate(data, false)'), false, '20 au plus pour un élève');
+    assert.equal(run('dietCanCreate(data, true)'), true, 'davantage pour un coach');
+    run(`data.dietPlans.d_p0 = { name: 'Sèche', consigne: 'Bois', meals: [{ id: 'm1', name: 'Déj', items: [{ id: 'i1', name: 'Riz', g: 100, per: { k: 155, p: 3, c: 33, f: 1 } }] }], fromCoach: { coachId: 'c', name: 'max', sentAt: 1 } }`);
+    const nid = run(`dietDuplicatePlan(data, 'd_p0')`);
+    assert.ok(nid && nid !== 'd_p0');
+    assert.equal(run(`data.dietPlans['${nid}'].name`), 'Sèche (copie)');
+    assert.equal(run(`data.dietPlans['${nid}'].fromCoach`), undefined, 'la copie est à moi');
+    assert.equal(run(`data.dietPlans['${nid}'].meals[0].items[0].name`), 'Riz');
+    const mid = run(`dietCopyMeal(data.dietPlans['${nid}'], 'm1')`);
+    sameJSON(run(`data.dietPlans['${nid}'].meals.map(m => m.name)`), ['Déj', 'Déj (copie)']);
+    assert.notEqual(run(`data.dietPlans['${nid}'].meals[1].items[0].id`), 'i1', 'nouveaux identifiants');
+    assert.ok(mid);
+  });
+
+  test('identifiants : jamais un nom d\'Object ; remplacement lu sur ses propres clés', () => {
+    sameJSON(run(`cleanSentDiet({ kind: 'diet', v: 1, diet: { name: 'F', meals: [{ id: 'm1', name: 'D', items: [{ id: '__proto__', name: 'Riz', g: 150, per: { k: 130, p: 2.5, c: 28, f: 0.3 } }, { id: 'constructor', name: 'Poulet', g: 150, per: { k: 120, p: 25, c: 0, f: 2 } }] }] } }).meals[0].items.map(i => ['__proto__', 'constructor'].includes(i.id))`), [false, false]);
+    assert.equal(run(`DIET_PART_RE.test('toString')`), false);
+    assert.equal(run(`DIET_PART_RE.test('m1')`), true);
+    const it = { id: 'toString', name: 'Riz', g: 100, per: { k: 1, p: 0, c: 0, f: 0 } };
+    assert.equal(run(`dietEffectiveItem(${JSON.stringify(it)}, {}).name`), 'Riz', 'swaps vide : l\'aliment du plan, jamais Object.prototype');
+  });
+
+  test('plan du coach : format plus récent refusé (« Mets l\'app à jour »), aliments illisibles comptés', () => {
+    const ok = { id: 'i', name: 'Riz', g: 150, per: { k: 155, p: 3, c: 33, f: 1 } };
+    assert.equal(run(`cleanSentDiet({ kind: 'diet', v: 2, diet: { name: 'X', meals: [{ id: 'm', name: 'D', items: [${JSON.stringify(ok)}] }] } })`), null);
+    assert.equal(run(`dietSentTooNew({ kind: 'diet', v: 2 })`), true);
+    const inbox = run(`cleanInbox({ programmes: [{ id: 'diet_new1', data: { kind: 'diet', v: 2, diet: { name: 'Plan v2' } }, sent_at: '2026-11-05T10:00:00Z' }] })`);
+    sameJSON([inbox.diets[0].tooNew, inbox.diets[0].data.name, inbox.programmes.length], [true, 'Plan v2', 0]);
+    const p = run(`cleanSentDiet({ kind: 'diet', v: 1, diet: { name: 'X', meals: [{ id: 'm', name: 'D', items: [${JSON.stringify(ok)}, { name: 'Sans valeurs', g: 10 }, { name: 'Trop', g: 99999, per: { k: 1, p: 0, c: 0, f: 0 } }] }] } })`);
+    assert.equal(p.dropped, 2);
+    reset();
+    run(`importCoachDiet(data, { id: 'diet_x', data: ${JSON.stringify(p)}, sentAt: 1 }, { user_id: 'c1', username: 'max' })`);
+    assert.equal(run(`Object.values(data.dietPlans)[0].dropped`), undefined, 'jamais gardé dans le plan');
+  });
+
+  test('équivalences : boissons alcoolisées jamais croisées avec les autres ; famille d\'un aliment perso choisie', () => {
+    loadDb();
+    const alc = foods.foods.find(r => r[8] === 603 && r[3] > 30), soft = foods.foods.find(r => r[8] === 602 && r[3] > 30);
+    assert.ok(run(`swapCandidates(foodToItem(foodDb.byCode.get(${alc[0]}), 250))`).every(c => c.food.grp === 603), 'alcool → alcool seulement');
+    assert.ok(run(`swapCandidates(foodToItem(foodDb.byCode.get(${soft[0]}), 250))`).every(c => c.food.grp !== 603), 'jus ou soda → jamais d\'alcool');
+    assert.equal(run(`cleanDietItem({ name: 'Skyr', fam: 'l', g: 150, per: { k: 63, p: 11, c: 4, f: 0.2 } }).fam`), 'l', 'famille choisie gardée');
+  });
+
+  test('journée passée : jugée avec les repas du plan de ce jour-là (instantané)', () => {
+    reset();
+    run(`data.dietPlans = { d_a: { name: 'P', meals: [{ id: 'm1', name: 'A', items: [{ id: 'i', name: 'Riz', g: 100, per: { k: 155, p: 3, c: 33, f: 1 } }] }] } }; data.dietActive = 'd_a';
+      dietToggleMeal(data, 'd_a', 'm1', '2026-11-04');`);
+    assert.equal(run(`dietDayComplete(data, '2026-11-04')`), true);
+    // Le coach ajoute un repas le lendemain : hier reste complet
+    run(`data.dietPlans.d_a.meals.push({ id: 'm2', name: 'B', items: [{ id: 'j', name: 'Riz', g: 100, per: { k: 155, p: 3, c: 33, f: 1 } }] })`);
+    assert.equal(run(`dietDayComplete(data, '2026-11-04')`), true, 'instantané du jour');
+    sameJSON(run(`data.dietLog['2026-11-04'].meals`), ['m1']);
+  });
+
   test('repère de santé : objectif ou total sous 1 200 kcal signalé, jamais bloqué', () => {
     assert.equal(run(`dietLowKcal({ meals: [], targets: { kcal: 1100 } })`), true);
     assert.equal(run(`dietLowKcal({ meals: [], targets: { kcal: 1200 } })`), false);
@@ -130,7 +248,6 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     // Clés de nutrition classées pour la synchro (le journal reste sur l'appareil)
     assert.ok(run(`['dietPlans', 'dietActive', 'dietFoods'].every(k => SYNC_PROFILE_KEYS.includes(k))`));
     assert.ok(run(`SYNC_LOCAL_ONLY.includes('dietLog') && !SYNC_PROFILE_KEYS.includes('dietLog')`));
-    assert.ok(run(`SYNC_UNION_KEYS.includes('dietPlans')`), 'plans fusionnés un par un');
     // Sans nutrition : aucune clé ajoutée (profil et empreintes inchangés pour tous les autres)
     reset();
     run('sanitizeData(data)');
@@ -339,7 +456,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.ok(!/diab|obésit|plus sain|brûle|détox|detox|maigrir vite/i.test(ui), 'pas de finalité médicale ni de promesse');
     for (const t of ['table Ciqual 2025 de l\'Anses (version du 03/11/2025)', 'doi.org/10.57745/RDMHWY', 'Licence Ouverte Etalab 2.0', 'L\'Anses ne valide pas ces plans',
       '0810 037 037', 'réservent les régimes sous 1 200 kcal', 'Garder sur cet iPhone']) assert.ok(ui.includes(t), `texte : ${t}`);
-    assert.match(ui, /J\\?'accepte/, 'bouton « J\'accepte »');
+    for (const t of ['Copier sur mon compte', 'En savoir plus', 'Recevoir les plans diète', 'envoyer un plan diète']) assert.ok(ui.includes(t), `texte : ${t}`);
     const privacy = read('privacy.html');
     assert.ok(privacy.includes('id="nutrition"') && privacy.includes('href="#nutrition"') && privacy.includes('Your diet plans'), 'privacy.html : Nutrition FR et EN');
     // Textes de l'interface : sans tiret dans les phrases

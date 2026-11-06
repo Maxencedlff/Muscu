@@ -27,6 +27,9 @@ const COACH_SHARE_KINDS = [
   { kind: 'sleep',      label: 'Sommeil', open: false },
   { kind: 'steps',      label: 'Pas', open: false },
   { kind: 'resting_hr', label: 'Fréquence cardiaque au repos', open: false },
+  // Plans diète du coach (migration 20261106200000) : accord à part, dans Nutrition (js/data/coach-diet.js),
+  // jamais dans l'écran « Partager avec mon coach » (own : pas listé ici)
+  { kind: 'diet', label: 'Plans diète', open: false, own: true },
 ];
 const COACH_SHARE_KIND_IDS = COACH_SHARE_KINDS.map(k => k.kind);
 
@@ -126,7 +129,7 @@ async function coachShareRefresh() {
 
 // Cocher ou décocher une donnée. Cocher le poids envoie aussitôt les pesées
 async function coachShareSet(kind, on) {
-  if (!COACH_SHARE_KINDS.some(k => k.kind === kind && k.open)) return { ok: false, kind: 'invalid_kind' };
+  if (!COACH_SHARE_KINDS.some(k => k.kind === kind && (k.open || k.own))) return { ok: false, kind: 'invalid_kind' };
   if (coachShare.busy) return { ok: false, kind: 'busy' };
   coachShare.busy = kind;
   notifyCoach();

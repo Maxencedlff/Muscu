@@ -17,7 +17,9 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const DIET_PLAN_MAX   = 20;      // plans gardés (archivés compris)
+const DIET_PLAN_MAX   = 20;      // plans vivants qu'on peut créer (création refusée au-delà, avec un message)
+const DIET_PLAN_MAX_COACH = 100; // pour un coach, qui prépare les plans de ses élèves
+const DIET_ARCHIVED_MAX = 50;    // plans supprimés gardés (archivés), à part : les plus anciens partent
 const DIET_MEAL_MAX   = 8;       // repas par plan
 const DIET_ITEM_MAX   = 25;      // aliments par repas
 const DIET_NAME_MAX   = 40;      // nom d'un plan ou d'un repas
@@ -27,7 +29,7 @@ const DIET_G_MAX      = 2000;    // quantité d'un aliment, en grammes
 const DIET_LOG_DAYS   = 120;     // jours de cochage gardés sur l'appareil
 const DIET_FOODS_MAX  = 200;     // aliments perso
 const DIET_ID_RE      = /^d[A-Za-z0-9_-]{1,44}$/;   // d_xxxxxxxx (créé ici), dc_<coach>_<envoi> (reçu)
-const DIET_PART_RE    = /^[A-Za-z0-9_-]{1,24}$/;    // identifiant d'un repas ou d'un aliment du plan
+const DIET_PART_RE    = /^(?!(?:__proto__|constructor|prototype|toString|valueOf|hasOwnProperty)$)[A-Za-z0-9_-]{1,24}$/;   // repas ou aliment du plan (jamais un nom d'Object)
 const DIET_DAY_RE     = /^\d{4}-\d{2}-\d{2}$/;
 const DIET_FAMS       = ['v', 'f', 'l', 'g', 'r', 'e', 's', 'b', 'p', 'a'];   // familles (scripts/prepare-foods.py)
 const DIET_TARGET_KEYS = ['kcal', 'p', 'c', 'f'];
@@ -122,10 +124,13 @@ function cleanDietPlan(p) {
 function cleanDietPlans(v) {
   if (!dietIsObj(v)) return {};
   const out = {};
-  // Plans vivants d'abord, puis archivés : au-delà de la limite, ce sont des archivés qui partent
+  // Plafonds séparés : vivants (jamais retirés en silence : la création est refusée avant, DIET_PLAN_MAX),
+  // archivés (les plus anciens partent). Le plafond des vivants est celui d'un coach : jamais atteint ici
   const keys = Object.keys(v).filter(k => DIET_ID_RE.test(k) && dietIsObj(v[k]));
-  keys.sort((a, b) => (v[a].archived === true) - (v[b].archived === true));
-  for (const k of keys.slice(0, DIET_PLAN_MAX)) { const p = cleanDietPlan(v[k]); if (p) out[k] = p; }
+  const alive = keys.filter(k => v[k].archived !== true).slice(0, DIET_PLAN_MAX_COACH);
+  const archived = keys.filter(k => v[k].archived === true)
+    .sort((a, b) => (Number(v[b].updatedAt) || 0) - (Number(v[a].updatedAt) || 0)).slice(0, DIET_ARCHIVED_MAX);
+  for (const k of [...alive, ...archived]) { const p = cleanDietPlan(v[k]); if (p) out[k] = p; }
   return out;
 }
 // Mes aliments perso : [{ id, name, fam, per }] (pour les retrouver dans la recherche)
@@ -155,7 +160,9 @@ function cleanDietLog(v, now = Date.now()) {
         if (c) swaps[id] = { ...c, id };
       }
     }
-    if (done.length || Object.keys(swaps).length) out[day] = { plan: e.plan, done, swaps };
+    // Repas du plan ce jour-là (instantané) : un jour passé reste jugé avec le plan de ce jour
+    const meals = Array.isArray(e.meals) ? [...new Set(e.meals.filter(id => typeof id === 'string' && DIET_PART_RE.test(id)))].slice(0, DIET_MEAL_MAX) : null;
+    if (done.length || Object.keys(swaps).length) out[day] = { plan: e.plan, done, swaps, ...(meals ? { meals } : {}) };
   }
   return out;
 }
@@ -172,6 +179,12 @@ function sanitizeDiet(d, now = Date.now()) {
     if (ok) d.dietConsent = { on: c.on, at: c.at }; else delete d.dietConsent;
   }
   for (const k of ['dietConsentAsked', 'dietHideNumbers', 'dietStreakOff']) if (d[k] !== undefined && d[k] !== true) delete d[k];
+  // Accord « recevoir les plans de mon coach » gardé sur l'appareil (serveur pas encore à jour) : même forme
+  if (d.dietCoachConsent !== undefined) {
+    const c = d.dietCoachConsent;
+    if (dietIsObj(c) && typeof c.on === 'boolean' && typeof c.at === 'string' && c.at.length <= 40 && Number.isFinite(Date.parse(c.at))) d.dietCoachConsent = { on: c.on, at: c.at };
+    else delete d.dietCoachConsent;
+  }
   return d;
 }
 // Accord donné (plans copiés sur le compte et plans du coach reçus)
@@ -196,7 +209,7 @@ function dietItemMacros(it) {
 }
 function dietAdd(a, b) { return { kcal: a.kcal + b.kcal, p: a.p + b.p, c: a.c + b.c, f: a.f + b.f }; }
 // Aliment tel qu'il sera mangé ce jour-là : le remplaçant choisi, sinon celui du plan
-function dietEffectiveItem(it, swaps) { return swaps?.[it.id] || it; }
+function dietEffectiveItem(it, swaps) { return swaps && Object.hasOwn(swaps, it.id) ? swaps[it.id] : it; }
 function dietMealMacros(meal, swaps = null) {
   return (meal?.items || []).reduce((a, it) => dietAdd(a, dietItemMacros(dietEffectiveItem(it, swaps))), DIET_ZERO());
 }
@@ -225,7 +238,8 @@ function dietWriteDay(d, day, e) {
   const done = e.done.filter(id => meals.has(id));
   const swaps = Object.fromEntries(Object.entries(e.swaps || {}).filter(([id]) => items.has(id)));
   d.dietLog ||= {};
-  if (done.length || Object.keys(swaps).length) d.dietLog[day] = { plan: e.plan, done, swaps };
+  const snapshot = (plan?.meals || []).filter(m => m.items.length).map(m => m.id);
+  if (done.length || Object.keys(swaps).length) d.dietLog[day] = { plan: e.plan, done, swaps, meals: snapshot };
   else delete d.dietLog[day];
   if (!Object.keys(d.dietLog).length) delete d.dietLog;
 }
@@ -259,8 +273,11 @@ function dietDayProgress(d, planId, day = dietDayKey()) {
 }
 // Jour complet : tous les repas du plan suivi ce jour-là cochés
 function dietDayComplete(d, day) {
-  const e = d.dietLog?.[day], plan = e && d.dietPlans?.[e.plan];
-  return !!plan && plan.meals.length > 0 && plan.meals.every(m => e.done.includes(m.id));
+  const e = d.dietLog?.[day];
+  if (!e) return false;
+  // Instantané du jour (repas qui avaient des aliments) ; journal d'avant l'instantané : le plan actuel
+  const ids = Array.isArray(e.meals) ? e.meals : (d.dietPlans?.[e.plan]?.meals || []).map(m => m.id);
+  return ids.length > 0 && ids.every(id => e.done.includes(id));
 }
 // Jours complets d'affilée jusqu'à aujourd'hui (aujourd'hui pas encore fini : la série court jusqu'à hier)
 function dietStreak(d, now = Date.now()) {
@@ -288,6 +305,31 @@ function dietNewPlan(d, name = 'Mon plan') {
     meals: DIET_DEFAULT_MEALS.map(n => ({ id: uid(), name: n, items: [] })), updatedAt: Date.now() };
   return id;
 }
+// Création possible ? (plans vivants sous la limite : 20, ou 100 pour un coach)
+function dietCanCreate(d, isCoach = false) { return dietPlanIds(d).length < (isCoach ? DIET_PLAN_MAX_COACH : DIET_PLAN_MAX); }
+// Copie d'un plan (le mien ou celui d'un coach) : nouvel identifiant, jamais « reçu d'un coach », pas suivi
+function dietDuplicatePlan(d, id) {
+  const src = d.dietPlans?.[id];
+  if (!src || src.archived) return null;
+  const copy = cleanDietPlan(JSON.parse(JSON.stringify(src)));
+  delete copy.fromCoach;
+  let nid;
+  do { nid = 'd_' + uid(); } while (d.dietPlans[nid]);
+  copy.name = dietText(`${src.name} (copie)`, DIET_NAME_MAX);
+  copy.updatedAt = Date.now();
+  d.dietPlans[nid] = copy;
+  return nid;
+}
+// Copie d'un repas dans le même plan, juste après lui (nouveaux identifiants)
+function dietCopyMeal(plan, mealId) {
+  const i = plan?.meals.findIndex(m => m.id === mealId) ?? -1;
+  if (i < 0 || plan.meals.length >= DIET_MEAL_MAX) return null;
+  const m = plan.meals[i];
+  const copy = { ...m, id: uid(), name: dietText(`${m.name} (copie)`, DIET_NAME_MAX), items: m.items.map(it => ({ ...it, id: uid() })) };
+  plan.meals.splice(i + 1, 0, copy);
+  return copy.id;
+}
+
 // Plans listés (archivés exclus) : le plan suivi d'abord, puis les miens, puis ceux reçus d'un coach
 function dietPlanIds(d) {
   return Object.keys(d.dietPlans || {}).filter(id => !d.dietPlans[id].archived)
@@ -323,12 +365,19 @@ function dietToSent(plan) {
 }
 // Ce que l'app accepte d'un envoi : { name, consigne?, targets?, meals } nettoyé, null sinon
 function cleanSentDiet(raw) {
-  if (!dietIsObj(raw) || raw.kind !== 'diet' || !dietIsObj(raw.diet)) return null;
+  if (!dietIsObj(raw) || raw.kind !== 'diet' || raw.v !== 1 || !dietIsObj(raw.diet)) return null;
   const p = cleanDietPlan({ ...raw.diet, archived: false, fromCoach: undefined, updatedAt: undefined });
   if (!p || !p.meals.length) return null;
   delete p.archived;
+  // Aliments envoyés mais illisibles (forme, bornes) : écartés et comptés, l'élève le voit
+  const sentItems = (Array.isArray(raw.diet.meals) ? raw.diet.meals : []).slice(0, DIET_MEAL_MAX)
+    .reduce((n, m) => n + (dietIsObj(m) && Array.isArray(m.items) ? Math.min(m.items.length, DIET_ITEM_MAX) : 0), 0);
+  const kept = p.meals.reduce((n, m) => n + m.items.length, 0);
+  if (sentItems > kept) p.dropped = sentItems - kept;
   return p;
 }
+// Envoi d'une version plus récente du format (v > 1) : l'app le dit (« Mets l'app à jour ») sans le lire
+function dietSentTooNew(raw) { return dietIsObj(raw) && raw.kind === 'diet' && Number.isInteger(raw.v) && raw.v > 1; }
 // Identifiant local d'un plan reçu : dc_<8 caractères du coach>_<envoi> (deux coachs ne s'écrasent jamais)
 function dietLocalId(sentId, coachId) {
   const tag = String(coachId || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 8) || 'x';
@@ -344,7 +393,7 @@ function dietReceivedStatus(d, item, coachId) {
 // mise à jour, et le suit. Les repas gardent leur identifiant : les repas cochés aujourd'hui le restent.
 // Renvoie l'identifiant local, null si l'envoi est illisible
 function importCoachDiet(d, item, coachPerson) {
-  const plan = cleanDietPlan({ ...item?.data, archived: false, fromCoach: undefined, updatedAt: undefined });
+  const plan = cleanDietPlan({ ...item?.data, archived: false, fromCoach: undefined, updatedAt: undefined, dropped: undefined });
   if (!plan || !plan.meals.length || !isDietSentId(item.id)) return null;
   delete plan.archived;
   const id = dietLocalId(item.id, coachPerson?.user_id);

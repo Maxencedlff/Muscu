@@ -13,7 +13,7 @@
 #  3. Démontage complet dans l'ordre inverse (supabase/rollback/ORDRE.md), depuis toutes les migrations :
 #     après chaque retour arrière, état identique à la référence d'avant sa migration.
 #  4. Gardes : tarifs et modèle B refusent (sans rien changer) tant que la migration qui les réécrit est là.
-#  5. Retours arrière indépendants (parrainage du payant, notifications, Strava, chat, commentaires, lettre, records,
+#  5. Retours arrière indépendants (plans diète du coach, parrainage du payant, notifications, Strava, chat, commentaires, lettre, records,
 #     partage coach)
 #     lancés SEULS sur la pile complète :
 #     les tests des autres lots (*_test.sql) passent encore.
@@ -140,8 +140,9 @@ for pair in "20261031910000:push_messages_test.sql push_test.sql" \
             "20261031620000:strava_test.sql" \
             "20261031230000:newsletter_test.sql" \
             "20261031100000:records_test.sql" \
-            "20261031300000:partage_coach_test.sql partage_coach_concurrence_test.sql" \
+            "20261031300000:partage_coach_test.sql partage_coach_concurrence_test.sql plans_diete_test.sql" \
             "20261101000000:parrainage_payant_test.sql" \
+            "20261106200000:plans_diete_test.sql" \
             "20261031000000:payant_plus_test.sql"; do
   t=${pair%%:*}; skip=" ${pair#*:} "
   clone ref "seul_$t"

@@ -44,3 +44,20 @@ function dietInboxStatus(item, d = data) { return dietReceivedStatus(d, item, my
 function dietPending(d = data) {
   return dietInbox().find(x => !x.seen && dietInboxStatus(x, d).status !== 'current') || null;
 }
+
+// ── Élève : accord pour recevoir les plans diète de son coach (migration 20261106200000) ──
+// Serveur à jour : l'accord est student_set_share('diet') (coach_shares, daté, retiré = plans effacés du
+// serveur par déclencheur). Serveur d'avant (invalid_kind ou fonction absente) : accord gardé sur l'appareil
+// (data.dietCoachConsent = { on, at }, SYNC_LOCAL_ONLY), seul garde-fou possible côté app.
+let dietCoachServerless = false;   // le serveur ne connaît pas encore l'accord 'diet' (réponse invalid_kind)
+function dietCoachAccepted(d = data) {
+  if (!dietCoachServerless && coachShare.state) return coachShareOn('diet');
+  return d.dietCoachConsent?.on === true;
+}
+async function dietCoachSetAccept(on, d = data) {
+  const r = await coachShareSet('diet', !!on);
+  if (!r.ok && (r.kind === 'invalid_kind' || r.kind === 'missing')) dietCoachServerless = true;
+  else if (!r.ok) return r;
+  d.dietCoachConsent = { on: !!on, at: new Date().toISOString() };
+  return { ok: true, serverless: dietCoachServerless };
+}

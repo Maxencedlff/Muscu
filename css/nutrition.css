@@ -172,3 +172,4 @@ body.light .sheet .diet-cands, body.light .sheet .diet-pick__list, body.light .s
 .diet-sum--plain { padding: 4px 16px 14px; }
 .diet-foot .group-foot + .group-foot { padding-top: 8px; }
 .diet-help { color: var(--label2); }
+.diet-field__select { appearance: none; -webkit-appearance: none; text-align: right; text-align-last: right; cursor: pointer; }

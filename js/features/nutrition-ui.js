@@ -94,8 +94,9 @@ function dietWeekHtml(day) {
 }
 
 // Bouton rond à cocher (vert une fois coché) : un seul toucher, rien au pointerdown
+// day null (carte de l'accueil) : le jour est lu au toucher, jamais figé à l'affichage (carte restée ouverte après minuit)
 function dietCheckBtn(meal, done, day, extra = '') {
-  return `<button class="diet-check${done ? ' diet-check--on' : ''}" data-action="diet-check" data-meal="${esc(meal.id)}" data-day="${day}" aria-pressed="${done}"
+  return `<button class="diet-check${done ? ' diet-check--on' : ''}" data-action="diet-check" data-meal="${esc(meal.id)}"${day ? ` data-day="${day}"` : ''} aria-pressed="${done}"
       aria-label="${done ? `${esc(meal.name)} coché, décocher` : `Cocher ${esc(meal.name)}`}"${extra}>${icon('checkmark', 20)}</button>`;
 }
 
@@ -135,9 +136,27 @@ function dietMealHtml(x, pr, day) {
 }
 
 // Carte d'un plan reçu de mon coach (écran Nutrition, Mon coach) : nom, repas, « Suivre ce plan »
+// Sans l'accord « recevoir les plans de mon coach » : invitation, sans rien du contenu du plan
+function dietInviteCardHtml() {
+  const who = esc(coachName());
+  return `
+        <article class="coach-prog diet-inbox diet-invite">
+          <div class="coach-prog__eyebrow">Plans diète</div>
+          <h3 class="coach-prog__name">${who} veut t'envoyer un plan diète</h3>
+          <p class="coach-prog__meta">Accepte pour le recevoir. Tu peux retirer ton accord quand tu veux.</p>
+          <button class="btn btn--primary coach-prog__btn" data-action="diet-coach-accept">Accepter</button>
+        </article>`;
+}
 function dietInboxCardHtml(item) {
+  if (!dietCoachAccepted()) return dietInviteCardHtml();
   const { status } = dietInboxStatus(item);
   const who = esc(coachName());
+  if (item.tooNew) return `
+        <article class="coach-prog diet-inbox">
+          <div class="coach-prog__eyebrow">Plan diète ${elide('de', who)}</div>
+          <h3 class="coach-prog__name">${esc(item.data.name)}</h3>
+          <p class="coach-prog__meta">Mets l'app à jour pour recevoir ce plan.</p>
+        </article>`;
   const eyebrow = status === 'update' ? `Mis à jour par ${who}` : status === 'new' ? `Nouveau plan diète ${elide('de', who)}` : `Reçu ${elide('de', who)}`;
   const total = item.meta ? null : dietPlanMacros(item.data);
   const btn = status === 'current' ? '<p class="coach-prog__done">C\'est ton plan</p>'
@@ -149,13 +168,23 @@ function dietInboxCardHtml(item) {
           ${item.meta ? '<p class="coach-prog__meta">Détail disponible avec du réseau.</p>'
             : `<p class="coach-prog__meta num">${plural(item.data.meals.length, 'repas', 'repas')} · ${dietN(total.kcal)} kcal par jour</p>`}
           ${item.data.consigne ? `<p class="coach-prog__consigne">${icon('info.circle', 14)}<span>${esc(item.data.consigne)}</span></p>` : ''}
+          ${item.data.dropped ? `<p class="coach-prog__meta">${plural(item.data.dropped, 'aliment illisible ignoré', 'aliments illisibles ignorés')}.</p>` : ''}
           ${btn}
         </article>`;
 }
-// Mon coach : plans diète reçus (rien si le coach n'en a jamais envoyé)
+// Mon coach : accord pour les plans diète (toujours visible, l'élève peut l'activer avant un envoi), puis
+// les plans reçus (contenu seulement avec l'accord)
 function dietInboxHtml() {
-  const list = dietInbox();
-  return list.length ? `<div class="group-title">Plans diète reçus</div><div class="coach-progs">${list.map(dietInboxCardHtml).join('')}</div>` : '';
+  const list = dietInbox(), on = dietCoachAccepted();
+  return `<div class="group-title">Plans diète</div>
+        <div class="group">
+          <button class="cell" data-action="diet-coach-toggle" role="switch" aria-checked="${on}">
+            <span class="cell__body"><span class="cell__title">Recevoir les plans diète ${elide('de', esc(coachName()))}</span>
+              <span class="cell__sub">${on ? 'Gardés sur le serveur jusqu\'à ce que tu retires ton accord.' : 'Sans ton accord, ton coach ne peut pas t\'en envoyer.'}</span></span>
+            ${switchHtml(on)}
+          </button>
+        </div>
+        ${list.length ? `<div class="coach-progs">${(on ? list : list.slice(0, 1)).map(dietInboxCardHtml).join('')}</div>` : ''}`;
 }
 
 function dietEmptyHtml() {
@@ -225,13 +254,15 @@ SCREENS.set('nutrition', { render: day => renderNutrition(day), enter: () => { l
 
 function nutritionHomeCard() {
   const pending = account.user && myCoach() ? dietPending() : null;
+  const ok = dietCoachAccepted();   // sans accord : invitation, rien du plan (ni son nom)
   const card = pending ? `
     <section class="home-card account-card coach-home" aria-labelledby="dietPendingTitle">
       <div class="account-card__text">
-        <h2 class="account-card__title" id="dietPendingTitle">${dietInboxStatus(pending).status === 'update' ? `Plan diète mis à jour par ${esc(coachName())}` : `Nouveau plan diète ${elide('de', esc(coachName()))}`}</h2>
-        <p class="account-card__sub">${esc(pending.data.name)}</p>
+        <h2 class="account-card__title" id="dietPendingTitle">${!ok ? `${esc(coachName())} veut t'envoyer un plan diète` : dietInboxStatus(pending).status === 'update' ? `Plan diète mis à jour par ${esc(coachName())}` : `Nouveau plan diète ${elide('de', esc(coachName()))}`}</h2>
+        <p class="account-card__sub">${ok ? esc(pending.data.name) : 'Accepte pour le recevoir'}</p>
       </div>
-      <button class="account-card__btn" data-action="diet-take" data-id="${esc(pending.id)}">Suivre</button>
+      ${ok ? `<button class="account-card__btn" data-action="diet-take" data-id="${esc(pending.id)}">Suivre</button>`
+        : '<button class="account-card__btn" data-action="diet-coach-accept">Accepter</button>'}
       <button class="account-card__close" data-action="diet-dismiss" data-id="${esc(pending.id)}" aria-label="Plus tard">${icon('xmark', 16)}</button>
     </section>` : '';
   const plan = dietActivePlan(data);
@@ -251,7 +282,7 @@ function nutritionHomeCard() {
           ${line ? `<span class="diet-home__next">${pr.complete ? icon('checkmark', 12) : ''}${line}</span>` : ''}
         </span>
       </button>
-      ${next && next.meal.items.length ? dietCheckBtn(next.meal, false, day) : ''}
+      ${next && next.meal.items.length ? dietCheckBtn(next.meal, false, null) : ''}
     </section>`;
 }
 
@@ -363,8 +394,9 @@ registerActions({
       const fresh = dietInbox().find(x => x.id === item.id);
       if (!fresh || fresh.meta) { showToast(coachErrorText('offline'), { error: true }); return; }
     }
-    // Donnée de santé : le plan du coach n'est reçu qu'avec l'accord de la personne
-    if (!(await dietEnsureConsent())) { showToast('Sans ton accord, le plan de ton coach n\'est pas reçu.'); return; }
+    // Donnée de santé : le plan du coach n'est reçu qu'avec l'accord de l'élève (« Recevoir les plans diète »)
+    if (!dietCoachAccepted() && !(await dietAskCoachAccept())) return;
+    if (item.tooNew) { showToast('Mets l\'app à jour pour recevoir ce plan.'); return; }
     const it = dietInbox().find(x => x.id === item.id);
     const id = importCoachDiet(data, it, myCoach());
     if (!id) { showToast(coachErrorText('server'), { error: true }); return; }

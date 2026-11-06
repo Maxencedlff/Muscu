@@ -91,7 +91,9 @@ référence de méthode pour ce document seulement, jamais citée dans l'app).
    lipides, 2 par g de sucres), plus des pénalités fixes (autre sous-groupe Ciqual : 25 ; cru contre cuit :
    60 ; abats : 20 ; variantes bio, sans gluten, enrichies : 12), moins 15 pour un aliment courant (poulet,
    riz, flocons d'avoine…), puis les noms courts.
-5. **Dix au plus**, deux au plus par premier mot du nom (riz, pâtes, puis semoule, pommes de terre…).
+5. **Boissons alcoolisées** (sous-groupe Ciqual 603) : jamais croisées avec les autres boissons, dans aucun
+   sens. **Aliment perso** : sa famille est choisie dans le formulaire (proposée d'après ses macros).
+6. **Dix au plus**, deux au plus par premier mot du nom (riz, pâtes, puis semoule, pommes de terre…).
 
 Le remplacement vaut **pour la journée** : le plan ne change pas, et l'écran le dit. Exemples réels
 (base 2025) : 150 g de riz blanc cuit → 160 g de riz étuvé cuit, 155 g de riz basmati, 60 g de galette de
@@ -124,29 +126,47 @@ d'escalope de dinde rôtie, 145 g d'escalope de veau…
   `tests/unit/nutrition.mjs`.
 - Ce qui est noté (repas cochés) reste **sur l'iPhone**.
 
-## Accord (RGPD) : plans copiés sur le compte
+## Accords (RGPD) : deux accords, deux finalités
 
 Pour la CNIL, des apports caloriques rapprochés du poids sont une donnée de santé (article 9 du RGPD :
-consentement explicite). Donc :
+consentement explicite). Deux accords séparés, chacun daté et retirable :
 
-- `data.dietConsent = { on, at }` (date ISO du choix). Sans accord (`on` faux ou absent), `profilePayload`
-  (js/data/sync.js) n'envoie ni `dietPlans`, ni `dietActive`, ni `dietFoods` : **tout reste sur l'iPhone**.
-  L'accord lui-même part toujours dans le profil (un refus fait sur un appareil vaut pour les autres) ; il
-  est donc **daté côté serveur** dans `profiles.doc`, sans migration.
-- **Question** posée une fois, avec un compte, dès qu'un plan existe (ouverture de Nutrition ou des plans,
-  création d'un plan), et **avant de recevoir un plan du coach** (refus : le plan n'est pas pris) :
-  « Tes plans diète et tes objectifs (calories, protéines, glucides, lipides) peuvent renseigner sur ta santé.
-  Avec ton accord, ils sont copiés sur le serveur de l'app pour les retrouver sur tes appareils et recevoir
-  les plans de ton coach. Sans ton accord, ils restent sur cet iPhone. Tu peux changer d'avis dans
-  Réglages. » Boutons « J'accepte » / « Garder sur cet iPhone ».
-- **Retirer l'accord** (Réglages de la nutrition) : le profil renvoyé aussitôt (`syncNow`) ne contient plus
-  les plans, le document du serveur est remplacé : ils en sont effacés ; ils restent sur l'iPhone. Un profil
-  reçu sans nutrition n'efface jamais les plans de l'iPhone.
-- **Limite** : le plan qu'un coach envoie est écrit par le coach dans `coach_programmes` avant tout accord de
-  l'élève (c'est la donnée du coach) ; l'app de l'élève ne l'affiche ni ne le prend sans accord, et il
-  disparaît avec la fin du coaching. Empêcher l'envoi lui-même demanderait une migration (consentement lu
-  par `coach_send_programme`) : non faite en V1, à décider.
-- `privacy.html` (FR et EN) : section « Nutrition », conforme à ce comportement.
+**1. « Copier mes plans sur mon compte »** (`data.dietConsent = { on, at }`)
+- Sans accord, `profilePayload` (js/data/sync.js) n'envoie ni `dietPlans`, ni `dietActive`, ni `dietFoods` :
+  tout reste sur l'iPhone (et dans sa copie iCloud et les exports). L'accord lui-même part toujours dans le
+  profil : daté côté serveur (`profiles.doc`).
+- Question **courte**, une fois, avec un compte, dès qu'un plan existe : « Copier tes plans sur ton compte ?
+  Tes plans diète et tes objectifs peuvent renseigner sur ta santé. Avec ton accord, ils sont copiés sur ton
+  compte ; sans lui, ils restent sur cet iPhone. » Boutons « Copier sur mon compte », « Garder sur cet
+  iPhone », « En savoir plus » (privacy.html#nutrition, puis la question revient). Compte coach : « Tes plans
+  diète, y compris ceux que tu prépares pour tes élèves, peuvent renseigner sur la santé. »
+- **Retrait** (Réglages de la nutrition) : le profil renvoyé aussitôt ne contient plus les plans, le document
+  du serveur est remplacé : ils en sont effacés ; ils restent sur l'iPhone.
+- **Synchro** (`mergeDietProfile`, règle à part dans toutes les branches de `applyRemoteProfile`) : la décision
+  la plus récente (`at`) gagne d'où qu'elle vienne (un retrait fait sur A n'est jamais annulé par B en
+  conflit) ; accord retenu refusé : rien n'est pris du compte et aucune clé diète ne repart ; accord donné :
+  union des plans (aucun plan de l'iPhone perdu, même sur un appareil sans séance ou quand l'accord arrive
+  d'ailleurs ; même plan des deux côtés : le compte gagne si rien n'a changé ici, d'où une suppression
+  propagée) ; plan suivi de l'iPhone gardé s'il existe encore. Un profil renvoyé par une ancienne app (sans
+  nutrition) n'efface rien ici.
+- **Taille** : au-delà de 900 Ko, les plans ne partent pas (le reste du profil part) et Réglages de la
+  nutrition le dit (`profilePayloadForServer`) : la synchro n'est jamais bloquée.
+
+**2. « Recevoir les plans diète de mon coach »** (élève ; migration `20261106200000_plans_diete_coach.sql`)
+- Accord = une ligne `coach_shares` kind `'diet'` (`student_set_share('diet', true)`), comme le partage du
+  poids : daté, pour le coach actuel, retiré en quittant le coach.
+- Serveur : `coach_send_programme` refuse un identifiant `diet_…` sans cet accord (`diet_not_accepted`) ; le
+  coach lit « Ton élève doit d'abord accepter les plans diète dans son app. » Retirer l'accord efface
+  aussitôt les plans diète gardés pour l'élève (déclencheur `coach_shares_diet_revoked`).
+- App : interrupteur « Recevoir les plans diète de max » dans Mon coach et dans Réglages de la nutrition ;
+  question courte (« Ton coach pourra t'envoyer des plans diète, gardés sur le serveur jusqu'à ce que tu
+  retires ton accord. Ils peuvent renseigner sur ta santé. ») avec « En savoir plus ». Sans accord, la carte
+  devient une **invitation sans rien du plan** (« max veut t'envoyer un plan diète », ni nom ni contenu).
+- **Serveur pas encore migré** (`student_set_share('diet')` répond `invalid_kind`) : l'accord est gardé sur
+  l'iPhone (`data.dietCoachConsent`, SYNC_LOCAL_ONLY) et sert de garde-fou côté app ; le coach peut encore
+  envoyer (serveur d'avant).
+- Ordre de mise en production : l'OTA qui sait accepter, PUIS la migration (sinon aucun coach ne peut plus
+  envoyer tant que ses élèves n'ont pas la version) ; supabase/rollback/ORDRE.md, étape 6.
 
 ## Où ça vit dans l'app, et pourquoi
 
@@ -171,14 +191,19 @@ dietPlans: { [id]: {                 // profil, AVEC ACCORD seulement ; fusion p
   meals: [{ id, name, note?, items: [{ id, name, food: code Ciqual | null, fam, g, per: { k, p, c, f }, src, ecalc? }] }] } },
 dietActive: id,                      // plan suivi (profil)
 dietFoods: [{ id, name, fam, per }], // aliments perso (profil)
-dietLog: { 'AAAA-MM-JJ': { plan, done: [id de repas], swaps: { [id d'aliment]: aliment } } },   // SYNC_LOCAL_ONLY
+dietLog: { 'AAAA-MM-JJ': { plan, done: [id de repas], swaps: { [id d'aliment]: aliment }, meals: [id] } },   // SYNC_LOCAL_ONLY ; meals : instantané du jour
 dietConsent: { on, at },             // accord daté (profil, part toujours)
 dietConsentAsked, dietHideNumbers, dietStreakOff: true,   // réglages de l'appareil (SYNC_LOCAL_ONLY)
+dietCoachConsent: { on, at },        // accord « plans du coach » gardé ici quand le serveur n'est pas à jour (SYNC_LOCAL_ONLY)
 ```
 
 - Un plan est **autonome** : chaque aliment garde ses valeurs pour 100 g, relevées au moment du choix. Une
   nouvelle version de Ciqual ne change pas un plan, et un plan reçu s'affiche sans la base.
-- Bornes (`sanitizeDiet`, appelé par `sanitizeData`) : 20 plans, 8 repas, 25 aliments par repas, noms de 40
+- Identifiants de repas et d'aliments : jamais un nom d'Object (`__proto__`, `constructor`…) ; les
+  remplacements se lisent par `Object.hasOwn`.
+- Journée passée : jugée avec les repas du plan de ce jour-là (instantané `meals`), pas avec le plan
+  modifié depuis ; la carte de l'accueil lit le jour au toucher.
+- Bornes (`sanitizeDiet`, appelé par `sanitizeData`) : 20 plans vivants (100 pour un coach, création refusée au-delà), 50 archivés, 8 repas, 25 aliments par repas, noms de 40
   (aliment : 80, coupé au mot), consigne de repas 300, quantité 1 à 2 000 g, kcal 0 à 900 et macros 0 à 100 g
   pour 100 g (101 g au plus à elles trois), objectifs bornés, 200 aliments perso, journal de 120 jours.
 - Supprimer un plan l'archive (la synchro par union ne le ferait pas revenir) ; plus suivi.
@@ -204,7 +229,24 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 - **Notification** : le déclencheur `coach_programmes_push` part comme pour un programme ;
   `push-policy.js` dit « t'a envoyé un plan diète » quand `ref` commence par `diet_` (fonction Edge
   `push-send` à redéployer pour ce texte ; avant, « un programme »). Le toucher ouvre Entraînement › Nutrition.
-- Aucune migration, aucun GRANT nouveau : rien à appliquer côté serveur.
+- Migration `20261106200000_plans_diete_coach.sql` (accord de l'élève, voir « Accords ») : écrite, testée
+  (`tests/sql/plans_diete_test.sql`, retour arrière vérifié par `rollback_nuit_check.sh`, ordre de production
+  par `prod_order_test.sh`), **pas appliquée**. Aucune table ni aucun GRANT nouveau.
+- Format : `v` doit valoir 1 ; un envoi d'une version plus récente s'affiche « Mets l'app à jour pour recevoir
+  ce plan » ; des aliments illisibles sont écartés et comptés (« 2 aliments illisibles ignorés »).
+
+### Coach : préparer et envoyer vite (règle n°1 : simplicité)
+- Sur un plan : « Envoyer à un élève » (sans passer par sa fiche), « Dupliquer le plan » (nouvel
+  identifiant, jamais « reçu d'un coach » ; sur un plan reçu : « Dupliquer pour le modifier ») ; dans un repas :
+  « Copier ce repas ».
+- Gestes pour préparer puis envoyer à un 2e élève un plan voisin de 10 aliments, en partant de l'accueil :
+  **avant** ≈ 55 (Programme, Plans diète, Créer, nom, puis 10 aliments × 4 gestes : ajouter, chercher,
+  choisir, quantité ; puis Amis, Mes élèves, l'élève, Envoyer, le plan) ; **après** ≈ 6 plus les
+  retouches (Programme, Plans diète, le plan, Dupliquer, Envoyer à un élève, l'élève). Même plan à l'identique :
+  5 gestes dans les deux cas.
+- Limites : 20 plans vivants pour un élève, 100 pour un coach ; au-delà la création (ou la copie) est
+  refusée avec un message, jamais un plan retiré en silence. Plans supprimés (archivés) : plafond à part,
+  les 50 plus récents.
 
 ## Hors V1 (et pourquoi)
 

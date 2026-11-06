@@ -29,6 +29,7 @@ const SWAP_MACRO_TOL = { rel: 0.25, abs: 5 };
 const SWAP_RATIO = { min: 0.25, max: 4 };
 const SWAP_STATE_PENALTY = 60;
 const SWAP_GROUP_PENALTY = 25;
+const SWAP_ALCOHOL_GRP = 603;   // boissons alcoolisées
 const SWAP_COMMON_BONUS = 15;
 // Premiers mots (sans accents) des aliments qu'on trouve partout : proposés avant les plus rares
 const SWAP_COMMON = ['poulet', 'dinde', 'boeuf', 'veau', 'porc', 'jambon', 'thon', 'saumon', 'cabillaud', 'colin', 'merlu', 'crevette', 'oeuf',
@@ -143,6 +144,8 @@ function swapCandidates(item, { limit = SWAP_LIMIT, own = [] } = {}) {
   const out = [];
   for (const f of pool) {
     if (f.fam !== item.fam || (item.food && f.code === item.food) || f.key === name) continue;
+    // Boissons alcoolisées (sous-groupe Ciqual 603) : jamais croisées avec les autres boissons, dans aucun sens
+    if ((grp === SWAP_ALCOHOL_GRP) !== (f.grp === SWAP_ALCOHOL_GRP)) continue;
     const a = swapAnchorOf(f.per, anchor);
     if (!(a >= (anchor === 'p' ? 5 : 10))) continue;
     const g = swapRoundG(item.g * aRef / a);

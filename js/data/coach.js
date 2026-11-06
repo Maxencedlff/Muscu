@@ -151,8 +151,11 @@ function cleanInbox(raw) {
   const diets = [...rows, ...(Array.isArray(r.diets) ? r.diets : [])].map(p => {
     if (!p || !isDietSentId(p.id) || !COACH_PROG_ID_RE.test(p.id)) return null;
     // Plan gardé hors ligne : son nom seul (meta), le contenu se relit sur le serveur
-    const d = p.meta === true && p.data?.kind === 'diet' && typeof p.data.name === 'string' ? { name: p.data.name.slice(0, DIET_NAME_MAX), meals: [] } : cleanSentDiet(p.data);
-    return d ? { id: p.id, data: d, sentAt: coachTime(p.sent_at) ?? 0, seen: p.seen === true, ...(p.meta === true ? { meta: true } : {}) } : null;
+    // Format plus récent que cette app : nom seul, « Mets l'app à jour » (tooNew)
+    const tooNew = dietSentTooNew(p.data);
+    const d = p.meta === true && p.data?.kind === 'diet' && typeof p.data.name === 'string' ? { name: p.data.name.slice(0, DIET_NAME_MAX), meals: [] }
+      : tooNew ? { name: dietText(p.data.diet?.name, DIET_NAME_MAX) || 'Plan diète', meals: [] } : cleanSentDiet(p.data);
+    return d ? { id: p.id, data: d, sentAt: coachTime(p.sent_at) ?? 0, seen: p.seen === true, ...(p.meta === true ? { meta: true } : {}), ...(tooNew ? { tooNew: true } : {}) } : null;
   }).filter(Boolean).sort((a, b) => b.sentAt - a.sentAt);
   const programmes = rows.map(p => {
     if (!p || typeof p.id !== 'string' || !COACH_PROG_ID_RE.test(p.id) || isDietSentId(p.id)) return null;
@@ -205,7 +208,7 @@ function coachErrorKind(error) {
   if (!error) return null;
   if (isNetworkError(error) || /fetch|network|load failed/i.test(String(error.message || ''))) return 'offline';
   const msg = String(error.message || error.error || '');
-  for (const k of ['not_coach', 'already_coached', 'invalid_code', 'tier_full', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required', 'not_shared', 'invalid_kind', 'invalid_data',
+  for (const k of ['diet_not_accepted', 'not_coach', 'already_coached', 'invalid_code', 'tier_full', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required', 'not_shared', 'invalid_kind', 'invalid_data',
     'empty_message']) if (msg.includes(k)) return k;
   // Fonction absente du serveur (migration pas encore appliquée) : PostgREST répond PGRST202
   if (error.code === 'PGRST202' || /could not find the function/i.test(msg)) return 'missing';
@@ -226,6 +229,7 @@ const COACH_ERROR_TEXT = {
   too_big: 'Programme trop gros pour être envoyé.',
   // Plan diète (js/data/coach-diet.js)
   empty_diet: 'Ajoute au moins un aliment à ce plan avant de l\'envoyer.',
+  diet_not_accepted: 'Ton élève doit d\'abord accepter les plans diète dans son app.',
   // Partage avec le coach (js/data/coach-share.js)
   not_shared: 'Ce partage est coupé : coche-le à nouveau pour l\'envoyer.',
   invalid_kind: 'Ce partage n\'est pas encore disponible.',

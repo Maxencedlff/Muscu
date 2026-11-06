@@ -81,15 +81,19 @@ function renderDietPlan(id) {
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <div class="group-title">Par jour</div>
         <div class="group">
-          <div class="cell"><span class="cell__body"><span class="cell__title">Total prévu</span><span class="cell__sub num">P ${dietN(total.p)} g · G ${dietN(total.c)} g · L ${dietN(total.f)} g</span></span><span class="cell__value num">${dietN(total.kcal)} kcal</span></div>
-          ${ro ? `<div class="cell"><span class="cell__body"><span class="cell__title">Objectifs du jour</span></span><span class="cell__value num">${esc(dietTargetsText(plan))}</span></div>`
-            : `<button class="cell cell--nav" data-action="diet-targets" data-id="${esc(id)}"><span class="cell__body"><span class="cell__title">Objectifs du jour</span></span><span class="cell__value num">${esc(dietTargetsText(plan))}</span>${icon('chevron.right', 16)}</button>`}
+          <div class="cell"><span class="cell__body"><span class="cell__title">Total prévu</span><span class="cell__sub num">P\u00a0${dietN(total.p)}\u00a0g · G\u00a0${dietN(total.c)}\u00a0g · L\u00a0${dietN(total.f)}\u00a0g</span></span><span class="cell__value num">${dietN(total.kcal)} kcal</span></div>
+          ${ro ? `<div class="cell"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${esc(dietTargetsText(plan))}</span></span></div>`
+            : `<button class="cell cell--nav" data-action="diet-targets" data-id="${esc(id)}"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${esc(dietTargetsText(plan))}</span></span>${icon('chevron.right', 16)}</button>`}
         </div>
         <div class="group-foot">${ro ? `Plan envoyé par ${esc(plan.fromCoach.name || 'ton coach')} : il le modifie et te le renvoie. Dans Nutrition, tu peux remplacer un aliment pour la journée.`
           : 'Les objectifs, c\'est toi (ou ton coach) qui les fixes : l\'app ne calcule pas tes besoins. Sans objectif, le total prévu sert de repère.'}</div>
         ${dietLowKcal(plan) ? dietLowNoteHtml() : ''}
         ${meals}
         ${ro || plan.meals.length >= DIET_MEAL_MAX ? '' : `<div class="group group--gap"><button class="cell cell--action" data-action="diet-add-meal" data-id="${esc(id)}">${icon('plus', 20)}<span>Ajouter un repas</span></button></div>`}
+        <div class="group group--gap">
+          ${!ro && coachRole().isCoach ? `<button class="cell cell--action" data-action="diet-send-student" data-id="${esc(id)}">${icon('square.and.arrow.up', 20)}<span>Envoyer à un élève</span></button>` : ''}
+          <button class="cell cell--action" data-action="diet-duplicate" data-id="${esc(id)}">${icon('plus', 20)}<span>${ro ? 'Dupliquer pour le modifier' : 'Dupliquer le plan'}</span></button>
+        </div>
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="diet-delete" data-id="${esc(id)}">Supprimer le plan</button>
         </div>
@@ -158,6 +162,12 @@ async function dietNewFood(name = '') {
         <input id="dietFoodName" class="diet-field__input" type="text" maxlength="${DIET_FOOD_NAME_MAX}" autocomplete="off" autocapitalize="sentences" value="${esc(name)}" placeholder="Skyr nature"></label>
       <p class="diet-form__hint">Pour 100 g : recopie les valeurs de l'étiquette, l'énergie comprise. Laissée vide, l'app la calcule (4 kcal par gramme de protéines ou de glucides, 9 de lipides).</p>
       ${field('dietFoodK', 'Énergie', 'kcal', 900)}${field('dietFoodP', 'Protéines', 'g', 100)}${field('dietFoodC', 'Glucides', 'g', 100)}${field('dietFoodF', 'Lipides', 'g', 100)}
+      <label class="diet-field"><span class="diet-field__label">Famille</span>
+        <select id="dietFoodFam" class="diet-field__input diet-field__select" aria-label="Famille, pour les équivalences">
+          <option value="">Selon ses macros</option>
+          ${DIET_FAMS.filter(f => f !== 'a').map(f => `<option value="${f}">${esc(FOOD_FAM_LABEL[f])}</option>`).join('')}
+        </select></label>
+      <p class="diet-form__hint">La famille sert aux équivalences : un aliment n'est remplacé que par un autre de la même famille.</p>
       <p class="diet-form__hint">L'énergie de l'étiquette compte aussi les fibres (2 kcal par gramme) et l'alcool (7 kcal par gramme) : elle peut dépasser ce calcul.</p>
       <p class="diet-form__err" id="dietFoodErr" role="alert"></p>
     </div>`;
@@ -173,7 +183,8 @@ async function dietNewFood(name = '') {
     if (k === null) return err('Énergie : de 0 à 900 kcal.');
     const per = cleanDietPer({ k, p, c, f });
     if (!per) return err('Plus de 100 g de macros pour 100 g : vérifie les valeurs.');
-    const food = { id: uid(), name: nm, fam: dietFamOf(per), per };
+    const famPick = $('#dietFoodFam', panel)?.value;
+    const food = { id: uid(), name: nm, fam: DIET_FAMS.includes(famPick) ? famPick : dietFamOf(per), per };
     data.dietFoods = cleanDietFoods([food, ...(data.dietFoods || []).filter(x => normName(x.name) !== normName(nm))]);
     return { food: { code: null, name: nm, fam: food.fam, per } };
   } });
@@ -218,6 +229,11 @@ registerActions({
   'go-diet-plans': () => navigate('diet-plans'),
   'diet-open-plan': (e, el) => navigate(makeRoute('diet-plan', el.dataset.id)),
   'diet-new-plan': async () => {
+    // Limite : jamais un plan retiré en silence ; on le dit avant de créer
+    if (!dietCanCreate(data, coachRole().isCoach)) {
+      showToast(`${coachRole().isCoach ? DIET_PLAN_MAX_COACH : DIET_PLAN_MAX} plans au plus : supprime un plan dont tu ne te sers plus.`, { error: true });
+      return;
+    }
     const name = await askText({ title: 'Nouveau plan', message: 'Quatre repas sont prêts à remplir ; tu pourras les renommer.', placeholder: 'Mon plan', confirm: 'Créer' });
     if (!name) return;
     const id = dietNewPlan(data, name);
@@ -266,13 +282,17 @@ registerActions({
     const i = ed.plan.meals.indexOf(meal);
     const choice = await dialog({ type: 'sheet', title: meal.name, actions: [
       { label: 'Renommer', value: 'rename' },
+      ...(ed.plan.meals.length < DIET_MEAL_MAX ? [{ label: 'Copier ce repas', value: 'copy' }] : []),
       { label: meal.note ? 'Modifier la consigne' : 'Ajouter une consigne', value: 'note' },
       ...(i > 0 ? [{ label: 'Monter', value: 'up' }] : []),
       ...(i < ed.plan.meals.length - 1 ? [{ label: 'Descendre', value: 'down' }] : []),
       { label: 'Supprimer le repas', value: 'delete', style: 'destructive' },
       { label: 'Annuler', style: 'cancel' },
     ] });
-    if (choice === 'rename') {
+    if (choice === 'copy') {
+      dietCopyMeal(ed.plan, meal.id);
+      showToast(`${meal.name} copié`);
+    } else if (choice === 'rename') {
       const name = await askText({ title: 'Nom du repas', value: meal.name });
       if (name) meal.name = dietText(name, DIET_NAME_MAX);
     } else if (choice === 'note') {
@@ -321,6 +341,32 @@ registerActions({
       meal.items = meal.items.filter(x => x !== it);
     } else return;
     dietSaved();
+  },
+  'diet-duplicate': (e, el) => {
+    if (!dietCanCreate(data, coachRole().isCoach)) {
+      showToast(`${coachRole().isCoach ? DIET_PLAN_MAX_COACH : DIET_PLAN_MAX} plans au plus : supprime un plan dont tu ne te sers plus.`, { error: true });
+      return;
+    }
+    const nid = dietDuplicatePlan(data, el.dataset.id);
+    if (!nid) return;
+    save();
+    haptic();
+    navigate(makeRoute('diet-plan', nid), { replace: true });
+    showToast('Plan dupliqué');
+  },
+  // Coach : envoyer ce plan à un élève, sans passer par sa fiche
+  'diet-send-student': async (e, el) => {
+    const planId = el.dataset.id, plan = dietPlanOf(planId);
+    const students = coach.state?.students || [];
+    if (!plan) return;
+    if (!students.length) { showToast(coach.state ? 'Tu n\'as pas encore d\'élève.' : coachErrorText('offline'), { error: !coach.state }); return; }
+    const uid2 = await dialog({ type: 'sheet', title: `Envoyer « ${plan.name} »`, message: 'Un nouvel envoi du même plan le met à jour chez ton élève.',
+      actions: [...students.map(st => ({ label: personName(st), value: st.user_id })), { label: 'Annuler', style: 'cancel' }] });
+    if (!uid2) return;
+    el.disabled = true;
+    const r = await coachSendDiet(uid2, planId);
+    el.disabled = false;
+    if (coachToast(r, `Plan envoyé à ${personName(students.find(st => st.user_id === uid2))}`)) { haptic(); coachRefresh(); }
   },
   'diet-delete': async (e, el) => {
     const id = el.dataset.id, plan = dietPlanOf(id);
