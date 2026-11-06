@@ -167,6 +167,8 @@ def t_ordre(bench, eng, dev, theme):
         start = names(page)
         R.check(page.locator('[data-action="ex-later"]').count() == 1, f'{t} « Plus tard » seulement sur l\'exercice en cours')
         R.check(page.locator('.ex-card[data-ei="0"] [data-action="ex-later"]').inner_text().strip() == 'Plus tard', f'{t} libellé « Plus tard »')
+        R.check(page.locator('[data-action="ex-later"] .icon--arrow-down-to-line').count() == 1 and page.locator('[data-action="ex-later"] .icon--chevron-down').count() == 0,
+                f'{t} « Plus tard » : flèche vers la ligne, pas le chevron de « Réduire la séance »')
         R.check(page.locator('[data-action="ex-now"]').count() == 0, f'{t} pas de « Faire maintenant » en bas des cartes')
         R.check(not small(page, '.order-link'), f'{t} bouton de 44 px {small(page, ".order-link")}')
         R.check(no_hscroll(page), f'{t} pas de défilement de côté')
@@ -225,5 +227,35 @@ def t_ordre(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} erreurs JS {page.errors}')
 
 
+def t_ordre_sous_serie(bench, eng, dev, theme):
+    """Plus tard pendant un drop set en attente : l'écran suit l'exercice qui prend la main, pas celui repoussé."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        page.evaluate("startSession('pull')")
+        page.wait_for_selector('.view.session')
+        start = names(page)
+        page.evaluate("activeSession.exercises.forEach(ex => ex.sets.forEach(s => { s.weight ||= '20'; s.reps ||= '10'; })); setTechOn(0, 1, 'drop')")
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]')
+        page.wait_for_timeout(300)
+        skip_rest(page)
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="1"]')
+        page.wait_for_timeout(300)
+        R.check(page.locator('.session-set--subcur').count() == 1, f'{t} drop set en attente sous la série 2')
+        page.click('.ex-card[data-ei="0"] [data-action="ex-later"]')
+        page.wait_for_timeout(900)
+        R.check(names(page) == start[1:] + [start[0]] and cur_name(page) == start[1], f'{t} plus tard (drop en attente) : {start[1]} en cours ({cur_name(page)})')
+        R.check(page.evaluate('activeSession.lastDone') is None and page.locator('.session-set--subcur').count() == 0, f'{t} plus tard : le drop repoussé n\'est plus « à faire »')
+        vis = page.evaluate("""() => { const r = document.querySelector('.session-set--current')?.getBoundingClientRect();
+            return !!r && r.top > 60 && r.bottom < innerHeight && document.querySelector('.session-set--current').closest('.ex-card').dataset.ei === '0'; }""")
+        R.check(vis, f'{t} plus tard : la série en cours est à l\'écran')
+        R.check(page.evaluate("activeSession.exercises.at(-1).sets[1].sub.length === 1"), f'{t} plus tard : le drop reste à remplir')
+        shot(page, LOT, f'{t}-10-ordre-plus-tard-drop')
+        page.locator('.toast button', has_text='Annuler').last.click()
+        page.wait_for_timeout(500)
+        R.check(names(page) == start and page.locator('.session-set--subcur').count() == 1, f'{t} Annuler : ordre et drop en attente rendus')
+        R.check(not page.errors, f'{t} erreurs JS {page.errors}')
+
+
 if __name__ == '__main__':
-    run_main(R, [t_prise, t_ordre])
+    run_main(R, [t_prise, t_ordre, t_ordre_sous_serie])

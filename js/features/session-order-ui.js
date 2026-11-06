@@ -11,7 +11,7 @@ function orderBtnHtml(ei, cur) {
   if (orderChoiceFor(xs, ei, cur?.ei) !== 'later') return '';
   const g = ssGroupOf(xs, ei);
   const what = g ? `${ssKind(g.length).toLowerCase()} ${g.map(k => esc(xs[k].name)).join(' et ')}` : esc(xs[ei].name);
-  return `<button class="order-link" data-action="ex-later" data-ei="${ei}" aria-label="Plus tard : ${what}, passe en dernier">${icon('chevron.down', 14)}Plus tard</button>`;
+  return `<button class="order-link" data-action="ex-later" data-ei="${ei}" aria-label="Plus tard : ${what}, passe en dernier">${icon('arrow.down.to.line', 14)}Plus tard</button>`;
 }
 
 // Nouvelle liste de la séance (mêmes objets, autre ordre) : les positions (ei) gardées ailleurs suivent
@@ -32,12 +32,23 @@ function applySessionOrder(next, focus, toast) {
   const undo = { xs: s.exercises, lastEi: s.lastEi ?? null, lastDone: s.lastDone ?? null };
   remapSessionOrder(next);
   s.lastEi = focus ? orderFocusEi(next, next.indexOf(focus)) : null;
+  dropMovedSub();
   haptic();
   persistSession();
   syncNativeRest();
   render();
   scrollToCurrent();   // la série en cours, au centre (sous la barre, jamais cachée par elle)
   showToast(toast, { action: 'Annuler', duration: 4000, onAction: () => undoSessionOrder(undo, next) });
+}
+
+// Sous-série en attente (drop set, rest-pause, cluster : js/data/intensif.js) hors du bloc désormais en cours :
+// elle n'est plus « à faire » (comme après Monter/Descendre), sinon l'écran irait vers l'exercice repoussé
+// (scrollToCurrent préfère la sous-série). Elle reste à remplir ; « Annuler » la rend.
+function dropMovedSub() {
+  const s = activeSession, c = techCurrentSub(s.exercises, s.lastDone);
+  if (!c) return;
+  const cur = currentSet();
+  if (!cur || !(ssGroupOf(s.exercises, cur.ei) || [cur.ei]).includes(c.ei)) s.lastDone = null;
 }
 
 // « Annuler » : l'ordre d'avant revient, avec la série en cours d'avant (séries validées entre-temps gardées)
@@ -47,6 +58,7 @@ function undoSessionOrder(u, applied) {
   remapSessionOrder(u.xs);
   s.lastEi = u.lastEi;
   s.lastDone = u.lastDone;
+  dropMovedSub();   // séries validées entre-temps : la sous-série d'avant peut ne plus être celle en cours
   persistSession();
   syncNativeRest();
   render();
