@@ -17,21 +17,46 @@
 --    les plans diète que le serveur gardait pour l'élève (coach_programmes 'diet_…'). Un plan déjà pris par
 --    l'élève est sur son iPhone : il y reste.
 --  - Rien d'autre ne change : aucune table nouvelle, aucun GRANT nouveau (student_set_share, student_shares
---    et coach_send_programme gardent les leurs), private.share_kind_open accepte 'diet'.
+--    et coach_send_programme gardent les leurs) ; private.share_kind_open accepte 'diet' EN PLUS du poids et des
+--    mensurations (20261105010000_partage_mensurations.sql, appliquée avant), et student_shares().kinds l'annonce.
 --
 --  Réversible : supabase/rollback/20261106200000_plans_diete_coach_down.sql (accords 'diet' supprimés,
---  contrainte, share_kind_open et coach_send_programme remis à leur texte d'avant).
+--  contrainte, share_kind_open, student_shares et coach_send_programme remis à leur texte d'avant).
 -- ═══════════════════════════════════════════════════════════
 
--- Donnée 'diet' acceptée par la table des accords
+-- Donnée 'diet' acceptée par la table des accords (en plus des mensurations de 20261105010000)
 alter table public.coach_shares drop constraint coach_shares_kind_check;
 alter table public.coach_shares add constraint coach_shares_kind_check
-  check (kind in ('weight', 'sleep', 'steps', 'resting_hr', 'diet'));
+  check (kind in ('weight', 'sleep', 'steps', 'resting_hr', 'measures', 'diet'));
 
--- Données que l'élève peut cocher aujourd'hui : le poids et les plans diète
+-- Données que l'élève peut cocher aujourd'hui : le poids, les mensurations et les plans diète
 create or replace function private.share_kind_open(kind text) returns boolean
   language sql immutable set search_path = '' as
-$$ select kind in ('weight', 'diet') $$;
+$$ select kind in ('weight', 'measures', 'diet') $$;
+
+-- student_shares : texte de 20261105010000_partage_mensurations.sql, 'diet' ajouté aux données annoncées (kinds)
+create or replace function public.student_shares() returns jsonb
+  language sql stable security definer set search_path = '' as
+$$
+  with me as (select (select auth.uid()) as id),
+  l as (select cl.student_id, cl.coach_id from me join public.coach_links cl on cl.student_id = me.id)
+  select jsonb_build_object(
+    'coach', exists (select 1 from l),
+    'kinds', (select jsonb_agg(k order by o) from unnest(array['weight', 'sleep', 'steps', 'resting_hr', 'measures', 'diet']) with ordinality as t(k, o)
+              where private.share_kind_open(k)),
+    'shares', coalesce((
+      select jsonb_object_agg(c.kind, jsonb_build_object(
+        'granted_at', c.granted_at,
+        'n', case c.kind
+               when 'weight' then (select count(*)::int from public.coach_shared_weights w where w.student_id = c.student_id)
+               when 'measures' then (select count(*)::int from public.coach_shared_measures m where m.student_id = c.student_id)
+               else 0 end,
+        'last_at', case c.kind
+               when 'weight' then (select max(w.at) from public.coach_shared_weights w where w.student_id = c.student_id)
+               when 'measures' then (select max(m.at) from public.coach_shared_measures m where m.student_id = c.student_id)
+               end))
+      from l join public.coach_shares c on c.student_id = l.student_id and c.coach_id = l.coach_id), '{}'::jsonb))
+$$;
 
 -- Envoyer (ou mettre à jour) un programme à un de mes élèves ; seen_at remis à null. 30 par 24 h.
 -- Plan diète (prog_id 'diet_…') : seulement si l'élève a accepté les plans diète de ce coach.

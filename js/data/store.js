@@ -230,6 +230,8 @@ function sanitizeData(d) {
         if (ex.tempoGuide !== undefined && (ex.tempoGuide !== true || !ex.tempo)) delete ex.tempoGuide;
         if (ex.tempoPrep !== undefined && (!ex.tempoGuide || !TEMPO_PREP_CHOICES.includes(ex.tempoPrep))) delete ex.tempoPrep;
         if (ex.ss !== undefined && !ssId(ex)) delete ex.ss;   // superset (js/data/supersets.js)
+        // Prise (js/data/grips.js) : valeurs connues seulement, retirée s'il n'en reste aucune
+        if (ex.grip !== undefined) { const g = cleanGrip(ex.grip); if (g) ex.grip = g; else delete ex.grip; }
         // Consigne du coach (js/data/coach.js) : texte court, retirée si vide
         if (ex.consigne !== undefined) { const c = cleanConsigne(ex.consigne); if (c) ex.consigne = c; else delete ex.consigne; }
         if (ex.musclesSecondary != null) {
@@ -481,6 +483,8 @@ function cleanHistoryEntry(h) {
     if (!['reps', 'time', 'cardio'].includes(ex.measure)) delete ex.measure;
     pinLegacyReps(ex);
     pinLegacyCardioWords(ex);
+    // Prise faite ce jour-là (js/data/grips.js) : indication, ne change ni records ni « Avant »
+    if (ex.grip !== undefined) { const g = cleanGrip(ex.grip); if (g) ex.grip = g; else delete ex.grip; }
     ex.sets.forEach(st => {
       st.reps = String(num(st.reps, 0, MAX_COUNT, true) ?? 0);
       if (st.weight == null || st.weight === '' || !Number.isFinite(parseFloat(st.weight))) st.weight = '';

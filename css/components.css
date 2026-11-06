@@ -30,6 +30,11 @@
   max-width: 440px; display: flex; flex-direction: column; gap: var(--sp-2);
   animation: iosUp .3s cubic-bezier(.2,.9,.3,1);
 }
+/* Menu plus haut que l'écran (menu ⋯ d'un exercice sur iPhone SE) : la liste défile, le titre et les
+   premiers choix restent atteignables au lieu d'être coupés en haut ; « Annuler » reste en bas */
+.ios-dialog--sheet .ios-dialog__panel { max-height: calc(100% - env(safe-area-inset-top, 0px) - var(--sp-2)); }
+.ios-dialog--sheet .ios-dialog__group { flex-shrink: 0; }
+.ios-dialog--sheet .ios-dialog__group:first-child { flex-shrink: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .ios-dialog__group {
   border-radius: 14px; overflow: hidden; background: var(--dlg-bg);
   backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%);

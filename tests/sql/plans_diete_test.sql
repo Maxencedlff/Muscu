@@ -26,7 +26,8 @@ do $$ begin
      or has_function_privilege('anon', 'private.coach_shares_diet_revoked()', 'execute') then raise 'déclencheur exécutable par l''API'; end if;
   if has_function_privilege('anon', 'public.coach_send_programme(uuid, text, jsonb)', 'execute') then raise 'anon envoie'; end if;
   if not has_function_privilege('authenticated', 'public.coach_send_programme(uuid, text, jsonb)', 'execute') then raise 'authenticated n''envoie plus'; end if;
-  if not private.share_kind_open('diet') or not private.share_kind_open('weight') or private.share_kind_open('sleep') then raise 'données ouvertes'; end if;
+  if not private.share_kind_open('diet') or not private.share_kind_open('weight') or not private.share_kind_open('measures')
+     or private.share_kind_open('sleep') then raise 'données ouvertes (poids, mensurations et plans diète)'; end if;
 end $$;
 
 set role authenticated;
@@ -48,6 +49,7 @@ begin
   perform pg_temp.dlogin('s');
   st := public.student_set_share('diet', true);
   if st -> 'shares' -> 'diet' -> 'granted_at' is null then raise 'accord diète non daté : %', st; end if;
+  if not (st -> 'kinds') ? 'diet' or not (st -> 'kinds') ? 'measures' then raise 'données annoncées : %', st -> 'kinds'; end if;
   perform pg_temp.dlogin('k');
   perform public.coach_send_programme(pg_temp.du('s'), 'diet_abc12345', '{"kind": "diet", "v": 1, "diet": {"name": "Sèche", "meals": []}}');
   -- Accord donné à SON coach, pas aux autres élèves : T n'a rien accepté

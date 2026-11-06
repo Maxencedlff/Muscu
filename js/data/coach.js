@@ -100,7 +100,7 @@ function cleanCoachSessionRow(r) {
 }
 
 // Programme envoyé, tel que l'app l'accepte : { name, consigne?, sessions: [{ key, label, color,
-// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, ss?, consigne? }] }] }, null s'il est
+// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, ss?, grip?, consigne? }] }] }, null s'il est
 // inutilisable. Mêmes bornes que la saisie (sanitizeData) ; clés de séance de SESSION_CAT_RE, uniques.
 function cleanSentProgramme(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -127,6 +127,9 @@ function cleanSentProgramme(raw) {
           const rn = e.repMin == null ? null : num(e.repMin, 1, 99, true);
           if (rn !== null && rn < (o.repMax ?? 12)) o.repMin = rn;
           if (ssId(e)) o.ss = e.ss;
+          // Prise (js/data/grips.js) : seulement ce qui a du sens pour ce nom
+          const g = cleanGrip(e.grip, o);
+          if (g) o.grip = g;
           const c = cleanConsigne(e.consigne);
           if (c) o.consigne = c;
           return o;
@@ -209,7 +212,7 @@ function coachErrorKind(error) {
   if (isNetworkError(error) || /fetch|network|load failed/i.test(String(error.message || ''))) return 'offline';
   const msg = String(error.message || error.error || '');
   for (const k of ['diet_not_accepted', 'not_coach', 'already_coached', 'invalid_code', 'tier_full', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required', 'not_shared', 'invalid_kind', 'invalid_data',
-    'empty_message']) if (msg.includes(k)) return k;
+    'empty_message', 'invalid_phase', 'overlap', 'too_many']) if (msg.includes(k)) return k;
   // Fonction absente du serveur (migration pas encore appliquée) : PostgREST répond PGRST202
   if (error.code === 'PGRST202' || /could not find the function/i.test(msg)) return 'missing';
   return 'server';
@@ -234,6 +237,11 @@ const COACH_ERROR_TEXT = {
   not_shared: 'Ce partage est coupé : coche-le à nouveau pour l\'envoyer.',
   invalid_kind: 'Ce partage n\'est pas encore disponible.',
   invalid_data: 'Pesées illisibles : rien n\'a été envoyé.',
+  invalid_measures: 'Mensurations illisibles : rien n\'a été envoyé.',
+  // Planification (js/data/coach-plan.js)
+  invalid_phase: 'Vérifie l\'objectif, la date de début et la durée (1 à 52 semaines).',
+  overlap: 'Cette phase chevauche une autre phase de cet élève : change sa date ou sa durée.',
+  too_many: 'Cet élève a déjà 30 phases : supprime d\'anciennes phases d\'abord.',
   // Messages (js/data/coach-chat.js)
   empty_message: 'Écris quelque chose avant d\'envoyer.',
   busy: 'Envoi déjà en cours.',
@@ -298,6 +306,7 @@ function programmeToSent(d, progId, over = null) {
         if (e.repMax) o.repMax = e.repMax;
         if (e.repMin) o.repMin = e.repMin;
         if (ssId(e)) o.ss = e.ss;
+        if (cleanGrip(e.grip)) o.grip = cleanGrip(e.grip);
         const c = cleanConsigne(over?.ex?.[s.key]?.[e.id] !== undefined ? over.ex[s.key][e.id] : e.consigne);
         if (c) o.consigne = c;
         return o;
@@ -336,7 +345,7 @@ function coachProgrammeStatus(d, item, coachId = null) {
 // Exercices : celui de même nom DANS LA MÊME séance garde son identifiant et ses réglages propres à
 // l'élève (records, muscles choisis, objectif) ; un exercice qui change de séance repart d'un nouvel
 // identifiant (les records se calculent par séance du programme). Ce que le coach décide (séries,
-// repos, mesure, tempo, fourchette, superset, consigne) est remplacé.
+// repos, mesure, tempo, fourchette, superset, prise, consigne) est remplacé.
 // Séance retirée par le coach : gardée avec retired: true (nom et couleur des séances déjà faites dans
 // l'historique, rawLabel), mais absente de toutes les listes (sessionKeys). Renvoie l'identifiant local.
 function importCoachProgramme(d, item, coachPerson) {
@@ -354,7 +363,7 @@ function importCoachProgramme(d, item, coachPerson) {
     if (hit) used.add(hit.ex);
     return hit?.ex || null;
   };
-  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'ss', 'consigne'];
+  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'ss', 'grip', 'consigne'];
   const sessions = {}, exercises = {};
   sent.sessions.forEach(s => {
     sessions[s.key] = { label: s.label, icon: '', desc: prevUp?.sessions?.[s.key]?.desc || '', color: s.color };
@@ -506,6 +515,8 @@ async function coachRefresh({ minAge = 0 } = {}) {
     if (typeof coachShareRefresh === 'function') coachShareRefresh();
     // Messages : non-lus et derniers messages (js/data/coach-chat.js)
     if (typeof chatRefresh === 'function') chatRefresh();
+    // Planification : phases de mes élèves (coach), ma phase (élève) (js/data/coach-plan.js)
+    if (typeof coachPlanRefresh === 'function') coachPlanRefresh();
   }
   coach.loading = false;
   notifyCoach();

@@ -8,7 +8,10 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
-| −2 | `20261106200000_plans_diete_coach_down.sql` | rien | oui (vérifié) |
+| −5 | `20261106200000_plans_diete_coach_down.sql` | rien | oui (vérifié) |
+| −4 | `20261106000000_coach_progression_down.sql` | rien | oui (vérifié) |
+| −3 | `20261105010000_partage_mensurations_down.sql` | plans diète du coach (−5) : il réécrit après lui la contrainte de `coach_shares.kind`, `share_kind_open` et `student_shares` | oui pour les autres lots (vérifié) ; l'accord des plans diète ne marche plus alors : défaire −5 avant |
+| −2 | `20261105000000_coach_planning_down.sql` | rien | oui (vérifié) |
 | −1 | `20261101000000_parrainage_payant_down.sql` | rien | oui (vérifié) |
 | 0a | `20261031910000_notifications_messages_down.sql` | rien | oui (vérifié) |
 | 0 | `20261031900000_notifications_push_down.sql` | notifications des messages et commentaires (0a) : elles remplacent ses fonctions | non |
@@ -16,10 +19,10 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 | 2 | `20261031510000_chat_coach_down.sql` | notifications des messages (0a) : son déclencheur lit coach_messages | non |
 | 3 | `20261031500000_commentaires_down.sql` | notifications des messages (0a) : elles s'appuient sur les commentaires ; le chat (2) avant, conseillé par son en-tête | non |
 | 4 | `20261031400000_parrainage_down.sql` | parrainage du payant (−1) : la table des paiements référence les attributions | non, refuse sans rien changer |
-| 5 | `20261031300000_partage_coach_down.sql` | plans diète du coach (−2) : sa table porte l'accord 'diet' et son déclencheur | oui pour les autres lots (vérifié) ; l'envoi d'un plan diète échoue alors : défaire −2 avant |
+| 5 | `20261031300000_partage_coach_down.sql` | mensurations partagées (−3) : leur table s'appuie sur `coach_shares` ; plans diète du coach (−5) : son accord et son déclencheur sont sur `coach_shares` | non |
 | 6 | `20261031230000_newsletter_down.sql` | rien | oui (vérifié) |
 | 7 | `20261031200000_reactions_profil_down.sql` | commentaires (3) | non |
-| 8 | `20261031100000_records_series_down.sql` | rien | oui (vérifié) |
+| 8 | `20261031100000_records_series_down.sql` | progression des élèves (−4) : `coach_progress` lit `private.session_records` | non (seul, tout le reste marche : vérifié sans les tests de la progression) |
 | 9 | `20261031000000_payant_plus_down.sql` | rien | oui (vérifié) |
 | 10 | `20261030000000_payant_tarifs_down.sql` | payant plus (9) | non, refuse sans rien changer |
 | 11 | `20261029000000_payant_modele_b_down.sql` | tarifs (10) | non, refuse sans rien changer |
@@ -37,11 +40,14 @@ La production a reçu toutes les migrations de `main` (lot 3, notifications push
 3. `20261031000000_payant_plus.sql`
 4. `20261031230000_newsletter.sql`
 5. `20261101000000_parrainage_payant.sql`
-6. `20261106200000_plans_diete_coach.sql` (après l'OTA qui demande l'accord de l'élève : sinon les coachs ne peuvent plus envoyer de plan diète tant que leurs élèves n'ont pas la version qui sait accepter)
+6. `20261105000000_coach_planning.sql`
+7. `20261105010000_partage_mensurations.sql`
+8. `20261106000000_coach_progression.sql`
+9. `20261106200000_plans_diete_coach.sql` (après l'OTA qui demande l'accord de l'élève : sinon les coachs ne peuvent plus envoyer de plan diète tant que leurs élèves n'ont pas la version qui sait accepter ; et après les mensurations, dont il garde la donnée)
 
-Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md). Avec la CLI Supabase, `supabase db push` refuse des migrations plus anciennes que la dernière appliquée : `supabase db push --include-all` (après `supabase migration list` pour vérifier qu'il ne reste QUE ces six fichiers, Strava retiré du dossier le temps de la commande), ou chaque fichier collé dans l'éditeur SQL dans cet ordre.
+Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md). Avec la CLI Supabase, `supabase db push` refuse des migrations plus anciennes que la dernière appliquée : `supabase db push --include-all` (après `supabase migration list` pour vérifier qu'il ne reste QUE ces neuf fichiers, Strava retiré du dossier le temps de la commande), ou chaque fichier collé dans l'éditeur SQL dans cet ordre.
 
-Pour défaire en production : l'ordre inverse de cette liste (6 → 1), avant tout retour arrière plus ancien.
+Pour défaire en production : l'ordre inverse de cette liste (9 → 1), avant tout retour arrière plus ancien.
 
 ## Ce qui est mis de côté, pas effacé
 

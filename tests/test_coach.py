@@ -438,7 +438,7 @@ def t_coach(bench, eng, dev, theme):
         row = page.locator('.coach-student-row', has_text='lea')
         rt = row.inner_text()
         R.check('Haut · ton programme · hier' in rt, f'{t} dernière séance « Haut · ton programme · hier » ({rt!r})')
-        R.check('séances en 7 jours' in rt and row.locator('.coach-count').inner_text() == '3', f'{t} séances sur 7 jours et nouvelles séances')
+        R.check(row.locator('.progress-sig').count() == 1 and row.locator('.progress-sig').inner_text().strip() and row.locator('.coach-count').inner_text() == '3', f'{t} signal de la semaine et nouvelles séances')
         R.check('Aucune séance' in page.locator('.coach-student-row', has_text='tom').inner_text(), f'{t} élève sans séance')
         layout(page, t, 'Mes élèves')
         shot(page, LOT, f'11-mes-eleves-{t}')

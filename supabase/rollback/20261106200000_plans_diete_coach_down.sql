@@ -8,12 +8,12 @@
 --
 --  Effet : les accords 'diet' (public.coach_shares) sont SUPPRIMÉS ; leur déclencheur, encore en place à
 --  ce moment, efface donc les plans diète gardés sur le serveur pour ces élèves (coach_programmes 'diet_…'),
---  ce qui respecte le retrait de l'accord. Puis la contrainte de coach_shares.kind, private.share_kind_open
---  et coach_send_programme reprennent leur texte d'avant (20261031300000_partage_coach.sql et
---  20261027100000_coach.sql) : un coach peut de nouveau envoyer un plan diète sans accord.
+--  ce qui respecte le retrait de l'accord. Puis la contrainte de coach_shares.kind, private.share_kind_open,
+--  student_shares (20261105010000_partage_mensurations.sql) et coach_send_programme (20261027100000_coach.sql)
+--  reprennent leur texte d'avant : un coach peut de nouveau envoyer un plan diète sans accord.
 --
---  Ordre : à défaire AVANT 20261031300000_partage_coach_down.sql (qui supprime coach_shares) ; indépendant
---  des autres (vérifié par tests/sql/rollback_nuit_check.sh).
+--  Ordre : à défaire AVANT 20261105010000_partage_mensurations_down.sql et 20261031300000_partage_coach_down.sql
+--  (elles réécrivent ou suppriment ce que celle-ci remet) ; vérifié par tests/sql/rollback_nuit_check.sh.
 -- ═══════════════════════════════════════════════════════════
 
 begin;
@@ -25,11 +25,35 @@ drop function private.coach_shares_diet_revoked();
 
 alter table public.coach_shares drop constraint coach_shares_kind_check;
 alter table public.coach_shares add constraint coach_shares_kind_check
-  check (kind in ('weight', 'sleep', 'steps', 'resting_hr'));
+  check (kind in ('weight', 'sleep', 'steps', 'resting_hr', 'measures'));
 
+-- Textes de 20261105010000_partage_mensurations.sql
 create or replace function private.share_kind_open(kind text) returns boolean
   language sql immutable set search_path = '' as
-$$ select kind = 'weight' $$;
+$$ select kind in ('weight', 'measures') $$;
+
+create or replace function public.student_shares() returns jsonb
+  language sql stable security definer set search_path = '' as
+$$
+  with me as (select (select auth.uid()) as id),
+  l as (select cl.student_id, cl.coach_id from me join public.coach_links cl on cl.student_id = me.id)
+  select jsonb_build_object(
+    'coach', exists (select 1 from l),
+    'kinds', (select jsonb_agg(k order by o) from unnest(array['weight', 'sleep', 'steps', 'resting_hr', 'measures']) with ordinality as t(k, o)
+              where private.share_kind_open(k)),
+    'shares', coalesce((
+      select jsonb_object_agg(c.kind, jsonb_build_object(
+        'granted_at', c.granted_at,
+        'n', case c.kind
+               when 'weight' then (select count(*)::int from public.coach_shared_weights w where w.student_id = c.student_id)
+               when 'measures' then (select count(*)::int from public.coach_shared_measures m where m.student_id = c.student_id)
+               else 0 end,
+        'last_at', case c.kind
+               when 'weight' then (select max(w.at) from public.coach_shared_weights w where w.student_id = c.student_id)
+               when 'measures' then (select max(m.at) from public.coach_shared_measures m where m.student_id = c.student_id)
+               end))
+      from l join public.coach_shares c on c.student_id = l.student_id and c.coach_id = l.coach_id), '{}'::jsonb))
+$$;
 
 -- Texte de 20261027100000_coach.sql
 create or replace function public.coach_send_programme(student uuid, prog_id text, data jsonb) returns void

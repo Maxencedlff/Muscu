@@ -51,7 +51,9 @@ function dietPending(d = data) {
 // (data.dietCoachConsent = { on, at }, SYNC_LOCAL_ONLY), seul garde-fou possible côté app.
 let dietCoachServerless = false;   // le serveur ne connaît pas encore l'accord 'diet' (réponse invalid_kind)
 function dietCoachAccepted(d = data) {
-  if (!dietCoachServerless && coachShare.state) return coachShareOn('diet');
+  // Le serveur annonce les données qu'il accepte (student_shares().kinds) : sans 'diet', il est d'avant
+  const server = coachShare.state && !dietCoachServerless && (coachShare.state.kinds || []).includes('diet');
+  if (server) return coachShareOn('diet');
   return d.dietCoachConsent?.on === true;
 }
 async function dietCoachSetAccept(on, d = data) {

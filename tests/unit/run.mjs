@@ -22,6 +22,8 @@ const SCRIPTS = [
   'js/core/util.js',
   'js/data/programmes.js',
   'js/data/tempo.js',
+  'js/data/grips.js',
+  'js/data/session-order.js',
   'js/data/supersets.js',
   'js/data/machine-track.js',
   'js/data/plates.js',
@@ -45,6 +47,8 @@ const SCRIPTS = [
   'js/data/coach-share.js',
   'js/data/coach-chat.js',
   'js/data/coach-diet.js',
+  'js/data/coach-plan.js',
+  'js/data/coach-progress.js',
   'js/data/referral.js',
   'js/data/plans.js',
   'js/data/min-build.js',
@@ -89,7 +93,10 @@ const SCRIPTS = [
   'js/features/share-stats.js',
   'js/features/share-canvas.js',
   'js/features/dashboard.js',
+  'js/features/session.js',
   'js/features/session-sheets.js',
+  'js/features/grip-ui.js',
+  'js/features/session-order-ui.js',
   'js/features/session-tools.js',
   'js/features/summary.js',
   'js/features/settings.js',
@@ -1551,6 +1558,8 @@ test('sons : le volume choisi (Fort, Normal, Bas) part avec chaque note, Fort pa
 (await import('./social.mjs')).default({ test, run, assert, sameJSON });
 // ── Tranche d'âge partagée par Apple, effets sur les Amis (tests dans age-range.mjs) ──
 (await import('./age-range.mjs')).default({ test, run, assert, sameJSON });
+// ── Prise d'un exercice et ordre de la séance (tests dans grips.mjs) ──
+(await import('./grips.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──
 (await import('./coach.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Commentaires et messages coach ↔ élève (tests dans comments.mjs et coach-chat.mjs) ──
@@ -1560,6 +1569,10 @@ test('sons : le volume choisi (Fort, Normal, Bas) part avec chaque note, Fort pa
 (await import('./records.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Partage avec le coach : consentement, pesées envoyées, volume relu avec le poids (tests dans coach-share.mjs) ──
 (await import('./coach-share.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+// ── Planification du coach : phases, semaines, chevauchement, nettoyage (tests dans coach-plan.mjs) ──
+(await import('./coach-plan.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+// ── Progression des élèves : signal, semaines, phases, tri, faits du serveur (tests dans coach-progress.mjs) ──
+(await import('./coach-progress.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Parrainage : code saisi, état du serveur, rapport CSV (tests dans referral.mjs) ──
 await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Relecture de la séance d'un autre : volume, écarts, records, douleur (tests dans review.mjs) ──
