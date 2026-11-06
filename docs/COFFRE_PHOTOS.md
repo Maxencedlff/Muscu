@@ -103,8 +103,10 @@ identifiant) n'existent sur aucun iPhone.
 
 - **IndexedDB** `mdlf-vault`, dans le bac à sable de l'app : chiffrées.
 - **Pas** dans la pellicule, ni dans l'export JSON, ni dans la copie iCloud de l'app (`ppl_v2` seulement).
-- **Pas** sur nos serveurs : pas dans la synchro du compte, ni chez le coach, ni chez les amis, ni dans les récaps,
-  les partages ou les notifications. Aucun de ces modules ne lit IndexedDB (`grep photo` sur `js/` : seulement
+- **Pas** sur nos serveurs : pas dans la synchro du compte, ni chez les amis, ni dans les récaps, les partages ou les
+  notifications. **Seule exception** (07/11/2026, `docs/PHOTOS_BILAN.md`) : une photo que l'élève envoie lui-même à son
+  coach, coffre ouvert, redessinée sans métadonnées et chiffrée sur l'iPhone pour la clé du coach (le serveur ne voit que du
+  chiffré) ; `js/data/coach-photos.js` ne lit que les photos déjà déchiffrées par l'écran du coffre ouvert. Aucun de ces modules ne lit IndexedDB (`grep photo` sur `js/` : seulement
   `progress-photos.js`, `photo-vault*.js`, des textes, et `wipeLocalData`).
 - **Sauvegarde de l'iPhone** : oui, comme tout le bac à sable, mais chiffrées ; lisibles sur un nouvel iPhone quand
   la clé y est arrivée par le trousseau iCloud.

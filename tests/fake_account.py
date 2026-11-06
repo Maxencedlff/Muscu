@@ -72,6 +72,12 @@ Planification (supabase/migrations/20261105000000_coach_planning.sql) : coach_pl
 note ni l'identifiant des phases), coach_plan_save (invalid_phase, too_long, overlap, too_many à 30, not_found), coach_plan_delete ; effacée
 avec le lien. État dans __sb.co.phases ; __sb.addPhase(élève, { goal, start, weeks, name?, prog_name?, note? })
 en pose une ; __sb.fail.plan = 'missing' (PGRST202 : serveur sans planification) ou 'offline'.
+Photos de bilan (supabase/migrations/20261107000000_photos_bilan.sql) : coach_photo_key, coach_photo_key_set (key_exists,
+replace efface les photos de l'ancienne clé), student_photo_state, student_photo_prepare (not_ready, key_changed,
+invalid_photo, not_adult sans la déclaration des 18 ans, too_many à 3 par jour), student_photo_adult, coach_photo_hide, student_photo_commit (not_uploaded), student_photo_remove, coach_student_photos ; et
+le compartiment privé (client.storage.from('coach-photos') : upload, createSignedUrl, remove, list) avec les règles des
+politiques. État dans __sb.co.pkeys, __sb.co.photos, __sb.objs (fichiers, base64), __sb.trash (file de purge), __sb.signed
+(URL signées et leur durée) ; __sb.fail.photos = 'missing' (PGRST202) ou 'offline'. Lien rompu : photos effacées.
 Progression (supabase/migrations/20261106000000_coach_progression.sql) : coach_progress (séances des 35 derniers
 jours avec leurs records notés, first_at, last_record_at, unnoted_at sur 182 jours, mes élèves seulement, encore
 coach) ; __sb.fail.progress = 'missing' (PGRST202 : serveur sans la fonction, l'app lit les séances page par page).
@@ -633,6 +639,111 @@ FAKE_ACCOUNT = r"""
   const linkOf = student => co.links.find(l => l.student === student);
   // L'élève de ce coach, et je suis encore coach (private.coach_require_student)
   const coachOf = (me, student) => { const l = linkOf(student); return l && l.coach === me && co.coachAt[me] ? l : null; };
+  // ── Photos de bilan (supabase/migrations/20261107000000_photos_bilan.sql) ──
+  // Clés des coachs { [coach]: { key_id, public_key, wrapped_key, wrap_iv, created_at } } ; photos { id, student, coach,
+  // key_id, taken_on, pose, epk, iv, state, bytes, created_at, sent_at } ; fichiers du compartiment { [chemin]: { b64,
+  // owner, at } } (sb.objs) ; file de purge (sb.trash) ; URL signées demandées (sb.signed : [chemin, durée]).
+  co.pkeys = {}; co.photos = []; co.adults = {}; sb.objs = {}; sb.trash = []; sb.signed = [];
+  const PH_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  const PH_PUB = /^B[A-P][A-Za-z0-9+/]{84}[AEIMQUYcgkosw048]=$/;
+  const phPath = p => `${p.student}/${p.id}`;
+  const dropPhotos = (pred) => { co.photos.filter(pred).forEach(p => sb.trash.push(phPath(p))); co.photos = co.photos.filter(p => !pred(p)); };
+  const phJson = p => ({ id: p.id, taken_on: p.taken_on, pose: p.pose, bytes: p.bytes, sent_at: p.sent_at });
+  const phKey = me => { const k = co.pkeys[me]; return k ? { ...k } : null; };
+  const photoRpc = {
+    coach_photo_key: me => (co.coachAt[me] ? phKey(me) : pgErr('not_coach')),
+    coach_photo_key_set: (me, a) => {
+      if (!co.coachAt[me]) return pgErr('not_coach');
+      if (!/^[0-9a-f]{32}$/.test(a.key_id || '') || !PH_PUB.test(a.public_key || '') || !/^[A-Za-z0-9+/]+={0,2}$/.test(a.wrapped_key || '')
+        || a.wrapped_key.length < 40 || a.wrapped_key.length > 400 || !/^[A-Za-z0-9+/]{16}$/.test(a.wrap_iv || '')) return pgErr('invalid_key');
+      if (co.pkeys[me] && a.replace !== true) return pgErr('key_exists');
+      if (co.pkeys[me]) dropPhotos(p => p.coach === me);
+      co.pkeys[me] = { key_id: a.key_id, public_key: a.public_key, wrapped_key: a.wrapped_key, wrap_iv: a.wrap_iv, created_at: new Date(now()).toISOString() };
+      return phKey(me);
+    },
+    student_photo_state: me => {
+      const l = linkOf(me), k = l && co.coachAt[l.coach] ? co.pkeys[l.coach] : null;
+      return { coach: !!l, ready: !!k, adult: !!co.adults[me], key: k ? { key_id: k.key_id, public_key: k.public_key } : null, per_day: 3, max: 60,
+        photos: l ? co.photos.filter(p => p.student === me && p.coach === l.coach && p.state === 'ready')
+          .sort((x, y) => (x.taken_on < y.taken_on ? 1 : x.taken_on > y.taken_on ? -1 : y.sent_at.localeCompare(x.sent_at))).map(phJson) : [] };
+    },
+    student_photo_prepare: (me, a) => {
+      const l = linkOf(me);
+      if (!l) return pgErr('not_found');
+      const k = co.pkeys[l.coach];
+      if (!k || !co.coachAt[l.coach]) return pgErr('not_ready');
+      if (a.key_id !== k.key_id) return pgErr('key_changed');
+      if (!co.adults[me]) return pgErr('not_adult');
+      const today = new Date(now()); const max = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString().slice(0, 10);
+      if (!PH_UUID.test(a.photo || '') || !/^\d{4}-\d\d-\d\d$/.test(a.taken_on || '') || a.taken_on < '2020-01-01' || a.taken_on > max
+        || !['face', 'side', 'back'].includes(a.pose) || !PH_PUB.test(a.epk || '') || !/^[A-Za-z0-9+/]{16}$/.test(a.iv || '')) return pgErr('invalid_photo');
+      if (co.photos.some(p => p.id === a.photo)) return pgErr('invalid_photo');
+      const mine = co.photos.filter(p => p.student === me);
+      if (mine.filter(p => p.taken_on === a.taken_on).length >= 3 || mine.length >= 60) return pgErr('too_many');
+      const p = { id: a.photo, student: me, coach: l.coach, key_id: k.key_id, taken_on: a.taken_on, pose: a.pose, epk: a.epk, iv: a.iv, state: 'pending', bytes: null, created_at: now(), sent_at: null };
+      co.photos.push(p);
+      return { id: p.id, path: phPath(p) };
+    },
+    student_photo_commit: (me, { photo }) => {
+      const p = co.photos.find(x => x.id === photo && x.student === me);
+      if (!p) return pgErr('not_found');
+      if (p.state === 'ready') return phJson(p);
+      const o = sb.objs[phPath(p)];
+      if (!o || o.size < 32 || o.size > 1048576) return pgErr('not_uploaded');
+      Object.assign(p, { state: 'ready', bytes: o.size, sent_at: new Date(now()).toISOString() });
+      return phJson(p);
+    },
+    student_photo_remove: (me, { photo }) => { dropPhotos(p => p.id === photo && p.student === me); return null; },
+    student_photo_adult: me => { co.adults[me] ||= new Date(now()).toISOString(); return photoRpc.student_photo_state(me); },
+    coach_photo_hide: (me, { photo }) => { if (!co.coachAt[me]) return pgErr('not_found'); dropPhotos(p => p.id === photo && p.coach === me); return null; },
+    coach_student_photos: (me, { student }) => {
+      if (!coachOf(me, student)) return pgErr('not_found');
+      return { photos: co.photos.filter(p => p.student === student && p.coach === me && p.state === 'ready')
+        .sort((x, y) => (x.taken_on < y.taken_on ? 1 : -1))
+        .map(p => ({ ...phJson(p), path: phPath(p), epk: p.epk, iv: p.iv, key_id: p.key_id })) };
+    },
+  };
+  // Compartiment privé coach-photos, politiques de la migration : envoi sur une photo préparée par moi, lecture de
+  // mon dossier ou d'une photo prête qui m'est destinée (encore coach), effacement de mon dossier seulement
+  const stErr = (msg, statusCode = '403') => ({ data: null, error: { name: 'StorageApiError', message: msg, statusCode } });
+  const canRead = (me, path) => path.split('/')[0] === me
+    || co.photos.some(p => phPath(p) === path && p.coach === me && p.state === 'ready' && co.coachAt[me]);
+  const phStorage = bucket => ({
+    upload: async (path, blob, o = {}) => {
+      log('storage', 'upload', JSON.stringify({ bucket, path, upsert: o.upsert, contentType: o.contentType, cacheControl: o.cacheControl }));
+      if (sb.fail.photos === 'offline' || sb.fail.upload === 'offline') return stErr('Failed to fetch', '');
+      const me = sb.meId();
+      if (bucket !== 'coach-photos' || !me) return stErr('new row violates row-level security policy');
+      if (!co.photos.some(p => phPath(p) === path && p.student === me && p.state === 'pending')) return stErr('new row violates row-level security policy');
+      if (sb.objs[path]) return stErr('The resource already exists', '409');
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      if (bytes.length > 1048576) return stErr('The object exceeded the maximum allowed size', '413');
+      let bin = ''; bytes.forEach(x => { bin += String.fromCharCode(x); });
+      sb.objs[path] = { b64: btoa(bin), size: bytes.length, owner: me, type: o.contentType || blob.type, at: now() };
+      return { data: { path }, error: null };
+    },
+    createSignedUrl: async (path, expiresIn) => {
+      log('storage', 'sign', JSON.stringify({ bucket, path, expiresIn }));
+      const me = sb.meId(), o = sb.objs[path];
+      if (!me || !o || !canRead(me, path)) return stErr('Object not found', '400');
+      sb.signed.push([path, expiresIn]);
+      const bin = atob(o.b64), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return { data: { signedUrl: URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' })) }, error: null };
+    },
+    remove: async paths => {
+      log('storage', 'remove', JSON.stringify(paths));
+      const me = sb.meId();
+      if (sb.fail.photos === 'offline') return stErr('Failed to fetch', '');
+      const gone = paths.filter(p => sb.objs[p] && p.split('/')[0] === me);
+      gone.forEach(p => delete sb.objs[p]);
+      return { data: gone.map(name => ({ name })), error: null };
+    },
+    list: async (folder) => {
+      const me = sb.meId();
+      return { data: Object.keys(sb.objs).filter(p => p.startsWith(folder + '/') && canRead(me, p)).map(p => ({ name: p.split('/')[1] })), error: null };
+    },
+  });
   const cperson = (id, since) => ({ ...person(id, since || 0), since: since == null ? null : new Date(since).toISOString() });
   const validInvite = code => co.invites.find(i => i.code === code && i.expires > now());
   const CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -868,13 +979,13 @@ FAKE_ACCOUNT = r"""
       if (!linkOf(me)) sb.link(r.coach, me);
       return cperson(r.coach, linkOf(me).at);
     },
-    coach_leave: me => { dropShares(me); dropChat(me); dropPhases(me); co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
+    coach_leave: me => { dropShares(me); dropChat(me); dropPhases(me); dropPhotos(p => p.student === me); co.links = co.links.filter(l => l.student !== me); co.progs = co.progs.filter(p => p.student !== me); co.notes = co.notes.filter(n => n.student !== me); return null; },
     // Retirer un accès est toujours permis, même si mon rôle de coach a été retiré
     coach_remove_student: (me, { student }) => {
       const l = linkOf(student);
       if (!l || l.coach !== me) return null;
       if (!co.bans.some(b => b.coach === me && b.student === student)) co.bans.push({ coach: me, student, at: now() });
-      dropShares(student); dropChat(student); dropPhases(student);
+      dropShares(student); dropChat(student); dropPhases(student); dropPhotos(p => p.student === student);
       co.links = co.links.filter(l => l.student !== student); co.progs = co.progs.filter(p => p.student !== student); co.notes = co.notes.filter(n => n.student !== student); return null;
     },
     coach_student_sessions: (me, { student, before_at = null, before_id = null }) => {
@@ -929,9 +1040,11 @@ FAKE_ACCOUNT = r"""
     const measFn = ['student_share_measures', 'coach_student_measures'].includes(fn);
     if ((planFn && sb.fail.plan === 'missing') || (measFn && sb.fail.measures === 'missing')) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
     if (planFn && sb.fail.plan === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
+    if (photoRpc[fn] && sb.fail.photos === 'missing') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}`, details: null, hint: null } };
+    if (photoRpc[fn] && sb.fail.photos === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
     const me = sb.meId();
     if (!me) return { data: null, error: { code: '42501', message: 'permission denied' } };
-    const out = coachRpc[fn](me, args);
+    const out = (photoRpc[fn] || coachRpc[fn])(me, args);
     return out && out.error !== undefined && out.data === null ? out : { data: out, error: null };
   };
   // ── Parrainage ──
@@ -1025,13 +1138,14 @@ FAKE_ACCOUNT = r"""
       sb.storage = o?.auth?.storage; sb.storageKey = o?.auth?.storageKey;
       return {
         auth, from,
+        storage: { from: bucket => phStorage(bucket) },
         rpc: async (fn, args) => {
           if (fn === 'strava_status') {
             log('strava', fn, '{}');
             if (sb.fail.strava === 'offline') return { data: null, error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' } };
             return sb.session ? { data: stravaStatus(), error: null } : { data: null, error: { code: '42501', message: 'permission denied' } };
           }
-          if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); if (nlRpc[fn]) return callNewsletter(fn, args); if (pushRpc[fn]) return callPush(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
+          if (socialRpc[fn]) return callSocial(fn, args); if (coachRpc[fn] || photoRpc[fn]) return callCoach(fn, args); if (referralRpc[fn]) return callReferral(fn, args); if (nlRpc[fn]) return callNewsletter(fn, args); if (pushRpc[fn]) return callPush(fn, args); log('rpc', fn, args?.name); return { data: !sb.taken.includes(args.name) && !Object.values(sb.profiles).some(p => p.username === args.name), error: null }; },
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
           const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });

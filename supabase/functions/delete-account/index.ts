@@ -17,8 +17,9 @@
 //    l'accès à la main.
 // 5. Accès Strava révoqué au mieux (docs/STRAVA.md) : sinon MDLF resterait dans les applications
 //    autorisées de la personne chez Strava. Strava injoignable : la suppression continue.
-// 6. L'utilisateur est supprimé ; ses séances, son profil, son pseudo et sa liaison Strava partent avec lui
-//    (on delete cascade).
+// 6. Fichiers chiffrés de ses photos de bilan effacés (removeCoachPhotos), au mieux.
+// 7. L'utilisateur est supprimé ; ses séances, son profil, son pseudo, sa liaison Strava et les lignes de ses
+//    photos de bilan partent avec lui (on delete cascade).
 import { adminClient, bodyCode, caller, CORS, json } from '../_shared/http.ts';
 import { exchangeAppleCode, revokeAppleToken } from '../_shared/apple.ts';
 import { deleteDecision, LINKED_IDENTITY_MIN_AGE_S } from './delete-policy.js';
@@ -30,6 +31,17 @@ async function identityChangeAt(userId: string): Promise<string | null | undefin
   const { data, error } = await adminClient().rpc('recent_identity_change', { uid: userId, since: `${LINKED_IDENTITY_MIN_AGE_S} seconds` });
   if (error) return undefined;
   return typeof data === 'string' || data === null ? data : undefined;
+}
+
+// Photos de bilan envoyées à son coach (docs/PHOTOS_BILAN.md) : les fichiers chiffrés de son dossier sont effacés
+// par l'API Storage avant le compte (supprimer le compte efface les lignes, pas les fichiers : Supabase a retiré la
+// clé étrangère entre storage.objects et auth.users). Échec, ou compartiment absent (migration pas appliquée) : la
+// suppression continue, et la purge planifiée (coach-photos-purge) retrouve ces fichiers sans ligne.
+async function removeCoachPhotos(userId: string): Promise<void> {
+  const bucket = adminClient().storage.from('coach-photos');
+  const { data, error } = await bucket.list(userId, { limit: 1000 });
+  if (error || !data?.length) return;
+  await bucket.remove(data.map((o) => `${userId}/${o.name}`));
 }
 
 Deno.serve(async (req) => {
@@ -49,6 +61,7 @@ Deno.serve(async (req) => {
 
   const revoked = grant ? await revokeAppleToken(grant) : false;
   try { await disconnectStrava(adminClient(), user.id); } catch { console.error('delete-account: Strava non révoqué'); }
+  try { await removeCoachPhotos(user.id); } catch { console.error('delete-account: photos de bilan laissées à la purge'); }
   const { error: delErr } = await adminClient().auth.admin.deleteUser(user.id);
   if (delErr) return json({ error: 'delete' }, 500);
   return json({ deleted: true, revoked });

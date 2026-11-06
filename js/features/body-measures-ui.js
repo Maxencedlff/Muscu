@@ -12,7 +12,7 @@
 'use strict';
 
 const BM_PRIVATE = 'Privé : reste sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs';
-const BM_SHARED = 'Partagées avec ton coach, qui voit leurs valeurs et leurs dates. Tes amis ne voient rien, et tes photos restent sur ton iPhone';
+const BM_SHARED = 'Partagées avec ton coach, qui voit leurs valeurs et leurs dates. Tes amis ne voient rien, et tes photos restent dans ton coffre, sauf celles que tu lui envoies toi-même';
 // Mensurations cochées dans Réglages › Partager avec mon coach (js/data/coach-share.js)
 function bmSharedWithCoach() { return !!account.user && coachShareOn('measures'); }
 function bmPrivacyText() { return bmSharedWithCoach() ? BM_SHARED : BM_PRIVATE; }

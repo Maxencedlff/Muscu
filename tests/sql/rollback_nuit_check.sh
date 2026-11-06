@@ -13,7 +13,7 @@
 #  3. Démontage complet dans l'ordre inverse (supabase/rollback/ORDRE.md), depuis toutes les migrations :
 #     après chaque retour arrière, état identique à la référence d'avant sa migration.
 #  4. Gardes : tarifs et modèle B refusent (sans rien changer) tant que la migration qui les réécrit est là.
-#  5. Retours arrière indépendants (plans diète du coach, séance publique : intensification et prise, parrainage du
+#  5. Retours arrière indépendants (photos de bilan, plans diète du coach, séance publique : intensification et prise, parrainage du
 #     payant, notifications, Strava, lettre, records, planification du coach, mensurations partagées, progression des
 #     élèves ; le partage du poids n'est plus seul depuis les mensurations, qui s'y appuient ; les mensurations seules :
 #     tests des plans diète écartés, ils s'y appuient)
@@ -148,6 +148,7 @@ for pair in "20261106100000:intensif_prise_test.sql" \
             "20261106000000:coach_progress_test.sql" \
             "20261101000000:parrainage_payant_test.sql" \
             "20261106200000:plans_diete_test.sql" \
+            "20261107000000:photos_bilan_test.sql" \
             "20261031000000:payant_plus_test.sql"; do
   t=${pair%%:*}; skip=" ${pair#*:} "
   clone ref "seul_$t"

@@ -214,7 +214,7 @@ function coachErrorKind(error) {
   if (isNetworkError(error) || /fetch|network|load failed/i.test(String(error.message || ''))) return 'offline';
   const msg = String(error.message || error.error || '');
   for (const k of ['diet_not_accepted', 'not_coach', 'already_coached', 'invalid_code', 'tier_full', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required', 'not_shared', 'invalid_kind', 'invalid_data',
-    'empty_message', 'invalid_phase', 'overlap', 'too_many']) if (msg.includes(k)) return k;
+    'empty_message', 'invalid_phase', 'overlap', 'too_many', 'not_ready', 'key_changed', 'key_exists', 'invalid_photo', 'not_uploaded', 'invalid_key', 'not_adult']) if (msg.includes(k)) return k;
   // Fonction absente du serveur (migration pas encore appliquée) : PostgREST répond PGRST202
   if (error.code === 'PGRST202' || /could not find the function/i.test(msg)) return 'missing';
   return 'server';
@@ -244,6 +244,14 @@ const COACH_ERROR_TEXT = {
   invalid_phase: 'Vérifie l\'objectif, la date de début et la durée (1 à 52 semaines).',
   overlap: 'Cette phase chevauche une autre phase de cet élève : change sa date ou sa durée.',
   too_many: 'Cet élève a déjà 30 phases : supprime d\'anciennes phases d\'abord.',
+  // Photos de bilan (js/data/coach-photos.js)
+  not_ready: 'Ton coach n\'a pas encore activé la réception des photos.',
+  key_changed: 'Ton coach a changé de clé : réessaie.',
+  key_exists: 'La réception des photos est déjà activée sur un autre appareil.',
+  invalid_photo: 'Cette photo ne peut pas être envoyée.',
+  not_uploaded: 'Envoi interrompu, rien n\'est resté sur le serveur. Réessaie.',
+  invalid_key: 'Clé illisible : réessaie.',
+  not_adult: 'Les photos de bilan sont réservées aux 18 ans et plus.',
   // Messages (js/data/coach-chat.js)
   empty_message: 'Écris quelque chose avant d\'envoyer.',
   busy: 'Envoi déjà en cours.',

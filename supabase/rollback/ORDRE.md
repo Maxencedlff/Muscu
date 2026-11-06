@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −7 | `20261107000000_photos_bilan_down.sql` (vider d'abord le compartiment `coach-photos` par l'API Storage : il refuse sinon) | rien | oui (vérifié) |
 | −6 | `20261106200000_plans_diete_coach_down.sql` | rien | oui (vérifié) |
 | −5 | `20261106100000_seance_publique_intensif_prise_down.sql` | rien | oui (vérifié) |
 | −4 | `20261106000000_coach_progression_down.sql` | rien | oui (vérifié) |
@@ -46,10 +47,11 @@ La production a reçu toutes les migrations de `main` (lot 3, notifications push
 8. `20261106000000_coach_progression.sql`
 9. `20261106100000_seance_publique_intensif_prise.sql` (séance vue par un ami ou un coach : techniques d'intensification et prise ; indépendante, peut aussi passer seule)
 10. `20261106200000_plans_diete_coach.sql` (après l'OTA qui demande l'accord de l'élève : sinon les coachs ne peuvent plus envoyer de plan diète tant que leurs élèves n'ont pas la version qui sait accepter ; et après les mensurations, dont il garde la donnée)
+11. `20261107000000_photos_bilan.sql` (photos de bilan chiffrées de bout en bout, docs/PHOTOS_BILAN.md : indépendante ; avant l'OTA, avec la fonction `coach-photos-purge` et sa planification)
 
-Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md). Avec la CLI Supabase, `supabase db push` refuse des migrations plus anciennes que la dernière appliquée : `supabase db push --include-all` (après `supabase migration list` pour vérifier qu'il ne reste QUE ces dix fichiers, Strava retiré du dossier le temps de la commande), ou chaque fichier collé dans l'éditeur SQL dans cet ordre.
+Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md). Avec la CLI Supabase, `supabase db push` refuse des migrations plus anciennes que la dernière appliquée : `supabase db push --include-all` (après `supabase migration list` pour vérifier qu'il ne reste QUE ces onze fichiers, Strava retiré du dossier le temps de la commande), ou chaque fichier collé dans l'éditeur SQL dans cet ordre.
 
-Pour défaire en production : l'ordre inverse de cette liste (10 → 1), avant tout retour arrière plus ancien.
+Pour défaire en production : l'ordre inverse de cette liste (11 → 1), avant tout retour arrière plus ancien.
 
 ## Ce qui est mis de côté, pas effacé
 

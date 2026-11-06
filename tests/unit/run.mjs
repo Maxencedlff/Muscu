@@ -69,6 +69,7 @@ const SCRIPTS = [
   'js/data/import-measures.js',
   'js/data/progress-photos.js',
   'js/data/photo-vault.js',
+  'js/data/coach-photos.js',
   'js/data/session-review.js',
   'js/data/health-workouts.js',
   'js/data/health-export.js',
@@ -1614,6 +1615,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 
 // ── Coffre à photos : code, chiffrement, essais, verrouillage (tests dans photo-vault.mjs) ──
 (await import('./photo-vault.mjs')).default({ test, run, assert, app });
+// ── Photos de bilan envoyées au coach : métadonnées, chiffrement de bout en bout (tests dans coach-photos.mjs) ──
+(await import('./coach-photos.mjs')).default({ test, run, assert, app });
+(await import('./coach-photos-purge.mjs')).default({ test, assert, sameJSON, ROOT });
 
 // ── Accueil et Mon profil : régularité, membre depuis, records récents, activité groupée (tests dans profile.mjs) ──
 (await import('./profile.mjs')).default({ test, run, reset, assert, app, sameJSON });

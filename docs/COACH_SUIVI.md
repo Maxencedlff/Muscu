@@ -30,7 +30,7 @@ Tests : `tests/sql/coach_planning_test.sql`, `tests/sql/partage_mensurations_tes
 | Vue d'ensemble | Mes élèves › **Planning** : une ligne par élève sur 16 semaines (3 passées, 12 à venir), barre colorée par phase, aujourd'hui marqué ; « Mini cut · sem. 3/6 » dans chaque ligne de Mes élèves | C'est « le calendrier bien ordonné ». 16 semaines tiennent dans la largeur d'un iPhone sans défilement horizontal (environ 15 px par semaine sur un iPhone SE). |
 | Lien rompu | Planning **effacé** (cascade sur `coach_links`) | Comme les messages : quitter, être retiré ou supprimer un compte efface tout ; un nouveau coach ne voit jamais le planning de l'ancien. |
 | Bilan | Les **mensurations** rejoignent « Partager avec mon coach », sur le modèle exact du poids | Même consentement par donnée, horodaté sur le serveur, décoché par défaut, effacement en décochant ou en quittant. L'élève comprend un seul modèle. |
-| Photos | **Pas en V1** | Voir « Photos du coffre : pourquoi pas en V1 ». |
+| Photos | **Pas dans cette V1** ; ajoutées le 07/11/2026, chiffrées de bout en bout : `docs/PHOTOS_BILAN.md` | Voir « Photos du coffre : pourquoi pas en V1 ». |
 | Courbe du poids | Existait déjà (fiche de l'élève, depuis le 30/10) ; gardée, dans un « Bilan » qui enchaîne poids puis mensurations | Voir « Poids ». |
 
 ## Planification
@@ -139,6 +139,10 @@ qu'une (la courbe en demande deux ; la dernière pesée s'affiche quand même). 
 écran, le poids est désormais suivi des mensurations dans le même bloc, et le planning est au-dessus.
 
 ## Photos du coffre : pourquoi pas en V1
+
+Mise à jour du 07/11/2026 : les trois points ci-dessous sont réglés par `docs/PHOTOS_BILAN.md` (compartiment privé et purge,
+chiffrement de bout en bout avec une clé par coach gardée par le module du coffre, sans nouvelle build ; accord photo par
+photo). Ce qui suit est le raisonnement d'origine.
 
 Les photos de progression vivent dans le coffre (`docs/COFFRE_PHOTOS.md`) : chiffrées en AES-GCM avec une clé du
 trousseau iCloud rendue seulement après Face ID, sur l'iPhone, jamais sur nos serveurs, et c'est écrit tel quel dans
@@ -260,4 +264,4 @@ poids (`20261031300000_partage_coach_down.sql`), qui supprime la table des conse
 - Pas de rappel « bilan à faire » pour l'élève (par exemple chaque lundi) : il partage ce qu'il note.
 - Les mensurations ne se synchronisent pas entre les appareils de l'élève : c'est l'appareil où il les note qui
   envoie (comme les pesées).
-- Pas de photos (voir plus haut).
+- Pas de photos (voir plus haut) ; ajoutées ensuite : `docs/PHOTOS_BILAN.md`.

@@ -19,7 +19,7 @@
 'use strict';
 
 const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send', 'coach-share', 'coach-chat', 'coach-request',
-  'coach-plan', 'coach-planning', 'coach-measures', 'coach-measure'];
+  'coach-plan', 'coach-planning', 'coach-measures', 'coach-measure', 'coach-photos', 'coach-photos-mine'];
 const COACH_SEND_DRAFT_KEY = 'mdlf_coach_send_draft';   // brouillon de l'écran Envoyer (retour arrière, relance)
 const coachTipClosed = new Set();   // séance en cours : consignes repliées (identifiant d'exercice, '' : programme)
 const coachProgOpen = new Set();    // Mon coach : programmes reçus dont les exercices sont dépliés
@@ -62,7 +62,8 @@ function coachRouteTitle(route) {
   const name = routeName(route);
   if (name === 'coach-student') return coachStudent(routeParams(route)[0])?.username || 'Élève';
   return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-share': 'Partager', 'coach-chat': 'Messages', 'coach-request': 'Devenir coach',
-    'coach-plan': 'Planning', 'coach-planning': 'Planning', 'coach-measures': 'Mensurations', 'coach-measure': 'Mesure' }[name] || null;
+    'coach-plan': 'Planning', 'coach-planning': 'Planning', 'coach-measures': 'Mensurations', 'coach-measure': 'Mesure', 'coach-photos': 'Photos',
+    'coach-photos-mine': 'Photos' }[name] || null;
 }
 
 // ── Cellules : Réglages et onglet Amis ──────────────────────
@@ -379,6 +380,7 @@ function renderCoachMine() {
         ${chatIntroHtml()}
         ${chatCellHtml(CHAT_COACH)}
         ${studentPlanHtml()}
+        ${cphMineCellHtml()}
         ${notes}
         <div class="group-title">Programmes reçus</div>
         <div class="coach-progs">${progs}</div>
@@ -393,7 +395,7 @@ function renderCoachMine() {
 SCREENS.set('coach-mine', {
   render: () => renderCoachMine(),
   // Relu à chaque arrivée (retour compris) ; commentaires listés ici : vus
-  enter: async () => { await coachRefresh(); (coach.inbox?.notes || []).filter(n => !n.seen).forEach(n => coachMarkInboxSeen('note', n.session_id)); },
+  enter: async () => { await coachRefresh(); cphRefresh({ minAge: 30_000 }); (coach.inbox?.notes || []).filter(n => !n.seen).forEach(n => coachMarkInboxSeen('note', n.session_id)); },
 });
 
 // Cartes de l'accueil : programme reçu pas encore ajouté (ou mis à jour), commentaire pas encore lu
@@ -715,6 +717,7 @@ SCREENS.set('coach-student', {
     coachLoadSessions(uid);
     coachLoadWeights(uid);
     coachLoadMeasures(uid);
+    cphCoachRefresh().then(() => { if (cphCoach.key) cphCoachLoad(uid); });   // photos de bilan (liste chiffrée, rien d'ouvert)
     if (!plan.coach && plan.available !== false) coachPlanRefresh();   // planning (serveur sans planification : rien)
     coachProgressRefresh();   // résumé « Cette semaine » (5 min au plus entre deux lectures)
     coachMarkSeen(uid);
@@ -964,8 +967,10 @@ registerActions({
     const lost = (coach.inbox?.programmes || []).filter(p => coachStatus(p).status === 'new').map(p => `« ${p.data.name} »`);
     const extra = lost.length ? ` ${lost.length > 1 ? `Les programmes ${lost.join(', ')} que tu n'as pas ajoutés seront perdus.` : `Le programme ${lost[0]} que tu n'as pas ajouté sera perdu.`}` : '';
     if (!(await confirmSheet(`Quitter ${name} ?`, `${name} ne verra plus tes séances. Ses commentaires et vos messages sont effacés. Les programmes déjà ajoutés restent dans tes programmes.${extra}`, 'Quitter mon coach'))) return;
+    const me = account.user?.id;
     const r = await coachLeave();
     if (!coachToast(r, `Tu ne suis plus ${name}`)) return;
+    cphForgetAll(me);   // photos de bilan : lignes effacées par le serveur, fichiers de mon dossier aussi
     if (currentView() === 'coach-mine') goBack(); else render();
   },
   'coach-lost-ok': () => { coachSetLost(null); refreshCoachCell(); },

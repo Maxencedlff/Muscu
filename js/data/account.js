@@ -554,7 +554,9 @@ async function accountUsernameAvailable(name) {
 const CROSS_USER_CACHE_KEYS = [PROFILE_CACHE_KEY, 'mdlf_social', 'mdlf_coach', 'mdlf_coach_inbox',
   'mdlf_coach_sent', 'mdlf_coach_seen', 'mdlf_coach_lost', 'mdlf_coach_send_draft', 'mdlf_access', 'mdlf_strava',
   // Planification (notes du coach sur ses élèves) et dernier envoi des mensurations (docs/COACH_SUIVI.md)
-  'mdlf_coach_plan', 'mdlf_coach_share_m'];
+  'mdlf_coach_plan', 'mdlf_coach_share_m',
+  // Photos de bilan : photos du coffre envoyées à mon coach (docs/PHOTOS_BILAN.md)
+  'mdlf_coach_photos', 'mdlf_coach_photo_pin'];
 function clearCrossUserCaches() {
   try { CROSS_USER_CACHE_KEYS.forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
 }
