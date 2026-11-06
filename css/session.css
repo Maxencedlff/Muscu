@@ -447,7 +447,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
   min-height: 44px; padding: 0 14px; border: 0; border-radius: 22px; cursor: pointer;
   background: var(--fill); color: var(--label); font: inherit; font-size: var(--fs-footnote); font-weight: 600;
 }
-.ax__chip[aria-pressed="true"] { background: var(--tint); color: var(--white); }
+.ax__chip[aria-pressed="true"] { background: var(--tint-fill); color: var(--on-tint); }   /* contraste 4,5:1 en sombre */
 .ax__chip:active { opacity: .6; }
 
 /* Bibliothèque : pastilles de matériel sous la recherche, ligne de bord à bord comme celles des muscles */

@@ -168,7 +168,7 @@ function recordRowsHtml(recs) {
     return `
       <div class="cell rec-row">
         <span class="cell__body"><span class="cell__title">${esc(ex)}</span>
-          <span class="cell__sub num">${esc(fmtDate(date))}${gain ? ` · ${icon('arrow.up', 11)}${esc(gain)}<span class="visually-hidden"> de plus</span>` : ''}</span></span>
+          <span class="cell__sub num">${esc(fmtDate(date))}${gain ? ` · ${icon('arrow.up', 11)}${esc(gain)}<span class="sr-text"> de plus</span>` : ''}</span></span>
         <span class="rec-row__val num">${esc(notedValueTxt(r))}</span>
       </div>`;
   }).join('');
