@@ -594,6 +594,9 @@ function loadData() {
 function freshData() {
   const d = makeDefaultData();
   d.schema = SCHEMA;
+  // Nouvel utilisateur : reps en réserve non demandées (une case de plus après chaque série pour qui
+  // débute) ; une donnée existante sans le champ garde le sélecteur (sanitizeData : absent = montré)
+  d.rirOn = false;
   return d;
 }
 

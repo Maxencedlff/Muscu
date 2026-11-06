@@ -64,16 +64,14 @@
   flex: 1; min-width: 0; font-size: 0.941rem; font-weight: 500; color: var(--label);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ss-member__name.ex-howto { padding: 11px 0; margin: 0; }
-.ss-member__name .ex-howto__text { -webkit-line-clamp: 1; }
+/* Nom sur une ligne, points de suspension ; ⓘ toujours visible après le nom */
+.ss-member__name.ex-howto { display: flex; align-items: center; padding: 11px 0; margin: 0; }
+.ss-member__name .ex-howto__text { display: block; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ss-member__name.ex-howto .icon { flex-shrink: 0; }
 .ss-round + .ss-round { margin-top: 2px; }
 .ss-round__title {
   padding: 10px 0 2px; font-size: 0.706rem; font-weight: 600; letter-spacing: .04em;
   text-transform: uppercase; color: var(--label2);
-}
-.ss-exname {
-  margin: 4px 0 -4px; padding-left: 2px; font-size: 0.765rem; color: var(--label2);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ex-summary__line .ss-tag--sm { margin-right: 6px; }
 /* Feuille « Superset » : nom et, s'il est déjà dans un autre groupe, lequel */
@@ -87,6 +85,9 @@
 .ed-ss-btn:active { opacity: .5; }
 
 .ex-card__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); margin: 0 0 8px; }
+/* Objectif du jour (exGoalHtml) : sous le nom, couleur d'accent ; vert une fois battu */
+.ex-goal { display: flex; align-items: center; gap: 4px; margin: -2px 0 2px; font-size: 0.765rem; line-height: 1.059rem; font-weight: 600; color: var(--tint); }
+.ex-goal--done { color: var(--green-text); }
 .ex-rest-link {
   background: none; border: 0; color: var(--tint); font: inherit; cursor: pointer;
   padding: 13px 2px; margin: -13px -2px;
@@ -99,14 +100,14 @@
 /* « Avant » plus large que Reps (2 chiffres) pour tenir « 32,5 × 10 » sur une ligne */
 .sets { --set-cols: 34px minmax(0,1.3fr) minmax(0,1fr) minmax(44px,.8fr) 52px; --set-gap: 6px; }
 @media (max-width: 374px) { /* Android de 360 px compris */
-  .sets { --set-cols: 30px minmax(0,1.2fr) minmax(0,1.1fr) minmax(44px,.8fr) 48px; --set-gap: 3px; }
+  /* 1re colonne de 34 px : « Série » tient en entier à 12 px */
+  .sets { --set-cols: 34px minmax(0,1.2fr) minmax(0,1.1fr) minmax(44px,.8fr) 48px; --set-gap: 3px; }
 }
 .sets__head, .session-set { display: grid; grid-template-columns: var(--set-cols); column-gap: var(--set-gap); align-items: center; }
 .sets__head {
   padding: 0 6px 4px; font-size: 0.706rem; font-weight: 600; color: var(--label2);
   text-align: center; white-space: nowrap;
 }
-@media (max-width: 374px) { .sets__head { font-size: 0.647rem; } }
 .sets__head > span { display: flex; justify-content: center; }
 .set-swipe { position: relative; overflow: hidden; border-radius: var(--r-sm); margin: 0 -6px 2px; }
 .session-set {
@@ -237,10 +238,13 @@ body.kb-open .rest-mini { transform: translateY(140%); opacity: 0; pointer-event
   display: inline-flex; align-items: center; justify-content: center; min-height: 44px; color: var(--tint-on-fill);
 }
 .rest-mini__btn:active, .rest-mini .rest-mini__skip:active { opacity: .6; }
+/* « Ensuite : nom · S2 · 32,5 kg × 10 » : le nom se coupe (points de suspension), jamais la série */
 .rest-mini__next {
-  grid-column: 1 / -1; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  grid-column: 1 / -1; display: flex; min-width: 0; font-size: 0.765rem; line-height: 1.059rem; color: var(--label2);
+  white-space: nowrap;
 }
+.rest-mini__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.rest-mini__tail { flex-shrink: 0; }
 .rest-mini--done { animation: restGo 1s ease 2; }
 @keyframes restGo { 30% { background: color-mix(in srgb, var(--cat-color) 55%, var(--cell2)); } }
 .rest-mini__go { grid-column: 1 / -1; text-align: center; font-size: 1.294rem; font-weight: 700; color: var(--label); }
@@ -315,7 +319,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .ax__title { font-size: 1rem; font-weight: 600; text-align: center; }
 .ax__replacing { text-align: center; font-size: 0.765rem; color: var(--label2); padding: 0 16px; }
 .ax__search {
-  margin: 8px 16px; height: 40px; padding: 0 12px; border: 0; border-radius: var(--r-sm);
+  margin: 8px 16px; height: 44px; padding: 0 12px; border: 0; border-radius: var(--r-sm);
   background: var(--fill); color: var(--label); font-size: 1rem; font-family: inherit; -webkit-appearance: none; appearance: none;
 }
 .ax__search:focus { outline: none; box-shadow: 0 0 0 2px var(--tint); }
@@ -326,7 +330,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
   content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep);
 }
 .ax-stepper { display: flex; align-items: center; background: var(--fill); border-radius: 8px; }
-.ax-stepper button { width: 44px; height: 32px; border: 0; background: none; color: var(--label); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.ax-stepper button { width: 44px; height: 44px; border: 0; background: none; color: var(--label); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .ax-stepper span { min-width: 28px; text-align: center; font-size: 1rem; font-weight: 600; }
 .ax-switch {
   -webkit-appearance: none; appearance: none; width: 51px; height: 31px; border-radius: 16px; flex-shrink: 0;
@@ -351,7 +355,8 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 /* ── Bilan de fin ────────────────────────────────── */
 .view.summary { background: var(--bg); }
 .summary-content {
-  flex: 1; overflow-y: auto; overscroll-behavior: none;
+  /* Le document défile (.view en bloc) : pas de défilement interne, sinon « Terminé » (sticky) ne se colle pas */
+  flex: 1;
   padding: calc(env(safe-area-inset-top, 0px) + 24px) 16px calc(32px + env(safe-area-inset-bottom, 0px));
   color: var(--label);
 }
@@ -359,6 +364,11 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .sum-title { font-size: 34px; line-height: 41px; font-weight: 700; margin: 0; }
 .sum-date { font-size: 0.882rem; color: var(--label2); }
 .sum-date::first-letter { text-transform: uppercase; }
+/* Ligne de ce qui a progressé (summaryLine) ; médaille d'un record qui apparaît (0,6 → 1 en 300 ms) */
+.sum-line { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 0.941rem; line-height: 1.294rem; font-weight: 600; color: var(--label); }
+.sum-line .medal { color: var(--yellow); flex-shrink: 0; }
+.sum-line .medal, .sum-record .medal { animation: sum-medal .3s cubic-bezier(.2, .8, .2, 1.2) both; }
+@keyframes sum-medal { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .sum-tiles { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
 .sum-tile { background: var(--cell); border-radius: var(--r-md); padding: 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .sum-tile__label { font-size: 0.765rem; color: var(--label2); }
@@ -387,14 +397,17 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 }
 .sum-notes:focus { outline: none; box-shadow: 0 0 0 2px var(--tint); }
 .sum-notes::placeholder { color: var(--label2); }
+/* « Terminé » toujours visible en bas (iPhone SE : le bilan dépasse l'écran), sur une bande du fond de l'écran */
 .sum-done {
   display: block; width: 100%; height: 50px; margin-top: 24px; border: 0; border-radius: var(--r-md);
   background: var(--tint-fill); color: var(--on-tint); font-size: 1rem; font-weight: 600; cursor: pointer; font-family: inherit;
+  position: sticky; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 2;
+  box-shadow: 0 0 0 12px var(--bg);
 }
 .sum-done:active { opacity: .6; }
 
 @media (prefers-reduced-motion: reduce) {
-  .rest-mini, .rest-mini--done, .session-set--go, .sess-sheet__panel { animation: none; }
+  .rest-mini, .rest-mini--done, .session-set--go, .sess-sheet__panel, .sum-line .medal, .sum-record .medal { animation: none; }
   .session-set { transition: none; }
 }
 
@@ -422,16 +435,22 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 }
 .music-bar__btn:active { background: var(--fill); }
 /* Filtre de matériel de la feuille d'ajout : pastilles qui passent à la ligne, toutes visibles même sur petit écran */
-.ax__equip { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 16px; }
+/* Matériel : une seule ligne qui défile de côté, comme celles des muscles (.mf__row) ; pastilles de 44 px */
+.ax__equip {
+  display: flex; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  padding: 0 16px; scroll-padding-inline: 16px;
+}
+.ax__equip::-webkit-scrollbar { display: none; }
+.ax__equip .ax__chip { flex-shrink: 0; white-space: nowrap; }
 .ax__chip {
-  min-height: 34px; padding: 0 12px; border: 0; border-radius: 17px; cursor: pointer;
+  min-height: 44px; padding: 0 14px; border: 0; border-radius: 22px; cursor: pointer;
   background: var(--fill); color: var(--label); font: inherit; font-size: var(--fs-footnote); font-weight: 600;
 }
 .ax__chip[aria-pressed="true"] { background: var(--tint); color: var(--white); }
 .ax__chip:active { opacity: .6; }
 
-/* Bibliothèque : pastilles de matériel sous la recherche */
-.lib__equip { margin: 10px 0 0; }
+/* Bibliothèque : pastilles de matériel sous la recherche, ligne de bord à bord comme celles des muscles */
+.lib__equip { margin: 2px -16px 0; }
 
 /* Filtre par muscle (js/features/muscles.js, muscleFilterHtml) : groupes puis muscles du groupe choisi,
    chaque ligne défile de côté pour garder la hauteur de la liste. Feuille d'ajout : même marge que le matériel. */
@@ -541,33 +560,32 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 }
 .set-plates::after { content: ''; position: absolute; inset: -6px; }
 .set-plates:active { opacity: .6; }
-/* RIR (js/data/rir.js) : sélecteur 0 à 4+ sous la dernière série validée, badge « RIR 2 » sur les autres */
-/* Sous la ligne (hors de son bouton « Modifier »), aligné sur la colonne « Avant » */
+/* Reps en réserve (js/data/rir.js) : sélecteur 0 à 4+ sous la dernière série validée, badge « 2 en réserve »
+   sur les autres. Sous la ligne (hors de son bouton « Modifier ») : le libellé en entier et l'équivalent RPE,
+   puis cinq pastilles de 44 × 44 px (8 px d'écart) */
 .set-swipe .rir {
-  position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; min-width: 0;
-  padding: 0 6px 6px calc(34px + var(--set-gap) + 6px); background: var(--cell); border-radius: 0 0 var(--r-sm) var(--r-sm);
+  position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0;
+  padding: 0 6px 8px calc(34px + var(--set-gap) + 6px); background: var(--cell); border-radius: 0 0 var(--r-sm) var(--r-sm);
 }
-@media (max-width: 374px) { .set-swipe .rir { padding-left: calc(30px + var(--set-gap) + 6px); } }
-.rir__lbl { font-size: 0.706rem; font-weight: 600; color: var(--label2); margin-right: -2px; flex-shrink: 0; }
+.rir__lbl, .rir__rpe { font-size: 0.765rem; font-weight: 600; color: var(--label2); white-space: nowrap; }
+.rir__btns { order: 2; flex-basis: 100%; display: flex; gap: 8px; }
 .rir__btn {
-  position: relative; min-width: 36px; height: 32px; padding: 0 4px; border: 0; border-radius: var(--r-pill); cursor: pointer;
-  background: var(--fill); color: var(--label); font-size: 0.765rem; font-weight: 600; font-family: inherit;
+  width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; flex-shrink: 0;
+  background: var(--fill); color: var(--label); font-size: 0.882rem; font-weight: 600; font-family: inherit;
 }
-/* Zone de toucher de 44 × 44 px : 36 px + 2 × 4 px, et 8 px d'écart entre deux boutons (pas de 44 px, sans chevauchement) */
-.rir__btn::after { content: ''; position: absolute; inset: -6px -4px; }
 .rir__btn[aria-pressed="true"] { background: var(--tint-fill); color: var(--on-tint); }
 .rir__btn:active { opacity: .6; }
-.rir__rpe { font-size: 0.706rem; font-weight: 600; color: var(--label2); margin-left: 4px; white-space: nowrap; }
 .session-set .rir-badge {
   display: inline-block; background: var(--fill); color: var(--label2);
   font-size: 0.706rem; font-weight: 600; padding: 2px 8px; border-radius: var(--r-xs);
 }
-@media (max-width: 374px) {   /* 32 px + 2 × 6 px, écart de 12 px : toujours 44 px */
-  .set-swipe .rir { gap: 12px; } .rir__lbl { margin-right: -6px; }
-  .rir__btn { min-width: 32px; } .rir__btn::after { inset: -6px; } .rir__rpe { display: none; }
+/* Petit écran : la rangée part du bord de la carte (5 × 44 px n'entrent pas après la colonne « Série ») */
+@media (max-width: 374px) {
+  .set-swipe .rir { padding-left: 6px; }
+  .rir__btns { gap: 6px; }
 }
 
-/* Historique : lignes « Échauffement … » et « RIR … » sous les séries */
+/* Historique : lignes « Échauffement … » et « Reps en réserve … » sous les séries */
 .hex__sets--note { color: var(--label3); }
 
 /* Feuille « Disques » */

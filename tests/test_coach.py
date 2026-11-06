@@ -666,7 +666,7 @@ def t_rir(bench, eng, dev, theme):
         page.click('.coach-sess[data-id="y0"]')
         page.wait_for_selector('.coach-session-view .review-rec')
         d = page.inner_text('.coach-session-view').replace('\u202f', ' ').replace('\u00a0', ' ')
-        R.check('RIR 2 · —' in d, f'{t} RIR noté visible ({d[:400]!r})')
+        R.check('Reps en réserve : 2 · —' in d, f'{t} reps en réserve notées visibles ({d[:400]!r})')
         R.check('Échauffement 10 kg × 8' in d, f'{t} échauffement à part')
         tiles = [x.replace('\u202f', ' ') for x in page.locator('.coach-session-view .tile').all_inner_texts()]
         R.check(tiles[0].startswith('480') and tiles[2].startswith('2'), f'{t} échauffement hors volume et séries ({tiles})')

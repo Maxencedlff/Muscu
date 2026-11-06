@@ -26,7 +26,8 @@ function rirTxt(rir) {
   return r === null ? '' : r >= RIR_MAX ? `${RIR_MAX}+` : String(r);
 }
 
-// Réglage : sélecteur montré après chaque série (data.rirOn, true par défaut ; propre à l'appareil)
+// Réglage : sélecteur montré après chaque série (data.rirOn ; coupé pour un nouvel utilisateur, freshData,
+// montré pour une donnée d'avant sans le champ ; propre à l'appareil)
 function rirShown(d = data) { return d.rirOn !== false; }
 
 // Effort d'une liste de séries : RPE moyen (4+ compté 6) des séries de travail notées, null sans note
@@ -36,9 +37,10 @@ function meanRpe(sets) {
   return Math.round(vals.reduce((a, r) => a + 10 - r, 0) / vals.length * 10) / 10;
 }
 
-// « RIR 2 · 2 · 1 · — » : une valeur par série de travail, « — » quand elle n'est pas notée ; '' sans aucune note
+// « Reps en réserve : 2 · 2 · 1 · — » : une valeur par série de travail, « — » quand elle n'est pas notée ;
+// '' sans aucune note
 function rirLine(sets) {
   const ws = workSets(sets);
   if (!ws.some(s => cleanRir(s.rir) !== null)) return '';
-  return `RIR ${ws.map(s => rirTxt(s.rir) || '—').join(' · ')}`;
+  return `Reps en réserve : ${ws.map(s => rirTxt(s.rir) || '—').join(' · ')}`;
 }

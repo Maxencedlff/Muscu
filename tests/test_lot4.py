@@ -106,7 +106,11 @@ def t_flow(bench, eng, dev, theme):
         lay = page.evaluate("""(() => { const m = document.querySelector('.rest-mini__timer').getBoundingClientRect();
             const b = document.querySelector('.rest-mini__btn').getBoundingClientRect(); return [m.right, b.left]; })()""")
         R.check(lay[0] <= lay[1], f'{t} chrono de la barre sans chevauchement {lay}')
-        R.check('Ensuite : Développé couché haltères · S2' in page.locator('.rest-mini__next').inner_text(), f'{t} ligne « Ensuite »')
+        nxt = ' '.join(page.locator('.rest-mini__next').inner_text().split())
+        R.check(nxt.startswith('Ensuite : Développé couché haltères · S2 · '), f'{t} ligne « Ensuite » ({nxt!r})')
+        # Ligne trop longue : le nom se coupe (points de suspension), jamais la série (« 32,5 kg × 10 » entier)
+        tail = page.evaluate("(() => { const n = document.querySelector('.rest-mini__next'), t = n.querySelector('.rest-mini__tail').getBoundingClientRect(); return t.right <= n.getBoundingClientRect().right + 1; })()")
+        R.check(tail, f'{t} série de la ligne « Ensuite » entière')
         shot(page, LOT, f'repos-barre-{t}')
         # Pendant le repos, les champs de la série suivante restent modifiables
         w1, r1, v1 = row_inputs(page, 0, 1)

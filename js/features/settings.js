@@ -67,8 +67,8 @@ ${renderAccessSettingsGroup()}
           ${renderBodyWeightSetting()}
           ${strengthSexSettingHtml()}
           <button class="cell" data-action="setting-rir" role="switch" aria-checked="${rirShown()}">
-            <span class="cell__body"><span class="cell__title">Noter le RIR</span>
-              <span class="cell__sub">Reps en réserve après chaque série, facultatif</span></span>
+            <span class="cell__body"><span class="cell__title">Noter les reps en réserve</span>
+              <span class="cell__sub">Après chaque série, facultatif</span></span>
             ${switchHtml(rirShown())}
           </button>
         </div>
@@ -256,6 +256,12 @@ function importFile(text) {
       render(); showToast('Import annulé');
     },
   });
+}
+
+// Bouton des Réglages en haut à droite, le même sur Entraînement et Programme : toujours la roue.
+// Une icône = un sens (docs/ERGONOMIE.md) : l'avatar mène à Mon profil, et seulement sur Amis.
+function settingsButtonHtml() {
+  return `<button class="navbar__icon" data-action="go-settings" aria-label="Réglages">${icon('gear', 24)}</button>`;
 }
 
 // ── Actions ─────────────────────────────────────────────────

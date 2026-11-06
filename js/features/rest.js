@@ -21,7 +21,7 @@ function restFraction() {
 
 function renderRestOverlay() {
   if (!restActive || !activeSession) return '';
-  const nxt = nextSetText();
+  const nxt = nextSetParts();
   const off  = RING_SMALL * (1 - restFraction());
   const meta = sessionMeta(activeSession.category, activeSession.programme);
   return `
@@ -36,7 +36,7 @@ function renderRestOverlay() {
       <button class="rest-mini__btn num" data-action="rest-adjust" data-d="-15" aria-label="Moins 15 secondes">−15<span class="rest-mini__u">&nbsp;s</span></button>
       <button class="rest-mini__btn num" data-action="rest-adjust" data-d="15" aria-label="Plus 15 secondes">+15<span class="rest-mini__u">&nbsp;s</span></button>
       <button class="rest-mini__skip" data-action="skip-rest" aria-label="Passer le repos">Passer</button>
-      ${nxt ? `<div class="rest-mini__next">Ensuite : ${esc(nxt)}</div>` : ''}
+      ${nxt ? `<div class="rest-mini__next"><span class="rest-mini__name">Ensuite : ${esc(nxt.name)}</span><span class="rest-mini__tail num">&nbsp;· ${esc(nxt.tail)}</span></div>` : ''}
     </div>`;
 }
 

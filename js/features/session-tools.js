@@ -122,6 +122,13 @@ function warmupProposal(ex) {
   return warmupSets(base, v => roundLoad(v, { ...setup, barbell: isBarbellExercise(ex) }));
 }
 
+// Phrase simple sous les séries proposées. La règle (js/data/warmup.js) : montée en charge en paliers, de
+// moins en moins de répétitions, une convention courante (dans l'esprit du NSCA et de Starting Strength),
+// arrondie à ce qui se charge ; séries marquées « Échauffement », hors volume et hors records.
+function warmupNoteText(n) {
+  return `${plural(n, 'série légère', 'séries légères')} pour préparer tes muscles. ${n > 1 ? 'Elles ne comptent' : 'Elle ne compte'} pas dans tes records.`;
+}
+
 function warmupSheetHtml(ei) {
   const ex = activeSession.exercises[ei], u = unitLbl();
   const base = toUnitW(warmupBaseKg(ex));
@@ -138,9 +145,7 @@ function warmupSheetHtml(ei) {
       <div class="rs__title">Échauffement · ${esc(ex.name)}</div>
       <div class="wu__sub num">Avant ${fmtNum(base)} ${u}${goal ? ` × ${esc(goal)}` : ''}</div>
       ${sets.length ? `<div class="wu__list" role="list">${rows}</div>` : '<div class="wu__empty">Charge trop légère pour un échauffement : commence directement.</div>'}
-      <p class="wu__note">Montée en charge en trois paliers, de moins en moins de répétitions : une convention courante
-        (dans l'esprit du NSCA et de Starting Strength), arrondie à ce que tu peux charger. Ces séries sont marquées
-        « Échauffement » et ne comptent ni dans le volume ni dans les records.</p>
+      ${sets.length ? `<p class="wu__note">${warmupNoteText(sets.length)}</p>` : ''}
       ${sets.length ? `<button class="rs__done rs__done--primary" data-action="wu-add">Ajouter ${plural(sets.length, 'série', 'séries')}</button>` : ''}
     </div>`;
 }

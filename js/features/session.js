@@ -132,13 +132,19 @@ function currentSet() {
   return null;
 }
 
-// « Développé incliné · S1 · 30 kg × 10 »
-function nextSetText() {
+// Série suivante en deux morceaux : { name: « Développé incliné », tail: « S1 · 30 kg × 10 » }, null sans.
+// La barre de repos coupe le nom, jamais la série (js/features/rest.js)
+function nextSetParts() {
   const cur = currentSet();
-  if (!cur) return '';
+  if (!cur) return null;
   const ex = activeSession.exercises[cur.ei], s = ex.sets[cur.si];
   const m = measureOf(ex), kind = loadKind(ex);
-  return `${ex.name} · S${cur.si + 1}${s.reps !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}` : ''}`;
+  return { name: ex.name, tail: `S${cur.si + 1}${s.reps !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}` : ''}` };
+}
+// « Développé incliné · S1 · 30 kg × 10 »
+function nextSetText() {
+  const p = nextSetParts();
+  return p ? `${p.name} · ${p.tail}` : '';
 }
 
 // Puce « ↑ +2,5 kg » : toutes les séries de la dernière fois ont atteint le haut de la fourchette
@@ -217,7 +223,18 @@ function exVolumeHtml(ex, allDone) {
   const prevVol  = exVolume(ex, prevSets.slice(0, doneSets.length), currentBodyKg());
   const delta    = curVol - prevVol;
   return curVol > 0 && prevVol > 0 && Math.round(delta) > 0
-    ? ` · <span class="ex-vol__delta ${allDone ? 'ex-vol__delta--up' : ''}">+${fmtVolume(delta)}</span>` : '';
+    ? ` · <span class="ex-vol__delta ${allDone ? 'ex-vol__delta--up' : ''}">+${fmtVolume(delta)} de volume</span>` : '';
+}
+
+// Objectif du jour sous le nom (le même que l'accueil : exerciseGoal, js/features/dashboard.js), puis
+// « Objectif atteint » en vert dès qu'une série validée le bat. Rien sans objectif (jamais fait, durée, cardio)
+function exGoalHtml(ex) {
+  const d = sessExData(ex);
+  const t = d && exerciseGoal(activeSession.category, d, activeSession.programme);
+  if (!t?.goal) return '';
+  return goalReached(t.goal, ex.sets)
+    ? `<div class="ex-goal ex-goal--done">${icon('checkmark', 13)}Objectif atteint</div>`
+    : `<div class="ex-goal num">Objectif ${esc(t.text)}</div>`;
 }
 
 // Sous-titre de la carte : record, repos de l'exercice (modifiable), hausse de volume
@@ -257,6 +274,7 @@ function renderExerciseCard(ex, ei, cur) {
         <span class="ex-card__count num"><span aria-hidden="true">${doneN}/${ex.sets.length}</span><span class="visually-hidden">${doneN} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
         <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
       </div>
+      ${exGoalHtml(ex)}
       <div class="ex-card__sub">${exSubHtml(ex, ei, allDone)}</div>
       ${bandPickerHtml(ex, ei)}
       ${coachSessionTipHtml(ex)}
@@ -279,7 +297,8 @@ function exCardOf(ei) {
 
 // Superset (2 à 5 exercices enchaînés) : une seule carte, les séries rangées tour par tour.
 // En tête, une ligne par exercice (lettre, nom, séries faites, menu ⋯) ; le repos, celui du dernier
-// exercice, part à la fin de chaque tour.
+// exercice, part à la fin de chaque tour. Dans les tours, la lettre seule renvoie à la légende (VoiceOver
+// lit le nom dans les libellés de chaque série).
 function renderGroupCard(members, cur, tags) {
   const xs      = activeSession.exercises;
   const exs     = members.map(ei => xs[ei]);
@@ -309,7 +328,7 @@ function renderGroupCard(members, cur, tags) {
         <div class="ss-member">
           <span class="ss-tag" aria-hidden="true">${tags[ei]}</span>
           ${howTo
-            ? `<button class="ex-howto ss-member__name" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${esc(ex.name)}${icon('info.circle', 15)}</span></button>`
+            ? `<button class="ex-howto ss-member__name" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${esc(ex.name)}</span>${icon('info.circle', 15)}</button>`
             : `<span class="ss-member__name">${esc(ex.name)}</span>`}
           ${chip}
           <span class="ex-card__count num"><span aria-hidden="true">${n}/${ex.sets.length}</span><span class="visually-hidden">${n} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
@@ -320,7 +339,7 @@ function renderGroupCard(members, cur, tags) {
   const rounds = ssRounds(xs, members).map((round, t) => `
         <div class="ss-round" role="group" aria-label="Tour ${t + 1}">
           <div class="ss-round__title">Tour ${t + 1}</div>
-          ${round.map(({ ei, si }) => `<div class="ss-exname" aria-hidden="true">${esc(xs[ei].name)}</div>${renderSetRow(xs[ei], ei, xs[ei].sets[si], si, cur, tags[ei])}`).join('')}
+          ${round.map(({ ei, si }) => renderSetRow(xs[ei], ei, xs[ei].sets[si], si, cur, tags[ei])).join('')}
         </div>`).join('');
   const rest = fmtRest(exRest(xs[members.at(-1)]));
   const m0   = exs[0];
@@ -399,14 +418,14 @@ function setRefName(ex, si) {
 function rirPickerHtml(ei, si, s, ex) {
   const r = cleanRir(s.rir);
   return `<div class="rir" role="group" aria-label="Répétitions en réserve, ${setSpokenName(ex, si)}">
-            <span class="rir__lbl">RIR</span>
-            ${RIR_CHOICES.map(c => `<button class="rir__btn num" data-action="set-rir" data-ei="${ei}" data-si="${si}" data-rir="${c}" aria-pressed="${r === c}" aria-label="${rirTxt(c)} en réserve, RPE ${rirToRpe(c)}">${rirTxt(c)}</button>`).join('')}
+            <span class="rir__lbl" aria-hidden="true">Reps en réserve</span>
+            <span class="rir__btns">${RIR_CHOICES.map(c => `<button class="rir__btn num" data-action="set-rir" data-ei="${ei}" data-si="${si}" data-rir="${c}" aria-pressed="${r === c}" aria-label="${rirTxt(c)} en réserve, RPE ${rirToRpe(c)}">${rirTxt(c)}</button>`).join('')}</span>
             <span class="rir__rpe num" aria-live="polite">${r === null ? '' : `RPE ${rirToRpe(r)}`}</span>
           </div>`;
 }
 function rirBadgeHtml(s) {
   const r = cleanRir(s.rir);
-  return r === null ? '' : `<span class="set-badge"><span class="rir-badge num">RIR ${rirTxt(r)}</span></span>`;
+  return r === null ? '' : `<span class="set-badge"><span class="rir-badge num">${rirTxt(r)} en réserve</span></span>`;
 }
 
 // En-tête de la colonne de charge : kg (barre, haltères), +kg (lest ajouté au poids du corps, comme

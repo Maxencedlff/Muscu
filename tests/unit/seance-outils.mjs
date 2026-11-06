@@ -179,7 +179,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(run(`meanRpe([{ rir: 2 }, { rir: 0 }, {}, { rir: 1, warmup: true }])`), 9, '(8 + 10) / 2, l\'échauffement et les séries non notées ignorés');
     assert.equal(run(`meanRpe([{ rir: 4 }])`), 6, '4 et plus compté 6');
     assert.equal(run(`meanRpe([{}, {}])`), null);
-    assert.equal(run(`rirLine([{ rir: 2 }, {}, { rir: 4 }, { rir: 0, warmup: true }])`), 'RIR 2 · — · 4+');
+    assert.equal(run(`rirLine([{ rir: 2 }, {}, { rir: 4 }, { rir: 0, warmup: true }])`), 'Reps en réserve : 2 · — · 4+');
     assert.equal(run(`rirLine([{}, {}])`), '');
     assert.equal(run(`rirShown()`), true, 'montré par défaut');
     run(`data.rirOn = false;`);
@@ -187,6 +187,10 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     run(`data = normalizeData({ history: [] }); `);
     assert.equal(run(`data.rirOn`), true, 'donnée d\'avant : montré');
     assert.equal(run(`normalizeData({ history: [], rirOn: false }).rirOn`), false, 'refus gardé');
+    // Nouvel utilisateur (aucune donnée) : sélecteur coupé, et le reste après nettoyage ; réglage existant intact
+    assert.equal(run(`freshData().rirOn`), false, 'nouvel utilisateur : coupé');
+    assert.equal(run(`rirShown(sanitizeData(freshData()))`), false, 'coupé après sanitizeData');
+    assert.equal(run(`normalizeData({ history: [], rirOn: true }).rirOn`), true, 'réglage existant gardé');
     // Progrès : point avec l'effort moyen
     const p = run(`exPoint({ date: 1, id: 'h' }, { name: 'DC', sets: [{ weight: '60', reps: '8', rir: 2 }, { weight: '60', reps: '8', rir: 3 }] })`);
     assert.equal(p.rpe, 7.5);
