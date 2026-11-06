@@ -30,6 +30,19 @@ export default function ({ test, run, reset, assert, app, sameJSON, ctx, nativeC
     sameJSON(run('watchState(null, null)'), { v: 1, active: false, next: null });
   });
 
+  test('montre : pendant la pause d\'un rest-pause, la reprise est annoncée, Valider garde sa cible', () => {
+    reset();
+    const s = session([{ weight: '80', reps: '8', done: true }, { weight: '82.5', reps: '6' }]);
+    const up = { ei: 0, si: 0, k: 0, label: 'Reprise 1', set: { weight: '80', reps: '' } };
+    const rest = { endTime: 1700000090000, total: 20 };
+    const st = run(`watchState(${json(s)}, { ei: 0, si: 1 }, { rest: ${json(rest)}, upcoming: ${json(up)} })`);
+    assert.equal(st.exercise, 'Développé couché haltères · Reprise 1');
+    assert.equal(st.load, '80 kg');
+    sameJSON(st.cur, { ei: 0, si: 1 });
+    const calm = run(`watchState(${json(s)}, { ei: 0, si: 1 }, { upcoming: ${json(up)} })`);
+    assert.equal(calm.exercise, 'Développé couché haltères', 'hors repos : la série en cours');
+  });
+
   test('montre : série en cours, compteurs, couleur, repos arrondi', () => {
     reset();
     const s = session([{ weight: '80', reps: '8', done: true }, { weight: '82.5', reps: '6' }]);

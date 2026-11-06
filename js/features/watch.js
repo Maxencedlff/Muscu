@@ -52,7 +52,9 @@ const WATCH_BLOCK_TEXT = {
 //   session : séance en cours (activeSession) ou null ; cur : série en cours (currentSet()) ou null
 //   rest    : { endTime (ms), total (s) } pendant un repos, sinon null
 //   block   : watchBlockReason(…) ; next : prochaine séance quand aucune n'est en cours
-function watchState(session, cur, { rest = null, block = '', next = null } = {}) {
+//   upcoming: pendant un repos, la sous-série qui suit (techNextSub : reprise d'un rest-pause, bloc d'un
+//             cluster) : seul le texte l'annonce, cur reste la cible de « Valider »
+function watchState(session, cur, { rest = null, block = '', next = null, upcoming = null } = {}) {
   if (!session) {
     return { v: WATCH_VERSION, active: false,
              next: next ? { title: String(next.title).slice(0, WATCH_MAX.title), tint: next.tint } : null };
@@ -60,7 +62,7 @@ function watchState(session, cur, { rest = null, block = '', next = null } = {})
   const xs = session.exercises || [];
   const total = xs.reduce((a, ex) => a + ex.sets.length, 0);
   const done  = xs.reduce((a, ex) => a + ex.sets.filter(s => s.done).length, 0);
-  const set   = restActivityNext(session, cur);   // { exercise, set, load } ou null (tout est fait)
+  const set   = restActivityNext(session, (rest && upcoming) || cur);   // { exercise, set, load } ou null (tout est fait)
   const ex    = cur ? xs[cur.ei] : null;
   return {
     v: WATCH_VERSION,
@@ -118,7 +120,7 @@ function currentWatchState() {
     && !!unusualSetText(ex, { ...s, reps: String(s.reps ?? '').trim() ? s.reps : setGoal(ex, s) });
   const block = watchBlockReason(activeSession, cur, { editing: !!editingSet, odd });
   const rest = restActive ? { endTime: restEndTime, total: restTotal } : null;
-  return watchState(activeSession, cur, { rest, block });
+  return watchState(activeSession, cur, { rest, block, upcoming: rest ? techNextSub() : null });
 }
 
 // Appelé à chaque sauvegarde de la séance (persistSession) : début, série validée, repos, fin.
