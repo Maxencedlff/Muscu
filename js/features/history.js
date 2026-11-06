@@ -121,9 +121,9 @@ function refreshHistoryList() {
 function setsLine(sets, measure = 'reps', kind = 'charge') {
   return esc(setsText(sets, measure, kind));
 }
-// Prise d'un exercice reçu d'un ami ou d'un élève (js/data/grips.js, branche prise-ergo : rien sans elle)
-function gripLineHtml(e) {
-  const t = typeof gripText === 'function' ? gripText(e.grip, e) : '';
+// Prise d'un exercice reçu d'un ami ou d'un élève (js/data/grips.js : libellés fixes, échappés quand même)
+function reviewGripHtml(e) {
+  const t = gripText(e.grip, e);
   return t ? `<span class="hex__sets hex__sets--note">${esc(t)}</span>` : '';
 }
 // Lignes « Drop set S3 : 46 kg × 5 », « Top set S1 · Back-off S2, S3 » sous les séries (js/data/intensif.js)
@@ -171,6 +171,7 @@ function renderHistoryDetail(id) {
             <div class="cell hex">
               <span class="cell__body">
                 <span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>
+                ${gripText(e.grip, e) ? `<span class="hex__sets hex__sets--note">${gripText(e.grip, e)}</span>` : ''}
                 <span class="hex__sets num">${setsLine(e.sets, measureOf(e), setKind(e))}</span>
                 ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
                 ${techLinesHtml(e)}

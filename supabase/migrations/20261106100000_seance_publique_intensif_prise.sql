@@ -9,7 +9,7 @@
 --               corps, ou nombre) ; une sous-série invalide est écartée, une clé inconnue ne sort pas.
 --               drop, rp et cluster ne sortent qu'avec au moins une sous-série valide (comme l'app :
 --               cleanTechSet) ; top et backoff jamais avec sub.
---    - par exercice, la prise (js/data/grips.js, cleanGrip, branche prise-ergo) :
+--    - par exercice, la prise (js/data/grips.js, cleanGrip) :
 --        grip : { hand?, width?, tool? } aux valeurs fixes de l'app, chaque valeur inconnue retirée,
 --               absent s'il n'en reste aucune.
 --  Ce qui n'est pas dans ces listes ne sort jamais. Une séance sans ces champs sort exactement comme avant

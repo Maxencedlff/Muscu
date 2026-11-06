@@ -4,6 +4,8 @@ create role anon nologin;
 create role authenticated nologin;
 create role service_role nologin bypassrls;
 create schema auth;
+-- Schéma des extensions de Supabase (btree_gist, 20261105000000_coach_planning.sql)
+create schema extensions;
 create table auth.users (id uuid primary key, email text);
 -- Comme Supabase : l'identifiant vient du JWT, ici d'un réglage de session posé par le test
 create function auth.uid() returns uuid language sql stable as

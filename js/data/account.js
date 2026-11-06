@@ -552,7 +552,9 @@ async function accountUsernameAvailable(name) {
 // comme à l'effacement, pour qu'ils ne restent pas en clair sur un appareil partagé. Les séances de
 // la personne (ppl_v2) restent ; ces caches se retéléchargent à la reconnexion.
 const CROSS_USER_CACHE_KEYS = [PROFILE_CACHE_KEY, 'mdlf_social', 'mdlf_coach', 'mdlf_coach_inbox',
-  'mdlf_coach_sent', 'mdlf_coach_seen', 'mdlf_coach_lost', 'mdlf_coach_send_draft', 'mdlf_access', 'mdlf_strava'];
+  'mdlf_coach_sent', 'mdlf_coach_seen', 'mdlf_coach_lost', 'mdlf_coach_send_draft', 'mdlf_access', 'mdlf_strava',
+  // Planification (notes du coach sur ses élèves) et dernier envoi des mensurations (docs/COACH_SUIVI.md)
+  'mdlf_coach_plan', 'mdlf_coach_share_m'];
 function clearCrossUserCaches() {
   try { CROSS_USER_CACHE_KEYS.forEach(k => localStorage.removeItem(k)); } catch { /* rien */ }
 }
@@ -882,7 +884,9 @@ async function syncNow() {
       sent.forEach(id => notePushed(meta, id, 'deleted'));
       keepMeta();
     }
-    const doc = profilePayload(data), docHash = syncHash(doc);
+    // Garde de taille (js/data/sync.js) : des plans diète trop lourds ne bloquent jamais le reste du profil
+    const sized = profilePayloadForServer(data), doc = sized.doc, docHash = syncHash(doc);
+    account.dietTooBig = sized.dietDropped;
     if (docHash !== meta.profileHash) {
       const { data: up, error } = await sb.from('profiles').upsert({ user_id: userId, doc }, { onConflict: 'user_id' }).select('updated_at').single();
       if (error) throw error;

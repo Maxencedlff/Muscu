@@ -130,13 +130,13 @@ const GUIDE_SECTIONS = [
         id: 'menu-exercice', title: 'Le menu ··· d\'un exercice', icon: 'ellipsis', color: 'indigo',
         lead: 'Le bouton ··· à droite du nom d\'un exercice regroupe ses options pendant la séance.',
         steps: [
-          '[Monter] et [Descendre] changent l\'ordre des exercices.',
+          '[Plus tard] met l\'exercice en dernier, [Faire maintenant] le passe avant celui en cours. [Monter] et [Descendre] le déplacent d\'un cran.',
           '[Comment faire] ouvre les consignes du mouvement.',
           '[Remplacer l\'exercice], [Régler le repos] et [Tempo] agissent sur cet exercice.',
           '[Relancer le repos] redémarre le chrono.',
           '[Retirer l\'exercice] l\'enlève de cette séance seulement. Le programme ne change pas.',
         ],
-        related: ['ajouter-exercice', 'comment-faire', 'tempo'],
+        related: ['ajouter-exercice', 'comment-faire', 'tempo', 'ordre-seance'],
         actions: ['ex-menu'],
       },
       {
@@ -149,6 +149,19 @@ const GUIDE_SECTIONS = [
           'Pour la poser à chaque séance : [Technique] dans la fiche de l\'exercice du programme.',
         ],
         related: ['menu-exercice', 'regler-exercice'],
+      },
+      {
+        id: 'ordre-seance', title: 'Une machine est prise', icon: 'list.bullet', color: 'orange',
+        lead: 'Tu n\'es pas obligé de suivre l\'ordre du programme. Fais un autre exercice avant, en un toucher.',
+        steps: [
+          'En bas de l\'exercice en cours, touche [Plus tard] : il passe en dernier et l\'exercice qui le suivait devient celui en cours.',
+          'Pour faire un autre exercice, touche simplement une de ses séries. Ou, dans son menu ···, touche [Faire maintenant] pour le passer avant.',
+          '[Monter] et [Descendre], dans le même menu, le déplacent d\'un cran.',
+          'Un superset se déplace toujours en entier. Les séries déjà validées sont gardées.',
+          'Tu t\'es trompé ? Touche [Annuler] dans le message qui s\'affiche.',
+        ],
+        related: ['menu-exercice', 'noter-serie'],
+        actions: ['ex-later', 'ex-menu'],
       },
       {
         id: 'ajouter-exercice', title: 'Ajouter ou remplacer un exercice', icon: 'plus', color: 'blue',
@@ -230,6 +243,19 @@ const GUIDE_SECTIONS = [
         ],
         related: ['tempo', 'augmenter-charge', 'duree'],
         actions: ['edit-ex', 'save-ex', 'cancel-ex', 'ex-sets', 'ex-rest', 'ex-measure'],
+      },
+      {
+        id: 'prise', title: 'Type de prise', icon: 'dumbbell', color: 'purple',
+        lead: 'Tirages, rowings, tractions, développés, curls et soulevé de terre : précise la prise, pour toi ou pour ton élève.',
+        steps: [
+          'Dans [Programme], touche la séance puis l\'exercice : rubrique [Prise]. Pendant la séance : ··· › [Prise].',
+          '[Pronation] : paumes vers l\'avant ou vers le bas. [Supination] : paumes vers toi. [Neutre] : paumes face à face.',
+          'Choisis aussi la largeur et la poignée quand l\'exercice en a. Touche à nouveau un choix pour le retirer.',
+          'La prise s\'affiche sous le nom de l\'exercice pendant la séance. Si elle a changé depuis la dernière fois, l\'app te le rappelle.',
+          'Records et colonne Avant restent ceux de l\'exercice. Pour suivre une variante à part, crée un exercice à son nom.',
+        ],
+        related: ['regler-exercice', 'programme-coach'],
+        actions: ['ex-grip-pick', 'ex-grip', 'sess-grip'],
       },
       {
         id: 'bibliotheque', title: 'La bibliothèque d\'exercices', icon: 'dumbbell', color: 'teal',

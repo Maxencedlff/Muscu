@@ -301,7 +301,7 @@ function renderSocialSession(owner, id) {
                 <span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>
                 ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
                 ${techLinesHtml(e)}
-                ${gripLineHtml(e)}
+                ${reviewGripHtml(e)}
               </span>
             </div>`).join('') || '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}
         </div>

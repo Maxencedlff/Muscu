@@ -265,8 +265,7 @@ def t_record_force(bench, eng, dev, theme):
 
 def t_ami_coach(bench, eng, dev, theme):
     """Séance d'un ami et d'un élève reçue du serveur simulé (même liste blanche que la migration
-    20261106100000) : drop set et top set affichés, valeurs forgées jamais montrées, prise montrée quand
-    l'app sait la lire (cleanGrip et gripText de la branche prise-ergo, remplacés ici par un double minimal)."""
+    20261106100000) : drop set, top set et prise (js/data/grips.js) affichés, valeurs forgées jamais montrées."""
     t = f'{dev}-{theme}'
     with bench.page(eng, dev, theme) as page:
         page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
@@ -278,9 +277,6 @@ def t_ami_coach(bench, eng, dev, theme):
             await accountSignInWith('apple', async () => 'add');
             await accountSaveProfile({ username: 'max' });
             await socialEnable(true);
-            // Double de js/data/grips.js (branche prise-ergo) : sans lui, la prise reçue est ignorée
-            window.cleanGrip = g => (g && ['neutre', 'pronation'].includes(g.hand) ? { hand: g.hand } : null);
-            window.gripText = g => (g && g.hand ? `Prise ${g.hand}` : '');
         }""")
         page.wait_for_timeout(200)
         now = int(time.time() * 1000)

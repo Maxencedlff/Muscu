@@ -139,7 +139,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     const pages = pagesToCheck(urls);
     assert.equal(pages.length, 4, 'chaque page téléchargée une seule fois');
     sameJSON(pages.find(p => p.url.endsWith('/cgv.html')).anchors, ['remboursement']);
-    sameJSON(pages.find(p => p.url.endsWith('/privacy.html')).anchors, ['newsletter']);
+    sameJSON(pages.find(p => p.url.endsWith('/privacy.html')).anchors, ['newsletter', 'nutrition']);
     // Chaque page servie en ligne = la page du dépôt ; aucun réseau
     const local = Object.fromEntries(PAGES.map(f => [`https://mdlf.app/${f}`, read(f)]));
     const fakeFetch = (overrides = {}) => async url => {
@@ -152,7 +152,8 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       ['https://mdlf.app/cgu.html : HTTP 404'], 'CGU absentes (état du 31/10) : refus');
     assert.equal((await checkLegalOnline(urls, opts(fakeFetch({ 'https://mdlf.app/cgv.html': new Error('réseau') })))).length, 1, 'injoignable : refus');
     sameJSON(await checkLegalOnline(urls, opts(fakeFetch({ 'https://mdlf.app/privacy.html': { ok: true, status: 200, text: async () => '<h2 id="mentions">x</h2>' } }))),
-      ['https://mdlf.app/privacy.html#newsletter : ancre absente de la page en ligne'], 'ancienne politique sans #newsletter : refus');
+      ['https://mdlf.app/privacy.html#newsletter : ancre absente de la page en ligne', 'https://mdlf.app/privacy.html#nutrition : ancre absente de la page en ligne'],
+      'ancienne politique sans #newsletter ni #nutrition : refus');
     let calls = 0;
     const flaky = async url => (++calls === 1 ? { ok: false, status: 503, text: async () => '' } : fakeFetch()(url));
     sameJSON(await checkLegalOnline(urls, opts(flaky)), [], 'erreur passagère : réessayée');

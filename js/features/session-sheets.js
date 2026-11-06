@@ -287,7 +287,7 @@ function pickExercise(name) {
   }
   let exId = inProg ? inProg.id : resolveExId(sp, sc, name);
   if (exId?.startsWith('n:')) exId = null; // résolu à l'enregistrement, comme avant
-  const exObj = { exId, name: inProg ? inProg.name : name, measure: measureOf(inProg || { name }), ...(inProg?.tempo ? { tempo: inProg.tempo } : {}), ...(inProg?.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(inProg) } : {}), sets: buildSets(sp, sc, { exId, name }, axSets, inProg || {}) };
+  const exObj = { exId, name: inProg ? inProg.name : name, measure: measureOf(inProg || { name }), ...(inProg?.tempo ? { tempo: inProg.tempo } : {}), ...(inProg?.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(inProg) } : {}), ...(cleanGrip(inProg?.grip) ? { grip: cleanGrip(inProg.grip) } : {}), sets: buildSets(sp, sc, { exId, name }, axSets, inProg || {}) };
   applyIntensPlan(exObj, inProg?.intens);   // technique prescrite par le programme (js/data/intensif.js)
   let target;
   if (ax.replaceEi !== null) {
@@ -377,11 +377,14 @@ function hasHowTo(ex) { return !!(exerciseHowTo(ex.name) || exerciseMove(ex.name
 function openHowTo(ex) { navigate(makeRoute('library-ex', ex.name)); }
 
 // ── Menu ⋯ d'un exercice ──
-// Choix proposés pour l'exercice ei de la liste xs de la séance. Monter et Descendre gardent les
+// Choix proposés pour l'exercice ei de la liste xs de la séance (curEi : exercice de la série en cours).
+// Faire maintenant, Plus tard (js/data/session-order.js), Monter et Descendre gardent les
 // supersets entiers (js/data/supersets.js) ; dans un groupe, le repos réglé est celui du tour.
-function exerciseMenuActions(xs, ei) {
-  const ex = xs[ei], inGroup = !!ssGroupOf(xs, ei);
+function exerciseMenuActions(xs, ei, curEi = null) {
+  const ex = xs[ei], inGroup = !!ssGroupOf(xs, ei), order = orderChoiceFor(xs, ei, curEi);
   return [
+    ...(order === 'now' ? [{ label: 'Faire maintenant', value: 'now' }] : []),
+    ...(order === 'later' ? [{ label: 'Plus tard', value: 'later' }] : []),
     ...(ssCanMove(xs, ei, -1) ? [{ label: 'Monter', value: 'up' }] : []),
     ...(ssCanMove(xs, ei, 1)  ? [{ label: 'Descendre', value: 'down' }] : []),
     ...(hasHowTo(ex) ? [{ label: 'Comment faire', value: 'howto' }] : []),
@@ -393,6 +396,8 @@ function exerciseMenuActions(xs, ei) {
     // Techniques d'intensification (js/features/session-intensif.js) : le drop set de la dernière série en un toucher
     ...techMenuActions(ex),
     ...(isBarbellExercise(ex) ? [{ label: 'Disques', value: 'plates' }] : []),
+    // Prise (js/data/grips.js) : seulement pour les mouvements où elle compte
+    ...(gripOptionsFor(ex) ? [{ label: 'Prise', value: 'grip' }] : []),
     { label: inGroup ? 'Régler le repos du tour' : 'Régler le repos', value: 'rest' },
     ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
     { label: 'Muscles ciblés', value: 'muscles' },
@@ -404,15 +409,21 @@ function exerciseMenuActions(xs, ei) {
 async function exerciseMenu(ei) {
   const ex = activeSession.exercises[ei];
   if (!ex) return;
-  const choice = await dialog({ type: 'sheet', title: ex.name, actions: exerciseMenuActions(activeSession.exercises, ei) });
+  const choice = await dialog({ type: 'sheet', title: ex.name, actions: exerciseMenuActions(activeSession.exercises, ei, currentSet()?.ei) });
   if (!choice || !activeSession || activeSession.exercises[ei] !== ex) return;
+  if (choice === 'now') { sessionDoNow(ei); return; }
+  if (choice === 'later') { sessionDoLater(ei); return; }
   if (['up', 'down', 'replace', 'remove'].includes(choice)) cancelEffort();   // positions des séries modifiées
   const xs = activeSession.exercises;
-  if (choice === 'up' || choice === 'down') {
+  if (choice === 'grip') {
+    openGripSheet(ei);
+    return;
+  } else if (choice === 'up' || choice === 'down') {
     const moved = ssMove(xs, ei, choice === 'up' ? -1 : 1);
     if (moved) activeSession.exercises = moved;
     activeSession.lastEi = null; activeSession.lastDone = null;
     editingSet = null;
+    syncNativeRest();   // pendant un repos : notification et Live Activity annoncent le nouvel exercice suivant
     render();
   } else if (choice === 'superset') {
     await sessionSupersetPick(ei);

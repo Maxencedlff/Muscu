@@ -101,6 +101,14 @@ body.light {
   --gsi-bg: #FFFFFF; --gsi-fg: #1F1F1F; --gsi-border: #747775;
 }
 
+/* Nutrition (css/nutrition.css) : couleurs des macros et du bouton coché, prises dans les couleurs de texte
+   (3:1 au moins sur cellule et sur fond, dans les deux thèmes). Redéfinies sous body.light pour être
+   calculées avec les valeurs claires (une variable se résout là où elle est déclarée) */
+:root, body.light {
+  --macro-kcal: var(--green-text); --macro-p: var(--purple); --macro-c: var(--tint); --macro-f: var(--orange-text);
+  --check-on: var(--green-text); --check-mark: var(--cell);
+}
+
 /* Matériaux translucides : version opaque si le flou n'existe pas ou si l'utilisateur réduit la transparence */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   :root, body.light { --dlg-bg: var(--dlg-solid); }

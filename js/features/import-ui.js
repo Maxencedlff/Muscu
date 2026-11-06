@@ -169,11 +169,12 @@ function runMeasuresImport(plan) {
   try { localStorage.setItem(BACKUP_KEY, previous); } catch { /* copie de secours facultative */ }
   if (!save()) { data = JSON.parse(previous); showToast('Stockage plein : rien n\'a été importé', { error: true }); return; }
   if (r.weights) coachShareWeightsChanged();   // pesées partagées avec le coach (case cochée) : la liste repart
+  if (r.measures) coachShareMeasuresChanged();   // mensurations partagées (case cochée) : pareil
   render();
   const parts = [r.weights ? plural(r.weights, 'pesée', 'pesées') : '', r.measures ? plural(r.measures, 'mensuration', 'mensurations') : ''].filter(Boolean);
   showToast(`Import réussi : ${parts.join(', ')}`, {
     action: 'Annuler', duration: IMPORT_UNDO_MS,
-    onAction: () => { undoImport(previous); if (r.weights) coachShareWeightsChanged(); render(); showToast('Import annulé'); },
+    onAction: () => { undoImport(previous); if (r.weights) coachShareWeightsChanged(); if (r.measures) coachShareMeasuresChanged(); render(); showToast('Import annulé'); },
   });
 }
 

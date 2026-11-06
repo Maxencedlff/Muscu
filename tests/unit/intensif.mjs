@@ -163,10 +163,8 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     // Séance d'un ami ou d'un élève : technique gardée si le serveur la transmet, bornée
     const pub = run(`cleanPublicSession({ exercises: [{ name: 'Squat', sets: [{ weight: 60, reps: 10, tech: 'drop', sub: [{ weight: 46, reps: 5 }] }, { weight: 60, reps: 8, tech: 'xx' }] }] })`);
     sameJSON(pub.exercises[0].sets, [{ weight: '60', reps: '10', tech: 'drop', sub: [{ weight: '46', reps: '5' }] }, { weight: '60', reps: '8' }]);
-    // Prise (migration 20261106100000) : ignorée sans js/data/grips.js (branche prise-ergo), gardée nettoyée avec
-    const withGrip = `cleanPublicSession({ exercises: [{ name: 'Tirage vertical', grip: { hand: 'neutre', x: 1 }, sets: [] }] }).exercises[0]`;
-    assert.equal('grip' in run(withGrip), false);
-    run(`globalThis.cleanGrip = g => (g && g.hand === 'neutre' ? { hand: 'neutre' } : null)`);
-    try { sameJSON(run(withGrip).grip, { hand: 'neutre' }); } finally { run('delete globalThis.cleanGrip'); }
+    // Prise (migration 20261106100000) : valeurs connues de js/data/grips.js seulement, absente s'il n'en reste aucune
+    sameJSON(run(`cleanPublicSession({ exercises: [{ name: 'Tirage vertical', grip: { hand: 'neutre', width: 'geante', tool: 'triangle', x: 1 }, sets: [] }] }).exercises[0].grip`), { hand: 'neutre', tool: 'triangle' });
+    assert.equal('grip' in run(`cleanPublicSession({ exercises: [{ name: 'Curl', grip: { hand: 'PRONATION', handle: 'corde' }, sets: [] }] }).exercises[0]`), false);
   });
 }

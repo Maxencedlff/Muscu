@@ -214,6 +214,7 @@ function sessionHistoryEntry(sp, sc) {
         ...(storedMeasure(ex) ? { measure: storedMeasure(ex) } : {}),
         ...(ex.tempo ? { tempo: ex.tempo } : {}),   // fait au tempo : plus dur, à ne pas comparer sans le savoir
         ...(ssId(ex) ? { ss: ex.ss } : {}),         // superset, affiché comme tel dans Historique et pour les abonnés
+        ...(cleanGrip(ex.grip, ex) ? { grip: cleanGrip(ex.grip, ex) } : {}),   // prise (js/data/grips.js), même exercice pour les records
         // warmup (js/data/warmup.js) et rir (js/data/rir.js) : champs facultatifs, ignorés par une version précédente
         sets: ex.sets.filter(s => s.done).map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}), ...(s.machine ? { machine: s.machine } : {}),
           ...(isWarmupSet(s) ? { warmup: true } : {}), ...(cleanRir(s.rir) !== null ? { rir: cleanRir(s.rir) } : {}),

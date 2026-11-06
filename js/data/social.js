@@ -143,9 +143,8 @@ function cleanPublicSession(s) {
       // Mesure absente : son app n'en écrivait pas (version d'avant) ; mots de cardio appris depuis : répétitions
       ...(['reps', 'time', 'cardio'].includes(e.measure) ? { measure: e.measure } : pinnedLegacyMeasure(e.name)),
       ...(ssId(e) ? { ss: e.ss } : {}),
-      // Prise (js/data/grips.js, branche prise-ergo), transmise depuis la migration 20261106100000 : gardée
-      // nettoyée quand l'app sait la lire
-      ...(typeof cleanGrip === 'function' && cleanGrip(e.grip) ? { grip: cleanGrip(e.grip) } : {}),
+      // Prise (js/data/grips.js), transmise depuis la migration 20261106100000 : valeurs connues seulement
+      ...(cleanGrip(e.grip) ? { grip: cleanGrip(e.grip) } : {}),
       sets: (Array.isArray(e.sets) ? e.sets : []).slice(0, 50).filter(st => st && typeof st === 'object')
         .map(st => ({ weight: numStr(st.weight), reps: numStr(st.reps), ...(numStr(st.dist) ? { dist: numStr(st.dist) } : {}),
           // Échauffement (true seulement) et RIR (entier 0 à 4), envoyés depuis la migration 20261031100000_records_series.sql

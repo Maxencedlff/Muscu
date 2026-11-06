@@ -8,8 +8,9 @@
 //  - Élève : Mon coach (`coach-mine` : commentaires, programmes reçus avec aperçu des exercices), cartes de
 //    l'accueil (programme reçu, commentaire), consignes dans Programme, Programme › Séance et la séance
 //    (repliables), commentaire dans Historique (marque dans la liste, détail), notes vues du coach (bilan).
-//  - Coach : Mes élèves (`coach-students` : nouvelles séances, invitations, élèves retirés), un élève
-//    (`coach-student:UID` : séances, séries faites sur prévues, programmes envoyés pas encore utilisés),
+//  - Coach : Mes élèves (`coach-students` : signal de progression et tri, js/features/coach-progress-ui.js ;
+//    nouvelles séances, invitations, élèves retirés), un élève (`coach-student:UID` : « Cette semaine » en tête,
+//    séances, séries faites sur prévues, programmes envoyés pas encore utilisés),
 //    une séance (`coach-session:UID:ID` : relecture comparée à ses séances reçues, exercices prévus non faits,
 //    « Commenter »), envoi d'un programme avec consignes (`coach-send:UID:PROG`, brouillon gardé sur l'appareil).
 //  Tout texte venu du serveur passe par esc() ; les pseudos passent par elide() (« d'essai »). Rien au
@@ -17,7 +18,8 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send', 'coach-share', 'coach-chat', 'coach-request'];
+const COACH_VIEWS = ['coach', 'coach-join', 'coach-mine', 'coach-students', 'coach-student', 'coach-session', 'coach-send', 'coach-share', 'coach-chat', 'coach-request',
+  'coach-plan', 'coach-planning', 'coach-measures', 'coach-measure'];
 const COACH_SEND_DRAFT_KEY = 'mdlf_coach_send_draft';   // brouillon de l'écran Envoyer (retour arrière, relance)
 const coachTipClosed = new Set();   // séance en cours : consignes repliées (identifiant d'exercice, '' : programme)
 const coachProgOpen = new Set();    // Mon coach : programmes reçus dont les exercices sont dépliés
@@ -59,7 +61,8 @@ function coachTitle(html) { return `<h2 class="group-title coach-title">${html}<
 function coachRouteTitle(route) {
   const name = routeName(route);
   if (name === 'coach-student') return coachStudent(routeParams(route)[0])?.username || 'Élève';
-  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-share': 'Partager', 'coach-chat': 'Messages', 'coach-request': 'Devenir coach' }[name] || null;
+  return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-share': 'Partager', 'coach-chat': 'Messages', 'coach-request': 'Devenir coach',
+    'coach-plan': 'Planning', 'coach-planning': 'Planning', 'coach-measures': 'Mensurations', 'coach-measure': 'Mesure' }[name] || null;
 }
 
 // ── Cellules : Réglages et onglet Amis ──────────────────────
@@ -115,7 +118,7 @@ function coachCellHtml({ place = 'top', friends = null } = {}) {
     const label = ['Mon coach', p ? personName(p) : '', badge ? plural(badge, 'nouveauté', 'nouveautés') : ''].filter(Boolean).join(', ');
     rows.push(`<button class="cell cell--nav coach-cell" data-action="coach-open-mine" aria-label="${esc(label)}">
         ${p ? personAvatar(p) : `<span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span>`}
-        <span class="cell__body"><span class="cell__title">Mon coach</span>${p ? `<span class="cell__sub">${esc(personName(p))}</span>` : ''}</span>
+        <span class="cell__body"><span class="cell__title">Mon coach</span>${p ? `<span class="cell__sub">${esc([personName(p), studentPlanSub()].filter(Boolean).join(' · '))}</span>` : ''}</span>
         ${badge ? `<span class="coach-count num" aria-hidden="true">${badge > 99 ? '99+' : badge}</span>` : ''}
         ${icon('chevron.right', 16)}
       </button>`);
@@ -311,7 +314,7 @@ function coachProgPreviewHtml(item) {
   return `<div class="coach-prog__preview">${item.data.sessions.map(s => `
           <div class="coach-prog__sess">
             <div class="coach-prog__sess-name"><span class="hcell__dot" style="background:${esc(s.color)}" aria-hidden="true"></span>${esc(s.label)}</div>
-            <ul class="coach-prog__ex">${s.exercises.map(e => `<li><span class="coach-prog__ex-name">${esc(e.name)}</span> <span class="num">· ${plural(e.sets, 'série', 'séries')}</span>${exerciseVideo(e.name) ? coachExVideoBtn(e.name) : ''}${e.consigne ? `<span class="coach-prog__ex-tip">${esc(e.consigne)}</span>` : ''}</li>`).join('') || '<li>Aucun exercice</li>'}</ul>
+            <ul class="coach-prog__ex">${s.exercises.map(e => `<li><span class="coach-prog__ex-name">${esc(e.name)}</span> <span class="num">· ${plural(e.sets, 'série', 'séries')}</span>${gripText(e.grip, e) ? ` <span class="coach-prog__ex-grip">· ${gripText(e.grip, e)}</span>` : ''}${exerciseVideo(e.name) ? coachExVideoBtn(e.name) : ''}${e.consigne ? `<span class="coach-prog__ex-tip">${esc(e.consigne)}</span>` : ''}</li>`).join('') || '<li>Aucun exercice</li>'}</ul>
           </div>`).join('')}</div>`;
 }
 
@@ -375,9 +378,11 @@ function renderCoachMine() {
         </div>
         ${chatIntroHtml()}
         ${chatCellHtml(CHAT_COACH)}
+        ${studentPlanHtml()}
         ${notes}
         <div class="group-title">Programmes reçus</div>
         <div class="coach-progs">${progs}</div>
+        ${dietInboxHtml()}
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
         </div>
@@ -576,17 +581,8 @@ function renderCoachStudents() {
   if (!st) return `<div class="view view--grouped coach-students-view">${head}<div class="scr">${coach.error
     ? coachOfflineNote(coach.error, 'Pas d\'Internet. Tes élèves s\'afficheront quand le réseau reviendra.') : '<div class="empty-note">Chargement…</div>'}</div></div>`;
   if (!st.is_coach) return `<div class="view view--grouped coach-students-view">${head}<div class="scr"><div class="empty-note">${esc(coachErrorText('not_coach'))}</div></div></div>`;
-  const rows = st.students.map(s => `
-          <button class="cell cell--nav social-row coach-student-row" data-action="coach-open-student" data-uid="${esc(s.user_id)}">
-            <span class="social-row__main">${personAvatar(s)}<span class="social-row__text">
-              <span class="social-row__name">${esc(personName(s))}</span>
-              <span class="cell__sub">${esc(studentLastLine(s))}</span>
-              ${s.last_session ? `<span class="cell__sub num">${s.sessions_7d ? `${plural(s.sessions_7d, 'séance', 'séances')} en 7 jours` : 'Aucune séance en 7 jours'}</span>` : ''}
-            </span></span>
-            ${coachBadgeHtml(s.new_sessions, plural(s.new_sessions, 'nouvelle séance', 'nouvelles séances'))}
-            ${chatBadgeHtml(chatUnreadOf(s.user_id))}${chatUnreadOf(s.user_id) ? `<span class="visually-hidden">, ${plural(chatUnreadOf(s.user_id), 'message non lu', 'messages non lus')}</span>` : ''}
-            ${icon('chevron.right', 16)}
-          </button>`).join('');
+  // Lignes triées, avec le signal de progression de chaque élève (js/features/coach-progress-ui.js)
+  const rows = coachStudentRowsHtml(st.students);
   const invites = st.invites.map(i => `
           <div class="cell coach-invite">
             <span class="cell__body"><span class="cell__title coach-code num">${esc(i.code)}</span><span class="cell__sub">Jusqu'au ${esc(fmtDate(i.expires_at, 'short'))}</span></span>
@@ -604,9 +600,10 @@ function renderCoachStudents() {
       <div class="scr">
         ${coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : liste pas à jour.' : coachErrorText(coach.error))}</p>` : ''}
         ${coachTierBannerHtml()}
+        ${coachPlanningCellHtml()}
         <div class="group-title">Élèves${st.students.length ? ` (${st.students.length})` : ''}</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub social-empty">Aucun élève pour l\'instant</span></div>'}</div>
-        <div class="group-foot">Tes élèves ne se voient pas entre eux.</div>
+        <div class="group-foot">${st.students.length > 1 ? PROGRESS_SORT_FOOT : 'Tes élèves ne se voient pas entre eux.'}</div>
         <div class="group-title">Invitations</div>
         <div class="group">
           ${invites}
@@ -617,7 +614,7 @@ function renderCoachStudents() {
       </div>
     </div>`;
 }
-SCREENS.set('coach-students', { render: () => renderCoachStudents(), enter: () => { coachRefresh(); coachProRefresh({ minAge: 30_000 }); } });
+SCREENS.set('coach-students', { render: () => renderCoachStudents(), enter: () => { coachRefresh().then(() => coachProgressRefresh({ minAge: 30_000 })); coachProRefresh({ minAge: 30_000 }); } });
 
 // ── Coach : un élève et ses séances ─────────────────────────
 
@@ -690,12 +687,15 @@ function renderCoachStudent(uid) {
           ${personAvatar(p, 'l')}
           <span><span class="coach-join__name">${esc(personName(p))}</span><span class="coach-join__sub">${sinceText(p) ? `Élève depuis le ${esc(sinceText(p))}` : 'Élève'}</span></span>
         </div>
+        ${coachWeekSummaryHtml(uid)}
         ${chatCellHtml(uid)}
+        ${coachPlanGroupHtml(uid)}
         <div class="group">
           <button class="cell cell--action" data-action="coach-send" data-uid="${esc(uid)}">${icon('square.and.arrow.up', 20)}<span>Envoyer un programme</span></button>
         </div>
         ${sent}
-        ${coachWeightGroupHtml(uid, esc(personName(p)))}
+        ${coachDietGroupHtml(uid)}
+        ${coachBilanHtml(uid, esc(personName(p)))}
         <div class="group-title">Séances</div>
         ${list}
         <div class="group group--gap">
@@ -714,6 +714,9 @@ SCREENS.set('coach-student', {
     if (!uid) return;
     coachLoadSessions(uid);
     coachLoadWeights(uid);
+    coachLoadMeasures(uid);
+    if (!plan.coach && plan.available !== false) coachPlanRefresh();   // planning (serveur sans planification : rien)
+    coachProgressRefresh();   // résumé « Cette semaine » (5 min au plus entre deux lectures)
     coachMarkSeen(uid);
   },
 });
@@ -747,7 +750,7 @@ function reviewExerciseCell(x, xs, i) {
                 <span class="review-ex__line"><span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>${amount ? `<span class="review-ex__vol num">${esc(amount)}</span>` : ''}</span>
                 ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
                 ${techLinesHtml(e)}
-                ${gripLineHtml(e)}
+                ${reviewGripHtml(e)}
                 ${rirLine(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(rirLine(e.sets))}</span>` : ''}
                 ${x.prev ? `<span class="review-ex__prev num">préc. ${setsLine(x.prev.ex.sets, x.prev.ex.measure || measureOf(x.prev.ex), reviewSetKind(x.prev.ex))} (${esc(fmtDate(x.prev.doneAt, 'short'))})</span>` : ''}
               </span>
@@ -881,6 +884,7 @@ function renderCoachSend(uid, progId) {
             <span class="cell__body">
               <span class="cell__title">${ssTagHtml(xs, i)}${esc(e.name)}</span>
               <span class="cell__sub num">${plural(e.sets, 'série', 'séries')}${e.rest ? ` · repos ${fmtRest(e.rest)}` : ''}${e.tempo ? ` · tempo ${esc(shortTempo(e.tempo))}` : ''}</span>
+              ${gripSubHtml(e)}
               ${ta(`data-cat="${esc(s.key)}" data-ex="${esc(e.id)}"`, dr.ex[s.key]?.[e.id] || '', `Consigne pour ${e.name}`, 'Consigne (facultatif)')}
             </span>
           </div>`).join('') : '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}
@@ -1073,13 +1077,17 @@ function coachShownKey() {
   const ib = coach.inbox;
   return JSON.stringify([account.user?.id || null, coachRole(), coachBadge(), coachBadgeCoach(), coachBadgeStudent(), chatUnreadTotal(), chat.available, myCoach()?.user_id || null, myCoach()?.username || null,
     coach.state?.students.length ?? null, account.user ? coachLost() : null, typeof coachShareSummary === 'function' ? coachShareSummary() : null,
-    ib ? [ib.programmes.map(p => [p.id, p.sentAt, p.seen, !!p.meta]), ib.notes.map(n => [n.session_id, n.updatedAt, n.seen])] : null]);
+    // '' avant comme après le chargement de coach-plan-ui.js (chargé après ce fichier) : sinon la signature
+    // calculée au démarrage (coachShown) diffère de la suivante, et le premier focusout redessine l'écran,
+    // ce qui, sur WebKit, annule la navigation du clic en cours
+    (typeof studentPlanSub === 'function' ? studentPlanSub() : '') || '',
+    ib ? [ib.programmes.map(p => [p.id, p.sentAt, p.seen, !!p.meta]), (ib.diets || []).map(p => [p.id, p.sentAt, p.seen, !!p.meta]), ib.notes.map(n => [n.session_id, n.updatedAt, n.seen])] : null]);
 }
 let coachShown = null;
 function coachTyping() { return !!document.activeElement?.matches?.('input, textarea, select, [contenteditable="true"]'); }
 // coachShown n'avance QUE lorsque l'écran a été redessiné (ou n'avait rien à redessiner) : un changement
 // arrivé pendant une saisie reste « non affiché » et sera repris au focusout, pas marqué « déjà vu »
-const COACH_WATCH_VIEWS = ['settings', 'dashboard', 'history', 'history-detail', 'editor', 'programmes', 'my-programmes', 'summary'];
+const COACH_WATCH_VIEWS = ['settings', 'dashboard', 'history', 'history-detail', 'editor', 'programmes', 'my-programmes', 'summary', 'nutrition', 'diet-plans'];
 function coachApplyChange() {
   const v = currentView(), key = coachShownKey();
   if (v === 'friends') { if (key !== coachShown) { refreshCoachCell(); coachShown = key; } return; }
