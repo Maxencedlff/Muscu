@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −2 | `20261106100000_seance_publique_intensif_prise_down.sql` | rien | oui (vérifié) |
 | −1 | `20261101000000_parrainage_payant_down.sql` | rien | oui (vérifié) |
 | 0a | `20261031910000_notifications_messages_down.sql` | rien | oui (vérifié) |
 | 0 | `20261031900000_notifications_push_down.sql` | notifications des messages et commentaires (0a) : elles remplacent ses fonctions | non |
@@ -18,7 +19,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 | 5 | `20261031300000_partage_coach_down.sql` | rien | oui (vérifié) |
 | 6 | `20261031230000_newsletter_down.sql` | rien | oui (vérifié) |
 | 7 | `20261031200000_reactions_profil_down.sql` | commentaires (3) | non |
-| 8 | `20261031100000_records_series_down.sql` | rien | oui (vérifié) |
+| 8 | `20261031100000_records_series_down.sql` | rien (seul, il remplace aussi le session_public de la séance publique −2 : la défaire avant de préférence) | oui (vérifié) |
 | 9 | `20261031000000_payant_plus_down.sql` | rien | oui (vérifié) |
 | 10 | `20261030000000_payant_tarifs_down.sql` | payant plus (9) | non, refuse sans rien changer |
 | 11 | `20261029000000_payant_modele_b_down.sql` | tarifs (10) | non, refuse sans rien changer |
@@ -36,10 +37,11 @@ La production a reçu toutes les migrations de `main` (lot 3, notifications push
 3. `20261031000000_payant_plus.sql`
 4. `20261031230000_newsletter.sql`
 5. `20261101000000_parrainage_payant.sql`
+6. `20261106100000_seance_publique_intensif_prise.sql` (séance vue par un ami ou un coach : techniques d'intensification et prise ; indépendante, peut aussi passer seule)
 
-Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md). Avec la CLI Supabase, `supabase db push` refuse des migrations plus anciennes que la dernière appliquée : `supabase db push --include-all` (après `supabase migration list` pour vérifier qu'il ne reste QUE ces cinq fichiers, Strava retiré du dossier le temps de la commande), ou chaque fichier collé dans l'éditeur SQL dans cet ordre.
+Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md). Avec la CLI Supabase, `supabase db push` refuse des migrations plus anciennes que la dernière appliquée : `supabase db push --include-all` (après `supabase migration list` pour vérifier qu'il ne reste QUE ces six fichiers, Strava retiré du dossier le temps de la commande), ou chaque fichier collé dans l'éditeur SQL dans cet ordre.
 
-Pour défaire en production : l'ordre inverse de cette liste (5 → 1), avant tout retour arrière plus ancien.
+Pour défaire en production : l'ordre inverse de cette liste (6 → 1), avant tout retour arrière plus ancien.
 
 ## Ce qui est mis de côté, pas effacé
 

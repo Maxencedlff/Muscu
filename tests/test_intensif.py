@@ -3,9 +3,11 @@ reprise après fermeture, historique, image partagée (docs/INTENSIFICATION.md).
 import json
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
+from fake_account import FAKE_ACCOUNT
 
 LOT = 'intensif'
 R = Results(LOT)
@@ -180,6 +182,68 @@ def t_programme(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
+def t_ami_coach(bench, eng, dev, theme):
+    """Séance d'un ami et d'un élève reçue du serveur simulé (même liste blanche que la migration
+    20261106100000) : drop set et top set affichés, valeurs forgées jamais montrées, prise montrée quand
+    l'app sait la lire (cleanGrip et gripText de la branche prise-ergo, remplacés ici par un double minimal)."""
+    t = f'{dev}-{theme}'
+    with bench.page(eng, dev, theme) as page:
+        page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
+        page.add_init_script(FAKE_ACCOUNT)
+        page.route('https://mdlf-ota.vercel.app/**', lambda route: route.abort())
+        seed(page, theme, ppl_v2_today_json(), extra={'ppl_welcome_seen': '1'})
+        page.wait_for_timeout(300)
+        page.evaluate("""async () => {
+            await accountSignInWith('apple', async () => 'add');
+            await accountSaveProfile({ username: 'max' });
+            await socialEnable(true);
+            // Double de js/data/grips.js (branche prise-ergo) : sans lui, la prise reçue est ignorée
+            window.cleanGrip = g => (g && ['neutre', 'pronation'].includes(g.hand) ? { hand: g.hand } : null);
+            window.gripText = g => (g && g.hand ? `Prise ${g.hand}` : '');
+        }""")
+        page.wait_for_timeout(200)
+        now = int(time.time() * 1000)
+        sess = lambda sid: {'id': sid, 'date': now - 86400_000, 'duration': 3000_000, 'programme': 'ppl', 'category': 'pull', 'label': 'Pull',
+                            'exercises': [{'name': 'Tirage vertical', 'grip': {'hand': 'neutre', 'width': 'geante', 'handle': 'fuite'},
+                                           'sets': [{'weight': '60', 'reps': '10', 'tech': 'drop', 'sub': [{'weight': '46', 'reps': '5'}, {'weight': '1e9', 'reps': '3'}]},
+                                                    {'weight': '70', 'reps': '3', 'tech': 'top'},
+                                                    {'weight': '60', 'reps': '8', 'tech': 'myo', 'sub': [{'weight': '1', 'reps': '9'}]}]}]}
+        page.evaluate("""([a, b]) => {
+            const me = __sb.meId();
+            __sb.makeCoach(me);
+            const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', sessions: [a] });
+            __sb.follow(me, lea, 'accepted');
+            const tom = __sb.addPerson({ username: 'tom', social: false, sessions: [b] });
+            __sb.link(me, tom, Date.now() - 5 * 86400000);
+        }""", [sess('f1'), sess('c1')])
+        page.evaluate('Promise.all([socialRefresh(), coachRefresh()])')
+        page.wait_for_timeout(400)
+        # Ami : détail de la séance
+        page.click('.tabbar [data-tab="friends"]'); page.wait_for_timeout(500)
+        page.wait_for_selector('.feed-card[data-id="f1"]')
+        page.locator('.feed-card[data-id="f1"] .feed-card__main').click()
+        page.wait_for_selector('.social-session-view')
+        notes = page.locator('.social-session-view .hex__sets--note').all_inner_texts()
+        R.check('Drop set S1 : 46 kg × 5' in notes and 'Top set S2' in notes and 'Prise neutre' in notes, f'{t} ami : drop set, top set et prise ({notes})')
+        d = page.inner_text('.social-session-view')
+        R.check('myo' not in d.lower() and '× 9' not in d and 'geante' not in d and 'fuite' not in d, f'{t} ami : valeurs forgées jamais montrées')
+        got = page.evaluate("social.feeds[''].rows.find(r => r.id === 'f1').s.exercises[0]")
+        R.check(got.get('grip') == {'hand': 'neutre'} and got['sets'][0].get('sub') == [{'weight': '46', 'reps': '5'}] and 'tech' not in got['sets'][2], f'{t} ami : séance reçue nettoyée {got}')
+        page.locator('.social-session-view .hex__sets--note', has_text='Drop set').scroll_into_view_if_needed()
+        shot(page, LOT, f'{t}-09-seance-ami')
+        # Coach : séance de l'élève
+        page.click('[data-action="back"]'); page.wait_for_timeout(400)
+        page.click('[data-action="coach-open-students"]'); page.wait_for_selector('.coach-students-view')
+        page.locator('.coach-student-row', has_text='tom').click(); page.wait_for_selector('.coach-sess')
+        page.click('.coach-sess[data-id="c1"]'); page.wait_for_selector('.coach-session-view')
+        notes = page.locator('.coach-session-view .hex__sets--note').all_inner_texts()
+        R.check('Drop set S1 : 46 kg × 5' in notes and 'Top set S2' in notes and 'Prise neutre' in notes, f'{t} coach : drop set, top set et prise ({notes})')
+        R.check('myo' not in page.inner_text('.coach-session-view').lower(), f'{t} coach : technique inconnue jamais montrée')
+        page.locator('.coach-session-view .hex__sets--note', has_text='Drop set').scroll_into_view_if_needed()
+        shot(page, LOT, f'{t}-10-seance-eleve')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
 def once_static(bench):
     for f in ['js/data/intensif.js', 'js/features/session-intensif.js']:
         n = sum(1 for _ in open(os.path.join(APP_DIR, f), encoding='utf-8'))
@@ -190,4 +254,4 @@ def once_static(bench):
         R.check(f in html and '/' + f in sw, f'{f} chargé par index.html et mis en cache par sw.js')
 
 
-run_main(R, [t_seance, t_programme], once=[once_static])
+run_main(R, [t_seance, t_programme, t_ami_coach], once=[once_static])

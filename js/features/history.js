@@ -121,6 +121,11 @@ function refreshHistoryList() {
 function setsLine(sets, measure = 'reps', kind = 'charge') {
   return esc(setsText(sets, measure, kind));
 }
+// Prise d'un exercice reçu d'un ami ou d'un élève (js/data/grips.js, branche prise-ergo : rien sans elle)
+function gripLineHtml(e) {
+  const t = typeof gripText === 'function' ? gripText(e.grip, e) : '';
+  return t ? `<span class="hex__sets hex__sets--note">${esc(t)}</span>` : '';
+}
 // Lignes « Drop set S3 : 46 kg × 5 », « Top set S1 · Back-off S2, S3 » sous les séries (js/data/intensif.js)
 function techLinesHtml(e) {
   if ((e.measure || measureOf(e)) !== 'reps') return '';

@@ -297,10 +297,33 @@ FAKE_ACCOUNT = r"""
   const shown = p => !p.deleted_at && p.data && p.data.hidden !== true && Number.isFinite(p.data.date);
   // private.session_public : liste blanche, rien d'autre ne sort. records (private.session_records), warmup et rir
   // par série : migration 20261031100000_records_series.sql
+  // tech et sub par série, grip par exercice : migration 20261106100000_seance_publique_intensif_prise.sql
+  // (private.set_tech, private.set_sub, private.exercise_grip), mêmes listes blanches et bornes
+  const subW = v => (typeof v === 'string' && /^(|\d{1,3}(\.\d{1,3})?|1000(\.0{1,3})?)$/.test(v)) || (typeof v === 'number' && v >= 0 && v <= 1000) ? v : undefined;
+  const subR = v => (typeof v === 'string' && /^([1-9]\d{0,2}|[1-3]\d{3}|4000)$/.test(v)) || (Number.isInteger(v) && v >= 1 && v <= 4000) ? v : undefined;
+  const pubSub = v => {
+    if (!Array.isArray(v)) return undefined;
+    const out = v.slice(0, 6).filter(x => x && typeof x === 'object' && !Array.isArray(x) && subR(x.reps) !== undefined
+      && (x.weight == null || subW(x.weight) !== undefined)).map(x => ({ weight: subW(x.weight), reps: subR(x.reps) }));
+    return out.length ? out : undefined;
+  };
+  const pubTech = st => {
+    if (st.warmup === true) return {};
+    if (st.tech === 'top' || st.tech === 'backoff') return { tech: st.tech };
+    const sub = ['drop', 'rp', 'cluster'].includes(st.tech) ? pubSub(st.sub) : undefined;
+    return sub ? { tech: st.tech, sub } : {};
+  };
+  const GRIP_OK = { hand: ['pronation', 'supination', 'neutre', 'mixte', 'crochet'], width: ['serree', 'moyenne', 'large'], tool: ['barre', 'ez', 'triangle', 'poignees', 'corde', 'v'] };
+  const pubGrip = g => {
+    if (!g || typeof g !== 'object' || Array.isArray(g)) return undefined;
+    const o = {};
+    for (const [k, list] of Object.entries(GRIP_OK)) if (list.includes(g[k])) o[k] = g[k];
+    return Object.keys(o).length ? o : undefined;
+  };
   const pubSet = st => {
     const sc = v => (['string', 'number', 'boolean'].includes(typeof v) ? v : undefined);
     return { weight: sc(st.weight), reps: sc(st.reps), dist: sc(st.dist), warmup: st.warmup === true ? true : undefined,
-      rir: Number.isInteger(st.rir) && st.rir >= 0 && st.rir <= 4 ? st.rir : undefined };
+      rir: Number.isInteger(st.rir) && st.rir >= 0 && st.rir <= 4 ? st.rir : undefined, ...pubTech(st) };
   };
   // withBefore : valeur d'avant gardée pour le coach seulement (private.session_records(v, true))
   const pubRecords = (v, withBefore = false) => {
@@ -316,7 +339,7 @@ FAKE_ACCOUNT = r"""
     const strip = o => JSON.parse(JSON.stringify(o));
     return strip({ date: sc(d.date), duration: sc(d.duration), programme: sc(d.programme), category: sc(d.category), label: sc(d.label),
       records: pubRecords(d.records),
-      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), sets: (e.sets || []).map(pubSet) })) });
+      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), grip: pubGrip(e.grip), sets: (e.sets || []).map(pubSet) })) });
   };
   const limit = (me, action, max) => { const k = me + action; so.day[k] = (so.day[k] || 0) + 1; return so.day[k] > max; };
   const bravoCount = (owner, sid) => so.bravos.filter(b => b.owner === owner && b.sid === sid).length;
@@ -584,7 +607,7 @@ FAKE_ACCOUNT = r"""
   const sessionForCoach = (id, d) => {
     const sc = v => (['string', 'number', 'boolean'].includes(typeof v) ? v : undefined);
     return JSON.parse(JSON.stringify({ ...sessionPublic(d), records: pubRecords(d.records, true), notes: sc(d.notes), hidden: sc(d.hidden), id,
-      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), ss: sc(e.ss), sets: (e.sets || []).map(pubSet) })) }));
+      exercises: (d.exercises || []).map(e => ({ name: sc(e.name), measure: sc(e.measure), ss: sc(e.ss), grip: pubGrip(e.grip), sets: (e.sets || []).map(pubSet) })) }));
   };
   const noteAlive = n => livePosts(n.student).some(p => p.id === n.sid);
   const livePosts = id => postsOf(id).filter(p => !p.deleted_at && p.data && Number.isFinite(p.data.date));

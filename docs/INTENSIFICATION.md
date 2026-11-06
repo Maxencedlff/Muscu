@@ -102,9 +102,18 @@ Aucune n'a cluster, top set ni back-off : ce sont pourtant les mots des coachs, 
 
 ## Limites connues
 
-- **Serveur** : `private.session_public` (liste blanche des séances vues par un ami ou un coach) ne transmet pas
-  encore `tech` ni `sub` : le coach voit la série, pas le drop, jusqu'à une migration qui les ajoute (l'app les
-  garde déjà à la réception, `cleanPublicSession`). Le programme envoyé, lui, passe (JSON libre côté serveur).
+- **Serveur** : la migration `supabase/migrations/20261106100000_seance_publique_intensif_prise.sql` (pas encore
+  appliquée en production, ordre dans supabase/rollback/ORDRE.md) fait passer `tech` et `sub` par série et `grip`
+  (prise, branche prise-ergo) par exercice dans `private.session_public`, donc chez un ami (fil, Mon profil) et
+  chez le coach (`session_for_coach`). Listes blanches et bornes : techniques connues, jamais sur un
+  échauffement ; 6 sous-séries au plus, reps entières de 1 à 4000, charge de 0 à 1000 kg (3 décimales) ou
+  vide ; prise aux valeurs fixes de `js/data/grips.js`. Le reste n'est jamais transmis ; une séance sans ces
+  champs sort comme avant. Test : `tests/sql/intensif_prise_test.sql` ; retour arrière :
+  `supabase/rollback/20261106100000_seance_publique_intensif_prise_down.sql`. Tant qu'elle n'est pas appliquée,
+  le coach voit la série, pas le drop. Le programme envoyé, lui, passe déjà (JSON libre côté serveur).
+- **Prise reçue** : `cleanPublicSession` la garde et l'historique d'un ami ou d'un élève l'affiche seulement
+  quand `cleanGrip` et `gripText` existent (fusion avec la branche prise-ergo) ; sur cette branche seule, elle
+  est ignorée.
 - Une version précédente de l'app qui modifie la séance (Historique › Modifier) perd les sous-séries.
 - La montre ne montre pas les sous-lignes.
 - Lien de partage d'un programme (`prog-share.js`) : ne porte pas la technique, comme la fourchette de reps.
