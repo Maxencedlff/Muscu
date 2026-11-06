@@ -72,7 +72,7 @@ def t_seance(bench, eng, dev, theme):
         # B. Feuille « Ajouter un exercice » : Récents en tête, sans les exercices de la séance
         page.click('[data-action="add-session-ex"]'); page.wait_for_selector('#axSearch'); page.wait_for_timeout(350)
         hints = page.locator('#axList .ax__hint').all_inner_texts()
-        R.check(hints[:2] == ['Récents', 'Mêmes muscles que ta séance'], f'{t} sections {hints}')
+        R.check(hints == ['Récents', 'Déjà faits', 'Mêmes muscles que ta séance', 'Tous les exercices'], f'{t} sections {hints}')
         first = page.locator('#axList .ax__item').first.get_attribute('data-name')
         R.check(first == 'Squat barre', f'{t} 1er récent : le dernier exercice fait ({first})')
         push = page.evaluate("activeSession.exercises.map(e => e.name)")
@@ -125,10 +125,45 @@ def t_nouveau(bench):
     with bench.page('webkit', 'iPhone 13', 'light') as page:
         seed(page, 'light', None)
         skip_questions(page)
-        R.check(page.evaluate('data.rirOn') is False, 'nouvel utilisateur : reps en réserve coupées')
+        R.check(page.evaluate('data.rirOn') == 'auto', f'donnée neuve : réglage automatique ({page.evaluate("data.rirOn")})')
         page.click('[data-action="start-session"]'); page.wait_for_selector('.view.session')
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
         R.check(page.locator('.rir').count() == 0, 'nouvel utilisateur : pas de sélecteur après la série')
+        # Nouvel iPhone : la synchro du compte apporte un historique avec des reps en réserve → sélecteur montré
+        page.evaluate("""() => { data.history.push({ id: 'sync1', programme: 'ppl', category: 'legs', date: Date.now() - 864e5,
+            exercises: [{ name: 'Squat barre', sets: [{ weight: '60', reps: '8', rir: 2 }] }] }); save(); render(); }""")
+        page.wait_for_timeout(300)
+        R.check(page.locator('.rir').count() == 1, 'historique synchronisé avec reps en réserve : sélecteur montré')
+        R.check(page.evaluate('data.rirOn') == 'auto', 'réglage resté automatique (rien d\'écrasé)')
 
 
-run_main(R, [t_seance], once=[t_nouveau])
+def t_chrono(bench):
+    """Chrono d'une série en durée : le bouton reste « Arrêter » (le libellé est réécrit chaque seconde)."""
+    with bench.page('webkit', 'iPhone SE', 'dark') as page:
+        seed(page, 'dark', ppl_v2_today_json())
+        page.click('[data-action="start-session"][data-cat="push"]'); page.wait_for_selector('.view.session')
+        page.evaluate("pickExercise('Gainage')"); page.wait_for_timeout(300)
+        ei = page.evaluate("activeSession.exercises.findIndex(e => e.name === 'Gainage')")
+        page.evaluate(f"startEffort({ei}, 0)"); page.wait_for_timeout(300)
+        labels = set()
+        for _ in range(8):   # préparation (5 s) puis chrono
+            labels.add(page.evaluate("document.getElementById('effortStop')?.textContent"))
+            page.wait_for_timeout(1000)
+        R.check('Terminer' not in labels and 'Arrêter' in labels, f'chrono : « Arrêter », jamais « Terminer » {labels}')
+
+
+def t_superset(bench):
+    """Superset : l'objectif sous chaque exercice du groupe."""
+    import json
+    d = ppl_v2_today()
+    exs = d['programmes']['ppl']['exercises']['push']
+    exs[3]['ss'] = exs[4]['ss'] = 'a1'
+    with bench.page('webkit', 'iPhone 13', 'light') as page:
+        seed(page, 'light', json.dumps(d, ensure_ascii=False))
+        page.click('[data-action="start-session"][data-cat="push"]'); page.wait_for_selector('.ss-card')
+        goals = page.locator('.ss-card .ex-goal--member').all_inner_texts()
+        R.check(len(goals) == 2 and all(g.strip().startswith('Objectif ') for g in goals), f'superset : un objectif par exercice {goals}')
+        R.check(page.locator('.ss-card .ss-exname').count() == 0, 'superset : pas de nom répété dans les tours')
+
+
+run_main(R, [t_seance], once=[t_nouveau, t_chrono, t_superset])

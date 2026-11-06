@@ -6,7 +6,7 @@ const ASSETS = [
   '/css/social.css', '/css/coach.css', '/css/paywall.css', '/css/strava.css',
   '/js/platform/native.js',
   '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
-  '/js/data/programmes.js', '/js/data/store.js', '/js/data/records.js', '/js/data/accessors.js', '/js/data/active-session.js',
+  '/js/data/programmes.js', '/js/data/store.js', '/js/data/records.js', '/js/data/accessors.js', '/js/data/goals.js', '/js/data/active-session.js',
   '/js/data/backup.js', '/js/data/sync.js', '/js/data/account-auth.js', '/js/data/account.js', '/js/data/age-range.js', '/js/data/social.js', '/js/data/comments.js', '/js/data/coach.js', '/js/data/strava.js',
   '/js/data/plans.js', '/js/data/min-build.js', '/js/data/access.js', '/js/data/coach-pro.js', '/js/data/newsletter.js', '/js/data/legal-links.js', '/js/data/coach-share.js', '/js/data/coach-chat.js', '/js/data/referral.js',
   '/js/data/prog-share.js', '/js/data/trash.js', '/js/data/muscles.js', '/js/data/exercise-catalogue.js', '/js/data/measures.js', '/js/data/import-csv.js', '/js/data/session-review.js',

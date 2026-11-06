@@ -311,6 +311,10 @@ function entryRecords(h, history = data.history) {
   return Array.isArray(h?.records) ? cleanNotedRecords(h.records) : legacyRecords(h, history);
 }
 
+// Nombre de records d'une séance : la règle unique du bilan (« 1 record battu »), de la pastille de
+// l'historique et de « Derniers records » (Progrès) : ceux d'entryRecords, jamais le 1RM estimé (pour soi)
+function recordCount(h, history = data.history) { return entryRecords(h, history).length; }
+
 // Records notés à nouveau pour les séances de la même séance type (programme et séance) que `ref`, à
 // partir de sa date : après une séance passée ajoutée, modifiée ou supprimée, celles d'après peuvent
 // gagner ou perdre un record. Seules les séances qui ont déjà des records notés sont touchées (les

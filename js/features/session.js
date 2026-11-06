@@ -226,15 +226,16 @@ function exVolumeHtml(ex, allDone) {
     ? ` · <span class="ex-vol__delta ${allDone ? 'ex-vol__delta--up' : ''}">+${fmtVolume(delta)} de volume</span>` : '';
 }
 
-// Objectif du jour sous le nom (le même que l'accueil : exerciseGoal, js/features/dashboard.js), puis
-// « Objectif atteint » en vert dès qu'une série validée le bat. Rien sans objectif (jamais fait, durée, cardio)
-function exGoalHtml(ex) {
+// Objectif du jour sous le nom (le même que l'accueil : exerciseGoal, js/data/goals.js), puis « Objectif
+// atteint » en vert dès qu'une série validée le bat. Rien sans objectif (jamais fait, durée, cardio).
+// cls : 'ex-goal--member' sous un exercice de superset (aligné sur son nom)
+function exGoalHtml(ex, cls = '') {
   const d = sessExData(ex);
   const t = d && exerciseGoal(activeSession.category, d, activeSession.programme);
   if (!t?.goal) return '';
   return goalReached(t.goal, ex.sets)
-    ? `<div class="ex-goal ex-goal--done">${icon('checkmark', 13)}Objectif atteint</div>`
-    : `<div class="ex-goal num">Objectif ${esc(t.text)}</div>`;
+    ? `<div class="ex-goal ex-goal--done ${cls}">${icon('checkmark', 13)}Objectif atteint</div>`
+    : `<div class="ex-goal num ${cls}">Objectif ${esc(t.text)}</div>`;
 }
 
 // Sous-titre de la carte : record, repos de l'exercice (modifiable), hausse de volume
@@ -333,7 +334,7 @@ function renderGroupCard(members, cur, tags) {
           ${chip}
           <span class="ex-card__count num"><span aria-hidden="true">${n}/${ex.sets.length}</span><span class="visually-hidden">${n} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>
           <button class="ex-card__more" data-action="ex-menu" data-ei="${ei}" aria-label="Options de ${esc(ex.name)}">${icon('ellipsis', 22)}</button>
-        </div>`;
+        </div>${exGoalHtml(ex, 'ex-goal--member')}`;
   }).join('');
 
   const rounds = ssRounds(xs, members).map((round, t) => `

@@ -28,7 +28,11 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     ex = seedRow([{ weight: '30', reps: '12' }, { weight: '30', reps: '12' }], { repMin: 8 });
     sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 32.5, r: 8 });
     ex = seedRow([{ weight: '30', reps: '12' }, { weight: '30', reps: '12' }]);
-    assert.equal(run(`exerciseGoal('pull', ${ex}).goal.r`), 1, 'sans bas réglé : une rep suffit');
+    sameJSON(run(`exerciseGoal('pull', ${ex})`), { text: '32,5 kg × 8', gain: '2,5 kg', before: '30 kg × 12', goal: { w: 32.5, r: 8 } },
+      'sans bas réglé : 4 sous le haut de la fourchette, et les reps affichées');
+    ex = seedRow([{ weight: '30', reps: '4' }, { weight: '30', reps: '4' }], { repMax: 4 });
+    assert.equal(run(`exerciseGoal('pull', ${ex}).goal.r`), 1, 'jamais moins d\'une rep');
+    assert.equal(run(`goalRepsAfterBump({ repMin: '' , repMax: 10 })`), 6, 'bas vide : 4 sous le haut');
     // Poids du corps : +1 rep, charge nulle
     ex = seedRow([{ weight: '', reps: '15' }]);
     sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 0, r: 16 });
@@ -66,7 +70,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
 
   // ── Bilan ──
 
-  const sm = (records, rows) => ({ records, rows, date: Date.now() });
+  const sm = (records, rows) => ({ records, recordCount: records.length, rows, date: Date.now() });
   const row = (name, gain = null) => ({ name, gain });
 
   test('summaryLine : records puis la plus forte progression, le nom dans la phrase', () => {
@@ -79,6 +83,14 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(run(`summaryLine(${JSON.stringify(sm([], [row('Curl', { r: 2 })]))}, 3)`), '+2 reps sur curl');
     assert.equal(run(`summaryLine(${JSON.stringify(sm([], [row('RDL', { r: 1 })]))}, 3)`), '+1 rep sur RDL', 'sigle gardé');
     assert.equal(run(`summaryLine(${JSON.stringify(sm([], [row('Élévations latérales', { w: 1 })]))}, 3)`), '+1 kg sur élévations latérales');
+  });
+
+  test('summaryLine : le 1RM estimé (pour soi) ne compte pas comme record battu, même règle que l\'historique', () => {
+    reset();
+    const one = { records: [{ name: 'Squat', label: 'Record 1RM est.' }], recordCount: 0, rows: [], date: Date.now() };
+    assert.equal(run(`summaryLine(${JSON.stringify(one)}, 2)`), 'Séance faite · 2 cette semaine');
+    const e = { id: 'x', programme: 'ppl', category: 'push', date: Date.now(), exercises: [], records: [{ ex: 'Squat', kind: 'charge', before: 100, after: 102.5 }] };
+    assert.equal(run(`recordCount(${JSON.stringify(e)}, [])`), 1);
   });
 
   test('summaryLine : rien de battu, la régularité de la semaine', () => {
@@ -132,7 +144,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
 
   // ── Feuille « Ajouter un exercice » ──
 
-  test('axSections : récents d\'abord (5 au plus, le plus récent en tête), puis mêmes muscles, puis le reste', () => {
+  test('axSections : récents (5), puis les autres déjà faits, puis mêmes muscles jamais faits, puis le reste', () => {
     reset();
     const h = (id, daysAgo, names) => ({ id, programme: 'ppl', category: 'push', date: Date.now() - daysAgo * DAY,
       exercises: names.map(name => ({ name, sets: [{ weight: '20', reps: '10' }] })) });
@@ -155,8 +167,22 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     const many = Array.from({ length: 12 }, (_, i) => `Exo ${i}`);
     const s3 = run(`axSections(${JSON.stringify(many)}, [], ${JSON.stringify([h('c', 1, many)])})`);
     assert.equal(s3.recent.length, 5);
-    assert.equal(s3.rest.length, 7);
+    assert.equal(s3.done.length, 7, 'les autres exercices faits suivent, dans l\'ordre');
+    assert.equal(s3.rest.length, 0);
+    // 7 exercices faits : les 5 plus récents en « Récents », les 2 autres en tête du reste, avant le catalogue
+    // (ordre d'exerciseLibrary gardé, jamais trié de A à Z)
+    const doneNames = ['Squat barre', 'Presse à cuisses', 'Fentes marchées haltères', 'Leg curl machine', 'Extension quadriceps', 'Mollets debout', 'Curl marteau'];
+    const lib = [...doneNames, 'Abducteurs machine', 'Burpees', 'Curl biceps barre', 'Zercher squat'];
+    const s4 = run(`axSections(${JSON.stringify(lib)}, ['Crunch'], ${JSON.stringify([h('d', 1, doneNames.slice(0, 6)), h('e', 3, ['Curl marteau'])])})`);
+    sameJSON(s4.recent, doneNames.slice(0, 5));
+    sameJSON(s4.done, ['Mollets debout', 'Curl marteau'], `déjà faits, juste après les récents : ${s4.done}`);
+    sameJSON(s4.rest, ['Abducteurs machine', 'Burpees', 'Curl biceps barre', 'Zercher squat'], 'catalogue dans son ordre');
+    // Mêmes muscles : seulement des exercices jamais faits (les faits sont déjà plus haut)
+    const s5 = run(`axSections(${JSON.stringify([...doneNames.slice(0, 5), 'Curl concentré', 'Curl biceps barre'])}, ['Curl biceps haltères'],
+      ${JSON.stringify([h('g', 1, doneNames.slice(0, 5)), h('i', 9, ['Curl concentré'])])})`);
+    sameJSON(s5.done, ['Curl concentré']);
+    sameJSON(s5.same, ['Curl biceps barre'], `${s5.same}`);
     // Jamais rien perdu ni doublé
-    assert.equal(s.recent.length + s.same.length + s.rest.length, names.length);
+    assert.equal(s.recent.length + s.done.length + s.same.length + s.rest.length, names.length);
   });
 }

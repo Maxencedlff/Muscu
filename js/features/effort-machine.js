@@ -238,7 +238,7 @@ function openMachineSheet() {
   if (e.review) refreshMachineSplit(); else updateMachineUI(e);
 }
 
-// « Terminer » : le chrono s'arrête, le bilan s'ouvre (la série n'est validée qu'à « Enregistrer »)
+// « Arrêter » : le chrono s'arrête, le bilan s'ouvre (la série n'est validée qu'à « Enregistrer »)
 function stopMachine(e) {
   e.review = Date.now();
   persistSession();

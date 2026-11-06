@@ -187,10 +187,19 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     run(`data = normalizeData({ history: [] }); `);
     assert.equal(run(`data.rirOn`), true, 'donnée d\'avant : montré');
     assert.equal(run(`normalizeData({ history: [], rirOn: false }).rirOn`), false, 'refus gardé');
-    // Nouvel utilisateur (aucune donnée) : sélecteur coupé, et le reste après nettoyage ; réglage existant intact
-    assert.equal(run(`freshData().rirOn`), false, 'nouvel utilisateur : coupé');
-    assert.equal(run(`rirShown(sanitizeData(freshData()))`), false, 'coupé après sanitizeData');
+    // Donnée neuve : automatique, coupé tant que l'historique n'a pas de reps en réserve ; choix explicites gardés
+    assert.equal(run(`freshData().rirOn`), 'auto', 'donnée neuve : automatique');
+    assert.equal(run(`rirShown(sanitizeData(freshData()))`), false, 'nouvel utilisateur : coupé (gardé par sanitizeData)');
     assert.equal(run(`normalizeData({ history: [], rirOn: true }).rirOn`), true, 'réglage existant gardé');
+    // Nouvelle installation, puis la synchro du compte apporte un historique avec des reps en réserve notées
+    run(`data = sanitizeData(freshData());`);
+    assert.equal(run('rirShown()'), false);
+    run(`data.history = [{ id: 's1', programme: 'ppl', category: 'push', date: Date.now(), exercises: [{ name: 'Squat', sets: [{ weight: '60', reps: '8', rir: 2 }] }] }];`);
+    assert.equal(run('rirShown()'), true, 'historique synchronisé avec reps en réserve : montré');
+    run(`data.history[0].exercises[0].sets[0].rir = undefined; data.history = data.history.slice();`);
+    assert.equal(run('rirShown()'), false, 'nouvel historique relu (pas de cache périmé)');
+    run(`data.rirOn = false; data.history[0].exercises[0].sets[0].rir = 1;`);
+    assert.equal(run('rirShown()'), false, 'refus explicite : jamais montré');
     // Progrès : point avec l'effort moyen
     const p = run(`exPoint({ date: 1, id: 'h' }, { name: 'DC', sets: [{ weight: '60', reps: '8', rir: 2 }, { weight: '60', reps: '8', rir: 3 }] })`);
     assert.equal(p.rpe, 7.5);

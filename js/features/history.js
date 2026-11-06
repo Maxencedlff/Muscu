@@ -43,9 +43,8 @@ function historyCell(h) {
   const parts  = [other ? `Programme ${esc(progMeta(progId).name)}` : plural((h.exercises || []).length, 'exercice', 'exercices')];
   if (vol > 0) parts.push(fmtVolume(vol));
   if (h.duration) parts.push(fmtDuration(h.duration));
-  // Records notés dans la séance (js/data/records.js) : médaille et nombre à droite ; les séances d'avant les
-  // records notés n'en ont pas ici (pas de recalcul pour toute la liste)
-  const recs = cleanNotedRecords(h.records)?.length || 0;
+  // Records de la séance (recordCount, js/data/records.js : même règle que le bilan et Progrès) : médaille et nombre
+  const recs = recordCount(h);
   const recMark = recs ? `<span class="hcell__rec num">${medalSvg(14)}<span aria-hidden="true">${recs}</span><span class="visually-hidden">, ${plural(recs, 'record', 'records')}</span></span>` : '';
   return `
     <div class="hrow" data-id="${esc(h.id)}">

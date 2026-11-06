@@ -46,8 +46,8 @@ Toujours le même mot pour la même chose, en français courant, au tutoiement, 
 | Séance | un entraînement (fait ou au programme) | workout, session |
 | Série, reps | une série, ses répétitions | set |
 | Reps en réserve | RIR (« RIR » seulement si la place manque, avec un `aria-label` en toutes lettres) | RIR seul en libellé |
-| Objectif | la série à battre aujourd'hui (même calcul sur l'accueil et en séance : `exerciseGoal`) | cible, target |
-| Record | une performance jamais faite, notée dans la séance | PR |
+| Objectif | la série à battre aujourd'hui, toujours avec ses reps (« 35 kg × 8 ») ; même calcul sur l'accueil et en séance (`exerciseGoal`, js/data/goals.js) | cible, target |
+| Record | une performance jamais faite, notée dans la séance ; comptée partout de la même façon (`recordCount`, js/data/records.js) | PR |
 | Volume | charge × reps (« +33 kg de volume », jamais « +33 kg » seul) | tonnage |
 | Échauffement | séries légères hors volume et hors records | |
 | Réglages | l'écran des réglages | Paramètres |
@@ -74,8 +74,9 @@ qui citent le libellé (le test du guide échoue si un libellé cité n'existe p
 À l'écran : ce qui sert à chaque séance (valider, charge, reps, repos, objectif). Dans le menu `⋯` ou les
 Réglages : ce qui sert rarement ou aux confirmés (tempo, échauffement auto, disques, superset, reps en
 réserve, fourchette de reps, muscles ciblés). Une option avancée est coupée par défaut pour un nouvel
-utilisateur quand elle ajoute un geste à chaque série (exemple : reps en réserve), sans jamais changer le
-réglage de quelqu'un qui l'utilise déjà.
+utilisateur quand elle ajoute un geste à chaque série, sans jamais changer le réglage de quelqu'un qui
+l'utilise déjà. Un réglage propre à l'appareil se retrouve vide après une réinstallation ou sur un nouvel
+iPhone : il se déduit alors des données (reps en réserve : `rirOn: 'auto'`, montré si l'historique en a).
 
 ## 6. Vérifier
 

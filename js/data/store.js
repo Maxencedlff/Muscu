@@ -511,7 +511,7 @@ function normalizeData(d, rawJson = null) {
   // Poids de secours (kg) pour estimer les calories quand Santé n'a aucune pesée
   d.bodyWeightKg = Number.isFinite(d.bodyWeightKg) && d.bodyWeightKg >= 25 && d.bodyWeightKg <= 300 ? d.bodyWeightKg : null;
   d.musicOn  = d.musicOn === true;    // app iOS : Apple Music (désactivé par défaut)
-  d.rirOn    = d.rirOn !== false;     // sélecteur RIR montré, sauf refus explicite
+  d.rirOn    = d.rirOn === 'auto' ? 'auto' : d.rirOn !== false;   // choix explicite, sinon 'auto' (donnée neuve) ou montré
   // Liste écrite en dur : muscles.js (EQUIPMENT) est chargé après ce fichier ; concordance vérifiée par les tests
   if (!EQUIP_IDS.includes(d.exEquip)) d.exEquip = 'all';
   d.onboarded = d.onboarded === true;
@@ -594,9 +594,10 @@ function loadData() {
 function freshData() {
   const d = makeDefaultData();
   d.schema = SCHEMA;
-  // Nouvel utilisateur : reps en réserve non demandées (une case de plus après chaque série pour qui
-  // débute) ; une donnée existante sans le champ garde le sélecteur (sanitizeData : absent = montré)
-  d.rirOn = false;
+  // Donnée neuve (nouvel utilisateur, mais aussi réinstallation ou nouvel appareil : rirOn reste sur
+  // l'appareil) : 'auto', le sélecteur se montre dès que l'historique (synchronisé, importé) a des reps en
+  // réserve notées (rirShown, js/data/rir.js) ; une donnée existante sans le champ le garde (absent = montré)
+  d.rirOn = 'auto';
   return d;
 }
 

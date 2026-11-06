@@ -88,6 +88,7 @@
 /* Objectif du jour (exGoalHtml) : sous le nom, couleur d'accent ; vert une fois battu */
 .ex-goal { display: flex; align-items: center; gap: 4px; margin: -2px 0 2px; font-size: 0.765rem; line-height: 1.059rem; font-weight: 600; color: var(--tint); }
 .ex-goal--done { color: var(--green-text); }
+.ex-goal--member { margin: -8px 0 4px calc(28px + 8px); }   /* sous le nom, après la lettre A1 (.ss-tag) */
 .ex-rest-link {
   background: none; border: 0; color: var(--tint); font: inherit; cursor: pointer;
   padding: 13px 2px; margin: -13px -2px;
@@ -358,7 +359,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .summary-content {
   /* Le document défile (.view en bloc) : pas de défilement interne, sinon « Terminé » (sticky) ne se colle pas */
   flex: 1;
-  padding: calc(env(safe-area-inset-top, 0px) + 24px) 16px calc(32px + env(safe-area-inset-bottom, 0px));
+  padding: calc(env(safe-area-inset-top, 0px) + 24px) 16px 0;   /* le bas : la bande de « Terminé » */
   color: var(--label);
 }
 .sum-head { padding: 0 4px 16px; }
@@ -368,7 +369,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 /* Ligne de ce qui a progressé (summaryLine) ; médaille d'un record qui apparaît (0,6 → 1 en 300 ms) */
 .sum-line { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 0.941rem; line-height: 1.294rem; font-weight: 600; color: var(--label); }
 .sum-line .medal { color: var(--yellow); flex-shrink: 0; }
-.sum-line .medal, .sum-record .medal { animation: sum-medal .3s cubic-bezier(.2, .8, .2, 1.2) both; }
+.summary--pop .sum-line .medal, .summary--pop .sum-record .medal { animation: sum-medal .3s cubic-bezier(.2, .8, .2, 1.2) both; }
 @keyframes sum-medal { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .sum-tiles { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
 .sum-tile { background: var(--cell); border-radius: var(--r-md); padding: 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -398,17 +399,20 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 }
 .sum-notes:focus { outline: none; box-shadow: 0 0 0 2px var(--tint); }
 .sum-notes::placeholder { color: var(--label2); }
-/* « Terminé » toujours visible en bas (iPhone SE : le bilan dépasse l'écran), sur une bande du fond de l'écran */
+/* « Terminé » toujours visible en bas (iPhone SE : le bilan dépasse l'écran), sur sa propre bande du fond de
+   l'écran, de bord à bord, au-dessus de l'indicateur d'accueil */
+.sum-done-bar {
+  position: sticky; bottom: 0; z-index: 2; margin: 12px -16px 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--bg);
+}
 .sum-done {
-  display: block; width: 100%; height: 50px; margin-top: 24px; border: 0; border-radius: var(--r-md);
+  display: block; width: 100%; height: 50px; border: 0; border-radius: var(--r-md);
   background: var(--tint-fill); color: var(--on-tint); font-size: 1rem; font-weight: 600; cursor: pointer; font-family: inherit;
-  position: sticky; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 2;
-  box-shadow: 0 0 0 12px var(--bg);
 }
 .sum-done:active { opacity: .6; }
 
 @media (prefers-reduced-motion: reduce) {
-  .rest-mini, .rest-mini--done, .session-set--go, .sess-sheet__panel, .sum-line .medal, .sum-record .medal { animation: none; }
+  .rest-mini, .rest-mini--done, .session-set--go, .sess-sheet__panel, .summary--pop .sum-line .medal, .summary--pop .sum-record .medal { animation: none; }
   .session-set { transition: none; }
 }
 

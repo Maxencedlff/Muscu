@@ -29,3 +29,17 @@ function notedRecordCell(r, { before = true } = {}) {
             <span class="review-rec__val num">${esc(notedValueTxt(r))}</span>
           </div>`;
 }
+
+// Lignes de records récents (recentRecords, js/data/records.js) : exercice, date et gain à gauche, valeur à
+// droite. Progrès › Derniers records (js/features/progress.js) et Mon profil (js/features/social-me-ui.js)
+function recordRowsHtml(recs) {
+  return recs.map(({ ex, date, r }) => {
+    const gain = recordGainTxt(r);
+    return `
+      <div class="cell rec-row">
+        <span class="cell__body"><span class="cell__title">${esc(ex)}</span>
+          <span class="cell__sub num">${esc(fmtDate(date))}${gain ? ` · ${icon('arrow.up', 11)}${esc(gain)}<span class="sr-text"> de plus</span>` : ''}</span></span>
+        <span class="rec-row__val num">${esc(notedValueTxt(r))}</span>
+      </div>`;
+  }).join('');
+}

@@ -26,9 +26,19 @@ function rirTxt(rir) {
   return r === null ? '' : r >= RIR_MAX ? `${RIR_MAX}+` : String(r);
 }
 
-// Réglage : sélecteur montré après chaque série (data.rirOn ; coupé pour un nouvel utilisateur, freshData,
-// montré pour une donnée d'avant sans le champ ; propre à l'appareil)
-function rirShown(d = data) { return d.rirOn !== false; }
+// Réglage : sélecteur montré après chaque série (data.rirOn, propre à l'appareil) : true ou false quand la
+// personne a choisi (Réglages) ; 'auto' sur une donnée neuve (freshData) : montré seulement si l'historique a
+// déjà des reps en réserve notées (installation sur un nouvel iPhone puis synchro du compte, import).
+// Le parcours de l'historique est gardé tant qu'il ne change pas (dataVersion, +1 à chaque save()).
+let rirAutoMemo = null;
+function rirShown(d = data) {
+  if (d.rirOn !== 'auto') return d.rirOn !== false;
+  const h = d.history || [], key = `${typeof dataVersion === 'number' ? dataVersion : 0}:${h.length}`;
+  if (rirAutoMemo?.h !== h || rirAutoMemo.key !== key) {
+    rirAutoMemo = { h, key, v: h.some(x => (x?.exercises || []).some(e => (e?.sets || []).some(s => cleanRir(s?.rir) !== null))) };
+  }
+  return rirAutoMemo.v;
+}
 
 // Effort d'une liste de séries : RPE moyen (4+ compté 6) des séries de travail notées, null sans note
 function meanRpe(sets) {

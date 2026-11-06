@@ -54,6 +54,7 @@ function buildSummary(entry) {
     id: entry.id, programme: entry.programme, category: entry.category, date: entry.date,
     duration: entry.duration, sets: entry.exercises.reduce((a, e) => a + workSets(e.sets).length, 0),   // séries de travail
     volume: cur, delta: prevH ? cur - prev : null, records, rows,
+    recordCount: noted.length,   // « N records battus » : la règle de l'historique et de Progrès (recordCount), sans le 1RM estimé
     // Sans charge comptée (poids du corps inconnu, gainage…) : le total de reps remplace « 0 kg »
     reps: entry.exercises.filter(ex => measureOf(ex) === 'reps').reduce((a, ex) => a + workSets(ex.sets).reduce((b, s) => b + (parseInt(s.reps) || 0), 0), 0),
     needsBodyKg: !entryBodyKg(entry) && entry.exercises.some(ex => bodyShare(ex) > 0),
@@ -65,7 +66,8 @@ function buildSummary(entry) {
 // weekCount : séances de la semaine, celle-ci comprise (weekStats, js/features/dashboard.js)
 function summaryLine(sm, weekCount = weekStats(sm.date).count) {
   const parts = [];
-  if (sm.records.length) parts.push(plural(sm.records.length, 'record battu', 'records battus'));
+  const n = sm.recordCount ?? 0;
+  if (n) parts.push(plural(n, 'record battu', 'records battus'));
   const top = sm.rows.filter(r => r.gain).sort((a, b) => (b.gain.w || 0) - (a.gain.w || 0) || (b.gain.r || 0) - (a.gain.r || 0))[0];
   if (top) {
     // Nom en minuscule dans la phrase, sauf un sigle (« RDL »)
@@ -141,13 +143,16 @@ function renderSummary() {
   const meta = sessionMeta(sm.category, sm.programme);
   const h    = data.history.find(x => x.id === sm.id);
   const date = fmtDate(sm.date, 'day') + ' · ' + fmtTime(sm.date);
+  // Médailles animées au premier affichage seulement (le bilan se redessine : poids du corps, muscles…)
+  const pop = !sm.shown;
+  sm.shown = true;
   return `
-    <div class="view summary" style="--cat-color:${meta.color}">
+    <div class="view summary${pop ? ' summary--pop' : ''}" style="--cat-color:${meta.color}">
       <div class="summary-content">
         <div class="sum-head">
           <h1 class="sum-title">${esc(meta.label)}</h1>
           <div class="sum-date">${esc(date)}</div>
-          <p class="sum-line">${sm.records.length ? medalSvg(18) : ''}<span>${esc(summaryLine(sm))}</span></p>
+          <p class="sum-line">${sm.recordCount ? medalSvg(18) : ''}<span>${esc(summaryLine(sm))}</span></p>
         </div>
         <div class="sum-tiles">
           <div class="sum-tile"><div class="sum-tile__label">Durée</div><div class="sum-tile__value num">${fmtDuration(sm.duration)}</div></div>
@@ -171,7 +176,7 @@ function renderSummary() {
         ${coachNotesHint()}
         ${summarySocialGroup(h)}
         ${stravaSummaryGroup(h)}
-        <button class="sum-done" data-action="summary-done">Terminé</button>
+        <div class="sum-done-bar"><button class="sum-done" data-action="summary-done">Terminé</button></div>
       </div>
     </div>`;
 }
@@ -300,7 +305,7 @@ registerActions({
     // Bilan : records notés à l'enregistrement (et 1RM estimé battu, pour soi)
     lastSummary = buildSummary(entry);
     if (lastSummary.records.length) recordSound(); else finishSound();
-    haptic(lastSummary.records.length ? 'success' : 'light');   // record : avec la médaille qui apparaît (css/session.css)
+    haptic(lastSummary.recordCount ? 'success' : 'light');   // record : avec la médaille qui apparaît (css/session.css)
     endSession();
     openSummary(); window.scrollTo(0, 0);
     // Le bilan montre déjà que la séance est enregistrée : pas de toast sur son titre, annonce VoiceOver.

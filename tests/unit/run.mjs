@@ -33,6 +33,7 @@ const SCRIPTS = [
   'js/data/store.js',
   'js/data/records.js',
   'js/data/accessors.js',
+  'js/data/goals.js',
   'js/data/backup.js',
   'js/data/sync.js',
   'js/data/account-auth.js',
@@ -260,9 +261,9 @@ test('exerciseTarget : +1 rep sous le haut de la fourchette, palier de charge au
   let ex = seedPull([{ weight: '30', reps: '10' }, { weight: '32', reps: '9' }, { weight: '32', reps: '8' }]);
   sameJSON(app.exerciseTarget('pull', ex), { text: '32 kg × 10', gain: '1 rep', before: '32 kg × 9' }, 'dernière fois : la meilleure série');
   ex = seedPull([{ weight: '32', reps: '12' }, { weight: '32', reps: '12' }, { weight: '32', reps: '12' }]);
-  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg', gain: '2,5 kg', before: '32 kg × 12' });
+  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg × 8', gain: '2,5 kg', before: '32 kg × 12' }, 'charge augmentée : 4 reps sous le haut de la fourchette');
   ex = seedPull([{ weight: '32', reps: '8' }, { weight: '32', reps: '8' }], { repMax: 8 });
-  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg', gain: '2,5 kg', before: '32 kg × 8' }, 'fourchette réglée sur l\'exercice');
+  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg × 4', gain: '2,5 kg', before: '32 kg × 8' }, 'fourchette réglée sur l\'exercice');
   ex = seedPull([{ weight: '', reps: '15' }]);
   sameJSON(app.exerciseTarget('pull', ex), { text: '16 reps', gain: '1 rep', before: '15 reps' }, 'poids du corps : jamais de palier de charge');
   run('data.history = []');
@@ -274,7 +275,7 @@ test('exerciseTarget en lbs : palier de 5 lb', () => {
   const ex = seedPull([{ weight: '20', reps: '12' }, { weight: '20', reps: '12' }]);
   const t = app.exerciseTarget('pull', ex);
   assert.equal(t.gain, '5 lb');
-  assert.equal(t.text, '49,1 lbs');
+  assert.equal(t.text, '49,1 lbs × 8');
 });
 
 test('weekStats : séances depuis lundi seulement', () => {

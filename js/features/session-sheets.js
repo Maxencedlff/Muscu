@@ -113,37 +113,34 @@ const axHintHtml = txt => `<div class="ax__hint">${txt}</div>`;
 // Recherche approchée : au plus 3 exercices, pour que « Créer » reste à portée de pouce, juste dessous
 const AX_PARTIAL_MAX = 3;
 
-// Recherche vide, sans filtre de muscle : les 5 exercices faits le plus récemment d'abord (un toucher pour
-// les reprendre), puis ceux qui travaillent les mêmes muscles que la séance (around : ses exercices), puis
-// le reste par ordre alphabétique. names : bibliothèque déjà filtrée (matériel, exclusions), dans l'ordre
-// d'exerciseLibrary. Renvoie { recent, same, rest } (noms tels que dans names).
-const AX_RECENT_MAX = 5, AX_SAME_MAX = 8;   // 5 récents : « Mêmes muscles » commence dans le premier écran
+// Recherche vide, sans filtre de muscle : d'abord ce qui est déjà fait (le plus utile pour aller vite) :
+// les 5 plus récents (« Récents »), puis les autres exercices faits, du plus récent au plus ancien
+// (« Déjà faits ») ; ensuite les exercices jamais faits qui travaillent les mêmes muscles que la séance
+// (around : ses exercices ; les plus courants d'abord), puis le reste dans l'ordre de names. names :
+// bibliothèque filtrée (matériel, exclusions) dans l'ordre d'exerciseLibrary. Renvoie { recent, done, same, rest }.
+const AX_RECENT_MAX = 5, AX_SAME_MAX = 8;
 function axSections(names, around = [], history = data.history) {
   const byKey = new Map(names.map(n => [normName(n), n]));
-  const recent = [], taken = new Set();
-  for (const h of (history || []).slice().sort((a, b) => b.date - a.date)) {
-    for (const e of h.exercises || []) {
-      const k = normName(e.name);
-      if (!byKey.has(k) || taken.has(k)) continue;
-      taken.add(k); recent.push(byKey.get(k));
-      if (recent.length >= AX_RECENT_MAX) break;
-    }
-    if (recent.length >= AX_RECENT_MAX) break;
-  }
+  const doneKeys = [];   // exercices faits, du plus récent au plus ancien
+  (history || []).slice().sort((a, b) => b.date - a.date).forEach(h => (h.exercises || []).forEach(e => {
+    const k = normName(e.name);
+    if (byKey.has(k) && !doneKeys.includes(k)) doneKeys.push(k);
+  }));
+  const taken = new Set(doneKeys);
   const index = chosenMusclesIndex();
   const target = new Set(around.flatMap(n => exerciseMuscles({ name: n }, index).primary));
   const same = target.size ? names.filter(n => !taken.has(normName(n)))
     .map(n => ({ n, common: exerciseMuscles({ name: n }, index).primary.filter(id => target.has(id)).length }))
-    .filter(x => x.common).sort((a, b) => b.common - a.common || catalogueRank(a.n) - catalogueRank(b.n)).slice(0, AX_SAME_MAX).map(x => x.n) : [];   // à égalité : les plus courants
+    .filter(x => x.common).sort((a, b) => b.common - a.common || catalogueRank(a.n) - catalogueRank(b.n)).slice(0, AX_SAME_MAX).map(x => x.n) : [];
   same.forEach(n => taken.add(normName(n)));
-  const rest = names.filter(n => !taken.has(normName(n))).sort((a, b) => a.localeCompare(b, 'fr'));
-  return { recent, same, rest };
+  const done = doneKeys.map(k => byKey.get(k));
+  return { recent: done.slice(0, AX_RECENT_MAX), done: done.slice(AX_RECENT_MAX), same, rest: names.filter(n => !taken.has(normName(n))) };
 }
 function axSectionsHtml(names) {
-  const { recent, same, rest } = axSections(names, ax.around);
+  const { recent, done, same, rest } = axSections(names, ax.around);
   if (!recent.length && !same.length) return names.map(axItemHtml).join('');
   const part = (title, list) => (list.length ? axHintHtml(title) + list.map(axItemHtml).join('') : '');
-  return part('Récents', recent) + part('Mêmes muscles que ta séance', same) + part('Tous les exercices', rest);
+  return part('Récents', recent) + part('Déjà faits', done) + part('Mêmes muscles que ta séance', same) + part('Tous les exercices', rest);
 }
 
 function axListHtml(q) {

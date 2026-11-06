@@ -34,7 +34,7 @@ function updateTempoUI(e) {
   } else if (c.phase !== 'done') {
     if (time) time.innerHTML = `<span class="tempo__word">${words[c.phase]}</span><span class="tempo__left">${c.phaseLeft}</span>`;
     if (sub) sub.textContent = e.reps ? `Rep ${c.rep} sur ${e.reps}` : `Rep ${c.rep}`;
-    if (stop) stop.textContent = 'Terminer';
+    if (stop) stop.textContent = 'Arrêter';
     if (bar) bar.setAttribute('stroke-dashoffset', e.reps ? RING_BIG * (1 - (c.rep - 1) / e.reps) : 0);
   }
   // Une note au début de la descente et de la montée (« X » : double note), rien aux pauses ;
@@ -57,7 +57,7 @@ function updateTempoUI(e) {
   if (c.phase === 'done') finishEffort(c.endAt, e.reps);
 }
 
-// « Commencer » pendant la préparation, sinon « Terminer » : seules les répétitions complètes comptent
+// « Commencer » pendant la préparation, sinon « Arrêter » : seules les répétitions complètes comptent
 function stopTempoEarly(e) {
   const c = tempoClock(e), now = Date.now();
   if (c.phase === 'prep') { e.start = now; persistSession(); updateTempoUI(e); return; }

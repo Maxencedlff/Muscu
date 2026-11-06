@@ -191,7 +191,7 @@ function meSessionsHtml(st) {
     ${all}`;
 }
 
-// Records récents (recentRecords, js/data/records.js ; lignes recordRowsHtml, js/features/progress.js)
+// Records récents (recentRecords, js/data/records.js ; lignes recordRowsHtml, js/ui/medal.js)
 function meRecordsHtml() {
   const recs = recentRecords();
   if (!recs.length) return '';

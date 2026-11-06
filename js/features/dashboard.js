@@ -152,43 +152,7 @@ function sessionMinutes(cat) {
   return ms ? Math.max(5, Math.round(ms / 300_000) * 5) : 0;
 }
 
-// Cible du jour d'un exercice, même règle que la puce de la séance (bumpReady) :
-// toutes les séries de la dernière fois en haut de la fourchette → charge + 2,5 kg (5 lb) ;
-// sinon la meilleure série de la dernière fois + 1 rep ; jamais fait → nombre de séries prévu.
-// gain : sans signe (« 1 rep », « 2,5 kg ») : l'accueil le précède d'une flèche ↑.
-// before : la meilleure série de la dernière fois (« 32 kg × 9 »), '' si l'exercice n'a jamais été fait.
-// Même cible en séance, sous le nom de l'exercice (js/features/session.js) : exerciseGoal en donne aussi
-// la série à faire (goal : { w en kg, r }), null quand il n'y a rien à battre (jamais fait, durée, cardio, aide).
-function exerciseGoal(cat, ex, progKey = data.activeProgramme) {
-  const lp = lastPerf(progKey, cat, ex);
-  const planned = { text: `${ex.sets} série${ex.sets > 1 ? 's' : ''}`, gain: '', before: '', goal: null };
-  if (!lp) return planned;
-  const sets = workSets(lp.ex.sets).filter(s => (parseInt(s.reps) || 0) > 0);   // l'échauffement ne fixe pas la cible
-  const best = bestSet(sets);
-  if (!best) return planned;
-  const before = setTxt(best, ex);
-  const m = measureOf(ex);
-  if (m !== 'reps' || isAssisted(ex)) return { text: setTxt(best, ex), gain: '', before, goal: null };   // durée, cardio : on rappelle la dernière fois
-  const more = { w: best.w, r: best.r + 1 };
-  if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: best.r + 1, reps: String(best.r + 1) }, ex), gain: '1 rep', before, goal: more };
-  const repMax = ex.repMax ?? 12;
-  const bump = best.w > 0 && sets.length >= Math.min(ex.sets, 2) && sets.every(s => (parseInt(s.reps) || 0) >= repMax);
-  if (bump) {
-    // Charge augmentée : elle repart du bas de la fourchette (une rep au moins sans bas réglé)
-    return { text: `${fmtW(best.w + bumpStepKg())} ${unitLbl()}`, gain: bumpLabel(), before, goal: { w: best.w + bumpStepKg(), r: ex.repMin || 1 } };
-  }
-  return { text: setTxt({ ...best, r: best.r + 1 }), gain: '1 rep', before, goal: more };
-}
-function exerciseTarget(cat, ex) {
-  const { text, gain, before } = exerciseGoal(cat, ex);
-  return { text, gain, before };
-}
-// Une série de travail validée atteint l'objectif : au moins la charge (kg, au centième près) et les reps
-function goalReached(goal, sets) {
-  if (!goal) return false;
-  return workSets(sets).some(s => s.done && (parseInt(s.reps) || 0) >= goal.r
-    && Math.round((parseFloat(s.weight) || 0) * 100) >= Math.round(goal.w * 100));
-}
+// Cible du jour d'un exercice : exerciseTarget (js/data/goals.js), la même qu'en séance.
 
 // « À battre aujourd'hui », dans la carte de la prochaine séance : les premiers exercices, la cible en
 // gras, le gain avec une flèche ↑ (jamais la couleur seule : « ↑ 1 rep », sans « + »), la dernière fois

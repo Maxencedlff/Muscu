@@ -160,20 +160,7 @@ function statsSectionTitle(sec, key) {
   return sec.prog === data.activeProgramme || sec.prog === FREE ? label : `${label} · ${esc(progMeta(sec.prog).name)}`;
 }
 
-// Derniers records (recentRecords, js/data/records.js) : exercice, date et gain à gauche, valeur à droite.
-// Lignes partagées avec Mon profil (js/features/social-me-ui.js)
-function recordRowsHtml(recs) {
-  return recs.map(({ ex, date, r }) => {
-    const gain = recordGainTxt(r);
-    return `
-      <div class="cell rec-row">
-        <span class="cell__body"><span class="cell__title">${esc(ex)}</span>
-          <span class="cell__sub num">${esc(fmtDate(date))}${gain ? ` · ${icon('arrow.up', 11)}${esc(gain)}<span class="sr-text"> de plus</span>` : ''}</span></span>
-        <span class="rec-row__val num">${esc(notedValueTxt(r))}</span>
-      </div>`;
-  }).join('');
-}
-// Carte « Derniers records » en tête de Progrès : les 3 plus récents, rien sans record
+// Carte « Derniers records » en tête de Progrès : les 3 plus récents (lignes : recordRowsHtml, js/ui/medal.js)
 function statsRecordsHtml() {
   const recs = recentRecords();
   return recs.length ? `<div class="group-title">Derniers records</div><div class="group stats-records">${recordRowsHtml(recs)}</div>` : '';

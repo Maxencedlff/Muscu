@@ -68,7 +68,7 @@ function updateEffortUI() {
   } else {
     if (time) time.textContent = fmtRest(e.target ? c.left : c.elapsed);
     if (sub) sub.textContent = sideTxt + (e.target ? `Objectif ${fmtSeconds(e.target)}` : 'Chrono libre');
-    if (stop) stop.textContent = two && c.side === 1 ? 'Côté suivant' : 'Terminer';
+    if (stop) stop.textContent = two && c.side === 1 ? 'Côté suivant' : 'Arrêter';
     if (bar) bar.setAttribute('stroke-dashoffset', e.target ? RING_BIG * (1 - c.left / e.target) : 0);
   }
   // Bips : chaque seconde de préparation et de changement de côté, puis les 3 dernières de l'effort ;
@@ -132,7 +132,7 @@ function clearEffort() {
   if (activeSession) delete activeSession.effort;
 }
 
-// Fin de l'effort (objectif atteint ou « Terminer ») : durée tenue enregistrée, série validée,
+// Fin de l'effort (objectif atteint ou « Arrêter ») : durée tenue enregistrée, série validée,
 // repos calé sur la vraie fin de l'effort (si l'app revient en retard, le repos a déjà avancé)
 function finishEffort(endAt, held) {
   if (!activeSession?.effort) return;               // déjà fini (horloge et retour au premier plan)
@@ -149,7 +149,7 @@ function finishEffort(endAt, held) {
 }
 
 // Bouton du bas : « Commencer » (passe la préparation ou le changement de côté), « Côté suivant »
-// (chrono libre à deux côtés), « Terminer » (fin anticipée : le temps tenu est enregistré)
+// (chrono libre à deux côtés), « Arrêter » (fin anticipée : le temps tenu est enregistré)
 function stopEffortEarly() {
   const e = activeSession?.effort;
   if (!e) return;
