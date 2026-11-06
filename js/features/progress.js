@@ -160,6 +160,25 @@ function statsSectionTitle(sec, key) {
   return sec.prog === data.activeProgramme || sec.prog === FREE ? label : `${label} · ${esc(progMeta(sec.prog).name)}`;
 }
 
+// Derniers records (recentRecords, js/data/records.js) : exercice, date et gain à gauche, valeur à droite.
+// Lignes partagées avec Mon profil (js/features/social-me-ui.js)
+function recordRowsHtml(recs) {
+  return recs.map(({ ex, date, r }) => {
+    const gain = recordGainTxt(r);
+    return `
+      <div class="cell rec-row">
+        <span class="cell__body"><span class="cell__title">${esc(ex)}</span>
+          <span class="cell__sub num">${esc(fmtDate(date))}${gain ? ` · ${icon('arrow.up', 11)}${esc(gain)}<span class="visually-hidden"> de plus</span>` : ''}</span></span>
+        <span class="rec-row__val num">${esc(notedValueTxt(r))}</span>
+      </div>`;
+  }).join('');
+}
+// Carte « Derniers records » en tête de Progrès : les 3 plus récents, rien sans record
+function statsRecordsHtml() {
+  const recs = recentRecords();
+  return recs.length ? `<div class="group-title">Derniers records</div><div class="group stats-records">${recordRowsHtml(recs)}</div>` : '';
+}
+
 function renderStats() {
   const idx  = exerciseIndex();
   const now  = new Date();
@@ -176,6 +195,7 @@ function renderStats() {
     <div class="view stats view--grouped">
       ${navBar({ title: 'Progrès' })}
       <div class="scr">
+        ${data.history?.length ? statsRecordsHtml() : '<p class="stats-empty">Fais ta première séance pour voir tes muscles travaillés ici.</p>'}
         <div class="group stats-head">
           <div class="stat-pair">
             <div class="stat-pair__item"><span class="stat-pair__val num">${monthCount}</span><span class="stat-pair__lbl">${monthCount > 1 ? 'séances' : 'séance'} ce mois-ci</span></div>
@@ -195,7 +215,7 @@ function renderStats() {
         ${renderMuscleCard()}
         ${renderWeightGroup()}
         ${renderBodyMeasuresGroup()}
-        ${idx.size ? list : `<div class="empty-note">Termine des séances pour voir ta progression ici.</div>`}
+        ${idx.size ? list : data.history?.length ? `<div class="empty-note">Termine des séances pour voir ta progression ici.</div>` : ''}
       </div>
     </div>`;
 }

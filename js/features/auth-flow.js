@@ -136,6 +136,7 @@ const AUTH_STEPS = {
       <div class="auth__hero">
         <div class="auth__logo">${appIconSvg(DEFAULT_APP_ICON, { attrs: 'aria-hidden="true" focusable="false"' })}</div>
         <h1 class="auth__title auth__title--welcome" id="authTitle" tabindex="-1">Bienvenue dans MDLF&nbsp;Training</h1>
+        <p class="auth__tagline">Ton carnet de muscu qui te dit quoi soulever pour progresser.</p>
         <p class="auth__lead">Crée un compte pour sauvegarder tes séances et les retrouver sur un nouvel iPhone.</p>
       </div>
       <div class="auth-buttons">${signInButtonsHtml()}</div>

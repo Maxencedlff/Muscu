@@ -44,7 +44,10 @@ function buildSummary(entry) {
     const b = summaryBestSet(ex.sets, ex), pb = summaryBestSet(pex?.sets, ex);
     // Exercice réduit à son échauffement (séries de travail non faites) : la série la plus lourde quand même
     const bs = b || summaryBestSet(ex.sets.map(s => ({ ...s, warmup: undefined })), ex);
-    rows.push({ name: ex.name, weight: bs.s.weight, reps: bs.s.reps, dist: bs.s.dist, measure: measureOf(ex), kind: setKind(ex), trend: b ? bestSetTrend(b, pb) : null });
+    const trend = b ? bestSetTrend(b, pb) : null;
+    // Progrès de la meilleure série (ligne sous le titre) : charge gagnée, sinon reps gagnées ; durée, cardio et aide à part
+    const gain = trend === 'up' && measureOf(ex) === 'reps' && !isAssisted(ex) ? (b.w > pb.w ? { w: b.w - pb.w } : { r: b.r - pb.r }) : null;
+    rows.push({ name: ex.name, weight: bs.s.weight, reps: bs.s.reps, dist: bs.s.dist, measure: measureOf(ex), kind: setKind(ex), trend, gain });
   });
   const records = [...noted.map(r => ({ name: r.ex, label: notedLabel(r), txt: notedValueTxt(r) })), ...e1rm];
   return {
@@ -55,6 +58,22 @@ function buildSummary(entry) {
     reps: entry.exercises.filter(ex => measureOf(ex) === 'reps').reduce((a, ex) => a + workSets(ex.sets).reduce((b, s) => b + (parseInt(s.reps) || 0), 0), 0),
     needsBodyKg: !entryBodyKg(entry) && entry.exercises.some(ex => bodyShare(ex) > 0),
   };
+}
+
+// Ligne sous le titre du bilan : ce qui a progressé (« 1 record battu · +1 rep sur développé couché »), la
+// plus forte hausse de charge d'abord, sinon de reps ; rien de battu : la régularité (« Séance faite · 3 cette semaine »).
+// weekCount : séances de la semaine, celle-ci comprise (weekStats, js/features/dashboard.js)
+function summaryLine(sm, weekCount = weekStats(sm.date).count) {
+  const parts = [];
+  if (sm.records.length) parts.push(plural(sm.records.length, 'record battu', 'records battus'));
+  const top = sm.rows.filter(r => r.gain).sort((a, b) => (b.gain.w || 0) - (a.gain.w || 0) || (b.gain.r || 0) - (a.gain.r || 0))[0];
+  if (top) {
+    // Nom en minuscule dans la phrase, sauf un sigle (« RDL »)
+    const name = /^.\p{Ll}/u.test(top.name) ? top.name.charAt(0).toLowerCase() + top.name.slice(1) : top.name;
+    parts.push(`+${top.gain.w ? `${fmtW(top.gain.w)} ${unitLbl()}` : plural(top.gain.r, 'rep', 'reps')} sur ${name}`);
+  }
+  if (parts.length) return parts.join(' · ');
+  return `Séance faite · ${weekCount > 1 ? `${weekCount} cette semaine` : 'la 1re cette semaine'}`;
 }
 
 const TREND_HTML = {
@@ -128,6 +147,7 @@ function renderSummary() {
         <div class="sum-head">
           <h1 class="sum-title">${esc(meta.label)}</h1>
           <div class="sum-date">${esc(date)}</div>
+          <p class="sum-line">${sm.records.length ? medalSvg(18) : ''}<span>${esc(summaryLine(sm))}</span></p>
         </div>
         <div class="sum-tiles">
           <div class="sum-tile"><div class="sum-tile__label">Durée</div><div class="sum-tile__value num">${fmtDuration(sm.duration)}</div></div>
@@ -280,7 +300,7 @@ registerActions({
     // Bilan : records notés à l'enregistrement (et 1RM estimé battu, pour soi)
     lastSummary = buildSummary(entry);
     if (lastSummary.records.length) recordSound(); else finishSound();
-    haptic();
+    haptic(lastSummary.records.length ? 'success' : 'light');   // record : avec la médaille qui apparaît (css/session.css)
     endSession();
     openSummary(); window.scrollTo(0, 0);
     // Le bilan montre déjà que la séance est enregistrée : pas de toast sur son titre, annonce VoiceOver.

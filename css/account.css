@@ -60,6 +60,8 @@
 .auth__title--left { text-align: left; margin-top: 8px; }
 .auth__lead { margin: 6px 0 0; font-size: var(--fs-body); line-height: 1.38; color: var(--label2); text-align: center; text-wrap: pretty; }
 .auth__lead--left { text-align: left; margin-bottom: 20px; }
+/* Bienvenue : ce que fait l'app, en une phrase, avant le compte */
+.auth__tagline { margin: 4px 0 0; font-size: var(--fs-body); line-height: 1.3; font-weight: 600; color: var(--label); text-align: center; text-wrap: balance; }
 .auth__email { color: var(--label); font-weight: 600; overflow-wrap: anywhere; }
 /* Code renvoyé : « Seul le code du dernier e-mail envoyé est valable », sous le texte d'envoi */
 .auth__last-code { margin: -12px 0 16px; font-size: var(--fs-footnote); line-height: 1.35; color: var(--label); font-weight: 600; text-wrap: pretty; }
@@ -94,6 +96,7 @@
   .auth__page--welcome .auth__logo svg { width: 64px; height: 64px; }
   .auth__page--welcome .auth__title { font-size: var(--fs-title2); }
   .auth__page--welcome .auth__lead { font-size: var(--fs-subhead); margin-top: 2px; }
+  .auth__page--welcome .auth__tagline { font-size: var(--fs-subhead); margin-top: 0; }
   .auth__page--welcome .auth-buttons { gap: 8px; }
   .auth__page--welcome .auth-btn { min-height: 46px; }
   .auth__page--welcome .auth__again { margin-top: 8px; }

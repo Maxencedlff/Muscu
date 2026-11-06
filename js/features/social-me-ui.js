@@ -191,20 +191,11 @@ function meSessionsHtml(st) {
     ${all}`;
 }
 
-// Records récents (recentRecords, js/data/records.js) : exercice, date et gain à gauche, valeur à droite
+// Records récents (recentRecords, js/data/records.js ; lignes recordRowsHtml, js/features/progress.js)
 function meRecordsHtml() {
   const recs = recentRecords();
   if (!recs.length) return '';
-  const rows = recs.map(({ ex, date, r }) => {
-    const gain = recordGainTxt(r);
-    return `
-      <div class="cell rec-row">
-        <span class="cell__body"><span class="cell__title">${esc(ex)}</span>
-          <span class="cell__sub num">${esc(fmtDate(date))}${gain ? ` · ${icon('arrow.up', 11)}${esc(gain)}<span class="visually-hidden"> de plus</span>` : ''}</span></span>
-        <span class="rec-row__val num">${esc(notedValueTxt(r))}</span>
-      </div>`;
-  }).join('');
-  return `<h2 class="group-title group-title--large">Records</h2><div class="group">${rows}</div>`;
+  return `<h2 class="group-title group-title--large">Records</h2><div class="group">${recordRowsHtml(recs)}</div>`;
 }
 
 function renderSocialMe() {

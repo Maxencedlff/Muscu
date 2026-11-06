@@ -74,6 +74,8 @@
 .txt-down { color: var(--red-text); }
 .txt-flat { color: var(--label2); }
 .empty-note { text-align: center; color: var(--label2); font-size: 0.882rem; padding: 48px 16px; line-height: 1.5; }
+/* Progrès sans aucune séance : une phrase d'invitation, en tête */
+.stats-empty { margin: 8px 4px 16px; color: var(--label2); font-size: 1rem; line-height: 1.35; text-wrap: pretty; }
 
 /* ── Réglages › Icône de l'app (app iOS) : vignettes au rayon des icônes d'iOS ── */
 .app-icons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 8px; }
@@ -187,6 +189,10 @@
 .hcell__date { font-size: 0.882rem; color: var(--label2); white-space: nowrap; flex-shrink: 0; }
 .hcell__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; } /* sur 2 lignes si besoin plutôt que tronqué */
 .hcell__title + .hcell__date { margin-left: auto; }
+/* Ligne du bas : détails à gauche, pastille des records notés à droite (médaille et nombre) */
+.hcell__bot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.hcell__rec { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; font-size: 0.765rem; font-weight: 600; color: var(--gold-text); }
+.hcell__rec .medal { color: var(--yellow); }
 .hrow__del {
   position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: none; background: var(--red); color: var(--white);
   font: 400 0.882rem -apple-system, system-ui, sans-serif; cursor: pointer;
@@ -248,8 +254,8 @@ html.type-xl .chart-bubble { white-space: normal; }
 .wk__bar { width: 100%; min-height: 2px; background: var(--fill); border-radius: 4px 4px 0 0; }
 .wk__bar--ok { background: var(--green); }
 .wks__goal { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--label3); z-index: 1; }
-.wks__goal span { position: absolute; right: 0; top: -17px; font-size: 0.647rem; color: var(--label2); }
-.wks__axis { display: flex; justify-content: space-between; font-size: 0.647rem; color: var(--label2); margin-top: 6px; }
+.wks__goal span { position: absolute; right: 0; top: -18px; font-size: 0.706rem; color: var(--label2); }   /* 12 px au moins */
+.wks__axis { display: flex; justify-content: space-between; font-size: 0.706rem; color: var(--label2); margin-top: 6px; }
 
 /* ── Programme ── */
 .ed-row .cell__sub { overflow-wrap: anywhere; }

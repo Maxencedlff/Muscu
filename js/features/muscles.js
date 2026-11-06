@@ -3,7 +3,9 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-let muscleSpan = 'week';   // période de Progrès : 'week' | 'month' (MUSCLE_SPANS)
+// Période de Progrès : 'week' | 'month' (MUSCLE_SPANS). « 4 semaines » d'abord : « Cette semaine » repart de
+// zéro chaque lundi, la silhouette y est grise en début de semaine même pour qui s'entraîne bien
+let muscleSpan = 'month';
 let muscleFocus = null;    // muscle mis en avant dans « Séries par muscle » (ouvert depuis la bulle)
 
 // Intensités d'un exercice pour la silhouette de la fiche : principaux pleins, secondaires presque

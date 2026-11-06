@@ -43,6 +43,10 @@ function historyCell(h) {
   const parts  = [other ? `Programme ${esc(progMeta(progId).name)}` : plural((h.exercises || []).length, 'exercice', 'exercices')];
   if (vol > 0) parts.push(fmtVolume(vol));
   if (h.duration) parts.push(fmtDuration(h.duration));
+  // Records notés dans la séance (js/data/records.js) : médaille et nombre à droite ; les séances d'avant les
+  // records notés n'en ont pas ici (pas de recalcul pour toute la liste)
+  const recs = cleanNotedRecords(h.records)?.length || 0;
+  const recMark = recs ? `<span class="hcell__rec num">${medalSvg(14)}<span aria-hidden="true">${recs}</span><span class="visually-hidden">, ${plural(recs, 'record', 'records')}</span></span>` : '';
   return `
     <div class="hrow" data-id="${esc(h.id)}">
       <button class="hrow__del" data-action="swipe-delete-session" data-id="${esc(h.id)}" tabindex="-1">Supprimer</button>
@@ -50,7 +54,7 @@ function historyCell(h) {
         <span class="hcell__dot" style="background:${meta.color}"></span>
         <span class="hcell__body">
           <span class="hcell__top"><span class="hcell__title">${meta.label}${coachHistoryMark(h)}${historyHiddenMark(h)}${historyReactionsMark(h)}</span><span class="hcell__date">${fmtDate(h.date)}</span></span>
-          <span class="hcell__sub num">${parts.join(' · ')}</span>
+          <span class="hcell__bot"><span class="hcell__sub num">${parts.join(' · ')}</span>${recMark}</span>
         </span>
         ${icon('chevron.right', 16)}
       </button>
@@ -174,7 +178,7 @@ function renderHistoryDetail(id) {
         ${stravaHistoryGroup(h)}
         <div class="share-detail">${shareStoryButton(h.id)}</div>
         <div class="group group--gap">
-          <button class="cell cell--destructive" data-action="delete-session" data-id="${esc(h.id)}">Supprimer la séance</button>
+          <button class="cell cell--destructive" data-action="delete-session" data-id="${esc(h.id)}">Supprimer de l'historique</button>
         </div>
       </div>
     </div>`;
@@ -194,7 +198,7 @@ function historyChanged(removed = null) {
 async function deleteSession(id) {
   const ok = await confirmSheet('Supprimer cette séance ?',
     `Elle sera retirée de l'historique et des statistiques. Tu pourras la récupérer pendant ${TRASH_DAYS} jours dans Réglages › Supprimés récemment.`,
-    'Supprimer la séance');
+    'Supprimer de l\'historique');   // « Supprimer la séance » : retirer une séance d'un programme
   if (!ok) { closeOpenRows(); return; }
   const removed = moveToTrash(id);
   if (!removed) return;
