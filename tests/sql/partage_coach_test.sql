@@ -73,7 +73,8 @@ do $$
 declare st jsonb; r record;
 begin
   perform pg_temp.plogin('s');
-  st := public.student_shares();
+  -- kinds (données que le serveur accepte) : ajouté par 20261105010000_partage_mensurations.sql
+  st := public.student_shares() - 'kinds';
   if st is distinct from '{"coach": true, "shares": {}}'::jsonb then raise 'état par défaut : %', st; end if;
   -- Envoyer sans avoir coché : refusé
   if pg_temp.perr($q$ select public.student_share_weights('[{"date": 1780000000000, "kg": 80}]') $q$) is distinct from 'not_shared' then raise 'envoi sans consentement'; end if;
@@ -94,7 +95,7 @@ begin
   -- Sans coach : not_found
   perform pg_temp.plogin('a');
   if pg_temp.perr($q$ select public.student_set_share('weight', true) $q$) is distinct from 'not_found' then raise 'cocher sans coach'; end if;
-  if public.student_shares() is distinct from '{"coach": false, "shares": {}}'::jsonb then raise 'état sans coach'; end if;
+  if public.student_shares() - 'kinds' is distinct from '{"coach": false, "shares": {}}'::jsonb then raise 'état sans coach'; end if;
   perform set_config('request.jwt.claim.sub', '', false);
   if pg_temp.perr($q$ select public.student_set_share('weight', true) $q$) is distinct from 'not_found' then raise 'sans utilisateur'; end if;
   if pg_temp.perr($q$ select public.student_share_weights('[]') $q$) is distinct from 'not_shared' then raise 'envoi sans utilisateur'; end if;
@@ -181,7 +182,9 @@ do $$ begin
   if exists (select 1 from pg_proc p
              where (p.prosrc ilike '%coach_shared_weights%' or p.prosrc ilike '%coach_shares%' or p.prosrc ilike '%coach_session_body%')
                and p.proname not in ('student_shares', 'student_set_share', 'student_share_weights', 'coach_student_weights',
-                                     'coach_student_sessions', 'coach_has_share', 'coach_session_body')) then
+                                     'coach_student_sessions', 'coach_has_share', 'coach_session_body',
+                                     -- mensurations (20261105010000_partage_mensurations.sql), même consentement
+                                     'student_share_measures', 'coach_student_measures')) then
     raise 'une autre fonction lit le partage : %', (select string_agg(p.proname, ', ') from pg_proc p
       where p.prosrc ilike '%coach_shared_weights%' or p.prosrc ilike '%coach_shares%' or p.prosrc ilike '%coach_session_body%');
   end if;
@@ -193,7 +196,7 @@ do $$
 declare r record; st jsonb;
 begin
   perform pg_temp.plogin('s');
-  st := public.student_set_share('weight', false);
+  st := public.student_set_share('weight', false) - 'kinds';
   if st is distinct from '{"coach": true, "shares": {}}'::jsonb then raise 'décocher : %', st; end if;
   -- Décocher deux fois : silencieux
   perform public.student_set_share('weight', false);

@@ -60,6 +60,8 @@ Décision de Maxence : l'élève choisit, donnée par donnée, ce que son coach 
 
 App : Réglages › Amis et coach › « Partager avec mon coach » (élève suivi seulement ; aussi dans Réglages › Coach) → écran `coach-share` (une case par donnée ouverte, texte de ce que le coach verra). Coach : sur la fiche d'un élève qui partage, groupe « Poids du corps » (dernière pesée, tendance sur 30 jours, courbe de Progrès) ; page séance : pied de page « poids du corps compté (61,4 kg, sa dernière pesée partagée à cette date…) ».
 
+Mensurations partagées (05/11/2026) : même modèle, case « Mensurations », contrat dans `docs/COACH_SUIVI.md` (« Bilan »). Planification des phases par élève : même document.
+
 ## Messages (31/10/2026, migration `20261031510000_chat_coach.sql`)
 
 Demande de Maxence (feuille de route « Plus tard » : chat coach), choix pris par défaut (à valider) :

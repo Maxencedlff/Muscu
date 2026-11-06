@@ -196,7 +196,7 @@ function coachErrorKind(error) {
   if (isNetworkError(error) || /fetch|network|load failed/i.test(String(error.message || ''))) return 'offline';
   const msg = String(error.message || error.error || '');
   for (const k of ['not_coach', 'already_coached', 'invalid_code', 'tier_full', 'team_full', 'not_found', 'rate_limited', 'too_long', 'invalid_programme', 'username_required', 'not_shared', 'invalid_kind', 'invalid_data',
-    'empty_message']) if (msg.includes(k)) return k;
+    'empty_message', 'invalid_phase', 'overlap', 'too_many']) if (msg.includes(k)) return k;
   // Fonction absente du serveur (migration pas encore appliquée) : PostgREST répond PGRST202
   if (error.code === 'PGRST202' || /could not find the function/i.test(msg)) return 'missing';
   return 'server';
@@ -218,6 +218,11 @@ const COACH_ERROR_TEXT = {
   not_shared: 'Ce partage est coupé : coche-le à nouveau pour l\'envoyer.',
   invalid_kind: 'Ce partage n\'est pas encore disponible.',
   invalid_data: 'Pesées illisibles : rien n\'a été envoyé.',
+  invalid_measures: 'Mensurations illisibles : rien n\'a été envoyé.',
+  // Planification (js/data/coach-plan.js)
+  invalid_phase: 'Vérifie l\'objectif, la date de début et la durée (1 à 52 semaines).',
+  overlap: 'Cette phase chevauche une autre phase de cet élève : change sa date ou sa durée.',
+  too_many: 'Cet élève a déjà 30 phases : supprime d\'anciennes phases d\'abord.',
   // Messages (js/data/coach-chat.js)
   empty_message: 'Écris quelque chose avant d\'envoyer.',
   busy: 'Envoi déjà en cours.',
@@ -489,6 +494,8 @@ async function coachRefresh({ minAge = 0 } = {}) {
     if (typeof coachShareRefresh === 'function') coachShareRefresh();
     // Messages : non-lus et derniers messages (js/data/coach-chat.js)
     if (typeof chatRefresh === 'function') chatRefresh();
+    // Planification : phases de mes élèves (coach), ma phase (élève) (js/data/coach-plan.js)
+    if (typeof coachPlanRefresh === 'function') coachPlanRefresh();
   }
   coach.loading = false;
   notifyCoach();
