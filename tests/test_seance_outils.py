@@ -196,7 +196,34 @@ def t_reglage(bench):
         R.check(not page.errors, f'aucune erreur JS {page.errors}')
 
 
-TESTS = [t_outils]
+def t_persist(bench, eng, dev, theme):
+    """Série ajoutée, tour de superset ajouté, élastique choisi : la séance est écrite tout de suite (même
+    appelée sans clic, par le registre des actions) et retrouvée après un rechargement."""
+    t = f'{dev}-{theme}'
+    stored = "(() => JSON.parse(localStorage.getItem('ppl_active_session')).activeSession.exercises)()"
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, ppl_v2_today_json())
+        start(page, 'legs')
+        n0 = page.evaluate('activeSession.exercises[0].sets.length')
+        page.locator('[data-action="add-set"][data-ei="0"]').scroll_into_view_if_needed()
+        page.click('[data-action="add-set"][data-ei="0"]'); page.wait_for_timeout(200)
+        page.reload(); page.wait_for_selector('#app > *'); page.wait_for_timeout(300)
+        page.evaluate("navigate('session')"); page.wait_for_selector('.view.session'); page.wait_for_timeout(200)
+        R.check(page.evaluate('activeSession.exercises[0].sets.length') == n0 + 1, f'{t} série ajoutée puis rechargement : la série est là')
+        R.check(page.locator('.ex-card[data-ei="0"] .session-set:not(.session-set--sub)').count() >= n0 + 1, f'{t} série ajoutée : affichée après rechargement')
+        # Sans clic (handleAction direct) : écrite par l'action elle-même
+        page.evaluate("handleAction(null, document.querySelector('[data-action=\"add-set\"][data-ei=\"0\"]'), 'add-set')")
+        R.check(page.evaluate(f'{stored}[0].sets.length') == n0 + 2, f'{t} add-set : séance écrite par l\'action')
+        page.evaluate("activeSession.exercises[1].ss = 'g'; activeSession.exercises[2].ss = 'g'; persistSession(); render()")
+        n1, n2 = page.evaluate('[1, 2].map(i => activeSession.exercises[i].sets.length)')
+        page.evaluate("handleAction(null, { dataset: { ei: '1' } }, 'add-round')")
+        R.check(page.evaluate(f'[1, 2].map(i => {stored}[i].sets.length)') == [n1 + 1, n2 + 1], f'{t} add-round : tour écrit pour les deux exercices')
+        page.evaluate("handleAction(null, { dataset: { ei: '3', kg: '15' } }, 'set-band')")
+        R.check(all(w == '15' for w in page.evaluate(f"{stored}[3].sets.filter(s => !s.done && !s.warmup).map(s => s.weight)")), f'{t} set-band : charge de l\'élastique écrite')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+TESTS = [t_outils, t_persist]
 
 if __name__ == '__main__':
     run_main(R, TESTS, once=[t_reglage])

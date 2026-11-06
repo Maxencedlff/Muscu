@@ -771,6 +771,7 @@ registerActions({
     ex.sets.push(plannedSet(workSets(ex.sets).at(-1) ?? ex.sets.at(-1), prevWork[workSets(ex.sets).length]));
     openDone.add(ex);
     haptic();
+    persistSession();   // aussi quand l'action est appelée sans clic (registre : handleAction)
     render();
   },
   // Superset : un tour de plus = une série de plus pour chaque exercice du groupe
@@ -784,6 +785,7 @@ registerActions({
     });
     openDone.add(activeSession.exercises[g[0]]);
     haptic();
+    persistSession();
     render();
   },
   'toggle-ex': (e, el) => {
@@ -807,6 +809,7 @@ registerActions({
     });
     ex.bumped = true;
     haptic();
+    persistSession();
     render();
     showToast(lo ? `Charge augmentée de ${bumpLabel()}, retour à ${lo} reps` : `Charge augmentée de ${bumpLabel()}`);
   },

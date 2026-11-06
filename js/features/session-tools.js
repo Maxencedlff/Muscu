@@ -201,6 +201,7 @@ registerActions({
     const kg = el.dataset.kg;
     ex.sets.forEach(s => { if (!s.done && !isWarmupSet(s)) { s.weight = kg; s.plannedWeight = kg; } });
     haptic();
+    persistSession();
     render();
   },
   'open-plates': (e, el) => {
