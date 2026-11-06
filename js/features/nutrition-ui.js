@@ -51,16 +51,20 @@ function dietRingSvg(ratio, size = 112, stroke = 12) {
 // Bilan du jour : anneau (calories) et trois barres (macros), mangé sur repère
 function dietSummaryHtml(pr) {
   const { eaten, goal, own } = pr;
+  const hide = data.dietHideNumbers === true;
   const ratio = dietRatio(eaten.kcal, goal.kcal);
   const bars = DIET_MACROS.map(({ k, label }) => `
           <div class="diet-bar diet-bar--${k}" role="img" aria-label="${label} : ${dietN(eaten[k])} grammes sur ${dietN(goal[k])}">
             <div class="diet-bar__head"><span class="diet-bar__label">${label}</span><span class="diet-bar__val num"><b>${dietN(eaten[k])}</b> / ${dietN(goal[k])} g</span></div>
             <div class="diet-bar__track"><span class="diet-bar__fill" style="width:${(dietRatio(eaten[k], goal[k]) * 100).toFixed(1)}%"></span></div>
           </div>`).join('');
-  const streak = dietStreak(data);
+  const streak = data.dietStreakOff ? 0 : dietStreak(data);
   const n = pr.meals.length;
   const status = pr.complete ? `<span class="diet-sum__done">${icon('checkmark', 14)}Journée complète</span>`
     : `<span>${pr.nDone} ${pr.nDone > 1 ? 'repas cochés' : 'repas coché'} sur ${n}</span>`;
+  const line = `<p class="diet-sum__line">${status}${streak >= 2 ? `<span class="diet-sum__streak">${icon('flame', 14)}${streak} jours complets d'affilée</span>` : ''}</p>`;
+  // Chiffres masqués (Réglages de la nutrition) : les repas cochés seulement
+  if (hide) return `<section class="diet-sum diet-sum--plain${pr.complete ? ' diet-sum--complete' : ''}" aria-label="Bilan de la journée">${line}</section>`;
   return `
       <section class="diet-sum${pr.complete ? ' diet-sum--complete' : ''}" aria-label="Bilan de la journée">
         <div class="diet-sum__main">
@@ -70,8 +74,9 @@ function dietSummaryHtml(pr) {
           </div>
           <div class="diet-sum__bars">${bars}</div>
         </div>
-        <p class="diet-sum__line">${status}${streak >= 2 ? `<span class="diet-sum__streak">${icon('flame', 14)}${streak} jours complets d'affilée</span>` : ''}</p>
+        ${line}
         ${own.kcal || own.p || own.c || own.f ? '' : '<p class="diet-sum__hint">Repère : le total prévu par ton plan.</p>'}
+        ${dietLowKcal(pr.plan) ? dietLowNoteHtml() : ''}
       </section>`;
 }
 
@@ -96,12 +101,13 @@ function dietCheckBtn(meal, done, day, extra = '') {
 
 function dietItemRowHtml(it, pr, day) {
   const swap = pr.swaps[it.id], eat = swap || it, m = dietItemMacros(eat);
+  const nums = data.dietHideNumbers ? '' : ` · ${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`;
   return `
             <button class="diet-item" data-action="diet-swap" data-item="${esc(it.id)}" data-day="${day}"
-              aria-label="${esc(eat.name)}, ${eat.g} grammes, ${dietN(m.kcal)} kilocalories${swap ? `, remplace ${esc(it.name)}` : ''}. Remplacer">
+              aria-label="${esc(eat.name)}, ${eat.g} grammes${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}${swap ? `, remplace ${esc(it.name)}` : ''}. Remplacer">
               <span class="diet-item__body">
                 <span class="diet-item__name">${esc(eat.name)}</span>
-                <span class="diet-item__sub num">${swap ? `<span class="diet-item__swapped">Remplace ${esc(it.name)}</span>` : ''}${eat.g} g · ${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}</span>
+                <span class="diet-item__sub num">${swap ? `<span class="diet-item__swapped">Remplace ${esc(it.name)}</span>` : ''}${eat.g} g${nums}</span>
               </span>
               <span class="diet-item__swap" aria-hidden="true">${icon('arrow.left.arrow.right', 18)}</span>
             </button>`;
@@ -114,7 +120,7 @@ function dietMealHtml(x, pr, day) {
   // Titre : un repas coché se déplie au toucher ; pas coché, il est déjà ouvert (simple texte)
   const title = `${isNext ? '<span class="diet-meal__eyebrow">Ensuite</span>' : ''}
               <span class="diet-meal__name">${esc(meal.name)}</span>
-              <span class="diet-meal__macros num"><span aria-hidden="true">${dietMacroLine(macros)}</span><span class="sr-text">${dietMacroSpoken(macros)}</span></span>`;
+              ${data.dietHideNumbers ? '' : `<span class="diet-meal__macros num"><span aria-hidden="true">${dietMacroLine(macros)}</span><span class="sr-text">${dietMacroSpoken(macros)}</span></span>`}`;
   return `
         <article class="diet-meal${done ? ' diet-meal--done' : ''}${isNext ? ' diet-meal--next' : ''}" data-meal="${esc(meal.id)}">
           <div class="diet-meal__head">
@@ -162,8 +168,23 @@ function dietEmptyHtml() {
         </div>`;
 }
 
-function dietSourceFoot() {
-  return `<p class="group-foot diet-foot">Valeurs nutritionnelles : Anses, table Ciqual 2025 (Licence Ouverte), ou saisies à la main. Ce sont des repères, pas un avis médical : pour un régime particulier, parles-en à un professionnel de santé.</p>`;
+// Source et licence (Licence Ouverte : source, version, date, pas d'aval de l'Anses), précaution ; sur l'écran
+// Nutrition, la ligne d'écoute des troubles alimentaires, toujours visible
+function dietSourceFoot({ help = false } = {}) {
+  return `<div class="diet-foot">
+      <p class="group-foot">Source des valeurs : table Ciqual 2025 de l'Anses (version du 03/11/2025), doi.org/10.57745/RDMHWY, Licence Ouverte Etalab 2.0. Valeurs arrondies ; pour quelques aliments, l'énergie est calculée par l'app. L'Anses ne valide pas ces plans.</p>
+      <p class="group-foot">Ces chiffres sont des repères pour suivre un plan, pas un avis médical ni diététique. Pour un régime lié à une maladie, une grossesse ou un trouble alimentaire, parles-en à un médecin ou à un diététicien.</p>
+      ${help ? '<p class="group-foot diet-help">Si manger, compter ou te peser devient une source d\'angoisse, tu peux en parler : Anorexie Boulimie Info Écoute, 0810 037 037 (lundi, mardi, jeudi et vendredi, de 16 h à 18 h).</p>' : ''}
+    </div>`;
+}
+// Objectif très bas : information, jamais un blocage (NICE NG246)
+function dietLowNoteHtml() {
+  return `<p class="diet-low" role="note">${icon('info.circle', 14)}<span>Cet objectif est très bas pour un adulte qui s'entraîne. Les recommandations de santé réservent les régimes sous 1 200 kcal par jour à un suivi médical. Tu peux en parler à un médecin ou à un diététicien.</span></p>`;
+}
+// Bas de l'écran Nutrition : réglages (chiffres, série, accord)
+function dietSettingsCellHtml() {
+  return `<div class="group group--gap"><button class="cell cell--nav" data-action="go-diet-settings">
+      <span class="cell__body"><span class="cell__title">Réglages de la nutrition</span></span>${icon('chevron.right', 16)}</button></div>`;
 }
 
 function renderNutrition(dayParam) {
@@ -176,7 +197,7 @@ function renderNutrition(dayParam) {
   if (!plan) {
     return `<div class="view view--grouped nutrition-view">${head}<div class="scr">
         ${pending ? `<div class="coach-progs">${dietInboxCardHtml(pending)}</div>` : ''}
-        ${dietEmptyHtml()}${dietSourceFoot()}</div></div>`;
+        ${dietEmptyHtml()}${dietSettingsCellHtml()}${dietSourceFoot({ help: true })}</div></div>`;
   }
   const pr = dietDayProgress(data, data.dietActive, day);
   const from = plan.fromCoach ? `<p class="diet-plan-from">${esc(plan.name)} · ${elide('de', esc(plan.fromCoach.name || 'ton coach'))}</p>` : `<p class="diet-plan-from">${esc(plan.name)}</p>`;
@@ -193,11 +214,12 @@ function renderNutrition(dayParam) {
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <h2 class="group-title">Repas</h2>
         <div class="diet-meals">${meals}</div>
-        ${dietSourceFoot()}
+        ${dietSettingsCellHtml()}
+        ${dietSourceFoot({ help: true })}
       </div>
     </div>`;
 }
-SCREENS.set('nutrition', { render: day => renderNutrition(day), enter: () => { loadFoods(); } });
+SCREENS.set('nutrition', { render: day => renderNutrition(day), enter: () => { loadFoods(); dietMaybeAskConsent(); } });
 
 // ── Accueil : carte du jour ─────────────────────────────────
 
@@ -216,14 +238,16 @@ function nutritionHomeCard() {
   if (!plan || !plan.meals.length) return card;
   const day = dietDayKey(), pr = dietDayProgress(data, data.dietActive, day);
   const next = pr.next;
-  const line = pr.complete ? 'Journée complète' : next ? `${esc(next.meal.name)} · ${dietN(next.macros.kcal)} kcal` : '';
+  const hide = data.dietHideNumbers === true;
+  const line = pr.complete ? 'Journée complète' : next ? `${esc(next.meal.name)}${hide ? '' : ` · ${dietN(next.macros.kcal)} kcal`}` : '';
+  const head = hide ? `${pr.nDone} sur ${plural(pr.meals.length, 'repas', 'repas')}` : `<b>${dietN(pr.eaten.kcal)}</b> sur ${dietN(pr.goal.kcal)} kcal`;
   return `${card}
     <section class="home-card diet-home${pr.complete ? ' diet-home--complete' : ''}">
-      <button class="diet-home__open" data-action="go-nutrition" aria-label="Nutrition : ${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}${pr.complete ? ', journée complète' : next ? `, ensuite ${esc(next.meal.name)}` : ''}. Ouvrir">
-        <span class="diet-home__ring" aria-hidden="true">${dietRingSvg(dietRatio(pr.eaten.kcal, pr.goal.kcal), 44, 6)}</span>
+      <button class="diet-home__open" data-action="go-nutrition" aria-label="Nutrition : ${hide ? `${pr.nDone} repas cochés sur ${pr.meals.length}` : `${dietN(pr.eaten.kcal)} kilocalories sur ${dietN(pr.goal.kcal)}`}${pr.complete ? ', journée complète' : next ? `, ensuite ${esc(next.meal.name)}` : ''}. Ouvrir">
+        <span class="diet-home__ring" aria-hidden="true">${dietRingSvg(hide ? pr.nDone / Math.max(1, pr.meals.length) : dietRatio(pr.eaten.kcal, pr.goal.kcal), 44, 6)}</span>
         <span class="diet-home__text" aria-hidden="true">
           <span class="home-card__title">Nutrition</span>
-          <span class="diet-home__kcal num"><b>${dietN(pr.eaten.kcal)}</b> sur ${dietN(pr.goal.kcal)} kcal</span>
+          <span class="diet-home__kcal num">${head}</span>
           ${line ? `<span class="diet-home__next">${pr.complete ? icon('checkmark', 12) : ''}${line}</span>` : ''}
         </span>
       </button>
@@ -268,16 +292,16 @@ async function dietSwapSheet(itemId, day) {
   await loadFoods();
   const e = dietDay(data, planId, day), current = e.swaps[itemId];
   const cands = swapCandidates(it, { own: data.dietFoods || [] });
-  const ref = dietItemMacros(it);
+  const ref = dietItemMacros(it), hide = data.dietHideNumbers === true;
   const row = (c, i) => `
       <button class="diet-cand" data-swap="${i}">
         <span class="diet-cand__body"><span class="diet-cand__name">${esc(c.food.name)}</span>
-          <span class="diet-cand__sub num">${c.g} g · ${dietN(c.macros.kcal)} kcal · P ${dietN(c.macros.p)} · G ${dietN(c.macros.c)} · L ${dietN(c.macros.f)}</span></span>
-        <span class="diet-cand__delta num" aria-label="écart : ${swapDeltaText(c.delta.kcal, 'kilocalories')}">${swapDeltaText(c.delta.kcal, 'kcal')}</span>
+          <span class="diet-cand__sub num">${c.g} g${hide ? '' : ` · ${dietN(c.macros.kcal)} kcal · P ${dietN(c.macros.p)} · G ${dietN(c.macros.c)} · L ${dietN(c.macros.f)}`}</span></span>
+        ${hide ? '' : `<span class="diet-cand__delta num" aria-label="écart : ${swapDeltaText(c.delta.kcal, 'kilocalories')}">${swapDeltaText(c.delta.kcal, 'kcal')}</span>`}
       </button>`;
   const body = `
     <div class="diet-swap">
-      <p class="diet-swap__orig"><b>${esc(it.name)}</b><span class="num">${it.g} g · ${dietMacroLine(ref)}</span></p>
+      <p class="diet-swap__orig"><b>${esc(it.name)}</b><span class="num">${it.g} g${hide ? '' : ` · ${dietMacroLine(ref)}`}</span></p>
       <p class="diet-swap__rule">${swapRuleText(it)}, macros proches, même famille d'aliments.</p>
       ${current ? `<button class="diet-cand diet-cand--back" data-swap="back"><span class="diet-cand__body"><span class="diet-cand__name">Remettre ${esc(it.name)}</span><span class="diet-cand__sub">Aujourd'hui, tu manges ${esc(current.name)}</span></span>${icon('arrow.clockwise', 18)}</button>` : ''}
       ${cands.length ? `<div class="diet-cands">${cands.map(row).join('')}</div>`
@@ -339,6 +363,8 @@ registerActions({
       const fresh = dietInbox().find(x => x.id === item.id);
       if (!fresh || fresh.meta) { showToast(coachErrorText('offline'), { error: true }); return; }
     }
+    // Donnée de santé : le plan du coach n'est reçu qu'avec l'accord de la personne
+    if (!(await dietEnsureConsent())) { showToast('Sans ton accord, le plan de ton coach n\'est pas reçu.'); return; }
     const it = dietInbox().find(x => x.id === item.id);
     const id = importCoachDiet(data, it, myCoach());
     if (!id) { showToast(coachErrorText('server'), { error: true }); return; }

@@ -165,3 +165,10 @@ body.light .sheet .diet-cands, body.light .sheet .diet-pick__list, body.light .s
 .diet-meal-title { align-items: center; }
 .group-title__btn.diet-meal-edit { display: inline-flex; align-items: center; justify-content: flex-end; min-height: 44px; min-width: 44px; margin: -14px 0; flex-shrink: 0; white-space: nowrap; }
 .group-title__btn.diet-meal-edit::after { content: none; }
+/* Repère très bas (moins de 1 200 kcal) : information, jamais d'alerte rouge */
+.diet-low { display: flex; gap: 6px; margin: 10px 0 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); }
+.diet-plan-view .diet-low { margin: 8px 16px 0; }
+.diet-low .icon { flex-shrink: 0; margin-top: 2px; }
+.diet-sum--plain { padding: 4px 16px 14px; }
+.diet-foot .group-foot + .group-foot { padding-top: 8px; }
+.diet-help { color: var(--label2); }

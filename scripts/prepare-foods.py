@@ -9,14 +9,18 @@ Lancer depuis la racine du dépôt, le fichier téléchargé rangé dans un doss
     python3 -I scripts/prepare-foods.py /chemin/vers/Table_Ciqual_2025_FR.xlsx data/foods.json
 
 Bibliothèque standard seulement (zipfile + xml.etree), déterministe : même fichier, même sortie.
-Règles de lecture (documentation Ciqual 2025, pages 9, 10 et 16) :
-  - « - » : valeur inconnue, jamais zéro. Un aliment sans protéines, glucides ou lipides connus est écarté ;
-    énergie inconnue : recalculée par les coefficients du règlement UE 1169/2011 (4, 4, 9 kcal par g) ;
-  - « traces » : 0 ; « < x » : 0 (sous la limite de quantification, négligeable pour un plan diète) ;
+Lecture (conventions de la documentation Ciqual 2025, pages 9, 10 et 16, puis choix de l'app) :
+  - « - » : valeur inconnue, jamais zéro (Ciqual). Un aliment sans protéines, glucides ou lipides connus est écarté ;
+  - « traces » et « < x » : Ciqual les donne comme « détecté, non quantifiable » et « sous la limite x » ;
+    l'app les compte pour 0 (choix de l'app : quantités négligeables pour un plan diète) ;
   - virgule décimale ; valeurs gardées à 1 décimale (kcal entières), sans autre retouche.
-Protéines : « N x facteur de Jones » (valeur de référence de Ciqual). Énergie : règlement UE 1169/2011.
+Protéines : « N x 6,25 », la valeur de l'étiquetage et celle qu'utilise l'énergie du règlement UE 1169/2011
+(Ciqual donne aussi « N x facteur de Jones », plus juste pour la biologie mais incohérente avec l'énergie).
+Énergie : colonne « Règlement UE N° 1169/2011 (kcal) ». Inconnue : recalculée par les coefficients du même
+règlement, 4 P + 4 G + 9 L + 2 fibres + 7 alcool, SEULEMENT si protéines, fibres et alcool sont connus ; sinon
+l'aliment est écarté (une eau-de-vie dont l'alcool est inconnu donnerait 0 kcal). Ces aliments portent e = 1.
 Colonnes écrites : code, nom, famille, kcal, protéines, glucides, lipides, sucres (null si inconnus),
-sous-groupe Ciqual (entier, 301 = pâtes, riz et céréales).
+sous-groupe Ciqual (entier, 301 = pâtes, riz et céréales), e (1 : énergie calculée par l'app).
 Aliments infantiles (groupe 11) et ligne « aliment moyen » (groupe 00) écartés.
 
 Famille d'équivalence (colonne « fam », règle des remplacements : docs/NUTRITION_V1.md, js/data/food-swap.js),
@@ -52,7 +56,9 @@ COLS = {
     'code': lambda h: h == 'alim_code',
     'name': lambda h: h == 'alim_nom_fr',
     'kcal': lambda h: h.startswith('Energie') and '1169' in h and 'kcal' in h,
-    'p': lambda h: h.startswith('Protéines') and 'Jones' in h,
+    'p': lambda h: h.startswith('Protéines') and '6.25' in h,
+    'fib': lambda h: h.startswith('Fibres'),
+    'alc': lambda h: h.startswith('Alcool'),
     'c': lambda h: h.startswith('Glucides'),
     'f': lambda h: h.startswith('Lipides'),
     's': lambda h: h.startswith('Sucres'),
@@ -112,13 +118,17 @@ def main(src, dst):
         if p is None or c is None or f is None:
             skipped += 1
             continue
-        kcal = value(r.get(head['kcal']))
+        kcal, calc = value(r.get(head['kcal'])), 0
         if kcal is None:
-            kcal = 4 * p + 4 * c + 9 * f
+            fib, alc = value(r.get(head['fib'])), value(r.get(head['alc']))
+            if fib is None or alc is None:
+                skipped += 1
+                continue
+            kcal, calc = 4 * p + 4 * c + 9 * f + 2 * fib + 7 * alc, 1
         sugar = value(r.get(head['s']))
         # Sucres (null si inconnus) et sous-groupe Ciqual : départagent les remplaçants (même rayon d'abord)
         foods.append([int(code), name, fam, round(kcal), round(p, 1), round(c, 1), round(f, 1),
-                      None if sugar is None else round(sugar, 1), int(r.get(head['grp']))])
+                      None if sugar is None else round(sugar, 1), int(r.get(head['grp'])), calc])
     foods.sort(key=lambda x: x[0])
     out = {
         'v': 1,
@@ -126,7 +136,7 @@ def main(src, dst):
         'version': 'Ciqual 2025, version du 03/11/2025',
         'licence': 'Licence Ouverte Etalab 2.0',
         'url': 'https://doi.org/10.57745/RDMHWY',
-        'cols': ['code', 'nom', 'fam', 'kcal', 'p', 'g', 'l', 'sucres', 'ssgrp'],
+        'cols': ['code', 'nom', 'fam', 'kcal', 'p', 'g', 'l', 'sucres', 'ssgrp', 'e'],
         'foods': foods,
     }
     with open(dst, 'w', encoding='utf-8') as fh:

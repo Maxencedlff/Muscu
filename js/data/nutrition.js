@@ -5,9 +5,13 @@
 //  - Un plan est autonome : chaque aliment garde ses valeurs pour 100 g (per), relevées dans la base
 //    Ciqual au moment du choix (js/data/food-swap.js) ou saisies par la personne (aliment perso). Un plan
 //    reçu d'un coach s'affiche donc sans la base, et une nouvelle version de Ciqual ne le change pas.
-//  - data.dietPlans (profil synchronisé, fusion par union comme les programmes ; un plan supprimé est
-//    archivé, jamais effacé), data.dietActive (plan suivi), data.dietFoods (mes aliments perso, profil),
-//    data.dietLog (repas cochés et remplacements du jour : sur l'appareil seulement, SYNC_LOCAL_ONLY).
+//  - data.dietPlans (fusion par union comme les programmes ; un plan supprimé est archivé, jamais effacé),
+//    data.dietActive (plan suivi), data.dietFoods (mes aliments perso) : copiés sur le compte SEULEMENT avec
+//    l'accord de la personne (data.dietConsent = { on, at }, donnée de santé au sens de la CNIL : article 9 du
+//    RGPD), sinon sur l'iPhone seulement (profilePayload, js/data/sync.js). Retirer l'accord les efface du serveur.
+//  - data.dietLog (repas cochés et remplacements du jour) : sur l'appareil seulement (SYNC_LOCAL_ONLY).
+//  - Réglages de l'appareil : dietHideNumbers (masquer calories et grammes de macros), dietStreakOff (série
+//    masquée), dietConsentAsked (la question de l'accord a été posée).
 //  - Aucun calcul de besoins : les objectifs viennent du coach ou de la personne ; sans objectif, le
 //    total du plan sert de repère.
 // ═══════════════════════════════════════════════════════════
@@ -30,6 +34,10 @@ const DIET_TARGET_KEYS = ['kcal', 'p', 'c', 'f'];
 const DIET_TARGET_MAX = { kcal: 10000, p: 600, c: 1500, f: 600 };
 // Repas d'un plan neuf : les noms seuls, la personne les remplit
 const DIET_DEFAULT_MEALS = ['Petit-déjeuner', 'Déjeuner', 'Collation', 'Dîner'];
+// Repère de santé (NICE NG246, 2025) : sous 1 200 kcal par jour, un régime relève d'un suivi médical.
+// L'app le dit sans rien bloquer (dietLowKcal)
+const DIET_LOW_KCAL = 1200;
+const DIET_SRC = ['ciqual-2025', 'perso'];   // origine des valeurs d'un aliment du plan
 
 const dietIsObj = o => !!o && typeof o === 'object' && !Array.isArray(o);
 const dietR1 = v => Math.round(v * 10) / 10;
@@ -66,8 +74,10 @@ function cleanDietItem(it) {
   const name = dietCutName(it.name), per = cleanDietPer(it.per), g = num(it.g, 1, DIET_G_MAX);
   if (!name || !per || g === null) return null;
   const food = Number.isInteger(it.food) && it.food > 0 && it.food < 1e7 ? it.food : null;
+  // src : valeurs de Ciqual 2025 ou saisies (aliment perso) ; ecalc : énergie calculée par l'app (Ciqual sans énergie)
+  const src = DIET_SRC.includes(it.src) ? it.src : food ? 'ciqual-2025' : 'perso';
   return { id: typeof it.id === 'string' && DIET_PART_RE.test(it.id) ? it.id : uid(), name, food,
-    fam: DIET_FAMS.includes(it.fam) ? it.fam : dietFamOf(per), g: Math.round(g), per };
+    fam: DIET_FAMS.includes(it.fam) ? it.fam : dietFamOf(per), g: Math.round(g), per, src, ...(it.ecalc === true ? { ecalc: true } : {}) };
 }
 function cleanDietMeal(m) {
   if (!dietIsObj(m)) return null;
@@ -156,7 +166,24 @@ function sanitizeDiet(d, now = Date.now()) {
   if (d.dietActive !== undefined && (!p || p.archived)) delete d.dietActive;
   if (d.dietFoods !== undefined) { d.dietFoods = cleanDietFoods(d.dietFoods); if (!d.dietFoods.length) delete d.dietFoods; }
   if (d.dietLog !== undefined) { d.dietLog = cleanDietLog(d.dietLog, now); if (!Object.keys(d.dietLog).length) delete d.dietLog; }
+  // Accord pour copier les plans sur le compte : { on, at (date ISO du choix) }, retiré s'il est illisible
+  if (d.dietConsent !== undefined) {
+    const c = d.dietConsent, ok = dietIsObj(c) && typeof c.on === 'boolean' && typeof c.at === 'string' && c.at.length <= 40 && Number.isFinite(Date.parse(c.at));
+    if (ok) d.dietConsent = { on: c.on, at: c.at }; else delete d.dietConsent;
+  }
+  for (const k of ['dietConsentAsked', 'dietHideNumbers', 'dietStreakOff']) if (d[k] !== undefined && d[k] !== true) delete d[k];
   return d;
+}
+// Accord donné (plans copiés sur le compte et plans du coach reçus)
+function dietConsentOn(d) { return d.dietConsent?.on === true; }
+function dietSetConsent(d, on, now = new Date()) {
+  d.dietConsent = { on: !!on, at: now.toISOString() };
+  d.dietConsentAsked = true;
+}
+// Objectif ou total très bas (moins de 1 200 kcal, mais pas vide) : message de santé, jamais bloquant
+function dietLowKcal(plan) {
+  const k = plan ? dietGoal(plan).goal.kcal : 0;
+  return k > 0 && k < DIET_LOW_KCAL;
 }
 
 // ── Macros ──────────────────────────────────────────────────
@@ -289,7 +316,7 @@ function dietToSent(plan) {
   const c = cleanDietPlan(plan);
   if (!c) return null;
   const diet = { name: c.name, meals: c.meals.map(m => ({ id: m.id, name: m.name, ...(m.note ? { note: m.note } : {}),
-    items: m.items.map(it => ({ id: it.id, name: it.name, food: it.food, fam: it.fam, g: it.g, per: it.per })) })) };
+    items: m.items.map(it => ({ id: it.id, name: it.name, food: it.food, fam: it.fam, g: it.g, per: it.per, src: it.src, ...(it.ecalc ? { ecalc: true } : {}) })) })) };
   if (c.targets) diet.targets = c.targets;
   if (c.consigne) diet.consigne = c.consigne;
   return { kind: 'diet', v: 1, diet };

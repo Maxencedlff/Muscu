@@ -27,12 +27,16 @@
 // cleanMyProgrammes (store.js) après la fusion. sessionVisibleDefault (Réglages › Amis et coach) :
 // préremplit « Visible sur mon profil » à la fin d'une séance, même choix sur tous les appareils.
 // dietPlans, dietActive, dietFoods (js/data/nutrition.js) : plans diète (les miens et ceux reçus d'un coach),
-// plan suivi et aliments perso, comme les programmes : le même sur tous les appareils.
+// plan suivi et aliments perso : seulement avec l'accord (SYNC_DIET_CONSENT_KEYS) ; dietConsent : cet accord daté.
 // appVersion / appSeenAt (noteAppVersion) : version du contenu de l'app et date où elle a été vue,
 // pour savoir côté serveur qui a quelle version ; le dernier appareil lancé l'emporte, rien d'autre ne part.
 const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
   'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'silhouette', 'myProgrammes',
-  'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt', 'dietPlans', 'dietActive', 'dietFoods'];
+  'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt', 'dietPlans', 'dietActive', 'dietFoods', 'dietConsent'];
+// Clés de nutrition copiées seulement avec l'accord de la personne (dietConsent.on, js/data/nutrition.js) :
+// sans accord, ou accord retiré, elles ne partent pas et le profil envoyé les efface du serveur. L'accord
+// lui-même ({ on, at }) part toujours : un refus fait sur un appareil vaut pour les autres.
+const SYNC_DIET_CONSENT_KEYS = ['dietPlans', 'dietActive', 'dietFoods'];
 // Restent sur l'appareil (liste tenue pour le test qui oblige à classer toute nouvelle clé).
 // lastAccount : moyen et pseudo du dernier compte connecté ici (reconnexion après une restauration iCloud).
 // rirOn (sélecteur RIR) et plates (barre et disques de la salle) : préférences d'affichage et de matériel,
@@ -46,7 +50,8 @@ const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'c
 // dietLog (repas cochés et aliments remplacés, js/data/nutrition.js) : ce que la personne a mangé, jour par
 // jour ; sur l'appareil seulement en V1 (le montrer au coach demandera son accord, docs/NUTRITION_V1.md)
 const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'bodyMeasures', 'healthOn', 'musicOn', 'soundOn', 'soundLevel', 'vibrateOn',
-  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff', 'strengthSex', 'dietLog'];
+  'lastExport', 'healthKgPurged', 'schema', 'lastAccount', 'rirOn', 'plates', 'recapCardOff', 'strengthSex', 'dietLog',
+  'dietConsentAsked', 'dietHideNumbers', 'dietStreakOff'];
 // Clés dont l'absence est un choix fait sur un appareil (objectif « Auto », derniers muscles rétablis) :
 // absentes du compte, elles sont retirées ici aussi. Toutes les versions qui synchronisent les envoient.
 // Les autres clés absentes du compte sont gardées ici : un appareil resté sur une version qui ne les
@@ -137,7 +142,8 @@ function noteAppVersion(d, version, now = new Date()) {
 // Profil partagé : seulement les clés autorisées
 function profilePayload(d) {
   const out = {};
-  for (const k of SYNC_PROFILE_KEYS) if (d[k] !== undefined) out[k] = d[k];
+  const diet = d.dietConsent?.on === true;
+  for (const k of SYNC_PROFILE_KEYS) if (d[k] !== undefined && (diet || !SYNC_DIET_CONSENT_KEYS.includes(k))) out[k] = d[k];
   return out;
 }
 
@@ -304,7 +310,9 @@ function applyRemoteProfile(d, remote, meta) {
     // reconstruit alors depuis l'historique du compte, cleanMyProgrammes)
     // La version de l'app reste celle de cet appareil (elle partira au prochain envoi)
     const ownVersion = Object.fromEntries(SYNC_PROFILE_VOLATILE.filter(k => d[k] !== undefined).map(k => [k, d[k]]));
-    for (const k of SYNC_PROFILE_KEYS) { if (k in doc) d[k] = doc[k]; else if (blank || SYNC_ABSENT_IS_CHOICE.includes(k)) delete d[k]; }
+    // Nutrition : jamais effacée ici parce que le compte ne l'a pas (sans accord, elle n'y est jamais)
+    const keepHere = k => SYNC_DIET_CONSENT_KEYS.includes(k) || k === 'dietConsent';
+    for (const k of SYNC_PROFILE_KEYS) { if (k in doc) d[k] = doc[k]; else if ((blank && !keepHere(k)) || SYNC_ABSENT_IS_CHOICE.includes(k)) delete d[k]; }
     Object.assign(d, ownVersion);
     keepLocalOrders(d, before);
     meta.profileHash = remoteHash; meta.profileCore = profileCoreHash(doc);

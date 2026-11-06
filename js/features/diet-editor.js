@@ -34,6 +34,7 @@ function renderDietPlans() {
           ${ids.map(row).join('')}
           <button class="cell cell--action" data-action="diet-new-plan">${icon('plus', 20)}<span>Créer un plan</span></button>
         </div>
+        ${dietSettingsCellHtml()}
         <div class="group-foot">${isCoach ? 'Prépare ici les plans de tes élèves, puis envoie-les depuis leur fiche (Amis › Mes élèves). ' : ''}Le plan suivi s'affiche chaque jour dans Entraînement › Nutrition : tu coches tes repas comme tes séances.</div>
       </div>
     </div>`;
@@ -48,7 +49,7 @@ function dietTargetsText(plan) {
 function dietPlanItemCell(plan, meal, it, ro) {
   const m = dietItemMacros(it);
   const inner = `<span class="cell__body"><span class="cell__title">${esc(it.name)}</span>
-      <span class="cell__sub num">${it.g} g · ${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}</span></span>`;
+      <span class="cell__sub num">${it.g} g · ${dietN(m.kcal)} kcal${it.ecalc ? ' (calculées)' : ''} · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}</span></span>`;
   return ro ? `<div class="cell">${inner}</div>`
     : `<button class="cell cell--nav" data-action="diet-item-menu" data-meal="${esc(meal.id)}" data-item="${esc(it.id)}">${inner}${icon('chevron.right', 16)}</button>`;
 }
@@ -86,6 +87,7 @@ function renderDietPlan(id) {
         </div>
         <div class="group-foot">${ro ? `Plan envoyé par ${esc(plan.fromCoach.name || 'ton coach')} : il le modifie et te le renvoie. Dans Nutrition, tu peux remplacer un aliment pour la journée.`
           : 'Les objectifs, c\'est toi (ou ton coach) qui les fixes : l\'app ne calcule pas tes besoins. Sans objectif, le total prévu sert de repère.'}</div>
+        ${dietLowKcal(plan) ? dietLowNoteHtml() : ''}
         ${meals}
         ${ro || plan.meals.length >= DIET_MEAL_MAX ? '' : `<div class="group group--gap"><button class="cell cell--action" data-action="diet-add-meal" data-id="${esc(id)}">${icon('plus', 20)}<span>Ajouter un repas</span></button></div>`}
         <div class="group group--gap">
@@ -95,7 +97,7 @@ function renderDietPlan(id) {
       </div>
     </div>`;
 }
-SCREENS.set('diet-plans', { render: () => renderDietPlans() });
+SCREENS.set('diet-plans', { render: () => renderDietPlans(), enter: () => { dietMaybeAskConsent(); } });
 SCREENS.set('diet-plan', { render: id => renderDietPlan(id), enter: () => { loadFoods(); } });
 
 // Plan affiché par l'éditeur (route diet-plan:ID), modifiable seulement s'il est à moi
@@ -116,7 +118,7 @@ function dietFoodResultsHtml(q) {
   return res.map((x, i) => `
         <button class="diet-cand" data-pick="${i}">
           <span class="diet-cand__body"><span class="diet-cand__name">${esc(x.food.name)}</span>
-            <span class="diet-cand__sub num">${x.own ? 'Mon aliment · ' : ''}100 g · ${x.food.per.k} kcal · P ${fmtNum(x.food.per.p)} · G ${fmtNum(x.food.per.c)} · L ${fmtNum(x.food.per.f)}</span></span>
+            <span class="diet-cand__sub num">${x.own ? 'Mon aliment · ' : ''}100 g · ${x.food.per.k} kcal${x.food.ecalc ? ' (calculées)' : ''} · P ${fmtNum(x.food.per.p)} · G ${fmtNum(x.food.per.c)} · L ${fmtNum(x.food.per.f)}</span></span>
         </button>`).join('');
 }
 // Renvoie l'aliment choisi ({ food } de searchFoods), 'new' (créer un aliment) ou null
@@ -154,8 +156,9 @@ async function dietNewFood(name = '') {
     <div class="diet-form">
       <label class="diet-field diet-field--name"><span class="diet-field__label">Nom</span>
         <input id="dietFoodName" class="diet-field__input" type="text" maxlength="${DIET_FOOD_NAME_MAX}" autocomplete="off" autocapitalize="sentences" value="${esc(name)}" placeholder="Skyr nature"></label>
-      <p class="diet-form__hint">Pour 100 g, comme sur l'étiquette :</p>
+      <p class="diet-form__hint">Pour 100 g : recopie les valeurs de l'étiquette, l'énergie comprise. Laissée vide, l'app la calcule (4 kcal par gramme de protéines ou de glucides, 9 de lipides).</p>
       ${field('dietFoodK', 'Énergie', 'kcal', 900)}${field('dietFoodP', 'Protéines', 'g', 100)}${field('dietFoodC', 'Glucides', 'g', 100)}${field('dietFoodF', 'Lipides', 'g', 100)}
+      <p class="diet-form__hint">L'énergie de l'étiquette compte aussi les fibres (2 kcal par gramme) et l'alcool (7 kcal par gramme) : elle peut dépasser ce calcul.</p>
       <p class="diet-form__err" id="dietFoodErr" role="alert"></p>
     </div>`;
   return sheet({ title: 'Nouvel aliment', confirm: 'OK', body, focus: '#dietFoodName', onConfirm: panel => {
@@ -223,6 +226,8 @@ registerActions({
     save();
     haptic();
     navigate(makeRoute('diet-plan', id));
+    // Avec un compte : l'accord pour copier les plans, demandé une fois (js/features/diet-settings.js)
+    dietMaybeAskConsent();
   },
   'diet-follow': (e, el) => {
     const plan = dietPlanOf(el.dataset.id);

@@ -43,15 +43,23 @@ menus.
   la bibliothèque standard de Python (`scripts/prepare-foods.py`, aucune dépendance), téléchargé dans un
   dossier à part, jamais dans le dépôt :
   `python3 -I scripts/prepare-foods.py <Table Ciqual 2025_FR_2025_11_03.xlsx> data/foods.json`.
-- **Colonnes** : énergie « Règlement UE 1169/2011 » (kcal), protéines « N x facteur de Jones » (valeur de
-  référence de Ciqual), glucides, lipides, sucres ; famille d'équivalence et sous-groupe Ciqual.
-- **Valeurs particulières** (documentation, p. 9, 10, 16) : « - » = inconnue, jamais zéro (un aliment sans
-  protéines, glucides ou lipides connus est écarté ; énergie inconnue recalculée 4/4/9) ; « traces » = 0 ;
-  « < x » = 0 (sous la limite de quantification). Aliments infantiles écartés. Résultat : **3 117 aliments,
-  261 Ko** (63 Ko compressé), en cache hors ligne (`sw.js`), lu à la première ouverture d'un écran de
-  nutrition seulement.
+- **Colonnes** : énergie « Règlement UE 1169/2011 » (kcal), protéines **« N x 6,25 »** (valeur de
+  l'étiquetage, cohérente avec l'énergie du règlement ; Ciqual donne aussi « N x facteur de Jones »), glucides,
+  lipides, sucres ; famille d'équivalence, sous-groupe Ciqual, marque `e` (énergie calculée par l'app).
+- **Valeurs particulières** : la documentation (p. 9, 10, 16) dit que « - » est une valeur inconnue (jamais
+  zéro), « traces » une présence non quantifiable, « < x » une valeur sous la limite x. **Choix de l'app**
+  (pas une consigne de Ciqual) : « traces » et « < x » comptent pour 0, quantités négligeables pour un plan
+  diète. Un aliment sans protéines, glucides ou lipides connus est écarté.
+- **Énergie inconnue** (« - » pour 58 aliments) : recalculée par les coefficients du règlement 1169/2011,
+  4 P + 4 G + 9 L + 2 fibres + 7 alcool, **seulement si protéines, fibres et alcool sont connus** ; sinon
+  l'aliment est écarté (7 : eau-de-vie type calvados, pastis prêt à boire, baba au rhum, poudre maltée…, qui
+  auraient eu 0 ou 2 kcal faute d'alcool connu). Les 51 aliments calculés portent `e = 1`, et l'app écrit
+  « kcal (calculées) » à côté d'eux. Aliments infantiles écartés. Résultat : **3 110 aliments, 266 Ko**, en
+  cache hors ligne (`sw.js`), lu à la première ouverture d'un écran de nutrition seulement.
+- Chaque aliment d'un plan garde `src` (`ciqual-2025` ou `perso`) et, le cas échéant, `ecalc: true`.
 - **Absents de Ciqual** et courants en salle : skyr, whey, certaines marques. D'où l'**aliment perso**
-  (nom et valeurs pour 100 g de l'étiquette ; énergie calculée si laissée vide), gardé dans « mes aliments ».
+  (nom et valeurs pour 100 g de l'étiquette, « recopie l'énergie de l'étiquette » ; vide, elle est calculée
+  4/4/9, et l'écran dit que l'étiquette compte aussi fibres et alcool), gardé dans « mes aliments ».
 - **Open Food Facts** (codes-barres, marques) : **pas en V1**. Base sous ODbL ([texte](https://opendatacommons.org/licenses/odbl/1-0/)),
   fiches sous DbCL, photos sous CC BY-SA ([OFF](https://openfoodfacts.github.io/openfoodfacts-server/api/tutorials/license-be-on-the-legal-side)).
   Embarquer un extrait, c'est distribuer une base dérivée (§4.4) : elle reste sous ODbL et doit être
@@ -64,7 +72,8 @@ menus.
 Principe des « exchange lists » de l'ADA / Academy of Nutrition and Dietetics (« Choose Your Foods ») et des
 équivalences de la diététique française : dans un même groupe, on échange des quantités qui apportent à
 peu près la même chose ([annexe](https://mtsu.pressbooks.pub/nutrition2/back-matter/appendix-b-the-exchange-lists-for-meal-planning/),
-[Fédération des diabétiques](https://afd29.federationdesdiabetiques.org/public/content/58/doc/Les%20Equivalences%20glucidiques.pdf)).
+[Fédération des diabétiques](https://afd29.federationdesdiabetiques.org/public/content/58/doc/Les%20Equivalences%20glucidiques.pdf) ;
+référence de méthode pour ce document seulement, jamais citée dans l'app).
 
 1. **Même famille** (sous-groupe Ciqual ramené à 10 familles) : viandes, poissons, œufs (`v`) ; féculents
    (`f` : tubercules, légumineuses, céréales, pains) ; laitiers (`l`) ; matières grasses (`g`, oléagineux
@@ -99,9 +108,45 @@ d'escalope de dinde rôtie, 145 g d'escalope de veau…
   Behaviors* 2017, [PMC5700836](https://pmc.ncbi.nlm.nih.gov/articles/PMC5700836/) ;
   [PMC8485346](https://pmc.ncbi.nlm.nih.gov/articles/PMC8485346)) recommandent justement de revoir ces
   alertes et d'orienter vers des professionnels.
-- **Mention** sous l'écran et chaque plan : valeurs de Ciqual ou saisies, repères et pas avis médical,
-  « pour un régime particulier, parles-en à un professionnel de santé ».
-- Ce qui est noté (repas cochés) reste **sur l'iPhone** en V1.
+- **Repère très bas** : un objectif ou un total de plan sous **1 200 kcal** affiche, sans rien bloquer : « Cet
+  objectif est très bas pour un adulte qui s'entraîne. Les recommandations de santé réservent les régimes
+  sous 1 200 kcal par jour à un suivi médical… » (NICE NG246).
+- **Réglages de la nutrition** (bas de l'écran Nutrition et de Plans diète) : « Masquer les calories et les
+  grammes » (seules les cases des repas et les quantités des aliments restent ; l'éditeur de plan garde les
+  chiffres, il sert à construire le plan), « Afficher la série », accord du compte.
+- **Écoute**, toujours en bas de l'écran Nutrition : « Si manger, compter ou te peser devient une source
+  d'angoisse, tu peux en parler : Anorexie Boulimie Info Écoute, 0810 037 037 (lundi, mardi, jeudi et
+  vendredi, de 16 h à 18 h). »
+- **Mentions** sous l'écran et chaque plan : source complète (table Ciqual 2025 de l'Anses, version du
+  03/11/2025, doi, Licence Ouverte Etalab 2.0, valeurs arrondies, énergie parfois calculée, « l'Anses ne
+  valide pas ces plans ») ; « des repères pour suivre un plan, pas un avis médical ni diététique… ».
+- **Aucune finalité médicale** dans l'interface (ni maladie, ni perte de poids promise) ; vérifié par
+  `tests/unit/nutrition.mjs`.
+- Ce qui est noté (repas cochés) reste **sur l'iPhone**.
+
+## Accord (RGPD) : plans copiés sur le compte
+
+Pour la CNIL, des apports caloriques rapprochés du poids sont une donnée de santé (article 9 du RGPD :
+consentement explicite). Donc :
+
+- `data.dietConsent = { on, at }` (date ISO du choix). Sans accord (`on` faux ou absent), `profilePayload`
+  (js/data/sync.js) n'envoie ni `dietPlans`, ni `dietActive`, ni `dietFoods` : **tout reste sur l'iPhone**.
+  L'accord lui-même part toujours dans le profil (un refus fait sur un appareil vaut pour les autres) ; il
+  est donc **daté côté serveur** dans `profiles.doc`, sans migration.
+- **Question** posée une fois, avec un compte, dès qu'un plan existe (ouverture de Nutrition ou des plans,
+  création d'un plan), et **avant de recevoir un plan du coach** (refus : le plan n'est pas pris) :
+  « Tes plans diète et tes objectifs (calories, protéines, glucides, lipides) peuvent renseigner sur ta santé.
+  Avec ton accord, ils sont copiés sur le serveur de l'app pour les retrouver sur tes appareils et recevoir
+  les plans de ton coach. Sans ton accord, ils restent sur cet iPhone. Tu peux changer d'avis dans
+  Réglages. » Boutons « J'accepte » / « Garder sur cet iPhone ».
+- **Retirer l'accord** (Réglages de la nutrition) : le profil renvoyé aussitôt (`syncNow`) ne contient plus
+  les plans, le document du serveur est remplacé : ils en sont effacés ; ils restent sur l'iPhone. Un profil
+  reçu sans nutrition n'efface jamais les plans de l'iPhone.
+- **Limite** : le plan qu'un coach envoie est écrit par le coach dans `coach_programmes` avant tout accord de
+  l'élève (c'est la donnée du coach) ; l'app de l'élève ne l'affiche ni ne le prend sans accord, et il
+  disparaît avec la fin du coaching. Empêcher l'envoi lui-même demanderait une migration (consentement lu
+  par `coach_send_programme`) : non faite en V1, à décider.
+- `privacy.html` (FR et EN) : section « Nutrition », conforme à ce comportement.
 
 ## Où ça vit dans l'app, et pourquoi
 
@@ -120,13 +165,15 @@ d'escalope de dinde rôtie, 145 g d'escalope de veau…
 ## Données (`ppl_v2`)
 
 ```js
-dietPlans: { [id]: {                 // profil synchronisé, fusion par union (comme userProgrammes)
+dietPlans: { [id]: {                 // profil, AVEC ACCORD seulement ; fusion par union (comme userProgrammes)
   name, consigne?, targets?: { kcal?, p?, c?, f? }, archived?, updatedAt?,
   fromCoach?: { coachId, name, sentAt },                // plan reçu : lecture seule
-  meals: [{ id, name, note?, items: [{ id, name, food: code Ciqual | null, fam, g, per: { k, p, c, f } }] }] } },
+  meals: [{ id, name, note?, items: [{ id, name, food: code Ciqual | null, fam, g, per: { k, p, c, f }, src, ecalc? }] }] } },
 dietActive: id,                      // plan suivi (profil)
 dietFoods: [{ id, name, fam, per }], // aliments perso (profil)
 dietLog: { 'AAAA-MM-JJ': { plan, done: [id de repas], swaps: { [id d'aliment]: aliment } } },   // SYNC_LOCAL_ONLY
+dietConsent: { on, at },             // accord daté (profil, part toujours)
+dietConsentAsked, dietHideNumbers, dietStreakOff: true,   // réglages de l'appareil (SYNC_LOCAL_ONLY)
 ```
 
 - Un plan est **autonome** : chaque aliment garde ses valeurs pour 100 g, relevées au moment du choix. Une
@@ -173,8 +220,7 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 ## Avant une mise en production
 
 1. Relecture du fondateur (règles d'équivalence, textes) et des deux coachs sur un plan réel.
-2. `privacy.html` : ajouter les plans diète au profil synchronisé (comme les programmes) et dire que les
-   repas cochés restent sur l'appareil.
+2. `privacy.html` : fait (section Nutrition) ; à relire avec le reste des pages juridiques.
 3. Redéployer `push-send` pour le texte « plan diète » (facultatif, sans risque).
 4. Augmenter `CACHE` de `sw.js` au moment de publier (pas fait ici, sur consigne).
 
@@ -189,6 +235,7 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 | `js/data/coach-diet.js` | Envoi par le coach, état des envois, plans reçus |
 | `js/features/nutrition-ui.js` | Écran du jour, carte de l'accueil, remplacement, entrées Programme et coach |
 | `js/features/diet-editor.js` | Plans diète, éditeur, recherche d'aliment, aliment perso, objectifs |
+| `js/features/diet-settings.js` | Réglages de la nutrition (chiffres masqués, série, accord) et question de l'accord |
 | `css/nutrition.css` | Styles (couleurs : tokens `--macro-*`, `--check-*` de `css/base.css`) |
 | `tests/unit/nutrition.mjs` | Bornes, macros, coches, série, équivalences sur la vraie base, plan du coach, notification |
 | `tests/test_nutrition.py` | Parcours complets (5 appareils, clair et sombre) et captures |

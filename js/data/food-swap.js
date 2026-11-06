@@ -60,11 +60,12 @@ function cleanFoodDb(raw) {
   const foods = [], byCode = new Map();
   for (const r of raw.foods) {
     if (!Array.isArray(r) || r.length < 7) continue;
-    const [code, name, fam, k, p, c, f, sugar, grp] = r;
+    const [code, name, fam, k, p, c, f, sugar, grp, ecalc] = r;
     const per = cleanDietPer({ k, p, c, f });
     if (!Number.isInteger(code) || code <= 0 || typeof name !== 'string' || !name.trim() || !DIET_FAMS.includes(fam) || !per || byCode.has(code)) continue;
     const food = { code, name: name.trim(), fam, per, key: foodKey(name),
-      sugar: typeof sugar === 'number' && sugar >= 0 && sugar <= 100 ? sugar : null, grp: Number.isInteger(grp) ? grp : null };
+      sugar: typeof sugar === 'number' && sugar >= 0 && sugar <= 100 ? sugar : null, grp: Number.isInteger(grp) ? grp : null,
+      ...(ecalc === 1 ? { ecalc: true } : {}) };
     foods.push(food);
     byCode.set(code, food);
   }
@@ -104,7 +105,8 @@ function searchFoods(query, { limit = 40, own = [] } = {}) {
 }
 // Aliment choisi → aliment du plan (valeurs pour 100 g recopiées)
 function foodToItem(food, g) {
-  return cleanDietItem({ name: food.name, food: food.code || null, fam: food.fam, g, per: food.per });
+  return cleanDietItem({ name: food.name, food: food.code || null, fam: food.fam, g, per: food.per,
+    src: food.code ? 'ciqual-2025' : 'perso', ecalc: food.ecalc === true });
 }
 
 // ── Équivalences ────────────────────────────────────────────

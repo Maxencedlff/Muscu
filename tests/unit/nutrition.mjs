@@ -21,7 +21,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     loadDb();
     const n = run('foodDb.foods.length');
     assert.ok(n > 3000 && n === foods.foods.length, `toutes les lignes acceptées (${n})`);
-    sameJSON(run(`foodDb.byCode.get(${RIZ_CUIT}).per`), { k: 155, p: 3.1, c: 33.2, f: 0.7 }, 'riz blanc cuit, valeurs Ciqual non retouchées');
+    sameJSON(run(`foodDb.byCode.get(${RIZ_CUIT}).per`), { k: 155, p: 3.3, c: 33.2, f: 0.7 }, 'riz blanc cuit : valeurs Ciqual non retouchées, protéines N × 6,25');
     assert.equal(run(`foodDb.byCode.get(${RIZ_CUIT}).fam`), 'f');
     assert.equal(run(`foodDb.byCode.get(${POULET_GRILLE}).fam`), 'v');
     // Aucun aliment infantile (groupe 11), aucune ligne sans protéines, glucides ou lipides connus
@@ -31,6 +31,50 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const bad = { ...foods, foods: [[1, 'Bon', 'f', 100, 1, 20, 1, 0, 301], [2, 'Trop', 'f', 100, 60, 60, 1, 0, 301], ['x', 'Code', 'f', 1, 1, 1, 1], [3, '<b>', 'zz', 1, 1, 1, 1]] };
     assert.equal(run(`cleanFoodDb(${JSON.stringify(bad)}).foods.length`), 1);
     assert.equal(run(`cleanFoodDb({ v: 2, foods: [] })`), null, 'version inconnue refusée');
+  });
+
+  test('base Ciqual : énergie inconnue calculée (1169/2011) seulement si fibres et alcool sont connus, sinon écartée', () => {
+    loadDb();
+    const has = code => run(`foodDb.byCode.has(${code})`);
+    // Énergie « - » et alcool inconnu : 0 kcal serait faux (eau-de-vie, pastis, baba au rhum), poudre maltée sans fibres
+    for (const [code, name] of [[1024, 'calvados'], [1010, 'pastis prêt à boire'], [23021, 'baba au rhum'], [18102, 'poudre maltée']]) assert.ok(!has(code), `${name} écarté`);
+    // Calculée : marquée (e = 1, ecalc), et égale à 4 P + 4 G + 9 L + 2 fibres + 7 alcool à l'arrondi près
+    const calc = foods.foods.filter(r => r[9] === 1);
+    assert.ok(calc.length > 20 && calc.length < 80, `${calc.length} aliments à énergie calculée`);
+    assert.ok(calc.every(r => r[3] >= 4 * r[4] + 4 * r[5] + 9 * r[6] - 1), 'au moins 4P + 4G + 9L');
+    assert.equal(run(`foodDb.byCode.get(${calc[0][0]}).ecalc`), true);
+    assert.equal(run(`foodToItem(foodDb.byCode.get(${calc[0][0]}), 100).ecalc`), true, 'marque gardée dans le plan');
+    assert.equal(run(`foodToItem(foodDb.byCode.get(${RIZ_CUIT}), 100).ecalc`), undefined);
+    // Origine des valeurs gardée par chaque aliment du plan
+    assert.equal(run(`foodToItem(foodDb.byCode.get(${RIZ_CUIT}), 100).src`), 'ciqual-2025');
+    assert.equal(run(`cleanDietItem({ name: 'Whey', g: 30, per: { k: 380, p: 78, c: 6, f: 5 } }).src`), 'perso');
+    assert.equal(run(`cleanDietItem({ name: 'X', g: 30, src: 'autre', food: 9104, per: { k: 1, p: 0, c: 0, f: 0 } }).src`), 'ciqual-2025');
+  });
+
+  test('accord : sans lui, plans et aliments perso restent sur l\'iPhone ; retiré, le profil envoyé les efface', () => {
+    reset();
+    run(`data.dietPlans = { d_a: { name: 'P', meals: [] } }; data.dietActive = 'd_a'; data.dietFoods = [{ name: 'Skyr', per: { k: 63, p: 11, c: 4, f: 0.2 } }]; sanitizeData(data)`);
+    const keys = () => run('Object.keys(profilePayload(data))');
+    assert.ok(!keys().some(k => k.startsWith('diet')), 'sans accord : rien de la nutrition');
+    run('dietSetConsent(data, true, new Date(Date.UTC(2026, 10, 5)))');
+    assert.ok(['dietPlans', 'dietActive', 'dietFoods', 'dietConsent'].every(k => keys().includes(k)), 'avec accord : copiés');
+    assert.equal(run('data.dietConsent.at'), '2026-11-05T00:00:00.000Z', 'accord daté');
+    run('dietSetConsent(data, false)');
+    sameJSON(keys().filter(k => k.startsWith('diet')), ['dietConsent'], 'accord retiré : seul le refus part (les plans sont retirés du serveur)');
+    assert.ok(run(`SYNC_LOCAL_ONLY.includes('dietConsentAsked') && SYNC_LOCAL_ONLY.includes('dietHideNumbers') && SYNC_LOCAL_ONLY.includes('dietStreakOff')`));
+    // Profil reçu sans nutrition (appareil vierge) : les plans de l'iPhone ne sont jamais effacés
+    run(`data.history = []; applyRemoteProfile(data, { doc: { unit: 'kg' }, updated_at: '2026-11-05T10:00:00Z' }, emptySyncMeta('u1'))`);
+    assert.ok(run(`!!data.dietPlans.d_a && data.dietConsent.on === false`), 'plans et choix gardés');
+    // Accord illisible : retiré
+    run(`data.dietConsent = { on: 'oui', at: 'x' }; sanitizeData(data)`);
+    assert.equal(run('data.dietConsent'), undefined);
+  });
+
+  test('repère de santé : objectif ou total sous 1 200 kcal signalé, jamais bloqué', () => {
+    assert.equal(run(`dietLowKcal({ meals: [], targets: { kcal: 1100 } })`), true);
+    assert.equal(run(`dietLowKcal({ meals: [], targets: { kcal: 1200 } })`), false);
+    assert.equal(run(`dietLowKcal({ meals: [{ id: 'm', name: 'M', items: [{ id: 'i', name: 'Riz', g: 300, per: { k: 155, p: 3, c: 33, f: 1 } }] }] })`), true, 'total du plan sans objectif');
+    assert.equal(run(`dietLowKcal({ meals: [] })`), false, 'plan vide : rien à dire');
   });
 
   test('recherche : accents et casse ignorés, chaque mot tapé commence un mot, mes aliments d\'abord', () => {
@@ -282,7 +326,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
 
   test('nutrition : fichiers listés (index.html, sw.js), aucune couleur en dur hors des tokens', () => {
     const html = read('index.html'), sw = read('sw.js');
-    for (const f of ['js/data/nutrition.js', 'js/data/food-swap.js', 'js/data/coach-diet.js', 'js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'css/nutrition.css']) {
+    for (const f of ['js/data/nutrition.js', 'js/data/food-swap.js', 'js/data/coach-diet.js', 'js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js', 'css/nutrition.css']) {
       assert.ok(html.includes(f), `index.html : ${f}`);
       assert.ok(sw.includes(`'/${f}'`), `sw.js : ${f}`);
     }
@@ -290,8 +334,16 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.ok(html.indexOf('js/data/nutrition.js') < html.indexOf('js/data/store.js'), 'nutrition.js chargé avant store.js (sanitizeData)');
     const css = read('css/nutrition.css');
     assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(/i.test(css), 'couleurs : tokens de css/base.css seulement');
+    // Aucune finalité médicale ni promesse dans l'interface ; source, licence et écoute présentes
+    const ui = ['js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js'].map(read).join('\n');
+    assert.ok(!/diab|obésit|plus sain|brûle|détox|detox|maigrir vite/i.test(ui), 'pas de finalité médicale ni de promesse');
+    for (const t of ['table Ciqual 2025 de l\'Anses (version du 03/11/2025)', 'doi.org/10.57745/RDMHWY', 'Licence Ouverte Etalab 2.0', 'L\'Anses ne valide pas ces plans',
+      '0810 037 037', 'réservent les régimes sous 1 200 kcal', 'Garder sur cet iPhone']) assert.ok(ui.includes(t), `texte : ${t}`);
+    assert.match(ui, /J\\?'accepte/, 'bouton « J\'accepte »');
+    const privacy = read('privacy.html');
+    assert.ok(privacy.includes('id="nutrition"') && privacy.includes('href="#nutrition"') && privacy.includes('Your diet plans'), 'privacy.html : Nutrition FR et EN');
     // Textes de l'interface : sans tiret dans les phrases
-    for (const f of ['js/features/nutrition-ui.js', 'js/features/diet-editor.js']) {
+    for (const f of ['js/features/nutrition-ui.js', 'js/features/diet-editor.js', 'js/features/diet-settings.js']) {
       const strings = [...read(f).matchAll(/'([^'\n]*[A-Za-zéè][^'\n]*)'|`([^`]*)`/g)].map(m => m[1] || m[2]);
       for (const s of strings) assert.ok(!/\s[-–—]\s/.test(s.replace(/\$\{[^}]*\}/g, '')), `${f} : tiret dans « ${s.slice(0, 60)} »`);
     }
