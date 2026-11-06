@@ -140,6 +140,18 @@ const GUIDE_SECTIONS = [
         actions: ['ex-menu'],
       },
       {
+        id: 'intensification', title: 'Drop set, rest-pause, top set', icon: 'flame', color: 'red',
+        lead: 'Une série peut porter une technique d\'intensification, notée sur une petite ligne en dessous.',
+        steps: [
+          'Touche le numéro d\'une série à faire, ou [Dernière série en drop set] dans le menu ··· de l\'exercice.',
+          'Drop set, rest-pause et cluster ajoutent une ligne sous la série, à remplir et valider comme elle. La charge est proposée.',
+          'Top set et back-off marquent la série, sans ligne de plus.',
+          'Les lignes du dessous comptent dans le volume, jamais dans les records.',
+          'Pour la poser à chaque séance : [Technique] dans la fiche de l\'exercice du programme.',
+        ],
+        related: ['menu-exercice', 'regler-exercice'],
+      },
+      {
         id: 'ajouter-exercice', title: 'Ajouter ou remplacer un exercice', icon: 'plus', color: 'blue',
         lead: '[Ajouter un exercice], en bas de la séance, ouvre la recherche dans la bibliothèque.',
         steps: [

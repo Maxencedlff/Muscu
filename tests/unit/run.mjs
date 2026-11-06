@@ -26,6 +26,7 @@ const SCRIPTS = [
   'js/data/machine-track.js',
   'js/data/plates.js',
   'js/data/warmup.js',
+  'js/data/intensif.js',
   'js/data/rir.js',
   'js/data/strength-standards.js',
   'js/data/strength-levels.js',
@@ -1583,6 +1584,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./tempo.mjs')).default({ test, run, assert, app, sameJSON });
 // ── Outils de la séance (lot 2) : disques, échauffement, RIR et leurs exclusions (tests dans seance-outils.mjs) ──
 (await import('./seance-outils.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Techniques d'intensification (tests dans intensif.mjs) ──
+(await import('./intensif.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Import depuis Hevy et Strong (tests dans import-csv.mjs) ──
 (await import('./import-csv.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
 // ── Import des mesures Hevy (tests dans import-measures.mjs) ──

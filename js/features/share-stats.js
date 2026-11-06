@@ -86,7 +86,9 @@ function shareStoryStats(entry, { history = data.history, max = SHARE_MAX_HIGHLI
     // exercice : la meilleure série seule faisait croire à une séance plus régulière qu'elle ne l'était
     // (demande de Maxence du 04/11/2026). Exercice d'un superset : son groupe en plus.
     const sets = setsText(ex.sets, measureOf(ex), setKind(ex), { unitEach: true });
-    if (sets && sets !== '—') row.sets = sets;
+    // Sous-séries d'un drop set, d'un rest-pause ou d'un cluster à la suite (js/data/intensif.js)
+    const tech = measureOf(ex) === 'reps' ? techShareText(ex.sets, setKind(ex)) : '';
+    if (sets && sets !== '—') row.sets = tech ? `${sets}, ${tech}` : sets;
     if (groupOf[oi]) Object.assign(row, { group: groupOf[oi].id, kind: groupOf[oi].kind });
     return row;
   });

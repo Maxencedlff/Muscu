@@ -28,8 +28,13 @@
 }
 .ios-dialog--sheet .ios-dialog__panel {
   max-width: 440px; display: flex; flex-direction: column; gap: var(--sp-2);
+  max-height: calc(100% - env(safe-area-inset-top, 0px) - var(--sp-4));
   animation: iosUp .3s cubic-bezier(.2,.9,.3,1);
 }
+/* Feuille plus haute que l'écran (menu ⋯ d'un exercice de superset sur iPhone SE) : les choix défilent,
+   Annuler reste visible en bas, comme une feuille d'actions d'iOS */
+.ios-dialog--sheet .ios-dialog__group:first-child { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.ios-dialog--sheet .ios-dialog__group + .ios-dialog__group { flex-shrink: 0; }
 .ios-dialog__group {
   border-radius: 14px; overflow: hidden; background: var(--dlg-bg);
   backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%);

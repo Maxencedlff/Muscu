@@ -288,6 +288,7 @@ function pickExercise(name) {
   let exId = inProg ? inProg.id : resolveExId(sp, sc, name);
   if (exId?.startsWith('n:')) exId = null; // résolu à l'enregistrement, comme avant
   const exObj = { exId, name: inProg ? inProg.name : name, measure: measureOf(inProg || { name }), ...(inProg?.tempo ? { tempo: inProg.tempo } : {}), ...(inProg?.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(inProg) } : {}), sets: buildSets(sp, sc, { exId, name }, axSets, inProg || {}) };
+  applyIntensPlan(exObj, inProg?.intens);   // technique prescrite par le programme (js/data/intensif.js)
   let target;
   if (ax.replaceEi !== null) {
     // Les séries déjà validées sont du travail fait : l'ancien exercice les garde (sans ses séries
@@ -389,6 +390,8 @@ function exerciseMenuActions(xs, ei) {
     { label: 'Remplacer l\'exercice', value: 'replace' },
     // Échauffement (js/data/warmup.js) : exercice à charge sans série faite, hors superset (les tours s'enchaînent)
     ...(!inGroup && canWarmup(ex) ? [{ label: 'Ajouter un échauffement', value: 'warmup' }] : []),
+    // Techniques d'intensification (js/features/session-intensif.js) : le drop set de la dernière série en un toucher
+    ...techMenuActions(ex),
     ...(isBarbellExercise(ex) ? [{ label: 'Disques', value: 'plates' }] : []),
     { label: inGroup ? 'Régler le repos du tour' : 'Régler le repos', value: 'rest' },
     ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
@@ -423,6 +426,9 @@ async function exerciseMenu(ei) {
     openAddExSheet({ replaceEi: ei });
   } else if (choice === 'warmup') {
     openWarmupSheet(ei);
+  } else if (choice === 'tech-drop-last' || choice === 'tech-pick') {
+    await techMenuChoice(ei, choice);
+    return;
   } else if (choice === 'plates') {
     openPlatesSheet(ei, Math.max(0, ex.sets.findIndex(s => !s.done)));
   } else if (choice === 'muscles') {

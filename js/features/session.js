@@ -15,7 +15,8 @@ function plannedSet(src, prev) {
     ...(src?.dist ? { dist: src.dist } : {}),
     plannedWeight: src?.weight ?? '',
     // machine : réglages de la dernière fois, point de départ du chrono (machineStart)
-    prev:   prev ? { weight: prev.weight, reps: prev.reps, ...(prev.dist ? { dist: prev.dist } : {}), ...(prev.machine ? { machine: prev.machine } : {}) } : null,
+    // tech, sub : technique de la dernière fois (js/data/intensif.js), « Avant » de ses sous-séries
+    prev:   prev ? { weight: prev.weight, reps: prev.reps, ...(prev.dist ? { dist: prev.dist } : {}), ...(prev.machine ? { machine: prev.machine } : {}), ...techFields(prev) } : null,
     done:   false,
   };
 }
@@ -47,6 +48,8 @@ function startSession(cat) {
     exercises: exList.map(ex => ({ exId: ex.id, name: ex.name, measure: measureOf(ex), ...(ex.tempo ? { tempo: ex.tempo } : {}), ...(ex.tempoGuide === true ? { tempoGuide: true, tempoPrep: tempoPrepOf(ex) } : {}), ...(ssId(ex) ? { ss: ex.ss } : {}), sets: buildSets(progKey, cat, ex, ex.sets, ex) })),
   };
   ssNormalize(activeSession.exercises);
+  // Technique prescrite par le programme (coach ou soi : js/data/intensif.js), posée sur ses séries
+  activeSession.exercises.forEach(ex => applyIntensPlan(ex, sessExData(ex)?.intens));
   persistSession();
   otaSessionChanged();   // une mise à jour en file attend la fin de la séance (js/app/live-update.js)
   routeTo('session');
@@ -233,7 +236,8 @@ function exSubHtml(ex, ei, allDone) {
 
 function renderExerciseCard(ex, ei, cur) {
   const doneN   = ex.sets.filter(s => s.done).length;
-  const allDone = ex.sets.length > 0 && doneN === ex.sets.length;
+  // Sous-série d'un drop set encore à faire (js/data/intensif.js) : la carte reste dépliée
+  const allDone = ex.sets.length > 0 && doneN === ex.sets.length && !techPending(ex);
 
   if (allDone && !openDone.has(ex)) {
     const records = liveExerciseBadges(ex, livePrior(ex)).size;   // js/data/records.js
@@ -242,8 +246,9 @@ function renderExerciseCard(ex, ei, cur) {
 
   const howTo = !allDone && hasHowTo(ex);
   const chip = bumpReady(ex) ? `<button class="bump-chip" data-action="bump-weight" data-ei="${ei}" aria-label="Augmenter la charge de ${bumpLabel()}">↑ ${bumpLabel()}</button>` : '';
-  // Séries d'échauffement (js/data/warmup.js) : en tête, sous un titre gris
-  const rows = ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${renderSetRow(ex, ei, s, si, cur)}`).join('');
+  // Séries d'échauffement (js/data/warmup.js) : en tête, sous un titre gris ; technique d'intensification
+  // et ses sous-séries sous la série (js/features/session-intensif.js)
+  const rows = ex.sets.map((s, si) => `${si === 0 && isWarmupSet(s) ? '<div class="sets__caption">Échauffement</div>' : ''}${renderSetRow(ex, ei, s, si, cur)}${techBlockHtml(ex, ei, s, si)}`).join('');
 
   return `
     <div class="exercise-block ex-card ${allDone ? 'ex-card--done' : ''}" data-ei="${ei}">
@@ -285,7 +290,7 @@ function renderGroupCard(members, cur, tags) {
   const exs     = members.map(ei => xs[ei]);
   const total   = exs.reduce((a, ex) => a + ex.sets.length, 0);
   const doneN   = exs.reduce((a, ex) => a + ex.sets.filter(s => s.done).length, 0);
-  const allDone = total > 0 && doneN === total;
+  const allDone = total > 0 && doneN === total && !exs.some(techPending);
   const head    = members[0], kind = ssKind(members.length);
 
   if (allDone && !openDone.has(exs[0])) {
@@ -320,7 +325,7 @@ function renderGroupCard(members, cur, tags) {
   const rounds = ssRounds(xs, members).map((round, t) => `
         <div class="ss-round" role="group" aria-label="Tour ${t + 1}">
           <div class="ss-round__title">Tour ${t + 1}</div>
-          ${round.map(({ ei, si }) => `<div class="ss-exname" aria-hidden="true">${esc(xs[ei].name)}</div>${renderSetRow(xs[ei], ei, xs[ei].sets[si], si, cur, tags[ei])}`).join('')}
+          ${round.map(({ ei, si }) => `<div class="ss-exname" aria-hidden="true">${esc(xs[ei].name)}</div>${renderSetRow(xs[ei], ei, xs[ei].sets[si], si, cur, tags[ei])}${techBlockHtml(xs[ei], ei, xs[ei].sets[si], si)}`).join('')}
         </div>`).join('');
   const rest = fmtRest(exRest(xs[members.at(-1)]));
   const m0   = exs[0];
@@ -491,7 +496,9 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
   // Première colonne de la série à faire : ▶ (chrono, tempo, machine), sinon « Disques » sur une barre, sinon le numéro
   const isNext = !editing && si === first;
   const play   = isNext && (m === 'time' || (m === 'reps' && parseTempo(ex.tempo) && ex.tempoGuide === true) || hasMachineClock(ex));
-  const firstCol = play ? setPlayHtml(ex, ei, s, si) : isNext && !tag && isBarbellExercise(ex) ? setPlatesHtml(ex, ei, s, si) : setNumHtml(ex, si, tag);
+  // Ailleurs, le numéro d'une série de travail ouvre le choix d'une technique d'intensification (comme Hevy)
+  const firstCol = play ? setPlayHtml(ex, ei, s, si) : isNext && !tag && isBarbellExercise(ex) ? setPlatesHtml(ex, ei, s, si)
+    : !tag && !warm && canTech(ex) ? setTechNumHtml(ex, ei, si) : setNumHtml(ex, si, tag);
   // Série validée rouverte : le RIR se corrige là aussi (js/data/rir.js)
   const rir = editing && m === 'reps' && !warm && rirShown() ? rirPickerHtml(ei, si, s, ex) : '';
   return `
@@ -564,14 +571,19 @@ function validateSet(ei, si, opts = {}) {
   // Le même exercice validé deux fois de suite (l'autre est pris) : repos comme d'habitude.
   const group   = ssGroupOf(xs, ei);
   const chain   = !allDone && group && !sameAgain ? ssChainAfter(xs, group, ei) : null;
-  if (allDone) { stopRest(); closeSessSheets(); }
+  // Drop set, rest-pause, cluster (js/data/intensif.js) : la sous-série suit, sans repos ou après sa courte pause
+  const techPause = chain ? null : techPauseAfter(s);
+  if (allDone && techPause === null) { stopRest(); closeSessSheets(); }
   else if (chain) stopRest();
+  else if (techPause !== null) { if (techPause) openRest(techPause, false, opts.restFrom); else stopRest(); }
   else openRest(exRest(xs[restEi(ei)]), false, opts.restFrom);
 
   document.activeElement?.blur?.();
   render();
   scrollToCurrent();
-  showToast(chain ? `Enchaîne : ${xs[chain.ei].name}` : `${setSpokenName(ex, si)} validé${isWarmupSet(s) ? '' : 'e'}`, { action: 'Annuler', duration: 4000, onAction: () => undoValidate(undo) });
+  const doneTxt = `${setSpokenName(ex, si)} validé${isWarmupSet(s) ? '' : 'e'}`;
+  showToast(chain ? `Enchaîne : ${xs[chain.ei].name}` : techPause !== null ? `${doneTxt}, enchaîne : ${TECHS[setTech(s)].label.toLowerCase()}` : doneTxt,
+    { action: 'Annuler', duration: 4000, onAction: () => undoValidate(undo) });
 }
 
 // La série suivante garde sa valeur prévue, sauf si la charge vient d'être modifiée.
@@ -610,7 +622,8 @@ function undoValidate(u) {
 // Centre la série courante à l'écran (après validation, reprise ou restauration)
 function scrollToCurrent(smooth = true) {
   requestAnimationFrame(() => {
-    const row = $('.session-set--current');
+    // Sous-série d'un drop set à faire (js/features/session-intensif.js) : c'est elle qui suit
+    const row = $('.session-set--subcur') || $('.session-set--current');
     if (!row) return;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     row.scrollIntoView({ block: 'center', behavior: smooth && !reduce ? 'smooth' : 'auto' });

@@ -146,7 +146,9 @@ function cleanPublicSession(s) {
       sets: (Array.isArray(e.sets) ? e.sets : []).slice(0, 50).filter(st => st && typeof st === 'object')
         .map(st => ({ weight: numStr(st.weight), reps: numStr(st.reps), ...(numStr(st.dist) ? { dist: numStr(st.dist) } : {}),
           // Échauffement (true seulement) et RIR (entier 0 à 4), envoyés depuis la migration 20261031100000_records_series.sql
-          ...(st.warmup === true ? { warmup: true } : {}), ...(typeof st.rir === 'number' && cleanRir(st.rir) !== null ? { rir: cleanRir(st.rir) } : {}) })),
+          ...(st.warmup === true ? { warmup: true } : {}), ...(typeof st.rir === 'number' && cleanRir(st.rir) !== null ? { rir: cleanRir(st.rir) } : {}),
+          // Technique et sous-séries (js/data/intensif.js) : gardées si le serveur les transmet un jour
+          ...techFields(st) })),
     }));
   // Records notés par son app (js/data/records.js) ; absents : séance d'une version d'avant, recalculés
   const records = cleanNotedRecords(o.records);

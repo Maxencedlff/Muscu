@@ -113,8 +113,8 @@ document.addEventListener('keydown', e => {
   if (!t.matches?.('.set-input') || !t.closest('.session-set')) return;
   e.preventDefault();
   const row = t.closest('.session-set');
-  const isW = t.dataset.action === 'set-weight' || t.dataset.action === 'set-dist' || t.id === 'editSetWeight';
-  if (isW) { row.querySelector('[data-action="set-reps"], #editSetReps')?.focus(); return; }
+  const isW = ['set-weight', 'set-dist', 'sub-weight'].includes(t.dataset.action) || t.id === 'editSetWeight';   // sub- : sous-série (session-intensif.js)
+  if (isW) { row.querySelector('[data-action="set-reps"], [data-action="sub-reps"], #editSetReps')?.focus(); return; }
   row.querySelector('.set-check-zone')?.click();
 });
 

@@ -300,6 +300,7 @@ function renderSocialSession(owner, id) {
                 <span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>
                 <span class="hex__sets num">${setsLine(e.sets, e.measure || measureOf(e), reviewSetKind(e))}</span>
                 ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
+                ${techLinesHtml(e)}
               </span>
             </div>`).join('') || '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}
         </div>

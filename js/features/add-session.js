@@ -223,7 +223,7 @@ function pastSessionExercises() {
   // warmup et rir : gardés tels quels d'une séance modifiée (le formulaire ne les saisit pas)
   const clean = sets => (sets || []).filter(s => String(s.reps ?? '').trim() !== '')
     .map(s => ({ weight: s.weight, reps: String(parseInt(s.reps)), ...(s.dist ? { dist: s.dist } : {}), ...(s.machine ? { machine: s.machine } : {}),
-      ...(isWarmupSet(s) ? { warmup: true } : {}), ...(cleanRir(s.rir) !== null ? { rir: cleanRir(s.rir) } : {}) }));
+      ...(isWarmupSet(s) ? { warmup: true } : {}), ...(cleanRir(s.rir) !== null ? { rir: cleanRir(s.rir) } : {}), ...techFields(s) }));
   const exercises = (addProgData().exercises[addCat] || [])
     .map(ex => {
       const sets = clean(addSets[ex.id]);
@@ -326,7 +326,7 @@ registerActions({
       const exData = (addProgData().exercises[addCat] || []).find(e => sameEx(e, ex));
       // Réglage de la machine noté au chrono : gardé (la durée modifiée à la main reprend le pas, setMinutes)
       const sets   = ex.sets.map(s => ({ weight: s.weight, reps: s.reps, ...(s.dist ? { dist: s.dist } : {}), ...(s.machine ? { machine: s.machine } : {}),
-        ...(isWarmupSet(s) ? { warmup: true } : {}), ...(cleanRir(s.rir) !== null ? { rir: cleanRir(s.rir) } : {}) }));
+        ...(isWarmupSet(s) ? { warmup: true } : {}), ...(cleanRir(s.rir) !== null ? { rir: cleanRir(s.rir) } : {}), ...techFields(s) }));
       if (exData) { addSets[exData.id] = sets; return; }
       const key = 'x_' + uid();
       addExtras.push({ key, name: ex.name, exId: ex.exId || null, ...(ex.measure ? { measure: ex.measure } : {}) });

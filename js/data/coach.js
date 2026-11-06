@@ -100,7 +100,7 @@ function cleanCoachSessionRow(r) {
 }
 
 // Programme envoyé, tel que l'app l'accepte : { name, consigne?, sessions: [{ key, label, color,
-// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, ss?, consigne? }] }] }, null s'il est
+// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, intens?, ss?, consigne? }] }] }, null s'il est
 // inutilisable. Mêmes bornes que la saisie (sanitizeData) ; clés de séance de SESSION_CAT_RE, uniques.
 function cleanSentProgramme(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -127,6 +127,8 @@ function cleanSentProgramme(raw) {
           const rn = e.repMin == null ? null : num(e.repMin, 1, 99, true);
           if (rn !== null && rn < (o.repMax ?? 12)) o.repMin = rn;
           if (ssId(e)) o.ss = e.ss;
+          const it = cleanIntens(e.intens);   // technique prescrite (js/data/intensif.js)
+          if (it) o.intens = it;
           const c = cleanConsigne(e.consigne);
           if (c) o.consigne = c;
           return o;
@@ -281,6 +283,7 @@ function programmeToSent(d, progId, over = null) {
         if (e.tempo) o.tempo = e.tempo;
         if (e.repMax) o.repMax = e.repMax;
         if (e.repMin) o.repMin = e.repMin;
+        if (cleanIntens(e.intens)) o.intens = e.intens;
         if (ssId(e)) o.ss = e.ss;
         const c = cleanConsigne(over?.ex?.[s.key]?.[e.id] !== undefined ? over.ex[s.key][e.id] : e.consigne);
         if (c) o.consigne = c;
@@ -338,7 +341,7 @@ function importCoachProgramme(d, item, coachPerson) {
     if (hit) used.add(hit.ex);
     return hit?.ex || null;
   };
-  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'ss', 'consigne'];
+  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'intens', 'ss', 'consigne'];
   const sessions = {}, exercises = {};
   sent.sessions.forEach(s => {
     sessions[s.key] = { label: s.label, icon: '', desc: prevUp?.sessions?.[s.key]?.desc || '', color: s.color };

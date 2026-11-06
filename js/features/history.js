@@ -121,6 +121,11 @@ function refreshHistoryList() {
 function setsLine(sets, measure = 'reps', kind = 'charge') {
   return esc(setsText(sets, measure, kind));
 }
+// Lignes « Drop set S3 : 46 kg × 5 », « Top set S1 · Back-off S2, S3 » sous les séries (js/data/intensif.js)
+function techLinesHtml(e) {
+  if ((e.measure || measureOf(e)) !== 'reps') return '';
+  return techLines(e.sets, setKind(e)).map(l => `<span class="hex__sets hex__sets--note num">${esc(l)}</span>`).join('');
+}
 
 // Records battus par la séance : notés à l'enregistrement, sinon recalculés (séance d'avant, js/data/records.js)
 function historyRecordsGroup(h) {
@@ -163,6 +168,7 @@ function renderHistoryDetail(id) {
                 <span class="hex__name">${ssTagHtml(xs, i)}${esc(e.name)}</span>
                 <span class="hex__sets num">${setsLine(e.sets, measureOf(e), setKind(e))}</span>
                 ${warmupText(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(warmupText(e.sets))}</span>` : ''}
+                ${techLinesHtml(e)}
                 ${rirLine(e.sets) ? `<span class="hex__sets hex__sets--note num">${esc(rirLine(e.sets))}</span>` : ''}
               </span>
             </div>`).join('')}

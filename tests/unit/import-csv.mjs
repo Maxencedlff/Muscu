@@ -235,7 +235,9 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.equal(progEx.find(e => e.name === 'Développé couché barre').sets, 3, 'séries de la dernière séance de ce nom');
     const lat = first.exercises.find(e => e.name === 'Élévations latérales');
     assert.equal(lat.ss, first.exercises.find(e => e.name === 'Extension triceps poulie').ss, 'superset gardé');
-    assert.equal(lat.sets.length, 3, 'série dégressive gardée comme une série');
+    // Série dégressive (dropset) : sous-série du drop set de la série d'avant (js/data/intensif.js)
+    assert.equal(lat.sets.length, 2, 'série dégressive rangée sous la série d\'avant');
+    sameJSON({ tech: lat.sets[1].tech, sub: lat.sets[1].sub }, { tech: 'drop', sub: [{ weight: '8', reps: '12' }] }, 'drop set : 8 kg × 12 sous 10 kg × 14');
     const legs = d.history.find(h => d.userProgrammes.u_hevy.sessions[h.category].label === 'Leg Day' && h.date - (h.duration || 0) === local(2026, 1, 18, 10, 0));
     const plank = legs.exercises.find(e => e.name === 'Gainage (planche)');
     assert.equal(plank.measure, 'time', 'mesure écrite hors répétitions, comme storedMeasure');

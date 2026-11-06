@@ -567,6 +567,36 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
   .rir__btn { min-width: 32px; } .rir__btn::after { inset: -6px; } .rir__rpe { display: none; }
 }
 
+/* Techniques d'intensification (js/features/session-intensif.js) : numéro de série touchable, titre et
+   sous-séries sous la série, rattachées à elle par un filet à gauche */
+.set-tech-n {
+  position: relative; justify-self: stretch; height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: inherit; color: var(--label2);
+}
+.set-tech-n::after { content: ''; position: absolute; top: 0; bottom: 0; left: calc(50% - 22px); right: calc(50% - 22px); }   /* 44 px de large, colonne de 30 ou 34 */
+.set-tech-n:active { opacity: .6; }
+.tech { margin: -2px -6px 4px; }
+.tech__cap {
+  display: flex; align-items: center; gap: 12px; min-height: 44px; min-width: 0;
+  padding: 0 6px 0 calc(28px + var(--set-gap)); border-left: 2px solid var(--sep);
+}
+.tech__name { font-size: 0.765rem; font-weight: 700; color: var(--label); white-space: nowrap; }
+.tech__hint { flex: 1; min-width: 0; font-size: 0.706rem; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tech__add, .tech__x {
+  position: relative; flex-shrink: 0; height: 32px; border: 0; border-radius: var(--r-pill); cursor: pointer;
+  background: var(--fill); color: var(--tint-on-fill); font-family: inherit; font-size: 0.765rem; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; gap: 2px;
+}
+.tech__add { padding: 0 10px 0 8px; }
+.tech__cap > button:first-of-type { margin-left: auto; }   /* boutons à droite, même sans le texte d'aide (petit écran) */
+.tech__x { width: 32px; color: var(--label2); }
+.tech__add::after, .tech__x::after { content: ''; position: absolute; inset: -6px; }   /* 44 px de zone de toucher */
+.tech__add:active, .tech__x:active { opacity: .6; }
+.session-set--sub { min-height: 52px; margin-bottom: 2px; border-radius: 0 var(--r-sm) var(--r-sm) 0; box-shadow: inset 2px 0 0 var(--sep); }
+.session-set--subcur { background: color-mix(in srgb, var(--cat-color) 8%, var(--cell)); box-shadow: inset 3px 0 0 var(--cat-color); }
+.tech-tag { font-size: 0.706rem; font-weight: 700; letter-spacing: .02em; }
+@media (max-width: 374px) { .tech__cap { padding-left: calc(24px + var(--set-gap)); } .tech__hint { display: none; } }
+
 /* Historique : lignes « Échauffement … » et « RIR … » sous les séries */
 .hex__sets--note { color: var(--label3); }
 
