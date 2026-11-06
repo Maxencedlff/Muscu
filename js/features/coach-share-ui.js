@@ -241,7 +241,7 @@ registerActions({
     const r = await coachShareSet(kind, on);
     if (!r.ok) { if (r.kind !== 'busy') showToast(coachErrorText(r.kind), { error: true }); return; }
     const m = kind === 'measures';
-    if (r.uploadFailed) showToast(r.uploadFailed === 'offline' ? `Partage activé. Tes ${m ? 'mensurations' : 'pesées'} partiront avec du réseau.` : coachErrorText(r.uploadFailed), { error: r.uploadFailed !== 'offline' });
+    if (r.uploadFailed) showToast(r.uploadFailed === 'offline' ? `Partage activé. Tes ${m ? 'mensurations' : 'pesées'} partiront avec du réseau.` : coachErrorText(m && r.uploadFailed === 'invalid_data' ? 'invalid_measures' : r.uploadFailed), { error: r.uploadFailed !== 'offline' });
     else showToast(on ? (m ? 'Mensurations partagées avec ton coach' : 'Poids partagé avec ton coach') : `Partage arrêté, ${m ? 'mensurations' : 'pesées'} effacées du serveur`);
   },
 });

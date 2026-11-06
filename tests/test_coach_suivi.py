@@ -245,6 +245,37 @@ def t_planning_eleve(bench, eng, dev, theme):
         R.check(page.locator('.coach-mine-view button.plan-card').count() == 0, f'{t} élève : carte en lecture seule')
         layout(page, t, 'Mon coach (phase)')
         shot(page, LOT, f'8-mon-coach-phase-{t}')
+        # Déconnexion : le planning gardé pour le hors ligne quitte l'appareil
+        R.check(page.evaluate("localStorage.getItem('mdlf_coach_plan')") is not None, f'{t} planning gardé sur l\'appareil (hors ligne)')
+        page.evaluate("localStorage.setItem('mdlf_coach_share_m', JSON.stringify({ userId: __sb.meId(), coachId: 'x', hash: 'h' }))")
+        page.evaluate('accountSignOut()')
+        page.wait_for_timeout(400)
+        R.check(page.evaluate("localStorage.getItem('mdlf_coach_plan')") is None and page.evaluate("localStorage.getItem('mdlf_coach_share_m')") is None,
+                f'{t} déconnexion : mdlf_coach_plan et mdlf_coach_share_m effacés')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+def t_echappement(bench, eng, dev, theme):
+    """Nom de phase et programme hostiles (venus du serveur) : affichés comme du texte, jamais interprétés."""
+    t = tag(dev, theme)
+    evil = '<img src=x onerror="window.__xss=1">'
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme)
+        signin(page, 'max')
+        ids = setup_coach(page, measures=False)
+        page.evaluate(f"""e => {{ const p = __sb.co.phases.find(x => x.goal === 'mini_cut'); p.name = e.slice(0, 40); p.prog_name = e.slice(0, 40); p.note = e; }}""", evil)
+        page.evaluate('coachRefresh()')
+        page.wait_for_timeout(400)
+        for route, sel in [("'coach-students'", '.coach-students-view .coach-student-row'), ("'coach-planning'", '.coach-planning-view .plan-gantt__row'),
+                           (f"makeRoute('coach-student', '{ids['lea']}')", '.coach-student-view .plan-card'), (f"makeRoute('coach-plan', '{ids['lea']}')", '.coach-plan-view .plan-card')]:
+            go(page, route, sel)
+            R.check(page.locator('#app img[src="x"]').count() == 0 and '<img' in page.inner_text('#app'), f'{t} {route} : texte hostile affiché tel quel')
+        page.locator('.coach-plan-view .plan-card').first.click()
+        page.wait_for_selector('.sheet .plan-form')
+        page.wait_for_timeout(300)
+        R.check(page.input_value('#planName') == evil[:40] and page.locator('.sheet img[src="x"]').count() == 0, f'{t} feuille : valeur du champ, pas du HTML')
+        page.click('.sheet__btn--cancel')
+        R.check(page.evaluate('window.__xss') is None, f'{t} aucun script exécuté')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
@@ -369,4 +400,4 @@ def t_bilan_coach(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_planning_coach, t_planning_eleve, t_serveur_ancien, t_mesures_eleve, t_bilan_coach])
+run_main(R, [t_planning_coach, t_planning_eleve, t_echappement, t_serveur_ancien, t_mesures_eleve, t_bilan_coach])

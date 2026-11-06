@@ -79,7 +79,7 @@ async function addMeasuresSheet(keys = BODY_MEASURE_KEYS) {
       </label>`;
   }).join('');
   const res = await sheet({ title: keys.length === 1 ? bodyMeasureLabel(keys[0]) : 'Mesures', confirm: 'OK', focus: keys.length === 1 ? '.bm-in' : null, body: `
-    <div class="date-row bm-date"><label class="date-label" for="bmDate">Date</label><input type="date" id="bmDate" class="date-input" value="${today}" max="${today}"></div>
+    <div class="date-row bm-date"><label class="date-label" for="bmDate">Date</label><input type="date" id="bmDate" class="date-input" value="${today}" min="2000-01-01" max="${today}"></div>
     <div class="sheet-list">${rows}</div>
     <p class="mpick__foot">${keys.length > 1 ? 'Laisse vide ce que tu n\'as pas mesuré. ' : ''}Mesure détendu, au même endroit à chaque fois. ${bmPrivacyText()}.</p>`,
     onConfirm: panel => {

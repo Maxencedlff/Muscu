@@ -69,7 +69,7 @@ consentement, remplace tout, mesures connues seulement), coach_student_measures 
 __sb.shareMeasures(élève, { waist: [{ date, cm }] }) coche et dépose ; __sb.fail.measures = 'missing' : serveur
 d'avant (pas de kinds, invalid_kind, PGRST202).
 Planification (supabase/migrations/20261105000000_coach_planning.sql) : coach_plans, student_plan (sans la
-note), coach_plan_save (invalid_phase, too_long, overlap, too_many à 30, not_found), coach_plan_delete ; effacée
+note ni l'identifiant des phases), coach_plan_save (invalid_phase, too_long, overlap, too_many à 30, not_found), coach_plan_delete ; effacée
 avec le lien. État dans __sb.co.phases ; __sb.addPhase(élève, { goal, start, weeks, name?, prog_name?, note? })
 en pose une ; __sb.fail.plan = 'missing' (PGRST202 : serveur sans planification) ou 'offline'.
 
@@ -562,7 +562,8 @@ FAKE_ACCOUNT = r"""
   // Planification : phases { id, student, coach, name, goal, start, weeks, prog_name, note } du lien actuel
   const PLAN_GOALS = ['bulk', 'cut', 'mini_cut', 'maintain', 'comeback', 'strength', 'prep', 'deload', 'other'];
   const dayN = iso => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 86400_000;
-  const phaseJson = (p, note) => ({ id: p.id, name: p.name, goal: p.goal, start: p.start, weeks: p.weeks, prog_name: p.prog_name, ...(note ? { note: p.note, updated_at: p.updated_at } : {}) });
+  // Coach : avec id et note ; élève (student_plan) : ni id, ni note
+  const phaseJson = (p, note) => ({ ...(note ? { id: p.id } : {}), name: p.name, goal: p.goal, start: p.start, weeks: p.weeks, prog_name: p.prog_name, ...(note ? { note: p.note, updated_at: p.updated_at } : {}) });
   const planOf = (coachId, student) => co.phases.filter(p => p.coach === coachId && p.student === student)
     .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.id - b.id)).map(p => phaseJson(p, true));
   sb.addPhase = (student, ph) => {
@@ -729,7 +730,8 @@ FAKE_ACCOUNT = r"""
       return sh ? { shared: true, since: sh.granted_at, measures: co.measures[student] || {} } : { shared: false, since: null, measures: {} };
     },
     coach_plans: me => ({ students: co.coachAt[me] ? co.links.filter(l => l.coach === me).map(l => ({ student_id: l.student, phases: planOf(me, l.student) })) : [] }),
-    student_plan: me => { const l = linkOf(me); return { coach: !!l, phases: l ? planOf(l.coach, me).map(p => phaseJson(p, false)) : [] }; },
+    student_plan: me => { const l = linkOf(me); return { coach: !!l, phases: l ? co.phases.filter(p => p.coach === l.coach && p.student === me)
+      .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.id - b.id)).map(p => phaseJson(p, false)) : [] }; },
     coach_plan_save: (me, { student, phase_id = null, name = '', goal, start_date, weeks, programme = null, note = '' }) => {
       if (!coachOf(me, student)) return pgErr('not_found');
       if (!PLAN_GOALS.includes(goal) || !/^\d{4}-\d{2}-\d{2}$/.test(start_date || '') || !Number.isInteger(weeks) || weeks < 1 || weeks > 52) return pgErr('invalid_phase');

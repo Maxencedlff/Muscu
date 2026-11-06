@@ -20,8 +20,8 @@
 }
 button.plan-card { cursor: pointer; }
 button.plan-card:active { background: var(--cell2); }
-.plan-card__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.plan-card__status { font-size: var(--fs-subhead); font-weight: 600; color: var(--label2); white-space: nowrap; }
+.plan-card__top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
+.plan-card__status { min-width: 0; font-size: var(--fs-subhead); font-weight: 600; color: var(--label2); overflow-wrap: anywhere; }
 .plan-card--current .plan-card__status { color: var(--label); }
 .plan-card__title { font-size: var(--fs-title3); line-height: 1.3; font-weight: 700; overflow-wrap: anywhere; }
 .plan-card__meta { font-size: var(--fs-subhead); line-height: 1.4; color: var(--label2); overflow-wrap: anywhere; }
@@ -108,6 +108,8 @@ button.plan-card:active { background: var(--cell2); }
 .plan-stepper__btn:disabled { color: var(--label3); cursor: default; }
 .plan-stepper__btn:not(:disabled):active { background: var(--fill); }
 .plan-stepper output { min-width: 104px; text-align: center; font-size: var(--fs-body); font-weight: 600; }
+.plan-form__hint { font-size: var(--fs-footnote); color: var(--label2); }
+.plan-form__row .date-input { flex: 0 1 200px; min-width: 0; }
 .plan-form__end { margin: -8px 0 0; text-align: right; font-size: var(--fs-footnote); color: var(--label2); }
 .plan-form__delete {
   min-height: 44px; margin-top: 4px; border: 0; border-radius: var(--r-md); background: var(--cell2);

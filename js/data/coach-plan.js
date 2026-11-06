@@ -107,9 +107,10 @@ function planOverlap(phases, candidate) {
 // Texte d'une ligne (nom, programme) : caractères de contrôle remplacés (\p{Cc}), espaces resserrés, rogné
 const planLine = (v, max) => (typeof v === 'string' ? v.replace(/\p{Cc}/gu, ' ').replace(/ {2,}/g, ' ').trim().slice(0, max) : '');
 // Phase reçue, null si inutilisable. withNote : côté coach seulement
-function cleanPlanPhase(raw, withNote = false) {
+// L'élève ne reçoit pas d'identifiant (student_plan) : fallbackId, son rang
+function cleanPlanPhase(raw, withNote = false, fallbackId = null) {
   if (!raw || typeof raw !== 'object') return null;
-  const id = Number(raw.id);
+  const id = raw.id == null && fallbackId !== null ? fallbackId : Number(raw.id);
   const weeks = Number(raw.weeks);
   if (!Number.isSafeInteger(id) || id <= 0 || planDayNum(raw.start) === null
       || !Number.isInteger(weeks) || weeks < 1 || weeks > PLAN_MAX_WEEKS || !PLAN_GOAL_IDS.includes(raw.goal)) return null;
@@ -128,7 +129,10 @@ function cleanCoachPlans(raw) {
   return out;
 }
 // student_plan() nettoyé : phases (sans note, même si le serveur en envoyait une)
-function cleanStudentPlan(raw) { return raw?.coach === true ? cleanPlanPhases(raw.phases, false) : []; }
+function cleanStudentPlan(raw) {
+  if (raw?.coach !== true || !Array.isArray(raw.phases)) return [];
+  return planSorted(raw.phases.slice(0, PLAN_MAX_PHASES * 2).map((x, i) => cleanPlanPhase(x, false, i + 1)).filter(Boolean));
+}
 
 // Saisie du coach → arguments de coach_plan_save, ou { error } (mêmes bornes que le serveur)
 function planSaveArgs(student, f) {
@@ -167,6 +171,8 @@ function writePlanCache() {
 
 function planReset(userId) {
   planSeq++;
+  // Déconnexion : les notes du coach ne restent pas sur l'appareil (aussi dans CROSS_USER_CACHE_KEYS)
+  if (!userId) { try { localStorage.removeItem(COACH_PLAN_KEY); } catch { /* rien */ } }
   const c = userId ? readPlanCache(userId) : null;
   Object.assign(plan, { userId, available: c ? true : null, coach: c?.coach || null, coachLoading: false, coachError: null,
     student: c?.student || null, studentCoach: c?.studentCoach || null, studentLoading: false, studentError: null, busy: false });

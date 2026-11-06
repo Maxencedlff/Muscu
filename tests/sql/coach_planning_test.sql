@@ -27,10 +27,11 @@ insert into public.user_profiles (user_id, username, avatar_emoji) values
 update public.user_profiles set coach_at = now() where user_id in (pg_temp.qu('k'), pg_temp.qu('l'));
 insert into public.coach_links (student_id, coach_id) values (pg_temp.qu('s'), pg_temp.qu('k')), (pg_temp.qu('t'), pg_temp.qu('k'));
 
--- ── Droits : table fermée, anon n'exécute rien ───────────
+-- ── Droits : table fermée, anon n'exécute rien ; contrainte d'exclusion en place ──
 do $$
 declare f text;
 begin
+  if not exists (select 1 from pg_constraint where conname = 'coach_phases_no_overlap' and contype = 'x') then raise 'contrainte d''exclusion absente'; end if;
   if not (select c.relrowsecurity from pg_class c where c.oid = 'public.coach_phases'::regclass) then raise 'RLS désactivée'; end if;
   if exists (select 1 from pg_policies where tablename = 'coach_phases') then raise 'politique inattendue'; end if;
   foreach f in array array['anon', 'authenticated', 'service_role'] loop
@@ -142,8 +143,8 @@ begin
   p := public.student_plan();
   if jsonb_array_length(p -> 'phases') <> 3 then raise 'élève : %', p; end if;
   for ph in select * from jsonb_array_elements(p -> 'phases') loop
-    if (select array_agg(k order by k) from jsonb_object_keys(ph) k) is distinct from array['goal', 'id', 'name', 'prog_name', 'start', 'weeks']
-      then raise 'clés vues par l''élève : %', ph; end if;
+    if (select array_agg(k order by k) from jsonb_object_keys(ph) k) is distinct from array['goal', 'name', 'prog_name', 'start', 'weeks']
+      then raise 'clés vues par l''élève (ni note, ni coach, ni identifiant) : %', ph; end if;
   end loop;
   if p::text like '%Objectif%' then raise 'note du coach vue par l''élève'; end if;
   -- L'élève n'écrit pas, ne lit pas par la fonction du coach

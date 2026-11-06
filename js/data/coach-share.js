@@ -34,9 +34,14 @@ const COACH_SHARE_KINDS = [
   { kind: 'measures',   label: 'Mensurations', open: true },
 ];
 const COACH_SHARE_KIND_IDS = COACH_SHARE_KINDS.map(k => k.kind);
+// Bornes de date du serveur (student_share_weights, student_share_measures) : après le 1er janvier 2000,
+// au plus 24 h dans le futur. Une valeur hors bornes ferait refuser TOUT l'envoi : elle ne part pas.
+const SHARE_DATE_MIN = 946684800000;
+const shareDateOk = (d, now = Date.now()) => Number.isFinite(d) && d > SHARE_DATE_MIN && d <= now + 86_400_000;
 
-// Élève : { state: { shares, kinds } | null, loading, error, busy: kind en cours de changement, uploads: envois en cours par donnée }
-const coachShare = { userId: null, state: null, loading: false, error: null, busy: null, uploads: {} };
+// Élève : { state: { shares, kinds } | null, loading, error, busy: kind en cours de changement, uploads: envois en
+// cours par donnée, again: envoi demandé pendant un autre (par donnée : 'force' pour un geste, 'auto' sinon) }
+const coachShare = { userId: null, state: null, loading: false, error: null, busy: null, uploads: {}, again: {} };
 let coachShareSeq = 0;   // +1 au changement de compte : une réponse arrivée après n'écrit plus rien
 // Coach : pesées partagées par élève { [uid]: { shared, since, weights, loading, error, loadedAt } }
 const coachWeights = {};
@@ -71,8 +76,9 @@ function cleanShareState(raw) {
 // du plus récent au plus ancien, kg à 2 décimales. Date ramenée au début du jour (heure locale) : le coach
 // n'a pas besoin de l'heure de la pesée (minimisation) ; une par jour, comme bodyWeightLog. Rien d'autre de data.
 function sharedWeightsPayload(d = data) {
-  return cleanBodyWeightLog(d?.bodyWeightLog).slice(0, COACH_SHARE_MAX)
-    .map(p => ({ date: new Date(p.date).setHours(0, 0, 0, 0), kg: Math.round(p.kg * 100) / 100 }));
+  return cleanBodyWeightLog(d?.bodyWeightLog)
+    .map(p => ({ date: new Date(p.date).setHours(0, 0, 0, 0), kg: Math.round(p.kg * 100) / 100 }))
+    .filter(p => shareDateOk(p.date)).slice(0, COACH_SHARE_MAX);
 }
 
 // Mensurations envoyées : data.bodyMeasures nettoyé (js/data/body-measures.js), date ramenée au début du
@@ -81,7 +87,9 @@ function sharedMeasuresPayload(d = data) {
   const clean = cleanBodyMeasures(d?.bodyMeasures);
   const out = {};
   for (const key of BODY_MEASURE_KEYS) {
-    if (clean[key]?.length) out[key] = clean[key].slice(0, BODY_MEASURE_MAX).map(p => ({ date: new Date(p.date).setHours(0, 0, 0, 0), cm: p.cm }));
+    const l = (clean[key] || []).map(p => ({ date: new Date(p.date).setHours(0, 0, 0, 0), cm: p.cm }))
+      .filter(p => shareDateOk(p.date)).slice(0, BODY_MEASURE_MAX);
+    if (l.length) out[key] = l;
   }
   return out;
 }
@@ -134,7 +142,7 @@ function coachShareSummary() {
 
 function coachShareReset(userId) {
   coachShareSeq++;
-  Object.assign(coachShare, { userId, state: null, loading: false, error: null, busy: null, uploads: {} });
+  Object.assign(coachShare, { userId, state: null, loading: false, error: null, busy: null, uploads: {}, again: {} });
   Object.keys(coachWeights).forEach(k => delete coachWeights[k]);
   Object.keys(coachMeasures).forEach(k => delete coachMeasures[k]);
 }
@@ -209,7 +217,12 @@ function coachShareUpload(opts) { return coachShareUploadKind('weight', opts); }
 async function coachShareUploadKind(kind, { force = false } = {}) {
   const u = SHARE_UPLOADS[kind];
   if (!u || !coachShareOn(kind)) return { ok: true, skipped: true };
-  if (coachShare.uploads[kind]) return coachShare.uploads[kind];
+  // Envoi déjà en cours : la liste a pu changer depuis son départ (pesée saisie pendant l'envoi) ; il est
+  // refait à la fin, avec la liste du moment
+  if (coachShare.uploads[kind]) {
+    coachShare.again[kind] = force || coachShare.again[kind] === 'force' ? 'force' : 'auto';
+    return coachShare.uploads[kind];
+  }
   const coachId = myCoach()?.user_id || null;
   const list = u.payload();
   const hash = syncHash(list);
@@ -234,7 +247,14 @@ async function coachShareUploadKind(kind, { force = false } = {}) {
     notifyCoach();
     return r;
   })();
-  try { return await coachShare.uploads[kind]; } finally { coachShare.uploads[kind] = null; }
+  let r;
+  try { r = await coachShare.uploads[kind]; } finally { coachShare.uploads[kind] = null; }
+  const again = coachShare.again[kind];
+  if (again && seq === coachShareSeq) {
+    delete coachShare.again[kind];
+    coachShareUploadKind(kind, { force: again === 'force' });
+  }
+  return r;
 }
 
 // Une pesée vient d'être saisie ou effacée sur cet appareil (geste ici : la liste de l'appareil part)
@@ -268,19 +288,21 @@ async function coachLoadWeights(student) {
 // ── Coach : mensurations d'un élève ─────────────────────────
 
 function coachMeasuresOf(student) {
-  return coachMeasures[student] ||= { shared: false, since: null, measures: {}, loading: false, error: null, loadedAt: 0, missing: false };
+  return coachMeasures[student] ||= { shared: false, since: null, measures: {}, loading: false, error: null, loadedAt: 0, missing: false, triedAt: 0 };
 }
+const COACH_MEASURES_RETRY_MS = 10 * 60_000;   // serveur sans les mensurations : nouvel essai après 10 min (migration appliquée entre-temps)
 // Serveur sans les mensurations (PGRST202) : missing, rien ne s'affiche
-async function coachLoadMeasures(student) {
+async function coachLoadMeasures(student, now = Date.now()) {
   const f = coachMeasuresOf(student);
-  if (f.loading || f.missing) return { ok: true };
+  if (f.loading || (f.missing && now - f.triedAt < COACH_MEASURES_RETRY_MS)) return { ok: true };
+  f.triedAt = now;
   f.loading = true;
   const seq = coachShareSeq;
   const r = await coachRpc('coach_student_measures', { student });
   if (seq !== coachShareSeq) return { ok: false, kind: 'signed_out' };
   f.loading = false;
   if (!r.ok) { f.error = r.kind; f.missing = r.kind === 'missing'; notifyCoach(); return r; }
-  Object.assign(f, cleanCoachMeasures(r.data), { error: null, loadedAt: Date.now() });
+  Object.assign(f, cleanCoachMeasures(r.data), { error: null, loadedAt: Date.now(), missing: false });
   notifyCoach();
   return { ok: true };
 }

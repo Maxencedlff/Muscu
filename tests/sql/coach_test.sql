@@ -93,6 +93,14 @@ begin
   st := public.coach_state();
   if not (st ->> 'is_coach')::boolean or st -> 'invites' -> 0 ->> 'code' is distinct from c then raise 'codes actifs : %', st; end if;
   if (st -> 'invites' -> 0 ->> 'expires_at')::timestamptz not between now() + interval '7 days' - interval '1 minute' and now() + interval '7 days' + interval '1 minute' then raise 'validité de 7 jours'; end if;
+end $$;
+-- Bloc à part (autre transaction, donc autre now()) : le premier code est strictement le plus ancien.
+-- Dans un même bloc, tous les codes avaient la même date et « le plus ancien » se départageait au hasard
+-- (échec intermittent vu dans rollback_nuit_check.sh le 05/11/2026).
+do $$
+declare c text := (select code from codes where who = 'k1'); st jsonb;
+begin
+  perform pg_temp.clogin('k');
   -- 6 codes de plus : 5 actifs au plus, les plus anciens remplacés
   for i in 1..6 loop perform public.coach_create_invite(); perform pg_sleep(0.002); end loop;
   st := public.coach_state();

@@ -6,6 +6,7 @@ import path from 'node:path';
 
 export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
   const DAY = 86400000;
+  const D0 = Date.UTC(2024, 0, 1);   // dates réalistes : le serveur refuse avant 2000 (shareDateOk)
   // Faux serveur : RPC enregistrées dans __calls ; __answers[fn] donne la réponse (fonction ou valeur)
   const setup = () => run(`(() => {
     globalThis.__calls = [];
@@ -17,7 +18,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     sb = { rpc: async (fn, args) => {
       __calls.push([fn, args === undefined ? null : JSON.parse(JSON.stringify(args))]);
       const a = __answers[fn];
-      const v = typeof a === 'function' ? a(args) : a;
+      const v = await (typeof a === 'function' ? a(args) : a);   // une réponse peut attendre (envoi en cours)
       return v && v.error ? { data: null, error: v.error } : { data: v ?? null, error: null };
     } };
   })()`);
@@ -51,7 +52,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const day0 = t => new Date(t).setHours(0, 0, 0, 0);
     run(`data.bodyWeightLog = [{ date: ${t3}, kg: 79.456, note: 'x' }, { date: ${t3 - DAY}, kg: 10 }, { date: 'x', kg: 80 }, { date: ${t1}, kg: 81 }]`);
     sameJSON(run('sharedWeightsPayload()'), [{ date: day0(t3), kg: 79.46 }, { date: day0(t1), kg: 81 }], 'heure de la pesée jamais envoyée');
-    run(`data.bodyWeightLog = Array.from({ length: 450 }, (_, i) => ({ date: ${DAY} * (i + 1), kg: 80 }))`);
+    run(`data.bodyWeightLog = Array.from({ length: 450 }, (_, i) => ({ date: ${D0} + ${DAY} * (i + 1), kg: 80 }))`);
     assert.equal(run('sharedWeightsPayload().length'), 400);
     assert.ok(run('sharedWeightsPayload().every(p => new Date(p.date).getHours() === 0 && new Date(p.date).getMinutes() === 0)'));
     // Rien d'autre de data : mensurations, historique, Santé
@@ -72,7 +73,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     reset();
     try {
       setup();
-      run(`data.bodyWeightLog = [{ date: ${5 * DAY}, kg: 80 }]`);
+      run(`data.bodyWeightLog = [{ date: ${D0 + 5 * DAY}, kg: 80 }]`);
       run(`__answers.student_shares = { coach: true, shares: {} }`);
       assert.equal(await run('coachShareRefresh()'), true);
       sameJSON(calls(), ['student_shares'], 'décoché par défaut : aucune pesée envoyée');
@@ -95,7 +96,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     reset();
     try {
       setup();
-      run(`data.bodyWeightLog = [{ date: ${5 * DAY}, kg: 80 }]`);
+      run(`data.bodyWeightLog = [{ date: ${D0 + 5 * DAY}, kg: 80 }]`);
       const on = { coach: true, shares: { weight: { granted_at: '2026-10-30T10:00:00Z', n: 0, last_at: null } } };
       run(`__answers.student_set_share = a => a.enabled ? ${JSON.stringify(on)} : { coach: true, shares: {} }`);
       run(`__answers.student_share_weights = a => a.weights.length`);
@@ -108,7 +109,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       await run('coachShareRefresh()');
       sameJSON(calls().slice(2), ['student_shares']);
       // Nouvelle pesée : renvoyée (liste entière, miroir)
-      run(`logBodyWeight(81, ${6 * DAY})`);
+      run(`logBodyWeight(81, ${D0 + 6 * DAY})`);
       run('coachShareWeightsChanged()');
       await run('Promise.resolve()'); await new Promise(r => setTimeout(r, 0));
       assert.equal(calls().at(-1), 'student_share_weights');
@@ -132,7 +133,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       await run('coachShareRefresh()');
       sameJSON(calls(), ['student_shares'], 'relecture : rien envoyé (pas de liste vide)');
       // Pesée saisie ici : geste explicite, la liste de l'appareil part ; ensuite les relectures suivent
-      run(`logBodyWeight(70, ${7 * DAY}); coachShareWeightsChanged()`);
+      run(`logBodyWeight(70, ${D0 + 7 * DAY}); coachShareWeightsChanged()`);
       await new Promise(r => setTimeout(r, 0));
       assert.equal(calls().at(-1), 'student_share_weights');
     } finally { teardown(); }
@@ -142,7 +143,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     reset();
     try {
       setup();
-      run(`data.bodyWeightLog = [{ date: ${5 * DAY}, kg: 80 }]`);
+      run(`data.bodyWeightLog = [{ date: ${D0 + 5 * DAY}, kg: 80 }]`);
       run(`__answers.student_shares = { coach: true, shares: { weight: { granted_at: '2026-10-30T10:00:00Z', n: 0 } } }`);
       run(`__answers.student_share_weights = { error: { message: 'not_shared' } }`);
       run(`localStorage.setItem(COACH_SHARE_KEY, JSON.stringify({ userId: 'u1', coachId: 'c1', hash: 'ancien' }))`);   // cet appareil a déjà envoyé
@@ -160,7 +161,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     reset();
     try {
       setup();   // appareil qui n'a jamais rien envoyé
-      run(`data.bodyWeightLog = [{ date: ${5 * DAY}, kg: 80 }]`);
+      run(`data.bodyWeightLog = [{ date: ${D0 + 5 * DAY}, kg: 80 }]`);
       const on = { coach: true, shares: { weight: { granted_at: '2026-10-30T10:00:00Z', n: 0 } } };
       run(`__answers.student_set_share = ${JSON.stringify(on)}; __answers.student_shares = ${JSON.stringify(on)}`);
       run(`__answers.student_share_weights = { error: { message: 'TypeError: Failed to fetch' } }`);
@@ -195,7 +196,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     reset();
     try {
       setup();
-      run(`data.bodyMeasures = { waist: [{ date: ${5 * DAY}, cm: 80 }] }`);
+      run(`data.bodyMeasures = { waist: [{ date: ${D0 + 5 * DAY}, cm: 80 }] }`);
       // Serveur d'avant les mensurations : pas de kinds, le poids seul ; cocher les mensurations est refusé sans appel
       run(`__answers.student_shares = { coach: true, shares: {} }`);
       await run('coachShareRefresh()');
@@ -214,13 +215,68 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       assert.equal(run('coachShare.state.shares.measures.n'), 1);
       assert.ok(!calls().includes('student_share_weights'), 'poids pas coché : aucune pesée envoyée');
       // Nouvelle mesure saisie ici : la liste repart ; décocher : empreinte oubliée, plus rien ne part
-      run(`logBodyMeasure('waist', 79, ${6 * DAY}); coachShareMeasuresChanged()`);
+      run(`logBodyMeasure('waist', 79, ${D0 + 6 * DAY}); coachShareMeasuresChanged()`);
       await new Promise(r => setTimeout(r, 0));
       assert.equal(calls().at(-1), 'student_share_measures');
       await run(`coachShareSet('measures', false)`);
       assert.equal(run('localStorage.getItem(COACH_SHARE_M_KEY)'), null);
       run('coachShareMeasuresChanged()');
       assert.equal(calls().at(-1), 'student_set_share');
+    } finally { teardown(); }
+  });
+
+  test('partage coach : une valeur hors des bornes du serveur (1999, futur) ne fait pas refuser tout l\'envoi', () => {
+    reset();
+    const ok = Date.UTC(2026, 10, 3, 10), y1999 = Date.UTC(1999, 5, 1, 12), fut = Date.now() + 5 * DAY;
+    run(`data.bodyWeightLog = [{ date: ${fut}, kg: 70 }, { date: ${ok}, kg: 71 }, { date: ${y1999}, kg: 72 }]`);
+    sameJSON(run('sharedWeightsPayload().map(p => p.kg)'), [71], 'pesées : 1999 et le futur ne partent pas');
+    run(`data.bodyMeasures = { waist: [{ date: ${ok}, cm: 80 }, { date: ${y1999}, cm: 85 }], hips: [{ date: ${y1999}, cm: 95 }] }`);
+    const m = run('sharedMeasuresPayload()');
+    sameJSON(Object.keys(m), ['waist'], 'mesure qui n\'a que 1999 : absente');
+    sameJSON(m.waist.map(p => p.cm), [80]);
+    assert.ok(run(`Object.values(sharedMeasuresPayload()).flat().every(p => p.date > 946684800000 && p.date <= Date.now() + 86400000)`));
+    // Saisie : une date avant 2000 est refusée ; message propre aux mensurations
+    assert.equal(run(`dateInputToTs('1999-12-31')`), null);
+    assert.ok(run(`dateInputToTs('2000-01-01')`) > 0);
+    assert.match(run(`coachErrorText('invalid_measures')`), /^Mensurations illisibles/);
+  });
+
+  test('partage coach : une pesée saisie pendant un envoi repart à la fin (rien de perdu)', async () => {
+    reset();
+    try {
+      setup();
+      run(`data.bodyWeightLog = [{ date: ${D0 + 5 * DAY}, kg: 80 }]`);
+      run(`coachShare.state = cleanShareState({ coach: true, kinds: ['weight', 'measures'], shares: { weight: { granted_at: '2026-10-30T10:00:00Z', n: 0 } } })`);
+      run(`globalThis.__release = null; __answers.student_share_weights = a => new Promise(r => { __release = () => r(a.weights.length); })`);
+      const first = run('coachShareUpload({ force: true })');
+      await new Promise(r => setTimeout(r, 0));
+      run(`logBodyWeight(79, ${D0 + 6 * DAY}); coachShareWeightsChanged()`);   // pendant l'envoi
+      assert.equal(shareLog().filter(c => c[0] === 'student_share_weights').length, 1, 'un seul envoi à la fois');
+      run('__answers.student_share_weights = a => a.weights.length; __release()');
+      await first;
+      await new Promise(r => setTimeout(r, 0));
+      const sent = shareLog().filter(c => c[0] === 'student_share_weights');
+      assert.equal(sent.length, 2, 'refait à la fin');
+      assert.equal(sent[1][1].weights.length, 2, 'avec la pesée saisie pendant le premier envoi');
+    } finally { teardown(); }
+  });
+
+  test('mensurations côté coach : serveur sans la fonction, nouvel essai après 10 minutes', async () => {
+    reset();
+    try {
+      setup();
+      run(`__answers.coach_student_measures = { error: { code: 'PGRST202', message: 'Could not find the function public.coach_student_measures' } }`);
+      const t0 = 1_800_000_000_000;
+      await run(`coachLoadMeasures('s9', ${t0})`);
+      assert.equal(run(`coachMeasuresOf('s9').missing`), true);
+      await run(`coachLoadMeasures('s9', ${t0 + 60_000})`);
+      const n = () => run('__calls').filter(c => c[0] === 'coach_student_measures').length;
+      assert.equal(n(), 1, 'pas de nouvel essai avant 10 min');
+      run(`__answers.coach_student_measures = { shared: true, since: '2026-11-05T10:00:00Z', measures: { waist: [{ date: ${5 * DAY}, cm: 80 }] } }`);
+      await run(`coachLoadMeasures('s9', ${t0 + 11 * 60_000})`);
+      assert.equal(n(), 2);
+      assert.equal(run(`coachMeasuresOf('s9').missing`), false);
+      assert.equal(run(`coachMeasuresOf('s9').shared`), true);
     } finally { teardown(); }
   });
 

@@ -218,6 +218,7 @@ const COACH_ERROR_TEXT = {
   not_shared: 'Ce partage est coupé : coche-le à nouveau pour l\'envoyer.',
   invalid_kind: 'Ce partage n\'est pas encore disponible.',
   invalid_data: 'Pesées illisibles : rien n\'a été envoyé.',
+  invalid_measures: 'Mensurations illisibles : rien n\'a été envoyé.',
   // Planification (js/data/coach-plan.js)
   invalid_phase: 'Vérifie l\'objectif, la date de début et la durée (1 à 52 semaines).',
   overlap: 'Cette phase chevauche une autre phase de cet élève : change sa date ou sa durée.',

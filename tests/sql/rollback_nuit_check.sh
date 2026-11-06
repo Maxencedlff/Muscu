@@ -140,7 +140,7 @@ for pair in "20261031910000:push_messages_test.sql push_test.sql" \
             "20261031620000:strava_test.sql" \
             "20261031230000:newsletter_test.sql" \
             "20261031100000:records_test.sql" \
-            "20261105000000:coach_planning_test.sql" \
+            "20261105000000:coach_planning_test.sql coach_planning_concurrence_test.sql" \
             "20261105010000:partage_mensurations_test.sql" \
             "20261101000000:parrainage_payant_test.sql" \
             "20261031000000:payant_plus_test.sql"; do

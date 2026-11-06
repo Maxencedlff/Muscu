@@ -52,7 +52,8 @@ function planPhaseCardHtml(p, { uid = null, today = planToday() } = {}) {
           ${uid && p.note ? `<span class="plan-card__note">${esc(p.note)}</span>` : ''}`;
   const cls = `plan-card plan-card--${g.status}`;
   return uid
-    ? `<button class="${cls}" data-action="plan-edit" data-uid="${esc(uid)}" data-id="${p.id}" aria-label="${esc(`${phaseTitle(p)}, ${planGoal(p.goal).label}, ${status}. ${phaseRangeText(p)}. Modifier`)}">${inner}</button>`
+    ? `<button class="${cls}" data-action="plan-edit" data-uid="${esc(uid)}" data-id="${p.id}" aria-label="${esc([`${phaseTitle(p)}, ${planGoal(p.goal).label}, ${status}`,
+        phaseRangeText(p), p.progName ? `Programme : ${p.progName}` : '', left, p.note ? `Ta note : ${p.note}` : '', 'Modifier'].filter(Boolean).join('. '))}">${inner}</button>`
     : `<div class="${cls}">${inner}</div>`;
 }
 
@@ -231,7 +232,8 @@ async function planPhaseSheet(uid, phase = null) {
       <label class="plan-form__row"><span class="plan-form__label">Programme</span>
         <select id="planProg" class="plan-form__select"><option value="">Aucun</option>${progs}</select></label>
       <label class="plan-form__col"><span class="plan-form__label">Note</span>
-        <textarea id="planNote" class="coach-textarea" rows="3" maxlength="${PLAN_NOTE_MAX}" placeholder="Visible par toi seul">${esc(f.note || '')}</textarea></label>
+        <textarea id="planNote" class="coach-textarea" rows="3" maxlength="${PLAN_NOTE_MAX}" placeholder="Facultatif" aria-describedby="planNoteHint">${esc(f.note || '')}</textarea>
+        <span class="plan-form__hint" id="planNoteHint">Visible par toi seul. N'y note pas de données de santé.</span></label>
       ${phase ? '<button type="button" class="plan-form__delete" id="planDelete">Supprimer la phase</button>' : ''}
     </div>`;
   const read = panel => ({
@@ -239,7 +241,9 @@ async function planPhaseSheet(uid, phase = null) {
     name: $('#planName', panel).value, start: $('#planStart', panel).value, weeks: Number($('#planWeeks', panel).dataset.weeks),
     progName: $('#planProg', panel).value || null, note: $('#planNote', panel).value,
   });
-  const res = sheet({ title: phase ? 'Modifier la phase' : 'Nouvelle phase', confirm: 'Enregistrer', body,
+  // Titre court sur un écran étroit (iPhone SE) : il tient entre « Annuler » et « Enregistrer »
+  const narrow = window.innerWidth < 380;
+  const res = sheet({ title: phase ? (narrow ? 'Modifier' : 'Modifier la phase') : (narrow ? 'Phase' : 'Nouvelle phase'), confirm: 'Enregistrer', body,
     onConfirm: async panel => {
       const v = read(panel);
       if (!v.goal) { showToast('Choisis un objectif', { error: true }); return false; }

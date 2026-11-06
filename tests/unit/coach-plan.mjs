@@ -140,13 +140,18 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       run(`__answers.coach_plan_save = { error: { message: 'overlap' } }`);
       assert.equal((await run(`coachPlanSave('s1', { goal: 'bulk', start: '2026-12-22', weeks: 2 })`)).kind, 'overlap');
       assert.match(run(`coachErrorText('overlap')`), /chevauche/);
-      // Cache : relu pour ce compte, jamais pour un autre
-      run('planReset(null); planReset("u1")');
+      // Cache : relu pour ce compte (relance de l'app), jamais pour un autre
+      run('planReset("u1")');
       assert.equal(run('planAvailable()'), true);
       sameJSON(run(`planOfStudent('s1').map(p => p.id)`), [1, 2]);
       run('planReset("u2")');
       assert.equal(run('planAvailable()'), false);
       assert.equal(run(`planOfStudent('s1')`), null);
+      // Déconnexion : les notes du coach ne restent pas sur l'appareil
+      assert.ok(run('localStorage.getItem(COACH_PLAN_KEY)'));
+      run('planReset(null)');
+      assert.equal(run('localStorage.getItem(COACH_PLAN_KEY)'), null);
+      assert.ok(run(`CROSS_USER_CACHE_KEYS.includes('mdlf_coach_plan') && CROSS_USER_CACHE_KEYS.includes('mdlf_coach_share_m')`), 'purgées à la déconnexion et à l\'effacement');
     } finally { teardown(); }
   });
 
@@ -156,11 +161,12 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       setup();
       run(`coach.state = cleanCoachState({ is_coach: false, coach: { user_id: 'c1', username: 'max', since: '2026-10-01' } })`);
       const today = run('planToday()');
-      run(`__answers.student_plan = { coach: true, phases: [{ id: 3, name: 'Mini cut', goal: 'mini_cut', start: '${today}', weeks: 6, prog_name: null, note: 'jamais' }] }`);
+      run(`__answers.student_plan = { coach: true, phases: [{ name: 'Mini cut', goal: 'mini_cut', start: '${today}', weeks: 6, prog_name: null, note: 'jamais' }] }`);
       await run('coachPlanRefresh()');
       sameJSON(planCalls(), ['student_plan']);
       assert.equal(run('myPlan().length'), 1);
       assert.equal(run('myPlan()[0].note'), undefined, 'la note du coach n\'arrive jamais chez l\'élève');
+      assert.equal(run('myPlan()[0].id'), 1, 'élève : pas d\'identifiant du serveur, son rang'); 
       // Nouveau coach (cache de l'ancien) : rien tant que le serveur n'a pas répondu
       run(`coach.state = cleanCoachState({ is_coach: false, coach: { user_id: 'c2', username: 'lea', since: '2026-11-01' } })`);
       assert.equal(run('myPlan()'), null);
