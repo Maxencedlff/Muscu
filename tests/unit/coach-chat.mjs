@@ -134,7 +134,9 @@ export default function ({ test, run, assert, sameJSON }) {
       sameJSON(await run(`chatReport(CHAT_COACH, 'insulte')`), { ok: false, kind: 'server' }, 'motif inconnu : rien envoyé');
       sameJSON(await run(`chatReport(CHAT_COACH, 'harcelement')`), { ok: true });
       await new Promise(r => setTimeout(r, 0));
-      const calls = run('__calls').slice(-2);
+      // Seuls les appels du signalement : d'autres lectures de fond (my_access, coach_state) peuvent
+      // s'intercaler selon le moment où leurs minuteries se déclenchent (test instable avant le 06/11/2026)
+      const calls = run('__calls').filter(([n]) => n === 'report_chat' || n === 'invoke:report').slice(-2);
       sameJSON(calls, [['report_chat', { reason: 'harcelement' }], ['invoke:report', { report_id: 1 }]]);
       run(`sb.rpc = async () => ({ data: null, error: { code: 'P0001', message: 'rate_limited' } })`);
       sameJSON(await run(`chatReport(CHAT_COACH, 'spam')`), { ok: false, kind: 'report_rate' });
