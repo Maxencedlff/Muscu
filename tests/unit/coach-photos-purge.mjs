@@ -41,6 +41,24 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     const mig = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261107000000_photos_bilan.sql'), 'utf8');
     assert.match(mig, /grant execute on function public\.srv_coach_photo_purge_claim\(int\) to service_role;/);
     const del = fs.readFileSync(path.join(ROOT, 'supabase/functions/delete-account/index.ts'), 'utf8');
-    assert.ok(del.indexOf('removeCoachPhotos(user.id)') > 0 && del.indexOf('removeCoachPhotos(user.id)') < del.indexOf('deleteUser(user.id)'), 'fichiers effacés avant le compte');
+    assert.ok(del.indexOf('removeCoachPhotos(user.id)') > del.indexOf('deleteUser(user.id)') && del.indexOf('deleteUser(user.id)') > 0, 'fichiers effacés après le compte (deleteAccountThenFiles)');
+  });
+
+  test('suppression du compte : le compte d\'abord, les fichiers des photos ensuite ; échec du compte → rien d\'effacé', async () => {
+    const { deleteAccountThenFiles } = await import(path.join(ROOT, 'supabase/functions/delete-account/delete-policy.js'));
+    const log = [];
+    const step = (name, res) => async () => { log.push(name); if (res instanceof Error) throw res; return res; };
+    sameJSON(await deleteAccountThenFiles({ deleteUser: step('compte', true), removePhotos: step('fichiers') }), { ok: true, photosLeft: false });
+    sameJSON(log, ['compte', 'fichiers'], 'compte supprimé avant ses fichiers');
+    log.length = 0;
+    sameJSON(await deleteAccountThenFiles({ deleteUser: step('compte', false), removePhotos: step('fichiers') }), { ok: false });
+    sameJSON(log, ['compte'], 'compte pas supprimé : aucun fichier effacé (pas de photo « prête » sans fichier)');
+    log.length = 0;
+    sameJSON(await deleteAccountThenFiles({ deleteUser: step('compte', new Error('réseau')), removePhotos: step('fichiers') }), { ok: false });
+    sameJSON(log, ['compte'], 'erreur à la suppression du compte : rien d\'autre');
+    sameJSON(await deleteAccountThenFiles({ deleteUser: step('compte', true), removePhotos: step('fichiers', new Error('stockage')) }), { ok: true, photosLeft: true },
+      'fichiers pas effacés : compte supprimé quand même, la purge s\'en charge');
+    const src = fs.readFileSync(path.join(ROOT, 'supabase/functions/delete-account/index.ts'), 'utf8');
+    assert.ok(src.includes('deleteAccountThenFiles(') && !/await removeCoachPhotos\(user\.id\)/.test(src), 'la fonction serveur passe par cet ordre');
   });
 }

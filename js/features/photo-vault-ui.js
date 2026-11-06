@@ -459,7 +459,7 @@ registerActions({
   'photo-delete': async (e, el) => {
     const id = el.dataset.id;
     // Envoyée au coach : elle est retirée de chez lui d'abord (sinon elle ne serait plus nulle part ici, mais chez lui)
-    const sent = cphStudentShown() ? cphSentOf(id) : null;
+    const sent = cphStudentListed() ? cphSentOf(id) : null;
     // État des envois inconnu ici (hors ligne, autre iPhone) alors qu'on a un coach : on ne promet pas « nulle part ailleurs »
     const unsure = !sent && account.user && coachRole().hasCoach;
     const msg = sent ? 'Elle est aussi retirée de chez ton coach. Pas de corbeille.'

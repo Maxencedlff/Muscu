@@ -8,7 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
-| −7 | `20261107000000_photos_bilan_down.sql` (vider d'abord le compartiment `coach-photos` par l'API Storage : il refuse sinon) | rien | oui (vérifié) |
+| −7 | `20261107000000_photos_bilan_down.sql` (vider d'abord le compartiment `coach-photos` par l'API Storage : il refuse sinon ; il retire lui-même la tâche pg_cron `coach-photos-purge` et le secret Vault `photos_purge_secret` ; restent à la main `supabase functions delete coach-photos-purge` et `supabase secrets unset PHOTOS_PURGE_SECRET`) | rien | oui (vérifié) |
 | −6 | `20261106200000_plans_diete_coach_down.sql` | rien | oui (vérifié) |
 | −5 | `20261106100000_seance_publique_intensif_prise_down.sql` | rien | oui (vérifié) |
 | −4 | `20261106000000_coach_progression_down.sql` | rien | oui (vérifié) |
@@ -77,6 +77,7 @@ bash tests/sql/rollback_lot3_check.sh     # lot 3 : démontage complet et chaque
 bash tests/sql/rollback_check.sh          # réactions, avec données
 bash tests/sql/rollback_social_check.sh   # commentaires et chat, avec données
 bash tests/sql/rollback_push_check.sh     # notifications push
+bash tests/sql/photos_bilan_rollback_test.sh   # photos de bilan : planification et secret de la purge retirés
 ```
 
 Postgres local jetable, rien n'est envoyé au projet Supabase.

@@ -395,4 +395,82 @@ def t_serveur_ancien(bench, eng, dev, theme):
         R.check(not cp.evaluate("__sb.calls.some(c => c[1] === 'coach_photo_key')"), f'{t} sans le module : aucun appel')
 
 
-run_main(R, [t_envoi_complet, t_metadonnees, t_serveur_ancien])
+def t_age_apple(bench, eng, dev, theme):
+    """Tranche d'âge d'Apple connue et autre que « 18 ans ou plus » (15-17 ans) : ni envoi ni question sur l'âge,
+    même avec un coach prêt à recevoir."""
+    t = tag(dev, theme)
+    face = gps_jpeg('bilan-age.jpg', 900, 1200, (180, 130, 90), (50, 80, 150))
+    with bench.frozen_page(NOW, eng, dev, theme) as sp:
+        ids = student_page(sp, theme)
+        # Coach prêt (clé publiée), tranche 15-17 ans partagée par Apple
+        sp.evaluate("""async mx => { const s = await vaultImportKey(bytesToB64(vaultRandom(32)));
+            const { rec } = await coachKeyMake(s, mx, vaultNewId()); __sb.co.pkeys[mx] = rec;
+            ageRange.stored = { status: 'sharing', lowerBound: 15, upperBound: 17, communicationLimits: false, at: Date.now() }; }""", ids['max'])
+        sp.evaluate("navigate('photo-vault')")
+        sp.wait_for_selector('[data-action="pv-start"]')
+        sp.click('[data-action="pv-start"]')
+        sp.wait_for_selector('.view.photo-vault [data-action="photo-add"]')
+        add_photo(sp, face, 'face', 0)
+        sp.wait_for_timeout(500)
+        R.check(sp.evaluate('cph.state && cph.state.ready') is True, f'{t} coach prêt à recevoir')
+        R.check(sp.locator('[data-action="cph-send-day"]').count() == 0, f'{t} 15-17 ans : pas de bouton « Envoyer à mon coach »')
+        R.check('ton coach' in sp.inner_text('.view.photo-vault').lower() and 'Ton coach ne voit que' not in sp.inner_text('.view.photo-vault'),
+                f'{t} 15-17 ans : le coffre ne promet pas d\'envoi')
+        shot(sp, LOT, f'12-age-coffre-{t}')
+        # Même appelé directement : refusé, sans question ni appel au serveur
+        r = sp.evaluate("async () => { const p = photoCache[0]; return (await cphSend([p])).kind; }")
+        R.check(r == 'not_adult' and sp.locator('.ios-dialog').count() == 0, f'{t} envoi refusé (not_adult), aucune question sur l\'âge ({r})')
+        R.check(not sp.evaluate("__sb.calls.some(c => c[1] === 'student_photo_adult' || c[1] === 'student_photo_prepare')"), f'{t} rien d\'envoyé au serveur')
+        sp.evaluate("navigate('coach-mine')")
+        sp.wait_for_selector('.coach-mine-view')
+        sp.wait_for_timeout(400)
+        R.check(sp.locator('[data-action="cph-open-mine"]').count() == 0, f'{t} Mon coach : pas de photos de bilan proposées')
+        R.check(not sp.errors, f'{t} aucune erreur JS {sp.errors}')
+
+
+def t_cle_serveur(bench, eng, dev, theme):
+    """Coach : secret absent du trousseau (« Clé absente ») ≠ clé du serveur qui n'est plus la sienne (« n'est plus la
+    tienne », code de SA clé, « Republier ma clé »)."""
+    t = tag(dev, theme)
+    with bench.frozen_page(NOW, eng, dev, theme) as cp:
+        ids = coach_page(cp, theme)
+        cp.evaluate(f"navigate(makeRoute('coach-student', '{ids['lea']}'))")
+        cp.wait_for_selector('[data-action="cph-setup"]')
+        cp.click('[data-action="cph-setup"]')
+        cp.wait_for_selector('[data-action="cph-open"]')
+        mine = cp.evaluate(f"() => ({{ ...__sb.co.pkeys['{ids['max']}'] }})")
+        my_code = cp.evaluate('pub => coachKeyCode(pub)', mine['public_key'])
+        R.check(cp.evaluate("() => !!readCphMyKey()"), f'{t} clé retenue sur l\'iPhone du coach')
+        # Le serveur sert une autre clé publique (même identifiant)
+        cp.evaluate(f"""async () => {{ const s = await vaultImportKey(bytesToB64(vaultRandom(32)));
+            const {{ rec }} = await coachKeyMake(s, '{ids['max']}', '{mine['key_id']}');
+            __sb.co.pkeys['{ids['max']}'].public_key = rec.public_key; cphLock('test'); await cphCoachRefresh(); render(); }}""")
+        cp.wait_for_timeout(300)
+        cell = cp.inner_text('[data-action="cph-open"]')
+        R.check("n'est plus la tienne" in cell, f'{t} fiche : alerte dès la relecture ({cell!r})')
+        cp.click('[data-action="cph-open"]')
+        cp.wait_for_selector('[data-action="cph-republish"]', timeout=15000)
+        txt = cp.inner_text('.coach-photos-view')
+        R.check("La clé enregistrée sur le serveur n'est plus la tienne" in txt and my_code in txt and 'Clé absente' not in txt,
+                f'{t} « n\'est plus la tienne », code de ma clé ({my_code})')
+        layout(cp, t, 'Clé du serveur différente')
+        shot(cp, LOT, f'13-coach-cle-differente-{t}')
+        cp.click('[data-action="cph-republish"]')
+        tap_dialog(cp, 'Republier')
+        cp.wait_for_function('() => cphIsOpen()', timeout=15000)
+        cp.wait_for_timeout(300)
+        srv = cp.evaluate(f"() => __sb.co.pkeys['{ids['max']}']")
+        R.check(srv['public_key'] == mine['public_key'] and srv['key_id'] == mine['key_id'], f'{t} ma clé republiée sur le serveur')
+        R.check('Ta clé est republiée' in toast(cp) and my_code in cp.inner_text('.coach-photos-view'), f'{t} ouvert avec ma clé, son code affiché')
+        # Secret absent du trousseau, rien de retenu ici : « Clé absente de cet iPhone »
+        cp.evaluate("() => { cphLock('test'); localStorage.removeItem('mdlf_coach_photo_mykey'); sessionStorage.removeItem('__fakeKeychain'); }")
+        cp.click('[data-action="cph-unlock"]')
+        cp.wait_for_selector('#cphTitle')
+        cp.wait_for_function("() => document.querySelector('#cphTitle')?.textContent.includes('Clé absente')", timeout=10000)
+        txt = cp.inner_text('.coach-photos-view')
+        R.check("n'est plus la tienne" not in txt and cp.locator('[data-action="cph-republish"]').count() == 0, f'{t} secret absent : « Clé absente », pas d\'alerte de substitution')
+        shot(cp, LOT, f'14-coach-cle-absente-{t}')
+        R.check(not cp.errors, f'{t} aucune erreur JS {cp.errors}')
+
+
+run_main(R, [t_envoi_complet, t_metadonnees, t_serveur_ancien, t_age_apple, t_cle_serveur])

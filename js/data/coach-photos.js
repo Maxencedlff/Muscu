@@ -32,7 +32,9 @@ const CPH_RETRY_MS   = 10 * 60_000;          // serveur sans la fonction : nouve
 const CPH_INFO       = 'mdlf-coach-photo-v1';
 const CPH_KEY_AAD    = 'mdlf-coach-photo-key-v1';
 const CPH_SENT_KEY   = 'mdlf_coach_photos';  // { userId, coachId, map: { id serveur: id de la photo du coffre } }
-const CPH_PIN_KEY    = 'mdlf_coach_photo_pin';   // { userId, coachId, pub } : clé du coach vue au dernier envoi
+const CPH_PIN_KEY    = 'mdlf_coach_photo_pin';   // élève : { [userId]: { coachId, pub } } : clé du coach retenue au premier envoi
+const CPH_MYKEY_KEY  = 'mdlf_coach_photo_mykey'; // coach : { [userId]: { key_id, public_key, wrapped_key, wrap_iv } } : ma clé
+const CPH_LOCAL_MAX  = 5;                    // comptes retenus par appareil (les plus récents)
 const CPH_P256       = { name: 'ECDH', namedCurve: 'P-256' };
 const CPH_ID_RE      = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const CPH_DAY_RE     = /^\d{4}-\d\d-\d\d$/;
@@ -154,18 +156,23 @@ async function coachKeyMake(secret, coachId, keyId) {
     return { rec: { key_id: keyId, public_key: bytesToB64(pub), wrapped_key: bytesToB64(wrapped), wrap_iv: bytesToB64(iv) }, priv };
   } finally { pkcs8.fill(0); }
 }
-// Coach : clé privée rouverte avec le secret du trousseau, et vérifiée : la clé publique du serveur doit être
-// la sienne (un serveur qui l'aurait changée est repéré ici). null sinon.
-async function coachKeyOpen(secret, coachId, rec) {
+// Coach : clé privée rouverte avec le secret du trousseau → { priv, pub } (pub : SA clé publique, recalculée depuis
+// la clé privée), ou null (autre secret, clé enveloppée modifiée ou d'un autre coach).
+async function coachKeyInspect(secret, coachId, rec) {
   let pkcs8 = null;
   try {
     pkcs8 = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64ToBytes(rec.wrap_iv), additionalData: cphKeyAad(coachId, rec.key_id) },
       secret, b64ToBytes(rec.wrapped_key)));
     const jwk = await crypto.subtle.exportKey('jwk', await crypto.subtle.importKey('pkcs8', pkcs8, CPH_P256, true, ['deriveBits']));
-    const raw = cphConcat(new Uint8Array([4]), b64urlToBytes(jwk.x), b64urlToBytes(jwk.y));
-    if (bytesToB64(raw) !== rec.public_key) return null;
-    return await crypto.subtle.importKey('pkcs8', pkcs8, CPH_P256, false, ['deriveBits']);
+    const pub = bytesToB64(cphConcat(new Uint8Array([4]), b64urlToBytes(jwk.x), b64urlToBytes(jwk.y)));
+    return { priv: await crypto.subtle.importKey('pkcs8', pkcs8, CPH_P256, false, ['deriveBits']), pub };
   } catch { return null; } finally { pkcs8?.fill(0); }
+}
+// Coach : clé privée, seulement si la clé publique du serveur est bien la sienne (un serveur qui l'aurait changée est
+// repéré ici). null sinon.
+async function coachKeyOpen(secret, coachId, rec) {
+  const k = await coachKeyInspect(secret, coachId, rec);
+  return k && k.pub === rec.public_key ? k.priv : null;
 }
 function b64urlToBytes(s) {
   const t = String(s || '').replace(/-/g, '+').replace(/_/g, '/');
@@ -238,26 +245,55 @@ function cphSentOf(vaultId) {
   return sid ? cph.state.photos.find(p => p.id === sid) || null : null;
 }
 
+// Clés retenues sur l'appareil, une entrée par compte (jamais celle d'un autre compte : lue par identifiant). Hors
+// des caches effacés à la déconnexion (CROSS_USER_CACHE_KEYS) : ce ne sont que des clés publiques, et une alerte qui
+// disparaîtrait à chaque déconnexion ne protégerait plus rien.
+function cphLocalGet(storeKey, userId) {
+  try { const all = JSON.parse(localStorage.getItem(storeKey)); const v = userId && all && typeof all === 'object' ? all[userId] : null; return v && typeof v === 'object' ? v : null; }
+  catch { return null; }
+}
+function cphLocalSet(storeKey, userId, value) {
+  if (!userId) return;
+  try {
+    let all = {};
+    try { const c = JSON.parse(localStorage.getItem(storeKey)); if (c && typeof c === 'object' && !Array.isArray(c)) all = c; } catch { /* illisible : repart de zéro */ }
+    delete all[userId];
+    all[userId] = value;
+    const ids = Object.keys(all);
+    ids.slice(0, Math.max(0, ids.length - CPH_LOCAL_MAX)).forEach(k => delete all[k]);
+    localStorage.setItem(storeKey, JSON.stringify(all));
+  } catch { /* facultatif : sans elle, pas d'alerte au changement */ }
+}
+
 // Clé du coach retenue au premier envoi (confiance au premier usage) : un changement ensuite (nouvel iPhone du coach
 // sans son trousseau, ou serveur qui glisserait une autre clé) est montré à l'élève avant tout nouvel envoi
 function cphPinOf() {
-  try { const c = JSON.parse(localStorage.getItem(CPH_PIN_KEY)); return c && c.userId === cph.userId && c.coachId === myCoach()?.user_id ? c.pub : null; }
-  catch { return null; }
+  const c = cphLocalGet(CPH_PIN_KEY, cph.userId);
+  return c && c.coachId && c.coachId === myCoach()?.user_id && typeof c.pub === 'string' ? c.pub : null;
 }
 function cphKeyChanged() { const pin = cphPinOf(); return !!(pin && cph.state?.key && pin !== cph.state.key.public_key); }
-function cphPinKey() {
-  try { if (cph.state?.key) localStorage.setItem(CPH_PIN_KEY, JSON.stringify({ userId: cph.userId, coachId: myCoach()?.user_id, pub: cph.state.key.public_key })); }
-  catch { /* facultatif : sans elle, pas d'alerte au changement */ }
+// pub : la clé réellement utilisée pour chiffrer (ou celle que l'élève vient d'accepter), jamais relue après coup
+function cphPinKey(pub, coachId = myCoach()?.user_id) {
+  if (typeof pub === 'string' && CPH_PUB_RE.test(pub) && coachId) cphLocalSet(CPH_PIN_KEY, cph.userId, { coachId, pub });
 }
+
+// Tranche d'âge partagée par Apple (js/data/age-range.js) connue et autre que « 18 ans ou plus » : aucun envoi, quoi
+// qu'ait déclaré l'élève, et la déclaration « 18 ans ou plus » n'est jamais proposée. Sans tranche connue (refus,
+// navigateur, iOS antérieur au 26) : la déclaration fait foi.
+function cphAgeBlocked() { const b = currentAgeBand(); return b !== null && b !== 'adult'; }
+
 // « J'ai 18 ans ou plus », déclaré une fois avant le premier envoi
 async function cphDeclareAdult() {
+  if (cphAgeBlocked()) return { ok: false, kind: 'not_adult' };
   const r = await coachRpc('student_photo_adult');
   if (r.ok) { cph.state = cleanStudentPhotos(r.data); notifyCoach(); }
   return r;
 }
 
-// Fonction proposée : compte, coach, serveur à jour, coffre possible ici
-function cphStudentShown() { return !!(account.user && coachRole().hasCoach && cph.state && !cph.missing); }
+// Photos connues : compte, coach, serveur à jour (sert aussi à voir et retirer ce qui est déjà parti)
+function cphStudentListed() { return !!(account.user && coachRole().hasCoach && cph.state && !cph.missing); }
+// Envoi proposé : en plus, tranche d'âge d'Apple qui ne l'interdit pas
+function cphStudentShown() { return cphStudentListed() && !cphAgeBlocked(); }
 
 async function cphRefresh({ minAge = 0, now = Date.now() } = {}) {
   if (!account.user || !coachRole().hasCoach) { cph.state = null; return false; }
@@ -289,6 +325,7 @@ async function cphRefresh({ minAge = 0, now = Date.now() } = {}) {
 // qui échoue est retirée du serveur ; les précédentes restent envoyées. → { ok, sent, kind? }
 async function cphSend(photos) {
   if (cph.busy) return { ok: false, kind: 'busy', sent: 0 };
+  if (cphAgeBlocked()) return { ok: false, kind: 'not_adult', sent: 0 };
   if (!photos?.length || photos.length > CPH_PER_DAY || new Set(photos.map(p => localISO(p.date))).size !== 1) return { ok: false, kind: 'invalid_photo', sent: 0 };
   if (!vaultIsOpen()) return { ok: false, kind: 'locked', sent: 0 };
   cph.busy = true;
@@ -300,7 +337,7 @@ async function cphSend(photos) {
     const st = cph.state, coachId = myCoach()?.user_id, me = account.user?.id;
     if (seq !== cphSeq) return { ok: false, kind: 'signed_out', sent };
     if (!st || !st.ready || !coachId || !me) return { ok: false, kind: cph.error || 'not_ready', sent };
-    if (!st.adult) return { ok: false, kind: 'not_adult', sent };
+    if (!st.adult || cphAgeBlocked()) return { ok: false, kind: 'not_adult', sent };
     if (cphKeyChanged()) return { ok: false, kind: 'key_changed', sent };   // l'élève doit d'abord accepter la nouvelle clé
     const map = { ...(readCphSent()?.coachId === coachId ? readCphSent().map : {}) };
     for (const p of photos) {
@@ -322,9 +359,10 @@ async function cphSend(photos) {
       }
       map[meta.id] = p.id;
       sent++;
+      // Dès la première photo partie (même si la suite échoue) : clé qui a servi, et mention « Envoyée »
+      if (sent === 1) cphPinKey(st.key.public_key, coachId);
+      writeCphSent(map, coachId);
     }
-    writeCphSent(map, coachId);
-    cphPinKey();
     return { ok: true, sent };
   } catch {
     return { ok: false, kind: 'server', sent };
@@ -374,11 +412,28 @@ async function cphForgetAll(userId) {
 
 // ── Coach : clé, ouverture, photos d'un élève ───────────────
 
-// key : undefined (pas lue), null (aucune), { key_id, public_key, wrapped_key, wrap_iv } ; session : clé privée en
-// mémoire (écran des photos ouvert seulement) ; students : { [uid]: { photos, loading, error, loadedAt } }
-const cphCoach = { key: undefined, code: '', loading: false, error: null, missing: false, triedAt: 0, busy: false, session: null, students: {} };
+// key : undefined (pas lue), null (aucune), { key_id, public_key, wrapped_key, wrap_iv } (celle du serveur) ;
+// session : { priv, pub, keyId, code } en mémoire (écran des photos ouvert seulement) ; students : { [uid]: { photos,
+// loading, error, loadedAt } }. mismatch : la clé du serveur n'est pas la mienne (autre que celle retenue sur cet
+// iPhone, ou qui ne correspond pas à ma clé privée) ; own : ma clé, à republier ; myCode : son code.
+const CPH_COACH_INIT = () => ({ key: undefined, code: '', loading: false, error: null, missing: false, triedAt: 0, busy: false, session: null, students: {},
+  mismatch: false, badKey: null, own: null, myCode: '' });
+const cphCoach = CPH_COACH_INIT();
 let cphIdleTimer = null;
 let cphEpoch = 0;
+// Identifiants du trousseau créés ou rouverts (clé vérifiée) par cet appareil depuis la connexion : seuls ceux-là
+// peuvent être effacés du trousseau (jamais un identifiant venu du serveur, qui pourrait être celui d'un coffre)
+const cphTouchedIds = new Set();
+const cphSameKey = (a, b) => !!(a && b && a.key_id === b.key_id && a.public_key === b.public_key);
+// Ma clé retenue sur cet iPhone (vérifiée ici à la création ou à la dernière ouverture), ou null
+function readCphMyKey() {
+  const k = cleanCphKey(cphLocalGet(CPH_MYKEY_KEY, account.user?.id));
+  return k && k.wrapped_key && k.wrap_iv ? k : null;
+}
+function writeCphMyKey(rec) {
+  const k = cleanCphKey(rec);
+  if (k?.wrapped_key && k.wrap_iv) cphLocalSet(CPH_MYKEY_KEY, account.user?.id, k);
+}
 const cphLockHooks = [];
 function onCphLock(cb) { cphLockHooks.push(cb); }
 // Module du coffre présent (trousseau iCloud, Face ID) : sans lui, rien côté coach
@@ -396,7 +451,15 @@ async function cphCoachRefresh({ now = Date.now() } = {}) {
   cphCoach.loading = false;
   if (!r.ok) { cphCoach.error = r.kind; cphCoach.missing = r.kind === 'missing'; notifyCoach(); return false; }
   const key = cleanCphKey(r.data);
-  if (cphCoach.session && key?.key_id !== cphCoach.session.keyId) cphLock('key');
+  const s = cphCoach.session;
+  if (s && !cphSameKey(key, { key_id: s.keyId, public_key: s.pub })) cphLock('key');
+  // Clé du serveur autre que celle retenue sur cet iPhone : alerte (levée si Face ID montre qu'elle est bien la mienne,
+  // créée sur mon autre iPhone) ; clé déjà vue fausse à l'ouverture (badKey) et toujours servie : l'alerte reste
+  const mine = readCphMyKey();
+  const pinBad = !!(key && mine && !cphSameKey(key, mine));
+  cphCoach.mismatch = pinBad || (cphCoach.mismatch && cphSameKey(key, cphCoach.badKey));
+  if (pinBad && !cphCoach.own) { cphCoach.own = mine; cphCoach.myCode = await coachKeyCode(mine.public_key); }
+  if (!cphCoach.mismatch) Object.assign(cphCoach, { own: null, myCode: '', badKey: null });
   cphCoach.key = key;
   cphCoach.code = key ? await coachKeyCode(key.public_key) : '';
   cphCoach.error = null; cphCoach.missing = false;
@@ -431,32 +494,90 @@ async function cphCoachSetup({ replace = false } = {}) {
       if (r.kind === 'key_exists') { await cphCoachRefresh(); return { ok: true, other: true }; }   // créée entre-temps sur un autre appareil
       return r;
     }
+    cphTouchedIds.add(keyId);
+    writeCphMyKey(rec);
     if (replace) {
       Object.keys(cphCoach.students).forEach(k => delete cphCoach.students[k]);
+      // Ancien secret inutile (sa clé est effacée du serveur) : effacé du trousseau seulement si cet appareil l'a créé
+      // ou ouvert depuis la connexion (identifiant venu du serveur sinon : jamais effacé sur sa seule parole)
       const old = cphCoach.key?.key_id;
-      if (old && old !== keyId) Native.vault.forget(old);   // ancien secret inutile (sa clé est effacée du serveur)
+      if (old && old !== keyId && cphTouchedIds.has(old)) { Native.vault.forget(old); cphTouchedIds.delete(old); }
     }
     cphCoach.key = cleanCphKey(r.data);
     cphCoach.code = cphCoach.key ? await coachKeyCode(cphCoach.key.public_key) : '';
-    cphOpenSession({ priv, pub: rec.public_key, keyId });
+    Object.assign(cphCoach, { mismatch: false, badKey: null, own: null, myCode: '' });
+    cphOpenSession({ priv, pub: rec.public_key, keyId, code: await coachKeyCode(rec.public_key) });
     return { ok: true };
   } catch { return { ok: false, kind: 'server' }; } finally { cphCoach.busy = false; notifyCoach(); }
 }
 // Coach : ouvrir les photos (Face ID). { ok } ; { missing } : secret absent de cet iPhone (trousseau iCloud pas
-// encore arrivé, ou désactivé sur l'ancien) ou clé qui ne correspond pas ; sinon le refus d'iOS.
+// encore arrivé, ou désactivé sur l'ancien) ; { mismatch } : secret présent mais la clé du serveur n'est pas la
+// mienne (clé publique qui ne correspond pas à ma clé privée, clé enveloppée qui ne s'ouvre pas, ou autre clé que
+// celle retenue sur cet iPhone et inconnue de mon trousseau) ; sinon le refus d'iOS.
 async function cphCoachUnlock() {
   const key = cphCoach.key, me = account.user?.id;
   if (!key || !me) return { ok: false, failed: true };
-  if (cphCoach.session?.keyId === key.key_id) { cphTouch(); return { ok: true }; }
+  if (cphSameKey(key, { key_id: cphCoach.session?.keyId, public_key: cphCoach.session?.pub })) { cphTouch(); return { ok: true }; }
   const epoch = cphEpoch;
+  const mine = readCphMyKey();
   const s = await cphSecret(false, 'Voir les photos de tes élèves', key.key_id);
-  if (s.refused) return { ok: false, ...s.refused };
-  const priv = await coachKeyOpen(s.secret, me, key);
-  if (!priv) return { ok: false, missing: true };
+  if (s.refused) {
+    if (s.refused.missing && mine && !cphSameKey(key, mine)) return cphMismatch(mine);
+    return { ok: false, ...s.refused };
+  }
+  const got = await coachKeyInspect(s.secret, me, key);
+  const code = got ? await coachKeyCode(key.public_key) : '';
   if (epoch !== cphEpoch) return { ok: false, stale: true };   // refermé pendant Face ID
-  cphOpenSession({ priv, pub: key.public_key, keyId: key.key_id });
+  // Ma clé privée s'ouvre : c'est elle qu'il faut republier, avec SA clé publique
+  if (got && got.pub !== key.public_key) return cphMismatch({ ...key, public_key: got.pub });
+  if (!got) return cphMismatch(mine && !cphSameKey(key, mine) ? mine : null);
+  cphTouchedIds.add(key.key_id);
+  writeCphMyKey(key);
+  Object.assign(cphCoach, { mismatch: false, badKey: null, own: null, myCode: '' });
+  cphOpenSession({ priv: got.priv, pub: key.public_key, keyId: key.key_id, code });
   return { ok: true };
 }
+async function cphMismatch(own) {
+  const k = own ? cleanCphKey(own) : null;
+  cphCoach.mismatch = true;
+  cphCoach.badKey = cphCoach.key;
+  cphCoach.own = k?.wrapped_key && k.wrap_iv ? k : null;
+  cphCoach.myCode = cphCoach.own ? await coachKeyCode(cphCoach.own.public_key) : '';
+  notifyCoach();
+  return { ok: false, mismatch: true };
+}
+// Coach : republier ma propre clé (celle qui s'ouvre avec mon trousseau) à la place de celle que sert le serveur.
+// Face ID ; la clé est revérifiée avant l'envoi et dans la réponse. Les photos reçues pour la clé remplacée sont
+// effacées par le serveur (elles ne s'ouvrent pas, ou sont à revérifier avec l'élève).
+async function cphCoachRepublish() {
+  const own = cphCoach.own || readCphMyKey(), me = account.user?.id;
+  if (!me) return { ok: false, kind: 'signed_out' };
+  if (!own) return { ok: false, missing: true };
+  if (cphCoach.busy) return { ok: false, kind: 'busy' };
+  cphCoach.busy = true;
+  const seq = cphSeq;
+  try {
+    const s = await cphSecret(false, 'Republier ta clé', own.key_id);
+    if (s.refused) return { ok: false, ...s.refused };
+    const priv = await coachKeyOpen(s.secret, me, own);
+    if (!priv) return { ok: false, missing: true };
+    const r = await coachRpc('coach_photo_key_set', { key_id: own.key_id, public_key: own.public_key, wrapped_key: own.wrapped_key, wrap_iv: own.wrap_iv, replace: true });
+    if (seq !== cphSeq) return { ok: false, kind: 'signed_out' };
+    if (!r.ok) return r;
+    Object.keys(cphCoach.students).forEach(k => delete cphCoach.students[k]);
+    const key = cleanCphKey(r.data);
+    cphCoach.key = key;
+    cphCoach.code = key ? await coachKeyCode(key.public_key) : '';
+    if (!cphSameKey(key, own)) return cphMismatch(own);   // le serveur en sert encore une autre
+    cphTouchedIds.add(own.key_id);
+    writeCphMyKey(own);
+    Object.assign(cphCoach, { mismatch: false, badKey: null, own: null, myCode: '' });
+    cphOpenSession({ priv, pub: own.public_key, keyId: own.key_id, code: await coachKeyCode(own.public_key) });
+    return { ok: true };
+  } catch { return { ok: false, kind: 'server' }; } finally { cphCoach.busy = false; notifyCoach(); }
+}
+// Session : { priv, pub, keyId, code } ; code : celui de LA clé qui sert à déchiffrer (pas celui de la clé relue
+// ensuite sur le serveur), calculé avant par l'appelant (rien d'asynchrone entre la vérification et l'ouverture)
 function cphOpenSession(session) { cphCoach.session = session; cphTouch(); }
 function cphIsOpen() { return !!cphCoach.session; }
 function cphTouch() {
@@ -525,7 +646,8 @@ function cphReset(userId) {
   cphSeq++;
   cphLock('account');
   Object.assign(cph, { userId, state: null, loading: false, error: null, missing: false, triedAt: 0, busy: false, code: '' });
-  Object.assign(cphCoach, { key: undefined, code: '', loading: false, error: null, missing: false, triedAt: 0, busy: false, session: null, students: {} });
+  Object.assign(cphCoach, CPH_COACH_INIT());
+  cphTouchedIds.clear();
 }
 onAccountChange(() => {
   const id = account.user?.id || null;

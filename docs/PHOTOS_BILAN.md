@@ -11,7 +11,7 @@ planification et OTA attendent le feu vert de Maxence (« Mise en production »)
 Code : `js/data/coach-photos.js` (chiffrement, métadonnées, appels, sans DOM), `js/features/coach-photos-ui.js` (écrans),
 styles en fin de `css/coach.css`. Serveur : `supabase/migrations/20261107000000_photos_bilan.sql`,
 `supabase/functions/coach-photos-purge/` (effacement réel des fichiers), `supabase/functions/delete-account/index.ts`
-(fichiers effacés avant le compte). Tests : `tests/unit/coach-photos.mjs`, `tests/unit/coach-photos-purge.mjs`,
+(fichiers effacés juste après le compte, `deleteAccountThenFiles`). Tests : `tests/unit/coach-photos.mjs`, `tests/unit/coach-photos-purge.mjs`,
 `tests/sql/photos_bilan_test.sql`, `tests/test_photos_bilan.py` (faux serveur et faux stockage dans `tests/fake_account.py`).
 
 ## Décision : chiffrement de bout en bout, sans nouvelle build
@@ -22,10 +22,10 @@ styles en fin de `css/coach.css`. Serveur : `supabase/migrations/20261107000000_
 | Clé du coach | Une paire ECDH P-256 par coach, tirée sur son iPhone. Clé publique sur le serveur ; clé privée sur le serveur **chiffrée** (AES-GCM) par un secret de 256 bits de **son trousseau iCloud**, rendu après Face ID par le module natif du coffre (`Native.vault`, déjà dans la build, autre identifiant) | Le coach retrouve ses photos sur un nouvel iPhone (le secret suit par le trousseau iCloud, chiffré de bout en bout par Apple), sans code à retenir, et **sans toucher à `ios/`** : le module du coffre sait déjà créer et rendre un secret par identifiant après Face ID. Une clé privée gardée seulement dans IndexedDB aurait été perdue à chaque réinstallation (IndexedDB peut aussi être vidé par iOS quand la place manque [32]) et WebKit a des défauts connus sur les `CryptoKey` en IndexedDB [29]. |
 | Clé d'une photo | Une clé à usage unique par photo : paire ECDH éphémère, HKDF-SHA-256, AES-GCM 256, IV de 96 bits neuf | Une fuite d'une photo n'apprend rien sur les autres. Algorithmes présents dans WebKit depuis iOS 11 (HKDF, `deriveBits`) [25][26] ; P-256 plutôt que X25519, dont la date d'arrivée dans Safari est incertaine (MDN dit 17, WebKit l'active fin 2024) [26][27]. |
 | Données liées | Identifiant, élève, coach, clé, jour, pose en données authentifiées (AAD) | Le serveur ne peut ni déplacer une photo vers un autre élève, ni changer sa date ou sa pose, ni la rattacher à une autre clé : elle ne se déchiffre plus. |
-| Âge | **18 ans ou plus**, déclaré une fois avant le premier envoi (`coach_photo_adults`, sinon `not_adult`) | Un élève peut rejoindre un coach dès 15 ans ; des photos de corps chiffrées, que personne ne peut modérer, envoyées par un mineur à un adulte : refusé. |
+| Âge | **18 ans ou plus**, déclaré une fois avant le premier envoi (`coach_photo_adults`, sinon `not_adult`). **Tranche d'âge d'Apple** connue sur l'iPhone (`currentAgeBand()`, js/data/age-range.js) et autre que « adult » (`teen`, `young`, `limited`) : l'envoi n'est pas proposé, `cphSend` refuse (`not_adult`) et la case « 18 ans ou plus » n'est jamais montrée, quoi qu'ait déclaré l'élève ; il peut seulement voir et retirer ce qui serait déjà parti. Tranche inconnue (refus, navigateur, iOS antérieur au 26) : la déclaration fait foi | Un élève peut rejoindre un coach dès 15 ans ; des photos de corps chiffrées, que personne ne peut modérer, envoyées par un mineur à un adulte : refusé. |
 | Photo déplacée | Le coach peut **effacer** une photo reçue (« Ne plus voir cette photo », `coach_photo_hide`) ; signalement par les messages (⋯ › Signaler) | Apple 1.2 (contenu des utilisateurs) [52]. |
-| Changement de clé | L'élève retient la clé de son coach au premier envoi ; si elle change, une alerte (« La clé de ton coach a changé », avec le code) passe avant tout nouvel envoi | Confiance au premier usage : une clé glissée par le serveur ne passe plus en silence. |
-| Substitution de clé | Le coach vérifie à chaque ouverture que la clé publique du serveur est la sienne (recalculée depuis sa clé privée). **Code de la clé** (64 bits du SHA-256 de la clé publique) montré au coach et à l'élève | Sans annuaire de clés vérifiable, un opérateur qui donnerait une autre clé publique à l'élève recevrait les photos suivantes [55][56]. Le code permet de le vérifier ensemble, comme les « numéros de sécurité » de Signal [57]. |
+| Changement de clé | L'élève retient la clé de son coach dès la **première photo partie** (même si la suite de l'envoi échoue), la clé qui a réellement chiffré la photo ; si elle change, une alerte (« La clé de ton coach a changé », avec le code) passe avant tout nouvel envoi. Rangée par compte (`mdlf_coach_photo_pin`, lue pour ce compte seulement) et gardée à la déconnexion (hors `CROSS_USER_CACHE_KEYS` : une clé publique, rien d'autrui) ; effacée avec les données de l'appareil | Confiance au premier usage : une clé glissée par le serveur ne passe plus en silence. |
+| Substitution de clé | Le coach vérifie à chaque ouverture que la clé publique du serveur est la sienne (recalculée depuis sa clé privée), et retient sur son iPhone `key_id` et clé publique de sa clé vérifiée (`mdlf_coach_photo_mykey`, par compte, avec la clé enveloppée) : une autre clé servie ensuite est signalée dès la relecture. Deux cas distincts : **secret absent du trousseau** (`NOT_FOUND`, rien de retenu ici) → « Clé absente de cet iPhone », réessayer plus tard ; **secret présent mais clé du serveur qui n'est pas la sienne** (clé publique qui ne correspond pas, clé enveloppée qui ne s'ouvre pas, ou autre clé que celle retenue ici) → « La clé enregistrée sur le serveur n'est plus la tienne », avec le code de SA clé et « Republier ma clé » (Face ID, sa clé revérifiée puis renvoyée, `replace`). **Code de la clé** (64 bits du SHA-256 de la clé publique) montré au coach (celui de la clé qui déchiffre) et à l'élève | Sans annuaire de clés vérifiable, un opérateur qui donnerait une autre clé publique à l'élève recevrait les photos suivantes [55][56]. Le code permet de le vérifier ensemble, comme les « numéros de sécurité » de Signal [57]. |
 | Stockage | Supabase Storage, compartiment **privé** `coach-photos` (1 Mo par fichier, `application/octet-stream` seulement), fichier à `<élève>/<photo>` | Supabase n'autorise rien sans politique RLS [5]. Bucket privé : jamais d'URL publique. |
 | Lecture | URL signée de **60 s**, demandée par l'app du coach, lue aussitôt (`fetch`), jamais affichée ; l'image déchiffrée vit en `blob:` révoqué à la fermeture | La durée est choisie par l'appelant, sans plafond côté serveur, et une URL signée ne se révoque pas [10][11] ; mais elle ne donne que du chiffré. |
 | Consentement | **Photo par photo**, au moment de l'envoi, rien de coché d'avance ; la ligne du serveur est l'accord (horodatée) | RGPD 9.2.a (consentement explicite) [45], CNIL : consentement « contextuel » [51] ; Apple 5.1.2(i) [52]. |
@@ -55,7 +55,7 @@ bout en bout, il faut en plus une attaque active et ciblée sur la clé d'un coa
 |---|---|
 | Fuite de la base, du stockage, d'une sauvegarde, d'une URL signée | Oui : du chiffré, sans la clé privée (elle n'est sur le serveur que chiffrée par le trousseau iCloud du coach). |
 | Supabase, administrateur de MDLF qui **lit** | Oui. |
-| Opérateur, ou jeton de session du coach volé, qui **remplace** la clé publique du coach | Pas pour les photos déjà envoyées (effacées avec l'ancienne clé). Pour les suivantes : l'élève qui a déjà envoyé est prévenu du changement et invité à comparer le code ; un premier envoi, lui, fait confiance à la clé reçue. Le coach voit une clé changée (son app refuse de l'ouvrir). |
+| Opérateur, ou jeton de session du coach volé, qui **remplace** la clé publique du coach | Pas pour les photos déjà envoyées (effacées avec l'ancienne clé). Pour les suivantes : l'élève qui a déjà envoyé est prévenu du changement et invité à comparer le code ; un premier envoi, lui, fait confiance à la clé reçue. Le coach le voit : à la relecture (clé autre que celle retenue sur son iPhone), et à l'ouverture, « La clé enregistrée sur le serveur n'est plus la tienne » (distinct de « Clé absente de cet iPhone »), avec le code de sa clé et « Republier ma clé ». Il n'est pas prévenu sur un iPhone où il n'a encore jamais ouvert ses photos, tant qu'il ne les ouvre pas. |
 | Autre élève, ami, autre coach, ancien coach, coach dont le rôle est retiré | Oui (politiques et fonctions, tests SQL). |
 | Code injecté dans l'app de l'élève ou du coach (dépendance piégée, iPhone débridé) | Non : il voit ce que l'app voit. Même limite que le coffre. |
 | Le coach lui-même : capture d'écran, autre appareil qui photographie l'écran | Non. Pas de bouton pour enregistrer, appui long sans menu, flou dans le sélecteur d'apps ; une capture reste possible (iOS ne permet pas de l'empêcher à une app). Texte affiché au coach et dans la politique. |
@@ -144,6 +144,12 @@ bout en bout, il faut en plus une attaque active et ciblée sur la clé d'un coa
   coach a changé », avec le code à comparer, avant tout envoi.
 - Coach : une photo agrandie a « Ne plus voir cette photo » (effacée de chez lui et du serveur) ; signaler passe par les
   messages (⋯ › Signaler).
+- Coach, clé du serveur qui n'est plus la sienne : « La clé enregistrée sur le serveur n'est plus la tienne », code de sa
+  clé, « Republier ma clé » (si sa clé s'ouvre sur cet iPhone) et « Créer une nouvelle clé… ». Sur la fiche de l'élève, la
+  cellule le dit aussi, dès la relecture. Nouvelle clé : l'ancien secret n'est effacé du trousseau que s'il a été créé ou
+  ouvert par cet iPhone depuis la connexion (jamais un identifiant donné par le seul serveur).
+- Élève dont la tranche d'âge d'Apple n'est pas « 18 ans ou plus » : ni bouton d'envoi, ni question sur l'âge ; Mon coach ›
+  Photos de bilan ne reste que s'il y a des photos à retirer.
 - 3 photos par jour au plus. Rien de coché d'avance, jamais d'envoi groupé caché ni automatique.
 - Coffre de l'élève refermé pendant la feuille d'envoi : la feuille se ferme, rien ne part. Photos du coach refermées en
   quittant l'écran, en arrière-plan, après une minute sans toucher : clé privée oubliée, images libérées, flou dans le
@@ -173,13 +179,19 @@ politique ni GRANT.
 
 ## Mise en production (à faire par Maxence, rien n'a été appliqué)
 
+0. **Obligatoire avant la migration** : essai complet sur un vrai projet Supabase de test (projet jetable ou branche, jamais
+   la production) : migration, compartiment et ses politiques avec le vrai Storage (envoi, `upsert: false`, URL signée,
+   retrait par l'API, verrou `protect_delete`), `coach-photos-purge` planifiée (pg_cron, pg_net, Vault, droits de
+   `postgres` sur `vault.secrets`), `delete-account`, retour arrière. Les tests locaux n'imitent que le socle Supabase
+   (`tests/sql/supabase_stub.sql`, pg_cron et Vault imités) : pas encore fait.
 1. `supabase/migrations/20261107000000_photos_bilan.sql` (après les dix de `supabase/rollback/ORDRE.md`).
 2. Fonction : `supabase functions deploy coach-photos-purge` ; secret : `umask 077; openssl rand -hex 32 > ~/.config/mdlf/photos_purge_secret`,
    puis `supabase secrets set PHOTOS_PURGE_SECRET="$(cat ~/.config/mdlf/photos_purge_secret)"`.
 3. Planification (éditeur SQL, `pg_cron` et `pg_net` déjà activés pour les notifications, docs/BUILD.md) :
    `select vault.create_secret('<valeur>', 'photos_purge_secret');` puis
    `select cron.schedule('coach-photos-purge', '17 * * * *', $$ select net.http_post(url := 'https://yopptmdjtnezmccdvaxf.supabase.co/functions/v1/coach-photos-purge', headers := jsonb_build_object('x-purge-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'photos_purge_secret'))) $$);`
-4. `supabase functions deploy delete-account` (fichiers effacés avant le compte).
+4. `supabase functions deploy delete-account` (compte supprimé d'abord, puis ses fichiers : si la suppression échoue, rien
+   n'est effacé, aucune photo « prête » ne reste sans fichier ; fichiers pas effacés : la purge s'en charge).
 5. L'OTA. Une app d'avant sur ce serveur ne voit rien de nouveau ; cette app sur un serveur d'avant n'affiche rien.
 6. Étiquette de confidentialité d'App Store Connect : « Photos or Videos ».
 7. Avant 1. : vérifier qu'aucune politique du tableau de bord sur `storage.objects` ne s'ajoute aux nôtres (les politiques permissives s'additionnent : une politique INSERT ou UPDATE sans filtre `bucket_id` rouvrirait le remplacement d'un fichier) :
@@ -187,17 +199,23 @@ politique ni GRANT.
    et que les schémas exposés de l'API (tableau de bord, Data API) ne comprennent pas `coach_photo_rls`.
 
 Arrêt : `select cron.unschedule('coach-photos-purge');`. Retour arrière : `supabase/rollback/20261107000000_photos_bilan_down.sql`
-après avoir vidé le compartiment par l'API (il refuse sinon) ; indépendant des autres.
+après avoir vidé le compartiment par l'API (il refuse sinon) ; indépendant des autres. Il retire lui-même la tâche
+`coach-photos-purge` et le secret Vault `photos_purge_secret` ; restent à la main `supabase functions delete coach-photos-purge`
+et `supabase secrets unset PHOTOS_PURGE_SECRET`.
 
 ## Tests
 
 - `tests/sql/photos_bilan_test.sql` : droits, compartiment, politiques (envoi, lecture, effacement par qui), clé, bornes,
   retrait, rôle retiré, lien rompu, clé changée, purge, compte supprimé. Dans `run.sh`, `prod_order_test.sh`,
   `rollback_nuit_check.sh` (seul, puis tous les autres tests verts) et `upgrade_test.sh`. `supabase_stub.sql` imite
-  `storage.buckets`, `storage.objects` et leur verrou `protect_delete`.
+  `storage.buckets`, `storage.objects` et leur verrou `protect_delete`. `tests/sql/photos_bilan_rollback_test.sh` : retour
+  arrière qui retire la tâche pg_cron et le secret Vault de la purge (imités), sans toucher aux autres, et passe sans eux.
 - `tests/unit/coach-photos.mjs` : métadonnées (EXIF, XMP, IPTC, commentaire, octets après la fin, entre deux passes),
   clé du coach (chiffrée, rouverte, substitution repérée), chiffrement (clé neuve par photo, données liées, autre clé),
-  nettoyage des réponses. `tests/unit/coach-photos-purge.mjs` : secret, chemins, tour de purge.
+  nettoyage des réponses ; tranche d'âge d'Apple (envoi et déclaration refusés) ; clé retenue dès la première photo partie,
+  celle qui a chiffré, par compte, gardée à la déconnexion ; coach : secret absent ou clé qui n'est plus la sienne,
+  alerte à la relecture, « Republier ma clé », session refermée si la clé publique change, ancien secret effacé seulement
+  s'il a servi ici. `tests/unit/coach-photos-purge.mjs` : secret, chemins, tour de purge ; ordre de `delete-account`.
 - `tests/test_photos_bilan.py` : parcours complet coach et élève dans deux pages, captures clair et sombre.
 
 ## Limites de la V1
@@ -207,7 +225,8 @@ après avoir vidé le compartiment par l'API (il refuse sinon) ; indépendant de
 - Coach qui perd le secret de son trousseau (trousseau iCloud désactivé, nouvel iPhone) : il recrée une clé, ses photos
   reçues sont effacées, les élèves les renvoient.
 - Premier envoi : l'élève fait confiance à la clé que le serveur lui donne (pas d'annuaire de clés vérifiable) ; le code de la clé permet de vérifier.
-- L'âge est déclaré, pas vérifié (la tranche d'âge d'Apple n'est demandée que sur iOS 26 et suivants).
+- L'âge est déclaré, pas vérifié, quand la tranche d'âge d'Apple est inconnue (iOS antérieur au 26, refus de la partager,
+  tranche pas encore demandée : elle l'est à l'ouverture de l'onglet Amis).
 - Pas de message dans le fil coach-élève quand la clé du coach change (l'élève est prévenu à son envoi suivant).
 - Pas de notification au coach quand une photo arrive (il la voit en ouvrant la fiche) ; pas de rappel « bilan à faire ».
 - 60 photos par élève : au-delà, l'élève retire d'anciennes photos.

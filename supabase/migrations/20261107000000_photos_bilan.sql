@@ -29,8 +29,10 @@
 --    tant que le lien existe ; l'élève peut les retirer ou quitter.
 --  - Tables : RLS activée sans politique, aucun GRANT ; RPC security definer, search_path vide, utilisateur pris
 --    dans auth.uid() ; anon n'exécute rien. Les deux fonctions des politiques sont dans un schéma à part,
---    coach_photo_rls, non exposé par l'API (config.toml n'expose que public) : authenticated y a USAGE et
---    EXECUTE sur ces deux fonctions seulement, jamais sur private.
+--    coach_photo_rls, que l'API ne doit pas exposer : authenticated y a USAGE et EXECUTE sur ces deux fonctions
+--    seulement, jamais sur private. Les schémas exposés ne sont PAS dans supabase/config.toml (qui ne règle que les
+--    fonctions) : ils se règlent dans le tableau de bord (Data API, « Exposed schemas », public par défaut), à
+--    vérifier avant la mise en production (docs/PHOTOS_BILAN.md, « Mise en production »).
 --
 --  Âge : l'élève déclare avoir 18 ans ou plus avant son premier envoi (public.coach_photo_adults), sinon not_adult.
 --  Coach : il peut faire disparaître une photo reçue (coach_photo_hide), même effet qu'un retrait.

@@ -1616,7 +1616,7 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 // ── Coffre à photos : code, chiffrement, essais, verrouillage (tests dans photo-vault.mjs) ──
 (await import('./photo-vault.mjs')).default({ test, run, assert, app });
 // ── Photos de bilan envoyées au coach : métadonnées, chiffrement de bout en bout (tests dans coach-photos.mjs) ──
-(await import('./coach-photos.mjs')).default({ test, run, assert, app });
+(await import('./coach-photos.mjs')).default({ test, run, assert, app, sameJSON });
 (await import('./coach-photos-purge.mjs')).default({ test, assert, sameJSON, ROOT });
 
 // ── Accueil et Mon profil : régularité, membre depuis, records récents, activité groupée (tests dans profile.mjs) ──

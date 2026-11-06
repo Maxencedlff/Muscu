@@ -65,3 +65,16 @@ export function deleteDecision({ user, claims, nowS, appleProof = false, identit
   // Compte Apple : l'app redemande une connexion avec Apple ; sinon un code e-mail ou Google
   return { ok: false, status: 401, error: apple ? 'apple' : 'reauth' };
 }
+
+// Fin de la suppression, une fois décidée (docs/PHOTOS_BILAN.md) : le compte d'abord, puis, au mieux, les fichiers
+// chiffrés de ses photos de bilan. Supprimer le compte efface ses lignes de photos (on delete cascade), et leurs
+// chemins partent dans la file de la purge ; si la suppression du compte échoue, rien n'a été effacé : jamais une
+// photo « prête » dont le fichier aurait disparu. Fichiers pas effacés ici : la purge planifiée s'en charge.
+// deleteUser : () => vrai si le compte est supprimé ; removePhotos : () => promesse (rejetée si l'effacement échoue).
+// → { ok: false } ou { ok: true, photosLeft }
+export async function deleteAccountThenFiles({ deleteUser, removePhotos }) {
+  let deleted = false;
+  try { deleted = (await deleteUser()) === true; } catch { deleted = false; }
+  if (!deleted) return { ok: false };
+  try { await removePhotos(); return { ok: true, photosLeft: false }; } catch { return { ok: true, photosLeft: true }; }
+}

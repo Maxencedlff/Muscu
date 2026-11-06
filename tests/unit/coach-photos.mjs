@@ -5,7 +5,7 @@
 //  le navigateur, est dans tests/test_photos_bilan.py.
 // ═══════════════════════════════════════════════════════════
 
-export default function ({ test, run, assert, app }) {
+export default function ({ test, run, assert, app, sameJSON }) {
   const plain = o => JSON.parse(JSON.stringify(o));
   // Segment JPEG : marqueur, longueur, charge
   const seg = (m, bytes) => [0xFF, m, ((bytes.length + 2) >> 8) & 0xFF, (bytes.length + 2) & 0xFF, ...bytes];
@@ -121,7 +121,7 @@ export default function ({ test, run, assert, app }) {
     run(`account.user = { id: 'u-eleve' }; cph.userId = 'u-eleve'; coach.state = { coach: { user_id: 'u-coach' }, students: [], is_coach: false };`);
     run(`cph.state = { ready: true, adult: true, key: { key_id: '${'a'.repeat(32)}', public_key: '${pk('A')}' }, photos: [] }`);
     assert.equal(app.cphKeyChanged(), false, 'rien retenu : pas d\'alerte');
-    app.cphPinKey();
+    app.cphPinKey(pk('A'));
     assert.equal(app.cphKeyChanged(), false, 'même clé');
     run(`cph.state.key.public_key = '${pk('B')}'`);
     assert.equal(app.cphKeyChanged(), true, 'clé changée');
@@ -138,5 +138,196 @@ export default function ({ test, run, assert, app }) {
     assert.equal(plain(await app.cphSend([])).kind, 'invalid_photo', 'aucune');
     run('vaultLock("test")');
     assert.equal(plain(await app.cphSend([p(day, 'a')])).kind, 'locked', 'coffre fermé');
+  });
+
+  // ── Relecture sécurité : tranche d'âge, clé retenue, clé du coach substituée, trousseau ──
+
+  const keyB64 = () => app.bytesToB64(app.vaultRandom(32));   // secret de test tiré au hasard (jamais une vraie clé)
+  const band = { adult: { lowerBound: 18 }, teen: { lowerBound: 15, upperBound: 17 }, young: { lowerBound: 13, upperBound: 15 },
+    limited: { lowerBound: 15, upperBound: 17, communicationLimits: true } };
+
+  test('photos de bilan : tranche d\'âge d\'Apple autre que majeur → rien proposé, envoi et déclaration refusés', async () => {
+    const r = await run(`(async () => {
+      const st = ageRange.stored, user = account.user, sbSaved = sb, calls = [];
+      try {
+        account.user = { id: 'u-eleve' }; cph.userId = 'u-eleve';
+        coach.state = { coach: { user_id: 'u-coach' }, students: [], is_coach: false };
+        cph.state = { ready: true, adult: false, key: null, photos: [{ id: 'x' }] }; cph.missing = false;
+        sb = { rpc: async fn => { calls.push(fn); return { data: null, error: null }; } };
+        const out = {};
+        for (const [name, b] of Object.entries(${JSON.stringify(band)})) {
+          ageRange.stored = { status: 'sharing', communicationLimits: false, ...b, at: Date.now() };
+          out[name] = { shown: cphStudentShown(), listed: cphStudentListed(), send: (await cphSend([{ id: 'p', date: Date.now(), pose: 'face' }])).kind,
+            declare: (await cphDeclareAdult()).kind || 'ok' };
+        }
+        ageRange.stored = null;
+        out.none = { shown: cphStudentShown() };
+        ageRange.stored = { status: 'declined', at: Date.now() };
+        out.declined = { shown: cphStudentShown() };
+        return { out, calls };
+      } finally { ageRange.stored = st; account.user = user; sb = sbSaved; coach.state = null; cph.state = null; }
+    })()`);
+    for (const b of ['teen', 'young', 'limited']) {
+      sameJSON(r.out[b], { shown: false, listed: true, send: 'not_adult', declare: 'not_adult' }, `${b} : rien proposé, envoi et déclaration refusés`);
+    }
+    assert.equal(r.out.adult.shown, true, 'majeur selon Apple : proposé');
+    assert.notEqual(r.out.adult.send, 'not_adult', 'majeur : l\'envoi passe la règle d\'âge (il s\'arrête plus loin : coffre fermé)');
+    assert.equal(r.out.none.shown, true, 'tranche inconnue : déclaration');
+    assert.equal(r.out.declined.shown, true, 'refus de partager : déclaration');
+    assert.deepEqual([...r.calls].filter(c => c === 'student_photo_adult'), ['student_photo_adult'], 'déclaration envoyée au serveur pour le majeur seulement');
+  });
+
+  test('photos de bilan : clé retenue dès la première photo partie (envoi partiel), celle qui a servi, par compte', async () => {
+    const s = await secret();
+    const a = (await app.coachKeyMake(s, COACH, KEY_ID)).rec.public_key, b = (await app.coachKeyMake(s, COACH, KEY_ID)).rec.public_key;
+    const r = await run(`(async () => {
+      const saved = { coachPhotoJpeg, cphUpload, cphStorageRemove }, user = account.user, sbSaved = sb, calls = [];
+      try {
+        localStorage.clear();
+        account.user = { id: '${STUDENT}' }; cph.userId = '${STUDENT}'; cph.busy = false; cph.loading = false; cph.missing = false;
+        coach.state = { coach: { user_id: '${COACH}' }, students: [], is_coach: false };
+        vaultSetOpen({});
+        coachPhotoJpeg = async () => ({ bytes: new Uint8Array([1, 2, 3]) });
+        cphUpload = async () => ({ ok: true });
+        cphStorageRemove = async () => true;
+        let prepared = 0;
+        const live = [];
+        sb = { rpc: async (fn, args) => {
+          calls.push(fn);
+          if (fn === 'student_photo_state') return { data: { coach: true, ready: true, adult: true, key: { key_id: '${KEY_ID}', public_key: '${a}' }, photos: live }, error: null };
+          if (fn === 'student_photo_prepare') { prepared++; return prepared === 1 ? { data: null, error: null } : { data: null, error: { message: 'too_many' } }; }
+          // Pendant l'envoi, une relecture concurrente apporte une autre clé : ce n'est pas elle qui a servi
+          if (fn === 'student_photo_commit') { live.push({ id: args.photo, taken_on: '2026-11-05', pose: 'face', bytes: 3 });
+            cph.state = { ...cph.state, key: { key_id: '${KEY_ID}', public_key: '${b}' } }; return { data: null, error: null }; }
+          return { data: null, error: null };
+        } };
+        const day = new Date(2026, 10, 5, 9).getTime();
+        const res = await cphSend([{ id: 'v1', date: day, pose: 'face' }, { id: 'v2', date: day, pose: 'back' }]);
+        const pinAfter = cphPinOf();
+        const raw = JSON.parse(localStorage.getItem(CPH_PIN_KEY));
+        const sent = JSON.parse(localStorage.getItem(CPH_SENT_KEY));
+        clearCrossUserCaches();
+        const kept = cphPinOf();
+        cph.userId = 'u-autre';
+        const other = cphPinOf();
+        return { res: { ok: res.ok, sent: res.sent, kind: res.kind }, pinAfter, raw: Object.keys(raw), sent: Object.values(sent.map), kept, other,
+          cross: CROSS_USER_CACHE_KEYS.includes(CPH_PIN_KEY) || CROSS_USER_CACHE_KEYS.includes(CPH_MYKEY_KEY) };
+      } finally {
+        Object.assign(globalThis, saved); vaultLock('test'); account.user = user; sb = sbSaved; coach.state = null; cph.state = null; cph.busy = false; localStorage.clear();
+      }
+    })()`);
+    sameJSON(r.res, { ok: false, sent: 1, kind: 'too_many' }, 'une photo partie, la seconde refusée');
+    assert.equal(r.pinAfter, a, 'clé retenue : celle qui a chiffré la photo partie (pas celle relue entre-temps)');
+    sameJSON(r.raw, [STUDENT], 'rangée sous l\'identifiant du compte');
+    sameJSON(r.sent, ['v1'], 'mention « Envoyée » gardée pour la photo partie');
+    assert.equal(r.kept, a, 'pas effacée avec les caches du compte (déconnexion)');
+    assert.equal(r.other, null, 'jamais lue pour un autre compte');
+    assert.equal(r.cross, false, 'hors de CROSS_USER_CACHE_KEYS');
+  });
+
+  // Coach : faux trousseau (secrets de test), faux serveur. cphCoachAvailable forcé (pas de module natif ici).
+  const coachScenario = body => run(`(async () => {
+    const saved = { cphCoachAvailable }, vault = { ...Native.vault }, user = account.user, sbSaved = sb;
+    const kc = {}, forgot = [], rpc = [];
+    try {
+      localStorage.clear(); cphReset('${COACH}');
+      account.user = { id: '${COACH}' }; coach.state = { coach: null, students: [], is_coach: true };
+      cphCoachAvailable = () => true;
+      Native.vault.unlock = async (reason, id) => (kc[id] ? { key: kc[id] } : { missing: true });
+      Native.vault.create = async (reason, id) => { kc[id] ||= __newSecret(); return { key: kc[id] }; };
+      Native.vault.forget = async id => { forgot.push(id); delete kc[id]; };
+      Native.vault.shield = () => {};
+      let served = null;
+      sb = { rpc: async (fn, args) => { rpc.push([fn, args]);
+        if (fn === 'coach_photo_key') return { data: served, error: null };
+        if (fn === 'coach_photo_key_set') { const { replace, ...k } = args; served = k; return { data: k, error: null }; }
+        return { data: null, error: null }; } };
+      const env = { kc, forgot, rpc, serve: k => { served = k; } };
+      ${body}
+    } finally {
+      Object.assign(globalThis, saved); Object.assign(Native.vault, vault); account.user = user; sb = sbSaved; coach.state = null; cphReset(null); localStorage.clear();
+    }
+  })()`);
+  app.__newSecret = keyB64;
+
+  test('photos de bilan : coach, secret absent ≠ clé du serveur qui n\'est plus la mienne ; republier ma clé', async () => {
+    const secretB64 = keyB64(), s = await app.vaultImportKey(secretB64);
+    const mine = (await app.coachKeyMake(s, COACH, KEY_ID)).rec;
+    const intruder = (await app.coachKeyMake(await secret(), COACH, KEY_ID)).rec;
+    const mineCode = await app.coachKeyCode(mine.public_key);
+    const r = await coachScenario(`
+      kc['${KEY_ID}'] = '${secretB64}';
+      const out = {};
+      // Clé publique substituée, même identifiant : ma clé privée s'ouvre mais ne correspond pas
+      cphCoach.key = { ...${JSON.stringify(mine)}, public_key: '${intruder.public_key}' };
+      out.pub = { ...(await cphCoachUnlock()), own: cphCoach.own?.public_key === '${mine.public_key}', code: cphCoach.myCode, open: cphIsOpen() };
+      // Clé enveloppée d'un autre (le serveur a tout remplacé) : secret présent, rien ne s'ouvre
+      cphReset('${COACH}'); account.user = { id: '${COACH}' };
+      cphCoach.key = { ...${JSON.stringify(intruder)}, key_id: '${KEY_ID}' };
+      out.wrap = await cphCoachUnlock();
+      // Secret absent de cet iPhone, rien de retenu ici : « clé absente »
+      cphReset('${COACH}'); account.user = { id: '${COACH}' };
+      cphCoach.key = { ...${JSON.stringify(intruder)}, key_id: '${'cd'.repeat(16)}' };
+      out.missing = await cphCoachUnlock();
+      // Bonne clé : ouverte, retenue sur l'iPhone, code de la clé qui déchiffre
+      cphCoach.key = ${JSON.stringify(mine)};
+      out.good = { ...(await cphCoachUnlock()), code: cphCoach.session?.code, pinned: readCphMyKey()?.public_key === '${mine.public_key}' };
+      cphLock('test');
+      // Serveur qui sert ensuite une autre clé (autre identifiant, secret inconnu ici) : alerte dès la relecture,
+      // et c'est une clé qui n'est plus la mienne (pas « absente »)
+      env.serve({ ...${JSON.stringify(intruder)}, key_id: '${'cd'.repeat(16)}' });
+      await cphCoachRefresh();
+      out.alert = cphCoach.mismatch;
+      out.after = { ...(await cphCoachUnlock()), code: cphCoach.myCode };
+      // Republier ma clé : Face ID, ma clé (vérifiée) remplace celle du serveur
+      out.repub = await cphCoachRepublish();
+      const set = env.rpc.filter(c => c[0] === 'coach_photo_key_set').map(c => c[1]);
+      out.set = set.map(a => ({ key_id: a.key_id, mine: a.public_key === '${mine.public_key}', replace: a.replace }));
+      out.state = { open: cphIsOpen(), code: cphCoach.session?.code, mismatch: cphCoach.mismatch };
+      return out;`);
+    sameJSON({ ok: r.pub.ok, mismatch: r.pub.mismatch, own: r.pub.own, code: r.pub.code, open: r.pub.open },
+      { ok: false, mismatch: true, own: true, code: mineCode, open: false }, 'clé publique substituée : « n\'est plus la tienne », ma clé et son code');
+    assert.equal(r.wrap.mismatch, true, 'clé enveloppée qui ne s\'ouvre pas avec mon secret : pas « absente »');
+    assert.ok(r.missing.missing && !r.missing.mismatch, 'secret absent, rien de retenu ici : clé absente');
+    sameJSON(r.good, { ok: true, code: mineCode, pinned: true }, 'bonne clé : ouverte, retenue, code de la clé qui déchiffre');
+    assert.equal(r.alert, true, 'serveur qui sert une autre clé que celle retenue : alerte à la relecture');
+    sameJSON({ mismatch: r.after.mismatch, code: r.after.code }, { mismatch: true, code: mineCode }, 'secret inconnu mais ma clé retenue ici : « n\'est plus la tienne »');
+    assert.equal(r.repub.ok, true, 'republiée');
+    sameJSON(r.set, [{ key_id: KEY_ID, mine: true, replace: true }], 'ma clé (même identifiant, ma clé publique), à la place de l\'autre');
+    sameJSON(r.state, { open: true, code: mineCode, mismatch: false }, 'ouverte avec ma clé, alerte levée');
+  });
+
+  test('photos de bilan : coach, session refermée si la clé publique change (même identifiant)', async () => {
+    const secretB64 = keyB64(), s = await app.vaultImportKey(secretB64);
+    const mine = (await app.coachKeyMake(s, COACH, KEY_ID)).rec;
+    const other = (await app.coachKeyMake(s, COACH, KEY_ID)).rec;
+    const r = await coachScenario(`
+      kc['${KEY_ID}'] = '${secretB64}';
+      env.serve(${JSON.stringify(mine)});
+      await cphCoachRefresh();
+      const opened = (await cphCoachUnlock()).ok && cphIsOpen();
+      env.serve({ ...${JSON.stringify(mine)}, public_key: '${other.public_key}' });
+      await cphCoachRefresh();
+      return { opened, open: cphIsOpen(), mismatch: cphCoach.mismatch };`);
+    sameJSON(r, { opened: true, open: false, mismatch: true }, 'même key_id, autre clé publique : refermée, alerte');
+  });
+
+  test('photos de bilan : coach, nouvelle clé : l\'ancien secret n\'est effacé du trousseau que s\'il a servi ici', async () => {
+    const r = await coachScenario(`
+      const vaultId = '${'ef'.repeat(16)}';
+      kc[vaultId] = 'secret-de-test-du-coffre';
+      // Le serveur donne comme « ancienne clé » l'identifiant d'un autre secret (celui d'un coffre) : jamais effacé
+      cphCoach.key = { key_id: vaultId, public_key: '${'BA' + 'A'.repeat(84) + 'A='}', wrapped_key: null, wrap_iv: null };
+      const first = await cphCoachSetup({ replace: true });
+      const firstId = cphCoach.key?.key_id;
+      const forgotFirst = [...env.forgot];
+      // Clé créée ici puis remplacée : son secret part
+      cphLock('test');
+      const second = await cphCoachSetup({ replace: true });
+      return { first: first.ok, second: second.ok, forgotFirst, forgot: env.forgot, firstId, vaultKept: !!kc[vaultId] };`);
+    assert.equal(r.first && r.second, true);
+    sameJSON(r.forgotFirst, [], 'identifiant venu du serveur, jamais ouvert ici : pas effacé');
+    assert.equal(r.vaultKept, true, 'le secret du coffre reste');
+    sameJSON(r.forgot, [r.firstId], 'clé créée sur cet appareil puis remplacée : son secret effacé');
   });
 }

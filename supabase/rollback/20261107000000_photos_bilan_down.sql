@@ -12,6 +12,10 @@
 --     disparaît resterait orphelin dans le stockage). Ce fichier refuse de tourner (exception, rien ne change)
 --     tant qu'il reste un fichier dans le compartiment.
 --
+--  La planification de la purge (tâche pg_cron « coach-photos-purge ») et son secret (Vault « photos_purge_secret »)
+--  sont retirés ici, s'ils existent. Restent à la main : la fonction serveur (supabase functions delete
+--  coach-photos-purge) et son secret d'environnement (supabase secrets unset PHOTOS_PURGE_SECRET).
+--
 --  Effet : les photos envoyées (public.coach_photos, ce qui sert à les déchiffrer), les clés des coachs
 --  (public.coach_photo_keys), les déclarations « 18 ans ou plus » (public.coach_photo_adults) et la file de purge sont SUPPRIMÉES ; le compartiment vide, ses trois politiques
 --  et le schéma coach_photo_rls aussi. Les lignes « coach_photo » et « coach_photo_key » du journal
@@ -31,6 +35,22 @@ begin
   end if;
 end
 $$;
+
+-- Planification de la purge et son secret (docs/PHOTOS_BILAN.md, « Mise en production ») : sans eux, la tâche
+-- appellerait chaque heure une fonction qui n'a plus rien à purger. Absents (Postgres local, planification pas
+-- encore posée) : rien. Tests séparés : cron.job et vault.secrets n'existent pas sans leur extension.
+do $cron$
+begin
+  if to_regclass('cron.job') is not null then
+    if exists (select 1 from cron.job where jobname = 'coach-photos-purge') then
+      perform cron.unschedule('coach-photos-purge');
+    end if;
+  end if;
+  if to_regclass('vault.secrets') is not null then
+    delete from vault.secrets where name = 'photos_purge_secret';
+  end if;
+end
+$cron$;
 
 drop policy coach_photos_insert on storage.objects;
 drop policy coach_photos_select on storage.objects;

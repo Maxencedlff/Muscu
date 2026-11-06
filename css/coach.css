@@ -282,6 +282,7 @@ select.coach-req-field__input:invalid { color: var(--label2); }
   font-size: var(--fs-subhead); font-weight: 600; cursor: pointer;
 }
 .cph-code { font-weight: 600; color: var(--label); white-space: nowrap; }
+.cell__sub.cph-alert { color: var(--red-text); }
 /* Coach : comparer deux dates, côte à côte, pose par pose */
 .cph-pair { margin-top: 14px; }
 .cph-pair__pose { display: block; font-size: var(--fs-footnote); color: var(--label2); margin-bottom: 6px; }

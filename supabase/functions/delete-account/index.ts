@@ -17,12 +17,13 @@
 //    l'accès à la main.
 // 5. Accès Strava révoqué au mieux (docs/STRAVA.md) : sinon MDLF resterait dans les applications
 //    autorisées de la personne chez Strava. Strava injoignable : la suppression continue.
-// 6. Fichiers chiffrés de ses photos de bilan effacés (removeCoachPhotos), au mieux.
-// 7. L'utilisateur est supprimé ; ses séances, son profil, son pseudo, sa liaison Strava et les lignes de ses
-//    photos de bilan partent avec lui (on delete cascade).
+// 6. L'utilisateur est supprimé ; ses séances, son profil, son pseudo, sa liaison Strava et les lignes de ses
+//    photos de bilan partent avec lui (on delete cascade ; les chemins des fichiers vont dans la file de purge).
+// 7. Seulement ensuite, fichiers chiffrés de ses photos de bilan effacés (removeCoachPhotos), au mieux : si la
+//    suppression du compte échoue, aucune photo « prête » ne reste sans son fichier (deleteAccountThenFiles).
 import { adminClient, bodyCode, caller, CORS, json } from '../_shared/http.ts';
 import { exchangeAppleCode, revokeAppleToken } from '../_shared/apple.ts';
-import { deleteDecision, LINKED_IDENTITY_MIN_AGE_S } from './delete-policy.js';
+import { deleteAccountThenFiles, deleteDecision, LINKED_IDENTITY_MIN_AGE_S } from './delete-policy.js';
 import { disconnectStrava } from '../_shared/strava.ts';
 
 // Dernier ajout ou retrait d'un moyen de connexion dans les 24 h : date ISO, null si aucun,
@@ -34,14 +35,16 @@ async function identityChangeAt(userId: string): Promise<string | null | undefin
 }
 
 // Photos de bilan envoyées à son coach (docs/PHOTOS_BILAN.md) : les fichiers chiffrés de son dossier sont effacés
-// par l'API Storage avant le compte (supprimer le compte efface les lignes, pas les fichiers : Supabase a retiré la
+// par l'API Storage après le compte (supprimer le compte efface les lignes, pas les fichiers : Supabase a retiré la
 // clé étrangère entre storage.objects et auth.users). Échec, ou compartiment absent (migration pas appliquée) : la
-// suppression continue, et la purge planifiée (coach-photos-purge) retrouve ces fichiers sans ligne.
+// réponse reste un succès, et la purge planifiée (coach-photos-purge) retrouve ces fichiers sans ligne.
 async function removeCoachPhotos(userId: string): Promise<void> {
   const bucket = adminClient().storage.from('coach-photos');
   const { data, error } = await bucket.list(userId, { limit: 1000 });
-  if (error || !data?.length) return;
-  await bucket.remove(data.map((o) => `${userId}/${o.name}`));
+  if (error) throw error;
+  if (!data?.length) return;
+  const { error: rmErr } = await bucket.remove(data.map((o) => `${userId}/${o.name}`));
+  if (rmErr) throw rmErr;
 }
 
 Deno.serve(async (req) => {
@@ -61,8 +64,11 @@ Deno.serve(async (req) => {
 
   const revoked = grant ? await revokeAppleToken(grant) : false;
   try { await disconnectStrava(adminClient(), user.id); } catch { console.error('delete-account: Strava non révoqué'); }
-  try { await removeCoachPhotos(user.id); } catch { console.error('delete-account: photos de bilan laissées à la purge'); }
-  const { error: delErr } = await adminClient().auth.admin.deleteUser(user.id);
-  if (delErr) return json({ error: 'delete' }, 500);
+  const done = await deleteAccountThenFiles({
+    deleteUser: async () => !(await adminClient().auth.admin.deleteUser(user.id)).error,
+    removePhotos: () => removeCoachPhotos(user.id),
+  });
+  if (!done.ok) return json({ error: 'delete' }, 500);
+  if (done.photosLeft) console.error('delete-account: photos de bilan laissées à la purge');
   return json({ deleted: true, revoked });
 });
