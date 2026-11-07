@@ -56,7 +56,8 @@ function showToast(msg, opts = {}) {
     if (toastCovers(el)) { el.classList.add('toast--top'); if (toastCovers(el)) el.classList.remove('toast--top'); }
   };
   place();
-  const onScroll = () => requestAnimationFrame(place);
+  // Retiré d'ailleurs (autre toast, dialogue, « Annuler ») : l'écouteur s'en va au défilement suivant
+  const onScroll = () => { if (!el.isConnected) window.removeEventListener('scroll', onScroll); else requestAnimationFrame(place); };
   window.addEventListener('scroll', onScroll, { passive: true });
   let timer = 0;
   const close = () => { el.remove(); window.removeEventListener('scroll', onScroll); };
