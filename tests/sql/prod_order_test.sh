@@ -15,6 +15,8 @@
 #     base d'avant (pg_dump complet, archives private.*_archive_* exclues), jusqu'à la production de départ.
 #     Seule exception, documentée (supabase/rollback/ORDRE.md) : l'« Accès offert » d'Apple effacé par le
 #     modèle B ne revient pas.
+#  6. Vague 2 : les photos de bilan seules (sans le payant) sur la production revenue de l'étape 5, leurs tests,
+#     puis leur retour arrière, état d'avant retrouvé.
 # Lancer : bash tests/sql/prod_order_test.sh   (Postgres 15+, python3)
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -26,7 +28,7 @@ prod_applied=(20261025000000 20261026000000 20261026010000 20261026020000 202610
   20261026050000 20261027000000 20261027100000 20261027110000 20261028000000 20261031100000 20261031200000
   20261031300000 20261031400000 20261031500000 20261031510000 20261031900000 20261031910000)
 # À appliquer, dans cet ordre (Strava, 20261031620000, reste en sommeil : jamais appliquée au lancement)
-to_apply=(20261029000000 20261030000000 20261031000000 20261031230000 20261101000000 20261105000000 20261105010000 20261106000000 20261106100000 20261106200000)
+to_apply=(20261029000000 20261030000000 20261031000000 20261031230000 20261101000000 20261105000000 20261105010000 20261106000000 20261106100000 20261106200000 20261107000000)
 skip_tests=" strava_test.sql "
 bin=$(dirname "$(command -v initdb 2>/dev/null || ls -d /usr/lib/postgresql/*/bin/initdb | sort -V | tail -1)")
 tmp=$(mktemp -d)
@@ -159,3 +161,20 @@ for (( i=${#to_apply[@]}-1; i>=0; i-- )); do
   echo "OK : $(basename "$(file "$down" "$t")"), état d'avant retrouvé"
 done
 echo "OK : retour à la production de départ (sauf l'« Accès offert » effacé par le modèle B, ORDRE.md)"
+
+# ── 6. Cette vague seule : les photos de bilan sur la production de départ ─
+# Les migrations du payant (1 à 5 de ORDRE.md) attendent l'accord de Maxence : la vague 2 n'applique que
+# 20261107000000_photos_bilan.sql. Elle doit passer seule, ses tests être verts, et son retour arrière
+# rendre la production de départ à l'identique.
+seule=20261107000000
+# Point de départ : la production revenue de l'étape 5 (même schéma et mêmes données que la production de départ,
+# à l'« Accès offert » du modèle B près, ORDRE.md)
+psql postgres -c "create database vague template apres"
+snap vague full > "$tmp/V_depart.sql"
+psql vague -1 -f "$(file "$mig" "$seule")"
+psql postgres -c "create database vague_essais template vague"
+psql vague_essais -c "delete from auth.users;" >/dev/null
+run_test vague_essais "$here/photos_bilan_test.sql"
+psql vague -f "$(file "$down" "$seule")" 2>&1 | { /usr/bin/grep -v 'transaction in progress' || true; }
+same vague full "$tmp/V_depart.sql" "photos de bilan seules : retour arrière ≠ production de départ"
+echo "OK : vague 2, $(basename "$(file "$mig" "$seule")") seule sur la production de départ, tests verts, retour arrière à l'identique"

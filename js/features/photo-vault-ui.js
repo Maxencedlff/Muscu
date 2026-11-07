@@ -96,7 +96,7 @@ function pvIntroHtml() {
           <ul class="pv-feats">
             ${feat('lock', `Ouvert avec ${esc(pvHowText())}`, 'Pas de code en plus à retenir. Chiffrées sur ton iPhone, jusque dans ses sauvegardes.')}
             ${feat('timer', 'Refermé dès que tu pars', 'Quand tu quittes l\'app, ou après une minute sans toucher l\'écran.')}
-            ${feat('eye.slash', 'Rien ne sort du coffre', 'Ni dans ta pellicule, ni dans l\'export, ni sur nos serveurs, ni chez ton coach.')}
+            ${feat('eye.slash', 'Rien ne sort sans toi', 'Ni dans ta pellicule, ni dans l\'export. Seulement ce que tu envoies à ton coach.')}
             ${feat('info.circle', 'Te suit sur un nouvel iPhone', 'La clé du coffre est dans ton trousseau iCloud, chiffré de bout en bout. Active-le pour retrouver ton coffre sur un nouvel iPhone.')}
           </ul>
           ${pv.legacy ? `<p class="pv-note">${plural(pv.legacy, 'photo déjà prise y sera rangée', 'photos déjà prises y seront rangées')}.</p>` : ''}
@@ -125,7 +125,7 @@ function pvOpenHtml() {
     ? `${plural(list.length, 'photo', 'photos')} · depuis ${esc(fmtDate(oldest.date, 'short'))}`
     : 'Aucune photo pour l\'instant';
   const days = photoDayGroups(list).map(g => `
-            <div class="pgal__day"><span class="pgal__date">${esc(fmtDate(g.date))}</span>
+            <div class="pgal__day"><div class="pgal__head"><span class="pgal__date">${esc(fmtDate(g.date))}</span>${cphDaySendHtml(g)}</div>
               <div class="pgal__row">${g.photos.map(p => `
                 <button class="pgal__item" data-action="photo-open" data-id="${p.id}" aria-label="${photoPoseLabel(p.pose)}, ${esc(fmtDate(p.date))}">
                   <img src="${photoUrl(p)}" alt="" loading="lazy"><span class="pgal__pose">${photoPoseLabel(p.pose)}</span>
@@ -140,7 +140,7 @@ function pvOpenHtml() {
             <div class="pgal__row">${PHOTO_POSES.map(([k, l]) => `<button class="pv-slot" data-action="photo-add" data-pose="${k}" aria-label="Ajouter une photo : ${l}">${icon('plus', 22)}<span>${l}</span></button>`).join('')}</div>
             <p class="cell__sub">Une photo de temps en temps, pour voir ce que la balance ne dit pas.</p></div>`}
         </div>
-        <div class="group-foot">${list.length ? `${fmtBytes(photosTotalBytes(list))}, chiffrées sur ton iPhone. ` : ''}Hors de l'export et de la copie iCloud de l'app ; chiffrées dans la sauvegarde de l'iPhone. Sur un nouvel iPhone, elles se rouvrent grâce au trousseau iCloud. Rien n'est montré à tes amis ni à ton coach.</div>`;
+        <div class="group-foot">${list.length ? `${fmtBytes(photosTotalBytes(list))}, chiffrées sur ton iPhone. ` : ''}Hors de l'export et de la copie iCloud de l'app ; chiffrées dans la sauvegarde de l'iPhone. Sur un nouvel iPhone, elles se rouvrent grâce au trousseau iCloud. ${cphVaultFoot()}</div>`;
 }
 
 // Avant / après : les deux photos superposées, un curseur découvre l'une sur l'autre.
@@ -239,6 +239,8 @@ async function pvLoadPhotos() {
   try { res = await vaultPhotos(); } catch { res = null; }
   if (!vaultIsOpen()) return;   // refermé pendant la lecture : aucune photo gardée en mémoire
   photoCache = res ? res.photos : [];
+  // Envois au coach : relus pour les boutons « Envoyer à mon coach » (serveur sans la fonction : rien)
+  cphRefresh({ minAge: 60_000 }).then(ok => { if (ok && vaultIsOpen()) pvPaint(); });
   if (!res) showToast('Lecture du coffre impossible, réessaie', { error: true });
   else if (res.broken) showToast(plural(res.broken, 'photo illisible ignorée', 'photos illisibles ignorées'), { error: true });
   pvPaint();
@@ -366,6 +368,7 @@ async function openPhotoSheet(id) {
   await sheet({ title: `${photoPoseLabel(p.pose)} · ${fmtDate(p.date)}`, cancel: 'Fermer', confirm: '', body: `
     <img class="pview__img" src="${photoUrl(p)}" alt="${photoPoseLabel(p.pose)}, ${esc(fmtDate(p.date))}">
     <p class="pview__meta">${p.w} × ${p.h} px · ${fmtBytes(p.bytes)}</p>
+    ${cphVaultPhotoHtml(p)}
     <button class="btn btn--danger btn--full" data-action="photo-delete" data-id="${p.id}">Supprimer cette photo</button>` });
 }
 
@@ -455,8 +458,15 @@ registerActions({
   'photo-open': (e, el) => openPhotoSheet(el.dataset.id),
   'photo-delete': async (e, el) => {
     const id = el.dataset.id;
-    if (!(await confirmSheet('Supprimer cette photo ?', 'Elle n\'est nulle part ailleurs : pas de corbeille.', 'Supprimer'))) return;
+    // Envoyée au coach : elle est retirée de chez lui d'abord (sinon elle ne serait plus nulle part ici, mais chez lui)
+    const sent = cphStudentListed() ? cphSentOf(id) : null;
+    // État des envois inconnu ici (hors ligne, autre iPhone) alors qu'on a un coach : on ne promet pas « nulle part ailleurs »
+    const unsure = !sent && account.user && coachRole().hasCoach;
+    const msg = sent ? 'Elle est aussi retirée de chez ton coach. Pas de corbeille.'
+      : unsure ? 'Pas de corbeille. Si tu l\'as envoyée à ton coach, retire-la aussi dans Mon coach › Photos de bilan.' : 'Elle n\'est nulle part ailleurs : pas de corbeille.';
+    if (!(await confirmSheet('Supprimer cette photo ?', msg, 'Supprimer'))) return;
     if (!vaultIsOpen()) return;   // refermé pendant la confirmation : rien sans rouvrir le coffre
+    if (sent) { const r = await cphRemove(sent.id); if (!r.ok) { showToast(coachErrorText(r.kind), { error: true }); return; } }
     try { await photoDelete(id); } catch { showToast('Suppression impossible', { error: true }); return; }
     if (photoUrls.has(id)) { URL.revokeObjectURL(photoUrls.get(id)); photoUrls.delete(id); }
     el.closest('.sheet-root')?._close?.(null);

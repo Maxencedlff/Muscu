@@ -37,7 +37,7 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   test('garde de l\'appelant : chaque fonction sans vérification de la passerelle répond 401 avant tout travail', () => {
     const config = read('supabase/config.toml');
     const open = [...config.matchAll(/\[functions\.([a-z-]+)\]\s*\n(?:#[^\n]*\n)*verify_jwt = false/g)].map(m => m[1]);
-    for (const f of ['delete-account', 'revoke-apple', 'report', 'verify-purchase', 'push-send']) {
+    for (const f of ['delete-account', 'revoke-apple', 'report', 'verify-purchase', 'push-send', 'coach-photos-purge']) {
       assert.ok(open.includes(f), `${f} : verify_jwt = false absent de config.toml`);
     }
     const GUARD = /const who = await caller\(req\);\s*\n\s*if \(!who\) return json\(\{ error: 'auth' \}, 401\);/;
@@ -54,6 +54,13 @@ export default function ({ test, assert, sameJSON, ROOT }) {
       'push-send': {
         read: "const secret = env('PUSH_CRON_SECRET');",
         check: "if (!secret || !sameSecret(req.headers.get('x-push-secret'), secret)) return json({ error: 'auth' }, 401);",
+        policy: 'push-policy.js',
+      },
+      // Purge des photos de bilan (docs/PHOTOS_BILAN.md) : même modèle, secret PHOTOS_PURGE_SECRET
+      'coach-photos-purge': {
+        read: "const secret = env('PHOTOS_PURGE_SECRET');",
+        check: "if (!secret || !sameSecret(req.headers.get('x-purge-secret'), secret)) return json({ error: 'auth' }, 401);",
+        policy: 'purge-policy.js',
       },
     };
     for (const f of open) {
@@ -65,7 +72,7 @@ export default function ({ test, assert, sameJSON, ROOT }) {
         const at = handler.indexOf(shared.check);
         assert.ok(handler.includes(shared.read) && at > 0, `${f} : pas de refus 401 par le secret partagé`);
         assert.ok(!WORK.test(handler.slice(0, at)), `${f} : du travail avant la vérification du secret`);
-        assert.ok(/^import \{[^}]*\bsameSecret\b[^}]*\} from '\.\/push-policy\.js';$/m.test(src), `${f} : sameSecret ne vient pas de push-policy.js`);
+        assert.ok(new RegExp(`^import \\{[^}]*\\bsameSecret\\b[^}]*\\} from '\\./${shared.policy.replace('.', '\\.')}';$`, 'm').test(src), `${f} : sameSecret ne vient pas de ${shared.policy}`);
         continue;
       }
       const ex = OAUTH_RETURN[f];

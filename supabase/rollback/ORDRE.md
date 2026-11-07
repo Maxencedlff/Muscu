@@ -8,6 +8,7 @@ Les fichiers `*_down.sql` de ce dossier défont une migration de `supabase/migra
 
 | # | Retour arrière | Dépend de (à démonter avant) | Peut se lancer seul sur la pile complète |
 |---|---|---|---|
+| −7 | `20261107000000_photos_bilan_down.sql` (vider d'abord le compartiment `coach-photos` par l'API Storage : il refuse sinon ; il retire lui-même la tâche pg_cron `coach-photos-purge` et le secret Vault `photos_purge_secret` ; restent à la main `supabase functions delete coach-photos-purge` et `supabase secrets unset PHOTOS_PURGE_SECRET`) | rien | oui (vérifié) |
 | −6 | `20261106200000_plans_diete_coach_down.sql` | rien | oui (vérifié) |
 | −5 | `20261106100000_seance_publique_intensif_prise_down.sql` | rien | oui (vérifié) |
 | −4 | `20261106000000_coach_progression_down.sql` | rien | oui (vérifié) |
@@ -46,14 +47,21 @@ La production a reçu toutes les migrations de `main` (lot 3, notifications push
 8. `20261106000000_coach_progression.sql`
 9. `20261106100000_seance_publique_intensif_prise.sql` (séance vue par un ami ou un coach : techniques d'intensification et prise ; indépendante, peut aussi passer seule)
 10. `20261106200000_plans_diete_coach.sql` (après l'OTA qui demande l'accord de l'élève : sinon les coachs ne peuvent plus envoyer de plan diète tant que leurs élèves n'ont pas la version qui sait accepter ; et après les mensurations, dont il garde la donnée)
+11. `20261107000000_photos_bilan.sql` (photos de bilan chiffrées de bout en bout, docs/PHOTOS_BILAN.md : indépendante ; avant l'OTA, avec la fonction `coach-photos-purge` et sa planification)
 
 Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.md).
 
-**En deux temps : les neuf fichiers 1 à 9 AVANT l'OTA, le 10e (`20261106200000_plans_diete_coach.sql`) APRÈS l'OTA**, une fois la version qui sait demander l'accord des plans diète installée chez les élèves.
+**En deux temps : les neuf fichiers 1 à 9 AVANT l'OTA, le 10e (`20261106200000_plans_diete_coach.sql`) APRÈS l'OTA**, une fois la version qui sait demander l'accord des plans diète installée chez les élèves. Le 11e (photos de bilan) est indépendant : voir « Vague 2 » ci-dessous.
 
 Chaque fichier se colle dans l'éditeur SQL, dans cet ordre, l'un après l'autre. Pas de `supabase db push` : il refuse ces fichiers, plus anciens que la dernière migration appliquée ; et **jamais `supabase db push --include-all`**, qui pousserait d'un coup tout ce qui manque, le 10e fichier compris (et Strava), avant l'OTA.
 
-Pour défaire en production : l'ordre inverse de cette liste (10 → 1), avant tout retour arrière plus ancien.
+### Vague 2 (Social V2 + photos de bilan) : une seule migration
+
+Pour cette vague, **appliquer seulement `20261107000000_photos_bilan.sql`** (11e de la liste), avant l'OTA, avec la fonction `coach-photos-purge`, son secret et sa planification (docs/PHOTOS_BILAN.md). Elle ne s'appuie que sur des migrations déjà en production (coach du 27/10) : `tests/sql/prod_order_test.sh` (étape 6) la passe seule sur la production simulée, lance ses tests, puis son retour arrière, qui rend la base à l'identique.
+
+Les cinq migrations du payant (1 à 5 : modèle B, tarifs, payant plus, lettre d'information, parrainage du payant) **ne font pas partie de cette vague** : elles attendent l'accord de Maxence.
+
+Pour défaire en production : l'ordre inverse de cette liste (11 → 1), avant tout retour arrière plus ancien.
 
 ## Ce qui est mis de côté, pas effacé
 
@@ -79,6 +87,7 @@ bash tests/sql/rollback_lot3_check.sh     # lot 3 : démontage complet et chaque
 bash tests/sql/rollback_check.sh          # réactions, avec données
 bash tests/sql/rollback_social_check.sh   # commentaires et chat, avec données
 bash tests/sql/rollback_push_check.sh     # notifications push
+bash tests/sql/photos_bilan_rollback_test.sh   # photos de bilan : planification et secret de la purge retirés
 ```
 
 Postgres local jetable, rien n'est envoyé au projet Supabase.

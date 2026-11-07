@@ -41,7 +41,8 @@ do $$
 begin
   if (select value from public.app_config where key = 'paywall_on') is distinct from 'false'::jsonb then raise 'paywall_on livré allumé'; end if;
   -- Modèle B : l'essai est l'offre de lancement d'Apple, plus aucun réglage d'essai côté serveur
-  if (select array_agg(key order by key) from public.app_config) is distinct from array['min_build', 'paywall_on'] then raise 'clés de app_config : %', (select array_agg(key) from public.app_config); end if;
+  -- (coach_photos_on : interrupteur des photos de bilan, testé par photos_bilan_test.sql)
+  if (select array_agg(key order by key) from public.app_config where key <> 'coach_photos_on') is distinct from array['min_build', 'paywall_on'] then raise 'clés de app_config : %', (select array_agg(key) from public.app_config); end if;
   if (select value from public.app_config where key = 'min_build') is distinct from '0'::jsonb then raise 'min_build livré non nul'; end if;
   if exists (select 1 from information_schema.columns where table_name = 'entitlements' and column_name = 'trial_started_at') then raise 'trial_started_at encore là'; end if;
   if exists (select 1 from pg_proc where proname in ('access_trial_days', 'access_unproven_days')) then raise 'fonction d''essai maison restée'; end if;
@@ -981,7 +982,7 @@ set role authenticated;
 do $$ begin
   perform pg_temp.pqlogin('a');
   if pg_temp.perr($q$ update public.entitlement_claims set intro_offer = true $q$) not like 'permission denied%' then raise 'intro_offer modifiable'; end if;
-  if (select count(*) from public.app_config) is distinct from 2 then raise 'app_config pour authenticated'; end if;
+  if (select count(*) from public.app_config where key <> 'coach_photos_on') is distinct from 2 then raise 'app_config pour authenticated'; end if;
 end $$;
 reset role;
 

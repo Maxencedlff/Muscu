@@ -39,3 +39,8 @@ verify_jwt = false
 # Appelée par la planification (pg_cron + pg_net, docs/BUILD.md), jamais par l'app : pas de jeton de
 # session, un secret partagé PUSH_CRON_SECRET vérifié dans le code (en-tête x-push-secret)
 verify_jwt = false
+
+[functions.coach-photos-purge]
+# Appelée par la planification (pg_cron + pg_net, docs/PHOTOS_BILAN.md), jamais par l'app : pas de jeton de
+# session, un secret partagé PHOTOS_PURGE_SECRET vérifié dans le code (en-tête x-purge-secret)
+verify_jwt = false

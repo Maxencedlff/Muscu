@@ -68,8 +68,8 @@ function renderCoachShare() {
     emptyM ? 'Aucune mensuration pour l\'instant : ajoute-les dans Progrès › Mesures.' : '',
   ].filter(Boolean).join(' ')}</div>` : '';
   const sees = withM
-    ? `ce que tu coches, et seulement ça : la date et le poids de chaque pesée que tu saisis dans l'app (le volume de tes séances comptera alors ton poids du corps), la date et la valeur de chaque mensuration. Jamais tes photos, qui restent sur ton iPhone, ni tes données de Santé.`
-    : `${name} verra la date et le poids de chaque pesée que tu saisis dans l'app, et le volume de tes séances comptera ton poids du corps. Rien d'autre : ni mensurations, ni photos, ni données de Santé.`;
+    ? `ce que tu coches, et seulement ça : la date et le poids de chaque pesée que tu saisis dans l'app (le volume de tes séances comptera alors ton poids du corps), la date et la valeur de chaque mensuration. Tes photos restent dans ton coffre, sauf celles que tu envoies toi-même, une à une (Mon coach › Photos de bilan). Jamais tes données de Santé.`
+    : `${name} verra la date et le poids de chaque pesée que tu saisis dans l'app, et le volume de tes séances comptera ton poids du corps. Rien d'autre : ni mensurations, ni données de Santé ; tes photos seulement si tu les envoies toi-même.`;
   return view(`
         ${coachTitle(`Avec ${name}`)}
         <div class="group">${cells}
@@ -78,9 +78,10 @@ function renderCoachShare() {
         <div class="group-foot">Tout est décoché tant que tu ne le coches pas. ${withM
     ? `Tu peux arrêter à tout moment, donnée par donnée : ce que tu décoches est alors effacé du serveur et ${name} ne le voit plus, même ce qu'il avait déjà vu.`
     : `Tu peux arrêter à tout moment : tes pesées sont alors effacées du serveur et ${name} ne les voit plus, même celles qu'il avait déjà vues.`} Quitter ton coach arrête aussi le partage.</div>
-        ${hint}`);
+        ${hint}
+        ${cphMineCellHtml()}`);
 }
-SCREENS.set('coach-share', { render: () => renderCoachShare(), enter: () => { if (coach.state) coachShareRefresh(); else coachRefresh(); } });
+SCREENS.set('coach-share', { render: () => renderCoachShare(), enter: () => { if (coach.state) coachShareRefresh(); else coachRefresh(); cphRefresh({ minAge: 30_000 }); } });
 
 // ── Coach : pesées d'un élève sur sa fiche ──────────────────
 
@@ -151,7 +152,7 @@ function coachMeasuresGroupHtml(uid) {
         </div>`;
 }
 // Bilan de la fiche : poids du corps (courbe), puis mensurations
-function coachBilanHtml(uid, who) { return coachWeightGroupHtml(uid, who) + coachMeasuresGroupHtml(uid); }
+function coachBilanHtml(uid, who) { return coachWeightGroupHtml(uid, who) + coachMeasuresGroupHtml(uid) + cphCoachGroupHtml(uid); }
 
 // Série d'une mesure partagée, dans l'ordre chronologique
 function coachMeasureSeries(uid, key) { return (coachMeasuresOf(uid).measures[key] || []).slice().reverse(); }
