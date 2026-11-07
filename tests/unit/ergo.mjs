@@ -31,8 +31,15 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     sameJSON(run(`exerciseGoal('pull', ${ex})`), { text: '32,5 kg × 8', gain: '2,5 kg', before: '30 kg × 12', goal: { w: 32.5, r: 8 } },
       'sans bas réglé : 4 sous le haut de la fourchette, et les reps affichées');
     ex = seedRow([{ weight: '30', reps: '4' }, { weight: '30', reps: '4' }], { repMax: 4 });
-    assert.equal(run(`exerciseGoal('pull', ${ex}).goal.r`), 1, 'jamais moins d\'une rep');
+    assert.equal(run(`exerciseGoal('pull', ${ex}).goal.r`), 3, 'fourchette basse : jamais moins de 3 reps');
     assert.equal(run(`goalRepsAfterBump({ repMin: '' , repMax: 10 })`), 6, 'bas vide : 4 sous le haut');
+    // Panel du 06/11 : Squat à 5 reps au plus, bas vide → « 75 kg × 1 » ; désormais 3
+    ex = seedRow([{ weight: '72.5', reps: '5' }, { weight: '72.5', reps: '5' }], { repMax: 5 });
+    sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 75, r: 3 }, 'repMax 5, bas vide : 75 kg × 3, jamais × 1');
+    assert.equal(run(`goalRepsAfterBump({ repMin: '', repMax: 5 })`), 3);
+    assert.equal(run(`goalRepsAfterBump({ repMin: '', repMax: 2 })`), 2, 'haut sous 3 : le haut');
+    assert.equal(run(`goalRepsAfterBump({ repMin: '', repMax: 1 })`), 1);
+    assert.equal(run(`goalRepsAfterBump({ repMin: 4, repMax: 5 })`), 4, 'bas réglé : gardé');
     // Poids du corps : +1 rep, charge nulle
     ex = seedRow([{ weight: '', reps: '15' }]);
     sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 0, r: 16 });

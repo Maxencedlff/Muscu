@@ -31,10 +31,13 @@ function exerciseGoal(cat, ex, progKey = data.activeProgramme) {
 }
 
 // Reps à faire avec la charge augmentée : le bas de la fourchette s'il est réglé, sinon 4 sous le haut
-// (8 pour 12), jamais moins d'une : « atteint en 1 rep » ne serait pas un objectif
+// (8 pour 12), mais jamais moins de 3 (ou du haut s'il est plus bas) : « 75 kg × 1 » pour une fourchette
+// de force à 5 reps ne serait pas un objectif (panel du 06/11)
 function goalRepsAfterBump(ex) {
   const min = parseInt(ex.repMin);
-  return min > 0 ? min : Math.max(1, (parseInt(ex.repMax) || 12) - 4);
+  if (min > 0) return min;
+  const max = parseInt(ex.repMax) || 12;
+  return Math.max(Math.min(max, 3), max - 4);
 }
 
 function exerciseTarget(cat, ex) {
