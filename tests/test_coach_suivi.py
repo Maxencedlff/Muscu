@@ -414,6 +414,9 @@ def t_apercu_message(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         go(page, f"makeRoute('coach-student', '{ids['lea']}')", '.coach-student-view .chat-cell')
         page.wait_for_timeout(300)
+        # Poids non partagé (panel du 06/11) : le groupe le dit au lieu de disparaître, sans aucun chiffre
+        off = page.locator('.coach-weight-off')
+        R.check(off.count() == 1 and 'ne partage pas son poids' in off.inner_text() and 'Partager avec mon coach' in off.inner_text(), f'{t} fiche : poids non partagé, expliqué')
         last = page.locator('.chat-cell__last')
         R.check(last.text_content() == body, f'{t} fiche : aperçu tiré du dernier message ({last.text_content()!r})')
         lines = page.evaluate("""() => { const e = document.querySelector('.chat-cell__last'), cs = getComputedStyle(e);

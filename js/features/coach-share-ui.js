@@ -84,11 +84,17 @@ SCREENS.set('coach-share', { render: () => renderCoachShare(), enter: () => { if
 
 // ── Coach : pesées d'un élève sur sa fiche ──────────────────
 
-// Groupe « Poids du corps » de la fiche (vide si l'élève ne partage pas). Pose la courbe (chartState) ;
-// dessinée par drawCharts au montage de l'écran.
+// Groupe « Poids du corps » de la fiche. Pose la courbe (chartState) ; dessinée par drawCharts au montage
+// de l'écran. L'élève ne partage pas : le groupe le dit, sans aucun chiffre (avant : groupe absent, sans explication)
 function coachWeightGroupHtml(uid, who) {
   const f = coachWeightsOf(uid);
-  if (!f.shared) return '';
+  if (!f.shared) {
+    // Pas encore lu, ou lecture en échec (serveur sans la fonction, hors ligne) : rien, plutôt qu'un « ne partage pas » faux
+    if (!f.loadedAt || f.error) return '';
+    return `
+        <div class="group-title">Poids du corps</div>
+        <div class="group"><div class="cell coach-weight-off"><span class="cell__body"><span class="cell__sub">${who} ne partage pas son poids. Ce partage se règle de son côté, dans Réglages › Partager avec mon coach.</span></span></div></div>`;
+  }
   const unit = unitLbl();
   const since = f.since ? ` depuis le ${esc(fmtDate(f.since, 'short'))}` : '';
   const foot = `<div class="group-foot">${who} partage son poids avec toi et peut arrêter à tout moment : tout disparaît alors.${since ? ` Partagé${since}.`.replace('..', '.') : ''}</div>`;
