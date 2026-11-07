@@ -13,7 +13,9 @@
 }
 .view--grouped .cell.coach-row, .view--grouped .cell.coach-student-row { padding-top: 0; padding-bottom: 0; }
 .coach-student-row .social-row__main { padding: 10px 0; }
-.coach-student-row .cell__sub { overflow-wrap: anywhere; }
+/* Coupé entre deux mots, jamais en plein mot (« programm / e » sur iPhone SE, panel du 07/11) ; un mot plus long
+   que la ligne entière reste coupé */
+.coach-student-row .cell__sub { overflow-wrap: break-word; }
 /* Nombre de nouveautés : pastille rouge, comme le badge de l'onglet */
 .coach-count {
   flex-shrink: 0; min-width: 22px; height: 22px; padding: 0 7px; border-radius: var(--r-pill);

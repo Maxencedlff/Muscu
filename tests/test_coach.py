@@ -486,6 +486,15 @@ def t_coach(bench, eng, dev, theme):
         row = page.locator('.coach-student-row', has_text='lea')
         rt = row.inner_text()
         R.check('Haut · ton programme · hier' in rt, f'{t} dernière séance « Haut · ton programme · hier » ({rt!r})')
+        # Panel du 07/11 (iPhone SE) : « programm / e » coupé en plein mot ; chaque mot tient sur une ligne
+        broken = page.evaluate("""[...document.querySelectorAll('.coach-student-row .cell__sub')].flatMap(el => {
+            const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), out = [];
+            for (let n; (n = w.nextNode());) for (const m of n.textContent.matchAll(/\\S+/g)) {
+              const r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length);
+              const tops = new Set([...r.getClientRects()].map(x => Math.round(x.top)));
+              if (tops.size > 1) out.push(m[0]); }
+            return out; })""")
+        R.check(broken == [], f'{t} Mes élèves : aucun mot coupé en deux {broken}')
         R.check(row.locator('.progress-sig').count() == 1 and row.locator('.progress-sig').inner_text().strip() and ' '.join(row.locator('.coach-count').inner_text().split()) == '3 à voir', f'{t} signal de la semaine et nouvelles séances')
         # Panel du 06/11 : pastille rouge « 3 » sans sens à côté de la bulle des messages ; désormais haltère + nombre
         R.check(row.locator('.coach-count--sessions .icon').count() == 1 and 'nouvelles séances' in row.locator('.visually-hidden').first.text_content(), f'{t} pastille des séances : haltère, nombre et « à voir » écrit')
