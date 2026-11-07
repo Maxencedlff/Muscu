@@ -156,6 +156,14 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
     root._close = () => close(null); // retour système : vaut « Annuler »
     document.addEventListener('keydown', onKey);
     document.body.appendChild(root);
+    // Feuille plus haute que l'écran (menu ⋯ sur iPhone SE) : le bas des choix s'estompe tant qu'il en
+    // reste sous le pli, pour dire qu'on peut défiler (panel du 07/11 : dernier choix coupé sans indice)
+    const list = type === 'sheet' && root.querySelector('.ios-dialog__group');
+    if (list) {
+      const more = () => list.classList.toggle('ios-dialog__group--more', list.scrollHeight - list.scrollTop - list.clientHeight > 2);
+      list.addEventListener('scroll', more, { passive: true });
+      requestAnimationFrame(more);
+    }
     // Curseur en fin de texte, jamais de sélection automatique (iOS : un tap doit suffire, sans menu de sélection)
     if (field) setTimeout(() => { field.focus(); try { field.setSelectionRange(field.value.length, field.value.length); } catch { /* type number */ } }, 60);
   });

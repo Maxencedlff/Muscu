@@ -35,6 +35,11 @@
 .ios-dialog--sheet .ios-dialog__panel { max-height: calc(100% - env(safe-area-inset-top, 0px) - var(--sp-2)); }
 .ios-dialog--sheet .ios-dialog__group { flex-shrink: 0; }
 .ios-dialog--sheet .ios-dialog__group:first-child { flex-shrink: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+/* D'autres choix sous le pli (js/core/dialogs.js) : le bas s'estompe, comme une liste qui continue */
+.ios-dialog--sheet .ios-dialog__group--more {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), rgba(0, 0, 0, .15));
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), rgba(0, 0, 0, .15));
+}
 .ios-dialog__group {
   border-radius: 14px; overflow: hidden; background: var(--dlg-bg);
   backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%);

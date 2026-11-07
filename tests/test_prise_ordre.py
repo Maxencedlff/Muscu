@@ -183,7 +183,18 @@ def t_ordre(bench, eng, dev, theme):
         R.check(first == 'Faire maintenant', f'{t} menu : « {first} » en tête')
         top = page.evaluate("document.querySelector('.ios-dialog__btn').getBoundingClientRect().top")
         R.check(top >= 0, f'{t} menu : premier choix visible, pas coupé en haut ({top})')
+        # Panel du 07/11 (iPhone SE) : dernier choix coupé à mi-hauteur sans indice ; le bas s'estompe tant qu'il en reste
+        fade = page.evaluate("""(() => { const g = document.querySelector('.ios-dialog__group');
+            return [g.scrollHeight - g.clientHeight > 2, g.classList.contains('ios-dialog__group--more')]; })()""")
+        R.check(fade[0] == fade[1], f'{t} menu : bas estompé seulement s\'il reste des choix sous le pli {fade}')
         shot(page, LOT, f'{t}-7-ordre-menu')
+        if fade[0]:
+            page.evaluate("(g => { g.scrollTop = g.scrollHeight; })(document.querySelector('.ios-dialog__group'))"); page.wait_for_timeout(200)
+            end = page.evaluate("""(() => { const g = document.querySelector('.ios-dialog__group'), b = [...g.querySelectorAll('.ios-dialog__btn')].at(-1).getBoundingClientRect();
+                return [!g.classList.contains('ios-dialog__group--more'), b.bottom <= g.getBoundingClientRect().bottom + 1]; })()""")
+            R.check(end == [True, True], f'{t} menu : en bas, dernier choix entier et plus d\'estompe {end}')
+            shot(page, LOT, f'{t}-7b-ordre-menu-bas')
+            page.evaluate("(g => { g.scrollTop = 0; })(document.querySelector('.ios-dialog__group'))"); page.wait_for_timeout(150)
         tap_dialog(page, 'Faire maintenant')
         page.wait_for_timeout(400)
         R.check(names(page) == [start[3], start[0], start[1], start[2], start[4]], f'{t} maintenant : ordre {names(page)}')
