@@ -236,9 +236,8 @@ registerActions({
     }
     const name = await askText({ title: 'Nouveau plan', message: 'Quatre repas sont prêts à remplir ; tu pourras les renommer.', placeholder: 'Mon plan', confirm: 'Créer' });
     if (!name) return;
-    const id = dietNewPlan(data, name);
-    // Premier plan sans coach : il devient le plan suivi
-    if (!dietActivePlan(data)) data.dietActive = id;
+    // Premier plan : suivi d'office, sauf pour un coach (js/data/nutrition.js, dietNewPlan)
+    const id = dietNewPlan(data, name, { isCoach: coachRole().isCoach });
     save();
     haptic();
     navigate(makeRoute('diet-plan', id));

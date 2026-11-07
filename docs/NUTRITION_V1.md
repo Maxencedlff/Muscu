@@ -184,6 +184,8 @@ consentement explicite). Deux accords séparés, chacun daté et retirable :
   plans de ses élèves.
 - **Pas de sixième onglet** : iOS en montre cinq au plus sans « Plus », et les cinq sont pris. La nutrition
   suit le même découpage que l'entraînement : on prépare dans Programme, on fait dans Entraînement.
+- **Premier plan créé** : il devient le plan suivi, sauf pour un coach (il prépare là les plans de ses élèves,
+  qui ne s'affichent pas sur son accueil ; « Plan suivi » pour suivre le sien).
 - **Coach** : fiche d'un élève (Amis › Mes élèves) : « Envoyer un plan diète » et l'état de chaque envoi ;
   élève : carte de l'accueil, « Plans diète reçus » dans Mon coach.
 

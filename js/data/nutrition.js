@@ -309,11 +309,14 @@ function dietWeek(d, now = Date.now()) {
 
 // ── Plans : création, suivi, suppression ────────────────────
 
-function dietNewPlan(d, name = 'Mon plan') {
+// Plan neuf. Sans plan suivi, le premier créé le devient, sauf pour un coach (isCoach) : il prépare là les
+// plans de ses élèves, qui ne doivent pas s'afficher sur son propre accueil (« Plan suivi » pour le sien)
+function dietNewPlan(d, name = 'Mon plan', { isCoach = false } = {}) {
   let id;
   do { id = 'd_' + uid(); } while (d.dietPlans?.[id]);
   (d.dietPlans ||= {})[id] = { name: dietText(name, DIET_NAME_MAX) || 'Mon plan',
     meals: DIET_DEFAULT_MEALS.map(n => ({ id: uid(), name: n, items: [] })), updatedAt: Date.now() };
+  if (!isCoach && !dietActivePlan(d)) d.dietActive = id;
   return id;
 }
 // Création possible ? (plans vivants sous la limite : 20, ou 100 pour un coach)

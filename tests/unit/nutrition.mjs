@@ -361,6 +361,20 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run(`foodState('Polenta ou semoule de maïs, précuite, à cuire')`), 'cru');
   });
 
+  test('premier plan créé : suivi d\'office, sauf pour un coach (plans préparés pour ses élèves)', () => {
+    reset();
+    const id = run(`dietNewPlan(data, 'Ma prise de masse')`);
+    assert.equal(run('data.dietActive'), id, 'pratiquant : le premier plan est suivi');
+    const id2 = run(`dietNewPlan(data, 'Autre')`);
+    assert.equal(run('data.dietActive'), id, 'un plan déjà suivi reste suivi');
+    assert.ok(id2 !== id);
+    reset();
+    const c = run(`dietNewPlan(data, 'Sèche Léa', { isCoach: true })`);
+    assert.equal(run('data.dietActive'), undefined, 'coach : le plan de l\'élève n\'est pas suivi');
+    assert.equal(run(`dietActivePlan(data)`), null, 'rien sur l\'accueil du coach');
+    assert.ok(run(`!!data.dietPlans['${c}']`));
+  });
+
   test('plan neuf, repas vides : ni comptés, ni proposés comme prochain repas ; repère = prévu du jour, remplacements compris', () => {
     reset();
     loadDb();
