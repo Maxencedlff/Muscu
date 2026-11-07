@@ -53,11 +53,14 @@ def t_seance(bench, eng, dev, theme):
         seed(page, theme, ppl_v2_today_json())
         start(page, 'legs')   # Squat barre : 4 séries à 70 kg la dernière fois
 
-        # ── ⋯ › « Dernière série en drop set » : 2 touchers, sous-ligne à 80 % arrondie aux disques
+        # ── Menu ⋯ : une seule entrée pour les techniques (panel du 06/11 : « Dernière série en drop set » faisait doublon)
         page.click('.ex-card[data-ei="0"] [data-action="ex-menu"]'); page.wait_for_timeout(300)
         labels = page.locator('.ios-dialog__btn').all_inner_texts()
-        R.check('Dernière série en drop set' in labels and 'Technique d\'intensification…' in labels, f'{t} menu ⋯ : drop set et technique ({labels})')
-        tap_dialog(page, 'Dernière série en drop set')
+        R.check('Dernière série en drop set' not in labels and labels.count('Technique d\'intensification…') == 1, f'{t} menu ⋯ : une seule entrée technique ({labels})')
+        tap_dialog(page, 'Annuler'); page.wait_for_timeout(300)
+        # ── Numéro de la série 4 › Drop set : 2 touchers, sous-ligne à 80 % arrondie aux disques
+        page.click('[data-action="tech-set"][data-ei="0"][data-si="3"]'); page.wait_for_timeout(300)
+        tap_dialog(page, 'Drop set')
         s3 = page.evaluate("activeSession.exercises[0].sets[3]")
         R.check(s3.get('tech') == 'drop' and len(s3.get('sub', [])) == 1 and s3['sub'][0].get('auto') is True, f'{t} drop set posé sur la série 4 {s3.get("tech")}')
         sub_w = page.locator('[data-action="sub-weight"][data-ei="0"][data-si="3"][data-k="0"]')

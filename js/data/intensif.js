@@ -153,14 +153,12 @@ function applyIntensPlan(ex, plan) {
   for (const [s, t] of pairs) if (!s.done && !s.tech && applyTech(s, t)) n++;
   return n;
 }
-// Choix du menu ⋯ d'un exercice de la séance (js/features/session-sheets.js) : drop set sur la dernière série en un toucher, ou toute technique sur une série
+// Choix du menu ⋯ d'un exercice de la séance (js/features/session-sheets.js) : une seule entrée, toute technique
+// sur une série. « Dernière série en drop set » faisait doublon (panel du 06/11 : une action, un sens) ; le chemin
+// court reste le numéro de la série (2 touchers)
 function techMenuActions(ex) {
   if (!canTech(ex)) return [];
-  const last = workSets(ex.sets).at(-1);
-  return [
-    ...(last && setTech(last) !== 'drop' ? [{ label: 'Dernière série en drop set', value: 'tech-drop-last' }] : []),
-    { label: 'Technique d\'intensification…', value: 'tech-pick' },
-  ];
+  return [{ label: 'Technique d\'intensification…', value: 'tech-pick' }];
 }
 // Après la validation de la série s : secondes de pause avant sa première sous-série (0 : enchaîner
 // sans repos), ou null s'il n'y a pas de sous-série à faire (repos habituel)

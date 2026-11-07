@@ -115,8 +115,8 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(run(`cleanIntens('drop-last')`), 'drop-last');
     assert.equal(run(`cleanIntens('toString')`), null);
     assert.equal(run(`intensLabel('topback')`), '1re série top set, puis back-off');
-    // Menu ⋯ : drop set de la dernière série, sauf si elle en a déjà un ; rien en cardio
-    sameJSON(run(`techMenuActions(${S(ex(2))}).map(a => a.value)`), ['tech-drop-last', 'tech-pick']);
+    // Menu ⋯ : une seule entrée (« Dernière série en drop set » faisait doublon) ; rien en cardio
+    sameJSON(run(`techMenuActions(${S(ex(2))}).map(a => a.value)`), ['tech-pick']);
     const dl = ex(2); dl.sets[1].tech = 'drop';
     sameJSON(run(`techMenuActions(${S(dl)}).map(a => a.value)`), ['tech-pick']);
     sameJSON(run(`techMenuActions({ name: 'Course', measure: 'cardio', sets: [] })`), []);

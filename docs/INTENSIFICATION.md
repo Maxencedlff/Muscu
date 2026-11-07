@@ -61,7 +61,7 @@ Aucune n'a cluster, top set ni back-off : ce sont pourtant les mots des coachs, 
 ## En séance
 
 - **Poser** : toucher le numéro d'une série à faire (ou rouverte) ouvre la feuille des cinq techniques (2 touchers,
-  comme Hevy). Un petit point sous le numéro l'indique, discret, en clair comme en sombre. Menu ⋯ : « Dernière série en drop set » (2 touchers) et « Technique d'intensification… » (choix
+  comme Hevy). Un petit point sous le numéro l'indique, discret, en clair comme en sombre. Menu ⋯ : « Technique d'intensification… » seul (choix
   de la série) : c'est le chemin pour une série déjà validée et pour la série en cours d'un exercice à barre, au
   tempo ou en superset, où le numéro laisse la place à Disques, ▶ ou A1. Le guide le dit ainsi. Retirer : × du titre, ou « Retirer la technique » ; « Annuler » dans le toast.
 - **Sous-ligne** : remplie comme une série. Charge pré-remplie : drop set 80 % de la série d'avant (ou du drop

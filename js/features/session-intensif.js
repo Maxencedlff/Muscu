@@ -95,7 +95,6 @@ async function techMenuChoice(ei, choice) {
   if (!ex) return;
   const idx = ex.sets.map((s, i) => i).filter(i => !isWarmupSet(ex.sets[i]));
   if (!idx.length) return;
-  if (choice === 'tech-drop-last') { setTechOn(ei, idx.at(-1), 'drop'); return; }
   const kind = loadKind(ex);
   const si = idx.length === 1 ? idx[0] : await dialog({ type: 'sheet', title: 'Sur quelle série ?', actions: [
     ...idx.map(i => { const s = ex.sets[i], t = setTech(s); return { label: `${setSpokenName(ex, i)}${s.reps !== '' || hasLoad(s.weight) ? ` · ${measureSetTxt(s, 'reps', kind)}` : ''}${t ? ` · ${TECHS[t].label}` : ''}`, value: i }; }),

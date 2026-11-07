@@ -468,7 +468,7 @@ async function exerciseMenu(ei) {
     openAddExSheet({ replaceEi: ei });
   } else if (choice === 'warmup') {
     openWarmupSheet(ei);
-  } else if (choice === 'tech-drop-last' || choice === 'tech-pick') {
+  } else if (choice === 'tech-pick') {
     await techMenuChoice(ei, choice);
     return;
   } else if (choice === 'plates') {

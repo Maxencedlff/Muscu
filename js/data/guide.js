@@ -144,7 +144,7 @@ const GUIDE_SECTIONS = [
         lead: 'Une série peut porter une technique d\'intensification, notée sur une petite ligne en dessous.',
         steps: [
           'Touche le numéro d\'une série (un point dessous l\'indique), ou ··· › [Technique d\'intensification…] pour la série en cours d\'un exercice à barre, au tempo ou en superset.',
-          '··· › [Dernière série en drop set] le pose en un toucher. Drop set, rest-pause et cluster ajoutent une ligne sous la série, à valider comme elle.',
+          'Drop set, rest-pause et cluster ajoutent une ligne sous la série, à valider comme elle.',
           'Top set (ta série la plus lourde) et back-off (une série allégée après) marquent la série, sans ligne en plus.',
           'Les lignes du dessous comptent dans le volume, jamais dans les records.',
           'Pour la poser à chaque séance : [Technique] dans la fiche de l\'exercice du programme.',
