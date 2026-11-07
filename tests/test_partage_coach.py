@@ -254,7 +254,7 @@ def t_coach(bench, eng, dev, theme):
         page.evaluate(f"navigate(makeRoute('coach-student', '{ids['tom']}'))")
         page.wait_for_selector('.coach-student-view .coach-sess')
         page.wait_for_timeout(400)
-        R.check('poids du corps' not in page.inner_text('.coach-student-view').lower() and page.locator('#exChart').count() == 0, f'{t} élève sans partage : pas de courbe')
+        R.check('ne partage pas son poids' in page.inner_text('.coach-student-view') and page.locator('#exChart').count() == 0 and page.locator('.coach-weight-off').count() == 1, f'{t} élève sans partage : pas de courbe (groupe expliqué, aucun chiffre)')
         page.locator('.coach-sess').first.click()
         page.wait_for_selector('.coach-session-view')
         st = page.inner_text('.coach-session-view')
@@ -264,7 +264,7 @@ def t_coach(bench, eng, dev, theme):
         page.evaluate(f"navigate(makeRoute('coach-student', '{ids['lea']}'))")
         page.wait_for_selector('.coach-student-view .coach-sess')
         page.wait_for_timeout(500)
-        R.check('poids du corps' not in page.inner_text('.coach-student-view').lower() and page.locator('#exChart').count() == 0, f'{t} partage coupé : courbe partie')
+        R.check('ne partage pas son poids' in page.inner_text('.coach-student-view') and page.locator('#exChart').count() == 0 and page.locator('.coach-weight-off').count() == 1, f'{t} partage coupé : courbe partie (groupe expliqué, aucun chiffre)')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
