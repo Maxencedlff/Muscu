@@ -919,8 +919,11 @@ def p_coach_suivi(r):
         r.defiler('[data-action="coach-send-diet"]', 'Envoyer un plan diète')
         r.toucher('[data-action="coach-send-diet"]', 'Envoyer un plan diète')
         r.attendre('.ios-dialog__btn', 'liste des plans')
-    with r.etape('diete-envoyee', 'Plan diète envoyé : « Pas encore ouvert »', cle=cle):
+    with r.etape('diete-relecture', 'Plan diète : relecture avant l\'envoi', cle=cle):
         r.choisir('Sèche Léa')
+        r.attendre('.ios-dialog--alert', 'relecture du plan')
+    with r.etape('diete-envoyee', 'Plan diète envoyé : « Pas encore ouvert »', cle=cle):
+        r.choisir('Envoyer')
         r.defiler('.coach-sent[data-diet]', 'plan envoyé')
 
 
