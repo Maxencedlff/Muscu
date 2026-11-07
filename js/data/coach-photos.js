@@ -18,6 +18,8 @@
 //  - Code de la clé (empreinte de 64 bits de la clé publique) : montré au coach et à l'élève, pour vérifier
 //    ensemble, s'ils le veulent, que le serveur n'a pas glissé une autre clé (docs/PHOTOS_BILAN.md, « Limites »).
 //  - Serveur pas à jour (PGRST202) : missing, rien ne s'affiche.
+//  - Interrupteur du serveur (app_config.coach_photos_on à false, docs/PHOTOS_BILAN.md) : sans nouvelle build, plus
+//    d'envoi proposé à l'élève (il voit et retire ce qui est parti) et rien côté coach (disabled, comme missing).
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -202,7 +204,8 @@ function cleanStudentPhotos(raw) {
   const photos = (Array.isArray(r.photos) ? r.photos : []).slice(0, 100)
     .filter(p => p && CPH_ID_RE.test(p.id) && CPH_DAY_RE.test(p.taken_on) && cphPose(p.pose))
     .map(p => ({ id: p.id, takenOn: p.taken_on, pose: p.pose, bytes: Number.isInteger(p.bytes) ? p.bytes : 0, sentAt: coachTime(p.sent_at) }));
-  return { coach: r.coach === true, ready: r.ready === true && !!key, adult: r.adult === true, key, photos };
+  // enabled : seul un false explicite du serveur éteint (le serveur refuse de toute façon : disabled)
+  return { coach: r.coach === true, enabled: r.enabled !== false, ready: r.ready === true && !!key, adult: r.adult === true, key, photos };
 }
 // coach_student_photos() → [{ id, path, takenOn, pose, epk, iv, keyId, bytes, sentAt }] (chemin vérifié : élève/id)
 function cleanCoachPhotos(raw, student) {
@@ -292,8 +295,10 @@ async function cphDeclareAdult() {
 
 // Photos connues : compte, coach, serveur à jour (sert aussi à voir et retirer ce qui est déjà parti)
 function cphStudentListed() { return !!(account.user && coachRole().hasCoach && cph.state && !cph.missing); }
-// Envoi proposé : en plus, tranche d'âge d'Apple qui ne l'interdit pas
-function cphStudentShown() { return cphStudentListed() && !cphAgeBlocked(); }
+// Photos éteintes par l'interrupteur du serveur (app_config.coach_photos_on)
+function cphDisabled() { return cph.state?.enabled === false; }
+// Envoi proposé : en plus, photos allumées et tranche d'âge d'Apple qui ne l'interdit pas
+function cphStudentShown() { return cphStudentListed() && !cphDisabled() && !cphAgeBlocked(); }
 
 async function cphRefresh({ minAge = 0, now = Date.now() } = {}) {
   if (!account.user || !coachRole().hasCoach) { cph.state = null; return false; }
@@ -336,6 +341,7 @@ async function cphSend(photos) {
     await cphRefresh();
     const st = cph.state, coachId = myCoach()?.user_id, me = account.user?.id;
     if (seq !== cphSeq) return { ok: false, kind: 'signed_out', sent };
+    if (st && st.enabled === false) return { ok: false, kind: 'disabled', sent };
     if (!st || !st.ready || !coachId || !me) return { ok: false, kind: cph.error || 'not_ready', sent };
     if (!st.adult || cphAgeBlocked()) return { ok: false, kind: 'not_adult', sent };
     if (cphKeyChanged()) return { ok: false, kind: 'key_changed', sent };   // l'élève doit d'abord accepter la nouvelle clé
@@ -449,7 +455,8 @@ async function cphCoachRefresh({ now = Date.now() } = {}) {
   const r = await coachRpc('coach_photo_key');
   if (seq !== cphSeq) return false;
   cphCoach.loading = false;
-  if (!r.ok) { cphCoach.error = r.kind; cphCoach.missing = r.kind === 'missing'; notifyCoach(); return false; }
+  // Photos éteintes (disabled) : comme un serveur sans la fonction, rien ne s'affiche (nouvel essai après 10 min)
+  if (!r.ok) { cphCoach.error = r.kind; cphCoach.missing = r.kind === 'missing' || r.kind === 'disabled'; if (cphCoach.missing) cphLock('disabled'); notifyCoach(); return false; }
   const key = cleanCphKey(r.data);
   const s = cphCoach.session;
   if (s && !cphSameKey(key, { key_id: s.keyId, public_key: s.pub })) cphLock('key');

@@ -330,4 +330,40 @@ export default function ({ test, run, assert, app, sameJSON }) {
     assert.equal(r.vaultKept, true, 'le secret du coffre reste');
     sameJSON(r.forgot, [r.firstId], 'clé créée sur cet appareil puis remplacée : son secret effacé');
   });
+  // ── Interrupteur du serveur (app_config.coach_photos_on, docs/PHOTOS_BILAN.md « Désactiver sans nouvelle build ») ──
+
+  test('photos de bilan : interrupteur du serveur éteint → élève sans envoi (il retire encore), coach sans rien', async () => {
+    assert.equal(plain(app.cleanStudentPhotos({ coach: true, ready: true })).enabled, true, 'champ absent : allumé (le serveur refuse de toute façon)');
+    assert.equal(plain(app.cleanStudentPhotos({ coach: true, enabled: false })).enabled, false, 'false explicite : éteint');
+    assert.equal(app.coachErrorKind({ message: 'disabled' }), 'disabled');
+    const r = await run(`(async () => {
+      const user = account.user, sbSaved = sb, calls = [];
+      try {
+        account.user = { id: 'u-eleve' }; cph.userId = 'u-eleve'; cph.busy = false; cph.loading = false; cph.missing = false;
+        coach.state = { coach: { user_id: 'u-coach' }, students: [], is_coach: false };
+        vaultSetOpen({});
+        const photo = { id: '0d9c3f0e-6a52-4bfb-9a51-6b1f6d9e2a10', taken_on: '2026-11-05', pose: 'face', bytes: 900 };
+        sb = { rpc: async fn => { calls.push(fn);
+          if (fn === 'student_photo_state') return { data: { coach: true, enabled: false, ready: true, adult: true, key: null, photos: [photo] }, error: null };
+          return { data: null, error: null }; } };
+        await cphRefresh();
+        const student = { shown: cphStudentShown(), listed: cphStudentListed(), photos: cph.state.photos.length,
+          send: (await cphSend([{ id: 'p', date: new Date(2026, 10, 5, 9).getTime(), pose: 'face' }])).kind,
+          removed: (await cphRemove(photo.id)).ok };
+        vaultLock('test');
+        // Coach : le serveur répond disabled → rien ne s'affiche, comme un serveur sans la fonction
+        cphReset('u-coach'); account.user = { id: 'u-coach' }; coach.state = { coach: null, students: [], is_coach: true };
+        const saved = cphCoachAvailable; cphCoachAvailable = () => true;
+        sb = { rpc: async fn => { calls.push(fn); return { data: null, error: { message: 'disabled', code: 'P0001' } }; } };
+        await cphCoachRefresh();
+        const coachSide = { shown: cphCoachShown(), missing: cphCoach.missing };
+        cphCoachAvailable = saved;
+        return { student, coachSide, calls };
+      } finally { account.user = user; sb = sbSaved; coach.state = null; cph.state = null; cph.busy = false; cphReset(null); localStorage.clear(); }
+    })()`);
+    sameJSON(r.student, { shown: false, listed: true, photos: 1, send: 'disabled', removed: true }, 'élève : pas d\'envoi proposé ni tenté, ses photos visibles et retirables');
+    assert.ok(!r.calls.includes('student_photo_prepare'), 'aucune préparation envoyée au serveur');
+    assert.ok(r.calls.includes('student_photo_remove'), 'retrait permis');
+    sameJSON(r.coachSide, { shown: false, missing: true }, 'coach : rien d\'affiché');
+  });
 }

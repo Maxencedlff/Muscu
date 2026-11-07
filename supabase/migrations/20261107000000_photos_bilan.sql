@@ -41,6 +41,11 @@
 --  « coach_photo »), 10 changements de clé par 24 h ; fichier de 1 Mo au plus (compartiment et commit) ;
 --  photo préparée non envoyée dans l'heure : effacée par la purge. Retirer une photo n'est jamais limité.
 --
+--  Interrupteur : public.app_config « coach_photos_on » (true à l'installation). Mis à false par l'administrateur
+--  (éditeur SQL, docs/PHOTOS_BILAN.md « Désactiver sans nouvelle build ») : l'app n'affiche plus rien de neuf
+--  (élève : ni envoi ni déclaration ; coach : rien), le serveur refuse clé, préparation, validation et lecture
+--  par le coach (disabled) ; l'élève peut encore voir et retirer ce qui est déjà parti, et la purge continue.
+--
 --  Réversible : supabase/rollback/20261107000000_photos_bilan_down.sql (compartiment vidé d'abord par l'API).
 -- ═══════════════════════════════════════════════════════════
 
@@ -105,7 +110,15 @@ revoke all on public.coach_photo_keys, public.coach_photo_adults, public.coach_p
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
   values ('coach-photos', 'coach-photos', false, 1048576, array['application/octet-stream']);
 
+-- Interrupteur lu par l'app (student_photo_state.enabled) et par chaque fonction : true à l'installation
+insert into public.app_config (key, value) values ('coach_photos_on', 'true'::jsonb) on conflict (key) do nothing;
+
 -- ── Briques privées ──────────────────────────────────────
+
+-- Photos de bilan allumées ? Seulement si app_config.coach_photos_on vaut true (absent ou autre valeur : éteint)
+create function private.coach_photos_on() returns boolean
+  language sql stable set search_path = '' as
+$$ select coalesce((select c.value = 'true'::jsonb from public.app_config c where c.key = 'coach_photos_on'), false) $$;
 
 -- Chemin du fichier d'une photo
 create function private.coach_photo_path(student uuid, photo uuid) returns text
@@ -147,11 +160,12 @@ create function coach_photo_rls.can_upload(object_name text) returns boolean
 $$
   select exists (select 1 from public.coach_photos p
                  where p.student_id = (select auth.uid()) and p.state = 'pending'
-                   and p.created_at > now() - interval '1 hour'
+                   and p.created_at > now() - interval '1 hour' and private.coach_photos_on()
                    and private.coach_photo_path(p.student_id, p.id) = object_name)
 $$;
 
--- Lecture du fichier : mon propre dossier (élève), ou une photo prête qui m'est destinée, encore coach
+-- Lecture du fichier : mon propre dossier (élève, même éteint : retirer demande SELECT), ou une photo prête qui
+-- m'est destinée, encore coach, photos allumées
 create function coach_photo_rls.can_read(object_name text) returns boolean
   language sql stable security definer set search_path = '' as
 $$
@@ -160,7 +174,7 @@ $$
     or exists (select 1 from public.coach_photos p
                where p.coach_id = (select auth.uid()) and p.state = 'ready'
                  and private.coach_photo_path(p.student_id, p.id) = object_name
-                 and private.is_coach(p.coach_id)))
+                 and private.is_coach(p.coach_id) and private.coach_photos_on()))
 $$;
 
 revoke all on function coach_photo_rls.can_upload(text), coach_photo_rls.can_read(text) from public, anon, authenticated, service_role;
@@ -178,12 +192,14 @@ create policy coach_photos_delete on storage.objects for delete to authenticated
 -- ── Fonctions RPC (authenticated seulement) ──────────────
 
 -- Coach : ma clé ({ key_id, public_key, wrapped_key, wrap_iv, created_at }) ou null. Pas coach : not_coach.
+-- Photos éteintes : disabled (l'app n'affiche alors rien).
 create function public.coach_photo_key() returns jsonb
   language plpgsql stable security definer set search_path = '' as
 $$
 declare me uuid := (select auth.uid());
 begin
   if me is null or not private.is_coach(me) then raise exception 'not_coach' using errcode = 'P0001'; end if;
+  if not private.coach_photos_on() then raise exception 'disabled' using errcode = 'P0001'; end if;
   return (select jsonb_build_object('key_id', k.key_id, 'public_key', k.public_key, 'wrapped_key', k.wrapped_key,
                                     'wrap_iv', k.wrap_iv, 'created_at', k.created_at)
           from public.coach_photo_keys k where k.coach_id = me);
@@ -192,7 +208,7 @@ $$;
 
 -- Coach : publier ma clé. Déjà une clé et replace faux : key_exists (deux appareils en même temps : le second
 -- relit celle du premier). replace vrai : l'ancienne est effacée, avec toutes les photos chiffrées pour elle.
--- Forme mauvaise : invalid_key ; 10 par 24 h (rate_limited).
+-- Forme mauvaise : invalid_key ; 10 par 24 h (rate_limited) ; photos éteintes : disabled.
 create function public.coach_photo_key_set(key_id text, public_key text, wrapped_key text, wrap_iv text, replace boolean)
   returns jsonb
   language plpgsql security definer set search_path = '' as
@@ -200,6 +216,7 @@ $$
 declare me uuid := (select auth.uid());
 begin
   if me is null or not private.is_coach(me) then raise exception 'not_coach' using errcode = 'P0001'; end if;
+  if not private.coach_photos_on() then raise exception 'disabled' using errcode = 'P0001'; end if;
   if key_id is null or key_id !~ '^[0-9a-f]{32}$'
      or public_key is null or public_key !~ '^B[A-P][A-Za-z0-9+/]{84}[AEIMQUYcgkosw048]=$'
      or wrapped_key is null or wrapped_key !~ '^[A-Za-z0-9+/]+={0,2}$' or char_length(wrapped_key) not between 40 and 400
@@ -223,7 +240,8 @@ $$;
 
 -- Élève : où en sont mes photos chez mon coach actuel. { coach, ready, key: { key_id, public_key } | null,
 -- photos: [{ id, taken_on, pose, bytes, sent_at }] (prêtes, de la plus récente), per_day, max }.
--- ready : mon coach est coach et a une clé (sinon rien ne peut partir).
+-- ready : mon coach est coach et a une clé (sinon rien ne peut partir). enabled : interrupteur
+-- app_config.coach_photos_on (faux : l'app ne propose plus d'envoi, l'élève voit et retire ce qui est parti).
 create function public.student_photo_state() returns jsonb
   language sql stable security definer set search_path = '' as
 $$
@@ -233,6 +251,7 @@ $$
         where private.is_coach(l.coach_id))
   select jsonb_build_object(
     'coach', exists (select 1 from l),
+    'enabled', private.coach_photos_on(),
     'ready', exists (select 1 from k),
     'adult', exists (select 1 from me join public.coach_photo_adults a on a.user_id = me.id),
     'key', (select jsonb_build_object('key_id', k.key_id, 'public_key', k.public_key) from k),
@@ -248,7 +267,8 @@ $$;
 -- est tiré par l'app (il entre dans les données authentifiées du chiffrement). Renvoie { id, path } : le fichier
 -- chiffré va ensuite à coach-photos/<path>, puis student_photo_commit.
 -- Erreurs : not_found (pas de coach), not_ready (coach sans clé, ou plus coach), key_changed (clé du coach
--- changée depuis la lecture : relire l'état), invalid_photo, too_many (3 par jour, 60 en tout), rate_limited.
+-- changée depuis la lecture : relire l'état), invalid_photo, too_many (3 par jour, 60 en tout), rate_limited,
+-- disabled (photos éteintes).
 create function public.student_photo_prepare(photo uuid, key_id text, taken_on date, pose text, epk text, iv text)
   returns jsonb
   language plpgsql security definer set search_path = '' as
@@ -259,6 +279,7 @@ declare
   current_key text;
 begin
   if me is null then raise exception 'not_found' using errcode = 'P0001'; end if;
+  if not private.coach_photos_on() then raise exception 'disabled' using errcode = 'P0001'; end if;
   select l.coach_id into coach from public.coach_links l where l.student_id = me;
   if coach is null then raise exception 'not_found' using errcode = 'P0001'; end if;
   select k.key_id into current_key from public.coach_photo_keys k where k.coach_id = coach;
@@ -290,7 +311,7 @@ $$;
 
 -- Élève : fichier envoyé, la photo devient visible du coach. Le fichier doit être là, au bon chemin, de 1 Mo
 -- au plus. Préparation inconnue, d'un autre ou expirée : not_found ; fichier absent ou trop gros : not_uploaded.
--- Déjà prête : renvoie la même chose (nouvel essai après une coupure).
+-- Déjà prête : renvoie la même chose (nouvel essai après une coupure). Photos éteintes : disabled.
 create function public.student_photo_commit(photo uuid) returns jsonb
   language plpgsql security definer set search_path = '' as
 $$
@@ -305,6 +326,7 @@ begin
     return jsonb_build_object('id', p.id, 'taken_on', p.taken_on, 'pose', p.pose, 'bytes', p.bytes, 'sent_at', p.sent_at);
   end if;
   if p.created_at <= now() - interval '1 hour' then raise exception 'not_found' using errcode = 'P0001'; end if;
+  if not private.coach_photos_on() then raise exception 'disabled' using errcode = 'P0001'; end if;
   select (o.metadata ->> 'size')::bigint into size from storage.objects o
     where o.bucket_id = 'coach-photos' and o.name = private.coach_photo_path(me, photo);
   if size is null or size < 32 or size > 1048576 then raise exception 'not_uploaded' using errcode = 'P0001'; end if;
@@ -346,12 +368,14 @@ $$;
 
 -- Coach : photos prêtes d'un de mes élèves, chiffrées pour ma clé actuelle. { photos: [{ id, path, taken_on,
 -- pose, epk, iv, key_id, bytes, sent_at }] } de la plus récente. Pas mon élève, ou plus coach : not_found.
+-- Photos éteintes : disabled.
 create function public.coach_student_photos(student uuid) returns jsonb
   language plpgsql stable security definer set search_path = '' as
 $$
 declare me uuid := (select auth.uid());
 begin
   perform private.coach_require_student(me, student);
+  if not private.coach_photos_on() then raise exception 'disabled' using errcode = 'P0001'; end if;
   return jsonb_build_object('photos', coalesce((
     select jsonb_agg(jsonb_build_object('id', p.id, 'path', private.coach_photo_path(p.student_id, p.id),
                                         'taken_on', p.taken_on, 'pose', p.pose, 'epk', p.epk, 'iv', p.iv,
@@ -401,6 +425,7 @@ $$;
 revoke all on function private.coach_photo_path(uuid, uuid) from public, anon, authenticated, service_role;
 revoke all on function private.coach_photo_trashed() from public, anon, authenticated, service_role;
 revoke all on function private.b64_bytes(text) from public, anon, authenticated, service_role;
+revoke all on function private.coach_photos_on() from public, anon, authenticated, service_role;
 
 revoke all on function public.coach_photo_key() from public, anon, authenticated;
 revoke all on function public.coach_photo_key_set(text, text, text, text, boolean) from public, anon, authenticated;

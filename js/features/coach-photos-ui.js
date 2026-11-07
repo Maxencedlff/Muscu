@@ -166,7 +166,8 @@ function renderCphMine() {
               <span class="cell__sub">${p.sentAt ? `Envoyée le ${esc(fmtDate(p.sentAt, 'short'))}` : 'Envoyée'}${cphSize(p.bytes) ? ` · ${esc(cphSize(p.bytes))}` : ''}</span></span>
             <button class="cph-remove" data-action="cph-remove" data-id="${esc(p.id)}" aria-label="Retirer la photo ${esc(cphPoseDay(p))}">Retirer</button>
           </div>`).join('')).join('');
-  const send = cphAgeBlocked() ? `<div class="group"><div class="cell"><span class="cell__body"><span class="cell__sub">Les photos de bilan sont réservées aux 18 ans et plus. Tu peux retirer celles qui sont déjà parties.</span></span></div></div>`
+  const send = cphDisabled() ? `<div class="group"><div class="cell"><span class="cell__body"><span class="cell__sub">L'envoi de photos de bilan est suspendu pour l'instant. Tu peux retirer celles qui sont déjà parties.</span></span></div></div>`
+    : cphAgeBlocked() ? `<div class="group"><div class="cell"><span class="cell__body"><span class="cell__sub">Les photos de bilan sont réservées aux 18 ans et plus. Tu peux retirer celles qui sont déjà parties.</span></span></div></div>`
     : st.ready ? `
         <div class="group">
           <button class="cell cell--action" data-action="go-photo-vault">${icon('lock', 20)}<span>Envoyer depuis mon coffre</span></button>
@@ -178,7 +179,7 @@ function renderCphMine() {
         ${send}
         <div class="group-title">Envoyées</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub">Aucune photo envoyée.</span></div>'}</div>
-        <div class="group-foot">${name} voit seulement les photos que tu envoies, avec leur jour et leur pose. Chiffrées sur ton iPhone pour lui seul : ni nous ni l'hébergeur ne pouvons lire celles qui sont stockées. Envoyées sans la localisation ni aucune autre donnée de la photo.${st.ready && !cphAgeBlocked() ? cphCodeFoot(cph.code) : ''}</div>
+        <div class="group-foot">${name} voit seulement les photos que tu envoies, avec leur jour et leur pose. Chiffrées sur ton iPhone pour lui seul : ni nous ni l'hébergeur ne pouvons lire celles qui sont stockées. Envoyées sans la localisation ni aucune autre donnée de la photo.${st.ready && cphStudentShown() ? cphCodeFoot(cph.code) : ''}</div>
         <div class="group-foot">Retire une photo quand tu veux : elle est effacée du serveur et ${name} ne la voit plus. Quitter ton coach ou supprimer ton compte les efface toutes. Ce qu'il aurait déjà vu ou copié, on ne peut pas l'effacer de sa mémoire : n'envoie que ce que tu acceptes de lui montrer.</div>`);
 }
 SCREENS.set('coach-photos-mine', { render: () => renderCphMine(), enter: () => { cphRefresh(); } });

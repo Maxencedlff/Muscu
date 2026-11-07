@@ -17,7 +17,7 @@
 --  coach-photos-purge) et son secret d'environnement (supabase secrets unset PHOTOS_PURGE_SECRET).
 --
 --  Effet : les photos envoyées (public.coach_photos, ce qui sert à les déchiffrer), les clés des coachs
---  (public.coach_photo_keys), les déclarations « 18 ans ou plus » (public.coach_photo_adults) et la file de purge sont SUPPRIMÉES ; le compartiment vide, ses trois politiques
+--  (public.coach_photo_keys), les déclarations « 18 ans ou plus » (public.coach_photo_adults) et la file de purge sont SUPPRIMÉES, avec l'interrupteur app_config « coach_photos_on » ; le compartiment vide, ses trois politiques
 --  et le schéma coach_photo_rls aussi. Les lignes « coach_photo » et « coach_photo_key » du journal
 --  private.social_rate sont retirées. Les secrets des coachs restent dans leur trousseau iCloud (32 octets
 --  chacun, inutilisables sans la clé chiffrée, qui est effacée ici).
@@ -79,6 +79,8 @@ drop table private.coach_photo_trash;
 drop function private.coach_photo_trashed();
 drop function private.coach_photo_path(uuid, uuid);
 drop function private.b64_bytes(text);
+drop function private.coach_photos_on();
+delete from public.app_config c where c.key = 'coach_photos_on';
 
 -- Compartiment vide (vérifié plus haut) : rien ne peut rester orphelin, le verrou de Supabase est levé pour
 -- cette seule transaction

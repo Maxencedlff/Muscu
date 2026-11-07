@@ -397,6 +397,59 @@ do $$ begin
   if not exists (select 1 from private.coach_photo_trash t where t.path = pg_temp.pu('u')::text || '/' || pg_temp.pid('u', 1)::text) then raise 'compte supprimé : fichier pas en file'; end if;
 end $$;
 
+-- ── Interrupteur app_config.coach_photos_on (docs/PHOTOS_BILAN.md « Désactiver sans nouvelle build ») ──
+delete from private.social_rate r where r.action = 'coach_photo';
+do $$ begin
+  if (select c.value from public.app_config c where c.key = 'coach_photos_on') is distinct from 'true'::jsonb then raise 'interrupteur : pas allumé à l''installation'; end if;
+end $$;
+-- S envoie une photo, photos allumées
+create temp table cph_switch as select k.key_id from public.coach_photo_keys k where k.coach_id = pg_temp.pu('k');
+grant select on cph_switch to authenticated;
+set role authenticated;
+do $$
+declare kid text := (select key_id from cph_switch); path text;
+begin
+  perform pg_temp.plogin('s');
+  if (public.student_photo_state() ->> 'enabled')::boolean is not true then raise 'interrupteur : enabled faux allumé'; end if;
+  path := pg_temp.prep('s', 50, date '2026-10-01', 'face', kid);
+  if path not like '%/%' then raise 'interrupteur : S prépare (%)', path; end if;
+  if pg_temp.upload(path) <> 'ok' then raise 'interrupteur : S envoie'; end if;
+  perform public.student_photo_commit(pg_temp.pid('s', 50));
+  perform pg_temp.plogin('k');
+  if not pg_temp.visible(path) then raise 'interrupteur : K lit, allumé'; end if;
+end $$;
+reset role;
+update public.app_config set value = 'false'::jsonb where key = 'coach_photos_on';
+set role authenticated;
+do $$
+declare kid text := (select key_id from cph_switch); path text := pg_temp.pu('s')::text || '/' || pg_temp.pid('s', 50)::text; r text;
+begin
+  perform pg_temp.plogin('s');
+  if (public.student_photo_state() ->> 'enabled')::boolean is not false then raise 'interrupteur : enabled vrai éteint'; end if;
+  if jsonb_array_length(public.student_photo_state() -> 'photos') < 1 then raise 'interrupteur : S ne voit plus ses photos'; end if;
+  r := pg_temp.prep('s', 51, date '2026-10-01', 'face', kid);
+  if r <> 'disabled' then raise 'interrupteur : préparation pas refusée (%)', r; end if;
+  if not pg_temp.visible(path) then raise 'interrupteur : S ne lit plus son dossier (retrait impossible)'; end if;
+  perform pg_temp.plogin('k');
+  if pg_temp.visible(path) then raise 'interrupteur : K lit encore le fichier'; end if;
+  foreach r in array array['select public.coach_photo_key()',
+    format('select public.coach_student_photos(%L)', pg_temp.pu('s')),
+    format('select public.coach_photo_key_set(%L, %L, %L, %L, true)', repeat('e', 32), pg_temp.pk(), repeat('A', 64), repeat('A', 16))] loop
+    if pg_temp.perr(r) <> 'disabled' then raise 'interrupteur : % pas refusé (%)', r, pg_temp.perr(r); end if;
+  end loop;
+  perform pg_temp.plogin('s');
+  perform public.student_photo_remove(pg_temp.pid('s', 50));
+end $$;
+reset role;
+do $$ begin
+  if exists (select 1 from public.coach_photos p where p.id = pg_temp.pid('s', 50)) then raise 'interrupteur : retrait refusé'; end if;
+end $$;
+-- Valeur absente : éteint aussi ; puis rallumé
+delete from public.app_config where key = 'coach_photos_on';
+do $$ begin if private.coach_photos_on() then raise 'interrupteur : absent mais allumé'; end if; end $$;
+insert into public.app_config (key, value) values ('coach_photos_on', 'true'::jsonb);
+drop table cph_switch;
+
 -- ── Nettoyage (les autres tests partent d'une base sans ces comptes) ──
 set storage.allow_delete_query = 'true';
 delete from storage.objects o where o.bucket_id = 'coach-photos';

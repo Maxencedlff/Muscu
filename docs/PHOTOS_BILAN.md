@@ -32,6 +32,7 @@ styles en fin de `css/coach.css`. Serveur : `supabase/migrations/20261107000000_
 | Retrait | « Retirer » sur chaque photo, jamais limité ; ligne effacée (accès et moyen de déchiffrer perdus sur-le-champ), fichier effacé par l'iPhone puis, à défaut, par la purge | RGPD 7.3 (« aussi simple » que le donner) et 17 [46][48]. |
 | Lien rompu | Clé étrangère vers `coach_links` on delete cascade : quitter, être retiré, supprimer un compte efface tout | Même règle que le poids, les mensurations et les messages. |
 | Nouvelle build | **Aucune** : JS, SQL et une fonction serveur | Le module du coffre (trousseau iCloud, Face ID) suffit. |
+| Désactivation | **Interrupteur du serveur** `app_config.coach_photos_on`, sans build ni OTA (voir « Désactiver sans nouvelle build ») | Si l'App Review refuse la fonction, elle disparaît de l'app en une ligne SQL. |
 
 ### Comparatif : bout en bout ou chiffrement côté serveur
 
@@ -171,19 +172,44 @@ bout en bout, il faut en plus une attaque active et ciblée sur la clé d'un coa
 | `coach_student_photos(student)` | coach | Photos prêtes de mon élève, pour ma clé ; `not_found`. |
 | `srv_coach_photo_purge_claim(n)`, `srv_coach_photo_purge_done(paths)` | clé serveur | File de purge (voir Stockage). |
 
+Photos éteintes (`app_config.coach_photos_on` autre que `true`) : `coach_photo_key`, `coach_photo_key_set`,
+`student_photo_prepare`, `student_photo_commit` et `coach_student_photos` répondent `disabled` ; `student_photo_state`
+renvoie `enabled: false`.
+
 Toutes `security definer`, `search_path = ''`, utilisateur pris dans `auth.uid()`, GRANT explicites ; tables en RLS sans
 politique ni GRANT.
 
 **Serveur pas à jour** (`PGRST202`) : rien ne s'affiche, ni chez l'élève ni chez le coach (nouvel essai après 10 min).
 **Coquille sans le module du coffre** (navigateur, Android) : rien côté coach ; côté élève, le coffre est déjà indisponible.
 
+## Désactiver sans nouvelle build
+
+Si l'App Store refuse la fonction (ou en cas de problème), un réglage du serveur la retire de l'app, sans build ni OTA.
+Éditeur SQL du projet (rôle `postgres`) :
+
+```sql
+update public.app_config set value = 'false'::jsonb, updated_at = now() where key = 'coach_photos_on';
+```
+
+Rallumer : la même ligne avec `'true'::jsonb`. Une valeur absente ou autre que `true` compte comme éteint. Livré
+allumé par la migration. `app_config` est lisible par un compte connecté (pas par anon : seuls `paywall_on` et
+`min_build` le sont).
+
+| Qui | Éteint |
+|---|---|
+| Élève | Ni « Envoyer à mon coach » dans le coffre, ni question sur l'âge, ni code de la clé ; Mon coach › Photos de bilan ne reste que s'il a des photos déjà parties, avec « L'envoi de photos de bilan est suspendu pour l'instant. Tu peux retirer celles qui sont déjà parties. » Retrait toujours possible (RGPD 7.3 et 17). |
+| Coach | Rien : ni « Recevoir les photos de bilan », ni la cellule de la fiche (`disabled` traité comme un serveur sans la fonction, nouvel essai après 10 min ; écran ouvert refermé). |
+| Serveur | `disabled` pour la clé, la préparation, la validation et la liste du coach ; politiques Storage : plus de dépôt, plus de lecture par le coach (URL signée refusée) ; l'élève lit et efface encore son dossier ; la purge et `delete-account` continuent. Les photos déjà envoyées restent (chiffrées) jusqu'à leur retrait, au lien rompu ou au retour arrière. |
+
+Effet à la prochaine relecture de l'app (ouverture d'un écran du coach) ; le serveur refuse dès la ligne SQL. Retirer
+la fonction pour de bon : retour arrière (plus bas). Testé : `tests/unit/coach-photos.mjs` (interrupteur),
+`tests/sql/photos_bilan_test.sql` (bloc « Interrupteur »), et sur le vrai projet jetable du 07/11 (voir « Essai sur un
+vrai projet Supabase »).
+
 ## Mise en production (à faire par Maxence, rien n'a été appliqué)
 
-0. **Obligatoire avant la migration** : essai complet sur un vrai projet Supabase de test (projet jetable ou branche, jamais
-   la production) : migration, compartiment et ses politiques avec le vrai Storage (envoi, `upsert: false`, URL signée,
-   retrait par l'API, verrou `protect_delete`), `coach-photos-purge` planifiée (pg_cron, pg_net, Vault, droits de
-   `postgres` sur `vault.secrets`), `delete-account`, retour arrière. Les tests locaux n'imitent que le socle Supabase
-   (`tests/sql/supabase_stub.sql`, pg_cron et Vault imités) : pas encore fait.
+0. **Essai sur un vrai projet Supabase : fait le 07/11/2026** (voir « Essai sur un vrai projet Supabase » plus bas). À
+   refaire seulement si la migration change de nouveau.
 1. `supabase/migrations/20261107000000_photos_bilan.sql` (après les dix de `supabase/rollback/ORDRE.md`).
 2. Fonction : `supabase functions deploy coach-photos-purge` ; secret : `umask 077; openssl rand -hex 32 > ~/.config/mdlf/photos_purge_secret`,
    puis `supabase secrets set PHOTOS_PURGE_SECRET="$(cat ~/.config/mdlf/photos_purge_secret)"`.
@@ -202,6 +228,47 @@ Arrêt : `select cron.unschedule('coach-photos-purge');`. Retour arrière : `sup
 après avoir vidé le compartiment par l'API (il refuse sinon) ; indépendant des autres. Il retire lui-même la tâche
 `coach-photos-purge` et le secret Vault `photos_purge_secret` ; restent à la main `supabase functions delete coach-photos-purge`
 et `supabase secrets unset PHOTOS_PURGE_SECRET`.
+
+## Essai sur un vrai projet Supabase (07/11/2026)
+
+Projet jetable `mdlf-essai-photos` (plan gratuit, eu-west-1, Postgres 17.11, GoTrue 2.197), créé par l'API de gestion
+puis **supprimé** à la fin ; la production n'a pas été touchée. Toutes les migrations de `main` sauf Strava, puis
+celle-ci, appliquées par `POST /v1/projects/{ref}/database/query` (rôle `postgres`) ; `coach-photos-purge` et
+`delete-account` déployées (`supabase functions deploy --project-ref <projet jetable> --use-api`), secret
+`PHOTOS_PURGE_SECRET` tiré au hasard. Comptes factices `@example.com` créés par l'API d'administration, vrais jetons,
+vraie API Storage. **90 contrôles, tous verts** :
+
+- Clé publiée par le coach ; état de l'élève (clé du coach, jamais la clé enveloppée) ; `not_adult` avant la déclaration.
+- Envoi : `not_uploaded` sans fichier ; dépôt refusé au coach, sur un chemin non préparé, en double et en remplacement
+  (`x-upsert: true`) ; dépôt de l'élève accepté avec son jeton. **`metadata->>'size'` est bien rempli par Storage**
+  (150000) et `student_photo_commit` l'accepte ; `cacheControl` enregistré `max-age=60`.
+- Lecture : URL signée du coach, contenu identique au chiffré envoyé ; **refus** pour un 2e coach non lié (URL signée,
+  téléchargement, liste) et pour un anonyme (URL signée, téléchargement, RPC, URL publique) ; coach dont le rôle est
+  retiré : URL signée refusée, rendue avec le rôle. Le coach ne peut pas effacer le fichier.
+- Retrait par l'élève : URL signée du coach refusée aussitôt, chemin en file ; `coach-photos-purge` : 401 avec un mauvais
+  secret, fichier effacé avec le bon ; envoi pas abouti (plus d'une heure) et fichier sans ligne effacés aussi ;
+  `DELETE` SQL direct sur `storage.objects` refusé (`protect_delete`). Lien rompu : lignes effacées, l'élève liste et
+  efface son dossier par l'API.
+- Planification réelle : `pg_net` activé, `vault.create_secret`, `cron.schedule`, commande de la tâche lancée à la main :
+  `postgres` lit `vault.decrypted_secrets`, la purge répond 200 à `pg_net`.
+- `delete-account` : refusé sans connexion récente ; accepté après connexion par code e-mail (`amr` otp) ; compte
+  supprimé, lignes effacées, fichiers effacés par la fonction elle-même.
+- Retour arrière : refusé tant qu'il reste un fichier ; puis compartiment, politiques, schéma `coach_photo_rls`, tâche
+  pg_cron, secret Vault et interrupteur retirés ; il passe aussi sans tâche ni secret ; la migration remonte ensuite.
+- Interrupteur éteint par une ligne SQL : `enabled: false`, préparation, dépôt, validation, clé et liste du coach
+  refusés, URL signée du coach refusée ; l'élève lit, retire et efface encore ; la purge continue.
+
+Les trois hypothèses de la relecture, vérifiées :
+
+1. **Politiques de `storage.objects` créées par le rôle de migration** : oui. `storage.objects` appartient à
+   `supabase_storage_admin`, mais la migration lancée en `postgres` crée les trois politiques sans erreur (vues dans
+   `pg_policies`), et le vrai Storage les applique.
+2. **Droits de `postgres` sur `storage.objects`** : INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER (un
+   `DELETE` reste bloqué par `protect_delete`, levé par `storage.allow_delete_query` dans le retour arrière, qui passe).
+3. **Suppression dans `vault.secrets`** : `postgres` a SELECT et DELETE ; le retour arrière retire bien
+   `photos_purge_secret`.
+
+Rien d'autre n'a cassé ; l'essai a seulement conduit à ajouter l'interrupteur (« Désactiver sans nouvelle build »).
 
 ## Tests
 
