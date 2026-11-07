@@ -5,7 +5,13 @@
 'use strict';
 
 const GRIP_DIM_LABEL = { hand: 'Sens des mains', width: 'Largeur', tool: 'Poignée' };
-const GRIP_HELP = 'Pronation : paumes vers l\'avant ou vers le bas. Supination : paumes vers toi. Neutre : paumes face à face.';
+// Aide des sens de mains, réduite à ceux que la feuille propose : « Neutre » cité alors que seules pronation
+// et supination étaient proposées (panel du 07/11). '' quand aucun sens des mains n'est proposé
+const GRIP_HAND_HELP = { pronation: 'Pronation : paumes vers l\'avant ou vers le bas.', supination: 'Supination : paumes vers toi.', neutre: 'Neutre : paumes face à face.' };
+function gripHelp(opts) {
+  return (opts?.hand || []).filter(h => GRIP_HAND_HELP[h]).sort((a, b) => Object.keys(GRIP_HAND_HELP).indexOf(a) - Object.keys(GRIP_HAND_HELP).indexOf(b))
+    .map(h => GRIP_HAND_HELP[h]).join(' ');
+}
 
 // Prise de l'exercice de la séance : copiée du programme au démarrage, changée par la feuille ou par
 // Programme › Exercice (qui suivent tous deux la séance en cours) ; null sans prise
@@ -63,7 +69,7 @@ function gripSheetHtml(ei) {
       <div class="rs__title">Prise · ${esc(ex.name)}</div>
       <div class="grip__now" aria-live="polite">${g ? gripText(g, ex) : 'Aucune prise précisée'}</div>
       ${gripChipsHtml(opts, g, 'sess-grip')}
-      <div class="grip__help">${GRIP_HELP} ${sessionGripStaysInSession() ? 'Pour cette séance seulement : le programme de ton coach ne change pas.' : 'Elle reste dans le programme pour la prochaine fois.'}</div>
+      <div class="grip__help">${[gripHelp(opts), sessionGripStaysInSession() ? 'Pour cette séance seulement : le programme de ton coach ne change pas.' : 'Elle reste dans le programme pour la prochaine fois.'].filter(Boolean).join(' ')}</div>
       <button class="rs__done" data-action="sheet-done">OK</button>
     </div>`;
 }
@@ -99,7 +105,7 @@ function exGripHtml(d) {
         <div class="group"><div class="cell cell--ctl cell--wrap grip grip--cell">${gripChipsHtml(opts, g, 'ex-grip-pick')}</div></div>
         <div class="group-foot">${exGripFootText(g, ex)}</div>`;
 }
-function exGripFootText(g, ex) { return `${g ? `${gripText(g, ex)}. ` : ''}${GRIP_HELP} Montrée pendant la séance, sous le nom.`; }
+function exGripFootText(g, ex) { return [g ? `${gripText(g, ex)}.` : '', gripHelp(gripOptionsFor(ex)), 'Montrée pendant la séance, sous le nom.'].filter(Boolean).join(' '); }
 // Nom ou mesure changés : la rubrique est redessinée (les réglages proposés en dépendent)
 function refreshExGrip() { const box = $('#exGrip'); if (box && exDraft) box.innerHTML = exGripHtml(exDraft); }
 

@@ -16,6 +16,19 @@ export default function ({ test, run, reset, sameJSON, assert }) {
     assert.equal(run('gripText({ hand: "neutre", tool: "poignees" }, { name: "Tirage vertical" })'), 'Prise neutre · Deux poignées', 'nom sans largeur : inchangé');
   });
 
+  test('prise : l\'aide ne cite que les sens de mains proposés (panel du 07/11 : « Neutre » sans bouton Neutre)', () => {
+    reset();
+    const help = name => run(`gripHelp(gripOptionsFor({ name: ${JSON.stringify(name)} }))`);
+    const h = help('Tirage vertical prise large');
+    assert.ok(h.includes('Pronation') && h.includes('Supination') && !h.includes('Neutre'), h);
+    assert.equal(help('Tirage vertical'), 'Pronation : paumes vers l\'avant ou vers le bas. Supination : paumes vers toi. Neutre : paumes face à face.');
+    assert.equal(help('Tirage horizontal').split(' : ')[0], 'Pronation', 'dans le même ordre, quel que soit l\'ordre des boutons');
+    assert.equal(help('Développé couché'), '', 'pas de sens des mains proposé : pas d\'aide');
+    assert.equal(run('gripHelp(null)'), '');
+    const foot = run(`exGripFootText(null, { name: 'Tirage vertical prise large' })`);
+    assert.ok(!foot.includes('Neutre') && foot.endsWith('Montrée pendant la séance, sous le nom.'), foot);
+  });
+
   test('prise : proposée seulement là où elle compte, sans redire ce que le nom fixe', () => {
     reset();
     // Demande du coach : tirage vertical prise serrée → sens des mains et poignée, pas la largeur
