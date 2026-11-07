@@ -366,6 +366,15 @@ test('fmtRest : repos en secondes, minutes au-delà d\'une heure', () => {
   assert.equal(app.fmtRest(4500), '75:00');
 });
 
+test('fmtRestSpoken : temps de repos en toutes lettres pour VoiceOver', () => {
+  assert.equal(app.fmtRestSpoken(105), '1 minute 45');
+  assert.equal(app.fmtRestSpoken(120), '2 minutes');
+  assert.equal(app.fmtRestSpoken(45), '45 secondes');
+  assert.equal(app.fmtRestSpoken(1), '1 seconde');
+  assert.equal(app.fmtRestSpoken(0), '0 seconde');
+  assert.equal(app.fmtRestSpoken(-3), '0 seconde');
+});
+
 test('fmtDuration : durée en toutes lettres', () => {
   assert.equal(app.fmtDuration(42 * 60_000), `42${NBSP}min`);
   assert.equal(app.fmtDuration(69 * 60_000), `1${NBSP}h${NBSP}09`);

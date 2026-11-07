@@ -26,7 +26,7 @@ function renderRestOverlay() {
   const meta = sessionMeta(activeSession.category, activeSession.programme);
   return `
     <div class="rest-mini" role="region" aria-label="Repos" style="--cat-color:${meta.color}">
-      <button class="rest-mini__main" data-action="expand-rest" aria-label="Repos en cours, ouvrir le détail">
+      <button class="rest-mini__main" data-action="expand-rest" aria-label="${restMiniLabel()}">
         <svg class="rest-ring rest-ring--small" viewBox="0 0 40 40" aria-hidden="true">
           <circle cx="20" cy="20" r="17" class="rest-ring__track"/>
           <circle cx="20" cy="20" r="17" class="rest-ring__bar" stroke-dasharray="${RING_SMALL}" stroke-dashoffset="${off}"/>
@@ -82,11 +82,17 @@ function openRestSheet() {
 }
 function closeRestSheet() { document.querySelector('.sess-sheet--rest')?._close?.(); restSheetOpen = false; }
 
+// Nom du bouton de la barre réduite, temps restant compris (VoiceOver ne lisait que « Repos en cours »)
+function restMiniLabel() { return `Repos, il reste ${fmtRestSpoken(restTimeLeft)}, ouvrir le détail`; }
+
 // Met à jour chiffres et anneaux sans relancer render()
 function updateRestUI() {
   const t = fmtRest(restTimeLeft), f = restFraction();
   const mini = $('.rest-mini__timer');
-  if (mini) mini.textContent = t;
+  if (mini && mini.textContent !== t) {
+    mini.textContent = t;
+    $('.rest-mini__main')?.setAttribute('aria-label', restMiniLabel());
+  }
   const small = $('.rest-mini .rest-ring__bar');
   if (small) small.setAttribute('stroke-dashoffset', RING_SMALL * (1 - f));
   const sheet = $('.sess-sheet--rest');

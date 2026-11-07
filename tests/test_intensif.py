@@ -350,6 +350,9 @@ def t_pause_annonce(bench, eng, dev, theme):
         kg0 = page.evaluate("fmtW(subWeightKg(activeSession.exercises[0].sets[0], 0), { plain: true })")
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(400)
         R.check(page.evaluate("restActive && restTotal === 15"), f'{t} rest-pause : pause de 15 s')
+        # VoiceOver : le bouton de la barre dit le temps restant (avant : « Repos en cours » seul)
+        lbl = page.get_attribute('.rest-mini__main', 'aria-label')
+        R.check(lbl.startswith('Repos, il reste ') and 'seconde' in lbl and lbl.endswith('ouvrir le détail'), f'{t} barre de repos : temps restant dit ({lbl})')
         # Panel du 06/11 : « Ensuite : Rowing haltère u… » coupé sur iPhone. Pendant la pause, la barre tait le nom
         # (l'exercice qu'on vient de faire, dit aux lecteurs d'écran) et montre la reprise entière
         vis = ' '.join(page.evaluate("[...document.querySelectorAll('.rest-mini__next > :not(.sr-text)')].map(e => e.textContent).join('')").replace(' ', ' ').split())

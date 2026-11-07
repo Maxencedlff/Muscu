@@ -49,6 +49,13 @@ function fmtRest(secs) {
   return fmtClock(Math.round(secs || 0) * 1000, { hours: false });
 }
 
+// Repos dit par VoiceOver : « 1 minute 30 », « 45 secondes », « 2 minutes » (« 1:30 » se lirait comme une heure)
+function fmtRestSpoken(secs) {
+  const s = Math.max(0, Math.round(secs || 0)), m = Math.floor(s / 60), r = s % 60;
+  if (!m) return `${r} seconde${r > 1 ? 's' : ''}`;
+  return `${m} minute${m > 1 ? 's' : ''}${r ? ` ${r}` : ''}`;
+}
+
 // Durée en toutes lettres : « 42 min », « 1 h 09 »
 function fmtDuration(ms) {
   const totalMin = Math.floor(Math.max(0, ms || 0) / 60000);
