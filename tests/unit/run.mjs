@@ -274,7 +274,7 @@ test('exerciseTarget : +1 rep sous le haut de la fourchette, palier de charge au
   ex = seedPull([{ weight: '32', reps: '12' }, { weight: '32', reps: '12' }, { weight: '32', reps: '12' }]);
   sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg × 8', gain: '2,5 kg', before: '32 kg × 12' }, 'charge augmentée : 4 reps sous le haut de la fourchette');
   ex = seedPull([{ weight: '32', reps: '8' }, { weight: '32', reps: '8' }], { repMax: 8 });
-  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg × 4', gain: '2,5 kg', before: '32 kg × 8' }, 'fourchette réglée sur l\'exercice');
+  sameJSON(app.exerciseTarget('pull', ex), { text: '34,5 kg × 8', gain: '2,5 kg', before: '32 kg × 8' }, 'reps fixes (8) : gardées avec la nouvelle charge');
   ex = seedPull([{ weight: '', reps: '15' }]);
   sameJSON(app.exerciseTarget('pull', ex), { text: '16 reps', gain: '1 rep', before: '15 reps' }, 'poids du corps : jamais de palier de charge');
   run('data.history = []');

@@ -19,7 +19,9 @@ function exerciseGoal(cat, ex, progKey = data.activeProgramme) {
   if (!best) return planned;
   const before = setTxt(best, ex);
   if (measureOf(ex) !== 'reps' || isAssisted(ex)) return { text: setTxt(best, ex), gain: '', before, goal: null };   // durée, cardio : on rappelle la dernière fois
-  const more = { w: best.w, r: best.r + 1 };
+  // Reps fixées par le coach (« 5 reps », haut sans bas) : la rep de plus ne dépasse pas ce nombre
+  const fixed = parseInt(ex.repMin) > 0 ? null : explicitRepMax(ex);
+  const more = { w: best.w, r: fixed ? Math.min(best.r + 1, fixed) : best.r + 1 };
   if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: best.r + 1, reps: String(best.r + 1) }, ex), gain: '1 rep', before, goal: more };
   const repMax = ex.repMax ?? 12;
   const bump = best.w > 0 && sets.length >= Math.min(ex.sets, 2) && sets.every(s => (parseInt(s.reps) || 0) >= repMax);
@@ -27,17 +29,20 @@ function exerciseGoal(cat, ex, progKey = data.activeProgramme) {
     const w = best.w + bumpStepKg(), r = goalRepsAfterBump(ex);
     return { text: setTxt({ w, weight: w, r }), gain: bumpLabel(), before, goal: { w, r } };
   }
-  return { text: setTxt({ ...best, r: best.r + 1 }), gain: '1 rep', before, goal: more };
+  return { text: setTxt({ ...best, r: more.r }), gain: more.r > best.r ? '1 rep' : '', before, goal: more };
 }
 
-// Reps à faire avec la charge augmentée : le bas de la fourchette s'il est réglé, sinon 4 sous le haut
-// (8 pour 12), mais jamais moins de 3 (ou du haut s'il est plus bas) : « 75 kg × 1 » pour une fourchette
-// de force à 5 reps ne serait pas un objectif (panel du 06/11)
+// Reps à faire avec la charge augmentée :
+//   fourchette complète (« 8 à 12 ») ou bas seul (« 8 à 12 » par défaut) → le bas ;
+//   reps fixes du coach (« 5 reps » : haut réglé sans bas) → ces reps, avec la nouvelle charge (75 kg × 5),
+//     pas « 75 kg × 3 » qui contredisait « 5 reps » et les cases (panel du 07/11) ;
+//   rien de réglé (12 par défaut) → 4 sous le haut, 8.
 function goalRepsAfterBump(ex) {
   const min = parseInt(ex.repMin);
   if (min > 0) return min;
-  const max = parseInt(ex.repMax) || 12;
-  return Math.max(Math.min(max, 3), max - 4);
+  const fixed = explicitRepMax(ex);
+  if (fixed) return fixed;
+  return (parseInt(ex.repMax) || 12) - 4;
 }
 
 // Haut de fourchette réglé à autre chose que le 12 par défaut (l'éditeur l'écrit même sans réglage), sinon

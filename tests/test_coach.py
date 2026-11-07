@@ -299,6 +299,27 @@ def t_eleve(bench, eng, dev, theme):
         R.check(page.evaluate('coachNotesHint()').find('Ton coach voit tes notes') > 0, f'{t} bilan : « Ton coach voit tes notes »')
         page.evaluate("activeSession = null; persistSession(); routeTo('dashboard')")
         page.wait_for_timeout(200)
+        # Panel du 07/11 : Squat à reps fixes (« 5 reps ») fait à 72,5 × 8 la dernière fois : l'objectif disait
+        # « 75 kg × 3 » face à « 5 reps » et aux cases 72,5 × 5 ; désormais 75 kg × 5 partout
+        page.evaluate("""() => { const ex = data.programmes.u_c00000000_u_force.exercises.sB[0];
+            data.history.push({ id: 'h-sq', programme: 'u_c00000000_u_force', category: 'sB', date: Date.now() - 2 * 86400000, duration: 1800000,
+              exercises: [{ exId: ex.id, name: ex.name, sets: Array.from({ length: 5 }, () => ({ weight: '72.5', reps: '8', done: true })) }] });
+            save(); }""")
+        tg = page.evaluate("targetsHtml('sB')").replace('\u00a0', ' ')
+        R.check('75 kg × 5' in tg and '× 3' not in tg, f'{t} accueil : « 75 kg × 5 » pour un 5 reps fixes')
+        page.evaluate("startSession('sB')")
+        page.wait_for_selector('.ex-card[data-ei="0"] .ex-goal')
+        card = page.locator('.ex-card[data-ei="0"]')
+        goal = card.locator('.ex-goal').inner_text().replace('\u00a0', ' ').strip()
+        reps = [card.locator(f'[data-action="set-reps"][data-si="{i}"]').input_value() for i in range(5)]
+        R.check(goal == 'Objectif 75 kg × 5' and '5 reps' in card.inner_text() and reps == ['5'] * 5,
+                f'{t} séance : objectif, « 5 reps » et cases d\'accord ({goal!r}, {reps})')
+        page.click('.ex-card[data-ei="0"] [data-action="bump-weight"]')
+        page.wait_for_timeout(200)
+        w = page.evaluate("activeSession.exercises[0].sets.map(s => s.weight + '×' + s.reps)")
+        R.check(w == ['75×5'] * 5, f'{t} puce ↑ 2,5 kg : 75 × 5 comme l\'objectif ({w})')
+        page.evaluate("activeSession = null; persistSession(); data.history = data.history.filter(h => h.id !== 'h-sq'); save(); routeTo('dashboard')")
+        page.wait_for_timeout(200)
         # Commentaire du coach sur une séance : Historique › Séance
         page.evaluate('syncNow()')
         page.wait_for_timeout(300)
