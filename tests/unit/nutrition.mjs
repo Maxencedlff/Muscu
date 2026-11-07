@@ -11,6 +11,15 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
   const item = (code, g) => run(`foodToItem(foodDb.byCode.get(${code}), ${g})`);
   const RIZ_CUIT = 9104, POULET_GRILLE = 36018, OEUF_DUR = 22010, HUILE_OLIVE = 17270;
 
+  test('jauges : remplies selon les nombres affichés (« 4 / 4 g » = pleine)', () => {
+    assert.equal(run('dietShownRatio(3.6, 4.4)'), 1, '3,6 sur 4,4 g, affichés « 4 / 4 g » : pleine');
+    assert.equal(run('dietShownRatio(217.4, 216.6)'), 1);
+    assert.equal(run('dietShownRatio(2, 4)'), 0.5);
+    assert.equal(run('dietShownRatio(9, 4)'), 1, 'au-delà : plafonnée');
+    assert.equal(run('dietShownRatio(3, 0)'), 0, 'sans repère : vide');
+    assert.equal(run('dietShownRatio(0.4, 0.4)'), 0, '« 0 / 0 g » : rien à remplir');
+  });
+
   test('base Ciqual : fichier compact, source et licence citées, lignes valides', () => {
     const size = fs.statSync(path.join(ROOT, 'data/foods.json')).size;
     assert.ok(size < 500 * 1024, `data/foods.json : ${size} octets (500 Ko au plus)`);

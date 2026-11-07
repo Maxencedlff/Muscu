@@ -41,7 +41,9 @@ function dietRouteDay(day) {
   const week = dietWeek(data).map(x => x.day);
   return week.includes(day) ? day : dietDayKey();
 }
-const dietRatio = (v, goal) => (goal > 0 ? Math.max(0, Math.min(1, v / goal)) : 0);
+// Part remplie d'une jauge : sur les nombres affichés (arrondis au gramme ou à la kcal), pour que « 4 / 4 g »
+// soit toujours une jauge pleine (panel du 07/11 : 3,6 sur 4,4 g affichés « 4 / 4 g », jauge aux 4/5)
+const dietRatio = (v, goal) => dietShownRatio(v, goal);
 
 // Anneau des calories (SVG) : piste grise, arc de la part mangée
 function dietRingSvg(ratio, size = 112, stroke = 12) {

@@ -196,6 +196,12 @@ function dietSetConsent(d, on, now = new Date()) {
 // Objectif ou total très bas (moins de 1 200 kcal, mais pas vide) : message de santé, jamais bloquant.
 // Sans objectif de calories, le total ne compte qu'une fois chaque repas rempli : un plan en cours de
 // remplissage (215 kcal sur un repas de quatre) n'est pas un régime très bas (panel du 06/11)
+// Part d'une jauge (0 à 1) calculée sur les valeurs telles qu'affichées, arrondies à l'unité
+function dietShownRatio(v, goal) {
+  const g = Math.round(Number(goal) || 0), x = Math.round(Number(v) || 0);
+  return g > 0 ? Math.max(0, Math.min(1, x / g)) : 0;
+}
+
 function dietLowKcal(plan) {
   if (!plan) return false;
   const own = plan.targets?.kcal;
