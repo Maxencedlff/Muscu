@@ -107,7 +107,13 @@ function chatScrollIfNew(key, atBottom = true) {
   const first = !chatShownLast || !chatShownLast.startsWith(`${key}/`);
   chatShownLast = last;
   if (first || atBottom || rows[rows.length - 1]?.mine) {
-    requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: first || reduceMotion.matches ? 'auto' : 'smooth' }));
+    requestAnimationFrame(() => {
+      // Dernier message déjà visible au-dessus de la saisie : on ne défile pas (sinon l'intro passait sous la
+      // barre de titre pour une conversation courte, panel du 06/11)
+      const lastMsg = $('#chatList')?.lastElementChild, comp = $('.chat-compose');
+      if (lastMsg && comp && lastMsg.getBoundingClientRect().bottom <= comp.getBoundingClientRect().top && window.scrollY === 0) return;
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: first || reduceMotion.matches ? 'auto' : 'smooth' });
+    });
   }
 }
 

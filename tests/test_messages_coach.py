@@ -109,6 +109,9 @@ def t_eleve(bench, eng, dev, theme):
         last_id = page.evaluate("Math.max(...__sb.co.msgs.map(m => m.id))")
         R.check(coach_calls(page, 'chat_mark_read')[-1] == {'up_to': last_id}, f'{t} marquée lue jusqu\'au dernier reçu {coach_calls(page, "chat_mark_read")[-1]}')
         R.check(page.get_attribute('#chatList', 'role') == 'log', f'{t} liste annoncée par VoiceOver (role log)')
+        # Conversation courte (panel du 06/11) : pas de défilement qui glisse l'intro sous la barre de titre
+        top = page.evaluate("[document.querySelector('.chat-intro').getBoundingClientRect().top, document.querySelector('.coach-chat-view .navbar').getBoundingClientRect().bottom, scrollY]")
+        R.check(top[0] >= top[1] - 1, f'{t} conversation courte : intro visible sous la barre {top}')
         # Envoi
         send = page.locator('.chat-compose .comment-compose__send')
         R.check(send.is_disabled(), f'{t} Envoyer grisé tant que vide')
@@ -194,8 +197,13 @@ def t_coach(bench, eng, dev, theme):
         shot(page, LOT, f'3-mes-eleves-{t}')
         lea_row.click()
         page.wait_for_selector('.chat-cell')
+        page.locator('.chat-cell').scroll_into_view_if_needed()
         page.click('.chat-cell')
         page.wait_for_selector('.coach-chat-view .chat-msg')
+        page.wait_for_timeout(400)
+        # Un seul message (panel du 06/11) : l'intro ne passe pas sous la barre de titre
+        top = page.evaluate("[document.querySelector('.chat-intro').getBoundingClientRect().top, document.querySelector('.coach-chat-view .navbar').getBoundingClientRect().bottom, scrollY]")
+        R.check(top[0] >= top[1] - 1, f'{t} coach, conversation courte : intro visible sous la barre {top}')
         page.fill('#chatInput', 'Repos 2 jours, puis on adapte.')
         page.click('.chat-compose .comment-compose__send')
         page.wait_for_timeout(500)
