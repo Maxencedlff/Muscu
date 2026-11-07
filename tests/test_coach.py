@@ -192,16 +192,24 @@ def t_eleve(bench, eng, dev, theme):
         layout(page, t, 'aperçu du coach')
         shot(page, LOT, f'2-apercu-{t}')
         # Âge déclaré avant d'accepter (même règle que les amis)
-        R.check(page.locator('[data-action="coach-accept"]').is_disabled() and 'Coche' in page.inner_text('.coach-join__hint'), f'{t} « Accepter » grisé, avec la raison')
-        R.check(page.evaluate("(() => { const b = document.querySelector('[data-action=coach-accept]').getBoundingClientRect(); return b.bottom <= document.querySelector('.tabbar').getBoundingClientRect().top + 1 && b.top >= 0; })()"), f'{t} « Accepter » visible sans défiler')
-        # Panel du 07/11 (iPhone SE) : le bloc collé cachait presque toute la liste ; seul « Accepter » reste collé
-        foot = page.evaluate("(() => { const f = document.querySelector('.coach-join__foot').getBoundingClientRect(); return [Math.round(f.height), innerHeight]; })()")
-        R.check(foot[0] <= 130 and page.locator('.coach-join__foot [data-action="coach-age"]').count() == 0, f'{t} pied collé réduit à « Accepter » et sa raison {foot}')
+        # Panel du 07/11 : « Jamais… ton poids » alors que le poids (et les mensurations) peuvent être partagés
+        never = page.locator('.coach-join__item', has_text='Le reste').inner_text()
+        R.check('poids' not in never and 'Ton poids et tes mensurations' in txt and 'Partager avec mon coach' in txt and 'Des plans diète' in txt,
+                f'{t} aperçu : poids et mensurations « seulement si tu le choisis », plans diète listés')
+        R.check(page.locator('[data-action="coach-accept"]').is_disabled() and page.get_attribute('[data-action="coach-accept"]', 'aria-describedby') == 'coachAgeHint',
+                f'{t} « Accepter » grisé, décrit par l\'interrupteur 15 ans')
+        # Panel du 07/11 : l'interrupteur sous la liste passait sous le pied collé ; il est dans le pied, avec « Accepter »
+        vis = page.evaluate("""(() => { const tb = document.querySelector('.tabbar').getBoundingClientRect().top;
+            return ['[data-action=coach-age]', '[data-action=coach-accept]'].every(s => { const b = document.querySelector(s).getBoundingClientRect();
+              return b.top >= 0 && b.bottom <= tb + 1 && b.height >= 43; }); })()""")
+        R.check(vis, f'{t} interrupteur 15 ans et « Accepter » visibles sans défiler, 44 pt')
+        foot = page.evaluate("Math.round(document.querySelector('.coach-join__foot').getBoundingClientRect().height)")
+        R.check(foot <= 130 and page.locator('.coach-join__foot [data-action="coach-age"]').count() == 1, f'{t} pied collé : interrupteur et « Accepter » seulement ({foot} px)')
         page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)"); page.wait_for_timeout(200)
         last = page.evaluate("""(() => { const f = document.querySelector('.coach-join__foot').getBoundingClientRect(),
-            a = document.querySelector('.coach-join__age').getBoundingClientRect(), items = [...document.querySelectorAll('.coach-join-view .coach-join__item')].at(-1).getBoundingClientRect();
-            return a.bottom <= f.top + 1 && items.bottom <= f.top + 1; })()""")
-        R.check(last, f'{t} en bas : la dernière ligne et la case 15 ans au-dessus du pied, jamais dessous')
+            items = [...document.querySelectorAll('.coach-join-view .coach-join__item')].at(-1).getBoundingClientRect();
+            return items.bottom <= f.top + 1; })()""")
+        R.check(last, f'{t} en bas : la dernière ligne au-dessus du pied, jamais dessous')
         page.evaluate("window.scrollTo(0, 0)"); page.wait_for_timeout(100)
         page.click('[data-action="coach-age"]')
         R.check(page.locator('[data-action="coach-age"]').get_attribute('aria-checked') == 'true' and page.locator('[data-action="coach-accept"]').is_enabled()

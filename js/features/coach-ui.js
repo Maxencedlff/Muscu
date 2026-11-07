@@ -268,8 +268,8 @@ async function coachJoinFlow() {
 }
 
 // Aperçu du coach avant d'accepter : qui, ce qui sera visible, ce que le coach pourra faire, ce qui ne l'est
-// jamais. Case « J'ai 15 ans ou plus » (même déclaration que pour les amis : socialAgeOk) et « Accepter »
-// en bas, toujours visibles
+// jamais. Interrupteur « J'ai 15 ans ou plus » (même déclaration que pour les amis : socialAgeOk) et
+// « Accepter » collés en bas, toujours visibles : l'interrupteur sous la liste passait sous la barre (panel du 07/11)
 function renderCoachJoin(code) {
   const pv = coach.preview?.code === code ? coach.preview.person : null;
   const head = navBar({ title: 'Rejoindre', large: false });
@@ -291,17 +291,17 @@ function renderCoachJoin(code) {
         ${list([['Toutes tes séances', 'Y compris celles d\'avant, avec exercices, séries et notes, même les séances masquées à tes abonnés.']])}
         ${coachTitle(`Ce ${elide('que', name)} pourra faire`)}
         ${list([['Des programmes pour toi', 'Avec ses consignes. Tu choisis de les ajouter.'], ['Ses commentaires', 'Sous tes séances, dans ton historique.'],
-          ['Des messages', 'Texte seul, entre vous deux. Effacés quand le suivi s\'arrête. Tu peux signaler un message.']])}
+          ['Des messages', 'Texte seul, entre vous deux. Effacés quand le suivi s\'arrête. Tu peux signaler un message.'],
+          ['Des plans diète', 'Seulement si tu acceptes ses plans. Tu choisis de les suivre.']])}
+        ${coachTitle('Seulement si tu le choisis')}
+        ${list([['Ton poids et tes mensurations', 'Rien n\'est partagé au départ. Tu coches ce que tu veux dans Réglages › Amis et coach › Partager avec mon coach.']])}
         ${coachTitle('Jamais visible')}
-        ${list([['Le reste', 'Ni ton poids, ni tes données Santé, ni tes programmes perso. Tu ne vois pas ses autres élèves, et ils ne te voient pas.']])}
-        <div class="group coach-join__age">
-          <button class="cell" data-action="coach-age" role="switch" aria-checked="${ok}">
-            <span class="cell__body"><span class="cell__title">J'ai 15 ans ou plus</span></span>
+        ${list([['Le reste', 'Ni tes données Santé, ni tes photos, ni tes programmes perso. Tu ne vois pas ses autres élèves, et ils ne te voient pas.']])}
+        <div class="coach-join__foot">
+          <button class="cell coach-join__age" data-action="coach-age" role="switch" aria-checked="${ok}">
+            <span class="cell__body"><span class="cell__title" id="coachAgeHint">J'ai 15 ans ou plus</span></span>
             <span class="switch ${ok ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>
           </button>
-        </div>
-        <div class="coach-join__foot">
-          ${ok ? '' : '<p class="coach-join__hint" id="coachAgeHint">Coche « J\'ai 15 ans ou plus » pour accepter.</p>'}
           <button class="btn ${ok ? 'btn--primary' : 'btn--secondary'} btn--full coach-accept" data-action="coach-accept" data-code="${esc(code)}" ${ok ? '' : 'disabled aria-describedby="coachAgeHint"'}>Accepter</button>
         </div>
       </div>

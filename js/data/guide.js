@@ -554,7 +554,7 @@ const GUIDE_SECTIONS = [
         steps: [
           'Demande un code à ton coach. Il faut un compte et un pseudo : l\'app te le demande s\'il manque.',
           'En haut de l\'onglet [Amis], touche [Rejoindre un coach] (ou [Réglages] › [Coach]), puis saisis le code ou colle le message reçu.',
-          'Tu vois qui est le coach et ce qu\'il verra : toutes tes séances et leurs notes, jamais ton poids ni Santé. Coche [J\'ai 15 ans ou plus], puis [Accepter].',
+          'Tu vois qui est le coach et ce qu\'il verra : toutes tes séances et leurs notes, ton poids et tes mensurations seulement si tu choisis de les partager, jamais Santé. Coche [J\'ai 15 ans ou plus], puis [Accepter].',
           '[Quitter mon coach] arrête tout, quand tu veux. Les programmes déjà ajoutés restent chez toi.',
         ],
         related: ['programme-coach', 'coacher'],
