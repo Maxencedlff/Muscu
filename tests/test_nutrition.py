@@ -254,6 +254,13 @@ def t_creer_plan(bench, eng, dev, theme):
             ti = document.querySelector('.diet-plan-view .navbar__title').getBoundingClientRect();
             return [Math.round(b.width), Math.round(b.right - ti.left)]; })()""")
         R.check(ov[0] >= 44 and ov[1] <= 0, f'{t} éditeur : Retour de 44 pt, jamais sous le titre {ov}')
+        # Panel du 07/11 (iPhone SE) : titre réduit coupé des deux côtés sans « … » (« a prise de mas »)
+        cut = page.evaluate("""(() => { const ti = document.querySelector('.diet-plan-view .navbar__title'), cs = getComputedStyle(ti),
+            r = document.createRange(); r.selectNodeContents(ti);
+            const over = ti.scrollWidth > ti.clientWidth + 1;
+            return { over, left: r.getBoundingClientRect().left >= ti.getBoundingClientRect().left - 1 || !over,
+              ellipsis: !over || (cs.display === 'block' && cs.textOverflow === 'ellipsis' && cs.overflow === 'hidden') }; })()""")
+        R.check(cut['left'] and cut['ellipsis'], f'{t} éditeur : titre trop long fini par « … », jamais coupé à gauche {cut}')
         # Aliment perso (absent de Ciqual) : skyr
         page.locator('[data-action="diet-add-food"]').nth(1).click()
         page.wait_for_selector('#dietFoodSearch')

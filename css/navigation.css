@@ -51,10 +51,13 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 .navbar__title {
   font-size: min(1rem, 22px); line-height: 1.294rem; font-weight: 600; color: var(--label);
   text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  max-width: 56vw; display: flex; flex-direction: column; align-items: center;
+  max-width: 56vw; min-width: 0; display: block;
 }
 .navbar--large .navbar__title { opacity: 0; transition: opacity .15s; }
 .navbar--large.navbar--collapsed .navbar__title { opacity: 1; }
+/* Titre et sous-titre de la séance l'un sous l'autre, chacun terminé par « … » s'il est trop long. En flex
+   colonne centré, un titre trop long débordait des deux côtés sans « … » (« a prise de mas », panel du 07/11) */
+.navbar__title-main, .navbar__title-sub { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .navbar__title-main { line-height: min(1.176rem, 26px); }
 .navbar__title-sub { font-size: min(0.706rem, 15px); line-height: min(0.882rem, 18px); font-weight: 400; color: var(--label2); }
 
