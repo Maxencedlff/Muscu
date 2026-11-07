@@ -216,6 +216,9 @@ def t_persist(bench, eng, dev, theme):
         R.check(page.evaluate(f'{stored}[0].sets.length') == n0 + 2, f'{t} add-set : séance écrite par l\'action')
         page.evaluate("activeSession.exercises[1].ss = 'g'; activeSession.exercises[2].ss = 'g'; persistSession(); render()")
         n1, n2 = page.evaluate('[1, 2].map(i => activeSession.exercises[i].sets.length)')
+        # Panel du 07/11 : « + Tour » nommé pour VoiceOver avec les exercices du superset
+        lbl = page.get_attribute('[data-action="add-round"][data-ei="1"]', 'aria-label')
+        R.check(lbl == 'Ajouter un tour, ' + ', '.join(page.evaluate('[1, 2].map(i => activeSession.exercises[i].name)')), f'{t} « + Tour » nommé ({lbl!r})')
         page.evaluate("handleAction(null, { dataset: { ei: '1' } }, 'add-round')")
         R.check(page.evaluate(f'[1, 2].map(i => {stored}[i].sets.length)') == [n1 + 1, n2 + 1], f'{t} add-round : tour écrit pour les deux exercices')
         page.evaluate("handleAction(null, { dataset: { ei: '3', kg: '15' } }, 'set-band')")

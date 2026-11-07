@@ -312,7 +312,7 @@ function renderExerciseCard(ex, ei, cur) {
         ${rows}
       </div>
       <div class="ex-card__foot"${cur?.ei === ei ? ' data-toast-avoid' : ''}>
-        <button class="add-set-link" data-action="add-set" data-ei="${ei}">${icon('plus', 16)} Série</button>
+        <button class="add-set-link" data-action="add-set" data-ei="${ei}" aria-label="Ajouter une série, ${esc(ex.name)}">${icon('plus', 16)} Série</button>
         ${orderBtnHtml(ei, cur)}
       </div>
     </div>`;
@@ -393,7 +393,7 @@ function renderGroupCard(members, cur, tags) {
         ${rounds}
       </div>
       <div class="ex-card__foot"${members.includes(cur?.ei) ? ' data-toast-avoid' : ''}>
-        <button class="add-set-link" data-action="add-round" data-ei="${head}">${icon('plus', 16)} Tour</button>
+        <button class="add-set-link" data-action="add-round" data-ei="${head}" aria-label="Ajouter un tour, ${esc(members.map(ei => xs[ei].name).join(', '))}">${icon('plus', 16)} Tour</button>
         ${orderBtnHtml(head, cur)}
       </div>
     </div>`;

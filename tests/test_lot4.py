@@ -171,7 +171,9 @@ def t_flow(bench, eng, dev, theme):
         shot(page, LOT, f'balayage-{t}')
         page.locator('.set-swipe--open .set-del').click(); page.wait_for_timeout(150)
         R.check(page.evaluate('activeSession.exercises[0].sets.length') == n0 - 1, f'{t} balayage : série supprimée')
-        # + Série
+        # + Série (panel du 07/11 : VoiceOver lisait « Série, bouton », sans dire quoi ni pour quel exercice)
+        lbl = page.get_attribute('[data-action="add-set"][data-ei="0"]', 'aria-label')
+        R.check(lbl == f"Ajouter une série, {page.evaluate('activeSession.exercises[0].name')}", f'{t} « + Série » nommé pour VoiceOver ({lbl!r})')
         page.click('[data-action="add-set"][data-ei="0"]'); page.wait_for_timeout(100)
         R.check(page.evaluate('activeSession.exercises[0].sets.length') == n0, f'{t} « + Série » ajoute une série')
         # Retirer l'exercice : séance seulement
