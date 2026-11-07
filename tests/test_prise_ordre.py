@@ -59,7 +59,7 @@ def data_with_past_grip():
     """Données de démo où la dernière séance Pull a fait le tirage vertical en pronation."""
     d = ppl_v2_today()
     h = next(x for x in d['history'] if x['id'] == 'hpu08')
-    next(e for e in h['exercises'] if e['name'] == 'Tirage vertical prise large')['grip'] = {'hand': 'pronation'}
+    next(e for e in h['exercises'] if e['name'] == 'Tirage vertical prise large')['grip'] = {'hand': 'supination'}
     return json.dumps(d, ensure_ascii=False)
 
 
@@ -67,29 +67,31 @@ def t_prise(bench, eng, dev, theme):
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, data_with_past_grip())
-        # Programme › Exercice : « Tirage vertical prise large » → sens des mains et poignée, pas la largeur
+        # Programme › Exercice : « Tirage vertical prise large » → sens des mains seulement : ni la largeur (dans le nom),
+        # ni ce qui la contredit (neutre, triangle, deux poignées : panel du 07/11)
         page.evaluate("navigate('editor:pull')")
         page.wait_for_selector('[data-action="edit-ex"][data-i="1"]')
         page.click('[data-action="edit-ex"][data-i="1"]')
         page.wait_for_selector('#exGrip .grip__chip')
         dims = page.evaluate("[...new Set([...document.querySelectorAll('#exGrip .grip__chip')].map(b => b.dataset.dim))]")
-        R.check(dims == ['hand', 'tool'], f'{t} éditeur : sens des mains et poignée seulement {dims}')
+        R.check(dims == ['hand'], f'{t} éditeur : sens des mains seulement {dims}')
+        hands = page.evaluate("[...document.querySelectorAll('#exGrip .grip__chip')].map(b => b.dataset.v)")
+        R.check(hands == ['pronation', 'supination'], f'{t} éditeur : jamais « Neutre » sur une prise large {hands}')
         page.click('#exGrip [data-dim="hand"][data-v="pronation"]')
         page.click('#exGrip [data-dim="hand"][data-v="pronation"]')   # retouché : retiré
         R.check(page.locator('#exGrip [aria-pressed="true"]').count() == 0, f'{t} éditeur : second toucher retire le choix')
-        page.click('#exGrip [data-dim="hand"][data-v="neutre"]')
-        page.click('#exGrip [data-dim="tool"][data-v="poignees"]')
+        page.click('#exGrip [data-dim="hand"][data-v="supination"]')
         foot = page.locator('#exGrip .group-foot').inner_text()
-        R.check(foot.startswith('Prise neutre · Deux poignées'), f'{t} éditeur : phrase « {foot[:40]} »')
+        R.check(foot.startswith('Prise en supination'), f'{t} éditeur : phrase « {foot[:40]} »')
         R.check(not small(page, '#exGrip .grip__chip'), f'{t} éditeur : pastilles de 44 px {small(page, "#exGrip .grip__chip")}')
         R.check(no_hscroll(page), f'{t} éditeur : pas de défilement de côté')
         page.locator('#exGrip').scroll_into_view_if_needed()
         shot(page, LOT, f'{t}-1-editeur-prise')
         page.click('[data-action="save-ex"]')
         page.wait_for_timeout(500)
-        R.check(pull_prog(page)[1].get('grip') == {'hand': 'neutre', 'tool': 'poignees'}, f'{t} éditeur : enregistrée {pull_prog(page)[1].get("grip")}')
+        R.check(pull_prog(page)[1].get('grip') == {'hand': 'supination'}, f'{t} éditeur : enregistrée {pull_prog(page)[1].get("grip")}')
         sub = page.locator('.ed-row[data-i="1"] .grip-sub').inner_text()
-        R.check(sub == 'Prise neutre · Deux poignées', f'{t} Programme › Séance : « {sub} »')
+        R.check(sub == 'Prise en supination', f'{t} Programme › Séance : « {sub} »')
         R.check(page.locator('.ed-row[data-i="0"] .grip-sub').count() == 0, f'{t} sans prise : rien sous le nom')
         shot(page, LOT, f'{t}-2-seance-programme')
 
@@ -97,22 +99,22 @@ def t_prise(bench, eng, dev, theme):
         page.evaluate("startSession('pull')")
         page.wait_for_selector('.view.session')
         line = page.locator('.ex-card[data-ei="1"] .ex-grip')
-        R.check(line.count() == 1 and 'Prise neutre · Deux poignées' in line.inner_text(), f'{t} séance : prise sous le nom')
+        R.check(line.count() == 1 and 'Prise en supination' in line.inner_text(), f'{t} séance : prise sous le nom')
         R.check(page.locator('.ex-card[data-ei="0"] .ex-grip').count() == 0, f'{t} séance : rien sans prise')
         R.check(page.locator('.ex-grip__photo').count() == 0, f'{t} séance : aucune photo vide')
         line.scroll_into_view_if_needed()
         shot(page, LOT, f'{t}-3-seance-prise')
         line.click()
         page.wait_for_selector('.sess-sheet--grip .grip__chip')
-        page.click('.sess-sheet--grip [data-dim="hand"][data-v="supination"]')
+        page.click('.sess-sheet--grip [data-dim="hand"][data-v="pronation"]')
         page.wait_for_timeout(150)
-        R.check('Prise en supination · Deux poignées' in page.locator('.sess-sheet--grip .grip__now').inner_text(), f'{t} feuille : phrase suivie')
+        R.check('Prise en pronation' in page.locator('.sess-sheet--grip .grip__now').inner_text(), f'{t} feuille : phrase suivie')
         R.check(not small(page, '.sess-sheet--grip button'), f'{t} feuille : boutons de 44 px {small(page, ".sess-sheet--grip button")}')
         shot(page, LOT, f'{t}-4-feuille-prise')
         page.click('.sess-sheet--grip [data-action="sheet-done"]')
         page.wait_for_timeout(400)
-        R.check('Prise en supination' in page.locator('.ex-card[data-ei="1"] .ex-grip').inner_text(), f'{t} séance : carte à jour')
-        R.check(pull_prog(page)[1].get('grip') == {'hand': 'supination', 'tool': 'poignees'}, f'{t} séance : programme suivi (la prochaine fois)')
+        R.check('Prise en pronation' in page.locator('.ex-card[data-ei="1"] .ex-grip').inner_text(), f'{t} séance : carte à jour')
+        R.check(pull_prog(page)[1].get('grip') == {'hand': 'pronation'}, f'{t} séance : programme suivi (la prochaine fois)')
         # Menu ⋯ : « Prise » pour le tirage, pas pour le curl marteau
         page.click('.ex-card__more[data-ei="4"]')
         page.wait_for_timeout(300)
@@ -120,7 +122,7 @@ def t_prise(bench, eng, dev, theme):
         tap_dialog(page, 'Annuler')
         # La dernière fois (vraie séance de l'historique), autre prise : rappelée sous la ligne
         before = page.locator('.ex-card[data-ei="1"] .ex-grip__before')
-        R.check(before.count() == 1 and before.inner_text() == 'Avant : prise en pronation', f'{t} séance : « Avant » de la prise')
+        R.check(before.count() == 1 and before.inner_text() == 'Avant : prise en supination', f'{t} séance : « Avant » de la prise')
         # Reprise après fermeture puis enregistrement : la prise suit l'historique
         page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]')
         page.wait_for_timeout(300)
@@ -128,16 +130,16 @@ def t_prise(bench, eng, dev, theme):
         page.wait_for_selector('#app > *')
         page.evaluate("navigate('session')")
         page.wait_for_selector('.view.session')
-        R.check('Prise en supination' in page.locator('.ex-card[data-ei="1"] .ex-grip').inner_text(), f'{t} reprise : prise gardée')
+        R.check('Prise en pronation' in page.locator('.ex-card[data-ei="1"] .ex-grip').inner_text(), f'{t} reprise : prise gardée')
         g = page.evaluate("sessionHistoryEntry(activeSession.programme, activeSession.category).exercises.find(e => e.name.startsWith('Tirage vertical'))?.grip")
-        R.check(g == {'hand': 'supination', 'tool': 'poignees'}, f'{t} historique : prise enregistrée {g}')
+        R.check(g == {'hand': 'pronation'}, f'{t} historique : prise enregistrée {g}')
         R.check(no_hscroll(page), f'{t} séance : pas de défilement de côté')
         # Historique › Séance : la prise faite ce jour-là sous le nom
         page.evaluate("endSession()")
         page.evaluate("navigate(makeRoute('history-detail', 'hpu08'))")
         page.wait_for_selector('.hex')
         cell = page.locator('.hex', has_text='Tirage vertical prise large')
-        R.check('Prise en pronation' in cell.inner_text(), f'{t} historique : prise affichée')
+        R.check('Prise en supination' in cell.inner_text(), f'{t} historique : prise affichée')
         cell.scroll_into_view_if_needed()
         shot(page, LOT, f'{t}-5-historique')
         # Séance passée modifiée (les champs de l'écran ne portent pas la prise) : la prise est gardée
@@ -147,7 +149,7 @@ def t_prise(bench, eng, dev, theme):
             storePastSession(h.exercises.map(e => ({ exId: e.exId, name: e.name, sets: e.sets.map(st => ({ ...st })) })));
             return data.history.find(x => x.id === 'hpu08').exercises.find(e => e.name === 'Tirage vertical prise large').grip;
         })()""")
-        R.check(g == {'hand': 'pronation'}, f'{t} séance passée modifiée : prise gardée {g}')
+        R.check(g == {'hand': 'supination'}, f'{t} séance passée modifiée : prise gardée {g}')
         R.check(not page.errors, f'{t} erreurs JS {page.errors}')
 
 

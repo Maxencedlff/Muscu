@@ -48,7 +48,7 @@ terre. Jamais pour un maintien ni du cardio. Et seulement pour **ce que le nom n
 | Exercice | Proposé |
 |---|---|
 | Tirage vertical prise serrée | sens des mains, poignée (la largeur est dans le nom) |
-| Tirage vertical prise large | sens des mains, poignée |
+| Tirage vertical prise large | sens des mains : pronation ou supination (pas de poignée : la barre) |
 | Tractions pronation | largeur |
 | Tirage horizontal câble | sens des mains, largeur, poignée |
 | Rowing haltère unilatéral | sens des mains (un bras : pas de largeur) |
@@ -61,6 +61,17 @@ terre. Jamais pour un maintien ni du cardio. Et seulement pour **ce que le nom n
 
 Un nom inconnu (exercice créé par la personne) est reconnu par les mêmes mots que les muscles
 (`ruleKey`).
+
+**Jamais une prise contraire au nom** (panel du 07/11 : « Tirage vertical prise large » affiché avec
+« Prise neutre · Deux poignées ») :
+
+- nom en prise **large** : ni « Neutre », ni triangle, deux poignées ou corde (ils rapprochent les mains,
+  paumes face à face) ; il reste la barre, en pronation ou en supination ;
+- nom en **pronation** ou **supination** (ou inversé, chin up) : ni triangle, ni corde, toujours neutres ;
+- une poignée qui ne laisse que la barre droite n'est plus proposée (ce n'est pas un choix).
+
+Une prise déjà enregistrée qui contredit le nom (programme reçu, version précédente) n'est pas effacée,
+mais sa partie contraire n'est plus affichée (`gripText` filtre avec `gripOptionsFor`).
 
 ### Où on la voit
 

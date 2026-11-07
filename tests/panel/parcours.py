@@ -766,8 +766,9 @@ def p_intensif(r):
 
 @parcours('prise', 'Prise d\'un exercice : programme, séance', 'pratiquant')
 def p_prise(r):
-    """Programme › Pull › Tirage vertical prise large : prise neutre avec deux poignées, enregistrée ; affichée sous le nom
-    dans la séance, puis changée en séance (supination) par la feuille Prise."""
+    """Programme › Pull › Tirage vertical prise large : prise en supination (seuls pronation et supination sont proposés,
+    jamais une prise contraire au nom), enregistrée ; affichée sous le nom dans la séance, puis changée en séance
+    (pronation) par la feuille Prise."""
     r.lancer(REALISTE)
     cle = 'Choisir la prise d\'un exercice'
     with r.etape('seance-pull', 'Programme › séance Pull', cle=cle):
@@ -778,9 +779,8 @@ def p_prise(r):
         r.toucher('.view.editor [data-action="edit-ex"]', 'Tirage vertical prise large', texte='Tirage vertical')
         r.attendre('.view.ex-edit', 'fiche de l\'exercice')
         r.defiler('#exGrip .grip__chip', 'rubrique Prise')
-    with r.etape('prise-choisie', 'Prise neutre, deux poignées', cle=cle):
-        r.toucher('#exGrip [data-dim="hand"][data-v="neutre"]', 'Neutre')
-        r.toucher('#exGrip [data-dim="tool"][data-v="poignees"]', 'Deux poignées')
+    with r.etape('prise-choisie', 'Prise en supination', cle=cle):
+        r.toucher('#exGrip [data-dim="hand"][data-v="supination"]', 'Supination')
     with r.etape('seance-programme', 'Enregistrée : la prise sous le nom (séance du programme)', cle=cle):
         r.toucher('[data-action="save-ex"]', 'OK')
         r.attendre('.view.editor', 'séance du programme')
@@ -792,8 +792,8 @@ def p_prise(r):
     with r.etape('feuille-prise', 'Feuille « Prise » en séance', cle='Changer la prise en séance'):
         r.toucher('.view.session .ex-grip', 'ligne de la prise')
         r.attendre('.sess-sheet--grip', 'feuille Prise')
-    with r.etape('prise-changee', 'Prise changée (supination) : ligne mise à jour', cle='Changer la prise en séance'):
-        r.toucher('.sess-sheet--grip [data-dim="hand"][data-v="supination"]', 'Supination')
+    with r.etape('prise-changee', 'Prise changée (pronation) : ligne mise à jour', cle='Changer la prise en séance'):
+        r.toucher('.sess-sheet--grip [data-dim="hand"][data-v="pronation"]', 'Pronation')
         r.toucher('.sess-sheet--grip [data-action="sheet-done"]', 'OK')
         r.defiler('.view.session .ex-grip', 'ligne de la prise')
 

@@ -3,6 +3,19 @@
 export default function ({ test, run, reset, sameJSON, assert }) {
   const opts = name => run(`gripOptionsFor({ name: ${JSON.stringify(name)} })`);
 
+  test('prise : jamais contraire au nom (panel du 07/11, « prise large » + « neutre · deux poignées »)', () => {
+    reset();
+    sameJSON(opts('Tirage vertical prise large'), { family: 'pulldown', hand: ['pronation', 'supination'] }, 'large : à la barre, ni neutre ni poignées');
+    sameJSON(opts('Rowing barre prise large'), { family: 'row', hand: ['pronation', 'supination'] });
+    sameJSON(opts('Tirage horizontal prise large'), { family: 'cable-row', hand: ['pronation', 'supination'] }, 'barre seule : pas de choix de poignée');
+    sameJSON(opts('Curl poulie supination').tool, ['barre', 'ez', 'poignees'], 'supination : ni triangle ni corde, toujours neutres');
+    sameJSON(opts('Tirage vertical prise serrée').tool, ['barre', 'triangle', 'poignees'], 'serrée : tout reste possible');
+    // Déjà enregistrée (programme reçu, ancienne version) : la partie contraire n'est plus affichée
+    assert.equal(run('gripText({ hand: "neutre", tool: "poignees" }, { name: "Tirage vertical prise large" })'), '');
+    assert.equal(run('gripText({ hand: "supination", tool: "poignees" }, { name: "Tirage vertical prise large" })'), 'Prise en supination');
+    assert.equal(run('gripText({ hand: "neutre", tool: "poignees" }, { name: "Tirage vertical" })'), 'Prise neutre · Deux poignées', 'nom sans largeur : inchangé');
+  });
+
   test('prise : proposée seulement là où elle compte, sans redire ce que le nom fixe', () => {
     reset();
     // Demande du coach : tirage vertical prise serrée → sens des mains et poignée, pas la largeur
@@ -36,7 +49,7 @@ export default function ({ test, run, reset, sameJSON, assert }) {
     "Soulevé de terre": 'deadlift:hand',
     "Tractions pronation": 'pullup:width',
     "Tractions prise serrée": 'pullup:hand',
-    "Tirage vertical prise large": 'pulldown:hand,tool',
+    "Tirage vertical prise large": 'pulldown:hand',   // prise large : à la barre, en pronation ou supination
     "Tirage vertical prise serrée": 'pulldown:hand,tool',
     "Tirage horizontal câble": 'cable-row:hand,width,tool',
     "Rowing barre": 'row:hand,width',

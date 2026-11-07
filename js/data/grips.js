@@ -74,7 +74,22 @@ function gripOptionsFor(exLike) {
   if (f.id === 'press' && /machine|chest press/.test(k)) delete o.width;   // poignées fixes de la machine
   if (f.id === 'deadlift' && ONE_HAND_RE.test(k)) delete o.hand;
   if (f.id === 'triceps' && /corde|rope/.test(k)) delete o.hand;
+  // Rien qui contredise le nom (panel du 07/11 : « Tirage vertical prise large » + « Prise neutre · Deux
+  // poignées ») : une prise large se tient à la barre, mains en pronation ou en supination (triangle,
+  // deux poignées et corde rapprochent les mains, paumes face à face) ; un nom en pronation ou en
+  // supination exclut le triangle et la corde, toujours neutres
+  if (WIDE_IN_NAME_RE.test(k)) { gripKeep(o, 'hand', h => h !== 'neutre'); gripKeep(o, 'tool', t => !NEUTRAL_TOOLS.includes(t) && t !== 'poignees'); }
+  if (/pronation|supination|reverse|inverse|chin ?up/.test(k)) gripKeep(o, 'tool', t => !NEUTRAL_TOOLS.includes(t));
+  if (o.tool?.length === 1 && o.tool[0] === 'barre') delete o.tool;   // la barre seule n'est pas un choix
   return o.hand || o.width || o.tool ? o : null;
+}
+const WIDE_IN_NAME_RE = /large|wide grip/;
+const NEUTRAL_TOOLS = ['triangle', 'corde'];
+// Garde les choix d'un réglage qui passent le filtre ; le réglage disparaît s'il n'en reste aucun
+function gripKeep(o, dim, keep) {
+  if (!o[dim]) return;
+  o[dim] = o[dim].filter(keep);
+  if (!o[dim].length) delete o[dim];
 }
 
 // Prise nettoyée : seules les valeurs connues sont gardées ; null s'il n'en reste aucune.
