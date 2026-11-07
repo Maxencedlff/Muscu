@@ -119,6 +119,8 @@ div.diet-meal__title { cursor: default; }
 .diet-home__kcal b { color: var(--label); font-weight: 700; }
 .diet-home__next { display: flex; align-items: center; gap: 4px; font-size: var(--fs-subhead); font-weight: 600; overflow-wrap: anywhere; }
 .diet-home--complete .diet-home__next { color: var(--check-on); }
+/* Accueil : la coche se voit en gris avant d'être touchée, sinon le bouton ressemble à l'anneau des calories (panel du 06/11) */
+.diet-home .diet-check:not(.diet-check--on) { color: var(--label3); }
 
 /* Feuilles : remplacer, rechercher, créer un aliment, objectifs */
 .diet-swap, .diet-pick, .diet-form { padding: 0; }

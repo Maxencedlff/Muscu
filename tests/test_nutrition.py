@@ -107,7 +107,12 @@ def t_journee(bench, eng, dev, theme):
         card = page.locator('.diet-home')
         R.check(card.count() == 1 and 'nutrition' in card.inner_text().lower() and 'Petit-déjeuner' in card.inner_text(), f'{t} accueil : carte Nutrition avec le prochain repas')
         R.check(small_targets(page, '.diet-home button') == [], f'{t} carte : 44 pt')
+        # Bouton à cocher : coche grise visible, jamais un deuxième anneau vide à côté de celui des calories
+        col = page.evaluate("[getComputedStyle(document.querySelector('.diet-home .diet-check')).color, getComputedStyle(document.body).getPropertyValue('--label3')]")
+        R.check(col[0] not in ('rgba(0, 0, 0, 0)', 'transparent') and page.locator('.diet-home .diet-check .icon').count() == 1, f'{t} carte : coche grise visible avant de cocher ({col})')
         shot(page, LOT, f'1-accueil-{t}')
+        card.scroll_into_view_if_needed()
+        shot(page, LOT, f'1b-accueil-carte-{t}')
         # Cocher depuis l'accueil : un seul toucher, le repas suivant prend la place
         page.click('.diet-home [data-action="diet-check"]')
         page.wait_for_timeout(250)
