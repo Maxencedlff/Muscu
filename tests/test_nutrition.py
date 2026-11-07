@@ -120,6 +120,9 @@ def t_journee(bench, eng, dev, theme):
         txt = page.inner_text('.nutrition-view')
         R.check("Aujourd'hui" in txt and 'Prise de masse' in txt, f'{t} Nutrition : titre et plan')
         R.check('sur 2 600 kcal' in txt.replace(' ', ' ').replace('\xa0', ' '), f'{t} Nutrition : objectif de calories du plan')
+        # Calories et protéines fixées, pas les glucides ni les lipides : pas de repère tiré du plan (il ne colle pas aux 2 600 kcal)
+        R.check(page.locator('.diet-bar--p:not(.diet-bar--free) .diet-bar__track').count() == 1 and page.locator('.diet-bar--free').count() == 2
+                and '/' not in page.inner_text('.diet-bar--c') and "Pas d'objectif" in page.inner_text('.diet-bar--f'), f'{t} Nutrition : glucides et lipides sans repère inventé')
         R.check(page.locator('.diet-week__day').count() == 7 and page.get_attribute('.diet-week__day--on', 'data-day') == '2026-11-05', f'{t} frise : 7 jours, aujourd\'hui choisi')
         R.check(page.locator('.diet-meal--done').count() == 1 and page.locator('.diet-meal--done .diet-item').count() == 0, f'{t} repas coché replié')
         R.check(page.locator('.diet-meal--next[data-meal="m2"]').count() == 1 and 'ensuite' in page.inner_text('.diet-meal--next').lower(), f'{t} déjeuner marqué « Ensuite »')

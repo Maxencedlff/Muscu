@@ -106,6 +106,8 @@ d'escalope de dinde rôtie, 145 g d'escalope de veau…
   sont fixés par le coach ou par la personne ; sans objectif, le total prévu par le plan ce jour-là
   (remplacements du jour compris : un équivalent ne donne jamais « 217 sur 215 kcal ») sert de repère, et
   l'écran le dit (« Repère : le total prévu par ton plan »).
+- **Calories fixées, pas une macro** (un coach fixe souvent kcal et protéines) : cette macro s'affiche sans repère
+  ni jauge (« Pas d'objectif ») ; son total tiré du plan ne collerait pas aux calories fixées.
 - **Repas vides** (plan neuf pas encore rempli) : ni cochables, ni comptés dans « n repas cochés sur N » ou la
   journée complète, jamais proposés comme prochain repas ; sans aucun repas rempli, pas de carte à l'accueil.
 - **Frise d'aujourd'hui** : jugée avec le plan suivi (après un changement de plan dans la journée, les coches

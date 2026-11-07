@@ -53,7 +53,14 @@ function dietSummaryHtml(pr) {
   const { eaten, goal, own } = pr;
   const hide = data.dietHideNumbers === true;
   const ratio = dietRatio(eaten.kcal, goal.kcal);
-  const bars = DIET_MACROS.map(({ k, label }) => `
+  // Calories fixées mais pas cette macro : son total tiré du plan ne colle pas forcément aux calories fixées
+  // (2 000 kcal pour des macros qui en font 1 535) : mangé seul, sans repère ni jauge
+  const free = k => own.kcal && !own[k];
+  const bars = DIET_MACROS.map(({ k, label }) => free(k) ? `
+          <div class="diet-bar diet-bar--${k} diet-bar--free" role="img" aria-label="${label} : ${dietN(eaten[k])} grammes, pas d'objectif">
+            <div class="diet-bar__head"><span class="diet-bar__label">${label}</span><span class="diet-bar__val num"><b>${dietN(eaten[k])}</b> g</span></div>
+            <div class="diet-bar__sub">Pas d'objectif</div>
+          </div>` : `
           <div class="diet-bar diet-bar--${k}" role="img" aria-label="${label} : ${dietN(eaten[k])} grammes sur ${dietN(goal[k])}">
             <div class="diet-bar__head"><span class="diet-bar__label">${label}</span><span class="diet-bar__val num"><b>${dietN(eaten[k])}</b> / ${dietN(goal[k])} g</span></div>
             <div class="diet-bar__track"><span class="diet-bar__fill" style="width:${(dietRatio(eaten[k], goal[k]) * 100).toFixed(1)}%"></span></div>

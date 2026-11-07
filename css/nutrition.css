@@ -40,6 +40,7 @@
 .diet-bar__val { color: var(--label2); white-space: nowrap; }
 .diet-bar__val b { color: var(--label); font-weight: 700; }
 .diet-bar__track { margin-top: 4px; height: 8px; border-radius: var(--r-pill); background: var(--fill); overflow: hidden; }
+.diet-bar__sub { margin-top: 2px; font-size: var(--fs-caption); color: var(--label2); }
 .diet-bar__fill { display: block; height: 100%; border-radius: inherit; transition: width .5s var(--nav-ease); }
 .diet-bar--p .diet-bar__fill { background: var(--macro-p); }
 .diet-bar--c .diet-bar__fill { background: var(--macro-c); }
