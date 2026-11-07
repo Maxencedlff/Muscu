@@ -5,7 +5,7 @@ Appareils et hypothèses de taille : tests/fixtures.py (RECENT_PROFILES). L'app 
 l'app iOS, et les marges de sécurité (encoche / Dynamic Island, barre d'accueil) sont simulées.
 
 Écrans : accueil, Nutrition, séance (série validée, repos), feuille d'ajout, bilan, Historique, Progrès,
-Programme, fiche exercice, Bibliothèque, Réglages, Amis, Mes élèves (coach, faux serveur tests/fake_account.py).
+Programme, fiche exercice, Bibliothèque, Réglages, Coach (Élèves et Social, compte coach, faux serveur tests/fake_account.py).
 Vérifié sur chacun : pas de défilement horizontal, rien de lisible ou touchable sous l'encoche ni sous la barre
 d'accueil, fin de l'écran au-dessus de la barre d'onglets, textes non coupés, boutons de 44 pt, barre d'onglets
 collée en bas et pas étalée, feuilles dans l'écran et sous l'encoche, et sur grand écran une largeur de lecture
@@ -59,7 +59,7 @@ def donnees():
     return json.dumps(d, ensure_ascii=False, separators=(',', ':'))
 
 
-# Coach validé avec deux élèves (comme tests/panel/parcours.py, PREPARE_COACH), Léa suivie aussi dans Amis
+# Coach validé avec deux élèves (comme tests/panel/parcours.py, PREPARE_COACH), Léa suivie aussi dans Social
 PREPARE = """async (sessions) => {
     await accountSignInWith('apple', async () => 'add');
     await accountSaveProfile({ username: 'max' });
@@ -345,11 +345,12 @@ def t_ecrans(bench, eng, dev, theme):
             tap('.view.dashboard [data-action="go-settings"]')
         ecran('reglages', reglages, '.settings-view')
 
-        # Compte, Amis activé, rôle coach avec deux élèves (faux serveur, rien ne sort)
+        # Compte, social activé, rôle coach avec deux élèves (faux serveur, rien ne sort) : onglet Coach, segment
+        # Élèves à l'ouverture, puis segment Social (docs/SOCIAL_V2.md)
         page.evaluate(PREPARE, seances_lea())
         page.wait_for_timeout(400)
-        ecran('amis', lambda: onglet('friends'), '.feed-card, [data-action="coach-open-students"]')
-        ecran('mes-eleves', lambda: tap('[data-action="coach-open-students"]'), '.coach-students-view')
+        ecran('coach-eleves', lambda: onglet('friends'), '.coach-team .coach-student-row')
+        ecran('coach-social', lambda: tap('.social-seg [data-seg="friends"]'), '.feed-card, .friends-view #socialSearch')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
 

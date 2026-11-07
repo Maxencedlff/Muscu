@@ -358,17 +358,17 @@ def p_guide(r):
         r.toucher('[data-action="open-guide-topic"]', '1er sujet')
 
 
-@parcours('amis', 'Amis : sans compte, puis avec compte', 'pratiquant')
+@parcours('amis', 'Social : sans compte, puis avec compte', 'pratiquant')
 def p_amis(r):
-    """Onglet Amis sans compte (invitation à se connecter), puis connecté : activation, fil avec une amie
+    """Onglet Social sans compte (invitation à se connecter), puis connecté : activation, fil avec une amie
     qui s'entraîne, une de ses séances."""
     r.lancer(REALISTE)
-    with r.etape('sans-compte', 'Onglet Amis sans compte'):
-        r.onglet('friends', 'Amis')
+    with r.etape('sans-compte', 'Onglet Social sans compte'):
+        r.onglet('friends', 'Social')
     with r.etape('connexion', '« Se connecter » : écran de compte'):
         r.toucher('[data-action="social-sign-in"]', 'Se connecter')
     r.connecter('max')
-    with r.etape('activer', 'Connecté : retour à Amis, carte d\'activation', cle='Activer Amis'):
+    with r.etape('activer', 'Connecté : retour à Social, carte d\'activation', cle='Activer Amis'):
         r.retour()
         r.attendre('[data-action="social-enable"]', 'carte d\'activation')
     with r.etape('active', 'Âge déclaré, Amis activé', cle='Activer Amis'):
@@ -404,8 +404,8 @@ def p_hors_ligne(r):
     r.page.context.set_offline(True)
     r.raccourci("() => { __sb.fail.social = 'offline'; __sb.fail.coach = 'offline'; __sb.fail.chat = 'offline'; window.dispatchEvent(new Event('offline')); }",
                 'réseau coupé (navigateur et faux serveur)')
-    with r.etape('amis', 'Onglet Amis hors ligne'):
-        r.onglet('friends', 'Amis')
+    with r.etape('amis', 'Onglet Social hors ligne'):
+        r.onglet('friends', 'Social')
     with r.etape('seance', 'Séance démarrée hors ligne'):
         r.onglet('train', 'Entraînement')
         r.toucher('.view.dashboard [data-action="start-session"]', 'Démarrer')
@@ -473,12 +473,9 @@ def p_coach(r):
     r.connecter('max')
     r.raccourci(PREPARE_COACH, 'rôle coach validé, élèves Léa et Tom, programme « Force », message de Léa',
                 [seances_eleve(), days_back_ms(NOW, 3, 9, tz=PARIS)])
-    with r.etape('amis', 'Onglet Amis : cellule Mes élèves', cle='Ouvrir la dernière séance d\'un élève'):
-        r.onglet('friends', 'Amis')
-        r.attendre('[data-action="coach-open-students"]', 'cellule Mes élèves')
-    with r.etape('mes-eleves', 'Mes élèves', cle='Ouvrir la dernière séance d\'un élève'):
-        r.toucher('[data-action="coach-open-students"]', 'Mes élèves')
-        r.attendre('.coach-students-view', 'Mes élèves')
+    with r.etape('mes-eleves', 'Onglet Coach : segment Élèves (docs/SOCIAL_V2.md)', cle='Ouvrir la dernière séance d\'un élève'):
+        r.onglet('friends', 'Coach')
+        r.attendre('.coach-team .coach-student-row', 'Élèves')
     with r.etape('eleve', 'Fiche de Léa (séances, messages, envoyer)', cle='Ouvrir la dernière séance d\'un élève'):
         r.toucher('.coach-student-row', 'Léa', texte='lea')
         r.attendre('.coach-student-view', 'fiche de l\'élève')
@@ -541,14 +538,14 @@ PREPARE_ELEVE = """([prog]) => {
 
 @parcours('rejoindre-coach', 'Élève : rejoindre un coach avec son code', 'coach')
 def p_rejoindre(r):
-    """Léa a reçu le code K7M2QX9P de son coach : onglet Amis › Rejoindre un coach, code, aperçu de ce que
+    """Léa a reçu le code K7M2QX9P de son coach : onglet Social › Rejoindre un coach, code, aperçu de ce que
     le coach verra, case d'âge, Accepter."""
     r.lancer(REALISTE)
     r.connecter('lea')
     r.raccourci(PREPARE_ELEVE, 'max est coach avec un code d\'invitation', [COACH_PROG])
     cle = 'Rejoindre un coach avec un code'
-    with r.etape('amis', 'Onglet Amis : « Rejoindre un coach »', cle=cle):
-        r.onglet('friends', 'Amis')
+    with r.etape('amis', 'Onglet Social : « Rejoindre un coach »', cle=cle):
+        r.onglet('friends', 'Social')
     with r.etape('code', 'Saisie du code', cle=cle):
         r.toucher('[data-action="coach-join-start"]', 'Rejoindre un coach')
         r.saisir('#coachCode', 'K7M2QX9P', 'code')
@@ -581,8 +578,8 @@ def p_eleve(r):
     }""", 'coach max relié, programme « Force » envoyé, commentaire et message', [COACH_PROG])
     with r.etape('accueil', 'Accueil : carte du coach'):
         r.attendre('.view.dashboard', 'accueil')
-    with r.etape('amis', 'Onglet Amis : Mon coach (pastille)', cle='Ajouter le programme reçu du coach'):
-        r.onglet('friends', 'Amis')
+    with r.etape('amis', 'Onglet Social : Mon coach (pastille)', cle='Ajouter le programme reçu du coach'):
+        r.onglet('friends', 'Social')
     with r.etape('mon-coach', 'Mon coach : programme reçu, messages', cle='Ajouter le programme reçu du coach'):
         r.toucher('[data-action="coach-open-mine"]', 'Mon coach')
         r.attendre('.coach-mine-view', 'Mon coach')
@@ -888,10 +885,9 @@ def p_coach_suivi(r):
     r.raccourci(PREPARE_SUIVI, 'phases de Léa et Tom, fourchettes, techniques et prises dans « Force », plan diète « Sèche Léa », accord diète de Léa',
                 PLAN_DIETE)
     cle = 'Voir le planning des élèves'
-    with r.etape('mes-eleves', 'Mes élèves : signal de progression et phase', cle=cle):
-        r.onglet('friends', 'Amis')
-        r.toucher('[data-action="coach-open-students"]', 'Mes élèves')
-        r.attendre('.coach-students-view', 'Mes élèves')
+    with r.etape('mes-eleves', 'Onglet Coach, Élèves : signal de progression et phase', cle=cle):
+        r.onglet('friends', 'Coach')
+        r.attendre('.coach-team .coach-student-row', 'Élèves')
     with r.etape('planning', 'Planning : 16 semaines, une ligne par élève', cle=cle):
         r.toucher('[data-action="plan-overview"]', 'Planning')
         r.attendre('.plan-gantt__row', 'planning')

@@ -1,7 +1,7 @@
 """Réactions et Mon profil (app iOS simulée) : réaction d'un toucher et par appui long (bulle de choix),
 rangée de choix sur la séance d'un ami, « qui a réagi » sur mes séances (Historique et Mon profil),
 « 👏 2 » dans l'Historique, écran Mon profil (chiffres, activité, mes séances vues par mes abonnés,
-Gérer), pastille de l'onglet Amis remise à zéro à l'ouverture de Mon profil.
+Gérer), pastille de l'onglet Social remise à zéro à l'ouverture de Mon profil.
 
 L'app iOS et Supabase sont simulés (tests/fake_account.py, règles de
 supabase/migrations/20261031200000_reactions_profil.sql) : aucune requête ne sort.

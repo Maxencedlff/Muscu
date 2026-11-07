@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Relecture de la séance d'un autre (coach : un élève ; Amis : un ami), logique pure
+//  Relecture de la séance d'un autre (coach : un élève ; Social : un ami), logique pure
 //  Toutes les comparaisons se font avec les SEULES séances de cette personne reçues du serveur
 //  (lignes { id, doneAt, s } de coachSessions ou du fil), jamais avec data.history, et jamais avec le
 //  poids du corps de la personne qui regarde : currentBodyKg() / entryBodyKg() donneraient le sien. Le poids

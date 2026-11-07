@@ -2,7 +2,7 @@
 //  Coach (Coach V1) : appels au serveur et logique pure, sans affichage
 //
 //  - Contrat serveur / app : docs/COACH_V1.md. Tout passe par des fonctions RPC (security definer, rôle
-//    authenticated) ; indépendant du social (être coach ou élève ne demande pas d'avoir activé Amis).
+//    authenticated) ; indépendant du social (être coach ou élève ne demande pas d'avoir activé le social).
 //  - Champs gardés dans ppl_v2 : fromCoach et consigne (programme), consigne (exercice), bornés par
 //    sanitizeData (cleanConsigne, cleanFromCoach dans store.js, chargé avant).
 //  - Tout ce qui vient du serveur est nettoyé ici (cleanCoachState, cleanCoachSession, cleanSentProgramme…)
@@ -13,7 +13,7 @@
 //    même séance (historique et records suivent), garde les séances retirées (retired: true) pour l'historique,
 //    et demande avant d'écraser un programme que l'élève a modifié (empreinte fromCoach.hash).
 //  - Rien ne bloque le démarrage : l'état (coach_state, et student_inbox pour un élève) est relu en
-//    arrière-plan (connexion, premier plan, onglet Amis, écrans du coach). Rôle et badge du dernier état
+//    arrière-plan (connexion, premier plan, onglet Social, écrans du coach). Rôle et badge du dernier état
 //    lu sont gardés sur l'appareil (COACH_CACHE_KEY) pour l'onglet hors ligne.
 //  - Résultats : { ok: true, data } ou { ok: false, kind }. L'écran s'abonne par onCoachChange.
 // ═══════════════════════════════════════════════════════════
@@ -63,7 +63,7 @@ function cleanStudent(raw) {
 
 // coach_state() nettoyé : { is_coach, coach, students, invites, badge, badge_coach, badge_student }.
 // badge_coach : nouvelles séances de mes élèves (pastille « Mes élèves ») ; badge_student : programmes et
-// commentaires non vus de mon coach (« Mon coach ») ; badge : leur somme (onglet Amis)
+// commentaires non vus de mon coach (« Mon coach ») ; badge : leur somme (onglet Social)
 function cleanCoachState(raw) {
   const r = raw && typeof raw === 'object' ? raw : {};
   const students = (Array.isArray(r.students) ? r.students : []).map(cleanStudent).filter(Boolean);
@@ -188,7 +188,7 @@ function coachInviteText(code) {
   // La remise de 25 % n'existe que verrou allumé (tout est ouvert sinon) : pas de promesse avant
   const end = c.length !== 12 ? 'Il est valable 7 jours.'
     : paywallOn() ? 'Avec ce code, ton abonnement est à 25 % de moins pendant 12 mois.' : 'Ce code n\'expire pas.';
-  return `Je te propose de te suivre sur MDLF Training. Dans l'app MDLF Training : onglet Amis › Rejoindre un coach, puis saisis le code ${shown}. ${end}`;
+  return `Je te propose de te suivre sur MDLF Training. Dans l'app MDLF Training : onglet Social › Rejoindre un coach, puis saisis le code ${shown}. ${end}`;
 }
 // Code permanent : K7M2QX9PR4TD → K7M2-QX9P-R4TD (les tirets sont ignorés à la saisie)
 function formatCoachCode(code) {
@@ -457,7 +457,7 @@ function coachRole() {
   if (coach.state) return { isCoach: coach.state.is_coach, hasCoach: !!coach.state.coach };
   return { isCoach: !!coach.cached?.isCoach, hasCoach: !!coach.cached?.hasCoach };
 }
-// Badges : onglet Amis (somme), pastille « Mes élèves » (nouvelles séances), « Mon coach » (non vus)
+// Badges : onglet Social (somme), pastille « Mes élèves » (nouvelles séances), « Mon coach » (non vus)
 function coachBadge() {
   if (!account.user) return 0;
   return coach.state ? coach.state.badge : (coach.cached?.badge || 0);
@@ -683,7 +683,7 @@ async function coachFlushSeen() {
   return last;
 }
 
-// Élève : coach perdu (retiré par le coach) à dire une fois dans l'onglet Amis
+// Élève : coach perdu (retiré par le coach) à dire une fois dans l'onglet Social
 function coachLost() {
   try { const c = JSON.parse(localStorage.getItem(COACH_LOST_KEY)); return c && c.userId === coach.userId && typeof c.name === 'string' ? c.name : null; }
   catch { return null; }

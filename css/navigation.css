@@ -146,7 +146,7 @@ body.light .livebar { background: var(--cell); }
 .livebar__rest[hidden] { display: none; }
 .livebar__chev { color: var(--label3); display: flex; }
 
-/* ── Avatar du compte dans la barre (accueil, onglet Amis) : à la place de la roue, même zone de tap de 44 px ── */
+/* ── Avatar du compte dans la barre (accueil, onglet Social) : à la place de la roue, même zone de tap de 44 px ── */
 /* Le reste de l'accueil : css/home.css */
 .navbar__avatar .avatar--s { width: 32px; height: 32px; font-size: 1.118rem; }
 .navbar__avatar .avatar--s.avatar--initial { font-size: 0.941rem; }

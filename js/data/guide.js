@@ -553,7 +553,7 @@ const GUIDE_SECTIONS = [
         lead: 'Ton coach suit tes séances, t\'envoie des programmes et commente tes séances. Il faut un compte.',
         steps: [
           'Demande un code à ton coach. Il faut un compte et un pseudo : l\'app te le demande s\'il manque.',
-          'En haut de l\'onglet [Amis], touche [Rejoindre un coach] (ou [Réglages] › [Coach]), puis saisis le code ou colle le message reçu.',
+          'En haut de l\'onglet [Social], touche [Rejoindre un coach] (ou [Réglages] › [Coach]), puis saisis le code ou colle le message reçu.',
           'Tu vois qui est le coach et ce qu\'il verra : toutes tes séances et leurs notes, ton poids et tes mensurations seulement si tu choisis de les partager, jamais Santé. Coche [J\'ai 15 ans ou plus], puis [Accepter].',
           '[Quitter mon coach] arrête tout, quand tu veux. Les programmes déjà ajoutés restent chez toi.',
         ],
@@ -562,7 +562,7 @@ const GUIDE_SECTIONS = [
       },
       {
         id: 'programme-coach', title: 'Programme reçu d\'un coach', icon: 'list.bullet', color: 'indigo', iphone: true,
-        lead: 'Un programme envoyé par ton coach arrive sur l\'accueil et dans [Mon coach].',
+        lead: 'Un programme envoyé par ton coach arrive sur l\'accueil et dans [Social] › [Mon coach].',
         steps: [
           'Touche [Ajouter à mes programmes] : il rejoint tes programmes, tu peux l\'utiliser tout de suite.',
           'Ses consignes s\'affichent dans la séance du programme et pendant la séance, sous le nom de l\'exercice. Un toucher les replie.',
@@ -574,10 +574,10 @@ const GUIDE_SECTIONS = [
       },
       {
         id: 'coacher', title: 'Suivre des élèves', icon: 'person.2', color: 'purple', iphone: true,
-        lead: 'Avec un compte coach, la cellule [Mes élèves] est en haut de l\'onglet [Amis].',
+        lead: 'Avec un compte coach, le dernier onglet s\'appelle [Coach] : il s\'ouvre sur tes élèves.',
         steps: [
+          '[Élèves] montre ta semaine (records, élèves à relancer, nouveautés), puis tes élèves, les plus urgents en haut : touche un élève pour voir ses séances. [Social] garde tes amis et ton fil.',
           '[Inviter un élève] crée un code valable 7 jours et ouvre le partage. Tes élèves ne se voient pas entre eux.',
-          'Touche un élève pour voir ses séances. Une pastille rouge compte ses nouvelles séances.',
           'Dans une séance, [Commenter] laisse un mot que l\'élève lit dans son historique.',
           '[Envoyer un programme] : choisis un de tes programmes, ajoute des consignes, puis envoie.',
           '[Retirer l\'élève] arrête le suivi.',

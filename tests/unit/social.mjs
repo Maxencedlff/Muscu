@@ -1,4 +1,4 @@
-// Amis (js/data/social.js) : logique pure sans réseau (nettoyage de ce que renvoie le serveur,
+// Social (js/data/social.js) : logique pure sans réseau (nettoyage de ce que renvoie le serveur,
 // recherche, relation, erreurs traduites)
 export default function ({ test, run, assert, sameJSON }) {
   test('amis : séance d\'un autre réduite à la liste blanche, champs bornés', () => {
@@ -48,7 +48,7 @@ export default function ({ test, run, assert, sameJSON }) {
           exercises: [{ exId: 'a', name: 'A', sets: [{ weight: '10', reps: '8', done: true }] }] };
         const out = {};
         out.def = sessionsVisibleByDefault();                       // réglage absent : visible
-        out.offNoFriends = (data.sessionVisibleDefault = false, newSessionHidden());   // Amis pas activé : rien à masquer
+        out.offNoFriends = (data.sessionVisibleDefault = false, newSessionHidden());   // social pas activé : rien à masquer
         account.user = { id: 'u' }; social.state = cleanSocialState({ enabled: true });
         out.offFriends = newSessionHidden();
         out.entryOff = sessionHistoryEntry('ppl', 'push').hidden;
@@ -190,5 +190,26 @@ export default function ({ test, run, assert, sameJSON }) {
     })()`);
     sameJSON([r.badge, r.pending, r.shown, r.cache, r.cachedBadge], [3, 1, 7, { enabled: true, badge: 1, activityNew: 2 }, 3]);
     sameJSON([r.oldServer.activity_new, r.oldServer.shown_sessions], [0, null], 'serveur d\'avant : pas de pastille, chiffre inconnu');
+  });
+
+  test('social : muscles d\'une carte du fil, les plus travaillés, sans échauffement ni doublon', () => {
+    const m = run(`feedMuscles({ exercises: [
+      { name: 'Squat', sets: [{ weight: '60', reps: '8', warmup: true }, { weight: '100', reps: '5' }, { weight: '100', reps: '5' }, { weight: '100', reps: '5' }] },
+      { name: 'Élévations latérales', sets: [{ weight: '10', reps: '15' }] },
+      { name: 'Développé militaire', sets: [{ weight: '40', reps: '8' }, { weight: '40', reps: '8' }] },
+      { name: 'Exercice inconnu xyz', sets: [{ weight: '1', reps: '1' }] },
+      { name: 'Leg curl', sets: [{ weight: '40', reps: '12', warmup: true }] } ] })`);
+    assert.ok(['Fessiers', 'Quadriceps'].includes(m[0]) && ['Fessiers', 'Quadriceps'].includes(m[1]), `squat (3 séries) d'abord (${m})`);
+    assert.ok(m.includes('Épaules') && m.filter(x => x === 'Épaules').length === 1, `Épaules une fois (${m})`);
+    assert.ok(!m.includes('Ischio-jambiers'), 'série d\'échauffement seule : pas comptée');
+    assert.ok(m.length <= 3);
+    sameJSON(run(`feedMuscles({ exercises: [] })`), []);
+    sameJSON(run(`feedMuscles(null)`), []);
+  });
+
+  test('social : message d\'invitation d\'un ami, avec ou sans pseudo, sans lien', () => {
+    assert.match(run(`friendInviteText('max')`), /onglet Social : mon pseudo est max\.$/);
+    assert.ok(!/https?:/.test(run(`friendInviteText('max')`)));
+    assert.match(run(`friendInviteText('')`), /onglet Social/);
   });
 }

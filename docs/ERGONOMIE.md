@@ -11,7 +11,9 @@ Une même icône ou un même mot mène toujours à la même chose, partout.
 | Icône | Sens unique | Où |
 |---|---|---|
 | Roue (`gear`) | Réglages (le compte est en tête des Réglages) | En haut à droite d'Entraînement et de Programme, même bouton, même place (`settingsButtonHtml`, js/features/settings.js) |
-| Avatar seul | Mon profil | En haut à droite d'Amis seulement (`meButtonHtml`) |
+| Avatar seul | Mon profil | En haut à droite de Social seulement, segment Social compris pour un coach (`meButtonHtml`) |
+| Personnes (`person.2`) | Social : les amis, leurs séances | 5e onglet (« Social ») |
+| Planchette (`coach`) | Coach : le suivi d'élèves | 5e onglet d'un compte coach (« Coach », docs/SOCIAL_V2.md), « Rejoindre un coach » |
 | `+` | Ajouter l'objet de l'écran (série, exercice, séance, mesure, photo) | Jamais pour autre chose |
 | `⋯` | Menu des actions de l'objet à côté | Exercice en séance, conversation |
 | Chevron vers le bas (`chevron.down`) | Replier ou déplier : réduire la séance en cours (en haut à gauche), montrer la suite d'une carte (« Voir les exercices ») | Jamais pour déplacer quelque chose (« Plus tard » a sa flèche) |
@@ -37,6 +39,9 @@ L'action principale de chaque écran se fait en deux touchers au plus depuis l'�
 | Ajouter un exercice déjà fait | Ajouter un exercice › toucher l'exercice dans « Récents » |
 | Finir la séance | Terminer › Enregistrer la séance |
 | Voir ses records | onglet Progrès (carte « Derniers records » en tête) |
+| Coach : voir qui a progressé | onglet Coach (résumé « Cette semaine » et élèves triés, un toucher) |
+| Coach : ouvrir la fiche d'un élève | onglet Coach › l'élève |
+| Élève : ouvrir Mon coach | onglet Social › Mon coach |
 
 Ce qu'on fait souvent est en haut et visible sans défiler ; le reste est trouvable par la recherche.
 Rien ne se déclenche au `pointerdown` : un toucher = un `click`.
@@ -55,7 +60,9 @@ Toujours le même mot pour la même chose, en français courant, au tutoiement, 
 | Volume | charge × reps (« +33 kg de volume », jamais « +33 kg » seul) | tonnage |
 | Échauffement | séries légères hors volume et hors records | |
 | Réglages | l'écran des réglages | Paramètres |
-| Mon profil | sa page côté Amis | |
+| Social | l'onglet des amis et de leurs séances ; le segment du même contenu dans l'onglet Coach | Amis (comme nom d'onglet ou de section) |
+| Coach | l'onglet d'un compte coach (segments Élèves et Social) ; Réglages › Coach | |
+| Mon profil | sa page côté Social | |
 | Supprimer la séance | retirer une séance d'un programme | |
 | Supprimer de l'historique | effacer une séance faite (corbeille 30 jours) | |
 | Terminer | finir la séance en cours | pour arrêter un chrono : « Arrêter » |

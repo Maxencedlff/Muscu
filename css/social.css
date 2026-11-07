@@ -1,10 +1,10 @@
 /* ═══════════════════════════════════════════════
-   Amis (js/features/social-ui.js) : badge de l'onglet, accueil de l'onglet (sans compte,
-   activation), lignes de personnes, cartes du fil, bouton de réaction, profil d'un autre.
+   Social (js/features/social-ui.js, docs/SOCIAL_V2.md) : badge de l'onglet, accueil de l'onglet (sans
+   compte, activation, fil vide), recherche, lignes de personnes, cartes du fil, réaction, profil d'un autre.
    Couleurs : tokens de css/base.css seulement.
 ═══════════════════════════════════════════════ */
 
-/* ── Badge de l'onglet Amis (demandes reçues) : pastille rouge en haut à droite de l'icône ── */
+/* ── Badge de l'onglet Social (demandes reçues) : pastille rouge en haut à droite de l'icône ── */
 .tabbar__btn { position: relative; }
 .tabbar__badge {
   position: absolute; top: 3px; left: calc(50% + 6px);
@@ -78,30 +78,62 @@
 .social-x .icon { position: relative; }
 .social-x:active { opacity: .6; }
 
-/* ── Cartes du fil ── */
+/* ── Recherche : champ arrondi avec la loupe, comme la recherche d'iOS ── */
+.social-search { position: relative; margin: 0 0 16px; }
+.social-search__icon { position: absolute; left: 10px; top: 0; bottom: 0; display: flex; align-items: center; color: var(--label2); pointer-events: none; }
+.social-search__input.search { height: 44px; padding-left: 34px; border-radius: var(--r-md); }
+
+/* ── Fil vide : accueil, Inviter un ami, Rechercher un pseudo ── */
+.social-hero--empty { padding-top: 16px; }
+.social-hero__sub b { color: var(--label); font-weight: 600; }
+.social-find { margin-top: 8px; background: none; color: var(--tint); }
+
+/* ── Cartes du fil : qui, la séance (nom, trois chiffres, record en or, muscles), réagir et commenter ── */
 .feed { display: flex; flex-direction: column; gap: 12px; }
-.feed-card { background: var(--cell); border-radius: var(--r-md); overflow: hidden; }
+.feed-card { background: var(--cell); border-radius: 18px; overflow: hidden; }
 .feed-card__who, .feed-card__main {
   display: flex; width: 100%; border: 0; background: none; color: var(--label); font: inherit; text-align: left; cursor: pointer;
+  transition: background-color .15s;
 }
 .feed-card__who:active, .feed-card__main:active { background: var(--cell2); }
-.feed-card__who { align-items: center; gap: 12px; min-height: 56px; padding: 12px 16px 4px; }
+.feed-card__who { align-items: center; gap: 12px; min-height: 56px; padding: 12px 16px 2px; }
 .feed-card__who-text { min-width: 0; display: flex; flex-direction: column; }
 .feed-card__name { font-size: var(--fs-body); line-height: 1.3; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .feed-card__date { font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); white-space: nowrap; }
-.feed-card__main { flex-direction: column; gap: 2px; min-height: 44px; padding: 8px 16px 10px; }
+.feed-card__main { flex-direction: column; gap: 10px; min-height: 44px; padding: 8px 16px 14px; }
 .feed-card__title { display: flex; align-items: baseline; gap: 8px; width: 100%; min-width: 0; }
 .feed-card__title .hcell__dot { align-self: center; margin-top: 0; }
-.feed-card__label { flex: 1; min-width: 0; font-size: var(--fs-title3); line-height: 1.3; font-weight: 700; overflow-wrap: anywhere; }
+.feed-card__label { flex: 1; min-width: 0; font-size: var(--fs-title2); line-height: 1.25; font-weight: 700; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .feed-card__title .feed-card__date { margin-left: auto; }
-.feed-card__meta { font-size: var(--fs-subhead); color: var(--label2); }
-.feed-card__sum {
-  font-size: var(--fs-subhead); line-height: 1.35; color: var(--label);
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+/* Trois chiffres côte à côte, séparés d'un filet, libellé dessous (lecture : « 58 min Durée ») */
+.feed-card__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+.feed-card__stat { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.feed-card__stat + .feed-card__stat { padding-left: 12px; box-shadow: inset .5px 0 0 var(--sep); }
+.feed-card__stat-val { font-size: var(--fs-title3); line-height: 1.25; font-weight: 700; white-space: nowrap; }
+.feed-card__stat-lbl { font-size: var(--fs-caption); line-height: 1.3; color: var(--label2); }
+/* Record noté : pastille dorée, lisible dans les deux thèmes (--gold-text sur un voile jaune léger) */
+.feed-card__rec {
+  align-self: flex-start; max-width: 100%; padding: 5px 11px; border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--yellow) 16%, transparent);
+  font-size: var(--fs-subhead); line-height: 1.35; font-weight: 600; color: var(--gold-text); overflow-wrap: anywhere;
 }
-/* Record noté mis en avant : une ligne sobre, en or lisible (--gold-text) */
-.feed-card__rec { margin-top: 2px; font-size: var(--fs-subhead); line-height: 1.35; font-weight: 600; color: var(--gold-text); overflow-wrap: anywhere; }
-.feed-card__foot { display: flex; align-items: center; gap: 10px; padding: 0 16px 6px; box-shadow: inset 0 .5px 0 var(--sep); margin-left: 16px; padding-left: 0; }
+.feed-card__rec-more { font-weight: 500; }
+/* Muscles : puces discrètes (texte, jamais une carte du corps : rien de lourd dans le fil) */
+.feed-card__muscles { display: flex; flex-wrap: wrap; gap: 6px; }
+.feed-card__chip { padding: 3px 9px; border-radius: var(--r-pill); background: var(--fill2); font-size: var(--fs-footnote); line-height: 1.35; color: var(--label2); }
+.feed-card__foot { display: flex; align-items: center; gap: 10px; min-height: 52px; margin: 0 16px; border-top: .5px solid var(--sep); }
+.feed-card__comment {
+  margin-left: auto; margin-right: -10px; min-height: 44px; min-width: 44px; padding: 0 10px; border: 0; background: none; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  color: var(--label2); font: inherit; font-size: var(--fs-subhead); font-weight: 600;
+}
+.feed-card__comment:active { opacity: .6; }
+/* 320 pt (iPhone SE 1re génération) : chiffres un cran plus petits, « Commenter » en icône seule (nom gardé pour VoiceOver) */
+@media (max-width: 340px) {
+  .feed-card__stat-val { font-size: var(--fs-body); }
+  .feed-card__stat + .feed-card__stat { padding-left: 8px; }
+  .feed-card__comment span { display: none; }
+}
 
 /* Réaction (js/features/reactions-ui.js) : bouton sobre, emoji seul (👏 ou ma réaction), plein à la teinte une fois donnée.
    Appui long : pas de loupe ni de menu d'iOS, pas de sélection de texte. */
@@ -201,7 +233,8 @@
 .social-me-view .scr { padding-top: 12px; }
 .athlete { background: var(--cell); border-radius: 20px; padding: 18px 16px 16px; }
 .athlete__id { display: flex; align-items: center; gap: 14px; }
-.athlete__text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.athlete__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.athlete__edit { margin-right: -6px; }
 .athlete__name { margin: 0; font-size: var(--fs-title2); font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .athlete__sub { font-size: var(--fs-footnote); line-height: 1.3; color: var(--label2); }
 .me-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 16px; border-top: .5px solid var(--sep); }
@@ -241,7 +274,7 @@
 .last__fact-val { font-size: var(--fs-title3); font-weight: 700; line-height: 1.2; }
 .last__fact-lbl { font-size: var(--fs-caption); color: var(--label2); }
 .last__sum { font-size: var(--fs-subhead); line-height: 1.35; color: var(--label2); }
-.last .feed-card__rec { color: var(--label); }
+.last .feed-card__rec { margin-top: 6px; }
 .last__foot { display: flex; align-items: center; gap: 10px; min-height: 52px; margin: 0 16px; border-top: .5px solid var(--sep); }
 .last__who { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
 .last__who-text { font-size: var(--fs-subhead); color: var(--label2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

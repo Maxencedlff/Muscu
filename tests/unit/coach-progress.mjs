@@ -245,4 +245,12 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
       run('sb = null; account.user = null; coach.state = null; coach.sessions = {}; progressReset(null); delete globalThis.__calls; delete globalThis.__answers;');
     }
   });
+
+  test('progression : résumé de la semaine de Mes élèves (records, à relancer, nouveautés)', () => {
+    const r = run(`teamWeekSummary([{ user_id: 'a', new_sessions: 2 }, { user_id: 'b' }, { user_id: 'c', new_sessions: 0 }],
+      st => ({ a: { tone: 'up', records: [1, 2] }, b: { tone: 'warn', records: [] }, c: { tone: 'muted', records: [3] } })[st.user_id],
+      st => (st.user_id === 'b' ? 1 : 0))`);
+    sameJSON(r, { records: 3, warn: 1, fresh: 3 });
+    sameJSON(run(`teamWeekSummary([], () => null)`), { records: 0, warn: 0, fresh: 0 });
+  });
 }

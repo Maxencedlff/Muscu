@@ -1,15 +1,15 @@
 // ═══════════════════════════════════════════════════════════
 //  Tranche d'âge partagée par Apple (Declared Age Range, iOS 26), sans affichage
-//  - Demandée à l'ouverture de l'onglet Amis (ageRangeCheck), jamais au lancement : la fenêtre d'iOS
+//  - Demandée à l'ouverture de l'onglet Social (ageRangeCheck), jamais au lancement : la fenêtre d'iOS
 //    arrive avec son contexte. Module natif MdlfAgeRange (ios/App/App/AgeRangePlugin.swift), seuils
 //    13, 15 et 18 ans (au plus trois seuils, tranches de deux ans au moins : doc Apple).
 //  - Réponse ramenée à une catégorie (ageBand) : 'adult' (18 ans ou plus), 'teen' (15-17 ans : prudence,
-//    séances masquées par défaut), 'young' (tranche qui n'exclut pas moins de 15 ans : Amis et « Rejoindre
+//    séances masquées par défaut), 'young' (tranche qui n'exclut pas moins de 15 ans : Social et « Rejoindre
 //    un coach » masqués, comme la règle des 15 ans), 'limited' (mineur avec le contrôle parental « Limites
-//    de communication » : Amis et messages du coach masqués), null (refus, indisponible, navigateur,
+//    de communication » : Social et messages du coach masqués), null (refus, indisponible, navigateur,
 //    Android, iOS antérieur au 26 : comportement inchangé).
 //  - Gardée sur l'appareil (mdlf_age_range), pas dans le compte : Apple répond pour le compte iCloud de
-//    l'iPhone. La tranche n'est jamais envoyée au serveur (Amis activé puis masqué : seul social_disable part,
+//    l'iPhone. La tranche n'est jamais envoyée au serveur (social activé puis masqué : seul social_disable part,
 //    js/features/social-ui.js). Tranche partagée relue au bout de 30 jours (un anniversaire
 //    peut changer la tranche), indisponible au bout de 7 jours, refus jamais redemandé.
 //  - Ne bloque jamais l'app : sans réponse, rien ne change ; l'écran suit onAgeRangeChange.
@@ -65,8 +65,8 @@ function ageRangeFresh(r, now = Date.now()) {
 
 // Catégorie connue sur cet appareil, null sinon
 function currentAgeBand() { return ageBand(ageRange.stored); }
-// Amis masqué : tranche partagée de moins de 15 ans, ou contrôle parental qui limite les échanges
-// (js/data/social.js, socialEnabled : point unique pour les écrans des Amis, bilan et Historique compris)
+// Social masqué : tranche partagée de moins de 15 ans, ou contrôle parental qui limite les échanges
+// (js/data/social.js, socialEnabled : point unique pour les écrans du social, bilan et Historique compris)
 function socialHiddenByAge() { const b = currentAgeBand(); return b === 'young' || b === 'limited'; }
 // Rejoindre un coach : 15 ans ou plus (privacy.html) ; un coach déjà suivi reste
 function coachJoinHiddenByAge() { return currentAgeBand() === 'young'; }

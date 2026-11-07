@@ -11,7 +11,7 @@ const TABS = {
   history:  { root: 'history',   label: 'Historique',   icon: 'clock.history', action: 'go-history' },
   progress: { root: 'stats',     label: 'Progrès',      icon: 'chart',         action: 'go-stats' },
   program:  { root: 'programmes', label: 'Programme',    icon: 'list.bullet',   action: 'go-program' },
-  friends:  { root: 'friends',   label: 'Amis',         icon: 'person.2',      action: 'go-friends' },   // js/features/social-ui.js
+  friends:  { root: 'friends',   label: 'Social',       icon: 'person.2',      action: 'go-friends' },   // js/features/social-ui.js ; « Coach » pour un compte coach (friendsTabMeta)
 };
 const TAB_OF_ROOT = Object.fromEntries(Object.entries(TABS).map(([t, v]) => [v.root, t]));
 
@@ -216,6 +216,7 @@ function render() { paint(); }
 //                       lisent eux-mêmes : editorCatOf, editExIdxOf)
 //   mount({ first })  : après chaque dessin (first : l'écran vient d'être ouvert)
 //   enter({ dir })    : à chaque affichage par la navigation ; leave() : quand on le quitte
+//   shown()           : juste après le dessin de la navigation (défilement voulu, au lieu du haut de page)
 const SCREENS = new Map([
   ['dashboard',      { render: () => renderDashboard(), mount: () => { mountHealthWorkouts('dashboard', render); mountSleep(); } }],   // Santé : récupération, sommeil
   ['programmes',     { render: () => renderProgrammes() }],
@@ -223,12 +224,12 @@ const SCREENS = new Map([
                        mount: ({ first }) => { if (activeSession) { afterSessionRender(first); mountMusicBar(); } }, // centre la série courante
                        enter: () => requestWakeLock(), leave: () => releaseWakeLock() }],
   ['editor',         { render: () => renderEditor() }],
-  ['history',        { render: () => renderHistory(), mount: () => { mountHealthWorkouts('history', refreshHistoryList); if (socialEnabled()) socialLoadMyReactions({ minAge: SOCIAL_REFRESH_MS }); } }],   // « 👏 2 » (Amis activé)
+  ['history',        { render: () => renderHistory(), mount: () => { mountHealthWorkouts('history', refreshHistoryList); if (socialEnabled()) socialLoadMyReactions({ minAge: SOCIAL_REFRESH_MS }); } }],   // « 👏 2 » (Social activé)
   ['stats',          { render: () => renderStats(), mount: () => fillWeightGroup() }],
   ['settings',       { render: () => renderSettings(), mount: () => { fillAppVersion(); fillBodyWeightCell(); fillHealthWorkoutsCell(); } }],
   ['add-session',    { render: () => renderAddSession(), enter: ({ dir }) => addSessionEnter(dir), leave: () => addSessionLeave() }],
   ['summary',        { render: () => renderSummary() }],          // Entraînement › Bilan
-  ['history-detail', { render: id => renderHistoryDetail(id), mount: () => { historyReactionsMount(routeParams(currentRoute())[0]); historyCommentsMount(routeParams(currentRoute())[0]); coachHistoryMount(); } }],   // qui a réagi, commentaires (Amis activé)
+  ['history-detail', { render: id => renderHistoryDetail(id), mount: () => { historyReactionsMount(routeParams(currentRoute())[0]); historyCommentsMount(routeParams(currentRoute())[0]); coachHistoryMount(); } }],   // qui a réagi, commentaires (Social activé)
   ['stats-ex',       { render: exId => renderStatsExercise(exId), mount: () => drawCharts() }],
   ['stats-overview', { render: () => renderStatsOverview() }],
   ['body-measures',  { render: () => renderBodyMeasures() }],   // Progrès › Mesures (js/features/body-measures-ui.js)
@@ -296,7 +297,8 @@ function show(dir = 'none') {
   shownName = name;
   screenOf(name).enter?.({ dir });
 
-  const update = () => { paint(target); startTicker(); };
+  // shown() : après le dessin de la navigation (pas après un redessin lancé par enter), ex. défiler jusqu'à une partie
+  const update = () => { paint(target); screenOf(name).shown?.(); startTicker(); };
   const animate = dir !== 'none' && !skipTransition && !transitionsOff() && !reduceMotion.matches && typeof document.startViewTransition === 'function' && !document.hidden;
   if (!animate) { update(); return; }
   document.documentElement.dataset.navDir = dir;

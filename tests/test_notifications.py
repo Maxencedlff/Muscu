@@ -254,7 +254,7 @@ def t_toucher(bench, eng, dev, theme):
         R.check(page.evaluate('nav.tab') == 'history' and page.evaluate('currentView()') == 'history-detail', f'{t} bravo → la séance ({page.evaluate("currentView()")})')
         page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'follow_request', 'ref': ''})
         page.wait_for_function("() => nav.tab === 'friends'", timeout=3000)
-        R.check(page.evaluate('nav.tab') == 'friends', f'{t} demande → onglet Amis')
+        R.check(page.evaluate('nav.tab') == 'friends', f'{t} demande → onglet Social')
         page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': 'comment', 'ref': sid})
         page.wait_for_function("() => nav.tab === 'history' && currentView() === 'history-detail'", timeout=3000)
         R.check(page.evaluate('nav.tab') == 'history' and page.evaluate('currentView()') == 'history-detail', f'{t} commentaire → la séance ({page.evaluate("currentView()")})')

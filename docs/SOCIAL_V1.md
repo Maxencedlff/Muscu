@@ -1,7 +1,7 @@
 # Social V1 : contrat entre le serveur et l'app
 
 Décisions de Maxence (26/10/2026) :
-- 5e onglet « Amis » ;
+- 5e onglet « Amis » (renommé « Social » le 06/11/2026, et « Coach » pour un compte coach : docs/SOCIAL_V2.md) ;
 - réaction « Bravo » sans texte (31/10/2026 : cinq réactions, voir « Réactions et Mon profil ») ;
 - 13+ déclaré à Apple et case « J'ai 15 ans ou plus » à l'activation ;
 - tranche d'âge partagée par Apple (Declared Age Range, iOS 26, IOS.md « Tranche d'âge ») : tranche qui n'exclut pas moins de 15 ans, ou mineur avec « Limites de communication » → Amis masqué partout (`socialEnabled`, point unique : onglet, bilan, Historique › Séance, commentaires, Réglages ; nouvelles séances masquées), et `social_disable` appelé si Amis était activé ; moins de 15 ans → « Rejoindre un coach » masqué aussi ; « Limites de communication » → messages du coach coupés ; 15-17 ans → séances masquées par défaut ; refus ou indisponible → rien ne change (la tranche reste sur l'appareil, le serveur n'en sait rien) ;
@@ -74,7 +74,7 @@ Décisions de Maxence (30/10/2026) :
 - cinq réactions, liste fermée, sans texte (rien à modérer) : 👏 `clap` Applaudissements, 🔥 `fire` Chaud, 💪 `strong` Costaud, 🏆 `trophy` Record, 😮 `wow` Impressionnant ;
 - une réaction par personne et par séance, changeable et retirable ; un toucher pose 👏 (ou retire la mienne), un appui long ouvre le choix ;
 - sur MES séances, la liste de qui a réagi (pseudo, avatar, réaction), seulement pour les personnes que j'ai acceptées ;
-- écran « Mon profil » dans l'onglet Amis, ouvert par mon avatar en haut à droite ;
+- écran « Mon profil » dans l'onglet Social, ouvert par mon avatar en haut à droite ;
 - pastille de l'onglet pour une nouvelle activité, remise à zéro à l'ouverture de Mon profil (vu côté serveur).
 
 ### Règles
@@ -165,12 +165,12 @@ Migration d'abord, puis l'OTA. Une app à jour sur un serveur d'avant affiche «
 - **Réponse** : `{ ok: true }`.
 
 ## App
-- **Onglet « Amis »** (5e), avec un badge égal à `social_state().badge`. Le badge est rafraîchi à l'ouverture de l'app, au retour au premier plan et à l'ouverture de l'onglet.
+- **Onglet « Social »** (5e, « Amis » jusqu'au 06/11/2026 ; « Coach » pour un compte coach, docs/SOCIAL_V2.md), avec un badge égal à `social_state().badge`. Le badge est rafraîchi à l'ouverture de l'app, au retour au premier plan et à l'ouverture de l'onglet.
 - **États de l'onglet** :
   - sans compte : explication et bouton « Se connecter » ;
   - sans social : carte d'activation avec le pseudo (obligatoire, sinon lien pour le choisir), la case « J'ai 15 ans ou plus », un lien vers les règles de la communauté et le bouton « Activer » ;
   - social activé : champ de recherche, demandes reçues, puis le fil.
-- **Fil** : chaque carte montre l'avatar et le pseudo, la date, le nom de la séance, la durée et un résumé des exercices, avec le bouton de réaction et le résumé des réactions (voir « Réactions et Mon profil »). Un toucher ouvre le détail des séries.
+- **Fil** : chaque carte montre l'avatar et le pseudo, depuis quand, le nom de la séance, durée, volume et séries, le record noté le plus marquant (en or), les muscles les plus travaillés, puis réagir et « Commenter » (V2, docs/SOCIAL_V2.md), avec le bouton de réaction et le résumé des réactions (voir « Réactions et Mon profil »). Un toucher ouvre le détail des séries.
 - **Profil d'un autre** : ses séances (`feed` avec `only_user`), puis les actions : se désabonner ou annuler la demande, Bloquer, Signaler.
 - **Commentaires** : voir « Commentaires » ci-dessus.
 - **Gestion** : demandes envoyées, bloqués (avec « Débloquer »), et « Désactiver le social » ; abonnés (avec « Retirer ») et abonnements dans Mon profil.

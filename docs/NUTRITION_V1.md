@@ -189,7 +189,7 @@ consentement explicite). Deux accords séparés, chacun daté et retirable :
   suit le même découpage que l'entraînement : on prépare dans Programme, on fait dans Entraînement.
 - **Premier plan créé** : il devient le plan suivi, sauf pour un coach (il prépare là les plans de ses élèves,
   qui ne s'affichent pas sur son accueil ; « Plan suivi » pour suivre le sien).
-- **Coach** : fiche d'un élève (Amis › Mes élèves) : « Envoyer un plan diète » (choix du plan, puis relecture :
+- **Coach** : fiche d'un élève (Coach › Élèves) : « Envoyer un plan diète » (choix du plan, puis relecture :
   nom, objectifs du jour, repas, Annuler / Envoyer ; jamais envoyé au premier toucher) et l'état de chaque envoi ;
   élève : carte de l'accueil, « Plans diète reçus » dans Mon coach.
 

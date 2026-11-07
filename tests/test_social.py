@@ -1,8 +1,8 @@
-"""Amis (Social V1, app iOS simulée) : onglet Amis et ses trois états, badge, activation, recherche,
+"""Social (Social V1 et V2, app iOS simulée) : onglet Social et ses trois états, badge, activation, recherche,
 demandes, fil (Bravo, détail, pagination), profil d'un autre (s'abonner, annuler, se désabonner,
 bloquer, signaler), Gérer, Désactiver, Historique › Séance (Visible sur mon profil, qui a réagi),
 bilan de fin de séance (Visible sur mon profil, œil barré dans l'Historique), hors ligne, tranche d'âge
-partagée par Apple (moins de 15 ans : Amis masqué, désactivé sur le serveur, Historique › Séance sans Amis ni
+partagée par Apple (moins de 15 ans : Social masqué, désactivé sur le serveur, Historique › Séance sans Social ni
 commentaires, « Rejoindre un coach » masqué ; 15-17 ans : séances masquées par défaut ; refus : rien ne change).
 
 L'app iOS et Supabase sont simulés (tests/fake_account.py, règles de docs/SOCIAL_V1.md) : aucune requête
@@ -121,7 +121,7 @@ def t_tabbar_sans_compte(bench, eng, dev, theme):
         open_app(page, theme, ppl_v2_today_json())
         tabs = page.locator('.tabbar [role="tab"]')
         labels = [x.strip() for x in tabs.all_inner_texts()]
-        R.check(labels == ['Entraînement', 'Historique', 'Progrès', 'Programme', 'Amis'], f'{t} 5 onglets {labels}')
+        R.check(labels == ['Entraînement', 'Historique', 'Progrès', 'Programme', 'Social'], f'{t} 5 onglets {labels}')
         cut = page.evaluate("""[...document.querySelectorAll('.tabbar__label')].filter(l => l.scrollWidth > l.clientWidth + .5
             || l.getBoundingClientRect().width > l.parentElement.getBoundingClientRect().width).map(l => l.textContent)""")
         R.check(not cut, f'{t} libellés entiers {cut}')
@@ -129,7 +129,7 @@ def t_tabbar_sans_compte(bench, eng, dev, theme):
         R.check(min(widths) >= 44 and min(tabs.nth(i).bounding_box()['height'] for i in range(5)) >= 44, f'{t} onglets de 44 pt ({widths})')
         R.check(page.locator('.tabbar__badge').count() == 0, f'{t} sans compte : pas de badge')
         friends_tab(page)
-        R.check(page.evaluate('view') == 'friends' and page.evaluate('location.hash') == '#friends', f'{t} onglet Amis ouvert')
+        R.check(page.evaluate('view') == 'friends' and page.evaluate('location.hash') == '#friends', f'{t} onglet Social ouvert')
         body = page.inner_text('#friendsBody')
         R.check('Entraîne-toi avec tes amis' in body and page.locator('[data-action="social-sign-in"]').inner_text().strip() == 'Se connecter', f'{t} sans compte : explication et « Se connecter »')
         R.check(calls(page, 'social_state') == [], f'{t} sans compte : aucun appel au serveur')
@@ -197,7 +197,11 @@ def t_activation(bench, eng, dev, theme):
         page.wait_for_selector('#socialSearch')
         R.check(calls(page, 'social_enable') == [{'age_ok': True}], f'{t} social_enable(age_ok: true) {calls(page, "social_enable")}')
         R.check(page.locator('.navbar [data-action="social-me"]').count() == 1, f'{t} activé : mon avatar (Mon profil) en haut à droite')
-        R.check('Rien pour l\'instant' in page.inner_text('#friendsBody'), f'{t} fil vide expliqué')
+        empty = page.inner_text('#friendsBody')
+        R.check('Ton fil t\'attend' in empty and 'max.dlf' in empty and page.locator('#friendsBody [data-action="social-invite"]').count() == 1, f'{t} fil vide : accueil, mon pseudo, « Inviter un ami » ({empty!r})')
+        page.click('[data-action="social-find"]')
+        R.check(page.evaluate("document.activeElement.id") == 'socialSearch', f'{t} « Rechercher un pseudo » : le champ prend la main')
+        page.evaluate('document.activeElement.blur()')
         layout(page, t, 'activé vide')
         shot(page, LOT, f'3-active-vide-{t}')
         # Cache : relancé hors ligne, l'onglet reste activé
@@ -236,7 +240,7 @@ def t_fil(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         badge = page.locator('.tabbar [data-tab="friends"] .tabbar__badge')
         R.check(badge.count() == 1 and badge.inner_text() == '1', f'{t} badge : 1 demande reçue')
-        R.check(page.get_attribute('.tabbar [data-tab="friends"]', 'aria-label') == 'Amis, 1 demande', f'{t} badge annoncé par VoiceOver')
+        R.check(page.get_attribute('.tabbar [data-tab="friends"]', 'aria-label') == 'Social, 1 demande', f'{t} badge annoncé par VoiceOver')
         friends_tab(page)
         page.wait_for_selector('.feed-card')
         R.check(page.locator('.social-row', has_text='tom').count() == 1 and page.locator('[data-action="social-accept"]').count() == 1, f'{t} demande de tom avec « Accepter »')
@@ -246,7 +250,10 @@ def t_fil(bench, eng, dev, theme):
         txt = page.inner_text('.feed')
         R.check('note privée' not in txt and '81' not in txt, f'{t} ni notes ni poids du corps')
         first = cards.first
-        R.check('lea' in first.inner_text() and 'Push' in first.inner_text() and 'Développé couché, Dips, Élévations latérales et 2 autres' in first.inner_text(), f'{t} carte : pseudo, nom, résumé ({first.inner_text()!r})')
+        ft = first.inner_text().replace('\u202f', ' ').replace('\u00a0', ' ')
+        R.check('lea' in ft and 'Push' in ft and 'Durée' in ft and 'Volume' in ft and '1,6 t' in ft and 'Séries' in ft, f'{t} carte : pseudo, nom, durée, volume, séries ({ft!r})')
+        R.check(first.locator('.feed-card__chip').all_inner_texts()[:1] == ['Pectoraux'], f'{t} carte : muscles travaillés ({first.locator(".feed-card__chip").all_inner_texts()})')
+        R.check(first.locator('[data-action="social-open-comments"]').count() == 1, f'{t} carte : « Commenter »')
         R.check(first.locator('.avatar').inner_text() == '🦊', f'{t} carte : avatar emoji')
         R.check(page.evaluate("Object.keys(social.feeds[''].rows[0].s).sort().join()") == 'category,date,duration,exercises,label,programme', f'{t} séance reçue : liste blanche seulement')
         layout(page, t, 'fil')
@@ -328,7 +335,7 @@ def t_record_ami(bench, eng, dev, theme):
 
 
 def t_record_note(bench, eng, dev, theme):
-    """Records notés par l'app de l'ami : sur la carte du fil (« Nouveau record : Squat 100 kg ») et dans sa
+    """Records notés par l'app de l'ami : sur la carte du fil (« Record · Squat 100 kg ») et dans sa
     séance, même quand ses séances ne sont pas toutes chargées ; échauffement hors des séries et du volume."""
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
@@ -347,7 +354,7 @@ def t_record_note(bench, eng, dev, theme):
         friends_tab(page)
         page.wait_for_selector('.feed-card[data-id="n0"]')
         card = page.inner_text('.feed-card[data-id="n0"]').replace('\u202f', ' ').replace('\u00a0', ' ')
-        R.check('Nouveau record : Squat 100 kg' in card, f'{t} carte : record le plus marquant ({card!r})')
+        R.check('Record · Squat 100 kg' in card, f'{t} carte : record le plus marquant ({card!r})')
         R.check(page.locator('.feed-card__rec').count() == 1, f'{t} seule la séance qui a des records notés en montre un')
         layout(page, t, 'fil avec record')
         shot(page, LOT, f'4c-fil-record-{t}')
@@ -558,25 +565,25 @@ def finish_to_summary(page):
 
 
 def t_bilan_visible(bench, eng, dev, theme):
-    """Bilan : « Visible sur mon profil » seulement avec Amis activé, allumé par défaut ; éteint → hidden: true
+    """Bilan : « Visible sur mon profil » seulement avec social activé, allumé par défaut ; éteint → hidden: true
     envoyé (rien d'autre ne change), œil barré « Masquée à tes abonnés » dans l'Historique, réglage repris
-    dans Historique › Séance. Sans Amis : bilan inchangé."""
+    dans Historique › Séance. Sans social : bilan inchangé."""
     t = tag(dev, theme)
-    # Sans Amis (connecté, social non activé) : aucun interrupteur
+    # Sans social (connecté, social non activé) : aucun interrupteur
     with bench.page(eng, dev, theme) as page:
         open_with_session(page, theme)
         signin(page, enable=False)
         page.wait_for_selector('[data-action="finish-session"]')
         finish_to_summary(page)
-        R.check(page.locator('[data-action="summary-visible"]').count() == 0, f'{t} sans Amis : pas d\'interrupteur au bilan')
-        R.check(not page.errors, f'{t} sans Amis : aucune erreur JS {page.errors}')
+        R.check(page.locator('[data-action="summary-visible"]').count() == 0, f'{t} sans social : pas d\'interrupteur au bilan')
+        R.check(not page.errors, f'{t} sans social : aucune erreur JS {page.errors}')
     with bench.page(eng, dev, theme) as page:
         open_with_session(page, theme)
         signin(page, enable=True)
         page.wait_for_selector('[data-action="finish-session"]')
         finish_to_summary(page)
         sw = page.locator('[data-action="summary-visible"]')
-        R.check(sw.count() == 1, f'{t} Amis activé : interrupteur au bilan')
+        R.check(sw.count() == 1, f'{t} social activé : interrupteur au bilan')
         txt = sw.inner_text()
         R.check('Visible sur mon profil' in txt and 'Tes abonnés verront cette séance (jamais tes notes ni ton poids).' in txt, f'{t} bilan : libellé et sous-texte ({txt!r})')
         R.check(sw.get_attribute('aria-checked') == 'true' and sw.get_attribute('role') == 'switch', f'{t} bilan : allumé par défaut')
@@ -619,16 +626,16 @@ def t_bilan_visible(bench, eng, dev, theme):
         page.click('[data-action="back"]'); page.wait_for_timeout(300)
         R.check(page.locator('.hidden-mark').count() == 0, f'{t} Historique : plus d\'œil une fois visible')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
-    # Réglages › Amis et coach › Séances visibles par défaut : éteint → la séance suivante naît masquée, bilan éteint
+    # Réglages › Social et coach › Séances visibles par défaut : éteint → la séance suivante naît masquée, bilan éteint
     with bench.page(eng, dev, theme) as page:
         open_with_session(page, theme)
         signin(page, enable=False)
         page.evaluate("navigate('settings')"); page.wait_for_selector('[data-action="coach-open-settings"]')
-        R.check(page.locator('[data-action="setting-visible-default"]').count() == 0, f'{t} Réglages sans Amis : pas de réglage de visibilité')
+        R.check(page.locator('[data-action="setting-visible-default"]').count() == 0, f'{t} Réglages sans social : pas de réglage de visibilité')
         page.evaluate('socialEnable(true).then(() => render())'); page.wait_for_timeout(300)
         sw = page.locator('[data-action="setting-visible-default"]')
-        R.check(sw.count() == 1 and sw.get_attribute('aria-checked') == 'true' and sw.get_attribute('role') == 'switch', f'{t} Réglages › Amis et coach : « Séances visibles par défaut » allumé')
-        R.check(page.locator('.view.settings-view .group-title', has_text='Amis et coach').count() == 1, f'{t} Réglages : groupe « Amis et coach »')
+        R.check(sw.count() == 1 and sw.get_attribute('aria-checked') == 'true' and sw.get_attribute('role') == 'switch', f'{t} Réglages › Social et coach : « Séances visibles par défaut » allumé')
+        R.check(page.locator('.view.settings-view .group-title', has_text='Social et coach').count() == 1, f'{t} Réglages : groupe « Social et coach »')
         sw.scroll_into_view_if_needed(); sw.click(); page.wait_for_timeout(200)
         sw = page.locator('[data-action="setting-visible-default"]')
         R.check(sw.get_attribute('aria-checked') == 'false' and page.evaluate('data.sessionVisibleDefault') is False, f'{t} Réglages : éteint d\'un tap, enregistré')
@@ -688,12 +695,12 @@ def t_age(bench, eng, dev, theme):
         signin(page, enable=True)
         setup_friends(page)
         friends_tab(page)
-        page.wait_for_selector('#friendsBody :text("Amis indisponibles")')
+        page.wait_for_selector('#friendsBody :text("Social indisponible")')
         body = page.inner_text('#friendsBody')
-        R.check('réservés aux 15 ans et plus' in body and 'Le reste de l\'app fonctionne normalement' in body, f'{t} moins de 13 ans : explication ({body!r})')
+        R.check('réservé aux 15 ans et plus' in body and 'Le reste de l\'app fonctionne normalement' in body, f'{t} moins de 13 ans : explication ({body!r})')
         R.check(page.locator('#socialSearch, .feed-card, [data-action="social-enable"], .navbar [data-action="social-me"]').count() == 0, f'{t} moins de 13 ans : ni recherche, ni fil, ni Mon profil')
         R.check(page.locator('#coachCell').count() == 1, f'{t} cellule du coach gardée')
-        R.check(page.locator('.tabbar__badge').count() == 0, f'{t} badge des Amis éteint')
+        R.check(page.locator('.tabbar__badge').count() == 0, f'{t} badge du social éteint')
         R.check(page.evaluate('newSessionHidden()') is True, f'{t} nouvelle séance masquée aux abonnés')
         layout(page, t, 'âge masqué')
         shot(page, LOT, f'13-age-masque-{t}')
@@ -735,9 +742,9 @@ def t_age_historique(bench, eng, dev, theme):
         signin(page, enable=True)
         sid = page.evaluate("""() => { const lea = __sb.addPerson({ username: 'lea' }), me = __sb.meId(), sid = data.history[0].id;
             __sb.follow(lea, me); __sb.comment(lea, me, sid, 'Bravo pour le développé !', Date.now() - 3600e3); return sid; }""")
-        R.check(page.evaluate('socialEnabled()') is True, f'{t} avant la réponse d\'Apple : Amis activé')
+        R.check(page.evaluate('socialEnabled()') is True, f'{t} avant la réponse d\'Apple : social activé')
         friends_tab(page)
-        page.wait_for_selector('#friendsBody :text("Amis indisponibles")')
+        page.wait_for_selector('#friendsBody :text("Social indisponible")')
         page.wait_for_timeout(300)
         disables = page.evaluate('__sb.calls.filter(c => c[0] === "social" && c[1] === "social_disable").length')
         R.check(disables == 1, f'{t} Amis désactivé sur le serveur une fois ({disables})')

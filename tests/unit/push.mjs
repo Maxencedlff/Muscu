@@ -418,7 +418,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(run('CHAT_COACH'), '@coach', 'même clé que push_open_ref');
     sameJSON(t({ kind: 'chat_message', ref: '@coach' }), { tab: 'friends', screen: 'coach-chat', params: ['@coach'] }, 'élève : avec mon coach');
     sameJSON(t({ kind: 'chat_message', ref: student }), { tab: 'friends', screen: 'coach-chat', params: [student] }, 'coach : avec cet élève');
-    sameJSON(t({ kind: 'chat_message', ref: '../x' }), { tab: 'friends', screen: null, params: [] }, 'ref inattendu : onglet Amis');
+    sameJSON(t({ kind: 'chat_message', ref: '../x' }), { tab: 'friends', screen: null, params: [] }, 'ref inattendu : onglet Social');
     sameJSON(t({ kind: 'chat_message', ref: '' }), { tab: 'friends', screen: null, params: [] });
     assert.equal(t({ kind: 'inconnu' }), null);
     assert.equal(t(null), null);

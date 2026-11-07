@@ -108,7 +108,7 @@ Arrêt : `select cron.unschedule('push-send');`.
      distances) ; la nuit s'affiche sur l'accueil le matin ; une séance avec 10 min de tapis au chrono
      apparaît dans Santé / Forme en « Musculation » (en pause pendant le tapis) + « Course » ou
      « Marche » avec sa distance ; « Envoyer l'historique » ne crée pas de doublon.
-   - Notifications : Réglages › Amis et coach › Notifications, allumer « Bravos » (fenêtre d'iOS),
+   - Notifications : Réglages › Social et coach › Notifications, allumer « Bravos » (fenêtre d'iOS),
      depuis un 2e compte dire bravo → notification en moins d'une minute, toucher → la séance ;
      tout éteindre → plus rien ; se déconnecter → plus rien.
 4. App Store Connect › Confidentialité de l'app : rien de neuf pour la santé (aucune donnée de Santé ne

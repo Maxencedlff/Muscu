@@ -7,7 +7,7 @@
 //    planning d'un élève (`coach-plan:UID` : frise proportionnelle, phases en cours, à venir, terminées),
 //    feuille d'une phase (nom, objectif, début, durée, programme, note ; « Supprimer la phase »).
 //  - Élève : « Ta phase » dans Mon coach (carte en lecture seule, prochaine phase), et la phase en cours
-//    discrète sous le nom du coach dans l'onglet Amis.
+//    discrète sous le nom du coach dans l'onglet Social.
 //  - Serveur sans planification, ou rien de lu : rien ne s'affiche (planAvailable()).
 //  Tout texte venu du serveur passe par esc(). Rien au pointerdown : actions au clic seulement.
 // ═══════════════════════════════════════════════════════════

@@ -90,3 +90,21 @@ function coachWeekSummaryHtml(uid) {
         <div class="group progress-week">${sig}${sessions}${recs}${none}${more}${last}</div>
         <div class="group-foot">Aujourd'hui et les 6 jours d'avant.</div>`;
 }
+
+// En tête de Mes élèves : « Cette semaine », trois chiffres d'un coup d'œil (records battus, élèves à relancer,
+// nouveautés à lire), avec la même couleur que les lignes (vert ↑, orange, teinte). Rien à toucher : c'est
+// la liste triée en dessous qui mène aux élèves. VoiceOver lit une phrase.
+function coachTeamWeekHtml(students) {
+  if (!students?.length) return '';
+  const now = Date.now();
+  const w = teamWeekSummary(students, st => coachStudentProgress(st, now), st => chatUnreadOf(st.user_id));
+  const tile = (val, lbl, tone) => `<span class="team-week__tile${val ? ` team-week__tile--${tone}` : ''}"><span class="team-week__val num">${val && tone === 'up' ? '↑ ' : ''}${val}</span><span class="team-week__lbl">${lbl}</span></span>`;
+  const spoken = `Cette semaine : ${plural(w.records, 'record', 'records')}, ${plural(w.warn, 'élève', 'élèves')} à relancer, ${plural(w.fresh, 'nouveauté', 'nouveautés')} à lire.`;
+  return `
+        <div class="group-title">Cette semaine</div>
+        <div class="team-week" role="img" aria-label="${esc(spoken)}">
+          ${tile(w.records, w.records > 1 ? 'records' : 'record', 'up')}
+          ${tile(w.warn, 'à relancer', 'warn')}
+          ${tile(w.fresh, w.fresh > 1 ? 'nouveautés' : 'nouveauté', 'new')}
+        </div>`;
+}

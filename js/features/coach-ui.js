@@ -1,8 +1,9 @@
 // ═══════════════════════════════════════════════════════════
 //  Coach (Coach V1), écrans. Contrat : docs/COACH_V1.md ; données et appels : js/data/coach.js.
 //
-//  - Onglet Amis (pour tout le monde, même sans avoir activé Amis) : en haut, « Rejoindre un coach », ou
-//    « Mes élèves » / « Mon coach » avec leur badge (coachCellHtml, appelée par js/features/social-ui.js).
+//  - Onglet Social (pour tout le monde, même sans avoir activé le social) : « Mon coach » avec son badge, ou
+//    « Rejoindre un coach », en haut (coachCellHtml, appelée par js/features/social-ui.js). Compte coach : l'onglet
+//    s'appelle Coach et s'ouvre sur le segment Élèves (coachTeamHtml), docs/SOCIAL_V2.md.
 //  - Réglages › Coach (`coach`) : même parcours (code, aperçu `coach-join:CODE`, « J'ai 15 ans ou plus »,
 //    « Accepter »), le coach suivi et « Quitter mon coach », accès à « Mes élèves ».
 //  - Élève : Mon coach (`coach-mine` : commentaires, programmes reçus avec aperçu des exercices), cartes de
@@ -72,16 +73,16 @@ function coachRouteTitle(route) {
     'coach-plan': 'Planning', 'coach-planning': 'Planning', 'coach-measures': 'Mensurations', 'coach-measure': 'Mesure' }[name] || null;
 }
 
-// ── Cellules : Réglages et onglet Amis ──────────────────────
+// ── Cellules : Réglages et onglet Social ──────────────────────
 
-// Réglages › Amis et coach : la cellule Coach, « Partager avec mon coach » (élève suivi, js/features/coach-share-ui.js),
-// puis « Séances visibles par défaut » (js/features/social-ui.js, seulement quand Amis est activé)
+// Réglages › Social et coach : la cellule Coach, « Partager avec mon coach » (élève suivi, js/features/coach-share-ui.js),
+// puis « Séances visibles par défaut » (js/features/social-ui.js, seulement quand le social est activé)
 function renderCoachSettingsGroup() {
   if (!accountAvailable()) return '';
   const { isCoach, hasCoach } = coachRole();
   const value = hasCoach ? esc(coachName()) : isCoach ? 'Mes élèves' : account.user ? 'Rejoindre' : '';
   return `
-        <div class="group-title">Amis et coach</div>
+        <div class="group-title">Social et coach</div>
         <div class="group">
           <button class="cell cell--nav" data-action="coach-open-settings">
             <span class="cell__body"><span class="cell__title">Coach</span></span>
@@ -91,10 +92,11 @@ function renderCoachSettingsGroup() {
         </div>`;
 }
 
-// En haut de l'onglet Amis : « Rejoindre un coach » pour tout le monde, sinon Mes élèves / Mon coach.
-// Coach perdu (retiré, ou parti depuis un autre appareil) : une ligne pour le dire, une fois.
-// Toujours au-dessus de la carte d'activation des amis : dessous, « Rejoindre un coach » finissait sous la
-// barre d'onglets, invisible sans défiler (panel du 07/11)
+// En haut de l'onglet Social (docs/SOCIAL_V2.md) : « Mon coach » (élève suivi), « Tu ne suis plus … » (coach
+// perdu : retiré, ou parti depuis un autre appareil, dit une fois) et « Rejoindre un coach » (pratiquant sans
+// coach). Toujours au-dessus de la carte d'activation des amis : dessous, « Rejoindre un coach » finissait sous
+// la barre d'onglets, invisible sans défiler (panel du 07/11). Un compte coach a ses élèves dans le segment
+// Élèves de son onglet Coach (coachTeamHtml), plus dans une cellule.
 function coachCellHtml() {
   if (!accountAvailable()) return '';
   const { isCoach, hasCoach } = account.user ? coachRole() : { isCoach: false, hasCoach: false };
@@ -106,38 +108,32 @@ function coachCellHtml() {
         <button class="social-x" data-action="coach-lost-ok" aria-label="OK, fermer">${icon('xmark', 14)}</button>
       </div>`);
   }
-  if (isCoach) {
-    // Pastille : nouvelles séances des élèves + messages non lus (js/data/coach-chat.js)
-    const st = coach.state, n = st ? st.students.length : null, unread = coachChatUnreadStudents(), badge = coachBadgeCoach() + unread;
-    const sub = n === null ? '' : n ? plural(n, 'élève', 'élèves') : 'Invite ton premier élève';
-    rows.push(`<button class="cell cell--nav coach-cell" data-action="coach-open-students">
-        <span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span>
-        <span class="cell__body"><span class="cell__title">Mes élèves</span>${sub ? `<span class="cell__sub">${sub}</span>` : ''}</span>
-        ${coachBadgeHtml(badge, unread ? plural(badge, 'nouveauté', 'nouveautés') : plural(badge, 'nouvelle séance', 'nouvelles séances'))}
-        ${icon('chevron.right', 16)}
-      </button>`);
-  }
   if (hasCoach) {
     const p = myCoach(), badge = coachBadgeStudent() + chatUnreadOf(CHAT_COACH);
     const label = ['Mon coach', p ? personName(p) : '', badge ? plural(badge, 'nouveauté', 'nouveautés') : ''].filter(Boolean).join(', ');
-    rows.push(`<button class="cell cell--nav coach-cell" data-action="coach-open-mine" aria-label="${esc(label)}">
-        ${p ? personAvatar(p) : `<span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span>`}
+    rows.push(`<button class="cell cell--nav coach-cell coach-cell--mine" data-action="coach-open-mine" aria-label="${esc(label)}">
+        ${p ? personAvatar(p) : `<span class="coach-cell__icon" aria-hidden="true">${icon('coach', 20)}</span>`}
         <span class="cell__body"><span class="cell__title">Mon coach</span>${p ? `<span class="cell__sub">${esc([personName(p), studentPlanSub()].filter(Boolean).join(' · '))}</span>` : ''}</span>
         ${badge ? `<span class="coach-count num" aria-hidden="true">${badge > 99 ? '99+' : badge}</span>` : ''}
         ${icon('chevron.right', 16)}
       </button>`);
   } else if (!isCoach && !coachJoinHiddenByAge()) {   // moins de 15 ans possible (js/data/age-range.js) : rien
     rows.push(`<button class="cell cell--nav coach-cell coach-cell--join" data-action="coach-join-start">
-        <span class="coach-cell__icon" aria-hidden="true">${icon('person.2', 20)}</span>
+        <span class="coach-cell__icon" aria-hidden="true">${icon('coach', 20)}</span>
         <span class="cell__body"><span class="cell__title">Rejoindre un coach</span><span class="cell__sub">Tu as un code de ton coach ?</span></span>
         ${icon('chevron.right', 16)}
       </button>`);
   }
   return rows.length ? `<div class="group coach-head">${rows.join('')}</div>` : '';
 }
+// Onglet affiché : cellules et segment Élèves redessinés sur place (la recherche garde le clavier) ; rôle
+// changé (coach validé, élève parti) : l'onglet change de forme, redessin complet
 function refreshCoachCell() {
-  const box = $('#coachCell');
-  if (box) box.innerHTML = coachCellHtml();
+  if (currentView() !== 'friends') return;
+  if (friendsLayoutChanged()) { render(); return; }
+  const top = $('#coachCell'), team = $('#studentsBody');
+  if (top) top.innerHTML = coachCellHtml();
+  if (team) team.innerHTML = coachTeamHtml();
 }
 
 // Messages non lus de tous mes élèves (pastille « Mes élèves »)
@@ -246,7 +242,7 @@ function coachJoinAgeHtml() {
         </div>`;
 }
 
-// Parcours commun : onglet Amis, Réglages › Coach
+// Parcours commun : onglet Social, Réglages › Coach
 async function coachJoinFlow() {
   if (!account.user) { navigate('coach'); return; }
   if (coachJoinHiddenByAge()) { navigate('coach'); return; }   // l'écran dit pourquoi
@@ -269,7 +265,7 @@ function renderCoachJoin(code) {
   const pv = coach.preview?.code === code ? coach.preview.person : null;
   const head = navBar({ title: 'Rejoindre', large: false });
   if (coachJoinHiddenByAge()) return `<div class="view view--grouped coach-join-view">${head}<div class="scr">${coachJoinAgeHtml()}</div></div>`;
-  if (!pv) return `<div class="view view--grouped coach-join-view">${head}<div class="scr"><div class="empty-note">Saisis de nouveau le code dans l'onglet Amis.</div></div></div>`;
+  if (!pv) return `<div class="view view--grouped coach-join-view">${head}<div class="scr"><div class="empty-note">Saisis de nouveau le code dans l'onglet Social.</div></div></div>`;
   const name = esc(personName(pv));
   const list = items => `<div class="group">${items.map(([t, d]) => `
           <div class="cell coach-join__item"><span class="cell__body"><span class="cell__title">${t}</span><span class="cell__sub">${d}</span></span></div>`).join('')}</div>`;
@@ -289,7 +285,7 @@ function renderCoachJoin(code) {
           ['Des messages', 'Texte seul, entre vous deux. Effacés quand le suivi s\'arrête. Tu peux signaler un message.'],
           ['Des plans diète', 'Seulement si tu acceptes ses plans. Tu choisis de les suivre.']])}
         ${coachTitle('Seulement si tu le choisis')}
-        ${list([['Ton poids et tes mensurations', 'Rien n\'est partagé au départ. Tu coches ce que tu veux dans Réglages › Amis et coach › Partager avec mon coach.']])}
+        ${list([['Ton poids et tes mensurations', 'Rien n\'est partagé au départ. Tu coches ce que tu veux dans Réglages › Social et coach › Partager avec mon coach.']])}
         ${coachTitle('Jamais visible')}
         ${list([['Le reste', 'Ni tes données Santé, ni tes photos, ni tes programmes perso. Tu ne vois pas ses autres élèves, et ils ne te voient pas.']])}
         <div class="coach-join__foot">
@@ -376,7 +372,7 @@ function renderCoachMine() {
   if (!p) {
     return `<div class="view view--grouped coach-mine-view">${head}<div class="scr">${!coach.state && coach.error
       ? coachOfflineNote(coach.error, 'Pas d\'Internet. Ton coach s\'affichera quand le réseau reviendra.')
-      : coach.state ? '<div class="empty-note">Tu n\'as pas de coach. Rejoins-en un depuis l\'onglet Amis.</div>' : '<div class="empty-note">Chargement…</div>'}</div></div>`;
+      : coach.state ? '<div class="empty-note">Tu n\'as pas de coach. Rejoins-en un depuis l\'onglet Social.</div>' : '<div class="empty-note">Chargement…</div>'}</div></div>`;
   }
   const inbox = coach.inbox;
   const stale = !coach.state && coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : dernières nouvelles gardées sur l\'iPhone.' : coachErrorText(coach.error))}</p>` : '';
@@ -591,12 +587,13 @@ function coachNotesHint() {
 
 // ── Coach : Mes élèves ──────────────────────────────────────
 
-function renderCoachStudents() {
+// Mes élèves : résumé de la semaine, élèves triés par progression, invitations, retirés. Le même contenu
+// dans le segment Élèves de l'onglet Coach (js/features/social-ui.js) et dans Réglages › Coach › Mes élèves.
+function coachTeamHtml() {
   const st = coach.state;
-  const head = navBar({ title: 'Mes élèves', large: false });
-  if (!st) return `<div class="view view--grouped coach-students-view">${head}<div class="scr">${coach.error
-    ? coachOfflineNote(coach.error, 'Pas d\'Internet. Tes élèves s\'afficheront quand le réseau reviendra.') : '<div class="empty-note">Chargement…</div>'}</div></div>`;
-  if (!st.is_coach) return `<div class="view view--grouped coach-students-view">${head}<div class="scr"><div class="empty-note">${esc(coachErrorText('not_coach'))}</div></div></div>`;
+  if (!st) return coach.error
+    ? coachOfflineNote(coach.error, 'Pas d\'Internet. Tes élèves s\'afficheront quand le réseau reviendra.') : '<div class="empty-note">Chargement…</div>';
+  if (!st.is_coach) return `<div class="empty-note">${esc(coachErrorText('not_coach'))}</div>`;
   // Lignes triées, avec le signal de progression de chaque élève (js/features/coach-progress-ui.js)
   const rows = coachStudentRowsHtml(st.students);
   const invites = st.invites.map(i => `
@@ -611,11 +608,9 @@ function renderCoachStudents() {
           `<button class="social-pill" data-action="coach-allow" data-uid="${esc(p.user_id)}" aria-label="${esc(`Autoriser ${personName(p)} à revenir`)}">Autoriser</button>`, 'Ne peut plus revenir avec tes codes')).join('')}</div>
         <div class="group-foot">« Autoriser » lui permet de revenir avec un de tes codes.</div>` : '';
   return `
-    <div class="view view--grouped coach-students-view">
-      ${head}
-      <div class="scr">
-        ${coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : liste pas à jour.' : coachErrorText(coach.error))}</p>` : ''}
+        ${coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : liste pas à jour.' : coachErrorText(coach.error))}</p>` : ''}
         ${coachTierBannerHtml()}
+        ${coachTeamWeekHtml(st.students)}
         ${coachPlanningCellHtml()}
         <div class="group-title">Élèves${st.students.length ? ` (${st.students.length})` : ''}</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub social-empty">Aucun élève pour l\'instant</span></div>'}</div>
@@ -625,12 +620,22 @@ function renderCoachStudents() {
           ${invites}
           <button class="cell cell--action" data-action="coach-invite" ${coachInviteBusy ? 'disabled' : ''}>${icon('plus', 20)}<span>Inviter un élève</span></button>
         </div>
-        <div class="group-foot">Ces codes sont valables 7 jours et servent à plusieurs élèves. Ton code coach, dans Réglages › Coach, n'expire pas. L'élève le saisit dans l'onglet Amis › Rejoindre un coach.</div>
-        ${removed}
-      </div>
+        <div class="group-foot">Ces codes sont valables 7 jours et servent à plusieurs élèves. Ton code coach, dans Réglages › Coach, n'expire pas. L'élève le saisit dans l'onglet Social › Rejoindre un coach.</div>
+        ${removed}`;
+}
+function renderCoachStudents() {
+  return `
+    <div class="view view--grouped coach-students-view">
+      ${navBar({ title: 'Mes élèves', large: false })}
+      <div class="scr coach-team">${coachTeamHtml()}</div>
     </div>`;
 }
-SCREENS.set('coach-students', { render: () => renderCoachStudents(), enter: () => { coachRefresh().then(() => coachProgressRefresh({ minAge: 30_000 })); coachProRefresh({ minAge: 30_000 }); } });
+// Arrivée sur Mes élèves (écran ou segment Élèves) : état relu, puis la progression (30 s au plus), le palier
+function coachTeamEnter() {
+  coachRefresh().then(() => coachProgressRefresh({ minAge: 30_000 }));
+  coachProRefresh({ minAge: 30_000 });
+}
+SCREENS.set('coach-students', { render: () => renderCoachStudents(), enter: () => { coachTeamEnter(); } });
 
 // ── Coach : un élève et ses séances ─────────────────────────
 
@@ -972,7 +977,7 @@ registerActions({
     if (!coachToast(r)) { el.disabled = false; return; }
     haptic();
     goBack();
-    await dialog({ title: 'C\'est fait !', message: `Les programmes ${elide('de', name)} arriveront dans Amis › Mon coach.`,
+    await dialog({ title: 'C\'est fait !', message: `Les programmes ${elide('de', name)} arriveront dans Social › Mon coach.`,
       actions: [{ label: 'OK', style: 'preferred' }] });
   },
   'coach-leave': async () => {
@@ -988,8 +993,8 @@ registerActions({
   'coach-add-prog': async (e, el) => { await addCoachProgrammeFlow(el.dataset.id); },
   'coach-take-prog': async (e, el) => { await addCoachProgrammeFlow(el.dataset.id, { take: true }); },
   'coach-prog-toggle': (e, el) => { const id = el.dataset.id; if (coachProgOpen.has(id)) coachProgOpen.delete(id); else coachProgOpen.add(id); render(); },
-  'coach-dismiss-prog': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast('Il reste dans Amis › Mon coach'); },
-  'coach-dismiss-note': (e, el) => { coachMarkInboxSeen('note', el.dataset.id); render(); showToast('Il reste dans Amis › Mon coach'); },
+  'coach-dismiss-prog': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },
+  'coach-dismiss-note': (e, el) => { coachMarkInboxSeen('note', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },
   'coach-open-history': (e, el) => navigate(makeRoute('history-detail', el.dataset.id)),
   'coach-tip': (e, el) => {
     const id = el.dataset.ex;
@@ -1005,7 +1010,7 @@ registerActions({
       if (!coachToast(r)) return;
       haptic();
       await shareCoachInvite(r.data);
-    } finally { coachInviteBusy = false; if (currentView() === 'coach-students') render(); }
+    } finally { coachInviteBusy = false; if (currentView() === 'coach-students') render(); else refreshCoachCell(); }
   },
   'coach-share-invite': async (e, el) => { await shareCoachInvite(el.dataset.code); },
   'coach-revoke-invite': async (e, el) => {
@@ -1020,7 +1025,8 @@ registerActions({
     if (!(await confirmSheet(`Retirer ${name} ?`, `${name} ne pourra plus revenir avec tes codes, sauf si tu l'autorises dans Mes élèves. Tu ne verras plus ses séances ; tes commentaires, vos messages et les programmes pas encore ajoutés sont effacés.`, 'Retirer l\'élève'))) return;
     const r = await coachRemoveStudent(el.dataset.uid);
     if (!coachToast(r, `${name} ne fait plus partie de tes élèves`)) return;
-    routeTo('coach-students');
+    // Retour à Mes élèves : l'écran s'il est dans la pile (Réglages › Coach), sinon le segment Élèves de l'onglet
+    if (nav.stacks[nav.tab].includes('coach-students')) routeTo('coach-students'); else routeToStudents();
   },
   'coach-allow': async (e, el) => {
     const p = (coach.state?.removed || []).find(x => x.user_id === el.dataset.uid);
@@ -1106,7 +1112,9 @@ function coachTyping() { return !!document.activeElement?.matches?.('input, text
 const COACH_WATCH_VIEWS = ['settings', 'dashboard', 'history', 'history-detail', 'editor', 'programmes', 'my-programmes', 'summary', 'nutrition', 'diet-plans'];
 function coachApplyChange() {
   const v = currentView(), key = coachShownKey();
-  if (v === 'friends') { if (key !== coachShown) { refreshCoachCell(); coachShown = key; } return; }
+  // Onglet Social : cellules redessinées si ce qu'elles montrent a changé ; segment Élèves (compte coach) à chaque
+  // nouveauté du coach (progression, planning, palier : hors de la signature), sans champ de saisie à préserver
+  if (v === 'friends') { if (key !== coachShown || friendsSeg() === 'students') { refreshCoachCell(); coachShown = key; } return; }
   if (coachTyping()) return;   // champ en cours de saisie : rendu reporté au focusout (coachShown gardé)
   if (COACH_VIEWS.includes(v)) { render(); coachShown = key; return; }
   if (key !== coachShown && COACH_WATCH_VIEWS.includes(v)) { render(); coachShown = key; return; }
@@ -1120,5 +1128,5 @@ onCoachChange(() => { updateTabBadge(); coachApplyChange(); });
 // Fin d'une saisie : un changement arrivé pendant la frappe est redessiné maintenant (activeElement
 // mis à jour au tour suivant)
 document.addEventListener('focusout', () => { if (coachShownKey() !== coachShown) setTimeout(coachApplyChange, 0); });
-// Connexion, déconnexion : la cellule de l'onglet Amis change de forme
+// Connexion, déconnexion : les cellules de l'onglet Social changent de forme
 onAccountChange(() => { if (currentView() === 'friends') refreshCoachCell(); });

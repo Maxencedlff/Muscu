@@ -164,7 +164,7 @@ function renderAccount() {
             ${icon('chevron.right', 16)}
           </button>
         </div>
-        <div class="group-foot">Ton pseudo et ton avatar te représentent auprès de tes amis, une fois les Amis activés. Sans cela, toi seul les vois.</div>
+        <div class="group-foot">Ton pseudo et ton avatar te représentent auprès de tes amis, une fois le social activé. Sans cela, toi seul les vois.</div>
 ${referralGroupHtml()}
 
         <div class="group-title">Moyens de connexion</div>

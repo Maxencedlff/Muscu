@@ -64,7 +64,7 @@ function renderCoachProGroup() {
             <button class="coach-icon-btn" data-action="coach-share-invite" data-code="${esc(code)}" aria-label="Partager ton code coach">${icon('square.and.arrow.up', 20)}</button>
           </div>` : `<div class="cell"><span class="cell__sub">${coachPro.error ? esc(coachProErrorText(coachPro.error)) : 'Chargement…'}</span></div>`}
         </div>
-        <div class="group-foot">Tes élèves le saisissent dans Amis › Rejoindre un coach.${paywallOn() ? ' Avec lui, leur abonnement est à 25 % de moins pendant 12 mois.' : ''}</div>
+        <div class="group-foot">Tes élèves le saisissent dans Social › Rejoindre un coach.${paywallOn() ? ' Avec lui, leur abonnement est à 25 % de moins pendant 12 mois.' : ''}</div>
         <div class="group-title">Abonnement coach</div>
         <div class="group">
           <button class="cell cell--nav" data-action="pay-open" data-reason="offer" data-tab="coach">

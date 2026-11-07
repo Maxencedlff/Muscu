@@ -10,11 +10,11 @@
 //    effacés côté serveur (et ici à la relecture).
 //  - Texte seul, 2000 caractères au plus (CHAT_MAX), nettoyé comme le serveur (chatClean).
 //  - Pas de temps réel : chat_threads est relu avec l'état du coach (coachRefresh : ouverture de l'app,
-//    premier plan, onglet Amis) ; une conversation ouverte est relue toutes les CHAT_POLL_MS (seulement
+//    premier plan, onglet Social) ; une conversation ouverte est relue toutes les CHAT_POLL_MS (seulement
 //    les messages plus récents que le dernier REÇU du serveur par chat_messages, curseur c.cursor : mon
 //    propre message renvoyé par chat_send n'avance pas le curseur, sinon un message de l'autre arrivé
 //    juste avant ma réponse ne serait jamais relu).
-//  - Non-lus : par conversation (chat_threads), total dans le badge de l'onglet Amis ; gardé sur
+//  - Non-lus : par conversation (chat_threads), total dans le badge de l'onglet Social ; gardé sur
 //    l'appareil (CHAT_CACHE_KEY) pour un badge juste hors ligne. Ouvrir la conversation la marque lue
 //    jusqu'au curseur (chat_mark_read up_to) : un message arrivé après la lecture reste non lu. Écrire
 //    ne vaut pas lecture (comme le serveur).

@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 //  Partage avec le coach, écrans. Données et appels : js/data/coach-share.js.
 //
-//  - Élève : Réglages › Amis et coach › « Partager avec mon coach » (seulement s'il a un coach) →
+//  - Élève : Réglages › Social et coach › « Partager avec mon coach » (seulement s'il a un coach) →
 //    écran `coach-share` : une case par donnée ouverte (Poids du corps ; Mensurations si le serveur les
 //    accepte), toutes décochées par défaut, et ce que le coach verra, dit en clair.
 //  - Coach : sur la fiche d'un élève qui partage son poids, la courbe de ses pesées (composant de
@@ -17,7 +17,7 @@ const COACH_WEIGHT_CHART_MAX = 90;   // pesées sur la courbe du coach (les plus
 
 // ── Élève : Réglages › Partager avec mon coach ──────────────
 
-// Cellule de Réglages › Amis et coach (élève suivi seulement)
+// Cellule de Réglages › Social et coach (élève suivi seulement)
 function coachShareSettingsCell() {
   if (!account.user || !coachRole().hasCoach) return '';
   const value = coachShareSummary();
@@ -93,7 +93,7 @@ function coachWeightGroupHtml(uid, who) {
     if (!f.loadedAt || f.error) return '';
     return `
         <div class="group-title">Poids du corps</div>
-        <div class="group"><div class="cell coach-weight-off"><span class="cell__body"><span class="cell__sub">${who} ne partage pas son poids. Ce partage se règle de son côté, dans Réglages › Amis et coach › Partager avec mon coach.</span></span></div></div>`;
+        <div class="group"><div class="cell coach-weight-off"><span class="cell__body"><span class="cell__sub">${who} ne partage pas son poids. Ce partage se règle de son côté, dans Réglages › Social et coach › Partager avec mon coach.</span></span></div></div>`;
   }
   const unit = unitLbl();
   const since = f.since ? ` depuis le ${esc(fmtDate(f.since, 'short'))}` : '';

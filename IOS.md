@@ -45,7 +45,7 @@ Les fichiers de l'app iOS sont exclus de la publication Vercel (`.vercelignore`)
 | `Native.hideSplash()` | démarrage | Écran de démarrage retiré après le premier rendu (filet à 4 s) |
 | `Native.account.*` | `account.js` | Compte : Apple (`signIn`, `credentialState`), Google (`signInGoogle`, `googleAvailable`), session dans le Trousseau (`storage`) ; voir « Compte » |
 | `Native.appIcon.get()` / `set(nom)` | `app-icon.js` | Icône de l'app choisie dans Réglages (voir « Icône de l'app ») |
-| `Native.ageRange.request()` | `js/data/age-range.js` | Tranche d'âge partagée par Apple (iOS 26), demandée à l'ouverture de l'onglet Amis (voir « Tranche d'âge ») |
+| `Native.ageRange.request()` | `js/data/age-range.js` | Tranche d'âge partagée par Apple (iOS 26), demandée à l'ouverture de l'onglet Social (voir « Tranche d'âge ») |
 | `Native.push.*` | `js/data/push.js`, `js/features/push-ui.js` | Notifications push : autorisation d'iOS au toucher d'un interrupteur, jeton APNs, toucher d'une notification (voir « Notifications push ») |
 | `Native.shareImage(dataUrl, nom)` | `share.js` | Image de la séance écrite dans le cache de l'app (`@capacitor/filesystem`), puis feuille de partage d'iOS (`@capacitor/share` 8.0.3 : Instagram, Messages, Photos…). « Enregistrer l'image » demande l'accès Photos en ajout seul (`NSPhotoLibraryAddUsageDescription`) |
 
@@ -340,7 +340,7 @@ Module `MdlfAgeRange`, côté web `Native.ageRange.request()`, décisions dans `
 | `App.entitlements` | `com.apple.developer.declared-age-range = true` |
 | `js/data/age-range.js` | Catégorie (`ageBand`) : tranche qui n'exclut pas moins de 15 ans (13-15 au Texas compris) ou mineur avec « Limites de communication » → Amis masqué partout (`socialEnabled` : onglet avec une explication, bilan et Historique › Séance sans « Visible sur mon profil » ni commentaires, badge éteint, aucun écran des Amis ouvert par une notification, nouvelles séances masquées) et `social_disable` si Amis était activé ; moins de 15 ans → « Rejoindre un coach » masqué (coach déjà suivi gardé) ; « Limites de communication » → messages du coach coupés (`chatAvailable`) ; 15-17 ans → séances masquées aux abonnés par défaut (« Séances visibles par défaut » éteint tant qu'on ne l'allume pas) ; 18 ans ou plus, refus, indisponible, navigateur, Android → rien ne change |
 
-- **Quand** : à l'ouverture de l'onglet Amis, jamais au lancement (la fenêtre d'iOS arrive avec son
+- **Quand** : à l'ouverture de l'onglet Social, jamais au lancement (la fenêtre d'iOS arrive avec son
   contexte). Une fois par lancement au plus ; réponse gardée dans `mdlf_age_range` (appareil seulement,
   rien n'est envoyé au serveur) : tranche 30 jours, indisponible 7 jours, refus jamais redemandé. Apple
   garde lui-même la réponse et ne change de tranche qu'à la date anniversaire de la déclaration.
