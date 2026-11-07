@@ -229,7 +229,11 @@ def t_eleve(bench, eng, dev, theme):
         cell = page.locator('[data-action="coach-open-mine"]')
         R.check(cell.count() == 1 and 'max' in cell.inner_text(), f'{t} Amis : cellule Mon coach')
         R.check(page.locator('[data-action="social-enable"]').count() == 1, f'{t} Amis pas activé : carte d\'activation dessous')
-        R.check(page.evaluate("document.querySelector('.coach-cell').getBoundingClientRect().top < document.querySelector('.social-hero').getBoundingClientRect().top"), f'{t} cellule en haut')
+        R.check(page.evaluate("document.querySelector('.coach-cell').getBoundingClientRect().top < document.querySelector('.social-optional').getBoundingClientRect().top"), f'{t} cellule en haut')
+        # Panel du 07/11 : avec un coach, les amis sont en plus, pas l'étape suivante (plus de gros « Activer » bleu)
+        en = page.locator('[data-action="social-enable"]')
+        R.check(page.locator('.social-hero').count() == 0 and 'Amis (facultatif)' in page.text_content('#app') and en.inner_text().strip() == 'Ajouter aussi des amis'
+                and 'btn--secondary' in en.get_attribute('class'), f'{t} Amis facultatif : titre de groupe et bouton secondaire')
         layout(page, t, 'Amis avec coach')
         shot(page, LOT, f'5-amis-cellule-{t}')
         cell.click()

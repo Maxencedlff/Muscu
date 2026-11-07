@@ -21,6 +21,8 @@
   display: flex; align-items: center; justify-content: center;
 }
 .social-hero__title { margin: 6px 0 0; font-size: var(--fs-title2); line-height: 1.25; font-weight: 700; text-wrap: balance; }
+/* Élève d'un coach : les amis en plus, sous un titre de groupe (activationHtml) */
+.social-optional { margin: 0 16px 8px; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); }
 .social-hero__sub { margin: 0; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label2); max-width: 340px; text-wrap: pretty; }
 .social-choose { color: var(--tint); }
 .social-enable { margin-top: 24px; }

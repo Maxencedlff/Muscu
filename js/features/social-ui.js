@@ -166,16 +166,22 @@ function ageHiddenHtml() {
         <div class="group-foot">Si ta tranche d'âge a changé, mets-la à jour dans les Réglages de l'iPhone, à ton nom.</div>`;
 }
 
-// Carte d'activation : pseudo obligatoire, âge déclaré, règles, puis « Activer »
+// Carte d'activation : pseudo obligatoire, âge déclaré, règles, puis « Activer ». Élève d'un coach : les amis
+// sont en plus, pas l'étape suivante (panel du 07/11 : le gros « Activer » bleu passait devant « Mon coach ») ;
+// titre de groupe « Amis (facultatif) » et bouton secondaire « Ajouter aussi des amis »
 function activationHtml() {
   const name = account.profile?.username;
   const ready = !!name && socialAgeOk;
+  const coached = coachRole().hasCoach;
+  const sub = 'Suis leurs séances et encourage-les d\'une réaction. Ton compte reste privé\u00a0: seules les personnes que tu acceptes voient tes séances.';
   return `
+        ${coached ? `<div class="group-title">Amis (facultatif)</div>
+        <p class="social-optional">${sub}</p>` : `
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec tes amis</h2>
-          <p class="social-hero__sub">Suis leurs séances et encourage-les d'une réaction. Ton compte reste privé : seules les personnes que tu acceptes voient tes séances.</p>
-        </div>
+          <p class="social-hero__sub">${sub}</p>
+        </div>`}
         <div class="group">
           <button class="cell cell--nav" data-action="social-choose-username">
             <span class="cell__body"><span class="cell__title">Pseudo</span></span>
@@ -188,7 +194,7 @@ function activationHtml() {
           </button>
         </div>
         <div class="group-foot">${name ? 'Tes amis te trouvent avec ce pseudo.' : 'Il faut un pseudo pour que tes amis te trouvent.'}${socialTeenByAge() ? ' Tes séances restent masquées par défaut : tu choisis celles que tes amis voient.' : ''} Tes notes, ton poids et tes données Santé ne sont jamais montrés à tes amis.${coachRole().hasCoach ? ' Ton coach, lui, voit tes séances et leurs notes, et ton poids si tu le partages avec lui.' : ''} <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>
-        <button class="btn btn--primary btn--full social-enable" data-action="social-enable" ${ready ? '' : 'disabled'}>Activer</button>`;
+        <button class="btn ${coached ? 'btn--secondary' : 'btn--primary'} btn--full social-enable" data-action="social-enable" ${ready ? '' : 'disabled'}>${coached ? 'Ajouter aussi des amis' : 'Activer'}</button>`;
 }
 
 function enabledBodyHtml() {
