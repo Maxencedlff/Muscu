@@ -37,6 +37,14 @@ function showToast(msg, opts = {}) {
   setTimeout(() => el.remove(), duration);
 }
 
+// Nom du champ d'un dialogue pour VoiceOver (il n'avait ni label ni aria-label) : input.label, sinon le titre,
+// et l'unité en toutes lettres (« Riz cuit, en grammes »)
+const DIALOG_UNIT_SPOKEN = { g: 'grammes', kg: 'kilos', lbs: 'livres', km: 'kilomètres', min: 'minutes', s: 'secondes', reps: 'répétitions', t: 'tonnes', 'tr/min': 'tours par minute', 'étages': 'étages' };
+function dialogInputLabel(input, title = '') {
+  const name = String(input?.label || title || 'Valeur').trim(), u = input?.unit;
+  return u ? `${name}, en ${DIALOG_UNIT_SPOKEN[u] || u}` : name;
+}
+
 // actions : [{ label, value, style: 'default' | 'destructive' | 'cancel' | 'preferred' }]
 // type 'sheet' = feuille d'actions en bas, 'alert' = alerte centrée
 function dialog({ type = 'alert', title = '', message = '', actions, input = null }) {
@@ -63,8 +71,8 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
             <input class="ios-dialog__input" ${input.text ? 'type="text" autocomplete="off" autocapitalize="sentences" maxlength="40"'
               : input.decimal ? 'type="text" inputmode="decimal" autocomplete="off"'   // « 70,5 » : la virgule du clavier français
               : 'type="number" inputmode="numeric"'}
-                   value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}">
-            ${input.unit ? `<span class="ios-dialog__unit">${esc(input.unit)}</span>` : ''}
+                   value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}" aria-label="${esc(dialogInputLabel(input, title))}">
+            ${input.unit ? `<span class="ios-dialog__unit" aria-hidden="true">${esc(input.unit)}</span>` : ''}
           </div>` : ''}
       </div>` : '';
 

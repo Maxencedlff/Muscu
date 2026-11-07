@@ -215,6 +215,7 @@ def t_creer_plan(bench, eng, dev, theme):
         page.wait_for_selector('.diet-plans-view')
         page.click('[data-action="diet-new-plan"]')
         page.wait_for_selector('.ios-dialog__input')
+        R.check(page.get_attribute('.ios-dialog__input', 'aria-label') == 'Nouveau plan', f'{t} nom du plan : champ nommé')
         page.fill('.ios-dialog__input', 'Ma prise de masse')   # nom du panel : long, le titre touchait le Retour sur SE
         tap_dialog(page, 'Créer')
         page.wait_for_selector('.diet-plan-view')
@@ -232,6 +233,9 @@ def t_creer_plan(bench, eng, dev, theme):
         first = page.locator('#dietFoodList .diet-cand .diet-cand__name').first.inner_text()
         page.locator('#dietFoodList .diet-cand').first.click()
         page.wait_for_selector('.ios-dialog__input')
+        # VoiceOver : le champ de la quantité a un nom (avant : aucun), l'unité dite en toutes lettres
+        lbl = page.get_attribute('.ios-dialog__input', 'aria-label') or ''
+        R.check(lbl.endswith(', en grammes') and len(lbl) > len(', en grammes') and page.get_attribute('.ios-dialog__unit', 'aria-hidden') == 'true', f'{t} quantité : champ nommé ({lbl!r})')
         page.fill('.ios-dialog__input', '150')
         tap_dialog(page, 'OK')
         page.wait_for_timeout(300)
