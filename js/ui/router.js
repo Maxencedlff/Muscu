@@ -246,16 +246,35 @@ const SCREENS = new Map([
 ]);
 function screenOf(name) { return SCREENS.get(name) || SCREENS.get('dashboard'); }
 
+// Bouton qui a le focus (VoiceOver, clavier) dans l'écran redessiné : son data-action et ses data-*, pour le
+// retrouver après innerHTML. Sans ça, toucher l'élastique, un RIR, le niveau du son ou cocher un repas
+// renvoyait VoiceOver en haut de l'écran (panel du 07/11). Boutons seulement : jamais un champ (clavier iOS)
+function focusedActionSelectors() {
+  const el = document.activeElement;
+  if (!el || el.tagName !== 'BUTTON' || !el.dataset.action || !$('#app').contains(el)) return null;
+  const attr = ([k, v]) => `[data-${k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${CSS.escape(v)}"]`;
+  const all = Object.entries(el.dataset);
+  // Exact d'abord, puis la même action sur le même exercice (data-ei), puis la même action
+  return [all, all.filter(([k]) => k === 'action' || k === 'ei'), all.filter(([k]) => k === 'action')].map(list => list.map(attr).join(''));
+}
+function restoreFocus(sels) {
+  if (!sels || (document.activeElement && document.activeElement !== document.body)) return;
+  const el = sels.map(sel => $('#app').querySelector(sel)).find(Boolean);
+  el?.focus({ preventScroll: true });
+}
+
 function paint(scrollY = window.scrollY) {
   if (typeof closeBodyTip === 'function') closeBodyTip();   // bulle d'un muscle (js/ui/body-tip.js) : jamais d'un écran à l'autre
   const route = currentRoute();
   const name  = routeName(route);
   const screen = screenOf(name);
+  const focusSels = renderedView === name ? focusedActionSelectors() : null;   // même écran redessiné seulement
   $('#app').innerHTML = screen.render(...routeParams(route));
   updateChrome();
   observeLargeTitle();
   fitBackLabel();
   window.scrollTo(0, scrollY);
+  restoreFocus(focusSels);
   screen.mount?.({ first: renderedView !== name });
   renderedView = name;
 }

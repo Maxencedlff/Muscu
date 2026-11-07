@@ -65,6 +65,10 @@ def t_seance(bench, eng, dev, theme):
         sizes = page.evaluate("[...document.querySelectorAll('.rir__btn')].map(b => { const r = b.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })")
         R.check(len(sizes) == 5 and all(w >= 44 and h >= 44 for w, h in sizes), f'{t} pastilles 44 × 44 {sizes}')
         R.check(page.evaluate("(() => { const r = document.querySelector('.rir').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; })()"), f'{t} sélecteur dans l\'écran')
+        # Panel du 07/11 : VoiceOver perdait le focus après un RIR (render() redessine tout l'écran)
+        page.focus('.rir__btn[data-rir="2"]'); page.keyboard.press('Enter'); page.wait_for_timeout(200)
+        foc = page.evaluate("(() => { const a = document.activeElement; return a && a.dataset.action === 'set-rir' && a.dataset.rir === '2'; })()")
+        R.check(foc, f'{t} RIR touché : le focus reste sur la pastille redessinée')
         # 11. En-têtes de colonnes à 12 px au moins
         small = page.evaluate("[...document.querySelectorAll('.sets__head')].map(e => parseFloat(getComputedStyle(e).fontSize)).filter(s => s < 12)")
         R.check(not small, f'{t} en-têtes de colonnes ≥ 12 px {small}')
