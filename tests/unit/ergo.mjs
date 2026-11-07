@@ -3,7 +3,10 @@
 //  carte « Derniers records » de Progrès, phrase de l'échauffement
 // ═══════════════════════════════════════════════════════════
 
-export default function ({ test, run, reset, assert, sameJSON }) {
+import fs from 'node:fs';
+import path from 'node:path';
+
+export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
   const DAY = 86400000;
 
   // Programme avec un seul exercice de tirage et sa dernière séance
@@ -228,4 +231,60 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     run(`data.programmes.ppl.exercises.pull[0].repMin = 8`);
     assert.equal(run('repRangeText(activeSession.exercises[0])'), '8–12 reps');
   }));
+
+  // ── Toasts : jamais coupés par « … » (panel du 07/11, iPhone SE) ──
+
+  // Premier argument de chaque showToast(…) du code : ses textes (guillemets et gabarits, ${…} compté 5 signes)
+  function toastTexts() {
+    const files = [];
+    const walk = d => fs.readdirSync(d, { withFileTypes: true }).forEach(e => {
+      const f = path.join(d, e.name);
+      if (e.isDirectory()) walk(f); else if (f.endsWith('.js')) files.push(f);
+    });
+    walk(path.join(ROOT, 'js'));
+    const out = [];
+    for (const f of files) {
+      const src = fs.readFileSync(f, 'utf8');
+      for (let i = src.indexOf('showToast('); i >= 0; i = src.indexOf('showToast(', i + 1)) {
+        if (/function\s+$/.test(src.slice(Math.max(0, i - 9), i))) continue;   // la déclaration
+        // Lecture du 1er argument : s'arrête à la virgule ou à la parenthèse de même niveau
+        let j = i + 10, depth = 0, quote = null, cur = '';
+        const texts = [];
+        for (; j < src.length; j++) {
+          const c = src[j];
+          if (quote) {
+            if (c === '\\') { cur += src[j + 1]; j++; continue; }
+            if (quote === '`' && c === '$' && src[j + 1] === '{') {   // ${…} : 5 signes, sans lire dedans
+              let d = 0; for (j++; j < src.length; j++) { if (src[j] === '{') d++; else if (src[j] === '}' && --d === 0) break; }
+              cur += 'XXXXX'; continue;
+            }
+            if (c === quote) { texts.push(cur); quote = null; cur = ''; continue; }
+            cur += c; continue;
+          }
+          if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
+          if ('([{'.includes(c)) depth++;
+          else if (')]}'.includes(c)) { if (depth === 0) break; depth--; }
+          else if (c === ',' && depth === 0) break;
+        }
+        // Toast avec bouton (« Annuler »…) : ses options suivent, jusqu'à la parenthèse fermante
+        const action = /^\s*,\s*\{[^;]*?\baction:/.test(src.slice(j, j + 300).split('\n)')[0]) && src[j] === ',';
+        texts.forEach(text => out.push({ f: path.relative(ROOT, f), text, action }));
+      }
+    }
+    return out;
+  }
+
+  test('toasts courts : deux lignes au plus sur iPhone SE, jamais une seule ligne coupée', () => {
+    const texts = toastTexts();
+    assert.ok(texts.length > 80, `textes trouvés : ${texts.length}`);
+    assert.ok(texts.some(t => t.action) && texts.some(t => !t.action), 'toasts avec et sans bouton reconnus');
+    // iPhone SE de 320 px : deux lignes d'environ 30 signes, trois de 15 à 20 à côté du bouton
+    const long = texts.filter(t => t.text.length > (t.action ? 40 : 60)).map(t => `${t.f} : « ${t.text} » (${t.text.length})`);
+    assert.deepEqual(long, [], 'au plus 60 signes, 40 avec un bouton');
+    const css = fs.readFileSync(path.join(ROOT, 'css/views.css'), 'utf8');
+    const rule = css.match(/\.toast \{[^}]*\}/)[0];
+    assert.ok(!/nowrap|ellipsis/.test(rule), 'le toast n\'est plus forcé sur une ligne');
+    assert.match(css, /\.toast > span \{[^}]*line-clamp: 2/, 'deux lignes au plus');
+    assert.match(css, /\.toast--action > span \{[^}]*line-clamp: 3/, 'trois à côté du bouton');
+  });
 }

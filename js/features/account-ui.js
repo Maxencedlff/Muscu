@@ -464,7 +464,7 @@ const REAUTH_LABELS = { apple: 'Avec Apple', google: 'Avec Google', email: 'Code
 const REAUTH_PURPOSE = { delete: 'Pour supprimer ton compte, reconnecte-toi.', link: 'Pour ajouter un moyen de connexion, reconnecte-toi d\'abord avec un moyen déjà relié.' };
 async function reauthenticate(purpose = 'delete') {
   const methods = reauthMethods();
-  if (!methods.length) { showToast('Confirmation impossible : aucun moyen de connexion disponible', { error: true }); return false; }
+  if (!methods.length) { showToast('Confirmation impossible : aucun moyen de connexion', { error: true }); return false; }
   const choice = methods.length === 1 && purpose === 'delete' ? methods[0] : await dialog({ type: 'sheet', title: 'Confirme ton identité',
     message: REAUTH_PURPOSE[purpose],
     actions: [

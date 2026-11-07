@@ -232,7 +232,7 @@ registerActions({
   'diet-new-plan': async () => {
     // Limite : jamais un plan retiré en silence ; on le dit avant de créer
     if (!dietCanCreate(data, coachRole().isCoach)) {
-      showToast(`${coachRole().isCoach ? DIET_PLAN_MAX_COACH : DIET_PLAN_MAX} plans au plus : supprime un plan dont tu ne te sers plus.`, { error: true });
+      showToast(`${coachRole().isCoach ? DIET_PLAN_MAX_COACH : DIET_PLAN_MAX} plans au plus : supprimes-en un d'abord`, { error: true });
       return;
     }
     const name = await askText({ title: 'Nouveau plan', message: 'Quatre repas sont prêts à remplir ; tu pourras les renommer.', placeholder: 'Mon plan', confirm: 'Créer' });
@@ -344,7 +344,7 @@ registerActions({
   },
   'diet-duplicate': (e, el) => {
     if (!dietCanCreate(data, coachRole().isCoach)) {
-      showToast(`${coachRole().isCoach ? DIET_PLAN_MAX_COACH : DIET_PLAN_MAX} plans au plus : supprime un plan dont tu ne te sers plus.`, { error: true });
+      showToast(`${coachRole().isCoach ? DIET_PLAN_MAX_COACH : DIET_PLAN_MAX} plans au plus : supprimes-en un d'abord`, { error: true });
       return;
     }
     const nid = dietDuplicatePlan(data, el.dataset.id);

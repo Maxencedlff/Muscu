@@ -73,7 +73,7 @@ async function dietCoachApply(on) {
   if (!r.ok) { showToast(coachErrorText(r.kind), { error: true }); return false; }
   save();
   haptic();
-  showToast(on ? 'Ton coach peut t\'envoyer des plans diète' : 'Plans diète de ton coach effacés du serveur');
+  showToast(on ? 'Plans diète du coach activés' : 'Plans diète du coach effacés du serveur');
   coachRefresh();
   return on;
 }

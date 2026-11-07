@@ -96,20 +96,26 @@
   position: fixed; top: calc(var(--sp-3) + env(safe-area-inset-top, 0px));
   left: 50%; transform: translateX(-50%);
   background: var(--dlg-bg); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
-  color: var(--label); padding: var(--sp-3) var(--sp-5); border-radius: var(--r-pill);
+  color: var(--label); padding: var(--sp-3) var(--sp-5); border-radius: 22px;
   font-size: var(--fs-subhead); font-weight: 600; z-index: 300;
   box-shadow: var(--shadow-float);
   animation: toastIn .25s ease, toastOut .3s ease calc(var(--toast-duration, 2200ms) - 400ms) forwards;
-  white-space: nowrap; pointer-events: none;
-  max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none; line-height: 1.3; text-align: center;
+  width: max-content; max-width: calc(100vw - 32px);
+}
+/* Jamais coupé par « … » sur une ligne (panel du 07/11, iPhone SE) : deux lignes équilibrées au plus, trois à
+   côté d'un bouton ; les textes restent courts (test « toasts courts », tests/unit/ergo.mjs) */
+.toast > span {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden; text-wrap: balance;
 }
 .toast--action {
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 8px; text-align: left;
   pointer-events: auto; padding: 6px 6px 6px 18px;
 }
-.toast--action > span { overflow: hidden; text-overflow: ellipsis; }
+.toast--action > span { min-width: 0; -webkit-line-clamp: 3; line-clamp: 3; }
 .toast__action {
-  flex-shrink: 0; min-height: 44px; padding: 0 14px; border: none; border-radius: var(--r-pill);
+  flex-shrink: 0; min-height: 44px; padding: 0 12px; border: none; border-radius: var(--r-pill);
   background: transparent; color: var(--tint); font-size: var(--fs-subhead); font-weight: 600; cursor: pointer;
 }
 .toast__action:active { background: var(--dlg-press); }
