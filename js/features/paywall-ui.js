@@ -329,7 +329,7 @@ function payTabsHtml(tab) {
 function payCoachLinkHtml() {
   if (!account.user || coachRole().isCoach) return '';
   const st = coachPro.request?.status;
-  const value = st === 'pending' ? 'En cours de vérification' : st === 'rejected' ? 'Demande refusée' : '';
+  const value = st === 'pending' ? 'En vérification' : st === 'rejected' ? 'Demande refusée' : '';
   return `
         <div class="group">
           <button class="cell cell--nav" data-action="coach-request-open">

@@ -2,7 +2,7 @@
 //  Rôle coach (tarifs du 30/10/2026), écrans. Données et appels : js/data/coach-pro.js.
 //
 //  - « Devenir coach » (`coach-request`) : une DEMANDE, pas un achat. Nom tel qu'il figure sur la carte
-//    professionnelle, numéro de la carte, diplôme ; statut « En cours de vérification », « Refusée »
+//    professionnelle, numéro de la carte, diplôme ; statut « En vérification », « Refusée »
 //    (avec le motif) ou « Validée ». L'administrateur vérifie la carte sur le site du ministère des
 //    Sports. Les abonnements coach n'apparaissent qu'une fois le rôle validé.
 //  - Réglages › Coach (renderCoachProGroup, appelée par js/features/coach-ui.js) : pas encore coach,
@@ -15,7 +15,7 @@
 
 const COACH_REQUEST_INTRO = 'Le rôle coach est réservé aux éducateurs sportifs diplômés titulaires d\'une carte professionnelle. On vérifie ta carte sur le site du ministère des Sports, sous 48 h.';
 const COACH_REQUEST_STATUS_TEXT = {
-  pending: 'En cours de vérification', approved: 'Validée', rejected: 'Refusée', revoked: 'Rôle retiré',
+  pending: 'En vérification', approved: 'Validée', rejected: 'Refusée', revoked: 'Rôle retiré',
 };
 let coachRequestEditing = false;   // demande en attente ou refusée : formulaire rouvert pour la corriger
 let coachRequestBusy = false;

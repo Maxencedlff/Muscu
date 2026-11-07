@@ -859,8 +859,12 @@ def t_demande_coach(bench, eng, dev, theme):
         page.wait_for_timeout(700)
         txt = page.inner_text('.coach-req-view')
         req = page.evaluate("__sb.co.requests[__sb.meId()]")
-        R.check(req and req['card_number'] == '04912ED0123' and req['diploma'] == 'BPJEPS' and 'En cours de vérification' in txt,
-                f'{t} demande envoyée : en cours de vérification ({req})')
+        R.check(req and req['card_number'] == '04912ED0123' and req['diploma'] == 'BPJEPS' and 'En vérification' in txt,
+                f'{t} demande envoyée : en vérification ({req})')
+        # Panel du 06/11 (iPhone SE) : « Demande » et le statut se chevauchaient (« DemandEn cours de vérification »)
+        ov = page.evaluate("""(() => { const c = [...document.querySelectorAll('.coach-req-view .cell')].find(e => e.querySelector('.cell__value')), t = c.querySelector('.cell__title'), v = c.querySelector('.cell__value');
+            return [t.scrollWidth <= t.clientWidth + 1, t.getBoundingClientRect().right <= v.getBoundingClientRect().left + 1]; })()""")
+        R.check(ov == [True, True], f'{t} demande : « Demande » et le statut côte à côte, sans chevauchement {ov}')
         R.check(page.evaluate('__sb.co.alerts') == 1, f'{t} administrateur prévenu (coach-request-alert)')
         R.check(not page.evaluate('coachRole().isCoach'), f'{t} demande en attente : pas encore coach')
         shot(page, LOT, f'31-demande-en-cours-{t}')
