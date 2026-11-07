@@ -127,7 +127,8 @@ function restEndBody() {
   const sub = activeSession && techNextSub();
   if (sub) { const p = nextSetParts(); return `${p.step} · ${p.name}${p.load}`; }
   const nx = activeSession && currentSet();
-  return nx ? `Série ${nx.si + 1} · ${activeSession.exercises[nx.ei].name}` : 'C\'est reparti';
+  // Numéro affiché (setSpokenName) : avec 3 échauffements, la série 1 n'est pas « Série 4 »
+  return nx ? `${setSpokenName(activeSession.exercises[nx.ei], nx.si)} · ${activeSession.exercises[nx.ei].name}` : 'C\'est reparti';
 }
 
 // Relance l'affichage du chrono sans toucher à l'heure de fin (retour au premier plan, restauration)
@@ -158,7 +159,7 @@ function restFinished() {
   timerDone();
   closeRestSheet();
   const sub = techNextSub(), nx = sub || currentSet();
-  announce(nx ? `Repos terminé, ${sub ? sub.label.toLowerCase() : `série ${nx.si + 1}`} de ${activeSession.exercises[nx.ei].name}` : 'Repos terminé');
+  announce(nx ? `Repos terminé, ${(sub ? sub.label : setSpokenName(activeSession.exercises[nx.ei], nx.si)).toLowerCase()} de ${activeSession.exercises[nx.ei].name}` : 'Repos terminé');
   const bar = $('.rest-mini');
   if (bar) {
     bar.classList.add('rest-mini--done');

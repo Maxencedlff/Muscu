@@ -1041,6 +1041,13 @@ test('live activity : série suivante (charge en kg ou lbs, poids du corps, sans
   sameJSON(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 0, k: 0, label: 'Reprise 1', set: { weight: '80', reps: '4' } })`), { exercise: 'Squat · Reprise 1', set: 1, load: '80 kg × 4' });
   reset({ unit: 'lbs' });
   assert.equal(run(`restActivityNext(${JSON.stringify(session)}, { ei: 0, si: 0 })`).load, '176,4 lbs × 8');
+  // Échauffements (panel du 06/11) : numéro affiché, jamais l'indice ; l'échauffement se nomme
+  reset();
+  const warm = { exercises: [{ name: 'Squat', sets: [
+    { weight: '40', reps: '8', warmup: true }, { weight: '60', reps: '5', warmup: true }, { weight: '80', reps: '8' }, { weight: '80', reps: '8' }] }] };
+  sameJSON(run(`restActivityNext(${JSON.stringify(warm)}, { ei: 0, si: 2 })`), { exercise: 'Squat', set: 1, load: '80 kg × 8' }, 'série 1 après 2 échauffements');
+  assert.equal(run(`restActivityNext(${JSON.stringify(warm)}, { ei: 0, si: 3 })`).set, 2);
+  sameJSON(run(`restActivityNext(${JSON.stringify(warm)}, { ei: 0, si: 1 })`), { exercise: 'Squat · Échauffement 2', set: 1, load: '60 kg × 5' });
 });
 
 test('live activity : données envoyées (séance, couleur, durée entière, textes bornés pour les 4 Ko d\'Apple)', () => {

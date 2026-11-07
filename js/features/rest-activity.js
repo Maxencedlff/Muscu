@@ -36,8 +36,11 @@ function restActivityNext(session, cur) {
   const m    = measureOf(ex);
   const kind = loadKind(ex);
   const load = !reps ? (cur.label && w ? `${w} ${unitLbl()}` : '') : m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : w ? `${w} ${unitLbl()} × ${reps}` : `${reps} reps`;
-  const name = cur.label ? `${ex.name} · ${cur.label}` : String(ex.name);
-  return { exercise: name.slice(0, REST_ACTIVITY_MAX.exercise), set: cur.si + 1, load };
+  // Numéro affiché, échauffements à part : un échauffement se nomme et annonce la série de travail qui le suit
+  const warm = !cur.label && isWarmupSet(s), no = setDisplayNo(ex.sets, cur.si);
+  const name = cur.label ? `${ex.name} · ${cur.label}`
+    : warm ? `${ex.name} · Échauffement ${ex.sets.slice(0, cur.si + 1).filter(isWarmupSet).length}` : String(ex.name);
+  return { exercise: name.slice(0, REST_ACTIVITY_MAX.exercise), set: warm ? no + 1 : Math.max(1, no), load };
 }
 
 // Données envoyées au module natif (logique pure, testée dans tests/unit/run.mjs)
