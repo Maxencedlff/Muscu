@@ -28,8 +28,21 @@ function buildSets(progKey, cat, exLike, n, fallback = {}) {
   const prevSets = workSets(lastPerf(progKey, cat, exLike)?.ex.sets);
   return Array.from({ length: n }, (_, i) => {
     const src = prevSets[i] ?? prevSets.at(-1) ?? { weight: fallback.lastWeight || '', reps: fallback.lastReps || '' };
-    return plannedSet(src, prevSets[i]);
+    return plannedSet(capReps(src, exLike), prevSets[i]);
   });
+}
+
+// Reps reprises de la dernière fois, ramenées au haut de la fourchette quand il est réglé : un programme
+// passé à « 5 reps max » ne propose plus les 8 reps d'avant (panel du 07/11). Le 12 par défaut (écrit par
+// l'éditeur même sans réglage) ne coupe rien.
+function capReps(src, exLike) {
+  const max = measureOf(exLike) === 'reps' ? setRepMax(exLike) : null;
+  return max && parseInt(src.reps) > max ? { ...src, reps: String(max) } : src;
+}
+// Haut de fourchette réglé à autre chose que le 12 par défaut, sinon null
+function setRepMax(d) {
+  const max = parseInt(d?.repMax);
+  return max > 0 && max !== 12 ? max : null;
 }
 
 function startSession(cat) {
@@ -108,10 +121,13 @@ function setGoal(ex, s) {
   const d = sessExData(ex);
   return String(s?.prev?.reps || defaultGoal(measureOf(ex), d?.repMin ?? d?.repMax));
 }
-// Fourchette de reps du programme (« 8–12 ») si un bas est réglé, sinon ''
+// Fourchette de reps du programme (« 8–12 reps ») si un bas est réglé, « 5 reps max » si seul le haut
+// l'est (hors 12 par défaut), sinon ''
 function repRangeText(ex) {
   const d = sessExData(ex);
-  return measureOf(ex) === 'reps' && d?.repMin ? `${d.repMin}–${d.repMax ?? 12} reps` : '';
+  if (measureOf(ex) !== 'reps' || !d) return '';
+  if (d.repMin) return `${d.repMin}–${d.repMax ?? 12} reps`;
+  return setRepMax(d) ? `${setRepMax(d)} reps max` : '';
 }
 
 function exRest(ex) {
@@ -801,8 +817,9 @@ registerActions({
     const ex = activeSession?.exercises[parseInt(el.dataset.ei)];
     if (!ex) return;
     const step = data.unit === 'lbs' ? 5 : 2.5;
-    // Fourchette (« 8 à 12 ») : la nouvelle charge repart du bas (progression double)
-    const lo = measureOf(ex) === 'reps' ? sessExData(ex)?.repMin : null;
+    // La nouvelle charge repart aux reps de l'objectif (goalRepsAfterBump, js/data/goals.js) : le bas de la
+    // fourchette, sinon quelques reps sous le haut ; la puce et « Objectif 75 kg × 3 » disent la même chose
+    const lo = measureOf(ex) === 'reps' ? goalRepsAfterBump(sessExData(ex) || {}) : null;
     ex.sets.forEach(s => {
       if (s.done || isWarmupSet(s)) return;   // l'échauffement garde ses paliers
       const cur = toUnitW(s.weight || s.prev?.weight) || 0;

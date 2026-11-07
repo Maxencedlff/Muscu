@@ -192,4 +192,40 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     // Jamais rien perdu ni doublé
     assert.equal(s.recent.length + s.done.length + s.same.length + s.rest.length, names.length);
   });
+
+  // ── Séance : haut de fourchette seul (panel du 07/11, Squat barre « 5 reps max » chez le coach) ──
+
+  // Séance simulée sur les vraies fonctions de js/features/session.js ; écran et stockage remplacés le temps du test
+  function withSession(fn) {
+    run(`globalThis.__ergoOrig = { render, persistSession, haptic, showToast, sp: globalThis.sessProg };
+      render = () => {}; persistSession = () => {}; haptic = () => {};
+      showToast = (msg, o) => { globalThis.lastToast = { msg, o }; };
+      globalThis.sessProg = () => data.programmes[activeSession.programme];`);
+    try { fn(); } finally {
+      run(`render = __ergoOrig.render; persistSession = __ergoOrig.persistSession; haptic = __ergoOrig.haptic;
+        showToast = __ergoOrig.showToast; globalThis.sessProg = __ergoOrig.sp; activeSession = null;`);
+    }
+  }
+
+  test('séance : « 5 reps max » affiché, reps d\'avant ramenées à 5, la puce de charge suit l\'objectif', () => withSession(() => {
+    reset();
+    const ex = seedRow(['8', '8', '8', '7', '7'].map(r => set('72.5', r)), { sets: 5, repMax: 5 });
+    sameJSON(run(`exerciseGoal('pull', ${ex}).goal`), { w: 75, r: 3 });
+    run(`activeSession = { category: 'pull', programme: 'ppl', startedAt: 1,
+      exercises: [{ exId: 'row', name: 'Rowing', measure: 'reps', sets: buildSets('ppl', 'pull', ${ex}, 5, ${ex}) }] }`);
+    sameJSON(run('activeSession.exercises[0].sets.map(s => s.reps)'), ['5', '5', '5', '5', '5'], 'pas plus que le haut de la fourchette');
+    sameJSON(run('activeSession.exercises[0].sets.map(s => s.prev.reps)'), ['8', '8', '8', '7', '7'], '« Avant » garde la dernière fois');
+    assert.equal(run('repRangeText(activeSession.exercises[0])'), '5 reps max');
+    assert.equal(run('bumpReady(activeSession.exercises[0])'), true);
+    run(`actionHandlers.get('bump-weight')(null, { dataset: { ei: '0' } })`);
+    sameJSON(run('activeSession.exercises[0].sets.map(s => s.weight + "×" + s.reps)'), Array(5).fill('75×3'), 'comme « Objectif 75 kg × 3 »');
+    assert.match(run('lastToast.msg'), /retour à 3 reps/);
+    // Le 12 par défaut (écrit par l'éditeur) ne coupe rien et ne s'affiche pas
+    const ex12 = seedRow([set('30', '15'), set('30', '14')], { repMax: 12 });
+    sameJSON(run(`buildSets('ppl', 'pull', ${ex12}, 2, ${ex12}).map(s => s.reps)`), ['15', '14']);
+    run(`data.programmes.ppl.exercises.pull[0] = ${ex12}; activeSession.exercises[0].sets = []`);
+    assert.equal(run('repRangeText(activeSession.exercises[0])'), '');
+    run(`data.programmes.ppl.exercises.pull[0].repMin = 8`);
+    assert.equal(run('repRangeText(activeSession.exercises[0])'), '8–12 reps');
+  }));
 }
