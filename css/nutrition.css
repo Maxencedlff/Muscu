@@ -172,6 +172,9 @@ body.light .sheet .diet-cands, body.light .sheet .diet-pick__list, body.light .s
 .diet-low { display: flex; gap: 6px; margin: 10px 0 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); }
 .diet-plan-view .diet-low { margin: 8px 16px 0; }
 .diet-low .icon { flex-shrink: 0; margin-top: 2px; }
+/* Écart entre les repas prévus et l'objectif (dietTargetGap) : même note discrète, sous le total */
+.diet-gap { display: flex; gap: 6px; margin: 8px 16px 0; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); }
+.diet-gap .icon { flex-shrink: 0; margin-top: 2px; }
 .diet-sum--plain { padding: 4px 16px 14px; }
 .diet-foot .group-foot + .group-foot { padding-top: 8px; }
 .diet-help { color: var(--label2); }

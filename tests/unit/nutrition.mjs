@@ -267,6 +267,19 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.ok(run(`!('dietPlans' in data) && !('dietLog' in data) && !('dietActive' in data) && !('dietFoods' in data)`));
   });
 
+  test('écart repas prévus / objectif du jour : signalé au-delà de 10 %, calories et protéines', () => {
+    loadDb();
+    const meals = [{ id: 'm1', name: 'Midi', items: [item(RIZ_CUIT, 150), item(POULET_GRILLE, 150)] }];
+    const t = run(`dietPlanMacros(${JSON.stringify({ meals })})`);
+    const k = Math.round(t.kcal), p = Math.round(t.p);
+    const gap = targets => run(`dietTargetGap(${JSON.stringify({ name: 'P', meals, targets })})`);
+    assert.equal(gap({ kcal: k + 600 }), `Les repas prévus font ${run('fmtNum(600)')} kcal de moins que l'objectif du jour.`);
+    assert.equal(gap({ kcal: k - 100, p: p + 40 }), `Les repas prévus font 100 kcal de plus et 40 g de protéines de moins que l'objectif du jour.`);
+    assert.equal(gap({ kcal: Math.round(k * 1.05), p }), '', 'à 10 % près : rien');
+    assert.equal(gap(null), '', 'sans objectif : le total est le repère');
+    assert.equal(run(`dietTargetGap({ name: 'P', meals: [{ id: 'm1', name: 'Midi', items: [] }], targets: { kcal: 2000 } })`), '', 'plan vide : rien');
+  });
+
   test('macros : aliment, repas, plan ; repère = objectif fixé, sinon total du plan', () => {
     loadDb();
     const riz = item(RIZ_CUIT, 150);

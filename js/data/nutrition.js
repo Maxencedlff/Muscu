@@ -210,6 +210,21 @@ function dietLowKcal(plan) {
   return k > 0 && k < DIET_LOW_KCAL;
 }
 
+// Écart de plus de 10 % entre les repas prévus et l'objectif fixé (calories, protéines) : une phrase, sinon ''.
+// « 1 425 kcal prévues » à côté de « objectif 2 000 kcal » passait inaperçu, à l'envoi du coach comme chez
+// l'élève (panel du 07/11) ; rien n'est bloqué, c'est un signal
+function dietTargetGap(plan) {
+  const t = plan?.targets;
+  if (!t || !plan.meals?.some(m => m.items?.length)) return '';
+  const total = dietPlanMacros(plan);
+  const parts = [['kcal', 'kcal'], ['p', 'g de protéines']].flatMap(([k, unit]) => {
+    const goal = Number(t[k]) || 0, diff = Math.round(total[k]) - goal;
+    if (!goal || Math.abs(diff) <= goal * 0.1) return [];
+    return [`${fmtNum(Math.abs(diff))} ${unit} de ${diff < 0 ? 'moins' : 'plus'}`];
+  });
+  return parts.length ? `Les repas prévus font ${parts.join(' et ')} que l'objectif du jour.` : '';
+}
+
 // ── Macros ──────────────────────────────────────────────────
 
 const DIET_ZERO = () => ({ kcal: 0, p: 0, c: 0, f: 0 });
