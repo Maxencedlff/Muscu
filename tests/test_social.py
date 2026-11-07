@@ -173,7 +173,10 @@ def t_activation(bench, eng, dev, theme):
         R.check(page.locator('[data-action="social-enable"]').is_enabled(), f'{t} « Activer » actif')
         layout(page, t, 'activation')
         page.wait_for_timeout(2500)   # fin du toast « Pseudo enregistré »
-        R.check(page.evaluate("document.querySelector('[data-action=social-enable]').getBoundingClientRect().bottom <= document.querySelector('.tabbar').getBoundingClientRect().top"), f'{t} « Activer » visible sans défiler')
+        # Depuis le panel du 07/11, « Rejoindre un coach » passe avant la carte des amis (facultatifs) : sur un
+        # petit écran, « Activer » peut finir sous le pli, mais il est atteint en un défilement
+        page.evaluate("document.querySelector('[data-action=social-enable]').scrollIntoView({ block: 'center' })"); page.wait_for_timeout(300)
+        R.check(page.evaluate("document.querySelector('[data-action=social-enable]').getBoundingClientRect().bottom <= document.querySelector('.tabbar').getBoundingClientRect().top"), f'{t} « Activer » atteint en défilant')
         # Élève suivi (panel du 06/11) : la phrase absolue était fausse, son coach voit les notes de séance
         page.evaluate("async () => { const c = __sb.addPerson({ username: 'max', social: false }); __sb.makeCoach(c); __sb.link(c, __sb.meId()); await coachRefresh(); render(); }")
         page.wait_for_timeout(400)
