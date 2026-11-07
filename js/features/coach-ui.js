@@ -35,10 +35,11 @@ function coachStatus(item) { return coachProgrammeStatus(data, item, myCoach()?.
 function coachBadgeHtml(n, label) {
   return n ? `<span class="coach-count num" aria-hidden="true">${n > 99 ? '99+' : n}</span><span class="visually-hidden">, ${esc(label)}</span>` : '';
 }
-// Nouvelles séances d'un élève (ligne de Mes élèves) : haltère et nombre, comme la bulle des messages à côté
-// (une icône, un sens) ; le rouge reste aux comptes de l'onglet et de « Mes élèves »
+// Nouvelles séances d'un élève (ligne de Mes élèves) : haltère, nombre et « à voir » écrit (panel du 07/11 :
+// « 3 » seul, à côté de « 6 séances cette sem. », ne disait pas ce qu'il comptait) ; le rouge reste aux
+// comptes de l'onglet et de « Mes élèves »
 function sessionsBadgeHtml(n) {
-  return n ? `<span class="coach-count coach-count--sessions num" aria-hidden="true">${icon('dumbbell', 14)}${n > 99 ? '99+' : n}</span><span class="visually-hidden">, ${esc(plural(n, 'nouvelle séance', 'nouvelles séances'))}</span>` : '';
+  return n ? `<span class="coach-count coach-count--sessions num" aria-hidden="true">${icon('dumbbell', 14)}${n > 99 ? '99+' : n} à voir</span><span class="visually-hidden">, ${esc(plural(n, 'nouvelle séance à voir', 'nouvelles séances à voir'))}</span>` : '';
 }
 // « Push · ton programme · hier » (dernière séance d'un élève)
 function studentLastLine(st) {
