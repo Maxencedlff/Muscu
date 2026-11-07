@@ -187,7 +187,7 @@ function activationHtml() {
             ${switchHtml(socialAgeOk)}
           </button>
         </div>
-        <div class="group-foot">${name ? 'Tes amis te trouvent avec ce pseudo.' : 'Il faut un pseudo pour que tes amis te trouvent.'}${socialTeenByAge() ? ' Tes séances restent masquées par défaut : tu choisis celles que tes amis voient.' : ''} Tes notes, ton poids et tes données Santé ne sont jamais montrés. <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>
+        <div class="group-foot">${name ? 'Tes amis te trouvent avec ce pseudo.' : 'Il faut un pseudo pour que tes amis te trouvent.'}${socialTeenByAge() ? ' Tes séances restent masquées par défaut : tu choisis celles que tes amis voient.' : ''} Tes notes, ton poids et tes données Santé ne sont jamais montrés à tes amis.${coachRole().hasCoach ? ' Ton coach, lui, voit tes séances et leurs notes, et ton poids si tu le partages avec lui.' : ''} <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>
         <button class="btn btn--primary btn--full social-enable" data-action="social-enable" ${ready ? '' : 'disabled'}>Activer</button>`;
 }
 

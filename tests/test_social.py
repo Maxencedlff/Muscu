@@ -156,6 +156,8 @@ def t_activation(bench, eng, dev, theme):
         age.click()
         R.check(page.locator('[data-action="social-age"]').get_attribute('aria-checked') == 'true', f'{t} case 15 ans cochée')
         R.check(page.locator('[data-action="social-enable"]').is_disabled(), f'{t} toujours grisé sans pseudo')
+        foot = page.inner_text('.group-foot:has(.link-inline[data-action="social-rules"])')
+        R.check('jamais montrés à tes amis' in foot and 'coach' not in foot, f'{t} pied : rien n\'est montré aux amis, sans coach ({foot!r})')
         shot(page, LOT, f'2-activation-sans-pseudo-{t}')
         # Pseudo choisi par l'écran du pseudo (calque du compte)
         page.click('[data-action="social-choose-username"]')
@@ -172,6 +174,11 @@ def t_activation(bench, eng, dev, theme):
         layout(page, t, 'activation')
         page.wait_for_timeout(2500)   # fin du toast « Pseudo enregistré »
         R.check(page.evaluate("document.querySelector('[data-action=social-enable]').getBoundingClientRect().bottom <= document.querySelector('.tabbar').getBoundingClientRect().top"), f'{t} « Activer » visible sans défiler')
+        # Élève suivi (panel du 06/11) : la phrase absolue était fausse, son coach voit les notes de séance
+        page.evaluate("async () => { const c = __sb.addPerson({ username: 'max', social: false }); __sb.makeCoach(c); __sb.link(c, __sb.meId()); await coachRefresh(); render(); }")
+        page.wait_for_timeout(400)
+        foot = page.inner_text('.group-foot:has(.link-inline[data-action="social-rules"])')
+        R.check('jamais montrés à tes amis' in foot and 'Ton coach, lui, voit tes séances et leurs notes' in foot, f'{t} pied : ce que voit le coach dit ({foot!r})')
         shot(page, LOT, f'2-activation-{t}')
         # Règles de la communauté
         page.click('#friendsBody [data-action="social-rules"]')
