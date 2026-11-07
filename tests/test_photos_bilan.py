@@ -23,38 +23,13 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
-from fake_account import FAKE_ACCOUNT
+from fake_account import FAKE_ACCOUNT, FAKE_VAULT as VAULT
 from PIL import Image, ExifTags, ImageDraw
 
 LOT = 'photos'
 R = Results(LOT)
 NOW = local_ms(2026, 11, 20, 10, tz=PARIS)
 
-# Module du coffre ajouté à la coquille de FAKE_ACCOUNT. Trousseau factice dans sessionStorage : { id: secret de test }.
-VAULT = """
-(() => {
-  window.__vaultCalls = [];
-  window.__vaultMode = 'ok';
-  const KC = '__fakeKeychain';
-  const all = () => JSON.parse(sessionStorage.getItem(KC) || '{}');
-  const save = o => sessionStorage.setItem(KC, JSON.stringify(o));
-  const fakeKey = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
-  const err = code => { const e = new Error(code); e.code = code; return e; };
-  const ios = () => (__vaultMode === 'cancel' ? Promise.reject(err('CANCELED')) : Promise.resolve());
-  const vault = {
-    status: async () => ({ biometry: 'faceID', passcode: true }),
-    create: async ({ id }) => { __vaultCalls.push('create'); if (!/^[0-9a-f]{16,64}$/.test(id || '')) throw err('FAILED');
-      await ios(); const o = all(); o[id] ||= fakeKey(); save(o); return { key: o[id] }; },
-    unlock: async ({ id }) => { __vaultCalls.push('unlock'); if (!all()[id]) throw err('NOT_FOUND'); await ios(); return { key: all()[id] }; },
-    forget: async ({ id }) => { __vaultCalls.push('forget'); const o = all(); delete o[id]; save(o); return {}; },
-    shield: async ({ on }) => { __vaultCalls.push('shield:' + on); return {}; },
-  };
-  const base = window.Capacitor;
-  window.Capacitor = { ...base,
-    isPluginAvailable: n => (n === 'MdlfVault' ? !window.__noVault : base.isPluginAvailable(n)),
-    registerPlugin: n => (n === 'MdlfVault' ? vault : base.registerPlugin(n)) };
-})();
-"""
 
 
 def tag(device, theme):

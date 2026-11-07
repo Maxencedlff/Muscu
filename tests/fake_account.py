@@ -1216,3 +1216,30 @@ FAKE_ACCOUNT = r"""
   };
 })();
 """
+
+# Module du coffre (MdlfVault) ajouté à la coquille de FAKE_ACCOUNT, pour les photos de bilan (tests/test_photos_bilan.py,
+# parcours « photos-bilan » du panel) : Face ID toujours accepté (__vaultMode = 'cancel' : refusé). Trousseau factice dans sessionStorage : { id: secret de test }.
+FAKE_VAULT = """
+(() => {
+  window.__vaultCalls = [];
+  window.__vaultMode = 'ok';
+  const KC = '__fakeKeychain';
+  const all = () => JSON.parse(sessionStorage.getItem(KC) || '{}');
+  const save = o => sessionStorage.setItem(KC, JSON.stringify(o));
+  const fakeKey = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
+  const err = code => { const e = new Error(code); e.code = code; return e; };
+  const ios = () => (__vaultMode === 'cancel' ? Promise.reject(err('CANCELED')) : Promise.resolve());
+  const vault = {
+    status: async () => ({ biometry: 'faceID', passcode: true }),
+    create: async ({ id }) => { __vaultCalls.push('create'); if (!/^[0-9a-f]{16,64}$/.test(id || '')) throw err('FAILED');
+      await ios(); const o = all(); o[id] ||= fakeKey(); save(o); return { key: o[id] }; },
+    unlock: async ({ id }) => { __vaultCalls.push('unlock'); if (!all()[id]) throw err('NOT_FOUND'); await ios(); return { key: all()[id] }; },
+    forget: async ({ id }) => { __vaultCalls.push('forget'); const o = all(); delete o[id]; save(o); return {}; },
+    shield: async ({ on }) => { __vaultCalls.push('shield:' + on); return {}; },
+  };
+  const base = window.Capacitor;
+  window.Capacitor = { ...base,
+    isPluginAvailable: n => (n === 'MdlfVault' ? !window.__noVault : base.isPluginAvailable(n)),
+    registerPlugin: n => (n === 'MdlfVault' ? vault : base.registerPlugin(n)) };
+})();
+"""

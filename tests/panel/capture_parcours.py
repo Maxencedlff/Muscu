@@ -108,17 +108,16 @@ class Pilote:
         self.run, self.page, self.parcours, self.combo = run, page, parcours, combo
         self.engine, self.device, self.theme = combo
         self.etape_cour = None
-        self.erreurs_vues = 0
         self.ecran_txt = ''
 
     # ── Démarrage ──
-    def lancer(self, ppl_v2=None, bienvenue_vue=True, extra=None, opts=None):
-        """Stockage vidé puis rempli (données, thème), app chargée. bienvenue_vue=False : premier lancement."""
+    def lancer(self, ppl_v2=None, bienvenue_vue=True, extra=None):
+        """Stockage vidé puis rempli (données, thème), app chargée. bienvenue_vue=False : premier lancement.
+        Options du faux serveur (__fakeOpts) : lues au chargement de la coquille, donc passées à autre_telephone ;
+        les écrire dans la page ici serait perdu au rechargement."""
         x = dict(extra or {})
         if bienvenue_vue:
             x['ppl_welcome_seen'] = '1'
-        if opts:
-            self.page.evaluate('o => { window.__fakeOpts = Object.assign(window.__fakeOpts || {}, o); }', opts)
         seed(self.page, self.theme, ppl_v2, extra=x, url=self.run.url)
         self.page.wait_for_timeout(400)
 
@@ -133,7 +132,27 @@ class Pilote:
         """Connexion Apple à un compte existant, pseudo choisi (préparé : l'écran de connexion a son parcours)."""
         return self.raccourci("""async ([u, en]) => { await accountSignInWith('apple', async () => 'add');
             if (u) await accountSaveProfile({ username: u }); if (en) await socialEnable(true); }""",
-                              f'connecté avec Apple, pseudo « {pseudo} »' + (', Amis activé' if amis else ''), [pseudo, amis])
+                              f'connecté avec Apple, pseudo « {pseudo} »' + (', Social activé' if amis else ''), [pseudo, amis])
+
+    # ── Deux téléphones (le coach et son élève) ──
+    def autre_telephone(self, init=None, opts=None):
+        """Seconde app dans un contexte neuf, même appareil et même thème (faux serveur à part : le recopier). `init` :
+        script ajouté au chargement (module natif simulé) ; `opts` : options du faux serveur (__fakeOpts, ex. uidStart
+        pour avoir les mêmes identifiants des deux côtés). Fermée avec le parcours."""
+        ctx, page = self.run.page(self.run.browser, self.run.pw, self.combo, opts)
+        if init:
+            page.add_init_script(init)
+        self.run.en_plus.append(ctx)
+        return page
+
+    @contextlib.contextmanager
+    def sur(self, page):
+        """Gestes et captures sur `page` le temps du bloc, puis retour au téléphone d'avant."""
+        avant, self.page = self.page, page
+        try:
+            yield page
+        finally:
+            self.page = avant
 
     # ── Gestes ──
     def _loc(self, sel, texte=None, nth=0):
@@ -265,8 +284,9 @@ class Pilote:
         except Exception as x:
             e['problemes'].append(f'capture impossible : {str(x).splitlines()[0][:80]}')
         e['problemes'] += self._controles(fichier if e['capture'] else None)
-        errs = page.errors[self.erreurs_vues:]
-        self.erreurs_vues = len(page.errors)
+        vues = getattr(page, 'erreurs_vues', 0)   # par téléphone : un parcours peut en avoir deux
+        errs = page.errors[vues:]
+        page.erreurs_vues = len(page.errors)
         e['erreurs_js'] = errs
         e['ecran'] = self.ecran_txt
 
@@ -339,8 +359,10 @@ class Run:
         self.sortie, self.combos, self.url, self.axe, self.debug = sortie, combos, url, axe, debug
         self.lignes = []
         self.nn = 0
+        self.browser = self.pw = None   # navigateur en cours (Pilote.autre_telephone)
+        self.en_plus = []               # contextes ouverts par un parcours, fermés avec lui
 
-    def page(self, browser, p, combo):
+    def page(self, browser, p, combo, opts=None):
         _, device, theme = combo
         ctx = browser.new_context(**device_profile(p, device), color_scheme=theme, service_workers='block',
                                   timezone_id=PARIS, locale='fr-FR')
@@ -352,7 +374,7 @@ class Run:
         page.on('console', lambda m: m.type == 'error' and 'Failed to load resource' not in m.text
                 and page.errors.append('console : ' + m.text.splitlines()[0][:200]))
         page.clock.install(time=NOW / 1000)
-        page.add_init_script('window.__fakeOpts = Object.assign({ oldAccounts: true }, window.__fakeOpts || {});')
+        page.add_init_script('window.__fakeOpts = Object.assign({ oldAccounts: true }, window.__fakeOpts || {}, %s);' % json.dumps(opts or {}))
         page.add_init_script(FAKE_ACCOUNT)
         # Mises à jour à chaud et tout ce qui sortirait du poste : coupé (le faux Supabase répond en mémoire)
         page.route(re.compile(r'^https?://(?!127\.0\.0\.1|localhost).*'), lambda route: route.abort())
@@ -366,6 +388,7 @@ class Run:
                 if not combos:
                     continue
                 browser = p.chromium.launch(args=['--mute-audio']) if engine == 'chromium' else p.webkit.launch()
+                self.browser, self.pw = browser, p
                 try:
                     for combo in combos:
                         print(f'── {combo[1]} {THEME_FR[combo[2]]}', flush=True)
@@ -386,7 +409,10 @@ class Run:
                                 if self.debug:
                                     traceback.print_exc()
                             finally:
-                                ctx.close()
+                                for c in [ctx, *self.en_plus]:
+                                    with contextlib.suppress(Exception):
+                                        c.close()
+                                self.en_plus = []
                         print(f'   {combo[1]} {THEME_FR[combo[2]]} : {time.time() - t0:.0f} s', flush=True)
                 finally:
                     browser.close()

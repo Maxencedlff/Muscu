@@ -358,31 +358,50 @@ def p_guide(r):
         r.toucher('[data-action="open-guide-topic"]', '1er sujet')
 
 
-@parcours('amis', 'Social : sans compte, puis avec compte', 'pratiquant')
-def p_amis(r):
-    """Onglet Social sans compte (invitation à se connecter), puis connecté : activation, fil avec une amie
-    qui s'entraîne, une de ses séances."""
+@parcours('social', 'Social V2 : fil, carte de séance, commenter, recherche, Mon profil', 'pratiquant')
+def p_social(r):
+    """Onglet Social (docs/SOCIAL_V2.md) sans compte (invitation à se connecter), puis connecté : activation, fil vide
+    (« Ton fil t'attend », Inviter un ami, Rechercher un pseudo), recherche d'un pseudo, fil avec une amie qui
+    s'entraîne (carte de séance : chiffres, record, muscles), sa séance, « Commenter » et un commentaire envoyé,
+    puis Mon profil."""
     r.lancer(REALISTE)
     with r.etape('sans-compte', 'Onglet Social sans compte'):
         r.onglet('friends', 'Social')
     with r.etape('connexion', '« Se connecter » : écran de compte'):
         r.toucher('[data-action="social-sign-in"]', 'Se connecter')
     r.connecter('max')
-    with r.etape('activer', 'Connecté : retour à Social, carte d\'activation', cle='Activer Amis'):
+    with r.etape('activer', 'Connecté : retour à Social, carte d\'activation', cle='Activer Social'):
         r.retour()
         r.attendre('[data-action="social-enable"]', 'carte d\'activation')
-    with r.etape('active', 'Âge déclaré, Amis activé', cle='Activer Amis'):
+    with r.etape('fil-vide', 'Social activé, fil vide : « Ton fil t\'attend », Inviter un ami, Rechercher un pseudo', cle='Activer Social'):
         r.toucher('[data-action="social-age"]', 'J\'ai 15 ans ou plus')
         r.toucher('[data-action="social-enable"]', 'Activer')
+        r.attendre('#friendsBody [data-action="social-invite"]', 'fil vide avec « Inviter un ami »')
+    # Léa (suivie, 3 séances, un record) et Tom (demande reçue) arrivent sur le serveur ; le fil n'est relu qu'après
     r.raccourci("""async (s) => { const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', sessions: s });
         const tom = __sb.addPerson({ username: 'tom', avatar: '🐻' });
-        __sb.follow(__sb.meId(), lea, 'accepted'); __sb.follow(tom, __sb.meId(), 'pending');
-        await socialRefresh(); await socialLoadFeed(''); render(); }""",
-                'Léa (suivie, 3 séances) et une demande de Tom', seances_amie())
-    with r.etape('fil', 'Fil des amis et demande reçue'):
+        __sb.follow(__sb.meId(), lea, 'accepted'); __sb.follow(tom, __sb.meId(), 'pending'); }""",
+                'Léa (suivie, 3 séances dont un record) et une demande de Tom sur le serveur', seances_amie())
+    with r.etape('recherche', 'Rechercher un pseudo : « tom »', cle='Trouver un ami par son pseudo'):
+        r.toucher('#friendsBody [data-action="social-find"]', 'Rechercher un pseudo')
+        r.saisir('#socialSearch', 'tom', 'pseudo cherché')
+        r.page.wait_for_timeout(600)   # recherche lancée 250 ms après la frappe
+    r.raccourci("""async () => { socialQuery = ''; socialResults = null; document.activeElement?.blur?.();
+        await socialRefresh(); await socialLoadFeed(''); render(); }""", 'recherche effacée, fil relu')
+    with r.etape('fil', 'Fil : carte de séance de Léa et demande de Tom'):
         r.attendre('.feed-card', 'carte du fil')
     with r.etape('seance-amie', 'Séance d\'une amie', cle='Voir la séance d\'une amie'):
-        r.toucher('.feed-card [data-action="social-open-session"], .feed-card', 'carte de Léa')
+        r.toucher('.feed-card [data-action="social-open-session"]', 'carte de Léa')
+    with r.etape('commenter', '« Commenter » : la séance s\'ouvre sur ses commentaires', cle='Commenter la séance d\'une amie'):
+        r.retour()
+        r.toucher('.feed-card [data-action="social-open-comments"]', 'Commenter')
+        r.saisir('#commentInput', 'Bravo pour le squat !', 'commentaire')
+    with r.etape('commentaire-envoye', 'Commentaire envoyé', cle='Commenter la séance d\'une amie'):
+        r.toucher('[data-action="comment-send"]', 'Envoyer')
+    with r.etape('mon-profil', 'Mon profil : Modifier, Inviter un ami', cle='Ouvrir Mon profil'):
+        r.retour()
+        r.toucher('.navbar [data-action="social-me"]', 'Mon profil (avatar de la barre)')
+        r.attendre('.social-me-view', 'Mon profil')
 
 
 def seances_amie():
@@ -398,13 +417,13 @@ def seances_amie():
 
 @parcours('hors-ligne', 'Hors ligne', 'pratiquant')
 def p_hors_ligne(r):
-    """Connecté, Amis activé, puis plus de réseau (salle en sous-sol) : onglet Amis, compte, une séance qui démarre quand même."""
+    """Connecté, Social activé, puis plus de réseau (salle en sous-sol) : onglet Social, compte, une séance qui démarre quand même."""
     r.lancer(REALISTE)
     r.connecter('max', amis=True)
     r.page.context.set_offline(True)
     r.raccourci("() => { __sb.fail.social = 'offline'; __sb.fail.coach = 'offline'; __sb.fail.chat = 'offline'; window.dispatchEvent(new Event('offline')); }",
                 'réseau coupé (navigateur et faux serveur)')
-    with r.etape('amis', 'Onglet Social hors ligne'):
+    with r.etape('social', 'Onglet Social hors ligne'):
         r.onglet('friends', 'Social')
     with r.etape('seance', 'Séance démarrée hors ligne'):
         r.onglet('train', 'Entraînement')
@@ -476,6 +495,11 @@ def p_coach(r):
     with r.etape('mes-eleves', 'Onglet Coach : segment Élèves (docs/SOCIAL_V2.md)', cle='Ouvrir la dernière séance d\'un élève'):
         r.onglet('friends', 'Coach')
         r.attendre('.coach-team .coach-student-row', 'Élèves')
+    with r.etape('segment-social', 'Onglet Coach : segment Social (amis et fil du coach)', cle='Voir son fil d\'amis (coach)'):
+        r.toucher('.social-seg [data-seg="friends"]', 'segment Social')
+    with r.etape('segment-eleves', 'Retour au segment Élèves', cle='Ouvrir la dernière séance d\'un élève'):
+        r.toucher('.social-seg [data-seg="students"]', 'segment Élèves')
+        r.attendre('.coach-team .coach-student-row', 'Élèves')
     with r.etape('eleve', 'Fiche de Léa (séances, messages, envoyer)', cle='Ouvrir la dernière séance d\'un élève'):
         r.toucher('.coach-student-row', 'Léa', texte='lea')
         r.attendre('.coach-student-view', 'fiche de l\'élève')
@@ -544,7 +568,7 @@ def p_rejoindre(r):
     r.connecter('lea')
     r.raccourci(PREPARE_ELEVE, 'max est coach avec un code d\'invitation', [COACH_PROG])
     cle = 'Rejoindre un coach avec un code'
-    with r.etape('amis', 'Onglet Social : « Rejoindre un coach »', cle=cle):
+    with r.etape('social', 'Onglet Social : « Rejoindre un coach »', cle=cle):
         r.onglet('friends', 'Social')
     with r.etape('code', 'Saisie du code', cle=cle):
         r.toucher('[data-action="coach-join-start"]', 'Rejoindre un coach')
@@ -578,7 +602,7 @@ def p_eleve(r):
     }""", 'coach max relié, programme « Force » envoyé, commentaire et message', [COACH_PROG])
     with r.etape('accueil', 'Accueil : carte du coach'):
         r.attendre('.view.dashboard', 'accueil')
-    with r.etape('amis', 'Onglet Social : Mon coach (pastille)', cle='Ajouter le programme reçu du coach'):
+    with r.etape('social', 'Onglet Social : Mon coach (pastille)', cle='Ajouter le programme reçu du coach'):
         r.onglet('friends', 'Social')
     with r.etape('mon-coach', 'Mon coach : programme reçu, messages', cle='Ajouter le programme reçu du coach'):
         r.toucher('[data-action="coach-open-mine"]', 'Mon coach')
@@ -926,3 +950,132 @@ def p_coach_suivi(r):
 if __name__ == '__main__':
     print('\n'.join(f'{p.nom:20} {p.role:11} {p.titre}' for p in PARCOURS))
     print(json.dumps(len(PARCOURS)))
+
+
+# ─────────────────────────────────────────────────────────────
+#  Photos de bilan (docs/PHOTOS_BILAN.md) : deux téléphones, le coach et son élève
+# ─────────────────────────────────────────────────────────────
+_IMAGES = {}
+
+
+def image_bilan(nom, rgb, bande):
+    """JPEG de test (aplat à bandes, aucune personne), fait une fois par passe."""
+    if nom not in _IMAGES:
+        import tempfile
+        from PIL import Image, ImageDraw
+        dossier = _IMAGES.setdefault('_dossier', tempfile.mkdtemp(prefix='panel-bilan-'))
+        img = Image.new('RGB', (1200, 1600), rgb)
+        d = ImageDraw.Draw(img)
+        for y in range(0, 1600, 120):
+            d.rectangle([0, y, 1200, y + 50], fill=bande)
+        _IMAGES[nom] = os.path.join(dossier, nom)
+        img.save(_IMAGES[nom], quality=85)
+    return _IMAGES[nom]
+
+
+def photo_au_coffre(r, chemin, pose, jours):
+    """Photo ajoutée au coffre ouvert (sélecteur de fichier, pose, date) : préparé, jamais compté."""
+    p = r.page
+    p.set_input_files('#photoFile', chemin)
+    p.wait_for_selector('.sheet .pnew__img')
+    p.click(f'.sheet [data-action="photo-pose"][data-pose="{pose}"]')
+    p.fill('#phDate', p.evaluate('d => localISO(Date.now() - d * 86400000)', jours))
+    p.click('.sheet .sheet__btn--confirm')
+    p.wait_for_function('() => !document.querySelector(".sheet .pnew__img")')
+    p.wait_for_timeout(400)
+
+
+SERVEUR_PHOTOS = "() => JSON.stringify({ pkeys: __sb.co.pkeys, photos: __sb.co.photos, objs: __sb.objs, trash: __sb.trash })"
+RECOPIER_PHOTOS = "s => { const o = JSON.parse(s); __sb.co.pkeys = o.pkeys; __sb.co.photos = o.photos; __sb.objs = o.objs; __sb.trash = o.trash; }"
+
+
+def recopier_serveur(r, de, vers):
+    """Le faux serveur vit dans chaque page : ce qu'il garde des photos passe d'un téléphone à l'autre."""
+    vers.evaluate(RECOPIER_PHOTOS, de.evaluate(SERVEUR_PHOTOS))
+
+
+@parcours('photos-bilan', 'Photos de bilan : l\'élève les envoie, le coach les compare', 'coach')
+def p_photos_bilan(r):
+    """Deux téléphones. Le coach max active « Recevoir les photos de bilan » dans la fiche de Léa (Face ID simulé,
+    une fois pour tous ses élèves). Léa ouvre son coffre (Progrès › Mesures › Photos, Face ID), y a trois photos sur deux jours,
+    touche « Envoyer à mon coach » sous un jour, coche une photo (accord affiché sous la photo), l'envoie (18 ans ou
+    plus, déclaré une fois), puis envoie seule la photo d'il y a deux semaines ; elle les retrouve dans Social › Mon
+    coach › Photos de bilan. Le coach les ouvre (Face ID) et compare les deux dates côte à côte ; Léa en retire une."""
+    from fake_account import FAKE_VAULT
+    # ── Téléphone du coach : max (…0002), élève lea (…0004), mêmes identifiants que celui de Léa ──
+    r.page.add_init_script(FAKE_VAULT)
+    r.lancer(REALISTE)
+    r.connecter('max')
+    r.raccourci("""async () => { const me = __sb.meId(); __sb.makeCoach(me);
+        __sb.addPerson({ username: 'tom', avatar: '🐼', social: false });
+        const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', social: false });
+        __sb.link(me, lea, Date.now() - 40 * 86400000); await coachRefresh(); }""", 'rôle coach validé, élève Léa')
+    coach = r.page
+    with r.etape('coach-recevoir', 'Coach : fiche de Léa › « Recevoir les photos de bilan »', cle='Coach : recevoir les photos de bilan'):
+        r.onglet('friends', 'Coach')
+        r.toucher('.coach-student-row', 'Léa', texte='lea')
+        r.attendre('.coach-student-view', 'fiche de l\'élève')
+        r.defiler('[data-action="cph-setup"]', '« Recevoir les photos de bilan »')
+        r.toucher('[data-action="cph-setup"]', 'Recevoir les photos de bilan (Face ID simulé)')
+        r.attendre('[data-action="cph-open"]', 'réception activée')
+
+    # ── Téléphone de Léa ──
+    eleve = r.autre_telephone(FAKE_VAULT, opts={'uidStart': 1})
+    with r.sur(eleve):
+        r.lancer(REALISTE)
+        mx = eleve.evaluate("() => __sb.addPerson({ username: 'max', avatar: '🦁', social: false })")
+        r.connecter('lea')
+        recopier_serveur(r, coach, eleve)
+        r.raccourci("""async mx => { const me = __sb.meId(); __sb.makeCoach(mx); __sb.link(mx, me, Date.now() - 40 * 86400000);
+            await coachRefresh(); }""", 'Léa suivie par max, qui reçoit les photos', mx)
+        with r.etape('coffre', 'Élève : Progrès › Mesures › Photos, coffre créé avec Face ID', cle='Élève : envoyer une photo de bilan'):
+            r.onglet('progress', 'Progrès')
+            r.defiler('[data-action="go-body-measures"]', 'groupe Mesures')
+            r.toucher('[data-action="go-body-measures"]', 'Mesures')
+            r.toucher('[data-action="go-photo-vault"]', 'Photos')
+            r.toucher('[data-action="pv-start"]', 'Créer le coffre (Face ID simulé)')
+            r.attendre('.view.photo-vault [data-action="photo-add"]', 'coffre ouvert')
+        photo_au_coffre(r, image_bilan('face.jpg', (190, 120, 80), (60, 90, 160)), 'face', 0)
+        photo_au_coffre(r, image_bilan('dos.jpg', (120, 160, 90), (40, 40, 40)), 'back', 0)
+        photo_au_coffre(r, image_bilan('ancienne.jpg', (200, 200, 120), (150, 60, 60)), 'face', 14)
+        with r.etape('coffre-photos', 'Coffre : trois photos, « Envoyer à mon coach » sous chaque jour'):
+            r.attendre('[data-action="cph-send-day"]', '« Envoyer à mon coach »')
+        with r.etape('envoyer', '« Envoyer à mon coach » : chaque photo à cocher, rien de coché', cle='Élève : envoyer une photo de bilan'):
+            r.toucher('[data-action="cph-send-day"]', 'Envoyer à mon coach (aujourd\'hui)')
+            r.attendre('.sheet .cphs__item', 'photos à cocher')
+        with r.etape('cocher', 'Photo de face cochée : « Ton coach verra cette photo… »', cle='Élève : envoyer une photo de bilan'):
+            r.toucher('.sheet .cphs__item', 'photo de face', texte='Face')
+        with r.etape('age', 'Premier envoi : 18 ans ou plus', cle='Élève : envoyer une photo de bilan'):
+            r.toucher('.sheet .cphs__go', 'Envoyer')
+            r.attendre('.ios-dialog', 'question sur l\'âge')
+        with r.etape('envoyee', 'Photo envoyée', cle='Élève : envoyer une photo de bilan'):
+            r.choisir('J\'ai 18 ans ou plus')
+            eleve.wait_for_function('() => !document.querySelector(".sheet .cphs__list")', timeout=15000)
+        with r.etape('envoyer-une', 'Photo d\'il y a deux semaines, seule : « Envoyer cette photo »'):
+            r.toucher('[data-action="cph-send-day"]', 'Envoyer à mon coach (il y a deux semaines)', nth=1)
+            r.attendre('.sheet .cphs__one', 'photo seule')
+            r.toucher('.sheet [data-action="cph-send-go"]', 'Envoyer cette photo')
+            eleve.wait_for_function('() => !document.querySelector(".sheet .cphs__one")', timeout=15000)
+        with r.etape('mon-coach', 'Social › Mon coach : cellule « Photos de bilan »', cle='Élève : voir et retirer ses photos de bilan'):
+            r.onglet('friends', 'Social')
+            r.toucher('[data-action="coach-open-mine"]', 'Mon coach')
+            r.defiler('[data-action="cph-open-mine"]', 'Photos de bilan')
+        with r.etape('photos-envoyees', 'Mon coach › Photos de bilan : ce qui est parti', cle='Élève : voir et retirer ses photos de bilan'):
+            r.toucher('[data-action="cph-open-mine"]', 'Photos de bilan')
+            r.attendre('.coach-photos-mine-view .cph-row', 'photos envoyées')
+
+    # ── Téléphone du coach : ouvrir, comparer ──
+    recopier_serveur(r, eleve, coach)
+    with r.etape('coach-ouvrir', 'Coach : fiche › Photos de bilan, ouvertes avec Face ID', cle='Coach : comparer deux bilans'):
+        r.raccourci('() => coachRefresh()', 'fiche relue (photos arrivées)')
+        r.toucher('[data-action="cph-open"]', 'Photos de bilan (Face ID simulé)')
+        coach.wait_for_function("() => document.querySelectorAll('.coach-photos-view .pgal__item img[src^=\"blob:\"]').length === 2", timeout=20000)
+    with r.etape('coach-comparer', 'Coach : deux dates côte à côte (Avant, Après, écart en jours)', cle='Coach : comparer deux bilans'):
+        r.defiler('.cph-pair', 'comparaison')
+
+    # ── Téléphone de Léa : retirer ──
+    with r.sur(eleve):
+        with r.etape('retirer', 'Élève : « Retirer » une photo', cle='Élève : voir et retirer ses photos de bilan'):
+            r.toucher('.cph-row [data-action="cph-remove"]', 'Retirer')
+            r.choisir('Retirer')
+            eleve.wait_for_function("() => document.querySelectorAll('.cph-row').length === 1", timeout=10000)
