@@ -115,15 +115,18 @@
 .coach-join__name { font-size: var(--fs-title2); line-height: 1.25; font-weight: 700; overflow-wrap: anywhere; }
 .coach-join__sub { font-size: var(--fs-subhead); color: var(--label2); }
 .coach-join__item .cell__sub { color: var(--label2); }
-/* Case 15 ans et « Accepter » collés en bas, au-dessus de la barre d'onglets : visibles sans défiler */
+/* Case 15 ans à la suite de ce que le coach verra (lue après) ; seul « Accepter » (et sa raison s'il est grisé)
+   reste collé en bas, au-dessus de la barre d'onglets : sur iPhone SE, le bloc entier cachait presque toute
+   la liste (panel du 07/11) */
+.coach-join__age { margin-top: 16px; }
 .coach-join__foot {
   position: sticky; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); z-index: 2;
   margin: 16px -16px 0; padding: 8px 16px 10px; background: var(--bg);
   box-shadow: 0 -.5px 0 var(--sep);
 }
-.coach-join__foot .group { margin: 0; }
-.coach-join__hint { margin: 8px 4px 0; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
-.coach-join__foot .coach-accept { margin-top: 10px; }
+.coach-join__hint { margin: 0 4px; font-size: var(--fs-footnote); color: var(--label2); text-align: center; }
+.coach-join__foot .coach-accept { margin-top: 0; }
+.coach-join__foot .coach-join__hint + .coach-accept { margin-top: 8px; }
 .coach-cell--join .cell__sub { color: var(--label2); }
 .coach-lost .cell__body { padding: 4px 0; }
 .coach-lost .cell__sub { color: var(--label2); }

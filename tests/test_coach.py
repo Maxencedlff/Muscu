@@ -194,6 +194,15 @@ def t_eleve(bench, eng, dev, theme):
         # Âge déclaré avant d'accepter (même règle que les amis)
         R.check(page.locator('[data-action="coach-accept"]').is_disabled() and 'Coche' in page.inner_text('.coach-join__hint'), f'{t} « Accepter » grisé, avec la raison')
         R.check(page.evaluate("(() => { const b = document.querySelector('[data-action=coach-accept]').getBoundingClientRect(); return b.bottom <= document.querySelector('.tabbar').getBoundingClientRect().top + 1 && b.top >= 0; })()"), f'{t} « Accepter » visible sans défiler')
+        # Panel du 07/11 (iPhone SE) : le bloc collé cachait presque toute la liste ; seul « Accepter » reste collé
+        foot = page.evaluate("(() => { const f = document.querySelector('.coach-join__foot').getBoundingClientRect(); return [Math.round(f.height), innerHeight]; })()")
+        R.check(foot[0] <= 130 and page.locator('.coach-join__foot [data-action="coach-age"]').count() == 0, f'{t} pied collé réduit à « Accepter » et sa raison {foot}')
+        page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)"); page.wait_for_timeout(200)
+        last = page.evaluate("""(() => { const f = document.querySelector('.coach-join__foot').getBoundingClientRect(),
+            a = document.querySelector('.coach-join__age').getBoundingClientRect(), items = [...document.querySelectorAll('.coach-join-view .coach-join__item')].at(-1).getBoundingClientRect();
+            return a.bottom <= f.top + 1 && items.bottom <= f.top + 1; })()""")
+        R.check(last, f'{t} en bas : la dernière ligne et la case 15 ans au-dessus du pied, jamais dessous')
+        page.evaluate("window.scrollTo(0, 0)"); page.wait_for_timeout(100)
         page.click('[data-action="coach-age"]')
         R.check(page.locator('[data-action="coach-age"]').get_attribute('aria-checked') == 'true' and page.locator('[data-action="coach-accept"]').is_enabled()
                 and 'btn--primary' in page.get_attribute('[data-action="coach-accept"]', 'class'), f'{t} case 15 ans cochée : « Accepter » bouton principal')
