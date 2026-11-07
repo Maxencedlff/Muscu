@@ -87,7 +87,7 @@ function renderDietPlan(id) {
         </div>
         <div class="group-foot">${ro ? `Plan envoyé par ${esc(plan.fromCoach.name || 'ton coach')} : il le modifie et te le renvoie. Dans Nutrition, tu peux remplacer un aliment pour la journée.`
           : 'Les objectifs, c\'est toi (ou ton coach) qui les fixes : l\'app ne calcule pas tes besoins. Sans objectif, le total prévu sert de repère.'}</div>
-        ${dietLowKcal(plan) ? dietLowNoteHtml() : ''}
+        ${dietLowKcal(plan) ? dietLowNoteHtml(!!plan.targets?.kcal) : ''}
         ${meals}
         ${ro || plan.meals.length >= DIET_MEAL_MAX ? '' : `<div class="group group--gap"><button class="cell cell--action" data-action="diet-add-meal" data-id="${esc(id)}">${icon('plus', 20)}<span>Ajouter un repas</span></button></div>`}
         <div class="group group--gap">

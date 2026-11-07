@@ -115,7 +115,8 @@ d'escalope de dinde rôtie, 145 g d'escalope de veau…
   Behaviors* 2017, [PMC5700836](https://pmc.ncbi.nlm.nih.gov/articles/PMC5700836/) ;
   [PMC8485346](https://pmc.ncbi.nlm.nih.gov/articles/PMC8485346)) recommandent justement de revoir ces
   alertes et d'orienter vers des professionnels.
-- **Repère très bas** : un objectif ou un total de plan sous **1 200 kcal** affiche, sans rien bloquer : « Cet
+- **Repère très bas** : un objectif, ou le total d'un plan dont chaque repas est rempli (pas un plan en cours de
+  remplissage), sous **1 200 kcal** affiche, sans rien bloquer (« Ce plan » sans objectif) : « Cet
   objectif est très bas pour un adulte qui s'entraîne. Les recommandations de santé réservent les régimes
   sous 1 200 kcal par jour à un suivi médical… » (NICE NG246).
 - **Réglages de la nutrition** (bas de l'écran Nutrition et de Plans diète) : « Masquer les calories et les

@@ -76,7 +76,7 @@ function dietSummaryHtml(pr) {
         </div>
         ${line}
         ${own.kcal || own.p || own.c || own.f ? '' : `<p class="diet-sum__hint">Repère : le total prévu par ton plan${Object.keys(pr.swaps).length ? ', remplacements du jour compris' : ''}.</p>`}
-        ${dietLowKcal(pr.plan) ? dietLowNoteHtml() : ''}
+        ${dietLowKcal(pr.plan) ? dietLowNoteHtml(!!pr.plan.targets?.kcal) : ''}
       </section>`;
 }
 
@@ -207,8 +207,9 @@ function dietSourceFoot({ help = false } = {}) {
     </div>`;
 }
 // Objectif très bas : information, jamais un blocage (NICE NG246)
-function dietLowNoteHtml() {
-  return `<p class="diet-low" role="note">${icon('info.circle', 14)}<span>Cet objectif est très bas pour un adulte qui s'entraîne. Les recommandations de santé réservent les régimes sous 1 200 kcal par jour à un suivi médical. Tu peux en parler à un médecin ou à un diététicien.</span></p>`;
+// own : objectif de calories fixé (« Cet objectif »), sinon total du plan (« Ce plan »)
+function dietLowNoteHtml(own = true) {
+  return `<p class="diet-low" role="note">${icon('info.circle', 14)}<span>${own ? 'Cet objectif' : 'Ce plan'} est très bas pour un adulte qui s'entraîne. Les recommandations de santé réservent les régimes sous 1 200 kcal par jour à un suivi médical. Tu peux en parler à un médecin ou à un diététicien.</span></p>`;
 }
 // Bas de l'écran Nutrition : réglages (chiffres, série, accord)
 function dietSettingsCellHtml() {

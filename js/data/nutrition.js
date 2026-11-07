@@ -193,9 +193,14 @@ function dietSetConsent(d, on, now = new Date()) {
   d.dietConsent = { on: !!on, at: now.toISOString() };
   d.dietConsentAsked = true;
 }
-// Objectif ou total très bas (moins de 1 200 kcal, mais pas vide) : message de santé, jamais bloquant
+// Objectif ou total très bas (moins de 1 200 kcal, mais pas vide) : message de santé, jamais bloquant.
+// Sans objectif de calories, le total ne compte qu'une fois chaque repas rempli : un plan en cours de
+// remplissage (215 kcal sur un repas de quatre) n'est pas un régime très bas (panel du 06/11)
 function dietLowKcal(plan) {
-  const k = plan ? dietGoal(plan).goal.kcal : 0;
+  if (!plan) return false;
+  const own = plan.targets?.kcal;
+  if (!own && !(plan.meals?.length && plan.meals.every(m => m.items.length))) return false;
+  const k = own || dietGoal(plan).goal.kcal;
   return k > 0 && k < DIET_LOW_KCAL;
 }
 

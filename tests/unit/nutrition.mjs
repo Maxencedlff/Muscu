@@ -193,6 +193,10 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(run(`dietLowKcal({ meals: [], targets: { kcal: 1200 } })`), false);
     assert.equal(run(`dietLowKcal({ meals: [{ id: 'm', name: 'M', items: [{ id: 'i', name: 'Riz', g: 300, per: { k: 155, p: 3, c: 33, f: 1 } }] }] })`), true, 'total du plan sans objectif');
     assert.equal(run(`dietLowKcal({ meals: [] })`), false, 'plan vide : rien à dire');
+    // Plan en cours de remplissage (panel du 06/11 : 215 kcal sur un repas de quatre) : pas encore un total
+    const riz = `{ id: 'i', name: 'Riz', g: 150, per: { k: 143, p: 3, c: 31, f: 0.3 } }`;
+    assert.equal(run(`dietLowKcal({ meals: [{ id: 'a', name: 'A', items: [${riz}] }, { id: 'b', name: 'B', items: [] }] })`), false, 'repas encore vides : rien');
+    assert.equal(run(`dietLowKcal({ meals: [{ id: 'a', name: 'A', items: [${riz}] }, { id: 'b', name: 'B', items: [] }], targets: { kcal: 1000 } })`), true, 'objectif fixé : dit même plan incomplet');
   });
 
   test('recherche : accents et casse ignorés, chaque mot tapé commence un mot, mes aliments d\'abord', () => {
