@@ -635,9 +635,12 @@ function validateSet(ei, si, opts = {}) {
   document.activeElement?.blur?.();
   render();
   scrollToCurrent();
+  // Le toast nomme d'abord ce que « Annuler » défait (la validation de la série), puis ce qui suit :
+  // « Série 1 validée · puis rest-pause » (panel du 07/11). Retirer la technique : le × de son bloc.
   const doneTxt = `${setSpokenName(ex, si)} validé${isWarmupSet(s) ? '' : 'e'}`;
-  showToast(chain ? `Enchaîne : ${xs[chain.ei].name}` : techPause !== null ? `Puis ${TECHS[setTech(s)].label.toLowerCase()}` : doneTxt,
-    { action: 'Annuler', duration: 4000, onAction: () => undoValidate(undo) });
+  const next = chain ? `enchaîne ${xs[chain.ei].name}` : techPause !== null ? `puis ${TECHS[setTech(s)].label.toLowerCase()}` : '';
+  showToast(next ? `${doneTxt} · ${next}` : doneTxt,
+    { action: next ? 'Annuler la série' : 'Annuler', duration: 4000, onAction: () => undoValidate(undo) });
 }
 
 // La série suivante garde sa valeur prévue, sauf si la charge vient d'être modifiée.

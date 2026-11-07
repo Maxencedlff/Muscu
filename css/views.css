@@ -109,11 +109,13 @@
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
   overflow: hidden; text-wrap: balance;
 }
+/* Bouton à droite du texte ; s'il laisserait moins de 9 em au texte (« Annuler la série » sur iPhone SE),
+   il passe dessous, aligné à droite */
 .toast--action {
-  display: flex; align-items: center; gap: 8px; text-align: left;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; column-gap: 8px; text-align: left;
   pointer-events: auto; padding: 6px 6px 6px 18px;
 }
-.toast--action > span { min-width: 0; -webkit-line-clamp: 3; line-clamp: 3; }
+.toast--action > span { flex: 1 1 9em; min-width: 9em; padding: 6px 0; -webkit-line-clamp: 3; line-clamp: 3; }
 .toast__action {
   flex-shrink: 0; min-height: 44px; padding: 0 12px; border: none; border-radius: var(--r-pill);
   background: transparent; color: var(--tint); font-size: var(--fs-subhead); font-weight: 600; cursor: pointer;

@@ -73,7 +73,7 @@ def t_seance(bench, eng, dev, theme):
         validate(page, 0, 0)
         R.check(not resting(page), f'{t} pas de repos après A1')
         R.check(current(page) == [1, 0], f'{t} série courante A2 S1 ({current(page)})')
-        R.check('Enchaîne' in page.locator('.toast').last.inner_text(), f'{t} toast « Enchaîne »')
+        R.check('validée · enchaîne' in page.locator('.toast').last.inner_text(), f'{t} toast « Série 1 validée · enchaîne … »')
         # « Annuler » puis revalider A1 : on enchaîne toujours
         page.locator('.toast button', has_text='Annuler').last.click()
         page.wait_for_timeout(300)

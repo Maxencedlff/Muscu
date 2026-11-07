@@ -76,8 +76,8 @@ Aucune n'a cluster, top set ni back-off : ce sont pourtant les mots des coachs, 
   bouge que si la sous-série suit la dernière série validée : rattraper un drop oublié ou le corriger pendant un
   autre repos le laisse tel quel, et « Annuler » rend le repos d'avant. Pendant la pause, la barre annonce
   « Ensuite : Reprise 1 · 32 kg × 4 » sans le nom de l'exercice (celui qu'on vient de faire, dit aux lecteurs
-  d'écran) : la ligne tient entière sur iPhone SE. Le toast « Puis rest-pause · Annuler » (4 s, comme après chaque
-  série) se pose au-dessus de la barre : il peut cacher les séries suivantes, jamais la reprise à faire, que
+  d'écran) : la ligne tient entière sur iPhone SE. Le toast « Série 1 validée · puis rest-pause » et son bouton
+  « Annuler la série » (il défait la validation ; la technique se retire par le × de son bloc) se pose au-dessus de la barre : il peut cacher les séries suivantes, jamais la reprise à faire, que
   l'écran centre.
 - **Une seule chose en cours** : pendant la pause (ou avant un drop), la sous-série qui suit est seule mise en avant
   (`session-set--subcur`, `aria-current`) ; la série suivante ne l'est qu'une fois la sous-série faite.
