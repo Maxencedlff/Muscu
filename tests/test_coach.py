@@ -156,6 +156,11 @@ def t_eleve(bench, eng, dev, theme):
         friends_tab(page)
         join = page.locator('[data-action="coach-join-start"]')
         R.check(join.count() == 1 and 'Tu as un code de ton coach' in join.inner_text() and page.locator('[data-action="coach-open-mine"]').count() == 0, f'{t} sans coach : cellule « Rejoindre un coach »')
+        # Panel du 07/11 : sous la carte « Entraîne-toi avec tes amis », la cellule finissait sous la barre d'onglets
+        pos = page.evaluate("""(() => { const j = document.querySelector('[data-action=coach-join-start]').getBoundingClientRect(),
+            h = document.querySelector('.social-hero'), tb = document.querySelector('.tabbar').getBoundingClientRect().top;
+            return !!h && j.bottom <= h.getBoundingClientRect().top + 1 && j.top >= 0 && j.bottom <= tb + 1; })()""")
+        R.check(pos, f'{t} sans coach ni amis : « Rejoindre un coach » au-dessus de la carte des amis, visible sans défiler')
         layout(page, t, 'Amis sans coach')
         shot(page, LOT, f'0-amis-rejoindre-{t}')
         # Réglages › Coach (depuis l'onglet Entraînement : l'onglet Amis garde sa racine)

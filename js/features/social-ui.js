@@ -126,7 +126,7 @@ function renderFriends() {
   return `
     <div class="view view--grouped friends-view">
       ${navBar({ title: 'Amis', right })}
-      <div class="scr">${reactHintHtml()}<div id="coachCell">${coachCellHtml({ place: 'top', friends: st })}</div>${search}<div id="friendsBody">${friendsBodyHtml(st)}</div></div>
+      <div class="scr">${reactHintHtml()}<div id="coachCell">${coachCellHtml()}</div>${search}<div id="friendsBody">${friendsBodyHtml(st)}</div></div>
     </div>`;
 }
 
@@ -147,8 +147,7 @@ function friendsBodyHtml(st = friendsState()) {
   if (st === 'age') return ageHiddenHtml();
   if (st === 'loading') return '<div class="empty-note">Chargement…</div>';
   if (st === 'error') return offlineNote(social.error === 'offline' ? 'Pas d\'Internet. Reconnecte-toi au réseau pour voir tes amis.' : socialErrorText(social.error));
-  // Carte d'activation : « Rejoindre un coach » passe dessous, pour que « Activer » reste visible sans défiler
-  if (st === 'off') return `${activationHtml()}<div id="coachCellLow">${coachCellHtml({ place: 'low', friends: st })}</div>`;
+  if (st === 'off') return activationHtml();
   return enabledBodyHtml();
 }
 

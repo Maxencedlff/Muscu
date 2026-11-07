@@ -92,14 +92,11 @@ function renderCoachSettingsGroup() {
 }
 
 // En haut de l'onglet Amis : « Rejoindre un coach » pour tout le monde, sinon Mes élèves / Mon coach.
-// Coach perdu (retiré, ou parti depuis un autre appareil) : une ligne pour le dire, une fois
-// place : 'top' (en haut de l'onglet) ou 'low' (sous la carte d'activation des amis) ; la cellule
-// « Rejoindre un coach » seule passe dessous tant que la carte d'activation est affichée (friends : état de l'onglet)
-function coachCellHtml({ place = 'top', friends = null } = {}) {
+// Coach perdu (retiré, ou parti depuis un autre appareil) : une ligne pour le dire, une fois.
+// Toujours au-dessus de la carte d'activation des amis : dessous, « Rejoindre un coach » finissait sous la
+// barre d'onglets, invisible sans défiler (panel du 07/11)
+function coachCellHtml() {
   if (!accountAvailable()) return '';
-  const joinOnly = !(account.user && (coachRole().isCoach || coachRole().hasCoach)) && !(account.user && coachLost());
-  const low = joinOnly && friends === 'off';
-  if ((place === 'low') !== low) return '';
   const { isCoach, hasCoach } = account.user ? coachRole() : { isCoach: false, hasCoach: false };
   const rows = [];
   const lost = account.user && !hasCoach ? coachLost() : null;
@@ -139,10 +136,8 @@ function coachCellHtml({ place = 'top', friends = null } = {}) {
   return rows.length ? `<div class="group coach-head">${rows.join('')}</div>` : '';
 }
 function refreshCoachCell() {
-  const st = typeof friendsState === 'function' ? friendsState() : null;
-  const box = $('#coachCell'), low = $('#coachCellLow');
-  if (box) box.innerHTML = coachCellHtml({ place: 'top', friends: st });
-  if (low) low.innerHTML = coachCellHtml({ place: 'low', friends: st });
+  const box = $('#coachCell');
+  if (box) box.innerHTML = coachCellHtml();
 }
 
 // Messages non lus de tous mes élèves (pastille « Mes élèves »)
