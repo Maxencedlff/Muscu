@@ -11,6 +11,8 @@ function haptic(kind = 'light') {
   if (data.vibrateOn === false) return;
   if (Native.haptic(HAPTIC_KINDS.includes(kind) ? kind : 'light')) return;   // app iOS : vrai Taptic Engine
   if (navigator.vibrate) { navigator.vibrate(8); return; }
+  // Le clic sur l'interrupteur caché lui donne le focus : rendu ensuite au bouton touché (VoiceOver)
+  const prev = document.activeElement;
   try {
     const label = document.createElement('label');
     const sw    = document.createElement('input');
@@ -20,6 +22,7 @@ function haptic(kind = 'light') {
     document.body.appendChild(label);
     label.click();
     label.remove();
+    if (prev && prev !== document.body && prev.isConnected) prev.focus({ preventScroll: true });
   } catch {}
 }
 

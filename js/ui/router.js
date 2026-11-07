@@ -252,7 +252,7 @@ function screenOf(name) { return SCREENS.get(name) || SCREENS.get('dashboard'); 
 function focusedActionSelectors() {
   const el = document.activeElement;
   if (!el || el.tagName !== 'BUTTON' || !el.dataset.action || !$('#app').contains(el)) return null;
-  const attr = ([k, v]) => `[data-${k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${CSS.escape(v)}"]`;
+  const attr = ([k, v]) => `[data-${k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${v.replace(/["\\]/g, '\\$&')}"]`;
   const all = Object.entries(el.dataset);
   // Exact d'abord, puis la même action sur le même exercice (data-ei), puis la même action
   return [all, all.filter(([k]) => k === 'action' || k === 'ei'), all.filter(([k]) => k === 'action')].map(list => list.map(attr).join(''));
