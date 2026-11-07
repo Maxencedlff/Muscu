@@ -288,10 +288,12 @@ function heroHtml(keys, next, liveHere) {
 // fixe, jamais CSS order (VoiceOver suit le DOM). Un seul ordre ne peut pas servir tous les écrans, d'où
 // un choix au rendu, refait quand l'écran change (écouteur ci-dessous, checkTypeSize de js/ui/theme.js) :
 //   'end' : grand écran, après les cibles ;
-//   'mid' : très petite hauteur (< 600 pt, iPhone SE 1re génération), avant les cibles, visible sans défiler ;
+//   'mid' : très petite hauteur (< 600 pt, iPhone SE 1re génération), ou écran étroit pas très haut (320 pt de
+//           large et 700 au plus, Galaxy S9+ : les cibles passent sur trois lignes et Démarrer finissait 3 pt sous
+//           la tab bar), avant les cibles, visible sans défiler (même seuil que css/social.css) ;
 //   'top' : très grands caractères (type-xl), juste sous le nom : la description, les infos et l'attente
 //           remplissent déjà l'écran, Démarrer resterait sous la tab bar.
-const SHORT_SCREEN = window.matchMedia?.('(max-height: 600px)');
+const SHORT_SCREEN = window.matchMedia?.('(max-height: 600px), (max-width: 340px) and (max-height: 700px)');
 function heroBtnSpot() {
   if (document.documentElement.classList.contains('type-xl')) return 'top';
   return SHORT_SCREEN?.matches ? 'mid' : 'end';
