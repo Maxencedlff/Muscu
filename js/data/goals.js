@@ -40,6 +40,13 @@ function goalRepsAfterBump(ex) {
   return Math.max(Math.min(max, 3), max - 4);
 }
 
+// Haut de fourchette réglé à autre chose que le 12 par défaut (l'éditeur l'écrit même sans réglage), sinon
+// null : « 5 reps » d'un 5 × 5 du coach se montre et borne les reps reprises de la dernière fois
+function explicitRepMax(ex) {
+  const max = parseInt(ex?.repMax);
+  return max > 0 && max !== 12 ? max : null;
+}
+
 function exerciseTarget(cat, ex) {
   const { text, gain, before } = exerciseGoal(cat, ex);
   return { text, gain, before };

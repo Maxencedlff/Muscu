@@ -33,16 +33,11 @@ function buildSets(progKey, cat, exLike, n, fallback = {}) {
 }
 
 // Reps reprises de la dernière fois, ramenées au haut de la fourchette quand il est réglé : un programme
-// passé à « 5 reps max » ne propose plus les 8 reps d'avant (panel du 07/11). Le 12 par défaut (écrit par
+// passé à « 5 reps » ne propose plus les 8 reps d'avant (panel du 07/11). Le 12 par défaut (écrit par
 // l'éditeur même sans réglage) ne coupe rien.
 function capReps(src, exLike) {
-  const max = measureOf(exLike) === 'reps' ? setRepMax(exLike) : null;
+  const max = measureOf(exLike) === 'reps' ? explicitRepMax(exLike) : null;
   return max && parseInt(src.reps) > max ? { ...src, reps: String(max) } : src;
-}
-// Haut de fourchette réglé à autre chose que le 12 par défaut, sinon null
-function setRepMax(d) {
-  const max = parseInt(d?.repMax);
-  return max > 0 && max !== 12 ? max : null;
 }
 
 function startSession(cat) {
@@ -121,13 +116,13 @@ function setGoal(ex, s) {
   const d = sessExData(ex);
   return String(s?.prev?.reps || defaultGoal(measureOf(ex), d?.repMin ?? d?.repMax));
 }
-// Fourchette de reps du programme (« 8–12 reps ») si un bas est réglé, « 5 reps max » si seul le haut
-// l'est (hors 12 par défaut), sinon ''
+// Fourchette de reps du programme (« 8–12 reps ») si un bas est réglé, « 5 reps » si seul le haut l'est
+// (hors 12 par défaut : explicitRepMax), sinon '' ; même règle que l'écran du coach (coachExPlanParts)
 function repRangeText(ex) {
   const d = sessExData(ex);
   if (measureOf(ex) !== 'reps' || !d) return '';
   if (d.repMin) return `${d.repMin}–${d.repMax ?? 12} reps`;
-  return setRepMax(d) ? `${setRepMax(d)} reps max` : '';
+  return explicitRepMax(d) ? `${explicitRepMax(d)} reps` : '';
 }
 
 function exRest(ex) {

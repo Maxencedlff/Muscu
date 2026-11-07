@@ -232,6 +232,9 @@ def t_eleve(bench, eng, dev, theme):
         R.check('Squat barre' in page.inner_text('.coach-prog__preview') and 'Coudes serrés' in page.inner_text('.coach-prog__preview'), f'{t} aperçu des exercices avant d\'ajouter')
         pv = page.locator('.coach-prog__preview li').first.inner_text().replace('\u00a0', ' ')
         R.check('8 à 12 reps' in pv and 'dernière en drop set' in pv and 'Prise serrée' in pv, f'{t} aperçu : fourchette, technique et prise ({pv!r})')
+        # Panel du 07/11 : un 5 × 5 (seul le haut réglé) affichait « Squat barre · 5 séries » sans les reps
+        sq = page.locator('.coach-prog__preview li', has_text='Squat barre').first.inner_text().replace('\u00a0', ' ')
+        R.check('5 séries · 5 reps' in sq, f'{t} aperçu : reps fixes du coach ({sq!r})')
         R.check(page.evaluate("document.querySelector('.coach-prog__btn').getBoundingClientRect().height") < 60, f'{t} « Ajouter à mes programmes » sur une ligne')
         R.check(page.get_attribute('.coach-prog [data-action="coach-add-prog"]', 'aria-label') == 'Ajouter Force à mes programmes', f'{t} VoiceOver : bouton Ajouter nommé')
         layout(page, t, 'Mon coach')

@@ -317,11 +317,14 @@ function coachExVideoBtn(name) {
 
 // Aperçu des exercices d'un programme reçu (avant de l'ajouter)
 // Ce que le coach prescrit en plus des séries : fourchette (« 8 à 12 reps », exercice en répétitions avec un
-// bas de fourchette) et technique d'intensification (« dernière en drop set », js/data/intensif.js). Écran
+// bas de fourchette ; « 5 reps » avec le seul haut réglé, hors 12 par défaut : explicitRepMax) et technique d'intensification (« dernière en drop set », js/data/intensif.js). Écran
 // Envoyer et aperçu de l'élève ; la prise a sa ligne à elle (gripText)
 function coachExPlanParts(e) {
   const out = [];
-  if (e.repMin && measureOf(e) === 'reps') out.push(`${e.repMin} à ${e.repMax ?? 12} reps`);
+  if (measureOf(e) === 'reps') {
+    if (e.repMin) out.push(`${e.repMin} à ${e.repMax ?? 12} reps`);
+    else if (explicitRepMax(e)) out.push(`${explicitRepMax(e)} reps`);
+  }
   const it = INTENS_PLANS[cleanIntens(e.intens)];
   if (it) out.push(it.short);
   return out;
