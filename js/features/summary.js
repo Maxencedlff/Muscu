@@ -92,6 +92,12 @@ function summarySetTxt(r) {
 }
 
 // Volume : écart avec la dernière séance du même type, rien s'il n'y en a pas ou s'il est nul
+// Valeur d'une tuile du bilan : le nombre en grand, l'unité (« min », « h », « t », « kg ») en petit, pour
+// que « 52 min » ou « 12,5 t » tiennent dans un tiers d'iPhone SE (panel du 07/11 : « 52 min » débordait)
+function sumTileValueHtml(txt) {
+  return esc(txt).replace(/[A-Za-z]+(?: [A-Za-z]+)?/g, u => `<span class="sum-tile__unit">${u}</span>`);
+}
+
 function summaryDeltaHtml(delta) {
   if (delta === null || Math.round(delta) === 0) return '';
   return `<span class="sum-tile__delta ${delta > 0 ? 'sum-tile__delta--up' : ''}">${delta > 0 ? '↑ ' : '↓ '}${fmtVolume(Math.abs(delta))}</span>`;
@@ -155,9 +161,9 @@ function renderSummary() {
           <p class="sum-line">${sm.recordCount ? medalSvg(18) : ''}<span>${esc(summaryLine(sm))}</span></p>
         </div>
         <div class="sum-tiles">
-          <div class="sum-tile"><div class="sum-tile__label">Durée</div><div class="sum-tile__value num">${fmtDuration(sm.duration)}</div></div>
+          <div class="sum-tile"><div class="sum-tile__label">Durée</div><div class="sum-tile__value num">${sumTileValueHtml(fmtDuration(sm.duration))}</div></div>
           ${sm.volume > 0 || !sm.reps
-            ? `<div class="sum-tile"><div class="sum-tile__label">Volume</div><div class="sum-tile__value num">${fmtVolume(sm.volume)}</div>${summaryDeltaHtml(sm.delta)}</div>`
+            ? `<div class="sum-tile"><div class="sum-tile__label">Volume</div><div class="sum-tile__value num">${sumTileValueHtml(fmtVolume(sm.volume))}</div>${summaryDeltaHtml(sm.delta)}</div>`
             : `<div class="sum-tile"><div class="sum-tile__label">Reps</div><div class="sum-tile__value num">${sm.reps}</div></div>`}
           <div class="sum-tile"><div class="sum-tile__label">Séries</div><div class="sum-tile__value num">${sm.sets}</div></div>
         </div>

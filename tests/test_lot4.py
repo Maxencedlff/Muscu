@@ -219,6 +219,17 @@ def t_flow(bench, eng, dev, theme):
         recs = page.locator('.sum-record').all_inner_texts()
         R.check(len(recs) == 1 and 'Développé couché haltères' in recs[0] and 'Record charge' in recs[0], f'{t} bilan : records attendus {recs}')
         R.check(page.locator('.sum-tile').count() == 3, f'{t} bilan : 3 tuiles')
+        # Panel du 07/11 (iPhone SE) : « 52 min » débordait de sa tuile ; pires valeurs courantes, unité en petit
+        over = page.evaluate("""(() => { const v = [...document.querySelectorAll('.sum-tile__value')], bad = [];
+            for (const [i, txt] of [[0, '52\u00a0min'], [0, '1\u00a0h\u00a005'], [1, '12,5 t'], [1, '999 kg'], [1, '19,6 k lbs']]) {
+              const keep = v[i].innerHTML; v[i].innerHTML = sumTileValueHtml(txt);
+              const tile = v[i].closest('.sum-tile'), cs = getComputedStyle(tile);
+              const room = tile.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+              if (v[i].scrollWidth > room + 0.5) bad.push(`${txt} ${v[i].scrollWidth} > ${room}`);
+              v[i].innerHTML = keep;
+            }
+            return bad; })()""")
+        R.check(not over and page.locator('.sum-tile__unit').count() >= 1, f'{t} bilan : valeurs entières dans leur tuile {over}')
         page.fill('#summaryNotes', 'Bonne séance, épaule OK')
         page.wait_for_timeout(450)
         R.check(page.evaluate('data.history[0].notes') == 'Bonne séance, épaule OK', f'{t} bilan : notes dans data.history[0]')

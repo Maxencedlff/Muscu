@@ -375,6 +375,10 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .sum-tile { background: var(--cell); border-radius: var(--r-md); padding: 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .sum-tile__label { font-size: 0.765rem; color: var(--label2); }
 .sum-tile__value { font-size: 1.294rem; line-height: 1.647rem; font-weight: 700; white-space: nowrap; }
+.sum-tile__unit { font-size: 0.765rem; font-weight: 600; white-space: nowrap; }
+/* « 19,6 k lbs » : l'unité passe dessous s'il le faut (espace simple) ; « 52 min », « 1 h 05 » restent d'un bloc */
+.sum-tile__value:has(.sum-tile__unit) { white-space: normal; }
+@media (max-width: 359px) { .sum-tile { padding: 12px 10px; } .sum-tile__value { font-size: 1.176rem; } }
 .sum-tile__delta { font-size: 0.765rem; color: var(--label2); font-weight: 600; white-space: nowrap; }
 .sum-tile__delta--up { color: var(--green-text); }
 .sum-section-title { font-size: 0.765rem; color: var(--label2); text-transform: uppercase; padding: 24px 16px 6px; }
