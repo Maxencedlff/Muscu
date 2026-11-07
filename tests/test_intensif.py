@@ -380,6 +380,11 @@ def t_pause_annonce(bench, eng, dev, theme):
             return !!t && (r.bottom <= b.top || r.top >= b.bottom) && r.top >= document.querySelector('.navbar').getBoundingClientRect().bottom; })()"""),
             f'{t} rest-pause : la reprise reste visible, hors du toast')
         shot(page, LOT, f'{t}-11-pause-reprise')
+        # Panel du 07/11 (iPhone SE) : passé en haut, le toast cachait le titre « Reps en réserve » de la série validée
+        rir = page.evaluate("""(() => { const t = document.querySelector('.toast'); if (!t) return 'pas de toast';
+            const b = t.getBoundingClientRect(), ls = [...document.querySelectorAll('.rir')].filter(e => e.getBoundingClientRect().height > 0);
+            return ls.length + ':' + ls.every(e => { const r = e.getBoundingClientRect(); return r.bottom <= b.top || r.top >= b.bottom; }); })()""")
+        R.check(rir == 'pas de toast' or rir.endswith(':true'), f'{t} rest-pause : toast jamais sur « Reps en réserve » ({rir})')
         # « + reprise » et × : 32 px dessinés, 44 px réellement touchables (::after), sans empiéter l'un sur l'autre
         center(page, '.ex-card[data-ei="0"] .tech__cap')
         hits = page.evaluate("""() => ['.tech__add', '.tech__x'].map(sel => { const b = document.querySelector('.ex-card[data-ei="0"] ' + sel), r = b.getBoundingClientRect();

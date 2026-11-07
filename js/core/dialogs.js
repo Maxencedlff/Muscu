@@ -13,8 +13,9 @@ function announce(msg, assertive = false) {
 }
 
 // Ce que le toast ne cache jamais : la série en cours (aria-current="step") et les boutons de sa carte
-// (« + Série », « Plus tard » : data-toast-avoid). S'il les couvre, il passe en haut de l'écran.
-const TOAST_AVOID = '[data-toast-avoid], [aria-current="step"]';
+// (« + Série », « Plus tard » : data-toast-avoid), ni « Reps en réserve » de la série validée (.rir : en haut, il
+// cachait son titre sur iPhone SE, panel du 07/11). S'il les couvre, il passe en haut de l'écran.
+const TOAST_AVOID = '[data-toast-avoid], [aria-current="step"], .rir';
 const TOAST_ACTION_MIN_MS = 6000;   // le temps de lire et de toucher « Annuler » (WCAG 2.2.1)
 const TOAST_RESUME_MS = 3000;       // après un toucher ou le focus de VoiceOver qui l'a retenu
 
