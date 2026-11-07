@@ -433,6 +433,13 @@ registerActions({
     const planId = await dialog({ type: 'sheet', title: 'Envoyer un plan diète', message: `Choisis un de tes plans pour ${who}. Un nouvel envoi du même plan le met à jour chez ${who}.`,
       actions: [...ids.map(id => ({ label: data.dietPlans[id].name, value: id })), { label: 'Annuler', style: 'cancel' }] });
     if (!planId) return;
+    // Relecture avant l'envoi, comme un programme (écran Envoyer, bouton « Envoyer à … ») : un plan diète
+    // touche à la santé de l'élève, jamais envoyé au premier toucher (panel du 07/11)
+    const plan = data.dietPlans[planId];
+    const ok = await dialog({ title: `Envoyer « ${plan.name} » à ${who} ?`,
+      message: `${plan.targets ? `Objectifs du jour : ${dietTargetsSpoken(plan)}.` : 'Sans objectifs du jour.'} ${plural(plan.meals.length, 'repas', 'repas')}, ${dietN(dietPlanMacros(plan).kcal)} kilocalories prévues.`,
+      actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Envoyer', value: true, style: 'preferred' }] });
+    if (ok !== true) return;
     el.disabled = true;
     const r = await coachSendDiet(uid, planId);
     el.disabled = false;
