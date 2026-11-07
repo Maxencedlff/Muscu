@@ -375,7 +375,26 @@ def t_toast_hold(bench):
         R.check(page.evaluate('activeSession.exercises[0].sets[1].done') is False, 'Annuler atteint : série 2 à refaire')
 
 
+def t_focus(bench):
+    """VoiceOver : après Valider, Annuler ou Passer le repos, le focus va au ✓ de la série à faire (panel du 07/11)."""
+    with bench.page('webkit', 'iPhone SE', 'dark') as page:
+        seed(page, 'dark', ppl_v2_today_json())
+        start(page)
+        act = lambda: page.evaluate("(a => a ? [a.dataset.action, a.dataset.ei, a.dataset.si].join(' ') : '')(document.activeElement)")
+        page.focus('[data-action="validate-set"][data-ei="0"][data-si="0"]')
+        page.keyboard.press('Enter'); page.wait_for_timeout(500)
+        R.check(act() == 'validate-set 0 1', f'valider : focus sur le ✓ de la série 2 ({act()!r})')
+        R.check(page.evaluate("document.activeElement.closest('.session-set--current') !== null"), 'focus sur la série mise en avant')
+        page.focus('.toast__action'); page.keyboard.press('Enter'); page.wait_for_timeout(500)
+        R.check(act() == 'validate-set 0 0', f'Annuler : focus sur le ✓ de la série 1 ({act()!r})')
+        page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(400)
+        page.focus('.rest-mini__skip'); page.keyboard.press('Enter'); page.wait_for_timeout(400)
+        R.check(page.locator('.rest-mini').count() == 0 and act() == 'validate-set 0 1', f'Passer le repos : focus sur le ✓ de la série 2 ({act()!r})')
+        R.check(page.evaluate("document.activeElement.matches('input')") is False, 'jamais un champ (le clavier ne s\'ouvre pas)')
+        R.check(not page.errors, f'aucune erreur JS {page.errors}')
+
+
 TESTS = [t_flow, t_restore, t_toast_place]
 
 if __name__ == '__main__':
-    run_main(R, TESTS, once=[t_bump, t_keyboard, t_toast_hold])
+    run_main(R, TESTS, once=[t_bump, t_keyboard, t_toast_hold, t_focus])

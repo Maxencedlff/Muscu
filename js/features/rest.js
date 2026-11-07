@@ -254,7 +254,8 @@ document.addEventListener('visibilitychange', () => {
 
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
-  'skip-rest': () => skipRest(),
+  // Le bouton « Passer » disparaît avec la barre : le focus va au ✓ de la série à faire (VoiceOver)
+  'skip-rest': () => { skipRest(); if (currentView() === 'session') focusCurrentSet(); },
   'collapse-rest': () => {
     closeRestSheet();
   },

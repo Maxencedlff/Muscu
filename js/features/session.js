@@ -634,7 +634,7 @@ function validateSet(ei, si, opts = {}) {
 
   document.activeElement?.blur?.();
   render();
-  scrollToCurrent();
+  scrollToCurrent(true, true);
   // Le toast nomme d'abord ce que « Annuler » défait (la validation de la série), puis ce qui suit :
   // « Série 1 validée · puis rest-pause » (panel du 07/11). Retirer la technique : le × de son bloc.
   const doneTxt = `${setSpokenName(ex, si)} validé${isWarmupSet(s) ? '' : 'e'}`;
@@ -673,17 +673,31 @@ function undoValidate(u) {
   closeSessSheets();
   persistSession();
   render();
-  scrollToCurrent();
+  scrollToCurrent(true, true);
 }
 
-// Centre la série courante à l'écran (après validation, reprise ou restauration)
-function scrollToCurrent(smooth = true) {
+// Série (ou sous-série) à faire : celle que l'écran met en avant
+function currentSetRow() {
+  // Sous-série d'un drop set à faire (js/features/session-intensif.js) : c'est elle qui suit
+  return $('.session-set--subcur') || $('.session-set--current');
+}
+
+// Focus sur le ✓ de la série à faire, après un geste qui a détruit le bouton touché (valider, Annuler,
+// Passer le repos) : VoiceOver reprend là où l'on en est au lieu de repartir du haut de l'écran.
+// Le ✓ et non le champ des reps, qui ouvrirait le clavier.
+function focusCurrentSet() {
+  currentSetRow()?.querySelector('button.set-check-zone')?.focus({ preventScroll: true });
+}
+
+// Centre la série courante à l'écran (après validation, reprise ou restauration) ; focus : après un geste
+// de l'utilisateur (focusCurrentSet), jamais à l'ouverture ni à la fin d'un repos qu'il n'a pas touché
+function scrollToCurrent(smooth = true, focus = false) {
   requestAnimationFrame(() => {
-    // Sous-série d'un drop set à faire (js/features/session-intensif.js) : c'est elle qui suit
-    const row = $('.session-set--subcur') || $('.session-set--current');
+    const row = currentSetRow();
     if (!row) return;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     row.scrollIntoView({ block: 'center', behavior: smooth && !reduce ? 'smooth' : 'auto' });
+    if (focus) focusCurrentSet();
   });
 }
 

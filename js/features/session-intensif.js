@@ -169,7 +169,8 @@ function validateSub(ds) {
   document.activeElement?.blur?.();
   persistSession();
   render();
-  if (follows) scrollToCurrent();
+  if (follows) scrollToCurrent(true, true);
+  else requestAnimationFrame(focusCurrentSet);   // rattrapage : le ✓ touché a disparu, le focus va à la série à faire
   const done = `${capitalize(T.subName)} ${k + 1} validé${T.fem ? 'e' : ''}`;
   // Comme après une série (validateSet) : ce que « Annuler » défait d'abord, puis l'exercice qui suit
   showToast(chain ? `${done} · enchaîne ${xs[chain.ei].name}` : done, { action: chain ? `Annuler ${T.fem ? 'la' : 'le'} ${T.subName}` : 'Annuler', duration: 4000, onAction: () => {
