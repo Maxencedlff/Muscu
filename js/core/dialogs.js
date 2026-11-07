@@ -52,11 +52,17 @@ function showToast(msg, opts = {}) {
   document.body.appendChild(el);
   // Placement : en bas d'habitude (css/session.css, css/navigation.css) ; en haut s'il cache la série en cours
   // ou les boutons de sa carte, vérifié aussi pendant le défilement qui suit une validation (scrollToCurrent)
+  // Revu à chaque défilement dans les deux sens : passé en haut pendant le défilement, il y restait et
+  // cachait « Reps en réserve » une fois la série centrée, alors que le bas était redevenu libre (iPhone SE)
   const place = () => {
-    if (!el.isConnected || el.classList.contains('toast--top')) return;
-    if (toastCovers(el)) { el.classList.add('toast--top'); if (toastCovers(el)) el.classList.remove('toast--top'); }
+    if (!el.isConnected) return;
+    el.classList.remove('toast--top');
+    let top = false;
+    if (toastCovers(el)) { el.classList.add('toast--top'); top = !toastCovers(el); }
+    el.classList.toggle('toast--top', top);
   };
   place();
+  requestAnimationFrame(place);   // écran redessiné juste après le toast (render qui suit la validation)
   // Retiré d'ailleurs (autre toast, dialogue, « Annuler ») : l'écouteur s'en va au défilement suivant
   const onScroll = () => { if (!el.isConnected) window.removeEventListener('scroll', onScroll); else requestAnimationFrame(place); };
   window.addEventListener('scroll', onScroll, { passive: true });
