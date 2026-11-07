@@ -359,9 +359,12 @@ def t_toast_place(bench, eng, dev, theme):
             f = document.querySelector('.ex-card__foot[data-toast-avoid]').getBoundingClientRect();
             window.scrollBy(0, f.top - t.top); })()""")
         page.wait_for_timeout(300)
+        # Écran haut (Pixel 7) : la page ne défile pas assez pour mettre « + Série » derrière le toast du bas
+        derriere = bool(page.evaluate(TOAST_HIT_JS))
         page.evaluate("showToast('Série 3 validée', { action: 'Annuler', onAction: () => {} })"); page.wait_for_timeout(300)
-        R.check(page.evaluate("document.querySelector('.toast').classList.contains('toast--top')") and page.evaluate(TOAST_HIT_JS) == [],
-                f'{t} « + Série » derrière le toast : il passe en haut ({page.evaluate(TOAST_HIT_JS)})')
+        haut = page.evaluate("document.querySelector('.toast').classList.contains('toast--top')")
+        R.check(page.evaluate(TOAST_HIT_JS) == [] and (haut or not derriere),
+                f'{t} « + Série » derrière le toast : il passe en haut ({page.evaluate(TOAST_HIT_JS)}, derrière={derriere}, haut={haut})')
         top = page.evaluate("[document.querySelector('.toast').getBoundingClientRect().top, document.querySelector('.navbar').getBoundingClientRect().bottom]")
         R.check(top[0] >= top[1] - 1, f'{t} toast du haut sous la barre de titre {top}')
         shot(page, LOT, f'toast-haut-{t}')
