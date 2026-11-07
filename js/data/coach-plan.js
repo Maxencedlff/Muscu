@@ -17,9 +17,10 @@
 
 const COACH_PLAN_KEY = 'mdlf_coach_plan';   // { userId, available, coach: { [élève]: phases }, student: phases, studentCoach }
 const PLAN_MAX_PHASES = 30, PLAN_MAX_WEEKS = 52, PLAN_NAME_MAX = 40, PLAN_PROG_MAX = 40, PLAN_NOTE_MAX = 500;
-// Objectifs (même liste que le serveur) : libellé et couleur (jetons de css/base.css)
+// Objectifs (même liste que le serveur) : libellé et couleur (jetons de css/base.css). Jamais l'orange,
+// réservé à « à relancer » dans Mes élèves (une couleur, un sens : docs/COACH_SUIVI.md)
 const PLAN_GOALS = [
-  { goal: 'bulk',     label: 'Prise de masse', color: 'var(--orange)' },
+  { goal: 'bulk',     label: 'Prise de masse', color: 'var(--brown)' },
   { goal: 'cut',      label: 'Sèche',          color: 'var(--teal)' },
   { goal: 'mini_cut', label: 'Mini cut',       color: 'var(--indigo)' },
   { goal: 'maintain', label: 'Maintien',       color: 'var(--green)' },

@@ -176,4 +176,15 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
       assert.equal(run('plan.student'), null);
     } finally { teardown(); }
   });
+
+  test('planification : couleur des objectifs, jamais l\'orange de « à relancer », une par objectif', () => {
+    const colors = JSON.parse(run('JSON.stringify(PLAN_GOALS.map(g => g.color))'));
+    assert.ok(!colors.some(c => /--orange/.test(c)), `orange réservé à « à relancer » : ${colors}`);
+    assert.equal(new Set(colors).size, colors.length, 'une couleur chacun');
+    const css = fs.readFileSync(path.join(ROOT, 'css/base.css'), 'utf8');
+    for (const c of colors) {
+      const tok = c.match(/var\((--[\w-]+)\)/)[1];
+      assert.ok((css.match(new RegExp(`${tok}:`, 'g')) || []).length >= 2, `${tok} défini en clair et en sombre`);
+    }
+  });
 }
