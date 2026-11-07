@@ -121,5 +121,9 @@
   background: transparent; color: var(--tint); font-size: var(--fs-subhead); font-weight: 600; cursor: pointer;
 }
 .toast__action:active { background: var(--dlg-press); }
+/* Au-dessus de tout placement en bas (séance, barre de repos) : la série en cours ou « + Série » serait cachée */
+.toast.toast--top { top: calc(env(safe-area-inset-top, 0px) + 56px) !important; bottom: auto !important; }
+/* Retenu (doigt ou VoiceOver dessus) : ne s'efface pas */
+.toast.toast--held { animation: none; opacity: 1; }
 @keyframes toastIn  { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 @keyframes toastOut { to   { opacity: 0; transform: translateX(-50%) translateY(-8px); } }

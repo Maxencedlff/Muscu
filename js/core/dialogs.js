@@ -12,14 +12,29 @@ function announce(msg, assertive = false) {
   setTimeout(() => { el.textContent = msg; }, 30);
 }
 
+// Ce que le toast ne cache jamais : la série en cours (aria-current="step") et les boutons de sa carte
+// (« + Série », « Plus tard » : data-toast-avoid). S'il les couvre, il passe en haut de l'écran.
+const TOAST_AVOID = '[data-toast-avoid], [aria-current="step"]';
+const TOAST_ACTION_MIN_MS = 6000;   // le temps de lire et de toucher « Annuler » (WCAG 2.2.1)
+const TOAST_RESUME_MS = 3000;       // après un toucher ou le focus de VoiceOver qui l'a retenu
+
+function toastCovers(el) {
+  const r = el.getBoundingClientRect();
+  return [...document.querySelectorAll(TOAST_AVOID)].some(a => {
+    const b = a.getBoundingClientRect();
+    return b.height > 0 && b.bottom > r.top && b.top < r.bottom && b.right > r.left && b.left < r.right;
+  });
+}
+
 // toast simple, ou avec action : showToast('Import réussi', { action: 'Annuler', onAction, duration: 6000 })
-// { error: true } : annoncé en assertif et affiché au moins 4 s
+// { error: true } : annoncé en assertif et affiché au moins 4 s. Avec action : 6 s au moins, et retenu tant
+// qu'on le touche ou que VoiceOver est dessus (sinon « Annuler » disparaîtrait sous le doigt)
 function showToast(msg, opts = {}) {
   const existing = $('.toast');
   if (existing) existing.remove();
   const el = document.createElement('div');
   el.className = 'toast';
-  const duration = Math.max(opts.duration || 2200, opts.error ? 4000 : 0);
+  const duration = Math.max(opts.duration || 2200, opts.error ? 4000 : 0, opts.action ? TOAST_ACTION_MIN_MS : 0);
   announce(opts.action ? `${msg}. ${opts.action} disponible` : msg, !!opts.error);
   el.style.setProperty('--toast-duration', duration + 'ms');
   const text = document.createElement('span');
@@ -34,7 +49,34 @@ function showToast(msg, opts = {}) {
     el.appendChild(b);
   }
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), duration);
+  // Placement : en bas d'habitude (css/session.css, css/navigation.css) ; en haut s'il cache la série en cours
+  // ou les boutons de sa carte, vérifié aussi pendant le défilement qui suit une validation (scrollToCurrent)
+  const place = () => {
+    if (!el.isConnected || el.classList.contains('toast--top')) return;
+    if (toastCovers(el)) { el.classList.add('toast--top'); if (toastCovers(el)) el.classList.remove('toast--top'); }
+  };
+  place();
+  const onScroll = () => requestAnimationFrame(place);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  let timer = 0;
+  const close = () => { el.remove(); window.removeEventListener('scroll', onScroll); };
+  const arm = ms => { clearTimeout(timer); timer = setTimeout(close, ms); };
+  arm(duration);
+  if (opts.action) {
+    const hold = () => { clearTimeout(timer); el.classList.add('toast--held'); };
+    const release = () => {
+      if (!el.isConnected) return;
+      el.classList.remove('toast--held');
+      el.style.setProperty('--toast-duration', TOAST_RESUME_MS + 'ms');
+      el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';   // la disparition repart de zéro
+      arm(TOAST_RESUME_MS);
+    };
+    el.addEventListener('pointerdown', hold);
+    el.addEventListener('focusin', hold);
+    el.addEventListener('pointerup', release);
+    el.addEventListener('pointercancel', release);
+    el.addEventListener('focusout', release);
+  }
 }
 
 // Nom du champ d'un dialogue pour VoiceOver (il n'avait ni label ni aria-label) : input.label, sinon le titre,

@@ -374,9 +374,11 @@ def t_pause_annonce(bench, eng, dev, theme):
         R.check(page.locator('.session-set--subcur').count() == 1 and page.locator('.session-set--current').count() == 0
                 and page.locator('[aria-current="step"]').count() == 1, f'{t} rest-pause : seule la reprise est mise en avant')
         # Toast « Série 1 validée · puis rest-pause » : jamais sur la reprise à faire
+        # (en bas d'habitude ; en haut s'il cacherait « + Série » ou « Plus tard », js/core/dialogs.js)
         R.check(page.evaluate("""(() => { const r = document.querySelector('.session-set--subcur').getBoundingClientRect(), t = document.querySelector('.toast');
-            return !!t && r.bottom <= t.getBoundingClientRect().top && r.top >= document.querySelector('.navbar').getBoundingClientRect().bottom; })()"""),
-            f'{t} rest-pause : la reprise reste visible au-dessus du toast')
+            const b = t && t.getBoundingClientRect();
+            return !!t && (r.bottom <= b.top || r.top >= b.bottom) && r.top >= document.querySelector('.navbar').getBoundingClientRect().bottom; })()"""),
+            f'{t} rest-pause : la reprise reste visible, hors du toast')
         shot(page, LOT, f'{t}-11-pause-reprise')
         # « + reprise » et × : 32 px dessinés, 44 px réellement touchables (::after), sans empiéter l'un sur l'autre
         center(page, '.ex-card[data-ei="0"] .tech__cap')

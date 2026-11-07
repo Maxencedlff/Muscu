@@ -71,6 +71,10 @@ qui citent le libellé (le test du guide échoue si un libellé cité n'existe p
 - Une famille de filtres = une ligne qui défile de côté (`.mf__row`, `.ax__equip`), jamais un pavé de puces.
 - Un texte trop long se coupe avec des points de suspension sur la partie la moins utile (le nom), jamais
   au milieu d'un nombre.
+- Toast : 60 signes au plus (40 à côté d'un bouton), sur deux lignes plutôt que coupé ; son bouton dit ce qu'il
+  défait (« Annuler la série » quand le texte parle aussi de la suite). Il ne cache jamais la série en cours ni
+  « + Série » / « Plus tard » de sa carte (il passe alors en haut), et un toast avec « Annuler » reste 6 s au moins,
+  retenu sous le doigt ou le focus de VoiceOver (js/core/dialogs.js).
 - Sombre : noir pur ; vérifier chaque écran en clair et en sombre, iPhone 13 et iPhone SE.
 
 ## 5. Ce qui va dans un menu avancé
