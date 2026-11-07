@@ -457,7 +457,7 @@ def t_coach(bench, eng, dev, theme):
         row = page.locator('.coach-student-row', has_text='lea')
         rt = row.inner_text()
         R.check('Haut · ton programme · hier' in rt, f'{t} dernière séance « Haut · ton programme · hier » ({rt!r})')
-        R.check(row.locator('.progress-sig').count() == 1 and row.locator('.progress-sig').inner_text().strip() and row.locator('.coach-count').inner_text() == '3 à voir', f'{t} signal de la semaine et nouvelles séances')
+        R.check(row.locator('.progress-sig').count() == 1 and row.locator('.progress-sig').inner_text().strip() and ' '.join(row.locator('.coach-count').inner_text().split()) == '3 à voir', f'{t} signal de la semaine et nouvelles séances')
         # Panel du 06/11 : pastille rouge « 3 » sans sens à côté de la bulle des messages ; désormais haltère + nombre
         R.check(row.locator('.coach-count--sessions .icon').count() == 1 and 'nouvelles séances' in row.locator('.visually-hidden').first.text_content(), f'{t} pastille des séances : haltère, nombre et « à voir » écrit')
         R.check('Aucune séance' in page.locator('.coach-student-row', has_text='tom').inner_text(), f'{t} élève sans séance')

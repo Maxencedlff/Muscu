@@ -19,7 +19,9 @@
   flex-shrink: 0; min-width: 22px; height: 22px; padding: 0 7px; border-radius: var(--r-pill);
   background: var(--red); color: var(--white); font-size: .765rem; line-height: 22px; font-weight: 600; text-align: center;
 }
-.coach-count--sessions { display: inline-flex; align-items: center; gap: 3px; background: var(--fill); color: var(--label); }
+.coach-count--sessions { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 3px; width: min-content;
+  height: auto; padding: 3px 6px; border-radius: 10px; line-height: 16px; background: var(--fill); color: var(--label); }
+.coach-count__sub { flex-basis: 100%; font-size: .706rem; font-weight: 600; line-height: 14px; color: var(--label2); white-space: nowrap; }
 .coach-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--tint); vertical-align: middle; margin-left: 4px; }
 .coach-hero { padding-bottom: 16px; }
 
