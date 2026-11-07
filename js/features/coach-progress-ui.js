@@ -32,7 +32,7 @@ function coachStudentRowsHtml(students) {
               ${pr.kind === 'new' && !coachStudentPlanLine(s.user_id) ? '' : progressSignalHtml(pr)}
               ${third}
             </span></span>
-            ${coachBadgeHtml(s.new_sessions, plural(s.new_sessions, 'nouvelle séance', 'nouvelles séances'))}
+            ${sessionsBadgeHtml(s.new_sessions)}
             ${chatBadgeHtml(unread)}${unread ? `<span class="visually-hidden">, ${plural(unread, 'message non lu', 'messages non lus')}</span>` : ''}
             ${icon('chevron.right', 16)}
           </button>`;

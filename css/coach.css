@@ -19,6 +19,7 @@
   flex-shrink: 0; min-width: 22px; height: 22px; padding: 0 7px; border-radius: var(--r-pill);
   background: var(--red); color: var(--white); font-size: .765rem; line-height: 22px; font-weight: 600; text-align: center;
 }
+.coach-count--sessions { display: inline-flex; align-items: center; gap: 3px; background: var(--fill); color: var(--label); }
 .coach-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--tint); vertical-align: middle; margin-left: 4px; }
 .coach-hero { padding-bottom: 16px; }
 
