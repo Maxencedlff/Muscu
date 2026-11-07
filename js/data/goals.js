@@ -22,7 +22,7 @@ function exerciseGoal(cat, ex, progKey = data.activeProgramme) {
   // Reps fixées par le coach (« 5 reps », haut sans bas) : la rep de plus ne dépasse pas ce nombre
   const fixed = parseInt(ex.repMin) > 0 ? null : explicitRepMax(ex);
   const more = { w: best.w, r: fixed ? Math.min(best.r + 1, fixed) : best.r + 1 };
-  if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: best.r + 1, reps: String(best.r + 1) }, ex), gain: '1 rep', before, goal: more };
+  if (loadKind(ex) === 'lest') return { text: setTxt({ ...best, r: more.r, reps: String(more.r) }, ex), gain: more.r > best.r ? '1 rep' : '', before, goal: more };
   const repMax = ex.repMax ?? 12;
   const bump = best.w > 0 && sets.length >= Math.min(ex.sets, 2) && sets.every(s => (parseInt(s.reps) || 0) >= repMax);
   if (bump) {

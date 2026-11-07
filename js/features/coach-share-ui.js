@@ -93,7 +93,7 @@ function coachWeightGroupHtml(uid, who) {
     if (!f.loadedAt || f.error) return '';
     return `
         <div class="group-title">Poids du corps</div>
-        <div class="group"><div class="cell coach-weight-off"><span class="cell__body"><span class="cell__sub">${who} ne partage pas son poids. Ce partage se règle de son côté, dans Réglages › Partager avec mon coach.</span></span></div></div>`;
+        <div class="group"><div class="cell coach-weight-off"><span class="cell__body"><span class="cell__sub">${who} ne partage pas son poids. Ce partage se règle de son côté, dans Réglages › Amis et coach › Partager avec mon coach.</span></span></div></div>`;
   }
   const unit = unitLbl();
   const since = f.since ? ` depuis le ${esc(fmtDate(f.since, 'short'))}` : '';

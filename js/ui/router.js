@@ -252,15 +252,18 @@ function screenOf(name) { return SCREENS.get(name) || SCREENS.get('dashboard'); 
 function focusedActionSelectors() {
   const el = document.activeElement;
   if (!el || el.tagName !== 'BUTTON' || !el.dataset.action || !$('#app').contains(el)) return null;
-  const attr = ([k, v]) => `[data-${k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${v.replace(/["\\]/g, '\\$&')}"]`;
+  const attr = ([k, v]) => `[data-${k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${CSS.escape(v)}"]`;
   const all = Object.entries(el.dataset);
   // Exact d'abord, puis la même action sur le même exercice (data-ei), puis la même action
   return [all, all.filter(([k]) => k === 'action' || k === 'ei'), all.filter(([k]) => k === 'action')].map(list => list.map(attr).join(''));
 }
 function restoreFocus(sels) {
   if (!sels || (document.activeElement && document.activeElement !== document.body)) return;
-  const el = sels.map(sel => $('#app').querySelector(sel)).find(Boolean);
-  el?.focus({ preventScroll: true });
+  // Jamais une erreur de focus ne casse un rendu (valeur de data-* inattendue : sélecteur refusé)
+  try {
+    const el = sels.map(sel => $('#app').querySelector(sel)).find(Boolean);
+    el?.focus({ preventScroll: true });
+  } catch { /* focus non restauré, rendu intact */ }
 }
 
 function paint(scrollY = window.scrollY) {

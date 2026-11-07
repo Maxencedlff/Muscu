@@ -439,7 +439,7 @@ registerActions({
     // touche à la santé de l'élève, jamais envoyé au premier toucher (panel du 07/11)
     const plan = data.dietPlans[planId];
     const ok = await dialog({ title: `Envoyer « ${plan.name} » à ${who} ?`,
-      message: `${plan.targets ? `Objectifs du jour : ${dietTargetsSpoken(plan)}.` : 'Sans objectifs du jour.'} ${plural(plan.meals.length, 'repas', 'repas')}, ${dietN(dietPlanMacros(plan).kcal)} kilocalories prévues.${dietTargetGap(plan) ? ` ${dietTargetGap(plan)}` : ''}`,
+      message: `${plan.targets ? `Objectifs du jour : ${dietTargetsSpoken(plan)}.` : 'Sans objectifs du jour.'} ${plural(plan.meals.filter(m => m.items.length).length, 'repas', 'repas')}, ${dietN(dietPlanMacros(plan).kcal)} kilocalories prévues.${dietTargetGap(plan) ? ` ${dietTargetGap(plan)}` : ''}`,
       actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Envoyer', value: true, style: 'preferred' }] });
     if (ok !== true) return;
     el.disabled = true;
