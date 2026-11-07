@@ -105,6 +105,9 @@ def t_seance(bench, eng, dev, theme):
         # ── Numéro d'une série à faire : 2e toucher = rest-pause sur la Presse (même charge)
         page.click('[data-action="tech-set"][data-ei="1"][data-si="1"]'); page.wait_for_timeout(300)
         R.check(page.locator('.ios-dialog__btn').all_inner_texts()[:5] == ['Drop set', 'Rest-pause', 'Cluster', 'Top set', 'Back-off'], f'{t} feuille : 5 techniques et Annuler')
+        # Panel du 06/11 : « Top set et back-off la marquent » ne disait rien ; chaque technique expliquée en clair
+        msg = page.inner_text('.ios-dialog__msg')
+        R.check('Top set : ta série la plus lourde' in msg and 'Back-off : une série allégée après' in msg and 'la marquent' not in msg, f'{t} feuille : explication en clair ({msg!r})')
         tap_dialog(page, 'Rest-pause')
         w = page.evaluate("activeSession.exercises[1].sets[1].weight")
         R.check(page.locator('[data-action="sub-weight"][data-ei="1"][data-si="1"][data-k="0"]').input_value() == page.evaluate(f"fmtW('{w}', {{ plain: true }})"), f'{t} rest-pause : même charge que la série')

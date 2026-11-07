@@ -109,7 +109,7 @@ async function openTechSheet(ei, si) {
   if (!s || isWarmupSet(s) || !canTech(ex)) return;
   const cur = setTech(s);
   const t = await dialog({ type: 'sheet', title: `${setSpokenName(ex, si)} · ${ex.name}`,
-    message: 'Drop set : charge allégée sans repos. Rest-pause et cluster : même charge après une courte pause. Notés sous la série. Top set et back-off la marquent.', actions: [
+    message: 'Drop set : tu baisses la charge et tu continues sans repos. Rest-pause, cluster : même charge après 15 à 20 s de pause. Top set : ta série la plus lourde. Back-off : une série allégée après.', actions: [
       ...TECH_IDS.map(id => ({ label: `${id === cur ? '✓ ' : ''}${TECHS[id].label}`, value: id })),
       ...(cur ? [{ label: 'Retirer la technique', value: 'none', style: 'destructive' }] : []),
       { label: 'Annuler', style: 'cancel' },
