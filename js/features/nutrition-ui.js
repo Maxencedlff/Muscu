@@ -22,7 +22,12 @@ const DIET_MACROS = [
 const dietN = v => fmtNum(Math.round(v));
 // « 620 kcal · P 45 · G 70 · L 15 » et sa version dite par VoiceOver
 function dietMacroLine(m) { return `${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`; }
-function dietMacroSpoken(m) { return `${dietN(m.kcal)} kilocalories, ${dietN(m.p)} grammes de protéines, ${dietN(m.c)} de glucides, ${dietN(m.f)} de lipides`; }
+function dietMacroSpoken(m) { return `${dietN(m.kcal)} kilocalories, ${dietMacroGramsSpoken(m)}`; }
+function dietMacroGramsSpoken(m) { return `${dietN(m.p)} grammes de protéines, ${dietN(m.c)} de glucides, ${dietN(m.f)} de lipides`; }
+// Ligne abrégée à l'écran (« P 4 · G 47 »), dite en toutes lettres par VoiceOver (sinon « P 4 g » lettre par lettre)
+function dietSrPair(visible, spoken) { return `<span aria-hidden="true">${visible}</span><span class="sr-text">${spoken}</span>`; }
+// Texte d'un dialogue (message lu tel quel) : en toutes lettres pour tous, « 4 g de protéines, 47 g de glucides… »
+function dietMacroWords(m, fmt = dietN) { return `${fmt(m.p)} g de protéines, ${fmt(m.c)} g de glucides, ${fmt(m.f)} g de lipides`; }
 function dietDayTitle(day) {
   const today = dietDayKey();
   if (day === today) return 'Aujourd\'hui';
@@ -336,12 +341,12 @@ async function dietSwapSheet(itemId, day) {
   const row = (c, i) => `
       <button class="diet-cand" data-swap="${i}">
         <span class="diet-cand__body"><span class="diet-cand__name">${esc(c.food.name)}</span>
-          <span class="diet-cand__sub num">${c.g} g${hide ? '' : ` · ${dietN(c.macros.kcal)} kcal · P ${dietN(c.macros.p)} · G ${dietN(c.macros.c)} · L ${dietN(c.macros.f)}`}</span></span>
+          <span class="diet-cand__sub num">${hide ? `${c.g} g` : dietSrPair(`${c.g} g · ${dietMacroLine(c.macros)}`, `${c.g} grammes, ${dietMacroSpoken(c.macros)}`)}</span></span>
         ${hide ? '' : `<span class="diet-cand__delta num" aria-label="écart : ${swapDeltaText(c.delta.kcal, 'kilocalories')}">${swapDeltaText(c.delta.kcal, 'kcal')}</span>`}
       </button>`;
   const body = `
     <div class="diet-swap">
-      <p class="diet-swap__orig"><b>${esc(it.name)}</b><span class="num">${it.g} g${hide ? '' : ` · ${dietMacroLine(ref)}`}</span></p>
+      <p class="diet-swap__orig"><b>${esc(it.name)}</b><span class="num">${hide ? `${it.g} g` : dietSrPair(`${it.g} g · ${dietMacroLine(ref)}`, `${it.g} grammes, ${dietMacroSpoken(ref)}`)}</span></p>
       <p class="diet-swap__rule">${swapRuleText(it)}, macros proches, même famille d'aliments.</p>
       ${current ? `<button class="diet-cand diet-cand--back" data-swap="back"><span class="diet-cand__body"><span class="diet-cand__name">Remettre ${esc(it.name)}</span><span class="diet-cand__sub">Aujourd'hui, tu manges ${esc(current.name)}</span></span>${icon('arrow.clockwise', 18)}</button>` : ''}
       ${cands.length ? `<div class="diet-cands">${cands.map(row).join('')}</div>`

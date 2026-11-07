@@ -45,11 +45,19 @@ function dietTargetsText(plan) {
   if (!t) return 'Selon le plan';
   return [t.kcal ? `${dietN(t.kcal)} kcal` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${m.short} ${t[m.k]}` : ''))].filter(Boolean).join(' · ');
 }
+// Les mêmes objectifs dits par VoiceOver : « 2 000 kilocalories, 150 grammes de protéines »
+function dietTargetsSpoken(plan) {
+  const t = plan.targets;
+  if (!t) return 'Selon le plan';
+  return [t.kcal ? `${dietN(t.kcal)} kilocalories` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${t[m.k]} grammes de ${m.label.toLowerCase()}` : ''))].filter(Boolean).join(', ');
+}
+function dietTargetsHtml(plan) { return dietSrPair(esc(dietTargetsText(plan)), esc(dietTargetsSpoken(plan))); }
 
 function dietPlanItemCell(plan, meal, it, ro) {
   const m = dietItemMacros(it);
   const inner = `<span class="cell__body"><span class="cell__title">${esc(it.name)}</span>
-      <span class="cell__sub num">${it.g} g · ${dietN(m.kcal)} kcal${it.ecalc ? ' (calculées)' : ''} · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}</span></span>`;
+      <span class="cell__sub num">${dietSrPair(`${it.g} g · ${dietN(m.kcal)} kcal${it.ecalc ? ' (calculées)' : ''} · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`,
+        `${it.g} grammes, ${dietN(m.kcal)} kilocalories${it.ecalc ? ' calculées' : ''}, ${dietMacroGramsSpoken(m)}`)}</span></span>`;
   return ro ? `<div class="cell">${inner}</div>`
     : `<button class="cell cell--nav" data-action="diet-item-menu" data-meal="${esc(meal.id)}" data-item="${esc(it.id)}">${inner}${icon('chevron.right', 16)}</button>`;
 }
@@ -70,7 +78,7 @@ function renderDietPlan(id) {
           ${ro ? (meal.items.length ? '' : '<div class="cell"><span class="cell__sub">Aucun aliment</span></div>')
             : `<button class="cell cell--action" data-action="diet-add-food" data-meal="${esc(meal.id)}">${icon('plus', 20)}<span>Ajouter un aliment</span></button>`}
         </div>
-        <div class="group-foot num">${meal.note ? `${esc(meal.note)} · ` : ''}${dietMacroLine(dietMealMacros(meal))}</div>`).join('');
+        <div class="group-foot num">${meal.note ? `${esc(meal.note)} · ` : ''}${dietSrPair(dietMacroLine(dietMealMacros(meal)), dietMacroSpoken(dietMealMacros(meal)))}</div>`).join('');
   return `
     <div class="view view--grouped diet-plan-view">
       ${navBar({ title: esc(plan.name), right, large: true })}
@@ -82,9 +90,9 @@ function renderDietPlan(id) {
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <div class="group-title">Par jour</div>
         <div class="group">
-          <div class="cell"><span class="cell__body"><span class="cell__title">Total prévu</span><span class="cell__sub num">P\u00a0${dietN(total.p)}\u00a0g · G\u00a0${dietN(total.c)}\u00a0g · L\u00a0${dietN(total.f)}\u00a0g</span></span><span class="cell__value num">${dietN(total.kcal)} kcal</span></div>
-          ${ro ? `<div class="cell"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${esc(dietTargetsText(plan))}</span></span></div>`
-            : `<button class="cell cell--nav" data-action="diet-targets" data-id="${esc(id)}"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${esc(dietTargetsText(plan))}</span></span>${icon('chevron.right', 16)}</button>`}
+          <div class="cell"><span class="cell__body"><span class="cell__title">Total prévu</span><span class="cell__sub num">${dietSrPair(`P\u00a0${dietN(total.p)}\u00a0g · G\u00a0${dietN(total.c)}\u00a0g · L\u00a0${dietN(total.f)}\u00a0g`, dietMacroGramsSpoken(total))}</span></span><span class="cell__value num">${dietN(total.kcal)} kcal</span></div>
+          ${ro ? `<div class="cell"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsHtml(plan)}</span></span></div>`
+            : `<button class="cell cell--nav" data-action="diet-targets" data-id="${esc(id)}"><span class="cell__body"><span class="cell__title">Objectifs du jour</span><span class="cell__sub num">${dietTargetsHtml(plan)}</span></span>${icon('chevron.right', 16)}</button>`}
         </div>
         <div class="group-foot">${ro ? `Plan envoyé par ${esc(plan.fromCoach.name || 'ton coach')} : il le modifie et te le renvoie. Dans Nutrition, tu peux remplacer un aliment pour la journée.`
           : 'Les objectifs, c\'est toi (ou ton coach) qui les fixes : l\'app ne calcule pas tes besoins. Sans objectif, le total prévu sert de repère.'}</div>
@@ -123,7 +131,8 @@ function dietFoodResultsHtml(q) {
   return res.map((x, i) => `
         <button class="diet-cand" data-pick="${i}">
           <span class="diet-cand__body"><span class="diet-cand__name">${esc(x.food.name)}</span>
-            <span class="diet-cand__sub num">${x.own ? 'Mon aliment · ' : ''}100 g · ${x.food.per.k} kcal${x.food.ecalc ? ' (calculées)' : ''} · P ${fmtNum(x.food.per.p)} · G ${fmtNum(x.food.per.c)} · L ${fmtNum(x.food.per.f)}</span></span>
+            <span class="diet-cand__sub num">${x.own ? 'Mon aliment · ' : ''}${dietSrPair(`100 g · ${x.food.per.k} kcal${x.food.ecalc ? ' (calculées)' : ''} · P ${fmtNum(x.food.per.p)} · G ${fmtNum(x.food.per.c)} · L ${fmtNum(x.food.per.f)}`,
+              `pour 100 grammes, ${x.food.per.k} kilocalories${x.food.ecalc ? ' calculées' : ''}, ${dietMacroWords(x.food.per, fmtNum).replace(/ g /g, ' grammes ')}`)}</span></span>
         </button>`).join('');
 }
 // Renvoie l'aliment choisi ({ food } de searchFoods), 'new' (créer un aliment) ou null
@@ -193,7 +202,7 @@ async function dietNewFood(name = '') {
 
 async function dietAskGrams(food, value = 100) {
   return askNumber({ title: food.name.length > 60 ? `${food.name.slice(0, 58)}…` : food.name,
-    message: `Quantité en grammes. Pour 100 g : ${food.per.k} kcal, P ${fmtNum(food.per.p)}, G ${fmtNum(food.per.c)}, L ${fmtNum(food.per.f)}.`,
+    message: `Quantité en grammes. Pour 100 g : ${food.per.k} kcal, ${dietMacroWords(food.per, fmtNum)}.`,
     value: String(value), unit: 'g', min: 1, max: DIET_G_MAX });
 }
 
@@ -328,7 +337,7 @@ registerActions({
     const ed = dietEditedPlan(), meal = dietMealOf(ed?.plan, el.dataset.meal);
     const it = meal?.items.find(x => x.id === el.dataset.item);
     if (!it) return;
-    const choice = await dialog({ type: 'sheet', title: it.name, message: `${it.g} g · ${dietMacroLine(dietItemMacros(it))}`, actions: [
+    const choice = await dialog({ type: 'sheet', title: it.name, message: `${it.g} g : ${dietN(dietItemMacros(it).kcal)} kcal, ${dietMacroWords(dietItemMacros(it))}`, actions: [
       { label: 'Changer la quantité', value: 'qty' },
       { label: 'Retirer du repas', value: 'remove', style: 'destructive' },
       { label: 'Annuler', style: 'cancel' },

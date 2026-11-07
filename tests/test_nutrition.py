@@ -236,12 +236,19 @@ def t_creer_plan(bench, eng, dev, theme):
         # VoiceOver : le champ de la quantité a un nom (avant : aucun), l'unité dite en toutes lettres
         lbl = page.get_attribute('.ios-dialog__input', 'aria-label') or ''
         R.check(lbl.endswith(', en grammes') and len(lbl) > len(', en grammes') and page.get_attribute('.ios-dialog__unit', 'aria-hidden') == 'true', f'{t} quantité : champ nommé ({lbl!r})')
+        # Panel du 07/11 : « P 2,5, G 31 » lu lettre par lettre ; le message est en toutes lettres
+        msg = page.inner_text('.ios-dialog__msg')
+        R.check('g de protéines' in msg and 'g de glucides' in msg and 'g de lipides' in msg and ', P ' not in msg, f'{t} quantité : macros en toutes lettres ({msg!r})')
         page.fill('.ios-dialog__input', '150')
         tap_dialog(page, 'OK')
         page.wait_for_timeout(300)
         it = page.evaluate("Object.values(data.dietPlans)[0].meals[0].items[0]")
         R.check(it and it['name'] == first and it['g'] == 150 and it['per']['k'] > 0, f'{t} aliment ajouté avec ses valeurs ({it and it["name"]})')
         R.check('150 g' in page.inner_text('.diet-plan-view'), f'{t} éditeur : quantité affichée')
+        # VoiceOver : lignes abrégées (« P 4 · G 47 », Total prévu) cachées, dites en toutes lettres à côté
+        sr = page.evaluate("""[...document.querySelectorAll('.diet-plan-view .cell__sub')].filter(e => /\\bP\\s/.test(e.textContent))
+            .map(e => [!!e.querySelector('[aria-hidden="true"]') && !/\\bP\\s/.test(e.querySelector('.sr-text')?.textContent || 'P '), e.querySelector('.sr-text')?.textContent || ''])""")
+        R.check(len(sr) >= 2 and all(ok and 'grammes de protéines' in txt for ok, txt in sr), f'{t} éditeur : macros dites en toutes lettres ({sr})')
         # Panel du 06/11 (iPhone SE) : le titre passait sur le chevron Retour (à droite, « Renommer » prend sa place)
         ov = page.evaluate("""(() => { const b = document.querySelector('.diet-plan-view .navbar__back').getBoundingClientRect(),
             ti = document.querySelector('.diet-plan-view .navbar__title').getBoundingClientRect();
