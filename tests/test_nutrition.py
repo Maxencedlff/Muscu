@@ -77,8 +77,9 @@ def small_targets(page, sel='#app button, .tabbar button'):
 
 
 def cut_texts(page, scope='#app'):
+    """Textes coupés. Titre compact d'un écran à grand titre exclu : il se coupe au défilement comme sur iOS, le nom entier est dans le grand titre."""
     return page.evaluate("""s => [...document.querySelectorAll(s + ' *')].filter(e => e.offsetParent && e.children.length === 0
-        && e.textContent.trim() && !e.matches('input, textarea, svg, use, .sr-text') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
+        && e.textContent.trim() && !e.matches('input, textarea, svg, use, .sr-text, .navbar--large .navbar__title') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
         .map(e => e.textContent.trim().slice(0, 30))""", scope)
 
 
@@ -214,10 +215,11 @@ def t_creer_plan(bench, eng, dev, theme):
         page.wait_for_selector('.diet-plans-view')
         page.click('[data-action="diet-new-plan"]')
         page.wait_for_selector('.ios-dialog__input')
-        page.fill('.ios-dialog__input', 'Ma sèche')
+        page.fill('.ios-dialog__input', 'Ma prise de masse')   # nom du panel : long, le titre touchait le Retour sur SE
         tap_dialog(page, 'Créer')
         page.wait_for_selector('.diet-plan-view')
         R.check(page.locator('[data-action="diet-add-food"]').count() == 4, f'{t} plan neuf : 4 repas')
+        shot(page, LOT, f'4d-plan-cree-{t}')
         R.check(page.evaluate('data.dietActive') == page.evaluate("Object.keys(data.dietPlans)[0]"), f'{t} premier plan : suivi')
         # Ajouter du riz cuit au petit-déjeuner : recherche, choix, 150 g
         page.locator('[data-action="diet-add-food"]').first.click()
@@ -236,6 +238,11 @@ def t_creer_plan(bench, eng, dev, theme):
         it = page.evaluate("Object.values(data.dietPlans)[0].meals[0].items[0]")
         R.check(it and it['name'] == first and it['g'] == 150 and it['per']['k'] > 0, f'{t} aliment ajouté avec ses valeurs ({it and it["name"]})')
         R.check('150 g' in page.inner_text('.diet-plan-view'), f'{t} éditeur : quantité affichée')
+        # Panel du 06/11 (iPhone SE) : le titre passait sur le chevron Retour (à droite, « Renommer » prend sa place)
+        ov = page.evaluate("""(() => { const b = document.querySelector('.diet-plan-view .navbar__back').getBoundingClientRect(),
+            ti = document.querySelector('.diet-plan-view .navbar__title').getBoundingClientRect();
+            return [Math.round(b.width), Math.round(b.right - ti.left)]; })()""")
+        R.check(ov[0] >= 44 and ov[1] <= 0, f'{t} éditeur : Retour de 44 pt, jamais sous le titre {ov}')
         # Aliment perso (absent de Ciqual) : skyr
         page.locator('[data-action="diet-add-food"]').nth(1).click()
         page.wait_for_selector('#dietFoodSearch')

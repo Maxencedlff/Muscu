@@ -45,6 +45,9 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 /* « Annuler » / « OK » gardent leur largeur : c'est le titre qui se tronque (écrans étroits) */
 .navbar__side:has(> .navbar__text) { min-width: max-content; }
 .navbar__side--right { justify-content: flex-end; }
+/* Le retour garde toujours sa place (44 pt, chevron seul au besoin) : à droite, « Renommer » en max-content
+   écrasait la colonne de gauche et le titre passait sur le chevron (iPhone SE, panel du 06/11) */
+.navbar__side--left:has(> .navbar__back) { min-width: 44px; }
 .navbar__title {
   font-size: min(1rem, 22px); line-height: 1.294rem; font-weight: 600; color: var(--label);
   text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

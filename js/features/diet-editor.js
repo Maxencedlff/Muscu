@@ -56,6 +56,7 @@ function dietPlanItemCell(plan, meal, it, ro) {
 
 function renderDietPlan(id) {
   const plan = dietPlanOf(id);
+  // Grand titre : le nom du plan entier, même long (iPhone SE) ; la barre compacte, qui le coupe, vient au défilement
   if (!plan) return `<div class="view view--grouped diet-plan-view">${navBar({ title: 'Plan diète' })}<div class="scr"><div class="empty-note">Ce plan n'existe plus.</div></div></div>`;
   const ro = !!plan.fromCoach, on = data.dietActive === id, total = dietPlanMacros(plan);
   const right = ro ? '' : `<button class="navbar__text" data-action="diet-rename" data-id="${esc(id)}">Renommer</button>`;
@@ -72,7 +73,7 @@ function renderDietPlan(id) {
         <div class="group-foot num">${meal.note ? `${esc(meal.note)} · ` : ''}${dietMacroLine(dietMealMacros(meal))}</div>`).join('');
   return `
     <div class="view view--grouped diet-plan-view">
-      ${navBar({ title: esc(plan.name), right })}
+      ${navBar({ title: esc(plan.name), right, large: true })}
       <div class="scr">
         <div class="group">
           ${on ? `<div class="cell"><span class="cell__body"><span class="cell__title">Plan suivi</span><span class="cell__sub">Il s'affiche chaque jour dans Entraînement › Nutrition</span></span><span class="diet-on-mark" aria-hidden="true">${icon('checkmark', 18)}</span></div>`
