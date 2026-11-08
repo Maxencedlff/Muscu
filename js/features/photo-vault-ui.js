@@ -224,10 +224,14 @@ async function mountPhotoVault({ first } = {}) {
 // Photo à montrer une fois le coffre ouvert (Mon coach › Photos de bilan › « Voir »)
 let pvPendingPhoto = null;
 function pvShowPhoto(id) { pvPendingPhoto = id; navigate('photo-vault'); }
+// Feuille d'envoi au coach à ouvrir une fois le coffre ouvert (Mon coach › Photos de bilan › « Envoyer depuis mon coffre »)
+let pvPendingSend = false;
+function pvSendToCoach() { pvPendingSend = true; navigate('photo-vault'); }
 function leavePhotoVault() {
   vaultLock('leave');
   pvPendingFile = null;
   pvPendingPhoto = null;
+  pvPendingSend = false;
   pv.phase = 'loading';
   pvShownPhase = null;
 }
@@ -257,6 +261,7 @@ async function pvLoadPhotos() {
   pvPaint();
   if (pvPendingFile) { const f = pvPendingFile; pvPendingFile = null; newPhotoSheet(f); }
   else if (pvPendingPhoto) { const id = pvPendingPhoto; pvPendingPhoto = null; if (photoCache.some(x => x.id === id)) openPhotoSheet(id); }
+  else if (pvPendingSend) { pvPendingSend = false; cphSendLatestDay(); }
 }
 
 // Coffre refermé (js/data/photo-vault.js) : images libérées, feuilles de photo retirées sur-le-champ,

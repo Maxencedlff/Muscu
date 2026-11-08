@@ -46,6 +46,16 @@ function cphDaySendHtml(g) {
   if (!unsent.length || sentDay >= CPH_PER_DAY) return '';
   return `<button class="cph-daybtn" data-action="cph-send-day" data-day="${esc(day)}">${icon('paperplane', 16)}<span>Envoyer à mon coach</span></button>`;
 }
+// « Envoyer depuis mon coffre » (Mon coach › Photos de bilan) : une fois le coffre ouvert, la feuille d'envoi du jour le plus
+// récent qui a encore une photo à envoyer (panel Apple du 08/11 : le bouton ouvrait le coffre et un paragraphe expliquait
+// la suite). Aucun jour à envoyer : le coffre reste ouvert, avec un mot.
+function cphSendLatestDay() {
+  if (!cphStudentShown() || !cph.state?.ready) return;
+  const day = photoDayGroups(photoCache || []).find(g => g.photos.some(p => !cphSentOf(p.id))
+    && cph.state.photos.filter(p => p.takenOn === g.day).length < CPH_PER_DAY)?.day;
+  if (day) cphSendSheet(day);
+  else showToast((photoCache || []).length ? 'Tes photos sont déjà envoyées' : 'Ajoute d\'abord une photo à ton coffre');
+}
 // Feuille d'une photo du coffre : déjà envoyée ? (date, et la retirer)
 function cphVaultPhotoHtml(p) {
   const s = cphStudentListed() ? cphSentOf(p.id) : null;   // retirer reste possible quand l'envoi ne l'est plus
@@ -199,9 +209,8 @@ function renderCphMine() {
     : cphAgeBlocked() ? `<div class="group"><div class="cell"><span class="cell__body"><span class="cell__sub">Les photos de bilan sont réservées aux 18 ans et plus. Tu peux retirer celles qui sont déjà parties.</span></span></div></div>`
     : st.ready ? `
         <div class="group">
-          <button class="cell cell--action" data-action="go-photo-vault">${icon('paperplane', 20)}<span>Envoyer depuis mon coffre</span></button>
-        </div>
-        <div class="group-foot">Dans le coffre, touche « Envoyer à mon coach » sous un jour, puis choisis les photos : ${CPH_PER_DAY} par jour au plus.</div>`
+          <button class="cell cell--action" data-action="cph-send-from-vault">${icon('paperplane', 20)}<span>Envoyer depuis mon coffre</span></button>
+        </div>`
     : `<div class="group"><div class="cell"><span class="cell__body"><span class="cell__sub">${name} n'a pas encore activé la réception des photos dans son app. Dès que c'est fait, tu pourras lui en envoyer depuis ton coffre.</span></span></div></div>`;
   return view(`
         ${coachTitle(`Avec ${name}`)}
@@ -452,6 +461,7 @@ onCoachChange(() => {
 
 registerActions({
   'cph-send-day': (e, el) => cphSendSheet(el.dataset.day),
+  'cph-send-from-vault': () => pvSendToCoach(),
   'cph-pick': (e, el) => cphPickToggle(el),
   'cph-send-go': (e, el) => cphSendGo(el),
   'cph-remove': (e, el) => cphRemoveFlow(el.dataset.id),

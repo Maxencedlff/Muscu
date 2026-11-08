@@ -238,9 +238,16 @@ def t_envoi_complet(bench, eng, dev, theme):
         marks = sp.evaluate("() => [...document.querySelectorAll('.pgal__item')].map(b => [!!b.querySelector('.pgal__sent'), b.getAttribute('aria-label')])")
         R.check([m[0] for m in marks] == [True, True, False] and all(('envoyée à ton coach' in m[1]) == m[0] for m in marks), f'{t} coffre : photos envoyées marquées {marks}')
         shot(sp, LOT, f'04c-coffre-marques-{t}')
-        # Jour à une photo : 2 touchers (Envoyer à mon coach, Envoyer cette photo)
-        sp.locator('[data-action="cph-send-day"]').first.click()
-        sp.wait_for_selector('.sheet .cphs__one')
+        # Jour à une photo, depuis Mon coach › Photos de bilan › « Envoyer depuis mon coffre » (panel Apple du 08/11) : le coffre
+        # s'ouvre (Face ID) directement sur la feuille d'envoi du jour le plus récent qui reste à envoyer, sans paragraphe d'explication
+        sp.evaluate("navigate('coach-photos-mine')")
+        sp.wait_for_selector('[data-action="cph-send-from-vault"]')
+        R.check('Dans le coffre, touche' not in sp.inner_text('.coach-photos-mine-view') and sp.locator('[data-action="cph-send-from-vault"] .icon--paperplane').count() == 1,
+                f'{t} « Envoyer depuis mon coffre » : avion en papier, sans mode d\'emploi')
+        sp.click('[data-action="cph-send-from-vault"]')
+        sp.wait_for_selector('.sheet .cphs__one', timeout=15000)
+        R.check(sp.evaluate('currentView()') == 'photo-vault' and sp.inner_text('.sheet .cphs__day') == sp.evaluate('fmtDate(Date.now() - 14 * 86400000)'),
+                f'{t} feuille d\'envoi ouverte sur le jour qui reste ({sp.inner_text(".sheet .cphs__day")!r})')
         lead = sp.inner_text('.sheet .cphs__lead')
         R.check('Ton coach verra cette photo. Tu peux la retirer quand tu veux.' in lead, f'{t} photo seule : accord affiché ({lead!r})')
         layout(sp, t, 'Feuille d\'envoi (une photo)')
