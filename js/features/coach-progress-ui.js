@@ -32,8 +32,7 @@ function coachStudentRowsHtml(students) {
               ${pr.kind === 'new' && !coachStudentPlanLine(s.user_id) ? '' : progressSignalHtml(pr)}
               ${third}
             </span></span>
-            ${sessionsBadgeHtml(s.new_sessions)}
-            ${chatBadgeHtml(unread)}${unread ? `<span class="visually-hidden">, ${plural(unread, 'message non lu', 'messages non lus')}</span>` : ''}
+            ${s.new_sessions || unread ? `<span class="cs-badges">${sessionsBadgeHtml(s.new_sessions)}${chatBadgeHtml(unread)}</span>` : ''}${unread ? `<span class="visually-hidden">, ${plural(unread, 'message non lu', 'messages non lus')}</span>` : ''}
             ${icon('chevron.right', 16)}
           </button>`;
   }).join('');

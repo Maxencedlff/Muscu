@@ -241,6 +241,15 @@ def t_coach(bench, eng, dev, theme):
             plan = page.evaluate("""() => { const p = document.querySelector('.coach-team [data-action="plan-overview"]'), l = document.querySelector('.coach-team .coach-student-row');
                 return !p || p.getBoundingClientRect().top > l.getBoundingClientRect().top; }""")
             R.check(vis >= 2 and plan, f'{t} petite hauteur : {vis} élèves visibles sans défiler, Planning sous la liste')
+        # Panel Apple de la vague 3 : sous-titres d'un élève sur deux lignes au plus ; sous 360 pt, pastilles sous le nom
+        lines = page.evaluate("""() => [...document.querySelectorAll('.coach-team .coach-student-row .social-row__text > .cell__sub')].map(e => {
+            const r = document.createRange(); r.selectNodeContents(e); const lh = parseFloat(getComputedStyle(e).lineHeight) || 16;
+            return Math.round(e.getBoundingClientRect().height / lh); })""")
+        R.check(lines and max(lines) <= 2, f'{t} sous-titres des élèves : deux lignes au plus {lines}')
+        if page.evaluate('innerWidth') <= 360:
+            under = page.evaluate("""() => [...document.querySelectorAll('.coach-team .coach-student-row')].filter(r => r.querySelector('.cs-badges')).map(r =>
+                r.querySelector('.cs-badges').getBoundingClientRect().top >= r.querySelector('.social-row__name').getBoundingClientRect().bottom)""")
+            R.check(all(under), f'{t} 320 pt : pastilles sous le nom {under}')
         # Fiche d'un élève : deux touchers
         page.evaluate("document.querySelector('.coach-student-row').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))")
         page.wait_for_timeout(300)

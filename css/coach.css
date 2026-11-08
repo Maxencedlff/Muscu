@@ -24,7 +24,23 @@
 .coach-count--sessions { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 3px; width: min-content;
   height: auto; padding: 3px 6px; border-radius: 10px; line-height: 16px; background: var(--fill); color: var(--label); }
 .coach-count__sub { flex-basis: 100%; font-size: .706rem; font-weight: 600; line-height: 14px; color: var(--label2); white-space: nowrap; }
-/* Écran de 320 pt (iPhone SE, Galaxy S9+) : avec la pastille « 3 à voir », le signal (« Stable depuis 4 sem. »,
+/* Pastilles (séances, messages) groupées à droite de la ligne */
+.cs-badges { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+/* Sous-titres d'un élève : deux lignes au plus chacun */
+.coach-student-row .social-row__text > .cell__sub, .coach-student-row .social-row__text > .progress-sig {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+/* Moins de 360 pt (iPhone SE) : les pastilles passent sous le nom, le texte prend toute la largeur (panel Apple de la
+   vague 3 : sous-titre sur 5 lignes à côté de deux pastilles) */
+@media (max-width: 360px) {
+  .coach-student-row.social-row { flex-wrap: wrap; }
+  .coach-student-row .social-row__main { flex: 1 1 calc(100% - 30px); min-width: 0; }
+  .coach-student-row > .icon { order: 1; }
+  .coach-student-row .cs-badges { order: 2; margin: -6px 0 10px 40px; }
+  .cs-badges .coach-count--sessions { width: auto; flex-wrap: nowrap; }   /* sous le nom : « 1 séance » sur une ligne */
+  .cs-badges .coach-count__sub { flex-basis: auto; }
+}
+/* Écran de 320 pt (iPhone SE, Galaxy S9+) : avec la pastille « 3 séances », le signal (« Stable depuis 4 sem. »,
    « ↑2 records cette sem. ») passait sur deux lignes, quatre lignes pour l'élève. La pastille garde « à voir » (le nombre
    seul ne dirait pas ce qu'il compte) ; avatar, écarts et marges de la pastille resserrés, sous-titres à 12 px. */
 @media (max-width: 340px) {
