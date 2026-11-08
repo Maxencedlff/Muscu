@@ -210,7 +210,8 @@ vrai projet Supabase »).
 
 0. **Essai sur un vrai projet Supabase : fait le 07/11/2026** (voir « Essai sur un vrai projet Supabase » plus bas). À
    refaire seulement si la migration change de nouveau.
-1. `supabase/migrations/20261107000000_photos_bilan.sql` (après les dix de `supabase/rollback/ORDRE.md`).
+1. `supabase/migrations/20261107000000_photos_bilan.sql` : seule migration de la vague 2 (`supabase/rollback/ORDRE.md`,
+   « Vague 2 ») ; elle ne s'appuie que sur des migrations déjà en production, pas sur celles du payant.
 2. Fonction : `supabase functions deploy coach-photos-purge` ; secret : `umask 077; openssl rand -hex 32 > ~/.config/mdlf/photos_purge_secret`,
    puis `supabase secrets set PHOTOS_PURGE_SECRET="$(cat ~/.config/mdlf/photos_purge_secret)"`.
 3. Planification (éditeur SQL, `pg_cron` et `pg_net` déjà activés pour les notifications, docs/BUILD.md) :
@@ -218,8 +219,10 @@ vrai projet Supabase »).
    `select cron.schedule('coach-photos-purge', '17 * * * *', $$ select net.http_post(url := 'https://yopptmdjtnezmccdvaxf.supabase.co/functions/v1/coach-photos-purge', headers := jsonb_build_object('x-purge-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'photos_purge_secret'))) $$);`
 4. `supabase functions deploy delete-account` (compte supprimé d'abord, puis ses fichiers : si la suppression échoue, rien
    n'est effacé, aucune photo « prête » ne reste sans fichier ; fichiers pas effacés : la purge s'en charge).
-5. L'OTA. Une app d'avant sur ce serveur ne voit rien de nouveau ; cette app sur un serveur d'avant n'affiche rien.
-6. Étiquette de confidentialité d'App Store Connect : « Photos or Videos ».
+5. Étiquette de confidentialité d'App Store Connect : ajouter « Photos or Videos » (liées à l'utilisateur, fonctionnement
+   de l'app, pas de suivi) **avant l'OTA** : dès que l'OTA est installée, l'app envoie des photos, l'étiquette doit déjà
+   le dire.
+6. L'OTA. Une app d'avant sur ce serveur ne voit rien de nouveau ; cette app sur un serveur d'avant n'affiche rien.
 7. Avant 1. : vérifier qu'aucune politique du tableau de bord sur `storage.objects` ne s'ajoute aux nôtres (les politiques permissives s'additionnent : une politique INSERT ou UPDATE sans filtre `bucket_id` rouvrirait le remplacement d'un fichier) :
    `select policyname, cmd, roles, qual, with_check from pg_policies where schemaname = 'storage' and tablename = 'objects';`
    et que les schémas exposés de l'API (tableau de bord, Data API) ne comprennent pas `coach_photo_rls`.
