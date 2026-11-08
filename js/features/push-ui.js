@@ -79,14 +79,18 @@ onPushChange(() => {
   if (v === 'notifications' || v === 'settings') render();
 });
 
+const PUSH_SOCIAL_KINDS = new Set(['follow_request', 'reaction', 'comment']);
 // Toucher d'une notification (lancement à froid compris : iOS la garde jusqu'à cet abonnement)
 function openPushTarget(p) {
   const t = pushTarget(p, data.history || []);
   if (!t) return;
   if (activeSession && currentView() === 'session') return;   // jamais arraché d'une séance en cours
   closeTransientUI();   // feuille ou dialogue ouvert : fermé avant de changer d'écran
-  // Compte coach (onglet Coach à deux segments) : une demande d'abonnement s'ouvre sur Social, le reste sur Élèves
-  if (t.tab === 'friends') setSocialSeg(p?.kind === 'follow_request' ? 'friends' : 'students');
+  // Compte coach (onglet Coach à deux segments) : ce qui vient du social (demande d'abonnement, bravo, commentaire
+  // d'un abonné) prépare le segment Social, le reste (messages, programmes) Élèves. Bravo et commentaire ouvrent la
+  // séance dans l'Historique ; l'onglet Coach s'ouvre ensuite sur Social, là où est l'activité.
+  const social = PUSH_SOCIAL_KINDS.has(p?.kind);
+  if (t.tab === 'friends' || social) setSocialSeg(social ? 'friends' : 'students');
   switchTab(t.tab, { reset: true });
   // Social masqué par la tranche d'âge (js/data/age-range.js) : l'onglet seul, jamais un écran du social
   if (t.screen && !(socialHiddenByAge() && String(t.screen).startsWith('social-'))) navigate(makeRoute(t.screen, ...t.params));

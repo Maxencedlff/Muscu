@@ -298,4 +298,23 @@ def t_sommeil(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_reglages, t_refus, t_reactiver, t_autre_compte, t_ancien_serveur, t_absent, t_toucher, t_sommeil])
+def o_coach_segment(bench):
+    """Compte coach : un bravo ou un commentaire touché ouvre la séance, puis l'onglet Coach s'ouvre sur Social (là où
+    est l'activité) ; un message d'élève, sur Élèves."""
+    with bench.page('webkit', 'iPhone 13', 'dark') as page:
+        data = json.loads(ppl_v2_today_json())
+        sid = data['history'][0]['id']
+        open_app(page, 'dark', json.dumps(data))
+        signin(page)
+        page.evaluate("async () => { const me = __sb.meId(); __sb.makeCoach(me); const s = __sb.addPerson({ username: 'zoe', social: false }); __sb.link(me, s); await coachRefresh(); }")
+        page.wait_for_timeout(300)
+        segs = {}
+        for kind, ref in (('reaction', sid), ('comment', sid), ('chat_message', '00000000-0000-0000-0000-0000000000b2')):
+            page.evaluate("p => __sb.push.listeners.tap(p)", {'kind': kind, 'ref': ref})
+            page.wait_for_timeout(400)
+            segs[kind] = page.evaluate('friendsSeg()')
+        R.check(segs == {'reaction': 'friends', 'comment': 'friends', 'chat_message': 'students'}, f'coach : bravo et commentaire → Social, message → Élèves {segs}')
+        R.check(not page.errors, f'aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_reglages, t_refus, t_reactiver, t_autre_compte, t_ancien_serveur, t_absent, t_toucher, t_sommeil], once=[o_coach_segment])
