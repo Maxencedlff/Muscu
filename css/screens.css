@@ -211,10 +211,10 @@
 .prow__name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .prow__spark { display: flex; flex-shrink: 0; }
 .prow__trend { font-size: 0.765rem; min-width: 44px; text-align: right; flex-shrink: 0; }
-.chart-head { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 8px; }
+.chart-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; margin: 18px 0 8px; }   /* très grand texte : la période passe à la ligne */
 .chart-head__val { font-size: 1.647rem; line-height: 2rem; font-weight: 700; }
 .chart-head__trend { font-size: 0.882rem; font-weight: 600; }
-.chart-head__since { font-size: 0.882rem; color: var(--label2); }   /* « +13 % depuis mai » : la période de la tendance */
+.chart-head__since { font-size: 0.882rem; color: var(--label2); min-width: 0; overflow-wrap: anywhere; }   /* « +13 % depuis mai » : la période de la tendance */
 .info-btn {
   margin-left: auto; width: 44px; height: 44px; border: none; background: none; color: var(--tint); cursor: pointer;
   font: italic 600 0.882rem Georgia, serif; position: relative;
