@@ -149,15 +149,17 @@ function pvOpenHtml() {
 }
 
 // Avant / après : les deux photos superposées, un curseur découvre l'une sur l'autre.
-// Par défaut la plus ancienne et la plus récente de la même pose.
+// Par défaut la même pose à deux dates (photoComparePair, js/data/progress-photos.js) ; aucune pose prise deux jours
+// différents : pas de comparateur, une phrase dit quoi faire. Un choix fait dans les menus est gardé.
 function photoCompareHtml(list) {
-  if (list.length < 2) return '';
+  if (!list.length) return '';
   const byId = id => list.find(p => p.id === id);
   if (!byId(photoCmp.a) || !byId(photoCmp.b)) {
-    const newest = list[0];
-    const same = list.filter(p => p.pose === newest.pose);
-    const pool = same.length > 1 ? same : list;
-    photoCmp = { ...photoCmp, a: pool[pool.length - 1].id, b: newest.id };
+    const pair = photoComparePair(list);
+    if (!pair) return `
+        <div class="group-title">Avant / après</div>
+        <div class="group"><div class="cell"><span class="cell__sub pcmp__hint">${esc(photoCompareHint(list))}</span></div></div>`;
+    photoCmp = { ...photoCmp, ...pair };
   }
   const a = byId(photoCmp.a), b = byId(photoCmp.b);
   const options = sel => list.slice().reverse().map(p =>

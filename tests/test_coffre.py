@@ -221,10 +221,11 @@ def t_coffre(bench, eng, dev, theme):
         key = page.evaluate('id => __fakeKeychain.get(id)', vid)
         R.check(key and key not in meta and '"v":3' in meta and vid in meta and 'salt' not in meta, f'{t} réglages : identifiant et témoin, aucune clé')
 
-        # Deux photos : face aujourd'hui, dos le 1er septembre
+        # Deux photos de face : aujourd'hui et le 1er septembre (l'avant / après compare la même pose à deux dates)
         add_photo(page, face)
-        R.check(page.locator('.pcmp').count() == 0, f'{t} une photo : pas d\'avant / après')
-        add_photo(page, back, pose='back', date='2026-09-01')
+        R.check(page.locator('.pcmp').count() == 0 and 'Reprends une photo de face un autre jour' in page.inner_text('.view.photo-vault'),
+                f'{t} une photo : pas d\'avant / après, une phrase dit quoi faire')
+        add_photo(page, back, date='2026-09-01')
         raw = page.evaluate(RAW_ROWS)
         R.check(len(raw['rows']) == 2 and all(r['keys'] == ['date', 'enc', 'id', 'iv'] and not r['jpeg'] for r in raw['rows']),
                 f'{t} IndexedDB : lignes chiffrées, aucun JPEG en clair {raw["rows"]}')
@@ -559,6 +560,10 @@ def t_panel_apple(bench):
         lock = page.evaluate("() => { const b = document.querySelector('.navbar [data-action=pv-lock]'); return [b.textContent.trim(), b.querySelectorAll('.icon').length]; }")
         R.check(lock == ['Verrouiller', 0] and page.locator('.view.photo-vault button .icon--lock').count() == 0,
                 f'coffre : « Verrouiller » en toutes lettres, aucun bouton au cadenas {lock}')
+        # Avant / après par défaut : Face du 3 octobre contre Face d'aujourd'hui, jamais Face contre Dos du même jour
+        sel = page.evaluate("() => [...document.querySelectorAll('.pcmp__sel')].map(s => s.selectedOptions[0].textContent)")
+        R.check(len(sel) == 2 and all(s.endswith('Face') for s in sel) and '30 jours' in page.inner_text('.pcmp__gap'),
+                f'coffre : avant / après sur la même pose à deux dates {sel} {page.inner_text(".pcmp__gap")!r}')
         bar = lambda: page.evaluate("""() => { const b = document.querySelector('#app .navbar'), ti = b.querySelector('.navbar__title');
             return { collapsed: b.classList.contains('navbar--collapsed'), text: ti.textContent, op: getComputedStyle(ti).opacity }; }""")
         page.evaluate('window.scrollTo(0, 0)')

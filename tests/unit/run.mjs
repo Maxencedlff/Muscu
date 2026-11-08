@@ -1654,6 +1654,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 // Nutrition : plans bornés, macros, repas cochés, équivalences sur la vraie base Ciqual, plan du coach
 (await import('./nutrition.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 
+// ── Panel d'ergonomie Apple, vague 3 : règles pures corrigées (tests dans panel-apple.mjs) ──
+(await import('./panel-apple.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
+
 // ── Exécution ───────────────────────────────────────────────
 
 let failed = 0;
