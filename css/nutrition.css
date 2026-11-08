@@ -77,10 +77,11 @@ div.diet-meal__title { cursor: default; }
   display: flex; align-items: center; justify-content: center;
   /* Pas encore coché : cercle vide en couleur d'action, le même sur l'accueil et dans le journal (en gris pâle, il passait
      pour l'anneau vide des calories) ; la coche n'apparaît qu'une fois coché, comme en séance (panels de la vague 3) */
-  background: none; color: transparent; box-shadow: inset 0 0 0 2px var(--tint);
+  background: none; color: var(--tint); box-shadow: inset 0 0 0 2px var(--tint);
   transition: background-color .2s, box-shadow .2s, transform .2s;
 }
 .diet-check .icon { width: 22px; height: 22px; }
+.diet-check:not(.diet-check--on) .icon { visibility: hidden; }   /* pas coché : cercle vide, la coche n'existe qu'une fois coché */
 .diet-check:active { transform: scale(.92); }
 .diet-check--on { background: var(--check-on); color: var(--check-mark); box-shadow: none; }
 @media (prefers-reduced-motion: reduce) { .diet-check, .diet-ring__arc, .diet-bar__fill { transition: none; } }
@@ -99,7 +100,7 @@ div.diet-meal__title { cursor: default; }
 .diet-item__sub { font-size: var(--fs-footnote); color: var(--label2); overflow-wrap: anywhere; }
 .diet-item__swapped { display: block; color: var(--tint); }
 .diet-item__swap { color: var(--tint); flex-shrink: 0; }
-.diet-foot { padding-top: 20px; }
+.diet-foot { padding-top: 20px; overflow-wrap: anywhere; }   /* le lien doi.org ne fait jamais défiler la page de côté */
 
 /* Aucun plan */
 .diet-empty { margin-top: 24px; background: var(--cell); border-radius: 20px; padding: 28px 20px 20px; text-align: center; }

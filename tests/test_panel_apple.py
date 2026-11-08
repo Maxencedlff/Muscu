@@ -406,4 +406,22 @@ def t_alerte_empilee(bench):
             shot(page, LOT, f'alerte-empilee-{t}')
 
 
-run_main(R, [], once=[t_alerte_empilee, t_materiaux_opaques, t_roue_meme_couleur, t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+def t_grand_texte(bench):
+    """Texte agrandi (Dynamic Type AX3, 33 px) sur iPhone SE : accueil, séance et nutrition sans défilement de côté."""
+    data = ppl_v2_today()
+    css = "(() => { const st = document.createElement('style'); st.textContent = 'html { font: 33px -apple-system, system-ui, sans-serif !important; }'; const put = () => { if (!document.documentElement) return false; document.documentElement.appendChild(st); return true; }; if (!put()) new MutationObserver((m, o) => { if (put()) o.disconnect(); }).observe(document, { childList: true }); })()"
+    for theme in ('light', 'dark'):
+        t = tag('iPhone SE', theme)
+        with bench.page('webkit', 'iPhone SE', theme) as page:
+            page.add_init_script(css)
+            seed(page, theme, json.dumps(data, ensure_ascii=False))
+            page.wait_for_timeout(500)
+            sw = lambda: page.evaluate('document.documentElement.scrollWidth')
+            R.check(page.evaluate("document.documentElement.classList.contains('type-xl')") and sw() <= 320, f'{t} accueil en texte agrandi : rien ne déborde ({sw()})')
+            page.click('[data-action="start-session"]'); page.wait_for_selector('.view.session'); page.wait_for_timeout(500)
+            small = page.evaluate("[...document.querySelectorAll('.session-set .set-check-zone, .set-plates')].filter(b => b.offsetParent).map(b => Math.round(b.getBoundingClientRect().width)).filter(w => w < 44)")
+            R.check(sw() <= 320 and not small, f'{t} séance en texte agrandi : rien ne déborde, ✓ et disques à 44 px ({sw()}, {small})')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_grand_texte, t_alerte_empilee, t_materiaux_opaques, t_roue_meme_couleur, t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])

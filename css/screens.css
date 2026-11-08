@@ -360,6 +360,26 @@ html.type-xl .session-set > :nth-child(3) { grid-area: w; }
 html.type-xl .session-set > :nth-child(4) { grid-area: r; }
 html.type-xl .session-set .set-check-zone { grid-area: check; }
 html.type-xl .session-set .set-badge { grid-column: 1 / -1; }
+html.type-xl .session-set .set-undo { grid-area: prev; justify-self: start; }   /* « Annuler » en ligne à la place d'« Avant » */
+/* Très grand texte (Dynamic Type AX, vague 3) : noms d'exercice sur 4 lignes au plus au lieu de 2, « Ensuite » du repos
+   qui revient à la ligne */
+html.type-xl .ex-card__name, html.type-xl .ex-howto__text, html.type-xl .ss-member__name, html.type-xl .ss-member__name .ex-howto__text { -webkit-line-clamp: 4; line-clamp: 4; }
+html.type-xl .rest-mini__next { white-space: normal; flex-wrap: wrap; }
+html.type-xl .rest-mini__next > * { white-space: normal; overflow: visible; }
+/* Très grand texte (suite, captures « texte agrandi » de la vague 3) : rien ne déborde ni ne se coupe au milieu d'un
+   libellé ; les lignes reviennent à la ligne, les zones de toucher gardent 44 px */
+html.type-xl .session-set .set-check-zone { min-width: 44px; }
+html.type-xl .ex-card__foot { flex-wrap: wrap; row-gap: 4px; }
+html.type-xl .targets__target, html.type-xl .targets__gain, html.type-xl .targets__before, html.type-xl .recap-card__cta { white-space: normal; overflow-wrap: anywhere; }
+html.type-xl .targets__val { flex-shrink: 1; min-width: 0; max-width: 100%; }
+html.type-xl .targets__now { flex-wrap: wrap; justify-content: flex-end; }
+html.type-xl .auth-btn { white-space: normal; }
+html.type-xl .auth-btn > span { overflow: visible; }
+html.type-xl .sheet__title { white-space: normal; overflow-wrap: anywhere; }
+html.type-xl .hcell__title, html.type-xl .social-row__name { white-space: normal; overflow-wrap: anywhere; }
+html.type-xl .chat-cell__last { -webkit-line-clamp: 3; line-clamp: 3; }
+html.type-xl .toast > span { -webkit-line-clamp: 4; line-clamp: 4; }
+html.type-xl .social-row__main { min-width: 44px; }
 
 /* Réduction des animations : couleur fixe en fin de repos, pas de point pulsé ni de transition */
 @media (prefers-reduced-motion: reduce) {

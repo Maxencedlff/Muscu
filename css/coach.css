@@ -262,6 +262,8 @@
 .chat-msg--theirs .chat-msg__bubble { background: var(--bubble-in); color: var(--label); border-bottom-left-radius: 6px; }
 .chat-msg__time { flex-shrink: 0; font-size: var(--fs-caption2); color: var(--label2); margin-bottom: 4px; }
 /* Saisie collée en bas, au-dessus de la barre d'onglets (et de la mini-barre de séance) */
+/* Champ du message : 44 px de haut au moins, même en grand texte (zone de toucher) */
+.chat-compose .chat-compose__input { min-height: 44px; padding: 10px 0; box-sizing: border-box; }
 .chat-compose {
   position: sticky; bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom, 0px)); z-index: 2;
   display: flex; align-items: flex-end; gap: 8px; margin: 0 var(--gutter);

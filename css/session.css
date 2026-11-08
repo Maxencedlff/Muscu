@@ -69,7 +69,7 @@
 /* Nom sur deux lignes au plus, comme les cartes simples : sur une ligne, la fin qui distingue deux exercices
    (« prise serrée », « prise large ») disparaissait (iPhone SE, panel Apple du 08/11) ; ⓘ toujours visible après */
 .ss-member__name { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; padding: 11px 0; }
-.ss-member__name.ex-howto { display: flex; align-items: center; padding: 11px 0; margin: 0; }
+.ss-member__name.ex-howto { display: flex; align-items: center; padding: 11px 0; margin: 0; min-height: 44px; }
 .ss-member__name .ex-howto__text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-width: 0; white-space: normal; overflow: hidden; overflow-wrap: anywhere; }
 .ss-member__name.ex-howto .icon { flex-shrink: 0; }
 .ss-round + .ss-round { margin-top: 2px; }
@@ -589,7 +589,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .session-set--warmup .set-check--done { background: var(--label2); }
 /* Bouton « Disques » à la place du numéro de la série à faire (exercice à barre) : 44 px de zone de toucher */
 .set-plates {
-  position: relative; min-width: 0; height: 32px; justify-self: center; border: 0; border-radius: var(--r-pill); cursor: pointer; padding: 0 5px;
+  position: relative; min-width: 0; height: 44px; justify-self: center; border: 0; border-radius: var(--r-pill); cursor: pointer; padding: 0 6px;
   background: var(--fill); color: var(--tint-on-fill); display: inline-flex; align-items: center; justify-content: center; gap: 2px;
   font: inherit; font-size: 0.882rem; font-weight: 600;
 }
