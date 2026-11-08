@@ -56,7 +56,7 @@ function renderStatsExercise(exId) {
   if (cardio && !cModes.some(([m]) => m === cardioMode)) cardioMode = 'time';
   // Courbe « Effort » (RPE moyen, js/data/rir.js) : proposée dès qu'une séance a des RIR notés
   const hasRpe = !cardio && it.points.some(p => p.rpe != null);
-  if (statsMode === 'effort' && !hasRpe) statsMode = 'volume';
+  if (statsMode === 'effort' && !hasRpe) statsMode = 'charge';
   const effort = !cardio && statsMode === 'effort';
   // Courbe d'allure, de distance ou d'effort : seulement les séances qui en ont une
   const pts    = effort ? it.points.filter(p => p.rpe != null) : !cardio || cardioMode === 'time' ? it.points : it.points.filter(p => cardioMetric(p, cardioMode));
@@ -96,7 +96,7 @@ function renderStatsExercise(exId) {
         ${icon('chevron.right', 16)}
       </button>`).join('');
 
-  const modes = cardio ? cModes : [['volume', 'Volume'], ['charge', 'Charge max'], ['1rm', '1RM est.'], ...(hasRpe ? [['effort', 'Effort']] : [])];
+  const modes = cardio ? cModes : [['charge', 'Charge max'], ['volume', 'Volume'], ['1rm', '1RM est.'], ...(hasRpe ? [['effort', 'Effort']] : [])];
   const modeOn = cardio ? cardioMode : statsMode;
   // Cardio : meilleure allure (ou vitesse) et plus longue distance à la place du record de charge
   const paces = it.points.map(p => p.pace).filter(Boolean);

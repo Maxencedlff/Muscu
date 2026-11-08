@@ -176,4 +176,26 @@ def t_menu_exercice(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+def t_progres_tendance(bench):
+    """Progrès : la tendance d'un exercice dans la liste est celle que montre sa fiche à l'ouverture (Charge max)."""
+    for eng, dev in PHONES:
+        t = tag(dev, 'light')
+        with bench.page(eng, dev, 'light') as page:
+            seed(page, 'light', ppl_v2_today_json())
+            page.evaluate("statsMode = 'volume'")   # dernière courbe vue : le volume d'un autre exercice
+            page.click('.tabbar [data-action="go-stats"]')
+            page.wait_for_selector('[data-action="open-stats-ex"][data-ex="p1dcouch"]')
+            row = page.locator('[data-action="open-stats-ex"][data-ex="p1dcouch"]')
+            trend = row.locator('.prow__trend').inner_text().strip()
+            n = page.evaluate("data.history.filter(h => h.exercises.some(e => e.exId === 'p1dcouch')).length")
+            pts = page.evaluate("""() => document.querySelector('[data-ex="p1dcouch"] .spark polyline').getAttribute('points').trim().split(' ').length""")
+            row.click()
+            page.wait_for_selector('.view.stats-ex .chart-head')
+            on = page.locator('.view.stats-ex .segmented__btn--active').inner_text().strip()
+            fiche = page.locator('.chart-head__trend').inner_text().strip() if page.locator('.chart-head__trend').count() else ''
+            R.check(on == 'Charge max' and trend and fiche == trend, f'{t} liste {trend!r} = fiche {fiche!r} sur « {on} »')
+            R.check(pts == n, f'{t} mini-courbe : toutes les séances, comme la tendance ({pts} points, {n} séances)')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_progres_tendance, t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])

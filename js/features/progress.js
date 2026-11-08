@@ -3,7 +3,9 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-let statsMode = 'volume';   // 'volume' | 'charge' | '1rm'
+// Courbe d'un exercice : « Charge max » à l'ouverture depuis une liste, la grandeur de la tendance de la liste (panel Apple
+// du 08/11 : la liste disait +13 % de charge max, la fiche s'ouvrait sur le volume à +35 %)
+let statsMode = 'charge';   // 'charge' | 'volume' | '1rm' | 'effort'
 let ovMonth   = null; // { y, m } du calendrier de la vue d'ensemble
 
 // Mesures d'un exercice dans une séance
@@ -136,7 +138,8 @@ function statsSections(idx) {
   return sections;
 }
 
-// Cellule d'un exercice : dernière performance, courbe et tendance
+// Cellule d'un exercice : dernière performance, courbe et tendance, sur toutes ses séances comme la courbe « Charge max »
+// de sa fiche (même chiffre aux deux endroits ; la mini-courbe ne montrait que les 12 dernières)
 function statsRow(it) {
   const bw   = isBodyweight(it);
   const vals = it.points.map(p => mainMetric(it, p));
@@ -149,7 +152,7 @@ function statsRow(it) {
           <span class="cell__title prow__name">${esc(it.name)}</span>
           <span class="cell__sub num">${it.measure === 'cardio' ? cardioPointTxt(last, paceKind(it)) : bw ? `${last.maxReps} ${it.unit || 'reps'}` : setTxt(last.best, { name: it.name })}</span>
         </span>
-        <span class="prow__spark ${cls}">${sparkline(vals.slice(-12))}</span>
+        <span class="prow__spark ${cls}">${sparkline(vals)}</span>
         <span class="prow__trend num ${cls}">${tp === null ? '' : pctTxt(tp)}</span>
         ${icon('chevron.right', 16)}
       </button>`;
@@ -220,6 +223,7 @@ registerActions({
     cardioMode = el.dataset.mode; render();
   },
   'open-stats-ex': (e, el) => {
+    statsMode = 'charge';
     navigate(makeRoute('stats-ex', el.dataset.ex));
   },
   'go-stats-overview': () => {

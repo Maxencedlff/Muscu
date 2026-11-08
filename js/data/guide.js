@@ -375,7 +375,7 @@ const GUIDE_SECTIONS = [
         lead: 'L\'onglet [Progrès] montre tes séances du mois et de l\'année, puis tous tes exercices.',
         steps: [
           'Chaque exercice affiche sa dernière performance, une mini-courbe et sa tendance en %.',
-          'Touche-le pour la courbe complète : [Volume], [Charge max] ou [1RM est.].',
+          'Touche-le pour la courbe complète, sur la même grandeur que sa tendance : [Charge max], puis [Volume] ou [1RM est.].',
           'Pose le doigt sur la courbe pour lire une séance.',
           'Un [Objectif] de charge, réglé dans la fiche de l\'exercice, ajoute une barre de progression.',
           '[Vue d\'ensemble] affiche le calendrier du mois, tes séances par semaine et ton total de séances.',
