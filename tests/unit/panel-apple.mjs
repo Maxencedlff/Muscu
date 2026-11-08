@@ -82,4 +82,11 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     }
     assert.match(src('docs/ERGONOMIE.md'), /\| Amis \|/, 'lexique : Amis');
   });
+
+  test('ⓘ après un nom d\'exercice : jamais seul sur une ligne (dernier mot et ⓘ insécables)', () => {
+    const h = app.howToNameHtml('Rowing haltère unilatéral');
+    assert.match(h, /^Rowing haltère <span class="ex-howto__tail">unilatéral<svg[^>]*icon--info-circle/);
+    assert.match(app.howToNameHtml('Dips'), /^<span class="ex-howto__tail">Dips<svg/);
+    assert.match(app.howToNameHtml('A <b>'), /&lt;b&gt;/, 'nom échappé');
+  });
 }

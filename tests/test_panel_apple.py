@@ -257,4 +257,21 @@ def t_retour_titre(bench):
                 R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+def t_info_jamais_seul(bench):
+    """ⓘ après un nom d'exercice : toujours sur la même ligne que le dernier mot, sur chaque carte de la séance."""
+    for eng, dev in PHONES:
+        t = tag(dev, 'light')
+        with bench.page(eng, dev, 'light') as page:
+            for cat in ('push',):
+                start_session(page, 'light', cat)
+                cards = page.evaluate("""() => [...document.querySelectorAll('.ex-card__name .ex-howto__text')].map(e => {
+                    const tail = e.querySelector('.ex-howto__tail'), ic = tail && tail.querySelector('.icon');
+                    if (!tail || !ic) return { name: e.textContent, ok: false };
+                    const rs = [...tail.getClientRects()], i = ic.getBoundingClientRect(), last = rs[rs.length - 1];
+                    return { name: e.textContent.trim(), ok: rs.length === 1 && i.top >= last.top - 2 && i.bottom <= last.bottom + 2 }; })""")
+                bad = [c['name'] for c in cards if not c['ok']]
+                R.check(cards and not bad, f'{t} {cat} : ⓘ avec le dernier mot sur {len(cards)} cartes {bad}')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])

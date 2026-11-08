@@ -33,6 +33,8 @@
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
 }
 .ex-howto .icon { display: inline-block; vertical-align: -2px; margin-left: 5px; color: var(--label2); }
+/* Dernier mot et ⓘ ensemble : ⓘ ne passe jamais seul à la ligne (howToNameHtml, js/features/session-sheets.js) */
+.ex-howto__tail { white-space: nowrap; }
 .ex-howto:active .ex-howto__text { opacity: .5; }
 .ex-card__count { font-size: 0.882rem; color: var(--label2); flex-shrink: 0; }
 .ex-card__more {

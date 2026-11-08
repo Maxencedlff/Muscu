@@ -405,6 +405,12 @@ async function chooseSessionTempo(ei) {
 
 // ── « Comment faire » d'un exercice : fiche de la bibliothèque, s'il y a des consignes, une animation ou une vidéo ──
 function hasHowTo(ex) { return !!(exerciseHowTo(ex.name) || exerciseMove(ex.name) || exerciseVideo(ex.name)); }
+// Nom suivi de ⓘ : le dernier mot et ⓘ insécables, ⓘ ne tombe jamais seul au début d'une ligne (« Row » puis ⓘ
+// dessous, demande de Maxence avec le panel Apple du 08/11)
+function howToNameHtml(name) {
+  const s = String(name || '').trim(), i = s.lastIndexOf(' ');
+  return `${esc(i > 0 ? s.slice(0, i + 1) : '')}<span class="ex-howto__tail">${esc(i > 0 ? s.slice(i + 1) : s)}${icon('info.circle', 15)}</span>`;
+}
 // Nom tel que tapé : la fiche montre les muscles choisis pour lui (alias compris)
 function openHowTo(ex) { navigate(makeRoute('library-ex', ex.name)); }
 
