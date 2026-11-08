@@ -32,6 +32,9 @@
   bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 10px 0 var(--bg), 0 -10px 16px var(--bg);
 }
 body.has-livebar .social-enable { bottom: calc(var(--tabbar-h) + 72px + env(safe-area-inset-bottom, 0px)); }
+/* Grisé (pseudo ou âge manquant) : à sa place, sous le texte, et opaque ; collé et translucide, il recouvrait la note et
+   l'interrupteur des 15 ans qu'il faut justement toucher (panels de la vague 3) */
+.social-enable:disabled { position: static; opacity: 1; background: var(--fill); color: var(--label3); box-shadow: none; }
 /* Petit écran : peu de hauteur, ou étroit (320 pt : le texte passe sur plus de lignes) et pas très haut */
 @media (max-height: 600px), (max-width: 340px) and (max-height: 700px) {
   .social-hero { gap: 4px; padding: 0 4px 14px; }

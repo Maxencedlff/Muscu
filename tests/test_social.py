@@ -156,6 +156,11 @@ def t_activation(bench, eng, dev, theme):
         age.click()
         R.check(page.locator('[data-action="social-age"]').get_attribute('aria-checked') == 'true', f'{t} case 15 ans cochée')
         R.check(page.locator('[data-action="social-enable"]').is_disabled(), f'{t} toujours grisé sans pseudo')
+        # Panels de la vague 3 : grisé, il reste à sa place et opaque, sans rien recouvrir (interrupteur, note)
+        g = page.evaluate("""() => { const b = document.querySelector('[data-action=social-enable]'), r = b.getBoundingClientRect(), cs = getComputedStyle(b);
+            const over = [...document.querySelectorAll('[data-action=social-age], .group-foot')].some(e => { const q = e.getBoundingClientRect(); return q.bottom > r.top + 1 && q.top < r.bottom - 1; });
+            return { pos: cs.position, op: cs.opacity, over }; }""")
+        R.check(g['pos'] == 'static' and g['op'] == '1' and not g['over'], f'{t} « Activer » grisé : à sa place, opaque, ne recouvre rien {g}')
         foot = page.inner_text('.group-foot:has(.link-inline[data-action="social-rules"])')
         R.check('jamais montrés à tes amis' in foot and 'coach' not in foot, f'{t} pied : rien n\'est montré aux amis, sans coach ({foot!r})')
         shot(page, LOT, f'2-activation-sans-pseudo-{t}')
