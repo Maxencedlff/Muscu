@@ -102,7 +102,8 @@ function feedCardHtml(row, { owner = true } = {}) {
 }
 
 // Liste de cartes d'un fil (fil principal '' ou profil), « Afficher plus », chargement, hors ligne
-function feedListHtml(key, { owner = true, empty }) {
+// quiet : pas de note « fil pas à jour » (une note au-dessus le dit déjà)
+function feedListHtml(key, { owner = true, empty, quiet = false }) {
   const f = socialFeed(key);
   const cards = f.rows.map(r => feedCardHtml(r, { owner })).join('');
   if (!f.rows.length) {
@@ -111,7 +112,7 @@ function feedListHtml(key, { owner = true, empty }) {
     return typeof empty === 'function' ? empty() : `<div class="empty-note">${empty}</div>`;
   }
   const more = !f.end ? `<button class="btn-more" data-action="social-more" data-key="${esc(key)}" ${f.loading ? 'disabled' : ''}>${f.loading ? 'Chargement…' : 'Afficher plus'}</button>` : '';
-  return `${feedErrorNote(f.error)}<div class="feed">${cards}</div>${more}`;
+  return `${quiet ? '' : feedErrorNote(f.error)}<div class="feed">${cards}</div>${more}`;
 }
 
 // Note au-dessus d'un fil déjà affiché quand le rafraîchissement échoue (hors ligne ou erreur) : le fil et
@@ -254,10 +255,16 @@ function enabledBodyHtml() {
           pill('social-accept', p.user_id, 'Accepter', { fill: true, aria: `Accepter ${personName(p)}` })
           + `<button class="social-x" data-action="social-refuse" data-uid="${esc(p.user_id)}" aria-label="${esc(`Refuser ${personName(p)}`)}">${icon('xmark', 14)}</button>`,
           '')).join('')}</div>` : '';
-  const stale = social.error && st ? `<p class="social-inline-error" role="status">${esc(social.error === 'offline' ? 'Pas d\'Internet : demandes pas à jour.' : socialErrorText(social.error))}</p>` : '';
-  return `${stale}${requests}
-        ${socialFeed('').rows.length ? '<div class="group-title">Séances de tes amis</div>' : ''}
-        ${feedListHtml('', { empty: feedEmptyHtml })}`;
+  // Hors ligne : un seul message (panel Apple du 08/11 : « demandes pas à jour » s'ajoutait au bloc « Pas d'Internet »
+  // du fil vide, alors qu'aucune demande n'était affichée). Demandes affichées : la note les cite, et le fil aussi
+  // s'il a des séances (sa propre note est alors tue) ; sans demande, le fil dit seul ce qu'il en est.
+  const feed = socialFeed('');
+  const stale = social.error && st && pending.length;
+  const both = stale && feed.error && feed.rows.length;
+  const note = stale ? `<p class="social-inline-error" role="status">${esc(social.error === 'offline' ? `Pas d'Internet : ${both ? 'demandes et fil pas à jour' : 'demandes pas à jour'}.` : socialErrorText(social.error))}</p>` : '';
+  return `${note}${requests}
+        ${feed.rows.length ? '<div class="group-title">Séances de tes amis</div>' : ''}
+        ${feedListHtml('', { empty: feedEmptyHtml, quiet: !!both })}`;
 }
 
 // Fil vide : accueil chaleureux, l'action qui le remplit (inviter un ami) et la recherche juste au-dessus

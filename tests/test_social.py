@@ -672,6 +672,25 @@ def t_hors_ligne(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         R.check(page.locator('.feed-card').first.locator('.react').get_attribute('aria-pressed') == 'false' and 'Pas d\'Internet' in toast(page), f'{t} bravo hors ligne annulé ({toast(page)!r})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+    # Panel Apple du 08/11 : social activé (état connu), fil vide, hors ligne : un seul message, pas « demandes pas à jour »
+    with bench.page(eng, dev, theme) as page:
+        open_app(page, theme, ppl_v2_today_json())
+        signin(page, enable=True)
+        friends_tab(page)
+        page.wait_for_timeout(300)
+        page.evaluate('async () => { __sb.fail.social = "offline"; await Promise.allSettled([socialRefresh(), socialLoadFeed("")]); render(); }')
+        page.wait_for_timeout(300)
+        txt = page.inner_text('#friendsBody')
+        R.check(txt.count("Pas d'Internet") == 1 and 'demandes' not in txt and page.locator('[data-action="social-retry"]').count() == 1,
+                f'{t} hors ligne, fil vide : un seul message ({txt!r})')
+        # Une demande reçue affichée : la note la cite
+        page.evaluate("""async () => { __sb.fail.social = null; const tom = __sb.addPerson({ username: 'tom' }); __sb.follow(tom, __sb.meId(), 'pending');
+            await Promise.allSettled([socialRefresh(), socialLoadFeed('')]); __sb.fail.social = 'offline';
+            await Promise.allSettled([socialRefresh(), socialLoadFeed('')]); render(); }""")
+        page.wait_for_timeout(300)
+        txt = page.inner_text('#friendsBody')
+        R.check('demandes pas à jour' in txt and 'tom' in txt, f'{t} hors ligne avec une demande : la note la cite ({txt!r})')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
     # Serveur qui ne répond pas : l'app reste utilisable, l'onglet garde l'état connu (cache de l'appareil)
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json())
