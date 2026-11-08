@@ -58,6 +58,10 @@ def t_outils(bench, eng, dev, theme):
         R.check(page.locator('.ex-card[data-ei="0"] .set-plates').count() == 1, f'{t} bouton Disques sur la série courante du Squat barre')
         R.check(page.locator('.ex-card[data-ei="1"] .set-plates').count() == 0, f'{t} pas de Disques sur la presse à cuisses')
         R.check(not rects_ok(page, '.set-plates'), f'{t} bouton Disques ≥ 44 px')
+        # Panels de la vague 3 : le numéro de la série reste, le petit disque à côté
+        R.check(page.locator('.ex-card[data-ei="0"] .set-plates .num').inner_text().strip() == '1' and page.locator('.ex-card[data-ei="0"] .set-plates .icon--plate').count() == 1,
+                f'{t} Disques : numéro de la série gardé, disque à côté')
+        shot(page, LOT, f'{t}-disques-numero')
         page.click('.ex-card[data-ei="0"] .set-plates')
         page.wait_for_selector('.sess-sheet--plates')
         page.wait_for_timeout(350)

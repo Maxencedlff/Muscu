@@ -542,12 +542,13 @@ function setNumHtml(ex, si, tag) {
 }
 
 // Disques (js/data/plates.js) : sur la série à faire d'un exercice à barre, le numéro laisse place à un
-// bouton qui ouvre la feuille « Disques » pour la charge de la série (ou celle de la dernière fois). Icône d'un disque vu de
-// face : l'haltère est celle de l'onglet Entraînement (une icône = un sens, panel Apple de la vague 3)
+// bouton qui ouvre la feuille « Disques » pour la charge de la série (ou celle de la dernière fois). Le numéro reste, un petit
+// disque (vu de face, avec ses trous de prise) à côté dit ce que le bouton ouvre : seul, il passait pour une cible ou un
+// « top set » (panels de la vague 3) ; l'haltère reste à l'onglet Entraînement
 function setPlatesHtml(ex, ei, s, si) {
   const kg = s.weight !== '' ? s.weight : s.prev?.weight;
   const load = kg !== '' && kg != null ? `${fmtW(kg, { plain: true })} ${unitLbl()}` : '';
-  return `<button class="set-n set-plates" data-action="open-plates" data-ei="${ei}" data-si="${si}" aria-label="Disques à charger${load ? ` pour ${load}` : ''}, ${setSpokenName(ex, si)}, ${esc(ex.name)}">${icon('plate', 18)}</button>`;
+  return `<button class="set-n set-plates" data-action="open-plates" data-ei="${ei}" data-si="${si}" aria-label="Disques à charger${load ? ` pour ${load}` : ''}, ${setSpokenName(ex, si)}, ${esc(ex.name)}"><span class="num">${setDisplayNo(ex.sets, si)}</span>${icon('plate', 12)}</button>`;
 }
 
 // ▶ de la série à faire : chrono d'un maintien, série guidée au tempo, ou chrono d'une machine de cardio

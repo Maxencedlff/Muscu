@@ -112,7 +112,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
   });
 
   test('Disques : icône du disque, l\'haltère reste à l\'onglet Entraînement', () => {
-    assert.match(src('js/features/session.js'), /data-action="open-plates"[^\n]*icon\('plate'/);
+    assert.match(src('js/features/session.js'), /data-action="open-plates"[^\n]*setDisplayNo\(ex\.sets, si\)[^\n]*icon\('plate'/, 'le numéro reste, le disque à côté');
     assert.match(src('index.html'), /<symbol id="i-plate"/);
   });
 }
