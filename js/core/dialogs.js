@@ -18,6 +18,8 @@ function announce(msg, assertive = false) {
 const TOAST_AVOID = '[data-toast-avoid], [aria-current="step"], .rir';
 const TOAST_ACTION_MIN_MS = 6000;   // le temps de lire et de toucher « Annuler » (WCAG 2.2.1)
 const TOAST_RESUME_MS = 3000;       // après un toucher ou le focus de VoiceOver qui l'a retenu
+let toastPlace = null;              // placement du toast affiché, revu quand une feuille de la séance s'ouvre (placeToast)
+function placeToast() { toastPlace?.(); }
 
 function toastCovers(el) {
   const r = el.getBoundingClientRect();
@@ -54,13 +56,16 @@ function showToast(msg, opts = {}) {
   // ou les boutons de sa carte, vérifié aussi pendant le défilement qui suit une validation (scrollToCurrent)
   // Revu à chaque défilement dans les deux sens : passé en haut pendant le défilement, il y restait et
   // cachait « Reps en réserve » une fois la série centrée, alors que le bas était redevenu libre (iPhone SE)
+  // Feuille de la séance ouverte (Repos…) : la série est cachée dessous, le toast reste en bas, sur la ligne « Ensuite »,
+  // au lieu de couvrir le titre de la feuille et « Réduire » (iPhone SE, panel Apple du 08/11)
   const place = () => {
     if (!el.isConnected) return;
     el.classList.remove('toast--top');
     let top = false;
-    if (toastCovers(el)) { el.classList.add('toast--top'); top = !toastCovers(el); }
+    if (!document.querySelector('.sess-sheet:not(.sess-sheet--out)') && toastCovers(el)) { el.classList.add('toast--top'); top = !toastCovers(el); }
     el.classList.toggle('toast--top', top);
   };
+  toastPlace = place;
   place();
   requestAnimationFrame(place);   // écran redessiné juste après le toast (render qui suit la validation)
   // Retiré d'ailleurs (autre toast, dialogue, « Annuler ») : l'écouteur s'en va au défilement suivant

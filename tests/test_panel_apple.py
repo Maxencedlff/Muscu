@@ -74,6 +74,13 @@ def t_toast_sur_repos(bench):
                 const r = b.getBoundingClientRect(), e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
                 return { text: b.textContent.trim(), onButton: b === e || b.contains(e) }; }""")
             R.check(hit and hit['onButton'], f'{t} feuille Repos ouverte : le bouton du toast reçoit le toucher {hit}')
+            # Ni le titre de la feuille ni « Réduire » sous le toast
+            over = page.evaluate("""() => { const t = document.querySelector('.toast').getBoundingClientRect();
+                return [...document.querySelectorAll('.sess-sheet--rest button, .sess-sheet--rest h2, .sess-sheet--rest .rs__time')].filter(e => {
+                  const b = e.getBoundingClientRect(); return b.height && b.bottom > t.top && b.top < t.bottom && b.right > t.left && b.left < t.right; })
+                  .map(e => e.textContent.trim()); }""")
+            R.check(not over, f'{t} le toast ne cache aucun bouton de la feuille Repos {over}')
+            shot(page, LOT, f'toast-repos-{t}')
             done = page.evaluate("activeSession.exercises[0].sets[0].done")
             page.click('.toast button')
             page.wait_for_timeout(300)

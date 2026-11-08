@@ -56,6 +56,7 @@ function openSessSheet({ cls = '', label = '', html, full = false, onClose }) {
   panel.addEventListener('pointercancel', end);
 
   document.body.appendChild(root);
+  if (typeof placeToast === 'function') placeToast();   // toast passé en haut pour la série : il revient en bas
   return root;
 }
 

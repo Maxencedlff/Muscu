@@ -264,6 +264,8 @@ body:has(.view.session) .toast { top: auto; bottom: calc(24px + env(safe-area-in
 /* Bilan : en haut, le bouton « Terminé » reste lisible */
 body:has(.view.summary) .toast { bottom: auto; top: calc(12px + env(safe-area-inset-top, 0px)); background: var(--dlg-solid); }
 body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-area-inset-bottom, 0px)); }
+/* Feuille de la séance ouverte (Repos…) : tout en bas, sur la ligne « Ensuite », jamais sur les durées ni « Passer » */
+body:has(.view.session):has(.sess-sheet:not(.sess-sheet--out)) .toast { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
 
 /* ── Feuilles de la séance (variante non bloquante de .sheet, voir openSessSheet) ── */
 .sess-sheet { position: fixed; inset: 0; z-index: 400; }
