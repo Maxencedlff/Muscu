@@ -146,7 +146,8 @@ function pvOpenHtml() {
             <div class="pgal__row">${PHOTO_POSES.map(([k, l]) => `<button class="pv-slot" data-action="photo-add" data-pose="${k}" aria-label="Ajouter une photo : ${l}">${icon('plus', 22)}<span>${l}</span></button>`).join('')}</div>
             <p class="cell__sub">Une photo de temps en temps, pour voir ce que la balance ne dit pas.</p></div>`}
         </div>
-        <div class="group-foot">${list.length ? `${fmtBytes(photosTotalBytes(list))}, chiffrées sur ton iPhone. ` : ''}Hors de l'export et de la copie iCloud de l'app ; chiffrées dans la sauvegarde de l'iPhone. Sur un nouvel iPhone, elles se rouvrent grâce au trousseau iCloud. ${cphVaultFoot()}</div>`;
+        <div class="group-foot">Tes photos restent sur ton iPhone, chiffrées. ${cphVaultFoot()}</div>
+        <div class="group-foot">${list.length ? `${fmtBytes(photosTotalBytes(list))}. ` : ''}Elles ne sont ni dans l'export ni dans la copie iCloud de l'app ; elles sont chiffrées dans la sauvegarde de l'iPhone et se rouvrent sur un nouvel iPhone grâce au trousseau iCloud.</div>`;
 }
 
 // Avant / après : les deux photos superposées, un curseur découvre l'une sur l'autre.

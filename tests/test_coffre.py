@@ -574,6 +574,8 @@ def t_panel_apple(bench):
         sel = page.evaluate("""() => [...document.querySelectorAll('.pcmp__pick')].map(p => { const s = p.querySelector('select');
             return [!!p.querySelector('.icon--chevron-up-chevron-down'), getComputedStyle(s).color === getComputedStyle(document.querySelector('.navbar__text')).color]; })""")
         R.check(sel == [[True, True], [True, True]], f'coffre : menus Avant / Après avec chevrons, valeur en couleur d\'action {sel}')
+        foot = page.locator('.view.photo-vault .group-foot').first.inner_text()
+        R.check(foot.startswith('Tes photos restent sur ton iPhone, chiffrées.'), f'coffre : la promesse d\'abord, la technique ensuite ({foot!r})')
         bar = lambda: page.evaluate("""() => { const b = document.querySelector('#app .navbar'), ti = b.querySelector('.navbar__title');
             return { collapsed: b.classList.contains('navbar--collapsed'), text: ti.textContent, op: getComputedStyle(ti).opacity, cut: ti.scrollWidth > ti.clientWidth + 1 }; }""")
         page.evaluate('window.scrollTo(0, 0)')
