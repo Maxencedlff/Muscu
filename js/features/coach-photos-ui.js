@@ -147,11 +147,11 @@ async function cphSendGo(el) {
   if (currentView() === 'photo-vault') pvPaint();
   if (r.ok) {
     haptic('success');
-    // « Annuler l'envoi » tout de suite, sans repasser par Mon coach › Photos de bilan (panel Apple du 08/11), comme « Annuler »
+    // « Retirer » tout de suite (un seul verbe pour ce geste, panels de la vague 3), sans repasser par Mon coach › Photos de bilan (panel Apple du 08/11), comme « Annuler »
     // après une série : le geste vient d'être fait, pas de confirmation de plus
     const sentIds = photos.map(p => cphSentOf(p.id)?.id).filter(Boolean);
     showToast(r.sent > 1 ? `${plural(r.sent, 'photo envoyée', 'photos envoyées')} à ${coachName()}` : `Photo envoyée à ${coachName()}`,
-      sentIds.length ? { action: 'Annuler l\'envoi', duration: 6000, onAction: () => cphUndoSend(sentIds) } : {});
+      sentIds.length ? { action: 'Retirer', duration: 6000, onAction: () => cphUndoSend(sentIds) } : {});
     return;
   }
   const done = r.sent ? `${plural(r.sent, 'photo envoyée', 'photos envoyées')}, la suite n'est pas partie. ` : '';
@@ -217,8 +217,8 @@ function renderCphMine() {
         ${send}
         <div class="group-title">Envoyées</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub">Aucune photo envoyée.</span></div>'}</div>
-        <div class="group-foot">${name} voit seulement les photos que tu lui envoies, avec leur jour et leur pose. « Retirer » l'efface : il ne la voit plus.</div>
-        <div class="group-foot">Quitter ton coach ou supprimer ton compte les efface toutes. Ce qu'il aurait déjà vu, on ne peut pas l'effacer de sa mémoire : n'envoie que ce que tu acceptes de lui montrer.</div>
+        <div class="group-foot">${name} voit seulement les photos que tu lui envoies, avec leur jour et leur pose. « Retirer » : il ne la voit plus, elle reste dans ton coffre.</div>
+        <div class="group-foot">Quitter ton coach ou supprimer ton compte les retire toutes. Ce qu'il aurait déjà vu, on ne peut pas l'effacer de sa mémoire : n'envoie que ce que tu acceptes de lui montrer.</div>
         ${st.ready && cphStudentShown() ? cphVerifyHtml(cph.code) : ''}`);
 }
 SCREENS.set('coach-photos-mine', { render: () => renderCphMine(), enter: () => { cphRefresh(); } });
