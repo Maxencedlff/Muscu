@@ -162,12 +162,15 @@ function photoCompareHtml(list) {
     photoCmp = { ...photoCmp, ...pair };
   }
   const a = byId(photoCmp.a), b = byId(photoCmp.b);
+  // Même pose des deux côtés (le cas par défaut) : la pose dans le titre, la date seule dans les menus, lisible sur iPhone SE
+  // (panels de la vague 3 : « 21 oct. · F ») ; une photo d'une autre pose garde « date · pose »
+  const pose = a.pose === b.pose ? a.pose : null;
   const options = sel => list.slice().reverse().map(p =>
-    `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(fmtDate(p.date, 'short'))} · ${photoPoseLabel(p.pose)}</option>`).join('');
+    `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(fmtDate(p.date, 'short'))}${p.pose === pose ? '' : ` · ${photoPoseLabel(p.pose)}`}</option>`).join('');
   const days = photoGapDays(a.date, b.date);
   const pos = photoCmp.pos;
   return `
-        <div class="group-title">Avant / après</div>
+        <div class="group-title">Avant / après${pose ? ` · ${photoPoseLabel(pose)}` : ''}</div>
         <div class="group group--pad pcmp">
           <div class="pcmp__frame" style="--pos:${pos}%">
             <img class="pcmp__img" src="${photoUrl(b)}" alt="Après : ${photoPoseLabel(b.pose)}, ${esc(fmtDate(b.date))}">

@@ -561,9 +561,10 @@ def t_panel_apple(bench):
         R.check(lock == ['Verrouiller', 0] and page.locator('.view.photo-vault button .icon--lock').count() == 0,
                 f'coffre : « Verrouiller » en toutes lettres, aucun bouton au cadenas {lock}')
         # Avant / après par défaut : Face du 3 octobre contre Face d'aujourd'hui, jamais Face contre Dos du même jour
-        sel = page.evaluate("() => [...document.querySelectorAll('.pcmp__sel')].map(s => s.selectedOptions[0].textContent)")
-        R.check(len(sel) == 2 and all(s.endswith('Face') for s in sel) and '30 jours' in page.inner_text('.pcmp__gap'),
-                f'coffre : avant / après sur la même pose à deux dates {sel} {page.inner_text(".pcmp__gap")!r}')
+        sel = page.evaluate("() => [...document.querySelectorAll('.pcmp__sel')].map(s => [s.selectedOptions[0].textContent, s.scrollWidth <= s.clientWidth + 1])")
+        title = page.evaluate("[...document.querySelectorAll('.group-title')].map(e => e.textContent).find(x => x.startsWith('Avant'))")
+        R.check(len(sel) == 2 and title == 'Avant / après · Face' and all('·' not in s and fits for s, fits in sel) and '30 jours' in page.inner_text('.pcmp__gap'),
+                f'coffre : même pose à deux dates, la pose dans le titre, dates entières dans les menus (SE) {title!r} {sel} {page.inner_text(".pcmp__gap")!r}')
         # Menus Avant / Après : chevrons haut / bas, valeur en couleur d'action (pas un texte fixe)
         sel = page.evaluate("""() => [...document.querySelectorAll('.pcmp__pick')].map(p => { const s = p.querySelector('select');
             return [!!p.querySelector('.icon--chevron-up-chevron-down'), getComputedStyle(s).color === getComputedStyle(document.querySelector('.navbar__text')).color]; })""")

@@ -490,6 +490,7 @@ body.light .imp__ctl { background: var(--cell); }
 .pcmp__tag--a { left: 10px; }
 .pcmp__tag--b { right: 10px; }
 .pcmp__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+@media (max-width: 340px) { .pcmp__cols { grid-template-columns: 1fr; } }   /* iPhone SE : chaque menu sur toute la largeur */
 .pcmp__col { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .pcmp__lbl { font-size: var(--fs-footnote); color: var(--label2); padding-left: 2px; }
 /* Menu déroulant : valeur en couleur d'action et chevrons haut / bas d'iOS, sinon il passe pour un texte fixe (panel du 08/11) */
