@@ -55,6 +55,8 @@ Jamais `20261031620000_strava.sql` au lancement (Strava en sommeil, docs/STRAVA.
 
 Chaque fichier se colle dans l'éditeur SQL, dans cet ordre, l'un après l'autre. Pas de `supabase db push` : il refuse ces fichiers, plus anciens que la dernière migration appliquée ; et **jamais `supabase db push --include-all`**, qui pousserait d'un coup tout ce qui manque, le 10e fichier compris (et Strava), avant l'OTA.
 
+**État de la production au 08/11/2026** : 6 à 9 appliqués le 07/11 vers 20 h (avant l'OTA 2026.11.7-2633219), 10 (plans diète) appliqué juste après cette OTA, chacun dans une transaction par l'éditeur SQL (API de gestion). **1 à 5 (payant, lettre d'information) PAS appliqués** : en attente de l'accord de Maxence ; essai vérifié : 6 à 10 passent sans eux sur la production simulée (seul `coach_test.sql` « équipe pleine » dépend des tarifs).
+
 ### Vague 2 (Social V2 + photos de bilan) : une seule migration
 
 Pour cette vague, **appliquer seulement `20261107000000_photos_bilan.sql`** (11e de la liste), avant l'OTA, avec la fonction `coach-photos-purge`, son secret et sa planification (docs/PHOTOS_BILAN.md). Elle ne s'appuie que sur des migrations déjà en production (coach du 27/10) : `tests/sql/prod_order_test.sh` (étape 6) la passe seule sur la production simulée, lance ses tests, puis son retour arrière, qui rend la base à l'identique.
