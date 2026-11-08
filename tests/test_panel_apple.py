@@ -1,0 +1,51 @@
+"""Corrections du panel d'ergonomie Apple (vague 3, 08/11/2026) : un test par sujet, sur iPhone 13 et iPhone SE.
+
+Les sujets propres au coffre à photos et aux photos de bilan sont dans test_coffre.py et test_photos_bilan.py
+(leur coquille iOS factice y est déjà) ; ici, le reste : titre repris par la barre au défilement, bouton retour,
+séance (toast, repos, superset, objectif, menu ⋯), Progrès, Nutrition, Social, Coach.
+Captures : $PPL_SCRATCH/shots/lotpanel_apple/.
+Lancer : PPL_URL=http://127.0.0.1:8799/ python3 tests/test_panel_apple.py (ou run_all.py panel_apple).
+"""
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from fixtures import *  # noqa
+
+LOT = 'panel_apple'
+R = Results(LOT)
+PHONES = (('webkit', 'iPhone 13'), ('webkit', 'iPhone SE'))
+
+
+def tag(dev, theme):
+    return f'{dev}-{theme}'.replace(' ', '_')
+
+
+def t_titre_replie(bench):
+    """Titre posé dans le contenu (séance de l'historique) : la barre le reprend dès qu'il sort de l'écran."""
+    for eng, dev in PHONES:
+        t = tag(dev, 'light')
+        with bench.page(eng, dev, 'light') as page:
+            seed(page, 'light', ppl_v2_today_json())
+            page.click('.tabbar [data-action="go-history"]')
+            page.wait_for_selector('.view.history')
+            page.locator('[data-action="open-history"]').first.click()
+            page.wait_for_selector('.view.history-detail .scr-title')
+            page.wait_for_timeout(300)
+            st = lambda: page.evaluate("""() => { const b = document.querySelector('#app .navbar'), ti = b.querySelector('.navbar__title');
+                return { echo: b.classList.contains('navbar--echo'), collapsed: b.classList.contains('navbar--collapsed'),
+                         text: ti.textContent, op: getComputedStyle(ti).opacity, hidden: ti.getAttribute('aria-hidden'),
+                         h1: document.querySelector('#app .scr-title').textContent.trim() }; }""")
+            s = st()
+            R.check(s['echo'] and not s['collapsed'] and s['text'] == s['h1'] and s['op'] == '0' and s['hidden'] == 'true',
+                    f'{t} titre dans le contenu : barre prête, titre compact caché {s}')
+            page.evaluate('window.scrollTo(0, 400)')
+            page.wait_for_timeout(500)
+            s = st()
+            R.check(s['collapsed'] and s['text'] == s['h1'] and float(s['op']) > .9, f'{t} défilé : la barre montre « {s["h1"]} » {s}')
+            shot(page, LOT, f'titre-replie-{t}')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_titre_replie])

@@ -372,7 +372,7 @@ function coachNotesHtml(notes) {
 }
 
 function renderCoachMine() {
-  const head = navBar({ title: 'Mon coach', large: false });
+  const head = navBar({ title: 'Mon coach', large: true });   // grand titre replié au défilement, comme Coach et Mon profil
   const p = myCoach();
   if (!p) {
     return `<div class="view view--grouped coach-mine-view">${head}<div class="scr">${!coach.state && coach.error

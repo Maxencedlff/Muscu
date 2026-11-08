@@ -51,7 +51,8 @@ function photoVaultCellHtml() {
 }
 
 // ── Écran ───────────────────────────────────────────────────
-// Barre sans titre : le grand titre est dans l'écran (comme Mesures › une mesure), pas de doublon
+// Barre sans titre : le grand titre est dans l'écran (comme Mesures › une mesure), repris par la barre au défilement
+// (observeLargeTitle, js/ui/navbar.js)
 function renderPhotoVault() {
   const open = pv.phase === 'open';
   const right = open ? `<button class="navbar__icon" data-action="pv-lock" aria-label="Verrouiller le coffre">${icon('lock', 22)}</button>` : '';

@@ -544,4 +544,29 @@ def t_hauteur_se(bench):
             shot(page, LOT, f'verrouille-iPhone_SE-{theme}')
 
 
-run_main(R, [t_coffre], once=[t_interruptions, t_hauteur_se, t_verrouillages, t_migration, t_illisible, t_sans_code_ni_biometrie, t_sans_module, t_tout_supprimer])
+def t_panel_apple(bench):
+    """Panel Apple du 08/11 (iPhone SE) : titre repris par la barre au défilement."""
+    face = png_file('coffre-face.png', 300, 400, (200, 80, 80))
+    back = png_file('coffre-dos.png', 600, 800, (80, 80, 200), band=(230, 230, 230))
+    with bench.frozen_page(NOW, 'webkit', 'iPhone SE', 'light') as page:
+        shell(page)
+        open_vault(page, 'light')
+        create_vault(page)
+        add_photo(page, face, pose='face', date='2026-10-03')
+        add_photo(page, face, pose='face')
+        add_photo(page, back, pose='back')
+        bar = lambda: page.evaluate("""() => { const b = document.querySelector('#app .navbar'), ti = b.querySelector('.navbar__title');
+            return { collapsed: b.classList.contains('navbar--collapsed'), text: ti.textContent, op: getComputedStyle(ti).opacity }; }""")
+        page.evaluate('window.scrollTo(0, 0)')
+        page.wait_for_timeout(400)
+        b = bar()
+        R.check(not b['collapsed'] and b['op'] == '0', f'coffre en haut : grand titre dans l\'écran, barre sans titre visible {b}')
+        page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+        page.wait_for_timeout(500)
+        b = bar()
+        R.check(b['collapsed'] and b['text'] == 'Coffre à photos' and float(b['op']) > .9, f'coffre défilé : « Coffre à photos » dans la barre {b}')
+        shot(page, LOT, 'panel-titre-replie-iPhone_SE')
+        R.check(not page.errors, f'aucune erreur JS : {page.errors}')
+
+
+run_main(R, [t_coffre], once=[t_panel_apple, t_interruptions, t_hauteur_se, t_verrouillages, t_migration, t_illisible, t_sans_code_ni_biometrie, t_sans_module, t_tout_supprimer])
