@@ -462,12 +462,13 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
   const last   = activeSession.lastDone?.ei === ei && activeSession.lastDone?.si === si;
   const rir    = m === 'reps' && !warm ? (last && rirShown() ? rirPickerHtml(ei, si, s, ex) : rirBadgeHtml(s)) : '';
   const rirSpoken = cleanRir(s.rir) !== null ? `, ${rirTxt(s.rir)} en réserve` : '';
-  // « Annuler » en ligne pendant 6 s : la ligne n'est plus un bouton (pas de bouton dans un bouton)
+  // « Annuler » en ligne pendant 6 s : la ligne se corrige toujours au toucher, mais n'est plus annoncée comme un bouton
+  // (pas de bouton dans un bouton pour VoiceOver) ; « Annuler » a sa propre action
   const u = undoForSet(ex, si);
   return `
       <div class="set-swipe">
         ${del}
-        <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" ${u ? '' : `data-action="edit-set" data-ei="${ei}" data-si="${si}" role="button" tabindex="0"`}>
+        <div class="session-set session-set--done ${warm ? 'session-set--warmup' : ''}" data-action="edit-set" data-ei="${ei}" data-si="${si}" ${u ? '' : 'role="button" tabindex="0"'}>
           <span class="sr-text">${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
           ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}
           ${u ? setUndoHtml(u) : `<span class="set-prev num" aria-hidden="true">${prev}</span>`}

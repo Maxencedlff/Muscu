@@ -167,7 +167,7 @@ def p_seance(r):
         if not passer_repos(r):
             raise Absent('pas de bouton pour passer le repos')
     with r.etape('corriger-ouvrir', 'Corriger la série validée : toucher la série', cle='Corriger une série validée'):
-        r.toucher('.view.session [data-action="edit-set"][data-ei="0"][data-si="0"]', 'série 1 validée')
+        r.toucher('.view.session [data-action="edit-set"][data-ei="0"][data-si="0"] .set-val', 'série 1 validée (sa charge)')
     with r.etape('corriger-enregistrer', 'Corriger : nouvelles reps enregistrées', cle='Corriger une série validée'):
         r.saisir('#editSetReps', 10, 'reps corrigées')
         r.toucher('.view.session [data-action="save-edit-set"]', 'enregistrer la correction')
