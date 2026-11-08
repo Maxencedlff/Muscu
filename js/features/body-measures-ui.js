@@ -12,9 +12,9 @@
 'use strict';
 
 const BM_PRIVATE = 'Privé : reste sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs';
-// Photos de bilan possibles (coach prêt à les recevoir, js/data/coach-photos.js) : « rien n'est montré à ton coach »
-// ne serait plus vrai pour l'écran, qui mène au coffre
-const bmPhotosToCoach = () => cphStudentShown() && !!cph.state?.ready;
+// Élève d'un coach : « rien n'est montré à ton coach » ne serait pas sûr pour l'écran, qui mène au coffre d'où partent
+// les photos de bilan, même avant que leur état soit relu du serveur (panels de la vague 3 : texte faux à l'arrivée)
+const bmPhotosToCoach = () => !!(account.user && coachRole().hasCoach) && !cphAgeBlocked() && !cphDisabled();
 const BM_SHARED = 'Partagées avec ton coach, qui voit leurs valeurs et leurs dates. Tes amis ne voient rien, et tes photos restent dans ton coffre, sauf celles que tu lui envoies toi-même';
 // Mensurations cochées dans Réglages › Partager avec mon coach (js/data/coach-share.js)
 function bmSharedWithCoach() { return !!account.user && coachShareOn('measures'); }

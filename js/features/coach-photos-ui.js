@@ -64,7 +64,7 @@ function cphVaultPhotoHtml(p) {
     <button class="btn btn--danger btn--full cph-gap" data-action="cph-remove" data-id="${esc(s.id)}">Retirer de chez ${cphCoachName()}</button>`;
 }
 function cphVaultFoot() {
-  return cphStudentShown() && cph.state.ready ? 'Rien n\'est montré à tes amis. Ton coach ne voit que les photos que tu lui envoies toi-même.'
+  return account.user && coachRole().hasCoach && !cphAgeBlocked() && !cphDisabled() ? 'Rien n\'est montré à tes amis. Ton coach ne voit que les photos que tu lui envoies toi-même.'
     : 'Rien n\'est montré à tes amis ni à ton coach.';
 }
 
