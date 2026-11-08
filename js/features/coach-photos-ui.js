@@ -147,11 +147,11 @@ async function cphSendGo(el) {
   if (currentView() === 'photo-vault') pvPaint();
   if (r.ok) {
     haptic('success');
-    // « Retirer » tout de suite, sans repasser par Mon coach › Photos de bilan (panel Apple du 08/11), comme « Annuler »
+    // « Annuler l'envoi » tout de suite, sans repasser par Mon coach › Photos de bilan (panel Apple du 08/11), comme « Annuler »
     // après une série : le geste vient d'être fait, pas de confirmation de plus
     const sentIds = photos.map(p => cphSentOf(p.id)?.id).filter(Boolean);
     showToast(r.sent > 1 ? `${plural(r.sent, 'photo envoyée', 'photos envoyées')} à ${coachName()}` : `Photo envoyée à ${coachName()}`,
-      sentIds.length ? { action: 'Retirer', duration: 6000, onAction: () => cphUndoSend(sentIds) } : {});
+      sentIds.length ? { action: 'Annuler l\'envoi', duration: 6000, onAction: () => cphUndoSend(sentIds) } : {});
     return;
   }
   const done = r.sent ? `${plural(r.sent, 'photo envoyée', 'photos envoyées')}, la suite n'est pas partie. ` : '';

@@ -293,7 +293,7 @@ function show(dir = 'none') {
   const target = (dir === 'pop' || dir === 'down' || dir === 'fade') ? (scrollMem[key] || 0) : 0;
   const name = currentView();
 
-  if (shownName && shownName !== name) screenOf(shownName).leave?.();
+  if (shownName && shownName !== name) { screenOf(shownName).leave?.(); dropScreenToast(); }
   shownName = name;
   screenOf(name).enter?.({ dir });
 

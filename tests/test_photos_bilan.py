@@ -221,7 +221,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         sp.wait_for_timeout(400)
         R.check('2 photos envoyées à max' in toast(sp), f'{t} toast après envoi ({toast(sp)!r})')
         # Panel Apple du 08/11 : « Retirer » tout de suite dans le toast ; touché, les deux photos repartent de chez le coach
-        R.check(sp.locator('.toast .toast__action').inner_text().strip() == 'Retirer', f'{t} toast d\'envoi : « Retirer »')
+        R.check(sp.locator('.toast .toast__action').inner_text().strip() == "Annuler l'envoi", f'{t} toast d\'envoi : « Annuler l\'envoi »')
         sp.click('.toast .toast__action')
         sp.wait_for_function("() => __sb.co.photos.length === 0", timeout=10000)
         sp.wait_for_timeout(300)
@@ -240,8 +240,12 @@ def t_envoi_complet(bench, eng, dev, theme):
         shot(sp, LOT, f'04c-coffre-marques-{t}')
         # Jour à une photo, depuis Mon coach › Photos de bilan › « Envoyer depuis mon coffre » (panel Apple du 08/11) : le coffre
         # s'ouvre (Face ID) directement sur la feuille d'envoi du jour le plus récent qui reste à envoyer, sans paragraphe d'explication
+        R.check(sp.locator('.toast.toast--action').count() == 1, f'{t} toast d\'envoi encore là avant de changer d\'écran')
+        sp.wait_for_timeout(900)
         sp.evaluate("navigate('coach-photos-mine')")
         sp.wait_for_selector('[data-action="cph-send-from-vault"]')
+        # Panels de la vague 3 : un toast avec action ne suit pas sur l'écran suivant
+        R.check(sp.locator('.toast.toast--action').count() == 0, f'{t} changement d\'écran : toast « Annuler l\'envoi » retiré')
         R.check('Dans le coffre, touche' not in sp.inner_text('.coach-photos-mine-view') and sp.locator('[data-action="cph-send-from-vault"] .icon--paperplane').count() == 1,
                 f'{t} « Envoyer depuis mon coffre » : avion en papier, sans mode d\'emploi')
         sp.click('[data-action="cph-send-from-vault"]')

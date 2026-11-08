@@ -20,6 +20,12 @@ const TOAST_ACTION_MIN_MS = 6000;   // le temps de lire et de toucher « Annuler
 const TOAST_RESUME_MS = 3000;       // après un toucher ou le focus de VoiceOver qui l'a retenu
 let toastPlace = null;              // placement du toast affiché, revu quand une feuille de la séance s'ouvre (placeToast)
 function placeToast() { toastPlace?.(); }
+// Changement d'écran (js/ui/router.js) : un toast avec action ne suit pas sur l'écran suivant, où l'on ne sait plus à quoi
+// s'applique son bouton (panels de la vague 3 : « Photo envoyée · Retirer » posé sur Mon coach). Un toast né pendant la
+// navigation même (supprimer puis revenir en arrière) est gardé : moins de 800 ms.
+function dropScreenToast() {
+  document.querySelectorAll('.toast.toast--action').forEach(t => { if (Date.now() - Number(t.dataset.at || 0) > 800) t.remove(); });
+}
 
 function toastCovers(el, avoid = document.querySelectorAll(TOAST_AVOID)) {
   const r = el.getBoundingClientRect();
@@ -45,6 +51,7 @@ function showToast(msg, opts = {}) {
   el.appendChild(text);
   if (opts.action) {
     el.classList.add('toast--action');
+    el.dataset.at = String(Date.now());   // toastOfScreen : retiré au changement d'écran
     const b = document.createElement('button');
     b.className = 'toast__action';
     b.textContent = opts.action;
