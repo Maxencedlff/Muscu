@@ -319,4 +319,16 @@ def t_toast_contenu(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_toast_contenu, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+def t_modifier_cibles(bench):
+    """Accueil (iPhone SE) : « Modifier » sur la même ligne que « À battre aujourd'hui », pas seul en dessous."""
+    for eng, dev in PHONES:
+        t = tag(dev, 'light')
+        with bench.page(eng, dev, 'light') as page:
+            seed(page, 'light', ppl_v2_today_json())
+            m = page.evaluate("""() => { const t = document.querySelector('.targets__title').getBoundingClientRect(), e = document.querySelector('.targets__edit').getBoundingClientRect();
+                return { same: e.top < t.bottom && e.bottom > t.top, right: e.left >= t.right - 1 }; }""")
+            R.check(m['same'] and m['right'], f'{t} « Modifier » à droite du titre, sur sa ligne {m}')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_modifier_cibles, t_toast_contenu, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
