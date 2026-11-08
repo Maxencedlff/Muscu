@@ -11,7 +11,7 @@ function orderBtnHtml(ei, cur) {
   if (orderChoiceFor(xs, ei, cur?.ei) !== 'later') return '';
   const g = ssGroupOf(xs, ei);
   const what = g ? `${ssKind(g.length).toLowerCase()} ${g.map(k => esc(xs[k].name)).join(' et ')}` : esc(xs[ei].name);
-  return `<button class="order-link" data-action="ex-later" data-ei="${ei}" aria-label="Plus tard : ${what}, passe en dernier">${icon('arrow.down.to.line', 14)}Plus tard</button>`;
+  return `<button class="order-link" data-action="ex-later" data-ei="${ei}" aria-label="Plus tard : ${what}, passe en dernier">${icon('arrow.turn.down.right', 14)}Plus tard</button>`;
 }
 
 // Nouvelle liste de la séance (mêmes objets, autre ordre) : les positions (ei) gardées ailleurs suivent

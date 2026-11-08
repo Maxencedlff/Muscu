@@ -99,4 +99,10 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.equal(app.sinceTxt(new Date(2026, 4, 3).getTime(), new Date(2026, 10, 8).getTime()), 'depuis mai');
     assert.equal(app.sinceTxt(new Date(2025, 11, 3).getTime(), new Date(2026, 10, 8).getTime()), 'depuis décembre 2025');
   });
+
+  test('« Plus tard » : flèche qui tourne, plus la flèche vers une ligne lue « Télécharger »', () => {
+    assert.match(src('js/features/session-order-ui.js'), /icon\('arrow\.turn\.down\.right'/);
+    assert.match(src('index.html'), /<symbol id="i-arrow\.turn\.down\.right"/);
+    assert.ok(!src('index.html').includes('i-arrow.down.to.line'), 'ancien symbole retiré');
+  });
 }

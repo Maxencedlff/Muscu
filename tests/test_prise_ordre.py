@@ -169,8 +169,8 @@ def t_ordre(bench, eng, dev, theme):
         start = names(page)
         R.check(page.locator('[data-action="ex-later"]').count() == 1, f'{t} « Plus tard » seulement sur l\'exercice en cours')
         R.check(page.locator('.ex-card[data-ei="0"] [data-action="ex-later"]').inner_text().strip() == 'Plus tard', f'{t} libellé « Plus tard »')
-        R.check(page.locator('[data-action="ex-later"] .icon--arrow-down-to-line').count() == 1 and page.locator('[data-action="ex-later"] .icon--chevron-down').count() == 0,
-                f'{t} « Plus tard » : flèche vers la ligne, pas le chevron de « Réduire la séance »')
+        R.check(page.locator('[data-action="ex-later"] .icon--arrow-turn-down-right').count() == 1 and page.locator('[data-action="ex-later"] .icon--chevron-down').count() == 0,
+                f'{t} « Plus tard » : flèche qui tourne, pas le chevron de « Réduire la séance »')
         R.check(page.locator('[data-action="ex-now"]').count() == 0, f'{t} pas de « Faire maintenant » en bas des cartes')
         R.check(not small(page, '.order-link'), f'{t} bouton de 44 px {small(page, ".order-link")}')
         R.check(no_hscroll(page), f'{t} pas de défilement de côté')
