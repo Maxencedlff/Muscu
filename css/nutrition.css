@@ -75,9 +75,9 @@ div.diet-meal__title { cursor: default; }
 .diet-check {
   flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  /* Pas encore coché : contour et coche en couleur d'action, le même bouton sur l'accueil et dans le journal (panels du
-     08/11 : en gris pâle, il passait pour l'anneau vide des calories) */
-  background: none; color: var(--tint); box-shadow: inset 0 0 0 2px var(--tint);
+  /* Pas encore coché : cercle vide en couleur d'action, le même sur l'accueil et dans le journal (en gris pâle, il passait
+     pour l'anneau vide des calories) ; la coche n'apparaît qu'une fois coché, comme en séance (panels de la vague 3) */
+  background: none; color: transparent; box-shadow: inset 0 0 0 2px var(--tint);
   transition: background-color .2s, box-shadow .2s, transform .2s;
 }
 .diet-check .icon { width: 22px; height: 22px; }
