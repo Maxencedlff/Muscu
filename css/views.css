@@ -103,10 +103,10 @@
   pointer-events: none; line-height: 1.3; text-align: center;
   width: max-content; max-width: calc(100vw - 32px);
 }
-/* Feuille Repos ouverte (après la validation d'une série) : le toast « Série validée · Annuler » passe au-dessus de son
-   voile (400), sinon « Annuler » n'est plus touchable (panel Apple du 08/11). Les autres feuilles (chrono d'une machine…)
-   le gardent dessous : il ne cache jamais leur action principale. */
-body:has(.sess-sheet--rest:not(.sess-sheet--out)) .toast { z-index: 450; }
+/* Une seule place, fond opaque (pas de texte lu au travers) ; la page garde sous son contenu la hauteur du toast
+   (js/core/dialogs.js : has-toast, --toast-room), pour que rien ne reste dessous en fin de défilement */
+.toast { background: var(--dlg-solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
+body.has-toast #app::after { content: ''; display: block; height: var(--toast-room, 0px); }
 /* Jamais coupé par « … » sur une ligne (panel du 07/11, iPhone SE) : deux lignes équilibrées au plus, trois à
    côté d'un bouton ; les textes restent courts (test « toasts courts », tests/unit/ergo.mjs) */
 .toast > span {
@@ -126,9 +126,6 @@ body:has(.sess-sheet--rest:not(.sess-sheet--out)) .toast { z-index: 450; }
 }
 .toast__action:active { background: var(--dlg-press); }
 /* Au-dessus de tout placement en bas (séance, barre de repos) : la série en cours ou « + Série » serait cachée */
-.toast.toast--top { top: calc(env(safe-area-inset-top, 0px) + 56px) !important; bottom: auto !important; }
-/* Au-dessus de la feuille Repos (js/core/dialogs.js : --toast-above, haut de la feuille moins le toast) */
-.toast.toast--above { top: max(calc(env(safe-area-inset-top, 0px) + 4px), var(--toast-above, 0px)) !important; bottom: auto !important; }
 /* Retenu (doigt ou VoiceOver dessus) : ne s'efface pas */
 .toast.toast--held { animation: none; opacity: 1; }
 @keyframes toastIn  { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }

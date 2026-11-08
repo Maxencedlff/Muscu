@@ -83,10 +83,14 @@ qui citent le libellé (le test du guide échoue si un libellé cité n'existe p
 - Une famille de filtres = une ligne qui défile de côté (`.mf__row`, `.ax__equip`), jamais un pavé de puces.
 - Un texte trop long se coupe avec des points de suspension sur la partie la moins utile (le nom), jamais
   au milieu d'un nombre.
-- Toast : 60 signes au plus (40 à côté d'un bouton), sur deux lignes plutôt que coupé ; son bouton dit ce qu'il
-  défait (« Annuler la série » quand le texte parle aussi de la suite). Il ne cache jamais la série en cours ni
-  « + Série » / « Plus tard » de sa carte (il passe alors en haut), et un toast avec « Annuler » reste 6 s au moins,
-  retenu sous le doigt ou le focus de VoiceOver (js/core/dialogs.js).
+- Toast (vague 3) : en séance, jamais pour annuler. Ce qui s'annule en séance l'est EN LIGNE, à sa place, 6 s, puis disparaît :
+  « Annuler » dans la colonne « Avant » de la série (validée, technique posée), ou une ligne « Mis en dernier · Annuler »
+  juste au-dessus de la carte de l'exercice (Plus tard, Faire maintenant, remplacé, échauffement, mini-série) ou à la place
+  d'une carte retirée ; VoiceOver annonce l'état (sessionUndo, js/features/session.js). Rien ne recouvre jamais rien.
+  Hors séance (et pour un simple message en séance) : UNE seule place, en bas, au-dessus de la barre d'onglets, de la
+  mini-barre ou du repos, fond opaque ; la page garde sous son contenu la hauteur du toast le temps qu'il est là ; il
+  disparaît au changement d'écran. 60 signes au plus (40 à côté d'un bouton), sur deux lignes plutôt que coupé ; son
+  bouton dit ce qu'il défait ; avec un bouton, 6 s au moins, retenu sous le doigt ou le focus de VoiceOver (js/core/dialogs.js).
 - Sombre : noir pur ; vérifier chaque écran en clair et en sombre, iPhone 13 et iPhone SE.
 
 ## 5. Ce qui va dans un menu avancé

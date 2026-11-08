@@ -83,8 +83,8 @@ def t_seance(bench, eng, dev, theme):
             page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); page.wait_for_timeout(150); skip_rest(page)
         page.click('[data-action="validate-set"][data-ei="0"][data-si="3"]'); page.wait_for_timeout(300)
         # Panel du 07/11 : le toast dit d'abord ce que son bouton annule (la série), puis la technique qui suit
-        R.check('Série 4 validée · puis drop set' in page.locator('.toast').inner_text() and page.locator('.toast__action').inner_text() == 'Annuler la série',
-                f'{t} toast « Série 4 validée · puis drop set · Annuler la série » ({page.locator(".toast").inner_text()})')
+        R.check('Série 4 validée · puis drop set' in sess_undo_text(page) and page.locator('.toast').count() == 0,
+                f'{t} « Annuler » en ligne : « Série 4 validée · puis drop set » ({sess_undo_text(page)!r})')
         R.check(page.evaluate("restActive") is False, f'{t} drop set : pas de repos avant le drop')
         R.check(page.locator('.session-set--subcur').count() == 1, f'{t} sous-ligne en cours mise en avant')
         # Reps du drop tapées, puis ✓ : charge proposée figée (plus « auto »)
@@ -93,7 +93,7 @@ def t_seance(bench, eng, dev, theme):
         x = page.evaluate("activeSession.exercises[0].sets[3].sub[0]")
         R.check(x.get('done') is True and x['reps'] == '6' and x['weight'] == '55' and 'auto' not in x, f'{t} drop validé : 55 × 6 {x}')
         R.check(page.evaluate("restActive") is True, f'{t} dernier drop : repos habituel lancé')
-        R.check('Drop 1 validé' in page.locator('.toast').inner_text(), f'{t} toast « Drop 1 validé »')
+        R.check('Drop 1 validé' in sess_undo_text(page), f'{t} « Drop 1 validé · Annuler » en ligne')
         skip_rest(page)
         # Volume de l'exercice : le drop compte (55 × 6 = 330 de plus)
         vol = page.evaluate("exVolume(activeSession.exercises[0], activeSession.exercises[0].sets.filter(s => s.done))")
@@ -220,7 +220,7 @@ def t_saute(bench, eng, dev, theme):
         page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); page.wait_for_timeout(300)
         R.check(bool(end0) and page.evaluate('restActive && restEndTime') == end0, f'{t} rattrapage : repos en cours intact')
         R.check(page.evaluate('activeSession.exercises[0].sets[0].sub[0].done') is True, f'{t} rattrapage : drop noté')
-        page.locator('.toast button', has_text='Annuler').last.click(); page.wait_for_timeout(300)
+        sess_undo(page)
         R.check(page.evaluate('restActive && restEndTime') == end0 and page.evaluate('activeSession.exercises[0].sets[0].sub[0].done') is False,
                 f'{t} Annuler : drop à refaire, repos d\'avant gardé')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
@@ -235,14 +235,14 @@ def t_superset(bench, eng, dev, theme):
         page.evaluate("activeSession.exercises[0].ss = 'a1'; activeSession.exercises[1].ss = 'a1'; ssNormalize(activeSession.exercises); persistSession(); render()")
         page.evaluate("setTechOn(0, 0, 'drop')"); page.wait_for_timeout(200)
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
-        R.check('puis drop set' in page.locator('.toast').inner_text() and page.evaluate('restActive') is False, f'{t} A1 : le drop suit, sans repos')
+        R.check('puis drop set' in sess_undo_text(page) and page.evaluate('restActive') is False, f'{t} A1 : le drop suit, sans repos')
         R.check(page.locator('.ss-card .session-set--subcur').count() == 1, f'{t} drop mis en avant dans le tour')
         page.evaluate("document.querySelector('.ss-card .tech').scrollIntoView({ block: 'center' })")
         shot(page, LOT, f'{t}-11-superset-drop')
         page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"]', '6')
         page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); page.wait_for_timeout(300)
         name1 = page.evaluate('activeSession.exercises[1].name')
-        R.check(f'Drop 1 validé · enchaîne {name1}' in page.locator('.toast').inner_text() and page.locator('.toast__action').inner_text() == 'Annuler le drop'
+        R.check(f'Drop 1 validé · enchaîne {name1}' in sess_undo_text(page)
                 and page.evaluate('restActive') is False, f'{t} après le drop : « Drop 1 validé · enchaîne {name1} », pas de repos')
         page.click('[data-action="validate-set"][data-ei="1"][data-si="0"]'); page.wait_for_timeout(300)
         R.check(page.evaluate('restActive') is True, f'{t} fin du tour : repos')
@@ -375,12 +375,10 @@ def t_pause_annonce(bench, eng, dev, theme):
         # Une seule chose en cours : la reprise, pas la série 2
         R.check(page.locator('.session-set--subcur').count() == 1 and page.locator('.session-set--current').count() == 0
                 and page.locator('[aria-current="step"]').count() == 1, f'{t} rest-pause : seule la reprise est mise en avant')
-        # Toast « Série 1 validée · puis rest-pause » : jamais sur la reprise à faire
-        # (en bas d'habitude ; en haut s'il cacherait « + Série » ou « Plus tard », js/core/dialogs.js)
-        R.check(page.evaluate("""(() => { const r = document.querySelector('.session-set--subcur').getBoundingClientRect(), t = document.querySelector('.toast');
-            const b = t && t.getBoundingClientRect();
-            return !!t && (r.bottom <= b.top || r.top >= b.bottom) && r.top >= document.querySelector('.navbar').getBoundingClientRect().bottom; })()"""),
-            f'{t} rest-pause : la reprise reste visible, hors du toast')
+        # Vague 3 : pas de toast, « Annuler » en ligne ; la mini-série à faire reste visible sous la barre
+        R.check(page.evaluate("""(() => { const r = document.querySelector('.session-set--subcur').getBoundingClientRect();
+            return !document.querySelector('.toast') && r.top >= document.querySelector('.navbar').getBoundingClientRect().bottom; })()"""),
+            f'{t} rest-pause : la mini-série visible, aucun toast')
         shot(page, LOT, f'{t}-11-pause-reprise')
         # Panel du 07/11 (iPhone SE) : passé en haut, le toast cachait le titre « Reps en réserve » de la série validée
         rir = page.evaluate("""(() => { const t = document.querySelector('.toast'); if (!t) return 'pas de toast';

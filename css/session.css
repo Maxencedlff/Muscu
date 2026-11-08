@@ -291,15 +291,28 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .rs { padding: 4px 16px 20px; display: flex; flex-direction: column; align-items: center; gap: 16px; color: var(--label); }
 .rs__title { font-size: 1rem; font-weight: 600; text-align: center; max-width: 100%; overflow-wrap: anywhere; }
 .rs__ring { position: relative; width: 220px; height: 220px; }
-/* Petite hauteur (iPhone SE) : anneau plus petit, pour laisser au-dessus de la feuille Repos la place du toast « Annuler » */
-@media (max-height: 700px) {
-  .sess-sheet--rest .rs__ring, .sess-sheet--rest .rest-ring--big { width: 176px; height: 176px; }
-  .sess-sheet--rest .rs__time { font-size: 60px; }
-}
+/* « Fin du repos à 18:32 » tient dans l'anneau (panels de la vague 3 : il débordait de l'anneau réduit) */
+.rs__resume { max-width: 168px; text-align: center; line-height: 1.2; }
 .rest-ring--big { width: 220px; height: 220px; }
 .rs__center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 .rs__time { font-family: var(--font-rounded); font-size: 72px; line-height: 1; font-weight: 300; letter-spacing: 0; }
 .rs__resume { font-size: 0.882rem; color: var(--label2); }
+/* Annuler en ligne (sessionUndo, js/features/session.js) : dans la colonne « Avant » de la série, ou en ligne au-dessus de
+   la carte de l'exercice ; prend sa place, ne recouvre rien */
+.set-undo {
+  min-height: 44px; min-width: 44px; padding: 0 2px; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 0.765rem; font-weight: 700; color: var(--tint); white-space: nowrap; position: relative; z-index: 1;
+}
+.set-undo:active { opacity: .5; }
+.set-undo--state { color: var(--green-text); font-weight: 600; }
+.ex-undo {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px;
+  margin: 0 0 8px; padding: 0 4px 0 16px; border-radius: var(--r-md); background: var(--cell);
+  font-size: var(--fs-subhead); color: var(--label2);
+}
+.ex-undo__text { min-width: 0; overflow-wrap: anywhere; }
+.ex-undo__btn { flex-shrink: 0; min-height: 44px; padding: 0 12px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--tint); cursor: pointer; }
+.ex-undo__btn:active { opacity: .5; }
 .rs__value { font-family: var(--font-rounded); font-size: 64px; line-height: 1; font-weight: 300; padding: 8px 0; }
 .rs-seg {
   display: grid; grid-template-columns: repeat(6, 1fr); width: 100%; max-width: 360px;

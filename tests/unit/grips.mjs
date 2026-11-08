@@ -198,7 +198,7 @@ export default function ({ test, run, reset, sameJSON, assert }) {
 
   // Séance simulée sur les vraies fonctions (currentSet de js/features/session.js) ; écran, stockage et natif
   // remplacés le temps du test, puis rendus (restore) pour les tests suivants
-  const STUBBED = ['render', 'scrollToCurrent', 'haptic', 'persistSession', 'cancelEffort', 'showToast', 'save'];
+  const STUBBED = ['render', 'scrollToCurrent', 'haptic', 'persistSession', 'cancelEffort', 'showToast', 'sessionUndo', 'save'];
   const stub = () => run(`globalThis.__gripOrig ||= { ${STUBBED.map(k => `${k}: typeof ${k} === 'function' ? ${k} : undefined`).join(', ')} };
     if (typeof sessProg !== 'function') globalThis.sessProg = () => data.programmes[activeSession.programme];`);
   // Test qui remplace des fonctions : rendues même s'il échoue
@@ -209,6 +209,7 @@ export default function ({ test, run, reset, sameJSON, assert }) {
     render = () => {}; scrollToCurrent = () => {}; haptic = () => {}; persistSession = () => {}; cancelEffort = () => { activeSession.effort = null; };
     syncNativeRest = () => { const c = currentSet(); nativeCalls.push(c ? activeSession.exercises[c.ei].name : null); };
     showToast = (msg, o) => { globalThis.lastToast = { msg, o }; };
+    sessionUndo = (msg, o) => { globalThis.lastToast = { msg, o }; };   // « Annuler » en ligne (js/features/session.js)
     activeSession = { category: 'pull', programme: 'ppl', startedAt: 1, exercises: ${list(specs)}, lastEi: ${lastEi} };
     editingSet = null;
   })()`); };

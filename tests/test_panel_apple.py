@@ -63,31 +63,40 @@ def validate_first_set(page):
     page.wait_for_timeout(450)
 
 
-def t_toast_sur_repos(bench):
-    """Toast « Série validée · Annuler » au-dessus du voile de la feuille Repos : son bouton reçoit le toucher, et il ne
-    cache aucun contrôle de la feuille (posé au-dessus d'elle, mesuré une fois la feuille arrivée)."""
-    for eng, dev in PHONES + (('webkit', 'iPhone 17 Pro Max'),):
+def t_annuler_en_ligne(bench):
+    """En séance, aucun toast flottant (panels de la vague 3) : « Annuler » en ligne, à sa place, 6 s.
+    Série validée : dans la colonne « Avant » de la série, feuille Repos ouverte ou non ; Plus tard : une ligne au-dessus
+    de la carte déplacée ; rien ne recouvre rien, VoiceOver l'annonce."""
+    for eng, dev in PHONES:
         t = tag(dev, 'light')
         with bench.page(eng, dev, 'light') as page:
             start_session(page)
-            validate_first_set(page)
-            hit = page.evaluate("""() => { const b = document.querySelector('.toast button'); if (!b) return null;
-                const r = b.getBoundingClientRect(), e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-                return { text: b.textContent.trim(), onButton: b === e || b.contains(e) }; }""")
-            R.check(hit and hit['onButton'], f'{t} feuille Repos ouverte : le bouton du toast reçoit le toucher {hit}')
-            # Ni le titre de la feuille ni « Réduire » sous le toast
-            over = page.evaluate("""() => { const t = document.querySelector('.toast').getBoundingClientRect();
-                return [...document.querySelectorAll('.sess-sheet--rest button, .sess-sheet--rest h2, .sess-sheet--rest .rs__time, .sess-sheet--rest .rs__next, .sess-sheet--rest .rs__title')].filter(e => {
-                  const b = e.getBoundingClientRect(); return b.height && b.bottom > t.top && b.top < t.bottom && b.right > t.left && b.left < t.right; })
-                  .map(e => e.textContent.trim()); }""")
-            R.check(not over, f'{t} le toast ne cache aucun bouton de la feuille Repos {over}')
-            shot(page, LOT, f'toast-repos-{t}')
-            done = page.evaluate("activeSession.exercises[0].sets[0].done")
-            page.click('.toast button')
+            page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]')
+            page.wait_for_timeout(450)
+            row = page.locator('.ex-card[data-ei="0"] .session-set').first
+            R.check(page.locator('.toast').count() == 0 and row.locator('[data-action="sess-undo"]').count() == 1,
+                    f'{t} série validée : pas de toast, « Annuler » dans sa ligne')
+            said = page.evaluate("document.getElementById('sr-polite').textContent")
+            R.check('validée' in said and 'Annuler' in said, f'{t} VoiceOver : état annoncé ({said!r})')
+            if page.locator('[data-action="expand-rest"]').count():
+                page.click('[data-action="expand-rest"]'); page.wait_for_selector('.sess-sheet--rest'); page.wait_for_timeout(400)
+                R.check(page.locator('.toast').count() == 0, f'{t} feuille Repos : aucun toast sur ses contrôles')
+                page.evaluate('closeSessSheets()'); page.wait_for_timeout(300)
+            shot(page, LOT, f'annuler-serie-{t}')
+            page.click('.ex-card[data-ei="0"] [data-action="sess-undo"]')
             page.wait_for_timeout(300)
-            R.check(done and not page.evaluate("activeSession.exercises[0].sets[0].done"), f'{t} « Annuler » touché : série dévalidée')
+            R.check(not page.evaluate("activeSession.exercises[0].sets[0].done") and page.locator('[data-action="sess-undo"]').count() == 0,
+                    f'{t} « Annuler » touché : série dévalidée, bouton parti')
+            # Plus tard : la ligne « Mis en dernier · Annuler » au-dessus de la carte déplacée
+            name0 = page.evaluate("activeSession.exercises[0].name")
+            page.click('[data-action="ex-later"][data-ei="0"]')
+            page.wait_for_timeout(400)
+            m = page.evaluate("""n => { const u = document.querySelector('.ex-undo'); if (!u) return null; const card = u.nextElementSibling;
+                return { text: u.textContent.trim(), next: card && card.textContent.includes(n), toast: !!document.querySelector('.toast') }; }""", name0)
+            R.check(m and m['text'].startswith('Mis en dernier') and m['next'] and not m['toast'], f'{t} Plus tard : ligne au-dessus de la carte déplacée {m}')
+            page.wait_for_timeout(6300)
+            R.check(page.locator('.ex-undo, [data-action="sess-undo"]').count() == 0, f'{t} après 6 s : la ligne s\'en va')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
-
 
 def t_repos_44(bench):
     """Feuille Repos et repos de la fiche exercice : chaque durée fait 44 px de haut au moins."""
@@ -303,27 +312,24 @@ def t_info_jamais_seul(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-def t_toast_contenu(bench):
-    """Toast avec action : jamais sur un contenu à lire ou à toucher. Rest-pause sur la série en cours (iPhone SE) : ni la
-    série ni l'en-tête de sa carte (nom, ⋯) sous le toast, texte sans point médian en début de ligne."""
-    for theme in ('dark', 'light'):
-        t = tag('iPhone SE', theme)
-        with bench.page('webkit', 'iPhone SE', theme) as page:
-            start_session(page, theme)
-            page.click('[data-action="tech-set"][data-ei="0"][data-si="0"]')
-            page.wait_for_selector('.ios-dialog__btn')
+def t_toast_hors_seance(bench):
+    """Hors séance : une seule place (en bas, au-dessus de la barre d'onglets), fond opaque, la page garde sa hauteur
+    sous le contenu, et le toast part au changement d'écran."""
+    for eng, dev in PHONES:
+        t = tag(dev, 'light')
+        with bench.page(eng, dev, 'light') as page:
+            seed(page, 'light', ppl_v2_today_json())
+            page.evaluate("showToast('Message de test')")
             page.wait_for_timeout(300)
-            tap_dialog(page, 'Rest-pause')
-            page.wait_for_selector('.toast')
+            m = page.evaluate("""() => { const t = document.querySelector('.toast').getBoundingClientRect(), tab = document.querySelector('.tabbar').getBoundingClientRect();
+                const bg = getComputedStyle(document.querySelector('.toast')).backgroundColor, room = getComputedStyle(document.querySelector('#app'), '::after').height;
+                return { above: t.bottom <= tab.top, opaque: !bg.startsWith('rgba'), room: parseFloat(room) >= t.height }; }""")
+            R.check(m['above'] and m['opaque'] and m['room'], f'{t} toast : au-dessus de la barre, opaque, place gardée sous le contenu {m}')
+            page.wait_for_timeout(900)
+            page.click('.tabbar [data-action="go-stats"]')
             page.wait_for_timeout(400)
-            m = page.evaluate("""() => { const t = document.querySelector('.toast'), r = t.getBoundingClientRect();
-                const hit = e => { if (!e) return false; const b = e.getBoundingClientRect(); return b.height > 0 && b.bottom > r.top && b.top < r.bottom; };
-                return { text: t.querySelector('span').textContent, head: hit(document.querySelector('.ex-card[data-ei="0"] .ex-card__head')),
-                         cur: hit(document.querySelector('[aria-current="step"]')) }; }""")
-            R.check(m['text'] == 'Rest-pause, série 1' and not m['head'] and not m['cur'], f'{t} toast rest-pause : ni la série ni le nom de l\'exercice dessous {m}')
-            shot(page, LOT, f'toast-rest-pause-{t}')
+            R.check(page.locator('.toast').count() == 0, f'{t} changement d\'écran : le toast simple s\'en va aussi')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
-
 
 def t_modifier_cibles(bench):
     """Accueil (iPhone SE) : « Modifier » sur la même ligne que « À battre aujourd'hui », pas seul en dessous."""
@@ -337,4 +343,4 @@ def t_modifier_cibles(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_modifier_cibles, t_toast_contenu, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+run_main(R, [], once=[t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])

@@ -28,7 +28,7 @@ function openSessSheet({ cls = '', label = '', html, full = false, onClose }) {
     closed = true;
     root.classList.add('sess-sheet--out');
     document.removeEventListener('keydown', onKey);
-    setTimeout(() => { root.remove(); if (typeof placeToast === 'function') placeToast(); }, 220);
+    setTimeout(() => root.remove(), 220);
     onClose?.();
   };
   const onKey = ev => { if (ev.key === 'Escape') root._close(); };
@@ -56,11 +56,6 @@ function openSessSheet({ cls = '', label = '', html, full = false, onClose }) {
   panel.addEventListener('pointercancel', end);
 
   document.body.appendChild(root);
-  // Toast affiché : replacé à l'ouverture, puis une fois la feuille arrivée (pendant son animation, ses boutons sont plus bas)
-  if (typeof placeToast === 'function') {
-    placeToast();
-    panel.addEventListener('animationend', () => placeToast(), { once: true });
-  }
   return root;
 }
 
@@ -340,9 +335,8 @@ function pickExercise(name) {
       xs.splice(ax.replaceEi, 1, exObj); xs.splice(g[0], 0, old); target = ax.replaceEi + 1;
     } else if (done.length) { old.sets = done; xs.splice(ax.replaceEi + 1, 0, exObj); target = ax.replaceEi + 1; }
     else { activeSession.exercises.splice(ax.replaceEi, 1, exObj); target = ax.replaceEi; }
-    showToast(done.length ? `Remplacé, ${plural(done.length, 'série gardée', 'séries gardées')}` : 'Exercice remplacé', {
-      action: 'Annuler', duration: 5000,
-      onAction: () => restoreSessionExercises(before),
+    sessionUndo(done.length ? `Remplacé, ${plural(done.length, 'série gardée', 'séries gardées')}` : 'Exercice remplacé', {
+      target: { ex: exObj }, onAction: () => restoreSessionExercises(before),
     });
   } else {
     activeSession.exercises.push(exObj);
@@ -519,7 +513,7 @@ async function exerciseMenu(ei) {
     activeSession.lastEi = null; activeSession.lastDone = null;
     editingSet = null;
     render();
-    showToast('Exercice retiré', { action: 'Annuler', duration: 5000, onAction: () => restoreSessionExercises(before) });
+    sessionUndo('Exercice retiré', { target: { at: ei }, onAction: () => restoreSessionExercises(before) });
   }
   persistSession();
 }

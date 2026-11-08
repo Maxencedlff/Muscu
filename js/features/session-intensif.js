@@ -125,7 +125,7 @@ function setTechOn(ei, si, t) {
   persistSession();
   render();
   const undo = () => { if (!activeSession) return; delete s.tech; delete s.sub; Object.assign(s, before.tech ? { tech: before.tech } : {}, before.sub ? { sub: before.sub } : {}); persistSession(); render(); };
-  showToast(t ? `${TECHS[t].label}, ${setSpokenName(ex, si).toLowerCase()}` : 'Technique retirée', { action: 'Annuler', duration: 4000, onAction: undo });
+  sessionUndo(t ? `${TECHS[t].label}, ${setSpokenName(ex, si).toLowerCase()}` : 'Technique retirée', { target: { ex, si }, onAction: undo });
 }
 
 // ── Validation d'une sous-série ──────────────────────────────
@@ -173,7 +173,7 @@ function validateSub(ds) {
   else requestAnimationFrame(focusCurrentSet);   // rattrapage : le ✓ touché a disparu, le focus va à la série à faire
   const done = `${capitalize(T.subName)} ${k + 1} validé${T.fem ? 'e' : ''}`;
   // Comme après une série (validateSet) : ce que « Annuler » défait d'abord, puis l'exercice qui suit
-  showToast(chain ? `${done} · enchaîne ${xs[chain.ei].name}` : done, { action: chain ? `Annuler ${T.fem ? 'la' : 'le'} ${T.subName}` : 'Annuler', duration: 4000, onAction: () => {
+  sessionUndo(chain ? `${done} · enchaîne ${xs[chain.ei].name}` : done, { target: { ex }, onAction: () => {
     if (!activeSession || !x.done) return;
     x.done = false; x.reps = wasReps;
     if (wasAuto) x.auto = true;

@@ -12,43 +12,32 @@ function announce(msg, assertive = false) {
   setTimeout(() => { el.textContent = msg; }, 30);
 }
 
-// Ce que le toast ne cache jamais : la série en cours (aria-current="step") et les boutons de sa carte
-// (« + Série », « Plus tard » : data-toast-avoid), ni « Reps en réserve » de la série validée (.rir : en haut, il
-// cachait son titre sur iPhone SE, panel du 07/11). S'il les couvre, il passe en haut de l'écran.
-// Ni un contenu à lire ou à toucher ailleurs (panels de la vague 3) : l'en-tête de la carte en cours (nom, ⋯), le code
-// d'une clé, les menus Avant / Après, un interrupteur, un champ de saisie (message, recherche).
-// Deux rangs : ce qui sert à l'instant (série en cours, « + Série », champs) passe avant le reste (en-tête de la carte en
-// cours, code d'une clé…) quand le haut et le bas gênent tous les deux.
-const TOAST_AVOID = ['[data-toast-avoid]', '[aria-current="step"]', '.rir', '.pcmp__sel', '[role="switch"]', 'textarea',
-  'input[type="text"]', 'input[type="search"]'].join(', ');
-const TOAST_AVOID_SOFT = ['.ex-card:has([aria-current="step"]) .ex-card__head', '.cph-code'].join(', ');
+// ── Toast : une seule place, rien dessous ───────────────────
+// Règle (docs/ERGONOMIE.md §4, panels de la vague 3) : en séance, ce qui s'annule l'est en ligne, à sa place
+// (sessionUndo, js/features/session.js) ; il ne reste ici que des messages. Le toast a UNE place, en bas, au-dessus de la
+// barre d'onglets, de la mini-barre de séance ou du repos (css/navigation.css, css/session.css), fond opaque. Le temps
+// qu'il est là, la page garde sous son contenu la hauteur du toast (classe has-toast, --toast-room) : on peut toujours
+// faire défiler la fin de la page au-dessus de lui. Il part au changement d'écran.
 const TOAST_ACTION_MIN_MS = 6000;   // le temps de lire et de toucher « Annuler » (WCAG 2.2.1)
 const TOAST_RESUME_MS = 3000;       // après un toucher ou le focus de VoiceOver qui l'a retenu
-let toastPlace = null;              // placement du toast affiché, revu quand une feuille de la séance s'ouvre (placeToast)
-function placeToast() { toastPlace?.(); }
-// Changement d'écran (js/ui/router.js) : un toast avec action ne suit pas sur l'écran suivant, où l'on ne sait plus à quoi
-// s'applique son bouton (panels de la vague 3 : « Photo envoyée · Retirer » posé sur Mon coach). Un toast né pendant la
-// navigation même (supprimer puis revenir en arrière) est gardé : moins de 800 ms.
+// Changement d'écran (js/ui/router.js) : le toast ne suit pas sur l'écran suivant. Celui qui naît pendant la navigation
+// même (supprimer puis revenir en arrière) est gardé : moins de 800 ms.
 function dropScreenToast() {
-  document.querySelectorAll('.toast.toast--action').forEach(t => { if (Date.now() - Number(t.dataset.at || 0) > 800) t.remove(); });
+  document.querySelectorAll('.toast').forEach(t => { if (Date.now() - Number(t.dataset.at || 0) > 800) removeToast(t); });
 }
-
-function toastCovers(el, avoid = document.querySelectorAll(TOAST_AVOID)) {
-  const r = el.getBoundingClientRect();
-  return [...avoid].some(a => {
-    const b = a.getBoundingClientRect();
-    return b.height > 0 && b.bottom > r.top && b.top < r.bottom && b.right > r.left && b.left < r.right;
-  });
+function removeToast(el) {
+  el?.remove();
+  if (!document.querySelector('.toast')) { document.body.classList.remove('has-toast'); document.body.style.removeProperty('--toast-room'); }
 }
 
 // toast simple, ou avec action : showToast('Import réussi', { action: 'Annuler', onAction, duration: 6000 })
 // { error: true } : annoncé en assertif et affiché au moins 4 s. Avec action : 6 s au moins, et retenu tant
 // qu'on le touche ou que VoiceOver est dessus (sinon « Annuler » disparaîtrait sous le doigt)
 function showToast(msg, opts = {}) {
-  const existing = $('.toast');
-  if (existing) existing.remove();
+  document.querySelectorAll('.toast').forEach(t => t.remove());
   const el = document.createElement('div');
   el.className = 'toast';
+  el.dataset.at = String(Date.now());
   const duration = Math.max(opts.duration || 2200, opts.error ? 4000 : 0, opts.action ? TOAST_ACTION_MIN_MS : 0);
   announce(opts.action ? `${msg}. ${opts.action} disponible` : msg, !!opts.error);
   el.style.setProperty('--toast-duration', duration + 'ms');
@@ -57,56 +46,17 @@ function showToast(msg, opts = {}) {
   el.appendChild(text);
   if (opts.action) {
     el.classList.add('toast--action');
-    el.dataset.at = String(Date.now());   // toastOfScreen : retiré au changement d'écran
     const b = document.createElement('button');
     b.className = 'toast__action';
     b.textContent = opts.action;
-    b.addEventListener('click', ev => { ev.stopPropagation(); el.remove(); opts.onAction?.(); });
+    b.addEventListener('click', ev => { ev.stopPropagation(); removeToast(el); opts.onAction?.(); });
     el.appendChild(b);
   }
   document.body.appendChild(el);
-  // Placement : en bas d'habitude (css/session.css, css/navigation.css) ; en haut s'il cache la série en cours
-  // ou les boutons de sa carte, vérifié aussi pendant le défilement qui suit une validation (scrollToCurrent)
-  // Revu à chaque défilement dans les deux sens : passé en haut pendant le défilement, il y restait et
-  // cachait « Reps en réserve » une fois la série centrée, alors que le bas était redevenu libre (iPhone SE)
-  // Feuille Repos ouverte (le toast passe au-dessus d'elle, css/views.css) : posé juste au-dessus du haut de la feuille,
-  // jamais sur un de ses contrôles (−15, Passer, +15, Ensuite, Réduire : panels de la vague 3). Mesuré une fois la feuille
-  // arrivée (placeToast à la fin de son animation, js/features/session-sheets.js), sinon ses boutons sont encore plus bas.
-  const place = () => {
-    if (!el.isConnected) return;
-    el.classList.remove('toast--top', 'toast--above');
-    const panel = document.querySelector('.sess-sheet--rest:not(.sess-sheet--out) .sess-sheet__panel');
-    if (panel) {
-      el.style.setProperty('--toast-above', `${Math.round(panel.getBoundingClientRect().top - el.offsetHeight - 8)}px`);
-      el.classList.add('toast--above');
-      return;
-    }
-    // Gêne d'une place : 2 par contenu essentiel couvert, 1 par contenu secondaire. Essais : en bas, en haut, puis juste
-    // sous l'en-tête de la carte en cours (ni son nom ni la série) ; la première place la moins gênante l'emporte
-    const cost = () => (toastCovers(el) ? 2 : 0) + (toastCovers(el, document.querySelectorAll(TOAST_AVOID_SOFT)) ? 1 : 0);
-    const head = document.querySelector(TOAST_AVOID_SOFT.split(', ')[0])?.getBoundingClientRect();
-    const tries = [() => {}, () => el.classList.add('toast--top'),
-      ...(head ? [() => { el.style.setProperty('--toast-above', `${Math.round(head.bottom + 6)}px`); el.classList.add('toast--above'); }] : [])];
-    let best = null;
-    for (const [i, apply] of tries.entries()) {
-      el.classList.remove('toast--top', 'toast--above');
-      apply();
-      const c = cost();
-      if (!best || c < best.c) best = { i, c };
-      if (!c) break;
-    }
-    el.classList.remove('toast--top', 'toast--above');
-    tries[best.i]();
-  };
-  toastPlace = place;
-  place();
-  requestAnimationFrame(place);   // écran redessiné juste après le toast (render qui suit la validation)
-  el.addEventListener('animationend', e => { if (e.animationName === 'toastIn') place(); });   // mesuré sans l'animation d'arrivée
-  // Retiré d'ailleurs (autre toast, dialogue, « Annuler ») : l'écouteur s'en va au défilement suivant
-  const onScroll = () => { if (!el.isConnected) window.removeEventListener('scroll', onScroll); else requestAnimationFrame(place); };
-  window.addEventListener('scroll', onScroll, { passive: true });
+  document.body.style.setProperty('--toast-room', `${Math.ceil(el.offsetHeight) + 16}px`);
+  document.body.classList.add('has-toast');
   let timer = 0;
-  const close = () => { el.remove(); window.removeEventListener('scroll', onScroll); };
+  const close = () => removeToast(el);
   const arm = ms => { clearTimeout(timer); timer = setTimeout(close, ms); };
   arm(duration);
   if (opts.action) {
@@ -143,7 +93,7 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
   return new Promise(resolve => {
     document.querySelector('.ios-dialog')?.remove();
     // Une alerte prend toute l'attention : un toast encore affiché (action précédente) disparaît
-    document.querySelector('.toast')?.remove();
+    removeToast(document.querySelector('.toast'));
     const root = document.createElement('div');
     root.className = `ios-dialog ios-dialog--${type}`;
     root.setAttribute('role', type === 'sheet' ? 'dialog' : 'alertdialog');

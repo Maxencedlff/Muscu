@@ -171,7 +171,7 @@ function addWarmup(ei) {
   haptic();
   persistSession();
   render();
-  showToast(`Échauffement ajouté : ${plural(added.length, 'série', 'séries')}`, { action: 'Annuler', duration: 5000, onAction: () => {
+  sessionUndo(`Échauffement ajouté : ${plural(added.length, 'série', 'séries')}`, { target: { ex }, onAction: () => {
     if (!activeSession || activeSession.exercises[ei] !== ex || added.some(s => s.done)) return;
     ex.sets = ex.sets.filter(s => !added.includes(s));
     persistSession();

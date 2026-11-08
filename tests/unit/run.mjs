@@ -132,6 +132,7 @@ const sandbox = {
   document: { querySelector: () => null, getElementById: () => null },
   // Seule dépendance hors donnée : le toast « Stockage plein » de save() (js/core/dialogs.js)
   showToast: (msg, opts = {}) => { toasts.push({ msg, ...opts }); },
+  announce: () => {},   // annonces VoiceOver (js/core/dialogs.js, hors de ce contexte)
 };
 sandbox.window = sandbox;
 const ctx = vm.createContext(sandbox);

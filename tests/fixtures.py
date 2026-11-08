@@ -424,3 +424,16 @@ def run_main(R, tests, once=()):
                     R.check(False, f'{fn.__name__} : exception {str(e).splitlines()[0]}')
         bench.close()
     sys.exit(R.done())
+
+
+def sess_undo_text(page):
+    """« Annuler » en ligne en séance (sessionUndo) : texte de l'état (ligne au-dessus d'une carte, ou nom du bouton
+    « Annuler » dans la ligne de la série) ; '' sans rien à annuler."""
+    return page.evaluate("""(() => { const l = document.querySelector('.ex-undo__text'); if (l) return l.textContent;
+        const b = document.querySelector('[data-action="sess-undo"]'); return b ? b.getAttribute('aria-label') : ''; })()""")
+
+
+def sess_undo(page):
+    """Touche « Annuler » en ligne (séance)."""
+    page.locator('[data-action="sess-undo"]').first.click()
+    page.wait_for_timeout(300)

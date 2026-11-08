@@ -116,7 +116,7 @@ def t_outils(bench, eng, dev, theme):
         shot(page, LOT, f'{t}-04-echauffement-seance')
         # Valider l'échauffement 1 : pas de RIR (série d'échauffement), pas de volume, toast « Échauffement 1 validé »
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(300)
-        R.check('Échauffement 1 validé' in page.locator('.toast').inner_text(), f'{t} toast échauffement')
+        R.check('Échauffement 1 validé' in sess_undo_text(page), f'{t} échauffement validé, « Annuler » en ligne')
         R.check(page.locator('.ex-card[data-ei="0"] .rir').count() == 0, f'{t} pas de sélecteur RIR sur un échauffement')
         R.check(page.locator('.ex-card[data-ei="0"] .ex-vol__delta').count() == 0, f'{t} échauffement sans volume comparé')
         skip_rest(page)
@@ -125,7 +125,7 @@ def t_outils(bench, eng, dev, theme):
 
         # ── RIR : après la 1re série de travail, un sélecteur facultatif (un seul tap pour valider reste inchangé)
         page.click('[data-action="validate-set"][data-ei="0"][data-si="3"]'); page.wait_for_timeout(300)
-        R.check(page.evaluate("activeSession.exercises[0].sets[3].done") is True and 'Série 1 validée' in page.locator('.toast').inner_text(), f'{t} série 1 de travail validée en un tap')
+        R.check(page.evaluate("activeSession.exercises[0].sets[3].done") is True and 'Série 1 validée' in sess_undo_text(page), f'{t} série 1 de travail validée en un tap')
         skip_rest(page)
         rir = page.locator('.ex-card[data-ei="0"] .rir')
         R.check(rir.count() == 1 and page.locator('.rir__btn').count() == 5, f'{t} sélecteur RIR sous la série validée (5 choix)')

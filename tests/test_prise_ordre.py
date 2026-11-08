@@ -200,10 +200,9 @@ def t_ordre(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(names(page) == [start[3], start[0], start[1], start[2], start[4]], f'{t} maintenant : ordre {names(page)}')
         R.check(cur_name(page) == start[3] and current(page) == [0, 0], f'{t} maintenant : série en cours suivie ({cur_name(page)})')
-        R.check('Mis en cours' in page.locator('.toast').last.inner_text(), f'{t} maintenant : message')
+        R.check('Mis en cours' in sess_undo_text(page), f'{t} maintenant : ligne « Mis en cours · Annuler »')
         R.check(page.evaluate("(r => r && r.top > 60 && r.bottom < innerHeight)(document.querySelector('.session-set--current')?.getBoundingClientRect())"), f'{t} maintenant : série en cours visible')
-        page.locator('.toast button', has_text='Annuler').last.click()
-        page.wait_for_timeout(300)
+        sess_undo(page)
         R.check(names(page) == start and cur_name(page) == start[0], f'{t} Annuler : ordre d\'avant')
 
         # Une série faite, puis Plus tard : l'exercice passe en dernier avec sa série validée, le suivant prend la main
@@ -214,7 +213,7 @@ def t_ordre(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(names(page) == start[1:] + [start[0]], f'{t} plus tard : en dernier {names(page)}')
         R.check(cur_name(page) == start[1], f'{t} plus tard : le suivant est en cours ({cur_name(page)})')
-        R.check(page.locator('.toast').last.inner_text().startswith('Mis en dernier'), f'{t} plus tard : message')
+        R.check(sess_undo_text(page).startswith('Mis en dernier'), f'{t} plus tard : ligne « Mis en dernier · Annuler »')
         R.check(page.evaluate('activeSession.exercises.at(-1).sets[0].done'), f'{t} plus tard : série validée gardée')
         shot(page, LOT, f'{t}-8-ordre-plus-tard')
 
@@ -265,8 +264,8 @@ def t_ordre_sous_serie(bench, eng, dev, theme):
         R.check(vis, f'{t} plus tard : la série en cours est à l\'écran')
         R.check(page.evaluate("activeSession.exercises.at(-1).sets[1].sub.length === 1"), f'{t} plus tard : le drop reste à remplir')
         shot(page, LOT, f'{t}-10-ordre-plus-tard-drop')
-        page.locator('.toast button', has_text='Annuler').last.click()
-        page.wait_for_timeout(500)
+        sess_undo(page)
+        page.wait_for_timeout(200)
         R.check(names(page) == start and page.locator('.session-set--subcur').count() == 1, f'{t} Annuler : ordre et drop en attente rendus')
         R.check(not page.errors, f'{t} erreurs JS {page.errors}')
 

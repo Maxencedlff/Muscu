@@ -27,7 +27,7 @@ function remapSessionOrder(next) {
 
 // focus : exercice du bloc qui devient celui en cours (null : le premier qui reste à faire).
 // Pendant un repos, la notification de fin et la Live Activity annoncent le nouvel exercice suivant.
-function applySessionOrder(next, focus, toast) {
+function applySessionOrder(next, focus, toast, moved = focus) {
   const s = activeSession;
   const undo = { xs: s.exercises, lastEi: s.lastEi ?? null, lastDone: s.lastDone ?? null };
   remapSessionOrder(next);
@@ -38,7 +38,7 @@ function applySessionOrder(next, focus, toast) {
   syncNativeRest();
   render();
   scrollToCurrent();   // la série en cours, au centre (sous la barre, jamais cachée par elle)
-  showToast(toast, { action: 'Annuler', duration: 4000, onAction: () => undoSessionOrder(undo, next) });
+  sessionUndo(toast, { target: { ex: moved }, onAction: () => undoSessionOrder(undo, next) });   // en ligne, au-dessus de la carte déplacée
 }
 
 // Sous-série en attente (drop set, rest-pause, cluster : js/data/intensif.js) hors du bloc désormais en cours :
@@ -81,7 +81,7 @@ function sessionDoLater(ei) {
   if (!xs?.[ei]) return;
   const next = orderDoLater(xs, ei);
   if (!next) return;
-  applySessionOrder(next, orderLaterFocus(xs, ei), 'Mis en dernier');
+  applySessionOrder(next, orderLaterFocus(xs, ei), 'Mis en dernier', xs[ei]);
 }
 
 registerActions({

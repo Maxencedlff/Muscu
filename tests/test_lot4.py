@@ -96,7 +96,7 @@ def t_flow(bench, eng, dev, theme):
         page.wait_for_timeout(700)
         R.check(page.evaluate('activeSession.exercises[0].sets[0].done') and page.evaluate('restActive'), f'{t} série validée et repos lancé')
         R.check(page.locator('.rest-mini').is_visible(), f'{t} barre de repos visible')
-        R.check('Série 1 validée' in page.locator('.toast').inner_text() and page.locator('.toast__action').count() == 1, f'{t} toast « Série 1 validée · Annuler »')
+        R.check('Série 1 validée' in sess_undo_text(page) and page.locator('.toast').count() == 0, f'{t} « Annuler » en ligne, pas de toast')
         ov = page.evaluate(OVERLAP_JS)
         R.check(ov['ok'], f'{t} la barre ne recouvre pas la série courante {ov}')
         bar = page.evaluate("(() => { const b = document.querySelector('.rest-mini').getBoundingClientRect(); return { h: b.height, l: b.left, r: innerWidth - b.right, bottom: innerHeight - b.bottom }; })()")
@@ -127,7 +127,7 @@ def t_flow(bench, eng, dev, theme):
         # Annuler une validation
         v1.click(); page.wait_for_timeout(300)
         R.check(page.evaluate('activeSession.exercises[0].sets[1].done'), f'{t} série 2 validée')
-        page.click('.toast__action'); page.wait_for_timeout(250)
+        sess_undo(page)
         R.check(not page.evaluate('activeSession.exercises[0].sets[1].done') and not page.evaluate('restActive'), f'{t} Annuler : done=false et repos arrêté')
         R.check(page.locator('.rest-mini').count() == 0, f'{t} Annuler : barre retirée')
         # Feuille détaillée du repos
@@ -334,66 +334,38 @@ def t_keyboard(bench):
         R.check(page.evaluate('activeSession.exercises[0].sets[0].done'), 'clavier : Entrée valide la série')
 
 
-# Toast posé sur la série en cours ou sur « + Série » / « Plus tard » de sa carte (panel du 07/11)
-TOAST_HIT_JS = """() => {
-  const t = document.querySelector('.toast');
-  if (!t) return null;
-  const r = t.getBoundingClientRect();
-  return [...document.querySelectorAll('[data-toast-avoid], [aria-current="step"]')].filter(a => {
-    const b = a.getBoundingClientRect();
-    return b.height > 0 && b.bottom > r.top && b.top < r.bottom;
-  }).map(a => a.className.split(' ')[0]);
-}"""
-
-
 def t_toast_place(bench, eng, dev, theme):
-    """Toast « Série N validée · Annuler » : jamais sur la série en cours ni sur les boutons de sa carte."""
+    """Vague 3 : plus de toast en séance. « Annuler » en ligne dans la série validée, à la même place à chaque fois
+    (colonne « Avant »), sans rien recouvrir."""
     t = tag(dev, theme)
     with bench.page(eng, dev, theme) as page:
         seed(page, theme, ppl_v2_today_json())
         start(page)
         n = page.evaluate('activeSession.exercises[0].sets.length')
-        R.check(page.locator('.ex-card[data-ei="0"] .ex-card__foot[data-toast-avoid]').count() == 1
-                and page.locator('.ex-card__foot[data-toast-avoid]').count() == 1, f'{t} seule la carte en cours protège ses boutons')
         for si in range(n - 1):
-            page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); page.wait_for_timeout(900)
-            hit = page.evaluate(TOAST_HIT_JS)
-            R.check(hit == [], f'{t} série {si + 1} validée : toast hors de la série en cours et de « + Série » ({hit})')
-        # Pire cas forcé : « + Série » juste derrière le toast du bas → le toast passe en haut, sans rien cacher
-        page.evaluate("showToast('Essai', { action: 'Annuler' })")
-        page.evaluate("""(() => { const t = document.querySelector('.toast').getBoundingClientRect(),
-            f = document.querySelector('.ex-card__foot[data-toast-avoid]').getBoundingClientRect();
-            window.scrollBy(0, f.top - t.top); })()""")
-        page.wait_for_timeout(300)
-        # Écran haut (Pixel 7) : la page ne défile pas assez pour mettre « + Série » derrière le toast du bas
-        derriere = bool(page.evaluate(TOAST_HIT_JS))
-        page.evaluate("showToast('Série 3 validée', { action: 'Annuler', onAction: () => {} })"); page.wait_for_timeout(300)
-        haut = page.evaluate("document.querySelector('.toast').classList.contains('toast--top')")
-        R.check(page.evaluate(TOAST_HIT_JS) == [] and (haut or not derriere),
-                f'{t} « + Série » derrière le toast : il passe en haut ({page.evaluate(TOAST_HIT_JS)}, derrière={derriere}, haut={haut})')
-        top = page.evaluate("[document.querySelector('.toast').getBoundingClientRect().top, document.querySelector('.navbar').getBoundingClientRect().bottom]")
-        R.check(top[0] >= top[1] - 1, f'{t} toast du haut sous la barre de titre {top}')
-        shot(page, LOT, f'toast-haut-{t}')
+            page.click(f'[data-action="validate-set"][data-ei="0"][data-si="{si}"]'); page.wait_for_timeout(600)
+            where = page.evaluate("""() => { const b = document.querySelector('[data-action="sess-undo"]'); if (!b) return null;
+                const row = b.closest('.session-set'), prev = row.querySelector('.set-val'); return { si: row.closest('.set-swipe') ? [...document.querySelectorAll('.ex-card[data-ei="0"] .set-swipe')].indexOf(row.closest('.set-swipe')) : -1,
+                  left: b.getBoundingClientRect().right <= prev.getBoundingClientRect().left + 1 }; }""")
+            R.check(page.locator('.toast').count() == 0 and where and where['si'] == si and where['left'],
+                    f'{t} série {si + 1} validée : « Annuler » dans sa ligne, colonne « Avant » ({where})')
+        shot(page, LOT, f'annuler-en-ligne-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
 def t_toast_hold(bench):
-    """Toast avec « Annuler » : 6 s au moins, retenu sous le doigt ou le focus de VoiceOver (WCAG 2.2.1)."""
+    """« Annuler » en ligne : 6 s, retenu tant que le focus de VoiceOver est dessus (WCAG 2.2.1), puis il s'en va."""
     with bench.page('webkit', 'iPhone 13', 'light') as page:
         seed(page, 'light', ppl_v2_today_json())
         start(page)
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(4500)
-        R.check(page.locator('.toast__action').count() == 1, 'toast Annuler encore là après 4,5 s')
-        page.locator('.toast').dispatch_event('pointerdown', {'bubbles': True}); page.wait_for_timeout(3000)
-        R.check(page.locator('.toast__action').count() == 1, 'doigt posé : toast retenu au-delà de 6 s')
-        page.locator('.toast').dispatch_event('pointerup', {'bubbles': True}); page.wait_for_timeout(1500)
-        R.check(page.locator('.toast__action').count() == 1, 'doigt levé : encore 3 s pour toucher')
-        page.wait_for_timeout(2000)
-        R.check(page.locator('.toast').count() == 0, 'puis il s\'efface')
+        R.check(page.locator('[data-action="sess-undo"]').count() == 1, '« Annuler » encore là après 4,5 s')
+        page.wait_for_timeout(2200)
+        R.check(page.locator('[data-action="sess-undo"]').count() == 0, 'puis il s\'efface (6 s)')
         page.click('[data-action="validate-set"][data-ei="0"][data-si="1"]'); page.wait_for_timeout(300)
-        page.focus('.toast__action'); page.wait_for_timeout(7000)
-        R.check(page.locator('.toast__action').count() == 1, 'focus (VoiceOver) sur « Annuler » : toast retenu')
-        page.click('.toast__action'); page.wait_for_timeout(300)
+        page.focus('[data-action="sess-undo"]'); page.wait_for_timeout(7000)
+        R.check(page.locator('[data-action="sess-undo"]').count() == 1, 'focus (VoiceOver) sur « Annuler » : retenu')
+        page.click('[data-action="sess-undo"]'); page.wait_for_timeout(300)
         R.check(page.evaluate('activeSession.exercises[0].sets[1].done') is False, 'Annuler atteint : série 2 à refaire')
 
 
@@ -407,7 +379,7 @@ def t_focus(bench):
         page.keyboard.press('Enter'); page.wait_for_timeout(500)
         R.check(act() == 'validate-set 0 1', f'valider : focus sur le ✓ de la série 2 ({act()!r})')
         R.check(page.evaluate("document.activeElement.closest('.session-set--current') !== null"), 'focus sur la série mise en avant')
-        page.focus('.toast__action'); page.keyboard.press('Enter'); page.wait_for_timeout(500)
+        page.focus('[data-action="sess-undo"]'); page.keyboard.press('Enter'); page.wait_for_timeout(500)
         R.check(act() == 'validate-set 0 0', f'Annuler : focus sur le ✓ de la série 1 ({act()!r})')
         page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(400)
         page.focus('.rest-mini__skip'); page.keyboard.press('Enter'); page.wait_for_timeout(400)
