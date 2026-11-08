@@ -11,8 +11,8 @@
   text-transform: uppercase; color: var(--label2);
 }
 .dashboard .navbar__sub { color: var(--label); font-weight: 600; font-size: 0.941rem; }
-/* Roue des réglages : même couleur que le titre de l'accueil */
-.dashboard .navbar__icon { color: var(--label); }
+/* Roue des réglages : couleur d'action, la même sur l'accueil et sur Programme (panels de la vague 3 : noire ici, bleue
+   là-bas, pour le même bouton) */
 
 .home { padding: 8px 16px 24px; }
 

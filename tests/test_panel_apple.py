@@ -361,4 +361,16 @@ def t_rest_pause_mots(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+def t_roue_meme_couleur(bench):
+    """La roue des Réglages : la même couleur (d'action) sur l'accueil et sur Programme."""
+    for theme in ('light', 'dark'):
+        t = tag('iPhone 13', theme)
+        with bench.page('webkit', 'iPhone 13', theme) as page:
+            seed(page, theme, ppl_v2_today_json())
+            c1 = page.evaluate("getComputedStyle(document.querySelector('.dashboard [data-action=\"go-settings\"]')).color")
+            page.click('.tabbar [data-tab="program"]'); page.wait_for_timeout(400)
+            c2 = page.evaluate("getComputedStyle(document.querySelector('.programmes [data-action=\"go-settings\"]')).color")
+            R.check(c1 == c2, f'{t} roue : même couleur partout ({c1} / {c2})')
+
+
+run_main(R, [], once=[t_roue_meme_couleur, t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
