@@ -14,6 +14,7 @@
 }
 .body-map__m--sec { background-color: var(--body-heat-sec); }
 .body-map__m--peak { background-color: var(--body-heat-max); }
+.body-map__m--low { background-color: var(--body-heat-low); }
 /* Muscle touché, bulle ouverte (js/ui/body-tip.js) : copie opaque du calque, éclaircie (pulsation
    douce de la luminosité), halo autour. Le halo (drop-shadow) est sur l'enveloppe : posé sur l'élément
    masqué, le masque le couperait. */
@@ -70,6 +71,7 @@
 .mlegend__dot::after { content: ''; position: absolute; inset: 0; background: var(--body-heat); opacity: var(--o, 0); }
 .mlegend__dot { flex-shrink: 0; }
 .mlegend__dot--peak::after { background: var(--body-heat-max); }
+.mlegend__dot--low::after { background: var(--body-heat-low); }
 .mlegend__unit { flex-basis: 100%; text-align: center; }
 
 /* ── Progrès › Séries par muscle ── */
@@ -80,6 +82,7 @@
 .mrow__bar { display: block; height: 6px; border-radius: 3px; background: var(--fill2); overflow: hidden; }
 .mrow__bar i { display: block; height: 100%; min-width: 0; border-radius: 3px; background: var(--body-heat); opacity: var(--o, 0); }
 .mrow__bar i.is-peak { background: var(--body-heat-max); }
+.mrow__bar i.is-low { background: var(--body-heat-low); }
 
 /* ── Feuille « Muscles ciblés » ── */
 .mpick { background: var(--cell2); border-radius: var(--r-md); overflow: hidden; }

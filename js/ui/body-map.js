@@ -62,6 +62,18 @@ function bodyHeatOpacity(i) {
   return v > 0 ? Math.round((0.15 + 0.85 * v) * 10) / 10 : 0;
 }
 
+// Paliers de Progrès (option tiers) : une teinte et une opacité nettement distinctes par palier (panel Apple du 08/11 :
+// « Travaillé » et « Objectif atteint », deux opacités du même orange, ne se distinguaient pas). Intensité = palier /
+// MUSCLE_LEVEL_MAX : Entretien et Travaillé en ocre (--body-heat-low, deux opacités), Objectif atteint en orange franc
+// (--body-heat), Gros volume en orange rouge (--body-heat-max). null : muscle non coloré.
+function bodyTier(i) {
+  const v = Math.max(0, Math.min(1, Number(i) || 0));
+  if (!v) return null;
+  if (v >= 1) return { tone: 'peak', op: 1 };
+  if (v >= 0.75) return { tone: 'goal', op: 1 };
+  return { tone: 'low', op: v >= 0.5 ? 0.9 : 0.4 };
+}
+
 const BODY_COLORS = { heat: 'var(--body-heat)', text: 'var(--label2)' };
 
 // Couleurs résolues depuis les tokens du thème affiché : pour l'image partagée (canvas), où var(--x)
@@ -78,15 +90,18 @@ function bodyViews(view) { return view === 'both' ? ['front', 'back'] : [view ==
 
 // Une vue : base, puis un calque teinté par muscle coloré (rien pour un muscle au repos)
 // secondary : muscles dessinés dans la couleur des secondaires (--body-heat-sec), au lieu de la chaleur
-// peak : muscles à l'intensité 1 dans la teinte du palier le plus haut (--body-heat-max, Progrès)
-function bodyViewHtml(kind, view, levels, heat, secondary = [], peak = false) {
+// peak : muscles à l'intensité 1 dans la teinte du palier le plus haut (--body-heat-max, récaps)
+// tiers : teinte et opacité de chaque palier (bodyTier : carte « Muscles » de Progrès)
+function bodyViewHtml(kind, view, levels, heat, secondary = [], peak = false, tiers = false) {
   const color = heat === BODY_COLORS.heat ? '' : `background-color:${esc(heat)};`;
   const layers = BODY_IMG.bodies[kind][view].map(m => {
-    const op = bodyHeatOpacity(levels[m]);
+    const tier = tiers ? bodyTier(levels[m]) : null;
+    const op = tier ? tier.op : bodyHeatOpacity(levels[m]);
     if (!op) return '';
     const url = `url(${bodyImgUrl(kind, view, m)})`;
-    const sec = secondary.includes(m), top = peak && !sec && levels[m] >= 1;
-    return `<i class="body-map__m${sec ? ' body-map__m--sec' : ''}${top ? ' body-map__m--peak' : ''}" data-muscle="${m}" data-heat="${op}" style="${sec ? '' : color}background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;
+    const sec = secondary.includes(m), top = !sec && (tier ? tier.tone === 'peak' : peak && levels[m] >= 1);
+    const low = !sec && tier?.tone === 'low';
+    return `<i class="body-map__m${sec ? ' body-map__m--sec' : ''}${top ? ' body-map__m--peak' : ''}${low ? ' body-map__m--low' : ''}" data-muscle="${m}" data-heat="${op}" style="${sec || low ? '' : color}background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;
   }).join('');
   return `<span class="body-map__fig body-map__${view}"><img class="body-map__base" src="${bodyImgUrl(kind, view, 'base')}" alt="" draggable="false" decoding="async">${layers}</span>`;
 }
@@ -102,10 +117,11 @@ function bodyViewHtml(kind, view, levels, heat, secondary = [], peak = false) {
 //   captions   true : « Face » et « Dos » sous les vues
 //   secondary  identifiants des muscles secondaires (fiche exercice) : autre teinte (--body-heat-sec)
 //   peak       true : muscles à l'intensité 1 dans la teinte du palier le plus haut (--body-heat-max)
+//   tiers      true : une teinte par palier (bodyTier), au lieu d'opacités d'une seule teinte
 //   tap        true : un toucher sur un muscle ouvre une bulle (action body-tap, js/features/muscle-tip.js)
 // Le conteneur prend la largeur que lui donne la feuille de style (ou sa hauteur : premier lancement),
 // le rapport largeur / hauteur est fixé par aspect-ratio.
-function bodyMapHtml(levels = {}, { view = 'both', body = bodySilhouette(), label = '', className = '', colors = {}, captions = false, secondary = [], peak = false, tap = false } = {}) {
+function bodyMapHtml(levels = {}, { view = 'both', body = bodySilhouette(), label = '', className = '', colors = {}, captions = false, secondary = [], peak = false, tiers = false, tap = false } = {}) {
   const c = { ...BODY_COLORS, ...colors };
   const views = bodyViews(view);
   const safe = levels && typeof levels === 'object' ? levels : {};
@@ -114,7 +130,7 @@ function bodyMapHtml(levels = {}, { view = 'both', body = bodySilhouette(), labe
   const ratio = `${Math.round(rowW * BODY_IMG.w)} / ${BODY_IMG.h}`;
   const fig = `${Math.round(10000 / rowW) / 100}%`;
   const sec = Array.isArray(secondary) ? secondary : [];
-  const figs = views.map(v => bodyViewHtml(kind, v, safe, c.heat, sec, peak)).join('');
+  const figs = views.map(v => bodyViewHtml(kind, v, safe, c.heat, sec, peak, tiers)).join('');
   const caps = captions ? `<span class="body-map__caps" aria-hidden="true" style="--fig:${fig};color:${esc(c.text)}">${views.map(v => `<span>${v === 'front' ? 'Face' : 'Dos'}</span>`).join('')}</span>` : '';
   const a11y = label ? ` role="img" aria-label="${esc(label)}"` : ' aria-hidden="true"';
   const act = tap ? ' data-action="body-tap"' : '';

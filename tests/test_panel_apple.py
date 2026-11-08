@@ -203,4 +203,36 @@ def t_progres_tendance(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_progres_tendance, t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+def _lab(rgb):
+    f = lambda x: x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4
+    r, g, b = (f(c / 255) for c in rgb)
+    X, Y, Z = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047, 0.2126 * r + 0.7152 * g + 0.0722 * b, (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883
+    h = lambda t: t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+    return 116 * h(Y) - 16, 500 * (h(X) - h(Y)), 200 * (h(Y) - h(Z))
+
+
+def _delta_e(a, b):
+    return sum((x - y) ** 2 for x, y in zip(_lab(a), _lab(b))) ** .5
+
+
+def t_silhouette_paliers(bench):
+    """Progrès › carte Muscles : chaque palier de la légende se distingue de son voisin (écart de couleur CIELAB),
+    « Travaillé » et « Objectif atteint » surtout (avant : deux opacités du même orange, écart d'environ 17)."""
+    for theme in ('light', 'dark'):
+        t = tag('iPhone 13', theme)
+        with bench.page('webkit', 'iPhone 13', theme) as page:
+            seed(page, theme, ppl_v2_today_json())
+            page.click('.tabbar [data-action="go-stats"]')
+            page.wait_for_selector('.mlegend__dot')
+            dots = page.evaluate("""() => [...document.querySelectorAll('.mcard .mlegend__dot, .mlegend__dot')].slice(0, 5).map(d => {
+                const rgb = s => s.match(/[\\d.]+/g).slice(0, 3).map(Number), a = getComputedStyle(d, '::after');
+                return { base: rgb(getComputedStyle(d).backgroundColor), top: rgb(a.backgroundColor), o: parseFloat(a.opacity) }; })""")
+            seen = [[round(b * (1 - d['o']) + c * d['o']) for b, c in zip(d['base'], d['top'])] for d in dots]
+            gaps = [round(_delta_e(seen[i], seen[i + 1])) for i in range(len(seen) - 1)]
+            R.check(len(gaps) == 4 and gaps[2] >= 40 and min(gaps) >= 12, f'{t} paliers voisins distincts (Pas travaillé › Gros volume) {gaps}')
+            page.locator('.mcard').first.scroll_into_view_if_needed()
+            shot(page, LOT, f'silhouette-paliers-{t}')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
