@@ -294,8 +294,8 @@ def t_fil(bench, eng, dev, theme):
         d = page.inner_text('.social-session-view')
         R.check('80 kg × 8 · 7' in d and 'Dips' in d and 'note privée' not in d, f'{t} détail des séries ({d[:120]!r})')
         # Volume : charge notée × reps, poids du corps non compté (Dips, Pompes) ; ni flèches ni notes
-        vol = page.locator('.social-session-view .tile').first.inner_text()
-        R.check('1,6 t' in vol and 'volume' in vol, f'{t} volume de la séance d\'un ami : 1 560 kg, soit 1,6 t ({vol!r})')
+        vol = page.locator('.social-session-view .tile').nth(1).inner_text()   # Durée, Volume, Séries (même ordre que le fil)
+        R.check('1,6 t' in vol and 'Volume' in vol, f'{t} volume de la séance d\'un ami : 1 560 kg, soit 1,6 t ({vol!r})')
         R.check(page.locator('.social-session-view .review-trend, .social-session-view .review-notes').count() == 0, f'{t} séance d\'un ami : ni flèches ni notes')
         R.check(any(c.get('only_user') == ids['lea'] for c in calls(page, 'feed')), f'{t} séances visibles de l\'ami chargées pour les records')
         R.check(page.locator('.social-session-view .review-rec').count() == 0, f'{t} plus de 20 séances visibles : aucun record annoncé sur une partie seulement')
@@ -332,7 +332,7 @@ def t_record_ami(bench, eng, dev, theme):
         page.locator('.feed-card[data-id="s1"] .feed-card__main').click()
         page.wait_for_selector('.social-session-view .review-rec')
         d = page.inner_text('.social-session-view')
-        R.check(page.locator('.social-session-view .tile').first.inner_text().startswith('1,1 t'), f'{t} volume sans poids du corps : 1 080 kg, soit 1,1 t ({d[:200]!r})')
+        R.check(page.locator('.social-session-view .tile').nth(1).inner_text().startswith('1,1 t'), f'{t} volume sans poids du corps : 1 080 kg, soit 1,1 t ({d[:200]!r})')
         rec = page.inner_text('.social-session-view .review-rec')
         R.check(page.locator('.social-session-view .review-rec').count() == 1 and 'Squat haltère' in rec and 'Record charge' in rec and '22,5 kg' in rec and 'avant' not in rec, f'{t} un record nommé, sans ancienne valeur ({rec!r})')
         R.check(page.locator('.social-session-view .review-trend').count() == 0, f'{t} aucune flèche')
@@ -370,7 +370,7 @@ def t_record_note(bench, eng, dev, theme):
         rec = page.inner_text('.social-session-view .review-rec')
         R.check('Squat' in rec and 'Record charge' in rec and '100 kg' in rec, f'{t} séance : record noté sans recalcul ({rec!r})')
         tiles = page.locator('.social-session-view .tile').all_inner_texts()
-        R.check(tiles[0].startswith('500') and tiles[2].startswith('1'), f'{t} échauffement hors du volume et des séries ({tiles})')
+        R.check(tiles[1].startswith('500') and tiles[2].startswith('1'), f'{t} échauffement hors du volume et des séries ({tiles})')   # Durée, Volume, Séries
         d = page.inner_text('.social-session-view')
         R.check('Échauffement 40 kg × 8' in d.replace('\u202f', ' ').replace('\u00a0', ' ') and 'RIR' not in d, f'{t} échauffement à part, RIR réservé au coach')
         shot(page, LOT, f'5c-seance-ami-record-note-{t}')
