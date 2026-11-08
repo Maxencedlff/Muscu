@@ -569,7 +569,7 @@ def t_panel_apple(bench):
             return [!!p.querySelector('.icon--chevron-up-chevron-down'), getComputedStyle(s).color === getComputedStyle(document.querySelector('.navbar__text')).color]; })""")
         R.check(sel == [[True, True], [True, True]], f'coffre : menus Avant / Après avec chevrons, valeur en couleur d\'action {sel}')
         bar = lambda: page.evaluate("""() => { const b = document.querySelector('#app .navbar'), ti = b.querySelector('.navbar__title');
-            return { collapsed: b.classList.contains('navbar--collapsed'), text: ti.textContent, op: getComputedStyle(ti).opacity }; }""")
+            return { collapsed: b.classList.contains('navbar--collapsed'), text: ti.textContent, op: getComputedStyle(ti).opacity, cut: ti.scrollWidth > ti.clientWidth + 1 }; }""")
         page.evaluate('window.scrollTo(0, 0)')
         page.wait_for_timeout(400)
         b = bar()
@@ -577,7 +577,7 @@ def t_panel_apple(bench):
         page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
         page.wait_for_timeout(500)
         b = bar()
-        R.check(b['collapsed'] and b['text'] == 'Coffre à photos' and float(b['op']) > .9, f'coffre défilé : « Coffre à photos » dans la barre {b}')
+        R.check(b['collapsed'] and b['text'] == 'Coffre' and float(b['op']) > .9 and not b['cut'], f'coffre défilé : « Coffre » entier dans la barre, à côté de « Verrouiller » {b}')
         shot(page, LOT, 'panel-titre-replie-iPhone_SE')
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
 

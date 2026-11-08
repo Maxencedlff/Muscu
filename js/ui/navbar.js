@@ -184,7 +184,7 @@ function routeTitle(route, isRoot) {
 // Écran dont le titre est posé dans le contenu (h1.scr-title ou h1.pv-title : coffre, photos de bilan, séance d'une
 // amie, séance de l'historique…) sous une barre sans titre : la barre reprend ce titre quand il sort de l'écran, comme
 // le grand titre d'iOS (panel Apple du 08/11 : barre restée vide au défilement). Le titre du contenu reste celui que
-// lit VoiceOver ; la copie de la barre lui est cachée.
+// lit VoiceOver ; la copie de la barre lui est cachée. data-bar-title : version courte pour la barre.
 let largeObserver = null;
 function observeLargeTitle() {
   largeObserver?.disconnect();
@@ -195,7 +195,7 @@ function observeLargeTitle() {
     const title = bar.querySelector('.navbar__title');
     h1 = bar.parentElement?.querySelector('.scr h1.scr-title, .scr h1.pv-title');
     if (!h1 || !title || title.textContent.trim()) return;   // barre qui a déjà son titre : rien à reprendre
-    title.textContent = h1.textContent.trim();
+    title.textContent = h1.dataset.barTitle || h1.textContent.trim();   // titre court si le long ne tient pas (« Coffre »)
     title.setAttribute('aria-hidden', 'true');
     bar.classList.add('navbar--echo');
   }
