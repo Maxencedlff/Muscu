@@ -246,10 +246,10 @@ def t_coach(bench, eng, dev, theme):
             const r = document.createRange(); r.selectNodeContents(e); const lh = parseFloat(getComputedStyle(e).lineHeight) || 16;
             return Math.round(e.getBoundingClientRect().height / lh); })""")
         R.check(lines and max(lines) <= 2, f'{t} sous-titres des élèves : deux lignes au plus {lines}')
-        if page.evaluate('innerWidth') <= 360:
+        if page.evaluate('innerWidth') <= 400:
             under = page.evaluate("""() => [...document.querySelectorAll('.coach-team .coach-student-row')].filter(r => r.querySelector('.cs-badges')).map(r =>
                 r.querySelector('.cs-badges').getBoundingClientRect().top >= r.querySelector('.social-row__name').getBoundingClientRect().bottom)""")
-            R.check(all(under), f'{t} 320 pt : pastilles sous le nom {under}')
+            R.check(all(under), f'{t} moins de 400 pt : pastilles sous le nom {under}')
         # Fiche d'un élève : deux touchers
         page.evaluate("document.querySelector('.coach-student-row').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))")
         page.wait_for_timeout(300)

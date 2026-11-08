@@ -30,9 +30,9 @@
 .coach-student-row .social-row__text > .cell__sub, .coach-student-row .social-row__text > .progress-sig {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
-/* Moins de 360 pt (iPhone SE) : les pastilles passent sous le nom, le texte prend toute la largeur (panel Apple de la
-   vague 3 : sous-titre sur 5 lignes à côté de deux pastilles) */
-@media (max-width: 360px) {
+/* Moins de 400 pt (iPhone SE à iPhone 16) : les pastilles passent sous le nom, le texte prend toute la largeur (panels de la
+   vague 3 : sous-titre sur 5 lignes sur SE, 4 lignes à 390 pt, à côté de deux pastilles) */
+@media (max-width: 400px) {
   .coach-student-row.social-row { flex-wrap: wrap; }
   .coach-student-row .social-row__main { flex: 1 1 calc(100% - 30px); min-width: 0; }
   .coach-student-row > .icon { order: 1; }
