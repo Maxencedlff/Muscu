@@ -101,4 +101,38 @@ def t_repos_44(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_titre_replie, t_toast_sur_repos, t_repos_44])
+def make_superset(page):
+    """⋯ du 1er exercice › Superset avec… › le 3e."""
+    page.click('.ex-card__more[data-ei="0"]')
+    page.wait_for_timeout(300)
+    tap_dialog(page, 'Superset avec')
+    page.wait_for_selector('.ssp')
+    page.locator('.ssp .mpick__row').nth(1).click()
+    page.click('.sheet__btn--confirm')
+    page.wait_for_selector('.ss-card')
+    page.wait_for_timeout(300)
+
+
+def t_superset_noms(bench):
+    """Superset sur iPhone SE : un nom long revient à la ligne (deux lignes au plus) au lieu d'être coupé."""
+    for theme in ('dark', 'light'):
+        t = tag('iPhone SE', theme)
+        with bench.page('webkit', 'iPhone SE', theme) as page:
+            start_session(page, theme)
+            make_superset(page)
+            page.evaluate("activeSession.exercises[0].name = 'Tirage vertical poulie prise serrée'; render()")
+            page.wait_for_timeout(300)
+            m = page.evaluate("""() => { const e = document.querySelector('.ss-member__name .ex-howto__text, .ss-member__name');
+                const lh = parseFloat(getComputedStyle(e).lineHeight) || 20;
+                const r = document.createRange(); r.selectNodeContents(e);
+                return { text: e.textContent.trim(), lines: Math.round(r.getBoundingClientRect().height / lh), cut: e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1 }; }""")
+            R.check(m['text'].startswith('Tirage vertical poulie prise serrée') and m['lines'] == 2 and not m['cut'], f'{t} superset : nom entier sur deux lignes {m}')
+            # L'objectif reste sous le nom, sans le chevaucher
+            gap = page.evaluate("""() => { const n = document.querySelector('.ss-member__name .ex-howto__text, .ss-member__name'), g = document.querySelector('.ex-goal--member');
+                const r = document.createRange(); r.selectNodeContents(n); return Math.round(g.getBoundingClientRect().top - r.getBoundingClientRect().bottom); }""")
+            R.check(gap >= 0, f'{t} superset : objectif sous le nom sur deux lignes (écart {gap} px)')
+            shot(page, LOT, f'superset-noms-{t}')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms])
