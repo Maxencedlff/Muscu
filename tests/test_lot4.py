@@ -137,7 +137,7 @@ def t_flow(bench, eng, dev, theme):
         R.check(page.locator('#customRest').count() == 0, f'{t} plus de champ « Durée en secondes »')
         page.click('.rs-seg__btn[data-secs="120"]'); page.wait_for_timeout(150)
         R.check(page.evaluate('restTotal') == 120 and 115 <= page.evaluate('restTimeLeft') <= 120, f'{t} préréglage 2:00')
-        R.check('Reprise à' in page.locator('.rs__resume').inner_text(), f'{t} heure de reprise affichée')
+        R.check('Fin du repos à' in page.locator('.rs__resume').inner_text(), f'{t} heure de fin du repos affichée')
         ph = page.evaluate("document.querySelector('.sess-sheet__panel').getBoundingClientRect().height <= innerHeight - 16")
         R.check(ph, f'{t} hauteur de la feuille bornée')
         shot(page, LOT, f'repos-feuille-{t}')

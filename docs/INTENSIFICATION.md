@@ -70,21 +70,21 @@ Aucune n'a cluster, top set ni back-off : ce sont pourtant les mots des coachs, 
   charge de la série (`auto`). La dernière fois, même technique sur la série de même rang : ses reps sont l'objectif
   en gris (« Avant » de la sous-ligne), et sa charge est reprise pour un drop seulement si elle est plus légère que
   la charge d'avant (sinon la règle des 80 % : un drop n'est jamais plus lourd). Sans dernière fois : reps à taper.
-- **Repos** : après la série, pas de repos avant un drop (comme Hevy) ; 15 s avant une reprise de rest-pause,
+- **Repos** : après la série, pas de repos avant un drop (comme Hevy) ; 15 s avant une mini-série de rest-pause,
   20 s entre deux blocs de cluster (barre de repos réduite) ; après la dernière sous-série, le repos habituel, ou
   dans un superset l'exercice suivant du tour (« Enchaîne », sans repos, comme après une série). Le minuteur ne
   bouge que si la sous-série suit la dernière série validée : rattraper un drop oublié ou le corriger pendant un
   autre repos le laisse tel quel, et « Annuler » rend le repos d'avant. Pendant la pause, la barre annonce
-  « Ensuite : Reprise 1 · 32 kg × 4 » sans le nom de l'exercice (celui qu'on vient de faire, dit aux lecteurs
+  « Ensuite : Mini-série 1 · 32 kg × 4 » sans le nom de l'exercice (celui qu'on vient de faire, dit aux lecteurs
   d'écran) : la ligne tient entière sur iPhone SE. Le toast « Série 1 validée · puis rest-pause » et son bouton
   « Annuler la série » (il défait la validation ; la technique se retire par le × de son bloc) se pose au-dessus de la barre, ou en haut de l'écran s'il cacherait « + Série » ou « Plus tard » : il peut
-  cacher les séries suivantes, jamais la reprise à faire, que l'écran centre.
+  cacher les séries suivantes, jamais la mini-série à faire, que l'écran centre.
 - **Une seule chose en cours** : pendant la pause (ou avant un drop), la sous-série qui suit est seule mise en avant
   (`session-set--subcur`, `aria-current`) ; la série suivante ne l'est qu'une fois la sous-série faite.
 - **Sous-série sautée** : seule la sous-série de la série qu'on vient de valider est mise en avant, retient la carte
   dépliée et attire l'écran ; dès qu'une autre série est validée, elle reste à remplir (✓ gris) sans rien retenir.
 - Une sous-série se valide après sa série et dans l'ordre ; toucher une sous-série validée la rouvre. « + drop »
-  en ajoute une (6 au plus). Rien au pointerdown ; zones de toucher de 44 px ; iOS : un seul toucher. « + reprise »
+  en ajoute une (6 au plus). Rien au pointerdown ; zones de toucher de 44 px ; iOS : un seul toucher. « + mini-série »
   et × sont dessinés en 32 px de haut mais touchables sur 44 (`::after` à −6 px, contigus sans se chevaucher :
   test_intensif.py le vérifie avec elementFromPoint) ; un outil qui mesure la boîte du bouton lit 32.
 - **Enregistrement** : seules les sous-séries validées sont gardées ; un drop set sans drop validé perd sa marque.

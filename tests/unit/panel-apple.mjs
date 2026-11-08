@@ -105,4 +105,9 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.match(src('index.html'), /<symbol id="i-arrow\.turn\.down\.right"/);
     assert.ok(!src('index.html').includes('i-arrow.down.to.line'), 'ancien symbole retiré');
   });
+
+  test('« Reprise » n\'a qu\'un sens (phase du coach) : mini-série du rest-pause, fin du repos', () => {
+    assert.equal(run('TECHS.rp.subName'), 'mini-série');
+    assert.ok(!/Reprise à/.test(src('js/features/rest.js')) && /Fin du repos à/.test(src('js/features/rest.js')), 'minuteur : « Fin du repos à »');
+  });
 }

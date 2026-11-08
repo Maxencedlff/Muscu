@@ -19,7 +19,8 @@
 //  - top set et back-off ne changent aucun calcul : ce sont des séries de travail ordinaires.
 const TECHS = {
   drop:    { label: 'Drop set',   short: 'D',  sub: true,  subName: 'drop',   ratio: 0.8, pause: 0,  hint: 'sans repos' },
-  rp:      { label: 'Rest-pause', short: 'RP', sub: true,  subName: 'reprise', fem: true, ratio: 1,  pause: 15, hint: 'pause 15 s' },
+  // « mini-série » : « Reprise » garde un seul sens, la phase du coach (panel Apple de la vague 3 ; le minuteur dit « Fin du repos »)
+  rp:      { label: 'Rest-pause', short: 'RP', sub: true,  subName: 'mini-série', fem: true, ratio: 1,  pause: 15, hint: 'pause 15 s' },
   cluster: { label: 'Cluster',    short: 'C',  sub: true,  subName: 'bloc',   ratio: 1,  pause: 20, hint: 'pause 20 s' },
   top:     { label: 'Top set',    short: 'T',  sub: false, hint: 'la plus lourde' },
   backoff: { label: 'Back-off',   short: 'B',  sub: false, hint: 'allégée' },

@@ -16,7 +16,7 @@ function techSubAt(ds) {
 }
 
 // Sous-série qui suit la dernière validation (pause d'un rest-pause ou d'un cluster, ou entre deux drops) :
-// { ei, si, k, label: « Reprise 1 », set: { weight, reps } } avec la charge proposée et l'objectif de reps ;
+// { ei, si, k, label: « Mini-série 1 », set: { weight, reps } } avec la charge proposée et l'objectif de reps ;
 // null sinon. La barre de repos, la notification de fin et la Live Activity l'annoncent (js/features/rest.js)
 function techNextSub() {
   const xs = activeSession?.exercises;

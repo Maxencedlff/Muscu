@@ -56,7 +56,7 @@ function restSheetHtml() {
         </svg>
         <div class="rs__center">
           <div class="rs__time num" role="timer" aria-live="off" aria-label="${restTimerLabel()}">${fmtRest(restTimeLeft)}</div>
-          <div class="rs__resume num">Reprise à ${restResumeAt()}</div>
+          <div class="rs__resume num">Fin du repos à ${restResumeAt()}</div>
         </div>
       </div>
       <div class="rs-seg" role="group" aria-label="Durée du repos">
@@ -104,7 +104,7 @@ function updateRestUI() {
     if (el) { el.textContent = t; if (el.getAttribute('aria-label') !== restTimerLabel()) el.setAttribute('aria-label', restTimerLabel()); }
     sheet.querySelector('.rest-ring__bar')?.setAttribute('stroke-dashoffset', RING_BIG * (1 - f));
     const ra = sheet.querySelector('.rs__resume');
-    if (ra) ra.textContent = `Reprise à ${restResumeAt()}`;
+    if (ra) ra.textContent = `Fin du repos à ${restResumeAt()}`;
     sheet.querySelectorAll('.rs-seg__btn').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.secs === restTotal)));
   }
 }
@@ -125,7 +125,7 @@ function syncNativeRest() {
 }
 
 // Texte de la notification de fin de repos : « Série 4 · Squat barre », pendant la pause d'un rest-pause
-// ou d'un cluster la sous-série qui suit avec sa charge : « Reprise 1 · Squat barre · 70 kg × 4 »
+// ou d'un cluster la sous-série qui suit avec sa charge : « Mini-série 1 · Squat barre · 70 kg × 4 »
 function restEndBody() {
   const sub = activeSession && techNextSub();
   if (sub) { const p = nextSetParts(); return `${p.step} · ${p.name}${p.load}`; }
