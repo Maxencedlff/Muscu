@@ -253,8 +253,11 @@ def t_silhouette_paliers(bench):
                 return { base: rgb(getComputedStyle(d).backgroundColor), top: rgb(a.backgroundColor), o: parseFloat(a.opacity) * al(a.backgroundColor) }; })""")
             seen = [[round(b * (1 - d['o']) + c * d['o']) for b, c in zip(d['base'], d['top'])] for d in dots]
             gaps = [round(_delta_e(seen[i], seen[i + 1])) for i in range(len(seen) - 1)]
-            # Entretien / Travaillé et Travaillé / Objectif atteint nettement distincts (vague 3 : les deux premiers trop proches)
-            R.check(len(gaps) == 4 and gaps[1] >= 35 and gaps[2] >= 30 and min(gaps) >= 12, f'{t} paliers voisins distincts (Pas travaillé › Gros volume) {gaps}')
+            # Vague 3 : paliers voisins nettement distincts, et clarté qui change dans le même sens du 1er au 5e palier
+            # (en clair de plus en plus sombre, en sombre de plus en plus lumineux)
+            L = [round(_lab(c)[0]) for c in seen]
+            mono = all(L[i] > L[i + 1] for i in range(4)) if theme == 'light' else all(L[i] < L[i + 1] for i in range(4))
+            R.check(len(gaps) == 4 and min(gaps) >= 15 and mono, f'{t} paliers distincts et dans l\'ordre de clarté (ΔE {gaps}, L* {L})')
             page.locator('.mcard').first.scroll_into_view_if_needed()
             shot(page, LOT, f'silhouette-paliers-{t}')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')

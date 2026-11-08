@@ -218,7 +218,7 @@ function spanSegmentedHtml() {
 // Pastille de couleur d'un palier (légende, bulle) : la teinte et l'opacité de la carte (bodyTier, js/ui/body-map.js)
 function muscleLevelDot(lvl) {
   const tier = bodyTier(lvl / MUSCLE_LEVEL_MAX);
-  return `<i class="mlegend__dot${tier && tier.tone !== 'goal' ? ` mlegend__dot--${tier.tone}` : ''}" style="--o:${tier ? tier.op : 0}"></i>`;
+  return `<i class="mlegend__dot${tier ? ` mlegend__dot--${tier.tone}` : ''}" style="--o:${tier ? tier.op : 0}"></i>`;
 }
 function levelWord(lvl) { return MUSCLE_LEVEL_WORDS[lvl].toLowerCase(); }
 
@@ -294,7 +294,7 @@ function renderStatsMuscles() {
       <div class="cell mrow${id === muscleFocus ? ' mrow--focus' : ''}" data-muscle="${id}">
         <span class="cell__body">
           <span class="mrow__top"><span class="cell__title">${label}</span><span class="cell__value num">${roundSets(load.sets[id])}</span></span>
-          <span class="mrow__bar" aria-hidden="true"><i${(t => (t && t.tone !== 'goal' ? ` class="is-${t.tone}"` : ''))(bodyTier(load.intensity[id]))} style="width:${pct}%;--o:${bodyTier(load.intensity[id])?.op || 0}"></i></span>
+          <span class="mrow__bar" aria-hidden="true"><i${(t => (t ? ` class="is-${t.tone}"` : ''))(bodyTier(load.intensity[id]))} style="width:${pct}%;--o:${bodyTier(load.intensity[id])?.op || 0}"></i></span>
           <span class="visually-hidden">${setsTxt(load.sets[id])}, ${levelWord(load.levels[id])}</span>
         </span>
       </div>`;
