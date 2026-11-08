@@ -93,6 +93,15 @@ function trendPct(vals) {
   if (!(a > 0)) return null;
   return Math.round((b - a) / a * 100);
 }
+// Position horizontale de chaque point d'une courbe, de 0 à 1, selon sa date : deux séances à trois semaines d'écart
+// sont plus loin l'une de l'autre que deux séances à deux jours (panel Apple du 08/11 : points espacés selon leur
+// rang alors que l'axe porte des dates). Un seul point : au milieu ; toutes les dates égales : selon le rang.
+function chartXFracs(dates) {
+  const n = dates.length;
+  if (n === 1) return [0.5];
+  const t0 = dates[0], span = dates[n - 1] - t0;
+  return dates.map((t, i) => (span > 0 ? Math.min(1, Math.max(0, (t - t0) / span)) : i / (n - 1)));
+}
 function pctTxt(p) { return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)} %`; }
 
 function sparkline(vals) {

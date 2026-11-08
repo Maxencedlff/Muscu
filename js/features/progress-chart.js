@@ -236,7 +236,8 @@ function drawCharts() {
   const tickW = Math.max(...ticks.map(t => ctx.measureText(axisFmt(t)).width));
   const pL = 4, pR = tickW + 10, pT = 44, pB = 22; // bande du haut réservée à la bulle
   const cW = W - pL - pR, cH = H - pT - pB;
-  const xp = i => pL + (n === 1 ? cW / 2 : i / (n - 1) * cW);
+  const fx = chartXFracs(dates);   // points placés selon leur date (js/features/progress.js)
+  const xp = i => pL + fx[i] * cW;
   const yp = v => pT + cH - (v - lo) / ((hi - lo) || 1) * cH;
   st.geom = { xp, yp, pL, pR, cW, W, H };
 

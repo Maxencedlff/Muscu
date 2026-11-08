@@ -63,4 +63,13 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.equal(acts.find(a => a.value === 'grip')?.label, 'Choisir la prise');
     assert.ok(acts.filter(a => a.style === 'destructive').length === 1, 'une seule action destructive');
   });
+
+  test('Courbe d\'un exercice : points placés selon leur date, pas leur rang', () => {
+    const D = 86400000;
+    sameJSON(app.chartXFracs([0, 2 * D, 10 * D]), [0, 0.2, 1]);
+    sameJSON(app.chartXFracs([5 * D]), [0.5], 'un point : au milieu');
+    sameJSON(app.chartXFracs([D, D, D]), [0, 0.5, 1], 'mêmes dates : selon le rang');
+    const f = app.chartXFracs([0, D, 2 * D, 30 * D]);
+    assert.ok(f[2] - f[1] < (f[3] - f[2]) / 10, `écart de 28 jours bien plus large que d'un jour ${f}`);
+  });
 }

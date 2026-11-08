@@ -195,6 +195,11 @@ def t_progres_tendance(bench):
             fiche = page.locator('.chart-head__trend').inner_text().strip() if page.locator('.chart-head__trend').count() else ''
             R.check(on == 'Charge max' and trend and fiche == trend, f'{t} liste {trend!r} = fiche {fiche!r} sur « {on} »')
             R.check(pts == n, f'{t} mini-courbe : toutes les séances, comme la tendance ({pts} points, {n} séances)')
+            # Courbe : abscisses proportionnelles aux dates (pas au rang)
+            ok = page.evaluate("""() => { const st = chartState, n = st.dates.length, x = st.geom.xp, d = st.dates;
+                const span = x(n - 1) - x(0), dspan = d[n - 1] - d[0];
+                return n > 2 && d.every((t, i) => Math.abs((x(i) - x(0)) / span - (t - d[0]) / dspan) < 0.002); }""")
+            R.check(ok, f'{t} courbe : points espacés selon leur date')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
