@@ -96,7 +96,9 @@ function pvIntroHtml() {
           <ul class="pv-feats">
             ${feat('lock', `Ouvert avec ${esc(pvHowText())}`, 'Pas de code en plus à retenir. Chiffrées sur ton iPhone, jusque dans ses sauvegardes.')}
             ${feat('timer', 'Refermé dès que tu pars', 'Quand tu quittes l\'app, ou après une minute sans toucher l\'écran.')}
-            ${feat('eye.slash', 'Rien ne sort sans toi', 'Ni dans ta pellicule, ni dans l\'export. Seulement ce que tu envoies à ton coach.')}
+            ${feat('eye.slash', 'Rien ne sort sans toi', cphStudentShown() && cph.state?.ready
+              ? 'Ni dans ta pellicule, ni dans l\'export. Ton coach ne reçoit que les photos que tu choisis de lui envoyer, chiffrées pour lui seul.'
+              : 'Ni dans ta pellicule, ni dans l\'export, ni sur nos serveurs.')}
             ${feat('info.circle', 'Te suit sur un nouvel iPhone', 'La clé du coffre est dans ton trousseau iCloud, chiffré de bout en bout. Active-le pour retrouver ton coffre sur un nouvel iPhone.')}
           </ul>
           ${pv.legacy ? `<p class="pv-note">${plural(pv.legacy, 'photo déjà prise y sera rangée', 'photos déjà prises y seront rangées')}.</p>` : ''}

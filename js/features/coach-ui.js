@@ -271,6 +271,9 @@ function renderCoachJoin(code) {
   const list = items => `<div class="group">${items.map(([t, d]) => `
           <div class="cell coach-join__item"><span class="cell__body"><span class="cell__title">${t}</span><span class="cell__sub">${d}</span></span></div>`).join('')}</div>`;
   const ok = socialAgeOk;
+  // Photos de bilan (docs/PHOTOS_BILAN.md) : dites seulement là où l'envoi existe (coffre de l'app iPhone, tranche
+  // d'âge d'Apple qui ne l'interdit pas) ; ailleurs, aucune photo ne peut partir
+  const photos = vaultAvailable() && !cphAgeBlocked();
   return `
     <div class="view view--grouped coach-join-view">
       ${head}
@@ -286,9 +289,10 @@ function renderCoachJoin(code) {
           ['Des messages', 'Texte seul, entre vous deux. Effacés quand le suivi s\'arrête. Tu peux signaler un message.'],
           ['Des plans diète', 'Seulement si tu acceptes ses plans. Tu choisis de les suivre.']])}
         ${coachTitle('Seulement si tu le choisis')}
-        ${list([['Ton poids et tes mensurations', 'Rien n\'est partagé au départ. Tu coches ce que tu veux dans Réglages › Social et coach › Partager avec mon coach.']])}
+        ${list([['Ton poids et tes mensurations', 'Rien n\'est partagé au départ. Tu coches ce que tu veux dans Réglages › Social et coach › Partager avec mon coach.'],
+          ...(photos ? [['Des photos de bilan', 'Seulement celles que tu lui envoies toi-même depuis ton coffre, chiffrées pour lui seul. Tu peux les retirer quand tu veux.']] : [])])}
         ${coachTitle('Jamais visible')}
-        ${list([['Le reste', 'Ni tes données Santé, ni tes photos, ni tes programmes perso. Tu ne vois pas ses autres élèves, et ils ne te voient pas.']])}
+        ${list([['Le reste', `Ni tes données Santé, ni ${photos ? 'les photos de ton coffre que tu ne lui envoies pas' : 'tes photos'}, ni tes programmes perso. Tu ne vois pas ses autres élèves, et ils ne te voient pas.`]])}
         <div class="coach-join__foot">
           <button class="cell coach-join__age" data-action="coach-age" role="switch" aria-checked="${ok}">
             <span class="cell__body"><span class="cell__title" id="coachAgeHint">J'ai 15 ans ou plus</span></span>

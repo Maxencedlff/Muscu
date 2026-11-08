@@ -12,6 +12,9 @@
 'use strict';
 
 const BM_PRIVATE = 'Privé : reste sur ton iPhone et dans ta copie iCloud, jamais sur nos serveurs';
+// Photos de bilan possibles (coach prêt à les recevoir, js/data/coach-photos.js) : « rien n'est montré à ton coach »
+// ne serait plus vrai pour l'écran, qui mène au coffre
+const bmPhotosToCoach = () => cphStudentShown() && !!cph.state?.ready;
 const BM_SHARED = 'Partagées avec ton coach, qui voit leurs valeurs et leurs dates. Tes amis ne voient rien, et tes photos restent dans ton coffre, sauf celles que tu lui envoies toi-même';
 // Mensurations cochées dans Réglages › Partager avec mon coach (js/data/coach-share.js)
 function bmSharedWithCoach() { return !!account.user && coachShareOn('measures'); }
@@ -55,7 +58,7 @@ function renderBodyMeasures() {
       ${navBar({ title: 'Mesures' })}
       <div class="scr">
         <div class="bm-private">${bmSharedWithCoach() ? `${icon('person.2', 16)}<span>${BM_SHARED}. Pour arrêter : Réglages › Partager avec mon coach.</span>`
-          : `${icon('eye.slash', 16)}<span>${BM_PRIVATE}. Rien n'est montré à tes amis ni à ton coach.</span>`}</div>
+          : `${icon('eye.slash', 16)}<span>${BM_PRIVATE}. ${bmPhotosToCoach() ? 'Tes mesures ne sont montrées à personne ; ton coach ne voit que les photos que tu lui envoies toi-même.' : 'Rien n\'est montré à tes amis ni à ton coach.'}</span>`}</div>
         <div class="group-title">Mensurations</div>
         <div class="group">
           <button class="cell cell--action" data-action="bm-add">${icon('plus', 22)}<span class="cell__title">Ajouter des mesures</span></button>
