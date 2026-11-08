@@ -128,6 +128,11 @@ def t_journee(bench, eng, dev, theme):
         # Écran Nutrition
         page.click('.diet-home__open')
         page.wait_for_selector('.nutrition-view .diet-sum')
+        # Journal : même bouton Cocher que sur l'accueil, en couleur d'action (panels de la vague 3)
+        jc = page.evaluate("""() => { const b = document.querySelector('.nutrition-view .diet-check:not(.diet-check--on)'); if (!b) return null;
+            const p = document.createElement('span'); p.style.color = 'var(--tint)'; document.body.append(p); const tint = getComputedStyle(p).color; p.remove();
+            const s = getComputedStyle(b); return s.color === tint && s.boxShadow.includes(tint); }""")
+        R.check(jc is True, f'{t} journal : bouton Cocher en couleur d\'action ({jc})')
         txt = page.inner_text('.nutrition-view')
         R.check("Aujourd'hui" in txt and 'Prise de masse' in txt, f'{t} Nutrition : titre et plan')
         R.check('sur 2 600 kcal' in txt.replace(' ', ' ').replace('\xa0', ' '), f'{t} Nutrition : objectif de calories du plan')

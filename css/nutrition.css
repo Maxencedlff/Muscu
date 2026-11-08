@@ -75,7 +75,9 @@ div.diet-meal__title { cursor: default; }
 .diet-check {
   flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  background: none; color: transparent; box-shadow: inset 0 0 0 2px var(--label3);
+  /* Pas encore coché : contour et coche en couleur d'action, le même bouton sur l'accueil et dans le journal (panels du
+     08/11 : en gris pâle, il passait pour l'anneau vide des calories) */
+  background: none; color: var(--tint); box-shadow: inset 0 0 0 2px var(--tint);
   transition: background-color .2s, box-shadow .2s, transform .2s;
 }
 .diet-check .icon { width: 22px; height: 22px; }
@@ -119,9 +121,6 @@ div.diet-meal__title { cursor: default; }
 .diet-home__kcal b { color: var(--label); font-weight: 700; }
 .diet-home__next { display: flex; align-items: center; gap: 4px; font-size: var(--fs-subhead); font-weight: 600; overflow-wrap: anywhere; }
 .diet-home--complete .diet-home__next { color: var(--check-on); }
-/* Accueil : contour et coche en couleur d'action avant d'être touchée ; en gris pâle, le bouton ressemblait à l'anneau
-   des calories à 0 (panels du 06/11 et du 08/11, contour sous 3:1) */
-.diet-home .diet-check:not(.diet-check--on) { color: var(--tint); box-shadow: inset 0 0 0 2px var(--tint); }
 
 /* Feuilles : remplacer, rechercher, créer un aliment, objectifs */
 .diet-swap, .diet-pick, .diet-form { padding: 0; }
