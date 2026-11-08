@@ -110,4 +110,9 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.equal(run('TECHS.rp.subName'), 'mini-série');
     assert.ok(!/Reprise à/.test(src('js/features/rest.js')) && /Fin du repos à/.test(src('js/features/rest.js')), 'minuteur : « Fin du repos à »');
   });
+
+  test('Disques : icône du disque, l\'haltère reste à l\'onglet Entraînement', () => {
+    assert.match(src('js/features/session.js'), /data-action="open-plates"[^\n]*icon\('plate'/);
+    assert.match(src('index.html'), /<symbol id="i-plate"/);
+  });
 }

@@ -20,6 +20,7 @@ Une même icône ou un même mot mène toujours à la même chose, partout.
 | Flèche qui tourne vers la droite (`arrow.turn.down.right`) | Plus tard : repousser l'exercice en cours en fin de séance (la flèche vers une ligne se lisait « Télécharger », panel Apple de la vague 3) | Séance seulement |
 | Deux feuilles (`doc.on.doc`) | Dupliquer (faire une copie à modifier) | « Dupliquer le plan » ; jamais `+`, réservé à l'ajout |
 | `ⓘ` | Comment faire (explication) | Après un nom d'exercice |
+| Disque (`plate`) | Disques à charger sur la barre (série à faire d'un exercice à barre) | Jamais l'haltère, réservée à l'onglet Entraînement |
 | Cadenas (`lock`) | État : c'est chiffré (coffre à photos, photos de bilan) | Jamais une action : « Verrouiller », « Refermer » s'écrivent en toutes lettres ; jamais devant un lien ou un bouton d'envoi |
 | Chevron `›` | Ouvre l'écran détaillé de la ligne | Fin de ligne |
 | `✕` | Fermer, écarter ou retirer d'une liste en cours (carte, feuille, suggestion, technique d'une série) | Jamais pour effacer une séance ou une donnée enregistrée (« Supprimer », en rouge) |
