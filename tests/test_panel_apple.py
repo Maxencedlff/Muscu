@@ -88,4 +88,17 @@ def t_toast_sur_repos(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_titre_replie, t_toast_sur_repos])
+def t_repos_44(bench):
+    """Feuille Repos et repos de la fiche exercice : chaque durée fait 44 px de haut au moins."""
+    for eng, dev in PHONES:
+        t = tag(dev, 'dark')
+        with bench.page(eng, dev, 'dark') as page:
+            start_session(page, 'dark')
+            validate_first_set(page)
+            hs = page.evaluate("[...document.querySelectorAll('.sess-sheet--rest .rs-seg__btn')].map(b => Math.round(b.getBoundingClientRect().height))")
+            R.check(len(hs) == 6 and min(hs) >= 44, f'{t} feuille Repos : durées de 44 px {hs}')
+            shot(page, LOT, f'repos-44-{t}')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_titre_replie, t_toast_sur_repos, t_repos_44])

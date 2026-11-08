@@ -297,11 +297,11 @@ body:has(.view.session):has(.sess-sheet:not(.sess-sheet--out)) .toast { bottom: 
   display: grid; grid-template-columns: repeat(6, 1fr); width: 100%; max-width: 360px;
   background: var(--fill); border-radius: 9px; padding: 2px; gap: 2px;
 }
+/* Durées (1:00 à 5:00), barres des disques : 44 px de haut, la zone de toucher minimale (docs/ERGONOMIE.md §4) */
 .rs-seg__btn {
-  height: 32px; border: 0; border-radius: 7px; background: none; color: var(--label);
+  height: 44px; border: 0; border-radius: 7px; background: none; color: var(--label);
   font-size: 0.765rem; font-weight: 600; cursor: pointer; position: relative;
 }
-.rs-seg__btn::after { content: ''; position: absolute; inset: -6px 0; }
 .rs-seg__btn[aria-pressed="true"] { background: var(--segment-on); box-shadow: var(--shadow-seg); }
 .rs__adj { display: flex; align-items: center; justify-content: center; gap: 20px; }
 .rs__round {
