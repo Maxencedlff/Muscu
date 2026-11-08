@@ -100,8 +100,10 @@ function dialogInputLabel(input, title = '') {
   return u ? `${name}, en ${DIALOG_UNIT_SPOKEN[u] || u}` : name;
 }
 
-// actions : [{ label, value, style: 'default' | 'destructive' | 'cancel' | 'preferred' }]
+// actions : [{ label, value, style: 'default' | 'destructive' | 'cancel' | 'preferred', section, apart }]
 // type 'sheet' = feuille d'actions en bas, 'alert' = alerte centrée
+// Feuille seulement : section = titre du groupe de choix qui commence là (long menu rangé en sections) ;
+// apart = choix posé dans son propre bloc, au-dessus d'« Annuler », hors de la liste qui défile (action destructive)
 function dialog({ type = 'alert', title = '', message = '', actions, input = null }) {
   return new Promise(resolve => {
     document.querySelector('.ios-dialog')?.remove();
@@ -115,9 +117,13 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
     if (title) root.setAttribute('aria-labelledby', dlgId + '-t');
     if (message) root.setAttribute('aria-describedby', dlgId + '-m');
 
-    const main   = actions.filter(a => a.style !== 'cancel');
+    const main   = actions.filter(a => a.style !== 'cancel' && !(type === 'sheet' && a.apart));
+    const apart  = type === 'sheet' ? actions.filter(a => a.apart && a.style !== 'cancel') : [];
     const cancel = actions.find(a => a.style === 'cancel');
     const btn = a => `<button class="ios-dialog__btn ios-dialog__btn--${a.style || 'default'}" data-i="${actions.indexOf(a)}">${esc(a.label)}</button>`;
+    // Titre de section avant le premier choix de chaque section (feuille), annoncé comme un en-tête
+    const sectioned = list => list.map((a, i) => (a.section && a.section !== list[i - 1]?.section
+      ? `<div class="ios-dialog__sect" role="heading" aria-level="3">${esc(a.section)}</div>` : '') + btn(a)).join('');
     const head = (title || message) ? `
       <div class="ios-dialog__head">
         ${title   ? `<div class="ios-dialog__title" id="${dlgId}-t" tabindex="-1">${esc(title)}</div>` : ''}
@@ -134,7 +140,8 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
     root.innerHTML = type === 'sheet'
       ? `<div class="ios-dialog__backdrop"></div>
          <div class="ios-dialog__panel">
-           <div class="ios-dialog__group">${head}${main.map(btn).join('')}</div>
+           <div class="ios-dialog__group">${head}${sectioned(main)}</div>
+           ${apart.length ? `<div class="ios-dialog__group">${apart.map(btn).join('')}</div>` : ''}
            ${cancel ? `<div class="ios-dialog__group">${btn(cancel)}</div>` : ''}
          </div>`
       : `<div class="ios-dialog__backdrop"></div>

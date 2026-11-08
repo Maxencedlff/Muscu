@@ -71,6 +71,11 @@
 }
 .ios-dialog--sheet .ios-dialog__btn { min-height: 57px; font-size: var(--fs-title3); }
 .ios-dialog--sheet .ios-dialog__group > .ios-dialog__btn + .ios-dialog__btn { border-top: .5px solid var(--dlg-sep); }
+/* Section d'un long menu (menu ⋯ d'un exercice) : petit titre gris, séparé du bloc d'avant par une bande */
+.ios-dialog__sect {
+  padding: 14px var(--sp-4) 6px; text-align: left; font-size: var(--fs-footnote); font-weight: 600; color: var(--label2);
+}
+.ios-dialog__group > .ios-dialog__btn + .ios-dialog__sect { border-top: 6px solid var(--dlg-sep); }
 .ios-dialog__btn:active { background: var(--dlg-press); }
 .ios-dialog__btn--preferred, .ios-dialog__btn--cancel { font-weight: 600; }
 .ios-dialog__btn--destructive { color: var(--red-text); }

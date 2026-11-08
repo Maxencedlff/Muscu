@@ -150,4 +150,30 @@ def t_objectif_pas_bouton(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton])
+def t_menu_exercice(bench):
+    """Menu ⋯ d'un exercice (iPhone SE) : sections, « Retirer l'exercice » visible sans défiler, juste au-dessus d'« Annuler »."""
+    for theme in ('dark', 'light'):
+        t = tag('iPhone SE', theme)
+        with bench.page('webkit', 'iPhone SE', theme) as page:
+            start_session(page, theme)
+            page.click('.ex-card__more[data-ei="0"]')
+            page.wait_for_selector('.ios-dialog--sheet')
+            page.wait_for_timeout(400)
+            m = page.evaluate("""() => { const d = document.querySelector('.ios-dialog--sheet'), groups = [...d.querySelectorAll('.ios-dialog__group')];
+                const rm = [...d.querySelectorAll('.ios-dialog__btn')].find(b => b.textContent.includes("Retirer l'exercice"));
+                const r = rm.getBoundingClientRect();
+                return { sects: [...d.querySelectorAll('.ios-dialog__sect')].map(e => e.textContent), groups: groups.length,
+                         ownGroup: groups.indexOf(rm.closest('.ios-dialog__group')) === groups.length - 2,
+                         visible: r.top >= 0 && r.bottom <= innerHeight, cancelLast: groups.at(-1).textContent.trim() === 'Annuler' }; }""")
+            R.check(m['sects'] == ['Ordre', 'Exercice', 'Séries et repos'] and m['groups'] == 3 and m['ownGroup'] and m['visible'] and m['cancelLast'],
+                    f'{t} menu ⋯ : 3 sections, « Retirer l\'exercice » à part et visible, « Annuler » en bas {m}')
+            shot(page, LOT, f'menu-exercice-{t}')
+            tap_dialog(page, "Retirer l'exercice")
+            page.wait_for_timeout(300)
+            if page.locator('.ios-dialog').count():
+                page.locator('.ios-dialog__btn--destructive').last.click()
+                page.wait_for_timeout(300)
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])

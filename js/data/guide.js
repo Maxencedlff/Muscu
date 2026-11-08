@@ -249,7 +249,7 @@ const GUIDE_SECTIONS = [
         id: 'prise', title: 'Type de prise', icon: 'dumbbell', color: 'purple',
         lead: 'Tirages, rowings, tractions, développés, curls et soulevé de terre : précise la prise, pour toi ou pour ton élève.',
         steps: [
-          'Dans [Programme], touche la séance puis l\'exercice : rubrique [Prise]. Pendant la séance : ··· › [Prise].',
+          'Dans [Programme], touche la séance puis l\'exercice : rubrique [Prise]. Pendant la séance : ··· › [Choisir la prise].',
           '[Pronation] : paumes vers l\'avant ou vers le bas. [Supination] : paumes vers toi. [Neutre] : paumes face à face.',
           'Choisis aussi la largeur et la poignée quand l\'exercice en a. Touche à nouveau un choix pour le retirer.',
           'La prise s\'affiche sous le nom de l\'exercice pendant la séance. Si elle a changé depuis la dernière fois, l\'app te le rappelle.',

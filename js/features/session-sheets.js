@@ -412,29 +412,40 @@ function openHowTo(ex) { navigate(makeRoute('library-ex', ex.name)); }
 // Choix proposés pour l'exercice ei de la liste xs de la séance (curEi : exercice de la série en cours).
 // Faire maintenant, Plus tard (js/data/session-order.js), Monter et Descendre gardent les
 // supersets entiers (js/data/supersets.js) ; dans un groupe, le repos réglé est celui du tour.
+// Jusqu'à 15 choix : rangés en trois sections (Ordre, Exercice, Séries et repos) ; « Retirer l'exercice », seule
+// action destructive, dans son bloc au-dessus d'« Annuler », hors de la liste qui défile (panel Apple du 08/11 : en
+// bas d'une liste à plat, on ne le voyait sur iPhone SE qu'après avoir défilé).
+const EX_MENU_SECTIONS = { order: 'Ordre', ex: 'Exercice', sets: 'Séries et repos' };
 function exerciseMenuActions(xs, ei, curEi = null) {
   const ex = xs[ei], inGroup = !!ssGroupOf(xs, ei), order = orderChoiceFor(xs, ei, curEi);
+  const sect = (key, list) => list.map(a => ({ ...a, section: EX_MENU_SECTIONS[key] }));
   return [
-    ...(order === 'now' ? [{ label: 'Faire maintenant', value: 'now' }] : []),
-    ...(order === 'later' ? [{ label: 'Plus tard', value: 'later' }] : []),
-    ...(ssCanMove(xs, ei, -1) ? [{ label: 'Monter', value: 'up' }] : []),
-    ...(ssCanMove(xs, ei, 1)  ? [{ label: 'Descendre', value: 'down' }] : []),
-    ...(hasHowTo(ex) ? [{ label: 'Comment faire', value: 'howto' }] : []),
-    ...(xs.length > 1 ? [{ label: inGroup ? 'Modifier le superset' : 'Superset avec…', value: 'superset' }] : []),
-    ...(inGroup ? [{ label: 'Retirer du superset', value: 'ss-leave' }] : []),
-    { label: 'Remplacer l\'exercice', value: 'replace' },
-    // Échauffement (js/data/warmup.js) : exercice à charge sans série faite, hors superset (les tours s'enchaînent)
-    ...(!inGroup && canWarmup(ex) ? [{ label: 'Ajouter un échauffement', value: 'warmup' }] : []),
-    // Techniques d'intensification (js/features/session-intensif.js) : le drop set de la dernière série en un toucher
-    ...techMenuActions(ex),
-    ...(isBarbellExercise(ex) ? [{ label: 'Disques', value: 'plates' }] : []),
-    // Prise (js/data/grips.js) : seulement pour les mouvements où elle compte
-    ...(gripOptionsFor(ex) ? [{ label: 'Prise', value: 'grip' }] : []),
-    { label: inGroup ? 'Régler le repos du tour' : 'Régler le repos', value: 'rest' },
-    ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
-    { label: 'Muscles ciblés', value: 'muscles' },
-    { label: 'Relancer le repos', value: 'restart' },
-    { label: 'Retirer l\'exercice', value: 'remove', style: 'destructive' },
+    ...sect('order', [
+      ...(order === 'now' ? [{ label: 'Faire maintenant', value: 'now' }] : []),
+      ...(order === 'later' ? [{ label: 'Plus tard', value: 'later' }] : []),
+      ...(ssCanMove(xs, ei, -1) ? [{ label: 'Monter', value: 'up' }] : []),
+      ...(ssCanMove(xs, ei, 1)  ? [{ label: 'Descendre', value: 'down' }] : []),
+      ...(xs.length > 1 ? [{ label: inGroup ? 'Modifier le superset' : 'Superset avec…', value: 'superset' }] : []),
+      ...(inGroup ? [{ label: 'Retirer du superset', value: 'ss-leave' }] : []),
+    ]),
+    ...sect('ex', [
+      ...(hasHowTo(ex) ? [{ label: 'Comment faire', value: 'howto' }] : []),
+      { label: 'Remplacer l\'exercice', value: 'replace' },
+      // Prise (js/data/grips.js) : seulement pour les mouvements où elle compte
+      ...(gripOptionsFor(ex) ? [{ label: 'Choisir la prise', value: 'grip' }] : []),
+      { label: 'Muscles ciblés', value: 'muscles' },
+    ]),
+    ...sect('sets', [
+      // Échauffement (js/data/warmup.js) : exercice à charge sans série faite, hors superset (les tours s'enchaînent)
+      ...(!inGroup && canWarmup(ex) ? [{ label: 'Ajouter un échauffement', value: 'warmup' }] : []),
+      // Techniques d'intensification (js/features/session-intensif.js)
+      ...techMenuActions(ex),
+      ...(isBarbellExercise(ex) ? [{ label: 'Disques', value: 'plates' }] : []),
+      ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
+      { label: inGroup ? 'Régler le repos du tour' : 'Régler le repos', value: 'rest' },
+      { label: 'Relancer le repos', value: 'restart' },
+    ]),
+    { label: 'Retirer l\'exercice', value: 'remove', style: 'destructive', apart: true },
     { label: 'Annuler', style: 'cancel' },
   ];
 }

@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export default function ({ test, assert, app, sameJSON, ROOT }) {
+export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
   const src = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
   // Icône posée sur le bouton d'une action (même ligne de code que data-action="…")
   const iconOf = (file, action) => {
@@ -45,5 +45,22 @@ export default function ({ test, assert, app, sameJSON, ROOT }) {
       assert.equal(iconOf(file, action), 'square.and.arrow.up', `${action} (${file})`);
     }
     assert.match(src('index.html'), /<symbol id="i-paperplane"/, 'symbole présent dans le sprite');
+  });
+
+  test('Menu ⋯ d\'un exercice : trois sections dans l\'ordre, « Retirer l\'exercice » à part, « Choisir la prise »', () => {
+    reset();
+    const xs = JSON.stringify([['Tirage vertical prise serrée', 3], ['Développé couché barre', 3], ['Curl marteau', 3]]
+      .map(([name, n]) => ({ name, sets: Array.from({ length: n }, () => ({ weight: '40', reps: '8', done: false })) })));
+    const acts = JSON.parse(run(`JSON.stringify(exerciseMenuActions(${xs}, 0, 0))`));
+    const sections = [...new Set(acts.filter(a => a.section).map(a => a.section))];
+    assert.deepEqual(sections, ['Ordre', 'Exercice', 'Séries et repos'], 'sections dans cet ordre');
+    // Une section ne revient jamais après une autre (pas de mélange)
+    const seq = acts.filter(a => a.section).map(a => a.section);
+    assert.ok(seq.every((s, i) => i === 0 || s === seq[i - 1] || !seq.slice(0, i).includes(s)), `sections contiguës ${seq}`);
+    const remove = acts.find(a => a.value === 'remove');
+    assert.ok(remove.apart && remove.style === 'destructive' && !remove.section, 'Retirer : à part, destructif');
+    assert.equal(acts.at(-1).style, 'cancel');
+    assert.equal(acts.find(a => a.value === 'grip')?.label, 'Choisir la prise');
+    assert.ok(acts.filter(a => a.style === 'destructive').length === 1, 'une seule action destructive');
   });
 }
