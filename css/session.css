@@ -87,8 +87,9 @@
 .ed-ss-btn:active { opacity: .5; }
 
 .ex-card__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); margin: 0 0 8px; }
-/* Objectif du jour (exGoalHtml) : sous le nom, couleur d'accent ; vert une fois battu */
-.ex-goal { display: flex; align-items: center; gap: 4px; margin: -2px 0 2px; font-size: 0.765rem; line-height: 1.059rem; font-weight: 600; color: var(--tint); }
+/* Objectif du jour (exGoalHtml) : sous le nom, en gras et en couleur de texte (ce n'est pas un bouton : le bleu d'action
+   le faisait passer pour « Repos 2:00 », juste dessous, panel Apple du 08/11) ; vert une fois battu */
+.ex-goal { display: flex; align-items: center; gap: 4px; margin: -2px 0 2px; font-size: 0.765rem; line-height: 1.059rem; font-weight: 600; color: var(--label); }
 .ex-goal--done { color: var(--green-text); }
 .ex-goal--member { margin: -8px 0 4px calc(28px + 8px); }   /* sous le nom, après la lettre A1 (.ss-tag) */
 .ex-rest-link {

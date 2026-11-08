@@ -135,4 +135,19 @@ def t_superset_noms(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms])
+def t_objectif_pas_bouton(bench):
+    """« Objectif 32 kg × 10 » en couleur de texte (pas le bleu d'action de « Repos 2:00 », qui est un bouton)."""
+    for theme in ('light', 'dark'):
+        t = tag('iPhone 13', theme)
+        with bench.page('webkit', 'iPhone 13', theme) as page:
+            start_session(page, theme)
+            c = page.evaluate("""() => { const g = document.querySelector('.ex-card[data-ei="0"] .ex-goal'), n = document.querySelector('.ex-card[data-ei="0"] .ex-card__name');
+                const tint = document.querySelector('.navbar__text, .navbar__back, [data-action="finish-session"]');
+                return { goal: getComputedStyle(g).color, label: getComputedStyle(n).color, tint: getComputedStyle(tint).color,
+                         weight: getComputedStyle(g).fontWeight, tag: g.tagName, action: g.closest('button, [data-action]') ? 'oui' : 'non' }; }""")
+            R.check(c['goal'] == c['label'] and c['goal'] != c['tint'] and int(c['weight']) >= 600 and c['action'] == 'non',
+                    f'{t} objectif : couleur de texte, en gras, pas dans un bouton {c}')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton])
