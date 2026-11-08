@@ -83,7 +83,7 @@ jobs:
           key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
       - name: Playwright, WebKit et Chromium
         run: |
-          pip install "playwright==$PLAYWRIGHT_VERSION"
+          pip install "playwright==$PLAYWRIGHT_VERSION" "pillow==12.1.1"   # pillow : JPEG avec EXIF et GPS du test des photos de bilan
           python -m playwright install --with-deps chromium webkit
       - name: Serveur local de l'app
         run: |
