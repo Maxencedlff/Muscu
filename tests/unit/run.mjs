@@ -1576,7 +1576,7 @@ test('sons : le volume choisi (Fort, Normal, Bas) part avec chaque note, Fort pa
 // ── Fonctions Edge : garde de l'appelant (verify_jwt = false) (auth-guard.mjs) ──
 (await import('./auth-guard.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Social : logique pure (tests dans social.mjs) ──
-(await import('./social.mjs')).default({ test, run, assert, sameJSON });
+(await import('./social.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Tranche d'âge partagée par Apple, effets sur le social (tests dans age-range.mjs) ──
 (await import('./age-range.mjs')).default({ test, run, assert, sameJSON });
 // ── Prise d'un exercice et ordre de la séance (tests dans grips.mjs) ──

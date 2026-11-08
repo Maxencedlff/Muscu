@@ -1,6 +1,18 @@
 // Social (js/data/social.js) : logique pure sans réseau (nettoyage de ce que renvoie le serveur,
 // recherche, relation, erreurs traduites)
-export default function ({ test, run, assert, sameJSON }) {
+import fs from 'node:fs';
+import path from 'node:path';
+
+export default function ({ test, run, assert, sameJSON, ROOT }) {
+  // Social V2 (docs/SOCIAL_V2.md) : un coach a ses élèves dans l'onglet Coach › Élèves, plus dans Social ni Amis
+  test('chemins cités dans l\'app : ni « Social › Mes élèves » ni l\'ancien onglet Amis', () => {
+    const dir = path.join(ROOT, 'js');
+    const files = fs.readdirSync(dir, { recursive: true }).filter(f => f.endsWith('.js'));
+    const bad = files.flatMap(f => fs.readFileSync(path.join(dir, f), 'utf8').split('\n')
+      .filter(l => /Social › Mes élèves|Amis › |onglet Amis|Réglages › Amis/.test(l)).map(l => `${f} : ${l.trim().slice(0, 80)}`));
+    sameJSON(bad, []);
+    assert.ok(fs.readFileSync(path.join(dir, 'features/diet-editor.js'), 'utf8').includes('Coach › Élèves'), 'plans diète : envoyés depuis Coach › Élèves');
+  });
   test('amis : séance d\'un autre réduite à la liste blanche, champs bornés', () => {
     const s = run(`cleanPublicSession({ date: 1e12, duration: 3e6, programme: 'ppl', category: 'push', label: 'Push', notes: 'privé', bodyKg: 80, hidden: true, extra: 1,
       exercises: [{ name: 'DC', measure: 'reps', muscles: ['x'], sets: [{ weight: 80, reps: '8', rpe: 9 }, null] }, { name: '' }, 'x'] })`);

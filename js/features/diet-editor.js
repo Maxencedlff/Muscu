@@ -35,7 +35,7 @@ function renderDietPlans() {
           <button class="cell cell--action" data-action="diet-new-plan">${icon('plus', 20)}<span>Créer un plan</span></button>
         </div>
         ${dietSettingsCellHtml()}
-        <div class="group-foot">${isCoach ? 'Prépare ici les plans de tes élèves, puis envoie-les depuis leur fiche (Social › Mes élèves). ' : ''}Le plan suivi s'affiche chaque jour dans Entraînement › Nutrition : tu coches tes repas comme tes séances.</div>
+        <div class="group-foot">${isCoach ? 'Prépare ici les plans de tes élèves, puis envoie-les depuis leur fiche (Coach › Élèves). ' : ''}Le plan suivi s'affiche chaque jour dans Entraînement › Nutrition : tu coches tes repas comme tes séances.</div>
       </div>
     </div>`;
 }
