@@ -42,7 +42,12 @@ COMBOS = {
                 ('chromium', 'Pixel 7', 'dark')],
     # Écrans récents : chaque appareil en sombre, le clair sur un iPhone et le Duo ouvert (même mise en page)
     'recents': [(e, d, 'dark') for e, d in RECENT_DEVICES] + [('webkit', 'iPhone 17', 'light'), ('webkit', 'iPhone Duo ouvert', 'light')],
+    # Texte agrandi (--grand-texte) : tailles d'accessibilité d'iOS (Dynamic Type AX1 et AX3), taille de police de la page
+    # portée à 23 px et 33 px au lieu de 17 px (ce que ferait font: -apple-system-body), iPhone 13 et SE, clair et sombre
+    'grand-texte': [('webkit', d, th, fs) for fs in (23, 33) for d in ('iPhone 13', 'iPhone SE') for th in ('light', 'dark')],
 }
+# Parcours du mode texte agrandi
+GRAND_TEXTE_PARCOURS = ['accueil', 'seance', 'coach', 'social', 'photos-bilan', 'nutrition', 'reglages']
 THEME_FR = {'dark': 'sombre', 'light': 'clair'}
 CIBLE_MINI = 44
 POLICE_MINI = 12
@@ -94,8 +99,13 @@ def slug(s):
     return re.sub(r'[^a-z0-9]+', '-', s.lower()).strip('-')[:40]
 
 
-def combo_tag(device, theme):
-    return f'{slug(device)}-{THEME_FR[theme]}'
+def combo_tag(device, theme, fs=None):
+    return f'{slug(device)}{f"-ax{fs}" if fs else ""}-{THEME_FR[theme]}'
+
+
+def combo_fs(combo):
+    """Taille de police imposée (mode texte agrandi), ou None."""
+    return combo[3] if len(combo) > 3 else None
 
 
 # ─────────────────────────────────────────────────────────────
@@ -106,7 +116,8 @@ class Pilote:
 
     def __init__(self, run, page, parcours, combo):
         self.run, self.page, self.parcours, self.combo = run, page, parcours, combo
-        self.engine, self.device, self.theme = combo
+        self.engine, self.device, self.theme = combo[:3]
+        self.fs = combo_fs(combo)
         self.etape_cour = None
         self.ecran_txt = ''
 
@@ -252,7 +263,7 @@ class Pilote:
         cle : nom de la tâche clé (resume.md additionne les touchers des étapes de même clé)."""
         self.run.nn += 1
         e = {'nn': self.run.nn, 'parcours': self.parcours.nom, 'etape': nom, 'titre': titre, 'cle': cle,
-             'combo': combo_tag(self.device, self.theme), 'touchers': 0, 'actions': [], 'statut': 'ok', 'note': '',
+             'combo': combo_tag(self.device, self.theme, self.fs), 'touchers': 0, 'actions': [], 'statut': 'ok', 'note': '',
              'ecran': '', 'erreurs_js': [], 'problemes': [], 'capture': ''}
         self.etape_cour = e
         t0 = time.time()
@@ -363,7 +374,7 @@ class Run:
         self.en_plus = []               # contextes ouverts par un parcours, fermés avec lui
 
     def page(self, browser, p, combo, opts=None):
-        _, device, theme = combo
+        _, device, theme = combo[:3]
         ctx = browser.new_context(**device_profile(p, device), color_scheme=theme, service_workers='block',
                                   timezone_id=PARIS, locale='fr-FR')
         if safe_insets(device):   # appareils récents : encoche et barre d'accueil de l'app plein écran
@@ -376,6 +387,10 @@ class Run:
         page.clock.install(time=NOW / 1000)
         page.add_init_script('window.__fakeOpts = Object.assign({ oldAccounts: true }, window.__fakeOpts || {}, %s);' % json.dumps(opts or {}))
         page.add_init_script(FAKE_ACCOUNT)
+        if combo_fs(combo):   # Dynamic Type simulé : taille de police de la page, avant le premier dessin
+            page.add_init_script("""(() => { const st = document.createElement('style'); st.textContent = 'html { font: %dpx -apple-system, system-ui, sans-serif !important; }';
+                const put = () => { if (!document.documentElement) return false; document.documentElement.appendChild(st); return true; };
+                if (!put()) new MutationObserver((m, o) => { if (put()) o.disconnect(); }).observe(document, { childList: true }); })()""" % combo_fs(combo))
         # Mises à jour à chaud et tout ce qui sortirait du poste : coupé (le faux Supabase répond en mémoire)
         page.route(re.compile(r'^https?://(?!127\.0\.0\.1|localhost).*'), lambda route: route.abort())
         return ctx, page
@@ -391,7 +406,7 @@ class Run:
                 self.browser, self.pw = browser, p
                 try:
                     for combo in combos:
-                        print(f'── {combo[1]} {THEME_FR[combo[2]]}', flush=True)
+                        print(f'── {combo[1]} {THEME_FR[combo[2]]}{f" texte {combo_fs(combo)} px" if combo_fs(combo) else ""}', flush=True)
                         self.nn = 0
                         t0 = time.time()
                         for pc in parcours_liste:
@@ -402,7 +417,7 @@ class Run:
                             except Exception as x:   # hors étape (préparation) : le parcours s'arrête, le reste continue
                                 self.nn += 1
                                 self.lignes.append({'nn': self.nn, 'parcours': pc.nom, 'etape': 'préparation', 'titre': 'Préparation du parcours',
-                                                    'cle': None, 'combo': combo_tag(combo[1], combo[2]), 'touchers': 0, 'actions': [],
+                                                    'cle': None, 'combo': combo_tag(combo[1], combo[2], combo_fs(combo)), 'touchers': 0, 'actions': [],
                                                     'statut': 'erreur', 'note': f'{type(x).__name__} : {str(x).splitlines()[0][:200]}',
                                                     'ecran': '', 'erreurs_js': page.errors[:], 'problemes': [], 'capture': '', 'duree': 0})
                                 print(f'  ✗ {pc.nom} : préparation impossible ({x})', flush=True)
@@ -413,7 +428,7 @@ class Run:
                                     with contextlib.suppress(Exception):
                                         c.close()
                                 self.en_plus = []
-                        print(f'   {combo[1]} {THEME_FR[combo[2]]} : {time.time() - t0:.0f} s', flush=True)
+                        print(f'   {combo[1]} {THEME_FR[combo[2]]}{f" {combo_fs(combo)} px" if combo_fs(combo) else ""} : {time.time() - t0:.0f} s', flush=True)
                 finally:
                     browser.close()
 
@@ -427,7 +442,7 @@ def cellule(s):
 
 def ecrire_index(run, registre, duree, mode):
     L = [f'# Parcours capturés — {datetime.date.today().isoformat()}', '',
-         f'Mode {mode}, {len(run.combos)} appareil(s) × thème : ' + ', '.join(f'{d} {THEME_FR[t]}' for _, d, t in run.combos)
+         f'Mode {mode}, {len(run.combos)} appareil(s) × thème : ' + ', '.join(f'{c[1]} {THEME_FR[c[2]]}{f" {combo_fs(c)} px" if combo_fs(c) else ""}' for c in run.combos)
          + f'. Durée : {duree / 60:.1f} min. Horloge de l\'app figée au mercredi 4 novembre 2026, 18 h 30 (Paris).', '',
          'Colonnes : **touchers** = gestes de l\'utilisateur comptés dans l\'étape (un champ touché puis tapé compte 1) ; '
          '« préparé » = état mis en place sans l\'écran (compte, données du faux serveur), jamais compté. '
@@ -477,7 +492,7 @@ def sans_arrondis(pb):
 def ecrire_resume(run, registre, duree, mode):
     L = [f'# Résumé des parcours — {datetime.date.today().isoformat()}', '',
          f'Mode {mode} ; durée {duree / 60:.1f} min ; {len(run.lignes)} étapes capturées ; détail et captures : [index.md](index.md).', '']
-    combos = [combo_tag(d, t) for _, d, t in run.combos]
+    combos = [combo_tag(c[1], c[2], combo_fs(c)) for c in run.combos]
     # 1. Touchers des tâches clés (premier appareil de la passe : les touchers ne dépendent pas de l'écran,
     #    un écart entre appareils est signalé)
     cles = {}
@@ -551,8 +566,10 @@ def main(argv=None):
     ap.add_argument('--parcours', default='', help='noms séparés par des virgules (défaut : tous)')
     ap.add_argument('--sans-axe', action='store_true', help='sans axe-core (accessibilité) sur le premier appareil')
     ap.add_argument('--debug', action='store_true', help='pile complète des erreurs')
+    ap.add_argument('--grand-texte', action='store_true', help='texte agrandi (Dynamic Type AX1 23 px et AX3 33 px), iPhone 13 et SE, '
+                    'parcours ' + ', '.join(GRAND_TEXTE_PARCOURS))
     a = ap.parse_args(argv)
-    noms = [x.strip() for x in a.parcours.split(',') if x.strip()]
+    noms = [x.strip() for x in a.parcours.split(',') if x.strip()] or (GRAND_TEXTE_PARCOURS if a.grand_texte else [])
     connus = [pc.nom for pc in PARCOURS]
     if inconnus := [n for n in noms if n not in connus]:
         sys.exit(f'Parcours inconnu(s) : {", ".join(inconnus)} ; connus : {", ".join(connus)}')
@@ -561,7 +578,7 @@ def main(argv=None):
     for f in os.listdir(a.sortie):
         if f.endswith('.png') or f in ('index.md', 'resume.md', 'etapes.json'):
             os.remove(os.path.join(a.sortie, f))
-    mode = 'recents' if a.recents else 'rapide' if a.rapide else 'complet'
+    mode = 'grand-texte' if a.grand_texte else 'recents' if a.recents else 'rapide' if a.rapide else 'complet'
     url = BASE_URL if BASE_URL.endswith('/') else BASE_URL + '/'
     run = Run(os.path.abspath(a.sortie), COMBOS[mode], url, axe=not a.sans_axe, debug=a.debug)
     t0 = time.time()
