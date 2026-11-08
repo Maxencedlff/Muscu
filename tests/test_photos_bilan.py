@@ -149,6 +149,10 @@ def t_envoi_complet(bench, eng, dev, theme):
     with bench.frozen_page(NOW, eng, dev, theme) as cp, bench.frozen_page(NOW, eng, dev, theme) as sp:
         # ── Coach : activer la réception (une fois, Face ID) ──
         ids = coach_page(cp, theme)
+        # Coach › Élèves : « Recevoir les photos de bilan » proposé sous la liste (panel du 08/11), pas seulement dans la fiche
+        cp.click('.tabbar [data-tab="friends"]')
+        cp.wait_for_selector('.coach-team [data-action="cph-setup"]', timeout=5000)
+        R.check(cp.locator('.coach-team [data-action="cph-setup"]').count() == 1, f'{t} Coach › Élèves : « Recevoir les photos de bilan »')
         cp.evaluate(f"navigate(makeRoute('coach-student', '{ids['lea']}'))")
         cp.wait_for_selector('[data-action="cph-setup"]')
         cp.locator('[data-action="cph-setup"]').scroll_into_view_if_needed()
@@ -160,6 +164,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         R.check(key and len(key['wrapped_key']) >= 40 and '"d"' not in json.dumps(key) and cp.evaluate('__vaultCalls').count('create') == 1,
                 f'{t} clé publiée, privée seulement chiffrée, Face ID demandé une fois')
         R.check('Réception des photos activée' in toast(cp), f'{t} toast d\'activation ({toast(cp)!r})')
+        R.check('cph-setup' not in cp.evaluate('coachTeamHtml()'), f'{t} Coach › Élèves : plus proposé une fois activé')
         layout(cp, t, 'Fiche : photos activées')
         shot(cp, LOT, f'02-fiche-activee-{t}')
 

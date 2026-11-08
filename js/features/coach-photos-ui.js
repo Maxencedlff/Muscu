@@ -203,16 +203,22 @@ async function cphRemoveFlow(id) {
 
 // ── Coach : fiche de l'élève ────────────────────────────────
 
-function cphCoachGroupHtml(uid) {
-  if (!cphCoachShown()) return '';
-  if (!cphCoach.key) {
-    return `
+// « Recevoir les photos de bilan » (une fois pour tous les élèves) : dans la fiche de chaque élève, et sous la liste
+// de Coach › Élèves tant que ce n'est pas fait (panel du 08/11 : caché élève par élève, on ne le trouvait pas)
+function cphSetupGroupHtml() {
+  return `
         <div class="group-title">Photos de bilan</div>
         <div class="group">
           <button class="cell cell--action" data-action="cph-setup" ${cphCoach.busy ? 'disabled' : ''}>${icon('lock', 20)}<span>Recevoir les photos de bilan</span></button>
         </div>
         <div class="group-foot">Tes élèves pourront t'envoyer des photos, chiffrées pour toi seul, que tu ouvres avec Face ID. Une fois pour tous tes élèves.</div>`;
-  }
+}
+function cphTeamSetupHtml(students) {
+  return students.length && cphCoachShown() && !cphCoach.key ? cphSetupGroupHtml() : '';
+}
+function cphCoachGroupHtml(uid) {
+  if (!cphCoachShown()) return '';
+  if (!cphCoach.key) return cphSetupGroupHtml();
   const f = cphStudentOf(uid), n = f.photos.length;
   const last = n ? f.photos[0] : null;
   return `

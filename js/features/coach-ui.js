@@ -621,6 +621,7 @@ function coachTeamHtml() {
         <div class="group-title">Élèves${st.students.length ? ` (${st.students.length})` : ''}</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub social-empty">Aucun élève pour l\'instant</span></div>'}</div>
         <div class="group-foot">${st.students.length > 1 ? PROGRESS_SORT_FOOT : 'Tes élèves ne se voient pas entre eux.'}</div>
+        ${cphTeamSetupHtml(st.students)}
         <div class="group-title">Invitations</div>
         <div class="group">
           ${invites}
@@ -636,9 +637,11 @@ function renderCoachStudents() {
       <div class="scr coach-team">${coachTeamHtml()}</div>
     </div>`;
 }
-// Arrivée sur Mes élèves (écran ou segment Élèves) : état relu, puis la progression (30 s au plus), le palier
+// Arrivée sur Mes élèves (écran ou segment Élèves) : état relu, puis la progression (30 s au plus), le palier, la clé
+// des photos de bilan (une fois)
 function coachTeamEnter() {
   coachRefresh().then(() => coachProgressRefresh({ minAge: 30_000 }));
+  if (cphCoach.key === undefined) cphCoachRefresh();   // « Recevoir les photos de bilan » proposé sous la liste
   coachProRefresh({ minAge: 30_000 });
 }
 SCREENS.set('coach-students', { render: () => renderCoachStudents(), enter: () => { coachTeamEnter(); } });
