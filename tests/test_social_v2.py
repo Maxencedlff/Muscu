@@ -189,7 +189,7 @@ def t_fil_vide(bench, eng, dev, theme):
         open_tab(page)
         page.wait_for_selector('#friendsBody [data-action="social-invite"]')
         body = page.inner_text('#friendsBody')
-        R.check('Ton fil t\'attend' in body and 'max' in body and 'Séances de tes amis' not in body, f'{t} fil vide : accueil et mon pseudo ({body!r})')
+        R.check('Ton fil t\'attend' in body and 'max' in body and 'Séances des personnes que tu suis' not in body, f'{t} fil vide : accueil et mon pseudo ({body!r})')
         layout(page, t, 'fil vide')
         shot(page, LOT, f'4-fil-vide-{t}')
         page.evaluate("(() => { Native.shareText = async (text, title) => { window.__shared.push({ text, title }); return 'shared'; }; })()")   # feuille de partage d'iOS

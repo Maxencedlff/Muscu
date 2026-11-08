@@ -174,7 +174,7 @@ function searchHtml() {
         <div class="social-search">
           <span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span>
           <input type="search" id="socialSearch" class="search social-search__input" placeholder="Rechercher un pseudo" value="${esc(socialQuery)}"
-                 autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Rechercher un ami par son pseudo">
+                 autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Rechercher un pseudo">
         </div>`;
 }
 
@@ -194,7 +194,7 @@ function friendsBodyHtml(st = friendsState()) {
         <button class="btn btn--primary btn--full" data-action="social-sign-in">Se connecter</button>`;
   if (st === 'age') return ageHiddenHtml();
   if (st === 'loading') return '<div class="empty-note">Chargement…</div>';
-  if (st === 'error') return offlineNote(social.error === 'offline' ? 'Pas d\'Internet. Reconnecte-toi au réseau pour voir tes amis.' : socialErrorText(social.error));
+  if (st === 'error') return offlineNote(social.error === 'offline' ? 'Pas d\'Internet. Reconnecte-toi au réseau pour voir les séances des personnes que tu suis.' : socialErrorText(social.error));
   if (st === 'off') return activationHtml();
   return enabledBodyHtml();
 }
@@ -222,7 +222,7 @@ function activationHtml() {
   const coached = coachRole().hasCoach;
   const sub = 'Suis leurs séances et encourage-les d\'une réaction. Ton compte reste privé\u00a0: seules les personnes que tu acceptes voient tes séances.';
   return `
-        ${coached ? `<div class="group-title">Amis (facultatif)</div>
+        ${coached ? `<div class="group-title">Social (facultatif)</div>
         <p class="social-optional">${sub}</p>` : `
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
@@ -240,7 +240,7 @@ function activationHtml() {
             ${switchHtml(socialAgeOk)}
           </button>
         </div>
-        <div class="group-foot">${name ? 'Tes amis te trouvent avec ce pseudo.' : 'Il faut un pseudo pour que tes amis te trouvent.'}${socialTeenByAge() ? ' Tes séances restent masquées par défaut : tu choisis celles que tes amis voient.' : ''} Tes notes, ton poids et tes données Santé ne sont jamais montrés à tes amis.${coachRole().hasCoach ? ' Ton coach, lui, voit tes séances et leurs notes, et ton poids si tu le partages avec lui.' : ''} <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>
+        <div class="group-foot">${name ? 'On te trouve avec ce pseudo.' : 'Il faut un pseudo pour qu\'on te trouve.'}${socialTeenByAge() ? ' Tes séances restent masquées par défaut : tu choisis celles que voient ceux qui te suivent.' : ''} Tes notes, ton poids et tes données Santé ne sont jamais montrés à ceux qui te suivent.${coachRole().hasCoach ? ' Ton coach, lui, voit tes séances et leurs notes, et ton poids si tu le partages avec lui.' : ''} <button class="link-inline" data-action="social-rules">Règles de la communauté</button></div>
         <button class="btn ${coached ? 'btn--secondary' : 'btn--primary'} btn--full social-enable" data-action="social-enable" ${ready ? '' : 'disabled'}>${coached ? 'Ajouter aussi des amis' : 'Activer'}</button>`;
 }
 
@@ -263,7 +263,7 @@ function enabledBodyHtml() {
   const both = stale && feed.error && feed.rows.length;
   const note = stale ? `<p class="social-inline-error" role="status">${esc(social.error === 'offline' ? `Pas d'Internet : ${both ? 'demandes et fil pas à jour' : 'demandes pas à jour'}.` : socialErrorText(social.error))}</p>` : '';
   return `${note}${requests}
-        ${feed.rows.length ? '<div class="group-title">Séances de tes amis</div>' : ''}
+        ${feed.rows.length ? '<div class="group-title">Séances des personnes que tu suis</div>' : ''}
         ${feedListHtml('', { empty: feedEmptyHtml, quiet: !!both })}`;
 }
 
@@ -358,7 +358,7 @@ function renderSocialSession(owner, id) {
     <div class="view view--grouped social-session-view">
       ${navBar({ title: '' })}
       <div class="scr">
-        ${mine ? `<p class="social-who social-who--me">${personAvatar(p)}<span class="social-who__name">Vue par tes amis</span></p>`
+        ${mine ? `<p class="social-who social-who--me">${personAvatar(p)}<span class="social-who__name">Vue par ceux qui te suivent</span></p>`
           : `<button class="social-who" data-action="social-open-profile" data-uid="${esc(row.owner)}">${personAvatar(p)}<span class="social-who__name">${esc(personName(p))}</span></button>`}
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${publicSessionColor(s)}" aria-hidden="true"></span>${esc(s.label)}</h1>
         <p class="scr-sub">${when}</p>
@@ -512,7 +512,7 @@ function renderSocialManage() {
         <div class="group">
           <button class="cell cell--destructive" data-action="social-disable">Désactiver le social</button>
         </div>
-        <div class="group-foot">Tu disparais de la recherche et tes amis ne voient plus tes séances. Les personnes que tu suis et qui te suivent sont gardées si tu réactives.</div>
+        <div class="group-foot">Tu disparais de la recherche et ceux qui te suivent ne voient plus tes séances. Les personnes que tu suis et qui te suivent sont gardées si tu réactives.</div>
       </div>
     </div>`;
 }
@@ -578,7 +578,7 @@ function summarySocialGroup(h) {
         <div class="sum-section-title">Social</div>
         <div class="sum-list">
           <button class="sum-row sum-row--action" data-action="summary-visible" data-id="${esc(h.id)}" role="switch" aria-checked="${on}">
-            <div class="sum-row__main"><div class="sum-row__name">Visible sur mon profil</div><div class="sum-row__sub">Tes amis verront cette séance (jamais tes notes ni ton poids).</div></div>
+            <div class="sum-row__main"><div class="sum-row__name">Visible sur mon profil</div><div class="sum-row__sub">Ceux qui te suivent verront cette séance (jamais tes notes ni ton poids).</div></div>
             ${switchHtml(on)}
           </button>
         </div>`;
@@ -587,7 +587,7 @@ function summarySocialGroup(h) {
 // Liste de l'Historique : œil barré discret sur une séance masquée (social activé : sinon rien à masquer)
 function historyHiddenMark(h) {
   if (h.hidden !== true || !socialEnabled()) return '';
-  return `<span class="hidden-mark" role="img" aria-label="Masquée à tes amis">${icon('eye.slash', 14)}</span>`;
+  return `<span class="hidden-mark" role="img" aria-label="Masquée à ceux qui te suivent">${icon('eye.slash', 14)}</span>`;
 }
 
 // Groupe ajouté au détail d'une séance (js/features/history.js) quand le social est activé
@@ -603,8 +603,8 @@ function historySocialGroup(h) {
             ${switchHtml(!hidden)}
           </button>
         </div>
-        <div class="group-foot">${hidden ? 'Tes amis ne voient pas cette séance.'
-          : 'Tes amis voient le nom, la date, la durée et les séries. Jamais tes notes ni ton poids.'}</div>
+        <div class="group-foot">${hidden ? 'Ceux qui te suivent ne voient pas cette séance.'
+          : 'Ceux qui te suivent voient le nom, la date, la durée et les séries. Jamais tes notes ni ton poids.'}</div>
         ${historyWhoHtml(h)}
         ${historyCommentsHtml(h)}`;
 }
@@ -672,7 +672,7 @@ registerActions({
     render();
   },
   'social-disable': async () => {
-    if (!(await confirmSheet('Désactiver le social ?', 'Tu disparais de la recherche et tes amis ne voient plus tes séances. Les personnes que tu suis et qui te suivent sont gardées si tu réactives.', 'Désactiver'))) return;
+    if (!(await confirmSheet('Désactiver le social ?', 'Tu disparais de la recherche et ceux qui te suivent ne voient plus tes séances. Les personnes que tu suis et qui te suivent sont gardées si tu réactives.', 'Désactiver'))) return;
     const r = await socialDisable();
     if (!socialToast(r, 'Social désactivé')) return;
     socialAgeOk = false;

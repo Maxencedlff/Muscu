@@ -66,8 +66,8 @@ Toujours le même mot pour la même chose, en français courant, au tutoiement, 
 | Social | l'onglet des amis et de leurs séances ; le segment du même contenu dans l'onglet Coach | Amis (comme nom d'onglet ou de section) |
 | Coach | l'onglet d'un compte coach (segments Élèves et Social) ; Réglages › Coach | |
 | Mon profil | sa page côté Social | |
-| Amis | les personnes avec qui tu partages tes séances (« Séances de tes amis », « Masquée à tes amis ») | abonnés |
-| Suivre, Ne plus suivre ; Te suivent, Suivis | le sens d'une relation : demander à voir les séances de quelqu'un, et les deux listes de Mon profil | s'abonner, se désabonner, abonnés, abonnements (réservés à l'abonnement payant) |
+| Suivre ; ceux qui te suivent, les personnes que tu suis | la relation dans Social : « Séances des personnes que tu suis », « Masquée à ceux qui te suivent », Suivre, Ne plus suivre, et les deux listes de Mon profil (Te suivent, Suivis) | amis pour cette relation ; s'abonner, abonnés, abonnements (réservés à l'abonnement payant) |
+| Ami | une personne de ta vie qu'on invite (« Inviter un ami », « Entraîne-toi avec tes amis ») | jamais pour dire qui voit tes séances |
 | Supprimer la séance | retirer une séance d'un programme | |
 | Supprimer de l'historique | effacer une séance faite (corbeille 30 jours) | |
 | Terminer | finir la séance en cours | pour arrêter un chrono : « Arrêter » |

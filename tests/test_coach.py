@@ -248,7 +248,7 @@ def t_eleve(bench, eng, dev, theme):
         R.check(page.evaluate("document.querySelector('.coach-cell').getBoundingClientRect().top < document.querySelector('.social-optional').getBoundingClientRect().top"), f'{t} cellule en haut')
         # Panel du 07/11 : avec un coach, les amis sont en plus, pas l'étape suivante (plus de gros « Activer » bleu)
         en = page.locator('[data-action="social-enable"]')
-        R.check(page.locator('.social-hero').count() == 0 and 'Amis (facultatif)' in page.text_content('#app') and en.inner_text().strip() == 'Ajouter aussi des amis'
+        R.check(page.locator('.social-hero').count() == 0 and 'Social (facultatif)' in page.text_content('#app') and en.inner_text().strip() == 'Ajouter aussi des amis'
                 and 'btn--secondary' in en.get_attribute('class'), f'{t} amis facultatifs : titre de groupe et bouton secondaire')
         R.check(page.evaluate("getComputedStyle(document.querySelector('[data-action=social-enable]')).position") == 'static', f'{t} « Ajouter aussi des amis » : à sa place, pas collé sur le texte')
         layout(page, t, 'Social avec coach')
@@ -582,7 +582,7 @@ def t_coach(bench, eng, dev, theme):
         # Séance masquée aux abonnés : visible du coach, et dit
         page.click('.coach-sess[data-id="l01"]')
         page.wait_for_selector('.coach-session-view')
-        R.check('masquée à ses amis' in page.inner_text('.coach-session-view'), f'{t} séance masquée visible du coach')
+        R.check('masquée à ceux qui le suivent' in page.inner_text('.coach-session-view'), f'{t} séance masquée visible du coach')
         page.click('[data-action="back"]')
         page.wait_for_selector('.coach-sess')
         # Envoyer un programme avec consignes

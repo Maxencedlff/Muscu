@@ -80,7 +80,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
       const hits = (code(f).match(/[^\n]*abonn[^\n]*/gi) || []).filter(l => !/paywall: 'Abonnement'/.test(l));   // écran payant
       assert.deepEqual(hits, [], `${f} : ${hits.join(' | ')}`);
     }
-    assert.match(src('docs/ERGONOMIE.md'), /\| Amis \|/, 'lexique : Amis');
+    assert.match(src('docs/ERGONOMIE.md'), /\| Suivre ; ceux qui te suivent/, 'lexique : suivre');
   });
 
   test('ⓘ après un nom d\'exercice : jamais seul sur une ligne (dernier mot et ⓘ insécables)', () => {

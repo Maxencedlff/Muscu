@@ -284,7 +284,7 @@ function renderCoachJoin(code) {
           <span><span class="coach-join__name">${name}</span><span class="coach-join__sub">veut être ton coach</span></span>
         </div>
         ${coachTitle(`Ce ${elide('que', name)} verra`)}
-        ${list([['Toutes tes séances', 'Y compris celles d\'avant, avec exercices, séries et notes, même les séances masquées à tes amis.']])}
+        ${list([['Toutes tes séances', 'Y compris celles d\'avant, avec exercices, séries et notes, même les séances masquées à ceux qui te suivent.']])}
         ${coachTitle(`Ce ${elide('que', name)} pourra faire`)}
         ${list([['Des programmes pour toi', 'Avec ses consignes. Tu choisis de les ajouter.'], ['Ses commentaires', 'Sous tes séances, dans ton historique.'],
           ['Des messages', 'Texte seul, entre vous deux. Effacés quand le suivi s\'arrête. Tu peux signaler un message.'],
@@ -856,7 +856,7 @@ function renderCoachSession(uid, id) {
           ${rv.exercises.map((x, i) => reviewExerciseCell(x, s.exercises, i)).join('') || (missing ? '' : '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>')}${missing}
         </div>
         ${missing ? '<div class="group-foot coach-missing">Exercices grisés : prévus dans ton programme, pas faits.</div>' : ''}
-        ${s.hidden ? '<div class="group-foot">Séance masquée à ses amis : tu la vois en tant que coach.</div>' : ''}
+        ${s.hidden ? '<div class="group-foot">Séance masquée à ceux qui le suivent : tu la vois en tant que coach.</div>' : ''}
         <div class="group-title">Ton commentaire</div>
         <div class="group">
           ${row.note ? `<div class="cell"><p class="hnotes coach-note">${esc(row.note)}</p></div>` : ''}
