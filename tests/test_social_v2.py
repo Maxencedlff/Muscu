@@ -197,8 +197,8 @@ def t_fil_vide(bench, eng, dev, theme):
         page.wait_for_timeout(300)
         shared = page.evaluate('window.__shared')
         R.check(len(shared) == 1 and 'mon pseudo est max' in shared[0]['text'] and 'onglet Social' in shared[0]['text'], f'{t} Inviter un ami : feuille de partage ({shared})')
-        page.click('[data-action="social-find"]')
-        R.check(page.evaluate('document.activeElement.id') == 'socialSearch', f'{t} Rechercher un pseudo : le champ prend la main')
+        R.check(page.locator('#socialSearch').count() == 1 and page.locator('[data-action="social-find"]').count() == 0 and 'Rechercher un pseudo' not in page.inner_text('#friendsBody'),
+                f'{t} fil vide : une seule recherche, le champ au-dessus (panel du 08/11)')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

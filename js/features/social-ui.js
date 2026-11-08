@@ -272,8 +272,7 @@ function feedEmptyHtml() {
             ? 'Les séances des personnes que tu suis s\'afficheront ici, avec leurs records.'
             : `Invite un ami : il te trouve avec ton pseudo${name ? ` <b>${esc(name)}</b>` : ''}. Vous verrez vos séances et pourrez vous encourager.`}</p>
         </div>
-        <button class="btn btn--primary btn--full" data-action="social-invite">${icon('square.and.arrow.up', 20)}<span>Inviter un ami</span></button>
-        <button class="btn btn--full social-find" data-action="social-find">Rechercher un pseudo</button>`;
+        <button class="btn btn--primary btn--full" data-action="social-invite">${icon('square.and.arrow.up', 20)}<span>Inviter un ami</span></button>`;
 }
 
 function searchResultsHtml(q) {
@@ -698,7 +697,6 @@ registerActions({
     catch { showToast('Partage impossible', { error: true }); }
   },
   // Fil vide : le champ de recherche, juste au-dessus (focus dans le geste : le clavier s'ouvre)
-  'social-find': () => { const el = $('#socialSearch'); if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); } },
   'social-more': (e, el) => { socialLoadFeed(el.dataset.key || '', { more: true }); },
   'social-follow': async (e, el) => {
     el.disabled = true;

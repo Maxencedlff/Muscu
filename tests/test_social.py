@@ -199,9 +199,8 @@ def t_activation(bench, eng, dev, theme):
         R.check(page.locator('.navbar [data-action="social-me"]').count() == 1, f'{t} activé : mon avatar (Mon profil) en haut à droite')
         empty = page.inner_text('#friendsBody')
         R.check('Ton fil t\'attend' in empty and 'max.dlf' in empty and page.locator('#friendsBody [data-action="social-invite"]').count() == 1, f'{t} fil vide : accueil, mon pseudo, « Inviter un ami » ({empty!r})')
-        page.click('[data-action="social-find"]')
-        R.check(page.evaluate("document.activeElement.id") == 'socialSearch', f'{t} « Rechercher un pseudo » : le champ prend la main')
-        page.evaluate('document.activeElement.blur()')
+        # Une seule recherche : le champ au-dessus du fil, plus de bouton « Rechercher un pseudo » en double (panel du 08/11)
+        R.check(page.locator('#socialSearch').count() == 1 and page.locator('[data-action="social-find"]').count() == 0, f'{t} fil vide : une seule recherche (le champ)')
         layout(page, t, 'activé vide')
         shot(page, LOT, f'3-active-vide-{t}')
         # Cache : relancé hors ligne, l'onglet reste activé

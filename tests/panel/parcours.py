@@ -361,7 +361,7 @@ def p_guide(r):
 @parcours('social', 'Social V2 : fil, carte de séance, commenter, recherche, Mon profil', 'pratiquant')
 def p_social(r):
     """Onglet Social (docs/SOCIAL_V2.md) sans compte (invitation à se connecter), puis connecté : activation, fil vide
-    (« Ton fil t'attend », Inviter un ami, Rechercher un pseudo), recherche d'un pseudo, fil avec une amie qui
+    (« Ton fil t'attend », Inviter un ami, champ de recherche), recherche d'un pseudo, fil avec une amie qui
     s'entraîne (carte de séance : chiffres, record, muscles), sa séance, « Commenter » et un commentaire envoyé,
     puis Mon profil."""
     r.lancer(REALISTE)
@@ -373,7 +373,7 @@ def p_social(r):
     with r.etape('activer', 'Connecté : retour à Social, carte d\'activation', cle='Activer Social'):
         r.retour()
         r.attendre('[data-action="social-enable"]', 'carte d\'activation')
-    with r.etape('fil-vide', 'Social activé, fil vide : « Ton fil t\'attend », Inviter un ami, Rechercher un pseudo', cle='Activer Social'):
+    with r.etape('fil-vide', 'Social activé, fil vide : « Ton fil t\'attend », Inviter un ami, champ de recherche au-dessus', cle='Activer Social'):
         r.toucher('[data-action="social-age"]', 'J\'ai 15 ans ou plus')
         r.toucher('[data-action="social-enable"]', 'Activer')
         r.attendre('#friendsBody [data-action="social-invite"]', 'fil vide avec « Inviter un ami »')
@@ -383,8 +383,7 @@ def p_social(r):
         __sb.follow(__sb.meId(), lea, 'accepted'); __sb.follow(tom, __sb.meId(), 'pending'); }""",
                 'Léa (suivie, 3 séances dont un record) et une demande de Tom sur le serveur', seances_amie())
     with r.etape('recherche', 'Rechercher un pseudo : « tom »', cle='Trouver un ami par son pseudo'):
-        r.toucher('#friendsBody [data-action="social-find"]', 'Rechercher un pseudo')
-        r.saisir('#socialSearch', 'tom', 'pseudo cherché')
+        r.saisir('#socialSearch', 'tom', 'champ « Rechercher un pseudo »')
         r.page.wait_for_timeout(600)   # recherche lancée 250 ms après la frappe
     r.raccourci("""async () => { socialQuery = ''; socialResults = null; document.activeElement?.blur?.();
         await socialRefresh(); await socialLoadFeed(''); render(); }""", 'recherche effacée, fil relu')

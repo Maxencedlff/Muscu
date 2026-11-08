@@ -82,7 +82,8 @@ Mesurés par `tests/test_social_v2.py` (fiche d'un élève en 2 touchers, qui a 
   la réaction (un toucher 👏, appui long : le choix) et **Commenter**. Strava a montré en 2026 qu'une carte du
   corps automatique dans le fil agace : ici, des mots, pas de silhouette.
 - **Fil vide** : « Ton fil t'attend », mon pseudo, **Inviter un ami** (feuille de partage d'iOS : « Ajoute-moi
-  dans l'onglet Social : mon pseudo est max. ») et **Rechercher un pseudo** (le champ prend la main).
+  dans l'onglet Social : mon pseudo est max. ») ; la recherche est le champ juste au-dessus (le bouton « Rechercher un
+  pseudo » qui le doublait est retiré depuis le panel du 08/11).
 - « Mon coach » (élève) en tête, carte arrondie ; « Rejoindre un coach » (pratiquant sans coach) au même endroit,
   visible sans défiler (panel du 07/11).
 - **Mon profil** : « Modifier » (pseudo et avatar, écran du compte) et « Inviter un ami ».
