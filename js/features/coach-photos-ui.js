@@ -21,7 +21,20 @@ let cphPicked = new Set();   // feuille d'envoi : photos du coffre cochées
 const cphCoachName = () => esc(coachName() || 'ton coach');
 const cphSize = n => (n ? fmtBytes(n) : '');
 const cphPoseDay = p => `${photoPoseLabel(p.pose)} · ${fmtDate(cphDayTs(p.takenOn), 'short')}`;
-const cphCodeFoot = code => (code ? ` Code de la clé de ton coach : <span class="num cph-code">${esc(code)}</span> ; il voit le même dans son app.` : '');
+// Code de la clé du coach (élève) : replié sous « Vérifier la clé avec ton coach » (panel du 08/11 : au milieu du texte,
+// ce code inquiétait plus qu'il n'aidait). Ouvert : le chiffrement en une phrase et le code à comparer.
+let cphVerifyOpen = false;
+function cphVerifyHtml(code) {
+  if (!code) return '';
+  return `
+        <div class="group">
+          <button class="cell cell--nav cph-verify" data-action="cph-verify" aria-expanded="${cphVerifyOpen}">
+            <span class="cell__body"><span class="cell__title">Vérifier la clé avec ton coach</span></span>
+            ${icon(cphVerifyOpen ? 'chevron.down' : 'chevron.right', 16)}
+          </button>${cphVerifyOpen ? `
+          <div class="cell"><span class="cell__body"><span class="cell__sub">Tes photos sont chiffrées sur ton iPhone pour ton coach seul : ni nous ni l'hébergeur ne pouvons les lire. Pour vérifier que c'est bien sa clé, comparez ce code avec celui de son app : <span class="num cph-code">${esc(code)}</span>. S'il est différent, n'envoie plus de photo et préviens-le.</span></span></div>` : ''}
+        </div>`;
+}
 
 // ── Élève : coffre ──────────────────────────────────────────
 
@@ -187,8 +200,9 @@ function renderCphMine() {
         ${send}
         <div class="group-title">Envoyées</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub">Aucune photo envoyée.</span></div>'}</div>
-        <div class="group-foot">${name} voit seulement les photos que tu envoies, avec leur jour et leur pose. Chiffrées sur ton iPhone pour lui seul : ni nous ni l'hébergeur ne pouvons lire celles qui sont stockées. Envoyées sans la localisation ni aucune autre donnée de la photo.${st.ready && cphStudentShown() ? cphCodeFoot(cph.code) : ''}</div>
-        <div class="group-foot">Retire une photo quand tu veux : elle est effacée du serveur et ${name} ne la voit plus. Quitter ton coach ou supprimer ton compte les efface toutes. Ce qu'il aurait déjà vu ou copié, on ne peut pas l'effacer de sa mémoire : n'envoie que ce que tu acceptes de lui montrer.</div>`);
+        <div class="group-foot">${name} voit seulement les photos que tu lui envoies, avec leur jour et leur pose. « Retirer » l'efface : il ne la voit plus.</div>
+        <div class="group-foot">Quitter ton coach ou supprimer ton compte les efface toutes. Ce qu'il aurait déjà vu, on ne peut pas l'effacer de sa mémoire : n'envoie que ce que tu acceptes de lui montrer.</div>
+        ${st.ready && cphStudentShown() ? cphVerifyHtml(cph.code) : ''}`);
 }
 SCREENS.set('coach-photos-mine', { render: () => renderCphMine(), enter: () => { cphRefresh(); } });
 
@@ -425,6 +439,7 @@ registerActions({
   'cph-send-go': (e, el) => cphSendGo(el),
   'cph-remove': (e, el) => cphRemoveFlow(el.dataset.id),
   'cph-see': (e, el) => pvShowPhoto(el.dataset.id),
+  'cph-verify': () => { cphVerifyOpen = !cphVerifyOpen; render(); },
   'cph-open-mine': () => navigate('coach-photos-mine'),
   'cph-open': (e, el) => navigate(makeRoute('coach-photos', el.dataset.uid)),
   'cph-unlock': () => { if (cphView.phase !== 'open') { cphView.phase = 'locked'; cphUnlockFlow(); } },
