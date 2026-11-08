@@ -9,6 +9,14 @@ const PAGES = ['privacy.html', 'mentions-legales.html', 'cgu.html', 'cgv.html'];
 export default function ({ test, run, assert, sameJSON, ROOT }) {
   const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
+  test('confidentialité : photos de bilan nommées comme dans l\'app, traduites dans la version anglaise', () => {
+    const page = read('privacy.html'), en = page.slice(page.indexOf('lang="en"') > 0 ? page.indexOf('lang="en"') : page.indexOf('Without an account, MDLF Training'));
+    assert.ok(page.includes('Social › Mon coach › Photos de bilan'), 'FR : chemin de l\'app');
+    assert.ok(en.includes('“Photos de bilan” (progress check photos)') && en.includes('(“Photos de bilan” in the app)'), 'EN : libellé de l\'app, traduit entre parenthèses');
+    assert.ok(en.includes('“Envoyer cette photo”, Send this photo') && en.includes('(Your coach will see this photo.'), 'EN : boutons et phrase de l\'app, traduits');
+    for (const ui of ['Photos de bilan', 'Envoyer cette photo']) assert.ok(read('js/features/coach-photos-ui.js').includes(ui), `libellé « ${ui} » toujours dans l'app`);
+  });
+
   test('lettre : état du serveur nettoyé, inscrit seulement si le serveur le dit', () => {
     sameJSON(run('cleanNewsletterState({ subscribed: true, consented_at: "2026-10-31T10:00:00Z", version: "v1", has_email: true })'),
       { subscribed: true, consentedAt: Date.parse('2026-10-31T10:00:00Z'), version: 'v1', hasEmail: true });
