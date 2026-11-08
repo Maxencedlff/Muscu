@@ -24,7 +24,9 @@ function coachStudentRowsHtml(students) {
   const now = Date.now();
   return sortStudentsByProgress(students, st => coachStudentProgress(st, now), st => chatUnreadOf(st.user_id)).map(({ st: s, pr }) => {
     const unread = chatUnreadOf(s.user_id);
-    const third = coachStudentPlanLine(s.user_id) || `<span class="cell__sub">${esc(studentLastLine(s))}</span>`;
+    // « Pas encore de séance » (signal) dit déjà ce que dirait « Aucune séance pour l'instant » : un seul message
+    // (panel Apple de la vague 3) ; la 3e ligne ne reste que pour un planning
+    const third = coachStudentPlanLine(s.user_id) || (pr.kind === 'never' ? '' : `<span class="cell__sub">${esc(studentLastLine(s))}</span>`);
     return `
           <button class="cell cell--nav social-row coach-student-row" data-action="coach-open-student" data-uid="${esc(s.user_id)}" data-signal="${esc(pr.kind)}">
             <span class="social-row__main">${personAvatar(s)}<span class="social-row__text">

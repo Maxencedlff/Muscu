@@ -507,7 +507,8 @@ def t_coach(bench, eng, dev, theme):
         R.check(row.locator('.progress-sig').count() == 1 and row.locator('.progress-sig').inner_text().strip() and ' '.join(row.locator('.coach-count').inner_text().split()) == '3 nouvelles', f'{t} signal de la semaine et nouvelles séances')
         # Panel du 06/11 : pastille rouge « 3 » sans sens à côté de la bulle des messages ; désormais haltère + nombre
         R.check(row.locator('.coach-count--sessions .icon').count() == 1 and 'nouvelles séances' in row.locator('.visually-hidden').first.text_content(), f'{t} pastille des séances : haltère, nombre et « nouvelles » écrit')
-        R.check('Aucune séance' in page.locator('.coach-student-row', has_text='tom').inner_text(), f'{t} élève sans séance')
+        tom = page.locator('.coach-student-row', has_text='tom').inner_text()
+        R.check(('Aucune séance' in tom) != ('Pas encore de séance' in tom), f'{t} élève sans séance : un seul message ({tom!r})')
         layout(page, t, 'Mes élèves')
         shot(page, LOT, f'11-mes-eleves-{t}')
         # Invitation : code créé et partagé, puis retiré ; double toucher : un seul code
