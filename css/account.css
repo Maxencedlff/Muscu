@@ -29,7 +29,7 @@
 
 /* ── Calque plein écran (compte ; questions du premier lancement : .onb) ── */
 .auth, .onb {
-  position: fixed; inset: 0; z-index: 250;            /* sous les toasts (300), feuilles et dialogues */
+  position: fixed; inset: 0; z-index: 250;            /* sous les toasts (450), feuilles et dialogues */
   display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain;
   background: var(--bg); color: var(--label);
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);

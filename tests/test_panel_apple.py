@@ -48,4 +48,37 @@ def t_titre_replie(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_titre_replie])
+def start_session(page, theme='light', cat='push'):
+    seed(page, theme, ppl_v2_today_json())
+    page.click(f'[data-action="start-session"][data-cat="{cat}"]')
+    page.wait_for_selector('.view.session')
+    page.wait_for_timeout(300)
+
+
+def validate_first_set(page):
+    page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]')
+    page.wait_for_selector('[data-action="expand-rest"]')
+    page.click('[data-action="expand-rest"]')   # le repos s'agrandit en feuille (et son voile)
+    page.wait_for_selector('.sess-sheet--rest')
+    page.wait_for_timeout(450)
+
+
+def t_toast_sur_repos(bench):
+    """Toast « Série validée · Annuler » au-dessus du voile de la feuille Repos : son bouton reçoit le toucher."""
+    for eng, dev in PHONES:
+        t = tag(dev, 'light')
+        with bench.page(eng, dev, 'light') as page:
+            start_session(page)
+            validate_first_set(page)
+            hit = page.evaluate("""() => { const b = document.querySelector('.toast button'); if (!b) return null;
+                const r = b.getBoundingClientRect(), e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+                return { text: b.textContent.trim(), onButton: b === e || b.contains(e) }; }""")
+            R.check(hit and hit['onButton'], f'{t} feuille Repos ouverte : le bouton du toast reçoit le toucher {hit}')
+            done = page.evaluate("activeSession.exercises[0].sets[0].done")
+            page.click('.toast button')
+            page.wait_for_timeout(300)
+            R.check(done and not page.evaluate("activeSession.exercises[0].sets[0].done"), f'{t} « Annuler » touché : série dévalidée')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_titre_replie, t_toast_sur_repos])
