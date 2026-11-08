@@ -110,7 +110,12 @@ def t_journee(bench, eng, dev, theme):
         R.check(small_targets(page, '.diet-home button') == [], f'{t} carte : 44 pt')
         # Bouton à cocher : coche grise visible, jamais un deuxième anneau vide à côté de celui des calories
         col = page.evaluate("[getComputedStyle(document.querySelector('.diet-home .diet-check')).color, getComputedStyle(document.body).getPropertyValue('--label3')]")
-        R.check(col[0] not in ('rgba(0, 0, 0, 0)', 'transparent') and page.locator('.diet-home .diet-check .icon').count() == 1, f'{t} carte : coche grise visible avant de cocher ({col})')
+        R.check(col[0] not in ('rgba(0, 0, 0, 0)', 'transparent') and page.locator('.diet-home .diet-check .icon').count() == 1, f'{t} carte : coche visible avant de cocher ({col})')
+        # Panel Apple du 08/11 : contour et coche en couleur d'action, pas en gris pâle comme l'anneau des calories
+        tint = page.evaluate("""() => { const b = document.querySelector('.diet-home .diet-check'), s = getComputedStyle(b), probe = document.createElement('span');
+            probe.style.color = 'var(--tint)'; document.body.append(probe); const tint = getComputedStyle(probe).color; probe.remove();
+            return { color: s.color, ring: s.boxShadow, tint }; }""")
+        R.check(tint['color'] == tint['tint'] and tint['tint'] in tint['ring'], f'{t} carte : bouton Cocher en couleur d\'action {tint}')
         shot(page, LOT, f'1-accueil-{t}')
         card.scroll_into_view_if_needed()
         shot(page, LOT, f'1b-accueil-carte-{t}')
