@@ -127,6 +127,8 @@ body:has(.sess-sheet--rest:not(.sess-sheet--out)) .toast { z-index: 450; }
 .toast__action:active { background: var(--dlg-press); }
 /* Au-dessus de tout placement en bas (séance, barre de repos) : la série en cours ou « + Série » serait cachée */
 .toast.toast--top { top: calc(env(safe-area-inset-top, 0px) + 56px) !important; bottom: auto !important; }
+/* Au-dessus de la feuille Repos (js/core/dialogs.js : --toast-above, haut de la feuille moins le toast) */
+.toast.toast--above { top: max(calc(env(safe-area-inset-top, 0px) + 4px), var(--toast-above, 0px)) !important; bottom: auto !important; }
 /* Retenu (doigt ou VoiceOver dessus) : ne s'efface pas */
 .toast.toast--held { animation: none; opacity: 1; }
 @keyframes toastIn  { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }

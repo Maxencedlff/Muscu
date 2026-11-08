@@ -64,8 +64,9 @@ def validate_first_set(page):
 
 
 def t_toast_sur_repos(bench):
-    """Toast « Série validée · Annuler » au-dessus du voile de la feuille Repos : son bouton reçoit le toucher."""
-    for eng, dev in PHONES:
+    """Toast « Série validée · Annuler » au-dessus du voile de la feuille Repos : son bouton reçoit le toucher, et il ne
+    cache aucun contrôle de la feuille (posé au-dessus d'elle, mesuré une fois la feuille arrivée)."""
+    for eng, dev in PHONES + (('webkit', 'iPhone 17 Pro Max'),):
         t = tag(dev, 'light')
         with bench.page(eng, dev, 'light') as page:
             start_session(page)
@@ -76,7 +77,7 @@ def t_toast_sur_repos(bench):
             R.check(hit and hit['onButton'], f'{t} feuille Repos ouverte : le bouton du toast reçoit le toucher {hit}')
             # Ni le titre de la feuille ni « Réduire » sous le toast
             over = page.evaluate("""() => { const t = document.querySelector('.toast').getBoundingClientRect();
-                return [...document.querySelectorAll('.sess-sheet--rest button, .sess-sheet--rest h2, .sess-sheet--rest .rs__time')].filter(e => {
+                return [...document.querySelectorAll('.sess-sheet--rest button, .sess-sheet--rest h2, .sess-sheet--rest .rs__time, .sess-sheet--rest .rs__next, .sess-sheet--rest .rs__title')].filter(e => {
                   const b = e.getBoundingClientRect(); return b.height && b.bottom > t.top && b.top < t.bottom && b.right > t.left && b.left < t.right; })
                   .map(e => e.textContent.trim()); }""")
             R.check(not over, f'{t} le toast ne cache aucun bouton de la feuille Repos {over}')

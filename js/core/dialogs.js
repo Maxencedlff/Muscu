@@ -56,18 +56,20 @@ function showToast(msg, opts = {}) {
   // ou les boutons de sa carte, vérifié aussi pendant le défilement qui suit une validation (scrollToCurrent)
   // Revu à chaque défilement dans les deux sens : passé en haut pendant le défilement, il y restait et
   // cachait « Reps en réserve » une fois la série centrée, alors que le bas était redevenu libre (iPhone SE)
-  // Feuille de la séance ouverte (Repos, machine…) : la série est cachée dessous ; le toast évite alors les boutons et
-  // champs de la feuille : en bas (ligne « Ensuite » de Repos) s'ils sont libres, sinon en haut ; ni sur « Réduire »
-  // (iPhone SE, panel Apple du 08/11) ni sur « Arrêter » d'une machine
+  // Feuille Repos ouverte (le toast passe au-dessus d'elle, css/views.css) : posé juste au-dessus du haut de la feuille,
+  // jamais sur un de ses contrôles (−15, Passer, +15, Ensuite, Réduire : panels de la vague 3). Mesuré une fois la feuille
+  // arrivée (placeToast à la fin de son animation, js/features/session-sheets.js), sinon ses boutons sont encore plus bas.
   const place = () => {
     if (!el.isConnected) return;
-    el.classList.remove('toast--top');
-    const sheetEl = document.querySelector('.sess-sheet:not(.sess-sheet--out)');
-    const covers = () => toastCovers(el, sheetEl ? sheetEl.querySelectorAll('button, input') : undefined);
+    el.classList.remove('toast--top', 'toast--above');
+    const panel = document.querySelector('.sess-sheet--rest:not(.sess-sheet--out) .sess-sheet__panel');
+    if (panel) {
+      el.style.setProperty('--toast-above', `${Math.round(panel.getBoundingClientRect().top - el.offsetHeight - 8)}px`);
+      el.classList.add('toast--above');
+      return;
+    }
     let top = false;
-    // Feuille : les deux places gênent → en haut, sur l'en-tête de la feuille (« Annuler ») plutôt que sur son action
-    // principale, toujours en bas (« Arrêter » d'une machine)
-    if (covers()) { el.classList.add('toast--top'); top = sheetEl ? true : !covers(); }
+    if (toastCovers(el)) { el.classList.add('toast--top'); top = !toastCovers(el); }
     el.classList.toggle('toast--top', top);
   };
   toastPlace = place;

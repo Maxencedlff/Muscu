@@ -28,7 +28,7 @@ function openSessSheet({ cls = '', label = '', html, full = false, onClose }) {
     closed = true;
     root.classList.add('sess-sheet--out');
     document.removeEventListener('keydown', onKey);
-    setTimeout(() => root.remove(), 220);
+    setTimeout(() => { root.remove(); if (typeof placeToast === 'function') placeToast(); }, 220);
     onClose?.();
   };
   const onKey = ev => { if (ev.key === 'Escape') root._close(); };
@@ -56,7 +56,11 @@ function openSessSheet({ cls = '', label = '', html, full = false, onClose }) {
   panel.addEventListener('pointercancel', end);
 
   document.body.appendChild(root);
-  if (typeof placeToast === 'function') placeToast();   // toast passé en haut pour la série : il revient en bas
+  // Toast affiché : replacé à l'ouverture, puis une fois la feuille arrivée (pendant son animation, ses boutons sont plus bas)
+  if (typeof placeToast === 'function') {
+    placeToast();
+    panel.addEventListener('animationend', () => placeToast(), { once: true });
+  }
   return root;
 }
 

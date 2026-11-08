@@ -269,8 +269,6 @@ body:has(.view.session) .toast { top: auto; bottom: calc(24px + env(safe-area-in
 /* Bilan : en haut, le bouton « Terminé » reste lisible */
 body:has(.view.summary) .toast { bottom: auto; top: calc(12px + env(safe-area-inset-top, 0px)); background: var(--dlg-solid); }
 body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-area-inset-bottom, 0px)); }
-/* Feuille de la séance ouverte (Repos…) : tout en bas, sur la ligne « Ensuite », jamais sur les durées ni « Passer » */
-body:has(.view.session):has(.sess-sheet:not(.sess-sheet--out)) .toast { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
 
 /* ── Feuilles de la séance (variante non bloquante de .sheet, voir openSessSheet) ── */
 .sess-sheet { position: fixed; inset: 0; z-index: 400; }
@@ -293,6 +291,11 @@ body:has(.view.session):has(.sess-sheet:not(.sess-sheet--out)) .toast { bottom: 
 .rs { padding: 4px 16px 20px; display: flex; flex-direction: column; align-items: center; gap: 16px; color: var(--label); }
 .rs__title { font-size: 1rem; font-weight: 600; text-align: center; max-width: 100%; overflow-wrap: anywhere; }
 .rs__ring { position: relative; width: 220px; height: 220px; }
+/* Petite hauteur (iPhone SE) : anneau plus petit, pour laisser au-dessus de la feuille Repos la place du toast « Annuler » */
+@media (max-height: 700px) {
+  .sess-sheet--rest .rs__ring, .sess-sheet--rest .rest-ring--big { width: 176px; height: 176px; }
+  .sess-sheet--rest .rs__time { font-size: 60px; }
+}
 .rest-ring--big { width: 220px; height: 220px; }
 .rs__center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 .rs__time { font-family: var(--font-rounded); font-size: 72px; line-height: 1; font-weight: 300; letter-spacing: 0; }
