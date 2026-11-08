@@ -564,6 +564,10 @@ def t_panel_apple(bench):
         sel = page.evaluate("() => [...document.querySelectorAll('.pcmp__sel')].map(s => s.selectedOptions[0].textContent)")
         R.check(len(sel) == 2 and all(s.endswith('Face') for s in sel) and '30 jours' in page.inner_text('.pcmp__gap'),
                 f'coffre : avant / après sur la même pose à deux dates {sel} {page.inner_text(".pcmp__gap")!r}')
+        # Menus Avant / Après : chevrons haut / bas, valeur en couleur d'action (pas un texte fixe)
+        sel = page.evaluate("""() => [...document.querySelectorAll('.pcmp__pick')].map(p => { const s = p.querySelector('select');
+            return [!!p.querySelector('.icon--chevron-up-chevron-down'), getComputedStyle(s).color === getComputedStyle(document.querySelector('.navbar__text')).color]; })""")
+        R.check(sel == [[True, True], [True, True]], f'coffre : menus Avant / Après avec chevrons, valeur en couleur d\'action {sel}')
         bar = lambda: page.evaluate("""() => { const b = document.querySelector('#app .navbar'), ti = b.querySelector('.navbar__title');
             return { collapsed: b.classList.contains('navbar--collapsed'), text: ti.textContent, op: getComputedStyle(ti).opacity }; }""")
         page.evaluate('window.scrollTo(0, 0)')

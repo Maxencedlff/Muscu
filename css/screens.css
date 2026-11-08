@@ -492,10 +492,14 @@ body.light .imp__ctl { background: var(--cell); }
 .pcmp__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
 .pcmp__col { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .pcmp__lbl { font-size: var(--fs-footnote); color: var(--label2); padding-left: 2px; }
+/* Menu déroulant : valeur en couleur d'action et chevrons haut / bas d'iOS, sinon il passe pour un texte fixe (panel du 08/11) */
+.pcmp__pick { position: relative; display: block; }
 .pcmp__sel {
-  width: 100%; min-height: 44px; border: none; border-radius: var(--r-sm); background: var(--fill2); color: var(--label);
-  padding: 0 10px; font-family: inherit; font-size: var(--fs-input); -webkit-appearance: none; appearance: none;
+  width: 100%; min-height: 44px; border: none; border-radius: var(--r-sm); background: var(--fill2); color: var(--tint);
+  padding: 0 30px 0 10px; font-family: inherit; font-size: var(--fs-input); -webkit-appearance: none; appearance: none;
+  text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
 }
+.pcmp__pick .icon { position: absolute; right: 10px; top: 50%; margin-top: -7px; color: var(--tint); pointer-events: none; }
 .pcmp__gap { text-align: center; color: var(--label2); font-size: var(--fs-footnote); padding-top: 10px; }
 /* Feuilles : nouvelle photo, photo ouverte */
 .pnew__img, .pview__img { display: block; max-width: 100%; max-height: 48vh; margin: 0 auto 12px; border-radius: var(--r-md); object-fit: contain; }

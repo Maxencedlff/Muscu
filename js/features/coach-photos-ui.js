@@ -306,7 +306,7 @@ function renderCphCoach(uid) {
         <div class="group-title">Comparer</div>
         <div class="group group--pad">
           <div class="pcmp__cols">${[['a', 'Avant'], ['b', 'Après']].map(([s, l]) => `
-            <label class="pcmp__col"><span class="pcmp__lbl">${l}</span><select class="pcmp__sel cph-sel" data-side="${s}" id="cph-${s}">${opts(sel[s])}</select></label>`).join('')}
+            <label class="pcmp__col"><span class="pcmp__lbl">${l}</span><span class="pcmp__pick"><select class="pcmp__sel cph-sel" data-side="${s}" id="cph-${s}">${opts(sel[s])}</select>${icon('chevron.up.chevron.down', 14)}</span></label>`).join('')}
           </div>
           ${poses.map(k => `
           <div class="cph-pair"><span class="cph-pair__pose">${photoPoseLabel(k)}</span>

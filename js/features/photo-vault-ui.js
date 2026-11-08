@@ -178,7 +178,7 @@ function photoCompareHtml(list) {
           </div>
           <div class="pcmp__cols">${[['a', a, 'Avant'], ['b', b, 'Après']].map(([side, p, lbl]) => `
             <label class="pcmp__col"><span class="pcmp__lbl">${lbl}</span>
-              <select id="pcmp-${side}" class="pcmp__sel" data-side="${side}">${options(p.id)}</select>
+              <span class="pcmp__pick"><select id="pcmp-${side}" class="pcmp__sel" data-side="${side}">${options(p.id)}</select>${icon('chevron.up.chevron.down', 14)}</span>
             </label>`).join('')}
           </div>
           <div class="pcmp__gap">${days ? `${plural(days, 'jour', 'jours')} d'écart` : 'Même jour'}</div>

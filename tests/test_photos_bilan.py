@@ -302,6 +302,8 @@ def t_envoi_complet(bench, eng, dev, theme):
         signed = cp.evaluate('__sb.signed')
         R.check(signed and all(s[1] == 60 for s in signed), f'{t} URL signées de 60 s ({signed})')
         R.check(cp.locator('.coach-photos-view .cph-pair').count() >= 1 and cp.locator('#cph-a').count() == 1, f'{t} comparer deux dates côte à côte')
+        chev = cp.evaluate("() => [...document.querySelectorAll('.coach-photos-view .pcmp__pick')].map(p => !!p.querySelector('select') && !!p.querySelector('.icon--chevron-up-chevron-down'))")
+        R.check(chev == [True, True], f'{t} coach : menus Avant / Après avec chevrons {chev}')
         lock = cp.evaluate("() => { const b = document.querySelector('.navbar [data-action=cph-lock]'); return [b.textContent.trim(), b.querySelectorAll('.icon').length]; }")
         R.check(lock == ['Refermer', 0], f'{t} coach : « Refermer » en toutes lettres, pas de cadenas pour l\'action {lock}')
         sel = cp.evaluate("() => [document.querySelector('#cph-a').value, document.querySelector('#cph-b').value]")
