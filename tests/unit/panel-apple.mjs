@@ -36,7 +36,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     // Envois chiffrés dans l'app (coach, élève) : jamais l'icône de la feuille de partage
     for (const [file, action] of [['js/features/coach-photos-ui.js', 'cph-send-day'], ['js/features/coach-ui.js', 'coach-send'],
       ['js/features/nutrition-ui.js', 'coach-send-diet'], ['js/features/diet-editor.js', 'diet-send-student'],
-      ['js/features/coach-photos-ui.js', 'go-photo-vault']]) {
+      ['js/features/coach-photos-ui.js', 'cph-send-from-vault']]) {
       assert.equal(iconOf(file, action), 'paperplane', `${action} (${file})`);
     }
     // Feuille de partage d'iOS : le carré et la flèche
