@@ -64,14 +64,13 @@ function bodyHeatOpacity(i) {
 
 // Paliers de Progrès (option tiers) : une teinte et une opacité nettement distinctes par palier (panel Apple du 08/11 :
 // « Travaillé » et « Objectif atteint », deux opacités du même orange, ne se distinguaient pas). Intensité = palier /
-// MUSCLE_LEVEL_MAX : Entretien et Travaillé en ocre (--body-heat-low, deux opacités), Objectif atteint en orange franc
-// (--body-heat), Gros volume en orange rouge (--body-heat-max). null : muscle non coloré.
+// MUSCLE_LEVEL_MAX : Entretien en crème très pâle (--body-heat-low), Travaillé en ocre moyen (--body-heat-mid), Objectif
+// atteint en orange franc (--body-heat), Gros volume en orange rouge (--body-heat-max) : chaque palier se distingue du
+// voisin par la clarté ou la saturation (vague 3 : Entretien et Travaillé encore trop proches). null : non coloré.
 function bodyTier(i) {
   const v = Math.max(0, Math.min(1, Number(i) || 0));
   if (!v) return null;
-  if (v >= 1) return { tone: 'peak', op: 1 };
-  if (v >= 0.75) return { tone: 'goal', op: 1 };
-  return { tone: 'low', op: v >= 0.5 ? 0.9 : 0.4 };
+  return { tone: v >= 1 ? 'peak' : v >= 0.75 ? 'goal' : v >= 0.5 ? 'mid' : 'low', op: 1 };
 }
 
 const BODY_COLORS = { heat: 'var(--body-heat)', text: 'var(--label2)' };
@@ -100,8 +99,8 @@ function bodyViewHtml(kind, view, levels, heat, secondary = [], peak = false, ti
     if (!op) return '';
     const url = `url(${bodyImgUrl(kind, view, m)})`;
     const sec = secondary.includes(m), top = !sec && (tier ? tier.tone === 'peak' : peak && levels[m] >= 1);
-    const low = !sec && tier?.tone === 'low';
-    return `<i class="body-map__m${sec ? ' body-map__m--sec' : ''}${top ? ' body-map__m--peak' : ''}${low ? ' body-map__m--low' : ''}" data-muscle="${m}" data-heat="${op}" style="${sec || low ? '' : color}background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;
+    const low = !sec && (tier?.tone === 'low' || tier?.tone === 'mid') ? tier.tone : '';
+    return `<i class="body-map__m${sec ? ' body-map__m--sec' : ''}${top ? ' body-map__m--peak' : ''}${low ? ` body-map__m--${low}` : ''}" data-muscle="${m}" data-heat="${op}" style="${sec || low ? '' : color}background-image:${url};-webkit-mask-image:${url};mask-image:${url};opacity:${op}"></i>`;
   }).join('');
   return `<span class="body-map__fig body-map__${view}"><img class="body-map__base" src="${bodyImgUrl(kind, view, 'base')}" alt="" draggable="false" decoding="async">${layers}</span>`;
 }

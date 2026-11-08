@@ -236,10 +236,12 @@ def t_silhouette_paliers(bench):
             page.wait_for_selector('.mlegend__dot')
             dots = page.evaluate("""() => [...document.querySelectorAll('.mcard .mlegend__dot, .mlegend__dot')].slice(0, 5).map(d => {
                 const rgb = s => s.match(/[\\d.]+/g).slice(0, 3).map(Number), a = getComputedStyle(d, '::after');
-                return { base: rgb(getComputedStyle(d).backgroundColor), top: rgb(a.backgroundColor), o: parseFloat(a.opacity) }; })""")
+                const al = s => { const m = s.match(/[\\d.]+/g); return m.length > 3 ? Number(m[3]) : 1; };
+                return { base: rgb(getComputedStyle(d).backgroundColor), top: rgb(a.backgroundColor), o: parseFloat(a.opacity) * al(a.backgroundColor) }; })""")
             seen = [[round(b * (1 - d['o']) + c * d['o']) for b, c in zip(d['base'], d['top'])] for d in dots]
             gaps = [round(_delta_e(seen[i], seen[i + 1])) for i in range(len(seen) - 1)]
-            R.check(len(gaps) == 4 and gaps[2] >= 40 and min(gaps) >= 12, f'{t} paliers voisins distincts (Pas travaillé › Gros volume) {gaps}')
+            # Entretien / Travaillé et Travaillé / Objectif atteint nettement distincts (vague 3 : les deux premiers trop proches)
+            R.check(len(gaps) == 4 and gaps[1] >= 35 and gaps[2] >= 30 and min(gaps) >= 12, f'{t} paliers voisins distincts (Pas travaillé › Gros volume) {gaps}')
             page.locator('.mcard').first.scroll_into_view_if_needed()
             shot(page, LOT, f'silhouette-paliers-{t}')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')

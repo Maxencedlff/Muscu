@@ -40,7 +40,8 @@
   --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: var(--orange);
   --body-heat-sec: var(--yellow); /* muscles secondaires d'un exercice (fiche) : autre teinte que les principaux */
   --body-heat-max: #FF5A1F;      /* palier le plus haut (20 séries et plus) : orange rouge, au bout de l'échelle */
-  --body-heat-low: #D9C089;      /* Entretien et Travaillé (Progrès) : ocre pâle, loin de l'orange franc d'« Objectif atteint » */
+  --body-heat-low: rgba(232,215,168,.35);   /* Progrès, Entretien : crème très pâle */
+  --body-heat-mid: #B8862E;      /* Progrès, Travaillé : ocre moyen, plus sombre que l'Entretien, moins vif que l'Objectif */
   --body-base-bright: .78;       /* personnage 3D gris un peu assombri sur le noir, lisible (clair : 1, tel quel) */
   --tip-bg: #2C2C2E;             /* bulle d'un muscle touché */
   --bubble-in: #2C2C2E;          /* bulle d'un message reçu (messages coach) */
@@ -95,7 +96,7 @@ body.light {
   --dlg-sep: rgba(60,60,67,.29); --dlg-press: rgba(0,0,0,.06);
   --shadow-float: 0 8px 24px rgba(0,0,0,.12);
   --cat-text-mix: 55%; --cat-text-base: #000000;
-  --body-skin: #E5E5EA; --body-zone: #C7C7CC; --body-base-bright: 1; --body-heat-max: #E03E00; --body-heat-low: #C4A35A; --tip-bg: #FFFFFF; --tip-link: var(--tint);
+  --body-skin: #E5E5EA; --body-zone: #C7C7CC; --body-base-bright: 1; --body-heat-max: #E03E00; --body-heat-low: rgba(240,221,165,.9); --body-heat-mid: #A8781F; --tip-bg: #FFFFFF; --tip-link: var(--tint);
   --body-hl-glow: rgba(0,102,204,.7);
   --bubble-in: #E9E9EB;
   --siwa-bg: #000000; --siwa-fg: #FFFFFF;
