@@ -585,7 +585,7 @@ def t_panel_apple(bench):
         page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
         page.wait_for_timeout(500)
         b = bar()
-        R.check(b['collapsed'] and b['text'] == 'Coffre' and float(b['op']) > .9 and not b['cut'], f'coffre défilé : « Coffre » entier dans la barre, à côté de « Verrouiller » {b}')
+        R.check(b['collapsed'] and b['text'] == page.inner_text('#pvTitle') and float(b['op']) > .9 and not b['cut'], f'coffre défilé : titre replié = grand titre, entier, à côté de « Verrouiller » {b}')
         shot(page, LOT, 'panel-titre-replie-iPhone_SE')
         R.check(not page.errors, f'aucune erreur JS : {page.errors}')
 

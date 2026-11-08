@@ -138,7 +138,7 @@ function pvOpenHtml() {
                 </button>`; }).join('')}</div>
             </div>`).join('');
   return `
-        <h1 class="scr-title" id="pvTitle" tabindex="-1" data-bar-title="Coffre">Coffre à photos</h1>
+        <h1 class="scr-title" id="pvTitle" tabindex="-1">Coffre</h1>
         <p class="pv-summary">${icon('lock', 14)}<span>${summary}</span></p>
         ${photoCompareHtml(list)}
         <div class="group">${list.length ? add : ''}
