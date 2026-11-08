@@ -66,8 +66,8 @@ Le docstring de la fonction est le texte d'introduction lu par le panel. Exemple
 ## Limites
 
 - Navigateur, pas un iPhone : pas de clavier à l'écran, pas de Face ID, pas de vraie feuille de partage
-  iOS, pas de Dynamic Type ; le coffre à photos s'affiche dans son état « indisponible », sauf dans `photos-bilan`
-  (module du coffre simulé, `FAKE_VAULT` de fake_account.py : Face ID toujours accepté).
+  iOS, pas de Dynamic Type ; le coffre à photos s'affiche dans son état « indisponible », sauf dans `progres` et
+  `photos-bilan` (module du coffre simulé, `FAKE_VAULT` de fake_account.py : Face ID toujours accepté).
 - Les touchers comptés sont ceux du chemin choisi par le parcours, pas forcément le plus court possible.
 - Les contrôles automatiques ont des faux positifs (élément volontairement tronqué, zone de toucher
   élargie par un pseudo-élément) : à confirmer sur la capture.

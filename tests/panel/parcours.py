@@ -268,7 +268,10 @@ def p_historique(r):
 @parcours('progres', 'Progrès', 'pratiquant')
 def p_progres(r):
     """Onglet Progrès : silhouette des muscles, courbe d'un exercice et son record, vue d'ensemble
-    (records de la semaine), mesures du corps, coffre à photos (verrouillé)."""
+    (records de la semaine), mesures du corps, coffre à photos (présentation avant sa création : module du coffre
+    simulé, sinon le navigateur afficherait « Coffre indisponible », faux pour l'app iPhone)."""
+    from fake_account import FAKE_VAULT
+    r.page.add_init_script(FAKE_VAULT)
     r.lancer(REALISTE)
     with r.etape('progres', 'Onglet Progrès'):
         r.onglet('progress', 'Progrès')
@@ -291,7 +294,7 @@ def p_progres(r):
         r.defiler('[data-action="go-body-measures"]', 'groupe Mesures')
         r.toucher('[data-action="go-body-measures"]', 'Mesures')
         r.attendre('.view.body-measures', 'Mesures')
-    with r.etape('photos', 'Photos de progression (coffre verrouillé)'):
+    with r.etape('photos', 'Photos de progression (coffre : présentation, « Créer le coffre »)'):
         r.toucher('[data-action="go-photo-vault"]', 'Photos')
         r.attendre('.view.photo-vault', 'coffre à photos')
 
@@ -995,8 +998,8 @@ def recopier_serveur(r, de, vers):
 
 @parcours('photos-bilan', 'Photos de bilan : l\'élève les envoie, le coach les compare', 'coach')
 def p_photos_bilan(r):
-    """Deux téléphones. Le coach max active « Recevoir les photos de bilan » dans la fiche de Léa (Face ID simulé,
-    une fois pour tous ses élèves). Léa ouvre son coffre (Progrès › Mesures › Photos, Face ID), y a trois photos sur deux jours,
+    """Deux téléphones. Le coach max active « Recevoir les photos de bilan » sous la liste de Coach › Élèves (Face ID
+    simulé, une fois pour tous ses élèves). Léa ouvre son coffre (Progrès › Mesures › Photos, Face ID), y a trois photos sur deux jours,
     touche « Envoyer à mon coach » sous un jour, coche une photo (accord affiché sous la photo), l'envoie (18 ans ou
     plus, déclaré une fois), puis envoie seule la photo d'il y a deux semaines ; elle les retrouve dans Social › Mon
     coach › Photos de bilan. Le coach les ouvre (Face ID) et compare les deux dates côte à côte ; Léa en retire une."""
@@ -1010,13 +1013,12 @@ def p_photos_bilan(r):
         const lea = __sb.addPerson({ username: 'lea', avatar: '🦊', social: false });
         __sb.link(me, lea, Date.now() - 40 * 86400000); await coachRefresh(); }""", 'rôle coach validé, élève Léa')
     coach = r.page
-    with r.etape('coach-recevoir', 'Coach : fiche de Léa › « Recevoir les photos de bilan »', cle='Coach : recevoir les photos de bilan'):
+    with r.etape('coach-recevoir', 'Coach › Élèves : « Recevoir les photos de bilan », sous la liste', cle='Coach : recevoir les photos de bilan'):
         r.onglet('friends', 'Coach')
-        r.toucher('.coach-student-row', 'Léa', texte='lea')
-        r.attendre('.coach-student-view', 'fiche de l\'élève')
-        r.defiler('[data-action="cph-setup"]', '« Recevoir les photos de bilan »')
-        r.toucher('[data-action="cph-setup"]', 'Recevoir les photos de bilan (Face ID simulé)')
-        r.attendre('[data-action="cph-open"]', 'réception activée')
+        r.attendre('.coach-team [data-action="cph-setup"]', '« Recevoir les photos de bilan » sous la liste des élèves')
+        r.defiler('.coach-team [data-action="cph-setup"]', '« Recevoir les photos de bilan »')
+        r.toucher('.coach-team [data-action="cph-setup"]', 'Recevoir les photos de bilan (Face ID simulé)')
+        r.page.wait_for_function("() => !document.querySelector('.coach-team [data-action=\"cph-setup\"]')", timeout=5000)
 
     # ── Téléphone de Léa ──
     eleve = r.autre_telephone(FAKE_VAULT, opts={'uidStart': 1})
@@ -1065,8 +1067,10 @@ def p_photos_bilan(r):
 
     # ── Téléphone du coach : ouvrir, comparer ──
     recopier_serveur(r, eleve, coach)
-    with r.etape('coach-ouvrir', 'Coach : fiche › Photos de bilan, ouvertes avec Face ID', cle='Coach : comparer deux bilans'):
-        r.raccourci('() => coachRefresh()', 'fiche relue (photos arrivées)')
+    with r.etape('coach-ouvrir', 'Coach : fiche de Léa › Photos de bilan, ouvertes avec Face ID', cle='Coach : comparer deux bilans'):
+        r.toucher('.coach-student-row', 'Léa', texte='lea')
+        r.attendre('.coach-student-view', 'fiche de l\'élève')
+        r.defiler('[data-action="cph-open"]', 'Photos de bilan')
         r.toucher('[data-action="cph-open"]', 'Photos de bilan (Face ID simulé)')
         coach.wait_for_function("() => document.querySelectorAll('.coach-photos-view .pgal__item img[src^=\"blob:\"]').length === 2", timeout=20000)
     with r.etape('coach-comparer', 'Coach : deux dates côte à côte (Avant, Après, écart en jours)', cle='Coach : comparer deux bilans'):
@@ -1074,6 +1078,9 @@ def p_photos_bilan(r):
 
     # ── Téléphone de Léa : retirer ──
     with r.sur(eleve):
+        with r.etape('verifier-cle', 'Élève : « Vérifier la clé avec ton coach » déplié'):
+            r.toucher('[data-action="cph-verify"]', 'Vérifier la clé avec ton coach')
+            r.attendre('.coach-photos-mine-view .cph-code', 'code de la clé')
         with r.etape('retirer', 'Élève : « Retirer » une photo', cle='Élève : voir et retirer ses photos de bilan'):
             r.toucher('.cph-row [data-action="cph-remove"]', 'Retirer')
             r.choisir('Retirer')
