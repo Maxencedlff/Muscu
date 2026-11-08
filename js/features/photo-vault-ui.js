@@ -123,6 +123,7 @@ function pvLockedHtml() {
 
 function pvOpenHtml() {
   const list = photoCache || [];
+  // Coffre vide : les trois cases Face, Profil, Dos suffisent (la ligne « Ajouter une photo » faisait doublon)
   const add = `<button class="cell cell--action" data-action="photo-add">${icon('camera', 22)}<span class="cell__title">Ajouter une photo</span></button>`;
   const oldest = list[list.length - 1];
   const summary = list.length
@@ -140,7 +141,7 @@ function pvOpenHtml() {
         <h1 class="scr-title" id="pvTitle" tabindex="-1" data-bar-title="Coffre">Coffre à photos</h1>
         <p class="pv-summary">${icon('lock', 14)}<span>${summary}</span></p>
         ${photoCompareHtml(list)}
-        <div class="group">${add}
+        <div class="group">${list.length ? add : ''}
           ${list.length ? `<div class="cell"><div class="pgal">${days}</div></div>` : `<div class="cell pv-empty">
             <div class="pgal__row">${PHOTO_POSES.map(([k, l]) => `<button class="pv-slot" data-action="photo-add" data-pose="${k}" aria-label="Ajouter une photo : ${l}">${icon('plus', 22)}<span>${l}</span></button>`).join('')}</div>
             <p class="cell__sub">Une photo de temps en temps, pour voir ce que la balance ne dit pas.</p></div>`}

@@ -553,6 +553,11 @@ def t_panel_apple(bench):
         shell(page)
         open_vault(page, 'light')
         create_vault(page)
+        # Coffre vide : les trois cases sur toute la largeur, sans la ligne « Ajouter une photo » en doublon, noms entiers
+        empty = page.evaluate("""() => { const row = document.querySelector('.pv-empty .pgal__row'), cell = document.querySelector('.pv-empty');
+            return { slots: [...document.querySelectorAll('.pv-slot')].map(b => { const s = b.querySelector('span'); return s.scrollWidth <= b.clientWidth - 8; }),
+                     full: row.getBoundingClientRect().width >= cell.getBoundingClientRect().width - 40, line: document.querySelectorAll('.cell--action[data-action=photo-add]').length }; }""")
+        R.check(empty['slots'] == [True, True, True] and empty['full'] and empty['line'] == 0, f'coffre vide : trois cases pleine largeur, pas de doublon {empty}')
         add_photo(page, face, pose='face', date='2026-10-03')
         add_photo(page, face, pose='face')
         add_photo(page, back, pose='back')

@@ -552,8 +552,11 @@ body.light .imp__ctl { background: var(--cell); }
 .pv-link--danger { color: var(--red-text); }
 /* Coffre ouvert */
 .pv-empty { flex-direction: column; align-items: stretch; gap: 10px; padding-top: 12px; padding-bottom: 12px; }
+/* Coffre vide : les trois cases sur toute la largeur, chaque nom de pose avec de l'air (panel Apple de la vague 3 :
+   rangée réduite à sa plus petite largeur, « Profil » touchait le cadre) */
+.pv-empty .pgal__row { width: 100%; }
 .pv-slot {
-  aspect-ratio: 3 / 4; min-height: 44px; border-radius: var(--r-sm); border: 1.5px dashed var(--label3); background: none;
+  aspect-ratio: 3 / 4; min-height: 44px; min-width: 0; padding: 0 8px; border-radius: var(--r-sm); border: 1.5px dashed var(--label3); background: none;
   color: var(--tint-on-fill); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
   font-size: var(--fs-footnote); font-weight: 600; cursor: pointer;
 }
