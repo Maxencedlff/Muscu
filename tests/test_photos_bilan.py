@@ -300,13 +300,15 @@ def t_envoi_complet(bench, eng, dev, theme):
             cph.state.photos = keep; render(); return out; }""")
         R.check(twins['see'] == 3 and sum(1 for n in twins['names'] if n.endswith('(1)') or n.endswith('(2)')) == 2,
                 f'{t} « Voir » sur les 3 photos envoyées d\'ici (pas la jumelle inconnue), jumelles numérotées {twins}')
-        # Code de la clé : replié sous « Vérifier la clé avec ton coach », hors du texte principal (panel du 08/11)
+        # Code de la clé : replié sous « Vérifier le code avec ton coach », hors du texte principal (panel du 08/11)
         txt = sp.inner_text('.coach-photos-mine-view')
-        R.check(sp.locator('.coach-photos-mine-view .cph-code').count() == 0 and 'Vérifier la clé avec ton coach' in txt
+        R.check(sp.locator('.coach-photos-mine-view .cph-code').count() == 0 and 'Vérifier le code avec ton coach' in txt
                 and sp.get_attribute('[data-action="cph-verify"]', 'aria-expanded') == 'false', f'{t} code de la clé replié')
         sp.click('[data-action="cph-verify"]')
         sp.wait_for_selector('.coach-photos-mine-view .cph-code')
         code = sp.inner_text('.coach-photos-mine-view .cph-code')
+        txt = sp.inner_text('.coach-photos-mine-view')
+        R.check('comparez' not in txt and 'hébergeur' not in txt and 'demande-lui le code' in txt, f'{t} code : tutoiement, mots simples, où le coach le trouve')
         R.check(code == sp.evaluate('cph.code') and sp.get_attribute('[data-action="cph-verify"]', 'aria-expanded') == 'true', f'{t} déplié : code de la clé de ton coach ({code!r})')
         shot(sp, LOT, f'07b-verifier-cle-{t}')
         sp.click('[data-action="cph-verify"]')

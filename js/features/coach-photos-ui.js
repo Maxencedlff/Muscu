@@ -21,7 +21,7 @@ let cphPicked = new Set();   // feuille d'envoi : photos du coffre cochées
 const cphCoachName = () => esc(coachName() || 'ton coach');
 const cphSize = n => (n ? fmtBytes(n) : '');
 const cphPoseDay = p => `${photoPoseLabel(p.pose)} · ${fmtDate(cphDayTs(p.takenOn), 'short')}`;
-// Code de la clé du coach (élève) : replié sous « Vérifier la clé avec ton coach » (panel du 08/11 : au milieu du texte,
+// Code de la clé du coach (élève) : replié sous « Vérifier le code avec ton coach » (panel du 08/11 : au milieu du texte,
 // ce code inquiétait plus qu'il n'aidait). Ouvert : le chiffrement en une phrase et le code à comparer.
 let cphVerifyOpen = false;
 function cphVerifyHtml(code) {
@@ -29,10 +29,10 @@ function cphVerifyHtml(code) {
   return `
         <div class="group">
           <button class="cell cell--nav cph-verify" data-action="cph-verify" aria-expanded="${cphVerifyOpen}">
-            <span class="cell__body"><span class="cell__title">Vérifier la clé avec ton coach</span></span>
+            <span class="cell__body"><span class="cell__title">Vérifier le code avec ton coach</span></span>
             ${icon(cphVerifyOpen ? 'chevron.down' : 'chevron.right', 16)}
           </button>${cphVerifyOpen ? `
-          <div class="cell"><span class="cell__body"><span class="cell__sub">Tes photos sont chiffrées sur ton iPhone pour ton coach seul : ni nous ni l'hébergeur ne pouvons les lire. Pour vérifier que c'est bien sa clé, comparez ce code avec celui de son app : <span class="num cph-code">${esc(code)}</span>. S'il est différent, n'envoie plus de photo et préviens-le.</span></span></div>` : ''}
+          <div class="cell"><span class="cell__body"><span class="cell__sub">Tes photos sont protégées sur ton iPhone : seul ton coach peut les ouvrir, ni nous ni personne d'autre. Pour t'en assurer, demande-lui le code écrit en bas de ta page Photos de bilan, dans son app. Il doit être le même que celui-ci : <span class="num cph-code">${esc(code)}</span>. S'il est différent, n'envoie plus de photo et préviens-le.</span></span></div>` : ''}
         </div>`;
 }
 

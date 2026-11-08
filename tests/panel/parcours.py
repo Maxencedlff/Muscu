@@ -1084,8 +1084,8 @@ def p_photos_bilan(r):
 
     # ── Téléphone de Léa : retirer ──
     with r.sur(eleve):
-        with r.etape('verifier-cle', 'Élève : « Vérifier la clé avec ton coach » déplié'):
-            r.toucher('[data-action="cph-verify"]', 'Vérifier la clé avec ton coach')
+        with r.etape('verifier-cle', 'Élève : « Vérifier le code avec ton coach » déplié'):
+            r.toucher('[data-action="cph-verify"]', 'Vérifier le code avec ton coach')
             r.attendre('.coach-photos-mine-view .cph-code', 'code de la clé')
         with r.etape('retirer', 'Élève : « Retirer » une photo', cle='Élève : voir et retirer ses photos de bilan'):
             r.toucher('.cph-row [data-action="cph-remove"]', 'Retirer')
