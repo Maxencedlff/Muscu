@@ -132,6 +132,10 @@ function backLabelFits(btn, label) {
   if (label.scrollWidth > label.clientWidth + 1) return false;
   const title = btn.closest('.navbar__bar, .auth__bar')?.querySelector('.navbar__title');
   if (!title?.textContent.trim()) return true;
+  // Titre compact pas encore affiché (grand titre ou titre du contenu encore visibles) : il ne prend pas de place,
+  // comme sur iOS (panels de la vague 3 : chevron seul au lieu de « ‹ lea » sur les photos de bilan, iPhone SE).
+  // Revu quand le titre apparaît (observeLargeTitle).
+  if (title.closest('.navbar--echo:not(.navbar--collapsed), .navbar--large:not(.navbar--collapsed)')) return true;
   if (title.scrollWidth > title.clientWidth + 1) return false;   // titre coupé : le retour prend trop de place
   // Bord gauche du texte du titre (pas de sa boîte) ; bord droit du libellé en entier
   const range = document.createRange();
@@ -210,7 +214,9 @@ function observeLargeTitle() {
   if (!('IntersectionObserver' in window)) return;
   const top = bar.getBoundingClientRect().height;
   largeObserver = new IntersectionObserver(([en]) => {
+    if (bar.classList.contains('navbar--collapsed') === !en.isIntersecting) return;
     bar.classList.toggle('navbar--collapsed', !en.isIntersecting);
+    fitBackLabel(bar);   // le titre compact apparaît ou disparaît : le retour se raccourcit ou reprend son nom
   }, { rootMargin: `-${Math.round(top)}px 0px 0px 0px`, threshold: 0 });
   largeObserver.observe(h1);
 }

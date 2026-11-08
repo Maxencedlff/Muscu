@@ -315,7 +315,7 @@ function renderCphCoach(uid) {
   const foot = `<div class="group-foot">Envoyées par ${who}, chiffrées pour toi seul. ${who} peut les retirer quand il veut ; elles disparaissent aussi s'il quitte ton suivi. Ne les enregistre pas, ne les montre pas et ne les publie pas sans son accord écrit.${cphCoach.session?.code ? ` Code de ta clé : <span class="num cph-code">${esc(cphCoach.session.code)}</span> ; ${who} voit le même dans son app.` : ''}</div>`;
   if (!days.length) {
     const msg = f.loading || cphView.done < f.photos.length ? 'Ouverture des photos…' : f.photos.length ? 'Ces photos ne s\'ouvrent pas sur cet iPhone.' : `${who} ne t'a pas encore envoyé de photo.`;
-    return view(`<h1 class="scr-title" id="cphTitle" tabindex="-1">Photos de bilan</h1><p class="scr-sub">${who}</p><div class="empty-note">${msg}</div>${foot}`);
+    return view(`<h1 class="scr-title" id="cphTitle" tabindex="-1" data-bar-title="Photos">Photos de bilan</h1><p class="scr-sub">${who}</p><div class="empty-note">${msg}</div>${foot}`);
   }
   const dayKeys = days.map(d => d.day);
   // Par défaut (tant que le coach n'a rien choisi) : la date la plus ancienne contre la plus récente, recalculées pendant
@@ -346,7 +346,7 @@ function renderCphCoach(uid) {
             </div>`).join('');
   const broken = cphView.broken ? `<p class="pv-summary">${plural(cphView.broken, 'photo ne s\'ouvre pas', 'photos ne s\'ouvrent pas')} sur cet iPhone.</p>` : '';
   return view(`
-        <h1 class="scr-title" id="cphTitle" tabindex="-1">Photos de bilan</h1>
+        <h1 class="scr-title" id="cphTitle" tabindex="-1" data-bar-title="Photos">Photos de bilan</h1>
         <p class="scr-sub">${who} · ${plural(list.length, 'photo', 'photos')}</p>
         ${broken}
         ${compare}
