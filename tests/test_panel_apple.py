@@ -343,4 +343,22 @@ def t_modifier_cibles(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+def t_rest_pause_mots(bench):
+    """Rest-pause (iPhone SE et 17) : la pause dite en entier (« 15 s »), un seul mot pour la sous-série (« mini-série »),
+    plus de « RP1 » dans la colonne Série."""
+    for eng, dev in (('webkit', 'iPhone SE'), ('webkit', 'iPhone 17')):
+        t = tag(dev, 'dark')
+        with bench.page(eng, dev, 'dark') as page:
+            start_session(page, 'dark')
+            page.click('[data-action="tech-set"][data-ei="0"][data-si="0"]')
+            page.wait_for_selector('.ios-dialog__btn'); page.wait_for_timeout(300)
+            tap_dialog(page, 'Rest-pause')
+            page.wait_for_timeout(400)
+            m = page.evaluate("""() => { const h = document.querySelector('.tech__hint'), tg = document.querySelector('.session-set--sub .tech-tag, .session-set--sub .set-n');
+                return { hint: h && h.textContent, shown: !!h && h.getBoundingClientRect().width > 0 && h.scrollWidth <= h.clientWidth + 1,
+                         tag: tg && tg.textContent.trim(), add: document.querySelector('[data-action="tech-add-sub"]')?.textContent.trim() }; }""")
+            R.check(m['hint'] == '15 s' and m['shown'] and m['tag'] == '1' and 'mini-série' in (m['add'] or ''), f'{t} rest-pause : « 15 s » entier, « 1 », « + mini-série » {m}')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])

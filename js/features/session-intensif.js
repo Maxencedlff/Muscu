@@ -46,7 +46,7 @@ function techBlockHtml(ex, ei, s, si) {
   return `
     <div class="tech" role="group" aria-label="${T.label}, ${name}">
       <div class="tech__cap">
-        <span class="tech__name">${T.label}</span><span class="tech__hint">${T.hint}</span>
+        <span class="tech__label"><span class="tech__name">${T.label}</span><span class="tech__hint">${T.hint}</span></span>
         ${add}
         <button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}">${icon('xmark', 14)}</button>
       </div>
@@ -55,7 +55,8 @@ function techBlockHtml(ex, ei, s, si) {
 }
 
 function subRowHtml(ex, ei, s, si, x, k) {
-  const T = TECHS[setTech(s)], tag = `${T.short}${k + 1}`, kind = loadKind(ex);
+  // Numéro de la sous-série seul, sous le nom de la technique (« Rest-pause 15 s ») : un seul mot, « mini-série », partout ailleurs
+  const T = TECHS[setTech(s)], tag = `${k + 1}`, kind = loadKind(ex);
   const spoken = `${T.subName} ${k + 1}, ${setSpokenName(ex, si).toLowerCase()}, ${esc(ex.name)}`;
   const prev = x.prev ? `${hasLoad(x.prev.weight) ? fmtW(x.prev.weight, { plain: true }) + '&nbsp;× ' : ''}${esc(x.prev.reps)}` : '—';
   const at = `data-ei="${ei}" data-si="${si}" data-k="${k}"`;

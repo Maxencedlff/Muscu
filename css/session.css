@@ -635,7 +635,10 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
   padding: 0 6px 0 calc(28px + var(--set-gap)); border-left: 2px solid var(--sep);
 }
 .tech__name { font-size: 0.765rem; font-weight: 700; color: var(--label); white-space: nowrap; }
-.tech__hint { flex: 1; min-width: 0; font-size: 0.706rem; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tech__hint { flex: 0 0 auto; font-size: 0.706rem; color: var(--label2); white-space: nowrap; }   /* « 15 s », « sans repos » : courts, jamais coupés */
+.tech__label { display: flex; align-items: baseline; gap: 12px; min-width: 0; flex: 1; }
+/* Étroit (iPhone SE) : la pause passe sous le nom de la technique, entière, plutôt que d'être coupée */
+@media (max-width: 374px) { .tech__label { flex-direction: column; align-items: flex-start; gap: 0; } }
 .tech__add, .tech__x {
   position: relative; flex-shrink: 0; height: 32px; border: 0; border-radius: var(--r-pill); cursor: pointer;
   background: var(--fill); color: var(--tint-on-fill); font-family: inherit; font-size: 0.765rem; font-weight: 600;
@@ -649,7 +652,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .session-set--sub { min-height: 52px; margin-bottom: 2px; border-radius: 0 var(--r-sm) var(--r-sm) 0; box-shadow: inset 2px 0 0 var(--sep); }
 .session-set--subcur { background: color-mix(in srgb, var(--cat-color) 8%, var(--cell)); box-shadow: inset 3px 0 0 var(--cat-color); }
 .tech-tag { font-size: 0.706rem; font-weight: 700; letter-spacing: .02em; }
-@media (max-width: 374px) { .tech__cap { padding-left: calc(24px + var(--set-gap)); } .tech__hint { display: none; } }
+@media (max-width: 374px) { .tech__cap { padding-left: calc(24px + var(--set-gap)); } }
 
 /* Historique : lignes « Échauffement … » et « Reps en réserve … » sous les séries */
 .hex__sets--note { color: var(--label3); }
