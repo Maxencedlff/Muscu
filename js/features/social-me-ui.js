@@ -138,10 +138,11 @@ function lastSessionHtml(row) {
   const acts = socialActivity().rows.filter(a => a.sessionId === row.id);
   const reacts = acts.filter(a => a.kind === 'reaction'), comment = acts.find(a => a.kind === 'comment' && a.text);
   // [libellé affiché, valeur, phrase lue par VoiceOver]
-  const n = seriesCount(s), vol = local ? fmtVolume(sessionVolume(local.exercises, entryBodyKg(local))) : '';
+  // Durée, volume, séries : le même ordre, le même calcul que la carte du fil (feedStatsHtml, js/features/social-ui.js)
+  const n = seriesCount(s), v = reviewVolume(s.exercises), vol = v > 0 ? fmtVolume(v) : '';
   const facts = [s.duration ? ['Durée', fmtDuration(s.duration), `durée ${fmtDuration(s.duration)}`] : null,
-    ['Séries', String(n), plural(n, 'série', 'séries')],
-    local ? ['Volume', vol, `volume ${vol}`] : ['Exercices', String(s.exercises.length), plural(s.exercises.length, 'exercice', 'exercices')]].filter(Boolean);
+    vol ? ['Volume', vol, `volume ${vol}`] : null,
+    [n > 1 ? 'Séries' : 'Série', String(n), plural(n, 'série', 'séries')]].filter(Boolean);
   const who = reacts.length ? `${stackHtml(reacts)}<span class="last__who-text"><b>${esc(reactorsLine(reacts.map(personName), 1))}</b></span>`
     : '<span class="last__who-text">Aucune réaction pour l\'instant</span>';
   return `

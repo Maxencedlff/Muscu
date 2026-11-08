@@ -140,6 +140,11 @@ def t_pratiquant(bench, eng, dev, theme):
         stats = [x.replace(' ', ' ').replace(' ', ' ') for x in card.locator('.feed-card__stat').all_inner_texts()]
         R.check(len(stats) == 3 and stats[0].startswith('58 min') and 'Durée' in stats[0] and 'Volume' in stats[1] and stats[2].startswith('5') and 'Séries' in stats[2],
                 f'{t} carte : durée, volume, 5 séries sans l\'échauffement ({stats})')
+        # Vague 3 : séance d'une amie, mêmes chiffres dans le même ordre et le même style que la carte
+        card.locator('.feed-card__main').click(); page.wait_for_selector('.social-session-view .session-stats')
+        lbls = page.locator('.session-stats .tile__lbl').all_inner_texts()
+        R.check(lbls[:3] == ['Durée', 'Volume', 'Séries'], f'{t} séance de l\'amie : Durée, Volume, Séries comme la carte ({lbls})')
+        page.go_back(); page.wait_for_selector('.feed-card[data-id="l0"]')
         rec = card.locator('.feed-card__rec').inner_text().replace(' ', ' ').replace(' ', ' ')
         R.check(rec.startswith('🏆 Record · ') and rec.endswith(' kg +1'),
                 f'{t} carte : record le plus marquant, et combien d\'autres ({rec!r})')

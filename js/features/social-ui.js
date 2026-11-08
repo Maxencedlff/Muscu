@@ -63,7 +63,8 @@ function feedRecordHtml(s) {
   const more = (s.records?.length || 0) - 1;
   return `<span class="feed-card__rec"><span aria-hidden="true">🏆 </span>Record · <span class="num">${esc(notedFeedTxt(r))}</span>${more > 0 ? `<span class="feed-card__rec-more num"> +${more}</span>` : ''}</span>`;
 }
-// Les trois chiffres de la carte : durée, volume, séries (sans l'échauffement) ; un chiffre absent est omis
+// Les trois chiffres de la carte : durée, volume, séries (sans l'échauffement) ; un chiffre absent est omis. Même ordre et
+// même style (valeur, puis libellé dessous, avec une capitale) dans la séance d'un ami, Mon profil et le bilan (vague 3)
 function feedStatsHtml(s) {
   const vol = reviewVolume(s.exercises), n = seriesCount(s);
   const stats = [s.duration ? [fmtDuration(s.duration), 'Durée'] : null, vol > 0 ? [fmtVolume(vol), 'Volume'] : null,
@@ -362,11 +363,11 @@ function renderSocialSession(owner, id) {
           : `<button class="social-who" data-action="social-open-profile" data-uid="${esc(row.owner)}">${personAvatar(p)}<span class="social-who__name">${esc(personName(p))}</span></button>`}
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${publicSessionColor(s)}" aria-hidden="true"></span>${esc(s.label)}</h1>
         <p class="scr-sub">${when}</p>
-        <div class="tiles tiles--4">
-          <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">volume</span></div>
-          <div class="tile"><span class="tile__val num">${s.duration ? fmtDuration(s.duration) : '—'}</span><span class="tile__lbl">durée</span></div>
-          <div class="tile"><span class="tile__val num">${n}</span><span class="tile__lbl">${n > 1 ? 'séries' : 'série'}</span></div>
-          <div class="tile"><span class="tile__val num">${s.exercises.length}</span><span class="tile__lbl">${s.exercises.length > 1 ? 'exercices' : 'exercice'}</span></div>
+        <div class="tiles tiles--4 session-stats">
+          <div class="tile"><span class="tile__val num">${s.duration ? fmtDuration(s.duration) : '—'}</span><span class="tile__lbl">Durée</span></div>
+          <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">Volume</span></div>
+          <div class="tile"><span class="tile__val num">${n}</span><span class="tile__lbl">${n > 1 ? 'Séries' : 'Série'}</span></div>
+          <div class="tile"><span class="tile__val num">${s.exercises.length}</span><span class="tile__lbl">${s.exercises.length > 1 ? 'Exercices' : 'Exercice'}</span></div>
         </div>
         ${rec ? `<div class="group social-session__rec">${notedRecordCell(rec, { before: false })}</div>` : ''}
         <div class="group-title">Exercices</div>

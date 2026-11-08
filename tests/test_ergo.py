@@ -104,6 +104,10 @@ def t_seance(bench, eng, dev, theme):
         R.check(line.startswith('1 record battu · +1 rep sur développé couché'), f'{t} ligne du bilan ({line!r})')
         R.check(page.locator('.sum-line .medal').count() == 1, f'{t} médaille du record')
         R.check(in_view(page, '.sum-done'), f'{t} « Terminé » visible sans défiler')
+        # Vague 3 : Durée, Volume, Séries comme le fil, valeur puis libellé dessous
+        tl = page.evaluate("""() => [...document.querySelectorAll('.sum-tile')].map(t => { const l = t.querySelector('.sum-tile__label'), v = t.querySelector('.sum-tile__value');
+            return [l.textContent, l.getBoundingClientRect().top > v.getBoundingClientRect().top]; })""")
+        R.check([x[0] for x in tl] == ['Durée', 'Volume', 'Séries'] and all(x[1] for x in tl), f'{t} bilan : chiffres dans l\'ordre du fil, libellé dessous {tl}')
         shot(page, LOT, f'bilan-{t}')
         page.click('[data-action="summary-done"]'); page.wait_for_timeout(300)
 
