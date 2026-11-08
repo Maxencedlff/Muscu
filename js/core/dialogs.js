@@ -17,8 +17,11 @@ function announce(msg, assertive = false) {
 // cachait son titre sur iPhone SE, panel du 07/11). S'il les couvre, il passe en haut de l'écran.
 // Ni un contenu à lire ou à toucher ailleurs (panels de la vague 3) : l'en-tête de la carte en cours (nom, ⋯), le code
 // d'une clé, les menus Avant / Après, un interrupteur, un champ de saisie (message, recherche).
-const TOAST_AVOID = ['[data-toast-avoid]', '[aria-current="step"]', '.rir', '.ex-card:has([aria-current="step"]) .ex-card__head',
-  '.cph-code', '.pcmp__sel', '[role="switch"]', 'textarea', 'input[type="text"]', 'input[type="search"]'].join(', ');
+// Deux rangs : ce qui sert à l'instant (série en cours, « + Série », champs) passe avant le reste (en-tête de la carte en
+// cours, code d'une clé…) quand le haut et le bas gênent tous les deux.
+const TOAST_AVOID = ['[data-toast-avoid]', '[aria-current="step"]', '.rir', '.pcmp__sel', '[role="switch"]', 'textarea',
+  'input[type="text"]', 'input[type="search"]'].join(', ');
+const TOAST_AVOID_SOFT = ['.ex-card:has([aria-current="step"]) .ex-card__head', '.cph-code'].join(', ');
 const TOAST_ACTION_MIN_MS = 6000;   // le temps de lire et de toucher « Annuler » (WCAG 2.2.1)
 const TOAST_RESUME_MS = 3000;       // après un toucher ou le focus de VoiceOver qui l'a retenu
 let toastPlace = null;              // placement du toast affiché, revu quand une feuille de la séance s'ouvre (placeToast)
@@ -78,13 +81,27 @@ function showToast(msg, opts = {}) {
       el.classList.add('toast--above');
       return;
     }
-    let top = false;
-    if (toastCovers(el)) { el.classList.add('toast--top'); top = !toastCovers(el); }
-    el.classList.toggle('toast--top', top);
+    // Gêne d'une place : 2 par contenu essentiel couvert, 1 par contenu secondaire. Essais : en bas, en haut, puis juste
+    // sous l'en-tête de la carte en cours (ni son nom ni la série) ; la première place la moins gênante l'emporte
+    const cost = () => (toastCovers(el) ? 2 : 0) + (toastCovers(el, document.querySelectorAll(TOAST_AVOID_SOFT)) ? 1 : 0);
+    const head = document.querySelector(TOAST_AVOID_SOFT.split(', ')[0])?.getBoundingClientRect();
+    const tries = [() => {}, () => el.classList.add('toast--top'),
+      ...(head ? [() => { el.style.setProperty('--toast-above', `${Math.round(head.bottom + 6)}px`); el.classList.add('toast--above'); }] : [])];
+    let best = null;
+    for (const [i, apply] of tries.entries()) {
+      el.classList.remove('toast--top', 'toast--above');
+      apply();
+      const c = cost();
+      if (!best || c < best.c) best = { i, c };
+      if (!c) break;
+    }
+    el.classList.remove('toast--top', 'toast--above');
+    tries[best.i]();
   };
   toastPlace = place;
   place();
   requestAnimationFrame(place);   // écran redessiné juste après le toast (render qui suit la validation)
+  el.addEventListener('animationend', e => { if (e.animationName === 'toastIn') place(); });   // mesuré sans l'animation d'arrivée
   // Retiré d'ailleurs (autre toast, dialogue, « Annuler ») : l'écouteur s'en va au défilement suivant
   const onScroll = () => { if (!el.isConnected) window.removeEventListener('scroll', onScroll); else requestAnimationFrame(place); };
   window.addEventListener('scroll', onScroll, { passive: true });
