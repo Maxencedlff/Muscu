@@ -124,7 +124,7 @@ function renderStatsExercise(exId) {
         </div>
         <div class="chart-head">
           <span class="chart-head__val num">${fmtMetricVal(vals[vals.length - 1], bw)}</span>
-          ${tp === null ? '' : `<span class="chart-head__trend num ${better > 0 ? 'txt-up' : better < 0 ? 'txt-down' : 'txt-flat'}">${pctTxt(tp)}</span>`}
+          ${tp === null ? '' : `<span class="chart-head__trend num ${better > 0 ? 'txt-up' : better < 0 ? 'txt-down' : 'txt-flat'}">${pctTxt(tp)}</span><span class="chart-head__since">${esc(sinceTxt(pts[0].date))}</span>`}
           ${statsMode === '1rm' && !cardio ? `<button class="info-btn" data-action="info-1rm" aria-label="Comment est calculé le 1RM estimé ?">i</button>` : ''}
         </div>
         <div class="chart" id="exChart">
@@ -230,10 +230,14 @@ function drawCharts() {
   let hi = vMax + (vMax - lo) * 0.08 || 1;
   // Effort : échelle RPE fixe de 6 (RIR 4 et plus) à 10, lisible d'une séance à l'autre
   if (st.effort) { lo = 5.8; hi = 10.2; }
-  const ticks = st.effort ? [6, 8, 10] : [lo, (lo + hi) / 2, hi];
+  // Graduations rondes (pas l'allure en m:ss, pas l'effort à échelle fixe) ; l'unité sur la plus haute
+  const ticks = st.effort ? [6, 8, 10] : st.cardio === 'pace' ? [lo, (lo + hi) / 2, hi] : chartNiceTicks(lo, hi);
+  if (!st.effort && st.cardio !== 'pace') { lo = ticks[0]; hi = ticks[ticks.length - 1]; }
+  const unitTop = st.effort || st.cardio || st.fmtVal || st.mode === 'volume' ? '' : ` ${st.bw ? chartUnit : unitLbl()}`;
+  const tickTxt = (t, i) => axisFmt(t) + (i === ticks.length - 1 ? unitTop : '');
   st.axisK = hi >= 1000;
   ctx.font = `11px ${font}`;
-  const tickW = Math.max(...ticks.map(t => ctx.measureText(axisFmt(t)).width));
+  const tickW = Math.max(...ticks.map((t, i) => ctx.measureText(tickTxt(t, i)).width));
   const pL = 4, pR = tickW + 10, pT = 44, pB = 22; // bande du haut réservée à la bulle
   const cW = W - pL - pR, cH = H - pT - pB;
   const fx = chartXFracs(dates);   // points placés selon leur date (js/features/progress.js)
@@ -244,10 +248,10 @@ function drawCharts() {
   // Grille et graduations à droite
   ctx.lineWidth = 0.5; ctx.strokeStyle = sepC; ctx.fillStyle = lblC;
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ticks.forEach(t => {
+  ticks.forEach((t, i) => {
     const y = Math.round(yp(t)) + 0.25;
     ctx.beginPath(); ctx.moveTo(pL, y); ctx.lineTo(pL + cW, y); ctx.stroke();
-    ctx.fillText(axisFmt(t), pL + cW + 6, y);
+    ctx.fillText(tickTxt(t, i), pL + cW + 6, y);
   });
 
   // Courbe : segments droits

@@ -102,6 +102,23 @@ function chartXFracs(dates) {
   const t0 = dates[0], span = dates[n - 1] - t0;
   return dates.map((t, i) => (span > 0 ? Math.min(1, Math.max(0, (t - t0) / span)) : i / (n - 1)));
 }
+// Graduations rondes d'un axe (pas de 1, 2, 2,5 ou 5 × 10^k ; 2 à 4 graduations), bornes arrondies vers l'extérieur :
+// « 20 / 25 / 30 » plutôt que « 20,5 / 24,6 / 28,6 » (panel Apple de la vague 3)
+function chartNiceTicks(lo, hi) {
+  if (!(hi > lo)) hi = lo + 1;
+  const raw = (hi - lo) / 3, p = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * p).find(s => s >= raw);
+  const a = Math.floor(lo / step + 1e-9) * step, b = Math.ceil(hi / step - 1e-9) * step;
+  const out = [];
+  for (let v = a; v <= b + step / 2; v += step) out.push(Math.round(v * 1000) / 1000);
+  return out;
+}
+// « depuis mai », « depuis mai 2025 » : début de la période d'une tendance
+function sinceTxt(ts, now = Date.now()) {
+  const d = new Date(ts), opts = { month: 'long' };
+  if (d.getFullYear() !== new Date(now).getFullYear()) opts.year = 'numeric';
+  return `depuis ${d.toLocaleDateString('fr-FR', opts)}`;
+}
 function pctTxt(p) { return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)} %`; }
 
 function sparkline(vals) {

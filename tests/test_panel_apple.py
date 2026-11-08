@@ -210,6 +210,10 @@ def t_progres_tendance(bench):
                 const span = x(n - 1) - x(0), dspan = d[n - 1] - d[0];
                 return n > 2 && d.every((t, i) => Math.abs((x(i) - x(0)) / span - (t - d[0]) / dspan) < 0.002); }""")
             R.check(ok, f'{t} courbe : points espacés selon leur date')
+            since = page.locator('.chart-head__since').inner_text().strip()
+            R.check(since.startswith('depuis '), f'{t} tendance : sa période est dite ({since!r})')
+            page.locator('#exChart').scroll_into_view_if_needed()
+            shot(page, LOT, f'courbe-{t}')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

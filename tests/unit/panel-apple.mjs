@@ -89,4 +89,14 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.match(app.howToNameHtml('Dips'), /^<span class="ex-howto__tail">Dips<svg/);
     assert.match(app.howToNameHtml('A <b>'), /&lt;b&gt;/, 'nom échappé');
   });
+
+  test('Courbe : graduations rondes et période de la tendance', () => {
+    sameJSON(app.chartNiceTicks(20.5, 28.6), [20, 25, 30]);
+    sameJSON(app.chartNiceTicks(0, 1830), [0, 1000, 2000]);
+    sameJSON(app.chartNiceTicks(61, 64.2), [60, 62, 64, 66]);
+    const t = app.chartNiceTicks(52.3, 57.9);
+    assert.ok(t[0] <= 52.3 && t.at(-1) >= 57.9 && t.length >= 2 && t.length <= 5, `bornes englobées ${t}`);
+    assert.equal(app.sinceTxt(new Date(2026, 4, 3).getTime(), new Date(2026, 10, 8).getTime()), 'depuis mai');
+    assert.equal(app.sinceTxt(new Date(2025, 11, 3).getTime(), new Date(2026, 10, 8).getTime()), 'depuis décembre 2025');
+  });
 }
