@@ -173,8 +173,11 @@ def t_activation(bench, eng, dev, theme):
         R.check(page.locator('[data-action="social-enable"]').is_enabled(), f'{t} « Activer » actif')
         layout(page, t, 'activation')
         page.wait_for_timeout(2500)   # fin du toast « Pseudo enregistré »
-        # Depuis le panel du 07/11, « Rejoindre un coach » passe avant la carte des amis (facultatifs) : sur un
-        # petit écran, « Activer » peut finir sous le pli, mais il est atteint en un défilement
+        # Panel Apple du 08/11 : « Activer » collé au-dessus de la barre d'onglets, visible sans défiler (iPhone SE compris)
+        page.evaluate('scrollTo(0, 0)'); page.wait_for_timeout(300)
+        box = page.evaluate("(() => { const b = document.querySelector('[data-action=social-enable]').getBoundingClientRect(), t = document.querySelector('.tabbar').getBoundingClientRect(); return { top: b.top, bottom: b.bottom, tab: t.top }; })()")
+        R.check(box['top'] >= 0 and box['bottom'] <= box['tab'] + 1, f'{t} « Activer » visible sans défiler, au-dessus de la barre d\'onglets {box}')
+        shot(page, LOT, f'2b-activer-colle-{t}')
         page.evaluate("document.querySelector('[data-action=social-enable]').scrollIntoView({ block: 'center' })"); page.wait_for_timeout(300)
         R.check(page.evaluate("document.querySelector('[data-action=social-enable]').getBoundingClientRect().bottom <= document.querySelector('.tabbar').getBoundingClientRect().top"), f'{t} « Activer » atteint en défilant')
         # Élève suivi (panel du 06/11) : la phrase absolue était fausse, son coach voit les notes de séance

@@ -25,7 +25,13 @@
 .social-optional { margin: 0 16px 8px; font-size: var(--fs-footnote); line-height: 1.4; color: var(--label2); }
 .social-hero__sub { margin: 0; font-size: var(--fs-subhead); line-height: 1.4; color: var(--label2); max-width: 340px; text-wrap: pretty; }
 .social-choose { color: var(--tint); }
-.social-enable { margin-top: 24px; }
+/* « Activer » collé en bas, au-dessus de la barre d'onglets (comme « Commencer » du programme conseillé) : sur iPhone SE,
+   le texte, le pseudo et l'interrupteur des 15 ans le poussaient sous la barre (panel Apple du 08/11) */
+.social-enable {
+  margin-top: 24px; position: sticky; z-index: 2;
+  bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 10px 0 var(--bg), 0 -10px 16px var(--bg);
+}
+body.has-livebar .social-enable { bottom: calc(var(--tabbar-h) + 72px + env(safe-area-inset-bottom, 0px)); }
 /* Petit écran : peu de hauteur, ou étroit (320 pt : le texte passe sur plus de lignes) et pas très haut */
 @media (max-height: 600px), (max-width: 340px) and (max-height: 700px) {
   .social-hero { gap: 4px; padding: 0 4px 14px; }
