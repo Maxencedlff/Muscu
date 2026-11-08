@@ -23,7 +23,8 @@ Une même icône ou un même mot mène toujours à la même chose, partout.
 | Cadenas (`lock`) | État : c'est chiffré (coffre à photos, photos de bilan) | Jamais une action : « Verrouiller », « Refermer » s'écrivent en toutes lettres ; jamais devant un lien ou un bouton d'envoi |
 | Chevron `›` | Ouvre l'écran détaillé de la ligne | Fin de ligne |
 | `✕` | Fermer, écarter ou retirer d'une liste en cours (carte, feuille, suggestion, technique d'une série) | Jamais pour effacer une séance ou une donnée enregistrée (« Supprimer », en rouge) |
-| Partager (carré et flèche) | Envoyer à quelqu'un : une autre app (programme, récap, code coach) ou un élève (programme, plan diète) | Fiche d'un élève : « Envoyer un programme » et « Envoyer un plan diète » ont la même icône |
+| Partager (carré et flèche, `square.and.arrow.up`) | Ouvrir la feuille de partage d'iOS : envoyer vers une autre app (programme par message, séance, récap, code coach, invitation) | Jamais pour un envoi privé dans l'app |
+| Avion en papier (`paperplane`) | Envoi privé dans l'app, chiffré : à son coach (photos de bilan) ou à un élève (programme, plan diète) | Fiche d'un élève : « Envoyer un programme » et « Envoyer un plan diète » ont la même icône |
 | Coche | Choisir ou valider (série, programme actif, « Suivre ce plan ») | |
 
 Exception admise : l'avatar *dans une ligne qui porte son libellé* (ligne « Compte et sauvegarde » des

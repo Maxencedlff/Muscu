@@ -721,7 +721,7 @@ function renderCoachStudent(uid) {
         ${chatCellHtml(uid)}
         ${coachPlanGroupHtml(uid)}
         <div class="group">
-          <button class="cell cell--action" data-action="coach-send" data-uid="${esc(uid)}">${icon('square.and.arrow.up', 20)}<span>Envoyer un programme</span></button>
+          <button class="cell cell--action" data-action="coach-send" data-uid="${esc(uid)}">${icon('paperplane', 20)}<span>Envoyer un programme</span></button>
         </div>
         ${sent}
         ${coachDietGroupHtml(uid)}

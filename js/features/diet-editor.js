@@ -101,7 +101,7 @@ function renderDietPlan(id) {
         ${meals}
         ${ro || plan.meals.length >= DIET_MEAL_MAX ? '' : `<div class="group group--gap"><button class="cell cell--action" data-action="diet-add-meal" data-id="${esc(id)}">${icon('plus', 20)}<span>Ajouter un repas</span></button></div>`}
         <div class="group group--gap">
-          ${!ro && coachRole().isCoach ? `<button class="cell cell--action" data-action="diet-send-student" data-id="${esc(id)}">${icon('square.and.arrow.up', 20)}<span>Envoyer à un élève</span></button>` : ''}
+          ${!ro && coachRole().isCoach ? `<button class="cell cell--action" data-action="diet-send-student" data-id="${esc(id)}">${icon('paperplane', 20)}<span>Envoyer à un élève</span></button>` : ''}
           <button class="cell cell--action" data-action="diet-duplicate" data-id="${esc(id)}">${icon('doc.on.doc', 20)}<span>${ro ? 'Dupliquer pour le modifier' : 'Dupliquer le plan'}</span></button>
         </div>
         <div class="group group--gap">

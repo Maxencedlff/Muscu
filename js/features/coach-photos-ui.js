@@ -44,7 +44,7 @@ function cphDaySendHtml(g) {
   const day = g.day, sentDay = cph.state.photos.filter(p => p.takenOn === day).length;
   const unsent = g.photos.filter(p => !cphSentOf(p.id));
   if (!unsent.length || sentDay >= CPH_PER_DAY) return '';
-  return `<button class="cph-daybtn" data-action="cph-send-day" data-day="${esc(day)}">${icon('square.and.arrow.up', 16)}<span>Envoyer à mon coach</span></button>`;
+  return `<button class="cph-daybtn" data-action="cph-send-day" data-day="${esc(day)}">${icon('paperplane', 16)}<span>Envoyer à mon coach</span></button>`;
 }
 // Feuille d'une photo du coffre : déjà envoyée ? (date, et la retirer)
 function cphVaultPhotoHtml(p) {
