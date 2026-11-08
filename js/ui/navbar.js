@@ -118,17 +118,21 @@ function navBar({ title = '', large, back, left = '', right = '', sub = '', extr
 
 // Bouton retour : une seule règle partout (barres de l'app, parcours de connexion js/features/auth-flow.js),
 // celle de la barre de navigation d'iOS. Titre de l'écran précédent s'il tient en entier ET laisse au
-// moins BACK_LABEL_GAP pt avant le titre centré ; sinon « Retour » (« ‹ Entraînement » touche presque
-// « Compte » sur un iPhone 13) ; sinon chevron seul (iPhone SE étroit). L'aria-label du bouton garde le
-// nom de l'écran. Barre sans titre (connexion) : le libellé reste.
+// moins BACK_LABEL_GAP pt avant le titre centré ; sinon « Retour » ; sinon chevron seul (iPhone SE étroit).
+// L'aria-label du bouton garde le nom de l'écran. Barre sans titre (connexion) : le libellé reste.
+// Comme iOS, le titre quitte le centre de la barre (centré entre le retour et les boutons de droite, classe
+// navbar__bar--wide-back) plutôt que de raccourcir le retour, s'il tient ainsi en entier : sur un iPhone 13,
+// « ‹ Entraînement » au-dessus de « Réglages » devenait « ‹ Retour » alors que la droite était vide (panel Apple du
+// 08/11). Écart minimal : 8 pt.
 // Mesure refaite après la mise en page (image suivante), au changement de taille et une fois les
 // polices chargées : une mesure prise trop tôt (boîtes vides) donnait le chevron seul à tort.
-const BACK_LABEL_GAP = 16;
+const BACK_LABEL_GAP = 8;
 const BACK_FALLBACK = 'Retour';
 function backLabelFits(btn, label) {
   if (label.scrollWidth > label.clientWidth + 1) return false;
   const title = btn.closest('.navbar__bar, .auth__bar')?.querySelector('.navbar__title');
   if (!title?.textContent.trim()) return true;
+  if (title.scrollWidth > title.clientWidth + 1) return false;   // titre coupé : le retour prend trop de place
   // Bord gauche du texte du titre (pas de sa boîte) ; bord droit du libellé en entier
   const range = document.createRange();
   range.selectNodeContents(title);
@@ -141,10 +145,14 @@ function fitBackLabelNow(scope = document) {
     // Bouton hors de la page affichée (calque fermé, écran en train de partir) : rien à mesurer
     if (!btn.getClientRects().length) return;
     btn.classList.remove('navbar__back--icon');
+    const bar = btn.closest('.navbar__bar');
     const full = label.dataset.full || label.textContent;
     for (const text of full === BACK_FALLBACK ? [full] : [full, BACK_FALLBACK]) {
       if (label.textContent !== text) label.textContent = text;
+      bar?.classList.remove('navbar__bar--wide-back');
       if (backLabelFits(btn, label)) return;
+      // Titre centré entre le retour et la droite au lieu du centre de la barre
+      if (bar) { bar.classList.add('navbar__bar--wide-back'); if (backLabelFits(btn, label)) return; bar.classList.remove('navbar__bar--wide-back'); }
     }
     btn.classList.add('navbar__back--icon');
   });

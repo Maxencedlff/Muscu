@@ -235,4 +235,26 @@ def t_silhouette_paliers(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+def t_retour_titre(bench):
+    """Bouton retour : le titre de l'écran précédent quand la place le permet (« ‹ Entraînement » au-dessus de « Réglages »
+    sur iPhone 13, le titre se décale au besoin), jamais collé au titre ni coupé ; sinon « Retour » ou le chevron seul."""
+    for eng, dev in PHONES:
+        for theme in ('light', 'dark'):
+            t = tag(dev, theme)
+            with bench.page(eng, dev, theme) as page:
+                seed(page, theme, ppl_v2_today_json())
+                page.click('.dashboard [data-action="go-settings"]')
+                page.wait_for_selector('.settings-view')
+                page.wait_for_timeout(400)
+                b = page.evaluate("""() => { const b = document.querySelector('#app .navbar__back'), l = b.querySelector('.navbar__back-label'), ti = b.closest('.navbar__bar').querySelector('.navbar__title');
+                    const r = document.createRange(); r.selectNodeContents(ti); const tr = r.getBoundingClientRect(), shown = !!l.offsetParent;
+                    return { text: shown ? l.textContent : '', gap: shown ? Math.round(tr.left - (l.getBoundingClientRect().left + l.scrollWidth)) : 99,
+                             cut: l.scrollWidth > l.clientWidth + 1 || ti.scrollWidth > ti.clientWidth + 1, title: ti.textContent }; }""")
+                R.check(b['gap'] >= 8 and not b['cut'] and b['title'] == 'Réglages', f'{t} retour séparé du titre, rien de coupé {b}')
+                if dev == 'iPhone 13':
+                    R.check(b['text'] == 'Entraînement', f'{t} « ‹ Entraînement » et non « ‹ Retour » {b}')
+                shot(page, LOT, f'retour-titre-{t}')
+                R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])

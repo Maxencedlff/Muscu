@@ -42,6 +42,9 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
   column-gap: 8px; padding: 0 8px;
 }
 .navbar__side { display: flex; align-items: center; min-width: 0; }
+/* Retour entier plutôt que « Retour » : le titre quitte le centre de la barre, centré entre les deux côtés (fitBackLabel) */
+.navbar__bar--wide-back { grid-template-columns: max-content minmax(0, 1fr) max-content; }
+.navbar__bar--wide-back .navbar__title { max-width: none; }
 /* « Annuler » / « OK » gardent leur largeur : c'est le titre qui se tronque (écrans étroits) */
 .navbar__side:has(> .navbar__text) { min-width: max-content; }
 .navbar__side--right { justify-content: flex-end; }
