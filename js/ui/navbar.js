@@ -201,7 +201,7 @@ function observeLargeTitle() {
   let h1 = bar.parentElement?.querySelector('.navbar__large');
   if (!h1) {
     const title = bar.querySelector('.navbar__title');
-    h1 = bar.parentElement?.querySelector('.scr h1.scr-title, .scr h1.pv-title');
+    h1 = bar.parentElement?.querySelector('.scr h1.scr-title, .scr h1.pv-title[data-bar-title]');   // titre d'un message centré (sans défilement) : seulement s'il a sa version courte
     if (!h1 || !title || title.textContent.trim()) return;   // barre qui a déjà son titre : rien à reprendre
     title.textContent = h1.dataset.barTitle || h1.textContent.trim();   // titre court si le long ne tient pas (« Coffre »)
     title.setAttribute('aria-hidden', 'true');
