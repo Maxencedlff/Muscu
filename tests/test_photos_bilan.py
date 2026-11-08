@@ -215,6 +215,10 @@ def t_envoi_complet(bench, eng, dev, theme):
         sp.wait_for_function('() => !document.querySelector(".sheet .cphs__list")', timeout=15000)
         sp.wait_for_timeout(400)
         R.check('2 photos envoyées à max' in toast(sp), f'{t} toast après envoi ({toast(sp)!r})')
+        # Vignettes du coffre : marque « Envoyée » sur les deux photos parties, pas sur celle d'il y a deux semaines
+        marks = sp.evaluate("() => [...document.querySelectorAll('.pgal__item')].map(b => [!!b.querySelector('.pgal__sent'), b.getAttribute('aria-label')])")
+        R.check([m[0] for m in marks] == [True, True, False] and all(('envoyée à ton coach' in m[1]) == m[0] for m in marks), f'{t} coffre : photos envoyées marquées {marks}')
+        shot(sp, LOT, f'04c-coffre-marques-{t}')
         # Jour à une photo : 2 touchers (Envoyer à mon coach, Envoyer cette photo)
         sp.locator('[data-action="cph-send-day"]').first.click()
         sp.wait_for_selector('.sheet .cphs__one')

@@ -128,10 +128,11 @@ function pvOpenHtml() {
     : 'Aucune photo pour l\'instant';
   const days = photoDayGroups(list).map(g => `
             <div class="pgal__day"><div class="pgal__head"><span class="pgal__date">${esc(fmtDate(g.date))}</span>${cphDaySendHtml(g)}</div>
-              <div class="pgal__row">${g.photos.map(p => `
-                <button class="pgal__item" data-action="photo-open" data-id="${p.id}" aria-label="${photoPoseLabel(p.pose)}, ${esc(fmtDate(p.date))}">
-                  <img src="${photoUrl(p)}" alt="" loading="lazy"><span class="pgal__pose">${photoPoseLabel(p.pose)}</span>
-                </button>`).join('')}</div>
+              <div class="pgal__row">${g.photos.map(p => { const sent = cphStudentListed() && !!cphSentOf(p.id); return `
+                <button class="pgal__item" data-action="photo-open" data-id="${p.id}" aria-label="${photoPoseLabel(p.pose)}, ${esc(fmtDate(p.date))}${sent ? ', envoyée à ton coach' : ''}">
+                  <img src="${photoUrl(p)}" alt="" loading="lazy"><span class="pgal__pose">${photoPoseLabel(p.pose)}</span>${sent ? `
+                  <span class="pgal__sent" aria-hidden="true">${icon('checkmark', 10)}Envoyée</span>` : ''}
+                </button>`; }).join('')}</div>
             </div>`).join('');
   return `
         <h1 class="scr-title" id="pvTitle" tabindex="-1">Coffre à photos</h1>

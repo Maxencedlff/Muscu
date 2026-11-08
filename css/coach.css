@@ -337,3 +337,7 @@ select.coach-req-field__input:invalid { color: var(--label2); }
 /* Sélecteur d'apps, Centre de contrôle : rien des photos du coach ne reste visible */
 body.cph-shield .coach-photos-view .scr { filter: blur(30px); }
 body.cph-shield::after { content: ''; position: fixed; inset: 0; z-index: 10000; background: var(--bg); }
+
+/* Coffre : photo déjà envoyée au coach (photo-vault-ui.js), en haut à droite de la vignette, face à la pose */
+.pgal__sent { position: absolute; right: 6px; top: 6px; display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px;
+  border-radius: var(--r-pill); background: var(--scrim); color: var(--white); font-size: var(--fs-caption2); font-weight: 600; }
