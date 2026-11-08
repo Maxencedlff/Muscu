@@ -328,4 +328,5 @@ body.light .onb__body:not(.onb__body--on) .body-map { opacity: .5; }
 .onb__actions {
   position: sticky; bottom: 0; margin: auto calc(-1 * var(--gutter)) -24px; padding: 16px var(--gutter) 8px;
   display: flex; flex-direction: column; background: var(--bg);
+  z-index: 2;   /* au-dessus des séparateurs de la liste (z-index 1) : ils barraient « Commencer » (Duo plié, vague 3) */
 }
