@@ -278,4 +278,26 @@ def t_info_jamais_seul(bench):
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [], once=[t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+def t_toast_contenu(bench):
+    """Toast avec action : jamais sur un contenu à lire ou à toucher. Rest-pause sur la série en cours (iPhone SE) : ni la
+    série ni l'en-tête de sa carte (nom, ⋯) sous le toast, texte sans point médian en début de ligne."""
+    for theme in ('dark', 'light'):
+        t = tag('iPhone SE', theme)
+        with bench.page('webkit', 'iPhone SE', theme) as page:
+            start_session(page, theme)
+            page.click('[data-action="tech-set"][data-ei="0"][data-si="0"]')
+            page.wait_for_selector('.ios-dialog__btn')
+            page.wait_for_timeout(300)
+            tap_dialog(page, 'Rest-pause')
+            page.wait_for_selector('.toast')
+            page.wait_for_timeout(400)
+            m = page.evaluate("""() => { const t = document.querySelector('.toast'), r = t.getBoundingClientRect();
+                const hit = e => { if (!e) return false; const b = e.getBoundingClientRect(); return b.height > 0 && b.bottom > r.top && b.top < r.bottom; };
+                return { text: t.querySelector('span').textContent, head: hit(document.querySelector('.ex-card[data-ei="0"] .ex-card__head')),
+                         cur: hit(document.querySelector('[aria-current="step"]')) }; }""")
+            R.check(m['text'] == 'Rest-pause, série 1' and not m['head'] and not m['cur'], f'{t} toast rest-pause : ni la série ni le nom de l\'exercice dessous {m}')
+            shot(page, LOT, f'toast-rest-pause-{t}')
+            R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [], once=[t_toast_contenu, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_toast_sur_repos, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])

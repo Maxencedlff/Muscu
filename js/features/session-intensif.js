@@ -125,7 +125,7 @@ function setTechOn(ei, si, t) {
   persistSession();
   render();
   const undo = () => { if (!activeSession) return; delete s.tech; delete s.sub; Object.assign(s, before.tech ? { tech: before.tech } : {}, before.sub ? { sub: before.sub } : {}); persistSession(); render(); };
-  showToast(t ? `${TECHS[t].label} · ${setSpokenName(ex, si)}` : 'Technique retirée', { action: 'Annuler', duration: 4000, onAction: undo });
+  showToast(t ? `${TECHS[t].label}, ${setSpokenName(ex, si).toLowerCase()}` : 'Technique retirée', { action: 'Annuler', duration: 4000, onAction: undo });
 }
 
 // ── Validation d'une sous-série ──────────────────────────────
