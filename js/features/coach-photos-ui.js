@@ -160,12 +160,20 @@ function renderCphMine() {
   if (!account.user || !coachRole().hasCoach) return view('<div class="empty-note">Rejoins d\'abord un coach : « Rejoindre un coach », en haut de l\'onglet Social.</div>');
   const st = cph.state, name = cphCoachName();
   if (!st) return view(cph.error && !cph.missing ? coachOfflineNote(cph.error, 'Pas d\'Internet. Tes photos envoyées s\'afficheront avec du réseau.') : '<div class="empty-note">Chargement…</div>');
-  const rows = cphDays(st.photos).map(g => g.photos.map(p => `
+  // Le coffre se referme dès qu'on le quitte : pas de miniature ici. Toucher la ligne ouvre la photo d'origine dans le coffre
+  // (Face ID), là où elle se retire aussi ; une photo envoyée d'un autre appareil ou supprimée du coffre n'a que sa
+  // pose et son jour, numérotés quand deux se ressemblent (panel du 08/11 : deux « Face » indiscernables)
+  const twins = {};
+  st.photos.forEach(p => { const k = `${p.pose}|${p.takenOn}`; twins[k] = (twins[k] || 0) + 1; });
+  const seen = {};
+  const label = p => { const k = `${p.pose}|${p.takenOn}`; seen[k] = (seen[k] || 0) + 1; return twins[k] > 1 ? `${cphPoseDay(p)} (${seen[k]})` : cphPoseDay(p); };
+  const rows = cphDays(st.photos).map(g => g.photos.map(p => { const name = label(p), vid = vaultAvailable() ? cphVaultIdOf(p.id) : null; return `
           <div class="cell cph-row">
-            <span class="cell__body"><span class="cell__title">${esc(cphPoseDay(p))}</span>
-              <span class="cell__sub">${p.sentAt ? `Envoyée le ${esc(fmtDate(p.sentAt, 'short'))}` : 'Envoyée'}${cphSize(p.bytes) ? ` · ${esc(cphSize(p.bytes))}` : ''}</span></span>
-            <button class="cph-remove" data-action="cph-remove" data-id="${esc(p.id)}" aria-label="Retirer la photo ${esc(cphPoseDay(p))}">Retirer</button>
-          </div>`).join('')).join('');
+            ${vid ? '<button class="cell__body cph-row__see"' + ` data-action="cph-see" data-id="${esc(vid)}" aria-label="${esc(`${name}, voir dans le coffre`)}">` : '<span class="cell__body">'}<span class="cell__title">${esc(name)}</span>
+              <span class="cell__sub">${p.sentAt ? `Envoyée le ${esc(fmtDate(p.sentAt, 'short'))}` : 'Envoyée'}${cphSize(p.bytes) ? ` · ${esc(cphSize(p.bytes))}` : ''}</span>${vid ? `
+              <span class="cph-row__link">${icon('lock', 12)}<span>Voir dans le coffre</span></span></button>` : '</span>'}
+            <button class="cph-remove" data-action="cph-remove" data-id="${esc(p.id)}" aria-label="Retirer la photo ${esc(name)}">Retirer</button>
+          </div>`; }).join('')).join('');
   const send = cphDisabled() ? `<div class="group"><div class="cell"><span class="cell__body"><span class="cell__sub">L'envoi de photos de bilan est suspendu pour l'instant. Tu peux retirer celles qui sont déjà parties.</span></span></div></div>`
     : cphAgeBlocked() ? `<div class="group"><div class="cell"><span class="cell__body"><span class="cell__sub">Les photos de bilan sont réservées aux 18 ans et plus. Tu peux retirer celles qui sont déjà parties.</span></span></div></div>`
     : st.ready ? `
@@ -410,6 +418,7 @@ registerActions({
   'cph-pick': (e, el) => cphPickToggle(el),
   'cph-send-go': (e, el) => cphSendGo(el),
   'cph-remove': (e, el) => cphRemoveFlow(el.dataset.id),
+  'cph-see': (e, el) => pvShowPhoto(el.dataset.id),
   'cph-open-mine': () => navigate('coach-photos-mine'),
   'cph-open': (e, el) => navigate(makeRoute('coach-photos', el.dataset.uid)),
   'cph-unlock': () => { if (cphView.phase !== 'open') { cphView.phase = 'locked'; cphUnlockFlow(); } },

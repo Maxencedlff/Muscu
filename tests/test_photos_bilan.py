@@ -253,10 +253,26 @@ def t_envoi_complet(bench, eng, dev, theme):
         sp.click('[data-action="cph-open-mine"]')
         sp.wait_for_selector('.coach-photos-mine-view .cph-row')
         R.check(sp.locator('.cph-row').count() == 3, f'{t} 3 photos listées')
+        # Deux photos de même pose et même jour : numérotées (panel du 08/11 : deux « Face » indiscernables)
+        twins = sp.evaluate("""() => { const keep = cph.state.photos; const f = keep.find(p => p.pose === 'face');
+            cph.state.photos = [...keep, { ...f, id: 'f-jumelle' }]; render();
+            const out = { see: document.querySelectorAll('.cph-row [data-action=cph-see]').length,
+                          names: [...document.querySelectorAll('.cph-row .cell__title')].map(e => e.textContent) };
+            cph.state.photos = keep; render(); return out; }""")
+        R.check(twins['see'] == 3 and sum(1 for n in twins['names'] if n.endswith('(1)') or n.endswith('(2)')) == 2,
+                f'{t} « Voir » sur les 3 photos envoyées d\'ici (pas la jumelle inconnue), jumelles numérotées {twins}')
         txt = sp.inner_text('.coach-photos-mine-view')
         R.check('Code de la clé de ton coach' in txt, f'{t} code de la clé montré à l\'élève')
         layout(sp, t, 'Photos envoyées')
         shot(sp, LOT, f'07-photos-envoyees-{t}')
+        # « Voir » : le coffre s'ouvre (Face ID) sur la photo d'origine, avec « Retirer de chez max »
+        sp.locator('.cph-row [data-action="cph-see"]').first.click()
+        sp.wait_for_selector('.sheet .pview__img', timeout=10000)
+        R.check(sp.evaluate('currentView()') == 'photo-vault' and sp.locator('.sheet [data-action="cph-remove"]').count() == 1, f'{t} « Voir » : la photo dans le coffre, retirable')
+        sp.click('.sheet .sheet__btn--cancel')
+        sp.wait_for_timeout(300)
+        sp.evaluate('goBack()')
+        sp.wait_for_selector('.coach-photos-mine-view .cph-row')
 
         # ── Coach : ouvrir avec Face ID, comparer ──
         copy_server(sp, cp)

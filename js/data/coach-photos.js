@@ -248,6 +248,13 @@ function cphSentOf(vaultId) {
   return sid ? cph.state.photos.find(p => p.id === sid) || null : null;
 }
 
+// Photo envoyée (id serveur) → photo du coffre d'où elle vient, si cet appareil l'a envoyée (sinon null ; elle a pu
+// être supprimée du coffre depuis : vérifié à l'ouverture)
+function cphVaultIdOf(sentId) {
+  const c = readCphSent();
+  return c?.map?.[sentId] || null;
+}
+
 // Clés retenues sur l'appareil, une entrée par compte (jamais celle d'un autre compte : lue par identifiant). Hors
 // des caches effacés à la déconnexion (CROSS_USER_CACHE_KEYS) : ce ne sont que des clés publiques, et une alerte qui
 // disparaîtrait à chaque déconnexion ne protégerait plus rien.
