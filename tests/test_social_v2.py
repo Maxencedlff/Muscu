@@ -231,6 +231,16 @@ def t_coach(bench, eng, dev, theme):
         R.check(page.locator('.feed-card, #socialSearch').count() == 0, f'{t} Élèves : ni fil ni recherche')
         layout(page, t, 'Coach › Élèves')
         shot(page, LOT, f'5-coach-eleves-{t}')
+        # Panel Apple du 08/11 : petite hauteur (iPhone SE), résumé sur une ligne et Planning sous la liste : deux élèves
+        # au moins visibles sans défiler
+        if page.evaluate('innerHeight') <= 700:
+            page.evaluate('scrollTo(0, 0)')
+            page.wait_for_timeout(200)
+            vis = page.evaluate("""() => { const tab = document.querySelector('.tabbar').getBoundingClientRect().top;
+                return [...document.querySelectorAll('.coach-team .coach-student-row')].filter(r => r.getBoundingClientRect().bottom <= tab + 1).length; }""")
+            plan = page.evaluate("""() => { const p = document.querySelector('.coach-team [data-action="plan-overview"]'), l = document.querySelector('.coach-team .coach-student-row');
+                return !p || p.getBoundingClientRect().top > l.getBoundingClientRect().top; }""")
+            R.check(vis >= 2 and plan, f'{t} petite hauteur : {vis} élèves visibles sans défiler, Planning sous la liste')
         # Fiche d'un élève : deux touchers
         page.evaluate("document.querySelector('.coach-student-row').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))")
         page.wait_for_timeout(300)

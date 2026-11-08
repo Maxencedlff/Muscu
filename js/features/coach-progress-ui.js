@@ -98,7 +98,7 @@ function coachTeamWeekHtml(students) {
   if (!students?.length) return '';
   const now = Date.now();
   const w = teamWeekSummary(students, st => coachStudentProgress(st, now), st => chatUnreadOf(st.user_id));
-  const tile = (val, lbl, tone) => `<span class="team-week__tile${val ? ` team-week__tile--${tone}` : ''}"><span class="team-week__val num">${val && tone === 'up' ? '↑ ' : ''}${val}</span><span class="team-week__lbl">${lbl}</span></span>`;
+  const tile = (val, lbl, tone) => `<span class="team-week__tile${val ? ` team-week__tile--${tone}` : ''}"><span class="team-week__val num">${val && tone === 'up' ? '↑ ' : ''}${val}</span> <span class="team-week__lbl">${lbl}</span></span>`;
   const spoken = `Cette semaine : ${plural(w.records, 'record', 'records')}, ${plural(w.warn, 'élève', 'élèves')} à relancer, ${plural(w.fresh, 'nouveauté', 'nouveautés')} à lire.`;
   return `
         <div class="group-title">Cette semaine</div>

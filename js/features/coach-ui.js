@@ -593,6 +593,11 @@ function coachNotesHint() {
 
 // ── Coach : Mes élèves ──────────────────────────────────────
 
+// Petite hauteur (iPhone SE) : résumé de la semaine sur une ligne (css/coach.css, même seuil) et Planning sous la liste
+// des élèves, pour qu'au moins deux élèves se voient sans défiler (panel Apple du 08/11)
+const COACH_COMPACT = '(max-height: 700px)';
+const coachCompact = () => typeof window.matchMedia === 'function' && window.matchMedia(COACH_COMPACT).matches;
+
 // Mes élèves : résumé de la semaine, élèves triés par progression, invitations, retirés. Le même contenu
 // dans le segment Élèves de l'onglet Coach (js/features/social-ui.js) et dans Réglages › Coach › Mes élèves.
 function coachTeamHtml() {
@@ -602,6 +607,7 @@ function coachTeamHtml() {
   if (!st.is_coach) return `<div class="empty-note">${esc(coachErrorText('not_coach'))}</div>`;
   // Lignes triées, avec le signal de progression de chaque élève (js/features/coach-progress-ui.js)
   const rows = coachStudentRowsHtml(st.students);
+  const compact = coachCompact();
   const invites = st.invites.map(i => `
           <div class="cell coach-invite">
             <span class="cell__body"><span class="cell__title coach-code num">${esc(i.code)}</span><span class="cell__sub">Jusqu'au ${esc(fmtDate(i.expires_at, 'short'))}</span></span>
@@ -617,10 +623,11 @@ function coachTeamHtml() {
         ${coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : liste pas à jour.' : coachErrorText(coach.error))}</p>` : ''}
         ${coachTierBannerHtml()}
         ${coachTeamWeekHtml(st.students)}
-        ${coachPlanningCellHtml()}
+        ${compact ? '' : coachPlanningCellHtml()}
         <div class="group-title">Élèves${st.students.length ? ` (${st.students.length})` : ''}</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub social-empty">Aucun élève pour l\'instant</span></div>'}</div>
         <div class="group-foot">${st.students.length > 1 ? PROGRESS_SORT_FOOT : 'Tes élèves ne se voient pas entre eux.'}</div>
+        ${compact ? coachPlanningCellHtml() : ''}
         ${cphTeamSetupHtml(st.students)}
         <div class="group-title">Invitations</div>
         <div class="group">

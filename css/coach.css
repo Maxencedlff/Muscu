@@ -208,6 +208,14 @@
   .team-week__tile { padding: 10px 8px 8px; }
   .team-week__lbl { font-size: var(--fs-caption); }
 }
+/* Petite hauteur (iPhone SE) : les trois chiffres sur une ligne de texte, pour voir les élèves sans défiler (panel Apple
+   du 08/11 : l'en-tête prenait les deux tiers de l'écran). Même seuil que COACH_COMPACT (js/features/coach-ui.js). */
+@media (max-height: 700px) {
+  .team-week { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 5px; margin: -2px 0 16px 16px; }
+  .team-week__tile { display: inline; padding: 0; border-radius: 0; background: none; white-space: nowrap; }
+  .team-week__val, .team-week__lbl { display: inline; font-size: var(--fs-footnote); line-height: 1.3; }
+  .team-week__tile:not(:last-child)::after { content: ' ·'; color: var(--label3); font-size: var(--fs-footnote); }
+}
 /* Segments Élèves | Social de l'onglet Coach : sous le grand titre, pleine largeur */
 .social-seg { margin: 2px 0 16px; }
 /* Programmes envoyés à un élève : état à droite */
