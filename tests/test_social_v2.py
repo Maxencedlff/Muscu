@@ -30,8 +30,8 @@ def tag(device, theme):
     return f'{device}-{theme}'.replace(' ', '_').replace('+', 'plus')
 
 
-def open_app(page, theme):
-    page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
+def open_app(page, theme, opts=None):
+    page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True, **(opts or {})}))
     page.add_init_script(FAKE_ACCOUNT)
     # Feuille de partage du navigateur : le texte partagé est gardé pour le test
     page.add_init_script('window.__shared = []; navigator.share = async o => { window.__shared.push(o); };')
@@ -285,4 +285,23 @@ def t_eleve(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_pratiquant, t_fil_vide, t_coach, t_eleve])
+def o_coach_age(bench):
+    """Coach dont le social est masqué par la tranche d'âge (contrôle parental « Limites de communication ») : le segment
+    Élèves reste à jour à l'ouverture de l'onglet (état, progression), sans rien du social."""
+    with bench.frozen_page(NOW, 'webkit', 'iPhone 13', 'dark') as page:
+        open_app(page, 'dark', {'ageRange': {'status': 'sharing', 'lowerBound': 16, 'communicationLimits': True}})
+        signin(page, enable=False)
+        students(page)
+        page.evaluate('Promise.all([ageRangeCheck(), coachRefresh()])')   # rôle de coach connu, comme gardé sur l'appareil
+        page.wait_for_timeout(300)
+        R.check(page.evaluate('socialHiddenByAge()'), 'social masqué par la tranche d\'âge')
+        calls_before = page.evaluate("__sb.calls.filter(c => c[1] === 'coach_progress').length")
+        open_tab(page)
+        page.wait_for_selector('.coach-student-row[data-signal="records"]', timeout=5000)
+        calls_after = page.evaluate("__sb.calls.filter(c => c[1] === 'coach_progress').length")
+        R.check(calls_after > calls_before and page.locator('#socialSearch, .feed-card').count() == 0,
+                f'coach, social masqué : Élèves à jour à l\'ouverture (progression lue {calls_before} → {calls_after}), rien du social')
+        R.check(not page.errors, f'aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_pratiquant, t_fil_vide, t_coach, t_eleve], once=[o_coach_age])

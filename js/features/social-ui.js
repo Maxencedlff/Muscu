@@ -314,10 +314,11 @@ async function friendsEnter() {
   // Fenêtre d'iOS 26 au premier passage avec un compte (sans compte, rien à protéger) ; la réponse redessine
   // l'onglet (onAgeRangeChange)
   ageRangeCheck();
-  if (socialHiddenByAge()) return;
   // Segment Élèves (compte coach) : état, progression et palier ; sinon la cellule Mon coach (js/features/coach-ui.js),
-  // indépendante du social
-  if (friendsSeg() === 'students') coachTeamEnter(); else coachRefresh({ minAge: SOCIAL_REFRESH_MS });
+  // indépendante du social. Social masqué par la tranche d'âge : les élèves d'un coach restent à jour
+  if (friendsSeg() === 'students') coachTeamEnter();
+  if (socialHiddenByAge()) return;
+  if (friendsSeg() !== 'students') coachRefresh({ minAge: SOCIAL_REFRESH_MS });
   await socialRefresh();
   if (socialEnabled() && Date.now() - socialFeed('').loadedAt > SOCIAL_REFRESH_MS) socialLoadFeed('');
 }
