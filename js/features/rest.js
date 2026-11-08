@@ -55,12 +55,12 @@ function restSheetHtml() {
           <circle cx="110" cy="110" r="100" class="rest-ring__bar" stroke-dasharray="${RING_BIG}" stroke-dashoffset="${RING_BIG * (1 - restFraction())}"/>
         </svg>
         <div class="rs__center">
-          <div class="rs__time num" role="timer" aria-live="off">${fmtRest(restTimeLeft)}</div>
+          <div class="rs__time num" role="timer" aria-live="off" aria-label="${restTimerLabel()}">${fmtRest(restTimeLeft)}</div>
           <div class="rs__resume num">Reprise à ${restResumeAt()}</div>
         </div>
       </div>
       <div class="rs-seg" role="group" aria-label="Durée du repos">
-        ${REST_PRESETS.map(p => `<button class="rs-seg__btn num" data-action="set-rest" data-secs="${p}" aria-pressed="${restTotal === p}">${fmtRest(p)}</button>`).join('')}
+        ${REST_PRESETS.map(p => `<button class="rs-seg__btn num" data-action="set-rest" data-secs="${p}" aria-pressed="${restTotal === p}" aria-label="${fmtRestSpoken(p)}">${fmtRest(p)}</button>`).join('')}
       </div>
       <div class="rs__adj">
         <button class="rs__round num" data-action="rest-adjust" data-d="-15" aria-label="Moins 15 secondes">−15</button>
@@ -82,6 +82,9 @@ function openRestSheet() {
 }
 function closeRestSheet() { document.querySelector('.sess-sheet--rest')?._close?.(); restSheetOpen = false; }
 
+// Minuteur lu par VoiceOver en minutes et secondes (« 1:30 » se lisait comme une heure, panels de la vague 3),
+// arrondi aux 15 s pour ne pas changer à chaque seconde
+function restTimerLabel() { return `Il reste ${fmtRestSpoken(Math.ceil(Math.max(0, restTimeLeft) / 15) * 15)}`; }
 // Nom du bouton de la barre réduite, temps restant compris (VoiceOver ne lisait que « Repos en cours »)
 function restMiniLabel() { return `Repos, il reste ${fmtRestSpoken(restTimeLeft)}, ouvrir le détail`; }
 
@@ -98,7 +101,7 @@ function updateRestUI() {
   const sheet = $('.sess-sheet--rest');
   if (sheet) {
     const el = sheet.querySelector('.rs__time');
-    if (el) el.textContent = t;
+    if (el) { el.textContent = t; if (el.getAttribute('aria-label') !== restTimerLabel()) el.setAttribute('aria-label', restTimerLabel()); }
     sheet.querySelector('.rest-ring__bar')?.setAttribute('stroke-dashoffset', RING_BIG * (1 - f));
     const ra = sheet.querySelector('.rs__resume');
     if (ra) ra.textContent = `Reprise à ${restResumeAt()}`;

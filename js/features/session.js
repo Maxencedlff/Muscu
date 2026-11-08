@@ -267,7 +267,7 @@ function exSubHtml(ex, ei, allDone) {
     ? `<span class="tempo-pill num" aria-label="Tempo ${esc(shortTempo(ex.tempo))}${ex.tempoGuide === true ? ', guidé au son' : ''}">${ex.tempoGuide === true ? icon('music', 12) : ''}Tempo ${esc(shortTempo(ex.tempo))}</span> `
     : '';
   const range = repRangeText(ex);
-  return `${tempo}${range ? `<span class="num">${range}</span> · ` : ''}${pr ? `<span class="num">Record ${fmtW(pr.weight, { plain: true })} × ${esc(pr.reps)}</span> · ` : ''}<button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${ei}" aria-label="Repos ${rest}, modifier">Repos ${rest}</button>${exVolumeHtml(ex, allDone)}`;
+  return `${tempo}${range ? `<span class="num">${range}</span> · ` : ''}${pr ? `<span class="num">Record ${fmtW(pr.weight, { plain: true })} × ${esc(pr.reps)}</span> · ` : ''}<button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${ei}" aria-label="Repos ${fmtRestSpoken(exRest(ex))}, modifier">Repos ${rest}</button>${exVolumeHtml(ex, allDone)}`;
 }
 
 function renderExerciseCard(ex, ei, cur) {
@@ -380,7 +380,7 @@ function renderGroupCard(members, cur, tags) {
           : `<h2 class="ex-card__name">${kind}</h2>`}
         <span class="ex-card__count num"><span aria-hidden="true">${doneN}/${total}</span><span class="visually-hidden">${doneN} sur ${plural(total, 'série validée', 'séries validées')}</span></span>
       </div>
-      <div class="ex-card__sub"><button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${members.at(-1)}" aria-label="Repos ${rest} après chaque tour, modifier">Repos ${rest} après chaque tour</button></div>
+      <div class="ex-card__sub"><button class="ex-rest-link num" data-action="set-ex-rest" data-ei="${members.at(-1)}" aria-label="Repos ${fmtRestSpoken(exRest(xs[members.at(-1)]))} après chaque tour, modifier">Repos ${rest} après chaque tour</button></div>
       <div class="ss-members">${legend}</div>
       ${members.map(ei => gripLineHtml(xs[ei], ei, tags[ei])).join('')}
       ${members.map(ei => coachSessionTipHtml(xs[ei], tags[ei])).join('')}

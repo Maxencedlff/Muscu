@@ -76,9 +76,9 @@ function exRestSheetHtml(ei) {
   return `
     <div class="rs rs--ex">
       <div class="rs__title">Repos · ${ssGroupOf(activeSession.exercises, ei) ? 'après chaque tour' : esc(ex.name)}</div>
-      <div class="rs__value num" id="exRestValue">${fmtRest(v)}</div>
+      <div class="rs__value num" id="exRestValue" aria-label="${fmtRestSpoken(v)}">${fmtRest(v)}</div>
       <div class="rs-seg" role="group" aria-label="Durée du repos">
-        ${REST_PRESETS.map(p => `<button class="rs-seg__btn num" data-action="ex-rest-set" data-secs="${p}" aria-pressed="${v === p}">${fmtRest(p)}</button>`).join('')}
+        ${REST_PRESETS.map(p => `<button class="rs-seg__btn num" data-action="ex-rest-set" data-secs="${p}" aria-pressed="${v === p}" aria-label="${fmtRestSpoken(p)}">${fmtRest(p)}</button>`).join('')}
       </div>
       <div class="rs__adj">
         <button class="rs__round num" data-action="ex-rest-adj" data-d="-15" aria-label="Moins 15 secondes">−15</button>
@@ -101,7 +101,7 @@ function setExRest(ei, secs) {
   const exData = sessExData(ex);
   if (exData) { exData.rest = secs; save(); } else ex.rest = secs;
   const val = $('#exRestValue');
-  if (val) val.textContent = fmtRest(secs);
+  if (val) { val.textContent = fmtRest(secs); val.setAttribute('aria-label', fmtRestSpoken(secs)); }
   document.querySelectorAll('.sess-sheet--exrest .rs-seg__btn').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.secs === secs)));
   haptic();
 }

@@ -98,6 +98,12 @@ def t_repos_44(bench):
             validate_first_set(page)
             hs = page.evaluate("[...document.querySelectorAll('.sess-sheet--rest .rs-seg__btn')].map(b => Math.round(b.getBoundingClientRect().height))")
             R.check(len(hs) == 6 and min(hs) >= 44, f'{t} feuille Repos : durées de 44 px {hs}')
+            # VoiceOver : durées en minutes et secondes, jamais « 1:30 » lu comme une heure (panels de la vague 3)
+            sp = page.evaluate("""() => ({ seg: [...document.querySelectorAll('.sess-sheet--rest .rs-seg__btn')].map(b => b.getAttribute('aria-label')),
+                timer: document.querySelector('.sess-sheet--rest .rs__time').getAttribute('aria-label'),
+                link: document.querySelector('.ex-rest-link').getAttribute('aria-label') })""")
+            R.check(sp['seg'][:2] == ['1 minute', '1 minute 30'] and sp['timer'].startswith('Il reste 1 minute') and ':' not in sp['link'] and 'minute' in sp['link'],
+                    f'{t} durées parlées {sp}')
             shot(page, LOT, f'repos-44-{t}')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
