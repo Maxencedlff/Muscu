@@ -258,6 +258,19 @@ def t_retour_titre(bench):
                 if dev == 'iPhone 13':
                     R.check(b['text'] == 'Entraînement', f'{t} « ‹ Entraînement » et non « ‹ Retour » {b}')
                 shot(page, LOT, f'retour-titre-{t}')
+                # Courbe d'un exercice, Mes programmes, journal Nutrition : le nom de l'écran précédent (panels de la vague 3)
+                lbl = "(() => { const b = document.querySelector('#app .navbar__back'); return b.classList.contains('navbar__back--icon') ? 'chevron' : b.querySelector('.navbar__back-label').textContent; })()"
+                page.click('.tabbar [data-action="go-stats"]'); page.wait_for_selector('[data-action="open-stats-ex"]')
+                page.locator('[data-action="open-stats-ex"]').first.click(); page.wait_for_selector('.view.stats-ex'); page.wait_for_timeout(400)
+                got = [page.evaluate(lbl)]
+                page.click('.tabbar [data-tab="program"]'); page.wait_for_timeout(400)
+                page.evaluate("navigate('my-programmes')"); page.wait_for_selector('.view.my-programmes'); page.wait_for_timeout(400)
+                got.append(page.evaluate(lbl))
+                page.click('.tabbar [data-tab="train"]'); page.wait_for_timeout(400)
+                page.click('.tabbar [data-tab="train"]'); page.wait_for_timeout(400)   # onglet actif touché : racine
+                page.evaluate("navigate('nutrition')"); page.wait_for_timeout(500)
+                got.append(page.evaluate(lbl))
+                R.check(got == ['Progrès', 'Programme', 'Entraînement'], f'{t} retours titrés (courbe, Mes programmes, Nutrition) {got}')
                 R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
