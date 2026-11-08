@@ -20,6 +20,7 @@ Une même icône ou un même mot mène toujours à la même chose, partout.
 | Flèche vers une ligne (`arrow.down.to.line`) | Plus tard : repousser l'exercice en cours en fin de séance | Séance seulement |
 | Deux feuilles (`doc.on.doc`) | Dupliquer (faire une copie à modifier) | « Dupliquer le plan » ; jamais `+`, réservé à l'ajout |
 | `ⓘ` | Comment faire (explication) | Après un nom d'exercice |
+| Cadenas (`lock`) | État : c'est chiffré (coffre à photos, photos de bilan) | Jamais une action : « Verrouiller », « Refermer » s'écrivent en toutes lettres ; jamais devant un lien ou un bouton d'envoi |
 | Chevron `›` | Ouvre l'écran détaillé de la ligne | Fin de ligne |
 | `✕` | Fermer, écarter ou retirer d'une liste en cours (carte, feuille, suggestion, technique d'une série) | Jamais pour effacer une séance ou une donnée enregistrée (« Supprimer », en rouge) |
 | Partager (carré et flèche) | Envoyer à quelqu'un : une autre app (programme, récap, code coach) ou un élève (programme, plan diète) | Fiche d'un élève : « Envoyer un programme » et « Envoyer un plan diète » ont la même icône |

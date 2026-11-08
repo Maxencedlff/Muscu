@@ -55,7 +55,8 @@ function photoVaultCellHtml() {
 // (observeLargeTitle, js/ui/navbar.js)
 function renderPhotoVault() {
   const open = pv.phase === 'open';
-  const right = open ? `<button class="navbar__icon" data-action="pv-lock" aria-label="Verrouiller le coffre">${icon('lock', 22)}</button>` : '';
+  // Action en toutes lettres : le cadenas ne dit que l'état « chiffré » (une icône = un sens, docs/ERGONOMIE.md)
+  const right = open ? `<button class="navbar__text" data-action="pv-lock" aria-label="Verrouiller le coffre">Verrouiller</button>` : '';
   const body = open ? pvOpenHtml() : pv.phase === 'intro' ? pvIntroHtml() : pv.phase === 'locked' ? pvLockedHtml() : pvCenterHtml();
   return `
     <div class="view photo-vault ${open ? 'view--grouped' : 'pv-locked'}">

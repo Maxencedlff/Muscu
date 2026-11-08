@@ -184,14 +184,14 @@ function renderCphMine() {
           <div class="cell cph-row">
             ${vid ? '<button class="cell__body cph-row__see"' + ` data-action="cph-see" data-id="${esc(vid)}" aria-label="${esc(`${name}, voir dans le coffre`)}">` : '<span class="cell__body">'}<span class="cell__title">${esc(name)}</span>
               <span class="cell__sub">${p.sentAt ? `Envoyée le ${esc(fmtDate(p.sentAt, 'short'))}` : 'Envoyée'}${cphSize(p.bytes) ? ` · ${esc(cphSize(p.bytes))}` : ''}</span>${vid ? `
-              <span class="cph-row__link">${icon('lock', 12)}<span>Voir dans le coffre</span></span></button>` : '</span>'}
+              <span class="cph-row__link">Voir dans le coffre</span></button>` : '</span>'}
             <button class="cph-remove" data-action="cph-remove" data-id="${esc(p.id)}" aria-label="Retirer la photo ${esc(name)}">Retirer</button>
           </div>`; }).join('')).join('');
   const send = cphDisabled() ? `<div class="group"><div class="cell"><span class="cell__body"><span class="cell__sub">L'envoi de photos de bilan est suspendu pour l'instant. Tu peux retirer celles qui sont déjà parties.</span></span></div></div>`
     : cphAgeBlocked() ? `<div class="group"><div class="cell"><span class="cell__body"><span class="cell__sub">Les photos de bilan sont réservées aux 18 ans et plus. Tu peux retirer celles qui sont déjà parties.</span></span></div></div>`
     : st.ready ? `
         <div class="group">
-          <button class="cell cell--action" data-action="go-photo-vault">${icon('lock', 20)}<span>Envoyer depuis mon coffre</span></button>
+          <button class="cell cell--action" data-action="go-photo-vault">${icon('paperplane', 20)}<span>Envoyer depuis mon coffre</span></button>
         </div>
         <div class="group-foot">Dans le coffre, touche « Envoyer à mon coach » sous un jour, puis choisis les photos : ${CPH_PER_DAY} par jour au plus.</div>`
     : `<div class="group"><div class="cell"><span class="cell__body"><span class="cell__sub">${name} n'a pas encore activé la réception des photos dans son app. Dès que c'est fait, tu pourras lui en envoyer depuis ton coffre.</span></span></div></div>`;
@@ -223,7 +223,7 @@ function cphSetupGroupHtml() {
   return `
         <div class="group-title">Photos de bilan</div>
         <div class="group">
-          <button class="cell cell--action" data-action="cph-setup" ${cphCoach.busy ? 'disabled' : ''}>${icon('lock', 20)}<span>Recevoir les photos de bilan</span></button>
+          <button class="cell cell--action" data-action="cph-setup" ${cphCoach.busy ? 'disabled' : ''}><span>Recevoir les photos de bilan</span></button>
         </div>
         <div class="group-foot">Tes élèves pourront t'envoyer des photos, chiffrées pour toi seul, que tu ouvres avec Face ID. Une fois pour tous tes élèves.</div>`;
 }
@@ -254,7 +254,8 @@ function cphPhotoUrl(p) { return cphUrls.get(p.id) || ''; }
 function cphRevoke() { cphUrls.forEach(u => URL.revokeObjectURL(u)); cphUrls.clear(); }
 function renderCphCoach(uid) {
   const p = coachStudent(uid);
-  const right = cphView.phase === 'open' ? `<button class="navbar__icon" data-action="cph-lock" aria-label="Refermer les photos">${icon('lock', 22)}</button>` : '';
+  // Action en toutes lettres : le cadenas ne dit que l'état « chiffré » (une icône = un sens, docs/ERGONOMIE.md)
+  const right = cphView.phase === 'open' ? `<button class="navbar__text" data-action="cph-lock" aria-label="Refermer les photos">Refermer</button>` : '';
   const head = navBar({ title: '', right });
   const view = (body, cls = '') => `<div class="view view--grouped coach-photos-view ${cls}">${head}<div class="scr">${body}</div></div>`;
   if (!p) return view(`<div class="empty-note">${coach.state ? 'Cette personne ne fait plus partie de tes élèves.' : 'Chargement…'}</div>`);

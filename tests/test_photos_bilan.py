@@ -258,6 +258,9 @@ def t_envoi_complet(bench, eng, dev, theme):
         sp.click('[data-action="cph-open-mine"]')
         sp.wait_for_selector('.coach-photos-mine-view .cph-row')
         R.check(sp.locator('.cph-row').count() == 3, f'{t} 3 photos listées')
+        # Une icône = un sens (panel Apple du 08/11) : le cadenas ne sert ni de lien ni de bouton d'envoi
+        R.check(sp.locator('.cph-row__link .icon').count() == 0 and sp.locator('.coach-photos-mine-view button .icon--lock').count() == 0,
+                f'{t} Photos de bilan : aucun cadenas sur un lien ou un bouton')
         # Deux photos de même pose et même jour : numérotées (panel du 08/11 : deux « Face » indiscernables)
         twins = sp.evaluate("""() => { const keep = cph.state.photos; const f = keep.find(p => p.pose === 'face');
             cph.state.photos = [...keep, { ...f, id: 'f-jumelle' }]; render();
@@ -299,6 +302,8 @@ def t_envoi_complet(bench, eng, dev, theme):
         signed = cp.evaluate('__sb.signed')
         R.check(signed and all(s[1] == 60 for s in signed), f'{t} URL signées de 60 s ({signed})')
         R.check(cp.locator('.coach-photos-view .cph-pair').count() >= 1 and cp.locator('#cph-a').count() == 1, f'{t} comparer deux dates côte à côte')
+        lock = cp.evaluate("() => { const b = document.querySelector('.navbar [data-action=cph-lock]'); return [b.textContent.trim(), b.querySelectorAll('.icon').length]; }")
+        R.check(lock == ['Refermer', 0], f'{t} coach : « Refermer » en toutes lettres, pas de cadenas pour l\'action {lock}')
         sel = cp.evaluate("() => [document.querySelector('#cph-a').value, document.querySelector('#cph-b').value]")
         old_day = cp.evaluate('() => localISO(Date.now() - 14 * 86400000)')
         R.check(sel == [old_day, cp.evaluate('() => localISO()')], f'{t} comparer : la plus ancienne contre la plus récente ({sel})')

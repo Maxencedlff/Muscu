@@ -555,6 +555,10 @@ def t_panel_apple(bench):
         add_photo(page, face, pose='face', date='2026-10-03')
         add_photo(page, face, pose='face')
         add_photo(page, back, pose='back')
+        # Une icône = un sens : « Verrouiller » en toutes lettres, le cadenas ne dit que l'état chiffré
+        lock = page.evaluate("() => { const b = document.querySelector('.navbar [data-action=pv-lock]'); return [b.textContent.trim(), b.querySelectorAll('.icon').length]; }")
+        R.check(lock == ['Verrouiller', 0] and page.locator('.view.photo-vault button .icon--lock').count() == 0,
+                f'coffre : « Verrouiller » en toutes lettres, aucun bouton au cadenas {lock}')
         bar = lambda: page.evaluate("""() => { const b = document.querySelector('#app .navbar'), ti = b.querySelector('.navbar__title');
             return { collapsed: b.classList.contains('navbar--collapsed'), text: ti.textContent, op: getComputedStyle(ti).opacity }; }""")
         page.evaluate('window.scrollTo(0, 0)')
