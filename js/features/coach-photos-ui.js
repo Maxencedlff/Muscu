@@ -135,7 +135,15 @@ async function cphSendGo(el) {
   const r = await cphSend(photos);
   el.closest('.sheet-root')?._close?.(null);
   if (currentView() === 'photo-vault') pvPaint();
-  if (r.ok) { haptic('success'); showToast(r.sent > 1 ? `${plural(r.sent, 'photo envoyée', 'photos envoyées')} à ${coachName()}` : `Photo envoyée à ${coachName()}`); return; }
+  if (r.ok) {
+    haptic('success');
+    // « Retirer » tout de suite, sans repasser par Mon coach › Photos de bilan (panel Apple du 08/11), comme « Annuler »
+    // après une série : le geste vient d'être fait, pas de confirmation de plus
+    const sentIds = photos.map(p => cphSentOf(p.id)?.id).filter(Boolean);
+    showToast(r.sent > 1 ? `${plural(r.sent, 'photo envoyée', 'photos envoyées')} à ${coachName()}` : `Photo envoyée à ${coachName()}`,
+      sentIds.length ? { action: 'Retirer', duration: 6000, onAction: () => cphUndoSend(sentIds) } : {});
+    return;
+  }
   const done = r.sent ? `${plural(r.sent, 'photo envoyée', 'photos envoyées')}, la suite n'est pas partie. ` : '';
   showToast(done + cphErrorText(r.kind), { error: true });
 }
@@ -206,6 +214,14 @@ function renderCphMine() {
 }
 SCREENS.set('coach-photos-mine', { render: () => renderCphMine(), enter: () => { cphRefresh(); } });
 
+// « Retirer » du toast d'envoi : les photos qui viennent de partir sont effacées de chez le coach
+async function cphUndoSend(ids) {
+  let done = 0, fail = null;
+  for (const id of ids) { const r = await cphRemove(id); if (r.ok) done++; else fail = fail || r.kind; }
+  if (fail) showToast(coachErrorText(fail), { error: true });
+  else showToast(done > 1 ? `${plural(done, 'photo retirée', 'photos retirées')} de chez ton coach` : 'Photo retirée de chez ton coach');
+  if (['photo-vault', 'coach-photos-mine'].includes(currentView())) render();
+}
 async function cphRemoveFlow(id) {
   if (!(await confirmSheet('Retirer cette photo ?', `${coachName() || 'Ton coach'} ne la verra plus. Elle reste dans ton coffre.`, 'Retirer'))) return;
   const r = await cphRemove(id);
