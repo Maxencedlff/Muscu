@@ -376,4 +376,19 @@ def t_roue_meme_couleur(bench):
             R.check(c1 == c2, f'{t} roue : même couleur partout ({c1} / {c2})')
 
 
-run_main(R, [], once=[t_roue_meme_couleur, t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+def t_materiaux_opaques(bench):
+    """Barres, tab bar, alertes et feuilles : fond opaque à 94 % au moins, lisible même sans flou (comme iOS avec
+    « Réduire la transparence »)."""
+    for theme in ('light', 'dark'):
+        t = tag('iPhone 13', theme)
+        with bench.page('webkit', 'iPhone 13', theme) as page:
+            seed(page, theme, ppl_v2_today_json())
+            page.evaluate('scrollTo(0, 300)'); page.wait_for_timeout(300)
+            page.evaluate("() => { dialog({ type: 'sheet', title: 'Essai', actions: [{ label: 'Choix', value: 1 }, { label: 'Annuler', style: 'cancel' }] }); }")
+            page.wait_for_timeout(400)
+            a = page.evaluate("""() => { const al = e => { const m = getComputedStyle(e).backgroundColor.match(/[\\d.]+/g); return m.length > 3 ? Number(m[3]) : 1; };
+                return { nav: al(document.querySelector('#app .navbar')), tab: al(document.querySelector('.tabbar')), sheet: al(document.querySelector('.ios-dialog__group')) }; }""")
+            R.check(all(v >= 0.94 for v in a.values()), f'{t} fonds opaques à 94 % au moins {a}')
+
+
+run_main(R, [], once=[t_materiaux_opaques, t_roue_meme_couleur, t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
