@@ -151,30 +151,33 @@ def t_objectif_pas_bouton(bench):
 
 
 def t_menu_exercice(bench):
-    """Menu ⋯ d'un exercice (iPhone SE) : sections, « Retirer l'exercice » visible sans défiler, juste au-dessus d'« Annuler »."""
+    """Menu ⋯ d'un exercice (iPhone SE) : Remplacer, la prise, Plus tard visibles sans défiler, liste qui ne défile pas,
+    fond opaque, « Retirer l'exercice » à part juste au-dessus d'« Annuler »."""
     for theme in ('dark', 'light'):
         t = tag('iPhone SE', theme)
         with bench.page('webkit', 'iPhone SE', theme) as page:
             start_session(page, theme)
+            page.evaluate("activeSession.exercises[0].name = 'Tirage vertical prise serrée'; render()")   # mouvement avec une prise
             page.click('.ex-card__more[data-ei="0"]')
             page.wait_for_selector('.ios-dialog--sheet')
-            page.wait_for_timeout(400)
+            page.wait_for_timeout(450)
             m = page.evaluate("""() => { const d = document.querySelector('.ios-dialog--sheet'), groups = [...d.querySelectorAll('.ios-dialog__group')];
-                const rm = [...d.querySelectorAll('.ios-dialog__btn')].find(b => b.textContent.includes("Retirer l'exercice"));
-                const r = rm.getBoundingClientRect();
-                return { sects: [...d.querySelectorAll('.ios-dialog__sect')].map(e => e.textContent), groups: groups.length,
-                         ownGroup: groups.indexOf(rm.closest('.ios-dialog__group')) === groups.length - 2,
-                         visible: r.top >= 0 && r.bottom <= innerHeight, cancelLast: groups.at(-1).textContent.trim() === 'Annuler' }; }""")
-            R.check(m['sects'] == ['Ordre', 'Exercice', 'Séries et repos'] and m['groups'] == 3 and m['ownGroup'] and m['visible'] and m['cancelLast'],
-                    f'{t} menu ⋯ : 3 sections, « Retirer l\'exercice » à part et visible, « Annuler » en bas {m}')
+                const btn = l => [...d.querySelectorAll('.ios-dialog__btn')].find(b => b.textContent.trim().startsWith(l));
+                const seen = l => { const b = btn(l); if (!b) return null; const r = b.getBoundingClientRect(), g = b.closest('.ios-dialog__group').getBoundingClientRect();
+                  return r.top >= g.top - 1 && r.bottom <= g.bottom + 1 && r.bottom <= innerHeight; };
+                const bg = getComputedStyle(groups[0]).backgroundColor;
+                return { labels: [...groups[0].querySelectorAll('.ios-dialog__btn')].map(b => b.textContent.trim()), replace: seen("Remplacer"), prise: seen('Choisir la prise'),
+                         later: seen('Plus tard') ?? seen('Faire maintenant'), scrolls: groups[0].scrollHeight > groups[0].clientHeight + 2, opaque: !bg.startsWith('rgba'), bg,
+                         ownGroup: groups.indexOf(btn("Retirer l'exercice").closest('.ios-dialog__group')) === groups.length - 2, cancelLast: groups.at(-1).textContent.trim() === 'Annuler' }; }""")
+            R.check(m['replace'] and m['prise'] in (True, None) and m['later'] and not m['scrolls'] and m['opaque'] and m['ownGroup'] and m['cancelLast'],
+                    f'{t} menu ⋯ : actions fréquentes visibles sans défiler, fond opaque, « Retirer » à part {m}')
             shot(page, LOT, f'menu-exercice-{t}')
-            tap_dialog(page, "Retirer l'exercice")
-            page.wait_for_timeout(300)
-            if page.locator('.ios-dialog').count():
-                page.locator('.ios-dialog__btn--destructive').last.click()
-                page.wait_for_timeout(300)
+            tap_dialog(page, "Plus d'options")
+            page.wait_for_timeout(400)
+            more = page.locator('.ios-dialog__btn').all_inner_texts()
+            R.check('Régler le repos' in more and 'Muscles ciblés' in more, f'{t} « Plus d\'options » : réglages rares {more}')
+            tap_dialog(page, 'Annuler')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
-
 
 def t_progres_tendance(bench):
     """Progrès : la tendance d'un exercice dans la liste est celle que montre sa fiche à l'ouverture (Charge max)."""

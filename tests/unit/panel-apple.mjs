@@ -47,23 +47,23 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.match(src('index.html'), /<symbol id="i-paperplane"/, 'symbole présent dans le sprite');
   });
 
-  test('Menu ⋯ d\'un exercice : trois sections dans l\'ordre, « Retirer l\'exercice » à part, « Choisir la prise »', () => {
+  test('Menu ⋯ d\'un exercice : court (Remplacer, prise, ordre), réglages rares dans « Plus d\'options… », « Retirer » à part', () => {
     reset();
     const xs = JSON.stringify([['Tirage vertical prise serrée', 3], ['Développé couché barre', 3], ['Curl marteau', 3]]
       .map(([name, n]) => ({ name, sets: Array.from({ length: n }, () => ({ weight: '40', reps: '8', done: false })) })));
     const acts = JSON.parse(run(`JSON.stringify(exerciseMenuActions(${xs}, 0, 0))`));
-    const sections = [...new Set(acts.filter(a => a.section).map(a => a.section))];
-    assert.deepEqual(sections, ['Ordre', 'Exercice', 'Séries et repos'], 'sections dans cet ordre');
-    // Une section ne revient jamais après une autre (pas de mélange)
-    const seq = acts.filter(a => a.section).map(a => a.section);
-    assert.ok(seq.every((s, i) => i === 0 || s === seq[i - 1] || !seq.slice(0, i).includes(s)), `sections contiguës ${seq}`);
+    const vals = acts.map(a => a.value);
+    assert.deepEqual(vals.slice(0, 2), ['replace', 'grip'], `Remplacer puis la prise en tête ${vals}`);
+    assert.ok(vals.includes('later') && vals.includes('superset') && vals.includes('more'), `ordre et « Plus d'options » ${vals}`);
+    const main = acts.filter(a => !a.apart && a.style !== 'cancel');
+    assert.ok(main.length <= 7, `7 choix au plus dans la liste, lisible sans défiler sur iPhone SE (${main.length})`);
+    for (const rare of ['up', 'down', 'warmup', 'plates', 'tempo', 'rest', 'restart', 'muscles']) assert.ok(!vals.includes(rare), `${rare} dans « Plus d'options »`);
     const remove = acts.find(a => a.value === 'remove');
-    assert.ok(remove.apart && remove.style === 'destructive' && !remove.section, 'Retirer : à part, destructif');
+    assert.ok(remove.apart && remove.style === 'destructive', 'Retirer : à part, destructif');
     assert.equal(acts.at(-1).style, 'cancel');
-    assert.equal(acts.find(a => a.value === 'grip')?.label, 'Choisir la prise');
-    assert.ok(acts.filter(a => a.style === 'destructive').length === 1, 'une seule action destructive');
+    const more = JSON.parse(run(`JSON.stringify(exerciseMoreActions(${xs}, 0))`)).map(a => a.value);
+    for (const v of ['down', 'rest', 'restart', 'muscles']) assert.ok(more.includes(v), `${v} dans « Plus d'options » ${more}`);
   });
-
   test('Courbe d\'un exercice : points placés selon leur date, pas leur rang', () => {
     const D = 86400000;
     sameJSON(app.chartXFracs([0, 2 * D, 10 * D]), [0, 0.2, 1]);

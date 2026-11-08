@@ -90,6 +90,9 @@ qui citent le libellé (le test du guide échoue si un libellé cité n'existe p
 
 ## 5. Ce qui va dans un menu avancé
 
+Menu `⋯` d'un exercice : lisible sans défiler sur iPhone SE. D'abord Remplacer, Choisir la prise, Comment faire ; puis
+Plus tard (ou Faire maintenant) et le superset ; le reste dans « Plus d'options… » ; « Retirer l'exercice » à part.
+
 À l'écran : ce qui sert à chaque séance (valider, charge, reps, repos, objectif). Dans le menu `⋯` ou les
 Réglages : ce qui sert rarement ou aux confirmés (tempo, échauffement auto, disques, superset, reps en
 réserve, fourchette de reps, muscles ciblés). Une option avancée est coupée par défaut pour un nouvel

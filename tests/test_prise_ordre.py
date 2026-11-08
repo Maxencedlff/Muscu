@@ -180,7 +180,8 @@ def t_ordre(bench, eng, dev, theme):
         page.click('.ex-card__more[data-ei="3"]')
         page.wait_for_timeout(300)
         first = page.locator('.ios-dialog__btn').first.inner_text().strip()
-        R.check(first == 'Faire maintenant', f'{t} menu : « {first} » en tête')
+        now = page.evaluate("(() => { const b = [...document.querySelectorAll('.ios-dialog__btn')].find(x => x.textContent.trim() === 'Faire maintenant'); if (!b) return null; const r = b.getBoundingClientRect(), g = b.closest('.ios-dialog__group').getBoundingClientRect(); return r.top >= g.top && r.bottom <= g.bottom; })()")
+        R.check(first == "Remplacer l'exercice" and now, f'{t} menu : « {first} » en tête, « Faire maintenant » visible sans défiler ({now})')
         top = page.evaluate("document.querySelector('.ios-dialog__btn').getBoundingClientRect().top")
         R.check(top >= 0, f'{t} menu : premier choix visible, pas coupé en haut ({top})')
         # Panel du 07/11 (iPhone SE) : dernier choix coupé à mi-hauteur sans indice ; le bas s'estompe tant qu'il en reste

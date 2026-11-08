@@ -92,6 +92,7 @@ def t_outils(bench, eng, dev, theme):
 
         # ── Échauffement : depuis le menu ⋯ du Squat barre (barre 15, disques sans 1,25 : pas de 5 kg)
         page.click('.ex-card[data-ei="0"] [data-action="ex-menu"]'); page.wait_for_timeout(300)
+        tap_dialog(page, "Plus d'options"); page.wait_for_timeout(300)
         labels = page.locator('.ios-dialog__btn').all_inner_texts()
         R.check('Ajouter un échauffement' in labels and 'Disques' in labels, f'{t} menu : échauffement et Disques ({labels})')
         tap_dialog(page, 'Ajouter un échauffement')

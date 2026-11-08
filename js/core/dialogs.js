@@ -107,7 +107,8 @@ function dialogInputLabel(input, title = '') {
 
 // actions : [{ label, value, style: 'default' | 'destructive' | 'cancel' | 'preferred', section, apart }]
 // type 'sheet' = feuille d'actions en bas, 'alert' = alerte centrée
-// Feuille seulement : section = titre du groupe de choix qui commence là (long menu rangé en sections) ;
+// Feuille seulement : section = titre du groupe de choix qui commence là (long menu rangé en sections) ; group = groupe
+// séparé du précédent par une bande, sans titre (menu court) ;
 // apart = choix posé dans son propre bloc, au-dessus d'« Annuler », hors de la liste qui défile (action destructive)
 function dialog({ type = 'alert', title = '', message = '', actions, input = null }) {
   return new Promise(resolve => {
@@ -128,7 +129,8 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
     const btn = a => `<button class="ios-dialog__btn ios-dialog__btn--${a.style || 'default'}" data-i="${actions.indexOf(a)}">${esc(a.label)}</button>`;
     // Titre de section avant le premier choix de chaque section (feuille), annoncé comme un en-tête
     const sectioned = list => list.map((a, i) => (a.section && a.section !== list[i - 1]?.section
-      ? `<div class="ios-dialog__sect" role="heading" aria-level="3">${esc(a.section)}</div>` : '') + btn(a)).join('');
+      ? `<div class="ios-dialog__sect" role="heading" aria-level="3">${esc(a.section)}</div>`
+      : i && a.group && a.group !== list[i - 1]?.group ? '<div class="ios-dialog__band" aria-hidden="true"></div>' : '') + btn(a)).join('');
     const head = (title || message) ? `
       <div class="ios-dialog__head">
         ${title   ? `<div class="ios-dialog__title" id="${dlgId}-t" tabindex="-1">${esc(title)}</div>` : ''}

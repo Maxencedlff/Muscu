@@ -35,11 +35,14 @@
 .ios-dialog--sheet .ios-dialog__panel { max-height: calc(100% - env(safe-area-inset-top, 0px) - var(--sp-2)); }
 .ios-dialog--sheet .ios-dialog__group { flex-shrink: 0; }
 .ios-dialog--sheet .ios-dialog__group:first-child { flex-shrink: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-/* D'autres choix sous le pli (js/core/dialogs.js) : le bas s'estompe, comme une liste qui continue */
-.ios-dialog--sheet .ios-dialog__group--more {
-  -webkit-mask-image: linear-gradient(to bottom, var(--mask-solid) calc(100% - 44px), var(--mask-faint));
-  mask-image: linear-gradient(to bottom, var(--mask-solid) calc(100% - 44px), var(--mask-faint));
+/* D'autres choix sous le pli (js/core/dialogs.js) : le bas s'estompe vers le fond opaque de la feuille, sans jamais laisser
+   voir la séance derrière (un mask-image rendait le fond transparent, panels du 08/11) */
+.ios-dialog--sheet .ios-dialog__group--more::after {
+  content: ''; position: sticky; bottom: 0; display: block; height: 40px; margin-top: -40px; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--dlg-solid));
 }
+/* Feuille d'actions opaque : les textes de la séance ne se lisent pas au travers */
+.ios-dialog--sheet .ios-dialog__group { background: var(--dlg-solid); }
 .ios-dialog__group {
   border-radius: 14px; overflow: hidden; background: var(--dlg-bg);
   backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%);
@@ -76,6 +79,7 @@
   padding: 14px var(--sp-4) 6px; text-align: left; font-size: var(--fs-footnote); font-weight: 600; color: var(--label2);
 }
 .ios-dialog__group > .ios-dialog__btn + .ios-dialog__sect { border-top: 6px solid var(--dlg-sep); }
+.ios-dialog__band { height: 6px; background: var(--dlg-sep); }
 .ios-dialog__btn:active { background: var(--dlg-press); }
 .ios-dialog__btn--preferred, .ios-dialog__btn--cancel { font-weight: 600; }
 .ios-dialog__btn--destructive { color: var(--red-text); }

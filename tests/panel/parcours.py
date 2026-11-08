@@ -73,6 +73,12 @@ def choisir_ou_absent(r, libelle, absent):
     if r.present('.ios-dialog__btn', libelle, timeout=600):
         r.choisir(libelle)
         return
+    # Réglage rare : dans « Plus d'options… » du menu ⋯ (vague 3)
+    if r.present('.ios-dialog__btn', "Plus d'options", timeout=300):
+        r.choisir("Plus d'options")
+        if r.present('.ios-dialog__btn', libelle, timeout=600):
+            r.choisir(libelle)
+            return
     if r.present('.ios-dialog__btn', 'Annuler'):
         r.page.locator('.ios-dialog__btn', has_text='Annuler').first.click()
         r.page.wait_for_timeout(300)

@@ -55,6 +55,7 @@ def t_seance(bench, eng, dev, theme):
 
         # ── Menu ⋯ : une seule entrée pour les techniques (panel du 06/11 : « Dernière série en drop set » faisait doublon)
         page.click('.ex-card[data-ei="0"] [data-action="ex-menu"]'); page.wait_for_timeout(300)
+        tap_dialog(page, "Plus d'options"); page.wait_for_timeout(300)
         labels = page.locator('.ios-dialog__btn').all_inner_texts()
         R.check('Dernière série en drop set' not in labels and labels.count('Technique d\'intensification…') == 1, f'{t} menu ⋯ : une seule entrée technique ({labels})')
         tap_dialog(page, 'Annuler'); page.wait_for_timeout(300)

@@ -642,7 +642,8 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
 
   test('séance : menu ⋯ avec « Muscles ciblés » pour tout exercice, bibliothèque comprise', () => {
     reset();
-    const values = name => run(`exerciseMenuActions([{ name: 'A', sets: [] }, { name: ${JSON.stringify(name)}, sets: [] }, { name: 'B', sets: [] }], 1).map(a => a.value).join()`);
+    // « Muscles ciblés » est dans « Plus d'options… », « Comment faire » dans le menu court (vague 3)
+    const values = name => run(`(xs => [...exerciseMenuActions(xs, 1), ...exerciseMoreActions(xs, 1)].map(a => a.value).join())([{ name: 'A', sets: [] }, { name: ${JSON.stringify(name)}, sets: [] }, { name: 'B', sets: [] }])`);
     assert.ok(values('Développé couché barre').split(',').includes('muscles'), 'muscles vérifiés modifiables');
     assert.ok(values('bench press').split(',').includes('muscles'), 'alias de la bibliothèque');
     assert.ok(values('Développé couché barre').split(',').includes('howto'), 'et « Comment faire »');

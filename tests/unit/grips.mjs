@@ -314,6 +314,7 @@ export default function ({ test, run, reset, sameJSON, assert }) {
     assert.ok(values(xs, 1, 0).includes('now'));
     assert.ok(values(xs, 0, 0).includes('grip'), 'tirage : Prise');
     assert.ok(!values(xs, 1, 0).includes('grip') && !values(xs, 2, 0).includes('grip'), 'squat, curl marteau : pas de Prise');
-    assert.equal(values(xs, 0, 0)[0], 'later', 'en tête du menu');
+    const v = values(xs, 0, 0);
+    assert.ok(v.indexOf('later') > v.indexOf('grip') && v.indexOf('later') < v.indexOf('more'), `après l'exercice, avant « Plus d'options » ${v}`);
   });
 }

@@ -418,47 +418,54 @@ function openHowTo(ex) { navigate(makeRoute('library-ex', ex.name)); }
 // Choix proposés pour l'exercice ei de la liste xs de la séance (curEi : exercice de la série en cours).
 // Faire maintenant, Plus tard (js/data/session-order.js), Monter et Descendre gardent les
 // supersets entiers (js/data/supersets.js) ; dans un groupe, le repos réglé est celui du tour.
-// Jusqu'à 15 choix : rangés en trois sections (Ordre, Exercice, Séries et repos) ; « Retirer l'exercice », seule
-// action destructive, dans son bloc au-dessus d'« Annuler », hors de la liste qui défile (panel Apple du 08/11 : en
-// bas d'une liste à plat, on ne le voyait sur iPhone SE qu'après avoir défilé).
-const EX_MENU_SECTIONS = { order: 'Ordre', ex: 'Exercice', sets: 'Séries et repos' };
+// Menu court, lisible sans défiler sur iPhone SE (panels du 08/11, vague 3) : ce qui sert en séance d'abord (Remplacer,
+// Choisir la prise, Comment faire), puis l'ordre (Plus tard ou Faire maintenant, superset), séparés par une bande ;
+// les réglages rares dans « Plus d'options… » (exerciseMoreActions). « Retirer l'exercice », seule action destructive,
+// dans son bloc au-dessus d'« Annuler », hors de la liste.
 function exerciseMenuActions(xs, ei, curEi = null) {
   const ex = xs[ei], inGroup = !!ssGroupOf(xs, ei), order = orderChoiceFor(xs, ei, curEi);
-  const sect = (key, list) => list.map(a => ({ ...a, section: EX_MENU_SECTIONS[key] }));
+  const band = (group, list) => list.map(a => ({ ...a, group }));
   return [
-    ...sect('order', [
-      ...(order === 'now' ? [{ label: 'Faire maintenant', value: 'now' }] : []),
-      ...(order === 'later' ? [{ label: 'Plus tard', value: 'later' }] : []),
-      ...(ssCanMove(xs, ei, -1) ? [{ label: 'Monter', value: 'up' }] : []),
-      ...(ssCanMove(xs, ei, 1)  ? [{ label: 'Descendre', value: 'down' }] : []),
-      ...(xs.length > 1 ? [{ label: inGroup ? 'Modifier le superset' : 'Superset avec…', value: 'superset' }] : []),
-      ...(inGroup ? [{ label: 'Retirer du superset', value: 'ss-leave' }] : []),
-    ]),
-    ...sect('ex', [
-      ...(hasHowTo(ex) ? [{ label: 'Comment faire', value: 'howto' }] : []),
+    ...band('ex', [
       { label: 'Remplacer l\'exercice', value: 'replace' },
       // Prise (js/data/grips.js) : seulement pour les mouvements où elle compte
       ...(gripOptionsFor(ex) ? [{ label: 'Choisir la prise', value: 'grip' }] : []),
-      { label: 'Muscles ciblés', value: 'muscles' },
+      ...(hasHowTo(ex) ? [{ label: 'Comment faire', value: 'howto' }] : []),
     ]),
-    ...sect('sets', [
-      // Échauffement (js/data/warmup.js) : exercice à charge sans série faite, hors superset (les tours s'enchaînent)
-      ...(!inGroup && canWarmup(ex) ? [{ label: 'Ajouter un échauffement', value: 'warmup' }] : []),
-      // Techniques d'intensification (js/features/session-intensif.js)
-      ...techMenuActions(ex),
-      ...(isBarbellExercise(ex) ? [{ label: 'Disques', value: 'plates' }] : []),
-      ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
-      { label: inGroup ? 'Régler le repos du tour' : 'Régler le repos', value: 'rest' },
-      { label: 'Relancer le repos', value: 'restart' },
+    ...band('order', [
+      ...(order === 'now' ? [{ label: 'Faire maintenant', value: 'now' }] : []),
+      ...(order === 'later' ? [{ label: 'Plus tard', value: 'later' }] : []),
+      ...(xs.length > 1 ? [{ label: inGroup ? 'Modifier le superset' : 'Superset avec…', value: 'superset' }] : []),
     ]),
+    ...band('more', [{ label: 'Plus d\'options…', value: 'more' }]),
     { label: 'Retirer l\'exercice', value: 'remove', style: 'destructive', apart: true },
+    { label: 'Annuler', style: 'cancel' },
+  ];
+}
+// « Plus d'options… » : déplacer, réglages de séries et de repos, muscles
+function exerciseMoreActions(xs, ei) {
+  const ex = xs[ei], inGroup = !!ssGroupOf(xs, ei);
+  return [
+    ...(ssCanMove(xs, ei, -1) ? [{ label: 'Monter', value: 'up' }] : []),
+    ...(ssCanMove(xs, ei, 1)  ? [{ label: 'Descendre', value: 'down' }] : []),
+    ...(inGroup ? [{ label: 'Retirer du superset', value: 'ss-leave' }] : []),
+    // Échauffement (js/data/warmup.js) : exercice à charge sans série faite, hors superset (les tours s'enchaînent)
+    ...(!inGroup && canWarmup(ex) ? [{ label: 'Ajouter un échauffement', value: 'warmup' }] : []),
+    // Techniques d'intensification (js/features/session-intensif.js)
+    ...techMenuActions(ex),
+    ...(isBarbellExercise(ex) ? [{ label: 'Disques', value: 'plates' }] : []),
+    ...(measureOf(ex) === 'reps' ? [{ label: ex.tempo ? `Tempo (${shortTempo(ex.tempo)})` : 'Tempo', value: 'tempo' }] : []),
+    { label: inGroup ? 'Régler le repos du tour' : 'Régler le repos', value: 'rest' },
+    { label: 'Relancer le repos', value: 'restart' },
+    { label: 'Muscles ciblés', value: 'muscles' },
     { label: 'Annuler', style: 'cancel' },
   ];
 }
 async function exerciseMenu(ei) {
   const ex = activeSession.exercises[ei];
   if (!ex) return;
-  const choice = await dialog({ type: 'sheet', title: ex.name, actions: exerciseMenuActions(activeSession.exercises, ei, currentSet()?.ei) });
+  let choice = await dialog({ type: 'sheet', title: ex.name, actions: exerciseMenuActions(activeSession.exercises, ei, currentSet()?.ei) });
+  if (choice === 'more' && activeSession?.exercises[ei] === ex) choice = await dialog({ type: 'sheet', title: ex.name, actions: exerciseMoreActions(activeSession.exercises, ei) });
   if (!choice || !activeSession || activeSession.exercises[ei] !== ex) return;
   if (choice === 'now') { sessionDoNow(ei); return; }
   if (choice === 'later') { sessionDoLater(ei); return; }

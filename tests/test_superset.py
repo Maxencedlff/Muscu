@@ -104,6 +104,8 @@ def t_seance(bench, eng, dev, theme):
         # Retirer du superset : séance et programme
         page.click('.ss-member .ex-card__more[data-ei="0"]')
         page.wait_for_timeout(300)
+        tap_dialog(page, "Plus d'options")
+        page.wait_for_timeout(300)
         tap_dialog(page, 'Retirer du superset')
         page.wait_for_timeout(400)
         R.check(page.locator('.ss-card').count() == 0, f'{t} superset défait')

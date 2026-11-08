@@ -33,8 +33,6 @@
   --shadow-seg: 0 3px 8px rgba(0,0,0,.12);
   --shadow-float: 0 8px 24px rgba(0,0,0,.4);
   --shadow-thumb: 0 3px 8px rgba(0,0,0,.15), 0 3px 1px rgba(0,0,0,.06);
-  --mask-solid: #000;              /* masques (mask-image) : seule l'opacité compte, pas la teinte */
-  --mask-faint: rgba(0, 0, 0, .15);
   /* Texte coloré à partir d'une couleur de séance (--cat-color) : éclairci en sombre, assombri en clair */
   --cat-text-mix: 72%; --cat-text-base: #FFFFFF;
   --cat-color: var(--green);     /* couleur de séance par défaut, redéfinie par écran */
