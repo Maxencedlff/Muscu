@@ -283,9 +283,9 @@ def t_envoi_complet(bench, eng, dev, theme):
         sp.wait_for_selector('.sheet .pview__img', timeout=10000)
         R.check(sp.evaluate('currentView()') == 'photo-vault' and sp.locator('.sheet [data-action="cph-remove"]').count() == 1, f'{t} « Voir » : la photo dans le coffre, retirable')
         sp.click('.sheet .sheet__btn--cancel')
-        sp.wait_for_timeout(300)
+        sp.wait_for_function('() => !document.querySelector(".sheet .pview__img")', timeout=10000)   # feuille refermée avant le retour
         sp.evaluate('goBack()')
-        sp.wait_for_selector('.coach-photos-mine-view .cph-row')
+        sp.wait_for_selector('.coach-photos-mine-view .cph-row', timeout=10000)
 
         # ── Coach : ouvrir avec Face ID, comparer ──
         copy_server(sp, cp)
