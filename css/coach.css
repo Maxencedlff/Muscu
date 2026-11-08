@@ -24,14 +24,15 @@
 .coach-count--sessions { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 3px; width: min-content;
   height: auto; padding: 3px 6px; border-radius: 10px; line-height: 16px; background: var(--fill); color: var(--label); }
 .coach-count__sub { flex-basis: 100%; font-size: .706rem; font-weight: 600; line-height: 14px; color: var(--label2); white-space: nowrap; }
-/* Écran de 320 pt (iPhone SE, Galaxy S9+) : avec la pastille « à voir », le signal (« Stable depuis 4 sem. »,
-   « ↑2 records cette sem. ») passait sur deux lignes, quatre lignes pour l'élève. La pastille garde l'haltère et le
-   nombre (« à voir » reste dit à VoiceOver par le texte masqué de la ligne), avatar et écarts un peu resserrés. */
+/* Écran de 320 pt (iPhone SE, Galaxy S9+) : avec la pastille « 3 à voir », le signal (« Stable depuis 4 sem. »,
+   « ↑2 records cette sem. ») passait sur deux lignes, quatre lignes pour l'élève. La pastille garde « à voir » (le nombre
+   seul ne dirait pas ce qu'il compte) ; avatar, écarts et marges de la pastille resserrés, sous-titres à 12 px. */
 @media (max-width: 340px) {
   .coach-student-row.social-row { gap: 6px; }
   .coach-student-row .social-row__main { gap: 8px; }
-  .coach-student-row .avatar--m { width: 36px; height: 36px; }
-  .coach-student-row .coach-count__sub { display: none; }
+  .coach-student-row .avatar--m { width: 32px; height: 32px; font-size: 1.235rem; }
+  .coach-student-row .coach-count--sessions { padding-left: 4px; padding-right: 4px; }
+  .coach-student-row .cell__sub { font-size: .706rem; }
 }
 .coach-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--tint); vertical-align: middle; margin-left: 4px; }
 .coach-hero { padding-bottom: 16px; }
