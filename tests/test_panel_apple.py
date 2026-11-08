@@ -391,4 +391,19 @@ def t_materiaux_opaques(bench):
             R.check(all(v >= 0.94 for v in a.values()), f'{t} fonds opaques à 94 % au moins {a}')
 
 
-run_main(R, [], once=[t_materiaux_opaques, t_roue_meme_couleur, t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])
+def t_alerte_empilee(bench):
+    """Alerte à deux boutons dont un libellé passe sur deux lignes (iPhone SE) : boutons empilés, « Non » en bas."""
+    for theme in ('light', 'dark'):
+        t = tag('iPhone SE', theme)
+        with bench.page('webkit', 'iPhone SE', theme) as page:
+            seed(page, theme, ppl_v2_today_json())
+            page.evaluate("() => { dialog({ title: 'As-tu 18 ans ou plus ?', message: 'Les photos de bilan sont réservées aux 18 ans et plus.', actions: [{ label: 'Non', style: 'cancel' }, { label: 'J\\'ai 18 ans ou plus', value: true, style: 'preferred' }] }); }")
+            page.wait_for_timeout(400)
+            m = page.evaluate("""() => { const row = document.querySelector('.ios-dialog__row'), bs = [...row.querySelectorAll('.ios-dialog__btn')];
+                const r = b => b.getBoundingClientRect(); const [no, yes] = bs;
+                return { stack: row.classList.contains('ios-dialog__row--stack'), noLow: r(no).top > r(yes).top, oneLine: bs.every(b => b.offsetHeight <= 50) }; }""")
+            R.check(m['stack'] and m['noLow'] and m['oneLine'], f'{t} alerte : boutons empilés sur une ligne chacun, « Non » en bas {m}')
+            shot(page, LOT, f'alerte-empilee-{t}')
+
+
+run_main(R, [], once=[t_alerte_empilee, t_materiaux_opaques, t_roue_meme_couleur, t_rest_pause_mots, t_modifier_cibles, t_toast_hors_seance, t_info_jamais_seul, t_retour_titre, t_silhouette_paliers, t_progres_tendance, t_titre_replie, t_annuler_en_ligne, t_repos_44, t_superset_noms, t_objectif_pas_bouton, t_menu_exercice])

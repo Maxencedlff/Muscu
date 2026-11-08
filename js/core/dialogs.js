@@ -162,6 +162,10 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
     root._close = () => close(null); // retour système : vaut « Annuler »
     document.addEventListener('keydown', onKey);
     document.body.appendChild(root);
+    // Alerte à deux boutons dont un libellé passe sur deux lignes (« J'ai 18 ans ou plus » sur iPhone SE) : boutons
+    // empilés, comme iOS, « Annuler » / le refus en bas (panels de la vague 3)
+    const row = type !== 'sheet' && root.querySelector('.ios-dialog__row:not(.ios-dialog__row--stack)');
+    if (row && [...row.children].some(b => b.scrollWidth > b.clientWidth + 1 || b.offsetHeight > 50)) row.classList.add('ios-dialog__row--stack', 'ios-dialog__row--wrapped');
     // Feuille plus haute que l'écran (menu ⋯ sur iPhone SE) : le bas des choix s'estompe tant qu'il en
     // reste sous le pli, pour dire qu'on peut défiler (panel du 07/11 : dernier choix coupé sans indice)
     const list = type === 'sheet' && root.querySelector('.ios-dialog__group');

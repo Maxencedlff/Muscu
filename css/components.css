@@ -50,6 +50,7 @@
 .ios-dialog__head { padding: var(--sp-4) var(--sp-4) 14px; text-align: center; }
 .ios-dialog--sheet .ios-dialog__head { border-bottom: .5px solid var(--dlg-sep); padding: 14px var(--sp-4); }
 .ios-dialog__title { font-size: var(--fs-body); font-weight: 600; }
+.ios-dialog__title:focus { outline: none; }   /* focus posé pour VoiceOver, pas d'anneau à l'écran */
 .ios-dialog--sheet .ios-dialog__title { font-size: var(--fs-footnote); color: var(--label2); }
 .ios-dialog__msg { font-size: var(--fs-footnote); margin-top: var(--sp-1); line-height: 1.35; }
 .ios-dialog--sheet .ios-dialog__msg { color: var(--label2); }
@@ -68,6 +69,9 @@
 .ios-dialog__row .ios-dialog__btn + .ios-dialog__btn { border-left: .5px solid var(--dlg-sep); }
 .ios-dialog__row--stack { flex-direction: column; }
 .ios-dialog__row--stack .ios-dialog__btn + .ios-dialog__btn { border-left: none; border-top: .5px solid var(--dlg-sep); }
+/* Empilées faute de place (js/core/dialogs.js) : le refus ou « Annuler » passe en bas, comme iOS */
+.ios-dialog__row--wrapped .ios-dialog__btn--cancel { order: 1; border-top: .5px solid var(--dlg-sep); }
+.ios-dialog__row--wrapped .ios-dialog__btn--cancel + .ios-dialog__btn { border-top: none; }
 .ios-dialog__btn {
   flex: 1; display: block; width: 100%; min-height: 44px; padding: 11px 12px;
   background: none; border: none; color: var(--tint); font-size: var(--fs-body); cursor: pointer;
