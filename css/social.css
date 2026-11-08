@@ -35,6 +35,9 @@ body.has-livebar .social-enable { bottom: calc(var(--tabbar-h) + 72px + env(safe
 /* Grisé (pseudo ou âge manquant) : à sa place, sous le texte, et opaque ; collé et translucide, il recouvrait la note et
    l'interrupteur des 15 ans qu'il faut justement toucher (panels de la vague 3) */
 .social-enable:disabled { position: static; opacity: 1; background: var(--fill); color: var(--label3); box-shadow: none; }
+/* Élève d'un coach : « Ajouter aussi des amis » est facultatif, il reste à sa place, sous le texte (collé, son fond
+   translucide laissait lire le texte de confidentialité au travers, panels de la vague 3) */
+.social-enable.btn--secondary { position: static; box-shadow: none; }
 /* Petit écran : peu de hauteur, ou étroit (320 pt : le texte passe sur plus de lignes) et pas très haut */
 @media (max-height: 600px), (max-width: 340px) and (max-height: 700px) {
   .social-hero { gap: 4px; padding: 0 4px 14px; }

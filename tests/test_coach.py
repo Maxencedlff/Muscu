@@ -250,6 +250,7 @@ def t_eleve(bench, eng, dev, theme):
         en = page.locator('[data-action="social-enable"]')
         R.check(page.locator('.social-hero').count() == 0 and 'Amis (facultatif)' in page.text_content('#app') and en.inner_text().strip() == 'Ajouter aussi des amis'
                 and 'btn--secondary' in en.get_attribute('class'), f'{t} amis facultatifs : titre de groupe et bouton secondaire')
+        R.check(page.evaluate("getComputedStyle(document.querySelector('[data-action=social-enable]')).position") == 'static', f'{t} « Ajouter aussi des amis » : à sa place, pas collé sur le texte')
         layout(page, t, 'Social avec coach')
         shot(page, LOT, f'5-amis-cellule-{t}')
         cell.click()
