@@ -594,6 +594,26 @@ function coachNotesHint() {
 
 // ── Coach : Mes élèves ──────────────────────────────────────
 
+// Plus de COACH_SEARCH_FROM élèves : un champ filtre la liste par pseudo, sans quitter l'écran (panel Apple de la vague 3 :
+// les coachs partenaires suivent beaucoup d'élèves). Filtrage dans la page (coachFilterStudents), le champ garde le clavier.
+const COACH_SEARCH_FROM = 9;
+let coachSearchQ = '';
+function coachFilterStudents() {
+  const q = normName(coachSearchQ);
+  let shown = 0;
+  document.querySelectorAll('.coach-team .coach-student-row').forEach(r => {
+    const on = !q || normName(r.dataset.name || '').includes(q);
+    r.hidden = !on; if (on) shown++;
+  });
+  const none = $('#coachSearchNone');
+  if (none) none.hidden = shown > 0;
+}
+document.addEventListener('input', e => {
+  if (e.target.id !== 'coachSearch') return;
+  coachSearchQ = e.target.value;
+  coachFilterStudents();
+});
+
 // Petite hauteur (iPhone SE) : résumé de la semaine sur une ligne (css/coach.css, même seuil) et Planning sous la liste
 // des élèves, pour qu'au moins deux élèves se voient sans défiler (panel Apple du 08/11)
 const COACH_COMPACT = '(max-height: 700px)';
@@ -626,7 +646,10 @@ function coachTeamHtml() {
         ${coachTeamWeekHtml(st.students)}
         ${compact ? '' : coachPlanningCellHtml()}
         <div class="group-title">Élèves${st.students.length ? ` (${st.students.length})` : ''}</div>
-        <div class="group">${rows || '<div class="cell"><span class="cell__sub social-empty">Aucun élève pour l\'instant</span></div>'}</div>
+        ${st.students.length >= COACH_SEARCH_FROM ? `<div class="social-search"><span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span><input type="search" id="coachSearch" class="search social-search__input" placeholder="Rechercher un élève" aria-label="Rechercher un élève par son pseudo"
+            autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(coachSearchQ)}"></div>` : ''}
+        <div class="group">${rows || '<div class="cell"><span class="cell__sub social-empty">Aucun élève pour l\'instant</span></div>'}
+          <div class="cell" id="coachSearchNone" hidden><span class="cell__sub social-empty">Aucun élève ne correspond.</span></div></div>
         <div class="group-foot">${st.students.length > 1 ? PROGRESS_SORT_FOOT : 'Tes élèves ne se voient pas entre eux.'}</div>
         ${compact ? coachPlanningCellHtml() : ''}
         ${cphTeamSetupHtml(st.students)}

@@ -280,6 +280,19 @@ def t_coach(bench, eng, dev, theme):
         page.wait_for_timeout(600)
         R.check(page.evaluate('view') == 'friends' and page.evaluate('nav.stacks.friends.length') == 1 and page.locator('.coach-student-row').count() == 2,
                 f'{t} élève retiré : retour à Élèves ({page.evaluate("nav.stacks.friends")})')
+        page.click('.tabbar [data-tab="friends"]'); page.wait_for_selector('.coach-team .coach-student-row')
+        # Panel Apple de la vague 3 : plus de 8 élèves, un champ filtre la liste par pseudo (3 élèves ici : pas de champ)
+        R.check(page.locator('#coachSearch').count() == 0, f'{t} 3 élèves : pas de recherche')
+        page.evaluate("""async () => { const me = __sb.meId(); for (let i = 0; i < 7; i++) { const u = __sb.addPerson({ username: 'eleve' + i, social: false }); __sb.link(me, u, Date.now() - 86400000); }
+            await coachRefresh(); render(); }""")
+        page.wait_for_selector('#coachSearch')
+        page.fill('#coachSearch', 'zo')
+        page.wait_for_timeout(200)
+        vis = page.evaluate("[...document.querySelectorAll('.coach-team .coach-student-row')].filter(r => !r.hidden).map(r => r.dataset.name)")
+        R.check(vis == ['zoe'], f'{t} recherche « zo » : seule zoe ({vis})')
+        page.fill('#coachSearch', 'zzz'); page.wait_for_timeout(200)
+        R.check(page.locator('#coachSearchNone').is_visible(), f'{t} recherche sans résultat : « Aucun élève ne correspond »')
+        page.fill('#coachSearch', ''); page.wait_for_timeout(200)
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

@@ -28,7 +28,7 @@ function coachStudentRowsHtml(students) {
     // (panel Apple de la vague 3) ; la 3e ligne ne reste que pour un planning
     const third = coachStudentPlanLine(s.user_id) || (pr.kind === 'never' ? '' : `<span class="cell__sub">${esc(studentLastLine(s))}</span>`);
     return `
-          <button class="cell cell--nav social-row coach-student-row" data-action="coach-open-student" data-uid="${esc(s.user_id)}" data-signal="${esc(pr.kind)}">
+          <button class="cell cell--nav social-row coach-student-row" data-action="coach-open-student" data-uid="${esc(s.user_id)}" data-signal="${esc(pr.kind)}" data-name="${esc(personName(s))}"${coachSearchQ && !normName(personName(s)).includes(normName(coachSearchQ)) ? ' hidden' : ''}>
             <span class="social-row__main">${personAvatar(s)}<span class="social-row__text">
               <span class="social-row__name">${esc(personName(s))}</span>
               ${pr.kind === 'new' && !coachStudentPlanLine(s.user_id) ? '' : progressSignalHtml(pr)}
