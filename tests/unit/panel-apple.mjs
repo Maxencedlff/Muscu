@@ -72,4 +72,14 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     const f = app.chartXFracs([0, D, 2 * D, 30 * D]);
     assert.ok(f[2] - f[1] < (f[3] - f[2]) / 10, `écart de 28 jours bien plus large que d'un jour ${f}`);
   });
+
+  test('Social : un seul vocabulaire (amis, suivre), « abonné » réservé à l\'abonnement payant', () => {
+    // Code sans les commentaires (une ligne // ou la fin de ligne après « // ») : seuls les textes montrés comptent
+    const code = f => src(f).split('\n').filter(l => !l.trim().startsWith('//')).map(l => l.replace(/\s\/\/\s.*$/, '')).join('\n');
+    for (const f of ['js/features/social-ui.js', 'js/features/social-me-ui.js', 'js/features/coach-ui.js', 'js/ui/navbar.js', 'js/features/reactions-ui.js', 'js/features/comments-ui.js']) {
+      const hits = (code(f).match(/[^\n]*abonn[^\n]*/gi) || []).filter(l => !/paywall: 'Abonnement'/.test(l));   // écran payant
+      assert.deepEqual(hits, [], `${f} : ${hits.join(' | ')}`);
+    }
+    assert.match(src('docs/ERGONOMIE.md'), /\| Amis \|/, 'lexique : Amis');
+  });
 }

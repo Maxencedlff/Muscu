@@ -98,7 +98,7 @@ function meActivityHtml() {
   if (!a.rows.length) {
     if (a.loading || (!a.loadedAt && !a.error)) return '<div class="group"><div class="cell"><span class="cell__sub">Chargement…</span></div></div>';
     if (a.error) return offlineNote(a.error === 'offline' ? 'Pas d\'Internet : l\'activité s\'affichera quand le réseau reviendra.' : socialErrorText(a.error));
-    return '<div class="group"><div class="cell"><span class="cell__sub social-empty">Rien pour l\'instant. Les réactions et commentaires sur tes séances et tes nouveaux abonnés s\'afficheront ici.</span></div></div>';
+    return '<div class="group"><div class="cell"><span class="cell__sub social-empty">Rien pour l\'instant. Les réactions et commentaires sur tes séances et les personnes qui commencent à te suivre s\'afficheront ici.</span></div></div>';
   }
   const groups = groupActivity(a.rows);
   const shown = meActivityAll ? groups : groups.slice(0, ME_ACTIVITY_SHOWN);
@@ -219,8 +219,8 @@ function renderSocialMe() {
           </div>
           <div class="me-stats">
             ${stat(st.shown_sessions, 'séance visible', 'séances visibles', 'social-me-sessions')}
-            ${stat(st.followers.length, 'abonné', 'abonnés', 'social-people', 'data-list="followers"')}
-            ${stat(st.following.length, 'abonnement', 'abonnements', 'social-people', 'data-list="following"')}
+            ${stat(st.followers.length, 'te suit', 'te suivent', 'social-people', 'data-list="followers"')}
+            ${stat(st.following.length, 'suivi', 'suivis', 'social-people', 'data-list="following"')}
           </div>
           ${regularityHtml()}
         </section>
@@ -254,7 +254,7 @@ async function socialMeEnter() {
 }
 SCREENS.set('social-me', { render: () => renderSocialMe(), enter: () => { socialMeEnter(); } });
 
-// ── Abonnés, Abonnements ────────────────────────────────────
+// ── Te suivent, Suivis (« abonné » est réservé à l'abonnement payant : docs/ERGONOMIE.md §3) ──
 
 function renderSocialPeople(list) {
   const st = social.state || cleanSocialState({});
@@ -262,14 +262,14 @@ function renderSocialPeople(list) {
   const people = followers ? st.followers : st.following;
   const chevron = `<span class="social-row__chev" aria-hidden="true">${icon('chevron.right', 16)}</span>`;
   const rows = people.map(p => personRowHtml(p, followers
-    ? pill('social-remove-follower', p.user_id, 'Retirer', { aria: `Retirer ${personName(p)} de tes abonnés` })
+    ? pill('social-remove-follower', p.user_id, 'Retirer', { aria: `Retirer ${personName(p)} : ne plus te suivre` })
     : chevron)).join('');
   return `
     <div class="view view--grouped social-people-view">
-      ${navBar({ title: followers ? 'Abonnés' : 'Abonnements', large: false })}
+      ${navBar({ title: followers ? 'Te suivent' : 'Suivis', large: false })}
       <div class="scr">
         <div class="group social-people">${rows || `<div class="cell"><span class="cell__sub social-empty">${followers ? 'Personne ne te suit pour l\'instant.' : 'Tu ne suis personne pour l\'instant.'}</span></div>`}</div>
-        <div class="group-foot">${followers ? 'Tes abonnés voient tes séances visibles. Retirer un abonné ne le prévient pas.' : 'Tu vois les séances visibles des personnes que tu suis.'}</div>
+        <div class="group-foot">${followers ? 'Les personnes qui te suivent voient tes séances visibles. En retirer une ne la prévient pas.' : 'Tu vois les séances visibles des personnes que tu suis.'}</div>
       </div>
     </div>`;
 }

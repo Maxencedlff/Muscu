@@ -229,7 +229,7 @@ def t_mon_profil(bench, eng, dev, theme):
         page.wait_for_timeout(500)
         txt = page.inner_text('.social-me-view')
         stats = page.evaluate("[...document.querySelectorAll('.me-stat')].map(b => b.innerText.replace(/\\s+/g, ' ').trim())")
-        R.check(stats[1] == '2 abonnés' and stats[2] == '2 abonnements' and stats[0].endswith('séances visibles'), f'{t} chiffres {stats}')
+        R.check(stats[1] == '2 te suivent' and stats[2] == '2 suivis' and stats[0].endswith('séances visibles'), f'{t} chiffres {stats}')
         # Carte d'athlète : membre depuis, régularité lue par VoiceOver ; grands titres de section
         R.check(page.locator('.athlete__sub').inner_text().startswith('Membre depuis '), f'{t} « {page.locator(".athlete__sub").inner_text()} »')
         reg = page.locator('.reg[role="img"]')

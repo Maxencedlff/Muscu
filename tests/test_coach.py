@@ -580,7 +580,7 @@ def t_coach(bench, eng, dev, theme):
         # Séance masquée aux abonnés : visible du coach, et dit
         page.click('.coach-sess[data-id="l01"]')
         page.wait_for_selector('.coach-session-view')
-        R.check('masquée à ses abonnés' in page.inner_text('.coach-session-view'), f'{t} séance masquée visible du coach')
+        R.check('masquée à ses amis' in page.inner_text('.coach-session-view'), f'{t} séance masquée visible du coach')
         page.click('[data-action="back"]')
         page.wait_for_selector('.coach-sess')
         # Envoyer un programme avec consignes

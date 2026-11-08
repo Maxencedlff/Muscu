@@ -173,7 +173,7 @@ function routeTitle(route, isRoot) {
     friends: tabMeta('friends').label, 'social-profile': socialPerson(routeParams(route)[0])?.username || 'Profil',
     'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles', 'social-me': 'Mon profil', strava: 'Strava',
     notifications: 'Notifications',
-    'social-people': routeParams(route)[0] === 'followers' ? 'Abonnés' : 'Abonnements',
+    'social-people': routeParams(route)[0] === 'followers' ? 'Te suivent' : 'Suivis',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
     paywall: 'Abonnement', subscription: 'Abonnement',
     nutrition: 'Nutrition', 'diet-plans': 'Plans diète', 'diet-settings': 'Réglages', 'diet-plan': data.dietPlans?.[routeParams(route)[0]]?.name || 'Plan',
