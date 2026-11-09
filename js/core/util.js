@@ -89,6 +89,14 @@ function frSepCheck() {
       const next = dot && frNextCharRect(n, i + 2, range);
       if (next && next.top >= dot.bottom - 2) cuts.push(i + 1);
     }
+    if (!cuts.length) continue;
+    // Texte posé directement dans une boîte flex ou grille : découpé, il donnerait trois éléments côte à côte
+    // (« Petit-déjeuner » et « 215 kcal » en colonnes) ; il est d'abord enveloppé d'un seul span, qui garde la mise en page
+    if (/flex|grid/.test(getComputedStyle(n.parentElement).display)) {
+      const wrap = document.createElement('span');
+      n.replaceWith(wrap);
+      wrap.append(n);
+    }
     // De la fin vers le début : chaque découpe raccourcit n, les positions d'avant restent justes
     for (const at of cuts.reverse()) {
       range.setStart(n, at); range.setEnd(n, at + 1);
