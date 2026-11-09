@@ -195,6 +195,7 @@ html.type-xl .tile__lbl { overflow-wrap: normal; }
 .hcell__date { font-size: 0.882rem; color: var(--label2); white-space: nowrap; flex-shrink: 0; }
 .hcell__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; } /* sur 2 lignes si besoin plutôt que tronqué */
 .hcell__title + .hcell__date { margin-left: auto; }
+.hcell__prog { font-weight: 400; color: var(--label2); }
 /* Ligne du bas : détails à gauche, pastille des records notés à droite (médaille et nombre) */
 .hcell__bot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .hcell__rec { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; font-size: 0.765rem; font-weight: 600; color: var(--gold-text); }
