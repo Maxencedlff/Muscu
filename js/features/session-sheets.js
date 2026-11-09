@@ -58,6 +58,9 @@ function openSessSheet({ cls = '', label = '', html, full = false, onClose }) {
   panel.addEventListener('pointercancel', end);
 
   document.body.appendChild(root);
+  // Feuille presque aussi haute que l'écran : le fond est couvert, plus de titre de séance ni de « Terminer » coupés
+  // derrière la poignée (panel t5) ; mesure sans la transformation de l'animation
+  if (full || panel.offsetHeight > window.innerHeight - 120) root.classList.add('sess-sheet--tall');
   return root;
 }
 

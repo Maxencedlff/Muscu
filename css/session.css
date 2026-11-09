@@ -281,6 +281,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 /* ── Feuilles de la séance (variante non bloquante de .sheet, voir openSessSheet) ── */
 .sess-sheet { position: fixed; inset: 0; z-index: 400; }
 .sess-sheet__backdrop { position: absolute; inset: 0; background: var(--dimmer); animation: iosFade .25s ease; }
+.sess-sheet--tall .sess-sheet__backdrop { background: color-mix(in srgb, var(--bg) 92%, transparent); }   /* fond couvert (openSessSheet) */
 .sess-sheet__panel {
   position: absolute; left: 0; right: 0; bottom: 0;
   max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 16px);
