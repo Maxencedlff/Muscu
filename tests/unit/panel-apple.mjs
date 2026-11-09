@@ -144,15 +144,18 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.equal(app.frTypo('Objectif 32 kg × 10'), 'Objectif 32\u202fkg\u202f×\u202f10', '« 32 kg × 10 » insécable');
     assert.equal(app.frTypo('1\u202f080 kg'), '1\u202f080\u202fkg', 'nombre et unité liés');
   });
+
   test('Tendance « depuis mai » : du premier au dernier point affiché', () => {
     assert.equal(app.trendPct([100, 90, 120, 113]), 13);
     assert.equal(app.trendPct([50, 40]), -20);
     assert.equal(app.trendPct([80]), null);
   });
+
   test('Photos de bilan : le coach n\'est jamais écrit au masculin (coach, coache)', () => {
     const files = ['js/data/guide.js', 'js/features/coach-photos-ui.js', 'js/features/coach-ui.js', 'js/features/photo-vault-ui.js'];
     for (const f of files) assert.ok(!/pour lui seul|quand il veut|s'il quitte|il ne la voit plus|qu'il aurait/.test(src(f)), f);
   });
+
   test('Icônes : une bulle par sens, une silhouette pour se connecter', () => {
     assert.equal(iconOf('js/features/social-ui.js', 'social-open-comments'), 'bubble.left', 'Commenter : bulle vide');
     assert.match(src('js/features/coach-ui.js'), /Commentée par ton coach">\$\{icon\('bubble\.left'/);

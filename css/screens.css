@@ -413,10 +413,6 @@ html.type-xl .rs__adj .rs__skip { grid-column: 1 / -1; grid-row: 2; }
 html.type-xl .rs__adj .rs__round { width: 100%; }
 html.type-xl .rs__resume { font-size: min(0.882rem, 15px); max-width: 150px; }
 html.type-xl .rs__time { font-size: min(72px, 3.4rem); }
-html.type-xl .sum-row { flex-wrap: wrap; }
-html.type-xl .sum-row__main { flex-basis: 100%; }
-/* Feuilles : Annuler / OK en haut, le titre en entier dessous */
-html.type-xl .sheet__bar { display: flex; flex-wrap: wrap; justify-content: space-between; }
 /* Superset : le compte et ⓘ passent sous le nom plutôt que de le couper */
 html.type-xl .ss-member { flex-wrap: wrap; }
 html.type-xl .ss-member__name { flex: 1 1 calc(100% - 48px); }   /* le nom prend la ligne, ⓘ, compte et ⋯ passent dessous */
@@ -431,6 +427,10 @@ html.type-xl .rir__btns { flex-wrap: wrap; }
 html.type-xl .rir__btn { width: auto; min-width: 44px; height: auto; min-height: 44px; padding: 0 10px; border-radius: 22px; white-space: nowrap; }
 /* Bilan : une tuile par ligne, les lignes d'exercice et de record passent à la ligne */
 html.type-xl .sum-tiles { grid-template-columns: 1fr; }
+html.type-xl .sum-row { flex-wrap: wrap; }
+html.type-xl .sum-row__main { flex-basis: 100%; }
+/* Feuilles : Annuler / OK en haut, le titre en entier dessous */
+html.type-xl .sheet__bar { display: flex; flex-wrap: wrap; justify-content: space-between; }
 html.type-xl .sheet__bar .sheet__title { order: 2; flex-basis: 100%; white-space: normal; text-align: left; padding: 4px 0 0; }
 /* Messages : l'heure sous la bulle, la bulle plus large */
 html.type-xl .chat-msg { flex-direction: column; align-items: flex-end; max-width: 92%; }
