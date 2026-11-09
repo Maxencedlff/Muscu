@@ -73,3 +73,28 @@ function sheet({ title = '', cancel = 'Annuler', confirm = 'OK', body = '', onCo
     else setTimeout(() => $('.sheet__btn--confirm', root)?.focus({ preventScroll: true }), 50);
   });
 }
+
+// Clavier iOS : il recouvre le bas de l'écran sans le redimensionner (la feuille restait dessous, bouton Scanner
+// caché, signalé le 10/11/2026). La zone vraiment visible (visualViewport) est recopiée dans --vv-top et --vv-h :
+// la feuille se pose au-dessus du clavier et raccourcit, son contenu défile.
+(function followKeyboard() {
+  const vv = typeof window !== 'undefined' && window.visualViewport;
+  if (!vv) return;
+  const root = document.documentElement;
+  let frame = 0;
+  const apply = () => {
+    frame = 0;
+    const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    if (kb > 40) {
+      root.style.setProperty('--vv-top', `${Math.round(vv.offsetTop)}px`);
+      root.style.setProperty('--vv-h', `${Math.round(vv.height)}px`);
+      root.classList.add('kb-open');
+    } else {
+      root.style.removeProperty('--vv-top'); root.style.removeProperty('--vv-h');
+      root.classList.remove('kb-open');
+    }
+  };
+  const queue = () => { if (!frame) frame = requestAnimationFrame(apply); };
+  vv.addEventListener('resize', queue);
+  vv.addEventListener('scroll', queue);
+})();

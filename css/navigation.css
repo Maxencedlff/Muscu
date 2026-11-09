@@ -185,6 +185,8 @@ body.light .livebar { background: var(--cell); }
   animation: sheetUp .35s var(--nav-ease);
   transition: transform .25s var(--nav-ease);
 }
+.kb-open .sheet-root { top: var(--vv-top, 0px); bottom: auto; height: var(--vv-h, 100%); }
+.kb-open .sheet { max-height: calc(var(--vv-h, 100dvh) - 12px); padding-bottom: 0; }
 .sheet__grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--label3); margin: 6px auto 0; flex-shrink: 0; }
 .sheet__bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 44px; padding: 0 8px; flex-shrink: 0; }
 .sheet__title { font-size: 1rem; font-weight: 600; color: var(--label); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
