@@ -190,7 +190,7 @@ function cphMineCellHtml() {
         </div>`;
 }
 function renderCphMine() {
-  const head = navBar({ title: 'Photos', large: false });
+  const head = navBar({ title: 'Photos de bilan', large: false });
   const view = body => `<div class="view view--grouped coach-photos-mine-view">${head}<div class="scr">${body}</div></div>`;
   if (!account.user || !coachRole().hasCoach) return view('<div class="empty-note">Rejoins d\'abord un coach : « Rejoindre un coach », en haut de l\'onglet Social.</div>');
   const st = cph.state, name = cphCoachName();
@@ -283,9 +283,9 @@ function cphPhotoUrl(p) { return cphUrls.get(p.id) || ''; }
 function cphRevoke() { cphUrls.forEach(u => URL.revokeObjectURL(u)); cphUrls.clear(); }
 function renderCphCoach(uid) {
   const p = coachStudent(uid);
-  // Action en toutes lettres : le cadenas ne dit que l'état « chiffré » (une icône = un sens, docs/ERGONOMIE.md)
-  const right = cphView.phase === 'open' ? `<button class="navbar__text" data-action="cph-lock" aria-label="Verrouiller les photos">Verrouiller</button>` : '';
-  const head = navBar({ title: '', right });
+  // « Verrouiller les photos » en bas de l'écran, en toutes lettres (une icône = un sens, docs/ERGONOMIE.md) : dans la
+  // barre, il ne laissait pas la place au titre « Photos de bilan » sur un écran de 320 à 375 pt (experts Apple, vague 3)
+  const head = navBar({ title: '' });
   const view = (body, cls = '') => `<div class="view view--grouped coach-photos-view ${cls}">${head}<div class="scr">${body}</div></div>`;
   if (!p) return view(`<div class="empty-note">${coach.state ? 'Cette personne ne fait plus partie de tes élèves.' : 'Chargement…'}</div>`);
   const who = esc(personName(p));
@@ -319,7 +319,7 @@ function renderCphCoach(uid) {
   const foot = `<div class="group-foot">Envoyées par ${who}, chiffrées pour toi seul. ${who} peut les retirer quand il veut ; elles disparaissent aussi s'il quitte ton suivi. Ne les enregistre pas, ne les montre pas et ne les publie pas sans son accord écrit.${cphCoach.session?.code ? ` Code de ta clé : <span class="num cph-code">${esc(cphCoach.session.code)}</span> ; ${who} voit le même dans son app.` : ''}</div>`;
   if (!days.length) {
     const msg = f.loading || cphView.done < f.photos.length ? 'Ouverture des photos…' : f.photos.length ? 'Ces photos ne s\'ouvrent pas sur cet iPhone.' : `${who} ne t'a pas encore envoyé de photo.`;
-    return view(`<h1 class="scr-title" id="cphTitle" tabindex="-1">Photos</h1><p class="scr-sub">${who}</p><div class="empty-note">${msg}</div>${foot}`);
+    return view(`<h1 class="scr-title" id="cphTitle" tabindex="-1">Photos de bilan</h1><p class="scr-sub">${who}</p><div class="empty-note">${msg}</div>${foot}`);
   }
   const dayKeys = days.map(d => d.day);
   // Par défaut (tant que le coach n'a rien choisi) : la date la plus ancienne contre la plus récente, recalculées pendant
@@ -350,12 +350,13 @@ function renderCphCoach(uid) {
             </div>`).join('');
   const broken = cphView.broken ? `<p class="pv-summary">${plural(cphView.broken, 'photo ne s\'ouvre pas', 'photos ne s\'ouvrent pas')} sur cet iPhone.</p>` : '';
   return view(`
-        <h1 class="scr-title" id="cphTitle" tabindex="-1">Photos</h1>
+        <h1 class="scr-title" id="cphTitle" tabindex="-1">Photos de bilan</h1>
         <p class="scr-sub">${who} · ${plural(list.length, 'photo', 'photos')}</p>
         ${broken}
         ${compare}
         <div class="group-title">Par date</div>
         <div class="group"><div class="cell"><div class="pgal">${grid}</div></div></div>
+        <div class="group"><button class="cell cell--action" data-action="cph-lock"><span class="cell__title">Verrouiller les photos</span></button></div>
         ${foot}`);
 }
 
@@ -454,8 +455,8 @@ document.addEventListener('change', e => {
   if (!e.target.classList?.contains('cph-sel')) return;
   cphView[e.target.dataset.side] = e.target.value;
   cphPaint();
-});
   announce(document.querySelector('.pcmp__gap')?.textContent || '');   // l'écart dit après le choix d'une date
+});
 // Coach : l'état relu (clé, liste) redessine la fiche et l'écran des photos ; élève : Mon coach et le coffre
 onCoachChange(() => {
   const v = currentView();

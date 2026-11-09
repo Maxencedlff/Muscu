@@ -159,6 +159,10 @@ function fitBackLabelNow(scope = document) {
       if (bar) { bar.classList.add('navbar__bar--wide-back'); if (backLabelFits(btn, label)) return; bar.classList.remove('navbar__bar--wide-back'); }
     }
     btn.classList.add('navbar__back--icon');
+    // Chevron seul et titre encore coupé (« Photos de bilan » à côté de « Verrouiller », écran de 320 pt) : le titre se
+    // centre entre le chevron et la droite, comme iOS, plutôt que d'être tronqué
+    const title = bar?.querySelector('.navbar__title');
+    if (title && title.scrollWidth > title.clientWidth + 1) bar.classList.add('navbar__bar--wide-back');
   });
 }
 let backFitFrame = 0;
