@@ -56,10 +56,10 @@ function lastPerf(progKey, cat, exLike, d = data) {
   }
   // Jamais fait dans cette séance : sa dernière fois ailleurs, par le nom (nouveau programme créé avec des
   // exercices déjà faits, séance libre, autre jour). Avant le 05/11/2026, la colonne « Avant » restait vide.
-  const key = normName(exLike?.name);
+  const key = exerciseNameKey(exLike?.name);
   if (!key) return null;
   for (const h of d.history || []) {
-    const ex = (h.exercises || []).find(e => normName(e.name) === key);
+    const ex = (h.exercises || []).find(e => exerciseNameKey(e.name) === key);
     if (ex && ex.sets?.length) return { h, ex };
   }
   return null;
@@ -68,12 +68,12 @@ function lastPerf(progKey, cat, exLike, d = data) {
 // Identifiant stable pour un exercice connu par son seul nom (exercice ajouté en cours de route)
 function resolveExId(progKey, cat, name, d = data) {
   if (progKey === FREE) return resolveFreeExId(name, d);
-  const byName = { name };
-  const inProg = (d.programmes[progKey]?.exercises?.[cat] || []).find(e => normName(e.name) === normName(name));
+  // Par le nom, renommages de la bibliothèque compris (sameExerciseName, js/data/exercise-catalogue.js)
+  const inProg = (d.programmes[progKey]?.exercises?.[cat] || []).find(e => sameExerciseName(e.name, name));
   if (inProg) return inProg.id;
   for (const h of d.history || []) {
     if (entryProg(h) !== progKey || h.category !== cat) continue;
-    const ex = (h.exercises || []).find(e => e.exId && sameEx({ name: e.name }, byName));
+    const ex = (h.exercises || []).find(e => e.exId && sameExerciseName(e.name, name));
     if (ex) return ex.exId;
   }
   return nameKey(name);
@@ -82,15 +82,15 @@ function resolveExId(progKey, cat, name, d = data) {
 // Séance libre : l'exercice reprend l'identifiant du même nom ailleurs (programme actif d'abord,
 // puis les autres, puis l'historique) pour partager sa courbe de progrès ; sinon un identifiant de nom
 function resolveFreeExId(name, d = data) {
-  const n = normName(name);
+  const n = exerciseNameKey(name);
   const progs = [d.activeProgramme, ...Object.keys(d.programmes).filter(k => k !== d.activeProgramme)];
   for (const k of progs) {
     for (const list of Object.values(d.programmes[k]?.exercises || {})) {
-      const ex = (list || []).find(e => normName(e.name) === n);
+      const ex = (list || []).find(e => exerciseNameKey(e.name) === n);
       if (ex) return ex.id;
     }
   }
-  const past = (d.history || []).flatMap(h => h.exercises || []).find(e => e.exId && normName(e.name) === n);
+  const past = (d.history || []).flatMap(h => h.exercises || []).find(e => e.exId && exerciseNameKey(e.name) === n);
   return past ? past.exId : nameKey(name);
 }
 

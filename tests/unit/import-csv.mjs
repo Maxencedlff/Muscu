@@ -80,7 +80,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.equal(m('Deadlift (Barbell)'), 'Soulevé de terre', 'Deadlift (Barbell)');
     assert.equal(m('Lat Pulldown (Cable)'), 'Tirage vertical prise large', 'Lat Pulldown (Cable)');
     assert.equal(m('Leg Press (Machine)'), 'Presse à cuisses', 'Leg Press (Machine)');
-    assert.equal(m('Triceps Pushdown (Cable - Straight Bar)'), 'Extension triceps poulie', 'Triceps Pushdown (Cable - Straight Bar)');
+    assert.equal(m('Triceps Pushdown (Cable - Straight Bar)'), 'Extension triceps poulie haute', 'Triceps Pushdown (Cable - Straight Bar)');
     assert.equal(m('Lateral Raise (Dumbbell)'), 'Élévations latérales', 'Lateral Raise (Dumbbell)');
     assert.equal(m('Pull Up'), 'Tractions pronation', 'Pull Up');
     assert.equal(m('Plank'), 'Gainage (planche)', 'Plank');
@@ -234,7 +234,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.ok(progEx.some(e => e.name === 'Développé couché barre' && e.id === bench.exId), 'identifiant partagé avec le programme');
     assert.equal(progEx.find(e => e.name === 'Développé couché barre').sets, 3, 'séries de la dernière séance de ce nom');
     const lat = first.exercises.find(e => e.name === 'Élévations latérales');
-    assert.equal(lat.ss, first.exercises.find(e => e.name === 'Extension triceps poulie').ss, 'superset gardé');
+    assert.equal(lat.ss, first.exercises.find(e => e.name === 'Extension triceps poulie haute').ss, 'superset gardé');
     // Série dégressive (dropset) : sous-série du drop set de la série d'avant (js/data/intensif.js)
     assert.equal(lat.sets.length, 2, 'série dégressive rangée sous la série d\'avant');
     sameJSON({ tech: lat.sets[1].tech, sub: lat.sets[1].sub }, { tech: 'drop', sub: [{ weight: '8', reps: '12' }] }, 'drop set : 8 kg × 12 sous 10 kg × 14');

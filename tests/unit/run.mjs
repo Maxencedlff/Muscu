@@ -1534,6 +1534,10 @@ test('sons : le volume choisi (Fort, Normal, Bas) part avec chaque note, Fort pa
 
 (await import('./free-session.mjs')).default({ test, app, run, reset, assert });
 
+// ── Extension triceps poulie haute et basse (tests dans triceps-poulies.mjs) ──
+
+(await import('./triceps-poulies.mjs')).default({ test, run, reset, assert, sameJSON });
+
 // ── Récupération par muscle (tests dans recovery.mjs) ──────
 
 (await import('./recovery.mjs')).default({ test, app, run, reset, assert });

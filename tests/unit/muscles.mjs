@@ -88,8 +88,8 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
   // Programme d'un testeur tapé à la main : chaque nom retrouve sa fiche, avec ses muscles vérifiés
   const TESTER_NAMES = {
     'Curl biceps haltères': 'Curl biceps haltères', 'Barre au front': 'Barre au front', 'Curl marteau': 'Curl marteau',
-    'Extension triceps poulie': 'Extension triceps poulie', 'Curl pupitre': 'Curl pupitre',
-    'Extension triceps poulie bas': 'Extension triceps poulie', 'Dead lift': 'Soulevé de terre', 'Rowing barre': 'Rowing barre',
+    'Extension triceps poulie': 'Extension triceps poulie haute', 'Curl pupitre': 'Curl pupitre',
+    'Extension triceps poulie bas': 'Extension triceps poulie basse', 'Dead lift': 'Soulevé de terre', 'Rowing barre': 'Rowing barre',
     'Tirage horizontal poulie': 'Tirage horizontal câble', 'Rowing haltère unilatéral': 'Rowing haltère unilatéral',
     'Pull over': 'Pull-over poulie', 'Développe couché': 'Développé couché barre', 'Développé incliné haltères': 'Développé incliné haltères',
     'Chest press': 'Développé couché machine', 'Dips': 'Dips', 'Pec fly': 'Pec deck', 'Hip thrusts': 'Hip thrust',
@@ -137,7 +137,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     'Incline dumbbell press': 'Développé incliné haltères', 'Incline bench press': 'Développé incliné barre',
     'Lat pulldown': 'Tirage vertical prise large', 'Seated cable row': 'Tirage horizontal câble', 'Bent over row': 'Rowing barre',
     'One arm dumbbell row': 'Rowing haltère unilatéral', 'T bar row': 'Rowing barre T', 'Arnold press': 'Développé Arnold',
-    'Cable lateral raise': 'Élévations latérales poulie', 'Rear delt fly': 'Oiseau (élévations arrière)', 'Triceps pushdown': 'Extension triceps poulie',
+    'Cable lateral raise': 'Élévations latérales poulie', 'Rear delt fly': 'Oiseau (élévations arrière)', 'Triceps pushdown': 'Extension triceps poulie haute',
     'Close grip bench press': 'Développé couché prise serrée', 'Preacher curl': 'Curl pupitre', 'Leg curl': 'Leg curl machine',
     'Stiff leg deadlift': 'Soulevé de terre roumain', 'Dumbbell RDL': 'Soulevé de terre roumain haltères', 'Floor press': 'Développé au sol haltères',
     'Kettlebell swing': 'Swing kettlebell', 'Side plank': 'Gainage latéral', 'Cable crossover': 'Écarté poulie vis-à-vis',
@@ -150,7 +150,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
     'Squats barre': 'Squat barre', 'Front squats': 'Squat avant', 'Fente': 'Fentes', 'Pompe': 'Pompes', 'Tractions': 'Tractions pronation',
     'Deadlifts': 'Soulevé de terre', 'Hammer curls': 'Curl marteau', 'Lateral raises': 'Élévations latérales', 'Élévation latérale': 'Élévations latérales',
     'Curl haltère': 'Curl biceps haltères', 'Dc haltère': 'Développé couché haltères', 'Shrugs': 'Haussements d\'épaules haltères',
-    'Face pulls': 'Face pull', 'Leg extensions': 'Extension quadriceps', 'Tricep pushdown': 'Extension triceps poulie', 'Crunches': 'Crunch',
+    'Face pulls': 'Face pull', 'Leg extensions': 'Extension quadriceps', 'Tricep pushdown': 'Extension triceps poulie haute', 'Crunches': 'Crunch',
     'Farmer\'s walk': 'Marche du fermier', 'Fente bulgare': 'Fentes bulgares', 'Dead bugs': 'Dead bug', 'Burpee': 'Burpees',
     // Argot et abréviations de salle français
     'DM': 'Développé militaire barre', 'Développé militaire': 'Développé militaire barre', 'DM haltères': 'Développé militaire haltères',
@@ -606,7 +606,7 @@ export default function muscleTests({ test, app, run, reset, sameJSON, assert, R
   // moins tous appartenir au mouvement de référence (rien d'inventé).
   const SAME_AS_RULE = ['Leg curl machine', 'Développé couché prise serrée', 'Curl poignets', 'Curl inversé', 'Curl marteau',
     'Curl biceps barre', 'Soulevé de terre roumain', 'Soulevé de terre', 'Swing kettlebell', 'Hip thrust', 'Adducteurs machine',
-    'Mollets debout', 'Extension quadriceps', 'Extension triceps poulie', 'Dips', 'Oiseau (élévations arrière)', 'Pull-over poulie',
+    'Mollets debout', 'Extension quadriceps', 'Extension triceps poulie haute', 'Dips', 'Oiseau (élévations arrière)', 'Pull-over poulie',
     'Élévations latérales', 'Élévations frontales', 'Rowing menton', 'Haussements d\'épaules haltères', 'Crunch',
     'Développé militaire barre', 'Écarté haltères plat', 'Développé incliné barre', 'Développé couché barre', 'Tirage horizontal câble',
     'Extension lombaires', 'Burpees', 'Escaliers', 'Rotations russes'];

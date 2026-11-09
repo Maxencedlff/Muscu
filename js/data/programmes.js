@@ -12,7 +12,7 @@ const PROGRAMMES = {
       legs: { label: 'Legs', desc: 'Quadriceps · Ischio · Mollets', color: 'var(--teal)' },
     },
     defaults: {
-      push: [['Développé couché haltères',4],['Développé incliné haltères',3],['Écarté haltères plat',3],['Développé militaire haltères',4],['Élévations latérales',4],['Extension triceps poulie',3]],
+      push: [['Développé couché haltères',4],['Développé incliné haltères',3],['Écarté haltères plat',3],['Développé militaire haltères',4],['Élévations latérales',4],['Extension triceps poulie haute',3]],
       pull: [['Rowing haltère unilatéral',4],['Tirage vertical prise large',4],['Tirage horizontal câble',3],['Curl biceps haltères',3],['Curl marteau',3]],
       legs: [['Squat barre',4],['Presse à cuisses',4],['Fentes marchées haltères',3],['Leg curl machine',3],['Extension quadriceps',3],['Mollets debout',4]],
     },
@@ -24,7 +24,7 @@ const PROGRAMMES = {
       lower: { label: 'Lower', desc: 'Quadriceps · Ischio · Mollets · Fessiers', color: 'var(--indigo)' },
     },
     defaults: {
-      upper: [['Développé couché haltères',4],['Tirage vertical prise large',4],['Rowing haltère unilatéral',3],['Développé militaire haltères',3],['Curl biceps haltères',3],['Extension triceps poulie',3]],
+      upper: [['Développé couché haltères',4],['Tirage vertical prise large',4],['Rowing haltère unilatéral',3],['Développé militaire haltères',3],['Curl biceps haltères',3],['Extension triceps poulie haute',3]],
       lower: [['Squat barre',4],['Presse à cuisses',4],['Fentes marchées haltères',3],['Leg curl machine',3],['Extension quadriceps',3],['Mollets debout',4]],
     },
   },
@@ -34,7 +34,7 @@ const PROGRAMMES = {
       fullbody: { label: 'Full Body', desc: 'Corps entier', color: 'var(--teal)' },
     },
     defaults: {
-      fullbody: [['Squat barre',3],['Développé couché haltères',3],['Rowing haltère unilatéral',3],['Développé militaire haltères',3],['Curl biceps haltères',3],['Extension triceps poulie',3],['Mollets debout',3]],
+      fullbody: [['Squat barre',3],['Développé couché haltères',3],['Rowing haltère unilatéral',3],['Développé militaire haltères',3],['Curl biceps haltères',3],['Extension triceps poulie haute',3],['Mollets debout',3]],
     },
   },
   bro: {
@@ -50,7 +50,7 @@ const PROGRAMMES = {
       chest:     [['Développé couché haltères',4],['Développé incliné haltères',4],['Écarté haltères plat',3],['Dips',3]],
       back:      [['Tractions pronation',4],['Tirage vertical prise large',4],['Rowing barre',4],['Rowing haltère unilatéral',3]],
       shoulders: [['Développé militaire haltères',4],['Élévations latérales',4],['Élévations frontales',3],['Oiseau (élévations arrière)',3]],
-      arms:      [['Curl biceps haltères',4],['Curl marteau',3],['Extension triceps poulie',4],['Extension triceps unilatéral',3]],
+      arms:      [['Curl biceps haltères',4],['Curl marteau',3],['Extension triceps poulie haute',4],['Extension triceps unilatéral',3]],
       legs:      [['Squat barre',4],['Presse à cuisses',4],['Fentes marchées haltères',3],['Leg curl machine',3],['Extension quadriceps',3],['Mollets debout',4]],
     },
   },
@@ -63,7 +63,7 @@ const PROGRAMMES = {
     },
     defaults: {
       chest_back:     [['Développé couché haltères',4],['Écarté haltères plat',3],['Tirage vertical prise large',4],['Rowing haltère unilatéral',4],['Tractions pronation',3]],
-      shoulders_arms: [['Développé militaire haltères',4],['Élévations latérales',4],['Curl biceps haltères',3],['Curl marteau',3],['Extension triceps poulie',3]],
+      shoulders_arms: [['Développé militaire haltères',4],['Élévations latérales',4],['Curl biceps haltères',3],['Curl marteau',3],['Extension triceps poulie haute',3]],
       legs:           [['Squat barre',4],['Presse à cuisses',4],['Fentes marchées haltères',3],['Leg curl machine',3],['Mollets debout',4]],
     },
   },
@@ -102,7 +102,8 @@ const PROGRAMMES = {
 // catalogue des muscles (js/data/muscles.js)
 function exerciseLibrary() {
   const seen = new Map();
-  const add  = n => { const k = normName(n); if (n && !seen.has(k)) seen.set(k, n); };
+  // Un nom renommé de la bibliothèque (« Extension triceps poulie ») est proposé sous son nom actuel, une seule fois
+  const add  = n => { if (!n) return; const k = exerciseNameKey(n); if (!seen.has(k)) seen.set(k, currentExerciseName(n)); };
   (data.history || []).slice().sort((a, b) => b.date - a.date).forEach(h => (h.exercises || []).forEach(e => add(e.name)));
   const rest = [];
   Object.values(PROGRAMMES).forEach(p => Object.values(p.defaults || {}).forEach(list => list.forEach(([n]) => rest.push(n))));
