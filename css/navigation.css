@@ -45,6 +45,9 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 /* Retour entier plutôt que « Retour » : le titre quitte le centre de la barre, centré entre les deux côtés (fitBackLabel) */
 .navbar__bar--wide-back { grid-template-columns: max-content minmax(0, 1fr) max-content; }
 .navbar__bar--wide-back .navbar__title { max-width: none; }
+/* Chevron seul : il porte déjà sa marge (zone de 44 pt) ; écart réduit pour garder le titre entier sur 320 pt
+   (« Photos de bilan » entre le chevron et « Verrouiller », iPhone SE et Galaxy S9+) */
+.navbar__bar--wide-back:has(.navbar__back--icon) { column-gap: 4px; }
 /* « Annuler » / « OK » gardent leur largeur : c'est le titre qui se tronque (écrans étroits) */
 .navbar__side:has(> .navbar__text) { min-width: max-content; }
 .navbar__side--right { justify-content: flex-end; }
@@ -61,6 +64,10 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 /* Titre posé dans le contenu (observeLargeTitle, js/ui/navbar.js) : la barre le reprend quand il sort de l'écran */
 .navbar--echo .navbar__title { opacity: 0; transition: opacity .15s; }
 .navbar--echo.navbar--collapsed .navbar__title { opacity: 1; }
+/* Titre compact pas encore affiché : aussi caché (visibility, basculée à la fin du fondu) ; le retour garde son nom
+   entier tant qu'il est caché, sa colonne étroite le coupait sans qu'on le voie (contrôle « aucun texte coupé ») */
+:is(.navbar--large, .navbar--echo):not(.navbar--collapsed) .navbar__title { visibility: hidden; }
+:is(.navbar--large, .navbar--echo) .navbar__title { transition: opacity .15s, visibility .15s; }
 /* Grand titre ou titre du contenu repris par la barre : il s'efface en même temps, comme iOS (on lisait « Coach » dans la
    barre au-dessus du bas du grand titre, coupé, panel t5) */
 .navbar__large, .scr [data-echo-title], .scr h1.scr-title, .scr h1.pv-title { transition: opacity .15s; }
