@@ -134,7 +134,7 @@ function pvOpenHtml() {
               <div class="pgal__row">${g.photos.map(p => { const sent = cphStudentListed() && !!cphSentOf(p.id); return `
                 <button class="pgal__item" data-action="photo-open" data-id="${p.id}" aria-label="${photoPoseLabel(p.pose)}, ${esc(fmtDate(p.date))}${sent ? ', envoyée à ton coach' : ''}">
                   <img src="${photoUrl(p)}" alt="" loading="lazy"><span class="pgal__pose">${photoPoseLabel(p.pose)}</span>${sent ? `
-                  <span class="pgal__sent" aria-hidden="true">${icon('checkmark', 10)}Envoyée</span>` : ''}
+                  <span class="pgal__sent" aria-hidden="true">${icon('checkmark', 10)}<span class="pgal__sent-txt">Envoyée</span></span>` : ''}
                 </button>`; }).join('')}</div>
             </div>`).join('');
   return `
