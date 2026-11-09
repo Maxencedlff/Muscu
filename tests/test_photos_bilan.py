@@ -213,6 +213,11 @@ def t_envoi_complet(bench, eng, dev, theme):
         ok_txt = sp.locator('.sheet .cphs__item').first.locator('.cphs__ok')
         R.check(ok_txt.is_visible() and 'Ton coach verra cette photo. Tu peux la retirer quand tu veux.' in ok_txt.inner_text()
                 and not sp.locator('.sheet .cphs__item').nth(1).locator('.cphs__ok').is_visible(), f'{t} accord affiché sous la photo cochée seulement')
+        # announce() remplit la zone VoiceOver 30 ms après l'avoir vidée (js/core/dialogs.js) : on attend la phrase
+        try:
+            sp.wait_for_function("() => (document.getElementById('sr-polite')?.textContent || '').includes('Tu peux la retirer')", timeout=2000)
+        except Exception:
+            pass
         vo = sp.evaluate("""() => { const b = document.querySelector('.sheet .cphs__item'), d = document.getElementById(b.getAttribute('aria-describedby') || '-');
             return [d && d.textContent, document.getElementById('sr-polite')?.textContent]; }""")
         R.check(vo[0] and 'Tu peux la retirer' in vo[0] and 'Tu peux la retirer' in (vo[1] or ''), f'{t} VoiceOver : l\'accord lié à la case (aria-describedby) et dit en la cochant {vo}')
