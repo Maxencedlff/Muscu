@@ -96,7 +96,8 @@ async function cphSendSheet(day) {
   };
   const lead = single ? '<p class="cphs__lead">Ton coach verra cette photo. Tu peux la retirer quand tu veux.</p>'
     : `<p class="cphs__lead">Choisis chaque photo à envoyer${free < unsent.length ? ` (${free} au plus)` : ''}.</p>`;
-  await sheet({ title: 'Photos à envoyer', cancel: 'Annuler', confirm: '', body: `   // pas le verbe du bouton en titre (panel t5)
+  // Titre : ce qui est montré, pas le verbe du bouton (panel t5)
+  await sheet({ title: 'Photos à envoyer', cancel: 'Annuler', confirm: '', body: `
     <p class="cphs__day">${esc(fmtDate(cphDayTs(day)))}</p>
     ${lead}
     <div class="cphs__list">${list.map(item).join('')}</div>

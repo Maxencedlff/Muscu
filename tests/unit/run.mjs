@@ -1538,6 +1538,7 @@ test('sons : le volume choisi (Fort, Normal, Bas) part avec chaque note, Fort pa
 // ── Extension triceps poulie haute et basse (tests dans triceps-poulies.mjs) ──
 
 (await import('./triceps-poulies.mjs')).default({ test, run, reset, assert, sameJSON });
+(await import('./textes-affiches.mjs')).default({ test, assert, ROOT });
 
 // ── Récupération par muscle (tests dans recovery.mjs) ──────
 
