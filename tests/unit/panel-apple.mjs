@@ -124,5 +124,13 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.match(app.setPlatesHtml(ex, 0, work, 1), /<span class="num">1<\/span>/);
   });
 
+  test('En-tête de carte : le record suit une série du jour qui le bat', () => {
+    reset();
+    const pr = { weight: '80', reps: '6' };
+    const ex = sets => ({ name: 'Développé couché', sets });
+    sameJSON(app.liveHeadRecord(ex([{ weight: '80', reps: '8', done: true }]), pr), { weight: '80', reps: '8' });
+    sameJSON(app.liveHeadRecord(ex([{ weight: '82.5', reps: '3', done: true }, { weight: '85', reps: '2', done: false }]), pr), { weight: '82.5', reps: '3' }, 'série non validée ignorée');
+    sameJSON(app.liveHeadRecord(ex([{ weight: '75', reps: '10', done: true }, { weight: '90', reps: '5', done: true, warmup: true }]), pr), pr, 'ni plus légère, ni échauffement');
+  });
 
 }

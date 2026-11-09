@@ -327,8 +327,18 @@ function exGoalHtml(ex, cls = '') {
 }
 
 // Sous-titre de la carte : record, repos de l'exercice (modifiable), hausse de volume
+// Record de l'en-tête de carte : celui du programme, remplacé dès qu'une série du jour le bat (même règle que
+// js/data/store.js : charge plus lourde, ou mêmes kilos et plus de reps). Sans quoi l'en-tête affichait
+// l'ancien record sous une série marquée « Record » (panel de la vague 3)
+function liveHeadRecord(ex, pr) {
+  if (isAssisted(ex)) return pr;
+  return workSets(ex.sets).filter(s => s.done && (parseInt(s.reps) || 0) > 0).reduce((best, s) => {
+    const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0, bw = parseFloat(best?.weight) || 0, br = parseInt(best?.reps) || 0;
+    return !best || w > bw || (w === bw && r > br) ? { weight: s.weight, reps: s.reps } : best;
+  }, pr || null);
+}
 function exSubHtml(ex, ei, allDone) {
-  const pr   = measureOf(ex) === 'reps' ? sessExData(ex)?.pr : null;
+  const pr   = measureOf(ex) === 'reps' && sessExData(ex)?.pr ? liveHeadRecord(ex, sessExData(ex).pr) : null;
   const rest = fmtRest(exRest(ex));
   const tempo = parseTempo(ex.tempo) && measureOf(ex) === 'reps'
     ? `<span class="tempo-pill num" aria-label="Tempo ${esc(shortTempo(ex.tempo))}${ex.tempoGuide === true ? ', guidé au son' : ''}">${ex.tempoGuide === true ? icon('music', 12) : ''}Tempo ${esc(shortTempo(ex.tempo))}</span> `
