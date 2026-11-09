@@ -44,9 +44,11 @@ function planPhaseCardHtml(p, { uid = null, today = planToday() } = {}) {
   const status = phaseStatusText(p, today);
   const left = g.status === 'current' ? (g.daysLeft === 1 ? 'Dernier jour' : `Encore ${plural(g.daysLeft, 'jour', 'jours')}`) : '';
   const meta = [phaseRangeText(p), p.progName ? `Programme : ${p.progName}` : ''].filter(Boolean);
+  // Titre égal au type de phase (sans nom, ou nommée « Reprise ») : le point de couleur seul, pas une pastille qui le répète
+  const named = p.name && normName(p.name) !== normName(planGoal(p.goal).label);
   const inner = `
-          <span class="plan-card__top">${p.name ? planGoalPill(p.goal) : ''}<span class="plan-card__status num">${esc(status)}</span></span>
-          <span class="plan-card__title">${p.name ? '' : `<span class="plan-pill__dot plan-card__dot" style="--plan-color:${planGoal(p.goal).color}" aria-hidden="true"></span>`}${esc(phaseTitle(p))}</span>
+          <span class="plan-card__top">${named ? planGoalPill(p.goal) : ''}<span class="plan-card__status num">${esc(status)}</span></span>
+          <span class="plan-card__title">${named ? '' : `<span class="plan-pill__dot plan-card__dot" style="--plan-color:${planGoal(p.goal).color}" aria-hidden="true"></span>`}${esc(phaseTitle(p))}</span>
           ${planWeeksHtml(p, g)}
           <span class="plan-card__meta">${meta.map(esc).join('<br>')}${left ? `<br><span class="num">${esc(left)}</span>` : ''}</span>
           ${uid && p.note ? `<span class="plan-card__note">${esc(p.note)}</span>` : ''}`;
