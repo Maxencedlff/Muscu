@@ -131,7 +131,9 @@ function navBar({ title = '', large, back, left = '', right = '', sub = '', extr
 const BACK_LABEL_GAP = 8;
 const BACK_FALLBACK = 'Retour';
 function backLabelFits(btn, label) {
-  if (label.scrollWidth > label.clientWidth + 1) return false;
+  // Sans tolérance : un libellé plus large d'un seul pixel s'affichait « Coa… » (iPhone SE, panel t6). Un faux « trop
+  // large » (arrondi) ne coûte rien : le titre se décale simplement entre le retour et la droite.
+  if (label.scrollWidth > label.clientWidth) return false;
   const title = btn.closest('.navbar__bar, .auth__bar')?.querySelector('.navbar__title');
   if (!title?.textContent.trim()) return true;
   // Titre compact pas encore affiché (grand titre ou titre du contenu encore visibles) : il ne prend pas de place,
