@@ -30,12 +30,12 @@ function signInButtonsHtml() {
 }
 
 // Pastille d'avatar : l'emoji choisi, sinon l'initiale du pseudo sur un disque gris (comme Contacts),
-// sinon (déconnecté ou sans pseudo) l'haltère de l'app
+// sinon (déconnecté ou sans pseudo) une silhouette dans un cercle, comme Réglages d'iOS (l'haltère est l'onglet Entraînement)
 function avatarHtml(size = 'm', emoji = account.profile?.avatar, username = account.profile?.username) {
   const e = account.user ? validAvatar(emoji) : null, initial = account.user ? avatarInitial(username) : '';
   if (e) return `<span class="avatar avatar--${size}" aria-hidden="true">${esc(e)}</span>`;
   if (initial) return `<span class="avatar avatar--${size} avatar--initial" aria-hidden="true">${esc(initial)}</span>`;
-  return `<span class="avatar avatar--${size} avatar--empty" aria-hidden="true">${icon('dumbbell', size === 'xl' ? 40 : 24)}</span>`;
+  return `<span class="avatar avatar--${size} avatar--empty" aria-hidden="true">${icon('person.crop.circle', size === 'xl' ? 40 : 28)}</span>`;
 }
 function accountName() { return account.profile?.username || 'Mon compte'; }
 function providerLine(user = account.user) {

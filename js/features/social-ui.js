@@ -97,7 +97,7 @@ function feedCardHtml(row, { owner = true } = {}) {
       <div class="feed-card__foot">${mine
         ? `<span class="react-own">${reactionsSummary(row.reactions) ? reactionsSummaryHtml(row.reactions) : '<span class="react-own__none">Aucune réaction</span>'}</span>`
         : reactionBarHtml(row)}
-        <button class="feed-card__comment" data-action="social-open-comments" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}" aria-label="${esc(`Commenter la séance ${s.label} de ${personName(p)}`)}">${icon('text.bubble', 20)}<span aria-hidden="true">Commenter</span></button>
+        <button class="feed-card__comment" data-action="social-open-comments" data-owner="${esc(row.owner)}" data-id="${esc(row.id)}" aria-label="${esc(`Commenter la séance ${s.label} de ${personName(p)}`)}">${icon('bubble.left', 20)}<span aria-hidden="true">Commenter</span></button>
       </div>
     </article>`;
 }

@@ -579,7 +579,7 @@ function historyCoachGroup(h) {
 }
 function coachHistoryMark(h) {
   if (!coachNoteFor(h.id)) return '';
-  return `<span class="coach-mark" role="img" aria-label="Commentée par ton coach">${icon('text.bubble', 14)}</span>`;
+  return `<span class="coach-mark" role="img" aria-label="Commentée par ton coach">${icon('bubble.left', 14)}</span>`;   // bulle vide : un commentaire ; la bulle à lignes reste aux messages privés
 }
 // Ouverture d'Historique › Séance : son commentaire est vu
 function coachHistoryMount() {
