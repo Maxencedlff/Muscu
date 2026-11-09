@@ -125,6 +125,8 @@ def t_tabbar_sans_compte(bench, eng, dev, theme):
         cut = page.evaluate("""[...document.querySelectorAll('.tabbar__label')].filter(l => l.scrollWidth > l.clientWidth + .5
             || l.getBoundingClientRect().width > l.parentElement.getBoundingClientRect().width).map(l => l.textContent)""")
         R.check(not cut, f'{t} libellés entiers {cut}')
+        edge = page.evaluate("[...document.querySelectorAll('.tabbar__label')].map(l => l.getBoundingClientRect()).map((r, i, a) => i ? innerWidth - a.at(-1).right : r.left)")
+        R.check(min(edge) >= 4, f'{t} « Entraînement » et « Social » à 4 pt au moins du bord {edge}')
         widths = [tabs.nth(i).bounding_box()['width'] for i in range(5)]
         R.check(min(widths) >= 44 and min(tabs.nth(i).bounding_box()['height'] for i in range(5)) >= 44, f'{t} onglets de 44 pt ({widths})')
         R.check(page.locator('.tabbar__badge').count() == 0, f'{t} sans compte : pas de badge')

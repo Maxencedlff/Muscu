@@ -312,6 +312,8 @@ html.type-xl .chart-bubble { white-space: normal; }
 #app, .tabbar, .livebar {
   padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
 }
+/* Barre d'onglets : 4 pt au moins de chaque côté, « Entraînement » ne touche plus le bord de l'écran (experts Apple, vague 3) */
+.tabbar { padding-left: max(4px, env(safe-area-inset-left, 0px)); padding-right: max(4px, env(safe-area-inset-right, 0px)); }
 .sess-sheet__panel, .sheet, .ios-dialog--sheet .ios-dialog__panel {
   padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
 }
