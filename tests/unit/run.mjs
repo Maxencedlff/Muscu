@@ -245,7 +245,7 @@ test('fmtVolume : kg, tonnes, lbs, milliers de lbs', () => {
   reset({ unit: 'lbs' });
   assert.equal(app.fmtVolume(0), '0 lbs');
   assert.equal(app.fmtVolume(100), '220 lbs');
-  assert.equal(app.fmtVolume(10000), '22 k lbs');
+  assert.equal(app.fmtVolume(10000), '22,0 k lbs');
 });
 
 test('setTxt / bestSet : meilleure série affichée', () => {

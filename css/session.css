@@ -405,14 +405,16 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .sum-tiles { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
 .sum-tile { background: var(--cell); border-radius: var(--r-md); padding: 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 /* Valeur puis libellé dessous, comme le fil, la séance d'un ami et Mon profil (même style partout, vague 3) */
-.sum-tile__label { font-size: 0.765rem; color: var(--label2); order: 1; }
+/* Même tuile que l'historique, le fil et Mon profil (.tile, css/screens.css) : unité au corps du chiffre, valeur qui suit la
+   largeur de l'écran, libellés sur une même ligne (panel t5 : unité en petit, « Séries » plus haut que ses voisins) */
+.sum-tile__label { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); order: 1; }
 .sum-tile__delta { order: 2; }
-.sum-tile__value { font-size: 1.294rem; line-height: 1.647rem; font-weight: 700; white-space: nowrap; }
-.sum-tile__unit { font-size: 0.765rem; font-weight: 600; white-space: nowrap; }
+.sum-tile__value { font-size: clamp(0.9rem, 5vw, 1.294rem); line-height: 1.2; font-weight: 700; white-space: nowrap; }
+.sum-tile__unit { white-space: nowrap; }
 /* « 19,6 k lbs » : l'unité passe dessous s'il le faut (espace simple) ; « 52 min », « 1 h 05 » restent d'un bloc */
 .sum-tile__value:has(.sum-tile__unit) { white-space: normal; }
-@media (max-width: 359px) { .sum-tile { padding: 12px 10px; } .sum-tile__value { font-size: 1.176rem; } }
-.sum-tile__delta { font-size: 0.765rem; color: var(--label2); font-weight: 600; white-space: nowrap; }
+.sum-tile__delta { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); font-weight: 600; }
+.sum-tile__delta-n { white-space: nowrap; }
 .sum-tile__delta--up { color: var(--green-text); }
 .sum-section-title { font-size: 0.765rem; color: var(--label2); text-transform: uppercase; padding: 24px 16px 6px; }
 .sum-list { background: var(--cell); border-radius: var(--r-md); overflow: hidden; }

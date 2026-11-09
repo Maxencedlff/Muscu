@@ -97,15 +97,18 @@ function summarySetTxt(r) {
 }
 
 // Volume : écart avec la dernière séance du même type, rien s'il n'y en a pas ou s'il est nul
-// Valeur d'une tuile du bilan : le nombre en grand, l'unité (« min », « h », « t », « kg ») en petit, pour
-// que « 52 min » ou « 12,5 t » tiennent dans un tiers d'iPhone SE (panel du 07/11 : « 52 min » débordait)
+// Valeur d'une tuile du bilan : l'unité (« min », « h », « t », « kg ») au corps du nombre, comme l'historique (panel t5) ;
+// elle peut passer dessous (« 19,6 k » puis « lbs ») pour tenir dans un tiers d'iPhone SE (panel du 07/11)
 function sumTileValueHtml(txt) {
   return esc(txt).replace(/[A-Za-z]+(?: [A-Za-z]+)?/g, u => `<span class="sum-tile__unit">${u}</span>`);
 }
 
+// « ↑ 32 kg vs dernière fois » : l'écart dit par rapport à quoi (panel t5 : « ↑ 32 kg » seul se lisait comme une charge
+// ou un record) ; VoiceOver entend la phrase entière
 function summaryDeltaHtml(delta) {
   if (delta === null || Math.round(delta) === 0) return '';
-  return `<span class="sum-tile__delta ${delta > 0 ? 'sum-tile__delta--up' : ''}">${delta > 0 ? '↑ ' : '↓ '}${fmtVolume(Math.abs(delta))}</span>`;
+  const v = fmtVolume(Math.abs(delta)), up = delta > 0;
+  return `<span class="sum-tile__delta ${up ? 'sum-tile__delta--up' : ''}"><span aria-hidden="true"><span class="sum-tile__delta-n">${up ? '↑' : '↓'}\u00a0${v}</span> vs dernière fois</span><span class="visually-hidden">, ${v} ${up ? 'de plus' : 'de moins'} que la dernière fois</span></span>`;
 }
 
 function summaryRecordsHtml(records) {

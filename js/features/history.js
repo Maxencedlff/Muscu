@@ -38,9 +38,10 @@ function historyCell(h) {
   const progId = entryProg(h);
   const meta   = sessionMeta(h.category, progId);
   const vol    = sessionVolume(h.exercises || [], entryBodyKg(h));
-  // Séance d'un autre programme : la mention remplace le nombre d'exercices (cellule sur 2 lignes)
+  // Séance d'un autre programme : la mention sur sa propre ligne, sous la ligne habituelle (« N exercices · t · durée »
+  // partout, panel t5 : elle remplaçait le nombre d'exercices et cassait le rythme de la liste)
   const other  = progId !== data.activeProgramme && progId !== FREE;
-  const parts  = [other ? `Programme ${esc(progMeta(progId).name)}` : plural((h.exercises || []).length, 'exercice', 'exercices')];
+  const parts  = [plural((h.exercises || []).length, 'exercice', 'exercices')];
   if (vol > 0) parts.push(fmtVolume(vol));
   if (h.duration) parts.push(fmtDuration(h.duration));
   // Records de la séance (recordCount, js/data/records.js : même règle que le bilan et Progrès) : médaille et nombre
@@ -54,6 +55,7 @@ function historyCell(h) {
         <span class="hcell__body">
           <span class="hcell__top"><span class="hcell__title">${meta.label}${coachHistoryMark(h)}${historyHiddenMark(h)}${historyReactionsMark(h)}</span><span class="hcell__date">${fmtDate(h.date)}</span></span>
           <span class="hcell__bot"><span class="hcell__sub num">${parts.join(' · ')}</span>${recMark}</span>
+          ${other ? `<span class="hcell__sub hcell__prog">Programme ${esc(progMeta(progId).name)}</span>` : ''}
         </span>
         ${icon('chevron.right', 16)}
       </button>

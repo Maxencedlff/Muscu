@@ -432,6 +432,7 @@ html.type-xl .rir__btns { flex-wrap: wrap; }
 html.type-xl .rir__btn { width: auto; min-width: 44px; height: auto; min-height: 44px; padding: 0 10px; border-radius: 22px; white-space: nowrap; }
 /* Bilan : une tuile par ligne, les lignes d'exercice et de record passent à la ligne */
 html.type-xl .sum-tiles { grid-template-columns: 1fr; }
+html.type-xl .sum-tile__value { font-size: 1.294rem; white-space: normal; }   /* comme .tile__val */
 html.type-xl .sum-row { flex-wrap: wrap; }
 html.type-xl .sum-row__main { flex-basis: 100%; }
 /* Feuilles : Annuler / OK en haut, le titre en entier dessous */
