@@ -2,6 +2,7 @@
    Partage de séance : bouton et aperçu de l'image
 ═══════════════════════════════════════════════ */
 .share-btn .icon { margin-top: -3px; }   /* la flèche du symbole est haute : centrage optique */
+html.type-xl .share-btn .icon { width: min(1.2em, 36px); height: min(1.2em, 36px); flex-shrink: 0; }   /* à la taille du libellé (panel t6) */
 .sum-share { margin-top: 16px; }
 .share-detail { margin-top: 32px; }
 

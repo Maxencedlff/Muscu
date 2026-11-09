@@ -406,7 +406,7 @@ html.type-xl .auth-btn > span { overflow: visible; }
 
 html.type-xl .hcell__title, html.type-xl .social-row__name { white-space: normal; }
 html.type-xl .chat-cell__last { -webkit-line-clamp: 3; line-clamp: 3; }
-html.type-xl .toast > span { -webkit-line-clamp: 4; line-clamp: 4; }
+html.type-xl .toast > span { -webkit-line-clamp: 6; line-clamp: 6; }   /* consigne lue en entier en AX33 sur SE (« Touche Utiliser pou… » à 4 lignes, panel t6) */
 html.type-xl .social-row__main { min-width: 44px; }
 /* Très grand texte, 3e tour : jamais de coupure au milieu d'un mot. Les textes passent à la ligne entre les mots, et
    coupent un mot trop long seulement à une césure du français (hyphens) */
@@ -725,6 +725,8 @@ body.light .imp__ctl { background: var(--cell); }
 }
 .pv-slot:active { background: var(--fill2); }
 .pv-summary { display: flex; align-items: center; gap: 6px; margin: 0 0 18px; color: var(--label2); font-size: var(--fs-footnote); }
+html.type-xl .pv-summary { align-items: flex-start; }
+html.type-xl .pv-summary .icon { width: 1.1em; height: 1.1em; flex-shrink: 0; margin-top: .15em; }   /* cadenas à la taille du texte (panel t6) */
 /* Sélecteur d'apps, Centre de contrôle : rien du coffre ne reste visible */
 body.pv-shield .photo-vault .scr { filter: blur(30px); }
 body.pv-shield::after { content: ''; position: fixed; inset: 0; z-index: 10000; background: var(--bg); }

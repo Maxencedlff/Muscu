@@ -404,7 +404,9 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .sum-line { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 0.941rem; line-height: 1.294rem; font-weight: 600; color: var(--label); }
 .sum-line .medal { color: var(--yellow); flex-shrink: 0; }
 html.type-xl .sum-line { align-items: flex-start; }   /* médaille sur la première ligne du texte, comme un Label (panel t5) */
-html.type-xl .sum-line .medal { margin-top: .15em; }
+/* Médaille à la taille du texte (elle restait à 18 px à côté d'un texte AX33, panel t6), centrée sur la première ligne */
+html.type-xl .sum-line .medal { width: 1.2em; height: 1.2em; margin-top: .09em; }   /* ligne de 1,375 em */
+html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 40px); }
 .summary--pop .sum-line .medal, .summary--pop .sum-record .medal { animation: sum-medal .3s cubic-bezier(.2, .8, .2, 1.2) both; }
 @keyframes sum-medal { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .sum-tiles { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
@@ -686,6 +688,9 @@ html.type-xl .sum-line .medal { margin-top: .15em; }
 .pl__collar { fill: var(--label2); }
 .pl__plate { fill: color-mix(in srgb, var(--cat-color, var(--tint)) 55%, var(--cell)); stroke: var(--cat-color, var(--tint)); stroke-width: 1.5; }
 .pl__pw { fill: var(--label); font-size: 13px; font-weight: 600; font-family: var(--font); }
+/* Texte agrandi : le poids sous chaque disque grandit aussi (13 px fixes en AX33, panel t6) ; deux lignes en quinconce
+   espacées de 16 unités : 19 au plus pour que les chiffres ne se touchent pas */
+html.type-xl .pl__pw { font-size: 19px; }
 .pl__result { font-size: 0.941rem; text-align: center; color: var(--label2); padding: 0 8px; }
 .pl__result b { color: var(--label); font-weight: 600; }
 .pl__warn { color: var(--orange-text); }
