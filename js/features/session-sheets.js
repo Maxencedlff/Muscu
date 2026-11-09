@@ -125,21 +125,23 @@ const AX_PARTIAL_MAX = 3;
 // bibliothèque filtrée (matériel, exclusions) dans l'ordre d'exerciseLibrary. Renvoie { recent, done, same, rest }.
 const AX_RECENT_MAX = 5, AX_SAME_MAX = 8;
 function axSections(names, around = [], history = data.history) {
-  const byKey = new Map(names.map(n => [normName(n), n]));
+  // Clé qui ignore les renommages : « Extension triceps poulie » fait avant le 09/11/2026 compte comme
+  // « Extension triceps poulie haute » (RENAMED_EXERCISES, js/data/exercise-catalogue.js)
+  const byKey = new Map(names.map(n => [exerciseNameKey(n), n]));
   const doneKeys = [];   // exercices faits, du plus récent au plus ancien
   (history || []).slice().sort((a, b) => b.date - a.date).forEach(h => (h.exercises || []).forEach(e => {
-    const k = normName(e.name);
+    const k = exerciseNameKey(e.name);
     if (byKey.has(k) && !doneKeys.includes(k)) doneKeys.push(k);
   }));
   const taken = new Set(doneKeys);
   const index = chosenMusclesIndex();
   const target = new Set(around.flatMap(n => exerciseMuscles({ name: n }, index).primary));
-  const same = target.size ? names.filter(n => !taken.has(normName(n)))
+  const same = target.size ? names.filter(n => !taken.has(exerciseNameKey(n)))
     .map(n => ({ n, common: exerciseMuscles({ name: n }, index).primary.filter(id => target.has(id)).length }))
     .filter(x => x.common).sort((a, b) => b.common - a.common || catalogueRank(a.n) - catalogueRank(b.n)).slice(0, AX_SAME_MAX).map(x => x.n) : [];
-  same.forEach(n => taken.add(normName(n)));
+  same.forEach(n => taken.add(exerciseNameKey(n)));
   const done = doneKeys.map(k => byKey.get(k));
-  return { recent: done.slice(0, AX_RECENT_MAX), done: done.slice(AX_RECENT_MAX), same, rest: names.filter(n => !taken.has(normName(n))) };
+  return { recent: done.slice(0, AX_RECENT_MAX), done: done.slice(AX_RECENT_MAX), same, rest: names.filter(n => !taken.has(exerciseNameKey(n))) };
 }
 function axSectionsHtml(names) {
   const { recent, done, same, rest } = axSections(names, ax.around);
@@ -154,7 +156,7 @@ function axListHtml(q) {
   const eq    = data.exEquip;
   // Toute la bibliothèque (pas de coupure : un exercice ne doit jamais être introuvable sans le chercher)
   // Les exercices créés par la personne (sans matériel connu) restent visibles quel que soit le filtre
-  const names = exerciseLibrary().filter(n => !ax.exclude.has(normName(n)) && (eq === 'all' || [eq, null].includes(equipmentOf(n)))
+  const names = exerciseLibrary().filter(n => !ax.exclude.has(exerciseNameKey(n)) && (eq === 'all' || [eq, null].includes(equipmentOf(n)))
     && muscleFilterMatch(exerciseMuscles({ name: n }), axMuscle));
   // « Créer » reste toujours proposé (en dernier) dès que le nom exact n'existe pas, même quand un alias
   // ou un exercice proche correspond : une variante comme « Tractions lestées » doit avoir son propre suivi
@@ -242,7 +244,7 @@ function muscleFilterTap(el, f) {
 // exclude : noms à ne pas proposer (par défaut, les exercices de la séance en cours)
 function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick = null } = {}) {
   const names = exclude ?? (activeSession?.exercises || []).map(e => e.name);
-  ax = { target, replaceEi: target === 'session' ? replaceEi : null, exclude: new Set(names.map(normName)), around: names, onPick };
+  ax = { target, replaceEi: target === 'session' ? replaceEi : null, exclude: new Set(names.map(exerciseNameKey)), around: names, onPick };
   const rep   = ax.replaceEi !== null ? activeSession.exercises[ax.replaceEi] : null;
   axMuscle    = NO_MUSCLE_FILTER;
   axSets      = rep ? Math.max(1, rep.sets.filter(s => !s.done).length) : 3;   // les séries qui restent à faire
@@ -284,7 +286,7 @@ function axPick(name) {
   if (!name) return;
   name = name.charAt(0).toUpperCase() + name.slice(1);  // nom créé en minuscules : « Hip thrust », pas « hip thrust »
   // Lu avant l'ajout, qui fait entrer le nom dans la bibliothèque
-  const created = !exerciseLibrary().some(n => normName(n) === normName(name));
+  const created = !exerciseLibrary().some(n => sameExerciseName(n, name));
   if (ax.target === 'programme') addExerciseToEditedSession(name);
   else if (ax.target === 'past') ax.onPick?.(name, axSets);
   else pickExercise(name);
@@ -300,7 +302,7 @@ function axPick(name) {
 function addExerciseToEditedSession(name) {
   const cat  = editorCatOf();
   const list = prog().exercises[cat] || (prog().exercises[cat] = []);
-  if (list.some(e => normName(e.name) === normName(name))) { showToast('Déjà dans cette séance'); return; }
+  if (list.some(e => sameExerciseName(e.name, name))) { showToast('Déjà dans cette séance'); return; }
   list.push(makeExercise(name, axSets));
   save();
   closeSessSheets();
@@ -314,7 +316,8 @@ function pickExercise(name) {
   if (!activeSession) return;
   const { programme: sp, category: sc } = activeSession;
   const list    = sessProg().exercises[sc] || (sessProg().exercises[sc] = []);
-  let inProg    = list.find(e => normName(e.name) === normName(name));
+  // Nom renommé de la bibliothèque : l'exercice du programme enregistré sous l'ancien nom est repris (même suivi)
+  let inProg    = list.find(e => sameExerciseName(e.name, name));
   const toProg  = $('#axToProg')?.checked;
   if (toProg && !inProg && ax.replaceEi === null) {
     inProg = makeExercise(name, axSets);

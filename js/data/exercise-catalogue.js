@@ -84,7 +84,12 @@ const EXERCISE_CATALOGUE = [
   ['Curl poulie',                      'biceps',                 'brachialis forearms', 'salle', 'cable curl|curl câble|curl poulie basse'],
   ['Curl inversé',                     'brachialis forearms',    'biceps',      'halteres', 'reverse curl|curl pronation|curl inversé barre|reverse barbell curl'],
   ['Curl concentration',               'biceps',                 'brachialis', 'halteres', 'concentration curl|curl concentré'],
-  ['Extension triceps poulie',         'triceps',                '', 'salle', 'pushdown|triceps poulie|corde triceps|extension triceps poulie bas|triceps pushdown|rope pushdown|extension triceps corde|extension triceps poulie haute'],
+  // Poulie haute (pushdown, la version standard) : reprend la fiche, l'historique et les programmes de l'ancien
+  // « Extension triceps poulie » (09/11/2026), devenu son alias (RENAMED_EXERCISES ci-dessous). Poulie basse :
+  // dos à la poulie basse, bras au-dessus de la tête (« extension corde au-dessus de la tête, poulie basse »,
+  // Fitadium) ; la corde nuque se fait, elle, à la poulie haute, buste penché en avant.
+  ['Extension triceps poulie haute',   'triceps',                '', 'salle', 'extension triceps poulie|pushdown|triceps poulie|triceps poulie haute|corde triceps|triceps pushdown|rope pushdown|extension triceps corde|cable pushdown|push down triceps'],
+  ['Extension triceps poulie basse',   'triceps',                '', 'salle', 'extension triceps poulie bas|triceps poulie basse|triceps poulie bas|extension triceps poulie basse au-dessus de la tête|low cable overhead triceps extension|overhead cable triceps extension low pulley'],
   ['Extension triceps unilatéral',     'triceps',                '', 'halteres', 'extension triceps unilatérale|extension triceps un bras'],
   ['Extension nuque',                  'triceps',                '', 'halteres', 'extension nuque haltère|overhead dumbbell triceps extension|overhead dumbbell extension'],
   ['Barre au front',                   'triceps',                '', 'salle', 'skull crusher|extension triceps couché barre|barre front'],
@@ -256,6 +261,19 @@ const CATALOGUE_BY_NAME = new Map(EXERCISE_CATALOGUE.flatMap(e =>
   [e.name, ...e.aliases].map(n => [normName(n), e])));
 const CATALOGUE_BY_LOOSE_KEY = new Map(EXERCISE_CATALOGUE.flatMap(e =>
   [e.name, ...e.aliases].map(n => [looseKey(n), e])));
+
+// Fiches renommées : ancien nom (normalisé) → nom actuel. Les séances, records et programmes déjà enregistrés
+// gardent leur nom et leur identifiant (rien n'est réécrit) : l'ancien nom reste un alias de la fiche, et
+// sameExerciseName rapproche les deux noms quand un identifiant doit être retrouvé par le nom (séance libre,
+// import, bibliothèque de la feuille d'ajout), pour que la courbe, les records et « la dernière fois » continuent.
+const RENAMED_EXERCISES = new Map([
+  ['extension triceps poulie', 'Extension triceps poulie haute'],   // 09/11/2026 : poulie haute et poulie basse séparées
+]);
+// Nom actuel d'un nom renommé, sinon le nom tel quel
+function currentExerciseName(name) { return RENAMED_EXERCISES.get(normName(name)) || name; }
+// Clé de comparaison d'un nom d'exercice qui ignore les renommages de la bibliothèque
+function exerciseNameKey(name) { return normName(currentExerciseName(name)); }
+function sameExerciseName(a, b) { return exerciseNameKey(a) === exerciseNameKey(b); }
 
 function catalogueNames() { return EXERCISE_CATALOGUE.map(e => e.name); }
 // Nom de la fiche quand le nom tapé en est un alias ou une forme proche (« Pec fly » → « Pec deck »,

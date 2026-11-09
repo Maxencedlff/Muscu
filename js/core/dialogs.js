@@ -119,7 +119,8 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
         ${message ? `<div class="ios-dialog__msg" id="${dlgId}-m">${esc(message)}</div>` : ''}
         </div>
         ${input   ? `<div class="ios-dialog__field">
-            <input class="ios-dialog__input" ${input.text ? 'type="text" autocomplete="off" autocapitalize="sentences" maxlength="40"'
+            <input class="ios-dialog__input" ${input.digits ? 'type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="20"'   // code-barres : zéros de tête gardés
+              : input.text ? 'type="text" autocomplete="off" autocapitalize="sentences" maxlength="40"'
               : input.decimal ? 'type="text" inputmode="decimal" autocomplete="off"'   // « 70,5 » : la virgule du clavier français
               : 'type="number" inputmode="numeric"'}
                    value="${esc(input.value)}" placeholder="${esc(input.placeholder || '')}" aria-label="${esc(dialogInputLabel(input, title))}">

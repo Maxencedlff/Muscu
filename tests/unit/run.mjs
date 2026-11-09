@@ -85,6 +85,7 @@ const SCRIPTS = [
   'js/data/onboarding.js',
   'js/data/my-programmes.js',
   'js/data/food-swap.js',
+  'js/data/food-scan.js',
   'js/ui/forms.js',
   'js/ui/body-map.js',
   'js/ui/body-tip.js',
@@ -1534,6 +1535,10 @@ test('sons : le volume choisi (Fort, Normal, Bas) part avec chaque note, Fort pa
 
 (await import('./free-session.mjs')).default({ test, app, run, reset, assert });
 
+// ── Extension triceps poulie haute et basse (tests dans triceps-poulies.mjs) ──
+
+(await import('./triceps-poulies.mjs')).default({ test, run, reset, assert, sameJSON });
+
 // ── Récupération par muscle (tests dans recovery.mjs) ──────
 
 (await import('./recovery.mjs')).default({ test, app, run, reset, assert });
@@ -1654,6 +1659,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./ergo.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Nutrition : plans bornés, macros, repas cochés, équivalences sur la vraie base Ciqual, plan du coach
 (await import('./nutrition.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+// Scanner un aliment : codes-barres, réponse d'Open Food Facts, Mes aliments (tests dans food-scan.mjs)
+(await import('./food-scan.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 
 // ── Panel d'ergonomie Apple, vague 3 : règles pures corrigées (tests dans panel-apple.mjs) ──
 (await import('./panel-apple.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
