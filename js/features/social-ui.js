@@ -174,7 +174,7 @@ function searchHtml() {
   return `
         <div class="social-search">
           <span class="social-search__icon" aria-hidden="true">${icon('magnifyingglass', 17)}</span>
-          <input type="search" id="socialSearch" class="search social-search__input" placeholder="Rechercher un pseudo" value="${esc(socialQuery)}"
+          <input type="search" id="socialSearch" class="search social-search__input" placeholder="Pseudo" value="${esc(socialQuery)}"
                  autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Rechercher un pseudo">
         </div>`;
 }

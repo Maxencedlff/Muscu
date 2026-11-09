@@ -22,6 +22,8 @@
 .ios-dialog__panel { position: relative; width: 100%; }
 .ios-dialog--alert .ios-dialog__panel {
   max-width: 270px; border-radius: 14px; overflow: hidden;
+  /* Plus haute que l'écran (texte agrandi) : le message défile, le titre, le champ et les boutons restent */
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px); display: flex; flex-direction: column;
   background: var(--dlg-bg); backdrop-filter: blur(30px) saturate(180%);
   -webkit-backdrop-filter: blur(30px) saturate(180%);
   animation: iosPop .22s cubic-bezier(.2,.9,.3,1.2);
@@ -48,6 +50,8 @@
   backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%);
 }
 .ios-dialog__head { padding: var(--sp-4) var(--sp-4) 14px; text-align: center; }
+.ios-dialog--alert .ios-dialog__head { flex-shrink: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.ios-dialog--alert .ios-dialog__row { flex-shrink: 0; }
 .ios-dialog--sheet .ios-dialog__head { border-bottom: .5px solid var(--dlg-sep); padding: 14px var(--sp-4); }
 .ios-dialog__title { font-size: var(--fs-body); font-weight: 600; }
 .ios-dialog__title:focus { outline: none; }   /* focus posé pour VoiceOver, pas d'anneau à l'écran */

@@ -411,6 +411,31 @@ html.type-xl .sheet__bar .sheet__title { order: 2; flex-basis: 100%; white-space
 /* Messages : l'heure sous la bulle, la bulle plus large */
 html.type-xl .chat-msg { flex-direction: column; align-items: flex-end; max-width: 92%; }
 html.type-xl .chat-msg--theirs { align-items: flex-start; }
+/* Très grand texte, 3e tour (experts Apple) : un mot n'est coupé que s'il ne tient pas seul sur une ligne. « anywhere »
+   (posé sur des titres et des noms pour les adresses longues) laissait une case flexible se réduire à une lettre :
+   « Se connec/ter », « to/m » ; « break-word » coupe le même mot trop long, sans écraser la case */
+html.type-xl body * { overflow-wrap: break-word; }
+/* Mon profil : pseudo sur plusieurs lignes, « Modifier » dessous, chiffres l'un sous l'autre */
+html.type-xl .athlete__id { flex-wrap: wrap; }
+html.type-xl .athlete__text { flex-basis: 100%; }
+html.type-xl .athlete__name { white-space: normal; overflow: visible; }
+html.type-xl .athlete__edit { margin-right: 0; }
+html.type-xl .me-stats { grid-template-columns: 1fr; }
+html.type-xl .me-stat + .me-stat { padding-left: 4px; border-top: .5px solid var(--sep); }
+html.type-xl .me-stat + .me-stat::before { display: none; }
+/* Accueil (Ensuite, listes) : le nom en entier, l'état dessous */
+html.type-xl .home-cell { flex-wrap: wrap; }
+html.type-xl .home-cell__text { flex-basis: calc(100% - 40px); }
+html.type-xl .home-cell__name { white-space: normal; overflow: visible; }
+html.type-xl .home-cell__right { flex-basis: 100%; flex-shrink: 1; flex-wrap: wrap; justify-content: flex-start; padding-left: 34px; }
+html.type-xl .home-cell__right > :not(.icon) { white-space: normal; }
+/* Social : une demande (pseudo, puis Accepter et ×) sur deux lignes */
+html.type-xl .cell.social-row { flex-wrap: wrap; row-gap: 4px; padding-bottom: 8px; }
+html.type-xl .cell.social-row .social-row__main { flex-basis: 100%; }
+/* Repos : −15 / +15 à la taille de leur texte (ils sortaient de leurs cercles) */
+html.type-xl .rs__round { width: auto; height: auto; min-width: 56px; min-height: 56px; padding: 8px 14px; border-radius: 28px; }
+/* Icônes : à la taille du texte qu'elles accompagnent */
+html.type-xl .cell__icon .icon, html.type-xl .home-cell > .icon, html.type-xl .cph-daybtn .icon { width: 1.1em; height: 1.1em; }
 
 /* Réduction des animations : couleur fixe en fin de repos, pas de point pulsé ni de transition */
 @media (prefers-reduced-motion: reduce) {
