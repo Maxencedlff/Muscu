@@ -70,6 +70,8 @@ Toujours le même mot pour la même chose, en français courant, au tutoiement, 
 | Coach | l'onglet d'un compte coach (segments Élèves et Social) ; Réglages › Coach | |
 | Mon profil | sa page côté Social | |
 | Suivre ; ceux qui te suivent, les personnes que tu suis | la relation dans Social : « Séances des personnes que tu suis », « Masquée à ceux qui te suivent », Suivre, Ne plus suivre, et les deux listes de Mon profil (Te suivent, Suivis) | amis pour cette relation ; s'abonner, abonnés, abonnements (réservés à l'abonnement payant) |
+| Utiliser ce plan ; plan en cours | prendre un plan diète (le sien ou celui du coach) : « Utiliser ce plan », « Plan en cours : … » | Suivre, suivi (réservés à Social) |
+| Coaching | la relation entre un élève et son coach : « si le coaching s'arrête », « Quitter mon coach », « Retirer l'élève » | suivi, suivre ; jamais « il » ou « lui » pour le coach (« Ton coach », son pseudo) |
 | Ami | une personne de ta vie qu'on invite (« Inviter un ami », « Entraîne-toi avec tes amis ») | jamais pour dire qui voit tes séances |
 | Supprimer la séance | retirer une séance d'un programme | |
 | Supprimer de l'historique | effacer une séance faite (corbeille 30 jours) | |
