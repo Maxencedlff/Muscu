@@ -219,3 +219,11 @@ body.light .fscan__vals { background: var(--cell); }
 .diet-field__select { appearance: none; -webkit-appearance: none; text-align: right; text-align-last: right; cursor: pointer; }
 /* Titres de la fiche : reçoivent le focus (VoiceOver les lit d'abord), sans anneau visible au doigt */
 .fscan__name:focus, .fscan__title:focus { outline: none; }
+
+/* Repas coché : chevron qui dit « se déplie » ; ajouts du jour et « Ajouter un aliment » sous les aliments du plan */
+.diet-meal__title { position: relative; }
+.diet-meal__more { display: inline-flex; margin-top: 2px; color: var(--label2); transition: transform .2s; }
+.diet-meal__title[aria-expanded="true"] .diet-meal__more { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .diet-meal__more { transition: none; } }
+.diet-item--add { color: var(--tint); font-weight: 600; }
+.diet-item--add .icon { flex-shrink: 0; }

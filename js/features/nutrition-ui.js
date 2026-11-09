@@ -129,8 +129,23 @@ function dietItemRowHtml(it, pr, day) {
             </button>`;
 }
 
+// Aliment ajouté pour la journée, hors plan : « Ajouté aujourd'hui » en couleur d'action ; ⋯ : quantité ou retirer
+function dietExtraRowHtml(it, meal, day) {
+  const m = dietItemMacros(it), when = day === dietDayKey() ? 'aujourd\'hui' : 'ce jour';
+  const nums = data.dietHideNumbers ? '' : ` · ${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`;
+  return `
+            <button class="diet-item diet-item--extra" data-action="diet-extra" data-meal="${esc(meal.id)}" data-extra="${esc(it.id)}" data-day="${day}"
+              aria-label="${esc(it.name)}, ${it.g} grammes${data.dietHideNumbers ? '' : `, ${dietN(m.kcal)} kilocalories`}, ajouté ${when}, hors plan. Modifier">
+              <span class="diet-item__body">
+                <span class="diet-item__name">${esc(it.name)}</span>
+                <span class="diet-item__sub num"><span class="diet-item__swapped">Ajouté ${when}</span>${it.g} g${nums}</span>
+              </span>
+              <span class="diet-item__swap" aria-hidden="true">${icon('ellipsis', 18)}</span>
+            </button>`;
+}
+
 function dietMealHtml(x, pr, day) {
-  const { meal, macros, done } = x;
+  const { meal, macros, done, extras = [] } = x;
   const isNext = pr.next?.meal.id === meal.id;
   const open = !done || dietOpenMeals.has(meal.id);
   // Titre : un repas coché se déplie au toucher ; pas coché, il est déjà ouvert (simple texte)
@@ -140,12 +155,13 @@ function dietMealHtml(x, pr, day) {
   return `
         <article class="diet-meal${done ? ' diet-meal--done' : ''}${isNext ? ' diet-meal--next' : ''}" data-meal="${esc(meal.id)}">
           <div class="diet-meal__head">
-            ${done ? `<button class="diet-meal__title" data-action="diet-meal-open" data-meal="${esc(meal.id)}" aria-expanded="${open}">${title}</button>`
+            ${done ? `<button class="diet-meal__title" data-action="diet-meal-open" data-meal="${esc(meal.id)}" aria-expanded="${open}">${title}<span class="diet-meal__more" aria-hidden="true">${icon('chevron.down', 14)}</span></button>`
               : `<div class="diet-meal__title">${title}</div>`}
             ${meal.items.length ? dietCheckBtn(meal, done, day) : ''}
           </div>
           ${meal.note && open ? `<p class="diet-meal__note">${icon('info.circle', 14)}<span>${esc(meal.note)}</span></p>` : ''}
-          ${open ? (meal.items.length ? `<div class="diet-meal__items">${meal.items.map(it => dietItemRowHtml(it, pr, day)).join('')}</div>`
+          ${open ? (meal.items.length ? `<div class="diet-meal__items">${meal.items.map(it => dietItemRowHtml(it, pr, day)).join('')}${extras.map(it => dietExtraRowHtml(it, meal, day)).join('')}
+            <button class="diet-item diet-item--add" data-action="diet-day-add" data-meal="${esc(meal.id)}" data-day="${day}" aria-label="Ajouter un aliment à ${esc(meal.name)}">${icon('plus', 18)}<span class="diet-item__name">Ajouter un aliment</span></button></div>`
             : '<p class="diet-meal__empty">Aucun aliment dans ce repas.</p>') : ''}
         </article>`;
 }
@@ -399,7 +415,13 @@ registerActions({
     haptic(on ? (pr.complete ? 'success' : 'medium') : 'light');
     if (on && pr.complete) { try { validationSound(); } catch {} announce('Journée complète, bravo'); }   // pas de toast : il couvrait la carte du repas ; « Journée complète » s'affiche déjà en haut, avec le son
     render();
-    announce(on ? (pr.complete ? 'Journée complète' : `Coché. ${pr.next ? `Ensuite : ${pr.next.meal.name}` : ''}`) : 'Décoché');
+    if (on) { announce(pr.complete ? 'Journée complète' : `Coché. ${pr.next ? `Ensuite : ${pr.next.meal.name}` : ''}`); return; }
+    // Décoché par erreur : Annuler le recoche (le toast l'annonce à VoiceOver, « Annuler disponible »)
+    const name = pr.meals.find(x => x.meal.id === meal)?.meal.name || 'Repas';
+    showToast(`Décoché : ${name}`, { action: 'Annuler', duration: 5000, onAction: () => {
+      if (!dietDay(data, planId, day).done.includes(meal)) dietToggleMeal(data, planId, meal, day);
+      save(); render(); announce(`Recoché : ${name}`);
+    } });
   },
   'diet-meal-open': (e, el) => {
     const id = el.dataset.meal;
@@ -407,6 +429,45 @@ registerActions({
     render();
   },
   'diet-swap': async (e, el) => { await dietSwapSheet(el.dataset.item, el.dataset.day || dietDayKey()); },
+  // Ajouter un aliment à un repas pour la journée (recherche, code-barres ou création), coché ou non : il reste
+  // dans son état, ses totaux et ceux du jour se recalculent ; le plan ne change pas
+  'diet-day-add': async (e, el) => {
+    const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
+    const meal = dietActivePlan(data)?.meals.find(m => m.id === mealId);
+    if (!meal) return;
+    if ((dietDay(data, planId, day).extras[mealId] || []).length >= DIET_ITEM_MAX) { showToast(`${DIET_ITEM_MAX} ajouts au plus par repas`, { error: true }); return; }
+    const pick = await dietChooseFood();
+    const it = pick && foodToItem(pick.food, pick.g);
+    if (!it) return;
+    const added = dietAddExtra(data, planId, mealId, it, day);
+    if (!added) return;
+    dietOpenMeals.add(mealId);
+    save();
+    haptic();
+    render();
+    showToast(`Ajouté à ${meal.name} : ${added.name}`, { action: 'Annuler', duration: 5000, onAction: () => {
+      dietSetExtra(data, planId, mealId, added.id, null, day); save(); render(); announce(`Retiré : ${added.name}`);
+    } });
+  },
+  'diet-extra': async (e, el) => {
+    const planId = data.dietActive, day = el.dataset.day || dietDayKey(), mealId = el.dataset.meal;
+    const it = (dietDay(data, planId, day).extras[mealId] || []).find(x => x.id === el.dataset.extra);
+    if (!it) return;
+    const choice = await dialog({ type: 'sheet', title: it.name, message: `${it.g} g, ajouté pour ${day === dietDayKey() ? 'aujourd\'hui' : 'ce jour'} : ton plan ne change pas.`,
+      actions: [{ label: 'Changer la quantité', value: 'g' }, { label: 'Retirer', value: 'del', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
+    if (choice === 'g') {
+      const g = await dietAskGrams(it, it.g);
+      if (g == null || !dietSetExtra(data, planId, mealId, it.id, g, day)) return;
+      save(); haptic(); render(); announce(`${it.name} : ${g} grammes`);
+    } else if (choice === 'del') {
+      const before = it.g;
+      dietSetExtra(data, planId, mealId, it.id, null, day);
+      save(); haptic('light'); render();
+      showToast(`Retiré : ${it.name}`, { action: 'Annuler', duration: 5000, onAction: () => {
+        dietAddExtra(data, planId, mealId, { ...it, g: before }, day); save(); render();
+      } });
+    }
+  },
   'diet-take': async (e, el) => {
     const item = dietInbox().find(x => x.id === el.dataset.id);
     if (!item) return;
