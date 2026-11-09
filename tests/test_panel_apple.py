@@ -399,7 +399,7 @@ def t_materiaux_opaques(bench):
             page.wait_for_timeout(400)
             a = page.evaluate("""() => { const al = e => { const m = getComputedStyle(e).backgroundColor.match(/[\\d.]+/g); return m.length > 3 ? Number(m[3]) : 1; };
                 return { nav: al(document.querySelector('#app .navbar')), tab: al(document.querySelector('.tabbar')), sheet: al(document.querySelector('.ios-dialog__group')) }; }""")
-            R.check(all(v >= 0.94 for v in a.values()), f'{t} fonds opaques à 94 % au moins {a}')
+            R.check(all(v >= 0.94 for v in a.values()) and a['nav'] >= 0.999 and a['tab'] >= 0.999, f'{t} barres pleines (rien ne se lit dessous), feuilles opaques à 94 % au moins {a}')
 
 
 def t_alerte_empilee(bench):

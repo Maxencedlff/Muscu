@@ -26,9 +26,9 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 .navbar {
   position: sticky; top: 0; z-index: 50;
   padding-top: env(safe-area-inset-top, 0px);
-  background: color-mix(in srgb, var(--bg) 96%, transparent);   /* lisible même sans flou (« Réduire la transparence ») */
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  /* Fond plein (vague 3-t4, 9 experts) : à 96 % avec flou, le contenu se lisait encore en fantôme sous la barre ;
+     la lisibilité prime sur l'effet de verre */
+  background: var(--bg);
   box-shadow: inset 0 -0.5px 0 var(--sep);
   transition: box-shadow .2s, background-color .2s;
 }
@@ -107,9 +107,9 @@ html.type-xl .navbar__large { font-size: min(2rem, 36px); }
   height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
   display: flex;
-  background: color-mix(in srgb, var(--bg) 96%, transparent);   /* lisible même sans flou (« Réduire la transparence ») */
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  /* Fond plein (vague 3-t4, 9 experts) : à 96 % avec flou, le contenu se lisait encore en fantôme sous la barre ;
+     la lisibilité prime sur l'effet de verre */
+  background: var(--bg);
   box-shadow: inset 0 0.5px 0 var(--sep);
   view-transition-name: tabbar;
 }
