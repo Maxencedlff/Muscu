@@ -11,7 +11,8 @@ let persistWarned = false; // un seul avertissement « stockage plein » par sé
 // chose (nom de l'exercice, objectif, « + Série », la barre). En séance, ce qui s'annule l'est à sa place, 6 s :
 //  - une série (validée, modifiée, technique posée) : « Annuler » dans sa colonne « Avant » ;
 //  - un exercice (Plus tard, Faire maintenant, remplacé, échauffement ajouté, mini-série validée) : une ligne
-//    « Mis en dernier · Annuler » juste au-dessus de sa carte ; retiré : la même ligne là où était sa carte.
+//    « Mis en cours · Annuler » juste au-dessus de sa carte (Plus tard : « <nom> mis en dernier », au-dessus de
+//    l'exercice qui prend la suite, celui que l'écran montre) ; retiré : la même ligne là où était sa carte.
 // Rien ne recouvre rien : la ligne prend sa place dans la liste. VoiceOver annonce l'état (announce, aria-live).
 // target : { ex, si } (série), { ex } (exercice), { at } (exercice retiré, sa position) ; sans onAction, le texte seul.
 const SESS_UNDO_MS = 6000;
@@ -25,7 +26,7 @@ function sessionUndo(text, { target = {}, label = 'Annuler', onAction = null, st
   const expire = () => {
     if (document.activeElement?.dataset?.action === 'sess-undo') { sessUndo.timer = setTimeout(expire, 3000); return; }
     sessUndo = null;
-    if (inSession()) render();
+    if (inSession()) collapseExUndo(render);
   };
   sessUndo.timer = setTimeout(expire, ms);
   announce(onAction ? `${text}. ${label} disponible` : text, assertive);   // une erreur : annoncée en assertif, comme son toast
@@ -54,6 +55,18 @@ function sessionNotice(msg, opts = {}) {
   if (!ex) return false;
   sessionUndo(msg, { target: { ex }, onAction: opts.action ? opts.onAction : null, ms: opts.error ? 4000 : 3000, paint: false, assertive: !!opts.error });
   return true;
+}
+// La ligne s'en va en se repliant (hauteur animée, 0,25 s), sans faire sauter la liste d'un coup (panel t7) ;
+// mouvement réduit : retirée tout de suite, comme avant
+function collapseExUndo(done) {
+  const el = document.querySelector('.ex-undo');
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (!el || reduce || typeof el.animate !== 'function') { done(); return; }
+  const h = el.getBoundingClientRect().height, mb = getComputedStyle(el).marginBottom;
+  el.style.overflow = 'hidden'; el.style.minHeight = '0';
+  el.animate([{ height: `${h}px`, marginBottom: mb, opacity: 1 }, { height: '0px', marginBottom: '0px', opacity: 0 }],
+    { duration: 250, easing: 'ease-in-out', fill: 'forwards' });
+  setTimeout(done, 250);   // pas anim.finished : la ligne peut être redessinée entre-temps
 }
 function clearSessionUndo() { clearTimeout(sessUndo?.timer); sessUndo = null; }
 const undoForSet = (ex, si, k) => (sessUndo && sessUndo.ex === ex && sessUndo.si === si && sessUndo.k === k ? sessUndo : null);
