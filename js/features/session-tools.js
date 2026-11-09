@@ -172,7 +172,7 @@ function addWarmup(ei) {
   haptic();
   persistSession();
   render();
-  sessionUndo(`Échauffement ajouté : ${plural(added.length, 'série', 'séries')}`, { target: { ex }, onAction: () => {
+  sessionUndo(`Échauffement ajouté\u202f: ${added.length}\u202f${added.length > 1 ? 'séries' : 'série'}`, { target: { ex }, onAction: () => {
     if (!activeSession || activeSession.exercises[ei] !== ex || added.some(s => s.done)) return;
     ex.sets = ex.sets.filter(s => !added.includes(s));
     persistSession();

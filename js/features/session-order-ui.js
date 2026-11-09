@@ -38,7 +38,7 @@ function applySessionOrder(next, focus, toast, moved = focus) {
   syncNativeRest();
   render();
   scrollToCurrent();   // la série en cours, au centre (sous la barre, jamais cachée par elle)
-  sessionUndo(toast, { target: { ex: moved }, onAction: () => undoSessionOrder(undo, next) });   // en ligne, au-dessus de la carte déplacée
+  sessionUndo(toast, { target: { ex: moved }, onAction: () => undoSessionOrder(undo, next) });   // en ligne, au-dessus de la carte visée
 }
 
 // Sous-série en attente (drop set, rest-pause, cluster : js/data/intensif.js) hors du bloc désormais en cours :
@@ -81,7 +81,11 @@ function sessionDoLater(ei) {
   if (!xs?.[ei]) return;
   const next = orderDoLater(xs, ei);
   if (!next) return;
-  applySessionOrder(next, orderLaterFocus(xs, ei), 'Mis en dernier', xs[ei]);
+  // La ligne « <nom> mis en dernier · Annuler » coiffe l'exercice qui prend la suite, là où l'écran défile
+  // (panel t7 : au-dessus de la carte déplacée, en bas, elle sortait de l'écran) ; sans suite, à l'ancienne place
+  const g = ssGroupOf(xs, ei), focus = orderLaterFocus(xs, ei);
+  const who = (g || [ei]).map(k => xs[k].name).join(' et ');
+  applySessionOrder(next, focus, `${who} mis en dernier`, focus || xs[ei]);
 }
 
 registerActions({

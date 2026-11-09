@@ -241,7 +241,8 @@ export default function ({ test, run, reset, sameJSON, assert }) {
     run('sessionDoLater(1)');
     sameJSON(run('activeSession.exercises.map(e => e.name)'), ['A', 'C', 'D', 'B']);
     assert.equal(curName(), 'C S1');
-    assert.equal(run('lastToast.msg'), 'Mis en dernier');
+    assert.equal(run('lastToast.msg'), 'B mis en dernier');
+    assert.equal(run('lastToast.o.target.ex.name'), 'C');   // la ligne coiffe l'exercice qui prend la suite (celui qu'on voit)
     // Dernier bloc de la liste : on repart du premier qui reste à faire
     fakeSession([['A', 3, null, 3], ['B', 3], ['C', 3, null, 1]], 2);
     run('sessionDoLater(2)');

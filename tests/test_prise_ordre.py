@@ -213,7 +213,11 @@ def t_ordre(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         R.check(names(page) == start[1:] + [start[0]], f'{t} plus tard : en dernier {names(page)}')
         R.check(cur_name(page) == start[1], f'{t} plus tard : le suivant est en cours ({cur_name(page)})')
-        R.check(sess_undo_text(page).startswith('Mis en dernier'), f'{t} plus tard : ligne « Mis en dernier · Annuler »')
+        R.check(sess_undo_text(page) == f'{start[0]} mis en dernier', f'{t} plus tard : ligne « <nom> mis en dernier · Annuler »')
+        page.wait_for_timeout(400)   # défilement doux vers le suivant
+        R.check(page.evaluate("""() => { const u = document.querySelector('.ex-undo'), bar = document.querySelector('#app .navbar');
+            const r = u && u.getBoundingClientRect(); return !!r && r.top >= (bar ? bar.getBoundingClientRect().bottom : 0) - 1 && r.bottom <= innerHeight; }"""),
+            f'{t} plus tard : la ligne reste à l\'écran, au-dessus du suivant')
         R.check(page.evaluate('activeSession.exercises.at(-1).sets[0].done'), f'{t} plus tard : série validée gardée')
         shot(page, LOT, f'{t}-8-ordre-plus-tard')
 

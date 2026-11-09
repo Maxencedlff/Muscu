@@ -33,11 +33,19 @@
 }
 /* Moins de 400 pt (iPhone SE à iPhone 16) : les pastilles passent sous le nom, le texte prend toute la largeur (panels de la
    vague 3 : sous-titre sur 5 lignes sur SE, 4 lignes à 390 pt, à côté de deux pastilles) */
+/* Deux pastilles (séances et messages) : sous le nom aussi jusqu'à 430 pt (panel t7 : à 402 pt, à côté d'elles, la
+   ligne de lea passait sur 4 lignes, celle de tom sur 2) ; le texte reste prioritaire */
 @media (max-width: 400px) {
   .coach-student-row.social-row { flex-wrap: wrap; }
   .coach-student-row .social-row__main { flex: 1 1 calc(100% - 30px); min-width: 0; }
   .coach-student-row > .icon { order: 1; }
   .coach-student-row .cs-badges { order: 2; margin: -6px 0 10px 40px; }
+}
+@media (min-width: 401px) and (max-width: 430px) {
+  .coach-student-row.social-row:has(.cs-badges .chat-count):has(.cs-badges .coach-count--sessions) { flex-wrap: wrap; }
+  .coach-student-row:has(.cs-badges .chat-count):has(.cs-badges .coach-count--sessions) .social-row__main { flex: 1 1 calc(100% - 30px); min-width: 0; }
+  .coach-student-row:has(.cs-badges .chat-count):has(.cs-badges .coach-count--sessions) > .icon { order: 1; }
+  .coach-student-row:has(.cs-badges .chat-count) .cs-badges:has(.coach-count--sessions) { order: 2; margin: -6px 0 10px 40px; }
 }
 /* Écran de 320 pt (iPhone SE, Galaxy S9+) : avec la pastille « 3 séances », le signal (« Stable depuis 4 sem. »,
    « ↑2 records cette sem. ») passait sur deux lignes, quatre lignes pour l'élève. La pastille garde « à voir » (le nombre

@@ -1514,6 +1514,25 @@ test('sons : le volume choisi (Fort, Normal, Bas) part avec chaque note, Fort pa
   assert.equal(sent, null, 'sons coupés : rien');
 });
 
+test('sons : seule la fin du repos passe alert:true (audible en mode silencieux), le reste se coupe', async () => {
+  const alerts = {};
+  const box = { data: { soundOn: true }, navigator: {}, document: { addEventListener() {} },
+                Native: { haptic: () => true, sound: { available: true, play: (n, alert) => { box.last = alert; } } } };
+  const c = vm.createContext(box);
+  const src = fs.readFileSync(path.join(ROOT, 'js/core/haptics-audio.js'), 'utf8');
+  vm.runInContext(src + '\nthis.playMelody = playMelody; this.names = Object.keys(MELODIES);', c);
+  for (const name of c.names) { box.last = undefined; c.playMelody(name); alerts[name] = box.last; }
+  sameJSON(Object.keys(alerts).filter(k => alerts[k] === true).sort(), ['restCount', 'restGo', 'timer']);
+  assert.ok(Object.values(alerts).every(v => typeof v === 'boolean'), 'toujours un booléen');
+  // Jusqu'au module : le paramètre part bien vers iOS (faux par défaut)
+  const got = [];
+  const n = nativeContext({ available: ['MdlfSound'], plugins: { MdlfSound: { play: async o => { got.push(o.alert); } } } });
+  n.Native.sound.play([{ freq: 660, start: 0, dur: .1 }], true);
+  n.Native.sound.play([{ freq: 660, start: 0, dur: .1 }]);
+  await new Promise(r => setImmediate(r));
+  sameJSON(got, [true, false]);
+});
+
 // ── Muscles (tests/unit/muscles.mjs) ────────────────────────
 
 (await import('./muscles.mjs')).default({ test, app, run, reset, sameJSON, assert, ROOT });

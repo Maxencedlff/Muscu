@@ -92,13 +92,13 @@ def t_annuler_en_ligne(bench):
             page.wait_for_timeout(300)
             R.check(not page.evaluate("activeSession.exercises[0].sets[0].done") and page.locator('[data-action="sess-undo"]').count() == 0,
                     f'{t} « Annuler » touché : série dévalidée, bouton parti')
-            # Plus tard : la ligne « Mis en dernier · Annuler » au-dessus de la carte déplacée
-            name0 = page.evaluate("activeSession.exercises[0].name")
+            # Plus tard : la ligne « <nom> mis en dernier · Annuler » au-dessus de l'exercice qui prend la suite (à l'écran)
+            name0 = page.evaluate("activeSession.exercises[0].name"); name1 = page.evaluate("activeSession.exercises[1].name")
             page.click('[data-action="ex-later"][data-ei="0"]')
             page.wait_for_timeout(400)
             m = page.evaluate("""n => { const u = document.querySelector('.ex-undo'); if (!u) return null; const card = u.nextElementSibling;
-                return { text: u.textContent.trim(), next: card && card.textContent.includes(n), toast: !!document.querySelector('.toast') }; }""", name0)
-            R.check(m and m['text'].startswith('Mis en dernier') and m['next'] and not m['toast'], f'{t} Plus tard : ligne au-dessus de la carte déplacée {m}')
+                return { text: u.textContent.trim(), next: card && card.textContent.includes(n), toast: !!document.querySelector('.toast') }; }""", name1)
+            R.check(m and m['text'].startswith(f'{name0} mis en dernier') and m['next'] and not m['toast'], f'{t} Plus tard : ligne au-dessus de l\'exercice suivant {m}')
             page.wait_for_timeout(6300)
             R.check(page.locator('.ex-undo, [data-action="sess-undo"]').count() == 0, f'{t} après 6 s : la ligne s\'en va')
             # Tout autre message en séance (superset, exercice ajouté…) : en ligne aussi, jamais de toast flottant

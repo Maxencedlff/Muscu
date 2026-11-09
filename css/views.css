@@ -98,14 +98,14 @@
   background: var(--dlg-bg); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
   color: var(--label); padding: var(--sp-3) var(--sp-5); border-radius: 22px;
   font-size: var(--fs-subhead); font-weight: 600; z-index: 300;
-  box-shadow: var(--shadow-float);
+  box-shadow: var(--toast-shadow);
   animation: toastIn .25s ease, toastOut .3s ease calc(var(--toast-duration, 2200ms) - 400ms) forwards;
   pointer-events: none; line-height: 1.3; text-align: center;
   width: max-content; max-width: calc(100vw - 32px);
 }
 /* Une seule place, fond opaque (pas de texte lu au travers) ; la page garde sous son contenu la hauteur du toast
    (js/core/dialogs.js : has-toast, --toast-room), pour que rien ne reste dessous en fin de défilement */
-.toast { background: var(--dlg-solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.toast { background: var(--toast-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
 body.has-toast #app::after { content: ''; display: block; height: var(--toast-room, 0px); }
 body:has(.sess-sheet:not(.sess-sheet--out)) .toast { z-index: 450; }   /* message d'une feuille de la séance : au-dessus d'elle */
 /* Jamais coupé par « … » sur une ligne (panel du 07/11, iPhone SE) : deux lignes équilibrées au plus, trois à
