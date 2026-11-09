@@ -523,6 +523,8 @@ html.type-xl :is(.ex-howto, .ex-card__more, .targets__gain, .coach-count, .coach
   width: min(1.1em, 32px); height: min(1.1em, 32px);
 }
 html.type-xl .comment-compose__send { width: auto; height: auto; min-width: 32px; min-height: 32px; padding: 4px; }
+/* Icône d'un bouton à libellé (Partager, Partager ma séance, Inviter un ami) : à la taille du libellé (panel t6) */
+html.type-xl :is(.btn, .recap__share) > .icon { width: min(1.2em, 36px); height: min(1.2em, 36px); flex-shrink: 0; }
 /* Boutons : ils n'héritent pas de la taille du texte, la mesure part du texte de la page (rem) */
 html.type-xl :is(.ex-card__more, .comment-compose__send) .icon { width: min(1.1rem, 32px); height: min(1.1rem, 32px); }
 
