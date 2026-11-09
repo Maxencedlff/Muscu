@@ -195,8 +195,9 @@ html.type-xl .tile__lbl { overflow-wrap: normal; }
 .hcell__date { font-size: 0.882rem; color: var(--label2); white-space: nowrap; flex-shrink: 0; }
 .hcell__sub { font-size: 0.765rem; line-height: 1.059rem; color: var(--label2); overflow-wrap: anywhere; } /* sur 2 lignes si besoin plutôt que tronqué */
 .hcell__title + .hcell__date { margin-left: auto; }
-/* Le nom du programme cède avant celui de la séance (« Bras » jamais « Br… », panel t6) : facteur de rétrécissement 1000 contre 1 */
-.hcell__prog { flex: 0 1000 auto; min-width: 0; font-size: 1rem; line-height: 1.294rem; font-weight: 400; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Le nom du programme prend seulement la place laissée par le nom de la séance et la date (base 0) : « Bras » jamais
+   « Br… » (panel t6 ; rétrécis ensemble, le titre perdait aussi quelques pixels, donc ses lettres) */
+.hcell__prog { flex: 1 1 0; min-width: 0; font-size: 1rem; line-height: 1.294rem; font-weight: 400; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hcell__prog + .hcell__date { margin-left: auto; }
 /* Ligne du bas : détails à gauche, pastille des records notés à droite (médaille et nombre) */
 .hcell__bot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -405,6 +406,8 @@ html.type-xl .auth-btn { white-space: normal; }
 html.type-xl .auth-btn > span { overflow: visible; }
 
 html.type-xl .hcell__title, html.type-xl .social-row__name { white-space: normal; }
+/* La date passe sous le nom de la séance plutôt que de le réduire à une lettre (séance d'un autre programme, AX33) */
+html.type-xl .hcell__top { flex-wrap: wrap; }
 html.type-xl .chat-cell__last { -webkit-line-clamp: 3; line-clamp: 3; }
 html.type-xl .toast > span { -webkit-line-clamp: 6; line-clamp: 6; }   /* consigne lue en entier en AX33 sur SE (« Touche Utiliser pou… » à 4 lignes, panel t6) */
 html.type-xl .social-row__main { min-width: 44px; }
