@@ -500,7 +500,8 @@ def t_plan_neuf_puis_coach(bench):
             R.check('Journée complète' in home and 'Déjeuner' not in home, f'{t} accueil : seul repas rempli coché, journée complète ({home!r})')
             R.check(pr['goal']['kcal'] == round(pr['eaten']['kcal']), f'{t} accueil : repère = prévu du jour ({round(pr["eaten"]["kcal"])} sur {pr["goal"]["kcal"]})')
             page.locator('.diet-home').scroll_into_view_if_needed()
-            page.wait_for_timeout(2600)   # toast « Journée complète, bravo » parti
+            R.check(page.locator('.toast').count() == 0, f'{t} journée complète : aucun toast posé sur la carte d\'un repas (le haut le dit déjà)')
+            page.wait_for_timeout(300)
             shot(page, LOT, f'16-plan-neuf-accueil-{t}')
             page.click('.diet-home__open')
             page.wait_for_selector('.nutrition-view .diet-sum')

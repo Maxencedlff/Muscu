@@ -391,7 +391,7 @@ registerActions({
     save();
     const pr = dietDayProgress(data, planId, day);
     haptic(on ? (pr.complete ? 'success' : 'medium') : 'light');
-    if (on && pr.complete) { try { validationSound(); } catch {} showToast('Journée complète, bravo'); }
+    if (on && pr.complete) { try { validationSound(); } catch {} announce('Journée complète, bravo'); }   // pas de toast : il couvrait la carte du repas ; « Journée complète » s'affiche déjà en haut, avec le son
     render();
     announce(on ? (pr.complete ? 'Journée complète' : `Coché. ${pr.next ? `Ensuite : ${pr.next.meal.name}` : ''}`) : 'Décoché');
   },
