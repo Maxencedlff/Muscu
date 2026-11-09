@@ -284,9 +284,11 @@ function cphPhotoUrl(p) { return cphUrls.get(p.id) || ''; }
 function cphRevoke() { cphUrls.forEach(u => URL.revokeObjectURL(u)); cphUrls.clear(); }
 function renderCphCoach(uid) {
   const p = coachStudent(uid);
-  // « Verrouiller les photos » en bas de l'écran, en toutes lettres (une icône = un sens, docs/ERGONOMIE.md) : dans la
-  // barre, il ne laissait pas la place au titre « Photos de bilan » sur un écran de 320 à 375 pt (experts Apple, vague 3)
-  const head = navBar({ title: '' });
+  // « Verrouiller » dans la barre, comme le coffre de l'élève (experts Apple, vague 3-t4), en toutes lettres (une icône = un
+  // sens, docs/ERGONOMIE.md). La barre reprend le grand titre en version courte (« Photos », data-bar-title) : « Photos de
+  // bilan » ne tient pas à côté de « ‹ lea » et de « Verrouiller » sur 320 à 375 pt
+  const right = cphView.phase === 'open' ? `<button class="navbar__text" data-action="cph-lock" aria-label="Verrouiller les photos">Verrouiller</button>` : '';
+  const head = navBar({ title: '', right });
   const view = (body, cls = '') => `<div class="view view--grouped coach-photos-view ${cls}">${head}<div class="scr">${body}</div></div>`;
   if (!p) return view(`<div class="empty-note">${coach.state ? 'Cette personne ne fait plus partie de tes élèves.' : 'Chargement…'}</div>`);
   const who = esc(personName(p));
@@ -351,13 +353,12 @@ function renderCphCoach(uid) {
             </div>`).join('');
   const broken = cphView.broken ? `<p class="pv-summary">${plural(cphView.broken, 'photo ne s\'ouvre pas', 'photos ne s\'ouvrent pas')} sur cet iPhone.</p>` : '';
   return view(`
-        <h1 class="scr-title" id="cphTitle" tabindex="-1">Photos de bilan</h1>
-        <p class="scr-sub">${who} · ${plural(list.length, 'photo', 'photos')}</p>
+        <h1 class="scr-title" id="cphTitle" tabindex="-1" data-bar-title="Photos">Photos de bilan</h1>
+        <p class="scr-sub">${who} · ${plural(list.length, 'photo', 'photos')} · se referment après une minute sans activité</p>
         ${broken}
         ${compare}
         <div class="group-title">Par date</div>
         <div class="group"><div class="cell"><div class="pgal">${grid}</div></div></div>
-        <div class="group"><button class="cell cell--action" data-action="cph-lock"><span class="cell__title">Verrouiller les photos</span></button></div>
         ${foot}`);
 }
 
