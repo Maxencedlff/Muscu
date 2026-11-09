@@ -106,6 +106,8 @@ html.type-xl .navbar__large { font-size: min(2rem, 36px); }
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
   height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Marges latérales : « Entraînement » ne touche plus le bord de l'écran sur SE (experts Apple, vague 3) */
+  padding-left: max(4px, env(safe-area-inset-left, 0px)); padding-right: max(4px, env(safe-area-inset-right, 0px));
   display: flex;
   background: color-mix(in srgb, var(--bg) 96%, transparent);   /* lisible même sans flou (« Réduire la transparence ») */
   -webkit-backdrop-filter: saturate(180%) blur(20px);
