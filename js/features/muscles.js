@@ -222,11 +222,10 @@ function muscleLevelDot(lvl) {
 }
 function levelWord(lvl) { return MUSCLE_LEVEL_WORDS[lvl].toLowerCase(); }
 
-// Légende : chaque palier en mots, avec ses bornes ; en « 4 semaines », la couleur suit la moyenne par semaine.
+// Légende : l'unité en tête (panel t5), chaque palier en mots avec ses bornes ; en « 4 semaines », la moyenne par semaine.
 // load : avec la charge de la période, une ligne dit où en sont TES muscles (muscleLegendYou)
 function muscleLegendHtml(span = muscleSpan, load = null) {
   const you = load ? muscleLegendYou(load) : '';
-  // L'unité des bornes en tête, la ligne « Toi » à part en dessous (lue comme la suite de « Toi », panel t5)
   return `<div class="mlegend" aria-hidden="true">
     <span class="mlegend__unit">${span === 'month' ? 'Séries en moyenne par semaine' : 'Séries par semaine'}</span>
     ${MUSCLE_LEVEL_WORDS.map((w, lvl) => `<span class="mlegend__item">${muscleLevelDot(lvl)}${w}${lvl ? ` <span class="mlegend__n num">${muscleLevelRange(lvl)}</span>` : ''}</span>`).join('')}
