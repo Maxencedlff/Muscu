@@ -26,14 +26,18 @@ function bestSetTrend(b, pb) {
 
 function buildSummary(entry) {
   const prevH = data.history.find(h => h !== entry && h.category === entry.category && entryProg(h) === entryProg(entry));
-  let cur = 0, prev = 0;
+  let cur = 0, prev = 0, curCommon = 0;
   const rows = [], e1rm = [];
   // Records notés dans la séance à l'enregistrement (sessionRecords, js/data/records.js)
   const noted = entryRecords(entry);
   const priorOf = sessionPriorOf(entry, data.history);   // séries d'avant la séance, pour le 1RM estimé
   entry.exercises.forEach(ex => {
     const pex = prevH?.exercises.find(e => sameEx(e, ex));
-    cur  += exVolume(ex, ex.sets, entryBodyKg(entry));
+    const v = exVolume(ex, ex.sets, entryBodyKg(entry));
+    cur  += v;
+    // Hausse sur le même périmètre que la dernière fois : un exercice ajouté aujourd'hui n'entre pas dans
+    // l'écart (sinon « ↑ 1,2 t » ne serait que le volume de l'exercice ajouté)
+    if (pex) curCommon += v;
     // Même nombre de séries de travail des deux côtés (échauffements retirés avant de couper : sinon
     // l'échauffement d'aujourd'hui ferait entrer une série de travail de plus de la dernière fois, ou
     // celui de la dernière fois en ferait sortir une)
@@ -53,7 +57,7 @@ function buildSummary(entry) {
   return {
     id: entry.id, programme: entry.programme, category: entry.category, date: entry.date,
     duration: entry.duration, sets: entry.exercises.reduce((a, e) => a + workSets(e.sets).length, 0),   // séries de travail
-    volume: cur, delta: prevH ? cur - prev : null, records, rows,
+    volume: cur, delta: prevH ? curCommon - prev : null, records, rows,
     recordCount: noted.length,   // « N records battus » : la règle de l'historique et de Progrès (recordCount), sans le 1RM estimé
     // Sans charge comptée (poids du corps inconnu, gainage…) : le total de reps remplace « 0 kg »
     reps: entry.exercises.filter(ex => measureOf(ex) === 'reps').reduce((a, ex) => a + volumeSets(ex.sets).reduce((b, s) => b + (parseInt(s.reps) || 0), 0), 0),   // sous-séries comprises
