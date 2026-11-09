@@ -33,6 +33,7 @@ const SCRIPTS = [
   'js/data/strength-standards.js',
   'js/data/strength-levels.js',
   'js/data/body-measures.js',
+  'js/data/food-portions.js',
   'js/data/nutrition.js',
   'js/data/store.js',
   'js/data/records.js',
@@ -1681,6 +1682,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./nutrition.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // Scanner un aliment : codes-barres, réponse d'Open Food Facts, Mes aliments (tests dans food-scan.mjs)
 (await import('./food-scan.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+// Quantités à l'unité : portions courantes, conversions, unité du paquet (tests dans food-portions.mjs)
+(await import('./food-portions.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 
 // ── Panel d'ergonomie Apple, vague 3 : règles pures corrigées (tests dans panel-apple.mjs) ──
 (await import('./panel-apple.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });

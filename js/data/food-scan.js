@@ -15,7 +15,7 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const OFF_FIELDS  = 'product_name,product_name_fr,brands,nutriments,quantity';
+const OFF_FIELDS  = 'product_name,product_name_fr,brands,nutriments,quantity,serving_size,serving_quantity';   // portion : js/data/food-portions.js (offPortion)
 const OFF_TIMEOUT = 6000;   // ms : au-delà, le réseau est jugé absent (salle de sport, sous-sol)
 const OFF_SALT_MAX = 100;   // g de sel pour 100 g (sel fin : 99)
 const BARCODE_RE  = /^\d{8}$|^\d{13}$/;   // forme gardée : EAN-8 ou EAN-13
@@ -87,7 +87,7 @@ function offKcal(n) {
   return kj !== null ? kj / 4.184 : k;
 }
 // { status: 'found', food } | { status: 'incomplete', name } (produit connu, valeurs inutilisables) |
-// { status: 'unknown' }. food : { name, code, fam, per, src: 'off', ecalc?, salt? }
+// { status: 'unknown' }. food : { name, code, fam, per, src: 'off', ecalc?, salt?, portion? }
 function offParse(json, code) {
   const pr = json && typeof json === 'object' && json.status === 1 ? json.product : null;
   if (!pr || typeof pr !== 'object' || Array.isArray(pr)) return { status: 'unknown' };
@@ -104,8 +104,10 @@ function offParse(json, code) {
   // Sel, pour la fiche : déclaré, sinon depuis le sodium (× 2,5) ; absent s'il est illisible
   const s0 = offNum(n, 'salt_100g') ?? (offNum(n, 'sodium_100g') !== null ? offNum(n, 'sodium_100g') * 2.5 : null);
   const salt = s0 !== null && s0 <= OFF_SALT_MAX ? Math.round(s0 * 100) / 100 : null;
+  // Unité du paquet (« 1 pot », 125 g) pour choisir la quantité à l'unité
+  const portion = offPortion(pr, name);
   return { status: 'found', food: { name: name || `Produit ${code}`, code, fam: dietFamOf(per), per, src: 'off',
-    ...(ecalc ? { ecalc: true } : {}), ...(salt !== null ? { salt } : {}) } };
+    ...(ecalc ? { ecalc: true } : {}), ...(salt !== null ? { salt } : {}), ...(portion ? { portion } : {}) } };
 }
 
 // User-Agent demandé par Open Food Facts : nom et version de l'app, sans contact ni identifiant
@@ -145,10 +147,11 @@ function dietSaveScanned(d, food) {
   let name = food.name;
   if (list.some(x => normName(x.name) === normName(name))) name = dietCutName(`${name.slice(0, DIET_FOOD_NAME_MAX - 16)} · ${food.code}`);
   const entry = { id: uid(), name, code: food.code, fam: food.fam, per: food.per, src: food.src === 'off' ? 'off' : 'perso',
-    ...(food.ecalc ? { ecalc: true } : {}), ...(food.salt != null ? { salt: food.salt } : {}) };
+    ...(food.ecalc ? { ecalc: true } : {}), ...(food.salt != null ? { salt: food.salt } : {}), ...(food.portion ? { portion: food.portion } : {}) };
   d.dietFoods = cleanDietFoods([entry, ...list]);
   return d.dietFoods.find(x => x.code === food.code) || null;
 }
 // Aliment perso gardé → aliment au format de la recherche (foodToItem)
 const dietOwnPick = x => ({ code: null, name: x.name, fam: x.fam, per: x.per, ownId: x.id, src: x.src || 'perso',
-  ...(x.code ? { barcode: x.code } : {}), ...(x.ecalc ? { ecalc: true } : {}), ...(x.salt != null ? { salt: x.salt } : {}) });
+  ...(x.code ? { barcode: x.code } : {}), ...(x.ecalc ? { ecalc: true } : {}), ...(x.salt != null ? { salt: x.salt } : {}),
+  ...(x.portion ? { portion: x.portion } : {}) });

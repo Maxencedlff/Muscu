@@ -105,9 +105,9 @@ function searchFoods(query, { limit = 40, own = [] } = {}) {
   return [...mine, ...base].filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.food.name.localeCompare(b.food.name, 'fr')).slice(0, limit);
 }
 // Aliment choisi → aliment du plan (valeurs pour 100 g recopiées)
-function foodToItem(food, g) {
+function foodToItem(food, g, por = null) {
   return cleanDietItem({ name: food.name, food: food.code || null, fam: food.fam, g, per: food.per,
-    src: food.code ? 'ciqual-2025' : food.src === 'off' ? 'off' : 'perso', ecalc: food.ecalc === true });
+    src: food.code ? 'ciqual-2025' : food.src === 'off' ? 'off' : 'perso', ecalc: food.ecalc === true, ...(por ? { por } : {}) });
 }
 
 // ── Équivalences ────────────────────────────────────────────

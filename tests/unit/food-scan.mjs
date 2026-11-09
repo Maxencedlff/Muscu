@@ -82,7 +82,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     };
     const r = await lookup(ok(prod({ 'energy-kcal_100g': 539, proteins_100g: 6.3, carbohydrates_100g: 57.5, fat_100g: 30.9 })));
     assert.equal(r.status, 'found');
-    assert.equal(calls[0].url, 'https://world.openfoodfacts.org/api/v2/product/3017620422003.json?fields=product_name,product_name_fr,brands,nutriments,quantity');
+    assert.equal(calls[0].url, 'https://world.openfoodfacts.org/api/v2/product/3017620422003.json?fields=product_name,product_name_fr,brands,nutriments,quantity,serving_size,serving_quantity');
     assert.equal(calls[0].init.headers['User-Agent'], 'MDLF Training/1.4 (iOS)');
     assert.equal(calls[0].init.headers['X-User-Agent'], 'MDLF Training/1.4 (iOS)');
     assert.equal(calls[0].init.credentials, 'omit', 'aucun cookie');

@@ -70,7 +70,7 @@ function dietFamOf(per) {
   if (4 * per.c / e >= 0.5) return 'f';
   return 'p';
 }
-// Aliment du plan : { id, name, food (code Ciqual) | null, fam, g, per }, null s'il est inutilisable
+// Aliment du plan : { id, name, food (code Ciqual) | null, fam, g, per, por? }, null s'il est inutilisable
 function cleanDietItem(it) {
   if (!dietIsObj(it)) return null;
   const name = dietCutName(it.name), per = cleanDietPer(it.per), g = num(it.g, 1, DIET_G_MAX);
@@ -78,8 +78,18 @@ function cleanDietItem(it) {
   const food = Number.isInteger(it.food) && it.food > 0 && it.food < 1e7 ? it.food : null;
   // src : valeurs de Ciqual 2025 ou saisies (aliment perso) ; ecalc : énergie calculée par l'app (Ciqual sans énergie)
   const src = DIET_SRC.includes(it.src) ? it.src : food ? 'ciqual-2025' : 'perso';
+  const por = cleanDietPortion(it.por, Math.round(g));
   return { id: typeof it.id === 'string' && DIET_PART_RE.test(it.id) ? it.id : uid(), name, food,
-    fam: DIET_FAMS.includes(it.fam) ? it.fam : dietFamOf(per), g: Math.round(g), per, src, ...(it.ecalc === true ? { ecalc: true } : {}) };
+    fam: DIET_FAMS.includes(it.fam) ? it.fam : dietFamOf(per), g: Math.round(g), per, src, ...(it.ecalc === true ? { ecalc: true } : {}),
+    ...(por ? { por } : {}) };
+}
+// Unité choisie pour afficher la quantité (« 2 œufs ») : { n, u, pl, g } (n unités de g grammes, js/data/food-portions.js).
+// Gardée seulement si elle redonne la quantité en grammes (à 1 g près) : it.g fait toujours foi
+function cleanDietPortion(por, grams) {
+  if (!dietIsObj(por)) return null;
+  const p = cleanFoodPortion(por), n = typeof por.n === 'number' && Number.isFinite(por.n) ? Math.round(por.n * 2) / 2 : NaN;
+  if (!p || !(n >= 0.5 && n <= PORTION_N_MAX) || Math.abs(Math.round(n * p.g) - grams) > 1) return null;
+  return { n, u: p.u, pl: p.pl, g: p.g };
 }
 function cleanDietMeal(m) {
   if (!dietIsObj(m)) return null;
@@ -133,7 +143,7 @@ function cleanDietPlans(v) {
   for (const k of [...alive, ...archived]) { const p = cleanDietPlan(v[k]); if (p) out[k] = p; }
   return out;
 }
-// Mes aliments perso : [{ id, name, fam, per, code?, src?, ecalc?, salt? }] (pour les retrouver dans la recherche)
+// Mes aliments perso : [{ id, name, fam, per, code?, src?, ecalc?, salt?, portion? }] (pour les retrouver dans la recherche)
 function cleanDietFoods(list) {
   if (!Array.isArray(list)) return [];
   const seen = new Set();
@@ -145,10 +155,10 @@ function cleanDietFoods(list) {
     // code : code-barres du produit (js/data/food-scan.js), pour le retrouver au scan suivant sans réseau ;
     // src 'off' : valeurs d'Open Food Facts ; salt : sel pour 100 g, affiché sur la fiche du produit
     const code = typeof x.code === 'string' && /^\d{8}$|^\d{13}$/.test(x.code) ? x.code : null;
-    const salt = num(x.salt, 0, 100);
+    const salt = num(x.salt, 0, 100), portion = cleanFoodPortion(x.portion);   // portion : unité du paquet ou portion saisie
     return { id: typeof x.id === 'string' && DIET_PART_RE.test(x.id) ? x.id : uid(), name, fam: DIET_FAMS.includes(x.fam) ? x.fam : dietFamOf(per), per,
       ...(code ? { code } : {}), ...(code && x.src === 'off' ? { src: 'off' } : {}), ...(x.ecalc === true ? { ecalc: true } : {}),
-      ...(salt !== null && typeof x.salt === 'number' ? { salt: Math.round(salt * 100) / 100 } : {}) };
+      ...(salt !== null && typeof x.salt === 'number' ? { salt: Math.round(salt * 100) / 100 } : {}), ...(portion ? { portion } : {}) };
   }).filter(Boolean);
 }
 // Journal : { 'AAAA-MM-JJ': { plan, done: [id repas], swaps: { [id aliment]: aliment }, extras: { [id repas]: [aliment] } } },
@@ -253,6 +263,9 @@ function dietItemMacros(it) {
   const r = (it?.g || 0) / 100, per = it?.per || {};
   return { kcal: (per.k || 0) * r, p: (per.p || 0) * r, c: (per.c || 0) * r, f: (per.f || 0) * r };
 }
+// Quantité affichée : « 2 œufs · 100 g » (unité choisie) ou « 100 g » ; spoken : « 2 œufs, 100 grammes »
+function dietQtyText(it) { return it?.por ? `${portionText(it.por.n, it.por)} · ${it.g}\u00a0g` : `${it?.g}\u00a0g`; }
+function dietQtySpoken(it) { return it?.por ? `${portionSpoken(it.por.n, it.por)}, ${it.g} grammes` : `${it?.g} grammes`; }
 function dietAdd(a, b) { return { kcal: a.kcal + b.kcal, p: a.p + b.p, c: a.c + b.c, f: a.f + b.f }; }
 // Aliment tel qu'il sera mangé ce jour-là : le remplaçant choisi, sinon celui du plan
 function dietEffectiveItem(it, swaps) { return swaps && Object.hasOwn(swaps, it.id) ? swaps[it.id] : it; }
@@ -317,12 +330,14 @@ function dietAddExtra(d, planId, mealId, newItem, day = dietDayKey()) {
   dietWriteDay(d, day, { ...e, extras: { ...e.extras, [mealId]: [...list, c] } });
   return c;
 }
-// Change la quantité d'un aliment ajouté (g) ou le retire (g null) ; renvoie true si fait
+// Change la quantité d'un aliment ajouté (g, ou { g, por }) ou le retire (g null) ; renvoie true si fait
 function dietSetExtra(d, planId, mealId, extraId, g, day = dietDayKey()) {
   const e = dietDay(d, planId, day), list = e.extras[mealId] || [];
   const i = list.findIndex(x => x.id === extraId);
   if (i < 0) return false;
-  const c = g == null ? null : cleanDietItem({ ...list[i], g });
+  // g : grammes, ou { g, por } (quantité choisie à l'unité) ; une quantité en grammes seule retire l'unité
+  const q = dietIsObj(g) ? g : { g, por: undefined };
+  const c = g == null ? null : cleanDietItem({ ...list[i], g: q.g, por: q.por });
   if (g != null && !c) return false;
   const next = c ? list.map((x, j) => (j === i ? c : x)) : list.filter((_, j) => j !== i);
   dietWriteDay(d, day, { ...e, extras: { ...e.extras, [mealId]: next } });
@@ -447,7 +462,8 @@ function dietToSent(plan) {
   const c = cleanDietPlan(plan);
   if (!c) return null;
   const diet = { name: c.name, meals: c.meals.map(m => ({ id: m.id, name: m.name, ...(m.note ? { note: m.note } : {}),
-    items: m.items.map(it => ({ id: it.id, name: it.name, food: it.food, fam: it.fam, g: it.g, per: it.per, src: it.src, ...(it.ecalc ? { ecalc: true } : {}) })) })) };
+    items: m.items.map(it => ({ id: it.id, name: it.name, food: it.food, fam: it.fam, g: it.g, per: it.per, src: it.src, ...(it.ecalc ? { ecalc: true } : {}),
+      ...(it.por ? { por: it.por } : {}) })) })) };
   if (c.targets) diet.targets = c.targets;
   if (c.consigne) diet.consigne = c.consigne;
   return { kind: 'diet', v: 1, diet };
