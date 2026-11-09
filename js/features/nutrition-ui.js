@@ -341,11 +341,14 @@ async function dietSwapSheet(itemId, day) {
   const e = dietDay(data, planId, day), current = e.swaps[itemId];
   const cands = swapCandidates(it, { own: data.dietFoods || [] });
   const ref = dietItemMacros(it), hide = data.dietHideNumbers === true;
+  // Écart des kcal affichées (arrondies), pas des valeurs exactes : « 213 kcal » face à 215 se lit « −2 kcal », jamais
+  // « −1 » ni « = » (panel t5)
+  const shownGap = c => Math.round(c.macros.kcal) - Math.round(ref.kcal);
   const row = (c, i) => `
       <button class="diet-cand" data-swap="${i}">
         <span class="diet-cand__body"><span class="diet-cand__name">${esc(c.food.name)}</span>
           <span class="diet-cand__sub num">${hide ? `${c.g} g` : dietSrPair(`${c.g} g · ${dietMacroLine(c.macros)}`, `${c.g} grammes, ${dietMacroSpoken(c.macros)}`)}</span></span>
-        ${hide ? '' : `<span class="diet-cand__delta num" aria-label="écart : ${swapDeltaText(c.delta.kcal, 'kilocalories')}">${swapDeltaText(c.delta.kcal, 'kcal')}</span>`}
+        ${hide ? '' : `<span class="diet-cand__delta num" aria-label="écart : ${swapDeltaText(shownGap(c), 'kilocalories')}">${swapDeltaText(shownGap(c), 'kcal')}</span>`}
       </button>`;
   const body = `
     <div class="diet-swap">
