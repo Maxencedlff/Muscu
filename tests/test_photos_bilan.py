@@ -388,6 +388,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         # Le coach efface une photo reçue
         cp.locator('.coach-photos-view .pgal__item').first.click()
         cp.wait_for_selector('.sheet [data-action="cph-hide"]')
+        cp.wait_for_timeout(400)   # feuille montée en entier (mesurée en pleine animation, « Fermer » paraissait petit)
         layout(cp, t, 'Photo en grand (coach)')
         shot(cp, LOT, f'11-coach-photo-{t}')
         cp.click('.sheet [data-action="cph-hide"]')
