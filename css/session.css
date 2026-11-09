@@ -250,6 +250,8 @@ body.kb-open .rest-mini { transform: translateY(140%); opacity: 0; pointer-event
 .rest-mini .rest-mini__skip {
   display: inline-flex; align-items: center; justify-content: center; min-height: 44px; color: var(--tint-on-fill);
 }
+/* En sombre, la mini-barre est sur --cell2 (plus clair que la cellule) : bleu éclairci pour 5:1 (4:1 avec #64AFFF) */
+body:not(.light) .rest-mini .rest-mini__skip { color: #8AC4FF; }
 .rest-mini__btn:active, .rest-mini .rest-mini__skip:active { opacity: .6; }
 /* « Ensuite : nom · S2 · 32,5 kg × 10 » : le nom se coupe (points de suspension), jamais la série */
 .rest-mini__next {
