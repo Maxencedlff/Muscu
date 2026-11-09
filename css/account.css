@@ -330,3 +330,13 @@ body.light .onb__body:not(.onb__body--on) .body-map { opacity: .5; }
   display: flex; flex-direction: column; background: var(--bg);
   z-index: 2;   /* au-dessus des séparateurs de la liste (z-index 1) : ils barraient « Commencer » (Duo plié, vague 3) */
 }
+/* Accueil : la même disposition (bouton sous le titre) dès que la colonne fait moins de 19 fois la taille du texte, donc
+   aussi en texte agrandi sur iPhone 13 (« Nouvea / u plan » coupé à côté du bouton, panel t8). Les unités em d'une requête
+   de conteneur suivent la taille de texte du conteneur. */
+.dashboard .home { container: home / inline-size; }
+@container home (max-width: 19em) {
+  .account-card { display: grid; grid-template-columns: 1fr auto; align-items: start; column-gap: 4px; padding-top: 12px; padding-bottom: 2px; }
+  .account-card__text { grid-column: 1; grid-row: 1; padding-top: 2px; }
+  .account-card__close { grid-column: 2; grid-row: 1; margin-top: -9px; }
+  .account-card__btn { grid-column: 1 / -1; grid-row: 2; justify-self: start; padding: 0; }
+}
