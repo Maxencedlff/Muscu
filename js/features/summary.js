@@ -103,12 +103,13 @@ function sumTileValueHtml(txt) {
   return esc(txt).replace(/[A-Za-z]+(?: [A-Za-z]+)?/g, u => `<span class="sum-tile__unit">${u}</span>`);
 }
 
-// « ↑ 32 kg vs dernière fois » : l'écart dit par rapport à quoi (panel t5 : « ↑ 32 kg » seul se lisait comme une charge
-// ou un record) ; VoiceOver entend la phrase entière
-function summaryDeltaHtml(delta) {
-  if (delta === null || Math.round(delta) === 0) return '';
+// « ↑ 32 kg sur la dernière fois » : l'écart dit par rapport à quoi (panel t5 : « ↑ 32 kg » seul se lisait comme une
+// charge ou un record ; panel t6 : pas d'anglicisme « vs ») ; VoiceOver entend la phrase entière. Écart sous 1 % du
+// volume : rien (panel t6 : + 0,6 % mis en avant en vert gras comme un progrès)
+function summaryDeltaHtml(delta, volume = 0) {
+  if (delta === null || Math.round(delta) === 0 || Math.abs(delta) < volume * 0.01) return '';
   const v = fmtVolume(Math.abs(delta)), up = delta > 0;
-  return `<span class="sum-tile__delta ${up ? 'sum-tile__delta--up' : ''}"><span aria-hidden="true"><span class="sum-tile__delta-n">${up ? '↑' : '↓'}\u00a0${v}</span> vs dernière fois</span><span class="visually-hidden">, ${v} ${up ? 'de plus' : 'de moins'} que la dernière fois</span></span>`;
+  return `<span class="sum-tile__delta ${up ? 'sum-tile__delta--up' : ''}"><span aria-hidden="true"><span class="sum-tile__delta-n">${up ? '↑' : '↓'}\u00a0${v}</span> sur la dernière fois</span><span class="visually-hidden">, ${v} ${up ? 'de plus' : 'de moins'} que la dernière fois</span></span>`;
 }
 
 function summaryRecordsHtml(records) {
@@ -171,7 +172,7 @@ function renderSummary() {
         <div class="sum-tiles">
           <div class="sum-tile"><div class="sum-tile__label">Durée</div><div class="sum-tile__value num">${sumTileValueHtml(fmtDuration(sm.duration))}</div></div>
           ${sm.volume > 0 || !sm.reps
-            ? `<div class="sum-tile"><div class="sum-tile__label">Volume</div><div class="sum-tile__value num">${sumTileValueHtml(fmtVolume(sm.volume))}</div>${summaryDeltaHtml(sm.delta)}</div>`
+            ? `<div class="sum-tile"><div class="sum-tile__label">Volume</div><div class="sum-tile__value num">${sumTileValueHtml(fmtVolume(sm.volume))}</div>${summaryDeltaHtml(sm.delta, sm.volume)}</div>`
             : `<div class="sum-tile"><div class="sum-tile__label">Reps</div><div class="sum-tile__value num">${sm.reps}</div></div>`}
           <div class="sum-tile"><div class="sum-tile__label">Séries</div><div class="sum-tile__value num">${sm.sets}</div></div>
         </div>
