@@ -18,12 +18,16 @@ LOT = 'scan'
 R = Results(LOT)
 NOW = local_ms(2026, 11, 9, 12, 30, tz=PARIS)
 
-FOUND, UNKNOWN, OFFLINE = '3017620422003', '96385074', '4006381333931'
+FOUND, UNKNOWN, OFFLINE, POT = '3017620422003', '96385074', '4006381333931', '3760000000123'
 PRODUCT = {'status': 1, 'code': FOUND, 'product': {'product_name': 'Pâte à tartiner noisettes', 'brands': 'Marque Test, Groupe',
            'quantity': '400 g', 'nutriments': {'energy-kcal_100g': 539, 'energy-kj_100g': 2252, 'proteins_100g': 6.3,
                                                'carbohydrates_100g': 57.5, 'fat_100g': 30.9, 'salt_100g': 0.107}}}
 SKYR = {'status': 1, 'code': OFFLINE, 'product': {'product_name_fr': 'Skyr nature', 'brands': 'Laiterie',
         'nutriments': {'energy-kj_100g': 264, 'proteins_100g': 11, 'carbohydrates_100g': 4, 'fat_100g': 0.2}}}
+
+# Yaourts en paquet de 4 : l'unité du paquet (« 1 pot », 125 g) est proposée (js/data/food-portions.js, offPortion)
+YAOURT = {'status': 1, 'code': POT, 'product': {'product_name_fr': 'Yaourt nature', 'brands': 'Ferme', 'quantity': '4 x 125 g',
+          'serving_size': '125 g', 'nutriments': {'energy-kcal_100g': 60, 'proteins_100g': 4.2, 'carbohydrates_100g': 5, 'fat_100g': 2.5}}}
 
 # Coquille iOS factice : seul MdlfScanner répond ; window.__scan règle la prochaine lecture
 FAKE_SHELL = """
@@ -74,7 +78,7 @@ class Off:
         if mode == 'unknown':
             return route.fulfill(status=404, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'},
                                  body=json.dumps({'status': 0, 'status_verbose': 'product not found', 'code': code}))
-        body = PRODUCT if code == FOUND else SKYR
+        body = {FOUND: PRODUCT, POT: YAOURT}.get(code, SKYR)
         route.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body=json.dumps(body))
 
 
@@ -138,7 +142,8 @@ def t_scan(bench, eng, dev, theme):
         R.check(len(off.calls) == 1, f'{t} trouvé : une requête ({len(off.calls)})')
         h = off.calls[0]['headers']
         R.check(h.get('x-user-agent') == 'MDLF Training/1.2 (iOS)' and '@' not in json.dumps(h) and 'cookie' not in h, f'{t} requête : User-Agent de l\'app, sans contact ni cookie ({h.get("x-user-agent")})')
-        R.check('fields=product_name,product_name_fr,brands,nutriments,quantity' in off.calls[0]['url'], f'{t} requête : champs demandés')
+        R.check('fields=product_name,product_name_fr,brands,nutriments,quantity,serving_size,serving_quantity' in off.calls[0]['url'], f'{t} requête : champs demandés (portion comprise)')
+        R.check(page.locator('.sheet-root .qty__mode').count() == 0, f'{t} sans unité connue : grammes seuls, comme avant')
         R.check(page.evaluate(f"dietFoodByCode(data.dietFoods, '{FOUND}')?.src") == 'off', f'{t} trouvé : gardé dans Mes aliments')
         page.fill('#fscanG', '30')
         tot = page.inner_text('#fscanTotal').replace(' ', ' ')
@@ -219,6 +224,37 @@ def t_scan(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors[:2]}')
 
 
+def t_pot(bench, eng, dev, theme):
+    """Yaourt scanné (« 4 x 125 g ») : « 1 pot » d'office, équivalence en grammes, unité gardée avec le produit."""
+    t = tag(dev, theme)
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        off = open_plan(page, theme)
+        off.mode[POT] = 'found'
+        add_food_sheet(page)
+        scan(page, POT)
+        page.wait_for_selector('.fscan__name')
+        seg = page.locator('.sheet-root .qty__mode .segmented__btn').all_inner_texts()
+        R.check(seg == ['Grammes', 'Pot'] and page.get_attribute('.sheet-root [data-qmode="0"]', 'aria-pressed') == 'true', f'{t} pot : « Grammes | Pot », pot choisi ({seg})')
+        eq = page.text_content('.sheet-root #qtyEq [aria-hidden="true"]').replace('\u00a0', ' ').replace('\u202f', ' ')
+        R.check(page.input_value('.sheet-root #qtyVal') == '1' and eq == '1 pot · 125 g · 75 kcal', f'{t} pot : 1 pot · 125 g ({eq!r})')
+        R.check(page.text_content('.sheet-root #qtyEq .sr-text') == '1 pot, 125 grammes, 75 kilocalories', f'{t} pot : VoiceOver')
+        tot = page.inner_text('#fscanTotal').replace('\u00a0', ' ').replace('\u202f', ' ')
+        R.check('125 g : 75 kcal' in tot, f'{t} pot : total et macros ({tot!r})')
+        page.focus('.fscan__name')
+        sheet_layout(page, t, 'yaourt à l\'unité')
+        shot(page, LOT, f'6-yaourt-pot-{t}')
+        page.click('.sheet-root [data-qstep="1"]')
+        R.check(page.input_value('.sheet-root #qtyVal') == '2' and '250 g' in page.text_content('.sheet-root #qtyEq').replace('\u00a0', ' '), f'{t} pot : + → 2 pots, 250 g')
+        page.click('.sheet-root [data-qstep="-1"]')
+        page.click('.sheet__btn--confirm')
+        page.wait_for_timeout(400)
+        it = page.evaluate("data.dietPlans.d_scan01.meals[0].items[0]")
+        R.check(it and it['g'] == 125 and it.get('por') == {'n': 1, 'u': 'pot', 'pl': 'pots', 'g': 125}, f'{t} pot : stocké en grammes, unité à côté ({it})')
+        R.check(page.evaluate(f"dietFoodByCode(data.dietFoods, '{POT}')?.portion") == {'u': 'pot', 'pl': 'pots', 'g': 125}, f'{t} pot : unité gardée dans Mes aliments')
+        R.check('1 pot · 125 g' in page.inner_text('.diet-plan-view').replace('\u00a0', ' ').replace('\u202f', ' '), f'{t} plan : « 1 pot · 125 g »')
+        R.check(not page.errors, f'{t} pot : aucune erreur JS {page.errors[:2]}')
+
+
 def t_sans_module(bench):
     """Navigateur (aucun module natif) : « Saisir un code-barres », chiffres vérifiés, même fiche ; caméra refusée."""
     for theme in THEMES:
@@ -269,6 +305,15 @@ def t_grand_texte(bench):
             page.focus('.fscan__name')
             sheet_layout(page, t, 'fiche')
             shot(page, LOT, f'5-fiche-{t}')
+            page.click('.sheet-root .sheet__btn--cancel')
+            page.wait_for_timeout(300)
+            off.mode[POT] = 'found'
+            add_food_sheet(page)
+            scan(page, POT)
+            page.wait_for_selector('.sheet-root .qty__mode')
+            page.focus('.fscan__name')
+            sheet_layout(page, t, 'fiche à l\'unité')
+            shot(page, LOT, f'5b-fiche-pot-{t}')
 
 
 # Appareils du lot : les deux de référence (ERGONOMIE.md) et les iPhone récents (tests/test_ecrans_recents.py)
@@ -277,4 +322,4 @@ SCAN_DEVICES = 'iPhone 13,iPhone SE,iPhone 17,iPhone 17 Pro Max,iPhone Air'
 if __name__ == '__main__':
     if not os.environ.get('PPL_DEVICES') and not os.environ.get('PPL_DEV'):
         os.environ['PPL_DEVICES'] = SCAN_DEVICES
-    run_main(R, [t_scan], once=[t_sans_module, t_grand_texte])
+    run_main(R, [t_scan, t_pot], once=[t_sans_module, t_grand_texte])

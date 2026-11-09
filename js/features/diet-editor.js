@@ -63,8 +63,8 @@ function dietTargetsHtml(plan) { return dietSrPair(esc(dietTargetsText(plan)), e
 function dietPlanItemCell(plan, meal, it, ro) {
   const m = dietItemMacros(it);
   const inner = `<span class="cell__body"><span class="cell__title">${esc(it.name)}</span>
-      <span class="cell__sub num">${dietSrPair(`${it.g} g · ${dietN(m.kcal)} kcal${it.ecalc ? ' (calculées)' : ''} · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`,
-        `${it.g} grammes, ${dietN(m.kcal)} kilocalories${it.ecalc ? ' calculées' : ''}, ${dietMacroGramsSpoken(m)}`)}</span></span>`;
+      <span class="cell__sub num">${dietSrPair(`${esc(dietQtyText(it))} · ${dietN(m.kcal)} kcal${it.ecalc ? ' (calculées)' : ''} · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`,
+        `${esc(dietQtySpoken(it))}, ${dietN(m.kcal)} kilocalories${it.ecalc ? ' calculées' : ''}, ${dietMacroGramsSpoken(m)}`)}</span></span>`;
   return ro ? `<div class="cell">${inner}</div>`
     : `<button class="cell cell--nav" data-action="diet-item-menu" data-meal="${esc(meal.id)}" data-item="${esc(it.id)}">${inner}${icon('chevron.right', 16)}</button>`;
 }
@@ -170,15 +170,15 @@ async function dietPickFood() {
   return p;
 }
 
-// Choix d'un aliment (recherche, code-barres ou création) puis de sa quantité : { food, g } ou null.
+// Choix d'un aliment (recherche, code-barres ou création) puis de sa quantité : { food, g, por } ou null (por : unité choisie).
 // Sert au plan ; réutilisable partout où l'on ajoute un aliment
 async function dietChooseFood() {
   const pick = await dietPickFood();
   if (pick === 'scan') return foodScanFlow();
   const chosen = pick === 'new' ? await dietNewFood() : pick;
   if (!chosen?.food) return null;
-  const g = await dietAskGrams(chosen.food);
-  return g == null ? null : { food: chosen.food, g };
+  const q = await dietAskQty(chosen.food);
+  return q && { food: chosen.food, g: q.g, por: q.por };
 }
 
 // Aliment perso : nom et valeurs pour 100 g (étiquette du paquet) ; gardé dans mes aliments.
@@ -196,6 +196,10 @@ async function dietNewFood(name = '', { code = null } = {}) {
       ${codeHint}
       <p class="diet-form__hint">Pour 100 g : recopie les valeurs de l'étiquette, l'énergie comprise. Laissée vide, l'app la calcule (4 kcal par gramme de protéines ou de glucides, 9 de lipides).</p>
       ${field('dietFoodK', 'Énergie', 'kcal', 900)}${field('dietFoodP', 'Protéines', 'g', 100)}${field('dietFoodC', 'Glucides', 'g', 100)}${field('dietFoodF', 'Lipides', 'g', 100)}
+      <label class="diet-field"><span class="diet-field__label">Une portion</span>
+        <input id="dietFoodPortion" class="diet-field__input num" type="text" inputmode="decimal" autocomplete="off" placeholder="Facultatif" aria-label="Poids d'une portion, en grammes, facultatif">
+        <span class="diet-field__unit">g</span></label>
+      <p class="diet-form__hint">Facultatif : le poids d'un pot, d'une barre ou d'une part. Tu pourras compter en portions plutôt qu'en grammes.</p>
       <label class="diet-field"><span class="diet-field__label">Famille</span>
         <select id="dietFoodFam" class="diet-field__input diet-field__select" aria-label="Famille, pour les équivalences">
           <option value="">Selon ses macros</option>
@@ -217,8 +221,11 @@ async function dietNewFood(name = '', { code = null } = {}) {
     if (k === null) return err('Énergie : de 0 à 900 kcal.');
     const per = cleanDietPer({ k, p, c, f });
     if (!per) return err('Plus de 100 g de macros pour 100 g : vérifie les valeurs.');
+    const pRaw = v('#dietFoodPortion').trim(), pg = pRaw ? num(pRaw, 1, DIET_G_MAX) : null;
+    if (pRaw && pg === null) return err(`Une portion : de 1 à ${fmtNum(DIET_G_MAX)} g.`);
     const famPick = $('#dietFoodFam', panel)?.value;
-    const food = { id: uid(), name: nm, fam: DIET_FAMS.includes(famPick) ? famPick : dietFamOf(per), per, ...(code ? { code } : {}) };
+    const food = { id: uid(), name: nm, fam: DIET_FAMS.includes(famPick) ? famPick : dietFamOf(per), per, ...(code ? { code } : {}),
+      ...(pg ? { portion: { u: 'portion', pl: 'portions', g: pg } } : {}) };
     data.dietFoods = cleanDietFoods([food, ...(data.dietFoods || []).filter(x => normName(x.name) !== normName(nm) && !(code && x.code === code))]);
     return { food: dietOwnPick(food) };
   } });
@@ -348,7 +355,7 @@ registerActions({
     if (meal.items.length >= DIET_ITEM_MAX) { showToast(`${DIET_ITEM_MAX} aliments au plus par repas`, { error: true }); return; }
     const pick = await dietChooseFood();
     if (!pick) return;
-    const it = foodToItem(pick.food, pick.g);
+    const it = foodToItem(pick.food, pick.g, pick.por);
     if (!it) return;
     meal.items.push(it);
     haptic();
@@ -358,15 +365,16 @@ registerActions({
     const ed = dietEditedPlan(), meal = dietMealOf(ed?.plan, el.dataset.meal);
     const it = meal?.items.find(x => x.id === el.dataset.item);
     if (!it) return;
-    const choice = await dialog({ type: 'sheet', title: it.name, message: `${it.g} g : ${dietN(dietItemMacros(it).kcal)} kcal, ${dietMacroWords(dietItemMacros(it))}`, actions: [
+    const choice = await dialog({ type: 'sheet', title: it.name, message: `${dietQtyText(it)} : ${dietN(dietItemMacros(it).kcal)} kcal, ${dietMacroWords(dietItemMacros(it))}`, actions: [
       { label: 'Changer la quantité', value: 'qty' },
       { label: 'Retirer du repas', value: 'remove', style: 'destructive' },
       { label: 'Annuler', style: 'cancel' },
     ] });
     if (choice === 'qty') {
-      const g = await dietAskGrams(it, it.g);
-      if (g == null) return;
-      it.g = Math.round(g);
+      const q = await dietAskQty(it, it);
+      if (!q) return;
+      it.g = q.g;
+      if (q.por) it.por = q.por; else delete it.por;
     } else if (choice === 'remove') {
       meal.items = meal.items.filter(x => x !== it);
     } else return;

@@ -92,6 +92,21 @@ def layout(page, t, name, scope='#app'):
     R.check(not page.errors, f'{t} {name} : aucune erreur JS {page.errors[:2]}')
 
 
+LIVE_SHEET = '.sheet-root:not(.sheet-root--out)'
+
+
+def qty_grams(page, g):
+    """Quantité en grammes : feuille à l'unité (« Grammes | œuf », js/features/diet-qty.js) ou alerte à champ (sans unité)."""
+    page.wait_for_selector(f'{LIVE_SHEET} #qtyVal, .ios-dialog__input')
+    if page.locator(f'{LIVE_SHEET} #qtyVal').count():
+        page.click(f'{LIVE_SHEET} [data-qmode="-1"]')
+        page.fill(f'{LIVE_SHEET} #qtyVal', g)
+        page.click(f'{LIVE_SHEET} .sheet__btn--confirm')
+    else:
+        page.fill('.ios-dialog__input', g)
+        tap_dialog(page, 'OK')
+
+
 def toast(page):
     return page.locator('.toast').inner_text() if page.locator('.toast').count() else ''
 
@@ -204,9 +219,7 @@ def t_journee(bench, eng, dev, theme):
         page.wait_for_timeout(200)
         name = page.locator('#dietFoodList .diet-cand .diet-cand__name').first.inner_text()
         page.locator('#dietFoodList .diet-cand').first.click()
-        page.wait_for_selector('.ios-dialog__input')
-        page.fill('.ios-dialog__input', '10')
-        tap_dialog(page, 'OK')
+        qty_grams(page, '10')   # l'huile a des cuillères : quantité choisie en grammes
         page.wait_for_timeout(400)
         extra = page.evaluate("dietDayProgress(data, data.dietActive).meals[3].extras.map(x => [x.name, x.g])")
         R.check(extra == [[name, 10]], f'{t} ajouté au dîner : {extra}')
@@ -223,9 +236,7 @@ def t_journee(bench, eng, dev, theme):
         # Modifier la quantité, puis retirer (Annuler le remet)
         row.click()
         tap_dialog(page, 'Changer la quantité')
-        page.wait_for_selector('.ios-dialog__input')
-        page.fill('.ios-dialog__input', '20')
-        tap_dialog(page, 'OK')
+        qty_grams(page, '20')
         page.wait_for_timeout(300)
         R.check(page.evaluate("dietDayProgress(data, data.dietActive).meals[3].extras[0].g") == 20, f'{t} quantité changée')
         page.locator('.diet-meal[data-meal="m4"] .diet-item--extra').click()
@@ -346,9 +357,7 @@ def t_creer_plan(bench, eng, dev, theme):
         page.fill('#dietFoodF', '0,2')
         shot(page, LOT, f'7-nouvel-aliment-{t}')
         page.click('.sheet__btn--confirm')
-        page.wait_for_selector('.ios-dialog__input')
-        page.fill('.ios-dialog__input', '200')
-        tap_dialog(page, 'OK')
+        qty_grams(page, '200')   # skyr : un pot de 125 g proposé, quantité choisie en grammes
         page.wait_for_timeout(300)
         sk = page.evaluate("Object.values(data.dietPlans)[0].meals[1].items[0]")
         R.check(sk and sk['name'] == 'Skyr nature' and sk['per']['k'] == round(4 * 11 + 4 * 4 + 9 * 0.2) and sk['fam'] == 'v', f'{t} aliment perso : énergie calculée, famille protéines ({sk})')
@@ -624,4 +633,123 @@ def t_invitation(bench):
             R.check(not page.errors, f'{theme} invitation : aucune erreur JS {page.errors[:2]}')
 
 
-run_main(R, [t_journee, t_creer_plan, t_coach_eleve], once=[t_sans_base, t_ancienne_coche, t_invitation, t_plan_neuf_puis_coach])
+def nb(v):
+    """Espaces insécables ramenées à l'espace (comparaisons de texte)."""
+    return (v or '').replace(' ', ' ').replace(' ', ' ')
+
+
+def open_editor(page):
+    page.evaluate("switchTab('program', { reset: true }); navigate(makeRoute('diet-plan', 'd_masse01'))")
+    page.wait_for_selector('.diet-plan-view [data-action="diet-add-food"]')
+
+
+def pick_food(page, query, name):
+    page.wait_for_selector('#dietFoodSearch')
+    page.fill('#dietFoodSearch', query)
+    page.wait_for_timeout(200)
+    i = page.evaluate("n => [...document.querySelectorAll('#dietFoodList .diet-cand__name')].findIndex(e => e.textContent === n)", name)
+    page.locator('#dietFoodList .diet-cand').nth(max(i, 0)).click()
+
+
+def t_unites(bench, eng, dev, theme):
+    """Quantités à l'unité (docs/NUTRITION_V1.md) : « 2 œufs » → 100 g et leurs kcal, stockés en grammes, unité à côté."""
+    t = tag(dev, theme)
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme, with_plan(NOW))
+        open_editor(page)
+        page.locator('[data-action="diet-add-food"]').nth(2).click()   # Collation
+        pick_food(page, 'oeuf dur', 'Oeuf dur')
+        page.wait_for_selector(f'{LIVE_SHEET} #qtyVal')
+        page.wait_for_timeout(350)
+        seg = page.locator(f'{LIVE_SHEET} .qty__mode .segmented__btn').all_inner_texts()
+        R.check(seg == ['Grammes', 'Œuf'] and page.get_attribute(f'{LIVE_SHEET} [data-qmode="0"]', 'aria-pressed') == 'true',
+                f'{t} œuf : « Grammes | Œuf », à l\'unité d\'office ({seg})')
+        R.check(page.input_value(f'{LIVE_SHEET} #qtyVal') == '1' and page.evaluate("document.activeElement.id") != 'qtyVal', f'{t} œuf : 1 œuf, sans clavier à l\'ouverture')
+        page.click(f'{LIVE_SHEET} [data-qstep="1"]')
+        eq = nb(page.text_content(f'{LIVE_SHEET} #qtyEq [aria-hidden="true"]'))
+        R.check(page.input_value(f'{LIVE_SHEET} #qtyVal') == '2' and eq == '2 œufs · 100 g · 134 kcal', f'{t} œuf : + → « 2 œufs · 100 g · 134 kcal » ({eq!r})')
+        R.check(page.text_content(f'{LIVE_SHEET} #qtyEq .sr-text') == '2 œufs, 100 grammes, 134 kilocalories', f'{t} œuf : VoiceOver en toutes lettres')
+        R.check(nb(page.text_content(f'{LIVE_SHEET} #qtyUnit')) == 'œufs' and 'environ 50' in nb(page.text_content(f'{LIVE_SHEET} #qtyHint')), f'{t} œuf : unité accordée, poids moyen « environ »')
+        R.check(page.get_attribute(f'{LIVE_SHEET} [data-qstep="1"]', 'aria-label') == '1 œuf de plus', f'{t} œuf : boutons nommés')
+        st = small_targets(page, f'{LIVE_SHEET} button')
+        R.check(not st, f'{t} feuille de quantité : cibles de 44 pt {st}')
+        ct = cut_texts(page, LIVE_SHEET)
+        R.check(not ct and no_hscroll(page), f'{t} feuille de quantité : aucun texte coupé {ct}')
+        shot(page, LOT, f'q1-quantite-oeufs-{t}')
+        # Grammes ↔ unité : 2 œufs = 100 g ; 120 g → 2 œufs (arrondi à l'œuf)
+        page.click(f'{LIVE_SHEET} [data-qmode="-1"]')
+        R.check(page.input_value(f'{LIVE_SHEET} #qtyVal') == '100' and nb(page.text_content(f'{LIVE_SHEET} #qtyUnit')) == 'g', f'{t} œuf : en grammes, 100 g')
+        page.fill(f'{LIVE_SHEET} #qtyVal', '120')
+        page.click(f'{LIVE_SHEET} [data-qmode="0"]')
+        R.check(page.input_value(f'{LIVE_SHEET} #qtyVal') == '2', f'{t} œuf : 120 g → 2 œufs')
+        page.click(f'{LIVE_SHEET} .sheet__btn--confirm')
+        page.wait_for_timeout(400)
+        it = page.evaluate("data.dietPlans.d_masse01.meals[2].items.at(-1)")
+        R.check(it and it['name'] == 'Oeuf dur' and it['g'] == 100 and it.get('por') == {'n': 2, 'u': 'œuf', 'pl': 'œufs', 'g': 50}, f'{t} œuf : 100 g stockés, unité à côté ({it})')
+        R.check(page.evaluate("Math.round(dietItemMacros(data.dietPlans.d_masse01.meals[2].items.at(-1)).kcal)") == 134, f'{t} œuf : 134 kcal comptées')
+        row = page.locator(f'.diet-plan-view [data-action="diet-item-menu"][data-item="{it["id"]}"]')
+        R.check('2 œufs · 100 g · 134 kcal' in nb(row.inner_text()) and '2 œufs, 100 grammes' in row.locator('.sr-text').text_content(), f'{t} plan : « 2 œufs · 100 g » affiché et dit')
+        # Modifier : la feuille rouvre à l'unité, 3 œufs → 150 g
+        row.click()
+        tap_dialog(page, 'Changer la quantité')
+        page.wait_for_selector(f'{LIVE_SHEET} #qtyVal')
+        R.check(page.input_value(f'{LIVE_SHEET} #qtyVal') == '2', f'{t} modifier : rouvert sur 2 œufs')
+        page.click(f'{LIVE_SHEET} [data-qstep="1"]')
+        page.click(f'{LIVE_SHEET} .sheet__btn--confirm')
+        page.wait_for_timeout(400)
+        it = page.evaluate("data.dietPlans.d_masse01.meals[2].items.at(-1)")
+        R.check(it['g'] == 150 and it['por']['n'] == 3, f'{t} modifier : 3 œufs, 150 g ({it})')
+        # Journée : la ligne du repas dit « 3 œufs · 150 g »
+        page.evaluate("switchTab('train', { reset: true }); navigate('nutrition')")
+        page.wait_for_selector('.diet-meal[data-meal="m3"]')
+        R.check('3 œufs · 150 g' in nb(page.inner_text('.diet-meal[data-meal="m3"]')), f'{t} Nutrition : « 3 œufs · 150 g »')
+        R.check(not page.errors, f'{t} unités : aucune erreur JS {page.errors[:2]}')
+
+
+# Clavier iOS simulé : visualViewport remplacé par un faux (hauteur réduite), 'resize' déclenché à la main
+FAKE_VV = """(() => {
+  const vv = new EventTarget(); let kb = 0;
+  for (const [k, f] of Object.entries({ height: () => innerHeight - kb, width: () => innerWidth, offsetTop: () => 0, offsetLeft: () => 0, pageTop: () => scrollY, scale: () => 1 }))
+    Object.defineProperty(vv, k, { get: f });
+  Object.defineProperty(window, 'visualViewport', { configurable: true, get: () => vv });
+  window.__kb = px => { kb = px; vv.dispatchEvent(new Event('resize')); };
+})();"""
+
+
+def t_clavier(bench):
+    """Clavier ouvert (signalé le 10/11) : la feuille « Ajouter un aliment » et son bouton Scanner restent au-dessus,
+    le contenu défile ; clavier refermé, tout revient en bas."""
+    engines = dict((d, e) for e, d in ALL_DEVICES)
+    for dev in ('iPhone 13', 'iPhone SE'):
+        for theme in THEMES:
+            t = tag(dev, theme) + '-clavier'
+            with bench.frozen_page(NOW, engines[dev], dev, theme) as page:
+                page.add_init_script(FAKE_VV)
+                open_app(page, theme, with_plan(NOW))
+                open_editor(page)
+                page.locator('[data-action="diet-add-food"]').first.click()
+                page.wait_for_selector('#dietFoodSearch')
+                page.fill('#dietFoodSearch', 'riz')
+                page.wait_for_timeout(300)
+                kb = 336 if dev == 'iPhone 13' else 260
+                page.evaluate('px => __kb(px)', kb)
+                page.wait_for_timeout(200)
+                m = page.evaluate("""([sel, kb]) => { const r = e => document.querySelector(sel + ' ' + e).getBoundingClientRect(), body = document.querySelector(sel + ' .sheet__body');
+                    const vis = innerHeight - kb, s = r('.sheet'), sc = r('.diet-cand--scan'), ok = r('.sheet__btn--cancel');
+                    return { open: document.documentElement.classList.contains('kb-open'), vis, bottom: s.bottom, top: s.top, scanTop: sc.top, scanBottom: sc.bottom,
+                      barTop: ok.top, scrolls: body.scrollHeight > body.clientHeight + 1 }; }""", [LIVE_SHEET, kb])
+                R.check(m['open'] and m['bottom'] <= m['vis'] + 1 and m['top'] >= 0, f'{t} feuille au-dessus du clavier {m}')
+                R.check(m['scanTop'] >= m['top'] and m['scanBottom'] <= m['vis'], f'{t} bouton Scanner visible au-dessus du clavier {m}')
+                R.check(m['barTop'] >= 0, f'{t} Annuler visible {m}')
+                R.check(m['scrolls'] and page.evaluate("s => { const b = document.querySelector(s + ' .sheet__body'); b.scrollTop = 200; return b.scrollTop > 0; }", LIVE_SHEET),
+                        f'{t} contenu de la feuille qui défile')
+                page.evaluate("s => { document.querySelector(s + ' .sheet__body').scrollTop = 0; }", LIVE_SHEET)
+                shot(page, LOT, f'k1-clavier-ouvert-{t}')
+                page.evaluate('() => __kb(0)')
+                page.wait_for_timeout(200)
+                back = page.evaluate("s => [document.documentElement.classList.contains('kb-open'), Math.round(document.querySelector(s + ' .sheet').getBoundingClientRect().bottom), innerHeight]", LIVE_SHEET)
+                R.check(not back[0] and abs(back[1] - back[2]) <= 1, f'{t} clavier refermé : feuille revenue en bas {back}')
+                R.check(not page.errors, f'{t} clavier : aucune erreur JS {page.errors[:2]}')
+
+
+run_main(R, [t_journee, t_creer_plan, t_coach_eleve, t_unites], once=[t_sans_base, t_ancienne_coche, t_invitation, t_plan_neuf_puis_coach, t_clavier])

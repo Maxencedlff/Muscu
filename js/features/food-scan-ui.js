@@ -87,8 +87,9 @@ function fscanStateHtml(kind, code) {
       ${kind === 'unknown' || kind === 'incomplete' ? fscanSrcHtml() : ''}
     </div>`;
 }
-// Valeurs pour 100 g, la quantité (100 g d'office) et ce qu'elle apporte, recalculé à la frappe
-function fscanFoundHtml(food) {
+// Valeurs pour 100 g, la quantité (100 g d'office, ou 1 unité du paquet : « 1 pot ») et ce qu'elle apporte,
+// recalculé à la frappe. units : dietQtyUnits(food)
+function fscanFoundHtml(food, units = []) {
   const per = food.per;
   const row = (label, shown, spoken) => `<div class="fscan__row" role="listitem"><span class="fscan__k">${label}</span><span class="fscan__v num">${dietSrPair(shown, spoken)}</span></div>`;
   const g1 = v => fmtNum(v, 1);
@@ -104,9 +105,10 @@ function fscanFoundHtml(food) {
       ${row('Lipides', `${g1(per.f)} g`, `${g1(per.f)} grammes`)}
       ${food.salt != null ? row('Sel', `${fmtNum(food.salt, 2)} g`, `${fmtNum(food.salt, 2)} grammes`) : ''}
     </div>
+    ${units.length ? `<div class="fscan__qty">${dietQtyHtml(units, dietQtyInit(units, null))}</div>` : `
     <label class="diet-field fscan__qty"><span class="diet-field__label">Quantité</span>
       <input id="fscanG" class="diet-field__input num" type="text" inputmode="decimal" autocomplete="off" value="100" aria-label="Quantité en grammes, ${DIET_G_MAX} au plus">
-      <span class="diet-field__unit">g</span></label>
+      <span class="diet-field__unit">g</span></label>`}
     <p class="fscan__total num" id="fscanTotal" aria-live="polite"></p>
     <p class="diet-form__err" id="fscanErr" role="alert"></p>
     ${food.src === 'off' ? fscanSrcHtml() : '<p class="fscan__src">Ton aliment, avec les valeurs que tu as saisies.</p>'}
@@ -119,15 +121,16 @@ function fscanTotalText(food, g) {
     `${fmtNum(g)} grammes : ${dietN(m.kcal)} kilocalories, ${dietMacroGramsSpoken(m)}`);
 }
 
-// Fiche d'un code : { food, g } (Ajouter), { create: nom } (Créer l'aliment) ou null (Annuler)
+// Fiche d'un code : { food, g, por } (Ajouter), { create: nom } (Créer l'aliment) ou null (Annuler)
 function foodScanSheet(code) {
-  let food = null, busy = false;
+  let food = null, busy = false, readQty = null;
   const body = `<div class="fscan" id="fscanBody">${fscanLoadingHtml(code)}</div>`;
   const p = sheet({ title: 'Produit', confirm: 'Ajouter', body, onConfirm: panel => {
     if (!food) return false;
+    if (readQty) { const q = readQty(); return q ? { food: dietOwnPick(food), g: q.g, por: q.por } : false; }
     const g = num($('#fscanG', panel).value, 1, DIET_G_MAX);
     if (g === null) { $('#fscanErr', panel).textContent = `Quantité : de 1 à ${fmtNum(DIET_G_MAX)} g.`; return false; }
-    return { food: dietOwnPick(food), g: Math.round(g) };
+    return { food: dietOwnPick(food), g: Math.round(g), por: null };
   } });
   const root = [...document.querySelectorAll('.sheet-root')].pop();
   const box = $('#fscanBody', root), ok = $('.sheet__btn--confirm', root);
@@ -139,8 +142,12 @@ function foodScanSheet(code) {
   };
   const showFood = f => {
     food = f;
-    show(fscanFoundHtml(f), '.fscan__name');
+    const units = dietQtyUnits(f);
+    show(fscanFoundHtml(f, units), '.fscan__name');
     ok.style.visibility = '';
+    // À l'unité : la ligne d'équivalence du contrôle donne déjà grammes et kcal ; le total redonne les macros
+    if (units.length) { readQty = dietQtyBind(box, units, dietQtyInit(units, null), f.per, r => { $('#fscanTotal', box).innerHTML = r ? fscanTotalText(f, r.g) : ''; }); return; }
+    readQty = null;
     const upd = () => { $('#fscanTotal', box).innerHTML = fscanTotalText(f, num($('#fscanG', box).value, 1, DIET_G_MAX)); };
     $('#fscanG', box).addEventListener('input', upd);
     upd();
@@ -173,7 +180,7 @@ function foodScanSheet(code) {
   return p;
 }
 
-// Code-barres → { food, g } prêt pour foodToItem, ou null. Introuvable : création de l'aliment, code gardé
+// Code-barres → { food, g, por } prêt pour foodToItem, ou null. Introuvable : création de l'aliment, code gardé
 async function foodScanFlow() {
   const code = await foodScanReadCode();
   if (!code) return null;
@@ -182,8 +189,8 @@ async function foodScanFlow() {
   if (r.create !== undefined) {
     const made = await dietNewFood(r.create, { code });
     if (!made?.food) return null;
-    const g = await dietAskGrams(made.food);
-    return g == null ? null : { food: made.food, g };
+    const q = await dietAskQty(made.food);
+    return q && { food: made.food, g: q.g, por: q.por };
   }
   return r;
 }
