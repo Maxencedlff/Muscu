@@ -256,12 +256,15 @@ html.type-xl .chart-bubble { white-space: normal; }
 .cal__d--today > .num { color: var(--bg); background: var(--label); font-weight: 600; /* neutre : rouge réservé au destructif, bleu à l'interactif */ border-radius: 50%; width: 26px; height: 26px; line-height: 1.529rem; margin-top: -3px; }
 .cal__dots { display: flex; gap: 2px; margin-top: 3px; height: 6px; }
 .cal__dots i { width: 6px; height: 6px; border-radius: 50%; display: block; }
-.wks { position: relative; display: flex; align-items: flex-end; gap: 6px; height: 120px; }
-.wk { flex: 1; height: 100%; display: flex; align-items: flex-end; }
-.wk__bar { width: 100%; min-height: 2px; background: var(--fill); border-radius: 4px 4px 0 0; }
+/* Barres sous l'objectif en gris système (3:1 au moins sur la carte, clair et sombre ; --fill faisait 1,2:1, panel t5),
+   le nombre de séances au-dessus de chaque barre */
+.wks { position: relative; display: flex; align-items: flex-end; gap: 6px; height: 120px; margin-top: 18px; padding-right: 20px; }   /* l'objectif à droite, hors des barres */
+.wk { flex: 1; min-width: 0; height: 100%; display: flex; align-items: flex-end; }
+.wk__bar { position: relative; width: 100%; min-height: 2px; background: #8E8E93; border-radius: 4px 4px 0 0; }
+.wk__n { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); padding-bottom: 2px; font-size: 0.706rem; font-weight: 600; line-height: 1; color: var(--label2); }
 .wk__bar--ok { background: var(--green); }
 .wks__goal { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--label3); z-index: 1; }
-.wks__goal span { position: absolute; right: 0; top: -18px; font-size: 0.706rem; color: var(--label2); }   /* 12 px au moins */
+.wks__goal span { position: absolute; right: 0; top: -8px; font-size: 0.706rem; line-height: 16px; font-weight: 600; color: var(--label2); background: var(--cell); padding-left: 2px; }   /* 12 px au moins */
 .wks__axis { display: flex; justify-content: space-between; font-size: 0.706rem; color: var(--label2); margin-top: 6px; }
 
 /* ── Programme ── */

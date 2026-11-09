@@ -40,8 +40,8 @@
   --body-skin: #2C2C2E; --body-zone: #48484A; --body-heat: var(--orange);
   --body-heat-sec: var(--yellow); /* muscles secondaires d'un exercice (fiche) : autre teinte que les principaux */
   --body-heat-max: #FF5A1F;      /* palier le plus haut (20 séries et plus) : orange rouge, au bout de l'échelle */
-  /* Paliers de Progrès (Entretien → Gros volume) : une rampe orange, de plus en plus lumineuse sur le noir */
-  --body-tier-1: #6F5633; --body-tier-2: #A8691E; --body-tier-3: #F0960F; --body-tier-4: #FFC85A;
+  /* Paliers de Progrès (Entretien → Gros volume) : du brun à l'orange rouge, comme en clair */
+  --body-tier-1: #8A5A2B; --body-tier-2: #C0661A; --body-tier-3: #F5921E; --body-tier-4: #FF4F1F;   /* sans jaune (muscles secondaires), palier 1 détaché du gris des zones, panel t5 */
   --body-base-bright: .78;       /* personnage 3D gris un peu assombri sur le noir, lisible (clair : 1, tel quel) */
   --tip-bg: #2C2C2E;             /* bulle d'un muscle touché */
   --bubble-in: #2C2C2E;          /* bulle d'un message reçu (messages coach) */

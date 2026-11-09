@@ -901,7 +901,15 @@ function coachTextSheet({ title, value, placeholder, max, existing, confirm = 'E
   const p = sheet({ title, confirm, focus: '#coachSheetText',
     body: `<div class="coach-sheet"><textarea class="coach-textarea" id="coachSheetText" rows="6" maxlength="${max}" placeholder="${esc(placeholder)}" aria-label="${esc(title)}" aria-describedby="coachSheetCount">${esc(value)}</textarea>
       <p class="coach-sheet__hint"><span>${existing ? 'Laisse vide pour retirer le commentaire.' : ''}</span><span class="num coach-sheet__count" id="coachSheetCount">${String(value || '').length}/${max}</span></p></div>`,
-    onConfirm: panel => panel.querySelector('#coachSheetText').value });
+    onConfirm: panel => panel.querySelector('#coachSheetText').value,
+    // Texte changé : Annuler, le fond, Échap ou le glissé demandent avant de le perdre (panel t5), comme iOS
+    onCancel: async panel => {
+      if (panel.querySelector('#coachSheetText').value === String(value || '')) return true;
+      const drop = await dialog({ type: 'sheet', actions: [
+        { label: existing ? 'Abandonner les modifications' : 'Supprimer le brouillon', value: true, style: 'destructive' },
+        { label: 'Continuer à écrire', style: 'cancel' }] });
+      return drop === true;
+    } });
   const ta = $('#coachSheetText');
   ta?.addEventListener('input', () => { const c = $('#coachSheetCount'); if (c) c.textContent = `${ta.value.length}/${max}`; });
   return p;
