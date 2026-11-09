@@ -120,7 +120,8 @@ jobs:
             --passphrase-fd 3 -o "$NOM.tar.gpg" 3<<< "$SAUVEGARDE_CLE"
           rm -rf sauvegarde
           # Relecture : l'archive se déchiffre bien avec la clé et contient le dump.
-          gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 -d "$NOM.tar.gpg" 3<<< "$SAUVEGARDE_CLE" | tar -tf - | grep -q 'sauvegarde/base.dump'
+          gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 -d "$NOM.tar.gpg" 3<<< "$SAUVEGARDE_CLE" | tar -tf - > contenu.txt
+          grep -qx 'sauvegarde/base.dump' contenu.txt
           echo "NOM=$NOM" >> "$GITHUB_ENV"
           ls -la "$NOM.tar.gpg"
 
