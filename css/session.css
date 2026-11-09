@@ -401,6 +401,8 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 /* Ligne de ce qui a progressé (summaryLine) ; médaille d'un record qui apparaît (0,6 → 1 en 300 ms) */
 .sum-line { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 0.941rem; line-height: 1.294rem; font-weight: 600; color: var(--label); }
 .sum-line .medal { color: var(--yellow); flex-shrink: 0; }
+html.type-xl .sum-line { align-items: flex-start; }   /* médaille sur la première ligne du texte, comme un Label (panel t5) */
+html.type-xl .sum-line .medal { margin-top: .15em; }
 .summary--pop .sum-line .medal, .summary--pop .sum-record .medal { animation: sum-medal .3s cubic-bezier(.2, .8, .2, 1.2) both; }
 @keyframes sum-medal { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .sum-tiles { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
