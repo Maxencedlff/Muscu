@@ -372,7 +372,7 @@ html.type-xl .session-set .set-prev { grid-area: prev; text-align: left; }
 /* Empilée, la valeur d'avant n'a plus sa colonne « Avant » : elle est nommée (« Avant 32 × 9 »), on ne la prend plus
    pour ce qu'il faut taper (panel t5) */
 .set-prev__lbl { display: none; }
-html.type-xl .set-prev__lbl { display: block; color: var(--label3); font-weight: 400; }   /* « Avant » au-dessus, la valeur entière dessous */
+html.type-xl .set-prev__lbl { display: block; color: var(--label2); font-weight: 400; }   /* « Avant » au-dessus, la valeur entière dessous */
 html.type-xl .session-set .set-prev:has(.set-prev__lbl) { white-space: normal; overflow: visible; text-overflow: clip; }
 /* Superset : plus d'espace avant chaque membre que sous son nom, le compte et ⋯ restent avec leur exercice ; le repos
    aligné à gauche comme le reste */

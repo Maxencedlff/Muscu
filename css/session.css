@@ -147,7 +147,8 @@
   color: var(--label); font-size: 1.176rem; font-weight: 600; text-align: center;
   font-variant-numeric: tabular-nums; letter-spacing: -.2px;
 }
-.session-set .set-input::placeholder { color: var(--label3); }
+/* Objectif affiché dans le champ vide : l'info principale de la ligne, à 4,5:1 (en --label3 il tombait à 1,5:1, panel t6) */
+.session-set .set-input::placeholder { color: var(--label2); }
 .session-set .set-input:focus { outline: none; background: var(--fill); box-shadow: 0 0 0 2px var(--tint); }
 .session-set .set-input.set-input--error { box-shadow: 0 0 0 2px var(--red); }
 @media (max-width: 374px) { .session-set .set-input { font-size: 1.059rem; } }
