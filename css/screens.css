@@ -391,10 +391,11 @@ html.type-xl .ex-card__name, html.type-xl .ex-howto__text, html.type-xl .ss-memb
 html.type-xl .sum-row__name, html.type-xl .chat-msg__bubble, html.type-xl .rs__title, html.type-xl .sheet__title, html.type-xl .hcell__title,
 html.type-xl .social-row__name, html.type-xl .targets__name { overflow-wrap: normal; word-break: normal; -webkit-hyphens: auto; hyphens: auto; }
 /* Mini-barre de repos : le chrono sur sa ligne, −15 / +15 dessous, puis Passer (le chrono disparaissait, « 2:0 ») */
-html.type-xl .rest-mini { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-html.type-xl .rest-mini .rest-mini__skip { grid-column: 1 / -1; }
-html.type-xl .rest-mini > button:not(.rest-mini__main) { width: auto; min-width: 0; padding: 0 8px; white-space: nowrap; }
-html.type-xl .rest-mini__main { grid-column: 1 / -1; }
+/* Vague 3-t4 : la mini-barre réduite au chrono et à Passer (elle couvrait la série suivante sur 4 rangées) ; −15 / +15
+   et « Ensuite » restent dans la feuille Repos, qu'ouvre le chrono */
+html.type-xl .rest-mini { grid-template-columns: minmax(0, 1fr) auto; }
+html.type-xl .rest-mini .rest-mini__btn, html.type-xl .rest-mini__next { display: none; }
+html.type-xl .rest-mini > button:not(.rest-mini__main) { width: auto; min-width: 0; padding: 0 12px; white-space: nowrap; }
 /* Feuille Repos : titre et « Réduire » l'un sous l'autre, durées sur deux rangées de trois */
 html.type-xl .rs__top { flex-wrap: wrap; justify-content: space-between; }
 html.type-xl .rs__top .rs__title { padding: 0; order: 2; flex-basis: 100%; }
@@ -405,6 +406,13 @@ html.type-xl .rs-seg { grid-template-columns: repeat(3, 1fr); }
 html.type-xl .ss-member { flex-wrap: wrap; }
 /* Bilan : une tuile par ligne, les lignes d'exercice et de record passent à la ligne */
 html.type-xl .sum-tiles { grid-template-columns: 1fr; }
+/* Vague 3-t4 : −15 et +15 sur une ligne, Passer dessous en pleine largeur (la rangée débordait des deux bords) ;
+   l'heure de fin plafonnée comme dans un cercle iOS, pour que 1:59 ne touche pas l'anneau */
+html.type-xl .rs__adj { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; width: 100%; max-width: 360px; }
+html.type-xl .rs__adj .rs__skip { grid-column: 1 / -1; grid-row: 2; }
+html.type-xl .rs__adj .rs__round { width: 100%; }
+html.type-xl .rs__resume { font-size: min(0.882rem, 15px); max-width: 150px; }
+html.type-xl .rs__time { font-size: min(72px, 3.4rem); }
 html.type-xl .sum-row { flex-wrap: wrap; }
 html.type-xl .sum-row__main { flex-basis: 100%; }
 /* Feuilles : Annuler / OK en haut, le titre en entier dessous */

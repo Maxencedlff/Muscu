@@ -6,7 +6,8 @@
 
 /* Bas : place pour le toast « Série validée · Annuler » (et la barre de repos au-dessus de lui) */
 .view.session .session-content { padding: 16px 16px calc(96px + env(safe-area-inset-bottom, 0px)); gap: 12px; }
-.view.session.session--resting .session-content { padding-bottom: calc(188px + env(safe-area-inset-bottom, 0px)); }
+/* --rest-h : hauteur mesurée de la mini-barre (afterSessionRender), pour que la série à faire défile au-dessus d'elle */
+.view.session.session--resting .session-content { padding-bottom: calc(var(--rest-h, 172px) + 16px + env(safe-area-inset-bottom, 0px)); }
 
 /* ── Carte d'exercice ────────────────────────────── */
 .ex-card.exercise-block {

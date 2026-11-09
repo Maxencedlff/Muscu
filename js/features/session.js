@@ -815,6 +815,8 @@ function afterSessionRender(entering) {
   if (!(a && a.matches?.('.set-input'))) document.body.classList.remove('kb-open');
 }
 
+  const mini = $('.rest-mini');
+  if (mini) document.documentElement.style.setProperty('--rest-h', `${Math.ceil(mini.getBoundingClientRect().height)}px`);
 // Série validée rouverte : enregistre ses champs (les records ne sont recalculés qu'à l'enregistrement de la séance).
 // Appelé par le ✓, par Entrée, et quand la saisie quitte la série (le ✓ est facile à manquer quand le clavier se ferme).
 // Renvoie false si une valeur est invalide (champ signalé, série laissée ouverte), true sinon.
