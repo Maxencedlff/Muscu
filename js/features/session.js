@@ -47,7 +47,7 @@ function sessionNotice(msg, opts = {}) {
   return true;
 }
 function clearSessionUndo() { clearTimeout(sessUndo?.timer); sessUndo = null; }
-const undoForSet = (ex, si) => (sessUndo && sessUndo.ex === ex && sessUndo.si === si ? sessUndo : null);
+const undoForSet = (ex, si, k) => (sessUndo && sessUndo.ex === ex && sessUndo.si === si && sessUndo.k === k ? sessUndo : null);
 // Colonne « Avant » d'une série qui vient de changer : « Annuler » (ou l'état, « Modifiée »), à la même place à chaque fois
 function setUndoHtml(u) {
   return u.onAction ? `<button class="set-undo" data-action="sess-undo" aria-label="${esc(u.text)}, annuler">Annuler</button>`
@@ -57,9 +57,16 @@ function setUndoHtml(u) {
 function exUndoHtml(u) {
   return `<div class="ex-undo" role="status"><span class="ex-undo__text">${esc(u.text)}</span>${u.onAction ? `<button class="ex-undo__btn" data-action="sess-undo">${esc(u.label)}</button>` : ''}</div>`;
 }
+// Bloc (exercice ou superset) replié : toutes ses séries faites, aucune sous-série en attente, pas déplié à la main
+function blockCollapsed(block, xs) {
+  const ld = activeSession.lastDone;
+  return block.every(i => xs[i].sets.length > 0 && xs[i].sets.every(s => s.done) && !techPending(xs, ld, i)) && !openDone.has(xs[block[0]]);
+}
 function exUndoBefore(block, xs) {
   const u = sessUndo;
-  if (!u || u.si !== undefined) return '';
+  if (!u) return '';
+  // « Annuler » d'une série : dans sa ligne ; si la dernière série referme la carte, la ligne passe au-dessus d'elle
+  if (u.si !== undefined) return u.ex && block.some(i => xs[i] === u.ex) && blockCollapsed(block, xs) ? exUndoHtml(u) : '';
   if (u.ex && block.some(i => xs[i] === u.ex)) return exUndoHtml(u);
   if (u.at !== undefined && !u.ex && block[0] === u.at) return exUndoHtml(u);
   return '';
@@ -761,7 +768,10 @@ function scrollToCurrent(smooth = true, focus = false) {
     // en texte agrandi, centrer la série cachait le nom ; la bande d'une mini-série sortait de l'écran) ; la série doit
     // rester à l'écran, sinon elle est centrée comme avant
     const card = row.closest('.ex-card');
-    const band = card?.previousElementSibling?.classList.contains('ex-undo') ? card.previousElementSibling : null;
+    // La ligne peut aussi coiffer la carte qui vient de se refermer, juste au-dessus de celle-ci
+    const any = $('.ex-undo');
+    const band = card?.previousElementSibling?.classList.contains('ex-undo') ? card.previousElementSibling
+      : any && card && any.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING ? any : null;
     const top = band || (card && !card.querySelector('.session-set--done') ? card : null);
     const barH = $('#app .navbar')?.getBoundingClientRect().height || 0;
     const room = window.innerHeight - barH - ($('.rest-mini')?.getBoundingClientRect().height || 0) - 24;

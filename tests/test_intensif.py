@@ -94,6 +94,13 @@ def t_seance(bench, eng, dev, theme):
         R.check(x.get('done') is True and x['reps'] == '6' and x['weight'] == '55' and 'auto' not in x, f'{t} drop validé : 55 × 6 {x}')
         R.check(page.evaluate("restActive") is True, f'{t} dernier drop : repos habituel lancé')
         R.check('Drop 1 validé' in sess_undo_text(page), f'{t} « Drop 1 validé · Annuler » en ligne')
+        # Panel vague 3 : « Annuler » dans la colonne Avant de la sous-série, à l'écran (la bande au-dessus de la carte en sortait)
+        page.wait_for_timeout(500)   # défilement doux terminé
+        pos = page.evaluate("""(() => { const b = document.querySelector('[data-action="sess-undo"]'); if (!b) return null;
+            const r = b.getBoundingClientRect(), bar = document.querySelector('#app .navbar').getBoundingClientRect().bottom;
+            return { place: b.closest('.session-set--sub[data-k="0"]') ? 'ligne' : b.closest('.ex-undo')?.nextElementSibling?.matches('.ex-card--collapsed[data-ei="0"]') ? 'carte repliée' : '?',
+                     seen: r.top >= bar - 1 && r.bottom <= innerHeight - (document.querySelector('.rest-mini')?.getBoundingClientRect().height || 0) }; })()""")
+        R.check(pos and pos['place'] != '?' and pos['seen'], f'{t} « Annuler » du drop dans sa ligne (ou au-dessus de la carte refermée), visible ({pos})')
         skip_rest(page)
         # Volume de l'exercice : le drop compte (55 × 6 = 330 de plus)
         vol = page.evaluate("exVolume(activeSession.exercises[0], activeSession.exercises[0].sets.filter(s => s.done))")

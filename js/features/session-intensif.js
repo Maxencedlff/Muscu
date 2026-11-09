@@ -62,11 +62,14 @@ function subRowHtml(ex, ei, s, si, x, k) {
   const at = `data-ei="${ei}" data-si="${si}" data-k="${k}"`;
   if (x.done) {
     const w = hasLoad(x.weight) ? fmtW(x.weight, { plain: true }) : '';
+    // « Annuler » dans la colonne Avant de la mini-série, comme pour une série (la bande au-dessus de la carte
+    // sortait de l'écran : panel de la vague 3)
+    const u = undoForSet(ex, si, k);
     return `
-      <div class="session-set session-set--done session-set--sub" data-action="sub-reopen" ${at} role="button" tabindex="0">
+      <div class="session-set session-set--done session-set--sub" data-action="sub-reopen" ${at} ${u ? '' : 'role="button" tabindex="0"'}>
         <span class="sr-text">${capitalize(spoken)} validé${T.fem ? 'e' : ''}, ${esc(measureSetTxt(x, 'reps', kind))}. Modifier</span>
         <span class="set-n tech-tag" aria-hidden="true">${tag}</span>
-        <span class="set-prev num" aria-hidden="true">${prev}</span>
+        ${u ? setUndoHtml(u) : `<span class="set-prev num" aria-hidden="true">${prev}</span>`}
         <span class="set-val set-val--w num" aria-hidden="true">${w || '—'}</span>
         <span class="set-val set-val--r num" aria-hidden="true">${esc(x.reps)}</span>
         <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
@@ -174,7 +177,7 @@ function validateSub(ds) {
   else requestAnimationFrame(focusCurrentSet);   // rattrapage : le ✓ touché a disparu, le focus va à la série à faire
   const done = `${capitalize(T.subName)} ${k + 1} validé${T.fem ? 'e' : ''}`;
   // Comme après une série (validateSet) : ce que « Annuler » défait d'abord, puis l'exercice qui suit
-  sessionUndo(chain ? `${done} · enchaîne ${xs[chain.ei].name}` : done, { target: { ex }, onAction: () => {
+  sessionUndo(chain ? `${done} · enchaîne ${xs[chain.ei].name}` : done, { target: { ex, si, k }, onAction: () => {
     if (!activeSession || !x.done) return;
     x.done = false; x.reps = wasReps;
     if (wasAuto) x.auto = true;
