@@ -2,12 +2,17 @@ name: Tests complets
 
 # La batterie E2E complète (5 appareils × 2 thèmes + iPhone récents), répartie sur 11 machines GitHub
 # en parallèle (~30 min) au lieu d'un seul PC (~2 h 30). Lancée à chaque envoi sur une branche de
-# vague, ou à la main : gh workflow run tests-complet.yml --ref <branche>.
+# vague, ou à la main : gh workflow run tests-complet.yml --ref <branche> [-f lots="lot7_ecrans coach"].
 # Les lots « unique » tournent dans chaque machine (doublon assumé : courts, et pas de code à part).
 on:
   push:
     branches: ['vague*', 'scan-*', 'triceps-*']
   workflow_dispatch:
+    inputs:
+      lots:
+        description: Lots à lancer, séparés par des espaces (ex. « lot7_ecrans commentaires ») ; vide = tous
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -65,7 +70,9 @@ jobs:
           PPL_THEMES: ${{ matrix.theme }}
           PPL_JOBS: '3'
           PPL_SCRATCH: ${{ runner.temp }}/ppl-tests
-        run: cd tests && python -u run_all.py
+          LOTS: ${{ inputs.lots }}
+        # shellcheck disable=SC2086
+        run: cd tests && python -u run_all.py $LOTS
       - name: Captures en cas d'échec
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
