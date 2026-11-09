@@ -448,8 +448,9 @@ def t_grand_texte(bench):
             page.wait_for_selector('.ios-dialog--alert .ios-dialog__btn'); page.wait_for_timeout(400)
             al = page.evaluate("""() => { const p = document.querySelector('.ios-dialog--alert .ios-dialog__panel').getBoundingClientRect(),
                 b = [...document.querySelectorAll('.ios-dialog--alert .ios-dialog__btn')].map(x => x.getBoundingClientRect());
-                return { fits: p.top >= 0 && p.bottom <= innerHeight + 1, btns: b.every(r => r.top >= 0 && r.bottom <= innerHeight + 1) }; }""")
-            R.check(al == {'fits': True, 'btns': True}, f'{t} alerte plus haute que l\'écran : dans l\'écran, boutons visibles {al}')
+                const f = document.querySelector('.ios-dialog--alert .ios-dialog__field').getBoundingClientRect(), row = document.querySelector('.ios-dialog--alert .ios-dialog__row').getBoundingClientRect();
+                return { fits: p.top >= 0 && p.bottom <= innerHeight + 1, btns: b.every(r => r.top >= 0 && r.bottom <= innerHeight + 1), field: f.top >= p.top && f.bottom <= row.top + 1 }; }""")
+            R.check(al == {'fits': True, 'btns': True, 'field': True}, f'{t} alerte plus haute que l\'écran : dans l\'écran, champ et boutons visibles {al}')
             tap_dialog(page, 'Annuler')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 

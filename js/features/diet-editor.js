@@ -203,7 +203,7 @@ async function dietNewFood(name = '') {
 
 async function dietAskGrams(food, value = 100) {
   return askNumber({ title: food.name.length > 60 ? `${food.name.slice(0, 58)}…` : food.name,
-    message: `Quantité en grammes. Pour 100 g : ${food.per.k} kcal, ${dietMacroWords(food.per, fmtNum)}.`,
+    message: `Quantité en grammes. Pour 100 g : ${food.per.k} kcal.`,   // macros déjà dans la liste : l'alerte reste courte en texte agrandi
     value: String(value), unit: 'g', min: 1, max: DIET_G_MAX });
 }
 

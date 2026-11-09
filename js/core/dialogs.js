@@ -114,8 +114,10 @@ function dialog({ type = 'alert', title = '', message = '', actions, input = nul
       : i && a.group && a.group !== list[i - 1]?.group ? '<div class="ios-dialog__band" aria-hidden="true"></div>' : '') + btn(a)).join('');
     const head = (title || message) ? `
       <div class="ios-dialog__head">
+        <div class="ios-dialog__text">
         ${title   ? `<div class="ios-dialog__title" id="${dlgId}-t" tabindex="-1">${esc(title)}</div>` : ''}
         ${message ? `<div class="ios-dialog__msg" id="${dlgId}-m">${esc(message)}</div>` : ''}
+        </div>
         ${input   ? `<div class="ios-dialog__field">
             <input class="ios-dialog__input" ${input.text ? 'type="text" autocomplete="off" autocapitalize="sentences" maxlength="40"'
               : input.decimal ? 'type="text" inputmode="decimal" autocomplete="off"'   // « 70,5 » : la virgule du clavier français
