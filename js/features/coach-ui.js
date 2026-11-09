@@ -291,7 +291,7 @@ function renderCoachJoin(code) {
           ['Des plans diète', 'Seulement si tu acceptes ses plans. Tu choisis de les suivre.']])}
         ${coachTitle('Seulement si tu le choisis')}
         ${list([['Ton poids et tes mensurations', 'Rien n\'est partagé au départ. Tu coches ce que tu veux dans Réglages › Social et coach › Partager avec mon coach.'],
-          ...(photos ? [['Des photos de bilan', 'Seulement celles que tu lui envoies toi-même depuis ton coffre, chiffrées pour lui seul. Tu peux les retirer quand tu veux.']] : [])])}
+          ...(photos ? [['Des photos de bilan', 'Seulement celles que tu lui envoies toi-même depuis ton coffre, chiffrées pour ton coach seulement. Tu peux les retirer quand tu veux.']] : [])])}
         ${coachTitle('Jamais visible')}
         ${list([['Le reste', `Ni tes données Santé, ni ${photos ? 'les photos de ton coffre que tu ne lui envoies pas' : 'tes photos'}, ni tes programmes perso. Tu ne vois pas ses autres élèves, et ils ne te voient pas.`]])}
         <div class="coach-join__foot">

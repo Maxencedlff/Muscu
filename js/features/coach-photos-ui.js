@@ -102,7 +102,7 @@ async function cphSendSheet(day) {
     ${lead}
     <div class="cphs__list">${list.map(item).join('')}</div>
     <button class="btn btn--primary btn--full cphs__go" data-action="cph-send-go" data-day="${esc(day)}" ${single ? `data-one="${esc(unsent[0].id)}"` : 'disabled'}>${single ? 'Envoyer cette photo' : 'Envoyer'}</button>
-    <p class="mpick__foot">À ${cphCoachName()} seulement, chiffrée sur ton iPhone pour lui seul, sans la localisation ni aucune autre donnée de la photo.</p>` });
+    <p class="mpick__foot">À ${cphCoachName()} seulement, chiffrée sur ton iPhone, sans la localisation ni aucune autre donnée de la photo.</p>` });
   cphPicked = new Set();
 }
 function cphPickToggle(el) {
@@ -222,8 +222,8 @@ function renderCphMine() {
         ${send}
         <div class="group-title">Envoyées</div>
         <div class="group">${rows || '<div class="cell"><span class="cell__sub">Aucune photo envoyée.</span></div>'}</div>
-        <div class="group-foot">${name} voit seulement les photos que tu lui envoies, avec leur jour et leur pose. « Retirer » : il ne la voit plus, elle reste dans ton coffre.</div>
-        <div class="group-foot">Quitter ton coach ou supprimer ton compte les retire toutes. Ce qu'il aurait déjà vu, on ne peut pas l'effacer de sa mémoire : n'envoie que ce que tu acceptes de lui montrer.</div>
+        <div class="group-foot">${name} voit seulement les photos que tu lui envoies, avec leur jour et leur pose. « Retirer » : ton coach ne la voit plus, elle reste dans ton coffre.</div>
+        <div class="group-foot">Quitter ton coach ou supprimer ton compte les retire toutes. Ce que ton coach a déjà vu ne peut pas s'effacer de sa mémoire : n'envoie que ce que tu acceptes de montrer.</div>
         ${st.ready && cphStudentShown() ? cphVerifyHtml(cph.code) : ''}`);
 }
 SCREENS.set('coach-photos-mine', { render: () => renderCphMine(), enter: () => { cphRefresh(); } });
@@ -317,7 +317,7 @@ function renderCphCoach(uid) {
   }
   const f = cphStudentOf(uid), list = f.photos.filter(x => cphUrls.has(x.id));
   const days = cphDays(list);
-  const foot = `<div class="group-foot">Envoyées par ${who}, chiffrées pour toi seul. ${who} peut les retirer quand il veut ; elles disparaissent aussi s'il quitte ton suivi. Ne les enregistre pas, ne les montre pas et ne les publie pas sans son accord écrit.${cphCoach.session?.code ? ` Code de ta clé : <span class="num cph-code">${esc(cphCoach.session.code)}</span> ; ${who} voit le même dans son app.` : ''}</div>`;
+  const foot = `<div class="group-foot">Envoyées par ${who}, chiffrées pour toi seul. ${who} peut les retirer à tout moment ; elles disparaissent aussi si le suivi s'arrête. Ne les enregistre pas, ne les montre pas et ne les publie pas sans son accord écrit.${cphCoach.session?.code ? ` Code de ta clé : <span class="num cph-code">${esc(cphCoach.session.code)}</span> ; ${who} voit le même dans son app.` : ''}</div>`;
   if (!days.length) {
     const msg = f.loading || cphView.done < f.photos.length ? 'Ouverture des photos…' : f.photos.length ? 'Ces photos ne s\'ouvrent pas sur cet iPhone.' : `${who} ne t'a pas encore envoyé de photo.`;
     return view(`<h1 class="scr-title" id="cphTitle" tabindex="-1">Photos de bilan</h1><p class="scr-sub">${who}</p><div class="empty-note">${msg}</div>${foot}`);

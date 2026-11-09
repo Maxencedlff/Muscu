@@ -149,4 +149,8 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     assert.equal(app.trendPct([50, 40]), -20);
     assert.equal(app.trendPct([80]), null);
   });
+  test('Photos de bilan : le coach n\'est jamais écrit au masculin (coach, coache)', () => {
+    const files = ['js/data/guide.js', 'js/features/coach-photos-ui.js', 'js/features/coach-ui.js', 'js/features/photo-vault-ui.js'];
+    for (const f of files) assert.ok(!/pour lui seul|quand il veut|s'il quitte|il ne la voit plus|qu'il aurait/.test(src(f)), f);
+  });
 }
