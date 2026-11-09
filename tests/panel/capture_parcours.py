@@ -198,6 +198,9 @@ class Pilote:
         except Exception:
             # Élément redessiné en continu (minuteur) : Playwright ne le juge jamais « stable ». S'il est bien
             # au premier plan là où le doigt se poserait, le toucher est rejoué par un clic DOM.
+            # Élément à moitié sous la barre (défilement rendu au retour) : centré, comme le ferait un doigt qui fait défiler
+            loc.evaluate("e => e.scrollIntoView({ block: 'center' })")
+            self.page.wait_for_timeout(300)
             dessus = loc.evaluate("""e => { const r = e.getBoundingClientRect();
                 const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!t && e.contains(t); }""")
             if not dessus:
