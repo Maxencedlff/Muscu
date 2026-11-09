@@ -127,6 +127,9 @@ body.light {
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 button { touch-action: manipulation; -webkit-user-select: none; user-select: none; font-family: inherit; color: inherit; }
 img, svg { -webkit-touch-callout: none; }
+/* L'attribut hidden cache toujours, quel que soit le display d'une classe (.cell en flex le faisait réapparaître :
+   « Aucun élève ne correspond. » affiché en permanence, panel de la vague 3) */
+[hidden] { display: none !important; }
 
 /* Dynamic Type : 1rem = taille « Corps » d'iOS (17 px par défaut), toutes les tailles en rem */
 html { height: 100%; font-size: 106.25%; }
