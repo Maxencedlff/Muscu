@@ -16,7 +16,7 @@ let persistWarned = false; // un seul avertissement « stockage plein » par sé
 // target : { ex, si } (série), { ex } (exercice), { at } (exercice retiré, sa position) ; sans onAction, le texte seul.
 const SESS_UNDO_MS = 6000;
 let sessUndo = null;
-function sessionUndo(text, { target = {}, label = 'Annuler', onAction = null, state = '', ms = onAction ? SESS_UNDO_MS : 3000, paint = true } = {}) {
+function sessionUndo(text, { target = {}, label = 'Annuler', onAction = null, state = '', ms = onAction ? SESS_UNDO_MS : 3000, paint = true, assertive = false } = {}) {
   clearTimeout(sessUndo?.timer);
   document.querySelector('.toast')?.remove();
   sessUndo = { ...target, text, label, onAction, state };
@@ -28,7 +28,7 @@ function sessionUndo(text, { target = {}, label = 'Annuler', onAction = null, st
     if (inSession()) render();
   };
   sessUndo.timer = setTimeout(expire, ms);
-  announce(onAction ? `${text}. ${label} disponible` : text);
+  announce(onAction ? `${text}. ${label} disponible` : text, assertive);   // une erreur : annoncée en assertif, comme son toast
   if (!inSession()) return;
   // paint false (message d'une saisie refusée) : la ligne est posée sans redessiner, pour garder le champ signalé et le focus
   const card = paint ? null : exCardOf(activeSession.exercises.indexOf(sessUndo.ex));
@@ -43,7 +43,7 @@ function sessionNotice(msg, opts = {}) {
   if (document.querySelector('.sess-sheet:not(.sess-sheet--out), .ios-dialog, .sheet-root')) return false;
   const cur = currentSet(), ex = activeSession.exercises[cur ? cur.ei : activeSession.exercises.length - 1];
   if (!ex) return false;
-  sessionUndo(msg, { target: { ex }, onAction: opts.action ? opts.onAction : null, ms: opts.error ? 4000 : 3000, paint: false });
+  sessionUndo(msg, { target: { ex }, onAction: opts.action ? opts.onAction : null, ms: opts.error ? 4000 : 3000, paint: false, assertive: !!opts.error });
   return true;
 }
 function clearSessionUndo() { clearTimeout(sessUndo?.timer); sessUndo = null; }

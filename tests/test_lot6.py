@@ -200,7 +200,8 @@ def t_announce(bench):
         R.check(txt.startswith('Repos terminé, série 2 de Développé couché haltères'), f'annonce avec un échauffement : numéro affiché ({txt})')
         page.evaluate("showToast('Erreur de test', { error: true })")
         page.wait_for_timeout(3000)
-        R.check(page.locator('.toast').count() == 1 and 'Erreur de test' in page.locator('#sr-assert').inner_text(), 'toast d\'erreur ≥ 4 s et annoncé en assertif')
+        # En séance, le message prend la ligne au-dessus de la carte (sessionNotice) : toujours ≥ 4 s et en assertif
+        R.check(page.locator('.ex-undo').count() == 1 and page.locator('.toast').count() == 0 and 'Erreur de test' in page.locator('#sr-assert').inner_text(), 'erreur en séance : en ligne, ≥ 4 s et annoncée en assertif')
         R.check(not page.errors, f'annonces : aucune erreur JS {page.errors[:2]}')
 
 
