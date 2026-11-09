@@ -68,7 +68,7 @@ function exerciseIndex() {
 
 // Section d'un exercice : séance du programme actif, d'un autre programme, ou « Autres »
 function exSection(it) {
-  const match = (list) => (list || []).some(x => x.id === it.exId || (String(it.exId).startsWith('n:') && normName(x.name) === normName(it.name)));
+  const match = (list) => (list || []).some(x => x.id === it.exId || (String(it.exId).startsWith('n:') && sameExerciseName(x.name, it.name)));
   const pid = data.activeProgramme;
   for (const cat of sessionKeys(pid)) if (match(data.programmes[pid]?.exercises?.[cat])) return { key: pid + ':' + cat, cat, prog: pid };
   for (const [p, pd] of Object.entries(data.programmes)) {
