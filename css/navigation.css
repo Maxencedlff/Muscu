@@ -159,8 +159,8 @@ body.light .livebar { background: var(--cell); }
 
 /* ── Avatar du compte dans la barre (accueil, onglet Social) : à la place de la roue, même zone de tap de 44 px ── */
 /* Le reste de l'accueil : css/home.css */
-.navbar__avatar .avatar--s { width: 32px; height: 32px; font-size: 1.118rem; }
-.navbar__avatar .avatar--s.avatar--initial { font-size: 0.941rem; }
+.navbar__avatar .avatar--s { width: 32px; height: 32px; font-size: min(1.118rem, 19px); }
+.navbar__avatar .avatar--s.avatar--initial { font-size: min(0.941rem, 16px); }
 
 /* ── Feuille modale ── */
 .sheet-root { position: fixed; inset: 0; z-index: 900; display: flex; align-items: flex-end; justify-content: center; }

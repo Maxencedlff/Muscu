@@ -958,7 +958,7 @@ function renderCoachSend(uid, progId) {
               <span class="cell__title">${ssTagHtml(xs, i)}${esc(e.name)}</span>
               <span class="cell__sub num">${[plural(e.sets, 'série', 'séries'), ...coachExPlanParts(e), ...(e.rest ? [`repos ${fmtRest(e.rest)}`] : []), ...(e.tempo ? [`tempo ${shortTempo(e.tempo)}`] : [])].map(esc).join(' · ')}</span>
               ${gripSubHtml(e)}
-              ${ta(`data-cat="${esc(s.key)}" data-ex="${esc(e.id)}"`, dr.ex[s.key]?.[e.id] || '', `Consigne pour ${e.name}`, 'Consigne (facultatif)')}
+              ${ta(`data-cat="${esc(s.key)}" data-ex="${esc(e.id)}"`, dr.ex[s.key]?.[e.id] || '', `Consigne pour ${e.name}`, 'Consigne (facultative)')}
             </span>
           </div>`).join('') : '<div class="cell"><span class="cell__sub">Aucun exercice</span></div>'}
         </div>`;
@@ -974,7 +974,7 @@ function renderCoachSend(uid, progId) {
         <div class="group-foot">Les consignes sont facultatives et gardées pour tes prochains envois. ${who} les voit dans le programme et pendant la séance.</div>
         ${groups}
         <button class="btn btn--primary btn--full coach-send-btn" data-action="coach-send-go" data-uid="${esc(uid)}" data-prog="${esc(progId)}">Envoyer à ${who}</button>
-        <div class="group-foot">Ni tes charges, ni tes records, ni ton historique. Un nouvel envoi du même programme le met à jour chez ton élève.</div>
+        <div class="group-foot">Tes charges, tes records et ton historique ne sont pas envoyés. Un nouvel envoi du même programme le met à jour chez ton élève.</div>
       </div>
     </div>`;
 }

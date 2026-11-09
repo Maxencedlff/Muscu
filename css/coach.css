@@ -46,7 +46,7 @@
 @media (max-width: 340px) {
   .coach-student-row.social-row { gap: 6px; }
   .coach-student-row .social-row__main { gap: 8px; }
-  .coach-student-row .avatar--m { width: 32px; height: 32px; font-size: 1.235rem; }
+  .coach-student-row .avatar--m { width: 32px; height: 32px; font-size: min(1.235rem, 21px); }
   .coach-student-row .coach-count--sessions { padding-left: 4px; padding-right: 4px; }
   .coach-student-row .cell__sub { font-size: .706rem; }
 }
@@ -130,7 +130,10 @@
 }
 .coach-textarea::placeholder { color: var(--label3); }
 .coach-textarea--inline { margin: 8px 0 2px; }
-.group--pad .coach-textarea { background: transparent; padding: 0; min-height: 44px; }
+/* Consigne du programme : même champ que celles des exercices (gris, marge intérieure) ; au focus, un liseré teinté
+   à la place de l'anneau du navigateur collé au texte (panel t5) */
+.coach-textarea:focus, .coach-req-field__input:focus { outline: none; }
+.coach-textarea:focus { box-shadow: inset 0 0 0 2px var(--tint); }
 .coach-send-ex .cell__body { width: 100%; }
 .view--grouped .cell.coach-send-ex { padding-top: 10px; padding-bottom: 10px; }
 .coach-send-btn { margin-top: 24px; }
