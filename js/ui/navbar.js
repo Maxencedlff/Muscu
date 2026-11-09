@@ -217,10 +217,13 @@ function observeLargeTitle() {
   }
   if (!('IntersectionObserver' in window)) return;
   const top = bar.getBoundingClientRect().height;
+  // Repliée dès que le grand titre COMMENCE à passer sous la barre (experts Apple, vague 3-t4 : « Coach » coupé à
+  // mi-hauteur sous une barre sans titre) ; un titre coupé par le bas de l'écran ne compte pas
   largeObserver = new IntersectionObserver(([en]) => {
-    if (bar.classList.contains('navbar--collapsed') === !en.isIntersecting) return;
-    bar.classList.toggle('navbar--collapsed', !en.isIntersecting);
+    const under = en.intersectionRatio < 1 && en.boundingClientRect.top < (en.rootBounds?.top ?? top) + 1;
+    if (bar.classList.contains('navbar--collapsed') === under) return;
+    bar.classList.toggle('navbar--collapsed', under);
     fitBackLabel(bar);   // le titre compact apparaît ou disparaît : le retour se raccourcit ou reprend son nom
-  }, { rootMargin: `-${Math.round(top)}px 0px 0px 0px`, threshold: 0 });
+  }, { rootMargin: `-${Math.round(top)}px 0px 0px 0px`, threshold: [0, 0.99, 1] });
   largeObserver.observe(h1);
 }

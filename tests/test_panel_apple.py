@@ -44,6 +44,11 @@ def t_titre_replie(bench):
             page.wait_for_timeout(500)
             s = st()
             R.check(s['collapsed'] and s['text'] == s['h1'] and float(s['op']) > .9, f'{t} défilé : la barre montre « {s["h1"]} » {s}')
+            # Grand titre à moitié sous la barre : déjà repliée, titre compact affiché (jamais un titre coupé sous une barre vide)
+            page.evaluate("(() => { const h = document.querySelector('#app .scr-title'), b = document.querySelector('#app .navbar').getBoundingClientRect().bottom; window.scrollTo(0, 0); const r = h.getBoundingClientRect(); window.scrollTo(0, r.top - b + r.height / 2); })()")
+            page.wait_for_timeout(400)
+            s = st()
+            R.check(s['collapsed'] and float(s['op']) > .9, f'{t} grand titre à moitié sous la barre : titre compact déjà là {s}')
             shot(page, LOT, f'titre-replie-{t}')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
