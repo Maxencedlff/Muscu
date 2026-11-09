@@ -258,6 +258,8 @@ body.kb-open .rest-mini { transform: translateY(140%); opacity: 0; pointer-event
 /* Écrans étroits : « −15 » sans unité (l'aria-label la garde), puis anneau masqué */
 @media (max-width: 429px) { .rest-mini__u { display: none; } }
 @media (max-width: 379px) { .rest-ring--small { display: none; } }
+/* Écran étroit : « S2 » part avant que le nom de l'exercice soit coupé (la charge et les reps restent) */
+@media (max-width: 379px) { .rest-mini__next .rest-mini__step { display: none; } }
 @media (max-width: 359px) {
   .rest-mini { column-gap: 4px; padding-left: 12px; padding-right: 8px; }
   .rest-mini__btn, .rest-mini .rest-mini__skip { min-width: 44px; padding: 0 6px; }
@@ -604,9 +606,9 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 }
 .rir__lbl, .rir__rpe { font-size: 0.765rem; font-weight: 600; color: var(--label2); white-space: nowrap; }
 .rir__btns { order: 2; flex-basis: 100%; display: flex; gap: 8px; }
+.rir__help { order: 1; flex-basis: 100%; font-size: 0.765rem; color: var(--label2); }
 .rir__btn {
   width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; flex-shrink: 0;
-.rir__help { order: 1; flex-basis: 100%; font-size: 0.765rem; color: var(--label2); }
   background: var(--fill); color: var(--label); font-size: 0.882rem; font-weight: 600; font-family: inherit;
 }
 .rir__btn[aria-pressed="true"] { background: var(--tint-fill); color: var(--on-tint); }

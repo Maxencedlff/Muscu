@@ -406,7 +406,7 @@ def t_pause_annonce(bench, eng, dev, theme):
         # Reprise validée (aucune autre à faire) : retour au repos habituel, la série 2 est annoncée
         page.fill('[data-action="sub-reps"][data-ei="0"][data-si="0"][data-k="0"]', '4')
         page.click('[data-action="sub-validate"][data-ei="0"][data-si="0"][data-k="0"]'); page.wait_for_timeout(400)
-        R.check('S2' in page.locator('.rest-mini__next').inner_text() and native_rest(page).get('body', '').startswith(f'Série 2 · {name0}'), f'{t} reprise faite : la série 2 est annoncée')
+        R.check('S2' in page.locator('.rest-mini__next').text_content() and native_rest(page).get('body', '').startswith(f'Série 2 · {name0}'), f'{t} reprise faite : la série 2 est annoncée')
         # Cluster : « Bloc 1 »
         skip_rest(page)
         page.evaluate("activeSession.lastEi = 1; persistSession(); render()")

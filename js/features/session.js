@@ -225,7 +225,7 @@ function nextSetParts() {
   // Sous-série sans objectif de reps (pas faite la dernière fois) : sa charge seule, « Reprise 1 · 70 kg »
   const load = String(s.reps ?? '') !== '' ? ` · ${m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : loadTimes(s.weight) + s.reps}`
     : sub && hasLoad(s.weight) ? ` · ${fmtW(s.weight, { plain: true })} ${unitLbl()}` : '';
-  const step = sub ? sub.label : `S${cur.si + 1}`;
+  const step = sub ? sub.label : isWarmupSet(s) ? 'Échauffement' : `S${setDisplayNo(ex.sets, cur.si)}`;   // compte des séries de travail, comme leur ligne
   return { name: ex.name, step, load, tail: step + load, sub: !!sub };
 }
 // « Développé incliné · S1 · 30 kg × 10 »
