@@ -115,6 +115,9 @@ body.light {
   --macro-kcal: var(--green-text); --macro-p: var(--purple); --macro-c: var(--tint); --macro-f: var(--orange-text);
   --check-on: var(--green-text); --check-mark: var(--cell);
 }
+/* Lipides : la même teinte orange dans les deux thèmes (en clair, --orange-text tire sur le rouge brique et évoquait une
+   alerte, panel t6) ; #C76A00 tient 3,8:1 sur cellule blanche */
+body.light { --macro-f: #C76A00; }
 
 /* Matériaux translucides : version opaque si le flou n'existe pas ou si l'utilisateur réduit la transparence */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
