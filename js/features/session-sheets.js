@@ -9,6 +9,8 @@ let restEditEi = null;  // exercice dont on règle le repos (feuille)
 // en direct (repos, ajout d'exercice). Fermée aussi par closeTransientUI() lors d'un changement d'écran.
 function openSessSheet({ cls = '', label = '', html, full = false, onClose }) {
   document.querySelector(`.sess-sheet${cls ? '.' + cls : ''}`)?.remove();
+  // Un simple message en ligne (sans « Annuler ») ne survit pas à l'ouverture d'une feuille : il réapparaissait après
+  if (sessUndo && !sessUndo.onAction) { clearSessionUndo(); document.querySelectorAll('.ex-undo').forEach(e => e.remove()); }
   const root = document.createElement('div');
   root.className = `sess-sheet ${full ? 'sess-sheet--full' : ''} ${cls}`;
   root.setAttribute('role', 'dialog');

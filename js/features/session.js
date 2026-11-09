@@ -32,7 +32,15 @@ function sessionUndo(text, { target = {}, label = 'Annuler', onAction = null, st
   if (!inSession()) return;
   // paint false (message d'une saisie refusée) : la ligne est posée sans redessiner, pour garder le champ signalé et le focus
   const card = paint ? null : exCardOf(activeSession.exercises.indexOf(sessUndo.ex));
-  if (card) { document.querySelectorAll('.ex-undo').forEach(e => e.remove()); card.insertAdjacentHTML('beforebegin', exUndoHtml(sessUndo)); }
+  if (card) {
+    document.querySelectorAll('.ex-undo').forEach(e => e.remove());
+    card.insertAdjacentHTML('beforebegin', exUndoHtml(sessUndo));
+    // Ligne posée sous la barre (carte déjà défilée) : ramenée juste sous elle, le focus reste dans le champ (vague 3-t4 :
+    // « Reps entre 1 et 100 » invisible)
+    const band = card.previousElementSibling, barH = $('#app .navbar')?.getBoundingClientRect().height || 0;
+    const top = band?.getBoundingClientRect().top;
+    if (top !== undefined && top < barH + 8) window.scrollBy({ top: top - barH - 8 });
+  }
   else render();
 }
 // Tout autre message pendant la séance (« Exercice ajouté », « Valide d'abord la série 1 », « Tempo 3-1-1 »…) : pas de
@@ -41,7 +49,8 @@ function sessionUndo(text, { target = {}, label = 'Annuler', onAction = null, st
 function sessionNotice(msg, opts = {}) {
   if (typeof currentView !== 'function' || currentView() !== 'session' || !activeSession) return false;
   if (document.querySelector('.sess-sheet:not(.sess-sheet--out), .ios-dialog, .sheet-root')) return false;
-  const cur = currentSet(), ex = activeSession.exercises[cur ? cur.ei : activeSession.exercises.length - 1];
+  // Série validée en cours de correction : le message va au-dessus de SA carte, pas de celle de la série à faire
+  const cur = editingSet || currentSet(), ex = activeSession.exercises[cur ? cur.ei : activeSession.exercises.length - 1];
   if (!ex) return false;
   sessionUndo(msg, { target: { ex }, onAction: opts.action ? opts.onAction : null, ms: opts.error ? 4000 : 3000, paint: false, assertive: !!opts.error });
   return true;
