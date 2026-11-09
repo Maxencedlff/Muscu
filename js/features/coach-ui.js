@@ -360,13 +360,19 @@ function coachProgCardHtml(item) {
         </article>`;
 }
 
+// Pastille « nouveau » d'un élément compté dans la pastille de « Mon coach » (Social) : chaque nouveauté comptée
+// se retrouve à l'intérieur (panel t6 : 3 sur la ligne, une seule pastille visible dedans)
+function coachNewDotHtml(on) { return on ? ' <span class="coach-dot" role="img" aria-label="nouveau"></span>' : ''; }
+// Commentaires non lus à l'arrivée sur Mon coach : marqués vus tout de suite (la pastille de l'onglet baisse),
+// leur point reste jusqu'au départ de l'écran pour qu'on voie lesquels étaient nouveaux
+let coachMineFresh = new Set();
 // Commentaires de mon coach : nom de la séance, date, texte entier
 function coachNotesHtml(notes) {
   return `<div class="group">${notes.map(n => {
     const h = (data.history || []).find(x => x.id === n.session_id);
     const label = h ? rawLabel(h.category, entryProg(h)) : 'Séance';
     return `<button class="cell ${h ? 'cell--nav' : ''} coach-note-row" ${h ? `data-action="coach-open-history" data-id="${esc(n.session_id)}"` : 'disabled'}>
-            <span class="cell__body"><span class="cell__title">${esc(label)}${h ? ` · ${esc(fmtDate(h.date))}` : ''}${n.seen ? '' : ' <span class="coach-dot" aria-label="nouveau"></span>'}</span><span class="coach-note-row__text">${esc(n.text)}</span></span>
+            <span class="cell__body"><span class="cell__title">${esc(label)}${h ? ` · ${esc(fmtDate(h.date))}` : ''}${coachNewDotHtml(!n.seen || coachMineFresh.has(n.session_id))}</span><span class="coach-note-row__text">${esc(n.text)}</span></span>
             ${h ? icon('chevron.right', 16) : ''}
           </button>`;
   }).join('')}</div>`;
@@ -412,7 +418,13 @@ function renderCoachMine() {
 SCREENS.set('coach-mine', {
   render: () => renderCoachMine(),
   // Relu à chaque arrivée (retour compris) ; commentaires listés ici : vus
-  enter: async () => { await coachRefresh(); cphRefresh({ minAge: 30_000 }); (coach.inbox?.notes || []).filter(n => !n.seen).forEach(n => coachMarkInboxSeen('note', n.session_id)); },
+  enter: async () => {
+    await coachRefresh(); cphRefresh({ minAge: 30_000 });
+    const fresh = (coach.inbox?.notes || []).filter(n => !n.seen);
+    coachMineFresh = new Set(fresh.map(n => n.session_id));
+    fresh.forEach(n => coachMarkInboxSeen('note', n.session_id));
+  },
+  leave: () => { coachMineFresh = new Set(); },
 });
 
 // Cartes de l'accueil : programme reçu pas encore ajouté (ou mis à jour), commentaire pas encore lu
@@ -948,7 +960,7 @@ function renderCoachSend(uid, progId) {
   const dr = coachSendDraftFor(currentRoute());
   const sessions = progSessionsOf(data, progId);
   const who = esc(personName(p));
-  const ta = (attrs, value, label, ph) => `<textarea class="coach-textarea coach-textarea--inline" rows="1" maxlength="${CONSIGNE_MAX}" ${attrs} aria-label="${esc(label)}" placeholder="${esc(ph)}">${esc(value)}</textarea>`;
+  const ta = (attrs, value, label, ph, cls = '') => `<textarea class="coach-textarea coach-textarea--inline ${cls}" rows="1" maxlength="${CONSIGNE_MAX}" ${attrs} aria-label="${esc(label)}" placeholder="${esc(ph)}">${esc(value)}</textarea>`;
   const groups = sessions.map(s => {
     const xs = data.programmes[progId]?.exercises?.[s.key] || [];
     return `

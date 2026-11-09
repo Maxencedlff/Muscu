@@ -177,7 +177,7 @@ function dietInboxCardHtml(item) {
     : `<button class="btn btn--primary coach-prog__btn" data-action="diet-take" data-id="${esc(item.id)}">${status === 'update' ? 'Mettre à jour' : 'Utiliser ce plan'}</button>`;
   return `
         <article class="coach-prog diet-inbox">
-          <div class="coach-prog__eyebrow">${eyebrow}</div>
+          <div class="coach-prog__eyebrow">${eyebrow}${coachNewDotHtml(!item.seen)}</div>
           <h3 class="coach-prog__name">${esc(item.data.name)}</h3>
           ${item.meta ? '<p class="coach-prog__meta">Détail disponible avec du réseau.</p>'
             : `<p class="coach-prog__meta num">${plural(item.data.meals.length, 'repas', 'repas')} · ${dietN(total.kcal)} kcal par jour</p>`}
