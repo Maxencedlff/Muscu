@@ -118,8 +118,9 @@ function navBar({ title = '', large, back, left = '', right = '', sub = '', extr
 
 // Bouton retour : une seule règle partout (barres de l'app, parcours de connexion js/features/auth-flow.js),
 // celle de la barre de navigation d'iOS. Titre de l'écran précédent s'il tient en entier ET laisse au
-// moins BACK_LABEL_GAP pt avant le titre centré ; sinon le même titre avec un titre compact raccourci par « … »
-// (BACK_TITLE_MIN pt au moins, panel t5) ; sinon « Retour » ; sinon chevron seul (iPhone SE étroit).
+// moins BACK_LABEL_GAP pt avant le titre centré ; sinon « Retour » ; sinon chevron seul (iPhone SE étroit, texte agrandi).
+// Le titre de l'écran passe toujours avant le libellé de retour (panel t6 : « Plans diè… », « Photos d… », « Aujourd… »
+// à côté d'un retour entier ; le panel t5 avait fait l'inverse).
 // L'aria-label du bouton garde le nom de l'écran. Barre sans titre (connexion) : le libellé reste.
 // Comme iOS, le titre quitte le centre de la barre (centré entre le retour et les boutons de droite, classe
 // navbar__bar--wide-back) plutôt que de raccourcir le retour, s'il tient ainsi en entier : sur un iPhone 13,
@@ -143,14 +144,6 @@ function backLabelFits(btn, label) {
   range.selectNodeContents(title);
   return range.getBoundingClientRect().left - (label.getBoundingClientRect().left + label.scrollWidth) >= BACK_LABEL_GAP;
 }
-// Retour en entier à côté d'un titre compact raccourci : le titre garde au moins BACK_TITLE_MIN pt (ou tout son texte)
-const BACK_TITLE_MIN = 96;
-function backLabelFitsShortTitle(label, bar) {
-  if (label.scrollWidth > label.clientWidth + 1) return false;
-  const title = bar.querySelector('.navbar__title');
-  if (!title?.textContent.trim()) return false;
-  return title.clientWidth >= Math.min(title.scrollWidth, BACK_TITLE_MIN);
-}
 function fitBackLabelNow(scope = document) {
   scope.querySelectorAll('.navbar__back').forEach(btn => {
     const label = btn.querySelector('.navbar__back-label');
@@ -166,9 +159,6 @@ function fitBackLabelNow(scope = document) {
       if (backLabelFits(btn, label)) return;
       // Titre centré entre le retour et la droite au lieu du centre de la barre
       if (bar) { bar.classList.add('navbar__bar--wide-back'); if (backLabelFits(btn, label)) return; }
-      // Panel t5 : le nom de l'écran précédent passe avant un titre compact entier (« ‹ Retour » une fois le grand
-      // titre replié, chevron seul sur la courbe d'un exercice) : le titre se termine par « … » s'il en reste assez
-      if (bar && backLabelFitsShortTitle(label, bar)) return;
       bar?.classList.remove('navbar__bar--wide-back');
     }
     btn.classList.add('navbar__back--icon');
