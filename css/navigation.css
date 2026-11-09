@@ -103,6 +103,10 @@ html.type-xl .navbar__large { font-size: min(2rem, 36px); }
 }
 .navbar__sub .icon { color: var(--label3); }
 .navbar__sub:active { opacity: .5; }
+/* Texte agrandi : sur deux lignes, aligné à gauche comme la date au-dessus, le chevron après le dernier mot (centré, son
+   chevron restait collé au bord droit, panel t5) */
+html.type-xl .navbar__sub { display: inline-block; text-align: left; padding: 10px 0; }
+html.type-xl .navbar__sub .icon { vertical-align: -1px; margin-left: 2px; }
 
 .navbar .progress-bar { height: 3px; background: var(--fill); }
 

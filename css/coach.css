@@ -279,6 +279,11 @@ html.type-xl .team-week__tile::after { content: none !important; }
 body.has-tabbar.has-livebar .chat-compose { bottom: calc(var(--tabbar-h) + 72px + env(safe-area-inset-bottom, 0px)); }
 .chat-compose:focus-within { border-color: var(--tint); }
 body.has-tabbar .coach-chat-view { padding-bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom, 0px)); }
+/* Conversation courte : la saisie posée en bas de l'écran, juste au-dessus de la barre d'onglets, comme Messages (elle
+   flottait au milieu, sous les derniers messages, panel t5) */
+.coach-chat-view { display: flex; flex-direction: column; }
+.coach-chat-view > .scr.chat { flex: 1; display: flex; flex-direction: column; }
+.coach-chat-view .chat-list { flex: 1; }
 /* ── Devenir coach (js/features/coach-pro-ui.js) : champ sous son libellé (libellés longs, gros textes) ── */
 .coach-req-field { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding-top: 8px; padding-bottom: 4px; cursor: text; text-align: left; }
 .coach-req-field__label { align-self: flex-start; font-size: var(--fs-footnote); color: var(--label2); text-align: left; }
