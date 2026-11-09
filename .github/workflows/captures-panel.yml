@@ -1,0 +1,125 @@
+name: Captures du panel
+
+# Captures commentées des parcours (tests/panel/capture_parcours.py) pour le panel d'ergonomie,
+# réparties sur ~20 machines GitHub (~25 min au lieu de ~2 h 15 sur un seul PC). Une machine par
+# mode (complet, recents, grand-texte) et par groupe de parcours ; la dernière tâche rassemble chaque
+# mode dans un seul dossier (captures, index.md, resume.md, etapes.json) et le dépose en artefact.
+# Lancement : gh workflow run captures-panel.yml --ref <branche> ; récupération : gh run download <id>.
+# verif-ui (dépôt privé) n'est pas disponible ici : contrôles automatiques simples (controles.js).
+on:
+  workflow_dispatch:
+  push:
+    branches: ['vague*-t*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: captures-panel-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { mode: complet, opt: '', groupe: a, parcours: 'seance' }
+          - { mode: complet, opt: '', groupe: b, parcours: 'nutrition,photos-bilan,guide' }
+          - { mode: complet, opt: '', groupe: c, parcours: 'coach,eleve-coach,hors-ligne' }
+          - { mode: complet, opt: '', groupe: d, parcours: 'seance-outils,coach-suivi,social' }
+          - { mode: complet, opt: '', groupe: e, parcours: 'reglages,programme,progres,intensif,prise,premier-lancement,rejoindre-coach,devenir-coach,historique,bibliotheque,accueil' }
+          - { mode: recents, opt: '--recents', groupe: a, parcours: 'seance' }
+          - { mode: recents, opt: '--recents', groupe: b, parcours: 'nutrition,photos-bilan' }
+          - { mode: recents, opt: '--recents', groupe: c, parcours: 'coach,eleve-coach,guide' }
+          - { mode: recents, opt: '--recents', groupe: d, parcours: 'seance-outils,coach-suivi,hors-ligne' }
+          - { mode: recents, opt: '--recents', groupe: e, parcours: 'social,reglages,programme' }
+          - { mode: recents, opt: '--recents', groupe: f, parcours: 'progres,intensif,prise,premier-lancement' }
+          - { mode: recents, opt: '--recents', groupe: g, parcours: 'rejoindre-coach,devenir-coach,historique,bibliotheque,accueil' }
+          - { mode: grand-texte, opt: '--grand-texte', groupe: a, parcours: 'seance' }
+          - { mode: grand-texte, opt: '--grand-texte', groupe: b, parcours: 'nutrition,accueil,reglages' }
+          - { mode: grand-texte, opt: '--grand-texte', groupe: c, parcours: 'coach,social,photos-bilan' }
+    name: ${{ matrix.mode }} · ${{ matrix.groupe }}
+    env:
+      PLAYWRIGHT_VERSION: 1.62.0
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Navigateurs en cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
+      - name: Playwright, WebKit et Chromium
+        run: |
+          pip install "playwright==$PLAYWRIGHT_VERSION" pillow==12.1.1
+          python -m playwright install --with-deps chromium webkit
+      - name: Serveur local de l'app
+        run: |
+          python -m http.server 8731 > /tmp/serveur.log 2>&1 &
+          for i in $(seq 1 20); do curl -fsS -o /dev/null http://localhost:8731/ && break; sleep 0.5; done
+      - name: Captures
+        env:
+          PPL_URL: http://localhost:8731/
+          MODE: ${{ matrix.mode }}
+          OPT: ${{ matrix.opt }}
+          GROUPE: ${{ matrix.groupe }}
+          PARCOURS: ${{ matrix.parcours }}
+        run: |
+          # shellcheck disable=SC2086
+          python -u tests/panel/capture_parcours.py "$RUNNER_TEMP/out/$MODE-$GROUPE" $OPT --parcours "$PARCOURS"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: part-${{ matrix.mode }}-${{ matrix.groupe }}
+          path: ${{ runner.temp }}/out
+          retention-days: 3
+
+  rassembler:
+    needs: capture
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          pattern: part-*
+          path: parts
+          merge-multiple: true
+      - name: Un dossier par mode
+        run: |
+          python3 - <<'PY'
+          import json, os, re, shutil
+          src, dst = 'parts', 'captures'
+          for d in sorted(os.listdir(src)):
+              mode = d.rsplit('-', 1)[0]
+              out = os.path.join(dst, mode); os.makedirs(out, exist_ok=True)
+              p = os.path.join(src, d)
+              for f in os.listdir(p):
+                  if f.endswith('.png'):
+                      shutil.copy2(os.path.join(p, f), out)
+              for f in ('index.md', 'resume.md'):
+                  if os.path.exists(os.path.join(p, f)):
+                      with open(os.path.join(out, f), 'a', encoding='utf-8') as o, open(os.path.join(p, f), encoding='utf-8') as i:
+                          o.write(f'\n<!-- groupe {d} -->\n' + i.read())
+              ej = os.path.join(p, 'etapes.json')
+              if os.path.exists(ej):
+                  tout = os.path.join(out, 'etapes.json')
+                  prev = json.load(open(tout, encoding='utf-8')) if os.path.exists(tout) else []
+                  json.dump(prev + json.load(open(ej, encoding='utf-8')), open(tout, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+          for m in sorted(os.listdir(dst)):
+              n = len([f for f in os.listdir(os.path.join(dst, m)) if f.endswith('.png')])
+              e = json.load(open(os.path.join(dst, m, 'etapes.json'), encoding='utf-8'))
+              ko = sum(1 for x in e if x.get('statut') == 'erreur'); ab = sum(1 for x in e if x.get('statut') == 'absent')
+              print(f'{m} : {n} captures, {len(e)} étapes, {ab} absentes, {ko} en erreur')
+          PY
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: captures-panel
+          path: captures
+          retention-days: 7
