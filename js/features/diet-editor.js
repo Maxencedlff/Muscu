@@ -51,6 +51,13 @@ function dietTargetsSpoken(plan) {
   if (!t) return 'Selon le plan';
   return [t.kcal ? `${dietN(t.kcal)} kilocalories` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${t[m.k]} grammes de ${m.label.toLowerCase()}` : ''))].filter(Boolean).join(', ');
 }
+// En toutes lettres mais unités abrégées (« 2 000 kcal, 150 g de protéines ») : confirmation d'envoi au coach, où
+// « P 150 » ne se comprenait pas à côté de « 34 g de protéines de moins » (panel t6)
+function dietTargetsLong(plan) {
+  const t = plan.targets;
+  if (!t) return 'Selon le plan';
+  return [t.kcal ? `${dietN(t.kcal)}\u00a0kcal` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${t[m.k]}\u00a0g de ${m.label.toLowerCase()}` : ''))].filter(Boolean).join(', ');
+}
 function dietTargetsHtml(plan) { return dietSrPair(esc(dietTargetsText(plan)), esc(dietTargetsSpoken(plan))); }
 
 function dietPlanItemCell(plan, meal, it, ro) {

@@ -554,7 +554,10 @@ def t_coach(bench, eng, dev, theme):
         miss = page.locator('.coach-session-view .review-ex--missing')
         R.check('3/11' in d and miss.count() == 1 and 'Pompes' in miss.inner_text() and 'pas fait' in miss.inner_text(), f'{t} séance de mon programme : séries faites sur prévues, exercice non fait grisé')
         R.check(page.locator('.coach-session-view .review-notes').count() == 1 and page.locator('.review-notes--pain').count() == 0, f'{t} notes en haut, sans encadré orange (« raide » n\'est pas un mot de douleur)')
-        R.check('1re séance Haut' in d, f'{t} 35 séances chargées, aucune autre Haut : « 1re séance Haut »')
+        # Aucune autre Haut, mais ses exercices ont un « avant » (séances Push) : pas de « 1re séance » qui les contredirait (panel t6)
+        R.check('1re séance' not in d and 'avant 40 kg × 8 · 7' in d, f'{t} exercices déjà faits : pas de « 1re séance Haut », « avant » par exercice')
+        R.check(page.locator('.coach-session-view .social-who').count() == 0 and 'Notes de' not in d,
+                f'{t} nom de l\'élève une seule fois (retour « ‹ lea »), notes titrées « Notes »')
         lbls = page.locator('.coach-session-view .tile__lbl').all_inner_texts()
         R.check(lbls[:3] == ['Durée', 'Volume', 'Séries prévues'], f'{t} tuiles dans l\'ordre du bilan : Durée, Volume, Séries ({lbls})')
         layout(page, t, 'séance d\'un élève')
@@ -703,9 +706,9 @@ def t_recap(bench, eng, dev, theme):
         R.check(len(recs) == 2 and 'Squat haltère' in recs[0] and 'avant 20 kg' in recs[0] and '22,5 kg' in recs[0], f'{t} record de charge nommé avec l\'ancienne valeur ({recs})')
         R.check(len(recs) == 2 and 'Squat poids du corps' in recs[1] and 'Record reps' in recs[1], f'{t} record de reps au poids du corps ({recs})')
         rows = [x.replace('\u202f', ' ') for x in page.locator('.coach-session-view .review-ex').all_inner_texts()]
-        R.check('↑ +2,5 kg' in rows[0] and 'préc. 20 kg × 12 · 12 · 12 · 10' in rows[0] and '1,1 t' in rows[0], f'{t} squat : flèche, volume (1 080 kg), précédent ({rows[0]!r})')
+        R.check('↑ +2,5 kg' in rows[0] and 'avant 20 kg × 12 · 12 · 12 · 10' in rows[0] and '1,1 t' in rows[0], f'{t} squat : flèche, volume (1 080 kg), précédent ({rows[0]!r})')
         R.check('36 reps' in rows[1] and '↑ +6 reps' in rows[1], f'{t} poids du corps : « 36 reps » et +6 ({rows[1]!r})')
-        R.check('↑ +2 kg' in rows[2] and 'préc. 14 kg × 12' in rows[2], f'{t} référence par exercice : la Push du jour 4 ({rows[2]!r})')
+        R.check('↑ +2 kg' in rows[2] and 'avant 14 kg × 12' in rows[2], f'{t} référence par exercice : la Push du jour 4 ({rows[2]!r})')
         eq = page.locator('.coach-session-view .review-ex').nth(3).text_content()
         R.check('=' not in rows[3] and '↑' not in rows[3] and '↓' not in d and 'identique à la dernière fois' in eq, f'{t} égalité : rien à l\'écran, « identique » dit à VoiceOver ({rows[3]!r})')
         R.check(page.locator('.review-trend--up').count() == 3 and page.locator('.review-trend--same').count() == 0, f'{t} hausses en vert, égalité sans signe')

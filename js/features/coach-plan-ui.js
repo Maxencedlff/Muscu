@@ -44,9 +44,11 @@ function planPhaseCardHtml(p, { uid = null, today = planToday() } = {}) {
   const status = phaseStatusText(p, today);
   const left = g.status === 'current' ? (g.daysLeft === 1 ? 'Dernier jour' : `Encore ${plural(g.daysLeft, 'jour', 'jours')}`) : '';
   const meta = [phaseRangeText(p), p.progName ? `Programme : ${p.progName}` : ''].filter(Boolean);
+  // Titre égal au type de phase (sans nom, ou nommée « Reprise ») : le point de couleur seul, pas une pastille qui le répète
+  const named = p.name && normName(p.name) !== normName(planGoal(p.goal).label);
   const inner = `
-          <span class="plan-card__top">${planGoalPill(p.goal)}<span class="plan-card__status num">${esc(status)}</span></span>
-          <span class="plan-card__title">${esc(phaseTitle(p))}</span>
+          <span class="plan-card__top">${named ? planGoalPill(p.goal) : ''}<span class="plan-card__status num">${esc(status)}</span></span>
+          <span class="plan-card__title">${named ? '' : `<span class="plan-pill__dot plan-card__dot" style="--plan-color:${planGoal(p.goal).color}" aria-hidden="true"></span>`}${esc(phaseTitle(p))}</span>
           ${planWeeksHtml(p, g)}
           <span class="plan-card__meta">${meta.map(esc).join('<br>')}${left ? `<br><span class="num">${esc(left)}</span>` : ''}</span>
           ${uid && p.note ? `<span class="plan-card__note">${esc(p.note)}</span>` : ''}`;
@@ -107,7 +109,7 @@ function coachPlanGroupHtml(uid) {
         ${cur ? planPhaseCardHtml(cur, { uid }) : ''}
         <div class="group${cur ? ' plan-after-card' : ''}">
           ${more}
-          <button class="cell cell--action" data-action="plan-add" data-uid="${esc(uid)}">${icon('plus', 20)}<span>${phases.length ? 'Ajouter une phase' : 'Planifier une phase'}</span></button>
+          <button class="cell cell--action" data-action="plan-add" data-uid="${esc(uid)}">${icon('plus', 20)}<span>Ajouter une phase</span></button>
         </div>`;
 }
 
@@ -165,12 +167,13 @@ function renderCoachPlanning() {
       const a = pos(planDayNum(p.start)), b = pos(planDayNum(p.start) + p.weeks * 7);
       return `<span class="plan-gantt__bar" style="left:${a}%;width:${b - a}%;--plan-color:${planGoal(p.goal).color}"></span>`;
     }).join('');
-    const line = cur ? `${phaseTitle(cur)} · sem. ${phaseProgress(cur, today).week}/${cur.weeks}` : next ? `${phaseTitle(next)}, ${phaseStatusText(next, today).toLowerCase()}` : 'Rien de planifié';
+    const line = cur ? `${phaseTitle(cur)}\u00a0· sem.\u00a0${phaseProgress(cur, today).week}/${cur.weeks}` : next ? `${phaseTitle(next)}, ${phaseStatusText(next, today).toLowerCase()}` : 'Rien de planifié';
     const spoken = `${personName(s)} : ${cur ? `${phaseTitle(cur)}, ${phaseStatusText(cur, today).toLowerCase()}` : next ? `prochaine phase ${phaseTitle(next)}, ${phaseStatusText(next, today).toLowerCase()}` : 'rien de planifié'}`;
     return `
           <button class="plan-gantt__row" data-action="plan-open" data-uid="${esc(s.user_id)}" aria-label="${esc(spoken)}">
             <span class="plan-gantt__who"><span class="plan-gantt__name">${esc(personName(s))}</span><span class="plan-gantt__sub${cur || next ? '' : ' is-empty'}">${esc(line)}</span></span>
             <span class="plan-gantt__track" aria-hidden="true">${bars}<span class="plan-gantt__now" style="left:${pos(t + 0.5)}%"></span></span>
+            ${icon('chevron.right', 16)}
           </button>`;
   }).join('');
   const legend = PLAN_GOALS.filter(g => st.students.some(s => (planOfStudent(s.user_id) || []).some(p => p.goal === g.goal)))
@@ -179,11 +182,11 @@ function renderCoachPlanning() {
         <h1 class="scr-title">Planning</h1>
         <p class="scr-sub">${counts.current ? `${plural(counts.current, 'élève', 'élèves')} en phase cette semaine` : 'Aucun élève en phase cette semaine'}</p>
         <div class="plan-gantt">
-          <div class="plan-gantt__head" aria-hidden="true"><span class="plan-gantt__who"></span><span class="plan-gantt__months">${months.join('')}</span></div>
+          <div class="plan-gantt__head" aria-hidden="true"><span class="plan-gantt__who"></span><span class="plan-gantt__months">${months.join('')}</span><span class="plan-gantt__chev"></span></div>
           ${rows}
         </div>
         ${legend ? `<div class="plan-legend">${legend}</div>` : ''}
-        <div class="group-foot">Du ${esc(fmtDate(planTs(planIsoOf(from)), 'short'))} au ${esc(fmtDate(planTs(planIsoOf(to - 1)), 'short'))}, le trait vertical marque aujourd'hui. Touche un élève pour voir et modifier son planning.</div>`);
+        <div class="group-foot">Du ${esc(fmtDate(planTs(planIsoOf(from)), 'short'))} au ${esc(fmtDate(planTs(planIsoOf(to - 1)), 'short'))}, le trait vertical marque aujourd'hui.</div>`);
 }
 SCREENS.set('coach-planning', { render: () => renderCoachPlanning(), enter: () => coachPlanRefresh() });
 

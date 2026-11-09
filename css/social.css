@@ -137,7 +137,7 @@ body.has-livebar .social-enable { bottom: calc(var(--tabbar-h) + 72px + env(safe
 .feed-card__comment {
   margin-left: auto; margin-right: -10px; min-height: 44px; min-width: 44px; padding: 0 10px; border: 0; background: none; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  color: var(--label2); font: inherit; font-size: var(--fs-subhead); font-weight: 600;
+  color: var(--tint); font: inherit; font-size: var(--fs-subhead); font-weight: 600;   /* bleu : une action (panel t6, le gris se lisait comme une légende) */
 }
 .feed-card__comment:active { opacity: .6; }
 /* 320 pt (iPhone SE 1re génération) : chiffres un cran plus petits, « Commenter » en icône seule (nom gardé pour VoiceOver) */

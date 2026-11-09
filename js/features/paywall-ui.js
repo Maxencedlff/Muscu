@@ -369,7 +369,7 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
       <div class="scr">
         ${stale}
         <div class="social-hero pay-hero">
-          <span class="social-hero__icon" aria-hidden="true">${icon(coachTab ? 'person.2' : 'flame', 40)}</span>
+          <span class="social-hero__icon" aria-hidden="true">${icon(coachTab ? 'coach' : 'flame', 40)}</span>
           <h2 class="social-hero__title">${title}</h2>
           <p class="social-hero__sub">${sub}</p>
         </div>

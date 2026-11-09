@@ -178,7 +178,7 @@ function dietInboxCardHtml(item) {
     : `<button class="btn btn--primary coach-prog__btn" data-action="diet-take" data-id="${esc(item.id)}">${status === 'update' ? 'Mettre à jour' : 'Utiliser ce plan'}</button>`;
   return `
         <article class="coach-prog diet-inbox">
-          <div class="coach-prog__eyebrow">${eyebrow}</div>
+          <div class="coach-prog__eyebrow">${eyebrow}${coachNewDotHtml(!item.seen)}</div>
           <h3 class="coach-prog__name">${esc(item.data.name)}</h3>
           ${item.meta ? '<p class="coach-prog__meta">Détail disponible avec du réseau.</p>'
             : `<p class="coach-prog__meta num">${plural(item.data.meals.length, 'repas', 'repas')} · ${dietN(total.kcal)} kcal par jour</p>`}
@@ -448,7 +448,7 @@ registerActions({
     // « 2 000 kilocalories, 150 grammes » s'affichait telle quelle, à côté de « 575 kcal »)
     const gap = dietTargetGap(plan);
     const ok = await dialog({ title: `Envoyer « ${plan.name} » à\u00a0${who}\u00a0?`,
-      message: `${gap ? `${gap} ` : ''}${plan.targets ? `Objectif du jour : ${dietTargetsText(plan)}.` : 'Sans objectifs du jour.'} ${plural(plan.meals.filter(m => m.items.length).length, 'repas', 'repas')}, ${dietN(dietPlanMacros(plan).kcal)} kcal prévues.`,
+      message: `${gap ? `${gap} ` : ''}${plan.targets ? `Objectif du jour : ${dietTargetsLong(plan)}.` : 'Sans objectifs du jour.'} ${plural(plan.meals.filter(m => m.items.length).length, 'repas', 'repas')}, ${dietN(dietPlanMacros(plan).kcal)} kcal prévues.`,
       actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Envoyer', value: true, style: 'preferred' }] });
     if (ok !== true) return;
     el.disabled = true;
