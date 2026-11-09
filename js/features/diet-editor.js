@@ -136,12 +136,13 @@ function dietFoodResultsHtml(q) {
               `pour 100 grammes, ${x.food.per.k} kilocalories${x.food.ecalc ? ' calculées' : ''}, ${dietMacroWords(x.food.per, fmtNum).replace(/ g /g, ' grammes ')}`)}</span></span>
         </button>`).join('');
 }
-// Renvoie l'aliment choisi ({ food } de searchFoods), 'new' (créer un aliment) ou null
+// Renvoie l'aliment choisi ({ food } de searchFoods), 'new' (créer un aliment), 'scan' (code-barres) ou null
 async function dietPickFood() {
   await loadFoods();
   let results = [];
   const body = `
     <div class="diet-pick">
+      ${foodScanButtonHtml()}
       <input type="search" id="dietFoodSearch" class="search" placeholder="Rechercher un aliment" autocomplete="off" enterkeyhint="search" aria-label="Rechercher un aliment">
       <div class="diet-pick__list" id="dietFoodList">${dietFoodResultsHtml('')}</div>
       <button class="diet-cand diet-cand--new" data-pick="new">${icon('plus', 18)}<span class="diet-cand__name">Créer un aliment</span></button>
@@ -156,21 +157,36 @@ async function dietPickFood() {
   root?.addEventListener('click', ev => {
     const b = ev.target.closest('[data-pick]');
     if (!b) return;
-    root._close(b.dataset.pick === 'new' ? 'new' : results[Number(b.dataset.pick)] || null);
+    const k = b.dataset.pick;
+    root._close(k === 'new' || k === 'scan' ? k : results[Number(k)] || null);
   });
   return p;
 }
 
-// Aliment perso : nom et valeurs pour 100 g (étiquette du paquet) ; gardé dans mes aliments
-async function dietNewFood(name = '') {
+// Choix d'un aliment (recherche, code-barres ou création) puis de sa quantité : { food, g } ou null.
+// Sert au plan ; réutilisable partout où l'on ajoute un aliment
+async function dietChooseFood() {
+  const pick = await dietPickFood();
+  if (pick === 'scan') return foodScanFlow();
+  const chosen = pick === 'new' ? await dietNewFood() : pick;
+  if (!chosen?.food) return null;
+  const g = await dietAskGrams(chosen.food);
+  return g == null ? null : { food: chosen.food, g };
+}
+
+// Aliment perso : nom et valeurs pour 100 g (étiquette du paquet) ; gardé dans mes aliments.
+// code : code-barres introuvable sur Open Food Facts, gardé pour retrouver l'aliment au prochain scan
+async function dietNewFood(name = '', { code = null } = {}) {
   const field = (id, label, unit, max) => `
       <label class="diet-field"><span class="diet-field__label">${label}</span>
         <input id="${id}" class="diet-field__input num" type="text" inputmode="decimal" autocomplete="off" placeholder="0" aria-label="${label}, pour 100 grammes, ${max} au plus">
         <span class="diet-field__unit">${unit}</span></label>`;
+  const codeHint = code ? '<p class="diet-form__hint num">Code-barres ' + dietSrPair(barcodeShown(code), barcodeSpoken(code)) + ' : l\'aliment sera retrouvé à ton prochain scan.</p>' : '';
   const body = `
     <div class="diet-form">
       <label class="diet-field diet-field--name"><span class="diet-field__label">Nom</span>
         <input id="dietFoodName" class="diet-field__input" type="text" maxlength="${DIET_FOOD_NAME_MAX}" autocomplete="off" autocapitalize="sentences" value="${esc(name)}" placeholder="Skyr nature"></label>
+      ${codeHint}
       <p class="diet-form__hint">Pour 100 g : recopie les valeurs de l'étiquette, l'énergie comprise. Laissée vide, l'app la calcule (4 kcal par gramme de protéines ou de glucides, 9 de lipides).</p>
       ${field('dietFoodK', 'Énergie', 'kcal', 900)}${field('dietFoodP', 'Protéines', 'g', 100)}${field('dietFoodC', 'Glucides', 'g', 100)}${field('dietFoodF', 'Lipides', 'g', 100)}
       <label class="diet-field"><span class="diet-field__label">Famille</span>
@@ -195,9 +211,9 @@ async function dietNewFood(name = '') {
     const per = cleanDietPer({ k, p, c, f });
     if (!per) return err('Plus de 100 g de macros pour 100 g : vérifie les valeurs.');
     const famPick = $('#dietFoodFam', panel)?.value;
-    const food = { id: uid(), name: nm, fam: DIET_FAMS.includes(famPick) ? famPick : dietFamOf(per), per };
-    data.dietFoods = cleanDietFoods([food, ...(data.dietFoods || []).filter(x => normName(x.name) !== normName(nm))]);
-    return { food: { code: null, name: nm, fam: food.fam, per } };
+    const food = { id: uid(), name: nm, fam: DIET_FAMS.includes(famPick) ? famPick : dietFamOf(per), per, ...(code ? { code } : {}) };
+    data.dietFoods = cleanDietFoods([food, ...(data.dietFoods || []).filter(x => normName(x.name) !== normName(nm) && !(code && x.code === code))]);
+    return { food: dietOwnPick(food) };
   } });
 }
 
@@ -323,12 +339,9 @@ registerActions({
     const ed = dietEditedPlan(), meal = dietMealOf(ed?.plan, el.dataset.meal);
     if (!meal) return;
     if (meal.items.length >= DIET_ITEM_MAX) { showToast(`${DIET_ITEM_MAX} aliments au plus par repas`, { error: true }); return; }
-    let pick = await dietPickFood();
-    if (pick === 'new') pick = await dietNewFood();
-    if (!pick?.food) return;
-    const g = await dietAskGrams(pick.food);
-    if (g == null) return;
-    const it = foodToItem(pick.food, g);
+    const pick = await dietChooseFood();
+    if (!pick) return;
+    const it = foodToItem(pick.food, pick.g);
     if (!it) return;
     meal.items.push(it);
     haptic();

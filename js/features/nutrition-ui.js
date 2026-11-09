@@ -211,11 +211,12 @@ function dietEmptyHtml() {
         </div>`;
 }
 
-// Source et licence (Licence Ouverte : source, version, date, pas d'aval de l'Anses), précaution ; sur l'écran
+// Source et licence (Licence Ouverte : source, version, date, pas d'aval de l'Anses ; ODbL : attribution d'Open Food Facts), précaution ; sur l'écran
 // Nutrition, la ligne d'écoute des troubles alimentaires, toujours visible
 function dietSourceFoot({ help = false } = {}) {
   return `<div class="diet-foot">
       <p class="group-foot">Source des valeurs : table Ciqual 2025 de l'Anses (version du 03/11/2025), doi.org/10.57745/RDMHWY, Licence Ouverte Etalab 2.0. Valeurs arrondies ; pour quelques aliments, l'énergie est calculée par l'app. L'Anses ne valide pas ces plans.</p>
+      <p class="group-foot">Produits scannés : Open Food Facts (openfoodfacts.org), © les contributeurs d'Open Food Facts, base libre sous licence ODbL (Open Database License) ; valeurs à vérifier sur l'étiquette.</p>
       <p class="group-foot">Ces chiffres sont des repères pour suivre un plan, pas un avis médical ni diététique. Pour un régime lié à une maladie, une grossesse ou un trouble alimentaire, parles-en à un médecin ou à un diététicien.</p>
       ${help ? '<p class="group-foot diet-help">Si manger, compter ou te peser devient une source d\'angoisse, tu peux en parler : Anorexie Boulimie Info Écoute, 0810 037 037 (lundi, mardi, jeudi et vendredi, de 16 h à 18 h).</p>' : ''}
     </div>`;
