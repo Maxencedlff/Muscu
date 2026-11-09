@@ -27,6 +27,7 @@ Une même icône ou un même mot mène toujours à la même chose, partout.
 | Partager (carré et flèche, `square.and.arrow.up`) | Ouvrir la feuille de partage d'iOS : envoyer vers une autre app (programme par message, séance, récap, code coach, invitation) | Jamais pour un envoi privé dans l'app |
 | Avion en papier (`paperplane`) | Envoi privé dans l'app, chiffré : à son coach (photos de bilan) ou à un élève (programme, plan diète) | Fiche d'un élève : « Envoyer un programme » et « Envoyer un plan diète » ont la même icône |
 | Code-barres dans un cadre (`barcode`) | Trouver un produit par son code-barres : « Scanner un code-barres » (caméra) ou « Saisir un code-barres » (sans caméra) | Feuille « Ajouter un aliment » seulement |
+| `−` et `+` | Une unité de moins ou de plus (feuille de quantité d'un aliment : « 2 œufs ») ; `+` seul reste l'ajout | Toujours par paire, autour du champ |
 | Coche | Choisir ou valider (série, programme actif, « Utiliser ce plan ») | |
 | Bulle à lignes (`text.bubble`) | Messages privés avec son coach ou un élève, et leur nombre de non-lus | Jamais pour un commentaire |
 | Bulle vide (`bubble.left`) | Commentaire sur une séance : « Commenter » (Social), « Commentée par ton coach » | Jamais pour les messages privés |
@@ -49,6 +50,10 @@ L'action principale de chaque écran se fait en deux touchers au plus depuis l'�
 | Coach : voir qui a progressé | onglet Coach (résumé « Cette semaine » et élèves triés, un toucher) |
 | Coach : ouvrir la fiche d'un élève | onglet Coach › l'élève |
 | Élève : ouvrir Mon coach | onglet Social › Mon coach |
+
+Quantité d'un aliment : à l'unité quand elle existe (« 2 œufs », « 1 pot »), en un toucher sur `+` ; le
+contrôle « Grammes | Œuf » reste à côté, et l'équivalent en grammes est toujours affiché (« 2 œufs · 100 g »).
+La feuille s'ouvre sans clavier ; une feuille ouverte avec le clavier se pose au-dessus de lui.
 
 Ce qu'on fait souvent est en haut et visible sans défiler ; le reste est trouvable par la recherche.
 Rien ne se déclenche au `pointerdown` : un toucher = un `click`.

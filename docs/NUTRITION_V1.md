@@ -72,7 +72,10 @@ menus.
 ## Scanner un produit (09/11/2026)
 
 - **Où** : feuille « Ajouter un aliment », bouton « Scanner un code-barres » en tête (icône `barcode`).
-  `dietChooseFood()` (recherche, scan ou création, puis grammes) sert à tout ajout d'aliment.
+  `dietChooseFood()` (recherche, scan ou création, puis quantité en grammes ou à l'unité) sert à tout ajout d'aliment.
+- **Clavier** (10/11/2026) : le clavier d'iOS recouvrait la feuille (bouton Scanner caché). La zone visible
+  (`visualViewport`) est recopiée dans `--vv-top` et `--vv-h` (js/ui/sheet.js, `followKeyboard`) : la feuille se
+  pose au-dessus du clavier, son contenu défile (test : `t_clavier`, clavier simulé).
 - **Lecture** : module Swift maison `MdlfScanner` (ios/App/App/ScannerPlugin.swift, AVFoundation :
   EAN-13, EAN-8, UPC-E ; UPC-A arrive en EAN-13). Pas de paquet npm : aucun SDK tiers, aucune collecte,
   rien à ajouter au manifeste de confidentialité, compilé dans la cible App comme les autres modules.
@@ -88,6 +91,38 @@ menus.
   source. Introuvable, incomplet ou hors ligne : « Créer l'aliment » (code gardé, nom prérempli si connu).
   Un code déjà gardé est retrouvé sur l'appareil, sans réseau.
 - **Tests** : tests/unit/food-scan.mjs, tests/test_scan_aliment.py (module natif et Open Food Facts simulés).
+
+## Quantités à l'unité (10/11/2026)
+
+Demande de Maxence : « choisir la quantité d'œufs plutôt que le poids » (yaourts, croissants, boulangerie, sandwichs).
+
+- **Stockage** : la quantité reste **toujours en grammes** (`it.g` : macros, coach, synchro, anciennes versions).
+  L'unité choisie s'ajoute à côté, pour l'affichage : `it.por = { n, u, pl, g }` (2 œufs de 50 g). Elle n'est
+  gardée que si `n × g` redonne `it.g` à 1 g près (`cleanDietPortion`) : une ancienne version qui change les
+  grammes sans connaître `por` fait tomber l'unité, jamais les grammes. Une version qui ignore `por` affiche « 100 g ».
+- **Table** (js/data/food-portions.js, `FOOD_PORTIONS`) : portions usuelles reliées aux aliments Ciqual par motif
+  de nom (œuf 50 g, blanc 30 g, jaune 18 g ; pot de yaourt 125 g, de fromage blanc 100 g, petit-suisse 60 g ;
+  croissant 60 g, pain au chocolat 70 g, pain aux raisins 100 g, brioche individuelle 50 g ; baguette 250 g par
+  demi, tranche de pain 30 g, de pain de mie 25 g ; sandwich baguette 280 g, panini 200 g, wrap 180 g ; banane
+  120 g, pomme 150 g, orange 150 g, kiwi 75 g ; tranche de jambon cuit 40 g, cru 15 g ; steak haché 100 ou
+  125 g, filet de poulet 150 g ; carré de chocolat 5 g ; cuillère à soupe d'huile 10 g, à café 5 g ; dose de
+  whey 30 g). Poids moyens de la partie mangée, valeurs courantes (tailles de portions usuelles de l'Anses et
+  poids du commerce) : affichés « environ ». Deux unités au plus par aliment. Exclusions testées : bœuf, œufs
+  de lompe, yaourt à boire, pomme de terre, jus d'orange.
+- **Produit scanné** : `serving_size`, `serving_quantity` et `quantity` demandés à Open Food Facts ; `offPortion`
+  lit « 1 pot (125 g) », « 2 biscuits (25 g) » (au singulier), « 4 x 125 g » (unité nommée par la table : pot,
+  croissant, sinon « unité »), le nom (« Œufs frais » : l'œuf moyen), puis la portion indiquée (« portion »,
+  jamais 100 g). L'unité est gardée dans l'aliment perso (`dietFoods[].portion`), exacte (sans « environ »).
+- **Aliment perso** : champ facultatif « Une portion » (g) ; on compte ensuite en portions.
+- **Écran** (js/features/diet-qty.js) : feuille de quantité « Grammes | Œuf » (contrôle segmenté), boutons − et +
+  (pas de 1, ½ pour la baguette, 10 g en grammes), champ que l'on peut taper, équivalence sous le champ
+  (« 2 œufs · 100 g · 134 kcal », lue « 2 œufs, 100 grammes, 134 kilocalories »). À l'unité d'office pour un
+  ajout, sans clavier à l'ouverture ; en modification, rouvre sur l'unité choisie. Passer d'un mode à l'autre
+  convertit (120 g → 2 œufs). Sans unité connue : l'alerte en grammes d'avant. Même contrôle sur la fiche d'un
+  produit scanné (« 1 pot » d'office). Les lignes du plan et du jour disent « 2 œufs · 100 g ».
+- **Tests** : tests/unit/food-portions.mjs (table, faux amis, pluriels, demi, conversions, `por` périmée,
+  envoi au coach, Open Food Facts), tests/test_nutrition.py `t_unites` (2 œufs → 100 g, 134 kcal),
+  tests/test_scan_aliment.py `t_pot` (yaourt « 4 x 125 g » → 1 pot).
 
 ## Équivalences : la règle (js/data/food-swap.js, testée par tests/unit/nutrition.mjs)
 
@@ -221,9 +256,10 @@ consentement explicite). Deux accords séparés, chacun daté et retirable :
 dietPlans: { [id]: {                 // profil, AVEC ACCORD seulement ; fusion par union (comme userProgrammes)
   name, consigne?, targets?: { kcal?, p?, c?, f? }, archived?, updatedAt?,
   fromCoach?: { coachId, name, sentAt },                // plan reçu : lecture seule
-  meals: [{ id, name, note?, items: [{ id, name, food: code Ciqual | null, fam, g, per: { k, p, c, f }, src, ecalc? }] }] } },
+  meals: [{ id, name, note?, items: [{ id, name, food: code Ciqual | null, fam, g, per: { k, p, c, f }, src, ecalc?,
+    por?: { n, u, pl, g } }] }] } },   // por : unité choisie (« 2 œufs »), g fait foi
 dietActive: id,                      // plan suivi (profil)
-dietFoods: [{ id, name, fam, per }], // aliments perso (profil)
+dietFoods: [{ id, name, fam, per, code?, src?, salt?, portion?: { u, pl, g } }], // aliments perso (profil)
 dietLog: { 'AAAA-MM-JJ': { plan, done: [id de repas], swaps: { [id d'aliment]: aliment }, meals: [id] } },   // SYNC_LOCAL_ONLY ; meals : instantané du jour
 dietConsent: { on, at },             // accord daté (profil, part toujours)
 dietConsentAsked, dietHideNumbers, dietStreakOff: true,   // réglages de l'appareil (SYNC_LOCAL_ONLY)
@@ -285,7 +321,7 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 
 - ~~**Code-barres, Open Food Facts**~~ : fait le 09/11/2026 (voir « Scanner un produit »).
 - **Photo d'un repas, reconnaissance par IA** : fiabilité des macros, coût, données envoyées à un tiers.
-- **Journal libre** (« j'ai mangé autre chose ») et portions en unités (« 3 œufs ») : V2 ; en V1, grammes.
+- **Journal libre** (« j'ai mangé autre chose ») : V2. ~~Portions en unités (« 3 œufs »)~~ : fait le 10/11/2026 (voir « Quantités à l'unité »).
 - **Coches visibles par le coach** : il faut le consentement de l'élève, donnée par donnée, comme le poids
   (`coach_shares`, kind `diet` à ouvrir, migration à écrire) ; en V1 le journal reste sur l'iPhone.
 - **Plusieurs plans selon le jour** (jour d'entraînement, jour de repos), recettes, liste de courses.
@@ -309,6 +345,8 @@ Même canal que les programmes : `coach_send_programme(student, prog_id, data)`.
 | `js/data/food-swap.js` | Base (chargement, recherche) et règle des équivalences |
 | `js/data/coach-diet.js` | Envoi par le coach, état des envois, plans reçus |
 | `js/features/nutrition-ui.js` | Écran du jour, carte de l'accueil, remplacement, entrées Programme et coach |
+| `js/data/food-portions.js` | Portions courantes (table), unité du paquet scanné (`offPortion`), textes « 2 œufs » (chargé avant `nutrition.js`) |
+| `js/features/diet-qty.js` | Contrôle de quantité « Grammes \| unité » et feuille de quantité (`dietAskQty`) |
 | `js/features/diet-editor.js` | Plans diète, éditeur, recherche d'aliment, aliment perso, objectifs |
 | `js/features/diet-settings.js` | Réglages de la nutrition (chiffres masqués, série, accord) et question de l'accord |
 | `css/nutrition.css` | Styles (couleurs : tokens `--macro-*`, `--check-*` de `css/base.css`) |
