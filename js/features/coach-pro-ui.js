@@ -95,7 +95,7 @@ function coachRequestFormHtml(req) {
           </label>
           <label class="cell coach-req-field">
             <span class="coach-req-field__label">Diplôme</span>
-            <select class="coach-req-field__input" id="coachReqDiploma" required>${options}</select>
+            <span class="coach-req-field__pick"><select class="coach-req-field__input" id="coachReqDiploma" required>${options}</select>${icon('chevron.up.chevron.down', 14)}</span>
           </label>
         </div>
         <p class="coach-req-error" id="coachReqError" role="alert" aria-live="polite"></p>
@@ -112,7 +112,7 @@ function renderCoachRequest() {
   const req = coachPro.request;
   const hero = `
         <div class="social-hero">
-          <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
+          <span class="social-hero__icon" aria-hidden="true">${icon('coach', 40)}</span>
           <h1 class="social-hero__title" data-echo-title>Devenir coach</h1>
           <p class="social-hero__sub">${COACH_REQUEST_INTRO}</p>
         </div>`;

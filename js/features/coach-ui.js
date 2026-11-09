@@ -150,7 +150,7 @@ function renderCoachSettings() {
   if (!account.user) {
     return `<div class="view view--grouped coach-view">${head}<div class="scr">
         <div class="social-hero">
-          <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
+          <span class="social-hero__icon" aria-hidden="true">${icon('coach', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
           <p class="social-hero__sub">Ton coach voit tes séances, t'envoie des programmes et commente tes séances. Il faut un compte, gratuit.</p>
         </div>
@@ -177,7 +177,7 @@ function renderCoachSettings() {
         </div>
         <div class="group-foot">Si tu quittes ton coach, tes séances ne lui sont plus visibles. Les programmes déjà ajoutés restent dans tes programmes.</div>` : coachJoinHiddenByAge() ? coachJoinAgeHtml() : `
         <div class="social-hero coach-hero">
-          <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
+          <span class="social-hero__icon" aria-hidden="true">${icon('coach', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
           <p class="social-hero__sub">Ton coach te donne un code, à entrer dans « Rejoindre un coach ». Tu lui ouvres alors tes séances : ton coach peut les commenter, t'envoyer des programmes et t'écrire des messages.</p>
         </div>
@@ -238,7 +238,7 @@ function coachCodeSheet() {
 function coachJoinAgeHtml() {
   return `
         <div class="social-hero coach-hero">
-          <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
+          <span class="social-hero__icon" aria-hidden="true">${icon('coach', 40)}</span>
           <h2 class="social-hero__title">Coach indisponible</h2>
           <p class="social-hero__sub">Suivre un coach est réservé aux 15 ans et plus, d'après la tranche d'âge partagée avec Apple. Le reste de l'app fonctionne normalement.</p>
         </div>`;
