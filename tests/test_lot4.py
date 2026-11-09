@@ -100,7 +100,9 @@ def t_flow(bench, eng, dev, theme):
         ov = page.evaluate(OVERLAP_JS)
         R.check(ov['ok'], f'{t} la barre ne recouvre pas la série courante {ov}')
         bar = page.evaluate("(() => { const b = document.querySelector('.rest-mini').getBoundingClientRect(); return { h: b.height, l: b.left, r: innerWidth - b.right, bottom: innerHeight - b.bottom }; })()")
-        R.check(80 <= bar['h'] <= 110 and abs(bar['l'] - 16) < 1 and abs(bar['r'] - 16) < 1, f'{t} barre ~96 px, marges 16 px {bar}')
+        # Grand écran (> 720 px, iPhone Duo) : la barre suit la colonne de lecture de 640 px (a6fb274), 16 px dans la colonne
+        side = page.evaluate("innerWidth > 720 ? Math.max(16, innerWidth / 2 - 320 + 16) : 16")
+        R.check(80 <= bar['h'] <= 110 and abs(bar['l'] - side) < 1 and abs(bar['r'] - side) < 1, f'{t} barre ~96 px, marges {side} px {bar}')
         btns = page.evaluate("[...document.querySelectorAll('.rest-mini button')].map(b => { const r = b.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })")
         R.check(all(h >= 44 and w >= 44 for w, h in btns), f'{t} boutons de la barre ≥ 44 {btns}')
         lay = page.evaluate("""(() => { const m = document.querySelector('.rest-mini__timer').getBoundingClientRect();

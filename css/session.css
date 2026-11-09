@@ -427,7 +427,7 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
 .sum-tile__label { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); order: 1; }
 .sum-tile__delta { order: 2; }
 .sum-tile__value { font-size: clamp(0.9rem, 5vw, 1.294rem); line-height: 1.2; font-weight: 700; white-space: nowrap; }
-.sum-tile__unit { white-space: nowrap; }
+.sum-tile__unit { white-space: nowrap; display: inline-block; }   /* bloc : la coupure avant lui est permise (WebKit ne coupait pas devant un span nowrap, « 19,6 k lbs » débordait sur l'iPhone Duo fermé) */
 /* « 19,6 k lbs » : l'unité passe dessous s'il le faut (espace simple) ; « 52 min », « 1 h 05 » restent d'un bloc */
 .sum-tile__value:has(.sum-tile__unit) { white-space: normal; }
 .sum-tile__delta { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); font-weight: 600; }

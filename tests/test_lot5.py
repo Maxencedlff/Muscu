@@ -162,7 +162,11 @@ def t_progress(bench, eng, dev, theme):
         page.wait_for_timeout(400)
         cw = page.evaluate("document.querySelector('#exChart canvas').getBoundingClientRect().width")
         bw = page.evaluate("document.querySelector('#exChart').clientWidth")
-        R.check(abs(cw - bw) < 2 and cw > vp['width'], f'{t} graphique : redessiné en paysage ({cw:.0f}/{bw})')
+        # Grand écran : la colonne de lecture plafonne à 640 px (a6fb274), le graphique ne peut plus s'élargir
+        capped = page.evaluate("innerWidth > 720 && document.querySelector('#exChart').clientWidth <= 640")
+        # Appareil déjà en paysage (Duo paysage) : la « rotation » le remet en portrait, plus étroit ; seul le redessin compte
+        narrower = vp['height'] < vp['width']
+        R.check(abs(cw - bw) < 2 and (cw > vp['width'] or capped or narrower), f'{t} graphique : redessiné à la nouvelle largeur ({cw:.0f}/{bw})')
         page.set_viewport_size(vp)
         page.wait_for_timeout(200)
         # 1RM : bouton d'explication
