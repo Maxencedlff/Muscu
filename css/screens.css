@@ -440,7 +440,7 @@ html.type-xl .rs__resume { font-size: min(0.882rem, 15px); max-width: 150px; }
 html.type-xl .rs__time { font-size: min(72px, 3.4rem); }
 /* Superset : le compte et ⓘ passent sous le nom plutôt que de le couper */
 html.type-xl .ss-member { flex-wrap: wrap; }
-html.type-xl .ss-member__name { flex: 1 1 calc(100% - 48px); }   /* le nom (et son ⓘ) prend la ligne, compte et ⋯ passent dessous */
+html.type-xl .ss-member__name { flex: 1 1 60%; min-width: 0; }   /* le nom (et son ⓘ) à côté de sa pastille A1, compte et ⋯ dessous */
 /* Carte : le nom sur toute la largeur, le compte et ⋯ dessous (« unilatéra » coupé, ⓘ invisible sur SE) */
 html.type-xl .ex-card__head { flex-wrap: wrap; }
 html.type-xl .ex-card__head > .ex-card__name { flex-basis: 100%; }
@@ -513,6 +513,8 @@ html.type-xl :is(.ex-howto, .ex-card__more, .targets__gain, .coach-count, .coach
   width: min(1.1em, 32px); height: min(1.1em, 32px);
 }
 html.type-xl .comment-compose__send { width: auto; height: auto; min-width: 32px; min-height: 32px; padding: 4px; }
+/* Boutons : ils n'héritent pas de la taille du texte, la mesure part du texte de la page (rem) */
+html.type-xl :is(.ex-card__more, .comment-compose__send) .icon { width: min(1.1rem, 32px); height: min(1.1rem, 32px); }
 
 /* Réduction des animations : couleur fixe en fin de repos, pas de point pulsé ni de transition */
 @media (prefers-reduced-motion: reduce) {
