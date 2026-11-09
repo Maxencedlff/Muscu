@@ -251,7 +251,7 @@ function openAddExSheet({ target = 'session', replaceEi = null, exclude, onPick 
         <span class="ax__spacer"></span>
       </div>
       ${rep ? `<div class="ax__replacing">À la place de ${esc(rep.name)}</div>${axProgressionHtml(rep.name)}` : ''}
-      <input type="search" id="axSearch" class="ax__search" placeholder="Rechercher ou créer" autocomplete="off"
+      <input type="search" id="axSearch" class="ax__search" placeholder="${document.documentElement.classList.contains('type-xl') ? 'Rechercher' : 'Rechercher ou créer'}" autocomplete="off"
              autocapitalize="sentences" enterkeyhint="done" aria-label="Rechercher un exercice">
       ${axEquipHtml()}
       ${muscleFilterHtml('ax-muscle', axMuscle)}

@@ -462,6 +462,17 @@ html.type-xl .cell.social-row .social-row__main { flex-basis: 100%; }
 html.type-xl .rs__round { width: auto; height: auto; min-width: 56px; min-height: 56px; padding: 8px 14px; border-radius: 28px; }
 /* Réglages › Se connecter : sans l'avatar de tête, « Se connecter » tient entier sur sa ligne (il était coupé « connec/ter ») */
 html.type-xl .account-cell > .avatar { display: none; }
+/* Photos envoyées : le texte sur toute la largeur, « Retirer » dessous, à gauche (il écrasait la ligne) */
+html.type-xl .cph-row { flex-wrap: wrap; }
+html.type-xl .cph-row > .cell__body { flex-basis: 100%; }
+html.type-xl .cell--action > .icon { width: 1.1em; height: 1.1em; }
+/* Élèves : le chevron à droite, centré, jamais seul sous l'avatar */
+html.type-xl .coach-student-row { position: relative; padding-right: 28px; }
+html.type-xl .coach-student-row > .icon { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
+/* Ajouter un exercice : Annuler en haut, le titre en entier dessous */
+html.type-xl .ax__bar { display: flex; flex-wrap: wrap; justify-content: space-between; }
+html.type-xl .ax__title { order: 2; flex-basis: 100%; text-align: left; padding: 0 8px; white-space: normal; }
+html.type-xl .ax__opts { order: 1; }   /* Séries et « Ajouter au programme » après la liste : la recherche et ses résultats d'abord */
 /* Icônes : à la taille du texte qu'elles accompagnent */
 html.type-xl .cell__icon .icon, html.type-xl .home-cell > .icon, html.type-xl .cph-daybtn .icon { width: 1.1em; height: 1.1em; }
 
