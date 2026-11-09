@@ -58,7 +58,7 @@ function renderBodyMeasures() {
       ${navBar({ title: 'Mesures' })}
       <div class="scr">
         <div class="bm-private">${bmSharedWithCoach() ? `${icon('person.2', 16)}<span>${BM_SHARED}. Pour arrêter : Réglages › Partager avec mon coach.</span>`
-          : `${icon('eye.slash', 16)}<span>${BM_PRIVATE}. ${bmPhotosToCoach() ? 'Tes mesures ne sont montrées à personne ; ton coach ne voit que les photos que tu lui envoies toi-même.' : 'Rien n\'est montré à tes amis ni à ton coach.'}</span>`}</div>
+          : `${icon('eye.slash', 16)}<span>${BM_PRIVATE}. ${bmPhotosToCoach() ? 'Tes mesures ne sont montrées à personne ; ton coach ne voit que les photos que tu lui envoies toi-même.' : cphNobodyTxt()}</span>`}</div>
         <div class="group-title">Mensurations</div>
         <div class="group">
           <button class="cell cell--action" data-action="bm-add">${icon('plus', 22)}<span class="cell__title">Ajouter des mesures</span></button>

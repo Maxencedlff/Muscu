@@ -65,7 +65,11 @@ function cphVaultPhotoHtml(p) {
 }
 function cphVaultFoot() {
   return account.user && coachRole().hasCoach && !cphAgeBlocked() && !cphDisabled() ? 'Rien n\'est montré à tes amis. Ton coach ne voit que les photos que tu lui envoies toi-même.'
-    : 'Rien n\'est montré à tes amis ni à ton coach.';
+    : cphNobodyTxt();
+}
+// Personne ne voit rien : « ni à ton coach » seulement à qui en a un (sans coach, la phrase en supposait un)
+function cphNobodyTxt() {
+  return account.user && coachRole().hasCoach ? 'Rien n\'est montré à tes amis ni à ton coach.' : 'Rien n\'est montré à personne.';
 }
 
 async function cphSendSheet(day) {
