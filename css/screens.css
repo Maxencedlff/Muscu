@@ -356,8 +356,10 @@ html.type-xl .session-set {
 }
 html.type-xl .session-set .set-n { grid-area: n; text-align: left; }
 html.type-xl .session-set .set-prev { grid-area: prev; text-align: left; }
-html.type-xl .session-set > :nth-child(3) { grid-area: w; }
-html.type-xl .session-set > :nth-child(4) { grid-area: r; }
+/* Colonnes placées par classe, jamais par rang : une ligne validée commence par son texte pour VoiceOver, et le rang
+   décalait la charge sous « Reps » (panel de la vague 3, 3e tour) */
+html.type-xl .session-set .set-val--w, html.type-xl .session-set .set-input:not(.set-input--required) { grid-area: w; }
+html.type-xl .session-set .set-val--r, html.type-xl .session-set .set-input--required { grid-area: r; }
 html.type-xl .session-set .set-check-zone { grid-area: check; }
 html.type-xl .session-set .set-badge { grid-column: 1 / -1; }
 html.type-xl .session-set .set-undo { grid-area: prev; justify-self: start; }   /* « Annuler » en ligne à la place d'« Avant » */
@@ -370,16 +372,45 @@ html.type-xl .rest-mini__next > * { white-space: normal; overflow: visible; }
    libellé ; les lignes reviennent à la ligne, les zones de toucher gardent 44 px */
 html.type-xl .session-set .set-check-zone { min-width: 44px; }
 html.type-xl .ex-card__foot { flex-wrap: wrap; row-gap: 4px; }
-html.type-xl .targets__target, html.type-xl .targets__gain, html.type-xl .targets__before, html.type-xl .recap-card__cta { white-space: normal; overflow-wrap: anywhere; }
+html.type-xl .targets__target, html.type-xl .targets__gain, html.type-xl .targets__before, html.type-xl .recap-card__cta { white-space: normal; }
 html.type-xl .targets__val { flex-shrink: 1; min-width: 0; max-width: 100%; }
 html.type-xl .targets__now { flex-wrap: wrap; justify-content: flex-end; }
 html.type-xl .auth-btn { white-space: normal; }
 html.type-xl .auth-btn > span { overflow: visible; }
-html.type-xl .sheet__title { white-space: normal; overflow-wrap: anywhere; }
-html.type-xl .hcell__title, html.type-xl .social-row__name { white-space: normal; overflow-wrap: anywhere; }
+
+html.type-xl .hcell__title, html.type-xl .social-row__name { white-space: normal; }
 html.type-xl .chat-cell__last { -webkit-line-clamp: 3; line-clamp: 3; }
 html.type-xl .toast > span { -webkit-line-clamp: 4; line-clamp: 4; }
 html.type-xl .social-row__main { min-width: 44px; }
+/* Très grand texte, 3e tour : jamais de coupure au milieu d'un mot. Les textes passent à la ligne entre les mots, et
+   coupent un mot trop long seulement à une césure du français (hyphens) */
+html.type-xl body { overflow-wrap: normal; }
+html.type-xl .ex-card__name, html.type-xl .ex-howto__text, html.type-xl .ss-member__name, html.type-xl .ss-member__name .ex-howto__text,
+html.type-xl .sum-row__name, html.type-xl .chat-msg__bubble, html.type-xl .rs__title, html.type-xl .sheet__title, html.type-xl .hcell__title,
+html.type-xl .social-row__name, html.type-xl .targets__name { overflow-wrap: normal; word-break: normal; -webkit-hyphens: auto; hyphens: auto; }
+/* Mini-barre de repos : le chrono sur sa ligne, −15 / +15 dessous, puis Passer (le chrono disparaissait, « 2:0 ») */
+html.type-xl .rest-mini { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html.type-xl .rest-mini .rest-mini__skip { grid-column: 1 / -1; }
+html.type-xl .rest-mini > button:not(.rest-mini__main) { width: auto; min-width: 0; padding: 0 8px; white-space: nowrap; }
+html.type-xl .rest-mini__main { grid-column: 1 / -1; }
+/* Feuille Repos : titre et « Réduire » l'un sous l'autre, durées sur deux rangées de trois */
+html.type-xl .rs__top { flex-wrap: wrap; justify-content: space-between; }
+html.type-xl .rs__top .rs__title { padding: 0; order: 2; flex-basis: 100%; }
+html.type-xl .rs__top .rs__collapse { position: static; margin-left: auto; }
+html.type-xl .rs__top .rs__collapse--left { margin-left: 0; margin-right: auto; }
+html.type-xl .rs-seg { grid-template-columns: repeat(3, 1fr); }
+/* Superset : le compte et ⓘ passent sous le nom plutôt que de le couper */
+html.type-xl .ss-member { flex-wrap: wrap; }
+/* Bilan : une tuile par ligne, les lignes d'exercice et de record passent à la ligne */
+html.type-xl .sum-tiles { grid-template-columns: 1fr; }
+html.type-xl .sum-row { flex-wrap: wrap; }
+html.type-xl .sum-row__main { flex-basis: 100%; }
+/* Feuilles : Annuler / OK en haut, le titre en entier dessous */
+html.type-xl .sheet__bar { display: flex; flex-wrap: wrap; justify-content: space-between; }
+html.type-xl .sheet__bar .sheet__title { order: 2; flex-basis: 100%; white-space: normal; text-align: left; padding: 4px 0 0; }
+/* Messages : l'heure sous la bulle, la bulle plus large */
+html.type-xl .chat-msg { flex-direction: column; align-items: flex-end; max-width: 92%; }
+html.type-xl .chat-msg--theirs { align-items: flex-start; }
 
 /* Réduction des animations : couleur fixe en fin de repos, pas de point pulsé ni de transition */
 @media (prefers-reduced-motion: reduce) {

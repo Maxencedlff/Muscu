@@ -421,6 +421,17 @@ def t_grand_texte(bench):
             page.click('[data-action="start-session"]'); page.wait_for_selector('.view.session'); page.wait_for_timeout(500)
             small = page.evaluate("[...document.querySelectorAll('.session-set .set-check-zone, .set-plates')].filter(b => b.offsetParent).map(b => Math.round(b.getBoundingClientRect().width)).filter(w => w < 44)")
             R.check(sw() <= 320 and not small, f'{t} séance en texte agrandi : rien ne déborde, ✓ et disques à 44 px ({sw()}, {small})')
+            # Nom du 1er exercice visible sous la barre au démarrage
+            vis = page.evaluate("(() => { const n = document.querySelector('.ex-card .ex-card__name').getBoundingClientRect(), b = document.querySelector('#app .navbar').getBoundingClientRect(); return n.top >= b.bottom - 1; })()")
+            R.check(vis, f'{t} démarrage : nom du 1er exercice visible sous la barre')
+            # Série validée : la charge sous « kg », les reps sous « Reps » (jamais inversées) ; chrono de la mini-barre entier
+            page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]'); page.wait_for_timeout(600)
+            cols = page.evaluate("""() => { const row = document.querySelector('.ex-card[data-ei="0"] .session-set--done'), w = row.querySelector('.set-val--w').getBoundingClientRect(), r = row.querySelector('.set-val--r').getBoundingClientRect();
+                const s = activeSession.exercises[0].sets[0]; return { order: w.left < r.left, w: row.querySelector('.set-val--w').textContent.trim(), r: row.querySelector('.set-val--r').textContent.trim(), reps: String(s.reps) }; }""")
+            R.check(cols['order'] and cols['r'] == cols['reps'], f'{t} série validée : charge à gauche (kg), reps à droite {cols}')
+            timer = page.evaluate("(() => { const e = document.querySelector('.rest-mini__timer'); return e ? [Math.round(e.getBoundingClientRect().width), e.scrollWidth <= e.clientWidth + 1, e.textContent] : null; })()")
+            R.check(timer and timer[0] > 20 and timer[1], f'{t} chrono de la mini-barre entier {timer}')
+            shot(page, LOT, f'grand-texte-seance-{t}')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 

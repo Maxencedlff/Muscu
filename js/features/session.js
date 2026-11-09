@@ -472,8 +472,8 @@ function renderDoneSetRow(ex, ei, s, si, prev, del, tag) {
           <span class="sr-text">${setSpokenName(ex, si)} validé${warm ? '' : 'e'}, ${load}${esc(s.reps)} ${M.spoken}${pace ? `, ${spokenPace(pace, pk)}` : ''}${mach ? `, ${esc(mach)}` : ''}${rirSpoken}, ${esc(ex.name)}${record ? `, ${esc(record)}` : ''}. Modifier</span>
           ${setNumHtml(ex, si, tag).replace(/^<span (?!aria-hidden)/, '<span aria-hidden="true" ')}
           ${u ? setUndoHtml(u) : `<span class="set-prev num" aria-hidden="true">${prev}</span>`}
-          <span class="set-val num" aria-hidden="true">${first || '—'}</span>
-          <span class="set-val num" aria-hidden="true">${esc(s.reps)}</span>
+          <span class="set-val set-val--w num" aria-hidden="true">${first || '—'}</span>
+          <span class="set-val set-val--r num" aria-hidden="true">${esc(s.reps)}</span>
           <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
           ${record || pace || mach ? `<span class="set-badge" aria-hidden="true">${record ? `<span class="pr-badge">${esc(record)}</span>` : ''}${pace ? `<span class="pace-badge">${fmtPace(pace, pk)}</span>` : ''}${mach ? `<span class="mach-badge">${esc(mach)}</span>` : ''}</span>` : ''}
         </div>
@@ -740,7 +740,19 @@ function scrollToCurrent(smooth = true, focus = false) {
     const row = currentSetRow();
     if (!row) return;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    row.scrollIntoView({ block: 'center', behavior: smooth && !reduce ? 'smooth' : 'auto' });
+    const behavior = smooth && !reduce ? 'smooth' : 'auto';
+    // Ligne « … · Annuler » au-dessus de la carte en cours (sessionUndo), ou toute première série d'un exercice : le haut
+    // de la carte (ou la ligne) juste sous la barre, pour que le nom et « Annuler » restent visibles (panel de la vague 3 :
+    // en texte agrandi, centrer la série cachait le nom ; la bande d'une mini-série sortait de l'écran) ; la série doit
+    // rester à l'écran, sinon elle est centrée comme avant
+    const card = row.closest('.ex-card');
+    const band = card?.previousElementSibling?.classList.contains('ex-undo') ? card.previousElementSibling : null;
+    const top = band || (card && !card.querySelector('.session-set--done') ? card : null);
+    const barH = $('#app .navbar')?.getBoundingClientRect().height || 0;
+    const room = window.innerHeight - barH - ($('.rest-mini')?.getBoundingClientRect().height || 0) - 24;
+    if (top && row.getBoundingClientRect().bottom - top.getBoundingClientRect().top <= room) {
+      window.scrollTo({ top: Math.max(0, top.getBoundingClientRect().top + window.scrollY - barH - 8), behavior });
+    } else row.scrollIntoView({ block: 'center', behavior });
     if (focus) focusCurrentSet();
   });
 }

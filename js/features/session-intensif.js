@@ -67,8 +67,8 @@ function subRowHtml(ex, ei, s, si, x, k) {
         <span class="sr-text">${capitalize(spoken)} validé${T.fem ? 'e' : ''}, ${esc(measureSetTxt(x, 'reps', kind))}. Modifier</span>
         <span class="set-n tech-tag" aria-hidden="true">${tag}</span>
         <span class="set-prev num" aria-hidden="true">${prev}</span>
-        <span class="set-val num" aria-hidden="true">${w || '—'}</span>
-        <span class="set-val num" aria-hidden="true">${esc(x.reps)}</span>
+        <span class="set-val set-val--w num" aria-hidden="true">${w || '—'}</span>
+        <span class="set-val set-val--r num" aria-hidden="true">${esc(x.reps)}</span>
         <span class="set-check-zone" aria-hidden="true"><span class="set-check set-check--done">${icon('checkmark', 18)}</span></span>
       </div>`;
   }
