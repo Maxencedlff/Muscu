@@ -44,9 +44,9 @@
   --body-heat-sec: #A8622A;       /* muscles secondaires d'un exercice (fiche) : orange atténué, plus de jaune (panel t6) */
   --body-heat-max: #FF5A1F;      /* palier le plus haut (20 séries et plus) : orange rouge, au bout de l'échelle */
   /* Paliers de Progrès (Entretien → Gros volume) : une seule rampe dont la clarté monte à chaque palier (brun rouge,
-     orange brûlé, orange de l'app, pêche pâle), écart CIELAB d'au moins 30 entre voisins (panel t6 : quatre oranges
+     orange brûlé, orange vif, pêche pâle), écart CIELAB d'au moins 20 entre voisins (panel t6 : quatre oranges
      indistinguables, Gros volume plus sombre qu'Objectif atteint) */
-  --body-tier-1: #8C3A1C; --body-tier-2: #D2601A; --body-tier-3: #FF9F0A; --body-tier-4: #FFD3A0;
+  --body-tier-1: #8C3A1C; --body-tier-2: #D2601A; --body-tier-3: #FF8C1A; --body-tier-4: #FFD3A0;
   --body-base-bright: .78;       /* personnage 3D gris un peu assombri sur le noir, lisible (clair : 1, tel quel) */
   --tip-bg: #2C2C2E;             /* bulle d'un muscle touché */
   --bubble-in: #2C2C2E;          /* bulle d'un message reçu (messages coach) */
