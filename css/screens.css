@@ -149,10 +149,12 @@
   background: var(--cell); border-radius: var(--r-md); padding: 12px; min-width: 0;
   display: flex; flex-direction: column; gap: 2px;
 }
-.tile__val { font-size: 1.294rem; line-height: 1.2; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* comme .sum-tile__value : grandit avec le texte, toujours plus grande que le libellé */
-@media (max-width: 359px) { .tile__val { font-size: 1.176rem; } }
+/* Trois tuiles par ligne : la valeur suit la largeur de l'écran (5vw) pour que « 54 min », « 181,9 t » ou « 1 h 00 »
+   tiennent entiers sur un iPhone SE ou un écran de 320 pt, sans jamais descendre sous 0,9 rem (toujours plus grande
+   que le libellé, 0,765 rem). En texte agrandi, une tuile par ligne : la valeur suit le texte (comme .sum-tile__value). */
+.tile__val { font-size: clamp(0.9rem, 5vw, 1.294rem); line-height: 1.2; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 html.type-xl .tiles, html.type-xl .tiles--4 { grid-template-columns: 1fr; }
-html.type-xl .tile__val { white-space: normal; }
+html.type-xl .tile__val { font-size: 1.294rem; white-space: normal; }
 html.type-xl .tile__lbl { overflow-wrap: normal; }
 .tile__lbl { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); }
 .tile__delta { font-size: 0.765rem; line-height: 0.941rem; font-weight: 600; color: var(--label2); white-space: nowrap; }
