@@ -757,6 +757,85 @@ def p_nutrition(r):
         r.bas('bas de Nutrition')
 
 
+# Scanner un aliment : coquille iOS factice (seul le lecteur MdlfScanner répond, window.__scan règle la prochaine
+# lecture) et Open Food Facts simulé, comme tests/test_scan_aliment.py ; aucune requête ne sort
+COQUILLE_SCAN = """
+window.__scan = { code: null, type: 'ean13' };
+const scanner = { scan: async () => ({ code: window.__scan.code, type: window.__scan.type }) };
+window.Capacitor = {
+  isNativePlatform: () => true,
+  getPlatform: () => 'ios',
+  isPluginAvailable: n => n === 'MdlfScanner',
+  registerPlugin: name => name === 'MdlfScanner' ? scanner
+    : name === 'App' ? { addListener: async () => ({ remove() {} }), getInfo: async () => ({ build: '41', version: '1.2' }) }
+    : new Proxy({}, { get: (_, m) => (m === 'then' ? undefined : async () => ({})) }),
+};
+"""
+PATES, INCONNU = '8076800195057', '96385074'
+OFF_PATES = {'status': 1, 'code': PATES, 'product': {'product_name_fr': 'Spaghetti n° 5', 'brands': 'Marque Test', 'quantity': '500 g',
+             'nutriments': {'energy-kcal_100g': 359, 'proteins_100g': 12, 'carbohydrates_100g': 71, 'fat_100g': 2, 'salt_100g': 0.01}}}
+PLAN_SCAN = {'name': 'Mon plan', 'meals': [{'id': 'm1', 'name': 'Déjeuner', 'items': []}, {'id': 'm2', 'name': 'Dîner', 'items': []}]}
+
+
+@parcours('scan', 'Nutrition : scanner un code-barres', 'pratiquant')
+def p_scan(r):
+    """Plan diète ouvert, « Ajouter un aliment » : « Scanner un code-barres » en tête. Un paquet de pâtes est trouvé
+    sur Open Food Facts (12 g de protéines pour 100 g) : fiche, 80 g, ajouté au déjeuner. Le même paquet scanné pour
+    le dîner, sans réseau : retrouvé dans Mes aliments. Un code inconnu : « Produit introuvable », puis « Créer
+    l'aliment » avec le code gardé et le nom à écrire. Lecteur natif et Open Food Facts simulés."""
+    etat = {'reseau': True}
+
+    def off(route):
+        code = route.request.url.split('/product/')[1].split('.json')[0]
+        if not etat['reseau']:
+            return route.abort('internetdisconnected')
+        corps = OFF_PATES if code == PATES else {'status': 0, 'status_verbose': 'product not found', 'code': code}
+        route.fulfill(status=200 if code == PATES else 404, content_type='application/json',
+                      headers={'Access-Control-Allow-Origin': '*'}, body=json.dumps(corps))
+    r.coquille_native(COQUILLE_SCAN)
+    r.simuler(r'^https://world\.openfoodfacts\.org/', off)
+    d = json.loads(REALISTE)
+    d['dietPlans'] = {'d_scan01': PLAN_SCAN}
+    d['dietActive'] = 'd_scan01'
+    r.lancer(json.dumps(d, ensure_ascii=False, separators=(',', ':')))
+    r.raccourci("navigate(makeRoute('diet-plan', 'd_scan01'))", 'plan diète « Mon plan » ouvert (Programme › Plans diète)')
+    cle = 'Scanner un produit et l\'ajouter'
+    with r.etape('feuille', 'Ajouter un aliment : « Scanner un code-barres » en tête', cle=cle):
+        r.toucher('[data-action="diet-add-food"][data-meal="m1"]', 'Ajouter un aliment (Déjeuner)')
+        r.attendre('.diet-cand--scan', 'bouton Scanner')
+        r.page.evaluate('document.activeElement && document.activeElement.blur()')   # clavier de la recherche refermé pour la capture
+    r.raccourci(f"() => {{ window.__scan = {{ code: '{PATES}', type: 'ean13' }}; }}", f'le lecteur lira le paquet de pâtes ({PATES})')
+    with r.etape('trouve', 'Produit trouvé sur Open Food Facts : fiche pour 100 g', cle=cle):
+        r.toucher('.diet-cand--scan', 'Scanner un code-barres')
+        r.attendre('.fscan__name', 'fiche du produit')
+    with r.etape('grammes', 'Quantité : 80 g, kcal et macros recalculées', cle=cle):
+        r.saisir('#fscanG', 80, 'quantité')
+        r.page.focus('.fscan__name')
+    with r.etape('ajoute', 'Pâtes ajoutées au déjeuner', cle=cle):
+        r.toucher('.sheet-root .sheet__btn--confirm', 'Ajouter')
+        r.attendre('.diet-plan-view', 'plan diète')
+    etat['reseau'] = False
+    r.raccourci('() => {}', 'réseau coupé (Open Food Facts injoignable)')
+    cle = 'Rescanner sans réseau'
+    with r.etape('sans-reseau', 'Même paquet pour le dîner, sans réseau : retrouvé dans Mes aliments', cle=cle):
+        r.toucher('[data-action="diet-add-food"][data-meal="m2"]', 'Ajouter un aliment (Dîner)')
+        r.toucher('.diet-cand--scan', 'Scanner un code-barres')
+        r.attendre('.fscan__name', 'fiche du produit')
+    with r.etape('sans-reseau-ajoute', 'Ajouté au dîner (100 g d\'office)', cle=cle):
+        r.toucher('.sheet-root .sheet__btn--confirm', 'Ajouter')
+    etat['reseau'] = True
+    r.raccourci(f"() => {{ window.__scan = {{ code: '{INCONNU}', type: 'ean8' }}; }}", f'réseau revenu ; le lecteur lira un code inconnu ({INCONNU})')
+    cle = 'Code introuvable : créer l\'aliment'
+    with r.etape('introuvable', 'Code inconnu : « Produit introuvable »', cle=cle):
+        r.toucher('[data-action="diet-add-food"][data-meal="m2"]', 'Ajouter un aliment (Dîner)')
+        r.toucher('.diet-cand--scan', 'Scanner un code-barres')
+        r.attendre('[data-fscan="create"]', 'Créer l\'aliment')
+    with r.etape('creer', '« Créer l\'aliment » : code gardé, nom à écrire', cle=cle):
+        r.toucher('[data-fscan="create"]', 'Créer l\'aliment')
+        r.attendre('#dietFoodName', 'formulaire Nouvel aliment')
+        r.page.evaluate('document.activeElement && document.activeElement.blur()')
+
+
 @parcours('intensif', 'Séance : technique d\'intensification (rest-pause)', 'pratiquant')
 def p_intensif(r):
     """En séance : toucher le numéro d'une série, choisir rest-pause, noter les reps de la reprise sous la série,

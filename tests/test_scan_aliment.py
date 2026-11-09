@@ -102,6 +102,7 @@ def scan(page, code, mode='ok', type_='ean13'):
 
 
 def sheet_layout(page, t, name):
+    page.wait_for_timeout(400)   # fin des animations de la feuille (mesures stables)
     small = page.evaluate("""[...document.querySelectorAll('.sheet-root button, .ios-dialog button')].filter(e => e.offsetParent && getComputedStyle(e).visibility !== 'hidden')
         .filter(e => { const r = e.getBoundingClientRect(); return r.width < 44 || r.height < 44; }).map(e => e.textContent.trim().slice(0, 30))""")
     R.check(not small, f'{t} {name} : cibles de 44 pt {small}')

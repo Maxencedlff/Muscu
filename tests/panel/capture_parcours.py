@@ -132,6 +132,16 @@ class Pilote:
         seed(self.page, self.theme, ppl_v2, extra=x, url=self.run.url)
         self.page.wait_for_timeout(400)
 
+    def coquille_native(self, script):
+        """Coquille iOS factice (window.Capacitor et ses modules simulés) pour CE parcours seulement : à appeler avant
+        lancer() (script injecté au chargement de chaque page). Les autres parcours gardent l'app web."""
+        self.page.add_init_script(script)
+
+    def simuler(self, motif, reponse):
+        """Service extérieur simulé pour CE parcours (ex. Open Food Facts) : `motif` (expression régulière d'adresse),
+        `reponse(route)` répond ou coupe. Prioritaire sur la coupure générale du réseau (dernière route déclarée)."""
+        self.page.route(re.compile(motif), reponse)
+
     def raccourci(self, js, quoi, arg=None):
         """État préparé sans passer par l'écran (compte, données du faux serveur) : noté, jamais compté."""
         res = self.page.evaluate(js, arg) if arg is not None else self.page.evaluate(js)
