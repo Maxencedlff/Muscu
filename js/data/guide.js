@@ -82,8 +82,8 @@ const GUIDE_SECTIONS = [
         steps: [
           'Tape la charge et les répétitions. Une case laissée vide prend la valeur grise affichée : ton objectif.',
           'Touche le rond à droite pour valider. Le repos démarre tout seul.',
-          'Une erreur ? [Annuler] reste quelques secondes en bas de l\'écran.',
-          'Touche une série validée pour la corriger. Glisse-la vers la gauche pour la [Supprimer].',
+          'Une erreur ? [Annuler] apparaît quelques secondes sur la ligne de la série, à la place de [Avant].',
+          'Touche une série validée pour la corriger. Glisse-la vers la gauche pour la [Supprimer] ; avec VoiceOver, le bouton [Supprimer] est juste avant la série.',
           'Le bouton [Série] sous l\'exercice ajoute une série.',
         ],
         related: ['charges', 'repos', 'records'],
