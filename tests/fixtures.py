@@ -13,6 +13,54 @@ import contextlib
 import datetime
 from zoneinfo import ZoneInfo
 
+# ── Typographie française de l'app (frTypo, js/core/util.js) ──
+# L'app pose une espace fine insécable (U+202F) avant ? ! ; : » et après «, autour de « × » et entre un nombre et
+# « kg », et un trait d'union insécable (U+2011) dans « mois-ci ». Les textes lus par les tests sont ramenés à l'espace
+# et au trait d'union simples, SEULEMENT à ces places : un U+202F de séparateur de milliers (« 1 080 ») ou un U+00A0 (« 30 min ») restent tels quels, et les
+# vérifications gardent toute leur précision. typo_raw(page, js) lit un texte sans cette normalisation.
+_TYPO_RE = re.compile('\u202f(?=[?!;:\u00bb])|(?<=\u00ab)\u202f|\u2011|\u202f\u00d7\u202f|(?<=\\d)\u202f(?=(?:kg|lb)\\b)')
+_TYPO_SUB = {'\u2011': '-', '\u202f\u00d7\u202f': ' \u00d7 '}
+
+
+def typo_norm(v):
+    """Ramène les espaces et traits d'union typographiques de frTypo à leur forme simple (récursif)."""
+    if isinstance(v, str):
+        return _TYPO_RE.sub(lambda m: _TYPO_SUB.get(m.group(0), ' '), v)
+    if isinstance(v, list):
+        return [typo_norm(x) for x in v]
+    if isinstance(v, tuple):
+        return tuple(typo_norm(x) for x in v)
+    if isinstance(v, dict):
+        return {k: typo_norm(x) for k, x in v.items()}
+    return v
+
+
+def _typo_patch():
+    from playwright.sync_api import Page, Locator, Frame, ElementHandle
+    for cls, names in ((Page, ('inner_text', 'text_content', 'evaluate', 'inner_html', 'content')),
+                       (Frame, ('inner_text', 'text_content', 'evaluate')),
+                       (Locator, ('inner_text', 'text_content', 'all_inner_texts', 'all_text_contents', 'evaluate', 'evaluate_all', 'inner_html')),
+                       (ElementHandle, ('inner_text', 'text_content', 'evaluate'))):
+        for n in names:
+            f = getattr(cls, n)
+            if getattr(f, '_typo', False):
+                continue
+            def wrap(f=f):
+                def g(*a, **k):
+                    return typo_norm(f(*a, **k))
+                g._typo, g._raw = True, f
+                return g
+            setattr(cls, n, wrap())
+
+
+def typo_raw(page, js, arg=None):
+    """page.evaluate sans normalisation typographique (pour vérifier les espaces insécables elles-mêmes)."""
+    from playwright.sync_api import Page
+    return Page.evaluate._raw(page, js, arg)
+
+
+_typo_patch()
+
 BASE_URL = os.environ.get('PPL_URL', 'http://localhost:8731/')
 SCRATCH = os.environ.get('PPL_SCRATCH', '/tmp/ppl-tests')
 SHOTS = os.path.join(SCRATCH, 'shots')

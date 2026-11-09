@@ -133,4 +133,15 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     sameJSON(app.liveHeadRecord(ex([{ weight: '75', reps: '10', done: true }, { weight: '90', reps: '5', done: true, warmup: true }]), pr), pr, 'ni plus légère, ni échauffement');
   });
 
+  test('Typographie française : espaces insécables avant ? ! ; :, guillemets, « mois\u2011ci »', () => {
+    assert.equal(app.frTypo('Tout réinitialiser ?'), 'Tout réinitialiser\u202f?');
+    assert.equal(app.frTypo('Échauffement ajouté : 3 séries'), 'Échauffement ajouté\u202f: 3 séries');
+    assert.equal(app.frTypo('« Gros record ! »'), '«\u202fGros record\u202f!\u202f»');
+    assert.equal(app.frTypo('3 séances ce mois-ci'), '3 séances ce mois\u2011ci');
+    assert.equal(app.frTypo('Repos 1:30 · 10:05'), 'Repos 1:30 · 10:05', 'heures et chronos intacts');
+    assert.equal(app.frTypo('https://x.fr/a?b=1 ; ok'), 'https://x.fr/a?b=1\u202f; ok', 'pas d\'espace ajoutée là où il n\'y en avait pas');
+    assert.equal(app.frTypo('cinquante-cinq, ceci'), 'cinquante-cinq, ceci', 'autres traits d\'union intacts');
+    assert.equal(app.frTypo('Objectif 32 kg × 10'), 'Objectif 32\u202fkg\u202f×\u202f10', '« 32 kg × 10 » insécable');
+    assert.equal(app.frTypo('1\u202f080 kg'), '1\u202f080\u202fkg', 'nombre et unité liés');
+  });
 }

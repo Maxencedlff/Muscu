@@ -969,7 +969,8 @@ def t_tarifs(bench, eng, dev, theme):
                 and 'soit' not in pl[0], f'{t} particulier : mensuel, annuel « soit 8,5 mois » {pl}')
         R.check(page.locator('.pay-tabs').count() == 0 and '15,99' not in txt and 'élèves' not in ' '.join(pl),
                 f'{t} pas coach : aucun palier coach visible')
-        R.check('Tu es coach\u00a0?' in txt, f'{t} pas coach : lien vers la demande (espace insécable avant « ? »)')
+        R.check('Tu es coach ?' in txt and 'Tu es coach\u202f?' in typo_raw(page, "document.querySelector('.pay-view').innerText"),
+                f'{t} pas coach : lien vers la demande (espace fine insécable avant « ? »)')
         R.check('Essai gratuit de 3 mois, puis 6,49 € par mois ou 55,00 € par an' in txt and 'au moins 24 heures avant la fin de l\'essai' in txt
                 and 'Conditions d\'utilisation' in txt and 'Conditions de vente' in txt and 'Confidentialité' in txt, f'{t} particulier : mentions 3.1.2')
         layout(page, t, 'abonnement particulier')
