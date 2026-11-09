@@ -455,7 +455,8 @@ const Native = (() => {
     // (une mise à jour à chaud peut arriver avant la nouvelle build) : l'appelant garde alors le Web Audio.
     sound: {
       available: isNative && !!cap.isPluginAvailable?.('MdlfSound'),
-      play(notes) { if (isNative) quiet(Sound.play({ notes })); },
+      // alert : vrai pour la fin du repos seulement (audible en silencieux) ; ignoré par une build plus ancienne
+      play(notes, alert = false) { if (isNative) quiet(Sound.play({ notes, alert })); },
     },
 
     // Compte MDLF : connexion avec Apple ou Google et session gardée dans le Trousseau (js/data/account.js).

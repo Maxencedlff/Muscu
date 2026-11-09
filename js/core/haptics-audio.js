@@ -60,7 +60,7 @@ const SOUND_LEVELS = { fort: 0.9, normal: 0.6, bas: 0.35 };
 function soundVol() { return SOUND_LEVELS[data.soundLevel] ?? SOUND_LEVELS.fort; }
 
 // Mélodies : notes { freq (Hz), start (s depuis le début), dur (s) }. Jouées par iOS dans l'app
-// (Native.sound : audibles en mode silencieux, par-dessus la musique), sinon en Web Audio.
+// (Native.sound : par-dessus la musique ; la fin du repos seule audible en mode silencieux), sinon en Web Audio.
 const MELODIES = {
   timer:      [[880, 0, .12], [1100, .16, .12], [1320, .32, .35]],
   validation: [[660, 0, .1]],
@@ -75,11 +75,16 @@ const MELODIES = {
   tempoRep:   [[523, 0, .08], [1047, .1, .16]], // tempo : nouvelle répétition (deux notes, distincte des phases)
 };
 
+// Fin du repos (décompte et GO) : seuls sons qui passent outre le mode silencieux d'iOS (Réglages › Sons
+// le dit). Les autres (série validée, journée complète, bilan…) ne sont que des confirmations : coupés
+// par le bouton silencieux, comme ailleurs sur l'iPhone (panel t7).
+const ALERT_MELODIES = new Set(['timer', 'restCount', 'restGo']);
+
 function playMelody(name) {
   if (data.soundOn === false) return;
   const vol = soundVol();
   const notes = MELODIES[name].map(([freq, start, dur]) => ({ freq, start, dur, vol }));
-  if (Native.sound.available) { Native.sound.play(notes); return; }
+  if (Native.sound.available) { Native.sound.play(notes, ALERT_MELODIES.has(name)); return; }
   notes.forEach(n => setTimeout(() => beep(n.freq, n.dur, n.vol), n.start * 1000));
 }
 

@@ -8,6 +8,9 @@ import Capacitor
 /// Pourquoi natif : le Web Audio d'une vue web suit la session audio « ambiante » d'iOS, coupée par le
 /// bouton silencieux. Ici la session est en lecture (.playback, audible en silencieux) avec .mixWithOthers :
 /// la musique (Apple Music, Spotify…) n'est jamais arrêtée ni baissée, le bip s'y ajoute.
+/// Seule la fin du repos (alert: true) passe outre le mode silencieux : les sons de simple confirmation
+/// (série validée, journée complète, bilan) jouent en .ambient, coupés par le bouton silencieux comme
+/// ceux des autres apps (panel t7). Sans « alert » (JS plus ancien) : .playback, comme avant.
 ///
 /// Réactivité : activer une session audio est bloquant (Apple le déconseille sur le fil principal) et
 /// le faire à chaque bip ralentissait la validation d'une série. Tout le travail audio passe donc sur une
@@ -34,7 +37,8 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
     private static let IDLE_RELEASE: TimeInterval = 90
     private var releaseWork: DispatchWorkItem?
 
-    /// { notes: [{ freq, start, dur, vol? }] } : start et dur en secondes depuis le début de la mélodie
+    /// { notes: [{ freq, start, dur, vol? }], alert? } : start et dur en secondes depuis le début de la mélodie ;
+    /// alert (vrai par défaut) : audible même en mode silencieux
     @objc func play(_ call: CAPPluginCall) {
         let notes = (call.getArray("notes") as? [JSObject] ?? []).compactMap { n -> (Double, Double, Double, Double)? in
             guard let f = n["freq"] as? Double, let s = n["start"] as? Double, let d = n["dur"] as? Double,
@@ -42,11 +46,12 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
             return (f, s, d, min(max(n["vol"] as? Double ?? 0.35, 0), 1))
         }
         guard !notes.isEmpty else { call.reject("Aucune note"); return }
+        let alert = call.getBool("alert") ?? true
         // Réponse immédiate au JS : le son se prépare et se joue hors du fil principal
         call.resolve()
         audioQueue.async {
             do {
-                try self.start()
+                try self.start(alert: alert)
                 self.player.scheduleBuffer(self.render(notes), at: nil, options: .interrupts, completionHandler: nil)
                 if !self.player.isPlaying { self.player.play() }
                 self.scheduleRelease()
@@ -69,11 +74,21 @@ public class SoundPlugin: CAPPlugin, CAPBridgedPlugin {
         audioQueue.asyncAfter(deadline: .now() + Self.IDLE_RELEASE, execute: work)
     }
 
-    private func start() throws {
+    private func start(alert: Bool) throws {
         let session = AVAudioSession.sharedInstance()
-        // Catégorie et activation seulement si nécessaire : la session reste active entre les bips
-        if session.category != .playback || !session.categoryOptions.contains(.mixWithOthers) || session.categoryOptions.contains(.duckOthers) {
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        // Catégorie changée seulement si elle diffère : la session reste active entre les bips.
+        // .playback : audible en silencieux, .mixWithOthers explicite (sinon la musique serait coupée).
+        // .ambient : coupé par le bouton silencieux ; il se mélange de lui-même (Apple n'accepte
+        // .mixWithOthers explicite qu'avec .playback, .playAndRecord et .multiRoute).
+        let category: AVAudioSession.Category = alert ? .playback : .ambient
+        let options: AVAudioSession.CategoryOptions = alert ? [.mixWithOthers] : []
+        let differs = session.category != category
+            || (alert && !session.categoryOptions.contains(.mixWithOthers))
+            || session.categoryOptions.contains(.duckOthers)
+        if differs {
+            // Moteur arrêté avant le changement (iOS le couperait de toute façon) ; relancé plus bas
+            if engine.isRunning { engine.stop() }
+            try session.setCategory(category, mode: .default, options: options)
         }
         // Moteur arrêté par iOS (appel, autre app) : la session a pu être coupée, on la réactive
         if !sessionActive || !engine.isRunning {
