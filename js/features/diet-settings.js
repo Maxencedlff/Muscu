@@ -73,7 +73,8 @@ async function dietCoachApply(on) {
   if (!r.ok) { showToast(coachErrorText(r.kind), { error: true }); return false; }
   save();
   haptic();
-  showToast(on ? (dietPending() ? 'Réception activée. Touche Utiliser pour commencer le plan' : 'Réception des plans diète activée') : 'Plans diète du coach effacés du serveur');
+  // Plan en attente : message court, entier même en texte agrandi maximal (4 lignes au plus, panel t6)
+  showToast(on ? (dietPending() ? 'Plan reçu. Touche Utiliser' : 'Réception des plans diète activée') : 'Plans diète du coach effacés du serveur');
   coachRefresh();
   return on;
 }
