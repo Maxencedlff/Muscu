@@ -70,7 +70,7 @@ button.plan-card:active { background: var(--cell2); }
 .plan-gantt__sub.is-empty { color: var(--label3); }
 .plan-gantt__track { position: relative; height: 22px; border-radius: var(--r-xs); background: var(--fill2); overflow: hidden; }
 .plan-gantt__bar { position: absolute; top: 0; bottom: 0; background: var(--plan-color); box-shadow: inset -2px 0 0 var(--cell); }
-.plan-gantt__now { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--tint); }
+.plan-gantt__now { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--label); }   /* comme la frise d'un élève ; le bleu se perdait sur l'indigo d'une phase */
 .plan-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 12px 4px 0; }
 .plan-legend__item { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-footnote); color: var(--label2); }
 

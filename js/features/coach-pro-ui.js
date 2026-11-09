@@ -104,7 +104,7 @@ function coachRequestFormHtml(req) {
 }
 
 function renderCoachRequest() {
-  const head = navBar({ title: 'Devenir coach', large: false });
+  const head = navBar({ title: '' });   // un seul titre : celui du contenu, repris par la barre au défilement (panel t5)
   if (!account.user) {
     return `<div class="view view--grouped coach-req-view">${head}<div class="scr">
         <div class="empty-note">Connecte-toi pour faire ta demande.</div></div></div>`;
@@ -113,7 +113,7 @@ function renderCoachRequest() {
   const hero = `
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
-          <h2 class="social-hero__title">Devenir coach</h2>
+          <h1 class="social-hero__title" data-echo-title>Devenir coach</h1>
           <p class="social-hero__sub">${COACH_REQUEST_INTRO}</p>
         </div>`;
   if (!req && coachPro.loading) return `<div class="view view--grouped coach-req-view">${head}<div class="scr">${hero}<div class="empty-note">Chargement…</div></div></div>`;
@@ -134,7 +134,7 @@ function renderCoachRequest() {
           ${req.created_at ? `<div class="cell"><span class="cell__body"><span class="cell__title">Envoyée le</span></span><span class="cell__value">${esc(fmtDate(req.created_at))}</span></div>` : ''}
         </div>
         ${(st === 'rejected' || st === 'revoked') && req.reason ? `<div class="group-foot coach-req-reason">Motif : ${esc(req.reason)}</div>` : ''}
-        ${st === 'pending' ? '<div class="group-foot">On vérifie ta carte sur le site du ministère des Sports. Tu verras la réponse ici.</div>' : ''}` : '';
+        ${st === 'pending' ? '<div class="group-foot">Tu verras la réponse ici.</div>' : ''}` : '';
   const form = st === 'none' || coachRequestEditing ? coachRequestFormHtml(req)
     : `<div class="group"><button class="cell cell--action" data-action="coach-request-edit"><span class="cell__title">${st === 'pending' ? 'Corriger ma demande' : 'Faire une nouvelle demande'}</span></button></div>`;
   return `

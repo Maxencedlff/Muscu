@@ -71,8 +71,8 @@ function coachRouteTitle(route) {
   const name = routeName(route);
   if (name === 'coach-student') return coachStudent(routeParams(route)[0])?.username || 'Élève';
   return { coach: 'Coach', 'coach-join': 'Coach', 'coach-mine': 'Mon coach', 'coach-students': 'Mes élèves', 'coach-session': 'Séance', 'coach-send': 'Envoyer', 'coach-share': 'Partager', 'coach-chat': 'Messages', 'coach-request': 'Devenir coach',
-    'coach-plan': 'Planning', 'coach-planning': 'Planning', 'coach-measures': 'Mensurations', 'coach-measure': 'Mesure', 'coach-photos': 'Photos',
-    'coach-photos-mine': 'Photos' }[name] || null;
+    'coach-plan': 'Planning', 'coach-planning': 'Planning', 'coach-measures': 'Mensurations', 'coach-measure': 'Mesure', 'coach-photos': 'Photos de bilan',
+    'coach-photos-mine': 'Photos de bilan' }[name] || null;
 }
 
 // ── Cellules : Réglages et onglet Social ──────────────────────
@@ -392,7 +392,7 @@ function renderCoachMine() {
         ${stale}
         <div class="coach-join__who coach-mine__who">
           ${personAvatar(p, 'l')}
-          <span><span class="coach-join__name">${esc(personName(p))}</span><span class="coach-join__sub">Ton coach${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span></span>
+          <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${esc(personName(p))}</span><span class="coach-join__sub">Ton coach${sinceText(p) ? ` depuis le ${esc(sinceText(p))}` : ''}</span></span>
         </div>
         ${chatIntroHtml()}
         ${chatCellHtml(CHAT_COACH)}
@@ -720,7 +720,7 @@ function coachSessionCell(uid, row) {
 
 function renderCoachStudent(uid) {
   const p = coachStudent(uid);
-  const head = navBar({ title: esc(personName(p)), large: false });
+  const head = navBar({ title: p ? '' : 'Élève' });   // le nom est dans l'en-tête, la barre le reprend au défilement (panel t5)
   if (!p) return `<div class="view view--grouped coach-student-view">${head}<div class="scr"><div class="empty-note">${coach.state ? 'Cette personne ne fait plus partie de tes élèves.' : 'Chargement…'}</div></div></div>`;
   const f = coachSessions(uid);
   let list;
@@ -746,7 +746,7 @@ function renderCoachStudent(uid) {
       <div class="scr">
         <div class="coach-join__who">
           ${personAvatar(p, 'l')}
-          <span><span class="coach-join__name">${esc(personName(p))}</span><span class="coach-join__sub">${sinceText(p) ? `Élève depuis le ${esc(sinceText(p))}` : 'Élève'}</span></span>
+          <span><span class="coach-join__name" role="heading" aria-level="1" data-echo-title>${esc(personName(p))}</span><span class="coach-join__sub">${sinceText(p) ? `Élève depuis le ${esc(sinceText(p))}` : 'Élève'}</span></span>
         </div>
         ${coachWeekSummaryHtml(uid)}
         ${chatCellHtml(uid)}

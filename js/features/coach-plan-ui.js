@@ -115,7 +115,7 @@ function coachPlanGroupHtml(uid) {
 
 function renderCoachPlan(uid) {
   const p = coachStudent(uid);
-  const head = navBar({ title: 'Planning', large: false });
+  const head = navBar({ title: '' });   // la barre reprend le titre du contenu au défilement (observeLargeTitle)
   const view = body => `<div class="view view--grouped coach-plan-view">${head}<div class="scr">${body}</div></div>`;
   if (!p) return view(`<div class="empty-note">${coach.state ? 'Cette personne ne fait plus partie de tes élèves.' : 'Chargement…'}</div>`);
   if (!planAvailable()) return view(plan.coachError ? coachOfflineNote(plan.coachError, 'Pas d\'Internet. Le planning s\'affichera quand le réseau reviendra.') : '<div class="empty-note">Chargement…</div>');
@@ -139,7 +139,7 @@ SCREENS.set('coach-plan', { render: uid => renderCoachPlan(uid), enter: () => co
 // ── Coach : vue d'ensemble de tous les élèves ───────────────
 
 function renderCoachPlanning() {
-  const head = navBar({ title: 'Planning', large: false });
+  const head = navBar({ title: '' });   // la barre reprend le titre du contenu au défilement (observeLargeTitle)
   const view = body => `<div class="view view--grouped coach-planning-view">${head}<div class="scr">${body}</div></div>`;
   const st = coach.state;
   if (!st || !planAvailable()) return view(plan.coachError || coach.error ? coachOfflineNote(plan.coachError || coach.error, 'Pas d\'Internet. Le planning s\'affichera quand le réseau reviendra.') : '<div class="empty-note">Chargement…</div>');
@@ -153,8 +153,8 @@ function renderCoachPlanning() {
   const months = [];
   for (let n = from; n < to; n++) {
     const iso = planIsoOf(n);
-    // Début de la fenêtre : son mois seulement s'il en reste plus de 10 jours (sinon les deux noms se touchent)
-    if (iso.endsWith('-01') || (n === from && +iso.slice(8) <= 20)) months.push(`<span style="left:${pos(n)}%">${esc(fmtDate(planTs(iso), 'short').replace(/^\d+\s/, ''))}</span>`);
+    // Début de la fenêtre : son mois seulement s'il en reste plus de 3 semaines (sinon les deux noms se touchent sur SE)
+    if (iso.endsWith('-01') || (n === from && +iso.slice(8) <= 7)) months.push(`<span style="left:${pos(n)}%">${esc(fmtDate(planTs(iso), 'short').replace(/^\d+\s/, ''))}</span>`);
   }
   const counts = { current: 0 };
   const rows = st.students.map(s => {
@@ -183,7 +183,7 @@ function renderCoachPlanning() {
           ${rows}
         </div>
         ${legend ? `<div class="plan-legend">${legend}</div>` : ''}
-        <div class="group-foot">De ${esc(fmtDate(planTs(planIsoOf(from)), 'short'))} à ${esc(fmtDate(planTs(planIsoOf(to - 1)), 'short'))}, la ligne bleue est aujourd'hui. Touche un élève pour voir et modifier son planning.</div>`);
+        <div class="group-foot">Du ${esc(fmtDate(planTs(planIsoOf(from)), 'short'))} au ${esc(fmtDate(planTs(planIsoOf(to - 1)), 'short'))}, le trait vertical marque aujourd'hui. Touche un élève pour voir et modifier son planning.</div>`);
 }
 SCREENS.set('coach-planning', { render: () => renderCoachPlanning(), enter: () => coachPlanRefresh() });
 

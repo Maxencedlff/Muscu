@@ -285,8 +285,8 @@ function cphRevoke() { cphUrls.forEach(u => URL.revokeObjectURL(u)); cphUrls.cle
 function renderCphCoach(uid) {
   const p = coachStudent(uid);
   // « Verrouiller » dans la barre, comme le coffre de l'élève (experts Apple, vague 3-t4), en toutes lettres (une icône = un
-  // sens, docs/ERGONOMIE.md). La barre reprend le grand titre en version courte (« Photos », data-bar-title) : « Photos de
-  // bilan » ne tient pas à côté de « ‹ lea » et de « Verrouiller » sur 320 à 375 pt
+  // sens, docs/ERGONOMIE.md). La barre reprend le grand titre tel quel (panel t5 : « Photos » seul faisait deux noms pour
+  // un écran) ; sur 320 pt, il se termine par « … » plutôt que d'ôter « ‹ lea » (fitBackLabel)
   const right = cphView.phase === 'open' ? `<button class="navbar__text" data-action="cph-lock" aria-label="Verrouiller les photos">Verrouiller</button>` : '';
   const head = navBar({ title: '', right });
   const view = (body, cls = '') => `<div class="view view--grouped coach-photos-view ${cls}">${head}<div class="scr">${body}</div></div>`;
@@ -353,7 +353,7 @@ function renderCphCoach(uid) {
             </div>`).join('');
   const broken = cphView.broken ? `<p class="pv-summary">${plural(cphView.broken, 'photo ne s\'ouvre pas', 'photos ne s\'ouvrent pas')} sur cet iPhone.</p>` : '';
   return view(`
-        <h1 class="scr-title" id="cphTitle" tabindex="-1" data-bar-title="Photos">Photos de bilan</h1>
+        <h1 class="scr-title" id="cphTitle" tabindex="-1">Photos de bilan</h1>
         <p class="scr-sub">${who} · ${plural(list.length, 'photo', 'photos')} · se referment après une minute sans activité</p>
         ${broken}
         ${compare}

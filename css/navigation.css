@@ -61,6 +61,11 @@ body.has-tabbar.has-livebar .toast { bottom: calc(var(--tabbar-h) + 76px + env(s
 /* Titre posé dans le contenu (observeLargeTitle, js/ui/navbar.js) : la barre le reprend quand il sort de l'écran */
 .navbar--echo .navbar__title { opacity: 0; transition: opacity .15s; }
 .navbar--echo.navbar--collapsed .navbar__title { opacity: 1; }
+/* Grand titre ou titre du contenu repris par la barre : il s'efface en même temps, comme iOS (on lisait « Coach » dans la
+   barre au-dessus du bas du grand titre, coupé, panel t5) */
+.navbar__large, .scr [data-echo-title], .scr h1.scr-title, .scr h1.pv-title { transition: opacity .15s; }
+.navbar-echoed { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .navbar__large, .scr [data-echo-title], .scr h1.scr-title, .scr h1.pv-title { transition: none; } }
 /* Titre et sous-titre de la séance l'un sous l'autre, chacun terminé par « … » s'il est trop long. En flex
    colonne centré, un titre trop long débordait des deux côtés sans « … » (« a prise de mas », panel du 07/11) */
 .navbar__title-main, .navbar__title-sub { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

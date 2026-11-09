@@ -348,7 +348,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         R.check(lock == ['Verrouiller', 0], f'{t} coach : « Verrouiller » dans la barre, comme le coffre de l\'élève {lock}')
         cp.evaluate('scrollTo(0, document.body.scrollHeight)'); cp.wait_for_timeout(500)
         bt = cp.evaluate("(() => { const ti = document.querySelector('#app .navbar__title'); return [ti.textContent, document.querySelector('#cphTitle').textContent, ti.scrollWidth <= ti.clientWidth + 1]; })()")
-        R.check(bt[0] == 'Photos' and bt[1] == 'Photos de bilan' and bt[2], f'{t} coach : titre replié en version courte, entier {bt}')
+        R.check(bt[0] == 'Photos de bilan' and bt[1] == 'Photos de bilan', f'{t} coach : titre replié identique au grand titre (panel t5) {bt}')
         cp.evaluate('scrollTo(0, 0)'); cp.wait_for_timeout(300)
         sel = cp.evaluate("() => [document.querySelector('#cph-a').value, document.querySelector('#cph-b').value]")
         old_day = cp.evaluate('() => localISO(Date.now() - 14 * 86400000)')
