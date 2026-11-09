@@ -740,7 +740,10 @@ function coachSentStatus(student, sessions) {
   if (Array.isArray(st?.sent)) {
     // Plans diète envoyés : listés à part (js/data/coach-diet.js)
     return st.sent.filter(x => !isDietSentId(x.id)).sort((a, b) => b.sentAt - a.sentAt)
-      .map(x => ({ progId: x.id, sentAt: x.sentAt, state: !x.seen ? 'unseen' : used(x.id, x.sentAt) ? 'used' : 'unused' }));
+      // Une séance faite avec le programme depuis l'envoi vaut ouverture, même si le « vu » n'est pas remonté
+      // (programme appliqué sans passer par la carte, hors ligne) : jamais « Pas encore ouvert » à côté de
+      // « Ton programme » sur une séance (panel t7)
+      .map(x => ({ progId: x.id, sentAt: x.sentAt, state: used(x.id, x.sentAt) ? 'used' : !x.seen ? 'unseen' : 'unused' }));
   }
   return coachUnusedSent(student, sessions).map(x => ({ ...x, state: 'unused' }));
 }
