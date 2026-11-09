@@ -431,6 +431,8 @@ html.type-xl .home-cell__text { flex-basis: calc(100% - 40px); }
 html.type-xl .home-cell__name { white-space: normal; overflow: visible; }
 html.type-xl .home-cell__right { flex-basis: 100%; flex-shrink: 1; justify-content: space-between; }
 html.type-xl .home-cell__right > :not(.icon) { flex: 1; min-width: 0; white-space: normal; }
+html.type-xl .home-cell { padding-right: 28px; }
+html.type-xl .home-cell > .icon:last-child { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }   /* chevron à droite, centré, jamais seul sur sa ligne */
 /* Social : une demande (pseudo, puis Accepter et ×) sur deux lignes */
 html.type-xl .cell.social-row { flex-wrap: wrap; row-gap: 4px; padding-bottom: 8px; }
 html.type-xl .cell.social-row .social-row__main { flex-basis: 100%; }
