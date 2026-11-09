@@ -63,7 +63,7 @@ html.type-xl .diet-sum__kcal span { max-width: 5.5em; }
 /* Repas : carte, bouton rond à cocher ; coché : replié et atténué, le suivant passe devant */
 .diet-meals { display: flex; flex-direction: column; gap: 12px; }
 .diet-meal { background: var(--cell); border-radius: var(--r-lg); overflow: hidden; }
-.diet-meal--next { box-shadow: inset 0 0 0 1.5px var(--check-on); }
+.diet-meal--next { box-shadow: inset 0 0 0 1.5px var(--tint); }   /* le prochain en couleur d'action ; le vert ne dit que « fait » (vague 3-t4) */
 .diet-meal__head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 0; }
 .diet-meal__title {
   flex: 1; min-width: 0; min-height: 48px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
@@ -71,7 +71,7 @@ html.type-xl .diet-sum__kcal span { max-width: 5.5em; }
 }
 .diet-meal--done .diet-meal__title:active { opacity: .6; }
 div.diet-meal__title { cursor: default; }
-.diet-meal__eyebrow { font-size: var(--fs-caption); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--check-on); }
+.diet-meal__eyebrow { font-size: var(--fs-caption); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--tint); }
 .diet-meal__name { font-size: var(--fs-body); font-weight: 600; overflow-wrap: anywhere; }
 .diet-meal__macros { margin-top: 2px; font-size: var(--fs-footnote); color: var(--label2); }
 .diet-meal--done .diet-meal__name { color: var(--label2); }

@@ -101,6 +101,9 @@ def t_home(bench, eng, dev, theme):
             today: d.classList.contains('week__dot--today'), check: !!d.querySelector('.icon--checkmark'), w: d.getBoundingClientRect().width }))""")
         ws = page.evaluate('weekStats()')
         R.check([d['done'] for d in dots] == [len(x) > 0 for x in ws['days']] and all(d['check'] == d['done'] for d in dots) and sum(d['today'] for d in dots) == 1 and min(d['w'] for d in dots) >= 20, f'{t} pastilles : faites cochées, aujourd\'hui marqué, 20 px au moins {dots}')
+        green = page.evaluate("""() => { const d = document.querySelector('.week__dot--done'); if (!d) return null; const p = document.createElement('i');
+            p.style.color = 'var(--check-on)'; document.body.appendChild(p); const g = getComputedStyle(p).color; p.remove(); return getComputedStyle(d).backgroundColor === g; }""")
+        R.check(green is not False, f'{t} jour fait : le vert de « fait », comme une série validée')
         count = page.inner_text('.week__count').replace('\u00a0', ' ')
         R.check(count == f"{ws['count']} sur {page.evaluate('weeklyGoal()')}", f'{t} « {count} »')
         line = page.locator('.week__line')
