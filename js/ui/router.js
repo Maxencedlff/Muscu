@@ -277,6 +277,9 @@ function paint(scrollY = window.scrollY) {
   const screen = screenOf(name);
   const focusSels = renderedView === name ? focusedActionSelectors() : null;   // même écran redessiné seulement
   $('#app').innerHTML = screen.render(...routeParams(route));
+  // Typographie appliquée tout de suite, pas par l'observateur après coup : les espaces insécables changent les retours à la
+  // ligne, et la position rendue plus bas (retour arrière) glissait de quelques dizaines de pixels (panel t5)
+  frTypoNode($('#app'));
   updateChrome();
   observeLargeTitle();
   fitBackLabel();
