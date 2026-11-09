@@ -420,11 +420,11 @@ html.type-xl .rs__resume { font-size: min(0.882rem, 15px); max-width: 150px; }
 html.type-xl .rs__time { font-size: min(72px, 3.4rem); }
 /* Superset : le compte et ⓘ passent sous le nom plutôt que de le couper */
 html.type-xl .ss-member { flex-wrap: wrap; }
-html.type-xl .ss-member__name { flex: 1 1 calc(100% - 48px); }   /* le nom prend la ligne, ⓘ, compte et ⋯ passent dessous */
+html.type-xl .ss-member__name { flex: 1 1 calc(100% - 48px); }   /* le nom (et son ⓘ) prend la ligne, compte et ⋯ passent dessous */
 /* Carte : le nom sur toute la largeur, le compte et ⋯ dessous (« unilatéra » coupé, ⓘ invisible sur SE) */
 html.type-xl .ex-card__head { flex-wrap: wrap; }
 html.type-xl .ex-card__head > .ex-card__name { flex-basis: 100%; }
-html.type-xl .ex-howto__tail { white-space: normal; }   /* dernier mot et ⓘ : passent à la ligne plutôt que d'être rognés */
+/* Dernier mot et ⓘ insécables à toutes les tailles : le nom a toute la largeur (ⓘ seul sur sa ligne en AX2, panel t5) */
 /* « Modifiée » sur la largeur des deux premières colonnes, entier */
 html.type-xl .session-set .set-undo--state { grid-column: 1 / 3; grid-row: 1; justify-self: end; overflow: visible; text-overflow: clip; }
 /* Reps en réserve : pastilles à la taille de leur texte (« 4+ » passait sur deux lignes) */
@@ -485,6 +485,12 @@ html.type-xl .ax__title { order: 2; flex-basis: 100%; text-align: left; padding:
 html.type-xl .ax__opts { order: 1; }   /* Séries et « Ajouter au programme » après la liste : la recherche et ses résultats d'abord */
 /* Icônes : à la taille du texte qu'elles accompagnent */
 html.type-xl .cell__icon .icon, html.type-xl .home-cell > .icon, html.type-xl .cph-daybtn .icon { width: 1.1em; height: 1.1em; }
+/* Glyphes posés à côté d'un texte (ⓘ d'un nom, ⋯, ↑ d'un gain, haltère et bulles des compteurs, envoi d'un commentaire) :
+   à la taille du texte, plafonnés à 32 px pour tenir dans leur zone de toucher (ils restaient à 15 px, panel t5) */
+html.type-xl :is(.ex-howto, .ex-card__more, .targets__gain, .coach-count, .coach-mark, .feed-card__comment, .comment-compose__send, .chat-count) .icon {
+  width: min(1.1em, 32px); height: min(1.1em, 32px);
+}
+html.type-xl .comment-compose__send { width: auto; height: auto; min-width: 32px; min-height: 32px; padding: 4px; }
 
 /* Réduction des animations : couleur fixe en fin de repos, pas de point pulsé ni de transition */
 @media (prefers-reduced-motion: reduce) {

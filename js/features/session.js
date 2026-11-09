@@ -442,7 +442,7 @@ function renderGroupCard(members, cur, tags) {
         <div class="ss-member">
           <span class="ss-tag" aria-hidden="true">${tags[ei]}</span>
           ${howTo
-            ? `<button class="ex-howto ss-member__name" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${esc(ex.name)}</span>${icon('info.circle', 15)}</button>`
+            ? `<button class="ex-howto ss-member__name" data-action="ex-howto" data-ei="${ei}" aria-label="${esc(ex.name)}, comment faire"><span class="ex-howto__text">${howToNameHtml(ex.name)}</span></button>`
             : `<span class="ss-member__name">${esc(ex.name)}</span>`}
           ${chip}
           <span class="ex-card__count num"><span aria-hidden="true">${n}/${ex.sets.length}</span><span class="visually-hidden">${n} sur ${plural(ex.sets.length, 'série validée', 'séries validées')}</span></span>

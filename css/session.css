@@ -71,9 +71,9 @@
 /* Nom sur deux lignes au plus, comme les cartes simples : sur une ligne, la fin qui distingue deux exercices
    (« prise serrée », « prise large ») disparaissait (iPhone SE, panel Apple du 08/11) ; ⓘ toujours visible après */
 .ss-member__name { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; padding: 11px 0; }
-.ss-member__name.ex-howto { display: flex; align-items: center; padding: 11px 0; margin: 0; min-height: 44px; }
+/* ⓘ collé au dernier mot, comme sur une carte simple (il était poussé à droite quand le nom tenait sur deux lignes, panel t5) */
+.ss-member__name.ex-howto { display: block; padding: 11px 0; margin: 0; min-height: 44px; }
 .ss-member__name .ex-howto__text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-width: 0; white-space: normal; overflow: hidden; overflow-wrap: anywhere; }
-.ss-member__name.ex-howto .icon { flex-shrink: 0; }
 .ss-round + .ss-round { margin-top: 2px; }
 .ss-round__title {
   padding: 10px 0 2px; font-size: 0.706rem; font-weight: 600; letter-spacing: .04em;
