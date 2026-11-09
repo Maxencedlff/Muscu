@@ -287,7 +287,7 @@ function drawCharts() {
 
   // Étiquettes X sans chevauchement (espacées d'au moins leur largeur + 6)
   ctx.fillStyle = lblC; ctx.textBaseline = 'alphabetic';
-  const lbl = i => fmtDate(dates[i], 'short').replace('.', '');
+  const lbl = i => fmtDate(dates[i], 'short');   // « 3 nov. » avec son point, comme partout dans l'app (panel t6)
   const rect = i => {
     const w = ctx.measureText(lbl(i)).width;
     const x = Math.max(pL, Math.min(pL + cW - w, xp(i) - w / 2));

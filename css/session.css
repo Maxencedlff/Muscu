@@ -147,7 +147,8 @@
   color: var(--label); font-size: 1.176rem; font-weight: 600; text-align: center;
   font-variant-numeric: tabular-nums; letter-spacing: -.2px;
 }
-.session-set .set-input::placeholder { color: var(--label3); }
+/* Objectif affiché dans le champ vide : l'info principale de la ligne, à 4,5:1 (en --label3 il tombait à 1,5:1, panel t6) */
+.session-set .set-input::placeholder { color: var(--label2); }
 .session-set .set-input:focus { outline: none; background: var(--fill); box-shadow: 0 0 0 2px var(--tint); }
 .session-set .set-input.set-input--error { box-shadow: 0 0 0 2px var(--red); }
 @media (max-width: 374px) { .session-set .set-input { font-size: 1.059rem; } }
@@ -159,12 +160,13 @@
 .set-check {
   width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: inset 0 0 0 2px var(--label3); color: var(--white);
+  box-shadow: inset 0 0 0 2px var(--set-ring); color: var(--white);
   transition: background .15s, transform .15s;
 }
 .set-check-zone:active .set-check { transform: scale(.9); }
-/* Série suivante d'une série pas encore faite : ✓ grisé (validation dans l'ordre) */
-.set-check-zone--wait .set-check { opacity: .35; }
+/* Série suivante d'une série pas encore faite : rond plus discret (validation dans l'ordre), mais toujours à 3:1
+   au moins sur la carte (WCAG 1.4.11 ; l'opacité .35 le laissait à 1,25:1 en sombre, panel t6) */
+.set-check-zone--wait .set-check { box-shadow: inset 0 0 0 2px var(--set-ring-wait); }
 .set-check-zone--wait:active .set-check { transform: none; }
 .set-check--done { background: var(--green); box-shadow: none; }
 .set-check--edit { background: var(--tint); box-shadow: none; }
@@ -207,7 +209,7 @@
 .ex-summary__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ex-summary__name { font-size: 1rem; line-height: 1.294rem; font-weight: 600; overflow-wrap: anywhere; }
 .ex-summary__line { font-size: 0.765rem; color: var(--label2); display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.ex-summary__line .medal { color: var(--yellow); }
+.ex-summary__line .medal { color: var(--medal); }
 .ex-summary__check { width: 28px; height: 28px; }
 
 .view.session .session-add-ex-btn {
@@ -268,6 +270,14 @@ body:not(.light) .rest-mini .rest-mini__skip { color: #8AC4FF; }
 @media (max-width: 379px) { .rest-ring--small { display: none; } }
 /* Écran étroit : « S2 » part avant que le nom de l'exercice soit coupé (la charge et les reps restent) */
 @media (max-width: 379px) { .rest-mini__next .rest-mini__step { display: none; } }
+/* iPhone SE : le nom de l'exercice suivant entier (panel t6 : « Rowing haltère uni… », l'info utile pendant le repos),
+   la charge sur sa propre ligne, sans « · » en tête */
+@media (max-width: 359px) {
+  .rest-mini__next { flex-wrap: wrap; }
+  .rest-mini__name { white-space: normal; overflow: visible; }
+  .rest-mini__tail { flex-basis: 100%; }
+  .rest-mini__sep { display: none; }
+}
 @media (max-width: 359px) {
   .rest-mini { column-gap: 4px; padding-left: 12px; padding-right: 8px; }
   .rest-mini__btn, .rest-mini .rest-mini__skip { min-width: 44px; padding: 0 6px; }
@@ -402,7 +412,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .sum-date::first-letter { text-transform: uppercase; }
 /* Ligne de ce qui a progressé (summaryLine) ; médaille d'un record qui apparaît (0,6 → 1 en 300 ms) */
 .sum-line { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 0.941rem; line-height: 1.294rem; font-weight: 600; color: var(--label); }
-.sum-line .medal { color: var(--yellow); flex-shrink: 0; }
+.sum-line .medal { color: var(--medal); flex-shrink: 0; }
 html.type-xl .sum-line { align-items: flex-start; }   /* médaille sur la première ligne du texte, comme un Label (panel t5) */
 /* Médaille à la taille du texte (elle restait à 18 px à côté d'un texte AX33, panel t6), centrée sur la première ligne */
 html.type-xl .sum-line .medal { width: 1.2em; height: 1.2em; margin-top: .09em; }   /* ligne de 1,375 em */
@@ -427,7 +437,7 @@ html.type-xl .sum-record .medal { width: min(1.4rem, 40px); height: min(1.4rem, 
 .sum-list { background: var(--cell); border-radius: var(--r-md); overflow: hidden; }
 .sum-row { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 16px; position: relative; }
 .sum-row + .sum-row::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
-.sum-record .medal { color: var(--yellow); flex-shrink: 0; }
+.sum-record .medal { color: var(--medal); flex-shrink: 0; }
 .sum-row__main { flex: 1; min-width: 0; }
 .sum-row__name { font-size: 1rem; line-height: 1.294rem; overflow-wrap: anywhere; }
 .sum-row__sub { font-size: 0.765rem; color: var(--label2); }

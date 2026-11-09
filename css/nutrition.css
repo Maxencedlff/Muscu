@@ -84,9 +84,10 @@ div.diet-meal__title { cursor: default; }
   transition: background-color .2s, box-shadow .2s, transform .2s;
 }
 .diet-check .icon { width: 22px; height: 22px; }
-/* Pas coché : la coche en filigrane dit que le rond se coche (seul, il passait pour l'anneau des kcal ou le jour
-   « aujourd'hui » de la semaine, panel t5) ; pleine et verte une fois coché */
-.diet-check:not(.diet-check--on) .icon { opacity: .4; }
+/* Pas coché : contour et coche fine en bleu d'action, à plus de 4,5:1 (le rond seul passait pour l'anneau des kcal,
+   panel t5 ; la coche à 40 % d'opacité devenait un bleu marine invisible en sombre, panel t6). Coché : rond plein vert,
+   coche blanche, comme une série validée */
+.diet-check:not(.diet-check--on) .icon { width: 18px; height: 18px; }
 .diet-check:active { transform: scale(.92); }
 .diet-check--on { background: var(--check-on); color: var(--check-mark); box-shadow: none; }
 @media (prefers-reduced-motion: reduce) { .diet-check, .diet-ring__arc, .diet-bar__fill { transition: none; } }

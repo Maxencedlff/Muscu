@@ -43,7 +43,7 @@ function renderDietPlans() {
 function dietTargetsText(plan) {
   const t = plan.targets;
   if (!t) return 'Selon le plan';
-  return [t.kcal ? `${dietN(t.kcal)} kcal` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${m.short} ${t[m.k]}` : ''))].filter(Boolean).join(' · ');
+  return [t.kcal ? `${dietN(t.kcal)} kcal` : '', ...DIET_MACROS.map(m => (t[m.k] ? `${m.short}\u00a0${t[m.k]}` : ''))].filter(Boolean).join(' · ');
 }
 // Les mêmes objectifs dits par VoiceOver : « 2 000 kilocalories, 150 grammes de protéines »
 function dietTargetsSpoken(plan) {

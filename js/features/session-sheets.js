@@ -319,8 +319,9 @@ function pickExercise(name) {
   // Nom renommé de la bibliothèque : l'exercice du programme enregistré sous l'ancien nom est repris (même suivi)
   let inProg    = list.find(e => sameExerciseName(e.name, name));
   const toProg  = $('#axToProg')?.checked;
+  let addedToProg = null;   // ajouté aussi au programme : « Annuler » l'en retire aussi
   if (toProg && !inProg && ax.replaceEi === null) {
-    inProg = makeExercise(name, axSets);
+    inProg = addedToProg = makeExercise(name, axSets);
     list.push(inProg);
     save();
   }
@@ -347,9 +348,15 @@ function pickExercise(name) {
       target: { ex: exObj }, onAction: () => restoreSessionExercises(before),
     });
   } else {
+    const before = clone(activeSession.exercises);
     activeSession.exercises.push(exObj);
     target = activeSession.exercises.length - 1;
-    sessionUndo(toProg ? 'Ajouté à la séance et au programme' : 'Ajouté à la séance', { target: { ex: exObj } });   // en ligne, au-dessus de sa carte
+    // En ligne, au-dessus de sa carte, avec « Annuler » comme un remplacement ou un échauffement (panel t6 : même geste,
+    // même réponse)
+    sessionUndo(addedToProg ? 'Ajouté à la séance et au programme' : 'Ajouté à la séance', { target: { ex: exObj }, onAction: () => {
+      if (addedToProg) { const i = list.indexOf(addedToProg); if (i >= 0) { list.splice(i, 1); save(); } }
+      restoreSessionExercises(before);
+    } });
   }
   activeSession.lastEi = null; activeSession.lastDone = null;
   closeSessSheets();

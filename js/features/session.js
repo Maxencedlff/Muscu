@@ -701,6 +701,7 @@ function validateSet(ei, si, opts = {}) {
   s.reps = String(parseInt(s.reps));
 
   s.done = true;
+  ex.startedAt ??= Date.now();   // ordre réel de la séance dans l'historique (orderByStart, js/data/session-order.js)
   const prevLastEi = activeSession.lastEi, prevLastDone = activeSession.lastDone ?? null;
   const sameAgain  = prevLastEi === ei;   // même exercice deux fois de suite : fait seul
   activeSession.lastEi = ei;
@@ -808,6 +809,12 @@ function scrollToCurrent(smooth = true, focus = false) {
     const room = window.innerHeight - barH - ($('.rest-mini')?.getBoundingClientRect().height || 0) - 24;
     if (top && row.getBoundingClientRect().bottom - top.getBoundingClientRect().top <= room) {
       window.scrollTo({ top: Math.max(0, top.getBoundingClientRect().top + window.scrollY - barH - 8), behavior });
+    } else if (top === card && card) {
+      // Première série trop basse pour tenir avec tout l'en-tête (texte agrandi sur SE) : on descend juste assez pour
+      // montrer la série, sans jamais passer le nom de l'exercice sous la barre (CI t6 : la centrer cachait le nom)
+      const name = card.querySelector('.ex-card__name') || card;
+      const y = window.scrollY, need = row.getBoundingClientRect().bottom + y - barH - room;
+      window.scrollTo({ top: Math.max(0, Math.min(need, name.getBoundingClientRect().top + y - barH - 8)), behavior });
     } else row.scrollIntoView({ block: 'center', behavior });
     if (focus) focusCurrentSet();
   });

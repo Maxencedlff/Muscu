@@ -32,13 +32,13 @@ function renderStatsOverview() {
   const isCur = y === now.getFullYear() && m === now.getMonth();
 
   // Séances par semaine sur 12 semaines, face à l'objectif des Réglages (weeklyGoal) ; le nombre au-dessus de chaque
-  // barre, une semaine par élément de liste pour VoiceOver (role="img" sur le tout rendait les semaines muettes, panel t5)
+  // barre, « 0 » compris (panel t6 : un trait sans valeur passait pour une donnée manquante), une semaine par élément de liste pour VoiceOver (role="img" sur le tout rendait les semaines muettes, panel t5)
   const goal = weeklyGoal();
   const weeks = weeklySessionCounts(12);
   const top = Math.max(goal + 1, ...weeks.map(w => w.n));
   const bars = weeks.map(w => `
       <span class="wk" role="listitem"><span class="visually-hidden">Semaine du ${fmtDate(w.start, 'short')} : ${plural(w.n, 'séance', 'séances')}</span>
-        <span class="wk__bar ${w.n >= goal ? 'wk__bar--ok' : ''}" style="height:${w.n / top * 100}%" aria-hidden="true">${w.n ? `<span class="wk__n num">${w.n}</span>` : ''}</span>
+        <span class="wk__bar ${w.n >= goal ? 'wk__bar--ok' : ''}" style="height:${w.n / top * 100}%" aria-hidden="true"><span class="wk__n num">${w.n}</span></span>
       </span>`).join('');
 
   // Tuiles

@@ -46,7 +46,7 @@ function exMusclesPanelHtml(m) {
 // ── Muscles vérifiés de la bibliothèque : modifier, rétablir ─
 
 // Exercice de la bibliothèque : muscles vérifiés par défaut, modifiables après confirmation, rétablis d'un toucher
-const VERIFIED_MUSCLES_FOOT = 'Muscles vérifiés de la bibliothèque : principaux en orange, secondaires en jaune.';
+const VERIFIED_MUSCLES_FOOT = 'Muscles vérifiés de la bibliothèque : principaux en orange vif, secondaires en orange atténué.';
 const MODIFIED_MUSCLES_FOOT = 'Muscles modifiés par toi : ils remplacent ceux de la bibliothèque dans Progrès et la récupération.';
 const RESET_MUSCLES_LABEL = 'Rétablir les muscles par défaut';
 

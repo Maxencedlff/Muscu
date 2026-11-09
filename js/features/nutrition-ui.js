@@ -21,7 +21,8 @@ const DIET_MACROS = [
 
 const dietN = v => fmtNum(Math.round(v));
 // « 620 kcal · P 45 · G 70 · L 15 » et sa version dite par VoiceOver
-function dietMacroLine(m) { return `${dietN(m.kcal)} kcal · P ${dietN(m.p)} · G ${dietN(m.c)} · L ${dietN(m.f)}`; }
+// Lettre et chiffre insécables (« L\u00a01 » ne se coupe jamais, panel t6 : le « 1 » passait seul à la ligne)
+function dietMacroLine(m) { return `${dietN(m.kcal)}\u00a0kcal · P\u00a0${dietN(m.p)} · G\u00a0${dietN(m.c)} · L\u00a0${dietN(m.f)}`; }
 function dietMacroSpoken(m) { return `${dietN(m.kcal)} kilocalories, ${dietMacroGramsSpoken(m)}`; }
 function dietMacroGramsSpoken(m) { return `${dietN(m.p)} grammes de protéines, ${dietN(m.c)} de glucides, ${dietN(m.f)} de lipides`; }
 // Ligne abrégée à l'écran (« P 4 · G 47 »), dite en toutes lettres par VoiceOver (sinon « P 4 g » lettre par lettre)

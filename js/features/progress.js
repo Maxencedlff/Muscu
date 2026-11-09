@@ -118,11 +118,14 @@ function sinceTxt(ts, now = Date.now()) {
 }
 function pctTxt(p) { return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)} %`; }
 
-function sparkline(vals) {
+// dates facultatives : points placés selon la date, comme la grande courbe de la fiche (chartXFracs), pour que les deux
+// tracés aient la même forme (panel t6 : la mini-courbe les plaçait au rang)
+function sparkline(vals, dates = null) {
   const W = 60, H = 24;
   if (vals.length < 2) return `<svg class="spark" width="${W}" height="${H}" aria-hidden="true"></svg>`;
   const min = Math.min(...vals), max = Math.max(...vals), r = (max - min) || 1;
-  const pts = vals.map((v, i) => `${(i / (vals.length - 1) * (W - 4) + 2).toFixed(1)},${(H - 3 - (v - min) / r * (H - 6)).toFixed(1)}`);
+  const fx = dates && dates.length === vals.length ? chartXFracs(dates) : vals.map((_, i) => i / (vals.length - 1));
+  const pts = vals.map((v, i) => `${(fx[i] * (W - 4) + 2).toFixed(1)},${(H - 3 - (v - min) / r * (H - 6)).toFixed(1)}`);
   const last = pts[pts.length - 1].split(',');
   return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">
     <polyline points="${pts.join(' ')}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
@@ -175,7 +178,7 @@ function statsRow(it) {
           <span class="cell__title prow__name">${esc(it.name)}</span>
           <span class="cell__sub num">${it.measure === 'cardio' ? cardioPointTxt(last, paceKind(it)) : bw ? `${last.maxReps} ${it.unit || 'reps'}` : setTxt(last.best, { name: it.name })}</span>
         </span>
-        <span class="prow__spark ${cls}">${sparkline(vals)}</span>
+        <span class="prow__spark ${cls}">${sparkline(vals, it.points.map(p => p.date))}</span>
         <span class="prow__trend num ${cls}">${tp === null ? '' : pctTxt(tp)}</span>
         ${icon('chevron.right', 16)}
       </button>`;

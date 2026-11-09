@@ -115,9 +115,10 @@ def t_journee(bench, eng, dev, theme):
         tint = page.evaluate("""() => { const b = document.querySelector('.diet-home .diet-check'), s = getComputedStyle(b), probe = document.createElement('span');
             probe.style.color = 'var(--tint)'; document.body.append(probe); const tint = getComputedStyle(probe).color; probe.remove();
             return { color: s.color, ring: s.boxShadow, tint }; }""")
-        # Panel t5 : coche en filigrane (le rond vide passait pour l'anneau des kcal ou le jour « aujourd'hui »)
+        # Panel t5 : coche visible dans le rond (seul, il passait pour l'anneau des kcal) ; panel t6 : coche pleine en bleu
+        # d'action (à 40 % d'opacité, un bleu marine invisible en sombre)
         op = page.evaluate("getComputedStyle(document.querySelector('.diet-home .diet-check .icon')).opacity")
-        R.check(float(op) < 1 and tint['tint'] in tint['ring'], f'{t} carte : cercle en couleur d\'action, coche en filigrane ({op}) {tint}')
+        R.check(float(op) == 1 and tint['color'] == tint['tint'] and tint['tint'] in tint['ring'], f'{t} carte : cercle et coche en couleur d\'action, coche lisible ({op}) {tint}')
         shot(page, LOT, f'1-accueil-{t}')
         card.scroll_into_view_if_needed()
         shot(page, LOT, f'1b-accueil-carte-{t}')
@@ -133,8 +134,8 @@ def t_journee(bench, eng, dev, theme):
         # Journal : même bouton Cocher que sur l'accueil, en couleur d'action (panels de la vague 3)
         jc = page.evaluate("""() => { const b = document.querySelector('.nutrition-view .diet-check:not(.diet-check--on)'); if (!b) return null;
             const p = document.createElement('span'); p.style.color = 'var(--tint)'; document.body.append(p); const tint = getComputedStyle(p).color; p.remove();
-            const s = getComputedStyle(b); return parseFloat(getComputedStyle(b.querySelector('.icon')).opacity) < 1 && s.boxShadow.includes(tint); }""")
-        R.check(jc is True, f'{t} journal : pas coché = cercle en couleur d\'action, coche en filigrane ({jc})')
+            const s = getComputedStyle(b); return parseFloat(getComputedStyle(b.querySelector('.icon')).opacity) === 1 && s.color === tint && s.boxShadow.includes(tint); }""")
+        R.check(jc is True, f'{t} journal : pas coché = cercle et coche en couleur d\'action ({jc})')
         txt = page.inner_text('.nutrition-view')
         R.check("Aujourd'hui" in txt and 'Prise de masse' in txt, f'{t} Nutrition : titre et plan')
         R.check('sur 2 600 kcal' in txt.replace(' ', ' ').replace('\xa0', ' '), f'{t} Nutrition : objectif de calories du plan')
