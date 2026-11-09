@@ -181,7 +181,7 @@ def t_journee(bench, eng, dev, theme):
         # Déplier un repas coché, le décocher
         page.click('.diet-meal[data-meal="m1"] .diet-meal__title')
         page.wait_for_timeout(200)
-        R.check(page.locator('.diet-meal[data-meal="m1"] .diet-item').count() == 2, f'{t} repas coché déplié au toucher')
+        R.check(page.locator('.diet-meal[data-meal="m1"] .diet-item[data-action="diet-swap"]').count() == 2, f'{t} repas coché déplié au toucher')
         # Journée complète
         for m in ('m3', 'm4'):
             page.click(f'.diet-meal[data-meal="{m}"] [data-action="diet-check"]')
