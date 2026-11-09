@@ -96,6 +96,9 @@ def t_annuler_en_ligne(bench):
             R.check(m and m['text'].startswith('Mis en dernier') and m['next'] and not m['toast'], f'{t} Plus tard : ligne au-dessus de la carte déplacée {m}')
             page.wait_for_timeout(6300)
             R.check(page.locator('.ex-undo, [data-action="sess-undo"]').count() == 0, f'{t} après 6 s : la ligne s\'en va')
+            # Tout autre message en séance (superset, exercice ajouté…) : en ligne aussi, jamais de toast flottant
+            make_superset(page)
+            R.check(page.locator('.toast').count() == 0 and 'Superset' in sess_undo_text(page), f'{t} superset : confirmation en ligne, pas de toast ({sess_undo_text(page)!r})')
             R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 def t_repos_44(bench):

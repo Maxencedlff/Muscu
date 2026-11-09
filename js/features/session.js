@@ -16,7 +16,7 @@ let persistWarned = false; // un seul avertissement « stockage plein » par sé
 // target : { ex, si } (série), { ex } (exercice), { at } (exercice retiré, sa position) ; sans onAction, le texte seul.
 const SESS_UNDO_MS = 6000;
 let sessUndo = null;
-function sessionUndo(text, { target = {}, label = 'Annuler', onAction = null, state = '', ms = onAction ? SESS_UNDO_MS : 3000 } = {}) {
+function sessionUndo(text, { target = {}, label = 'Annuler', onAction = null, state = '', ms = onAction ? SESS_UNDO_MS : 3000, paint = true } = {}) {
   clearTimeout(sessUndo?.timer);
   document.querySelector('.toast')?.remove();
   sessUndo = { ...target, text, label, onAction, state };
@@ -29,7 +29,22 @@ function sessionUndo(text, { target = {}, label = 'Annuler', onAction = null, st
   };
   sessUndo.timer = setTimeout(expire, ms);
   announce(onAction ? `${text}. ${label} disponible` : text);
-  if (inSession()) render();
+  if (!inSession()) return;
+  // paint false (message d'une saisie refusée) : la ligne est posée sans redessiner, pour garder le champ signalé et le focus
+  const card = paint ? null : exCardOf(activeSession.exercises.indexOf(sessUndo.ex));
+  if (card) { document.querySelectorAll('.ex-undo').forEach(e => e.remove()); card.insertAdjacentHTML('beforebegin', exUndoHtml(sessUndo)); }
+  else render();
+}
+// Tout autre message pendant la séance (« Exercice ajouté », « Valide d'abord la série 1 », « Tempo 3-1-1 »…) : pas de
+// toast flottant non plus, la même ligne au-dessus de la carte en cours, 3 s (showToast la délègue ici, js/core/dialogs.js).
+// Une feuille de la séance ouverte garde le toast (il passe au-dessus d'elle, en bas).
+function sessionNotice(msg, opts = {}) {
+  if (typeof currentView !== 'function' || currentView() !== 'session' || !activeSession) return false;
+  if (document.querySelector('.sess-sheet:not(.sess-sheet--out), .ios-dialog, .sheet-root')) return false;
+  const cur = currentSet(), ex = activeSession.exercises[cur ? cur.ei : activeSession.exercises.length - 1];
+  if (!ex) return false;
+  sessionUndo(msg, { target: { ex }, onAction: opts.action ? opts.onAction : null, ms: opts.error ? 4000 : 3000, paint: false });
+  return true;
 }
 function clearSessionUndo() { clearTimeout(sessUndo?.timer); sessUndo = null; }
 const undoForSet = (ex, si) => (sessUndo && sessUndo.ex === ex && sessUndo.si === si ? sessUndo : null);

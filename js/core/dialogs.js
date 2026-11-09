@@ -34,6 +34,8 @@ function removeToast(el) {
 // { error: true } : annoncé en assertif et affiché au moins 4 s. Avec action : 6 s au moins, et retenu tant
 // qu'on le touche ou que VoiceOver est dessus (sinon « Annuler » disparaîtrait sous le doigt)
 function showToast(msg, opts = {}) {
+  // En séance (hors feuille) : jamais de toast flottant, la confirmation en ligne (sessionNotice, js/features/session.js)
+  if (typeof sessionNotice === 'function' && sessionNotice(msg, opts)) return;
   document.querySelectorAll('.toast').forEach(t => t.remove());
   const el = document.createElement('div');
   el.className = 'toast';

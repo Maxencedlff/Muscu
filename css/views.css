@@ -107,6 +107,7 @@
    (js/core/dialogs.js : has-toast, --toast-room), pour que rien ne reste dessous en fin de défilement */
 .toast { background: var(--dlg-solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
 body.has-toast #app::after { content: ''; display: block; height: var(--toast-room, 0px); }
+body:has(.sess-sheet:not(.sess-sheet--out)) .toast { z-index: 450; }   /* message d'une feuille de la séance : au-dessus d'elle */
 /* Jamais coupé par « … » sur une ligne (panel du 07/11, iPhone SE) : deux lignes équilibrées au plus, trois à
    côté d'un bouton ; les textes restent courts (test « toasts courts », tests/unit/ergo.mjs) */
 .toast > span {

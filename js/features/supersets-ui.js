@@ -88,8 +88,9 @@ function applySessionSuperset(ei, others) {
   haptic();
   persistSession();
   render();
-  showToast(!g ? 'Retiré du superset'
-    : inProg ? `${ssKind(g.length)} enregistré` : `${ssKind(g.length)} pour cette séance`);
+  // En séance : la confirmation en ligne, au-dessus de la carte du superset (jamais de toast flottant, vague 3)
+  sessionUndo(!g ? 'Retiré du superset'
+    : inProg ? `${ssKind(g.length)} enregistré` : `${ssKind(g.length)} pour cette séance`, { target: { ex: activeSession.exercises[g ? g[0] : activeSession.exercises.indexOf(ex)] } });
   setTimeout(() => activeSession && exCardOf(activeSession.exercises.indexOf(ex))?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
 }
 

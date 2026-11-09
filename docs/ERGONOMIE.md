@@ -87,7 +87,7 @@ qui citent le libellé (le test du guide échoue si un libellé cité n'existe p
   « Annuler » dans la colonne « Avant » de la série (validée, technique posée), ou une ligne « Mis en dernier · Annuler »
   juste au-dessus de la carte de l'exercice (Plus tard, Faire maintenant, remplacé, échauffement, mini-série) ou à la place
   d'une carte retirée ; VoiceOver annonce l'état (sessionUndo, js/features/session.js). Rien ne recouvre jamais rien.
-  Hors séance (et pour un simple message en séance) : UNE seule place, en bas, au-dessus de la barre d'onglets, de la
+  En séance, un simple message prend la même ligne (au-dessus de la carte concernée, 3 s). Hors séance : UNE seule place, en bas, au-dessus de la barre d'onglets, de la
   mini-barre ou du repos, fond opaque ; la page garde sous son contenu la hauteur du toast le temps qu'il est là ; il
   disparaît au changement d'écran. 60 signes au plus (40 à côté d'un bouton), sur deux lignes plutôt que coupé ; son
   bouton dit ce qu'il défait ; avec un bouton, 6 s au moins, retenu sous le doigt ou le focus de VoiceOver (js/core/dialogs.js).

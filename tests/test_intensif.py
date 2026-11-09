@@ -76,7 +76,7 @@ def t_seance(bench, eng, dev, theme):
         # Sous-série avant la série : refusée avec un message
         # ✓ grisé (aria-disabled, comme une série plus bas) : touché quand même, il explique
         page.click('[data-action="sub-validate"][data-ei="0"][data-si="3"][data-k="0"]', force=True); page.wait_for_timeout(250)
-        R.check('Valide d\'abord la série 4' in page.locator('.toast').inner_text(), f'{t} sous-série après sa série seulement')
+        R.check('Valide d\'abord la série 4' in sess_undo_text(page), f'{t} sous-série après sa série seulement (en ligne, pas de toast)')
 
         # ── Séries 1 à 4 ; après la 4 : pas de repos, le drop suit
         for si in range(3):

@@ -341,7 +341,7 @@ function pickExercise(name) {
   } else {
     activeSession.exercises.push(exObj);
     target = activeSession.exercises.length - 1;
-    showToast(toProg ? 'Ajouté à la séance et au programme' : 'Ajouté à la séance');
+    sessionUndo(toProg ? 'Ajouté à la séance et au programme' : 'Ajouté à la séance', { target: { ex: exObj } });   // en ligne, au-dessus de sa carte
   }
   activeSession.lastEi = null; activeSession.lastDone = null;
   closeSessSheets();
