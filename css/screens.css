@@ -629,7 +629,7 @@ body.light .imp__ctl { background: var(--cell); }
 .pgal__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }   /* jamais plus large que l'écran en texte agrandi (352 px sur 320, panel t5) */
 .pgal__item { position: relative; aspect-ratio: 3 / 4; min-height: 44px; border-radius: var(--r-sm); overflow: hidden; background: var(--cell2); border: none; padding: 0; cursor: pointer; }
 .pgal__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pgal__pose { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: var(--r-pill); background: var(--scrim); color: var(--white); font-size: var(--fs-caption2); font-weight: 600; }
+.pgal__pose { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: var(--r-pill); background: var(--scrim); color: var(--white); font-size: var(--fs-caption); font-weight: 600; }   /* 12 px au moins (ERGONOMIE §4), suit le texte agrandi */
 /* Avant / après : deux photos superposées, un curseur découvre celle d'avant (js/features/photo-vault-ui.js) */
 .pcmp__frame {
   position: relative; aspect-ratio: 3 / 4; max-height: 54dvh; max-width: 100%; margin: 0 auto; border-radius: var(--r-md); overflow: hidden;
