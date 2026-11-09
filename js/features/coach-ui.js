@@ -175,11 +175,11 @@ function renderCoachSettings() {
         <div class="group">
           <button class="cell cell--destructive" data-action="coach-leave">Quitter mon coach</button>
         </div>
-        <div class="group-foot">Si tu le quittes, ton coach ne verra plus tes séances. Les programmes déjà ajoutés restent dans tes programmes.</div>` : coachJoinHiddenByAge() ? coachJoinAgeHtml() : `
+        <div class="group-foot">Si tu quittes ton coach, tes séances ne lui sont plus visibles. Les programmes déjà ajoutés restent dans tes programmes.</div>` : coachJoinHiddenByAge() ? coachJoinAgeHtml() : `
         <div class="social-hero coach-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec un coach</h2>
-          <p class="social-hero__sub">Ton coach te donne un code. Ton coach verra tes séances, pourra t'envoyer des programmes, commenter tes séances et t'écrire des messages.</p>
+          <p class="social-hero__sub">Ton coach te donne un code, à entrer dans « Rejoindre un coach ». Tu lui ouvres alors tes séances : ton coach peut les commenter, t'envoyer des programmes et t'écrire des messages.</p>
         </div>
         <div class="group">
           <button class="cell cell--action" data-action="coach-join"><span class="cell__title">Rejoindre un coach</span></button>
@@ -287,7 +287,7 @@ function renderCoachJoin(code) {
         ${list([['Toutes tes séances', 'Y compris celles d\'avant, avec exercices, séries et notes, même les séances masquées à ceux qui te suivent.']])}
         ${coachTitle(`Ce ${elide('que', name)} pourra faire`)}
         ${list([['Des programmes pour toi', 'Avec ses consignes. Tu choisis de les ajouter.'], ['Ses commentaires', 'Sous tes séances, dans ton historique.'],
-          ['Des messages', 'Texte seul, entre vous deux. Effacés quand le suivi s\'arrête. Tu peux signaler un message.'],
+          ['Des messages', 'Texte seul, entre vous deux. Effacés quand le coaching s\'arrête. Tu peux signaler un message.'],
           ['Des plans diète', 'Seulement si tu acceptes ses plans. Tu choisis de les suivre.']])}
         ${coachTitle('Seulement si tu le choisis')}
         ${list([['Ton poids et tes mensurations', 'Rien n\'est partagé au départ. Tu coches ce que tu veux dans Réglages › Social et coach › Partager avec mon coach.'],

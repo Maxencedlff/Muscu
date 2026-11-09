@@ -191,7 +191,7 @@ def t_activation(bench, eng, dev, theme):
         page.evaluate("async () => { const c = __sb.addPerson({ username: 'max', social: false }); __sb.makeCoach(c); __sb.link(c, __sb.meId()); await coachRefresh(); render(); }")
         page.wait_for_timeout(400)
         foot = page.inner_text('.group-foot:has(.link-inline[data-action="social-rules"])')
-        R.check('jamais montrés à ceux qui te suivent' in foot and 'Ton coach, lui, voit tes séances et leurs notes' in foot, f'{t} pied : ce que voit le coach dit ({foot!r})')
+        R.check('jamais montrés à ceux qui te suivent' in foot and 'Ton coach voit en plus tes séances et leurs notes' in foot, f'{t} pied : ce que voit le coach dit ({foot!r})')
         shot(page, LOT, f'2-activation-{t}')
         # Règles de la communauté
         page.click('#friendsBody [data-action="social-rules"]')

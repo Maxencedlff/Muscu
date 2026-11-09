@@ -312,7 +312,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         sp.wait_for_selector('.coach-photos-mine-view .cph-code')
         code = sp.inner_text('.coach-photos-mine-view .cph-code')
         txt = sp.inner_text('.coach-photos-mine-view')
-        R.check('comparez' not in txt and 'hébergeur' not in txt and 'demande-lui le code' in txt, f'{t} code : tutoiement, mots simples, où le coach le trouve')
+        R.check('comparez' not in txt and 'hébergeur' not in txt and 'demande à ton coach le code' in txt, f'{t} code : tutoiement, mots simples, où le coach le trouve')
         R.check(code == sp.evaluate('cph.code') and sp.get_attribute('[data-action="cph-verify"]', 'aria-expanded') == 'true', f'{t} déplié : code de la clé de ton coach ({code!r})')
         shot(sp, LOT, f'07b-verifier-cle-{t}')
         sp.click('[data-action="cph-verify"]')

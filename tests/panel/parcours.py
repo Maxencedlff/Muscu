@@ -748,7 +748,7 @@ def p_nutrition(r):
             r.toucher('.coach-home [data-action="diet-coach-accept"]', 'Accepter (carte de l\'accueil)')
             fermer_dialogue(r, 'Accepter')
     with r.etape('coach-suivi', 'Plan du coach suivi', cle=cle):
-        r.toucher('.coach-home [data-action="diet-take"]', 'Suivre')
+        r.toucher('.coach-home [data-action="diet-take"]', 'Utiliser')
     with r.etape('coach-nutrition', 'Nutrition avec le plan du coach (consigne, repas)', cle=cle):
         r.toucher('.diet-home__open', 'carte Nutrition')
         fermer_dialogue(r, 'Garder sur cet iPhone')

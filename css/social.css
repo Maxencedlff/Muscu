@@ -28,7 +28,7 @@
 /* « Activer » collé en bas, au-dessus de la barre d'onglets (comme « Commencer » du programme conseillé) : sur iPhone SE,
    le texte, le pseudo et l'interrupteur des 15 ans le poussaient sous la barre (panel Apple du 08/11) */
 .social-enable {
-  margin-top: 24px; position: sticky; z-index: 2;
+  margin-top: 16px; position: sticky; z-index: 2;
   bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 10px 0 var(--bg), 0 -10px 16px var(--bg);
 }
 body.has-livebar .social-enable { bottom: calc(var(--tabbar-h) + 72px + env(safe-area-inset-bottom, 0px)); }

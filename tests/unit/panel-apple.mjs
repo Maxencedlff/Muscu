@@ -152,8 +152,10 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
   });
 
   test('Photos de bilan : le coach n\'est jamais écrit au masculin (coach, coache)', () => {
-    const files = ['js/data/guide.js', 'js/features/coach-photos-ui.js', 'js/features/coach-ui.js', 'js/features/photo-vault-ui.js'];
-    for (const f of files) assert.ok(!/pour lui seul|quand il veut|s'il quitte|il ne la voit plus|qu'il aurait/.test(src(f)), f);
+    const files = ['js/data/guide.js', 'js/features/coach-photos-ui.js', 'js/features/coach-ui.js', 'js/features/photo-vault-ui.js',
+      'js/features/social-ui.js', 'js/features/coach-chat-ui.js', 'js/features/coach-plan-ui.js', 'js/features/account-ui.js', 'js/features/comments-ui.js'];
+    // Panel t5 : « Ton coach, lui, … avec lui », « préviens-le », « quitte-le », « Il a pu changer d'iPhone », « toi seul »
+    for (const f of files) assert.ok(!/pour lui seul|quand il veut|s'il quitte|il ne la voit plus|qu'il aurait|coach, lui|avec lui\.|préviens-le|quitte-le|Il a pu changer|toi seul/.test(src(f)), f);
   });
 
   test('Icônes : une bulle par sens, une silhouette pour se connecter', () => {

@@ -26,7 +26,7 @@ Une même icône ou un même mot mène toujours à la même chose, partout.
 | `✕` | Fermer, écarter ou retirer d'une liste en cours (carte, feuille, suggestion, technique d'une série) | Jamais pour effacer une séance ou une donnée enregistrée (« Supprimer », en rouge) |
 | Partager (carré et flèche, `square.and.arrow.up`) | Ouvrir la feuille de partage d'iOS : envoyer vers une autre app (programme par message, séance, récap, code coach, invitation) | Jamais pour un envoi privé dans l'app |
 | Avion en papier (`paperplane`) | Envoi privé dans l'app, chiffré : à son coach (photos de bilan) ou à un élève (programme, plan diète) | Fiche d'un élève : « Envoyer un programme » et « Envoyer un plan diète » ont la même icône |
-| Coche | Choisir ou valider (série, programme actif, « Suivre ce plan ») | |
+| Coche | Choisir ou valider (série, programme actif, « Utiliser ce plan ») | |
 | Bulle à lignes (`text.bubble`) | Messages privés avec son coach ou un élève, et leur nombre de non-lus | Jamais pour un commentaire |
 | Bulle vide (`bubble.left`) | Commentaire sur une séance : « Commenter » (Social), « Commentée par ton coach » | Jamais pour les messages privés |
 | Silhouette dans un cercle (`person.crop.circle`) | Pas encore de compte : « Se connecter » (Réglages, Compte) | Jamais l'haltère, réservée à l'onglet Entraînement |

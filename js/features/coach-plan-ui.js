@@ -233,7 +233,7 @@ async function planPhaseSheet(uid, phase = null) {
         <select id="planProg" class="plan-form__select"><option value="">Aucun</option>${progs}</select></label>
       <label class="plan-form__col"><span class="plan-form__label">Note</span>
         <textarea id="planNote" class="coach-textarea" rows="3" maxlength="${PLAN_NOTE_MAX}" placeholder="Facultatif" aria-describedby="planNoteHint">${esc(f.note || '')}</textarea>
-        <span class="plan-form__hint" id="planNoteHint">Visible par toi seul. N'y note pas de données de santé.</span></label>
+        <span class="plan-form__hint" id="planNoteHint">Visible par toi uniquement. N'y note pas de données de santé.</span></label>
       ${phase ? '<button type="button" class="plan-form__delete" id="planDelete">Supprimer la phase</button>' : ''}
     </div>`;
   const read = panel => ({

@@ -149,7 +149,7 @@ function dietMealHtml(x, pr, day) {
         </article>`;
 }
 
-// Carte d'un plan reçu de mon coach (écran Nutrition, Mon coach) : nom, repas, « Suivre ce plan »
+// Carte d'un plan reçu de mon coach (écran Nutrition, Mon coach) : nom, repas, « Utiliser ce plan »
 // Sans l'accord « recevoir les plans de mon coach » : invitation, sans rien du contenu du plan
 function dietInviteCardHtml() {
   const who = esc(coachName());
@@ -174,7 +174,7 @@ function dietInboxCardHtml(item) {
   const eyebrow = status === 'update' ? `Mis à jour par ${who}` : status === 'new' ? `Nouveau plan diète ${elide('de', who)}` : `Reçu ${elide('de', who)}`;
   const total = item.meta ? null : dietPlanMacros(item.data);
   const btn = status === 'current' ? '<p class="coach-prog__done">C\'est ton plan</p>'
-    : `<button class="btn btn--primary coach-prog__btn" data-action="diet-take" data-id="${esc(item.id)}">${status === 'update' ? 'Mettre à jour' : 'Suivre ce plan'}</button>`;
+    : `<button class="btn btn--primary coach-prog__btn" data-action="diet-take" data-id="${esc(item.id)}">${status === 'update' ? 'Mettre à jour' : 'Utiliser ce plan'}</button>`;
   return `
         <article class="coach-prog diet-inbox">
           <div class="coach-prog__eyebrow">${eyebrow}</div>
@@ -255,6 +255,7 @@ function renderNutrition(dayParam) {
         ${pending ? `<div class="coach-progs">${dietInboxCardHtml(pending)}</div>` : ''}
         ${dietWeekHtml(day)}
         ${dietSummaryHtml(pr)}
+        ${!data.dietHideNumbers && dietTargetGap(plan) ? `<p class="diet-gap" role="note">${icon('info.circle', 14)}<span>${esc(dietTargetGap(plan))}</span></p>` : ''}
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <h2 class="group-title">Repas</h2>
         <div class="diet-meals">${meals}</div>
@@ -276,7 +277,7 @@ function nutritionHomeCard() {
         <h2 class="account-card__title" id="dietPendingTitle">${!ok ? `${esc(coachName())} veut t'envoyer un plan diète` : dietInboxStatus(pending).status === 'update' ? `Plan diète mis à jour par ${esc(coachName())}` : `Nouveau plan diète ${elide('de', esc(coachName()))}`}</h2>
         <p class="account-card__sub">${ok ? esc(pending.data.name) : 'Accepte pour le recevoir'}</p>
       </div>
-      ${ok ? `<button class="account-card__btn" data-action="diet-take" data-id="${esc(pending.id)}">Suivre</button>`
+      ${ok ? `<button class="account-card__btn" data-action="diet-take" data-id="${esc(pending.id)}">Utiliser</button>`
         : '<button class="account-card__btn" data-action="diet-coach-accept">Accepter</button>'}
       <button class="account-card__close" data-action="diet-dismiss" data-id="${esc(pending.id)}" aria-label="Plus tard">${icon('xmark', 16)}</button>
     </section>` : '';
@@ -419,7 +420,7 @@ registerActions({
     save();
     haptic();
     coachMarkInboxSeen('programme', it.id);
-    showToast(`Plan suivi : ${it.data.name}`);
+    showToast(`Plan en cours : ${it.data.name}`);
     render();
   },
   'diet-dismiss': (e, el) => { coachMarkInboxSeen('programme', el.dataset.id); render(); showToast('Il reste dans Social › Mon coach'); },
@@ -438,8 +439,11 @@ registerActions({
     // Relecture avant l'envoi, comme un programme (écran Envoyer, bouton « Envoyer à … ») : un plan diète
     // touche à la santé de l'élève, jamais envoyé au premier toucher (panel du 07/11)
     const plan = data.dietPlans[planId];
-    const ok = await dialog({ title: `Envoyer « ${plan.name} » à ${who} ?`,
-      message: `${plan.targets ? `Objectifs du jour : ${dietTargetsSpoken(plan)}.` : 'Sans objectifs du jour.'} ${plural(plan.meals.filter(m => m.items.length).length, 'repas', 'repas')}, ${dietN(dietPlanMacros(plan).kcal)} kilocalories prévues.${dietTargetGap(plan) ? ` ${dietTargetGap(plan)}` : ''}`,
+    // Texte court, unités abrégées comme à l'écran, l'écart avec l'objectif en premier (panel t5 : la phrase VoiceOver
+    // « 2 000 kilocalories, 150 grammes » s'affichait telle quelle, à côté de « 575 kcal »)
+    const gap = dietTargetGap(plan);
+    const ok = await dialog({ title: `Envoyer « ${plan.name} » à\u00a0${who}\u00a0?`,
+      message: `${gap ? `${gap} ` : ''}${plan.targets ? `Objectif du jour : ${dietTargetsText(plan)}.` : 'Sans objectifs du jour.'} ${plural(plan.meals.filter(m => m.items.length).length, 'repas', 'repas')}, ${dietN(dietPlanMacros(plan).kcal)} kcal prévues.`,
       actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Envoyer', value: true, style: 'preferred' }] });
     if (ok !== true) return;
     el.disabled = true;

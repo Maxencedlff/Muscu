@@ -32,7 +32,7 @@ function cphVerifyHtml(code) {
             <span class="cell__body"><span class="cell__title">Vérifier le code avec ton coach</span></span>
             ${icon(cphVerifyOpen ? 'chevron.down' : 'chevron.right', 16)}
           </button>${cphVerifyOpen ? `
-          <div class="cell"><span class="cell__body"><span class="cell__sub">Tes photos sont protégées sur ton iPhone : seul ton coach peut les ouvrir, ni nous ni personne d'autre. Pour t'en assurer, demande-lui le code écrit en bas de ta page Photos de bilan, dans son app. Il doit être le même que celui-ci : <span class="num cph-code">${esc(code)}</span>. S'il est différent, n'envoie plus de photo et préviens-le.</span></span></div>` : ''}
+          <div class="cell"><span class="cell__body"><span class="cell__sub">Tes photos sont protégées sur ton iPhone : seul ton coach peut les ouvrir, ni nous ni personne d'autre. Pour t'en assurer, demande à ton coach le code écrit en bas de sa page Photos de bilan, dans son app. Il doit être le même que celui-ci : <span class="num cph-code">${esc(code)}</span>. Si les deux codes sont différents, n'envoie plus de photo et écris à ton coach.</span></span></div>` : ''}
         </div>`;
 }
 
@@ -132,7 +132,7 @@ async function cphSendChecks() {
   }
   if (cphKeyChanged()) {
     const shown = cph.state.key.public_key;   // la clé dont le code est montré : seule elle est acceptée
-    const ok = await dialog({ title: 'La clé de ton coach a changé', message: `Il a pu changer d'iPhone. Avant d'envoyer, vérifiez ensemble que son app montre le même code : ${cph.code}.`,
+    const ok = await dialog({ title: 'La clé de ton coach a changé', message: `Ton coach a pu changer de téléphone. Avant d'envoyer, vérifiez ensemble que son app montre le même code : ${cph.code}.`,
       actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'C\'est le même code', value: true, style: 'preferred' }] });
     if (!ok) return false;
     cphPinKey(shown);
@@ -255,7 +255,7 @@ function cphSetupGroupHtml() {
         <div class="group">
           <button class="cell cell--action" data-action="cph-setup" ${cphCoach.busy ? 'disabled' : ''}><span>Recevoir les photos de bilan</span></button>
         </div>
-        <div class="group-foot">Tes élèves pourront t'envoyer des photos, chiffrées pour toi seul, que tu ouvres avec Face ID. Une fois pour tous tes élèves.</div>`;
+        <div class="group-foot">Tes élèves pourront t'envoyer des photos, chiffrées pour toi uniquement, que tu ouvres avec Face ID. Une fois pour tous tes élèves.</div>`;
 }
 function cphTeamSetupHtml(students) {
   return students.length && cphCoachShown() && !cphCoach.key ? cphSetupGroupHtml() : '';
@@ -301,7 +301,7 @@ function renderCphCoach(uid) {
       missing: 'La clé de tes photos n\'est pas encore sur cet iPhone. Sur un nouvel iPhone, elle arrive avec le trousseau iCloud, parfois après un moment : réessaie plus tard.',
       nopasscode: 'Les photos s\'ouvrent avec Face ID ou le code de ton iPhone. Active un code dans Réglages › Face ID et code.',
       mismatch: cphCoach.own
-        ? 'Le serveur donne à tes élèves une autre clé que la tienne : ce qu\'ils enverraient avec elle ne serait pas chiffré pour toi seul. Republie ta clé, puis vérifiez le code ensemble. Les photos reçues pour la clé du serveur seront effacées.'
+        ? 'Le serveur donne à tes élèves une autre clé que la tienne : ce qu\'ils enverraient avec elle ne serait pas chiffré pour toi uniquement. Republie ta clé, puis vérifiez le code ensemble. Les photos reçues pour la clé du serveur seront effacées.'
         : 'Le serveur donne à tes élèves une autre clé que la tienne, et la tienne n\'est pas sur cet iPhone. Crée une nouvelle clé, puis vérifiez le code ensemble.',
     }[ph] || '';
     const myCode = ph === 'mismatch' && cphCoach.myCode ? `<p class="pv-sub">Code de ta clé : <span class="num cph-code">${esc(cphCoach.myCode)}</span></p>` : '';
@@ -319,7 +319,7 @@ function renderCphCoach(uid) {
   }
   const f = cphStudentOf(uid), list = f.photos.filter(x => cphUrls.has(x.id));
   const days = cphDays(list);
-  const foot = `<div class="group-foot">Envoyées par ${who}, chiffrées pour toi seul. ${who} peut les retirer à tout moment ; elles disparaissent aussi si le suivi s'arrête. Ne les enregistre pas, ne les montre pas et ne les publie pas sans son accord écrit.${cphCoach.session?.code ? ` Code de ta clé : <span class="num cph-code">${esc(cphCoach.session.code)}</span> ; ${who} voit le même dans son app.` : ''}</div>`;
+  const foot = `<div class="group-foot">Envoyées par ${who}, chiffrées pour toi uniquement. ${who} peut les retirer à tout moment ; elles disparaissent aussi si le coaching s'arrête. Ne les enregistre pas, ne les montre pas et ne les publie pas sans son accord écrit.${cphCoach.session?.code ? ` Code de ta clé : <span class="num cph-code">${esc(cphCoach.session.code)}</span> ; ${who} voit le même dans son app.` : ''}</div>`;
   if (!days.length) {
     const msg = f.loading || cphView.done < f.photos.length ? 'Ouverture des photos…' : f.photos.length ? 'Ces photos ne s\'ouvrent pas sur cet iPhone.' : `${who} ne t'a pas encore envoyé de photo.`;
     return view(`<h1 class="scr-title" id="cphTitle" tabindex="-1">Photos de bilan</h1><p class="scr-sub">${who}</p><div class="empty-note">${msg}</div>${foot}`);

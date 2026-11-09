@@ -581,7 +581,7 @@ const GUIDE_SECTIONS = [
           '[Inviter un élève] crée un code valable 7 jours et ouvre le partage. Tes élèves ne se voient pas entre eux.',
           'Dans une séance, [Commenter] laisse un mot que l\'élève lit dans son historique.',
           '[Envoyer un programme] : choisis un de tes programmes, ajoute des consignes, puis envoie.',
-          '[Retirer l\'élève] arrête le suivi.',
+          '[Retirer l\'élève] arrête le coaching.',
         ],
         related: ['rejoindre-coach', 'programme-coach'],
         actions: ['coach-invite', 'coach-comment', 'coach-send', 'coach-remove'],

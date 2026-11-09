@@ -2,7 +2,7 @@
 dans la base Ciqual, quantité, objectifs), journée dans Entraînement › Nutrition (frise, anneau, repas
 cochés d'un toucher, repas suivant, remplacement d'un aliment pour la journée), carte de l'accueil
 (cocher le prochain repas sans ouvrir l'écran), plan envoyé par le coach (fiche de l'élève, canal des
-programmes) et reçu par l'élève (carte de l'accueil, « Suivre ce plan », Mon coach), base indisponible.
+programmes) et reçu par l'élève (carte de l'accueil, « Utiliser ce plan », Mon coach), base indisponible.
 
 L'app iOS et Supabase sont simulés (tests/fake_account.py) : aucune requête ne sort. Captures :
 $PPL_SCRATCH/shots/lotnutrition/ (chaque écran, clair et sombre).
@@ -313,7 +313,7 @@ def t_creer_plan(bench, eng, dev, theme):
         shot(page, LOT, f'8-editeur-{t}')
         page.evaluate("goBack()")
         page.wait_for_selector('.diet-plans-view')
-        R.check('Suivi' in page.inner_text('.diet-plans-view'), f'{t} liste : plan suivi')
+        R.check('En cours' in page.inner_text('.diet-plans-view'), f'{t} liste : plan suivi')
         layout(page, t, 'Plans diète')
         shot(page, LOT, f'9-plans-{t}')
         # Accueil : la carte apparaît

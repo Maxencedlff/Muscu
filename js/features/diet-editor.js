@@ -19,9 +19,9 @@ function renderDietPlans() {
   const row = id => {
     const p = data.dietPlans[id], t = dietPlanMacros(p), on = data.dietActive === id;
     const sub = [plural(p.meals.length, 'repas', 'repas'), `${dietN(t.kcal)} kcal`, p.fromCoach ? elide('de', p.fromCoach.name || 'ton coach') : ''].filter(Boolean).join(' · ');
-    return `<button class="cell cell--nav" data-action="diet-open-plan" data-id="${esc(id)}" aria-label="${esc(p.name)}, ${esc(sub)}${on ? ', suivi' : ''}">
+    return `<button class="cell cell--nav" data-action="diet-open-plan" data-id="${esc(id)}" aria-label="${esc(p.name)}, ${esc(sub)}${on ? ', en cours' : ''}">
         <span class="cell__body"><span class="cell__title">${esc(p.name)}</span><span class="cell__sub num">${esc(sub)}</span></span>
-        ${on ? '<span class="cell__value diet-on">Suivi</span>' : ''}
+        ${on ? '<span class="cell__value diet-on">En cours</span>' : ''}
         ${icon('chevron.right', 16)}
       </button>`;
   };
@@ -35,7 +35,7 @@ function renderDietPlans() {
           <button class="cell cell--action" data-action="diet-new-plan">${icon('plus', 20)}<span>Créer un plan</span></button>
         </div>
         ${dietSettingsCellHtml()}
-        <div class="group-foot">${isCoach ? 'Prépare ici les plans de tes élèves, puis envoie-les depuis leur fiche (Coach › Élèves). ' : ''}Le plan suivi s'affiche chaque jour dans Entraînement › Nutrition : tu coches tes repas comme tes séances.</div>
+        <div class="group-foot">${isCoach ? 'Prépare ici les plans de tes élèves, puis envoie-les depuis leur fiche (Coach › Élèves). ' : ''}Le plan en cours s'affiche chaque jour dans Entraînement › Nutrition : tu coches tes repas comme tes séances.</div>
       </div>
     </div>`;
 }
@@ -84,8 +84,8 @@ function renderDietPlan(id) {
       ${navBar({ title: esc(plan.name), right, large: true })}
       <div class="scr">
         <div class="group">
-          ${on ? `<div class="cell"><span class="cell__body"><span class="cell__title">Plan suivi</span><span class="cell__sub">Il s'affiche chaque jour dans Entraînement › Nutrition</span></span><span class="diet-on-mark" aria-hidden="true">${icon('checkmark', 18)}</span></div>`
-            : `<button class="cell cell--action" data-action="diet-follow" data-id="${esc(id)}">${icon('checkmark', 20)}<span>Suivre ce plan</span></button>`}
+          ${on ? `<div class="cell"><span class="cell__body"><span class="cell__title">Plan en cours</span><span class="cell__sub">Il s'affiche chaque jour dans Entraînement › Nutrition</span></span><span class="diet-on-mark" aria-hidden="true">${icon('checkmark', 18)}</span></div>`
+            : `<button class="cell cell--action" data-action="diet-follow" data-id="${esc(id)}">${icon('checkmark', 20)}<span>Utiliser ce plan</span></button>`}
         </div>
         ${plan.consigne ? `<p class="coach-prog__consigne diet-consigne">${icon('info.circle', 14)}<span>${esc(plan.consigne)}</span></p>` : ''}
         <div class="group-title">Par jour</div>
@@ -260,7 +260,7 @@ registerActions({
     if (!plan) return;
     data.dietActive = el.dataset.id;
     save(); haptic(); render();
-    showToast(`Plan suivi : ${plan.name}`);
+    showToast(`Plan en cours : ${plan.name}`);
   },
   'diet-rename': async (e, el) => {
     const plan = dietPlanOf(el.dataset.id);
