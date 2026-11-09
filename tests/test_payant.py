@@ -707,7 +707,7 @@ def t_compte_obligatoire(bench, eng, dev, theme):
         start_session(page)
         page.wait_for_selector('.auth')
         txt = page.inner_text('.auth')
-        R.check('Un compte pour enregistrer' in txt and 'Continuer avec Apple' in txt and 'e‑mail' in txt,
+        R.check('Un compte pour enregistrer' in txt and 'Continuer avec Apple' in txt and 'e-mail' in txt,
                 f'{t} démarrer sans compte : invitation à se connecter ({txt[:120]!r})')
         R.check('Commencer sans compte' not in txt and page.locator('.auth [data-action="auth-close"]').count() == 1,
                 f'{t} invitation : on peut fermer, sans « Commencer sans compte »')

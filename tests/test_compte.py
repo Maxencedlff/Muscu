@@ -107,7 +107,7 @@ def t_welcome(bench, eng, dev, theme):
         open_app(page, theme)
         R.check(welcome_open(page), f'{t} Bienvenue au premier lancement')
         labels = page.locator('.auth .auth-btn').all_inner_texts()
-        R.check([l.strip() for l in labels] == ['Continuer avec Apple', 'Continuer avec Google', 'Continuer avec un e\u2011mail'], f'{t} trois boutons {labels}')
+        R.check([l.strip() for l in labels] == ['Continuer avec Apple', 'Continuer avec Google', 'Continuer avec un e-mail'], f'{t} trois boutons {labels}')
         skip = page.locator('[data-action="auth-skip"]')
         R.check(skip.inner_text().strip() == 'Commencer sans compte', f'{t} « Commencer sans compte »')
         size = page.evaluate("getComputedStyle(document.querySelector('.auth__skip')).fontSize")
@@ -400,7 +400,7 @@ def t_compte(bench, eng, dev, theme):
         # E-mail : ajout par code
         page.click('.method-cell--email')
         page.wait_for_selector('#authEmail')
-        R.check('Ajouter une adresse e\u2011mail' in page.inner_text('.auth'), f'{t} ajout d\'e-mail : titre')
+        R.check('Ajouter une adresse e-mail' in page.inner_text('.auth'), f'{t} ajout d\'e-mail : titre')
         page.fill('#authEmail', 'max@exemple.fr')
         page.click('[data-role="send"]')
         page.wait_for_selector('#authCode')

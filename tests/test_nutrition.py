@@ -249,9 +249,11 @@ def t_creer_plan(bench, eng, dev, theme):
         # VoiceOver : le champ de la quantité a un nom (avant : aucun), l'unité dite en toutes lettres
         lbl = page.get_attribute('.ios-dialog__input', 'aria-label') or ''
         R.check(lbl.endswith(', en grammes') and len(lbl) > len(', en grammes') and page.get_attribute('.ios-dialog__unit', 'aria-hidden') == 'true', f'{t} quantité : champ nommé ({lbl!r})')
-        # Panel du 07/11 : « P 2,5, G 31 » lu lettre par lettre ; le message est en toutes lettres
+        # Panel du 07/11 : « P 2,5, G 31 » lu lettre par lettre. Depuis le 09/11 (alerte courte en texte agrandi),
+        # le message ne redit plus les macros, déjà dans la liste : l'unité et les kcal pour 100 g, en toutes lettres
         msg = page.inner_text('.ios-dialog__msg')
-        R.check('g de protéines' in msg and 'g de glucides' in msg and 'g de lipides' in msg and ', P ' not in msg, f'{t} quantité : macros en toutes lettres ({msg!r})')
+        R.check(msg.startswith('Quantité en grammes.') and 'Pour 100 g : ' in msg and msg.endswith(' kcal.') and ', P ' not in msg and 'protéines' not in msg,
+                f'{t} quantité : message court, sans abréviation ({msg!r})')
         page.fill('.ios-dialog__input', '150')
         tap_dialog(page, 'OK')
         page.wait_for_timeout(300)

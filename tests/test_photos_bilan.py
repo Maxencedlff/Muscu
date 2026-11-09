@@ -192,7 +192,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         sp.evaluate("navigate('photo-vault')")
         sp.wait_for_selector('[data-action="pv-start"]')
         intro = sp.inner_text('.pv-feats')
-        R.check('Ton coach ne reçoit que les photos que tu choisis de lui envoyer' in intro, f'{t} intro du coffre : envoi au coach dit ({intro!r})')
+        R.check('Ton coach ne reçoit que les photos que tu choisis d\'envoyer' in intro and ' lui ' not in intro, f'{t} intro du coffre : envoi au coach dit ({intro!r})')
         sp.click('[data-action="pv-start"]')
         sp.wait_for_selector('.view.photo-vault [data-action="photo-add"]')
         add_photo(sp, face, 'face', 0)
