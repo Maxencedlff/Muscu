@@ -149,7 +149,11 @@
   background: var(--cell); border-radius: var(--r-md); padding: 12px; min-width: 0;
   display: flex; flex-direction: column; gap: 2px;
 }
-.tile__val { font-size: min(22px, 5vw); line-height: 1.647rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile__val { font-size: 1.294rem; line-height: 1.2; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* comme .sum-tile__value : grandit avec le texte, toujours plus grande que le libellé */
+@media (max-width: 359px) { .tile__val { font-size: 1.176rem; } }
+html.type-xl .tiles, html.type-xl .tiles--4 { grid-template-columns: 1fr; }
+html.type-xl .tile__val { white-space: normal; }
+html.type-xl .tile__lbl { overflow-wrap: normal; }
 .tile__lbl { font-size: 0.765rem; line-height: 0.941rem; color: var(--label2); }
 .tile__delta { font-size: 0.765rem; line-height: 0.941rem; font-weight: 600; color: var(--label2); white-space: nowrap; }
 .tile__delta--up { color: var(--green-text); }

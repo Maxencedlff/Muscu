@@ -164,9 +164,9 @@ function renderHistoryDetail(id) {
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${meta.color}"></span>${meta.label}</h1>
         <p class="scr-sub">${when}${progId !== data.activeProgramme && progId !== FREE ? ` · Programme ${esc(progMeta(progId).name)}` : ''}</p>
         <div class="tiles">
-          <div class="tile"><span class="tile__val num">${h.duration ? fmtDuration(h.duration) : '—'}</span><span class="tile__lbl">durée</span></div>
-          <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">volume</span></div>
-          <div class="tile"><span class="tile__val num">${nSets}</span><span class="tile__lbl">${nSets > 1 ? 'séries' : 'série'}</span></div>
+          <div class="tile"><span class="tile__val num">${h.duration ? fmtDuration(h.duration) : '—'}</span><span class="tile__lbl">Durée</span></div>
+          <div class="tile"><span class="tile__val num">${vol > 0 ? fmtVolume(vol) : '—'}</span><span class="tile__lbl">Volume</span></div>
+          <div class="tile"><span class="tile__val num">${nSets}</span><span class="tile__lbl">${nSets > 1 ? 'Séries' : 'Série'}</span></div>
         </div>
         <div class="group-title">Exercices</div>
         <div class="group">

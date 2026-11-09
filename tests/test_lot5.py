@@ -216,7 +216,8 @@ def t_poids(bench, eng, dev, theme):
         R.check('73,4' in page.inner_text('.view.stats'), f'{t} poids : courbe mise à jour')
         go(page, 'stats-overview')
         tiles = page.locator('.tile__lbl').all_inner_texts()
-        R.check(tiles[-1].endswith('au total'), f'{t} vue d\'ensemble : total des séances {tiles}')
+        R.check(tiles[:2] == ['Durée moyenne', 'Volume total'] and tiles[-1].endswith('au total') and tiles[-1][0].isupper(),
+                f'{t} vue d\'ensemble : Durée, Volume, Séances, avec majuscule comme partout {tiles}')
         shot(page, LOT, f'overview_{dev}_{theme}')
         R.check(not page.errors, f'{t} poids : erreurs JS {page.errors[:2]}')
 

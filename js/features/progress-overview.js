@@ -49,9 +49,9 @@ function renderStatsOverview() {
       ${navBar({ title: 'Vue d\'ensemble' })}
       <div class="scr">
         <div class="tiles">
-          <div class="tile"><span class="tile__val num">${fmtVolume(vol)}</span><span class="tile__lbl">volume total</span></div>
-          <div class="tile"><span class="tile__val num">${avgD ? fmtDuration(avgD) : '—'}</span><span class="tile__lbl">durée moyenne</span></div>
-          <div class="tile"><span class="tile__val num">${hist.length}</span><span class="tile__lbl">${hist.length > 1 ? 'séances' : 'séance'} au total</span></div>
+          <div class="tile"><span class="tile__val num">${avgD ? fmtDuration(avgD) : '—'}</span><span class="tile__lbl">Durée moyenne</span></div>
+          <div class="tile"><span class="tile__val num">${fmtVolume(vol)}</span><span class="tile__lbl">Volume total</span></div>
+          <div class="tile"><span class="tile__val num">${hist.length}</span><span class="tile__lbl">${hist.length > 1 ? 'Séances' : 'Séance'} au total</span></div>
         </div>
         <div class="group group--pad cal" id="ovCal">
           <div class="cal__head">

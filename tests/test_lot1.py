@@ -230,6 +230,8 @@ def t_bounds(bench, eng, dev, theme):
         # Fusion : on passe par le détail de la séance (lot 5)
         page.locator('.view.history [data-action="open-history"][data-id="hcs02"]').click()
         page.wait_for_selector('.view.history-detail')
+        lbls = page.locator('.view.history-detail .tile__lbl').all_inner_texts()
+        R.check(lbls[:2] == ['Durée', 'Volume'] and lbls[2] in ('Série', 'Séries'), f'{t} détail : Durée, Volume, Séries avec majuscule, comme le bilan {lbls}')
         page.locator('[data-action="edit-session"][data-id="hcs02"]').click()
         page.wait_for_selector('.view.add-session')
         R.check('Modifier la séance' in page.locator('.navbar__title').inner_text(), f'{t} séance Perso modifiable depuis PPL')
