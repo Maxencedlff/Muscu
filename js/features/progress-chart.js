@@ -319,7 +319,7 @@ function chartSelect(clientX) {
   const set  = st.bubble ? '' : st.bw ? `${p.maxReps} ${chartUnit}` : setTxt(p.best, chartEx);
   b.textContent = st.bubble ? st.bubble(p) : st.cardio ? `${date} · ${cardioPointTxt(p, st.paceKind)}`
     : st.effort ? `${date} · RPE ${fmtNum(p.rpe, 1)} · ${set}`
-    : `${date} · ${set} · ${st.bw ? `${p.totalReps} ${chartUnit}` : fmtVolume(p.volume)}`;
+    : `${date} · ${set} · ${st.bw ? `${p.totalReps} ${chartUnit} en tout` : `volume ${fmtVolume(p.volume)}`}`;   // le total nommé (« 806 kg » seul, panel t5)
   b.dataset.i = best;
   b.hidden = false;
   const bx = st.geom.xp(best);

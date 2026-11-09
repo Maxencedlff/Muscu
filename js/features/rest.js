@@ -33,8 +33,8 @@ function renderRestOverlay() {
         </svg>
         <span class="rest-mini__timer num" role="timer" aria-live="off">${fmtRest(restTimeLeft)}</span>
       </button>
-      <button class="rest-mini__btn num" data-action="rest-adjust" data-d="-15" aria-label="Moins 15 secondes">−15<span class="rest-mini__u">&nbsp;s</span></button>
-      <button class="rest-mini__btn num" data-action="rest-adjust" data-d="15" aria-label="Plus 15 secondes">+15<span class="rest-mini__u">&nbsp;s</span></button>
+      <button class="rest-mini__btn num" data-action="rest-adjust" data-d="-15" aria-label="Moins 15 secondes">−15</button>
+      <button class="rest-mini__btn num" data-action="rest-adjust" data-d="15" aria-label="Plus 15 secondes">+15</button>
       <button class="rest-mini__skip" data-action="skip-rest" aria-label="Passer le repos">Passer</button>
       ${nxt ? `<div class="rest-mini__next">${nxt.sub ? `<span class="rest-mini__name">Ensuite :&nbsp;</span><span class="rest-mini__tail num">${esc(nxt.tail)}</span><span class="sr-text">, ${esc(nxt.name)}</span>`
         : `<span class="rest-mini__name">Ensuite : ${esc(nxt.name)}</span><span class="rest-mini__tail num"><span class="rest-mini__step">&nbsp;· ${esc(nxt.step)}</span>${esc(nxt.load)}</span>`}</div>` : ''}

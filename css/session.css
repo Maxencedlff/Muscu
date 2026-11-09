@@ -261,8 +261,8 @@ body.kb-open .rest-mini { transform: translateY(140%); opacity: 0; pointer-event
 .rest-mini--done { animation: restGo 1s ease 2; }
 @keyframes restGo { 30% { background: color-mix(in srgb, var(--cat-color) 55%, var(--cell2)); } }
 .rest-mini__go { grid-column: 1 / -1; text-align: center; font-size: 1.294rem; font-weight: 700; color: var(--label); }
-/* Écrans étroits : « −15 » sans unité (l'aria-label la garde), puis anneau masqué */
-@media (max-width: 429px) { .rest-mini__u { display: none; } }
+/* « −15 » sans unité partout, comme la feuille Repos (l'aria-label la garde ; « −15 s » sur grand écran seulement faisait
+   deux libellés pour un bouton, panel t5) ; écrans étroits : anneau masqué */
 @media (max-width: 379px) { .rest-ring--small { display: none; } }
 /* Écran étroit : « S2 » part avant que le nom de l'exercice soit coupé (la charge et les reps restent) */
 @media (max-width: 379px) { .rest-mini__next .rest-mini__step { display: none; } }

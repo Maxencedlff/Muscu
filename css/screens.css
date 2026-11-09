@@ -414,7 +414,19 @@ html.type-xl .rs-seg { grid-template-columns: repeat(3, 1fr); }
 /* Vague 3-t4 : −15 et +15 sur une ligne, Passer dessous en pleine largeur (la rangée débordait des deux bords) ;
    l'heure de fin plafonnée comme dans un cercle iOS, pour que 1:59 ne touche pas l'anneau */
 html.type-xl .rs__adj { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; width: 100%; max-width: 360px; }
-html.type-xl .rs__adj .rs__skip { grid-column: 1 / -1; grid-row: 2; }
+html.type-xl .rs__adj .rs__skip { grid-column: 1 / -1; grid-row: 1; }
+html.type-xl .rs__adj .rs__round { grid-row: 2; }
+/* Panel t5 : « Passer », le geste le plus fréquent, était coupé en bas sur iPhone SE. En texte agrandi, Passer puis
+   −15 / +15 juste sous l'anneau, les durées ensuite ; anneau réduit sur un écran bas */
+html.type-xl .rs__adj { order: 1; }
+html.type-xl .rs-seg { order: 2; }
+html.type-xl .rs__next { order: 3; }
+@media (max-height: 700px) {
+  html.type-xl .rs__ring, html.type-xl .rest-ring--big { width: 168px; height: 168px; }
+  html.type-xl .rs .rs__resume { max-width: 128px; }
+  html.type-xl .rs .rs__time { font-size: 56px; }
+  html.type-xl .rs { gap: 12px; }
+}
 html.type-xl .rs__adj .rs__round { width: 100%; }
 html.type-xl .rs__resume { font-size: min(0.882rem, 15px); max-width: 150px; }
 html.type-xl .rs__time { font-size: min(72px, 3.4rem); }
