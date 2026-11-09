@@ -527,10 +527,22 @@ function setRefName(ex, si) {
 // Sélecteur RIR d'une série validée : 0 à 4+, l'équivalent RPE à côté du choix ; un nouveau toucher sur le
 // même bouton efface. Facultatif : rien n'attend ce choix. Placé sous la ligne, hors de son bouton « Modifier »
 // (pas de boutons imbriqués dans un rôle bouton)
+// Le sens des « reps en réserve » dit tant que la personne n'en a jamais noté (panel de la vague 3 : sans phrase,
+// « 0 1 2 3 4+ » ne disait ni à quoi ils servent ni qu'on peut les laisser)
+let rirUsedCache = null;
+function rirEverUsed() {
+  const h = data.history || [];
+  if (activeSession?.exercises.some(e => e.sets.some(x => cleanRir(x.rir) !== null))) return true;
+  if (rirUsedCache?.h !== h || rirUsedCache.n !== h.length) {
+    rirUsedCache = { h, n: h.length, used: h.some(e => (e.exercises || []).some(x => (x.sets || []).some(y => cleanRir(y.rir) !== null))) };
+  }
+  return rirUsedCache.used;
+}
 function rirPickerHtml(ei, si, s, ex) {
   const r = cleanRir(s.rir);
   return `<div class="rir" role="group" aria-label="Répétitions en réserve, ${setSpokenName(ex, si)}">
-            <span class="rir__lbl" aria-hidden="true">Reps en réserve</span>
+            <span class="rir__lbl" aria-hidden="true">Reps en réserve</span>${rirEverUsed() ? '' : `
+            <span class="rir__help">Facultatif : combien tu aurais pu en faire de plus</span>`}
             <span class="rir__btns">${RIR_CHOICES.map(c => `<button class="rir__btn num" data-action="set-rir" data-ei="${ei}" data-si="${si}" data-rir="${c}" aria-pressed="${r === c}" aria-label="${rirTxt(c)} en réserve, RPE ${rirToRpe(c)}">${rirTxt(c)}</button>`).join('')}</span>
             <span class="rir__rpe num" aria-live="polite">${r === null ? '' : `RPE ${rirToRpe(r)}`}</span>
           </div>`;

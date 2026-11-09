@@ -606,6 +606,7 @@ body:has(.view.session):has(.rest-mini) .toast { bottom: calc(116px + env(safe-a
 .rir__btns { order: 2; flex-basis: 100%; display: flex; gap: 8px; }
 .rir__btn {
   width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; flex-shrink: 0;
+.rir__help { order: 1; flex-basis: 100%; font-size: 0.765rem; color: var(--label2); }
   background: var(--fill); color: var(--label); font-size: 0.882rem; font-weight: 600; font-family: inherit;
 }
 .rir__btn[aria-pressed="true"] { background: var(--tint-fill); color: var(--on-tint); }
