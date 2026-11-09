@@ -338,6 +338,55 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.ok(run(`!('2020-01-01' in data.dietLog) && !('nope' in data.dietLog) && '${day}' in data.dietLog`));
   });
 
+  test('journée : ajouter un aliment à un repas déjà coché (journée complète), modifier, retirer, décocher', () => {
+    reset();
+    loadDb();
+    const plan = { name: 'Sèche', meals: [
+      { id: 'm1', name: 'Dîner', items: [item(RIZ_CUIT, 100)] },
+      { id: 'm2', name: 'Collation', items: [item(POULET_GRILLE, 150)] }] };
+    run(`data.dietPlans = { d_a: ${JSON.stringify(plan)} }; data.dietActive = 'd_a';`);
+    const day = '2026-11-05', huile = item(HUILE_OLIVE, 10);
+    run(`dietToggleMeal(data, 'd_a', 'm1', '${day}'); dietToggleMeal(data, 'd_a', 'm2', '${day}')`);
+    let pr = run(`dietDayProgress(data, 'd_a', '${day}')`);
+    const eaten0 = pr.eaten.kcal, goal0 = pr.goal.kcal, planned0 = pr.planned.kcal;
+    assert.equal(pr.complete, true);
+    const added = run(`dietAddExtra(data, 'd_a', 'm1', ${JSON.stringify(huile)}, '${day}')`);
+    assert.ok(added && added.id && added.id !== huile.id, 'ajouté avec un id neuf');
+    pr = run(`dietDayProgress(data, 'd_a', '${day}')`);
+    const k = run(`dietItemMacros(${JSON.stringify(huile)}).kcal`);
+    assert.equal(pr.complete, true, 'le repas reste coché, la journée complète');
+    assert.ok(Math.abs(pr.eaten.kcal - (eaten0 + k)) < 1e-9, 'compté dans le mangé');
+    assert.ok(Math.abs(pr.meals[0].macros.kcal - (pr.meals[0].base.kcal + k)) < 1e-9, 'total du repas');
+    assert.equal(pr.planned.kcal, planned0, 'le prévu ne change pas');
+    assert.equal(pr.goal.kcal, goal0, 'le repère ne change pas');
+    assert.equal(pr.meals[0].extras.length, 1);
+    assert.equal(run('data.dietPlans.d_a.meals[0].items.length'), 1, 'le plan ne change pas');
+    // Gardé par le nettoyage (relance de l'app), même forme
+    run(`sanitizeDiet(data, ${new Date(2026, 10, 5, 21).getTime()})`);
+    assert.equal(run(`data.dietLog['${day}'].extras.m1[0].g`), 10, 'ajout gardé au nettoyage');
+    // Quantité changée, puis retiré
+    assert.equal(run(`dietSetExtra(data, 'd_a', 'm1', '${added.id}', 30, '${day}')`), true);
+    assert.equal(run(`data.dietLog['${day}'].extras.m1[0].g`), 30);
+    assert.equal(run(`dietSetExtra(data, 'd_a', 'm1', '${added.id}', 0, '${day}')`), false, '0 g refusé');
+    assert.equal(run(`dietSetExtra(data, 'd_a', 'm1', '${added.id}', null, '${day}')`), true);
+    assert.equal(run(`data.dietLog['${day}'].extras`), undefined, 'plus d\'ajout : clé retirée');
+    // Ajout sur un repas pas coché : compté une fois coché seulement ; seul l'ajout garde le jour au journal
+    run(`dietToggleMeal(data, 'd_a', 'm1', '${day}'); dietToggleMeal(data, 'd_a', 'm2', '${day}')`);
+    assert.equal(run('data.dietLog'), undefined, 'tout décoché : journée retirée');
+    run(`dietAddExtra(data, 'd_a', 'm2', ${JSON.stringify(huile)}, '${day}')`);
+    assert.equal(run(`dietDayProgress(data, 'd_a', '${day}').eaten.kcal`), 0, 'repas pas coché : rien de mangé');
+    assert.equal(run(`data.dietLog['${day}'].extras.m2.length`), 1, 'ajout seul gardé');
+    // Repas inconnu, aliment illisible, repas plein : refusés ; ajouts du journal bornés au nettoyage
+    assert.equal(run(`dietAddExtra(data, 'd_a', 'zz', ${JSON.stringify(huile)}, '${day}')`), null);
+    assert.equal(run(`dietAddExtra(data, 'd_a', 'm1', { name: '', g: 5 }, '${day}')`), null);
+    run(`data.dietLog['${day}'].extras.m2 = Array.from({ length: 30 }, (_, i) => ({ ...${JSON.stringify(huile)}, id: 'x' + i })); data.dietLog['${day}'].extras.__proto__x = 1; sanitizeDiet(data, ${new Date(2026, 10, 5, 21).getTime()})`);
+    assert.equal(run(`data.dietLog['${day}'].extras.m2.length`), 25, '25 ajouts au plus par repas');
+    assert.equal(run(`dietAddExtra(data, 'd_a', 'm2', ${JSON.stringify(huile)}, '${day}')`), null, 'repas plein');
+    // Repas retiré du plan : ses ajouts sont oubliés à la prochaine écriture
+    run(`data.dietPlans.d_a.meals = data.dietPlans.d_a.meals.filter(m => m.id !== 'm2'); dietToggleMeal(data, 'd_a', 'm1', '${day}')`);
+    assert.equal(run(`data.dietLog['${day}'].extras`), undefined);
+  });
+
   test('équivalences : même famille, calories ou protéines gardées, macros proches, quantité pesable', () => {
     loadDb();
     // Féculent : mêmes calories, à 15 % près ; chaque macro à 25 % (5 g au moins)

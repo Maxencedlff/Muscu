@@ -151,7 +151,8 @@ function cleanDietFoods(list) {
       ...(salt !== null && typeof x.salt === 'number' ? { salt: Math.round(salt * 100) / 100 } : {}) };
   }).filter(Boolean);
 }
-// Journal : { 'AAAA-MM-JJ': { plan, done: [id repas], swaps: { [id aliment]: aliment } } }, 120 jours au plus
+// Journal : { 'AAAA-MM-JJ': { plan, done: [id repas], swaps: { [id aliment]: aliment }, extras: { [id repas]: [aliment] } } },
+// 120 jours au plus. extras : aliments ajoutés à un repas pour ce jour seulement, hors plan (le plan ne change pas)
 function cleanDietLog(v, now = Date.now()) {
   if (!dietIsObj(v)) return {};
   const oldest = localISO(now - DIET_LOG_DAYS * 86400000), newest = localISO(now + 2 * 86400000);
@@ -166,9 +167,22 @@ function cleanDietLog(v, now = Date.now()) {
         if (c) swaps[id] = { ...c, id };
       }
     }
+    const extras = cleanDietExtras(e.extras);
     // Repas du plan ce jour-là (instantané) : un jour passé reste jugé avec le plan de ce jour
     const meals = Array.isArray(e.meals) ? [...new Set(e.meals.filter(id => typeof id === 'string' && DIET_PART_RE.test(id)))].slice(0, DIET_MEAL_MAX) : null;
-    if (done.length || Object.keys(swaps).length) out[day] = { plan: e.plan, done, swaps, ...(meals ? { meals } : {}) };
+    if (done.length || Object.keys(swaps).length || Object.keys(extras).length) out[day] = { plan: e.plan, done, swaps, ...(Object.keys(extras).length ? { extras } : {}), ...(meals ? { meals } : {}) };
+  }
+  return out;
+}
+// Ajouts du jour : { [id repas]: [aliment] }, DIET_ITEM_MAX par repas, ids uniques ; repas sans ajout : oubliés
+function cleanDietExtras(v) {
+  const out = {};
+  if (!dietIsObj(v)) return out;
+  for (const [mealId, list] of Object.entries(v).slice(0, DIET_MEAL_MAX)) {
+    if (!DIET_PART_RE.test(mealId) || !Array.isArray(list)) continue;
+    const seen = new Set();
+    const items = list.map(cleanDietItem).filter(it => it && !seen.has(it.id) && seen.add(it.id)).slice(0, DIET_ITEM_MAX);
+    if (items.length) out[mealId] = items;
   }
   return out;
 }
@@ -260,7 +274,7 @@ const dietDayKey = (ts = Date.now()) => localISO(ts);
 // Entrée du journal de ce jour pour ce plan (vide si rien, ou si le jour a été coché avec un autre plan)
 function dietDay(d, planId, day) {
   const e = d.dietLog?.[day];
-  return e && e.plan === planId ? e : { plan: planId, done: [], swaps: {} };
+  return e && e.plan === planId ? { ...e, extras: e.extras || {} } : { plan: planId, done: [], swaps: {}, extras: {} };
 }
 function dietWriteDay(d, day, e) {
   const plan = d.dietPlans?.[e.plan];
@@ -269,9 +283,11 @@ function dietWriteDay(d, day, e) {
   const items = new Set((plan?.meals || []).flatMap(m => m.items.map(it => it.id)));
   const done = e.done.filter(id => meals.has(id));
   const swaps = Object.fromEntries(Object.entries(e.swaps || {}).filter(([id]) => items.has(id)));
+  const extras = Object.fromEntries(Object.entries(e.extras || {}).filter(([id, list]) => meals.has(id) && list?.length));
   d.dietLog ||= {};
   const snapshot = (plan?.meals || []).filter(m => m.items.length).map(m => m.id);
-  if (done.length || Object.keys(swaps).length) d.dietLog[day] = { plan: e.plan, done, swaps, meals: snapshot };
+  const hasExtras = Object.keys(extras).length > 0;
+  if (done.length || Object.keys(swaps).length || hasExtras) d.dietLog[day] = { plan: e.plan, done, swaps, ...(hasExtras ? { extras } : {}), meals: snapshot };
   else delete d.dietLog[day];
   if (!Object.keys(d.dietLog).length) delete d.dietLog;
 }
@@ -291,6 +307,27 @@ function dietSetSwap(d, planId, itemId, newItem, day = dietDayKey()) {
   dietWriteDay(d, day, { ...e, swaps });
   return !!c;
 }
+// Ajoute un aliment à un repas pour ce jour seulement (repas coché ou non : il reste dans son état) ;
+// renvoie l'aliment ajouté (id neuf), null si illisible ou si le repas est plein
+function dietAddExtra(d, planId, mealId, newItem, day = dietDayKey()) {
+  const meal = d.dietPlans?.[planId]?.meals.find(m => m.id === mealId);
+  const e = dietDay(d, planId, day), list = e.extras[mealId] || [];
+  const c = meal ? cleanDietItem({ ...newItem, id: uid() }) : null;
+  if (!c || list.length >= DIET_ITEM_MAX) return null;
+  dietWriteDay(d, day, { ...e, extras: { ...e.extras, [mealId]: [...list, c] } });
+  return c;
+}
+// Change la quantité d'un aliment ajouté (g) ou le retire (g null) ; renvoie true si fait
+function dietSetExtra(d, planId, mealId, extraId, g, day = dietDayKey()) {
+  const e = dietDay(d, planId, day), list = e.extras[mealId] || [];
+  const i = list.findIndex(x => x.id === extraId);
+  if (i < 0) return false;
+  const c = g == null ? null : cleanDietItem({ ...list[i], g });
+  if (g != null && !c) return false;
+  const next = c ? list.map((x, j) => (j === i ? c : x)) : list.filter((_, j) => j !== i);
+  dietWriteDay(d, day, { ...e, extras: { ...e.extras, [mealId]: next } });
+  return true;
+}
 // Bilan d'une journée : mangé (repas cochés, remplacements compris), prévu, repère, repas.
 // Un repas sans aliment (plan neuf, repas pas encore rempli) ne se coche pas : il ne compte ni dans
 // « n repas cochés sur N » (nMeals), ni pour la journée complète, et n'est jamais proposé comme prochain repas.
@@ -300,10 +337,14 @@ function dietDayProgress(d, planId, day = dietDayKey()) {
   const plan = d.dietPlans?.[planId];
   if (!plan) return null;
   const e = dietDay(d, planId, day);
-  const meals = plan.meals.map(m => ({ meal: m, macros: dietMealMacros(m, e.swaps), done: m.items.length > 0 && e.done.includes(m.id) }));
+  // Ajouts du jour : comptés dans le repas (mangé une fois coché), jamais dans le prévu ni le repère
+  const meals = plan.meals.map(m => {
+    const extras = m.items.length ? e.extras[m.id] || [] : [], base = dietMealMacros(m, e.swaps);
+    return { meal: m, extras, base, macros: extras.reduce((a, it) => dietAdd(a, dietItemMacros(it)), base), done: m.items.length > 0 && e.done.includes(m.id) };
+  });
   const toEat = meals.filter(x => x.meal.items.length);
   const eaten = meals.filter(x => x.done).reduce((a, x) => dietAdd(a, x.macros), DIET_ZERO());
-  const planned = meals.reduce((a, x) => dietAdd(a, x.macros), DIET_ZERO());
+  const planned = meals.reduce((a, x) => dietAdd(a, x.base), DIET_ZERO());
   const nDone = toEat.filter(x => x.done).length;
   const { goal, own } = dietGoal(plan);
   for (const k of DIET_TARGET_KEYS) if (!own[k]) goal[k] = Math.round(planned[k]);
