@@ -96,12 +96,12 @@ async function cphSendSheet(day) {
   };
   const lead = single ? '<p class="cphs__lead">Ton coach verra cette photo. Tu peux la retirer quand tu veux.</p>'
     : `<p class="cphs__lead">Choisis chaque photo à envoyer${free < unsent.length ? ` (${free} au plus)` : ''}.</p>`;
-  await sheet({ title: 'Envoyer', cancel: 'Annuler', confirm: '', body: `
+  await sheet({ title: 'Photos à envoyer', cancel: 'Annuler', confirm: '', body: `   // pas le verbe du bouton en titre (panel t5)
     <p class="cphs__day">${esc(fmtDate(cphDayTs(day)))}</p>
     ${lead}
     <div class="cphs__list">${list.map(item).join('')}</div>
     <button class="btn btn--primary btn--full cphs__go" data-action="cph-send-go" data-day="${esc(day)}" ${single ? `data-one="${esc(unsent[0].id)}"` : 'disabled'}>${single ? 'Envoyer cette photo' : 'Envoyer'}</button>
-    <p class="mpick__foot">À ${cphCoachName()} seulement, chiffrée sur ton iPhone, sans la localisation ni aucune autre donnée de la photo.</p>` });
+    <p class="mpick__foot">Seul ton coach, ${cphCoachName()}, ${single ? 'la verra. Chiffrée' : 'les verra. Chiffrées'} sur ton iPhone, sans la localisation ni aucune autre donnée de la photo.</p>` });
   cphPicked = new Set();
 }
 function cphPickToggle(el) {

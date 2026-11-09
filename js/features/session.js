@@ -657,7 +657,7 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
       ${editing ? '' : del}
       <div class="session-set ${isCur ? 'session-set--current' : ''} ${editing ? 'session-set--editing' : ''} ${warm ? 'session-set--warmup' : ''}" ${isCur ? 'aria-current="step"' : ''} data-ei="${ei}" data-si="${si}">
         ${firstCol}
-        ${undoForSet(ex, si) ? setUndoHtml(undoForSet(ex, si)) : `<span class="set-prev num">${s.prev ? '<span class="visually-hidden">La dernière fois </span>' : ''}${prev}</span>`}
+        ${undoForSet(ex, si) ? setUndoHtml(undoForSet(ex, si)) : `<span class="set-prev num">${s.prev ? '<span class="visually-hidden">La dernière fois </span><span class="set-prev__lbl" aria-hidden="true">Avant </span>' : ''}${prev}</span>`}
         <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" class="set-input num" ${wAttr}
                value="${esc(wVal)}" placeholder="${prevW || '—'}" aria-label="${loadSpoken(ex)} ${name.toLowerCase()}, ${esc(ex.name)}, en ${m === 'cardio' ? 'kilomètres' : unitLbl()}">
         <input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${editing ? 'done' : 'next'}" autocomplete="off" class="set-input set-input--required num" ${rAttr}
