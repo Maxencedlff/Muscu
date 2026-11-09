@@ -295,6 +295,10 @@ body.has-tabbar .coach-chat-view { padding-bottom: calc(var(--tabbar-h) + 8px + 
 }
 .coach-req-field__input::placeholder { color: var(--label3); }
 select.coach-req-field__input { appearance: none; -webkit-appearance: none; cursor: pointer; }
+/* Diplôme : le ⌃⌄ d'un menu de choix iOS, sinon « Choisir » gris se lisait comme l'exemple d'un champ à taper (panel t6) */
+.coach-req-field__pick { position: relative; display: block; }
+.coach-req-field__pick select.coach-req-field__input { padding-right: 24px; }
+.coach-req-field__pick > .icon { position: absolute; right: 0; top: 50%; transform: translateY(-50%); color: var(--label2); pointer-events: none; }
 select.coach-req-field__input:invalid { color: var(--label2); }
 .coach-req-field__input[aria-invalid="true"] { color: var(--red-text); }
 .coach-req-error { min-height: 1.2em; margin: 6px 16px 10px; font-size: var(--fs-footnote); color: var(--red-text); }
