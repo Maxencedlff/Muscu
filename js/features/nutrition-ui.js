@@ -160,9 +160,8 @@ function dietMealHtml(x, pr, day) {
             ${meal.items.length ? dietCheckBtn(meal, done, day) : ''}
           </div>
           ${meal.note && open ? `<p class="diet-meal__note">${icon('info.circle', 14)}<span>${esc(meal.note)}</span></p>` : ''}
-          ${open ? (meal.items.length ? `<div class="diet-meal__items">${meal.items.map(it => dietItemRowHtml(it, pr, day)).join('')}${extras.map(it => dietExtraRowHtml(it, meal, day)).join('')}
-            <button class="diet-item diet-item--add" data-action="diet-day-add" data-meal="${esc(meal.id)}" data-day="${day}" aria-label="Ajouter un aliment à ${esc(meal.name)}">${icon('plus', 18)}<span class="diet-item__name">Ajouter un aliment</span></button></div>`
-            : '<p class="diet-meal__empty">Aucun aliment dans ce repas.</p>') : ''}
+          ${open ? `<div class="diet-meal__items">${meal.items.map(it => dietItemRowHtml(it, pr, day)).join('')}${extras.map(it => dietExtraRowHtml(it, meal, day)).join('')}
+            <button class="diet-item diet-item--add" data-action="diet-day-add" data-meal="${esc(meal.id)}" data-day="${day}" aria-label="Ajouter un aliment à ${esc(meal.name)}">${icon('plus', 18)}<span class="diet-item__name">Ajouter un aliment</span></button></div>` : ''}
         </article>`;
 }
 

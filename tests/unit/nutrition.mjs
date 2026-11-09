@@ -338,6 +338,25 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.ok(run(`!('2020-01-01' in data.dietLog) && !('nope' in data.dietLog) && '${day}' in data.dietLog`));
   });
 
+  test('journée : repas vide du plan (collation libre) : un ajout est mangé tout de suite, sans changer « Journée complète »', () => {
+    reset();
+    loadDb();
+    const plan = { name: 'Sèche', meals: [
+      { id: 'm1', name: 'Dîner', items: [item(RIZ_CUIT, 100)] },
+      { id: 'm2', name: 'Collation', items: [] }] };
+    run(`data.dietPlans = { d_a: ${JSON.stringify(plan)} }; data.dietActive = 'd_a';`);
+    const day = '2026-11-05', huile = item(HUILE_OLIVE, 10);
+    run(`dietToggleMeal(data, 'd_a', 'm1', '${day}')`);
+    const before = run(`dietDayProgress(data, 'd_a', '${day}')`);
+    assert.equal(before.complete, true);
+    assert.ok(run(`dietAddExtra(data, 'd_a', 'm2', ${JSON.stringify(huile)}, '${day}')`), 'ajout accepté sur un repas vide');
+    const pr = run(`dietDayProgress(data, 'd_a', '${day}')`);
+    const k = run(`dietItemMacros(${JSON.stringify(huile)}).kcal`);
+    assert.ok(Math.abs(pr.eaten.kcal - (before.eaten.kcal + k)) < 1e-9, 'compté dans le mangé sans coche');
+    assert.equal(pr.complete, true, 'journée toujours complète');
+    assert.equal(pr.nMeals, 1, 'le repas vide ne devient pas un repas à cocher');
+  });
+
   test('journée : ajouter un aliment à un repas déjà coché (journée complète), modifier, retirer, décocher', () => {
     reset();
     loadDb();

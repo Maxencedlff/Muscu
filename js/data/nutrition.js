@@ -339,11 +339,13 @@ function dietDayProgress(d, planId, day = dietDayKey()) {
   const e = dietDay(d, planId, day);
   // Ajouts du jour : comptés dans le repas (mangé une fois coché), jamais dans le prévu ni le repère
   const meals = plan.meals.map(m => {
-    const extras = m.items.length ? e.extras[m.id] || [] : [], base = dietMealMacros(m, e.swaps);
+    const extras = e.extras[m.id] || [], base = dietMealMacros(m, e.swaps);
     return { meal: m, extras, base, macros: extras.reduce((a, it) => dietAdd(a, dietItemMacros(it)), base), done: m.items.length > 0 && e.done.includes(m.id) };
   });
   const toEat = meals.filter(x => x.meal.items.length);
-  const eaten = meals.filter(x => x.done).reduce((a, x) => dietAdd(a, x.macros), DIET_ZERO());
+  // Repas vide dans le plan (collation libre) : ce qu'on y ajoute est mangé tout de suite, sans coche, et ne
+  // change pas « Journée complète » (seuls les repas prévus comptent)
+  const eaten = meals.filter(x => x.done || (!x.meal.items.length && x.extras.length)).reduce((a, x) => dietAdd(a, x.macros), DIET_ZERO());
   const planned = meals.reduce((a, x) => dietAdd(a, x.base), DIET_ZERO());
   const nDone = toEat.filter(x => x.done).length;
   const { goal, own } = dietGoal(plan);
